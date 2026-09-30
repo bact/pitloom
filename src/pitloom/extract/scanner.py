@@ -17,6 +17,7 @@ See also: :mod:`pitloom.extract.scanner_project`.
 from __future__ import annotations
 
 import logging
+import operator
 from collections.abc import Callable, Iterable, Sequence
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
@@ -38,6 +39,12 @@ _ALLOWED_EXTS: frozenset[str] = frozenset(
         for ext in fmt.extensions
     }
 )
+
+# Model order: distribution path, then the stable physical path as the
+# tie-break. Plain str compare, never Path (Windows compares Path
+# case-insensitively). Positional consumers (enrichment results, registry
+# claims in pitloom.assemble.spdx3.ai) rely on this order.
+_PATH_ORDER = operator.attrgetter("distribution_path", "physical_path")
 
 
 def is_model_candidate_name(distribution_path: str) -> bool:
@@ -142,9 +149,13 @@ def _read_candidate(candidate: ModelCandidate) -> AiModelMetadata | None:
 
 
 def discover_ai_models(candidates: Iterable[ModelCandidate]) -> list[AiModelMetadata]:
-    """Detect and read AI models among *candidates*, in candidate order."""
+    """Detect and read AI models among *candidates*.
+
+    Returns models sorted by (distribution_path, physical_path), whatever the
+    order of *candidates*; reads and warnings follow the same order.
+    """
     models: list[AiModelMetadata] = []
-    for candidate in candidates:
+    for candidate in sorted(candidates, key=_PATH_ORDER):
         meta = _read_candidate(candidate)
         if meta is not None:
             models.append(meta)
@@ -157,9 +168,10 @@ def attach_usage_references(
     """Record which ``.py`` sources mention each model's file name.
 
     Runs even when *models* is empty, so unreadable sources are still
-    reported.
+    reported. Each model's ``usage_files`` ends sorted and deduplicated by
+    distribution path.
     """
-    for source in sources:
+    for source in sorted(sources, key=_PATH_ORDER):
         if not source.distribution_path.endswith(".py"):
             continue
         try:
@@ -182,12 +194,17 @@ def attach_usage_references(
                 "for usage scanning",
                 e,
             )
+    for meta in models:
+        meta.usage_files = sorted(set(meta.usage_files))
 
 
 def scan_ai_models(
     candidates: Iterable[ModelCandidate], sources: Iterable[UsageSource]
 ) -> list[AiModelMetadata]:
-    """Discover AI models, then attach their usages in Python sources."""
+    """Discover AI models, then attach their usages in Python sources.
+
+    Order: see :func:`discover_ai_models`.
+    """
     models = discover_ai_models(candidates)
     attach_usage_references(models, sources)
     return models

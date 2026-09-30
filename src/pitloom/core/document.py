@@ -34,6 +34,8 @@ class DocumentModel:
         project: Python project metadata from ``pyproject.toml``.
         creation_metadata: Creator and timestamp metadata for the SBOM document.
         ai_models: AI model metadata, one entry per model file processed.
+            Assembly keeps this order; pass the scanner's (sorted) list for
+            deterministic output.
         phantom_dependencies: Bundled binary dependencies discovered inside
             distribution archives.
     """

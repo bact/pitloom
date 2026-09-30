@@ -53,6 +53,8 @@ and this project adheres to
 
 ### Changed
 
+- AI model scanning returns models sorted by path, and each model's usage
+  files sorted and deduplicated, whatever the input file order ([#240])
 - `project`, `wheel`, `embed-wheel` and the Hatchling hook: main-package,
   dependency and phantom-dependency ids now come from a declared ID
   registry, as `env`'s dependency ids do ([#235])
@@ -155,6 +157,14 @@ and this project adheres to
 
 - Project file scan: an unreadable file warns once with its `FILE=` path and is
   skipped alone; it silently emptied the SBOM's whole file list ([#244])
+- `embed-wheel` with a project directory now emits the project's concluded
+  licence, as `loom project` does; the publish workflow fails if Pitloom's
+  own SBOM lacks it ([#243])
+- `WARNING: licenseid database appears empty` prints once per process, not
+  once per licence lookup ([#243])
+- PyPI, Croissant URL and remote authors-file fetches close an HTTP error
+  response; Python 3.14 warned `ResourceWarning` when it was garbage-collected
+  ([#242])
 - Library scan: an unreadable AI model candidate (any allowed suffix) warns
   once and is skipped; it aborted the scan on Python 3.10-3.13 ([#239])
 - AI model scan warnings print a stable project-relative or installed `FILE=`
@@ -230,6 +240,9 @@ and this project adheres to
 [#236]: https://github.com/bact/pitloom/pull/236
 [#238]: https://github.com/bact/pitloom/pull/238
 [#239]: https://github.com/bact/pitloom/pull/239
+[#240]: https://github.com/bact/pitloom/pull/240
+[#242]: https://github.com/bact/pitloom/pull/242
+[#243]: https://github.com/bact/pitloom/pull/243
 [#244]: https://github.com/bact/pitloom/pull/244
 
 ## [0.19.0] - 2026-09-18

@@ -12,58 +12,7 @@ SPDX-License-Identifier: CC0-1.0
 
 ## Completed
 
-Implementation detail for each item below (design decisions, function
-names, PR links) lives in `working-docs/implementation/` where noted --
-read the code/that doc for current state rather than this list, which
-is not kept in sync with post-ship changes.
-
-- [x] SPDX 3.0 SBOM generation (JSON-LD)
-- [x] Hatchling metadata extraction (`pyproject.toml`)
-- [x] Dependency tracking and SPDX relationship elements
-- [x] Format-neutral internal representation
-  (`DocumentModel` -- see [format-neutral-representation.md](format-neutral-representation.md))
-- [x] AI/ML package profiles
-  (`software_Package` with AI BOM profile, `dataset_DatasetPackage`)
-- [x] PEP 770 support (`.dist-info/sboms/` via `build_data["sbom_files"]`)
-- [x] Hatchling build hook (`pitloom.plugins.hatch`) with fragment merging
-- [x] ML tracking SDK (`pitloom.loom` -- context manager / decorator)
-- [x] Metadata provenance tracking (per-field source attribution)
-- [x] CLI (`loom`) with verbose mode and creator info options
-- [x] Setuptools support -- initial implementation
-  (`src/pitloom/extract/project/setuptools.py`; `pyproject.toml` > `setup.cfg` >
-  `setup.py` conflict resolution)
-- [x] Poetry support -- initial implementation
-  (`src/pitloom/extract/project/poetry.py`; `read_pyproject()` falls back to
-  `[tool.poetry]` when `[project]` is absent, merges both when present)
-- [x] **PDM-backend and Flit-core support** -- metadata extraction and
-  wheel file discovery for both backends. See
-  [backend-file-discovery-validation.md](../implementation/backend-file-discovery-validation.md)'s
-  Flit-core/PDM-backend round.
-- [x] **Multiple creators / tools per `CreationInfo` record** -- `Creator`/
-  `Tool` dataclasses, repeatable `--creator-name`/`--creation-tool`,
-  array-of-tables config. See [creation-metadata.md](../../docs/creation-metadata.md).
-- [x] **SPDX license expression normalization and declared-vs-detected
-  conflict detection (G2)** -- via [`py-spdx-license`](https://github.com/JPEWdev/py-spdx-license).
-  See [multi-source-conflict.md](../implementation/provenance/multi-source-conflict.md)
-  ([PR #121](https://github.com/bact/pitloom/pull/121)).
-- [x] **`[project.license-files]` support** -- PEP 639's glob-list field
-  for bundling multiple license files, each getting its own
-  `software_File` element and `hasDeclaredLicense` relationship. See
-  [license-pipeline.md](../implementation/license-pipeline.md#license-files-bundling-pep-639).
-- [x] **Auto-sync the Loom ID registry after SBOM generation** -- `loom
-  project`/`wheel`/`env` harvest newly-minted ids back into the resolved
-  registry after each run. See
-  [id-registry-autosync.md](../implementation/id-registry-autosync.md)
-  ([PR #178](https://github.com/bact/pitloom/pull/178)).
-- [x] **Lock/pin formats as a resolved-dependency source** -- `poetry.lock`,
-  `pylock.toml` (PEP 751), `uv.lock`, `pdm.lock`, `Pipfile.lock`, and pinned
-  `requirements.txt` feed `locked_dependencies` via one shared cascade
-  ([#208](https://github.com/bact/pitloom/pull/208)). See
-  [lock-file-cascade.md](../implementation/lock-file-cascade.md).
-- [x] **Explicit Loom ID registry** (declared only, one `ERROR:`, package
-  ids pinned; #234, #235). See [id-registry-autosync.md](../implementation/id-registry-autosync.md).
-- [x] **Agent Skills portable across clients** (#235). See
-  [skills-trigger-coverage.md](../implementation/skills-trigger-coverage.md).
+Moved to [roadmap-completed.md](../implementation/roadmap-completed.md).
 
 ## 1.0 target (2026-10-15)
 
@@ -504,5 +453,5 @@ See [diagnostics-logging-followups.md](diagnostics-logging-followups.md).
   runtime (`sys.modules` introspection or eBPF), to suppress
   vulnerability noise from installed-but-unreachable code. Large scope
   -- needs its own design doc before estimating.
-- [ ] **Release SBOM licence guard** -- the release `build` job has no licenseid DB; the concluded licence comes from `codemeta.json` only (WARNING if lost).
-  Consider failing on "licenseid database appears empty" or running `licenseid update` there.
+- [ ] **PR-time SBOM licence check** -- `build.yml`/`test.yml` `paths-ignore` `codemeta.json`, so a PR dropping its licence fails only at release.
+  Run `scripts/check_sbom_license.py` in `build.yml` on push/PR, with `codemeta.json` no longer ignored there.

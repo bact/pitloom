@@ -79,6 +79,13 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
       and runs the `network`-marked tests with `PITLOOM_REQUIRE_NETWORK=1`
       before `publish`, so an unreachable spdx.org/PyPI blocks publishing
       (re-run the workflow); it is never skipped.
+- [ ] The same workflow's `scripts/check_sbom_license.py` step fails
+      unless the release SBOM, embedded and standalone, declares *and*
+      concludes `Apache-2.0` on the `pitloom` package. The `build` job has
+      no licenseid database, so the concluded licence comes from
+      `codemeta.json`'s `license`: keep it there. The release SBOM comes
+      from `embed-wheel`, which dropped the concluded licence before
+      #243 (the build hook's SBOM, which it overwrites, still had it).
 
 - [ ] Tag the release, push the tag, publish to PyPI (however this
       project's release automation does it -- not scripted here). The

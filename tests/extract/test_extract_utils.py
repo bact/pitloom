@@ -7,13 +7,17 @@
 
 from __future__ import annotations
 
+import io
 import urllib.request
+from email.message import Message
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from urllib.error import HTTPError, URLError
 
 import pytest
 
 from pitloom.extract._extract_utils import (
+    close_http_error,
     fetch_json,
     filename_from_url,
     sanitize_provenance_text,
@@ -115,3 +119,31 @@ def test_fetch_json_read_error(tmp_path: Path) -> None:
     path = tmp_path / "nonexistent.json"
     with pytest.raises(ValueError, match="Cannot read source"):
         fetch_json(path)
+
+
+def _http_error() -> HTTPError:
+    """An ``HTTPError`` holding an open body, as ``urlopen()`` raises it."""
+    return HTTPError("https://example.com/x", 404, "Not Found", Message(), io.BytesIO())
+
+
+def test_close_http_error_closes_http_error() -> None:
+    exc = _http_error()
+    close_http_error(exc)
+    assert exc.fp.closed
+
+
+@pytest.mark.parametrize(
+    "exc", [URLError("unreachable"), OSError("refused"), ValueError("bad")]
+)
+def test_close_http_error_ignores_other_exceptions(exc: Exception) -> None:
+    close_http_error(exc)
+
+
+def test_fetch_json_url_http_error_is_closed() -> None:
+    """An unclosed ``HTTPError`` warns at garbage collection on 3.14."""
+    exc = _http_error()
+    assert not exc.fp.closed
+    with patch.object(urllib.request, "urlopen", side_effect=exc):
+        with pytest.raises(ValueError, match="Cannot read source"):
+            fetch_json("https://example.com/missing.json")
+    assert exc.fp.closed

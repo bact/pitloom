@@ -124,8 +124,35 @@ section 3.3(2).
 
 ## Order (PR C)
 
-Sort in `discover_ai_models()`, and sort and dedupe `usage_files` in
-`attach_usage_references()`.
+- **Key:** `(distribution_path, physical_path)`, both plain `str`, compared
+  by code point. `distribution_path` first: it is `software_File.name` and
+  the order `get_wheel_files` already uses. `physical_path` (the stable
+  form) breaks a tie between two files with one arcname. Never `Path`
+  objects: `PureWindowsPath` compares case-insensitively.
+- **Where:** the candidates are sorted at the top of `discover_ai_models()`,
+  before any sniff or read. The returned list, the reads and the
+  `FORMAT= FILE=` warnings then all follow one order. Sorting the returned
+  models instead gives the same list but leaves warning order input-driven.
+- **Why there:** every consumer is positional.
+  `enrichment_results_by_model[index]` and `resolved_entity_ids[index]` in
+  `add_ai_models()` line up with `run_enrichers_for_models()` output, and
+  `resolve_ai_model_entity_hits()` gives a pinned registry id to the first
+  claimant. Sorting in `build()`, in assembly or after enrichment misaligns
+  them.
+- **`usage_files`:** each ends `sorted(set(...))`, keyed by the exact
+  distribution-path string (the key of `file_spdx_ids`; no
+  normalisation). `sources` are iterated sorted by distribution path, so
+  `could not read for usage scanning` warnings come out in a stable order.
+- **No shipped bytes moved:** all three callers already pass files sorted
+  by `get_wheel_files`, and no golden fixture holds more than one model.
+  The sort protects library callers of `scan_project_for_ai_models()` and
+  PR D's zip-order wheel producer.
+- **Rejected:** sorting in `build()` (misaligns enrichment and claims);
+  `order=True` on the dataclasses (compares callables on a tie).
+- **Open, for PR D:** `ProjectMetadata.files` order drives `File-N` ids
+  (`_document_files.py` does not sort), so the wheel producer must sort its
+  files the same way. Two candidates with the same distribution and
+  physical path still give two models; deduping them is deferred to PR D.
 
 ## Wheels and `--scan-model-usage` (PR D)
 
