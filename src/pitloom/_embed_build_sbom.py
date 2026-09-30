@@ -9,10 +9,11 @@ cache a multi-wheel batch shares.
 
 Split out of :mod:`pitloom.embed` to keep it under the file-size limit.
 
-See also: :mod:`pitloom.embed` (the public embed API, which calls
-:func:`_build_sbom_from_project_and_wheel` and re-exports
-:class:`EmbedFileCache`) and :mod:`pitloom.core.build_signals` (the
-termination guard keeping a build-and-read result from leaking).
+See also: :mod:`pitloom._embed_generate` (which calls
+:func:`_build_sbom_from_project_and_wheel`), :mod:`pitloom.embed` (the
+public embed API, which re-exports :class:`EmbedFileCache`) and
+:mod:`pitloom.core.build_signals` (the termination guard keeping a
+build-and-read result from leaking).
 """
 
 from __future__ import annotations
