@@ -8,7 +8,7 @@
 
 See also: tests/extract/test_wheel_member_names.py (``read_wheel`` and the
 SBOM), tests/extract/project/test_sdist_member_names.py (sdist archives),
-tests/test_wheel_member_name_surfaces.py (every wheel and sdist surface).
+tests/test_archive_member_name_surfaces.py (every wheel and sdist surface).
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from pitloom.core.archive_member_names import (
 from tests._raw_archive import write_raw_member
 
 _LOG = logging.getLogger("test.archive_member_names")
-_P = "P: ARCHIVE=a.zip ENTRY="
+_P = "P: ARCHIVE='a.zip' ENTRY="
 
 
 @pytest.mark.parametrize(
@@ -151,6 +151,27 @@ def test_archive_members_warns_once_per_member(
             i for i, raw in enumerate(raws) if normalize_member_name(raw).name == name
         )
     assert [r.getMessage() for r in caplog.records] == messages
+
+
+@pytest.mark.parametrize(
+    ("raw", "warned"),
+    [
+        ("./pkg/a", False),
+        ("././pkg/a", True),
+        (".//pkg/a", True),
+        (".\\pkg/a", True),
+        ("pkg\\a", True),
+    ],
+)
+def test_archive_members_dot_prefix_ok(
+    caplog: pytest.LogCaptureFixture, raw: str, warned: bool
+) -> None:
+    """With *dot_prefix_ok* (tar), exactly one leading ``./`` is conforming;
+    anything else non-conforming still warns."""
+    with caplog.at_level(logging.WARNING):
+        members = archive_members([(raw, 0)], "a.tar", _LOG, dot_prefix_ok=True)
+    assert members == [("pkg/a", 0)]
+    assert len(caplog.records) == int(warned)
 
 
 def test_archive_members_without_logger_is_silent(

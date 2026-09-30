@@ -147,8 +147,11 @@ def _scan(
     root_only: bool = False,
 ) -> _Members:
     """Hash every member; keep the first root-level member of each
-    :data:`_ROOT_MEMBERS` basename, archive order deciding a tie. With
-    *root_only*, open only those members and list no files."""
+    :data:`_ROOT_MEMBERS` basename, archive order deciding a tie between
+    two top-level directories. Repeats of one name never get here:
+    :func:`~pitloom.core.archive_member_names.archive_members` keeps the
+    last, as unpacking leaves it. With *root_only*, open only those members
+    and list no files."""
     root: dict[str, bytes | None] = {}
     files: list[ProjectFile] = []
     for name, open_member in entries:
@@ -175,7 +178,8 @@ def _tar_entries(
     tf: tarfile.TarFile, logger: logging.Logger | None, archive_name: str
 ) -> Iterator[tuple[str, Callable[[], IO[bytes] | None]]]:
     files = [(m.name, m) for m in tf.getmembers() if m.isfile()]
-    for name, member in archive_members(files, archive_name, logger):
+    members = archive_members(files, archive_name, logger, dot_prefix_ok=True)
+    for name, member in members:
         yield name, functools.partial(tf.extractfile, member)
 
 

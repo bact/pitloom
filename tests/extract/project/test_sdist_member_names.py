@@ -16,6 +16,7 @@ tests/extract/project/test_sdist.py (sdist metadata).
 from __future__ import annotations
 
 import logging
+import warnings
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
@@ -29,6 +30,7 @@ from tests._raw_archive import (
     SDIST_ROOT,
     SDIST_WARNED,
     mimic_windows_infolist,
+    write_raw_member,
     write_raw_tar,
     write_raw_zip,
 )
@@ -60,7 +62,7 @@ def test_read_sdist_normalises_member_names(
     messages = [r.getMessage() for r in caplog.records]
     assert len(messages) == len(SDIST_WARNED), messages
     for raw in SDIST_WARNED:
-        assert sum(f"ARCHIVE={sdist.name} ENTRY={raw}:" in m for m in messages) == 1
+        assert sum(f"ARCHIVE={sdist.name!r} ENTRY={raw}:" in m for m in messages) == 1
 
 
 def test_sdist_config_source_logs_nothing(
@@ -91,3 +93,37 @@ def test_zip_sdist_same_on_windows_and_posix(
 
     assert windows.files == native.files
     assert windows.metadata == native.metadata
+
+
+def test_tar_sdist_dot_prefix_is_quiet(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A tar packed as ``./<root>/...`` (``tar -C dir -czf x .``) is
+    ordinary: its names lose the ``./`` with no warning per member."""
+    members = {f"./{n}": b"" for n in SDIST_FILES}
+    sdist = write_raw_tar(tmp_path / f"{SDIST_ROOT}.tar.gz", members)
+    with caplog.at_level(logging.WARNING):
+        contents = read_sdist(sdist, read_config=False)
+    assert {f.distribution_path for f in contents.files} == SDIST_FILES
+    assert not caplog.records
+
+
+def test_duplicate_root_member_last_wins(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Two copies of one root member: the last is read, as unpacking the
+    archive leaves it, and the first warns as overwritten."""
+    first = b"Metadata-Version: 2.1\nName: first\nVersion: 1.0.0\n"
+    second = b"Metadata-Version: 2.1\nName: second\nVersion: 1.0.0\n"
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)  # zipfile: duplicate name
+        with zipfile.ZipFile(tmp_path / "d.zip", "w") as zf:
+            write_raw_member(zf, f"{SDIST_ROOT}/PKG-INFO", first)
+            write_raw_member(zf, f"{SDIST_ROOT}/PKG-INFO", second)
+    with caplog.at_level(logging.WARNING):
+        contents = read_sdist(tmp_path / "d.zip", read_config=False)
+    assert contents.metadata.name == "second"
+    assert [r.getMessage() for r in caplog.records] == [
+        f"ARCHIVE='d.zip' ENTRY='{SDIST_ROOT}/PKG-INFO': overwritten by later"
+        f" entry '{SDIST_ROOT}/PKG-INFO' -- skipped"
+    ]

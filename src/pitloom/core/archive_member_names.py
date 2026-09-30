@@ -30,7 +30,7 @@ T = TypeVar("T")
 
 _DRIVE_PREFIX = re.compile(r"^[A-Za-z]:")
 
-_MSG = "%sARCHIVE=%s ENTRY=%r: "
+_MSG = "%sARCHIVE=%r ENTRY=%r: "
 _UNSAFE = _MSG + "no safe install location -- skipped"
 _OVERWRITTEN = _MSG + "overwritten by later entry %r -- skipped"
 _SHADOWED = _MSG + "also a directory of other entries -- skipped"
@@ -76,6 +76,13 @@ def normalize_member_name(raw: str) -> MemberName:
     return MemberName(name, "ok" if name == raw else "normalized")
 
 
+def _classify(raw: str, dot_prefix_ok: bool) -> MemberName:
+    member = normalize_member_name(raw)
+    if dot_prefix_ok and raw.startswith("./") and member.name == raw[2:]:
+        return MemberName(member.name, "ok")
+    return member
+
+
 def _ancestors(names: Iterable[str]) -> set[str]:
     """Every proper ``/``-prefix directory of *names*."""
     found: set[str] = set()
@@ -90,6 +97,8 @@ def archive_members(
     archive_name: str,
     logger: logging.Logger | None,
     log_prefix: str = "",
+    *,
+    dot_prefix_ok: bool = False,
 ) -> list[tuple[str, T]]:
     """*entries* (raw member name, payload) as (install-location name,
     payload), in archive order.
@@ -107,10 +116,12 @@ def archive_members(
     - kept under its normalised name.
 
     *logger* ``None`` logs nothing, for a second read of an archive
-    another call already reported on.
+    another call already reported on. *dot_prefix_ok* treats one leading
+    ``./`` as conforming (ordinary for tar, not for a wheel's ZIP), so it
+    alone does not warn.
     """
     classified = [
-        (raw, normalize_member_name(raw), payload) for raw, payload in entries
+        (raw, _classify(raw, dot_prefix_ok), payload) for raw, payload in entries
     ]
     last = {m.name: i for i, (_, m, _) in enumerate(classified) if m.status != "unsafe"}
     directories = _ancestors(last)

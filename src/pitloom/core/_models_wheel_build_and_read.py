@@ -111,11 +111,11 @@ def _extract_wheel_to_included_files(
             target = extract_dir / distribution_path
             if not target.resolve().is_relative_to(resolved_extract_dir):
                 log.warning(
-                    "%sARCHIVE=%s ENTRY=%r: resolves outside "
+                    "%sARCHIVE=%r ENTRY=%r: resolves outside "
                     "the extraction directory -- skipped, not written to disk",
                     BUILD_LOG_PREFIX,
                     wheel_path.name,
-                    distribution_path,
+                    info.orig_filename,
                 )
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)

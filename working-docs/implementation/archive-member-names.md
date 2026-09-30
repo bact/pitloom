@@ -42,7 +42,9 @@ distribution paths for every reader:
   empty and `.` segments are dropped (repeated `./`, `a//b`, `a/./b`). This
   is a portability policy, not what every installer does: on POSIX, pip and
   `installer` would write a file literally named `pkg\mod.py`. DQ-2 chose
-  the Windows reading so that one archive gives one SBOM.
+  the Windows reading so that one archive gives one SBOM. For tar, one
+  leading `./` (`tar -C dir -czf x .`) is ordinary and is dropped without a
+  warning (`dot_prefix_ok`); a wheel's ZIP has no such convention.
 - **Unsafe, skipped:** any of these:
   - a leading `/` (also UNC `//host`);
   - a first remaining segment starting with a drive (`C:`), so `./C:/x` is
@@ -60,7 +62,10 @@ distribution paths for every reader:
   extracting in archive order leaves that one behind. Keeping both gave
   two `software_File` elements with one name: `file_spdx_ids` and the
   registry kept only the last, and `--allow-build` extraction wrote both to
-  one file, so the first entry reported the second one's hash.
+  one file, so the first entry reported the second one's hash. For an
+  sdist this also picks the last of two identical root members
+  (`PKG-INFO`), as unpacking leaves it; `_scan`'s first-wins rule now only
+  breaks ties between two top-level directories.
 - **File that is also a directory** (`pkg` alongside `pkg/mod.py`): the
   file is skipped. No installer can write both. Keeping it gave a file
   element and a directory element both named `pkg`, and made
@@ -74,7 +79,10 @@ distribution paths for every reader:
   - `... directory entry carries data -- skipped`
 
   `<prefix>` is `Build: ` on the `--allow-build` path and empty elsewhere.
-  `ARCHIVE` is the archive's file name. The sdist reader's root-only scan,
+  `ARCHIVE` is the archive's file name, quoted with `%r` like `ENTRY`, so a
+  name with a space keeps the line `KEY=VALUE`-parseable. The
+  `--allow-build` resolve-guard warning uses the same keys, and it also
+  quotes the raw name. The sdist reader's root-only scan,
   which serves `--verbose` source reporting, passes no logger: the same
   run's full read already warned.
 

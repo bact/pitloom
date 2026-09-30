@@ -10,7 +10,7 @@ The wheels here are written with raw central-directory names
 ``os.sep``.
 
 See also: tests/core/test_archive_member_names.py (the normaliser),
-tests/test_wheel_member_name_surfaces.py (every wheel surface).
+tests/test_archive_member_name_surfaces.py (every wheel surface).
 """
 
 from __future__ import annotations
@@ -94,7 +94,7 @@ def test_read_wheel_warns_once_per_non_conforming_member(
         read_wheel(_wheel(tmp_path))
 
     messages = sorted(r.getMessage() for r in caplog.records)
-    prefix = "ARCHIVE=demo-1.0.0-py3-none-any.whl ENTRY="
+    prefix = "ARCHIVE='demo-1.0.0-py3-none-any.whl' ENTRY="
     assert messages == sorted(
         [
             prefix

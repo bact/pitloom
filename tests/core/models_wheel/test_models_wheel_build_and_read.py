@@ -237,7 +237,7 @@ def test_extract_wheel_to_included_files_rejects_zip_slip_entry(
     warnings = [r.getMessage() for r in caplog.records]
     assert len(warnings) == 1
     assert warnings[0] == (
-        f"Build: ARCHIVE=pkg-1.0-py3-none-any.whl ENTRY={escaping!r}: "
+        f"Build: ARCHIVE='pkg-1.0-py3-none-any.whl' ENTRY={escaping!r}: "
         "no safe install location -- skipped"
     )
     cleanup()
@@ -251,12 +251,15 @@ def test_extract_wheel_to_included_files_resolve_guard(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """The ``resolve()`` guard still blocks an escaping name if the name
-    normaliser ever lets one through (defence in depth)."""
+    normaliser ever lets one through (defence in depth), and its warning
+    quotes the raw name, as every ``ENTRY=`` warning does."""
     monkeypatch.setattr(
         "pitloom.core._models_wheel_build_and_read.zip_file_members",
-        lambda zf, *_args: [(info.orig_filename, info) for info in zf.infolist()],
+        lambda zf, *_args: [
+            (info.orig_filename.replace("\\", "/"), info) for info in zf.infolist()
+        ],
     )
-    fake_build.entries = {"../outside/evil.py": b"evil = 1\n"}
+    fake_build.entries = {"..\\outside\\evil.py": b"evil = 1\n"}
 
     with caplog.at_level(logging.WARNING):
         result = build_and_read_wheel(tmp_path, timeout=60)
@@ -264,7 +267,10 @@ def test_extract_wheel_to_included_files_resolve_guard(
     # Nothing left to extract: the build counts as a discovery failure.
     assert result is None
     assert not (sys_tmp / "outside").exists()
-    assert "resolves outside the extraction directory" in caplog.text
+    assert (
+        "ENTRY='..\\\\outside\\\\evil.py': resolves outside the extraction directory"
+        in caplog.text
+    )
 
 
 def test_extract_wheel_to_included_files_normalises_member_names(

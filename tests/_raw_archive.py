@@ -27,7 +27,9 @@ SDIST_ROOT = "demo-1.0.0"
 #: An sdist with non-conforming root members and one unsafe member.
 SDIST_MEMBERS = {
     f"{SDIST_ROOT}\\PKG-INFO": METADATA,
-    f"./{SDIST_ROOT}/pyproject.toml": b'[project]\nname = "demo"\nversion = "1.0.0"\n',
+    f"././{SDIST_ROOT}/pyproject.toml": (
+        b'[project]\nname = "demo"\nversion = "1.0.0"\n'
+    ),
     f"{SDIST_ROOT}/demo/__init__.py": b"",
     f"{SDIST_ROOT}\\demo\\mod.py": b"mod = 1\n",
     f"{SDIST_ROOT}/../evil.py": b"evil = 1\n",
@@ -41,7 +43,7 @@ SDIST_FILES = {
 #: ``%r`` of each SDIST_MEMBERS name that warns.
 SDIST_WARNED = (
     f"'{SDIST_ROOT}\\\\PKG-INFO'",
-    f"'./{SDIST_ROOT}/pyproject.toml'",
+    f"'././{SDIST_ROOT}/pyproject.toml'",
     f"'{SDIST_ROOT}\\\\demo\\\\mod.py'",
     f"'{SDIST_ROOT}/../evil.py'",
 )
