@@ -3,10 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The formats gated in a wheel beyond fastText: HDF5 (libhdf5 crashes and
-hangs on hostile files), ONNX (protobuf amplification) and PyTorch
-``.pt``/``.pth`` (fickling amplification). Default wheel scan: format-only
-entry, reader never run, one ``INFO:`` listing every gated format met.
+"""The formats gated in a wheel beyond fastText: GGUF (a Python loop per
+element), HDF5 (libhdf5 crashes and hangs on hostile files), ONNX (protobuf
+amplification) and PyTorch ``.pt``/``.pth`` (fickling amplification). Default
+wheel scan: format-only entry, reader never run, one ``INFO:`` listing every
+gated format met.
 
 See also: :mod:`tests.extract.scanner.test_scanner_wheel_native_gate` (the
 mechanism, with fastText) and :mod:`tests.fixtures.aimodels` README
@@ -37,6 +38,7 @@ from tests._wheel_models import safetensors_bytes, write_model_wheel
 _FIXTURES = Path(__file__).parents[2] / "fixtures" / "aimodels"
 _HOSTILE = ["hostile/hdf5-segfault.h5", "hostile/hdf5-hang.h5"]
 _GATED = {
+    "gguf/stories260K.gguf": "gguf",
     "hdf5/example-model.h5": "hdf5",
     "onnx/light-inception-v2.onnx": "onnx",
     "pytorch/example-model.pt": "pytorch",
@@ -79,6 +81,7 @@ def _infos(caplog: pytest.LogCaptureFixture) -> list[str]:
 def test_the_gated_set() -> None:
     assert WHEEL_GATED_FORMATS == {
         AiModelFormat.FASTTEXT,
+        AiModelFormat.GGUF,
         AiModelFormat.HDF5,
         AiModelFormat.ONNX,
         AiModelFormat.PYTORCH,
@@ -92,13 +95,30 @@ def test_default_lists_every_gated_format_without_reading_it(
     with mock.patch.object(scanner, "read_ai_model", wraps=read_ai_model) as spy:
         models = _scan(_wheel(tmp_path, list(_GATED)))
     formats = sorted(str(m.format_info.model_format) for m in models)
-    assert formats == ["hdf5", "onnx", "pytorch", "pytorch", "safetensors"]
+    assert formats == ["gguf", "hdf5", "onnx", "pytorch", "pytorch", "safetensors"]
     assert [c.args[0].suffix for c in spy.call_args_list] == [".safetensors"]
     for model in models:
         if str(model.format_info.model_format) != "safetensors":
             assert not model.provenance  # format-only
-    (info,) = _infos(caplog)  # four gated models, one line
-    assert ": hdf5, onnx, pytorch. " in info  # sorted, each once
+    (info,) = _infos(caplog)  # five gated models, one line
+    assert ": gguf, hdf5, onnx, pytorch. " in info  # sorted, each once
+
+
+def test_the_gate_is_reported_even_when_the_scan_fails(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A gated model met before the failure is still explained."""
+    caplog.set_level(logging.INFO)
+    wheel = _wheel(tmp_path, ["onnx/light-inception-v2.onnx"])
+    with mock.patch.object(
+        scanner, "attach_usage_references", side_effect=RuntimeError("scan failed")
+    ):
+        with pytest.raises(RuntimeError, match="scan failed"):
+            scan_wheel_for_ai_models(
+                wheel, scan_usage=True, usage_hint=lambda: False, max_bytes=10**8
+            )
+    (info,) = _infos(caplog)
+    assert ": onnx. " in info
 
 
 def test_trust_reads_every_gated_format(tmp_path: Path) -> None:

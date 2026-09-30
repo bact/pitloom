@@ -92,6 +92,17 @@ def test_first_pickle_opcode_bound_is_inclusive(
         first_pickle(many)
 
 
+@pytest.mark.parametrize(("opcodes", "refused"), [(250_000, False), (250_001, True)])
+def test_the_pickle_opcode_cap_is_250k(opcodes: int, refused: bool) -> None:
+    """``PROTO``, ``NONE`` repeated, ``STOP``: *opcodes* in all."""
+    data = b"\x80\x02" + b"N" * (opcodes - 2) + b"."
+    if refused:
+        with pytest.raises(ModelLimitExceeded, match="250000 opcodes"):
+            first_pickle(data)
+    else:
+        assert first_pickle(data) == data
+
+
 def test_fickling_only_sees_the_first_pickle() -> None:
     from fickling.fickle import Pickled  # pylint: disable=import-outside-toplevel
 
@@ -190,17 +201,6 @@ def test_a_fickling_failure_is_one_warning_and_no_type(
     assert "\n" not in message
 
 
-def test_the_stderr_sink_keeps_the_first_4096_characters_and_is_writable() -> None:
-    sink = pytorch._BoundedStderr()
-    assert sink.writable()
-    assert [sink.write("a" * 3000), sink.write("b" * 3000), sink.write("c")] == [
-        3000,
-        3000,
-        1,
-    ]
-    assert sink.text() == "a" * 3000 + "b" * 1096
-
-
 # -- GGUF -------------------------------------------------------------------
 
 
@@ -255,6 +255,7 @@ _HOSTILE_GGUF = {
     "scalar-arrays-sum-over-budget": _gguf(
         0, 2, _array(0, 600_000, b"\0" * 600_000) * 2
     ),
+    "tensors-over-budget": _gguf(300_000, 0, tail=24 * 300_000),
 }
 
 
@@ -333,15 +334,27 @@ _NESTED_4 = struct.pack("<IQ", 9, 1) * 3 + struct.pack("<IQ", 0, 1) + b"\0"
 @pytest.mark.parametrize(
     ("n_tensors", "arrays", "within"),
     [
-        (0, [_array(0, 4, b"\0" * 4)], False),  # 1 pair + 4 elements
-        (0, [_array(0, 3, b"\0" * 3)], True),  # exactly 4
-        (0, [_array(0, 1, b"\0")] * 2, True),  # 2 pairs + 2 elements
-        (5, [], False),
-        (2, [_array(0, 1, b"\0")], True),  # 2 + 1 + 1
-        (2, [_array(0, 2, b"\0" * 2)], False),  # 2 + 1 + 2
-        (0, [_array(8, 2, _EMPTY * 2)] * 2, False),  # 2 pairs + 4 strings
+        (0, [_array(0, 5, b"\0" * 5)], False),  # a pair (4) + 5 elements
+        (0, [_array(0, 4, b"\0" * 4)], True),  # exactly 8
+        (0, [_array(8, 4, _EMPTY * 4)], True),  # strings count like scalars
+        (0, [_array(8, 5, _EMPTY * 5)], False),
+        (0, [_array(0, 1, b"\0")] * 2, False),  # two pairs (8) + 2
+        (2, [], True),  # two tensors (8)
+        (3, [], False),
+        (1, [_array(0, 0)], True),  # a tensor + a pair: 8
+        (1, [_array(0, 1, b"\0")], False),  # 4 + 4 + 1
     ],
-    ids=["scalar-over", "at-cap", "pairs", "tensors", "sum-at-cap", "sum", "strings"],
+    ids=[
+        "scalar",
+        "at-cap",
+        "string",
+        "strings",
+        "pairs",
+        "tensors",
+        "tensors+1",
+        "tensor+pair",
+        "tensor+pair+1",
+    ],
 )
 def test_tensors_pairs_and_every_element_share_one_budget(
     n_tensors: int,
@@ -350,7 +363,7 @@ def test_tensors_pairs_and_every_element_share_one_budget(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(_gguf_bounds, "MAX_GGUF_COUNT", 4)
+    monkeypatch.setattr(_gguf_bounds, "MAX_GGUF_COUNT", 8)
     path = tmp_path / "m.gguf"
     path.write_bytes(_gguf(n_tensors, len(arrays), b"".join(arrays), tail=24 * 8))
     if within:

@@ -13,7 +13,6 @@ References:
 from __future__ import annotations
 
 import ast
-import contextlib
 import io
 import logging
 from pathlib import Path
@@ -24,6 +23,7 @@ from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMe
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model import archive_member
 from pitloom.extract.ai_model._pickle_bounds import first_pickle
+from pitloom.extract.ai_model._stderr_capture import capture_stderr
 from pitloom.extract.ai_model.archive_member import (
     ArchiveMemberTooLarge,
     open_archive_member,
@@ -46,30 +46,6 @@ def _dotted_name(node: Any) -> str | None:
 
 # What of fickling's own stderr output a warning quotes.
 _FICKLING_STDERR_CHARS = 200
-
-
-class _BoundedStderr(io.TextIOBase):
-    """A write-only text sink that keeps the first :data:`_KEEP` characters."""
-
-    _KEEP = 4096
-
-    def __init__(self) -> None:
-        super().__init__()
-        self._parts: list[str] = []
-        self._size = 0
-
-    def writable(self) -> bool:
-        return True
-
-    def write(self, s: str) -> int:
-        if self._size < self._KEEP:
-            self._parts.append(s[: self._KEEP - self._size])
-            self._size += len(self._parts[-1])
-        return len(s)
-
-    def text(self) -> str:
-        """What was kept."""
-        return "".join(self._parts)
 
 
 def _top_class(pickled: Any) -> str | None:
@@ -132,10 +108,9 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
     if pickle_bytes is None:
         return None
 
-    sink = _BoundedStderr()
     failure: str | None = None
     type_of_model: str | None = None
-    with contextlib.redirect_stderr(sink):
+    with capture_stderr() as sink:
         try:
             pkl = Pickled.load(io.BytesIO(pickle_bytes))
         # pylint: disable-next=broad-exception-caught

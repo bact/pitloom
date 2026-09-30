@@ -286,8 +286,8 @@ skill ("Validate a wheel's embedded SBOM").
   `scan-model-usage = false`). sdist, env, model-file and Hugging Face
   targets, `enrich` and `embed-wheel --sbom` warn that it has no effect.
 - `--trust-wheel-model` -- on a built wheel, also read the model formats whose
-  reader can crash or hang on a hostile file (fastText, HDF5, ONNX, PyTorch
-  `.pt`/`.pth`), otherwise listed without metadata (one `INFO:` names them).
+  reader can crash or hang on a hostile file (fastText, GGUF, HDF5, ONNX,
+  PyTorch `.pt`/`.pth`), otherwise listed without metadata (one `INFO:` names them).
   Never add it unless the user states the wheel is trusted; a hostile file can
   crash Pitloom, hang it or exhaust memory. Other targets, and `embed-wheel`
   with `--project-dir` (models come from the project), warn that it has no

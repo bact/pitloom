@@ -32,16 +32,19 @@ reproduced under a watchdog:
   (`tests/fixtures/aimodels/hostile/`).
 - **ONNX:** protobuf amplification; a 16 MiB file of empty `ValueInfo`
   entries peaked at 3 GB, a 64 MiB file of empty nodes at 2.8 GB.
-- **GGUF:** ~1 KiB and 6 us per string element; the header counts are now
-  checked first, but the largest accepted header still costs ~1.1 GB.
-- **fickling:** ~200x amplification per opcode; bounded to 1M opcodes and
-  8 MiB, still ~250 MB at the bound.
+- **GGUF:** ~1 KiB and 6 us per string element, ~3.5 KiB per tensor or pair;
+  the header is walked first against one combined budget (tensors, pairs and
+  every array element), but the largest accepted header still costs ~1.1 GB.
+  Gated in a wheel. Replacing `GGUFReader` with our own key/value reader (no
+  per-element numpy views, so no walker) belongs to this work.
+- **fickling:** ~200x amplification per opcode; bounded to 250k opcodes and
+  8 MiB, ~100 MB at the bound.
 - **Safetensors/ONNX entry counts:** the reader builds the full result before
   the scanner's entry cap cuts it. The size ceilings (`max-model-extract-bytes`, the per-wheel
 budget, the 8 MiB inner-member cap) bound bytes read, not what a parser does
 with them.
 
-Shipped mitigation: in a wheel, fastText, HDF5, ONNX and PyTorch
+Shipped mitigation: in a wheel, fastText, GGUF, HDF5, ONNX and PyTorch
 `.pt`/`.pth` are listed without metadata unless the caller passes
 `--trust-wheel-model`; cheap input bounds (pickle opcodes, GGUF counts, `.npy`
 header length, entry caps, reads charged to the wheel budget) also protect

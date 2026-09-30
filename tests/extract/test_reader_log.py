@@ -126,3 +126,28 @@ def test_a_detached_logger_drops_what_a_non_capturing_thread_logs(
     logging.getLogger(_NAME).warning("from the main thread")
     a.step("exit")
     assert a.tags() == []
+
+
+def test_a_nested_block_collects_alone_and_the_outer_one_resumes() -> None:
+    before = _state()
+    log = logging.getLogger(_NAME)
+    with capture_reader_logs() as outer:
+        log.warning("before")
+        with capture_reader_logs() as inner:
+            log.warning("inside")
+        log.warning("after")
+    assert [r.getMessage() for r in outer] == ["before", "after"]
+    assert [r.getMessage() for r in inner] == ["inside"]
+    assert _state() == before
+
+
+def test_a_record_without_a_thread_id_is_captured_by_the_emitting_thread(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``logging.logThreads = False`` leaves ``record.thread`` as ``None``."""
+    monkeypatch.setattr(logging, "logThreads", False)
+    with capture_reader_logs() as records:
+        logging.getLogger(_NAME).warning("no thread id")
+    (record,) = records
+    assert record.thread is None  # the setup took effect
+    assert record.getMessage() == "no thread id"

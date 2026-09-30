@@ -73,7 +73,9 @@ file-size guidance -- moved verbatim, no content changed.
   `data/my-registry.json` when `data` is scanned) indexes itself. Found
   during PR A2's explicit-registry review, 2026-09-28. Same root as the
   in-package-tree registry item in
-  [id-registry-followups.md](id-registry-followups.md#a-declared-registry-inside-the-package-tree-never-settles).
+  [id-registry-followups.md](id-registry-followups.md#a-declared-registry-inside-the-package-tree-never-settles);
+  planned fix: registry v3's D7 (`id generate` gets the registry path as
+  an exclude), see [id-registry-v3.md](id-registry-v3.md).
 
 - [ ] **Big item: config cascade parity across usage surfaces** -- ~20
   differences in how a setting is read, applied, errored on and reported

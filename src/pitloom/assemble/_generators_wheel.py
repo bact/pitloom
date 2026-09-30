@@ -70,8 +70,8 @@ def generate_wheel_sbom(
     of the wheel at a time, each up to the config's ``max-model-extract-bytes``
     (no parameter: it is configuration only) and four times that in all; a
     model beyond either limit is listed without metadata. Models in a format
-    whose reader a hostile file can crash or hang (fastText, HDF5, ONNX,
-    PyTorch ``.pt``/``.pth``) are listed without metadata too, with one
+    whose reader a hostile file can crash or hang (fastText, GGUF, HDF5,
+    ONNX, PyTorch ``.pt``/``.pth``) are listed without metadata too, with one
     ``INFO:``, unless *trust_wheel_model*: for a wheel you trust only. It has no config
     key, so a config cannot opt in.
 

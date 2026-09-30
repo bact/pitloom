@@ -70,6 +70,28 @@ def test_a_pickle_over_the_opcode_bound_is_one_warning_and_a_stub(
     assert message.endswith("metadata not read")
 
 
+def test_a_safetensors_header_over_the_cap_is_one_warning_and_a_stub(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    pytest.importorskip("safetensors")
+    lying = struct.pack("<Q", 2**40) + b"{}"
+    (tmp_path / "m.safetensors").write_bytes(lying)
+    wheel = write_model_wheel(tmp_path / "dist", {"demo/w.safetensors": lying})
+    for models in (
+        _scan_project(tmp_path, "m.safetensors"),
+        scan_wheel_for_ai_models(
+            wheel, scan_usage=False, usage_hint=lambda: False, max_bytes=10**8
+        ),
+    ):
+        (model,) = models
+        assert model.format_info.model_format == AiModelFormat.SAFETENSORS
+        assert not model.provenance
+    messages = logged_warnings(caplog)
+    assert len(messages) == 2
+    assert all(m.startswith("FORMAT=safetensors FILE=") for m in messages)
+    assert all("header of 1099511627776 bytes" in m for m in messages)
+
+
 def test_a_gguf_over_the_count_bound_is_one_warning_and_a_stub(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:

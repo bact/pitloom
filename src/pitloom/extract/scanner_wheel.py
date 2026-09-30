@@ -327,14 +327,17 @@ def scan_wheel_for_ai_models(
             else ReaderGate(WHEEL_GATED_FORMATS, _announce_once(gate_hint))
         )
         try:
-            models = scan_ai_models(
+            return scan_ai_models(
                 _wheel_candidates(zf, members, scratch, gate),
                 _wheel_sources(zf, members),
                 scan_usage=scan_usage,
                 usage_hint=usage_hint,
             )
-            if gate is not None:
-                gate.report()
-            return models
         finally:
-            scratch.remove()
+            # The models met so far are listed without metadata even when
+            # the scan fails part-way, so say why.
+            try:
+                if gate is not None:
+                    gate.report()
+            finally:
+                scratch.remove()

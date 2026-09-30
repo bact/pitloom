@@ -26,12 +26,18 @@ from pathlib import Path
 
 from pitloom.extract.ai_model.limits import ModelLimitExceeded
 
-#: Most tensors, key/value pairs and array elements (scalar, string and
-#: nested-array, at every depth) accepted, all together. Real models declare
-#: hundreds of tensors, tens of keys, and a vocabulary plus merges of a few
-#: hundred thousand elements. Each element costs the reader about 0.5-1 KiB
-#: and several microseconds, so the worst accepted header is about a GiB.
+#: Budget for the tensors, key/value pairs and array elements (scalar, string
+#: and nested-array, at every depth) a header declares, all together. Real
+#: models declare thousands of tensors, tens of keys, and a vocabulary plus
+#: merges of a few hundred thousand elements. An array element costs the
+#: reader 0.5-1 KiB and several microseconds; a tensor or pair about 3.5 KiB
+#: (see :data:`_RECORD_WEIGHT`). The worst accepted header is about 1.1 GiB.
 MAX_GGUF_COUNT = 1_000_000
+
+#: Budget units a tensor info or key/value pair costs (an array element costs
+#: one): about four times the memory, so each of the three is worth ~1 GiB at
+#: the cap.
+_RECORD_WEIGHT = 4
 
 #: Longest key or string accepted.
 _MAX_STRING_BYTES = 8 * 1024 * 1024
@@ -136,8 +142,8 @@ def _walk(data: mmap.mmap, endian: str) -> None:
         raise ModelLimitExceeded(f"GGUF header declares {n_tensors} tensors")
     if n_kv * _MIN_KV_BYTES > size:
         raise ModelLimitExceeded(f"GGUF header declares {n_kv} key/value pairs")
-    walker.charge(n_tensors, f"header declares {n_tensors} tensors")
-    walker.charge(n_kv, f"header declares {n_kv} key/value pairs")
+    walker.charge(n_tensors * _RECORD_WEIGHT, f"header declares {n_tensors} tensors")
+    walker.charge(n_kv * _RECORD_WEIGHT, f"header declares {n_kv} key/value pairs")
     offset = _HEADER_BYTES
     for _ in range(n_kv):
         offset = walker.string(offset)

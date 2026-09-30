@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-09-29
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,54 +8,33 @@ SPDX-License-Identifier: CC0-1.0
 
 # Loom ID registry and id-stability follow-ups
 
-Open items left by the explicit-ID-registry work (PR #235) and the earlier
-id-stability work (PR #178), moved out of [roadmap.md](roadmap.md), which
-keeps a one-to-two-line bullet for each and links here.
+Open items left by the explicit-ID-registry work (PR #235), the earlier
+id-stability work (PR #178), and items the registry v3 design leaves
+open on purpose. [roadmap.md](roadmap.md) keeps a one-to-two-line bullet
+for each and links here.
 
-See also: [ai-model-id-stability.md](ai-model-id-stability.md),
+See also: [id-registry-v3.md](id-registry-v3.md) (the planned redesign;
+D-numbers below refer to it),
+[id-registry-v3-rollout.md](id-registry-v3-rollout.md),
+[ai-model-id-stability.md](ai-model-id-stability.md),
 [id-registry-autosync.md](../implementation/id-registry-autosync.md),
 [skills-trigger-coverage.md](../implementation/skills-trigger-coverage.md),
 [diagnostics-logging-followups.md](diagnostics-logging-followups.md).
 
-## Skill trigger coverage for `loom id generate`/`loom id import`
+## Open
 
-Flagged in the 2026-09-18 skills-coverage audit. As of PR #235 the skills
-cover the registry end to end except for discovery: `sbom-generate`'s
-"Pinning element ids" section states the declared-only rule (ids are
-content-addressed, so a registry pins them only across runs whose inputs
-differ, e.g. a fragment merged after the source changed), its
-`references/id-registry.md` holds the create-a-registry workflow
-(`loom id generate`/`loom id import`) and the log lines, and
-`sbom-enrich`'s dangling-reference troubleshooting points at a registry
-mismatch. What is still missing: no `description` has a trigger phrasing
-for the two commands (a skill fires only through its description), and it
-is undecided which skill owns them (a new one, or folded into
-`sbom-generate`). Open question: which phrasings separate "pin ids before
-a first run" from "import ids from an existing SBOM" without colliding
-with plain generate/enrich requests. See
-[skills-trigger-coverage.md](../implementation/skills-trigger-coverage.md).
-
-## Deterministic same-model identification for auto-harvest
-
-`ai_AIPackage` elements are excluded from the Loom ID registry's
-auto-harvest since `ai_model.name` is extraction-dependent. Open design
-question: whether a content-hash match (narrower than "same model" for
-re-exported/re-quantized models) plus a non-identifying "machine ID"
-scoping tag could safely extend auto-harvest to AI models. No
-implementation direction chosen yet. See
-[ai-model-id-stability.md](ai-model-id-stability.md).
-
-## Wheel/sdist targets and src-layout registry file ids
+### Wheel/sdist targets and src-layout registry file ids
 
 `loom id generate` keys files by project path (`src/demo/x.py`), while a
 wheel's distribution path is `demo/x.py` and an sdist's is
 `demo-1.0.0/src/...`. A `loom project` harvest writes a
 distribution-path alias (`demo/x.py`) next to the `src/` entry, so a later
-`wheel` run does reuse the id. The gap
-applies to a registry seeded by `loom id generate` alone, which has no
-alias, and to an sdist target, which finds neither key.
+`wheel` run does reuse the id. The gap applies to a registry seeded by
+`loom id generate` alone, which has no alias, and to an sdist target,
+which finds neither key. v3 keeps the alias rule (I4) and does not close
+this.
 
-## Harvest rewrites per-document entities; `env` root is never looked up
+### Harvest rewrites per-document entities; `env` root is never looked up
 
 Found in PR A2 (#235) while making package ids registry-driven:
 `SoftwareAgent`/`Tool`/`License` entries carry each document's own uuid,
@@ -63,13 +42,70 @@ so alternating `project`/`wheel` runs still change the registry's bytes
 (package entries are stable); `env`'s root `deployed-environment` package
 is always minted, and a pinned id for it is overwritten on harvest. See
 [id-registry-autosync.md](../implementation/id-registry-autosync.md).
+Not changed by v3.
 
-## A declared registry inside the package tree never settles
+### AIPackage lookups outside loom stay ungated until G7 #3
+
+v3 gates loom's model lookup by the `path=` file's sha256 (D13), but the
+project, wheel, `loom model` and embed lookups stay ungated (D16): those
+surfaces do not hash AIPackages before G7 #3. Until then a project SBOM
+reuses a name-matched `ai_AIPackage` id even after the model is
+retrained, while loom mints a new one. Gate them when G7 #3 lands, so
+every surface agrees.
+
+### Ignored-name quirks in `id generate` indexing
+
+`_types._is_eligible_file` matches `_IGNORED_DIR_NAMES` against every
+path part, the file name included, so a *file* literally named `build`
+(or `dist`, ...) is never indexed; and an explicit PATH inside an ignored
+directory (`loom id generate build/x`) is skipped silently. v3's commit 2
+fixes only the absolute-path half of this check (it will match
+project-relative parts) and keeps both quirks.
+
+### The in-tree registry exclusion misses build-and-read files
+
+v3 excludes the declared registry file from discovery by path (D7). With
+`--allow-build`, a discovered file's path points into a temporary
+extraction directory and never matches, so an in-tree registry is still
+listed there. Related to the `--allow-build` id-registry gap in
+[roadmap.md](roadmap.md).
+
+### Merge by id: same-type coincidences and re-minted ids
+
+v3's D11 stops a fragment element from folding into an element of
+another type. Two gaps remain: a fragment-carried id that coincides with
+an unrelated main-document element *of the same type* still merges (the
+"Found, not fixed" item in
+[id-registry-autosync.md](../implementation/id-registry-autosync.md#found-not-fixed));
+and a re-minted id can in theory collide with a *later* fragment that
+carries the same id. Accepted for now.
+
+## Resolved by registry v3 (planned, not built)
+
+Kept here so older links still land; each closes when v3 merges.
+
+### Skill trigger coverage for `loom id generate`/`loom id import`
+
+Flagged in the 2026-09-18 skills-coverage audit: no skill `description`
+triggered on the two commands. v3's commit 9 decides it: the agent runs
+`loom id generate`/`import` itself when the user asks to pin ids, and
+`sbom-generate`'s description gains id-management triggers. See
+[skills-trigger-coverage.md](../implementation/skills-trigger-coverage.md).
+
+### Deterministic same-model identification for auto-harvest
+
+Decided in v3: a model's sha256 is a gate once recorded (D3), a retrained
+model is a new model, and hashed `ai_AIPackage` elements are
+auto-harvested (D15); unhashed ones stay excluded. See
+[ai-model-id-stability.md](ai-model-id-stability.md).
+
+### A declared registry inside the package tree never settles
 
 The registry file is itself a hashed project file, so with
 `id-registry = "src/demo/reg.json"` every `project` run changes both the
 SBOM and the registry bytes (`INFO: ... updated stale entries` each time;
-seen at 6e83f41). Candidate fix: exclude the resolved registry path from
-file discovery and from `id generate`'s indexing (the latter is the
+seen at 6e83f41). v3's D7 (commit 2) excludes the resolved registry path
+from file discovery and from `id generate`'s indexing (the latter is the
 custom-name gap in
-[diagnostics-logging-followups.md](diagnostics-logging-followups.md)).
+[diagnostics-logging-followups.md](diagnostics-logging-followups.md)),
+with one `WARNING:`.

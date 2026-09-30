@@ -315,22 +315,13 @@ See [build-backend-improvements.md](build-backend-improvements.md).
 ### AI model id stability (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
 
 - [ ] **Registry v3: one typed table, content gate chosen at lookup** --
-  harvest stops guessing `files` vs `entities` by shape (a hashed
-  AIPackage is misfiled). Its own PR, design first, before G7. See [id-registry-v3.md](id-registry-v3.md).
-
-- [ ] **Skill trigger coverage for `loom id generate`/`loom id import`** --
-  the skills run both commands now, but no description triggers on them;
-  owner skill undecided. See [id-registry-followups.md](id-registry-followups.md).
-- [ ] **Deterministic same-model identification for auto-harvest** --
-  `ai_AIPackage` stays out of auto-harvest; content-hash matching is an
-  open design question. See [ai-model-id-stability.md](ai-model-id-stability.md).
-- [ ] **Wheel/sdist targets and src-layout registry file ids** -- path keys
-  differ; a `project` harvest aliases the wheel path, `id generate` alone
-  does not, and an sdist finds neither. See [id-registry-followups.md](id-registry-followups.md).
-- [ ] **Registry harvest rewrites per-document entities; `env`'s root
-  package is never looked up.** See [id-registry-followups.md](id-registry-followups.md).
-- [ ] **A declared registry inside the package tree never settles** -- the
-  registry is itself a hashed file. See [id-registry-followups.md](id-registry-followups.md).
+  not built; also closes `loom id` skill triggers, hashed-model auto-harvest
+  and in-tree registry churn. See [id-registry-v3.md](id-registry-v3.md).
+- [ ] **Registry follow-ups v3 leaves open** -- src-layout alias gap for
+  wheel/sdist targets, per-document entities rewritten on harvest and
+  `env`'s root never looked up, AIPackage lookups outside loom ungated
+  until G7 #3, ignored-name quirks, build-and-read exclusion, merge-by-id gaps.
+  See [id-registry-followups.md](id-registry-followups.md).
 
 ### Sort-order canonicalization (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
 

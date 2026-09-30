@@ -39,7 +39,10 @@ class _Dispatcher(logging.Handler):
         self.captures: dict[int, list[logging.LogRecord]] = {}
 
     def emit(self, record: logging.LogRecord) -> None:
-        records = self.captures.get(record.thread or 0)
+        # record.thread is None when logging.logThreads is off: the emitting
+        # thread is still this one.
+        ident = threading.get_ident() if record.thread is None else record.thread
+        records = self.captures.get(ident)
         if records is not None:
             records.append(record)
         elif (parent := logging.getLogger(_READERS_LOGGER).parent) is not None:
@@ -58,7 +61,9 @@ class _State:
 _STATE = _State()
 
 
-def _enter(records: list[logging.LogRecord]) -> None:
+def _enter(records: list[logging.LogRecord]) -> list[logging.LogRecord] | None:
+    """Start capturing this thread into *records*; returns the capture it
+    interrupts, if it is nested in another of the same thread."""
     logger = logging.getLogger(_READERS_LOGGER)
     with _LOCK:
         if _STATE.users == 0:
@@ -66,13 +71,19 @@ def _enter(records: list[logging.LogRecord]) -> None:
             logger.addHandler(_STATE.dispatcher)
             logger.propagate = False
         _STATE.users += 1
-        _STATE.dispatcher.captures[threading.get_ident()] = records
+        ident = threading.get_ident()
+        outer = _STATE.dispatcher.captures.get(ident)
+        _STATE.dispatcher.captures[ident] = records
+        return outer
 
 
-def _exit() -> None:
+def _exit(outer: list[logging.LogRecord] | None) -> None:
     logger = logging.getLogger(_READERS_LOGGER)
     with _LOCK:
-        _STATE.dispatcher.captures.pop(threading.get_ident(), None)
+        if outer is None:
+            _STATE.dispatcher.captures.pop(threading.get_ident(), None)
+        else:
+            _STATE.dispatcher.captures[threading.get_ident()] = outer
         _STATE.users -= 1
         if _STATE.users == 0:
             logger.removeHandler(_STATE.dispatcher)
@@ -88,11 +99,12 @@ def capture_reader_logs() -> Iterator[list[logging.LogRecord]]:
     by this function; the caller logs the ones it wants. Blocks of several
     threads may overlap in any order: the logger's propagation is saved by
     the first to enter and restored by the last to leave, and a thread not
-    in a block has its records passed on as usual.
+    in a block has its records passed on as usual. A block inside another of
+    the same thread collects on its own, and the outer one resumes after it.
     """
     records: list[logging.LogRecord] = []
-    _enter(records)
+    outer = _enter(records)
     try:
         yield records
     finally:
-        _exit()
+        _exit(outer)

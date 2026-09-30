@@ -12,13 +12,18 @@
 from __future__ import annotations
 
 import logging
+import struct
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
-from pitloom.extract.ai_model.safetensors import read_safetensors
+from pitloom.extract.ai_model.limits import ModelLimitExceeded
+from pitloom.extract.ai_model.safetensors import (
+    MAX_SAFETENSORS_HEADER_BYTES,
+    read_safetensors,
+)
 
 # ---------------------------------------------------------------------------
 # Safetensors extractor (mocked)
@@ -410,3 +415,36 @@ def test_whisper_st_tensor_names(whisper_st_metadata: AiModelMetadata) -> None:
 def test_whisper_st_provenance(whisper_st_metadata: AiModelMetadata) -> None:
     assert "inputs" in whisper_st_metadata.provenance
     assert any(k.startswith("properties.") for k in whisper_st_metadata.provenance)
+
+
+# ---------------------------------------------------------------------------
+# The header length is bounded before safetensors reads the header
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("pad", [0, 1])
+def test_a_header_over_the_cap_is_refused_before_safe_open(
+    tmp_path: Path, pad: int
+) -> None:
+    """*pad* 1: a real file whose header is one byte over the cap; 0: a file
+    that only declares it."""
+    pytest.importorskip("safetensors")
+    length = MAX_SAFETENSORS_HEADER_BYTES + 1
+    model_file = tmp_path / "m.safetensors"
+    model_file.write_bytes(struct.pack("<Q", length) + b" " * length * pad)
+    with patch("safetensors.safe_open", side_effect=AssertionError):
+        with pytest.raises(ModelLimitExceeded, match="header"):
+            read_safetensors(model_file)
+
+
+@pytest.mark.parametrize(
+    "prefix", [struct.pack("<Q", MAX_SAFETENSORS_HEADER_BYTES), b"abc"]
+)
+def test_a_header_at_the_cap_or_a_short_file_is_left_to_safetensors(
+    tmp_path: Path, prefix: bytes
+) -> None:
+    pytest.importorskip("safetensors")
+    model_file = tmp_path / "m.safetensors"
+    model_file.write_bytes(prefix)
+    with pytest.raises(ValueError, match="Failed to read Safetensors"):
+        read_safetensors(model_file)

@@ -142,7 +142,7 @@ out one at a time, each up to the config's `max-model-extract-bytes` (a
 bad value in `pitloom_config=` raises `ValueError`) and four times that in
 all; a model beyond either stays listed without its metadata. A fastText
 model in a wheel is listed without metadata too (one `INFO:` per run), as are
-HDF5, ONNX and PyTorch `.pt`/`.pth` ones: their readers run in the calling
+GGUF, HDF5, ONNX and PyTorch `.pt`/`.pth` ones: their readers run in the calling
 process, and a hostile file can crash or hang them or exhaust memory.
 `trust_wheel_model=True` (`generate()`,
 `generate_wheel_sbom()`, `ConfigOverrides.trust_wheel_model` for

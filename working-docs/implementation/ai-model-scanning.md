@@ -147,17 +147,29 @@ What the bounds below do not cover, by design, until subprocess isolation
 ([model-reader-isolation.md](../design/model-reader-isolation.md)):
 
 - **GGUF CPU.** `gguf.GGUFReader` loops in Python once per tensor, key/value
-  pair and string element, at about 1 KiB and 6 us each. Tensors, pairs, a
-  scalar array's elements and all string/nested elements together are capped
-  at 1M, so a hostile header is refused in well under a second; but the largest
-  accepted header (one 990k-string array in an 8 MB file, measured) still
-  costs the reader ~1.1 GB and 6 s. A real vocabulary plus merges is
-  ~0.5M strings, so the cap cannot drop further without stubbing real models.
+  pair and array element (scalar or string, at any nesting depth), keeping a
+  numpy view for each: ~1.1 KiB and 6 us per string, ~0.5 KiB per scalar,
+  ~3.5 KiB per tensor or pair. The walker charges all of them to one budget of
+  1M (a tensor or pair weighs 4, an element 1) and refuses nesting deeper than
+  it follows, so a hostile header is refused in well under a second; the
+  largest accepted headers measured ~1.1 GB and 6 s (990k strings, 8 MB),
+  ~0.9 GB and 8 s (250k tensors, 10 MB), ~0.6 GB (250k pairs), ~0.5 GB
+  (990k scalars). Before the combined budget, 12 x 1M uint8 elements (12 MB)
+  peaked at 5 GB, arrays nested 5 deep were not followed by the walker but
+  were by the reader (24 MB, 3.3 GB), and 1M tensor infos (39 MB) took 3.6 GB.
+  A real vocabulary plus merges is ~0.5M elements, so the budget cannot drop
+  further without stubbing real models. GGUF is also gated in a wheel. Replacing
+  `GGUFReader` with our own key/value reader, which makes the walker
+  unnecessary, is deferred to the isolation work
+  ([model-reader-isolation.md](../design/model-reader-isolation.md)).
 - **Pure-Python amplification.** fickling builds an AST per opcode (~200x the
-  pickle's size): a pickle just under 1M opcodes measured ~250 MB and 1.7 s. The
+  pickle's size): a pickle at the 250k-opcode cap measured ~100 MB and 0.4 s. The
   safetensors `__metadata__` and ONNX readers build their result before the
   entry cap cuts it, so the cap bounds the SBOM, not the reader's peak
   memory.
+- **Safetensors header.** The 8-byte length is read before `safe_open` and
+  refused over 16 MiB (the library allows 100 MB; a 34.9 MB header peaked at
+  1.7 GB above baseline, a 15.7 MB one at 0.8 GB, the bound's worst case).
 - **Native readers.** libhdf5, protobuf (ONNX) and fastText are gated in a
   wheel, not bounded; a project scan runs them on the user's own tree.
   Under `--trust-wheel-model` a hostile wheel can crash or hang them
@@ -357,7 +369,9 @@ directory, never a wheel.
   first capture and removed by the last (a lock and a count, so blocks of
   several threads may end in any order), hands a record to the capture of
   the thread that logged it (`record.thread`) and passes the records of
-  other threads on to the parent logger.
+  other threads on to the parent logger (by `threading.get_ident()` when
+  `logging.logThreads` is off and `record.thread` is `None`). A block nested
+  in another of the same thread restores the outer capture on leaving.
 - **Unsafe readers are gated** (security; `--trust-wheel-model`). A reader
   that calls a native library in Pitloom's process is an unbounded
   CPU/memory (or crash) surface no byte ceiling covers, and a signal handler
@@ -365,8 +379,8 @@ directory, never a wheel.
   hostile 308-byte header measured 5 GB resident and climbing), HDF5 (two
   committed 8 KiB files, `tests/fixtures/aimodels/hostile/`, segfault and
   hang libhdf5), ONNX (protobuf amplification: 16 MiB peaked at 3 GB) and, in
-  pure Python, PyTorch `.pt`/`.pth` through fickling (~200x). A wheel's
-  hostile file is the likelier input, so the default there is: sniff only
+  pure Python, PyTorch `.pt`/`.pth` through fickling (~200x) and GGUF through
+  `GGUFReader`'s per-element loop. A wheel's hostile file is the likelier input, so the default there is: sniff only
   (no materialise, no loader), `_stub()`, and one `INFO:` per run listing
   every gated format met, sorted, and naming the flag (`ReaderGate.report()`
   after the scan, through the same once-per-run slot style as the usage hint,
@@ -386,13 +400,19 @@ directory, never a wheel.
   `ModelLimitExceeded`, which a reader's broad `except` lets through; the
   scanner logs one `FORMAT= FILE=: <reason>; metadata not read` and keeps the
   stub). Pickle (`_pickle_bounds.py`): `pickletools.genops` walks the opcodes
-  (no allocation per opcode), refuses more than 1M, and only the bytes of the
+  (no allocation per opcode), refuses more than 250k, and only the bytes of the
   first pickle reach fickling; fickling's stderr (it prints per failure, 62 MB
-  in one measured case) is redirected to a bounded sink and summarised in one
+  in one measured case) is captured, per thread, by a process-wide `sys.stderr` proxy
+  (`_stderr_capture.py`, installed under a lock and count like the log
+  capture below; `contextlib.redirect_stderr` swaps the stream for every
+  thread and, with two overlapping, could leave it swapped for good) into a
+  bounded sink and summarised in one
   warning. GGUF (`_gguf_bounds.py`): a `struct` walk over the key/value
-  section refuses a tensor/pair/array count over 1M, or one that cannot fit
-  in the file, before `GGUFReader`; a merely truncated file is left to the
-  reader. NumPy (`numpy.py`): the `.npy` header length field is read first
+  section refuses tensors, pairs and array elements over one weighted budget
+  of 1M, arrays nested deeper than the walker follows, or a count that cannot
+  fit in the file, before `GGUFReader`; a merely truncated file is left to the
+  reader. Safetensors (`safetensors.py`): the 8-byte header length is read
+  first and refused over 16 MiB. NumPy (`numpy.py`): the `.npy` header length field is read first
   and refused over numpy's own 10000 (numpy reads the declared length before
   checking it: a v2 header declaring 4 GiB in a 48 MiB deflated member
   inflated it), and an `.npz` stops reading after 1001 members. Entry caps

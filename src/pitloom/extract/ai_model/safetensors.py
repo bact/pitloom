@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+import struct
 from pathlib import Path
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
@@ -15,8 +16,30 @@ from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
+from pitloom.extract.ai_model.limits import ModelLimitExceeded
 
 log = logging.getLogger(__name__)
+
+#: Longest JSON header accepted. ``safetensors`` itself caps it at 100 MB and
+#: then builds every entry in Python and again in a dict, at tens of times
+#: the header's size; a real model's is well under a MiB.
+MAX_SAFETENSORS_HEADER_BYTES = 16 * 1024 * 1024
+
+
+def _check_header_length(model_path: Path) -> None:
+    """Refuse a file whose 8-byte little-endian header length is over
+    :data:`MAX_SAFETENSORS_HEADER_BYTES`, before ``safetensors`` reads it.
+
+    Raises:
+        ModelLimitExceeded: The declared header is over the cap.
+        OSError: The file cannot be read.
+    """
+    with model_path.open("rb") as fh:
+        prefix = fh.read(8)
+    if len(prefix) == 8:
+        (length,) = struct.unpack("<Q", prefix)
+        if length > MAX_SAFETENSORS_HEADER_BYTES:
+            raise ModelLimitExceeded(f"Safetensors header of {length} bytes")
 
 
 def read_safetensors(model_path: Path) -> AiModelMetadata:
@@ -42,6 +65,8 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
 
     Raises:
         ImportError: If ``safetensors`` is not installed.
+        ModelLimitExceeded: If the declared header is over
+            :data:`MAX_SAFETENSORS_HEADER_BYTES`.
         ValueError: If the file cannot be read as a valid Safetensors file.
     """
     try:
@@ -55,6 +80,7 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
         ) from exc
 
     try:
+        _check_header_length(model_path)
         # Use numpy framework to avoid requiring torch/tf; metadata-only read
         with safe_open(
             str(model_path),
@@ -62,6 +88,8 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
         ) as f:  # type: ignore[no-untyped-call]
             raw_metadata: dict[str, str] = f.metadata() or {}
             tensor_keys: list[str] = list(f.keys())
+    except ModelLimitExceeded:
+        raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         log.debug("Failed to read Safetensors file %s: %s", model_path, exc)
