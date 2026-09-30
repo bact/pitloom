@@ -45,7 +45,6 @@ _FIELD_KEYS: dict[str, tuple[str, str]] = {
     "use_lockfile": ("", "use-lockfile"),
     "tools": ("creation", "no-creation-tool"),
 }
-_TYPED = ("bool", "int", "bool | None")
 
 #: INI spelling -> the TOML literal it must read as.
 _BOOL_VALUES = {
@@ -61,6 +60,12 @@ _BOOL_VALUES = {
 _INT_VALUES = ("0", "100", "4096", "+100")
 _INVALID_BOOL = ("maybe", "2", "on")
 _INVALID_INT = ("12x", "1.5", "true", "0x10", "\u0e54\u0e50\u0e59\u0e56", "\uff14")
+
+
+def _is_typed(annotation: object) -> bool:
+    """Whether a field annotation is a bool or int, optional or not."""
+    parts = {p.strip() for p in str(annotation).split("|")} - {"None"}
+    return bool(parts) and parts <= {"bool", "int"}
 
 
 def _declared() -> list[tuple[str, str, bool]]:
@@ -94,10 +99,31 @@ def _from_toml(table: str, body: str) -> PitloomConfig:
 def test_every_typed_field_is_mapped_and_declared() -> None:
     """A new boolean/integer ``PitloomConfig`` field fails here until it is
     mapped above and declared in ``BOOL_KEYS``/``INT_KEYS``."""
-    typed = {f.name for f in dataclasses.fields(PitloomConfig) if f.type in _TYPED}
+    typed = {f.name for f in dataclasses.fields(PitloomConfig) if _is_typed(f.type)}
     assert typed | {"tools"} == set(_FIELD_KEYS)
     declared = {(t, k.replace("_", "-")) for t, k, _ in _declared()}
     assert declared == set(_FIELD_KEYS.values())
+
+
+@pytest.mark.parametrize(
+    ("annotation", "typed"),
+    [
+        ("bool", True),
+        ("int", True),
+        ("bool | None", True),
+        ("int | None", True),
+        ("None | int", True),
+        ("bool | int", True),
+        ("str | None", False),
+        ("int | str", False),
+        ("list[int]", False),
+        ("tuple[int, ...]", False),
+        ("None", False),
+    ],
+)
+def test_is_typed_classifies_optional_fields(annotation: str, typed: bool) -> None:
+    """The guard above must not miss an optional (``int | None``) field."""
+    assert _is_typed(annotation) is typed
 
 
 @pytest.mark.parametrize(("table", "key", "is_int"), _declared())
