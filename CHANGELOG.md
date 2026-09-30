@@ -155,6 +155,11 @@ and this project adheres to
 
 ### Fixed
 
+- `embed-wheel` with a project directory now emits the project's concluded
+  licence, as `loom project` does; the publish workflow fails if Pitloom's
+  own SBOM lacks it ([#243])
+- `WARNING: licenseid database appears empty` prints once per process, not
+  once per licence lookup ([#243])
 - PyPI, Croissant URL and remote authors-file fetches close an HTTP error
   response; Python 3.14 warned `ResourceWarning` when it was garbage-collected
   ([#242])
@@ -235,6 +240,7 @@ and this project adheres to
 [#239]: https://github.com/bact/pitloom/pull/239
 [#240]: https://github.com/bact/pitloom/pull/240
 [#242]: https://github.com/bact/pitloom/pull/242
+[#243]: https://github.com/bact/pitloom/pull/243
 
 ## [0.19.0] - 2026-09-18
 
