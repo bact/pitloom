@@ -230,7 +230,7 @@ def _read_fragment_entry(entry: dict[str, Any]) -> FragmentConfig:
     """Parse one ``[tool.pitloom.fragment] files`` table entry.
 
     Every field here raises ``ValueError`` on the wrong type, matching
-    every sibling ``_read_*``/entry-parser in this file (``_read_creators``,
+    every ``_read_*`` config reader (``_read_creators`` here,
     ``_read_content_type_overrides``, ``_read_bool_setting``, ...) --
     config errors are never silently coerced or defaulted around, only
     genuinely-absent optional fields get a default.

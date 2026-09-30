@@ -8,6 +8,7 @@
 See Also:
     :mod:`pitloom.core._config_types` for the ``PitloomConfig`` class definition.
     :mod:`pitloom.core._config_parse` for internal TOML parsing routines.
+    :mod:`pitloom.core._config_parse_scan` for the file-scan key readers.
 """
 
 from __future__ import annotations
