@@ -229,7 +229,7 @@ below, which is the actual commitment for what ships before mid-October):
   (2026-09-30, #244): warn once, skip that file only. See
   [file-scan-unreadable-file.md](../implementation/file-scan-unreadable-file.md).
 - [x] **Unlistable directory drops its subtree silently at discovery** --
-  fixed (2026-09-30): one `WARNING: DIR=...` per directory, every backend.
+  fixed (2026-09-30, #257): one `WARNING: DIR=...` per directory, every backend.
   See [file-discovery-unlistable-dir.md](../implementation/file-discovery-unlistable-dir.md).
 - [ ] **Five smaller follow-ups from PR #215's `--allow-build` review**
   -- two consolidation/dedup cleanups (a duplicated blanket-except

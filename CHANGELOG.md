@@ -165,7 +165,7 @@ and this project adheres to
 - `WARNING: licenseid database appears empty` prints once per process ([#243])
 - Project file scan: an unreadable file warns once with its `FILE=` path and is
   skipped alone; it emptied the whole file list. A directory discovery cannot
-  list warns once with its `DIR=` path; it was dropped silently ([#244], [#TBD])
+  list warns once with its `DIR=` path; it was dropped silently ([#244], [#257])
 - `setup.cfg` `[tool:pitloom]`: boolean and integer keys read as in
   `pyproject.toml`, not as strings ([#247])
 - Wheel and sdist file names are the same on every OS (`\` to `/`, `./`
@@ -197,7 +197,7 @@ and this project adheres to
 [#252]: https://github.com/bact/pitloom/pull/252
 [#253]: https://github.com/bact/pitloom/pull/253
 [#254]: https://github.com/bact/pitloom/pull/254
-[#TBD]: https://github.com/bact/pitloom/pull/TBD
+[#257]: https://github.com/bact/pitloom/pull/257
 
 ## [0.19.0] - 2026-09-18
 

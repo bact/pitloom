@@ -18,8 +18,12 @@ current context. When the block ends, each recorded directory under the
 project is opened again, and one ``WARNING:`` is logged for each that
 fails for a reason other than absence (per
 :func:`~pitloom.core.path_probe.is_missing_errno`). The warning names only
-directories the backend tried to list, so a directory its rules exclude
-stays quiet.
+directories the backend tried to list. A backend that prunes before
+listing (Hatchling) never lists a directory its rules exclude; one that
+globs first and filters after (poetry-core, pdm-backend, setuptools'
+``package_data``) does, so an excluded directory can still be named even
+though no file under it would have been included. The wording therefore
+says only that the listing failed, not that files are missing.
 
 The hook is installed once per process on first use and cannot be
 removed. Outside the block it returns after one set-membership test and

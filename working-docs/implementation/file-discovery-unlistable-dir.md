@@ -13,7 +13,8 @@ See also: [file-scan-unreadable-file.md](file-scan-unreadable-file.md)
 [roadmap.md](../design/roadmap.md),
 [recurring-bug-patterns.md](recurring-bug-patterns.md).
 
-**Status (2026-09-30):** implemented (pre-0.20.0 sweep item P16); found
+**Status (2026-09-30):** implemented in PR
+[#257](https://github.com/bact/pitloom/pull/257) (pre-0.20.0 sweep item P16); found
 in the PR #244 review.
 
 ## Problem
@@ -52,7 +53,8 @@ wrapper around `os.walk` would not cover them.
   global hook, but it warns about directories the backend excludes
   anyway (e.g. a Docker volume directory owned by another user) and
   walks `.venv`/`.git` a second time. With the hook, only directories
-  the backend really tried to list are named. Also rejected: warning
+  the backend really tried to list are named (see the known gaps for
+  backends that list before excluding). Also rejected: warning
   only when the parent directory holds a discovered file. That misses a
   whole unlistable top-level package.
 - **Rejected: patching `os.scandir`/`os.listdir`.** Process-global,
@@ -76,16 +78,28 @@ wrapper around `os.walk` would not cover them.
   directory (the recorded set is shared, so each path appears once).
 - **Wording** `path_probe.UNLISTABLE_DIR_WARNING`
   (`DIR=%s: could not list %s; %s`) matches `UNREADABLE_FILE_WARNING`'s
-  shape. Like that warning, it does not say "skipped from the SBOM",
-  because on the embed surfaces the wheel's own file set is kept.
+  shape. Like that warning, it does not say "skipped from the SBOM":
+  on the embed surfaces the wheel's own file set is kept, and the
+  directory may be one the backend excludes anyway (see below). It
+  states only that the listing failed.
 - **Nothing is logged when the block raises**: a raising discovery is a
   bug, and it already propagates.
 
-## Known gap
+## Known gaps
 
-`--allow-build` runs the real build in a child process, where the hook
-cannot see anything. There, an unlistable directory is still dropped as
-the backend itself drops it.
+- **An excluded directory can still be named.** Hatchling prunes
+  excluded directories before listing them, so they stay quiet.
+  poetry-core, pdm-backend and setuptools' `package_data` glob `**/*`
+  first and filter afterwards, so they list an excluded directory too:
+  a poetry project with `exclude = ["pkg/secret"]` and `pkg/secret`
+  unlistable warns about it, although the file set is unchanged. The
+  same applies to a registered backend's failed attempt before the
+  Hatchling fallback. Accepted: the warning says only that the listing
+  failed, which is true. Filtering it through each backend's own
+  exclude rules would take per-backend code for a rare case.
+- **`--allow-build`** runs the real build in a child process, where the
+  hook cannot see anything. There, an unlistable directory is still
+  dropped as the backend itself drops it.
 
 ## Tests
 

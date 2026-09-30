@@ -219,8 +219,8 @@ def get_wheel_files(
     race) gets one ``WARNING:`` naming its project-relative path and is
     left out; the other files are still returned. A directory the
     backend's walk could not list gets one ``WARNING:`` too (see
-    :mod:`pitloom.core._models_wheel_unlistable`); its subtree is
-    missing from the result.
+    :mod:`pitloom.core._models_wheel_unlistable`); nothing under it can
+    be in the result, though the backend may have excluded it anyway.
 
     *build_options* (``allow`` on) opts into the build-and-read
     mechanism as a fallback when static discovery has no module for the
