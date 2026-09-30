@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-09-29
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -80,7 +80,7 @@ file-size guidance -- moved verbatim, no content changed.
   one resolver with recorded sources, one reader per format, a key
   applicability table, a surface x setting matrix test. Fix together.
   See [config-cascade-parity.md](config-cascade-parity.md).
-- [ ] **Leftovers from #231/#232** (two import cycles, a Poetry
-  `version = 3` crash). See
+- [ ] **Leftovers from #231/#232** (two import cycles; the Poetry
+  `version = 3` crash is fixed in #254). See
   [config-sources.md](../implementation/config-sources.md#found-not-fixed-here),
   [sdist-own-config.md](../implementation/sdist-own-config.md#found-not-fixed-here).

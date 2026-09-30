@@ -51,6 +51,9 @@ basis:
 * ``*``               -> no constraint (package name only)
 * Anything else       -> passed through unchanged.
 
+Wrong-typed keys are dropped first by
+:mod:`pitloom.extract.project._poetry_fields`.
+
 See Also:
     https://python-poetry.org/docs/pyproject/
 """
@@ -67,6 +70,12 @@ from pitloom.extract._extract_utils import field_declared
 from pitloom.extract._license import (
     detect_license_for_project,
     resolve_license_concluded,
+)
+from pitloom.extract.project._poetry_fields import (
+    drop_wrong_typed_fields,
+    is_table,
+    read_poetry_section,
+    warn_wrong_type,
 )
 
 log = logging.getLogger(__name__)
@@ -87,7 +96,9 @@ def extract_poetry_metadata(
     Reads ``[tool.poetry]`` and ``[tool.poetry.dependencies]`` from a
     previously parsed ``pyproject.toml`` dict.  This is the internal entry
     point used by :func:`~pitloom.extract.project.pyproject.read_pyproject` so the
-    file is not read twice.
+    file is not read twice. A key of the wrong type (``version = 3``) is
+    treated as absent with one ``WARNING:``; so is a ``[tool]`` or
+    ``[tool.poetry]`` that is not a table.
 
     Args:
         data: Full parsed ``pyproject.toml`` dict.
@@ -105,11 +116,18 @@ def extract_poetry_metadata(
         A populated :class:`~pitloom.core.project.ProjectMetadata`.
 
     Raises:
-        ValueError: If ``[tool.poetry]`` is absent or has no ``name``.
+        ValueError: If ``[tool.poetry]`` is absent, not a table, or has no
+            string ``name``.
     """
-    poetry: dict[str, Any] = data.get("tool", {}).get("poetry", {})
+    pyproject_path = project_dir / "pyproject.toml"
+    poetry = read_poetry_section(data, pyproject_path, quiet=quiet)
+    if poetry is not None and not is_table(poetry):
+        got = type(poetry).__name__
+        warn_wrong_type(pyproject_path, "[tool.poetry]", got, "a table", quiet=quiet)
+        raise ValueError("[tool.poetry] in pyproject.toml is not a table")
     if not poetry:
         raise ValueError("[tool.poetry] section not found in pyproject.toml")
+    poetry = drop_wrong_typed_fields(poetry, pyproject_path, quiet=quiet)
 
     name = (poetry.get("name") or "").strip()
     if not name:
@@ -124,9 +142,7 @@ def extract_poetry_metadata(
         poetry, project_dir
     )
 
-    keywords = poetry.get("keywords", [])
-    if not isinstance(keywords, list):
-        keywords = []
+    keywords: list[str] = poetry.get("keywords", [])
 
     authors = _parse_poetry_authors(poetry.get("authors", []))
     urls = _parse_poetry_urls(poetry)
@@ -222,14 +238,12 @@ def _build_poetry_provenance(
     return prov
 
 
-def _parse_poetry_readme(readme_raw: Any) -> str | None:
+def _parse_poetry_readme(readme_raw: str | list[str] | None) -> str | None:
     """Normalize ``[tool.poetry].readme``, which may be a bare string or a
     list of strings (multiple readme files -- only the first is used)."""
     if isinstance(readme_raw, list):
         return readme_raw[0].strip() if readme_raw else None
-    if isinstance(readme_raw, str):
-        return readme_raw.strip() or None
-    return None
+    return (readme_raw or "").strip() or None
 
 
 def _parse_poetry_urls(poetry: dict[str, Any]) -> dict[str, str]:
