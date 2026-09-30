@@ -23,6 +23,10 @@ from pitloom.core.config import (
     parse_pitloom_config,
 )
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract.project._setup_cfg_values import (
+    coerce_cfg_value,
+    parse_sub_section,
+)
 
 # Matches "file: some/path" or "attr: module.attribute"
 _DIRECTIVE_RE = re.compile(r"^(file|attr):\s*(.+)$")
@@ -342,44 +346,6 @@ def setup_cfg_pitloom_config(text: str) -> PitloomConfig:
         raise ValueError(" ".join(str(exc).split())) from exc
 
 
-_KNOWN_BOOL_KEYS = frozenset(
-    {
-        "pretty",
-        "describe-relationship",
-        "describe_relationship",
-        "offline",
-        "no-creation-tool",
-        "no_creation_tool",
-        "local",
-        "enabled",
-    }
-)
-
-
-def _bool_val(v: str) -> bool | None:
-    """Parse boolean values from INI strings."""
-    v = v.strip().lower()
-    if v in ("true", "1", "yes"):
-        return True
-    if v in ("false", "0", "no"):
-        return False
-    return None
-
-
-def _parse_sub_section(sub_raw: dict[str, str]) -> dict[str, Any]:
-    """Parse key-values of a sub-section table in setup.cfg."""
-    sub: dict[str, Any] = {}
-    for k, v in sub_raw.items():
-        if k in _KNOWN_BOOL_KEYS:
-            b = _bool_val(v)
-            sub[k] = b if b is not None else v.strip()
-        elif k == "files":
-            sub[k] = [f.strip() for f in v.splitlines() if f.strip()]
-        else:
-            sub[k] = v.strip()
-    return sub
-
-
 def _pick_cfg_str(
     raw: dict[str, str], creation_raw: dict[str, str], *keys: str
 ) -> str | None:
@@ -426,15 +392,15 @@ def _populate_sub_sections_from_cfg(
     """Populate creation, provenance, content-type, and fragment sub-tables."""
     creation_raw = _section_dict(cfg, "tool:pitloom:creation")
     if creation_raw:
-        tool_pitloom["creation"] = _parse_sub_section(creation_raw)
+        tool_pitloom["creation"] = parse_sub_section("creation", creation_raw)
 
     provenance_raw = _section_dict(cfg, "tool:pitloom:provenance")
     if provenance_raw:
-        tool_pitloom["provenance"] = _parse_sub_section(provenance_raw)
+        tool_pitloom["provenance"] = parse_sub_section("provenance", provenance_raw)
 
     content_type_raw = _section_dict(cfg, "tool:pitloom:content-type")
     if content_type_raw:
-        ct = _parse_sub_section(content_type_raw)
+        ct = parse_sub_section("content-type", content_type_raw)
         override_raw = _section_dict(cfg, "tool:pitloom:content-type:override")
         if override_raw:
             ct["override"] = [
@@ -445,7 +411,7 @@ def _populate_sub_sections_from_cfg(
 
     fragment_raw = _section_dict(cfg, "tool:pitloom:fragment")
     if fragment_raw:
-        tool_pitloom["fragment"] = _parse_sub_section(fragment_raw)
+        tool_pitloom["fragment"] = parse_sub_section("fragment", fragment_raw)
 
 
 def _read_pitloom_config_from_cfg(
@@ -464,15 +430,12 @@ def _read_pitloom_config_from_cfg(
     data = {"tool": {"pitloom": tool_pitloom}}
 
     for k, v in raw.items():
-        if k in _KNOWN_BOOL_KEYS:
-            b = _bool_val(v)
-            tool_pitloom[k] = b if b is not None else v.strip()
-        elif k == "fragments":
+        if k == "fragments":
             tool_pitloom["fragment"] = {
                 "files": [f.strip() for f in v.splitlines() if f.strip()]
             }
         else:
-            tool_pitloom[k] = v.strip()
+            tool_pitloom[k] = coerce_cfg_value("", k, v)
 
     _populate_sub_sections_from_cfg(cfg, tool_pitloom)
 
@@ -486,15 +449,15 @@ def _read_pitloom_config_from_cfg(
     if tool_name:
         tool_pitloom["creation-tool"] = [{"name": tool_name}]
 
-    no_creation_tool = _pick_cfg_str(
-        raw, creation_raw, "no-creation-tool", "no_creation_tool"
-    )
-    if no_creation_tool is not None:
-        b = _bool_val(no_creation_tool)
-        if b is not None:
-            if "creation" not in tool_pitloom:
-                tool_pitloom["creation"] = {}
-            tool_pitloom["creation"]["no-creation-tool"] = b
+    # [tool:pitloom] no-creation-tool, unless [tool:pitloom:creation] has
+    # either spelling
+    no_tool_keys = ("no-creation-tool", "no_creation_tool")
+    if not any(k in creation_raw for k in no_tool_keys):
+        for key in no_tool_keys:
+            if key in raw:
+                tool_pitloom.setdefault("creation", {})[key] = coerce_cfg_value(
+                    "creation", key, raw[key]
+                )
 
     _clean_creation_keys(tool_pitloom)
     return parse_pitloom_config(data, is_setup_cfg=True)

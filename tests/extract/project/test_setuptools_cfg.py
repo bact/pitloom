@@ -267,14 +267,6 @@ def test_resolve_cfg_version_edge_cases(tmp_path: Path) -> None:
     )
 
 
-def test_bool_val_unrecognized_string_returns_none() -> None:
-    """_bool_val returns None for values that aren't a recognized boolean
-    spelling."""
-    from pitloom.extract.project.setuptools_cfg import _bool_val
-
-    assert _bool_val("maybe") is None
-
-
 def test_resolve_cfg_file_directive_non_file_directive_returns_raw(
     tmp_path: Path,
 ) -> None:

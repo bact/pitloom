@@ -155,6 +155,8 @@ and this project adheres to
 
 ### Fixed
 
+- `setup.cfg` `[tool:pitloom]`: every boolean and integer key (e.g. `use-lockfile`,
+  `max-source-metadata-bytes`) reads as in `pyproject.toml`, not as a string
 - PyPI, Croissant URL and remote authors-file fetches close an HTTP error
   response; Python 3.14 warned `ResourceWarning` when it was garbage-collected
   ([#242])
