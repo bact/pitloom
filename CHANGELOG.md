@@ -180,6 +180,8 @@ and this project adheres to
   `--allow-build` output drops OSC escapes and blank `DEBUG:` lines ([#258])
 - `import pitloom._loom_active_run` as the first Pitloom import failed on a
   circular import; two more cycles hidden by import order removed ([#260])
+- `scripts/manual_cli_checks` with a relative `PYTHONPATH` ran checks against
+  another installed Pitloom; it now refuses a Pitloom other than its own ([#261])
 - Ctrl-C prints `ERROR: interrupted`, not a traceback (kept under `--debug`),
   and still ends by SIGINT ([#262])
 
@@ -208,6 +210,7 @@ and this project adheres to
 [#257]: https://github.com/bact/pitloom/pull/257
 [#258]: https://github.com/bact/pitloom/pull/258
 [#260]: https://github.com/bact/pitloom/pull/260
+[#261]: https://github.com/bact/pitloom/pull/261
 [#262]: https://github.com/bact/pitloom/pull/262
 
 ## [0.19.0] - 2026-09-18
