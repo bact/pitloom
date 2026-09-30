@@ -26,6 +26,7 @@ import pytest
 
 from pitloom.assemble import generate_wheel_sbom
 from pitloom.extract.wheel import read_wheel
+from pitloom.id_registry import FileEntry, IdRegistry
 from tests._raw_archive import METADATA, mimic_windows_infolist, write_raw_zip
 
 _DIST_INFO = "demo-1.0.0.dist-info"
@@ -79,7 +80,9 @@ def test_read_wheel_normalises_member_names(tmp_path: Path) -> None:
 
     by_name = {f.distribution_path: f for f in files}
     assert set(by_name) == _EXPECTED
-    assert all(f.physical_path == f.distribution_path for f in files)
+    raw = {f.distribution_path: f.physical_path for f in files}
+    assert raw["demo/mod.py"] == "demo\\mod.py"  # the raw archive name
+    assert raw["demo/__init__.py"] == "demo/__init__.py"
     assert by_name["demo/mod.py"].digest_sha256 == (
         hashlib.sha256(b"mod = 1\n").hexdigest()
     )
@@ -174,3 +177,28 @@ def test_wheel_sbom_identical_on_windows_and_posix(
 def test_wheel_sbom_deterministic(tmp_path: Path) -> None:
     wheel = _wheel(tmp_path)
     assert _sbom(wheel) == _sbom(wheel)
+
+
+@pytest.mark.parametrize("update", [False, True], ids=["lookup", "harvest"])
+def test_registry_keyed_by_raw_name_still_hits(tmp_path: Path, update: bool) -> None:
+    """A registry harvested before names were normalised holds the raw
+    archive name; the file keeps its registered id under its new name, and
+    a harvest re-keys the entry to that name."""
+    namespace = "https://example.org/ns"
+    registered = f"{namespace}#File-42"
+    digest = hashlib.sha256(b"mod = 1\n").hexdigest()
+    registry = IdRegistry(
+        namespace=namespace,
+        files={"demo\\mod.py": FileEntry(spdx_id=registered, sha256=digest)},
+        path=tmp_path / "ids.json",
+    )
+    sbom = generate_wheel_sbom(
+        _wheel(tmp_path),
+        offline=True,
+        id_registry=registry,
+        update_id_registry=update,
+    )
+    ids = {e["name"]: e["spdxId"] for e in _graph(sbom) if e["type"] == "software_File"}
+    assert ids["demo/mod.py"] == registered
+    keys = {k for k, v in registry.files.items() if v.spdx_id == registered}
+    assert keys == ({"demo/mod.py"} if update else {"demo\\mod.py"})

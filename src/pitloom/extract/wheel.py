@@ -27,14 +27,16 @@ def _hash_wheel_entry(
     """Compute SHA-256 hash for a wheel entry in streaming chunks.
 
     *name* is the entry's install-location name (see
-    :func:`pitloom.core.archive_member_names.zip_file_members`).
+    :func:`pitloom.core.archive_member_names.zip_file_members`), the
+    ``distribution_path``. ``physical_path`` is the raw archive name, so a
+    registry keyed by it before names were normalised still hits.
     """
     hasher = hashlib.sha256()
     with zf.open(info) as f:
         while chunk := f.read(8192):
             hasher.update(chunk)
     return ProjectFile(
-        physical_path=name,
+        physical_path=info.orig_filename,
         distribution_path=name,
         digest_sha256=hasher.hexdigest(),
     )

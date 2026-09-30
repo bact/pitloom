@@ -25,7 +25,7 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import IO, Any, NamedTuple, TypeVar
 
-from pitloom.core.archive_member_names import archive_members, zip_file_members
+from pitloom.core.archive_member_names import file_members, zip_file_members
 from pitloom.core.config import (
     PitloomConfig,
     parse_pitloom_config,
@@ -141,20 +141,25 @@ def _read_member(name: str, stream: IO[bytes], keep: bool) -> tuple[bytes | None
     return (bytes(kept) if kept is not None else None), hasher.hexdigest()
 
 
+#: One archive file: (install-location name, raw archive name, opener).
+_Entry = tuple[str, str, Callable[[], IO[bytes] | None]]
+
+
 def _scan(
-    entries: Iterator[tuple[str, Callable[[], IO[bytes] | None]]],
+    entries: Iterator[_Entry],
     *,
     root_only: bool = False,
 ) -> _Members:
     """Hash every member; keep the first root-level member of each
     :data:`_ROOT_MEMBERS` basename, archive order deciding a tie between
     two top-level directories. Repeats of one name never get here:
-    :func:`~pitloom.core.archive_member_names.archive_members` keeps the
+    :func:`~pitloom.core.archive_member_names.file_members` keeps the
     last, as unpacking leaves it. With *root_only*, open only those members
-    and list no files."""
+    and list no files. A file's ``physical_path`` is its raw archive name,
+    so a registry keyed by it before names were normalised still hits."""
     root: dict[str, bytes | None] = {}
     files: list[ProjectFile] = []
-    for name, open_member in entries:
+    for name, raw, open_member in entries:
         parts = Path(name).parts
         wanted = len(parts) == 2 and parts[1] in _ROOT_MEMBERS and parts[1] not in root
         if root_only and not wanted:
@@ -168,7 +173,7 @@ def _scan(
         if not root_only:
             files.append(
                 ProjectFile(
-                    physical_path=name, distribution_path=name, digest_sha256=digest
+                    physical_path=raw, distribution_path=name, digest_sha256=digest
                 )
             )
     return _Members(root, files)
@@ -176,18 +181,17 @@ def _scan(
 
 def _tar_entries(
     tf: tarfile.TarFile, logger: logging.Logger | None, archive_name: str
-) -> Iterator[tuple[str, Callable[[], IO[bytes] | None]]]:
-    files = [(m.name, m) for m in tf.getmembers() if m.isfile()]
-    members = archive_members(files, archive_name, logger, dot_prefix_ok=True)
-    for name, member in members:
-        yield name, functools.partial(tf.extractfile, member)
+) -> Iterator[_Entry]:
+    files = ((m.name, m.size, m) for m in tf.getmembers() if m.isfile())
+    for name, member in file_members(files, archive_name, logger, dot_prefix_ok=True):
+        yield name, member.name, functools.partial(tf.extractfile, member)
 
 
 def _zip_entries(
     zf: zipfile.ZipFile, logger: logging.Logger | None, archive_name: str
-) -> Iterator[tuple[str, Callable[[], IO[bytes] | None]]]:
+) -> Iterator[_Entry]:
     for name, info in zip_file_members(zf, archive_name, logger):
-        yield name, functools.partial(zf.open, info)
+        yield name, info.orig_filename, functools.partial(zf.open, info)
 
 
 def _scan_archive(sdist_path: Path, *, root_only: bool = False) -> _Members:

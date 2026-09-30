@@ -127,3 +127,38 @@ def test_duplicate_root_member_last_wins(
         f"ARCHIVE='d.zip' ENTRY='{SDIST_ROOT}/PKG-INFO': overwritten by later"
         f" entry '{SDIST_ROOT}/PKG-INFO' -- skipped"
     ]
+
+
+@pytest.mark.parametrize(
+    ("make", "filename"),
+    [(write_raw_zip, "s.zip"), (write_raw_tar, "s.tar.gz")],
+    ids=["zip", "tar"],
+)
+def test_trailing_backslash_is_a_directory_in_zip_and_tar(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    make: Callable[[Path, dict[str, bytes]], Path],
+    filename: str,
+) -> None:
+    """A raw name ending in ``\\`` is a directory in both archive kinds
+    (``tarfile`` alone would keep it as a file named ``pkg``); one that
+    carries data warns, as its bytes are dropped."""
+    sdist = make(
+        tmp_path / filename,
+        {f"{SDIST_ROOT}/pkg\\": b"data", f"{SDIST_ROOT}/pkg/a.py": b""},
+    )
+    with caplog.at_level(logging.WARNING):
+        contents = read_sdist(sdist, read_config=False)
+    assert [f.distribution_path for f in contents.files] == [f"{SDIST_ROOT}/pkg/a.py"]
+    assert [r.getMessage() for r in caplog.records] == [
+        f"ARCHIVE={filename!r} ENTRY='{SDIST_ROOT}/pkg\\\\': directory entry"
+        " carries data -- skipped"
+    ]
+
+
+def test_sdist_physical_path_is_raw_name(tmp_path: Path) -> None:
+    """``physical_path`` keeps the raw archive name (a registry key from
+    before normalisation); ``distribution_path`` is the install location."""
+    contents = read_sdist(_zip_sdist(tmp_path), read_config=False)
+    raw = {f.distribution_path: f.physical_path for f in contents.files}
+    assert raw[f"{SDIST_ROOT}/demo/mod.py"] == f"{SDIST_ROOT}\\demo\\mod.py"

@@ -10,7 +10,9 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [wheel-embedding.md](wheel-embedding.md) (the embed flow that
 reads the same names), [ai-model-scanning.md](ai-model-scanning.md) (PR D's
-wheel model producer reuses the helper).
+wheel model producer reuses the helper),
+[archive-member-followups.md](../design/archive-member-followups.md) (what
+was left open).
 
 ## Problem
 
@@ -53,10 +55,13 @@ distribution paths for every reader:
   - any `..` segment;
   - a NUL;
   - nothing left after normalising.
-- **Directories:** a ZIP entry whose raw name ends in `/`, `\` or a `.`
-  segment (`pkg/.`) is a directory. `ZipInfo.is_dir()` reads `filename`,
-  so `pkg\` was a directory on Windows only. Directories are skipped; one
-  that carries data warns, since its bytes are dropped.
+- **Directories:** `is_directory_name` decides from the raw name: it ends
+  in `/`, `\` or a `.` segment (`pkg/.`). `ZipInfo.is_dir()` reads
+  `filename`, so `pkg\` was a directory on Windows only. `tarfile` retypes
+  only a trailing `/`, so a regular tar file named `pkg\` stayed a file
+  named `pkg`, where the same raw name in a ZIP was a directory. Both kinds
+  now go through `file_members`, which skips directory names and warns
+  when one carries data, since its bytes are dropped.
 - **Same name twice** (`a/b` and `./a/b`, or an exact duplicate arcname):
   only the last one is kept. Read with `\` as a separator, an installer
   extracting in archive order leaves that one behind. Keeping both gave
@@ -85,6 +90,17 @@ distribution paths for every reader:
   quotes the raw name. The sdist reader's root-only scan,
   which serves `--verbose` source reporting, passes no logger: the same
   run's full read already warned.
+
+## `physical_path` keeps the raw name
+
+For an archive member, `ProjectFile.physical_path` is the raw archive name
+(`orig_filename`, or the tar name) and `distribution_path` is the
+normalised one. The registry lookup tries `physical_path` first, then
+`distribution_path`. A registry harvested before this change, keyed by
+`demo\mod.py`, therefore still finds the file and keeps its id. The next
+harvest then records the normalised name. Nothing joins an archive
+member's `physical_path` onto a directory: the AI model scan runs for
+directory targets only, and wheel files carry no header data of their own.
 
 ## Why skip unsafe names rather than keep them
 
@@ -128,10 +144,9 @@ Out of scope; see `roadmap.md`.
 - `embed-wheel`/`wheel --embed` with `--allow-build` reads two archives
   (the user's wheel and a fresh build). One non-conforming name present in
   both therefore warns once per archive: once plain, once with `Build: `.
-- `--allow-build` extraction on a case-insensitive filesystem, or on Windows
-  with `a.py:stream`, device names (`CON`) or trailing dots, can still map
-  two names to one file or none. The SBOM name is the same on every OS; only
-  that path's extracted bytes can differ. This predates the change.
+- `--allow-build` extraction, archive-level wheel operations and tar links
+  are left open; see
+  [archive-member-followups.md](../design/archive-member-followups.md).
 
 ## Tests
 

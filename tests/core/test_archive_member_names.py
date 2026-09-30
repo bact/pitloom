@@ -23,7 +23,7 @@ import pytest
 from pitloom.core.archive_member_names import (
     MemberName,
     archive_members,
-    is_directory_member,
+    is_directory_name,
     normalize_member_name,
     zip_file_members,
 )
@@ -83,13 +83,9 @@ def test_normalize_member_name(raw: str, expected: MemberName) -> None:
         ("pkg/.x", False),
     ],
 )
-def test_is_directory_member_reads_raw_name(raw: str, is_dir: bool) -> None:
-    """``pkg\\`` is a directory on every OS, not only where ``os.sep`` is
-    a backslash."""
-    info = zipfile.ZipInfo("placeholder")
-    info.orig_filename = raw
-    info.filename = "unused"
-    assert is_directory_member(info) is is_dir
+def test_is_directory_name(raw: str, is_dir: bool) -> None:
+    """``pkg\\`` is a directory on every OS and in every archive kind."""
+    assert is_directory_name(raw) is is_dir
 
 
 @pytest.mark.parametrize(

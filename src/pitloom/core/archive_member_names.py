@@ -7,7 +7,7 @@
 
 Every reader that turns wheel or sdist archive members into
 ``ProjectFile``/``IncludedFile`` distribution paths goes through
-:func:`archive_members` (:func:`zip_file_members` for a ZIP), so
+:func:`file_members` (:func:`zip_file_members` for a ZIP), so
 ``software_File.name`` and every lookup keyed by it (``contains``,
 ``hasDataFile``, registry, phantom dependencies) agree.
 
@@ -143,15 +143,38 @@ def archive_members(
     return members
 
 
-def is_directory_member(info: zipfile.ZipInfo) -> bool:
-    """Whether *info* is a directory entry, judged by its raw name.
-
-    ``ZipInfo.is_dir()`` reads ``filename``, which CPython converts from
-    ``os.sep`` only on Windows; ``orig_filename`` is the raw name. A name
-    ending in a ``.`` segment (``pkg/.``) names a directory too.
+def is_directory_name(raw: str) -> bool:
+    """Whether the raw member name *raw* names a directory: it ends in
+    ``/``, ``\\`` or a ``.`` segment (``pkg/.``). Judged from the raw name,
+    not ``ZipInfo.is_dir()`` (reads ``filename``, converted from ``os.sep``
+    only on Windows) or ``TarInfo.isdir()`` (a regular file named ``pkg\\``
+    stays a file), so a ZIP and a tar agree on every OS.
     """
-    posix = to_posix_distribution_path(info.orig_filename)
+    posix = to_posix_distribution_path(raw)
     return posix.endswith(("/", "/.")) or posix == "."
+
+
+def file_members(
+    entries: Iterable[tuple[str, int, T]],
+    archive_name: str,
+    logger: logging.Logger | None,
+    log_prefix: str = "",
+    *,
+    dot_prefix_ok: bool = False,
+) -> list[tuple[str, T]]:
+    """:func:`archive_members` over an archive's file-typed entries
+    (raw name, size, payload), after dropping the ones whose name is a
+    directory (:func:`is_directory_name`); one that carries data gets a
+    ``WARNING:`` too, since its bytes are dropped."""
+    files: list[tuple[str, T]] = []
+    for raw, size, payload in entries:
+        if not is_directory_name(raw):
+            files.append((raw, payload))
+        elif size and logger is not None:
+            logger.warning(_DIRECTORY_DATA, log_prefix, archive_name, raw)
+    return archive_members(
+        files, archive_name, logger, log_prefix, dot_prefix_ok=dot_prefix_ok
+    )
 
 
 def zip_file_members(
@@ -160,18 +183,7 @@ def zip_file_members(
     logger: logging.Logger | None,
     log_prefix: str = "",
 ) -> list[tuple[str, zipfile.ZipInfo]]:
-    """:func:`archive_members` for a ZIP (wheel or ``.zip`` sdist).
-
-    Names come from ``orig_filename``, so the result does not depend on the
-    OS. Directory entries are skipped; one that carries data gets a
-    ``WARNING:`` too.
-    """
-    files: list[tuple[str, zipfile.ZipInfo]] = []
-    for info in zf.infolist():
-        if not is_directory_member(info):
-            files.append((info.orig_filename, info))
-        elif info.file_size and logger is not None:
-            logger.warning(
-                _DIRECTORY_DATA, log_prefix, archive_name, info.orig_filename
-            )
-    return archive_members(files, archive_name, logger, log_prefix)
+    """:func:`file_members` for a ZIP (wheel or ``.zip`` sdist). Names come
+    from ``orig_filename``, so the result does not depend on the OS."""
+    entries = ((info.orig_filename, info.file_size, info) for info in zf.infolist())
+    return file_members(entries, archive_name, logger, log_prefix)

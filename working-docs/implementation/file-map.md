@@ -40,6 +40,7 @@ pitloom/
 │   ├── design/
 │   │   ├── adoption-surfaces.md
 │   │   ├── architecture-overview.md
+│   │   ├── archive-member-followups.md # Open archive-name gaps: --allow-build extraction, embed, tar links
 │   │   ├── cli-test-coverage-roadmap.md        # CLI split + test suite modularization roadmap
 │   │   ├── complexity-and-file-size-roadmap.md # Complexity metrics and file limits tracking
 │   │   ├── format-neutral-representation.md
