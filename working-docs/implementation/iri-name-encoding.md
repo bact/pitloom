@@ -34,8 +34,9 @@ keeps the source text.
 ## Rule: percent-encode what is not RFC 3987 `ipchar`, and `%`
 
 Kept as is: ASCII letters and digits, `-._~`, sub-delims `!$&'()*+,;=`,
-`:` and `@`, and every RFC 3987 `ucschar` (non-ASCII letters included) except
-the bidi formatting characters (U+200E, U+200F, U+202A to U+202E), which
+`:` and `@`, and every RFC 3987 `ucschar` (non-ASCII letters included; note
+plane 14 starts at U+E1000, so tag characters and variation selectors
+supplement are encoded) except the bidi formatting characters (U+200E, U+200F, U+202A to U+202E), which
 section 4.1 forbids in an IRI. Everything else becomes its UTF-8 bytes,
 percent-encoded in upper case (`%20`); a lone surrogate is encoded via
 `surrogatepass`.
@@ -65,8 +66,14 @@ only caller that applies it to a prefix, and every caller passes a raw name.
 ## ID registry interaction
 
 - Entity keys stay names (`"Stable Diffusion XL"`); the stored `spdxId` is
-  the encoded one. Lookup is by name, so a harvested or imported id is reused
-  as stored (`test_registry_round_trips_an_encoded_id`).
+  the encoded one. A lookup by name returns it as stored
+  (`test_registry_round_trips_an_encoded_id`, via `pitloom.loom.run()`; the
+  test renumbers the stored id, since a run adopting the registry namespace
+  would otherwise re-mint the same `-1` and pass without any lookup).
+- `loom model` looks its model up by file stem, not name, so an id imported
+  from a titled model's SBOM is not reused there. Not caused by the encoding
+  (same on the pre-fix code); tracked in
+  [canonical-output-followups.md](../design/canonical-output-followups.md).
 - `reserve_spdx_ids()` parses `<prefix>-<n>` out of a stored id, so its
   prefix is the encoded one. `generate_spdx_id()` keys its counter on the
   encoded prefix too, so a reservation and the next mint meet on the same
@@ -87,6 +94,7 @@ only caller that applies it to a prefix, and every caller passes a raw name.
   registry round trip; and, marked `network`, `spdx3-validate` on each
   surface's output. All fail on the pre-fix code.
 
-Mutation-tested: each range bound, the bidi check, the `%` exclusion, the
+Mutation-tested: each range bound (plane 14's U+E1000 start included), the
+bidi check, the registry lookup in the round trip, the `%` exclusion, the
 upper-case hex, the namespace encoding, the prefix encoding and the registry
 namespace -- every mutant killed.

@@ -37,8 +37,11 @@ def _is_ucschar(code_point: int) -> bool:
             or 0xF900 <= code_point <= 0xFDCF
             or 0xFDF0 <= code_point <= 0xFFEF
         )
-    # Planes 1 to 14, less the last two code points of each plane.
-    return code_point <= 0xEFFFD and (code_point & 0xFFFF) <= 0xFFFD
+    # Planes 1 to 14, less the last two code points of each plane; plane 14
+    # starts at U+E1000 (tags and variation selectors are excluded).
+    if code_point > 0xEFFFD or 0xE0000 <= code_point < 0xE1000:
+        return False
+    return (code_point & 0xFFFF) <= 0xFFFD
 
 
 def _is_safe(char: str) -> bool:

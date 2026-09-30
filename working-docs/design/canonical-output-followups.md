@@ -45,3 +45,8 @@ endings were built in step 6.5 -- see
   `doc_name`s -- the model name, each dataset name, the script path and
   `"loom"` -- with a random `uuid4` document uuid, so one fragment spans
   several namespaces and differs every run. Found while fixing the encoding.
+- **Open: `loom model` registry lookup key.** `generate_model_sbom()` looks
+  the model up by file stem (`weights`), while `loom id import` and harvest
+  key it by element `name` (its title). For a model whose title is not its
+  stem, an imported id is never reused and a new one is minted. Decide one
+  key, or try both as `pitloom.loom.run()` does with its name list.

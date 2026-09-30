@@ -121,24 +121,30 @@ def test_surface_emits_valid_iri_ids_and_keeps_the_name(
 def test_registry_round_trips_an_encoded_id(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """An encoded id harvested into the registry is reused, not re-minted."""
+    """An encoded id harvested into the registry is reused, not re-minted.
+
+    Via ``pitloom.loom.run()``, which looks the model up by its name. The
+    stored id is renumbered first: the second run mints under the registry's
+    namespace, so a fresh mint would also give ``AIPackage-1``.
+    """
     monkeypatch.chdir(tmp_path)
-    first = _model_cli(tmp_path, monkeypatch)
+    first = _loom_run(tmp_path, monkeypatch)
     registry_path = tmp_path / "reg.json"
     registry = IdRegistry.new("unused", path=registry_path)
     registry.import_sbom(first)
     registry.save()
-    model_id = registry.lookup_entity(_TITLE, "ai_AIPackage")
-    assert model_id is not None
-    assert _ENCODED in model_id
+    minted_id = registry.lookup_entity(_TITLE, "ai_AIPackage")
+    assert minted_id is not None
+    assert minted_id.startswith(f"{_BASE}{_ENCODED}-")
+    assert minted_id.endswith("#AIPackage-1")
+    model_id = minted_id[: -len("-1")] + "-7"
+    raw = registry_path.read_text(encoding="utf-8")
+    assert raw.count(minted_id) == 1
+    registry_path.write_text(raw.replace(minted_id, model_id), encoding="utf-8")
 
     second = tmp_path / "again.spdx3.json"
-    model = tmp_path / "weights.safetensors"
-    _cli(
-        monkeypatch,
-        *("model", str(model), "-o", str(second)),
-        *("--id-registry", str(registry_path)),
-    )
+    with loom.run(second, id_registry=registry_path):
+        loom.set_model(_TITLE)
     models = [el for el in _graph(second) if el.get("type") == "ai_AIPackage"]
     assert [el["spdxId"] for el in models] == [model_id]
 
