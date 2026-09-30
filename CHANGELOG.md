@@ -45,6 +45,8 @@ and this project adheres to
 - `id generate`/`id import` print an `INFO:` config hint after creating an
   undeclared registry; `id import` lists names skipped because the SBOM holds
   several elements under them ([#235])
+- `--scan-model-usage`: record which Python files reference a found AI model;
+  config key, Action input, `scan_model_usage=` ([#252])
 
 ### Changed
 
@@ -101,6 +103,9 @@ and this project adheres to
   fixed ([#235])
 - AI model discovery keys on the installed name: a `force-include` rename to a
   model suffix is found, to a non-model suffix dropped ([#239])
+- Recording which `.py` files reference an AI model (`hasDataFile`) is off by
+  default on every surface, incl. the Hatchling hook; when unset, one `INFO:`
+  names the flag ([#252])
 
 ### Removed
 
@@ -174,6 +179,7 @@ and this project adheres to
 [#244]: https://github.com/bact/pitloom/pull/244
 [#247]: https://github.com/bact/pitloom/pull/247
 [#248]: https://github.com/bact/pitloom/pull/248
+[#252]: https://github.com/bact/pitloom/pull/252
 
 ## [0.19.0] - 2026-09-18
 

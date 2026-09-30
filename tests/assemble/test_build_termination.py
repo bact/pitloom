@@ -86,7 +86,9 @@ def _signal_during_scan(
     started."""
     seen: list[list[Path]] = []
 
-    def scan(project_dir: Path, project_files: object) -> list[object]:
+    def scan(
+        project_dir: Path, project_files: object, **_kwargs: object
+    ) -> list[object]:
         del project_dir, project_files
         seen.append(extract_dirs(sys_tmp))
         deliver_sigterm()
@@ -225,7 +227,7 @@ _DRIVER = textwrap.dedent(
             zf.writestr("pkg/__init__.py", "x = 1\\n")
         return wheel
 
-    def slow_scan(project_dir, project_files):
+    def slow_scan(project_dir, project_files, **kwargs):
         Path(sys.argv[2]).write_text("scanning")
         time.sleep(120)
         return []

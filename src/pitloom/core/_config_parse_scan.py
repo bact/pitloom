@@ -60,6 +60,17 @@ def _read_extract_file_header(pitloom_data: dict[str, Any]) -> bool:
     return _read_bool_setting(pitloom_data, "extract-file-header", True)
 
 
+def _read_scan_model_usage(pitloom_data: dict[str, Any]) -> bool | None:
+    """Read ``[tool.pitloom] scan-model-usage``; ``None`` when the key is absent.
+
+    An explicit ``false`` stays ``False``: it silences the usage-scan hint.
+    """
+    key = "scan-model-usage"
+    if key not in pitloom_data:
+        return None
+    return _read_bool_setting(pitloom_data, key, False)
+
+
 def _read_content_type_settings(
     pitloom_data: dict[str, Any],
 ) -> tuple[bool, str, tuple[ContentTypeOverride, ...]]:

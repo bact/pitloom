@@ -345,6 +345,17 @@ class EmbedFileCache:
                 settled[key] = compute()
             return cast(_T, settled[key])
 
+    def first_use(self, key: Hashable) -> bool:
+        """Whether this is the first call with *key* in this block, so a
+        once-per-batch message is emitted by exactly one caller. Shares
+        :meth:`once`'s key space: use a key no :meth:`once` caller uses.
+
+        Raises :class:`RuntimeError` outside a ``with`` block.
+        """
+        ran: list[bool] = []
+        self.once(key, lambda: ran.append(True), "first_use")
+        return bool(ran)
+
     def _require_block(self, method: str) -> None:
         if self._guard is None:
             raise RuntimeError(
@@ -414,7 +425,14 @@ def _build_sbom_from_project_and_wheel(
         )
         _add_concluded_license(project_metadata, Path(project_dir))
         merkle_root = _compute_wheel_merkle_root(merged_files)
-        ai_models = scan_project_for_ai_models(project_dir, project_files)
+        ai_models = scan_project_for_ai_models(
+            project_dir,
+            project_files,
+            scan_usage=pitloom_config.scan_model_usage is True,
+            # A batch hints once: every wheel shares this project's models.
+            usage_hint=pitloom_config.scan_model_usage is None
+            and cache.first_use(("scan-usage-hint", str(project_dir))),
+        )
         enrichment_results = run_enrichers_for_models(
             ai_models, pitloom_config.enrich, project_dir
         )

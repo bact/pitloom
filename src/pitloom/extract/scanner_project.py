@@ -77,13 +77,23 @@ def project_sources(
 
 
 def scan_project_for_ai_models(
-    project_dir: Path, files: list[ProjectFile]
+    project_dir: Path,
+    files: list[ProjectFile],
+    *,
+    scan_usage: bool,
+    usage_hint: bool,
 ) -> list[AiModelMetadata]:
-    """Scan project files for AI models and detect their usages in scripts.
+    """Scan project files for AI models; with *scan_usage*, their script usages.
+
+    *usage_hint* allows the one-line ``INFO:`` naming the setting (see
+    :func:`pitloom.extract.scanner.scan_ai_models`).
 
     Models come back sorted; see
     :func:`pitloom.extract.scanner.discover_ai_models`.
     """
     return scan_ai_models(
-        project_candidates(project_dir, files), project_sources(project_dir, files)
+        project_candidates(project_dir, files),
+        project_sources(project_dir, files),
+        scan_usage=scan_usage,
+        usage_hint=usage_hint,
     )

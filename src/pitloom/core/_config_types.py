@@ -30,6 +30,7 @@ BOOL_KEYS: dict[str, frozenset[str]] = {
             "extract-file-header",
             "offline",
             "pretty",
+            "scan-model-usage",
             "update-id-registry",
             "use-lockfile",
         }
@@ -161,6 +162,8 @@ class PitloomConfig:
     provenance_max_source_metadata_bytes: int = 0
     enrich_local: bool = False
     extract_file_header: bool = True
+    #: ``None`` = never given (treated as off, but the scan hints at the flag).
+    scan_model_usage: bool | None = None
     content_type_enabled: bool = False
     content_type_method: str = "auto"
     content_type_overrides: tuple[ContentTypeOverride, ...] = ()

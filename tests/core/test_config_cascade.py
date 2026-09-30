@@ -86,6 +86,7 @@ def test_apply_overrides_full() -> None:
 _BOOL_OVERRIDE_TO_CONFIG = {
     "enrich": "enrich_local",
     "extract_file_header": "extract_file_header",
+    "scan_model_usage": "scan_model_usage",
     "content_type": "content_type_enabled",
     "offline": "offline",
     "pretty": "pretty",

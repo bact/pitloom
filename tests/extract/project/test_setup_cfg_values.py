@@ -40,6 +40,7 @@ _FIELD_KEYS: dict[str, tuple[str, str]] = {
     ),
     "enrich_local": ("", "enrich"),
     "extract_file_header": ("", "extract-file-header"),
+    "scan_model_usage": ("", "scan-model-usage"),
     "content_type_enabled": ("content-type", "enabled"),
     "offline": ("", "offline"),
     "use_lockfile": ("", "use-lockfile"),

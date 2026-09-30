@@ -158,3 +158,38 @@ section 3.3(2).
 
 A `scanner_wheel.py` producer, a `scan_usage` gate on `scan_ai_models()`,
 and a read cap inside `attach_usage_references()`.
+
+### Usage gate (step 10, landed first)
+
+- **What the flag gates:** only pass 2 (`attach_usage_references()`, which
+  reads every Python source). Discovery (pass 1) always runs, so an AIPackage
+  is present whatever the flag says. Gating pass 1 would make `--no-...`
+  silently drop models.
+- **Default off, everywhere:** `--scan-model-usage`/`scan-model-usage`
+  (CLI > config > default, setup.cfg too) on every live surface: `project`,
+  `generate <dir>`, `embed-wheel --project-dir` and the Hatchling hook (which
+  reads the project's own config). `hasDataFile` therefore no longer appears
+  by default; this changes hook and `project` output.
+- **`scan_usage` and `usage_hint` have no default** on `scan_ai_models()`
+  and `scan_project_for_ai_models()`, so a new caller cannot forget either.
+  Callers pass `scan_usage=cfg.scan_model_usage is True` and
+  `usage_hint=cfg.scan_model_usage is None`.
+- **The setting is tri-state:** `PitloomConfig.scan_model_usage` is `None`
+  when never given (off, plus the hint), `False` when given as false on any
+  surface (off, silent), `True` on. Readers keep `None` for an absent key;
+  `apply_overrides()` replaces only on non-`None`, so a config `false` is
+  not collapsed to unset.
+- **One INFO line:** emitted from `scan_ai_models()` only, when the pass is
+  off, the setting was never given and at least one model was found; never
+  from a caller or when no model exists. Every surface therefore words it
+  identically. Text: `Found N AI model file(s); pass --scan-model-usage (or
+  set scan-model-usage = true) to also record which Python files reference
+  them.` A multi-wheel `embed-wheel --project-dir` run shows it once:
+  `EmbedFileCache.first_use()` decides which wheel's scan may hint (every
+  wheel shares the project's models).
+- **Inert until the wheel producer lands:** WHEEL and EMBED_STANDALONE find
+  no models yet, so `--scan-model-usage` warns there (`INERT` rows, removed
+  with the wheel producer), as do sdist, env, model, Hugging Face and both
+  enrich kinds.
+- **Not done here:** `generate_wheel_sbom()` gets no kwarg (accepting and
+  ignoring it would be a silent no-op).

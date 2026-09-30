@@ -81,7 +81,10 @@ def _stable_scan_run(
     ):
         with caplog.at_level(logging.WARNING):
             out = generate_project_sbom(
-                project_dir, offline=True, build_options=BuildOptions(allow=True)
+                project_dir,
+                offline=True,
+                build_options=BuildOptions(allow=True),
+                scan_model_usage=True,
             )
     values = file_values(r.getMessage() for r in caplog.records)
     return extract, out, values
@@ -150,7 +153,10 @@ def test_generate_project_sbom_defers_cleanup_past_ai_model_scan(
     ):
         with caplog.at_level(logging.WARNING):
             generate_project_sbom(
-                project_dir, offline=True, build_options=BuildOptions(allow=True)
+                project_dir,
+                offline=True,
+                build_options=BuildOptions(allow=True),
+                scan_model_usage=True,
             )
 
     assert cleanup_calls == ["cleanup"]

@@ -183,7 +183,11 @@ def test_embed_wheel_defers_cleanup_past_ai_model_scan(
         lambda *a, **k: (None, [project_file], _cleanup),
     )
     with caplog.at_level(logging.WARNING):
-        embed_wheel_sbom(wheel_path, project_dir=tmp_path)
+        embed_wheel_sbom(
+            wheel_path,
+            project_dir=tmp_path,
+            overrides=ConfigOverrides(scan_model_usage=True),
+        )
 
     assert cleanup_calls == ["cleanup"]
     assert "could not read for usage scanning" not in caplog.text
