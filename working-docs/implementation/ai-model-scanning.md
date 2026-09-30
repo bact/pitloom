@@ -235,10 +235,10 @@ and a read cap inside `attach_usage_references()`.
 ### Wheels (step 9)
 
 `scan_wheel_for_ai_models(wheel_path, *, scan_usage, usage_hint,
-max_bytes)` serves `loom wheel`, `wheel --embed`, `embed-wheel` without
-`--project-dir`, `generate()` on a `.whl`, `generate_wheel_sbom()` and
-`embed_wheel_sbom()` without `project_dir`. `--project-dir` keeps scanning
-the project; `--sbom` scans nothing; the Hatchling hook scans its project
+max_bytes, trust, gate_hint)` serves `loom wheel`, `wheel --embed`,
+`embed-wheel` without `--project-dir`, `generate()` on a `.whl`,
+`generate_wheel_sbom()` and `embed_wheel_sbom()` without `project_dir`.
+`--project-dir` keeps scanning the project; `--sbom` scans nothing; the Hatchling hook scans its project
 directory, never a wheel.
 
 - **Members** come from `zip_file_members(zf, name, None)` -- no logger, as
@@ -324,6 +324,27 @@ directory, never a wheel.
   the scanner (`loom model`) escapes the member names it quotes itself, with
   the shared `logging_config.loggable()`. Not thread-safe: a record another
   thread logs on a reader's logger during a scan would be relayed too.
+- **Native readers are gated** (security; `--trust-wheel-model`). A reader
+  that calls a native library in Pitloom's process (fastText's `load_model`)
+  is an unbounded-CPU/memory surface no byte ceiling covers, and a signal
+  handler does not run under native code, so Ctrl-C cannot interrupt it (a
+  hostile 308-byte header measured 5 GB resident and climbing). A wheel's
+  hostile file is the likelier input, so the default there is: sniff only
+  (no materialise, no loader), `_stub()`, and one `INFO:` per run naming
+  the flag (claimed through the same once-per-run slot style as the usage
+  hint, so an `embed-wheel` batch says it once). `NATIVE_READERS_GATED`
+  (`scanner_wheel.py`) is the set of formats; the scanner sees it only as a
+  `NativeReaderGate` on each `ModelCandidate`, so a project producer could
+  use it and HDF5/ONNX join by being added to the set. `--trust-wheel-model`
+  (`trust_wheel_model=`; `ConfigOverrides.trust_wheel_model` for
+  `embed_wheel_sbom()`) lifts the gate: a plain opt-in like `--allow-build`,
+  `store_true` with a `None` default so the inert-option machinery can tell
+  "not given" from "given", and no config key, since a config can live in
+  the untrusted tree. Live on wheel, `wheel --embed` and standalone
+  `embed-wheel`; `INERT` on every other kind. A project scan is not gated:
+  the tree is the user's own, but that is unsafe for an untrusted checkout.
+  Subprocess isolation with a timeout and memory limit is the real fix:
+  [model-reader-isolation.md](../design/model-reader-isolation.md).
 - **Enrichment stays off** for a wheel: no README or model card is read from
   an archive.
 - **Rejected:** materialising siblings (no reader reads one: Keras reads

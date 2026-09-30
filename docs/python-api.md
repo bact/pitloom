@@ -140,7 +140,14 @@ when the setting was never given (an explicit `False` is silent). Other
 targets warn that it has no effect. For a wheel, an AI model file is copied
 out one at a time, each up to the config's `max-model-extract-bytes` (a
 bad value in `pitloom_config=` raises `ValueError`) and four times that in
-all; a model beyond either stays listed without its metadata.
+all; a model beyond either stays listed without its metadata. A fastText
+model in a wheel is listed without metadata too (one `INFO:` per run), as its
+native loader runs in the calling process and a hostile file can hang it or
+exhaust memory. `trust_wheel_model=True` (`generate()`,
+`generate_wheel_sbom()`, `ConfigOverrides.trust_wheel_model` for
+`embed_wheel_sbom()` without `project_dir=`; the CLI's `--trust-wheel-model`)
+runs it: for a wheel you trust only. No config key, so a config cannot opt in;
+other targets warn that it has no effect.
 
 `id_registry=` (or a target's own `[tool.pitloom] id-registry`, or an
 `id-registry` in `pitloom_config=`) is the only way a registry is ever

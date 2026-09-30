@@ -48,9 +48,19 @@ _MODELS = [
 _CAP = 1024 * 1024
 
 
-def _scan_wheel(wheel: Path, *, usage: bool = False, max_bytes: int = 10**8) -> Any:
+def _scan_wheel(
+    wheel: Path,
+    *,
+    usage: bool = False,
+    max_bytes: int = 10**8,
+    trust: bool = True,
+) -> Any:
     return scan_wheel_for_ai_models(
-        wheel, scan_usage=usage, usage_hint=lambda: False, max_bytes=max_bytes
+        wheel,
+        scan_usage=usage,
+        usage_hint=lambda: False,
+        max_bytes=max_bytes,
+        trust=trust,
     )
 
 

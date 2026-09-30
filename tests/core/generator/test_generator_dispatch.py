@@ -64,6 +64,7 @@ _SENTINELS: dict[str, Any] = {
     "enrich": True,
     "extract_file_header": False,
     "scan_model_usage": True,
+    "trust_wheel_model": True,
     "content_type": True,
     "use_lockfile": False,
     "build_options": BuildOptions(timeout=4321),

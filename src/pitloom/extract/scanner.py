@@ -257,24 +257,31 @@ def _read_materialized(
     return meta
 
 
-def _read_candidate(candidate: ModelCandidate) -> AiModelMetadata | None:
-    """Detect and read one candidate; ``None`` when it is not a model."""
-    if not is_model_candidate_name(candidate.distribution_path):
-        return None
-    where = loggable(candidate.physical_path)
+def _sniff_format(candidate: ModelCandidate) -> AiModelFormat | None:
+    """The candidate's format from its header; ``None`` (with a warning when
+    the header cannot be read) when it is not a model."""
     try:
         header = candidate.sniff()
     except OSError as e:
         log.warning(
             _UNREADABLE_MODEL_WARNING,
             detect_ai_model_format_from_header(b"", candidate.distribution_path),
-            where,
+            loggable(candidate.physical_path),
             "header",
             _detail(e, candidate.read_path, candidate.physical_path),
         )
         return None
     fmt = detect_ai_model_format_from_header(header, candidate.distribution_path)
-    if fmt == AiModelFormat.UNKNOWN:
+    return None if fmt == AiModelFormat.UNKNOWN else fmt
+
+
+def _read_candidate(candidate: ModelCandidate) -> AiModelMetadata | None:
+    """Detect and read one candidate; ``None`` when it is not a model."""
+    if not is_model_candidate_name(candidate.distribution_path):
+        return None
+    where = loggable(candidate.physical_path)
+    fmt = _sniff_format(candidate)
+    if fmt is None:
         return None
     if candidate.gate is not None and fmt in candidate.gate.formats:
         if candidate.gate.announce():

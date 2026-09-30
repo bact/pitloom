@@ -285,6 +285,10 @@ skill ("Validate a wheel's embedded SBOM").
   (once per run; silent after an explicit `--no-scan-model-usage` or
   `scan-model-usage = false`). sdist, env, model-file and Hugging Face
   targets, `enrich` and `embed-wheel --sbom` warn that it has no effect.
+- `--trust-wheel-model` -- on a built wheel, also read native-loader model
+  formats (fastText) that are otherwise listed without metadata. Never add it
+  unless the user states the wheel is trusted; a hostile file can hang or
+  exhaust memory. Other targets warn that it has no effect.
 - `--content-type` / `--no-content-type` -- per-file content-type/MIME
   detection (`magika`, or a filename-extension guess). Off by default and
   **opt-in only**: add it only when the request implies wanting that data,

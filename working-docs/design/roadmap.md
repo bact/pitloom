@@ -277,6 +277,10 @@ See [build-backend-improvements.md](build-backend-improvements.md).
   extraction (case/Unicode folding, Windows path rules), archive-level wheel
   operations on `orig_filename`, tar links in sdists. See
   [archive-member-followups.md](archive-member-followups.md).
+- [ ] **Model reader isolation (pre-1.0)** -- run native model readers
+  (fastText today) in a child process with a timeout and memory limit, so a
+  hostile model cannot hang or exhaust Pitloom, also for untrusted project
+  scans. See [model-reader-isolation.md](model-reader-isolation.md).
 - [ ] **Re-embedding lists the previous embedded SBOM** -- `embed-wheel`
   on a wheel that already has one describes that old
   `.dist-info/sboms/*` file (with its old hash) in the new SBOM, which
