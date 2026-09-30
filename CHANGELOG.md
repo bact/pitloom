@@ -115,8 +115,7 @@ and this project adheres to
 
 - `IdRegistry.find()`, registry auto-discovery (incl. `loom.Run`'s),
   `resolve_explicit_registry()`, `claim_registry_hit()` ([#235])
-- Unused internal `_project_doc_identity()`; its tests now drive `enrich_model()`
-  ([#256])
+- Unused internal `_project_doc_identity()` ([#256])
 
 ### Fixed
 
