@@ -3,14 +3,14 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for :func:`pitloom.assemble._model_generator._project_doc_identity`.
+"""Tests for the base document identity of
+:func:`pitloom.assemble.enrich_model`'s ``project_target``.
 
 See also: :func:`pitloom.assemble.spdx3.document.build`, which computes a
-base SBOM's real ``doc_uuid`` -- ``_project_doc_identity`` must derive the
-same value from the same :class:`~pitloom.core.project.ProjectMetadata`,
-or an enrichment fragment built against it references a ``doc_uuid`` the
-base document never actually used (see
-:mod:`tests.core.test_fragments_dangling_refs`).
+base SBOM's real ``doc_uuid`` -- ``enrich_model`` must derive the same
+value from the same :class:`~pitloom.core.project.ProjectMetadata`, or its
+fragment references a ``doc_uuid`` the base document never actually used
+(see :mod:`tests.core.test_fragments_dangling_refs`).
 """
 
 from __future__ import annotations
@@ -19,31 +19,21 @@ from pathlib import Path
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble._model_generator import (
-    _project_doc_identity,
-)
 from pitloom.assemble.spdx3.document import build
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import get_wheel_files
 from pitloom.extract.project import read_project
+from tests.assemble.enrich_identity_shared import enrich_base_namespace
 from tests.fixtures.locked_deps import write_locked_deps_project
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "projects"
 POETRY_FIXTURE = FIXTURES / "sampleproject-poetry"
 
-#: A UUID's canonical string form is always exactly 36 characters
-#: (8-4-4-4-12 hex, hyphen-separated) -- long enough that it can't
-#: collide with a project name containing hyphens, so slicing the tail
-#: off an SpdxDocument's spdxId (``https://spdx.org/spdxdocs/<name>-<uuid>``)
-#: recovers the real doc_uuid `build()` used, regardless of `<name>`.
-_UUID_LENGTH = 36
 
-
-def _real_build_doc_uuid(doc: DocumentModel) -> str:
+def _real_build_namespace(doc: DocumentModel) -> str:
     """Build *doc* for real via :func:`~pitloom.assemble.spdx3.document.build`
-    and recover the ``doc_uuid`` it actually used, by reading it back off
-    the emitted ``SpdxDocument`` element's ``spdxId`` -- not a second,
+    and return its ``SpdxDocument`` element's ``spdxId`` -- not a second,
     independently-maintained ``compute_doc_uuid()`` call that could drift
     from ``build()``'s own formula without either test noticing."""
     exporter = build(doc, offline=True)
@@ -51,16 +41,18 @@ def _real_build_doc_uuid(doc: DocumentModel) -> str:
         o for o in exporter.object_set.objects if isinstance(o, spdx3.SpdxDocument)
     )
     assert spdx_doc.spdxId is not None
-    return spdx_doc.spdxId[-_UUID_LENGTH:]
+    return spdx_doc.spdxId
 
 
-def test_project_doc_identity_matches_build_doc_uuid_with_locked_dependencies() -> None:
+def test_enrich_identity_matches_build_doc_uuid_with_locked_dependencies(
+    tmp_path: Path,
+) -> None:
     """For a Poetry project with a ``poetry.lock`` (non-empty
-    ``locked_dependencies``), ``_project_doc_identity``'s ``doc_uuid`` must
+    ``locked_dependencies``), ``enrich_model``'s base ``doc_uuid`` must
     match what :func:`~pitloom.assemble.spdx3.document.build` computes for
     the same project -- both derive from the same
     :class:`~pitloom.core.project.ProjectMetadata` and ``merkle_root``.
-    Regression test: ``_project_doc_identity`` used to omit
+    Regression test: this identity used to omit
     ``locked_dependencies`` (and later, ``locked_dependencies``'
     provenance) from its ``compute_doc_uuid`` call, diverging from
     ``build()``'s doc_uuid for any project with a lock file."""
@@ -75,29 +67,29 @@ def test_project_doc_identity_matches_build_doc_uuid_with_locked_dependencies() 
             creation_datetime="2026-01-01T00:00:00+00:00"
         ),
     )
-    expected_doc_uuid = _real_build_doc_uuid(doc)
+    expected = _real_build_namespace(doc)
 
-    _doc_name, doc_uuid = _project_doc_identity(POETRY_FIXTURE)
+    namespace = enrich_base_namespace(POETRY_FIXTURE, tmp_path / "model")
 
-    assert doc_uuid == expected_doc_uuid
+    assert namespace == expected
 
 
-def test_project_doc_identity_matches_build_doc_uuid_with_use_lockfile_disabled(
+def test_enrich_identity_matches_build_doc_uuid_with_use_lockfile_disabled(
     tmp_path: Path,
 ) -> None:
     """An explicit ``use_lockfile=False`` on both sides -- base generation
-    and ``_project_doc_identity`` -- must still agree: a base SBOM
+    and ``enrich_model`` -- must still agree: a base SBOM
     generated with ``--no-use-lockfile`` and a fragment built via
     ``loom enrich --use-lockfile=False --project-dir DIR`` must reference
     the same ``doc_uuid``."""
-    write_locked_deps_project(tmp_path)
+    project = write_locked_deps_project(tmp_path / "proj")
 
     project_metadata, _config, _config_path = read_project(
-        tmp_path, include_locked_dependencies=False
+        project, include_locked_dependencies=False
     )
     assert not project_metadata.locked_dependencies
 
-    merkle_root, project_files, _ = get_wheel_files(tmp_path)
+    merkle_root, project_files, _ = get_wheel_files(project)
     project_metadata.files = project_files
     doc = DocumentModel(
         project=project_metadata,
@@ -105,28 +97,30 @@ def test_project_doc_identity_matches_build_doc_uuid_with_use_lockfile_disabled(
             creation_datetime="2026-01-01T00:00:00+00:00"
         ),
     )
-    expected_doc_uuid = _real_build_doc_uuid(doc)
+    expected = _real_build_namespace(doc)
 
-    _doc_name, doc_uuid = _project_doc_identity(tmp_path, use_lockfile=False)
+    namespace = enrich_base_namespace(project, tmp_path / "model", use_lockfile=False)
 
-    assert doc_uuid == expected_doc_uuid
+    assert namespace == expected
 
 
-def test_project_doc_identity_auto_matches_config_default(tmp_path: Path) -> None:
-    """No explicit ``use_lockfile`` argument -- ``_project_doc_identity``
+def test_enrich_identity_auto_matches_config_default(tmp_path: Path) -> None:
+    """No explicit ``use_lockfile`` argument -- ``enrich_model``
     must auto-match *project_dir*'s own ``[tool.pitloom] use-lockfile``
     config, so ``loom enrich --project-dir DIR`` (no matching flag) still
     references the correct ``doc_uuid`` for a base SBOM generated purely
     from that project's config default."""
-    write_locked_deps_project(tmp_path, disable_cascade_in_config=True)
+    project = write_locked_deps_project(
+        tmp_path / "proj", disable_cascade_in_config=True
+    )
 
     project_metadata, pitloom_config, _config_path = read_project(
-        tmp_path, include_locked_dependencies=False
+        project, include_locked_dependencies=False
     )
     assert pitloom_config.use_lockfile is False
     assert not project_metadata.locked_dependencies
 
-    merkle_root, project_files, _ = get_wheel_files(tmp_path)
+    merkle_root, project_files, _ = get_wheel_files(project)
     project_metadata.files = project_files
     doc = DocumentModel(
         project=project_metadata,
@@ -134,8 +128,8 @@ def test_project_doc_identity_auto_matches_config_default(tmp_path: Path) -> Non
             creation_datetime="2026-01-01T00:00:00+00:00"
         ),
     )
-    expected_doc_uuid = _real_build_doc_uuid(doc)
+    expected = _real_build_namespace(doc)
 
-    _doc_name, doc_uuid = _project_doc_identity(tmp_path)
+    namespace = enrich_base_namespace(project, tmp_path / "model")
 
-    assert doc_uuid == expected_doc_uuid
+    assert namespace == expected

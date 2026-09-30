@@ -115,6 +115,8 @@ and this project adheres to
 
 - `IdRegistry.find()`, registry auto-discovery (incl. `loom.Run`'s),
   `resolve_explicit_registry()`, `claim_registry_hit()` ([#235])
+- Unused internal `_project_doc_identity()`; its tests now drive `enrich_model()`
+  ([#256])
 
 ### Fixed
 
@@ -196,6 +198,7 @@ and this project adheres to
 [#252]: https://github.com/bact/pitloom/pull/252
 [#253]: https://github.com/bact/pitloom/pull/253
 [#254]: https://github.com/bact/pitloom/pull/254
+[#256]: https://github.com/bact/pitloom/pull/256
 
 ## [0.19.0] - 2026-09-18
 

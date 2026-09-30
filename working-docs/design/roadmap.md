@@ -401,12 +401,6 @@ See [metadata-quality.md](metadata-quality.md).
 
 See [testing-ci-followups.md](testing-ci-followups.md).
 
-- [ ] **Delete `_project_doc_identity` and test `enrich_model` directly** --
-  `assemble/_model_generator.py`'s `_project_doc_identity()` has no
-  production caller (`enrich_model()` calls `_doc_identity_of()`); only
-  `tests/assemble/test_model_generator_doc_identity.py` and
-  `test_explicit_config_edges.py` use it, as an oracle.
-
 ### Diagnostics / logging
 
 See [diagnostics-logging-followups.md](diagnostics-logging-followups.md).
