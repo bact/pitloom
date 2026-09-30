@@ -3,15 +3,15 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for pitloom.extract.scanner_project.scan_project_for_ai_models().
+"""Tests for the project-directory producer of the AI model scanner.
 
-The "happy path" (a real model file successfully identified and read) is
-already exercised indirectly by the higher-level project/document assembly
-tests. This module targets the branches those integration tests never hit:
-non-model extensions, magic-byte sniffing that comes back UNKNOWN, the
-ImportError/generic-exception handlers around read_ai_model(), the
-usage-detection debug log, and the file-read failure handler in the
-usage-scanning pass.
+Real files on disk; only ``read_ai_model`` is patched where a failure is
+needed. Each layout (flat, ``src/``, ``force-include`` rename and the
+absolute ``--allow-build`` extraction path) must give the same result:
+opened by ``physical_path``, named by ``distribution_path``, reported by a
+stable project-relative path.
+
+See also: :mod:`tests.extract.test_scanner` for the shared policy.
 """
 
 from __future__ import annotations
@@ -19,14 +19,16 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import struct
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 import pytest
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.models import get_wheel_files
 from pitloom.core.project import ProjectFile
 from pitloom.extract.ai_model import SNIFF_BYTES, read_ai_model_header
@@ -38,9 +40,19 @@ from pitloom.extract.scanner_project import (
 from tests.warning_helpers import file_values
 
 _LOGGER_NAME = "pitloom.extract.scanner"
-
+_READ = "pitloom.extract.scanner.read_ai_model"
 # Evaluated at import on every platform: short-circuit before POSIX-only names.
 _CAN_DENY_ACCESS = sys.platform != "win32" and os.geteuid() != 0
+_GGUF = b"GGUF" + struct.pack("<IQQ", 3, 0, 0)  # smallest valid GGUF
+
+# name -> (physical_path, distribution_path); ``ABS`` is filled in per test.
+_LAYOUTS: dict[str, Callable[[str, Path], tuple[str, str]]] = {
+    "flat": lambda n, _t: (n, n),
+    "src": lambda n, _t: (f"src/pkg/{n}", f"pkg/{n}"),
+    "renamed": lambda n, _t: (f"assets/{n}.dat", f"pkg/{n}"),
+    "allow-build": lambda n, t: (str(t / "extract" / "pkg" / n), f"pkg/{n}"),
+}
+_LAYOUT = pytest.mark.parametrize("layout", list(_LAYOUTS))
 
 
 def _pf(physical_path: str, distribution_path: str | None = None) -> ProjectFile:
@@ -51,203 +63,233 @@ def _pf(physical_path: str, distribution_path: str | None = None) -> ProjectFile
     )
 
 
-def _fake_meta(fmt: AiModelFormat = AiModelFormat.GGUF) -> AiModelMetadata:
-    return AiModelMetadata(format_info=AiModelFormatInfo(model_format=fmt))
+def _put(
+    tmp_path: Path, layout: str, name: str, data: bytes | None
+) -> tuple[ProjectFile, str]:
+    """A ``ProjectFile`` in *layout* (written when *data* is given) and the
+    stable path a warning must print for it."""
+    phys, dist = _LAYOUTS[layout](name, tmp_path)
+    assert Path(phys).is_absolute() == (layout == "allow-build")  # not vacuous
+    if data is not None:
+        target = Path(phys) if layout == "allow-build" else tmp_path / "proj" / phys
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+    return _pf(phys, dist), (dist if layout == "allow-build" else phys)
 
 
-def test_scan_ignores_files_with_non_model_extensions(tmp_path: Path) -> None:
-    files = [_pf("README.md"), _pf("setup.py")]
-    result = scan_project_for_ai_models(tmp_path, files)
-    assert not result
+def _scan(tmp_path: Path, *files: ProjectFile) -> Any:
+    return scan_project_for_ai_models(tmp_path / "proj", list(files))
 
 
-def test_scan_skips_extension_match_when_format_unknown(tmp_path: Path) -> None:
-    # The extension is a candidate (.bin), but magic-byte sniffing comes
-    # back UNKNOWN (e.g. a generic data file, not actually an AI model).
-    (tmp_path / "weights.bin").write_bytes(b"not really a model")
-    files = [_pf("weights.bin")]
-
-    with patch(
-        "pitloom.extract.scanner.detect_ai_model_format_from_header",
-        return_value=AiModelFormat.UNKNOWN,
-    ):
-        result = scan_project_for_ai_models(tmp_path, files)
-
-    assert not result
+def _warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
 
 
-def test_scan_detects_and_reads_model_successfully(tmp_path: Path) -> None:
-    (tmp_path / "model.gguf").write_bytes(b"fake gguf")
-    files = [_pf("model.gguf", "dist/model.gguf")]
-
-    with patch(
-        "pitloom.extract.scanner.detect_ai_model_format_from_header",
-        return_value=AiModelFormat.GGUF,
-    ):
-        with patch("pitloom.extract.scanner.read_ai_model", return_value=_fake_meta()):
-            result = scan_project_for_ai_models(tmp_path, files)
-
-    assert len(result) == 1
-    assert result[0].format_info.file_name == "model.gguf"
-    assert result[0].format_info.file_path_relative == "dist/model.gguf"
-    assert result[0].format_info.physical_path == "model.gguf"
+# --- discovery per layout ---------------------------------------------------
 
 
-def test_scan_logs_warning_and_keeps_degraded_record_on_import_error(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+@_LAYOUT
+def test_scan_opens_physical_and_names_by_distribution(
+    tmp_path: Path, layout: str
 ) -> None:
-    # A recognised format whose optional dependency isn't installed must
-    # log a warning (not crash the whole scan) and still record the model
-    # with degraded (format + filename only) metadata, not drop it.
-    (tmp_path / "model.h5").write_bytes(b"fake h5")
-    files = [_pf("model.h5")]
-
-    with patch(
-        "pitloom.extract.scanner.detect_ai_model_format_from_header",
-        return_value=AiModelFormat.HDF5,
-    ):
-        with patch(
-            "pitloom.extract.scanner.read_ai_model",
-            side_effect=ImportError("h5py is required"),
-        ):
-            with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-                result = scan_project_for_ai_models(tmp_path, files)
-
-    assert len(result) == 1
-    assert result[0].name is None
-    assert result[0].format_info.model_format == AiModelFormat.HDF5
-    assert result[0].format_info.file_name == "model.h5"
-    assert any("required library not installed" in r.message for r in caplog.records)
+    pf, stable = _put(tmp_path, layout, "model.gguf", _GGUF)
+    (meta,) = _scan(tmp_path, pf)
+    info = meta.format_info
+    assert info.model_format == AiModelFormat.GGUF
+    assert info.file_name == "model.gguf"
+    assert info.file_path_relative == pf.distribution_path
+    assert info.physical_path == stable
+    assert not Path(info.physical_path).is_absolute()
 
 
-def test_scan_logs_warning_and_continues_on_generic_exception(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+@_LAYOUT
+@pytest.mark.parametrize("error", [ImportError("x"), ValueError("x")], ids=str)
+def test_scan_warnings_print_stable_paths(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, layout: str, error: Exception
 ) -> None:
-    # A corrupt/unreadable model file must not abort the whole scan.
-    (tmp_path / "model.onnx").write_bytes(b"corrupt")
-    files = [_pf("model.onnx")]
-
-    with patch(
-        "pitloom.extract.scanner.detect_ai_model_format_from_header",
-        return_value=AiModelFormat.ONNX,
-    ):
-        with patch(
-            "pitloom.extract.scanner.read_ai_model",
-            side_effect=ValueError("bad protobuf"),
-        ):
-            with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-                result = scan_project_for_ai_models(tmp_path, files)
-
-    assert not result
-    assert any("failed to extract metadata" in r.message for r in caplog.records)
+    """``FILE=`` is project-relative, never the joined or temporary path."""
+    model, model_stable = _put(tmp_path, layout, "model.gguf", _GGUF)
+    py, py_stable = _put(tmp_path, layout, "gone.py", None)
+    with patch(_READ, autospec=True, side_effect=error):
+        with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+            _scan(tmp_path, model, py)
+    assert file_values(_warnings(caplog)) == [model_stable, py_stable]
 
 
-def test_scan_finds_usage_of_model_in_python_source(tmp_path: Path) -> None:
-    (tmp_path / "model.gguf").write_bytes(b"fake gguf")
-    script = tmp_path / "load.py"
-    script.write_text('load("model.gguf")\n', encoding="utf-8")
-    files = [_pf("model.gguf"), _pf("load.py")]
-
-    with patch(
-        "pitloom.extract.scanner.detect_ai_model_format_from_header",
-        return_value=AiModelFormat.GGUF,
-    ):
-        with patch("pitloom.extract.scanner.read_ai_model", return_value=_fake_meta()):
-            result = scan_project_for_ai_models(tmp_path, files)
-
-    assert len(result) == 1
-    assert "load.py" in result[0].usage_files
+@_LAYOUT
+def test_scan_usage_files_use_distribution_paths(tmp_path: Path, layout: str) -> None:
+    model, _ = _put(tmp_path, layout, "model.gguf", _GGUF)
+    other, _ = _put(tmp_path, layout, "other.py", b"print(1)\n")
+    use, _ = _put(tmp_path, layout, "use.py", b'load("model.gguf")\n')
+    (meta,) = _scan(tmp_path, model, other, use)
+    assert meta.usage_files == [use.distribution_path]
 
 
-def test_scan_no_usage_when_filename_absent_from_source(tmp_path: Path) -> None:
-    (tmp_path / "model.gguf").write_bytes(b"fake gguf")
-    script = tmp_path / "unrelated.py"
-    script.write_text("print('hello')\n", encoding="utf-8")
-    files = [_pf("model.gguf"), _pf("unrelated.py")]
-
-    with patch(
-        "pitloom.extract.scanner.detect_ai_model_format_from_header",
-        return_value=AiModelFormat.GGUF,
-    ):
-        with patch("pitloom.extract.scanner.read_ai_model", return_value=_fake_meta()):
-            result = scan_project_for_ai_models(tmp_path, files)
-
-    assert result[0].usage_files == []
-
-
-def test_scan_logs_warning_when_python_source_unreadable(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+@_LAYOUT
+def test_scan_unreadable_python_warns_and_later_sources_still_scan(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, layout: str
 ) -> None:
-    # A .py file listed but missing/unreadable on disk must not abort the
-    # usage-scanning pass -- it's caught, logged, and scanning continues.
-    files = [_pf("missing.py")]
-
+    model, _ = _put(tmp_path, layout, "model.gguf", _GGUF)
+    missing, missing_stable = _put(tmp_path, layout, "a_missing.py", None)
+    bad, bad_stable = _put(tmp_path, layout, "b_bad.py", b"\xff\xfe model.gguf")
+    use, _ = _put(tmp_path, layout, "c_use.py", b"model.gguf")
     with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-        result = scan_project_for_ai_models(tmp_path, files)
-
-    assert not result
-    assert any("could not read for usage scanning" in r.message for r in caplog.records)
-
-
-def _file_values(caplog: pytest.LogCaptureFixture) -> list[str]:
-    return file_values(r.getMessage() for r in caplog.records)
+        (meta,) = _scan(tmp_path, model, missing, bad, use)
+    assert file_values(_warnings(caplog)) == [missing_stable, bad_stable]
+    assert meta.usage_files == [use.distribution_path]
 
 
-def test_scan_allow_build_physical_path_is_not_stored(tmp_path: Path) -> None:
-    """Regression: an absolute ``--allow-build`` extraction path must not
-    end up in ``format_info.physical_path``."""
-    extract = tmp_path / "extract"
-    pf = _pf(str(extract / "pkg" / "model.gguf"), "pkg/model.gguf")
-    assert Path(pf.physical_path).is_absolute()
-
-    with patch("pitloom.extract.scanner.read_ai_model", return_value=_fake_meta()):
-        found = scan_project_for_ai_models(tmp_path / "proj", [pf])
-        assert len(found) == 1
-        meta = found[0]
-
-    assert meta.format_info.physical_path == "pkg/model.gguf"
-    assert meta.format_info.file_name == "model.gguf"
+# --- which files are candidates ---------------------------------------------
 
 
 @pytest.mark.parametrize(
-    "error", [ImportError("x"), ValueError("x")], ids=["import", "value"]
+    ("phys", "dist"),
+    [
+        ("README.md", "README.md"),
+        ("setup.py", "setup.py"),
+        ("assets/blob.npy", "demo/blob.dat"),  # renamed away from a model suffix
+        ("weights.bin", "weights.bin"),  # candidate suffix, unknown content
+        ("m.npy.bak", "m.npy.bak"),
+    ],
 )
-def test_scan_allow_build_warnings_print_stable_path(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture, error: Exception
+def test_scan_non_models_are_silent(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, phys: str, dist: str
 ) -> None:
-    """Regression: scanner warnings print ``FILE=`` without the temporary
-    extraction directory."""
-    extract = tmp_path / "extract"
-    files = [
-        _pf(str(extract / "pkg" / "model.gguf"), "pkg/model.gguf"),
-        _pf(str(extract / "pkg" / "gone.py"), "pkg/gone.py"),
-    ]
-    assert all(Path(f.physical_path).is_absolute() for f in files)
-
-    with patch("pitloom.extract.scanner.read_ai_model", side_effect=error):
+    target = tmp_path / "proj" / phys
+    target.parent.mkdir(parents=True)
+    target.write_bytes(b"\x93NUMPY" if phys.startswith("assets") else b"not a model")
+    with patch(_READ, autospec=True) as reader:
         with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-            scan_project_for_ai_models(tmp_path / "proj", files)
-
-    values = _file_values(caplog)
-    assert values
-    assert set(values) <= {"pkg/model.gguf", "pkg/gone.py"}
-    assert not any(str(extract) in v for v in values)
+            assert not _scan(tmp_path, _pf(phys, dist))
+    reader.assert_not_called()
+    assert not _warnings(caplog)
+    assert not _scan(tmp_path)  # empty file list
 
 
-def test_scan_src_layout_warning_prints_project_relative_path(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+@pytest.mark.parametrize("kind", ["missing", "directory"])
+def test_scan_absent_or_directory_candidate_is_one_read_failure(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, kind: str
 ) -> None:
-    """Regression: ``FILE=`` was the absolute joined path; now it is the
-    project-relative one (not the distribution path)."""
-    (tmp_path / "src" / "pkg").mkdir(parents=True)
-    (tmp_path / "src" / "pkg" / "model.onnx").write_bytes(b"corrupt")
-    files = [_pf("src/pkg/model.onnx", "pkg/model.onnx")]
-
+    """Absence is not a header failure (no crash, no ``could not read
+    header``); the reader is the one to report it."""
+    (tmp_path / "proj").mkdir()
+    if kind == "directory":
+        pytest.importorskip("onnx")  # a directory reaches the ONNX reader
+        (tmp_path / "proj" / "m.onnx").mkdir()
     with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-        result = scan_project_for_ai_models(tmp_path, files)
+        assert not _scan(tmp_path, _pf("m.onnx"))
+    (message,) = _warnings(caplog)
+    assert "failed to extract metadata" in message
+    assert file_values([message]) == ["m.onnx"]
 
-    assert not result
-    assert _file_values(caplog) == ["src/pkg/model.onnx"]
+
+# --- genuine access failures ------------------------------------------------
+
+_SUFFIX_FORMATS = [(".npy", "numpy"), (".bin", "unknown"), (".zip", "unknown")]
+
+
+def _one_warning_naming(caplog: pytest.LogCaptureFixture, path: str, fmt: str) -> None:
+    (message,) = _warnings(caplog)
+    assert message.startswith(f"FORMAT={fmt} ")
+    assert file_values([message]) == [path]
+
+
+@pytest.mark.skipif(not _CAN_DENY_ACCESS, reason="needs POSIX and non-root")
+@pytest.mark.parametrize(("suffix", "fmt"), _SUFFIX_FORMATS)
+@pytest.mark.parametrize("deny", ["file", "directory"])
+def test_scan_unreadable_candidate_warns_once(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    suffix: str,
+    fmt: str,
+    deny: str,
+) -> None:
+    """A candidate that exists but cannot be read is a genuine access
+    failure: one ``FORMAT= FILE=`` warning and a skip, on every suffix."""
+    sub = tmp_path / "proj" / "sub"
+    sub.mkdir(parents=True)
+    target = sub / f"m{suffix}"
+    target.write_bytes(b"\x93NUMPY\x01\x00")
+    denied = target if deny == "file" else sub
+    denied.chmod(0)
+    try:
+        with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+            assert not _scan(tmp_path, _pf(f"sub/m{suffix}"))
+    finally:
+        denied.chmod(0o700)
+    _one_warning_naming(caplog, f"sub/m{suffix}", fmt)
+
+
+@pytest.mark.parametrize(("suffix", "fmt"), _SUFFIX_FORMATS)
+def test_scan_candidate_with_denied_open_warns_once(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    suffix: str,
+    fmt: str,
+) -> None:
+    """Same as the chmod case, on every platform and Python version."""
+    target = tmp_path / "proj" / f"m{suffix}"
+    target.parent.mkdir()
+    target.write_bytes(b"\x93NUMPY\x01\x00")
+    real_open = Path.open
+
+    def _denied(self: Path, *args: Any, **kwargs: Any) -> Any:
+        if self == target:
+            raise PermissionError(13, "denied")
+        return real_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", _denied)
+    with pytest.raises(PermissionError):
+        read_ai_model_header(target)
+    with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+        assert not _scan(tmp_path, _pf(f"m{suffix}"))
+    _one_warning_naming(caplog, f"m{suffix}", fmt)
+
+
+# --- producers --------------------------------------------------------------
+
+
+def test_project_candidates_and_sources_shape(tmp_path: Path) -> None:
+    data = b"0123456789abcdef"
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "m.bin").write_bytes(data)
+    (tmp_path / "elsewhere").mkdir()
+    (tmp_path / "elsewhere" / "n.bin").write_bytes(data[::-1])
+    abs_pf = _pf(str(tmp_path / "elsewhere" / "n.bin"), "pkg/n.bin")
+    rel_pf = _pf("src/m.bin", "pkg/m.bin")
+    project_dir = tmp_path / "unrelated"  # an absolute path must not join onto it
+
+    rel_c, abs_c = project_candidates(project_dir, [rel_pf, abs_pf])
+    rel_s, abs_s = project_sources(project_dir, [rel_pf, abs_pf])
+    assert (rel_c.physical_path, abs_c.physical_path) == ("src/m.bin", "pkg/n.bin")
+    assert (rel_c.distribution_path, abs_c.distribution_path) == (
+        "pkg/m.bin",
+        "pkg/n.bin",
+    )
+    assert (rel_s.physical_path, abs_s.physical_path) == ("src/m.bin", "pkg/n.bin")
+    assert (rel_s.distribution_path, abs_s.distribution_path) == (
+        "pkg/m.bin",
+        "pkg/n.bin",
+    )
+    assert abs_c.sniff() == data[::-1][:SNIFF_BYTES]
+    with abs_c.materialize() as path, abs_s.open() as fh:
+        assert path == tmp_path / "elsewhere" / "n.bin"
+        assert fh.read() == data[::-1]
+
+    # Relative: joined onto the project directory; nothing is read until used.
+    project_dir = tmp_path
+    (rel_c,) = project_candidates(project_dir, [rel_pf])
+    (rel_s,) = project_sources(project_dir, [rel_pf])
+    assert rel_c.sniff() == data[:SNIFF_BYTES]
+    with rel_c.materialize() as path, rel_s.open() as fh:
+        assert path == tmp_path / "src" / "m.bin"
+        assert fh.read() == data
+    ghost = _pf("gone/x.bin", "pkg/x.bin")
+    assert len(list(project_candidates(project_dir, iter([ghost])))) == 1
+
+
+# --- end to end: Hatchling force-include ------------------------------------
 
 
 def test_scan_force_include_rename_uses_installed_name(tmp_path: Path) -> None:
@@ -285,114 +327,7 @@ def test_scan_force_include_rename_uses_installed_name(tmp_path: Path) -> None:
         for f in files
     )
 
-    found = scan_project_for_ai_models(tmp_path, files)
-    assert len(found) == 1
-    meta = found[0]
+    (meta,) = scan_project_for_ai_models(tmp_path, files)
     assert meta.format_info.file_name == "model.npy"
     assert meta.format_info.physical_path == "assets/weights.dat"
     assert meta.usage_files == ["pkg/use.py"]
-
-
-def test_scan_renamed_to_non_model_suffix_is_not_discovered(tmp_path: Path) -> None:
-    """The installed name decides discovery in both directions: a model
-    renamed to a non-model suffix (``assets/blob.npy`` -> ``demo/blob.dat``)
-    is not read, as under ``--allow-build``."""
-    (tmp_path / "assets").mkdir()
-    (tmp_path / "assets" / "blob.npy").write_bytes(b"\x93NUMPY")
-    files = [_pf("assets/blob.npy", "demo/blob.dat")]
-
-    with patch("pitloom.extract.scanner.read_ai_model") as reader:
-        result = scan_project_for_ai_models(tmp_path, files)
-
-    assert not result
-    reader.assert_not_called()
-
-
-_SUFFIX_FORMATS = [(".npy", "numpy"), (".bin", "unknown"), (".zip", "unknown")]
-
-
-def _one_warning_naming(caplog: pytest.LogCaptureFixture, path: str, fmt: str) -> None:
-    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
-    assert len(warnings) == 1
-    message = warnings[0].getMessage()
-    assert message.startswith(f"FORMAT={fmt} ")
-    assert file_values([message]) == [path]
-
-
-@pytest.mark.skipif(not _CAN_DENY_ACCESS, reason="needs POSIX and non-root")
-@pytest.mark.parametrize(("suffix", "fmt"), _SUFFIX_FORMATS)
-@pytest.mark.parametrize("deny", ["file", "directory"])
-def test_scan_unreadable_candidate_warns_once(
-    tmp_path: Path,
-    caplog: pytest.LogCaptureFixture,
-    suffix: str,
-    fmt: str,
-    deny: str,
-) -> None:
-    """A candidate that exists but cannot be read is a genuine access
-    failure: one ``FORMAT= FILE=`` warning and a skip, on every suffix."""
-    sub = tmp_path / "sub"
-    sub.mkdir()
-    target = sub / f"m{suffix}"
-    target.write_bytes(b"\x93NUMPY\x01\x00")
-    denied = target if deny == "file" else sub
-    denied.chmod(0)
-    try:
-        with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-            result = scan_project_for_ai_models(tmp_path, [_pf(f"sub/m{suffix}")])
-    finally:
-        denied.chmod(0o700)
-
-    assert not result
-    _one_warning_naming(caplog, f"sub/m{suffix}", fmt)
-
-
-@pytest.mark.parametrize(("suffix", "fmt"), _SUFFIX_FORMATS)
-def test_scan_candidate_with_denied_open_warns_once(
-    tmp_path: Path,
-    caplog: pytest.LogCaptureFixture,
-    monkeypatch: pytest.MonkeyPatch,
-    suffix: str,
-    fmt: str,
-) -> None:
-    """Same as the chmod case, on every platform and Python version."""
-    target = tmp_path / f"m{suffix}"
-    target.write_bytes(b"\x93NUMPY\x01\x00")
-    real_open = Path.open
-
-    def _denied(self: Path, *args: Any, **kwargs: Any) -> Any:
-        if self == target:
-            raise PermissionError(13, "denied")
-        return real_open(self, *args, **kwargs)
-
-    monkeypatch.setattr(Path, "open", _denied)
-    with pytest.raises(PermissionError):
-        read_ai_model_header(target)
-
-    with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-        result = scan_project_for_ai_models(tmp_path, [_pf(f"m{suffix}")])
-
-    assert not result
-    _one_warning_naming(caplog, f"m{suffix}", fmt)
-
-
-def test_project_candidates_and_sources_shape(tmp_path: Path) -> None:
-    (tmp_path / "src").mkdir()
-    data = b"0123456789abcdef"
-    (tmp_path / "src" / "m.bin").write_bytes(data)
-    abs_pf = _pf(str(tmp_path / "elsewhere" / "n.bin"), "pkg/n.bin")
-    rel_pf = _pf("src/m.bin", "pkg/m.bin")
-
-    rel_c, abs_c = project_candidates(tmp_path, [rel_pf, abs_pf])
-    assert rel_c.sniff() == data[:SNIFF_BYTES]
-    with rel_c.materialize() as path:
-        assert path == tmp_path / "src" / "m.bin"
-    assert rel_c.physical_path == "src/m.bin"
-    assert abs_c.physical_path == "pkg/n.bin"
-    assert abs_c.sniff() == b""
-
-    rel_s, abs_s = project_sources(tmp_path, [rel_pf, abs_pf])
-    with rel_s.open() as fh:
-        assert fh.read() == data
-    assert rel_s.distribution_path == "pkg/m.bin"
-    assert abs_s.physical_path == "pkg/n.bin"

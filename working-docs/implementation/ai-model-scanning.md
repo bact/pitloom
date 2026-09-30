@@ -97,7 +97,8 @@ defensive code for a hand-built `AiModelMetadata`.
 
 The exception text after `FILE=<stable>;` can still name a real or
 temporary path (for example ONNX's "Failed to load ... from <path>"). Only
-`FILE=` is stable. Scrubbing it is deferred.
+`FILE=` is stable. Scrubbing it is decided in the wheel-scanning PR, which
+adds temporary copies of wheel members.
 
 A candidate with an allowed suffix that exists but cannot be read (denied
 file or directory) gives one `FORMAT= FILE=` warning ("could not read

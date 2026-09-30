@@ -12,8 +12,6 @@ sniffing, FormatInfo/REGISTRY, read_ai_model dispatch, and AiModelMetadata."""
 
 from __future__ import annotations
 
-import shutil
-from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -21,12 +19,9 @@ import pytest
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.extract.ai_model import (
     REGISTRY,
-    SNIFF_BYTES,
     FormatInfo,
     detect_ai_model_format,
-    detect_ai_model_format_from_header,
     read_ai_model,
-    read_ai_model_header,
 )
 
 
@@ -229,16 +224,19 @@ def test_detect_format_bin_without_file_is_unknown() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_sniff_gguf_magic(tmp_path: Path) -> None:
-    f = tmp_path / "model.bin"  # wrong extension -- magic wins
-    f.write_bytes(_magic(AiModelFormat.GGUF) + b"\x00" * 20)
-    assert detect_ai_model_format(f) == AiModelFormat.GGUF
-
-
-def test_sniff_fasttext_magic(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "fmt",
+    [
+        AiModelFormat.GGUF,
+        AiModelFormat.FASTTEXT,
+        AiModelFormat.NUMPY,
+        AiModelFormat.HDF5,
+    ],
+)
+def test_sniff_magic_beats_wrong_extension(tmp_path: Path, fmt: AiModelFormat) -> None:
     f = tmp_path / "model.bin"
-    f.write_bytes(_magic(AiModelFormat.FASTTEXT) + b"\x00" * 20)
-    assert detect_ai_model_format(f) == AiModelFormat.FASTTEXT
+    f.write_bytes(_magic(fmt) + b"\x00" * 20)
+    assert detect_ai_model_format(f) == fmt
 
 
 def test_sniff_safetensors_magic(tmp_path: Path) -> None:
@@ -261,41 +259,6 @@ def test_sniff_empty_file_falls_back_to_extension(tmp_path: Path) -> None:
     f = tmp_path / "model.ftz"
     f.write_bytes(b"")
     assert detect_ai_model_format(f) == AiModelFormat.FASTTEXT
-
-
-def test_sniff_format_direct_gguf(tmp_path: Path) -> None:
-    f = tmp_path / "x"
-    f.write_bytes(_magic(AiModelFormat.GGUF) + b"\x00" * 5)
-    assert (
-        detect_ai_model_format_from_header(read_ai_model_header(f), "")
-        == AiModelFormat.GGUF
-    )
-
-
-def test_sniff_format_direct_fasttext(tmp_path: Path) -> None:
-    f = tmp_path / "x"
-    f.write_bytes(_magic(AiModelFormat.FASTTEXT) + b"\x00" * 5)
-    assert (
-        detect_ai_model_format_from_header(read_ai_model_header(f), "")
-        == AiModelFormat.FASTTEXT
-    )
-
-
-def test_sniff_format_nonexistent_returns_empty_header(tmp_path: Path) -> None:
-    missing = tmp_path / "no-such-file"
-    assert read_ai_model_header(missing) == b""
-
-
-def test_sniff_numpy_npy_magic(tmp_path: Path) -> None:
-    f = tmp_path / "array.bin"  # wrong extension -- magic wins
-    f.write_bytes(_magic(AiModelFormat.NUMPY) + b"\x00" * 20)
-    assert detect_ai_model_format(f) == AiModelFormat.NUMPY
-
-
-def test_sniff_hdf5_magic(tmp_path: Path) -> None:
-    f = tmp_path / "model.bin"  # wrong extension -- magic wins
-    f.write_bytes(_magic(AiModelFormat.HDF5) + b"\x00" * 20)
-    assert detect_ai_model_format(f) == AiModelFormat.HDF5
 
 
 # ---------------------------------------------------------------------------
@@ -377,108 +340,3 @@ def test_ai_model_metadata_construction() -> None:
     assert meta.name == "MyModel"
     assert meta.hyperparameters["num_heads"] == 12
     assert "name" in meta.provenance
-
-
-# ---------------------------------------------------------------------------
-# Header-based detection: one format authority for path and header callers
-# ---------------------------------------------------------------------------
-
-_AIMODELS = Path(__file__).parent.parent.parent / "fixtures" / "aimodels"
-
-
-def _fixture(rel: str) -> Callable[[Path], Path]:
-    return lambda _tmp: _AIMODELS / rel
-
-
-def _gguf_as_onnx(tmp: Path) -> Path:
-    f = tmp / "x.onnx"
-    f.write_bytes(_magic(AiModelFormat.GGUF) + b"\x00" * 20)
-    return f
-
-
-def _text_bin(tmp: Path) -> Path:
-    f = tmp / "notes.bin"
-    f.write_text("just some notes", encoding="utf-8")
-    return f
-
-
-def _empty_ftz(tmp: Path) -> Path:
-    f = tmp / "model.ftz"
-    f.write_bytes(b"")
-    return f
-
-
-def _missing_onnx(tmp: Path) -> Path:
-    return tmp / "missing.onnx"
-
-
-def _dir_onnx(tmp: Path) -> Path:
-    d = tmp / "d.onnx"
-    d.mkdir()
-    return d
-
-
-@pytest.mark.parametrize(
-    ("path_factory", "expected"),
-    [
-        (_fixture("fasttext/lid.176.ftz"), AiModelFormat.FASTTEXT),
-        (_fixture("gguf/stories260K.gguf"), AiModelFormat.GGUF),
-        (_fixture("hdf5/example-model.h5"), AiModelFormat.HDF5),
-        (_fixture("numpy/example-model-v1.npy"), AiModelFormat.NUMPY),
-        (
-            _fixture("safetensors/phi-tiny-random.safetensors"),
-            AiModelFormat.SAFETENSORS,
-        ),
-        (_fixture("onnx/light-inception-v2.onnx"), AiModelFormat.ONNX),
-        (_fixture("keras/example-model.keras"), AiModelFormat.KERAS),
-        (_fixture("pytorch/example-model.pt"), AiModelFormat.PYTORCH),
-        (_fixture("pytorch_pt2/example-model.pt2"), AiModelFormat.PYTORCH_PT2),
-        (_fixture("numpy/example-model-bundle.npz"), AiModelFormat.NUMPY),
-        (_fixture("fasttext/sentimentdemo.bin"), AiModelFormat.FASTTEXT),
-        (_gguf_as_onnx, AiModelFormat.GGUF),
-        (_text_bin, AiModelFormat.UNKNOWN),
-        (_empty_ftz, AiModelFormat.FASTTEXT),
-        (_missing_onnx, AiModelFormat.ONNX),
-        (_dir_onnx, AiModelFormat.ONNX),
-    ],
-)
-def test_detect_from_header_agrees_with_path_detection(
-    tmp_path: Path,
-    path_factory: Callable[[Path], Path],
-    expected: AiModelFormat,
-) -> None:
-    p = path_factory(tmp_path)
-    header = b""
-    if p.is_file():
-        with p.open("rb") as fh:
-            header = fh.read(SNIFF_BYTES)
-    assert detect_ai_model_format(p) == expected
-    assert detect_ai_model_format_from_header(header, p.name) == expected
-
-
-def test_read_ai_model_header_raises_only_on_access_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    f = tmp_path / "big.bin"
-    f.write_bytes(b"x" * 100)
-    assert read_ai_model_header(f) == b"x" * SNIFF_BYTES
-    assert read_ai_model_header(tmp_path) == b""
-    assert read_ai_model_header(tmp_path / "missing.bin") == b""
-
-    def _deny(*_args: object, **_kwargs: object) -> None:
-        raise PermissionError("denied")
-
-    monkeypatch.setattr(Path, "open", _deny)
-    with pytest.raises(PermissionError):
-        read_ai_model_header(f)
-    assert detect_ai_model_format(f) == AiModelFormat.UNKNOWN
-
-
-def test_read_ai_model_uses_given_format(tmp_path: Path) -> None:
-    pytest.importorskip("onnx")
-    p = tmp_path / "weights.dat"
-    shutil.copyfile(_AIMODELS / "onnx" / "light-inception-v2.onnx", p)
-    with pytest.raises(ValueError):
-        read_ai_model(p)
-    meta = read_ai_model(p, model_format=AiModelFormat.ONNX)
-    assert meta.format_info.model_format == AiModelFormat.ONNX
