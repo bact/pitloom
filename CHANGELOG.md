@@ -101,6 +101,8 @@ and this project adheres to
   fixed ([#235])
 - AI model discovery keys on the installed name: a `force-include` rename to a
   model suffix is found, to a non-model suffix dropped ([#239])
+- `TerminationGuard.hold()` requires a `GuardedActivity`, which its signal
+  `WARNING:` names; `--allow-build` wording unchanged ([#250])
 
 ### Removed
 
@@ -174,6 +176,7 @@ and this project adheres to
 [#244]: https://github.com/bact/pitloom/pull/244
 [#247]: https://github.com/bact/pitloom/pull/247
 [#248]: https://github.com/bact/pitloom/pull/248
+[#250]: https://github.com/bact/pitloom/pull/250
 
 ## [0.19.0] - 2026-09-18
 

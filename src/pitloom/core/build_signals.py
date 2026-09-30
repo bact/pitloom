@@ -3,8 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Clean up after a build-and-read before SIGTERM/SIGHUP/SIGBREAK ends
-the process.
+"""Clean up after a build-and-read, or another activity holding
+temporary directories, before SIGTERM/SIGHUP/SIGBREAK ends the process.
 
 The build runs as a child process tree in its own POSIX session, and its
 result lives in a temporary directory until the SBOM no longer needs it.
@@ -18,9 +18,14 @@ Contract of :class:`TerminationGuard`:
   holds a build-and-read result enters one, so the outermost sets the
   protected lifetime.
 - Nothing is installed until :meth:`~TerminationGuard.hold` is first
-  entered (a build starts); the handlers then stay until the owner exits.
-- Inside a hold (creating the temp directories, running the build) the
-  handler only records the signal; the build's wait loop polls
+  entered (e.g. a build starts); the handlers then stay until the owner
+  exits.
+- Each hold names its :class:`GuardedActivity`; the ``WARNING:`` a
+  signal logs names the innermost hold running, else the latest one
+  left ("during" and "after" it), since the owner is an entry point
+  that does not know what runs inside it.
+- Inside a hold (e.g. creating the temp directories, running the build)
+  the handler only records the signal; the build's wait loop polls
   :meth:`~TerminationGuard.raise_if_pending`, kills and reaps the tree,
   and the process ends when the hold is left.
 - Outside a hold (extraction, hashing, scanning) the handler itself runs
@@ -49,6 +54,7 @@ import signal
 import threading
 from collections.abc import Callable, Iterator
 from types import FrameType, TracebackType
+from typing import NamedTuple
 
 from pitloom.core._models_wheel_types import BUILD_LOG_PREFIX
 
@@ -61,6 +67,36 @@ _TERMINATION_SIGNAL_NAMES = ("SIGTERM", "SIGHUP", "SIGBREAK")
 # Per thread: signal handlers run in the main thread only, and a library
 # call from another thread must never join the main thread's guard.
 _thread_state = threading.local()
+
+
+class GuardedActivity(NamedTuple):
+    """What a :meth:`TerminationGuard.hold` protects, as its log messages
+    name it."""
+
+    log_prefix: str
+    """Subsystem sub-prefix starting each message, e.g. ``"Build: "``."""
+    name: str
+    """Noun phrase after "during"/"after", e.g. ``"the build"``."""
+
+
+BUILD_ACTIVITY = GuardedActivity(BUILD_LOG_PREFIX, "the build")
+"""The ``--allow-build`` build-and-read."""
+
+# Before the first hold. Handlers install only in a hold, so no
+# termination message names it; generic rather than claiming a build.
+_NO_ACTIVITY = GuardedActivity("", "a guarded activity")
+
+
+def _termination_message(
+    signum: signal.Signals, activity: GuardedActivity, in_hold: bool
+) -> str:
+    """The ``WARNING:`` text for ending the process by *signum*, received
+    inside a hold of *activity* (*in_hold*) or after it."""
+    return (
+        f"{activity.log_prefix}received {signum.name} "
+        f"{'during' if in_hold else 'after'} {activity.name} "
+        "-- exiting after cleanup"
+    )
 
 
 class TerminationSignal(BaseException):
@@ -79,8 +115,8 @@ class TerminationSignal(BaseException):
 
 class TerminationGuard:
     """Context manager owning SIGTERM/SIGHUP/SIGBREAK handling while a
-    build-and-read is running or its result is in use (see the module
-    docstring for the full contract).
+    held activity (a build-and-read) is running or its result is in use
+    (see the module docstring for the full contract).
 
     Handles a signal only on the main thread and only while its handler
     is ``SIG_DFL`` -- the process would die from it anyway, without
@@ -107,6 +143,8 @@ class TerminationGuard:
         # Handlers installed and not yet restored: only then does _handle act.
         self._armed = False
         self._pending_in_hold = False
+        # The latest hold's activity, named by the messages.
+        self._activity = _NO_ACTIVITY
         self._terminated = False
         self._holds = 0
         self._cleanups: list[Callable[[], None]] = []
@@ -128,22 +166,31 @@ class TerminationGuard:
         self._cleanups.append(callback)
 
     @contextlib.contextmanager
-    def hold(self) -> Iterator[TerminationGuard]:
+    def hold(self, activity: GuardedActivity) -> Iterator[TerminationGuard]:
         """Hold a signal until the block is left, then end the process.
 
         For code that must not be cut short (creating the temporary
         directories and registering their removal, starting and killing
         the build tree); it may poll :meth:`raise_if_pending` to stop
         early. The first hold on an owning guard installs the handlers.
+        *activity* names what runs, in the messages of this hold and of a
+        signal after it.
         """
+        outer = self._activity
         self._holds += 1
         try:
+            # After the count: a signal in between is recorded in this
+            # hold and logged at its exit, with this name set by then.
+            self._activity = activity
             self._arm()
             yield self
         finally:
             # Decrement first: a signal after it sees no hold and acts in
             # the handler; one before it is pending for the check below.
             self._holds -= 1
+            if self._holds:
+                # Nested: the enclosing hold is what runs again.
+                self._activity = outer
             if self.pending is not None and not self._holds:
                 self._terminate(self.pending)
 
@@ -177,6 +224,7 @@ class TerminationGuard:
             self._restore()
             self.pending = None
             self._pending_in_hold = False
+            self._activity = _NO_ACTIVITY
             self._terminated = False
             self._cleanups.clear()
             _thread_state.owner = None
@@ -213,10 +261,8 @@ class TerminationGuard:
         # to the same stream, which then raises instead of writing.
         with contextlib.suppress(Exception):
             log.warning(
-                "%sreceived %s %s the build -- exiting after cleanup",
-                BUILD_LOG_PREFIX,
-                signum.name,
-                "during" if self._pending_in_hold else "after",
+                "%s",
+                _termination_message(signum, self._activity, self._pending_in_hold),
             )
         signal.raise_signal(signum)
         raise SystemExit(128 + signum)
@@ -237,7 +283,9 @@ class TerminationGuard:
             # ValueError: not the main thread (of the main interpreter).
             except (OSError, ValueError) as exc:
                 self._installed.pop()
-                log.debug("%scannot handle %s: %s", BUILD_LOG_PREFIX, name, exc)
+                log.debug(
+                    "%scannot handle %s: %s", self._activity.log_prefix, name, exc
+                )
 
     def _restore(self) -> None:
         while self._installed:
@@ -248,7 +296,12 @@ class TerminationGuard:
                 if signal.getsignal(signum) is self._handler:
                     signal.signal(signum, signal.SIG_DFL)
             except (OSError, ValueError) as exc:
-                log.debug("%scannot restore %s: %s", BUILD_LOG_PREFIX, signum.name, exc)
+                log.debug(
+                    "%scannot restore %s: %s",
+                    self._activity.log_prefix,
+                    signum.name,
+                    exc,
+                )
         # Last: a signal while restoring is still handled, not swallowed.
         self._armed = False
 
