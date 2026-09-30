@@ -10,6 +10,7 @@ See also: tests/_network.py.
 
 from __future__ import annotations
 
+import errno
 import http.client
 import ssl
 import subprocess
@@ -25,13 +26,13 @@ import pytest
 from tests._network import (
     REQUIRE_NETWORK_ENV,
     assert_spdx3_validate_ok,
-    network_cause_in_text,
-    network_cause_of,
+    declares_network,
     network_strict,
     require_reachable,
     skip_if_network_failure,
     skip_on_network_error,
 )
+from tests._network_classify import network_cause_in_text, network_cause_of
 
 
 @contextmanager
@@ -354,3 +355,110 @@ def test_strict_mode_does_not_change_non_network_outcomes(
     with pytest.raises(ValueError):
         with _no_skip(), skip_on_network_error():
             raise ValueError("bad json")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "urllib.error.HTTPError: HTTP Error 503: Service Unavailable",
+        "urllib.error.HTTPError: HTTP Error 429: Too Many Requests",
+        "urllib.error.HTTPError: HTTP Error 502: Bad Gateway",
+        "urllib.error.HTTPError: HTTP Error 504: Gateway Timeout",
+        "ConnectionResetError: [Errno 54] Connection reset by peer",
+        "http.client.IncompleteRead: IncompleteRead(0 bytes read)",
+        "TimeoutError: The read operation timed out",
+        "socket.timeout: The read operation timed out",
+        "ConnectionResetError: [WinError 10054] An existing connection was closed",
+        "ConnectionRefusedError: [WinError 10061] No connection could be made",
+        "socket.gaierror: [Errno 11001] getaddrinfo failed",
+        "ERROR: fragment validate failed: HTTP Error 503: Service Unavailable",
+        "ERROR: fragment validate failed: <urlopen error [WinError 10065] x>",
+        "ERROR: fetch failed: [Errno 54] Connection reset by peer",
+    ],
+)
+def test_more_network_text_shapes_skip(text: str) -> None:
+    assert network_cause_in_text(text) is not None
+    with pytest.raises(pytest.skip.Exception, match="network unavailable"):
+        skip_if_network_failure(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "urllib.error.HTTPError: HTTP Error 404: Not Found",
+        "urllib.error.HTTPError: HTTP Error 403: Forbidden",
+        "ERROR: fragment validate failed: HTTP Error 404: Not Found",
+        "ERROR: fragment validate failed: 'name' is a required property",
+        "OSError: [Errno 2] No such file or directory: 'x'",
+    ],
+)
+def test_more_non_network_text_shapes_do_not_skip(text: str) -> None:
+    assert network_cause_in_text(text) is None
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        OSError(errno.ENETUNREACH, "Network is unreachable"),
+        OSError(errno.EHOSTUNREACH, "No route to host"),
+        OSError(errno.ECONNRESET, "reset"),
+        OSError(errno.ETIMEDOUT, "timed out"),
+        urllib.error.URLError(OSError(errno.ENETUNREACH, "unreachable")),
+        urllib.error.URLError(OSError(errno.EHOSTUNREACH, "no route")),
+        http.client.IncompleteRead(b"ab", 5),
+        http.client.RemoteDisconnected("closed"),
+        _http_error(500),
+        _http_error(504),
+    ],
+)
+def test_more_network_exception_shapes_skip(exc: Exception) -> None:
+    assert network_cause_of(exc) is not None
+    with pytest.raises(pytest.skip.Exception, match="network unavailable"):
+        with skip_on_network_error():
+            raise exc
+
+
+def _winerror(code: int) -> OSError:
+    exc = OSError(0, "winsock")
+    exc.winerror = code  # type: ignore[attr-defined]
+    return exc
+
+
+@pytest.mark.parametrize("code", [10051, 10054, 10060, 10061, 10065, 11001])
+def test_winerror_codes_are_network(code: int) -> None:
+    assert network_cause_of(_winerror(code)) is not None
+    assert network_cause_of(urllib.error.URLError(_winerror(code))) is not None
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        OSError(errno.ENOENT, "No such file"),
+        OSError(errno.EACCES, "denied"),
+        OSError("no errno"),
+        _winerror(5),
+        _http_error(400),
+        _http_error(403),
+        urllib.error.URLError(OSError(errno.ENOENT, "No such file")),
+    ],
+)
+def test_more_non_network_exception_shapes_propagate(exc: Exception) -> None:
+    assert network_cause_of(exc) is None
+
+
+@pytest.mark.parametrize(
+    "source, expected",
+    [
+        ("@pytest.mark.network\ndef test_a(): ...", True),
+        ("from pytest import mark\n@mark.network\ndef test_a(): ...", True),
+        ("pytestmark = pytest.mark.network", True),
+        ("def test_a(): ...", False),
+        ("# networking notes", False),
+    ],
+)
+def test_declares_network_spellings(
+    tmp_path: Path, source: str, expected: bool
+) -> None:
+    path = tmp_path / "test_x.py"
+    path.write_text(source, encoding="utf-8")
+    assert declares_network(path) is expected

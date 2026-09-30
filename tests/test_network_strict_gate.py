@@ -147,3 +147,33 @@ def test_strict_gate_holds_when_a_test_deletes_the_env_var(tmp_path: Path) -> No
     assert "env removed by the test" in out
     assert "test_deletes_env_then_skips" in out
     assert "3 failed" in out, out
+
+
+def _run_dir_skip(tmp_path: Path, env_value: str | None, body: str) -> str:
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    (sub / "conftest.py").write_text(_MODULE_SKIP, encoding="utf-8")
+    (sub / "test_inner.py").write_text(body, encoding="utf-8")
+    _, out = _run(tmp_path, env_value)
+    return out
+
+
+_NET_BODY = "import pytest\n\n@pytest.mark.network\ndef test_x():\n    pass\n"
+
+
+def test_strict_directory_level_skip_of_network_tests_fails(tmp_path: Path) -> None:
+    out = _run_dir_skip(tmp_path, "1", _NET_BODY)
+    assert "network module skipped" in out, out
+
+
+def test_lenient_directory_level_skip_of_network_tests_is_a_skip(
+    tmp_path: Path,
+) -> None:
+    out = _run_dir_skip(tmp_path, None, _NET_BODY)
+    assert "network module skipped" not in out, out
+    assert "sub" in out and "skipped" in out
+
+
+def test_strict_directory_level_skip_of_plain_tests_is_a_skip(tmp_path: Path) -> None:
+    out = _run_dir_skip(tmp_path, "1", "def test_x():\n    pass\n")
+    assert "network module skipped" not in out, out

@@ -22,16 +22,14 @@ blocks publishing rather than being skipped. Accepted values (case-
 insensitive): ``1``/``true``/``yes``/``on`` strict; unset/empty/``0``/
 ``false``/``no``/``off`` lenient. Any other value is a usage error.
 
-See also: tests/test_network_helpers.py (the helpers' own tests).
+See also: tests/_network_classify.py (classification),
+tests/test_network_helpers.py (the helpers' own tests).
 """
 
 from __future__ import annotations
 
-import http.client
 import os
 import re
-import socket
-import ssl
 import subprocess
 import sys
 import urllib.error
@@ -43,50 +41,13 @@ from typing import Any, NoReturn
 
 import pytest
 
+from tests._network_classify import network_cause_in_text, network_cause_of
+
 #: Environment variable that turns a network-caused skip into a failure.
 REQUIRE_NETWORK_ENV = "PITLOOM_REQUIRE_NETWORK"
 
 _STRICT_VALUES = frozenset({"1", "true", "yes", "on"})
 _LENIENT_VALUES = frozenset({"", "0", "false", "no", "off"})
-
-# Message signatures of a network cause.
-_NETWORK_TEXT = re.compile(
-    r"urlopen error|URLError|SSLError|SSL:|CERTIFICATE_VERIFY|ConnectionError|"
-    r"Connection (?:refused|reset|aborted)|ProxyError|Max retries exceeded|"
-    r"Failed to establish a new connection|timed out|TimeoutError|"
-    r"Name or service not known|nodename nor servname|"
-    r"Temporary failure in name resolution|Network is unreachable|gaierror|"
-    r"RemoteDisconnected|IncompleteRead|"
-    r"Could not find a version that satisfies|No matching distribution",
-    re.IGNORECASE,
-)
-
-# A traceback tail: ``pkg.mod.SomeError: message`` (not the CLI's ``ERROR:``).
-_EXCEPTION_LINE = re.compile(
-    r"^\s*(?:[\w.]+\.)?\w*(?:Error|Exception|gaierror|Disconnected): "
-)
-# The CLI's ``ERROR: ...`` shape for a network failure it wrapped.
-_CLI_NETWORK_LINE = re.compile(
-    r"^ERROR:\s.*(?:<urlopen error|Could not find a version that satisfies|"
-    r"No matching distribution)"
-)
-# A validator finding: its message quotes data and may contain any words.
-_VALIDATION_FINDING = re.compile(
-    r"\[(?:shacl|schema)\]|Value Node:|Focus Node:", re.IGNORECASE
-)
-
-# ``URLError`` reasons (plain strings) that are a malformed URL, not the network.
-_URL_ERROR_LOCAL_REASONS = ("unknown url type", "no host given", "file not on local")
-
-_NETWORK_EXCEPTIONS = (
-    ConnectionError,
-    TimeoutError,
-    socket.timeout,
-    socket.gaierror,
-    ssl.SSLError,
-    http.client.HTTPException,
-    urllib.error.URLError,
-)
 
 
 def network_strict() -> bool:
@@ -105,58 +66,6 @@ def network_strict() -> bool:
         f"{REQUIRE_NETWORK_ENV}={raw!r} is not a boolean; use one of "
         f"{sorted(_STRICT_VALUES)} or {sorted(_LENIENT_VALUES - {''})}"
     )
-
-
-def network_cause_in_text(text: str) -> str | None:
-    """Return the last exception line of *text* naming a network failure.
-
-    Only traceback-tail and CLI ``ERROR:`` lines count, and never text that
-    contains a validator finding (``[shacl]``/``[schema]``, ``Value Node:``):
-    a finding quotes arbitrary data such as ``Request timed out``.
-    """
-    if _VALIDATION_FINDING.search(text):
-        return None
-    matches = [
-        ln.strip()
-        for ln in text.splitlines()
-        if (_EXCEPTION_LINE.match(ln) or _CLI_NETWORK_LINE.match(ln))
-        and _NETWORK_TEXT.search(ln)
-    ]
-    return matches[-1] if matches else None
-
-
-def _is_network_exception(exc: BaseException) -> bool:
-    if isinstance(exc, urllib.error.HTTPError):
-        return exc.code == 429 or exc.code >= 500
-    if isinstance(exc, urllib.error.URLError):
-        reason = exc.reason
-        if isinstance(reason, BaseException):
-            return _is_network_exception(reason)
-        return not str(reason).startswith(_URL_ERROR_LOCAL_REASONS)
-    if isinstance(exc, http.client.InvalidURL):
-        return False
-    return isinstance(exc, _NETWORK_EXCEPTIONS)
-
-
-def network_cause_of(exc: BaseException) -> str | None:
-    """Return a description if *exc* (or its cause chain) is a network failure.
-
-    An HTTP error status counts only when transient (429 or 5xx); a 4xx is
-    a real answer and stays a failure. A malformed URL is not the network.
-    The walk follows ``__cause__``, then ``__context__`` unless
-    ``raise ... from None`` suppressed it.
-    """
-    seen: set[int] = set()
-    cur: BaseException | None = exc
-    while cur is not None and id(cur) not in seen:
-        seen.add(id(cur))
-        if _is_network_exception(cur):
-            return f"{type(cur).__name__}: {cur}"
-        if cur.__cause__ is not None:
-            cur = cur.__cause__
-        else:
-            cur = None if cur.__suppress_context__ else cur.__context__
-    return None
 
 
 def _network_unavailable(cause: str) -> NoReturn:
@@ -240,6 +149,7 @@ def pytest_configure(config: pytest.Config) -> None:
     so a test that edits the environment cannot switch the gate off.
     """
     config.stash[_STRICT_KEY] = network_strict()
+    config.pluginmanager.register(_DirectoryGate(), "pitloom-network-directory-gate")
 
 
 def fail_skipped_network_test(item: pytest.Item, report: pytest.TestReport) -> None:
@@ -279,15 +189,32 @@ def pytest_make_collect_report(collector: pytest.Collector) -> Iterator[None]:
     A module-level ``importorskip`` or ``skip(allow_module_level=True)``
     yields a skipped collect report, which ``pytest_runtest_makereport``
     never sees. No items exist, so a module counts as a network module when
-    its source mentions ``pytest.mark.network``.
+    its source mentions ``pytest.mark.network``. A directory skipped by its
+    ``conftest.py`` is handled by :class:`_DirectoryGate`.
     """
     outcome: Any = yield
-    report = outcome.get_result()
+    _fail_skipped_collect(collector, outcome.get_result())
+
+
+class _DirectoryGate:
+    """Same gate for a directory skipped by its own ``conftest.py``.
+
+    That skipped report is produced by a hook proxy that omits the parent
+    ``conftest.py``'s hooks, so it is registered as a plugin instead.
+    """
+
+    @pytest.hookimpl(hookwrapper=True)
+    def pytest_make_collect_report(self, collector: pytest.Collector) -> Iterator[None]:
+        """Fail a skipped directory holding a network-marked ``.py`` file."""
+        outcome: Any = yield
+        if isinstance(collector, pytest.Directory):
+            _fail_skipped_collect(collector, outcome.get_result())
+
+
+def _fail_skipped_collect(collector: pytest.Collector, report: Any) -> None:
     if not report.skipped or not collector.config.stash.get(_STRICT_KEY, False):
         return
-    if not isinstance(collector, pytest.Module) or not _declares_network(
-        collector.path
-    ):
+    if not _declares_network_node(collector):
         return
     longrepr = report.longrepr
     reason = longrepr[2] if isinstance(longrepr, tuple) else str(longrepr)
@@ -298,9 +225,21 @@ def pytest_make_collect_report(collector: pytest.Collector) -> Iterator[None]:
     )
 
 
-def _declares_network(path: Path) -> bool:
-    """Whether the test module at *path* mentions ``pytest.mark.network``."""
+def _declares_network_node(collector: pytest.Collector) -> bool:
+    """Whether a skipped module or directory *collector* holds network tests."""
+    if isinstance(collector, pytest.Module):
+        return declares_network(collector.path)
+    if isinstance(collector, pytest.Directory):
+        return any(declares_network(p) for p in sorted(collector.path.rglob("*.py")))
+    return False
+
+
+_NETWORK_MARK = re.compile(r"\bmark\.network\b")
+
+
+def declares_network(path: Path) -> bool:
+    """Whether the module at *path* mentions ``mark.network`` (any spelling)."""
     try:
-        return "pytest.mark.network" in path.read_text(encoding="utf-8")
+        return _NETWORK_MARK.search(path.read_text(encoding="utf-8")) is not None
     except (OSError, UnicodeDecodeError):
         return False

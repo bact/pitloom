@@ -290,4 +290,9 @@ the move.
   (0.0.7) exits 0 on invalid input because `__main__` drops `main()`'s
   return code; call the console-script entry `main()` and use its code.
   A module-level skip (`importorskip`) is a collect report, so the strict
-  gate hooks `pytest_make_collect_report` too.
+  gate hooks `pytest_make_collect_report` too. A directory-level
+  `importorskip` in a `conftest.py` (`tests/extract/conftest.py`) is a
+  skipped directory collect report; the hook fails it when any `.py`
+  beneath declares the marker. Classification
+  lives in `tests/_network_classify.py`: one errno/winerror set and one
+  message pattern shared by the exception and text paths.
