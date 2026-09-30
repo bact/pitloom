@@ -116,7 +116,7 @@ def test_embed_wheel_explicit_registry_skips_config_peek_read(
     IdRegistry.new("demo", path=registry_path).save()
 
     spy = Mock(side_effect=read_project)
-    monkeypatch.setattr("pitloom.embed.read_project", spy)
+    monkeypatch.setattr("pitloom._embed_generate.read_project", spy)
 
     embed_wheel_sbom(wheel, project_dir=sdist, id_registry=registry_path)
 

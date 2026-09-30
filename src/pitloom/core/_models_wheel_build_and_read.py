@@ -39,7 +39,6 @@ from __future__ import annotations
 
 import functools
 import logging
-import os
 import shutil
 import tempfile
 import zipfile
@@ -57,6 +56,12 @@ from pitloom.core._models_wheel_types import (
     to_posix_distribution_path,
 )
 from pitloom.core.build_signals import TerminationGuard
+from pitloom.core.temp_dirs import (
+    one_shot,
+    registered_temp_dir,
+    rmtree_quietly,
+    warn_if_left_behind,
+)
 
 log = logging.getLogger(__name__)
 
@@ -164,7 +169,9 @@ def _build_and_read_wheel(
     handed_over = False
     try:
         with termination.hold():
-            extract_dir, remove_extract_dir = _registered_extract_dir(termination)
+            extract_dir, remove_extract_dir = registered_temp_dir(
+                termination, "pitloom-build-and-read-", log_prefix=BUILD_LOG_PREFIX
+            )
             work_dir, remove_work_dir = _registered_work_dir(termination)
             wheel_path = run_build_subprocess(
                 project_dir,
@@ -213,18 +220,6 @@ def _build_and_read_wheel(
                 remove_extract_dir()
 
 
-def _registered_extract_dir(
-    termination: TerminationGuard,
-) -> tuple[Path, Callable[[], None]]:
-    """A new extraction directory and its removal, registered with
-    *termination*. Call inside a hold, so no termination signal acts in
-    between (a Ctrl-C still can)."""
-    path = Path(tempfile.mkdtemp(prefix="pitloom-build-and-read-"))
-    remove = _one_shot(functools.partial(_remove_temp_dir, path))
-    termination.add_cleanup(remove)
-    return path, remove
-
-
 def _registered_work_dir(
     termination: TerminationGuard,
 ) -> tuple[Path, Callable[[], None]]:
@@ -236,34 +231,13 @@ def _registered_work_dir(
     # hold a handle; a leftover is reported instead of raising.
     # pylint: disable-next=consider-using-with
     work = tempfile.TemporaryDirectory(prefix="plb-", ignore_cleanup_errors=True)
-    remove = _one_shot(functools.partial(_remove_work_dir, work))
+    remove = one_shot(functools.partial(_remove_work_dir, work))
     termination.add_cleanup(remove)
     return Path(work.name), remove
 
 
 def _nothing_to_remove() -> None:
     """Stands in for a removal until its directory exists."""
-
-
-def _one_shot(remove: Callable[[], None]) -> Callable[[], None]:
-    """*remove* (a temp directory's removal) as a cleanup callback that
-    runs it to completion once.
-
-    Idempotent, as
-    :meth:`~pitloom.core.build_signals.TerminationGuard.add_cleanup`
-    requires -- both the caller and the guard may run it. Marked done only
-    after *remove* returns, so a run cut short by the signal handler is
-    repeated by the handler's own run.
-    """
-    done = False
-
-    def cleanup() -> None:
-        nonlocal done
-        if not done:
-            remove()
-            done = True
-
-    return cleanup
 
 
 def _remove_work_dir(work: tempfile.TemporaryDirectory[str]) -> None:
@@ -277,30 +251,5 @@ def _remove_work_dir(work: tempfile.TemporaryDirectory[str]) -> None:
         # fails (e.g. a directory still in use on Windows); a cleanup
         # callback must not raise.
         log.debug("%swork directory cleanup failed: %r", BUILD_LOG_PREFIX, exc)
-        _rmtree_quietly(Path(work.name))
-    _warn_if_left_behind(Path(work.name))
-
-
-def _remove_temp_dir(path: Path) -> None:
-    """Remove *path*, with a ``WARNING:`` if anything survives."""
-    _rmtree_quietly(path)
-    _warn_if_left_behind(path)
-
-
-def _rmtree_quietly(path: Path) -> None:
-    """``shutil.rmtree(path, ignore_errors=True)``, which still raises
-    ``RecursionError`` on a tree deeper than the recursion limit (Python
-    3.10's rmtree recurses; the build controls its temp dir's depth)."""
-    try:
-        shutil.rmtree(path, ignore_errors=True)
-    except Exception as exc:  # pylint: disable=broad-exception-caught
-        log.debug("%sremoving %s failed: %r", BUILD_LOG_PREFIX, path, exc)
-
-
-def _warn_if_left_behind(path: Path) -> None:
-    """``WARNING:`` when a temp directory survived its removal."""
-    # os.path.lexists, not Path.exists(): never raises (e.g. EACCES).
-    if os.path.lexists(path):
-        log.warning(
-            "%scould not fully remove temporary directory %s", BUILD_LOG_PREFIX, path
-        )
+        rmtree_quietly(Path(work.name), BUILD_LOG_PREFIX)
+    warn_if_left_behind(Path(work.name), BUILD_LOG_PREFIX)
