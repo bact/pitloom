@@ -1,0 +1,38 @@
+[
+    {
+        "key": "requests",
+        "package_name": "requests",
+        "installed_version": "2.34.2",
+        "required_version": "2.34.2",
+        "dependencies": [
+            {
+                "key": "certifi",
+                "package_name": "certifi",
+                "installed_version": "2026.7.22",
+                "required_version": ">=2023.5.7",
+                "dependencies": []
+            },
+            {
+                "key": "charset-normalizer",
+                "package_name": "charset-normalizer",
+                "installed_version": "3.5.1",
+                "required_version": ">=2,<4",
+                "dependencies": []
+            },
+            {
+                "key": "idna",
+                "package_name": "idna",
+                "installed_version": "3.20",
+                "required_version": ">=2.5,<4",
+                "dependencies": []
+            },
+            {
+                "key": "urllib3",
+                "package_name": "urllib3",
+                "installed_version": "2.8.0",
+                "required_version": ">=1.26,<3",
+                "dependencies": []
+            }
+        ]
+    }
+]

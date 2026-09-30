@@ -299,7 +299,7 @@ def test_id_generate_entity_flag_hits_env_lookup(
         }
     ]
     fake_result = subprocess.CompletedProcess(
-        args=["pipdeptree", "--json-tree", "--all"],
+        args=["pipdeptree", "--json"],
         returncode=0,
         stdout=json.dumps(tree),
         stderr="",

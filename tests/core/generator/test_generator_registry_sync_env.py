@@ -37,7 +37,7 @@ def _fake_pipdeptree_result(
     tree: list[dict[str, Any]],
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(
-        args=["pipdeptree", "--json-tree", "--all"],
+        args=["pipdeptree", "--json"],
         returncode=0,
         stdout=json.dumps(tree),
         stderr="",
@@ -47,6 +47,7 @@ def _fake_pipdeptree_result(
 def _node(key: str, version: str = "1.0.0") -> dict[str, Any]:
     return {
         "package": {"key": key, "package_name": key, "installed_version": version},
+        "dependencies": [],
     }
 
 
@@ -62,6 +63,7 @@ def _node_with_declared_name(
             "package_name": package_name,
             "installed_version": version,
         },
+        "dependencies": [],
     }
 
 

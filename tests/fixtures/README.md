@@ -26,3 +26,7 @@ SPDX-License-Identifier: CC0-1.0
     - Vendored sdist archives of real, published PyPI packages, one per
       build backend, for wheel-file-discovery regression testing
     - [Details](./real-world-projects/README.md)
+7. pipdeptree output fixtures (`pipdeptree/`)
+    - Captured `pipdeptree --json` / `--json-tree` output for `loom env`
+      testing
+    - [Details](./pipdeptree/README.md)

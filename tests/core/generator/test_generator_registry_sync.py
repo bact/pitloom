@@ -281,7 +281,7 @@ def test_generate_env_sbom_auto_updates_registry(
         }
     ]
     fake_result = subprocess.CompletedProcess(
-        args=["pipdeptree", "--json-tree", "--all"],
+        args=["pipdeptree", "--json"],
         returncode=0,
         stdout=json.dumps(tree),
         stderr="",
@@ -310,7 +310,7 @@ def test_generate_env_sbom_respects_no_update_id_registry(
         }
     ]
     fake_result = subprocess.CompletedProcess(
-        args=["pipdeptree", "--json-tree", "--all"],
+        args=["pipdeptree", "--json"],
         returncode=0,
         stdout=json.dumps(tree),
         stderr="",

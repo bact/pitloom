@@ -29,7 +29,7 @@ def test_generate_env_sbom_mocked_pipdeptree(
         }
     ]
     fake_result = subprocess.CompletedProcess(
-        args=["pipdeptree", "--json-tree", "--all"],
+        args=["pipdeptree", "--json"],
         returncode=0,
         stdout=json.dumps(tree),
         stderr="",
