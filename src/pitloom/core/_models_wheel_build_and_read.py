@@ -53,7 +53,6 @@ from pitloom.core._models_wheel_types import (
     BUILD_LOG_PREFIX,
     IncludedFile,
     is_dist_info_path,
-    to_posix_distribution_path,
 )
 from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.temp_dirs import (
@@ -62,6 +61,7 @@ from pitloom.core.temp_dirs import (
     rmtree_quietly,
     warn_if_left_behind,
 )
+from pitloom.core.wheel_member_names import wheel_file_members
 
 log = logging.getLogger(__name__)
 
@@ -87,28 +87,24 @@ def _extract_wheel_to_included_files(
     ``.dist-info`` entries from ``read_wheel()`` directly, so nothing is
     lost.
 
-    A wheel's own internal entries are always ``/``-separated per the ZIP
-    spec (so ``to_posix_distribution_path()`` is a safety net here, not a
-    live bug on any platform), but ``target`` (a real, on-disk path) is
-    composed via :class:`~pathlib.Path`'s own ``/`` operator, which
-    accepts a ``/``-separated string as multiple path components on
-    every platform including Windows -- never raw string concatenation.
+    Entry names go through
+    :func:`~pitloom.core.wheel_member_names.wheel_file_members`, the same
+    normaliser :func:`pitloom.extract.wheel.read_wheel` uses, so names match
+    across both readers on every OS. ``target`` is composed via
+    :class:`~pathlib.Path`'s own ``/`` operator, never string concatenation.
 
     Zip-slip guard: unlike every static discoverer (which only ever
     walks real files already inside *project_dir*), this one writes
     bytes to disk from a zip archive a real, external build process
-    just produced -- a ``../``-containing or absolute entry name (from
-    a buggy or malicious build backend) must never be allowed to
-    resolve outside *extract_dir* and overwrite an unrelated file
-    elsewhere on the filesystem.
+    just produced. ``wheel_file_members`` already skips ``../``-containing
+    and absolute entry names; the ``resolve()`` check below is defence in
+    depth, so no entry can overwrite a file outside *extract_dir*.
     """
     resolved_extract_dir = extract_dir.resolve()
     files: list[IncludedFile] = []
     with zipfile.ZipFile(wheel_path) as zf:
-        for info in zf.infolist():
-            if info.is_dir():
-                continue
-            distribution_path = to_posix_distribution_path(info.filename)
+        for member in wheel_file_members(zf, wheel_path.name, log, BUILD_LOG_PREFIX):
+            distribution_path = member.name
             if is_dist_info_path(distribution_path):
                 continue
             target = extract_dir / distribution_path
@@ -117,12 +113,12 @@ def _extract_wheel_to_included_files(
                     "%s%s: wheel entry %r resolves outside "
                     "the extraction directory -- skipped, not written to disk",
                     BUILD_LOG_PREFIX,
-                    wheel_path,
+                    wheel_path.name,
                     distribution_path,
                 )
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)
-            with zf.open(info) as src, target.open("wb") as dst:
+            with zf.open(member.info) as src, target.open("wb") as dst:
                 shutil.copyfileobj(src, dst)
             files.append(
                 IncludedFile(path=str(target), distribution_path=distribution_path)

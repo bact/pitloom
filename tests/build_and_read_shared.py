@@ -39,6 +39,7 @@ import pytest
 import pitloom
 from pitloom.core._models_wheel_types import IncludedFile
 from pitloom.core.build_signals import TerminationGuard
+from tests._raw_wheel import write_raw_member
 
 RUN_BUILD = "pitloom.core._models_wheel_build_and_read.run_build_subprocess"
 BUILD_AND_READ = "pitloom.core._models_wheel_build_and_read.build_and_read_wheel"
@@ -89,10 +90,10 @@ def write_fake_wheel(
     """Write a small, hand-built ``.whl`` zip at *wheel_path* with
     *entries* (distribution_path -> content), plus an optional
     ``.dist-info/METADATA`` entry (present by default, since a real
-    wheel always has one)."""
+    wheel always has one). Names are stored raw on every OS."""
     with zipfile.ZipFile(wheel_path, "w") as zf:
         for name, content in entries.items():
-            zf.writestr(name, content)
+            write_raw_member(zf, name, content)
         if dist_info:
             zf.writestr("pkg-1.0.dist-info/METADATA", b"Metadata-Version: 2.1\n")
 

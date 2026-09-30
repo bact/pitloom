@@ -24,6 +24,7 @@ import pytest
 from pitloom.core._models_wheel_build_and_read import build_and_read_wheel
 from pitloom.core._models_wheel_types import is_dist_info_path
 from pitloom.core.build_signals import TerminationGuard
+from pitloom.core.wheel_member_names import WheelFileMember
 from tests.build_and_read_shared import (
     RUN_BUILD,
     FakeBuildState,
@@ -210,40 +211,21 @@ def test_extract_wheel_to_included_files_skips_directory_entries(
     cleanup()
 
 
+@pytest.mark.parametrize("escaping", ["../outside/evil.py", "abs"])
 def test_extract_wheel_to_included_files_rejects_zip_slip_entry(
-    monkeypatch: pytest.MonkeyPatch,
+    fake_build: FakeBuildState,
     tmp_path: Path,
     sys_tmp: Path,
     caplog: pytest.LogCaptureFixture,
+    escaping: str,
 ) -> None:
-    """A wheel entry whose name escapes the extraction directory via
-    ``../`` segments (a real build backend bug, or a corrupted/malicious
-    wheel) must never be written outside ``extract_dir`` -- skipped with
-    a ``WARNING:``, not silently written to an arbitrary filesystem
-    location. A sibling, non-escaping entry in the same wheel must still
-    extract normally."""
-
-    def _fake_run_with_escaping_entry(
-        project_dir: Path,
-        work_dir: Path,
-        *,
-        isolated: bool,
-        timeout: int,
-        termination: TerminationGuard,
-    ) -> Path:
-        del project_dir, isolated, timeout, termination
-        wheel_path = work_dir / "pkg-1.0-py3-none-any.whl"
-        with zipfile.ZipFile(wheel_path, "w") as zf:
-            # ZipInfo accepts an arbitrary filename -- zipfile itself
-            # does not sanitize it; only ZipFile.extract()/extractall()
-            # apply their own (different) safety normalization, which
-            # this module deliberately doesn't use (it composes target
-            # paths itself, see _extract_wheel_to_included_files).
-            zf.writestr("../outside/evil.py", b"evil = 1\n")
-            zf.writestr("pkg/__init__.py", b"")
-        return wheel_path
-
-    monkeypatch.setattr(RUN_BUILD, _fake_run_with_escaping_entry)
+    """A wheel entry whose name escapes the extraction directory (``../``
+    segments, or an absolute path) is never written to disk -- skipped
+    with exactly one ``WARNING:`` quoting the raw name. A sibling entry in
+    the same wheel still extracts normally."""
+    if escaping == "abs":
+        escaping = (sys_tmp / "abs-evil.py").as_posix()
+    fake_build.entries = {escaping: b"evil = 1\n", "pkg/__init__.py": b""}
 
     with caplog.at_level(logging.WARNING):
         result = build_and_read_wheel(tmp_path, timeout=60)
@@ -251,9 +233,70 @@ def test_extract_wheel_to_included_files_rejects_zip_slip_entry(
     assert result is not None
     files, cleanup = result
     assert {f.distribution_path for f in files} == {"pkg/__init__.py"}
-    # "../outside/evil.py" relative to the extraction dir inside sys_tmp.
+    assert not (sys_tmp / "outside").exists()
+    assert not (sys_tmp / "abs-evil.py").exists()
+    warnings = [r.getMessage() for r in caplog.records]
+    assert len(warnings) == 1
+    assert f"{escaping!r} has no safe install location -- skipped" in warnings[0]
+    cleanup()
+
+
+def test_extract_wheel_to_included_files_resolve_guard(
+    fake_build: FakeBuildState,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    sys_tmp: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The ``resolve()`` guard still blocks an escaping name if the name
+    normaliser ever lets one through (defence in depth)."""
+    monkeypatch.setattr(
+        "pitloom.core._models_wheel_build_and_read.wheel_file_members",
+        lambda zf, *_args: [
+            WheelFileMember(info, info.orig_filename) for info in zf.infolist()
+        ],
+    )
+    fake_build.entries = {"../outside/evil.py": b"evil = 1\n"}
+
+    with caplog.at_level(logging.WARNING):
+        result = build_and_read_wheel(tmp_path, timeout=60)
+
+    # Nothing left to extract: the build counts as a discovery failure.
+    assert result is None
     assert not (sys_tmp / "outside").exists()
     assert "resolves outside the extraction directory" in caplog.text
+
+
+def test_extract_wheel_to_included_files_normalises_member_names(
+    fake_build: FakeBuildState, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Non-conforming names (backslash, ``./``) are extracted under their
+    install location, with one ``WARNING:`` each -- the same names
+    ``read_wheel()`` records, on every OS. Of two members with one install
+    location, only the later is extracted and listed, so no entry reports
+    bytes another member overwrote."""
+    fake_build.entries = {
+        "pkg\\mod.py": b"x = 1\n",
+        "./pkg/b.py": b"",
+        "pkg/c.py": b"first\n",
+        "pkg\\c.py": b"second\n",
+    }
+
+    with caplog.at_level(logging.WARNING):
+        result = build_and_read_wheel(tmp_path, timeout=60)
+
+    assert result is not None
+    files, cleanup = result
+    by_name = {f.distribution_path: Path(f.path) for f in files}
+    assert sorted(f.distribution_path for f in files) == [
+        "pkg/b.py",
+        "pkg/c.py",
+        "pkg/mod.py",
+    ]
+    assert by_name["pkg/mod.py"].read_bytes() == b"x = 1\n"
+    assert by_name["pkg/c.py"].read_bytes() == b"second\n"
+    assert len(caplog.records) == 4
+    assert "'./pkg/b.py' is non-conforming -- recorded as 'pkg/b.py'" in caplog.text
     cleanup()
 
 

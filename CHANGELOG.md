@@ -157,6 +157,8 @@ and this project adheres to
   skipped alone; it emptied the whole file list ([#244])
 - `setup.cfg` `[tool:pitloom]`: boolean and integer keys read as in
   `pyproject.toml`, not as strings ([#247])
+- Wheel SBOM file names are the same on every OS (`\` to `/`, `./` dropped);
+  unsafe or overwritten members are skipped; one `WARNING:` each ([#251])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -174,6 +176,7 @@ and this project adheres to
 [#244]: https://github.com/bact/pitloom/pull/244
 [#247]: https://github.com/bact/pitloom/pull/247
 [#248]: https://github.com/bact/pitloom/pull/248
+[#251]: https://github.com/bact/pitloom/pull/251
 
 ## [0.19.0] - 2026-09-18
 
