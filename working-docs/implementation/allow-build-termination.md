@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-09-20
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -110,11 +110,11 @@ result's whole lifetime.
   purpose and stays. Should that code later put the guard's handler back,
   the handler, finding the guard inactive, behaves as `SIG_DFL`.
 - **Cleanup callbacks are idempotent and may run twice.** The build
-  registers each temp dir's removal (`_one_shot()`) with `add_cleanup()`
-  right after creating it, inside the hold; it runs on termination, or
-  when the owner's block ends
-  by an exception with no signal pending -- which also covers Ctrl-C
-  between `get_wheel_files()` returning and the caller's `try` taking the
+  registers each temp dir's removal (`one_shot()`, `core/temp_dirs.py`)
+  with `add_cleanup()` right after creating it, inside the hold; it runs
+  on termination, or when the owner's block ends by an exception with
+  no signal pending -- which also covers Ctrl-C between
+  `get_wheel_files()` returning and the caller's `try` taking the
   callback. On a normal exit they are dropped: the owner released the
   dir itself, or handed it on (`get_wheel_files()` called on its own).
   Its callback is marked done only after the removal returns, and the

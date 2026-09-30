@@ -33,6 +33,7 @@ from pitloom.core import _models_wheel_build_and_read as bar
 from pitloom.core._models_wheel_build_and_read import build_and_read_wheel
 from pitloom.core._models_wheel_build_subprocess import BuildTimeoutError
 from pitloom.core.build_signals import TerminationGuard
+from pitloom.core.temp_dirs import warn_if_left_behind
 from tests.build_and_read_shared import (
     EXTRACT_PREFIX,
     RUN_BUILD,
@@ -419,17 +420,17 @@ def test_build_and_read_wheel_signal_after_success_removes_extract_dir(
 ) -> None:
     """SIGTERM once the call has succeeded, before it returns: the caller
     never gets to run the cleanup callback, so the guard must."""
-    real_warn = bar._warn_if_left_behind  # pylint: disable=protected-access
     fired: list[bool] = []
 
-    def warn_then_signal(path: Path) -> None:
+    def warn_then_signal(path: Path, log_prefix: str) -> None:
         # The work dir's leftover check, the last step before returning.
-        real_warn(path)
+        warn_if_left_behind(path, log_prefix)
         if not fired:
             fired.append(True)
             deliver_sigterm()
 
-    monkeypatch.setattr(bar, "_warn_if_left_behind", warn_then_signal)
+    # Patched in bar's globals: that is the name _remove_work_dir calls.
+    monkeypatch.setattr(bar, "warn_if_left_behind", warn_then_signal)
 
     with pytest.raises(SystemExit):
         build_and_read_wheel(tmp_path, timeout=60)
