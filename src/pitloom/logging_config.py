@@ -51,6 +51,13 @@ def _debug_requested(debug: bool | None) -> bool:
     return os.environ.get(PITLOOM_DEBUG_ENV_VAR, "").strip().lower() in _TRUTHY
 
 
+def debug_enabled() -> bool:
+    """Whether ``DEBUG`` diagnostics are on for this process: the
+    effective ``PITLOOM_DEBUG``, which the CLI's ``--debug``/``--no-debug``
+    set through :func:`apply_debug_override`."""
+    return _debug_requested(None)
+
+
 def apply_debug_override(debug: bool | None) -> None:
     """Normalize an explicit debug choice (the CLI's ``--debug``/
     ``--no-debug``) into the ``PITLOOM_DEBUG`` environment variable, so
