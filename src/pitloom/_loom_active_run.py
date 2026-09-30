@@ -17,8 +17,6 @@ from uuid import uuid4
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-# pylint: disable-next=cyclic-import
-from pitloom import loom
 from pitloom._loom_caller import (
     _default_run_comment,
     _get_caller_info,
@@ -31,10 +29,17 @@ from pitloom.assemble.spdx3.creation_info import build_creation_info
 from pitloom.assemble.spdx3.provenance import emit_provenance
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.models import build_relationship, generate_spdx_id
+from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.id_registry import IdRegistry, IdRegistrySession, resolve_registry
 
 log = logging.getLogger("pitloom.loom")
+
+#: loom is a standalone SDK invoked from ad hoc scripts/notebooks, not
+#: through a pyproject.toml-based [tool.pitloom.provenance] config -- so
+#: provenance is always recorded both ways (Annotation + legacy comment)
+#: rather than threading a format setting through the whole SDK surface.
+_LOOM_PROVENANCE_CONFIG = ProvenanceConfig(format="both")
 
 __all__ = [
     "_ActiveRun",
@@ -142,8 +147,7 @@ class _ActiveRun:
             doc_name=name,
             doc_uuid=self.doc_uuid,
             exporter=self.exporter,
-            # pylint: disable-next=protected-access
-            provenance_config=loom._LOOM_PROVENANCE_CONFIG,
+            provenance_config=_LOOM_PROVENANCE_CONFIG,
         )
 
     def use_model(
@@ -181,8 +185,7 @@ class _ActiveRun:
             doc_name=self.model.name or "model",
             doc_uuid=self.doc_uuid,
             exporter=self.exporter,
-            # pylint: disable-next=protected-access
-            provenance_config=loom._LOOM_PROVENANCE_CONFIG,
+            provenance_config=_LOOM_PROVENANCE_CONFIG,
         )
 
     def _build_dataset_package(
@@ -204,8 +207,7 @@ class _ActiveRun:
             doc_name=name,
             doc_uuid=self.doc_uuid,
             exporter=self.exporter,
-            # pylint: disable-next=protected-access
-            provenance_config=loom._LOOM_PROVENANCE_CONFIG,
+            provenance_config=_LOOM_PROVENANCE_CONFIG,
         )
         if hash_element is not None:
             dataset_pkg.verifiedUsing = [hash_element]

@@ -3,9 +3,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Encoders and value parsing for SPDX 3 metadata provenance.
+"""Encoders for SPDX 3 metadata provenance.
 
-See also: :mod:`pitloom.assemble.spdx3.provenance` for annotation builders and emission.
+See also: :mod:`pitloom.assemble.spdx3.provenance` for annotation builders and
+emission, and :func:`pitloom.core.provenance.parse_provenance_value`.
 """
 
 from __future__ import annotations
@@ -13,14 +14,7 @@ from __future__ import annotations
 import json
 from typing import Protocol
 
-#: Segment-key normalization for "Key: value | Key: value" strings.
-_KEY_MAP = {
-    "source": "source",
-    "field": "location",
-    "method": "method",
-    "package": "package",
-    "role": "role",
-}
+from pitloom.core.provenance import parse_provenance_value
 
 #: Transparent, re-readable manifest sources.
 TRANSPARENT_SOURCES: frozenset[str] = frozenset(
@@ -36,25 +30,6 @@ TRANSPARENT_SOURCES: frozenset[str] = frozenset(
 
 VALID_PROVENANCE_DETAIL: frozenset[str] = frozenset({"minimal", "full"})
 VALID_PROVENANCE_FORMATS: frozenset[str] = frozenset({"annotation", "comment", "both"})
-
-
-def parse_provenance_value(value: str) -> dict[str, str]:
-    """Parse ``"Source: X | Field: Y"`` into a structured dict."""
-    parsed: dict[str, str] = {}
-    notes: list[str] = []
-    for raw in value.split("|"):
-        segment = raw.strip()
-        if not segment:
-            continue
-        key, sep, val = segment.partition(":")
-        if sep:
-            norm = _KEY_MAP.get(key.strip().lower(), key.strip().lower())
-            parsed[norm] = val.strip()
-        else:
-            notes.append(segment)
-    if notes:
-        parsed.setdefault("note", " | ".join(notes))
-    return parsed
 
 
 def _is_high_signal(entry: dict[str, str]) -> bool:

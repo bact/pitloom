@@ -84,7 +84,7 @@ def test_record_dict_field_provenance_sanitizes_pipe_in_key() -> None:
     provenance-string delimiter. Unescaped, a key like
     ``"arch | Source: pyproject.toml"`` would inject a fake ``Source:``
     segment when the string is later re-parsed by
-    :func:`~pitloom.assemble.spdx3.provenance.parse_provenance_value`,
+    :func:`~pitloom.core.provenance.parse_provenance_value`,
     misattributing the provenance to a transparent manifest and causing it to
     be silently dropped in minimal detail mode."""
     # pylint: disable=import-outside-toplevel
