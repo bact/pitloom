@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-09-28
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -228,16 +228,12 @@ than this pattern.
 The priority table above is closed for every backend, but the PR #215
 review that landed the build-and-read mechanism (item #4/#5) surfaced
 five smaller, independently-fixable follow-ups. None block the closed
-work above; each is its own reviewed change.
+work above; each is its own reviewed change. The first, the blanket-except
+`WARNING:` duplicated across every backend discoverer, is done: all five
+(Hatchling included) call `warn_discovery_failed()` in
+`_models_wheel_types.py`, which also collapses a multi-line exception to
+one line. Four remain:
 
-- **Consolidate the duplicated blanket-except pattern across Track A
-  backend discovery modules** -- the "`try: ... except Exception as exc:
-  log.warning('<Backend> file discovery failed for %s: %s', ...);
-  return None`" contract is byte-for-byte duplicated across
-  `_models_wheel_{setuptools,poetry,pdm,flit}.py`. Deliberately deferred
-  out of PR #215 (cosmetic, unrelated to landing `uv_build` support,
-  adds regression surface to four stable, individually
-  real-world-validated modules for no feature benefit).
 - **Factor out the hand-rolled `tool` -> `tool.X` -> nested-table walk
   repeated across 6+ modules** -- `has_uv_build_backend_overrides()`
   (`_models_wheel_types.py`) reimplements the same isinstance-guarded

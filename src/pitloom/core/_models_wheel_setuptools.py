@@ -37,7 +37,9 @@ from pitloom.core._models_wheel_types import (
     IncludedFile,
     has_resolvable_pyproject_config,
     to_posix_distribution_path,
+    warn_discovery_failed,
 )
+from pitloom.logging_config import one_line
 
 if TYPE_CHECKING:
     from setuptools.command.build_py import build_py as BuildPyCommand
@@ -382,10 +384,10 @@ def discover(
             "pyproject.toml or setup.cfg; falling back to Hatchling-based "
             "heuristic",
             project_dir,
-            exc,
+            one_line(exc),
         )
         return None
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        log.warning("Setuptools file discovery failed for %s: %s", project_dir, exc)
+        warn_discovery_failed(log, "Setuptools", project_dir, exc)
         return None

@@ -34,11 +34,15 @@ from typing import Any
 
 import pytest
 
-from pitloom.assemble import _model_generator, generate, generate_project_sbom
+from pitloom.assemble import generate, generate_project_sbom
 from pitloom.embed import embed_wheel_sbom
 from tests._unreadable import ALL_MODES, POSIX_NON_ROOT, deny, unlistable
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.assemble.embed_surfaces_shared import run_cli
+from tests.assemble.enrich_identity_shared import (
+    enrich_base_namespace,
+    sbom_namespace,
+)
 from tests.extract.conftest import make_hook
 
 _READABLE = "demo/__init__.py"
@@ -183,8 +187,7 @@ def test_enrich_identity_matches_the_sbom_with_an_unreadable_file(
     """``loom enrich --project-dir`` must name the document the project SBOM
     has: both skip the same file, so the Merkle root and doc UUID agree."""
     project = _project(tmp_path)
-    # pylint: disable-next=protected-access
-    _, readable_uuid = _model_generator._project_doc_identity(project)
+    readable = enrich_base_namespace(project, tmp_path / "model")
 
     with (
         deny(project / _SECRET, mode, monkeypatch),
@@ -192,14 +195,11 @@ def test_enrich_identity_matches_the_sbom_with_an_unreadable_file(
     ):
         sbom_json = generate_project_sbom(project, offline=True)
         caplog.clear()
-        # pylint: disable-next=protected-access
-        _, uuid = _model_generator._project_doc_identity(project)
+        namespace = enrich_base_namespace(project, tmp_path / "model")
 
-    graph = json.loads(sbom_json)["@graph"]
-    doc_id = next(str(o["spdxId"]) for o in graph if o["type"] == "SpdxDocument")
-    assert doc_id.endswith(uuid)
+    assert namespace == sbom_namespace(sbom_json)
     # Not vacuous: the skipped file changes the identity.
-    assert uuid != readable_uuid
+    assert namespace != readable
     about_secret = [r for r in caplog.records if _SECRET in r.getMessage()]
     assert len(about_secret) == 1
 

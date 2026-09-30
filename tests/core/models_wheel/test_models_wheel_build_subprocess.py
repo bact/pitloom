@@ -350,7 +350,9 @@ def test_run_build_subprocess_nonzero_exit(
     _patch_command(
         monkeypatch,
         "print('first line')\n"
-        "print('\\x1b[91mERROR boom\\x1b[0m')\n"
+        # Colour plus an OSC 8 hyperlink around "boom".
+        "print('\\x1b[91mERROR \\x1b]8;;https://e.invalid\\x1b\\\\boom"
+        "\\x1b]8;;\\x1b\\\\\\x1b[0m')\n"
         "print()\n"
         "raise SystemExit(3)\n",
     )
@@ -368,6 +370,12 @@ def test_run_build_subprocess_nonzero_exit(
     assert str(excinfo.value) == "build exited with code 3: ERROR boom"
     assert "Build: build output: first line" in caplog.text
     assert "\x1b" not in caplog.text
+    assert "e.invalid" not in caplog.text
+    # The blank line is skipped, not logged as "build output: " with a
+    # trailing space.
+    debug_messages = [r.getMessage() for r in caplog.records]
+    assert debug_messages
+    assert all(m == m.strip() for m in debug_messages)
 
 
 @pytest.mark.parametrize("count", [0, 2])
