@@ -180,7 +180,8 @@ pitloom/
 │       │   ├── _toml_io.py         # Shared tomllib/tomli compat import + raw TOML-file read
 │       │   ├── binary.py           # Bundled third-party binary ("phantom dependency") detection
 │       │   ├── env.py              # Deployed SBOM: installed-environment dependency tree
-│       │   ├── scanner.py          # Heuristic scanner for AI model files
+│       │   ├── scanner.py          # AI model discovery policy: ModelCandidate, discover/attach passes
+│       │   ├── scanner_project.py  # Project-directory producer for the AI model scanner
 │       │   └── wheel.py            # Analyzed SBOM: project metadata + file records from a built .whl
 │       ├── id_registry/             # Loom ID registry (loom-id-registry.json)
 │       │   ├── __init__.py          # Public API re-exports (IdRegistry, IdRegistrySession, resolve_registry)
@@ -208,7 +209,7 @@ pitloom/
 │   ├── cli/                        # 22 files -- one per src/pitloom/cli/ module, + shared.py
 │   ├── core/                       # 26 files -- core/, loom.py, generator orchestration
 │   │   └── models_wheel/           # Wheel file discovery: backends, build-and-read, build timeout/kill
-│   ├── extract/                    # 46 files, one per extractor
+│   ├── extract/                    # 47 files, one per extractor
 │   │   └── huggingface/            # 20 files -- split by metadata category
 │   │       └── hf_patches/         # 13 files -- shared mock patches for HF tests
 │   ├── fixtures/                   # Per-format model/project fixtures (see fixtures/README.md)

@@ -19,6 +19,7 @@ no effect" warnings on every surface and target kind.
 from __future__ import annotations
 
 import logging
+import shutil
 from pathlib import Path
 from unittest import mock
 
@@ -28,7 +29,15 @@ from pitloom.assemble import generate, generate_project_sbom
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.project import ProjectFile
 from tests.cli.shared import _make_simple_project
+from tests.warning_helpers import file_values
 
+_MODEL_NPY = (
+    Path(__file__).parent.parent
+    / "fixtures"
+    / "aimodels"
+    / "numpy"
+    / "example-model-v1.npy"
+)
 _ALL_FLAGS = BuildOptions(allow=True, no_isolation=True, timeout=1234)
 
 
@@ -43,6 +52,64 @@ def test_generate_project_sbom_threads_build_options(tmp_path: Path) -> None:
         generate_project_sbom(project_dir, offline=True, build_options=_ALL_FLAGS)
 
     assert mocked.call_args.kwargs["build_options"] is _ALL_FLAGS
+
+
+def _stable_scan_run(
+    tmp_path: Path, name: str, caplog: pytest.LogCaptureFixture
+) -> tuple[Path, str, list[str]]:
+    """Run an allow-build generation whose extract dir is ``extract-<name>``."""
+    (tmp_path / name).mkdir()
+    project_dir = _make_simple_project(tmp_path / name)
+    extract = tmp_path / f"extract-{name}"
+    pkg = extract / "demo"
+    pkg.mkdir(parents=True)
+    shutil.copyfile(_MODEL_NPY, pkg / "model.npy")
+    (pkg / "bad.onnx").write_bytes(b"corrupt")
+    (pkg / "use.py").write_text('np.load("model.npy")\n', encoding="utf-8")
+    files = [
+        ProjectFile(
+            physical_path=str(pkg / fname),
+            distribution_path=f"demo/{fname}",
+            digest_sha256=str(i) * 64,
+        )
+        for i, fname in enumerate(["model.npy", "bad.onnx", "use.py"])
+    ]
+    caplog.clear()
+    with mock.patch(
+        "pitloom.assemble._generators.get_wheel_files",
+        return_value=(None, files, lambda: None),
+    ):
+        with caplog.at_level(logging.WARNING):
+            out = generate_project_sbom(
+                project_dir, offline=True, build_options=BuildOptions(allow=True)
+            )
+    values = file_values(r.getMessage() for r in caplog.records)
+    return extract, out, values
+
+
+def test_generate_project_sbom_allow_build_model_scan_is_stable(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Two allow-build runs with different extract dirs give identical
+    SBOM bytes and warnings that never name an extract dir.
+
+    The byte and output assertions already hold before the scanner fix
+    (guards); the ``FILE=`` assertion is the regression."""
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
+    extract_a, out_a, files_a = _stable_scan_run(tmp_path, "a", caplog)
+    extract_b, out_b, files_b = _stable_scan_run(tmp_path, "b", caplog)
+
+    assert extract_a != extract_b
+    assert out_a == out_b
+    for extract in (extract_a, extract_b):
+        assert str(extract) not in out_a
+    assert "hasDataFile" in out_a
+    assert files_a
+    for value in files_a + files_b:
+        assert str(extract_a) not in value
+        assert str(extract_b) not in value
 
 
 def test_generate_project_sbom_defers_cleanup_past_ai_model_scan(

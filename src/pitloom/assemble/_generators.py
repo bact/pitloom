@@ -39,7 +39,7 @@ from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.extract._license import resolve_license_file_entries
 from pitloom.extract.project import resolve_project_with_lockfile
-from pitloom.extract.scanner import scan_project_for_ai_models
+from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.id_registry import IdRegistry, registry_base_dir, resolve_registry
 from pitloom.logging_config import configure_logging
 

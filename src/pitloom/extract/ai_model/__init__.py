@@ -16,18 +16,24 @@ from __future__ import annotations
 
 from pitloom.extract.ai_model.reader import (
     REGISTRY,
+    SNIFF_BYTES,
     AiModelFormat,
     AiModelMetadata,
     FormatInfo,
     detect_ai_model_format,
+    detect_ai_model_format_from_header,
     read_ai_model,
+    read_ai_model_header,
 )
 
 __all__ = [
     "REGISTRY",
+    "SNIFF_BYTES",
     "AiModelFormat",
     "AiModelMetadata",
     "FormatInfo",
     "detect_ai_model_format",
+    "detect_ai_model_format_from_header",
     "read_ai_model",
+    "read_ai_model_header",
 ]

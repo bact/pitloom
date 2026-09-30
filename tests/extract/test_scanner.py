@@ -3,173 +3,262 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for pitloom.extract.scanner.scan_project_for_ai_models().
+"""Tests for the surface-agnostic AI model scanner policy.
 
-The "happy path" (a real model file successfully identified and read) is
-already exercised indirectly by the higher-level project/document assembly
-tests. This module targets the branches those integration tests never hit:
-non-model extensions, magic-byte sniffing that comes back UNKNOWN, the
-ImportError/generic-exception handlers around read_ai_model(), the
-usage-detection debug log, and the file-read failure handler in the
-usage-scanning pass.
+Uses fake candidates and sources, so no project layout is involved.
+
+See also: :mod:`tests.extract.test_scanner_project` for the project producer.
 """
+
+# pylint: disable=missing-function-docstring
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 
 from __future__ import annotations
 
+import contextlib
+import io
 import logging
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
-from pitloom.core.project import ProjectFile
-from pitloom.extract.scanner import scan_project_for_ai_models
+from pitloom.extract.scanner import (
+    ModelCandidate,
+    UsageSource,
+    attach_usage_references,
+    discover_ai_models,
+    scan_ai_models,
+)
+from tests.warning_helpers import file_values
 
 _LOGGER_NAME = "pitloom.extract.scanner"
+_READ = "pitloom.extract.scanner.read_ai_model"
 
 
-def _pf(physical_path: str, distribution_path: str | None = None) -> ProjectFile:
-    return ProjectFile(
-        physical_path=physical_path,
-        distribution_path=distribution_path or physical_path,
-        digest_sha256="0" * 64,
+def _cand(
+    dist: str,
+    phys: str | None = None,
+    header: bytes = b"",
+    materialize: Callable[[], AbstractContextManager[Path]] | None = None,
+    sniff: Mock | None = None,
+) -> ModelCandidate:
+    return ModelCandidate(
+        distribution_path=dist,
+        physical_path=phys or dist,
+        sniff=sniff or Mock(return_value=header),
+        materialize=materialize or (lambda: contextlib.nullcontext(Path("unused"))),
     )
 
 
-def _fake_meta(fmt: AiModelFormat = AiModelFormat.GGUF) -> AiModelMetadata:
+def _src(
+    dist: str, phys: str | None = None, data: bytes | BaseException = b""
+) -> UsageSource:
+    def _open() -> AbstractContextManager[io.BytesIO]:
+        if isinstance(data, BaseException):
+            raise data
+        return io.BytesIO(data)
+
+    return UsageSource(
+        distribution_path=dist,
+        physical_path=phys or dist,
+        open=_open,
+    )
+
+
+def _meta(fmt: AiModelFormat = AiModelFormat.ONNX) -> AiModelMetadata:
     return AiModelMetadata(format_info=AiModelFormatInfo(model_format=fmt))
 
 
-def test_scan_ignores_files_with_non_model_extensions(tmp_path: Path) -> None:
-    files = [_pf("README.md"), _pf("setup.py")]
-    result = scan_project_for_ai_models(tmp_path, files)
-    assert result == []
+def _file_values(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return file_values(r.getMessage() for r in caplog.records)
 
 
-def test_scan_skips_extension_match_when_format_unknown(tmp_path: Path) -> None:
-    # The extension is a candidate (.bin), but magic-byte sniffing comes
-    # back UNKNOWN (e.g. a generic data file, not actually an AI model).
-    (tmp_path / "weights.bin").write_bytes(b"not really a model")
-    files = [_pf("weights.bin")]
-
-    with patch(
-        "pitloom.extract.scanner.detect_ai_model_format",
-        return_value=AiModelFormat.UNKNOWN,
-    ):
-        result = scan_project_for_ai_models(tmp_path, files)
-
-    assert result == []
+def _gguf_header() -> bytes:
+    fmt = AiModelFormat.GGUF
+    assert fmt.magic is not None
+    return fmt.magic + b"\x00" * 20
 
 
-def test_scan_detects_and_reads_model_successfully(tmp_path: Path) -> None:
-    (tmp_path / "model.gguf").write_bytes(b"fake gguf")
-    files = [_pf("model.gguf", "dist/model.gguf")]
+def test_discover_filters_on_distribution_suffix() -> None:
+    with patch(_READ, autospec=True, return_value=_meta(AiModelFormat.NUMPY)):
+        found = discover_ai_models([_cand("pkg/model.npy", "assets/weights.dat")])
+    assert len(found) == 1
 
-    with patch(
-        "pitloom.extract.scanner.detect_ai_model_format",
-        return_value=AiModelFormat.GGUF,
-    ):
-        with patch("pitloom.extract.scanner.read_ai_model", return_value=_fake_meta()):
-            result = scan_project_for_ai_models(tmp_path, files)
-
-    assert len(result) == 1
-    assert result[0].format_info.file_name == "model.gguf"
-    assert result[0].format_info.file_path_relative == "dist/model.gguf"
-    assert result[0].format_info.physical_path == "model.gguf"
+    sniff = Mock(return_value=b"")
+    with patch(_READ, autospec=True) as reader:
+        found = discover_ai_models(
+            [_cand("pkg/model.dat", "assets/model.npy", sniff=sniff)]
+        )
+    assert not found
+    sniff.assert_not_called()
+    reader.assert_not_called()
 
 
-def test_scan_logs_warning_and_keeps_degraded_record_on_import_error(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+def test_discover_unreadable_sniff_warns_once_and_skips(
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    # A recognised format whose optional dependency isn't installed must
-    # log a warning (not crash the whole scan) and still record the model
-    # with degraded (format + filename only) metadata, not drop it.
-    (tmp_path / "model.h5").write_bytes(b"fake h5")
-    files = [_pf("model.h5")]
-
-    with patch(
-        "pitloom.extract.scanner.detect_ai_model_format",
-        return_value=AiModelFormat.HDF5,
-    ):
-        with patch(
-            "pitloom.extract.scanner.read_ai_model",
-            side_effect=ImportError("h5py is required"),
-        ):
-            with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-                result = scan_project_for_ai_models(tmp_path, files)
-
-    assert len(result) == 1
-    assert result[0].name is None
-    assert result[0].format_info.model_format == AiModelFormat.HDF5
-    assert result[0].format_info.file_name == "model.h5"
-    assert any("required library not installed" in r.message for r in caplog.records)
+    sniff = Mock(side_effect=PermissionError(13, "denied"))
+    with patch(_READ, autospec=True) as reader:
+        with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+            found = discover_ai_models([_cand("pkg/m.bin", "src/m.bin", sniff=sniff)])
+    assert not found
+    reader.assert_not_called()
+    assert len(caplog.records) == 1
+    assert caplog.records[0].getMessage().startswith("FORMAT=unknown ")
+    assert _file_values(caplog) == ["src/m.bin"]
 
 
-def test_scan_logs_warning_and_continues_on_generic_exception(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+def test_discover_magic_beats_extension() -> None:
+    with patch(_READ, autospec=True, return_value=_meta()) as reader:
+        discover_ai_models([_cand("pkg/model.onnx", header=_gguf_header())])
+    assert reader.call_args.kwargs["model_format"] == AiModelFormat.GGUF
+
+
+def test_discover_passes_extension_format_when_no_magic() -> None:
+    with patch(_READ, autospec=True, return_value=_meta()) as reader:
+        discover_ai_models([_cand("pkg/model.onnx", header=b"")])
+    assert reader.call_args.kwargs["model_format"] == AiModelFormat.ONNX
+
+
+def test_discover_sets_paths_from_candidate() -> None:
+    cand = _cand("pkg/model.npy", "assets/weights.dat")
+    with patch(_READ, autospec=True, return_value=_meta(AiModelFormat.NUMPY)):
+        found = discover_ai_models([cand])
+        assert len(found) == 1
+        meta = found[0]
+    info = meta.format_info
+    assert info.file_name == "model.npy"
+    assert info.file_path_relative == "pkg/model.npy"
+    assert info.physical_path == "assets/weights.dat"
+
+
+def test_discover_import_error_keeps_stub_with_stable_paths(
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    # A corrupt/unreadable model file must not abort the whole scan.
-    (tmp_path / "model.onnx").write_bytes(b"corrupt")
-    files = [_pf("model.onnx")]
-
-    with patch(
-        "pitloom.extract.scanner.detect_ai_model_format",
-        return_value=AiModelFormat.ONNX,
-    ):
-        with patch(
-            "pitloom.extract.scanner.read_ai_model",
-            side_effect=ValueError("bad protobuf"),
-        ):
-            with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-                result = scan_project_for_ai_models(tmp_path, files)
-
-    assert result == []
-    assert any("failed to extract metadata" in r.message for r in caplog.records)
+    cand = _cand("pkg/model.npy", "assets/weights.dat")
+    with patch(_READ, autospec=True, side_effect=ImportError("numpy")):
+        with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+            found = discover_ai_models([cand])
+            assert len(found) == 1
+            stub = found[0]
+    info = stub.format_info
+    assert info.model_format == AiModelFormat.NUMPY
+    assert info.file_name == "model.npy"
+    assert info.file_path_relative == "pkg/model.npy"
+    assert info.physical_path == "assets/weights.dat"
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    assert _file_values(caplog) == ["assets/weights.dat"]
 
 
-def test_scan_finds_usage_of_model_in_python_source(tmp_path: Path) -> None:
-    (tmp_path / "model.gguf").write_bytes(b"fake gguf")
-    script = tmp_path / "load.py"
-    script.write_text('load("model.gguf")\n', encoding="utf-8")
-    files = [_pf("model.gguf"), _pf("load.py")]
-
-    with patch(
-        "pitloom.extract.scanner.detect_ai_model_format",
-        return_value=AiModelFormat.GGUF,
-    ):
-        with patch("pitloom.extract.scanner.read_ai_model", return_value=_fake_meta()):
-            result = scan_project_for_ai_models(tmp_path, files)
-
-    assert len(result) == 1
-    assert "load.py" in result[0].usage_files
-
-
-def test_scan_no_usage_when_filename_absent_from_source(tmp_path: Path) -> None:
-    (tmp_path / "model.gguf").write_bytes(b"fake gguf")
-    script = tmp_path / "unrelated.py"
-    script.write_text("print('hello')\n", encoding="utf-8")
-    files = [_pf("model.gguf"), _pf("unrelated.py")]
-
-    with patch(
-        "pitloom.extract.scanner.detect_ai_model_format",
-        return_value=AiModelFormat.GGUF,
-    ):
-        with patch("pitloom.extract.scanner.read_ai_model", return_value=_fake_meta()):
-            result = scan_project_for_ai_models(tmp_path, files)
-
-    assert result[0].usage_files == []
-
-
-def test_scan_logs_warning_when_python_source_unreadable(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+def test_discover_read_error_warns_with_stable_path(
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    # A .py file listed but missing/unreadable on disk must not abort the
-    # usage-scanning pass -- it's caught, logged, and scanning continues.
-    files = [_pf("missing.py")]
+    cand = _cand("pkg/model.onnx", "src/pkg/model.onnx")
+    with patch(_READ, autospec=True, side_effect=ValueError("bad")):
+        with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+            found = discover_ai_models([cand])
+    assert not found
+    assert len([r for r in caplog.records if r.levelno == logging.WARNING]) == 1
+    assert _file_values(caplog) == ["src/pkg/model.onnx"]
+
+
+def test_discover_materialize_error_is_a_read_failure(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    def _boom() -> AbstractContextManager[Path]:
+        raise OSError("cannot copy")
 
     with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-        result = scan_project_for_ai_models(tmp_path, files)
+        found = discover_ai_models([_cand("pkg/model.onnx", materialize=_boom)])
+    assert not found
+    messages = [r.getMessage() for r in caplog.records]
+    assert len(messages) == 1
+    assert "failed to extract metadata" in messages[0]
 
-    assert result == []
-    assert any("could not read for usage scanning" in r.message for r in caplog.records)
+
+def test_discover_unknown_format_is_silent(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    materialize = Mock()
+    with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+        found = discover_ai_models(
+            [_cand("pkg/notes.bin", header=b"plain text", materialize=materialize)]
+        )
+    assert not found
+    assert not caplog.records
+    materialize.assert_not_called()
+
+
+def test_attach_records_match_and_skips_non_match() -> None:
+    meta = _meta()
+    meta.format_info.file_name = "model.onnx"
+    attach_usage_references(
+        [meta],
+        [
+            _src("pkg/use.py", data=b'load("model.onnx")'),
+            _src("pkg/other.py", data=b"print(1)"),
+        ],
+    )
+    assert meta.usage_files == ["pkg/use.py"]
+
+
+def test_attach_py_filter_uses_distribution_path() -> None:
+    meta = _meta()
+    meta.format_info.file_name = "model.onnx"
+    not_py = Mock()
+    attach_usage_references(
+        [meta],
+        [
+            _src("pkg/use.py", "tools/use.txt", data=b"model.onnx"),
+            UsageSource("pkg/use.txt", "x.py", not_py),
+        ],
+    )
+    assert meta.usage_files == ["pkg/use.py"]
+    not_py.assert_not_called()
+
+
+def test_attach_read_error_warns_once_and_continues(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    meta = _meta()
+    meta.format_info.file_name = "model.onnx"
+    with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+        attach_usage_references(
+            [meta],
+            [
+                _src("pkg/a.py", "src/pkg/a.py", data=OSError("gone")),
+                _src("pkg/b.py", "src/pkg/b.py", data=b"model.onnx"),
+            ],
+        )
+    assert _file_values(caplog) == ["src/pkg/a.py"]
+    assert len(caplog.records) == 1
+    assert meta.usage_files == ["pkg/b.py"]
+
+
+def test_attach_non_utf8_warns(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+        attach_usage_references([_meta()], [_src("pkg/a.py", data=b"\xff\xfe")])
+    assert len(caplog.records) == 1
+    assert "could not read for usage scanning" in caplog.records[0].getMessage()
+
+
+def test_attach_runs_with_no_models(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+        attach_usage_references([], [_src("pkg/a.py", data=OSError("gone"))])
+    assert _file_values(caplog) == ["pkg/a.py"]
+
+
+def test_scan_ai_models_attaches_usage_to_discovered_models() -> None:
+    with patch(_READ, autospec=True, return_value=_meta()):
+        found = scan_ai_models(
+            [_cand("pkg/model.onnx")],
+            [_src("pkg/use.py", data=b'open("model.onnx")')],
+        )
+        assert len(found) == 1
+        meta = found[0]
+    assert meta.usage_files == ["pkg/use.py"]

@@ -100,14 +100,11 @@ def _ai_model_entity_candidates(ai_model: AiModelMetadata) -> list[str]:
     if ai_model.name:
         candidates.append(ai_model.name)
     if ai_model.format_info.physical_path:
-        # physical_path is an absolute path into a fresh
-        # tempfile.mkdtemp() extraction directory for a build-and-read
-        # (--allow-build) discovered model (see
-        # ProjectFile.physical_path's docstring) -- it never matches a
-        # registry entry keyed by a project-relative path. Fall back to
-        # file_path_relative, the same "prefer distribution_path over
-        # an absolute physical_path" rule
-        # _document_files.py/enrich's own fixes apply.
+        # The scanner already stores a stable path; this guard is
+        # defensive for a hand-built AiModelMetadata whose physical_path is
+        # an absolute (e.g. --allow-build temporary) path that could never
+        # match a project-relative registry key. Fall back to
+        # file_path_relative.
         resolved = project_relative_or_fallback(
             ai_model.format_info.physical_path,
             ai_model.format_info.file_path_relative or "",
