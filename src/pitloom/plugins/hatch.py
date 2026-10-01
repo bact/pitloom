@@ -140,7 +140,7 @@ def _build_document_model(
     same "one config surface" rule ``_validate_config`` already enforces
     for creator/tool/fragment settings) -- uses the same
     ``run_enrichers_for_models()`` helper ``generate_project_sbom()``
-    (``src/pitloom/assemble/__init__.py``) does, so the build hook
+    (:mod:`pitloom.assemble._generators`) does, so the build hook
     produces the same N3/E1/E2 artifacts ``loom project`` would for the
     same project.
     """

@@ -416,7 +416,7 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
     **Rich ExecuTorch format** -- a single root directory
     (e.g. ``model_name/``) containing:
 
-    - ``archive_version``      -> :attr:`~AiModelMetadata.version`
+    - ``archive_version``      -> ``format_info.format_version``
     - ``extra/name``           -> :attr:`~AiModelMetadata.name`
     - ``extra/description``    -> :attr:`~AiModelMetadata.description`
     - ``extra/model_version``  -> :attr:`~AiModelMetadata.version` (preferred)
@@ -434,6 +434,9 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
 
     Raises:
         ValueError: If the file is not a valid ZIP archive.
+        pitloom.extract.ai_model.limits.ModelLimitExceeded: The archive or one
+            of its members is over a bound (``open_model_zip``,
+            ``read_archive_member``).
     """
     # pylint: disable=import-outside-toplevel
     import zipfile

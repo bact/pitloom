@@ -38,7 +38,7 @@ macOS, CPython 3.10 unless stated); "PLAUSIBLE" findings are left out.
 
 ## 2. How the problems were found
 
-Seven review rounds over the one PR, each by a separate AI reviewer agent
+Nine review rounds over the one PR, each by a separate AI reviewer agent
 (Claude Opus) with a fresh context, fixes by another agent (Claude Sonnet),
 coordination and design decisions by a third, decisions confirmed by the
 human maintainer:
@@ -51,6 +51,8 @@ human maintainer:
 | 5a | fixes of round 4 only | Non-determinism from a Rust hash map; Python 3.14 hang |
 | 5b | whole PR, fresh reviewer | A fix of 5a lost model names; ZIP central-directory bomb |
 | 5c | fixes of 5b only | Our own ZIP pre-check disagreed with `zipfile` three ways |
+| 6 | whole PR | `.pth` path-config files taken for PyTorch models; DEBUG names unescaped |
+| 7 | surfaces, skills, docs, comments | no code bug; stub test wrong under `--enrich`, mislabelled library ceiling error, stale docs |
 
 What made the reviews productive:
 
@@ -243,8 +245,8 @@ Lessons:
 ### 3.7 Transparency: what the SBOM does not say
 
 - **A model that could not be read is still listed**, as a format-only
-  entry (name, format, file link and hash), with one `WARNING:` or
-  `INFO:` naming why. Dropping it would make the SBOM claim the package
+  entry (the format as its name and a link to the model file, whose hash is
+  on the file), with one `WARNING:` or `INFO:` naming why. Dropping it would make the SBOM claim the package
   holds no such model.
 - **No silent trims.** An audit found two cuts without a message; one now
   warns, one stays silent by design because nearly every real model would
@@ -260,10 +262,14 @@ Lessons:
 
 - GGUF array fields were emitted as their last element (the last
   vocabulary token's UTF-8 bytes as a property value) since before #263.
+  Still open: the fix is planned before 0.20.0.
 - A helper reused outside its contract (skip every `*.dist-info/`) let a
   model hide; the narrower rule (the wheel's own dist-info) still let a
   fake `x.dist-info/WHEEL` hide one; final rule: the dist-info named by the
   wheel filename.
+- A suffix shared with a non-model file (`.pth` is also Python path
+  configuration) needs a content check: accept only a ZIP or a pickle
+  protocol 2..5 header.
 - `read_wheel` takes a nested vendored `METADATA` as the wheel's own name
   and version (pre-existing; follow-up).
 
@@ -289,8 +295,8 @@ Lessons:
 
 ## 5. Status at the time of writing
 
-- #263 after round 5c: the ZIP check now uses `zipfile._EndRecData` on one
-  handle and walks the real directory; every round-5c repro is refused at
+- #263 after round 7: the ZIP check (round 5c) uses `zipfile._EndRecData` on
+  one handle and walks the real directory; every round-5c repro is refused at
   43-65 MB (was 797-844 MB), on 3.10 and 3.14, and the hostile wheel scan
   dropped from 831 MB to 44 MB.
 - Header-only readers planned after the 0.20.0 release: they remove the

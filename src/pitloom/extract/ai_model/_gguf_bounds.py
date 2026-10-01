@@ -169,10 +169,11 @@ def check_gguf_header(path: Path) -> None:
     loop over.
 
     Raises:
-        ModelLimitExceeded: The declared tensors, pairs and array elements
-            are over the budget, arrays nest too deep, a string length is
-            over its cap or cannot fit in the file, or the version is one
-            the reader reads and this module does not know.
+        ModelLimitExceeded: Arrays nest too deep, a string is over its
+            cap, the declared tensors, pairs or array elements are over the
+            budget or cannot fit in the file, or the version is one the
+            reader reads and this module does not know. A string that runs
+            past the end of the file is left to the reader.
         OSError: The file cannot be read.
     """
     with path.open("rb") as fh:

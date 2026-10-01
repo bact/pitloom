@@ -19,7 +19,8 @@ layer that drops a parameter warns about it, and a parameter its callee
 accepts is left for the callee to settle.
 
 No leading underscore: imported by :mod:`pitloom.assemble`,
-:mod:`pitloom.embed` and :mod:`pitloom.cli`.
+:mod:`pitloom._embed_generate`, :mod:`pitloom.cli` and
+:mod:`pitloom.extract.scanner`.
 
 See also: :mod:`pitloom.core.no_effect` (the message shape) and
 :mod:`pitloom.core.build_options` (the same idea for the build flags).

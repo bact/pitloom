@@ -12,7 +12,8 @@ attributes opportunistically -- any HDF5 model that happens to carry them
 will have the corresponding metadata extracted and recorded:
 
 - ``keras_version``
-  -> :attr:`~AiModelMetadata.version`
+  -> ``format_info.framework_version`` (and ``format_info.format_version``,
+  ``v1`` or ``v2``, from its major number)
 - ``backend``
   -> ``properties["backend"]``
 - ``model_config.class_name``

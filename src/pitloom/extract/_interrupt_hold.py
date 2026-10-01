@@ -24,7 +24,8 @@ import contextlib
 import threading
 from collections.abc import Callable, Iterator
 
-#: Tries the undo gets; an interrupt that arrives in the last one is raised.
+#: Tries the undo gets; the last interrupt held is raised once the undo
+#: completes or the tries run out.
 HOLD_LIMIT = 3
 
 #: Seconds to wait for a lock. It guards a few assignments, so waiting this

@@ -95,7 +95,6 @@ def _doc_identity_of(
     return project_metadata.name, doc_uuid
 
 
-# pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
 # pylint: disable=too-many-arguments,too-many-locals
 def generate_model_sbom(
     source: Path | str,
@@ -154,7 +153,7 @@ def generate_model_sbom(
         entity_spdx_id = None
     else:
         model_path = Path(source)
-        # Resolved before read_ai_model()/run_enrichers() below -- a
+        # Resolved before _read_local_model()/run_enrichers() below -- a
         # declared-but-missing/malformed registry should fail fast, never
         # after paying for a model read and enrichment first.
         resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
@@ -221,7 +220,7 @@ def enrich_model(
     cfg = resolve_standalone_config(pitloom_config, ConfigOverrides(pretty=pretty))
 
     model_path = Path(source)
-    # Registry resolved before read_ai_model()/run_enrichers() below -- a
+    # Registry resolved before _read_local_model()/run_enrichers() below -- a
     # declared-but-missing/malformed registry should fail fast, never
     # after paying for a model read and enrichment first.
     if project_target is None:

@@ -6,11 +6,11 @@
 """Capture of the log records an AI model reader emits.
 
 A reader names a file by the path it was given, and quotes member names of
-the archive it reads; the scanner hands it a temporary copy, and the
-archive is untrusted. The scanner captures the records while a reader runs
-and logs them again under the stable ``FORMAT=``/``FILE=`` prefix, with the
-text escaped and the temporary path removed: one route for every reader,
-present and future.
+the archive it reads; the scanner may hand it a temporary copy (a model in a
+wheel), and the archive is untrusted. The scanner captures the records while
+a reader runs and logs them again under the stable ``FORMAT=``/``FILE=``
+prefix, with the text escaped and the temporary path removed: one route for
+every reader, present and future.
 
 The undo holds a second interrupt for a few tries and waits a bounded time
 for the lock (:mod:`pitloom.extract._interrupt_hold`): on CPython 3.14 an
@@ -134,7 +134,7 @@ def capture_reader_logs() -> Iterator[list[logging.LogRecord]]:
     in a block has its records passed on as usual. A block inside another of
     the same thread collects on its own, and the outer one resumes after it.
     An interrupt (``KeyboardInterrupt``) at any step leaves the logger as it
-    was found.
+    was found, unless the lock was left held (see the module docstring).
     """
     block = _Block()
     try:

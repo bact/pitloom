@@ -6,7 +6,7 @@
 project reads no config it was not given; an sdist reads its own, as its
 unpacked directory does; ``--scan-model-usage`` beats its config key.
 
-See also: ``_checks_core.py`` (checks 1-11), ``_harness.py``.
+See also: ``_checks_core.py`` (checks 1-11 and 14), ``_harness.py``.
 """
 
 from __future__ import annotations
@@ -325,7 +325,7 @@ _LIVE_SURFACES: dict[str, _Surface] = {
 def _expect_flag_beats_config(
     name: str, surface: _Surface, inputs: tuple[Path, Path, Path, Path], work: Path
 ) -> None:
-    """(i)-(iv) of check 15 on one project-directory surface."""
+    """(i)-(iv) of check 15 on one surface that scans models."""
     project, wheel, cwd, cfg = inputs
     runs = {
         variant: surface(

@@ -11,7 +11,8 @@ discovered models. Producers (e.g. the project-directory one) turn their own
 files into :class:`ModelCandidate` and :class:`UsageSource` objects; this
 module imports no producer.
 
-See also: :mod:`pitloom.extract.scanner_project`.
+See also: :mod:`pitloom.extract.scanner_project` and
+:mod:`pitloom.extract.scanner_wheel`.
 """
 
 from __future__ import annotations
@@ -125,10 +126,10 @@ class ModelCandidate:
     Attributes:
         distribution_path: POSIX in-distribution path. Decides the suffix
             filter, the extension fallback and ``file_name``.
-        physical_path: Stable display/lookup path: project-relative, or
-            ``distribution_path`` when the file has no project-relative
-            path. Never a temporary path; the shared code trusts this.
-            Printed as ``FILE=`` in warnings.
+        physical_path: Stable display/lookup path: project-relative
+            (``distribution_path`` for an absolute one), or the raw archive
+            member name in a wheel. Never a temporary path; the shared code
+            trusts this. Printed as ``FILE=`` in warnings.
         sniff: Returns at most ``SNIFF_BYTES`` leading bytes, ``b""`` when
             the file is absent. Raises :class:`OSError` when it exists but
             cannot be read; the scanner warns and skips the candidate.
@@ -302,7 +303,11 @@ def _sniff_format(candidate: ModelCandidate) -> AiModelFormat | None:
 
 
 def _read_candidate(candidate: ModelCandidate) -> AiModelMetadata | None:
-    """Detect and read one candidate; ``None`` when it is not a model."""
+    """Detect and read one candidate.
+
+    ``None`` when it is not a model or its reader fails (warned). A model over
+    a limit, or whose library is missing, keeps a format-only entry.
+    """
     if not is_model_candidate_name(candidate.distribution_path):
         return None
     where = loggable(candidate.physical_path)

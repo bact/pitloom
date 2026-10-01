@@ -213,6 +213,8 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
 
     Raises:
         ValueError: If the file cannot be opened.
+        pitloom.extract.ai_model.limits.ModelLimitExceeded: The file is over a
+            bound.
     """
     # pylint: disable=import-outside-toplevel
     import zipfile
@@ -240,7 +242,7 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
         except OSError as exc:
             # The file itself couldn't be opened (not just a single field
             # failing to extract) -- same "Raises: ValueError" contract
-            # every sibling extractor (hdf5.py, numpy.py, ...) honors.
+            # every sibling extractor (hdf5.py, numpy.py, ...) honours.
             raise ValueError(
                 f"Failed to read PyTorch file {model_path}: {exc}"
             ) from exc

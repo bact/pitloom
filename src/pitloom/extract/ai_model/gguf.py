@@ -170,6 +170,12 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
     """Extract metadata from a GGUF model file.
 
     Requires the ``gguf`` package (``pip install gguf``).
+
+    Raises:
+        ImportError: If ``gguf`` is not installed.
+        ValueError: If the file cannot be read.
+        pitloom.extract.ai_model.limits.ModelLimitExceeded: The header is over
+            a bound (:func:`~pitloom.extract.ai_model._gguf_bounds.check_gguf_header`).
     """
     try:
         # pylint: disable=import-outside-toplevel

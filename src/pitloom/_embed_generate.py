@@ -271,7 +271,7 @@ def _build_sbom_standalone_wheel(
 
     *cfg* holds only explicit settings (an explicitly named config and the
     per-run overrides); nothing is borrowed from the current directory. The
-    AI models are the ones inside the wheel. A batch (*file_cache*) hints at
+    AI models are the ones inside the wheel. A batch (the cache in *batch*) hints at
     ``--scan-model-usage`` once, from the first wheel that has models, and
     likewise says once per format that a gated model was listed without
     metadata.

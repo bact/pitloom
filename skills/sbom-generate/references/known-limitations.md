@@ -42,9 +42,14 @@ only with a ZIP or pickle protocol 2-5 header; a Python path-configuration
 `.pth` or an older pickle is not a model.
 
 A recognised model can still be recorded as a stub: an `ai_AIPackage` named
-after its format, a `contains` link to its `software_File` and that file's
-SHA-256, nothing else. (A format-named entry with other properties was read:
-NumPy, fastText and classic PyTorch carry no model name.) Causes, each with its own stderr line:
+after its format, with no `ai_*` property, a `contains` link to its
+`software_File` and that file's SHA-256. A read model's `comment` has
+`Source: <model file> | Field: ...` entries; a stub's has none. With
+`--enrich` a stub can carry a `comment` from the README (`Source: README.md
+| Method: yaml_frontmatter`) and is still unread. (A format-named entry with
+other properties was read: NumPy, fastText and classic PyTorch carry no
+model name.)
+Causes, each with its own stderr line:
 
 - Wheel gate: fastText, GGUF, HDF5, ONNX and PyTorch `.pt`/`.pth` inside a
   wheel are not read without `--trust-wheel-model` (one `INFO:` names them;
@@ -53,8 +58,8 @@ NumPy, fastText and classic PyTorch carry no model name.) Causes, each with its 
   512 MiB; set only in a config file): `WARNING: ... scan ceiling; metadata
   not read`.
 - Per-wheel budget (4x the ceiling): one `WARNING: ... the per-wheel budget
-  ... is spent`; later models in that wheel are stubbed without a further
-  line.
+  ... is spent`; after it later models are stubbed without a further line,
+  except one over the ceiling or missing its library, which adds its own.
 - Missing reader library: `WARNING: FORMAT=... required library not
   installed; ...` -- install `pitloom[ai]` or the format's extra.
 - A bound inside the file (pickle size/opcodes, GGUF header, Safetensors
@@ -68,7 +73,7 @@ first 1000 in file order, in key order for Safetensors `__metadata__`; also
 for `loom model FILE` and `loom enrich FILE`, not a Hugging Face model). Project scans, `loom model FILE` and `loom enrich FILE` have no ceiling
 and no gate. The same input gives the same SBOM for the
 same settings; `--trust-wheel-model`, `max-model-extract-bytes`,
-`--scan-model-usage`, `--allow-build` and the cap each change what is
+`--scan-model-usage` and `--allow-build` each change what is
 recorded, so do not compare SBOMs made with different ones. Full table:
 <https://bact.github.io/pitloom/ai-model-scan-limits/>.
 

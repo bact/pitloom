@@ -5,9 +5,10 @@
 
 """Built-wheel producer for the AI model scanner.
 
-A model is copied out of the wheel one member at a time, into a temporary
-directory named ``{member index}{suffix}``: nothing else of the archive name
-reaches the file system, and no temporary path reaches the SBOM or a log line.
+A model is copied out of the wheel one member at a time, into a file named
+``{member index}{suffix}`` in a temporary directory: nothing else of the
+archive name reaches the file system, and no temporary path reaches the SBOM
+or a log line.
 The copy is bounded per model by a ceiling, and per wheel by a budget of
 several ceilings; neither trusts the archive's declared size.
 
@@ -137,7 +138,7 @@ class _Scratch:
             self._remove()
 
     def spend(self, size: int) -> None:
-        """Count *size* copied bytes.
+        """Count *size* bytes copied or read.
 
         Raises:
             ScanBudgetExceeded: The budget is spent (logged once).
@@ -334,8 +335,8 @@ def scan_wheel_for_ai_models(
     raw archive name.
 
     A model larger than *max_bytes*, declared or actually read, or met once
-    the wheel's budget (:data:`BUDGET_FACTOR` times *max_bytes*) of copied
-    bytes is spent, stays in the result without metadata, with one
+    the wheel's budget (:data:`BUDGET_FACTOR` times *max_bytes*) of bytes
+    copied and read is spent, stays in the result without metadata, with one
     ``WARNING:`` (per model for the ceiling, one per wheel for the budget).
 
     A model in a :data:`WHEEL_GATED_FORMATS` format is not read unless
@@ -349,7 +350,8 @@ def scan_wheel_for_ai_models(
     Models come back sorted; see
     :func:`pitloom.extract.scanner.discover_ai_models`.
     """
-    require_max_model_extract_bytes(max_bytes)
+    # Only a library PitloomConfig reaches here unvalidated.
+    require_max_model_extract_bytes(max_bytes, "pitloom_config")
     with zipfile.ZipFile(wheel_path) as zf, TerminationGuard() as guard:
         # No logger: read_wheel() already reported every member name.
         all_members = zip_file_members(zf, wheel_path.name, None)

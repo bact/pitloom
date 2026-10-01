@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -282,6 +282,9 @@ See [build-backend-improvements.md](build-backend-improvements.md).
   extraction (case/Unicode folding, Windows path rules), archive-level wheel
   operations on `orig_filename`, tar links in sdists. See
   [archive-member-followups.md](archive-member-followups.md).
+- [ ] **GGUF array fields emitted as their last element (before 0.20.0)** --
+  emit `<key>.length = N` only; small PR; also caps decimal INT/LONG length
+  in the pickle pre-walk. See [model-metadata-readers.md](model-metadata-readers.md).
 - [ ] **Metadata-only AI model readers (after 0.20.0)** -- replace the library
   reads (fastText, ONNX, GGUF, fickling, Safetensors) with bounded
   pure-Python header readers, parity-tested against the libraries; HDF5 last.

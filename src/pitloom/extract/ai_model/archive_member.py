@@ -152,7 +152,8 @@ def _zip64_start_shift(api: _ZipfileApi) -> int:
             endrec[api.size_at],
             endrec[api.location_at],
         )
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:
         raise ModelLimitExceeded(_UNCHECKABLE) from exc
     signature, size, location = values
     if (signature, size) == (api.zip64_signature, 0) and location in (0, both):
@@ -188,7 +189,8 @@ def _directory_start_and_size(fh: IO[bytes]) -> tuple[int, int] | None:
         endrec = api.end_record(fh)
     except (OSError, zipfile.BadZipFile):
         return None  # ZipFile turns both into BadZipFile
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:
         raise ModelLimitExceeded(_UNCHECKABLE) from exc
     if not endrec:
         return None

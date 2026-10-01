@@ -34,7 +34,7 @@ from pitloom.id_registry import IdRegistry, resolve_registry
 from pitloom.logging_config import configure_logging
 
 
-# pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments
+# pylint: disable=too-many-arguments,too-many-locals
 def generate_wheel_sbom(
     wheel_path: Path | str,
     *,
@@ -68,7 +68,8 @@ def generate_wheel_sbom(
     AI models inside the wheel are found; *scan_model_usage* also records
     which Python files in it reference them. One model file is copied out
     of the wheel at a time, each up to the config's ``max-model-extract-bytes``
-    (no parameter: it is configuration only) and four times that in all; a
+    (no parameter: it is configuration only) and four times that in all,
+    counting bytes copied and bytes read from archive members; a
     model beyond either limit is listed without metadata. Models in a format
     whose reader a hostile file can crash or hang (fastText, GGUF, HDF5,
     ONNX, PyTorch ``.pt``/``.pth``) are listed without metadata too, with one

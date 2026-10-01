@@ -234,8 +234,8 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
         _v("--scan-model-usage", "changes", "--scan-model-usage"),
         _v("--no-scan-model-usage", "same", "--no-scan-model-usage"),
     ],
-    # Live on `wheel`, whose fixture wheel holds a GGUF; inert wherever the
-    # models are read from a project directory.
+    # Live on `wheel`, whose fixture wheel holds a GGUF; inert on every other
+    # cell (models read from a project directory, or no wheel at all).
     "--trust-wheel-model": [
         _v("--trust-wheel-model", "changes", "--trust-wheel-model")
     ],

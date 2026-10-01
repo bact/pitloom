@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Checks 1-11 and 14 of manual-cli-checks.md that can run unattended
-(12-13 are in ``_checks_config.py``).
+(12, 13 and 15 are in ``_checks_config.py``).
 
 Check 6 (skills/plugin drift) needs judgement and stays manual.
 

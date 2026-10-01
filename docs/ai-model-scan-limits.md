@@ -29,16 +29,21 @@ the project or wheel.
 | An `ai_AIPackage` named after its format (`gguf`, `onnx`, ...) and nothing else, plus one `INFO:` | Wheel scan, format not read without `--trust-wheel-model` | [Formats gated in wheels](#formats-gated-in-wheels) |
 | Same, plus `WARNING: ... scan ceiling; metadata not read` | File larger than `max-model-extract-bytes` | [Size and count caps](#size-and-count-caps) |
 | Same, plus `WARNING: AI model scan: the per-wheel budget of N bytes ...` | The wheel's total budget is spent | [Size and count caps](#size-and-count-caps) |
-| Same, plus another `... ; metadata not read` line | A bound inside the file was exceeded | [Size and count caps](#size-and-count-caps) |
+| Same, plus another `...; metadata not read` line | A bound inside the file was exceeded | [Size and count caps](#size-and-count-caps) |
 | Only the first 1000 inputs, hyperparameters, ... | Entry cap | [Size and count caps](#size-and-count-caps) |
 | No `ai_AIPackage` at all, only the file entry, plus `failed to extract metadata` | The reader could not parse the file | [What cannot be recorded](#what-cannot-be-recorded) |
 | A field a format cannot carry (no model name in a `.npy`) | Not a limit: the format has no such field | [What cannot be recorded](#what-cannot-be-recorded) |
 | No model at all | Not a detected model, or a target that does not scan models | [What cannot be recorded](#what-cannot-be-recorded) |
 
 The format-only entry (a "stub") has exactly this: an `ai_AIPackage` whose
-`name` is the format name, a `contains` relationship to the model's
-`software_File`, and that file's SHA-256 hash. The hash comes from the file
-list and does not depend on the model being read.
+`name` is the format name and which has no `ai_*` property and no `comment`
+entry `Source: <model file> | Field: ...` (a read model has such entries), a
+`contains` relationship to the model's `software_File`, and that file's
+SHA-256 hash. The hash comes from the file list and does not depend on the
+model being read. With `--enrich` (project scans) a stub can also carry a
+`comment` from the README or model card, `Source: README.md | Method:
+yaml_frontmatter`, plus the license and datasets it names; it is still a
+stub.
 
 ## Which scans apply which limits
 
@@ -46,16 +51,17 @@ list and does not depend on the model being read.
 | :----- | :-------------------- | :-------------- | :--------- | :--------------------------------- |
 | `wheel`, `wheel --embed`, `embed-wheel` without `--project-dir`, `generate x.whl` | Copied out of the wheel to a temporary file, one at a time | Yes | Yes | Yes |
 | `project`, `generate <dir>`, `embed-wheel --project-dir`, the Hatchling hook, `--allow-build` | Read in place | **No** | **No** | Yes |
-| `loom model FILE` | Read in place | No | No | Header and inner bounds: yes, as a failure (below). Entry cap: yes |
+| `loom model FILE`, `loom enrich FILE` | Read in place | No | No | Header and inner bounds: yes, as a failure (below). Entry cap: yes |
 | `env`, sdist archive, `loom model` with a Hugging Face ID or URL | Models are not scanned | -- | -- | -- |
 
 Scanning an untrusted checkout therefore runs the fastText, HDF5, ONNX,
 GGUF and PyTorch readers on its files, in Pitloom's own process, with no
 size ceiling. Only scan project directories you trust.
 
-With `loom model FILE` there is no format-only entry: a bound that is
-exceeded stops the command with `ERROR: model command failed: <reason>`
-and exit status 1, and no SBOM is written. The 1000-entry cap applies as in
+With `loom model FILE` or `loom enrich FILE` there is no format-only entry: a
+bound that is exceeded stops the command with `ERROR: model command failed:
+<reason>` (`ERROR: enrichment fragment generation failed: <reason>` for
+`enrich`) and exit status 1, and nothing is written. The 1000-entry cap applies as in
 the scans: the model is kept, cut, with the same one `WARNING:` naming the
 fields cut.
 
@@ -70,9 +76,9 @@ Values are exact; "stub" is the format-only entry described above.
 | Inner archive member | 8 MiB | Every scan. Keras v3 `metadata.json` and `config.json`; PyTorch `.pt`/`.pth` `data.pkl` (a raw pickle `.pt` is read to the same cap; its stub reads `first pickle not complete within 8388608 bytes`); PT2 `version`, `archive_version`, `METADATA.json`, `models/model.json` and `extra/` files | No | Stub: `WARNING: FORMAT=<fmt> FILE=<path>: archive member <name> larger than 8388608 bytes; metadata not read`. Read bounded, so a few KiB that inflate to gigabytes are refused |
 | ZIP entries | 100,000 entries, counted by walking the central directory as Python's `zipfile` does (the counts in the end record are not trusted), and a central directory of at most 25,600,000 bytes (256 bytes per entry at the cap), both checked before the archive is opened | Keras v3, PyTorch `.pt`/`.pth`, PT2, `.npz` | No | Stub: `WARNING: FORMAT=<fmt> FILE=<path>: ZIP archive of more than 100000 entries; metadata not read` (or `ZIP central directory of <N> bytes`). If Python's internal ZIP code cannot be asked, the archive is refused too: `ZIP archive not checkable: zipfile internals changed`. A real checkpoint has a file per tensor, a few thousand at most; without the check 3 million empty entries in 16 MiB peaked at 1.8 GB |
 | Pickle opcodes | 250,000; only the first pickle is read | PyTorch `.pt`/`.pth` | No | Stub: `... pickle with more than 250000 opcodes; metadata not read` |
-| GGUF header budget | 1,000,000 units: tensor infos and key/value pairs weigh 4 each, array elements 1 each, at every depth | GGUF | No | Stub: `... GGUF header declares <N> tensors, over the 1000000 budget` (or `key/value pairs`, `array of <N> elements`) |
+| GGUF header budget | 1,000,000 units: tensor infos and key/value pairs weigh 4 each, array elements 1 each, at every depth | GGUF | No | Stub: `... GGUF header declares <N> tensors, over the 1000000 budget` (or `key/value pairs`, `array of <N> elements`). A count that cannot fit in the file is refused the same way: `GGUF header declares <N> tensors` (or `key/value pairs`), `GGUF array of <N> elements, more than the file holds` |
 | GGUF array nesting | 4 levels | GGUF | No | Stub: `... GGUF arrays nested over 4; metadata not read` |
-| GGUF string | 8 MiB per key or string | GGUF | No | Stub: `... GGUF string of <N> bytes; metadata not read`. A count that cannot fit in the file is refused the same way (`more than the file holds`) |
+| GGUF string | 8 MiB per key or string | GGUF | No | Stub: `... GGUF string of <N> bytes; metadata not read`. A string that runs past the end of the file is left to the reader, which fails it |
 | GGUF version | 2 and 3 are walked; a version the `gguf` package reads but the walk does not know is refused | GGUF | No | Stub: `... GGUF version <N>, not bounded; metadata not read` |
 | Safetensors header | 16 MiB | Safetensors | No | Stub: `... Safetensors header of <N> bytes; metadata not read` |
 | `.npy` header | 10000 bytes (NumPy's own limit) | `.npy`, and each array in an `.npz` | No | Stub: `... .npy header of <N> bytes, over 10000; metadata not read` |

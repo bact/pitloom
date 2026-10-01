@@ -223,3 +223,12 @@ def test_sigterm_while_the_copy_is_parsed_says_after(
     assert not _scan_dirs(sys_tmp)
     (message,) = [m for m in logged_warnings(caplog) if "SIGTERM" in m]
     assert "received SIGTERM after the AI model file copy" in message
+
+
+@pytest.mark.parametrize("value", [0, -1, True, "64"])
+def test_a_bad_ceiling_names_pitloom_config_not_a_toml_table(
+    tmp_path: Path, value: Any
+) -> None:
+    with pytest.raises(ValueError, match="pitloom_config") as err:
+        _scan(tmp_path / "absent.whl", max_bytes=value)
+    assert "[tool.pitloom]" not in str(err.value)

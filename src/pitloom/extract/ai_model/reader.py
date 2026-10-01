@@ -241,6 +241,9 @@ def read_ai_model(
     Raises:
         FileNotFoundError: If the model file does not exist.
         ValueError: If the format is unsupported or the file cannot be parsed.
+        ImportError: If the format's optional library is not installed.
+        pitloom.extract.ai_model.limits.ModelLimitExceeded: The file is over
+            a bound.
     """
     if not model_path.exists():
         raise FileNotFoundError(f"Model file not found: {model_path}")

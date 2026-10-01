@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-21
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -65,7 +65,9 @@ accident of which code path it goes through.
   `tests/extract/project/test_setup_cfg_values.py` fails until it is.
 - **Unknown `[tool.pitloom]` keys are ignored silently** -- a typo such as
   `ofline = true` changes nothing and says nothing; likelier in a named
-  `--config` file.
+  `--config` file. The same for a key a target cannot use: a project's own
+  `max-model-extract-bytes` is ignored with no message (it applies to a wheel
+  target only), against "no silent deviations".
 - **`read_pitloom_config` gates on `Path.exists()`** -- see
   [cli-shared-options-ignored.md](cli-shared-options-ignored.md#found-while-doing-this-not-fixed-here).
 
@@ -96,6 +98,14 @@ accident of which code path it goes through.
   by PR A2**, same doc's "Revised in PR A2" section.
 - **`--max-source-metadata-bytes -1`** runs as no cap with no message;
   check whether the config key accepts it too.
+- **GitHub Action boolean inputs act only on the exact string `true`**
+  (`action.yml` tests `= "true"`): `True`, `1` or `yes` are dropped with no
+  message. Decide: accept more spellings, or warn on a value that is not
+  `true`/`false`.
+- **Two call sites of `scan_wheel_for_ai_models()`**
+  (`assemble/_generators_wheel.py`, `_embed_generate.py`) build the same
+  keyword set (usage flag and hint, ceiling, trust, gate hint) separately;
+  move them into one helper so a new option cannot reach only one.
 
 ### Reporting (root cause 2)
 

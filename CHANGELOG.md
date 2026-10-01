@@ -203,13 +203,14 @@ and this project adheres to
   `--allow-build` did ([#263])
 - A `.keras`/`.pt`/`.pt2` inner member is read bounded (8 MiB), also in project
   scans, and reader warnings are escaped with a stable `FORMAT= FILE=` ([#263])
-- AI model readers refuse a pickle over 250k opcodes, a GGUF header over one
-  budget, a Safetensors header over 16 MiB or an `.npy` header declaring more
-  than fits, cut a model to 1000 entries per list or map (the same ones every
-  run, Safetensors too; also `loom model`) and an unparsed HDF5 config to 500
-  characters, each with one `WARNING:`; a ZIP model over 100k entries (counted as
-  `zipfile` reads them) or 25.6 MB of directory is refused; a cut model's memory
-  is released ([#263])
+- AI model readers refuse a pickle over 250k opcodes, a GGUF header over its 1M
+  budget, a Safetensors header over 16 MiB or an `.npy` header over 10000 bytes,
+  each with one `WARNING:` ([#263])
+- A ZIP model over 100k entries (counted as `zipfile` reads them) or 25.6 MB of
+  directory is refused ([#263])
+- A model is cut to 1000 entries per list or map, the same ones every run
+  (Safetensors too; also `loom model`), and an unparsed HDF5 config to 500
+  characters, each with one `WARNING:`; a cut model's memory is released ([#263])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227

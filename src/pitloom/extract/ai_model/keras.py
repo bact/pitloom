@@ -134,6 +134,8 @@ def read_keras(model_path: Path) -> AiModelMetadata:
 
     Raises:
         ValueError: If the file is not a valid ``.keras`` archive.
+        pitloom.extract.ai_model.limits.ModelLimitExceeded: The archive or one
+            of its members is over a bound.
     """
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
     # .keras is always Keras v3 native format

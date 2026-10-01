@@ -119,8 +119,10 @@ def generate_project_sbom(
     *project_target*, with a ``WARNING:`` explaining why (see "no silent
     deviations" in AGENTS.md).
 
-    For an sdist archive, ``extract_file_header``/``content_type`` have no
-    effect and warn when given (see
+    For an sdist archive, ``extract_file_header``, ``content_type``,
+    ``enrich``, ``scan_model_usage``, ``use_lockfile`` and
+    ``trust_wheel_model`` have no effect, and for a directory
+    ``trust_wheel_model`` has none; each warns when given (see
     :data:`pitloom.core.inert_options.INERT`).
     """
     configure_logging()

@@ -178,8 +178,8 @@ def _read_npz_metadata(
     ):
         for archive_name in npzfile.zip.namelist():
             if len(inputs) > MAX_MODEL_ENTRIES:
-                # One past the cap, so the scanner's cap_entries sees the
-                # list was longer, cuts it to the cap and warns.
+                # One past the cap, so cap_and_warn sees the list was
+                # longer, cuts it to the cap and warns.
                 break
             if not archive_name.endswith(".npy"):
                 continue
@@ -257,6 +257,8 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
     Raises:
         ImportError: If ``numpy`` is not installed.
         ValueError: If the file cannot be read as a valid NumPy file.
+        pitloom.extract.ai_model.limits.ModelLimitExceeded: A header is over
+            its bound.
     """
     require_library(AiModelFormat.NUMPY)
 
