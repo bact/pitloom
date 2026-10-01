@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -165,8 +165,11 @@ readers ([model-metadata-readers.md](../design/model-metadata-readers.md)):
 - **Pure-Python amplification.** fickling builds an AST per opcode (~200x the
   pickle's size): a pickle at the 250k-opcode cap measured ~100 MB and 0.4 s. The
   safetensors `__metadata__` and ONNX readers build their result before the
-  entry cap cuts it, so the cap bounds the SBOM, not the reader's peak
-  memory.
+  entry cap cuts it, so the cap bounds the SBOM, not one reader's peak
+  memory. `cap_entries()` rebuilds a capped map instead of deleting keys
+  (a dict never shrinks its table): a wheel of 24 Safetensors files with a
+  16 MiB `__metadata__` each peaked at 5.8 GB, and now at 1.3 GB, the same
+  as one file (round-4 review).
 - **Safetensors header.** The 8-byte length is read before `safe_open` and
   refused over 16 MiB (the library allows 100 MB; a 34.9 MB header peaked at
   1.7 GB above baseline, a 15.7 MB one at 0.8 GB, the bound's worst case).
@@ -383,7 +386,7 @@ directory, never a wheel.
   `GGUFReader`'s per-element loop. A wheel's hostile file is the likelier input, so the default there is: sniff only
   (no materialise, no loader), `_stub()`, and one `INFO:` per run listing
   every gated format met, sorted, and naming the flag (`ReaderGate.report()`
-  after the scan, through the same once-per-run slot style as the usage hint,
+  after a scan that succeeded, none on failure, when no SBOM is written; through the same once-per-run slot style as the usage hint,
   so an `embed-wheel` batch says it once). `WHEEL_GATED_FORMATS`
   (`scanner_wheel.py`) is the set of formats; the scanner sees it only as a
   `ReaderGate` on each `ModelCandidate`, so a project producer could use it. `--trust-wheel-model`
@@ -403,15 +406,17 @@ directory, never a wheel.
   (no allocation per opcode), refuses more than 250k, and only the bytes of the
   first pickle reach fickling; fickling's stderr (it prints per failure, 62 MB
   in one measured case) is captured, per thread, by a process-wide `sys.stderr` proxy
-  (`_stderr_capture.py`, installed under a lock and count like the log
-  capture below; `contextlib.redirect_stderr` swaps the stream for every
+  (`_stderr_capture.py`, installed under a lock; the capturing threads, not
+  a counter, say whether it is in use, and an interrupt at any step of a block
+  undoes only what that block did, by identity, like the log capture below; `contextlib.redirect_stderr` swaps the stream for every
   thread and, with two overlapping, could leave it swapped for good) into a
   bounded sink and summarised in one
   warning. GGUF (`_gguf_bounds.py`): a `struct` walk over the key/value
   section refuses tensors, pairs and array elements over one weighted budget
   of 1M, arrays nested deeper than the walker follows, or a count that cannot
-  fit in the file, before `GGUFReader`; a merely truncated file is left to the
-  reader. Safetensors (`safetensors.py`): the 8-byte header length is read
+  fit in the file, before `GGUFReader`; a merely truncated file, or a version
+  `GGUFReader` itself rejects, is left to the reader, while a version it reads
+  and the walker does not know (round-4 review, fail closed) is refused. Safetensors (`safetensors.py`): the 8-byte header length is read
   first and refused over 16 MiB. NumPy (`numpy.py`): the `.npy` header length field is read first
   and refused over numpy's own 10000 (numpy reads the declared length before
   checking it: a v2 header declaring 4 GiB in a 48 MiB deflated member

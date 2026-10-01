@@ -13,7 +13,9 @@ key/value section with :mod:`struct` first (no allocation per element),
 counts all of them against one budget, and refuses a declaration that is
 over it, nests deeper than the walker follows, or cannot fit in the file. A
 file that is merely truncated or malformed is left to the reader to reject:
-that costs nothing.
+that costs nothing. So is a version the reader itself rejects (1, or a
+future one it does not know). A version the reader accepts but the walker
+does not know is refused: it could not be bounded.
 
 See also: :mod:`pitloom.extract.ai_model.gguf`.
 """
@@ -60,6 +62,17 @@ _SCALAR_BYTES = {0: 1, 1: 1, 2: 2, 3: 2, 4: 4, 5: 4, 6: 4, 7: 1, 10: 8, 11: 8, 1
 
 class _Malformed(Exception):
     """The structure is cut short or unknown; the reader rejects it alone."""
+
+
+def _reader_accepts(version: int) -> bool:
+    """Whether the ``gguf`` reader reads *version*; ``True`` when that cannot
+    be told, so that an unknown version is refused, not read unbounded."""
+    try:
+        # pylint: disable-next=import-outside-toplevel
+        from gguf.gguf_reader import READER_SUPPORTED_VERSIONS
+    except ImportError:
+        return True
+    return version in READER_SUPPORTED_VERSIONS
 
 
 def _over_budget(what: str) -> ModelLimitExceeded:
@@ -157,8 +170,9 @@ def check_gguf_header(path: Path) -> None:
 
     Raises:
         ModelLimitExceeded: The declared tensors, pairs and array elements
-            are over the budget, arrays nest too deep, or a string length is
-            over its cap or cannot fit in the file.
+            are over the budget, arrays nest too deep, a string length is
+            over its cap or cannot fit in the file, or the version is one
+            the reader reads and this module does not know.
         OSError: The file cannot be read.
     """
     with path.open("rb") as fh:
@@ -170,6 +184,8 @@ def check_gguf_header(path: Path) -> None:
         if version > 0xFFFF:  # written big-endian
             version, endian = struct.unpack(">I", head[4:8])[0], ">"
         if version not in _SUPPORTED_VERSIONS:
+            if _reader_accepts(version):
+                raise ModelLimitExceeded(f"GGUF version {version}, not bounded")
             return
         with mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ) as data:
             try:

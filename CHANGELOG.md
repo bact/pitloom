@@ -202,7 +202,7 @@ and this project adheres to
 - AI model readers refuse a pickle over 250k opcodes, a GGUF header over one
   budget, a Safetensors header over 16 MiB or an `.npy` header declaring more
   than fits, and cut a model to 1000 entries per list or map, each with one
-  `WARNING:` ([#263])
+  `WARNING:`; a cut model's memory is released ([#263])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227

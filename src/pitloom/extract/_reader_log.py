@@ -51,9 +51,9 @@ class _Dispatcher(logging.Handler):
 
 @dataclass
 class _State:
-    """The logger's saved configuration, while any thread is capturing."""
+    """The logger's saved configuration, while it is changed."""
 
-    users: int = 0
+    installed: bool = False
     propagate: bool = True
     dispatcher: _Dispatcher = field(default_factory=_Dispatcher)
 
@@ -61,33 +61,66 @@ class _State:
 _STATE = _State()
 
 
-def _enter(records: list[logging.LogRecord]) -> list[logging.LogRecord] | None:
-    """Start capturing this thread into *records*; returns the capture it
-    interrupts, if it is nested in another of the same thread."""
+@dataclass
+class _Block:
+    """One capture block: its records, and the capture of the same thread it
+    interrupts, if nested. Filled in place so that an interrupt cannot lose
+    the outer capture between taking it and handing it back."""
+
+    records: list[logging.LogRecord] = field(default_factory=list)
+    outer: list[logging.LogRecord] | None = None
+
+
+def _enter(block: _Block) -> None:
+    """Start capturing this thread into *block*."""
     logger = logging.getLogger(_READERS_LOGGER)
     with _LOCK:
-        if _STATE.users == 0:
+        if not _STATE.installed:
             _STATE.propagate = logger.propagate
+            # Flagged before the logger is changed, so that leaving undoes
+            # it even when an interrupt cuts the change short.
+            _STATE.installed = True
             logger.addHandler(_STATE.dispatcher)
             logger.propagate = False
-        _STATE.users += 1
         ident = threading.get_ident()
-        outer = _STATE.dispatcher.captures.get(ident)
-        _STATE.dispatcher.captures[ident] = records
-        return outer
+        block.outer = _STATE.dispatcher.captures.get(ident)
+        _STATE.dispatcher.captures[ident] = block.records
 
 
-def _exit(outer: list[logging.LogRecord] | None) -> None:
+def _undo(block: _Block) -> None:
+    """Take *block* off this thread, and the logger back to what it was
+    when no thread captures. Idempotent."""
     logger = logging.getLogger(_READERS_LOGGER)
+    ident = threading.get_ident()
+    captures = _STATE.dispatcher.captures
     with _LOCK:
-        if outer is None:
-            _STATE.dispatcher.captures.pop(threading.get_ident(), None)
-        else:
-            _STATE.dispatcher.captures[threading.get_ident()] = outer
-        _STATE.users -= 1
-        if _STATE.users == 0:
+        if captures.get(ident) is block.records:
+            if block.outer is None:
+                del captures[ident]
+            else:
+                captures[ident] = block.outer
+        if _STATE.installed and not captures:
             logger.removeHandler(_STATE.dispatcher)
             logger.propagate = _STATE.propagate
+            _STATE.installed = False
+
+
+def _exit(block: _Block) -> None:
+    """Undo :func:`_enter`, and only that: an interrupt may have cut it
+    short, so *block* is taken off only if registered.
+
+    A second interrupt in here is held until the undo has run to the end,
+    then raised.
+    """
+    interrupt: KeyboardInterrupt | None = None
+    while True:
+        try:
+            _undo(block)
+            break
+        except KeyboardInterrupt as exc:
+            interrupt = exc
+    if interrupt is not None:
+        raise interrupt
 
 
 @contextlib.contextmanager
@@ -101,10 +134,12 @@ def capture_reader_logs() -> Iterator[list[logging.LogRecord]]:
     the first to enter and restored by the last to leave, and a thread not
     in a block has its records passed on as usual. A block inside another of
     the same thread collects on its own, and the outer one resumes after it.
+    An interrupt (``KeyboardInterrupt``) at any step leaves the logger as it
+    was found.
     """
-    records: list[logging.LogRecord] = []
-    outer = _enter(records)
+    block = _Block()
     try:
-        yield records
+        _enter(block)
+        yield block.records
     finally:
-        _exit(outer)
+        _exit(block)

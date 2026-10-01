@@ -71,6 +71,7 @@ Values are exact; "stub" is the format-only entry described above.
 | GGUF header budget | 1,000,000 units: tensor infos and key/value pairs weigh 4 each, array elements 1 each, at every depth | GGUF | No | Stub: `... GGUF header declares <N> tensors, over the 1000000 budget` (or `key/value pairs`, `array of <N> elements`) |
 | GGUF array nesting | 4 levels | GGUF | No | Stub: `... GGUF arrays nested over 4; metadata not read` |
 | GGUF string | 8 MiB per key or string | GGUF | No | Stub: `... GGUF string of <N> bytes; metadata not read`. A count that cannot fit in the file is refused the same way (`more than the file holds`) |
+| GGUF version | 2 and 3 are walked; a version the `gguf` package reads but the walk does not know is refused | GGUF | No | Stub: `... GGUF version <N>, not bounded; metadata not read` |
 | Safetensors header | 16 MiB | Safetensors | No | Stub: `... Safetensors header of <N> bytes; metadata not read` |
 | `.npy` header | 10000 bytes (NumPy's own limit) | `.npy`, and each array in an `.npz` | No | Stub: `... .npy header of <N> bytes, over 10000; metadata not read` |
 | `.npz` members | Reading stops after 1001 arrays; then the entry cap below applies | `.npz` | No | See the entry cap |
@@ -183,7 +184,9 @@ it free. Figures are approximate, from measurements on one machine.
   peaks near 0.8 GB. A pickle at the opcode cap costs about 100 MB and
   under a second in fickling. Safetensors `__metadata__` and ONNX results
   are built before the entry cap trims them, so the cap bounds the SBOM,
-  not the peak memory.
+  not one model's peak memory (about 1.3 GB for a 16 MiB `__metadata__`).
+  The trimmed maps are rebuilt and the memory released, so a wheel's peak is
+  its largest model's, not the sum of its models'.
 - **Unbounded native parsers** (fastText, HDF5, ONNX). They are not
   bounded, only gated in wheels. With `--trust-wheel-model`, or in a
   project scan, a crafted file can use gigabytes (a 16 MiB ONNX measured

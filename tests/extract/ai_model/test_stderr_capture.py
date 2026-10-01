@@ -19,6 +19,7 @@ import io
 import sys
 import threading
 from types import SimpleNamespace
+from unittest import mock
 
 import pytest
 
@@ -83,9 +84,43 @@ def test_a_stderr_replaced_meanwhile_is_left_alone() -> None:
     try:
         with capture_stderr():
             sys.stderr = other
+        assert sys.stderr is other  # not put back over the other party's
     finally:
         sys.stderr = before
     assert _STATE.users == 0
+
+
+def test_a_write_of_lines_is_captured_like_a_write() -> None:
+    before = io.StringIO()
+    with mock.patch.object(sys, "stderr", before):
+        with capture_stderr() as sink:
+            sys.stderr.writelines(["a", "b"])
+        sys.stderr.writelines(["c"])
+    assert (sink.text(), before.getvalue()) == ("ab", "c")
+
+
+def test_without_a_stderr_other_threads_write_nothing_and_do_not_fail() -> None:
+    """``sys.stderr`` is ``None`` under ``pythonw``: a thread that is not
+    capturing used to get an ``AttributeError`` while another captured."""
+    errors: list[BaseException] = []
+
+    def other() -> None:
+        try:
+            assert sys.stderr.write("x") == 1
+            sys.stderr.writelines(["y"])
+            sys.stderr.flush()
+        except BaseException as exc:  # pylint: disable=broad-exception-caught
+            errors.append(exc)
+
+    with mock.patch.object(sys, "stderr", None):
+        with capture_stderr() as sink:
+            sys.stderr.write("held")
+            sys.stderr.flush()
+            thread = threading.Thread(target=other)
+            thread.start()
+            thread.join(_WAIT)
+        assert sys.stderr is None
+    assert (errors, sink.text()) == ([], "held")
 
 
 def _fake_fickling(

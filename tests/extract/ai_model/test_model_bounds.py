@@ -282,7 +282,6 @@ def test_a_hostile_gguf_header_is_refused_before_the_reader(
         _gguf(0, 1, _kv(b"k", 8, struct.pack("<Q", 100))),  # string cut short
         _gguf(0, 1, _kv(b"k", 99, b"\0" * 8)),  # unknown value type
         _gguf(0, 1, _array(99, 1, b"\0" * 8)),  # unknown element type
-        b"GGUF" + struct.pack("<IQQ", 1, 10**9, 0),  # version 1: not walked
         _gguf(1, 1, _kv(b"k", 4, struct.pack("<I", 7)), tail=40),
         _gguf(0, 1, _array(8, 2, struct.pack("<Q", 1) + b"a" + struct.pack("<Q", 0))),
         _gguf(0, 1, _kv(b"k", 8, struct.pack("<Q", 2**40))[:-8]),  # cut short
@@ -296,7 +295,6 @@ def test_a_hostile_gguf_header_is_refused_before_the_reader(
         "string-cut",
         "unknown-type",
         "unknown-element",
-        "version-1",
         "scalar",
         "strings",
         "truncated",
@@ -380,6 +378,40 @@ def test_nesting_is_followed_to_the_limit_and_refused_beyond(tmp_path: Path) -> 
     path.write_bytes(_gguf(0, 1, _kv(b"k", 9, struct.pack("<IQ", 9, 1) + _NESTED_4)))
     with pytest.raises(ModelLimitExceeded, match="nested"):
         check_gguf_header(path)
+
+
+def _gguf_version(version: int) -> bytes:
+    return b"GGUF" + struct.pack("<IQQ", version, 10**9, 0)  # hostile counts
+
+
+@pytest.mark.parametrize("version", [1, 4, 99])
+def test_a_version_the_reader_rejects_is_left_to_it(
+    version: int, tmp_path: Path
+) -> None:
+    pytest.importorskip("gguf")
+    path = tmp_path / "m.gguf"
+    path.write_bytes(_gguf_version(version))
+    check_gguf_header(path)
+
+
+@pytest.mark.parametrize("reader", ["accepts-4", "unknown"])
+def test_a_version_the_walker_does_not_know_but_the_reader_reads_is_refused(
+    reader: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fail closed: it would be read unbounded."""
+    gguf_reader = pytest.importorskip("gguf.gguf_reader")
+    if reader == "accepts-4":
+        monkeypatch.setattr(gguf_reader, "READER_SUPPORTED_VERSIONS", [2, 3, 4])
+    else:  # the reader's own list cannot be found
+        monkeypatch.delattr(gguf_reader, "READER_SUPPORTED_VERSIONS")
+    path = tmp_path / "m.gguf"
+    path.write_bytes(_gguf_version(4))
+    with pytest.raises(ModelLimitExceeded, match="version 4"):
+        check_gguf_header(path)
+    gguf = pytest.importorskip("gguf")
+    with mock.patch.object(gguf, "GGUFReader", side_effect=AssertionError):
+        with pytest.raises(ModelLimitExceeded):
+            read_gguf(path)
 
 
 @pytest.mark.parametrize("fixture", sorted(_GGUF_FIXTURES.glob("*.gguf")), ids=str)

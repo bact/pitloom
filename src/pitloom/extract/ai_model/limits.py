@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import contextvars
 from collections.abc import Callable, Iterator
+from itertools import islice
 
 from pitloom.core.ai_metadata import AiModelMetadata
 
@@ -82,18 +83,37 @@ def charge_read(size: int) -> None:
 def cap_entries(meta: AiModelMetadata) -> list[str]:
     """Keep the first :data:`MAX_MODEL_ENTRIES` entries of each list and map
     of *meta*, in source order, and drop the provenance of the dropped
-    keys. Returns the sorted names of the fields cut."""
+    keys. Returns the sorted names of the fields cut.
+
+    A capped map is rebuilt, not trimmed: a dict never gives back the table
+    it grew to, so deleting keys would keep a huge model's memory.
+    """
     cut: list[str] = []
     for name in ("inputs", "outputs"):
         items = getattr(meta, name)
         if len(items) > MAX_MODEL_ENTRIES:
-            del items[MAX_MODEL_ENTRIES:]
+            del items[MAX_MODEL_ENTRIES:]  # a list does shrink
             cut.append(name)
+    # Only the kept keys are collected: a set of the dropped ones would cost
+    # as much as the map being cut.
+    kept: dict[str, dict[str, object]] = {}
     for name in ("hyperparameters", "properties", "raw_metadata"):
         mapping = getattr(meta, name)
         if len(mapping) > MAX_MODEL_ENTRIES:
-            for key in list(mapping)[MAX_MODEL_ENTRIES:]:
-                del mapping[key]
-                meta.provenance.pop(f"{name}.{key}", None)
+            kept[name] = dict(islice(mapping.items(), MAX_MODEL_ENTRIES))
+            setattr(meta, name, kept[name])
             cut.append(name)
+    if kept:
+        meta.provenance = {
+            key: value
+            for key, value in meta.provenance.items()
+            if _provenance_kept(key, kept)
+        }
     return sorted(cut)
+
+
+def _provenance_kept(key: str, kept: dict[str, dict[str, object]]) -> bool:
+    """Whether provenance *key* (``"<field>.<entry>"`` or a plain field)
+    survives the cut recorded in *kept*."""
+    field, dot, entry = key.partition(".")
+    return not dot or field not in kept or entry in kept[field]

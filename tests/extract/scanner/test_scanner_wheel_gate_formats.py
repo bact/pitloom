@@ -29,7 +29,7 @@ import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.core.project import ProjectFile
-from pitloom.extract import scanner
+from pitloom.extract import scanner, scanner_wheel
 from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS, scan_wheel_for_ai_models
@@ -104,19 +104,34 @@ def test_default_lists_every_gated_format_without_reading_it(
     assert ": gguf, hdf5, onnx, pytorch. " in info  # sorted, each once
 
 
-def test_the_gate_is_reported_even_when_the_scan_fails(
+def test_a_failed_scan_reports_no_gate_but_still_removes_its_scratch(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A gated model met before the failure is still explained."""
+    """No SBOM is written on failure, so no line says what it lists."""
     caplog.set_level(logging.INFO)
     wheel = _wheel(tmp_path, ["onnx/light-inception-v2.onnx"])
-    with mock.patch.object(
-        scanner, "attach_usage_references", side_effect=RuntimeError("scan failed")
+    with (
+        mock.patch.object(
+            scanner, "attach_usage_references", side_effect=RuntimeError("scan failed")
+        ),
+        mock.patch.object(scanner_wheel._Scratch, "remove", autospec=True) as remove,
     ):
         with pytest.raises(RuntimeError, match="scan failed"):
             scan_wheel_for_ai_models(
                 wheel, scan_usage=True, usage_hint=lambda: False, max_bytes=10**8
             )
+    assert not _infos(caplog)
+    remove.assert_called_once()
+
+
+def test_a_successful_scan_reports_the_gate_after_removing_its_scratch(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO)
+    wheel = _wheel(tmp_path, ["onnx/light-inception-v2.onnx"])
+    with mock.patch.object(scanner_wheel._Scratch, "remove", autospec=True) as remove:
+        _scan(wheel)
+    remove.assert_called_once()
     (info,) = _infos(caplog)
     assert ": onnx. " in info
 
