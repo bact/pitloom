@@ -92,11 +92,52 @@ def test_a_stderr_replaced_meanwhile_is_left_alone() -> None:
 
 def test_a_write_of_lines_is_captured_like_a_write() -> None:
     before = io.StringIO()
-    with mock.patch.object(sys, "stderr", before):
+    kept: list[str] = []
+    held, release = threading.Event(), threading.Event()
+
+    def capturing() -> None:
         with capture_stderr() as sink:
             sys.stderr.writelines(["a", "b"])
-        sys.stderr.writelines(["c"])
-    assert (sink.text(), before.getvalue()) == ("ab", "c")
+            held.set()
+            assert release.wait(_WAIT)
+        kept.append(sink.text())
+
+    with mock.patch.object(sys, "stderr", before):
+        thread = threading.Thread(target=capturing)
+        thread.start()
+        assert held.wait(_WAIT)
+        sys.stderr.writelines(["c"])  # the proxy is installed; not this thread's
+        release.set()
+        thread.join(_WAIT)
+    assert (kept, before.getvalue()) == (["ab"], "c")
+
+
+def test_a_block_entered_after_stderr_was_replaced_still_captures() -> None:
+    """Thread A captures and someone else replaces ``sys.stderr``; thread B
+    then enters: it needs a proxy of its own, though A's still has sinks."""
+    base, other = io.StringIO(), io.StringIO()
+    kept: list[str] = []
+
+    def second() -> None:
+        with capture_stderr() as sink:
+            sys.stderr.write("b")
+        kept.append(sink.text())
+
+    with mock.patch.object(sys, "stderr", base):
+        with capture_stderr():
+            sys.stderr = other
+            thread = threading.Thread(target=second)
+            thread.start()
+            thread.join(_WAIT)
+            sys.stderr = base  # theirs to restore; here, for the proxy to leave
+    assert (kept, other.getvalue()) == (["b"], "")
+
+
+def test_without_a_stderr_attribute_access_is_answered_by_a_null_stream() -> None:
+    with mock.patch.object(sys, "stderr", None):
+        with capture_stderr():
+            assert sys.stderr.isatty() is False
+            assert sys.stderr.encoding is None  # the null stream's
 
 
 def test_without_a_stderr_other_threads_write_nothing_and_do_not_fail() -> None:

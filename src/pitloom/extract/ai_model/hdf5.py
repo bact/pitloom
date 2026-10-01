@@ -59,8 +59,13 @@ from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
+from pitloom.logging_config import field_loss_suffix
 
 log = logging.getLogger(__name__)
+
+#: Characters of an unparsed ``model_config`` kept in
+#: ``properties["model_config_raw"]``.
+_RAW_CONFIG_CHARS = 500
 
 
 def _decode_h5_attr(value: Any) -> str | None:
@@ -359,7 +364,15 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
                 provenance,
             )
             if not type_of_model and not name:
-                properties["model_config_raw"] = model_config_raw[:500]
+                properties["model_config_raw"] = model_config_raw[:_RAW_CONFIG_CHARS]
+                if len(model_config_raw) > _RAW_CONFIG_CHARS:
+                    log.warning(
+                        "Unparsed model_config of %d characters; the first %d "
+                        "are kept%s",
+                        len(model_config_raw),
+                        _RAW_CONFIG_CHARS,
+                        field_loss_suffix("degraded", "properties.model_config_raw"),
+                    )
                 provenance["properties.model_config_raw"] = (
                     f"{source} | Field: model_config attribute (unparsed)"
                 )

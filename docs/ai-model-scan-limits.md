@@ -75,9 +75,9 @@ Values are exact; "stub" is the format-only entry described above.
 | Safetensors header | 16 MiB | Safetensors | No | Stub: `... Safetensors header of <N> bytes; metadata not read` |
 | `.npy` header | 10000 bytes (NumPy's own limit) | `.npy`, and each array in an `.npz` | No | Stub: `... .npy header of <N> bytes, over 10000; metadata not read` |
 | `.npz` members | Reading stops after 1001 arrays; then the entry cap below applies | `.npz` | No | See the entry cap |
-| Entries per list or map | 1000, the first ones in source order | `inputs`, `outputs`, `hyperparameters`, `properties`, `raw_metadata` of every format; project and wheel scans | No | Model kept, lists trimmed, provenance of dropped keys removed: `WARNING: FORMAT=<fmt> FILE=<path>: more than 1000 entries in <fields>; the first 1000 of each are kept` |
-| Archive listing | First 20 names (`properties.archive_contents`, with a total) | PyTorch classic, PT2 | No | Silent |
-| Unparsed Keras config | First 500 characters (`properties.model_config_raw`) | HDF5, only when the config cannot be parsed | No | Silent |
+| Entries per list or map | 1000, the first ones: in file order, except Safetensors `__metadata__`, which has none and keeps its first 1000 keys in sorted order | `inputs`, `outputs`, `hyperparameters`, `properties`, `raw_metadata` of every format; project and wheel scans | No | Model kept, lists trimmed, provenance of dropped keys removed: `WARNING: FORMAT=<fmt> FILE=<path>: more than 1000 entries in <fields>; the first 1000 of each are kept` |
+| Archive listing | First 20 names (`properties.archive_contents`, ending `, ... (<N> total)` when cut) | PyTorch classic, PT2 | No | No log line, since nearly every checkpoint has a file per tensor; the value itself says it is cut |
+| Unparsed Keras config | First 500 characters (`properties.model_config_raw`) | HDF5, only when the config cannot be parsed | No | `WARNING: FORMAT=<fmt> FILE=<path>: Unparsed model_config of <N> characters; the first 500 are kept ...`, only when it is longer than 500 |
 | fickling messages | fickling's stderr output is held back (first 4096 characters kept) and the warning quotes the first 200 | PyTorch `.pt`/`.pth` | No | `WARNING: fickling reported on stderr: <text>` |
 | Usage-scan source size | 1 MiB per `.py` file | `--scan-model-usage`, project and wheel scans | No | File skipped: `WARNING: FILE=<path>: larger than the 1048576-byte usage-scan cap; skipped` |
 | Usage-scan encoding | Strict UTF-8 | The same | No | File skipped: `WARNING: FILE=<path>: could not read for usage scanning; <error>` |
@@ -86,6 +86,26 @@ Values are exact; "stub" is the format-only entry described above.
 There is no limit on the number of model files in a project or wheel.
 The ceiling and budget are checked against file sizes, so a gated format
 (next section) is never copied and spends none of the budget.
+
+## Settings that change the SBOM
+
+The same input with the same settings gives a byte-identical SBOM. Changing
+a setting below changes what is recorded, so two runs with different
+settings are not expected to match. Each one says so on stderr when it
+changes the models' entries, except where you asked for the change yourself:
+
+| Setting | What changes | Message |
+| :------ | :----------- | :------ |
+| `--trust-wheel-model` | Models of the gated formats in a wheel are read, not listed as stubs | Without it, one `INFO:` naming the formats not read |
+| `max-model-extract-bytes` | A model over it, and every model after the per-wheel budget (4 times it) is spent, is a stub | One `WARNING:` per stubbed model; one per wheel for the budget |
+| `--scan-model-usage` | `hasDataFile` edges from `.py` files to models exist or not | Without the setting given, one `INFO:` naming the flag |
+| `--allow-build` | The file list comes from a real build, so the models found, and their paths, can differ from the static list | None when the build succeeds; a `WARNING:` and the static list when it fails. See [Building a project](allow-build.md) |
+| The 1000-entry cap | Which entries are kept: the first 1000 in file order, or in sorted key order for Safetensors `__metadata__` | One `WARNING:` per model naming the fields cut |
+| A project directory, not its built wheel | Models are read in place: no ceiling, no gate | None; see [Which scans apply which limits](#which-scans-apply-which-limits) |
+
+A cut that the output marks itself, such as the 20-name archive listing
+(`... (<N> total)`) or the entries dropped from the artifact-metadata
+annotation (`truncated`), has no log line.
 
 ## Formats gated in wheels
 
@@ -182,11 +202,13 @@ it free. Figures are approximate, from measurements on one machine.
 - **Memory and time of bounded input.** The largest GGUF header accepted
   costs about 1.1 GB and 6 seconds. A Safetensors header just under 16 MiB
   peaks near 0.8 GB. A pickle at the opcode cap costs about 100 MB and
-  under a second in fickling. Safetensors `__metadata__` and ONNX results
-  are built before the entry cap trims them, so the cap bounds the SBOM,
-  not one model's peak memory (about 1.3 GB for a 16 MiB `__metadata__`).
-  The trimmed maps are rebuilt and the memory released, so a wheel's peak is
-  its largest model's, not the sum of its models'.
+  under a second in fickling. The `safetensors` library builds a model's
+  whole `__metadata__` map, and the ONNX reader its whole result, before the
+  entry cap trims them, so the cap bounds the SBOM, not one model's peak
+  memory (about 0.6 GB for a 16 MiB `__metadata__`: 0.53 GB for one model,
+  0.58 GB for a wheel of 24 of them). The trimmed maps are rebuilt and the
+  memory released, so a wheel's peak is its largest model's, not the sum of
+  its models'.
 - **Unbounded native parsers** (fastText, HDF5, ONNX). They are not
   bounded, only gated in wheels. With `--trust-wheel-model`, or in a
   project scan, a crafted file can use gigabytes (a 16 MiB ONNX measured

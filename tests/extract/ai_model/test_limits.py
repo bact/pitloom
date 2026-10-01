@@ -60,3 +60,22 @@ def test_nothing_is_cut_within_the_cap() -> None:
     assert cap_entries(meta) == []
     assert meta.properties is properties
     assert meta.provenance is provenance
+
+
+def test_provenance_follows_its_own_field_and_dotted_entry_names() -> None:
+    """One map is capped and another is not; keys contain dots, as
+    ``modelspec.title`` does: a field's provenance is cut by its own map."""
+    meta = AiModelMetadata()
+    meta.properties = {f"modelspec.k{i}": "v" for i in range(MAX_MODEL_ENTRIES + 1)}
+    meta.hyperparameters = {"a.b": 1}
+    meta.provenance = {f"properties.{key}": "p" for key in meta.properties}
+    meta.provenance["hyperparameters.a.b"] = "h"  # a map within the cap
+    meta.provenance["name"] = "n"  # no entry: a plain field
+    assert cap_entries(meta) == ["properties"]
+    assert f"properties.modelspec.k{MAX_MODEL_ENTRIES}" not in meta.provenance
+    assert "properties.modelspec.k0" in meta.provenance
+    assert (meta.provenance["hyperparameters.a.b"], meta.provenance["name"]) == (
+        "h",
+        "n",
+    )
+    assert len(meta.provenance) == MAX_MODEL_ENTRIES + 2

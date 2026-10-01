@@ -26,7 +26,8 @@ from pitloom.core.ai_metadata import AiModelMetadata
 
 #: Most entries kept per list or map of one model (inputs, outputs,
 #: hyperparameters, properties, raw metadata). A real model has tens to a
-#: few hundreds; the first ones, in source order, stay.
+#: few hundreds; the first ones stay: in file order, or in key order for
+#: Safetensors ``__metadata__``, which the library returns in no fixed order.
 MAX_MODEL_ENTRIES = 1000
 
 
@@ -82,8 +83,12 @@ def charge_read(size: int) -> None:
 
 def cap_entries(meta: AiModelMetadata) -> list[str]:
     """Keep the first :data:`MAX_MODEL_ENTRIES` entries of each list and map
-    of *meta*, in source order, and drop the provenance of the dropped
-    keys. Returns the sorted names of the fields cut.
+    of *meta*, and drop the provenance of the dropped keys. Returns the
+    sorted names of the fields cut.
+
+    "First" is the order a reader hands over: file order, which is the same
+    on every run; a reader whose source has none (Safetensors
+    ``__metadata__``) sorts by key before the cut.
 
     A capped map is rebuilt, not trimmed: a dict never gives back the table
     it grew to, so deleting keys would keep a huge model's memory.

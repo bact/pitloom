@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import heapq
 import logging
 import struct
 from pathlib import Path
@@ -16,7 +17,7 @@ from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
-from pitloom.extract.ai_model.limits import ModelLimitExceeded
+from pitloom.extract.ai_model.limits import MAX_MODEL_ENTRIES, ModelLimitExceeded
 
 log = logging.getLogger(__name__)
 
@@ -42,6 +43,20 @@ def _check_header_length(model_path: Path) -> None:
             raise ModelLimitExceeded(f"Safetensors header of {length} bytes")
 
 
+def _stable_metadata(raw: dict[str, str]) -> dict[str, str]:
+    """*raw* with a stable order where the entry cap can cut it.
+
+    ``safetensors`` returns ``__metadata__`` in an order that differs from one
+    process to the next, and the cap keeps the first entries: over the cap, the
+    smallest keys stay, in key order, one past the cap so that the scanner
+    still sees the map is too long. Under it, every entry stays and the
+    output is sorted downstream.
+    """
+    if len(raw) <= MAX_MODEL_ENTRIES:
+        return raw
+    return dict(heapq.nsmallest(MAX_MODEL_ENTRIES + 1, raw.items()))
+
+
 def read_safetensors(model_path: Path) -> AiModelMetadata:
     """Extract metadata from a Safetensors model file.
 
@@ -50,6 +65,9 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
     The Safetensors format stores an optional ``__metadata__`` dict in its
     header alongside tensor descriptors (name, dtype, shape). This extractor
     reads only the header -- it does not load tensor data into memory.
+
+    Over :data:`~pitloom.extract.ai_model.limits.MAX_MODEL_ENTRIES` entries,
+    ``__metadata__`` is cut to its smallest keys (see :func:`_stable_metadata`).
 
     Commonly stored ``__metadata__`` keys (by convention):
     - ``modelspec.architecture`` -> architecture
@@ -86,7 +104,7 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
             str(model_path),
             framework="numpy",
         ) as f:  # type: ignore[no-untyped-call]
-            raw_metadata: dict[str, str] = f.metadata() or {}
+            raw_metadata = _stable_metadata(f.metadata() or {})
             tensor_keys: list[str] = list(f.keys())
     except ModelLimitExceeded:
         raise

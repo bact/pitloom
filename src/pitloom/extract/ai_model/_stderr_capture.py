@@ -15,7 +15,10 @@ is ``None`` under ``pythonw``). The last thread to leave puts the stream
 back, unless something else replaced ``sys.stderr`` meanwhile: the proxy
 then stays where it was left, with no sinks, forwarding every write. A block
 that an interrupt (``KeyboardInterrupt``) cuts short at any point undoes
-only what it did, by identity.
+only what it did, by identity. The undo holds a second interrupt for a few
+tries and waits a bounded time for the lock (:mod:`pitloom.extract._interrupt_hold`):
+on CPython 3.14 an interrupt can leave the lock held for good, and the
+state may then stay as it was when the interrupt is raised.
 
 See also: :mod:`pitloom.extract._reader_log` (the same shape, for logging).
 """
@@ -29,6 +32,8 @@ import threading
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from typing import Any, TextIO, cast
+
+from pitloom.extract._interrupt_hold import locked, run_held
 
 # Guards _STATE and the proxy's sinks. Never held while writing.
 _LOCK = threading.Lock()
@@ -58,6 +63,11 @@ class BoundedStderr(io.TextIOBase):
         return "".join(self._parts)
 
 
+# What attribute access (``isatty``, ``encoding``) is answered by when there
+# is no ``sys.stderr``.
+_NULL_STREAM = io.StringIO()
+
+
 class _Proxy:
     """Stands in for ``sys.stderr`` while a thread captures it."""
 
@@ -83,7 +93,7 @@ class _Proxy:
             self.original.flush()
 
     def __getattr__(self, name: str) -> Any:
-        return getattr(self.original, name)
+        return getattr(_NULL_STREAM if self.original is None else self.original, name)
 
 
 @dataclass
@@ -113,7 +123,7 @@ def capture_stderr() -> Iterator[BoundedStderr]:
     proxy: _Proxy | None = None
     outer: BoundedStderr | None = None
     try:
-        with _LOCK:
+        with locked(_LOCK):
             proxy = _STATE.proxy
             if proxy is None or sys.stderr is not proxy:
                 # A fresh proxy when sys.stderr is not ours: a late writer
@@ -128,6 +138,27 @@ def capture_stderr() -> Iterator[BoundedStderr]:
         _leave(proxy, ident, sink, outer)
 
 
+def _undo(
+    proxy: _Proxy,
+    ident: int,
+    sink: BoundedStderr,
+    outer: BoundedStderr | None,
+) -> None:
+    """Take *sink* off the thread, and the proxy off ``sys.stderr`` when no
+    thread captures. Idempotent: the sink is removed only if it is the
+    registered one."""
+    with locked(_LOCK):
+        if proxy.sinks.get(ident) is sink:
+            if outer is None:
+                del proxy.sinks[ident]
+            else:
+                proxy.sinks[ident] = outer
+        # Only our own proxy is taken out: another party may have replaced
+        # sys.stderr since, and that is theirs to restore.
+        if not proxy.sinks and sys.stderr is proxy:
+            sys.stderr = cast(TextIO, proxy.original)
+
+
 def _leave(
     proxy: _Proxy | None,
     ident: int,
@@ -135,29 +166,10 @@ def _leave(
     outer: BoundedStderr | None,
 ) -> None:
     """Undo what :func:`capture_stderr` did, and only that: an interrupt may
-    have cut its entry short at any step, so the sink is removed only if it
-    is the registered one.
+    have cut its entry short at any step.
 
-    A second interrupt in here is held until the undo has run to the end
-    (every step is idempotent and takes the lock afresh), then raised.
+    A second interrupt in here is held for a few tries, then raised; see
+    :func:`pitloom.extract._interrupt_hold.run_held`.
     """
-    if proxy is None:
-        return
-    interrupt: KeyboardInterrupt | None = None
-    while True:
-        try:
-            with _LOCK:
-                if proxy.sinks.get(ident) is sink:
-                    if outer is None:
-                        del proxy.sinks[ident]
-                    else:
-                        proxy.sinks[ident] = outer
-                # Only our own proxy is taken out: another party may have
-                # replaced sys.stderr since, and that is theirs to restore.
-                if not proxy.sinks and sys.stderr is proxy:
-                    sys.stderr = cast(TextIO, proxy.original)
-            break
-        except KeyboardInterrupt as exc:
-            interrupt = exc
-    if interrupt is not None:
-        raise interrupt
+    if proxy is not None:
+        run_held(lambda: _undo(proxy, ident, sink, outer))

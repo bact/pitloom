@@ -21,6 +21,7 @@ import logging
 import pytest
 
 from pitloom.extract import _reader_log as rl
+from pitloom.extract._interrupt_hold import HOLD_LIMIT
 from tests._interrupt import run_interrupted, statement_lines
 
 _LOGGER = logging.getLogger("pitloom.extract.ai_model")
@@ -52,6 +53,13 @@ def test_an_interrupt_at_any_step_leaves_the_logger_as_found(
                 break
             steps += 1
             assert list(_LOGGER.handlers) == inside, f"{step} {n}"
+            # Every field the block saved or set is as found: an enclosing
+            # block's, or the idle state's.
+            assert (
+                rl._STATE.installed,
+                _LOGGER.propagate,
+                len(rl._STATE.dispatcher.captures),
+            ) == (nested, False if nested else propagate, int(nested)), f"{step} {n}"
             logging.getLogger("pitloom.extract.ai_model.x").warning("kept %d", n)
         if nested:
             assert [r.getMessage() for r in outer] == [
@@ -63,7 +71,7 @@ def test_an_interrupt_at_any_step_leaves_the_logger_as_found(
     assert not rl._STATE.installed
 
 
-def test_a_second_interrupt_in_the_undo_is_held_until_it_has_run(
+def test_a_second_interrupt_in_the_undo_is_held_for_a_few_tries(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     undo = rl._undo
@@ -71,9 +79,9 @@ def test_a_second_interrupt_in_the_undo_is_held_until_it_has_run(
 
     def flaky(block: rl._Block) -> None:
         calls.append(1)
+        undo(block)  # the second run finds nothing to undo
         if len(calls) == 1:
             raise KeyboardInterrupt
-        undo(block)
 
     monkeypatch.setattr(rl, "_undo", flaky)
     handlers = list(_LOGGER.handlers)
@@ -84,10 +92,41 @@ def test_a_second_interrupt_in_the_undo_is_held_until_it_has_run(
     assert not rl._STATE.installed
 
 
-def test_the_undo_is_idempotent() -> None:
-    block = rl._Block()
-    rl._enter(block)
-    rl._undo(block)
-    rl._undo(block)  # a retry after a partial undo
-    assert not rl._STATE.installed
-    assert not rl._STATE.dispatcher.captures
+def test_interrupts_the_undo_cannot_outlast_are_raised_within_the_bound(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A lock left held by an interrupt (as CPython 3.14 can) is never
+    released: the undo must give up, not retry every interrupt for ever. The
+    state it could not undo is left, so the test uses a state of its own."""
+    takes: list[int] = []
+
+    class _Unreleased:
+        """Taken once, then interrupted whenever it is taken; past 100 takes
+        the wait is evidently unbounded."""
+
+        def acquire(self, timeout: float = -1) -> bool:
+            takes.append(1)
+            if len(takes) == 1:
+                return True
+            if len(takes) > 100:
+                raise RuntimeError("an interrupt held for ever")
+            raise KeyboardInterrupt
+
+        def release(self) -> None:
+            """Nothing to give back."""
+
+    state = rl._State()
+    monkeypatch.setattr(rl, "_STATE", state)
+    monkeypatch.setattr(rl, "_LOCK", _Unreleased())
+    monkeypatch.setattr(_LOGGER, "propagate", True)
+    try:
+        with pytest.raises(KeyboardInterrupt):
+            _block()
+    finally:
+        _LOGGER.removeHandler(state.dispatcher)
+    assert len(takes) == 1 + HOLD_LIMIT  # the entry, then the tries
+
+
+def test_an_anchor_that_is_not_in_the_source_is_named() -> None:
+    with pytest.raises(LookupError, match="no_such_statement"):
+        statement_lines(rl._undo, "no_such_statement", "if captures.get")

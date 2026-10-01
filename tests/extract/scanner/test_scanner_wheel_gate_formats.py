@@ -31,6 +31,7 @@ from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.core.project import ProjectFile
 from pitloom.extract import scanner, scanner_wheel
 from pitloom.extract.ai_model import read_ai_model
+from pitloom.extract.scanner import ReaderGate
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.extract.scanner_wheel import WHEEL_GATED_FORMATS, scan_wheel_for_ai_models
 from tests._wheel_models import safetensors_bytes, write_model_wheel
@@ -129,9 +130,25 @@ def test_a_successful_scan_reports_the_gate_after_removing_its_scratch(
 ) -> None:
     caplog.set_level(logging.INFO)
     wheel = _wheel(tmp_path, ["onnx/light-inception-v2.onnx"])
-    with mock.patch.object(scanner_wheel._Scratch, "remove", autospec=True) as remove:
+    order: list[str] = []
+    real_remove, real_report = scanner_wheel._Scratch.remove, ReaderGate.report
+
+    def remove(self: scanner_wheel._Scratch) -> None:
+        order.append("remove")
+        real_remove(self)
+
+    def report(self: ReaderGate) -> None:
+        order.append("report")
+        real_report(self)
+
+    with (
+        mock.patch.object(
+            scanner_wheel._Scratch, "remove", autospec=True, side_effect=remove
+        ),
+        mock.patch.object(ReaderGate, "report", autospec=True, side_effect=report),
+    ):
         _scan(wheel)
-    remove.assert_called_once()
+    assert order == ["remove", "report"]
     (info,) = _infos(caplog)
     assert ": onnx. " in info
 

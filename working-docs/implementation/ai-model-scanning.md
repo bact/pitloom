@@ -168,8 +168,12 @@ readers ([model-metadata-readers.md](../design/model-metadata-readers.md)):
   entry cap cuts it, so the cap bounds the SBOM, not one reader's peak
   memory. `cap_entries()` rebuilds a capped map instead of deleting keys
   (a dict never shrinks its table): a wheel of 24 Safetensors files with a
-  16 MiB `__metadata__` each peaked at 5.8 GB, and now at 1.3 GB, the same
-  as one file (round-4 review).
+  16 MiB `__metadata__` each peaked at 5.8 GB, then at 1.06 GB (951 / 1060 /
+  1062 MB for 1 / 8 / 24 files, round-5 review), and now at 0.53 / 0.57 /
+  0.58 GB: the Safetensors reader cuts the map to the entry cap itself (see
+  "Entry caps"), so the full map is not copied into `properties`,
+  `raw_metadata` and provenance. A wheel's peak is its largest model's, not
+  the sum of its models'.
 - **Safetensors header.** The 8-byte length is read before `safe_open` and
   refused over 16 MiB (the library allows 100 MB; a 34.9 MB header peaked at
   1.7 GB above baseline, a 15.7 MB one at 0.8 GB, the bound's worst case).
@@ -274,8 +278,8 @@ and a read cap inside `attach_usage_references()`.
 max_bytes, trust, gate_hint)` serves `loom wheel`, `wheel --embed`,
 `embed-wheel` without `--project-dir`, `generate()` on a `.whl`,
 `generate_wheel_sbom()` and `embed_wheel_sbom()` without `project_dir`.
-`--project-dir` keeps scanning the project; `--sbom` scans nothing; the Hatchling hook scans its project
-directory, never a wheel.
+`--project-dir` keeps scanning the project; `--sbom` scans nothing; the
+Hatchling hook scans its project directory, never a wheel.
 
 - **Members** come from `zip_file_members(zf, name, None)` -- no logger, as
   `read_wheel()` already reported every name (two reports would double each
@@ -375,56 +379,94 @@ directory, never a wheel.
   other threads on to the parent logger (by `threading.get_ident()` when
   `logging.logThreads` is off and `record.thread` is `None`). A block nested
   in another of the same thread restores the outer capture on leaving.
-- **Unsafe readers are gated** (security; `--trust-wheel-model`). A reader
-  that calls a native library in Pitloom's process is an unbounded
-  CPU/memory (or crash) surface no byte ceiling covers, and a signal handler
-  does not run under native code, so Ctrl-C cannot interrupt it: fastText (a
-  hostile 308-byte header measured 5 GB resident and climbing), HDF5 (two
-  committed 8 KiB files, `tests/fixtures/aimodels/hostile/`, segfault and
-  hang libhdf5), ONNX (protobuf amplification: 16 MiB peaked at 3 GB) and, in
-  pure Python, PyTorch `.pt`/`.pth` through fickling (~200x) and GGUF through
-  `GGUFReader`'s per-element loop. A wheel's hostile file is the likelier input, so the default there is: sniff only
-  (no materialise, no loader), `_stub()`, and one `INFO:` per run listing
-  every gated format met, sorted, and naming the flag (`ReaderGate.report()`
-  after a scan that succeeded, none on failure, when no SBOM is written; through the same once-per-run slot style as the usage hint,
+  The undo of both captures (`_reader_log.py`, `_stderr_capture.py`) is
+  bounded by one shared helper, `extract/_interrupt_hold.py`: a second
+  `KeyboardInterrupt` in the undo is held for 3 tries, then raised, and the
+  lock is taken with a 5 s timeout (`LockNotReleased`). Retrying every
+  interrupt for ever was unkillable on CPython 3.14, where an interrupt can
+  arrive after a lock is acquired and before the `try` that releases it,
+  leaving the lock held for good (3 of 3 runs of a reproducer hung there).
+  Accepted cost: when that happens the logger or `sys.stderr` may stay as
+  the interrupt found it; the process is ending on that interrupt.
+- **Unsafe readers are gated** (security; `--trust-wheel-model`). A reader that
+  calls a native library in Pitloom's process is an unbounded CPU/memory (or
+  crash) surface no byte ceiling covers, and a signal handler does not run under
+  native code, so Ctrl-C cannot interrupt it: fastText (a hostile 308-byte
+  header measured 5 GB resident and climbing), HDF5 (two committed 8 KiB files,
+  `tests/fixtures/aimodels/hostile/`, segfault and hang libhdf5), ONNX (protobuf
+  amplification: 16 MiB peaked at 3 GB) and, in pure Python, PyTorch
+  `.pt`/`.pth` through fickling (~200x) and GGUF through `GGUFReader`'s
+  per-element loop. A wheel's hostile file is the likelier input, so the default
+  there is: sniff only (no materialise, no loader), `_stub()`, and one `INFO:`
+  per run listing every gated format met, sorted, and naming the flag
+  (`ReaderGate.report()` after a scan that succeeded, none on failure, when no
+  SBOM is written; through the same once-per-run slot style as the usage hint,
   so an `embed-wheel` batch says it once). `WHEEL_GATED_FORMATS`
   (`scanner_wheel.py`) is the set of formats; the scanner sees it only as a
-  `ReaderGate` on each `ModelCandidate`, so a project producer could use it. `--trust-wheel-model`
-  (`trust_wheel_model=`; `ConfigOverrides.trust_wheel_model` for
-  `embed_wheel_sbom()`) lifts the gate: a plain opt-in like `--allow-build`,
-  `store_true` with a `None` default so the inert-option machinery can tell
-  "not given" from "given", and no config key, since a config can live in
-  the untrusted tree. Live on wheel, `wheel --embed` and standalone
-  `embed-wheel`; `INERT` on every other kind. A project scan is not gated:
-  the tree is the user's own, but that is unsafe for an untrusted checkout.
-  Metadata-only readers that never hand the file to a native library are
-  the real fix: [model-metadata-readers.md](../design/model-metadata-readers.md).
+  `ReaderGate` on each `ModelCandidate`, so a project producer could use it.
+  `--trust-wheel-model` (`trust_wheel_model=`;
+  `ConfigOverrides.trust_wheel_model` for `embed_wheel_sbom()`) lifts the gate:
+  a plain opt-in like `--allow-build`, `store_true` with a `None` default so the
+  inert-option machinery can tell "not given" from "given", and no config key,
+  since a config can live in the untrusted tree. Live on wheel, `wheel --embed`
+  and standalone `embed-wheel`; `INERT` on every other kind. A project scan is
+  not gated: the tree is the user's own, but that is unsafe for an untrusted
+  checkout. Metadata-only readers that never hand the file to a native library
+  are the real fix:
+  [model-metadata-readers.md](../design/model-metadata-readers.md).
 - **Bounds before a parser runs** (project scans too; all raise
   `ModelLimitExceeded`, which a reader's broad `except` lets through; the
   scanner logs one `FORMAT= FILE=: <reason>; metadata not read` and keeps the
   stub). Pickle (`_pickle_bounds.py`): `pickletools.genops` walks the opcodes
   (no allocation per opcode), refuses more than 250k, and only the bytes of the
   first pickle reach fickling; fickling's stderr (it prints per failure, 62 MB
-  in one measured case) is captured, per thread, by a process-wide `sys.stderr` proxy
-  (`_stderr_capture.py`, installed under a lock; the capturing threads, not
-  a counter, say whether it is in use, and an interrupt at any step of a block
-  undoes only what that block did, by identity, like the log capture below; `contextlib.redirect_stderr` swaps the stream for every
-  thread and, with two overlapping, could leave it swapped for good) into a
-  bounded sink and summarised in one
-  warning. GGUF (`_gguf_bounds.py`): a `struct` walk over the key/value
-  section refuses tensors, pairs and array elements over one weighted budget
-  of 1M, arrays nested deeper than the walker follows, or a count that cannot
-  fit in the file, before `GGUFReader`; a merely truncated file, or a version
-  `GGUFReader` itself rejects, is left to the reader, while a version it reads
-  and the walker does not know (round-4 review, fail closed) is refused. Safetensors (`safetensors.py`): the 8-byte header length is read
-  first and refused over 16 MiB. NumPy (`numpy.py`): the `.npy` header length field is read first
-  and refused over numpy's own 10000 (numpy reads the declared length before
-  checking it: a v2 header declaring 4 GiB in a 48 MiB deflated member
+  in one measured case) is captured, per thread, by a process-wide `sys.stderr`
+  proxy (`_stderr_capture.py`, installed under a lock; the capturing threads,
+  not a counter, say whether it is in use, and an interrupt at any step of a
+  block undoes only what that block did, by identity, like the log capture
+  below; `contextlib.redirect_stderr` swaps the stream for every thread and,
+  with two overlapping, could leave it swapped for good) into a bounded sink and
+  summarised in one warning. GGUF (`_gguf_bounds.py`): a `struct` walk over the
+  key/value section refuses tensors, pairs and array elements over one weighted
+  budget of 1M, arrays nested deeper than the walker follows, or a count that
+  cannot fit in the file, before `GGUFReader`; a merely truncated file, or a
+  version `GGUFReader` itself rejects, is left to the reader, while a version it
+  reads and the walker does not know (round-4 review, fail closed) is refused.
+  Safetensors (`safetensors.py`): the 8-byte header length is read first and
+  refused over 16 MiB. NumPy (`numpy.py`): the `.npy` header length field is
+  read first and refused over numpy's own 10000 (numpy reads the declared length
+  before checking it: a v2 header declaring 4 GiB in a 48 MiB deflated member
   inflated it), and an `.npz` stops reading after 1001 members. Entry caps
-  (`limits.cap_entries()`, in the scanner, so one place for every reader):
-  the first 1000 of `inputs`, `outputs`, `hyperparameters`, `properties` and
-  `raw_metadata` in source order, the provenance of the dropped keys removed,
-  one warning naming the fields cut.
+  (`limits.cap_entries()`, in the scanner, so one place for every reader): the
+  first 1000 of `inputs`, `outputs`, `hyperparameters`, `properties` and
+  `raw_metadata`, the provenance of the dropped keys removed, one warning naming
+  the fields cut. "First" is the order the reader hands over, so it must be the
+  same on every run. Surveyed (round 5): GGUF fields, ONNX `metadata_props` and
+  graph inputs, Keras/PT2 JSON, HDF5 attributes, `.npz` member names and
+  fastText labels all come from the file in file order. The one exception was
+  Safetensors: `safetensors` returns `__metadata__` from a Rust hash map, in an
+  order that differs per process (`keys()`, the tensor names, is stable), so a
+  file over the cap gave a different SBOM on every run. `read_safetensors()` now
+  keeps the 1001 smallest keys, in key order, with `heapq.nsmallest` (one past
+  the cap, so `cap_entries()` still cuts and warns, as for `.npz`). Under the
+  cap nothing is reordered: every consumer sorts (the annotation is JCS,
+  hyperparameters and provenance are sorted). Rejected: sorting every map in
+  `cap_entries()` (a reader with a file order would lose it for nothing), and
+  sorting a map at or under the cap.
+- **Nothing recorded is lost silently** (round-5 audit). Every cap, bound and
+  gate has one `INFO:`/`WARNING:`: ceiling, budget, member, pickle, GGUF,
+  Safetensors, `.npy` bounds, the entry cap, the wheel gate, the usage hint
+  and the usage-scan caps. Two cuts had none. The unparsed HDF5 `model_config`
+  cut to 500 characters now warns when it is longer (rare: only a config that
+  failed to parse). The
+  20-name `archive_contents` of a PyTorch classic or PT2 archive does not: a
+  checkpoint has a file per tensor, so nearly every real model would warn,
+  and the value ends `, ... (<N> total)` itself. Not warned, by design: the
+  fickling stderr quote (a diagnostic, not recorded data), the first pickle
+  only (the rest of a legacy file is not model metadata) and the
+  artifact-metadata cap (opt-in, marked `truncated` in the output). The
+  settings that change the output are listed in
+  `docs/ai-model-scan-limits.md`.
 - **Enrichment stays off** for a wheel: no README or model card is read from
   an archive.
 - **Rejected:** materialising siblings (no reader reads one: Keras reads

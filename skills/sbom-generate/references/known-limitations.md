@@ -54,8 +54,12 @@ SHA-256, nothing else. Causes, each with its own stderr line:
 
 A file the reader cannot parse at all gets no `ai_AIPackage`, only its
 file entry and a `failed to extract metadata` warning. Inputs, outputs,
-hyperparameters and properties are cut at 1000 entries. Project scans have
-no ceiling and no gate. Full table:
+hyperparameters and properties are cut at 1000 entries (one `WARNING:`; the
+first 1000 in file order, in key order for Safetensors `__metadata__`). Project
+scans have no ceiling and no gate. The same input gives the same SBOM for the
+same settings; `--trust-wheel-model`, `max-model-extract-bytes`,
+`--scan-model-usage`, `--allow-build` and the cap each change what is
+recorded, so do not compare SBOMs made with different ones. Full table:
 <https://bact.github.io/pitloom/ai-model-scan-limits/>.
 
 ## Unsupported build backend

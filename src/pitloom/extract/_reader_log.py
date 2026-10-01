@@ -12,6 +12,11 @@ and logs them again under the stable ``FORMAT=``/``FILE=`` prefix, with the
 text escaped and the temporary path removed: one route for every reader,
 present and future.
 
+The undo holds a second interrupt for a few tries and waits a bounded time
+for the lock (:mod:`pitloom.extract._interrupt_hold`): on CPython 3.14 an
+interrupt can leave the lock held for good, and the logger may then stay as
+it was when the interrupt is raised.
+
 See also: :mod:`pitloom.extract.scanner`.
 """
 
@@ -22,6 +27,8 @@ import logging
 import threading
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+
+from pitloom.extract._interrupt_hold import locked, run_held
 
 #: The logger every reader's own logger is a child of.
 _READERS_LOGGER = "pitloom.extract.ai_model"
@@ -74,7 +81,7 @@ class _Block:
 def _enter(block: _Block) -> None:
     """Start capturing this thread into *block*."""
     logger = logging.getLogger(_READERS_LOGGER)
-    with _LOCK:
+    with locked(_LOCK):
         if not _STATE.installed:
             _STATE.propagate = logger.propagate
             # Flagged before the logger is changed, so that leaving undoes
@@ -93,7 +100,7 @@ def _undo(block: _Block) -> None:
     logger = logging.getLogger(_READERS_LOGGER)
     ident = threading.get_ident()
     captures = _STATE.dispatcher.captures
-    with _LOCK:
+    with locked(_LOCK):
         if captures.get(ident) is block.records:
             if block.outer is None:
                 del captures[ident]
@@ -109,18 +116,10 @@ def _exit(block: _Block) -> None:
     """Undo :func:`_enter`, and only that: an interrupt may have cut it
     short, so *block* is taken off only if registered.
 
-    A second interrupt in here is held until the undo has run to the end,
-    then raised.
+    A second interrupt in here is held for a few tries, then raised; see
+    :func:`pitloom.extract._interrupt_hold.run_held`.
     """
-    interrupt: KeyboardInterrupt | None = None
-    while True:
-        try:
-            _undo(block)
-            break
-        except KeyboardInterrupt as exc:
-            interrupt = exc
-    if interrupt is not None:
-        raise interrupt
+    run_held(lambda: _undo(block))
 
 
 @contextlib.contextmanager

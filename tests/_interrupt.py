@@ -21,6 +21,15 @@ from types import CodeType, FrameType
 from typing import Any
 
 
+def _index(texts: list[str], prefix: str, code: CodeType) -> int:
+    """The index of the first of *texts* starting with *prefix*; a renamed
+    anchor fails naming itself, not with a bare ``StopIteration``."""
+    for i, text in enumerate(texts):
+        if text.startswith(prefix):
+            return i
+    raise LookupError(f"{code.co_name} has no statement starting {prefix!r}")
+
+
 def statement_lines(
     fn: Callable[..., Any], first: str, last: str
 ) -> tuple[CodeType, range]:
@@ -29,8 +38,8 @@ def statement_lines(
     code = inspect.unwrap(fn).__code__
     lines, start = inspect.getsourcelines(code)
     texts = [line.strip() for line in lines]
-    begin = next(i for i, t in enumerate(texts) if t.startswith(first))
-    end = next(i for i, t in enumerate(texts) if t.startswith(last))
+    begin = _index(texts, first, code)
+    end = _index(texts, last, code)
     return code, range(start + begin, start + end + 1)
 
 

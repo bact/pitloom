@@ -487,7 +487,8 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env`
   wheel you trust; Ctrl-C cannot interrupt a native reader. A project
   directory is not gated, and with `embed-wheel --project-dir` the models are
   read from the project, not the wheel. No config key, so no config file can
-  opt in. See [AI model scan limits](ai-model-scan-limits.md#formats-gated-in-wheels).
+  opt in. See [AI model scan limits](ai-model-scan-limits.md#formats-gated-in-wheels);
+  which settings change the SBOM: [Settings that change the SBOM](ai-model-scan-limits.md#settings-that-change-the-sbom).
 
 See [Enrich an SBOM](#enrich-an-sbom) above for `--enrich`/`--no-enrich`,
 and [Building a project to discover its file list](allow-build.md) for

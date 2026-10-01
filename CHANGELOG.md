@@ -201,8 +201,9 @@ and this project adheres to
   scans, and reader warnings are escaped with a stable `FORMAT= FILE=` ([#263])
 - AI model readers refuse a pickle over 250k opcodes, a GGUF header over one
   budget, a Safetensors header over 16 MiB or an `.npy` header declaring more
-  than fits, and cut a model to 1000 entries per list or map, each with one
-  `WARNING:`; a cut model's memory is released ([#263])
+  than fits, cut a model to 1000 entries per list or map (the same ones every
+  run, Safetensors too) and an unparsed HDF5 config to 500 characters, each
+  with one `WARNING:`; a cut model's memory is released ([#263])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
