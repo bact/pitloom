@@ -277,8 +277,8 @@ skill ("Validate a wheel's embedded SBOM").
   files reference each discovered AI model file (`hasDataFile`), for a
   project directory (`project`, `generate <dir>`, `embed-wheel
   --project-dir`, and the Hatchling hook via the `scan-model-usage` config
-  key) or a built wheel (`wheel`, `wheel --embed`, `embed-wheel` without
-  `--project-dir`; models inside the wheel are found either way). Off by
+  key) or a built wheel (`wheel`, `generate <whl>`, `wheel --embed`,
+  `embed-wheel` without `--project-dir`; models inside the wheel are found either way). Off by
   default and **opt-in only**: add it only when the request asks which code
   loads a model. Models are found either way; when the setting was
   never given, one `INFO:` line says how many were found and names this flag
@@ -373,12 +373,15 @@ complete but isn't. Per-case detail: `references/known-limitations.md`.
   when an entry looks sparse.
 - **AI model formats** are broad, not universal (see the description). An
   unrecognised serialisation is not scanned: say so, don't skip silently.
-- **AI model caps:** a model entry with only its format name (a "stub")
-  means its metadata was not read. Name the reason from stderr: the wheel
-  gate (`INFO:`, see `--trust-wheel-model`), a file over the
-  `max-model-extract-bytes` ceiling (512 MiB, config key only, wheel scans),
-  or another bound (`WARNING: ... metadata not read`). Lists past 1000
-  entries are cut with one `WARNING:`. Never raise the ceiling or add
+- **AI model caps:** a model entry with a format-named `name` and no other
+  property (a "stub") means its metadata was not read; a format-named entry
+  with properties was read (some formats carry no name). Name the reason
+  from stderr: the wheel gate (`INFO:`, see `--trust-wheel-model`);
+  `required library not installed` (install `pitloom[ai]`); the
+  `max-model-extract-bytes` ceiling (512 MiB, config key only, wheel scans)
+  or the per-wheel budget (4x the ceiling, one `WARNING: ... per-wheel
+  budget ... is spent`); a fixed bound (`WARNING: ... metadata not read`).
+  Lists past 1000 entries are cut with one `WARNING:`. Never raise the ceiling or add
   `--trust-wheel-model` on your own; tell the user. Caps:
   <https://bact.github.io/pitloom/ai-model-scan-limits/>.
 - **Unsupported build backend:** check `[build-system] build-backend`

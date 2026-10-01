@@ -178,13 +178,16 @@ Steps:
 3. Read the project's `README.md` / model card **prose** and other local
    docs. Propose only fields for gaps step 2 left untouched; do not
    restate what it already found.
-   - An `ai_AIPackage` named only after its format (`gguf`, `onnx`, ...)
-     is a stub: Pitloom did not read the file (a size cap or a bound; the
-     base run's stderr says which). Fields the file itself would give
-     (hyperparameters, inputs, outputs) are better read than inferred: tell
-     the user the cause and the fix (`max-model-extract-bytes`, or
-     `--trust-wheel-model` for a trusted wheel) before inferring them from
-     prose.
+   - An `ai_AIPackage` whose `name` is its format (`gguf`, `onnx`, ...)
+     **and** that has no other `ai_*` or `comment` property is a stub:
+     Pitloom did not read the file (a format-named entry *with* properties
+     was read; some formats carry no name). The base run's stderr says why:
+     `required library not installed` -- install `pitloom[ai]` and
+     regenerate; `... metadata not read` -- a fixed safety bound, not
+     configurable. Fields the file itself would give (hyperparameters,
+     inputs, outputs) are better read than inferred: tell the user the cause
+     before inferring them from prose. (`max-model-extract-bytes` and
+     `--trust-wheel-model` apply to wheel scans only, never a merge base.)
 4. **Interactive session only -- ask the SBOM author about remaining
    gaps they're plausibly positioned to know:** intended use, training-data
    provenance/consent, deployment restrictions -- not facts derivable from
