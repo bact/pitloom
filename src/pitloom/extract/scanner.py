@@ -33,11 +33,11 @@ from pitloom.extract._reader_log import capture_reader_logs
 from pitloom.extract.ai_model import detect_ai_model_format_from_header, read_ai_model
 from pitloom.extract.ai_model.archive_member import ArchiveMemberTooLarge
 from pitloom.extract.ai_model.limits import (
-    MAX_MODEL_ENTRIES,
     ModelLimitExceeded,
     ScanBudgetExceeded,
-    cap_entries,
+    cap_and_warn,
 )
+from pitloom.extract.ai_model.reader_requirements import require_library
 from pitloom.logging_config import loggable, one_line
 
 log = logging.getLogger(__name__)
@@ -46,7 +46,8 @@ log = logging.getLogger(__name__)
 # FORMAT=%s FILE=%s scan warning reads.
 _UNREADABLE_MODEL_WARNING = "FORMAT=%s " + UNREADABLE_FILE_WARNING
 
-# Said once per run, listing every gated format met.
+# Said once per scan, listing the gated formats met that were not announced
+# before.
 _GATE_INFO = (
     "AI models in a wheel in these formats are listed without metadata, "
     "their reader not being run on a wheel's files: %s. Pass %s for a "
@@ -86,24 +87,22 @@ class ReaderGate:
 
     Attributes:
         formats: The gated formats.
-        announce: Called once, by :meth:`report`, when a gated model was
-            met; returns whether to log the ``INFO:`` line saying so. The
-            producer makes it claim a once-per-run slot.
+        announce: Called by :meth:`report` once per gated format met, with
+            that format; returns whether to name it in the ``INFO:`` line. The
+            producer makes it claim a once-per-run slot for the format.
         met: The gated formats met so far.
     """
 
     formats: frozenset[AiModelFormat]
-    announce: Callable[[], bool]
+    announce: Callable[[AiModelFormat], bool]
     met: set[AiModelFormat] = field(default_factory=set)
 
     def report(self) -> None:
-        """Log, once, every gated format met (sorted), if *announce* allows."""
-        if self.met and self.announce():
-            log.info(
-                _GATE_INFO,
-                ", ".join(sorted(str(fmt) for fmt in self.met)),
-                PARAM_TO_FLAG["trust_wheel_model"],
-            )
+        """Log one line naming the gated formats met (sorted) that *announce*
+        allows; nothing when it allows none."""
+        named = [str(fmt) for fmt in sorted(self.met, key=str) if self.announce(fmt)]
+        if named:
+            log.info(_GATE_INFO, ", ".join(named), PARAM_TO_FLAG["trust_wheel_model"])
 
 
 @dataclass(frozen=True)
@@ -289,21 +288,6 @@ def _sniff_format(candidate: ModelCandidate) -> AiModelFormat | None:
     return None if fmt == AiModelFormat.UNKNOWN else fmt
 
 
-def _warn_if_capped(meta: AiModelMetadata, fmt: AiModelFormat, where: str) -> None:
-    """Cut *meta*'s over-long lists and maps; say so once."""
-    cut = cap_entries(meta)
-    if cut:
-        log.warning(
-            "FORMAT=%s FILE=%s: more than %d entries in %s; the first %d of "
-            "each are kept",
-            fmt,
-            where,
-            MAX_MODEL_ENTRIES,
-            ", ".join(cut),
-            MAX_MODEL_ENTRIES,
-        )
-
-
 def _read_candidate(candidate: ModelCandidate) -> AiModelMetadata | None:
     """Detect and read one candidate; ``None`` when it is not a model."""
     if not is_model_candidate_name(candidate.distribution_path):
@@ -318,10 +302,12 @@ def _read_candidate(candidate: ModelCandidate) -> AiModelMetadata | None:
 
     path: Path | None = None
     try:
+        # Before the model is copied out of its archive.
+        require_library(fmt)
         with candidate.materialize() as path:
             meta = _read_materialized(candidate, fmt, path)
         _set_paths(meta.format_info, candidate)
-        _warn_if_capped(meta, fmt, where)
+        cap_and_warn(meta, fmt, where)
         log.debug(
             "Discovered AI model: %s (format: %s)", candidate.distribution_path, fmt
         )

@@ -59,6 +59,7 @@ from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
+from pitloom.extract.ai_model.reader_requirements import missing_library
 from pitloom.logging_config import field_loss_suffix
 
 log = logging.getLogger(__name__)
@@ -302,10 +303,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
         # pylint: disable=import-outside-toplevel
         import h5py
     except ImportError as exc:
-        raise ImportError(
-            "The 'h5py' package is required to extract HDF5 model metadata. "
-            "Install it with: pip install h5py"
-        ) from exc
+        raise missing_library(AiModelFormat.HDF5) from exc
 
     try:
         hf = h5py.File(str(model_path), "r")

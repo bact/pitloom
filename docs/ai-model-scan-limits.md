@@ -28,7 +28,7 @@ the project or wheel.
 | :----------- | :---- | :------ |
 | An `ai_AIPackage` named after its format (`gguf`, `onnx`, ...) and nothing else, plus one `INFO:` | Wheel scan, format not read without `--trust-wheel-model` | [Formats gated in wheels](#formats-gated-in-wheels) |
 | Same, plus `WARNING: ... scan ceiling; metadata not read` | File larger than `max-model-extract-bytes` | [Size and count caps](#size-and-count-caps) |
-| Same, plus `WARNING: AI model scan: more than N bytes ...` | The wheel's total budget is spent | [Size and count caps](#size-and-count-caps) |
+| Same, plus `WARNING: AI model scan: the per-wheel budget of N bytes ...` | The wheel's total budget is spent | [Size and count caps](#size-and-count-caps) |
 | Same, plus another `... ; metadata not read` line | A bound inside the file was exceeded | [Size and count caps](#size-and-count-caps) |
 | Only the first 1000 inputs, hyperparameters, ... | Entry cap | [Size and count caps](#size-and-count-caps) |
 | No `ai_AIPackage` at all, only the file entry, plus `failed to extract metadata` | The reader could not parse the file | [What cannot be recorded](#what-cannot-be-recorded) |
@@ -46,7 +46,7 @@ list and does not depend on the model being read.
 | :----- | :-------------------- | :-------------- | :--------- | :--------------------------------- |
 | `wheel`, `wheel --embed`, `embed-wheel` without `--project-dir`, `generate x.whl` | Copied out of the wheel to a temporary file, one at a time | Yes | Yes | Yes |
 | `project`, `generate <dir>`, `embed-wheel --project-dir`, the Hatchling hook, `--allow-build` | Read in place | **No** | **No** | Yes |
-| `loom model FILE` | Read in place | No | No | Header and inner bounds: yes, as a failure (below). Entry cap: no |
+| `loom model FILE` | Read in place | No | No | Header and inner bounds: yes, as a failure (below). Entry cap: yes |
 | `env`, sdist archive, `loom model` with a Hugging Face ID or URL | Models are not scanned | -- | -- | -- |
 
 Scanning an untrusted checkout therefore runs the fastText, HDF5, ONNX,
@@ -55,8 +55,9 @@ size ceiling. Only scan project directories you trust.
 
 With `loom model FILE` there is no format-only entry: a bound that is
 exceeded stops the command with `ERROR: model command failed: <reason>`
-and exit status 1, and no SBOM is written. The 1000-entry cap is applied
-by the project and wheel scans only, so `loom model` keeps every entry.
+and exit status 1, and no SBOM is written. The 1000-entry cap applies as in
+the scans: the model is kept, cut, with the same one `WARNING:` naming the
+fields cut.
 
 ## Size and count caps
 
@@ -65,8 +66,9 @@ Values are exact; "stub" is the format-only entry described above.
 | Cap | Value | Applies to | Configurable | When it is hit |
 | :-- | :---- | :--------- | :----------- | :------------- |
 | Per-model size ceiling | 512 MiB (536870912 bytes) | Wheel scans, every format | `[tool.pitloom] max-model-extract-bytes` (positive integer; zero is an error, not "unlimited"), from `--config` or `pitloom_config=`. No CLI flag | Stub, per model. Declared size over the ceiling, checked before copying: `WARNING: FORMAT=<fmt> FILE=<path>: <N> bytes exceeds the <limit>-byte scan ceiling; metadata not read`. The copy also counts the bytes it really reads, so an archive that understates its size is stopped too: `... read more than <limit> bytes, over the <limit>-byte scan ceiling; metadata not read` |
-| Per-wheel budget | 4 times the ceiling (2 GiB by default) | Wheel scans: bytes copied plus bytes read from inside models | Derived from the ceiling; no key of its own | Models in path order are read until it is spent; later ones are stubs. One `WARNING: AI model scan: more than <N> bytes of model files copied or read from <wheel>; the models not yet read are listed without metadata` per wheel |
+| Per-wheel budget | 4 times the ceiling (2 GiB by default) | Wheel scans: bytes copied plus bytes read from inside models | Derived from the ceiling; no key of its own | Models in path order are read until it is spent; later ones are stubs. One `WARNING: AI model scan: the per-wheel budget of <N> bytes for copying and reading model files in <wheel> is spent; the model that would pass it and the models not yet read are listed without metadata` per wheel |
 | Inner archive member | 8 MiB | Every scan. Keras v3 `metadata.json` and `config.json`; PyTorch `.pt`/`.pth` `data.pkl` (a raw pickle `.pt` is read to the same cap); PT2 `version`, `archive_version`, `METADATA.json`, `models/model.json` and `extra/` files | No | Stub: `WARNING: FORMAT=<fmt> FILE=<path>: archive member <name> larger than 8388608 bytes; metadata not read`. Read bounded, so a few KiB that inflate to gigabytes are refused |
+| ZIP entries | 100,000 declared in the end-of-central-directory record (the ZIP64 one too; the larger of its count fields counts), and a central directory of at most 25,600,000 bytes (256 bytes per entry at the cap), checked before the archive is opened | Keras v3, PyTorch `.pt`/`.pth`, PT2, `.npz` | No | Stub: `WARNING: FORMAT=<fmt> FILE=<path>: ZIP archive of <N> entries; metadata not read` (or `ZIP central directory of <N> bytes`). A real checkpoint has a file per tensor, a few thousand at most; without the check 3 million empty entries in 16 MiB peaked at 1.8 GB |
 | Pickle opcodes | 250,000; only the first pickle is read | PyTorch `.pt`/`.pth` | No | Stub: `... pickle with more than 250000 opcodes; metadata not read` |
 | GGUF header budget | 1,000,000 units: tensor infos and key/value pairs weigh 4 each, array elements 1 each, at every depth | GGUF | No | Stub: `... GGUF header declares <N> tensors, over the 1000000 budget` (or `key/value pairs`, `array of <N> elements`) |
 | GGUF array nesting | 4 levels | GGUF | No | Stub: `... GGUF arrays nested over 4; metadata not read` |
@@ -75,7 +77,7 @@ Values are exact; "stub" is the format-only entry described above.
 | Safetensors header | 16 MiB | Safetensors | No | Stub: `... Safetensors header of <N> bytes; metadata not read` |
 | `.npy` header | 10000 bytes (NumPy's own limit) | `.npy`, and each array in an `.npz` | No | Stub: `... .npy header of <N> bytes, over 10000; metadata not read` |
 | `.npz` members | Reading stops after 1001 arrays; then the entry cap below applies | `.npz` | No | See the entry cap |
-| Entries per list or map | 1000, the first ones: in file order, except Safetensors `__metadata__`, which has none and keeps its first 1000 keys in sorted order | `inputs`, `outputs`, `hyperparameters`, `properties`, `raw_metadata` of every format; project and wheel scans | No | Model kept, lists trimmed, provenance of dropped keys removed: `WARNING: FORMAT=<fmt> FILE=<path>: more than 1000 entries in <fields>; the first 1000 of each are kept` |
+| Entries per list or map | 1000, the first ones: in file order, except Safetensors `__metadata__`, which has none and keeps its first 1000 keys in sorted order. Safetensors' well-known keys (`modelspec.title`, `name`, `format`, ...) are read from the whole `__metadata__`, so they set the model's name, version and so on even when they sort past the cut | `inputs`, `outputs`, `hyperparameters`, `properties`, `raw_metadata` of every format; project and wheel scans, and `loom model FILE` | No | Model kept, lists trimmed, provenance of dropped keys removed: `WARNING: FORMAT=<fmt> FILE=<path>: more than 1000 entries in <fields>; the first 1000 of each are kept` |
 | Archive listing | First 20 names (`properties.archive_contents`, ending `, ... (<N> total)` when cut) | PyTorch classic, PT2 | No | No log line, since nearly every checkpoint has a file per tensor; the value itself says it is cut |
 | Unparsed Keras config | First 500 characters (`properties.model_config_raw`) | HDF5, only when the config cannot be parsed | No | `WARNING: FORMAT=<fmt> FILE=<path>: Unparsed model_config of <N> characters; the first 500 are kept ...`, only when it is longer than 500 |
 | fickling messages | fickling's stderr output is held back (first 4096 characters kept) and the warning quotes the first 200 | PyTorch `.pt`/`.pth` | No | `WARNING: fickling reported on stderr: <text>` |
@@ -96,11 +98,11 @@ changes the models' entries, except where you asked for the change yourself:
 
 | Setting | What changes | Message |
 | :------ | :----------- | :------ |
-| `--trust-wheel-model` | Models of the gated formats in a wheel are read, not listed as stubs | Without it, one `INFO:` naming the formats not read |
+| `--trust-wheel-model` | Models of the gated formats in a wheel are read, not listed as stubs | Without it, one `INFO:` naming the formats not read (each format once per run) |
 | `max-model-extract-bytes` | A model over it, and every model after the per-wheel budget (4 times it) is spent, is a stub | One `WARNING:` per stubbed model; one per wheel for the budget |
 | `--scan-model-usage` | `hasDataFile` edges from `.py` files to models exist or not | Without the setting given, one `INFO:` naming the flag |
 | `--allow-build` | The file list comes from a real build, so the models found, and their paths, can differ from the static list | None when the build succeeds; a `WARNING:` and the static list when it fails. See [Building a project](allow-build.md) |
-| The 1000-entry cap | Which entries are kept: the first 1000 in file order, or in sorted key order for Safetensors `__metadata__` | One `WARNING:` per model naming the fields cut |
+| The 1000-entry cap | Which entries are kept: the first 1000 in file order, or in sorted key order for Safetensors `__metadata__` | One `WARNING:` per model naming the fields cut, in a scan and in `loom model FILE` |
 | A project directory, not its built wheel | Models are read in place: no ceiling, no gate | None; see [Which scans apply which limits](#which-scans-apply-which-limits) |
 
 A cut that the output marks itself, such as the 20-name archive listing
@@ -124,7 +126,7 @@ crafted file can make very slow or very large (GGUF, fickling). A hostile
 file can crash Pitloom, hang it, or exhaust memory, and Ctrl-C cannot stop
 a native parser while it runs. A wheel is often a file you did not build.
 
-Pitloom logs one line per scan, naming the formats it met:
+Pitloom logs one line per scan, naming the gated formats it met that it has not already named. In a batch (`embed-wheel` with several wheels) each format is named once, in the first wheel that has it, and a later wheel with a different gated format gets its own line:
 
 ```text
 INFO: AI models in a wheel in these formats are listed without metadata, their reader not being run on a wheel's files: gguf, onnx. Pass --trust-wheel-model for a wheel you trust.

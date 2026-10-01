@@ -30,7 +30,6 @@ from contextlib import AbstractContextManager
 from pathlib import Path, PurePosixPath
 from typing import IO, NoReturn
 
-from pitloom.core._models_wheel_types import is_dist_info_path
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.core.archive_member_names import zip_file_members
 from pitloom.core.build_signals import MODEL_SCAN_ACTIVITY, TerminationGuard
@@ -144,7 +143,8 @@ class _Scratch:
         if not self.exhausted:
             self.exhausted = True
             log.warning(
-                "%smore than %d bytes of model files copied or read from %s; "
+                "%sthe per-wheel budget of %d bytes for copying and reading "
+                "model files in %s is spent; the model that would pass it and "
                 "the models not yet read are listed without metadata",
                 MODEL_SCAN_ACTIVITY.log_prefix,
                 self.budget,
@@ -235,18 +235,21 @@ def _materializer(
     return _materialize
 
 
-def _announce_once(claim: Callable[[], bool]) -> Callable[[], bool]:
-    """*claim*, asked at most once."""
-    asked = False
-
-    def announce() -> bool:
-        nonlocal asked
-        if asked:
-            return False
-        asked = True
-        return claim()
-
-    return announce
+def _own_dist_info_prefixes(members: Iterable[_Member]) -> tuple[str, ...]:
+    """``"<dir>/"`` for each top-level ``*.dist-info`` directory that holds
+    a wheel's own ``METADATA`` or ``WHEEL``: the wheel's own, as opposed to
+    any other ``*.dist-info`` directory a package ships as data."""
+    return tuple(
+        sorted(
+            {
+                f"{parts[0]}/"
+                for name, _ in members
+                if len(parts := name.split("/")) == 2
+                and parts[0].endswith(".dist-info")
+                and parts[1] in ("METADATA", "WHEEL")
+            }
+        )
+    )
 
 
 def _wheel_candidates(
@@ -286,15 +289,16 @@ def scan_wheel_for_ai_models(
     usage_hint: Callable[[], bool],
     max_bytes: int,
     trust: bool = False,
-    gate_hint: Callable[[], bool] = lambda: True,
+    gate_hint: Callable[[AiModelFormat], bool] = lambda _fmt: True,
 ) -> list[AiModelMetadata]:
     """Scan a built wheel's files for AI models; with *scan_usage*, their
     script usages.
 
     Members are the wheel's install-location names as
     :func:`pitloom.extract.wheel.read_wheel` records them, minus the
-    ``.dist-info`` directory. A model's ``distribution_path`` is that name
-    and its ``physical_path`` the raw archive name.
+    wheel's own ``.dist-info`` directory (the one with its ``METADATA``). A
+    model's ``distribution_path`` is that name and its ``physical_path`` the
+    raw archive name.
 
     A model larger than *max_bytes*, declared or actually read, or met once
     the wheel's budget (:data:`BUDGET_FACTOR` times *max_bytes*) of copied
@@ -303,9 +307,9 @@ def scan_wheel_for_ai_models(
 
     A model in a :data:`WHEEL_GATED_FORMATS` format is not read unless
     *trust*: it stays in the result without metadata, and one ``INFO:``
-    line per scan, listing the gated formats met (when *gate_hint* also
-    returns true; a batch makes it claim a once-per-run slot), names the
-    flag.
+    line per scan names the flag and lists the gated formats met that
+    *gate_hint* accepts (called once per format; a batch makes it claim a
+    once-per-run slot for that format, so each format is named once).
 
     *usage_hint*: see :func:`pitloom.extract.scanner.scan_ai_models`.
 
@@ -315,17 +319,11 @@ def scan_wheel_for_ai_models(
     require_max_model_extract_bytes(max_bytes)
     with zipfile.ZipFile(wheel_path) as zf, TerminationGuard() as guard:
         # No logger: read_wheel() already reported every member name.
-        members = [
-            member
-            for member in zip_file_members(zf, wheel_path.name, None)
-            if not is_dist_info_path(member[0])
-        ]
+        all_members = zip_file_members(zf, wheel_path.name, None)
+        own = _own_dist_info_prefixes(all_members)
+        members = [m for m in all_members if not m[0].startswith(own)]
         scratch = _Scratch(guard, max_bytes, wheel_path.name)
-        gate = (
-            None
-            if trust
-            else ReaderGate(WHEEL_GATED_FORMATS, _announce_once(gate_hint))
-        )
+        gate = None if trust else ReaderGate(WHEEL_GATED_FORMATS, gate_hint)
         try:
             models = scan_ai_models(
                 _wheel_candidates(zf, members, scratch, gate),

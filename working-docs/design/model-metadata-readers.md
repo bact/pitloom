@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -68,6 +68,42 @@ else by its declared length, and stops.
   reader is metadata-only is no longer in `WHEEL_GATED_FORMATS`. When HDF5
   is the only gated format left, `--trust-wheel-model` applies to it alone;
   it is retired when HDF5 has its own reader or leaves the gate another way.
+
+## What the readers remove, and what stays
+
+Checked against the findings of #263's review rounds 2 to 5b. Rule of
+thumb: what came from handing the file to someone else's library goes
+away; what came from handling untrusted input and recording output stays,
+and needs the same care in our own readers.
+
+Goes away:
+
+| Issue class | Why |
+|---|---|
+| Library amplification (GGUF numpy views, fickling AST, ONNX protobuf) | Only header bytes are read; cost follows the header, not the file |
+| Native crashes and hangs (libhdf5 segfault/loop, fastText full load) | No native code (HDF5 only once it has its own reader; gated until then) |
+| The wheel gate, `--trust-wheel-model`, the batch gate notice | Nothing left to gate (except HDF5 until its reader lands) |
+| fickling stderr capture (`_stderr_capture`): its race, `None` stderr, `writelines` | No third-party code writes to stderr |
+| Most of the reader log capture (`_reader_log`) | Our readers report through Pitloom's own warnings |
+| Ctrl-C not interrupting a native parser | Pure Python is always interruptible |
+| Safetensors `metadata()` order from a Rust HashMap | `json.loads` keeps the file's order |
+| Library version drift (e.g. a GGUF version the library reads but the walker does not bound) | Pitloom decides which versions it accepts |
+
+Stays:
+
+| Issue class | Why |
+|---|---|
+| Wheel member ceiling, per-wheel budget, zip bombs, hostile member names | Still untrusted archives. If readers take a seekable file object, members may be read straight from the wheel with no temp copy, which drops the temp directory and the copy-time signal hold |
+| A model's own ZIP with millions of entries (Keras v3, PT2, `.npz`) | Still ZIPs: the reader must bound the central directory, though it can stream it instead of letting `zipfile` build one object per entry |
+| Entry caps, a stable kept order, the cut warning | Pitloom still decides what goes into the SBOM |
+| Logic bugs such as looking up a field after the cut | Own code; the parity tests against the native libraries catch this class |
+| Determinism, `physical_path` vs `distribution_path`, the dist-info exclusion, `loom model` vs scan parity, usage-scan caps | Scanner and surface concerns, independent of the reader |
+| `read_wheel()` on a broken member name, AIPackage ids shifting with settings | Outside the readers (the second is registry v3's) |
+
+New risk taken on: Pitloom's own parsers can misread a format
+specification. That is why parity against the libraries, the hostile corpus
+and fuzzing (below) are part of each reader, and why HDF5 stays the hard
+case.
 
 ## Per-format plan
 

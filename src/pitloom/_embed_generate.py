@@ -273,7 +273,8 @@ def _build_sbom_standalone_wheel(
     per-run overrides); nothing is borrowed from the current directory. The
     AI models are the ones inside the wheel. A batch (*file_cache*) hints at
     ``--scan-model-usage`` once, from the first wheel that has models, and
-    likewise says once that a gated model was listed without metadata.
+    likewise says once per format that a gated model was listed without
+    metadata.
     """
     file_cache, trust = batch
     ai_models = scan_wheel_for_ai_models(
@@ -288,7 +289,9 @@ def _build_sbom_standalone_wheel(
         ),
         max_bytes=cfg.max_model_extract_bytes,
         trust=trust,
-        gate_hint=lambda: file_cache is None or file_cache.first_use(("gate-hint",)),
+        gate_hint=lambda fmt: (
+            file_cache is None or file_cache.first_use(("gate-hint", str(fmt)))
+        ),
     )
     doc = DocumentModel(
         project=wheel_metadata,

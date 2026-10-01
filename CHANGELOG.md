@@ -52,7 +52,7 @@ and this project adheres to
   wheel; beyond it the model stays without metadata ([#263])
 - `--trust-wheel-model` (`trust_wheel_model=`): a wheel's fastText, GGUF, HDF5,
   ONNX and PyTorch `.pt`/`.pth` models are listed without metadata unless
-  given; no config key ([#263])
+  given, one `INFO:` naming each format once per batch; no config key ([#263])
 
 ### Changed
 
@@ -202,8 +202,9 @@ and this project adheres to
 - AI model readers refuse a pickle over 250k opcodes, a GGUF header over one
   budget, a Safetensors header over 16 MiB or an `.npy` header declaring more
   than fits, cut a model to 1000 entries per list or map (the same ones every
-  run, Safetensors too) and an unparsed HDF5 config to 500 characters, each
-  with one `WARNING:`; a cut model's memory is released ([#263])
+  run, Safetensors too; also `loom model`) and an unparsed HDF5 config to 500
+  characters, each with one `WARNING:`; a ZIP model over 100k entries is
+  refused; a cut model's memory is released ([#263])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227

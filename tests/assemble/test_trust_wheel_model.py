@@ -11,7 +11,7 @@ flag (``trust_wheel_model=True``; for ``embed_wheel_sbom()`` the
 ``ConfigOverrides`` field) the loader runs. A project scan is not gated, and
 the flag there warns once that it has no effect. There is no config key.
 
-See also: :mod:`tests.extract.scanner.test_scanner_wheel_native_gate` (the
+See also: :mod:`tests.extract.scanner.test_scanner_wheel_gate_formats` (the
 gate), ``tests/cli/test_cli_option_reach.py`` (the flag on every other kind).
 """
 
@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections.abc import Callable
 from pathlib import Path
 
@@ -29,8 +30,9 @@ from pitloom.embed import ConfigOverrides, embed_wheel_sbom
 from tests._wheel_models import write_model_wheel
 from tests.assemble.embed_surfaces_shared import demo_project, run_cli
 from tests.assemble.test_scan_model_usage import _embedded
-from tests.extract.scanner.test_scanner_wheel_native_gate import (
-    _FASTTEXT,
+from tests.extract.scanner.test_scanner_wheel_gate_formats import (
+    FASTTEXT_DIR,
+    fixture_bytes,
     gate_infos,
     spy_load_model,
 )
@@ -42,7 +44,7 @@ _Runner = Callable[[Path, pytest.MonkeyPatch, bool], str]  # -> SBOM json
 
 
 def _wheel(directory: Path, name: str = "demo") -> Path:
-    data = (_FASTTEXT / "sentimentdemo.bin").read_bytes()
+    data = (FASTTEXT_DIR / "sentimentdemo.bin").read_bytes()
     return write_model_wheel(directory, {_MEMBER: data}, name=name)
 
 
@@ -147,13 +149,37 @@ def test_a_batch_says_so_once_and_gates_every_wheel(
     assert [_hyperparameters(_embedded(w)) for w in wheels] == [False] * 3
 
 
+def test_a_batch_names_each_gated_format_once_across_its_wheels(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Regression: one slot per batch named only the first wheel's gated
+    formats; a later wheel's different format got no notice."""
+    caplog.set_level(logging.INFO)
+    models = {
+        "a": "gguf/stories260K.gguf",
+        "b": "onnx/light-inception-v2.onnx",
+        "c": "gguf/stories260K.gguf",  # already announced
+    }
+    wheels = [
+        write_model_wheel(
+            tmp_path / n, {f"demo/{Path(m).name}": fixture_bytes(m)}, name=n
+        )
+        for n, m in models.items()
+    ]
+    run_cli(["embed-wheel", *map(str, wheels), "--offline"], monkeypatch)
+    named = [re.search(r": ([a-z0-9, ]+)\. Pass ", line) for line in gate_infos(caplog)]
+    # Sorted, so that the order the wheels finish in does not matter.
+    assert sorted(m.group(1) for m in named if m) == ["gguf", "onnx"]
+    assert [_hyperparameters(_embedded(w)) for w in wheels] == [False] * 3
+
+
 def test_a_project_scan_is_not_gated_and_the_flag_warns_once(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     caplog.set_level(logging.INFO)
     spy = spy_load_model(monkeypatch)
     project = demo_project(tmp_path)
-    data = (_FASTTEXT / "sentimentdemo.bin").read_bytes()
+    data = (FASTTEXT_DIR / "sentimentdemo.bin").read_bytes()
     (project / _MEMBER).write_bytes(data)
     out = tmp_path / "out.json"
     argv = ["project", str(project), "-o", str(out), "--offline", _FLAG]

@@ -206,14 +206,16 @@ def field_loss_suffix(status: str, *fields: str) -> str:
     return f" | Field(s) affected ({status}): {', '.join(fields)}"
 
 
-def one_line(value: object) -> str:
+def one_line(value: object, limit: int | None = None) -> str:
     """*value*'s text with every whitespace run, newlines included,
     collapsed to one space, then escaped as :func:`loggable` does, so a
     multi-line exception message interpolated into a log message cannot
     spill untagged continuation lines onto stderr, nor forge a tagged one.
     An exception with no message yields its class name instead of an empty
-    string."""
-    text = " ".join(str(value).split())
+    string. With *limit*, the collapsed text is cut to its first *limit*
+    characters before it is escaped, so the cut never splits an escaped
+    literal and loses its closing quote."""
+    text = " ".join(str(value).split())[:limit]
     if not text and isinstance(value, BaseException):
         return type(value).__name__
     return loggable(text)

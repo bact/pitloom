@@ -27,6 +27,7 @@ from pitloom.extract.ai_model._stderr_capture import capture_stderr
 from pitloom.extract.ai_model.archive_member import (
     ArchiveMemberTooLarge,
     open_archive_member,
+    open_model_zip,
 )
 from pitloom.extract.ai_model.limits import ModelLimitExceeded
 from pitloom.logging_config import field_loss_suffix, loggable, one_line
@@ -124,7 +125,7 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
                 failure = f"fickling parsed pickle but AST walk failed: {one_line(exc)}"
     if failure is not None:
         log.warning("%s%s", failure, field_loss_suffix("skipped", "type_of_model"))
-    stderr = one_line(sink.text())[:_FICKLING_STDERR_CHARS]
+    stderr = one_line(sink.text(), _FICKLING_STDERR_CHARS)
     if stderr:
         log.warning("fickling reported on stderr: %s", stderr)
     return type_of_model
@@ -250,7 +251,7 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
         )
 
     try:
-        with zipfile.ZipFile(str(model_path), "r") as zf:
+        with open_model_zip(model_path) as zf:
             type_of_model, properties, provenance = _read_pytorch_zip(zf, source)
     except (OSError, zipfile.BadZipFile) as exc:
         raise ValueError(f"Failed to read PyTorch file {model_path}: {exc}") from exc

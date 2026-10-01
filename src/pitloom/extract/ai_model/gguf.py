@@ -18,6 +18,7 @@ from pitloom.extract._extract_utils import (
     sanitize_provenance_text,
 )
 from pitloom.extract.ai_model._gguf_bounds import check_gguf_header
+from pitloom.extract.ai_model.reader_requirements import missing_library
 
 log = logging.getLogger(__name__)
 
@@ -173,10 +174,7 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         # pylint: disable=import-outside-toplevel
         from gguf import GGUFReader
     except ImportError as exc:
-        raise ImportError(
-            "The 'gguf' package is required to extract GGUF model metadata. "
-            "Install it with: pip install gguf"
-        ) from exc
+        raise missing_library(AiModelFormat.GGUF) from exc
 
     try:
         check_gguf_header(model_path)

@@ -69,7 +69,7 @@ def test_models_past_the_budget_are_format_only_with_one_warning(
     )
     assert len(copies) == fits  # a model past the budget is not even started
     (message,) = logged_warnings(caplog)
-    assert f"more than {budget} bytes" in message
+    assert f"per-wheel budget of {budget} bytes" in message
     assert message.startswith("AI model scan: ")
 
 
@@ -106,7 +106,40 @@ def test_the_budget_counts_bytes_read_not_bytes_declared(
     assert len(models) == len(_NAMES)
     assert _read_count(models) == fits < len(_NAMES)
     (message,) = logged_warnings(caplog)
-    assert "copied or read from" in message
+    assert "per-wheel budget" in message
+
+
+@pytest.mark.parametrize(
+    ("ceiling", "read"), [(_SIZE, True), (_SIZE - 1, False)], ids=["at", "over"]
+)
+def test_a_model_of_exactly_the_ceiling_is_read(
+    ceiling: int,
+    read: bool,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    copies: list[Path],
+) -> None:
+    """The ceiling is inclusive, declared and actually read alike."""
+    wheel = write_model_wheel(tmp_path, {_NAMES[0]: _MODEL})
+    (model,) = _scan(wheel, ceiling)
+    assert bool(model.provenance) is read
+    assert len(copies) == (1 if read else 0)  # over: refused before the copy
+    assert len(logged_warnings(caplog)) == (0 if read else 1)
+
+
+@pytest.mark.parametrize("count", [BUDGET_FACTOR, BUDGET_FACTOR + 1])
+def test_models_totalling_exactly_the_budget_are_all_read(
+    count: int, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The budget is inclusive: ``BUDGET_FACTOR`` models of the ceiling's size
+    spend all of it and are read; one more is not."""
+    wheel = write_model_wheel(tmp_path, dict.fromkeys(_NAMES[:count], _MODEL))
+    models = _scan(wheel, _SIZE)
+    assert len(models) == count
+    assert _read_count(models) == BUDGET_FACTOR
+    messages = logged_warnings(caplog)
+    assert len(messages) == (count - BUDGET_FACTOR)  # none, then one
+    assert all("per-wheel budget" in m for m in messages)
 
 
 def test_the_budget_is_per_wheel(tmp_path: Path) -> None:

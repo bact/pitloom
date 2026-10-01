@@ -19,10 +19,13 @@ from __future__ import annotations
 
 import contextlib
 import contextvars
+import logging
 from collections.abc import Callable, Iterator
 from itertools import islice
 
-from pitloom.core.ai_metadata import AiModelMetadata
+from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+
+log = logging.getLogger(__name__)
 
 #: Most entries kept per list or map of one model (inputs, outputs,
 #: hyperparameters, properties, raw metadata). A real model has tens to a
@@ -115,6 +118,24 @@ def cap_entries(meta: AiModelMetadata) -> list[str]:
             if _provenance_kept(key, kept)
         }
     return sorted(cut)
+
+
+def cap_and_warn(meta: AiModelMetadata, fmt: AiModelFormat, where: str) -> None:
+    """Apply :func:`cap_entries` to *meta* and say so once, naming *where*
+    (the model's loggable path). Every surface that reads a model calls this,
+    so a model is cut the same way, and announced in the same words, whether
+    it came from a scan or from ``loom model``."""
+    cut = cap_entries(meta)
+    if cut:
+        log.warning(
+            "FORMAT=%s FILE=%s: more than %d entries in %s; the first %d of "
+            "each are kept",
+            fmt,
+            where,
+            MAX_MODEL_ENTRIES,
+            ", ".join(cut),
+            MAX_MODEL_ENTRIES,
+        )
 
 
 def _provenance_kept(key: str, kept: dict[str, dict[str, object]]) -> bool:

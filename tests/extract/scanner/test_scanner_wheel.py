@@ -15,6 +15,7 @@ cleanup, hostile names), :mod:`tests.extract.scanner.test_scanner_project`.
 from __future__ import annotations
 
 import logging
+import sys
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,7 @@ from typing import Any
 import pytest
 
 from pitloom.assemble import generate_wheel_sbom
+from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.project import ProjectFile
 from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.scanner_project import scan_project_for_ai_models
@@ -117,18 +119,76 @@ def test_model_paths_are_the_file_records_of_read_wheel(tmp_path: Path) -> None:
         assert (info.file_path_relative, info.physical_path) in records
 
 
-def test_dist_info_is_not_scanned(tmp_path: Path) -> None:
-    wheel = write_model_wheel(
-        tmp_path,
-        {
-            "demo-1.0.0.dist-info/extra.safetensors": safetensors_bytes(),
-            "demo/kept.safetensors": safetensors_bytes(),
-        },
-    )
-    found = _scan_wheel(wheel)
+def test_only_the_wheels_own_dist_info_is_not_scanned(tmp_path: Path) -> None:
+    """Regression: every top-level ``*.dist-info`` was skipped, so a model
+    under any other one went unscanned, silently. The wheel's own is the one
+    that holds a ``METADATA`` or a ``WHEEL`` (as ``read_wheel`` finds it)."""
+    model = safetensors_bytes()
+    members = {
+        "demo/kept.safetensors": model,
+        "demo-1.0.0.dist-info/own.safetensors": model,  # own: METADATA below
+        "tagged-2.dist-info/WHEEL": b"Wheel-Version: 1.0\n",
+        "tagged-2.dist-info/own-too.safetensors": model,  # own: WHEEL
+        "other-2.0.dist-info/foreign.safetensors": model,  # no METADATA/WHEEL
+        "pkg/vendored.dist-info/METADATA": b"Name: x\n",
+        "pkg/vendored.dist-info/nested.safetensors": model,  # not top level
+        "data/WHEEL": b"x",  # a name, not a dist-info directory
+        "data/data.safetensors": model,
+        "dir.dist-info/METADATA/inner.safetensors": model,  # a directory
+    }
+    found = _scan_wheel(write_model_wheel(tmp_path, members))
     assert [m.format_info.file_path_relative for m in found] == [
-        "demo/kept.safetensors"
+        "data/data.safetensors",
+        "demo/kept.safetensors",
+        "dir.dist-info/METADATA/inner.safetensors",
+        "other-2.0.dist-info/foreign.safetensors",
+        "pkg/vendored.dist-info/nested.safetensors",
     ]
+
+
+_LIBRARY_CASES = [
+    ("m.safetensors", AiModelFormat.SAFETENSORS, "safetensors", False),
+    ("m.npz", AiModelFormat.NUMPY, "numpy", False),
+    ("m.onnx", AiModelFormat.ONNX, "onnx", True),  # gated: needs trust
+    ("m.gguf", AiModelFormat.GGUF, "gguf", True),
+    ("m.h5", AiModelFormat.HDF5, "h5py", True),
+    ("m.ftz", AiModelFormat.FASTTEXT, "fasttext", True),
+]
+
+
+@pytest.mark.parametrize(
+    ("member", "fmt", "module", "trust"),
+    _LIBRARY_CASES,
+    ids=[c[0] for c in _LIBRARY_CASES],
+)
+def test_a_model_is_not_copied_when_its_reader_library_is_missing(
+    member: str,
+    fmt: AiModelFormat,
+    module: str,
+    trust: bool,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    copies: list[Path],
+) -> None:
+    """Regression: up to the whole budget was copied out of the wheel just to
+    report that the reader's library is not installed. Same stub, same
+    message as the reader's own."""
+    path = tmp_path / member
+    path.write_bytes(b"x")
+    monkeypatch.setitem(sys.modules, module, None)  # "not installed"
+    with pytest.raises(ImportError) as excinfo:
+        read_ai_model(path, model_format=fmt)
+    wheel = write_model_wheel(tmp_path / "d", {f"demo/{member}": b"x"})
+    (model,) = _scan_wheel(wheel, trust=trust)
+    assert not copies
+    assert model.format_info.model_format == fmt
+    assert not model.provenance
+    (message,) = logged_warnings(caplog)
+    assert message == (
+        f"FORMAT={fmt} FILE=demo/{member}: required library not installed; "
+        f"{excinfo.value}"
+    )
 
 
 @pytest.mark.parametrize("usage", [False, True])

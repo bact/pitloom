@@ -149,14 +149,24 @@ def test_a_raw_pickle_is_bounded_but_trailing_data_is_not_its_size(
 # -- fickling's stderr ------------------------------------------------------
 
 
+@pytest.mark.parametrize(
+    ("noise", "quoted"),
+    [("line\n::error::forged ", False), ("\x1b[31m", True)],
+    ids=["printable", "escaped"],
+)
 def test_fickling_stderr_becomes_one_bounded_escaped_warning(
-    capsys: pytest.CaptureFixture[str], caplog: pytest.LogCaptureFixture
+    noise: str,
+    quoted: bool,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    """Regression: the escaped literal was cut after escaping, losing its
+    closing quote."""
     from fickling.fickle import Pickled  # pylint: disable=import-outside-toplevel
 
     def noisy(_stream: io.BytesIO) -> object:
         for _ in range(200):
-            sys.stderr.write("line\n::error::forged " + "y" * 500 + "\n")
+            sys.stderr.write(noise + "y" * 500 + "\n")
         return SimpleNamespace(ast=ast.parse("Foo()"))
 
     caplog.set_level(logging.WARNING)
@@ -169,6 +179,9 @@ def test_fickling_stderr_becomes_one_bounded_escaped_warning(
     assert message.startswith("fickling reported")
     assert len(message) < 300
     assert "\n" not in message
+    text = message.partition("stderr: ")[2]
+    assert text.startswith("'") == quoted
+    assert text.endswith("'" if quoted else "y")
 
 
 @pytest.mark.parametrize(

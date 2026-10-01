@@ -18,6 +18,7 @@ from __future__ import annotations
 import contextlib
 import io
 import logging
+import sys
 import tempfile
 import zipfile
 from collections.abc import Callable
@@ -78,6 +79,33 @@ def test_a_windows_style_temp_path_is_scrubbed_in_every_spelling(
     assert "pitloom-model-scan" not in message
     assert "AppData" not in message
     assert "demo/real.pt" in message
+
+
+# Evaluated at import on every platform: creating a symlink needs a privilege
+# on Windows.
+_SYMLINKS = sys.platform != "win32"
+
+
+@pytest.mark.skipif(not _SYMLINKS, reason="symlinks need a privilege on Windows")
+def test_a_path_quoted_in_its_resolved_spelling_leaves_no_residue(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The path as given is the tail of its resolved spelling (as macOS's
+    ``/var/...`` is of ``/private/var/...``), so the longer spelling must be
+    replaced first, or the head of it stays in the message."""
+    real = tmp_path / "real"
+    (real / "rel").mkdir(parents=True)
+    link = tmp_path / "link"
+    link.symlink_to(real, target_is_directory=True)
+    monkeypatch.chdir(link)
+    given = Path("rel") / "0.pt"
+    resolved = given.resolve()
+    assert str(resolved).endswith(str(given)) and resolved != given  # not vacuous
+    error = ValueError(f"cannot read {resolved}")
+    with patch(_READ, side_effect=error):
+        discover_ai_models([_candidate(given, Mock(return_value=_PT))])
+    (message,) = logged_warnings(caplog)
+    assert message.endswith("failed to extract metadata; cannot read demo/real.pt")
 
 
 def test_the_sniff_and_usage_branches_scrub_the_read_path(

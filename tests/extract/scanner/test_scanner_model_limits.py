@@ -212,8 +212,8 @@ def test_inner_reads_are_charged_to_the_wheel_budget_and_the_warning_names_it(
     assert len(models) == 8
     assert sum(bool(m.provenance) for m in models) == 3
     (message,) = logged_warnings(caplog)
-    assert message.startswith("AI model scan: more than 1048576 bytes")
-    assert "from evil name-1.0.0-py3-none-any.whl;" in message
+    assert message.startswith("AI model scan: the per-wheel budget of 1048576 bytes")
+    assert "files in evil name-1.0.0-py3-none-any.whl is spent;" in message
 
 
 @pytest.mark.skipif(_NO_CONTROL_CHAR_NAMES, reason="control characters in file names")
@@ -247,6 +247,23 @@ def test_the_budget_warning_escapes_the_wheel_name(
 def test_one_line_composes_loggable(value: object, expected: str) -> None:
     assert one_line(value) == expected
     assert loggable(one_line(value)) == one_line(value)  # idempotent
+
+
+@pytest.mark.parametrize(
+    ("value", "limit", "expected"),
+    [
+        ("a  b\nc" + "d" * 10, 5, "a b c"),
+        ("abc", 3, "abc"),  # at the limit: whole
+        ("a\x1bbcdef", 3, "'a\\x1bb'"),  # cut first, then escaped and quoted
+        ("abc", None, "abc"),
+        (ValueError(), 5, "ValueError"),
+    ],
+)
+def test_one_line_cuts_before_it_escapes(
+    value: object, limit: int | None, expected: str
+) -> None:
+    """Regression: cutting the escaped text lost its closing quote."""
+    assert one_line(value, limit) == expected
 
 
 @pytest.mark.parametrize("exc", [ValueError(), KeyError(), EOFError("")])

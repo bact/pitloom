@@ -16,6 +16,7 @@ from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
+from pitloom.extract.ai_model.reader_requirements import missing_library
 from pitloom.logging_config import field_loss_suffix, loggable
 
 log = logging.getLogger(__name__)
@@ -47,10 +48,7 @@ def _load_fasttext_model(model_path: Path) -> Any:
 
         import fasttext
     except ImportError as exc:
-        raise ImportError(
-            "The 'fasttext' module is required to extract fastText model "
-            "metadata. Install it with: pip install fasttext-community"
-        ) from exc
+        raise missing_library(AiModelFormat.FASTTEXT) from exc
 
     try:
         return fasttext.load_model(str(model_path))

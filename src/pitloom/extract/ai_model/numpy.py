@@ -14,7 +14,6 @@ References:
 
 from __future__ import annotations
 
-import importlib.util
 import io
 import logging
 import zipfile
@@ -23,7 +22,9 @@ from typing import IO, Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.extract._extract_utils import sanitize_provenance_text
+from pitloom.extract.ai_model.archive_member import check_zip_bounds
 from pitloom.extract.ai_model.limits import MAX_MODEL_ENTRIES, ModelLimitExceeded
+from pitloom.extract.ai_model.reader_requirements import require_library
 
 log = logging.getLogger(__name__)
 
@@ -169,6 +170,7 @@ def _read_npz_metadata(
 
     inputs: list[dict[str, Any]] = []
     provenance: dict[str, str] = {}
+    check_zip_bounds(model_path)
     with np.load(str(model_path), allow_pickle=False) as npzfile:
         for archive_name in npzfile.zip.namelist():
             if len(inputs) > MAX_MODEL_ENTRIES:
@@ -193,20 +195,6 @@ def _read_npz_metadata(
         provenance["inputs"] = f"{source} | Field: array names, shapes, dtypes"
 
     return inputs, provenance
-
-
-def _ensure_numpy_installed() -> None:
-    """Verify that numpy package is available in current environment."""
-    try:
-        has_numpy = importlib.util.find_spec("numpy") is not None
-    except ValueError:
-        has_numpy = True
-
-    if not has_numpy:
-        raise ImportError(
-            "The 'numpy' package is required to extract NumPy model metadata. "
-            "Install it with: pip install numpy"
-        )
 
 
 def _detect_numpy_kind(model_path: Path) -> str | None:
@@ -266,7 +254,7 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
         ImportError: If ``numpy`` is not installed.
         ValueError: If the file cannot be read as a valid NumPy file.
     """
-    _ensure_numpy_installed()
+    require_library(AiModelFormat.NUMPY)
 
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
     format_version: str | None = None

@@ -13,6 +13,7 @@ from pathlib import Path
 
 from pitloom._sbom_io import write_sbom_output
 from pitloom.assemble.spdx3.document import build_enrichment_fragment, build_model
+from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides, resolve_standalone_config
 from pitloom.core.creation import CreationMetadata
@@ -29,6 +30,7 @@ from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.extract.ai_model import read_ai_model
+from pitloom.extract.ai_model.limits import cap_and_warn
 from pitloom.extract.project import (
     resolve_project_with_lockfile,
 )
@@ -39,9 +41,18 @@ from pitloom.id_registry import (
     registry_base_dir,
     resolve_registry,
 )
-from pitloom.logging_config import configure_logging
+from pitloom.logging_config import configure_logging, loggable
 
 log = logging.getLogger(__name__)
+
+
+def _read_local_model(model_path: Path) -> AiModelMetadata:
+    """Read a local model file, with the per-model entry cap a scan applies
+    (one ``WARNING:`` when it cuts), so ``loom model`` and a project or wheel
+    scan keep the same entries of the same file."""
+    model = read_ai_model(model_path)
+    cap_and_warn(model, model.format_info.model_format, loggable(str(model_path)))
+    return model
 
 
 def _doc_identity_of(
@@ -147,7 +158,7 @@ def generate_model_sbom(
         # declared-but-missing/malformed registry should fail fast, never
         # after paying for a model read and enrichment first.
         resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
-        model = read_ai_model(model_path)
+        model = _read_local_model(model_path)
         entity_spdx_id = IdRegistrySession(resolved_registry).entity_id(
             model_path.stem, [model_path.stem], "ai_AIPackage"
         )
@@ -234,7 +245,7 @@ def enrich_model(
         )
         base_doc_identity = _doc_identity_of(project_dir, base_metadata)
 
-    model = read_ai_model(model_path)
+    model = _read_local_model(model_path)
     # Unlike generate_model_sbom()/generate_project_sbom(), the config's
     # enrich setting is NOT an "off by default" gate here: calling
     # enrich_model() at all is itself the opt-in (see

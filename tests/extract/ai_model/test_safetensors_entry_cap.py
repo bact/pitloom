@@ -78,3 +78,34 @@ def test_a_map_is_cut_to_its_smallest_keys_only_over_the_cap(
     kept = read_safetensors(model_file).raw_metadata
     assert set(kept) == set(keys[: MAX_MODEL_ENTRIES + 1])  # one past the cap
     assert extra == 0 or list(kept) == keys[: MAX_MODEL_ENTRIES + 1]
+
+
+def test_well_known_keys_sorting_after_the_cap_are_still_read(tmp_path: Path) -> None:
+    """Regression: the cut to the smallest keys came before the lookup of
+    ``modelspec.title`` and the like, so a model with many ``a...`` keys lost
+    its name, version, architecture, precision and framework."""
+    pytest.importorskip("safetensors")
+    well_known = {
+        "modelspec.title": "RealName",
+        "modelspec.description": "Some text",
+        "modelspec.version": "2.0",
+        "modelspec.architecture": "llama",
+        "modelspec.precision": "fp16",
+        "format": "pt",
+    }
+    filler = {f"a{i:04d}": "v" for i in range(MAX_MODEL_ENTRIES + 500)}
+    model_file = tmp_path / "m.safetensors"
+    model_file.write_bytes(safetensors_bytes(metadata={**filler, **well_known}))
+    meta = read_safetensors(model_file)
+    assert len(meta.raw_metadata) == MAX_MODEL_ENTRIES + 1
+    assert well_known.keys().isdisjoint(meta.raw_metadata)  # cut, as before
+    assert (
+        meta.name,
+        meta.description,
+        meta.version,
+        meta.architecture,
+        meta.quantization,
+        meta.format_info.framework,
+    ) == ("RealName", "Some text", "2.0", "llama", "fp16", "pt")
+    for field in ("name", "description", "version", "architecture", "quantization"):
+        assert meta.provenance[field].endswith("Field: __metadata__")

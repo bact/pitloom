@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """The small helpers of the wheel scan producer: the Zstandard error probe,
-the quiet copy removal, and the once-only announcement.
+and the quiet copy removal.
 
 See also: :mod:`tests.extract.scanner.test_scanner_wheel_limits`.
 """
@@ -78,11 +78,3 @@ def test_removing_a_copy_never_raises_and_never_names_its_path(
     assert record.levelno == logging.DEBUG
     assert "Permission denied" in record.getMessage()
     assert "secret-dir" not in record.getMessage()
-
-
-@pytest.mark.parametrize("answer", [True, False])
-def test_an_announcement_asks_its_claim_once(answer: bool) -> None:
-    claim = Mock(return_value=answer)
-    announce = scanner_wheel._announce_once(claim)
-    assert [announce(), announce(), announce()] == [answer, False, False]
-    claim.assert_called_once_with()

@@ -19,6 +19,7 @@ from zipfile import ZipFile
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model.archive_member import (
+    open_model_zip,
     read_archive_member,
 )
 from pitloom.extract.ai_model.limits import ModelLimitExceeded
@@ -447,7 +448,7 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
     if not is_zip:
         raise ValueError(f"PT2 Archive must be a ZIP file, got: {model_path}")
 
-    with zipfile.ZipFile(str(model_path), "r") as zf:
+    with open_model_zip(model_path) as zf:
         (
             name,
             description,

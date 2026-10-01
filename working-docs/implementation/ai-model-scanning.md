@@ -283,7 +283,9 @@ Hatchling hook scans its project directory, never a wheel.
 
 - **Members** come from `zip_file_members(zf, name, None)` -- no logger, as
   `read_wheel()` already reported every name (two reports would double each
-  `ARCHIVE= ENTRY=` warning) -- minus `*.dist-info/*`. `distribution_path` is
+  `ARCHIVE= ENTRY=` warning) -- minus the wheel's own `.dist-info/` (the
+  top-level one holding its `METADATA` or `WHEEL`; any other `*.dist-info/` is
+  scanned). `distribution_path` is
   the normalised name (the same string as `software_File.name`), so
   `contains` and `hasDataFile` resolve; `physical_path` is the raw
   `orig_filename`, exactly what `read_wheel` stores in
@@ -398,10 +400,11 @@ Hatchling hook scans its project directory, never a wheel.
   `.pt`/`.pth` through fickling (~200x) and GGUF through `GGUFReader`'s
   per-element loop. A wheel's hostile file is the likelier input, so the default
   there is: sniff only (no materialise, no loader), `_stub()`, and one `INFO:`
-  per run listing every gated format met, sorted, and naming the flag
-  (`ReaderGate.report()` after a scan that succeeded, none on failure, when no
-  SBOM is written; through the same once-per-run slot style as the usage hint,
-  so an `embed-wheel` batch says it once). `WHEEL_GATED_FORMATS`
+  per scan listing the gated formats met that its claim accepts, sorted, and
+  naming the flag (`ReaderGate.report()` after a scan that succeeded, none on
+  failure, when no SBOM is written; the claim is per format, so an
+  `embed-wheel` batch names each format once, in the first wheel that has it:
+  a per-batch slot named only the first wheel's formats). `WHEEL_GATED_FORMATS`
   (`scanner_wheel.py`) is the set of formats; the scanner sees it only as a
   `ReaderGate` on each `ModelCandidate`, so a project producer could use it.
   `--trust-wheel-model` (`trust_wheel_model=`;
@@ -452,7 +455,23 @@ Hatchling hook scans its project directory, never a wheel.
   cap nothing is reordered: every consumer sorts (the annotation is JCS,
   hyperparameters and provenance are sorted). Rejected: sorting every map in
   `cap_entries()` (a reader with a file order would lose it for nothing), and
-  sorting a map at or under the cap.
+  sorting a map at or under the cap. The cut applies only to what is kept as
+  `properties`/`raw_metadata`: the well-known keys (`modelspec.title`, `name`,
+  `format`, ...) are read from the whole map first, or a key sorting past the
+  cut lost the model its name. `loom model FILE` and `loom enrich FILE` apply
+  the same cap through the same `limits.cap_and_warn()` the scanner calls
+  (they kept 1001 entries, silently, before).
+- **ZIP central directory** (round 5b). Keras, PT2, PyTorch zip and `.npz`
+  open the archive with `zipfile`, which builds a `ZipInfo` (~600 B) per
+  entry before any reader looks at one: a `.keras` of 3 million empty entries,
+  16 MiB in a wheel, peaked at 1.8 GB. `archive_member.check_zip_bounds()`
+  reads the end-of-central-directory record (and the ZIP64 one) from the last
+  64 KiB + 22 bytes and refuses over 100,000 entries; the plain record's
+  counts are 16 bits, so only ZIP64 can say more. `zipfile` reads the
+  directory by its byte size, not the entry count, so an archive may understate
+  the count: the directory size is bounded too (256 bytes an entry at the cap).
+  A wheel scan also asks `reader_requirements.require_library()` before it
+  copies a model, so a missing reader library no longer costs a copy.
 - **Nothing recorded is lost silently** (round-5 audit). Every cap, bound and
   gate has one `INFO:`/`WARNING:`: ceiling, budget, member, pickle, GGUF,
   Safetensors, `.npy` bounds, the entry cap, the wheel gate, the usage hint

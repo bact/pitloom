@@ -18,6 +18,7 @@ from pitloom.extract._extract_utils import (
     sanitize_provenance_text,
 )
 from pitloom.extract.ai_model.limits import MAX_MODEL_ENTRIES, ModelLimitExceeded
+from pitloom.extract.ai_model.reader_requirements import missing_library
 
 log = logging.getLogger(__name__)
 
@@ -66,8 +67,10 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
     header alongside tensor descriptors (name, dtype, shape). This extractor
     reads only the header -- it does not load tensor data into memory.
 
-    Over :data:`~pitloom.extract.ai_model.limits.MAX_MODEL_ENTRIES` entries,
-    ``__metadata__`` is cut to its smallest keys (see :func:`_stable_metadata`).
+    The well-known keys are looked up in the whole ``__metadata__``. Over
+    :data:`~pitloom.extract.ai_model.limits.MAX_MODEL_ENTRIES` entries, only
+    what is kept as ``properties`` and ``raw_metadata`` is cut to its
+    smallest keys (see :func:`_stable_metadata`).
 
     Commonly stored ``__metadata__`` keys (by convention):
     - ``modelspec.architecture`` -> architecture
@@ -91,11 +94,7 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
         # pylint: disable=import-outside-toplevel
         from safetensors import safe_open
     except ImportError as exc:
-        raise ImportError(
-            "The 'safetensors' package is required "
-            "to extract Safetensors model metadata. "
-            "Install it with: pip install safetensors"
-        ) from exc
+        raise missing_library(AiModelFormat.SAFETENSORS) from exc
 
     try:
         _check_header_length(model_path)
@@ -104,7 +103,7 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
             str(model_path),
             framework="numpy",
         ) as f:  # type: ignore[no-untyped-call]
-            raw_metadata = _stable_metadata(f.metadata() or {})
+            metadata: dict[str, str] = f.metadata() or {}
             tensor_keys: list[str] = list(f.keys())
     except ModelLimitExceeded:
         raise
@@ -121,49 +120,45 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
     # Some Safetensors files record the originating framework under "format"
     # (e.g. "pt" for PyTorch) or "modelspec.implementation".
     framework = (
-        raw_metadata.get("format")
-        or raw_metadata.get("modelspec.implementation")
-        or None
+        metadata.get("format") or metadata.get("modelspec.implementation") or None
     )
     if framework:
         provenance["framework"] = f"{source} | Field: __metadata__"
 
     # Pull well-known keys from __metadata__
     name = (
-        raw_metadata.get("modelspec.title")
-        or raw_metadata.get("name")
-        or raw_metadata.get("ss_base_model_version")
+        metadata.get("modelspec.title")
+        or metadata.get("name")
+        or metadata.get("ss_base_model_version")
     )
     if name:
         provenance["name"] = f"{source} | Field: __metadata__"
 
-    description = raw_metadata.get("modelspec.description") or raw_metadata.get(
-        "description"
-    )
+    description = metadata.get("modelspec.description") or metadata.get("description")
     if description:
         provenance["description"] = f"{source} | Field: __metadata__"
 
-    version = raw_metadata.get("modelspec.version") or raw_metadata.get("version")
+    version = metadata.get("modelspec.version") or metadata.get("version")
     if version:
         provenance["version"] = f"{source} | Field: __metadata__"
 
     # modelspec.architecture -> architecture (specific arch name)
-    architecture = raw_metadata.get("modelspec.architecture") or raw_metadata.get(
+    architecture = metadata.get("modelspec.architecture") or metadata.get(
         "architecture"
     )
     if architecture:
         provenance["architecture"] = f"{source} | Field: __metadata__"
 
     # modelspec.precision -> quantization (e.g. "fp16", "bf16", "int8")
-    quantization = raw_metadata.get("modelspec.precision") or raw_metadata.get(
-        "precision"
-    )
+    quantization = metadata.get("modelspec.precision") or metadata.get("precision")
     if quantization:
         provenance["quantization"] = f"{source} | Field: __metadata__"
 
-    # Remaining metadata as properties. Exact per-key provenance: each entry
-    # is traceable to its own ``__metadata__`` key.
-    properties = dict(raw_metadata.items())
+    # The well-known keys above came from the whole map; only what is kept
+    # below is cut. Exact per-key provenance: each entry is traceable to its
+    # own ``__metadata__`` key.
+    raw_metadata = _stable_metadata(metadata)
+    properties = dict(raw_metadata)
     record_dict_field_provenance(
         provenance, "properties", properties, source, location_prefix="__metadata__."
     )
