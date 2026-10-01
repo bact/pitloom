@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,6 +38,25 @@ fields land on `NOASSERTION` -- correct for "genuinely unknown".
 
 Recognised: GGUF, ONNX, PyTorch, PyTorch PT2/ExecuTorch, Safetensors, Keras,
 HDF5, NumPy, fastText, plus Hugging Face Hub.
+
+A recognised model can still be recorded as a stub: an `ai_AIPackage` named
+after its format, a `contains` link to its `software_File` and that file's
+SHA-256, nothing else. Causes, each with its own stderr line:
+
+- Wheel gate: fastText, GGUF, HDF5, ONNX and PyTorch `.pt`/`.pth` inside a
+  wheel are not read without `--trust-wheel-model` (one `INFO:` names them).
+- Size ceiling: a wheel member over `max-model-extract-bytes` (default
+  512 MiB; set only in a config file) or past the per-wheel budget (4x the
+  ceiling): `WARNING: ... metadata not read`.
+- A bound inside the file (pickle size/opcodes, GGUF header, Safetensors
+  header, `.npy` header, archive member size): `WARNING: ... metadata not
+  read`.
+
+A file the reader cannot parse at all gets no `ai_AIPackage`, only its
+file entry and a `failed to extract metadata` warning. Inputs, outputs,
+hyperparameters and properties are cut at 1000 entries. Project scans have
+no ceiling and no gate. Full table:
+<https://bact.github.io/pitloom/ai-model-scan-limits/>.
 
 ## Unsupported build backend
 

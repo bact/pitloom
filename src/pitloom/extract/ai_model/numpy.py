@@ -172,7 +172,9 @@ def _read_npz_metadata(
     with np.load(str(model_path), allow_pickle=False) as npzfile:
         for archive_name in npzfile.zip.namelist():
             if len(inputs) > MAX_MODEL_ENTRIES:
-                break  # the scanner cuts the list and says so
+                # One past the cap, so the scanner's cap_entries sees the
+                # list was longer, cuts it to the cap and warns.
+                break
             if not archive_name.endswith(".npy"):
                 continue
             array_name = archive_name[:-4]

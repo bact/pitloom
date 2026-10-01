@@ -51,4 +51,7 @@ def first_pickle(data: bytes) -> bytes:
     except Exception as exc:
         # genops raises ValueError, but also KeyError/UnicodeDecodeError/...
         raise ValueError(f"not a well-formed pickle: {exc}") from exc
+    # Unreachable with bytes input: genops returns at STOP or raises when the
+    # data ends first. Kept as the return-type guarantee, and as the refusal
+    # if a later genops stops early without raising.
     raise ValueError("not a well-formed pickle: no STOP opcode")

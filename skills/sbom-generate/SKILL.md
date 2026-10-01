@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-09-30
+# Last-Modified: 2026-10-01
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -372,6 +372,14 @@ complete but isn't. Per-case detail: `references/known-limitations.md`.
   when an entry looks sparse.
 - **AI model formats** are broad, not universal (see the description). An
   unrecognised serialisation is not scanned: say so, don't skip silently.
+- **AI model caps:** a model entry with only its format name (a "stub")
+  means its metadata was not read. Name the reason from stderr: the wheel
+  gate (`INFO:`, see `--trust-wheel-model`), a file over the
+  `max-model-extract-bytes` ceiling (512 MiB, config key only, wheel scans),
+  or another bound (`WARNING: ... metadata not read`). Lists past 1000
+  entries are cut with one `WARNING:`. Never raise the ceiling or add
+  `--trust-wheel-model` on your own; tell the user. Caps:
+  <https://bact.github.io/pitloom/ai-model-scan-limits/>.
 - **Unsupported build backend:** check `[build-system] build-backend`
   *before* generating. Hatchling, setuptools, Poetry, PDM-backend and
   Flit-core get accurate file discovery; any other (`uv_build`,

@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-09-30
+# Last-Modified: 2026-10-01
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -178,6 +178,13 @@ Steps:
 3. Read the project's `README.md` / model card **prose** and other local
    docs. Propose only fields for gaps step 2 left untouched; do not
    restate what it already found.
+   - An `ai_AIPackage` named only after its format (`gguf`, `onnx`, ...)
+     is a stub: Pitloom did not read the file (a size cap or a bound; the
+     base run's stderr says which). Fields the file itself would give
+     (hyperparameters, inputs, outputs) are better read than inferred: tell
+     the user the cause and the fix (`max-model-extract-bytes`, or
+     `--trust-wheel-model` for a trusted wheel) before inferring them from
+     prose.
 4. **Interactive session only -- ask the SBOM author about remaining
    gaps they're plausibly positioned to know:** intended use, training-data
    provenance/consent, deployment restrictions -- not facts derivable from

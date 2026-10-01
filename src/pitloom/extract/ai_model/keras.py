@@ -118,7 +118,7 @@ def read_keras(model_path: Path) -> AiModelMetadata:
     Reads:
 
     - ``metadata.json``: ``keras_version`` ->
-      :attr:`~AiModelMetadata.version`; ``date_saved`` -> properties.
+      :attr:`~AiModelMetadata.framework_version`; ``date_saved`` -> properties.
     - ``config.json``: ``class_name`` ->
       :attr:`~AiModelMetadata.type_of_model`; ``config.name`` ->
       :attr:`~AiModelMetadata.name`; scalar config entries ->
