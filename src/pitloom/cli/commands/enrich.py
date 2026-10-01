@@ -27,7 +27,10 @@ from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 def _run_enrich_command(args: argparse.Namespace) -> int:
     """Run enrichment only for a local AI model file; write a fragment."""
     target: str = args.target
-    model_path: Path = Path(target).resolve()
+    # The path as given goes to the generator, so its log lines name the
+    # file as the user wrote it.
+    given_path = Path(target)
+    model_path: Path = given_path.resolve()
     if not model_path.exists():
         print(f"ERROR: model file not found: {model_path}", file=sys.stderr)
         return 1
@@ -48,13 +51,13 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
             print(f"Project dir     : {args.project_dir}")
 
     enrich_model(
-        model_path,
+        given_path,
         output_path=output_path,
         project_target=args.project_dir,
         pitloom_config=pitloom_config,
         # enrich_model settles use_lockfile itself (it depends on the
         # project target); forward_options warns only for the rest.
-        **forward_options(ENRICH, str(model_path), enrich_model, options),
+        **forward_options(ENRICH, str(given_path), enrich_model, options),
     )
     print(f"Enrichment fragment written to: {output_path}")
     print(

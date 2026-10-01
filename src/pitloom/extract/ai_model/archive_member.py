@@ -18,9 +18,10 @@ See also: :mod:`pitloom.extract.scanner` (reports
 from __future__ import annotations
 
 import io
-import os
 import struct
 import zipfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import IO
 
@@ -34,7 +35,7 @@ MAX_ARCHIVE_MEMBER_BYTES = 8 * 1024 * 1024
 
 
 #: Most entries a model ZIP (``.keras``, ``.pt``, ``.pt2``, ``.npz``) may
-#: declare. ``zipfile`` builds a ``ZipInfo`` for every entry (about 600 bytes
+#: hold. ``zipfile`` builds a ``ZipInfo`` for every entry (about 600 bytes
 #: each) before a reader looks at one; a real checkpoint has a file per
 #: tensor, a few thousand at most.
 MAX_MODEL_ZIP_ENTRIES = 100_000
@@ -44,15 +45,12 @@ MAX_MODEL_ZIP_ENTRIES = 100_000
 # size, not by the entry count, so an archive may understate the count.
 _MAX_ZIP_DIRECTORY_BYTES = MAX_MODEL_ZIP_ENTRIES * 256
 
-_EOCD_SIGNATURE = b"PK\x05\x06"
-_EOCD = struct.Struct("<4s4H2LH")  # signature, 4 counts, size, offset, comment
-_ZIP64_LOCATOR_SIGNATURE = b"PK\x06\x07"
-_ZIP64_LOCATOR_SIZE = 20
-_ZIP64_EOCD_SIGNATURE = b"PK\x06\x06"
-_ZIP64_EOCD = struct.Struct("<4sQ2H2L4Q")  # ... entries on disk, entries, size
-_MAX_ZIP_COMMENT = 0xFFFF
-_MAX_PLAIN_COUNT = 0xFFFF  # a plain count that overflowed: see the ZIP64 record
-_MAX_PLAIN_SIZE = 0xFFFFFFFF
+_CENTRAL_HEADER = struct.Struct("<4s24x3H12x")  # signature; name/extra/comment
+_CENTRAL_SIGNATURE = b"PK\x01\x02"
+# Not in typeshed, so by name: the end-record function, and the indexes of
+# the directory size and of the end record's position in what it returns.
+_ZIPFILE_PRIVATES = ("_EndRecData", "_ECD_SIZE", "_ECD_LOCATION")
+_UNCHECKABLE = "ZIP archive not checkable: zipfile internals changed"
 
 
 class ArchiveMemberTooLarge(ModelLimitExceeded):
@@ -99,74 +97,123 @@ def open_archive_member(zf: zipfile.ZipFile, name: str) -> io.BytesIO:
     return io.BytesIO(read_archive_member(zf, name))
 
 
-def _read_at(fh: IO[bytes], position: int, size: int) -> bytes:
-    fh.seek(position)
-    return fh.read(size)
+def _directory_start_and_size(fh: IO[bytes]) -> tuple[int, int] | None:
+    """Where ``zipfile`` will start reading the central directory of *fh*
+    and its byte size, or ``None`` where ``zipfile`` itself will refuse the
+    file (no end record, a multi-disk or corrupt ZIP64 one).
 
+    The end record comes from ``zipfile._EndRecData``, the function
+    ``ZipFile`` calls, so both always pick the same one (the ZIP64 record is
+    found through its locator, the search window differs between Python
+    versions) and nothing here parses an end record. The start is
+    ``offset + concat`` of ``ZipFile._RealGetContents``, which is the end
+    record's own position less the directory size (``concat`` absorbs any
+    prepended data).
 
-def _declared_directory(fh: IO[bytes]) -> tuple[int, int] | None:
-    """The entry count and byte size of the central directory a ZIP file
-    declares, from its end-of-central-directory record (and the ZIP64 one
-    when there is one); the larger where the fields disagree, a plain field
-    that overflowed (its maximum) giving way to the ZIP64 one. ``None`` when
-    there is no such record: ``zipfile`` then fails on its own.
-
-    The record is found as ``zipfile`` finds it: the last signature in the
-    final 64 KiB plus 22 bytes. Nothing else is read.
+    Raises:
+        pitloom.extract.ai_model.limits.ModelLimitExceeded: ``zipfile`` has
+            no such function or constants, or returned something else than
+            the record this reads: the file cannot be checked, so it is not
+            read.
     """
-    end = fh.seek(0, os.SEEK_END)
-    base = max(0, end - (_EOCD.size + _MAX_ZIP_COMMENT))
-    tail = _read_at(fh, base, end - base)
-    start = tail.rfind(_EOCD_SIGNATURE)
-    if start < 0 or len(tail) - start < _EOCD.size:
+    try:
+        end_record_data, size_at, location_at = (
+            getattr(zipfile, name) for name in _ZIPFILE_PRIVATES
+        )
+    except AttributeError as exc:
+        raise ModelLimitExceeded(_UNCHECKABLE) from exc
+    try:
+        endrec = end_record_data(fh)
+    except (OSError, zipfile.BadZipFile):
+        return None  # ZipFile turns both into BadZipFile
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        raise ModelLimitExceeded(_UNCHECKABLE) from exc
+    if not endrec:
         return None
-    _, _, _, on_disk, total, size, _, _ = _EOCD.unpack_from(tail, start)
-    count = max(on_disk, total)
-    # The ZIP64 record sits right before its locator, which sits right
-    # before the end record.
-    record_at = base + start - _ZIP64_LOCATOR_SIZE - _ZIP64_EOCD.size
-    if record_at >= 0:
-        locator = _read_at(fh, record_at + _ZIP64_EOCD.size, _ZIP64_LOCATOR_SIZE)
-        record = _read_at(fh, record_at, _ZIP64_EOCD.size)
-        if locator.startswith(_ZIP64_LOCATOR_SIGNATURE) and record.startswith(
-            _ZIP64_EOCD_SIGNATURE
+    try:
+        size, location = int(endrec[size_at]), int(endrec[location_at])
+    except (IndexError, KeyError, TypeError, ValueError) as exc:
+        raise ModelLimitExceeded(_UNCHECKABLE) from exc
+    start = location - size
+    return (start, size) if start >= 0 else None
+
+
+def _count_exceeds_cap(fh: IO[bytes], start: int, size: int, cap: int) -> bool:
+    """Whether the central directory at *start* holds more than *cap* entries.
+
+    Walked as ``ZipFile._RealGetContents`` walks it: header by header (46
+    bytes, a name, an extra field and a comment each), until *size* bytes are
+    consumed; the end record's own counts are not used, as ``zipfile``
+    ignores them. A header that is not one ends the walk: ``zipfile`` raises
+    on it. Never holds more than one header.
+    """
+    count = consumed = 0
+    while consumed < size:
+        fh.seek(start + consumed)
+        header = fh.read(_CENTRAL_HEADER.size)
+        if len(header) != _CENTRAL_HEADER.size or not header.startswith(
+            _CENTRAL_SIGNATURE
         ):
-            _, _, _, _, _, _, on_disk64, total64, size64, _ = _ZIP64_EOCD.unpack(record)
-            # A plain field at its maximum only says "see the ZIP64 record".
-            plain = [c for c in (on_disk, total) if c != _MAX_PLAIN_COUNT]
-            count = max(on_disk64, total64, *plain)
-            size = size64 if size == _MAX_PLAIN_SIZE else max(size, size64)
-    return count, size
+            return False
+        count += 1
+        if count > cap:
+            return True
+        _, *lengths = _CENTRAL_HEADER.unpack(header)
+        consumed += _CENTRAL_HEADER.size + sum(lengths)
+    return False
 
 
-def check_zip_bounds(path: Path) -> None:
-    """Refuse a ZIP file declaring more than :data:`MAX_MODEL_ZIP_ENTRIES`
-    entries, or a central directory too large for that many, before anything
-    builds a ``ZipInfo`` per entry. Reads at most 64 KiB and some bytes.
+def check_zip_bounds(fh: IO[bytes]) -> None:
+    """Refuse a ZIP file, open as *fh*, holding more than
+    :data:`MAX_MODEL_ZIP_ENTRIES` entries or a central directory over its
+    byte cap, before ``zipfile`` builds a ``ZipInfo`` per entry. The entries
+    are counted as ``zipfile`` reads them, whatever the end record says.
+    *fh* is left at an arbitrary position.
+
+    Raises:
+        pitloom.extract.ai_model.limits.ModelLimitExceeded: Over a bound, or
+            not checkable (see :func:`_directory_start_and_size`).
+        OSError: The file cannot be read.
+    """
+    found = _directory_start_and_size(fh)
+    if found is None:
+        return
+    start, size = found
+    if size > _MAX_ZIP_DIRECTORY_BYTES:
+        raise ModelLimitExceeded(f"ZIP central directory of {size} bytes")
+    # Looked up at call time: a test lowers the module constant.
+    cap = MAX_MODEL_ZIP_ENTRIES
+    if _count_exceeds_cap(fh, start, size, cap):
+        raise ModelLimitExceeded(f"ZIP archive of more than {cap} entries")
+
+
+@contextmanager
+def open_model_binary(path: Path) -> Iterator[IO[bytes]]:
+    """Open *path* for reading, after :func:`check_zip_bounds`, as the one
+    handle the archive is then parsed from (a second open could see another
+    file). For a reader that hands the handle to something other than
+    ``zipfile``, such as ``numpy.load``.
 
     Raises:
         pitloom.extract.ai_model.limits.ModelLimitExceeded: Over a bound.
         OSError: The file cannot be read.
     """
     with path.open("rb") as fh:
-        declared = _declared_directory(fh)
-    if declared is None:
-        return
-    count, size = declared
-    if count > MAX_MODEL_ZIP_ENTRIES:
-        raise ModelLimitExceeded(f"ZIP archive of {count} entries")
-    if size > _MAX_ZIP_DIRECTORY_BYTES:
-        raise ModelLimitExceeded(f"ZIP central directory of {size} bytes")
+        check_zip_bounds(fh)
+        fh.seek(0)
+        yield fh
 
 
-def open_model_zip(path: Path) -> zipfile.ZipFile:
-    """Open *path* as a ZIP archive, after :func:`check_zip_bounds`. Every
-    reader that opens a model as a ZIP opens it through this.
+@contextmanager
+def open_model_zip(path: Path) -> Iterator[zipfile.ZipFile]:
+    """Open *path* as a ZIP archive, after :func:`check_zip_bounds`, from the
+    handle that was checked. Every reader that opens a model as a ZIP opens
+    it through this or :func:`open_model_binary`.
 
     Raises:
         pitloom.extract.ai_model.limits.ModelLimitExceeded: Over a bound.
         zipfile.BadZipFile: Not a ZIP archive.
         OSError: The file cannot be read.
     """
-    check_zip_bounds(path)
-    return zipfile.ZipFile(str(path), "r")
+    with open_model_binary(path) as fh, zipfile.ZipFile(fh, "r") as zf:
+        yield zf

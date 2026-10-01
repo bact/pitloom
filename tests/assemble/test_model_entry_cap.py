@@ -15,11 +15,13 @@ itself) and :mod:`docs/ai-model-scan-limits.md` (what is documented).
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
+from pitloom import __main__
 from pitloom.assemble import _model_generator
 from pitloom.assemble._model_generator import enrich_model, generate_model_sbom
 from pitloom.core.ai_metadata import AiModelMetadata
@@ -89,3 +91,25 @@ def test_a_model_file_is_capped_like_a_scan_with_one_warning(
     _SURFACES[surface](path, output_path=tmp_path / "out.json")
     (message,) = [m for m in logged_warnings(caplog) if "entries in" in m]
     assert message == local_message
+
+
+@pytest.mark.parametrize("command", ["model", "enrich"])
+def test_the_cli_names_the_model_as_it_was_given(
+    command: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression: ``loom model``/``enrich`` resolved the path first, so its
+    ``FILE=`` was absolute where a scan's is the one the user wrote."""
+    (tmp_path / "models").mkdir()
+    path, _, _ = _safetensors(tmp_path / "models")
+    monkeypatch.chdir(tmp_path)
+    given = Path("models") / path.name
+    monkeypatch.setattr(
+        sys, "argv", ["loom", command, str(given), "-o", str(tmp_path / "out.json")]
+    )
+    assert __main__.main() == 0
+    (message,) = [m for m in logged_warnings(caplog) if "entries in" in m]
+    assert f"FILE={given}:" in message
+    assert str(tmp_path) not in message

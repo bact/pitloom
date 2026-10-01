@@ -4,8 +4,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """A model ZIP is refused, before ``zipfile`` builds a ``ZipInfo`` per entry,
-when its end-of-central-directory record (or the ZIP64 one) declares more
-entries than the cap, or a central directory too large for that many.
+when it holds more entries than the cap, or a central directory over the byte
+cap. The entries are counted the way ``zipfile`` reads them, so every case
+here is also opened by a real ``zipfile.ZipFile``: the check refuses exactly
+the archives ``zipfile`` would open with more entries than the cap.
 
 See also: :mod:`tests.extract.ai_model.test_archive_member` (the member
 bound) and :mod:`pitloom.extract.ai_model.archive_member`.
@@ -15,12 +17,13 @@ bound) and :mod:`pitloom.extract.ai_model.archive_member`.
 
 from __future__ import annotations
 
+import contextlib
+import inspect
 import io
 import struct
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -30,170 +33,357 @@ from pitloom.core.project import ProjectFile
 from pitloom.extract.ai_model import archive_member, read_ai_model
 from pitloom.extract.ai_model.archive_member import (
     MAX_MODEL_ZIP_ENTRIES,
-    check_zip_bounds,
+    open_model_binary,
     open_model_zip,
 )
 from pitloom.extract.ai_model.limits import ModelLimitExceeded
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from tests.warning_helpers import logged_warnings
 
-# The plain record's counts are 16 bits, so a cap above 65535 is out of its
-# reach: the crafted cases lower the cap (and write 0, not the 0xFFFF a real
-# ZIP64 archive puts in the plain record); the real one is used further below.
-_CAP = 1000
-_DIRECTORY_CAP = archive_member._MAX_ZIP_DIRECTORY_BYTES
+_CAP = 3
 _MAX_COMMENT = 0xFFFF
-
-
-def _eocd(on_disk: int, total: int, size: int = 0, comment: bytes = b"") -> bytes:
-    return (
-        struct.pack(
-            "<4s4H2LH", b"PK\x05\x06", 0, 0, on_disk, total, size, 0, len(comment)
-        )
-        + comment
-    )
-
-
-def _zip64(on_disk: int, total: int, size: int = 0) -> bytes:
-    """A ZIP64 end record and its locator, as they precede the end record."""
-    record = struct.pack(
-        "<4sQ2H2L4Q", b"PK\x06\x06", 44, 45, 45, 0, 0, on_disk, total, size, 0
-    )
-    return record + struct.pack("<4sLQL", b"PK\x06\x07", 0, 0, 1)
-
-
+_HEADER = 46
 _FFFF = 0xFFFF
 _FFFFFFFF = 0xFFFFFFFF
-# id -> (file bytes, refused with this reason, or None when read on)
-_CRAFTED: dict[str, tuple[bytes, str | None]] = {
-    "at-the-cap": (_eocd(_CAP, _CAP), None),
-    "over-the-cap": (_eocd(_CAP + 1, _CAP + 1), "entries"),
-    "disk-count-larger": (_eocd(_CAP + 1, 1), "entries"),
-    "total-larger": (_eocd(1, _CAP + 1), "entries"),
-    "zip64-total": (_zip64(1, _CAP + 1) + _eocd(0, 0), "entries"),
-    "zip64-disk": (_zip64(_CAP + 1, 1) + _eocd(0, 0), "entries"),
-    "zip64-at-the-cap": (_zip64(_CAP, _CAP) + _eocd(0, 0), None),
-    # What a real ZIP64 archive carries: the plain fields at their maximum.
-    "zip64-overflowed-plain-fields": (
-        _zip64(_CAP, _CAP, 5000) + _eocd(_FFFF, _FFFF, _FFFFFFFF),
-        None,
+
+
+def _header(name: int = 0, extra: int = 0, comment: int = 0) -> bytes:
+    """One central-directory header (what ``zipfile`` reads, nothing more)."""
+    fixed = struct.pack(
+        "<4s4B4HL2L5H2L",
+        b"PK\x01\x02",
+        20, 0, 20, 0,
+        0, 0, 0, 0,
+        0, 0, 0,
+        name, extra, comment, 0, 0,
+        0, 0,
+    )  # fmt: skip
+    return fixed + b"n" * name + b"e" * extra + b"c" * comment
+
+
+def _directory(entries: int) -> bytes:
+    return _header() * entries
+
+
+def _directory_of(header: bytes, entries: int) -> bytes:
+    d = header * entries
+    return d + _eocd(entries, len(d))
+
+
+def _eocd(
+    count: int,
+    size: int,
+    offset: int = 0,
+    comment: bytes = b"",
+    *,
+    disk: int = 0,
+    disk_cd: int = 0,
+) -> bytes:
+    return struct.pack(
+        "<4s4H2LH",
+        b"PK\x05\x06", disk, disk_cd, count, count, size, offset, len(comment),
+    ) + comment  # fmt: skip
+
+
+def _zip64_record(count: int, size: int, offset: int, extensible: bytes = b"") -> bytes:
+    return struct.pack(
+        "<4sQ2H2L4Q",
+        b"PK\x06\x06", 44 + len(extensible), 45, 45, 0, 0, count, count, size, offset,
+    ) + extensible  # fmt: skip
+
+
+def _locator(reloff: int, disks: int = 1) -> bytes:
+    return struct.pack("<4sLQL", b"PK\x06\x07", 0, reloff, disks)
+
+
+def _real_count(data: bytes) -> int | None:
+    """What ``zipfile`` makes of *data*: its entry count, ``None`` when it
+    raises ``BadZipFile``."""
+    try:
+        return len(zipfile.ZipFile(io.BytesIO(data)).filelist)
+    except zipfile.BadZipFile:
+        return None
+
+
+def _archive(entries: int, comment: bytes = b"", prefix: bytes = b"") -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.comment = comment
+        for i in range(entries):
+            zf.writestr(f"{i}", b"")
+    return prefix + buf.getvalue()
+
+
+def _zip64_reloff(n: int, decoy: bytes = b"\0" * 56) -> bytes:
+    """The ZIP64 record is found through the locator's offset, behind 56
+    bytes of extensible data; a record at the fixed position is a decoy."""
+    d = _directory(n)
+    return d + _zip64_record(n, len(d), 0, decoy) + _locator(len(d)) + _eocd(1, _HEADER)
+
+
+def _signature_in_eocd(n: int) -> bytes:
+    """The end record's disk fields spell ``PK\\x05\\x06`` a second time."""
+    return _directory(n) + _eocd(1, n * _HEADER, disk=0x4B50, disk_cd=0x0605)
+
+
+def _window(n: int) -> bytes:
+    """An end record 65558 bytes from the end: found by Python 3.10's search
+    window, not by 3.14's."""
+    d = _directory(n)
+    return d + _eocd(1, len(d), comment=b"c" * _MAX_COMMENT) + b"x"
+
+
+def _walks_past_the_end_record(n: int) -> bytes:
+    """One header declaring an extra field longer than the directory it is
+    in, so a walk that goes by lengths alone reaches the headers behind the
+    end record, which are not part of the directory."""
+    return _header(extra=22)[:_HEADER] + _eocd(1, _HEADER) + _directory(n)
+
+
+# id -> (builder of an archive of n entries, what zipfile makes of it)
+_HOSTILE: dict[str, tuple[Callable[[int], bytes], str]] = {
+    "zip64-found-by-locator-offset": (_zip64_reloff, "opens"),
+    "zip64-decoy-at-the-fixed-position": (
+        lambda n: _zip64_reloff(n, decoy=_zip64_record(1, _HEADER, 0)),
+        "opens",
     ),
-    "zip64-overflowed-plain-fields-over": (
-        _zip64(_CAP + 1, _CAP + 1, 5000) + _eocd(_FFFF, _FFFF, _FFFFFFFF),
-        "entries",
+    "signature-inside-the-end-record": (_signature_in_eocd, "opens"),
+    "end-record-at-the-window-edge": (_window, "any"),
+    "count-lies-low": (
+        lambda n: _directory(n) + _eocd(1, n * _HEADER),
+        "opens",
     ),
-    "plain-larger-than-zip64": (_zip64(1, 1) + _eocd(1, _CAP + 1), "entries"),
-    "plain-size-larger-than-zip64": (
-        _zip64(1, 1, 1) + _eocd(_FFFF, _FFFF, _DIRECTORY_CAP + 1),
-        "central directory",
+    "count-lies-high": (
+        lambda n: _directory(n) + _eocd(_FFFF, n * _HEADER),
+        "opens",
     ),
-    "zip64-size": (
-        _zip64(1, 1, _DIRECTORY_CAP + 1) + _eocd(0, 0, 1),
-        "central directory",
+    "walk-ends-at-the-directory-size": (_walks_past_the_end_record, "one"),
+    "multi-disk-zip64-locator": (
+        lambda n: (
+            _directory(n)
+            + _zip64_record(n, n * _HEADER, 0)
+            + _locator(n * _HEADER, disks=2)
+            + _eocd(_FFFF, _FFFFFFFF)
+        ),
+        "bad",
     ),
-    "size": (_eocd(1, 1, _DIRECTORY_CAP + 1), "central directory"),
-    "size-at-the-cap": (_eocd(1, 1, _DIRECTORY_CAP), None),
-    "comment-at-its-longest": (
-        b"x" * 10 + _eocd(_CAP + 1, _CAP + 1, comment=b"c" * _MAX_COMMENT),
-        "entries",
+    "headers-with-names-extras-and-comments": (
+        lambda n: _directory_of(_header(1, 2, 3), n),
+        "opens",
     ),
-    # Not a record: left to zipfile's own error.
-    "no-record": (b"not a zip file at all" * 10, None),
-    "empty": (b"", None),
-    "record-cut-short": (_eocd(_CAP + 1, _CAP + 1)[:-1], None),
-    "locator-without-record": (
-        b"\0" * 3 + struct.pack("<4sLQL", b"PK\x06\x07", 0, 0, 1) + _eocd(0, 0),
-        None,
+    "no-end-record": (lambda n: _directory(n), "bad"),
+    "directory-larger-than-the-file": (
+        lambda n: _directory(n) + _eocd(n, 10**6),
+        "bad",
     ),
-    # A record or locator that is not one: its counts are not read.
-    "wrong-record-signature": (
-        b"PK\x06\x00" + _zip64(1, _CAP + 1)[4:] + _eocd(0, 0),
-        None,
+    "bad-header-signature": (
+        lambda n: b"PK\x01\x03" + _directory(n)[4:] + _eocd(n, n * _HEADER),
+        "bad",
     ),
-    "wrong-locator-signature": (
-        _zip64(1, _CAP + 1)[:56] + b"PK\x06\x00" + _zip64(1, 1)[60:] + _eocd(0, 0),
-        None,
+    "truncated-directory": (
+        lambda n: _directory(n) + _eocd(n, n * _HEADER + 10),
+        "bad",
     ),
-    # The last record is the one zipfile uses (a comment may hold a fake one).
-    "last-record-wins": (_eocd(1, 1) + _eocd(_CAP + 1, _CAP + 1), "entries"),
+    "prefixed": (lambda n: _archive(n, prefix=b"#!/bin/sh\n" * 50), "opens"),
+    "commented": (lambda n: _archive(n, comment=b"PK\x05\x06" + b"c" * 30), "any"),
+    "longest-comment": (lambda n: _archive(n, comment=b"c" * _MAX_COMMENT), "opens"),
+    "plain": (_archive, "opens"),
 }
 
 
-@pytest.mark.parametrize("case", _CRAFTED)
-def test_the_declared_directory_is_checked_before_zipfile_reads_it(
-    case: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("case", _HOSTILE)
+@pytest.mark.parametrize("extra", [-1, 0, 1, 2])
+def test_the_check_refuses_exactly_what_zipfile_opens_over_the_cap(
+    case: str, extra: int, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    data, refused = _CRAFTED[case]
+    """For each entry count around the cap, and whatever way the archive
+    hides it, the real ``ZipFile`` opens N entries iff the check lets it
+    through with N at most the cap."""
+    build, expected = _HOSTILE[case]
+    monkeypatch.setattr(archive_member, "MAX_MODEL_ZIP_ENTRIES", _CAP)
+    data = build(_CAP + extra)
+    real = _real_count(data)
     path = tmp_path / "m.zip"
     path.write_bytes(data)
-    opened: list[Any] = []
-    monkeypatch.setattr(archive_member, "MAX_MODEL_ZIP_ENTRIES", _CAP)
-
-    def spy(*args: Any, **kwargs: Any) -> Any:
-        opened.append(args)
-        raise zipfile.BadZipFile("spy")
-
-    monkeypatch.setattr(archive_member, "zipfile", SimpleNamespace(ZipFile=spy))
-    if refused is None:
-        check_zip_bounds(path)
-        with pytest.raises(zipfile.BadZipFile, match="spy"):
-            open_model_zip(path)  # past the check, on to zipfile
-        assert len(opened) == 1
+    # The case really is what it says: a vacuous pass is not possible.
+    if expected != "any":
+        assert (real is None) == (expected == "bad")
+    if expected == "one":
+        assert real == 1
+    elif expected == "opens":
+        assert real == _CAP + extra
+    if real is not None and real > _CAP:
+        with pytest.raises(ModelLimitExceeded, match="more than 3 entries"):
+            with open_model_zip(path):
+                pass
     else:
-        with pytest.raises(ModelLimitExceeded, match=refused):
-            open_model_zip(path)
-        assert not opened  # never reached zipfile
+        with open_model_zip(path) if real is not None else open_model_binary(path):
+            pass
+
+
+def test_the_cap_is_inclusive_at_its_real_value(tmp_path: Path) -> None:
+    """Over 65535 entries the plain record cannot say how many; only the
+    walk can."""
+    for entries, refused in (
+        (MAX_MODEL_ZIP_ENTRIES, False),
+        (MAX_MODEL_ZIP_ENTRIES + 1, True),
+    ):
+        d = _directory(entries)
+        path = tmp_path / f"{entries}.zip"
+        path.write_bytes(
+            d
+            + _zip64_record(entries, len(d), 0)
+            + _locator(len(d))
+            + _eocd(_FFFF, _FFFFFFFF)
+        )
+        if refused:
+            with pytest.raises(ModelLimitExceeded, match="more than 100000 entries"):
+                with open_model_binary(path):
+                    pass
+        else:
+            with open_model_binary(path):
+                pass
+
+
+@pytest.mark.parametrize(("limit_offset", "refused"), [(0, False), (-1, True)])
+def test_the_directory_byte_cap_is_inclusive(
+    limit_offset: int, refused: bool, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    d = _header(name=40) * 2
+    monkeypatch.setattr(
+        archive_member, "_MAX_ZIP_DIRECTORY_BYTES", len(d) + limit_offset
+    )
+    path = tmp_path / "m.zip"
+    path.write_bytes(d + _eocd(2, len(d)))
+    if refused:
+        with pytest.raises(ModelLimitExceeded, match=f"central directory of {len(d)} "):
+            open_model_zip(path).__enter__()
+    else:
+        with open_model_zip(path) as zf:
+            assert len(zf.filelist) == 2
+
+
+def test_a_hostile_count_is_refused_without_building_a_zipinfo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(archive_member, "MAX_MODEL_ZIP_ENTRIES", _CAP)
+    path = tmp_path / "m.zip"
+    path.write_bytes(_zip64_reloff(_CAP + 2))
+    built: list[object] = []
+
+    class _Spy(zipfile.ZipFile):  # pylint: disable=too-few-public-methods
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            built.append(args)
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr(zipfile, "ZipFile", _Spy)
+    with pytest.raises(ModelLimitExceeded):
+        open_model_zip(path).__enter__()
+    assert not built
+
+
+# --- zipfile's private end-record function: the shape this relies on --------
+
+
+def _private(owner: Any, name: str) -> Any:
+    """A zipfile name typeshed does not know."""
+    return getattr(owner, name)
+
+
+def _end_record(data: bytes) -> list[Any]:
+    result = _private(zipfile, "_EndRecData")(io.BytesIO(data))
+    assert isinstance(result, list)
+    return result
+
+
+def test_the_zipfile_end_record_shape_is_the_one_the_check_reads() -> None:
+    """Pin of ``zipfile._EndRecData`` on the running interpreter: where the
+    directory size and the end record's position are, for a plain and a
+    ZIP64 archive, and the arithmetic ``ZipFile`` does with them."""
+    size_at = _private(zipfile, "_ECD_SIZE")
+    location_at = _private(zipfile, "_ECD_LOCATION")
+    plain = _archive(2)
+    end = _end_record(plain)
+    assert len(end) == 10
+    assert end[size_at] == 2 * (46 + len("0")) + 0
+    assert end[location_at] == len(plain) - 22  # no comment: the last 22 bytes
+    d = _directory(2)
+    z64 = (
+        d
+        + _zip64_record(2, len(d), 0, b"x" * 8)
+        + _locator(len(d))
+        + _eocd(_FFFF, _FFFFFFFF)
+    )
+    end64 = _end_record(z64)
+    assert end64[size_at] == len(d)
+    assert end64[location_at] == len(
+        d
+    )  # the ZIP64 record's offset, not the end record's
+    assert (
+        zipfile.ZipFile(io.BytesIO(z64)).start_dir
+        == end64[location_at] - end64[size_at]
+    )
+    # The two lines of arithmetic the check copies, in this interpreter's source.
+    source = inspect.getsource(_private(zipfile.ZipFile, "_RealGetContents"))
+    handler = getattr(zipfile, "_handle_prepended_data", None)
+    source += inspect.getsource(handler) if handler else ""
+    for line in (
+        "endrec[_ECD_LOCATION] - size_cd - offset_cd",
+        "self.start_dir = offset_cd + concat",
+        "while total < size_cd",
+        "total + sizeCentralDir + centdir[_CD_FILENAME_LENGTH]",
+    ):
+        assert line in source
 
 
 @pytest.mark.parametrize(
-    ("entries", "refused"),
-    [(MAX_MODEL_ZIP_ENTRIES, False), (MAX_MODEL_ZIP_ENTRIES + 1, True)],
+    "broken",
+    ["no-function", "no-size-index", "no-location-index", "raises", "short", "junk"],
 )
-def test_the_real_cap_is_inclusive_and_reached_through_zip64(
-    entries: int, refused: bool, tmp_path: Path
+def test_a_zipfile_that_cannot_be_asked_fails_closed(
+    broken: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Over 65535 entries only a ZIP64 record can say so (a few million
-    empty entries fit a 16 MiB archive)."""
-    path = tmp_path / "m.zip"
-    path.write_bytes(_zip64(entries, entries) + _eocd(_FFFF, _FFFF))
-    if refused:
-        with pytest.raises(ModelLimitExceeded, match="ZIP archive of 100001 entries"):
-            check_zip_bounds(path)
+    def _raises(_fh: Any) -> None:
+        raise RuntimeError("changed")
+
+    if broken == "no-function":
+        monkeypatch.delattr(zipfile, "_EndRecData")
+    elif broken == "no-size-index":
+        monkeypatch.delattr(zipfile, "_ECD_SIZE")
+    elif broken == "no-location-index":
+        monkeypatch.delattr(zipfile, "_ECD_LOCATION")
     else:
-        check_zip_bounds(path)
-
-
-def test_only_the_tail_of_a_large_file_is_read(tmp_path: Path) -> None:
-    """The record is looked for in the last 64 KiB + 22 bytes, not the whole
-    file: a signature earlier than that is not found (zipfile ignores it too)."""
-    early = _eocd(1, 1, _DIRECTORY_CAP + 1)  # would be refused if it were found
+        monkeypatch.setattr(
+            zipfile,
+            "_EndRecData",
+            {
+                "raises": _raises,
+                "short": lambda _fh: [0],
+                "junk": lambda _fh: ["a"] * 10,
+            }[broken],
+        )
     path = tmp_path / "m.zip"
-    path.write_bytes(early + b"\0" * (_MAX_COMMENT + 22))
-    check_zip_bounds(path)  # no record in the tail: nothing refused
+    path.write_bytes(_archive(1))
+    with pytest.raises(ModelLimitExceeded, match="not checkable"):
+        open_model_zip(path).__enter__()
+
+
+@pytest.mark.parametrize("error", [OSError("short read"), zipfile.BadZipFile("x")])
+def test_an_end_record_zipfile_itself_refuses_is_left_to_it(
+    error: Exception, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _raises(_fh: Any) -> None:
+        raise error
+
+    monkeypatch.setattr(zipfile, "_EndRecData", _raises)
+    path = tmp_path / "m.zip"
+    path.write_bytes(_archive(1))
+    with open_model_binary(path):
+        pass  # not refused; ZipFile will turn the same error into BadZipFile
 
 
 def _entries(count: int) -> bytes:
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w") as zf:
-        zf.comment = b"c" * _MAX_COMMENT
-        for i in range(count):
-            zf.writestr(f"{i}", b"")
-    return buf.getvalue()
-
-
-def test_a_real_archive_is_refused_just_over_the_cap_and_read_at_it(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(archive_member, "MAX_MODEL_ZIP_ENTRIES", 3)
-    for count, refused in ((3, False), (4, True)):
-        path = tmp_path / f"{count}.zip"
-        path.write_bytes(_entries(count))
-        if refused:
-            with pytest.raises(ModelLimitExceeded, match="ZIP archive of 4 entries"):
-                open_model_zip(path)
-        else:
-            with open_model_zip(path) as zf:
-                assert len(zf.namelist()) == count
+    return _archive(count, comment=b"c" * _MAX_COMMENT)
 
 
 def _npz(path: Path) -> None:
@@ -214,6 +404,44 @@ _READER_FILES: dict[str, tuple[AiModelFormat, str, Callable[[Path], None]]] = {
 
 
 @pytest.mark.parametrize("case", _READER_FILES)
+def test_a_reader_parses_the_handle_that_was_checked(
+    case: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One open per read, for every reader: a second open could see another
+    file than the one checked."""
+    fmt, name, build = _READER_FILES[case]
+    path = tmp_path / name
+    build(path)
+    np = pytest.importorskip("numpy")
+    checked: list[Any] = []
+    parsed: list[Any] = []
+    real_check = archive_member.check_zip_bounds
+    real_zip, real_load = zipfile.ZipFile, np.load
+
+    def check(fh: Any) -> None:
+        checked.append(fh)
+        real_check(fh)
+
+    def zip_file(source: Any, *args: Any, **kwargs: Any) -> zipfile.ZipFile:
+        parsed.append(source)
+        return real_zip(source, *args, **kwargs)
+
+    def load(source: Any, *args: Any, **kwargs: Any) -> Any:
+        parsed.append(source)
+        return real_load(source, *args, **kwargs)
+
+    monkeypatch.setattr(archive_member, "check_zip_bounds", check)
+    monkeypatch.setattr(zipfile, "ZipFile", zip_file)
+    monkeypatch.setattr(np, "load", load)
+    with contextlib.suppress(Exception):  # the reader may not like the content
+        read_ai_model(path, model_format=fmt)
+    (handle,) = checked
+    assert parsed
+    assert all(source is handle for source in parsed)
+    assert handle.closed
+
+
+@pytest.mark.parametrize("case", _READER_FILES)
 def test_every_reader_that_opens_a_model_zip_refuses_one_over_the_cap(
     case: str,
     tmp_path: Path,
@@ -224,7 +452,7 @@ def test_every_reader_that_opens_a_model_zip_refuses_one_over_the_cap(
     path = tmp_path / name
     build(path)
     monkeypatch.setattr(archive_member, "MAX_MODEL_ZIP_ENTRIES", 4)
-    with pytest.raises(ModelLimitExceeded, match="ZIP archive of 5 entries"):
+    with pytest.raises(ModelLimitExceeded, match="more than 4 entries"):
         read_ai_model(path, model_format=fmt)
     # In a scan: one warning, a format-only entry.
     (model,) = scan_project_for_ai_models(
@@ -237,5 +465,6 @@ def test_every_reader_that_opens_a_model_zip_refuses_one_over_the_cap(
     assert not model.provenance
     (message,) = logged_warnings(caplog)
     assert message == (
-        f"FORMAT={fmt} FILE={name}: ZIP archive of 5 entries; metadata not read"
+        f"FORMAT={fmt} FILE={name}: "
+        "ZIP archive of more than 4 entries; metadata not read"
     )

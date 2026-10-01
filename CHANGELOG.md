@@ -48,8 +48,9 @@ and this project adheres to
 - `--scan-model-usage`: record which Python files reference a found AI model;
   config key, Action input, `scan_model_usage=`, also on wheels ([#252], [#263])
 - `wheel`, `wheel --embed` and `embed-wheel` without `--project-dir` find AI
-  models inside the wheel; `max-model-extract-bytes` caps a model, 4x that a
-  wheel; beyond it the model stays without metadata ([#263])
+  models inside the wheel, all but the dist-info its file name names;
+  `max-model-extract-bytes` caps a model, 4x that a wheel; beyond it the model
+  stays without metadata ([#263])
 - `--trust-wheel-model` (`trust_wheel_model=`): a wheel's fastText, GGUF, HDF5,
   ONNX and PyTorch `.pt`/`.pth` models are listed without metadata unless
   given, one `INFO:` naming each format once per batch; no config key ([#263])
@@ -203,8 +204,9 @@ and this project adheres to
   budget, a Safetensors header over 16 MiB or an `.npy` header declaring more
   than fits, cut a model to 1000 entries per list or map (the same ones every
   run, Safetensors too; also `loom model`) and an unparsed HDF5 config to 500
-  characters, each with one `WARNING:`; a ZIP model over 100k entries is
-  refused; a cut model's memory is released ([#263])
+  characters, each with one `WARNING:`; a ZIP model over 100k entries (counted as
+  `zipfile` reads them) or 25.6 MB of directory is refused; a cut model's memory
+  is released ([#263])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227

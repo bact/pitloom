@@ -11,7 +11,8 @@ SPDX-License-Identifier: CC0-1.0
 See also: [model-metadata-extraction.md](model-metadata-extraction.md) for
 the per-format readers and
 [recurring-bug-patterns.md](recurring-bug-patterns.md) for the
-`physical_path`/`distribution_path` hazard this design removes.
+`physical_path`/`distribution_path` hazard this design removes; [ai-model-scan-security-lessons.md](ai-model-scan-security-lessons.md)
+for the lessons from the review rounds, with measurements.
 
 ## Purpose
 
@@ -283,9 +284,13 @@ Hatchling hook scans its project directory, never a wheel.
 
 - **Members** come from `zip_file_members(zf, name, None)` -- no logger, as
   `read_wheel()` already reported every name (two reports would double each
-  `ARCHIVE= ENTRY=` warning) -- minus the wheel's own `.dist-info/` (the
-  top-level one holding its `METADATA` or `WHEEL`; any other `*.dist-info/` is
-  scanned). `distribution_path` is
+  `ARCHIVE= ENTRY=` warning) -- minus the wheel's own `.dist-info/`
+  (`_own_dist_info_prefixes()`: the top-level directory `{name}-{version}.dist-info`
+  that the wheel *file name* names, via `packaging.utils.parse_wheel_filename`,
+  names PEP 503- and versions PEP 440-compared; a name that is not a wheel
+  file name skips nothing; any other `*.dist-info/` is scanned). Rejected
+  (round 5c): "holds a `METADATA` or `WHEEL`" -- a hostile wheel hid a model
+  under `x.dist-info/WHEEL`. `distribution_path` is
   the normalised name (the same string as `software_File.name`), so
   `contains` and `hasDataFile` resolve; `physical_path` is the raw
   `orig_filename`, exactly what `read_wheel` stores in
@@ -461,15 +466,26 @@ Hatchling hook scans its project directory, never a wheel.
   cut lost the model its name. `loom model FILE` and `loom enrich FILE` apply
   the same cap through the same `limits.cap_and_warn()` the scanner calls
   (they kept 1001 entries, silently, before).
-- **ZIP central directory** (round 5b). Keras, PT2, PyTorch zip and `.npz`
+- **ZIP central directory** (rounds 5b, 5c). Keras, PT2, PyTorch zip and `.npz`
   open the archive with `zipfile`, which builds a `ZipInfo` (~600 B) per
   entry before any reader looks at one: a `.keras` of 3 million empty entries,
-  16 MiB in a wheel, peaked at 1.8 GB. `archive_member.check_zip_bounds()`
-  reads the end-of-central-directory record (and the ZIP64 one) from the last
-  64 KiB + 22 bytes and refuses over 100,000 entries; the plain record's
-  counts are 16 bits, so only ZIP64 can say more. `zipfile` reads the
-  directory by its byte size, not the entry count, so an archive may understate
-  the count: the directory size is bounded too (256 bytes an entry at the cap).
+  16 MiB in a wheel, peaked at 1.8 GB. Round 5b parsed the end record itself
+  and trusted its counts; round 5c's review showed it disagreed with `zipfile`
+  on which end record applies (a ZIP64 record found through the locator's
+  offset behind extensible data, a signature inside the end record's own
+  fields, Python 3.10's wider search window than 3.14's), and that `zipfile`
+  ignores the counts and walks the directory by its byte size. Now
+  `archive_member.check_zip_bounds()` asks `zipfile._EndRecData` (what `ZipFile`
+  itself calls) for the directory's size and the end record's position,
+  refuses a directory over 25,600,000 bytes, then walks it header by header
+  as `_RealGetContents` does (start = end record position - directory size, so
+  prepended data is handled; stop at the byte size) and refuses at the
+  100,001st entry. One handle is opened, checked and handed to `ZipFile` /
+  `numpy.load` (`open_model_zip`, `open_model_binary`), so the checked file is
+  the read file. A missing or odd `_EndRecData` (a private API) fails closed:
+  `ModelLimitExceeded`, a stub and one `WARNING:`; a test pins its shape and
+  the arithmetic in the running interpreter's source. Rejected: our own end
+  record parser (3.10 and 3.14 already differ), reading the counts.
   A wheel scan also asks `reader_requirements.require_library()` before it
   copies a model, so a missing reader library no longer costs a copy.
 - **Nothing recorded is lost silently** (round-5 audit). Every cap, bound and

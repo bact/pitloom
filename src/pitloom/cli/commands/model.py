@@ -47,7 +47,10 @@ def _run_model_command(args: argparse.Namespace) -> int:
             print(f"Output path        : {output_path}")
         model_target = model_id
     else:
-        model_path: Path = Path(target).resolve()
+        # The path as given goes to the generator, so its log lines name
+        # the file as the user wrote it.
+        given_path = Path(target)
+        model_path: Path = given_path.resolve()
         if not model_path.exists():
             print(f"ERROR: model file not found: {model_path}", file=sys.stderr)
             return 1
@@ -56,7 +59,7 @@ def _run_model_command(args: argparse.Namespace) -> int:
             print(f"Pitloom version: {__version__}")
             print(f"Model file      : {model_path}")
             print(f"Output path     : {output_path}")
-        model_target = model_path
+        model_target = given_path
 
     pitloom_config, options = explicit_config_and_options(args)
     # Same subject generate_model_sbom() settles its own options under.

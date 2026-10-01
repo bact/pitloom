@@ -50,14 +50,14 @@ SHA-256, nothing else. Causes, each with its own stderr line:
   512 MiB; set only in a config file) or past the per-wheel budget (4x the
   ceiling): `WARNING: ... metadata not read`.
 - A bound inside the file (pickle size/opcodes, GGUF header, Safetensors
-  header, `.npy` header, archive member size, ZIP entry count): `WARNING: ...
+  header, `.npy` header, archive member size, ZIP entry count or central-directory size): `WARNING: ...
   metadata not read`.
 
 A file the reader cannot parse at all gets no `ai_AIPackage`, only its
 file entry and a `failed to extract metadata` warning. Inputs, outputs,
 hyperparameters and properties are cut at 1000 entries (one `WARNING:`; the
 first 1000 in file order, in key order for Safetensors `__metadata__`; also
-for `loom model FILE`). Project scans have no ceiling and no gate. The same input gives the same SBOM for the
+for `loom model FILE` and `loom enrich FILE`, not a Hugging Face model). Project scans have no ceiling and no gate. The same input gives the same SBOM for the
 same settings; `--trust-wheel-model`, `max-model-extract-bytes`,
 `--scan-model-usage`, `--allow-build` and the cap each change what is
 recorded, so do not compare SBOMs made with different ones. Full table:

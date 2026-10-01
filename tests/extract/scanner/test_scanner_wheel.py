@@ -119,31 +119,76 @@ def test_model_paths_are_the_file_records_of_read_wheel(tmp_path: Path) -> None:
         assert (info.file_path_relative, info.physical_path) in records
 
 
-def test_only_the_wheels_own_dist_info_is_not_scanned(tmp_path: Path) -> None:
-    """Regression: every top-level ``*.dist-info`` was skipped, so a model
-    under any other one went unscanned, silently. The wheel's own is the one
-    that holds a ``METADATA`` or a ``WHEEL`` (as ``read_wheel`` finds it)."""
+def test_only_the_dist_info_the_wheel_name_names_is_not_scanned(
+    tmp_path: Path,
+) -> None:
+    """Regression: any top-level ``*.dist-info`` holding a ``METADATA`` or
+    a ``WHEEL`` was skipped, so a hostile wheel hid a model by adding a fake
+    one. The wheel's own is the one its file name names."""
     model = safetensors_bytes()
     members = {
         "demo/kept.safetensors": model,
-        "demo-1.0.0.dist-info/own.safetensors": model,  # own: METADATA below
+        "demo-1.0.0.dist-info/own.safetensors": model,  # the wheel's own
         "tagged-2.dist-info/WHEEL": b"Wheel-Version: 1.0\n",
-        "tagged-2.dist-info/own-too.safetensors": model,  # own: WHEEL
-        "other-2.0.dist-info/foreign.safetensors": model,  # no METADATA/WHEEL
+        "tagged-2.dist-info/hidden.safetensors": model,  # fake WHEEL
+        "fake-2.dist-info/METADATA": b"Name: fake\n",
+        "fake-2.dist-info/hidden.safetensors": model,  # fake METADATA
+        "other-2.0.dist-info/foreign.safetensors": model,
         "pkg/vendored.dist-info/METADATA": b"Name: x\n",
         "pkg/vendored.dist-info/nested.safetensors": model,  # not top level
-        "data/WHEEL": b"x",  # a name, not a dist-info directory
-        "data/data.safetensors": model,
         "dir.dist-info/METADATA/inner.safetensors": model,  # a directory
     }
     found = _scan_wheel(write_model_wheel(tmp_path, members))
     assert [m.format_info.file_path_relative for m in found] == [
-        "data/data.safetensors",
         "demo/kept.safetensors",
         "dir.dist-info/METADATA/inner.safetensors",
+        "fake-2.dist-info/hidden.safetensors",
         "other-2.0.dist-info/foreign.safetensors",
         "pkg/vendored.dist-info/nested.safetensors",
+        "tagged-2.dist-info/hidden.safetensors",
     ]
+
+
+# (wheel name, version, a directory beside its own, whether it is the same one)
+_DIST_INFO_CASES = [
+    ("My.Pkg", "1.0", "my_pkg-1.0.0.dist-info", True),  # PEP 503 + PEP 440
+    ("my_pkg", "1.0.0", "My.Pkg-1.0.dist-info", True),
+    ("my_pkg", "1.0", "MY__PKG-1.0.dist-info", True),
+    ("demo", "1.0+local.1", "demo-1.0+local.1.dist-info", True),
+    ("demo", "1.0", "demo-1.0.1.dist-info", False),  # another version
+    ("demo", "1.0", "demo-1.0+local.dist-info", False),
+    ("demo", "1.0", "demo2-1.0.dist-info", False),  # another name
+    ("demo", "1.0", "demo.dist-info", False),  # no version
+    ("demo", "1.0", "demo-x.dist-info", False),  # not a version
+    ("demo", "1.0", "demo-1.0.dist-inf0", False),  # not the suffix
+    ("demo", "1.0", "demo-1.0.dist-info.d", False),
+]
+
+
+@pytest.mark.parametrize(
+    ("name", "version", "directory", "own"),
+    _DIST_INFO_CASES,
+    ids=[f"{c[0]}-{c[1]}-{c[2]}" for c in _DIST_INFO_CASES],
+)
+def test_the_wheels_own_dist_info_is_compared_as_the_ecosystem_does(
+    name: str, version: str, directory: str, own: bool, tmp_path: Path
+) -> None:
+    member = f"{directory}/m.safetensors"
+    wheel = write_model_wheel(
+        tmp_path, {member: safetensors_bytes()}, name=name, version=version
+    )
+    found = [m.format_info.file_path_relative for m in _scan_wheel(wheel)]
+    assert found == ([] if own else [member])
+
+
+def test_every_member_is_scanned_when_the_name_is_not_a_wheel_name(
+    tmp_path: Path,
+) -> None:
+    """A library caller may pass any path: nothing is then the wheel's own."""
+    member = "demo-1.0.0.dist-info/m.safetensors"
+    wheel = write_model_wheel(tmp_path, {member: safetensors_bytes()})
+    other = wheel.rename(tmp_path / "model.whl")
+    assert [m.format_info.file_path_relative for m in _scan_wheel(other)] == [member]
 
 
 _LIBRARY_CASES = [

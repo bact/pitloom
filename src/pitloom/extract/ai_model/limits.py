@@ -122,9 +122,10 @@ def cap_entries(meta: AiModelMetadata) -> list[str]:
 
 def cap_and_warn(meta: AiModelMetadata, fmt: AiModelFormat, where: str) -> None:
     """Apply :func:`cap_entries` to *meta* and say so once, naming *where*
-    (the model's loggable path). Every surface that reads a model calls this,
-    so a model is cut the same way, and announced in the same words, whether
-    it came from a scan or from ``loom model``."""
+    (the model's loggable path). Every surface that reads a local model file
+    calls this (the project and wheel scans, ``loom model`` and ``loom
+    enrich``), so it is cut the same way, and announced in the same words, on
+    each. A Hugging Face model (``read_huggingface``) is not cut."""
     cut = cap_entries(meta)
     if cut:
         log.warning(

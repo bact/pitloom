@@ -22,7 +22,7 @@ from typing import IO, Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.extract._extract_utils import sanitize_provenance_text
-from pitloom.extract.ai_model.archive_member import check_zip_bounds
+from pitloom.extract.ai_model.archive_member import open_model_binary
 from pitloom.extract.ai_model.limits import MAX_MODEL_ENTRIES, ModelLimitExceeded
 from pitloom.extract.ai_model.reader_requirements import require_library
 
@@ -170,8 +170,11 @@ def _read_npz_metadata(
 
     inputs: list[dict[str, Any]] = []
     provenance: dict[str, str] = {}
-    check_zip_bounds(model_path)
-    with np.load(str(model_path), allow_pickle=False) as npzfile:
+    # np.load reads the handle that was checked and leaves it open.
+    with (
+        open_model_binary(model_path) as fh,
+        np.load(fh, allow_pickle=False) as npzfile,
+    ):
         for archive_name in npzfile.zip.namelist():
             if len(inputs) > MAX_MODEL_ENTRIES:
                 # One past the cap, so the scanner's cap_entries sees the
