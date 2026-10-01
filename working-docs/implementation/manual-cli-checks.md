@@ -137,6 +137,11 @@ files() { jq -r '.["@graph"][] | select(.type=="software_File") | .name' "$1" \
 diff <(files /tmp/embedded.json) <(files /tmp/standalone.json)
 ```
 
+For a project that ships a model (flat layout), also compare the
+`ai_AIPackage` elements with `spdxId` removed: they must be equal (the
+model found in the project directory and the one found in the wheel), and
+neither SBOM has a `hasDataFile` by default.
+
 **4. Round trip: embed -> verify -> validate**
 
 ```bash
@@ -266,9 +271,11 @@ key) case -- those are covered by pytest instead, in
 [id-registry-autosync.md](id-registry-autosync.md)'s "Revised in PR A2"
 section.
 
-**15. `--scan-model-usage`: flag beats config; inert on wheel surfaces**:
+**15. `--scan-model-usage`: flag beats config on every surface that scans**:
 the fixture project carries a tiny model and a script naming it. On
-`project` and `embed-wheel --project-dir`, run (i) `--config` with
+`project`, `embed-wheel --project-dir`, `wheel`, `wheel --embed` and
+`embed-wheel` without `--project-dir` (the wheel ones get the key through
+`--config`, their only config source), run (i) `--config` with
 `scan-model-usage = true`, (ii) `--scan-model-usage`, (iii) (i) plus
 `--no-scan-model-usage`, (iv) `--no-scan-model-usage` alone, (v) the
 default. (i) and (ii) must be byte-identical with `hasDataFile` and no
@@ -276,10 +283,7 @@ hint; (iii)-(v) must be identical with no `hasDataFile`; only (v), where
 the setting is never given, prints exactly one `INFO: Found 1 AI model
 file(s); pass --scan-model-usage ...`; (i) and (v) must differ (so the
 comparison is not vacuous). A hook-built wheel whose project config sets
-the key must carry `hasDataFile`. `wheel`, `wheel --embed` and
-`embed-wheel` without `--project-dir` do not scan a wheel yet: the flag
-gives exactly one `WARNING: Options:` naming it and the same bytes as the
-default run. Automated as check 15
+the key must carry `hasDataFile`. Automated as check 15
 (`scripts/manual_cli_checks/_checks_config.py::check_scan_model_usage`).
 Config only via `--config` or the project's own `pyproject.toml`, never
 the current directory.

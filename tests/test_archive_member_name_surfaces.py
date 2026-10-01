@@ -37,6 +37,7 @@ from tests._raw_archive import (
     write_raw_tar,
     write_raw_zip,
 )
+from tests._wheel_models import safetensors_bytes
 from tests.assemble.embed_surfaces_shared import run_cli
 from tests.warning_helpers import stderr_warnings
 
@@ -48,6 +49,7 @@ _MEMBERS = {
     "demo\\mod.py": b"mod = 1\n",
     "./demo/b.py": b"b = 1\n",
     "../evil.py": b"evil = 1\n",
+    "demo\\m.safetensors": safetensors_bytes(),
 }
 _EXPECTED = {
     f"{_DIST_INFO}/METADATA",
@@ -55,8 +57,14 @@ _EXPECTED = {
     "demo/__init__.py",
     "demo/mod.py",
     "demo/b.py",
+    "demo/m.safetensors",
 }
-_RAW_WARNED = ("'demo\\\\mod.py'", "'./demo/b.py'", "'../evil.py'")
+_RAW_WARNED = (
+    "'demo\\\\mod.py'",
+    "'./demo/b.py'",
+    "'../evil.py'",
+    "'demo\\\\m.safetensors'",
+)
 
 
 def _embedded(wheel: Path) -> str:
@@ -131,6 +139,20 @@ def test_wheel_member_names_on_every_surface(
 
     assert _file_names(sbom) == _EXPECTED
     _assert_warned_once(capsys.readouterr().err, _RAW_WARNED)
+    # The scanned model is contained in the File of its install-location name.
+    graph = json.loads(sbom)["@graph"]
+    names = {e["spdxId"]: e["name"] for e in graph if e["type"] == "software_File"}
+    kinds = {e["spdxId"]: e["type"] for e in graph if "spdxId" in e}
+    contained = [
+        names[target]
+        for rel in graph
+        if rel["type"] == "Relationship"
+        and rel["relationshipType"] == "contains"
+        and kinds.get(rel["from"]) == "ai_AIPackage"
+        for target in rel["to"]
+        if target in names
+    ]
+    assert contained == ["demo/m.safetensors"]
 
 
 def _cli_project(sdist: Path, mp: pytest.MonkeyPatch) -> str:

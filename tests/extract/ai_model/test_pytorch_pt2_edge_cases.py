@@ -5,7 +5,7 @@
 
 """Edge-case tests for the PyTorch PT2 Archive metadata extractor.
 
-See also: :mod:`tests.extract.test_pytorch_pt2` for the primary mocked and
+See also: :mod:`tests.extract.ai_model.test_pytorch_pt2` for the primary mocked and
 integration test suite this file was split out of to stay under the
 project's file-size limit.
 """
@@ -81,7 +81,7 @@ def test_read_pt2_format_version_whitespace_only_returns_none() -> None:
     """A present ``archive_version`` file that strips to empty content is
     treated the same as an absent one (line 246's ``if arch_ver:`` false)."""
     mock_zf = MagicMock()
-    mock_zf.read.return_value = b"   \n"
+    mock_zf.open.return_value.__enter__.return_value.read.return_value = b"   \n"
 
     version, prov = _read_pt2_format_version(
         mock_zf, "", ["archive_version"], "Source: model.pt2"
@@ -95,7 +95,7 @@ def test_read_pt2_zip_whitespace_only_version_file_skips_provenance() -> None:
     ``version`` unset and skips its provenance entry (line 300)."""
     mock_zf = MagicMock()
     mock_zf.namelist.return_value = ["version"]
-    mock_zf.read.return_value = b"  \n"
+    mock_zf.open.return_value.__enter__.return_value.read.return_value = b"  \n"
 
     res = _read_pt2_zip(mock_zf, "Source: model.pt2")
     (_, _, version, _, _, _, provenance, _, _) = res

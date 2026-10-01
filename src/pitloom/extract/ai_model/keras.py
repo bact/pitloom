@@ -36,6 +36,12 @@ from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
+from pitloom.extract.ai_model.archive_member import (
+    open_model_zip,
+    read_archive_member,
+)
+from pitloom.extract.ai_model.limits import ModelLimitExceeded
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -114,7 +120,7 @@ def read_keras(model_path: Path) -> AiModelMetadata:
     Reads:
 
     - ``metadata.json``: ``keras_version`` ->
-      :attr:`~AiModelMetadata.version`; ``date_saved`` -> properties.
+      :attr:`~AiModelMetadata.framework_version`; ``date_saved`` -> properties.
     - ``config.json``: ``class_name`` ->
       :attr:`~AiModelMetadata.type_of_model`; ``config.name`` ->
       :attr:`~AiModelMetadata.name`; scalar config entries ->
@@ -128,6 +134,8 @@ def read_keras(model_path: Path) -> AiModelMetadata:
 
     Raises:
         ValueError: If the file is not a valid ``.keras`` archive.
+        pitloom.extract.ai_model.limits.ModelLimitExceeded: The archive or one
+            of its members is over a bound.
     """
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
     # .keras is always Keras v3 native format
@@ -142,11 +150,11 @@ def read_keras(model_path: Path) -> AiModelMetadata:
     provenance: dict[str, str] = {}
 
     try:
-        with zipfile.ZipFile(str(model_path), "r") as zf:
+        with open_model_zip(model_path) as zf:
             names = zf.namelist()
 
             if "metadata.json" in names:
-                meta = json.loads(zf.read("metadata.json"))
+                meta = json.loads(read_archive_member(zf, "metadata.json"))
                 # keras_version is the Keras library version, not the model version.
                 framework_version = meta.get("keras_version") or None
                 if framework_version:
@@ -161,18 +169,24 @@ def read_keras(model_path: Path) -> AiModelMetadata:
                     )
 
             if "config.json" in names:
-                config_data = json.loads(zf.read("config.json"))
+                config_data = json.loads(read_archive_member(zf, "config.json"))
                 type_of_model, name = _parse_model_config(
                     config_data, source, hyperparameters, inputs, provenance
                 )
 
+    except ModelLimitExceeded:
+        raise
     except zipfile.BadZipFile as exc:
         raise ValueError(
             f"Failed to read Keras file {model_path}: not a valid ZIP archive"
         ) from exc
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to read Keras file %s: %s", model_path, exc)
+        log.debug(
+            "Failed to read Keras file %s: %s",
+            loggable(str(model_path)),
+            loggable(str(exc)),
+        )
         raise ValueError(f"Failed to read Keras file {model_path}: {exc}") from exc
 
     return AiModelMetadata(

@@ -16,7 +16,8 @@ from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
-from pitloom.logging_config import field_loss_suffix
+from pitloom.extract.ai_model.reader_requirements import missing_library
+from pitloom.logging_config import field_loss_suffix, loggable
 
 log = logging.getLogger(__name__)
 
@@ -47,16 +48,17 @@ def _load_fasttext_model(model_path: Path) -> Any:
 
         import fasttext
     except ImportError as exc:
-        raise ImportError(
-            "The 'fasttext' module is required to extract fastText model "
-            "metadata. Install it with: pip install fasttext-community"
-        ) from exc
+        raise missing_library(AiModelFormat.FASTTEXT) from exc
 
     try:
         return fasttext.load_model(str(model_path))
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to load fastText model from %s: %s", model_path, exc)
+        log.debug(
+            "Failed to load fastText model from %s: %s",
+            loggable(str(model_path)),
+            loggable(str(exc)),
+        )
         raise ValueError(
             f"Failed to load fastText model from {model_path}: {exc}"
         ) from exc
@@ -77,7 +79,7 @@ def _extract_fasttext_args(
         msg = "Failed to read fastText model.f.getArgs(): %s" + field_loss_suffix(
             "skipped", "hyperparameters", "properties.lossName", "type_of_model"
         )
-        log.warning(msg, exc)
+        log.warning(msg, loggable(str(exc)))
         return hyperparameters, properties, type_of_model
 
     for attr, param_key in _FASTTEXT_ARGS_HYPERPARAMS:
@@ -113,7 +115,7 @@ def _extract_fasttext_outputs(
         msg = "Failed to read fastText model labels: %s" + field_loss_suffix(
             "skipped", "properties.labels", "outputs"
         )
-        log.warning(msg, exc)
+        log.warning(msg, loggable(str(exc)))
         return properties, outputs
 
     if labels:

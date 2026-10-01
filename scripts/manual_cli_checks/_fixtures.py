@@ -25,6 +25,8 @@ from pathlib import Path
 from _harness import DATETIME, REPO_ROOT, CheckSkipped, child_env, expect, run_loom
 
 MODEL = "tiny.safetensors"
+GATED_MODEL = "tiny.gguf"
+_GGUF = b"GGUF" + struct.pack("<IQQ", 3, 0, 0)  # the smallest valid GGUF
 SOURCE_DATE_EPOCH = "1767225600"  # DATETIME as a Unix timestamp
 
 _PYPROJECT = textwrap.dedent(
@@ -45,10 +47,10 @@ _PYPROJECT = textwrap.dedent(
 )
 
 
-def write_project(root: Path, *, hook: bool = False) -> Path:
+def write_project(root: Path, *, hook: bool = False, gated: bool = False) -> Path:
     """A small Hatchling project ``demo`` 0.1 with a dependency, an SPDX
     header and a tiny AI model referenced by a script; *hook* enables the
-    Pitloom build hook."""
+    Pitloom build hook, *gated* adds a GGUF model."""
     (root / "demo").mkdir(parents=True)
     # An SPDX header, so --extract-file-header has something to find.
     (root / "demo" / "__init__.py").write_text(
@@ -59,6 +61,9 @@ def write_project(root: Path, *, hook: bool = False) -> Path:
     (root / "demo" / "data.csv").write_text("a,b\n1,2\n", encoding="utf-8")
     # A model plus a script naming it: an AIPackage and a usage reference.
     _write_model(root / "demo" / MODEL)
+    if gated:
+        # A format a wheel scan leaves unread unless --trust-wheel-model.
+        (root / "demo" / GATED_MODEL).write_bytes(_GGUF)
     (root / "demo" / "load.py").write_text(f'MODEL = "{MODEL}"\n', encoding="utf-8")
     hook_table = "\n[tool.hatch.build.hooks.pitloom]\n" if hook else ""
     (root / "pyproject.toml").write_text(_PYPROJECT + hook_table, encoding="utf-8")
@@ -115,6 +120,7 @@ class Fixtures:
         self._builders: dict[str, Callable[[Path], Path]] = {
             "project": self._project,
             "wheel": self._wheel,
+            "gated-wheel": self._gated_wheel,
             "embedded-wheel": self._embedded_wheel,
             "hook-wheel": self._hook_wheel,
             "model": self._model,
@@ -159,6 +165,12 @@ class Fixtures:
 
     def _wheel(self, target: Path) -> Path:
         return build_wheel(self.get("project"), target)
+
+    def _gated_wheel(self, target: Path) -> Path:
+        """The wheel of the project plus a GGUF model."""
+        project = target / "demo-project"
+        write_project(project, gated=True)
+        return build_wheel(project, target / "dist")
 
     def _hook_wheel(self, target: Path) -> Path:
         project = target / "demo-project"

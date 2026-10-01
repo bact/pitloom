@@ -17,6 +17,9 @@ from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
+from pitloom.extract.ai_model._gguf_bounds import check_gguf_header
+from pitloom.extract.ai_model.reader_requirements import missing_library
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -73,7 +76,7 @@ def _resolve_quantization(file_type_value: Any) -> str | None:
         log.debug(
             "Failed to resolve GGUF quantization name for file_type=%r: %s",
             file_type_value,
-            exc,
+            loggable(str(exc)),
         )
         return str(int_val)
 
@@ -167,21 +170,33 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
     """Extract metadata from a GGUF model file.
 
     Requires the ``gguf`` package (``pip install gguf``).
+
+    Raises:
+        ImportError: If ``gguf`` is not installed.
+        ValueError: If the file cannot be read.
+        pitloom.extract.ai_model.limits.ModelLimitExceeded: The header is over
+            a bound (:func:`~pitloom.extract.ai_model._gguf_bounds.check_gguf_header`).
     """
     try:
         # pylint: disable=import-outside-toplevel
         from gguf import GGUFReader
     except ImportError as exc:
-        raise ImportError(
-            "The 'gguf' package is required to extract GGUF model metadata. "
-            "Install it with: pip install gguf"
-        ) from exc
+        raise missing_library(AiModelFormat.GGUF) from exc
+
+    try:
+        check_gguf_header(model_path)
+    except OSError as exc:
+        raise ValueError(f"Failed to read GGUF file {model_path}: {exc}") from exc
 
     try:
         reader = GGUFReader(str(model_path), mode="r")
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to open GGUF file %s: %s", model_path, exc)
+        log.debug(
+            "Failed to open GGUF file %s: %s",
+            loggable(str(model_path)),
+            loggable(str(exc)),
+        )
         raise ValueError(f"Failed to read GGUF file {model_path}: {exc}") from exc
 
     source = f"Source: {sanitize_provenance_text(model_path.name)}"

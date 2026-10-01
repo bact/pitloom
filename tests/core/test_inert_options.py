@@ -19,10 +19,11 @@ from pathlib import Path
 
 import pytest
 
-from pitloom import assemble
+from pitloom import _embed_generate, assemble
 from pitloom.cli.options_config import run_options
 from pitloom.cli.parser import _build_parser
 from pitloom.core import inert_options
+from pitloom.core._config_types import AssembleOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.inert_options import (
     INERT,
@@ -359,3 +360,43 @@ def test_generate_options_cover_every_cli_option() -> None:
     assert cli_options <= set(_generate_options())
     project_params = set(inspect.signature(assemble.generate_project_sbom).parameters)
     assert set(_generate_options()) <= project_params
+
+
+#: Options a delegate accepts and settles itself (warning through
+#: ``settle_inert`` before it acts), so they are declared for the kind
+#: without being stale. Every other accepted option must not be declared.
+_SETTLES_ITSELF = {"generate_model_sbom": {"offline", "enrich", "id_registry"}}
+
+
+@pytest.mark.parametrize(
+    ("kind", "callee_name"), _PAIRINGS, ids=[f"{k}-{c}" for k, c in _PAIRINGS]
+)
+def test_no_option_is_both_declared_inert_and_accepted(
+    kind: str, callee_name: str
+) -> None:
+    """A row for an option its delegate accepts is stale (the parameter was
+    added and the row kept): the delegate would act on the option while
+    the caller warns it has no effect."""
+    accepted = set(inspect.signature(getattr(assemble, callee_name)).parameters)
+    settled = _SETTLES_ITSELF.get(callee_name, set())
+    assert settled <= accepted  # non-vacuous: the exclusion names real parameters
+    assert not (set(inert_options.INERT[kind]) & accepted) - settled
+
+
+def test_the_standalone_embed_builder_reads_no_declared_inert_option() -> None:
+    """``embed_wheel_sbom(overrides=...)`` accepts every override and settles
+    the inert ones away; what the builder then reads from the resolved config
+    must not be a declared one."""
+    source = inspect.getsource(_embed_generate._build_sbom_standalone_wheel)
+    read = set(re.findall(r"\bcfg\.(\w+)", source))
+    read |= set(AssembleOptions.__annotations__)  # cfg.assemble_options
+    assert {"scan_model_usage", "max_model_extract_bytes"} <= read  # non-vacuous
+    assert not read & set(inert_options.INERT[inert_options.EMBED_STANDALONE])
+
+
+def test_trust_wheel_model_with_a_project_dir_says_why() -> None:
+    """``embed-wheel --project-dir`` reads its models from the project; the
+    reason must not claim the target reads no wheel."""
+    reason = INERT[inert_options.EMBED_PROJECT]["trust_wheel_model"]
+    assert "--project-dir" in reason
+    assert "not the wheel" in reason

@@ -14,6 +14,15 @@ across fragments" section of the top-level [README.md](../../README.md#loom-ids-
 Split out of `roadmap.md` (2026-09-17) once this item's detail grew
 past a summary.
 
+This file records registry v2 as built. The planned registry v3
+([id-registry-v3.md](../design/id-registry-v3.md), not built) supersedes
+parts of it: the two tables (`files`/`entities`) and harvest's
+shape-based choice between them, the format version 2, the
+`ai_AIPackage`/`dataset_DatasetPackage` auto-harvest exclusion (hashed
+AIPackages become harvestable), the `added N new file(s), N new
+entit(y/ies)` wording, and the rule that no run writes a model id (loom
+will record one). Open items: [id-registry-followups.md](../design/id-registry-followups.md).
+
 ## What shipped ([PR #178](https://github.com/bact/pitloom/pull/178))
 
 `loom project`/`wheel`/`env` harvest newly-minted spdxIds back into the

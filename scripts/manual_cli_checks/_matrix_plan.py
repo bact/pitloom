@@ -26,6 +26,7 @@ from pitloom.core.inert_options import (
     INERT,
     MODEL_FILE,
     PARAM_TO_FLAG,
+    PROJECT,
     WHEEL,
 )
 
@@ -62,7 +63,9 @@ COMMANDS: list[Command] = [
         default_output=False,
     ),
     Command("project", lambda fx, c: [str(fx.stage("project", c))], "output"),
-    Command("wheel", lambda fx, c: [str(fx.stage("wheel", c))], "output"),
+    # The wheel holds a GGUF, which a wheel scan lists without metadata unless
+    # --trust-wheel-model.
+    Command("wheel", lambda fx, c: [str(fx.stage("gated-wheel", c))], "output"),
     Command(
         "embed-wheel",
         lambda fx, c: [
@@ -231,6 +234,11 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
         _v("--scan-model-usage", "changes", "--scan-model-usage"),
         _v("--no-scan-model-usage", "same", "--no-scan-model-usage"),
     ],
+    # Live on `wheel`, whose fixture wheel holds a GGUF; inert on every other
+    # cell (models read from a project directory, or no wheel at all).
+    "--trust-wheel-model": [
+        _v("--trust-wheel-model", "changes", "--trust-wheel-model")
+    ],
     "--content-type-method": [
         _v(
             "extension",
@@ -317,8 +325,10 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
 }
 
 # The target kind each command's matrix cell runs (see COMMANDS' targets).
-# generate/project cells run a project directory: nothing is inert there.
+# generate/project cells run a project directory.
 _CELL_KINDS = {
+    "generate": PROJECT,
+    "project": PROJECT,
     "wheel": WHEEL,
     "env": ENV,
     "model": MODEL_FILE,

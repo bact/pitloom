@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-09-30
+# Last-Modified: 2026-10-01
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -72,7 +72,8 @@ See `references/examples.md` for copy-paste recipes.
   entry point -- `pip install "pitloom>=0.20.0"`, or run ephemeral via
   `uvx`/`pipx`. Extras take the floor after the extra:
   `"pitloom[ai]>=0.20.0"`.
-- AI model targets need the `ai` extra (`pitloom[ai]`) or a
+- AI model targets, and any project or wheel that ships model files,
+  need the `ai` extra (`pitloom[ai]`) or a
   format-specific one (`pitloom[huggingface_hub]`, `pitloom[gguf]`,
   etc. -- see `pyproject.toml`'s `[project.optional-dependencies]`,
   <https://github.com/bact/pitloom/blob/main/pyproject.toml>).
@@ -277,13 +278,22 @@ skill ("Validate a wheel's embedded SBOM").
   files reference each discovered AI model file (`hasDataFile`), for a
   project directory (`project`, `generate <dir>`, `embed-wheel
   --project-dir`, and the Hatchling hook via the `scan-model-usage` config
-  key). Off by
+  key) or a built wheel (`wheel`, `generate <whl>`, `wheel --embed`,
+  `embed-wheel` without `--project-dir`). Off by
   default and **opt-in only**: add it only when the request asks which code
   loads a model. Models are found either way; when the setting was
   never given, one `INFO:` line says how many were found and names this flag
-  (once per run; silent after an explicit `--no-scan-model-usage` or
-  `scan-model-usage = false`). Other targets warn that it
-  has no effect.
+  (on a wheel also a `--config` file, as none is read implicitly; once
+  per run; silent after an explicit `--no-scan-model-usage` or
+  `scan-model-usage = false`). sdist, env, model-file and Hugging Face
+  targets, `enrich` and `embed-wheel --sbom` warn that it has no effect.
+- `--trust-wheel-model` -- on a built wheel, also read the model formats whose
+  reader can crash or hang on a hostile file (fastText, GGUF, HDF5, ONNX,
+  PyTorch `.pt`/`.pth`), otherwise listed without metadata (one `INFO:` names them).
+  Never add it unless the user states the wheel is trusted; a hostile file can
+  crash Pitloom, hang it or exhaust memory. Other targets, and `embed-wheel`
+  with `--project-dir` (models come from the project), warn that it has no
+  effect.
 - `--content-type` / `--no-content-type` -- per-file content-type/MIME
   detection (`magika`, or a filename-extension guess). Off by default and
   **opt-in only**: add it only when the request implies wanting that data,
@@ -364,6 +374,20 @@ complete but isn't. Per-case detail: `references/known-limitations.md`.
   when an entry looks sparse.
 - **AI model formats** are broad, not universal (see the description). An
   unrecognised serialisation is not scanned: say so, don't skip silently.
+- **AI model caps:** an `ai_AIPackage` is a stub (its metadata was not
+  read) when its `name` is its format (`gguf`, `onnx`, ...), it has no
+  `ai_*` property and no `comment` entry `Source: <model file> | Field:
+  ...`; a read model has such entries (some formats carry no name). With
+  `--enrich` a stub can still carry a README `comment` (`Method:
+  yaml_frontmatter`). Name the reason from stderr: the wheel gate (`INFO:`,
+  see `--trust-wheel-model`); `required library not installed` (install
+  `pitloom[ai]`); `... scan ceiling; metadata not read`, the
+  `max-model-extract-bytes` ceiling (512 MiB, config key only, wheel scans);
+  the per-wheel budget (4x the ceiling, one `WARNING: ... per-wheel budget
+  ... is spent`); any other `WARNING: ... metadata not read`, a fixed bound.
+  Lists past 1000 entries are cut with one `WARNING:`. Never raise the
+  ceiling or add `--trust-wheel-model` on your own; tell the user. Caps:
+  <https://bact.github.io/pitloom/ai-model-scan-limits/>.
 - **Unsupported build backend:** check `[build-system] build-backend`
   *before* generating. Hatchling, setuptools, Poetry, PDM-backend and
   Flit-core get accurate file discovery; any other (`uv_build`,

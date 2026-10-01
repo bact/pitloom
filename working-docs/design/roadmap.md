@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -183,10 +183,11 @@ below is now closed for every backend, including `uv_build` (via the
 generic `--allow-build` build-and-read mechanism, not a dedicated static
 rescan -- see below).
 
-**In progress (AI model scanning):** B -- model-candidate type and the
-`--allow-build` path fix; C -- deterministic model order; D -- wheel
-scanning (`--scan-model-usage` landed first, usage pass off by default). See
-[cli-shared-options-ignored.md](cli-shared-options-ignored.md#still-open).
+**AI model scanning (B, C, D done):** model-candidate type, deterministic
+order, the `--scan-model-usage` gate and wheel scanning. Open: `env` scans no
+models -- see
+[cli-shared-options-ignored.md](cli-shared-options-ignored.md#still-open) and
+[ai-model-scanning.md](../implementation/ai-model-scanning.md).
 
 **Suggested sequencing after that** (2026-09-16, not a commitment --
 superseded for the next month by [1.0 target](#10-target-2026-10-15)
@@ -281,6 +282,13 @@ See [build-backend-improvements.md](build-backend-improvements.md).
   extraction (case/Unicode folding, Windows path rules), archive-level wheel
   operations on `orig_filename`, tar links in sdists. See
   [archive-member-followups.md](archive-member-followups.md).
+- [ ] **GGUF array fields emitted as their last element (before 0.20.0)** --
+  emit `<key>.length = N` only; small PR; also caps decimal INT/LONG length
+  in the pickle pre-walk. See [model-metadata-readers.md](model-metadata-readers.md).
+- [ ] **Metadata-only AI model readers (after 0.20.0)** -- replace the library
+  reads (fastText, ONNX, GGUF, fickling, Safetensors) with bounded
+  pure-Python header readers, parity-tested against the libraries; HDF5 last.
+  See [model-metadata-readers.md](model-metadata-readers.md).
 - [ ] **Re-embedding lists the previous embedded SBOM** -- `embed-wheel`
   on a wheel that already has one describes that old
   `.dist-info/sboms/*` file (with its old hash) in the new SBOM, which
@@ -310,22 +318,13 @@ See [build-backend-improvements.md](build-backend-improvements.md).
 ### AI model id stability (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
 
 - [ ] **Registry v3: one typed table, content gate chosen at lookup** --
-  harvest stops guessing `files` vs `entities` by shape (a hashed
-  AIPackage is misfiled). Its own PR, design first, before G7. See [id-registry-v3.md](id-registry-v3.md).
-
-- [ ] **Skill trigger coverage for `loom id generate`/`loom id import`** --
-  the skills run both commands now, but no description triggers on them;
-  owner skill undecided. See [id-registry-followups.md](id-registry-followups.md).
-- [ ] **Deterministic same-model identification for auto-harvest** --
-  `ai_AIPackage` stays out of auto-harvest; content-hash matching is an
-  open design question. See [ai-model-id-stability.md](ai-model-id-stability.md).
-- [ ] **Wheel/sdist targets and src-layout registry file ids** -- path keys
-  differ; a `project` harvest aliases the wheel path, `id generate` alone
-  does not, and an sdist finds neither. See [id-registry-followups.md](id-registry-followups.md).
-- [ ] **Registry harvest rewrites per-document entities; `env`'s root
-  package is never looked up.** See [id-registry-followups.md](id-registry-followups.md).
-- [ ] **A declared registry inside the package tree never settles** -- the
-  registry is itself a hashed file. See [id-registry-followups.md](id-registry-followups.md).
+  not built; also closes `loom id` skill triggers, hashed-model auto-harvest
+  and in-tree registry churn. See [id-registry-v3.md](id-registry-v3.md).
+- [ ] **Registry follow-ups v3 leaves open** -- src-layout alias gap for
+  wheel/sdist targets, per-document entities rewritten on harvest and
+  `env`'s root never looked up, AIPackage lookups outside loom ungated
+  until G7 #3, ignored-name quirks, build-and-read exclusion, merge-by-id gaps.
+  See [id-registry-followups.md](id-registry-followups.md).
 
 ### Sort-order canonicalization (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
 

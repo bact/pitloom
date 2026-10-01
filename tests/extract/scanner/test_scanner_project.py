@@ -11,7 +11,7 @@ absolute ``--allow-build`` extraction path) must give the same result:
 opened by ``physical_path``, named by ``distribution_path``, reported by a
 stable project-relative path.
 
-See also: :mod:`tests.extract.test_scanner` for the shared policy.
+See also: :mod:`tests.extract.scanner.test_scanner` for the shared policy.
 """
 
 from __future__ import annotations
@@ -79,7 +79,7 @@ def _put(
 
 def _scan(tmp_path: Path, *files: ProjectFile) -> Any:
     return scan_project_for_ai_models(
-        tmp_path / "proj", list(files), scan_usage=True, usage_hint=False
+        tmp_path / "proj", list(files), scan_usage=True, usage_hint=lambda: False
     )
 
 
@@ -314,7 +314,7 @@ def test_scan_force_include_rename_uses_installed_name(tmp_path: Path) -> None:
     (tmp_path / "pkg" / "use.py").write_text('load("model.npy")\n', encoding="utf-8")
     (tmp_path / "assets").mkdir()
     shutil.copyfile(
-        Path(__file__).parent.parent
+        Path(__file__).parent.parent.parent
         / "fixtures"
         / "aimodels"
         / "numpy"
@@ -330,11 +330,14 @@ def test_scan_force_include_rename_uses_installed_name(tmp_path: Path) -> None:
     )
 
     (meta,) = scan_project_for_ai_models(
-        tmp_path, files, scan_usage=True, usage_hint=False
+        tmp_path, files, scan_usage=True, usage_hint=lambda: False
     )
     assert meta.format_info.file_name == "model.npy"
     assert meta.format_info.physical_path == "assets/weights.dat"
     assert meta.usage_files == ["pkg/use.py"]
+    sources = [v for v in meta.provenance.values() if v.startswith("Source: ")]
+    assert sources  # not vacuous
+    assert all(v.startswith("Source: model.npy") for v in sources)
 
 
 @_LAYOUT

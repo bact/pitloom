@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -59,6 +59,9 @@ it executes third-party build-time code from the project being scanned
   with no `[project]` table), the SBOM lists no files, with a
   `WARNING:`. `--allow-build`'s worst case is never worse than leaving
   it off.
+- It changes the file list, so which AI models are found can differ from a
+  run without it; see [Settings that change the
+  SBOM](ai-model-scan-limits.md#settings-that-change-the-sbom).
 - On `generate`, all three flags parse for every target (`generate`
   auto-detects env/wheel/model-file/Hugging-Face/project targets from
   one shared parser) but only take effect when the target resolves to a

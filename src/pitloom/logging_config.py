@@ -40,6 +40,16 @@ _TRUTHY = frozenset({"1", "true", "yes", "on"})
 _WARNED_ONCE: set[tuple[str, str]] = set()
 
 
+def loggable(text: str) -> str:
+    """*text* as is when printable, else its ASCII-escaped literal, so
+    untrusted text (an archive member name, an exception message quoting
+    one) cannot forge a second tagged line, e.g. ``::error::``, on stderr.
+
+    The one escaping every message interpolating such text goes through.
+    """
+    return text if text.isprintable() else ascii(text)
+
+
 def _debug_requested(debug: bool | None) -> bool:
     """Resolve the effective debug flag: an explicit ``debug`` argument
     wins; ``None`` falls back to the ``PITLOOM_DEBUG`` environment
@@ -196,13 +206,16 @@ def field_loss_suffix(status: str, *fields: str) -> str:
     return f" | Field(s) affected ({status}): {', '.join(fields)}"
 
 
-def one_line(value: object) -> str:
+def one_line(value: object, limit: int | None = None) -> str:
     """*value*'s text with every whitespace run, newlines included,
-    collapsed to one space, so a multi-line exception message interpolated
-    into a log message cannot spill untagged continuation lines onto
-    stderr. An exception with no message yields its class name instead of
-    an empty string."""
-    text = " ".join(str(value).split())
+    collapsed to one space, then escaped as :func:`loggable` does, so a
+    multi-line exception message interpolated into a log message cannot
+    spill untagged continuation lines onto stderr, nor forge a tagged one.
+    An exception with no message yields its class name instead of an empty
+    string. With *limit*, the collapsed text is cut to its first *limit*
+    characters before it is escaped, so the cut never splits an escaped
+    literal and loses its closing quote."""
+    text = " ".join(str(value).split())[:limit]
     if not text and isinstance(value, BaseException):
         return type(value).__name__
-    return text
+    return loggable(text)

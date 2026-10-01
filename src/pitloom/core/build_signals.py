@@ -82,6 +82,12 @@ class GuardedActivity(NamedTuple):
 BUILD_ACTIVITY = GuardedActivity(BUILD_LOG_PREFIX, "the build")
 """The ``--allow-build`` build-and-read."""
 
+MODEL_SCAN_ACTIVITY = GuardedActivity("AI model scan: ", "the AI model file copy")
+"""Copying one AI model file out of a wheel. A signal waits for the copy to
+end. While a reader parses the copy no hold is active, so a signal acts as
+usual, which for a native parser (libhdf5, protobuf, fastText) means not
+until it returns to Python; see ``working-docs/design/model-metadata-readers.md``."""
+
 # Before the first hold. Handlers install only in a hold, so no
 # termination message names it; generic rather than claiming a build.
 _NO_ACTIVITY = GuardedActivity("", "a guarded activity")

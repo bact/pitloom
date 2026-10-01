@@ -163,7 +163,7 @@ def test_build_and_read_wheel_warns_on_leftover_work_dir(
     result[1]()
     (leftover,) = sys_tmp.iterdir()
     assert leftover.name.startswith("plb-")
-    assert f"Build: could not fully remove temporary directory {leftover}" in (
+    assert f"Build: could not fully remove temporary directory {leftover.name} " in (
         caplog.text
     )
 
@@ -286,9 +286,7 @@ def test_build_and_read_wheel_survives_raising_rmtree(
     leftovers = sorted(p.name for p in sys_tmp.iterdir())
     assert {name.split("-")[0] for name in leftovers} == {"pitloom", "plb"}
     for name in leftovers:
-        assert f"could not fully remove temporary directory {sys_tmp / name}" in (
-            caplog.text
-        )
+        assert f"could not fully remove temporary directory {name} " in (caplog.text)
 
 
 @pytest.mark.usefixtures("fake_build")
@@ -490,6 +488,6 @@ def test_build_and_read_wheel_warns_on_leftover_extract_dir_on_failure(
 
     (leftover,) = sys_tmp.iterdir()
     assert leftover.name.startswith(EXTRACT_PREFIX)
-    assert f"Build: could not fully remove temporary directory {leftover}" in (
+    assert f"Build: could not fully remove temporary directory {leftover.name} " in (
         caplog.text
     )

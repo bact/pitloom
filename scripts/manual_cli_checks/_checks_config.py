@@ -6,7 +6,7 @@
 project reads no config it was not given; an sdist reads its own, as its
 unpacked directory does; ``--scan-model-usage`` beats its config key.
 
-See also: ``_checks_core.py`` (checks 1-11), ``_harness.py``.
+See also: ``_checks_core.py`` (checks 1-11 and 14), ``_harness.py``.
 """
 
 from __future__ import annotations
@@ -276,41 +276,56 @@ def _embed_surface(
     return sbom, result
 
 
-def _inert_surfaces(
-    wheel: Path, cwd: Path, work: Path, name: str, extra: list[str]
-) -> dict[str, tuple[bytes, Result]]:
-    """The wheel surfaces that do not scan yet, run with *extra*."""
-    found: dict[str, tuple[bytes, Result]] = {}
+def _wheel_file_surface(
+    project: Path, wheel: Path, cwd: Path, work: Path, name: str, extra: list[str]
+) -> tuple[bytes, Result]:
+    """``loom wheel``: the SBOM goes to a file."""
+    del project  # a wheel is read on its own
     work.mkdir(parents=True, exist_ok=True)
     out = work / f"{name}-wheel.json"
     result = run_loom(
         "wheel", str(wheel), "--offline", "-o", str(out), *_PINNED, *extra, cwd=cwd
     )
     expect(result.returncode == 0, result.describe())
-    found["wheel"] = (out.read_bytes(), result)
-    for label, argv in (
-        ("wheel --embed", ["wheel", "{w}", "--embed"]),
-        ("embed-wheel", ["embed-wheel", "{w}"]),
-    ):
-        copy = work / f"{name}-{label.split()[0]}" / wheel.name
+    return out.read_bytes(), result
+
+
+def _embedding_surface(head: str) -> _Surface:
+    """A surface that embeds into a copy of the wheel: ``embed-wheel`` with
+    no ``--project-dir``, or ``wheel --embed``."""
+
+    def surface(
+        project: Path, wheel: Path, cwd: Path, work: Path, name: str, extra: list[str]
+    ) -> tuple[bytes, Result]:
+        del project
+        copy = work / f"{name}-embed-{head}" / wheel.name
         copy.parent.mkdir(parents=True)
         shutil.copy2(wheel, copy)
-        argv = [a.replace("{w}", str(copy)) for a in argv]
-        result = run_loom(*argv, "--offline", *_PINNED, *extra, cwd=cwd)
+        argv = [*head.split(), str(copy), "--offline", *_PINNED, *extra]
+        if head == "wheel":
+            argv.insert(2, "--embed")
+        result = run_loom(*argv, cwd=cwd)
         expect(result.returncode == 0, result.describe())
         (sbom,) = embedded_sboms(copy).values()
-        found[label] = (sbom, result)
-    return found
+        return sbom, result
+
+    return surface
 
 
-_LIVE_SURFACES = {"project": _project_surface, "embed-wheel": _embed_surface}
 _Surface = Callable[..., tuple[bytes, Result]]
+_LIVE_SURFACES: dict[str, _Surface] = {
+    "project": _project_surface,
+    "embed-wheel --project-dir": _embed_surface,
+    "wheel": _wheel_file_surface,
+    "wheel --embed": _embedding_surface("wheel"),
+    "embed-wheel": _embedding_surface("embed-wheel"),
+}
 
 
 def _expect_flag_beats_config(
     name: str, surface: _Surface, inputs: tuple[Path, Path, Path, Path], work: Path
 ) -> None:
-    """(i)-(iv) of check 15 on one project-directory surface."""
+    """(i)-(iv) of check 15 on one surface that scans models."""
     project, wheel, cwd, cfg = inputs
     runs = {
         variant: surface(
@@ -338,32 +353,17 @@ def _expect_flag_beats_config(
     )
 
 
-def _expect_inert_surfaces_warn_once(wheel: Path, cwd: Path, work: Path) -> None:
-    default = _inert_surfaces(wheel, cwd, work, "default", [])
-    flagged = _inert_surfaces(wheel, cwd, work, "flag", ["--scan-model-usage"])
-    for label, (got, result) in flagged.items():
-        warnings = [
-            line
-            for line in result.stderr_lines
-            if line.startswith("WARNING: Options:") and "--scan-model-usage" in line
-        ]
-        expect(
-            len(warnings) == 1, f"{label}: expected one warning\n{result.describe()}"
-        )
-        expect(got == default[label][0], f"{label}: the flag changed the SBOM")
-
-
-@check("15", "scan-model-usage: flag beats config; inert on wheel surfaces")
+@check("15", "scan-model-usage: flag beats config on every surface that scans")
 def check_scan_model_usage(ctx: Context) -> None:
-    """On ``project`` and ``embed-wheel --project-dir`` the config key and
+    """On ``project``, ``embed-wheel --project-dir`` and the wheel surfaces
+    (``wheel``, ``wheel --embed``, ``embed-wheel`` without ``--project-dir``,
+    the key given through ``--config``) the config key and
     the flag give the same bytes, with ``hasDataFile`` and no hint; a config
     key plus ``--no-scan-model-usage``, or that flag alone, equals the
     default run (no ``hasDataFile``, no hint); only the default run, where
     the setting is never given, prints exactly one hint ``INFO:``. It
     differs from the config run (not vacuous). The Hatchling hook reads the
-    key from the project's own config. ``wheel``, ``wheel --embed`` and
-    ``embed-wheel`` without ``--project-dir`` do not scan yet: the flag
-    warns exactly once and changes no bytes."""
+    key from the project's own config."""
     project = write_project(ctx.work / "proj")
     wheel = build_wheel(project, ctx.work / "dist")
     empty = ctx.work / "empty"
@@ -374,8 +374,6 @@ def check_scan_model_usage(ctx: Context) -> None:
     for name, surface in _LIVE_SURFACES.items():
         _expect_flag_beats_config(name, surface, (project, wheel, empty, cfg), ctx.work)
 
-    _expect_inert_surfaces_warn_once(wheel, empty, ctx.work)
-
     hooked = write_project(ctx.work / "hooked", hook=True)
     with (hooked / "pyproject.toml").open("a", encoding="utf-8") as f:
         f.write(_USAGE_CONFIG)
@@ -383,4 +381,4 @@ def check_scan_model_usage(ctx: Context) -> None:
         build_wheel(hooked, ctx.work / "hooked-dist")
     ).values()
     expect(_has_usage(hook_sbom), "hook: scan-model-usage config not applied")
-    ctx.note("project/embed-wheel/hook: flag beats config; wheel surfaces warn once")
+    ctx.note("project/embed-wheel/wheel/hook: flag beats config, one hint by default")

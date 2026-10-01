@@ -282,3 +282,26 @@ def test_read_hdf5_unparseable_model_config_stores_raw_text(
     assert meta.name is None
     assert meta.properties.get("model_config_raw") == "not valid json {{{"
     assert "properties.model_config_raw" in meta.provenance
+
+
+@pytest.mark.parametrize(("size", "warned"), [(500, False), (501, True)])
+def test_read_hdf5_says_when_the_unparsed_model_config_is_cut(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, size: int, warned: bool
+) -> None:
+    model_file = tmp_path / "model.h5"
+    model_file.write_bytes(b"fake")
+    mock_hf = _make_hdf5_file()
+    mock_hf.attrs["model_config"] = "{" * size  # not valid JSON
+    mock_h5py = MagicMock()
+    mock_h5py.File.return_value = mock_hf
+    with (
+        caplog.at_level(logging.WARNING),
+        patch.dict("sys.modules", {"h5py": mock_h5py}),
+    ):
+        meta = read_hdf5(model_file)
+    assert meta.properties["model_config_raw"] == "{" * 500
+    messages = [r.getMessage() for r in caplog.records]
+    assert bool(messages) is warned
+    if warned:
+        assert "501 characters" in messages[0]
+        assert "model_config_raw" in messages[0]

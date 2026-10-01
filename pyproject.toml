@@ -205,6 +205,7 @@ exclude = [
     "tests/fixtures/aimodels/gguf/*.gguf",
     "tests/fixtures/aimodels/hdf5/*.h5",
     "tests/fixtures/aimodels/hdf5/*.hdf5",
+    "tests/fixtures/aimodels/hostile/*.h5",
     "tests/fixtures/aimodels/keras/*.keras",
     "tests/fixtures/aimodels/numpy/*.npy",
     "tests/fixtures/aimodels/numpy/*.npz",

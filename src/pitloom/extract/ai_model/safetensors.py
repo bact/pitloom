@@ -7,7 +7,9 @@
 
 from __future__ import annotations
 
+import heapq
 import logging
+import struct
 from pathlib import Path
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
@@ -15,8 +17,46 @@ from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
+from pitloom.extract.ai_model.limits import MAX_MODEL_ENTRIES, ModelLimitExceeded
+from pitloom.extract.ai_model.reader_requirements import missing_library
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
+
+#: Longest JSON header accepted. ``safetensors`` itself caps it at 100 MB and
+#: then builds every entry in Python and again in a dict, at tens of times
+#: the header's size; a real model's is well under a MiB.
+MAX_SAFETENSORS_HEADER_BYTES = 16 * 1024 * 1024
+
+
+def _check_header_length(model_path: Path) -> None:
+    """Refuse a file whose 8-byte little-endian header length is over
+    :data:`MAX_SAFETENSORS_HEADER_BYTES`, before ``safetensors`` reads it.
+
+    Raises:
+        ModelLimitExceeded: The declared header is over the cap.
+        OSError: The file cannot be read.
+    """
+    with model_path.open("rb") as fh:
+        prefix = fh.read(8)
+    if len(prefix) == 8:
+        (length,) = struct.unpack("<Q", prefix)
+        if length > MAX_SAFETENSORS_HEADER_BYTES:
+            raise ModelLimitExceeded(f"Safetensors header of {length} bytes")
+
+
+def _stable_metadata(raw: dict[str, str]) -> dict[str, str]:
+    """*raw* with a stable order where the entry cap can cut it.
+
+    ``safetensors`` returns ``__metadata__`` in an order that differs from one
+    process to the next, and the cap keeps the first entries: over the cap, the
+    smallest keys stay, in key order, one past the cap so that the scanner
+    still sees the map is too long. Under it, every entry stays and the
+    output is sorted downstream.
+    """
+    if len(raw) <= MAX_MODEL_ENTRIES:
+        return raw
+    return dict(heapq.nsmallest(MAX_MODEL_ENTRIES + 1, raw.items()))
 
 
 def read_safetensors(model_path: Path) -> AiModelMetadata:
@@ -27,6 +67,11 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
     The Safetensors format stores an optional ``__metadata__`` dict in its
     header alongside tensor descriptors (name, dtype, shape). This extractor
     reads only the header -- it does not load tensor data into memory.
+
+    The well-known keys are looked up in the whole ``__metadata__``. Over
+    :data:`~pitloom.extract.ai_model.limits.MAX_MODEL_ENTRIES` entries, only
+    what is kept as ``properties`` and ``raw_metadata`` is cut to its
+    smallest keys (see :func:`_stable_metadata`).
 
     Commonly stored ``__metadata__`` keys (by convention):
     - ``modelspec.architecture`` -> architecture
@@ -42,29 +87,34 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
 
     Raises:
         ImportError: If ``safetensors`` is not installed.
+        ModelLimitExceeded: If the declared header is over
+            :data:`MAX_SAFETENSORS_HEADER_BYTES`.
         ValueError: If the file cannot be read as a valid Safetensors file.
     """
     try:
         # pylint: disable=import-outside-toplevel
         from safetensors import safe_open
     except ImportError as exc:
-        raise ImportError(
-            "The 'safetensors' package is required "
-            "to extract Safetensors model metadata. "
-            "Install it with: pip install safetensors"
-        ) from exc
+        raise missing_library(AiModelFormat.SAFETENSORS) from exc
 
     try:
+        _check_header_length(model_path)
         # Use numpy framework to avoid requiring torch/tf; metadata-only read
         with safe_open(
             str(model_path),
             framework="numpy",
         ) as f:  # type: ignore[no-untyped-call]
-            raw_metadata: dict[str, str] = f.metadata() or {}
+            metadata: dict[str, str] = f.metadata() or {}
             tensor_keys: list[str] = list(f.keys())
+    except ModelLimitExceeded:
+        raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to read Safetensors file %s: %s", model_path, exc)
+        log.debug(
+            "Failed to read Safetensors file %s: %s",
+            loggable(str(model_path)),
+            loggable(str(exc)),
+        )
         raise ValueError(
             f"Failed to read Safetensors file {model_path}: {exc}"
         ) from exc
@@ -75,49 +125,45 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
     # Some Safetensors files record the originating framework under "format"
     # (e.g. "pt" for PyTorch) or "modelspec.implementation".
     framework = (
-        raw_metadata.get("format")
-        or raw_metadata.get("modelspec.implementation")
-        or None
+        metadata.get("format") or metadata.get("modelspec.implementation") or None
     )
     if framework:
         provenance["framework"] = f"{source} | Field: __metadata__"
 
     # Pull well-known keys from __metadata__
     name = (
-        raw_metadata.get("modelspec.title")
-        or raw_metadata.get("name")
-        or raw_metadata.get("ss_base_model_version")
+        metadata.get("modelspec.title")
+        or metadata.get("name")
+        or metadata.get("ss_base_model_version")
     )
     if name:
         provenance["name"] = f"{source} | Field: __metadata__"
 
-    description = raw_metadata.get("modelspec.description") or raw_metadata.get(
-        "description"
-    )
+    description = metadata.get("modelspec.description") or metadata.get("description")
     if description:
         provenance["description"] = f"{source} | Field: __metadata__"
 
-    version = raw_metadata.get("modelspec.version") or raw_metadata.get("version")
+    version = metadata.get("modelspec.version") or metadata.get("version")
     if version:
         provenance["version"] = f"{source} | Field: __metadata__"
 
     # modelspec.architecture -> architecture (specific arch name)
-    architecture = raw_metadata.get("modelspec.architecture") or raw_metadata.get(
+    architecture = metadata.get("modelspec.architecture") or metadata.get(
         "architecture"
     )
     if architecture:
         provenance["architecture"] = f"{source} | Field: __metadata__"
 
     # modelspec.precision -> quantization (e.g. "fp16", "bf16", "int8")
-    quantization = raw_metadata.get("modelspec.precision") or raw_metadata.get(
-        "precision"
-    )
+    quantization = metadata.get("modelspec.precision") or metadata.get("precision")
     if quantization:
         provenance["quantization"] = f"{source} | Field: __metadata__"
 
-    # Remaining metadata as properties. Exact per-key provenance: each entry
-    # is traceable to its own ``__metadata__`` key.
-    properties = dict(raw_metadata.items())
+    # The well-known keys above came from the whole map; only what is kept
+    # below is cut. Exact per-key provenance: each entry is traceable to its
+    # own ``__metadata__`` key.
+    raw_metadata = _stable_metadata(metadata)
+    properties = dict(raw_metadata)
     record_dict_field_provenance(
         provenance, "properties", properties, source, location_prefix="__metadata__."
     )

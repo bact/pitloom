@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -58,3 +58,6 @@ file-size guidance -- moved verbatim, no content changed.
   still fail), `hatch-integration.yml` (`loom validate-wheel`) and
   `action-selftest.yml` (`pitloom fragment validate`). Caching or vendoring
   the schema/context remains an alternative to retrying.
+- [ ] **Manual-check matrix: standalone `embed-wheel` on `gated-wheel`** --
+  add a cell for `--trust-wheel-model` in `scripts/manual_cli_checks/_matrix_plan.py`
+  (today only `wheel` runs it live; the other cells are inert).

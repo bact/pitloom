@@ -46,7 +46,17 @@ and this project adheres to
   undeclared registry; `id import` lists names skipped because the SBOM holds
   several elements under them ([#235])
 - `--scan-model-usage`: record which Python files reference a found AI model;
-  config key, Action input, `scan_model_usage=` ([#252])
+  config key, Action input, `scan_model_usage=`, also on wheels ([#252], [#263])
+- `wheel`, `wheel --embed` and `embed-wheel` without `--project-dir` find AI
+  models inside the wheel, all but the dist-info its file name names;
+  `max-model-extract-bytes` caps a model, 4x that a wheel; beyond it the model
+  stays without metadata ([#263])
+- `--trust-wheel-model` (`trust_wheel_model=`): a wheel's fastText, GGUF, HDF5,
+  ONNX and PyTorch `.pt`/`.pth` models are listed without metadata unless
+  given, one `INFO:` naming each format once per batch; no config key ([#263])
+- A `.pt`/`.pth` is a PyTorch model only when it opens as a ZIP or a pickle:
+  Python `.pth` path-config files (`distutils-precedence.pth`) are no longer
+  reported as models ([#263])
 
 ### Changed
 
@@ -110,6 +120,10 @@ and this project adheres to
 - Recording which `.py` files reference an AI model (`hasDataFile`) is off by
   default on every surface, incl. the Hatchling hook; when unset, one `INFO:`
   names the flag ([#252])
+- A `.py` over 1 MiB is skipped by the usage scan with a `WARNING:`; no
+  temporary path appears in AI model warnings ([#263])
+- A leftover temporary directory `WARNING:` names the directory, not its full
+  path ([#263])
 
 ### Removed
 
@@ -181,9 +195,22 @@ and this project adheres to
 - `import pitloom._loom_active_run` as the first Pitloom import failed on a
   circular import; two more cycles hidden by import order removed ([#260])
 - `scripts/manual_cli_checks` with a relative `PYTHONPATH` ran checks against
-  another installed Pitloom; it now refuses a Pitloom other than its own ([#261])
+  another installed Pitloom; it now refuses a Pitloom other than its own
+  ([#261])
 - Ctrl-C prints `ERROR: interrupted`, not a traceback (kept under `--debug`),
   and still ends by SIGINT ([#262])
+- A renamed model's provenance `Source:` names its installed file, as
+  `--allow-build` did ([#263])
+- A `.keras`/`.pt`/`.pt2` inner member is read bounded (8 MiB), also in project
+  scans, and reader warnings are escaped with a stable `FORMAT= FILE=` ([#263])
+- AI model readers refuse a pickle over 250k opcodes, a GGUF header over its 1M
+  budget, a Safetensors header over 16 MiB or an `.npy` header over 10000 bytes,
+  each with one `WARNING:` ([#263])
+- A ZIP model over 100k entries (counted as `zipfile` reads them) or 25.6 MB of
+  directory is refused ([#263])
+- A model is cut to 1000 entries per list or map, the same ones every run
+  (Safetensors too; also `loom model`), and an unparsed HDF5 config to 500
+  characters, each with one `WARNING:`; a cut model's memory is released ([#263])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -212,6 +239,7 @@ and this project adheres to
 [#260]: https://github.com/bact/pitloom/pull/260
 [#261]: https://github.com/bact/pitloom/pull/261
 [#262]: https://github.com/bact/pitloom/pull/262
+[#263]: https://github.com/bact/pitloom/pull/263
 
 ## [0.19.0] - 2026-09-18
 

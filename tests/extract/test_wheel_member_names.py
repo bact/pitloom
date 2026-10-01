@@ -47,6 +47,12 @@ _EXPECTED = {
 }
 
 
+@pytest.fixture(autouse=True)
+def _fixed_creation_time(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin ``created``: two runs straddling a second boundary differ."""
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
+
+
 def _wheel(tmp_path: Path, members: dict[str, bytes] | None = None) -> Path:
     return write_raw_zip(
         tmp_path / "demo-1.0.0-py3-none-any.whl",

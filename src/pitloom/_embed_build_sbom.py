@@ -430,8 +430,10 @@ def _build_sbom_from_project_and_wheel(
             project_files,
             scan_usage=pitloom_config.scan_model_usage is True,
             # A batch hints once: every wheel shares this project's models.
-            usage_hint=pitloom_config.scan_model_usage is None
-            and cache.first_use(("scan-usage-hint", str(project_dir))),
+            usage_hint=lambda: (
+                pitloom_config.scan_model_usage is None
+                and cache.first_use(("scan-usage-hint", str(project_dir)))
+            ),
         )
         enrichment_results = run_enrichers_for_models(
             ai_models, pitloom_config.enrich, project_dir

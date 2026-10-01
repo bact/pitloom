@@ -12,10 +12,11 @@ on does it also record which ``.py`` files reference them (``hasDataFile``).
 Off, one ``INFO:`` line from the shared scanner says so -- only when the
 setting was never given (an explicit ``false`` on any surface is silent), and
 once per ``embed-wheel`` batch. Every other target warns once that the flag
-has no effect.
+has no effect. The built-wheel surfaces are in
+:mod:`tests.assemble.test_scan_model_usage_wheel`.
 
 See also: :mod:`tests.assemble.embed_surfaces_shared` (the demo project
-these runners are modelled on), ``tests/extract/test_scanner.py`` (the gate
+these runners are modelled on), ``tests/extract/scanner/test_scanner.py`` (the gate
 itself).
 """
 
@@ -369,22 +370,9 @@ def _stub_env(mp: pytest.MonkeyPatch) -> None:
 
 
 def _inert_argv(kind: str, tmp: Path, mp: pytest.MonkeyPatch) -> tuple[list[str], Path]:
-    """The argv for *kind* and where its SBOM ends up (a file or a wheel)."""
+    """The argv for *kind* and the file its SBOM ends up in."""
     out = tmp / "out.json"
     project = _project(tmp)
-    if kind == "wheel":
-        return ["wheel", str(_wheel(tmp, project)), "-o", str(out)], out
-    if kind in ("wheel-embed", "embed-wheel-standalone"):
-        wheel = _wheel(tmp, project)
-        head = (
-            ["wheel", str(wheel), "--embed"]
-            if kind == "wheel-embed"
-            else [
-                "embed-wheel",
-                str(wheel),
-            ]
-        )
-        return head, wheel
     if kind == "env":
         _stub_env(mp)
         return ["env", "-o", str(out)], out
@@ -394,10 +382,7 @@ def _inert_argv(kind: str, tmp: Path, mp: pytest.MonkeyPatch) -> tuple[list[str]
     return ["project", str(_sdist(tmp, project)), "-o", str(out)], out
 
 
-@pytest.mark.parametrize(
-    "kind",
-    ["wheel", "wheel-embed", "embed-wheel-standalone", "env", "model", "sdist"],
-)
+@pytest.mark.parametrize("kind", ["env", "model", "sdist"])
 def test_inert_surfaces_warn_once_and_change_nothing(
     kind: str,
     tmp_path: Path,
@@ -419,9 +404,5 @@ def test_inert_surfaces_warn_once_and_change_nothing(
         ]
         assert len(warned) == int(given)
         assert not _hints(caplog)
-        results[given] = (
-            _embedded(artefact)
-            if artefact.suffix == ".whl"
-            else artefact.read_text(encoding="utf-8")
-        )
+        results[given] = artefact.read_text(encoding="utf-8")
     assert results[True] == results[False]

@@ -9,8 +9,8 @@ Only the scanner's input order is varied. Enrichment results and registry
 claims are matched to models by position, so an order that depends on the
 input would attach them to the wrong model.
 
-See also: :mod:`tests.extract.test_scanner` for the sort itself and
-:mod:`tests.extract.test_scanner_project` for the project producer.
+See also: :mod:`tests.extract.scanner.test_scanner` for the sort itself and
+:mod:`tests.extract.scanner.test_scanner_project` for the project producer.
 """
 
 from __future__ import annotations

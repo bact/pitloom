@@ -146,6 +146,20 @@ def _build_parent_parser() -> argparse.ArgumentParser:
         ),
     )
     parent.add_argument(
+        "--trust-wheel-model",
+        action="store_true",
+        default=None,
+        help=(
+            "SECURITY: read AI model files inside a wheel with every format "
+            "reader, including those that can crash or hang on a hostile "
+            "file (fastText, GGUF, HDF5, ONNX, PyTorch .pt/.pth). Only for wheels "
+            "you trust: a hostile model file can crash Pitloom, make it hang "
+            "or use unbounded memory, and Ctrl-C cannot interrupt it. "
+            "Without it, those models are listed without metadata. "
+            "Deliberately has no [tool.pitloom] equivalent."
+        ),
+    )
+    parent.add_argument(
         "--content-type",
         action=argparse.BooleanOptionalAction,
         default=None,

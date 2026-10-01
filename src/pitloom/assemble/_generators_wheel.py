@@ -28,12 +28,13 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.binary import find_phantom_dependencies
+from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
 from pitloom.extract.wheel import read_wheel
 from pitloom.id_registry import IdRegistry, resolve_registry
 from pitloom.logging_config import configure_logging
 
 
-# pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments
+# pylint: disable=too-many-arguments,too-many-locals
 def generate_wheel_sbom(
     wheel_path: Path | str,
     *,
@@ -47,6 +48,8 @@ def generate_wheel_sbom(
     content_type_method: str | None = None,
     update_id_registry: bool | None = None,
     max_source_metadata_bytes: int | None = None,
+    scan_model_usage: bool | None = None,
+    trust_wheel_model: bool | None = None,
     pitloom_config: PitloomConfig | None = None,
 ) -> str:
     """Generate an Analyzed SPDX 3 SBOM for a built Python wheel.
@@ -62,9 +65,20 @@ def generate_wheel_sbom(
     creators, creation datetime and comment fill in when *creation_metadata*
     is not given.
 
-    ``extract_file_header``/``content_type``/``enrich``/``scan_model_usage``
-    have no parameter here: reading a built wheel scans no file contents
-    and finds no AI models (see :data:`pitloom.core.inert_options.INERT`).
+    AI models inside the wheel are found; *scan_model_usage* also records
+    which Python files in it reference them. One model file is copied out
+    of the wheel at a time, each up to the config's ``max-model-extract-bytes``
+    (no parameter: it is configuration only) and four times that in all,
+    counting bytes copied and bytes read from archive members; a
+    model beyond either limit is listed without metadata. Models in a format
+    whose reader a hostile file can crash or hang (fastText, GGUF, HDF5,
+    ONNX, PyTorch ``.pt``/``.pth``) are listed without metadata too, with one
+    ``INFO:``, unless *trust_wheel_model*: for a wheel you trust only. It has no config
+    key, so a config cannot opt in.
+
+    ``extract_file_header``/``content_type``/``enrich`` have no parameter
+    here: reading a built wheel scans no file headers or content types, and
+    its AI models are not enriched (see :data:`pitloom.core.inert_options.INERT`).
     ``content_type_method`` does apply, because it also steers whether
     dependency originator enrichment fetches a remote authors file.
     """
@@ -80,6 +94,7 @@ def generate_wheel_sbom(
             describe_relationship=describe_relationship,
             update_id_registry=update_id_registry,
             max_source_metadata_bytes=max_source_metadata_bytes,
+            scan_model_usage=scan_model_usage,
         ),
     )
     # Resolved before the expensive read_wheel()/find_phantom_dependencies()
@@ -87,12 +102,19 @@ def generate_wheel_sbom(
     # fast, never after paying for a full wheel read first.
     resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
     project_metadata, project_files = read_wheel(wheel_path_obj)
+    ai_models = scan_wheel_for_ai_models(
+        wheel_path_obj,
+        scan_usage=cfg.scan_model_usage is True,
+        usage_hint=lambda: cfg.scan_model_usage is None,
+        max_bytes=cfg.max_model_extract_bytes,
+        trust=trust_wheel_model is True,
+    )
     phantom_deps = find_phantom_dependencies(project_files)
 
     doc = DocumentModel(
         project=project_metadata,
         creation_metadata=creation_metadata or cfg.creation_metadata,
-        ai_models=[],
+        ai_models=ai_models,
         phantom_dependencies=phantom_deps,
     )
     exporter = build(

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -128,6 +128,24 @@ the move.
   stdlib callable a test fakes to *record* calls (`time.monotonic`,
   `os.kill`, `subprocess.run`): patch the importing module's own name, or
   inject the callable.
+- **A logging handler bound during a test outlives the test's capture
+  stream.** `configure_logging()` builds `logging.StreamHandler(sys.stderr)`
+  and installs it on the `pitloom` logger. Called while `capsys`/`capfd`
+  is active (e.g. by `tests/test_logging_config.py` or any CLI test), that
+  `sys.stderr` is pytest's capture file, which is closed when the test
+  ends; the handler stays. The next test on the same xdist worker that logs
+  through `pitloom` hits `ValueError: I/O operation on closed file`, and
+  `logging` prints `--- Logging error ---` plus a traceback to the current
+  stderr. `test_fickling_stderr_becomes_one_bounded_escaped_warning`
+  asserts an empty stderr, so it failed on the 3.10 CI leg of PR #263 and
+  in 1 of 10 local runs, by xdist ordering only. Repro:
+  `pytest -n0 tests/test_logging_config.py <the fickling test>`. Fix: an
+  autouse fixture in `tests/conftest.py` (`_restore_pitloom_logger`) puts
+  the logger's handlers and level back after every test. Production keeps
+  binding at configure time on purpose: it keeps Pitloom's own warnings out
+  of the fickling stderr capture (`_stderr_capture.py`). Any other
+  process-global state a test can change (logger handlers, `sys.stderr`
+  proxies, signal handlers, `warnings` filters) needs the same restore.
 - **A version floor asserted in many places drifts -- and nothing checks
   it.** `scripts/check_version_consistency.py` covers Pitloom's *own*
   version string only, not dependency floors. The Hatchling floor lives in

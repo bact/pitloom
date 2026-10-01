@@ -61,6 +61,18 @@ def _empty_ftz(tmp: Path) -> Path:
     return f
 
 
+def _text_pth(tmp: Path) -> Path:
+    f = tmp / "distutils-precedence.pth"
+    f.write_bytes(b"import os; var = 'SETUPTOOLS_USE_DISTUTILS'\n")
+    return f
+
+
+def _empty_pth(tmp: Path) -> Path:
+    f = tmp / "empty.pth"
+    f.write_bytes(b"")
+    return f
+
+
 def _missing_onnx(tmp: Path) -> Path:
     return tmp / "missing.onnx"
 
@@ -91,6 +103,9 @@ def _dir_onnx(tmp: Path) -> Path:
         (_gguf_as_onnx, AiModelFormat.GGUF),
         (_text_bin, AiModelFormat.UNKNOWN),
         (_empty_ftz, AiModelFormat.FASTTEXT),
+        (_text_pth, AiModelFormat.UNKNOWN),
+        (_empty_pth, AiModelFormat.UNKNOWN),
+        (_fixture("pytorch/example-model.pth"), AiModelFormat.PYTORCH),
         (_missing_onnx, AiModelFormat.ONNX),
         (_dir_onnx, AiModelFormat.ONNX),
     ],
@@ -137,7 +152,19 @@ _GGUF, _NPY, _FT = (
         (b"", "d.npy/file", AiModelFormat.UNKNOWN),
         (b"", ".npy", AiModelFormat.UNKNOWN),
         (b"", "my model \u00e9.onnx", AiModelFormat.ONNX),
-        (b"", "a\\b.pt", AiModelFormat.PYTORCH),
+        # PyTorch: only a ZIP or a protocol 2..5 pickle; ``.pth`` is also
+        # Python path-configuration text. An empty header is no model.
+        (b"PK\x03\x04\0\0", "a\\b.pt", AiModelFormat.PYTORCH),
+        (b"\x80\x02}q\x00", "x.pth", AiModelFormat.PYTORCH),
+        (b"\x80\x05\x95", "x.PT", AiModelFormat.PYTORCH),
+        (b"import os;", "distutils-precedence.pth", AiModelFormat.UNKNOWN),
+        (b"/opt/lib\n", "x.pt", AiModelFormat.UNKNOWN),
+        (b"", "x.pth", AiModelFormat.UNKNOWN),
+        (b"\x80", "x.pth", AiModelFormat.UNKNOWN),
+        (b"\x80\x01", "x.pth", AiModelFormat.UNKNOWN),
+        (b"\x80\x06", "x.pth", AiModelFormat.UNKNOWN),
+        (b"PK\x03", "x.pt", AiModelFormat.UNKNOWN),
+        (_GGUF, "x.pth", AiModelFormat.GGUF),
         (b"", "x.bin", AiModelFormat.UNKNOWN),
         # Safetensors heuristic: needs all 9 bytes, 0 < size < 100 MB, then "{"
         (_st_header(19), "x.bin", AiModelFormat.SAFETENSORS),

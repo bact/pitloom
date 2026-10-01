@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-09-08
+Last-Modified: 2026-10-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -32,7 +32,7 @@ extension.
 | Keras v3 | `.keras` | (none -- stdlib only) |
 | NumPy | `.npy`, `.npz` | `pip install numpy` |
 | ONNX | `.onnx` | `pip install onnx` |
-| PyTorch classic | `.pt`, `.pth` | `pip install fickling` (safe pickle inspection) |
+| PyTorch classic | `.pt`, `.pth` (a ZIP or a pickle; a plain-text `.pth` path-config file is not a model) | `pip install fickling` (safe pickle inspection) |
 | PyTorch PT2 / ExecuTorch | `.pt2` | (none -- stdlib only) |
 | Safetensors | `.safetensors` | `pip install safetensors` |
 
@@ -43,6 +43,9 @@ format.
 Every extraction is read-only and inspects the file's own structure
 (binary header, ZIP archive contents, or safe AST inspection of a pickle)
 -- Pitloom never executes model code or calls `pickle.load()`.
+
+Size and header limits, the wheel-scan gate and the fields a format cannot
+carry are in [AI model scan limits](ai-model-scan-limits.md).
 
 ## Hugging Face Hub models
 
@@ -66,6 +69,8 @@ JAX (Orbax), TensorFlow SavedModel, TensorFlow Lite, and scikit-learn
 
 ## See also
 
+- [AI model scan limits](ai-model-scan-limits.md) -- why a model can be
+  missing metadata: caps, gated formats, fields not recorded.
 - [Command line](cli.md) -- the `loom model` command in context with
   Pitloom's other generation targets.
 - [Python API](python-api.md) -- `generate_model_sbom()`, the equivalent

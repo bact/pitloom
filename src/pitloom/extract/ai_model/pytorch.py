@@ -13,14 +13,23 @@ References:
 from __future__ import annotations
 
 import ast
+import io
 import logging
 from pathlib import Path
-from typing import IO, Any, BinaryIO, cast
+from typing import IO, Any
 from zipfile import ZipFile
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.extract._extract_utils import sanitize_provenance_text
-from pitloom.logging_config import field_loss_suffix
+from pitloom.extract.ai_model import archive_member
+from pitloom.extract.ai_model._pickle_bounds import first_pickle
+from pitloom.extract.ai_model._stderr_capture import capture_stderr
+from pitloom.extract.ai_model.archive_member import (
+    open_archive_member,
+    open_model_zip,
+)
+from pitloom.extract.ai_model.limits import ModelLimitExceeded
+from pitloom.logging_config import field_loss_suffix, loggable, one_line
 
 log = logging.getLogger(__name__)
 
@@ -35,48 +44,96 @@ def _dotted_name(node: Any) -> str | None:
     return None
 
 
+# What of fickling's own stderr output a warning quotes.
+_FICKLING_STDERR_CHARS = 200
+
+
+def _top_class(pickled: Any) -> str | None:
+    """The first dotted class name (title-case last part) called in the
+    pickle's AST."""
+    for node in ast.walk(pickled.ast):
+        if isinstance(node, ast.Call):
+            name = _dotted_name(node.func)
+            if name and name.rsplit(".", 1)[-1][:1].isupper():
+                return name
+    return None
+
+
+def _bounded_pickle(pkl_file: IO[bytes]) -> bytes | None:
+    """The first pickle of *pkl_file*, verified bounded; ``None`` (with a
+    warning) when it is not a well-formed pickle.
+
+    An archive member arrives already bounded
+    (:func:`~pitloom.extract.ai_model.archive_member.open_archive_member`), so
+    only a raw pickle file can run past
+    :data:`archive_member.MAX_ARCHIVE_MEMBER_BYTES` here.
+
+    Raises:
+        ModelLimitExceeded: Too many opcodes, or no complete pickle within
+            :data:`archive_member.MAX_ARCHIVE_MEMBER_BYTES`.
+    """
+    limit = archive_member.MAX_ARCHIVE_MEMBER_BYTES
+    data = pkl_file.read(limit + 1)
+    try:
+        return first_pickle(data[:limit])
+    except ValueError as exc:
+        if len(data) > limit:
+            raise ModelLimitExceeded(
+                f"first pickle not complete within {limit} bytes"
+            ) from None
+        msg = "fickling failed to parse pickle bytes: %s" + field_loss_suffix(
+            "skipped", "type_of_model"
+        )
+        log.warning(msg, one_line(exc))
+        return None
+
+
 def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
-    """Use fickling to safely extract the top-level class name from a pickle file.
+    """Use fickling to safely extract the top-level class name from a pickle.
 
     Returns the first dotted class name (title-case final component) found in
     the pickle AST, or ``None`` if fickling is not installed or the class
     cannot be determined.  Never executes the pickle.
+
+    Only the first pickle of *pkl_file*, at most
+    :data:`~pitloom.extract.ai_model.archive_member.MAX_ARCHIVE_MEMBER_BYTES`
+    and :data:`~pitloom.extract.ai_model._pickle_bounds.MAX_PICKLE_OPCODES`
+    opcodes, reaches fickling (see :func:`_bounded_pickle`). What fickling
+    writes to stderr is held back and summarised in one warning.
+
+    Raises:
+        ModelLimitExceeded: The pickle is over a bound.
     """
     try:
         # pylint: disable=import-outside-toplevel
-        from fickling.fickle import (
-            Pickled,
-        )
+        from fickling.fickle import Pickled
     except ImportError:
         return None
 
-    try:
-        pkl = Pickled.load(cast(BinaryIO, pkl_file))
-    # pylint: disable-next=broad-exception-caught
-    except Exception as exc:
-        msg = "fickling failed to parse pickle bytes: %s" + field_loss_suffix(
-            "skipped", "type_of_model"
-        )
-        log.warning(msg, exc)
+    pickle_bytes = _bounded_pickle(pkl_file)
+    if pickle_bytes is None:
         return None
 
-    try:
-        for node in ast.walk(pkl.ast):
-            if isinstance(node, ast.Call):
-                name = _dotted_name(node.func)
-                if name:
-                    last = name.rsplit(".", 1)[-1]
-                    if last[:1].isupper():
-                        return name
-    # pylint: disable-next=broad-exception-caught
-    except Exception as exc:
-        msg = "fickling parsed pickle but AST walk failed: %s" + field_loss_suffix(
-            "skipped", "type_of_model"
-        )
-        log.warning(msg, exc)
-        return None
-
-    return None
+    failure: str | None = None
+    type_of_model: str | None = None
+    with capture_stderr() as sink:
+        try:
+            pkl = Pickled.load(io.BytesIO(pickle_bytes))
+        # pylint: disable-next=broad-exception-caught
+        except Exception as exc:
+            failure = f"fickling failed to parse pickle bytes: {one_line(exc)}"
+        else:
+            try:
+                type_of_model = _top_class(pkl)
+            # pylint: disable-next=broad-exception-caught
+            except Exception as exc:
+                failure = f"fickling parsed pickle but AST walk failed: {one_line(exc)}"
+    if failure is not None:
+        log.warning("%s%s", failure, field_loss_suffix("skipped", "type_of_model"))
+    stderr = one_line(sink.text(), _FICKLING_STDERR_CHARS)
+    if stderr:
+        log.warning("fickling reported on stderr: %s", stderr)
+    return type_of_model
 
 
 def _read_pytorch_zip(
@@ -112,18 +169,19 @@ def _read_pytorch_zip(
     )
     if pkl_entry is not None:
         try:
-            with zf.open(pkl_entry) as fh:
-                type_of_model = _fickling_get_top_class(fh)
+            type_of_model = _fickling_get_top_class(open_archive_member(zf, pkl_entry))
             if type_of_model:
                 provenance["type_of_model"] = (
                     f"{source} | Field: {pkl_entry} (fickling)"
                 )
+        except ModelLimitExceeded:
+            raise
         # pylint: disable-next=broad-exception-caught
         except Exception as exc:
             msg = "Failed to inspect %s in %s: %s" + field_loss_suffix(
                 "skipped", "type_of_model"
             )
-            log.warning(msg, pkl_entry, source, exc)
+            log.warning(msg, loggable(pkl_entry), loggable(source), loggable(str(exc)))
 
     return type_of_model, properties, provenance
 
@@ -155,6 +213,8 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
 
     Raises:
         ValueError: If the file cannot be opened.
+        pitloom.extract.ai_model.limits.ModelLimitExceeded: The file is over a
+            bound.
     """
     # pylint: disable=import-outside-toplevel
     import zipfile
@@ -182,7 +242,7 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
         except OSError as exc:
             # The file itself couldn't be opened (not just a single field
             # failing to extract) -- same "Raises: ValueError" contract
-            # every sibling extractor (hdf5.py, numpy.py, ...) honors.
+            # every sibling extractor (hdf5.py, numpy.py, ...) honours.
             raise ValueError(
                 f"Failed to read PyTorch file {model_path}: {exc}"
             ) from exc
@@ -198,7 +258,7 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
         )
 
     try:
-        with zipfile.ZipFile(str(model_path), "r") as zf:
+        with open_model_zip(model_path) as zf:
             type_of_model, properties, provenance = _read_pytorch_zip(zf, source)
     except (OSError, zipfile.BadZipFile) as exc:
         raise ValueError(f"Failed to read PyTorch file {model_path}: {exc}") from exc

@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC0-1.0
 # Archive member names: implementation notes
 
 See also: [wheel-embedding.md](wheel-embedding.md) (the embed flow that
-reads the same names), [ai-model-scanning.md](ai-model-scanning.md) (PR D's
+reads the same names), [ai-model-scanning.md](ai-model-scanning.md) (the
 wheel model producer reuses the helper),
 [archive-member-followups.md](../design/archive-member-followups.md) (what
 was left open).
@@ -33,7 +33,8 @@ distribution paths for every reader:
   reader uses it directly.
 - `zip_file_members()` wraps it for a ZIP. `read_wheel`, the `--allow-build`
   extraction (`_extract_wheel_to_included_files`), the `.zip` sdist reader
-  and, next, PR D's wheel model producer all use it.
+  and the wheel model producer (`extract/scanner_wheel.py`, with no logger:
+  `read_wheel` already reported) all use it.
 
 `software_File.name` is the same on every OS.
 
@@ -99,15 +100,18 @@ normalised one. The registry lookup tries `physical_path` first, then
 `distribution_path`. A registry harvested before this change, keyed by
 `demo\mod.py`, therefore still finds the file and keeps its id. The next
 harvest then records the normalised name. Nothing joins an archive
-member's `physical_path` onto a directory: the AI model scan runs for
-directory targets only, and wheel files carry no header data of their own.
+member's `physical_path` onto a directory: the wheel model scan copies a
+member to `{index}{suffix}` in its own temporary directory and never uses
+the member name as a path. A scanned wheel model's `physical_path` is the
+same raw name, so it equals its file's `ProjectFile.physical_path`.
 
 ## Why skip unsafe names rather than keep them
 
 - Kept, `../x` or `/etc/x` becomes `software_File.name`. `_document_files`
   then builds directory elements named `..` or `/` with `contains` edges,
   the registry harvests the name as a file key, and any consumer that joins
-  the name onto a directory (PR D's `materialize`) inherits a zip-slip.
+  the name onto a directory would inherit a zip-slip (the wheel model scan
+  never does).
 - Rewriting it (dropping `..` or the leading `/`) would present a
   legal-looking path the archive never installs to.
 - pip and `installer` refuse such a wheel, so it has no install location to

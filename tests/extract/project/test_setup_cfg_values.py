@@ -41,6 +41,7 @@ _FIELD_KEYS: dict[str, tuple[str, str]] = {
     "enrich_local": ("", "enrich"),
     "extract_file_header": ("", "extract-file-header"),
     "scan_model_usage": ("", "scan-model-usage"),
+    "max_model_extract_bytes": ("", "max-model-extract-bytes"),
     "content_type_enabled": ("content-type", "enabled"),
     "offline": ("", "offline"),
     "use_lockfile": ("", "use-lockfile"),
@@ -127,18 +128,29 @@ def test_is_typed_classifies_optional_fields(annotation: str, typed: bool) -> No
     assert _is_typed(annotation) is typed
 
 
+def _outcome(config: str, field: str, table: str, body: str) -> tuple[str, object]:
+    """The field's value, or the one-line error a rejected value raises."""
+    read = _from_cfg if config == "cfg" else _from_toml
+    try:
+        return "value", getattr(read(table, body), field)
+    except ValueError as exc:
+        return "error", str(exc)
+
+
 @pytest.mark.parametrize(("table", "key", "is_int"), _declared())
 def test_setup_cfg_value_reads_as_pyproject(table: str, key: str, is_int: bool) -> None:
+    """Value or error alike: a key that rejects some spelling (a ceiling
+    rejects ``0``) must reject it from ``setup.cfg`` too."""
     field = _field_of(table, key)
     pairs = [(v, v) for v in _INT_VALUES] if is_int else list(_BOOL_VALUES.items())
     default = getattr(PitloomConfig(), field)
     results = []
     for ini, toml in pairs:
-        got = getattr(_from_cfg(table, f"{key} = {ini}"), field)
-        assert got == getattr(_from_toml(table, f"{key} = {toml}"), field), ini
+        got = _outcome("cfg", field, table, f"{key} = {ini}")
+        assert got == _outcome("toml", field, table, f"{key} = {toml}"), ini
         results.append(got)
     # not vacuous: the key took effect, not just the default on both sides
-    assert any(r != default for r in results)
+    assert any(kind == "value" and v != default for kind, v in results)
 
 
 @pytest.mark.parametrize(

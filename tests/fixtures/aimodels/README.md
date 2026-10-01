@@ -23,6 +23,20 @@ dependency is not installed or the file is absent.
 > to reduce download size. They are available in the GitHub repository.
 > Clone the repo to run the full test suite.
 
+## Hostile fixtures (`hostile/`)
+
+Not models to read: two 8 448-byte HDF5 files, each a one-to-27-byte mutation
+of a valid Keras `.h5`, on which `h5py`/libhdf5 crashes or never returns.
+They are regression inputs for the wheel scan's format gate: a wheel scan
+without `--trust-wheel-model` must list such a model without metadata and
+never open it. **Never pass them to a reader in-process** -- use a
+subprocess with a timeout. Excluded from the sdist.
+
+| Path | What libhdf5 does | SHA-256 |
+| :--- | :--- | :--- |
+| `hostile/hdf5-segfault.h5` | `SIGSEGV` inside `h5py.File(...)` | `20a74cfea05f0bac4b982198fcf5296262db5b1ba9050ce870357c09d6de0cc4` |
+| `hostile/hdf5-hang.h5` | never returns (busy loop) | `aae5c4109f023e619206e0b821243b4173e4974457a38076d982793a7323158d` |
+
 ## AI model summary
 
 | Path | Format | Task | License |

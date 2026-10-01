@@ -103,6 +103,7 @@ def test_every_config_overrides_field_is_accounted_for() -> None:
         "content_type_method",
         "max_source_metadata_bytes",
         "build_options",
+        "trust_wheel_model",  # no config key, like build_options
     }
     assert set(_BOOL_OVERRIDE_TO_CONFIG) | non_bool == {
         f.name for f in dataclasses.fields(ConfigOverrides)

@@ -16,6 +16,8 @@ from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
+from pitloom.extract.ai_model.reader_requirements import missing_library
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -73,17 +75,18 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
         # pylint: disable=import-outside-toplevel
         import onnx
     except ImportError as exc:
-        raise ImportError(
-            "The 'onnx' package is required to extract ONNX model metadata. "
-            "Install it with: pip install onnx"
-        ) from exc
+        raise missing_library(AiModelFormat.ONNX) from exc
 
     try:
         # load_external_data=False avoids loading large external tensor files
         model = onnx.load(str(model_path), load_external_data=False)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to load ONNX model from %s: %s", model_path, exc)
+        log.debug(
+            "Failed to load ONNX model from %s: %s",
+            loggable(str(model_path)),
+            loggable(str(exc)),
+        )
         raise ValueError(f"Failed to load ONNX model from {model_path}: {exc}") from exc
 
     source = f"Source: {sanitize_provenance_text(model_path.name)}"

@@ -13,7 +13,10 @@ see AGENTS.md's file-size rule).
 
 import pytest
 
-from pitloom.core._config_parse_scan import _read_scan_model_usage
+from pitloom.core._config_parse_scan import (
+    _read_max_model_extract_bytes,
+    _read_scan_model_usage,
+)
 from pitloom.core.config import (
     FragmentConfig,
     _read_content_type_settings,
@@ -51,6 +54,31 @@ def test_read_scan_model_usage_keeps_absent_none_and_false_false() -> None:
     assert _read_scan_model_usage({"scan-model-usage": True}) is True
     with pytest.raises(ValueError, match="'scan-model-usage' must be a boolean"):
         _read_scan_model_usage({"scan-model-usage": "yes"})
+
+
+def test_read_max_model_extract_bytes_default_and_value() -> None:
+    assert _read_max_model_extract_bytes({}) == 512 * 1024 * 1024
+    assert _read_max_model_extract_bytes({"max-model-extract-bytes": 64}) == 64
+    assert parse_pitloom_config({}).max_model_extract_bytes == 512 * 1024 * 1024
+
+
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [
+        (0, "positive integer, got 0"),  # not "unlimited"
+        (-1, "positive integer, got -1"),
+        (True, "must be an integer"),
+        ("64", "must be an integer"),
+        (1.5, "must be an integer"),
+    ],
+)
+def test_read_max_model_extract_bytes_rejects_non_positive_and_non_int(
+    value: object, message: str
+) -> None:
+    with pytest.raises(ValueError, match=message) as exc:
+        _read_max_model_extract_bytes({"max-model-extract-bytes": value})
+    assert "'max-model-extract-bytes'" in str(exc.value)
+    assert "\n" not in str(exc.value)
 
 
 # ---------------------------------------------------------------------------

@@ -280,7 +280,7 @@ def test_fickling_get_top_class_skips_unresolvable_call_then_matches() -> None:
     fake_pkl = SimpleNamespace(ast=tree)
 
     with patch.object(Pickled, "load", return_value=fake_pkl):
-        result = _fickling_get_top_class(_io.BytesIO(b"unused"))
+        result = _fickling_get_top_class(_io.BytesIO(b"\x80\x02N."))
 
     assert result == "Foo"
 

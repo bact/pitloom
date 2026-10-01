@@ -74,5 +74,8 @@ def test_leftover_warning_uses_given_log_prefix(
         remove()
 
     assert path.parent == sys_tmp
-    assert f"Scan: could not fully remove temporary directory {path}" in caplog.text
+    assert f"Scan: could not fully remove temporary directory {path.name} " in (
+        caplog.text
+    )
+    assert str(sys_tmp) not in caplog.text
     assert "Build:" not in caplog.text

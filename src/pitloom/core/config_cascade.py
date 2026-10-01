@@ -66,6 +66,7 @@ __all__ = [
 
 
 @dataclasses.dataclass(frozen=True)
+# pylint: disable-next=too-many-instance-attributes
 class ConfigOverrides:
     """Per-run overrides layered onto a project's ``[tool.pitloom]`` config.
 
@@ -90,6 +91,11 @@ class ConfigOverrides:
             has no effect, as it does for ``describe_relationship`` and
             ``update_id_registry`` (see
             :data:`pitloom.core.inert_options.INERT`).
+        trust_wheel_model: ``--trust-wheel-model``: read a wheel's AI model
+            files with every format reader, including those gated in a wheel. Like
+            ``build_options``, no ``[tool.pitloom]`` cascade (a config must
+            not opt in) and :func:`apply_overrides` never touches it; only a
+            standalone wheel embed reads it, and any other embed warns.
         build_options: ``--allow-build`` and its companion flags (see
             :class:`~pitloom.core.build_options.BuildOptions`). Unlike
             every other field here, deliberately has no
@@ -124,6 +130,7 @@ class ConfigOverrides:
     describe_relationship: bool | None = None
     update_id_registry: bool | None = None
     max_source_metadata_bytes: int | None = None
+    trust_wheel_model: bool | None = None
     build_options: BuildOptions = BuildOptions()
 
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-15
-Last-Modified: 2026-09-28
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,11 +9,20 @@ SPDX-License-Identifier: CC0-1.0
 # AI model id stability
 
 See also: [roadmap.md](roadmap.md) (Near-term -- "AI model id
-stability", follow-up to [PR #178](https://github.com/bact/pitloom/pull/178)).
-
-Open design question, not a committed plan.
+stability", follow-up to [PR #178](https://github.com/bact/pitloom/pull/178)),
+[id-registry-v3.md](id-registry-v3.md) (decides the first question below),
+[id-registry-followups.md](id-registry-followups.md).
 
 ## Deterministic same-model identification for auto-harvest
+
+**Decided in registry v3 (user, 2026-09-30; planned, not built).** The
+content hash is the answer: a model's sha256 is a gate once recorded
+(D3), so a retrained, re-exported or re-quantised model is a new model
+with a new id -- the under-match caveat below is accepted on purpose.
+Hashed `ai_AIPackage` elements are auto-harvested; unhashed ones stay
+excluded (D15). Loom hashes a model declared with `path=` at run exit
+(D13). The "machine ID" idea is not pursued. The text below is the
+original question, kept as the rationale; it describes v2.
 
 `ai_AIPackage` elements are currently excluded from the Loom ID
 registry's auto-harvest (`_sync_registry` in
@@ -57,8 +66,7 @@ reliable way to say "this is the same model I saw last time":
   clear whether this is needed at all once the content-hash caveat
   above is settled, or how the two ideas would interact.
 
-No implementation direction chosen yet -- open design question, not a
-committed plan.
+(v2 text ends; see the decision at the top of this section.)
 
 ## Known gap: two models sharing a file stem
 
@@ -84,7 +92,10 @@ are two unrelated models that happen to share a filename" -- it always
 guesses the *first* one it processes is the "real" match, which is
 resolution-order-dependent, not based on any actual evidence of
 identity. This is the same "what counts as the same model" question the
-rest of this document is already open on (see "Deterministic same-model
+rest of this document was open on (see "Deterministic same-model
 identification for auto-harvest" above), extended to also disambiguate
 by containing directory/path, not just a bare filename stem -- not
-addressed here.
+addressed here. Registry v3 does not close it either: `id generate` over
+two same-stem files with different bytes replaces the one
+`(ai_AIPackage, stem)` entry (a differing sha mints, D12), and project
+lookups stay ungated until G7 #3 (D16).

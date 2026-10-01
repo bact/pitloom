@@ -174,9 +174,9 @@ def embed_wheel_sbom(
     *project_dir*/*pitloom_config*/``overrides.build_options`` (e.g. one
     wheel per call, in a loop) to resolve *project_dir*'s file list (and
     run any ``--allow-build`` real PEP 517 build) once for the whole
-    batch instead of once per call, and to warn about each ineffective
-    build flag (and log the model-usage ``INFO:`` hint) once for the
-    batch. Left ``None`` (the default), this
+    batch instead of once per call. A batch logs each ineffective-option
+    warning, the model-usage ``INFO:`` hint and each gated-format ``INFO:``
+    once. Left ``None`` (the default), this
     call resolves and cleans up its own file list. When given, *this*
     call does NOT clean up -- make every call of the batch inside one
     ``with EmbedFileCache() as file_cache:`` block, whose exit does; a
@@ -191,17 +191,18 @@ def embed_wheel_sbom(
         # worth skipping when this run cannot proceed anyway. Only when
         # *sbom_path* is unset: with an external SBOM,
         # ``_generate_embed_sbom_json``'s own early-return branch never
-        # touches the registry at all (see its docstring), so there is
-        # nothing to resolve here. The resolved ``IdRegistry`` (or
-        # ``None``) is fed back in as *this call's own* ``id_registry``
-        # below, so ``_generate_embed_sbom_json``'s own
-        # ``resolve_registry()`` call short-circuits on the
-        # already-resolved instance rather than loading the file again.
+        # touches the registry at all, so there is nothing to resolve here.
+        # The resolved ``IdRegistry`` (or ``None``) is fed back in as *this
+        # call's own* ``id_registry`` below, so
+        # ``_generate_embed_sbom_json``'s own ``resolve_registry()`` call
+        # short-circuits on the already-resolved instance rather than
+        # loading the file again.
         id_registry = _resolve_embed_registry(project_dir, pitloom_config, id_registry)
     wheel_metadata, _ = read_wheel(wheel_obj)
 
     sbom_json, eff_basename = _generate_embed_sbom_json(
         wheel_metadata,
+        wheel_path=wheel_obj,
         project_dir=project_dir,
         pitloom_config=pitloom_config,
         sbom_path=sbom_path,

@@ -44,7 +44,8 @@ EMPTY_INPUTS = dict.fromkeys(
     "PL_UPDATE_ID_REGISTRY "
     "PL_CONTENT_TYPE PL_CONTENT_TYPE_METHOD "
     "PL_MAX_SOURCE_METADATA_BYTES PL_CONFIG PL_OFFLINE PL_USE_LOCKFILE "
-    "PL_ALLOW_BUILD PL_NO_BUILD_ISOLATION PL_BUILD_TIMEOUT".split(),
+    "PL_ALLOW_BUILD PL_NO_BUILD_ISOLATION PL_BUILD_TIMEOUT "
+    "PL_TRUST_WHEEL_MODEL".split(),
     "",
 )
 
@@ -92,9 +93,8 @@ def generate_fixture(
             GITHUB_ACTION_PATH=str(scripts_dir.parent),
             GITHUB_OUTPUT=str(github_output),
             LOOM_ARGS_FILE=str(args_file),
-            PL_PROJECT_PATH=".",
             PL_ARGS=args,
-            **{**EMPTY_INPUTS, **env},
+            **{"PL_PROJECT_PATH": ".", **EMPTY_INPUTS, **env},
         )
         written = github_output.read_text(encoding="utf-8").strip()
         sbom_path = written.removeprefix("sbom-path=") if written else None

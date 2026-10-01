@@ -18,7 +18,12 @@ from zipfile import ZipFile
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.extract._extract_utils import sanitize_provenance_text
-from pitloom.logging_config import field_loss_suffix
+from pitloom.extract.ai_model.archive_member import (
+    open_model_zip,
+    read_archive_member,
+)
+from pitloom.extract.ai_model.limits import ModelLimitExceeded
+from pitloom.logging_config import field_loss_suffix, loggable
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +47,7 @@ def _read_pt2_meta_entry(
     import json
 
     try:
-        meta = json.loads(zf.read(meta_entry))
+        meta = json.loads(read_archive_member(zf, meta_entry))
         if isinstance(meta, dict):
             name = None
             field_name = None
@@ -54,12 +59,14 @@ def _read_pt2_meta_entry(
                 field_name = "model_name"
             if name and field_name:
                 return name, f"{source} | Field: {meta_entry}.{field_name}"
+    except ModelLimitExceeded:
+        raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         msg = "Failed to parse PT2 metadata entry %s: %s" + field_loss_suffix(
             "skipped", "name"
         )
-        log.warning(msg, meta_entry, exc)
+        log.warning(msg, loggable(meta_entry), loggable(str(exc)))
     return None, None
 
 
@@ -82,7 +89,21 @@ def _warn_pt2_extra_read_failure(full: str, field: str, exc: Exception) -> None:
     read. Module-level, not nested in ``_read_pt2_extra_files``, so its
     ``msg`` local doesn't count against that function's locals budget."""
     msg = "Failed to read PT2 extra file %s: %s" + field_loss_suffix("skipped", field)
-    log.warning(msg, full, exc)
+    log.warning(msg, loggable(full), loggable(str(exc)))
+
+
+def _read_pt2_text(zf: ZipFile, full: str, field: str) -> str | None:
+    """The stripped text of member *full*; ``None`` when empty or unreadable
+    (a ``WARNING:`` for the latter). A member over the cap is not absorbed."""
+    try:
+        text = read_archive_member(zf, full)
+        return text.decode("utf-8", errors="replace").strip() or None
+    except ModelLimitExceeded:
+        raise
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:
+        _warn_pt2_extra_read_failure(full, field, exc)
+        return None
 
 
 def _warn_pt2_extra_tags_malformed(exc: Exception) -> None:
@@ -91,7 +112,7 @@ def _warn_pt2_extra_tags_malformed(exc: Exception) -> None:
     msg = "Failed to parse PT2 extra/tags as JSON: %s" + field_loss_suffix(
         "degraded", "properties.tags (kept as raw string)"
     )
-    log.warning(msg, exc)
+    log.warning(msg, loggable(str(exc)))
 
 
 def _detect_root_prefix(file_list: list[str]) -> str:
@@ -160,13 +181,7 @@ def _read_pt2_extra_files(
 
     def _read_text(rel_path: str, field: str) -> str | None:
         full = f"{prefix}{rel_path}"
-        if full in file_list:
-            try:
-                return zf.read(full).decode("utf-8", errors="replace").strip() or None
-            # pylint: disable-next=broad-exception-caught
-            except Exception as exc:
-                _warn_pt2_extra_read_failure(full, field, exc)
-        return None
+        return _read_pt2_text(zf, full, field) if full in file_list else None
 
     name = _read_text("extra/name", "name")
     if name:
@@ -239,13 +254,15 @@ def _read_pt2_graph_io(
         return [], []
 
     try:
-        data = json.loads(zf.read(model_json_path))
+        data = json.loads(read_archive_member(zf, model_json_path))
+    except ModelLimitExceeded:
+        raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         msg = "Failed to parse PT2 model graph %s: %s" + field_loss_suffix(
             "skipped", "inputs", "outputs"
         )
-        log.warning(msg, model_json_path, exc)
+        log.warning(msg, loggable(model_json_path), loggable(str(exc)))
         return [], []
 
     graph = (data.get("graph_module") or {}).get("graph") or {}
@@ -276,18 +293,20 @@ def _read_pt2_format_version(
     if f"{prefix}archive_version" in file_list:
         try:
             arch_ver = (
-                zf.read(f"{prefix}archive_version")
+                read_archive_member(zf, f"{prefix}archive_version")
                 .decode("utf-8", errors="replace")
                 .strip()
             )
             if arch_ver:
                 return arch_ver, f"{source} | Field: {prefix}archive_version"
+        except ModelLimitExceeded:
+            raise
         # pylint: disable-next=broad-exception-caught
         except Exception as exc:
             msg = "Failed to read PT2 %sarchive_version: %s" + field_loss_suffix(
                 "skipped", "version (archive_version fallback)"
             )
-            log.warning(msg, prefix, exc)
+            log.warning(msg, loggable(prefix), loggable(str(exc)))
     return None, None
 
 
@@ -336,7 +355,10 @@ def _read_pt2_zip(
     prefix = _detect_root_prefix(file_list)
 
     if "version" in file_list:
-        version = zf.read("version").decode("utf-8", errors="replace").strip() or None
+        version = (
+            read_archive_member(zf, "version").decode("utf-8", errors="replace").strip()
+            or None
+        )
         if version:
             provenance["version"] = f"{source} | Field: version file"
 
@@ -394,7 +416,7 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
     **Rich ExecuTorch format** -- a single root directory
     (e.g. ``model_name/``) containing:
 
-    - ``archive_version``      -> :attr:`~AiModelMetadata.version`
+    - ``archive_version``      -> ``format_info.format_version``
     - ``extra/name``           -> :attr:`~AiModelMetadata.name`
     - ``extra/description``    -> :attr:`~AiModelMetadata.description`
     - ``extra/model_version``  -> :attr:`~AiModelMetadata.version` (preferred)
@@ -412,6 +434,9 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
 
     Raises:
         ValueError: If the file is not a valid ZIP archive.
+        pitloom.extract.ai_model.limits.ModelLimitExceeded: The archive or one
+            of its members is over a bound (``open_model_zip``,
+            ``read_archive_member``).
     """
     # pylint: disable=import-outside-toplevel
     import zipfile
@@ -426,7 +451,7 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
     if not is_zip:
         raise ValueError(f"PT2 Archive must be a ZIP file, got: {model_path}")
 
-    with zipfile.ZipFile(str(model_path), "r") as zf:
+    with open_model_zip(model_path) as zf:
         (
             name,
             description,

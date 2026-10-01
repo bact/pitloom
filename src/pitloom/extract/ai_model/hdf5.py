@@ -12,7 +12,8 @@ attributes opportunistically -- any HDF5 model that happens to carry them
 will have the corresponding metadata extracted and recorded:
 
 - ``keras_version``
-  -> :attr:`~AiModelMetadata.version`
+  -> ``format_info.framework_version`` (and ``format_info.format_version``,
+  ``v1`` or ``v2``, from its major number)
 - ``backend``
   -> ``properties["backend"]``
 - ``model_config.class_name``
@@ -59,8 +60,14 @@ from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
+from pitloom.extract.ai_model.reader_requirements import missing_library
+from pitloom.logging_config import field_loss_suffix, loggable
 
 log = logging.getLogger(__name__)
+
+#: Characters of an unparsed ``model_config`` kept in
+#: ``properties["model_config_raw"]``.
+_RAW_CONFIG_CHARS = 500
 
 
 def _decode_h5_attr(value: Any) -> str | None:
@@ -297,16 +304,17 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
         # pylint: disable=import-outside-toplevel
         import h5py
     except ImportError as exc:
-        raise ImportError(
-            "The 'h5py' package is required to extract HDF5 model metadata. "
-            "Install it with: pip install h5py"
-        ) from exc
+        raise missing_library(AiModelFormat.HDF5) from exc
 
     try:
         hf = h5py.File(str(model_path), "r")
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to open HDF5 file %s: %s", model_path, exc)
+        log.debug(
+            "Failed to open HDF5 file %s: %s",
+            loggable(str(model_path)),
+            loggable(str(exc)),
+        )
         raise ValueError(f"Failed to read HDF5 file {model_path}: {exc}") from exc
 
     with hf:
@@ -359,7 +367,15 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
                 provenance,
             )
             if not type_of_model and not name:
-                properties["model_config_raw"] = model_config_raw[:500]
+                properties["model_config_raw"] = model_config_raw[:_RAW_CONFIG_CHARS]
+                if len(model_config_raw) > _RAW_CONFIG_CHARS:
+                    log.warning(
+                        "Unparsed model_config of %d characters; the first %d "
+                        "are kept%s",
+                        len(model_config_raw),
+                        _RAW_CONFIG_CHARS,
+                        field_loss_suffix("degraded", "properties.model_config_raw"),
+                    )
                 provenance["properties.model_config_raw"] = (
                     f"{source} | Field: model_config attribute (unparsed)"
                 )

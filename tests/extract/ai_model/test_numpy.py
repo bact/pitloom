@@ -196,6 +196,7 @@ def test_read_numpy_npz_multiple_arrays(tmp_path: Path) -> None:
 
     mock_file_a = MagicMock()
     mock_file_b = MagicMock()
+    mock_file_a.read.side_effect = mock_file_b.read.side_effect = lambda n: b"\0" * n
 
     def mock_zip_open(name: str) -> MagicMock:
         cm = MagicMock()
@@ -211,9 +212,8 @@ def test_read_numpy_npz_multiple_arrays(tmp_path: Path) -> None:
 
     mock_format = MagicMock()
     mock_format.read_magic.return_value = (1, 0)
-    mock_format._read_array_header.side_effect = lambda f, v: (
-        ((10, 5), False, "float32") if f == mock_file_a else ((5,), False, "float32")
-    )
+    headers = iter([((10, 5), False, "float32"), ((5,), False, "float32")])
+    mock_format._read_array_header.side_effect = lambda f, v: next(headers)
     mock_np.lib.format = mock_format
 
     with patch.dict("sys.modules", {"numpy": mock_np, "numpy.lib.format": mock_format}):

@@ -44,6 +44,17 @@ def cli_error_handler(
     return decorator
 
 
+def existing_model_path(given: Path) -> Path | None:
+    """The path to open for the model file named as *given*: *given* itself,
+    so log lines name the file as the user wrote it, else its resolved form
+    (``missing/../x`` collapses to ``x`` only there); ``None`` when neither
+    exists."""
+    if given.exists():
+        return given
+    resolved = given.resolve()
+    return resolved if resolved.exists() else None
+
+
 def _print_sbom_output_path(output_path: Path | str) -> None:
     """Report the resolved SBOM output path in KEY=VALUE form (see CLAUDE.md).
 
