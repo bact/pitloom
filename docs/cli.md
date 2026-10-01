@@ -475,8 +475,9 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env`
   by default: it reads every Python file (one over 1 MiB is skipped with a
   `WARNING:`). AI models are found either way; when the
   setting was never given (no flag, no config key), one `INFO:` line says
-  how many were found and names the flag -- once per `embed-wheel` run, and
-  not when `--no-scan-model-usage` or `scan-model-usage = false` says off.
+  how many were found and names the flag (on a wheel also a `--config` file or
+  `pitloom_config=`, as no config is read implicitly there) -- once per
+  `embed-wheel` run, and not when `--no-scan-model-usage` or `scan-model-usage = false` says off.
   Usage-scan limits: [AI model scan limits](ai-model-scan-limits.md).
 - `--trust-wheel-model` -- on a built wheel (`wheel`, `wheel --embed`,
   `embed-wheel` without `--project-dir`), read AI model files with every

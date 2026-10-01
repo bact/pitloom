@@ -41,6 +41,7 @@ from pitloom.extract.ai_model.archive_member import (
     read_archive_member,
 )
 from pitloom.extract.ai_model.limits import ModelLimitExceeded
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -179,7 +180,11 @@ def read_keras(model_path: Path) -> AiModelMetadata:
         ) from exc
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to read Keras file %s: %s", model_path, exc)
+        log.debug(
+            "Failed to read Keras file %s: %s",
+            loggable(str(model_path)),
+            loggable(str(exc)),
+        )
         raise ValueError(f"Failed to read Keras file {model_path}: {exc}") from exc
 
     return AiModelMetadata(

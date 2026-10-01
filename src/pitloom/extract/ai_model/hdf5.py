@@ -60,7 +60,7 @@ from pitloom.extract._extract_utils import (
     sanitize_provenance_text,
 )
 from pitloom.extract.ai_model.reader_requirements import missing_library
-from pitloom.logging_config import field_loss_suffix
+from pitloom.logging_config import field_loss_suffix, loggable
 
 log = logging.getLogger(__name__)
 
@@ -309,7 +309,11 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
         hf = h5py.File(str(model_path), "r")
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to open HDF5 file %s: %s", model_path, exc)
+        log.debug(
+            "Failed to open HDF5 file %s: %s",
+            loggable(str(model_path)),
+            loggable(str(exc)),
+        )
         raise ValueError(f"Failed to read HDF5 file {model_path}: {exc}") from exc
 
     with hf:

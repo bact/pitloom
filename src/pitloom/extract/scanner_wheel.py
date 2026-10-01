@@ -45,6 +45,7 @@ from pitloom.core.temp_dirs import registered_temp_dir
 from pitloom.extract.ai_model import SNIFF_BYTES
 from pitloom.extract.ai_model.limits import ScanBudgetExceeded, charging_reads
 from pitloom.extract.scanner import (
+    USAGE_SETTING_WHEEL,
     ModelCandidate,
     ModelTooLarge,
     ReaderGate,
@@ -362,6 +363,7 @@ def scan_wheel_for_ai_models(
                 _wheel_sources(zf, members),
                 scan_usage=scan_usage,
                 usage_hint=usage_hint,
+                usage_setting=USAGE_SETTING_WHEEL,
             )
         finally:
             scratch.remove()

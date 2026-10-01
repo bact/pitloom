@@ -16,7 +16,7 @@ from pitloom.__about__ import __version__
 from pitloom.assemble import (
     enrich_model,
 )
-from pitloom.cli.commands.utils import cli_error_handler
+from pitloom.cli.commands.utils import cli_error_handler, existing_model_path
 from pitloom.cli.options import add_use_lockfile_argument
 from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.inert_options import ENRICH, forward_options
@@ -31,7 +31,8 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
     # file as the user wrote it.
     given_path = Path(target)
     model_path: Path = given_path.resolve()
-    if not model_path.exists():
+    opened_path = existing_model_path(given_path)
+    if opened_path is None:
         print(f"ERROR: model file not found: {model_path}", file=sys.stderr)
         return 1
 
@@ -51,13 +52,13 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
             print(f"Project dir     : {args.project_dir}")
 
     enrich_model(
-        given_path,
+        opened_path,
         output_path=output_path,
         project_target=args.project_dir,
         pitloom_config=pitloom_config,
         # enrich_model settles use_lockfile itself (it depends on the
         # project target); forward_options warns only for the rest.
-        **forward_options(ENRICH, str(given_path), enrich_model, options),
+        **forward_options(ENRICH, str(opened_path), enrich_model, options),
     )
     print(f"Enrichment fragment written to: {output_path}")
     print(

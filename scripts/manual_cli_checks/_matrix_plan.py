@@ -63,7 +63,9 @@ COMMANDS: list[Command] = [
         default_output=False,
     ),
     Command("project", lambda fx, c: [str(fx.stage("project", c))], "output"),
-    Command("wheel", lambda fx, c: [str(fx.stage("wheel", c))], "output"),
+    # The wheel holds a GGUF, which a wheel scan lists without metadata unless
+    # --trust-wheel-model.
+    Command("wheel", lambda fx, c: [str(fx.stage("gated-wheel", c))], "output"),
     Command(
         "embed-wheel",
         lambda fx, c: [
@@ -232,9 +234,11 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
         _v("--scan-model-usage", "changes", "--scan-model-usage"),
         _v("--no-scan-model-usage", "same", "--no-scan-model-usage"),
     ],
-    # The fixture wheel's only model is safetensors, which no gate touches, so
-    # the flag changes no byte here; tests/extract/scanner/ covers fastText.
-    "--trust-wheel-model": [_v("--trust-wheel-model", "same", "--trust-wheel-model")],
+    # Live on `wheel`, whose fixture wheel holds a GGUF; inert wherever the
+    # models are read from a project directory.
+    "--trust-wheel-model": [
+        _v("--trust-wheel-model", "changes", "--trust-wheel-model")
+    ],
     "--content-type-method": [
         _v(
             "extension",

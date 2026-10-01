@@ -19,6 +19,7 @@ from pitloom.extract._extract_utils import (
 )
 from pitloom.extract.ai_model.limits import MAX_MODEL_ENTRIES, ModelLimitExceeded
 from pitloom.extract.ai_model.reader_requirements import missing_library
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -109,7 +110,11 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to read Safetensors file %s: %s", model_path, exc)
+        log.debug(
+            "Failed to read Safetensors file %s: %s",
+            loggable(str(model_path)),
+            loggable(str(exc)),
+        )
         raise ValueError(
             f"Failed to read Safetensors file {model_path}: {exc}"
         ) from exc

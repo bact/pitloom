@@ -162,6 +162,14 @@ Lessons:
   and counting the real entries by streaming the directory before
   `ZipFile` runs. A private stdlib name is a lesser risk than a second
   implementation that silently disagrees.
+- **"The parser's decision" differs across patch releases of one minor
+  version.** The CVE-2025-8291 fix changed what `zipfile._EndRecData`
+  reports for a ZIP64 archive (3.11.9 and 3.11.14 disagree), so the start
+  of the directory computed for one is 76 bytes off for the other, the walk
+  read garbage and "left it to `zipfile`": a bypass. Agree with the running
+  interpreter (probe it, do not read the version), fail closed when the walk
+  cannot account for the directory, and keep an unpatched interpreter in CI:
+  CI's Windows 3.11.9 leg caught it; every local interpreter was patched.
 - **Check and use the same handle.** Checking a path and then reopening it
   is a time-of-check/time-of-use gap.
 

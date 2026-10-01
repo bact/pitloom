@@ -16,7 +16,11 @@ from pitloom.__about__ import __version__
 from pitloom.assemble import (
     generate_model_sbom,
 )
-from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
+from pitloom.cli.commands.utils import (
+    _print_sbom_output_path,
+    cli_error_handler,
+    existing_model_path,
+)
 from pitloom.cli.options import (
     _resolve_hf_output_path,
     _resolve_model_output_path,
@@ -51,7 +55,8 @@ def _run_model_command(args: argparse.Namespace) -> int:
         # the file as the user wrote it.
         given_path = Path(target)
         model_path: Path = given_path.resolve()
-        if not model_path.exists():
+        opened_path = existing_model_path(given_path)
+        if opened_path is None:
             print(f"ERROR: model file not found: {model_path}", file=sys.stderr)
             return 1
         output_path = _resolve_model_output_path(args.output, model_path)
@@ -59,7 +64,7 @@ def _run_model_command(args: argparse.Namespace) -> int:
             print(f"Pitloom version: {__version__}")
             print(f"Model file      : {model_path}")
             print(f"Output path     : {output_path}")
-        model_target = given_path
+        model_target = opened_path
 
     pitloom_config, options = explicit_config_and_options(args)
     # Same subject generate_model_sbom() settles its own options under.

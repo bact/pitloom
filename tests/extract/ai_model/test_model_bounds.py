@@ -31,6 +31,7 @@ from unittest import mock
 
 import pytest
 
+from pitloom.core.project import ProjectFile
 from pitloom.extract.ai_model import (
     _gguf_bounds,
     _pickle_bounds,
@@ -47,6 +48,9 @@ from pitloom.extract.ai_model.pytorch import (
     _fickling_get_top_class,
     read_pytorch,
 )
+from pitloom.extract.scanner import discover_ai_models
+from pitloom.extract.scanner_project import project_candidates
+from tests.warning_helpers import logged_warnings
 
 _GGUF_FIXTURES = Path(__file__).parents[2] / "fixtures" / "aimodels" / "gguf"
 
@@ -141,9 +145,24 @@ def test_a_raw_pickle_is_bounded_but_trailing_data_is_not_its_size(
 
     big = tmp_path / "big.pt"
     big.write_bytes(pickle.dumps("x" * 5000, protocol=2))
-    with pytest.raises(ArchiveMemberTooLarge) as excinfo:
+    with pytest.raises(ModelLimitExceeded) as excinfo:
         read_pytorch(big)
-    assert excinfo.value.limit == 1000
+    # Not an archive member: the reason says what the file is.
+    assert not isinstance(excinfo.value, ArchiveMemberTooLarge)
+    assert excinfo.value.reason == "first pickle not complete within 1000 bytes"
+
+
+def test_a_raw_pickle_over_the_cap_is_reported_as_a_file_not_a_member(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setattr(archive_member, "MAX_ARCHIVE_MEMBER_BYTES", 1000)
+    (tmp_path / "big.pt").write_bytes(pickle.dumps("x" * 5000, protocol=2))
+    files = [ProjectFile(physical_path="big.pt", distribution_path="big.pt")]
+    (model,) = discover_ai_models(project_candidates(tmp_path, files))
+    assert not model.provenance  # format-only
+    (message,) = logged_warnings(caplog)
+    assert "FILE=big.pt: first pickle not complete within 1000 bytes" in message
+    assert "archive member" not in message
 
 
 # -- fickling's stderr ------------------------------------------------------

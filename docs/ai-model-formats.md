@@ -32,7 +32,7 @@ extension.
 | Keras v3 | `.keras` | (none -- stdlib only) |
 | NumPy | `.npy`, `.npz` | `pip install numpy` |
 | ONNX | `.onnx` | `pip install onnx` |
-| PyTorch classic | `.pt`, `.pth` | `pip install fickling` (safe pickle inspection) |
+| PyTorch classic | `.pt`, `.pth` (a ZIP or a pickle; a plain-text `.pth` path-config file is not a model) | `pip install fickling` (safe pickle inspection) |
 | PyTorch PT2 / ExecuTorch | `.pt2` | (none -- stdlib only) |
 | Safetensors | `.safetensors` | `pip install safetensors` |
 

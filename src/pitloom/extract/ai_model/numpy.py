@@ -25,6 +25,7 @@ from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model.archive_member import open_model_binary
 from pitloom.extract.ai_model.limits import MAX_MODEL_ENTRIES, ModelLimitExceeded
 from pitloom.extract.ai_model.reader_requirements import require_library
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -277,7 +278,11 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to read NumPy file %s: %s", model_path, exc)
+        log.debug(
+            "Failed to read NumPy file %s: %s",
+            loggable(str(model_path)),
+            loggable(str(exc)),
+        )
         raise ValueError(f"Failed to read NumPy file {model_path}: {exc}") from exc
 
     provenance["type_of_model"] = f"{source} | Field: format type"

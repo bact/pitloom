@@ -54,7 +54,11 @@ def _load_fasttext_model(model_path: Path) -> Any:
         return fasttext.load_model(str(model_path))
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to load fastText model from %s: %s", model_path, exc)
+        log.debug(
+            "Failed to load fastText model from %s: %s",
+            loggable(str(model_path)),
+            loggable(str(exc)),
+        )
         raise ValueError(
             f"Failed to load fastText model from {model_path}: {exc}"
         ) from exc

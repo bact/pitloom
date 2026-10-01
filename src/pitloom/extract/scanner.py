@@ -30,7 +30,11 @@ from pitloom.core.inert_options import PARAM_TO_FLAG
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract._reader_log import capture_reader_logs
-from pitloom.extract.ai_model import detect_ai_model_format_from_header, read_ai_model
+from pitloom.extract.ai_model import (
+    detect_ai_model_format_from_header,
+    detect_ai_model_format_from_name,
+    read_ai_model,
+)
 from pitloom.extract.ai_model.archive_member import ArchiveMemberTooLarge
 from pitloom.extract.ai_model.limits import (
     ModelLimitExceeded,
@@ -53,6 +57,15 @@ _GATE_INFO = (
     "their reader not being run on a wheel's files: %s. Pass %s for a "
     "wheel you trust."
 )
+
+# The usage hint. The setting is spelt per producer: a project reads its own
+# config; a wheel reads none implicitly, so its setting needs a named one.
+_USAGE_HINT = (
+    "Found %d AI model file(s); pass --scan-model-usage (or set %s) to also "
+    "record which Python files reference them."
+)
+USAGE_SETTING_PROJECT = "scan-model-usage = true"
+USAGE_SETTING_WHEEL = "scan-model-usage = true in a --config file or pitloom_config"
 
 # Extensions that might genuinely be AI models.
 _ALLOWED_EXTS: frozenset[str] = frozenset(
@@ -278,7 +291,7 @@ def _sniff_format(candidate: ModelCandidate) -> AiModelFormat | None:
     except OSError as e:
         log.warning(
             _UNREADABLE_MODEL_WARNING,
-            detect_ai_model_format_from_header(b"", candidate.distribution_path),
+            detect_ai_model_format_from_name(candidate.distribution_path),
             loggable(candidate.physical_path),
             "header",
             _detail(e, candidate.read_path, candidate.physical_path),
@@ -309,7 +322,9 @@ def _read_candidate(candidate: ModelCandidate) -> AiModelMetadata | None:
         _set_paths(meta.format_info, candidate)
         cap_and_warn(meta, fmt, where)
         log.debug(
-            "Discovered AI model: %s (format: %s)", candidate.distribution_path, fmt
+            "Discovered AI model: %s (format: %s)",
+            loggable(candidate.distribution_path),
+            fmt,
         )
         return meta
     except ModelTooLarge as e:
@@ -405,8 +420,8 @@ def attach_usage_references(
                     meta.usage_files.append(source.distribution_path)
                     log.debug(
                         "Found usage of %s inside %s",
-                        file_name,
-                        source.distribution_path,
+                        loggable(file_name),
+                        loggable(source.distribution_path),
                     )
         # pylint: disable-next=broad-exception-caught
         except Exception as e:
@@ -426,23 +441,19 @@ def scan_ai_models(
     *,
     scan_usage: bool,
     usage_hint: Callable[[], bool],
+    usage_setting: str = USAGE_SETTING_PROJECT,
 ) -> list[AiModelMetadata]:
     """Discover AI models, then attach their usages if *scan_usage*.
 
     Discovery always runs. The usage pass reads every Python source, so it
     runs only on request. Otherwise, with models found, *usage_hint* is
     called -- only then, so it may claim a once-per-run slot -- and when it
-    returns true one ``INFO:`` line names the setting.
+    returns true one ``INFO:`` line names the setting, spelt *usage_setting*.
     Order: see :func:`discover_ai_models`.
     """
     models = discover_ai_models(candidates)
     if scan_usage:
         attach_usage_references(models, sources)
     elif models and usage_hint():
-        log.info(
-            "Found %d AI model file(s); pass --scan-model-usage (or set "
-            "scan-model-usage = true) to also record which Python files "
-            "reference them.",
-            len(models),
-        )
+        log.info(_USAGE_HINT, len(models), usage_setting)
     return models

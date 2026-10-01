@@ -20,10 +20,10 @@ from __future__ import annotations
 import io
 import struct
 import zipfile
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import IO
+from typing import IO, Any, NamedTuple
 
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, charge_read
 
@@ -47,10 +47,35 @@ _MAX_ZIP_DIRECTORY_BYTES = MAX_MODEL_ZIP_ENTRIES * 256
 
 _CENTRAL_HEADER = struct.Struct("<4s24x3H12x")  # signature; name/extra/comment
 _CENTRAL_SIGNATURE = b"PK\x01\x02"
-# Not in typeshed, so by name: the end-record function, and the indexes of
-# the directory size and of the end record's position in what it returns.
-_ZIPFILE_PRIVATES = ("_EndRecData", "_ECD_SIZE", "_ECD_LOCATION")
+# Not in typeshed, so by name: the end-record function, the indexes of the
+# directory size, the end record's position and its signature in what it
+# returns, and the signature and sizes of the ZIP64 records.
+_ZIPFILE_PRIVATES = (
+    "_EndRecData",
+    "_ECD_SIZE",
+    "_ECD_LOCATION",
+    "_ECD_SIGNATURE",
+    "stringEndArchive64",
+    "sizeEndCentDir64",
+    "sizeEndCentDir64Locator",
+)
 _UNCHECKABLE = "ZIP archive not checkable: zipfile internals changed"
+_MALFORMED = "malformed ZIP central directory"
+_ZIP64_RECORD = struct.Struct("<4sQ2H2L4Q")
+_ZIP64_LOCATOR = struct.Struct("<4sLQL")
+_END_RECORD = struct.Struct("<4s4H2LH")
+
+
+class _ZipfileApi(NamedTuple):
+    """The private ``zipfile`` names this reads (see ``_ZIPFILE_PRIVATES``)."""
+
+    end_record: Callable[[IO[bytes]], Any]
+    size_at: int
+    location_at: int
+    signature_at: int
+    zip64_signature: bytes
+    zip64_record_size: int
+    zip64_locator_size: int
 
 
 class ArchiveMemberTooLarge(ModelLimitExceeded):
@@ -97,6 +122,44 @@ def open_archive_member(zf: zipfile.ZipFile, name: str) -> io.BytesIO:
     return io.BytesIO(read_archive_member(zf, name))
 
 
+def _zip64_start_shift(api: _ZipfileApi) -> int:
+    """Bytes ``ZipFile`` takes off the directory start for a ZIP64 archive.
+
+    Two conventions exist among releases of one Python version. With the
+    CVE-2025-8291 fix ``zipfile._EndRecData`` rewrites the end record's
+    position to the ZIP64 record's: no shift. Without it the position stays
+    the plain end record's and ``ZipFile._RealGetContents`` takes the two
+    ZIP64 records' sizes off. Asked of the running ``zipfile`` through an
+    empty ZIP64 archive built here (record at 0, then locator, then end
+    record), not guessed from a version number.
+
+    Raises:
+        pitloom.extract.ai_model.limits.ModelLimitExceeded: ``zipfile``
+            answered by neither convention.
+    """
+    data = (
+        _ZIP64_RECORD.pack(api.zip64_signature, 44, 45, 45, 0, 0, 0, 0, 0, 0)
+        + _ZIP64_LOCATOR.pack(b"PK\x06\x07", 0, 0, 1)
+        + _END_RECORD.pack(
+            b"PK\x05\x06", 0, 0, 0xFFFF, 0xFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0
+        )
+    )
+    both = api.zip64_record_size + api.zip64_locator_size
+    try:
+        endrec = api.end_record(io.BytesIO(data))
+        values = (
+            endrec[api.signature_at],
+            endrec[api.size_at],
+            endrec[api.location_at],
+        )
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        raise ModelLimitExceeded(_UNCHECKABLE) from exc
+    signature, size, location = values
+    if (signature, size) == (api.zip64_signature, 0) and location in (0, both):
+        return both if location else 0
+    raise ModelLimitExceeded(_UNCHECKABLE)
+
+
 def _directory_start_and_size(fh: IO[bytes]) -> tuple[int, int] | None:
     """Where ``zipfile`` will start reading the central directory of *fh*
     and its byte size, or ``None`` where ``zipfile`` itself will refuse the
@@ -108,7 +171,7 @@ def _directory_start_and_size(fh: IO[bytes]) -> tuple[int, int] | None:
     versions) and nothing here parses an end record. The start is
     ``offset + concat`` of ``ZipFile._RealGetContents``, which is the end
     record's own position less the directory size (``concat`` absorbs any
-    prepended data).
+    prepended data) and, for a ZIP64 archive, :func:`_zip64_start_shift`.
 
     Raises:
         pitloom.extract.ai_model.limits.ModelLimitExceeded: ``zipfile`` has
@@ -117,13 +180,12 @@ def _directory_start_and_size(fh: IO[bytes]) -> tuple[int, int] | None:
             read.
     """
     try:
-        end_record_data, size_at, location_at = (
-            getattr(zipfile, name) for name in _ZIPFILE_PRIVATES
-        )
+        api = _ZipfileApi(*(getattr(zipfile, name) for name in _ZIPFILE_PRIVATES))
     except AttributeError as exc:
         raise ModelLimitExceeded(_UNCHECKABLE) from exc
+    shift = _zip64_start_shift(api)
     try:
-        endrec = end_record_data(fh)
+        endrec = api.end_record(fh)
     except (OSError, zipfile.BadZipFile):
         return None  # ZipFile turns both into BadZipFile
     except Exception as exc:  # pylint: disable=broad-exception-caught
@@ -131,11 +193,16 @@ def _directory_start_and_size(fh: IO[bytes]) -> tuple[int, int] | None:
     if not endrec:
         return None
     try:
-        size, location = int(endrec[size_at]), int(endrec[location_at])
+        size, location = int(endrec[api.size_at]), int(endrec[api.location_at])
+        is_zip64 = endrec[api.signature_at] == api.zip64_signature
     except (IndexError, KeyError, TypeError, ValueError) as exc:
         raise ModelLimitExceeded(_UNCHECKABLE) from exc
-    start = location - size
-    return (start, size) if start >= 0 else None
+    start = location - size - (shift if is_zip64 else 0)
+    if start < 0:
+        # zipfile refuses its own negative start, but ours being negative
+        # while its is not would be a disagreement: refuse, never bypass.
+        raise ModelLimitExceeded(_MALFORMED)
+    return start, size
 
 
 def _count_exceeds_cap(fh: IO[bytes], start: int, size: int, cap: int) -> bool:
@@ -144,17 +211,24 @@ def _count_exceeds_cap(fh: IO[bytes], start: int, size: int, cap: int) -> bool:
     Walked as ``ZipFile._RealGetContents`` walks it: header by header (46
     bytes, a name, an extra field and a comment each), until *size* bytes are
     consumed; the end record's own counts are not used, as ``zipfile``
-    ignores them. A header that is not one ends the walk: ``zipfile`` raises
-    on it. Never holds more than one header.
+    ignores them. Never holds more than one header.
+
+    Raises:
+        pitloom.extract.ai_model.limits.ModelLimitExceeded: A header is not
+            one, or is cut short by the end of the directory or the file.
+            ``zipfile`` raises on those too, but a disagreement about where
+            the directory is must never end the walk as "within the cap".
     """
     count = consumed = 0
     while consumed < size:
         fh.seek(start + consumed)
         header = fh.read(_CENTRAL_HEADER.size)
-        if len(header) != _CENTRAL_HEADER.size or not header.startswith(
-            _CENTRAL_SIGNATURE
+        if (
+            size - consumed < _CENTRAL_HEADER.size
+            or len(header) != _CENTRAL_HEADER.size
+            or not header.startswith(_CENTRAL_SIGNATURE)
         ):
-            return False
+            raise ModelLimitExceeded(_MALFORMED)
         count += 1
         if count > cap:
             return True
@@ -171,8 +245,9 @@ def check_zip_bounds(fh: IO[bytes]) -> None:
     *fh* is left at an arbitrary position.
 
     Raises:
-        pitloom.extract.ai_model.limits.ModelLimitExceeded: Over a bound, or
-            not checkable (see :func:`_directory_start_and_size`).
+        pitloom.extract.ai_model.limits.ModelLimitExceeded: Over a bound,
+            not checkable (see :func:`_directory_start_and_size`) or a
+            directory that is not walkable (see :func:`_count_exceeds_cap`).
         OSError: The file cannot be read.
     """
     found = _directory_start_and_size(fh)

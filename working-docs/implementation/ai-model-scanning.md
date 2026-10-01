@@ -131,6 +131,25 @@ defensive code for a hand-built `AiModelMetadata`.
   scanner itself does not dedupe: a project producer must give one
   `ProjectFile` per distribution path (its contract).
 
+- **A PyTorch extension needs a PyTorch header (round 6).** `.pth` is also
+  the suffix of Python path-configuration files (`distutils-precedence.pth`,
+  `a1_coverage.pth`, `*-nspkg.pth`), plain text that every wheel built with
+  setuptools or coverage carries. The extension fallback in
+  `detect_ai_model_format_from_header()` accepts `.pt`/`.pth` only for a ZIP
+  local header or a pickle PROTO opcode with protocol 2..5 (`torch.save` writes
+  the ZIP form, or with `_use_new_zipfile_serialization=False` a protocol 2
+  pickle, `\x80\x02`); any other header, an empty one included, is no model,
+  silently. A file that cannot be read has no header: the unreadable-file
+  warning and `detect_ai_model_format()` name its format from the suffix alone
+  (`detect_ai_model_format_from_name()`). Both `tests/fixtures/aimodels/pytorch`
+  files are ZIPs. `torch` is not installed here, so the legacy claim rests on
+  its documented protocol default, not a live `torch.save`.
+- **`loom model`/`loom enrich` open the path as typed, else its resolved
+  form.** `missing/../x` resolves to `x` lexically but does not open as typed,
+  so the existence check and the generator must agree on one path
+  (`existing_model_path()`); a path that opens as typed keeps its spelling in
+  every log line.
+
 ## Known limits
 
 A candidate with an allowed suffix that exists but cannot be read (denied
@@ -261,7 +280,10 @@ and a read cap inside `attach_usage_references()`.
   from a caller or when no model exists. Every surface therefore words it
   identically. Text: `Found N AI model file(s); pass --scan-model-usage (or
   set scan-model-usage = true) to also record which Python files reference
-  them.`
+  them.` The setting's spelling is the one producer-specific part
+  (`USAGE_SETTING_PROJECT`/`USAGE_SETTING_WHEEL` in `scanner.py`): a wheel
+  reads no implicit config, so its hint says `scan-model-usage = true in a
+  --config file or pitloom_config`.
 - **`usage_hint` is lazy** (`Callable[[], bool]`): `scan_ai_models()` calls
   it only when the pass is off and a model was found, so it may claim a
   once-per-run slot. An eager bool would let a model-less first wheel of a
@@ -480,7 +502,17 @@ Hatchling hook scans its project directory, never a wheel.
   refuses a directory over 25,600,000 bytes, then walks it header by header
   as `_RealGetContents` does (start = end record position - directory size, so
   prepended data is handled; stop at the byte size) and refuses at the
-  100,001st entry. One handle is opened, checked and handed to `ZipFile` /
+  100,001st entry. A header that is not one, or is cut short, refuses too
+  (`malformed ZIP central directory`): a disagreement with `zipfile` about
+  where the directory is must never read as "within the cap". For ZIP64
+  there are two conventions among releases of one Python version: with the
+  CVE-2025-8291 fix (3.10.19, 3.11.14, 3.12.12, 3.13.12, 3.14.7) `_EndRecData`
+  reports the ZIP64 record's position; without it (3.11.9, CI's Windows leg)
+  it stays the plain end record's and `_RealGetContents` takes 76 bytes off
+  (`sizeEndCentDir64 + sizeEndCentDir64Locator`). `_zip64_start_shift()` asks
+  the running `zipfile` through a minimal ZIP64 archive built in memory, on
+  each check (no cache, so it cannot go stale); an answer that is neither
+  convention fails closed. One handle is opened, checked and handed to `ZipFile` /
   `numpy.load` (`open_model_zip`, `open_model_binary`), so the checked file is
   the read file. A missing or odd `_EndRecData` (a private API) fails closed:
   `ModelLimitExceeded`, a stub and one `WARNING:`; a test pins its shape and

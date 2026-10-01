@@ -12,6 +12,7 @@ tests.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -371,3 +372,60 @@ def test_env_command_verbose(
     stdout = capsys.readouterr().out
     assert "Pitloom version" in stdout
     assert "Output path" in stdout
+
+
+def _spaced_target(tmp_path: Path, *, sub_exists: bool) -> str:
+    """``<tmp>/sub/../m.safetensors`` with the model in ``<tmp>``; ``sub``
+    is a real directory only when *sub_exists* (else the path opens on no OS,
+    though it resolves to a file)."""
+    (tmp_path / "m.safetensors").write_bytes(SAFETENSORS_FIXTURE.read_bytes())
+    if sub_exists:
+        (tmp_path / "sub").mkdir()
+    return f"{tmp_path}{os.sep}sub{os.sep}..{os.sep}m.safetensors"
+
+
+@pytest.mark.parametrize("command", ["model", "enrich"])
+@pytest.mark.parametrize("sub_exists", [True, False])
+def test_dotdot_path_through_a_missing_directory_still_works(
+    command: str,
+    sub_exists: bool,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The existence check and the generator agree on which file is read."""
+    target = _spaced_target(tmp_path, sub_exists=sub_exists)
+    out = tmp_path / "out.json"
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["loom", command, target, "-o", str(out)])
+    assert __main__.main() == 0
+    assert out.is_file()
+    assert "not found" not in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("command", "attr"),
+    [
+        ("model", "pitloom.cli.commands.model.generate_model_sbom"),
+        ("enrich", "pitloom.cli.commands.enrich.enrich_model"),
+    ],
+)
+def test_the_path_as_typed_reaches_the_generator_when_it_opens(
+    command: str,
+    attr: str,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Its log lines then name the file as the user wrote it."""
+    target = _spaced_target(tmp_path, sub_exists=True)
+    seen: list[object] = []
+
+    def _spy(model_path: object, *_a: object, **_k: object) -> str:
+        seen.append(model_path)
+        return "{}"
+
+    monkeypatch.setattr(attr, _spy)
+    monkeypatch.setattr(sys, "argv", ["loom", command, target, "-o", "x.json"])
+    __main__.main()
+    assert seen == [Path(target)]
+    assert ".." in str(seen[0])

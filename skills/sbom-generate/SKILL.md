@@ -282,7 +282,8 @@ skill ("Validate a wheel's embedded SBOM").
   default and **opt-in only**: add it only when the request asks which code
   loads a model. Models are found either way; when the setting was
   never given, one `INFO:` line says how many were found and names this flag
-  (once per run; silent after an explicit `--no-scan-model-usage` or
+  (on a wheel also a `--config` file, as none is read implicitly; once
+  per run; silent after an explicit `--no-scan-model-usage` or
   `scan-model-usage = false`). sdist, env, model-file and Hugging Face
   targets, `enrich` and `embed-wheel --sbom` warn that it has no effect.
 - `--trust-wheel-model` -- on a built wheel, also read the model formats whose

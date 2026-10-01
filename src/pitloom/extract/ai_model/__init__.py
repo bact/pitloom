@@ -22,6 +22,7 @@ from pitloom.extract.ai_model.reader import (
     FormatInfo,
     detect_ai_model_format,
     detect_ai_model_format_from_header,
+    detect_ai_model_format_from_name,
     read_ai_model,
     read_ai_model_header,
 )
@@ -34,6 +35,7 @@ __all__ = [
     "FormatInfo",
     "detect_ai_model_format",
     "detect_ai_model_format_from_header",
+    "detect_ai_model_format_from_name",
     "read_ai_model",
     "read_ai_model_header",
 ]

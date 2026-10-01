@@ -46,6 +46,7 @@ __all__ = [
     "SNIFF_BYTES",
     "detect_ai_model_format",
     "detect_ai_model_format_from_header",
+    "detect_ai_model_format_from_name",
     "read_ai_model",
     "read_ai_model_header",
 ]
@@ -94,6 +95,11 @@ SNIFF_BYTES: int = 9
 _EXTENSION_TO_FORMAT: dict[str, AiModelFormat] = {
     ext: fmt for fmt in AiModelFormat.__members__.values() for ext in fmt.extensions
 }
+# What ``torch.save`` writes: a ZIP local header, or (legacy) a pickle opening
+# with the PROTO opcode and protocol 2..5.
+_ZIP_LOCAL_HEADER = b"PK\x03\x04"
+_PICKLE_PROTO_OPCODE = 0x80
+_PICKLE_PROTOCOLS = range(2, 6)
 _READERS: dict[AiModelFormat, Callable[[Path], AiModelMetadata]] = {
     info.format: info.reader for info in REGISTRY if info.reader is not None
 }
@@ -126,6 +132,18 @@ def _match_magic(header: bytes) -> AiModelFormat:
     return AiModelFormat.UNKNOWN
 
 
+def _looks_like_pytorch(header: bytes) -> bool:
+    """Whether *header* opens a ZIP archive or a protocol 2..5 pickle.
+
+    A ``.pth`` can also be a Python path-configuration file (plain text).
+    """
+    return header[:4] == _ZIP_LOCAL_HEADER or (
+        len(header) >= 2
+        and header[0] == _PICKLE_PROTO_OPCODE
+        and header[1] in _PICKLE_PROTOCOLS
+    )
+
+
 def read_ai_model_header(model_path: Path) -> bytes:
     """Return the first :data:`SNIFF_BYTES` bytes of *model_path*.
 
@@ -148,6 +166,17 @@ def read_ai_model_header(model_path: Path) -> bytes:
         raise
 
 
+def detect_ai_model_format_from_name(name: str) -> AiModelFormat:
+    """Detect a model format from the suffix of *name* alone.
+
+    For a file whose bytes cannot be read. Case-insensitive; *name* is a file
+    name or POSIX archive name, and only its suffix is used.
+    """
+    return _EXTENSION_TO_FORMAT.get(
+        PurePosixPath(name).suffix.lower(), AiModelFormat.UNKNOWN
+    )
+
+
 def detect_ai_model_format_from_header(header: bytes, name: str) -> AiModelFormat:
     """Detect a model format from its leading bytes and its file name.
 
@@ -158,12 +187,13 @@ def detect_ai_model_format_from_header(header: bytes, name: str) -> AiModelForma
        extension is wrong or absent.
     2. **File extension** - fall back to a case-insensitive extension lookup
        of *name* for formats without a fixed magic signature (ONNX, PyTorch,
-       Safetensors, NumPy ``.npz``) and for files that are not accessible
-       (empty *header*).
+       Safetensors, NumPy ``.npz``). A PyTorch extension (``.pt``, ``.pth``)
+       counts only when *header* opens a ZIP archive or a protocol 2..5
+       pickle: ``.pth`` is also the suffix of Python path-configuration
+       files, so any other header, an empty one included, is not a model.
 
     Args:
-        header: Up to :data:`SNIFF_BYTES` leading bytes; ``b""`` when
-            unreadable.
+        header: Up to :data:`SNIFF_BYTES` leading bytes of the file.
         name: A file name or POSIX archive name; only its suffix is used.
 
     Returns:
@@ -172,9 +202,10 @@ def detect_ai_model_format_from_header(header: bytes, name: str) -> AiModelForma
     fmt = _match_magic(header)
     if fmt != AiModelFormat.UNKNOWN:
         return fmt
-    return _EXTENSION_TO_FORMAT.get(
-        PurePosixPath(name).suffix.lower(), AiModelFormat.UNKNOWN
-    )
+    fmt = detect_ai_model_format_from_name(name)
+    if fmt == AiModelFormat.PYTORCH and not _looks_like_pytorch(header):
+        return AiModelFormat.UNKNOWN
+    return fmt
 
 
 def detect_ai_model_format(model_path: Path) -> AiModelFormat:
@@ -182,12 +213,15 @@ def detect_ai_model_format(model_path: Path) -> AiModelFormat:
 
     Magic bytes first, then the file extension; see
     :func:`detect_ai_model_format_from_header`. Never raises on an
-    unreadable file: it falls back to the extension.
+    unreadable file: a file that is absent, not a regular file or cannot be
+    read falls back to the extension alone.
     """
     try:
         header = read_ai_model_header(model_path)
     except OSError:
-        header = b""
+        return detect_ai_model_format_from_name(model_path.name)
+    if not header and not os.path.isfile(model_path):
+        return detect_ai_model_format_from_name(model_path.name)
     return detect_ai_model_format_from_header(header, model_path.name)
 
 

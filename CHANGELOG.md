@@ -54,6 +54,9 @@ and this project adheres to
 - `--trust-wheel-model` (`trust_wheel_model=`): a wheel's fastText, GGUF, HDF5,
   ONNX and PyTorch `.pt`/`.pth` models are listed without metadata unless
   given, one `INFO:` naming each format once per batch; no config key ([#263])
+- A `.pt`/`.pth` is a PyTorch model only when it opens as a ZIP or a pickle:
+  Python `.pth` path-config files (`distutils-precedence.pth`) are no longer
+  reported as models ([#263])
 
 ### Changed
 

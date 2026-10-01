@@ -19,6 +19,7 @@ from pitloom.extract._extract_utils import (
 )
 from pitloom.extract.ai_model._gguf_bounds import check_gguf_header
 from pitloom.extract.ai_model.reader_requirements import missing_library
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -75,7 +76,7 @@ def _resolve_quantization(file_type_value: Any) -> str | None:
         log.debug(
             "Failed to resolve GGUF quantization name for file_type=%r: %s",
             file_type_value,
-            exc,
+            loggable(str(exc)),
         )
         return str(int_val)
 
@@ -185,7 +186,11 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         reader = GGUFReader(str(model_path), mode="r")
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to open GGUF file %s: %s", model_path, exc)
+        log.debug(
+            "Failed to open GGUF file %s: %s",
+            loggable(str(model_path)),
+            loggable(str(exc)),
+        )
         raise ValueError(f"Failed to read GGUF file {model_path}: {exc}") from exc
 
     source = f"Source: {sanitize_provenance_text(model_path.name)}"

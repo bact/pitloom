@@ -25,7 +25,6 @@ from pitloom.extract.ai_model import archive_member
 from pitloom.extract.ai_model._pickle_bounds import first_pickle
 from pitloom.extract.ai_model._stderr_capture import capture_stderr
 from pitloom.extract.ai_model.archive_member import (
-    ArchiveMemberTooLarge,
     open_archive_member,
     open_model_zip,
 )
@@ -64,10 +63,14 @@ def _bounded_pickle(pkl_file: IO[bytes]) -> bytes | None:
     """The first pickle of *pkl_file*, verified bounded; ``None`` (with a
     warning) when it is not a well-formed pickle.
 
+    An archive member arrives already bounded
+    (:func:`~pitloom.extract.ai_model.archive_member.open_archive_member`), so
+    only a raw pickle file can run past
+    :data:`archive_member.MAX_ARCHIVE_MEMBER_BYTES` here.
+
     Raises:
-        ModelLimitExceeded: Too many opcodes.
-        pitloom.extract.ai_model.archive_member.ArchiveMemberTooLarge:
-            No complete pickle within :data:`archive_member.MAX_ARCHIVE_MEMBER_BYTES`.
+        ModelLimitExceeded: Too many opcodes, or no complete pickle within
+            :data:`archive_member.MAX_ARCHIVE_MEMBER_BYTES`.
     """
     limit = archive_member.MAX_ARCHIVE_MEMBER_BYTES
     data = pkl_file.read(limit + 1)
@@ -75,7 +78,9 @@ def _bounded_pickle(pkl_file: IO[bytes]) -> bytes | None:
         return first_pickle(data[:limit])
     except ValueError as exc:
         if len(data) > limit:
-            raise ArchiveMemberTooLarge("pickle", limit) from None
+            raise ModelLimitExceeded(
+                f"first pickle not complete within {limit} bytes"
+            ) from None
         msg = "fickling failed to parse pickle bytes: %s" + field_loss_suffix(
             "skipped", "type_of_model"
         )
