@@ -192,6 +192,11 @@ Lessons:
 - **Python 3.14 differences surfaced in CI**: `compression.zstd` raises its
   own `ZstdError` for zip method 93; `Path.exists()` no longer raises
   `PermissionError`.
+- **Test isolation of global logging.** A logging handler bound to the
+  `sys.stderr` of the moment captured pytest's per-test capture stream;
+  once that closed, a later test on the same xdist worker got `--- Logging
+  error ---` on stderr. It failed one CI leg and 1 in 10 local runs, by
+  test order only. Restore the logger's handlers after every test.
 - **`pickletools.genops` is a decoder, not an unpickler**: it never
   constructs objects or calls `find_class`, so it is safe to walk opcodes
   of a hostile pickle within an opcode cap.

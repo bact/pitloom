@@ -6,8 +6,10 @@
 """Shared pytest fixtures and configuration."""
 
 import json
+import logging
 import socket
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -105,6 +107,23 @@ def _reset_warn_once_state() -> None:
     one test's WARNING->DEBUG downgrade can't leak into the next and hide a
     real warn_once regression."""
     _WARNED_ONCE.clear()
+
+
+@pytest.fixture(autouse=True)
+def _restore_pitloom_logger() -> Iterator[None]:
+    """Put the ``pitloom`` logger's handlers and level back after each test.
+
+    ``configure_logging()`` binds a handler to the ``sys.stderr`` of the
+    moment, which under ``capsys``/``capfd`` is a capture stream closed when
+    that test ends. Left in place, a later test on the same worker that logs
+    gets ``--- Logging error ---`` on its stderr (a closed file), so any test
+    asserting an empty stderr fails depending on xdist ordering.
+    """
+    logger = logging.getLogger("pitloom")
+    handlers, level = logger.handlers, logger.level
+    yield
+    logger.handlers = handlers
+    logger.setLevel(level)
 
 
 @pytest.fixture(autouse=True)

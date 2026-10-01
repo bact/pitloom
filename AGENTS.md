@@ -243,6 +243,14 @@ or citing any of these one-liners.
   the fake too -- green alone, red under xdist. Import the name into the
   module under test (`from time import sleep`) and patch that (PR #259,
   same doc).
+- **A logging handler bound to `sys.stderr` during a test outlives the
+  test's capture stream.** `configure_logging()` under `capsys`/`capfd`
+  binds to pytest's capture file, closed at teardown; a later test on the
+  same xdist worker that logs gets `--- Logging error ---` on stderr, so an
+  "empty stderr" assertion fails by test order only (1 in 10 local runs,
+  one CI leg). `tests/conftest.py` restores the `pitloom` logger's
+  handlers and level after every test; any new process-global state a
+  test can mutate needs the same treatment (PR #263, same doc).
 - **`json.loads(bytes)` auto-strips a leading UTF-8 BOM; `json.loads(str)`
   after `.decode("utf-8")` raises on one instead.** Recurred twice,
   independently, in the same PR (#217) -- once fixed, then found again
