@@ -20,6 +20,7 @@ nav:
   - Command line: cli.md
   - Building a project (--allow-build): allow-build.md
   - AI model formats: ai-model-formats.md
+  - AI model scan limits: ai-model-scan-limits.md
   - Python API:
       - Guide: python-api.md
       - API reference: api.md

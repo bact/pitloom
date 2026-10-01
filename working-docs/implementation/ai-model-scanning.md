@@ -143,8 +143,8 @@ A raw (non-ZIP) `.pt` is bounded like an inner member: its first pickle must
 end within the 8 MiB cap (the tensors that follow a legacy pickle are not
 read), so a legacy file with a larger first pickle keeps a stub.
 
-What the bounds below do not cover, by design, until subprocess isolation
-([model-reader-isolation.md](../design/model-reader-isolation.md)):
+What the bounds below do not cover, by design, until the metadata-only
+readers ([model-metadata-readers.md](../design/model-metadata-readers.md)):
 
 - **GGUF CPU.** `gguf.GGUFReader` loops in Python once per tensor, key/value
   pair and array element (scalar or string, at any nesting depth), keeping a
@@ -160,8 +160,8 @@ What the bounds below do not cover, by design, until subprocess isolation
   A real vocabulary plus merges is ~0.5M elements, so the budget cannot drop
   further without stubbing real models. GGUF is also gated in a wheel. Replacing
   `GGUFReader` with our own key/value reader, which makes the walker
-  unnecessary, is deferred to the isolation work
-  ([model-reader-isolation.md](../design/model-reader-isolation.md)).
+  unnecessary, is part of the metadata-only readers
+  ([model-metadata-readers.md](../design/model-metadata-readers.md)).
 - **Pure-Python amplification.** fickling builds an AST per opcode (~200x the
   pickle's size): a pickle at the 250k-opcode cap measured ~100 MB and 0.4 s. The
   safetensors `__metadata__` and ONNX readers build their result before the
@@ -394,8 +394,8 @@ directory, never a wheel.
   the untrusted tree. Live on wheel, `wheel --embed` and standalone
   `embed-wheel`; `INERT` on every other kind. A project scan is not gated:
   the tree is the user's own, but that is unsafe for an untrusted checkout.
-  Subprocess isolation with a timeout and memory limit is the real fix:
-  [model-reader-isolation.md](../design/model-reader-isolation.md).
+  Metadata-only readers that never hand the file to a native library are
+  the real fix: [model-metadata-readers.md](../design/model-metadata-readers.md).
 - **Bounds before a parser runs** (project scans too; all raise
   `ModelLimitExceeded`, which a reader's broad `except` lets through; the
   scanner logs one `FORMAT= FILE=: <reason>; metadata not read` and keeps the

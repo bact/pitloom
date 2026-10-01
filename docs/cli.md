@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -477,6 +477,7 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env`
   setting was never given (no flag, no config key), one `INFO:` line says
   how many were found and names the flag -- once per `embed-wheel` run, and
   not when `--no-scan-model-usage` or `scan-model-usage = false` says off.
+  Usage-scan limits: [AI model scan limits](ai-model-scan-limits.md).
 - `--trust-wheel-model` -- on a built wheel (`wheel`, `wheel --embed`,
   `embed-wheel` without `--project-dir`), read AI model files with every
   format reader. By default a fastText, GGUF, HDF5, ONNX or PyTorch
@@ -486,7 +487,7 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env`
   wheel you trust; Ctrl-C cannot interrupt a native reader. A project
   directory is not gated, and with `embed-wheel --project-dir` the models are
   read from the project, not the wheel. No config key, so no config file can
-  opt in.
+  opt in. See [AI model scan limits](ai-model-scan-limits.md#formats-gated-in-wheels).
 
 See [Enrich an SBOM](#enrich-an-sbom) above for `--enrich`/`--no-enrich`,
 and [Building a project to discover its file list](allow-build.md) for
