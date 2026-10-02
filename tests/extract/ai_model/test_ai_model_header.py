@@ -166,10 +166,11 @@ _GGUF, _NPY, _FT = (
         (b"PK\x03", "x.pt", AiModelFormat.UNKNOWN),
         (_GGUF, "x.pth", AiModelFormat.GGUF),
         (b"", "x.bin", AiModelFormat.UNKNOWN),
-        # Safetensors heuristic: needs all 9 bytes, 0 < size < 100 MB, then "{"
+        # Safetensors heuristic: needs all 9 bytes, 0 < size <= the format's
+        # limit (safetensors' own, inclusive), then "{"
         (_st_header(19), "x.bin", AiModelFormat.SAFETENSORS),
-        (_st_header(99_999_999), "x.bin", AiModelFormat.SAFETENSORS),
-        (_st_header(100_000_000), "x.bin", AiModelFormat.UNKNOWN),
+        (_st_header(100_000_000), "x.bin", AiModelFormat.SAFETENSORS),
+        (_st_header(100_000_001), "x.bin", AiModelFormat.UNKNOWN),
         (_st_header(0), "x.bin", AiModelFormat.UNKNOWN),
         (_st_header(19, b"["), "x.bin", AiModelFormat.UNKNOWN),
         (_st_header(19)[:8], "x.bin", AiModelFormat.UNKNOWN),

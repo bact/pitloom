@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-01
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -282,12 +282,15 @@ See [build-backend-improvements.md](build-backend-improvements.md).
   extraction (case/Unicode folding, Windows path rules), archive-level wheel
   operations on `orig_filename`, tar links in sdists. See
   [archive-member-followups.md](archive-member-followups.md).
-- [ ] **GGUF array fields emitted as their last element (before 0.20.0)** --
-  emit `<key>.length = N` only; small PR; also caps decimal INT/LONG length
-  in the pickle pre-walk. See [model-metadata-readers.md](model-metadata-readers.md).
+- [ ] **GGUF quantization read with the wrong enum** -- `gguf.py`
+  `_resolve_quantization` maps `general.file_type` (a `LlamaFileType`)
+  through `GGMLQuantizationType`: `mmproj-tinygemma3.gguf` (`file_type` 7,
+  `MOSTLY_Q8_0`, Q8_0 tensors) is reported as `Q5_1`; F16 matches only by
+  coincidence. Map through `LlamaFileType`; found in the GGUF-arrays review.
 - [ ] **Metadata-only AI model readers (after 0.20.0)** -- replace the library
   reads (fastText, ONNX, GGUF, fickling, Safetensors) with bounded
   pure-Python header readers, parity-tested against the libraries; HDF5 last.
+  Later option: short GGUF arrays as values, not only `<key>.length`.
   See [model-metadata-readers.md](model-metadata-readers.md).
 - [ ] **Re-embedding lists the previous embedded SBOM** -- `embed-wheel`
   on a wheel that already has one describes that old

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-10-01
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -42,9 +42,35 @@ scans too: same readers.
 - **Parsers** (project scans too; all raise
   `ModelLimitExceeded`, which a reader's broad `except` lets through; the
   scanner logs one `FORMAT= FILE=: <reason>; metadata not read` and keeps the
-  stub). Pickle (`_pickle_bounds.py`): `pickletools.genops` walks the opcodes
-  (no allocation per opcode), refuses more than 250k, and only the bytes of the
-  first pickle reach fickling; fickling's stderr (it prints per failure, 62 MB
+  stub). Pickle (`_pickle_bounds.py`, an adapter over
+  `formats/pickle_walk.py`): Pitloom's own walker goes through
+  `pickletools.opcodes` (no per-opcode state), refuses more than 250k, and
+  only the bytes of the first pickle reach fickling. It replaced
+  `pickletools.genops`, which calls `int()` on the decimal text of `INT`,
+  `LONG`, `GET` and `PUT` before yielding: the bound came too late (quadratic with
+  `PYTHONINTMAXSTRDIGITS=0`: 3.4 s for one 1M-digit `LONG`, about 4 min
+  extrapolated at the 8 MiB member cap; 0.034 s at 100k digits), and with the
+  default limit a number over 4300 digits was reported as a malformed pickle, so
+  the outcome depended on interpreter configuration. The walker finds a decimal
+  argument with a bounded `readline(4303)` and never converts it, and refuses a
+  number over 4300 digits (sign, `L` and whitespace not counted, as CPython's
+  `int_max_str_digits` counts) as `ModelLimitExceeded`; a decimal argument of
+  more than 4302 bytes with fewer digits is refused too. Measured: a 1M-digit
+  `LONG` is refused in about 25 microseconds with the limit off; 8 MiB of
+  4300-digit `INT`s (1949 opcodes) walks in 4.5 ms against 127 ms for `genops`.
+  The first plan capped at 4302 bytes, believing everything shorter converts
+  under the default limit. Verified false: a 4301-digit unsigned `INT` (4301
+  bytes) and a 4301-digit `LONG` (4302 bytes) fit, yet the default limit rejects
+  them, so the outcome would still have depended on the setting. The cap counts
+  digits (decided 2026-10-02); the 4302-byte window only bounds the scan. A
+  model pickle uses `BININT*`/`LONG1` (protocol 2 and later), and a protocol 0
+  integer of a model has at most about 20 digits; the cost is that a protocol 0
+  pickle with a number over 4300 digits, accepted before under
+  `PYTHONINTMAXSTRDIGITS=0`, is now refused. A drift-guard test checks the
+  walker against `genops` on protocols 0-5 and both fixture `data.pkl` files;
+  `formats/` is stdlib only (see
+  [model-metadata-readers.md](../design/model-metadata-readers.md)).
+  fickling's stderr (it prints per failure, 62 MB
   in one measured case) is captured, per thread, by a process-wide `sys.stderr`
   proxy (`_stderr_capture.py`, installed under a lock; the capturing threads,
   not a counter, say whether it is in use, and an interrupt at any step of a
@@ -58,7 +84,16 @@ scans too: same readers.
   version `GGUFReader` itself rejects, is left to the reader, while a version it
   reads and the walker does not know (round-4 review, fail closed) is refused.
   Safetensors (`safetensors.py`): the 8-byte header length is read first and
-  refused over 16 MiB. NumPy (`numpy.py`): the `.npy` header length field is
+  refused over 16 MiB (`MAX_SAFETENSORS_HEADER_BYTES`). Detection (magic only,
+  which matters for an explicit path without the suffix) uses the format's own
+  limit, `SAFETENSORS_FORMAT_MAX_HEADER_BYTES` = 100,000,000, kept beside it
+  (it was `_SAFETENSORS_MAX_HEADER` in `reader.py`). The cap stays below the
+  format limit so a header between the two is detected and refused with its
+  size, not called "Unsupported model format". The library's limit is
+  inclusive (0.8.0: a declared 100,000,000 is "invalid header length", past the
+  size check; 100,000,001 is "header too large"), so detection changed from
+  `< 100_000_000` to `<= 100_000_000`, a one-byte boundary change.
+  NumPy (`numpy.py`): the `.npy` header length field is
   read first and refused over numpy's own 10000 (numpy reads the declared length
   before checking it: a v2 header declaring 4 GiB in a 48 MiB deflated member
   inflated it), and an `.npz` stops reading after 1001 members. Entry caps

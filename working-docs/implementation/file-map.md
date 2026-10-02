@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -175,6 +175,7 @@ pitloom/
 │       │   └── spdx3_json.py       # SPDX 3 JSON-LD serialiser
 │       ├── extract/                # Layer 1 -- read sources
 │       │   ├── ai_model/           # AI model extractors (fasttext, gguf, hdf5, keras, numpy, onnx, pytorch, pytorch_pt2, safetensors, reader)
+│       │   │   └── formats/        # Metadata-only format readers, stdlib only, no Pitloom import (pickle_walk)
 │       │   ├── dataset/            # Dataset extractors (croissant, croissant_key, reader)
 │       │   ├── lock/               # Lockfile extractors (cascade, poetry, pdm, uv, pylock, pipfile, requirements, _common, _hash, etc.)
 │       │   ├── project/            # Build backend & project metadata extractors (pyproject, poetry, pdm, flit, setuptools, sdist, hatchling, reader)

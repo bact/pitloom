@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-01
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,10 +8,12 @@ SPDX-License-Identifier: CC0-1.0
 
 # Metadata-only AI model readers (pre-1.0)
 
-Status: planned, not built; lands after 0.20.0, which ships with #263's
-gates and bounds and serves as the stable baseline the new readers are
-tested against. Replaces the earlier subprocess-isolation plan
-(kept below as the fallback for HDF5 only). Summarised in
+Status: planned; only the library skeleton and its first module (the
+pickle opcode walker, `formats/pickle_walk.py`) are built. The readers
+land after 0.20.0, which ships with #263's gates and bounds and serves
+as the stable baseline the new readers are tested against. Replaces the
+earlier subprocess-isolation plan (kept below as the fallback for HDF5
+only). Summarised in
 [roadmap.md](roadmap.md) as one bullet linking here.
 
 See also: [ai-model-scanning.md](../implementation/ai-model-scanning.md)
@@ -114,34 +116,30 @@ settle on the easy ones):
    16 MiB), then one bounded read and `json.loads` of the header. Emit
    `__metadata__` and the tensor names, the names cut by the entry cap as
    today.
-2. **PyTorch `.pt`/`.pth`.** Stream `pickletools.genops` over the bounded
-   `data.pkl` (or the raw legacy pickle) that `_pickle_bounds.py` already
-   walks; record the first `GLOBAL`/`STACK_GLOBAL` target (resolving the
-   memo for `STACK_GLOBAL`'s two strings) and stop. No AST, no fickling.
+2. **PyTorch `.pt`/`.pth`.** Reuse the opcode walker that
+   `formats/pickle_walk.py` already provides over the bounded `data.pkl` (or
+   the raw legacy pickle); add the `GLOBAL`/`STACK_GLOBAL` argument values
+   (resolving the memo for `STACK_GLOBAL`'s two strings), record the first
+   target and stop. No AST, no fickling.
    Parity: the class name must equal fickling's top-level class on every
    fixture; the rules for which global counts as "top-level" must match
    fickling's, verified on the fixtures, not assumed.
-   `genops` only decodes (no `find_class`, no object construction), but it
-   converts the decimal `INT`/`LONG` text arguments with `int()`, which is
-   quadratic once `sys.set_int_max_str_digits` is off
-   (`PYTHONINTMAXSTRDIGITS=0`, or CPython 3.10.0-3.10.6 without the limit):
-   measured 3.4 s for one 1M-digit `LONG`, ~4 min extrapolated at the 8 MiB
-   cap. The reader therefore walks opcodes with its own argument decoder
-   built from `pickletools.opcodes` (the opcode table, not `genops`): it
-   skips decimal arguments by length without converting them, since the
-   class name never needs a number.
+   The walker exists because `genops` converts decimal `INT`/`LONG` text
+   with `int()` (quadratic with `PYTHONINTMAXSTRDIGITS=0`: 3.4 s for one
+   1M-digit `LONG`). It has its own argument decoder built from
+   `pickletools.opcodes`, never converts decimal arguments and refuses a
+   number over 4300 digits; see
+   [ai-model-scan-bounds.md](../implementation/ai-model-scan-bounds.md).
 3. **GGUF.** The `_gguf_bounds.py` walker already parses the header
    structure; extend it to return key/value values, skip large arrays by
    seeking once the emitted value is known, and never read tensor infos
    beyond counting them. This removes `GGUFReader` and most of the
-   combined budget. Parity caveat, a bug in today's output: `gguf.py`'s
-   `_field_value` renders an array field as its *last element*
-   (`parts[-1]`). On `stories260K.gguf` this emits
-   `tokenizer.ggml.scores = '-252.0'` (the last score) and
-   `tokenizer.ggml.tokens = '[226, 128, 138]'` (the UTF-8 bytes of the last
-   token, as a list of ints). Fixed before 0.20.0 in its own small PR: an
-   array field is emitted as `<key>.length = N` only; the parity test then
-   pins that behaviour.
+   combined budget. Parity: an array field is recorded as `<key>.length`
+   only (fixed; it was the array's last element), and the parity test pins
+   that. Later option, out of scope: short string or number arrays as values
+   (`general.tags`, `general.languages`, `clip.vision.image_mean`, per-layer
+   `head_count`/`feed_forward_length`, `rope.dimension_sections`) under an
+   element and byte cap, if G7 needs them.
 4. **fastText (`.bin`, `.ftz`).** Magic and version, then the fixed
    `Args` struct (dims, epochs, lr, loss, model, ...), then stream the
    dictionary (`nwords`, `nlabels`, per entry a NUL-terminated string,
@@ -193,8 +191,15 @@ The readers are written so they can later become their own distribution
 (model-format metadata, useful beyond SBOMs), without committing to that
 now:
 
-- One subpackage (working name `pitloom.extract.ai_model.formats`) with no
-  import from the rest of Pitloom; stdlib only.
+- Decided 2026-10-02 (subpackage A): `pitloom.extract.ai_model.formats`,
+  stdlib only, no import from the rest of Pitloom, enforced by
+  `tests/extract/ai_model/formats/test_isolation.py` (an AST scan of every
+  module, and an import in a subprocess with the rest of Pitloom blocked).
+  Built now; Pitloom's readers switch to it after 0.20.0. The pickle walker
+  is module 1, and `_pickle_bounds.py` is its adapter (limit and malformed
+  errors mapped to Pitloom's, same messages). So far: `Limits` (frozen
+  dataclass), `_errors.py` (`FormatError` with `LimitExceeded`, `Malformed`,
+  `UnsupportedVersion`) and `pickle_walk.py`.
 - Input: a binary file object (seekable) plus an explicit limits object.
   Output: a plain frozen dataclass per format (raw fields, no SPDX, no
   provenance strings). Pitloom's adapter maps it to `AiModelMetadata` and
@@ -232,4 +237,4 @@ Object dependency, and ownership by `TerminationGuard`.
   of words; streaming is linear in the dictionary size. Whether a time or
   count budget should stop early with the labels found so far (and one
   `WARNING:`), or refuse.
-- **GGUF array fields:** see the parity caveat in the per-format plan.
+- **GGUF array values:** the short-array option in the per-format plan.

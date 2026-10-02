@@ -73,7 +73,7 @@ def test_categorize_gguf_fields_skips_none_values() -> None:
         "general.empty_key": None,
     }
     prov: dict[str, str] = {}
-    hyperparams, properties = _categorize_gguf_fields(fields, "Source: test", prov)
+    hyperparams, properties = _categorize_gguf_fields(fields, "Source: test", prov, {})
 
     assert "llama.context_length" in hyperparams
     assert "general.author" in properties

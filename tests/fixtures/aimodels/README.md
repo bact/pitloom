@@ -157,6 +157,8 @@ Notable metadata extracted by the GGUF extractor:
   vocabulary-only GGUF files carry no weight tensors
 - `properties["tokenizer.ggml.model"]` = `"bert"`,
   `properties["tokenizer.ggml.pre"]` = `"bert-bge"`
+- Array fields as lengths: `properties["tokenizer.ggml.tokens.length"]` and
+  `["tokenizer.ggml.token_type.length"]` = `"30522"`
 
 ---
 
@@ -186,6 +188,9 @@ Notable metadata extracted by the GGUF extractor:
   `block_count=32`, `attention.head_count=32`,
   `rope.dimension_count=96`, `rope.freq_base=10000.0`
 - `properties["GGUF.tensor_count"]` = `"0"` (vocab-only)
+- Array fields as lengths: `properties["tokenizer.ggml.tokens.length"]`,
+  `["tokenizer.ggml.scores.length"]` and `["tokenizer.ggml.token_type.length"]`
+  = `"32064"`
 - `properties["tokenizer.ggml.model"]` = `"llama"` - uses LLaMA BPE
   tokenizer, unlike `ggml-vocab-bert-bge.gguf` which uses BERT
   WordPiece
@@ -220,6 +225,9 @@ Notable metadata extracted by the GGUF extractor:
   `properties["clip.projector_type"]` = `"gemma3"`,
   `properties["clip.vision.image_size"]` = `"32"`,
   `properties["GGUF.tensor_count"]` = `"71"`
+- Array fields as lengths: `properties["general.tags.length"]` = `"2"`,
+  `["clip.vision.image_mean.length"]` and `["clip.vision.image_std.length"]`
+  = `"3"`
 
 This is a multimodal projector file (not a standalone language model),
 making it a useful fixture for verifying that the extractor handles
@@ -253,6 +261,9 @@ Notable metadata extracted by the GGUF extractor:
   `block_count=5`, `attention.head_count=8`, `attention.head_count_kv=4`,
   `feed_forward_length=172`, `rope.dimension_count=8`
 - `properties["GGUF.version"]` = `"3"`, `properties["GGUF.tensor_count"]` = `"48"`
+- Array fields as lengths: `properties["tokenizer.ggml.tokens.length"]`,
+  `["tokenizer.ggml.scores.length"]` and `["tokenizer.ggml.token_type.length"]`
+  = `"512"`
 
 The model is intentionally tiny (added to the tinyllamas collection
 specifically for use in unit tests and similar lightweight scenarios).
