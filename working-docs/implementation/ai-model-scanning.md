@@ -161,7 +161,7 @@ defensive code for a hand-built `AiModelMetadata`.
   (`existing_model_path()`); a path that opens as typed keeps its spelling in
   every log line.
 
-## Decided in the outcome-parity PR (#269)
+## Decided in the outcome-parity PR (#270)
 
 Rule: one confirmed model file gives exactly one `ai_AIPackage` on every
 surface, whatever its read outcome. Code: `read_model_candidate()` in

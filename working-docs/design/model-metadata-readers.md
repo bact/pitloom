@@ -238,7 +238,7 @@ Object dependency, and ownership by `TerminationGuard`.
   count budget should stop early with the labels found so far (and one
   `WARNING:`), or refuse.
 - **GGUF array values:** the short-array option in the per-format plan.
-- **Value semantics to re-decide per reader (from #269).** #269 fixed
+- **Value semantics to re-decide per reader (from #270).** #270 fixed
   these for the native-library path; a reader of our own sees the raw
   bytes and must choose again, then pin the choice with a parity test:
   - JSON `null` for an optional object part (Keras `config`, `layers`,

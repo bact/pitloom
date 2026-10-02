@@ -287,7 +287,7 @@ See [build-backend-improvements.md](build-backend-improvements.md).
   pure-Python header readers, parity-tested against the libraries; HDF5 last.
   Later option: short GGUF arrays as values, not only `<key>.length`.
   See [model-metadata-readers.md](model-metadata-readers.md).
-- [ ] **AI model outcome-parity follow-ups (#269)** -- three small items left
+- [ ] **AI model outcome-parity follow-ups (#270)** -- three small items left
   by the one-entry-per-confirmed-model rule: (1) Keras v3 (`.keras`) fails
   whole on a bad `config.json` while HDF5 degrades per attribute. (2) The scan
   names an HDF5 file `FORMAT=hdf5` where the reader reports `keras` (a

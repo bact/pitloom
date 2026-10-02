@@ -12,6 +12,7 @@ See also: [ai-model-scanning.md](ai-model-scanning.md) (the design as
 built), [model-metadata-readers.md](../design/model-metadata-readers.md)
 (the planned header-only readers), `docs/ai-model-scan-limits.md` (the
 user-facing caps).
+See also: [SBOM generator field notes](sbom-generator-field-notes/README.md).
 
 Experience notes from PR #263 (scan AI models inside built wheels), written
 as raw material for a paper on building an SBOM generator for AI artefacts.
@@ -373,7 +374,7 @@ Lessons:
 
 ### 3.9 Found while planning the next fixes (measured)
 
-- **"Is it a model" was inverted** (built, #269). An extension alone made a
+- **"Is it a model" was inverted** (built, #270). An extension alone made a
   file a model: a 24-byte text file named `.safetensors` became a model entry
   (its text read as an 8-quintillion-byte header length), and Git LFS
   pointer files (text stand-ins for unfetched large files) became 1 entry
@@ -382,7 +383,7 @@ Lessons:
   not contradict its extension (formats with no reliable signature, ONNX and
   HDF5, go by extension); a contradiction is one `WARNING:`.
 - **Whether a model is listed depended on the environment and on order**
-  (built, #269). A truncated model was dropped when its library was installed
+  (built, #270). A truncated model was dropped when its library was installed
   and kept when it was not (6 vs 7 entries); under a size budget the same
   wheel gave 8 or 11 entries depending on which files were read first. The
   lesson: **an outcome keyed on the failure kind made the entry set order- and
@@ -396,7 +397,7 @@ Lessons:
   meanwhile turns the same input into a misleading "malformed" warning,
   so the outcome depended on an interpreter setting.
 
-### 3.10 Git LFS pointers (#269, and a policy PR after it)
+### 3.10 Git LFS pointers (#270, and a policy PR after it)
 
 - **A pointer is exact evidence, not a heuristic.** Git LFS leaves a small
   text file whose first line is `version <spec URL>` until the content is

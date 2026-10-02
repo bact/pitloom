@@ -35,7 +35,9 @@ from tests.warning_helpers import logged_warnings
 
 _FIELDS = "type_of_model, name, hyperparameters, inputs, properties.layer_count"
 _NO_NAME = "name, hyperparameters, inputs, properties.layer_count"
-_DEEP = "[" * 100_000
+# Deep enough for RecursionError on every version: 3.14's json decoder
+# checks the real stack and parses 100 000 levels as plain invalid JSON.
+_DEEP = "[" * 1_000_000
 
 
 def _model(config: dict[str, Any]) -> str:
