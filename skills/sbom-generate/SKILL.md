@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-01
+# Last-Modified: 2026-10-02
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -247,6 +247,13 @@ loom embed-wheel dist/*.whl --project-dir . --verify --validate
 
 For checking an already-embedded wheel later, use the `sbom-validate`
 skill ("Validate a wheel's embedded SBOM").
+
+A wheel's name and version come from its own top-level `.dist-info` only.
+`wheel`, `generate`, `wheel --embed` and `embed-wheel` refuse a wheel with a
+member they cannot read or two members of one name: one `ERROR: ARCHIVE=...
+-- wheel refused`, exit 1, nothing written (in a batch the other wheels
+run). `WARNING: ... identity unknown` means no usable `METADATA`: the SBOM
+names the wheel `unknown`; it is not a model bound.
 
 ## Useful flags
 

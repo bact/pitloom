@@ -35,7 +35,13 @@ from pitloom._wheel_sbom_location import (
 )
 from pitloom.core.creation import resolve_source_date_epoch
 from pitloom.core.file_names import is_plain_file_name
-from pitloom.core.wheel_dist_info import RefusingReader, refuse_unreadable
+from pitloom.core.wheel_dist_info import (
+    RefusingReader,
+    refusal,
+    refuse_unreadable,
+    unreadable_member_error,
+    wheel_members,
+)
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import configure_logging
 
@@ -146,9 +152,17 @@ def _validate_sbom_filename(filename: str) -> None:
         raise ValueError(f"Invalid SBOM filename: {filename!r}")
 
 
-def _derive_wheel_sbom_filename(zf: zipfile.ZipFile, dist_info: str) -> str:
-    """Derive default SBOM filename from wheel METADATA."""
-    meta_name, meta_version = read_wheel_name_version(zf, dist_info)
+def _derive_wheel_sbom_filename(
+    zf: zipfile.ZipFile,
+    dist_info: str,
+    identity: tuple[str | None, str | None] | None = None,
+) -> str:
+    """Derive default SBOM filename from wheel METADATA, or from *identity*,
+    the name and version a caller already read from it (no second read, so
+    no second warning)."""
+    meta_name, meta_version = (
+        identity if identity is not None else read_wheel_name_version(zf, dist_info)
+    )
     if meta_name and meta_version:
         return f"{meta_name}-{meta_version}{SPDX3_JSONLD_EXTENSION}"
     prefix = dist_info.rstrip("/").removesuffix(".dist-info")
@@ -159,44 +173,62 @@ def _derive_wheel_sbom_filename(zf: zipfile.ZipFile, dist_info: str) -> str:
     )
 
 
+def _read_record(
+    zf: zipfile.ZipFile, info: zipfile.ZipInfo | None, archive: str
+) -> str:
+    """The text of ``RECORD`` (``""`` where the wheel has none).
+
+    Raises:
+        ValueError: ``RECORD`` cannot be read, or is not UTF-8.
+    """
+    if info is None:
+        return ""
+    try:
+        return read_wheel_member(zf, info).decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise unreadable_member_error(archive, info.orig_filename, exc) from exc
+
+
 def _plan_embed(
     original_zf: zipfile.ZipFile,
     dist_info: str,
     sbom_filename: str | None,
     sbom_bytes: bytes,
+    identity: tuple[str | None, str | None] | None = None,
 ) -> _EmbedPlan:
-    """Resolve target arcname, updated RECORD, and timestamp for an embed."""
+    """Resolve target arcname, updated RECORD, and timestamp for an embed.
+
+    Raises:
+        ValueError: A member of the wheel's own ``.dist-info`` is stored
+            under a non-conforming name (``./``, ``\\``): the rewrite matches
+            raw names, so it would leave the old ``RECORD`` or SBOM beside
+            its replacement, or write ``/`` names next to ``\\`` ones. Or
+            ``RECORD`` is not UTF-8.
+    """
+    archive = os.path.basename(original_zf.filename or "")
+    members = dict(wheel_members(original_zf, archive))
+    for name, info in members.items():
+        if name.startswith(dist_info) and info.orig_filename != name:
+            raise refusal(archive, info.orig_filename, "non-conforming name")
     target_name = (
         sbom_filename
         if sbom_filename is not None
-        else _derive_wheel_sbom_filename(original_zf, dist_info)
+        else _derive_wheel_sbom_filename(original_zf, dist_info, identity)
     )
     _validate_sbom_filename(target_name)
     sbom_arcname = f"{dist_info}sboms/{target_name}"
     record_arcname = f"{dist_info}RECORD"
-    sboms_prefix = f"{dist_info}sboms/"
     stale_arcnames = frozenset(
         name
-        for name in original_zf.namelist()
-        if name.startswith(sboms_prefix)
+        for name, info in members.items()
+        if name.startswith(f"{dist_info}sboms/")
         and name.endswith(SPDX3_JSONLD_EXTENSION)
         and name != sbom_arcname
-        and _looks_like_pitloom_sbom(read_wheel_member(original_zf, name))
+        and _looks_like_pitloom_sbom(read_wheel_member(original_zf, info))
     )
-
-    record_info = None
-    for info in original_zf.infolist():
-        if info.filename == record_arcname:
-            record_info = info
-            break
-
-    old_record_text = (
-        read_wheel_member(original_zf, record_arcname).decode("utf-8")
-        if record_info
-        else ""
-    )
+    record_info = members.get(record_arcname)
     new_record_text = _update_record_lines(
-        old_record_text,
+        _read_record(original_zf, record_info, archive),
         sbom_arcname,
         _calculate_record_hash(sbom_bytes),
         len(sbom_bytes),
@@ -277,14 +309,23 @@ def embed_sbom_in_wheel(
     sbom_content: str | bytes,
     *,
     sbom_filename: str | None = None,
+    identity: tuple[str | None, str | None] | None = None,
 ) -> tuple[Path, str, tuple[str, ...], bool]:
     """Embed an SPDX 3 SBOM into a built wheel archive (PEP 770).
+
+    *identity* is the wheel's declared (name, version), where the caller has
+    already read them from its ``METADATA``: the default file name is made
+    from it, and ``METADATA`` is not read, or warned about, again.
 
     Raises:
         FileNotFoundError: *wheel_path* doesn't exist.
         ValueError: *sbom_content* is empty, or the wheel's content is bad
             (not a valid ZIP, or missing/ambiguous ``.dist-info`` -- see
-            :func:`pitloom._wheel_sbom_location._open_wheel_zip`).
+            :func:`pitloom._wheel_sbom_location._open_wheel_zip`), or the
+            wheel is refused: a member cannot be read (damaged, encrypted,
+            unsupported, badly named), two members have one name, or a
+            member the embed must replace has a non-conforming name. The
+            wheel is left as it was.
         OSError: An environment problem opening *wheel_path* (permission
             denied, a transient I/O error) -- kept as its own exception
             type, not folded into ``ValueError`` (see
@@ -305,7 +346,7 @@ def embed_sbom_in_wheel(
 
     with _open_wheel_zip(wheel_obj) as original_zf:
         dist_info = _find_dist_info_prefix(original_zf, wheel_obj)
-        plan = _plan_embed(original_zf, dist_info, sbom_filename, sbom_bytes)
+        plan = _plan_embed(original_zf, dist_info, sbom_filename, sbom_bytes, identity)
         temp_path = _rewrite_wheel_archive(
             wheel_obj,
             original_zf,

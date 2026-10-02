@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-01
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -158,11 +158,19 @@ skipped with a `WARNING:` naming why, regardless of `--fail-on-mismatch`.
 
 A wheel's own `.dist-info` is the top-level directory its file name names
 (PEP 503/440 comparison); where the file name names none, the only top-level
-`.dist-info`. A `.dist-info` vendored deeper in the tree is never the wheel's
-own. `loom wheel`, `loom generate` and `loom embed-wheel` refuse a wheel with
-a member that cannot be read (damaged, encrypted): one `ERROR:` naming the
-archive and the member, exit 1, nothing written; in an `embed-wheel` batch the
-other wheels are still processed. The library raises `ValueError`.
+`.dist-info`, with a `WARNING:` where the file name is a wheel name. A
+`.dist-info` vendored deeper in the tree is never the wheel's own. `METADATA`
+is read for its headers only (at most 16 MiB and 10,000 headers); past a cap,
+one `WARNING:` and the name is `unknown`.
+
+`loom wheel`, `loom generate`, `loom wheel --embed`, `loom embed-wheel`,
+`loom verify-wheel` and `loom validate-wheel` refuse a wheel whose member
+cannot be read (damaged, encrypted, a name that is not UTF-8) or that holds
+one name twice (also as `a/M` and `a\M`), and `embed-wheel` one whose own
+`.dist-info` has a non-conforming member name: one `ERROR:` naming the archive
+and, where there is one, the member; exit 1, nothing written (not even the
+`-o` copy). With several wheels the others are still processed. The library
+raises `ValueError`.
 
 Validate a wheel's embedded SBOM content against its format's schema and
 SHACL rules (currently SPDX3 JSON-LD only, via the same `spdx3-validate`

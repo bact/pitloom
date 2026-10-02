@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-01
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -267,8 +267,11 @@ and lets the embed proceed. Form 1 (a Pitloom-generated SBOM) is never
 checked -- it's built from the same wheel metadata, so it can't diverge.
 A wheel's name and version come from its own top-level `.dist-info` (see
 [the CLI notes](cli.md#embed-an-sbom-into-a-wheel-pep-770)); a wheel with a
-member that cannot be read raises `ValueError`, naming the archive and the
-member, and nothing is written.
+member that cannot be read, or two members of one name, raises
+`ValueError`, naming the archive and the member, and nothing is written.
+Pass `identity=(name, version)` to `embed_sbom_in_wheel()` where you have
+already read them from the wheel's `METADATA`: the default file name is made
+from it and `METADATA` is not read, or warned about, again.
 Form 3, `embed_sbom_in_wheel()`, is the lower-level, unchecked archive
 primitive both forms 1 and 2 converge on -- calling it directly (bypassing
 `embed_wheel_sbom()`) skips the cross-check entirely, same as it skips

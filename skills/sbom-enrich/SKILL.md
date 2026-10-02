@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-01
+# Last-Modified: 2026-10-02
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -191,7 +191,9 @@ Steps:
      the gate `INFO:` naming `--trust-wheel-model`, `... scan ceiling;
      metadata not read`, or `per-wheel budget ... is spent` -- tell the
      user; never add the flag or raise `max-model-extract-bytes` yourself.
-     Any other `...; metadata not read` -- a fixed bound. Fields the file
+     Any other `...; metadata not read` -- a fixed bound. (`... identity
+     unknown` is the wheel's own name/version, not a model: see
+     `sbom-generate`.) Fields the file
      itself would give (hyperparameters, inputs, outputs) are better read
      than inferred: tell the user the cause before inferring them from
      prose.

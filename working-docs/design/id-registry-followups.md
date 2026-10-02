@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-01
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -29,6 +29,14 @@ D-numbers below refer to it),
   alternative, keeping the file without a hash, needs the SBOM builder to emit
   a hashless `software_File`, the registry's (path, sha256) key to accept one,
   and the Merkle root to say what it covers; revisit with v3.
+- `RECORD` and an embedded SBOM are read whole (no size cap), unlike
+  `METADATA`; a zip-bomb member there still exhausts memory.
+- `.WHL` (upper case) is a wheel to some surfaces and not to others, so the
+  same file fails with a different error on each. Pick one rule.
+- `core/_models_wheel_types.py` `is_dist_info_path` is a fourth "top-level
+  `.dist-info`" predicate, and its docstring says "wheel's own": it matches
+  any top-level `*.dist-info`. Fold it into
+  `core/wheel_dist_info.top_level_dist_infos` or reword it.
 
 ### Wheel/sdist targets and src-layout registry file ids
 

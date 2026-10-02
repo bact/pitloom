@@ -13,8 +13,11 @@ tests/test_wheel_identity_surfaces.py (the users).
 
 from __future__ import annotations
 
+import warnings
 import zipfile
 from pathlib import Path
+
+from tests._raw_archive import write_raw_member
 
 WHEEL = "demo-1.0-py3-none-any.whl"
 REAL = "Metadata-Version: 2.1\nName: demo\nVersion: 1.0\n"
@@ -71,6 +74,26 @@ def bad_name(path: Path, _member: str) -> None:
     patch_first(path, "é".encode(), b"\xc3\xff")
 
 
+def bad_central_name(path: Path) -> None:
+    """Break the UTF-8 of the *central directory's* copy of the name alone,
+    which ``zipfile`` reports when opening, not when reading."""
+    data = path.read_bytes()
+    at = data.rindex("é".encode())
+    assert at != data.index("é".encode())  # the second copy, not the local one
+    path.write_bytes(data[:at] + b"\xc3\xff" + data[at + 2 :])
+
+
+def raw_wheel(path: Path, entries: list[tuple[str, str]]) -> Path:
+    """A wheel holding *entries* (raw name, text) in order, names verbatim:
+    duplicates, backslashes and ``./`` included."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)  # zipfile: duplicate name
+        with zipfile.ZipFile(path, "w") as zf:
+            for raw, text in entries:
+                write_raw_member(zf, raw, text.encode())
+    return path
+
+
 DAMAGE = {
     "deflate": ("demo/bad.py", zipfile.ZIP_DEFLATED, corrupt_deflate),
     "crc": ("demo/bad.py", zipfile.ZIP_STORED, bad_crc),
@@ -92,4 +115,15 @@ def damaged_wheel(tmp_path: Path, kind: str, *, in_metadata: bool = False) -> Pa
         if not in_metadata:
             zf.writestr(METADATA, REAL)
     damage(wheel, member)
+    return wheel
+
+
+def central_name_damaged_wheel(tmp_path: Path) -> Path:
+    """A wheel ``zipfile`` cannot even open: a member name flagged UTF-8 that
+    is not, in the central directory."""
+    wheel = tmp_path / WHEEL
+    with zipfile.ZipFile(wheel, "w") as zf:
+        zf.writestr(METADATA, REAL)
+        zf.writestr("demo/é.py", "")
+    bad_central_name(wheel)
     return wheel

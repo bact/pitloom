@@ -180,6 +180,34 @@ def test_archive_members_without_logger_is_silent(
     assert not caplog.records
 
 
+def test_archive_members_on_duplicate_refuses_before_logging(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """With *on_duplicate*, the first member a later one repeats (by its raw
+    name) is handed over and its exception raised; nothing is logged first,
+    not even for the non-conforming member that precedes it. Without a
+    duplicate, it changes nothing."""
+    seen: list[str] = []
+
+    def refuse(raw: str) -> Exception:
+        seen.append(raw)
+        return LookupError(raw)
+
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(LookupError):
+            archive_members(
+                [("./x", 0), ("pkg/a", 1), ("pkg\\a", 2)],
+                "a.zip",
+                _LOG,
+                on_duplicate=refuse,
+            )
+        assert seen == ["pkg/a"] and not caplog.records
+        kept = archive_members(
+            [("./x", 0), ("pkg/a", 1)], "a.zip", _LOG, on_duplicate=refuse
+        )
+    assert kept == [("x", 0), ("pkg/a", 1)] and len(caplog.records) == 1
+
+
 def _zip(tmp_path: Path, raws: list[tuple[str, bytes]]) -> Path:
     path = tmp_path / "a.zip"
     with warnings.catch_warnings():

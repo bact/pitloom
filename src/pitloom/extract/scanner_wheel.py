@@ -29,11 +29,14 @@ from pathlib import Path, PurePosixPath
 from typing import IO, NoReturn
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
-from pitloom.core.archive_member_names import zip_file_members
 from pitloom.core.build_signals import MODEL_SCAN_ACTIVITY, TerminationGuard
 from pitloom.core.model_extract_limit import require_max_model_extract_bytes
 from pitloom.core.temp_dirs import registered_temp_dir
-from pitloom.core.wheel_dist_info import MEMBER_READ_ERRORS, matching_dist_infos
+from pitloom.core.wheel_dist_info import (
+    MEMBER_READ_ERRORS,
+    matching_dist_infos,
+    wheel_members,
+)
 from pitloom.extract.ai_model import SNIFF_BYTES
 from pitloom.extract.ai_model.limits import ScanBudgetExceeded, charging_reads
 from pitloom.extract.scanner import (
@@ -282,7 +285,7 @@ def scan_wheel_for_ai_models(
     require_max_model_extract_bytes(max_bytes, "pitloom_config")
     with zipfile.ZipFile(wheel_path) as zf, TerminationGuard() as guard:
         # No logger: read_wheel() already reported every member name.
-        all_members = zip_file_members(zf, wheel_path.name, None)
+        all_members = wheel_members(zf, wheel_path.name)
         own = matching_dist_infos(wheel_path.name, [n for n, _ in all_members])
         members = [m for m in all_members if not m[0].startswith(own)]
         scratch = _Scratch(guard, max_bytes, wheel_path.name)

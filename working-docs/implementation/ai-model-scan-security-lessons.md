@@ -294,6 +294,19 @@ Lessons:
   every file has a hash, and a package hash that silently skips a file is
   a false integrity claim. The wheel is now refused with one `ERROR:`;
   pip cannot install such a wheel either.
+- **Two name lists in one selector** (wheel-identity review): `read_wheel`
+  chose the `.dist-info` from normalised member names, the embed from the
+  raw `namelist()`. `demo-1.0.dist-info/METADATA` plus
+  `demo-1.0.dist-info\METADATA` made one reader report `evil 9`, and the
+  embed wrote that into the wheel. Select from one list, built in one place.
+- **Duplicate member names are parser confusion**: two readers keeping
+  different copies of one name (first, last, or by separator) is how a
+  hostile archive shows a scanner one file and an installer another. A
+  wheel with one name twice is refused, not resolved by a rule.
+- **A byte cap on `METADATA` did not bound memory**: a 28 KB wheel
+  inflated to 710 MB resident from 16 MiB of short headers, 2.4 million of
+  them once parsed. Parse the header block only (stop at the first blank
+  line) and cap the header count (10,000) as well as the bytes.
 
 ### 3.9 Found while planning the next fixes (measured, not yet built)
 

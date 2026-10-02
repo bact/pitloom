@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import email
 import email.message
 import hashlib
 import logging
@@ -14,13 +13,13 @@ import zipfile
 from pathlib import Path
 
 from pitloom._wheel_sbom_location import name_version_from_email_message
-from pitloom.core.archive_member_names import zip_file_members
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.core.wheel_dist_info import (
-    MAX_METADATA_BYTES,
-    read_member_bounded,
+    open_wheel_zip,
+    read_metadata_headers,
     refuse_unreadable,
     resolve_own_dist_info,
+    wheel_members,
 )
 from pitloom.extract._core_metadata import parse_project_urls
 
@@ -120,6 +119,11 @@ def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFil
         ``METADATA`` of the wheel's own top-level ``.dist-info`` (see
         :func:`pitloom.core.wheel_dist_info.resolve_own_dist_info`); any
         other ``*.dist-info`` directory is an ordinary file.
+
+    Raises:
+        ValueError: The wheel is refused as a whole: a member cannot be read
+            (damaged, encrypted, unsupported, badly named), or two members
+            have one name.
     """
     wheel_path_obj = Path(wheel_path)
     metadata = ProjectMetadata(name="unknown")
@@ -128,33 +132,27 @@ def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFil
     archive = wheel_path_obj.name
     source = f"Source: wheel METADATA | File: {archive}"
 
-    with zipfile.ZipFile(wheel_path_obj, "r") as zf:
-        members = zip_file_members(zf, archive, log)
+    with open_wheel_zip(wheel_path_obj) as zf:
+        members = wheel_members(zf, archive, log)
         choice = resolve_own_dist_info(archive, [name for name, _ in members])
         if choice.problem:
-            log.warning("ARCHIVE=%r: %s", archive, choice.problem)
-        own_metadata = f"{choice.prefix}METADATA" if choice.prefix else None
-        metadata_content: bytes | None = None
-
-        for name, info in members:
-            record = _hash_wheel_entry(zf, info, name, archive)
-            project_files.append(record)
-            if name == own_metadata:
-                metadata_content = read_member_bounded(zf, info, MAX_METADATA_BYTES)
-                if metadata_content is None:
-                    log.warning(
-                        "ARCHIVE=%r ENTRY=%r: larger than %d bytes -- not read",
-                        archive,
-                        info.orig_filename,
-                        MAX_METADATA_BYTES,
-                    )
-
-        if metadata_content:
-            msg = email.message_from_string(
-                metadata_content.decode("utf-8", errors="replace")
+            log.warning(
+                "ARCHIVE=%r: %s%s",
+                archive,
+                choice.problem,
+                "" if choice.prefix else " -- identity unknown",
             )
-            _populate_metadata_from_email(metadata, provenance, msg, source)
+        project_files = [
+            _hash_wheel_entry(zf, info, name, archive) for name, info in members
+        ]
+        msg = (
+            read_metadata_headers(zf, members, choice.prefix, archive)
+            if choice.prefix
+            else None
+        )
 
+    if msg is not None:
+        _populate_metadata_from_email(metadata, provenance, msg, source)
     # Archive order is the writer's; SPDX ids are minted in file order.
     project_files.sort(key=lambda f: f.distribution_path)
     metadata.provenance = provenance

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -72,7 +72,7 @@ pitloom/
 │   │   ├── setuptools-support.md   # Setuptools extractor design and limitations
 │   │   ├── summary.md              # implementation summary; points here for the tree
 │   │   ├── wheel-embedding.md
-│   │   ├── wheel-identity.md       # Which .dist-info is a wheel's own; unreadable members; METADATA bound
+│   │   ├── wheel-identity.md       # Which .dist-info is a wheel's own; refused wheels; METADATA headers
 │   │   └── wheel-sbom-verification.md
 │   └── archive/
 │       └── protobom-evaluation.md  # Wholesale-rejected paths
@@ -169,7 +169,7 @@ pitloom/
 │       │   ├── project.py          # ProjectMetadata, ProjectFile
 │       │   ├── provenance.py       # ProvenanceConfig ([tool.pitloom.provenance])
 │       │   ├── temp_dirs.py        # registered_temp_dir(): temp dirs removed via TerminationGuard
-│       │   └── wheel_dist_info.py  # own_dist_info(): a wheel's own .dist-info; bounded METADATA read
+│       │   └── wheel_dist_info.py  # own_dist_info(), wheel_members(): a wheel's own .dist-info; header-only METADATA read
 │       ├── enrich/                 # Local README/model-card frontmatter enrichment
 │       │   ├── base.py             # Enricher protocol + run_enrichers_for_models()
 │       │   └── readme.py           # README.md/MODEL_CARD.md YAML frontmatter enricher

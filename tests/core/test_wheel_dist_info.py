@@ -17,20 +17,34 @@ from __future__ import annotations
 
 import io
 import zipfile
+import zlib
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import Mock
 
 import pytest
 
 from pitloom.core import wheel_dist_info
+from pitloom.core.archive_member_names import normalize_member_name, zip_file_members
 from pitloom.core.wheel_dist_info import (
+    PROBLEM_NONE,
+    PROBLEM_NOT_A_WHEEL_NAME,
+    PROBLEM_SEVERAL_MATCH,
+    PROBLEM_SEVERAL_NONE_MATCH,
+    WheelRefused,
+    open_wheel_zip,
     own_dist_info,
-    read_member_bounded,
+    read_metadata_headers,
+    refusal,
     resolve_own_dist_info,
+    wheel_members,
 )
-
-WHEEL = "demo-1.0-py3-none-any.whl"
+from tests._wheel_damage import (
+    WHEEL,
+    central_name_damaged_wheel,
+    damaged_wheel,
+    raw_wheel,
+)
 
 
 def _members(*dist_infos: str) -> list[str]:
@@ -66,11 +80,16 @@ def _members(*dist_infos: str) -> list[str]:
         # A wheel file name that names another directory: the only one, said.
         (WHEEL, ["evil-9.9.dist-info"], "evil-9.9.dist-info/", "names no"),
         # Zero, or several none of which the file name names.
-        (WHEEL, [], None, "no top-level"),
-        (WHEEL, ["a-1.dist-info", "b-1.dist-info"], None, "several"),
-        ("pkg.whl", ["a-1.dist-info", "b-1.dist-info"], None, "several"),
+        (WHEEL, [], None, PROBLEM_NONE),
+        (WHEEL, ["a-1.dist-info", "b-1.dist-info"], None, PROBLEM_SEVERAL_NONE_MATCH),
+        ("pkg.whl", ["a-1.dist-info", "b-1.dist-info"], None, PROBLEM_NOT_A_WHEEL_NAME),
         # Two directories spelling the one name: ambiguous, not "first".
-        (WHEEL, ["demo-1.0.dist-info", "Demo-1.0.dist-info"], None, "several"),
+        (
+            WHEEL,
+            ["demo-1.0.dist-info", "Demo-1.0.dist-info"],
+            None,
+            PROBLEM_SEVERAL_MATCH,
+        ),
     ],
     ids=[
         "plain",
@@ -120,31 +139,86 @@ def test_the_choice_does_not_depend_on_member_order() -> None:
     assert own_dist_info(WHEEL, names) == own_dist_info(WHEEL, names[::-1])
 
 
-def _zip_with(data: bytes, compression: int) -> tuple[zipfile.ZipFile, zipfile.ZipInfo]:
-    buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w", compression) as zf:
-        zf.writestr("m", data)
-    zf = zipfile.ZipFile(buffer)
-    return zf, zf.getinfo("m")
+def _stream(data: bytes, chunk: int) -> Any:
+    """*data* as a member stream that hands out at most *chunk* bytes."""
+    buffer = io.BytesIO(data)
+    return SimpleNamespace(read=lambda _size=-1: buffer.read(chunk))
+
+
+@pytest.mark.parametrize("chunk", [1, 2, 3, 8192])
+@pytest.mark.parametrize(
+    ("data", "block"),
+    [
+        (b"A: 1\nB: 2\n\nbody\n", b"A: 1\nB: 2\n"),
+        (b"A: 1\r\nB: 2\r\n\r\nbody", b"A: 1\r\nB: 2\r\n"),
+        (b"A: 1\rB: 2\r\rbody", b"A: 1\rB: 2\r"),
+        (b"A: 1\n\r\nbody", b"A: 1\n"),
+        (b"A: 1\nB: 2", b"A: 1\nB: 2"),
+        # Whitespace alone is a continuation line, not the end of the headers.
+        (b"A: 1\n \nB: 2\n\n", b"A: 1\n \nB: 2\n"),
+        (b"", b""),
+        (b"\nA: 1\n", b""),
+    ],
+    ids=["lf", "crlf", "cr", "lf-crlf", "no-blank", "whitespace", "empty", "leading"],
+)
+def test_the_header_block_ends_at_the_first_blank_line(
+    monkeypatch: pytest.MonkeyPatch, data: bytes, block: bytes, chunk: int
+) -> None:
+    """Whatever the line ends, and wherever a chunk splits a CRLF."""
+    monkeypatch.setattr(wheel_dist_info, "_CHUNK_BYTES", chunk)
+    assert wheel_dist_info._header_block(_stream(data, chunk)) == block
 
 
 @pytest.mark.parametrize(
-    ("size", "limit", "expected"),
-    [(10, 10, True), (11, 10, False), (0, 10, True), (20000, 8192, False)],
+    ("data", "limits", "unit"),
+    [
+        (b"A: 1\nB: 2\nC: 3\n", {"MAX_METADATA_HEADERS": 3}, None),
+        (b"A: 1\nB: 2\nC: 3\nD: 4\n", {"MAX_METADATA_HEADERS": 3}, "headers"),
+        # A continuation line is not another header.
+        (b"A: 1\n" + b" x\n\t\n" * 50, {"MAX_METADATA_HEADERS": 1}, None),
+        # The counted ends are CR too: no ``\n`` to hide behind.
+        (b"A: 1\rB: 2\rC: 3\rD: 4\r", {"MAX_METADATA_HEADERS": 3}, "headers"),
+        (b"A: 12345\n", {"MAX_METADATA_BYTES": 9}, None),
+        (b"A: 123456\n", {"MAX_METADATA_BYTES": 9}, "bytes"),
+        # One line without an end: caught while it is still being read.
+        (b"x" * 10_000, {"MAX_METADATA_BYTES": 9_999}, "bytes"),
+        (b"x" * 9_999, {"MAX_METADATA_BYTES": 9_999}, None),
+    ],
+    ids=[
+        "headers-at-cap",
+        "headers-over-cap",
+        "continuations-free",
+        "headers-cr",
+        "bytes-at-cap",
+        "bytes-over-cap",
+        "long-line-over",
+        "long-line-at",
+    ],
 )
-def test_the_bounded_read_returns_up_to_the_limit(
-    size: int, limit: int, expected: bool
+def test_the_header_block_is_capped_in_bytes_and_headers(
+    monkeypatch: pytest.MonkeyPatch,
+    data: bytes,
+    limits: dict[str, int],
+    unit: str | None,
 ) -> None:
-    data = b"x" * size
-    zf, info = _zip_with(data, zipfile.ZIP_DEFLATED)
-    with zf:
-        assert read_member_bounded(zf, info, limit) == (data if expected else None)
+    for name, value in limits.items():
+        monkeypatch.setattr(wheel_dist_info, name, value)
+    stream = _stream(data, 8192)
+
+    if unit is None:
+        assert wheel_dist_info._header_block(stream)
+    else:
+        with pytest.raises(wheel_dist_info._OverCap) as over:
+            wheel_dist_info._header_block(stream)
+        assert over.value.unit == unit
 
 
 class _Endless(io.RawIOBase):
-    """A member that never ends; counts what it hands out."""
+    """A member of headers, a blank line, then a body that never ends;
+    counts what it hands out."""
 
-    def __init__(self) -> None:
+    def __init__(self, head: bytes) -> None:
+        self.head = head
         self.served = 0
 
     def readable(self) -> bool:
@@ -152,21 +226,183 @@ class _Endless(io.RawIOBase):
 
     def read(self, size: int = -1) -> bytes:
         size = 8192 if size < 0 else size
+        out = self.head[self.served : self.served + size]
+        out = out or b"x" * size
         self.served += size
         if self.served > 64 * 1024 * 1024:
-            raise AssertionError("read past the cap without stopping")
-        return b"x" * size
+            raise AssertionError("read past the end of the headers")
+        return out
 
 
-def test_the_bounded_read_stops_at_the_cap_whatever_the_declared_size() -> None:
-    stream = _Endless()
-    zf = Mock(spec=zipfile.ZipFile)
-    zf.open.return_value = stream
-    info = zipfile.ZipInfo("m")
-    info.file_size = 1  # a lie
+def test_reading_stops_at_the_end_of_the_headers() -> None:
+    head = b"Name: demo\nVersion: 1.0\n\n"
+    stream: Any = _Endless(head)
 
-    assert read_member_bounded(zf, info, 1000) is None
-    assert stream.served <= 1000 + 8192
+    assert wheel_dist_info._header_block(stream) == head[:-1]
+    assert stream.served <= 8192  # the one chunk holding the blank line
+
+
+def test_one_endless_line_is_stopped_at_the_cap_not_buffered(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No line end to split on: the unfinished line itself is what is capped."""
+    monkeypatch.setattr(wheel_dist_info, "MAX_METADATA_BYTES", 50_000)
+    stream: Any = _Endless(b"")
+
+    with pytest.raises(wheel_dist_info._OverCap):
+        wheel_dist_info._header_block(stream)
+
+    assert stream.served <= 50_000 + 8192
+
+
+def _zip_with(
+    tmp_path: Path, metadata: bytes | None, prefix: str = "demo-1.0.dist-info/"
+) -> tuple[zipfile.ZipFile, list[tuple[str, zipfile.ZipInfo]]]:
+    path = tmp_path / "demo-1.0-py3-none-any.whl"
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("demo/__init__.py", "")
+        if metadata is not None:
+            zf.writestr(f"{prefix}METADATA", metadata)
+    zf = zipfile.ZipFile(path)
+    return zf, wheel_members(zf, path.name)
+
+
+@pytest.mark.parametrize(
+    ("metadata", "limits", "warning"),
+    [
+        (b"Name: demo\nVersion: 1.0\n\nbody " * 1000, {}, None),
+        (None, {}, "no demo-1.0.dist-info/METADATA"),
+        (b"A: 1\nB: 2\nC: 3\n", {"MAX_METADATA_HEADERS": 2}, "over 2 headers"),
+        (b"A: 12345678\n", {"MAX_METADATA_BYTES": 9}, "over 9 bytes"),
+    ],
+    ids=["read", "absent", "too-many-headers", "too-large"],
+)
+def test_the_metadata_headers_or_one_warning_saying_why_not(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    metadata: bytes | None,
+    limits: dict[str, int],
+    warning: str | None,
+) -> None:
+    for name, value in limits.items():
+        monkeypatch.setattr(wheel_dist_info, name, value)
+    zf, members = _zip_with(tmp_path, metadata)
+
+    with zf:
+        msg = read_metadata_headers(zf, members, "demo-1.0.dist-info/", "a.whl")
+
+    messages = [r.getMessage() for r in caplog.records if r.levelno >= 30]
+    if warning is None:
+        assert msg is not None and msg["Name"] == "demo" and not messages
+        assert msg.get_payload() == ""  # headers only: the body is not parsed
+    else:
+        assert msg is None
+        (message,) = messages
+        assert warning in message and message.endswith("identity unknown")
+
+
+def test_the_metadata_headers_refuse_a_member_that_cannot_be_read(
+    tmp_path: Path,
+) -> None:
+    wheel = damaged_wheel(tmp_path, "deflate", in_metadata=True)
+    with zipfile.ZipFile(wheel) as zf:
+        with pytest.raises(WheelRefused, match="could not read"):
+            read_metadata_headers(
+                zf, wheel_members(zf, WHEEL), "demo-1.0.dist-info/", WHEEL
+            )
+
+
+@pytest.mark.parametrize(
+    ("exc", "label"),
+    [
+        (EOFError(), "EOFError"),
+        (zlib.error(), "zlib.error"),
+        (zipfile.BadZipFile(), "zipfile.BadZipFile"),
+        (UnicodeDecodeError("utf-8", b"\xff", 0, 1, "x"), "UnicodeDecodeError"),
+    ],
+)
+def test_the_exception_is_named_bare_for_a_builtin_and_qualified_otherwise(
+    exc: Exception, label: str
+) -> None:
+    assert wheel_dist_info.exception_label(exc) == label
+    assert f"could not read ({label}) -- wheel refused" in str(
+        wheel_dist_info.unreadable_member_error("a.whl", "m", exc)
+    )
+
+
+@pytest.mark.parametrize(
+    ("entry", "shape"),
+    [
+        ("m\nFORGED", "ARCHIVE='a\\n.whl' ENTRY='m\\nFORGED': why -- wheel refused"),
+        (None, "ARCHIVE='a\\n.whl': why -- wheel refused"),
+    ],
+)
+def test_a_refusal_is_one_line_in_one_shape(entry: str | None, shape: str) -> None:
+    error = refusal("a\n.whl", entry, "why")
+    assert str(error) == shape and isinstance(error, ValueError)
+
+
+@pytest.mark.parametrize(
+    "entries",
+    [
+        [("a/M", "1"), ("a/M", "2")],
+        [("a/M", "1"), ("a\\M", "2")],
+        [("a\\M", "1"), ("a/M", "2")],
+        [("./a/M", "1"), ("a/M", "2")],
+        [("a/M", "1"), ("b/x", ""), ("a//M", "2")],
+    ],
+    ids=["exact", "backslash", "backslash-first", "dot-prefix", "empty-segment"],
+)
+def test_a_wheel_holding_one_name_twice_is_refused(
+    tmp_path: Path, entries: list[tuple[str, str]]
+) -> None:
+    wheel = raw_wheel(tmp_path / WHEEL, entries)
+
+    with zipfile.ZipFile(wheel) as zf:
+        with pytest.raises(WheelRefused) as refused:
+            wheel_members(zf, WHEEL)
+        # Any other reader of the same archive still warns and keeps the last.
+        assert len(zip_file_members(zf, WHEEL, None)) == len(
+            {m.name for m in map(normalize_member_name, (r for r, _ in entries))}
+        )
+    message = str(refused.value)
+    assert f"ARCHIVE={WHEEL!r}" in message
+    assert f"ENTRY={entries[0][0]!r}: duplicate member name -- wheel refused" in (
+        message
+    )
+
+
+@pytest.mark.parametrize(
+    "entries",
+    [
+        # A directory entry is no member; two are no duplicate.
+        [("a/", ""), ("a\\", ""), ("a/M", "1")],
+        # Unsafe names are skipped, not refused.
+        [("../x", ""), ("../x", ""), ("a/M", "1")],
+        [("a/M", "1"), ("a/N", "2"), ("A/M", "3")],
+    ],
+    ids=["directories", "unsafe", "case-differs"],
+)
+def test_names_that_are_not_duplicates_are_not_refused(
+    tmp_path: Path, entries: list[tuple[str, str]]
+) -> None:
+    wheel = raw_wheel(tmp_path / WHEEL, entries)
+    with zipfile.ZipFile(wheel) as zf:
+        assert wheel_members(zf, WHEEL)
+
+
+def test_a_central_directory_name_that_is_not_utf8_refuses_at_open(
+    tmp_path: Path,
+) -> None:
+    wheel = central_name_damaged_wheel(tmp_path)
+
+    with pytest.raises(WheelRefused) as refused:
+        open_wheel_zip(wheel)
+
+    assert str(refused.value) == (
+        f"ARCHIVE={WHEEL!r}: could not open (UnicodeDecodeError) -- wheel refused"
+    )
 
 
 class _ZstdError(Exception):

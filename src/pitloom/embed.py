@@ -212,22 +212,19 @@ def embed_wheel_sbom(
         overrides=eff_overrides,
         file_cache=file_cache,
     )
+    # wheel_metadata.name defaults to the sentinel "unknown" (never None) when
+    # METADATA has no Name header -- comparing that placeholder against the
+    # SBOM would either report a bogus mismatch or silently "match" an SBOM
+    # literally named "unknown". `provenance` only gains a "name"/"version"
+    # key when a real header was found (see `_populate_metadata_from_email`),
+    # so it's the correct signal for "was this field actually present" --
+    # the same real-None-on-missing semantics `read_wheel_name_version`
+    # (verify-wheel's own path) already has.
+    wheel_name = wheel_metadata.name if "name" in wheel_metadata.provenance else None
+    wheel_version = (
+        wheel_metadata.version if "version" in wheel_metadata.provenance else None
+    )
     if sbom_path is not None:
-        # wheel_metadata.name defaults to the sentinel "unknown" (never
-        # None) when METADATA has no Name header -- comparing that
-        # placeholder against the SBOM would either report a bogus
-        # mismatch or silently "match" an SBOM literally named "unknown".
-        # `provenance` only gains a "name"/"version" key when a real
-        # header was found (see `_populate_metadata_from_email`), so it's
-        # the correct signal for "was this field actually present" --
-        # the same real-None-on-missing semantics `read_wheel_name_version`
-        # (verify-wheel's own path) already has.
-        wheel_name = (
-            wheel_metadata.name if "name" in wheel_metadata.provenance else None
-        )
-        wheel_version = (
-            wheel_metadata.version if "version" in wheel_metadata.provenance else None
-        )
         _enforce_sbom_name_version(
             wheel_obj.name,
             wheel_name,
@@ -235,8 +232,13 @@ def embed_wheel_sbom(
             sbom_json,
             allow_mismatch=allow_mismatch,
         )
+    # The identity just read goes down, so the embed does not read (and warn
+    # about) the same METADATA again.
     res_path, arcname, removed_arcnames, timestamp_floored = embed_sbom_in_wheel(
-        wheel_obj, sbom_json, sbom_filename=embed_filename(eff_basename)
+        wheel_obj,
+        sbom_json,
+        sbom_filename=embed_filename(eff_basename),
+        identity=(wheel_name, wheel_version),
     )
 
     if output_path is not None:

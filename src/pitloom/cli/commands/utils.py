@@ -103,6 +103,13 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
     return list(dict.fromkeys(wheel_paths))
 
 
+def _report_wheel_error(exc: Exception) -> None:
+    """Report one wheel's failure as one ``ERROR:`` line -- the same shape
+    for every per-wheel check, so one bad wheel of a batch never aborts the
+    others."""
+    print(f"ERROR: {exc}", file=sys.stderr)
+
+
 def _locate_embedded_sbom_or_report(
     wheel_path: Path, sbom_filename: str | None
 ) -> EmbeddedSbomLocation | None:
@@ -122,7 +129,7 @@ def _locate_embedded_sbom_or_report(
     try:
         location = find_embedded_sbom(wheel_path, sbom_filename)
     except (ValueError, OSError) as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
+        _report_wheel_error(exc)
         return None
 
     if location is None:

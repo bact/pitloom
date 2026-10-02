@@ -18,18 +18,20 @@ in hand.
 from __future__ import annotations
 
 import dataclasses
-import email
+import email.message
 import logging
 import os
 import zipfile
 from pathlib import Path
 
 from pitloom.core.wheel_dist_info import (
-    MAX_METADATA_BYTES,
-    own_dist_info,
-    read_member_bounded,
+    WheelRefused,
+    open_wheel_zip,
+    read_metadata_headers,
     refuse_unreadable,
+    resolve_own_dist_info,
     top_level_dist_infos,
+    wheel_members,
 )
 
 log = logging.getLogger(__name__)
@@ -43,45 +45,59 @@ def _open_wheel_zip(wheel_path: Path) -> zipfile.ZipFile:
     ``zipfile`` failure mode is normalized too, not left to leak its own
     type. ``OSError`` (missing file, permission denied, transient I/O)
     propagates unchanged, so a caller can retry it without string-matching
-    a folded-in message. Scoped to this constructor call only -- an error
-    from reading an entry afterward keeps its own exception type.
+    a folded-in message. A wheel refused as a whole (see
+    :func:`pitloom.core.wheel_dist_info.open_wheel_zip`) keeps its own
+    message. Scoped to this constructor call only -- an error from reading
+    an entry afterward keeps its own exception type.
     """
     try:
-        return zipfile.ZipFile(wheel_path, "r")
-    except OSError:
+        return open_wheel_zip(wheel_path)
+    except (OSError, WheelRefused):
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        raise ValueError(f"Invalid wheel archive {wheel_path.name}: {exc}") from exc
+        raise ValueError(f"Invalid wheel archive {wheel_path.name!r}: {exc}") from exc
 
 
-def _find_dist_info_prefix(zf: zipfile.ZipFile, wheel_path: Path) -> str:
+def _find_dist_info_prefix(
+    zf: zipfile.ZipFile, wheel_path: Path, *, report: bool = False
+) -> str:
     """The wheel's own ``.dist-info`` prefix, as
-    :func:`pitloom.core.wheel_dist_info.own_dist_info` selects it.
+    :func:`pitloom.core.wheel_dist_info.resolve_own_dist_info` selects it
+    from :func:`~pitloom.core.wheel_dist_info.wheel_members` -- the member
+    list :func:`pitloom.extract.wheel.read_wheel` selects from, so the two
+    cannot name different directories for one wheel.
+
+    *report* logs one ``WARNING:`` where the file name names no
+    ``.dist-info`` of the wheel and another is used; a caller that has
+    already read the wheel (``read_wheel`` says so) leaves it off.
 
     Raises:
         ValueError: The wheel has no top-level ``.dist-info``, or several
-            and none is the one its file name names.
+            and none is the one its file name names, or two of its members
+            have one name.
     """
-    names = zf.namelist()
-    own = own_dist_info(wheel_path.name, names)
-    if own is not None:
-        return own
+    names = [name for name, _ in wheel_members(zf, wheel_path.name)]
+    choice = resolve_own_dist_info(wheel_path.name, names)
+    if choice.prefix is not None:
+        if report and choice.problem:
+            log.warning("ARCHIVE=%r: %s", wheel_path.name, choice.problem)
+        return choice.prefix
     dist_infos = top_level_dist_infos(names)
     if not dist_infos:
         raise ValueError(
-            f"Invalid wheel archive {wheel_path.name}: no .dist-info directory found"
+            f"Invalid wheel archive {wheel_path.name!r}: no .dist-info directory found"
         )
     raise ValueError(
-        f"Invalid wheel archive {wheel_path.name}: multiple .dist-info "
+        f"Invalid wheel archive {wheel_path.name!r}: multiple .dist-info "
         f"directories found ({list(dist_infos)})"
     )
 
 
-def read_wheel_member(zf: zipfile.ZipFile, arcname: str) -> bytes:
-    """Entry *arcname*'s bytes; an unreadable one refuses the wheel."""
-    with refuse_unreadable(os.path.basename(zf.filename or ""), arcname):
-        return zf.read(arcname)
+def read_wheel_member(zf: zipfile.ZipFile, info: zipfile.ZipInfo) -> bytes:
+    """Member *info*'s bytes; an unreadable one refuses the wheel."""
+    with refuse_unreadable(os.path.basename(zf.filename or ""), info.orig_filename):
+        return zf.read(info)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -113,37 +129,26 @@ def read_wheel_name_version(
 ) -> tuple[str | None, str | None]:
     """Read ``Name``/``Version`` from *dist_info*'s ``METADATA`` entry.
 
-    Returns ``(None, None)`` if the entry is absent, or holds more than
-    :data:`pitloom.core.wheel_dist_info.MAX_METADATA_BYTES` (one
-    ``WARNING:``); either element may independently be ``None`` if the
+    Returns ``(None, None)`` if the entry is absent, or its headers are over
+    a cap (see :func:`pitloom.core.wheel_dist_info.read_metadata_headers`:
+    one ``WARNING:``); either element may independently be ``None`` if the
     corresponding header is missing.
 
-    Raises:
-        ValueError: The entry cannot be read (damaged, encrypted).
     Shared by :func:`pitloom._embed_wheel._derive_wheel_sbom_filename`
     (default-filename derivation) and `verify-wheel`'s name/version
     cross-check, so the two parses can't silently diverge.
+
+    Raises:
+        ValueError: The entry cannot be read (damaged, encrypted), or two
+            members of the wheel have one name.
     """
-    metadata_path = f"{dist_info}METADATA"
     archive = os.path.basename(zf.filename or "")
-    if metadata_path not in zf.namelist():
-        return None, None
-    with refuse_unreadable(archive, metadata_path):
-        data = read_member_bounded(zf, zf.getinfo(metadata_path), MAX_METADATA_BYTES)
-    if data is None:
-        log.warning(
-            "ARCHIVE=%r ENTRY=%r: larger than %d bytes -- not read",
-            archive,
-            metadata_path,
-            MAX_METADATA_BYTES,
-        )
-        return None, None
-    msg = email.message_from_string(data.decode("utf-8", errors="replace"))
-    return name_version_from_email_message(msg)
+    msg = read_metadata_headers(zf, wheel_members(zf, archive), dist_info, archive)
+    return (None, None) if msg is None else name_version_from_email_message(msg)
 
 
 def read_wheel_name_version_from_path(
-    wheel_path: Path,
+    wheel_path: Path, *, report: bool = False
 ) -> tuple[str | None, str | None]:
     """Open *wheel_path*, resolve its ``.dist-info`` prefix, and read
     ``Name``/``Version`` from its ``METADATA`` entry -- the "just tell me
@@ -154,9 +159,10 @@ def read_wheel_name_version_from_path(
     site. See :func:`read_wheel_name_version` for the lower-level,
     already-open-``ZipFile`` variant this wraps (used where a caller
     already has one open for another reason, e.g. `find_embedded_sbom`).
+    *report* is :func:`_find_dist_info_prefix`'s.
     """
     with _open_wheel_zip(wheel_path) as zf:
-        dist_info = _find_dist_info_prefix(zf, wheel_path)
+        dist_info = _find_dist_info_prefix(zf, wheel_path, report=report)
         return read_wheel_name_version(zf, dist_info)
 
 
@@ -185,17 +191,18 @@ def find_embedded_sbom(
     with _open_wheel_zip(wheel_path) as zf:
         dist_info = _find_dist_info_prefix(zf, wheel_path)
         sboms_prefix = f"{dist_info}sboms/"
+        members = dict(wheel_members(zf, wheel_path.name))
         if sbom_filename is not None:
             arcname = f"{sboms_prefix}{sbom_filename}"
-            if arcname not in zf.namelist():
+            if arcname not in members:
                 return None
             return EmbeddedSbomLocation(
-                arcname=arcname, data=read_wheel_member(zf, arcname)
+                arcname=arcname, data=read_wheel_member(zf, members[arcname])
             )
 
         candidates = [
             name
-            for name in zf.namelist()
+            for name in members
             if name.startswith(sboms_prefix)
             and name != sboms_prefix
             # Direct children of sboms/ only -- a nested entry like
@@ -212,5 +219,5 @@ def find_embedded_sbom(
             )
         arcname = candidates[0]
         return EmbeddedSbomLocation(
-            arcname=arcname, data=read_wheel_member(zf, arcname)
+            arcname=arcname, data=read_wheel_member(zf, members[arcname])
         )

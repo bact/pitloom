@@ -313,30 +313,31 @@ def test_exception_text_names_the_stable_path_not_the_copy(
     assert str(tmp_path.resolve()) not in message
 
 
-def test_a_duplicate_member_is_reported_once_and_the_last_copy_is_read(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
+def test_a_duplicate_member_refuses_the_wheel_and_no_model_is_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    first, last = safetensors_bytes(), safetensors_bytes(8)
+    """No installer and no reader can tell which copy is meant: the wheel is
+    refused before the scan reads either (see ``wheel_members``)."""
     wheel = tmp_path / "demo-1.0.0-py3-none-any.whl"
     with zipfile.ZipFile(wheel, "w") as zf:
-        zf.writestr("demo/m.safetensors", first)
+        zf.writestr("demo/m.safetensors", safetensors_bytes())
         with pytest.warns(UserWarning, match="Duplicate name"):
-            zf.writestr("demo/m.safetensors", last)
+            zf.writestr("demo/m.safetensors", safetensors_bytes(8))
         zf.writestr(
             "demo-1.0.0.dist-info/METADATA",
             "Metadata-Version: 2.1\nName: demo\nVersion: 1.0.0\n",
         )
-    seen: list[bytes] = []
-    real = read_ai_model
+    seen: list[Path] = []
+    monkeypatch.setattr(
+        "pitloom.extract.scanner.read_ai_model",
+        lambda path, **_: seen.append(path),
+    )
 
-    def spy(path: Path, **kwargs: Any) -> Any:
-        seen.append(path.read_bytes())
-        return real(path, **kwargs)
+    with pytest.raises(ValueError, match="duplicate member name -- wheel refused"):
+        generate_wheel_sbom(wheel, offline=True)
+    with pytest.raises(ValueError, match="duplicate member name -- wheel refused"):
+        scan_wheel_for_ai_models(
+            wheel, scan_usage=False, usage_hint=lambda: False, max_bytes=1 << 20
+        )
 
-    monkeypatch.setattr("pitloom.extract.scanner.read_ai_model", spy)
-    sbom = generate_wheel_sbom(wheel, offline=True)
-    assert "ai_AIPackage" in sbom
-    assert seen == [last]
-    assert len([m for m in logged_warnings(caplog) if "overwritten" in m]) == 1
+    assert not seen

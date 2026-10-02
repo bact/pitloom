@@ -212,9 +212,11 @@ and this project adheres to
   (Safetensors too; also `loom model`), and an unparsed HDF5 config to 500
   characters, each with one `WARNING:`; a cut model's memory is released ([#263])
 - A wheel's name and version come from its own top-level `.dist-info` only
-  (setuptools read as `zipp`); `METADATA` read capped at 16 MiB ([#266])
-- An unreadable wheel member refuses the wheel with one `ERROR:`, not a crash;
-  wheel SBOM ids no longer depend on archive member order ([#266])
+  (setuptools read as `zipp`); `METADATA` headers only, at most 16 MiB and 10,000
+  headers ([#266])
+- A wheel with an unreadable member or one name twice is refused with one
+  `ERROR:` on every wheel command, not a crash; SBOM ids no longer follow
+  member order ([#266])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.__about__ import __version__
+from pitloom._sbom_io import write_sbom_output
 from pitloom.assemble import (
     embed_sbom_in_wheel,
     generate_wheel_sbom,
@@ -76,9 +77,11 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
         print(f"Wheel file      : {wheel_path}")
         print(f"Output path     : {output_path or '(embedded only)'}")
 
+    # With --embed, the -o copy is written once the embed has succeeded: a
+    # wheel the embed refuses leaves nothing behind.
     sbom_json = generate_wheel_sbom(
         wheel_path,
-        output_path=output_path,
+        output_path=None if embed else output_path,
         pitloom_config=pitloom_config,
         # Subject as given, so the warning reads as `loom generate`'s does.
         **forward_options(WHEEL, target, generate_wheel_sbom, options),
@@ -92,6 +95,7 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
                 pitloom_config.sbom_basename if pitloom_config else None
             ),
         )
+        write_sbom_output(sbom_json, output_path)
         report_embed_result(arcname, wheel_path.name, removed, floored)
 
     if output_path is not None:

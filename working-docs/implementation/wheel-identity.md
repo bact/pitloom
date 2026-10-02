@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-10-01
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -49,17 +49,51 @@ names (`matching_dist_infos`), so a foreign `.dist-info` cannot hide a model.
   stream, bad CRC, encryption, unsupported compression, a name that is not
   UTF-8) refuses the whole wheel with one `ValueError`
   (`ARCHIVE=... ENTRY=...: could not read (<exception type>) -- wheel
-  refused`; exception text is never quoted). The CLI prints one `ERROR:`,
-  exit 1, nothing written; in an `embed-wheel` batch the per-wheel contract
-  is unchanged (the others are processed, exit 1). Rejected: keep the file
+  refused`; the type is bare for a builtin, qualified otherwise
+  (`zlib.error`); exception text is never quoted). The CLI prints one
+  `ERROR:`, exit 1, nothing written (a `wheel --embed -o` copy included: it
+  is written after the embed); in an `embed-wheel` or `verify-wheel` batch
+  the other wheels are still processed, exit 1. A member name that is not
+  UTF-8 in the central directory fails `zipfile.ZipFile()` itself: the same
+  shape without `ENTRY=`. Rejected: keep the file
   without a hash (the SBOM builder, the registry's (path, sha256) key and
   the Merkle root all assume a digest) and skip it (claims it is absent).
   The same guard covers `embed-wheel`'s rewrite and its `RECORD`/SBOM
-  reads, `verify-wheel`'s `METADATA` and embedded-SBOM reads.
-- **D3** `METADATA` is read in 8 KiB chunks up to 16 MiB
-  (`MAX_METADATA_BYTES`, its own constant: real `METADATA` embeds READMEs).
-  Over the cap: one `WARNING:`, identity unknown, files still listed. The
-  declared size is not trusted.
+  reads (a `RECORD` that is not UTF-8 too), `verify-wheel`'s `METADATA` and
+  embedded-SBOM reads, `validate-wheel`'s embedded-SBOM read.
+- **D3** `METADATA` is read for its headers only: reading stops at the first
+  blank line, and the block is capped at 16 MiB (`MAX_METADATA_BYTES`, its
+  own constant: real `METADATA` embeds READMEs) and 10,000 headers
+  (`MAX_METADATA_HEADERS`). A byte cap alone did not bound memory: a 28 KB
+  wheel inflating to 16 MiB of `X-A: b` lines is 2.4 million parsed headers,
+  about 700 MB. Over a cap: one `WARNING:`, identity unknown, files still
+  listed. The declared size is not trusted; the description after the
+  headers may be any size. One function (`read_metadata_headers`) serves
+  every `METADATA` reader, and the identity `embed_wheel_sbom()` already read
+  goes down to the embed (`identity=`) so it is not read and warned about
+  twice. `wheel --embed` has no such identity to pass and still reads it
+  once more, for the default file name only.
+- **DUP** A wheel holding one member name twice, exactly or once normalised
+  (`a/M` and `a\M`), is refused (`ARCHIVE=... ENTRY=...: duplicate member
+  name -- wheel refused`) by `wheel_members()`, which every wheel reader goes
+  through. Warn-and-keep-the-last (`zip_file_members()`'s default, kept for
+  sdists and `--allow-build`) let two readers disagree on one wheel: a
+  `\METADATA` after the real one reported `evil 9` and was embedded.
+- **One name list** Every reader picks the `.dist-info` from the same list
+  (`wheel_members()`: names normalised, directory entries dropped). A raw
+  `namelist()` counted an empty `extra.dist-info/` directory entry as a
+  dist-info and a `\` name as not one, so `read_wheel` and the embed named
+  different directories. `embed-wheel` refuses a wheel whose own `.dist-info`
+  has a non-conforming member name (`./`, `\`): the rewrite matches raw
+  names, so it would leave the old `RECORD` beside the new, or write `/`
+  names next to `\` ones.
+- **verify-wheel** logs the D1 problem (it chose by `.dist-info`, not file
+  name); the embed paths do not, as `read_wheel` already did. A refused
+  wheel is one `ERROR:` and the batch goes on.
+- **D1 wording** Several directories all matching the file name, a file name
+  that is not a wheel name, and several none matching have their own text;
+  none ends `; metadata not read`, which the AI-model skills read as a model
+  bound (`... identity unknown` instead).
 
 ## Also changed
 
