@@ -19,6 +19,7 @@ from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
     _locate_and_detect,
     cli_error_handler,
+    report_error_line,
 )
 
 log = logging.getLogger(__name__)
@@ -115,13 +116,20 @@ def _check_one_wheel(
 ) -> bool:
     """Verify one wheel's embedded SBOM location/extension and cross-check
     its declared name/version against the wheel's own METADATA. Returns
-    success."""
+    success; a wheel Pitloom refuses is reported as one ``ERROR:`` and fails
+    alone."""
     located = _locate_and_detect(wheel_path, sbom_filename)
     if located is None:
         return False
     location, sbom_format = located
     location_ok = _check_location(wheel_path, location, sbom_format)
-    wheel_name, wheel_version = read_wheel_name_version_from_path(wheel_path)
+    try:
+        wheel_name, wheel_version = read_wheel_name_version_from_path(
+            wheel_path, report=True
+        )
+    except (ValueError, OSError) as exc:
+        report_error_line(exc)
+        return False
 
     version_ok = _check_name_version(
         wheel_path,

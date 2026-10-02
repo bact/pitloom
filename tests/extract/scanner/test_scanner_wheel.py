@@ -29,6 +29,7 @@ from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
 from pitloom.extract.wheel import read_wheel
+from tests._raw_archive import write_raw_zip
 from tests._wheel_models import safetensors_bytes, write_model_wheel
 from tests.warning_helpers import file_values, logged_warnings
 
@@ -174,8 +175,11 @@ def test_the_wheels_own_dist_info_is_compared_as_the_ecosystem_does(
     name: str, version: str, directory: str, own: bool, tmp_path: Path
 ) -> None:
     member = f"{directory}/m.safetensors"
-    wheel = write_model_wheel(
-        tmp_path, {member: safetensors_bytes()}, name=name, version=version
+    # The only .dist-info is the one under test (two that match are skipped
+    # by neither: see test_the_scanner_and_read_wheel_agree_on_the_own_dist_info).
+    wheel = write_raw_zip(
+        tmp_path / f"{name}-{version}-py3-none-any.whl",
+        {member: safetensors_bytes(), f"{directory}/METADATA": b""},
     )
     found = [m.format_info.file_path_relative for m in _scan_wheel(wheel)]
     assert found == ([] if own else [member])
@@ -313,30 +317,31 @@ def test_exception_text_names_the_stable_path_not_the_copy(
     assert str(tmp_path.resolve()) not in message
 
 
-def test_a_duplicate_member_is_reported_once_and_the_last_copy_is_read(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
+def test_a_duplicate_member_refuses_the_wheel_and_no_model_is_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    first, last = safetensors_bytes(), safetensors_bytes(8)
+    """No installer and no reader can tell which copy is meant: the wheel is
+    refused before the scan reads either (see ``wheel_members``)."""
     wheel = tmp_path / "demo-1.0.0-py3-none-any.whl"
     with zipfile.ZipFile(wheel, "w") as zf:
-        zf.writestr("demo/m.safetensors", first)
+        zf.writestr("demo/m.safetensors", safetensors_bytes())
         with pytest.warns(UserWarning, match="Duplicate name"):
-            zf.writestr("demo/m.safetensors", last)
+            zf.writestr("demo/m.safetensors", safetensors_bytes(8))
         zf.writestr(
             "demo-1.0.0.dist-info/METADATA",
             "Metadata-Version: 2.1\nName: demo\nVersion: 1.0.0\n",
         )
-    seen: list[bytes] = []
-    real = read_ai_model
+    seen: list[Path] = []
+    monkeypatch.setattr(
+        "pitloom.extract.scanner.read_ai_model",
+        lambda path, **_: seen.append(path),
+    )
 
-    def spy(path: Path, **kwargs: Any) -> Any:
-        seen.append(path.read_bytes())
-        return real(path, **kwargs)
+    with pytest.raises(ValueError, match="duplicate member name -- wheel refused"):
+        generate_wheel_sbom(wheel, offline=True)
+    with pytest.raises(ValueError, match="duplicate member name -- wheel refused"):
+        scan_wheel_for_ai_models(
+            wheel, scan_usage=False, usage_hint=lambda: False, max_bytes=1 << 20
+        )
 
-    monkeypatch.setattr("pitloom.extract.scanner.read_ai_model", spy)
-    sbom = generate_wheel_sbom(wheel, offline=True)
-    assert "ai_AIPackage" in sbom
-    assert seen == [last]
-    assert len([m for m in logged_warnings(caplog) if "overwritten" in m]) == 1
+    assert not seen

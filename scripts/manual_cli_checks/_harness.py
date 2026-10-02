@@ -5,8 +5,8 @@
 """Shared plumbing for the manual CLI checks: running ``loom`` as a real
 process, fixture projects, SBOM comparison helpers and the check registry.
 
-See also: ``__main__.py`` (the runner), ``_checks_core.py`` and
-``_checks_build.py`` (the checks).
+See also: ``__main__.py`` (the runner), ``_checks_core.py``,
+``_checks_wheel.py`` and ``_checks_build.py`` (the checks).
 """
 
 from __future__ import annotations

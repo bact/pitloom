@@ -3,14 +3,14 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The one check that an SBOM file name is a name, not a path.
-
-Shared by the ``sbom-basename`` config key
-(:mod:`pitloom.core._config_parse`) and the name an SBOM is embedded under
-in a wheel (:mod:`pitloom._embed_wheel`), so the two cannot disagree.
+"""Keeping an SBOM file name a name, not a path: ``is_plain_file_name``
+(shared by ``sbom-basename`` and the embed) and ``escape_file_name_part``
+(the default embedded name).
 """
 
 from __future__ import annotations
+
+import unicodedata
 
 #: A path separator (either platform), a Windows drive or alternate-data-
 #: stream colon, or NUL.
@@ -29,4 +29,21 @@ def is_plain_file_name(name: str) -> bool:
     )
 
 
-__all__ = ["is_plain_file_name"]
+def escape_file_name_part(part: str) -> str:
+    """*part* (a project name or version) with each character that is unsafe
+    in a file name replaced by ``_``: a control character (Unicode category
+    ``C*``: ESC, newline, DEL, C1, format characters), whitespace, and what
+    :func:`is_plain_file_name` refuses (a separator, a colon). Every other
+    character stays, ``-``, ``+`` and ``.`` included, so a name that is already
+    safe is unchanged."""
+    return "".join(
+        "_"
+        if char in _NOT_IN_A_FILE_NAME
+        or char.isspace()
+        or unicodedata.category(char).startswith("C")
+        else char
+        for char in part
+    )
+
+
+__all__ = ["escape_file_name_part", "is_plain_file_name"]

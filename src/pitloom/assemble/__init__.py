@@ -20,7 +20,10 @@ from typing import Any
 
 from pitloom.assemble._generators import generate_project_sbom
 from pitloom.assemble._generators_env import generate_env_sbom
-from pitloom.assemble._generators_wheel import generate_wheel_sbom
+from pitloom.assemble._generators_wheel import (
+    generate_wheel_sbom,
+    generate_wheel_sbom_with_metadata,
+)
 from pitloom.assemble._model_generator import (
     enrich_model,
     generate_model_sbom,
@@ -63,6 +66,7 @@ __all__ = [
     "generate_model_sbom",
     "generate_project_sbom",
     "generate_wheel_sbom",
+    "generate_wheel_sbom_with_metadata",
     "merge_fragments",
     "target_resolves_to_project",
 ]

@@ -17,6 +17,7 @@ import rfc8785
 
 from pitloom import __main__
 from pitloom.cli.commands import wheel as mod_wheel
+from pitloom.core.project import ProjectMetadata
 from pitloom.id_registry import IdRegistry
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.warning_helpers import count_naming, stderr_warnings
@@ -56,13 +57,15 @@ def test_analyze_wheel_dispatches_to_wheel_path(
         offline: bool = False,
         provenance: object = None,
         **kwargs: object,
-    ) -> str:
+    ) -> tuple[str, ProjectMetadata]:
         _ = (creation_metadata, pretty, describe_relationship, registry, offline)
         captured["wheel_path"] = wheel_path_arg
         captured["output_path"] = output_path
-        return "{}"
+        return "{}", ProjectMetadata(name="pkg")
 
-    monkeypatch.setattr(mod_wheel, "generate_wheel_sbom", _fake_generate_analyzed_sbom)
+    monkeypatch.setattr(
+        mod_wheel, "generate_wheel_sbom_with_metadata", _fake_generate_analyzed_sbom
+    )
     monkeypatch.setattr(sys, "argv", ["loom", "wheel", str(wheel_path)])
 
     assert __main__.main() == 0
@@ -90,7 +93,7 @@ def test_wheel_command_wires_max_source_metadata_bytes(
         offline: bool = False,
         max_source_metadata_bytes: object = None,
         **kwargs: object,
-    ) -> str:
+    ) -> tuple[str, ProjectMetadata]:
         _ = (
             wheel_path_arg,
             output_path,
@@ -101,9 +104,11 @@ def test_wheel_command_wires_max_source_metadata_bytes(
             offline,
         )
         captured["max_source_metadata_bytes"] = max_source_metadata_bytes
-        return "{}"
+        return "{}", ProjectMetadata(name="pkg")
 
-    monkeypatch.setattr(mod_wheel, "generate_wheel_sbom", _fake_generate_analyzed_sbom)
+    monkeypatch.setattr(
+        mod_wheel, "generate_wheel_sbom_with_metadata", _fake_generate_analyzed_sbom
+    )
     monkeypatch.setattr(
         sys,
         "argv",
@@ -125,7 +130,11 @@ def test_wheel_command_nonexistent_and_verbose(
 
     # Verbose mode on valid wheel
     wheel_path = _make_wheel(tmp_path, "pkg_v", "1.0.0")
-    monkeypatch.setattr(mod_wheel, "generate_wheel_sbom", lambda *a, **k: "{}")
+    monkeypatch.setattr(
+        mod_wheel,
+        "generate_wheel_sbom_with_metadata",
+        lambda *a, **k: ("{}", ProjectMetadata(name="pkg_v")),
+    )
     monkeypatch.setattr(sys, "argv", ["loom", "wheel", "-v", str(wheel_path)])
     assert __main__.main() == 0
     out = capsys.readouterr().out
@@ -156,6 +165,39 @@ def test_report_embed_result(capsys: pytest.CaptureFixture[str]) -> None:
     assert "embedded sbom.spdx.json into pkg.whl" in captured.out
     assert "removed stale SBOM old_sbom.spdx.json" in captured.err
     assert "timestamp was before 1980" in captured.err
+
+
+def test_report_embed_result_escapes_control_characters(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from pitloom.cli.commands._embed_wheel_batch import report_embed_result
+
+    report_embed_result("sboms/ev\x1b[31mil\n x.json", "p\x1bkg.whl", ())
+
+    out = capsys.readouterr().out
+    assert out.count("\n") == 1 and "\x1b" not in out
+    assert "\\x1b[31mil" in out
+
+
+def test_embed_wheel_prints_one_clean_line_for_a_hostile_metadata_name(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    wheel = tmp_path / "pkg-1.0-py3-none-any.whl"
+    with zipfile.ZipFile(wheel, "w") as zf:
+        zf.writestr(
+            "pkg-1.0.dist-info/METADATA", "Name: ev\x1b[31mil\n x\nVersion: 1.0\n"
+        )
+    monkeypatch.setattr(sys, "argv", ["loom", "embed-wheel", str(wheel)])
+
+    assert __main__.main() == 0
+
+    out = capsys.readouterr().out
+    assert out == (
+        "pitloom: embedded pkg-1.0.dist-info/sboms/ev_[31mil__x-1.0.spdx3.json "
+        "into pkg-1.0-py3-none-any.whl\n"
+    )
 
 
 def _embedded(wheel: Path) -> bytes:

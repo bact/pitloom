@@ -3,8 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The small helpers of the wheel scan producer: the Zstandard error probe,
-and the quiet copy removal.
+"""The small helpers of the wheel scan producer: the quiet copy removal.
 
 See also: :mod:`tests.extract.scanner.test_scanner_wheel_limits`.
 """
@@ -16,45 +15,11 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from types import SimpleNamespace
-from typing import Any
 from unittest.mock import Mock
 
 import pytest
 
 from pitloom.extract import scanner_wheel
-
-
-class _ZstdError(Exception):
-    pass
-
-
-def _importer(result: object) -> Any:
-    def import_module(_name: str) -> object:
-        if isinstance(result, Exception):
-            raise result
-        return result
-
-    return import_module
-
-
-@pytest.mark.parametrize(
-    ("module", "expected"),
-    [
-        (SimpleNamespace(ZstdError=_ZstdError), (_ZstdError,)),
-        (SimpleNamespace(ZstdError="not a class"), ()),
-        (SimpleNamespace(), ()),
-        (ImportError("no compression.zstd"), ()),
-    ],
-    ids=["present", "not-a-class", "absent-name", "no-module"],
-)
-def test_the_zstd_error_is_used_only_when_the_module_defines_one(
-    monkeypatch: pytest.MonkeyPatch, module: object, expected: tuple[type, ...]
-) -> None:
-    monkeypatch.setattr(
-        scanner_wheel, "importlib", SimpleNamespace(import_module=_importer(module))
-    )
-    assert scanner_wheel._zstd_errors() == expected
 
 
 def test_removing_a_copy_never_raises_and_never_names_its_path(

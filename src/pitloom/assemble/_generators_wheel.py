@@ -26,6 +26,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides, resolve_standalone_config
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
+from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
@@ -81,6 +82,59 @@ def generate_wheel_sbom(
     its AI models are not enriched (see :data:`pitloom.core.inert_options.INERT`).
     ``content_type_method`` does apply, because it also steers whether
     dependency originator enrichment fetches a remote authors file.
+
+    Raises:
+        ValueError: The wheel is refused as a whole
+            (:class:`~pitloom.core.wheel_dist_info.WheelRefused`): not a ZIP
+            archive, a member cannot be read, two members have one name or
+            one holds a NUL.
+        OSError: *wheel_path* cannot be opened (missing, permission denied).
+    """
+    return generate_wheel_sbom_with_metadata(
+        wheel_path,
+        output_path=output_path,
+        creation_metadata=creation_metadata,
+        pretty=pretty,
+        describe_relationship=describe_relationship,
+        id_registry=id_registry,
+        provenance=provenance,
+        offline=offline,
+        content_type_method=content_type_method,
+        update_id_registry=update_id_registry,
+        max_source_metadata_bytes=max_source_metadata_bytes,
+        scan_model_usage=scan_model_usage,
+        trust_wheel_model=trust_wheel_model,
+        pitloom_config=pitloom_config,
+    )[0]
+
+
+def generate_wheel_sbom_with_metadata(
+    wheel_path: Path | str,
+    *,
+    output_path: Path | None = None,
+    creation_metadata: CreationMetadata | None = None,
+    pretty: bool | None = None,
+    describe_relationship: bool | None = None,
+    id_registry: str | Path | IdRegistry | None = None,
+    provenance: ProvenanceConfig | None = None,
+    offline: bool | None = None,
+    content_type_method: str | None = None,
+    update_id_registry: bool | None = None,
+    max_source_metadata_bytes: int | None = None,
+    scan_model_usage: bool | None = None,
+    trust_wheel_model: bool | None = None,
+    pitloom_config: PitloomConfig | None = None,
+) -> tuple[str, ProjectMetadata]:
+    """:func:`generate_wheel_sbom`, and the :class:`ProjectMetadata` read from
+    the wheel, for a caller that goes on to use the wheel's declared identity
+    (it need not read ``METADATA`` again, and warn about it twice).
+
+    Raises:
+        ValueError: The wheel is refused as a whole
+            (:class:`~pitloom.core.wheel_dist_info.WheelRefused`): not a ZIP
+            archive, a member cannot be read, two members have one name or
+            one holds a NUL.
+        OSError: *wheel_path* cannot be opened (missing, permission denied).
     """
     configure_logging()
     wheel_path_obj = Path(wheel_path)
@@ -134,4 +188,4 @@ def generate_wheel_sbom(
 
     write_sbom_output(sbom_json, output_path)
 
-    return sbom_json
+    return sbom_json, project_metadata

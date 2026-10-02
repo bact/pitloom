@@ -57,6 +57,8 @@ and this project adheres to
 - A `.pt`/`.pth` is a PyTorch model only when it opens as a ZIP or a pickle:
   Python `.pth` path-config files (`distutils-precedence.pth`) are no longer
   reported as models ([#263])
+- `generate_wheel_sbom_with_metadata()`; `embed_sbom_in_wheel(identity=...)`
+  ([#266])
 
 ### Changed
 
@@ -212,6 +214,14 @@ and this project adheres to
 - A model is cut to 1000 entries per list or map, the same ones every run
   (Safetensors too; also `loom model`), and an unparsed HDF5 config to 500
   characters, each with one `WARNING:`; a cut model's memory is released ([#263])
+- A wheel's identity comes from its own top-level `.dist-info`, reading
+  `METADATA` headers only (16 MiB, 10,000); setuptools was `zipp`: regenerate
+  its registry ([#266])
+- A wheel that is not a ZIP, or has an unreadable member, a duplicate or NUL
+  name, is refused by every wheel command with one `ERROR:`; SBOM ids ignore
+  member order ([#266])
+- Default embedded SBOM name: control characters, whitespace, `/`, `\` and `:`
+  become `_`; over 255 characters, the `.dist-info` name is used ([#266])
 - A GGUF array field is recorded as `<key>.length`, not its last element;
   GGUF quantization reads `general.file_type` as a file type (`Q8_0`, not
   `Q5_1`) ([#267])
@@ -244,6 +254,7 @@ and this project adheres to
 [#261]: https://github.com/bact/pitloom/pull/261
 [#262]: https://github.com/bact/pitloom/pull/262
 [#263]: https://github.com/bact/pitloom/pull/263
+[#266]: https://github.com/bact/pitloom/pull/266
 [#267]: https://github.com/bact/pitloom/pull/267
 
 ## [0.19.0] - 2026-09-18

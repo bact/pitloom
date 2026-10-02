@@ -20,29 +20,23 @@ See also: :mod:`pitloom.extract.scanner` (the shared policy),
 from __future__ import annotations
 
 import contextlib
-import importlib
 import logging
-import lzma
 import os
 import zipfile
-import zlib
 from collections.abc import Callable, Iterable, Iterator
 from contextlib import AbstractContextManager
 from pathlib import Path, PurePosixPath
 from typing import IO, NoReturn
 
-from packaging.utils import (
-    InvalidWheelFilename,
-    canonicalize_name,
-    parse_wheel_filename,
-)
-from packaging.version import InvalidVersion, Version
-
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
-from pitloom.core.archive_member_names import zip_file_members
 from pitloom.core.build_signals import MODEL_SCAN_ACTIVITY, TerminationGuard
 from pitloom.core.model_extract_limit import require_max_model_extract_bytes
 from pitloom.core.temp_dirs import registered_temp_dir
+from pitloom.core.wheel_dist_info import (
+    MEMBER_READ_ERRORS,
+    matching_dist_infos,
+    wheel_members,
+)
 from pitloom.extract.ai_model import SNIFF_BYTES
 from pitloom.extract.ai_model.limits import ScanBudgetExceeded, charging_reads
 from pitloom.extract.scanner import (
@@ -59,28 +53,6 @@ log = logging.getLogger(__name__)
 
 _CHUNK_BYTES = 8192
 
-
-def _zstd_errors() -> tuple[type[Exception], ...]:
-    """``compression.zstd.ZstdError`` where zipfile can read Zstandard members
-    (Python 3.14+); detected by importing, not by version."""
-    try:
-        module = importlib.import_module("compression.zstd")
-    except ImportError:
-        return ()
-    error = getattr(module, "ZstdError", None)
-    return (error,) if isinstance(error, type) else ()
-
-
-# Everything a damaged, encrypted or unsupported member raises on reading.
-_MEMBER_READ_ERRORS: tuple[type[Exception], ...] = (
-    RuntimeError,
-    NotImplementedError,
-    zlib.error,
-    lzma.LZMAError,
-    EOFError,
-    zipfile.BadZipFile,
-    *_zstd_errors(),
-)
 
 _Member = tuple[str, zipfile.ZipInfo]
 
@@ -167,7 +139,7 @@ def _sniffer(zf: zipfile.ZipFile, info: zipfile.ZipInfo) -> Callable[[], bytes]:
         try:
             with zf.open(info) as fh:
                 return fh.read(SNIFF_BYTES)
-        except _MEMBER_READ_ERRORS as exc:
+        except MEMBER_READ_ERRORS as exc:
             raise OSError(str(exc)) from exc
 
     return _sniff
@@ -244,47 +216,6 @@ def _materializer(
     return _materialize
 
 
-def _is_dist_info_of(directory: str, name: str, version: Version) -> bool:
-    """Whether top-level *directory* is ``<name>-<version>.dist-info`` for the
-    canonical *name* and *version*, compared as the ecosystem does (PEP 503
-    names, PEP 440 versions): ``My.Pkg-1.0`` is ``my_pkg-1.0.0``."""
-    suffix = ".dist-info"
-    distribution, dash, release = directory[: -len(suffix)].partition("-")
-    if not (directory.endswith(suffix) and dash):
-        return False
-    try:
-        return canonicalize_name(distribution) == name and Version(release) == version
-    except InvalidVersion:
-        return False
-
-
-def _own_dist_info_prefixes(
-    wheel_name: str, members: Iterable[_Member]
-) -> tuple[str, ...]:
-    """``"<dir>/"`` for each top-level directory that is the ``.dist-info``
-    of the wheel *wheel_name* names (PEP 427): its own, as opposed to any
-    other ``*.dist-info`` directory a wheel ships as data, which a hostile
-    wheel may add with a fake ``METADATA`` or ``WHEEL`` to hide a model.
-
-    Nothing is the wheel's own where *wheel_name* is not a wheel file name
-    (a library caller may pass any path): every member is then scanned.
-    """
-    try:
-        name, version, _, _ = parse_wheel_filename(wheel_name)
-    except InvalidWheelFilename:
-        return ()
-    return tuple(
-        sorted(
-            {
-                f"{parts[0]}/"
-                for member_name, _ in members
-                if len(parts := member_name.split("/")) > 1
-                and _is_dist_info_of(parts[0], name, version)
-            }
-        )
-    )
-
-
 def _wheel_candidates(
     zf: zipfile.ZipFile,
     members: list[_Member],
@@ -329,8 +260,8 @@ def scan_wheel_for_ai_models(
 
     Members are the wheel's install-location names as
     :func:`pitloom.extract.wheel.read_wheel` records them, minus the
-    wheel's own ``.dist-info`` directory (the one its file name names; every
-    member where it is not a wheel file name). A
+    wheel's own ``.dist-info`` directory (the one its file name names, where
+    exactly one does; every member otherwise). A
     model's ``distribution_path`` is that name and its ``physical_path`` the
     raw archive name.
 
@@ -354,8 +285,12 @@ def scan_wheel_for_ai_models(
     require_max_model_extract_bytes(max_bytes, "pitloom_config")
     with zipfile.ZipFile(wheel_path) as zf, TerminationGuard() as guard:
         # No logger: read_wheel() already reported every member name.
-        all_members = zip_file_members(zf, wheel_path.name, None)
-        own = _own_dist_info_prefixes(wheel_path.name, all_members)
+        all_members = wheel_members(zf, wheel_path.name)
+        matching = matching_dist_infos(wheel_path.name, [n for n, _ in all_members])
+        # Skipped only where exactly one directory is the one the file name
+        # names: with several, read_wheel() takes none as the wheel's own, so
+        # all of them are scanned.
+        own = matching if len(matching) == 1 else ()
         members = [m for m in all_members if not m[0].startswith(own)]
         scratch = _Scratch(guard, max_bytes, wheel_path.name)
         gate = None if trust else ReaderGate(WHEEL_GATED_FORMATS, gate_hint)

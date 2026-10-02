@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-01
+# Last-Modified: 2026-10-02
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -247,6 +247,27 @@ loom embed-wheel dist/*.whl --project-dir . --verify --validate
 
 For checking an already-embedded wheel later, use the `sbom-validate`
 skill ("Validate a wheel's embedded SBOM").
+
+A wheel's name and version come from its own top-level `.dist-info` only.
+`wheel`, `generate`, `wheel --embed` and `embed-wheel` refuse a file that is
+not a ZIP and a wheel with a member they cannot read (damaged, encrypted, a
+name that is not UTF-8), two members of one name or a NUL in a name: one
+`ERROR:`, exit 1, nothing written (in a batch the other wheels run). It reads
+`ERROR: wheel command failed: ARCHIVE=... ENTRY=...: <cause> -- wheel refused`
+from `wheel` and `wheel --embed`, `ERROR: SBOM generation failed: ARCHIVE=...`
+from `generate`, `ERROR: ARCHIVE=...` from `embed-wheel`. The two embeds also
+refuse a wheel with no single own `.dist-info`, or an own `.dist-info` member
+stored under a non-conforming name (`./`, `\`); for no single own `.dist-info`
+a `WARNING: ... -- identity unknown` line comes before the `ERROR:`.
+With no single own `.dist-info`, or a `METADATA` that is missing or over a cap,
+`wheel` and `generate` only warn (`WARNING: ... identity unknown`) and write an
+SBOM that names the wheel `unknown`. The embeds do the same for a `METADATA`
+that is missing or over a cap, but fail with the `ERROR:` above where there is
+no single `.dist-info` to write into. Where the file name names no top-level
+`.dist-info` but one other exists, every one of these commands uses it and logs
+`WARNING: ... the file name names no top-level .dist-info; using ...`: report
+that line, as the name and version then come from a directory the file name
+does not name. It is not a model bound.
 
 ## Useful flags
 
