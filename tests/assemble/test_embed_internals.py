@@ -199,6 +199,11 @@ def test_derive_wheel_sbom_filename_fallbacks(tmp_path: Path) -> None:
         ("a\u202eb\u200bc", "1", "a_b_c-1.spdx3.json"),
         # Already safe: unchanged, as before escaping existed.
         ("my-pkg", "1.0+local", "my-pkg-1.0+local.spdx3.json"),
+        # The longest name an installer accepts (255), and one more: the
+        # directory's own name instead.
+        ("a" * 242, "1", "a" * 242 + "-1.spdx3.json"),
+        ("a" * 243, "1", "pkg-1.0.spdx3.json"),
+        ("my-pkg", "1" * 5000, "pkg-1.0.spdx3.json"),
     ],
     ids=[
         "newline",
@@ -207,6 +212,9 @@ def test_derive_wheel_sbom_filename_fallbacks(tmp_path: Path) -> None:
         "separators",
         "format-characters",
         "safe",
+        "name-255-chars",
+        "name-256-chars",
+        "version-5000-digits",
     ],
 )
 def test_the_default_sbom_name_replaces_only_what_is_unsafe_in_a_file_name(

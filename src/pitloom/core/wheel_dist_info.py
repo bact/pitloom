@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import IO, NamedTuple
 
 from packaging.utils import NormalizedName, canonicalize_name
-from packaging.version import InvalidVersion, Version
+from packaging.version import Version
 
 from pitloom.core.archive_member_names import zip_file_members
 from pitloom.logging_config import loggable
@@ -49,8 +49,9 @@ MAX_METADATA_BYTES = 16 * 1024 * 1024
 #: 16 MiB of ``X-A: b`` lines is 2.4 million of them.
 MAX_METADATA_HEADERS = 10_000
 
-#: Longest ``.dist-info`` stem tried: one path component, so no file system
-#: installs a longer one. Bounds the per-dash split of :func:`is_dist_info_of`.
+#: Longest file or directory name: one path component, so no file system
+#: installs a longer one. Bounds the per-dash split of :func:`is_dist_info_of`
+#: and the default embedded SBOM file name.
 MAX_NAME_CHARS = 255
 _CHUNK_BYTES = 8192
 _SUFFIX = ".dist-info"
@@ -149,14 +150,14 @@ def open_wheel_zip(path: Path) -> zipfile.ZipFile:
     Raises:
         WheelRefused: *path* cannot be read as a ZIP archive: not one, a
             member name flagged UTF-8 that is not, a version it cannot
-            read. Any exception but ``OSError``, so a ``zipfile`` failure
-            mode added later is a refusal too.
+            read. Any exception but ``OSError``/``MemoryError``, so a
+            ``zipfile`` failure mode added later is a refusal too.
         OSError: *path* cannot be opened (missing, permission denied, a
             transient I/O error): left as it is, so a caller can retry it.
     """
     try:
         return zipfile.ZipFile(path, "r")
-    except OSError:
+    except (OSError, MemoryError):
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
@@ -234,7 +235,7 @@ def wheel_name_version(wheel_name: str) -> tuple[NormalizedName, Version] | None
         return None
     try:
         return canonicalize_name(name), Version(parts[1])
-    except InvalidVersion:
+    except ValueError:
         return None
 
 
@@ -261,7 +262,7 @@ def is_dist_info_of(directory: str, name: str, version: Version) -> bool:
 def _is_version(text: str, version: Version) -> bool:
     try:
         return Version(text) == version
-    except InvalidVersion:
+    except ValueError:
         return False
 
 

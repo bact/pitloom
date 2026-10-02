@@ -22,7 +22,7 @@ import json
 from typing import Any
 
 from packaging.utils import canonicalize_name
-from packaging.version import InvalidVersion, Version
+from packaging.version import Version
 
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 
@@ -203,10 +203,13 @@ def extract_spdx3_subject_identity(data: bytes) -> _SbomSubjectIdentity | None:
 
 
 def _try_parse_version(raw: str) -> Version | None:
-    """``Version(raw)``, or ``None`` on ``InvalidVersion`` -- never raises."""
+    """``Version(raw)``, or ``None`` where it is not one -- never raises.
+
+    ``ValueError``, not ``InvalidVersion`` alone: a digit run past Python's
+    int-conversion limit raises a plain one."""
     try:
         return Version(raw)
-    except InvalidVersion:
+    except ValueError:
         return None
 
 

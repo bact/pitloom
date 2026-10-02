@@ -270,8 +270,8 @@ checked -- it's built from the same wheel metadata, so it can't diverge.
 A wheel's name and version come from its own top-level `.dist-info` (see
 [the CLI notes](cli.md#embed-an-sbom-into-a-wheel-pep-770)); a wheel with one of the
 problems below raises `ValueError` (the subclass
-`pitloom.core.wheel_dist_info.WheelRefused`), naming the archive and the
-member, and nothing is written:
+`pitloom.core.wheel_dist_info.WheelRefused`), naming the archive (and the
+member, where one is at fault), and nothing is written:
 
 - a member that cannot be read;
 - two members with one name;
@@ -284,7 +284,7 @@ you have already read them from the wheel's `METADATA`: the default file
 name is made from it and `METADATA` is not read, or warned about, again.
 `pitloom.extract.wheel.wheel_identity(metadata)` gives that pair from the
 `ProjectMetadata` of `read_wheel()`, or of `generate_wheel_sbom_with_metadata()`
-(below): `None` for a field the wheel did not declare.
+(above): `None` for a field the wheel did not declare.
 Form 3, `embed_sbom_in_wheel()`, is the lower-level, unchecked archive
 primitive both forms 1 and 2 converge on -- calling it directly (bypassing
 `embed_wheel_sbom()`) skips the cross-check entirely, same as it skips

@@ -63,6 +63,12 @@ D-numbers below refer to it),
   project` default output to PEP 427 escaped `<name>-<version>` together, own
   PR after #266 (user 2026-10-02). Include the Windows-invalid characters
   `*?"<>|`, which the default name does not escape yet.
+- **Version parsing past the int-conversion limit.** `extract/lock/_common.py`
+  (about lines 276, 321, 411) parses with `Version()`; a lock-file version with
+  a component of over 4300 digits raises a plain `ValueError`, not
+  `InvalidVersion`. The wheel readers catch `ValueError` since #266.
+  `extract/scanner_wheel.py` (about line 286) opens `ZipFile` directly:
+  harmless, as `read_wheel` refuses a wheel first.
 - **The `--allow-build` extractor has no duplicate refusal**, and members
   differing only in case overwrite each other in its extraction directory.
 

@@ -36,6 +36,7 @@ from pitloom._wheel_sbom_location import (
 from pitloom.core.creation import resolve_source_date_epoch
 from pitloom.core.file_names import escape_file_name_part, is_plain_file_name
 from pitloom.core.wheel_dist_info import (
+    MAX_NAME_CHARS,
     RefusingReader,
     open_wheel_zip,
     refusal,
@@ -162,7 +163,9 @@ def _derive_wheel_sbom_filename(
     """Derive default SBOM filename from wheel METADATA, or from *identity*,
     the name and version a caller already read from it (no second read, so
     no second warning). Characters unsafe in a file name are replaced in name and
-    version (:func:`pitloom.core.file_names.escape_file_name_part`)."""
+    version (:func:`pitloom.core.file_names.escape_file_name_part`). Where the
+    name would exceed ``MAX_NAME_CHARS`` characters (no file system installs
+    it), the ``.dist-info`` directory's name is used, as with no name/version."""
     meta_name, meta_version = (
         identity
         if identity is not None
@@ -171,7 +174,9 @@ def _derive_wheel_sbom_filename(
     if meta_name and meta_version:
         name = escape_file_name_part(meta_name)
         version = escape_file_name_part(meta_version)
-        return f"{name}-{version}{SPDX3_JSONLD_EXTENSION}"
+        derived = f"{name}-{version}{SPDX3_JSONLD_EXTENSION}"
+        if len(derived) <= MAX_NAME_CHARS:
+            return derived
     prefix = escape_file_name_part(dist_info.rstrip("/").removesuffix(".dist-info"))
     return (
         f"{prefix}{SPDX3_JSONLD_EXTENSION}"

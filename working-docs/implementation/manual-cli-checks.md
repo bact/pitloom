@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -35,7 +35,7 @@ unattended from one stdlib-only runner, on Linux, macOS and Windows:
 
 Use the checkout's own interpreter: the runner tests the `pitloom` that
 interpreter imports, and prints its path first. Besides the numbered
-checks (`1`-`15`, `B1`-`B7`) it runs:
+checks (`1`-`16`, `B1`-`B7`) it runs:
 
 - **The CLI matrix** (`M/<command>/<group>/<variant>`): every subcommand
   x its options x the environment variables that change it
@@ -287,6 +287,19 @@ the key must carry `hasDataFile`. Automated as check 15
 (`scripts/manual_cli_checks/_checks_config.py::check_scan_model_usage`).
 Config only via `--config` or the project's own `pyproject.toml`, never
 the current directory.
+
+**16. A refused wheel is refused alike by every command that reads one**: a
+wheel holding `METADATA` twice (a duplicate member name) is given to
+`wheel`, `generate`, `wheel --embed -o`, `embed-wheel` (in a batch with a
+good wheel), `verify-wheel` and `validate-wheel`. Each must exit 1 with
+exactly one `ERROR:` line naming the wheel and ending `-- wheel refused`;
+the refused wheel's bytes are unchanged, no `-o` file exists, an
+`--id-registry` file (on the commands that take one) is byte-identical, and
+the good wheel of the batch is embedded. Automated as check 16
+(`scripts/manual_cli_checks/_checks_wheel.py::check_refused_wheel_parity`).
+The registry must be valid: an invalid one fails first, with its own error.
+Other causes (unreadable member, NUL name, not a ZIP) are covered per
+surface by `tests/test_wheel_identity_surfaces.py`.
 
 For a change touching the build subprocess, its kill path or signal
 handling (`--build-timeout`), also run these against a scratch project

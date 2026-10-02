@@ -283,33 +283,12 @@ def test_a_refused_wheel_is_refused_on_every_surface(
 
 
 @pytest.mark.parametrize(
-    "cause", ["unreadable-member", "nul-name", "not-a-zip", "zip-version"]
-)
-def test_a_damaged_wheel_in_an_embed_batch_fails_alone(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    cause: str,
-) -> None:
-    """The existing per-wheel contract: the others are still processed and
-    the exit code is non-zero."""
-    bad = _CAUSES[cause][0](tmp_path)
-    good_dir = tmp_path / "good"
-    good_dir.mkdir()
-    good = _hijack_wheel(good_dir)
-
-    code = _cli(["embed-wheel", str(bad), str(good)], monkeypatch)
-
-    assert code == 1
-    assert _embedded(good)
-    err = capsys.readouterr().err
-    (error,) = [x for x in err.splitlines() if x.startswith("ERROR:")]
-    assert _CAUSES[cause][1] in error  # the bad wheel is named, in one shape
-
-
-@pytest.mark.parametrize(
     ("command", "cause"),
     [
+        ("embed-wheel", "unreadable-member"),
+        ("embed-wheel", "nul-name"),
+        ("embed-wheel", "not-a-zip"),
+        ("embed-wheel", "zip-version"),
         ("verify-wheel", "damaged-metadata"),
         ("verify-wheel", "damaged-sbom"),
         ("verify-wheel", "zip-version"),
@@ -317,16 +296,16 @@ def test_a_damaged_wheel_in_an_embed_batch_fails_alone(
         ("validate-wheel", "zip-version"),
     ],
 )
-def test_a_wheel_verify_or_validate_refuses_fails_alone(
+def test_a_refused_wheel_of_a_batch_fails_alone(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     command: str,
     cause: str,
 ) -> None:
-    """One bad wheel of a batch: its own ``ERROR:``, and the next wheel is
-    still checked (its own error, here: it has no SBOM) -- not an abort of
-    the run."""
+    """The per-wheel contract: the bad wheel's own ``ERROR:`` in one shape,
+    the next wheel still processed (embedded; or checked, with its own error:
+    it has no SBOM), and a non-zero exit -- not an abort of the run."""
     bad = _CAUSES[cause][0](tmp_path)
     other_dir = tmp_path / "other"
     other_dir.mkdir()
@@ -335,8 +314,12 @@ def test_a_wheel_verify_or_validate_refuses_fails_alone(
     assert _cli([command, str(bad), str(other)], monkeypatch) == 1
 
     errors = [x for x in capsys.readouterr().err.splitlines() if x[:6] == "ERROR:"]
-    assert len(errors) == 2, errors
-    assert "wheel refused" in errors[0] and "no SBOM found" in errors[1]
+    assert _CAUSES[cause][1] in errors[0]
+    if command == "embed-wheel":
+        assert len(errors) == 1, errors
+        assert _embedded(other)
+    else:
+        assert len(errors) == 2 and "no SBOM found" in errors[1], errors
 
 
 def test_verify_wheel_says_when_the_file_name_names_another_dist_info(
@@ -369,49 +352,61 @@ def _wheel_with_member(tmp_path: Path, name: str, data: bytes, damage: bool) -> 
     return wheel
 
 
+def _rewritten_member(member: str, data: bytes, damage: bool) -> Callable[[Path], Path]:
+    return lambda d: _wheel_with_member(d, member, data, damage)
+
+
+_RECORD = "demo-1.0.dist-info/RECORD"
+_OLD_SBOM = "demo-1.0.dist-info/sboms/old.spdx3.json"
+
+
 @pytest.mark.parametrize(
-    ("member", "data", "damage", "says"),
+    ("make", "filename", "says"),
     [
         # RECORD, read to be rewritten: damaged, and not UTF-8 at all.
-        ("demo-1.0.dist-info/RECORD", _BULK, True, "(zlib.error)"),
-        ("demo-1.0.dist-info/RECORD", b"\xff\xfe,,\n", False, "(UnicodeDecodeError)"),
+        (
+            _rewritten_member(_RECORD, _BULK, True),
+            "new.spdx3.json",
+            f"ENTRY={_RECORD!r}: could not read (zlib.error)",
+        ),
+        (
+            _rewritten_member(_RECORD, b"\xff\xfe,,\n", False),
+            "new.spdx3.json",
+            f"ENTRY={_RECORD!r}: could not read (UnicodeDecodeError)",
+        ),
         # An SBOM already embedded, read to decide whether Pitloom made it.
         (
-            "demo-1.0.dist-info/sboms/old.spdx3.json",
-            _BULK,
-            True,
-            "(zlib.error)",
+            _rewritten_member(_OLD_SBOM, _BULK, True),
+            "new.spdx3.json",
+            f"ENTRY={_OLD_SBOM!r}: could not read (zlib.error)",
         ),
+        # Any member of the rewrite, the default file name made from METADATA.
+        (lambda d: damaged_wheel(d, "deflate"), None, "(zlib.error)"),
+        (lambda d: damaged_wheel(d, "encrypted"), None, "could not read"),
+        (lambda d: damaged_wheel(d, "name"), None, "could not read"),
     ],
-    ids=["record-damaged", "record-not-utf8", "existing-sbom-damaged"],
+    ids=[
+        "record-damaged",
+        "record-not-utf8",
+        "existing-sbom-damaged",
+        "member-deflate",
+        "member-encrypted",
+        "member-name",
+    ],
 )
 def test_the_embed_refuses_the_members_it_reads_to_rewrite(
-    tmp_path: Path, member: str, data: bytes, damage: bool, says: str
+    tmp_path: Path, make: Callable[[Path], Path], filename: str | None, says: str
 ) -> None:
-    wheel = _wheel_with_member(tmp_path, member, data, damage)
+    """``embed_sbom_in_wheel()`` takes the SBOM as given, so it reaches the
+    archive rewrite without ``read_wheel()``: the wheel-refusing error, the
+    wheel as it was and no temporary file left."""
+    wheel = make(tmp_path)
     before = wheel.read_bytes()
 
     with pytest.raises(ValueError, match="could not read") as excinfo:
-        embed_sbom_in_wheel(wheel, b'{"x": 1}', sbom_filename="new.spdx3.json")
+        embed_sbom_in_wheel(wheel, b'{"x": 1}', sbom_filename=filename)
 
-    assert f"ENTRY={member!r}" in str(excinfo.value) and says in str(excinfo.value)
-    assert wheel.read_bytes() == before
-    assert not list(tmp_path.glob("*.tmp"))
-
-
-@pytest.mark.parametrize("kind", ["deflate", "encrypted", "name"])
-def test_the_embed_rewrite_refuses_an_unreadable_member_too(
-    tmp_path: Path, kind: str
-) -> None:
-    """``embed_sbom_in_wheel()`` takes the SBOM as given, so it reaches the
-    archive rewrite without ``read_wheel()``: the same error, the wheel as it
-    was and no temporary file left."""
-    wheel = damaged_wheel(tmp_path, kind)
-    before = wheel.read_bytes()
-
-    with pytest.raises(ValueError, match="could not read"):
-        embed_sbom_in_wheel(wheel, b'{"x": 1}')
-
+    assert says in str(excinfo.value)
     assert wheel.read_bytes() == before
     assert not list(tmp_path.glob("*.tmp"))
 

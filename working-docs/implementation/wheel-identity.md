@@ -123,8 +123,12 @@ names (`matching_dist_infos`), so a foreign `.dist-info` cannot hide a model.
 - **Default SBOM name** `<name>-<version>.spdx3.json` replaces, in name and
   version, each control character (Unicode `C*`), whitespace, `/`, `\` and `:`
   with `_`; `-`, `+` and `.` stay, so a safe name is as on main and as the
-  Hatchling hook's. A `Name:` folded over two lines or holding an ESC made a
-  member name with control characters. Full PEP 427 escaping (`my-pkg` to
+  Hatchling hook's. Where `METADATA` names nothing, or the derived name would
+  exceed 255 characters (one path component: no installer extracts it; a
+  5000-digit `Version:` gave a 5011-character member), the `.dist-info`
+  directory's name is used, escaped the same way (`sbom` where that is empty).
+  A `Name:` folded over two lines or holding an ESC made a member name with
+  control characters. Full PEP 427 escaping (`my-pkg` to
   `my_pkg`) is deferred: it must change embed, the hook and `loom project`
   together. An explicit `--sbom-basename` is validated, not escaped. The embed
   result line prints the member name through `loggable()`.

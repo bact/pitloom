@@ -19,6 +19,7 @@ from __future__ import annotations
 import io
 import zipfile
 import zlib
+from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -63,16 +64,11 @@ def _members(*dist_infos: str) -> list[str]:
             "my_pkg-1.0.0.dist-info/",
             None,
         ),
-        # The file name picks among several; the foreign one is ignored.
+        # The file name picks among several (in any member order); the foreign one
+        # is ignored.
         (
             WHEEL,
             ["demo-1.0.dist-info", "evil-9.9.dist-info"],
-            "demo-1.0.dist-info/",
-            None,
-        ),
-        (
-            WHEEL,
-            ["evil-9.9.dist-info", "demo-1.0.dist-info"],
             "demo-1.0.dist-info/",
             None,
         ),
@@ -112,8 +108,7 @@ def _members(*dist_infos: str) -> list[str]:
     ids=[
         "plain",
         "pep503-pep440",
-        "foreign-after",
-        "foreign-before",
+        "foreign",
         "renamed-file",
         "disagreement",
         "none",
@@ -129,8 +124,10 @@ def _members(*dist_infos: str) -> list[str]:
 def test_the_own_dist_info_and_what_is_said(
     wheel: str, dirs: list[str], prefix: str | None, problem: str | None
 ) -> None:
-    choice = resolve_own_dist_info(wheel, _members(*dirs))
+    members = _members(*dirs)
+    choice = resolve_own_dist_info(wheel, members)
 
+    assert resolve_own_dist_info(wheel, members[::-1]) == choice  # order-free
     assert choice.prefix == prefix
     if problem is None:
         assert choice.problem is None
@@ -153,14 +150,6 @@ def test_only_a_top_level_directory_is_the_wheels_own(members: list[str]) -> Non
     assert resolve_own_dist_info(
         WHEEL, [*members, "demo-1.0.dist-info/METADATA"]
     ).prefix == ("demo-1.0.dist-info/")
-
-
-def test_the_choice_does_not_depend_on_member_order() -> None:
-    names = _members("demo-1.0.dist-info", "evil-9.9.dist-info", "x-1.dist-info")
-    assert (
-        resolve_own_dist_info(WHEEL, names).prefix
-        == resolve_own_dist_info(WHEEL, names[::-1]).prefix
-    )
 
 
 def _stream(data: bytes, chunk: int) -> Any:
@@ -419,19 +408,6 @@ def test_names_that_are_not_duplicates_are_not_refused(
         assert [name for name, _ in wheel_members(zf, WHEEL)] == names
 
 
-def test_a_central_directory_name_that_is_not_utf8_refuses_at_open(
-    tmp_path: Path,
-) -> None:
-    wheel = central_name_damaged_wheel(tmp_path)
-
-    with pytest.raises(WheelRefused) as refused:
-        open_wheel_zip(wheel)
-
-    assert str(refused.value) == (
-        f"ARCHIVE={WHEEL!r}: could not open (UnicodeDecodeError) -- wheel refused"
-    )
-
-
 class _ZstdError(Exception):
     pass
 
@@ -486,23 +462,40 @@ def test_a_nul_in_a_member_name_refuses_the_wheel(
     )
 
 
+def _not_a_zip(tmp_path: Path) -> Path:
+    wheel = tmp_path / WHEEL
+    wheel.write_bytes(b"not a zip file at all")
+    return wheel
+
+
 @pytest.mark.parametrize(
-    ("kind", "error"),
-    [("zip", "zipfile.BadZipFile"), ("version", "NotImplementedError")],
+    ("make", "error"),
+    [
+        (_not_a_zip, "zipfile.BadZipFile"),
+        (zip_version_wheel, "NotImplementedError"),
+        (central_name_damaged_wheel, "UnicodeDecodeError"),
+    ],
+    ids=["not-a-zip", "zip-version", "central-name"],
 )
 def test_a_file_zipfile_cannot_open_refuses_at_open_and_a_missing_one_does_not(
-    tmp_path: Path, kind: str, error: str
+    tmp_path: Path, make: Callable[[Path], Path], error: str
 ) -> None:
-    if kind == "zip":
-        wheel = tmp_path / WHEEL
-        wheel.write_bytes(b"not a zip file at all")
-    else:
-        wheel = zip_version_wheel(tmp_path)
-
     with pytest.raises(WheelRefused) as refused:
-        open_wheel_zip(wheel)
+        open_wheel_zip(make(tmp_path))
     assert str(refused.value) == (
         f"ARCHIVE={WHEEL!r}: could not open ({error}) -- wheel refused"
     )
+    assert type(refused.value.__cause__).__name__ == error.rsplit(".", maxsplit=1)[-1]
     with pytest.raises(OSError):
         open_wheel_zip(tmp_path / "missing.whl")
+
+
+def test_a_memory_error_opening_a_wheel_is_not_a_refusal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def fail(*_args: object, **_kwargs: object) -> None:
+        raise MemoryError
+
+    monkeypatch.setattr(zipfile, "ZipFile", fail)
+    with pytest.raises(MemoryError):
+        open_wheel_zip(tmp_path / WHEEL)

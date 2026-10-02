@@ -36,6 +36,8 @@ from tests._wheel_damage import WHEEL
         ("de mo-1.0-py3-none-any.whl", None),
         ("-1.0-py3-none-any.whl", None),
         ("demo-one-py3-none-any.whl", None),
+        # Past Python's int-conversion limit: a plain ``ValueError``.
+        (f"demo-{'1' * 5000}-py3-none-any.whl", None),
     ],
     ids=[
         "plain",
@@ -50,6 +52,7 @@ from tests._wheel_damage import WHEEL
         "space",
         "no-name",
         "bad-version",
+        "version-5000-digits",
     ],
 )
 def test_a_wheel_file_name_gives_its_name_and_version_and_nothing_else(
@@ -77,6 +80,20 @@ def test_a_wheel_file_name_gives_its_name_and_version_and_nothing_else(
         # One path component at most: a stem of 255 characters is tried, 256 not.
         ("a" * 253 + "-1.dist-info", "a" * 253, "1", True),
         ("a" * 254 + "-1.dist-info", "a" * 254, "1", False),
+    ],
+    ids=[
+        "plain",
+        "normalised",
+        "dash-in-name",
+        "underscore-name",
+        "dash-in-version",
+        "wrong-name",
+        "wrong-version",
+        "invalid-version",
+        "no-version",
+        "not-dist-info",
+        "stem-255-chars",
+        "stem-256-chars",
     ],
 )
 def test_a_directory_is_the_dist_info_of_a_name_and_version(

@@ -132,7 +132,9 @@ checked -- it's built from the same wheel metadata, so it can't diverge.
 
 `--sbom-basename NAME` overrides the embedded file's basename (default:
 derived from the wheel's own name/version, `<name>-<version>.spdx3.json`; a
-control character, space, `/`, `\` or `:` in either becomes `_`).
+control character, space, `/`, `\` or `:` in either becomes `_`; where the name
+would exceed 255 characters, the wheel's `.dist-info` directory name, escaped
+the same way, is used instead).
 `-o`/`--output` names the modified wheel's own output path and is
 rejected with an `ERROR:` when more than one wheel is passed -- ambiguous
 without a per-wheel naming scheme; omit it to modify each wheel in place.
