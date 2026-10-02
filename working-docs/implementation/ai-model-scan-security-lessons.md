@@ -386,7 +386,7 @@ Lessons:
   when it was not (6 vs 7 entries); under a size budget the same wheel
   gave 8 or 11 entries depending on which files were read first. Decided:
   every confirmed model is listed, read or not, on every surface,
-  including `loom model FILE`, which used to stop with exit 1.
+  including `loom model FILE`, which stops with exit 1 today.
 - **A parser can do the dangerous work before the check sees it.**
   `pickletools.genops` converts a decimal number with `int()` before it
   yields the opcode, so a digit cap applied to its output is too late
@@ -394,15 +394,6 @@ Lessons:
   pickle walk has to be replaced, not wrapped; the default digit limit
   meanwhile turns the same input into a misleading "malformed" warning,
   so the outcome depended on an interpreter setting.
-- **GGUF arrays reported their last element**, in three places
-  (properties, the metadata annotation, hyperparameters); an empty array
-  showed `'0'` and a nested one its last leaf. Decided: an array is
-  recorded only by its length and element type. Each output place uses
-  the most parseable shape it allows: SPDX `DictionaryEntry` properties
-  cannot nest, so `<key>.length`; the JSON metadata annotation keeps the
-  file's own key with `{"length": N, "type": ...}`, so a derived length
-  can never be mistaken for a real dotted GGUF key; provenance names the
-  real key plus `Method: array_length`, never a key the file lacks.
 
 ## 4. Principles that came out of it
 

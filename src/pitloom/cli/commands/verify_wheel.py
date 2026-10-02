@@ -18,8 +18,8 @@ from pitloom.assemble import RECOMMENDED_EXTENSIONS, EmbeddedSbomLocation
 from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
     _locate_and_detect,
-    _report_wheel_error,
     cli_error_handler,
+    report_error_line,
 )
 
 log = logging.getLogger(__name__)
@@ -128,7 +128,7 @@ def _check_one_wheel(
             wheel_path, report=True
         )
     except (ValueError, OSError) as exc:
-        _report_wheel_error(exc)
+        report_error_line(exc)
         return False
 
     version_ok = _check_name_version(

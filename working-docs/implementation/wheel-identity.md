@@ -55,10 +55,11 @@ names (`matching_dist_infos`), so a foreign `.dist-info` cannot hide a model.
   refused`; the type is bare for a builtin, qualified otherwise
   (`zlib.error`); exception text is never quoted). The CLI prints one
   `ERROR:`, exit 1, nothing written (a `wheel --embed -o` copy included: it
-  is written after the embed); in an `embed-wheel` or `verify-wheel` batch
-  the other wheels are still processed, exit 1. A member name that is not
-  UTF-8 in the central directory fails `zipfile.ZipFile()` itself: the same
-  shape without `ENTRY=`. Rejected: keep the file
+  is written after the embed); in an `embed-wheel`, `verify-wheel` or
+  `validate-wheel` batch the other wheels are still processed, exit 1. A
+  member name that is not UTF-8 in the central directory fails
+  `zipfile.ZipFile()` itself: the same shape without `ENTRY=`. Rejected: keep
+  the file
   without a hash (the SBOM builder, the registry's (path, sha256) key and
   the Merkle root all assume a digest) and skip it (claims it is absent).
   The same guard covers `embed-wheel`'s rewrite and its `RECORD`/SBOM
@@ -113,16 +114,17 @@ names (`matching_dist_infos`), so a foreign `.dist-info` cannot hide a model.
   `m.py` plus `m.py\0.evil`, which an installer extracts as one file, and
   the embed wrote a wheel with the name twice.
 - **Not a ZIP** `open_wheel_zip()` maps every exception `zipfile.ZipFile()`
-  raises except `OSError` (`could not open (zipfile.BadZipFile) -- wheel
-  refused`; `NotImplementedError` for an extract version it does not read),
-  so every surface gives the one shape and a batch goes on past the file. It
+  raises except `OSError` and `MemoryError`
+  (`could not open (zipfile.BadZipFile) -- wheel refused`;
+  `NotImplementedError` for an extract version it does not read), so every
+  surface gives the one shape and a batch goes on past the file. It
   replaces the `Invalid wheel archive` text the embed and verify paths made
   on their own. `OSError` (missing, permission) propagates, so a caller can
   retry it. Catching only `BadZipFile` and `UnicodeDecodeError` aborted a
   `verify-wheel` batch at a wheel with extract version 9.2.
 - **Default SBOM name** `<name>-<version>.spdx3.json` replaces, in name and
   version, each control character (Unicode `C*`), whitespace, `/`, `\` and `:`
-  with `_`; `-`, `+` and `.` stay, so a safe name is as on main and as the
+  with `_`; `-`, `+` and `.` stay, so a safe name is as before #266 and as the
   Hatchling hook's. Where `METADATA` names nothing, or the derived name would
   exceed 255 characters (one path component: no installer extracts it; a
   5000-digit `Version:` gave a 5011-character member), the `.dist-info`
@@ -148,7 +150,7 @@ names (`matching_dist_infos`), so a foreign `.dist-info` cannot hide a model.
 
 `read_wheel` sorts its files by `distribution_path`, as `get_wheel_files`
 does: SPDX ids are minted in file order, so the same wheel written with its
-members in another order gave different ids (present on main).
+members in another order gave different ids (as before #266).
 
 `--allow-build` reads its freshly built wheel with its own extractor, not
 `read_wheel`; an unreadable member there keeps that path's documented

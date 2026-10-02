@@ -423,7 +423,7 @@ determinism, offline-mode zero-network-calls, registry round trip,
 `--allow-build` with/without/ground-truth parity, a setting that
 changes no bytes (`--content-type-method`) still reaching `project` and
 `embed-wheel`, no implicit config for a non-project target, an
-sdist reading its own config as its unpacked directory does, and a
+sdist reading its own config as its unpacked directory does, a
 declared-but-missing/invalid `--id-registry` failing the same way on
 every surface, `--scan-model-usage` beating its config key on every
 surface that scans, the wheel ones included, and a refused wheel refused

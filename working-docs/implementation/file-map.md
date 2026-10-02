@@ -163,13 +163,14 @@ pitloom/
 │       │   ├── dataset_metadata.py # DatasetMetadata
 │       │   ├── document.py         # DocumentModel (assembled, pre-serialization)
 │       │   ├── enrich_config.py    # [tool.pitloom.enrich] / EnrichConfig
+│       │   ├── file_names.py       # is_plain_file_name(), escape_file_name_part(): an SBOM file name is a name, not a path
 │       │   ├── inert_options.py    # INERT: options a target kind can't act on; forward_options()
 │       │   ├── models.py           # Deterministic UUIDs, Merkle root, SPDX ID generation facade
 │       │   ├── no_effect.py        # warn_no_effect(): the one "has no effect" WARNING: shape
 │       │   ├── project.py          # ProjectMetadata, ProjectFile
 │       │   ├── provenance.py       # ProvenanceConfig ([tool.pitloom.provenance])
 │       │   ├── temp_dirs.py        # registered_temp_dir(): temp dirs removed via TerminationGuard
-│       │   └── wheel_dist_info.py  # resolve_own_dist_info(), wheel_members(): a wheel's own .dist-info; header-only METADATA read
+│       │   └── wheel_dist_info.py  # resolve_own_dist_info(), wheel_members(), open_wheel_zip(), WheelRefused: a wheel's own .dist-info; header-only METADATA read
 │       ├── enrich/                 # Local README/model-card frontmatter enrichment
 │       │   ├── base.py             # Enricher protocol + run_enrichers_for_models()
 │       │   └── readme.py           # README.md/MODEL_CARD.md YAML frontmatter enricher
@@ -215,9 +216,9 @@ pitloom/
 │       ├── loom.py                 # ML tracking SDK facade (Run context manager / decorator)
 │       └── py.typed                # PEP 561 marker
 ├── tests/                          # Mirrors src/pitloom/<package>/ (AGENTS.md Testing section)
-│   ├── assemble/                   # 58 files -- assemble/, embed*.py, enrich/ coverage + conftest.py
+│   ├── assemble/                   # 75 files -- assemble/, embed*.py, enrich/ coverage + conftest.py
 │   ├── cli/                        # 22 files -- one per src/pitloom/cli/ module, + shared.py
-│   ├── core/                       # 26 files -- core/, loom.py, generator orchestration
+│   ├── core/                       # 33 files -- core/, loom.py, generator orchestration
 │   │   └── models_wheel/           # Wheel file discovery: backends, build-and-read, build timeout/kill
 │   ├── extract/                    # 47 files, one per extractor
 │   │   └── huggingface/            # 20 files -- split by metadata category
@@ -226,13 +227,15 @@ pitloom/
 │   ├── id_registry/                # 19 files -- conftest.py, shared.py, package_ids_base.py, surfaces_base.py, surfaces_cli.py, surfaces_shared.py, test_package_ids.py, test_package_ids_ambiguous.py, test_registry.py, test_registry_base_dir_sdist.py, test_registry_generate.py, test_registry_harvest.py, test_registry_import.py, test_relative_paths.py, test_relative_paths_id_commands.py, test_session.py, test_surfaces.py, test_surfaces_failures.py, test_surfaces_same_ids.py
 │   ├── scripts/                    # Mirrors scripts/: probe, resolver, install and Generate-step tests
 │   ├── _raw_archive.py             # Write zip/tar members under exact raw names on every OS
+│   ├── _wheel_damage.py            # Wheels with one damaged member (bad CRC, encrypted, ...) for the refusal tests
 │   ├── build_and_read_shared.py    # Shared fake build, temp-dir and simulated-signal helpers
 │   ├── conftest.py                 # Cross-cutting fixtures (each subfolder has its own too)
 │   └── warning_helpers.py          # Shared WARNING:/caplog assertion helpers
 ├── scripts/
 │   ├── action/                     # GitHub Action helpers (install, Python probe/resolver)
 │   ├── check_version_consistency.py  # CI version check; --print-version also used by the action
-│   └── compare_allow_build.py      # Manual --allow-build parity check
+│   ├── compare_allow_build.py      # Manual --allow-build parity check
+│   └── manual_cli_checks/          # Unattended manual CLI checks: _checks_*.py (core, config, wheel, build), CLI matrix, sequences
 ├── .gitattributes                  # LF for *.sh and action.yml
 ├── AGENTS.md                       # CLAUDE.md is a symlink to this
 ├── CHANGELOG.md                    # 0.19.0 and newer; add new entries here

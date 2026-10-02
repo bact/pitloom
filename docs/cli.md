@@ -132,9 +132,9 @@ checked -- it's built from the same wheel metadata, so it can't diverge.
 
 `--sbom-basename NAME` overrides the embedded file's basename (default:
 derived from the wheel's own name/version, `<name>-<version>.spdx3.json`; a
-control character, space, `/`, `\` or `:` in either becomes `_`; where the name
-would exceed 255 characters, the wheel's `.dist-info` directory name, escaped
-the same way, is used instead).
+control character, whitespace, `/`, `\` or `:` in either becomes `_`; with no
+name or version in `METADATA`, or a name over 255 characters, the wheel's
+`.dist-info` directory name, escaped the same way, is used instead).
 `-o`/`--output` names the modified wheel's own output path and is
 rejected with an `ERROR:` when more than one wheel is passed -- ambiguous
 without a per-wheel naming scheme; omit it to modify each wheel in place.
@@ -163,7 +163,7 @@ A wheel's own `.dist-info` is the top-level directory its file name names
 (PEP 503/440 comparison); where the file name names none, the only top-level
 `.dist-info`, with a `WARNING:` where the file name is a wheel name. A
 `.dist-info` vendored deeper in the tree is never the wheel's own. With none,
-or several and none the only one the file name names, `loom wheel` and `loom
+or several, not exactly one named by the file name, `loom wheel` and `loom
 generate` warn and name the package `unknown`; `wheel --embed`, `embed-wheel`,
 `verify-wheel` and `validate-wheel` refuse the wheel. `METADATA`
 is read for its headers only (at most 16 MiB and 10,000 headers); past a cap,
@@ -178,7 +178,8 @@ cuts it there, so an installer extracts it under another member's name);
 non-conforming member name. `loom verify-wheel` reads only the member names,
 the own `.dist-info`'s `METADATA` and the embedded SBOM, and `loom
 validate-wheel` only the names and the embedded SBOM: a damaged other member
-does not fail them, but one of those they read, or a duplicate name, does.
+does not fail them, but a damaged member they read, a duplicate or NUL name,
+or a file `zipfile` cannot open does.
 Each refusal is one `ERROR:` naming the archive and, where there is one, the
 member; exit 1, nothing written (not even the `-o` copy). With several wheels
 the others are still processed. The library raises `ValueError`.

@@ -58,8 +58,8 @@ def _find_dist_info_prefix(
 
     Raises:
         ValueError: The wheel has no top-level ``.dist-info``, or several
-            and none is the one its file name names, or two of its members
-            have one name.
+            and not exactly one named by its file name, or two members
+            share a name or one holds a NUL.
     """
     if members is None:
         members = wheel_members(zf, wheel_path.name)
@@ -120,8 +120,8 @@ def read_wheel_name_version(
     cross-check, so the two parses can't silently diverge.
 
     Raises:
-        ValueError: The entry cannot be read (damaged, encrypted), or two
-            members of the wheel have one name.
+        ValueError: The entry cannot be read (damaged, encrypted), two
+            members of the wheel have one name, or a name holds a NUL.
     """
     archive = os.path.basename(zf.filename or "")
     if members is None:

@@ -89,8 +89,11 @@ def _cli_to_file(command: str) -> Callable[[Path, pytest.MonkeyPatch], str]:
 
 
 def _cli_wheel_embed(wheel: Path, mp: pytest.MonkeyPatch) -> str:
-    assert _cli(["wheel", str(wheel), "--embed", "--offline"], mp) == 0
-    return _embedded(wheel)
+    copy = wheel.parent / "out.spdx3.json"
+    assert _cli(_cli_argv("cli-wheel-embed", wheel), mp) == 0
+    embedded = _embedded(wheel)
+    assert copy.read_text(encoding="utf-8") == embedded  # written once embedded
+    return embedded
 
 
 def _cli_embed_wheel(wheel: Path, mp: pytest.MonkeyPatch) -> str:
@@ -418,15 +421,18 @@ def _cli_succeeds(*argv: str) -> Callable[[Path, pytest.MonkeyPatch], None]:
     return run
 
 
-_EMBEDS: dict[str, Callable[[Path, pytest.MonkeyPatch], object]] = {
+_IDENTITY_READERS: dict[str, Callable[[Path, pytest.MonkeyPatch], object]] = {
     "lib-embed_wheel_sbom": lambda w, _mp: embed_wheel_sbom(w),
     "cli-embed-wheel": _cli_succeeds("embed-wheel"),
     "cli-embed-wheel-verify": _cli_succeeds("embed-wheel", "--verify"),
     "cli-wheel-embed": _cli_succeeds("wheel", "--embed", "--offline"),
+    "cli-verify-wheel": lambda w, mp: _cli(
+        ["verify-wheel", str(_with_sbom(w, _BULK))], mp
+    ),
 }
 
 
-@pytest.mark.parametrize("surface", sorted(_EMBEDS))
+@pytest.mark.parametrize("surface", sorted(_IDENTITY_READERS))
 def test_the_embed_does_not_read_and_warn_about_metadata_twice(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -435,11 +441,12 @@ def test_the_embed_does_not_read_and_warn_about_metadata_twice(
 ) -> None:
     """The generation has said why the identity is unknown; the identity goes
     down to the embed, which makes its default file name from it as it is,
-    and ``--verify`` does not read ``METADATA`` for a second say."""
+    and ``--verify`` does not read ``METADATA`` for a second say.
+    ``verify-wheel`` says it once too."""
     monkeypatch.setattr(wheel_dist_info, "MAX_METADATA_HEADERS", 2)
     wheel = _hijack_wheel(tmp_path)
 
-    _EMBEDS[surface](wheel, monkeypatch)
+    _IDENTITY_READERS[surface](wheel, monkeypatch)
 
     said = [x for x in capsys.readouterr().err.splitlines() if x.endswith("unknown")]
     assert len(said) == 1, said
@@ -447,20 +454,6 @@ def test_the_embed_does_not_read_and_warn_about_metadata_twice(
     with zipfile.ZipFile(wheel) as archive:
         sboms = [n for n in archive.namelist() if "/sboms/" in n]
     assert sboms == ["demo-1.0.dist-info/sboms/demo-1.0.spdx3.json"]
-
-
-def test_verify_wheel_says_once_that_the_identity_is_unknown(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    monkeypatch.setattr(wheel_dist_info, "MAX_METADATA_HEADERS", 2)
-    wheel = _with_sbom(_hijack_wheel(tmp_path), _BULK)
-
-    _cli(["verify-wheel", str(wheel)], monkeypatch)
-
-    said = [x for x in capsys.readouterr().err.splitlines() if x.endswith("unknown")]
-    assert len(said) == 1 and "over 2 headers" in said[0], said
 
 
 def _record_not_utf8_wheel(tmp_path: Path) -> Path:
@@ -497,13 +490,3 @@ def test_a_wheel_only_the_embed_refuses_leaves_no_copy(
     assert len([x for x in err.splitlines() if x.startswith("ERROR:")]) == 1, err
     assert wheel.read_bytes() == before
     assert not list(tmp_path.glob("*.spdx3.json"))
-
-
-def test_wheel_embed_writes_its_copy_only_once_the_wheel_is_embedded(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    wheel = _hijack_wheel(tmp_path)
-
-    assert _cli(_cli_argv("cli-wheel-embed", wheel), monkeypatch) == 0
-
-    assert (tmp_path / "out.spdx3.json").read_text(encoding="utf-8") == _embedded(wheel)

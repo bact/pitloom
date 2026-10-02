@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -63,36 +63,26 @@ once.
 - Tests: a case-only pair on a case-insensitive runner (macOS CI), and a
   member path over 260 characters on the Windows leg.
 
-## 2. Archive-level wheel operations read `ZipInfo.filename`
+## 2. The embed copies a non-conforming member under `info.filename`
 
-`_wheel_sbom_location` (dist-info lookup, `find_embedded_sbom`, so
-verify-wheel and validate-wheel) and `_embed_wheel` (RECORD rewrite, stale
-SBOM removal, archive copy) still use the OS-converted `filename`:
+`_wheel_sbom_location` and `_embed_wheel` select from `wheel_members()`
+(`orig_filename`) since #266, and the embed refuses a non-conforming name in
+the wheel's own `.dist-info`. Still open: `_rewrite_wheel_archive` copies every
+other member with `new_zf.open(info, "w")`, which encodes `info.filename`. On
+Windows, embedding rewrites `pkg\x` as `pkg/x` while RECORD keeps the old
+spelling; on POSIX the name survives byte for byte, so the embedded wheel's
+bytes depend on the OS.
 
-- A backslash `.dist-info` prefix is found on Windows only; `./x.dist-info/`
-  is not found anywhere.
-- `_rewrite_wheel_archive` copies each member with `new_zf.open(info, "w")`,
-  which encodes `info.filename`. On Windows, embedding therefore rewrites
-  `pkg\x` as `pkg/x` while RECORD keeps the old spelling. On POSIX the name
-  survives byte for byte, so the embedded wheel's bytes depend on the OS.
+**Direction:** copy under `orig_filename`. Open question: should embedding
+ever repair a non-conforming name? It is a byte-preserving copy, and repair
+would also mean rewriting RECORD.
 
-**Direction:** copy under `orig_filename`, and find the dist-info prefix
-with `is_directory_name`/`normalize_member_name` from
-`pitloom.core.archive_member_names`. Open questions:
-
-- Should embedding ever repair a non-conforming name? It is currently a
-  byte-preserving copy, and repair would also mean rewriting RECORD.
-- Should verify-wheel report a non-conforming `.dist-info` prefix as a
-  structural failure?
-- `embed-wheel --project-dir` merges header data from the project scan onto
-  the wheel's own `ProjectFile`s (`_merge_file_extras`). The provenance
-  string for that data (`Source: <path> | Field: ...`) then names the
-  wheel file's `physical_path`, which is now the raw archive name. The
-  data really came from the project file (`src/pkg/x.py` in a src layout).
-  This predates PR #251: the name was OS-converted before and is now
-  OS-independent, but it is still not the true source. Carrying the
-  project file's path for provenance only would fix it, without losing the
-  raw-name registry key.
+Also open: `embed-wheel --project-dir` merges header data from the project
+scan onto the wheel's own `ProjectFile`s (`_merge_file_extras`). The
+provenance string for that data (`Source: <path> | Field: ...`) names the
+wheel file's `physical_path`, the raw archive name, but the data came from the
+project file (`src/pkg/x.py` in a src layout). Carrying the project file's path
+for provenance only would fix it, without losing the raw-name registry key.
 
 ## 3. Tar links in sdists
 

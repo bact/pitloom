@@ -3,11 +3,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The one check that an SBOM file name is a name, not a path.
-
-Shared by the ``sbom-basename`` config key
-(:mod:`pitloom.core._config_parse`) and the name an SBOM is embedded under
-in a wheel (:mod:`pitloom._embed_wheel`), so the two cannot disagree.
+"""Keeping an SBOM file name a name, not a path: ``is_plain_file_name``
+(shared by ``sbom-basename`` and the embed) and ``escape_file_name_part``
+(the default embedded name).
 """
 
 from __future__ import annotations

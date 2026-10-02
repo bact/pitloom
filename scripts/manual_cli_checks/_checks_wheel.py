@@ -5,8 +5,8 @@
 """Check 16 of manual-cli-checks.md: a wheel Pitloom refuses is refused the
 same way by every command that reads one.
 
-See also: ``_checks_config.py`` and ``_checks_core.py`` (the other numbered
-checks), ``_harness.py``.
+See also: ``_checks_config.py``, ``_checks_core.py`` and ``_checks_build.py``
+(the other checks), ``_harness.py``.
 """
 
 from __future__ import annotations

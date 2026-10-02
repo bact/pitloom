@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-01
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -279,13 +279,14 @@ max_bytes, trust, gate_hint)` serves `loom wheel`, `wheel --embed`,
 `--project-dir` keeps scanning the project; `--sbom` scans nothing; the
 Hatchling hook scans its project directory, never a wheel.
 
-- **Members** come from `zip_file_members(zf, name, None)` -- no logger, as
-  `read_wheel()` already reported every name (two reports would double each
+- **Members** come from `wheel_members()` -- no logger, as `read_wheel()`
+  already reported every name (two reports would double each
   `ARCHIVE= ENTRY=` warning) -- minus the wheel's own `.dist-info/`
-  (`_own_dist_info_prefixes()`: the top-level directory `{name}-{version}.dist-info`
-  that the wheel *file name* names, via `packaging.utils.parse_wheel_filename`,
-  names PEP 503- and versions PEP 440-compared; a name that is not a wheel
-  file name skips nothing; any other `*.dist-info/` is scanned). Rejected
+  (`matching_dist_infos()`: the top-level directory `{name}-{version}.dist-info`
+  that the wheel *file name* names, via `wheel_name_version()`, names PEP 503-
+  and versions PEP 440-compared; skipped only when exactly one directory
+  matches; a name that is not a wheel file name skips nothing; any other
+  `*.dist-info/` is scanned). Rejected
   (round 5c): "holds a `METADATA` or `WHEEL`" -- a hostile wheel hid a model
   under `x.dist-info/WHEEL`. `distribution_path` is
   the normalised name (the same string as `software_File.name`), so

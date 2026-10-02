@@ -186,7 +186,8 @@ def embed_wheel_sbom(
         ValueError: The wheel is refused as a whole
             (:class:`~pitloom.core.wheel_dist_info.WheelRefused`: not a ZIP
             archive, a member cannot be read, two members have one name or
-            one holds a NUL, a member to replace has a non-conforming name),
+            one holds a NUL, a member of its own ``.dist-info`` has a
+            non-conforming name),
             it has no single own ``.dist-info``, or the SBOM's name/version
             mismatches (see above). The wheel is left as it was.
         OSError: *wheel_path* cannot be opened (missing, permission denied).

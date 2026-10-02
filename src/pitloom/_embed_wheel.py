@@ -162,9 +162,10 @@ def _derive_wheel_sbom_filename(
 ) -> str:
     """Derive default SBOM filename from wheel METADATA, or from *identity*,
     the name and version a caller already read from it (no second read, so
-    no second warning). Characters unsafe in a file name are replaced in name and
-    version (:func:`pitloom.core.file_names.escape_file_name_part`). Where the
-    name would exceed ``MAX_NAME_CHARS`` characters (no file system installs
+    no second warning). Control characters, whitespace, ``/``, ``\\`` and
+    ``:`` are replaced in name and version
+    (:func:`pitloom.core.file_names.escape_file_name_part`). Where the name
+    would exceed ``MAX_NAME_CHARS`` characters (no file system installs
     it), the ``.dist-info`` directory's name is used, as with no name/version."""
     meta_name, meta_version = (
         identity
@@ -347,7 +348,7 @@ def embed_sbom_in_wheel(
             (:class:`~pitloom.core.wheel_dist_info.WheelRefused`): not a ZIP
             archive, a member cannot be read (damaged, encrypted,
             unsupported, badly named), two members have one name or one
-            holds a NUL, or a member the embed must replace has a
+            holds a NUL, or a member of its own ``.dist-info`` has a
             non-conforming name. The wheel is left as it was.
         OSError: An environment problem opening *wheel_path* (permission
             denied, a transient I/O error) -- kept as its own exception

@@ -23,6 +23,7 @@ from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
 
@@ -247,25 +248,28 @@ class _Endless(io.RawIOBase):
         return out
 
 
-def test_reading_stops_at_the_end_of_the_headers() -> None:
-    head = b"Name: demo\nVersion: 1.0\n\n"
+@pytest.mark.parametrize(
+    ("head", "block", "limit"),
+    [
+        (b"Name: demo\nVersion: 1.0\n\n", b"Name: demo\nVersion: 1.0\n", 8192),
+        # Blank line: one chunk read. No line end: the line itself is capped.
+        (b"", None, 50_000 + 8192),
+    ],
+    ids=["blank-line", "endless-line"],
+)
+def test_reading_stops_at_the_end_of_the_headers_or_the_cap(
+    monkeypatch: pytest.MonkeyPatch, head: bytes, block: bytes | None, limit: int
+) -> None:
+    monkeypatch.setattr(wheel_dist_info, "MAX_METADATA_BYTES", 50_000)
     stream: Any = _Endless(head)
 
-    assert wheel_dist_info._header_block(stream) == head[:-1]
-    assert stream.served <= 8192  # the one chunk holding the blank line
+    if block is None:
+        with pytest.raises(wheel_dist_info._OverCap):
+            wheel_dist_info._header_block(stream)
+    else:
+        assert wheel_dist_info._header_block(stream) == block
 
-
-def test_one_endless_line_is_stopped_at_the_cap_not_buffered(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """No line end to split on: the unfinished line itself is what is capped."""
-    monkeypatch.setattr(wheel_dist_info, "MAX_METADATA_BYTES", 50_000)
-    stream: Any = _Endless(b"")
-
-    with pytest.raises(wheel_dist_info._OverCap):
-        wheel_dist_info._header_block(stream)
-
-    assert stream.served <= 50_000 + 8192
+    assert stream.served <= limit
 
 
 def _zip_with(
@@ -478,7 +482,10 @@ def _not_a_zip(tmp_path: Path) -> Path:
     ids=["not-a-zip", "zip-version", "central-name"],
 )
 def test_a_file_zipfile_cannot_open_refuses_at_open_and_a_missing_one_does_not(
-    tmp_path: Path, make: Callable[[Path], Path], error: str
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    make: Callable[[Path], Path],
+    error: str,
 ) -> None:
     with pytest.raises(WheelRefused) as refused:
         open_wheel_zip(make(tmp_path))
@@ -488,14 +495,6 @@ def test_a_file_zipfile_cannot_open_refuses_at_open_and_a_missing_one_does_not(
     assert type(refused.value.__cause__).__name__ == error.rsplit(".", maxsplit=1)[-1]
     with pytest.raises(OSError):
         open_wheel_zip(tmp_path / "missing.whl")
-
-
-def test_a_memory_error_opening_a_wheel_is_not_a_refusal(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    def fail(*_args: object, **_kwargs: object) -> None:
-        raise MemoryError
-
-    monkeypatch.setattr(zipfile, "ZipFile", fail)
-    with pytest.raises(MemoryError):
+    monkeypatch.setattr(zipfile, "ZipFile", Mock(side_effect=MemoryError))
+    with pytest.raises(MemoryError):  # not a refusal
         open_wheel_zip(tmp_path / WHEEL)

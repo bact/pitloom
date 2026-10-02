@@ -257,7 +257,8 @@ name that is not UTF-8), two members of one name or a NUL in a name: one
 from `wheel` and `wheel --embed`, `ERROR: SBOM generation failed: ARCHIVE=...`
 from `generate`, `ERROR: ARCHIVE=...` from `embed-wheel`. The two embeds also
 refuse a wheel with no single own `.dist-info`, or an own `.dist-info` member
-stored under a non-conforming name (`./`, `\`).
+stored under a non-conforming name (`./`, `\`); for no single own `.dist-info`
+a `WARNING: ... -- identity unknown` line comes before the `ERROR:`.
 With no single own `.dist-info`, or a `METADATA` that is missing or over a cap,
 `wheel` and `generate` only warn (`WARNING: ... identity unknown`) and write an
 SBOM that names the wheel `unknown`. The embeds do the same for a `METADATA`

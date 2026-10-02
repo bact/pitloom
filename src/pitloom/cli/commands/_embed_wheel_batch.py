@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.assemble import ConfigOverrides, embed_wheel_sbom
-from pitloom.cli.commands.utils import _report_wheel_error
+from pitloom.cli.commands.utils import report_error_line
 from pitloom.cli.options_config import (
     creation_flags_given,
     load_explicit_config,
@@ -120,7 +120,7 @@ def resolve_project_dir_and_config(
         # read_project()'s own message already names the specific reason
         # (no config file at all, vs. a config file present but resolving
         # to no usable metadata) -- relay it instead of a fixed guess.
-        _report_wheel_error(exc)
+        report_error_line(exc)
         return None
     return proj_path, pitloom_config
 
@@ -255,7 +255,7 @@ def try_embed_one_wheel(
             file_cache=batch.file_cache,
         )
     except (ValueError, OSError) as exc:
-        _report_wheel_error(exc)
+        report_error_line(exc)
         return None
     report_embed_result(arcname, wheel_path.name, removed, floored)
     return embedded_wheel_path, arcname

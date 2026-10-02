@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """``read_wheel`` takes a wheel's identity from its own top-level
-``.dist-info`` only, warns instead of crashing on a member it cannot read,
-and reads ``METADATA`` within a bound.
+``.dist-info`` only, refuses a wheel with a member it cannot read, reads
+``METADATA`` within a bound and lists files in install-path order.
 
 See also: tests/core/test_wheel_dist_info.py (the selector),
 tests/test_wheel_identity_surfaces.py (every wheel surface).

@@ -268,15 +268,17 @@ written, unless `allow_mismatch=True` downgrades it to a `WARNING:` log
 and lets the embed proceed. Form 1 (a Pitloom-generated SBOM) is never
 checked -- it's built from the same wheel metadata, so it can't diverge.
 A wheel's name and version come from its own top-level `.dist-info` (see
-[the CLI notes](cli.md#embed-an-sbom-into-a-wheel-pep-770)); a wheel with one of the
-problems below raises `ValueError` (the subclass
+[the CLI notes](cli.md#embed-an-sbom-into-a-wheel-pep-770)). A wheel with one
+of the problems below raises `ValueError` (all but the fifth the subclass
 `pitloom.core.wheel_dist_info.WheelRefused`), naming the archive (and the
 member, where one is at fault), and nothing is written:
 
 - a member that cannot be read;
 - two members with one name;
 - a NUL in a member name;
-- a file that is not a ZIP archive, or that `zipfile` cannot open.
+- a file that is not a ZIP archive, or that `zipfile` cannot open;
+- no single own `.dist-info` (plain `ValueError`);
+- (embed only) a member of its own `.dist-info` under a non-conforming name.
 
 A file that cannot be opened at all (missing, permission denied) raises
 `OSError`. Pass `identity=(name, version)` to `embed_sbom_in_wheel()` where

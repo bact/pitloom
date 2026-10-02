@@ -202,10 +202,11 @@ def test_verify_wheel_permission_error_reported_per_wheel(
     """An OSError opening the wheel (e.g. permission denied) is reported as
     ERROR per-wheel, not left to propagate and abort the whole batch.
 
-    Exercises _open_wheel_zip's OSError-propagates-unwrapped contract
-    together with _locate_embedded_sbom_or_report's `except (ValueError,
-    OSError)` -- the CLI layer doesn't need the type distinction a library
-    caller might, so both are caught and reported the same way here."""
+    Exercises ``pitloom.core.wheel_dist_info.open_wheel_zip``'s
+    OSError-propagates-unwrapped contract together with
+    _locate_embedded_sbom_or_report's `except (ValueError, OSError)` -- the
+    CLI layer doesn't need the type distinction a library caller might, so
+    both are caught and reported the same way here."""
     wheel_path = _make_dummy_wheel(tmp_path, "unreadablepkg", "1.0.0")
 
     def _raise_permission_error(*_args: object, **_kwargs: object) -> zipfile.ZipFile:
