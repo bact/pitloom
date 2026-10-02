@@ -25,7 +25,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.extract.ai_model.hdf5 import read_hdf5
 
 # ---------------------------------------------------------------------------
@@ -284,14 +284,22 @@ def test_read_hdf5_unparseable_model_config_stores_raw_text(
     assert "properties.model_config_raw" in meta.provenance
 
 
-@pytest.mark.parametrize(("size", "warned"), [(500, False), (501, True)])
-def test_read_hdf5_says_when_the_unparsed_model_config_is_cut(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture, size: int, warned: bool
-) -> None:
+_LAYERS_NOT_OBJECTS = _json.dumps(
+    {"class_name": "Sequential", "config": {"name": "m", "layers": ["x"]}}
+)
+_VALID = _json.dumps({"class_name": "Sequential", "config": {"name": "m"}})
+# Valid and read, though over the raw cap: nothing is kept raw, so no cut notice.
+_LONG_CLASS = _json.dumps({"class_name": "S" * 600, "config": {"name": "m"}})
+_UNRECOGNISED = _json.dumps({"x": "y" * 600})
+
+
+def _read_with(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, **attrs: str
+) -> tuple[AiModelMetadata, list[str]]:
     model_file = tmp_path / "model.h5"
     model_file.write_bytes(b"fake")
     mock_hf = _make_hdf5_file()
-    mock_hf.attrs["model_config"] = "{" * size  # not valid JSON
+    mock_hf.attrs.update(attrs)
     mock_h5py = MagicMock()
     mock_h5py.File.return_value = mock_hf
     with (
@@ -299,9 +307,66 @@ def test_read_hdf5_says_when_the_unparsed_model_config_is_cut(
         patch.dict("sys.modules", {"h5py": mock_h5py}),
     ):
         meta = read_hdf5(model_file)
-    assert meta.properties["model_config_raw"] == "{" * 500
-    messages = [r.getMessage() for r in caplog.records]
-    assert bool(messages) is warned
+    return meta, [r.getMessage() for r in caplog.records]
+
+
+@pytest.mark.parametrize(
+    ("config", "problem", "raw_kept", "cut"),
+    [
+        ("{" * 500, "not valid JSON", True, False),
+        ("{" * 501, "not valid JSON", True, True),  # the cut is on the same line
+        ("[1, 2]", "not a JSON object", True, False),
+        (_LAYERS_NOT_OBJECTS, "layers[0] is not an object", False, False),
+        (_UNRECOGNISED, None, True, True),  # valid: the cut notice only
+        (_VALID, None, False, False),
+        (_LONG_CLASS, None, False, False),
+    ],
+    ids=["short", "long", "list", "nested", "unrecognised-long", "valid", "long-valid"],
+)
+def test_read_hdf5_warns_once_for_a_model_config_it_cannot_read_whole(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    config: str,
+    problem: str | None,
+    raw_kept: bool,
+    cut: bool,
+) -> None:
+    """Regression: a ``model_config`` that was not JSON was kept raw with
+    no line at all (only a cut raw config of over 500 characters warned)."""
+    meta, messages = _read_with(tmp_path, caplog, model_config=config)
+    assert len(messages) == (problem is not None or cut)
+    assert ("model_config_raw" in meta.properties) is raw_kept
+    if raw_kept:
+        assert meta.properties["model_config_raw"] == config[:500]
+    if problem is not None:
+        assert problem in messages[0]
+        assert ("the first 500 of 501 characters" in messages[0]) is cut
+    elif messages:
+        assert f"{len(config)} characters" in messages[0]
+    if problem == "layers[0] is not an object":
+        assert meta.type_of_model == "Sequential"  # what was read before is kept
+        assert meta.name == "m"
+        assert "layer_count" in meta.properties
+
+
+@pytest.mark.parametrize(
+    ("config", "warned"),
+    [
+        ("not json", True),
+        ("[1]", True),
+        ("5", True),  # a JSON scalar: once a TypeError on ``in``
+        (_json.dumps({"optimizer": {"class_name": "Adam"}, "loss": "mse"}), False),
+    ],
+)
+def test_read_hdf5_warns_once_for_a_training_config_that_is_not_an_object(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, config: str, warned: bool
+) -> None:
+    meta, messages = _read_with(tmp_path, caplog, training_config=config)
+    assert len(messages) == warned
+    assert ("optimizer" in meta.properties) is not warned
     if warned:
-        assert "501 characters" in messages[0]
-        assert "model_config_raw" in messages[0]
+        assert "training_config is not" in messages[0]
+        assert (
+            "skipped): properties.optimizer, properties.loss, properties.metrics"
+            in messages[0]
+        )

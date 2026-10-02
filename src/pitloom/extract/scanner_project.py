@@ -48,6 +48,22 @@ def _opener(path: Path) -> Callable[[], AbstractContextManager[IO[bytes]]]:
     return _open
 
 
+def local_model_candidate(path: Path) -> ModelCandidate:
+    """A single local model file as a :class:`ModelCandidate`, for the
+    surfaces that name one file (``loom model``, ``loom enrich``): the one
+    read rule of a scan, with *path* as given for the physical path, its name as
+    the distribution path, and no gate. The scan's suffix filter
+    (:func:`~pitloom.extract.scanner.is_model_candidate_name`) is not applied:
+    a file named explicitly is read by its content."""
+    return ModelCandidate(
+        distribution_path=path.name,
+        physical_path=str(path),
+        sniff=_sniffer(path),
+        materialize=_materializer(path),
+        read_path=path,
+    )
+
+
 def project_candidates(
     project_dir: Path, files: Iterable[ProjectFile]
 ) -> Iterator[ModelCandidate]:

@@ -234,6 +234,14 @@ loom model path/to/model.safetensors -o model.spdx3.json
 loom model path/to/model.gguf --pretty
 ```
 
+A model whose read fails (a truncated file, a bound exceeded, a missing
+extra) is still written, as a format-only entry with one `WARNING:` and exit
+status 0, as a project scan lists it. A file that is not a model (empty, an
+unknown format, a header that contradicts the suffix such as a Git LFS
+pointer), an absent one or an unreadable one is an `ERROR:` and exit
+status 1. See [AI model scan
+limits](ai-model-scan-limits.md#which-scans-apply-which-limits).
+
 Or pass a Hugging Face Hub URL or model ID directly -- no local file
 required (needs `pip install pitloom[huggingface_hub]`):
 

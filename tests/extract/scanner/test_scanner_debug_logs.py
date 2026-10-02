@@ -103,7 +103,7 @@ def test_a_reader_debugs_a_hostile_path_on_one_line(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """``loom model`` reads the user's file with no scanner in between."""
+    """``read_ai_model`` called with no scanner in between."""
     path = tmp_path / f"m{evil}{suffix}"
     path.write_bytes(_CONTENT[suffix])
     with caplog.at_level(logging.DEBUG, logger="pitloom"), pytest.raises(ValueError):

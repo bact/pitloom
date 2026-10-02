@@ -31,11 +31,19 @@ the project or wheel.
 | Same, plus `WARNING: AI model scan: the per-wheel budget of N bytes ...` | The wheel's total budget is spent | [Size and count caps](#size-and-count-caps) |
 | Same, plus another `...; metadata not read` line | A bound inside the file was exceeded | [Size and count caps](#size-and-count-caps) |
 | Only the first 1000 inputs, hyperparameters, ... | Entry cap | [Size and count caps](#size-and-count-caps) |
-| No `ai_AIPackage` at all, only the file entry, plus `failed to extract metadata` | The reader could not parse the file | [What cannot be recorded](#what-cannot-be-recorded) |
+| A format-only stub, plus `WARNING: ... failed to extract metadata; <error>` | The reader could not parse a file whose header is that of a model (truncated, corrupt) | [What cannot be recorded](#what-cannot-be-recorded) |
 | A field a format cannot carry (no model name in a `.npy`) | Not a limit: the format has no such field | [What cannot be recorded](#what-cannot-be-recorded) |
+| No `ai_AIPackage`, only the file entry, plus `WARNING: FORMAT=<fmt> FILE=<path>: header is not <fmt>; not listed as an AI model` | The header contradicts the model suffix, as text named `.gguf` does; a Git LFS pointer (any candidate suffix, `.bin` and `.zip` included, which then has no `FORMAT=`) says `header is a Git LFS pointer` instead | [What is a model](#what-is-a-model) |
 | No model at all | Not a detected model, or a target that does not scan models | [What cannot be recorded](#what-cannot-be-recorded) |
 
-The format-only entry (a "stub") has exactly this: an `ai_AIPackage` whose
+A file that is a model by its header gets exactly one entry on every
+surface, whatever happens when it is read: a failed parse, a bound, a
+missing library or the wheel gate leave a format-only entry (a "stub") and
+one `WARNING:` (or the one `INFO:` for the gate), never none. So the set of
+entries does not depend on the order of the files, the budget or the
+installed libraries.
+
+The format-only entry has exactly this: an `ai_AIPackage` whose
 `name` is the format name and which has no `ai_*` property and no `comment`
 entry `Source: <model file> | Field: ...` (a read model has such entries), a
 `contains` relationship to the model's `software_File`, and that file's
@@ -51,19 +59,34 @@ stub.
 | :----- | :-------------------- | :-------------- | :--------- | :--------------------------------- |
 | `wheel`, `wheel --embed`, `embed-wheel` without `--project-dir`, `generate x.whl` | Copied out of the wheel to a temporary file, one at a time | Yes | Yes | Yes |
 | `project`, `generate <dir>`, `embed-wheel --project-dir`, the Hatchling hook, `--allow-build` | Read in place | **No** | **No** | Yes |
-| `loom model FILE`, `loom enrich FILE` | Read in place | No | No | Header and inner bounds: yes, as a failure (below). Entry cap: yes |
+| `loom model FILE`, `loom enrich FILE`, `loom generate FILE` | Read in place, as a project scan reads a file | No | No | Yes |
 | `env`, sdist archive, `loom model` with a Hugging Face ID or URL | Models are not scanned | -- | -- | -- |
 
 Scanning an untrusted checkout therefore runs the fastText, HDF5, ONNX,
 GGUF and PyTorch readers on its files, in Pitloom's own process, with no
 size ceiling. Only scan project directories you trust.
 
-With `loom model FILE` or `loom enrich FILE` there is no format-only entry: a
-bound that is exceeded stops the command with `ERROR: model command failed:
-<reason>` (`ERROR: enrichment fragment generation failed: <reason>` for
-`enrich`) and exit status 1, and nothing is written. The 1000-entry cap applies as in
-the scans: the model is kept, cut, with the same one `WARNING:` naming the
-fields cut.
+`loom model FILE`, `loom enrich FILE` and `loom generate FILE` (and
+`generate_model_sbom()`, `enrich_model()`) read the file by the same rule as
+a scan, with the same `WARNING:` text for a bound, a missing library and a
+parse failure (the wheel gate, ceiling and budget apply to wheel scans only).
+The suffix filter of a scan only chooses which files to look at: a file named
+explicitly is read by its content, whatever its suffix (`x.dat` with GGUF
+magic is a GGUF model). A model whose read fails or exceeds a bound is written
+as a stub with that one `WARNING:`, and the command exits 0 (`enrich` writes
+its fragment: it reads the model too, and its enrichers read the README or
+model card next to the file). A file that is not a model, an absent one or an
+unreadable one fails instead: one `ERROR:` (`model command failed:`,
+`enrichment fragment generation failed:` or `SBOM generation failed:`, then the
+path and the reason, e.g. `header is a Git LFS pointer`, `header is not gguf`
+or `file is empty`; an absent file has its own message) and exit status 1,
+with nothing written, where a scan lists no entry. `loom model` and `loom
+enrich` take a file of any suffix; `loom generate FILE` takes only the model
+suffixes (`.gguf`, `.safetensors`, `.onnx`, `.pt`, `.pth`, `.pt2`, `.h5`,
+`.hdf5`, `.keras`, `.npy`, `.npz`, `.bin`, `.ftz`): any other file is read
+as a project (an sdist archive, or a directory), and fails as one. A script that used the exit status to
+detect an unreadable model must look for the `WARNING:` instead.
+The 1000-entry cap applies as in the scans, with the same one `WARNING:`.
 
 ## Size and count caps
 
@@ -86,7 +109,9 @@ Values are exact; "stub" is the format-only entry described above.
 | `.npz` members | Reading stops after 1001 arrays; then the entry cap below applies | `.npz` | No | See the entry cap |
 | Entries per list or map | 1000, the first ones: in file order, except Safetensors `__metadata__`, which has none and keeps its first 1000 keys in sorted order. Safetensors' well-known keys (`modelspec.title`, `name`, `format`, ...) are read from the whole `__metadata__`, so they set the model's name, version and so on even when they sort past the cut | `inputs`, `outputs`, `hyperparameters`, `properties`, `raw_metadata` of every format; project and wheel scans, `loom model FILE` and `loom enrich FILE`. Not a Hugging Face model (`loom model <ID>` reads the Hub API, uncut) | No | Model kept, lists trimmed, provenance of dropped keys removed: `WARNING: FORMAT=<fmt> FILE=<path>: more than 1000 entries in <fields>; the first 1000 of each are kept` |
 | Archive listing | First 20 names (`properties.archive_contents`, ending `, ... (<N> total)` when cut) | PyTorch classic, PT2 | No | No log line, since nearly every checkpoint has a file per tensor; the value itself says it is cut |
-| Unparsed Keras config | First 500 characters (`properties.model_config_raw`) | HDF5, only when the config cannot be parsed | No | `WARNING: FORMAT=<fmt> FILE=<path>: Unparsed model_config of <N> characters; the first 500 are kept ...`, only when it is longer than 500 |
+| Unparsed Keras config | First 500 characters (`properties.model_config_raw`) | HDF5, only when neither the class nor the name could be read | No | One `WARNING: FORMAT=<fmt> FILE=<path>: model_config is not valid JSON (<error>); kept as properties.model_config_raw, the first 500 of <N> characters ...` (the cut is part of the same line; `is not a JSON object` for a JSON that is not an object, `is not valid JSON (nested too deeply)` for a nesting the parser cannot take, `model_config.class_name is not a string` for a class that is not text); the fields not read are named after it, `Field(s) affected (skipped)`. A valid config without a class or name longer than 500 characters: `Unparsed model_config of <N> characters; the first 500 are kept ...` |
+| Keras config part of the wrong type | The parts read before it are kept | HDF5 `model_config` | No | One `WARNING: FORMAT=<fmt> FILE=<path>: model_config.config is not an object; the fields read before it are kept \| Field(s) affected (skipped): <fields>` (also `layers is not a list`, `layers[<i>] is not an object`, a `class_name` or `name` that is not a string); the fields are those not read. A part set to JSON `null` counts as absent: no warning |
+| Unreadable Keras training config | Not read, or the optimizer not read | HDF5 | No | One `WARNING: FORMAT=<fmt> FILE=<path>: training_config is not valid JSON (<error>); reading stopped there ...`, or `training_config.optimizer_config is not an object` / `... class_name is not a string` with the loss and metrics kept |
 | fickling messages | fickling's stderr output is held back (first 4096 characters kept) and the warning quotes the first 200 | PyTorch `.pt`/`.pth` | No | `WARNING: fickling reported on stderr: <text>` |
 | Usage-scan source size | 1 MiB per `.py` file | `--scan-model-usage`, project and wheel scans | No | File skipped: `WARNING: FILE=<path>: larger than the 1048576-byte usage-scan cap; skipped` |
 | Usage-scan encoding | Strict UTF-8 | The same | No | File skipped: `WARNING: FILE=<path>: could not read for usage scanning; <error>` |
@@ -159,6 +184,37 @@ other target the option warns that it has no effect. Safetensors, Keras v3,
 NumPy and PT2 readers do not pass the file to a native library and are not
 gated; the caps above still apply to them.
 
+## What is a model
+
+A file is a candidate when its suffix is a model suffix, or `.bin` or
+`.zip`. It is a model when its header confirms a format:
+
+| Format | Header that confirms it |
+| :----- | :---------------------- |
+| fastText, GGUF, NumPy `.npy` | Its magic bytes, whatever the suffix; the suffix alone is not enough |
+| Safetensors | A length of at most 100 MB, then `{`, whatever the suffix |
+| Keras v3 (`.keras`), PT2, NumPy `.npz` | A ZIP header (`PK\x03\x04`, or `PK\x05\x06` for an archive with no member) |
+| PyTorch (`.pt`, `.pth`) | A ZIP header or a protocol 2 to 5 pickle; a `.pth` is also a Python path-configuration text file, so a text `.pt` or `.pth` is no model and gets no warning (a Git LFS pointer does) |
+| HDF5 | Its magic bytes, whatever the suffix; or, by `.h5`/`.hdf5`, any non-empty header (an HDF5 file may start with a userblock) |
+| ONNX (`.onnx`) | Any non-empty header: no signature at offset 0 |
+| Any | Not a model, under any candidate suffix, when the header opens with the line `version <URL>` of a Git LFS pointer spec (`https://git-lfs.github.com/spec/v1`, or an earlier one's): text in place of a file not fetched (`git lfs pull`) |
+
+An empty file, an absent one or a directory is never a model, and silent. A
+header that cannot be read (permission denied) is an `ERROR:` for `loom model
+FILE` and its siblings. A scan normally drops such a file earlier (`could not
+read ... for file scanning`); `FORMAT=<fmt> FILE=<path>: could not read
+header` and no entry appear only when it turns unreadable between the two
+reads. A file whose header contradicts its model suffix is not listed, with
+one `WARNING: FORMAT=<fmt> FILE=<path>: header is not <fmt>; not listed as an
+AI model`. A Git LFS pointer gets `FILE=<path>: header is a Git LFS pointer;
+not listed as an AI model`, under any candidate suffix (a `.bin` or `.zip`
+pointer names no format, so it has no `FORMAT=`); a `.pt` or `.pth` that is
+path-configuration text is silent, a pointer under those suffixes is not.
+This also catches a rare real file that fails its signature (a Safetensors
+header of more than 100 MB, a ZIP with data before it). `loom id generate`
+registers an `ai_AIPackage` entity by the same rule (the suffix filter, then
+the header), so it matches the files a scan lists.
+
 ## What cannot be recorded
 
 **Whatever the cause.** The `ai_AIPackage` carries name, version,
@@ -203,11 +259,16 @@ named after the format when the file has no name.
   from a README or model card: no README is read from an archive.
 - Remote models: `loom model` with a Hugging Face ID or URL reads the Hub
   API, not a file; see [Hugging Face Hub models](ai-model-formats.md#hugging-face-hub-models).
-- A file the reader cannot parse (truncated, wrong format, corrupt) gives
-  `WARNING: FORMAT=<fmt> FILE=<path>: failed to extract metadata; <error>`
-  and **no** `ai_AIPackage`; the file is still listed as a `software_File`.
-  A missing optional library gives a stub and
-  `required library not installed`.
+- A file whose header is that of a model but which the reader cannot parse
+  (truncated, corrupt) gives `WARNING: FORMAT=<fmt> FILE=<path>: failed to
+  extract metadata; <error>` and a stub. A missing optional library gives
+  a stub and `required library not installed`.
+- A file whose header contradicts its model suffix (text named `.gguf`,
+  `.keras`, `.npz`, `.safetensors`...) is not a model: no `ai_AIPackage`, one
+  `WARNING: ... header is not <fmt>; not listed as an AI model`, and the file
+  is still listed as a `software_File`. A Git LFS pointer is one under any
+  candidate suffix (`.onnx`, `.h5`, `.pt`, `.bin` included): `header is a Git
+  LFS pointer; not listed as an AI model`; run `git lfs pull`.
 
 ## Known limitations
 

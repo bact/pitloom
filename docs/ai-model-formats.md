@@ -20,7 +20,13 @@ loom model path/to/model.safetensors -o model.spdx3.json
 ```
 
 `loom model` auto-detects the format from the file itself, not just the
-extension.
+extension: a file is a model when its header confirms a format (its magic
+bytes, a ZIP header for `.keras`, `.pt2` and `.npz`, or a ZIP header or a
+protocol 2 to 5 pickle for `.pt` and `.pth`). ONNX has no signature at
+offset 0, and an HDF5 one may sit after a userblock, so their suffixes admit
+any non-empty file. A header that contradicts the suffix (text named `.gguf`)
+is not a model, and a Git LFS pointer is not one under any suffix; see
+[What is a model](ai-model-scan-limits.md#what-is-a-model).
 
 ## Supported formats
 

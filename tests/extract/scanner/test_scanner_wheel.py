@@ -206,6 +206,18 @@ _LIBRARY_CASES = [
 ]
 
 
+# Leading bytes that confirm each format (a model is listed only then).
+_CONFIRMING = {
+    ".safetensors": safetensors_bytes(),
+    ".npz": b"PK\x03\x04",
+    ".onnx": b"\x08",
+}
+
+
+def _confirming(fmt: AiModelFormat, member: str) -> bytes:
+    return fmt.magic or _CONFIRMING[Path(member).suffix]
+
+
 @pytest.mark.parametrize(
     ("member", "fmt", "module", "trust"),
     _LIBRARY_CASES,
@@ -226,11 +238,12 @@ def test_a_model_is_not_copied_when_its_reader_library_is_missing(
     report that the reader's library is not installed. Same stub, same
     message as the reader's own."""
     path = tmp_path / member
-    path.write_bytes(b"x")
+    payload = _confirming(fmt, member)
+    path.write_bytes(payload)
     monkeypatch.setitem(sys.modules, module, None)  # "not installed"
     with pytest.raises(ImportError) as excinfo:
         read_ai_model(path, model_format=fmt)
-    wheel = write_model_wheel(tmp_path / "d", {f"demo/{member}": b"x"})
+    wheel = write_model_wheel(tmp_path / "d", {f"demo/{member}": payload})
     (model,) = _scan_wheel(wheel, trust=trust)
     assert not copies
     assert model.format_info.model_format == fmt
@@ -311,7 +324,7 @@ def test_exception_text_names_the_stable_path_not_the_copy(
 
     monkeypatch.setattr("pitloom.extract.scanner.read_ai_model", fail)
     caplog.set_level(logging.WARNING)
-    _cap_case(tmp_path, producer, 100)
+    assert len(_cap_case(tmp_path, producer, 100)) == 1  # stub, not dropped
     (message,) = logged_warnings(caplog)
     assert "failed to extract metadata; cannot parse demo/m.safetensors (" in message
     assert message.count("demo/m.safetensors") == 3  # FILE= and both mentions

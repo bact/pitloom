@@ -238,3 +238,17 @@ Object dependency, and ownership by `TerminationGuard`.
   count budget should stop early with the labels found so far (and one
   `WARNING:`), or refuse.
 - **GGUF array values:** the short-array option in the per-format plan.
+- **Value semantics to re-decide per reader (from #269).** #269 fixed
+  these for the native-library path; a reader of our own sees the raw
+  bytes and must choose again, then pin the choice with a parity test:
+  - JSON `null` for an optional object part (Keras `config`, `layers`,
+    `build_config`, `optimizer`) counts as absent, silently ("absent
+    source data is not an error"); a `null` inside `layers` is a
+    malformed layer and warns. Whether the same rule holds for every
+    format's optional containers.
+  - An empty dataspace (`h5py.Empty`): a dtype and no data, absent.
+  - Variable-length and fixed-length strings: decoded text only, never
+    the storage bytes (`tobytes()` of an object array is its pointers);
+    a compound type with a string field is refused per attribute.
+  - Wrong-typed leaves (a `class_name` that is not text): one `WARNING:`
+    per attribute, what was read before it kept.

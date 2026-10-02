@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-28
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -94,6 +94,12 @@ project directory with `model:`:
   with:
     model: path/to/model.safetensors
 ```
+
+A model whose read fails (truncated, over a bound, a missing extra) still
+gives a format-only entry: the step succeeds and the action surfaces the
+`WARNING:` as an annotation. A file that is not a model (a Git LFS pointer
+included), or is absent or unreadable, fails the step.
+See [AI model scan limits](ai-model-scan-limits.md#which-scans-apply-which-limits).
 
 Embed the SBOM into built wheels (PEP 770) for any build backend
 (`flit`, `setuptools`, `poetry-core`, `maturin`, etc.):

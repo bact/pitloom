@@ -378,6 +378,14 @@ identity. Raises `ValueError` for a Hugging Face Hub source -- Hugging
 Face model cards are already parsed natively when generating the SBOM,
 so local enrichment doesn't apply there.
 
+A local model is read as a project scan reads it: one whose read fails
+(truncated, over a bound, a missing extra) does not raise. `enrich_model()`
+and `generate_model_sbom()` log the scan's one `WARNING:`, and the model is a
+format-only entry. Both raise `ValueError` for a file that is not a model
+(empty, an unknown format, a header that contradicts the suffix),
+`FileNotFoundError` for an absent one and `OSError` for an unreadable one; see [AI model scan
+limits](ai-model-scan-limits.md#which-scans-apply-which-limits).
+
 ## Tracking decorator
 
 Annotate scripts or Jupyter notebooks to generate external SBOM fragments

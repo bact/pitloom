@@ -255,10 +255,10 @@ def test_sniff_unknown_returns_extension_fallback(tmp_path: Path) -> None:
     assert detect_ai_model_format(f) == AiModelFormat.ONNX
 
 
-def test_sniff_empty_file_falls_back_to_extension(tmp_path: Path) -> None:
+def test_sniff_empty_file_is_not_a_model(tmp_path: Path) -> None:
     f = tmp_path / "model.ftz"
     f.write_bytes(b"")
-    assert detect_ai_model_format(f) == AiModelFormat.FASTTEXT
+    assert detect_ai_model_format(f) == AiModelFormat.UNKNOWN
 
 
 # ---------------------------------------------------------------------------
