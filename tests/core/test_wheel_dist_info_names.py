@@ -74,6 +74,9 @@ def test_a_wheel_file_name_gives_its_name_and_version_and_nothing_else(
         ("demo-x.dist-info", "demo", "1.0", False),
         ("demo.dist-info", "demo", "1.0", False),
         ("demo-1.0.egg-info", "demo", "1.0", False),
+        # One path component at most: a stem of 255 characters is tried, 256 not.
+        ("a" * 253 + "-1.dist-info", "a" * 253, "1", True),
+        ("a" * 254 + "-1.dist-info", "a" * 254, "1", False),
     ],
 )
 def test_a_directory_is_the_dist_info_of_a_name_and_version(

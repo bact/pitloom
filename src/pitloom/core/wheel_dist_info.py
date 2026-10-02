@@ -49,6 +49,9 @@ MAX_METADATA_BYTES = 16 * 1024 * 1024
 #: 16 MiB of ``X-A: b`` lines is 2.4 million of them.
 MAX_METADATA_HEADERS = 10_000
 
+#: Longest ``.dist-info`` stem tried: one path component, so no file system
+#: installs a longer one. Bounds the per-dash split of :func:`is_dist_info_of`.
+MAX_NAME_CHARS = 255
 _CHUNK_BYTES = 8192
 _SUFFIX = ".dist-info"
 _LINE_END = re.compile(rb"\r\n|\r|\n")
@@ -144,14 +147,19 @@ def open_wheel_zip(path: Path) -> zipfile.ZipFile:
     """Open *path* as a ZIP archive.
 
     Raises:
-        WheelRefused: *path* is not a ZIP archive, or a member name that is
-            flagged UTF-8 and is not (``zipfile`` reports both on opening).
+        WheelRefused: *path* cannot be read as a ZIP archive: not one, a
+            member name flagged UTF-8 that is not, a version it cannot
+            read. Any exception but ``OSError``, so a ``zipfile`` failure
+            mode added later is a refusal too.
         OSError: *path* cannot be opened (missing, permission denied, a
             transient I/O error): left as it is, so a caller can retry it.
     """
     try:
         return zipfile.ZipFile(path, "r")
-    except (zipfile.BadZipFile, UnicodeDecodeError) as exc:
+    except OSError:
+        raise
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:
         raise refusal(
             path.name, None, f"could not open ({exception_label(exc)})"
         ) from exc
@@ -241,6 +249,8 @@ def is_dist_info_of(directory: str, name: str, version: Version) -> bool:
     if not directory.endswith(_SUFFIX):
         return False
     stem = directory[: -len(_SUFFIX)]
+    if len(stem) > MAX_NAME_CHARS:
+        return False
     return any(
         canonicalize_name(stem[:i]) == name and _is_version(stem[i + 1 :], version)
         for i, char in enumerate(stem)

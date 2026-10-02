@@ -41,6 +41,7 @@ from tests._wheel_damage import (
     corrupt_deflate,
     damaged_wheel,
     raw_wheel,
+    zip_version_wheel,
 )
 
 _WHEEL = "demo-1.0-py3-none-any.whl"
@@ -229,11 +230,21 @@ _CAUSES: dict[str, tuple[Callable[[Path], Path], str]] = {
         _not_a_zip_wheel,
         f"ARCHIVE={_WHEEL!r}: could not open (zipfile.BadZipFile) -- wheel refused",
     ),
+    "zip-version": (
+        zip_version_wheel,
+        f"ARCHIVE={_WHEEL!r}: could not open (NotImplementedError) -- wheel refused",
+    ),
 }
 # The embed and generate surfaces read every member; verify and validate read
 # the dist-info's METADATA and the embedded SBOM, and the file list.
 _GENERATING = sorted(_SURFACES)
-_OPENING = ("duplicate-name", "bad-central-name", "nul-name", "not-a-zip")
+_OPENING = (
+    "duplicate-name",
+    "bad-central-name",
+    "nul-name",
+    "not-a-zip",
+    "zip-version",
+)
 _MATRIX = (
     [(s, c) for s in _GENERATING for c in ("unreadable-member", *_OPENING)]
     + [("cli-verify-wheel", c) for c in (*_OPENING, "damaged-metadata", "damaged-sbom")]
@@ -271,7 +282,9 @@ def test_a_refused_wheel_is_refused_on_every_surface(
     assert not list(tmp_path.glob("*.tmp"))
 
 
-@pytest.mark.parametrize("cause", ["unreadable-member", "nul-name", "not-a-zip"])
+@pytest.mark.parametrize(
+    "cause", ["unreadable-member", "nul-name", "not-a-zip", "zip-version"]
+)
 def test_a_damaged_wheel_in_an_embed_batch_fails_alone(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -299,7 +312,9 @@ def test_a_damaged_wheel_in_an_embed_batch_fails_alone(
     [
         ("verify-wheel", "damaged-metadata"),
         ("verify-wheel", "damaged-sbom"),
+        ("verify-wheel", "zip-version"),
         ("validate-wheel", "damaged-sbom"),
+        ("validate-wheel", "zip-version"),
     ],
 )
 def test_a_wheel_verify_or_validate_refuses_fails_alone(

@@ -44,6 +44,7 @@ from tests._wheel_damage import (
     central_name_damaged_wheel,
     damaged_wheel,
     raw_wheel,
+    zip_version_wheel,
 )
 
 
@@ -485,16 +486,23 @@ def test_a_nul_in_a_member_name_refuses_the_wheel(
     )
 
 
-def test_a_file_that_is_not_a_zip_refuses_at_open_and_a_missing_one_does_not(
-    tmp_path: Path,
+@pytest.mark.parametrize(
+    ("kind", "error"),
+    [("zip", "zipfile.BadZipFile"), ("version", "NotImplementedError")],
+)
+def test_a_file_zipfile_cannot_open_refuses_at_open_and_a_missing_one_does_not(
+    tmp_path: Path, kind: str, error: str
 ) -> None:
-    wheel = tmp_path / WHEEL
-    wheel.write_bytes(b"not a zip file at all")
+    if kind == "zip":
+        wheel = tmp_path / WHEEL
+        wheel.write_bytes(b"not a zip file at all")
+    else:
+        wheel = zip_version_wheel(tmp_path)
 
     with pytest.raises(WheelRefused) as refused:
         open_wheel_zip(wheel)
     assert str(refused.value) == (
-        f"ARCHIVE={WHEEL!r}: could not open (zipfile.BadZipFile) -- wheel refused"
+        f"ARCHIVE={WHEEL!r}: could not open ({error}) -- wheel refused"
     )
     with pytest.raises(OSError):
         open_wheel_zip(tmp_path / "missing.whl")

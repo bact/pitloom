@@ -83,6 +83,19 @@ def bad_central_name(path: Path) -> None:
     path.write_bytes(data[:at] + b"\xc3\xff" + data[at + 2 :])
 
 
+def zip_version_wheel(tmp_path: Path) -> Path:
+    """A wheel whose first central header asks for an extract version
+    (9.2) ``zipfile`` does not support, so opening raises
+    ``NotImplementedError``."""
+    wheel = tmp_path / WHEEL
+    with zipfile.ZipFile(wheel, "w") as zf:
+        zf.writestr(METADATA, REAL)
+    data = bytearray(wheel.read_bytes())
+    data[data.index(b"PK\x01\x02") + 6] = 92
+    wheel.write_bytes(bytes(data))
+    return wheel
+
+
 def raw_wheel(path: Path, entries: list[tuple[str, str]]) -> Path:
     """A wheel holding *entries* (raw name, text) in order, names verbatim:
     duplicates, backslashes and ``./`` included."""

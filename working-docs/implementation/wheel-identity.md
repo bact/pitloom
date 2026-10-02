@@ -101,16 +101,25 @@ names (`matching_dist_infos`), so a foreign `.dist-info` cannot hide a model.
   and name the package `unknown`, exit 0; `wheel --embed`, `embed-wheel`,
   `verify-wheel` and `validate-wheel` refuse the wheel with that text. The
   model scan skips the one directory the file name names, and none where
-  several do, as `read_wheel` takes none of them.
+  several do, as `read_wheel` takes none of them. The scan does not skip a
+  single `.dist-info` the file name does not name, though `read_wheel` uses
+  it for identity: scanning more is the safe direction. A `.dist-info` stem
+  over 255 characters (`MAX_NAME_CHARS`, one path component) never matches:
+  trying every dash was quadratic (a 64,000-dash name took 9 s, five of them
+  in a 600 KB wheel 103 s).
 - **NUL** A member name holding a NUL refuses the wheel (`NUL in member
   name`), in `wheel_members()`. `zipfile` cuts `ZipInfo.filename` there
   (`orig_filename` keeps it), so the duplicate check on raw names missed
   `m.py` plus `m.py\0.evil`, which an installer extracts as one file, and
   the embed wrote a wheel with the name twice.
-- **Not a ZIP** `open_wheel_zip()` maps `BadZipFile` too (`could not open
-  (zipfile.BadZipFile) -- wheel refused`), so every surface gives the one
-  shape and an `embed-wheel` batch goes on past the file. It replaces the
-  `Invalid wheel archive` text the embed and verify paths made on their own.
+- **Not a ZIP** `open_wheel_zip()` maps every exception `zipfile.ZipFile()`
+  raises except `OSError` (`could not open (zipfile.BadZipFile) -- wheel
+  refused`; `NotImplementedError` for an extract version it does not read),
+  so every surface gives the one shape and a batch goes on past the file. It
+  replaces the `Invalid wheel archive` text the embed and verify paths made
+  on their own. `OSError` (missing, permission) propagates, so a caller can
+  retry it. Catching only `BadZipFile` and `UnicodeDecodeError` aborted a
+  `verify-wheel` batch at a wheel with extract version 9.2.
 - **Default SBOM name** `<name>-<version>.spdx3.json` replaces, in name and
   version, each control character (Unicode `C*`), whitespace, `/`, `\` and `:`
   with `_`; `-`, `+` and `.` stay, so a safe name is as on main and as the

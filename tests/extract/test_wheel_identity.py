@@ -16,6 +16,7 @@ tests/test_wheel_identity_surfaces.py (every wheel surface).
 from __future__ import annotations
 
 import logging
+import time
 import tracemalloc
 import zipfile
 from pathlib import Path
@@ -72,6 +73,26 @@ def _build(path: Path, members: list[tuple[str, str]]) -> Path:
 
 def _warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
     return [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+
+
+def test_an_overlong_top_level_dist_info_is_not_split_at_every_dash(
+    tmp_path: Path,
+) -> None:
+    """Over one path component, so never the wheel's own: and not tried at
+    each of its dashes (quadratic: seconds for one, minutes for a few)."""
+    wheel = _build(
+        tmp_path / _WHEEL,
+        [
+            ("demo-1.0.dist-info/METADATA", _REAL),
+            *((f"{'-' * 60_000}{i}.dist-info/METADATA", _EVIL) for i in range(3)),
+        ],
+    )
+
+    started = time.monotonic()
+    metadata, _ = read_wheel(wheel)
+
+    assert time.monotonic() - started < 2.0  # seconds, not tens of them
+    assert metadata.name == "demo"
 
 
 @pytest.mark.parametrize(

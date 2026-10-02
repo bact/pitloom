@@ -15,6 +15,7 @@ See also:
 from __future__ import annotations
 
 import base64
+import contextlib
 import csv
 import dataclasses
 import hashlib
@@ -171,7 +172,7 @@ def _derive_wheel_sbom_filename(
         name = escape_file_name_part(meta_name)
         version = escape_file_name_part(meta_version)
         return f"{name}-{version}{SPDX3_JSONLD_EXTENSION}"
-    prefix = dist_info.rstrip("/").removesuffix(".dist-info")
+    prefix = escape_file_name_part(dist_info.rstrip("/").removesuffix(".dist-info"))
     return (
         f"{prefix}{SPDX3_JSONLD_EXTENSION}"
         if prefix
@@ -316,8 +317,8 @@ def _rewrite_wheel_archive(
 
         return temp_path
     except BaseException:
-        if temp_path.exists():
-            temp_path.unlink()
+        with contextlib.suppress(OSError):
+            temp_path.unlink(missing_ok=True)
         raise
 
 

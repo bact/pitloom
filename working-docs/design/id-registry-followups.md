@@ -61,7 +61,8 @@ D-numbers below refer to it),
   `zipfile` gives on the running OS, so the embedded wheel differs by OS.
 - **Default SBOM file name:** switch embed, the Hatchling hook and `loom
   project` default output to PEP 427 escaped `<name>-<version>` together, own
-  PR after #266 (user 2026-10-02).
+  PR after #266 (user 2026-10-02). Include the Windows-invalid characters
+  `*?"<>|`, which the default name does not escape yet.
 - **The `--allow-build` extractor has no duplicate refusal**, and members
   differing only in case overwrite each other in its extraction directory.
 

@@ -212,7 +212,9 @@ possible on every surface -- before any project-metadata or lock-file
 `WARNING:` a project directory target might also trigger -- so it's
 never buried later in a run's output.
 
-`pitloom.assemble` also exposes `generate_wheel_sbom()`,
+`pitloom.assemble` also exposes `generate_wheel_sbom()` (and
+`generate_wheel_sbom_with_metadata()`, which returns `(json, metadata)`: the
+SBOM and the `ProjectMetadata` read from the wheel),
 `generate_model_sbom()`, and `generate_env_sbom()` -- the same target
 kinds the [CLI](cli.md)'s `loom wheel` / `loom model` / `loom env`
 subcommands cover. See [AI model formats](ai-model-formats.md) for what
@@ -266,14 +268,23 @@ written, unless `allow_mismatch=True` downgrades it to a `WARNING:` log
 and lets the embed proceed. Form 1 (a Pitloom-generated SBOM) is never
 checked -- it's built from the same wheel metadata, so it can't diverge.
 A wheel's name and version come from its own top-level `.dist-info` (see
-[the CLI notes](cli.md#embed-an-sbom-into-a-wheel-pep-770)); a wheel with a
-member that cannot be read, two members of one name or a NUL in a name, a
-file that is not a ZIP, raises `ValueError` (the subclass
+[the CLI notes](cli.md#embed-an-sbom-into-a-wheel-pep-770)); a wheel with one of the
+problems below raises `ValueError` (the subclass
 `pitloom.core.wheel_dist_info.WheelRefused`), naming the archive and the
-member, and nothing is written; an unreadable file raises `OSError`.
-Pass `identity=(name, version)` to `embed_sbom_in_wheel()` where you have
-already read them from the wheel's `METADATA`: the default file name is made
-from it and `METADATA` is not read, or warned about, again.
+member, and nothing is written:
+
+- a member that cannot be read;
+- two members with one name;
+- a NUL in a member name;
+- a file that is not a ZIP archive, or that `zipfile` cannot open.
+
+A file that cannot be opened at all (missing, permission denied) raises
+`OSError`. Pass `identity=(name, version)` to `embed_sbom_in_wheel()` where
+you have already read them from the wheel's `METADATA`: the default file
+name is made from it and `METADATA` is not read, or warned about, again.
+`pitloom.extract.wheel.wheel_identity(metadata)` gives that pair from the
+`ProjectMetadata` of `read_wheel()`, or of `generate_wheel_sbom_with_metadata()`
+(below): `None` for a field the wheel did not declare.
 Form 3, `embed_sbom_in_wheel()`, is the lower-level, unchecked archive
 primitive both forms 1 and 2 converge on -- calling it directly (bypassing
 `embed_wheel_sbom()`) skips the cross-check entirely, same as it skips
