@@ -18,23 +18,22 @@ test_huggingface_vision_robotics.py.
 from __future__ import annotations
 
 from pitloom.extract.remote.huggingface import read_huggingface
-
-from .hf_patches._hf_patches_gated_metadata import (
+from tests.extract.remote.hf_patches._hf_patches_gated_metadata import (
     _patch_hunyuan_mt,
     _patch_hunyuan_mt7b,
     _patch_ii_medical,
     _patch_mistral_medium,
     _patch_opus_mt_th_en,
 )
-from .hf_patches._hf_patches_omni_modal import (
+from tests.extract.remote.hf_patches._hf_patches_omni_modal import (
     _patch_nemotron,
 )
-from .hf_patches._hf_patches_structured_text import (
+from tests.extract.remote.hf_patches._hf_patches_structured_text import (
     _patch_falconsai,
     _patch_hy_mt_gguf,
     _patch_privacy_filter,
 )
-from .hf_patches._hf_patches_text_generation_regional import (
+from tests.extract.remote.hf_patches._hf_patches_text_generation_regional import (
     _patch_chinda,
     _patch_chinda_gguf,
     _patch_darwin_kr_legal,

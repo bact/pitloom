@@ -699,7 +699,7 @@ def test_enrich_from_pypi_fetches_when_hash_not_filled(
     )
     called = False
 
-    def _mock_fetch(name: str, version: str | None) -> dict[str, Any]:
+    def _mock_fetch(_name: str, _version: str | None) -> dict[str, Any]:
         nonlocal called
         called = True
         return {

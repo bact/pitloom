@@ -232,13 +232,12 @@ def test_guess_content_type_magika_exception_falls_back_to_extension(
     ONNX runtime state) is caught and logged; detection falls back to the
     stdlib extension guess rather than propagating."""
 
+    # pylint: disable-next=too-few-public-methods
     class _BrokenMagika:
         def identify_bytes(self, data: bytes) -> Any:
             raise RuntimeError("inference session broken")
 
-    monkeypatch.setattr(
-        "pitloom.extract._file_headers._get_magika", lambda: _BrokenMagika()
-    )
+    monkeypatch.setattr("pitloom.extract._file_headers._get_magika", _BrokenMagika)
     with caplog.at_level(logging.DEBUG, logger="pitloom.extract._file_headers"):
         mime_type, method = guess_content_type(b"whatever bytes", "example.py")
 

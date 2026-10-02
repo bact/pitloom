@@ -11,6 +11,9 @@ test_poetry_pyproject.py for ``read_pyproject()`` integration; this file
 covers the sibling ``poetry.lock`` extractor those don't.
 """
 
+# Explicit `== []`/`== {}` keeps the None-vs-empty distinction.
+# pylint: disable=use-implicit-booleaness-not-comparison
+
 import logging
 import tempfile
 from pathlib import Path

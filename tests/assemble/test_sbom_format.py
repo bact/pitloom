@@ -5,6 +5,9 @@
 
 """Tests for src/pitloom/_sbom_format.py."""
 
+# Explicit `== []` asserts empty-but-present, not None.
+# pylint: disable=use-implicit-booleaness-not-comparison
+
 from __future__ import annotations
 
 import json

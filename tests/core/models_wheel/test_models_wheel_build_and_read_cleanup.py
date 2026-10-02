@@ -303,6 +303,7 @@ def test_work_dir_removal_raising_still_removes_the_extraction_dir(
         RUN_BUILD,
         raising_build(BuildTimeoutError(42, tree_terminated=True), sys_tmp, set()),
     )
+    # pylint: disable-next=protected-access
     real_removal = bar._remove_work_dir
 
     def interrupted_removal(work: tempfile.TemporaryDirectory[str]) -> None:
@@ -389,6 +390,7 @@ def test_build_and_read_wheel_signal_during_extraction_acts_at_once(
         # The interrupted extraction still holds the wheel and one target
         # open, which Windows can't delete: both dirs survive, each named
         # in its own WARNING, never silently.
+        # pylint: disable-next=unbalanced-tuple-unpacking
         (leftover,) = left_at_raise
         assert sorted(p.name.split("-")[0] for p in leftover) == ["pitloom", "plb"]
         for path in leftover:

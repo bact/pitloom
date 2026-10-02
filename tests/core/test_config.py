@@ -271,6 +271,7 @@ def test_parse_pitloom_config_use_lockfile_false() -> None:
 
 
 def test_read_fragments_defaults_empty_when_absent() -> None:
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert _read_fragments({}) == []
 
 

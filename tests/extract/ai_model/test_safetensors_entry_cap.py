@@ -98,7 +98,7 @@ def test_well_known_keys_sorting_after_the_cap_are_still_read(tmp_path: Path) ->
     model_file.write_bytes(safetensors_bytes(metadata={**filler, **well_known}))
     meta = read_safetensors(model_file)
     assert len(meta.raw_metadata) == MAX_MODEL_ENTRIES + 1
-    assert well_known.keys().isdisjoint(meta.raw_metadata)  # cut, as before
+    assert set(well_known).isdisjoint(meta.raw_metadata)  # cut, as before
     assert (
         meta.name,
         meta.description,

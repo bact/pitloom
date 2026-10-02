@@ -1,9 +1,17 @@
-# ruff: noqa: F403, F405
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""Tests for the generate() entry point dispatch and miscellaneous build() output."""
+
 from __future__ import annotations
 
 import functools
+import io
 import json
 import logging
+import tarfile
 import tempfile
 from pathlib import Path
 
@@ -342,10 +350,13 @@ def test_generate_model_sbom_huggingface_source(
         assert source == "hexgrad/Kokoro-82M"
         return fake_model
 
+    # pylint: disable-next=too-few-public-methods
     class _FakeExporter:
+        # pylint: disable-next=unused-argument
         def to_json(self, *, pretty: bool, describe_relationship: bool) -> str:
             return "{}"
 
+    # pylint: disable-next=unused-argument
     def _fake_build_model(model: object, *args: object, **kwargs: object) -> object:
         assert model is fake_model
         assert kwargs["entity_spdx_id"] is None
@@ -365,9 +376,6 @@ def test_generate_smart_entrypoint_sdist_file_target(tmp_path: Path) -> None:
     branch in generate()'s dispatch, and generate_project_sbom()'s
     target_path.is_file() branch (merkle_root=None, files taken from
     already-parsed project_metadata, no directory-only merge_fragments())."""
-    import io
-    import tarfile
-
     sdist_path = tmp_path / "smart-sdist-pkg-1.0.0.tar.gz"
     pkg_info = "Metadata-Version: 2.1\nName: smart-sdist-pkg\nVersion: 1.0.0\n"
     with tarfile.open(sdist_path, "w:gz") as tf:

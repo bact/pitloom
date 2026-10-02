@@ -7,9 +7,15 @@
 
 import tempfile
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
+from pitloom.core.enrich_config import EnrichConfig
+from pitloom.enrich import run_enrichers
+from pitloom.enrich.base import Enricher
 from pitloom.enrich.readme import (
     ReadmeEnricher,
     _find_model_card_file,
@@ -204,8 +210,6 @@ def test_enrich_no_frontmatter_prose_only_is_noop() -> None:
 
 def test_enrich_oserror_recovery() -> None:
     """_find_model_card_file and enricher handle OSError gracefully."""
-    from unittest.mock import MagicMock, patch
-
     mock_dir = MagicMock(spec=Path)
     mock_dir.iterdir.side_effect = OSError("permission denied")
     assert _find_model_card_file(mock_dir) is None
@@ -223,11 +227,6 @@ def test_enrich_oserror_recovery() -> None:
 
 def test_run_enrichers_failing_enricher_logged(tmp_path: Path) -> None:
     """run_enrichers logs and continues when an enricher raises an exception."""
-    from unittest.mock import MagicMock, patch
-
-    from pitloom.core.enrich_config import EnrichConfig
-    from pitloom.enrich import run_enrichers
-
     failing_enricher = MagicMock()
     failing_enricher.name = "broken"
     failing_enricher.enrich.side_effect = RuntimeError("broken enricher")
@@ -239,14 +238,11 @@ def test_run_enrichers_failing_enricher_logged(tmp_path: Path) -> None:
         model = AiModelMetadata()
         cfg = EnrichConfig(local=True)
         results = run_enrichers(model, cfg, tmp_path)
+        # pylint: disable-next=use-implicit-booleaness-not-comparison
         assert results == []
 
 
 def test_enricher_protocol_raises_not_implemented(tmp_path: Path) -> None:
     """Enricher.enrich raises NotImplementedError when invoked directly."""
-    import pytest
-
-    from pitloom.enrich.base import Enricher
-
     with pytest.raises(NotImplementedError):
         Enricher.enrich(None, None, model_dir=tmp_path)  # type: ignore[arg-type]

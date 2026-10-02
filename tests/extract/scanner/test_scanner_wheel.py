@@ -10,7 +10,8 @@ See also: :mod:`tests.extract.scanner.test_scanner_wheel_security` (bounds,
 cleanup, hostile names), :mod:`tests.extract.scanner.test_scanner_project`.
 """
 
-# pylint: disable=missing-function-docstring
+# W0632 false positive: pylint infers the helper's `result = []` as empty.
+# pylint: disable=missing-function-docstring,unbalanced-tuple-unpacking
 
 from __future__ import annotations
 
@@ -206,6 +207,7 @@ _LIBRARY_CASES = [
     _LIBRARY_CASES,
     ids=[c[0] for c in _LIBRARY_CASES],
 )
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def test_a_model_is_not_copied_when_its_reader_library_is_missing(
     member: str,
     fmt: AiModelFormat,
@@ -277,7 +279,7 @@ def _cap_case(tmp_path: Path, producer: str, size: int) -> Any:
 @pytest.mark.parametrize(
     ("size", "scanned"), [(_CAP, True), (_CAP + 1, False)], ids=["at-cap", "over-cap"]
 )
-def test_a_python_file_over_1_MiB_is_skipped_with_one_warning(
+def test_a_python_file_over_1_mib_is_skipped_with_one_warning(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
     producer: str,

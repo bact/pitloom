@@ -75,6 +75,7 @@ class _Unreleased:
         self.takes = 0
         self.limit = limit
 
+    # pylint: disable-next=unused-argument
     def acquire(self, timeout: float = -1) -> bool:
         self.takes += 1
         if self.takes == 1:

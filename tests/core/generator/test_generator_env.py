@@ -1,4 +1,10 @@
-# ruff: noqa: F403, F405
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""Tests for generate_env_sbom()."""
+
 from __future__ import annotations
 
 import json

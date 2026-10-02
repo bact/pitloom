@@ -1,3 +1,13 @@
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""Shared helpers for the extract tests, including a Hatchling build hook
+factory (pitloom.plugins.hatch)."""
+
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import types
@@ -5,16 +15,14 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-import hatchling.metadata.core as hatchling_metadata_core  # noqa: E402
+import hatchling.metadata.core as hatchling_metadata_core
 import pytest
-from hatchling.plugin.manager import PluginManager  # noqa: E402
+from hatchling.plugin.manager import PluginManager
 
 from pitloom.core.project import ProjectMetadata
-from pitloom.plugins.hatch import (  # noqa: E402
+from pitloom.plugins.hatch import (
     PitloomBuildHook,
 )
-
-"""Tests for the Pitloom Hatchling build hook (pitloom.plugins.hatch)."""
 
 pytest.importorskip("hatchling", reason="hatchling is required for hook tests")
 

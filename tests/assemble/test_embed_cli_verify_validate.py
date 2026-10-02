@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from pitloom import __main__
+from pitloom import __main__, _sbom_format
 from pitloom.assemble import EmbeddedSbomLocation, find_embedded_sbom
 
 from .conftest import _make_dummy_wheel, _spdx3_json_with_subject
@@ -216,8 +216,6 @@ def test_cli_embed_wheel_verify_validate_share_one_format_detection(
     itself. Without this, a future split of `_run_post_embed_checks` back
     into two independent calls would silently reintroduce the double
     parse with no test failing."""
-    from pitloom import _sbom_format
-
     call_count = 0
     real_detect_sbom_format = _sbom_format.detect_sbom_format
 

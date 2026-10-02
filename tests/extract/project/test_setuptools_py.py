@@ -13,12 +13,19 @@ See also:
 
 from __future__ import annotations
 
+import ast
 import tempfile
 from pathlib import Path
 
 import pytest
 
 from pitloom.extract.project.setuptools import read_setup_py
+from pitloom.extract.project.setuptools_py import (
+    _UNRESOLVABLE,
+    _ast_literal,
+    _extract_setup_kwargs,
+    _parse_setup_urls,
+)
 
 from ..conftest import assert_declared_empty_authors_no_copyright_text
 
@@ -266,10 +273,6 @@ def test_ast_literal_distinguishes_none_element_from_unresolvable() -> None:
     not be treated the same as an unresolvable element (a Name/Call node)
     -- both used to collapse to the same `None` return, silently
     invalidating a list that happens to contain a real `None`."""
-    import ast  # pylint: disable=import-outside-toplevel
-
-    from pitloom.extract.project.setuptools_py import _UNRESOLVABLE, _ast_literal
-
     literal_none_list = ast.parse("[None]", mode="eval").body
     assert _ast_literal(literal_none_list) == [None]
 
@@ -279,14 +282,6 @@ def test_ast_literal_distinguishes_none_element_from_unresolvable() -> None:
 
 def test_ast_literal_dict_unpacking_and_calls() -> None:
     """_extract_setup_kwargs handles dict unpacking and non-setup calls."""
-    import ast  # pylint: disable=import-outside-toplevel
-
-    from pitloom.extract.project.setuptools_py import (
-        _ast_literal,
-        _extract_setup_kwargs,
-        _parse_setup_urls,
-    )
-
     code = (
         "print('hello')\n"
         "extra = {'a': 1}\n"
@@ -301,6 +296,7 @@ def test_ast_literal_dict_unpacking_and_calls() -> None:
 
     # No setup call in AST returns empty dict
     no_setup_tree = ast.parse("x = 1\ny = 2\n")
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert _extract_setup_kwargs(no_setup_tree) == {}
 
     # Non-string dict key ignored by _ast_literal
@@ -309,6 +305,7 @@ def test_ast_literal_dict_unpacking_and_calls() -> None:
     assert _ast_literal(dict_node) == {"k": "v"}
 
     # Non-dict project_urls and non-string values
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert _parse_setup_urls({"project_urls": "https://invalid"}) == {}
     urls_dict = {"Docs": 123, "Home": "https://h"}
     assert _parse_setup_urls({"project_urls": urls_dict}) == {"Home": "https://h"}

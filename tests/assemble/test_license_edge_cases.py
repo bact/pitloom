@@ -10,6 +10,8 @@ See also:
 - :mod:`tests.assemble.test_license_normalization` for expression normalization.
 """
 
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import importlib
@@ -90,6 +92,7 @@ def test_tag_license_normalization_and_tool_tags_without_versions() -> None:
 def test_find_license_files_oserror(tmp_path: Path) -> None:
     """find_license_files returns empty list on OSError."""
     nonexistent = tmp_path / "nonexistent_license_dir_12345"
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert find_license_files(nonexistent) == []
 
 
@@ -213,6 +216,7 @@ def test_resolve_license_file_entries_unresolved_version_skips_with_warning(
     with caplog.at_level("WARNING", logger="pitloom.extract._license"):
         entries = resolve_license_file_entries(tmp_path, "pkg", None, ["LICENSE"])
 
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert entries == []
     assert "pkg" in caplog.text
     assert "version could not be resolved" in caplog.text

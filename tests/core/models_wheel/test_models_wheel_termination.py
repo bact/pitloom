@@ -41,7 +41,7 @@ from tests.build_and_read_shared import (
 )
 
 # pylint: disable-next=protected-access
-_REAL_ENTRY = _models_wheel._build_project_file_entry
+_real_entry = _models_wheel._build_project_file_entry
 
 
 @pytest.fixture(name="raise_spy")
@@ -80,7 +80,7 @@ def _interrupt_second_file(
             assert callable(interrupt)
             interrupt()
             pytest.fail("the interrupt did not stop the loop")
-        return _REAL_ENTRY(*args, **kwargs)  # type: ignore[arg-type]
+        return _real_entry(*args, **kwargs)  # type: ignore[arg-type]
 
     monkeypatch.setattr(_models_wheel, "_build_project_file_entry", entry)
     return seen

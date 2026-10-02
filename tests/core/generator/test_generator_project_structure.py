@@ -174,6 +174,7 @@ def test_build_main_package_noassertion_license_when_undeclared() -> None:
     assert "simpleLicensing" not in spdx_docs[0]["profileConformance"]
 
 
+# pylint: disable-next=too-many-locals
 def test_generate_project_sbom_with_fragments() -> None:
     """Test SBOM generation with external generic SBOM fragments."""
     pyproject_content = """

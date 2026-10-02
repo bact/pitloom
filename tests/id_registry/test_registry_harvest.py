@@ -38,11 +38,15 @@ from pitloom.id_registry._types import _REGISTRY_VERSION, _sha256_from_verified_
 class _FakeHash:
     def __init__(self, algorithm: object, hash_value: str | None) -> None:
         self.algorithm = algorithm
+        # Mirrors the SPDX binding's attribute name.
+        # pylint: disable-next=invalid-name
         self.hashValue = hash_value
 
 
 class _FakeVerified:
     def __init__(self, verified_using: list[_FakeHash]) -> None:
+        # Mirrors the SPDX binding's attribute name.
+        # pylint: disable-next=invalid-name
         self.verifiedUsing = verified_using
 
 
@@ -351,7 +355,10 @@ def test_release_stale_keys_checks_id_before_computing_path_alias() -> None:
     )
 
     with patch.object(
-        ids_mod, "_is_files_path_alias", wraps=ids_mod._is_files_path_alias
+        ids_mod,
+        "_is_files_path_alias",
+        # pylint: disable-next=protected-access
+        wraps=ids_mod._is_files_path_alias,
     ) as spy:
         _import_sbom_element(registry, new_file)
 

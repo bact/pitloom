@@ -50,6 +50,7 @@ def test_read_pt2_graph_io_skips_unresolvable_entries_then_matches() -> None:
         inputs, outputs = _read_pt2_graph_io(zf, "", "Source: model.pt2", provenance)
 
     assert inputs == [{"name": "x"}]
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert outputs == []
     assert "inputs" in provenance
     assert "outputs" not in provenance
@@ -71,6 +72,7 @@ def test_read_pt2_graph_io_empty_inputs_with_populated_outputs() -> None:
         provenance: dict[str, str] = {}
         inputs, outputs = _read_pt2_graph_io(zf, "", "Source: model.pt2", provenance)
 
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert inputs == []
     assert outputs == [{"name": "y"}]
     assert "inputs" not in provenance

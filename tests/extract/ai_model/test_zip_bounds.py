@@ -288,6 +288,7 @@ def test_a_reader_parses_the_handle_that_was_checked(
     monkeypatch.setattr(np, "load", load)
     with contextlib.suppress(Exception):  # the reader may not like the content
         read_ai_model(path, model_format=fmt)
+    # pylint: disable-next=unbalanced-tuple-unpacking
     (handle,) = checked
     assert parsed
     assert all(source is handle for source in parsed)
@@ -308,6 +309,7 @@ def test_every_reader_that_opens_a_model_zip_refuses_one_over_the_cap(
     with pytest.raises(ModelLimitExceeded, match="more than 4 entries"):
         read_ai_model(path, model_format=fmt)
     # In a scan: one warning, a format-only entry.
+    # pylint: disable-next=unbalanced-tuple-unpacking
     (model,) = scan_project_for_ai_models(
         tmp_path,
         [ProjectFile(physical_path=name, distribution_path=name)],

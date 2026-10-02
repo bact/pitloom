@@ -1,4 +1,11 @@
-# ruff: noqa: F403, F405
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""Tests for the Hatchling version gate and build-datetime resolution in
+the Pitloom Hatchling build hook."""
+
 from __future__ import annotations
 
 import re
@@ -9,7 +16,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom.core.config import PitloomConfig
-from pitloom.plugins.hatch import (  # noqa: E402
+from pitloom.plugins.hatch import (
     _HATCHLING_ERROR_PREFIX,
     _check_hatchling_sbom_support,
     _resolve_build_datetime,

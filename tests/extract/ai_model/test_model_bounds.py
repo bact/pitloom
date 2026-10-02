@@ -158,6 +158,7 @@ def test_a_raw_pickle_over_the_cap_is_reported_as_a_file_not_a_member(
     monkeypatch.setattr(archive_member, "MAX_ARCHIVE_MEMBER_BYTES", 1000)
     (tmp_path / "big.pt").write_bytes(pickle.dumps("x" * 5000, protocol=2))
     files = [ProjectFile(physical_path="big.pt", distribution_path="big.pt")]
+    # pylint: disable-next=unbalanced-tuple-unpacking
     (model,) = discover_ai_models(project_candidates(tmp_path, files))
     assert not model.provenance  # format-only
     (message,) = logged_warnings(caplog)

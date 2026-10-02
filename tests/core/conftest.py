@@ -1,4 +1,27 @@
-# ruff: noqa: F403, F405
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""Shared helpers for the tests under tests/core/.
+
+Fragment-merge helpers verify that informational fields from SPDX 3
+fragment files are not dropped during the stitch/merge step.
+
+Fixtures live in tests/fixtures/fragments/:
+
+- ai-model-fragment.spdx3.json -- ai_AIPackage with full AI metadata
+- dataset-fragment.spdx3.json -- dataset_DatasetPackage with dataset metadata
+- training-run-fragment.spdx3.json -- loom.run()-style combined fragment:
+  ai_AIPackage + 2 datasets + trainedOn/testedOn
+
+The spdx-python-model library serialises anonymous (blank) node objects --
+DictionaryEntry, ai_EnergyConsumption, ai_EnergyConsumptionDescription -- as
+separate @graph entries referenced by blank-node IDs like ``_:DictionaryEntry0``.
+The ``_resolve`` / ``_entries`` helpers below dereference those IDs so that
+tests can navigate nested structures without depending on blank-node internals.
+"""
+
 from __future__ import annotations
 
 import json
@@ -17,8 +40,6 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
-
-"Tests for SBOM fragment merging -- verifies that informational fields\nfrom SPDX 3 fragment files are not dropped during the stitch/merge step.\n\nFixtures live in tests/fixtures/fragments/:\n  ai-model-fragment.spdx3.json       -- ai_AIPackage with full AI metadata\n  dataset-fragment.spdx3.json        -- dataset_DatasetPackage with dataset metadata\n  training-run-fragment.spdx3.json   -- loom.run()-style combined fragment:\n                                        ai_AIPackage + 2 datasets + trainedOn/testedOn\n\nImplementation note\n-------------------\nThe spdx-python-model library serialises anonymous (blank) node objects --\nDictionaryEntry, ai_EnergyConsumption, ai_EnergyConsumptionDescription -- as\nseparate @graph entries referenced by blank-node IDs like ``_:DictionaryEntry0``.\nThe ``_resolve`` / ``_entries`` helpers below dereference those IDs so that\ntests can navigate nested structures without depending on blank-node internals.\n"  # noqa: E501
 
 _FRAGMENTS_DIR = Path(__file__).parent.parent / "fixtures" / "fragments"
 
@@ -94,9 +115,45 @@ def _metrics(
     return {e["key"]: e["value"] for e in _entries(element, "ai_metric", index)}
 
 
-_PYPROJECT_TEMPLATE = '[build-system]\nrequires = ["hatchling"]\nbuild-backend = "hatchling.build"\n\n[project]\nname = "fragment-e2e-app"\nversion = "0.1.0"\ndescription = "End-to-end fragment test app"\n\n[tool.pitloom]\npretty = true\n\n[tool.pitloom.fragment]\nfiles = [\n    "ai-model-fragment.spdx3.json",\n    "training-run-fragment.spdx3.json",\n]\n'  # noqa: E501
+_PYPROJECT_TEMPLATE = """\
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-_UNIFY_PYPROJECT = '[build-system]\nrequires = ["hatchling"]\nbuild-backend = "hatchling.build"\n\n[project]\nname = "fragdemo"\nversion = "0.1.0"\ndescription = "Fragment unification test app"\n\n[tool.hatch.build.targets.wheel]\npackages = ["src/fragdemo"]\n\n[tool.pitloom.fragment]\nfiles = [\n    "fragments/01_preprocess.spdx3.json",\n    "fragments/02_train.spdx3.json",\n]\n'  # noqa: E501
+[project]
+name = "fragment-e2e-app"
+version = "0.1.0"
+description = "End-to-end fragment test app"
+
+[tool.pitloom]
+pretty = true
+
+[tool.pitloom.fragment]
+files = [
+    "ai-model-fragment.spdx3.json",
+    "training-run-fragment.spdx3.json",
+]
+"""
+
+_UNIFY_PYPROJECT = """\
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fragdemo"
+version = "0.1.0"
+description = "Fragment unification test app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fragdemo"]
+
+[tool.pitloom.fragment]
+files = [
+    "fragments/01_preprocess.spdx3.json",
+    "fragments/02_train.spdx3.json",
+]
+"""
 
 
 def _fixed_creation() -> CreationMetadata:
@@ -150,7 +207,7 @@ def _run_unify_pipeline(tmppath: Path) -> None:
             run.add_validation_dataset("data/raw.txt")
 
 
-"Integration tests for SBOM generation."
+# Integration tests for SBOM generation.
 
 
 def _build_graph_for_files(files: list[ProjectFile]) -> list[dict[str, object]]:
@@ -248,7 +305,8 @@ def _check_license_relationships(
         and r.get("from") == ai_pkg_id
     ]
     assert len(declared) + len(concluded) == 1, (
-        f"expected exactly one license relationship, got {len(declared)} declared and {len(concluded)} concluded"  # noqa: E501
+        "expected exactly one license relationship, got "
+        f"{len(declared)} declared and {len(concluded)} concluded"
     )
     license_rel = declared[0] if declared else concluded[0]
     license_spdx_id = license_rel["to"][0]
@@ -290,8 +348,14 @@ def _write_smoke_project(tmppath: Path, *, enrich_local: bool = False) -> Path:
     )
     enrich_toml = "[tool.pitloom]\nenrich = true\n" if enrich_local else ""
     (tmppath / "pyproject.toml").write_text(
-        '[build-system]\nrequires = ["hatchling"]\nbuild-backend = "hatchling.build"\n\n[project]\nname = "smoke-project"\nversion = "0.1.0"\n\n[tool.hatch.build.targets.wheel]\npackages = ["src/smoke_project"]\n\n'  # noqa: E501
-        + enrich_toml
+        "[build-system]\n"
+        'requires = ["hatchling"]\n'
+        'build-backend = "hatchling.build"\n\n'
+        "[project]\n"
+        'name = "smoke-project"\n'
+        'version = "0.1.0"\n\n'
+        "[tool.hatch.build.targets.wheel]\n"
+        'packages = ["src/smoke_project"]\n\n' + enrich_toml
     )
     return model_path
 

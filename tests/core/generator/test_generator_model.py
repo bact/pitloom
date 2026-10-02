@@ -14,7 +14,6 @@ tests/core/generator/test_generator_model_fragments.py for enrich_model() fragme
 tests, id-consistency, and base-model lineage.
 """
 
-# ruff: noqa: F403, F405
 from __future__ import annotations
 
 import json

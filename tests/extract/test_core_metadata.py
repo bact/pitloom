@@ -10,6 +10,9 @@ pitloom.extract.project.installed, and
 pitloom.assemble.spdx3.deps_originator.
 """
 
+# Explicit `== []`/`== {}` keeps the None-vs-empty distinction.
+# pylint: disable=use-implicit-booleaness-not-comparison
+
 from __future__ import annotations
 
 import email

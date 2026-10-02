@@ -475,8 +475,8 @@ def test_read_pt2_zip_rich_metadata_combination() -> None:
             ).encode("utf-8"),
         }
     )
-    zf = _zipfile.ZipFile(_io.BytesIO(zip_bytes))
-    res = _read_pt2_zip(zf, "Source: test.pt2")
+    with _zipfile.ZipFile(_io.BytesIO(zip_bytes)) as zf:
+        res = _read_pt2_zip(zf, "Source: test.pt2")
 
     name = res[0]
     description = res[1]

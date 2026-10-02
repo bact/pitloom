@@ -33,6 +33,8 @@ from tests.scripts.action._generate_step_shared import (
 # pytest): pytest discovers a fixture by the module attribute carrying
 # it, so this module needs its own reference to the shared "generate"
 # fixture, not just test_generate_step_id_registry.py's.
+# The alias keeps ruff from merging this re-export into the import above.
+# pylint: disable-next=unused-import,useless-import-alias
 from tests.scripts.action._generate_step_shared import (  # noqa: F401
     generate_fixture as generate_fixture,
 )

@@ -77,6 +77,7 @@ def test_hook_resolves_registry_before_building_document_model(
     project = demo_project(tmp_path, toml)
 
     calls: list[object] = []
+    # pylint: disable-next=protected-access
     real = hatch_module._build_document_model
 
     def spy(*args: Any, **kwargs: Any) -> Any:

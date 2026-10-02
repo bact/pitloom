@@ -340,6 +340,7 @@ def test_sanitize_for_json_stringifies_unsupported_types() -> None:
 
     from pitloom.assemble.spdx3.provenance import _sanitize_for_json
 
+    # pylint: disable-next=too-few-public-methods
     class _Unrecognized:
         def __str__(self) -> str:
             return "unrecognized-value"

@@ -121,6 +121,7 @@ def test_a_model_of_exactly_the_ceiling_is_read(
 ) -> None:
     """The ceiling is inclusive, declared and actually read alike."""
     wheel = write_model_wheel(tmp_path, {_NAMES[0]: _MODEL})
+    # pylint: disable-next=unbalanced-tuple-unpacking
     (model,) = _scan(wheel, ceiling)
     assert bool(model.provenance) is read
     assert len(copies) == (1 if read else 0)  # over: refused before the copy
@@ -173,6 +174,8 @@ def test_sigterm_during_the_copy_waits_for_it_and_says_during(
     chunks: list[int] = []
 
     def signalling_open(self: zipfile.ZipFile, name: Any, *a: Any, **k: Any) -> Any:
+        # The stream is returned to the caller, which closes it.
+        # pylint: disable-next=consider-using-with
         stream = real_open(self, name, *a, **k)
         if not scanner_wheel_is_copying():
             return stream

@@ -254,6 +254,7 @@ def test_hash_and_registry_lookup_streams_without_read_bytes(
     with patch.object(
         Path, "read_bytes", side_effect=AssertionError("read_bytes must not be used")
     ):
+        # pylint: disable-next=protected-access
         hash_elem, registered_id = _loom_caller._hash_and_registry_lookup(
             str(file_path), IdRegistrySession(None)
         )

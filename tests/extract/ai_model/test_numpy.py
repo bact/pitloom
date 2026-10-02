@@ -213,6 +213,7 @@ def test_read_numpy_npz_multiple_arrays(tmp_path: Path) -> None:
     mock_format = MagicMock()
     mock_format.read_magic.return_value = (1, 0)
     headers = iter([((10, 5), False, "float32"), ((5,), False, "float32")])
+    # pylint: disable-next=protected-access
     mock_format._read_array_header.side_effect = lambda f, v: next(headers)
     mock_np.lib.format = mock_format
 

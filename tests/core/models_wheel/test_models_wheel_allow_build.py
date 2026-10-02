@@ -148,6 +148,8 @@ def test_allow_build_second_tier_fallback_for_registered_backend_failure(
     (tmp_path / "a.py").write_text("a = 1\n", encoding="utf-8")
     hatchling_called: list[Path] = []
 
+    # The explicit None is the failure signal; mypy requires the return.
+    # pylint: disable-next=useless-return
     def _failed_setuptools_discover(
         project_dir: Path, *, pyproject_data: dict[str, object] | None = None
     ) -> list[IncludedFile] | None:
@@ -187,6 +189,8 @@ def test_allow_build_registered_backend_and_build_and_read_both_fail(
     no-static-module path)."""
     make_backend_project(tmp_path, "setuptools.build_meta")
 
+    # The explicit None is the failure signal; mypy requires the return.
+    # pylint: disable-next=useless-return
     def _failed_setuptools_discover(
         project_dir: Path, *, pyproject_data: dict[str, object] | None = None
     ) -> list[IncludedFile] | None:

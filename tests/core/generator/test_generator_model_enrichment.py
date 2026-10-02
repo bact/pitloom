@@ -13,7 +13,6 @@ tests/core/generator/test_generator_model_fragments.py for
 enrich_model() fragment tests, id-consistency, and base-model lineage.
 """
 
-# ruff: noqa: F403, F405
 from __future__ import annotations
 
 import json
@@ -224,6 +223,7 @@ def test_build_model_with_dataset_creator() -> None:
     assert len(pub_rels) == 1
 
 
+# pylint: disable-next=too-many-locals
 def test_generate_model_sbom_readme_enrichment_end_to_end() -> None:
     """A local model file with an adjacent README.md whose YAML frontmatter
     names a dataset absent from the model's own metadata: the enrichment

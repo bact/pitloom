@@ -5,6 +5,9 @@
 
 """Tests for pitloom.core.project: ProjectMetadata and merge_project_metadata()."""
 
+# Empty-but-present is asserted explicitly (None vs empty is a distinct signal).
+# pylint: disable=use-implicit-booleaness-not-comparison
+
 import tempfile
 from pathlib import Path
 

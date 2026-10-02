@@ -12,6 +12,8 @@ See also: test_hatch_hook_hook_basic.py for lifecycle/creator/fragment
 unit tests.
 """
 
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import json

@@ -387,6 +387,7 @@ def test_the_standalone_embed_builder_reads_no_declared_inert_option() -> None:
     """``embed_wheel_sbom(overrides=...)`` accepts every override and settles
     the inert ones away; what the builder then reads from the resolved config
     must not be a declared one."""
+    # pylint: disable-next=protected-access
     source = inspect.getsource(_embed_generate._build_sbom_standalone_wheel)
     read = set(re.findall(r"\bcfg\.(\w+)", source))
     read |= set(AssembleOptions.__annotations__)  # cfg.assemble_options

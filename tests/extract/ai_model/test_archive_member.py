@@ -98,6 +98,7 @@ def test_a_bomb_member_is_one_warning_and_a_kept_model_in_a_wheel(
     wheel = write_model_wheel(tmp_path, {f"demo/{name}": _zip(members)})
     tracemalloc.start()
     try:
+        # pylint: disable-next=unbalanced-tuple-unpacking
         (model,) = scan_wheel_for_ai_models(
             wheel,
             scan_usage=False,
@@ -124,6 +125,7 @@ def test_a_bomb_member_in_a_project_file_is_the_same_warning(
     name, members, member = _MODELS["keras"]
     (tmp_path / name).write_bytes(_zip(members))
     files = [ProjectFile(physical_path=name, distribution_path=name)]
+    # pylint: disable-next=unbalanced-tuple-unpacking
     (model,) = discover_ai_models(project_candidates(tmp_path, files))
     assert model.format_info.file_path_relative == name
     (message,) = logged_warnings(caplog)
@@ -141,14 +143,14 @@ def test_members_up_to_the_cap_are_still_read(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("size", [_CAP, _CAP + 1], ids=["at-cap", "over-cap"])
 def test_the_cap_is_inclusive(size: int) -> None:
-    zf = zipfile.ZipFile(io.BytesIO(_zip({"x": b"a" * size})))
-    if size <= _CAP:
-        assert len(read_archive_member(zf, "x")) == size
-    else:
-        with pytest.raises(ArchiveMemberTooLarge) as excinfo:
-            read_archive_member(zf, "x")
-        assert excinfo.value.member == "x"
-        assert excinfo.value.limit == _CAP
+    with zipfile.ZipFile(io.BytesIO(_zip({"x": b"a" * size}))) as zf:
+        if size <= _CAP:
+            assert len(read_archive_member(zf, "x")) == size
+        else:
+            with pytest.raises(ArchiveMemberTooLarge) as excinfo:
+                read_archive_member(zf, "x")
+            assert excinfo.value.member == "x"
+            assert excinfo.value.limit == _CAP
 
 
 def test_the_npy_v3_header_length_is_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -181,5 +183,6 @@ def test_no_reader_reads_an_inner_member_unbounded() -> None:
 
 def test_the_bomb_fixtures_are_really_over_the_cap(low_cap: int) -> None:
     for _, members, member in _MODELS.values():
-        data = zipfile.ZipFile(io.BytesIO(_zip(members))).getinfo(member).file_size
+        with zipfile.ZipFile(io.BytesIO(_zip(members))) as zf:
+            data = zf.getinfo(member).file_size
         assert data > low_cap * 1000

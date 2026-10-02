@@ -17,7 +17,9 @@ import rfc8785
 
 from pitloom import __main__
 from pitloom.cli.commands import wheel as mod_wheel
+from pitloom.cli.commands._embed_wheel_batch import report_embed_result
 from pitloom.id_registry import IdRegistry
+from pitloom.logging_config import configure_logging
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.warning_helpers import count_naming, stderr_warnings
 
@@ -47,17 +49,8 @@ def test_analyze_wheel_dispatches_to_wheel_path(
     captured: dict[str, object] = {}
 
     def _fake_generate_analyzed_sbom(
-        wheel_path_arg: Path,
-        output_path: object = None,
-        creation_metadata: object = None,
-        pretty: bool = False,
-        describe_relationship: bool = False,
-        registry: object = None,
-        offline: bool = False,
-        provenance: object = None,
-        **kwargs: object,
+        wheel_path_arg: Path, output_path: object = None, **_kwargs: object
     ) -> str:
-        _ = (creation_metadata, pretty, describe_relationship, registry, offline)
         captured["wheel_path"] = wheel_path_arg
         captured["output_path"] = output_path
         return "{}"
@@ -81,25 +74,10 @@ def test_wheel_command_wires_max_source_metadata_bytes(
     captured: dict[str, object] = {}
 
     def _fake_generate_analyzed_sbom(
-        wheel_path_arg: Path,
-        output_path: object = None,
-        creation_metadata: object = None,
-        pretty: bool = False,
-        describe_relationship: bool = False,
-        registry: object = None,
-        offline: bool = False,
+        _wheel_path_arg: Path,
         max_source_metadata_bytes: object = None,
-        **kwargs: object,
+        **_kwargs: object,
     ) -> str:
-        _ = (
-            wheel_path_arg,
-            output_path,
-            creation_metadata,
-            pretty,
-            describe_relationship,
-            registry,
-            offline,
-        )
         captured["max_source_metadata_bytes"] = max_source_metadata_bytes
         return "{}"
 
@@ -137,9 +115,6 @@ def test_report_embed_result(capsys: pytest.CaptureFixture[str]) -> None:
     """report_embed_result prints the confirmation to stdout (this
     command's primary result output) and the two INFO: side-effect lines
     to stderr, matching every other INFO:/WARNING:/ERROR: line."""
-    from pitloom.cli.commands._embed_wheel_batch import report_embed_result
-    from pitloom.logging_config import configure_logging
-
     # The two side-effect lines go through logging (see CLAUDE.md's "CLI
     # output" section), unlike the confirmation line above them -- calling
     # this function directly, without going through __main__.main(), skips

@@ -195,6 +195,7 @@ def test_zip_file_members_keeps_last_and_reads_its_bytes(tmp_path: Path) -> None
     bytes an installer leaves behind."""
     path = _zip(tmp_path, [("pkg/a", b"first"), ("pkg\\a", b"second")])
     with zipfile.ZipFile(path) as zf:
+        # pylint: disable-next=unbalanced-tuple-unpacking
         ((name, info),) = zip_file_members(zf, "a.zip", _LOG)
         assert (name, zf.read(info)) == ("pkg/a", b"second")
 

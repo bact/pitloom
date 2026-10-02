@@ -14,6 +14,9 @@ stable project-relative path.
 See also: :mod:`tests.extract.scanner.test_scanner` for the shared policy.
 """
 
+# W0632 false positive: pylint infers the helper's `result = []` as empty.
+# pylint: disable=unbalanced-tuple-unpacking
+
 from __future__ import annotations
 
 import logging

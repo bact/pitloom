@@ -62,6 +62,7 @@ def test_shim_read_array_header_fallbacks() -> None:
         assert str(dtype) == "float32"
     finally:
         if orig_fn is not None:
+            # pylint: disable-next=protected-access
             fmt._read_array_header = orig_fn  # type: ignore[attr-defined]
 
 

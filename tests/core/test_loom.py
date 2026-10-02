@@ -11,6 +11,8 @@ See also:
 - :mod:`tests.core.test_loom_registry` for registry and script file / generates tests.
 """
 
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import json
@@ -37,7 +39,6 @@ def test_get_caller_info_exception_logs_and_returns_fallback(
         "pitloom._loom_caller.inspect.stack", side_effect=RuntimeError("no frames")
     ):
         with caplog.at_level(logging.DEBUG, logger="pitloom.loom"):
-            # pylint: disable=protected-access
             result = _loom_active_run._get_caller_info()
 
     assert result == "Source: unknown | Method: inspect_caller (tool: pitloom.loom)"

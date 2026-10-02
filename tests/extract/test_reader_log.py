@@ -48,15 +48,18 @@ class _Worker(threading.Thread):
             {"enter": self._enter, "log": self._log}.get(action, self._exit)
         )
         self._go.release()
+        # pylint: disable-next=consider-using-with
         assert self._done.acquire(timeout=10)
 
     def run(self) -> None:
+        # pylint: disable-next=consider-using-with
         while self._go.acquire(timeout=10):
             self._steps.pop(0)()
             self._done.release()
 
     def _enter(self) -> None:
         self._cm = capture_reader_logs()
+        # pylint: disable-next=unnecessary-dunder-call
         self.records = self._cm.__enter__()
 
     def _log(self) -> None:
@@ -148,6 +151,7 @@ def test_a_record_without_a_thread_id_is_captured_by_the_emitting_thread(
     monkeypatch.setattr(logging, "logThreads", False)
     with capture_reader_logs() as records:
         logging.getLogger(_NAME).warning("no thread id")
+    # pylint: disable-next=unbalanced-tuple-unpacking
     (record,) = records
     assert record.thread is None  # the setup took effect
     assert record.getMessage() == "no thread id"

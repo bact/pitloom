@@ -14,6 +14,8 @@ the cache's single-threaded behaviour and the build-options threading)
 once that file crossed the ~400-500 line soft limit.
 """
 
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import contextlib

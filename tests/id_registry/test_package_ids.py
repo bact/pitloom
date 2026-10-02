@@ -266,8 +266,8 @@ def test_same_package_declared_twice_is_one_element_one_hit(
             make_doc(dependencies=["Foo==1.0", "foo==1.0.0"]), registry
         )
 
-    foo = [p for p in packages(exporter) if p.name.lower() == "foo"]
-    assert [p.spdx_id for p in foo] == [pinned]
+    foo_pkgs = [p for p in packages(exporter) if p.name.lower() == "foo"]
+    assert [p.spdx_id for p in foo_pkgs] == [pinned]
     assert not claim_warnings(caplog)
 
 
@@ -288,11 +288,11 @@ def test_same_name_different_versions_first_claimant_takes_pinned_id(
         second = build_doc(doc, registry)
 
     for exporter in (first, second):
-        foo = {
+        foo_ids = {
             p.version: p.spdx_id for p in packages(exporter) if p.name.lower() == "foo"
         }
-        assert foo["1.0"] == pinned
-        assert foo["2.0"] != pinned
+        assert foo_ids["1.0"] == pinned
+        assert foo_ids["2.0"] != pinned
     assert second.to_json() == first.to_json()
     assert registry.lookup_entity("foo", PACKAGE_ENTITY_TYPE) == pinned
     warnings = claim_warnings(caplog)

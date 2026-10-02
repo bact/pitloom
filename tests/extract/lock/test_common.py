@@ -8,6 +8,8 @@ across every lock/pin extractor (:mod:`pitloom.extract.lock.poetry`,
 :mod:`pitloom.extract.lock.pylock`, :mod:`pitloom.extract.lock.uv`,
 :mod:`pitloom.extract.lock.pdm`)."""
 
+# pylint: disable=protected-access
+
 import logging
 import tempfile
 from pathlib import Path

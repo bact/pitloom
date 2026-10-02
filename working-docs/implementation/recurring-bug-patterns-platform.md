@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-10-01
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -193,6 +193,17 @@ the move.
   defensive fallbacks, error wording, and the Python-step `if:`
   expressions (covered only by `action-selftest-install.yml` in CI)
   (PR #224).
+- **A green linter run can be linting a fraction of the tree.**
+  `tests/__init__.py` makes `tests/` a package, and pylint expands a
+  package only into subfolders that have `__init__.py` -- so `pylint
+  tests/` (with or without `--recursive=y`) skipped every test file under
+  `tests/*/`, ~450 findings unseen. Linting a subfolder directly named its
+  modules by basename, so relative imports misreported (E0402) until
+  `source-roots` gained `"."`; astroid still cannot resolve a relative
+  import of a *subdirectory* from a namespace folder (`from .hf_patches.x`),
+  so those became absolute `tests.` imports. CI now runs `pylint ...
+  tests/ tests/*/`. Check a linter's scope by planting a known finding in
+  the deepest folder, not by reading its score.
 - **Workflow-command injection through echoed tool output.** A composite
   step that tees a tool's output to the log lets a line starting `::` run
   as a workflow command. `::stop-commands::<random token>` fences the echo,

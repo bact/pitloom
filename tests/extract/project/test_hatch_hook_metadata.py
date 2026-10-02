@@ -1,4 +1,8 @@
-# ruff: noqa: F403, F405
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
 """Tests for metadata_from_hatchling()'s field-mapping and edge-case
 behavior.
 
@@ -14,16 +18,16 @@ from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from unittest.mock import patch
 
-import hatchling.metadata.core as hatchling_metadata_core  # noqa: E402
+import hatchling.metadata.core as hatchling_metadata_core
 import pytest
-from hatchling.plugin.manager import PluginManager  # noqa: E402
+from hatchling.plugin.manager import PluginManager
 
-from pitloom.extract.project.hatchling import (  # noqa: E402
+from pitloom.extract.project.hatchling import (
     _hatchling_field_declared,
     _resolve_hatchling_license_files,
     metadata_from_hatchling,
 )
-from pitloom.plugins.hatch import (  # noqa: E402
+from pitloom.plugins.hatch import (
     _check_hatchling_sbom_support,
 )
 
@@ -180,6 +184,7 @@ def test_resolve_hatchling_license_files_tolerates_oserror() -> None:
     Hatchling and can raise a bare ``OSError`` for the same class of
     reason (e.g. a filesystem error resolving a referenced path)."""
 
+    # pylint: disable-next=too-few-public-methods
     class _RaisingCore:
         config = {"license-files": ["LICENSE"]}
 
@@ -196,6 +201,7 @@ def test_hatchling_field_declared_tolerates_oserror_on_config_access() -> None:
     same class of lazily-evaluated Hatchling property failure every other
     ``core.X`` read in this module tolerates."""
 
+    # pylint: disable-next=too-few-public-methods
     class _RaisingCore:
         @property
         def config(self) -> dict[str, object]:

@@ -1,11 +1,17 @@
-# ruff: noqa: F403, F405
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""Tests for the Pitloom Hatchling build hook's config validation."""
+
 from __future__ import annotations
 
 from typing import Any
 
 import pytest
 
-from pitloom.plugins.hatch import (  # noqa: E402
+from pitloom.plugins.hatch import (
     _validate_config,
 )
 

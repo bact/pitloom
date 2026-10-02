@@ -75,6 +75,7 @@ def test_declared_size_over_the_ceiling_is_refused_before_any_copy(
     tmp_path: Path, copies: list[Path], caplog: pytest.LogCaptureFixture
 ) -> None:
     wheel = write_model_wheel(tmp_path, {_NAME: safetensors_bytes(4096)})
+    # pylint: disable-next=unbalanced-tuple-unpacking
     (model,) = _scan(wheel, _CEILING)
     _assert_format_only_stub(model)
     (message,) = _messages(caplog)
@@ -115,6 +116,7 @@ def test_a_stream_longer_than_declared_stops_at_the_ceiling(
         return real_open(self, name, *a, **k)
 
     monkeypatch.setattr(zipfile.ZipFile, "open", lying_open)
+    # pylint: disable-next=unbalanced-tuple-unpacking
     (model,) = _scan(wheel, _CEILING)
     _assert_format_only_stub(model)
     (message,) = _messages(caplog)

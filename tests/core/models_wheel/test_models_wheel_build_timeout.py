@@ -60,6 +60,8 @@ def test_allow_build_settings_reach_build_and_read_registered_backend(
     ``_models_wheel_dispatch.py``."""
     make_backend_project(tmp_path, "setuptools.build_meta")
 
+    # The explicit None is the failure signal; mypy requires the return.
+    # pylint: disable-next=useless-return
     def _failed_setuptools_discover(
         project_dir: Path, *, pyproject_data: dict[str, object] | None = None
     ) -> list[IncludedFile] | None:

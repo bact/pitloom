@@ -3,6 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
+"""Tests for Hugging Face model ID parsing and source detection."""
+
 from __future__ import annotations
 
 from pathlib import Path

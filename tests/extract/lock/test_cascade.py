@@ -96,6 +96,7 @@ def test_apply_locked_dependencies_no_source_present_leaves_metadata_untouched()
 
         apply_locked_dependencies(metadata, tmp_path)
 
+        # pylint: disable-next=use-implicit-booleaness-not-comparison
         assert metadata.locked_dependencies == []
         assert "locked_dependencies" not in metadata.provenance
 
@@ -192,6 +193,7 @@ def test_apply_locked_dependencies_valid_empty_source_wins_over_lower_priority()
 
         apply_locked_dependencies(metadata, tmp_path)
 
+        # pylint: disable-next=use-implicit-booleaness-not-comparison
         assert metadata.locked_dependencies == []
         assert metadata.provenance["locked_dependencies"] == (
             "Source: pylock.toml | Method: resolved_lockfile"

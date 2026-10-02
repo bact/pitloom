@@ -23,7 +23,10 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 
+# `license` mirrors the Hugging Face card key that callers pass by name.
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def _make_card_data(
+    # pylint: disable-next=redefined-builtin
     license: str | None = "apache-2.0",
     pipeline_tag: str | None = "text-generation",
     tags: list[str] | None = None,

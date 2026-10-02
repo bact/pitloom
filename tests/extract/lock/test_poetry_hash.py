@@ -21,6 +21,7 @@ from pitloom.extract.lock.poetry import extract_poetry_lock_dependencies
 from pitloom.extract.lock.poetry_hash import (
     _filename_matches_version,
     _legacy_metadata_files_by_canonical_name,
+    _parse_artifact_version,
     extract_poetry_lock_hashes,
 )
 
@@ -247,8 +248,6 @@ def test_filename_matches_version_case_insensitive_fallback() -> None:
 def test_parse_artifact_version_catches_invalid_filenames() -> None:
     """Invalid wheel or sdist filenames containing the target version string
     are caught and swallowed during PEP 427/625 local version normalization."""
-    from pitloom.extract.lock.poetry_hash import _parse_artifact_version
-
     # A filename containing "-1.0_cpu-" but which is not a valid wheel (too few tags)
     assert _parse_artifact_version("pkg-1.0_cpu-invalid.whl", "1.0+cpu") is None
     # To trigger the sdist exception, we pass a version string that is

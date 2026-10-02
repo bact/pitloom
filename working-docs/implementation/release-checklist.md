@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -30,8 +30,9 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
 - [ ] `mypy examples/ src/ tests/` -- clean.
 - [ ] `ruff check examples/ src/ tests/` and `ruff format --check
       examples/ src/ tests/` -- clean.
-- [ ] `pylint src/ tests/ examples/` -- 10.00/10 (`--ignore-paths` any
-      stray local `.venv` under `examples/` -- see
+- [ ] `pylint examples/ src/ tests/ tests/*/` -- 10.00/10 (`tests/*/`:
+      pylint does not descend into `tests/` subfolders on its own;
+      `--ignore-paths` any stray local `.venv` under `examples/` -- see
       [summary.md](summary.md) for why one can exist untracked).
 - [ ] `scripts/` is not linted by CI: run ruff, mypy, pylint, flake8,
       `shellcheck -x scripts/action/*.sh` and `actionlint` on it by hand

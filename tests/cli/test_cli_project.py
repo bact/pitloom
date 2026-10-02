@@ -59,13 +59,9 @@ pretty = true
         creation_metadata: object | None = None,
         pretty: bool | None = None,
         describe_relationship: bool | None = None,
-        project_metadata: object | None = None,
         pitloom_config: object | None = None,
-        registry: object | None = None,
-        **kwargs: object,
+        **_kwargs: object,
     ) -> str:
-        _ = (registry, kwargs)
-        _ = project_metadata
         captured["project_dir"] = project_dir
         captured["output_path"] = output_path
         captured["creation_metadata"] = creation_metadata
@@ -114,25 +110,10 @@ creation-datetime = "2026-04-01T00:00:00Z"
     captured: dict[str, object] = {}
 
     def _fake_generate_project_sbom(
-        project_dir: Path,
-        output_path: Path | None = None,
+        _project_dir: Path,
         creation_metadata: object | None = None,
-        pretty: bool | None = None,
-        describe_relationship: bool | None = None,
-        project_metadata: object | None = None,
-        pitloom_config: object | None = None,
-        registry: object | None = None,
-        **kwargs: object,
+        **_kwargs: object,
     ) -> str:
-        _ = (registry, kwargs)
-        _ = (
-            project_dir,
-            output_path,
-            pretty,
-            describe_relationship,
-            project_metadata,
-            pitloom_config,
-        )
         captured["creation_metadata"] = creation_metadata
         return "{}"
 
@@ -189,23 +170,12 @@ creation-datetime = "2030-01-02T03:04:05Z"
     captured: dict[str, object] = {}
 
     def _fake_generate_project_sbom(
-        project_dir: Path,
-        output_path: Path | None = None,
+        _project_dir: Path,
         creation_metadata: object | None = None,
         pretty: bool | None = None,
-        describe_relationship: bool | None = None,
-        project_metadata: object | None = None,
         pitloom_config: object | None = None,
-        registry: object | None = None,
-        **kwargs: object,
+        **_kwargs: object,
     ) -> str:
-        _ = (registry, kwargs)
-        _ = (
-            project_dir,
-            output_path,
-            describe_relationship,
-            project_metadata,
-        )
         captured["creation_metadata"] = creation_metadata
         captured["pretty"] = effective_setting(pretty, pitloom_config, "pretty")
         return "{}"

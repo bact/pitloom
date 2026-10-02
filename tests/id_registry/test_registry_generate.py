@@ -24,6 +24,7 @@ from pitloom.id_registry import (
     DEFAULT_ID_REGISTRY_FILENAME,
     IdRegistry,
 )
+from pitloom.id_registry._types import _iter_files
 from tests.id_registry.shared import _sha256
 
 
@@ -139,10 +140,8 @@ def test_generate_handles_oserror(
 def test_iter_files_edge_cases(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME
-    from pitloom.id_registry._types import _iter_files
-
     # Missing root
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert list(_iter_files([tmp_path / "missing"], tmp_path)) == []
     assert "path not found, skipping" in caplog.text
 

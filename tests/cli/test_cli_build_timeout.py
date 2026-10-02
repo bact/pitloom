@@ -23,8 +23,9 @@ from typing import Any
 import pytest
 
 from pitloom import __main__
+from pitloom.cli.parser import _build_parser
 from pitloom.core.build_options import BuildOptions
-from tests.assemble.conftest import _make_dummy_wheel
+from tests.assemble.conftest import _make_dummy_wheel, _make_sdist
 from tests.cli.shared import _make_simple_project
 
 _PROJECT_COMMANDS = [
@@ -36,8 +37,6 @@ _PROJECT_COMMANDS = [
 
 @pytest.mark.parametrize(("command", "target_args"), _PROJECT_COMMANDS)
 def test_build_timeout_default_is_none(command: str, target_args: list[str]) -> None:
-    from pitloom.cli.parser import _build_parser
-
     parser = _build_parser()
     assert parser.parse_args([command, *target_args]).build_timeout is None
 
@@ -53,8 +52,6 @@ def test_build_timeout_parses_to_int_seconds(
 ) -> None:
     """The namespace always holds resolved ``int`` seconds, regardless of
     whether the CLI text was a bare number or an h/m/s unit form."""
-    from pitloom.cli.parser import _build_parser
-
     parser = _build_parser()
     args = parser.parse_args([command, *target_args, "--build-timeout", value])
     assert args.build_timeout == expected_seconds
@@ -73,8 +70,6 @@ def test_build_timeout_rejects_invalid_values(
     """An out-of-range or malformed ``--build-timeout`` value is an
     argparse error (exit code 2), not a raised exception reaching the
     caller as a traceback."""
-    from pitloom.cli.parser import _build_parser
-
     parser = _build_parser()
     with pytest.raises(SystemExit) as excinfo:
         parser.parse_args([command, *target_args, "--build-timeout", bad_value])
@@ -107,8 +102,6 @@ def test_command_passes_one_build_options_to_library(
         wheel = _make_dummy_wheel(tmp_path / "dist", "demo", "1.0.0")
         argv = ["embed-wheel", str(wheel), "--project-dir", str(project_dir)]
     elif command == "generate-sdist":
-        from tests.assemble.conftest import _make_sdist
-
         argv = ["generate", str(_make_sdist(tmp_path)), "-o", output]
     else:
         argv = [command, str(project_dir), "-o", output]

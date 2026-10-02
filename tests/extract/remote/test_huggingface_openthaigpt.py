@@ -1,11 +1,16 @@
-# ruff: noqa: F403, F405
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""Tests for read_huggingface() on the OpenThaiGPT model."""
+
 from __future__ import annotations
 
 from pitloom.extract.remote.huggingface import (
     read_huggingface,
 )
-
-from .hf_patches._hf_patches_text_generation_regional import (
+from tests.extract.remote.hf_patches._hf_patches_text_generation_regional import (
     _patch_openthaigpt,
 )
 

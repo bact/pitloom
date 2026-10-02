@@ -10,6 +10,8 @@ See also:
 - :mod:`tests.extract.test_hatch_hook_hook_integration` for integration tests.
 """
 
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import json

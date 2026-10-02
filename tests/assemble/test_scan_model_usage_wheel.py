@@ -352,10 +352,10 @@ def _run(
     tmp: Path,
     mp: pytest.MonkeyPatch,
     *argv: str,
-    members: dict[str, bytes] = _MEMBERS,
+    members: dict[str, bytes] | None = None,
 ) -> str:
     """One ``wheel`` or standalone ``embed-wheel`` run over the model wheel."""
-    wheel = write_model_wheel(tmp / "dist", members)
+    wheel = write_model_wheel(tmp / "dist", _MEMBERS if members is None else members)
     out = tmp / "out.json"
     head = ["wheel", str(wheel), "-o", str(out)] if kind == "wheel" else ["embed-wheel"]
     run_cli([*head, *([str(wheel)] if kind != "wheel" else []), "--offline", *argv], mp)
