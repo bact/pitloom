@@ -29,6 +29,8 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_project_sbom
 from pitloom.assemble.spdx3.document import _build_main_package, _magika_version, build
+from pitloom.core.ai_metadata import AiModelMetadata
+from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
@@ -173,7 +175,12 @@ def test_build_main_package_copyright_year_fallback_when_created_not_datetime(
     """When spdx_ci.created is not a datetime, fall back to current UTC year."""
 
     class MockDatetime(datetime):
+        """datetime whose now() returns a fixed instant."""
+
         @classmethod
+        # Signature mirrors datetime.now(); the annotation names this local
+        # class, which pylint cannot resolve under postponed evaluation.
+        # pylint: disable-next=unused-argument,undefined-variable
         def now(cls, tz: tzinfo | None = None) -> MockDatetime:
             return cls(2026, 3, 15, 12, 0, tzinfo=timezone.utc)
 
@@ -334,8 +341,6 @@ def test_add_package_files_skips_relationships_when_build_relationship_none(
 def test_build_document_ai_model_license_adds_simple_licensing_profile() -> None:
     """When an AI model has a license and the project has no license,
     simpleLicensing profile must be added to profileConformance."""
-    from pitloom.core.ai_metadata import AiModelMetadata
-
     project = ProjectMetadata(name="ai-lic-project", version="1.0.0", license_name=None)
     ai_model = AiModelMetadata(name="test-model", license="Apache-2.0")
     doc = DocumentModel(
@@ -457,11 +462,10 @@ def test_generate_project_sbom_does_not_mutate_caller_files(
         version="1.0.0",
         files=initial_files,
     )
-    from pitloom.core.config import PitloomConfig
-
     generate_project_sbom(
         tmp_path, project_metadata=caller_meta, pitloom_config=PitloomConfig()
     )
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert initial_files == []
 
 

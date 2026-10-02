@@ -182,11 +182,8 @@ ids-file = registry.json
 """
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
-        try:
+        with pytest.raises(ValueError) as exc_info:
             read_setup_cfg(Path(d))
-        except ValueError as exc:
-            message = str(exc)
-        else:
-            raise AssertionError("expected ValueError for moved 'ids-file' key")
+    message = str(exc_info.value)
     assert "[tool:pitloom]" in message
     assert "[tool.pitloom]" not in message

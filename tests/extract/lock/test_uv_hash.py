@@ -120,7 +120,9 @@ def test_artifact_hash_candidates_strips_url_query_and_fragment() -> None:
 
 def test_artifact_hash_candidates_non_list_wheels_degrades_gracefully() -> None:
     """Malformed non-list wheels must not crash with TypeError."""
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert _artifact_hash_candidates({"wheels": 123}) == []
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert _artifact_hash_candidates({"wheels": "not-a-list"}) == []
 
 

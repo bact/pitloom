@@ -104,6 +104,7 @@ def test_interrupts_the_undo_cannot_outlast_are_raised_within_the_bound(
         """Taken once, then interrupted whenever it is taken; past 100 takes
         the wait is evidently unbounded."""
 
+        # pylint: disable-next=unused-argument
         def acquire(self, timeout: float = -1) -> bool:
             takes.append(1)
             if len(takes) == 1:

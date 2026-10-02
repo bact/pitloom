@@ -195,6 +195,7 @@ def test_discover_sort_is_by_code_point_and_keeps_duplicates() -> None:
         found = discover_ai_models([_cand(n) for n in [*names, "skip.txt"]])
     assert [m.format_info.file_path_relative for m in found] == sorted(names)
     assert sorted(names) != names  # not vacuous
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert discover_ai_models([]) == []
 
 

@@ -289,7 +289,12 @@ type = "person"
 [tool.pylint.main]
 ignore-paths = ["^tests/fixtures/.*$"]
 init-hook = "import sys; sys.path.insert(0, 'src'); sys.path.insert(0, 'examples/sentimentdemo-aibom/src')"
-source-roots = ["src", "examples/sentimentdemo-aibom/src"]
+# "." names test modules in tests/ subfolders (no __init__.py) by dotted path,
+# so their relative imports resolve -- for directory arguments only; a single
+# file argument still gets a bare name (false E0402). Pylint does not descend
+# from the tests/ package into those subfolders: pass them too
+# (`pylint ... tests/ tests/*/`).
+source-roots = ["src", "examples/sentimentdemo-aibom/src", "."]
 
 [tool.pylint.design]
 max-args = 6                 # Target: 5

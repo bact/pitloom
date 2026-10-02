@@ -14,7 +14,7 @@ See also: :mod:`tests.assemble.test_trust_wheel_model` (every surface) and
 :mod:`tests.fixtures.aimodels` README (the hostile files).
 """
 
-# pylint: disable=missing-function-docstring
+# pylint: disable=missing-function-docstring,protected-access
 
 from __future__ import annotations
 
@@ -218,6 +218,7 @@ def test_a_hostile_hdf5_is_listed_not_opened(tmp_path: Path, fixture: str) -> No
 def test_a_project_scan_is_not_gated(tmp_path: Path) -> None:
     pytest.importorskip("fickling")
     (tmp_path / "m.pt").write_bytes(fixture_bytes("pytorch/example-model.pt"))
+    # pylint: disable-next=unbalanced-tuple-unpacking
     (model,) = scan_project_for_ai_models(
         tmp_path,
         [ProjectFile(physical_path="m.pt", distribution_path="m.pt")],

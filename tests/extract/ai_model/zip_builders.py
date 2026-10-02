@@ -41,8 +41,8 @@ def directory(entries: int) -> bytes:
     return header() * entries
 
 
-def directory_of(header: bytes, entries: int) -> bytes:
-    d = header * entries
+def directory_of(one_header: bytes, entries: int) -> bytes:
+    d = one_header * entries
     return d + eocd(entries, len(d))
 
 

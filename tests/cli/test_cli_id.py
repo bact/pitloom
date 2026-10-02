@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import runpy
 import sys
 from pathlib import Path
 from typing import Any
@@ -343,6 +344,7 @@ def test_main_returns_1_when_parsed_args_have_no_func(
     reached), main() returns 1 rather than crashing on the missing
     attribute."""
 
+    # pylint: disable-next=too-few-public-methods
     class _FakeParser:
         def parse_args(self) -> argparse.Namespace:
             return argparse.Namespace()
@@ -364,8 +366,6 @@ def test_module_entrypoint_exits_with_main_return_code(
     case -- a real Python footgun, not a Pitloom bug, but one this test
     can simply avoid by executing the file directly instead.
     """
-    import runpy
-
     monkeypatch.setattr(sys, "argv", ["pitloom", "id", "generate", "--help"])
     with pytest.raises(SystemExit) as exc_info:
         runpy.run_path(__main__.__file__, run_name="__main__")

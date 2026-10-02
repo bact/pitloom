@@ -80,6 +80,7 @@ def _run_id(tmp_path: Path, command: str) -> int:
 @pytest.mark.parametrize(
     ("config", "contents", "tail"), _CASES.values(), ids=list(_CASES)
 )
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def test_hint_adds_or_changes_the_key(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

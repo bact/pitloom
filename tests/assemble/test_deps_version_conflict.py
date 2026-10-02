@@ -126,6 +126,8 @@ def test_merge_conflict_candidates_dedupes_shared_locked_side() -> None:
     # Both distinct declared values kept, but the identical locked-side
     # candidate (same value/role/source in both inputs) collapses to one.
     assert len(merged) == 3
+    # pylint does not narrow ``merged`` after the ``is not None`` assert.
+    # pylint: disable-next=not-an-iterable
     values = [c["value"] for c in merged]
     assert values.count(">=2.0") == 1
     assert values.count(">=3.0") == 1

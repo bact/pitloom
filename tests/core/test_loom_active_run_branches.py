@@ -82,6 +82,7 @@ def test_script_file_has_no_verified_using_when_hash_lookup_returns_none(
     """_build_script_file leaves verifiedUsing unset when
     _hash_and_registry_lookup can't compute a hash for the script (e.g. it
     isn't a real on-disk file from the lookup's point of view)."""
+    # pylint: disable-next=protected-access
     real_lookup = _loom_active_run._hash_and_registry_lookup
 
     def fake_lookup(name: str, registry: Any) -> tuple[None, None] | Any:

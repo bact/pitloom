@@ -21,6 +21,8 @@ def fixture_copies(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
     opened: list[Path] = []
     real_open = open
 
+    # Mirrors the signature of builtins.open().
+    # pylint: disable-next=keyword-arg-before-vararg
     def spy(file: Any, mode: str = "r", *args: Any, **kwargs: Any) -> Any:
         if "x" in mode:
             opened.append(Path(file))

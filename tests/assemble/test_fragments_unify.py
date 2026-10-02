@@ -9,6 +9,8 @@ reached by the higher-level `merge_fragments()` integration tests in
 :mod:`tests.core.test_fragments_misc`.
 """
 
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import logging

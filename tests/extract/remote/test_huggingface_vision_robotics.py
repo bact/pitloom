@@ -19,13 +19,12 @@ test_huggingface_vision.py.
 from __future__ import annotations
 
 from pitloom.extract.remote.huggingface import read_huggingface
-
-from .hf_patches._hf_patches_embeddings import (
+from tests.extract.remote.hf_patches._hf_patches_embeddings import (
     _patch_rad_dino,
     _patch_timm_convnext,
     _patch_uni2,
 )
-from .hf_patches._hf_patches_generative_3d import (
+from tests.extract.remote.hf_patches._hf_patches_generative_3d import (
     _patch_apple_sharp,
     _patch_blenderllm,
     _patch_blenderllm_gguf,
@@ -37,7 +36,7 @@ from .hf_patches._hf_patches_generative_3d import (
     _patch_shap_e,
     _patch_stable_zero123,
 )
-from .hf_patches._hf_patches_multimodal import (
+from tests.extract.remote.hf_patches._hf_patches_multimodal import (
     _patch_blip_vqa,
     _patch_deplot,
     _patch_sealion_vl,

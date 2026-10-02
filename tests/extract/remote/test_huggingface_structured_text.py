@@ -16,8 +16,7 @@ test_huggingface_vision.py, test_huggingface_vision_robotics.py.
 from __future__ import annotations
 
 from pitloom.extract.remote.huggingface import read_huggingface
-
-from .hf_patches._hf_patches_structured_text import (
+from tests.extract.remote.hf_patches._hf_patches_structured_text import (
     _patch_fineweb_edu,
     _patch_moirai,
     _patch_sap_rpt,

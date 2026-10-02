@@ -66,7 +66,8 @@ def test_the_directory_start_is_where_zipfile_seeks(
     data = build(2)
     found = archive_member._directory_start_and_size(io.BytesIO(data))
     assert found is not None
-    assert found[0] == zipfile.ZipFile(io.BytesIO(data)).start_dir
+    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        assert found[0] == zf.start_dir
     assert found[1] > 0
     # The lines of arithmetic the check copies, in this interpreter's source.
     source = inspect.getsource(_private(zipfile.ZipFile, "_RealGetContents"))
@@ -81,7 +82,7 @@ def test_the_directory_start_is_where_zipfile_seeks(
         assert line in source
 
 
-_REAL_END_RECORD: Any = _private(zipfile, "_EndRecData")
+_real_end_record: Any = _private(zipfile, "_EndRecData")
 
 
 def _end_record_as(fixed: bool) -> Callable[[Any], Any]:
@@ -96,7 +97,7 @@ def _end_record_as(fixed: bool) -> Callable[[Any], Any]:
         current = zf._EndRecData64
         zf._EndRecData64 = lambda _fh, _offset, endrec: endrec  # plain only
         try:
-            endrec = _REAL_END_RECORD(fh)
+            endrec = _real_end_record(fh)
         finally:
             zf._EndRecData64 = current
         if not endrec:
@@ -177,7 +178,7 @@ def test_a_start_computed_wrongly_is_a_refusal_never_a_bypass(
 
 
 @pytest.mark.parametrize(
-    ("directory", "comment"),
+    ("central_dir", "comment"),
     [
         (b"\0" * HEADER, b""),
         (directory(1) + b"x" * 4, b""),
@@ -187,13 +188,13 @@ def test_a_start_computed_wrongly_is_a_refusal_never_a_bypass(
     ids=["no-signature", "short-last-header", "short-last-header-then-end-record"],
 )
 def test_a_directory_zipfile_could_not_read_is_refused(
-    directory: bytes, comment: bytes, tmp_path: Path
+    central_dir: bytes, comment: bytes, tmp_path: Path
 ) -> None:
     """Not a header, or one cut short by the directory's size: ``zipfile``
     raises, and a disagreement about the directory must not read as "within
     the cap"."""
     path = tmp_path / "m.zip"
-    path.write_bytes(directory + eocd(1, len(directory), comment=comment))
+    path.write_bytes(central_dir + eocd(1, len(central_dir), comment=comment))
     with pytest.raises(ModelLimitExceeded, match="malformed"):
         with open_model_binary(path):
             pass
@@ -233,7 +234,7 @@ def test_a_zipfile_that_cannot_be_asked_fails_closed(
     elif broken == "neither-convention":
 
         def _elsewhere(fh: Any) -> list[Any]:
-            endrec = _REAL_END_RECORD(fh)
+            endrec = _real_end_record(fh)
             endrec[_private(zipfile, "_ECD_LOCATION")] += 1
             return endrec  # type: ignore[no-any-return]
 
@@ -250,9 +251,9 @@ def test_a_zipfile_that_cannot_be_asked_fails_closed(
         def _end_record(fh: Any) -> Any:
             # "on-the-file": the check's own probe is answered truthfully
             if on_file and isinstance(fh, io.BytesIO):
-                return _REAL_END_RECORD(fh)
+                return _real_end_record(fh)
             if on_probe and not isinstance(fh, io.BytesIO):
-                return _REAL_END_RECORD(fh)
+                return _real_end_record(fh)
             return wrong(fh)
 
         monkeypatch.setattr(zipfile, "_EndRecData", _end_record)
@@ -268,7 +269,7 @@ def test_an_end_record_zipfile_itself_refuses_is_left_to_it(
 ) -> None:
     def _raises(fh: Any) -> list[Any] | None:
         if isinstance(fh, io.BytesIO):  # the check's own probe
-            return _REAL_END_RECORD(fh)  # type: ignore[no-any-return]
+            return _real_end_record(fh)  # type: ignore[no-any-return]
         raise error
 
     monkeypatch.setattr(zipfile, "_EndRecData", _raises)

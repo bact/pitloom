@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from pitloom import __main__
+from pitloom.cli.parser import _build_parser
 from tests.cli.shared import _make_simple_project
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
@@ -186,8 +187,6 @@ def test_creator_type_action_returns_after_parser_error(
     standard technique for testing custom argparse ``Action`` internals)
     to confirm parsing returns cleanly instead of raising, without
     touching the action's own unreachable-return code."""
-    from pitloom.cli.parser import _build_parser
-
     monkeypatch.setattr(argparse.ArgumentParser, "error", lambda self, msg: None)
     parser = _build_parser()
     namespace = parser.parse_args(["project", ".", "--creator-type", "person"])
@@ -198,8 +197,6 @@ def test_creator_email_action_returns_after_parser_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Same as above for ``_CreatorEmailAction.__call__``."""
-    from pitloom.cli.parser import _build_parser
-
     monkeypatch.setattr(argparse.ArgumentParser, "error", lambda self, msg: None)
     parser = _build_parser()
     namespace = parser.parse_args(["project", ".", "--creator-email", "a@example.com"])
@@ -225,8 +222,6 @@ def test_offline_flag_supports_three_states(
     ``[tool.pitloom] offline``), and explicitly overridable back to
     ``False`` via ``--no-offline`` -- not just a one-way ``store_true``
     with no way to force network access back on for a single run."""
-    from pitloom.cli.parser import _build_parser
-
     parser = _build_parser()
 
     assert parser.parse_args([command, *target_args]).offline is None
@@ -250,8 +245,6 @@ def test_use_lockfile_flag_supports_three_states(
     explicitly overridable back to ``False`` via ``--no-use-lockfile``.
     Only offered on commands that read a lock/pin file cascade at all --
     not ``wheel``/``embed-wheel``/``model``/``env``."""
-    from pitloom.cli.parser import _build_parser
-
     parser = _build_parser()
 
     assert parser.parse_args([command, *target_args]).use_lockfile is None
@@ -283,8 +276,6 @@ def test_allow_build_flags_present_and_plain_bool(
     ``--use-lockfile`` above, both are a plain ``store_true`` defaulting
     to ``False`` (no tri-state/``--no-...`` counterpart), matching their
     deliberate lack of a ``[tool.pitloom]`` config-file equivalent."""
-    from pitloom.cli.parser import _build_parser
-
     parser = _build_parser()
 
     assert parser.parse_args([command, *target_args]).allow_build is False
@@ -312,8 +303,6 @@ def test_allow_build_flags_absent_on_non_project_commands(
     at all -- an accepted-but-silently-inert flag is exactly the
     ``--debug``-shipped-before-subcommands-honoured-it bug class CLAUDE.md's
     "Usage surfaces" section warns about."""
-    from pitloom.cli.parser import _build_parser
-
     parser = _build_parser()
 
     with pytest.raises(SystemExit):

@@ -14,6 +14,14 @@ import pytest
 
 from pitloom import __main__
 from pitloom.cli.commands import project as mod_project
+from pitloom.cli.options import (
+    _ResolvedCreationMetadata,
+    _ResolvedCreators,
+    _ResolvedTools,
+    _ResolvedValue,
+)
+from pitloom.cli.verbose import _build_creation_option_rows
+from pitloom.core.creation import Creator, Tool
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 SAFETENSORS_FIXTURE = (
@@ -53,27 +61,7 @@ version = "0.1.0"
         encoding="utf-8",
     )
 
-    def _fake_generate_project_sbom(
-        project_dir: Path,
-        output_path: Path | None = None,
-        creation_metadata: object | None = None,
-        pretty: bool | None = None,
-        describe_relationship: bool | None = None,
-        project_metadata: object | None = None,
-        pitloom_config: object | None = None,
-        registry: object | None = None,
-        **kwargs: object,
-    ) -> str:
-        _ = (registry, kwargs)
-        _ = (
-            project_dir,
-            output_path,
-            creation_metadata,
-            pretty,
-            describe_relationship,
-            project_metadata,
-            pitloom_config,
-        )
+    def _fake_generate_project_sbom(*_args: object, **_kwargs: object) -> str:
         return "{}"
 
     monkeypatch.chdir(current_dir)
@@ -93,15 +81,6 @@ version = "0.1.0"
 
 
 def test_build_creation_option_rows_full() -> None:
-    from pitloom.cli.options import (
-        _ResolvedCreationMetadata,
-        _ResolvedCreators,
-        _ResolvedTools,
-        _ResolvedValue,
-    )
-    from pitloom.cli.verbose import _build_creation_option_rows
-    from pitloom.core.creation import Creator, Tool
-
     creation = _ResolvedCreationMetadata(
         creators=_ResolvedCreators(
             value=[Creator(name="Alice", type="person", email="alice@example.com")],

@@ -7,8 +7,10 @@
 
 from __future__ import annotations
 
+import io
 import logging
 import sys
+import tarfile
 from pathlib import Path
 
 import pytest
@@ -219,6 +221,7 @@ def test_generate_command_requires_output_flag(
 
     assert __main__.main() == 1
     assert "ERROR:" in capsys.readouterr().err
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert list(other_dir.iterdir()) == []
 
 
@@ -229,17 +232,7 @@ def test_deployed_dispatches_to_generate_env_sbom(
     monkeypatch.chdir(tmp_path)
     captured: dict[str, object] = {}
 
-    def _fake_generate_env_sbom(
-        output_path: object = None,
-        creation_metadata: object = None,
-        pretty: bool = False,
-        describe_relationship: bool = False,
-        registry: object = None,
-        offline: bool = False,
-        provenance: object = None,
-        **kwargs: object,
-    ) -> str:
-        _ = (creation_metadata, pretty, describe_relationship, registry, offline)
+    def _fake_generate_env_sbom(output_path: object = None, **_kwargs: object) -> str:
         captured["output_path"] = output_path
         return "{}"
 
@@ -307,9 +300,6 @@ def test_generate_command_sdist_target_ignores_sibling_pyproject(
     beside the archive may belong to anything, so ``loom generate`` reads
     it no more than ``loom project`` does -- its PEP 639 warning (which a
     read would emit) must not appear."""
-    import io
-    import tarfile
-
     (tmp_path / "pyproject.toml").write_text(
         '[project]\nname = "demo"\nversion = "1.0.0"\n'
         'license = "MIT"\n'

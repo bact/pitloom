@@ -25,6 +25,10 @@ from tests.scripts.action._generate_step_shared import (
     _make_wheel,
     _Result,
 )
+
+# Imported so pytest discovers the shared "generate" fixture here.
+# The alias keeps ruff from merging this re-export into the import above.
+# pylint: disable-next=unused-import,useless-import-alias
 from tests.scripts.action._generate_step_shared import (  # noqa: F401
     generate_fixture as generate_fixture,
 )

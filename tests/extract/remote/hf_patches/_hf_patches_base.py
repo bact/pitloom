@@ -23,7 +23,11 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 
+# pylint: disable-next=too-many-arguments
 def _make_card_data(
+    *,
+    # `license` mirrors the Hugging Face card key.
+    # pylint: disable-next=redefined-builtin
     license: str | None = "apache-2.0",
     pipeline_tag: str | None = "text-generation",
     tags: list[str] | None = None,

@@ -11,6 +11,9 @@ for the shared fixtures directory and test_installed_integration.py for
 read_project()/resolve_project_with_lockfile() end-to-end cases.
 """
 
+# Explicit `== []`/`== {}` keeps the None-vs-empty distinction.
+# pylint: disable=use-implicit-booleaness-not-comparison
+
 from __future__ import annotations
 
 import logging

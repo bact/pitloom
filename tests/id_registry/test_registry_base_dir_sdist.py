@@ -56,7 +56,7 @@ def test_embed_wheel_sbom_sdist_project_dir_loads_registry_from_cwd(
 
 
 def test_embed_wheel_sbom_and_generate_project_sbom_agree_on_sdist_registry(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, load_spy: list[Path]
 ) -> None:
     """Drift guard: :func:`embed_wheel_sbom` and
     :func:`generate_project_sbom` must resolve an sdist target's declared
@@ -69,18 +69,8 @@ def test_embed_wheel_sbom_and_generate_project_sbom_agree_on_sdist_registry(
     IdRegistry.new("demo", path=registry_path).save()
     monkeypatch.chdir(cwd)
 
-    loaded_paths: list[Path] = []
-    real_load = IdRegistry.load.__func__  # type: ignore[attr-defined]
-
-    def spy_load(cls: type[IdRegistry], path: Path) -> IdRegistry:
-        loaded_paths.append(path)
-        result: IdRegistry = real_load(cls, path)
-        return result
-
-    monkeypatch.setattr(IdRegistry, "load", classmethod(spy_load))
-
     embed_wheel_sbom(wheel_path, project_dir=sdist_path, id_registry="reg.json")
     generate_project_sbom(sdist_path, id_registry="reg.json")
 
-    assert len(loaded_paths) == 2
-    assert loaded_paths[0] == loaded_paths[1] == registry_path
+    assert len(load_spy) == 2
+    assert load_spy[0] == load_spy[1] == registry_path

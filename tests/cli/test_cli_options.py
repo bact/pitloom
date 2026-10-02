@@ -7,19 +7,56 @@
 
 from __future__ import annotations
 
+import argparse
 import sys
+import types
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from pitloom import __main__
+from pitloom.cli import options_resolve as cli_options
+from pitloom.cli.commands import project
+from pitloom.cli.options import (
+    _load_pitloom_tool_section,
+    _resolve_describe_relationship,
+    _resolve_output_path,
+    _resolve_output_source,
+    _resolve_pretty,
+)
+from pitloom.core.config import PitloomConfig
+from pitloom.core.project import ProjectMetadata
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 SAFETENSORS_FIXTURE = (
     FIXTURE_DIR / "aimodels" / "safetensors" / "whisper-tiny-random.safetensors"
 )
 ONNX_FIXTURE = FIXTURE_DIR / "aimodels" / "onnx" / "squeezenet1.1-7.onnx"
+
+
+# pylint: disable-next=too-few-public-methods
+class _MockMeta:
+    """Minimal project metadata stand-in."""
+
+    name = "foo"
+    version = "1.0"
+
+
+@pytest.fixture(name="stub_project_pipeline")
+def _stub_project_pipeline(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stub project resolution and SBOM generation for ``loom project``."""
+
+    def fake_resolve_project(*_args: Any, **_kwargs: Any) -> Any:
+        return _MockMeta(), PitloomConfig(), None
+
+    def fake_generate(*_args: Any, **_kwargs: Any) -> Any:
+        return None
+
+    monkeypatch.setattr(
+        cli_options, "resolve_project_with_lockfile", fake_resolve_project
+    )
+    monkeypatch.setattr(project, "generate_project_sbom", fake_generate)
 
 
 def test_creator_type_invalid_choice_rejected_by_argparse(
@@ -86,33 +123,13 @@ def test_resolve_project_paths_not_found(
     assert "ERROR: project directory not found" in capsys.readouterr().err
 
 
+@pytest.mark.usefixtures("stub_project_pipeline")
 def test_resolve_project_paths_is_file(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     sdist_file = tmp_path / "my_project-1.0.tar.gz"
     sdist_file.write_text("dummy content")
-
-    from pitloom.cli import options_resolve as cli_options
-    from pitloom.cli.commands import project
-
-    def fake_resolve_project(*args: Any, **kwargs: Any) -> Any:
-        class MockMeta:
-            name = "foo"
-            version = "1.0"
-
-        from pitloom.core.config import PitloomConfig
-
-        return MockMeta(), PitloomConfig(), None
-
-    monkeypatch.setattr(
-        cli_options, "resolve_project_with_lockfile", fake_resolve_project
-    )
-
-    def fake_generate(*args: Any, **kwargs: Any) -> Any:
-        pass
-
-    monkeypatch.setattr(project, "generate_project_sbom", fake_generate)
 
     monkeypatch.setattr(sys, "argv", ["loom", "project", str(sdist_file), "-o", "-"])
     result = __main__.main()
@@ -132,31 +149,11 @@ def test_resolve_project_paths_no_config(
     assert "ERROR: no project configuration found" in capsys.readouterr().err
 
 
+@pytest.mark.usefixtures("stub_project_pipeline")
 def test_explicit_creation_metadata(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    from pitloom.cli import options_resolve as cli_options
-    from pitloom.cli.commands import project
-
-    def fake_resolve_project(*args: Any, **kwargs: Any) -> Any:
-        class MockMeta:
-            name = "foo"
-            version = "1.0"
-
-        from pitloom.core.config import PitloomConfig
-
-        return MockMeta(), PitloomConfig(), None
-
-    monkeypatch.setattr(
-        cli_options, "resolve_project_with_lockfile", fake_resolve_project
-    )
-
-    def fake_generate(*args: Any, **kwargs: Any) -> Any:
-        pass
-
-    monkeypatch.setattr(project, "generate_project_sbom", fake_generate)
-
     proj_dir = tmp_path / "proj"
     proj_dir.mkdir()
     (proj_dir / "pyproject.toml").write_text('[project]\nname="foo"\nversion="1.0"\n')
@@ -186,31 +183,11 @@ def test_explicit_creation_metadata(
     assert result == 0
 
 
+@pytest.mark.usefixtures("stub_project_pipeline")
 def test_no_creation_tool(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    from pitloom.cli import options_resolve as cli_options
-    from pitloom.cli.commands import project
-
-    def fake_resolve_project(*args: Any, **kwargs: Any) -> Any:
-        class MockMeta:
-            name = "foo"
-            version = "1.0"
-
-        from pitloom.core.config import PitloomConfig
-
-        return MockMeta(), PitloomConfig(), None
-
-    monkeypatch.setattr(
-        cli_options, "resolve_project_with_lockfile", fake_resolve_project
-    )
-
-    def fake_generate(*args: Any, **kwargs: Any) -> Any:
-        pass
-
-    monkeypatch.setattr(project, "generate_project_sbom", fake_generate)
-
     proj_dir = tmp_path / "proj"
     proj_dir.mkdir()
     (proj_dir / "pyproject.toml").write_text('[project]\nname="foo"\nversion="1.0"\n')
@@ -223,8 +200,6 @@ def test_no_creation_tool(
 
 
 def test_read_pitloom_tool_missing_sections(tmp_path: Path) -> None:
-    from pitloom.cli.options import _load_pitloom_tool_section
-
     # No tool section
     p = tmp_path / "pyproject.toml"
     p.write_text("[project]\nname='a'\n")
@@ -242,26 +217,20 @@ def test_read_pitloom_tool_missing_sections(tmp_path: Path) -> None:
 def test_read_pitloom_tool_non_pyproject_config(tmp_path: Path) -> None:
     """A config path that isn't ``pyproject.toml`` (e.g. ``setup.cfg``)
     short-circuits to ``{}`` without attempting to parse it as TOML."""
-    from pitloom.cli.options import _load_pitloom_tool_section
-
     p = tmp_path / "setup.cfg"
     p.write_text("[tool.pitloom]\nval=1\n")
     assert _load_pitloom_tool_section(p) == {}
 
 
-def test_read_pitloom_tool_none_config(tmp_path: Path) -> None:
+def test_read_pitloom_tool_none_config() -> None:
     """A ``None`` config path (no pyproject.toml/setup.cfg found at all)
     short-circuits to ``{}``."""
-    from pitloom.cli.options import _load_pitloom_tool_section
-
     assert _load_pitloom_tool_section(None) == {}
 
 
 def test_read_pitloom_tool_returns_section(tmp_path: Path) -> None:
     """A well-formed ``[tool.pitloom]`` section is returned as a plain
     ``str``-keyed dict."""
-    from pitloom.cli.options import _load_pitloom_tool_section
-
     p = tmp_path / "pyproject.toml"
     p.write_text("[tool.pitloom]\npretty = true\nenrich = false\n")
     assert _load_pitloom_tool_section(p) == {"pretty": True, "enrich": False}
@@ -277,11 +246,9 @@ def test_read_pitloom_tool_stdlib_tomllib_branch(
     entry in ``sys.modules`` (reusing the real ``tomli`` parser under that
     name) -- no source changes involved, purely a test-side substitution
     of what ``import tomllib`` resolves to."""
-    import types
-
+    # tomli is only installed below Python 3.11.
+    # pylint: disable-next=import-outside-toplevel
     import tomli
-
-    from pitloom.cli.options import _load_pitloom_tool_section
 
     fake_tomllib = types.ModuleType("tomllib")
     fake_tomllib.loads = tomli.loads  # type: ignore[attr-defined]
@@ -303,8 +270,6 @@ def test_read_pitloom_tool_tomli_backport_branch(
     3.10 and 3.14). ``_load_pitloom_tool_section`` imports fresh on every
     call (no module-level import to reload), so faking
     ``sys.version_info`` alone is enough."""
-    from pitloom.cli.options import _load_pitloom_tool_section
-
     monkeypatch.setattr(sys, "version_info", (3, 10, 0, "final", 0))
 
     p = tmp_path / "pyproject.toml"
@@ -313,14 +278,6 @@ def test_read_pitloom_tool_tomli_backport_branch(
 
 
 def test_resolve_describe_relationship_and_pretty() -> None:
-    import argparse
-
-    from pitloom.cli.options import (
-        _resolve_describe_relationship,
-        _resolve_pretty,
-    )
-    from pitloom.core.config import PitloomConfig
-
     conf = PitloomConfig(pretty=True, describe_relationship=True)
     args = argparse.Namespace(pretty=False, describe_relationship=False)
 
@@ -347,10 +304,6 @@ def test_resolve_describe_relationship_and_pretty() -> None:
 
 
 def test_resolve_output_path_combinations() -> None:
-    from pitloom.cli.options import _resolve_output_path
-    from pitloom.core.config import PitloomConfig
-    from pitloom.core.project import ProjectMetadata
-
     # Explicit path
     assert _resolve_output_path(
         Path("explicit.json"), ProjectMetadata(name="empty"), PitloomConfig()
@@ -378,11 +331,6 @@ def test_resolve_output_path_combinations() -> None:
 
 
 def test_resolve_output_source() -> None:
-    import argparse
-
-    from pitloom.cli.options import _resolve_output_source
-    from pitloom.core.config import PitloomConfig
-
     args = argparse.Namespace(output="file.json")
     assert _resolve_output_source(args, PitloomConfig(), None) == "command-line"
 

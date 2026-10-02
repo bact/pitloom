@@ -14,7 +14,6 @@ license handling, external identifiers, and README enrichment
 variants.
 """
 
-# ruff: noqa: F403, F405
 from __future__ import annotations
 
 import json

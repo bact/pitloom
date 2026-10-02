@@ -410,6 +410,7 @@ def test_extract_locked_version_map_unpinned_does_not_leak_host_environment(
     monkeypatch.setattr(deps_installed, "get_package_version", lambda _name: "9.9.9")
 
     locked_map = _extract_locked_version_map(["unpinned-pkg", "range-dep>=1.0"])
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert locked_map == {}
 
     pinned_map = _extract_locked_version_map(

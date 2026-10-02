@@ -118,7 +118,7 @@ ruff check src/ tests/
 mypy src/
 pyright src/
 pyrefly check src/
-pylint src/
+pylint examples/ src/ tests/ tests/*/
 ```
 
 [pep8]: https://peps.python.org/pep-0008/

@@ -29,6 +29,7 @@ _ONNX = Path(__file__).parent.parent.parent / "fixtures" / "aimodels" / "onnx"
 _ONNX_FLOAT = 1
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
 def _make_onnx_mock(
     graph_name: str = "TestGraph",
     doc_string: str = "A test model",

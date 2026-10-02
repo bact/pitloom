@@ -11,6 +11,8 @@ See also:
 - :mod:`tests.extract.test_hatch_hook_hook_integration` for integration tests.
 """
 
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import json
@@ -33,8 +35,6 @@ from ..conftest import (
     write_pyproject,
     write_pyproject_with_pitloom_config,
 )
-
-pytest.importorskip("hatchling", reason="hatchling is required for hook tests")
 
 
 def test_hook_initialize_honors_pitloom_debug_env_var(

@@ -1,4 +1,8 @@
-# ruff: noqa: F403, F405
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
 """See also: test_fragments_merge_required.py (merge_fragments()'s
 required=True enforcement -- split out to keep this file under the
 project's file-size soft limit)."""
@@ -34,6 +38,8 @@ from .conftest import (
 
 
 class TestMultipleFragmentsMerge:
+    """Merging several fragments keeps every fragment's elements."""
+
     def test_ai_packages_from_all_fragments_present(self) -> None:
         """Both ai_AIPackage elements (one per AI fragment) must appear."""
         graph, _ = _merge_and_parse(

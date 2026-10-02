@@ -70,6 +70,7 @@ def test_a_model_file_is_capped_like_a_scan_with_one_warning(
     """Regression: only the scans cut and announced; ``loom model`` kept
     1001 entries of the same file, silently."""
     path, kept, expected = build(tmp_path)
+    # pylint: disable-next=unbalanced-tuple-unpacking
     (scanned,) = scan_project_for_ai_models(
         tmp_path,
         [ProjectFile(physical_path=path.name, distribution_path=path.name)],

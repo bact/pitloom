@@ -315,6 +315,7 @@ def test_fasttext_args_partial_attributes_skip_none_values(tmp_path: Path) -> No
     model_file = tmp_path / "model.bin"
     model_file.write_bytes(b"fake")
 
+    # pylint: disable-next=too-few-public-methods
     class _PartialArgs:
         # Only "dim" is present; all other hyperparameter attrs are absent,
         # so getattr(..., None) falls back to None and is skipped.

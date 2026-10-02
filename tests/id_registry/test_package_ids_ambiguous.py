@@ -178,8 +178,8 @@ def test_same_name_two_versions_pinned_id_goes_to_first_claimant(
 
     holders = set()
     for _surface, sbom in outputs:
-        foo = [p for p in sbom_packages(sbom) if p.name == "foo"]
-        holders.add(tuple(p.version for p in foo if p.spdx_id == pinned))
+        foo_pkgs = [p for p in sbom_packages(sbom) if p.name == "foo"]
+        holders.add(tuple(p.version for p in foo_pkgs if p.spdx_id == pinned))
     assert holders == {("1.0",)}  # one holder, the same version, every run
     assert package_entries(registry_path)["foo"] == pinned
     assert len(claim_warnings(caplog)) == len(outputs)
@@ -312,15 +312,23 @@ def test_import_sbom_leaves_an_existing_ambiguous_entry_untouched(
 
 
 def test_ambiguous_entity_keys_counts_only_named_typed_non_file_elements() -> None:
+    # pylint: disable-next=too-few-public-methods
     class Named:
+        """A minimal named, typed SPDX element."""
+
         def __init__(self, name: str | None, spdx_id: str | None = "urn:x") -> None:
             self.name = name
+            # Mirrors the SPDX binding's attribute name.
+            # pylint: disable-next=invalid-name
             self.spdxId = spdx_id
 
         def get_compact_type(self) -> str:
             return "software_Package"
 
+    # pylint: disable-next=too-few-public-methods
     class Untyped(Named):
+        """An element whose compact type is not an SPDX class."""
+
         def get_compact_type(self) -> str:
             return "object"
 

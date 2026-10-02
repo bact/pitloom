@@ -81,7 +81,9 @@ def test_a_real_pytorch_file_is_still_a_model_on_both_producers(
     data = (_FIXTURES / name).read_bytes()
     (tmp_path / name).write_bytes(data)
     files = [ProjectFile(physical_path=name, distribution_path=name)]
+    # pylint: disable-next=unbalanced-tuple-unpacking
     (in_project,) = discover_ai_models(project_candidates(tmp_path, files))
+    # pylint: disable-next=unbalanced-tuple-unpacking
     (in_wheel,) = scan_wheel_for_ai_models(
         write_model_wheel(tmp_path / "d", {name: data}),
         scan_usage=False,

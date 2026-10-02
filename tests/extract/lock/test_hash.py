@@ -5,6 +5,9 @@
 
 """Tests for :mod:`pitloom.extract.lock._hash`."""
 
+# Explicit `== []`/`== {}` keeps the None-vs-empty distinction.
+# pylint: disable=use-implicit-booleaness-not-comparison
+
 from __future__ import annotations
 
 from pitloom.extract.lock._common import version_key

@@ -148,6 +148,7 @@ def test_embed_explicit_config_still_concludes_license(tmp_path: Path) -> None:
     assert _root_licenses(sbom_json, "hasConcludedLicense") == ["MIT"]
 
 
+# pylint: disable-next=too-few-public-methods
 class _EmptyMatcher:
     """A licenseid matcher over an empty database."""
 
@@ -158,8 +159,10 @@ class _EmptyMatcher:
 @pytest.fixture(name="fresh_empty_db_warning")
 def fresh_empty_db_warning_fixture() -> Iterator[None]:
     """Reset the process-wide warn-once state around the test."""
+    # pylint: disable-next=protected-access
     _license._warn_empty_database.cache_clear()
     yield
+    # pylint: disable-next=protected-access
     _license._warn_empty_database.cache_clear()
 
 

@@ -5,6 +5,9 @@
 
 """Tests for pitloom.core.project: ProjectMetadata and merge_project_metadata()."""
 
+# Explicit `== []`/`== {}` keeps the None-vs-empty distinction.
+# pylint: disable=use-implicit-booleaness-not-comparison
+
 import tempfile
 from pathlib import Path
 

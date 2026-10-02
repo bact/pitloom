@@ -46,8 +46,10 @@ jobs:
           ruff check examples/ src/ tests/
 
       - name: Pylint
+        # tests/*/: pylint does not descend from the tests/ package into
+        # subfolders without __init__.py.
         run: |
-          pylint examples/ src/ tests/
+          pylint examples/ src/ tests/ tests/*/
 
       - name: Flake8
         run: |

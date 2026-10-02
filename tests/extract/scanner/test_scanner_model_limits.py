@@ -12,7 +12,8 @@ themselves) and :mod:`tests.extract.scanner.test_scanner_wheel_limits`
 (the ceiling and the budget).
 """
 
-# pylint: disable=missing-function-docstring
+# W0632 false positive: pylint infers the returned `models = []` as empty.
+# pylint: disable=missing-function-docstring,unbalanced-tuple-unpacking
 
 from __future__ import annotations
 
@@ -314,6 +315,7 @@ def test_a_reader_detail_is_on_one_line_and_scrubbed(tmp_path: Path) -> None:
 def test_a_log_relayed_reader_record_is_on_one_line(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
+    # pylint: disable-next=unused-argument
     def reader(_path: Path, model_format: AiModelFormat) -> AiModelMetadata:
         logging.getLogger("pitloom.extract.ai_model.fake").warning("a\nb\r\n::c")
         return AiModelMetadata()

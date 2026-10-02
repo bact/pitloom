@@ -5,7 +5,6 @@
 
 """Tests for AI model, dataset, and training run fragment merging."""
 
-# ruff: noqa: F403, F405
 from __future__ import annotations
 
 from .conftest import (
@@ -23,6 +22,8 @@ from .conftest import (
 
 
 class TestAiModelFragment:
+    """ai-model-fragment.spdx3.json fields survive the merge."""
+
     def test_ai_package_present(self) -> None:
         graph, _ = _merge_and_parse(_AI_MODEL_FRAGMENT)
         ai_pkgs = _by_type(graph, "ai_AIPackage")
@@ -103,6 +104,8 @@ class TestAiModelFragment:
 
 
 class TestDatasetFragment:
+    """dataset-fragment.spdx3.json fields survive the merge."""
+
     def test_dataset_package_present(self) -> None:
         graph, _ = _merge_and_parse(_DATASET_FRAGMENT)
         ds_pkgs = _by_type(graph, "dataset_DatasetPackage")
@@ -142,6 +145,8 @@ class TestDatasetFragment:
 
 
 class TestTrainingRunFragment:
+    """training-run-fragment.spdx3.json elements survive the merge."""
+
     def test_ai_package_present(self) -> None:
         graph, _ = _merge_and_parse(_TRAINING_RUN_FRAGMENT)
         ai_pkgs = _by_type(graph, "ai_AIPackage")

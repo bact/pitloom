@@ -33,6 +33,8 @@ MAIN = "demo"
 
 
 class Package(NamedTuple):
+    """One emitted ``software_Package``: name, version and spdxId."""
+
     name: str
     version: str
     spdx_id: str
@@ -95,6 +97,7 @@ def make_doc(
     name: str = MAIN,
     dependencies: Sequence[str] = (),
     locked: Sequence[str] = (),
+    # pylint: disable-next=redefined-outer-name
     phantom: Sequence[PhantomDependency] = (),
 ) -> DocumentModel:
     return DocumentModel(

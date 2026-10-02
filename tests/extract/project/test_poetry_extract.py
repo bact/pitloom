@@ -19,7 +19,13 @@ from pathlib import Path
 import pytest
 
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
-from pitloom.extract.project.poetry import extract_poetry_metadata
+from pitloom.extract.project.poetry import (
+    _convert_caret,
+    _convert_tilde,
+    _parse_poetry_authors,
+    _poetry_constraint_to_pep440,
+    extract_poetry_metadata,
+)
 
 from ..conftest import assert_declared_empty_authors_no_copyright_text
 
@@ -337,13 +343,6 @@ def test_poetry_wildcard_python_survives_merge_as_primary() -> None:
 
 def test_convert_caret_and_tilde_edge_cases() -> None:
     """_convert_caret and _convert_tilde handle zero/short/invalid versions."""
-    from pitloom.extract.project.poetry import (
-        _convert_caret,
-        _convert_tilde,
-        _parse_poetry_authors,
-        _poetry_constraint_to_pep440,
-    )
-
     # Caret edge cases
     assert _convert_caret("0") == ">=0"
     assert _convert_caret("0.0") == ">=0.0,<0.1.0"
@@ -359,4 +358,5 @@ def test_convert_caret_and_tilde_edge_cases() -> None:
     assert _poetry_constraint_to_pep440(None) is None
 
     # Authors with invalid string formats
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert _parse_poetry_authors([123, "", "   "]) == []

@@ -25,6 +25,7 @@ from packaging.requirements import InvalidRequirement
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._provenance_encoders import ProvenanceEncoder
+from pitloom.assemble.spdx3.ai import _add_ai_model_file_relationships
 from pitloom.assemble.spdx3.deps import _enrich_from_pypi
 from pitloom.assemble.spdx3.deps_installed import (
     _enrich_from_installed,
@@ -34,15 +35,22 @@ from pitloom.assemble.spdx3.deps_installed import (
 from pitloom.assemble.spdx3.deps_originator import (
     _apply_originator,
     _collect_originator_agents,
+    _extract_name_email_pairs,
     _find_license_copyright,
+    _get_or_create_originator_agent,
+    _parse_project_urls,
     _read_candidate_copyright,
+    _resolve_remote_authors_file,
 )
+from pitloom.assemble.spdx3.deps_pypi import _fetch_pypi_release_info
 from pitloom.assemble.spdx3.fragments import (
     _add_fragment_imports,
     _add_model_sbom,
     _emit_unification_annotations,
+    _find_fragment_document_id,
     merge_fragments,
 )
+from pitloom.core.ai_metadata import AiModelFormatInfo, AiModelMetadata
 from pitloom.core.config import FragmentConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 
@@ -131,6 +139,8 @@ def test_deps_originator_candidate_copyright_and_find_license() -> None:
     """_read_candidate_copyright and _find_license_copyright handle errors."""
 
     class MockDecodeErrFile:
+        """A licence file whose read fails to decode."""
+
         def __str__(self) -> str:
             return "foo-1.0.dist-info/LICENSE"
 
@@ -138,9 +148,12 @@ def test_deps_originator_candidate_copyright_and_find_license() -> None:
             raise UnicodeDecodeError("utf-8", b"", 0, 1, "err")
 
     class MockEmptyFile:
+        """An empty licence file."""
+
         def __str__(self) -> str:
             return "foo-1.0.dist-info/LICENSE"
 
+        # pylint: disable-next=unused-argument
         def read_text(self, encoding: str = "utf-8") -> str:
             return ""
 
@@ -280,13 +293,10 @@ def test_enrich_from_pypi_already_filled_and_home_page() -> None:
     assert "license" not in filled
 
 
-# Mocks fetch_json; the marker only lifts conftest's autouse stub of
-# _fetch_pypi_release_info so the real function is under test.
-@pytest.mark.network
+# The module-level import binds the real function before conftest's
+# autouse stub of _fetch_pypi_release_info; fetch_json is mocked.
 def test_deps_pypi_fetch_release_info_mocked() -> None:
     """_fetch_pypi_release_info handles success and catches ValueError."""
-    from pitloom.assemble.spdx3.deps_pypi import _fetch_pypi_release_info
-
     with patch(
         "pitloom.assemble.spdx3.deps_pypi.fetch_json",
         return_value={"info": {"name": "foo"}},
@@ -303,13 +313,6 @@ def test_deps_pypi_fetch_release_info_mocked() -> None:
 
 def test_deps_originator_edge_branches() -> None:
     """_extract_name_email_pairs, _parse_project_urls, remote authors edge branches."""
-    from pitloom.assemble.spdx3.deps_originator import (
-        _extract_name_email_pairs,
-        _get_or_create_originator_agent,
-        _parse_project_urls,
-        _resolve_remote_authors_file,
-    )
-
     # _extract_name_email_pairs with empty name/email or commas with spaces
     assert _extract_name_email_pairs("", "  ") == []
     assert len(_extract_name_email_pairs("Alice, , and Bob", "")) == 2
@@ -353,7 +356,7 @@ def test_deps_originator_edge_branches() -> None:
     with patch(
         "urllib.request.urlopen", side_effect=URLError("simulated network failure")
     ):
-        loc2, ctype2, text2 = _resolve_remote_authors_file(
+        loc2, _, text2 = _resolve_remote_authors_file(
             "https://github.com/foo/bar",
             "AUTHORS",
             offline=False,
@@ -364,11 +367,14 @@ def test_deps_originator_edge_branches() -> None:
 
     # _find_license_copyright where files exist but no copyright matches
     class MockNoMatchFile:
+        """A licence file with no copyright line."""
+
         name = "LICENSE"
 
         def __str__(self) -> str:
             return "pkg-1.0.dist-info/LICENSE"
 
+        # pylint: disable-next=unused-argument
         def read_text(self, encoding: str = "utf-8") -> str:
             return "No copyright statement here at all."
 
@@ -428,10 +434,6 @@ def test_deps_originator_edge_branches() -> None:
 
 def test_fragments_and_ai_model_edge_branches() -> None:
     """_find_fragment_document_id and AI model relationship unmapped files."""
-    from pitloom.assemble.spdx3.ai import _add_ai_model_file_relationships
-    from pitloom.assemble.spdx3.fragments import _find_fragment_document_id
-    from pitloom.core.ai_metadata import AiModelFormatInfo, AiModelMetadata
-
     # Fragment document without spdxId
     frag_set = spdx3.SHACLObjectSet()
     frag_doc = MagicMock()

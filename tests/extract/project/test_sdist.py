@@ -117,6 +117,7 @@ def test_parse_pkg_info_minimal_fields_absent() -> None:
     assert metadata.license_name is None
     assert metadata.requires_python is None
     assert metadata.urls == {}
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert metadata.authors == []
     assert metadata.dependencies == []
     assert metadata.provenance == {"name": "src"}
@@ -164,6 +165,7 @@ def test_parse_pkg_info_author_unknown_is_skipped() -> None:
     must not be recorded as a real author."""
     pkg_info = "Metadata-Version: 2.1\nName: pkg\nAuthor: UNKNOWN\n"
     metadata = _parse_pkg_info(pkg_info, "src")
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert metadata.authors == []
     assert "authors" not in metadata.provenance
 

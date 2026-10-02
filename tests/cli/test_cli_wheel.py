@@ -17,8 +17,10 @@ import rfc8785
 
 from pitloom import __main__
 from pitloom.cli.commands import wheel as mod_wheel
+from pitloom.cli.commands._embed_wheel_batch import report_embed_result
 from pitloom.core.project import ProjectMetadata
 from pitloom.id_registry import IdRegistry
+from pitloom.logging_config import configure_logging
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.warning_helpers import count_naming, stderr_warnings
 
@@ -38,77 +40,23 @@ def _make_wheel(tmp_path: Path, name: str, version: str) -> Path:
     return wheel_path
 
 
-def test_analyze_wheel_dispatches_to_wheel_path(
+def test_wheel_command_dispatches_with_its_options(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """`loom wheel foo.whl` must dispatch to generate_wheel_sbom(),
-    not the AI-model or Hugging Face paths."""
+    """`loom wheel foo.whl` dispatches to generate_wheel_sbom(), not the
+    AI-model or Hugging Face paths, and forwards
+    --max-source-metadata-bytes like every generate-family command."""
     monkeypatch.chdir(tmp_path)
     wheel_path = _make_wheel(tmp_path, "pkg", "1.0.0")
     captured: dict[str, object] = {}
 
-    def _fake_generate_analyzed_sbom(
-        wheel_path_arg: Path,
-        output_path: object = None,
-        creation_metadata: object = None,
-        pretty: bool = False,
-        describe_relationship: bool = False,
-        registry: object = None,
-        offline: bool = False,
-        provenance: object = None,
-        **kwargs: object,
+    def _fake_generate(
+        wheel_path_arg: Path, **kwargs: object
     ) -> tuple[str, ProjectMetadata]:
-        _ = (creation_metadata, pretty, describe_relationship, registry, offline)
-        captured["wheel_path"] = wheel_path_arg
-        captured["output_path"] = output_path
+        captured.update(kwargs, wheel_path=wheel_path_arg)
         return "{}", ProjectMetadata(name="pkg")
 
-    monkeypatch.setattr(
-        mod_wheel, "generate_wheel_sbom_with_metadata", _fake_generate_analyzed_sbom
-    )
-    monkeypatch.setattr(sys, "argv", ["loom", "wheel", str(wheel_path)])
-
-    assert __main__.main() == 0
-    assert captured["wheel_path"] == wheel_path.resolve()
-
-
-def test_wheel_command_wires_max_source_metadata_bytes(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """`loom wheel --max-source-metadata-bytes N` must reach
-    generate_wheel_sbom() -- a regression test for a call site that was
-    missed when this flag was added to every other generate-family
-    command."""
-    monkeypatch.chdir(tmp_path)
-    wheel_path = _make_wheel(tmp_path, "pkg", "1.0.0")
-    captured: dict[str, object] = {}
-
-    def _fake_generate_analyzed_sbom(
-        wheel_path_arg: Path,
-        output_path: object = None,
-        creation_metadata: object = None,
-        pretty: bool = False,
-        describe_relationship: bool = False,
-        registry: object = None,
-        offline: bool = False,
-        max_source_metadata_bytes: object = None,
-        **kwargs: object,
-    ) -> tuple[str, ProjectMetadata]:
-        _ = (
-            wheel_path_arg,
-            output_path,
-            creation_metadata,
-            pretty,
-            describe_relationship,
-            registry,
-            offline,
-        )
-        captured["max_source_metadata_bytes"] = max_source_metadata_bytes
-        return "{}", ProjectMetadata(name="pkg")
-
-    monkeypatch.setattr(
-        mod_wheel, "generate_wheel_sbom_with_metadata", _fake_generate_analyzed_sbom
-    )
+    monkeypatch.setattr(mod_wheel, "generate_wheel_sbom_with_metadata", _fake_generate)
     monkeypatch.setattr(
         sys,
         "argv",
@@ -116,6 +64,7 @@ def test_wheel_command_wires_max_source_metadata_bytes(
     )
 
     assert __main__.main() == 0
+    assert captured["wheel_path"] == wheel_path.resolve()
     assert captured["max_source_metadata_bytes"] == 5000
 
 
@@ -146,9 +95,6 @@ def test_report_embed_result(capsys: pytest.CaptureFixture[str]) -> None:
     """report_embed_result prints the confirmation to stdout (this
     command's primary result output) and the two INFO: side-effect lines
     to stderr, matching every other INFO:/WARNING:/ERROR: line."""
-    from pitloom.cli.commands._embed_wheel_batch import report_embed_result
-    from pitloom.logging_config import configure_logging
-
     # The two side-effect lines go through logging (see CLAUDE.md's "CLI
     # output" section), unlike the confirmation line above them -- calling
     # this function directly, without going through __main__.main(), skips
@@ -170,8 +116,6 @@ def test_report_embed_result(capsys: pytest.CaptureFixture[str]) -> None:
 def test_report_embed_result_escapes_control_characters(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    from pitloom.cli.commands._embed_wheel_batch import report_embed_result
-
     report_embed_result("sboms/ev\x1b[31mil\n x.json", "p\x1bkg.whl", ())
 
     out = capsys.readouterr().out

@@ -5,6 +5,9 @@
 
 """Tests for pitloom.extract.wheel.read_wheel()."""
 
+# Explicit `== []`/`== {}` keeps the None-vs-empty distinction.
+# pylint: disable=use-implicit-booleaness-not-comparison
+
 import zipfile
 from pathlib import Path
 

@@ -3,7 +3,6 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-# ruff: noqa: F403, F405
 """CLI-vs-Hatchling-build-hook metadata-parity tests -- both entry points
 (``read_pyproject()`` and ``metadata_from_hatchling()``) must resolve the
 same metadata for the same project, since a mismatch changes the

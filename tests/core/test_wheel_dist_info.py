@@ -280,6 +280,8 @@ def _zip_with(
         zf.writestr("demo/__init__.py", "")
         if metadata is not None:
             zf.writestr(f"{prefix}METADATA", metadata)
+    # The stream is returned to the caller, which closes it.
+    # pylint: disable-next=consider-using-with
     zf = zipfile.ZipFile(path)
     return zf, wheel_members(zf, path.name)
 

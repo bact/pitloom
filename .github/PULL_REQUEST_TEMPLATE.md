@@ -12,7 +12,7 @@
 - [ ] Code formatted (`ruff format`)
 - [ ] Lints pass
       (`ruff check src/ tests/`,
-      `pylint src/ tests`,
+      `pylint examples/ src/ tests/ tests/*/`,
       `mypy examples/ src/ tests/`,
       `pyright examples/ src/ tests/`,
       `pyrefly check examples/ src/ tests/`)

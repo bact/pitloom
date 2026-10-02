@@ -15,7 +15,6 @@ creator/tool multiplicity, sentimentdemo structure, dependency-name
 parsing, fragments, setup.cfg, and preparsed-metadata tests.
 """
 
-# ruff: noqa: F403, F405
 from __future__ import annotations
 
 import json

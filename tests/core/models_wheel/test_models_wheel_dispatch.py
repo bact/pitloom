@@ -494,6 +494,8 @@ def test_get_wheel_files_assume_backend_skips_detection(
         detect_calls.append(project_dir)
         return "hatchling"
 
+    # The explicit None is the "no data" signal; mypy requires the return.
+    # pylint: disable-next=useless-return
     def _spy_read(project_dir: Path) -> dict[str, object] | None:
         read_calls.append(project_dir)
         return None

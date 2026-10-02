@@ -142,6 +142,7 @@ def test_run_harvest_writes_the_owner_and_never_the_non_reader(
 
     holders = [p for p in packages(first) if p.name.lower() == name]
     assert len(holders) == 2  # non-vacuous: one reader, one non-reader
+    # pylint: disable-next=unbalanced-tuple-unpacking
     (non_reader,) = first.registry_non_readers
     (owner,) = [p.spdx_id for p in holders if p.spdx_id != non_reader]
     assert registry.lookup_entity(name, PACKAGE_ENTITY_TYPE) == owner

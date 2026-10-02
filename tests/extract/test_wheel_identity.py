@@ -193,7 +193,7 @@ def test_a_file_name_that_does_not_name_the_dist_info(
     ("kind", "in_metadata", "label"),
     [(k, False, _LABEL[k]) for k in sorted(DAMAGE)]
     + [(k, True, _LABEL[k]) for k in sorted(DAMAGE) if k != "name"],
-    ids=lambda v: str(v),
+    ids=str,
 )
 def test_a_member_that_cannot_be_read_refuses_the_wheel(
     tmp_path: Path, kind: str, in_metadata: bool, label: str
@@ -220,6 +220,7 @@ def test_a_member_that_cannot_be_read_refuses_the_wheel(
     ],
     ids=["bytes-over", "big-body"],
 )
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def test_a_metadata_header_block_over_a_cap_is_not_read(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,

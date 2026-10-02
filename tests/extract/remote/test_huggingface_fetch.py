@@ -16,6 +16,9 @@ See also: the topic-grouped hf_patches/_hf_patches_*.py submodules for the
 shared mock-HF-API helpers used by the higher-level tests.
 """
 
+# Fake huggingface_hub objects expose only the attributes the code reads.
+# pylint: disable=too-few-public-methods
+
 from __future__ import annotations
 
 import json

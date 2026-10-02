@@ -85,7 +85,7 @@ Tests are therefore self-contained: they assert on `read_huggingface()`'s
 output without touching a network, a filesystem outside the test process,
 or any installed model weights.
 
-The shared helper `_make_card_data(license, pipeline_tag, tags, language, ...)`
+The shared helper `_make_card_data(*, license, pipeline_tag, tags, language, ...)`
 assembles a card YAML frontmatter dict with only the keys that are non-None,
 matching the real API behaviour where absent fields simply do not appear.
 

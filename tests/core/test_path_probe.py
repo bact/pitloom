@@ -61,6 +61,8 @@ class TestIsMissingErrno:
 
 
 class TestIsRegularFile:
+    """Tests for is_regular_file()."""
+
     def test_regular_file(self, tmp_path: Path) -> None:
         path = tmp_path / "a.txt"
         path.write_text("a", encoding="utf-8")

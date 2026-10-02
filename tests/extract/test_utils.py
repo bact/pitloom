@@ -12,6 +12,7 @@ from __future__ import annotations
 from pitloom.extract._extract_utils import field_declared, record_dict_field_provenance
 
 
+# pylint: disable-next=too-few-public-methods
 class _RaisesOSErrorOnContains:
     """A container whose ``__contains__`` raises OSError, mirroring a
     Hatchling ``core.config``-style property accessor that can fail the

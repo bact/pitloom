@@ -12,6 +12,8 @@ See also: test_hatch_hook_hook_basic.py for lifecycle/creator/fragment
 unit tests.
 """
 
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import json
@@ -29,8 +31,6 @@ from ..conftest import (
     write_pyproject,
     write_pyproject_with_pitloom_config,
 )
-
-pytest.importorskip("hatchling", reason="hatchling is required for hook tests")
 
 
 def test_hook_with_sampleproject_fixture() -> None:

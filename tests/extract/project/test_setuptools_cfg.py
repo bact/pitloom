@@ -21,7 +21,18 @@ from unittest.mock import patch
 
 import pytest
 
-from pitloom.extract.project.setuptools import read_setup_cfg
+from pitloom.core.project import ProjectMetadata
+from pitloom.extract.project.setuptools import (
+    _resolve_setuptools_license,
+    read_setup_cfg,
+)
+from pitloom.extract.project.setuptools_cfg import (
+    _parse_cfg_urls,
+    _read_version_attr,
+    _resolve_cfg_attr_directive,
+    _resolve_cfg_file_directive,
+    _resolve_cfg_version,
+)
 
 from ..conftest import assert_declared_empty_authors_no_copyright_text
 
@@ -91,8 +102,6 @@ project_urls =
 def test_parse_cfg_urls_skips_blank_key_or_value_lines() -> None:
     """A ``project_urls`` line with an empty key or empty value is skipped,
     and scanning continues to subsequent lines."""
-    from pitloom.extract.project.setuptools_cfg import _parse_cfg_urls
-
     urls = _parse_cfg_urls(
         {
             "project_urls": (
@@ -238,6 +247,7 @@ def test_read_setup_cfg_empty_install_requires_gets_provenance() -> None:
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
         metadata, _ = read_setup_cfg(Path(d))
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert metadata.dependencies == []
     assert "dependencies" in metadata.provenance
 
@@ -256,8 +266,6 @@ def test_read_setup_cfg_empty_python_requires_gets_provenance() -> None:
 
 def test_resolve_cfg_version_edge_cases(tmp_path: Path) -> None:
     """_resolve_cfg_version handles empty strings, invalid attrs, and directives."""
-    from pitloom.extract.project.setuptools_cfg import _resolve_cfg_version
-
     p = tmp_path
     assert _resolve_cfg_version("", p) == (None, None)
     assert _resolve_cfg_version("attr: no_dot_attribute", p) == (None, None)
@@ -272,8 +280,6 @@ def test_resolve_cfg_file_directive_non_file_directive_returns_raw(
 ) -> None:
     """A directive-shaped value that isn't ``file:`` (e.g. ``attr:``) is not
     resolved as a file path -- the raw string is returned unchanged."""
-    from pitloom.extract.project.setuptools_cfg import _resolve_cfg_file_directive
-
     result = _resolve_cfg_file_directive("attr: package.__readme__", tmp_path)
     assert result == "attr: package.__readme__"
 
@@ -301,9 +307,6 @@ def test_read_setup_cfg_pitloom_config_sections() -> None:
 
 def test_resolve_setuptools_license_without_provenance(tmp_path: Path) -> None:
     """_resolve_setuptools_license handles detected license with None provenance."""
-    from pitloom.core.project import ProjectMetadata
-    from pitloom.extract.project.setuptools import _resolve_setuptools_license
-
     meta = ProjectMetadata(name="test-pkg", version="1.0.0")
     with patch(
         "pitloom.extract.project.setuptools.detect_license_for_project",
@@ -316,12 +319,6 @@ def test_resolve_setuptools_license_without_provenance(tmp_path: Path) -> None:
 
 def test_setuptools_cfg_version_and_attr_edge_cases() -> None:
     """_resolve_cfg_version handles multiline versions and attr syntax errors."""
-    from pitloom.extract.project.setuptools_cfg import (
-        _read_version_attr,
-        _resolve_cfg_attr_directive,
-        _resolve_cfg_version,
-    )
-
     with tempfile.TemporaryDirectory() as d:
         p = Path(d)
         # Multiline file
