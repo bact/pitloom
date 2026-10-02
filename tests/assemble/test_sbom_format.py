@@ -212,6 +212,13 @@ def test_compare_name_version_missing_both_names_warns() -> None:
     )
 
 
+def test_compare_name_version_a_wheel_with_neither_warns_once() -> None:
+    assert compare_name_version(None, None, "pkg", "1.0.0") == (
+        [],
+        ["wheel METADATA has no name or version to cross-check"],
+    )
+
+
 def test_compare_name_version_missing_wheel_version_warns() -> None:
     _, warnings = compare_name_version("pkg", None, "pkg", "1.0.0")
     assert any("wheel METADATA has no version" in w for w in warnings)

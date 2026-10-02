@@ -18,6 +18,7 @@ from pitloom.assemble import (
     embed_sbom_in_wheel,
     generate_wheel_sbom,
 )
+from pitloom.assemble._generators_wheel import generate_wheel_sbom_with_metadata
 from pitloom.cli.commands._embed_wheel_batch import report_embed_result
 from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
 from pitloom.cli.options import add_offline_argument
@@ -32,6 +33,7 @@ from pitloom.core.inert_options import (
 )
 from pitloom.embed import embed_filename
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
+from pitloom.extract.wheel import wheel_identity
 
 
 @cli_error_handler("wheel command failed")
@@ -79,7 +81,7 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
 
     # With --embed, the -o copy is written once the embed has succeeded: a
     # wheel the embed refuses leaves nothing behind.
-    sbom_json = generate_wheel_sbom(
+    sbom_json, wheel_metadata = generate_wheel_sbom_with_metadata(
         wheel_path,
         output_path=None if embed else output_path,
         pitloom_config=pitloom_config,
@@ -94,6 +96,8 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
             sbom_filename=embed_filename(
                 pitloom_config.sbom_basename if pitloom_config else None
             ),
+            # Already read (and warned about) by the generation above.
+            identity=wheel_identity(wheel_metadata),
         )
         write_sbom_output(sbom_json, output_path)
         report_embed_result(arcname, wheel_path.name, removed, floored)

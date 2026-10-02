@@ -147,11 +147,15 @@ and add `--fail-on-mismatch` in CI. `validate-wheel` on an SBOM in a
 format it has no validator for prints "... skipped (no validator for their
 format)" and exits 0: report a skipped count as "not validated".
 
-A wheel Pitloom refuses (a member it cannot read, or two members with one
-name) gets one `ERROR: ARCHIVE=... -- wheel refused` and exit 1; the other
-wheels are still checked. `WARNING: ... the file name names no top-level
-.dist-info; using ...` means the file name and the wheel's `.dist-info`
-disagree: report it.
+A wheel Pitloom refuses gets one `ERROR: ARCHIVE=... -- wheel refused` and
+exit 1; the other wheels are still checked. `verify-wheel` reads only the
+member names, the own `.dist-info`'s `METADATA` and the embedded SBOM, and
+`validate-wheel` only the names and the embedded SBOM, so they refuse a wheel
+for one of those being unreadable, for two members with one name, or for no
+top-level `.dist-info` or several of which the file name names none: a
+damaged other member does not fail them. `WARNING: ... the file name names no
+top-level .dist-info; using ...` means the file name and the wheel's
+`.dist-info` disagree: report it.
 
 ### Presence/location only -- ask before validating content
 

@@ -250,10 +250,19 @@ skill ("Validate a wheel's embedded SBOM").
 
 A wheel's name and version come from its own top-level `.dist-info` only.
 `wheel`, `generate`, `wheel --embed` and `embed-wheel` refuse a wheel with a
-member they cannot read or two members of one name: one `ERROR: ARCHIVE=...
--- wheel refused`, exit 1, nothing written (in a batch the other wheels
-run). `WARNING: ... identity unknown` means no usable `METADATA`: the SBOM
-names the wheel `unknown`; it is not a model bound.
+member they cannot read (damaged, encrypted, a name that is not UTF-8) or two
+members of one name: one `ERROR:`, exit 1, nothing written (in a batch the
+other wheels run). It reads `ERROR: wheel command failed: ARCHIVE=... ENTRY=...:
+<cause> -- wheel refused` from `wheel` and `wheel --embed`, `ERROR: SBOM
+generation failed: ARCHIVE=...` from `generate`, `ERROR: ARCHIVE=...` from
+`embed-wheel`. The two embeds also refuse a wheel with no top-level
+`.dist-info`, or several of which the file name names none, or an own
+`.dist-info` member stored under a non-conforming name (`./`, `\`).
+With no usable `.dist-info` or `METADATA`, `wheel` and `generate` only warn
+(`WARNING: ... identity unknown`) and write an SBOM that names the wheel
+`unknown`. The embeds do the same for a `METADATA` that is missing or over a
+cap, but fail with the `ERROR:` above where there is no single `.dist-info`
+to write into. It is not a model bound.
 
 ## Useful flags
 

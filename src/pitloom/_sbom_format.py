@@ -226,8 +226,11 @@ def compare_name_version(
     `warnings` fragment (skip that half of the check) rather than a
     `mismatches` one -- "can't compare" is a different finding from
     "compared and differs," and is never silently dropped: a missing
-    wheel-side value warns exactly like a missing SBOM-side one.
+    wheel-side value warns exactly like a missing SBOM-side one; a wheel
+    with neither warns once.
     """
+    if not wheel_name and not wheel_version:
+        return [], ["wheel METADATA has no name or version to cross-check"]
     mismatches: list[str] = []
     warnings: list[str] = []
 

@@ -20,6 +20,7 @@ from typing import Any
 import pytest
 from installer.sources import WheelFile
 
+from pitloom.core.wheel_dist_info import PROBLEM_NONE, PROBLEM_SEVERAL_NONE_MATCH
 from pitloom.embed import (
     _derive_wheel_sbom_filename,
     _find_dist_info_prefix,
@@ -41,7 +42,7 @@ def test_find_dist_info_prefix_edge_cases(tmp_path: Path) -> None:
     with zipfile.ZipFile(p1, "w") as zf:
         zf.writestr("nodist/module.py", "# code")
     with zipfile.ZipFile(p1, "r") as zf:
-        with pytest.raises(ValueError, match="no .dist-info directory found"):
+        with pytest.raises(ValueError, match=PROBLEM_NONE):
             _find_dist_info_prefix(zf, p1)
 
     # 2. Multiple dist-info where one matches stem prefix
@@ -58,7 +59,7 @@ def test_find_dist_info_prefix_edge_cases(tmp_path: Path) -> None:
         zf.writestr("pkg1-1.0.0.dist-info/METADATA", "Name: pkg1\n")
         zf.writestr("pkg2-1.0.0.dist-info/METADATA", "Name: pkg2\n")
     with zipfile.ZipFile(p3, "r") as zf:
-        with pytest.raises(ValueError, match="multiple .dist-info directories found"):
+        with pytest.raises(ValueError, match=PROBLEM_SEVERAL_NONE_MATCH):
             _find_dist_info_prefix(zf, p3)
 
 

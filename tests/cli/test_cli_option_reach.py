@@ -63,10 +63,12 @@ from pitloom.assemble import (
     generate_project_sbom,
     generate_wheel_sbom,
 )
+from pitloom.assemble._generators_wheel import generate_wheel_sbom_with_metadata
 from pitloom.cli.parser import _build_parser
 from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.inert_options import PARAM_TO_FLAG
+from pitloom.core.project import ProjectMetadata
 from pitloom.id_registry import IdRegistry
 from tests.assemble.conftest import _make_dummy_wheel, _make_sdist
 from tests.assemble.embed_surfaces_shared import demo_project, demo_wheel
@@ -326,7 +328,9 @@ _STOP_POINTS = (
 )
 _ENTRY_POINTS: dict[Callable[..., Any], tuple[str, ...]] = {
     generate_project_sbom: ("pitloom.assemble", "pitloom.cli.commands.project"),
-    generate_wheel_sbom: ("pitloom.assemble", "pitloom.cli.commands.wheel"),
+    generate_wheel_sbom: ("pitloom.assemble",),
+    # ``loom wheel`` calls the variant that also returns the metadata read.
+    generate_wheel_sbom_with_metadata: ("pitloom.cli.commands.wheel",),
     generate_env_sbom: ("pitloom.assemble", "pitloom.cli.commands.env"),
     generate_model_sbom: ("pitloom.assemble", "pitloom.cli.commands.model"),
     enrich_model: ("pitloom.cli.commands.enrich",),
@@ -359,6 +363,8 @@ def _spy_entry_points(
                         (),
                         False,
                     )
+                if real is generate_wheel_sbom_with_metadata:
+                    return "{}", ProjectMetadata(name="x")
                 return "{}"
 
         return spy

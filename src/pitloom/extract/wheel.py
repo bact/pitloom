@@ -107,6 +107,19 @@ def _populate_metadata_from_email(
     metadata.urls = _parse_metadata_urls(msg)
 
 
+def wheel_identity(metadata: ProjectMetadata) -> tuple[str | None, str | None]:
+    """The (name, version) the wheel's ``METADATA`` declared, from what
+    :func:`read_wheel` returned: ``None`` for each it did not.
+
+    ``metadata.name`` is the sentinel ``"unknown"`` where the header is
+    absent, so only ``provenance`` says whether either was read.
+    """
+    return (
+        metadata.name if "name" in metadata.provenance else None,
+        metadata.version if "version" in metadata.provenance else None,
+    )
+
+
 def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFile]]:
     """Extract project metadata and file records from a built wheel.
 

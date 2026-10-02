@@ -69,10 +69,11 @@ names (`matching_dist_infos`), so a foreign `.dist-info` cannot hide a model.
   about 700 MB. Over a cap: one `WARNING:`, identity unknown, files still
   listed. The declared size is not trusted; the description after the
   headers may be any size. One function (`read_metadata_headers`) serves
-  every `METADATA` reader, and the identity `embed_wheel_sbom()` already read
-  goes down to the embed (`identity=`) so it is not read and warned about
-  twice. `wheel --embed` has no such identity to pass and still reads it
-  once more, for the default file name only.
+  every `METADATA` reader. The identity `embed_wheel_sbom()` and `wheel
+  --embed` already read (`wheel_identity()`, from `read_wheel`'s provenance)
+  goes down to the embed (`identity=`), so it is not read and warned about
+  twice; `embed-wheel --verify` and `verify-wheel` pass `report=` to say
+  whether a `METADATA` that cannot be read is warned about (once per run).
 - **DUP** A wheel holding one member name twice, exactly or once normalised
   (`a/M` and `a\M`), is refused (`ARCHIVE=... ENTRY=...: duplicate member
   name -- wheel refused`) by `wheel_members()`, which every wheel reader goes
@@ -87,6 +88,17 @@ names (`matching_dist_infos`), so a foreign `.dist-info` cannot hide a model.
   has a non-conforming member name (`./`, `\`): the rewrite matches raw
   names, so it would leave the old `RECORD` beside the new, or write `/`
   names next to `\` ones.
+- **File name and directory name** The file name is parsed for name and
+  version only (`wheel_name_version()`): `packaging`'s `parse_wheel_filename`
+  also validates the tags, and 26.3 rejects tags 26.2 accepted, so the chosen
+  directory would depend on the installed release. A directory matches when
+  any `-` splits it into the canonical name and the version
+  (`foo-bar-1.0`; `1-2` is `1.post2`). A wheel with no or several `.dist-info`
+  is refused with the shared `PROBLEM_*` text, by every reader.
+- **Cost** Each open wheel's member list is made once and passed down;
+  directory ancestors are collected walking up and stopping at a known one
+  (2000 members 1 to 2000 directories deep took 20 s, in the square of the
+  depth).
 - **verify-wheel** logs the D1 problem (it chose by `.dist-info`, not file
   name); the embed paths do not, as `read_wheel` already did. A refused
   wheel is one `ERROR:` and the batch goes on.

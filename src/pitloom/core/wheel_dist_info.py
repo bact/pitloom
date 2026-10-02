@@ -33,11 +33,7 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import IO, NamedTuple
 
-from packaging.utils import (
-    InvalidWheelFilename,
-    canonicalize_name,
-    parse_wheel_filename,
-)
+from packaging.utils import NormalizedName, canonicalize_name
 from packaging.version import InvalidVersion, Version
 
 from pitloom.core.archive_member_names import zip_file_members
@@ -57,6 +53,7 @@ _CHUNK_BYTES = 8192
 _SUFFIX = ".dist-info"
 _LINE_END = re.compile(rb"\r\n|\r|\n")
 _BLANK_LINES = (b"\n", b"\r", b"\r\n")
+_PROJECT_NAME = re.compile(r"[\w.]+")
 
 
 def _zstd_errors() -> tuple[type[Exception], ...]:
@@ -206,15 +203,48 @@ def top_level_dist_infos(member_names: Iterable[str]) -> tuple[str, ...]:
     )
 
 
+def wheel_name_version(wheel_name: str) -> tuple[NormalizedName, Version] | None:
+    """The canonical name and version a wheel file name (PEP 427) carries, or
+    ``None`` where it is not a wheel file name.
+
+    The tags are not read: what they must look like changes between
+    ``packaging`` releases, and the answer must not depend on which one is
+    installed.
+    """
+    stem = wheel_name.removesuffix(".whl")
+    parts = stem.split("-")
+    if stem == wheel_name or len(parts) not in (5, 6):
+        return None
+    name = parts[0]
+    if "__" in name or _PROJECT_NAME.fullmatch(name) is None:
+        return None
+    try:
+        return canonicalize_name(name), Version(parts[1])
+    except InvalidVersion:
+        return None
+
+
 def is_dist_info_of(directory: str, name: str, version: Version) -> bool:
     """Whether top-level *directory* is ``<name>-<version>.dist-info`` for the
     canonical *name* and *version*, compared as the ecosystem does (PEP 503
-    names, PEP 440 versions): ``My.Pkg-1.0`` is ``my_pkg-1.0.0``."""
-    distribution, dash, release = directory[: -len(_SUFFIX)].partition("-")
-    if not (directory.endswith(_SUFFIX) and dash):
+    names, PEP 440 versions): ``My.Pkg-1.0`` is ``my_pkg-1.0.0``.
+
+    Every ``-`` is tried as the split, as a name may hold one
+    (``foo-bar-1.0``) and so may a version (``1-2`` is ``1.post2``).
+    """
+    if not directory.endswith(_SUFFIX):
         return False
+    stem = directory[: -len(_SUFFIX)]
+    return any(
+        canonicalize_name(stem[:i]) == name and _is_version(stem[i + 1 :], version)
+        for i, char in enumerate(stem)
+        if char == "-"
+    )
+
+
+def _is_version(text: str, version: Version) -> bool:
     try:
-        return canonicalize_name(distribution) == name and Version(release) == version
+        return Version(text) == version
     except InvalidVersion:
         return False
 
@@ -227,10 +257,10 @@ def matching_dist_infos(
 
     Empty where *wheel_name* is not a wheel file name.
     """
-    try:
-        name, version, _, _ = parse_wheel_filename(wheel_name)
-    except InvalidWheelFilename:
+    parsed = wheel_name_version(wheel_name)
+    if parsed is None:
         return ()
+    name, version = parsed
     return tuple(
         d
         for d in top_level_dist_infos(member_names)
@@ -269,7 +299,7 @@ def resolve_own_dist_info(
     if len(matching) == 1:
         return DistInfoChoice(matching[0], None)
     present = top_level_dist_infos(names)
-    is_wheel_name = _is_wheel_name(wheel_name)
+    is_wheel_name = wheel_name_version(wheel_name) is not None
     if len(present) == 1:
         problem = _PROBLEM_OTHER % loggable(present[0]) if is_wheel_name else None
         return DistInfoChoice(present[0], problem)
@@ -280,14 +310,6 @@ def resolve_own_dist_info(
     if not is_wheel_name:
         return DistInfoChoice(None, PROBLEM_NOT_A_WHEEL_NAME)
     return DistInfoChoice(None, PROBLEM_SEVERAL_NONE_MATCH)
-
-
-def _is_wheel_name(wheel_name: str) -> bool:
-    try:
-        parse_wheel_filename(wheel_name)
-    except InvalidWheelFilename:
-        return False
-    return True
 
 
 def own_dist_info(wheel_name: str, member_names: Iterable[str]) -> str | None:
@@ -364,6 +386,8 @@ def read_metadata_headers(
     members: Iterable[tuple[str, zipfile.ZipInfo]],
     prefix: str,
     archive: str,
+    *,
+    report: bool = True,
 ) -> email.message.Message | None:
     """The headers of the ``METADATA`` in the ``.dist-info`` *prefix*
     (``"<dir>/"``), parsed, or ``None``: the wheel's identity is unknown.
@@ -372,7 +396,8 @@ def read_metadata_headers(
     that none can parse more than the headers or read more than the caps
     allow, and each says why it found nothing in the same words. One
     ``WARNING:`` where the member is absent, or its header block is over
-    :data:`MAX_METADATA_BYTES` or :data:`MAX_METADATA_HEADERS`.
+    :data:`MAX_METADATA_BYTES` or :data:`MAX_METADATA_HEADERS`; none with
+    *report* false, for a caller whose own message says so.
 
     Raises:
         WheelRefused: The member cannot be read.
@@ -380,18 +405,20 @@ def read_metadata_headers(
     target = f"{prefix}METADATA"
     info = next((i for name, i in members if name == target), None)
     if info is None:
-        log.warning("ARCHIVE=%r: no %s -- identity unknown", archive, target)
+        if report:
+            log.warning("ARCHIVE=%r: no %s -- identity unknown", archive, target)
         return None
     try:
         with refuse_unreadable(archive, info.orig_filename), zf.open(info) as member:
             block = _header_block(member)
     except _OverCap as over:
-        log.warning(
-            "ARCHIVE=%r ENTRY=%r: header block over %d %s -- identity unknown",
-            archive,
-            info.orig_filename,
-            over.cap,
-            over.unit,
-        )
+        if report:
+            log.warning(
+                "ARCHIVE=%r ENTRY=%r: header block over %d %s -- identity unknown",
+                archive,
+                info.orig_filename,
+                over.cap,
+                over.unit,
+            )
         return None
     return email.parser.HeaderParser().parsestr(block.decode("utf-8", "replace"))

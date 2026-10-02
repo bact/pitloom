@@ -25,12 +25,13 @@ import zipfile
 from pathlib import Path
 
 from pitloom.core.wheel_dist_info import (
+    PROBLEM_NONE,
     WheelRefused,
     open_wheel_zip,
     read_metadata_headers,
+    refusal,
     refuse_unreadable,
     resolve_own_dist_info,
-    top_level_dist_infos,
     wheel_members,
 )
 
@@ -60,7 +61,11 @@ def _open_wheel_zip(wheel_path: Path) -> zipfile.ZipFile:
 
 
 def _find_dist_info_prefix(
-    zf: zipfile.ZipFile, wheel_path: Path, *, report: bool = False
+    zf: zipfile.ZipFile,
+    wheel_path: Path,
+    *,
+    report: bool = False,
+    members: list[tuple[str, zipfile.ZipInfo]] | None = None,
 ) -> str:
     """The wheel's own ``.dist-info`` prefix, as
     :func:`pitloom.core.wheel_dist_info.resolve_own_dist_info` selects it
@@ -70,28 +75,23 @@ def _find_dist_info_prefix(
 
     *report* logs one ``WARNING:`` where the file name names no
     ``.dist-info`` of the wheel and another is used; a caller that has
-    already read the wheel (``read_wheel`` says so) leaves it off.
+    already read the wheel (``read_wheel`` says so) leaves it off. *members*
+    is the wheel's :func:`~pitloom.core.wheel_dist_info.wheel_members`, where
+    the caller has them already.
 
     Raises:
         ValueError: The wheel has no top-level ``.dist-info``, or several
             and none is the one its file name names, or two of its members
             have one name.
     """
-    names = [name for name, _ in wheel_members(zf, wheel_path.name)]
-    choice = resolve_own_dist_info(wheel_path.name, names)
+    if members is None:
+        members = wheel_members(zf, wheel_path.name)
+    choice = resolve_own_dist_info(wheel_path.name, [name for name, _ in members])
     if choice.prefix is not None:
         if report and choice.problem:
             log.warning("ARCHIVE=%r: %s", wheel_path.name, choice.problem)
         return choice.prefix
-    dist_infos = top_level_dist_infos(names)
-    if not dist_infos:
-        raise ValueError(
-            f"Invalid wheel archive {wheel_path.name!r}: no .dist-info directory found"
-        )
-    raise ValueError(
-        f"Invalid wheel archive {wheel_path.name!r}: multiple .dist-info "
-        f"directories found ({list(dist_infos)})"
-    )
+    raise refusal(wheel_path.name, None, choice.problem or PROBLEM_NONE)
 
 
 def read_wheel_member(zf: zipfile.ZipFile, info: zipfile.ZipInfo) -> bytes:
@@ -125,14 +125,18 @@ def name_version_from_email_message(
 
 
 def read_wheel_name_version(
-    zf: zipfile.ZipFile, dist_info: str
+    zf: zipfile.ZipFile,
+    dist_info: str,
+    *,
+    members: list[tuple[str, zipfile.ZipInfo]] | None = None,
+    report: bool = True,
 ) -> tuple[str | None, str | None]:
     """Read ``Name``/``Version`` from *dist_info*'s ``METADATA`` entry.
 
     Returns ``(None, None)`` if the entry is absent, or its headers are over
     a cap (see :func:`pitloom.core.wheel_dist_info.read_metadata_headers`:
-    one ``WARNING:``); either element may independently be ``None`` if the
-    corresponding header is missing.
+    one ``WARNING:``, none with *report* false); either element may
+    independently be ``None`` if the corresponding header is missing.
 
     Shared by :func:`pitloom._embed_wheel._derive_wheel_sbom_filename`
     (default-filename derivation) and `verify-wheel`'s name/version
@@ -143,7 +147,9 @@ def read_wheel_name_version(
             members of the wheel have one name.
     """
     archive = os.path.basename(zf.filename or "")
-    msg = read_metadata_headers(zf, wheel_members(zf, archive), dist_info, archive)
+    if members is None:
+        members = wheel_members(zf, archive)
+    msg = read_metadata_headers(zf, members, dist_info, archive, report=report)
     return (None, None) if msg is None else name_version_from_email_message(msg)
 
 
@@ -159,11 +165,16 @@ def read_wheel_name_version_from_path(
     site. See :func:`read_wheel_name_version` for the lower-level,
     already-open-``ZipFile`` variant this wraps (used where a caller
     already has one open for another reason, e.g. `find_embedded_sbom`).
-    *report* is :func:`_find_dist_info_prefix`'s.
+    *report* is :func:`_find_dist_info_prefix`'s, and also says whether a
+    ``METADATA`` that cannot be read is warned about: a caller that reports
+    the wheel's identity itself leaves it off.
     """
     with _open_wheel_zip(wheel_path) as zf:
-        dist_info = _find_dist_info_prefix(zf, wheel_path, report=report)
-        return read_wheel_name_version(zf, dist_info)
+        members = wheel_members(zf, wheel_path.name)
+        dist_info = _find_dist_info_prefix(
+            zf, wheel_path, report=report, members=members
+        )
+        return read_wheel_name_version(zf, dist_info, members=members, report=report)
 
 
 def find_embedded_sbom(
@@ -189,9 +200,10 @@ def find_embedded_sbom(
             "this wheel is bad" from "try again."
     """
     with _open_wheel_zip(wheel_path) as zf:
-        dist_info = _find_dist_info_prefix(zf, wheel_path)
+        listed = wheel_members(zf, wheel_path.name)
+        dist_info = _find_dist_info_prefix(zf, wheel_path, members=listed)
         sboms_prefix = f"{dist_info}sboms/"
-        members = dict(wheel_members(zf, wheel_path.name))
+        members = dict(listed)
         if sbom_filename is not None:
             arcname = f"{sboms_prefix}{sbom_filename}"
             if arcname not in members:

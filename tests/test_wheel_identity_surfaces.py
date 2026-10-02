@@ -377,24 +377,56 @@ def test_the_embed_rewrite_refuses_an_unreadable_member_too(
     assert not list(tmp_path.glob("*.tmp"))
 
 
-@pytest.mark.parametrize("surface", ["lib-embed_wheel_sbom", "cli-embed-wheel"])
+def _cli_succeeds(*argv: str) -> Callable[[Path, pytest.MonkeyPatch], None]:
+    def run(wheel: Path, mp: pytest.MonkeyPatch) -> None:
+        assert _cli([argv[0], str(wheel), *argv[1:]], mp) == 0
+
+    return run
+
+
+_EMBEDS: dict[str, Callable[[Path, pytest.MonkeyPatch], object]] = {
+    "lib-embed_wheel_sbom": lambda w, _mp: embed_wheel_sbom(w),
+    "cli-embed-wheel": _cli_succeeds("embed-wheel"),
+    "cli-embed-wheel-verify": _cli_succeeds("embed-wheel", "--verify"),
+    "cli-wheel-embed": _cli_succeeds("wheel", "--embed", "--offline"),
+}
+
+
+@pytest.mark.parametrize("surface", sorted(_EMBEDS))
 def test_the_embed_does_not_read_and_warn_about_metadata_twice(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     surface: str,
 ) -> None:
-    """``read_wheel`` has said why the identity is unknown; the identity goes
-    down to the embed, which makes its default file name from it as it is."""
+    """The generation has said why the identity is unknown; the identity goes
+    down to the embed, which makes its default file name from it as it is,
+    and ``--verify`` does not read ``METADATA`` for a second say."""
     monkeypatch.setattr(wheel_dist_info, "MAX_METADATA_HEADERS", 2)
     wheel = _hijack_wheel(tmp_path)
 
-    _SURFACES[surface](wheel, monkeypatch)
+    _EMBEDS[surface](wheel, monkeypatch)
 
     said = [x for x in capsys.readouterr().err.splitlines() if x.endswith("unknown")]
     assert len(said) == 1, said
+    assert "over 2 headers" in said[0]  # the cap is what made it unknown
     with zipfile.ZipFile(wheel) as archive:
-        assert "demo-1.0.dist-info/sboms/demo-1.0.spdx3.json" in archive.namelist()
+        sboms = [n for n in archive.namelist() if "/sboms/" in n]
+    assert sboms == ["demo-1.0.dist-info/sboms/demo-1.0.spdx3.json"]
+
+
+def test_verify_wheel_says_once_that_the_identity_is_unknown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(wheel_dist_info, "MAX_METADATA_HEADERS", 2)
+    wheel = _with_sbom(_hijack_wheel(tmp_path), _BULK)
+
+    _cli(["verify-wheel", str(wheel)], monkeypatch)
+
+    said = [x for x in capsys.readouterr().err.splitlines() if x.endswith("unknown")]
+    assert len(said) == 1 and "over 2 headers" in said[0], said
 
 
 def _record_not_utf8_wheel(tmp_path: Path) -> Path:

@@ -6,7 +6,8 @@
 """Which ``.dist-info`` is a wheel's own, the bounded member read and the
 Zstandard error probe.
 
-See also: tests/extract/test_wheel_identity.py (``read_wheel``),
+See also: tests/core/test_wheel_dist_info_names.py (the file name and the
+directory name), tests/extract/test_wheel_identity.py (``read_wheel``),
 tests/test_wheel_identity_surfaces.py (every surface) and
 tests/assemble/test_embed_internals.py (``_find_dist_info_prefix``).
 """
@@ -90,6 +91,23 @@ def _members(*dist_infos: str) -> list[str]:
             None,
             PROBLEM_SEVERAL_MATCH,
         ),
+        # A name may hold the dash that splits name from version (pip takes it).
+        (
+            "foo_bar-2.0-py3-none-any.whl",
+            ["foo-bar-2.0.dist-info", "x-1.dist-info"],
+            "foo-bar-2.0.dist-info/",
+            None,
+        ),
+        # Tags are not read, so what a ``packaging`` release makes of them
+        # cannot change the choice.
+        *(
+            (name, ["demo-1.0.dist-info", "x-1.dist-info"], "demo-1.0.dist-info/", None)
+            for name in (
+                "demo-1.0-py3-none-.whl",
+                "demo-1.0-3x-none-any.whl",
+                "demo-1.0-py3..py2-none-any.whl",
+            )
+        ),
     ],
     ids=[
         "plain",
@@ -102,6 +120,10 @@ def _members(*dist_infos: str) -> list[str]:
         "several",
         "renamed-several",
         "same-name-twice",
+        "dash-in-name",
+        "empty-tag",
+        "bad-interpreter",
+        "empty-tag-component",
     ],
 )
 def test_the_own_dist_info_and_what_is_said(
@@ -374,22 +396,25 @@ def test_a_wheel_holding_one_name_twice_is_refused(
 
 
 @pytest.mark.parametrize(
-    "entries",
+    ("entries", "names"),
     [
         # A directory entry is no member; two are no duplicate.
-        [("a/", ""), ("a\\", ""), ("a/M", "1")],
+        ([("a/", ""), ("a\\", ""), ("a/M", "1")], ["a/M"]),
         # Unsafe names are skipped, not refused.
-        [("../x", ""), ("../x", ""), ("a/M", "1")],
-        [("a/M", "1"), ("a/N", "2"), ("A/M", "3")],
+        ([("../x", ""), ("../x", ""), ("a/M", "1")], ["a/M"]),
+        (
+            [("a/M", "1"), ("a/N", "2"), ("A/M", "3")],
+            ["a/M", "a/N", "A/M"],
+        ),
     ],
     ids=["directories", "unsafe", "case-differs"],
 )
 def test_names_that_are_not_duplicates_are_not_refused(
-    tmp_path: Path, entries: list[tuple[str, str]]
+    tmp_path: Path, entries: list[tuple[str, str]], names: list[str]
 ) -> None:
     wheel = raw_wheel(tmp_path / WHEEL, entries)
     with zipfile.ZipFile(wheel) as zf:
-        assert wheel_members(zf, WHEEL)
+        assert [name for name, _ in wheel_members(zf, WHEEL)] == names
 
 
 def test_a_central_directory_name_that_is_not_utf8_refuses_at_open(

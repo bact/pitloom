@@ -37,6 +37,10 @@ D-numbers below refer to it),
   `.dist-info`" predicate, and its docstring says "wheel's own": it matches
   any top-level `*.dist-info`. Fold it into
   `core/wheel_dist_info.top_level_dist_infos` or reword it.
+- The `--allow-build` extractor (same module) also keeps its own
+  warn-and-keep-last for a duplicate member name and skips any top-level
+  `.dist-info`: a fourth selector rule, apart from `wheel_dist_info`'s. Harmless
+  for a wheel Pitloom has just built; align it with the fold above.
 
 ### Wheel/sdist targets and src-layout registry file ids
 

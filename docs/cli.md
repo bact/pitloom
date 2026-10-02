@@ -161,16 +161,19 @@ A wheel's own `.dist-info` is the top-level directory its file name names
 `.dist-info`, with a `WARNING:` where the file name is a wheel name. A
 `.dist-info` vendored deeper in the tree is never the wheel's own. `METADATA`
 is read for its headers only (at most 16 MiB and 10,000 headers); past a cap,
-one `WARNING:` and the name is `unknown`.
+one `WARNING:` per command and the name is `unknown`.
 
-`loom wheel`, `loom generate`, `loom wheel --embed`, `loom embed-wheel`,
-`loom verify-wheel` and `loom validate-wheel` refuse a wheel whose member
-cannot be read (damaged, encrypted, a name that is not UTF-8) or that holds
-one name twice (also as `a/M` and `a\M`), and `embed-wheel` one whose own
-`.dist-info` has a non-conforming member name: one `ERROR:` naming the archive
-and, where there is one, the member; exit 1, nothing written (not even the
-`-o` copy). With several wheels the others are still processed. The library
-raises `ValueError`.
+`loom wheel`, `loom generate`, `loom wheel --embed` and `loom embed-wheel`
+read every member, and refuse a wheel whose member cannot be read (damaged,
+encrypted, a name that is not UTF-8) or that holds one name twice (also as
+`a/M` and `a\M`); `embed-wheel` also one whose own `.dist-info` has a
+non-conforming member name. `loom verify-wheel` reads only the member names,
+the own `.dist-info`'s `METADATA` and the embedded SBOM, and `loom
+validate-wheel` only the names and the embedded SBOM: a damaged other member
+does not fail them, but one of those they read, or a duplicate name, does.
+Each refusal is one `ERROR:` naming the archive and, where there is one, the
+member; exit 1, nothing written (not even the `-o` copy). With several wheels
+the others are still processed. The library raises `ValueError`.
 
 Validate a wheel's embedded SBOM content against its format's schema and
 SHACL rules (currently SPDX3 JSON-LD only, via the same `spdx3-validate`

@@ -40,9 +40,7 @@ from pitloom.extract.wheel import read_wheel
 from tests._wheel_damage import (
     DAMAGE,
     METADATA,
-    central_name_damaged_wheel,
     damaged_wheel,
-    raw_wheel,
 )
 from tests._wheel_damage import (
     WHEEL as _WHEEL,
@@ -192,67 +190,14 @@ def test_a_member_that_cannot_be_read_refuses_the_wheel(
     assert "\n" not in message
 
 
-def test_a_central_directory_name_that_is_not_utf8_refuses_the_wheel(
-    tmp_path: Path,
-) -> None:
-    wheel = central_name_damaged_wheel(tmp_path)
-
-    with pytest.raises(ValueError, match="could not open") as excinfo:
-        read_wheel(wheel)
-
-    assert str(excinfo.value).count("\n") == 0
-    assert f"ARCHIVE={_WHEEL!r}" in str(excinfo.value)
-    assert "codec" not in str(excinfo.value)
-
-
-@pytest.mark.parametrize(
-    "entries",
-    [
-        [
-            ("demo-1.0.dist-info/METADATA", _REAL),
-            ("demo-1.0.dist-info/METADATA", _EVIL),
-        ],
-        # The backslash hijack: two names, one install location.
-        [
-            ("demo-1.0.dist-info/METADATA", _REAL),
-            ("demo-1.0.dist-info\\METADATA", _EVIL),
-        ],
-        [
-            ("demo-1.0.dist-info\\METADATA", _EVIL),
-            ("demo-1.0.dist-info/METADATA", _REAL),
-        ],
-        [
-            ("demo-1.0.dist-info/METADATA", _REAL),
-            ("./demo-1.0.dist-info/METADATA", _EVIL),
-        ],
-        [("demo-1.0.dist-info/METADATA", _REAL), ("demo/a.py", ""), ("demo/a.py", "")],
-    ],
-    ids=["exact", "backslash", "backslash-first", "dot-prefix", "other-member"],
-)
-def test_a_wheel_holding_one_name_twice_is_refused(
-    tmp_path: Path, entries: list[tuple[str, str]]
-) -> None:
-    wheel = raw_wheel(tmp_path / _WHEEL, entries)
-
-    with pytest.raises(ValueError, match="duplicate member name") as excinfo:
-        read_wheel(wheel)
-
-    message = str(excinfo.value)
-    assert message.endswith("-- wheel refused") and "\n" not in message
-    assert f"ARCHIVE={_WHEEL!r} ENTRY=" in message
-
-
 @pytest.mark.parametrize(
     ("text", "limits", "name", "warning"),
     [
-        (_REAL, {"MAX_METADATA_BYTES": len(_REAL)}, "demo", None),
         (_REAL, {"MAX_METADATA_BYTES": len(_REAL) - 1}, "unknown", "bytes"),
-        (_REAL, {"MAX_METADATA_HEADERS": 4}, "demo", None),
-        (_REAL, {"MAX_METADATA_HEADERS": 3}, "unknown", "headers"),
         # A description after the headers may be any size.
         (_REAL + "\n" + "x" * 1000, {"MAX_METADATA_BYTES": 100}, "demo", None),
     ],
-    ids=["bytes-at-cap", "bytes-over", "headers-at-cap", "headers-over", "big-body"],
+    ids=["bytes-over", "big-body"],
 )
 def test_a_metadata_header_block_over_a_cap_is_not_read(
     tmp_path: Path,

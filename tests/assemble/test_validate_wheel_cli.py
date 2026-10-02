@@ -21,6 +21,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom import __main__
+from pitloom.core.wheel_dist_info import PROBLEM_NONE
 from tests._network import skip_if_network_failure
 
 from .conftest import _SAMPLE_SPDX3_JSON, _embed_sbom_entry, _make_dummy_wheel
@@ -137,8 +138,8 @@ def test_validate_wheel_malformed_wheel_errors(
     assert __main__.main() == 1
 
     captured = capsys.readouterr()
-    assert "ERROR: Invalid wheel archive" in captured.err
-    assert "no .dist-info directory found" in captured.err
+    assert captured.err.startswith("ERROR: ")
+    assert PROBLEM_NONE in captured.err
 
 
 def test_validate_wheel_corrupt_zip_errors(

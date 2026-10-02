@@ -28,6 +28,7 @@ import pytest
 from installer.sources import WheelFile
 
 from pitloom import __main__
+from pitloom.core.wheel_dist_info import PROBLEM_NONE
 from pitloom.embed import (
     _validate_sbom_filename,
     embed_sbom_in_wheel,
@@ -144,7 +145,7 @@ def test_embed_sbom_missing_dist_info_raises(tmp_path: Path) -> None:
     with zipfile.ZipFile(bad_wheel, "w") as zf:
         zf.writestr("pkg/__init__.py", b"")
 
-    with pytest.raises(ValueError, match="no .dist-info directory found"):
+    with pytest.raises(ValueError, match=PROBLEM_NONE):
         embed_sbom_in_wheel(bad_wheel, _SAMPLE_SPDX3_JSON)
 
 

@@ -215,8 +215,8 @@ and this project adheres to
   (setuptools read as `zipp`); `METADATA` headers only, at most 16 MiB and 10,000
   headers ([#266])
 - A wheel with an unreadable member or one name twice is refused with one
-  `ERROR:` on every wheel command, not a crash; SBOM ids no longer follow
-  member order ([#266])
+  `ERROR:` by every wheel command that reads it, not a crash; SBOM ids no
+  longer follow member order ([#266])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227

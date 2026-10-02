@@ -14,6 +14,7 @@ tests/test_archive_member_name_surfaces.py (every wheel and sdist surface).
 from __future__ import annotations
 
 import logging
+import time
 import warnings
 import zipfile
 from pathlib import Path
@@ -256,3 +257,17 @@ def test_zip_file_members_ignores_os_converted_filename(tmp_path: Path) -> None:
         zf.filelist[0].filename = "decoy/from-filename.py"
         members = zip_file_members(zf, "a.zip", _LOG)
     assert [name for name, _ in members] == ["pkg/mod.py"]
+
+
+def test_a_deep_directory_chain_costs_time_linear_in_its_names() -> None:
+    """2000 files, the ``i``-th ``i`` directories deep: every directory is
+    listed once, not once per name that passes through it (20 s that way)."""
+    names = [("d/" * depth) + f"f{depth}" for depth in range(1, 2001)]
+    entries = [(name, None) for name in names]
+
+    start = time.monotonic()
+    members = archive_members(entries, "a.zip", None)
+    elapsed = time.monotonic() - start
+
+    assert [name for name, _ in members] == names
+    assert elapsed < 5  # generous: well under a second when linear

@@ -17,6 +17,7 @@ import rfc8785
 
 from pitloom import __main__
 from pitloom.cli.commands import wheel as mod_wheel
+from pitloom.core.project import ProjectMetadata
 from pitloom.id_registry import IdRegistry
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.warning_helpers import count_naming, stderr_warnings
@@ -56,13 +57,15 @@ def test_analyze_wheel_dispatches_to_wheel_path(
         offline: bool = False,
         provenance: object = None,
         **kwargs: object,
-    ) -> str:
+    ) -> tuple[str, ProjectMetadata]:
         _ = (creation_metadata, pretty, describe_relationship, registry, offline)
         captured["wheel_path"] = wheel_path_arg
         captured["output_path"] = output_path
-        return "{}"
+        return "{}", ProjectMetadata(name="pkg")
 
-    monkeypatch.setattr(mod_wheel, "generate_wheel_sbom", _fake_generate_analyzed_sbom)
+    monkeypatch.setattr(
+        mod_wheel, "generate_wheel_sbom_with_metadata", _fake_generate_analyzed_sbom
+    )
     monkeypatch.setattr(sys, "argv", ["loom", "wheel", str(wheel_path)])
 
     assert __main__.main() == 0
@@ -90,7 +93,7 @@ def test_wheel_command_wires_max_source_metadata_bytes(
         offline: bool = False,
         max_source_metadata_bytes: object = None,
         **kwargs: object,
-    ) -> str:
+    ) -> tuple[str, ProjectMetadata]:
         _ = (
             wheel_path_arg,
             output_path,
@@ -101,9 +104,11 @@ def test_wheel_command_wires_max_source_metadata_bytes(
             offline,
         )
         captured["max_source_metadata_bytes"] = max_source_metadata_bytes
-        return "{}"
+        return "{}", ProjectMetadata(name="pkg")
 
-    monkeypatch.setattr(mod_wheel, "generate_wheel_sbom", _fake_generate_analyzed_sbom)
+    monkeypatch.setattr(
+        mod_wheel, "generate_wheel_sbom_with_metadata", _fake_generate_analyzed_sbom
+    )
     monkeypatch.setattr(
         sys,
         "argv",
@@ -125,7 +130,11 @@ def test_wheel_command_nonexistent_and_verbose(
 
     # Verbose mode on valid wheel
     wheel_path = _make_wheel(tmp_path, "pkg_v", "1.0.0")
-    monkeypatch.setattr(mod_wheel, "generate_wheel_sbom", lambda *a, **k: "{}")
+    monkeypatch.setattr(
+        mod_wheel,
+        "generate_wheel_sbom_with_metadata",
+        lambda *a, **k: ("{}", ProjectMetadata(name="pkg_v")),
+    )
     monkeypatch.setattr(sys, "argv", ["loom", "wheel", "-v", str(wheel_path)])
     assert __main__.main() == 0
     out = capsys.readouterr().out

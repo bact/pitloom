@@ -84,11 +84,18 @@ def _classify(raw: str, dot_prefix_ok: bool) -> MemberName:
 
 
 def _ancestors(names: Iterable[str]) -> set[str]:
-    """Every proper ``/``-prefix directory of *names*."""
+    """Every proper ``/``-prefix directory of *names*.
+
+    Walks up from each name and stops at a prefix already found, whose own
+    ancestors are then found too: linear in the names, not in their depth
+    squared.
+    """
     found: set[str] = set()
     for name in names:
-        segments = name.split("/")
-        found.update("/".join(segments[:i]) for i in range(1, len(segments)))
+        end = name.rfind("/")
+        while end >= 0 and name[:end] not in found:
+            found.add(name[:end])
+            end = name.rfind("/", 0, end)
     return found
 
 
