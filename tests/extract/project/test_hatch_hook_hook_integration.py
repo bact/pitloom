@@ -32,8 +32,6 @@ from ..conftest import (
     write_pyproject_with_pitloom_config,
 )
 
-pytest.importorskip("hatchling", reason="hatchling is required for hook tests")
-
 
 def test_hook_with_sampleproject_fixture() -> None:
     """initialize() succeeds on the real 'sampleproject-hatchling' fixture."""

@@ -24,8 +24,6 @@ from pitloom.plugins.hatch import (
     PitloomBuildHook,
 )
 
-pytest.importorskip("hatchling", reason="hatchling is required for hook tests")
-
 
 def assert_declared_empty_authors_no_copyright_text(metadata: ProjectMetadata) -> None:
     """Assert the shared contract every ``ProjectMetadata`` producer applies

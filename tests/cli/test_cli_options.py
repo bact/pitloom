@@ -200,7 +200,6 @@ def test_no_creation_tool(
 
 
 def test_read_pitloom_tool_missing_sections(tmp_path: Path) -> None:
-
     # No tool section
     p = tmp_path / "pyproject.toml"
     p.write_text("[project]\nname='a'\n")
@@ -279,7 +278,6 @@ def test_read_pitloom_tool_tomli_backport_branch(
 
 
 def test_resolve_describe_relationship_and_pretty() -> None:
-
     conf = PitloomConfig(pretty=True, describe_relationship=True)
     args = argparse.Namespace(pretty=False, describe_relationship=False)
 
@@ -306,7 +304,6 @@ def test_resolve_describe_relationship_and_pretty() -> None:
 
 
 def test_resolve_output_path_combinations() -> None:
-
     # Explicit path
     assert _resolve_output_path(
         Path("explicit.json"), ProjectMetadata(name="empty"), PitloomConfig()
@@ -334,7 +331,6 @@ def test_resolve_output_path_combinations() -> None:
 
 
 def test_resolve_output_source() -> None:
-
     args = argparse.Namespace(output="file.json")
     assert _resolve_output_source(args, PitloomConfig(), None) == "command-line"
 

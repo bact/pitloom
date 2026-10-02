@@ -36,8 +36,6 @@ from ..conftest import (
     write_pyproject_with_pitloom_config,
 )
 
-pytest.importorskip("hatchling", reason="hatchling is required for hook tests")
-
 
 def test_hook_initialize_honors_pitloom_debug_env_var(
     monkeypatch: pytest.MonkeyPatch,

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import zipfile
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -31,6 +32,7 @@ from pitloom.embed import (
     embed_sbom_in_wheel,
     embed_wheel_sbom,
 )
+from pitloom.plugins.hatch import _default_sbom_basename
 
 from .conftest import _SAMPLE_SPDX3_JSON, _make_dummy_wheel
 
@@ -116,6 +118,13 @@ def test_embed_sbom_file_not_found(tmp_path: Path) -> None:
     missing_wheel = tmp_path / "does_not_exist.whl"
     with pytest.raises(FileNotFoundError, match="Wheel file not found"):
         embed_sbom_in_wheel(missing_wheel, "{}")
+
+
+def test_embed_wheel_sbom_not_found(tmp_path: Path) -> None:
+    """Test that embedding into a non-existent wheel
+    raises FileNotFoundError."""
+    with pytest.raises(FileNotFoundError):
+        embed_wheel_sbom(tmp_path / "does_not_exist.whl")
 
 
 def test_embed_sbom_in_wheel_corrupt_zip_raises_value_error(tmp_path: Path) -> None:
@@ -230,10 +239,6 @@ def test_the_default_sbom_name_replaces_only_what_is_unsafe_in_a_file_name(
 def test_the_default_sbom_name_of_a_safe_name_is_the_hatchling_hooks(
     tmp_path: Path,
 ) -> None:
-    from types import SimpleNamespace
-
-    from pitloom.plugins.hatch import _default_sbom_basename
-
     hatch = SimpleNamespace(
         core=SimpleNamespace(raw_name="my-pkg"), version="1.0+local"
     )
@@ -291,38 +296,28 @@ def test_an_interrupted_rewrite_leaves_no_temporary_file(
     assert unlink_fails or not list(tmp_path.glob("*.tmp"))
 
 
-def test_rewrite_wheel_archive_chmod_error(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+@pytest.mark.parametrize(
+    ("target", "error"),
+    [
+        ("zipfile.ZipFile.writestr", RuntimeError("archive write failed")),
+        # e.g. Windows: the wheel is in use.
+        ("os.replace", PermissionError("file in use")),
+    ],
+    ids=["writestr", "replace"],
+)
+def test_a_failed_rewrite_leaves_no_temporary_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, target: str, error: Exception
 ) -> None:
-    """Test _rewrite_wheel_archive gracefully ignores OSError on os.chmod."""
-    wheel_path = _make_dummy_wheel(tmp_path, "chmodpkg", "1.0.0")
-
-    def _failing_chmod(path: Any, mode: int) -> None:
-        raise OSError("Permission denied simulation")
-
-    monkeypatch.setattr("pitloom._embed_wheel.os.chmod", _failing_chmod)
-    # Should complete without error
-    embed_sbom_in_wheel(wheel_path, _SAMPLE_SPDX3_JSON)
-
-
-def test_rewrite_wheel_archive_temp_file_cleanup_on_error(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Test temporary file is cleaned up if archive write fails midway."""
     wheel_path = _make_dummy_wheel(tmp_path, "cleanuppkg", "1.0.0")
 
-    def _failing_writestr(*args: Any, **kwargs: Any) -> None:
-        raise RuntimeError("Disk write simulation failed")
+    def _fail(*_args: Any, **_kwargs: Any) -> None:
+        raise error
 
-    monkeypatch.setattr("zipfile.ZipFile.writestr", _failing_writestr)
-    with pytest.raises(RuntimeError, match="Disk write simulation failed"):
+    monkeypatch.setattr(target, _fail)
+    with pytest.raises(type(error), match=str(error)):
         embed_sbom_in_wheel(wheel_path, _SAMPLE_SPDX3_JSON)
 
-    # Verify no .tmp files remain in parent dir
-    tmp_files = list(tmp_path.glob("*.tmp"))
-    assert not tmp_files
+    assert not list(tmp_path.glob("*.tmp"))
 
 
 def test_embed_sbom_in_wheel_chmod_oserror(
@@ -340,34 +335,6 @@ def test_embed_sbom_in_wheel_chmod_oserror(
     # Should complete without error
     embed_sbom_in_wheel(wheel_path, _SAMPLE_SPDX3_JSON)
     assert wheel_path.exists()
-
-
-def test_embed_wheel_sbom_not_found(tmp_path: Path) -> None:
-    """Test that embedding into a non-existent wheel
-    raises FileNotFoundError."""
-    with pytest.raises(FileNotFoundError):
-        embed_wheel_sbom(tmp_path / "does_not_exist.whl")
-
-
-def test_embed_sbom_in_wheel_replace_error_cleanup(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Test that temp_path is cleaned up if os.replace fails
-    (e.g., Windows PermissionError)."""
-    wheel_path = _make_dummy_wheel(tmp_path, "replacepkg", "1.0.0")
-
-    def _failing_replace(src: str | Path, dst: str | Path) -> None:
-        raise PermissionError("Simulated file in use error")
-
-    monkeypatch.setattr("os.replace", _failing_replace)
-
-    with pytest.raises(PermissionError, match="Simulated file in use error"):
-        embed_sbom_in_wheel(wheel_path, _SAMPLE_SPDX3_JSON)
-
-    # Verify no .tmp files remain in parent dir
-    tmp_files = list(tmp_path.glob("*.tmp"))
-    assert not tmp_files
 
 
 def test_embed_sbom_drops_stale_sboms_from_archive(tmp_path: Path) -> None:
@@ -402,15 +369,13 @@ def test_embed_sbom_drops_stale_sboms_from_archive(tmp_path: Path) -> None:
         wf.validate_record()
 
 
-def test_looks_like_pitloom_sbom_invalid_json_returns_false() -> None:
-    """Test _looks_like_pitloom_sbom returns False when content isn't valid JSON."""
-    assert _looks_like_pitloom_sbom(b"{not valid json") is False
-
-
-def test_looks_like_pitloom_sbom_non_list_graph_returns_false() -> None:
-    """Test _looks_like_pitloom_sbom returns False when @graph isn't a list."""
-    assert _looks_like_pitloom_sbom(b'{"@graph": "not-a-list"}') is False
-    assert _looks_like_pitloom_sbom(b"{}") is False
+@pytest.mark.parametrize(
+    "content",
+    [b"{not valid json", b'{"@graph": "not-a-list"}', b"{}"],
+    ids=["invalid-json", "graph-not-a-list", "no-graph"],
+)
+def test_looks_like_pitloom_sbom_rejects(content: bytes) -> None:
+    assert _looks_like_pitloom_sbom(content) is False
 
 
 def test_embed_sbom_orig_mode_none_skips_chmod(

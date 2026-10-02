@@ -351,7 +351,8 @@ flake8
 
 - pylint needs `tests/*/` as well as `tests/`: it does not descend from the
   `tests/` package into subfolders without `__init__.py`, so `pylint tests/`
-  alone silently skips every test file in them.
+  alone silently skips every test file in them. Pass directories, not single
+  test files: a file argument loses its dotted name (false E0402).
 - Avoid ambiguous variable name (E741).
 - Complexity targets: Returns≤6, Args≤5, Locals≤15, Nesting≤5, Branches≤20, Statements≤80, McCabe≤10, Cognitive≤15.
   Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim

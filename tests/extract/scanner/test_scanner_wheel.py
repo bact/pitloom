@@ -10,7 +10,7 @@ See also: :mod:`tests.extract.scanner.test_scanner_wheel_security` (bounds,
 cleanup, hostile names), :mod:`tests.extract.scanner.test_scanner_project`.
 """
 
-# W0632 false positive: pylint infers the helper's `result = []` as empty.
+# W0632 false positive: pylint infers the returned `models = []` as empty.
 # pylint: disable=missing-function-docstring,unbalanced-tuple-unpacking
 
 from __future__ import annotations

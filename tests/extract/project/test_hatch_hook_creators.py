@@ -29,8 +29,6 @@ from ..conftest import (
     write_pyproject_with_pitloom_config,
 )
 
-pytest.importorskip("hatchling", reason="hatchling is required for hook tests")
-
 
 def test_hook_creator_name_propagated() -> None:
     """[[tool.pitloom.creator]] name must appear in the SBOM graph."""

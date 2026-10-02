@@ -42,6 +42,7 @@ from pitloom.assemble.spdx3.deps_originator import (
     _read_candidate_copyright,
     _resolve_remote_authors_file,
 )
+from pitloom.assemble.spdx3.deps_pypi import _fetch_pypi_release_info
 from pitloom.assemble.spdx3.fragments import (
     _add_fragment_imports,
     _add_model_sbom,
@@ -292,15 +293,10 @@ def test_enrich_from_pypi_already_filled_and_home_page() -> None:
     assert "license" not in filled
 
 
-# Mocks fetch_json; the marker only lifts conftest's autouse stub of
-# _fetch_pypi_release_info so the real function is under test.
-@pytest.mark.network
+# The module-level import binds the real function before conftest's
+# autouse stub of _fetch_pypi_release_info; fetch_json is mocked.
 def test_deps_pypi_fetch_release_info_mocked() -> None:
     """_fetch_pypi_release_info handles success and catches ValueError."""
-    # Imported at call time, after the marker has lifted conftest's stub.
-    # pylint: disable-next=import-outside-toplevel
-    from pitloom.assemble.spdx3.deps_pypi import _fetch_pypi_release_info
-
     with patch(
         "pitloom.assemble.spdx3.deps_pypi.fetch_json",
         return_value={"info": {"name": "foo"}},

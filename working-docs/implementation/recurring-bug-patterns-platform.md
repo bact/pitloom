@@ -199,7 +199,8 @@ the move.
   tests/` (with or without `--recursive=y`) skipped every test file under
   `tests/*/`, ~450 findings unseen. Linting a subfolder directly named its
   modules by basename, so relative imports misreported (E0402) until
-  `source-roots` gained `"."`; astroid still cannot resolve a relative
+  `source-roots` gained `"."` (a directory argument only: a single file
+  argument still gets a bare name); astroid still cannot resolve a relative
   import of a *subdirectory* from a namespace folder (`from .hf_patches.x`),
   so those became absolute `tests.` imports. CI now runs `pylint ...
   tests/ tests/*/`. Check a linter's scope by planting a known finding in

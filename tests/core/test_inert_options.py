@@ -10,6 +10,8 @@ See also: :mod:`tests.cli.test_cli_option_reach` (every CLI option reaches
 the library or warns, end to end).
 """
 
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import argparse
@@ -97,9 +99,7 @@ def test_every_kind_has_a_docs_row() -> None:
 def _subcommand(name: str) -> argparse.ArgumentParser:
     """The real parser of subcommand *name*."""
     parser = _build_parser()
-    # pylint: disable-next=protected-access
     for action in parser._actions:
-        # pylint: disable-next=protected-access
         if isinstance(action, argparse._SubParsersAction):
             parser_: argparse.ArgumentParser = action.choices[name]
             return parser_
@@ -114,7 +114,6 @@ def test_every_warned_flag_exists_on_the_cli() -> None:
     options = {
         name: {
             option
-            # pylint: disable-next=protected-access
             for action in _subcommand(command)._actions
             for option in action.option_strings
         }
@@ -387,7 +386,6 @@ def test_the_standalone_embed_builder_reads_no_declared_inert_option() -> None:
     """``embed_wheel_sbom(overrides=...)`` accepts every override and settles
     the inert ones away; what the builder then reads from the resolved config
     must not be a declared one."""
-    # pylint: disable-next=protected-access
     source = inspect.getsource(_embed_generate._build_sbom_standalone_wheel)
     read = set(re.findall(r"\bcfg\.(\w+)", source))
     read |= set(AssembleOptions.__annotations__)  # cfg.assemble_options

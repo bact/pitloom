@@ -29,8 +29,6 @@ import pitloom.plugins.hatch as hatch_module
 # (the fake *ParamFakeInterface classes below are intentionally-empty
 # type-arity stand-ins, not real interfaces)
 
-pytest.importorskip("hatchling", reason="hatchling is required for hook tests")
-
 # BuildHookInterface/BuilderConfig/PluginManager/_resolve_build_hook_base
 # exist as real module attributes at runtime, but the first three are
 # merely-imported names mypy's no_implicit_reexport won't let an outside
