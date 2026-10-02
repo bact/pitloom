@@ -245,7 +245,10 @@ Lessons:
   files were listed in archive order and `File-N` ids are minted in list
   order, so the same files zipped in another order gave another SBOM.
   Sorting by install path fixed it; any reader of an archive needs this
-  check (the sdist reader is still to be checked).
+  check. The sdist reader has the same fault, confirmed: the same five
+  files in reverse tar order gave `PKG-INFO` `File-2` in one SBOM and
+  `File-7` in the other (open; see
+  [id-registry-followups.md](../design/id-registry-followups.md)).
 
 ### 3.7 Transparency: what the SBOM does not say
 
@@ -277,16 +280,19 @@ Lessons:
   protocol 2..5 header.
 - `read_wheel` took any `*.dist-info/METADATA`, at any depth, last one
   wins. Real wheels hit it: every setuptools 82-84 wheel was reported as
-  `zipp 3.23.0`, a library vendored inside it (8 of 275 distinct local
-  wheels; flit_core escaped only because its vendored folder sorts first).
+  `zipp 3.23.0`, a library vendored inside it (8 of the 275 distinct
+  wheels of the later survey, which includes the uv cache; flit_core
+  escaped only because its vendored folder sorts first).
   Three code paths each had their own "which `.dist-info` is the wheel's
   own" rule; one shared selector now compares the PEP 427 file name with
   the top-level folder the way the ecosystem does (PEP 503 names, PEP 440
-  versions; 49 of 126 distinct wheels need that normalisation). A survey
-  of 126 distinct real wheels found every one with exactly one matching
+  versions; 49 of 126 distinct wheels need that normalisation). The first
+  survey, of 126 distinct real wheels, found every one with exactly one matching
   top-level `.dist-info`, so a user option for the fallback was rejected:
   it would cost a flag, config key, Action input and docs for a case
-  never seen, and let users switch off the spoofing warning.
+  never seen, and let users switch off the spoofing warning. Re-run after
+  the first review round on 295 unique wheels: 283 unchanged, 12 changed
+  (setuptools 75.3.2 to 84.0.0, `zipp` to `setuptools`), none refused.
 - An unreadable wheel member (corrupt data, invalid UTF-8 name,
   encrypted) crashed the whole run. "Keep the file without a hash" was
   chosen first and then reversed: three consumers (the SBOM builder, the
@@ -307,6 +313,19 @@ Lessons:
   inflated to 710 MB resident from 16 MiB of short headers, 2.4 million of
   them once parsed. Parse the header block only (stop at the first blank
   line) and cap the header count (10,000) as well as the bytes.
+- **A NUL in a member name is a duplicate in disguise**: `zipfile` cuts
+  `ZipInfo.filename` at the NUL (`orig_filename` keeps it), so
+  `nul/__init__.py` plus `nul/__init__.py\0.evil` is one file to an
+  installer and two to a reader that compares raw names: the SBOM hashed the
+  first, pip installed the second, and an embed wrote a wheel with the name
+  twice. Any member name holding a NUL refuses the wheel; check the raw
+  name, not the one the library hands back.
+- **A skip rule must follow the same selector as the identity**: the model
+  scan skipped every directory the file name matched, while `read_wheel`
+  took none of them as the wheel's own when several matched. A model in
+  either of two matching `.dist-info` directories was hidden from the scan
+  and the wheel was named `unknown`. Skip only the one directory the
+  selector chose; where it chose none, skip nothing.
 
 ### 3.9 Found while planning the next fixes (measured, not yet built)
 
@@ -360,9 +379,11 @@ Lessons:
 8. Treat logs as an output channel to an untrusted terminal or CI runner.
 9. Measure every resource claim with hostile input under a watchdog;
    review every fix commit on its own.
-10. Take identity from what the artefact declares, chosen by the rule its
-    ecosystem's installer uses, and check the rule against real artefacts
-    before adding options for cases nobody has.
+10. Take identity from what the artefact declares, chosen by a rule close
+    to its ecosystem's installer (Pitloom is laxer: where the file name names
+    none it falls back to a single mismatched `.dist-info` with a `WARNING:`,
+    where pip refuses), and check the rule against real artefacts before
+    adding options for cases nobody has.
 11. Decide "is this a model" from content that cannot contradict the
     name, and once decided, list it whatever happens when reading it.
 

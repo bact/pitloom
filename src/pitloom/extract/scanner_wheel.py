@@ -260,8 +260,8 @@ def scan_wheel_for_ai_models(
 
     Members are the wheel's install-location names as
     :func:`pitloom.extract.wheel.read_wheel` records them, minus the
-    wheel's own ``.dist-info`` directory (the one its file name names; every
-    member where it is not a wheel file name). A
+    wheel's own ``.dist-info`` directory (the one its file name names, where
+    exactly one does; every member otherwise). A
     model's ``distribution_path`` is that name and its ``physical_path`` the
     raw archive name.
 
@@ -286,7 +286,11 @@ def scan_wheel_for_ai_models(
     with zipfile.ZipFile(wheel_path) as zf, TerminationGuard() as guard:
         # No logger: read_wheel() already reported every member name.
         all_members = wheel_members(zf, wheel_path.name)
-        own = matching_dist_infos(wheel_path.name, [n for n, _ in all_members])
+        matching = matching_dist_infos(wheel_path.name, [n for n, _ in all_members])
+        # Skipped only where exactly one directory is the one the file name
+        # names: with several, read_wheel() takes none as the wheel's own, so
+        # all of them are scanned.
+        own = matching if len(matching) == 1 else ()
         members = [m for m in all_members if not m[0].startswith(own)]
         scratch = _Scratch(guard, max_bytes, wheel_path.name)
         gate = None if trust else ReaderGate(WHEEL_GATED_FORMATS, gate_hint)

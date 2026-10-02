@@ -211,12 +211,11 @@ and this project adheres to
 - A model is cut to 1000 entries per list or map, the same ones every run
   (Safetensors too; also `loom model`), and an unparsed HDF5 config to 500
   characters, each with one `WARNING:`; a cut model's memory is released ([#263])
-- A wheel's name and version come from its own top-level `.dist-info` only
-  (setuptools read as `zipp`); `METADATA` headers only, at most 16 MiB and 10,000
-  headers ([#266])
-- A wheel with an unreadable member or one name twice is refused with one
-  `ERROR:` by every wheel command that reads it, not a crash; SBOM ids no
-  longer follow member order ([#266])
+- A wheel's identity comes from its own top-level `.dist-info` (setuptools was
+  read as `zipp`; regenerate a registry harvested from such a wheel) ([#266])
+- A wheel that is not a ZIP, or has an unreadable member, a duplicate name or
+  a NUL in a name, is refused with one `ERROR:`; SBOM ids ignore member order
+  ([#266])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227

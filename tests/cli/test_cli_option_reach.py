@@ -62,8 +62,8 @@ from pitloom.assemble import (
     generate_model_sbom,
     generate_project_sbom,
     generate_wheel_sbom,
+    generate_wheel_sbom_with_metadata,
 )
-from pitloom.assemble._generators_wheel import generate_wheel_sbom_with_metadata
 from pitloom.cli.parser import _build_parser
 from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.creation import CreationMetadata

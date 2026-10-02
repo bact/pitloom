@@ -122,11 +122,16 @@ def wheel_members(
     normalised, directory entries dropped). Two members with one name,
     exactly or once normalised (``a/M`` and ``a\\M``), are not an
     installable wheel and no reader can tell which one is meant: the wheel
-    is refused.
+    is refused. So is a member whose name holds a NUL: ``zipfile`` cuts
+    ``ZipInfo.filename`` there, so an installer extracts it under a
+    shorter name that may be another member's.
 
     Raises:
-        WheelRefused: Two members have the same name.
+        WheelRefused: Two members have the same name, or a name holds a NUL.
     """
+    for info in zf.infolist():
+        if "\0" in info.orig_filename:
+            raise refusal(archive, info.orig_filename, "NUL in member name")
     return zip_file_members(
         zf,
         archive,
@@ -136,16 +141,17 @@ def wheel_members(
 
 
 def open_wheel_zip(path: Path) -> zipfile.ZipFile:
-    """Open *path* as a ZIP archive; a member name that is not UTF-8 in the
-    central directory, which ``zipfile`` reports on opening, refuses the
-    wheel.
+    """Open *path* as a ZIP archive.
 
     Raises:
-        WheelRefused: A member name is flagged UTF-8 and is not.
+        WheelRefused: *path* is not a ZIP archive, or a member name that is
+            flagged UTF-8 and is not (``zipfile`` reports both on opening).
+        OSError: *path* cannot be opened (missing, permission denied, a
+            transient I/O error): left as it is, so a caller can retry it.
     """
     try:
         return zipfile.ZipFile(path, "r")
-    except UnicodeDecodeError as exc:
+    except (zipfile.BadZipFile, UnicodeDecodeError) as exc:
         raise refusal(
             path.name, None, f"could not open ({exception_label(exc)})"
         ) from exc
@@ -310,14 +316,6 @@ def resolve_own_dist_info(
     if not is_wheel_name:
         return DistInfoChoice(None, PROBLEM_NOT_A_WHEEL_NAME)
     return DistInfoChoice(None, PROBLEM_SEVERAL_NONE_MATCH)
-
-
-def own_dist_info(wheel_name: str, member_names: Iterable[str]) -> str | None:
-    """``"<dir>/"`` of the wheel's own top-level ``.dist-info``, or ``None``.
-
-    See :func:`resolve_own_dist_info`.
-    """
-    return resolve_own_dist_info(wheel_name, member_names).prefix
 
 
 class _OverCap(Exception):

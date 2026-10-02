@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-01
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -323,7 +323,8 @@ See [build-backend-improvements.md](build-backend-improvements.md).
 - [ ] **Registry follow-ups v3 leaves open** -- src-layout alias gap for
   wheel/sdist targets, per-document entities rewritten on harvest and
   `env`'s root never looked up, AIPackage lookups outside loom ungated
-  until G7 #3, ignored-name quirks, build-and-read exclusion, merge-by-id gaps.
+  until G7 #3, ignored-name quirks, build-and-read exclusion, merge-by-id gaps,
+  wheel-identity follow-ups (sdist member order, `unknown` as a key).
   See [id-registry-followups.md](id-registry-followups.md).
 
 ### Sort-order canonicalization (follow-up to [#178](https://github.com/bact/pitloom/pull/178))

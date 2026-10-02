@@ -94,9 +94,10 @@ Values are exact; "stub" is the format-only entry described above.
 There is no limit on the number of model files in a project or wheel. In a
 wheel, the one directory not scanned is the `.dist-info` its file name names
 (`my_pkg-1.0.dist-info` for `My.Pkg-1.0.0-...whl`, names and versions compared
-as Python packaging does); any other `*.dist-info`, whatever it holds, is
-scanned like any other directory. A path that is not a wheel file name, from
-the Python API, has none skipped.
+as Python packaging does), when exactly one does; any other `*.dist-info`,
+whatever it holds, is scanned like any other directory. Where several name it
+(`demo-1.0.dist-info` and `Demo-1.0.0.dist-info`), or the path is not a wheel
+file name (from the Python API), none is skipped.
 The ceiling and budget are checked against file sizes, so a gated format
 (next section) is never copied and spends none of the budget.
 

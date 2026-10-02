@@ -121,12 +121,12 @@ def test_embed_sbom_file_not_found(tmp_path: Path) -> None:
 def test_embed_sbom_in_wheel_corrupt_zip_raises_value_error(tmp_path: Path) -> None:
     """A wheel that isn't a valid ZIP -> ValueError, not zipfile.BadZipFile.
 
-    embed_sbom_in_wheel shares _open_wheel_zip with find_embedded_sbom
+    embed_sbom_in_wheel shares open_wheel_zip with find_embedded_sbom
     (see test_validate_wheel_corrupt_zip_errors), so it inherits the same
-    BadZipFile -> ValueError normalization."""
+    BadZipFile -> refusal normalization."""
     corrupt_wheel = tmp_path / "notazip-1.0.0-py3-none-any.whl"
     corrupt_wheel.write_bytes(b"not a zip file at all")
-    with pytest.raises(ValueError, match="Invalid wheel archive"):
+    with pytest.raises(ValueError, match="wheel refused"):
         embed_sbom_in_wheel(corrupt_wheel, "{}")
 
 
@@ -186,6 +186,77 @@ def test_derive_wheel_sbom_filename_fallbacks(tmp_path: Path) -> None:
     with zipfile.ZipFile(p1, "r") as zf:
         fn4 = _derive_wheel_sbom_filename(zf, ".dist-info/")
         assert fn4 == "sbom.spdx3.json"
+
+
+@pytest.mark.parametrize(
+    ("name", "version", "expected"),
+    [
+        ("x\n", "1", "x_-1.spdx3.json"),
+        ("ev\x1b[31mil\n x", "1.0", "ev_[31mil__x-1.0.spdx3.json"),
+        ("my pkg", "1.0\x7f\u0085", "my_pkg-1.0__.spdx3.json"),
+        ("a/b\\c:d", "1", "a_b_c_d-1.spdx3.json"),
+        # Already safe: unchanged, as before escaping existed.
+        ("my-pkg", "1.0+local", "my-pkg-1.0+local.spdx3.json"),
+    ],
+    ids=["newline", "escape-and-folded", "space-del-c1", "separators", "safe"],
+)
+def test_the_default_sbom_name_replaces_only_what_is_unsafe_in_a_file_name(
+    tmp_path: Path, name: str, version: str, expected: str
+) -> None:
+    wheel = _make_dummy_wheel(tmp_path, "pkg", "1.0")
+
+    _, arcname, _, _ = embed_sbom_in_wheel(wheel, b"{}", identity=(name, version))
+
+    assert arcname == f"pkg-1.0.dist-info/sboms/{expected}"
+
+
+def test_the_default_sbom_name_of_a_safe_name_is_the_hatchling_hooks(
+    tmp_path: Path,
+) -> None:
+    from types import SimpleNamespace
+
+    from pitloom.plugins.hatch import _default_sbom_basename
+
+    hatch = SimpleNamespace(
+        core=SimpleNamespace(raw_name="my-pkg"), version="1.0+local"
+    )
+    wheel = _make_dummy_wheel(tmp_path, "pkg", "1.0")
+
+    arcname = embed_sbom_in_wheel(wheel, b"{}", identity=("my-pkg", "1.0+local"))[1]
+
+    assert arcname.rsplit("/", 1)[1] == f"{_default_sbom_basename(hatch)}.spdx3.json"
+
+
+def test_the_default_sbom_name_from_a_folded_metadata_name_is_escaped(
+    tmp_path: Path,
+) -> None:
+    wheel = tmp_path / "pkg-1.0-py3-none-any.whl"
+    with zipfile.ZipFile(wheel, "w") as zf:
+        zf.writestr(
+            "pkg-1.0.dist-info/METADATA", "Name: ev\x1b[31mil\n x\nVersion: 1.0\n"
+        )
+
+    arcname = embed_sbom_in_wheel(wheel, b"{}")[1]
+
+    assert arcname == "pkg-1.0.dist-info/sboms/ev_[31mil__x-1.0.spdx3.json"
+
+
+def test_an_interrupted_rewrite_leaves_no_temporary_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    wheel = _make_dummy_wheel(tmp_path, "intpkg", "1.0.0")
+    before = wheel.read_bytes()
+
+    def interrupted(*_args: Any) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("pitloom._embed_wheel.RefusingReader", interrupted)
+
+    with pytest.raises(KeyboardInterrupt):
+        embed_sbom_in_wheel(wheel, b"{}")
+
+    assert wheel.read_bytes() == before
+    assert not list(tmp_path.glob("*.tmp"))
 
 
 def test_rewrite_wheel_archive_chmod_error(

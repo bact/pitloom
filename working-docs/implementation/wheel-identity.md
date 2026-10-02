@@ -23,10 +23,13 @@ Registry v3 keys a package by name and version. For a wheel both come from
 surface (`loom wheel`, `generate x.whl`, `wheel --embed`, `embed-wheel`,
 `generate_wheel_sbom()`, `embed_wheel_sbom()`).
 
-Real wheels (126 distinct local ones): every one has exactly one top-level
-`.dist-info`, matching its file name after PEP 503 normalisation. Five carry
-a vendored `METADATA`; `setuptools-82/83/84` were read as `zipp 3.23.0`
-because `read_wheel` took the last `*.dist-info/METADATA` at any depth.
+Real wheels, first survey (126 distinct local ones): every one has exactly
+one top-level `.dist-info`, matching its file name after PEP 503
+normalisation. Five carry a vendored `METADATA`; `setuptools-82/83/84` were
+read as `zipp 3.23.0` because `read_wheel` took the last `*.dist-info/METADATA`
+at any depth. A later survey (275 distinct, the uv cache included) found 8
+such wheels. After the first review round, 295 unique wheels: 283 unchanged,
+12 changed (setuptools 75.3.2 to 84.0.0, `zipp` to `setuptools`), none refused.
 
 ## Three rules became one
 
@@ -93,8 +96,29 @@ names (`matching_dist_infos`), so a foreign `.dist-info` cannot hide a model.
   also validates the tags, and 26.3 rejects tags 26.2 accepted, so the chosen
   directory would depend on the installed release. A directory matches when
   any `-` splits it into the canonical name and the version
-  (`foo-bar-1.0`; `1-2` is `1.post2`). A wheel with no or several `.dist-info`
-  is refused with the shared `PROBLEM_*` text, by every reader.
+  (`foo-bar-1.0`; `1-2` is `1.post2`). With no or several `.dist-info` and no
+  single one to choose, `wheel` and `generate` warn (shared `PROBLEM_*` text)
+  and name the package `unknown`, exit 0; `wheel --embed`, `embed-wheel`,
+  `verify-wheel` and `validate-wheel` refuse the wheel with that text. The
+  model scan skips the one directory the file name names, and none where
+  several do, as `read_wheel` takes none of them.
+- **NUL** A member name holding a NUL refuses the wheel (`NUL in member
+  name`), in `wheel_members()`. `zipfile` cuts `ZipInfo.filename` there
+  (`orig_filename` keeps it), so the duplicate check on raw names missed
+  `m.py` plus `m.py\0.evil`, which an installer extracts as one file, and
+  the embed wrote a wheel with the name twice.
+- **Not a ZIP** `open_wheel_zip()` maps `BadZipFile` too (`could not open
+  (zipfile.BadZipFile) -- wheel refused`), so every surface gives the one
+  shape and an `embed-wheel` batch goes on past the file. It replaces the
+  `Invalid wheel archive` text the embed and verify paths made on their own.
+- **Default SBOM name** `<name>-<version>.spdx3.json` replaces, in name and
+  version, each control character (Unicode `C*`), whitespace, `/`, `\` and `:`
+  with `_`; `-`, `+` and `.` stay, so a safe name is as on main and as the
+  Hatchling hook's. A `Name:` folded over two lines or holding an ESC made a
+  member name with control characters. Full PEP 427 escaping (`my-pkg` to
+  `my_pkg`) is deferred: it must change embed, the hook and `loom project`
+  together. An explicit `--sbom-basename` is validated, not escaped. The embed
+  result line prints the member name through `loggable()`.
 - **Cost** Each open wheel's member list is made once and passed down;
   directory ancestors are collected walking up and stopping at a known one
   (2000 members 1 to 2000 directories deep took 20 s, in the square of the

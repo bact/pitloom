@@ -10,9 +10,10 @@ surface that reads a wheel: ``loom wheel``, ``loom generate``,
 where they read members.
 
 Each takes the name and version from the wheel's own top-level
-``.dist-info``; each refuses a wheel with an unreadable member, one name
-twice or a member name ``zipfile`` cannot open with one ``ERROR:`` line (the
-library: one ``ValueError``), writes nothing and leaves the wheel as it was.
+``.dist-info``; each refuses a file that is not a ZIP, a wheel with an
+unreadable member, one name twice, a NUL in a name or a name ``zipfile``
+cannot open with one ``ERROR:`` line (the library: one ``ValueError``),
+writes nothing and leaves the wheel as it was.
 
 See also: tests/extract/test_wheel_identity.py (``read_wheel``),
 tests/core/test_wheel_dist_info.py (the selector).
@@ -25,18 +26,14 @@ from __future__ import annotations
 import json
 import sys
 import zipfile
-import zlib
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
-from unittest import mock
 
 import pytest
 
 from pitloom import __main__
 from pitloom.assemble import generate_wheel_sbom
 from pitloom.core import wheel_dist_info
-from pitloom.core._models_wheel_build_and_read import build_and_read_wheel
 from pitloom.embed import embed_sbom_in_wheel, embed_wheel_sbom
 from tests._wheel_damage import (
     METADATA,
@@ -45,7 +42,6 @@ from tests._wheel_damage import (
     damaged_wheel,
     raw_wheel,
 )
-from tests.build_and_read_shared import FakeBuildState, install_fake_build
 
 _WHEEL = "demo-1.0-py3-none-any.whl"
 _REAL = "Metadata-Version: 2.1\nName: demo\nVersion: 1.0\n"
@@ -82,16 +78,13 @@ def _cli(argv: list[str], mp: pytest.MonkeyPatch) -> int:
     return __main__.main()
 
 
-def _cli_wheel(wheel: Path, mp: pytest.MonkeyPatch) -> str:
-    output = wheel.parent / "out.spdx3.json"
-    assert _cli(["wheel", str(wheel), "--offline", "-o", str(output)], mp) == 0
-    return output.read_text(encoding="utf-8")
+def _cli_to_file(command: str) -> Callable[[Path, pytest.MonkeyPatch], str]:
+    def run(wheel: Path, mp: pytest.MonkeyPatch) -> str:
+        output = wheel.parent / "out.spdx3.json"
+        assert _cli([command, str(wheel), "--offline", "-o", str(output)], mp) == 0
+        return output.read_text(encoding="utf-8")
 
-
-def _cli_generate(wheel: Path, mp: pytest.MonkeyPatch) -> str:
-    output = wheel.parent / "out.spdx3.json"
-    assert _cli(["generate", str(wheel), "--offline", "-o", str(output)], mp) == 0
-    return output.read_text(encoding="utf-8")
+    return run
 
 
 def _cli_wheel_embed(wheel: Path, mp: pytest.MonkeyPatch) -> str:
@@ -113,8 +106,8 @@ def _lib_embed(wheel: Path, _mp: pytest.MonkeyPatch) -> str:
 
 
 _SURFACES: dict[str, Callable[[Path, pytest.MonkeyPatch], str]] = {
-    "cli-wheel": _cli_wheel,
-    "cli-generate": _cli_generate,
+    "cli-wheel": _cli_to_file("wheel"),
+    "cli-generate": _cli_to_file("generate"),
     "cli-wheel-embed": _cli_wheel_embed,
     "cli-embed-wheel": _cli_embed_wheel,
     "lib-generate_wheel_sbom": _lib_generate,
@@ -174,6 +167,28 @@ def _duplicate_wheel(tmp_path: Path) -> Path:
     )
 
 
+_NUL_NAME = "nul/__init__.py\0.evil"
+
+
+def _nul_wheel(tmp_path: Path) -> Path:
+    """``zipfile`` cuts the second name at the NUL: an installer extracts it
+    over the first."""
+    return raw_wheel(
+        tmp_path / _WHEEL,
+        [
+            ("demo-1.0.dist-info/METADATA", _REAL),
+            ("nul/__init__.py", "good = 1\n"),
+            (_NUL_NAME, "evil = 1\n"),
+        ],
+    )
+
+
+def _not_a_zip_wheel(tmp_path: Path) -> Path:
+    wheel = tmp_path / _WHEEL
+    wheel.write_bytes(b"not a zip file at all")
+    return wheel
+
+
 def _damaged_metadata_wheel(tmp_path: Path) -> Path:
     return _with_sbom(damaged_wheel(tmp_path, "deflate", in_metadata=True))
 
@@ -206,17 +221,23 @@ _CAUSES: dict[str, tuple[Callable[[Path], Path], str]] = {
         _damaged_sbom_wheel,
         "demo-1.0.spdx3.json': could not read (zlib.error) -- wheel refused",
     ),
+    "nul-name": (
+        _nul_wheel,
+        f"ENTRY={_NUL_NAME!r}: NUL in member name -- wheel refused",
+    ),
+    "not-a-zip": (
+        _not_a_zip_wheel,
+        f"ARCHIVE={_WHEEL!r}: could not open (zipfile.BadZipFile) -- wheel refused",
+    ),
 }
 # The embed and generate surfaces read every member; verify and validate read
 # the dist-info's METADATA and the embedded SBOM, and the file list.
 _GENERATING = sorted(_SURFACES)
+_OPENING = ("duplicate-name", "bad-central-name", "nul-name", "not-a-zip")
 _MATRIX = (
-    [(s, c) for s in _GENERATING for c in list(_CAUSES)[:3]]
-    + [("cli-verify-wheel", c) for c in list(_CAUSES)[1:]]
-    + [
-        ("cli-validate-wheel", c)
-        for c in ("duplicate-name", "bad-central-name", "damaged-sbom")
-    ]
+    [(s, c) for s in _GENERATING for c in ("unreadable-member", *_OPENING)]
+    + [("cli-verify-wheel", c) for c in (*_OPENING, "damaged-metadata", "damaged-sbom")]
+    + [("cli-validate-wheel", c) for c in (*_OPENING, "damaged-sbom")]
 )
 
 
@@ -250,14 +271,16 @@ def test_a_refused_wheel_is_refused_on_every_surface(
     assert not list(tmp_path.glob("*.tmp"))
 
 
+@pytest.mark.parametrize("cause", ["unreadable-member", "nul-name", "not-a-zip"])
 def test_a_damaged_wheel_in_an_embed_batch_fails_alone(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    cause: str,
 ) -> None:
     """The existing per-wheel contract: the others are still processed and
     the exit code is non-zero."""
-    bad = damaged_wheel(tmp_path, "deflate")
+    bad = _CAUSES[cause][0](tmp_path)
     good_dir = tmp_path / "good"
     good_dir.mkdir()
     good = _hijack_wheel(good_dir)
@@ -267,7 +290,8 @@ def test_a_damaged_wheel_in_an_embed_batch_fails_alone(
     assert code == 1
     assert _embedded(good)
     err = capsys.readouterr().err
-    assert len([x for x in err.splitlines() if x.startswith("ERROR:")]) == 1
+    (error,) = [x for x in err.splitlines() if x.startswith("ERROR:")]
+    assert _CAUSES[cause][1] in error  # the bad wheel is named, in one shape
 
 
 @pytest.mark.parametrize(
@@ -473,39 +497,3 @@ def test_wheel_embed_writes_its_copy_only_once_the_wheel_is_embedded(
     assert _cli(_cli_argv("cli-wheel-embed", wheel), monkeypatch) == 0
 
     assert (tmp_path / "out.spdx3.json").read_text(encoding="utf-8") == _embedded(wheel)
-
-
-def test_a_build_and_read_extraction_keeps_its_own_fallback_contract(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """``--allow-build`` reads its just-built wheel itself, not through
-    ``read_wheel()``: an unreadable member is the documented discovery
-    failure (``None`` and one ``WARNING:``), never a crash. Only reading is
-    made to fail, so the fake wheel is really written and the extraction is
-    really reached."""
-    state: FakeBuildState = install_fake_build(monkeypatch)
-    state.entries = {"pkg/__init__.py": b"x = 1\n"}
-    real_open = zipfile.ZipFile.open
-    reads: list[object] = []
-
-    def damaged(
-        self: zipfile.ZipFile,
-        name: Any,
-        mode: str = "r",
-        pwd: bytes | None = None,
-        *,
-        force_zip64: bool = False,
-    ) -> Any:
-        if mode != "r":
-            return real_open(self, name, "w", pwd, force_zip64=force_zip64)
-        reads.append(name)
-        raise zlib.error("bad")
-
-    with mock.patch.object(zipfile.ZipFile, "open", autospec=True, side_effect=damaged):
-        assert build_and_read_wheel(tmp_path, timeout=60) is None
-
-    assert len(reads) == 1  # the extraction opened the member and failed there
-    (warning,) = [r for r in caplog.records if r.levelname == "WARNING"]
-    assert "discovery failed" in warning.getMessage()

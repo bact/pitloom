@@ -167,6 +167,39 @@ def test_report_embed_result(capsys: pytest.CaptureFixture[str]) -> None:
     assert "timestamp was before 1980" in captured.err
 
 
+def test_report_embed_result_escapes_control_characters(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from pitloom.cli.commands._embed_wheel_batch import report_embed_result
+
+    report_embed_result("sboms/ev\x1b[31mil\n x.json", "p\x1bkg.whl", ())
+
+    out = capsys.readouterr().out
+    assert out.count("\n") == 1 and "\x1b" not in out
+    assert "\\x1b[31mil" in out
+
+
+def test_embed_wheel_prints_one_clean_line_for_a_hostile_metadata_name(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    wheel = tmp_path / "pkg-1.0-py3-none-any.whl"
+    with zipfile.ZipFile(wheel, "w") as zf:
+        zf.writestr(
+            "pkg-1.0.dist-info/METADATA", "Name: ev\x1b[31mil\n x\nVersion: 1.0\n"
+        )
+    monkeypatch.setattr(sys, "argv", ["loom", "embed-wheel", str(wheel)])
+
+    assert __main__.main() == 0
+
+    out = capsys.readouterr().out
+    assert out == (
+        "pitloom: embedded pkg-1.0.dist-info/sboms/ev_[31mil__x-1.0.spdx3.json "
+        "into pkg-1.0-py3-none-any.whl\n"
+    )
+
+
 def _embedded(wheel: Path) -> bytes:
     with zipfile.ZipFile(wheel) as archive:
         (name,) = [n for n in archive.namelist() if "/sboms/" in n]

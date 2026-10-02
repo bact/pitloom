@@ -82,6 +82,13 @@ def generate_wheel_sbom(
     its AI models are not enriched (see :data:`pitloom.core.inert_options.INERT`).
     ``content_type_method`` does apply, because it also steers whether
     dependency originator enrichment fetches a remote authors file.
+
+    Raises:
+        ValueError: The wheel is refused as a whole
+            (:class:`~pitloom.core.wheel_dist_info.WheelRefused`): not a ZIP
+            archive, a member cannot be read, two members have one name or
+            one holds a NUL.
+        OSError: *wheel_path* cannot be opened (missing, permission denied).
     """
     return generate_wheel_sbom_with_metadata(
         wheel_path,
@@ -121,6 +128,13 @@ def generate_wheel_sbom_with_metadata(
     """:func:`generate_wheel_sbom`, and the :class:`ProjectMetadata` read from
     the wheel, for a caller that goes on to use the wheel's declared identity
     (it need not read ``METADATA`` again, and warn about it twice).
+
+    Raises:
+        ValueError: The wheel is refused as a whole
+            (:class:`~pitloom.core.wheel_dist_info.WheelRefused`): not a ZIP
+            archive, a member cannot be read, two members have one name or
+            one holds a NUL.
+        OSError: *wheel_path* cannot be opened (missing, permission denied).
     """
     configure_logging()
     wheel_path_obj = Path(wheel_path)

@@ -29,14 +29,14 @@ from pathlib import Path
 
 from pitloom._wheel_sbom_location import (
     _find_dist_info_prefix,
-    _open_wheel_zip,
     read_wheel_member,
     read_wheel_name_version,
 )
 from pitloom.core.creation import resolve_source_date_epoch
-from pitloom.core.file_names import is_plain_file_name
+from pitloom.core.file_names import escape_file_name_part, is_plain_file_name
 from pitloom.core.wheel_dist_info import (
     RefusingReader,
+    open_wheel_zip,
     refusal,
     refuse_unreadable,
     unreadable_member_error,
@@ -160,14 +160,17 @@ def _derive_wheel_sbom_filename(
 ) -> str:
     """Derive default SBOM filename from wheel METADATA, or from *identity*,
     the name and version a caller already read from it (no second read, so
-    no second warning)."""
+    no second warning). Characters unsafe in a file name are replaced in name and
+    version (:func:`pitloom.core.file_names.escape_file_name_part`)."""
     meta_name, meta_version = (
         identity
         if identity is not None
         else read_wheel_name_version(zf, dist_info, members=members)
     )
     if meta_name and meta_version:
-        return f"{meta_name}-{meta_version}{SPDX3_JSONLD_EXTENSION}"
+        name = escape_file_name_part(meta_name)
+        version = escape_file_name_part(meta_version)
+        return f"{name}-{version}{SPDX3_JSONLD_EXTENSION}"
     prefix = dist_info.rstrip("/").removesuffix(".dist-info")
     return (
         f"{prefix}{SPDX3_JSONLD_EXTENSION}"
@@ -312,7 +315,7 @@ def _rewrite_wheel_archive(
             new_zf.writestr(rec_info, record_bytes)
 
         return temp_path
-    except Exception:
+    except BaseException:
         if temp_path.exists():
             temp_path.unlink()
         raise
@@ -334,16 +337,15 @@ def embed_sbom_in_wheel(
     Raises:
         FileNotFoundError: *wheel_path* doesn't exist.
         ValueError: *sbom_content* is empty, or the wheel's content is bad
-            (not a valid ZIP, or missing/ambiguous ``.dist-info`` -- see
-            :func:`pitloom._wheel_sbom_location._open_wheel_zip`), or the
-            wheel is refused: a member cannot be read (damaged, encrypted,
-            unsupported, badly named), two members have one name, or a
-            member the embed must replace has a non-conforming name. The
-            wheel is left as it was.
+            (missing/ambiguous ``.dist-info``), or the wheel is refused
+            (:class:`~pitloom.core.wheel_dist_info.WheelRefused`): not a ZIP
+            archive, a member cannot be read (damaged, encrypted,
+            unsupported, badly named), two members have one name or one
+            holds a NUL, or a member the embed must replace has a
+            non-conforming name. The wheel is left as it was.
         OSError: An environment problem opening *wheel_path* (permission
             denied, a transient I/O error) -- kept as its own exception
-            type, not folded into ``ValueError`` (see
-            :func:`pitloom._wheel_sbom_location._open_wheel_zip`).
+            type, not folded into ``ValueError``.
     """
     configure_logging()
     wheel_obj = Path(wheel_path).resolve()
@@ -358,7 +360,7 @@ def embed_sbom_in_wheel(
 
     orig_mode = wheel_obj.stat().st_mode if wheel_obj.exists() else None
 
-    with _open_wheel_zip(wheel_obj) as original_zf:
+    with open_wheel_zip(wheel_obj) as original_zf:
         members = wheel_members(original_zf, wheel_obj.name)
         dist_info = _find_dist_info_prefix(original_zf, wheel_obj, members=members)
         plan = _plan_embed(

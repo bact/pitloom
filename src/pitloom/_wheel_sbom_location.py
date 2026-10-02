@@ -26,7 +26,6 @@ from pathlib import Path
 
 from pitloom.core.wheel_dist_info import (
     PROBLEM_NONE,
-    WheelRefused,
     open_wheel_zip,
     read_metadata_headers,
     refusal,
@@ -36,28 +35,6 @@ from pitloom.core.wheel_dist_info import (
 )
 
 log = logging.getLogger(__name__)
-
-
-def _open_wheel_zip(wheel_path: Path) -> zipfile.ZipFile:
-    """Open *wheel_path* for reading as a ZIP archive.
-
-    Any non-``OSError`` exception (bad ZIP, unsupported feature) is
-    normalized to ``ValueError`` -- caught generically so a future
-    ``zipfile`` failure mode is normalized too, not left to leak its own
-    type. ``OSError`` (missing file, permission denied, transient I/O)
-    propagates unchanged, so a caller can retry it without string-matching
-    a folded-in message. A wheel refused as a whole (see
-    :func:`pitloom.core.wheel_dist_info.open_wheel_zip`) keeps its own
-    message. Scoped to this constructor call only -- an error from reading
-    an entry afterward keeps its own exception type.
-    """
-    try:
-        return open_wheel_zip(wheel_path)
-    except (OSError, WheelRefused):
-        raise
-    # pylint: disable-next=broad-exception-caught
-    except Exception as exc:
-        raise ValueError(f"Invalid wheel archive {wheel_path.name!r}: {exc}") from exc
 
 
 def _find_dist_info_prefix(
@@ -169,7 +146,7 @@ def read_wheel_name_version_from_path(
     ``METADATA`` that cannot be read is warned about: a caller that reports
     the wheel's identity itself leaves it off.
     """
-    with _open_wheel_zip(wheel_path) as zf:
+    with open_wheel_zip(wheel_path) as zf:
         members = wheel_members(zf, wheel_path.name)
         dist_info = _find_dist_info_prefix(
             zf, wheel_path, report=report, members=members
@@ -187,19 +164,20 @@ def find_embedded_sbom(
     (*sbom_filename* given but absent, or no ``sboms/`` entries at all).
 
     Raises:
-        ValueError: The wheel's *content* is bad -- not a valid ZIP archive
-            or an unparseable one (see :func:`_open_wheel_zip`), missing/
-            ambiguous ``.dist-info`` (see :func:`_find_dist_info_prefix`),
+        ValueError: The wheel's *content* is bad -- refused as a whole
+            (:class:`~pitloom.core.wheel_dist_info.WheelRefused`: not a ZIP
+            archive, a member that cannot be read, a duplicate or NUL name),
+            missing/ambiguous ``.dist-info`` (see :func:`_find_dist_info_prefix`),
             or *sbom_filename* is unset and more than one file exists
             under ``sboms/`` (ambiguous -- caller must disambiguate
             explicitly).
         OSError: An *environment* problem reading *wheel_path* (missing
             file, permission denied, a transient I/O error) -- kept as
             its own exception type rather than folded into ``ValueError``
-            (see :func:`_open_wheel_zip`), so a caller can distinguish
-            "this wheel is bad" from "try again."
+            (see :func:`pitloom.core.wheel_dist_info.open_wheel_zip`), so a
+            caller can distinguish "this wheel is bad" from "try again."
     """
-    with _open_wheel_zip(wheel_path) as zf:
+    with open_wheel_zip(wheel_path) as zf:
         listed = wheel_members(zf, wheel_path.name)
         dist_info = _find_dist_info_prefix(zf, wheel_path, members=listed)
         sboms_prefix = f"{dist_info}sboms/"

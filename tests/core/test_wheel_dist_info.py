@@ -34,7 +34,6 @@ from pitloom.core.wheel_dist_info import (
     PROBLEM_SEVERAL_NONE_MATCH,
     WheelRefused,
     open_wheel_zip,
-    own_dist_info,
     read_metadata_headers,
     refusal,
     resolve_own_dist_info,
@@ -132,7 +131,6 @@ def test_the_own_dist_info_and_what_is_said(
     choice = resolve_own_dist_info(wheel, _members(*dirs))
 
     assert choice.prefix == prefix
-    assert own_dist_info(wheel, _members(*dirs)) == prefix
     if problem is None:
         assert choice.problem is None
     else:
@@ -150,15 +148,18 @@ def test_the_own_dist_info_and_what_is_said(
     ],
 )
 def test_only_a_top_level_directory_is_the_wheels_own(members: list[str]) -> None:
-    assert own_dist_info(WHEEL, members) is None
-    assert own_dist_info(WHEEL, [*members, "demo-1.0.dist-info/METADATA"]) == (
-        "demo-1.0.dist-info/"
-    )
+    assert resolve_own_dist_info(WHEEL, members).prefix is None
+    assert resolve_own_dist_info(
+        WHEEL, [*members, "demo-1.0.dist-info/METADATA"]
+    ).prefix == ("demo-1.0.dist-info/")
 
 
 def test_the_choice_does_not_depend_on_member_order() -> None:
     names = _members("demo-1.0.dist-info", "evil-9.9.dist-info", "x-1.dist-info")
-    assert own_dist_info(WHEEL, names) == own_dist_info(WHEEL, names[::-1])
+    assert (
+        resolve_own_dist_info(WHEEL, names).prefix
+        == resolve_own_dist_info(WHEEL, names[::-1]).prefix
+    )
 
 
 def _stream(data: bytes, chunk: int) -> Any:
@@ -460,3 +461,40 @@ def test_the_zstd_error_is_used_only_when_the_module_defines_one(
         wheel_dist_info, "importlib", SimpleNamespace(import_module=_importer(module))
     )
     assert wheel_dist_info._zstd_errors() == expected
+
+
+@pytest.mark.parametrize(
+    "duplicate", [True, False], ids=["truncates-to-a-twin", "alone"]
+)
+def test_a_nul_in_a_member_name_refuses_the_wheel(
+    tmp_path: Path, duplicate: bool
+) -> None:
+    """``zipfile`` cuts ``filename`` at the NUL (``orig_filename`` keeps it):
+    an installer extracts ``m.py\\0.evil`` as ``m.py``."""
+    names = ["m.py", "m.py\0.evil"] if duplicate else ["m.py\0.evil"]
+    wheel = raw_wheel(tmp_path / WHEEL, [(name, "x") for name in names])
+
+    with zipfile.ZipFile(wheel) as zf:
+        assert zf.infolist()[-1].filename == "m.py"  # the truncation is real
+        with pytest.raises(WheelRefused) as refused:
+            wheel_members(zf, WHEEL)
+
+    assert str(refused.value) == (
+        f"ARCHIVE={WHEEL!r} ENTRY={'m.py' + chr(0) + '.evil'!r}: "
+        "NUL in member name -- wheel refused"
+    )
+
+
+def test_a_file_that_is_not_a_zip_refuses_at_open_and_a_missing_one_does_not(
+    tmp_path: Path,
+) -> None:
+    wheel = tmp_path / WHEEL
+    wheel.write_bytes(b"not a zip file at all")
+
+    with pytest.raises(WheelRefused) as refused:
+        open_wheel_zip(wheel)
+    assert str(refused.value) == (
+        f"ARCHIVE={WHEEL!r}: could not open (zipfile.BadZipFile) -- wheel refused"
+    )
+    with pytest.raises(OSError):
+        open_wheel_zip(tmp_path / "missing.whl")

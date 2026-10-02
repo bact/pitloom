@@ -17,8 +17,8 @@ from pitloom._sbom_io import write_sbom_output
 from pitloom.assemble import (
     embed_sbom_in_wheel,
     generate_wheel_sbom,
+    generate_wheel_sbom_with_metadata,
 )
-from pitloom.assemble._generators_wheel import generate_wheel_sbom_with_metadata
 from pitloom.cli.commands._embed_wheel_batch import report_embed_result
 from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
 from pitloom.cli.options import add_offline_argument

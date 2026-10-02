@@ -134,9 +134,12 @@ def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFil
         other ``*.dist-info`` directory is an ordinary file.
 
     Raises:
-        ValueError: The wheel is refused as a whole: a member cannot be read
-            (damaged, encrypted, unsupported, badly named), or two members
-            have one name.
+        ValueError: The wheel is refused as a whole
+            (:class:`~pitloom.core.wheel_dist_info.WheelRefused`): not a ZIP
+            archive, a member cannot be read (damaged, encrypted,
+            unsupported, badly named), two members have one name or one
+            holds a NUL.
+        OSError: *wheel_path* cannot be opened (missing, permission denied).
     """
     wheel_path_obj = Path(wheel_path)
     metadata = ProjectMetadata(name="unknown")

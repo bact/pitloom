@@ -42,6 +42,29 @@ D-numbers below refer to it),
   `.dist-info`: a fourth selector rule, apart from `wheel_dist_info`'s. Harmless
   for a wheel Pitloom has just built; align it with the fold above.
 
+### Wheel identity and archive reader follow-ups
+
+- **sdist member order leaks into `File-N` ids.** The wheel reader sorts by
+  install path; the sdist reader lists tar members in archive order. Confirmed:
+  the same five files in reverse order gave `PKG-INFO` `File-2` in one SBOM
+  and `File-7` in the other. Sort as `read_wheel` does.
+- **The sentinel `unknown` becomes a registry key.** Distinct wheels whose
+  identity is unknown share `unknown-...#Package-1`. Skip the registry lookup
+  and harvest when the name did not come from `METADATA`.
+- **Case-insensitive collisions.** `.DIST-INFO`, `Metadata` and `record`
+  variants overwrite the real files on a macOS or Windows install and are
+  separate members to Pitloom. The same for a trailing dot, `name::$DATA`
+  (NTFS alternate data stream) and reserved device names. Decide one
+  portable-name rule for wheel members.
+- **Embed copies non-conforming names as `info.filename`.** A member outside
+  the own `.dist-info`, such as `pkg\mod.py`, is rewritten under the name
+  `zipfile` gives on the running OS, so the embedded wheel differs by OS.
+- **Default SBOM file name:** switch embed, the Hatchling hook and `loom
+  project` default output to PEP 427 escaped `<name>-<version>` together, own
+  PR after #266 (user 2026-10-02).
+- **The `--allow-build` extractor has no duplicate refusal**, and members
+  differing only in case overwrite each other in its extraction directory.
+
 ### Wheel/sdist targets and src-layout registry file ids
 
 `loom id generate` keys files by project path (`src/demo/x.py`), while a

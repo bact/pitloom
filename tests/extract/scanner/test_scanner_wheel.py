@@ -29,6 +29,7 @@ from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
 from pitloom.extract.wheel import read_wheel
+from tests._raw_archive import write_raw_zip
 from tests._wheel_models import safetensors_bytes, write_model_wheel
 from tests.warning_helpers import file_values, logged_warnings
 
@@ -174,8 +175,11 @@ def test_the_wheels_own_dist_info_is_compared_as_the_ecosystem_does(
     name: str, version: str, directory: str, own: bool, tmp_path: Path
 ) -> None:
     member = f"{directory}/m.safetensors"
-    wheel = write_model_wheel(
-        tmp_path, {member: safetensors_bytes()}, name=name, version=version
+    # The only .dist-info is the one under test (two that match are skipped
+    # by neither: see test_the_scanner_and_read_wheel_agree_on_the_own_dist_info).
+    wheel = write_raw_zip(
+        tmp_path / f"{name}-{version}-py3-none-any.whl",
+        {member: safetensors_bytes(), f"{directory}/METADATA": b""},
     )
     found = [m.format_info.file_path_relative for m in _scan_wheel(wheel)]
     assert found == ([] if own else [member])

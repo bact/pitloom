@@ -253,12 +253,18 @@ def test_sixteen_mebibytes_of_short_headers_do_not_cost_hundreds_of_megabytes(
     wheel = _build(tmp_path / _WHEEL, [("demo-1.0.dist-info/METADATA", _REAL + lines)])
     assert wheel.stat().st_size < 100_000  # the attack is cheap to ship
 
-    tracemalloc.start()
+    # Tracing may already be on (PYTHONTRACEMALLOC): measure from where it is.
+    was_tracing = tracemalloc.is_tracing()
+    if not was_tracing:
+        tracemalloc.start()
+    tracemalloc.reset_peak()
+    baseline = tracemalloc.get_traced_memory()[0]
     try:
         metadata, _ = read_wheel(wheel)
-        peak = tracemalloc.get_traced_memory()[1]
+        peak = tracemalloc.get_traced_memory()[1] - baseline
     finally:
-        tracemalloc.stop()
+        if not was_tracing:
+            tracemalloc.stop()
 
     assert metadata.name == "unknown"
     assert peak < 32 * 1024 * 1024
@@ -266,38 +272,56 @@ def test_sixteen_mebibytes_of_short_headers_do_not_cost_hundreds_of_megabytes(
     assert f"over {MAX_METADATA_HEADERS} headers" in warning
 
 
+@pytest.mark.parametrize(
+    ("dist_infos", "own", "name", "scanned"),
+    [
+        pytest.param(
+            ["demo-1.0.dist-info", "evil-9.9.dist-info"],
+            "demo-1.0.dist-info/",
+            "demo",
+            {"evil-9.9.dist-info"},
+            id="one-matches",
+        ),
+        pytest.param(
+            ["demo-1.0.dist-info", "Demo-1.0.0.dist-info"],
+            None,
+            "unknown",
+            {"demo-1.0.dist-info", "Demo-1.0.0.dist-info"},
+            id="two-match",
+        ),
+    ],
+)
 def test_the_scanner_and_read_wheel_agree_on_the_own_dist_info(
     tmp_path: Path,
+    dist_infos: list[str],
+    own: str | None,
+    name: str,
+    scanned: set[str],
 ) -> None:
     """One selector: the directory ``read_wheel`` reads is the one the model
-    scan leaves out; a foreign directory's model is scanned."""
+    scan leaves out, and where it reads none the scan leaves out none."""
     wheel = _build(
         tmp_path / _WHEEL,
         [
-            ("demo-1.0.dist-info/METADATA", _REAL),
-            ("evil-9.9.dist-info/METADATA", _EVIL),
+            (f"{d}/METADATA", _EVIL if d.startswith("evil") else _REAL)
+            for d in dist_infos
         ],
     )
-    models = {
-        "demo-1.0.dist-info/m.safetensors": False,
-        "evil-9.9.dist-info/m.safetensors": True,
-    }
     with zipfile.ZipFile(wheel, "a") as zf:
-        for name in models:
-            zf.writestr(name, safetensors_bytes())
+        for directory in dist_infos:
+            zf.writestr(f"{directory}/m.safetensors", safetensors_bytes())
     with zipfile.ZipFile(wheel) as zf:
-        own = resolve_own_dist_info(_WHEEL, zf.namelist()).prefix
-    assert own == "demo-1.0.dist-info/"
-    assert read_wheel(wheel)[0].name == "demo"
+        assert resolve_own_dist_info(_WHEEL, zf.namelist()).prefix == own
+    assert read_wheel(wheel)[0].name == name
 
-    scanned = {
+    found = {
         m.format_info.file_path_relative
         for m in scan_wheel_for_ai_models(
             wheel, scan_usage=False, usage_hint=lambda: False, max_bytes=1 << 20
         )
     }
 
-    assert scanned == {n for n, foreign in models.items() if foreign}
+    assert found == {f"{d}/m.safetensors" for d in scanned}
 
 
 def test_member_order_does_not_change_the_sbom(tmp_path: Path) -> None:
