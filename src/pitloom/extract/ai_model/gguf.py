@@ -52,8 +52,12 @@ _ARRAY_LENGTH_SUFFIX = ".length"
 def _resolve_quantization(file_type_value: Any) -> str | None:
     """Resolve a GGUF ``general.file_type`` integer to a quantization name.
 
-    Uses the ``gguf`` library's ``GGMLQuantizationType`` enum when available,
-    otherwise returns the raw integer as a string.
+    ``general.file_type`` is a ``gguf.LlamaFileType`` (the file's
+    predominant tensor type), not a per-tensor ``GGMLQuantizationType``;
+    the two number differently (7 is ``MOSTLY_Q8_0`` in one, ``Q5_1`` in
+    the other). The
+    name drops the ``MOSTLY_``/``ALL_`` prefix; a value the enum does not
+    know is returned as the raw integer string.
 
     Args:
         file_type_value: The raw value extracted from the ``general.file_type``
@@ -73,9 +77,9 @@ def _resolve_quantization(file_type_value: Any) -> str | None:
     try:
         # pylint: disable=import-outside-toplevel
 
-        from gguf import GGMLQuantizationType
+        from gguf import LlamaFileType
 
-        return str(GGMLQuantizationType(int_val).name)
+        name = str(LlamaFileType(int_val).name)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         log.debug(
@@ -84,6 +88,9 @@ def _resolve_quantization(file_type_value: Any) -> str | None:
             loggable(str(exc)),
         )
         return str(int_val)
+    for prefix in ("MOSTLY_", "ALL_"):
+        name = name.removeprefix(prefix)
+    return name
 
 
 def _read_gguf_format_version(model_path: Path, source: str) -> tuple[str | None, str]:

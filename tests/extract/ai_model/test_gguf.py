@@ -328,6 +328,12 @@ def test_mmproj_no_name(mmproj_metadata: AiModelMetadata) -> None:
     assert mmproj_metadata.version is None
 
 
+def test_mmproj_quantization(mmproj_metadata: AiModelMetadata) -> None:
+    """``general.file_type`` 7 is ``LlamaFileType.MOSTLY_Q8_0``; the file's
+    weight tensors are Q8_0."""
+    assert mmproj_metadata.quantization == "Q8_0"
+
+
 def test_mmproj_hyperparameters(mmproj_metadata: AiModelMetadata) -> None:
     hp = mmproj_metadata.hyperparameters
     assert hp["clip.vision.embedding_length"] == 128

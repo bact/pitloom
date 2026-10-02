@@ -294,6 +294,11 @@ Lessons:
   reader's `types` list, which the library fills from the first element and
   so lacks for an empty array; the library checks an empty array's type
   code nowhere, so an unknown code is left out rather than trusted.
+- GGUF quantization was read with the wrong enum: `general.file_type` is a
+  `LlamaFileType` (the file's predominant type), but was mapped through the
+  per-tensor `GGMLQuantizationType`, which numbers differently. A Q8_0 file
+  (`file_type` 7) was reported as `Q5_1`; F16 (1) matched by coincidence,
+  which is why the fixtures never showed it. Fixed with the GGUF arrays.
 - A detection threshold looser than the refusal cap is required: Safetensors
   is detected by its magic and a header length at most the format's own
   100,000,000 bytes, and refused over Pitloom's 16 MiB. Had detection used

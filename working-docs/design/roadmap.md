@@ -282,11 +282,6 @@ See [build-backend-improvements.md](build-backend-improvements.md).
   extraction (case/Unicode folding, Windows path rules), archive-level wheel
   operations on `orig_filename`, tar links in sdists. See
   [archive-member-followups.md](archive-member-followups.md).
-- [ ] **GGUF quantization read with the wrong enum** -- `gguf.py`
-  `_resolve_quantization` maps `general.file_type` (a `LlamaFileType`)
-  through `GGMLQuantizationType`: `mmproj-tinygemma3.gguf` (`file_type` 7,
-  `MOSTLY_Q8_0`, Q8_0 tensors) is reported as `Q5_1`; F16 matches only by
-  coincidence. Map through `LlamaFileType`; found in the GGUF-arrays review.
 - [ ] **Metadata-only AI model readers (after 0.20.0)** -- replace the library
   reads (fastText, ONNX, GGUF, fickling, Safetensors) with bounded
   pure-Python header readers, parity-tested against the libraries; HDF5 last.
