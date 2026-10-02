@@ -212,9 +212,8 @@ and this project adheres to
 - A model is cut to 1000 entries per list or map, the same ones every run
   (Safetensors too; also `loom model`), and an unparsed HDF5 config to 500
   characters, each with one `WARNING:`; a cut model's memory is released ([#263])
-- A GGUF array field is recorded as `<key>.length` (artifact-metadata
-  annotation: `{"length", "type"}`), not as its last element; GGUF
-  quantization reads `general.file_type` as a file type (7 is `Q8_0`, not
+- A GGUF array field is recorded as `<key>.length`, not its last element;
+  GGUF quantization reads `general.file_type` as a file type (`Q8_0`, not
   `Q5_1`) ([#267])
 
 [#226]: https://github.com/bact/pitloom/pull/226

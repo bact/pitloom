@@ -55,9 +55,8 @@ def _resolve_quantization(file_type_value: Any) -> str | None:
     ``general.file_type`` is a ``gguf.LlamaFileType`` (the file's
     predominant tensor type), not a per-tensor ``GGMLQuantizationType``;
     the two number differently (7 is ``MOSTLY_Q8_0`` in one, ``Q5_1`` in
-    the other). The
-    name drops the ``MOSTLY_``/``ALL_`` prefix; a value the enum does not
-    know is returned as the raw integer string.
+    the other). The name drops the ``MOSTLY_``/``ALL_`` prefix; a value the
+    enum does not know is returned as the raw integer string.
 
     Args:
         file_type_value: The raw value extracted from the ``general.file_type``
