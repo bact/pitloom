@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-09-21
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -130,7 +130,8 @@ in a release yet, so no compatibility constraint).
 
 P1's `Annotation.statement` embeds an AI model's raw metadata verbatim
 with no inherent size limit — a real GGUF model's tokenizer vocab array
-can inflate it into the multi-megabyte range (previously an open,
+could inflate it into the multi-megabyte range (arrays are now recorded
+as their length only) (previously an open,
 unimplemented gap — `working-docs/design/provenance-enrichment-vocabulary.md`
 open question #7). `max-source-metadata-bytes` (`ProvenanceConfig` field
 `max_source_metadata_bytes`, default `0` = unlimited) caps this.

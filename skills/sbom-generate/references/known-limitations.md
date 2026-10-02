@@ -62,9 +62,9 @@ Causes, each with its own stderr line:
   except one over the ceiling or missing its library, which adds its own.
 - Missing reader library: `WARNING: FORMAT=... required library not
   installed; ...` -- install `pitloom[ai]` or the format's extra.
-- A bound inside the file (pickle size/opcodes, GGUF header, Safetensors
-  header, `.npy` header, archive member size, ZIP entry count or central-directory size): `WARNING: ...
-  metadata not read`.
+- A bound inside the file (pickle size/opcodes/decimal number length, GGUF
+  header, Safetensors header, `.npy` header, archive member size, ZIP entry
+  count or central-directory size): `WARNING: ... metadata not read`.
 
 A file the reader cannot parse at all gets no `ai_AIPackage`, only its
 file entry and a `failed to extract metadata` warning. Inputs, outputs,

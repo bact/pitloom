@@ -69,7 +69,9 @@ def _bounded_pickle(pkl_file: IO[bytes]) -> bytes | None:
     :data:`archive_member.MAX_ARCHIVE_MEMBER_BYTES` here.
 
     Raises:
-        ModelLimitExceeded: Too many opcodes, or no complete pickle within
+        ModelLimitExceeded: Too many opcodes, a decimal number over
+            :data:`~pitloom.extract.ai_model._pickle_bounds.MAX_PICKLE_DECIMAL_DIGITS`
+            digits, or no complete pickle within
             :data:`archive_member.MAX_ARCHIVE_MEMBER_BYTES`.
     """
     limit = archive_member.MAX_ARCHIVE_MEMBER_BYTES
