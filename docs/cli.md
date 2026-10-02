@@ -156,6 +156,14 @@ the SBOM's subject name/version can't be extracted at all (unsupported
 format, or SPDX3 with an unexpected graph shape), the cross-check is
 skipped with a `WARNING:` naming why, regardless of `--fail-on-mismatch`.
 
+A wheel's own `.dist-info` is the top-level directory its file name names
+(PEP 503/440 comparison); where the file name names none, the only top-level
+`.dist-info`. A `.dist-info` vendored deeper in the tree is never the wheel's
+own. `loom wheel`, `loom generate` and `loom embed-wheel` refuse a wheel with
+a member that cannot be read (damaged, encrypted): one `ERROR:` naming the
+archive and the member, exit 1, nothing written; in an `embed-wheel` batch the
+other wheels are still processed. The library raises `ValueError`.
+
 Validate a wheel's embedded SBOM content against its format's schema and
 SHACL rules (currently SPDX3 JSON-LD only, via the same `spdx3-validate`
 library used by [`loom fragment validate`](#validate-fragments) --

@@ -16,13 +16,19 @@ from pathlib import Path
 from pitloom._wheel_sbom_location import name_version_from_email_message
 from pitloom.core.archive_member_names import zip_file_members
 from pitloom.core.project import ProjectFile, ProjectMetadata
+from pitloom.core.wheel_dist_info import (
+    MAX_METADATA_BYTES,
+    read_member_bounded,
+    refuse_unreadable,
+    resolve_own_dist_info,
+)
 from pitloom.extract._core_metadata import parse_project_urls
 
 log = logging.getLogger(__name__)
 
 
 def _hash_wheel_entry(
-    zf: zipfile.ZipFile, info: zipfile.ZipInfo, name: str
+    zf: zipfile.ZipFile, info: zipfile.ZipInfo, name: str, archive: str
 ) -> ProjectFile:
     """Compute SHA-256 hash for a wheel entry in streaming chunks.
 
@@ -30,9 +36,13 @@ def _hash_wheel_entry(
     :func:`pitloom.core.archive_member_names.zip_file_members`), the
     ``distribution_path``. ``physical_path`` is the raw archive name, so a
     registry keyed by it before names were normalised still hits.
+
+    Raises:
+        ValueError: The member cannot be read (damaged, encrypted,
+            unsupported, badly named): the wheel is refused as a whole.
     """
     hasher = hashlib.sha256()
-    with zf.open(info) as f:
+    with refuse_unreadable(archive, info.orig_filename), zf.open(info) as f:
         while chunk := f.read(8192):
             hasher.update(chunk)
     return ProjectFile(
@@ -106,26 +116,47 @@ def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFil
 
     Returns:
         A tuple of (ProjectMetadata, list of ProjectFile).
-        The ProjectMetadata contains core fields extracted from METADATA.
+        The ProjectMetadata contains core fields extracted from the
+        ``METADATA`` of the wheel's own top-level ``.dist-info`` (see
+        :func:`pitloom.core.wheel_dist_info.resolve_own_dist_info`); any
+        other ``*.dist-info`` directory is an ordinary file.
     """
     wheel_path_obj = Path(wheel_path)
     metadata = ProjectMetadata(name="unknown")
     project_files: list[ProjectFile] = []
     provenance: dict[str, str] = {}
-    source = f"Source: wheel METADATA | File: {wheel_path_obj.name}"
+    archive = wheel_path_obj.name
+    source = f"Source: wheel METADATA | File: {archive}"
 
     with zipfile.ZipFile(wheel_path_obj, "r") as zf:
-        metadata_content = None
+        members = zip_file_members(zf, archive, log)
+        choice = resolve_own_dist_info(archive, [name for name, _ in members])
+        if choice.problem:
+            log.warning("ARCHIVE=%r: %s", archive, choice.problem)
+        own_metadata = f"{choice.prefix}METADATA" if choice.prefix else None
+        metadata_content: bytes | None = None
 
-        for name, info in zip_file_members(zf, wheel_path_obj.name, log):
-            if name.endswith(".dist-info/METADATA"):
-                metadata_content = zf.read(info).decode("utf-8", errors="replace")
-            project_files.append(_hash_wheel_entry(zf, info, name))
+        for name, info in members:
+            record = _hash_wheel_entry(zf, info, name, archive)
+            project_files.append(record)
+            if name == own_metadata:
+                metadata_content = read_member_bounded(zf, info, MAX_METADATA_BYTES)
+                if metadata_content is None:
+                    log.warning(
+                        "ARCHIVE=%r ENTRY=%r: larger than %d bytes -- not read",
+                        archive,
+                        info.orig_filename,
+                        MAX_METADATA_BYTES,
+                    )
 
         if metadata_content:
-            msg = email.message_from_string(metadata_content)
+            msg = email.message_from_string(
+                metadata_content.decode("utf-8", errors="replace")
+            )
             _populate_metadata_from_email(metadata, provenance, msg, source)
 
+    # Archive order is the writer's; SPDX ids are minted in file order.
+    project_files.sort(key=lambda f: f.distribution_path)
     metadata.provenance = provenance
     metadata.files = project_files
     return metadata, project_files

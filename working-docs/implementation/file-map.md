@@ -72,6 +72,7 @@ pitloom/
 │   │   ├── setuptools-support.md   # Setuptools extractor design and limitations
 │   │   ├── summary.md              # implementation summary; points here for the tree
 │   │   ├── wheel-embedding.md
+│   │   ├── wheel-identity.md       # Which .dist-info is a wheel's own; unreadable members; METADATA bound
 │   │   └── wheel-sbom-verification.md
 │   └── archive/
 │       └── protobom-evaluation.md  # Wholesale-rejected paths
@@ -167,7 +168,8 @@ pitloom/
 │       │   ├── no_effect.py        # warn_no_effect(): the one "has no effect" WARNING: shape
 │       │   ├── project.py          # ProjectMetadata, ProjectFile
 │       │   ├── provenance.py       # ProvenanceConfig ([tool.pitloom.provenance])
-│       │   └── temp_dirs.py        # registered_temp_dir(): temp dirs removed via TerminationGuard
+│       │   ├── temp_dirs.py        # registered_temp_dir(): temp dirs removed via TerminationGuard
+│       │   └── wheel_dist_info.py  # own_dist_info(): a wheel's own .dist-info; bounded METADATA read
 │       ├── enrich/                 # Local README/model-card frontmatter enrichment
 │       │   ├── base.py             # Enricher protocol + run_enrichers_for_models()
 │       │   └── readme.py           # README.md/MODEL_CARD.md YAML frontmatter enricher

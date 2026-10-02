@@ -211,6 +211,10 @@ and this project adheres to
 - A model is cut to 1000 entries per list or map, the same ones every run
   (Safetensors too; also `loom model`), and an unparsed HDF5 config to 500
   characters, each with one `WARNING:`; a cut model's memory is released ([#263])
+- A wheel's name and version come from its own top-level `.dist-info` only
+  (setuptools read as `zipp`); `METADATA` read capped at 16 MiB ([#266])
+- An unreadable wheel member refuses the wheel with one `ERROR:`, not a crash;
+  wheel SBOM ids no longer depend on archive member order ([#266])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -240,6 +244,7 @@ and this project adheres to
 [#261]: https://github.com/bact/pitloom/pull/261
 [#262]: https://github.com/bact/pitloom/pull/262
 [#263]: https://github.com/bact/pitloom/pull/263
+[#266]: https://github.com/bact/pitloom/pull/266
 
 ## [0.19.0] - 2026-09-18
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-28
+Last-Modified: 2026-10-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -265,6 +265,10 @@ anything is written: a mismatch raises `ValueError` and nothing is
 written, unless `allow_mismatch=True` downgrades it to a `WARNING:` log
 and lets the embed proceed. Form 1 (a Pitloom-generated SBOM) is never
 checked -- it's built from the same wheel metadata, so it can't diverge.
+A wheel's name and version come from its own top-level `.dist-info` (see
+[the CLI notes](cli.md#embed-an-sbom-into-a-wheel-pep-770)); a wheel with a
+member that cannot be read raises `ValueError`, naming the archive and the
+member, and nothing is written.
 Form 3, `embed_sbom_in_wheel()`, is the lower-level, unchecked archive
 primitive both forms 1 and 2 converge on -- calling it directly (bypassing
 `embed_wheel_sbom()`) skips the cross-check entirely, same as it skips

@@ -30,10 +30,12 @@ from pathlib import Path
 from pitloom._wheel_sbom_location import (
     _find_dist_info_prefix,
     _open_wheel_zip,
+    read_wheel_member,
     read_wheel_name_version,
 )
 from pitloom.core.creation import resolve_source_date_epoch
 from pitloom.core.file_names import is_plain_file_name
+from pitloom.core.wheel_dist_info import RefusingReader, refuse_unreadable
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import configure_logging
 
@@ -179,7 +181,7 @@ def _plan_embed(
         if name.startswith(sboms_prefix)
         and name.endswith(SPDX3_JSONLD_EXTENSION)
         and name != sbom_arcname
-        and _looks_like_pitloom_sbom(original_zf.read(name))
+        and _looks_like_pitloom_sbom(read_wheel_member(original_zf, name))
     )
 
     record_info = None
@@ -189,7 +191,9 @@ def _plan_embed(
             break
 
     old_record_text = (
-        original_zf.read(record_arcname).decode("utf-8") if record_info else ""
+        read_wheel_member(original_zf, record_arcname).decode("utf-8")
+        if record_info
+        else ""
     )
     new_record_text = _update_record_lines(
         old_record_text,
@@ -243,8 +247,13 @@ def _rewrite_wheel_archive(
                     continue
                 if info.filename in stale_arcnames:
                     continue
-                with original_zf.open(info, "r") as src, new_zf.open(info, "w") as dst:
-                    shutil.copyfileobj(src, dst)
+                with refuse_unreadable(wheel_path.name, info.orig_filename):
+                    source = original_zf.open(info, "r")
+                with source, new_zf.open(info, "w") as dst:
+                    shutil.copyfileobj(
+                        RefusingReader(source, wheel_path.name, info.orig_filename),
+                        dst,
+                    )
 
             sbom_info = zipfile.ZipInfo(sbom_arcname, date_time=timestamp)
             sbom_info.compress_type = zipfile.ZIP_DEFLATED

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -22,6 +22,13 @@ D-numbers below refer to it),
 [diagnostics-logging-followups.md](diagnostics-logging-followups.md).
 
 ## Open
+
+### A wheel member that cannot be read
+
+- A wheel with an unreadable member is refused whole (wheel-identity PR). The
+  alternative, keeping the file without a hash, needs the SBOM builder to emit
+  a hashless `software_File`, the registry's (path, sha256) key to accept one,
+  and the Merkle root to say what it covers; revisit with v3.
 
 ### Wheel/sdist targets and src-layout registry file ids
 

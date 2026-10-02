@@ -19,8 +19,20 @@ from __future__ import annotations
 
 import dataclasses
 import email
+import logging
+import os
 import zipfile
 from pathlib import Path
+
+from pitloom.core.wheel_dist_info import (
+    MAX_METADATA_BYTES,
+    own_dist_info,
+    read_member_bounded,
+    refuse_unreadable,
+    top_level_dist_infos,
+)
+
+log = logging.getLogger(__name__)
 
 
 def _open_wheel_zip(wheel_path: Path) -> zipfile.ZipFile:
@@ -44,31 +56,32 @@ def _open_wheel_zip(wheel_path: Path) -> zipfile.ZipFile:
 
 
 def _find_dist_info_prefix(zf: zipfile.ZipFile, wheel_path: Path) -> str:
-    """Find the single .dist-info directory prefix in the wheel ZIP archive."""
-    dist_infos: set[str] = set()
-    for name in zf.namelist():
-        parts = name.split("/")
-        if len(parts) >= 2 and parts[0].endswith(".dist-info"):
-            dist_infos.add(f"{parts[0]}/")
+    """The wheel's own ``.dist-info`` prefix, as
+    :func:`pitloom.core.wheel_dist_info.own_dist_info` selects it.
 
+    Raises:
+        ValueError: The wheel has no top-level ``.dist-info``, or several
+            and none is the one its file name names.
+    """
+    names = zf.namelist()
+    own = own_dist_info(wheel_path.name, names)
+    if own is not None:
+        return own
+    dist_infos = top_level_dist_infos(names)
     if not dist_infos:
         raise ValueError(
             f"Invalid wheel archive {wheel_path.name}: no .dist-info directory found"
         )
-    if len(dist_infos) > 1:
-        stem_prefix = wheel_path.stem.split("-")[0]
-        matching = [
-            d
-            for d in dist_infos
-            if d.startswith(f"{stem_prefix}-") or d == f"{stem_prefix}.dist-info/"
-        ]
-        if len(matching) == 1:
-            return matching[0]
-        raise ValueError(
-            f"Invalid wheel archive {wheel_path.name}: multiple .dist-info "
-            f"directories found ({sorted(dist_infos)})"
-        )
-    return next(iter(dist_infos))
+    raise ValueError(
+        f"Invalid wheel archive {wheel_path.name}: multiple .dist-info "
+        f"directories found ({list(dist_infos)})"
+    )
+
+
+def read_wheel_member(zf: zipfile.ZipFile, arcname: str) -> bytes:
+    """Entry *arcname*'s bytes; an unreadable one refuses the wheel."""
+    with refuse_unreadable(os.path.basename(zf.filename or ""), arcname):
+        return zf.read(arcname)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -100,17 +113,32 @@ def read_wheel_name_version(
 ) -> tuple[str | None, str | None]:
     """Read ``Name``/``Version`` from *dist_info*'s ``METADATA`` entry.
 
-    Returns ``(None, None)`` if the entry is absent; either element may
-    independently be ``None`` if the corresponding header is missing.
+    Returns ``(None, None)`` if the entry is absent, or holds more than
+    :data:`pitloom.core.wheel_dist_info.MAX_METADATA_BYTES` (one
+    ``WARNING:``); either element may independently be ``None`` if the
+    corresponding header is missing.
+
+    Raises:
+        ValueError: The entry cannot be read (damaged, encrypted).
     Shared by :func:`pitloom._embed_wheel._derive_wheel_sbom_filename`
     (default-filename derivation) and `verify-wheel`'s name/version
     cross-check, so the two parses can't silently diverge.
     """
     metadata_path = f"{dist_info}METADATA"
+    archive = os.path.basename(zf.filename or "")
     if metadata_path not in zf.namelist():
         return None, None
-    content = zf.read(metadata_path).decode("utf-8", errors="replace")
-    msg = email.message_from_string(content)
+    with refuse_unreadable(archive, metadata_path):
+        data = read_member_bounded(zf, zf.getinfo(metadata_path), MAX_METADATA_BYTES)
+    if data is None:
+        log.warning(
+            "ARCHIVE=%r ENTRY=%r: larger than %d bytes -- not read",
+            archive,
+            metadata_path,
+            MAX_METADATA_BYTES,
+        )
+        return None, None
+    msg = email.message_from_string(data.decode("utf-8", errors="replace"))
     return name_version_from_email_message(msg)
 
 
@@ -161,7 +189,9 @@ def find_embedded_sbom(
             arcname = f"{sboms_prefix}{sbom_filename}"
             if arcname not in zf.namelist():
                 return None
-            return EmbeddedSbomLocation(arcname=arcname, data=zf.read(arcname))
+            return EmbeddedSbomLocation(
+                arcname=arcname, data=read_wheel_member(zf, arcname)
+            )
 
         candidates = [
             name
@@ -181,4 +211,6 @@ def find_embedded_sbom(
                 f"({sorted(candidates)}) -- pass --sbom-filename to disambiguate"
             )
         arcname = candidates[0]
-        return EmbeddedSbomLocation(arcname=arcname, data=zf.read(arcname))
+        return EmbeddedSbomLocation(
+            arcname=arcname, data=read_wheel_member(zf, arcname)
+        )
