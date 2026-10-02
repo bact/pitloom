@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -27,13 +28,12 @@ from pitloom.extract.ai_model.gguf import _resolve_quantization, read_gguf
 _GGUF = Path(__file__).parent.parent.parent / "fixtures" / "aimodels" / "gguf"
 
 
-def _make_gguf_field(value: int | str) -> MagicMock:
-    """Create a mock GGUFReader field with a single scalar value."""
-    field = MagicMock()
+def _make_gguf_field(value: int | str) -> SimpleNamespace:
+    """Create a GGUFReader-like scalar field: no type information (a bare
+    ``MagicMock``'s ``types[0]`` would be a mock, neither array nor string)."""
     arr = MagicMock()
     arr.tolist.return_value = [value]
-    field.parts = [arr]
-    return field
+    return SimpleNamespace(parts=[arr], types=[])
 
 
 def test_gguf_missing_library(tmp_path: Path) -> None:
@@ -326,6 +326,12 @@ def test_mmproj_no_name(mmproj_metadata: AiModelMetadata) -> None:
     assert mmproj_metadata.name is None
     assert mmproj_metadata.description is None
     assert mmproj_metadata.version is None
+
+
+def test_mmproj_quantization(mmproj_metadata: AiModelMetadata) -> None:
+    """``general.file_type`` 7 is ``LlamaFileType.MOSTLY_Q8_0``; the file's
+    weight tensors are Q8_0."""
+    assert mmproj_metadata.quantization == "Q8_0"
 
 
 def test_mmproj_hyperparameters(mmproj_metadata: AiModelMetadata) -> None:

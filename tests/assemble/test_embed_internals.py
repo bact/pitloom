@@ -20,6 +20,7 @@ from typing import Any
 import pytest
 from installer.sources import WheelFile
 
+from pitloom.core.wheel_dist_info import PROBLEM_NONE, PROBLEM_SEVERAL_NONE_MATCH
 from pitloom.embed import (
     _derive_wheel_sbom_filename,
     _find_dist_info_prefix,
@@ -41,7 +42,7 @@ def test_find_dist_info_prefix_edge_cases(tmp_path: Path) -> None:
     with zipfile.ZipFile(p1, "w") as zf:
         zf.writestr("nodist/module.py", "# code")
     with zipfile.ZipFile(p1, "r") as zf:
-        with pytest.raises(ValueError, match="no .dist-info directory found"):
+        with pytest.raises(ValueError, match=PROBLEM_NONE):
             _find_dist_info_prefix(zf, p1)
 
     # 2. Multiple dist-info where one matches stem prefix
@@ -58,7 +59,7 @@ def test_find_dist_info_prefix_edge_cases(tmp_path: Path) -> None:
         zf.writestr("pkg1-1.0.0.dist-info/METADATA", "Name: pkg1\n")
         zf.writestr("pkg2-1.0.0.dist-info/METADATA", "Name: pkg2\n")
     with zipfile.ZipFile(p3, "r") as zf:
-        with pytest.raises(ValueError, match="multiple .dist-info directories found"):
+        with pytest.raises(ValueError, match=PROBLEM_SEVERAL_NONE_MATCH):
             _find_dist_info_prefix(zf, p3)
 
 
@@ -120,12 +121,12 @@ def test_embed_sbom_file_not_found(tmp_path: Path) -> None:
 def test_embed_sbom_in_wheel_corrupt_zip_raises_value_error(tmp_path: Path) -> None:
     """A wheel that isn't a valid ZIP -> ValueError, not zipfile.BadZipFile.
 
-    embed_sbom_in_wheel shares _open_wheel_zip with find_embedded_sbom
+    embed_sbom_in_wheel shares open_wheel_zip with find_embedded_sbom
     (see test_validate_wheel_corrupt_zip_errors), so it inherits the same
-    BadZipFile -> ValueError normalization."""
+    BadZipFile -> refusal normalization."""
     corrupt_wheel = tmp_path / "notazip-1.0.0-py3-none-any.whl"
     corrupt_wheel.write_bytes(b"not a zip file at all")
-    with pytest.raises(ValueError, match="Invalid wheel archive"):
+    with pytest.raises(ValueError, match="wheel refused"):
         embed_sbom_in_wheel(corrupt_wheel, "{}")
 
 
@@ -185,6 +186,109 @@ def test_derive_wheel_sbom_filename_fallbacks(tmp_path: Path) -> None:
     with zipfile.ZipFile(p1, "r") as zf:
         fn4 = _derive_wheel_sbom_filename(zf, ".dist-info/")
         assert fn4 == "sbom.spdx3.json"
+
+
+@pytest.mark.parametrize(
+    ("name", "version", "expected"),
+    [
+        ("x\n", "1", "x_-1.spdx3.json"),
+        ("ev\x1b[31mil\n x", "1.0", "ev_[31mil__x-1.0.spdx3.json"),
+        ("my pkg", "1.0\x7f\u0085", "my_pkg-1.0__.spdx3.json"),
+        ("a/b\\c:d", "1", "a_b_c_d-1.spdx3.json"),
+        # Format characters (category Cf: bidi override, zero-width space).
+        ("a\u202eb\u200bc", "1", "a_b_c-1.spdx3.json"),
+        # Already safe: unchanged, as before escaping existed.
+        ("my-pkg", "1.0+local", "my-pkg-1.0+local.spdx3.json"),
+        # The longest name an installer accepts (255), and one more: the
+        # directory's own name instead.
+        ("a" * 242, "1", "a" * 242 + "-1.spdx3.json"),
+        ("a" * 243, "1", "pkg-1.0.spdx3.json"),
+        ("my-pkg", "1" * 5000, "pkg-1.0.spdx3.json"),
+    ],
+    ids=[
+        "newline",
+        "escape-and-folded",
+        "space-del-c1",
+        "separators",
+        "format-characters",
+        "safe",
+        "name-255-chars",
+        "name-256-chars",
+        "version-5000-digits",
+    ],
+)
+def test_the_default_sbom_name_replaces_only_what_is_unsafe_in_a_file_name(
+    tmp_path: Path, name: str, version: str, expected: str
+) -> None:
+    wheel = _make_dummy_wheel(tmp_path, "pkg", "1.0")
+
+    _, arcname, _, _ = embed_sbom_in_wheel(wheel, b"{}", identity=(name, version))
+
+    assert arcname == f"pkg-1.0.dist-info/sboms/{expected}"
+
+
+def test_the_default_sbom_name_of_a_safe_name_is_the_hatchling_hooks(
+    tmp_path: Path,
+) -> None:
+    from types import SimpleNamespace
+
+    from pitloom.plugins.hatch import _default_sbom_basename
+
+    hatch = SimpleNamespace(
+        core=SimpleNamespace(raw_name="my-pkg"), version="1.0+local"
+    )
+    wheel = _make_dummy_wheel(tmp_path, "pkg", "1.0")
+
+    arcname = embed_sbom_in_wheel(wheel, b"{}", identity=("my-pkg", "1.0+local"))[1]
+
+    assert arcname.rsplit("/", 1)[1] == f"{_default_sbom_basename(hatch)}.spdx3.json"
+
+
+@pytest.mark.parametrize(
+    ("dist_info", "metadata", "expected"),
+    [
+        # A folded header value, and the fallback to the directory's own name
+        # where METADATA names nothing: both escaped.
+        ("pkg-1.0", "Name: ev\x1b[31mil\n x\nVersion: 1.0\n", "ev_[31mil__x-1.0"),
+        ("ev\x1b[31mil one", "Summary: no name\n", "ev_[31mil_one"),
+    ],
+    ids=["folded-name", "fallback-prefix"],
+)
+def test_the_default_sbom_name_from_a_wheels_own_metadata_is_escaped(
+    tmp_path: Path, dist_info: str, metadata: str, expected: str
+) -> None:
+    wheel = tmp_path / "pkg-1.0-py3-none-any.whl"
+    with zipfile.ZipFile(wheel, "w") as zf:
+        zf.writestr(f"{dist_info}.dist-info/METADATA", metadata)
+
+    arcname = embed_sbom_in_wheel(wheel, b"{}")[1]
+
+    assert arcname == f"{dist_info}.dist-info/sboms/{expected}.spdx3.json"
+
+
+@pytest.mark.parametrize("unlink_fails", [False, True])
+def test_an_interrupted_rewrite_leaves_no_temporary_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unlink_fails: bool
+) -> None:
+    """The interrupt itself propagates, even where the cleanup fails."""
+    wheel = _make_dummy_wheel(tmp_path, "intpkg", "1.0.0")
+    before = wheel.read_bytes()
+
+    def interrupted(*_args: Any) -> None:
+        raise KeyboardInterrupt
+
+    def unlink_refused(*_args: Any, **_kwargs: Any) -> None:
+        raise PermissionError("busy")
+
+    monkeypatch.setattr("pitloom._embed_wheel.RefusingReader", interrupted)
+    if unlink_fails:
+        monkeypatch.setattr(Path, "unlink", unlink_refused)
+
+    with pytest.raises(KeyboardInterrupt):
+        embed_sbom_in_wheel(wheel, b"{}")
+
+    assert wheel.read_bytes() == before
+    assert unlink_fails or not list(tmp_path.glob("*.tmp"))
 
 
 def test_rewrite_wheel_archive_chmod_error(

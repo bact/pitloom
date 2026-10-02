@@ -15,6 +15,8 @@ import collections
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+
 from pitloom.extract.ai_model.gguf import (
     _categorize_gguf_fields,
     _field_value,
@@ -31,6 +33,17 @@ def test_resolve_quantization_edge_cases() -> None:
     # Test unknown quantization integer falling back to string representation
     result = _resolve_quantization(999999)
     assert result == "999999"
+
+
+@pytest.mark.parametrize(
+    ("file_type", "name"),
+    [(0, "F32"), (1, "F16"), (7, "Q8_0"), (15, "Q4_K_M"), (4, "4")],
+)
+def test_file_type_is_a_llama_file_type(file_type: int, name: str) -> None:
+    """Regression: 7 was read as ``GGMLQuantizationType`` (``Q5_1``); 4 is a
+    retired ``LlamaFileType`` value, kept as its number."""
+    pytest.importorskip("gguf")
+    assert _resolve_quantization(file_type) == name
 
 
 def test_read_gguf_format_version_oserror(tmp_path: Path) -> None:
@@ -73,7 +86,7 @@ def test_categorize_gguf_fields_skips_none_values() -> None:
         "general.empty_key": None,
     }
     prov: dict[str, str] = {}
-    hyperparams, properties = _categorize_gguf_fields(fields, "Source: test", prov)
+    hyperparams, properties = _categorize_gguf_fields(fields, "Source: test", prov, {})
 
     assert "llama.context_length" in hyperparams
     assert "general.author" in properties

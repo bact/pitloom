@@ -243,7 +243,8 @@ def test_cli_embed_wheel_error_verbose(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Test CLI error logging and traceback on failure with --verbose."""
+    """A wheel that is not a ZIP is that wheel's one refusal, not an abort of
+    the batch, with --verbose too."""
     bad_wheel = tmp_path / "corrupt.whl"
     bad_wheel.write_bytes(b"not a zip file")
 
@@ -254,7 +255,7 @@ def test_cli_embed_wheel_error_verbose(
     )
     assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert "ERROR: wheel SBOM embedding failed" in err
+    assert "wheel refused" in err and "embedding failed" not in err
 
 
 def test_cli_wheel_embed_error_verbose(

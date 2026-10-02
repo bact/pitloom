@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-01
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -131,7 +131,10 @@ best-effort embedding). A Pitloom-generated SBOM (no `--sbom`) is never
 checked -- it's built from the same wheel metadata, so it can't diverge.
 
 `--sbom-basename NAME` overrides the embedded file's basename (default:
-derived from the wheel's own name/version, `<name>-<version>.spdx3.json`).
+derived from the wheel's own name/version, `<name>-<version>.spdx3.json`; a
+control character, whitespace, `/`, `\` or `:` in either becomes `_`; with no
+name or version in `METADATA`, or a name over 255 characters, the wheel's
+`.dist-info` directory name, escaped the same way, is used instead).
 `-o`/`--output` names the modified wheel's own output path and is
 rejected with an `ERROR:` when more than one wheel is passed -- ambiguous
 without a per-wheel naming scheme; omit it to modify each wheel in place.
@@ -155,6 +158,31 @@ pass `--fail-on-mismatch` to make it an `ERROR:` (exit 1) instead. When
 the SBOM's subject name/version can't be extracted at all (unsupported
 format, or SPDX3 with an unexpected graph shape), the cross-check is
 skipped with a `WARNING:` naming why, regardless of `--fail-on-mismatch`.
+
+A wheel's own `.dist-info` is the top-level directory its file name names
+(PEP 503/440 comparison); where the file name names none, the only top-level
+`.dist-info`, with a `WARNING:` where the file name is a wheel name. A
+`.dist-info` vendored deeper in the tree is never the wheel's own. With none,
+or several, not exactly one named by the file name, `loom wheel` and `loom
+generate` warn and name the package `unknown`; `wheel --embed`, `embed-wheel`,
+`verify-wheel` and `validate-wheel` refuse the wheel. `METADATA`
+is read for its headers only (at most 16 MiB and 10,000 headers); past a cap,
+one `WARNING:` per command and the name is `unknown`.
+
+`loom wheel`, `loom generate`, `loom wheel --embed` and `loom embed-wheel`
+read every member, and refuse a file that is not a ZIP and a wheel whose
+member cannot be read (damaged, encrypted, a name that is not UTF-8), that
+holds one name twice (also as `a/M` and `a\M`) or a NUL in a name (`zipfile`
+cuts it there, so an installer extracts it under another member's name);
+`wheel --embed` and `embed-wheel` also refuse one whose own `.dist-info` has a
+non-conforming member name. `loom verify-wheel` reads only the member names,
+the own `.dist-info`'s `METADATA` and the embedded SBOM, and `loom
+validate-wheel` only the names and the embedded SBOM: a damaged other member
+does not fail them, but a damaged member they read, a duplicate or NUL name,
+or a file `zipfile` cannot open does.
+Each refusal is one `ERROR:` naming the archive and, where there is one, the
+member; exit 1, nothing written (not even the `-o` copy). With several wheels
+the others are still processed. The library raises `ValueError`.
 
 Validate a wheel's embedded SBOM content against its format's schema and
 SHACL rules (currently SPDX3 JSON-LD only, via the same `spdx3-validate`

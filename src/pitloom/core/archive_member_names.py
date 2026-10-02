@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 import re
 import zipfile
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import Literal, NamedTuple, TypeVar
 
 from pitloom.core._models_wheel_types import to_posix_distribution_path
@@ -84,11 +84,18 @@ def _classify(raw: str, dot_prefix_ok: bool) -> MemberName:
 
 
 def _ancestors(names: Iterable[str]) -> set[str]:
-    """Every proper ``/``-prefix directory of *names*."""
+    """Every proper ``/``-prefix directory of *names*.
+
+    Walks up from each name and stops at a prefix already found, whose own
+    ancestors are then found too: linear in the names, not in their depth
+    squared.
+    """
     found: set[str] = set()
     for name in names:
-        segments = name.split("/")
-        found.update("/".join(segments[:i]) for i in range(1, len(segments)))
+        end = name.rfind("/")
+        while end >= 0 and name[:end] not in found:
+            found.add(name[:end])
+            end = name.rfind("/", 0, end)
     return found
 
 
@@ -99,6 +106,7 @@ def archive_members(
     log_prefix: str = "",
     *,
     dot_prefix_ok: bool = False,
+    on_duplicate: Callable[[str], Exception] | None = None,
 ) -> list[tuple[str, T]]:
     """*entries* (raw member name, payload) as (install-location name,
     payload), in archive order.
@@ -118,12 +126,19 @@ def archive_members(
     *logger* ``None`` logs nothing, for a second read of an archive
     another call already reported on. *dot_prefix_ok* treats one leading
     ``./`` as conforming (ordinary for tar, not for a wheel's ZIP), so it
-    alone does not warn.
+    alone does not warn. *on_duplicate* turns the second case into a refusal:
+    called with the raw name of the first member whose normalised name a
+    later one repeats, it returns the exception to raise, before anything
+    is logged.
     """
     classified = [
         (raw, _classify(raw, dot_prefix_ok), payload) for raw, payload in entries
     ]
     last = {m.name: i for i, (_, m, _) in enumerate(classified) if m.status != "unsafe"}
+    if on_duplicate is not None:
+        for index, (raw, member, _) in enumerate(classified):
+            if member.status != "unsafe" and last[member.name] != index:
+                raise on_duplicate(raw)
     directories = _ancestors(last)
     members: list[tuple[str, T]] = []
     for index, (raw, member, payload) in enumerate(classified):
@@ -161,6 +176,7 @@ def file_members(
     log_prefix: str = "",
     *,
     dot_prefix_ok: bool = False,
+    on_duplicate: Callable[[str], Exception] | None = None,
 ) -> list[tuple[str, T]]:
     """:func:`archive_members` over an archive's file-typed entries
     (raw name, size, payload), after dropping the ones whose name is a
@@ -173,7 +189,12 @@ def file_members(
         elif size and logger is not None:
             logger.warning(_DIRECTORY_DATA, log_prefix, archive_name, raw)
     return archive_members(
-        files, archive_name, logger, log_prefix, dot_prefix_ok=dot_prefix_ok
+        files,
+        archive_name,
+        logger,
+        log_prefix,
+        dot_prefix_ok=dot_prefix_ok,
+        on_duplicate=on_duplicate,
     )
 
 
@@ -182,8 +203,12 @@ def zip_file_members(
     archive_name: str,
     logger: logging.Logger | None,
     log_prefix: str = "",
+    *,
+    on_duplicate: Callable[[str], Exception] | None = None,
 ) -> list[tuple[str, zipfile.ZipInfo]]:
     """:func:`file_members` for a ZIP (wheel or ``.zip`` sdist). Names come
     from ``orig_filename``, so the result does not depend on the OS."""
     entries = ((info.orig_filename, info.file_size, info) for info in zf.infolist())
-    return file_members(entries, archive_name, logger, log_prefix)
+    return file_members(
+        entries, archive_name, logger, log_prefix, on_duplicate=on_duplicate
+    )

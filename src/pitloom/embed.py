@@ -54,7 +54,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.creation import CreationMetadata
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
-from pitloom.extract.wheel import read_wheel
+from pitloom.extract.wheel import read_wheel, wheel_identity
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
 
@@ -181,6 +181,16 @@ def embed_wheel_sbom(
     call does NOT clean up -- make every call of the batch inside one
     ``with EmbedFileCache() as file_cache:`` block, whose exit does; a
     cache used outside its block raises :class:`RuntimeError`.
+
+    Raises:
+        ValueError: The wheel is refused as a whole
+            (:class:`~pitloom.core.wheel_dist_info.WheelRefused`: not a ZIP
+            archive, a member cannot be read, two members have one name or
+            one holds a NUL, a member of its own ``.dist-info`` has a
+            non-conforming name),
+            it has no single own ``.dist-info``, or the SBOM's name/version
+            mismatches (see above). The wheel is left as it was.
+        OSError: *wheel_path* cannot be opened (missing, permission denied).
     """
     configure_logging()
     wheel_obj = Path(wheel_path).resolve()
@@ -212,22 +222,8 @@ def embed_wheel_sbom(
         overrides=eff_overrides,
         file_cache=file_cache,
     )
+    wheel_name, wheel_version = wheel_identity(wheel_metadata)
     if sbom_path is not None:
-        # wheel_metadata.name defaults to the sentinel "unknown" (never
-        # None) when METADATA has no Name header -- comparing that
-        # placeholder against the SBOM would either report a bogus
-        # mismatch or silently "match" an SBOM literally named "unknown".
-        # `provenance` only gains a "name"/"version" key when a real
-        # header was found (see `_populate_metadata_from_email`), so it's
-        # the correct signal for "was this field actually present" --
-        # the same real-None-on-missing semantics `read_wheel_name_version`
-        # (verify-wheel's own path) already has.
-        wheel_name = (
-            wheel_metadata.name if "name" in wheel_metadata.provenance else None
-        )
-        wheel_version = (
-            wheel_metadata.version if "version" in wheel_metadata.provenance else None
-        )
         _enforce_sbom_name_version(
             wheel_obj.name,
             wheel_name,
@@ -235,8 +231,13 @@ def embed_wheel_sbom(
             sbom_json,
             allow_mismatch=allow_mismatch,
         )
+    # The identity just read goes down, so the embed does not read (and warn
+    # about) the same METADATA again.
     res_path, arcname, removed_arcnames, timestamp_floored = embed_sbom_in_wheel(
-        wheel_obj, sbom_json, sbom_filename=embed_filename(eff_basename)
+        wheel_obj,
+        sbom_json,
+        sbom_filename=embed_filename(eff_basename),
+        identity=(wheel_name, wheel_version),
     )
 
     if output_path is not None:

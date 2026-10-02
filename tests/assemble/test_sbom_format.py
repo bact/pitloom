@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from pitloom._sbom_format import (
     RECOMMENDED_EXTENSIONS,
     VALIDATED_FORMATS,
@@ -215,6 +217,13 @@ def test_compare_name_version_missing_both_names_warns() -> None:
     )
 
 
+def test_compare_name_version_a_wheel_with_neither_warns_once() -> None:
+    assert compare_name_version(None, None, "pkg", "1.0.0") == (
+        [],
+        ["wheel METADATA has no name or version to cross-check"],
+    )
+
+
 def test_compare_name_version_missing_wheel_version_warns() -> None:
     _, warnings = compare_name_version("pkg", None, "pkg", "1.0.0")
     assert any("wheel METADATA has no version" in w for w in warnings)
@@ -225,14 +234,25 @@ def test_compare_name_version_missing_sbom_version_warns() -> None:
     assert any("SBOM subject has no version" in w for w in warnings)
 
 
-def test_compare_name_version_invalid_wheel_version_warns() -> None:
-    _, warnings = compare_name_version("pkg", "not-a-version", "pkg", "1.0.0")
-    assert any("wheel METADATA version" in w for w in warnings)
-
-
-def test_compare_name_version_invalid_sbom_version_warns() -> None:
-    _, warnings = compare_name_version("pkg", "1.0.0", "pkg", "not-a-version")
-    assert any("SBOM subject version" in w for w in warnings)
+@pytest.mark.parametrize(
+    ("wheel_version", "sbom_version", "side"),
+    [
+        ("not-a-version", "1.0.0", "wheel METADATA version"),
+        ("1.0.0", "not-a-version", "SBOM subject version"),
+        # Past Python's int-conversion limit: a plain ``ValueError``.
+        ("1" * 5000, "1.0.0", "wheel METADATA version"),
+        ("1.0.0", "1" * 5000, "SBOM subject version"),
+    ],
+    ids=["wheel", "sbom", "wheel-5000-digits", "sbom-5000-digits"],
+)
+def test_compare_name_version_unparseable_version_warns(
+    wheel_version: str, sbom_version: str, side: str
+) -> None:
+    mismatches, warnings = compare_name_version(
+        "pkg", wheel_version, "pkg", sbom_version
+    )
+    assert mismatches == []
+    assert any(side in w for w in warnings)
 
 
 # --- check_spdx3_name_version -----------------------------------------------

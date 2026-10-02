@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-10-01
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -197,8 +197,32 @@ Lessons:
 - **`int()` of long decimal text is quadratic** when the digit limit is off
   (`PYTHONINTMAXSTRDIGITS=0`, or CPython 3.10.0-3.10.6): `pickletools`
   converts `INT`/`LONG` arguments with it; 1M digits took 3.4 s, about
-  4 min extrapolated at an 8 MiB pickle. Do not let a decoder convert
-  numbers you do not need.
+  4 min extrapolated at an 8 MiB pickle (0.034 s at 100k digits). Do not
+  let a decoder convert numbers you do not need. Fixed: the pre-walk is now
+  Pitloom's own (`formats/pickle_walk.py`, over `pickletools.opcodes`), which
+  finds a decimal argument with a bounded `readline(4303)` and never
+  converts it; a 1M-digit `LONG` is refused in about 25 microseconds with
+  the limit off, and 8 MiB of 4300-digit `INT`s (1949 opcodes) is walked in
+  4.5 ms where `genops` took 127 ms.
+- **The outcome depended on the interpreter's configuration.** With the
+  default `int_max_str_digits` a number over 4300 digits made `genops`
+  raise, reported as a malformed pickle; with `PYTHONINTMAXSTRDIGITS=0`
+  (or an older patch level) the same file was accepted, slowly. The bound
+  must not vary with the environment, so the cap is a property of the
+  input: 4300 digits, counted the way CPython counts them (sign, `L` and
+  whitespace excluded). Residue: a limit set *lower* than the default
+  (e.g. `PYTHONINTMAXSTRDIGITS=640`) still makes fickling fail on a
+  1000-digit number, a warning where the default gives none, and the type
+  of model is then lost (a pickle whose top-level class takes such a number
+  gives different SBOM bytes). Python 3.12 and later convert big numbers far faster
+  (`genops` on 1M digits: 0.39 s on 3.14 against about 3.4 s on 3.10), so the
+  regression test bounds the bytes read, not the time.
+- **A byte cap is not a digit cap.** The first plan capped the argument at
+  4302 bytes on the belief that everything shorter converts under the
+  default limit. False: a 4301-digit unsigned `INT` (4301 bytes) and a
+  4301-digit `LONG` (`...L`, 4302 bytes) fit in 4302 bytes and CPython
+  still rejects them. The cap counts digits; the 4302-byte window only
+  bounds the scan.
 - **Python 3.14 differences surfaced in CI**: `compression.zstd` raises its
   own `ZstdError` for zip method 93; `Path.exists()` no longer raises
   `PermissionError`.
@@ -209,7 +233,8 @@ Lessons:
   test order only. Restore the logger's handlers after every test.
 - **`pickletools.genops` is a decoder, not an unpickler**: it never
   constructs objects or calls `find_class`, so it is safe to walk opcodes
-  of a hostile pickle within an opcode cap.
+  of a hostile pickle within an opcode cap, but not before the decimal
+  conversions above are bounded.
 
 ### 3.5 Logs and terminals are an output channel
 
@@ -241,6 +266,14 @@ Lessons:
   ceiling, caps, usage scan, build-and-read). Same input plus same
   settings must give identical bytes; every setting that changes the
   output is documented and announced.
+- **Archive member order leaked into ids** (wheel-identity PR): wheel
+  files were listed in archive order and `File-N` ids are minted in list
+  order, so the same files zipped in another order gave another SBOM.
+  Sorting by install path fixed it; any reader of an archive needs this
+  check. The sdist reader has the same fault, confirmed: the same five
+  files in reverse tar order gave `PKG-INFO` `File-2` in one SBOM and
+  `File-7` in the other (open; see
+  [id-registry-followups.md](../design/id-registry-followups.md)).
 
 ### 3.7 Transparency: what the SBOM does not say
 
@@ -262,7 +295,26 @@ Lessons:
 
 - GGUF array fields were emitted as their last element (the last
   vocabulary token's UTF-8 bytes as a property value) since before #263.
-  Still open: the fix is planned before 0.20.0.
+  Fixed: an array `k` is now recorded as `k.length`, its declared top-level
+  element count (stories260K: `tokenizer.ggml.tokens` 512; phi-3: 32064).
+  Element values are never read for the SBOM. The element type in the
+  artifact-metadata annotation comes from the array header, not from the
+  reader's `types` list, which the library fills from the first element and
+  so lacks for an empty array; the library checks an empty array's type
+  code nowhere, so an unknown code is left out rather than trusted.
+- GGUF quantization was read with the wrong enum: `general.file_type` is a
+  `LlamaFileType` (the file's predominant type), but was mapped through the
+  per-tensor `GGMLQuantizationType`, which numbers differently. A Q8_0 file
+  (`file_type` 7) was reported as `Q5_1`; F16 (1) matched by coincidence,
+  which is why the fixtures never showed it. Fixed with the GGUF arrays.
+- A detection threshold looser than the refusal cap is required: Safetensors
+  is detected by its magic and a header length at most the format's own
+  100,000,000 bytes, and refused over Pitloom's 16 MiB. Had detection used
+  the 16 MiB cap, a header of 17 MiB would have been "unsupported model
+  format" instead of refused with its size. The threshold must also match
+  the library's own bound, inclusive or exclusive: the `safetensors`
+  library 0.8.0 accepts a declared 100,000,000 and rejects 100,000,001, so
+  detection moved from `<` to `<=`.
 - A helper reused outside its contract (skip every `*.dist-info/`) let a
   model hide; the narrower rule (the wheel's own dist-info) still let a
   fake `x.dist-info/WHEEL` hide one; final rule: the dist-info named by the
@@ -270,8 +322,78 @@ Lessons:
 - A suffix shared with a non-model file (`.pth` is also Python path
   configuration) needs a content check: accept only a ZIP or a pickle
   protocol 2..5 header.
-- `read_wheel` takes a nested vendored `METADATA` as the wheel's own name
-  and version (pre-existing; follow-up).
+- `read_wheel` took any `*.dist-info/METADATA`, at any depth, last one
+  wins. Real wheels hit it: every setuptools 82-84 wheel was reported as
+  `zipp 3.23.0`, a library vendored inside it (8 of the 275 distinct
+  wheels of the later survey, which includes the uv cache; flit_core
+  escaped only because its vendored folder sorts first).
+  Three code paths each had their own "which `.dist-info` is the wheel's
+  own" rule; one shared selector now compares the PEP 427 file name with
+  the top-level folder the way the ecosystem does (PEP 503 names, PEP 440
+  versions; 49 of 126 distinct wheels need that normalisation). The first
+  survey, of 126 distinct real wheels, found every one with exactly one matching
+  top-level `.dist-info`, so a user option for the fallback was rejected:
+  it would cost a flag, config key, Action input and docs for a case
+  never seen, and let users switch off the spoofing warning. Re-run after
+  the first review round on 295 unique wheels: 283 unchanged, 12 changed
+  (setuptools 75.3.2 to 84.0.0, `zipp` to `setuptools`), none refused.
+- An unreadable wheel member (corrupt data, invalid UTF-8 name,
+  encrypted) crashed the whole run. "Keep the file without a hash" was
+  chosen first and then reversed: three consumers (the SBOM builder, the
+  registry keyed by path and hash, the package's Merkle root) assume
+  every file has a hash, and a package hash that silently skips a file is
+  a false integrity claim. The wheel is now refused with one `ERROR:`;
+  pip cannot install such a wheel either.
+- **Two name lists in one selector** (wheel-identity review): `read_wheel`
+  chose the `.dist-info` from normalised member names, the embed from the
+  raw `namelist()`. `demo-1.0.dist-info/METADATA` plus
+  `demo-1.0.dist-info\METADATA` made one reader report `evil 9`, and the
+  embed wrote that into the wheel. Select from one list, built in one place.
+- **Duplicate member names are parser confusion**: two readers keeping
+  different copies of one name (first, last, or by separator) is how a
+  hostile archive shows a scanner one file and an installer another. A
+  wheel with one name twice is refused, not resolved by a rule.
+- **A byte cap on `METADATA` did not bound memory**: a 28 KB wheel
+  inflated to 710 MB resident from 16 MiB of short headers, 2.4 million of
+  them once parsed. Parse the header block only (stop at the first blank
+  line) and cap the header count (10,000) as well as the bytes.
+- **A NUL in a member name is a duplicate in disguise**: `zipfile` cuts
+  `ZipInfo.filename` at the NUL (`orig_filename` keeps it), so
+  `nul/__init__.py` plus `nul/__init__.py\0.evil` is one file to an
+  installer and two to a reader that compares raw names: the SBOM hashed the
+  first, pip installed the second, and an embed wrote a wheel with the name
+  twice. Any member name holding a NUL refuses the wheel; check the raw
+  name, not the one the library hands back.
+- **A skip rule must follow the same selector as the identity**: the model
+  scan skipped every directory the file name matched, while `read_wheel`
+  took none of them as the wheel's own when several matched. A model in
+  either of two matching `.dist-info` directories was hidden from the scan
+  and the wheel was named `unknown`. Skip only the one directory the
+  selector chose; where it chose none, skip nothing.
+
+### 3.9 Found while planning the next fixes (measured, not yet built)
+
+- **"Is it a model" was inverted.** An extension alone made a file a
+  model: a 24-byte text file named `.safetensors` became a model entry
+  (its text read as an 8-quintillion-byte header length), and Git LFS
+  pointer files (text stand-ins for unfetched large files) became 1 entry
+  in a project but 5 in a wheel. Meanwhile a genuine but truncated
+  Safetensors file was dropped. Decided: the file's first bytes must not
+  contradict its extension (formats with no reliable signature, ONNX and
+  HDF5, go by extension); a contradiction is one `WARNING:`.
+- **Whether a model is listed depended on the environment and on order.**
+  A truncated model was dropped when its library was installed and kept
+  when it was not (6 vs 7 entries); under a size budget the same wheel
+  gave 8 or 11 entries depending on which files were read first. Decided:
+  every confirmed model is listed, read or not, on every surface,
+  including `loom model FILE`, which stops with exit 1 today.
+- **A parser can do the dangerous work before the check sees it.**
+  `pickletools.genops` converts a decimal number with `int()` before it
+  yields the opcode, so a digit cap applied to its output is too late
+  (1M digits: 3.4 s, quadratic, when Python's digit limit is off). The
+  pickle walk has to be replaced, not wrapped; the default digit limit
+  meanwhile turns the same input into a misleading "malformed" warning,
+  so the outcome depended on an interpreter setting.
 
 ## 4. Principles that came out of it
 
@@ -280,7 +402,11 @@ Lessons:
 2. Bound declared structure (counts, lengths, nesting) before any parser
    runs; byte ceilings alone do not bound work.
 3. A pre-check must use the parser's own decision procedure, or it will
-   disagree with the parser on hostile input.
+   disagree with the parser on hostile input. Nuance: a pre-walk built on
+   the parser's own decoder inherits its conversions (`genops` calls `int()`
+   on decimal text before yielding), so it pays the parser's costs and
+   limits before any bound of yours applies. Reuse the opcode table, not
+   the decoder.
 4. Fail closed on anything the check does not understand (unknown
    versions, a missing private API).
 5. Gate native and amplifying parsers for untrusted input; make the
@@ -292,6 +418,16 @@ Lessons:
 8. Treat logs as an output channel to an untrusted terminal or CI runner.
 9. Measure every resource claim with hostile input under a watchdog;
    review every fix commit on its own.
+10. A detection threshold must stay looser than the refusal cap, or an
+    over-cap file is misclassified rather than refused; and it must match
+    the library's own bound, inclusive or exclusive.
+11. Take identity from what the artefact declares, chosen by a rule close
+    to its ecosystem's installer (Pitloom is laxer: where the file name names
+    none it falls back to a single mismatched `.dist-info` with a `WARNING:`,
+    where pip refuses), and check the rule against real artefacts before
+    adding options for cases nobody has.
+12. Decide "is this a model" from content that cannot contradict the
+    name, and once decided, list it whatever happens when reading it.
 
 ## 5. Status at the time of writing
 

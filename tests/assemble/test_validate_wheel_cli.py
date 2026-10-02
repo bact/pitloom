@@ -21,6 +21,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom import __main__
+from pitloom.core.wheel_dist_info import PROBLEM_NONE
 from tests._network import skip_if_network_failure
 
 from .conftest import _SAMPLE_SPDX3_JSON, _embed_sbom_entry, _make_dummy_wheel
@@ -137,8 +138,8 @@ def test_validate_wheel_malformed_wheel_errors(
     assert __main__.main() == 1
 
     captured = capsys.readouterr()
-    assert "ERROR: Invalid wheel archive" in captured.err
-    assert "no .dist-info directory found" in captured.err
+    assert captured.err.startswith("ERROR: ")
+    assert PROBLEM_NONE in captured.err
 
 
 def test_validate_wheel_corrupt_zip_errors(
@@ -148,10 +149,10 @@ def test_validate_wheel_corrupt_zip_errors(
 ) -> None:
     """A file that isn't even a valid ZIP archive -> ERROR, exit 1.
 
-    Exercises find_embedded_sbom's BadZipFile -> ValueError normalization
+    Exercises find_embedded_sbom's BadZipFile -> refusal normalization
     directly (distinct from a well-formed ZIP that's merely missing
     .dist-info, covered by the malformed-wheel test). OSError is
-    deliberately NOT normalized (see _open_wheel_zip) -- not this test's
+    deliberately NOT normalized (see open_wheel_zip) -- not this test's
     concern."""
     wheel_path = tmp_path / "notazip-1.0.0-py3-none-any.whl"
     wheel_path.write_bytes(b"not a zip file at all")
@@ -160,7 +161,7 @@ def test_validate_wheel_corrupt_zip_errors(
     assert __main__.main() == 1
 
     captured = capsys.readouterr()
-    assert "ERROR: Invalid wheel archive" in captured.err
+    assert "wheel refused" in captured.err
 
 
 def test_validate_wheel_no_wheel_files_errors(

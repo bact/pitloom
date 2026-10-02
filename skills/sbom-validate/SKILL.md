@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-09-30
+# Last-Modified: 2026-10-02
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -146,6 +146,17 @@ wheel(s) OK") unless `--fail-on-mismatch` is given: report any `WARNING:`,
 and add `--fail-on-mismatch` in CI. `validate-wheel` on an SBOM in a
 format it has no validator for prints "... skipped (no validator for their
 format)" and exits 0: report a skipped count as "not validated".
+
+A wheel Pitloom refuses gets one `ERROR: ARCHIVE=... -- wheel refused` and
+exit 1; the other wheels are still checked. `verify-wheel` reads only the
+member names, the own `.dist-info`'s `METADATA` and the embedded SBOM, and
+`validate-wheel` only the names and the embedded SBOM, so they refuse a file
+that is not a ZIP, and a wheel with one of those unreadable, two members
+with one name, a NUL in a name or no single own `.dist-info` (where a
+`WARNING: ... -- identity unknown` line comes before the `ERROR:`): a damaged
+other member does not fail them. `WARNING: ... the file name names no
+top-level .dist-info; using ...` means the file name and the wheel's
+`.dist-info` disagree: report it.
 
 ### Presence/location only -- ask before validating content
 

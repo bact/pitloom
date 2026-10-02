@@ -17,7 +17,10 @@ child-process-tree mechanism this module delegates to.
 
 import logging
 import zipfile
+import zlib
 from pathlib import Path
+from typing import Any
+from unittest import mock
 
 import pytest
 
@@ -350,3 +353,39 @@ def test_extract_wheel_to_included_files_cross_platform_nested_path(
     assert Path(entry.path).is_file()
     assert Path(entry.path).read_bytes() == b"x = 1\n"
     cleanup()
+
+
+def test_a_build_and_read_extraction_keeps_its_own_fallback_contract(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """``--allow-build`` reads its just-built wheel itself, not through
+    ``read_wheel()``: an unreadable member is the documented discovery
+    failure (``None`` and one ``WARNING:``), never a crash. Only reading is
+    made to fail, so the fake wheel is really written and the extraction is
+    really reached."""
+    state: FakeBuildState = install_fake_build(monkeypatch)
+    state.entries = {"pkg/__init__.py": b"x = 1\n"}
+    real_open = zipfile.ZipFile.open
+    reads: list[object] = []
+
+    def damaged(
+        self: zipfile.ZipFile,
+        name: Any,
+        mode: str = "r",
+        pwd: bytes | None = None,
+        *,
+        force_zip64: bool = False,
+    ) -> Any:
+        if mode != "r":
+            return real_open(self, name, "w", pwd, force_zip64=force_zip64)
+        reads.append(name)
+        raise zlib.error("bad")
+
+    with mock.patch.object(zipfile.ZipFile, "open", autospec=True, side_effect=damaged):
+        assert build_and_read_wheel(tmp_path, timeout=60) is None
+
+    assert len(reads) == 1  # the extraction opened the member and failed there
+    (warning,) = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert "discovery failed" in warning.getMessage()

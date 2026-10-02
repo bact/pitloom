@@ -21,6 +21,7 @@ import io
 import json
 import logging
 import pickle
+import pickletools
 import struct
 import sys
 import zipfile
@@ -29,6 +30,7 @@ from unittest import mock
 
 import pytest
 
+from pitloom.assemble import generate_project_sbom
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.core.project import ProjectFile
 from pitloom.extract import scanner
@@ -69,6 +71,38 @@ def test_a_pickle_over_the_opcode_bound_is_one_warning_and_a_stub(
     (message,) = logged_warnings(caplog)
     assert message.startswith("FORMAT=pytorch FILE=m.pt: pickle with more than 5 ")
     assert message.endswith("metadata not read")
+
+
+def test_a_long_decimal_pickle_gives_the_same_sbom_whatever_the_digit_limit(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: with the default limit the number was a malformed pickle
+    (a fickling warning), with the limit off it was read."""
+    setter = getattr(sys, "set_int_max_str_digits", None)
+    if setter is None:
+        pytest.skip("this CPython has no int digit limit to turn off")
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
+    (tmp_path / "demo").mkdir()
+    (tmp_path / "demo" / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "demo" / "m.pt").write_bytes(b"\x80\x02I" + b"9" * 5000 + b"\n.")
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "demo"\nversion = "1.0.0"\n', encoding="utf-8"
+    )
+    runs = []
+    for limit_off in (False, True):
+        if limit_off:
+            setter(0)  # the autouse conftest fixture restores it
+            # Non-vacuous: genops really converts past 4300 digits now.
+            assert len(list(pickletools.genops(b"I" + b"9" * 5000 + b"\n."))) == 2
+        caplog.clear()
+        runs.append(
+            (generate_project_sbom(tmp_path, offline=True), logged_warnings(caplog))
+        )
+    assert runs[0] == runs[1]
+    assert runs[0][1] == [
+        "FORMAT=pytorch FILE=demo/m.pt: pickle with a decimal number over 4300 "
+        "digits; metadata not read"
+    ]
 
 
 def test_a_safetensors_header_over_the_cap_is_one_warning_and_a_stub(

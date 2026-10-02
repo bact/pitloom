@@ -23,9 +23,16 @@ from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
-#: Longest JSON header accepted. ``safetensors`` itself caps it at 100 MB and
-#: then builds every entry in Python and again in a dict, at tens of times
-#: the header's size; a real model's is well under a MiB.
+#: Longest JSON header the format allows: ``safetensors``' own
+#: ``MAX_HEADER_SIZE``, inclusive. It decides whether a file is Safetensors
+#: at all (``reader.detect_ai_model_format_from_header``).
+SAFETENSORS_FORMAT_MAX_HEADER_BYTES = 100_000_000
+
+#: Longest JSON header read. ``safetensors`` builds every entry in Python and
+#: again in a dict, at tens of times the header's size; a real model's is
+#: well under a MiB. Kept below the format's limit, so a header between the
+#: two is detected and refused with its size, not called an unsupported
+#: format.
 MAX_SAFETENSORS_HEADER_BYTES = 16 * 1024 * 1024
 
 

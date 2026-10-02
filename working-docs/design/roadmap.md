@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-01
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -282,12 +282,10 @@ See [build-backend-improvements.md](build-backend-improvements.md).
   extraction (case/Unicode folding, Windows path rules), archive-level wheel
   operations on `orig_filename`, tar links in sdists. See
   [archive-member-followups.md](archive-member-followups.md).
-- [ ] **GGUF array fields emitted as their last element (before 0.20.0)** --
-  emit `<key>.length = N` only; small PR; also caps decimal INT/LONG length
-  in the pickle pre-walk. See [model-metadata-readers.md](model-metadata-readers.md).
 - [ ] **Metadata-only AI model readers (after 0.20.0)** -- replace the library
   reads (fastText, ONNX, GGUF, fickling, Safetensors) with bounded
   pure-Python header readers, parity-tested against the libraries; HDF5 last.
+  Later option: short GGUF arrays as values, not only `<key>.length`.
   See [model-metadata-readers.md](model-metadata-readers.md).
 - [ ] **Re-embedding lists the previous embedded SBOM** -- `embed-wheel`
   on a wheel that already has one describes that old
@@ -320,11 +318,9 @@ See [build-backend-improvements.md](build-backend-improvements.md).
 - [ ] **Registry v3: one typed table, content gate chosen at lookup** --
   not built; also closes `loom id` skill triggers, hashed-model auto-harvest
   and in-tree registry churn. See [id-registry-v3.md](id-registry-v3.md).
-- [ ] **Registry follow-ups v3 leaves open** -- src-layout alias gap for
-  wheel/sdist targets, per-document entities rewritten on harvest and
-  `env`'s root never looked up, AIPackage lookups outside loom ungated
-  until G7 #3, ignored-name quirks, build-and-read exclusion, merge-by-id gaps.
-  See [id-registry-followups.md](id-registry-followups.md).
+- [ ] **Registry follow-ups v3 leaves open** -- src-layout aliases,
+  harvest/lookup gaps, wheel identity and archive readers. See
+  [id-registry-followups.md](id-registry-followups.md).
 
 ### Sort-order canonicalization (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
 

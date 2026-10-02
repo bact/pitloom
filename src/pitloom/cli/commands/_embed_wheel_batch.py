@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.assemble import ConfigOverrides, embed_wheel_sbom
+from pitloom.cli.commands.utils import report_error_line
 from pitloom.cli.options_config import (
     creation_flags_given,
     load_explicit_config,
@@ -39,6 +40,7 @@ from pitloom.core.inert_options import (
 from pitloom.embed import EmbedFileCache
 from pitloom.extract.project import read_project
 from pitloom.id_registry import IdRegistry, registry_base_dir, resolve_registry
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -58,9 +60,13 @@ def report_embed_result(
     can call it directly instead of taking it as a callback parameter --
     a plain function-to-function call, not an ``Any``-typed indirection.
     """
-    print(f"pitloom: embedded {arcname} into {wheel_name}")
+    print(f"pitloom: embedded {loggable(arcname)} into {loggable(wheel_name)}")
     for stale_arcname in removed:
-        log.info("removed stale SBOM %s from %s", stale_arcname, wheel_name)
+        log.info(
+            "removed stale SBOM %s from %s",
+            loggable(stale_arcname),
+            loggable(wheel_name),
+        )
     if timestamp_floored:
         log.info(
             "%s's embedded SBOM entry timestamp was before 1980 and was "
@@ -114,7 +120,7 @@ def resolve_project_dir_and_config(
         # read_project()'s own message already names the specific reason
         # (no config file at all, vs. a config file present but resolving
         # to no usable metadata) -- relay it instead of a fixed guess.
-        print(f"ERROR: {exc}", file=sys.stderr)
+        report_error_line(exc)
         return None
     return proj_path, pitloom_config
 
@@ -228,7 +234,7 @@ def try_embed_one_wheel(
     ValueError/OSError here mean *this* wheel failed (bad archive, bad
     ``--sbom-basename``, or a ``--sbom`` name/version mismatch that
     wasn't ``--allow-mismatch``'d) -- the same per-wheel-failure contract
-    `find_embedded_sbom()`/`_open_wheel_zip()` already document. Caught
+    `find_embedded_sbom()`/`open_wheel_zip()` already document. Caught
     here (not left to the outer `cli_error_handler`) so one bad wheel in
     a multi-wheel batch doesn't abort the others, matching how a failing
     `--verify`/`--validate` on one wheel already doesn't stop the loop
@@ -249,7 +255,7 @@ def try_embed_one_wheel(
             file_cache=batch.file_cache,
         )
     except (ValueError, OSError) as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
+        report_error_line(exc)
         return None
     report_embed_result(arcname, wheel_path.name, removed, floored)
     return embedded_wheel_path, arcname
