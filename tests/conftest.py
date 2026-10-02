@@ -8,6 +8,7 @@
 import json
 import logging
 import socket
+import sys
 import tempfile
 from collections.abc import Iterator
 from pathlib import Path
@@ -124,6 +125,19 @@ def _restore_pitloom_logger() -> Iterator[None]:
     yield
     logger.handlers = handlers
     logger.setLevel(level)
+
+
+@pytest.fixture(autouse=True)
+def _restore_int_digit_limit() -> Iterator[None]:
+    """Put CPython's ``int_max_str_digits`` back after each test: a test may
+    change it with ``sys.set_int_max_str_digits``, and it is process-global.
+    CPython 3.10.0-3.10.6 has no such limit."""
+    getter = getattr(sys, "get_int_max_str_digits", None)
+    setter = getattr(sys, "set_int_max_str_digits", None)
+    saved = getter() if getter is not None else None
+    yield
+    if setter is not None:
+        setter(saved)
 
 
 @pytest.fixture(autouse=True)

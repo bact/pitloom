@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-09-12
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -80,13 +80,13 @@ This transparency is crucial for:
 ## Size-bounded preservation
 
 `preserve-source-metadata` can embed an artifact's verbatim original
-metadata (e.g. a GGUF model's full KV header, including its tokenizer
-vocabulary) into a single `Annotation.statement`. For a real model this
-can be large -- a 32K-128K-entry vocab array easily reaches multi-megabyte
-territory. `max-source-metadata-bytes` (also `--max-source-metadata-bytes`
-on the CLI, or the Action's `max-source-metadata-bytes` input) caps the
-serialised `Annotation.statement`'s size in UTF-8 bytes; `0` (the default)
-means unlimited.
+metadata (e.g. a GGUF model's key/value header) into a single
+`Annotation.statement`. For a real model this can be large -- a chat
+template alone can be several KiB. `max-source-metadata-bytes` (also
+`--max-source-metadata-bytes` on the CLI, or the Action's
+`max-source-metadata-bytes` input) caps the serialised
+`Annotation.statement`'s size in UTF-8 bytes; `0` (the default) means
+unlimited.
 
 When the budget is exceeded, whole metadata entries are dropped --
 largest first, to keep as many entries as possible -- never a value
@@ -103,7 +103,7 @@ always marked explicitly in the same envelope, never silent:
     "block_count": 32
   },
   "truncated": true,
-  "truncatedKeys": ["tokenizer.ggml.tokens"],
+  "truncatedKeys": ["tokenizer.chat_template"],
   "truncatedKeyCount": 1,
   "maxMetadataBytes": 500
 }
@@ -139,6 +139,7 @@ value, not just where it read it from. Values in use today:
 | `synthetic environment root` | The element is Pitloom's own synthesized placeholder root package for an installed environment (`loom env`), not extracted from any source file. |
 | `magika_content_detection` | Per-file content type resolved by the [`magika`](https://pypi.org/project/magika/) content-detection library. |
 | `extension_guess` | Per-file content type resolved by a filename-extension fallback (no `magika`, or no confident result). |
+| `array_length` | A GGUF array field: only its element count is recorded (property `<key>.length`); the elements are not recorded. |
 | `yaml_frontmatter` | Read from a local README/model card's YAML frontmatter block during enrichment. |
 
 A field with **no** `method` -- just a `source` -- was read verbatim from

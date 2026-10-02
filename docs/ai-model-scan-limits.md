@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-10-01
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -76,6 +76,7 @@ Values are exact; "stub" is the format-only entry described above.
 | Inner archive member | 8 MiB | Every scan. Keras v3 `metadata.json` and `config.json`; PyTorch `.pt`/`.pth` `data.pkl` (a raw pickle `.pt` is read to the same cap; its stub reads `first pickle not complete within 8388608 bytes`); PT2 `version`, `archive_version`, `METADATA.json`, `models/model.json` and `extra/` files | No | Stub: `WARNING: FORMAT=<fmt> FILE=<path>: archive member <name> larger than 8388608 bytes; metadata not read`. Read bounded, so a few KiB that inflate to gigabytes are refused |
 | ZIP entries | 100,000 entries, counted by walking the central directory as Python's `zipfile` does (the counts in the end record are not trusted), and a central directory of at most 25,600,000 bytes (256 bytes per entry at the cap), both checked before the archive is opened | Keras v3, PyTorch `.pt`/`.pth`, PT2, `.npz` | No | Stub: `WARNING: FORMAT=<fmt> FILE=<path>: ZIP archive of more than 100000 entries; metadata not read` (or `ZIP central directory of <N> bytes`). If Python's internal ZIP code cannot be asked, the archive is refused too: `ZIP archive not checkable: zipfile internals changed`. A real checkpoint has a file per tensor, a few thousand at most; without the check 3 million empty entries in 16 MiB peaked at 1.8 GB |
 | Pickle opcodes | 250,000; only the first pickle is read | PyTorch `.pt`/`.pth` | No | Stub: `... pickle with more than 250000 opcodes; metadata not read` |
+| Pickle decimal number | 4300 digits (sign, `L` and whitespace not counted), CPython's default `int()` limit; the text is never converted, so the outcome is the same with the limit at its default or off (`PYTHONINTMAXSTRDIGITS=0`). A decimal argument of more than 4302 bytes with fewer digits is refused too | PyTorch `.pt`/`.pth` | No | Stub: `... pickle with a decimal number over 4300 digits; metadata not read` (or `pickle with a decimal argument over 4302 bytes`) |
 | GGUF header budget | 1,000,000 units: tensor infos and key/value pairs weigh 4 each, array elements 1 each, at every depth | GGUF | No | Stub: `... GGUF header declares <N> tensors, over the 1000000 budget` (or `key/value pairs`, `array of <N> elements`). A count that cannot fit in the file is refused the same way: `GGUF header declares <N> tensors` (or `key/value pairs`), `GGUF array of <N> elements, more than the file holds` |
 | GGUF array nesting | 4 levels | GGUF | No | Stub: `... GGUF arrays nested over 4; metadata not read` |
 | GGUF string | 8 MiB per key or string | GGUF | No | Stub: `... GGUF string of <N> bytes; metadata not read`. A string that runs past the end of the file is left to the reader, which fails it |
@@ -174,7 +175,7 @@ named after the format when the file has no name.
 | :----- | :------------ |
 | NumPy | Name, description, version, hyperparameters, outputs. A `.npy` gives one input (shape, dtype); an `.npz` gives one per array |
 | Safetensors | Outputs, hyperparameters, type of model. Inputs are tensor names only, with no shapes or dtypes. Name, version, description, architecture and quantisation only if the `__metadata__` header has the matching key |
-| GGUF | Inputs and outputs (tensors are not listed), type of model |
+| GGUF | Inputs and outputs (tensors are not listed), type of model. Array values (vocabulary, scores, per-layer values) are never recorded, only their length as `<key>.length` |
 | PyTorch classic | Name, version, architecture, inputs, outputs, hyperparameters. Only the class at the top of `data.pkl` (needs `fickling`; without it, no type of model) |
 | PT2 / ExecuTorch | Hyperparameters. Description, licence, author and tags only in the "rich" layout |
 | Keras v3 | Outputs. Hyperparameters are the scalar entries of `config` only |
@@ -213,16 +214,18 @@ named after the format when the file has no name.
 The bounds keep a hostile file from being cheap to abuse; they do not make
 it free. Figures are approximate, from measurements on one machine.
 
-- **Memory and time of bounded input.** The largest GGUF header accepted
-  costs about 1.1 GB and 6 seconds. A Safetensors header just under 16 MiB
-  peaks near 0.8 GB. A pickle at the opcode cap costs about 100 MB and
-  under a second in fickling. The `safetensors` library builds a model's
-  whole `__metadata__` map, and the ONNX reader its whole result, before the
-  entry cap trims them, so the cap bounds the SBOM, not one model's peak
-  memory (about 0.6 GB for a 16 MiB `__metadata__`: 0.53 GB for one model,
-  0.58 GB for a wheel of 24 of them). The trimmed maps are rebuilt and the
-  memory released, so a wheel's peak is its largest model's, not the sum of
-  its models'.
+- **Memory and time of bounded input.** A pickle's decimal numbers are never
+  converted, so a 1,000,000-digit number is refused in microseconds with the
+  limit at its default or off (converting it with the limit off took 3.4 s on
+  Python 3.10). The largest GGUF header accepted costs about 1.1 GB and 6
+  seconds. A Safetensors header just under 16 MiB peaks near 0.8 GB. A pickle
+  at the opcode cap costs about 100 MB and under a second in fickling. The
+  `safetensors` library builds a model's whole `__metadata__` map, and the
+  ONNX reader its whole result, before the entry cap trims them, so the cap
+  bounds the SBOM, not one model's peak memory (about 0.6 GB for a 16 MiB
+  `__metadata__`: 0.53 GB for one model, 0.58 GB for a wheel of 24 of them).
+  The trimmed maps are rebuilt and the memory released, so a wheel's peak is
+  its largest model's, not the sum of its models'.
 - **Unbounded native parsers** (fastText, HDF5, ONNX). They are not
   bounded, only gated in wheels. With `--trust-wheel-model`, or in a
   project scan, a crafted file can use gigabytes (a 16 MiB ONNX measured

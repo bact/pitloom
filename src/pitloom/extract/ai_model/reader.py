@@ -36,7 +36,10 @@ from pitloom.extract.ai_model.numpy import read_numpy
 from pitloom.extract.ai_model.onnx import read_onnx
 from pitloom.extract.ai_model.pytorch import read_pytorch
 from pitloom.extract.ai_model.pytorch_pt2 import read_pytorch_pt2
-from pitloom.extract.ai_model.safetensors import read_safetensors
+from pitloom.extract.ai_model.safetensors import (
+    SAFETENSORS_FORMAT_MAX_HEADER_BYTES,
+    read_safetensors,
+)
 
 __all__ = [
     "AiModelFormat",
@@ -86,8 +89,6 @@ REGISTRY: tuple[FormatInfo, ...] = (
     FormatInfo(format=AiModelFormat.SAFETENSORS, reader=read_safetensors),
 )
 
-# Safetensors header JSON is bounded in practice; 100 MB is a generous upper limit.
-_SAFETENSORS_MAX_HEADER: int = 100_000_000
 # Number of bytes needed to run all magic checks (8-byte HDF5 + 1 for Safetensors).
 SNIFF_BYTES: int = 9
 
@@ -126,7 +127,10 @@ def _match_magic(header: bytes) -> AiModelFormat:
     # Safetensors: 8-byte LE uint64 header size, then JSON opening brace.
     if len(header) >= 9:
         header_size = int.from_bytes(header[:8], byteorder="little")
-        if 0 < header_size < _SAFETENSORS_MAX_HEADER and header[8:9] == b"{":
+        if (
+            0 < header_size <= SAFETENSORS_FORMAT_MAX_HEADER_BYTES
+            and header[8:9] == b"{"
+        ):
             return AiModelFormat.SAFETENSORS
 
     return AiModelFormat.UNKNOWN

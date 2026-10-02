@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -203,9 +203,10 @@ and this project adheres to
   `--allow-build` did ([#263])
 - A `.keras`/`.pt`/`.pt2` inner member is read bounded (8 MiB), also in project
   scans, and reader warnings are escaped with a stable `FORMAT= FILE=` ([#263])
-- AI model readers refuse a pickle over 250k opcodes, a GGUF header over its 1M
-  budget, a Safetensors header over 16 MiB or an `.npy` header over 10000 bytes,
-  each with one `WARNING:` ([#263])
+- AI model readers refuse a pickle over 250k opcodes or with a decimal number
+  over 4300 digits (never converted), a GGUF header over its 1M budget, a
+  Safetensors header over 16 MiB or an `.npy` header over 10000 bytes, each
+  with one `WARNING:` ([#263], [#267])
 - A ZIP model over 100k entries (counted as `zipfile` reads them) or 25.6 MB of
   directory is refused ([#263])
 - A model is cut to 1000 entries per list or map, the same ones every run
@@ -216,6 +217,9 @@ and this project adheres to
 - A wheel that is not a ZIP, or has an unreadable member, a duplicate name or
   a NUL in a name, is refused with one `ERROR:`; SBOM ids ignore member order
   ([#266])
+- A GGUF array field is recorded as `<key>.length`, not its last element;
+  GGUF quantization reads `general.file_type` as a file type (`Q8_0`, not
+  `Q5_1`) ([#267])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -246,6 +250,7 @@ and this project adheres to
 [#262]: https://github.com/bact/pitloom/pull/262
 [#263]: https://github.com/bact/pitloom/pull/263
 [#266]: https://github.com/bact/pitloom/pull/266
+[#267]: https://github.com/bact/pitloom/pull/267
 
 ## [0.19.0] - 2026-09-18
 

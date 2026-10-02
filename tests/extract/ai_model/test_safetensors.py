@@ -20,8 +20,10 @@ import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.extract.ai_model.limits import ModelLimitExceeded
+from pitloom.extract.ai_model.reader import read_ai_model
 from pitloom.extract.ai_model.safetensors import (
     MAX_SAFETENSORS_HEADER_BYTES,
+    SAFETENSORS_FORMAT_MAX_HEADER_BYTES,
     read_safetensors,
 )
 
@@ -448,3 +450,17 @@ def test_a_header_at_the_cap_or_a_short_file_is_left_to_safetensors(
     model_file.write_bytes(prefix)
     with pytest.raises(ValueError, match="Failed to read Safetensors"):
         read_safetensors(model_file)
+
+
+def test_an_extensionless_header_over_the_cap_is_still_safetensors(
+    tmp_path: Path,
+) -> None:
+    """The read cap is below the format's limit: a header between the two is
+    detected and refused with its size, not called an unsupported format."""
+    pytest.importorskip("safetensors")
+    assert MAX_SAFETENSORS_HEADER_BYTES < SAFETENSORS_FORMAT_MAX_HEADER_BYTES
+    declared = 17 * 1024 * 1024
+    path = tmp_path / "model"
+    path.write_bytes(struct.pack("<Q", declared) + b"{")
+    with pytest.raises(ModelLimitExceeded, match=f"header of {declared} bytes"):
+        read_ai_model(path)

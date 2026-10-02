@@ -209,7 +209,10 @@ class AiModelMetadata:
     # extractors populate it where a clean complete map is available; when
     # empty the assembler falls back to ``properties``. Distinct from
     # ``properties`` (a stringified, curated subset) -- this keeps native
-    # value types (ints/lists) intact.
+    # value types (ints/lists) intact. Not verbatim for a GGUF array: it is
+    # recorded as ``{"length": N, "type": "<element type>"}`` (no ``type``
+    # for an element code the format does not define), its elements never
+    # recorded.
     raw_metadata: dict[str, Any] = field(default_factory=dict)
 
     # Input and output tensor specifications

@@ -197,8 +197,32 @@ Lessons:
 - **`int()` of long decimal text is quadratic** when the digit limit is off
   (`PYTHONINTMAXSTRDIGITS=0`, or CPython 3.10.0-3.10.6): `pickletools`
   converts `INT`/`LONG` arguments with it; 1M digits took 3.4 s, about
-  4 min extrapolated at an 8 MiB pickle. Do not let a decoder convert
-  numbers you do not need.
+  4 min extrapolated at an 8 MiB pickle (0.034 s at 100k digits). Do not
+  let a decoder convert numbers you do not need. Fixed: the pre-walk is now
+  Pitloom's own (`formats/pickle_walk.py`, over `pickletools.opcodes`), which
+  finds a decimal argument with a bounded `readline(4303)` and never
+  converts it; a 1M-digit `LONG` is refused in about 25 microseconds with
+  the limit off, and 8 MiB of 4300-digit `INT`s (1949 opcodes) is walked in
+  4.5 ms where `genops` took 127 ms.
+- **The outcome depended on the interpreter's configuration.** With the
+  default `int_max_str_digits` a number over 4300 digits made `genops`
+  raise, reported as a malformed pickle; with `PYTHONINTMAXSTRDIGITS=0`
+  (or an older patch level) the same file was accepted, slowly. The bound
+  must not vary with the environment, so the cap is a property of the
+  input: 4300 digits, counted the way CPython counts them (sign, `L` and
+  whitespace excluded). Residue: a limit set *lower* than the default
+  (e.g. `PYTHONINTMAXSTRDIGITS=640`) still makes fickling fail on a
+  1000-digit number, a warning where the default gives none, and the type
+  of model is then lost (a pickle whose top-level class takes such a number
+  gives different SBOM bytes). Python 3.12 and later convert big numbers far faster
+  (`genops` on 1M digits: 0.39 s on 3.14 against about 3.4 s on 3.10), so the
+  regression test bounds the bytes read, not the time.
+- **A byte cap is not a digit cap.** The first plan capped the argument at
+  4302 bytes on the belief that everything shorter converts under the
+  default limit. False: a 4301-digit unsigned `INT` (4301 bytes) and a
+  4301-digit `LONG` (`...L`, 4302 bytes) fit in 4302 bytes and CPython
+  still rejects them. The cap counts digits; the 4302-byte window only
+  bounds the scan.
 - **Python 3.14 differences surfaced in CI**: `compression.zstd` raises its
   own `ZstdError` for zip method 93; `Path.exists()` no longer raises
   `PermissionError`.
@@ -209,7 +233,8 @@ Lessons:
   test order only. Restore the logger's handlers after every test.
 - **`pickletools.genops` is a decoder, not an unpickler**: it never
   constructs objects or calls `find_class`, so it is safe to walk opcodes
-  of a hostile pickle within an opcode cap.
+  of a hostile pickle within an opcode cap, but not before the decimal
+  conversions above are bounded.
 
 ### 3.5 Logs and terminals are an output channel
 
@@ -270,7 +295,26 @@ Lessons:
 
 - GGUF array fields were emitted as their last element (the last
   vocabulary token's UTF-8 bytes as a property value) since before #263.
-  Still open: the fix is planned before 0.20.0.
+  Fixed: an array `k` is now recorded as `k.length`, its declared top-level
+  element count (stories260K: `tokenizer.ggml.tokens` 512; phi-3: 32064).
+  Element values are never read for the SBOM. The element type in the
+  artifact-metadata annotation comes from the array header, not from the
+  reader's `types` list, which the library fills from the first element and
+  so lacks for an empty array; the library checks an empty array's type
+  code nowhere, so an unknown code is left out rather than trusted.
+- GGUF quantization was read with the wrong enum: `general.file_type` is a
+  `LlamaFileType` (the file's predominant type), but was mapped through the
+  per-tensor `GGMLQuantizationType`, which numbers differently. A Q8_0 file
+  (`file_type` 7) was reported as `Q5_1`; F16 (1) matched by coincidence,
+  which is why the fixtures never showed it. Fixed with the GGUF arrays.
+- A detection threshold looser than the refusal cap is required: Safetensors
+  is detected by its magic and a header length at most the format's own
+  100,000,000 bytes, and refused over Pitloom's 16 MiB. Had detection used
+  the 16 MiB cap, a header of 17 MiB would have been "unsupported model
+  format" instead of refused with its size. The threshold must also match
+  the library's own bound, inclusive or exclusive: the `safetensors`
+  library 0.8.0 accepts a declared 100,000,000 and rejects 100,000,001, so
+  detection moved from `<` to `<=`.
 - A helper reused outside its contract (skip every `*.dist-info/`) let a
   model hide; the narrower rule (the wheel's own dist-info) still let a
   fake `x.dist-info/WHEEL` hide one; final rule: the dist-info named by the
@@ -367,7 +411,11 @@ Lessons:
 2. Bound declared structure (counts, lengths, nesting) before any parser
    runs; byte ceilings alone do not bound work.
 3. A pre-check must use the parser's own decision procedure, or it will
-   disagree with the parser on hostile input.
+   disagree with the parser on hostile input. Nuance: a pre-walk built on
+   the parser's own decoder inherits its conversions (`genops` calls `int()`
+   on decimal text before yielding), so it pays the parser's costs and
+   limits before any bound of yours applies. Reuse the opcode table, not
+   the decoder.
 4. Fail closed on anything the check does not understand (unknown
    versions, a missing private API).
 5. Gate native and amplifying parsers for untrusted input; make the
@@ -379,12 +427,15 @@ Lessons:
 8. Treat logs as an output channel to an untrusted terminal or CI runner.
 9. Measure every resource claim with hostile input under a watchdog;
    review every fix commit on its own.
-10. Take identity from what the artefact declares, chosen by a rule close
+10. A detection threshold must stay looser than the refusal cap, or an
+    over-cap file is misclassified rather than refused; and it must match
+    the library's own bound, inclusive or exclusive.
+11. Take identity from what the artefact declares, chosen by a rule close
     to its ecosystem's installer (Pitloom is laxer: where the file name names
     none it falls back to a single mismatched `.dist-info` with a `WARNING:`,
     where pip refuses), and check the rule against real artefacts before
     adding options for cases nobody has.
-11. Decide "is this a model" from content that cannot contradict the
+12. Decide "is this a model" from content that cannot contradict the
     name, and once decided, list it whatever happens when reading it.
 
 ## 5. Status at the time of writing
