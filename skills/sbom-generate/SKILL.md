@@ -224,8 +224,9 @@ embed would invalidate it; `--allow-signed-wheel` removes the signature (re-sign
 afterwards). Never add it unless the user asks to embed into the signed wheel.
 Signatures or hashes over the wheel file itself (GPG `.asc`, Sigstore, PEP 740,
 lock-file hash) are not detected and stop matching: embed first, then
-sign/attest/upload. Every wheel SBOM lists the payload only (nothing under the
-wheel's own `.dist-info`):
+sign/attest/upload. Pitloom's own wheel SBOMs list the payload only (nothing
+under the wheel's own `.dist-info`); an SBOM given with `--sbom` is embedded
+verbatim:
 
 ```bash
 loom embed-wheel dist/*.whl --sbom sbom.spdx3.json

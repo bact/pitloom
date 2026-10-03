@@ -84,9 +84,8 @@ def _extract_wheel_to_included_files(
     equivalent (see CLAUDE.md's "stage-scoped helpers" principle);
     including it here would make this mechanism's Source-SBOM file list
     diverge in kind from every other backend's for no benefit --
-    ``embed-wheel``'s own ``_merge_file_extras`` already gets
-    ``.dist-info`` entries from ``read_wheel()`` directly, so nothing is
-    lost.
+    ``.dist-info`` is not payload and no SBOM lists it (see
+    :func:`pitloom.extract.wheel.payload_files`), so nothing is lost.
 
     Entry names go through
     :func:`~pitloom.core.archive_member_names.zip_file_members`, the same

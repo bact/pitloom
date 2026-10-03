@@ -311,6 +311,10 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
     "--allow-signed-wheel": [
         _v("--allow-signed-wheel", "same", "--allow-signed-wheel")
     ],
+    # `wheel` without --embed rewrites no wheel: the flag is inert there.
+    ("wheel", "--allow-signed-wheel"): [
+        _v("--allow-signed-wheel", "warns:--allow-signed-wheel", "--allow-signed-wheel")
+    ],
     "--verify": [_v("--verify", "same", "--verify")],
     "--validate": [Variant("--validate", _fixed("--validate"), "same")],
     "--sbom-filename": [_v("missing", "exit:1", "--sbom-filename", "absent.json")],

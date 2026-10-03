@@ -235,6 +235,37 @@ def _refuse_signed_wheel(
             )
 
 
+def _refuse_unembeddable(
+    archive: str,
+    dist_info: str,
+    members: list[tuple[str, zipfile.ZipInfo]],
+    allow_signed_wheel: bool,
+) -> None:
+    """The refusals of an embed that need only the member names, in order."""
+    _refuse_non_conforming_names(archive, dist_info, members)
+    if not allow_signed_wheel:
+        _refuse_signed_wheel(archive, dist_info, members)
+
+
+def refuse_unembeddable_wheel(wheel_path: Path, allow_signed_wheel: bool) -> None:
+    """Raise what :func:`embed_sbom_in_wheel` would, for a signed wheel or a
+    non-conforming ``.dist-info`` name, from the member names alone.
+
+    For a caller that generates the SBOM first: a refusal found afterwards
+    would have cost that work (a PEP 517 build, with ``--allow-build``). The
+    same checks, in the same order, as :func:`embed_sbom_in_wheel`.
+
+    Raises:
+        ValueError: As :func:`embed_sbom_in_wheel`, for those two checks, or
+            a wheel it refuses as a whole.
+        OSError: *wheel_path* cannot be opened.
+    """
+    with open_wheel_zip(wheel_path) as zf:
+        members = wheel_members(zf, wheel_path.name)
+        dist_info = _find_dist_info_prefix(zf, wheel_path, members=members)
+    _refuse_unembeddable(wheel_path.name, dist_info, members, allow_signed_wheel)
+
+
 def _plan_embed(
     original_zf: zipfile.ZipFile,
     dist_info: str,
@@ -246,17 +277,15 @@ def _plan_embed(
     """Resolve target arcname, updated RECORD, and timestamp for an embed.
 
     *members* are the wheel's
-    :func:`~pitloom.core.wheel_dist_info.wheel_members`.
+    :func:`~pitloom.core.wheel_dist_info.wheel_members`. The caller has run
+    :func:`_refuse_unembeddable`: the rewrite matches raw names, so a
+    non-conforming ``.dist-info`` name would leave the old ``RECORD`` or SBOM
+    beside its replacement.
 
     Raises:
-        ValueError: A member of the wheel's own ``.dist-info`` is stored
-            under a non-conforming name (``./``, ``\\``): the rewrite matches
-            raw names, so it would leave the old ``RECORD`` or SBOM beside
-            its replacement, or write ``/`` names next to ``\\`` ones. Or
-            ``RECORD`` is not UTF-8.
+        ValueError: ``RECORD`` is not UTF-8.
     """
     archive = os.path.basename(original_zf.filename or "")
-    _refuse_non_conforming_names(archive, dist_info, members)
     members_by_name = dict(members)
     target_name = (
         sbom_filename
@@ -404,8 +433,7 @@ def embed_sbom_in_wheel(
     with open_wheel_zip(wheel_obj) as original_zf:
         members = wheel_members(original_zf, wheel_obj.name)
         dist_info = _find_dist_info_prefix(original_zf, wheel_obj, members=members)
-        if not allow_signed_wheel:
-            _refuse_signed_wheel(wheel_obj.name, dist_info, members)
+        _refuse_unembeddable(wheel_obj.name, dist_info, members, allow_signed_wheel)
         plan = _plan_embed(
             original_zf, dist_info, members, sbom_filename, sbom_bytes, identity
         )

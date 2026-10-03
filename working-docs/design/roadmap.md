@@ -303,24 +303,25 @@ See [build-backend-improvements.md](build-backend-improvements.md).
   (`_enrich_from_installed`, `deps_originator`) leaks the same way. Needs an
   explicit stage flag (false for wheel/embed), per "Explicit pin beats local
   environment". See [wheel-embedding.md](../implementation/wheel-embedding.md).
-- [ ] **Hook / `loom project` package hash differs from the built wheel's when
-  the build adds payload** -- they hash the source walk the backend selects,
-  before the build, so shared-data (`.data/`), scripts and generated or
-  repaired files are missing; `loom wheel` and the embeds hash the wheel as
-  built. Reproduced with `shared-data` + `force-include`. Documented in
-  `docs/cli.md` ("Recomputing the package hash"). Options: leave, or have the
-  hook say so in the hash comment, or compute it from the built wheel in a
-  post-build step.
+- [ ] **Two Build SBOMs can carry different package hashes for one wheel** --
+  expected by type (Source and the hook's Build hash the source walk before the
+  build; Analyzed hashes the wheel as built; documented in `docs/cli.md`,
+  "Recomputing the package hash"), but `embed-wheel --project-dir` is also a
+  Build SBOM and hashes the wheel as built, so it differs from the hook's when
+  the build adds payload (shared-data, scripts, generated files; reproduced with
+  `shared-data` + `force-include`). Decide: leave, say so in the hook's hash
+  comment, or compute the hook's root from the built wheel in a post-build
+  step.
 - [ ] **A renamed wheel's `.dist-info` is dropped from the listing but still
   scanned for models** -- `payload_files` uses `resolve_own_dist_info` (falls
   back to the single top-level `.dist-info`), `scan_wheel_for_ai_models`
   excludes only the directory the file name names. For `demo-2.0-...whl` with
   only `demo-1.0.dist-info/` the two disagree. Make the scanner use the same
   choice.
-- [ ] **`embed-wheel --sbom` embeds the SBOM verbatim** -- one made earlier
-  by `loom wheel` (without `--embed`) lists the old `RECORD`/`sboms/` hashes,
-  stale after the embed; an external SBOM may also list `.dist-info` files,
-  which Pitloom's own SBOMs never do. An `INFO:` when it lists them?
+- [ ] **`embed-wheel --sbom` embeds the SBOM verbatim** -- an SBOM from another
+  tool (or from a wheel with no single own `.dist-info`) may list `.dist-info`
+  files, `RECORD` among them, whose hashes go stale after the embed; Pitloom's
+  own wheel SBOMs never list them. An `INFO:` when it does?
 - [ ] **`embed-wheel --project-dir <sdist>` runs discovery on the
   archive path** (Hatchling fails on it with a `WARNING:`): read the
   sdist's own listing, as `loom project <sdist>` does, or reject it.

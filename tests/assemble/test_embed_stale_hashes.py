@@ -20,6 +20,8 @@ from pathlib import Path
 import pytest
 
 from pitloom import __main__
+from pitloom.embed import embed_wheel_sbom
+from tests._raw_archive import METADATA, write_raw_zip
 
 from .conftest import _make_dummy_wheel
 
@@ -112,5 +114,80 @@ def test_allow_signed_wheel_without_embed_warns_and_changes_nothing(
     assert wheel.read_bytes() == before and out.exists()
     err = capsys.readouterr().err.splitlines()
     assert [x for x in err if "WARNING:" in x] == [
-        "WARNING: --allow-signed-wheel has no effect without --embed"
+        "WARNING: Options: demo_pkg-1.0.0-py3-none-any.whl: "
+        "--allow-signed-wheel has no effect without --embed"
     ]
+
+
+@pytest.mark.parametrize("allow", [False, True])
+def test_non_conforming_signature_name_is_refused_for_its_name(
+    tmp_path: Path, allow: bool
+) -> None:
+    """A signature stored as ``./...RECORD.jws`` is refused for its name with
+    or without the flag, never with the misleading hint that the flag would
+    remove it; nothing is written."""
+    wheel = write_raw_zip(
+        tmp_path / "demo-1.0.0-py3-none-any.whl",
+        {
+            "demo-1.0.0.dist-info/METADATA": METADATA,
+            "demo-1.0.0.dist-info/RECORD": b"",
+            "./demo-1.0.0.dist-info/RECORD.jws": b"jws",
+        },
+    )
+    before = wheel.read_bytes()
+
+    with pytest.raises(ValueError, match="non-conforming name") as raised:
+        embed_wheel_sbom(wheel, allow_signed_wheel=allow)
+
+    assert "--allow-signed-wheel" not in str(raised.value)
+    assert wheel.read_bytes() == before
+
+
+@pytest.mark.parametrize("signed", [True, False])
+def test_refusal_comes_before_the_sbom_is_generated(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, signed: bool
+) -> None:
+    """A refused wheel costs no generation (a build, with ``--allow-build``);
+    the unsigned control proves the spy is reached."""
+    wheel = _make_dummy_wheel(
+        tmp_path, "demo_pkg", "1.0.0", extra_members=_SIGS if signed else None
+    )
+    calls: list[str] = []
+
+    def spy(*_args: object, **_kwargs: object) -> None:
+        calls.append("generated")
+        raise RuntimeError("stop after generation")
+
+    monkeypatch.setattr("pitloom.embed._generate_embed_sbom_json", spy)
+
+    with pytest.raises(ValueError if signed else RuntimeError):
+        embed_wheel_sbom(wheel)
+
+    assert calls == ([] if signed else ["generated"])
+
+
+def test_both_embed_commands_refuse_a_signed_wheel_alike(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A signed wheel whose only ``.dist-info`` its file name does not name:
+    ``embed-wheel`` and ``wheel --embed`` give the same refusal and no
+    ``WARNING:`` (neither generates first, so neither warns first)."""
+    members = {
+        "other-2.0.dist-info/METADATA": METADATA,
+        "other-2.0.dist-info/RECORD": b"",
+        "other-2.0.dist-info/RECORD.jws": b"jws",
+    }
+    errors = {}
+    for command in _COMMANDS:
+        directory = tmp_path / command
+        directory.mkdir()
+        wheel = write_raw_zip(directory / "demo-1.0.0-py3-none-any.whl", members)
+        assert _embed(monkeypatch, command, wheel) != 0
+        errors[command] = capsys.readouterr().err
+
+    assert "WARNING:" not in errors["embed-wheel"] + errors["wheel"]
+    refusals = {c: e[e.index("ARCHIVE=") :] for c, e in errors.items()}
+    assert refusals["embed-wheel"] == refusals["wheel"]
+    assert "RECORD.jws" in refusals["wheel"]

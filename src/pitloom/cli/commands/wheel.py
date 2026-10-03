@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import argparse
-import logging
 import sys
 from pathlib import Path
 from typing import Any
@@ -35,11 +34,10 @@ from pitloom.core.inert_options import (
     forward_options,
     settle_inert,
 )
-from pitloom.embed import embed_filename
+from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
+from pitloom.embed import embed_filename, refuse_unembeddable_wheel
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.wheel import wheel_identity
-
-log = logging.getLogger(__name__)
 
 
 @cli_error_handler("wheel command failed")
@@ -64,7 +62,12 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
 
     embed = getattr(args, "embed", False)
     if args.allow_signed_wheel and not embed:
-        log.warning("--allow-signed-wheel has no effect without --embed")
+        warn_no_effect(
+            INERT_LOG_PREFIX,
+            wheel_path.name,
+            ("--allow-signed-wheel",),
+            "without --embed",
+        )
     if embed:
         # The same SBOM, and the same warnings, as embed-wheel without a
         # project: canonical, no relationship descriptions, no registry
@@ -87,6 +90,9 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
         print(f"Wheel file      : {wheel_path}")
         print(f"Output path     : {output_path or '(embedded only)'}")
 
+    if embed:
+        # Same order of output as embed-wheel: refuse before generating.
+        refuse_unembeddable_wheel(wheel_path, args.allow_signed_wheel)
     # With --embed, the -o copy is written once the embed has succeeded: a
     # wheel the embed refuses leaves nothing behind.
     sbom_json, wheel_metadata = generate_wheel_sbom_with_metadata(

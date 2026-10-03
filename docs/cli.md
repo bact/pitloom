@@ -288,23 +288,38 @@ target-specific command for its own default.
 #### Recomputing the package hash
 
 The package element's `verifiedUsing` holds a SHA-256 Merkle root over the
-wheel's payload. `loom wheel`, `generate <whl>`, `embed-wheel` and `wheel
---embed` record the root of the wheel as built. The Hatchling hook and `loom
-project` hash the source files the backend selects, before the build, so their
-root differs when the build adds payload of its own (shared data, scripts,
-generated or repaired files). To recompute it:
+wheel's payload, and what it covers follows the SBOM type:
+
+- **Analyzed** (`loom wheel`, `generate <whl>`, `embed-wheel` without a project
+  directory, `wheel --embed`): the wheel as built.
+- **Source** (`loom project`) and the **Build** SBOM of the Hatchling hook: the
+  source files the build backend selects, hashed before the build. When the
+  build adds payload of its own (shared data, scripts, generated or repaired
+  files) the root differs from the built wheel's: expected, as the two describe
+  different things.
+- **Build** with `embed-wheel --project-dir`: the wheel as built, so it can
+  differ from the hook's root for the same wheel.
+
+To recompute the root of a built wheel:
 
 1. Take every wheel member except those under the wheel's own `.dist-info`
    (the top-level directory its file name names, compared per PEP 503 names and
    PEP 440 versions). Another `*.dist-info` deeper in the tree is payload.
    Directory entries are not members.
-2. Name each by its install-location path (POSIX, normalised).
+2. Name each by its install-location path (POSIX, normalised). A member with
+   a name that is not one (`\`, `./`, `//`, `..`, an absolute path) is
+   normalised or skipped by Pitloom, each with a `WARNING:`; the snippet below
+   reads names as stored, so it reproduces the root of a conforming wheel only.
 3. Sort by that path (Python `sorted`, code-point order).
 4. A leaf is the raw 32-byte SHA-256 of the member's bytes.
 5. Combine adjacent pairs as `sha256(left || right)`; an odd last node is
    promoted unchanged; repeat until one node remains.
 6. The root is that node in lowercase hex. A single file's root is its own
    digest; an empty payload has no hash.
+
+A wheel with no single own `.dist-info` (none, or several that its file name
+does not pick out) has no `.dist-info` to leave out: `loom wheel` lists and
+hashes every member, and the embed commands refuse it.
 
 SBOM relationships and directory elements are not part of it.
 

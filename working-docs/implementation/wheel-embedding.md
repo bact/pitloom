@@ -113,7 +113,12 @@ The implementation is verified across two layers:
   only the hook, `loom project` and `embed-wheel --project-dir` carried one.
   The wheel surfaces share `merkle_root_of_files`; `get_wheel_files()` keeps
   its own computation over a source tree, and a test asserts the two agree
-  (a drift guard, not a refactor). The recompute procedure is in `docs/cli.md`.
+  (a drift guard, not a refactor). What a root covers follows the SBOM type:
+  Analyzed (`loom wheel`, standalone embed) the wheel as built; Source and the
+  hook's Build the pre-build source walk, so they differ when the build adds
+  payload (expected). `embed-wheel --project-dir` is Build but hashes the wheel
+  as built: the one pair left open (roadmap). The recompute procedure is in
+  `docs/cli.md`.
 - **Signed wheels are refused.** `RECORD.jws`/`RECORD.p7s` sign the `RECORD`
   the embed rewrites. Keeping them leaves a signature that fails to verify
   (worse than none); silently dropping loses trust data. Default is a

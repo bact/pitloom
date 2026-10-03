@@ -168,8 +168,8 @@ def _build_main_package(
             sha256_hash(
                 merkle_root,
                 comment=(
-                    "SHA-256 Merkle root over the payload files, the wheel's own "
-                    ".dist-info excluded; not a hash of a single artifact"
+                    "SHA-256 Merkle root over the payload files; "
+                    "not a hash of a single artifact"
                 ),
             )
         ]

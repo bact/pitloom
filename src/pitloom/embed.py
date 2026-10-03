@@ -37,6 +37,7 @@ from pitloom._embed_wheel import (
     _update_record_lines,
     _validate_sbom_filename,
     embed_sbom_in_wheel,
+    refuse_unembeddable_wheel,
 )
 from pitloom._sbom_format import (
     RECOMMENDED_EXTENSIONS,
@@ -88,6 +89,7 @@ __all__ = [
     "embed_sbom_in_wheel",
     "embed_wheel_sbom",
     "find_embedded_sbom",
+    "refuse_unembeddable_wheel",
 ]
 
 
@@ -216,6 +218,8 @@ def embed_wheel_sbom(
         # short-circuits on the already-resolved instance rather than
         # loading the file again.
         id_registry = _resolve_embed_registry(project_dir, pitloom_config, id_registry)
+    # Before the SBOM is generated: that may run a build.
+    refuse_unembeddable_wheel(wheel_obj, allow_signed_wheel)
     wheel_metadata, _ = read_wheel(wheel_obj)
 
     sbom_json, eff_basename = _generate_embed_sbom_json(
