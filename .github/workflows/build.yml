@@ -84,7 +84,7 @@ jobs:
         uses: ./.github/actions/install-pitloom
         with:
           extra-packages: editables build==1.6.1 spdx3-validate==0.0.7
-          package-spec: "."
+          package-spec: ".[content-type]"
           editable: "true"
 
       - name: Build wheel
@@ -115,12 +115,14 @@ jobs:
         if: steps.build.outcome == 'success'
         run: |
           loom verify-wheel --fail-on-mismatch "dist/${{ steps.build.outputs.wheel_name }}"
+          # Same check as pypi-publish.yml: one SBOM, RECORD-matched, magika
+          python scripts/extract_wheel_sbom.py dist "${RUNNER_TEMP}/sbom" --require-magika
         continue-on-error: true
 
       - name: Display wheel SBOM verification error
         if: steps.build.outcome == 'success' && steps.verify_wheel_sbom.outcome == 'failure'
         run: |
-          echo "::error title=Embedded SBOM Verification Failed::loom verify-wheel rejected the wheel's embedded SBOM (missing, ambiguous, misplaced, or a name/version mismatch against the wheel's own METADATA). See the 'Verify SBOM embedded in wheel' step's log for the exact reason."
+          echo "::error title=Embedded SBOM Verification Failed::loom verify-wheel rejected the wheel's embedded SBOM (missing, ambiguous, misplaced, a name/version mismatch against the wheel's own METADATA, a RECORD hash mismatch, or a content type not detected by magika). See the 'Verify SBOM embedded in wheel' step's log for the exact reason."
 
       - name: Validate embedded wheel SBOM
         # Schema/SHACL check on the SBOM the build hook actually embedded

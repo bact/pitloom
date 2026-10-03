@@ -36,6 +36,7 @@ See user manual at <https://bact.github.io/pitloom/>
 - [Detailed features](#detailed-features)
 - [Metadata provenance](#metadata-provenance)
 - [References](#references)
+- [Pitloom's own SBOM and signatures](#pitlooms-own-sbom-and-signatures)
 - [License](#license)
 - [Name](#name)
 
@@ -514,6 +515,39 @@ and a worked example.
 - [Resources and standards list](docs/resources.md)
 - Bennet et al., [“Implementing AI Bill of Materials with SPDX 3.0”](https://www.linuxfoundation.org/research/ai-bom),
   The Linux Foundation, 2024.
+
+## Pitloom's own SBOM and signatures
+
+Pitloom's own [Hatchling build hook](#hatchling-build-hook) writes
+Pitloom's SBOM into its wheel, at
+`.dist-info/sboms/<name>-<version>.spdx3.json` ([PEP 770]). The
+release build installs the `content-type` extra, so every non-empty file's
+content type is detected by magika.
+
+Each [GitHub release](https://github.com/bact/pitloom/releases) attaches:
+
+- the wheel and the sdist;
+- the same SBOM as a standalone file, byte-identical to the one in the wheel;
+- Sigstore bundles (`*.sigstore.json`) for the wheel, the sdist and the SBOM.
+
+The same three files also have a GitHub artifact attestation (build
+provenance), kept by GitHub, not attached to the release.
+
+To check a download:
+
+```shell
+loom verify-wheel <file>.whl
+pip install sigstore
+# download <file> and <file>.sigstore.json from the release into one directory
+python -m sigstore verify github <file> \
+  --cert-identity https://github.com/bact/pitloom/.github/workflows/pypi-publish.yml@refs/tags/v<version>
+gh attestation verify <file> -R bact/pitloom \
+  --signer-workflow bact/pitloom/.github/workflows/pypi-publish.yml \
+  --source-ref refs/tags/v<version>
+```
+
+`<file>` is the wheel, the sdist or the SBOM. The Sigstore bundle path
+defaults to `<file>.sigstore.json` (`--bundle` overrides it).
 
 ## License
 

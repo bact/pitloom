@@ -144,7 +144,14 @@ def test_wrong_expected_license_fails(module: ModuleType) -> None:
         module.check_sbom_license(_sbom(), "MIT")
 
 
-def _write_wheel(path: Path, members: dict[str, bytes]) -> Path:
+def _write_wheel(path: Path, sboms: dict[str, bytes]) -> Path:
+    """A wheel with a ``.dist-info`` that ``find_embedded_sbom`` accepts."""
+    members = {
+        "p/__init__.py": b"",
+        "p-1.dist-info/METADATA": b"Metadata-Version: 2.4\nName: p\nVersion: 1\n",
+        "p-1.dist-info/WHEEL": b"Wheel-Version: 1.0\n",
+    }
+    members.update({f"p-1.dist-info/sboms/{k}": v for k, v in sboms.items()})
     with zipfile.ZipFile(path, "w") as wheel:
         for name, data in members.items():
             wheel.writestr(name, data)
@@ -154,22 +161,32 @@ def _write_wheel(path: Path, members: dict[str, bytes]) -> Path:
 def test_load_sbom_reads_wheel_member(module: ModuleType, tmp_path: Path) -> None:
     wheel = _write_wheel(
         tmp_path / "p-1-py3-none-any.whl",
-        {
-            "p/__init__.py": b"",
-            "p-1.dist-info/sboms/p-1.spdx3.json": json.dumps(_sbom()).encode(),
-        },
+        {"p-1.spdx3.json": json.dumps(_sbom()).encode()},
     )
     assert module.load_sbom(wheel) == _sbom()
 
 
-@pytest.mark.parametrize("count", [0, 2])
+@pytest.mark.parametrize(
+    ("sboms", "pattern"),
+    [
+        ({}, "no SBOM"),
+        ({"s0.spdx3.json": b"{}", "s1.spdx3.json": b"{}"}, "Multiple SBOMs"),
+        ({"sub/s.spdx3.json": b"{}"}, "no SBOM"),
+    ],
+)
 def test_load_sbom_wheel_needs_one_sbom(
-    module: ModuleType, tmp_path: Path, count: int
+    module: ModuleType, tmp_path: Path, sboms: dict[str, bytes], pattern: str
 ) -> None:
-    members = {f"p-1.dist-info/sboms/s{i}.spdx3.json": b"{}" for i in range(count)}
-    wheel = _write_wheel(tmp_path / "p-1-py3-none-any.whl", members)
-    with pytest.raises(module.SbomLicenseError, match="expected one"):
+    wheel = _write_wheel(tmp_path / "p-1-py3-none-any.whl", sboms)
+    with pytest.raises(module.SbomLicenseError, match=pattern):
         module.load_sbom(wheel)
+
+
+def test_load_sbom_not_a_wheel(module: ModuleType, tmp_path: Path) -> None:
+    bad = tmp_path / "p-1-py3-none-any.whl"
+    bad.write_bytes(b"not a zip")
+    with pytest.raises(module.SbomLicenseError, match="cannot read"):
+        module.load_sbom(bad)
 
 
 @pytest.mark.parametrize(
