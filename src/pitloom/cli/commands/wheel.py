@@ -91,7 +91,7 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
         print(f"Output path     : {output_path or '(embedded only)'}")
 
     if embed:
-        # Same order of output as embed-wheel: refuse before generating.
+        # As embed-wheel: refuse before generating (that may run a build).
         refuse_unembeddable_wheel(wheel_path, args.allow_signed_wheel)
     # With --embed, the -o copy is written once the embed has succeeded: a
     # wheel the embed refuses leaves nothing behind.

@@ -13,8 +13,7 @@ split into :mod:`pitloom.assemble.spdx3._document_files`,
 :mod:`pitloom.assemble.spdx3._document_model`,
 :mod:`pitloom.assemble.spdx3._document_deployed`, and
 :mod:`pitloom.assemble.spdx3._document_locked_deps` respectively, and
-re-exported below so every previously-public name is still importable from
-this module.
+re-exported below, so each name is importable from this module.
 """
 
 from __future__ import annotations

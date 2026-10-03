@@ -222,7 +222,7 @@ def _refuse_signed_wheel(
     archive: str, dist_info: str, members: list[tuple[str, zipfile.ZipInfo]]
 ) -> None:
     """Refuse a wheel that carries a ``RECORD`` signature: the embed rewrites
-    ``RECORD``, so the signature would stop verifying and is removed."""
+    ``RECORD``, so the signature would stop verifying."""
     names = {name for name, _ in members}
     for signature in RECORD_SIGNATURES:
         if f"{dist_info}{signature}" in names:

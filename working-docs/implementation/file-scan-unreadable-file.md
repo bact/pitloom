@@ -43,8 +43,6 @@ permission, emptied the SBOM's entire file set with nothing on stderr.
   `path_probe.UNREADABLE_FILE_WARNING` (`FILE=%s: could not read %s;
   %s`) is shared by this scan and the AI model header read and usage
   scan (`extract/scanner.py`); each passes only what the read was for.
-  (The declared license-files read in `extract/_license.py` used it too,
-  until license files stopped being listed in an SBOM.)
 - **Only `OSError` is caught.** Header parsing and content-type
   detection never raise on arbitrary bytes, so anything else is a bug:
   it propagates (discovery cleanup still runs) instead of becoming a

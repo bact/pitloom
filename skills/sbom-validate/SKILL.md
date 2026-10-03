@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-10-02
+# Last-Modified: 2026-10-03
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -177,6 +177,13 @@ waiting for a reply -- report the `verify-wheel` result, explicitly state
 that content validity was not checked, and stop there. Don't silently run
 `validate-wheel` on their behalf either -- expanding scope on an
 unattended run is its own kind of unasked deviation.
+
+A wheel that was embedded with `--allow-signed-wheel` has no `RECORD`
+signature any more: if `verify-wheel`/`validate-wheel` passes but the user
+expected the wheel to be signed, say so and remind them to re-sign (see
+`sbom-generate`'s "Signed wheels"); never re-embed with the flag yourself.
+Pitloom wheel SBOMs list the payload only (nothing under the wheel's own
+`.dist-info`), so a missing `RECORD` file element is expected, not a defect.
 
 Right after an embed, `loom embed-wheel dist/*.whl --project-dir .
 --verify --validate` runs both checks in the same command

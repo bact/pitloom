@@ -109,8 +109,7 @@ The implementation is verified across two layers:
   file link to that path means nothing in another package format. Licence
   information stays at package level. Pitloom never wrote `licenses/` (the
   backend does) and an embed copies it unchanged.
-- **Package Merkle root over the payload, on every wheel surface.** Before,
-  only the hook, `loom project` and `embed-wheel --project-dir` carried one.
+- **Package Merkle root over the payload, on every wheel surface.**
   The wheel surfaces share `merkle_root_of_files`; `get_wheel_files()` keeps
   its own computation over a source tree, and a test asserts the two agree
   (a drift guard, not a refactor). What a root covers follows the SBOM type:
@@ -171,14 +170,6 @@ What the table shows:
 - The one pair that does not follow the type rule is the two Build SBOMs: the
   hook (`aea983...`) and `embed-wheel --project-dir` (`44f765...`). Open, see
   the roadmap.
-
-Before the change (0.19.0), from the issue and the code, not re-run: a wheel
-embed listed `RECORD`, `METADATA`, `WHEEL`, `licenses/LICENSE` and any earlier
-`sboms/*` with hashes taken before the embed (`RECORD` and `sboms/*` stale);
-`loom wheel` listed every member; the hook and `loom project` listed
-`licenses/LICENSE` linked to the declared licence; only the hook, `loom project`
-and `embed-wheel --project-dir` carried a package root; signatures were
-removed silently.
 
 Signed wheel, same project with `RECORD.jws` and `RECORD.p7s` added:
 

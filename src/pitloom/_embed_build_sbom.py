@@ -55,8 +55,7 @@ def _merge_file_extras(
     source of truth for what the already-built wheel actually contains --
     excluding the wheel's own ``.dist-info`` but including any
     build-hook-injected files that never existed in ``project_dir`` -- so it
-    is kept intact,
-    including its hashes computed from the wheel's own bytes.
+    is kept intact, including its hashes computed from the wheel's own bytes.
     ``project_files`` (from :func:`~pitloom.core.models.get_wheel_files`)
     only supplies the content-type/file-header extras it computed by
     re-scanning the sources, adopted for files present in both lists.
@@ -367,9 +366,8 @@ def _build_sbom_from_project_and_wheel(
     private to this call, cleaned up before it returns.
     """
     # merkle_root (the rescan's own, over project_dir's on-disk bytes) is
-    # deliberately discarded here -- see merkle_root_of_files below,
-    # which recomputes it from the wheel's own (post-merge) file hashes so
-    # it can't diverge from what merged_files actually reports. Per-file
+    # discarded here: merkle_root_of_files below recomputes it from the
+    # wheel's own (post-merge) file hashes, so it matches merged_files. Per-file
     # digest_sha256 is skipped for the same reason: _merge_file_extras
     # below only adopts project_files' content-type/header extras, never
     # its digest, so hashing every file here would be wasted I/O too.
@@ -387,10 +385,10 @@ def _build_sbom_from_project_and_wheel(
         project_files = cache.resolve(project_dir, pitloom_config, build_options)
         # Layer content-type/file-header extras onto the wheel's own
         # file records rather than replacing them outright: replacing
-        # would drop any build-hook-injected
-        # files (e.g. compiled extensions, auditwheel-repaired shared
-        # libraries) that read_wheel() found in the actual wheel but
-        # that a source-tree rescan can't see.
+        # would drop any build-hook-injected files (e.g. compiled
+        # extensions, auditwheel-repaired shared libraries) that
+        # read_wheel() found in the actual wheel but that a source-tree
+        # rescan can't see.
         merged_files = _merge_file_extras(wheel_metadata.files, project_files)
         # replace_with_fresh_containers(), not a bare
         # dataclasses.replace() or an in-place `.files =` assignment:

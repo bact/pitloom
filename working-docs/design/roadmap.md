@@ -302,7 +302,7 @@ See [build-backend-improvements.md](build-backend-improvements.md).
   (`packaging 26.3` for `packaging>=1`); the installed-metadata enrichment
   (`_enrich_from_installed`, `deps_originator`) leaks the same way. Needs an
   explicit stage flag (false for wheel/embed), per "Explicit pin beats local
-  environment". See [wheel-embedding.md](../implementation/wheel-embedding.md).
+  environment".
 - [ ] **Two Build SBOMs can carry different package hashes for one wheel** --
   expected by type (Source and the hook's Build hash the source walk before the
   build; Analyzed hashes the wheel as built; documented in `docs/cli.md`,

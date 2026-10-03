@@ -214,9 +214,9 @@ def generate_project_sbom(
         # model scanning, enrichment) or could itself raise before reaching
         # them (the fresh-containers copy): any of these raising before
         # cleanup_discovery() runs would leak the build-and-read temp
-        # directory. Nothing after this block reads
-        # file bytes again (document assembly only uses distribution_path/
-        # physical_path as string keys, never re-opens the file).
+        # directory. Nothing after this block reads file bytes again
+        # (document assembly only uses distribution_path/physical_path as
+        # string keys, never re-opens the file).
         try:
             if not target_path.is_file():
                 # `project_files` becomes the metadata's authoritative file

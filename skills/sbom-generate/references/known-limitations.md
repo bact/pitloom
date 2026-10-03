@@ -116,7 +116,29 @@ section](https://bact.github.io/pitloom/cli/#generate-an-sbom).
 A wheel SBOM (`loom wheel`, `generate <whl>`, `embed-wheel`, `wheel --embed`)
 lists the payload only: nothing under the wheel's own `.dist-info`, `licenses/`
 included. `embed-wheel` and `wheel --embed` refuse a wheel with `RECORD.jws` or
-`RECORD.p7s` unless `--allow-signed-wheel` (re-sign afterwards). Pitloom cannot
-see signatures or hashes over the wheel file itself (GPG `.asc`, Sigstore,
-PEP 740, lock-file hash); any embed invalidates them, so embed first, then
-sign, attest, upload and hash.
+`RECORD.p7s` unless `--allow-signed-wheel` (deletes the signature files, one
+`INFO:` each; re-sign afterwards). Pitloom cannot see signatures or hashes over
+the wheel file itself (GPG `.asc`, Sigstore, PEP 740, lock-file hash); any embed
+invalidates them, so embed first, then sign, attest, upload and hash.
+
+### Signed wheels: what to tell the user
+
+Use when `unzip -l <wheel>` shows `RECORD.jws` or `RECORD.p7s`, or `embed-wheel`
+/ `wheel --embed` refused with a signature `ERROR:`.
+
+1. **Plain explanation.** The wheel carries a signature over its file list
+   (`RECORD`). Embedding adds the SBOM and rewrites that list, so the old
+   signature would no longer verify. Pitloom stops rather than leave a broken
+   signature or delete one silently.
+2. **The choice.** `--allow-signed-wheel` deletes the signature file(s) (one
+   `INFO:` each) and embeds. Afterwards the wheel is unsigned until the user
+   re-signs it. Or skip embedding, or embed before the wheel is first signed.
+3. **Order of operations.** Build, embed, then sign, attest (Sigstore, PEP 740),
+   upload and record hashes (lock file, `pip --hash`): anything made over the
+   whole `.whl` stops matching after an embed, and Pitloom cannot detect it.
+4. **Context.** For wording matching the wheel's situation (publishing, an
+   internal index, verifying someone else's wheel), fetch
+   <https://bact.github.io/pitloom/cli/> (section "Embed an SBOM into a wheel")
+   with WebFetch or `curl` and relay the relevant part; fall back to 1-3.
+5. **Never** add the flag on your own. Non-interactive: report the refusal, the
+   explanation and the exact re-run command with the flag.

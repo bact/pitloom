@@ -56,10 +56,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.creation import CreationMetadata
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
-from pitloom.extract.wheel import (
-    read_wheel,
-    wheel_identity,
-)
+from pitloom.extract.wheel import read_wheel, wheel_identity
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
 

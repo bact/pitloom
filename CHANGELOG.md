@@ -129,9 +129,8 @@ and this project adheres to
 - An AI model whose read fails keeps a format-only entry and one `WARNING:` on
   every surface; `loom model` and `enrich` no longer fail on it; `loom id
   generate` registers only what a scan lists ([#270])
-- Every wheel SBOM (`loom wheel`, `generate <whl>`, `embed-wheel`, `wheel
-  --embed`) lists the payload only, nothing under the wheel's `.dist-info`, and
-  carries the package hash; the hook and `loom project` no longer list
+- Wheel SBOMs (`wheel`, `generate <whl>`, `embed-wheel`, `wheel --embed`) list
+  payload only, not the wheel's `.dist-info`; hook and `project` skip
   `.dist-info/licenses/*` ([#271])
 
 ### Removed
@@ -238,8 +237,8 @@ and this project adheres to
   attributes read the same every run ([#270])
 - A file whose header contradicts its model suffix (a Git LFS pointer under any
   suffix) is not a model, with one `WARNING:` ([#270])
-- `embed-wheel`, `wheel --embed`: embedded hashes no longer go stale; a wheel
-  with a `RECORD` signature is refused unless `--allow-signed-wheel` ([#271])
+- `embed-wheel`, `wheel --embed`: embedded hashes stay valid; a `RECORD`-signed
+  wheel is refused unless `--allow-signed-wheel` ([#271])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227

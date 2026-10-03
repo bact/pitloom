@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-02
+# Last-Modified: 2026-10-03
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -18,7 +18,8 @@ description: >-
   "generate SBOM and enrich it", "complete/full SBOM", "SBOM meeting CISA
   2026/NTIA/G7 minimum elements". Also PEP 770 wheel embedding ("embed the
   SBOM in this wheel", "embed SBOM to python wheel", "put the SBOM in
-  dist/*.whl", "create PEP 770 SBOM", "embed-wheel") and
+  dist/*.whl", "create PEP 770 SBOM", "embed-wheel", "wheel is signed / has
+  RECORD.jws", "--allow-signed-wheel") and
   --allow-build/--build-timeout ("generate with a real build", "the build is
   taking too long"). Checking an existing SBOM is sbom-validate; enriching
   one is sbom-enrich.
@@ -218,15 +219,9 @@ standalone wheel. `embed-wheel` also accepts `--allow-build` (see
 
 Or embed an already-generated SBOM file directly -- its declared subject
 name/version is cross-checked against the wheel's own METADATA first; a
-mismatch aborts the embed (`--allow-mismatch` downgrades to a warning). A
-wheel with a `RECORD` signature (`RECORD.jws`/`RECORD.p7s`) is refused, as the
-embed would invalidate it; `--allow-signed-wheel` removes the signature (re-sign
-afterwards). Never add it unless the user asks to embed into the signed wheel.
-Signatures or hashes over the wheel file itself (GPG `.asc`, Sigstore, PEP 740,
-lock-file hash) are not detected and stop matching: embed first, then
-sign/attest/upload. Pitloom's own wheel SBOMs list the payload only (nothing
-under the wheel's own `.dist-info`); an SBOM given with `--sbom` is embedded
-verbatim:
+mismatch aborts the embed (`--allow-mismatch` downgrades to a warning). The
+SBOM is embedded verbatim, so one from another tool may list files Pitloom's
+own never do:
 
 ```bash
 loom embed-wheel dist/*.whl --sbom sbom.spdx3.json
@@ -239,11 +234,24 @@ Or embed directly on `loom wheel` for a single wheel's own Analyzed SBOM
 loom wheel dist/mypackage-1.0.0-py3-none-any.whl --embed
 ```
 
-`embed-wheel` mutates the `.whl` archive in place (RECORD is updated to
-match) and works on any wheel regardless of build backend, unlike the
-Hatchling-specific build hook. Full flags, including `--output` (rejected
-when more than one wheel matches) and `--sbom-basename`:
+`embed-wheel` mutates the `.whl` archive in place and works on any wheel
+regardless of build backend, unlike the Hatchling-specific build hook. It
+rewrites `RECORD` (the SBOM's row added or updated, rows of an earlier Pitloom
+SBOM it replaces dropped) and writes the SBOM under `.dist-info/sboms/`.
+Pitloom's wheel SBOMs list the payload only (nothing under the wheel's own
+`.dist-info`), so every listed hash matches the final wheel. Full flags,
+including `--output` (rejected when more than one wheel matches) and
+`--sbom-basename`:
 <https://bact.github.io/pitloom/cli/>.
+
+**Signed wheels.** A `RECORD.jws`/`RECORD.p7s` signature would stop verifying
+once `RECORD` is rewritten, so Pitloom refuses the wheel (`ERROR:`, exit 1,
+untouched). Check first: `unzip -l <wheel> | grep 'RECORD\.'`. If found,
+**before** embedding read `references/known-limitations.md` ("Signed wheels:
+what to tell the user"), explain it to the user in terms of their wheel, and
+ask before adding `--allow-signed-wheel` (never unasked; non-interactive: don't
+add it, report the refusal and the command to re-run). No signature file: embed
+without asking.
 
 To check the wheel's embedded SBOM right after this same embed, pass
 `--verify`/`--validate` to `embed-wheel` itself -- both checks share the
@@ -316,6 +324,8 @@ does not name. It is not a model bound.
   per run; silent after an explicit `--no-scan-model-usage` or
   `scan-model-usage = false`). sdist, env, model-file and Hugging Face
   targets, `enrich` and `embed-wheel --sbom` warn that it has no effect.
+- `--allow-signed-wheel` -- `embed-wheel` and `wheel --embed` only; removes a
+  `RECORD` signature (see "Signed wheels"). Never add it unless the user agrees.
 - `--trust-wheel-model` -- on a built wheel, also read the model formats whose
   reader can crash or hang on a hostile file (fastText, GGUF, HDF5, ONNX,
   PyTorch `.pt`/`.pth`), otherwise listed without metadata (one `INFO:` names them).
