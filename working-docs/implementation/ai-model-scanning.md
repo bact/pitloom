@@ -215,7 +215,9 @@ surface, whatever its read outcome. Code: `read_model_candidate()` in
   key present with `null` counts as absent for an object part (`config`,
   `layers`, `build_config`, `optimizer`): JSON `null` carries no data, so
   AGENTS.md's "absent source data is not an error" applies (main was
-  silent too). A `null` *inside* `layers` is a malformed layer and warns
+  silent too). So does a whole attribute of JSON `null`, and a `null`
+  `optimizer_config` falls through to `optimizer` as an absent one does.
+  A `null` *inside* `layers` is a malformed layer and warns
   (`layers[<i>] is not an object`). A valid config
   without class or name keeps the old cut-only notice. Parsing lives in
   `ai_model/hdf5_config.py` (hdf5.py was near the size limit).

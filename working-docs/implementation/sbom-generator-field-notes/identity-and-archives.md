@@ -47,9 +47,9 @@ sections 3.3 (archives inside archives) and 3.8 (wheel identity bugs).
   Do: keep identity selection independent of a validating library's
   release.
 - **Identity comes from the top-level `.dist-info` only.** Vendored
-  libraries ship their own `METADATA`; setuptools 82-84 were reported as
-  `zipp 3.23.0`. Numbers and the selector are in the lessons doc, 3.8
-  (#266).
+  libraries ship their own `METADATA`; setuptools wheels (82-84 reported as
+  `zipp 3.23.0`; 75.3.2 to 84.0.0 affected in a 295-wheel re-run).
+  Numbers and the selector are in the lessons doc, 3.8 (#266).
   Do: anchor "which metadata is mine" to the archive root and the file
   name, never "any member ending `METADATA`".
 - **A URL requirement never yields a version.** `name @ https://.../
@@ -97,8 +97,9 @@ sections 3.3 (archives inside archives) and 3.8 (wheel identity bugs).
   drive-relative on Windows), any `..` segment, a NUL, or nothing left
   after dropping empty and `.` segments. Kept, `../x` became a directory
   element named `..` and a registry key; rewritten, it would show a legal
-  path the archive never installs to. pip and `installer` refuse such a
-  wheel anyway (#251).
+  path the archive never installs to. pip refuses `..` and absolute names
+  anyway; on POSIX it installs `a:b.py` as is, so skipping drive-like
+  names is a portability choice (#251).
   Do: skip with one `WARNING:`; never invent an install location.
 - **A file can also be a directory.** `pkg` plus `pkg/mod.py` in one
   archive: no installer can write both, and keeping both gave two SPDX
@@ -107,9 +108,9 @@ sections 3.3 (archives inside archives) and 3.8 (wheel identity bugs).
   Do: check every file name against the set of directory prefixes.
 - **Directory detection differs by archive type.** `ZipInfo.is_dir()`
   reads `filename`, so `pkg\` was a directory on Windows only; `tarfile`
-  retypes only a trailing `/`, so a regular tar member `pkg\` stayed a
-  file. Pitloom decides from the raw name (ends in `/`, `\` or a `.`
-  segment) and warns when a directory entry carries data (#251).
+  retypes only an old-style member whose name ends in `/`, so a regular tar
+  member `pkg\` stayed a file. Pitloom decides from the raw name (ends in `/`,
+  `\` or a `.` segment) and warns when a directory entry carries data (#251).
   Do: decide directory-ness from the raw name, in one place.
 - **`./` is normal in tar, not in a wheel.** `tar -C dir -czf x .` writes
   `./pkg/...`, so one leading `./` in an sdist is dropped silently; a
@@ -125,11 +126,13 @@ sections 3.3 (archives inside archives) and 3.8 (wheel identity bugs).
 - **A damaged member raises many exception types.** A corrupt deflate
   stream raises `zlib.error`; also `BadZipFile` (bad CRC), `EOFError`,
   `lzma.LZMAError`, `RuntimeError` (encrypted), `NotImplementedError`
-  (compression method). Catching `BadZipFile` and `UnicodeDecodeError`
-  only aborted a whole `verify-wheel` batch at a wheel declaring extract
-  version 9.2. Pitloom refuses the wheel with one line naming the type
-  (`could not read (zlib.error) -- wheel refused`), never quoting the
-  exception text, and goes on with the batch (#266).
+  (compression method). Catching only `BadZipFile` and
+  `UnicodeDecodeError` also aborted a whole `verify-wheel` batch at a
+  wheel declaring extract version 9.2, which `zipfile.ZipFile()` itself
+  rejects (`NotImplementedError`). Pitloom refuses a wheel with one line
+  naming the type, `could not open (...)` at open and `could not read
+  (zlib.error)` at a member read, never quoting the exception text, and
+  goes on with the batch (#266).
   Do: keep one tuple of member-read errors and use it at every read.
 - **A non-UTF-8 member name fails before any member is read.** With the
   UTF-8 flag set and invalid bytes in the central directory,
@@ -155,8 +158,9 @@ sections 3.3 (archives inside archives) and 3.8 (wheel identity bugs).
 - **Embedding into a wheel: RECORD is exact.** Each row is
   `<path>,sha256=<urlsafe base64, '=' padding stripped>,<size>`;
   `RECORD` lists itself as `<dist-info>/RECORD,,`. Pitloom writes a
-  sibling `.whl.tmp` and `os.replace()`s it, streaming members across,
-  and checks the result with `installer`'s `validate_record()` (#148).
+  temporary file beside the wheel and `os.replace()`s it, streaming
+  members across; its tests check the result with `installer`'s
+  `validate_record()` (#148).
   Do: validate with the installer's own checker, not your reader.
 - **Find a stale SBOM by content, not by file name.** On re-embed,
   Pitloom removes an earlier SBOM only when its JSON-LD `@graph` names a

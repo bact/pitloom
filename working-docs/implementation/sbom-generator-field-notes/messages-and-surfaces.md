@@ -34,24 +34,22 @@ say).
   nothing on stderr. Now a missing path is skipped silently, an
   `OSError` on one file gives
   `WARNING: FILE=<path>: could not read for file scanning; <error>` and
-  skips that file only, and any other exception propagates as the bug it
-  is (#244).
+  skips that file only (from the scan), and any other exception propagates as
+  the bug it is (#244).
   Do: catch the narrowest error per item, never a broad one per batch.
 - **Removing a read can remove an error.** With hashing switched off, a
   full `read_bytes()` was no longer needed, but it was also what raised
   `PermissionError` for an unreadable file. A cheap probe,
   `with source.open("rb"): pass`, keeps the failure path. The same option
-  made `if not file_entries: return None, []` fire on every run, because
-  the list it checked was no longer filled; it now checks a list that
-  always is (#213).
+  would have made `if not file_entries: return None, []` fire on every
+  call, because
+  the list it checked was no longer filled. Caught in plan review, it
+  now checks a list that always is (#213).
   Do: when an optimisation drops work, re-check every failure and
   emptiness test that relied on it.
 - **The message text is an interface.** Pitloom's AI skills read
   `; metadata not read` as "a model hit a bound", so the wheel-identity
-  messages end `... identity unknown` instead (#266). One constant,
-  `UNREADABLE_FILE_WARNING` (`FILE=%s: could not read %s; %s`), serves the
-  file scan, the model header read and the licence-file read, so the
-  three cannot drift (#244).
+  messages end `... identity unknown` instead (#266).
   Do: keep each message shape in one constant and grep its consumers
   before rewording.
 - **Make every message line parseable.** Archive warnings read
@@ -72,7 +70,7 @@ say).
   reading two archives warns once per archive: `embed-wheel
   --allow-build` names a bad member once plain and once with `Build: `, a
   documented limit (#251). An unfetched Git LFS checkout is one summary
-  line per run; see the lessons doc, 3.10.
+  line per run (decided; lessons doc 3.10).
   Do: name the event first, then decide how many lines it deserves.
 - **A deviation is announced, and the truth kept.** When a value has to
   deviate (a ZIP entry floored to 1980, a stale SBOM removed from the
@@ -111,27 +109,30 @@ say).
   once per run (#266).
   Do: give each fact one reader per run, and thread it to later steps.
 - **A refusal must look the same on every command.** A wheel that cannot
-  be opened is one `ERROR:` of one shape on `wheel`, `generate`,
+  be opened is one `ERROR:` carrying the same refusal text
+  (`ARCHIVE='x.whl': could not open (zipfile.BadZipFile) -- wheel
+  refused`) on `wheel`, `generate`,
   `embed-wheel`, `verify-wheel` and `validate-wheel`; a batch goes on to
   the next wheel and exits 1. Before, embed and verify each built their
   own `Invalid wheel archive` text (#266).
   Do: map archive-open errors in one function every command calls.
 - **Test one behaviour on every surface, in one file.**
   `tests/test_archive_member_name_surfaces.py` runs the same raw archives
-  through `loom wheel`, `loom wheel --embed`, `loom embed-wheel`,
-  `generate_wheel_sbom()`, `embed_wheel_sbom()`, `loom project`,
-  `loom generate` and `generate_project_sbom()`, for ZIP and tar, and
-  compares output and warnings with a simulated Windows read (#251).
+  through the five wheel surfaces (`loom wheel`, `loom wheel --embed`,
+  `loom embed-wheel`, `generate_wheel_sbom()`, `embed_wheel_sbom()`) and
+  the three sdist surfaces (`loom project`, `loom generate`,
+  `generate_project_sbom()`, ZIP and tar), asserting one `WARNING:` per
+  bad member. The per-reader tests compare each result with a simulated
+  Windows read (#251).
   Do: write the cross-surface test when the behaviour is introduced.
 - **In-process tests miss what a real CLI run shows.** pytest does not
   see argv parsing, real stderr wording and counts, environment-variable
   threading, or a subprocess importing a different install. Pitloom's
   `scripts/manual_cli_checks` runs real `loom` processes over a declared
-  matrix (subcommand x option x `PITLOOM_DEBUG`/`SOURCE_DATE_EPOCH`); its
-  first run found 7 CLI bugs, and `M/completeness` fails CI for any
-  option the plan does not classify. A relative `PYTHONPATH` once made
-  children run another checkout; the runner now exits if a child's
-  `pitloom` differs from its own (#226, #261).
+  matrix (subcommand x option x `PITLOOM_DEBUG`/`SOURCE_DATE_EPOCH`), and
+  `M/completeness` fails CI for any option the plan does not classify. A
+  relative `PYTHONPATH` once made children run another checkout; the runner
+  now exits if a child's `pitloom` differs from its own (#226, #261).
   Do: keep a real-process matrix next to the unit tests, and check which
   code it actually ran.
 - **AI skills are a surface with no tests.** A skill is triggered only by

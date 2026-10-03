@@ -100,7 +100,7 @@ def _member_text(parent: dict[str, Any], key: str, what: str) -> str | None:
 
 
 def _json_object(raw: str, what: str) -> dict[str, Any]:
-    """The JSON object in *raw*.
+    """The JSON object in *raw*; ``{}`` for JSON ``null`` (no data).
 
     Raises:
         _ConfigShapeError: *raw* is not valid JSON (nesting too deep for the
@@ -115,6 +115,8 @@ def _json_object(raw: str, what: str) -> dict[str, Any]:
         ) from exc
     except ValueError as exc:  # JSONDecodeError, or an over-long integer
         raise _ConfigShapeError(f"{what} is not valid JSON ({exc})") from exc
+    if parsed is None:
+        return {}
     if not isinstance(parsed, dict):
         raise _ConfigShapeError(f"{what} is not a JSON object")
     return parsed
@@ -333,7 +335,9 @@ def _read_optimizer(
             is not a string.
     """
     opt_key = (
-        "optimizer_config" if "optimizer_config" in training_config else "optimizer"
+        "optimizer_config"
+        if training_config.get("optimizer_config") is not None
+        else "optimizer"
     )
     optimizer = _member_object(training_config, opt_key, f"training_config.{opt_key}")
     opt_class = _member_text(

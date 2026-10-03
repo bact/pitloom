@@ -31,11 +31,9 @@ section 3.6 (determinism of model metadata).
   Do: seed on everything that changes the content, including provenance.
 - **`SOURCE_DATE_EPOCH` is the middle of a cascade, not the top.**
   Pitloom resolves `created` as explicit `--creation-datetime` (or its
-  config key) > `SOURCE_DATE_EPOCH` > current UTC. "Environment wins" was
-  copied from an earlier hook and reversed: an explicit per-SBOM value
-  could never take effect. An unparseable value is ignored with
-  `WARNING: Ignoring invalid SOURCE_DATE_EPOCH: ...`. The enrichment
-  fragment's `created` used the wall clock until #231 (#148, #231).
+  config key) > `SOURCE_DATE_EPOCH` > current UTC. An unparseable value is
+  ignored with `WARNING: Ignoring invalid SOURCE_DATE_EPOCH: ...`. The
+  enrichment fragment's `created` used the wall clock until #231 (#148, #231).
   Do: route every timestamp through one resolver; give the explicit value
   the last word.
 - **Datetimes: UTC, whole seconds, a literal `Z`.** SPDX 3 `DateTime` is
@@ -57,7 +55,7 @@ section 3.6 (determinism of model metadata).
   bookkeeping.
 - **Line endings are part of the bytes.** Python's text mode writes CRLF
   on Windows. SBOM, fragment and registry files are now opened with
-  `newline="\n"` and UTF-8 in one helper (#232, #240).
+  `newline="\n"` and UTF-8 in one helper (#232).
   Do: open every output file through one writer that fixes encoding and
   newline.
 - **Order from an external tool is not a contract.** pipdeptree happens to
@@ -121,9 +119,10 @@ section 3.6 (determinism of model metadata).
   100_000)` raises `RecursionError` on 3.10-3.13; 3.14's decoder checks
   the real stack instead, reads all 100 000 levels and fails with a plain
   `JSONDecodeError` ("Expecting value"). It still raises `RecursionError`
-  at 1 000 000. `RecursionError` is not a `ValueError`, so a parser that
-  catches only the decode error crashes on 3.10-3.13; a test pinned to
-  the "nested too deeply" text fails on 3.14 only (#270).
+  at 1 000 000 on the default main-thread stack. `RecursionError` is not
+  a `ValueError`, so a parser that catches only the decode error crashes
+  on 3.10-3.13; a test pinned to "nested too deeply" (Pitloom's own
+  message) fails on 3.14 only (#270).
   Do: catch `RecursionError` beside the decode error; build a deep-nesting
   fixture that raises on every supported version.
 - **`dict.get(key, default)` guards absence, not type.**
@@ -168,7 +167,8 @@ section 3.6 (determinism of model metadata).
   ([recurring-bug-patterns.md](../recurring-bug-patterns.md)).
   Do: add a new source with every guard its siblings already have.
 - **A presence-only key set can hide one boolean.** In `Pipfile.lock`,
-  `git`, `path` and `url` mean "not from a registry" by presence, but
+  `git` (and `hg`, `bzr`, `svn`), `path` and `file` mean "not from a
+  registry" by presence, but
   `"editable": false` is schema-legal and means "not editable"; a
   presence check reads it as an editable source and drops the package
   ([recurring-bug-patterns.md](../recurring-bug-patterns.md)).

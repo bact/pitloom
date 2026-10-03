@@ -335,8 +335,8 @@ Lessons:
   survey, of 126 distinct real wheels, found every one with exactly one matching
   top-level `.dist-info`, so a user option for the fallback was rejected:
   it would cost a flag, config key, Action input and docs for a case
-  never seen, and let users switch off the spoofing warning. Re-run after
-  the first review round on 295 unique wheels: 283 unchanged, 12 changed
+  never seen, and let users switch off the spoofing warning. The 295-wheel
+  re-run after the first review round: 283 unchanged, 12 changed
   (setuptools 75.3.2 to 84.0.0, `zipp` to `setuptools`), none refused.
 - An unreadable wheel member (corrupt data, invalid UTF-8 name,
   encrypted) crashed the whole run. "Keep the file without a hash" was

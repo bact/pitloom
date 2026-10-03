@@ -18,12 +18,12 @@ bombs, Git LFS pointers),
 
 Small, concrete, non-obvious details for anyone starting an SBOM
 generator, in any language or ecosystem. The evidence is Pitloom's: Python
-packages (sdists, wheels, Hatchling and other PEP 517 backends, six
-lock-file formats), SPDX 3 JSON-LD output. Each item gives the exact
-format, byte value, version or measured number; the PR that found or fixed
-it; and one "Do:" rule. Items the AI-model notes already cover are linked,
-not repeated. Every claim was checked against the current code, a
-repository fixture, a live interpreter or the cited PR's own record on
+packages (sdists, wheels, Hatchling and other PEP 517 backends, five
+lock-file formats plus pinned `requirements.txt`), SPDX 3 JSON-LD output. Each
+item gives the exact format, byte value, version or measured number; the PR
+that found or fixed it; and one "Do:" rule. Items the AI-model notes already
+cover are linked, not repeated. Every claim was checked against the current
+code, a repository fixture, a live interpreter or the cited PR's own record on
 2026-10-02.
 
 ## Files

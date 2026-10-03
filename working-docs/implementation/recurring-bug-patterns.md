@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-09-20
+Last-Modified: 2026-10-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -231,7 +231,8 @@ shape described, not just the module where each was first found.
   these keys present at all") silently misfires the moment one key in
   the set is genuinely boolean-valued instead of presence-implies-true.**
   `Pipfile.lock`'s non-registry-source keys are almost all presence-only
-  (a `"git"`/`"path"`/`"url"` string means "non-registry, full stop"),
+  (a `"git"` (also `hg`/`bzr`/`svn`), `"path"` or `"file"` string means
+  "non-registry, full stop"),
   but `"editable"` is schema-legal as an explicit `false` -- a naive
   presence check would misread `"editable": false` as "editable source,
   exclude" instead of "not editable, no exemption needed here." Before

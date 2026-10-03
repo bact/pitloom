@@ -37,7 +37,7 @@ _FIELDS = "type_of_model, name, hyperparameters, inputs, properties.layer_count"
 _NO_NAME = "name, hyperparameters, inputs, properties.layer_count"
 # Deep enough for RecursionError on every version: 3.14's json decoder
 # checks the real stack and parses 100 000 levels as plain invalid JSON.
-_DEEP = "[" * 1_000_000
+_DEEP = "[" * 1_000_000  # pass by id: a str param is its own test id
 
 
 def _model(config: dict[str, Any]) -> str:
@@ -84,13 +84,11 @@ def _read_attrs(
             _NO_NAME,
         ),
         (_model("x"), "config is not an object", _NO_NAME),  # type: ignore[arg-type]
-        (_model(None), None, None),  # type: ignore[arg-type]  # null = absent
         (
             _model({"units": 4, "layers": {}}),
             "layers is not a list",
             "inputs, properties.layer_count",
         ),
-        (_model({"layers": None}), None, None),  # null = absent
         (_model({"layers": [None]}), "layers[0] is not an object", "inputs"),
         (
             _model({"layers": [{"class_name": "InputLayer", "config": []}]}),
@@ -114,9 +112,12 @@ def _read_attrs(
             marks=pytest.mark.skipif(
                 not hasattr(sys, "get_int_max_str_digits"), reason="no digit limit"
             ),
+            id="long-digits",
         ),
-        (_DEEP, "nested too deeply", None),
-        ('{"class_name": ' + _DEEP, "nested too deeply", None),
+        pytest.param(_DEEP, "nested too deeply", None, id="deep"),
+        pytest.param(
+            '{"class_name": ' + _DEEP, "nested too deeply", None, id="deep-class"
+        ),
     ],
 )
 def test_a_model_config_part_of_the_wrong_type_warns_once_naming_what_is_lost(
@@ -172,17 +173,15 @@ def test_what_is_read_before_a_bad_model_config_part_is_kept(
 
 
 @pytest.mark.parametrize(
-    ("training", "problem", "affected", "loss"),
+    ("training", "problem", "optimizer"),
     [
-        (
-            {"optimizer_config": {"class_name": 5}, "loss": "mse"},
-            "is not a string",
-            1,
-            "mse",
-        ),
-        ({"optimizer": {"class_name": {}}, "loss": "mse"}, "is not a string", 1, "mse"),
-        ({"optimizer_config": "adam", "loss": "mse"}, "is not an object", 1, "mse"),
-        ({"optimizer_config": {"class_name": "Adam"}, "loss": "mse"}, None, 0, "mse"),
+        ({"optimizer_config": {"class_name": 5}}, "is not a string", None),
+        ({"optimizer": {"class_name": {}}}, "is not a string", None),
+        ({"optimizer_config": "adam"}, "is not an object", None),
+        ({"optimizer_config": {"class_name": "Adam"}}, None, "Adam"),
+        ({"optimizer": None}, None, None),  # null = absent
+        # a null optimizer_config falls through to optimizer, as absent does
+        ({"optimizer_config": None, "optimizer": {"class_name": "Sgd"}}, None, "Sgd"),
     ],
 )
 def test_a_training_config_optimizer_of_the_wrong_type_warns_once(
@@ -190,16 +189,65 @@ def test_a_training_config_optimizer_of_the_wrong_type_warns_once(
     caplog: pytest.LogCaptureFixture,
     training: dict[str, Any],
     problem: str | None,
-    affected: int,
-    loss: str,
+    optimizer: str | None,
 ) -> None:
-    meta, messages = _read(tmp_path, caplog, training_config=json.dumps(training))
-    assert len(messages) == affected
-    assert meta.properties["loss"] == loss  # read before the optimizer
-    assert ("optimizer" in meta.properties) is (problem is None)
+    meta, messages = _read(
+        tmp_path, caplog, training_config=json.dumps({**training, "loss": "mse"})
+    )
+    assert len(messages) == (problem is not None)
+    assert meta.properties["loss"] == "mse"  # read after the optimizer
+    assert meta.properties.get("optimizer") == optimizer
     if problem:
         assert problem in messages[0]
         assert messages[0].endswith("(skipped): properties.optimizer")
+
+
+@pytest.mark.parametrize(
+    ("config", "layer_count"),
+    [
+        (_model(None), None),  # type: ignore[arg-type]
+        (_model({"layers": None}), None),  # absent, not "0"
+        (
+            json.dumps(
+                {
+                    "class_name": "Sequential",
+                    "config": {
+                        "layers": [
+                            {"class_name": "InputLayer", "config": None},
+                            {"class_name": "Dense", "build_config": None},
+                        ]
+                    },
+                    "build_config": None,
+                }
+            ),
+            "2",
+        ),
+    ],
+    ids=["config", "layers", "layer-parts"],
+)
+def test_a_null_object_part_counts_as_absent(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    config: str,
+    layer_count: str | None,
+) -> None:
+    """JSON ``null`` carries no data: no warning, nothing read from it."""
+    meta, messages = _read(tmp_path, caplog, model_config=config)
+    assert not messages
+    assert meta.type_of_model == "Sequential"
+    assert "model_config_raw" not in meta.properties
+    assert not meta.inputs
+    assert meta.properties.get("layer_count") == layer_count
+
+
+@pytest.mark.parametrize("name", ["model_config", "training_config"])
+def test_a_whole_attribute_of_json_null_counts_as_absent(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, name: str
+) -> None:
+    meta, messages = _read(tmp_path, caplog, **{name: "null"})
+    assert not messages
+    assert "optimizer" not in meta.properties
+    assert meta.type_of_model is None
 
 
 @pytest.mark.parametrize("name", ["training_config", "model_config"])

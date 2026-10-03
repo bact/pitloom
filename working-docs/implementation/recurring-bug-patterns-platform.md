@@ -101,18 +101,15 @@ the move.
   shape" is a real possibility (any external/user-editable file, as
   opposed to output this codebase generated itself).
 - **A monkeypatched stdlib method's fake must match the real method's
-  actual signature, or mypy --strict silently accepts a runtime-only
-  contract violation.** `pathlib.Path.stat()` is
-  `stat(self, *, follow_symlinks: bool = True)` -- keyword-only, no
-  positional `*args`. A test fake written as
-  `def fake_stat(self, *args: object, **kwargs: object)` runs fine under
-  pytest (nothing calls it with conflicting args in practice) but fails
-  `mypy --strict` the moment the real call site passes
-  `follow_symlinks=...` as a keyword, since `**kwargs: object` can't
-  satisfy a `bool` parameter (PR #217,
-  `test_fragments_merge_required.py`). Write the fake against the real
-  method's actual signature (check it, don't guess), not a generic
-  passthrough shim.
+  actual signature, or mypy --strict rejects its forwarding call.**
+  `pathlib.Path.stat()` is `stat(self, *, follow_symlinks: bool = True)`.
+  A test fake written as
+  `def fake_stat(self, *args: object, **kwargs: object)` forwards with
+  `real_stat(self, *args, **kwargs)`, and that call fails
+  `mypy --strict`: `object` cannot fill `follow_symlinks: bool`
+  (PR #217, commit 622085dd, `test_fragments_merge_required.py`). Write
+  the fake against the real method's actual signature (check it, don't
+  guess), not a generic passthrough shim.
 - **Monkeypatching a function on a shared stdlib module reaches every
   thread in the process.** `test_backoff_triples` (PR #259) recorded
   `scripts/retry_network.py`'s back-off with
