@@ -41,7 +41,11 @@ from pitloom.core._config_types import (
     PitloomConfig,
 )
 from pitloom.core.creation import Creator, Tool
-from pitloom.core.file_names import is_plain_file_name
+from pitloom.core.file_names import (
+    CONFIG_BASENAME_LABEL,
+    is_plain_file_name,
+    sbom_base_name,
+)
 from pitloom.core.provenance import normalize_max_source_metadata_bytes
 
 _VALID_PROVENANCE_FORMATS: frozenset[str] = frozenset({"annotation", "comment", "both"})
@@ -300,14 +304,19 @@ def _check_sbom_basename(value: str | None) -> str | None:
     must not choose a directory to write to
     (:func:`pitloom.core.file_names.is_plain_file_name`).
 
+    A trailing ``.spdx3.json`` is dropped with a ``WARNING:``
+    (:func:`pitloom.core.file_names.sbom_base_name`).
+
     Raises:
         ValueError: *value* is not a plain file name.
     """
-    if value is not None and not is_plain_file_name(value):
+    if value is None:
+        return None
+    if not is_plain_file_name(value):
         raise ValueError(
             f"[tool.pitloom] 'sbom-basename' must be a file name, not a path: {value!r}"
         )
-    return value
+    return sbom_base_name(value, CONFIG_BASENAME_LABEL)
 
 
 def _pick_str(*sources: tuple[dict[str, Any], tuple[str, ...]]) -> str | None:

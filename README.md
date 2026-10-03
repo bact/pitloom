@@ -197,6 +197,7 @@ as compact canonical JSON. Basename and fragments are configured under
 ```toml
 [tool.pitloom]
 sbom-basename = "custom-bom"       # -> "custom-bom.spdx3.json" (default: "<name>-<version>")
+                                   # ("custom-bom.spdx3.json" also works: extension dropped, with a WARNING)
 
 [tool.pitloom.fragment]
 files = ["fragments/model.json"]   # merge externally tracked fragments

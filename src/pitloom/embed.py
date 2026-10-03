@@ -55,7 +55,7 @@ from pitloom._wheel_sbom_location import (
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.creation import CreationMetadata
-from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
+from pitloom.core.file_names import sbom_base_name, sbom_file_name
 from pitloom.extract.wheel import read_wheel, wheel_identity
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
@@ -93,12 +93,11 @@ __all__ = [
 def embed_filename(sbom_basename: str | None) -> str | None:
     """The file name an SBOM is embedded under for *sbom_basename*
     (``--sbom-basename``/``[tool.pitloom] sbom-basename``), or ``None`` for
-    the default name. Shared by ``embed-wheel`` and ``wheel --embed``."""
+    the default name. Shared by ``embed-wheel`` and ``wheel --embed``.
+    (:func:`pitloom.core.file_names.sbom_file_name`)."""
     if not sbom_basename:
         return None
-    return (
-        f"{sbom_basename.removesuffix(SPDX3_JSONLD_EXTENSION)}{SPDX3_JSONLD_EXTENSION}"
-    )
+    return sbom_file_name(sbom_basename)
 
 
 def _enforce_sbom_name_version(
@@ -200,6 +199,8 @@ def embed_wheel_sbom(
         OSError: *wheel_path* cannot be opened (missing, permission denied).
     """
     configure_logging()
+    if sbom_basename:
+        sbom_basename = sbom_base_name(sbom_basename, "--sbom-basename")
     wheel_obj = Path(wheel_path).resolve()
     eff_overrides = overrides if overrides is not None else ConfigOverrides()
     if sbom_path is None:

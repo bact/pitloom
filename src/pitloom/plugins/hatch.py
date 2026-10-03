@@ -29,6 +29,7 @@ from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.config import PitloomConfig, read_pitloom_config
 from pitloom.core.creation import CreationMetadata, resolve_source_date_epoch
 from pitloom.core.document import DocumentModel
+from pitloom.core.file_names import sbom_file_name
 from pitloom.core.models import get_wheel_files
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.enrich.base import EnrichmentResult
@@ -347,10 +348,11 @@ class PitloomBuildHook(_PitloomBuildHookBase):
         pitloom_config: PitloomConfig = read_pitloom_config(
             project_dir / "pyproject.toml"
         )
-        sbom_basename = pitloom_config.sbom_basename or _default_sbom_basename(
-            self.metadata
+        sbom_filename: str = (
+            sbom_file_name(pitloom_config.sbom_basename)
+            if pitloom_config.sbom_basename
+            else f"{_default_sbom_basename(self.metadata)}{SPDX3_JSONLD_EXTENSION}"
         )
-        sbom_filename: str = f"{sbom_basename}{SPDX3_JSONLD_EXTENSION}"
 
         try:
             registry = resolve_registry(None, pitloom_config.id_registry, project_dir)

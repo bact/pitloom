@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -151,7 +151,8 @@ PEP 740 attestation) and a recorded wheel hash (lock file, `pip --hash`) stop
 matching, and Pitloom cannot detect them: embed first, then sign, attest,
 upload and hash.
 
-`--sbom-basename NAME` overrides the embedded file's basename (default:
+`--sbom-basename NAME` overrides the embedded file's basename (a trailing
+`.spdx3.json` is optional and dropped with a `WARNING:`; default:
 derived from the wheel's own name/version, `<name>-<version>.spdx3.json`; a
 control character, whitespace, `/`, `\` or `:` in either becomes `_`; with no
 name or version in `METADATA`, or a name over 255 characters, the wheel's

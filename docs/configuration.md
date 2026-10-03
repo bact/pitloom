@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-10-01
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -98,7 +98,7 @@ doing nothing.
 | :-- | :--- | :------ | :------- | :------------ | :-------- | :------ |
 | `pretty` | bool | `false` | `--pretty` / `--no-pretty` | `pretty` | `pretty` | Indent the JSON output with 2 spaces. Not used for an SBOM embedded in a wheel (`embed-wheel`, `wheel --embed`, including its `-o` copy), which is always compact; the flags warn there. |
 | `describe-relationship` | bool | `false` | `--describe-relationship` / `--no-describe-relationship` | -- | `describe_relationship` | Include human-readable text on SPDX relationships. Not used for an SBOM embedded in a wheel, as for `pretty`. |
-| `sbom-basename` | string | *(derived from project name/version)* | -- | -- | `sbom_basename` | Base filename (no extension) for the generated SBOM. |
+| `sbom-basename` | string | *(derived from project name/version)* | -- | -- | `sbom_basename` | Base filename for the generated SBOM; `.spdx3.json` is added. The extension is optional: one trailing `.spdx3.json` (any case) is dropped with a `WARNING:`, so `x.spdx3.json` gives `x.spdx3.json`. |
 | `offline` | bool | `false` | `--offline` | `offline` | `offline` | Skip the PyPI JSON API fallback used to fill dependency metadata gaps. Network attempted, best-effort, by default -- any failure (including no network) silently falls back to local-only data. |
 | `use-lockfile` | bool | `true` | `--use-lockfile` / `--no-use-lockfile` | `use-lockfile` | `use_lockfile` | Resolve exact versions from a lock/pin file cascade (`pylock.toml`/`uv.lock`/`poetry.lock`/`pdm.lock`/`Pipfile.lock`/pinned `requirements.txt`) -- see [Dependency sources and precedence](dependency-sources.md). On by default, unlike every other bool above; `false` falls back to direct dependencies and environment introspection only. CLI flag only on `project`/`generate` (dependency resolution) and `enrich` (`--project-dir` document identity matching); no effect on `model`/`wheel`/`embed-wheel`/`env`. |
 | `extract-file-header` | bool | `true` | `--extract-file-header` / `--no-extract-file-header` | `extract-file-header` | `extract_file_header` | Scan each source file's leading comment header for SPDX-File\* tags. Independent of content-type detection below -- a binary file with no text header still gets a `contentType` when that's on. |
@@ -113,8 +113,8 @@ doing nothing.
 string `"true"` instead of the bare value `true`) -- no silent
 coercion. `sbom-basename`/`id-registry` raise `ValueError` if set to a
 non-string, and `sbom-basename` also if it is a path rather than a file
-name (a `/`, `\`, `:` or NUL, or `.`/`..`) -- the same rule as
-`embed-wheel --sbom-basename`. `extract-file-header` off never errors and never blocks
+name (a `/`, `\`, `:` or NUL, or `.`/`..`), or is only `.spdx3.json` --
+the same rules as `embed-wheel --sbom-basename`. `extract-file-header` off never errors and never blocks
 content-type detection -- see below.
 
 In `setup.cfg`'s `[tool:pitloom]`, where every value is text, a boolean is

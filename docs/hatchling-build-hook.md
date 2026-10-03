@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-21
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -87,6 +87,7 @@ Basename and fragments are configured under `[tool.pitloom]`:
 ```toml
 [tool.pitloom]
 sbom-basename = "custom-bom"       # -> "custom-bom.spdx3.json" (default: "<name>-<version>")
+                                   # (a trailing ".spdx3.json" is dropped, with a WARNING)
 
 [tool.pitloom.fragment]
 files = ["fragments/model.json"]   # merge externally tracked fragments
