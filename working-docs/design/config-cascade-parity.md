@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-21
-Last-Modified: 2026-10-01
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -85,9 +85,11 @@ accident of which code path it goes through.
   (`IdRegistry.find()`, including this walk-up) is removed everywhere.
   A registry is used only when explicitly declared -- see
   [id-registry-autosync.md](../implementation/id-registry-autosync.md#revised-in-pr-a2-2026-09-28).
-- **`sbom-basename = "x.spdx3.json"`**: `project` writes
-  `x.spdx3.json.spdx3.json`, `embed-wheel` strips the extension and
-  writes `x.spdx3.json`.
+- ~~**`sbom-basename = "x.spdx3.json"`**: `project` wrote
+  `x.spdx3.json.spdx3.json`, `embed-wheel` stripped the extension.~~ --
+  **Resolved by PR #273**: every surface strips one trailing `.spdx3.json`
+  (any case) with one `WARNING:`; a value that is only the extension is an
+  error (`core/file_names.py:sbom_base_name`).
 - **`embed-wheel --project-dir <sdist>` runs Hatchling file discovery on
   the archive path** (and warns it failed), while `project <sdist>` uses
   the archive's own listing.
@@ -149,8 +151,9 @@ accident of which code path it goes through.
   named `--config`.)
 - `enrich --project-dir`: should D's identity keys apply without
   `--config`?
-- `sbom-basename`: always a base name (strip a given extension
-  everywhere), or a full file name?
+- ~~`sbom-basename`: always a base name (strip a given extension
+  everywhere), or a full file name?~~ -- **Resolved by PR #273**: a base
+  name; the extension is stripped.
 - ~~`loom.Run`: remove the cwd walk-up outright, or deprecate first
   (private alpha: no compatibility needed)?~~ -- **Resolved by PR A2**:
   removed outright, no deprecation period (private alpha).

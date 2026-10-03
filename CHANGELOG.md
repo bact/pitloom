@@ -241,6 +241,8 @@ and this project adheres to
   wheel is refused unless `--allow-signed-wheel` ([#271])
 - An sdist's file list is sorted by path, so SPDX ids no longer follow archive
   order ([#272])
+- `sbom-basename`/`--sbom-basename` ending in `.spdx3.json` (any case) loses it
+  with one `WARNING:`; `project` wrote `x.spdx3.json.spdx3.json` ([#273])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -275,6 +277,7 @@ and this project adheres to
 [#270]: https://github.com/bact/pitloom/pull/270
 [#271]: https://github.com/bact/pitloom/pull/271
 [#272]: https://github.com/bact/pitloom/pull/272
+[#273]: https://github.com/bact/pitloom/pull/273
 
 ## [0.19.0] - 2026-09-18
 

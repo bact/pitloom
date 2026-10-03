@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -85,7 +85,7 @@ Set `python-version` to always run `setup-python` with that version.
 By default the action scans the checkout root as a Python project and
 writes `<name>-<version>.spdx3.json` (falling back to `<name>.spdx3.json`,
 then `sbom.spdx3.json` as a last resort, unless the project's
-`[tool.pitloom] sbom-basename` overrides it -- the same default-naming
+`[tool.pitloom] sbom-basename` overrides it, a trailing `.spdx3.json` dropped with a `WARNING:` -- the same default-naming
 logic `loom project` uses directly). Point it at an AI model instead of a
 project directory with `model:`:
 

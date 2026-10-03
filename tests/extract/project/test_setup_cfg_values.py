@@ -189,5 +189,5 @@ def test_top_level_no_creation_tool_yields_to_creation_section(
 
 
 def test_untyped_key_stays_a_string() -> None:
-    config = _from_cfg("", "sbom-basename =  demo.spdx3.json ")
-    assert config.sbom_basename == "demo.spdx3.json"
+    config = _from_cfg("", "sbom-basename =  demo.json ")
+    assert config.sbom_basename == "demo.json"

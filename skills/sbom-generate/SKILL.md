@@ -241,7 +241,8 @@ SBOM it replaces dropped) and writes the SBOM under `.dist-info/sboms/`.
 Pitloom's wheel SBOMs list the payload only (nothing under the wheel's own
 `.dist-info`), so every listed hash matches the final wheel. Full flags,
 including `--output` (rejected when more than one wheel matches) and
-`--sbom-basename`:
+`--sbom-basename` (a name without extension; a trailing `.spdx3.json` is
+dropped with a `WARNING:`):
 <https://bact.github.io/pitloom/cli/>.
 
 **Signed wheels.** A `RECORD.jws`/`RECORD.p7s` signature would stop verifying

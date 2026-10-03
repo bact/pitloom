@@ -40,6 +40,7 @@ from pitloom.core.creation import (
     Creator,
     Tool,
 )
+from pitloom.core.file_names import sbom_file_name
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.project import (
@@ -345,7 +346,7 @@ def _resolve_output_path(
     if explicit is not None:
         return explicit
     if pitloom_config.sbom_basename:
-        return Path(f"{pitloom_config.sbom_basename}{SPDX3_JSONLD_EXTENSION}")
+        return Path(sbom_file_name(pitloom_config.sbom_basename))
     parts = [metadata.name] if metadata.name else ["sbom"]
     if metadata.version:
         parts.append(metadata.version)
