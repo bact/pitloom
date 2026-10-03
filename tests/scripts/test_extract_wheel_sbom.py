@@ -278,12 +278,14 @@ def test_empty_file_exemption_is_only_for_extension(
         module.extract(tmp_path / "dist", tmp_path / "out", require_magika=True)
 
 
+@pytest.mark.parametrize("empty", [False, True], ids=["file", "empty-file"])
 @pytest.mark.parametrize("comment_first", [True, False])
 def test_every_recorded_method_must_be_magika(
-    module: ModuleType, tmp_path: Path, comment_first: bool
+    module: ModuleType, tmp_path: Path, comment_first: bool, empty: bool
 ) -> None:
-    """A comment and an Annotation that disagree fail in either graph order."""
-    element = _file("a.py")
+    """A comment and an Annotation that disagree fail in either graph order,
+    an empty file included (its exemption needs extension_guess alone)."""
+    element = _file("a.py", empty=empty)
     element["comment"] = (
         "Metadata provenance: content_type: Source: a.py | Method: extension_guess"
     )

@@ -46,8 +46,8 @@ _MAGIKA_METHOD = "magika_content_detection"
 # Magika cannot classify empty content, so Pitloom falls back to the file
 # extension there (an empty ``__init__.py``): such a file is not a failure.
 _EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
-# A content type recorded in a ``comment`` instead of an Annotation.
 _SAFE_NAME = re.compile(r"[A-Za-z0-9._+-]+")
+# A content type recorded in a ``comment`` instead of an Annotation.
 _COMMENT_RE = re.compile(r"content_type: [^;\n]*? \| (Method|Role): (\w+)")
 
 
