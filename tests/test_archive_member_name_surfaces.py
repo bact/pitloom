@@ -137,7 +137,9 @@ def test_wheel_member_names_on_every_surface(
 
     sbom = _SURFACES[surface](wheel, monkeypatch)
 
-    assert _file_names(sbom) == _EXPECTED
+    # An embed rewrites RECORD, so an embedded SBOM does not list it.
+    expected = _EXPECTED - ({f"{_DIST_INFO}/RECORD"} if "embed" in surface else set())
+    assert _file_names(sbom) == expected
     _assert_warned_once(capsys.readouterr().err, _RAW_WARNED)
     # The scanned model is contained in the File of its install-location name.
     graph = json.loads(sbom)["@graph"]

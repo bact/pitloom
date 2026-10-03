@@ -27,6 +27,7 @@ from pitloom._embed_generate import (
 from pitloom._embed_wheel import (
     _DEFAULT_FILE_ATTR,
     _ZIP_EPOCH_FLOOR,
+    RECORD_SIGNATURES,
     _calculate_record_hash,
     _derive_wheel_sbom_filename,
     _looks_like_pitloom_sbom,
@@ -54,7 +55,11 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.creation import CreationMetadata
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
-from pitloom.extract.wheel import read_wheel, wheel_identity
+from pitloom.extract.wheel import (
+    read_wheel,
+    wheel_identity,
+    without_embed_rewritten_files,
+)
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
 
@@ -66,6 +71,7 @@ __all__ = [
     "EmbeddedSbomLocation",
     "_DEFAULT_FILE_ATTR",
     "RECOMMENDED_EXTENSIONS",
+    "RECORD_SIGNATURES",
     "VALIDATED_FORMATS",
     "_ZIP_EPOCH_FLOOR",
     "_build_sbom_from_project_and_wheel",
@@ -209,6 +215,10 @@ def embed_wheel_sbom(
         # loading the file again.
         id_registry = _resolve_embed_registry(project_dir, pitloom_config, id_registry)
     wheel_metadata, _ = read_wheel(wheel_obj)
+    # The embed rewrites RECORD and adds the SBOM: neither hash can be right.
+    wheel_metadata.files = without_embed_rewritten_files(
+        wheel_metadata.files, wheel_obj.name
+    )
 
     sbom_json, eff_basename = _generate_embed_sbom_json(
         wheel_metadata,

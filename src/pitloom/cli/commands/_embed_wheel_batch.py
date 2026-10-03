@@ -37,7 +37,7 @@ from pitloom.core.inert_options import (
     INERT,
     settle_inert,
 )
-from pitloom.embed import EmbedFileCache
+from pitloom.embed import RECORD_SIGNATURES, EmbedFileCache
 from pitloom.extract.project import read_project
 from pitloom.id_registry import IdRegistry, registry_base_dir, resolve_registry
 from pitloom.logging_config import loggable
@@ -62,6 +62,13 @@ def report_embed_result(
     """
     print(f"pitloom: embedded {loggable(arcname)} into {loggable(wheel_name)}")
     for stale_arcname in removed:
+        if stale_arcname.endswith(RECORD_SIGNATURES):
+            log.warning(
+                "removed %s from %s: it signed the RECORD the embed rewrote",
+                loggable(stale_arcname),
+                loggable(wheel_name),
+            )
+            continue
         log.info(
             "removed stale SBOM %s from %s",
             loggable(stale_arcname),

@@ -363,7 +363,8 @@ packages = ["ctpkg"]
     files_by_name = _sbom_files_by_name(sbom_json)
     assert "ctpkg-1.0.0.dist-info/METADATA" in files_by_name
     assert "ctpkg-1.0.0.dist-info/WHEEL" in files_by_name
-    assert "ctpkg-1.0.0.dist-info/RECORD" in files_by_name
+    # RECORD is rewritten by the embed, so it is not listed (#269).
+    assert "ctpkg-1.0.0.dist-info/RECORD" not in files_by_name
 
     init_file = files_by_name["ctpkg/__init__.py"]
     (hash_obj,) = init_file["verifiedUsing"]
@@ -419,7 +420,11 @@ packages = ["ctpkg"]
     # SBOM entry and rewrites RECORD) -- this is the file set
     # _compute_wheel_merkle_root should be reproducible from.
     with zipfile.ZipFile(wheel_path, "r") as zf:
-        wheel_contents = {name: zf.read(name) for name in zf.namelist()}
+        wheel_contents = {
+            name: zf.read(name)
+            for name in zf.namelist()
+            if not name.endswith(".dist-info/RECORD")  # the embed rewrites it
+        }
 
     _, _, sbom_json, _, _ = embed_wheel_sbom(
         wheel_path,
@@ -496,7 +501,6 @@ packages = ["ctpkg"]
         "ctpkg/__init__.py",
         "ctpkg-1.0.0.dist-info/METADATA",
         "ctpkg-1.0.0.dist-info/WHEEL",
-        "ctpkg-1.0.0.dist-info/RECORD",
     }
     assert not files_by_name["ctpkg/__init__.py"].get("contentType")
 

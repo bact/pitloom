@@ -136,6 +136,12 @@ def _update_record_lines(
     return out.getvalue()
 
 
+#: Files that sign the ``RECORD`` an embed rewrites: left in, they would sign
+#: bytes that no longer exist. Removed, and reported (see
+#: :func:`pitloom.cli.commands._embed_wheel_batch.report_embed_result`).
+RECORD_SIGNATURES: tuple[str, ...] = ("RECORD.jws", "RECORD.p7s")
+
+
 @dataclasses.dataclass(frozen=True)
 class _EmbedPlan:
     """Everything :func:`embed_sbom_in_wheel` needs to rewrite the archive."""
@@ -250,7 +256,11 @@ def _plan_embed(
         and name.endswith(SPDX3_JSONLD_EXTENSION)
         and name != sbom_arcname
         and _looks_like_pitloom_sbom(read_wheel_member(original_zf, info))
-    )
+    ) | {
+        f"{dist_info}{signature}"
+        for signature in RECORD_SIGNATURES
+        if f"{dist_info}{signature}" in members_by_name
+    }
     record_info = members_by_name.get(record_arcname)
     new_record = _update_record_lines(
         _read_record(original_zf, record_info, archive),

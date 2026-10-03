@@ -225,6 +225,8 @@ and this project adheres to
 - A GGUF array field is recorded as `<key>.length`, not its last element;
   GGUF quantization reads `general.file_type` as a file type (`Q8_0`, not
   `Q5_1`) ([#267])
+- `embed-wheel`, `wheel --embed`: SBOM no longer lists the wheel's `RECORD`
+  and `sboms/` files, whose hashes go stale ([#269])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -256,6 +258,7 @@ and this project adheres to
 [#263]: https://github.com/bact/pitloom/pull/263
 [#266]: https://github.com/bact/pitloom/pull/266
 [#267]: https://github.com/bact/pitloom/pull/267
+[#269]: https://github.com/bact/pitloom/issues/269
 
 ## [0.19.0] - 2026-09-18
 

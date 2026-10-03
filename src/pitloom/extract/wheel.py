@@ -120,6 +120,29 @@ def wheel_identity(metadata: ProjectMetadata) -> tuple[str | None, str | None]:
     )
 
 
+def without_embed_rewritten_files(
+    files: list[ProjectFile], wheel_name: str
+) -> list[ProjectFile]:
+    """*files* minus what an embed rewrites: the wheel's own ``RECORD`` and
+    every file under its ``sboms/``.
+
+    A hash read before the embed is stale after it (``RECORD`` is rewritten,
+    and an SBOM cannot hold its own hash). *wheel_name* is the wheel file
+    name; with no single own ``.dist-info``, *files* is returned as is.
+    """
+    prefix = resolve_own_dist_info(
+        wheel_name, [f.distribution_path for f in files]
+    ).prefix
+    if prefix is None:
+        return files
+    record, sboms = f"{prefix}RECORD", f"{prefix}sboms/"
+    return [
+        f
+        for f in files
+        if f.distribution_path != record and not f.distribution_path.startswith(sboms)
+    ]
+
+
 def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFile]]:
     """Extract project metadata and file records from a built wheel.
 

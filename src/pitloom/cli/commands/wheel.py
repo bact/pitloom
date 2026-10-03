@@ -85,6 +85,7 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
         wheel_path,
         output_path=None if embed else output_path,
         pitloom_config=pitloom_config,
+        for_embed=embed,
         # Subject as given, so the warning reads as `loom generate`'s does.
         **forward_options(WHEEL, target, generate_wheel_sbom, options),
     )
