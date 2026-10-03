@@ -155,7 +155,8 @@ def _scan(
     two top-level directories. Repeats of one name never get here:
     :func:`~pitloom.core.archive_member_names.file_members` keeps the
     last, as unpacking leaves it. With *root_only*, open only those members
-    and list no files. A file's ``physical_path`` is its raw archive name,
+    and list no files. Files come in archive order; :func:`read_sdist`
+    sorts them. A file's ``physical_path`` is its raw archive name,
     so a registry keyed by it before names were normalised still hits."""
     root: dict[str, bytes | None] = {}
     files: list[ProjectFile] = []
@@ -340,6 +341,8 @@ def read_sdist(sdist_path: Path, *, read_config: bool = True) -> SdistContents:
         if read_config
         else (PitloomConfig(), None)
     )
+    # Archive order is the writer's; SPDX ids are minted in file order.
+    members.files.sort(key=lambda f: f.distribution_path)
     return SdistContents(metadata, members.files, config, member)
 
 

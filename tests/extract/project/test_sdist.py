@@ -18,8 +18,10 @@ from unittest.mock import patch
 
 import pytest
 
+from pitloom.assemble import generate_project_sbom
 from pitloom.extract.project import read_project
 from pitloom.extract.project.sdist import _parse_pkg_info, read_sdist
+from tests._raw_archive import write_raw_tar, write_raw_zip
 
 
 @pytest.fixture
@@ -362,3 +364,40 @@ def test_read_zip_sdist_neither_pkg_info_nor_pyproject(tmp_path: Path) -> None:
     metadata, files, *_ = read_sdist(sdist_path)
     assert metadata.name == "unknown"
     assert len(files) == 1
+
+
+@pytest.mark.parametrize("suffix", [".tar.gz", ".zip"])
+def test_member_order_does_not_change_the_sbom(tmp_path: Path, suffix: str) -> None:
+    """Ids are minted in file order, so archive order must not reach them."""
+    members = {
+        "demo-1.0/PKG-INFO": b"Metadata-Version: 2.1\nName: demo\nVersion: 1.0\n",
+        "demo-1.0/pyproject.toml": b"[project]\nname = 'demo'\n",
+        "demo-1.0/demo/__init__.py": b"",
+        "demo-1.0/demo/mod.py": b"x = 1\n",
+        "demo-1.0/README.md": b"# demo\n",
+    }
+    names = list(members)
+    outputs = set()
+    orders = set()
+    for number, order in enumerate((names, names[::-1], names[2:] + names[:2])):
+        (tmp_path / str(number)).mkdir()
+        sdist = tmp_path / str(number) / f"demo-1.0{suffix}"
+        ordered = {name: members[name] for name in order}
+        if suffix == ".zip":
+            write_raw_zip(sdist, ordered)
+        else:
+            write_raw_tar(sdist, ordered)
+        orders.add(tuple(_archive_names(sdist)))
+        outputs.add(generate_project_sbom(sdist, offline=True))
+
+    assert len(orders) == 3
+    assert len(outputs) == 1
+
+
+def _archive_names(sdist: Path) -> list[str]:
+    """The archive's member names in the order the archive lists them."""
+    if sdist.suffix == ".zip":
+        with zipfile.ZipFile(sdist) as zf:
+            return zf.namelist()
+    with tarfile.open(sdist) as tf:
+        return tf.getnames()

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-21
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -27,6 +27,10 @@ the unpacked directory does. Before, `read_project()` returned
   (`CONFIG_MEMBER_MAX_BYTES`; over it is a read failure, below).
   `read_sdist()` returns `SdistContents(metadata, files, config,
   config_member)`.
+  `read_sdist()` sorts `files` by `distribution_path`, as `read_wheel()`
+  does: SPDX ids are minted in file order, so archive order must not show
+  in them. The root-member tie between two top-level directories stays
+  decided by archive order.
 - One selection rule for both targets:
   `core/_config_parse.py:select_project_config()` -- the pyproject
   config when `pyproject_config_applies()` (it names the project or

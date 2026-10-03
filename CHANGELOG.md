@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -239,6 +239,8 @@ and this project adheres to
   suffix) is not a model, with one `WARNING:` ([#270])
 - `embed-wheel`, `wheel --embed`: embedded hashes stay valid; a `RECORD`-signed
   wheel is refused unless `--allow-signed-wheel` ([#271])
+- An sdist's file list is sorted by path, so SPDX ids no longer follow archive
+  order ([#272])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -272,6 +274,7 @@ and this project adheres to
 [#267]: https://github.com/bact/pitloom/pull/267
 [#270]: https://github.com/bact/pitloom/pull/270
 [#271]: https://github.com/bact/pitloom/pull/271
+[#272]: https://github.com/bact/pitloom/pull/272
 
 ## [0.19.0] - 2026-09-18
 
