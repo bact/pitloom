@@ -368,7 +368,7 @@ packages = ["ctpkg"]
     assert init_file.get("contentType")
 
 
-def testmerkle_root_of_files_empty_returns_none() -> None:
+def test_merkle_root_of_files_empty_returns_none() -> None:
     """No files means no Merkle root to assert, not a computed one over nothing."""
     assert merkle_root_of_files([]) is None
 

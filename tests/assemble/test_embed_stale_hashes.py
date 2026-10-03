@@ -93,3 +93,24 @@ def test_signed_wheel_refused_unless_allowed(
     err = capsys.readouterr().err.splitlines()
     assert len([x for x in err if x.startswith("INFO:") and "re-sign" in x]) == 2
     assert not [x for x in err if "WARNING:" in x]
+
+
+def test_allow_signed_wheel_without_embed_warns_and_changes_nothing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """``loom wheel`` writes no wheel without ``--embed``: the flag is a
+    stated no-op (one ``WARNING:``), never silently dropped."""
+    wheel = _make_dummy_wheel(tmp_path, "demo_pkg", "1.0.0", extra_members=_SIGS)
+    before = wheel.read_bytes()
+    out = tmp_path / "out.spdx3.json"
+    argv = ["loom", "wheel", str(wheel), "--offline", "--allow-signed-wheel"]
+    monkeypatch.setattr(sys, "argv", [*argv, "-o", str(out)])
+
+    assert __main__.main() == 0
+    assert wheel.read_bytes() == before and out.exists()
+    err = capsys.readouterr().err.splitlines()
+    assert [x for x in err if "WARNING:" in x] == [
+        "WARNING: --allow-signed-wheel has no effect without --embed"
+    ]

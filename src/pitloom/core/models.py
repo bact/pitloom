@@ -113,9 +113,11 @@ def merkle_root_of_files(files: Iterable[ProjectFile]) -> str | None:
 
     Files sorted by ``distribution_path``; a leaf is a file's raw SHA-256
     digest. A wheel's root is taken over its payload (see
-    :func:`pitloom.extract.wheel.payload_files`), the same set
-    :func:`get_wheel_files` hashes from a source tree. Every file must carry
-    a ``digest_sha256``.
+    :func:`pitloom.extract.wheel.payload_files`). :func:`get_wheel_files`
+    hashes the source files the build backend selects, so its root equals a
+    built wheel's only while the build adds no payload of its own (shared
+    data, scripts, generated or repaired files). Every file must carry a
+    ``digest_sha256``.
     """
     ordered = sorted(files, key=lambda f: f.distribution_path)
     if not ordered:

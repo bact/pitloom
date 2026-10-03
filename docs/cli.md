@@ -288,7 +288,11 @@ target-specific command for its own default.
 #### Recomputing the package hash
 
 The package element's `verifiedUsing` holds a SHA-256 Merkle root over the
-wheel's payload; every wheel surface records the same root. To recompute it:
+wheel's payload. `loom wheel`, `generate <whl>`, `embed-wheel` and `wheel
+--embed` record the root of the wheel as built. The Hatchling hook and `loom
+project` hash the source files the backend selects, before the build, so their
+root differs when the build adds payload of its own (shared data, scripts,
+generated or repaired files). To recompute it:
 
 1. Take every wheel member except those under the wheel's own `.dist-info`
    (the top-level directory its file name names, compared per PEP 503 names and

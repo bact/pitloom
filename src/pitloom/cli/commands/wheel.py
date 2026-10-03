@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 from typing import Any
@@ -38,6 +39,8 @@ from pitloom.embed import embed_filename
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.wheel import wheel_identity
 
+log = logging.getLogger(__name__)
+
 
 @cli_error_handler("wheel command failed")
 def _run_wheel_command(args: argparse.Namespace) -> int:
@@ -60,6 +63,8 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     pitloom_config, options = explicit_config_and_options(args)
 
     embed = getattr(args, "embed", False)
+    if args.allow_signed_wheel and not embed:
+        log.warning("--allow-signed-wheel has no effect without --embed")
     if embed:
         # The same SBOM, and the same warnings, as embed-wheel without a
         # project: canonical, no relationship descriptions, no registry

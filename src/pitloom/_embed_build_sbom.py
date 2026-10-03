@@ -53,8 +53,9 @@ def _merge_file_extras(
 
     ``wheel_files`` (from :func:`pitloom.extract.wheel.read_wheel`) is the
     source of truth for what the already-built wheel actually contains --
-    including ``.dist-info/*`` entries and any build-hook-injected files
-    that never existed in ``project_dir`` -- so it is kept intact,
+    excluding the wheel's own ``.dist-info`` but including any
+    build-hook-injected files that never existed in ``project_dir`` -- so it
+    is kept intact,
     including its hashes computed from the wheel's own bytes.
     ``project_files`` (from :func:`~pitloom.core.models.get_wheel_files`)
     only supplies the content-type/file-header extras it computed by
@@ -366,7 +367,7 @@ def _build_sbom_from_project_and_wheel(
     private to this call, cleaned up before it returns.
     """
     # merkle_root (the rescan's own, over project_dir's on-disk bytes) is
-    # deliberately discarded here -- see _compute_wheel_merkle_root below,
+    # deliberately discarded here -- see merkle_root_of_files below,
     # which recomputes it from the wheel's own (post-merge) file hashes so
     # it can't diverge from what merged_files actually reports. Per-file
     # digest_sha256 is skipped for the same reason: _merge_file_extras
@@ -386,7 +387,7 @@ def _build_sbom_from_project_and_wheel(
         project_files = cache.resolve(project_dir, pitloom_config, build_options)
         # Layer content-type/file-header extras onto the wheel's own
         # file records rather than replacing them outright: replacing
-        # would drop .dist-info entries and any build-hook-injected
+        # would drop any build-hook-injected
         # files (e.g. compiled extensions, auditwheel-repaired shared
         # libraries) that read_wheel() found in the actual wheel but
         # that a source-tree rescan can't see.
