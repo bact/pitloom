@@ -132,6 +132,8 @@ and this project adheres to
 - Wheel SBOMs (`wheel`, `generate <whl>`, `embed-wheel`, `wheel --embed`) list
   payload only, not the wheel's `.dist-info`; hook and `project` skip
   `.dist-info/licenses/*` ([#271])
+- Release SBOM is the build hook's, not a re-embedded one; checked, attached
+  to the release byte-identical, signed and attested ([#275])
 
 ### Removed
 
@@ -278,6 +280,7 @@ and this project adheres to
 [#271]: https://github.com/bact/pitloom/pull/271
 [#272]: https://github.com/bact/pitloom/pull/272
 [#273]: https://github.com/bact/pitloom/pull/273
+[#275]: https://github.com/bact/pitloom/pull/275
 
 ## [0.19.0] - 2026-09-18
 

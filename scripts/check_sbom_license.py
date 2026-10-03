@@ -11,8 +11,9 @@ job has no licenseid database: if ``codemeta.json`` lost its licence, the
 concluded licence would fall back to licence-text detection and silently
 disappear.
 
-Each PATH is an SBOM JSON file or a wheel (``.whl``), whose one
-``*.dist-info/sboms/*.json`` member is checked. The root package is the
+Each PATH is an SBOM JSON file or a wheel (``.whl``), whose one embedded
+SBOM is found as ``loom verify-wheel`` finds it
+(:func:`pitloom.embed.find_embedded_sbom`). The root package is the
 single ``software_Package`` in the single ``software_Sbom``'s
 ``rootElement``. It must have exactly one ``hasDeclaredLicense`` and one
 ``hasConcludedLicense`` relationship, each to exactly one licence whose
@@ -23,13 +24,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
-import zipfile
 from pathlib import Path
 from typing import Any
 
-_WHEEL_SBOM_RE = re.compile(r"^[^/]+\.dist-info/sboms/[^/]+\.json$")
+from pitloom.embed import find_embedded_sbom
+
 _LICENSE_TEXT_KEYS = (
     "simplelicensing_licenseExpression",
     "simplelicensing_licenseText",
@@ -46,14 +46,11 @@ def load_sbom(path: Path) -> Any:
     try:
         if path.suffix != ".whl":
             return json.loads(path.read_bytes())
-        with zipfile.ZipFile(path) as wheel:
-            members = [n for n in wheel.namelist() if _WHEEL_SBOM_RE.match(n)]
-            if len(members) != 1:
-                raise SbomLicenseError(
-                    f"expected one .dist-info/sboms/*.json member, found {members}"
-                )
-            return json.loads(wheel.read(members[0]))
-    except (OSError, ValueError, zipfile.BadZipFile) as exc:
+        found = find_embedded_sbom(path)
+        if found is None:
+            raise SbomLicenseError("no SBOM under .dist-info/sboms/")
+        return json.loads(found.data)
+    except (OSError, ValueError) as exc:
         if isinstance(exc, SbomLicenseError):
             raise
         raise SbomLicenseError(f"cannot read SBOM: {exc}") from exc

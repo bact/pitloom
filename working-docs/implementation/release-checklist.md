@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -76,22 +76,27 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
 
 ## 2. Tag and publish
 
-- [ ] `spdx3-validate` is a hard gate on Pitloom's own SBOM: the
-      publish workflow validates the release wheel and its standalone SBOM
-      and runs the `network`-marked tests with `PITLOOM_REQUIRE_NETWORK=1`
+- [ ] The release SBOM is the one the build hook embedded in the wheel:
+      the publish workflow's `scripts/extract_wheel_sbom.py --require-magika`
+      step copies it out byte for byte (no second generation) and fails
+      unless it is the wheel's only SBOM, named `*.spdx3.json`, matches its
+      `RECORD` hash and has every content type detected by magika (the
+      release build installs `.[content-type]`; the project itself leaves
+      magika optional). `build.yml` runs the same script on every push
+      and PR, so a break shows before release.
+- [ ] `spdx3-validate` is a hard gate on that SBOM: the publish workflow
+      validates the release wheel and the extracted SBOM and runs the
+      `network`-marked tests with `PITLOOM_REQUIRE_NETWORK=1`
       before `publish`, so an unreachable spdx.org/PyPI blocks publishing
       (re-run the workflow); it is never skipped.
 - [ ] The same workflow's `scripts/check_sbom_license.py` step fails
-      unless the release SBOM, embedded and standalone, declares *and*
+      unless the release SBOM, embedded and extracted, declares *and*
       concludes `Apache-2.0` on the `pitloom` package. The `build` job has
       no licenseid database, so the concluded licence comes from
       `CITATION.cff`'s `license`, else `codemeta.json`'s: keep it there.
       `build.yml` runs the same check on every push and PR, on the
       hook-embedded and `loom project` SBOMs, so a change there fails
       before release.
-      The release SBOM comes from `embed-wheel`, which dropped the
-      concluded licence before #243 (the build hook's SBOM, which it
-      overwrites, still had it).
 
 - [ ] Tag the release, push the tag, publish to PyPI (however this
       project's release automation does it -- not scripted here). The
@@ -136,3 +141,15 @@ wheel directly:
       window (e.g. right after the first RC) will be missing every PR
       merged since. Don't publish a draft without checking its PR list
       against `git log --oneline <last-tag>..HEAD` first.
+- [ ] After publishing, the release lists the wheel, the sdist, the
+      standalone SBOM and a `*.sigstore.json` bundle for each. Download
+      them and check: `cmp` the standalone SBOM against the wheel's
+      `.dist-info/sboms/` member (`unzip -p`), then for the wheel, the
+      sdist and the SBOM run (bundle defaults to `<file>.sigstore.json`):
+      `python -m sigstore verify github <file> --cert-identity
+      https://github.com/bact/pitloom/.github/workflows/pypi-publish.yml@refs/tags/v<version>`
+      and `gh attestation verify <file> -R bact/pitloom --signer-workflow
+      bact/pitloom/.github/workflows/pypi-publish.yml --source-ref
+      refs/tags/v<version>` (the attestation is GitHub's, not a release
+      asset; same commands as the README's "Pitloom's own SBOM and
+      signatures").
