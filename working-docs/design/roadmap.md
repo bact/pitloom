@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -295,12 +295,18 @@ See [build-backend-improvements.md](build-backend-improvements.md).
   SBOM (`model_config` is kept to 500 characters only when unparsed; other
   attributes, string arrays included, are not capped), on `main` as well. See
   [ai-model-scanning.md](../implementation/ai-model-scanning.md).
-- [ ] **Re-embedding lists the previous embedded SBOM** -- `embed-wheel`
-  on a wheel that already has one describes that old
-  `.dist-info/sboms/*` file (with its old hash) in the new SBOM, which
-  then overwrites it: a stale self-reference, and not idempotent. The
-  target's own SBOM path should be left out of the file list.
-  Check `S2` of `scripts/manual_cli_checks`.
+- [ ] **Embed takes dependency versions from Pitloom's own environment** --
+  `_resolve_version` (`assemble/spdx3/deps_installed.py`) falls back to
+  `importlib.metadata.version()` for a dependency with no `==` pin and no lock
+  entry, so `embed-wheel`/`wheel` name versions of the machine running `loom`
+  (`packaging 26.3` for `packaging>=1`); the installed-metadata enrichment
+  (`_enrich_from_installed`, `deps_originator`) leaks the same way. Needs an
+  explicit stage flag (false for wheel/embed), per "Explicit pin beats local
+  environment". See [wheel-embedding.md](../implementation/wheel-embedding.md).
+- [ ] **`embed-wheel --sbom` embeds the SBOM verbatim** -- one made earlier
+  by `loom wheel` (without `--embed`) lists the old `RECORD`/`sboms/` hashes,
+  stale after the embed; an external SBOM may also list `.dist-info` files,
+  which Pitloom's own SBOMs never do. An `INFO:` when it lists them?
 - [ ] **`embed-wheel --project-dir <sdist>` runs discovery on the
   archive path** (Hatchling fails on it with a `WARNING:`): read the
   sdist's own listing, as `loom project <sdist>` does, or reject it.

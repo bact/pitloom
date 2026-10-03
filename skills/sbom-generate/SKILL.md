@@ -218,7 +218,14 @@ standalone wheel. `embed-wheel` also accepts `--allow-build` (see
 
 Or embed an already-generated SBOM file directly -- its declared subject
 name/version is cross-checked against the wheel's own METADATA first; a
-mismatch aborts the embed (`--allow-mismatch` downgrades to a warning):
+mismatch aborts the embed (`--allow-mismatch` downgrades to a warning). A
+wheel with a `RECORD` signature (`RECORD.jws`/`RECORD.p7s`) is refused, as the
+embed would invalidate it; `--allow-signed-wheel` removes the signature (re-sign
+afterwards). Never add it unless the user asks to embed into the signed wheel.
+Signatures or hashes over the wheel file itself (GPG `.asc`, Sigstore, PEP 740,
+lock-file hash) are not detected and stop matching: embed first, then
+sign/attest/upload. Every wheel SBOM lists the payload only (nothing under the
+wheel's own `.dist-info`):
 
 ```bash
 loom embed-wheel dist/*.whl --sbom sbom.spdx3.json

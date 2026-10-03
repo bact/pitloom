@@ -42,6 +42,7 @@ from pitloom.cli.commands.validate_wheel import _validate_location
 from pitloom.cli.commands.verify_wheel import _check_location, _check_name_version
 from pitloom.cli.options import (
     add_allow_build_argument,
+    add_allow_signed_wheel_argument,
     add_build_timeout_argument,
     add_no_build_isolation_argument,
     add_offline_argument,
@@ -275,6 +276,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         metavar="NAME",
         help="Custom basename for the embedded SBOM inside .dist-info/sboms/.",
     )
+    add_allow_signed_wheel_argument(embed_parser)
     embed_parser.add_argument(
         "--allow-mismatch",
         action="store_true",

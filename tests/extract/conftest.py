@@ -107,7 +107,6 @@ _FAKE_CORE_DEFAULTS: dict[str, Any] = {
     "requires_python": "",
     "license": "",
     "license_expression": "",
-    "license_files": [],
     "keywords": [],
     "authors_data": {"name": [], "email": []},
     "urls": {},
@@ -134,8 +133,8 @@ def _fake_hatch_metadata(
     *core* explicitly overrides, mirroring how a real declared field
     would show up in both places at once -- every field
     ``metadata_from_hatchling()`` gates provenance on presence for
-    (``authors``/``urls``/``dependencies``/``keywords``/``license-files``/
-    ``requires-python``), not just ``license_files``.
+    (``authors``/``urls``/``dependencies``/``keywords``/
+    ``requires-python``), not just one of them.
     """
     merged_core = {"raw_name": name, **_FAKE_CORE_DEFAULTS, **(core or {})}
     core_attr_to_config_key = {
@@ -143,7 +142,6 @@ def _fake_hatch_metadata(
         "urls": "urls",
         "dependencies": "dependencies",
         "keywords": "keywords",
-        "license_files": "license-files",
         "requires_python": "requires-python",
     }
     config: dict[str, Any] = {

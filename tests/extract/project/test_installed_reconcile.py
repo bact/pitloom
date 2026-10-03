@@ -338,11 +338,10 @@ def test_reconcile_keywords_header_absent_never_overwrites_static(
 
 def test_reconcile_unrelated_fields_never_touched(tmp_path: Path) -> None:
     """name, provenance keys for untouched fields, files,
-    locked_dependencies, license_files, authors, dependencies, readme,
-    field_conflicts itself: none of these participate."""
+    locked_dependencies, authors, dependencies, readme, field_conflicts
+    itself: none of these participate."""
     static = _static(
         authors=[{"name": "Static Author"}],
-        license_files=["LICENSE"],
         dependencies=["requests>=2"],
         readme="README.md",
     )
@@ -350,7 +349,6 @@ def test_reconcile_unrelated_fields_never_touched(tmp_path: Path) -> None:
         name="different-name",
         version="1.0.0",
         authors=[{"name": "Installed Author"}],
-        license_files=["LICENSE.txt"],
         dependencies=["httpx>=1"],
         readme="OTHER.md",
     )
@@ -360,7 +358,6 @@ def test_reconcile_unrelated_fields_never_touched(tmp_path: Path) -> None:
 
     assert merged.name == "pkg"
     assert merged.authors == [{"name": "Static Author"}]
-    assert merged.license_files == ["LICENSE"]
     assert merged.dependencies == ["requests>=2"]
     assert merged.readme == "README.md"
 

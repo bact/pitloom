@@ -35,7 +35,7 @@ from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
-from pitloom.core.models import _build_merkle_tree, get_wheel_files
+from pitloom.core.models import get_wheel_files, merkle_root_of_files
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.extract._license import resolve_license_concluded
@@ -80,27 +80,6 @@ def _merge_file_extras(
             )
         )
     return merged
-
-
-def _compute_wheel_merkle_root(files: list[ProjectFile]) -> str | None:
-    """Merkle root over *files*' own digests -- the wheel's truth, not a rescan.
-
-    Mirrors :func:`pitloom.core._models_wheel.get_wheel_files`'s ordering
-    (sort by ``distribution_path``) and hashing convention so the result is
-    reproducible the same way, but computed from files whose
-    ``digest_sha256`` already reflects the wheel's own bytes (post-merge)
-    instead of a fresh ``project_dir`` rescan that can diverge from them.
-    """
-    if not files:
-        return None
-    ordered = sorted(files, key=lambda f: f.distribution_path)
-    # ProjectFile.digest_sha256 is Optional to accommodate
-    # get_wheel_files(skip_merkle_root=True), but `files` here is always
-    # _merge_file_extras()'s output, which inherits every entry's digest
-    # from wheel_metadata.files (the wheel's own real hashes) -- never
-    # from the skip-hashing rescan -- so it's always populated.
-    leaf_hashes = [bytes.fromhex(cast(str, f.digest_sha256)) for f in ordered]
-    return _build_merkle_tree(leaf_hashes)
 
 
 def _add_concluded_license(metadata: ProjectMetadata, project_dir: Path) -> None:
@@ -424,7 +403,7 @@ def _build_sbom_from_project_and_wheel(
             files=merged_files
         )
         _add_concluded_license(project_metadata, Path(project_dir))
-        merkle_root = _compute_wheel_merkle_root(merged_files)
+        merkle_root = merkle_root_of_files(merged_files)
         ai_models = scan_project_for_ai_models(
             project_dir,
             project_files,

@@ -442,3 +442,26 @@ def test_embed_wheel_without_a_reported_sbom_name_is_an_error(
     result = generate(PL_EMBED_WHEEL=str(tmp_path / "*.whl"))
     assert result.returncode == 1
     assert "::error::" in result.output
+
+
+@pytest.mark.parametrize("mode", ["project", "embed-wheel", "model"])
+@pytest.mark.parametrize("value", ["", "false", "true"])
+def test_allow_signed_wheel_input(
+    generate: Callable[..., _Result], tmp_path: Path, mode: str, value: str
+) -> None:
+    """``allow-signed-wheel`` is passed on in embed-wheel mode only, and only
+    when ``"true"``; set elsewhere it warns instead of being dropped quietly."""
+    env = {"PL_ALLOW_SIGNED_WHEEL": value}
+    if mode == "embed-wheel":
+        _make_wheel(tmp_path / "p-1.whl")
+        env.update(PL_EMBED_WHEEL=str(tmp_path / "*.whl"), LOOM_STDOUT=EMBED_STDOUT)
+    elif mode == "model":
+        env["PL_MODEL"] = "dummy.gguf"
+
+    result = generate(**env)
+
+    assert result.returncode == 0
+    given, live = value == "true", mode == "embed-wheel"
+    assert ("--allow-signed-wheel" in result.loom_args) == (given and live)
+    warning = "::warning::allow-signed-wheel has no effect"
+    assert result.output.count(warning) == (given and not live)

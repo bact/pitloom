@@ -26,11 +26,12 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides, resolve_standalone_config
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
+from pitloom.core.models import merkle_root_of_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
-from pitloom.extract.wheel import read_wheel, without_embed_rewritten_files
+from pitloom.extract.wheel import read_wheel
 from pitloom.id_registry import IdRegistry, resolve_registry
 from pitloom.logging_config import configure_logging
 
@@ -124,15 +125,10 @@ def generate_wheel_sbom_with_metadata(
     scan_model_usage: bool | None = None,
     trust_wheel_model: bool | None = None,
     pitloom_config: PitloomConfig | None = None,
-    for_embed: bool = False,
 ) -> tuple[str, ProjectMetadata]:
     """:func:`generate_wheel_sbom`, and the :class:`ProjectMetadata` read from
     the wheel, for a caller that goes on to use the wheel's declared identity
     (it need not read ``METADATA`` again, and warn about it twice).
-
-    *for_embed*: the SBOM is to be embedded in the wheel, so the files the
-    embed rewrites (``RECORD``, ``sboms/``) are not listed: their hashes
-    would be stale.
 
     Raises:
         ValueError: The wheel is refused as a whole
@@ -161,11 +157,6 @@ def generate_wheel_sbom_with_metadata(
     # fast, never after paying for a full wheel read first.
     resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
     project_metadata, project_files = read_wheel(wheel_path_obj)
-    if for_embed:
-        project_files = without_embed_rewritten_files(
-            project_files, wheel_path_obj.name
-        )
-        project_metadata.files = project_files
     ai_models = scan_wheel_for_ai_models(
         wheel_path_obj,
         scan_usage=cfg.scan_model_usage is True,
@@ -183,7 +174,7 @@ def generate_wheel_sbom_with_metadata(
     )
     exporter = build(
         doc,
-        merkle_root=None,
+        merkle_root=merkle_root_of_files(project_files),
         sbom_type=spdx3_bindings.software_SbomType.analyzed,
         registry=resolved_registry,
         **cfg.assemble_options,

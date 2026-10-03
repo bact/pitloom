@@ -63,8 +63,9 @@ def report_embed_result(
     print(f"pitloom: embedded {loggable(arcname)} into {loggable(wheel_name)}")
     for stale_arcname in removed:
         if stale_arcname.endswith(RECORD_SIGNATURES):
-            log.warning(
-                "removed %s from %s: it signed the RECORD the embed rewrote",
+            log.info(
+                "removed %s from %s: it signed the RECORD the embed rewrote; "
+                "re-sign the wheel",
                 loggable(stale_arcname),
                 loggable(wheel_name),
             )
@@ -259,6 +260,7 @@ def try_embed_one_wheel(
             id_registry=batch.id_registry,
             overrides=batch.overrides,
             allow_mismatch=args.allow_mismatch,
+            allow_signed_wheel=args.allow_signed_wheel,
             file_cache=batch.file_cache,
         )
     except (ValueError, OSError) as exc:

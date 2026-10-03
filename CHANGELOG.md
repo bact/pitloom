@@ -126,6 +126,10 @@ and this project adheres to
   temporary path appears in AI model warnings ([#263])
 - A leftover temporary directory `WARNING:` names the directory, not its full
   path ([#263])
+- Every wheel SBOM (`loom wheel`, `generate <whl>`, `embed-wheel`, `wheel
+  --embed`) lists the payload only, nothing under the wheel's `.dist-info`, and
+  carries the package hash; the hook and `loom project` no longer list
+  `.dist-info/licenses/*` ([#269])
 - An AI model whose read fails keeps a format-only entry and one `WARNING:` on
   every surface; `loom model` and `enrich` no longer fail on it; `loom id
   generate` registers only what a scan lists ([#270])
@@ -229,8 +233,8 @@ and this project adheres to
 - A GGUF array field is recorded as `<key>.length`, not its last element;
   GGUF quantization reads `general.file_type` as a file type (`Q8_0`, not
   `Q5_1`) ([#267])
-- `embed-wheel`, `wheel --embed`: SBOM no longer lists the wheel's `RECORD`
-  and `sboms/` files, whose hashes go stale ([#269])
+- `embed-wheel`, `wheel --embed`: embedded hashes no longer go stale; a wheel
+  with a `RECORD` signature is refused unless `--allow-signed-wheel` ([#269])
 - HDF5: a `class_name` or `name` that is not a string crashed the build; a bad
   config part or an unreadable attribute is one `WARNING:`; string-array
   attributes read the same every run ([#270])

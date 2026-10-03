@@ -239,10 +239,8 @@ def test_a_metadata_header_block_over_a_cap_is_not_read(
     metadata, files = read_wheel(wheel)
 
     assert metadata.name == name
-    assert {f.distribution_path for f in files} == {
-        "demo-1.0.dist-info/METADATA",
-        "demo/a.py",
-    }
+    # METADATA is read (or refused) for identity but never listed.
+    assert {f.distribution_path for f in files} == {"demo/a.py"}
     warnings = _warnings(caplog)
     if warning is None:
         assert not warnings

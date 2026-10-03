@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression (#269): an embedded SBOM lists no file the embed rewrites.
+"""Regression (#269): an embedded SBOM lists payload only, and an embed
+refuses a signed wheel unless told to remove the signature.
 
 See also: test_embed_core.py.
 """
@@ -23,21 +24,39 @@ from pitloom import __main__
 from .conftest import _make_dummy_wheel
 
 _DI = "demo_pkg-1.0.0.dist-info/"
+_SIGS = {f"{_DI}RECORD.jws": b"jws", f"{_DI}RECORD.p7s": b"p7s"}
+_COMMANDS = {
+    "embed-wheel": ["embed-wheel"],
+    "wheel": ["wheel", "--embed"],
+}
 
 
-@pytest.mark.parametrize("command", ["embed-wheel", "wheel"])
-def test_embedded_sbom_lists_no_record_or_sboms(
+def _embed(
+    monkeypatch: pytest.MonkeyPatch, command: str, wheel: Path, *flags: str
+) -> int:
+    argv = ["loom", *_COMMANDS[command], str(wheel), "--offline", *flags]
+    monkeypatch.setattr(sys, "argv", argv)
+    return __main__.main()
+
+
+@pytest.mark.parametrize("command", _COMMANDS)
+def test_embedded_sbom_lists_payload_only(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, command: str
 ) -> None:
-    """Embedding twice (the second finds the first's ``sboms/``) lists neither
-    ``RECORD`` nor ``sboms/``, and every listed hash matches the final wheel."""
-    wheel = _make_dummy_wheel(tmp_path, "demo_pkg", "1.0.0")
-    argv = ["loom", command, str(wheel), "--offline"]
-    argv += ["--embed"] if command == "wheel" else []
-    monkeypatch.setattr(sys, "argv", argv)
+    """Embedding twice (the second finds the first's ``sboms/``) lists the
+    payload only -- not ``RECORD``, ``METADATA``, ``WHEEL``, ``licenses/`` or
+    ``sboms/`` -- every listed hash matches the final wheel, and the
+    ``.dist-info`` files stay in the archive, licence bytes untouched."""
+    licence = f"{_DI}licenses/LICENSE"
+    wheel = _make_dummy_wheel(
+        tmp_path, "demo_pkg", "1.0.0", extra_members={licence: b"MIT\n"}
+    )
     for _ in range(2):
-        assert __main__.main() == 0
+        assert _embed(monkeypatch, command, wheel) == 0
         with zipfile.ZipFile(wheel) as zf:
+            # Not vacuous: what is not listed really is in the wheel.
+            assert {f"{_DI}METADATA", f"{_DI}WHEEL", licence} <= set(zf.namelist())
+            assert zf.read(licence) == b"MIT\n"
             (sbom,) = [n for n in zf.namelist() if n.startswith(f"{_DI}sboms/")]
             listed = {
                 el["name"]: h["hashValue"]
@@ -45,25 +64,32 @@ def test_embedded_sbom_lists_no_record_or_sboms(
                 if el.get("type") == "software_File"
                 for h in el.get("verifiedUsing", [])
             }
-            assert f"{_DI}METADATA" in listed  # not vacuous
-            assert not [n for n in listed if n == f"{_DI}RECORD" or "/sboms/" in n]
+            assert listed.keys() == {"demo_pkg/__init__.py"}
             for name, digest in listed.items():
                 assert hashlib.sha256(zf.read(name)).hexdigest() == digest
 
 
-def test_embed_removes_record_signatures(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+@pytest.mark.parametrize("command", _COMMANDS)
+def test_signed_wheel_refused_unless_allowed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    command: str,
 ) -> None:
-    """``RECORD.jws``/``RECORD.p7s`` sign the ``RECORD`` the embed rewrites:
-    both go, from the archive and from ``RECORD``, with one WARNING each."""
-    sigs = {f"{_DI}RECORD.jws": b"jws", f"{_DI}RECORD.p7s": b"p7s"}
-    wheel = _make_dummy_wheel(tmp_path, "demo_pkg", "1.0.0", extra_members=sigs)
+    """``RECORD.jws``/``RECORD.p7s`` sign the ``RECORD`` an embed rewrites:
+    refused (wheel untouched) by default; with the flag both go, from the
+    archive and from ``RECORD``, one ``INFO:`` each and no ``WARNING:``."""
+    wheel = _make_dummy_wheel(tmp_path, "demo_pkg", "1.0.0", extra_members=_SIGS)
+    before = wheel.read_bytes()
+
+    assert _embed(monkeypatch, command, wheel) != 0
+    assert wheel.read_bytes() == before
+    assert "ERROR:" in capsys.readouterr().err
+
+    assert _embed(monkeypatch, command, wheel, "--allow-signed-wheel") == 0
     with zipfile.ZipFile(wheel) as zf:
-        assert sigs.keys() <= set(zf.namelist())  # not vacuous
-    monkeypatch.setattr(sys, "argv", ["loom", "embed-wheel", str(wheel), "--offline"])
-    assert __main__.main() == 0
-    with zipfile.ZipFile(wheel) as zf:
-        assert not sigs.keys() & set(zf.namelist())
-        assert not any(s in zf.read(f"{_DI}RECORD").decode() for s in sigs)
-    warnings = [x for x in capsys.readouterr().err.splitlines() if "WARNING:" in x]
-    assert len(warnings) == len(sigs)
+        assert not _SIGS.keys() & set(zf.namelist())
+        assert not any(sig in zf.read(f"{_DI}RECORD").decode() for sig in _SIGS)
+    err = capsys.readouterr().err.splitlines()
+    assert len([x for x in err if x.startswith("INFO:") and "re-sign" in x]) == 2
+    assert not [x for x in err if "WARNING:" in x]

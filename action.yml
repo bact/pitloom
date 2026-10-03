@@ -178,6 +178,17 @@ inputs:
       (the models are then read from the project).
     required: false
     default: "false"
+  allow-signed-wheel:
+    description: >-
+      SECURITY: with embed-wheel, embed into a wheel that carries a RECORD
+      signature (RECORD.jws, RECORD.p7s) ("true"/"false"). The embed
+      rewrites RECORD, so the signature would no longer verify: it is
+      removed, and the wheel must be re-signed afterwards. Without it, a
+      signed wheel is refused and left untouched. No [tool.pitloom]
+      equivalent; the default is "false". No effect outside embed-wheel
+      mode.
+    required: false
+    default: "false"
   args:
     description: "Extra raw flags passed through to the loom command."
     required: false
@@ -283,6 +294,7 @@ runs:
         PL_NO_BUILD_ISOLATION: ${{ inputs.no-build-isolation }}
         PL_BUILD_TIMEOUT: ${{ inputs.build-timeout }}
         PL_TRUST_WHEEL_MODEL: ${{ inputs.trust-wheel-model }}
+        PL_ALLOW_SIGNED_WHEEL: ${{ inputs.allow-signed-wheel }}
         PL_ARGS: ${{ inputs.args }}
       run: |
         set -euo pipefail
@@ -440,6 +452,16 @@ runs:
             echo "::warning::trust-wheel-model has no effect with project-path set (AI models are read from the project, not the wheel); set project-path to an empty string"
           else
             echo "::warning::trust-wheel-model has no effect without embed-wheel (no wheel is read here)"
+          fi
+        fi
+        # Rewriting a wheel's RECORD only happens in embed-wheel mode; set
+        # elsewhere the input would silently do nothing, so warn and never
+        # pass it.
+        if [ "${PL_ALLOW_SIGNED_WHEEL}" = "true" ]; then
+          if [ "${is_embed}" = true ]; then
+            loom_args+=("--allow-signed-wheel")
+          else
+            echo "::warning::allow-signed-wheel has no effect without embed-wheel (no wheel is rewritten here)"
           fi
         fi
         if [ -n "${PL_ARGS//[[:space:]]/}" ]; then

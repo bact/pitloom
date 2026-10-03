@@ -58,7 +58,6 @@ from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.wheel import (
     read_wheel,
     wheel_identity,
-    without_embed_rewritten_files,
 )
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
@@ -163,6 +162,7 @@ def embed_wheel_sbom(
     id_registry: str | Path | IdRegistry | None = None,
     overrides: ConfigOverrides | None = None,
     allow_mismatch: bool = False,
+    allow_signed_wheel: bool = False,
     file_cache: EmbedFileCache | None = None,
 ) -> tuple[Path, str, str, tuple[str, ...], bool]:
     """Generate and embed a PEP 770 SBOM into a built Python wheel.
@@ -171,7 +171,9 @@ def embed_wheel_sbom(
     subject name/version is cross-checked against the wheel's own
     ``.dist-info/METADATA`` before anything is written -- see
     :func:`_enforce_sbom_name_version`. A genuine mismatch raises
-    ``ValueError`` unless *allow_mismatch*. A Pitloom-generated SBOM
+    ``ValueError`` unless *allow_mismatch*. A signed wheel (``RECORD.jws``/
+    ``RECORD.p7s``) raises ``ValueError`` unless *allow_signed_wheel*, which
+    removes the signature the embed would invalidate. A Pitloom-generated SBOM
     (*sbom_path* unset) is never checked -- it's built from this same
     *wheel_metadata*, so it can't diverge.
 
@@ -215,10 +217,6 @@ def embed_wheel_sbom(
         # loading the file again.
         id_registry = _resolve_embed_registry(project_dir, pitloom_config, id_registry)
     wheel_metadata, _ = read_wheel(wheel_obj)
-    # The embed rewrites RECORD and adds the SBOM: neither hash can be right.
-    wheel_metadata.files = without_embed_rewritten_files(
-        wheel_metadata.files, wheel_obj.name
-    )
 
     sbom_json, eff_basename = _generate_embed_sbom_json(
         wheel_metadata,
@@ -248,6 +246,7 @@ def embed_wheel_sbom(
         sbom_json,
         sbom_filename=embed_filename(eff_basename),
         identity=(wheel_name, wheel_version),
+        allow_signed_wheel=allow_signed_wheel,
     )
 
     if output_path is not None:

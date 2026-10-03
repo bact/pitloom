@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-14
-Last-Modified: 2026-09-14
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -83,9 +83,9 @@ spec](https://packaging.python.org/en/latest/specifications/core-metadata/):
 
 Not extracted in V1, each for its own real design reason:
 
-- `license_files` -- `License-File` paths are relative to the dist-info's
-  own `licenses/` subdirectory, a different base than
-  `ProjectMetadata.license_files`'s project-root-relative convention.
+- `License-File` -- no `ProjectMetadata` field to fill: an SBOM lists
+  nothing under a distribution's own `.dist-info` (`licenses/` included),
+  so `[project.license-files]` is not read on any path either.
 - `authors` -- flat `Author`/`Author-email` RFC 822 strings vs. PEP 621's
   structured `project.authors` list; collapsing N structured authors down
   to one flat string (what a build backend does when *writing* METADATA)

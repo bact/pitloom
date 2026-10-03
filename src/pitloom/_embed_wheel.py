@@ -218,6 +218,23 @@ def _refuse_non_conforming_names(
             raise refusal(archive, info.orig_filename, "non-conforming name")
 
 
+def _refuse_signed_wheel(
+    archive: str, dist_info: str, members: list[tuple[str, zipfile.ZipInfo]]
+) -> None:
+    """Refuse a wheel that carries a ``RECORD`` signature: the embed rewrites
+    ``RECORD``, so the signature would stop verifying and is removed."""
+    names = {name for name, _ in members}
+    for signature in RECORD_SIGNATURES:
+        if f"{dist_info}{signature}" in names:
+            raise refusal(
+                archive,
+                f"{dist_info}{signature}",
+                "embedding rewrites RECORD, so this signature would stop "
+                "verifying; --allow-signed-wheel removes it (re-sign the "
+                "wheel after)",
+            )
+
+
 def _plan_embed(
     original_zf: zipfile.ZipFile,
     dist_info: str,
@@ -344,8 +361,14 @@ def embed_sbom_in_wheel(
     *,
     sbom_filename: str | None = None,
     identity: tuple[str | None, str | None] | None = None,
+    allow_signed_wheel: bool = False,
 ) -> tuple[Path, str, tuple[str, ...], bool]:
     """Embed an SPDX 3 SBOM into a built wheel archive (PEP 770).
+
+    A wheel carrying ``RECORD.jws``/``RECORD.p7s`` is refused unless
+    *allow_signed_wheel*: the embed rewrites ``RECORD``, so the signature
+    would no longer verify, and it is removed (the removed names are in the
+    result, as for a stale SBOM).
 
     *identity* is the wheel's declared (name, version), where the caller has
     already read them from its ``METADATA``: the default file name is made
@@ -359,7 +382,8 @@ def embed_sbom_in_wheel(
             archive, a member cannot be read (damaged, encrypted,
             unsupported, badly named), two members have one name or one
             holds a NUL, or a member of its own ``.dist-info`` has a
-            non-conforming name. The wheel is left as it was.
+            non-conforming name, or it is signed and not *allow_signed_wheel*.
+            The wheel is left as it was.
         OSError: An environment problem opening *wheel_path* (permission
             denied, a transient I/O error) -- kept as its own exception
             type, not folded into ``ValueError``.
@@ -380,6 +404,8 @@ def embed_sbom_in_wheel(
     with open_wheel_zip(wheel_obj) as original_zf:
         members = wheel_members(original_zf, wheel_obj.name)
         dist_info = _find_dist_info_prefix(original_zf, wheel_obj, members=members)
+        if not allow_signed_wheel:
+            _refuse_signed_wheel(wheel_obj.name, dist_info, members)
         plan = _plan_embed(
             original_zf, dist_info, members, sbom_filename, sbom_bytes, identity
         )

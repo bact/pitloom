@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-09-28
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -37,26 +37,6 @@ file-size guidance -- moved verbatim, no content changed.
   [generic-multi-candidate-fields.md](generic-multi-candidate-fields.md).
 - [ ] **Enhanced dependency analysis** -- transitive dependencies, optional
   extras, development dependencies.
-- [ ] **Auto-discover default license files when `[project.license-files]`
-  is undeclared** -- setuptools' `_finalize_license_files()` and
-  Hatchling's `CoreMetadata.license_files` both fall back to the same
-  glob (`LICEN[CS]E*`, `COPYING*`, `NOTICE*`, `AUTHORS*`, citing the
-  `wheel` package's own documented convention) and bundle whatever
-  matches into a real wheel's `.dist-info/licenses/`, even with no
-  explicit field. Pitloom's `resolve_license_file_entries()`
-  (`src/pitloom/extract/_license.py`) deliberately does *not* replicate
-  this today -- both extraction paths only trust an explicit
-  `[project.license-files]` declaration (see
-  [license-pipeline.md](../implementation/license-pipeline.md)'s
-  "License-files bundling" section) --
-  because the default glob is a build-backend auto-bundling convenience,
-  not something PEP 639 itself defines, and because `NOTICE`/`AUTHORS`
-  matches don't obviously belong under a `hasDeclaredLicense` relationship
-  the way `LICENSE`/`COPYING` do. If this is picked up, it needs its own
-  design pass: which stems to trust, whether it holds for every backend
-  (only setuptools and Hatchling are confirmed so far), and a provenance
-  label that clearly distinguishes "inferred default" from "explicitly
-  declared."
 - [x] **SBOM enrichment from external sources** (the `enrich/` subpackage)
   -- MVP shipped: local README/model-card YAML frontmatter parsing,
   gated by `[tool.pitloom] enrich` (default off), code-level and

@@ -21,7 +21,10 @@ from pitloom.assemble import (
 )
 from pitloom.cli.commands._embed_wheel_batch import report_embed_result
 from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
-from pitloom.cli.options import add_offline_argument
+from pitloom.cli.options import (
+    add_allow_signed_wheel_argument,
+    add_offline_argument,
+)
 from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.inert_options import (
     EMBED_STANDALONE,
@@ -85,7 +88,6 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
         wheel_path,
         output_path=None if embed else output_path,
         pitloom_config=pitloom_config,
-        for_embed=embed,
         # Subject as given, so the warning reads as `loom generate`'s does.
         **forward_options(WHEEL, target, generate_wheel_sbom, options),
     )
@@ -99,6 +101,7 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
             ),
             # Already read (and warned about) by the generation above.
             identity=wheel_identity(wheel_metadata),
+            allow_signed_wheel=args.allow_signed_wheel,
         )
         write_sbom_output(sbom_json, output_path)
         report_embed_result(arcname, wheel_path.name, removed, floored)
@@ -128,6 +131,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Embed the generated SBOM directly into the wheel archive (PEP 770).",
     )
+    add_allow_signed_wheel_argument(wheel_parser)
     add_offline_argument(
         wheel_parser,
         " -- skip PyPI lookup, no error (local metadata already covers what it can).",

@@ -52,8 +52,6 @@ _MEMBERS = {
     "demo\\m.safetensors": safetensors_bytes(),
 }
 _EXPECTED = {
-    f"{_DIST_INFO}/METADATA",
-    f"{_DIST_INFO}/RECORD",
     "demo/__init__.py",
     "demo/mod.py",
     "demo/b.py",
@@ -137,9 +135,8 @@ def test_wheel_member_names_on_every_surface(
 
     sbom = _SURFACES[surface](wheel, monkeypatch)
 
-    # An embed rewrites RECORD, so an embedded SBOM does not list it.
-    expected = _EXPECTED - ({f"{_DIST_INFO}/RECORD"} if "embed" in surface else set())
-    assert _file_names(sbom) == expected
+    # Every surface lists the payload only, not the wheel's own .dist-info.
+    assert _file_names(sbom) == _EXPECTED
     _assert_warned_once(capsys.readouterr().err, _RAW_WARNED)
     # The scanned model is contained in the File of its install-location name.
     graph = json.loads(sbom)["@graph"]

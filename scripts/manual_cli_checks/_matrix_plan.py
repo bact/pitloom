@@ -308,6 +308,9 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
     ],
     "--sbom-basename": [_v("custom", "any", "--sbom-basename", "custom")],
     "--allow-mismatch": [_v("--allow-mismatch", "same", "--allow-mismatch")],
+    "--allow-signed-wheel": [
+        _v("--allow-signed-wheel", "same", "--allow-signed-wheel")
+    ],
     "--verify": [_v("--verify", "same", "--verify")],
     "--validate": [Variant("--validate", _fixed("--validate"), "same")],
     "--sbom-filename": [_v("missing", "exit:1", "--sbom-filename", "absent.json")],

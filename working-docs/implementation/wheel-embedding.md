@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -96,3 +96,38 @@ The implementation is verified across two layers:
      conforms to SPDX 3.0.1 ontology and schema (or any SPDX 3 version
      as specified/detected and agreed with the user's intention at the
      generation time).
+
+## What a wheel SBOM lists, and signed wheels (#269)
+
+- **One rule: an SBOM describes the packaged project, not the package.**
+  `extract.wheel.read_wheel()` drops every member under the wheel's own
+  `.dist-info` (METADATA, WHEEL, RECORD, `licenses/`, `sboms/`, signatures), so
+  `loom wheel`, `generate <whl>`, `embed-wheel` and `wheel --embed` list the
+  payload only. `RECORD` is rewritten by the embed and `sboms/` cannot hold its
+  own hash, so both went stale; the rest is build output the hook never lists.
+  The build hook and `loom project` list no `.dist-info/licenses/*` either: a
+  file link to that path means nothing in another package format. Licence
+  information stays at package level. Pitloom never wrote `licenses/` (the
+  backend does) and an embed copies it unchanged.
+- **Package Merkle root over the payload, on every wheel surface.** Before,
+  only the hook, `loom project` and `embed-wheel --project-dir` carried one.
+  The wheel surfaces share `merkle_root_of_files`; `get_wheel_files()` keeps
+  its own computation over a source tree, and a test asserts the two agree
+  (a drift guard, not a refactor). The recompute procedure is in `docs/cli.md`.
+- **Signed wheels are refused.** `RECORD.jws`/`RECORD.p7s` sign the `RECORD`
+  the embed rewrites. Keeping them leaves a signature that fails to verify
+  (worse than none); silently dropping loses trust data. Default is a
+  refusal before any write; `--allow-signed-wheel` (CLI, Action, library
+  `allow_signed_wheel=`) removes them with one `INFO:` each. No
+  `[tool.pitloom]` key, like `--allow-build`: a committed key would permit
+  removal on every run and every later signed release.
+- **External signatures are undetectable.** Any embed changes the wheel
+  file's digest, so a detached GPG `.asc`, Sigstore bundle, PEP 740
+  attestation or recorded hash (lock file, `--hash`) stops matching. Documented
+  rule: embed first, then sign, attest, upload, hash. No runtime text: nothing
+  to detect.
+- **Rejected:** keeping `licenses/` in the listing (file link meaningless for
+  other formats); a root over every listed file (the root would then depend on
+  what an SBOM lists); `loom wheel` listing every member (one rule on all
+  surfaces); a `[tool.pitloom]` key for `--allow-signed-wheel` (ambient
+  consent); warning instead of refusing; a root on only some surfaces.

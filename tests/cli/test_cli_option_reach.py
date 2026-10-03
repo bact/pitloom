@@ -102,6 +102,7 @@ _OUTSIDE: dict[str, str] = {
     "--sbom": "selects embed-wheel's branch (a target kind here)",
     "--sbom-basename": "embed-wheel archive layout, not an SBOM setting",
     "--allow-mismatch": "embed-wheel --sbom safety valve, not a setting",
+    "--allow-signed-wheel": "embed archive rewrite (signature removal), not a setting",
     "--verify": "post-embed check, runs after generation",
     "--validate": "post-embed check, runs after generation",
 }

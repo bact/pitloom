@@ -110,3 +110,13 @@ Hatchling-based heuristic. Project-level metadata (name, version,
 dependencies, license, authors) is read independently and unaffected
 either way. Full detail: [docs/cli.md's Generate an SBOM
 section](https://bact.github.io/pitloom/cli/#generate-an-sbom).
+
+## Wheel SBOM contents and signing
+
+A wheel SBOM (`loom wheel`, `generate <whl>`, `embed-wheel`, `wheel --embed`)
+lists the payload only: nothing under the wheel's own `.dist-info`, `licenses/`
+included. `embed-wheel` and `wheel --embed` refuse a wheel with `RECORD.jws` or
+`RECORD.p7s` unless `--allow-signed-wheel` (re-sign afterwards). Pitloom cannot
+see signatures or hashes over the wheel file itself (GPG `.asc`, Sigstore,
+PEP 740, lock-file hash); any embed invalidates them, so embed first, then
+sign, attest, upload and hash.

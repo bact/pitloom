@@ -27,7 +27,7 @@ import pytest
 
 from pitloom.assemble import generate, generate_project_sbom
 from pitloom.core.build_options import BuildOptions
-from pitloom.core.project import ProjectFile
+from pitloom.core.project import ProjectFile, ProjectMetadata
 from tests.cli.shared import _make_simple_project
 from tests.warning_helpers import file_values
 
@@ -166,13 +166,11 @@ def test_generate_project_sbom_defers_cleanup_past_ai_model_scan(
 @pytest.mark.parametrize(
     "target",
     [
-        "pitloom.assemble._generators.resolve_license_file_entries",
         "pitloom.core.project.ProjectMetadata.replace_with_fresh_containers",
         "pitloom.assemble._generators.scan_project_for_ai_models",
         "pitloom.assemble._generators.run_enrichers_for_models",
     ],
     ids=[
-        "license_resolution",
         "fresh_containers",
         "ai_model_scan",
         "enrichment",
@@ -184,13 +182,13 @@ def test_generate_project_sbom_cleanup_runs_even_if_step_raises(
     """Regression, one case per step inside the try/finally block that
     guards ``cleanup_discovery()`` (see ``_generators.py``'s own comment
     on that block): a build-and-read temp directory must not leak
-    regardless of WHICH of the four steps between ``get_wheel_files()``
-    returning and the function moving on (license-file resolution, the
-    fresh-containers copy, AI-model scanning, enrichment) raises --
+    regardless of WHICH of the three steps between ``get_wheel_files()``
+    returning and the function moving on (the fresh-containers copy,
+    AI-model scanning, enrichment) raises --
     every one of them used to run *outside* the ``try/finally`` before
     this was fixed, and a future refactor that moves any single one of
     them back outside it must fail exactly this one parametrize case,
-    not silently pass the other three."""
+    not silently pass the other two."""
     project_dir = _make_simple_project(tmp_path)
     cleanup_calls: list[str] = []
 
@@ -232,9 +230,13 @@ def test_generate_project_sbom_cleanup_runs_strictly_last_in_order(
     def _cleanup() -> None:
         call_order.append("cleanup")
 
-    def _fake_license_resolution(*_args: object, **_kwargs: object) -> list[object]:
-        call_order.append("license_resolution")
-        return []
+    real_fresh_containers = ProjectMetadata.replace_with_fresh_containers
+
+    def _spy_fresh_containers(
+        self: ProjectMetadata, **changes: object
+    ) -> ProjectMetadata:
+        call_order.append("fresh_containers")
+        return real_fresh_containers(self, **changes)
 
     def _fake_scan(*_args: object, **_kwargs: object) -> list[object]:
         call_order.append("ai_model_scan")
@@ -249,9 +251,11 @@ def test_generate_project_sbom_cleanup_runs_strictly_last_in_order(
             "pitloom.assemble._generators.get_wheel_files",
             return_value=(None, [], _cleanup),
         ),
-        mock.patch(
-            "pitloom.assemble._generators.resolve_license_file_entries",
-            side_effect=_fake_license_resolution,
+        mock.patch.object(
+            ProjectMetadata,
+            "replace_with_fresh_containers",
+            autospec=True,
+            side_effect=_spy_fresh_containers,
         ),
         mock.patch(
             "pitloom.assemble._generators.scan_project_for_ai_models",
@@ -267,7 +271,7 @@ def test_generate_project_sbom_cleanup_runs_strictly_last_in_order(
         )
 
     assert call_order == [
-        "license_resolution",
+        "fresh_containers",
         "ai_model_scan",
         "enrichment",
         "cleanup",
