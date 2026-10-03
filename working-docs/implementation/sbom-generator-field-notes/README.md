@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -29,7 +29,7 @@ code, a repository fixture, a live interpreter or the cited PR's own record on
 ## Files
 
 - [identity-and-archives.md](identity-and-archives.md): package
-  identity; ZIP and tar realities.
+  identity; ZIP and tar realities; what an SBOM counts as inside the package.
 - [determinism-and-parsing.md](determinism-and-parsing.md): same input,
   same bytes; parsing traps; lock-file and environment sources.
 - [platform-and-toolchain.md](platform-and-toolchain.md): OS and

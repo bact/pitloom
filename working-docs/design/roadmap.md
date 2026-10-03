@@ -308,10 +308,16 @@ See [build-backend-improvements.md](build-backend-improvements.md).
   build; Analyzed hashes the wheel as built; documented in `docs/cli.md`,
   "Recomputing the package hash"), but `embed-wheel --project-dir` is also a
   Build SBOM and hashes the wheel as built, so it differs from the hook's when
-  the build adds payload (shared-data, scripts, generated files; reproduced with
+  the build adds payload (shared-data, scripts, generated files, i.e. `.data/`
+  members the source walk cannot see; reproduced with
   `shared-data` + `force-include`). Decide: leave, say so in the hook's hash
   comment, or compute the hook's root from the built wheel in a post-build
   step.
+- [ ] **What an SBOM counts as inside the package, and package-format
+  independence** -- the boundary (payload vs container metadata) and file
+  naming (`.data/` listed under its wheel path, not its install destination) use
+  wheel knowledge today; another format would need its own rule. See
+  [sbom-package-boundary.md](sbom-package-boundary.md).
 - [ ] **A renamed wheel's `.dist-info` is dropped from the listing but still
   scanned for models** -- `payload_files` uses `resolve_own_dist_info` (falls
   back to the single top-level `.dist-info`), `scan_wheel_for_ai_models`

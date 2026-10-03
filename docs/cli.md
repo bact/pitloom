@@ -300,6 +300,14 @@ wheel's payload, and what it covers follows the SBOM type:
 - **Build** with `embed-wheel --project-dir`: the wheel as built, so it can
   differ from the hook's root for the same wheel.
 
+A wheel's `<name>-<version>.data/` directory (PEP 427: files installed outside
+`site-packages`, such as `scripts/`, `data/` and `headers/`, which an installer
+moves to their destination) is payload, not packaging metadata: it is listed
+and hashed under its path in the wheel, e.g.
+`demo-1.0.data/data/share/demo/d.txt`, not under its install destination. The
+Hatchling hook and `loom project` cannot see it before the build, which is one
+reason their root differs from the built wheel's.
+
 To recompute the root of a built wheel:
 
 1. Take every wheel member except those under the wheel's own `.dist-info`
