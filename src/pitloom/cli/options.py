@@ -146,6 +146,29 @@ def add_allow_build_argument(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def add_allow_signed_wheel_argument(parser: argparse.ArgumentParser) -> None:
+    """Add the shared ``--allow-signed-wheel`` flag (``embed-wheel`` and
+    ``wheel --embed``).
+
+    A plain ``store_true`` with a literal ``False`` default, like
+    ``--allow-build`` and ``--allow-mismatch``: removing a signature is a
+    per-run decision, so no ``[tool.pitloom]`` key can make it ambient.
+    """
+    parser.add_argument(
+        "--allow-signed-wheel",
+        action="store_true",
+        default=False,
+        help=(
+            "SECURITY: embed into a wheel that carries a RECORD signature "
+            "(RECORD.jws, RECORD.p7s). The embed rewrites RECORD, so the "
+            "signature would no longer verify: it is removed, and the wheel "
+            "must be re-signed afterwards. Without this flag such a wheel "
+            "is refused and left untouched. Deliberately has no "
+            "[tool.pitloom] equivalent."
+        ),
+    )
+
+
 def add_no_build_isolation_argument(parser: argparse.ArgumentParser) -> None:
     """Add the shared ``--no-build-isolation`` flag. No effect without
     ``--allow-build`` (the library warns if passed without it)."""

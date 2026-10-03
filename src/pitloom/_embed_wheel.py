@@ -136,6 +136,12 @@ def _update_record_lines(
     return out.getvalue()
 
 
+#: Files that sign the ``RECORD`` an embed rewrites: left in, they would sign
+#: bytes that no longer exist. Removed, and reported (see
+#: :func:`pitloom.cli.commands._embed_wheel_batch.report_embed_result`).
+RECORD_SIGNATURES: tuple[str, ...] = ("RECORD.jws", "RECORD.p7s")
+
+
 @dataclasses.dataclass(frozen=True)
 class _EmbedPlan:
     """Everything :func:`embed_sbom_in_wheel` needs to rewrite the archive."""
@@ -212,6 +218,54 @@ def _refuse_non_conforming_names(
             raise refusal(archive, info.orig_filename, "non-conforming name")
 
 
+def _refuse_signed_wheel(
+    archive: str, dist_info: str, members: list[tuple[str, zipfile.ZipInfo]]
+) -> None:
+    """Refuse a wheel that carries a ``RECORD`` signature: the embed rewrites
+    ``RECORD``, so the signature would stop verifying."""
+    names = {name for name, _ in members}
+    for signature in RECORD_SIGNATURES:
+        if f"{dist_info}{signature}" in names:
+            raise refusal(
+                archive,
+                f"{dist_info}{signature}",
+                "embedding rewrites RECORD, so this signature would stop "
+                "verifying; --allow-signed-wheel removes it (re-sign the "
+                "wheel after)",
+            )
+
+
+def _refuse_unembeddable(
+    archive: str,
+    dist_info: str,
+    members: list[tuple[str, zipfile.ZipInfo]],
+    allow_signed_wheel: bool,
+) -> None:
+    """The refusals of an embed that need only the member names, in order."""
+    _refuse_non_conforming_names(archive, dist_info, members)
+    if not allow_signed_wheel:
+        _refuse_signed_wheel(archive, dist_info, members)
+
+
+def refuse_unembeddable_wheel(wheel_path: Path, allow_signed_wheel: bool) -> None:
+    """Raise what :func:`embed_sbom_in_wheel` would, for a signed wheel or a
+    non-conforming ``.dist-info`` name, from the member names alone.
+
+    For a caller that generates the SBOM first: a refusal found afterwards
+    would have cost that work (a PEP 517 build, with ``--allow-build``). The
+    same checks, in the same order, as :func:`embed_sbom_in_wheel`.
+
+    Raises:
+        ValueError: As :func:`embed_sbom_in_wheel`, for those two checks, or
+            a wheel it refuses as a whole.
+        OSError: *wheel_path* cannot be opened.
+    """
+    with open_wheel_zip(wheel_path) as zf:
+        members = wheel_members(zf, wheel_path.name)
+        dist_info = _find_dist_info_prefix(zf, wheel_path, members=members)
+    _refuse_unembeddable(wheel_path.name, dist_info, members, allow_signed_wheel)
+
+
 def _plan_embed(
     original_zf: zipfile.ZipFile,
     dist_info: str,
@@ -223,17 +277,15 @@ def _plan_embed(
     """Resolve target arcname, updated RECORD, and timestamp for an embed.
 
     *members* are the wheel's
-    :func:`~pitloom.core.wheel_dist_info.wheel_members`.
+    :func:`~pitloom.core.wheel_dist_info.wheel_members`. The caller has run
+    :func:`_refuse_unembeddable`: the rewrite matches raw names, so a
+    non-conforming ``.dist-info`` name would leave the old ``RECORD`` or SBOM
+    beside its replacement.
 
     Raises:
-        ValueError: A member of the wheel's own ``.dist-info`` is stored
-            under a non-conforming name (``./``, ``\\``): the rewrite matches
-            raw names, so it would leave the old ``RECORD`` or SBOM beside
-            its replacement, or write ``/`` names next to ``\\`` ones. Or
-            ``RECORD`` is not UTF-8.
+        ValueError: ``RECORD`` is not UTF-8.
     """
     archive = os.path.basename(original_zf.filename or "")
-    _refuse_non_conforming_names(archive, dist_info, members)
     members_by_name = dict(members)
     target_name = (
         sbom_filename
@@ -250,7 +302,11 @@ def _plan_embed(
         and name.endswith(SPDX3_JSONLD_EXTENSION)
         and name != sbom_arcname
         and _looks_like_pitloom_sbom(read_wheel_member(original_zf, info))
-    )
+    ) | {
+        f"{dist_info}{signature}"
+        for signature in RECORD_SIGNATURES
+        if f"{dist_info}{signature}" in members_by_name
+    }
     record_info = members_by_name.get(record_arcname)
     new_record = _update_record_lines(
         _read_record(original_zf, record_info, archive),
@@ -334,8 +390,14 @@ def embed_sbom_in_wheel(
     *,
     sbom_filename: str | None = None,
     identity: tuple[str | None, str | None] | None = None,
+    allow_signed_wheel: bool = False,
 ) -> tuple[Path, str, tuple[str, ...], bool]:
     """Embed an SPDX 3 SBOM into a built wheel archive (PEP 770).
+
+    A wheel carrying ``RECORD.jws``/``RECORD.p7s`` is refused unless
+    *allow_signed_wheel*: the embed rewrites ``RECORD``, so the signature
+    would no longer verify, and it is removed (the removed names are in the
+    result, as for a stale SBOM).
 
     *identity* is the wheel's declared (name, version), where the caller has
     already read them from its ``METADATA``: the default file name is made
@@ -349,7 +411,8 @@ def embed_sbom_in_wheel(
             archive, a member cannot be read (damaged, encrypted,
             unsupported, badly named), two members have one name or one
             holds a NUL, or a member of its own ``.dist-info`` has a
-            non-conforming name. The wheel is left as it was.
+            non-conforming name, or it is signed and not *allow_signed_wheel*.
+            The wheel is left as it was.
         OSError: An environment problem opening *wheel_path* (permission
             denied, a transient I/O error) -- kept as its own exception
             type, not folded into ``ValueError``.
@@ -370,6 +433,7 @@ def embed_sbom_in_wheel(
     with open_wheel_zip(wheel_obj) as original_zf:
         members = wheel_members(original_zf, wheel_obj.name)
         dist_info = _find_dist_info_prefix(original_zf, wheel_obj, members=members)
+        _refuse_unembeddable(wheel_obj.name, dist_info, members, allow_signed_wheel)
         plan = _plan_embed(
             original_zf, dist_info, members, sbom_filename, sbom_bytes, identity
         )

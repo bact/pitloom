@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-26
-Last-Modified: 2026-09-08
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -50,8 +50,10 @@ each with a short note on what SBOM metadata it feeds:
   primary source of name, version, authors, dependencies, license,
   urls, etc.
 - [PEP 639][pep-639] – Improving License Clarity with Better Package
-  Metadata: SPDX license expression and `license-files` bundling → the
-  SBOM's declared-license and license-file elements.
+  Metadata: SPDX license expression → the package's declared license.
+  `license-files` are not listed in the SBOM: the build backend copies
+  them into the wheel's own `.dist-info/licenses/`, which describes the
+  package container, not the project. The wheel keeps them as built.
 - [PEP 751][pep-751] – A file format to record Python dependencies for
   installation reproducibility: `pylock.toml`, the highest-priority
   resolved-dependency source in the lock-file cascade (see

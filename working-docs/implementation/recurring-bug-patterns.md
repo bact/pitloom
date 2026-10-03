@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -37,7 +37,7 @@ shape described, not just the module where each was first found.
     declared" check on presence of the raw source key, never on the
     resolved value's truthiness.** A metadata producer building a
     `provenance` dict for a container field (`keywords`, `urls`,
-    `dependencies`, `authors`, `license_files`, ...) with `if parsed_value:
+    `dependencies`, `authors`, ...) with `if parsed_value:
     provenance["field"] = ...` silently fails to record provenance for an
     explicitly-declared-but-empty value (`dependencies = []`,
     `install_requires =`) -- indistinguishable downstream from the field

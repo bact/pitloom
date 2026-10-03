@@ -259,10 +259,11 @@ def _parse_installed_metadata(
     or comparing -- see :func:`_parse_installed_urls`'s own docstring.
 
     Not extracted in V1 (see ``working-docs/design/installed-dist-info-source.md``):
-    ``license_files`` (``License-File`` paths use a different base than
-    :attr:`ProjectMetadata.license_files`), ``authors`` (collapsing PEP
-    621's structured ``project.authors`` list down to one flat ``Author``
-    string is lossy in a way that can't be cleanly reversed), and
+    ``License-File`` (no :class:`ProjectMetadata` field to fill: an SBOM
+    does not list a distribution's own ``.dist-info`` files), ``authors``
+    (collapsing PEP 621's structured ``project.authors`` list down to one
+    flat ``Author`` string is lossy in a way that can't be cleanly
+    reversed), and
     ``dependencies`` (``Requires-Dist`` mixes base dependencies and
     extras, needing marker inspection to separate).
     """

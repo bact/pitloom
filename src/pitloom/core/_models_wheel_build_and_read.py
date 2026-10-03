@@ -77,16 +77,11 @@ def _extract_wheel_to_included_files(
     header/content-type scanning) needs no special-casing for this
     mechanism.
 
-    ``.dist-info/*`` is excluded even though it's genuinely present in
-    this real, already-built wheel -- every other backend's
-    ``IncludedFile`` list represents pre-build *source* files only, and
-    ``.dist-info`` is a build-generated artifact with no source-stage
-    equivalent (see CLAUDE.md's "stage-scoped helpers" principle);
-    including it here would make this mechanism's Source-SBOM file list
-    diverge in kind from every other backend's for no benefit --
-    ``embed-wheel``'s own ``_merge_file_extras`` already gets
-    ``.dist-info`` entries from ``read_wheel()`` directly, so nothing is
-    lost.
+    ``.dist-info/*`` is excluded: every other backend's ``IncludedFile``
+    list holds pre-build *source* files only, and ``.dist-info`` is a
+    build-generated artifact with no source-stage equivalent. It is not
+    payload and no SBOM lists it (see
+    :func:`pitloom.extract.wheel.payload_files`).
 
     Entry names go through
     :func:`~pitloom.core.archive_member_names.zip_file_members`, the same

@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-02
+# Last-Modified: 2026-10-03
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -132,6 +132,10 @@ Face model, a wheel, `loom env`, an sdist, or a third-party SBOM -- never
 merges them, **silently** (exit 0, no `WARNING:`). For such a base, do
 steps 1-7, then stop: report the gaps, hand the drafted fragment(s) over
 unmerged, and tell the user they were not merged into the SBOM.
+
+To put an enriched SBOM into a wheel, hand off to `sbom-generate` ("Embed an
+SBOM into a wheel"): it refuses a signed wheel unless the user agrees to
+`--allow-signed-wheel`.
 
 Steps:
 

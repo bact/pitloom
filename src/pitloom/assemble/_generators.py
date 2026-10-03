@@ -37,7 +37,6 @@ from pitloom.core.models import get_wheel_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich import run_enrichers_for_models
-from pitloom.extract._license import resolve_license_file_entries
 from pitloom.extract.project import resolve_project_with_lockfile
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.id_registry import IdRegistry, registry_base_dir, resolve_registry
@@ -213,33 +212,17 @@ def generate_project_sbom(
         # must run inside its try -- through every step below that either
         # re-reads a ProjectFile's bytes from disk via physical_path (AI-
         # model scanning, enrichment) or could itself raise before reaching
-        # them (license-file resolution, the fresh-containers copy): any of
-        # these raising before cleanup_discovery() runs would leak the
-        # build-and-read temp directory. Nothing after this block reads
-        # file bytes again (document assembly only uses distribution_path/
-        # physical_path as string keys, never re-opens the file).
+        # them (the fresh-containers copy): any of these raising before
+        # cleanup_discovery() runs would leak the build-and-read temp
+        # directory. Nothing after this block reads file bytes again
+        # (document assembly only uses distribution_path/physical_path as
+        # string keys, never re-opens the file).
         try:
             if not target_path.is_file():
-                # Pitloom's file discovery is, by default, a static
-                # config-driven walk, never a real wheel build (the sole
-                # opt-in exception is --allow-build's build-and-read
-                # mechanism) -- it never reproduces the
-                # `.dist-info/licenses/...` entries a real build would add
-                # for `[project.license-files]`. Resolve those directly so
-                # they still show up in the SBOM's file list, before
-                # replace_with_fresh_containers() below makes
-                # `project_files` the metadata's authoritative file list
-                # for this (directory) target -- every other dict/list
-                # field (provenance, field_conflicts, etc.) also gets its
-                # own fresh copy, so the caller's own `project_metadata`
-                # can never be silently mutated as a side effect of
-                # anything downstream.
-                project_files = project_files + resolve_license_file_entries(
-                    target_path,
-                    project_metadata.name,
-                    project_metadata.version,
-                    project_metadata.license_files,
-                )
+                # `project_files` becomes the metadata's authoritative file
+                # list for a directory target. Every other dict/list field
+                # gets its own fresh copy too, so nothing downstream can
+                # mutate the caller's own `project_metadata`.
                 project_metadata = project_metadata.replace_with_fresh_containers(
                     files=project_files
                 )

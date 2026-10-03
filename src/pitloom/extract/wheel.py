@@ -120,6 +120,24 @@ def wheel_identity(metadata: ProjectMetadata) -> tuple[str | None, str | None]:
     )
 
 
+def payload_files(files: list[ProjectFile], wheel_name: str) -> list[ProjectFile]:
+    """*files* minus the wheel's own ``.dist-info``.
+
+    An SBOM describes the project that is packaged, not its package: nothing
+    under the own ``.dist-info`` (``RECORD``, ``METADATA``, ``licenses/``,
+    ``sboms/``, signatures, ...) is listed, linked or hashed into the package
+    Merkle root, as with the Hatchling build hook's SBOM. *wheel_name* is the
+    wheel file name; with no single own ``.dist-info``, *files* is returned
+    as is. Another ``*.dist-info`` (vendored under a package) is payload.
+    """
+    prefix = resolve_own_dist_info(
+        wheel_name, [f.distribution_path for f in files]
+    ).prefix
+    if prefix is None:
+        return files
+    return [f for f in files if not f.distribution_path.startswith(prefix)]
+
+
 def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFile]]:
     """Extract project metadata and file records from a built wheel.
 
@@ -127,7 +145,8 @@ def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFil
         wheel_path: Path to the .whl file.
 
     Returns:
-        A tuple of (ProjectMetadata, list of ProjectFile).
+        A tuple of (ProjectMetadata, list of ProjectFile): the wheel's
+        payload, see :func:`payload_files`.
         The ProjectMetadata contains core fields extracted from the
         ``METADATA`` of the wheel's own top-level ``.dist-info`` (see
         :func:`pitloom.core.wheel_dist_info.resolve_own_dist_info`); any
@@ -158,9 +177,12 @@ def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFil
                 choice.problem,
                 "" if choice.prefix else " -- identity unknown",
             )
-        project_files = [
-            _hash_wheel_entry(zf, info, name, archive) for name, info in members
-        ]
+        # Every member is read, the own .dist-info's too, so a damaged one
+        # still refuses the wheel; it is not listed afterwards.
+        project_files = payload_files(
+            [_hash_wheel_entry(zf, info, name, archive) for name, info in members],
+            archive,
+        )
         msg = (
             read_metadata_headers(zf, members, choice.prefix, archive)
             if choice.prefix

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -46,8 +46,10 @@ is not kept in sync with post-ship changes.
   ([PR #121](https://github.com/bact/pitloom/pull/121)).
 - [x] **`[project.license-files]` support** -- PEP 639's glob-list field
   for bundling multiple license files, each getting its own
-  `software_File` element and `hasDeclaredLicense` relationship. See
-  [license-pipeline.md](license-pipeline.md#license-files-bundling-pep-639).
+  `software_File` element and `hasDeclaredLicense` relationship (PR #207).
+  Later removed: an SBOM lists nothing under the wheel's own
+  `.dist-info`. See
+  [license-pipeline.md](license-pipeline.md#license-files-are-not-listed-pep-639).
 - [x] **Auto-sync the Loom ID registry after SBOM generation** -- `loom
   project`/`wheel`/`env` harvest newly-minted ids back into the resolved
   registry after each run. See

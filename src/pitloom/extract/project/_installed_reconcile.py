@@ -188,11 +188,11 @@ def reconcile_installed_metadata(
     guaranteed stable across processes) so the result -- including
     ``field_conflicts`` insertion order -- is deterministic. Every other
     field (``name``, ``provenance``, ``files``, ``locked_dependencies``,
-    ``locked_dependency_hashes``, ``license_files``, ``authors``,
-    ``dependencies``, ``readme``, ``field_conflicts`` itself) is left
-    untouched: a newly-added :class:`ProjectMetadata` field must not
-    silently start participating here with no comparator/provenance
-    thought through for it.
+    ``locked_dependency_hashes``, ``authors``, ``dependencies``,
+    ``readme``, ``field_conflicts`` itself) is left untouched: a
+    newly-added :class:`ProjectMetadata` field must not silently start
+    participating here with no comparator/provenance thought through
+    for it.
     """
     # replace_with_fresh_containers() (never a bare dataclasses.replace(),
     # which would alias every container field -- including provenance and

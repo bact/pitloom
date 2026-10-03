@@ -267,6 +267,12 @@ anything is written: a mismatch raises `ValueError` and nothing is
 written, unless `allow_mismatch=True` downgrades it to a `WARNING:` log
 and lets the embed proceed. Form 1 (a Pitloom-generated SBOM) is never
 checked -- it's built from the same wheel metadata, so it can't diverge.
+A Pitloom-generated SBOM lists the wheel's payload only (see
+[the CLI notes](cli.md#embed-an-sbom-into-a-wheel-pep-770)). A wheel with a
+`RECORD` signature (`RECORD.jws`, `RECORD.p7s`) raises `ValueError` and is left
+untouched, unless `allow_signed_wheel=True` removes the signature the rewrite
+invalidates (the removed names are returned with any stale SBOMs). Embed before
+signing, attesting, uploading or hashing the wheel file.
 A wheel's name and version come from its own top-level `.dist-info` (see
 [the CLI notes](cli.md#embed-an-sbom-into-a-wheel-pep-770)). A wheel with one
 of the problems below raises `ValueError` (all but the fifth the subclass

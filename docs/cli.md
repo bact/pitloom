@@ -130,6 +130,27 @@ to a `WARNING:` and embed anyway (useful for CI/automation that wants
 best-effort embedding). A Pitloom-generated SBOM (no `--sbom`) is never
 checked -- it's built from the same wheel metadata, so it can't diverge.
 
+Every wheel-reading command (`loom wheel`, `generate <whl>`, `embed-wheel`,
+`wheel --embed`) lists the wheel's payload only: nothing under the wheel's own
+`.dist-info` (`METADATA`, `WHEEL`, `RECORD`, `licenses/`, `sboms/`,
+signatures). An SBOM describes the packaged project, not the package
+container, so a listed hash never goes stale when the embed rewrites `RECORD`
+and adds `sboms/`. The Hatchling build hook and `loom project` list no
+`.dist-info/licenses/*` file either. An external SBOM given with `--sbom` is
+embedded verbatim and may list `.dist-info` files.
+
+**SECURITY:** a wheel that carries a `RECORD` signature (`RECORD.jws`,
+`RECORD.p7s`) is refused, and left untouched, by `embed-wheel` and `wheel
+--embed`: the embed rewrites `RECORD`, so the signature would stop verifying.
+`--allow-signed-wheel` removes the signature files and embeds (one `INFO:` per
+file); re-sign the wheel afterwards. Like `--allow-build`, it has no
+`[tool.pitloom]` equivalent: it is a per-run decision. Pitloom sees only
+signatures inside the wheel. Any embed changes the wheel file's own digest, so
+a signature or attestation over the file (detached GPG `.asc`, Sigstore bundle,
+PEP 740 attestation) and a recorded wheel hash (lock file, `pip --hash`) stop
+matching, and Pitloom cannot detect them: embed first, then sign, attest,
+upload and hash.
+
 `--sbom-basename NAME` overrides the embedded file's basename (default:
 derived from the wheel's own name/version, `<name>-<version>.spdx3.json`; a
 control character, whitespace, `/`, `\` or `:` in either becomes `_`; with no
@@ -263,6 +284,81 @@ loom generate env -o env.spdx3.json                          # installed venv   
 default filename, `generate` dispatches across several target types with
 no single natural default -- pass `-o` explicitly, or use the
 target-specific command for its own default.
+
+#### Recomputing the package hash
+
+The package element's `verifiedUsing` holds a SHA-256 Merkle root over the
+wheel's payload, and what it covers follows the SBOM type:
+
+- **Analyzed** (`loom wheel`, `generate <whl>`, `embed-wheel` without a project
+  directory, `wheel --embed`): the wheel as built.
+- **Source** (`loom project`) and the **Build** SBOM of the Hatchling hook: the
+  source files the build backend selects, hashed before the build. When the
+  build adds payload of its own (shared data, scripts, generated or repaired
+  files) the root differs from the built wheel's: expected, as the two describe
+  different things.
+- **Build** with `embed-wheel --project-dir`: the wheel as built, so it can
+  differ from the hook's root for the same wheel.
+
+A wheel's `<name>-<version>.data/` directory (PEP 427: files installed outside
+`site-packages`, such as `scripts/`, `data/` and `headers/`, which an installer
+moves to their destination) is payload, not packaging metadata: it is listed
+and hashed under its path in the wheel, e.g.
+`demo-1.0.data/data/share/demo/d.txt`, not under its install destination. The
+Hatchling hook and `loom project` cannot see it before the build, which is one
+reason their root differs from the built wheel's.
+
+To recompute the root of a built wheel:
+
+1. Take every wheel member except those under the wheel's own `.dist-info`
+   (the top-level directory its file name names, compared per PEP 503 names and
+   PEP 440 versions). Another `*.dist-info` deeper in the tree is payload.
+   Directory entries are not members.
+2. Name each by its install-location path (POSIX, normalised). A member with
+   a name that is not one (`\`, `./`, `//`, `..`, an absolute path) is
+   normalised or skipped by Pitloom, each with a `WARNING:`; the snippet below
+   reads names as stored, so it reproduces the root of a conforming wheel only.
+3. Sort by that path (Python `sorted`, code-point order).
+4. A leaf is the raw 32-byte SHA-256 of the member's bytes.
+5. Combine adjacent pairs as `sha256(left || right)`; an odd last node is
+   promoted unchanged; repeat until one node remains.
+6. The root is that node in lowercase hex. A single file's root is its own
+   digest; an empty payload has no hash.
+
+A wheel with no single own `.dist-info` (none, or several that its file name
+does not pick out) has no `.dist-info` to leave out: `loom wheel` lists and
+hashes every member, and the embed commands refuse it.
+
+SBOM relationships and directory elements are not part of it.
+
+```python
+import hashlib
+import zipfile
+
+
+def package_hash(wheel: str, own_dist_info: str) -> str | None:
+    leaves = {}
+    with zipfile.ZipFile(wheel) as zf:
+        for name in zf.namelist():
+            if name.endswith("/") or name.split("/")[0] == own_dist_info:
+                continue
+            leaves[name] = hashlib.sha256(zf.read(name)).digest()
+    level = [leaves[name] for name in sorted(leaves)]
+    if not level:
+        return None
+    while len(level) > 1:
+        nxt = [
+            hashlib.sha256(level[i] + level[i + 1]).digest()
+            for i in range(0, len(level) - 1, 2)
+        ]
+        if len(level) % 2:
+            nxt.append(level[-1])
+        level = nxt
+    return level[0].hex()
+
+
+print(package_hash("pkg-1.0-py3-none-any.whl", "pkg-1.0.dist-info"))
+```
 
 ### Enrich an SBOM
 
@@ -515,6 +611,11 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env`
   `pitloom_config=`, as no config is read implicitly there) -- once per
   `embed-wheel` run, and not when `--no-scan-model-usage` or `scan-model-usage = false` says off.
   Usage-scan limits: [AI model scan limits](ai-model-scan-limits.md).
+- `--allow-signed-wheel` -- `embed-wheel` and `wheel --embed`: embed into a
+  wheel with a `RECORD` signature by removing the signature (see
+  [Embed an SBOM into a wheel](#embed-an-sbom-into-a-wheel-pep-770)). Signatures
+  over the wheel file itself are not detected: embed before signing. No
+  `[tool.pitloom]` equivalent.
 - `--trust-wheel-model` -- on a built wheel (`wheel`, `wheel --embed`,
   `embed-wheel` without `--project-dir`), read AI model files with every
   format reader. By default a fastText, GGUF, HDF5, ONNX or PyTorch

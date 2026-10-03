@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,6 +12,8 @@ See also: [README.md](README.md) (index of these notes),
 [wheel-identity.md](../wheel-identity.md),
 [archive-member-names.md](../archive-member-names.md),
 [wheel-embedding.md](../wheel-embedding.md),
+[sbom-package-boundary.md](../../design/sbom-package-boundary.md) (the open
+question behind section 3),
 [ai-model-scan-security-lessons.md](../ai-model-scan-security-lessons.md)
 sections 3.3 (archives inside archives) and 3.8 (wheel identity bugs).
 
@@ -172,3 +174,61 @@ sections 3.3 (archives inside archives) and 3.8 (wheel identity bugs).
   `read_wheel` now sorts by install path (#266). The sdist reader still
   has it; see the lessons doc, 3.6.
   Do: sort archive members by normalised path before minting anything.
+
+## 3. What an SBOM counts as inside the package (#269, PR #271)
+
+A per-surface matrix of what each command lists and hashes, measured on one
+built wheel, is in [wheel-embedding.md](../wheel-embedding.md) ("Behaviour
+matrix").
+
+- **An SBOM stored inside the artifact cannot hash everything in it.** The
+  embed rewrites `RECORD`, and a file cannot hold its own hash. Pitloom 0.19.0
+  listed both with hashes taken before the embed: in `licenseid` 0.3.7, 30 of
+  32 listed hashes matched the wheel and 2 did not. `spdx3-validate` passed:
+  schema and SHACL checks do not recompute hashes, so nothing flagged it. The
+  same wheel built by the Hatchling hook (SBOM made before the wheel exists)
+  had 26 files and every hash matched.
+  Do: recompute each listed hash from the final artifact in a test; do not
+  rely on schema validation.
+- **Decide the boundary once: the project, not its container.** After the fix a
+  wheel SBOM lists the payload only and nothing under the wheel's own
+  `.dist-info` (`RECORD`, `METADATA`, `WHEEL`, licence files, earlier SBOMs,
+  signatures), on every surface, including a plain analysis of a built wheel.
+  Keeping the licence files because the build hook listed them failed the
+  test "would this make sense for another package format?": a link to
+  `.dist-info/licenses/...` means nothing outside wheels.
+  Do: ask of each listed file whether it is project content or container
+  metadata, and apply one rule on every command that reads that format.
+- **The boundary rule is itself package-format knowledge.** "Own `.dist-info`"
+  needs the wheel's name and version compared as PEP 503 and PEP 440 do, and
+  `<name>-<version>.data/` (PEP 427: `scripts/`, `data/`, `headers/`, moved to
+  their destination on install) is payload even though it looks like
+  metadata. It is listed under its wheel path, not its install destination, so
+  the name differs from the source tree's. Open: a format-neutral rule.
+  Do: keep the format knowledge in one function per format; name the
+  open question rather than hiding it in the filter.
+- **A package hash depends on when you look.** The Hatchling hook (a Build
+  SBOM) and `loom project` (Source) hash the source files the backend selects,
+  before the build; a wheel analysis hashes the wheel as built. For one
+  demonstration project with a `.data` file the roots were `aea983240d...`
+  and `44f76c7537...`; without build-added files all surfaces agreed. Both are
+  right for what they describe.
+  Do: say in the output and the docs what a package hash covers, give a
+  recompute recipe, and test it against an independent re-implementation.
+- **An embed invalidates signatures, and some you cannot see.** `RECORD.jws`
+  and `RECORD.p7s` sign `RECORD`; an installer exempts exactly those two names
+  from `RECORD` checking. Rewriting `RECORD` breaks them. Pitloom now refuses
+  such a wheel, leaving it byte-identical, unless the user passes
+  `--allow-signed-wheel`, which removes them with one `INFO:` per file. It is
+  a flag and an Action input, with no project-config key, so one committed
+  setting cannot allow removal on every future run. A signature over the wheel
+  file itself (detached GPG, Sigstore, a PEP 740 attestation, a lock-file hash)
+  also stops matching, and nothing in the wheel reveals it.
+  Do: refuse before writing, make the override per-run, and document the order:
+  embed first, then sign, attest, upload and hash.
+- **Refuse before the expensive step.** The refusal came after the SBOM was
+  generated, which with a real PEP 517 build means building a wheel only to
+  reject it. A check on member names alone now runs first, using the same
+  functions in the same order as the embed's own check.
+  Do: run the cheap, name-only refusals before any build or generation, from
+  one shared implementation.

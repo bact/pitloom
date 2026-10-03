@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -120,9 +120,10 @@ describe the same package for the same wheel -- this is the class of gap
 `--debug` fell into (one surface updated, sibling surfaces not). The two
 are not byte-comparable by design: `embed-wheel --project-dir` makes a
 `build` SBOM from project-directory discovery, `wheel --embed` an
-`analyzed` one from the archive itself (including `.dist-info/*`), and
-only `embed-wheel` takes `--sbom-basename`. Compare the package
-name/version/PURL and the non-`.dist-info` file names instead:
+`analyzed` one from the archive itself, and only `embed-wheel` takes
+`--sbom-basename`. Both list the payload only (nothing under the wheel's own
+`.dist-info`). Compare the package name/version/PURL and the file names
+instead:
 
 ```bash
 python -m build --wheel -o /tmp/wheelout .
@@ -133,7 +134,7 @@ loom wheel /tmp/wheelout/copy.whl --embed
 unzip -p "$wheel" '*.dist-info/sboms/*' > /tmp/embedded.json
 unzip -p /tmp/wheelout/copy.whl '*.dist-info/sboms/*' > /tmp/standalone.json
 files() { jq -r '.["@graph"][] | select(.type=="software_File") | .name' "$1" \
-  | grep -v '\.dist-info/' | sort; }
+  | sort; }
 diff <(files /tmp/embedded.json) <(files /tmp/standalone.json)
 ```
 

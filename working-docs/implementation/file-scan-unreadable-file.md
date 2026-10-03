@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,10 +41,8 @@ permission, emptied the SBOM's entire file set with nothing on stderr.
   `project_relative_or_fallback()`.
 - **One wording for every per-file read failure.**
   `path_probe.UNREADABLE_FILE_WARNING` (`FILE=%s: could not read %s;
-  %s`) is shared by this scan, the AI model header read and usage scan
-  (`extract/scanner.py`) and the declared license-files read
-  (`extract/_license.py`); each passes only what the read was for. The
-  rendered messages of the three existing sites are unchanged.
+  %s`) is shared by this scan and the AI model header read and usage
+  scan (`extract/scanner.py`); each passes only what the read was for.
 - **Only `OSError` is caught.** Header parsing and content-type
   detection never raise on arbitrary bytes, so anything else is a bug:
   it propagates (discovery cleanup still runs) instead of becoming a

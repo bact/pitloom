@@ -21,7 +21,10 @@ from pitloom.assemble import (
 )
 from pitloom.cli.commands._embed_wheel_batch import report_embed_result
 from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
-from pitloom.cli.options import add_offline_argument
+from pitloom.cli.options import (
+    add_allow_signed_wheel_argument,
+    add_offline_argument,
+)
 from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.inert_options import (
     EMBED_STANDALONE,
@@ -31,7 +34,8 @@ from pitloom.core.inert_options import (
     forward_options,
     settle_inert,
 )
-from pitloom.embed import embed_filename
+from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
+from pitloom.embed import embed_filename, refuse_unembeddable_wheel
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.wheel import wheel_identity
 
@@ -57,6 +61,13 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     pitloom_config, options = explicit_config_and_options(args)
 
     embed = getattr(args, "embed", False)
+    if args.allow_signed_wheel and not embed:
+        warn_no_effect(
+            INERT_LOG_PREFIX,
+            wheel_path.name,
+            ("--allow-signed-wheel",),
+            "without --embed",
+        )
     if embed:
         # The same SBOM, and the same warnings, as embed-wheel without a
         # project: canonical, no relationship descriptions, no registry
@@ -79,6 +90,9 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
         print(f"Wheel file      : {wheel_path}")
         print(f"Output path     : {output_path or '(embedded only)'}")
 
+    if embed:
+        # As embed-wheel: refuse before generating (that may run a build).
+        refuse_unembeddable_wheel(wheel_path, args.allow_signed_wheel)
     # With --embed, the -o copy is written once the embed has succeeded: a
     # wheel the embed refuses leaves nothing behind.
     sbom_json, wheel_metadata = generate_wheel_sbom_with_metadata(
@@ -98,6 +112,7 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
             ),
             # Already read (and warned about) by the generation above.
             identity=wheel_identity(wheel_metadata),
+            allow_signed_wheel=args.allow_signed_wheel,
         )
         write_sbom_output(sbom_json, output_path)
         report_embed_result(arcname, wheel_path.name, removed, floored)
@@ -127,6 +142,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Embed the generated SBOM directly into the wheel archive (PEP 770).",
     )
+    add_allow_signed_wheel_argument(wheel_parser)
     add_offline_argument(
         wheel_parser,
         " -- skip PyPI lookup, no error (local metadata already covers what it can).",

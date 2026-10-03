@@ -46,6 +46,7 @@ from pitloom.core.inert_options import (
     INERT,
     settle_inert,
 )
+from pitloom.core.models import merkle_root_of_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import normalize_max_source_metadata_bytes
 from pitloom.extract.binary import find_phantom_dependencies
@@ -301,7 +302,7 @@ def _build_sbom_standalone_wheel(
     )
     exporter = assemble_spdx3(
         doc,
-        merkle_root=None,
+        merkle_root=merkle_root_of_files(wheel_metadata.files),
         sbom_type=spdx3.software_SbomType.analyzed,
         registry=registry,
         **cfg.assemble_options,

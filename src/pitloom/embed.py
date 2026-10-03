@@ -27,6 +27,7 @@ from pitloom._embed_generate import (
 from pitloom._embed_wheel import (
     _DEFAULT_FILE_ATTR,
     _ZIP_EPOCH_FLOOR,
+    RECORD_SIGNATURES,
     _calculate_record_hash,
     _derive_wheel_sbom_filename,
     _looks_like_pitloom_sbom,
@@ -36,6 +37,7 @@ from pitloom._embed_wheel import (
     _update_record_lines,
     _validate_sbom_filename,
     embed_sbom_in_wheel,
+    refuse_unembeddable_wheel,
 )
 from pitloom._sbom_format import (
     RECOMMENDED_EXTENSIONS,
@@ -66,6 +68,7 @@ __all__ = [
     "EmbeddedSbomLocation",
     "_DEFAULT_FILE_ATTR",
     "RECOMMENDED_EXTENSIONS",
+    "RECORD_SIGNATURES",
     "VALIDATED_FORMATS",
     "_ZIP_EPOCH_FLOOR",
     "_build_sbom_from_project_and_wheel",
@@ -83,6 +86,7 @@ __all__ = [
     "embed_sbom_in_wheel",
     "embed_wheel_sbom",
     "find_embedded_sbom",
+    "refuse_unembeddable_wheel",
 ]
 
 
@@ -157,6 +161,7 @@ def embed_wheel_sbom(
     id_registry: str | Path | IdRegistry | None = None,
     overrides: ConfigOverrides | None = None,
     allow_mismatch: bool = False,
+    allow_signed_wheel: bool = False,
     file_cache: EmbedFileCache | None = None,
 ) -> tuple[Path, str, str, tuple[str, ...], bool]:
     """Generate and embed a PEP 770 SBOM into a built Python wheel.
@@ -165,7 +170,9 @@ def embed_wheel_sbom(
     subject name/version is cross-checked against the wheel's own
     ``.dist-info/METADATA`` before anything is written -- see
     :func:`_enforce_sbom_name_version`. A genuine mismatch raises
-    ``ValueError`` unless *allow_mismatch*. A Pitloom-generated SBOM
+    ``ValueError`` unless *allow_mismatch*. A signed wheel (``RECORD.jws``/
+    ``RECORD.p7s``) raises ``ValueError`` unless *allow_signed_wheel*, which
+    removes the signature the embed would invalidate. A Pitloom-generated SBOM
     (*sbom_path* unset) is never checked -- it's built from this same
     *wheel_metadata*, so it can't diverge.
 
@@ -208,6 +215,8 @@ def embed_wheel_sbom(
         # short-circuits on the already-resolved instance rather than
         # loading the file again.
         id_registry = _resolve_embed_registry(project_dir, pitloom_config, id_registry)
+    # Before the SBOM is generated: that may run a build.
+    refuse_unembeddable_wheel(wheel_obj, allow_signed_wheel)
     wheel_metadata, _ = read_wheel(wheel_obj)
 
     sbom_json, eff_basename = _generate_embed_sbom_json(
@@ -238,6 +247,7 @@ def embed_wheel_sbom(
         sbom_json,
         sbom_filename=embed_filename(eff_basename),
         identity=(wheel_name, wheel_version),
+        allow_signed_wheel=allow_signed_wheel,
     )
 
     if output_path is not None:

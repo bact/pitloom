@@ -233,9 +233,7 @@ def compare_one(
             expected: dict[str, Any] = json.load(f)
         real_files = set(expected["wheel_files"])
         real_comparable = {
-            f
-            for f in real_files
-            if "licenses/" in f or not f.split("/", 1)[0].endswith(".dist-info")
+            f for f in real_files if not f.split("/", 1)[0].endswith(".dist-info")
         }
         matches = with_files == real_comparable
         print(

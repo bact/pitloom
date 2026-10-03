@@ -39,8 +39,7 @@ _MEMBERS = {
     "/abs/evil.py": b"evil = 2\n",
     "demo\\": b"",
 }
-_EXPECTED = {
-    f"{_DIST_INFO}/METADATA",
+_EXPECTED = {  # the payload: the own .dist-info is read, not listed
     "demo/__init__.py",
     "demo/mod.py",
     "demo/sub/deep.py",
@@ -119,7 +118,7 @@ def test_read_wheel_warns_once_per_non_conforming_member(
 def test_read_wheel_conforming_wheel_warns_nothing(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    members = dict.fromkeys(_EXPECTED, b"")
+    members = {**dict.fromkeys(_EXPECTED, b""), f"{_DIST_INFO}/METADATA": METADATA}
     with caplog.at_level(logging.WARNING):
         _, files = read_wheel(_wheel(tmp_path, members))
     assert {f.distribution_path for f in files} == _EXPECTED
@@ -151,7 +150,7 @@ def test_wheel_sbom_names_and_directory_chain(tmp_path: Path) -> None:
     files = {n for n, kind in names.items() if kind.endswith("file")}
     directories = {n for n, kind in names.items() if kind.endswith("directory")}
     assert files == _EXPECTED
-    assert directories == {_DIST_INFO, "demo", "demo/sub"}
+    assert directories == {"demo", "demo/sub"}
 
 
 def test_wheel_sbom_identical_on_windows_and_posix(

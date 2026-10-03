@@ -267,10 +267,7 @@ def package(graph: Iterable[dict[str, Any]], name: str) -> dict[str, Any]:
 
 
 def file_names(graph: Iterable[dict[str, Any]]) -> list[str]:
-    """Sorted ``software_File`` names outside ``.dist-info/``."""
+    """Sorted ``software_File`` names."""
     return sorted(
-        element["name"]
-        for element in graph
-        if element.get("type") == "software_File"
-        and ".dist-info/" not in element.get("name", "")
+        element["name"] for element in graph if element.get("type") == "software_File"
     )

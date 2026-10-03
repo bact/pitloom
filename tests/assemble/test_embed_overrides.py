@@ -27,8 +27,8 @@ import pytest
 from installer.sources import WheelFile
 
 from pitloom import __main__
-from pitloom._embed_build_sbom import _compute_wheel_merkle_root, _merge_file_extras
-from pitloom.core.models import _build_merkle_tree
+from pitloom._embed_build_sbom import _merge_file_extras
+from pitloom.core.models import _build_merkle_tree, merkle_root_of_files
 from pitloom.core.project import ProjectFile
 from pitloom.embed import (
     ConfigOverrides,
@@ -198,7 +198,7 @@ def test_embed_wheel_defers_cleanup_past_ai_model_scan(
     [
         "pitloom._embed_build_sbom._merge_file_extras",
         "pitloom.core.project.ProjectMetadata.replace_with_fresh_containers",
-        "pitloom._embed_build_sbom._compute_wheel_merkle_root",
+        "pitloom._embed_build_sbom.merkle_root_of_files",
         "pitloom._embed_build_sbom.scan_project_for_ai_models",
         "pitloom._embed_build_sbom.run_enrichers_for_models",
     ],
@@ -276,7 +276,7 @@ def test_embed_wheel_cleanup_runs_strictly_last_in_order(
         call_order.append("merge_file_extras")
         return real_merge_file_extras(*args, **kwargs)  # type: ignore[arg-type]
 
-    real_compute_merkle = _compute_wheel_merkle_root
+    real_compute_merkle = merkle_root_of_files
 
     def _fake_merkle(*args: object, **kwargs: object) -> object:
         call_order.append("compute_merkle_root")
@@ -291,9 +291,7 @@ def test_embed_wheel_cleanup_runs_strictly_last_in_order(
         return []
 
     monkeypatch.setattr("pitloom._embed_build_sbom._merge_file_extras", _fake_merge)
-    monkeypatch.setattr(
-        "pitloom._embed_build_sbom._compute_wheel_merkle_root", _fake_merkle
-    )
+    monkeypatch.setattr("pitloom._embed_build_sbom.merkle_root_of_files", _fake_merkle)
     monkeypatch.setattr(
         "pitloom._embed_build_sbom.scan_project_for_ai_models", _fake_scan
     )
@@ -329,10 +327,10 @@ def test_embed_wheel_preserves_wheel_truth_and_merges_content_type(
 
     ``_build_sbom_from_project_and_wheel`` must not replace
     ``wheel_metadata.files`` outright with a project-dir rescan: that would
-    drop ``.dist-info/*`` entries and report hashes of the *current*
-    source tree instead of the wheel's own already-built bytes. This
-    checks both are preserved while content-type still reaches the
-    matching file (see ``_merge_file_extras``).
+    report hashes of the *current* source tree instead of the wheel's own
+    already-built bytes. This checks the wheel's bytes are kept (and its
+    own ``.dist-info``, not payload, is not listed) while content-type
+    still reaches the matching file (see ``_merge_file_extras``).
     """
     (tmp_path / "pyproject.toml").write_text(
         """
@@ -361,9 +359,7 @@ packages = ["ctpkg"]
     )
 
     files_by_name = _sbom_files_by_name(sbom_json)
-    assert "ctpkg-1.0.0.dist-info/METADATA" in files_by_name
-    assert "ctpkg-1.0.0.dist-info/WHEEL" in files_by_name
-    assert "ctpkg-1.0.0.dist-info/RECORD" in files_by_name
+    assert not [n for n in files_by_name if ".dist-info/" in n]  # not payload
 
     init_file = files_by_name["ctpkg/__init__.py"]
     (hash_obj,) = init_file["verifiedUsing"]
@@ -372,9 +368,9 @@ packages = ["ctpkg"]
     assert init_file.get("contentType")
 
 
-def test_compute_wheel_merkle_root_empty_returns_none() -> None:
+def test_merkle_root_of_files_empty_returns_none() -> None:
     """No files means no Merkle root to assert, not a computed one over nothing."""
-    assert _compute_wheel_merkle_root([]) is None
+    assert merkle_root_of_files([]) is None
 
 
 def test_embed_wheel_merkle_root_reflects_wheel_not_rescan(
@@ -417,9 +413,13 @@ packages = ["ctpkg"]
 
     # Capture the wheel's own bytes *before* embedding mutates it (adds the
     # SBOM entry and rewrites RECORD) -- this is the file set
-    # _compute_wheel_merkle_root should be reproducible from.
+    # merkle_root_of_files should be reproducible from.
     with zipfile.ZipFile(wheel_path, "r") as zf:
-        wheel_contents = {name: zf.read(name) for name in zf.namelist()}
+        wheel_contents = {
+            name: zf.read(name)
+            for name in zf.namelist()
+            if ".dist-info/" not in name  # not payload
+        }
 
     _, _, sbom_json, _, _ = embed_wheel_sbom(
         wheel_path,
@@ -492,12 +492,7 @@ packages = ["ctpkg"]
     )
 
     files_by_name = _sbom_files_by_name(sbom_json)
-    assert files_by_name.keys() == {
-        "ctpkg/__init__.py",
-        "ctpkg-1.0.0.dist-info/METADATA",
-        "ctpkg-1.0.0.dist-info/WHEEL",
-        "ctpkg-1.0.0.dist-info/RECORD",
-    }
+    assert files_by_name.keys() == {"ctpkg/__init__.py"}
     assert not files_by_name["ctpkg/__init__.py"].get("contentType")
 
 

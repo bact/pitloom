@@ -14,7 +14,7 @@ from __future__ import annotations
 import hashlib
 import re
 from collections.abc import Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4, uuid5
 
 from hatchling.metadata.utils import normalize_requirement
@@ -25,6 +25,9 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.core._models_wheel import _resolve_file_header_extras, get_wheel_files
 from pitloom.core._models_wheel_types import FileHeaderExtras
 from pitloom.core.iri import doc_namespace, iri_segment
+
+if TYPE_CHECKING:
+    from pitloom.core.project import ProjectFile
 
 # Fixed pitloom namespace UUID, stable across all versions.
 # Derived from: uuid5(NAMESPACE_URL, "https://github.com/bact/pitloom")
@@ -56,6 +59,7 @@ __all__ = [
     "compute_doc_uuid",
     "generate_spdx_id",
     "get_wheel_files",
+    "merkle_root_of_files",
     "normalize_dependency_specifier",
     "reserve_spdx_ids",
 ]
@@ -102,6 +106,25 @@ def _build_merkle_tree(leaf_hashes: list[bytes]) -> str:
             next_level.append(combined)
         nodes = next_level
     return nodes[0].hex()
+
+
+def merkle_root_of_files(files: Iterable[ProjectFile]) -> str | None:
+    """The package Merkle root of *files*, or ``None`` for no files.
+
+    Files sorted by ``distribution_path``; a leaf is a file's raw SHA-256
+    digest. A wheel's root is taken over its payload (see
+    :func:`pitloom.extract.wheel.payload_files`). :func:`get_wheel_files`
+    hashes the source files the build backend selects, so its root equals a
+    built wheel's only while the build adds no payload of its own (shared
+    data, scripts, generated or repaired files). Every file must carry a
+    ``digest_sha256``.
+    """
+    ordered = sorted(files, key=lambda f: f.distribution_path)
+    if not ordered:
+        return None
+    return _build_merkle_tree(
+        [bytes.fromhex(cast(str, f.digest_sha256)) for f in ordered]
+    )
 
 
 _DEP_NAME_RE = re.compile(r"^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?")

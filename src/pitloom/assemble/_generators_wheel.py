@@ -26,6 +26,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides, resolve_standalone_config
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
+from pitloom.core.models import merkle_root_of_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.binary import find_phantom_dependencies
@@ -173,7 +174,7 @@ def generate_wheel_sbom_with_metadata(
     )
     exporter = build(
         doc,
-        merkle_root=None,
+        merkle_root=merkle_root_of_files(project_files),
         sbom_type=spdx3_bindings.software_SbomType.analyzed,
         registry=resolved_registry,
         **cfg.assemble_options,

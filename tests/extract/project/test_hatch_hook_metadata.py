@@ -24,7 +24,6 @@ from hatchling.plugin.manager import PluginManager
 
 from pitloom.extract.project.hatchling import (
     _hatchling_field_declared,
-    _resolve_hatchling_license_files,
     metadata_from_hatchling,
 )
 from pitloom.plugins.hatch import (
@@ -32,7 +31,6 @@ from pitloom.plugins.hatch import (
 )
 
 from ..conftest import (
-    MINIMAL_PYPROJECT,
     MISSING_LICENSE_FILE_PYPROJECT,
     MISSING_README_PYPROJECT,
     POETRY_GAP_FILL_PYPROJECT,
@@ -62,19 +60,6 @@ def test_metadata_from_hatchling_maps_dependencies() -> None:
     )
 
 
-def test_metadata_from_hatchling_maps_license_files() -> None:
-    """PEP 639 ``[project.license-files]`` -- resolved by Hatchling itself
-    to a root-relative path list -- must be carried over verbatim."""
-    hatch_meta = _fake_hatch_metadata(
-        core={"license_expression": "MIT", "license_files": ["LICENSE"]}
-    )
-    metadata = metadata_from_hatchling(hatch_meta, Path("."))
-    assert metadata.license_files == ["LICENSE"]
-    assert metadata.provenance["license_files"] == (
-        "Source: Hatchling build backend | Field: project.license-files"
-    )
-
-
 def test_metadata_from_hatchling_declared_empty_authors_no_copyright_text() -> None:
     """An explicitly declared but empty ``authors`` (``authors_data`` with
     no names or emails) must still record provenance for ``authors``, but
@@ -95,15 +80,6 @@ def test_metadata_from_hatchling_empty_declared_dependencies_gets_provenance() -
     metadata = metadata_from_hatchling(hatch_meta, Path("."))
     assert metadata.dependencies == []
     assert "dependencies" in metadata.provenance
-
-
-def test_metadata_from_hatchling_no_license_files() -> None:
-    """Absent ``[project.license-files]`` must resolve to an empty list, not
-    ``None`` or a missing field."""
-    hatch_meta = _fake_hatch_metadata(core={"license_expression": "MIT"})
-    metadata = metadata_from_hatchling(hatch_meta, Path("."))
-    assert metadata.license_files == []
-    assert "license_files" not in metadata.provenance
 
 
 def test_metadata_from_hatchling_explicit_empty_requires_python_gets_provenance() -> (
@@ -128,71 +104,6 @@ def test_metadata_from_hatchling_no_requires_python_declared() -> None:
     metadata = metadata_from_hatchling(hatch_meta, Path("."))
     assert metadata.requires_python is None
     assert "requires_python" not in metadata.provenance
-
-
-def test_metadata_from_hatchling_no_license_files_with_real_core(
-    tmp_path: Path,
-) -> None:
-    """Regression test against real Hatchling ``CoreMetadata`` (not the
-    ``_fake_hatch_metadata`` mock): its ``license_files`` property has its
-    own default-glob fallback (``LICEN[CS]E*``/``COPYING*``/``NOTICE*``/
-    ``AUTHORS*``, the same convention `setuptools` and the `wheel` package
-    document) when ``[project.license-files]`` is entirely absent -- a
-    mock's ``_FAKE_CORE_DEFAULTS`` can't reproduce that lazy, config-driven
-    behavior. A project with a root ``LICENSE`` file but no declared
-    ``license-files`` key must still resolve to an empty list -- treating
-    Hatchling's auto-bundling default as an explicit declaration would
-    diverge from ``read_pyproject()``'s ``pyproject_metadata``-based
-    extraction, which has no such default (see
-    ``_resolve_hatchling_license_files``'s docstring)."""
-    write_pyproject(tmp_path)
-    (tmp_path / "LICENSE").write_text("MIT License", encoding="utf-8")
-
-    hatch_pm = hatchling_metadata_core.ProjectMetadata(str(tmp_path), PluginManager())
-    metadata = metadata_from_hatchling(hatch_pm, tmp_path)
-
-    assert metadata.license_files == []
-    assert "license_files" not in metadata.provenance
-
-
-def test_metadata_from_hatchling_declared_license_files_with_real_core(
-    tmp_path: Path,
-) -> None:
-    """Companion to the "no license-files" real-core regression test above:
-    an explicitly declared ``[project.license-files]`` must still resolve
-    correctly through real Hatchling ``CoreMetadata``."""
-    write_pyproject(
-        tmp_path,
-        MINIMAL_PYPROJECT + '\nlicense = "MIT"\nlicense-files = ["LICENSE"]\n',
-    )
-    (tmp_path / "LICENSE").write_text("MIT License", encoding="utf-8")
-
-    hatch_pm = hatchling_metadata_core.ProjectMetadata(str(tmp_path), PluginManager())
-    metadata = metadata_from_hatchling(hatch_pm, tmp_path)
-
-    assert metadata.license_files == ["LICENSE"]
-    assert metadata.provenance["license_files"] == (
-        "Source: Hatchling build backend | Field: project.license-files"
-    )
-
-
-def test_resolve_hatchling_license_files_tolerates_oserror() -> None:
-    """A declared ``license-files`` field whose ``core.license_files``
-    property access raises ``OSError`` must degrade to an empty list, not
-    propagate -- mirroring every other ``core.X`` property read in this
-    module (readme, license), each of which is lazily evaluated by
-    Hatchling and can raise a bare ``OSError`` for the same class of
-    reason (e.g. a filesystem error resolving a referenced path)."""
-
-    # pylint: disable-next=too-few-public-methods
-    class _RaisingCore:
-        config = {"license-files": ["LICENSE"]}
-
-        @property
-        def license_files(self) -> list[str]:
-            raise OSError("simulated filesystem error")
-
-    assert _resolve_hatchling_license_files(_RaisingCore()) == []
 
 
 def test_hatchling_field_declared_tolerates_oserror_on_config_access() -> None:
