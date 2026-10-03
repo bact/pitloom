@@ -172,20 +172,20 @@ def test_scan_non_models_are_silent(
 
 
 @pytest.mark.parametrize("kind", ["missing", "directory"])
-def test_scan_absent_or_directory_candidate_is_one_read_failure(
+def test_scan_absent_or_directory_candidate_is_not_a_model_and_silent(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, kind: str
 ) -> None:
     """Absence is not a header failure (no crash, no ``could not read
-    header``); the reader is the one to report it."""
+    header``), and a header-less file is no confirmed model: no entry, and
+    the reader is never run."""
     (tmp_path / "proj").mkdir()
     if kind == "directory":
-        pytest.importorskip("onnx")  # a directory reaches the ONNX reader
         (tmp_path / "proj" / "m.onnx").mkdir()
-    with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-        assert not _scan(tmp_path, _pf("m.onnx"))
-    (message,) = _warnings(caplog)
-    assert "failed to extract metadata" in message
-    assert file_values([message]) == ["m.onnx"]
+    with patch(_READ, autospec=True) as reader:
+        with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+            assert not _scan(tmp_path, _pf("m.onnx"))
+    reader.assert_not_called()
+    assert not _warnings(caplog)
 
 
 # --- genuine access failures ------------------------------------------------

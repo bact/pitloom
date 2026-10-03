@@ -287,6 +287,14 @@ See [build-backend-improvements.md](build-backend-improvements.md).
   pure-Python header readers, parity-tested against the libraries; HDF5 last.
   Later option: short GGUF arrays as values, not only `<key>.length`.
   See [model-metadata-readers.md](model-metadata-readers.md).
+- [ ] **AI model outcome-parity follow-ups (#270)** -- three small items left
+  by the one-entry-per-confirmed-model rule: (1) Keras v3 (`.keras`) fails
+  whole on a bad `config.json` while HDF5 degrades per attribute. (2) The scan
+  names an HDF5 file `FORMAT=hdf5` where the reader reports `keras` (a
+  `keras_version` attribute). (3) HDF5 attribute text is unbounded into the
+  SBOM (`model_config` is kept to 500 characters only when unparsed; other
+  attributes, string arrays included, are not capped), on `main` as well. See
+  [ai-model-scanning.md](../implementation/ai-model-scanning.md).
 - [ ] **Re-embedding lists the previous embedded SBOM** -- `embed-wheel`
   on a wheel that already has one describes that old
   `.dist-info/sboms/*` file (with its old hash) in the new SBOM, which

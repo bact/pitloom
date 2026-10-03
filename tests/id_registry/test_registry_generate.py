@@ -20,6 +20,9 @@ from typing import Any
 import pytest
 
 import pitloom.id_registry._registry as ids_mod
+from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.core.project import ProjectFile
+from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.id_registry import (
     DEFAULT_ID_REGISTRY_FILENAME,
     IdRegistry,
@@ -105,6 +108,57 @@ def test_generate_registers_ai_model_entity(tmp_path: Path) -> None:
     assert ("ai_AIPackage", "sentimentdemo") in registry.entities
     entity = registry.entities[("ai_AIPackage", "sentimentdemo")]
     assert entity.spdx_id.startswith(f"{registry.namespace}#AIPackage-")
+
+
+_LFS = b"version https://git-lfs.github.com/spec/v1\noid sha256:00\n"
+_GGUF = AiModelFormat.GGUF.magic or b""
+_HDF5 = AiModelFormat.HDF5.magic or b""
+
+
+@pytest.mark.parametrize(
+    ("name", "data", "is_model"),
+    [
+        ("ok.gguf", _GGUF + b"\0" * 16, True),
+        ("ok.bin", _GGUF + b"\0" * 16, True),  # magic, a suffix a scan reads
+        ("ok.h5", _HDF5 + b"\0" * 16, True),
+        ("ok.onnx", b"\x08\x07", True),
+        ("empty.onnx", b"", False),
+        ("lfs.gguf", _LFS, False),
+        ("lfs.safetensors", _LFS, False),
+        ("lfs.keras", _LFS, False),
+        # a Git LFS pointer is no model under a suffix that trusts any header
+        ("lfs.pt", _LFS, False),
+        ("lfs.onnx", _LFS, False),
+        ("lfs.h5", _LFS, False),
+        # a suffix a scan does not read, whatever the magic
+        ("data.dat", _GGUF + b"\0" * 16, False),
+        ("data.nc", _HDF5 + b"\0" * 16, False),
+        ("data.mat", _HDF5 + b"\0" * 16, False),
+        ("site.pth", b"import os\n", False),
+    ],
+)
+def test_generate_registers_an_entity_exactly_for_what_a_scan_lists(
+    tmp_path: Path, name: str, data: bytes, is_model: bool
+) -> None:
+    """Drift guard: ``id generate`` and the project scan decide the same
+    (the scan's suffix filter, then the header), a file a scan does not list
+    gets no entity."""
+    (tmp_path / "models").mkdir()
+    (tmp_path / "models" / name).write_bytes(data)
+    rel = f"models/{name}"
+
+    registry = IdRegistry.new("proj")
+    registry.generate([Path("models")], tmp_path)
+    listed = scan_project_for_ai_models(
+        tmp_path,
+        [ProjectFile(physical_path=rel, distribution_path=rel)],
+        scan_usage=False,
+        usage_hint=lambda: False,
+    )
+
+    assert rel in registry.files
+    assert bool(registry.entities) is is_model
+    assert bool(listed) is is_model
 
 
 def test_generate_skips_registry_file_itself(tmp_path: Path) -> None:

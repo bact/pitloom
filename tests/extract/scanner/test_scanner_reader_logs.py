@@ -103,7 +103,8 @@ def test_a_path_quoted_in_its_resolved_spelling_leaves_no_residue(
     assert str(resolved).endswith(str(given)) and resolved != given  # not vacuous
     error = ValueError(f"cannot read {resolved}")
     with patch(_READ, side_effect=error):
-        discover_ai_models([_candidate(given, Mock(return_value=_PT))])
+        found = discover_ai_models([_candidate(given, Mock(return_value=_PT))])
+    assert len(found) == 1  # a confirmed model whose read failed: a stub
     (message,) = logged_warnings(caplog)
     assert message.endswith("failed to extract metadata; cannot read demo/real.pt")
 
@@ -261,8 +262,8 @@ def test_hostile_member_names_forge_no_line_through_any_reader(
 def test_a_reader_called_directly_escapes_member_names(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """``loom model`` reads the user's file with no scanner: the readers
-    themselves escape what they quote."""
+    """``read_ai_model`` called with no scanner relaying its records: the
+    readers themselves escape what they quote."""
     path = tmp_path / "m.pt"
     path.write_bytes(_hostile_zip({f"{_EVIL}/data.pkl": _PT}, _bad_crc))
     read_ai_model(path, model_format=AiModelFormat.PYTORCH)

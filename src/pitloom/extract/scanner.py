@@ -11,8 +11,16 @@ discovered models. Producers (e.g. the project-directory one) turn their own
 files into :class:`ModelCandidate` and :class:`UsageSource` objects; this
 module imports no producer.
 
-See also: :mod:`pitloom.extract.scanner_project` and
-:mod:`pitloom.extract.scanner_wheel`.
+Invariant: one confirmed model file (its header agrees with a model format)
+gives exactly one entry, whatever its read outcome. A read that fails (a
+parse error, a bound, a missing library, a wheel gate) keeps a format-only
+entry and one ``WARNING:``; it is never dropped, so the entry set does not
+depend on the order of the files, the budget or the installed libraries. A
+file that is not a confirmed model gives no entry
+(:class:`~pitloom.extract.ai_model.NotAModel`).
+
+See also: :mod:`pitloom.extract.scanner_project`,
+:mod:`pitloom.extract.scanner_wheel` and :mod:`pitloom.extract._scanner_messages`.
 """
 
 from __future__ import annotations
@@ -31,10 +39,15 @@ from pitloom.core.inert_options import PARAM_TO_FLAG
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract._reader_log import capture_reader_logs
+from pitloom.extract._scanner_messages import detail, scrub
 from pitloom.extract.ai_model import (
+    NotAModel,
+    contradicted_format,
     detect_ai_model_format_from_header,
     detect_ai_model_format_from_name,
+    not_a_model_reason,
     read_ai_model,
+    refusal_reason,
 )
 from pitloom.extract.ai_model.archive_member import ArchiveMemberTooLarge
 from pitloom.extract.ai_model.limits import (
@@ -43,7 +56,7 @@ from pitloom.extract.ai_model.limits import (
     cap_and_warn,
 )
 from pitloom.extract.ai_model.reader_requirements import require_library
-from pitloom.logging_config import loggable, one_line
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -125,14 +138,15 @@ class ModelCandidate:
 
     Attributes:
         distribution_path: POSIX in-distribution path. Decides the suffix
-            filter, the extension fallback and ``file_name``.
+            filter, the suffix check on the header and ``file_name``.
         physical_path: Stable display/lookup path: project-relative
             (``distribution_path`` for an absolute one), or the raw archive
             member name in a wheel. Never a temporary path; the shared code
             trusts this. Printed as ``FILE=`` in warnings.
         sniff: Returns at most ``SNIFF_BYTES`` leading bytes, ``b""`` when
             the file is absent. Raises :class:`OSError` when it exists but
-            cannot be read; the scanner warns and skips the candidate.
+            cannot be read; a scan warns and skips the candidate,
+            :func:`read_model_candidate` lets it propagate.
         materialize: Returns a context manager yielding a real path for
             :func:`pitloom.extract.ai_model.read_ai_model`. May raise.
         read_path: The file ``sniff`` reads, when it is one; the scanner
@@ -186,32 +200,6 @@ class ModelTooLarge(Exception):
         self.limit = limit
 
 
-def _path_forms(path: Path) -> list[str]:
-    """Every spelling of *path* an exception text may quote, longest first:
-    as given and resolved, each raw, as ``repr`` escapes it (a Windows
-    path's backslashes doubled) and with forward slashes."""
-    real = os.path.realpath(path)
-    forms = {path.as_posix(), Path(real).as_posix()}
-    for spelling in (str(path), real):
-        forms |= {spelling, repr(spelling)[1:-1]}
-    return sorted(filter(None, forms), key=len, reverse=True)
-
-
-def _scrub(text: str, path: Path | None, stable_path: str) -> str:
-    """*text*, printable on one line (:func:`~pitloom.logging_config.one_line`),
-    with the temporary *path* replaced by *stable_path*."""
-    if path is not None:
-        for form in _path_forms(path):
-            text = text.replace(form, stable_path)
-    return one_line(text)
-
-
-def _detail(exc: BaseException, path: Path | None, stable_path: str) -> str:
-    """*exc*'s text, see :func:`_scrub`; never empty: an exception with no
-    message yields its class name."""
-    return _scrub(str(exc), path, stable_path) or type(exc).__name__
-
-
 def _restore_source_name(meta: AiModelMetadata, path: Path, dist_name: str) -> None:
     """Rewrite the ``Source: <file name>`` prefix a reader derived from
     *path* to *dist_name*, when a copy under another name was read.
@@ -258,7 +246,7 @@ def _relog_reader_records(
             text = text.replace(
                 copied, f"Source: {sanitize_provenance_text(dist_name)}"
             )
-        text = _scrub(text, path, candidate.physical_path)
+        text = scrub(text, path, candidate.physical_path)
         if record.levelno >= logging.WARNING:
             log.log(
                 record.levelno,
@@ -284,36 +272,40 @@ def _read_materialized(
     return meta
 
 
-def _sniff_format(candidate: ModelCandidate) -> AiModelFormat | None:
-    """The candidate's format from its header; ``None`` (with a warning when
-    the header cannot be read) when it is not a model."""
-    try:
-        header = candidate.sniff()
-    except OSError as e:
-        log.warning(
-            _UNREADABLE_MODEL_WARNING,
-            detect_ai_model_format_from_name(candidate.distribution_path),
-            loggable(candidate.physical_path),
-            "header",
-            _detail(e, candidate.read_path, candidate.physical_path),
-        )
-        return None
-    fmt = detect_ai_model_format_from_header(header, candidate.distribution_path)
-    return None if fmt == AiModelFormat.UNKNOWN else fmt
+def _sniff_format(candidate: ModelCandidate) -> AiModelFormat:
+    """The candidate's format from its header.
 
-
-def _read_candidate(candidate: ModelCandidate) -> AiModelMetadata | None:
-    """Detect and read one candidate.
-
-    ``None`` when it is not a model or its reader fails (warned). A model over
-    a limit, or whose library is missing, keeps a format-only entry.
+    Raises:
+        NotAModel: The header does not confirm a model format.
+        OSError: The header cannot be read.
     """
-    if not is_model_candidate_name(candidate.distribution_path):
-        return None
-    where = loggable(candidate.physical_path)
+    header = candidate.sniff()
+    name = candidate.distribution_path
+    fmt = detect_ai_model_format_from_header(header, name)
+    if fmt != AiModelFormat.UNKNOWN:
+        return fmt
+    path = candidate.read_path
+    message = refusal_reason(
+        header, name, is_file=path is not None and os.path.isfile(path)
+    )
+    raise NotAModel(
+        contradicted_format(header, name), not_a_model_reason(header, name), message
+    )
+
+
+def read_model_candidate(candidate: ModelCandidate) -> AiModelMetadata:
+    """Detect and read one candidate, the one rule for every surface.
+
+    Returns the model, or, when it is a confirmed model whose read fails or is
+    over a limit, a format-only entry (one ``WARNING:`` for the failure kinds
+    that have one).
+
+    Raises:
+        NotAModel: The header does not confirm a model format.
+        OSError: The header cannot be read, so the format is not known.
+    """
     fmt = _sniff_format(candidate)
-    if fmt is None:
-        return None
+    where = loggable(candidate.physical_path)
     if candidate.gate is not None and fmt in candidate.gate.formats:
         candidate.gate.met.add(fmt)
         return _stub(fmt, candidate)
@@ -367,7 +359,7 @@ def _read_candidate(candidate: ModelCandidate) -> AiModelMetadata | None:
             "FORMAT=%s FILE=%s: required library not installed; %s",
             fmt,
             where,
-            _detail(e, path, candidate.physical_path),
+            detail(e, path, candidate.physical_path),
         )
     # pylint: disable-next=broad-exception-caught
     except Exception as e:
@@ -375,21 +367,51 @@ def _read_candidate(candidate: ModelCandidate) -> AiModelMetadata | None:
             "FORMAT=%s FILE=%s: failed to extract metadata; %s",
             fmt,
             where,
-            _detail(e, path, candidate.physical_path),
+            detail(e, path, candidate.physical_path),
         )
-        return None
     return _stub(fmt, candidate)
+
+
+def _discover_one(candidate: ModelCandidate) -> AiModelMetadata | None:
+    """:func:`read_model_candidate` for a scan: ``None`` for a file that is
+    not a model, a candidate whose suffix could not be one is not even read.
+    The warning for an unreadable header or a header contradicting a model
+    suffix is said here, in the scan's words."""
+    if not is_model_candidate_name(candidate.distribution_path):
+        return None
+    try:
+        return read_model_candidate(candidate)
+    except OSError as e:
+        log.warning(
+            _UNREADABLE_MODEL_WARNING,
+            detect_ai_model_format_from_name(candidate.distribution_path),
+            loggable(candidate.physical_path),
+            "header",
+            detail(e, candidate.read_path, candidate.physical_path),
+        )
+    except NotAModel as e:
+        if e.reason is not None:
+            # A pointer named x.bin has no format to name.
+            key = "" if e.model_format is None else f"FORMAT={e.model_format} "
+            log.warning(
+                "%sFILE=%s: %s; not listed as an AI model",
+                key,
+                loggable(candidate.physical_path),
+                e.reason,
+            )
+    return None
 
 
 def discover_ai_models(candidates: Iterable[ModelCandidate]) -> list[AiModelMetadata]:
     """Detect and read AI models among *candidates*.
 
     Returns models sorted by (distribution_path, physical_path), whatever the
-    order of *candidates*; reads and warnings follow the same order.
+    order of *candidates*; reads and warnings follow the same order. See the
+    module docstring for what becomes an entry.
     """
     models: list[AiModelMetadata] = []
     for candidate in sorted(candidates, key=_PATH_ORDER):
-        meta = _read_candidate(candidate)
+        meta = _discover_one(candidate)
         if meta is not None:
             models.append(meta)
     return models
@@ -434,7 +456,7 @@ def attach_usage_references(
                 UNREADABLE_FILE_WARNING,
                 loggable(source.physical_path),
                 "for usage scanning",
-                _detail(e, source.read_path, source.physical_path),
+                detail(e, source.read_path, source.physical_path),
             )
     for meta in models:
         meta.usage_files = sorted(set(meta.usage_files))

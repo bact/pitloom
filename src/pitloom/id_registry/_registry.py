@@ -205,6 +205,7 @@ class IdRegistry:
         """(Re-)index files under *paths* into this registry."""
         # pylint: disable=import-outside-toplevel,cyclic-import
         from pitloom.extract.ai_model import AiModelFormat, detect_ai_model_format
+        from pitloom.extract.scanner import is_model_candidate_name
 
         for file_path in _iter_files(paths, project_root):
             try:
@@ -215,8 +216,12 @@ class IdRegistry:
             rel_path = file_path.relative_to(project_root).as_posix()
             self.register_file(rel_path, sha256)
 
-            fmt = detect_ai_model_format(file_path)
-            if fmt != AiModelFormat.UNKNOWN:
+            # The scan's rule (suffix filter, then header), so an entity is
+            # registered for the files a scan lists as models, and only those.
+            if (
+                is_model_candidate_name(file_path.name)
+                and detect_ai_model_format(file_path) != AiModelFormat.UNKNOWN
+            ):
                 self.register_entity(file_path.stem, "ai_AIPackage")
 
     def import_sbom(self, sbom_path: Path) -> frozenset[tuple[str, str]]:

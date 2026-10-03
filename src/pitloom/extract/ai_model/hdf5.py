@@ -41,6 +41,8 @@ For plain HDF5 files without any of these attributes the extractor returns a
 minimal :class:`~pitloom.core.ai_metadata.AiModelMetadata` with only
 ``format_info`` set.
 
+The JSON attributes are parsed by :mod:`pitloom.extract.ai_model.hdf5_config`.
+
 Native Keras v3 models use the ``.keras`` format (ZIP archive) and are
 handled by the separate :mod:`pitloom.extract.ai_model.keras` extractor.
 
@@ -56,220 +58,94 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
-from pitloom.extract._extract_utils import (
-    record_dict_field_provenance,
-    sanitize_provenance_text,
+from pitloom.extract._extract_utils import sanitize_provenance_text
+from pitloom.extract.ai_model.hdf5_config import (
+    RAW_CONFIG_CHARS,
+    log_attribute_problem,
+    log_model_config_problem,
+    log_training_config_problem,
+    parse_model_config,
+    parse_training_config,
 )
 from pitloom.extract.ai_model.reader_requirements import missing_library
-from pitloom.logging_config import field_loss_suffix, loggable
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
-#: Characters of an unparsed ``model_config`` kept in
-#: ``properties["model_config_raw"]``.
-_RAW_CONFIG_CHARS = 500
+# Elements of a string array decoded at a time.
+_DECODE_BLOCK = 1 << 16
+
+# What reading one attribute raises: h5py's TypeError for a type with no NumPy
+# equivalent, OSError for a damaged one, or _UnsupportedAttribute.
+_READ_ERRORS = (TypeError, ValueError, OSError)
+
+
+class _UnsupportedAttribute(ValueError):
+    """An attribute value whose bytes are not stable text."""
+
+
+def _decode_text_array(value: Any) -> str:
+    """The elements of a fixed-length ``S``/``U`` array, one per line, in
+    blocks: a Python object per element costs ~160 bytes, so decoding them all
+    at once multiplies the array's size."""
+    flat = value.reshape(-1)
+    is_bytes = value.dtype.kind == "S"
+    parts: list[str] = []
+    for start in range(0, flat.size, _DECODE_BLOCK):
+        block = flat[start : start + _DECODE_BLOCK].tolist()
+        parts.append(
+            b"\n".join(block).decode("utf-8", errors="replace")
+            if is_bytes
+            else "\n".join(block)
+        )
+    return "\n".join(parts)
 
 
 def _decode_h5_attr(value: Any) -> str | None:
     """Decode an h5py attribute value to a Python string.
 
     h5py may return string attributes as ``str``, ``bytes``, or
-    ``numpy.bytes_`` depending on version and how the file was written.
+    ``numpy.bytes_`` depending on version and how the file was written. An
+    array of strings is one element per line: a fixed-length one (``bytes_``
+    or ``str_`` dtype) in bulk, one holding Python objects (``object`` dtype,
+    what ``h5py.string_dtype()`` arrays read as) element by element. The raw
+    buffer of an array holding objects is never used: it is pointers, which
+    differ per run.
+
+    An attribute with an empty dataspace (``h5py.Empty``) has a dtype but no
+    data, and decodes to ``None``.
+
+    Raises:
+        _UnsupportedAttribute: A compound dtype with an object field.
     """
-    if value is None:
-        return None
+    if value is None or getattr(value, "shape", ()) is None:
+        return None  # absent, or an empty dataspace (h5py.Empty): no data
     if isinstance(value, bytes):
         return value.decode("utf-8", errors="replace")
+    dtype = getattr(value, "dtype", None)
+    if dtype is not None and dtype.hasobject:
+        if dtype.kind != "O":
+            raise _UnsupportedAttribute(
+                f"a compound type with a string field ({dtype})"
+            )
+        leaves = value.reshape(-1).tolist()
+        return "\n".join(str(_decode_h5_attr(leaf)) for leaf in leaves)
+    if getattr(dtype, "kind", None) in ("S", "U"):
+        return _decode_text_array(value)
     if hasattr(value, "tobytes"):
         return str(value.tobytes().decode("utf-8", errors="replace"))
     return str(value)
 
 
-def _extract_input_from_layers(
-    layers: list[Any], source: str
-) -> tuple[list[dict[str, Any]], str]:
-    """Extract the model input shape from a Keras ``config.layers`` list.
-
-    Tries each layer in order:
-
-    - **InputLayer**: uses ``config.batch_shape``.
-    - **Other layers**: uses ``build_config.input_shape``.
-
-    Args:
-        layers: The ``config.layers`` list from ``model_config``.
-        source: Provenance source string (e.g. ``"Source: model.h5"``).
-
-    Returns:
-        Tuple of ``(inputs, provenance_value)`` where ``inputs`` is a
-        one-element list or empty and ``provenance_value`` is the source
-        description string (empty string when nothing was found).
-    """
-    for i, layer in enumerate(layers):
-        layer_class = layer.get("class_name", "")
-        if layer_class == "InputLayer":
-            batch_shape = (layer.get("config") or {}).get("batch_shape")
-            if batch_shape is not None:
-                prov = (
-                    f"{source} | Field: model_config.config.layers"
-                    "[InputLayer].config.batch_shape"
-                )
-                return [{"shape": batch_shape}], prov
-        else:
-            in_shape = (layer.get("build_config") or {}).get("input_shape")
-            if in_shape is not None:
-                prov = (
-                    f"{source} | Field: model_config.config.layers[{i}]"
-                    ".build_config.input_shape"
-                )
-                return [{"shape": in_shape}], prov
-    return [], ""
-
-
-def _extract_layers_info(
-    layers: list[Any],
-    source: str,
-    properties: dict[str, str],
-    inputs: list[dict[str, Any]],
-    provenance: dict[str, str],
-) -> None:
-    """Extract layer count and input shapes from layers list."""
-    properties["layer_count"] = str(len(layers))
-    provenance["properties.layer_count"] = (
-        f"{source} | Field: model_config.config.layers (count)"
-    )
-    new_inputs, inputs_prov = _extract_input_from_layers(layers, source)
-    if new_inputs:
-        inputs.extend(new_inputs)
-    if inputs_prov:
-        provenance["inputs"] = inputs_prov
-
-
-def _extract_config_hyperparameters(
-    config: dict[str, Any],
-    source: str,
-    hyperparameters: dict[str, Any],
-    provenance: dict[str, str],
-) -> None:
-    """Extract scalar hyperparameter entries and record their provenance."""
-    for key, val in config.items():
-        if key in ("name", "layers"):
-            continue
-        if isinstance(val, (int, float, bool, str)):
-            hyperparameters[key] = val
-
-    record_dict_field_provenance(
-        provenance,
-        "hyperparameters",
-        hyperparameters,
-        source,
-        location_prefix="model_config.config.",
-    )
-
-
-def _parse_model_config(
-    raw: str,
-    source: str,
-    hyperparameters: dict[str, Any],
-    inputs: list[dict[str, Any]],
-    properties: dict[str, str],
-    provenance: dict[str, str],
-) -> tuple[str | None, str | None]:
-    """Parse ``model_config`` JSON from a Keras v1/v2 HDF5 model."""
-    # pylint: disable=import-outside-toplevel
-    import json
-
-    type_of_model: str | None = None
-    name: str | None = None
-
+def _attr_text(attrs: Any, name: str) -> str | None:
+    """The text of root attribute *name*; ``None`` when it is absent. One
+    that cannot be read (a type h5py has no NumPy equivalent for, a compound
+    with a string field) is one ``WARNING:`` naming the fields it would set."""
     try:
-        model_config = json.loads(raw)
-        type_of_model = model_config.get("class_name") or None
-        if type_of_model:
-            provenance["type_of_model"] = f"{source} | Field: model_config.class_name"
-
-        config = model_config.get("config", {})
-        if isinstance(config, dict):
-            name = config.get("name") or config.get("model_name") or None
-            if name:
-                provenance["name"] = f"{source} | Field: model_config.config.name"
-
-            layers = config.get("layers")
-            if isinstance(layers, list):
-                _extract_layers_info(layers, source, properties, inputs, provenance)
-
-            _extract_config_hyperparameters(config, source, hyperparameters, provenance)
-
-        # Top-level build_config -- fallback if layers didn't give a shape.
-        if not inputs:
-            in_shape = (model_config.get("build_config") or {}).get("input_shape")
-            if in_shape is not None:
-                inputs.append({"shape": in_shape})
-                provenance["inputs"] = (
-                    f"{source} | Field: model_config.build_config.input_shape"
-                )
-
-    except (json.JSONDecodeError, AttributeError):
-        pass
-
-    return type_of_model, name
-
-
-def _parse_training_config(
-    raw: str,
-    source: str,
-    properties: dict[str, str],
-    provenance: dict[str, str],
-) -> None:
-    """Parse ``training_config`` JSON from a Keras v1/v2 HDF5 model.
-
-    Extracts:
-
-    - ``optimizer_config.class_name`` (or ``optimizer.class_name``)
-      -> ``properties["optimizer"]`` (updated in-place)
-    - ``loss``
-      -> ``properties["loss"]`` (updated in-place)
-    - ``metrics``
-      -> ``properties["metrics"]`` (updated in-place)
-    - Per-field source paths -> ``provenance`` (updated in-place)
-
-    Args:
-        raw: Raw JSON string from the ``training_config`` HDF5 attribute.
-        source: Provenance source string (e.g. ``"Source: model.h5"``).
-        properties: Updated in-place with optimizer, loss, and metrics entries.
-        provenance: Updated in-place with per-field source descriptions.
-    """
-    # pylint: disable=import-outside-toplevel
-    import json
-
-    try:
-        training_config = json.loads(raw)
-
-        opt_key = (
-            "optimizer_config" if "optimizer_config" in training_config else "optimizer"
-        )
-        optimizer = training_config.get(opt_key)
-        if isinstance(optimizer, dict):
-            opt_class = optimizer.get("class_name") or ""
-            if opt_class:
-                properties["optimizer"] = opt_class
-                provenance["properties.optimizer"] = (
-                    f"{source} | Field: training_config.{opt_key}.class_name"
-                )
-
-        loss = training_config.get("loss")
-        if loss is not None:
-            properties["loss"] = str(loss)
-            provenance["properties.loss"] = f"{source} | Field: training_config.loss"
-
-        metrics = training_config.get("metrics")
-        if metrics:
-            properties["metrics"] = json.dumps(metrics)
-            provenance["properties.metrics"] = (
-                f"{source} | Field: training_config.metrics"
-            )
-
-    except (json.JSONDecodeError, AttributeError):
-        pass
+        return _decode_h5_attr(attrs.get(name))
+    except _READ_ERRORS as exc:
+        log_attribute_problem(name, exc)
+        return None
 
 
 # pylint: disable-next=too-many-locals
@@ -329,10 +205,10 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
         inputs: list[dict[str, Any]] = []
         provenance: dict[str, str] = {}
 
-        keras_version_raw = _decode_h5_attr(hf.attrs.get("keras_version"))
-        model_config_raw = _decode_h5_attr(hf.attrs.get("model_config"))
-        training_config_raw = _decode_h5_attr(hf.attrs.get("training_config"))
-        backend_raw = _decode_h5_attr(hf.attrs.get("backend"))
+        keras_version_raw = _attr_text(hf.attrs, "keras_version")
+        model_config_raw = _attr_text(hf.attrs, "model_config")
+        training_config_raw = _attr_text(hf.attrs, "training_config")
+        backend_raw = _attr_text(hf.attrs, "backend")
 
         if keras_version_raw:
             # keras_version is the Keras library version (e.g. "2.15.0"),
@@ -358,7 +234,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
             provenance["properties.backend"] = f"{source} | Field: backend attribute"
 
         if model_config_raw:
-            type_of_model, name = _parse_model_config(
+            type_of_model, name, problem = parse_model_config(
                 model_config_raw,
                 source,
                 hyperparameters,
@@ -366,22 +242,20 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
                 properties,
                 provenance,
             )
-            if not type_of_model and not name:
-                properties["model_config_raw"] = model_config_raw[:_RAW_CONFIG_CHARS]
-                if len(model_config_raw) > _RAW_CONFIG_CHARS:
-                    log.warning(
-                        "Unparsed model_config of %d characters; the first %d "
-                        "are kept%s",
-                        len(model_config_raw),
-                        _RAW_CONFIG_CHARS,
-                        field_loss_suffix("degraded", "properties.model_config_raw"),
-                    )
+            kept_raw = not type_of_model and not name
+            if kept_raw:
+                properties["model_config_raw"] = model_config_raw[:RAW_CONFIG_CHARS]
                 provenance["properties.model_config_raw"] = (
                     f"{source} | Field: model_config attribute (unparsed)"
                 )
+            log_model_config_problem(problem, model_config_raw, kept_raw)
 
         if training_config_raw:
-            _parse_training_config(training_config_raw, source, properties, provenance)
+            log_training_config_problem(
+                parse_training_config(
+                    training_config_raw, source, properties, provenance
+                )
+            )
 
     fmt = AiModelFormat.KERAS if keras_version_raw else AiModelFormat.HDF5
     return AiModelMetadata(

@@ -148,11 +148,11 @@ Steps:
    changed file discovery for this project's build backend (check the
    CHANGELOG).
 2. **Run the deterministic pass first**, when a local AI model file is in
-   scope; skip it otherwise (a plain Python project, or a Hugging Face
-   model, for which `loom enrich` fails with an `ERROR:`). It parses only
-   YAML frontmatter and writes a standalone fragment -- fast, free, safe.
-   Read the fragment to see which fields (`license`, `datasets:...`) it
-   filled:
+   scope; skip it otherwise (a plain Python project, a Hugging Face model, or
+   a file that is not a model, for which `loom enrich` fails with an
+   `ERROR:`). It parses only YAML frontmatter and writes a standalone
+   fragment -- fast, free, safe. Read the fragment to see which fields
+   (`license`, `datasets:...`) it filled:
 
    ```bash
    loom enrich <model-file> --project-dir <dir> -o <dir>/model.enrich.spdx3.json
@@ -167,9 +167,17 @@ Steps:
      run's `--config`, `--id-registry` and `--use-lockfile`/
      `--no-use-lockfile` when it used them. For a `loom
      model` base (never merged into) omit `--project-dir`.
-   - If `loom enrich` fails with `ERROR: enrichment fragment generation
-     failed:` on a model the base holds as a stub (step 3), skip this step
-     for it: the same bound or missing library stopped it.
+   - A model the base holds as a stub (step 3) because of a bound, a missing
+     library or a parse failure is no obstacle: `loom enrich` reads the model
+     too (native readers included, so a format a wheel scan's gate leaves
+     unread is read here) and the README or model card next to it. It writes
+     the fragment and exits 0 with the one `WARNING:` the scan gave (its
+     `FILE=` is the path as given, not the scan's project-relative one), and
+     the model stays a stub. (A wheel's gate, ceiling and budget do not apply
+     to a local file.) Only `ERROR: enrichment fragment generation failed:
+     ... not an AI model ...`, `header is not <fmt>` or `header is a Git LFS
+     pointer` means the file is not a model, e.g. a Git LFS pointer not yet
+     pulled: skip this step for it (`git lfs pull` first).
    - The fragment attaches only if the base has an `ai_AIPackage` for that
      model (the model file is among the build's files); if not, say so
      instead of merging.
@@ -187,7 +195,13 @@ Steps:
      model has such entries. A `comment` citing the README (`Source:
      README.md | Method: yaml_frontmatter`, from `--enrich`) does not make
      it read. The base run's stderr says why: `required library not
-     installed` -- install `pitloom[ai]` and regenerate. On a wheel base,
+     installed` -- install `pitloom[ai]` and regenerate; `failed to extract
+     metadata` -- the file has a model's header but could not be parsed
+     (truncated or corrupt), so check the file; `header is not <fmt>; not
+     listed as an AI model` or `header is a Git LFS pointer; not listed as an
+     AI model` -- the file is no model and has no `ai_AIPackage` at all (for
+     a pointer, an unfetched Git LFS file: run `git lfs pull` and
+     regenerate). On a wheel base,
      the gate `INFO:` naming `--trust-wheel-model`, `... scan ceiling;
      metadata not read`, or `per-wheel budget ... is spent` -- tell the
      user; never add the flag or raise `max-model-extract-bytes` yourself.

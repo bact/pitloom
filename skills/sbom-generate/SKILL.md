@@ -402,13 +402,25 @@ complete but isn't. Per-case detail: `references/known-limitations.md`.
   `--enrich` a stub can still carry a README `comment` (`Method:
   yaml_frontmatter`). Name the reason from stderr: the wheel gate (`INFO:`,
   see `--trust-wheel-model`); `required library not installed` (install
-  `pitloom[ai]`); `... scan ceiling; metadata not read`, the
-  `max-model-extract-bytes` ceiling (512 MiB, config key only, wheel scans);
-  the per-wheel budget (4x the ceiling, one `WARNING: ... per-wheel budget
-  ... is spent`); any other `WARNING: ... metadata not read`, a fixed bound.
-  Lists past 1000 entries are cut with one `WARNING:`. Never raise the
-  ceiling or add `--trust-wheel-model` on your own; tell the user. Caps:
-  <https://bact.github.io/pitloom/ai-model-scan-limits/>.
+  `pitloom[ai]`); `failed to extract metadata` (the file has a model's header
+  but could not be parsed: truncated or corrupt, so check the file); `...
+  scan ceiling; metadata not read`, the `max-model-extract-bytes` ceiling
+  (512 MiB, config key only, wheel scans); the per-wheel budget (4x the
+  ceiling, one `WARNING: ... per-wheel budget ... is spent`); any other
+  `WARNING: ... metadata not read`, a fixed bound. Lists past 1000 entries are
+  cut with one `WARNING:`. A model whose read fails (a bound, a missing
+  library, a parse failure) is a stub, never dropped, with the same
+  `WARNING:` from a scan and from `loom model FILE` (exit 0); a file whose
+  header contradicts its model suffix is no model and gets no `ai_AIPackage`:
+  `header is not <fmt>; not listed as an AI model`, or `header is a Git LFS
+  pointer; not listed as an AI model` under any candidate suffix, `.bin`
+  included (an unfetched Git LFS file: tell the user to run `git lfs pull`,
+  then regenerate). `loom model FILE` and `loom enrich` (any suffix) and
+  `loom generate FILE` (model suffixes only; a `.zip` goes to the sdist
+  route) refuse such a file with `ERROR: ... failed: <path>: <reason>`
+  (exit 1) instead.
+  Never raise the ceiling or add `--trust-wheel-model` on your own; tell the
+  user. Caps: <https://bact.github.io/pitloom/ai-model-scan-limits/>.
 - **Unsupported build backend:** check `[build-system] build-backend`
   *before* generating. Hatchling, setuptools, Poetry, PDM-backend and
   Flit-core get accurate file discovery; any other (`uv_build`,
