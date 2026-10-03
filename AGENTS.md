@@ -416,7 +416,7 @@ For `working-docs/` standalone docs, include `Created` and `Last-Modified` (`YYY
 pytest exercises functions in-process only -- it doesn't exercise the
 `loom` entry point, subprocess argv parsing, real filesystem/archive I/O,
 or drift between the CLI/library-API/Hatchling-hook/skills surfaces (see
-"Usage surfaces" above). Run 16 checks by hand -- or have an agent run
+"Usage surfaces" above). Run 17 checks by hand -- or have an agent run
 them -- against a real project (scratch dir, never the repo tree) after
 any change touching `assemble/`, `extract/`, `core/`, `embed.py`,
 `__main__.py`, or `plugins/hatch.py`, before committing: determinism,
@@ -430,8 +430,10 @@ changes no bytes (`--content-type-method`) still reaching `project` and
 sdist reading its own config as its unpacked directory does, a
 declared-but-missing/invalid `--id-registry` failing the same way on
 every surface, `--scan-model-usage` beating its config key on every
-surface that scans, the wheel ones included, and a refused wheel refused
-alike by every command that reads one.
+surface that scans, the wheel ones included, a refused wheel refused
+alike by every command that reads one, and one outcome per kind of AI model
+file (a failed read is a stub; a non-model is no entry) on `project`,
+`wheel` and `loom model`.
 Full commands for each in
 [working-docs/implementation/manual-cli-checks.md](working-docs/implementation/manual-cli-checks.md).
 Run them all with `.venv/bin/python scripts/manual_cli_checks` (add

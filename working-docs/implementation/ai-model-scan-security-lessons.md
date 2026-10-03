@@ -12,6 +12,7 @@ See also: [ai-model-scanning.md](ai-model-scanning.md) (the design as
 built), [model-metadata-readers.md](../design/model-metadata-readers.md)
 (the planned header-only readers), `docs/ai-model-scan-limits.md` (the
 user-facing caps).
+See also: [SBOM generator field notes](sbom-generator-field-notes/README.md).
 
 Experience notes from PR #263 (scan AI models inside built wheels), written
 as raw material for a paper on building an SBOM generator for AI artefacts.
@@ -334,8 +335,8 @@ Lessons:
   survey, of 126 distinct real wheels, found every one with exactly one matching
   top-level `.dist-info`, so a user option for the fallback was rejected:
   it would cost a flag, config key, Action input and docs for a case
-  never seen, and let users switch off the spoofing warning. Re-run after
-  the first review round on 295 unique wheels: 283 unchanged, 12 changed
+  never seen, and let users switch off the spoofing warning. The 295-wheel
+  re-run after the first review round: 283 unchanged, 12 changed
   (setuptools 75.3.2 to 84.0.0, `zipp` to `setuptools`), none refused.
 - An unreadable wheel member (corrupt data, invalid UTF-8 name,
   encrypted) crashed the whole run. "Keep the file without a hash" was
@@ -371,22 +372,23 @@ Lessons:
   and the wheel was named `unknown`. Skip only the one directory the
   selector chose; where it chose none, skip nothing.
 
-### 3.9 Found while planning the next fixes (measured, not yet built)
+### 3.9 Found while planning the next fixes (measured)
 
-- **"Is it a model" was inverted.** An extension alone made a file a
-  model: a 24-byte text file named `.safetensors` became a model entry
+- **"Is it a model" was inverted** (built, #270). An extension alone made a
+  file a model: a 24-byte text file named `.safetensors` became a model entry
   (its text read as an 8-quintillion-byte header length), and Git LFS
   pointer files (text stand-ins for unfetched large files) became 1 entry
   in a project but 5 in a wheel. Meanwhile a genuine but truncated
-  Safetensors file was dropped. Decided: the file's first bytes must not
-  contradict its extension (formats with no reliable signature, ONNX and
+  Safetensors file was dropped. Decided and built: the file's first bytes must
+  not contradict its extension (formats with no reliable signature, ONNX and
   HDF5, go by extension); a contradiction is one `WARNING:`.
-- **Whether a model is listed depended on the environment and on order.**
-  A truncated model was dropped when its library was installed and kept
-  when it was not (6 vs 7 entries); under a size budget the same wheel
-  gave 8 or 11 entries depending on which files were read first. Decided:
-  every confirmed model is listed, read or not, on every surface,
-  including `loom model FILE`, which stops with exit 1 today.
+- **Whether a model is listed depended on the environment and on order**
+  (built, #270). A truncated model was dropped when its library was installed
+  and kept when it was not (6 vs 7 entries); under a size budget the same
+  wheel gave 8 or 11 entries depending on which files were read first. The
+  lesson: **an outcome keyed on the failure kind made the entry set order- and
+  environment-dependent.** Every confirmed model is now listed, read or not,
+  on every surface, including `loom model FILE`, which stopped with exit 1.
 - **A parser can do the dangerous work before the check sees it.**
   `pickletools.genops` converts a decimal number with `int()` before it
   yields the opcode, so a digit cap applied to its output is too late
@@ -394,6 +396,41 @@ Lessons:
   pickle walk has to be replaced, not wrapped; the default digit limit
   meanwhile turns the same input into a misleading "malformed" warning,
   so the outcome depended on an interpreter setting.
+
+### 3.10 Git LFS pointers (#270, and a policy PR after it)
+
+- **A pointer is exact evidence, not a heuristic.** Git LFS leaves a small
+  text file whose first line is `version <spec URL>` until the content is
+  fetched; a pointer on disk means "never pulled". git-lfs accepts three
+  URLs: `https://git-lfs.github.com/spec/v1` and two legacy aliases,
+  `https://hawser.github.com/spec/v1` and `http://git-media.io/v/2`
+  (`http`, not `https`). It compares the whole line, so match up to the
+  `\n`/`\r\n` terminator (`.../v1x` is not a pointer); git-lfs never
+  writes a BOM. The header read grew 9 -> 23 -> 42 -> 44 bytes, driven by
+  the longest alias plus its terminator. No false positive: an ONNX
+  protobuf cannot start with `v` (wire type 6 is invalid) and the other
+  formats open with binary magic.
+- **Every suffix class failed differently.** One pointer set gave 1 entry
+  in a project and 5 in a wheel; a stub on one command, an `ERROR:` on
+  another. Suffixes that trust any header (`.onnx`, `.h5`) became stubs
+  with a "corrupt file" warning, a misdiagnosis; `.pt` vanished silently;
+  `.bin`/`.zip`, candidates with no named format and the commonest real
+  case (`pytorch_model.bin`), were dropped without a word. Each class
+  surfaced in a different review round. Lesson: enumerate the suffix
+  classes (magic, ZIP, pickle, admit-any, format-less candidates) and test
+  one of each, not one suffix.
+- **A wrong fixture looked like a code bug.** A reviewer's `.zip` pointer
+  used `https://git-media.io/v/2`, which git-lfs rejects, so silence was
+  correct. Check a fixture against the format's own spec before filing it.
+- **The problem is not limited to models.** Any file can be a pointer: a
+  dataset listed as a `software_File` carries the pointer's SHA-256 as its
+  `verifiedUsing`, silently; a training run that hashes an unpulled base
+  model (`use_model(path=)`) records the pointer as the model's identity
+  and splits its lineage when the real file arrives. Decided: one shared
+  detector for every place that reads or hashes content; the file stays
+  listed with the hash of the bytes really there; one summary `WARNING:`
+  per run (the event is "this checkout was not pulled"), one line per file
+  at `--debug`; a wheel that ships a pointer is a build bug, same rule.
 
 ## 4. Principles that came out of it
 
@@ -427,7 +464,27 @@ Lessons:
     where pip refuses), and check the rule against real artefacts before
     adding options for cases nobody has.
 12. Decide "is this a model" from content that cannot contradict the
-    name, and once decided, list it whatever happens when reading it.
+    name, and once decided, list it whatever happens when reading it. A
+    suffix that trusts any header (`.onnx`, `.h5`) is still contradicted by
+    a known text signature: a Git LFS pointer is no model under any suffix.
+13. Never decode a numpy `object` array through `tobytes()`: it holds
+    pointers, so the "text" differs per run. Decode per element, but only
+    where `dtype.hasobject`: a fixed-length `S`/`U` array has stable bytes
+    and must keep a bulk path (a Python object per element costs ~160
+    bytes; a fix for one bug class, pointer bytes, must not open another,
+    memory). Decide on `dtype.hasobject`, not `kind`: a compound dtype with
+    a string field has `kind == "V"` and still holds pointers.
+14. A value read from untrusted JSON that reaches a typed output field
+    (a name, a class) needs a type check, and deep nesting needs a
+    `RecursionError` guard; both are per-attribute problems, not a crash.
+15. A value can have a dtype and no data: an HDF5 attribute with an empty
+    dataspace (`h5py.Empty`) has `.dtype` but no `reshape`/`tolist`, so a
+    decoder that dispatches on `dtype` alone raises `AttributeError`, outside
+    the errors an attribute read catches. Treat it as absent.
+16. A placeholder for content that was never fetched (a Git LFS pointer)
+    is a state of the checkout, not of one file: detect it exactly, report
+    it once per run, and never let its bytes stand for the content's
+    identity (a model entry, a registry key).
 
 ## 5. Status at the time of writing
 

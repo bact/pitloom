@@ -31,6 +31,7 @@ from pitloom.assemble.spdx3._ai_package import _populate_ai_pkg_hyperparameters
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.creation import CreationMetadata
 from pitloom.extract._extract_utils import record_dict_field_provenance
+from tests._wheel_models import safetensors_bytes
 
 _METADATA = {
     "modelspec.title": "demo",
@@ -47,7 +48,7 @@ def _reversed(data: dict[str, str]) -> dict[str, str]:
 
 def _safetensors_sbom(tmp_path: Path, metadata: dict[str, str]) -> str:
     model = tmp_path / "model.safetensors"
-    model.write_bytes(b"fake")
+    model.write_bytes(safetensors_bytes())
     ctx = MagicMock()
     ctx.__enter__ = MagicMock(return_value=ctx)
     ctx.__exit__ = MagicMock(return_value=False)

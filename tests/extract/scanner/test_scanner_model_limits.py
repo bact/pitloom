@@ -34,13 +34,13 @@ from pitloom.assemble import generate_project_sbom
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.core.project import ProjectFile
 from pitloom.extract import scanner
+from pitloom.extract._scanner_messages import detail
 from pitloom.extract.ai_model import _pickle_bounds
 from pitloom.extract.ai_model.limits import MAX_MODEL_ENTRIES
-from pitloom.extract.scanner import _detail
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
 from pitloom.logging_config import loggable, one_line
-from tests._wheel_models import write_model_wheel
+from tests._wheel_models import safetensors_bytes, write_model_wheel
 from tests.warning_helpers import logged_warnings
 
 # Windows file names cannot hold control characters, so a wheel named with
@@ -109,7 +109,8 @@ def test_a_safetensors_header_over_the_cap_is_one_warning_and_a_stub(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     pytest.importorskip("safetensors")
-    lying = struct.pack("<Q", 2**40) + b"{}"
+    # over the reader's cap, under the format's own 100 MB bound
+    lying = struct.pack("<Q", 50_000_000) + b"{}"
     (tmp_path / "m.safetensors").write_bytes(lying)
     wheel = write_model_wheel(tmp_path / "dist", {"demo/w.safetensors": lying})
     for models in (
@@ -124,7 +125,7 @@ def test_a_safetensors_header_over_the_cap_is_one_warning_and_a_stub(
     messages = logged_warnings(caplog)
     assert len(messages) == 2
     assert all(m.startswith("FORMAT=safetensors FILE=") for m in messages)
-    assert all("header of 1099511627776 bytes" in m for m in messages)
+    assert all("header of 50000000 bytes" in m for m in messages)
 
 
 def test_a_gguf_over_the_count_bound_is_one_warning_and_a_stub(
@@ -191,7 +192,7 @@ def _model(n: int) -> AiModelMetadata:
 def test_the_entry_cap_is_inclusive_and_keeps_the_first_in_source_order(
     n: int, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    (tmp_path / "m.safetensors").write_bytes(b"x")
+    (tmp_path / "m.safetensors").write_bytes(safetensors_bytes())
     results = []
     for _ in range(2):  # deterministic
         with mock.patch.object(scanner, "read_ai_model", return_value=_model(n)):
@@ -303,12 +304,12 @@ def test_one_line_cuts_before_it_escapes(
 
 @pytest.mark.parametrize("exc", [ValueError(), KeyError(), EOFError("")])
 def test_a_reader_detail_is_never_empty(exc: BaseException) -> None:
-    assert _detail(exc, None, "m.bin") == type(exc).__name__
+    assert detail(exc, None, "m.bin") == type(exc).__name__
 
 
 def test_a_reader_detail_is_on_one_line_and_scrubbed(tmp_path: Path) -> None:
     path = tmp_path / "0.bin"
-    text = _detail(ValueError(f"bad\n{path}\r\n::error::x"), path, "demo/m.bin")
+    text = detail(ValueError(f"bad\n{path}\r\n::error::x"), path, "demo/m.bin")
     assert text == "bad demo/m.bin ::error::x"
 
 
@@ -320,7 +321,7 @@ def test_a_log_relayed_reader_record_is_on_one_line(
         logging.getLogger("pitloom.extract.ai_model.fake").warning("a\nb\r\n::c")
         return AiModelMetadata()
 
-    (tmp_path / "m.safetensors").write_bytes(b"x")
+    (tmp_path / "m.safetensors").write_bytes(safetensors_bytes())
     with mock.patch.object(scanner, "read_ai_model", side_effect=reader):
         _scan_project(tmp_path, "m.safetensors")
     (message,) = logged_warnings(caplog)

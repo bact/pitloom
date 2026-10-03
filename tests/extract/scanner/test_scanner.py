@@ -49,7 +49,7 @@ _NPY = AiModelFormat.NUMPY.magic or b""
 def _cand(
     dist: str,
     phys: str | None = None,
-    header: bytes = b"",
+    header: bytes = b"\x08",  # no signature: admits only ONNX and HDF5 suffixes
     materialize: Callable[[], AbstractContextManager[Path]] | None = None,
     sniff: Mock | None = None,
 ) -> ModelCandidate:
@@ -127,9 +127,8 @@ def test_discover_filters_on_distribution_suffix(
         ("pkg/model.onnx", _GGUF + b"\0" * 20, AiModelFormat.GGUF),
         ("pkg/model.npy", _GGUF, AiModelFormat.GGUF),
         ("pkg/model.bin", _NPY + b"\0" * 20, AiModelFormat.NUMPY),
-        ("pkg/model.onnx", b"", AiModelFormat.ONNX),
         ("pkg/model.onnx", b"\x08\x01\x12\x04", AiModelFormat.ONNX),
-        ("pkg/model.NPZ", _NPY[:-1], AiModelFormat.NUMPY),  # truncated magic
+        ("pkg/model.NPZ", b"PK\x03\x04", AiModelFormat.NUMPY),
         ("pkg/model.gguf", (_GGUF + b"\0" * 20)[:SNIFF_BYTES], AiModelFormat.GGUF),
     ],
 )
@@ -140,28 +139,6 @@ def test_discover_passes_detected_format_to_reader(
     with patch(_READ, autospec=True, return_value=_meta()) as reader:
         discover_ai_models([_cand(dist, header=header)])
     assert reader.call_args.kwargs["model_format"] == expected
-
-
-@pytest.mark.parametrize(
-    ("dist", "header"),
-    [
-        ("pkg/notes.bin", b"plain text"),
-        ("pkg/a.zip", b"PK\x03\x04"),
-        ("pkg/a.bin", b""),
-        ("pkg/a.bin", _GGUF[:-1]),
-    ],
-)
-def test_discover_unknown_format_is_silent(
-    caplog: pytest.LogCaptureFixture, dist: str, header: bytes
-) -> None:
-    materialize = Mock()
-    with caplog.at_level(logging.DEBUG, logger=_LOGGER_NAME):
-        found = discover_ai_models(
-            [_cand(dist, header=header, materialize=materialize)]
-        )
-    assert not found
-    assert not _warnings(caplog)
-    materialize.assert_not_called()
 
 
 _PAIRS = [("pkg/b.onnx", "b"), ("pkg/a.onnx", "z"), ("pkg/a.onnx", "y")]
@@ -217,7 +194,7 @@ def test_discover_warnings_follow_sorted_order(
 def test_discover_sets_stable_paths_on_record_and_stub(
     caplog: pytest.LogCaptureFixture, error: Exception | None
 ) -> None:
-    cand = _cand("pkg/model.npy", "assets/weights.dat")
+    cand = _cand("pkg/model.npy", "assets/weights.dat", header=_NPY)
     with patch(
         _READ, autospec=True, return_value=_meta(AiModelFormat.NUMPY), side_effect=error
     ):
@@ -238,7 +215,7 @@ def _materialize_raises() -> AbstractContextManager[Path]:
 
 
 @pytest.mark.parametrize("failure", ["reader-value", "reader-os", "materialize"])
-def test_discover_read_failure_warns_once_with_stable_path(
+def test_discover_read_failure_keeps_a_stub_and_warns_once_with_stable_path(
     caplog: pytest.LogCaptureFixture, failure: str
 ) -> None:
     materialize = {"materialize": _materialize_raises}.get(failure)
@@ -248,7 +225,11 @@ def test_discover_read_failure_warns_once_with_stable_path(
             found = discover_ai_models(
                 [_cand("pkg/model.onnx", "src/pkg/model.onnx", materialize=materialize)]
             )
-    assert not found
+    # pylint: disable-next=unbalanced-tuple-unpacking
+    (stub,) = found
+    assert stub.format_info.model_format == AiModelFormat.ONNX
+    assert stub.format_info.physical_path == "src/pkg/model.onnx"
+    assert not stub.inputs and not stub.properties
     (message,) = _warnings(caplog)
     assert message.startswith("FORMAT=onnx ")
     assert "failed to extract metadata" in message
@@ -288,7 +269,8 @@ def test_discover_failure_does_not_stop_later_candidates() -> None:
     reader = Mock(side_effect=[ValueError("bad"), _meta()])
     with patch(_READ, reader):
         found = discover_ai_models([_cand("a/m.onnx"), _cand("b/m.onnx")])
-    assert [m.format_info.file_path_relative for m in found] == ["b/m.onnx"]
+    assert [m.format_info.file_path_relative for m in found] == ["a/m.onnx", "b/m.onnx"]
+    assert reader.call_count == 2
 
 
 # --- usage attachment -------------------------------------------------------

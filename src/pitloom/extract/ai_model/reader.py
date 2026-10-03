@@ -46,10 +46,16 @@ __all__ = [
     "AiModelMetadata",
     "FormatInfo",
     "REGISTRY",
+    "NOT_A_MODEL_MESSAGE",
+    "NotAModel",
     "SNIFF_BYTES",
+    "contradicted_format",
     "detect_ai_model_format",
     "detect_ai_model_format_from_header",
     "detect_ai_model_format_from_name",
+    "is_git_lfs_pointer",
+    "not_a_model_reason",
+    "refusal_reason",
     "read_ai_model",
     "read_ai_model_header",
 ]
@@ -89,16 +95,31 @@ REGISTRY: tuple[FormatInfo, ...] = (
     FormatInfo(format=AiModelFormat.SAFETENSORS, reader=read_safetensors),
 )
 
-# Number of bytes needed to run all magic checks (8-byte HDF5 + 1 for Safetensors).
-SNIFF_BYTES: int = 9
+# What a Git LFS pointer file opens with: the line ``version <spec URL>``, per
+# the git-lfs pointer spec (docs/spec.md) and its decoder, which compares the
+# whole value (and still accepts the URLs of the two earlier spec versions).
+_GIT_LFS_OPENINGS = tuple(
+    url + eol
+    for url in (
+        b"version https://git-lfs.github.com/spec/v1",
+        b"version https://hawser.github.com/spec/v1",
+        b"version http://git-media.io/v/2",
+    )
+    for eol in (b"\n", b"\r\n")
+)
+
+# Number of bytes needed to run all header checks: the longest Git LFS
+# opening line; the magic checks (8-byte HDF5 + 1 for Safetensors) need fewer.
+SNIFF_BYTES: int = max(map(len, _GIT_LFS_OPENINGS))
 
 # Derived lookups - built from AiModelFormat enum members and REGISTRY.
 _EXTENSION_TO_FORMAT: dict[str, AiModelFormat] = {
     ext: fmt for fmt in AiModelFormat.__members__.values() for ext in fmt.extensions
 }
 # What ``torch.save`` writes: a ZIP local header, or (legacy) a pickle opening
-# with the PROTO opcode and protocol 2..5.
-_ZIP_LOCAL_HEADER = b"PK\x03\x04"
+# with the PROTO opcode and protocol 2..5. An archive with no member (an empty
+# ``np.savez``) opens with the end-of-central-directory record instead.
+_ZIP_SIGNATURES = (b"PK\x03\x04", b"PK\x05\x06")
 _PICKLE_PROTO_OPCODE = 0x80
 _PICKLE_PROTOCOLS = range(2, 6)
 _READERS: dict[AiModelFormat, Callable[[Path], AiModelMetadata]] = {
@@ -136,16 +157,50 @@ def _match_magic(header: bytes) -> AiModelFormat:
     return AiModelFormat.UNKNOWN
 
 
+def _is_zip(header: bytes) -> bool:
+    """Whether *header* opens a ZIP archive."""
+    return header[:4] in _ZIP_SIGNATURES
+
+
+def is_git_lfs_pointer(header: bytes) -> bool:
+    """Whether *header* opens a Git LFS pointer: text standing in for a file
+    not fetched, never a model whatever its suffix. The ``version`` line must
+    be complete (``/spec/v1x`` is not one)."""
+    return header.startswith(_GIT_LFS_OPENINGS)
+
+
 def _looks_like_pytorch(header: bytes) -> bool:
     """Whether *header* opens a ZIP archive or a protocol 2..5 pickle.
 
     A ``.pth`` can also be a Python path-configuration file (plain text).
     """
-    return header[:4] == _ZIP_LOCAL_HEADER or (
+    return _is_zip(header) or (
         len(header) >= 2
         and header[0] == _PICKLE_PROTO_OPCODE
         and header[1] in _PICKLE_PROTOCOLS
     )
+
+
+def _any(_header: bytes) -> bool:
+    """A suffix whose format has no signature at offset 0."""
+    return True
+
+
+# Suffix -> whether a non-empty header without a magic match still admits the
+# format. A suffix absent here (``.gguf``, ``.ftz``, ``.npy``,
+# ``.safetensors``) needs its magic (or the Safetensors heuristic in
+# _match_magic). ONNX (protobuf) has no signature; HDF5 may start with a
+# userblock, which moves its signature to 512, 1024, ... bytes.
+_EXTENSION_ADMITS: dict[str, Callable[[bytes], bool]] = {
+    ".keras": _is_zip,
+    ".pt2": _is_zip,
+    ".npz": _is_zip,
+    ".pt": _looks_like_pytorch,
+    ".pth": _looks_like_pytorch,
+    ".onnx": _any,
+    ".h5": _any,
+    ".hdf5": _any,
+}
 
 
 def read_ai_model_header(model_path: Path) -> bytes:
@@ -184,17 +239,24 @@ def detect_ai_model_format_from_name(name: str) -> AiModelFormat:
 def detect_ai_model_format_from_header(header: bytes, name: str) -> AiModelFormat:
     """Detect a model format from its leading bytes and its file name.
 
-    Detection strategy (in order):
+    A file is a model of the format its header proves, or of the format its
+    suffix names when the header does not contradict it. In order:
 
     1. **Magic bytes** - match *header* against known signatures from
        :class:`AiModelFormat` members.  This is reliable even when the file
        extension is wrong or absent.
-    2. **File extension** - fall back to a case-insensitive extension lookup
-       of *name* for formats without a fixed magic signature (ONNX, PyTorch,
-       Safetensors, NumPy ``.npz``). A PyTorch extension (``.pt``, ``.pth``)
-       counts only when *header* opens a ZIP archive or a protocol 2..5
-       pickle: ``.pth`` is also the suffix of Python path-configuration
-       files, so any other header, an empty one included, is not a model.
+    2. **File extension** - a case-insensitive suffix lookup of *name*,
+       admitted by a header check per suffix: ZIP formats (``.keras``,
+       ``.pt2``, ``.npz``) need a ZIP header, PyTorch (``.pt``, ``.pth``) a
+       ZIP header or a protocol 2..5 pickle (``.pth`` is also the suffix of
+       Python path-configuration files), ONNX and HDF5 any non-empty header
+       (no signature at offset 0). A suffix whose format has a magic
+       (GGUF, fastText ``.ftz``, NumPy ``.npy``, Safetensors) is not a
+       model without it: a Git LFS pointer is text.
+
+    An empty *header* (an absent, empty or non-regular file) and a Git LFS
+    pointer (see :func:`is_git_lfs_pointer`) are never a model, whatever the
+    suffix.
 
     Args:
         header: Up to :data:`SNIFF_BYTES` leading bytes of the file.
@@ -203,13 +265,92 @@ def detect_ai_model_format_from_header(header: bytes, name: str) -> AiModelForma
     Returns:
         Detected :class:`AiModelFormat`, or :attr:`AiModelFormat.UNKNOWN`.
     """
-    fmt = _match_magic(header)
-    if fmt != AiModelFormat.UNKNOWN:
-        return fmt
-    fmt = detect_ai_model_format_from_name(name)
-    if fmt == AiModelFormat.PYTORCH and not _looks_like_pytorch(header):
+    if is_git_lfs_pointer(header):
         return AiModelFormat.UNKNOWN
-    return fmt
+    fmt = _match_magic(header)
+    if fmt != AiModelFormat.UNKNOWN or not header:
+        return fmt
+    admits = _EXTENSION_ADMITS.get(PurePosixPath(name).suffix.lower())
+    if admits is not None and admits(header):
+        return detect_ai_model_format_from_name(name)
+    return AiModelFormat.UNKNOWN
+
+
+def contradicted_format(header: bytes, name: str) -> AiModelFormat | None:
+    """The format the suffix of *name* names when *header* contradicts it.
+
+    ``None`` when the header is empty, the suffix names no format, the file
+    is a model (of any format), or the suffix has a legitimate non-model use
+    (``.pt``, ``.pth``: path-configuration text), unless the header is a Git
+    LFS pointer, which no suffix excuses. For a pointer named ``x.gguf``,
+    ``GGUF``.
+    """
+    named = detect_ai_model_format_from_name(name)
+    if not header or named == AiModelFormat.UNKNOWN:
+        return None
+    if is_git_lfs_pointer(header):
+        return named
+    if (
+        named == AiModelFormat.PYTORCH
+        or detect_ai_model_format_from_header(header, name) != AiModelFormat.UNKNOWN
+    ):
+        return None
+    return named
+
+
+#: What a refused file with no more specific reason is said to be.
+NOT_A_MODEL_MESSAGE = "not an AI model file of a supported format"
+
+
+def not_a_model_reason(header: bytes, name: str) -> str | None:
+    """Why *header* and the suffix of *name* make the file not a model, when
+    they contradict each other: ``header is a Git LFS pointer`` or ``header
+    is not <format>``; ``None`` otherwise (see :func:`contradicted_format`)."""
+    if is_git_lfs_pointer(header):
+        return "header is a Git LFS pointer"
+    named = contradicted_format(header, name)
+    return None if named is None else f"header is not {named}"
+
+
+def refusal_reason(header: bytes, name: str, *, is_file: bool) -> str | None:
+    """Why a file is not read as a model, in the words every surface uses: the
+    reason of :func:`not_a_model_reason`, or ``file is empty`` for an empty
+    regular file whose suffix names a format; ``None`` when there is no
+    specific reason (the caller words that)."""
+    reason = not_a_model_reason(header, name)
+    if reason is None and is_file and not header:
+        if detect_ai_model_format_from_name(name) != AiModelFormat.UNKNOWN:
+            reason = "file is empty"
+    return reason
+
+
+class NotAModel(Exception):
+    """Raised by ``pitloom.extract.scanner.read_model_candidate`` for a file
+    that is not a model.
+
+    Attributes:
+        model_format: The format the file's suffix names when its header
+            contradicts it (a Git LFS pointer named ``x.gguf``); ``None``
+            when the suffix names none (a pointer named ``x.bin``) or the
+            file is simply not a model.
+        reason: ``header is not <model_format>`` or ``header is a Git LFS
+            pointer`` (:func:`not_a_model_reason`),
+            which merit a warning; ``None`` for a file that is empty, absent or
+            of an unknown format, which does not.
+        message: The text of the exception, which every surface that refuses
+            the file prints (:func:`refusal_reason`,
+            else ``not an AI model file of a supported format``).
+    """
+
+    def __init__(
+        self,
+        model_format: AiModelFormat | None = None,
+        reason: str | None = None,
+        message: str | None = None,
+    ) -> None:
+        self.model_format = model_format
+        self.reason = reason
+        super().__init__(message or reason or NOT_A_MODEL_MESSAGE)
 
 
 def detect_ai_model_format(model_path: Path) -> AiModelFormat:
@@ -218,7 +359,8 @@ def detect_ai_model_format(model_path: Path) -> AiModelFormat:
     Magic bytes first, then the file extension; see
     :func:`detect_ai_model_format_from_header`. Never raises on an
     unreadable file: a file that is absent, not a regular file or cannot be
-    read falls back to the extension alone.
+    read falls back to the extension alone, as ``read_ai_model`` reports
+    absence itself.
     """
     try:
         header = read_ai_model_header(model_path)
@@ -251,13 +393,28 @@ def read_ai_model(
     """
     if not model_path.exists():
         raise FileNotFoundError(f"Model file not found: {model_path}")
+    if not os.path.isfile(model_path):
+        raise ValueError(f"{model_path}: {NOT_A_MODEL_MESSAGE}")
 
     if model_format is None:
         model_format = detect_ai_model_format(model_path)
     reader = _READERS.get(model_format)
     if reader is None:
-        raise ValueError(
-            f"Unsupported model format for file: {model_path}. "
-            f"Supported extensions: {', '.join(_EXTENSION_TO_FORMAT)}"
-        )
+        raise ValueError(_unsupported_message(model_path))
     return reader(model_path)
+
+
+def _unsupported_message(model_path: Path) -> str:
+    """Why *model_path* is not read: :func:`refusal_reason`, else its suffix
+    is not a supported one."""
+    try:
+        header = read_ai_model_header(model_path)
+    except OSError:
+        header = b""
+    reason = refusal_reason(header, model_path.name, is_file=True)
+    if reason is not None:
+        return f"{model_path}: {reason}"
+    return (
+        f"Unsupported model format for file: {model_path}. "
+        f"Supported extensions: {', '.join(_EXTENSION_TO_FORMAT)}"
+    )

@@ -35,7 +35,7 @@ unattended from one stdlib-only runner, on Linux, macOS and Windows:
 
 Use the checkout's own interpreter: the runner tests the `pitloom` that
 interpreter imports, and prints its path first. Besides the numbered
-checks (`1`-`16`, `B1`-`B7`) it runs:
+checks (`1`-`17`, `B1`-`B7`) it runs:
 
 - **The CLI matrix** (`M/<command>/<group>/<variant>`): every subcommand
   x its options x the environment variables that change it
@@ -300,6 +300,22 @@ the good wheel of the batch is embedded. Automated as check 16
 The registry must be valid: an invalid one fails first, with its own error.
 Other causes (unreadable member, NUL name, not a ZIP) are covered per
 surface by `tests/test_wheel_identity_surfaces.py`.
+
+**17. One outcome per kind of AI model file, whichever command reads it**: a
+project with a truncated Safetensors file (a model whose read fails) and Git
+LFS pointers named `.gguf`, `.onnx` and `.bin` (not models; `.onnx` admits any
+other header, `.bin` names no format), besides a good model. `project` and
+`wheel` (of the built project) each give an `ai_AIPackage` for the good and
+the truncated model and none for the pointer, and warn exactly once per file;
+the two runs' `WARNING:` text is equal once the path is replaced (`failed to
+extract metadata ...` or, without the `safetensors` extra, `required library
+not installed ...`; `header is a Git LFS pointer; not listed as an AI model`). `loom
+model` of the truncated file writes one `ai_AIPackage` with that same warning
+and exits 0; `loom model` of any pointer exits 1 with exactly one `ERROR:` and
+writes nothing. Automated as check 17
+(`scripts/manual_cli_checks/_checks_model.py::check_model_outcome_parity`).
+Per-kind detail (parse, bound, library, empty, `.pth` text) is in
+`tests/assemble/test_model_outcome_parity.py`.
 
 For a change touching the build subprocess, its kill path or signal
 handling (`--build-timeout`), also run these against a scratch project

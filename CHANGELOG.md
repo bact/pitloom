@@ -126,6 +126,9 @@ and this project adheres to
   temporary path appears in AI model warnings ([#263])
 - A leftover temporary directory `WARNING:` names the directory, not its full
   path ([#263])
+- An AI model whose read fails keeps a format-only entry and one `WARNING:` on
+  every surface; `loom model` and `enrich` no longer fail on it; `loom id
+  generate` registers only what a scan lists ([#270])
 
 ### Removed
 
@@ -213,7 +216,8 @@ and this project adheres to
   directory is refused ([#263])
 - A model is cut to 1000 entries per list or map, the same ones every run
   (Safetensors too; also `loom model`), and an unparsed HDF5 config to 500
-  characters, each with one `WARNING:`; a cut model's memory is released ([#263])
+  characters, each with one `WARNING:`; a cut model's memory is released
+  ([#263], [#270])
 - A wheel's identity comes from its own top-level `.dist-info`, reading
   `METADATA` headers only (16 MiB, 10,000); setuptools was `zipp`: regenerate
   its registry ([#266])
@@ -227,6 +231,11 @@ and this project adheres to
   `Q5_1`) ([#267])
 - `embed-wheel`, `wheel --embed`: SBOM no longer lists the wheel's `RECORD`
   and `sboms/` files, whose hashes go stale ([#269])
+- HDF5: a `class_name` or `name` that is not a string crashed the build; a bad
+  config part or an unreadable attribute is one `WARNING:`; string-array
+  attributes read the same every run ([#270])
+- A file whose header contradicts its model suffix (a Git LFS pointer under any
+  suffix) is not a model, with one `WARNING:` ([#270])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -259,6 +268,7 @@ and this project adheres to
 [#266]: https://github.com/bact/pitloom/pull/266
 [#267]: https://github.com/bact/pitloom/pull/267
 [#269]: https://github.com/bact/pitloom/issues/269
+[#270]: https://github.com/bact/pitloom/pull/270
 
 ## [0.19.0] - 2026-09-18
 

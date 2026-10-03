@@ -138,7 +138,9 @@ def test_a_lying_central_size_ends_in_one_failed_to_extract_warning(
 ) -> None:
     wheel = write_model_wheel(tmp_path, {_NAME: safetensors_bytes(200_000)})
     _patch_central(wheel, 24, struct.pack("<I", 100_000))  # uncompressed size
-    assert not _scan(wheel)
+    # pylint: disable-next=unbalanced-tuple-unpacking
+    (model,) = _scan(wheel)
+    _assert_format_only_stub(model)
     (message,) = _messages(caplog)
     assert "failed to extract metadata" in message
     (copy,) = copies
@@ -196,7 +198,10 @@ def test_a_damaged_member_is_one_warning_and_leaves_no_file(
     build: Callable[[Path], Path],
     copied: bool,
 ) -> None:
-    assert not _scan(build(tmp_path / "w.whl"))
+    # The header read of an encrypted or unsupported member fails, so the
+    # format is not confirmed; a member that fails mid-copy is a confirmed
+    # model whose read failed.
+    assert len(_scan(build(tmp_path / "w.whl"))) == copied
     (message,) = _messages(caplog)
     assert _NAME in message
     assert bool(copies) is copied  # unreadable: never opened a file
@@ -223,7 +228,9 @@ def test_a_member_that_fails_to_open_for_the_copy_leaves_no_file(
         return real_open(self, name, *a, **k)
 
     monkeypatch.setattr(zipfile.ZipFile, "open", second_open_fails)
-    assert not _scan(wheel)
+    # pylint: disable-next=unbalanced-tuple-unpacking
+    (model,) = _scan(wheel)
+    _assert_format_only_stub(model)
     assert calls.count(_NAME) == 2  # not vacuous: the copy's open was reached
     (message,) = _messages(caplog)
     assert "failed to extract metadata" in message
@@ -238,7 +245,9 @@ def test_a_failed_copy_error_does_not_name_the_temporary_path(
 
     monkeypatch.setattr(scanner_wheel, "open", disk_full, raising=False)
     wheel = write_model_wheel(tmp_path, {_NAME: safetensors_bytes()})
-    assert not _scan(wheel)
+    # pylint: disable-next=unbalanced-tuple-unpacking
+    (model,) = _scan(wheel)
+    _assert_format_only_stub(model)
     (message,) = _messages(caplog)
     assert "No space left on device" in message
     assert _SCAN_PREFIX not in message

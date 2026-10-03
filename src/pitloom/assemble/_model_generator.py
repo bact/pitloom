@@ -29,30 +29,45 @@ from pitloom.core.project import ProjectMetadata, is_sdist_archive
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import EnrichmentResult
-from pitloom.extract.ai_model import read_ai_model
-from pitloom.extract.ai_model.limits import cap_and_warn
+from pitloom.extract.ai_model import NotAModel
 from pitloom.extract.project import (
     resolve_project_with_lockfile,
 )
 from pitloom.extract.remote import is_huggingface_source, read_huggingface
+from pitloom.extract.scanner import read_model_candidate
+from pitloom.extract.scanner_project import local_model_candidate
 from pitloom.id_registry import (
     IdRegistry,
     IdRegistrySession,
     registry_base_dir,
     resolve_registry,
 )
-from pitloom.logging_config import configure_logging, loggable
+from pitloom.logging_config import configure_logging
 
 log = logging.getLogger(__name__)
 
 
 def _read_local_model(model_path: Path) -> AiModelMetadata:
-    """Read a local model file, with the per-model entry cap a scan applies
-    (one ``WARNING:`` when it cuts), so ``loom model`` and a project or wheel
-    scan keep the same entries of the same file."""
-    model = read_ai_model(model_path)
-    cap_and_warn(model, model.format_info.model_format, loggable(str(model_path)))
-    return model
+    """Read a local model file by the rule a project or wheel scan applies
+    (:func:`~pitloom.extract.scanner.read_model_candidate`): a confirmed model
+    whose read fails or is over a limit keeps a format-only entry and one
+    ``WARNING:``, the per-model entry cap applies, so every surface lists the
+    same entry for the same file. A scan's suffix filter only chooses which
+    files to look at: a file named here is read by its content, whatever its
+    suffix (``x.dat`` with GGUF magic is a GGUF model).
+
+    Raises:
+        FileNotFoundError: *model_path* does not exist.
+        ValueError: The file is not a model of a supported format (an empty
+            file, an unknown format, a header that contradicts the suffix).
+        OSError: The header cannot be read.
+    """
+    if not model_path.exists():
+        raise FileNotFoundError(f"Model file not found: {model_path}")
+    try:
+        return read_model_candidate(local_model_candidate(model_path))
+    except NotAModel as e:
+        raise ValueError(f"{model_path}: {e}") from e
 
 
 def _doc_identity_of(
