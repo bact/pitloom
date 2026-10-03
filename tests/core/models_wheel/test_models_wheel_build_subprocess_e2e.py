@@ -127,6 +127,8 @@ def _make_project(root: Path, backend: str, source: str, requires: str) -> Path:
 
 
 def _pid_gone(pid: int) -> bool:
+    if sys.platform == "win32":  # os.kill() on Windows terminates, not probes
+        return _windows_pid_gone(pid)
     try:
         os.kill(pid, 0)
     except (ProcessLookupError, PermissionError):
@@ -137,6 +139,22 @@ def _pid_gone(pid: int) -> bool:
     except OSError:
         return False
     return stat.rsplit(")", 1)[1].split()[0] == "Z"
+
+
+def _windows_pid_gone(pid: int) -> bool:
+    """Whether no running process has *pid*, per ``tasklist`` (CSV, no
+    header: one quoted row per match, none when it has exited)."""
+    tasklist = Path(
+        os.environ.get("SystemRoot", r"C:\Windows"), "System32", "tasklist.exe"
+    )
+    rows = subprocess.run(
+        [str(tasklist), "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=30,
+    ).stdout
+    return f'"{pid}"' not in rows
 
 
 def _wait_pid_gone(pid: int, limit: float = 10.0) -> bool:
@@ -189,12 +207,15 @@ def test_real_build_times_out_and_kills_backend(
     assert not work_dir.exists()
 
     assert excinfo.value.timeout == 20
-    assert excinfo.value.tree_terminated is True
+    if sys.platform != "win32":
+        # Windows: taskkill /T reports failure when a process in the tree
+        # exits on its own during the kill, so the flag can be a false
+        # negative there; the backend being gone (below) is the real check.
+        assert excinfo.value.tree_terminated is True
     assert "timed out after 20s" in str(excinfo.value)
     assert "Build: build output: slow backend started" in caplog.text
     pid = int((project / "backend.pid").read_text(encoding="ascii"))
-    if sys.platform != "win32":  # os.kill() on Windows terminates, not probes
-        assert _wait_pid_gone(pid), f"backend process {pid} survived the timeout"
+    assert _wait_pid_gone(pid), f"backend process {pid} survived the timeout"
 
 
 def test_real_build_returns_the_wheel(
