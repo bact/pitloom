@@ -198,7 +198,7 @@ def check_sdist_own_config(ctx: Context) -> None:
         )
     verbose = run_ok("project", str(sdist), "-v", "--offline", "-o", str(outs["sdist"]))
     expect(
-        f"{sdist.name}:pyproject.toml" in verbose.stdout,
+        f"{sdist.name}:pyproject.toml" in verbose.stderr,
         f"-v does not label the sdist member:\n{verbose.describe()}",
     )
 

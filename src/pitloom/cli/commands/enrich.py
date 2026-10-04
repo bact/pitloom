@@ -8,19 +8,26 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 from typing import Any
 
-from pitloom.__about__ import __version__
 from pitloom.assemble import (
     enrich_model,
 )
-from pitloom.cli.commands.utils import cli_error_handler, existing_model_path
+from pitloom.cli.commands.utils import (
+    _print_sbom_output_path,
+    cli_error_handler,
+    existing_model_path,
+)
+from pitloom.cli.kv_output import log_verbose
 from pitloom.cli.options import add_use_lockfile_argument
 from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.inert_options import ENRICH, forward_options
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
+
+log = logging.getLogger(__name__)
 
 
 @cli_error_handler("enrichment fragment generation failed")
@@ -45,11 +52,8 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
     )
 
     if args.verbose:
-        print(f"Pitloom version: {__version__}")
-        print(f"Model file      : {model_path}")
-        print(f"Output path     : {output_path}")
-        if args.project_dir:
-            print(f"Project dir     : {args.project_dir}")
+        project_dir = {"PROJECT_DIR": args.project_dir} if args.project_dir else {}
+        log_verbose(MODEL_FILE=model_path, OUTPUT_PATH=output_path, **project_dir)
 
     enrich_model(
         opened_path,
@@ -60,10 +64,10 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
         # project target); forward_options warns only for the rest.
         **forward_options(ENRICH, str(opened_path), enrich_model, options),
     )
-    print(f"Enrichment fragment written to: {output_path}")
-    print(
-        "Register it under [tool.pitloom.fragment] and re-run "
-        "'loom project'/'loom generate' to merge it into a base SBOM."
+    _print_sbom_output_path(output_path)
+    log.info(
+        "enrich: register the fragment under [tool.pitloom.fragment] and "
+        "re-run 'loom project'/'loom generate' to merge it into a base SBOM"
     )
     return 0
 

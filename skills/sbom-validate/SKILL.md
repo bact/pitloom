@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-10-03
+# Last-Modified: 2026-10-04
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -140,17 +140,22 @@ loom verify-wheel dist/mypackage-1.0.0-py3-none-any.whl     # present, right pla
 loom validate-wheel dist/mypackage-1.0.0-py3-none-any.whl   # schema/SHACL content check
 ```
 
-**Exit 0 is not always a clean pass.** A name/version mismatch in
-`verify-wheel` is only a `WARNING:` (exit 0, and it still prints "N
-wheel(s) OK") unless `--fail-on-mismatch` is given: report any `WARNING:`,
-and add `--fail-on-mismatch` in CI. `validate-wheel` on an SBOM in a
-format it has no validator for prints "... skipped (no validator for their
-format)" and exits 0: report a skipped count as "not validated".
+Each command prints one stdout line per wheel, `WHEEL=<name>
+STATUS=<status>`: `ok`/`failed` for `verify-wheel`, `valid`/`skipped`/
+`failed` for `validate-wheel` (a failure's reason is the `ERROR:` on
+stderr). **Exit 0 is not always a clean pass.** A name/version mismatch in
+`verify-wheel` is only a `WARNING:` (exit 0, still `STATUS=ok`) unless
+`--fail-on-mismatch` is given: report any `WARNING:`, and add
+`--fail-on-mismatch` in CI. `validate-wheel` on an SBOM in a format it has
+no validator for prints `STATUS=skipped` and exits 0: report it as "not
+validated".
 
 A wheel Pitloom refuses gets one `ERROR: ARCHIVE=... -- wheel refused` and
-exit 1; the other wheels are still checked. `verify-wheel` reads only the
-member names, the own `.dist-info`'s `METADATA` and the embedded SBOM, and
-`validate-wheel` only the names and the embedded SBOM, so they refuse a file
+exit 1; the other wheels are still checked (an unexpected `validate-wheel`
+error, `ERROR: wheel SBOM validation failed: ...`, stops the batch instead).
+`verify-wheel` reads only the member names, the own `.dist-info`'s
+`METADATA` and the embedded SBOM, and `validate-wheel` only the names and
+the embedded SBOM, so they refuse a file
 that is not a ZIP, and a wheel with one of those unreadable, two members
 with one name, a NUL in a name or no single own `.dist-info` (where a
 `WARNING: ... -- identity unknown` line comes before the `ERROR:`): a damaged

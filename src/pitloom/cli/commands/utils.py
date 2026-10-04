@@ -20,6 +20,7 @@ from pitloom.assemble import (
     detect_sbom_format,
     find_embedded_sbom,
 )
+from pitloom.cli.kv_output import print_kv
 from pitloom.core.file_identity import FileId, file_id
 from pitloom.core.wheel_dist_info import (
     WheelRefused,
@@ -70,7 +71,7 @@ def _print_sbom_output_path(output_path: Path | str) -> None:
     Namespaced "PITLOOM_" so it reads unambiguously as this stdout line,
     distinct from the GitHub Action's own "sbom-path" output.
     """
-    print(f"PITLOOM_SBOM_OUTPUT_PATH={output_path}")
+    print_kv(PITLOOM_SBOM_OUTPUT_PATH=output_path)
 
 
 def _collect_wheel_paths(patterns: list[str]) -> list[Path]:

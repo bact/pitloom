@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -80,10 +80,10 @@ same commit.
   added N new id(s) to <path>` (D4). `updated stale entries in <path>`,
   `no file path resolved; skipping auto-update.` and `failed to save`
   stay.
-- **`id generate` / `id import` summaries** (`cli/id.py:313-315`,
-  `:357-359`), on stdout, not tagged log lines: `pitloom id: wrote N id(s)
-  to <path>`; `pitloom id: imported into <path> (N id(s))`, N =
-  `id_count()`.
+- **`id generate` / `id import` output** (`cli/id.py`
+  `_report_registry_written()`): stdout `PITLOOM_ID_REGISTRY_PATH=<path>`;
+  the count is `INFO: ID registry: holds N file(s) and M entit(y/ies)`,
+  becoming `holds N id(s)`, N = `id_count()`.
 - **Kept:** `ID registry: content changed for %s; minting a new spdxId
   (old: %s).` (now also for a model retrain); loom's `registry entry for
   %r exists but its SHA-256 no longer matches ...`, `... exists but under

@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 from typing import Any, NamedTuple
 
+from pitloom.cli.kv_output import print_kv
 from pitloom.extract.project import read_project
 from pitloom.id_registry import IdRegistry
 
@@ -244,6 +245,17 @@ def _resolve_id_generate_path(
     return project_dir / rel
 
 
+def _report_registry_written(registry_path: Path, registry: IdRegistry) -> None:
+    """Print the ``PITLOOM_ID_REGISTRY_PATH=<path>`` data line for the
+    registry just saved, and log what it now holds."""
+    print_kv(PITLOOM_ID_REGISTRY_PATH=registry_path)
+    log.info(
+        "ID registry: holds %d file(s) and %d entit(y/ies)",
+        len(registry.files),
+        len(registry.entities),
+    )
+
+
 def _run_id_generate(args: argparse.Namespace) -> int:
     """Run `pitloom id generate`."""
     project_dir: Path = (args.project_dir or Path.cwd()).resolve()
@@ -309,10 +321,7 @@ def _run_id_generate(args: argparse.Namespace) -> int:
     except (ValueError, OSError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
-    print(
-        f"pitloom id: wrote {len(registry.files)} file(s) and "
-        f"{len(registry.entities)} entit(y/ies) to {registry_path}"
-    )
+    _report_registry_written(registry_path, registry)
     if is_new and not from_project_key:
         _log_config_hint(registry_path, project_dir, slot)
     return 0
@@ -353,10 +362,7 @@ def _run_id_import(args: argparse.Namespace) -> int:
     except (ValueError, OSError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
-    print(
-        f"pitloom id: imported into {registry_path} "
-        f"({len(registry.files)} file(s), {len(registry.entities)} entit(y/ies))"
-    )
+    _report_registry_written(registry_path, registry)
     if skipped:
         log.info(
             "ID registry: not imported (name held by several elements): %s",

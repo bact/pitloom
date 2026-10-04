@@ -43,9 +43,9 @@ def test_fragment_list_no_fragments_configured(
     monkeypatch.setattr(
         "sys.argv", ["loom", "fragment", "list", "--project-dir", str(tmp_path)]
     )
-    result = __main__.main()
-    assert result == 0
-    assert "pitloom fragment list: no fragments configured" in capsys.readouterr().out
+    assert __main__.main() == 0
+    # Nothing on stdout: the hint is an INFO: line.
+    assert capsys.readouterr() == ("", "INFO: fragment list: no fragments configured\n")
 
 
 def test_fragment_list_plain_string_entry(

@@ -27,7 +27,7 @@ from pitloom.cli.options import (
     build_options_from_args,
 )
 from pitloom.cli.options_config import run_options
-from pitloom.cli.verbose import _print_verbose
+from pitloom.cli.verbose import log_verbose_options
 from pitloom.core.build_options import BuildOptions
 
 
@@ -46,7 +46,7 @@ def generate_project_from_args(
     )
     output_path = _resolve_output_path(args.output, project_metadata, pitloom_config)
     if args.verbose:
-        _print_verbose(
+        log_verbose_options(
             args, project_dir, output_path, pitloom_config, config_path, creation
         )
     options = run_options(args, pitloom_config)

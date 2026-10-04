@@ -20,6 +20,7 @@ import pytest
 from pitloom import __main__
 from pitloom.cli.commands.fragment import _run_fragment_command
 from tests._network import skip_if_network_failure
+from tests.kv_helpers import info_lines, kv_stdout
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 VALID_FRAGMENT = FIXTURE_DIR / "fragments" / "dataset-fragment.spdx3.json"
@@ -45,7 +46,8 @@ def test_fragment_validate_command_success(
         skip_if_network_failure(captured.err)
     assert result == 0
 
-    assert "pitloom fragment validate: 1 document(s) valid" in captured.out
+    assert kv_stdout(captured.out) == [{"FILE": str(VALID_FRAGMENT), "STATUS": "valid"}]
+    assert info_lines(captured.err) == ["fragment validate: 1 document(s) valid"]
 
 
 def test_fragment_validate_command_invalid_document(
@@ -202,4 +204,5 @@ def test_fragment_validate_command_no_merge_flag(
         skip_if_network_failure(captured.err)
     assert result == 0
 
-    assert "pitloom fragment validate: 1 document(s) valid" in captured.out
+    assert kv_stdout(captured.out) == [{"FILE": str(VALID_FRAGMENT), "STATUS": "valid"}]
+    assert info_lines(captured.err) == ["fragment validate: 1 document(s) valid"]

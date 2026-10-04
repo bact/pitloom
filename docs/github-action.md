@@ -129,6 +129,9 @@ in the raw log. A failing `loom` invocation still fails the step/job
 (its `ERROR:` line is annotated first); this doesn't change the action's
 exit behaviour.
 
+`-v` in `args` logs each effective option as an `INFO:` line, so each
+becomes a `::notice::` annotation; GitHub caps how many a step shows.
+
 ## Persisting the Loom ID registry in CI
 
 A [Loom ID registry](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-loom-id)
@@ -280,7 +283,7 @@ Output:
 
 | Output | Meaning |
 | :--- | :--- |
-| `sbom-path` | Path to the generated SBOM file. Empty when `embed-wheel` matches more than one wheel -- a standalone copy is ambiguous across wheels, so only the embedded copies are produced and `upload-artifact` is skipped for that run. |
+| `sbom-path` | Path to the generated SBOM file (a path with a non-printable character arrives quoted and ASCII-escaped, as `loom` prints it). Empty when `embed-wheel` matches more than one wheel -- a standalone copy is ambiguous across wheels, so only the embedded copies are produced and `upload-artifact` is skipped for that run. |
 
 ## Code example: Build and Publish PEP 770 Wheel
 

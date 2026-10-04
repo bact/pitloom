@@ -137,6 +137,9 @@ and this project adheres to
 - `max-source-metadata-bytes` of 1-7 or below 0 is an error, not unlimited;
   `normalize_max_source_metadata_bytes()` is now
   `require_max_source_metadata_bytes()` ([#280])
+- CLI stdout is `KEY=VALUE` data only (`WHEEL=`/`SBOM=`, `STATUS=`, `FILE=`,
+  `PITLOOM_ID_REGISTRY_PATH=`); counts, hints and `-v` are `INFO:` on stderr
+  ([#281])
 
 ### Removed
 
@@ -293,6 +296,7 @@ and this project adheres to
 [#275]: https://github.com/bact/pitloom/pull/275
 [#278]: https://github.com/bact/pitloom/pull/278
 [#280]: https://github.com/bact/pitloom/pull/280
+[#281]: https://github.com/bact/pitloom/pull/281
 [#282]: https://github.com/bact/pitloom/pull/282
 
 ## [0.19.0] - 2026-09-18
