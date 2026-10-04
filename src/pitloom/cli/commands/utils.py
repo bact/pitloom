@@ -20,6 +20,11 @@ from pitloom.assemble import (
     detect_sbom_format,
     find_embedded_sbom,
 )
+from pitloom.core.wheel_dist_info import (
+    WheelRefused,
+    is_wheel_path,
+    require_wheel_path,
+)
 
 
 def cli_error_handler(
@@ -80,7 +85,7 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
             matched = [
                 Path(p).resolve()
                 for p in glob.glob(pattern)
-                if Path(p).is_file() and p.endswith(".whl")
+                if Path(p).is_file() and is_wheel_path(p)
             ]
             if not matched:
                 print(f"ERROR: no wheel files matched: {pattern}", file=sys.stderr)
@@ -93,8 +98,7 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
                 print(f"ERROR: wheel file not found: {p}", file=sys.stderr)
                 had_error = True
                 continue
-            if not p.name.endswith(".whl"):
-                print(f"ERROR: not a .whl file: {p}", file=sys.stderr)
+            if refuse_non_wheel(p):
                 had_error = True
                 continue
             wheel_paths.append(p)
@@ -108,6 +112,19 @@ def report_error_line(exc: Exception) -> None:
     every per-wheel check, so one bad wheel of a batch never aborts the
     others."""
     print(f"ERROR: {exc}", file=sys.stderr)
+
+
+def refuse_non_wheel(path: Path) -> bool:
+    """Print the one ``ERROR: not a .whl file: <path>`` line and return
+    ``True`` where *path* is not a wheel by name
+    (:func:`~pitloom.core.wheel_dist_info.require_wheel_path`), the same line
+    on every command that takes a wheel."""
+    try:
+        require_wheel_path(path)
+    except WheelRefused as exc:
+        report_error_line(exc)
+        return True
+    return False
 
 
 def _locate_embedded_sbom_or_report(

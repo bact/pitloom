@@ -20,7 +20,11 @@ from pitloom.assemble import (
     generate_wheel_sbom_with_metadata,
 )
 from pitloom.cli.commands._embed_wheel_batch import report_embed_result
-from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
+from pitloom.cli.commands.utils import (
+    _print_sbom_output_path,
+    cli_error_handler,
+    refuse_non_wheel,
+)
 from pitloom.cli.options import (
     add_allow_signed_wheel_argument,
     add_offline_argument,
@@ -56,6 +60,8 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     wheel_path: Path = Path(target).resolve()
     if not wheel_path.exists():
         print(f"ERROR: wheel file not found: {wheel_path}", file=sys.stderr)
+        return 1
+    if refuse_non_wheel(wheel_path):
         return 1
 
     pitloom_config, options = explicit_config_and_options(args)

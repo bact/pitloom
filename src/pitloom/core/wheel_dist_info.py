@@ -89,6 +89,33 @@ class WheelRefused(ValueError):
     """A wheel Pitloom refuses as a whole, with one clean line."""
 
 
+#: The one extension a wheel file carries. ``pip`` and
+#: :func:`packaging.utils.parse_wheel_filename` both require exactly this
+#: spelling, so ``x.WHL`` is not a wheel.
+WHEEL_SUFFIX = ".whl"
+
+
+def is_wheel_path(path: Path | str) -> bool:
+    """Whether the file name of *path* ends in exactly ``.whl``."""
+    return Path(path).name.endswith(WHEEL_SUFFIX)
+
+
+def looks_like_wheel_path(path: Path | str) -> bool:
+    """Whether *path* names a wheel in any letter case: for routing a target
+    to wheel handling, where :func:`require_wheel_path` then refuses
+    ``x.WHL`` with its one line, instead of it falling to the project branch."""
+    return Path(path).name.lower().endswith(WHEEL_SUFFIX)
+
+
+def require_wheel_path(path: Path | str) -> None:
+    """Raise :class:`WheelRefused` unless :func:`is_wheel_path`.
+
+    The one rule every surface that takes a wheel applies, with one message.
+    """
+    if not is_wheel_path(path):
+        raise WheelRefused(f"not a {WHEEL_SUFFIX} file: {path}")
+
+
 def refusal(archive: str, entry: str | None, reason: str) -> WheelRefused:
     """The one shape of every wheel refusal:
     ``ARCHIVE='a.whl' ENTRY='m': <reason> -- wheel refused`` (no ``ENTRY=``
@@ -148,6 +175,8 @@ def open_wheel_zip(path: Path) -> zipfile.ZipFile:
     """Open *path* as a ZIP archive.
 
     Raises:
+        WheelRefused: the file name does not end in ``.whl``
+            (:func:`require_wheel_path`).
         WheelRefused: *path* cannot be read as a ZIP archive: not one, a
             member name flagged UTF-8 that is not, a version it cannot
             read. Any exception but ``OSError``/``MemoryError``, so a
@@ -155,6 +184,7 @@ def open_wheel_zip(path: Path) -> zipfile.ZipFile:
         OSError: *path* cannot be opened (missing, permission denied, a
             transient I/O error): left as it is, so a caller can retry it.
     """
+    require_wheel_path(path)
     try:
         return zipfile.ZipFile(path, "r")
     except (OSError, MemoryError):
@@ -226,7 +256,7 @@ def wheel_name_version(wheel_name: str) -> tuple[NormalizedName, Version] | None
     ``packaging`` releases, and the answer must not depend on which one is
     installed.
     """
-    stem = wheel_name.removesuffix(".whl")
+    stem = wheel_name.removesuffix(WHEEL_SUFFIX)
     parts = stem.split("-")
     if stem == wheel_name or len(parts) not in (5, 6):
         return None

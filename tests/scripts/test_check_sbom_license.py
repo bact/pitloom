@@ -233,3 +233,12 @@ def test_cli_reports_each_path(scripts_dir: Path, tmp_path: Path) -> None:
     assert stderr.startswith(f"ERROR: FILE={bad}:")
     assert "hasConcludedLicense" in stderr
     assert str(good) not in stderr
+
+
+def test_load_sbom_uppercase_wheel_extension_is_refused(
+    module: ModuleType, tmp_path: Path
+) -> None:
+    """``x.WHL`` is routed as a wheel, then refused as ``pip`` would."""
+    wheel = _write_wheel(tmp_path / "p-1-py3-none-any.WHL", {})
+    with pytest.raises(module.SbomLicenseError, match="not a .whl file"):
+        module.load_sbom(wheel)
