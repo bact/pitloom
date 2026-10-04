@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -113,6 +113,36 @@ in `ProjectMetadata.license_name`.
 
 All extractors record their source in `provenance["license"]` using the
 `Source: … | Field: …` convention.
+
+#### Root-file detection (`_license_detect.py`)
+
+Sources 2-4 are read by `collect_license_candidates()`, a thin directory
+adapter over a pure bytes core, `license_candidates_from_members()`
+(`{root-level name: bytes}` -> candidates). The core does no I/O, so an
+sdist can feed it the archive members it already holds; a drift-guard
+test pins that a directory and the same files as bytes give identical
+candidates. Rules:
+
+- **Case** (core): names match the `LICENSE`/`LICENCE`/`COPYING`/
+  `COPYRIGHT` x `""`/`.txt`/`.rst`/`.md` list ignoring case
+  (`pick_license_names()`). Where several names differ only in case (a
+  case-sensitive file system, an archive), the list's own spelling wins,
+  else the smallest in `str` order -- never the listing order, which made
+  the directory pick nondeterministic before.
+- **Size cap** (reader; the adapter here, the sdist scan later): a root
+  file over `LICENSE_FILE_MAX_BYTES` (256 KiB) is skipped, read no further
+  than one byte past the cap, with one `WARNING:` naming it
+  (`warn_over_cap()`, in the `logging_config.FILE_OVER_CAP_WARNING`
+  wording the usage scan shares). Once per file and process (`warn_once`):
+  one run reads a project twice when a lock-file re-read follows the peek.
+  Real licence texts are a few KiB to some tens of KiB, and `licenseid` is
+  slow on large text.
+- **Text** (core): UTF-8 with replacement and universal newlines, as
+  `Path.read_text()` gave it; an empty or whitespace-only file gives no
+  candidate. `codemeta.json` is parsed from bytes, so a UTF-8 BOM is
+  accepted.
+
+The directory side follows a symlinked licence file, as a plain read does.
 
 ### AI model file sources
 
@@ -320,6 +350,8 @@ file, so the surviving header path is proven untouched.
 | :--- | :--- |
 | `src/pitloom/extract/_license.py` | `detect_license_from_text()`,
   `find_license_files()`, `detect_license_for_project()` |
+| `src/pitloom/extract/_license_detect.py` | Root-file detection: bytes
+  core, directory adapter, case rule, size cap |
 | `src/pitloom/extract/project/pyproject.py` | Python project licence
   extraction and detection |
 | `src/pitloom/extract/project/hatchling.py` | Hatchling build-hook licence
@@ -344,6 +376,8 @@ file, so the surviving header path is proven untouched.
   licence wiring |
 | `src/pitloom/export/spdx3_json.py` | `Spdx3JsonExporter.find_license()`,
   `add_license()` |
+| `tests/extract/test_license_detect.py` | Case rule, size cap, and the
+  directory-vs-bytes drift guard |
 | `tests/assemble/test_license_detection.py`,
   `tests/assemble/test_license_normalization.py` | Unit tests for
   `_license.py` utilities (originally `tests/test_license.py`, later

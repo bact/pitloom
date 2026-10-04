@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import logging
 import tarfile
@@ -19,9 +20,11 @@ from unittest.mock import patch
 import pytest
 
 from pitloom.assemble import generate_project_sbom
+from pitloom.core import wheel_dist_info
 from pitloom.extract.project import read_project
 from pitloom.extract.project.sdist import _parse_pkg_info, read_sdist
 from tests._raw_archive import write_raw_tar, write_raw_zip
+from tests.assemble.conftest import _make_sdist
 
 
 @pytest.fixture
@@ -405,3 +408,55 @@ def _archive_names(sdist: Path) -> list[str]:
             return zf.namelist()
     with tarfile.open(sdist) as tf:
         return tf.getnames()
+
+
+_PKG_INFO_HEAD = b"Metadata-Version: 2.1\nName: big\nVersion: 9.9\nLicense: MIT\n"
+
+
+@pytest.mark.parametrize(
+    ("extra", "limits", "pyproject", "status"),
+    [
+        (b"", {"MAX_METADATA_HEADERS": 4}, True, None),  # headers at cap
+        (b"X-A: b\n", {"MAX_METADATA_HEADERS": 4}, True, "degraded"),
+        (b"X-A: b\n", {"MAX_METADATA_BYTES": len(_PKG_INFO_HEAD)}, False, "skipped"),
+        # The description after the headers may be any size.
+        (b"\n" + b"x" * 70_000, {"MAX_METADATA_BYTES": 64 * 1024}, False, None),
+    ],
+    ids=["headers-at-cap", "headers-over-cap", "bytes-over-cap", "big-body"],
+)
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def test_pkg_info_header_block_over_cap_is_not_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    extra: bytes,
+    limits: dict[str, int],
+    pyproject: bool,
+    status: str | None,
+) -> None:
+    """``PKG-INFO`` is read as a wheel's ``METADATA`` is: its header block
+    alone, capped in bytes and headers. Over a cap: one ``WARNING:`` names
+    the archive, and the metadata comes from ``pyproject.toml`` as with no
+    ``PKG-INFO``. The member is still hashed whole."""
+    for cap, value in limits.items():
+        monkeypatch.setattr(wheel_dist_info, cap, value)
+    pkg_info = _PKG_INFO_HEAD + extra
+    members = {"PKG-INFO": pkg_info, **({} if pyproject else {"pyproject.toml": None})}
+    sdist = _make_sdist(tmp_path, members=members)
+
+    with caplog.at_level(logging.WARNING):
+        contents = read_sdist(sdist)
+
+    (entry,) = [f for f in contents.files if f.distribution_path.endswith("PKG-INFO")]
+    assert entry.digest_sha256 == hashlib.sha256(pkg_info).hexdigest()
+    expected = "big" if status is None else ("demo" if pyproject else "unknown")
+    assert contents.metadata.name == expected
+    assert (contents.metadata.license_name == "MIT") is (status is None)
+    warnings = [r.getMessage() for r in caplog.records]
+    if status is None:
+        assert not warnings
+        return
+    (message,) = warnings
+    assert "PKG-INFO" in message and sdist.name in message
+    assert "header block over" in message
+    assert f"Field(s) affected ({status}): name" in message

@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Which ``.dist-info`` directory is a wheel's own, and a bounded read of its
-``METADATA``.
+``METADATA`` (:func:`read_header_block`, which an sdist's ``PKG-INFO`` read
+shares).
 
 The one selector every wheel reader goes through, so that they cannot
 disagree on a wheel's identity: only a *top-level* directory can be the
@@ -31,7 +32,7 @@ import zipfile
 import zlib
 from collections.abc import Iterable, Iterator
 from pathlib import Path
-from typing import IO, NamedTuple
+from typing import IO, NamedTuple, Protocol
 
 from packaging.utils import NormalizedName, canonicalize_name
 from packaging.version import Version
@@ -372,7 +373,7 @@ def resolve_own_dist_info(
     return DistInfoChoice(None, PROBLEM_SEVERAL_NONE_MATCH)
 
 
-class _OverCap(Exception):
+class HeaderBlockOverCap(Exception):
     """A header block over a cap: its size and unit."""
 
     def __init__(self, cap: int, unit: str) -> None:
@@ -381,12 +382,21 @@ class _OverCap(Exception):
         self.unit = unit
 
 
-def _lines(stream: IO[bytes]) -> Iterator[bytes]:
+# pylint: disable-next=too-few-public-methods
+class ByteReader(Protocol):
+    """What :func:`read_header_block` reads from: ``read(size)`` alone."""
+
+    def read(self, size: int, /) -> bytes:
+        """Up to *size* bytes; none at the end."""
+        ...
+
+
+def _lines(stream: ByteReader) -> Iterator[bytes]:
     """The lines of *stream* (``\\n``, ``\\r`` or ``\\r\\n`` ends, kept), read
     lazily in chunks.
 
     Raises:
-        _OverCap: One line is longer than :data:`MAX_METADATA_BYTES`.
+        HeaderBlockOverCap: One line is longer than :data:`MAX_METADATA_BYTES`.
     """
     pending = bytearray()
     carry = b""  # a trailing CR, which may be half of a CRLF
@@ -402,19 +412,19 @@ def _lines(stream: IO[bytes]) -> Iterator[bytes]:
             start = match.end()
         pending += chunk[start:]
         if len(pending) > MAX_METADATA_BYTES:
-            raise _OverCap(MAX_METADATA_BYTES, "bytes")
+            raise HeaderBlockOverCap(MAX_METADATA_BYTES, "bytes")
     if pending or carry:
         yield bytes(pending) + carry
 
 
-def _header_block(stream: IO[bytes]) -> bytes:
+def read_header_block(stream: ByteReader) -> bytes:
     """The bytes of *stream* up to the blank line that ends its headers.
 
     Reading stops there: a ``METADATA`` description follows, and may be any
     size.
 
     Raises:
-        _OverCap: The block is over :data:`MAX_METADATA_BYTES` or
+        HeaderBlockOverCap: The block is over :data:`MAX_METADATA_BYTES` or
             :data:`MAX_METADATA_HEADERS`.
     """
     kept: list[bytes] = []
@@ -424,11 +434,11 @@ def _header_block(stream: IO[bytes]) -> bytes:
             break
         total += len(line)
         if total > MAX_METADATA_BYTES:
-            raise _OverCap(MAX_METADATA_BYTES, "bytes")
+            raise HeaderBlockOverCap(MAX_METADATA_BYTES, "bytes")
         if not line.startswith((b" ", b"\t")):
             headers += 1
             if headers > MAX_METADATA_HEADERS:
-                raise _OverCap(MAX_METADATA_HEADERS, "headers")
+                raise HeaderBlockOverCap(MAX_METADATA_HEADERS, "headers")
         kept.append(line)
     return b"".join(kept)
 
@@ -462,8 +472,8 @@ def read_metadata_headers(
         return None
     try:
         with refuse_unreadable(archive, info.orig_filename), zf.open(info) as member:
-            block = _header_block(member)
-    except _OverCap as over:
+            block = read_header_block(member)
+    except HeaderBlockOverCap as over:
         if report:
             log.warning(
                 "ARCHIVE=%r ENTRY=%r: header block over %d %s -- identity unknown",

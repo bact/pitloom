@@ -255,6 +255,9 @@ and this project adheres to
   `embed-wheel`; every wheel surface refuses it, as `pip` does ([#278])
 - An unknown `[tool.pitloom]` key warns once per file with a hint; `setup.cfg`
   `creation-tool`/`tool` now reaches the SBOM (was dropped) ([#280])
+- sdist `PKG-INFO`: headers only, capped as a wheel's `METADATA`; a licence
+  file is picked by exact case, not listing order, and skipped over 256 KiB
+  with one `WARNING:` ([#282])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -294,6 +297,7 @@ and this project adheres to
 [#278]: https://github.com/bact/pitloom/pull/278
 [#280]: https://github.com/bact/pitloom/pull/280
 [#281]: https://github.com/bact/pitloom/pull/281
+[#282]: https://github.com/bact/pitloom/pull/282
 
 ## [0.19.0] - 2026-09-18
 

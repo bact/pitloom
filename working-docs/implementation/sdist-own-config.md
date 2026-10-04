@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-21
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -25,6 +25,12 @@ the unpacked directory does. Before, `read_project()` returned
   (`<top>/<name>`) `PKG-INFO`, `pyproject.toml` and `setup.cfg`, streams
   everything in 8192-byte chunks, and caps a config member at 1 MiB
   (`CONFIG_MEMBER_MAX_BYTES`; over it is a read failure, below).
+  `PKG-INFO` is kept as its header block only, read as a wheel's
+  `METADATA` is (`wheel_dist_info.read_header_block()`: 16 MiB, 10,000
+  headers; [wheel-identity.md](wheel-identity.md) D3), while the member is
+  still hashed whole. A whole-file byte cap would not bound memory: 16 MiB
+  of one-line headers parses to over 500 MiB. Over a cap: one `WARNING:`,
+  metadata from `pyproject.toml` as with no `PKG-INFO`.
   `read_sdist()` returns `SdistContents(metadata, files, config,
   config_member)`.
   `read_sdist()` sorts `files` by `distribution_path`, as `read_wheel()`
