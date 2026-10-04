@@ -32,6 +32,7 @@ from pitloom.assemble import (
     generate_wheel_sbom,
 )
 from pitloom.assemble.spdx3 import deps_installed
+from pitloom.assemble.spdx3._provenance_encoders import THIRD_PARTY_SOURCES
 from pitloom.assemble.spdx3.document import build, build_deployed, build_model
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.creation import CreationMetadata
@@ -226,7 +227,9 @@ def test_a_deployed_packages_own_installed_metadata_is_declared() -> None:
     )
     tree = [{"package": {"key": "x", "package_name": "x", "installed_version": "1"}}]
     fake = _FakeMetadata({"Version": "1", "License": "MIT"})
-    with patch.object(deps_installed, "get_pkg_metadata", lambda _name: fake):
+    with patch.object(
+        deps_installed, "get_pkg_metadata", autospec=True, return_value=fake
+    ):
         graph = graph_of(build_deployed(doc, tree, offline=True))
     assert _relationships(graph, "x") == [("hasDeclaredLicense", "MIT")]
 
@@ -234,18 +237,20 @@ def test_a_deployed_packages_own_installed_metadata_is_declared() -> None:
 @pytest.mark.parametrize(
     ("source", "expected"),
     [
-        ("Source: AI model metadata", "hasDeclaredLicense"),
-        ("Source: PyPI JSON API", "hasConcludedLicense"),  # a third-party record
+        (None, "hasDeclaredLicense"),  # the model file's own metadata
+        # a third-party record, by the rule's own list
+        *((f"Source: {s}", "hasConcludedLicense") for s in sorted(THIRD_PARTY_SOURCES)),
     ],
 )
 def test_a_models_licence_relationship_follows_its_source(
-    source: str, expected: str
+    source: str | None, expected: str
 ) -> None:
     model = AiModelMetadata(
         format_info=AiModelFormatInfo(model_format=AiModelFormat.ONNX),
         name="m",
         license="MIT",
     )
-    model.provenance["license"] = source
+    if source is not None:
+        model.provenance["license"] = source
     graph = graph_of(build_model(model, CreationMetadata()))
     assert _relationships(graph, "m") == [(expected, "MIT")]

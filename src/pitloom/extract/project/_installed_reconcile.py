@@ -56,13 +56,13 @@ def _license_equal(a: str, b: str) -> bool:
     """Same licence once classified (``mit`` == ``MIT``, ``GPL-2.0+`` ==
     ``GPL-2.0-or-later``, ``MIT License`` == ``MIT``; the rule the declared
     vs concluded check uses). ``NOASSERTION``/``UNKNOWN`` is weak: it agrees
-    with anything, and :func:`_weak_static_licence` lets the real licence
-    win. A value that states none compares as empty."""
+    with anything, a blank value too, and :func:`_weak_static_licence` lets
+    the real licence win. A value that states none compares as empty."""
     first, second = (classify_license(v, warn=False) for v in (a, b))
+    if any(c is not None and c.kind == "noassertion" for c in (first, second)):
+        return True
     if first is None or second is None:
         return first is None and second is None
-    if "noassertion" in (first.kind, second.kind):
-        return True
     return same_licence(first.value, second.value)
 
 

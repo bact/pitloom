@@ -16,21 +16,53 @@ import os
 import re
 from pathlib import Path
 
+from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, is_missing_errno
+from pitloom.logging_config import loggable, warn_once
+
 log = logging.getLogger(__name__)
 
-# Matches "file: some/path" or "attr: module.attribute"
-_DIRECTIVE_RE = re.compile(r"^(file|attr):\s*(.+)$")
+# Matches "file: some/path" or "attr: module.attribute"; a "file:" list may
+# be wrapped across lines, as setuptools reads it.
+_DIRECTIVE_RE = re.compile(r"^(file|attr):\s*(.+)$", re.DOTALL)
+
+
+def _read_listed_file(
+    project_dir: Path, name: str, what: str
+) -> tuple[bool, str | None]:
+    """``(found, text)`` for the file *name* a directive lists. A missing
+    one (a dangling symlink too) is ``(False, None)``, silently, as
+    setuptools skips it; one that cannot be read (a directory, no
+    permission, not UTF-8) is ``(True, None)`` with one ``WARNING:`` per
+    file and *what* (e.g. ``"setup.cfg metadata.version"``) per process,
+    since one run reads a project more than once."""
+    path = project_dir / name
+    try:
+        # os.stat, not Path.stat: Python 3.10's pathlib binds it at import.
+        os.stat(path)
+        return True, path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        if isinstance(exc, OSError) and is_missing_errno(exc):
+            return False, None
+        warn_once(
+            log,
+            f"setup-cfg-file:{path}\x00{what}",
+            UNREADABLE_FILE_WARNING,
+            loggable(name),
+            f"for {what}",
+            loggable(str(exc)),
+        )
+        return True, None
 
 
 def _resolve_cfg_version_file_directive(
-    value: str, project_dir: Path
+    value: str, project_dir: Path, what: str
 ) -> tuple[str | None, str | None]:
-    """Resolve a file: directive for version from setup.cfg."""
-    ver_file = project_dir / value
-    if ver_file.exists():
-        content = ver_file.read_text(encoding="utf-8").strip()
-        if content and "\n" not in content and not content.startswith("#"):
-            return content, f"Source: {value} | Method: file_directive"
+    """Resolve a ``file:`` directive for the version, read for *what*: no
+    version for a missing, unreadable (warned) or multi-line file."""
+    _, text = _read_listed_file(project_dir, value, what)
+    content = (text or "").strip()
+    if content and "\n" not in content and not content.startswith("#"):
+        return content, f"Source: {value} | Method: file_directive"
     return None, None
 
 
@@ -78,7 +110,9 @@ def _resolve_cfg_version(
 
     directive, value = m.group(1), m.group(2).strip()
     if directive == "file":
-        return _resolve_cfg_version_file_directive(value, project_dir)
+        return _resolve_cfg_version_file_directive(
+            value, project_dir, "setup.cfg metadata.version"
+        )
     # _DIRECTIVE_RE only captures "file" or "attr" in this group, so
     # "attr" is the only remaining case.
     return _resolve_cfg_attr_directive(value, project_dir)
@@ -86,37 +120,28 @@ def _resolve_cfg_version(
 
 def _resolve_cfg_file_directive(raw: str, project_dir: Path, field: str) -> str | None:
     """*raw*, or for ``file: a.txt, b.txt`` the text of each listed file,
-    joined with ``\n`` (setuptools' ``read_files``). A listed file that
-    does not exist is skipped, and when none exists the spec itself is
-    returned as a filename hint. One that exists but cannot be read (a
-    directory, no permission, not UTF-8) is skipped with one ``WARNING:``
-    naming it and the setup.cfg *field*; ``None`` when nothing was read."""
+    joined with ``\n`` (setuptools' ``read_files``); the list may be wrapped
+    across lines, and a blank entry is left out. A listed file that does not
+    exist is skipped, and when none exists the list itself is returned as a
+    filename hint. One that exists but cannot be read is skipped with one
+    ``WARNING:`` naming it and the setup.cfg *field*
+    (:func:`_read_listed_file`); ``None`` when nothing was read."""
     if not raw:
         return None
     m = _DIRECTIVE_RE.match(raw)
     if not (m and m.group(1) == "file"):
         return raw
-    names = [part.strip() for part in m.group(2).split(",")]
+    names = [n for n in (part.strip() for part in m.group(2).split(",")) if n]
     texts: list[str] = []
     found = False
     for name in names:
-        path = project_dir / name
-        if not os.path.lexists(path):
-            continue
-        found = True
-        try:
-            texts.append(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError) as exc:
-            log.warning(
-                "%s: setup.cfg %s file %s could not be read (%s) -- ignoring it",
-                project_dir,
-                field,
-                name,
-                type(exc).__name__,
-            )
+        exists, text = _read_listed_file(project_dir, name, f"setup.cfg {field}")
+        found = found or exists
+        if text is not None:
+            texts.append(text)
     if texts:
         return "\n".join(texts)
-    return None if found else m.group(2).strip()
+    return None if found or not names else ", ".join(names)
 
 
 def _read_version_attr(file_path: Path, attr_name: str) -> str | None:

@@ -189,6 +189,10 @@ models -- see
 [cli-shared-options-ignored.md](cli-shared-options-ignored.md#still-open) and
 [ai-model-scanning.md](../implementation/ai-model-scanning.md).
 
+**setuptools config reading:** `version = attr:` crash, `file:` path
+confinement, untagged setuptools warnings -- see
+[setuptools-config-followups.md](setuptools-config-followups.md).
+
 **Suggested sequencing after that** (2026-09-16, not a commitment --
 superseded for the next month by [1.0 target](#10-target-2026-10-15)
 below, which is the actual commitment for what ships before mid-October):

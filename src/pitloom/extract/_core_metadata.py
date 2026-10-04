@@ -107,12 +107,21 @@ def _unfolded(value: str | None) -> str | None:
     return None if value is None else _FOLD_RE.sub("\n", value)
 
 
+#: The one ``License ::`` classifier that is a category in the trove list,
+#: not a licence: left out even alone, as if absent.
+_CATEGORY_CLASSIFIER = "License :: OSI Approved"
+
+
 def _licence_classifiers(classifiers: Iterable[str]) -> list[str]:
     """The ``License ::`` classifiers in *classifiers*, sorted, no repeats,
     without a trove parent of another one (``License :: OSI Approved`` next
     to ``License :: OSI Approved :: MIT License`` is a category, not a
-    licence)."""
-    found = {c for c in classifiers if c.startswith("License ::")}
+    licence) and without :data:`_CATEGORY_CLASSIFIER`."""
+    found = {
+        c
+        for c in classifiers
+        if c.startswith("License ::") and c != _CATEGORY_CLASSIFIER
+    }
     return sorted(c for c in found if not any(o.startswith(c + " ::") for o in found))
 
 

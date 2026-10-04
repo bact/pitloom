@@ -8,8 +8,10 @@
 from __future__ import annotations
 
 import logging
+from unittest.mock import create_autospec
 
 import pytest
+from py_spdx_license import parse as spdx_parse
 
 from pitloom.extract import _license_classify
 from pitloom.extract._license_classify import (
@@ -199,16 +201,20 @@ def test_warning_is_one_line_once_per_value_and_escapes_controls(
     assert "\x1b" not in messages[0]
 
 
-@pytest.mark.parametrize("body", ["MIT and Apache-2.0 " * 2500, "MIT\nOR Apache-2.0"])
+@pytest.mark.parametrize(
+    "body",
+    ["MIT and Apache-2.0 " * 2500, "MIT\nOR Apache-2.0"],
+    ids=["48-kb", "multi-line"],
+)
 def test_long_or_multi_line_text_is_not_parsed(
     body: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A 48 KB body (seconds in the parser) or a multi-line value is text
     without the expression parser ever being called."""
-    calls: list[str] = []
-    monkeypatch.setattr(_license_classify, "parse_spdx_expression", calls.append)
+    parser = create_autospec(spdx_parse)
+    monkeypatch.setattr(_license_classify, "parse_spdx_expression", parser)
     got = classify_license(body)
-    assert not calls
+    parser.assert_not_called()
     assert got is not None
     assert got.kind == "text"
 
@@ -217,10 +223,7 @@ def test_a_parser_crash_makes_the_value_text(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The parser can raise other than ``ParseError`` on odd input."""
-
-    def crash(_expression: str) -> None:
-        raise IndexError("boom")
-
+    crash = create_autospec(spdx_parse, side_effect=IndexError("boom"))
     monkeypatch.setattr(_license_classify, "parse_spdx_expression", crash)
     assert classify_license("MIT") == ClassifiedLicense("text", "MIT", "MIT")
 

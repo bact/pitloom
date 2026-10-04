@@ -115,17 +115,19 @@ _PARENT = "License :: OSI Approved"
         ([_MIT, _APACHE], _AND, 1),
         ([_APACHE, _MIT, _APACHE], _AND, 1),
         ([_PARENT, _MIT], "MIT License", 0),  # a trove parent is a category
+        ([_PARENT], None, 0),  # alone too: as if no classifier
     ],
 )
 def test_a_dependencys_classifiers_are_the_same_and(
     source: str,
     found: list[str],
-    expected: str,
+    expected: str | None,
     warnings: int,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with caplog.at_level(logging.WARNING, logger="pitloom"):
-        assert license_targets(_SOURCES[source](found)) == [expected]
+        targets = license_targets(_SOURCES[source](found))
+    assert targets == ([] if expected is None else [expected])
     assert len(caplog.records) == warnings
 
 

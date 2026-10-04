@@ -395,10 +395,10 @@ file, so the surviving header path is proven untouched.
 | `src/pitloom/extract/_license.py` | `detect_license_from_text()`, `find_license_files()`, `detect_license_for_project()` |
 | `src/pitloom/extract/_license_detect.py` | Root-file detection: bytes core, directory adapter, case rule, size cap |
 | `src/pitloom/extract/_license_classify.py` | `classify_license()`, `same_licence()` and the provenance notes of a rewrite |
-| `src/pitloom/extract/_core_metadata.py` | `core_metadata_license_with_source()` (unfolded headers), `license_cascade()`/`first_license()` (the weak cascade), `license_or_classifier()`, `license_from_classifiers()` (trove parents dropped) |
+| `src/pitloom/extract/_core_metadata.py` | `core_metadata_license_with_source()` (unfolded headers), `license_cascade()`/`first_license()` (the weak cascade), `license_or_classifier()`, `license_from_classifiers()` (trove parents and a lone `License :: OSI Approved` dropped) |
 | `src/pitloom/extract/wheel.py`, `src/pitloom/extract/project/sdist.py`, `src/pitloom/extract/project/installed.py` | Core Metadata readers (wheel, sdist `PKG-INFO`, installed metadata) via `core_metadata_license_with_source()` |
 | `src/pitloom/extract/project/_installed_reconcile.py` | static vs installed licence check by `same_licence()`; a weak static value gives way |
-| `src/pitloom/extract/project/_setup_cfg_directives.py` | `setup.cfg` `file:`/`attr:` directives; comma-separated `file:` lists, an unreadable file one `WARNING:` |
+| `src/pitloom/extract/project/_setup_cfg_directives.py` | `setup.cfg` `file:`/`attr:` directives; `file:` lists as setuptools reads them (wrapped, blank entries dropped), missing classified by `path_probe`, an unreadable file (a `version` file too) one `UNREADABLE_FILE_WARNING` per run |
 | `src/pitloom/extract/license_refs.py` | several classifiers as an AND of `LicenseRef-pitloom-classifier-` terms |
 | `src/pitloom/extract/project/_pyproject_license.py` | `pyproject.toml` licence and classifiers |
 | `src/pitloom/extract/project/pyproject.py` | Python project licence extraction and detection |

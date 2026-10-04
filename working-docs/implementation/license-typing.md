@@ -148,7 +148,14 @@ Provenance names the field: `project.classifiers`, `metadata.classifiers`,
 
 A trove parent (`License :: OSI Approved`) is dropped when another
 classifier in the same set extends it by `::` (`_licence_classifiers`): it
-adds nothing the child does not say. Alone it is kept, as a name.
+adds nothing the child does not say. `License :: OSI Approved` is also
+dropped alone (`_CATEGORY_CLASSIFIER`), silently, as if absent, so the
+cascade goes on to the next source: it is the only `License ::` classifier
+the trove list uses as a category (84 licence classifiers, only it has
+children), so it states no licence. Any other classifier alone is a name.
+In `pyproject.toml`, classifiers that state no licence lose to any
+`license`, a placeholder too, and are dropped without the PEP 639
+transitional `WARNING:`.
 
 Several licence classifiers are one `LicenseExpression`: the AND of
 `LicenseRef-pitloom-classifier-<name>` terms, sorted by classifier and
@@ -172,17 +179,28 @@ A Poetry project's classifiers are not read: `poetry-core` writes the
 licence classifier from `license` itself.
 
 `setup.cfg`'s `file:` directive (`extract/project/_setup_cfg_directives.py`)
-reads a comma-separated list as setuptools' `read_files` does: each path
-stripped, a missing one skipped, the texts joined with a newline. An
-existing file that cannot be read (`OSError`, `UnicodeDecodeError`) is left
-out with one `WARNING:` naming the file and the field
-(`metadata.classifiers`, `metadata.long_description`); it no longer ends the
-read.
+reads a comma-separated list as setuptools' `_parse_file`/`read_files` do:
+the list may wrap across lines, each path is stripped, a blank entry (a
+trailing comma) is no file, a missing one is skipped silently, the texts are
+joined with a newline. Missing is classified by `os.stat()` and
+`core.path_probe.is_missing_errno`, as the fragment and wheel scans do, so a
+dangling symlink is missing (setuptools' `os.path.isfile` skips it too) but
+a permission error on a parent directory is not. A file that exists but
+cannot be read (a directory, no permission, not UTF-8) is left out with
+`path_probe.UNREADABLE_FILE_WARNING`
+(`FILE=<name>: could not read for setup.cfg <field>; <error>`), once per
+file and field per process (`warn_once`): one run reads the project twice
+(`resolve_project_with_lockfile`). setuptools itself warns for a missing
+file too; Pitloom keeps that silent and returns the list as a filename hint.
+The same read serves `version = file:` and `pyproject.toml`'s
+`[tool.setuptools.dynamic] version = {file = ...}`: an unreadable file is
+no version with that one `WARNING:`, not a crash.
 
 `license = "UNKNOWN"` with a `License ::` classifier fails
-`pyproject-metadata`'s PEP 639 check; the reader drops the placeholder
-`license` (the classifier wins the cascade anyway), silently, instead of
-dropping the classifiers with a `WARNING:` as for a real SPDX string.
+`pyproject-metadata`'s PEP 639 check; when the classifiers state a licence
+the reader drops the placeholder `license` (the classifier wins the cascade
+anyway), silently, instead of dropping the classifiers with a `WARNING:` as
+for a real SPDX string.
 
 Core Metadata folds a multi-line `License` with a continuation indent
 (8 spaces from setuptools and hatchling, setuptools adding one more indent
@@ -289,7 +307,9 @@ licence is the only one with content). `NONE` against a real licence is a
 conflict. One rule, `same_licence` (`extract/_license_classify.py`), decides
 "same licence" here and when a static manifest is reconciled with installed
 metadata (`_installed_reconcile.py`), where a weak static value also gives way:
-a real installed licence replaces it, with its provenance. Rejected: dropping
+a real installed licence replaces it, with its provenance. A weak value
+against a declared-but-blank one on the other side agrees (no conflict,
+static kept): the weak check comes before the blank one. Rejected: dropping
 the NoAssertion relationship when the other side is real (it loses that source's
 statement and provenance for no gain).
 

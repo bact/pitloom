@@ -167,7 +167,15 @@ def _parse_standard_metadata_with_retry(
     except ConfigurationError as exc:
         if not _is_license_classifier_conflict(exc):
             raise ValueError(f"Failed to parse project metadata: {exc}") from exc
-        placeholder_dropped = _drop_placeholder_license(data)
+        # Classifiers that state no licence (a category alone) lose to
+        # any `license`, a placeholder too, and are dropped silently.
+        classifiers = data.get("project", {}).get("classifiers")
+        states_licence = isinstance(classifiers, list) and bool(
+            license_from_classifiers(c for c in classifiers if isinstance(c, str))
+        )
+        placeholder_dropped = (
+            _drop_placeholder_license(data) if states_licence else None
+        )
         # PEP 639 transitional state: a project declares both a modern
         # SPDX `license` expression and legacy `License ::` trove
         # classifiers -- pyproject-metadata treats the combination as a
@@ -179,7 +187,7 @@ def _parse_standard_metadata_with_retry(
         if placeholder_dropped is not None:
             data = placeholder_dropped
         else:
-            if not quiet:
+            if states_licence and not quiet:
                 log.warning(
                     "%s declares both an SPDX `license` expression and legacy "
                     "`License ::` classifiers -- dropping the redundant "

@@ -132,7 +132,7 @@ def _extract_setuptools_dynamic_version(
     concept of this setuptools-specific table, so nothing else resolves
     it on this path.
 
-    Delegates to :mod:`pitloom.extract.project.setuptools_cfg`'s
+    Delegates to :mod:`pitloom.extract.project._setup_cfg_directives`'
     ``attr:``/``file:`` resolvers -- the exact same AST-scan/file-read
     logic ``read_setuptools()`` already uses for ``setup.cfg``'s
     ``version = attr: ...``/``version = file: ...`` directives, not a
@@ -169,7 +169,9 @@ def _extract_setuptools_dynamic_version(
         # multi-file case (falls through to the generic candidate scan
         # below), not an attempt to match setuptools' own behavior.
         path = file_list[0] if isinstance(file_list, list) else file_list
-        return _resolve_cfg_version_file_directive(path, project_dir)
+        return _resolve_cfg_version_file_directive(
+            path, project_dir, "pyproject.toml tool.setuptools.dynamic.version"
+        )
 
     return None, None
 

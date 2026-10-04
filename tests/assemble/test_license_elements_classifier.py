@@ -43,6 +43,8 @@ from tests.assemble.conftest import _make_sdist
 
 _BSD = "License :: OSI Approved :: BSD License"
 _MIT = "License :: OSI Approved :: MIT License"
+_CATEGORY = "License :: OSI Approved"
+_PUBLIC_DOMAIN = "License :: Public Domain"
 #: Several classifiers, in any order: the AND of their names, sorted.
 _BOTH = (
     "LicenseRef-pitloom-classifier-BSD-License"
@@ -185,6 +187,11 @@ def _graph(metadata: ProjectMetadata) -> list[dict[str, Any]]:
         pytest.param(
             None, ["License :: OSI Approved", _MIT], "MIT License", id="trove-parent"
         ),
+        # a category alone is no classifier at all; another alone is kept
+        pytest.param(None, [_CATEGORY], None, id="lone-category"),
+        pytest.param("UNKNOWN", [_CATEGORY], "NOASSERTION", id="weak-and-category"),
+        pytest.param(None, [_PUBLIC_DOMAIN], "Public Domain", id="lone-trove-name"),
+        pytest.param("MIT", [_CATEGORY], "MIT", id="license-and-category"),
     ],
 )
 def test_main_package_classifier_is_the_same_on_every_surface(
@@ -204,7 +211,12 @@ def test_main_package_classifier_is_the_same_on_every_surface(
         metadata = _READERS[surface](license_name, classifiers, tmp_path)
     # Only a real SPDX string beside a classifier is the PEP 639 transitional
     # state, whose redundant classifiers are dropped with one WARNING.
-    transitional = surface == "pyproject-string" and license_name in ("MIT", "NONE")
+    # A category alone states no licence: nothing redundant, no WARNING.
+    transitional = (
+        surface == "pyproject-string"
+        and license_name in ("MIT", "NONE")
+        and classifiers != [_CATEGORY]
+    )
     # Several licence classifiers: one WARNING that AND was assumed.
     assert len(caplog.records) == int(transitional) + int(expected == _BOTH)
     graph = _graph(metadata)
@@ -218,7 +230,9 @@ def test_main_package_classifier_is_the_same_on_every_surface(
     from_classifier = metadata.provenance.get("license", "").endswith(
         ("Field: Classifier", "classifiers", "setup(classifiers=...)")
     )
-    assert from_classifier is (expected in ("BSD License", "MIT License", _BOTH))
+    assert from_classifier is (
+        expected in ("BSD License", "MIT License", "Public Domain", _BOTH)
+    )
 
 
 @pytest.mark.parametrize(

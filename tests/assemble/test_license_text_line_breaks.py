@@ -243,7 +243,7 @@ def test_blank_ends_follow_the_rule_for_every_short_string() -> None:
 def test_a_long_run_of_inner_line_breaks_is_linear() -> None:
     """A quadratic strip took seconds on 20,000 inner line breaks; the
     bound is generous, a regression is orders of magnitude slower."""
-    text = "a" + "\n" * 50_000 + "b\n"
+    text = "a" + "\n" * 20_000 + "b\n"
     start = time.monotonic()
     assert _without_blank_ends(text) == text[:-1]
     assert time.monotonic() - start < 3

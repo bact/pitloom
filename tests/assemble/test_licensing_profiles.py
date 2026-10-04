@@ -15,7 +15,7 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import create_autospec, patch
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -172,7 +172,10 @@ def _deployed(licence: str | None) -> Spdx3JsonExporter:
     )
     fields = {"Version": "1"} | ({"License": licence} if licence else {})
     with patch.object(
-        deps_installed, "get_pkg_metadata", lambda _name: _FakeMetadata(fields)
+        deps_installed,
+        "get_pkg_metadata",
+        autospec=True,
+        return_value=_FakeMetadata(fields),
     ):
         return build_deployed(doc, tree, offline=True)
 
@@ -291,7 +294,11 @@ def test_every_surface_uses_the_shared_helper(
     """Drift guard: with the helper's answer replaced, every builder shows
     the replacement, so none computes licensing profiles by itself."""
     monkeypatch.setattr(
-        _licensing_profiles, "licensing_profiles", lambda _objects: [_P.security]
+        _licensing_profiles,
+        "licensing_profiles",
+        create_autospec(
+            _licensing_profiles.licensing_profiles, return_value=[_P.security]
+        ),
     )
     got = _conformance(build_fn(tmp_path))
     assert _P.security in got

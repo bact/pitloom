@@ -28,6 +28,25 @@ from tests._network import (  # noqa: F401
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
+#: Longest test node id allowed. pytest puts the id in the
+#: PYTEST_CURRENT_TEST environment variable, which Windows caps at 32,767
+#: characters: a long parametrize value needs a short explicit ``ids=``.
+MAX_NODEID_LENGTH = 1000
+
+
+@pytest.fixture(autouse=True)
+def _short_nodeid(request: pytest.FixtureRequest) -> None:
+    """Fail any test whose node id is over :data:`MAX_NODEID_LENGTH`, on
+    every platform, not only where the environment variable overflows. A
+    fixture, not a collection hook: xdist drops the message of an
+    exception raised in ``pytest_collection_modifyitems``."""
+    if len(request.node.nodeid) > MAX_NODEID_LENGTH:
+        pytest.fail(
+            f"node id over {MAX_NODEID_LENGTH} characters;"
+            " give the parametrize a short ids=",
+            pytrace=False,
+        )
+
 
 def _assert_no_duplicate_spdx_ids(
     sbom_json: str | None = None, exporter: Any | None = None

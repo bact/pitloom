@@ -60,8 +60,8 @@ and this project adheres to
 - `generate_wheel_sbom_with_metadata()`; `embed_sbom_in_wheel(identity=...)`
   ([#266])
 - A `License ::` classifier is a licence source after the licence field
-  (manifests, hook, wheel, sdist, dependencies); a trove parent is dropped
-  ([#276])
+  (manifests, hook, wheel, sdist, dependencies); `License :: OSI Approved` is
+  a category, never a licence ([#276])
 
 ### Changed
 
@@ -274,17 +274,17 @@ and this project adheres to
   ([#276])
 - Licence text with a trailing newline no longer gains a false detection
   method; multi-line `License` text from Core Metadata is unfolded ([#276])
-- `setup.cfg` `file:` reads comma-separated files as setuptools does; an
-  unreadable one is skipped with one `WARNING:`, not a crash ([#276])
+- `setup.cfg` `file:` lists read as setuptools reads them; an unreadable file,
+  a `version` file too, is skipped with one `WARNING:`, not a crash ([#276])
 - `profileConformance` lists `simpleLicensing`/`expandedLicensing` from the
   graph, so a direct build and a fragment merge agree ([#276])
 - A wheel named `x.WHL` was read by `wheel` and `generate` but refused by
   `embed-wheel`; every wheel surface refuses it, as `pip` does ([#278])
 - An unknown `[tool.pitloom]` key warns once per file with a hint; `setup.cfg`
   `creation-tool`/`tool` now reaches the SBOM (was dropped) ([#280])
-- sdist `PKG-INFO`: headers only, capped as a wheel's `METADATA`; a licence
-  file is picked by exact case, not listing order, and skipped over 256 KiB
-  with one `WARNING:` ([#282])
+- Licence file picked by exact case, not listing order, skipped over 256 KiB
+  with one `WARNING:`; sdist `PKG-INFO` read as headers only, capped as a
+  wheel's `METADATA` ([#282])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227

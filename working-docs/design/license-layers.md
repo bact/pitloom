@@ -84,10 +84,10 @@ Deferred until upstream (no Pitloom feature meanwhile):
 - Classifier or licence name to SPDX id (today `SimpleLicensingText`; several
   classifiers are an AND of `LicenseRef-pitloom-classifier-` terms, layer 3).
 - An unknown-id `WARNING:` in a field that must hold an SPDX expression.
-- A category classifier (`License :: OSI Approved`) becomes its own AND
-  term, and names differing only in case give two `LicenseRef-` terms
-  (SPDX matches them case-insensitively): both need classifier-to-id
-  knowledge (licenseid).
+- Names differing only in case give two `LicenseRef-` terms (SPDX matches
+  them case-insensitively): needs classifier-to-id knowledge (licenseid).
+  The one category classifier, `License :: OSI Approved`, is dropped
+  already (`license-typing.md`).
 - A licence text `licenseid` identifies is the id on a directory and the
   hook but text from an sdist, wheel or installed metadata, whose readers
   run no detection (`metadata-quality.md`).
