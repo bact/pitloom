@@ -550,7 +550,7 @@ creation-comment = "from-cwd"
     assert __main__.main() == 0
 
     captured = capsys.readouterr()
-    assert "pitloom: embedded" in captured.out
+    assert captured.out.startswith("WHEEL=") and " SBOM=" in captured.out
 
     with WheelFile.open(wheel_path) as wf:
         wf.validate_record()

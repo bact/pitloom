@@ -12,7 +12,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from pitloom.__about__ import __version__
 from pitloom.assemble import (
     generate_model_sbom,
 )
@@ -21,6 +20,7 @@ from pitloom.cli.commands.utils import (
     cli_error_handler,
     existing_model_path,
 )
+from pitloom.cli.kv_output import log_verbose
 from pitloom.cli.options import (
     _resolve_hf_output_path,
     _resolve_model_output_path,
@@ -46,9 +46,7 @@ def _run_model_command(args: argparse.Namespace) -> int:
             return 1
         output_path = _resolve_hf_output_path(args.output, model_id)
         if args.verbose:
-            print(f"Pitloom version    : {__version__}")
-            print(f"Hugging Face model : {model_id}")
-            print(f"Output path        : {output_path}")
+            log_verbose(HF_MODEL=model_id, OUTPUT_PATH=output_path)
         model_target = model_id
     else:
         # The path as given goes to the generator, so its log lines name
@@ -61,9 +59,7 @@ def _run_model_command(args: argparse.Namespace) -> int:
             return 1
         output_path = _resolve_model_output_path(args.output, model_path)
         if args.verbose:
-            print(f"Pitloom version: {__version__}")
-            print(f"Model file      : {model_path}")
-            print(f"Output path     : {output_path}")
+            log_verbose(MODEL_FILE=model_path, OUTPUT_PATH=output_path)
         model_target = opened_path
 
     pitloom_config, options = explicit_config_and_options(args)

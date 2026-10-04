@@ -568,14 +568,15 @@ runs:
             # "loom embed-wheel" doesn't write a standalone copy unless -o is
             # given (only the wheel's embedded copy, named via
             # _derive_wheel_sbom_filename); extract that copy to disk so the
-            # action can still surface a sbom-path and upload it.
+            # action can still surface a sbom-path and upload it (name from
+            # loom's "WHEEL=<wheel> SBOM=<arcname>" stdout line).
             embed_wheel_path=$(
               python_text -c 'import glob, sys; print(glob.glob(sys.argv[1])[0])' \
                 "${PL_EMBED_WHEEL}"
             )
             arcname=$(
               printf '%s\n' "${loom_stdout}" \
-                | sed -n 's/^pitloom: embedded \(.*\) into .*$/\1/p' | head -n1
+                | sed -n 's/^WHEEL=[^ ]* SBOM=//p' | head -n1
             )
             if [ -z "${arcname}" ]; then
               echo "::error::Cannot find the embedded SBOM name in loom's output"

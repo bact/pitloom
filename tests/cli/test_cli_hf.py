@@ -17,8 +17,10 @@ from pathlib import Path
 import pytest
 
 from pitloom import __main__
+from pitloom.__about__ import __version__
 from pitloom.cli.commands import model as mod_model
 from pitloom.core.creation import CreationMetadata
+from tests.kv_helpers import info_kv, sbom_output_path
 
 
 def test_hf_url_routes_to_huggingface_sbom(
@@ -240,9 +242,11 @@ def test_hf_command_verbose_shows_model_id(
     )
 
     assert __main__.main() == 0
-    out = capsys.readouterr().out
-    assert "Qwen/Qwen3-235B-A22B" in out
-    assert "Pitloom version" in out
+    captured = capsys.readouterr()
+    verbose = info_kv(captured.err)
+    assert verbose["HF_MODEL"] == "Qwen/Qwen3-235B-A22B"
+    assert verbose["PITLOOM_VERSION"] == __version__
+    assert sbom_output_path(captured.out) == verbose["OUTPUT_PATH"]
 
 
 def test_hf_url_with_tree_path_resolves_correctly(

@@ -192,8 +192,8 @@ def seq_merge_into_input(ctx: Context) -> None:
         ctx.work, "merge", str(fragments), "-o", str(fragments / "m.spdx3.json")
     )
     # Documented in manual-cli-checks.md check 7: write the output elsewhere.
-    expect(f"merged {count} " in first.stdout, first.stdout)
-    expect(f"merged {count + 1} " in second.stdout, second.stdout)
+    expect(f"merged {count} " in first.stderr, first.stderr)
+    expect(f"merged {count + 1} " in second.stderr, second.stderr)
     ctx.note("documented hazard reproduced (write merge output outside the input dir)")
 
 

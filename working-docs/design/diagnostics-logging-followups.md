@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -45,11 +45,25 @@ file-size guidance -- moved verbatim, no content changed.
   percent-encoded names in ids (an AI model name with a space gave an invalid
   IRI) are built.
   See [canonical-output-followups.md](canonical-output-followups.md).
-- [ ] **`enrich` and `merge` stdout is not `KEY=VALUE`** -- they print
-  prose (`Enrichment fragment written to: ...`, `pitloom: merged N
-  fragment(s) into ...`), unlike `PITLOOM_SBOM_OUTPUT_PATH=` from every
-  other SBOM command ("CLI output" in CLAUDE.md); so do `id` and
-  `fragment validate`.
+- [x] **`enrich` and `merge` stdout is not `KEY=VALUE`** -- fixed: every
+  command's stdout is `KEY=VALUE` data lines only, through
+  `pitloom.cli.kv_output.print_kv()`; counts, hints and `-v` are `INFO:` on
+  stderr. `tests/cli/test_cli_kv_stdout.py` checks every subcommand of the
+  parser.
+- [ ] **Windows piped stdout can raise `UnicodeEncodeError`** -- `print_kv()`
+  writes text through `sys.stdout`; piped on Windows that is the ANSI code
+  page (cp1252), so a `FILE=`/`PITLOOM_ID_REGISTRY_PATH=`/
+  `PITLOOM_SBOM_OUTPUT_PATH=` path with a character outside it fails after
+  the work is done. `loggable()` only escapes non-printable text.
+  `_sbom_io.write_stdout_lf()` already writes UTF-8 bytes; `print_kv()`
+  could do the same.
+- [ ] **`validate-wheel`: an exception aborts the batch** -- an error
+  `_validate_one_wheel()` does not catch (e.g. `spdx3_validate` failing
+  outside `SpdxValidateError`) reaches `cli_error_handler`: no
+  `STATUS=failed` line for that wheel and the remaining wheels are not
+  checked. `test_validate_wheel_invalid_sbom_errors` passes only through
+  that path (the conftest socket block raises inside `spdx3_validate`), not
+  the offline `ValidationResult.errors` path its docstring claims.
 - [x] **A relative `--id-registry` resolves against the project directory**
   -- fixed: it now resolves against the current directory on every
   command, like every other path option. See

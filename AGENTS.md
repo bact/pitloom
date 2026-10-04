@@ -275,6 +275,10 @@ Unix philosophy. Consistent, predictable, parseable.
   ROLE=... REQUIRED=... EXISTS=...`), not split one-field-per-line. Only
   split across lines when there's more than one record to list (one line
   per record, e.g. one line per configured fragment).
+- Stdout is data only (`--help`/`--version` excepted): `KEY=VALUE` lines
+  from `pitloom.cli.kv_output.print_kv()`, or the SBOM itself for `-o -`
+  (`_sbom_io.write_stdout_lf()`); counts, summaries, hints and `-v` details
+  are `INFO:` on stderr. A value that may hold a space goes last.
 - Key-value: `KEY=VALUE` -- uppercase KEY, no spaces around `=`. Several
   `KEY=VALUE` pairs on the same line are fine when they describe the same
   data point (see above) -- e.g. `FORMAT=%s FILE=%s: ...` for a single

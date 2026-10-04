@@ -49,7 +49,7 @@ EMPTY_INPUTS = dict.fromkeys(
     "",
 )
 
-EMBED_STDOUT = "pitloom: embedded p-1.dist-info/sboms/p-1.spdx3.json into p-1.whl\\n"
+EMBED_STDOUT = "WHEEL=p-1.whl SBOM=p-1.dist-info/sboms/p-1.spdx3.json\\n"
 
 
 class _Result(NamedTuple):

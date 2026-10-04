@@ -27,6 +27,7 @@ from pitloom.cli.commands.utils import (
     _validate_spdx3_documents,
     cli_error_handler,
 )
+from pitloom.cli.kv_output import print_kv
 from pitloom.core.config import FragmentConfig, read_pitloom_config
 from pitloom.core.path_probe import is_missing_errno
 
@@ -54,7 +55,9 @@ def _run_fragment_validate(args: argparse.Namespace) -> int:
         [str(p) for p in paths], check_merged=not args.no_merge
     )
     if exit_code == 0:
-        print(f"pitloom fragment validate: {len(paths)} document(s) valid")
+        for p in paths:
+            print_kv(FILE=p, STATUS="valid")
+        log.info("fragment validate: %d document(s) valid", len(paths))
     return exit_code
 
 
@@ -173,13 +176,14 @@ def _print_fragment_list_line(
     # distinct states -- only None prints as "-", matching this project's
     # own None-vs-empty convention (see CLAUDE.md "Recurring bug patterns").
     role = frag.role if frag.role is not None else "-"
-    print(
-        f"PATH={frag.path} ROLE={role} "
-        f"REQUIRED={'true' if frag.required else 'false'} "
-        f"EXISTS={'true' if exists else 'false'} "
-        f"ELEMENTS={elements if elements is not None else '-'} "
-        f"SHA256={sha_status} "
-        f"MODIFIED={modified if modified is not None else '-'}"
+    print_kv(
+        PATH=frag.path,
+        ROLE=role,
+        REQUIRED="true" if frag.required else "false",
+        EXISTS="true" if exists else "false",
+        ELEMENTS=elements if elements is not None else "-",
+        SHA256=sha_status,
+        MODIFIED=modified if modified is not None else "-",
     )
 
 
@@ -238,7 +242,7 @@ def _run_fragment_list(args: argparse.Namespace) -> int:
     pitloom_config = read_pitloom_config(project_dir / "pyproject.toml")
 
     if not pitloom_config.fragments:
-        print("pitloom fragment list: no fragments configured")
+        log.info("fragment list: no fragments configured")
         return 0
 
     unmet_required = [

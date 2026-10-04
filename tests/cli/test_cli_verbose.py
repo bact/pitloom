@@ -22,6 +22,7 @@ from pitloom.cli.options import (
 )
 from pitloom.cli.verbose import _build_creation_option_rows
 from pitloom.core.creation import Creator, Tool
+from tests.kv_helpers import info_options, sbom_output_path
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 SAFETENSORS_FIXTURE = (
@@ -74,10 +75,14 @@ version = "0.1.0"
     captured = capsys.readouterr()
 
     assert exit_code == 0
-    assert str(target_pyproject) in captured.out
-    assert "Config file" in captured.out
-    assert "creation_datetime     : None" in captured.out
-    assert "creation_comment      : 'Generated via Pitloom CLI'" in captured.out
+    rows = info_options(captured.err)
+    assert rows["config_file"]["VALUE"] == str(target_pyproject)
+    assert rows["creation_datetime"]["VALUE"] == "None"
+    assert rows["creation_comment"]["VALUE"] == "'Generated via Pitloom CLI'"
+    assert rows["creation_comment"]["SOURCE"] == "default"
+    # Every row is OPTION, SOURCE, VALUE in that order, VALUE last.
+    assert all(list(row) == ["OPTION", "SOURCE", "VALUE"] for row in rows.values())
+    assert sbom_output_path(captured.out) == rows["output_path"]["VALUE"]
 
 
 def test_build_creation_option_rows_full() -> None:

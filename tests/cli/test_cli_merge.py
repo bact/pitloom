@@ -139,4 +139,6 @@ def test_merge_command_stdout(
     assert result == 0
 
     captured = capsys.readouterr()
-    assert '"@graph":' in captured.out
+    # The SBOM is all of stdout: no PITLOOM_SBOM_OUTPUT_PATH= line after it.
+    assert "@graph" in json.loads(captured.out)
+    assert "INFO: merge: merged 1 fragment(s)" in captured.err.splitlines()

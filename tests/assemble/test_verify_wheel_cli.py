@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 
 from pitloom import __main__
+from tests.kv_helpers import statuses
 
 from .conftest import _embed_sbom_entry, _make_dummy_wheel, _spdx3_json_with_subject
 
@@ -43,8 +44,8 @@ def test_verify_wheel_correct_extension_ok(
     assert __main__.main() == 0
 
     captured = capsys.readouterr()
-    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
-    assert captured.err == ""
+    assert statuses(captured.out) == ["ok"]
+    assert captured.err.splitlines() == ["INFO: verify-wheel: 1 wheel(s) OK"]
 
 
 def test_verify_wheel_wrong_extension_warns(
@@ -66,7 +67,7 @@ def test_verify_wheel_wrong_extension_warns(
     captured = capsys.readouterr()
     assert "WARNING:" in captured.err
     assert "recommended '.spdx3.json' extension" in captured.err
-    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
+    assert statuses(captured.out) == ["ok"]
 
 
 def test_verify_wheel_missing_sbom_errors(
@@ -100,7 +101,7 @@ def test_verify_wheel_sbom_filename_exact_match(
         ["loom", "verify-wheel", str(wheel_path), "--sbom-filename", "a.spdx3.json"],
     )
     assert __main__.main() == 0
-    assert "pitloom verify-wheel: 1 wheel(s) OK" in capsys.readouterr().out
+    assert statuses(capsys.readouterr().out) == ["ok"]
 
 
 def test_verify_wheel_ambiguous_without_filename_errors(
@@ -140,7 +141,7 @@ def test_verify_wheel_nested_sboms_entry_not_ambiguous(
     assert __main__.main() == 0
 
     captured = capsys.readouterr()
-    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
+    assert statuses(captured.out) == ["ok"]
     assert "Multiple SBOMs found" not in captured.err
 
 
@@ -165,7 +166,7 @@ def test_verify_wheel_unrecognized_format_warns(
     captured = capsys.readouterr()
     assert "WARNING: " in captured.err
     assert "unrecognized SBOM format" in captured.err
-    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
+    assert statuses(captured.out) == ["ok"]
 
 
 def test_verify_wheel_sbom_filename_not_found_errors(
@@ -255,8 +256,9 @@ def test_verify_wheel_multiple_wheels_mixed_pass_fail(
     captured = capsys.readouterr()
     assert "ERROR: no SBOM found" in captured.err
     assert "bad-1.0.0-py3-none-any.whl" in captured.err
-    # No success summary when any wheel failed.
-    assert "wheel(s) OK" not in captured.out
+    # One record per wheel, in order; no success summary when any failed.
+    assert statuses(captured.out) == ["ok", "failed"]
+    assert "wheel(s) OK" not in captured.err
 
 
 def test_verify_wheel_name_version_match_no_warning(
@@ -277,8 +279,8 @@ def test_verify_wheel_name_version_match_no_warning(
     assert __main__.main() == 0
 
     captured = capsys.readouterr()
-    assert captured.err == ""
-    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
+    assert captured.err.splitlines() == ["INFO: verify-wheel: 1 wheel(s) OK"]
+    assert statuses(captured.out) == ["ok"]
 
 
 def test_verify_wheel_name_mismatch_warns_by_default(
@@ -300,7 +302,7 @@ def test_verify_wheel_name_mismatch_warns_by_default(
     captured = capsys.readouterr()
     assert "WARNING:" in captured.err
     assert "name: wheel declares 'realpkg', SBOM declares 'otherpkg'" in captured.err
-    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
+    assert statuses(captured.out) == ["ok"]
 
 
 def test_verify_wheel_name_mismatch_fails_with_flag(
@@ -326,7 +328,7 @@ def test_verify_wheel_name_mismatch_fails_with_flag(
     captured = capsys.readouterr()
     assert "ERROR:" in captured.err
     assert "name: wheel declares 'realpkg2', SBOM declares 'otherpkg2'" in captured.err
-    assert "wheel(s) OK" not in captured.out
+    assert statuses(captured.out) == ["failed"]
 
 
 def test_verify_wheel_version_mismatch_warns(
@@ -370,7 +372,7 @@ def test_verify_wheel_pep503_pep440_equivalent_no_false_positive(
 
     captured = capsys.readouterr()
     assert "SBOM/wheel" not in captured.err
-    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
+    assert statuses(captured.out) == ["ok"]
 
 
 def test_verify_wheel_sbom_subject_unextractable_warns_and_skips(
@@ -395,7 +397,7 @@ def test_verify_wheel_sbom_subject_unextractable_warns_and_skips(
     assert "WARNING:" in captured.err
     assert "cannot cross-check SBOM name/version" in captured.err
     assert "no SpdxDocument node found" in captured.err
-    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
+    assert statuses(captured.out) == ["ok"]
 
 
 def test_verify_wheel_sbom_missing_version_field_skips_version_only(
@@ -419,7 +421,7 @@ def test_verify_wheel_sbom_missing_version_field_skips_version_only(
     captured = capsys.readouterr()
     assert "SBOM subject has no version to cross-check" in captured.err
     assert "SBOM/wheel" not in captured.err
-    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
+    assert statuses(captured.out) == ["ok"]
 
 
 def test_verify_wheel_invalid_wheel_version_skips_with_warning(
@@ -442,7 +444,7 @@ def test_verify_wheel_invalid_wheel_version_skips_with_warning(
     captured = capsys.readouterr()
     assert "wheel METADATA version 'not-a-version' isn't a valid" in captured.err
     assert "SBOM/wheel" not in captured.err
-    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
+    assert statuses(captured.out) == ["ok"]
 
 
 def test_verify_wheel_invalid_sbom_version_skips_with_warning(
@@ -465,4 +467,4 @@ def test_verify_wheel_invalid_sbom_version_skips_with_warning(
     captured = capsys.readouterr()
     assert "SBOM subject version 'not-a-version' isn't a valid" in captured.err
     assert "SBOM/wheel" not in captured.err
-    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
+    assert statuses(captured.out) == ["ok"]
