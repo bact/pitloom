@@ -20,15 +20,33 @@ resolution) and may change direction there. Group C is housekeeping.
 
 ## A. To fix
 
-- **sdist and wheel run no in-package licence detection.** A directory,
-  the library and the Hatchling hook detect `Apache-2.0` from a `LICENSE`
-  file; `loom wheel` and an sdist record the METADATA `License:` text
-  (seen with a centred Apache header). The sdist main fix (after #282)
-  covers sdists; wheels need `License-File:` selection (0.21.0).
+- **A wheel runs no in-package licence detection.** A directory, the
+  library, the Hatchling hook and (since the sdist licence-detection PR) an
+  sdist read the project's `LICENSE`; `loom wheel` records the METADATA
+  `License:` text only. Needs `License-File:` selection (0.21.0).
+- **A licence text in `PKG-INFO` stays text.** For `license = {file =
+  "LICENSE"}` (a centred Apache header, checked live with a Hatchling
+  sdist) the directory and the hook declare `Apache-2.0` (`licenseid`
+  identifies `license.text`); the sdist declares the `License:` text. The
+  concluded value agrees now. Running `stated_license()` on `PKG-INFO`'s
+  `License:` would align them, but a setuptools directory keeps a
+  `setup.cfg` `license =` text as written, and an sdist cannot tell the
+  backends apart: a content decision
+  ([metadata-quality.md](metadata-quality.md)).
+- **sdist vs directory, smaller gaps** (found with the sdist fix): with no
+  `PKG-INFO`, a `license = {file = ...}` naming a file that is not a root
+  licence candidate (`LICENSES/MIT.txt`) states nothing from an sdist
+  (one archive pass keeps only the candidates), and an invalid
+  `project.license` shape is ignored where the directory fails
+  (`pyproject-metadata`); `CITATION.cff`/`codemeta.json` match their
+  exact name in an archive but any case on a case-insensitive file
+  system; the directory follows a symlinked `LICENSE`, the sdist skips a
+  link member.
 - **`embed-wheel --project-dir`** records no licence for a silent manifest
   plus a `LICENSE` file; `loom project` and the hook declare it
   (`_add_concluded_license` detects only when a licence is already
-  declared).
+  declared). With an sdist as `--project-dir` it reads no licence files
+  at all, where `loom project <sdist>` now does (plan Q7: left as is).
 - **Merge:** licences are not unified across a fragment merge or
   `loom merge`; four merge bugs found beside it. Own PR before 0.20.0:
   [open-items.md](sbom-fragments/open-items.md#found-in-the-pr-276-review-own-pr-before-0200).

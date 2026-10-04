@@ -52,8 +52,8 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
 from pitloom.extract._core_metadata import first_license
 from pitloom.extract._license import (
-    detect_license_for_project,
-    resolve_license_concluded,
+    apply_in_package_license,
+    collect_license_candidates,
 )
 from pitloom.extract.project._setup_cfg_directives import (
     _DIRECTIVE_RE,
@@ -250,7 +250,7 @@ def read_setuptools(
         metadata = py_metadata
         cfg_config = PitloomConfig()
 
-    metadata = _resolve_setuptools_license(metadata, project_dir)
+    apply_in_package_license(metadata, collect_license_candidates(project_dir))
     return metadata, cfg_config
 
 
@@ -269,22 +269,3 @@ def _setup_py_over_cfg_classifier(
         merged.license_name = py_metadata.license_name
         merged.provenance["license"] = py_metadata.provenance["license"]
     return merged
-
-
-def _resolve_setuptools_license(
-    metadata: ProjectMetadata, project_dir: Path
-) -> ProjectMetadata:
-    """Apply license resolution to merged setup.cfg/setup.py result."""
-    if metadata.license_name:
-        concluded, concluded_prov = resolve_license_concluded(True, project_dir)
-        if concluded and concluded_prov:
-            metadata.license_concluded = concluded
-            metadata.provenance["license_concluded"] = concluded_prov
-        return metadata
-
-    detected, detected_prov = detect_license_for_project(project_dir)
-    if detected:
-        metadata.license_name = detected
-        if detected_prov:
-            metadata.provenance["license"] = detected_prov
-    return metadata

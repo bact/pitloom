@@ -218,9 +218,24 @@ def test_metadata_from_hatchling_license_expression_used_directly() -> None:
     )
 
 
+def test_metadata_from_hatchling_identified_license_text_names_the_method() -> None:
+    """A ``license`` text ``licenseid`` identifies: the id, its provenance
+    naming the method (not the plain field)."""
+    detected = ("MIT", "Source: x | Method: licenseid_detection")
+    hatch_meta = _fake_hatch_metadata(core={"license": "MIT License text"})
+    with patch(
+        "pitloom.extract.project.hatchling.stated_license",
+        autospec=True,
+        return_value=detected,
+    ):
+        metadata = metadata_from_hatchling(hatch_meta, Path("does-not-exist"))
+    assert (metadata.license_name, metadata.provenance["license"]) == detected
+
+
 def test_metadata_from_hatchling_license_fallback_to_project_dir() -> None:
-    """When neither ``license`` nor ``license_expression`` is set, fall back
-    to :func:`~pitloom.extract._license.detect_license_for_project`."""
+    """When neither ``license`` nor ``license_expression`` is set, the
+    project's licence files are the declared licence
+    (:func:`~pitloom.extract._license.apply_in_package_license`)."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "LICENSE").write_text("MIT", encoding="utf-8")

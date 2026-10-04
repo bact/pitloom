@@ -19,15 +19,14 @@ import logging
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
-from typing import cast
 from unittest.mock import patch
 
 import pytest
 from pyproject_metadata import ConfigurationError, StandardMetadata
 
 from pitloom.extract.project._pyproject_license import (
-    _extract_and_detect_license,
     _resolve_license_hint,
+    stated_pyproject_license,
 )
 from pitloom.extract.project.pyproject import (
     _drop_redundant_license_classifiers,
@@ -276,28 +275,25 @@ def test_resolve_license_hint_unrecognised_object() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _extract_and_detect_license -- branches around _resolve_license_hint /
+# stated_pyproject_license -- branches around _resolve_license_hint /
 # detect_license_for_project interplay
 # ---------------------------------------------------------------------------
 
 
-_DETECT = "pitloom.extract.project._pyproject_license.detect_license_for_project"
+_DETECT = "pitloom.extract.project._pyproject_license.stated_license"
 
 
-def _std(license_obj: object, classifiers: list[str] | None = None) -> StandardMetadata:
-    return cast(
-        StandardMetadata,
-        SimpleNamespace(license=license_obj, classifiers=classifiers or []),
-    )
+def _stated(
+    license_obj: object, project_dir: Path, classifiers: list[str] | None = None
+) -> tuple[str | None, str | None]:
+    return stated_pyproject_license(license_obj, classifiers or [], project_dir)
 
 
-def test_extract_and_detect_license_hint_none_returns_fallback() -> None:
+def teststated_pyproject_license_hint_none_returns_fallback() -> None:
     """When ``_resolve_license_hint`` cannot produce a hint (missing license
-    file), ``_extract_and_detect_license`` returns its fallback tuple."""
+    file), ``stated_pyproject_license`` returns its fallback tuple."""
     with tempfile.TemporaryDirectory() as d:
-        license_id, prov = _extract_and_detect_license(
-            _std(SimpleNamespace(file="missing-license.txt")), Path(d)
-        )
+        license_id, prov = _stated(SimpleNamespace(file="missing-license.txt"), Path(d))
     assert license_id == "missing-license.txt"
     assert prov is None
 
@@ -334,17 +330,17 @@ def test_extract_and_detect_license_hint_none_returns_fallback() -> None:
         ),
     ],
 )
-def test_extract_and_detect_license_tags_a_method_only_for_a_detection(
+def teststated_pyproject_license_tags_a_method_only_for_a_detection(
     license_obj: object,
     detected: tuple[str, str | None],
     expected: tuple[str, str | None],
 ) -> None:
     with tempfile.TemporaryDirectory() as d:
         with patch(_DETECT, autospec=True, return_value=detected) as detect:
-            got = _extract_and_detect_license(_std(license_obj), Path(d))
+            got = _stated(license_obj, Path(d))
     assert got == expected
     # The hint's own source is passed on, for a detection to name it.
-    assert detect.call_args.args[2].startswith("Source: pyproject.toml")
+    assert detect.call_args.args[1].startswith("Source: pyproject.toml")
 
 
 _MIT_CLASSIFIER = "License :: OSI Approved :: MIT License"
@@ -370,9 +366,7 @@ def test_a_license_classifier_follows_project_license(
     """The rule a wheel and an sdist use; a classifier is never dropped as
     redundant when ``project.license`` states nothing or a placeholder."""
     with tempfile.TemporaryDirectory() as d:
-        got = _extract_and_detect_license(
-            _std(license_obj, ["Topic :: Utilities", _MIT_CLASSIFIER]), Path(d)
-        )
+        got = _stated(license_obj, Path(d), ["Topic :: Utilities", _MIT_CLASSIFIER])
     assert got == expected
 
 

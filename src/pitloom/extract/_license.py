@@ -24,12 +24,14 @@ from __future__ import annotations
 import functools
 import logging
 import re
+from collections.abc import Sequence
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
 from licenseid import AggregatedLicenseMatcher
 
+from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license_classify import (
     _PY_SPDX_LICENSE_VERSION,
     ClassifiedLicense,
@@ -66,6 +68,7 @@ __all__ = [
     "_looks_like_spdx_license_id",
     "_with_tool_tag",
     "ClassifiedLicense",
+    "apply_in_package_license",
     "canonicalize_license_id",
     "classify_license",
     "collect_license_candidates",
@@ -74,8 +77,10 @@ __all__ = [
     "detect_license_from_text",
     "find_license_files",
     "is_listed_name",
+    "license_from_candidates",
     "same_licence",
     "resolve_license_concluded",
+    "stated_license",
     "tag_deprecated_license_ids",
     "tag_license_normalization",
 ]
@@ -164,9 +169,13 @@ def _with_tool_tag(provenance: str) -> str:
     return f"{provenance} | Tool: licenseid=={_LICENSEID_VERSION}"
 
 
-def detect_independent_license(project_dir: Path) -> tuple[str | None, str | None]:
-    """Detect a license purely from project-directory files."""
-    candidates = collect_license_candidates(project_dir)
+def license_from_candidates(
+    candidates: Sequence[tuple[str, str]],
+) -> tuple[str, str] | None:
+    """``(id, provenance)`` from the first of *candidates* (see
+    :func:`~pitloom.extract._license_detect.license_candidates_from_members`)
+    that states an id or expression, or whose text ``licenseid`` identifies;
+    ``None`` when none does."""
     for value, source in candidates:
         if _looks_like_spdx_license_id(value) or _looks_like_spdx_license_expression(
             value
@@ -175,7 +184,13 @@ def detect_independent_license(project_dir: Path) -> tuple[str | None, str | Non
         detected = detect_license_from_text(value)
         if detected:
             return detected, _with_tool_tag(f"{source} | Method: licenseid_detection")
-    return None, None
+    return None
+
+
+def detect_independent_license(project_dir: Path) -> tuple[str | None, str | None]:
+    """Detect a license purely from project-directory files."""
+    found = license_from_candidates(collect_license_candidates(project_dir))
+    return found if found is not None else (None, None)
 
 
 def resolve_license_concluded(
@@ -185,6 +200,27 @@ def resolve_license_concluded(
     if not has_declared_license:
         return None, None
     return detect_independent_license(project_dir)
+
+
+def apply_in_package_license(
+    metadata: ProjectMetadata, candidates: Sequence[tuple[str, str]]
+) -> None:
+    """Record what the project's own licence files say (*candidates*, see
+    :func:`license_from_candidates`) on *metadata*, the one rule for every
+    project reader (directory, Hatchling hook, sdist): when the manifest
+    states a licence (``license_name`` not blank), the detection is the
+    concluded second opinion (G2); when it is silent, the declared licence.
+    Nothing changes when no candidate gives a licence."""
+    found = license_from_candidates(candidates)
+    if found is None:
+        return
+    detected, provenance = found
+    if (metadata.license_name or "").strip():
+        metadata.license_concluded = detected
+        metadata.provenance["license_concluded"] = provenance
+    else:
+        metadata.license_name = detected
+        metadata.provenance["license"] = provenance
 
 
 def detect_license_for_project(
@@ -202,9 +238,22 @@ def detect_license_for_project(
     licence it is the G2 second opinion (:func:`resolve_license_concluded`),
     not a replacement.
     """
+    if not (license_hint or "").strip():
+        return detect_independent_license(project_dir)
+    return stated_license(license_hint, hint_source)
+
+
+def stated_license(
+    license_hint: str | None, hint_source: str = ""
+) -> tuple[str | None, str | None]:
+    """``(id, provenance)`` for the licence a manifest states, *license_hint*:
+    an id or an expression stripped; text that ``licenseid`` identifies, the
+    id, with *hint_source* and the method in the provenance; other text as
+    written, with no provenance. ``(None, None)`` when blank: the project's
+    own files are not read here (:func:`apply_in_package_license`)."""
     hint = (license_hint or "").strip()
     if not hint:
-        return detect_independent_license(project_dir)
+        return None, None
     if _looks_like_spdx_license_id(hint) or _looks_like_spdx_license_expression(hint):
         return hint, None
     detected = detect_license_from_text(hint)

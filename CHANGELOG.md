@@ -285,6 +285,9 @@ and this project adheres to
 - Licence file picked by exact case, not listing order, skipped over 256 KiB
   with one `WARNING:`; sdist `PKG-INFO` read as headers only, capped as a
   wheel's `METADATA` ([#282])
+- An sdist reads its root `LICENSE`, `CITATION.cff` and `codemeta.json` as a
+  directory does; with no `PKG-INFO`, `project.license` too. A non-object
+  `codemeta.json` no longer crashes ([#PR])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227

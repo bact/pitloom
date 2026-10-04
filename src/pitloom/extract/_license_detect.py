@@ -70,6 +70,14 @@ def pick_license_names(names: Iterable[str]) -> list[str]:
     return picked
 
 
+def license_source_names(names: Iterable[str]) -> list[str]:
+    """The root-level *names* detection reads: ``CITATION.cff`` and
+    ``codemeta.json`` by exact name, then :func:`pick_license_names`."""
+    names = list(names)
+    exact = [name for name in (CITATION_CFF, CODEMETA_JSON) if name in names]
+    return [*exact, *pick_license_names(names)]
+
+
 def find_license_files(project_dir: Path) -> list[Path]:
     """Return existing license files in *project_dir* in priority order
     (see :func:`pick_license_names`)."""
@@ -80,7 +88,7 @@ def find_license_files(project_dir: Path) -> list[Path]:
     return [project_dir / name for name in pick_license_names(names)]
 
 
-def _decode_text(raw: bytes, errors: str = "strict") -> str:
+def decode_text(raw: bytes, errors: str = "strict") -> str:
     """*raw* as UTF-8 text with universal newlines, as
     :meth:`pathlib.Path.read_text` gives it.
 
@@ -93,7 +101,7 @@ def _decode_text(raw: bytes, errors: str = "strict") -> str:
 def _license_from_citation_cff(raw: bytes) -> str | None:
     """Extract the ``license:`` field from ``CITATION.cff`` without a YAML dep."""
     try:
-        text = _decode_text(raw)
+        text = decode_text(raw)
     except UnicodeDecodeError:
         return None
 
@@ -124,6 +132,8 @@ def _license_from_codemeta_json(raw: bytes) -> str | None:
     except (UnicodeDecodeError, json.JSONDecodeError):
         return None
 
+    if not isinstance(data, dict):
+        return None
     value = data.get("license", "")
     if not isinstance(value, str) or not value:
         return None
@@ -137,34 +147,38 @@ def _license_from_codemeta_json(raw: bytes) -> str | None:
 
 
 def license_candidates_from_members(
-    members: Mapping[str, bytes],
+    members: Mapping[str, bytes], archive: str | None = None
 ) -> list[tuple[str, str]]:
     """Return ``[(value, source_description), ...]`` for all license
     sources among *members*: a project root's files, by exact name, to
     their bytes (``CITATION.cff``, ``codemeta.json``, the license files of
     :func:`pick_license_names`; other names are ignored). An empty or
-    whitespace-only license file gives no candidate.
+    whitespace-only license file gives no candidate. *archive* names the
+    archive the members come from (``| File: <archive>`` in each source).
 
     See also: :func:`collect_license_candidates`, the directory adapter.
     """
     candidates: list[tuple[str, str]] = []
+    within = "" if archive is None else f" | File: {archive}"
 
     cff = members.get(CITATION_CFF)
     cff_id = _license_from_citation_cff(cff) if cff is not None else None
     if cff_id:
-        candidates.append((cff_id, f"Source: {CITATION_CFF} | Field: license"))
+        candidates.append((cff_id, f"Source: {CITATION_CFF}{within} | Field: license"))
 
     codemeta = members.get(CODEMETA_JSON)
     codemeta_id = (
         _license_from_codemeta_json(codemeta) if codemeta is not None else None
     )
     if codemeta_id:
-        candidates.append((codemeta_id, f"Source: {CODEMETA_JSON} | Field: license"))
+        candidates.append(
+            (codemeta_id, f"Source: {CODEMETA_JSON}{within} | Field: license")
+        )
 
     for name in pick_license_names(members):
-        text = _decode_text(members[name], errors="replace")
+        text = decode_text(members[name], errors="replace")
         if text.strip():
-            candidates.append((text, f"Source: {name}"))
+            candidates.append((text, f"Source: {name}{within}"))
 
     return candidates
 

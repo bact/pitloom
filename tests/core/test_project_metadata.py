@@ -318,7 +318,7 @@ def test_merge_project_metadata_hashes_bound_to_locked_dependencies() -> None:
 
 
 # ---------------------------------------------------------------------------
-# resolve_license_concluded (the shared G2 entry point every extractor calls)
+# resolve_license_concluded (the G2 entry point embed-wheel calls)
 # ---------------------------------------------------------------------------
 
 

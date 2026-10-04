@@ -4,30 +4,27 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Extractor for an sdist archive: project metadata (``PKG-INFO``, falling
-back to ``pyproject.toml``) and the project's own Pitloom config (the root
-``pyproject.toml``'s ``[tool.pitloom]``, else ``setup.cfg``'s
-``[tool:pitloom]``), read as for the unpacked project directory.
+back to ``pyproject.toml``), the licence its own licence files state, and
+the project's own Pitloom config (the root ``pyproject.toml``'s
+``[tool.pitloom]``, else ``setup.cfg``'s ``[tool:pitloom]``), read as for
+the unpacked project directory.
 
-See also: :mod:`pitloom.extract.project.reader` (the directory counterpart)
-and :func:`pitloom.core.config.select_project_config` (the rule both share).
+See also: :mod:`pitloom.extract.project.reader` (the directory counterpart),
+:func:`pitloom.core.config.select_project_config` (the rule both share) and
+:mod:`pitloom.extract.project._sdist_scan` (the archive pass).
 """
 
 from __future__ import annotations
 
 import dataclasses
 import email
-import functools
-import hashlib
 import logging
-import tarfile
-import zipfile
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from pathlib import Path
-from typing import IO, Any, NamedTuple, TypeVar
+from typing import Any, NamedTuple, TypeVar
 
 from pitloom._toml_io import load_toml_bytes
 from pitloom.core import wheel_dist_info
-from pitloom.core.archive_member_names import file_members, zip_file_members
 from pitloom.core.config import (
     PitloomConfig,
     parse_pitloom_config,
@@ -35,10 +32,20 @@ from pitloom.core.config import (
     select_project_config,
 )
 from pitloom.core.project import ProjectFile, ProjectMetadata
-from pitloom.core.wheel_dist_info import HeaderBlockOverCap, read_header_block
 from pitloom.extract._core_metadata import (
     core_metadata_license_with_source,
     parse_project_urls,
+)
+from pitloom.extract._extract_utils import field_declared
+from pitloom.extract._license import apply_in_package_license
+from pitloom.extract._license_detect import license_candidates_from_members
+from pitloom.extract.project._pyproject_license import license_from_project_table
+from pitloom.extract.project._sdist_scan import (
+    CONFIG_MEMBER_MAX_BYTES,
+    PKG_INFO,
+    PYPROJECT,
+    SETUP_CFG,
+    scan_archive,
 )
 from pitloom.extract.project.setuptools_cfg import setup_cfg_pitloom_config
 from pitloom.logging_config import field_loss_suffix
@@ -96,18 +103,7 @@ def _parse_pkg_info(pkg_info_text: str, source_label: str) -> ProjectMetadata:
     return metadata
 
 
-#: Root members read: metadata (``PKG-INFO``'s header block) and the
-#: project's own config (whole).
-_PKG_INFO = "PKG-INFO"
-_PYPROJECT = "pyproject.toml"
-_SETUP_CFG = "setup.cfg"
-_ROOT_MEMBERS = (_PKG_INFO, _PYPROJECT, _SETUP_CFG)
-
-#: Largest ``pyproject.toml``/``setup.cfg`` member read into memory. Real
-#: ones are a few KiB; a larger one is a read failure, as invalid TOML is.
-CONFIG_MEMBER_MAX_BYTES = 1024 * 1024
-
-_CHUNK_BYTES = 8192
+_PYPROJECT_LICENSE_SOURCE = "Source: pyproject.toml | Field: project.license"
 
 _METADATA_FIELDS = ("name", "version", "description", "dependencies")
 #: What :func:`_parse_pkg_info` reads beyond :data:`_METADATA_FIELDS`.
@@ -125,130 +121,6 @@ class SdistContents(NamedTuple):
     #: The member the config came from (``"pyproject.toml"``/
     #: ``"setup.cfg"``), or ``None``.
     config_member: str | None
-
-
-class _Members(NamedTuple):
-    """Root members read (by basename), and every file's entry. A root
-    member over its cap (see :func:`_read_member`) maps to ``None``."""
-
-    root: dict[str, bytes | None]
-    files: list[ProjectFile]
-
-
-class _HashingReader:
-    """*stream*, hashed as it is read."""
-
-    def __init__(self, stream: IO[bytes]) -> None:
-        self._stream = stream
-        self._hasher = hashlib.sha256()
-
-    def read(self, size: int, /) -> bytes:
-        """Up to *size* bytes of the stream, hashed."""
-        chunk = self._stream.read(size)
-        self._hasher.update(chunk)
-        return chunk
-
-    def hexdigest(self) -> str:
-        """The SHA-256 of what has been read."""
-        return self._hasher.hexdigest()
-
-
-def _read_capped(reader: _HashingReader, limit: int) -> bytes | None:
-    """*reader*'s bytes, or ``None`` past *limit* (the rest not kept)."""
-    kept = bytearray()
-    while chunk := reader.read(_CHUNK_BYTES):
-        kept += chunk
-        if len(kept) > limit:
-            return None
-    return bytes(kept)
-
-
-def _read_member(name: str, stream: IO[bytes], keep: bool) -> tuple[bytes | None, str]:
-    """Hash *stream* in chunks; with *keep*, return what is read of it too:
-    a ``PKG-INFO``'s header block (:func:`read_header_block`, whose caps
-    bound a header bomb as well as its size), a config member whole up to
-    :data:`CONFIG_MEMBER_MAX_BYTES`; ``None`` over the cap."""
-    reader = _HashingReader(stream)
-    kept: bytes | None = None
-    with stream:
-        if keep and Path(name).name == _PKG_INFO:
-            try:
-                kept = read_header_block(reader)
-            except HeaderBlockOverCap:
-                kept = None
-        elif keep:
-            kept = _read_capped(reader, CONFIG_MEMBER_MAX_BYTES)
-        while reader.read(_CHUNK_BYTES):
-            pass
-    return kept, reader.hexdigest()
-
-
-#: One archive file: (install-location name, raw archive name, opener).
-_Entry = tuple[str, str, Callable[[], IO[bytes] | None]]
-
-
-def _scan(
-    entries: Iterator[_Entry],
-    *,
-    root_only: bool = False,
-) -> _Members:
-    """Hash every member; keep the first root-level member of each
-    :data:`_ROOT_MEMBERS` basename, archive order deciding a tie between
-    two top-level directories. Repeats of one name never get here:
-    :func:`~pitloom.core.archive_member_names.file_members` keeps the
-    last, as unpacking leaves it. With *root_only*, open only those members
-    and list no files. Files come in archive order; :func:`read_sdist`
-    sorts them. A file's ``physical_path`` is its raw archive name,
-    so a registry keyed by it before names were normalised still hits."""
-    root: dict[str, bytes | None] = {}
-    files: list[ProjectFile] = []
-    for name, raw, open_member in entries:
-        parts = Path(name).parts
-        wanted = len(parts) == 2 and parts[1] in _ROOT_MEMBERS and parts[1] not in root
-        if root_only and not wanted:
-            continue
-        stream = open_member()
-        if stream is None:
-            continue
-        content, digest = _read_member(name, stream, wanted)
-        if wanted:
-            root[parts[1]] = content
-        if not root_only:
-            files.append(
-                ProjectFile(
-                    physical_path=raw, distribution_path=name, digest_sha256=digest
-                )
-            )
-    return _Members(root, files)
-
-
-def _tar_entries(
-    tf: tarfile.TarFile, logger: logging.Logger | None, archive_name: str
-) -> Iterator[_Entry]:
-    files = ((m.name, m.size, m) for m in tf.getmembers() if m.isfile())
-    for name, member in file_members(files, archive_name, logger, dot_prefix_ok=True):
-        yield name, member.name, functools.partial(tf.extractfile, member)
-
-
-def _zip_entries(
-    zf: zipfile.ZipFile, logger: logging.Logger | None, archive_name: str
-) -> Iterator[_Entry]:
-    for name, info in zip_file_members(zf, archive_name, logger):
-        yield name, info.orig_filename, functools.partial(zf.open, info)
-
-
-def _scan_archive(sdist_path: Path, *, root_only: bool = False) -> _Members:
-    """Scan the archive's members under their normalised names. Member-name
-    warnings come from the full scan only: a *root_only* read serves
-    ``--verbose`` source reporting, whose run reads the archive in full."""
-    logger = None if root_only else log
-    if sdist_path.name.lower().endswith(".zip"):
-        with zipfile.ZipFile(sdist_path, "r") as zf:
-            entries = _zip_entries(zf, logger, sdist_path.name)
-            return _scan(entries, root_only=root_only)
-    with tarfile.open(sdist_path, "r:*") as tf:
-        entries = _tar_entries(tf, logger, sdist_path.name)
-        return _scan(entries, root_only=root_only)
 
 
 def _member_bytes(root: dict[str, bytes | None], member: str, sdist_name: str) -> bytes:
@@ -299,17 +171,23 @@ def _warn_pkg_info_over_cap(sdist_name: str, *, fallback: bool) -> None:
     )
 
 
-def _metadata_from_pyproject(data: Any) -> ProjectMetadata:
-    """Fallback ProjectMetadata from a parsed ``pyproject.toml``."""
+def _metadata_from_pyproject(data: Any, licence: dict[str, bytes]) -> ProjectMetadata:
+    """Fallback ProjectMetadata from a parsed ``pyproject.toml``; its
+    licence as a directory reads it, a ``license.file`` from *licence*."""
     proj = data.get("project", {}) if isinstance(data, dict) else {}
     if not isinstance(proj, dict):
         proj = {}
-    return ProjectMetadata(
+    license_name, license_prov = license_from_project_table(proj, licence.get)
+    metadata = ProjectMetadata(
         name=proj.get("name", "unknown"),
         version=proj.get("version"),
         description=proj.get("description"),
+        license_name=license_name,
         dependencies=proj.get("dependencies", []),
     )
+    if license_prov or field_declared(proj, "license"):
+        metadata.provenance["license"] = license_prov or _PYPROJECT_LICENSE_SOURCE
+    return metadata
 
 
 _T = TypeVar("_T")
@@ -335,27 +213,25 @@ def _config(
         if pyproject is None
         else _member_config(
             sdist_name,
-            _PYPROJECT,
-            lambda: parse_pitloom_config(
-                pyproject, source=f"{sdist_name}:{_PYPROJECT}"
-            ),
+            PYPROJECT,
+            lambda: parse_pitloom_config(pyproject, source=f"{sdist_name}:{PYPROJECT}"),
         )
     )
 
     def read_setup_cfg() -> PitloomConfig:
-        raw = _member_bytes(root, _SETUP_CFG, sdist_name)
+        raw = _member_bytes(root, SETUP_CFG, sdist_name)
         return _member_config(
             sdist_name,
-            _SETUP_CFG,
+            SETUP_CFG,
             lambda: setup_cfg_pitloom_config(
-                raw.decode("utf-8"), f"{sdist_name}:{_SETUP_CFG}"
+                raw.decode("utf-8"), f"{sdist_name}:{SETUP_CFG}"
             ),
         )
 
     config, member = select_project_config(
         pyproject_config,
         pyproject_config_applies(pyproject),
-        read_setup_cfg if _SETUP_CFG in root else None,
+        read_setup_cfg if SETUP_CFG in root else None,
     )
     # Neither can apply to an archive: an id-registry names a file inside it,
     # and fragments merge only into a directory's SBOM. Dropped here, so
@@ -386,14 +262,14 @@ def read_sdist(sdist_path: Path, *, read_config: bool = True) -> SdistContents:
 
     # The archive as given, as load_config_file() names a --config file.
     name = str(sdist_path)
-    members = _scan_archive(sdist_path)
-    raw_pkg_info = members.root.get(_PKG_INFO)
+    members = scan_archive(sdist_path)
+    raw_pkg_info = members.root.get(PKG_INFO)
     pyproject: Any = None
-    if _PYPROJECT in members.root and read_config:
-        raw = _member_bytes(members.root, _PYPROJECT, name)
-        pyproject = _member_config(name, _PYPROJECT, lambda: load_toml_bytes(raw))
-    elif _PYPROJECT in members.root and raw_pkg_info is None:
-        pyproject = _metadata_pyproject(members.root[_PYPROJECT], name)
+    if PYPROJECT in members.root and read_config:
+        raw = _member_bytes(members.root, PYPROJECT, name)
+        pyproject = _member_config(name, PYPROJECT, lambda: load_toml_bytes(raw))
+    elif PYPROJECT in members.root and raw_pkg_info is None:
+        pyproject = _metadata_pyproject(members.root[PYPROJECT], name)
 
     if raw_pkg_info is not None:
         metadata = _parse_pkg_info(
@@ -401,11 +277,14 @@ def read_sdist(sdist_path: Path, *, read_config: bool = True) -> SdistContents:
             f"Source: sdist PKG-INFO | File: {sdist_path.name}",
         )
     elif pyproject is not None:
-        metadata = _metadata_from_pyproject(pyproject)
+        metadata = _metadata_from_pyproject(pyproject, members.licence)
     else:
         metadata = ProjectMetadata(name="unknown")
-    if raw_pkg_info is None and _PKG_INFO in members.root:
+    if raw_pkg_info is None and PKG_INFO in members.root:
         _warn_pkg_info_over_cap(name, fallback=pyproject is not None)
+    apply_in_package_license(
+        metadata, license_candidates_from_members(members.licence, sdist_path.name)
+    )
 
     config, member = (
         _config(members.root, pyproject, name)
@@ -426,16 +305,16 @@ def sdist_config_source(sdist_path: Path) -> tuple[str | None, dict[str, Any]]:
     Raises:
         ValueError: as :func:`read_sdist` does for an invalid config.
     """
-    root = _scan_archive(sdist_path, root_only=True).root
+    root = scan_archive(sdist_path, root_only=True).root
     pyproject: Any = None
-    if _PYPROJECT in root:
-        raw = _member_bytes(root, _PYPROJECT, str(sdist_path))
+    if PYPROJECT in root:
+        raw = _member_bytes(root, PYPROJECT, str(sdist_path))
         pyproject = _member_config(
-            str(sdist_path), _PYPROJECT, lambda: load_toml_bytes(raw)
+            str(sdist_path), PYPROJECT, lambda: load_toml_bytes(raw)
         )
     _, member = _config(root, pyproject, str(sdist_path))
     tool = pyproject.get("tool") if isinstance(pyproject, dict) else None
     table = tool.get("pitloom") if isinstance(tool, dict) else None
-    if member != _PYPROJECT or not isinstance(table, dict):
+    if member != PYPROJECT or not isinstance(table, dict):
         return member, {}
     return member, table

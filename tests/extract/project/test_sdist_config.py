@@ -27,7 +27,8 @@ import pytest
 
 from pitloom.core.config import PitloomConfig, pyproject_config_applies
 from pitloom.extract.project import read_project, sdist_config_source
-from pitloom.extract.project.sdist import CONFIG_MEMBER_MAX_BYTES, read_sdist
+from pitloom.extract.project._sdist_scan import CONFIG_MEMBER_MAX_BYTES
+from pitloom.extract.project.sdist import read_sdist
 from tests.assemble.conftest import _make_sdist
 
 _NAMED = '[project]\nname = "demo"\nversion = "1.0.0"\n'

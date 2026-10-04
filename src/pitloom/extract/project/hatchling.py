@@ -27,8 +27,9 @@ from pitloom.core.project import ProjectMetadata, merge_project_metadata
 from pitloom.extract._core_metadata import license_or_classifier
 from pitloom.extract._extract_utils import field_declared
 from pitloom.extract._license import (
-    detect_license_for_project,
-    resolve_license_concluded,
+    apply_in_package_license,
+    collect_license_candidates,
+    stated_license,
 )
 from pitloom.extract.project.pyproject import _try_read_poetry
 
@@ -121,12 +122,10 @@ def _resolve_hatchling_readme(core: Any) -> str | None:
         return None
 
 
-def _resolve_hatchling_license(
-    core: Any, project_dir: Path, provenance: dict[str, str]
-) -> tuple[str | None, str | None]:
-    """Extract declared/detected license and concluded license from
-    Hatchling core: ``project.license``, then a ``License ::`` classifier
-    (the rule every surface uses), then the project directory."""
+def _resolve_hatchling_license(core: Any, provenance: dict[str, str]) -> str | None:
+    """The licence Hatchling core states: ``project.license``, then a
+    ``License ::`` classifier (the rule every surface uses). The project's
+    own licence files follow in :func:`metadata_from_hatchling`."""
     try:
         license_hint = core.license_expression or core.license or None
     except OSError:
@@ -136,24 +135,16 @@ def _resolve_hatchling_license(
         license_hint, core.classifiers or []
     )
     if from_classifier:
-        license_name: str | None = license_hint
         provenance["license"] = _field_provenance("classifiers")
-    else:
-        license_name, license_prov = detect_license_for_project(
-            project_dir, license_hint, _field_provenance("license")
-        )
-        if license_prov:
-            provenance["license"] = license_prov
-        elif license_name:
-            provenance["license"] = _field_provenance("license")
-
-    license_concluded, license_concluded_prov = resolve_license_concluded(
-        bool(license_hint), project_dir
+        return license_hint
+    license_name, license_prov = stated_license(
+        license_hint, _field_provenance("license")
     )
-    if license_concluded and license_concluded_prov:
-        provenance["license_concluded"] = license_concluded_prov
-
-    return license_name, license_concluded
+    if license_prov:
+        provenance["license"] = license_prov
+    elif license_name:
+        provenance["license"] = _field_provenance("license")
+    return license_name
 
 
 def metadata_from_hatchling(
@@ -211,9 +202,7 @@ def metadata_from_hatchling(
     if _hatchling_field_declared(core, "keywords"):
         provenance["keywords"] = _field_provenance("keywords")
 
-    license_name, license_concluded = _resolve_hatchling_license(
-        core, project_dir, provenance
-    )
+    license_name = _resolve_hatchling_license(core, provenance)
 
     metadata = ProjectMetadata(
         name=core.raw_name,
@@ -222,13 +211,13 @@ def metadata_from_hatchling(
         readme=readme,
         requires_python=requires_python,
         license_name=license_name,
-        license_concluded=license_concluded,
         keywords=list(core.keywords or []),
         authors=authors,
         urls=urls,
         dependencies=dependencies,
         provenance=provenance,
     )
+    apply_in_package_license(metadata, collect_license_candidates(project_dir))
 
     # Fill any remaining gaps from [tool.poetry], exactly mirroring what
     # read_pyproject() does for the CLI path (project fields always win).

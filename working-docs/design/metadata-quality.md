@@ -59,10 +59,10 @@ Recorded, not built. Context:
 - [ ] **Move licence content (`classify_license`) to py-spdx-license /
   licenseid; Pitloom keeps an adapter.** See
   [license-layers.md](license-layers.md).
-- [ ] **No G2 second opinion for an sdist or a wheel.** Their SBOMs record
-  the archive's declared licence only; the directory detection that adds
-  `hasConcludedLicense` runs on a project directory alone (predates #276).
-  An sdist holds the `LICENSE` file, so it could run the same detection.
+- [ ] **No G2 second opinion for a wheel.** Its SBOM records the
+  archive's declared licence only (predates #276). An sdist now runs the
+  directory's detection; a wheel needs `License-File:` selection to pick
+  its `.dist-info/licenses/` members (0.21.0).
 - [ ] **A detected licence text differs by surface.** A `license.file`
   whose text `licenseid` identifies (e.g. an Apache `LICENSE` with centring
   spaces) is the id on a directory and the hook, the text from an sdist,

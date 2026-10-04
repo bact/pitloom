@@ -31,15 +31,15 @@ from pitloom.core.project import ProjectMetadata, merge_project_metadata
 from pitloom.extract._core_metadata import license_from_classifiers
 from pitloom.extract._extract_utils import field_declared
 from pitloom.extract._license import (
+    apply_in_package_license,
     classify_license,
-    detect_license_for_project,
-    resolve_license_concluded,
+    collect_license_candidates,
 )
 from pitloom.extract.lock._common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract.lock.poetry import extract_poetry_lock_dependencies
 from pitloom.extract.lock.poetry_hash import extract_poetry_lock_hashes
 from pitloom.extract.project._poetry_fields import read_poetry_section
-from pitloom.extract.project._pyproject_license import _extract_and_detect_license
+from pitloom.extract.project._pyproject_license import stated_pyproject_license
 from pitloom.extract.project.poetry import extract_poetry_metadata
 from pitloom.extract.project.pyproject_dynamic import prepare_dynamic_version
 
@@ -64,13 +64,13 @@ def _read_pyproject_fallback(
     )
     if poetry_meta is not None:
         return poetry_meta, pitloom_config
-    license_name, license_prov = detect_license_for_project(pyproject_path.parent)
     prov: dict[str, str] = {}
     if name:
         prov["name"] = "Source: pyproject.toml | Field: project.name"
-    if license_prov:
-        prov["license"] = license_prov
-    metadata = ProjectMetadata(name=name, license_name=license_name, provenance=prov)
+    metadata = ProjectMetadata(name=name, provenance=prov)
+    apply_in_package_license(
+        metadata, collect_license_candidates(pyproject_path.parent)
+    )
     return metadata, pitloom_config
 
 
@@ -277,25 +277,14 @@ def read_pyproject(
         data, pyproject_path, dynamic_fields, quiet=quiet
     )
 
-    license_name, license_prov = _extract_and_detect_license(std, pyproject_path.parent)
-
-    # G2: independently scan the project directory for a second opinion to
-    # compare the declared value against, via the shared resolver every
-    # project-metadata extractor must call (see its docstring) -- without
-    # this, a declared value that already looks like a valid SPDX id would
-    # short-circuit before the LICENSE file is ever read, so there would be
-    # nothing to disagree with.
-    license_concluded, license_concluded_prov = resolve_license_concluded(
-        bool(std.license or license_from_classifiers(std.classifiers)),
-        pyproject_path.parent,
+    license_name, license_prov = stated_pyproject_license(
+        std.license, std.classifiers, pyproject_path.parent
     )
 
     project_data = data.get("project", {})
     provenance = _build_provenance(
         project_data, version_source, license_prov, description_source
     )
-    if license_concluded and license_concluded_prov:
-        provenance["license_concluded"] = license_concluded_prov
     # Presence-gated, not truthy-gated -- see AGENTS.md's "tri-state
     # signal" bullet: `requires-python = ""` resolves to an empty (falsy)
     # SpecifierSet, PEP 621's equivalent of Poetry's `python = "*"`.
@@ -311,12 +300,14 @@ def read_pyproject(
         readme=_extract_readme(std, readme_override),
         requires_python=str(std.requires_python) if std.requires_python else None,
         license_name=license_name,
-        license_concluded=license_concluded,
         keywords=std.keywords or [],
         authors=_extract_authors(std),
         urls=std.urls or {},
         dependencies=[normalize_dependency_specifier(str(d)) for d in std.dependencies],
         provenance=provenance,
+    )
+    apply_in_package_license(
+        metadata, collect_license_candidates(pyproject_path.parent)
     )
 
     # Fill any remaining gaps from [tool.poetry] (project fields win).
