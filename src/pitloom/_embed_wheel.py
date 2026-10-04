@@ -41,6 +41,7 @@ from pitloom.core.wheel_dist_info import (
     open_wheel_zip,
     refusal,
     refuse_unreadable,
+    require_wheel_path,
     unreadable_member_error,
     wheel_members,
 )
@@ -339,13 +340,19 @@ def _rewrite_wheel_archive(
     record_bytes: bytes,
     timestamp: tuple[int, int, int, int, int, int],
     stale_arcnames: frozenset[str] = frozenset(),
+    *,
+    name: str | None = None,
 ) -> Path:
-    """Write updated entries to a temporary file."""
-    temp_dir = wheel_path.parent
+    """Write updated entries to a temporary file next to *wheel_path*.
+
+    *name* is the wheel's file name as the caller gave it, where *wheel_path*
+    is the resolved file: what the refusals and the temporary file name use.
+    """
+    name = wheel_path.name if name is None else name
     with tempfile.NamedTemporaryFile(
-        dir=temp_dir,
+        dir=wheel_path.parent,
         delete=False,
-        prefix=f"{wheel_path.stem}.",
+        prefix=f"{Path(name).stem}.",
         suffix=".tmp",
     ) as temp_file:
         temp_path = Path(temp_file.name)
@@ -359,11 +366,11 @@ def _rewrite_wheel_archive(
                     continue
                 if info.filename in stale_arcnames:
                     continue
-                with refuse_unreadable(wheel_path.name, info.orig_filename):
+                with refuse_unreadable(name, info.orig_filename):
                     source = original_zf.open(info, "r")
                 with source, new_zf.open(info, "w") as dst:
                     shutil.copyfileobj(
-                        RefusingReader(source, wheel_path.name, info.orig_filename),
+                        RefusingReader(source, name, info.orig_filename),
                         dst,
                     )
 
@@ -418,6 +425,7 @@ def embed_sbom_in_wheel(
             type, not folded into ``ValueError``.
     """
     configure_logging()
+    require_wheel_path(wheel_path)
     wheel_obj = Path(wheel_path).resolve()
     if not wheel_obj.exists():
         raise FileNotFoundError(f"Wheel file not found: {wheel_obj}")
@@ -430,10 +438,14 @@ def embed_sbom_in_wheel(
 
     orig_mode = wheel_obj.stat().st_mode if wheel_obj.exists() else None
 
-    with open_wheel_zip(wheel_obj) as original_zf:
-        members = wheel_members(original_zf, wheel_obj.name)
-        dist_info = _find_dist_info_prefix(original_zf, wheel_obj, members=members)
-        _refuse_unembeddable(wheel_obj.name, dist_info, members, allow_signed_wheel)
+    # Every use of the file name (which ``.dist-info`` is the wheel's own, what
+    # a refusal names) is of the name as given; the resolved path, which a
+    # symlink points elsewhere, is for the directory and the write only.
+    named = Path(wheel_path).absolute()
+    with open_wheel_zip(wheel_obj, name=named) as original_zf:
+        members = wheel_members(original_zf, named.name)
+        dist_info = _find_dist_info_prefix(original_zf, named, members=members)
+        _refuse_unembeddable(named.name, dist_info, members, allow_signed_wheel)
         plan = _plan_embed(
             original_zf, dist_info, members, sbom_filename, sbom_bytes, identity
         )
@@ -446,6 +458,7 @@ def embed_sbom_in_wheel(
             plan.new_record_bytes,
             plan.timestamp,
             plan.stale_arcnames,
+            name=named.name,
         )
 
     try:
@@ -460,7 +473,7 @@ def embed_sbom_in_wheel(
             temp_path.unlink()
 
     return (
-        wheel_obj,
+        named,  # as given: later steps judge its name
         plan.sbom_arcname,
         tuple(sorted(plan.stale_arcnames)),
         plan.timestamp_floored,

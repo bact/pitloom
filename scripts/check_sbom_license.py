@@ -28,6 +28,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from pitloom.core.wheel_dist_info import looks_like_wheel_path
 from pitloom.embed import find_embedded_sbom
 
 _LICENSE_TEXT_KEYS = (
@@ -44,7 +45,7 @@ class SbomLicenseError(ValueError):
 def load_sbom(path: Path) -> Any:
     """Parse *path*, or the one SBOM embedded in it when it is a wheel."""
     try:
-        if path.suffix != ".whl":
+        if not looks_like_wheel_path(path):
             return json.loads(path.read_bytes())
         found = find_embedded_sbom(path)
         if found is None:

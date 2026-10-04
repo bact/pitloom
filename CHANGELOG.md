@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -245,6 +245,8 @@ and this project adheres to
   order ([#272])
 - `sbom-basename`/`--sbom-basename` ending in `.spdx3.json` (any case) loses it
   with one `WARNING:`; `project` wrote `x.spdx3.json.spdx3.json` ([#273])
+- A wheel named `x.WHL` was read by `wheel` and `generate` but refused by
+  `embed-wheel`; every wheel surface refuses it, as `pip` does ([#278])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -281,6 +283,7 @@ and this project adheres to
 [#272]: https://github.com/bact/pitloom/pull/272
 [#273]: https://github.com/bact/pitloom/pull/273
 [#275]: https://github.com/bact/pitloom/pull/275
+[#278]: https://github.com/bact/pitloom/pull/278
 
 ## [0.19.0] - 2026-09-18
 

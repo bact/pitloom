@@ -14,7 +14,11 @@ from typing import Any
 
 from pitloom.assemble import generate, target_resolves_to_project
 from pitloom.cli.commands.project import generate_project_from_args
-from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
+from pitloom.cli.commands.utils import (
+    _print_sbom_output_path,
+    cli_error_handler,
+    refuse_non_wheel,
+)
 from pitloom.cli.options import (
     add_allow_build_argument,
     add_build_timeout_argument,
@@ -28,6 +32,7 @@ from pitloom.cli.options_config import (
     warn_verbose_no_effect,
 )
 from pitloom.core.build_options import NON_PROJECT_TARGET_REASON
+from pitloom.core.wheel_dist_info import looks_like_wheel_path
 
 
 @cli_error_handler("SBOM generation failed")
@@ -50,6 +55,9 @@ def _run_generate_command(args: argparse.Namespace) -> int:
             "default).",
             file=sys.stderr,
         )
+        return 1
+
+    if looks_like_wheel_path(args.target) and refuse_non_wheel(Path(args.target)):
         return 1
 
     if target_resolves_to_project(args.target):
