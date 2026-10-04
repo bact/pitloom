@@ -367,8 +367,12 @@ def test_read_zip_sdist_neither_pkg_info_nor_pyproject(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("suffix", [".tar.gz", ".zip"])
-def test_member_order_does_not_change_the_sbom(tmp_path: Path, suffix: str) -> None:
+def test_member_order_does_not_change_the_sbom(
+    tmp_path: Path, suffix: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Ids are minted in file order, so archive order must not reach them."""
+    # Three runs: an unpinned clock can tick between them and change `created`.
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
     members = {
         "demo-1.0/PKG-INFO": b"Metadata-Version: 2.1\nName: demo\nVersion: 1.0\n",
         "demo-1.0/pyproject.toml": b"[project]\nname = 'demo'\n",
