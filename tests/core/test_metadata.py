@@ -12,7 +12,6 @@ creator/tool shapes, dependency-name canonicalization, and license
 concluded (G2) tests.
 """
 
-import logging
 import tempfile
 from pathlib import Path
 
@@ -302,9 +301,7 @@ max_source_metadata_bytes = 5000
 
 
 @pytest.mark.parametrize("value", [-1, 1, 7])
-def test_max_source_metadata_bytes_too_small_collapses_to_zero(
-    value: int, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_max_source_metadata_bytes_too_small_raises(value: int) -> None:
     pyproject_content = f"""
 [project]
 name = "test-package"
@@ -314,15 +311,10 @@ version = "1.0.0"
 max-source-metadata-bytes = {value}
 """
     with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path = Path(tmpdir) / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
-
-        with caplog.at_level(logging.WARNING):
-            _, config = read_pyproject(pyproject_path)
-
-        assert config.provenance_max_source_metadata_bytes == 0
-        assert "max-source-metadata-bytes" in caplog.text
+        with pytest.raises(ValueError, match="at least 8 bytes"):
+            read_pyproject(pyproject_path)
 
 
 def test_max_source_metadata_bytes_bool_raises() -> None:

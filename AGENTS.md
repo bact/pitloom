@@ -281,6 +281,10 @@ Unix philosophy. Consistent, predictable, parseable.
   ROLE=... REQUIRED=... EXISTS=...`), not split one-field-per-line. Only
   split across lines when there's more than one record to list (one line
   per record, e.g. one line per configured fragment).
+- Stdout is data only (`--help`/`--version` excepted): `KEY=VALUE` lines
+  from `pitloom.cli.kv_output.print_kv()`, or the SBOM itself for `-o -`
+  (`_sbom_io.write_stdout_lf()`); counts, summaries, hints and `-v` details
+  are `INFO:` on stderr. A value that may hold a space goes last.
 - Key-value: `KEY=VALUE` -- uppercase KEY, no spaces around `=`. Several
   `KEY=VALUE` pairs on the same line are fine when they describe the same
   data point (see above) -- e.g. `FORMAT=%s FILE=%s: ...` for a single
@@ -339,6 +343,15 @@ Unix philosophy. Consistent, predictable, parseable.
 - Pitloom must work seamlessly across Windows, macOS, and Linux.
 - Always use `pathlib.Path` for file resolution and manipulation.
 - `/tmp/` and POSIX-directories are not exist on Windows.
+- **Dry-run Windows when you cannot run it.** For every new test or
+  assertion that touches a path, read it as Windows would and check: an
+  expected path string with `/` (Windows shows `\`), `Path ==` between
+  names differing only in case (equal on `WindowsPath`), a `skipif` or
+  module constant naming a POSIX-only API, `..` collapsed by Win32 before
+  the open, a symlink needing privilege. Emulate with `PureWindowsPath`/
+  `ntpath` in a REPL. Ask the same of every review agent's brief: macOS
+  green is not Windows green (PR #280: six tests expected `p/pyproject.toml`
+  and failed only on the Windows CI leg).
 
 ## Linting and formatting
 

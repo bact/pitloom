@@ -79,7 +79,7 @@ API](python-api.md#tracking-decorator) page.
 
 ::: pitloom.core.provenance.ProvenanceConfig
 
-::: pitloom.core.provenance.normalize_max_source_metadata_bytes
+::: pitloom.core.provenance.require_max_source_metadata_bytes
 
 ## ID registry
 

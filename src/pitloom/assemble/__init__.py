@@ -35,6 +35,7 @@ from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.inert_options import ENV, HF, MODEL_FILE, WHEEL, forward_options
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.wheel_dist_info import looks_like_wheel_path
 from pitloom.embed import (
     RECOMMENDED_EXTENSIONS,
     VALIDATED_FORMATS,
@@ -99,7 +100,7 @@ def _classify_target(target: Path | str) -> str:
     target_str = str(target).strip()
     if target_str.lower() in ("env", "environment", "--env"):
         return "env"
-    if target_str.lower().endswith(".whl"):
+    if looks_like_wheel_path(target_str):
         return "wheel"
     if is_huggingface_source(target_str):
         return "hf"

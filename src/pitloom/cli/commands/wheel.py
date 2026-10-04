@@ -12,7 +12,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from pitloom.__about__ import __version__
 from pitloom._sbom_io import write_sbom_output
 from pitloom.assemble import (
     embed_sbom_in_wheel,
@@ -20,7 +19,12 @@ from pitloom.assemble import (
     generate_wheel_sbom_with_metadata,
 )
 from pitloom.cli.commands._embed_wheel_batch import report_embed_result
-from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
+from pitloom.cli.commands.utils import (
+    _print_sbom_output_path,
+    cli_error_handler,
+    refuse_non_wheel,
+)
+from pitloom.cli.kv_output import log_verbose
 from pitloom.cli.options import (
     add_allow_signed_wheel_argument,
     add_offline_argument,
@@ -53,7 +57,10 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     duplicated -- only SBOM *content* generation differs by design.
     """
     target: str = args.target
-    wheel_path: Path = Path(target).resolve()
+    if refuse_non_wheel(Path(target)):
+        return 1
+    # Absolute, not resolved: the file name is judged as given.
+    wheel_path: Path = Path(target).absolute()
     if not wheel_path.exists():
         print(f"ERROR: wheel file not found: {wheel_path}", file=sys.stderr)
         return 1
@@ -86,9 +93,7 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     )
 
     if args.verbose:
-        print(f"Pitloom version : {__version__}")
-        print(f"Wheel file      : {wheel_path}")
-        print(f"Output path     : {output_path or '(embedded only)'}")
+        log_verbose(WHEEL_FILE=wheel_path, OUTPUT_PATH=output_path or "-")
 
     if embed:
         # As embed-wheel: refuse before generating (that may run a build).

@@ -23,6 +23,7 @@ import pytest
 from pitloom import __main__
 from pitloom.core.wheel_dist_info import PROBLEM_NONE
 from tests._network import skip_if_network_failure
+from tests.kv_helpers import kv_stdout, statuses
 
 from .conftest import _SAMPLE_SPDX3_JSON, _embed_sbom_entry, _make_dummy_wheel
 
@@ -61,7 +62,8 @@ def test_validate_wheel_valid_sbom_ok(
         skip_if_network_failure(captured.err)
     assert result == 0
 
-    assert "pitloom validate-wheel: 1 wheel(s) valid" in captured.out
+    assert statuses(captured.out) == ["valid"]
+    assert "INFO: validate-wheel: 1 wheel(s) valid" in captured.err.splitlines()
 
 
 def test_validate_wheel_invalid_sbom_errors(
@@ -122,6 +124,30 @@ def test_validate_wheel_missing_sbom_errors(
 
     captured = capsys.readouterr()
     assert "ERROR: no SBOM found under .dist-info/sboms/" in captured.err
+    assert statuses(captured.out) == ["failed"]
+
+
+def test_validate_wheel_batch_reports_one_status_per_wheel(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A skipped and a failing wheel: one STATUS line each, in order, and
+    no success summary."""
+    skipped = _make_dummy_wheel(tmp_path, "cdxpkg", "1.0.0")
+    _embed_sbom_entry(skipped, "cdxpkg-1.0.0.cdx.json", '{"bomFormat": "CycloneDX"}')
+    missing = _make_dummy_wheel(tmp_path, "nosbom", "1.0.0")
+
+    argv = ["loom", "validate-wheel", str(skipped), str(missing)]
+    monkeypatch.setattr(sys, "argv", argv)
+    assert __main__.main() == 1
+
+    captured = capsys.readouterr()
+    assert kv_stdout(captured.out) == [
+        {"WHEEL": skipped.name, "STATUS": "skipped"},
+        {"WHEEL": missing.name, "STATUS": "failed"},
+    ]
+    assert "wheel(s) valid" not in captured.err
 
 
 def test_validate_wheel_malformed_wheel_errors(
@@ -197,7 +223,8 @@ def test_validate_wheel_unrecognized_format_warns_not_fails(
     captured = capsys.readouterr()
     assert "WARNING: " in captured.err
     assert "no validator registered" in captured.err
+    assert statuses(captured.out) == ["skipped"]
     assert (
-        "pitloom validate-wheel: 0 wheel(s) valid, 1 skipped "
-        "(no validator for their format)" in captured.out
+        "INFO: validate-wheel: 0 wheel(s) valid, 1 skipped "
+        "(no validator for their format)" in captured.err.splitlines()
     )

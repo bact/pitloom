@@ -33,6 +33,7 @@ from pitloom.core.config_cascade import ConfigOverrides
 from tests.assemble.conftest import _make_dummy_wheel, _make_sdist
 from tests.assemble.embed_surfaces_shared import demo_project
 from tests.cli.shared import SAFETENSORS_FIXTURE
+from tests.kv_helpers import info_options
 from tests.warning_helpers import count_naming, stderr_warnings
 
 
@@ -146,27 +147,9 @@ def test_verbose_labels_values_from_a_config_by_its_file_name(
     )
     argv = ["project", str(project), "--config", str(config), "-v", "--offline"]
     assert _loom([*argv, "-o", str(tmp_path / "o.json")], monkeypatch) == 0
-    rows = {
-        line.split(":")[0].strip(): line
-        for line in capsys.readouterr().out.splitlines()
-        if ":" in line
-    }
+    rows = info_options(capsys.readouterr().err)
     for key in ("pretty", "creation_comment", "creation_datetime"):
-        assert rows[key].rstrip().endswith("[ci.toml]"), rows[key]
-
-
-def test_embed_batch_too_small_byte_cap_warns_once(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    wheels = [
-        str(_make_dummy_wheel(tmp_path / "w", name=name)) for name in ("alpha", "beta")
-    ]
-    argv = ["embed-wheel", *wheels, "--max-source-metadata-bytes", "5"]
-    assert _loom(argv, monkeypatch) == 0
-    err = capsys.readouterr().err
-    assert sum("too small" in line for line in err.splitlines()) == 1
+        assert rows[key]["SOURCE"] == "ci.toml", rows[key]
 
 
 def test_embed_with_config_does_not_read_the_replaced_project_config(
@@ -198,12 +181,8 @@ def test_verbose_labels_setup_cfg_values_by_its_name(
     )
     argv = ["project", str(project), "-v", "--offline", "-o", str(tmp_path / "o.json")]
     assert _loom(argv, monkeypatch) == 0
-    row = next(
-        line
-        for line in capsys.readouterr().out.splitlines()
-        if line.strip().startswith("creation_comment")
-    )
-    assert row.rstrip().endswith("[setup.cfg]"), row
+    row = info_options(capsys.readouterr().err)["creation_comment"]
+    assert row["SOURCE"] == "setup.cfg", row
 
 
 @pytest.mark.parametrize("command", ["project", "generate", "enrich"])
@@ -271,11 +250,10 @@ def test_verbose_on_sdist_names_its_own_config_member(
     sdist = _make_sdist(tmp_path, '[tool.pitloom]\ncreation-comment = "from-sdist"\n')
     argv = ["project", str(sdist), "-v", "-o", str(tmp_path / "o.json")]
     assert _loom(argv, monkeypatch) == 0
-    out = capsys.readouterr().out.splitlines()
-    config_row = next(line for line in out if line.strip().startswith("Config file"))
-    assert f"{sdist}:pyproject.toml" in config_row
-    comment_row = next(line for line in out if "from-sdist" in line)
-    assert f"{sdist.name}:pyproject.toml" in comment_row
+    rows = info_options(capsys.readouterr().err)
+    assert rows["config_file"]["VALUE"] == f"{sdist}:pyproject.toml"
+    assert rows["creation_comment"]["VALUE"] == "'from-sdist'"
+    assert rows["creation_comment"]["SOURCE"] == f"{sdist.name}:pyproject.toml"
 
 
 def test_config_file_row_without_a_config_says_none() -> None:

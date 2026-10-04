@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-03
+# Last-Modified: 2026-10-04
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -300,9 +300,9 @@ does not name. It is not a model bound.
   `embed-wheel`; `generate` follows its target). On a local model file it
   has no effect (a `WARNING:` if passed); on a Hugging Face model it is an
   error, as nothing can be fetched.
-- `-v` / `--verbose` -- print effective options (with config-vs-default
-  labels only for `project`, and `generate` on a project directory or
-  sdist; elsewhere it prints nothing and logs a no-effect `WARNING:`).
+- `-v` / `--verbose` -- log effective options as `INFO:` lines (sources
+  only for `project`/`generate` on a project or sdist; a no-effect
+  `WARNING:` on `embed-wheel` and `generate` elsewhere).
 - `--creator-name NAME`, `--creator-email EMAIL` -- name who created the SBOM.
 - `--enrich` / `--no-enrich` -- Pitloom's own deterministic, local,
   frontmatter-only enrichment pass, in the same generate call. Add it only

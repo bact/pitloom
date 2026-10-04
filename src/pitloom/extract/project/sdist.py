@@ -275,7 +275,11 @@ def _config(
         None
         if pyproject is None
         else _member_config(
-            sdist_name, _PYPROJECT, lambda: parse_pitloom_config(pyproject)
+            sdist_name,
+            _PYPROJECT,
+            lambda: parse_pitloom_config(
+                pyproject, source=f"{sdist_name}:{_PYPROJECT}"
+            ),
         )
     )
 
@@ -284,7 +288,9 @@ def _config(
         return _member_config(
             sdist_name,
             _SETUP_CFG,
-            lambda: setup_cfg_pitloom_config(raw.decode("utf-8")),
+            lambda: setup_cfg_pitloom_config(
+                raw.decode("utf-8"), f"{sdist_name}:{_SETUP_CFG}"
+            ),
         )
 
     config, member = select_project_config(

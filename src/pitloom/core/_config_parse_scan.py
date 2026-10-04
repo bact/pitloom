@@ -14,9 +14,11 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from pitloom.core._config_legacy import _table
 from pitloom.core._config_read import (
     _read_array_of_tables,
     _read_bool_setting,
+    _read_int_setting,
     _require_choice,
 )
 from pitloom.core._config_types import (
@@ -25,6 +27,7 @@ from pitloom.core._config_types import (
 )
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.model_extract_limit import require_max_model_extract_bytes
+from pitloom.core.provenance import require_max_source_metadata_bytes
 
 _CONTENT_TYPE_RE = re.compile(r"^[^/\s]+/[^/\s]+$")
 
@@ -80,6 +83,21 @@ def _read_max_model_extract_bytes(pitloom_data: dict[str, Any]) -> int:
     (see :func:`~pitloom.core.model_extract_limit.require_max_model_extract_bytes`)."""
     return require_max_model_extract_bytes(
         pitloom_data.get("max-model-extract-bytes", DEFAULT_MAX_MODEL_EXTRACT_BYTES)
+    )
+
+
+def _read_max_source_metadata_bytes(
+    provenance_data: dict[str, Any], is_setup_cfg: bool
+) -> int:
+    """Read ``[tool.pitloom.provenance] max-source-metadata-bytes`` (either
+    spelling): ``0`` or a budget of at least 8
+    (:func:`~pitloom.core.provenance.require_max_source_metadata_bytes`). An
+    error names the key as written, in the table as its source names it."""
+    table = _table(is_setup_cfg, "provenance")
+    keys = ("max-source-metadata-bytes", "max_source_metadata_bytes")
+    key = next((k for k in keys if k in provenance_data), keys[0])
+    return require_max_source_metadata_bytes(
+        _read_int_setting(provenance_data, key, 0, table), f"{table} {key!r}"
     )
 
 

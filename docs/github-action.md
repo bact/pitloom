@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -128,6 +128,9 @@ so they show up in the PR "Checks" tab and job summary, not just buried
 in the raw log. A failing `loom` invocation still fails the step/job
 (its `ERROR:` line is annotated first); this doesn't change the action's
 exit behaviour.
+
+`-v` in `args` logs each effective option as an `INFO:` line, so each
+becomes a `::notice::` annotation; GitHub caps how many a step shows.
 
 ## Persisting the Loom ID registry in CI
 
@@ -258,7 +261,7 @@ Inputs (all optional):
 | `scan-model-usage` | *(empty)* | `true`/`false` to force recording which Python files reference each AI model file (`hasDataFile`) on or off; empty defers to the `[tool.pitloom] scan-model-usage` in effect (off by default). |
 | `content-type` | *(empty)* | `true`/`false` to force per-file content-type detection on or off; empty defers to `[tool.pitloom.content-type] enabled` (off by default). |
 | `content-type-method` | *(empty)* | `auto`/`magika`/`extension` -- which detector resolves content-type values; empty defers to `[tool.pitloom.content-type] method` (`auto` by default). |
-| `max-source-metadata-bytes` | *(empty)* | Cap the artifact-metadata preservation Annotation's serialised size to this many UTF-8 bytes, truncating the largest entries first when exceeded; empty defers to `[tool.pitloom.provenance] max-source-metadata-bytes` (unbounded by default). |
+| `max-source-metadata-bytes` | *(empty)* | Cap the artifact-metadata preservation Annotation's serialised size to this many UTF-8 bytes, truncating the largest entries first when exceeded; empty defers to `[tool.pitloom.provenance] max-source-metadata-bytes` (unbounded by default); `0` or at least 8; anything else is an error. |
 | `config` | *(empty)* | Path to a TOML file whose `[tool.pitloom]` table replaces the project's own (`loom --config`); a relative `id-registry` in it resolves against the file's directory. Empty uses the project's own; model mode reads no config otherwise. See [Where settings come from](configuration.md#where-settings-come-from). |
 | `id-registry` | *(empty)* | Loom ID registry file path (`loom --id-registry`); relative to the runner's working directory. Empty defers to the `config` input file's `id-registry`, else the project's own `[tool.pitloom] id-registry`, else no registry is used -- nothing is auto-discovered. A declared file that's missing, unreadable or invalid fails the step. |
 | `update-id-registry` | *(empty)* | `true`/`false` to force harvesting newly-minted ids back into a *declared* registry on or off; empty defers to `[tool.pitloom] update-id-registry` (on by default). No effect when no registry is declared, and never creates one. |
@@ -280,7 +283,7 @@ Output:
 
 | Output | Meaning |
 | :--- | :--- |
-| `sbom-path` | Path to the generated SBOM file. Empty when `embed-wheel` matches more than one wheel -- a standalone copy is ambiguous across wheels, so only the embedded copies are produced and `upload-artifact` is skipped for that run. |
+| `sbom-path` | Path to the generated SBOM file (a path with a non-printable character arrives quoted and ASCII-escaped, as `loom` prints it). Empty when `embed-wheel` matches more than one wheel -- a standalone copy is ambiguous across wheels, so only the embedded copies are produced and `upload-artifact` is skipped for that run. |
 
 ## Code example: Build and Publish PEP 770 Wheel
 

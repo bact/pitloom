@@ -17,6 +17,7 @@ keep this file under this repo's file-size guidance) -- both share the
 """
 
 import itertools
+import zipfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -421,6 +422,20 @@ def test_embed_wheel_extracts_the_embedded_sbom(
     assert result.sbom_path == "p-1.spdx3.json"
     assert (tmp_path / "work" / "p-1.spdx3.json").read_text("utf-8") == "{}"
     assert "-o" not in result.loom_args
+
+
+def test_embed_wheel_sbom_name_may_hold_the_key_text(
+    generate: Callable[..., _Result], tmp_path: Path
+) -> None:
+    """The arcname is everything after the first `` SBOM=``: a wheel name
+    has no space, so a later `` SBOM=`` belongs to the arcname."""
+    arcname = "p-1.dist-info/sboms/a SBOM=b.spdx3.json"
+    with zipfile.ZipFile(tmp_path / "p-1.whl", "w") as wheel:
+        wheel.writestr(arcname, "{}")
+    stdout = f"WHEEL=p-1.whl SBOM={arcname}\\n"
+    result = generate(PL_EMBED_WHEEL=str(tmp_path / "*.whl"), LOOM_STDOUT=stdout)
+    assert result.returncode == 0
+    assert result.sbom_path == "a SBOM=b.spdx3.json"
 
 
 def test_embed_wheel_with_several_wheels_warns_and_drops_output(

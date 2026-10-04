@@ -150,6 +150,12 @@ and this project adheres to
 - A package's own licence is declared (model file, model card, `LICENSE`/
   `CITATION.cff` when the manifest has none, `loom env`); PyPI and
   dependencies' installed metadata stay concluded ([#276])
+- `max-source-metadata-bytes` of 1-7 or below 0 is an error, not unlimited;
+  `normalize_max_source_metadata_bytes()` is now
+  `require_max_source_metadata_bytes()` ([#280])
+- CLI stdout is `KEY=VALUE` data only (`WHEEL=`/`SBOM=`, `STATUS=`, `FILE=`,
+  `PITLOOM_ID_REGISTRY_PATH=`); counts, hints and `-v` are `INFO:` on stderr
+  ([#281])
 
 ### Removed
 
@@ -277,6 +283,10 @@ and this project adheres to
   `LicenseRef-pitloom-classifier-` terms, with a `WARNING:` ([#276])
 - `profileConformance` lists `simpleLicensing`/`expandedLicensing` from the
   graph, so a direct build and a fragment merge agree ([#276])
+- A wheel named `x.WHL` was read by `wheel` and `generate` but refused by
+  `embed-wheel`; every wheel surface refuses it, as `pip` does ([#278])
+- An unknown `[tool.pitloom]` key warns once per file with a hint; `setup.cfg`
+  `creation-tool`/`tool` now reaches the SBOM (was dropped) ([#280])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -314,6 +324,9 @@ and this project adheres to
 [#273]: https://github.com/bact/pitloom/pull/273
 [#275]: https://github.com/bact/pitloom/pull/275
 [#276]: https://github.com/bact/pitloom/pull/276
+[#278]: https://github.com/bact/pitloom/pull/278
+[#280]: https://github.com/bact/pitloom/pull/280
+[#281]: https://github.com/bact/pitloom/pull/281
 
 ## [0.19.0] - 2026-09-18
 

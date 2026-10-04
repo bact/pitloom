@@ -22,6 +22,7 @@ from typing import Any
 
 from pitloom.assemble import ConfigOverrides, embed_wheel_sbom
 from pitloom.cli.commands.utils import report_error_line
+from pitloom.cli.kv_output import print_kv
 from pitloom.cli.options_config import (
     creation_flags_given,
     load_explicit_config,
@@ -51,7 +52,8 @@ def report_embed_result(
     removed: tuple[str, ...],
     timestamp_floored: bool = False,
 ) -> None:
-    """Print the embed confirmation, plus one line per notable side effect.
+    """Print the embed's ``WHEEL=<wheel name> SBOM=<arcname>`` data line,
+    plus one ``INFO:`` line per notable side effect.
 
     Shared by ``wheel --embed`` and ``embed-wheel`` so both report results
     identically -- see ``pitloom.cli.commands.wheel._run_wheel_command``/
@@ -60,7 +62,7 @@ def report_embed_result(
     can call it directly instead of taking it as a callback parameter --
     a plain function-to-function call, not an ``Any``-typed indirection.
     """
-    print(f"pitloom: embedded {loggable(arcname)} into {loggable(wheel_name)}")
+    print_kv(WHEEL=wheel_name, SBOM=arcname)
     for stale_arcname in removed:
         if stale_arcname.endswith(RECORD_SIGNATURES):
             log.info(

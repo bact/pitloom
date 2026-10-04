@@ -48,7 +48,7 @@ from pitloom.core.inert_options import (
 )
 from pitloom.core.models import merkle_root_of_files
 from pitloom.core.project import ProjectMetadata
-from pitloom.core.provenance import normalize_max_source_metadata_bytes
+from pitloom.core.provenance import require_max_source_metadata_bytes
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.project import read_project
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
@@ -121,9 +121,9 @@ def _settle_embed_options(
     file_cache: EmbedFileCache | None,
 ) -> ConfigOverrides:
     """Warn about every option in *given* that *kind* cannot use, and
-    normalise the byte cap -- once per batch through *file_cache* when
+    validate the byte cap -- once per batch through *file_cache* when
     given, so a batch warns once, as :meth:`EmbedFileCache.settle` does for
-    the build flags. Returns *overrides* with the cap normalised, so the
+    the build flags. Returns *overrides* with the cap validated, so the
     per-wheel :func:`apply_overrides` finds nothing left to warn about."""
     given_names = frozenset(name for name, value in given.items() if value is not None)
 
@@ -132,19 +132,23 @@ def _settle_embed_options(
 
     def normalise() -> int | None:
         value = overrides.max_source_metadata_bytes
-        if value is None or "max_source_metadata_bytes" in INERT[kind]:
-            return None  # an inert cap warned above; no second warning
-        return normalize_max_source_metadata_bytes(value)
+        if value is None:
+            return None
+        valid = require_max_source_metadata_bytes(value)  # even if inert
+        if "max_source_metadata_bytes" in INERT[kind]:
+            return None  # an inert cap is warned about by settle()
+        return valid
 
+    # The cap is checked first: an invalid one is an error, not an inert warning.
     if file_cache is None:
-        settle()
         cap = normalise()
+        settle()
     else:
-        file_cache.once(("inert", kind, given_names), settle)
         cap = file_cache.once(
             ("max_source_metadata_bytes", overrides.max_source_metadata_bytes),
             normalise,
         )
+        file_cache.once(("inert", kind, given_names), settle)
     return dataclasses.replace(overrides, max_source_metadata_bytes=cap)
 
 

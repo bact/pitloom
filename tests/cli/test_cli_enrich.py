@@ -14,6 +14,8 @@ from pathlib import Path
 import pytest
 
 from pitloom import __main__
+from pitloom.__about__ import __version__
+from tests.kv_helpers import info_kv, info_lines, sbom_output_path
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 SAFETENSORS_FIXTURE = (
@@ -96,7 +98,7 @@ def test_enrich_command_verbose_mode_without_project_dir(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """`loom enrich --verbose` without `--project-dir` must skip the
-    "Project dir" line entirely, not print it empty."""
+    PROJECT_DIR line entirely, not print it empty."""
     model_path = tmp_path / "model.safetensors"
     model_path.write_bytes(SAFETENSORS_FIXTURE.read_bytes())
     out = tmp_path / "model.enrich.spdx3.json"
@@ -110,9 +112,15 @@ def test_enrich_command_verbose_mode_without_project_dir(
     assert result == 0
 
     captured = capsys.readouterr()
-    assert "Pitloom version:" in captured.out
-    assert "Model file      :" in captured.out
-    assert "Project dir     :" not in captured.out
+    verbose = info_kv(captured.err)
+    assert verbose["PITLOOM_VERSION"] == __version__
+    assert verbose["MODEL_FILE"] == str(model_path.resolve())
+    assert "PROJECT_DIR" not in verbose
+    assert sbom_output_path(captured.out) == str(out)
+    assert any(
+        line.startswith("enrich: register the fragment under [tool.pitloom.fragment]")
+        for line in info_lines(captured.err)
+    )
 
 
 def test_enrich_command_model_not_found(
@@ -161,6 +169,8 @@ def test_enrich_command_verbose_mode(
     assert result == 0
 
     captured = capsys.readouterr()
-    assert "Pitloom version:" in captured.out
-    assert "Model file      :" in captured.out
-    assert "Project dir     :" in captured.out
+    verbose = info_kv(captured.err)
+    assert verbose["PITLOOM_VERSION"] == __version__
+    assert verbose["MODEL_FILE"] == str(model_path.resolve())
+    assert verbose["PROJECT_DIR"] == str(project_dir)
+    assert sbom_output_path(captured.out) == str(out)

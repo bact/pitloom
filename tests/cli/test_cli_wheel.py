@@ -16,12 +16,14 @@ import pytest
 import rfc8785
 
 from pitloom import __main__
+from pitloom.__about__ import __version__
 from pitloom.cli.commands import wheel as mod_wheel
 from pitloom.cli.commands._embed_wheel_batch import report_embed_result
 from pitloom.core.project import ProjectMetadata
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
 from tests.assemble.conftest import _make_dummy_wheel
+from tests.kv_helpers import info_kv, kv_stdout, sbom_output_path
 from tests.warning_helpers import count_naming, stderr_warnings
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
@@ -86,15 +88,17 @@ def test_wheel_command_nonexistent_and_verbose(
     )
     monkeypatch.setattr(sys, "argv", ["loom", "wheel", "-v", str(wheel_path)])
     assert __main__.main() == 0
-    out = capsys.readouterr().out
-    assert "Pitloom version" in out
-    assert "Wheel file" in out
+    captured = capsys.readouterr()
+    verbose = info_kv(captured.err)
+    assert verbose["PITLOOM_VERSION"] == __version__
+    assert verbose["WHEEL_FILE"] == str(wheel_path)
+    assert sbom_output_path(captured.out) == verbose["OUTPUT_PATH"]
 
 
 def test_report_embed_result(capsys: pytest.CaptureFixture[str]) -> None:
-    """report_embed_result prints the confirmation to stdout (this
-    command's primary result output) and the two INFO: side-effect lines
-    to stderr, matching every other INFO:/WARNING:/ERROR: line."""
+    """report_embed_result prints one WHEEL=/SBOM= data line to stdout and
+    the two INFO: side-effect lines to stderr, matching every other
+    INFO:/WARNING:/ERROR: line."""
     # The two side-effect lines go through logging (see CLAUDE.md's "CLI
     # output" section), unlike the confirmation line above them -- calling
     # this function directly, without going through __main__.main(), skips
@@ -108,7 +112,7 @@ def test_report_embed_result(capsys: pytest.CaptureFixture[str]) -> None:
         timestamp_floored=True,
     )
     captured = capsys.readouterr()
-    assert "embedded sbom.spdx.json into pkg.whl" in captured.out
+    assert kv_stdout(captured.out) == [{"WHEEL": "pkg.whl", "SBOM": "sbom.spdx.json"}]
     assert "removed stale SBOM old_sbom.spdx.json" in captured.err
     assert "timestamp was before 1980" in captured.err
 
@@ -138,10 +142,10 @@ def test_embed_wheel_prints_one_clean_line_for_a_hostile_metadata_name(
     assert __main__.main() == 0
 
     out = capsys.readouterr().out
-    assert out == (
-        "pitloom: embedded pkg-1.0.dist-info/sboms/ev_[31mil__x-1.0.spdx3.json "
-        "into pkg-1.0-py3-none-any.whl\n"
-    )
+    assert out.splitlines() == [
+        "WHEEL=pkg-1.0-py3-none-any.whl "
+        "SBOM=pkg-1.0.dist-info/sboms/ev_[31mil__x-1.0.spdx3.json"
+    ]
 
 
 def _embedded(wheel: Path) -> bytes:

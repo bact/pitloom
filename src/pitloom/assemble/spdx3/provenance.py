@@ -37,8 +37,8 @@ from pitloom.core.models import generate_spdx_id
 from pitloom.core.project import ConflictCandidate
 from pitloom.core.provenance import (
     ProvenanceConfig,
-    normalize_max_source_metadata_bytes,
     parse_provenance_value,
+    require_max_source_metadata_bytes,
 )
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
@@ -304,7 +304,7 @@ def build_source_metadata_annotation(
     if not metadata:
         return None
 
-    max_metadata_bytes = normalize_max_source_metadata_bytes(max_metadata_bytes)
+    max_metadata_bytes = require_max_source_metadata_bytes(max_metadata_bytes)
     dropped_keys: list[str] = []
     kept_metadata = metadata
     if max_metadata_bytes:

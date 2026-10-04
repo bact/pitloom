@@ -64,6 +64,7 @@ from pitloom.assemble import (
     generate_wheel_sbom,
     generate_wheel_sbom_with_metadata,
 )
+from pitloom.cli.options import byte_budget
 from pitloom.cli.parser import _build_parser
 from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.creation import CreationMetadata
@@ -178,7 +179,7 @@ def _forms(action: argparse.Action) -> list[_Form]:
         ]
     if action.nargs == 0:
         return [_Form(key, (key,), action.dest, True)]
-    if action.type is int:
+    if action.type in (int, byte_budget):
         return [_Form(key, (key, "0"), action.dest, 0)]
     if key in _CREATOR_ATTRIBUTES:
         value = _CREATOR_ATTRIBUTES[key]

@@ -8,15 +8,18 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 from typing import Any
 
-from pitloom._sbom_io import write_sbom_output
+from pitloom._sbom_io import STDOUT, write_sbom_output
 from pitloom.assemble import merge_fragments
-from pitloom.cli.commands.utils import cli_error_handler
+from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
 from pitloom.core.config import FragmentConfig
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION, Spdx3JsonExporter
+
+log = logging.getLogger(__name__)
 
 
 @cli_error_handler("fragment merge failed")
@@ -52,8 +55,9 @@ def _run_merge_command(args: argparse.Namespace) -> int:
     sbom_json = exporter.to_json(pretty=bool(args.pretty))
     output_path: Path = args.output
     write_sbom_output(sbom_json, output_path)
-    if str(output_path) != "-":
-        print(f"pitloom: merged {len(fragment_files)} fragment(s) into {output_path}")
+    if str(output_path) != STDOUT:
+        _print_sbom_output_path(output_path)
+    log.info("merge: merged %d fragment(s)", len(fragment_files))
     return 0
 
 
