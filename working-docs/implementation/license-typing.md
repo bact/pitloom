@@ -215,11 +215,12 @@ the same declared licence, except a `license.file`/`license.text` that
 `licenseid` identifies: the directory and the hook record the id, an sdist,
 a wheel or installed metadata the text, since their readers run no text
 detection (content, predates #276;
-[metadata-quality.md](../design/metadata-quality.md)). The concluded G2
-second opinion exists only where a directory is scanned (CLI/library on a
-directory, the hook); an sdist or wheel SBOM has no detection step, which
-predates #276
-([metadata-quality.md](../design/metadata-quality.md)). A
+[metadata-quality.md](../design/metadata-quality.md)). The project's own
+licence files (the G2 concluded second opinion, or the declared licence of
+a silent manifest) are read on the directory (CLI, library), the hook and,
+since the sdist licence-detection PR, the sdist (its `PKG-INFO` top
+directory, one rule: `apply_in_package_license()`); a wheel SBOM has no
+detection step (`License-File:` selection, 0.21.0). A
 dependency (installed, then PyPI) goes through the same helper, so a
 blank-but-folded `License:` header or an NBSP `License-Expression` reaches
 the classifier there too (a blank header counts as empty). Before, a

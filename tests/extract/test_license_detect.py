@@ -112,6 +112,19 @@ def test_directory_adapter_matches_the_bytes_core(tmp_path: Path) -> None:
     ]
 
 
+@pytest.mark.parametrize("codemeta", [b"[]", b'"MIT"', b"3", b"null"])
+def test_a_codemeta_json_that_is_not_an_object_states_nothing(
+    tmp_path: Path, codemeta: bytes
+) -> None:
+    """Regression: a JSON array crashed detection (``list.get``)."""
+    files = {"codemeta.json": codemeta, "LICENSE": b"MIT\n"}
+    for name, raw in files.items():
+        (tmp_path / name).write_bytes(raw)
+    expected = [("MIT\n", "Source: LICENSE")]
+    assert collect_license_candidates(tmp_path) == expected
+    assert license_candidates_from_members(files) == expected
+
+
 def test_symlinked_license_is_followed_and_dangling_one_skipped(
     tmp_path: Path,
 ) -> None:

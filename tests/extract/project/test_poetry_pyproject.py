@@ -289,11 +289,10 @@ def test_fixture_read_pyproject_falls_back_to_poetry() -> None:
 # ---------------------------------------------------------------------------
 # G2: license fallback detection / conflict (poetry-only path)
 #
-# Regression coverage for the poetry-only extraction path, which previously
-# had zero license detection capability beyond reading the declared
-# [tool.poetry] license field verbatim -- no fallback directory detection,
-# no independent second-opinion scan. See resolve_license_concluded()'s
-# docstring in _license.py for why every extractor must call it.
+# The poetry-only extraction path applies the licence files through
+# apply_in_package_license() in _license.py, the one rule every project
+# reader shares: a fallback when [tool.poetry] states no licence, the
+# second opinion when it does.
 # ---------------------------------------------------------------------------
 
 

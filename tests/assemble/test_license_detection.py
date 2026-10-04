@@ -18,9 +18,11 @@ from unittest.mock import patch
 
 import pytest
 
+from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import (
     _looks_like_spdx_license_expression,
     _looks_like_spdx_license_id,
+    apply_in_package_license,
     canonicalize_license_id,
     collect_license_candidates,
     detect_license_for_project,
@@ -354,3 +356,30 @@ def test_detect_project_hint_text_detection_fails_returns_hint() -> None:
         ):
             result_id, _ = detect_license_for_project(Path(d), hint)
         assert result_id == hint
+
+
+_FILES = [("Apache-2.0", "Source: LICENSE")]
+
+
+@pytest.mark.parametrize(
+    ("stated", "candidates", "expected"),
+    [
+        ("MIT", _FILES, ("MIT", "Apache-2.0")),  # stated: files concluded
+        ("UNKNOWN", _FILES, ("UNKNOWN", "Apache-2.0")),  # a placeholder states
+        (None, _FILES, ("Apache-2.0", None)),  # silent: files declared
+        ("", _FILES, ("Apache-2.0", None)),  # blank is silent
+        (" \n", _FILES, ("Apache-2.0", None)),
+        ("MIT", [], ("MIT", None)),  # nothing found: nothing changes
+        (None, [], (None, None)),
+    ],
+)
+def test_apply_in_package_license_is_one_rule_for_every_reader(
+    stated: str | None,
+    candidates: list[tuple[str, str]],
+    expected: tuple[str | None, str | None],
+) -> None:
+    metadata = ProjectMetadata(name="p", license_name=stated)
+    apply_in_package_license(metadata, candidates)
+    assert (metadata.license_name, metadata.license_concluded) == expected
+    field = "license_concluded" if expected[1] else "license"
+    assert metadata.provenance.get(field) == ("Source: LICENSE" if candidates else None)

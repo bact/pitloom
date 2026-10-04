@@ -17,11 +17,9 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
-from pitloom.core.project import ProjectMetadata
 from pitloom.extract.project._setup_cfg_directives import (
     _read_version_attr,
     _resolve_cfg_attr_directive,
@@ -29,7 +27,6 @@ from pitloom.extract.project._setup_cfg_directives import (
     _resolve_cfg_version,
 )
 from pitloom.extract.project.setuptools import (
-    _resolve_setuptools_license,
     read_setup_cfg,
 )
 from pitloom.extract.project.setuptools_cfg import _parse_cfg_urls
@@ -303,18 +300,6 @@ def test_read_setup_cfg_pitloom_config_sections() -> None:
         _, config = read_setup_cfg(Path(d))
     assert len(config.content_type.overrides) == 2
     assert config.provenance.detail == "full"
-
-
-def test_resolve_setuptools_license_without_provenance(tmp_path: Path) -> None:
-    """_resolve_setuptools_license handles detected license with None provenance."""
-    meta = ProjectMetadata(name="test-pkg", version="1.0.0")
-    with patch(
-        "pitloom.extract.project.setuptools.detect_license_for_project",
-        return_value=("MIT", None),
-    ):
-        res = _resolve_setuptools_license(meta, tmp_path)
-        assert res.license_name == "MIT"
-        assert "license" not in res.provenance
 
 
 def test_setuptools_cfg_version_and_attr_edge_cases() -> None:

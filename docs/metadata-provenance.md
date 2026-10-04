@@ -215,10 +215,14 @@ its installed metadata: an agreeing pair, or a `NOASSERTION`/`UNKNOWN` on
 either side, is no conflict, and a real installed license replaces a
 `NOASSERTION`/`UNKNOWN` static one.
 
-The directory check runs where Pitloom reads a project directory: `loom
-project` or `generate_project_sbom()` on a directory, and the Hatchling
-build hook. An SBOM of an sdist or a wheel records only the license the
-archive's metadata states, with no `hasConcludedLicense` second opinion.
+The check runs where Pitloom reads a project's own files: `loom project`
+or `generate_project_sbom()` on a directory or an sdist, and the Hatchling
+build hook. In an sdist it reads the root `LICENSE`, `CITATION.cff` and
+`codemeta.json` of the directory holding `PKG-INFO`, as for the unpacked
+directory. When the project's metadata states no license, the detected
+one is its declared license instead. An SBOM of a wheel records only the
+license the wheel's metadata states, with no `hasConcludedLicense` second
+opinion.
 
 ## How a license value is recorded
 

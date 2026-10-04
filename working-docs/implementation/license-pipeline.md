@@ -48,11 +48,11 @@ EXTRACT LAYER  (src/pitloom/extract/)
 ──────────────────────────────────────────────────────────────────────────────
 pyproject.py         pytorch_pt2.py         huggingface.py
 setuptools.py        (zip entry            ┌──────────────────────────────┐
-poetry.py             extra/license)       │ 1. card YAML license:        │
-                                           │    if vague/missing:         │
+poetry.py, sdist.py   extra/license)       │ 1. card YAML license:        │
+hatchling.py                               │    if vague/missing:         │
 _license.py ─────────────────────────      │ 2. _detect_license_          │
- detect_license_for_project()              │      from_hf_files()         │
-  ├─ pyproject.toml  project.license       │      → licenseid library     │
+ apply_in_package_license()                │      from_hf_files()         │
+  ├─ (manifest licence read first)         │      → licenseid library     │
   ├─ CITATION.cff    license:              │        (≥ 0.85 confidence)   │
   ├─ codemeta.json   license:              └──────────────────────────────┘
   └─ LICENSE file    (via licenseid)
@@ -115,19 +115,19 @@ after `pyproject.toml` is parsed, in priority order:
    id (`Method: licenseid_detection`); other text is kept as written.
 2. A `License ::` classifier, when `project.license` is absent, blank or
    `UNKNOWN`/`NOASSERTION` (`license_or_classifier`, the wheel/sdist rule).
-3. Only when neither states a licence, the project directory
-   (`detect_license_for_project()` in `_license.py`): `license:` in
+3. Only when neither states a licence, the project's own licence files
+   (`apply_in_package_license()` in `_license.py`): `license:` in
    `CITATION.cff`, then `codemeta.json` (URL values reduced to their SPDX
    ID segment), then the text of `LICENSE`, `LICENCE`, `COPYING` or
    `COPYRIGHT` (with common suffixes) via `licenseid` (≥ 0.85 confidence).
-   When the manifest states a licence, the directory is the G2 concluded
-   second opinion instead.
+   When the manifest states a licence (not blank), they are the G2
+   concluded second opinion instead.
 
 `setuptools_cfg.py` (`license`, then `classifiers`), `setuptools_py.py`
 (`setup(license=...)`, then `setup(classifiers=...)`) and `hatchling.py`
 (the build hook: `core.license_expression or core.license`, then
 `core.classifiers`) use the same rule
-and fall back to the directory the same way. `poetry.py` reads `license`
+and fall back to the licence files the same way. `poetry.py` reads `license`
 only: `poetry-core` derives the licence classifier from it. The result is
 `ProjectMetadata.license_name`.
 
@@ -138,10 +138,30 @@ All extractors record their source in `provenance["license"]` using the
 
 Sources 2-4 are read by `collect_license_candidates()`, a thin directory
 adapter over a pure bytes core, `license_candidates_from_members()`
-(`{root-level name: bytes}` -> candidates). The core does no I/O, so an
-sdist can feed it the archive members it already holds; a drift-guard
-test pins that a directory and the same files as bytes give identical
-candidates. Rules:
+(`{root-level name: bytes}` -> candidates). The core does no I/O; an
+sdist feeds it the archive members its one scan already holds. A
+drift-guard test pins that a directory and the same files as bytes give
+identical candidates. Every project reader then applies the result
+through one helper, `apply_in_package_license(metadata, candidates)`
+(stated licence: concluded; silent or blank: declared):
+
+| Surface | Reader | Licence files read from |
+| :--- | :--- | :--- |
+| `loom project <dir>`, library | `pyproject.py`, `setuptools.py`, `poetry.py` | the project directory |
+| Hatchling hook | `hatchling.py` | the project directory |
+| sdist (`.tar.gz`, `.zip`) | `sdist.py` (`_sdist_scan.py`) | root members of `PKG-INFO`'s top directory |
+| wheel, installed metadata | `wheel.py`, `installed.py` | not read (0.21.0, `License-File:`) |
+
+The sdist scan (`_sdist_scan.py`) reads the candidate names
+(`license_source_names()`) among the root-level members of the top
+directory holding the first root-level `PKG-INFO` (else `pyproject.toml`,
+else `setup.cfg`), in its single pass; regular members only (tar links
+are not read), names normalised as for the file list. Its provenance adds
+the archive: `Source: LICENSE | File: x.tar.gz | Method:
+licenseid_detection | Tool: licenseid==v`. With no `PKG-INFO`, the
+sdist's `pyproject.toml` gives `project.license` and its classifiers
+through the directory's rule (`license_from_project_table()`); a
+`license.file` is read only when it is one of those root members. Rules:
 
 - **Case** (core): names match the `LICENSE`/`LICENCE`/`COPYING`/
   `COPYRIGHT` x `""`/`.txt`/`.rst`/`.md` list ignoring case
@@ -149,7 +169,7 @@ candidates. Rules:
   case-sensitive file system, an archive), the list's own spelling wins,
   else the smallest in `str` order -- never the listing order, which made
   the directory pick nondeterministic before.
-- **Size cap** (reader; the adapter here, the sdist scan later): a root
+- **Size cap** (reader; the directory adapter and the sdist scan): a root
   file over `LICENSE_FILE_MAX_BYTES` (256 KiB) is skipped, read no further
   than one byte past the cap, with one `WARNING:` naming it
   (`warn_over_cap()`, in the `logging_config.FILE_OVER_CAP_WARNING`
@@ -160,9 +180,10 @@ candidates. Rules:
 - **Text** (core): UTF-8 with replacement and universal newlines, as
   `Path.read_text()` gave it; an empty or whitespace-only file gives no
   candidate. `codemeta.json` is parsed from bytes, so a UTF-8 BOM is
-  accepted.
+  accepted; one that is not a JSON object states nothing.
 
-The directory side follows a symlinked licence file, as a plain read does.
+The directory side follows a symlinked licence file, as a plain read does;
+an sdist's link member is not read.
 
 ### AI model file sources
 
@@ -392,7 +413,7 @@ file, so the surviving header path is proven untouched.
 
 | File | Role |
 | :--- | :--- |
-| `src/pitloom/extract/_license.py` | `detect_license_from_text()`, `find_license_files()`, `detect_license_for_project()` |
+| `src/pitloom/extract/_license.py` | `detect_license_from_text()`, `stated_license()`, `license_from_candidates()`, `apply_in_package_license()` (the one stated/silent rule), `detect_license_for_project()` |
 | `src/pitloom/extract/_license_detect.py` | Root-file detection: bytes core, directory adapter, case rule, size cap |
 | `src/pitloom/extract/_license_classify.py` | `classify_license()`, `same_licence()` and the provenance notes of a rewrite |
 | `src/pitloom/extract/_core_metadata.py` | `core_metadata_license_with_source()` (unfolded headers), `license_cascade()`/`first_license()` (the weak cascade), `license_or_classifier()`, `license_from_classifiers()` (trove parents and a lone `License :: OSI Approved` dropped) |
@@ -402,6 +423,7 @@ file, so the surviving header path is proven untouched.
 | `src/pitloom/extract/license_refs.py` | several classifiers as an AND of `LicenseRef-pitloom-classifier-` terms |
 | `src/pitloom/extract/project/_pyproject_license.py` | `pyproject.toml` licence and classifiers |
 | `src/pitloom/extract/project/pyproject.py` | Python project licence extraction and detection |
+| `src/pitloom/extract/project/_sdist_scan.py` | sdist single pass: root members, licence sources (capped) |
 | `src/pitloom/extract/project/hatchling.py` | Hatchling build-hook licence extraction |
 | `src/pitloom/extract/project/setuptools.py` | setuptools project licence extraction |
 | `src/pitloom/extract/project/poetry.py` | Poetry project licence extraction |
@@ -418,6 +440,8 @@ file, so the surviving header path is proven untouched.
 | `src/pitloom/assemble/spdx3/ai.py` | `add_ai_models()` -- AI model licence wiring |
 | `src/pitloom/export/spdx3_json.py` | `Spdx3JsonExporter.find_license(kind, value)`, `add_license()` |
 | `tests/extract/test_license_detect.py` | Case rule, size cap, and the directory-vs-bytes drift guard |
+| `tests/assemble/test_license_sdist_parity.py` | One licence value on the directory (CLI, library), the hook and the sdist (tar.gz, zip) |
+| `tests/extract/project/test_sdist_license.py` | sdist licence members: top directory, case, cap, links, unsafe names; `PKG-INFO`-less fallback |
 | `tests/assemble/test_license_detection.py`, `tests/assemble/test_license_normalization.py` | Unit tests for `_license.py` utilities (originally `tests/test_license.py`, later split -- see `cli-test-coverage-roadmap.md`) |
 | `tests/core/generator/test_generator_project_enrichment.py`, `tests/core/generator/test_generator_project_structure.py` | End-to-end licence export tests with fixture files (originally `tests/test_generator.py`, since split by generation target and further by section -- see `cli-test-coverage-roadmap.md`) |
 | `tests/assemble/test_license_files_not_listed.py` | Declared `[project.license-files]` yield no SBOM element (library, Hatchling hook, vendored real-world fixtures) |

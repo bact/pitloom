@@ -68,8 +68,8 @@ from typing import Any
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._extract_utils import field_declared
 from pitloom.extract._license import (
-    detect_license_for_project,
-    resolve_license_concluded,
+    apply_in_package_license,
+    collect_license_candidates,
 )
 from pitloom.extract.project._poetry_fields import (
     drop_wrong_typed_fields,
@@ -102,11 +102,9 @@ def extract_poetry_metadata(
 
     Args:
         data: Full parsed ``pyproject.toml`` dict.
-        project_dir: Project root directory -- used for the same license
-            fallback-detection and G2 independent-scan every other project
-            extractor performs; see
-            :func:`~pitloom.extract._license.resolve_license_concluded`'s
-            docstring for why every extractor must call it.
+        project_dir: Project root directory -- its licence files, read
+            by the one rule every project reader applies
+            (:func:`~pitloom.extract._license.apply_in_package_license`).
         quiet: Suppress this extraction's own ``WARNING:`` lines (default
             ``False``) -- for a caller re-reading the same, already-read
             *data* a second time; see
@@ -263,35 +261,22 @@ def _parse_poetry_urls(poetry: dict[str, Any]) -> dict[str, str]:
 def _resolve_poetry_license(
     poetry: dict[str, Any], project_dir: Path
 ) -> tuple[str | None, str | None, dict[str, str]]:
-    """Resolve ``[tool.poetry]``'s declared license, falling back to
-    directory detection when absent, plus G2's independent second opinion.
+    """Resolve ``[tool.poetry]``'s declared license, then what the
+    project's own licence files say
+    (:func:`~pitloom.extract._license.apply_in_package_license`).
 
     Returns ``(license_name, license_concluded, license_prov)`` --
     ``license_prov`` is ready to merge into the caller's provenance dict
     directly.
     """
     license_name = (poetry.get("license") or "").strip() or None
-    has_declared_license = bool(license_name)
-    license_prov_override: str | None = None
-    if not license_name:
-        # No [tool.poetry] license declared -- fall back to directory
-        # detection, same baseline every other extractor has.
-        license_name, license_prov_override = detect_license_for_project(project_dir)
-    # G2: independently scan for a second opinion when a license *was*
-    # declared, via the shared resolver every extractor must call.
-    license_concluded, license_concluded_prov = resolve_license_concluded(
-        has_declared_license, project_dir
-    )
-
-    license_prov: dict[str, str] = {}
+    resolved = ProjectMetadata(name="", license_name=license_name)
     if license_name:
-        license_prov["license"] = (
-            license_prov_override
-            or "Source: pyproject.toml | Field: tool.poetry.license"
+        resolved.provenance["license"] = (
+            "Source: pyproject.toml | Field: tool.poetry.license"
         )
-    if license_concluded and license_concluded_prov:
-        license_prov["license_concluded"] = license_concluded_prov
-    return license_name, license_concluded, license_prov
+    apply_in_package_license(resolved, collect_license_candidates(project_dir))
+    return resolved.license_name, resolved.license_concluded, resolved.provenance
 
 
 def _parse_poetry_authors(authors: list[Any]) -> list[dict[str, str]]:
