@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,6 +11,10 @@ SPDX-License-Identifier: CC0-1.0
 This document describes how Pitloom detects, carries, and exports
 licence information from its various input sources into a finished
 SPDX 3 SBOM document.
+
+See also: [license-typing.md](license-typing.md) -- how a value is
+classified (expression, text, `NOASSERTION`/`NONE` individuals), the
+dependency cascade, conflicts and the decisions behind them.
 
 ## Overview
 
@@ -69,9 +73,16 @@ document.py build()              document.py build_model()
       └──────────────────┬────────────────────┘
                          │
                  ai.py add_ai_models()
-                 deps.py build_license_elements()
-                   ├─ reuse SimpleLicensingText if duplicate
-                   └─ else create simplelicensing_SimpleLicensingText
+                 deps_license.py build_license_elements()
+                   └─ _license_elements.py (the one builder)
+                        classify_license(): expression │ text │
+                                            NOASSERTION │ NONE │ absent
+                        ├─ reuse the element if duplicate (kind, value)
+                        ├─ LicenseExpression  (valid SPDX expression)
+                        ├─ SimpleLicensingText  (other text)
+                        ├─ NoAssertionLicense / NoneLicense  (individual,
+                        │    no element)
+                        └─ absent: nothing
                          │
               ┌──────────┴──────────┐
               ▼                     ▼
@@ -85,7 +96,7 @@ EXPORT LAYER  (src/pitloom/export/spdx3_json.py)
 ──────────────────────────────────────────────────────────────────────────────
 Spdx3JsonExporter.to_json()
   └─ JSON-LD graph  (@context + @graph)
-       ├─ simplelicensing_SimpleLicensingText
+       ├─ simplelicensing_LicenseExpression / _SimpleLicensingText
        ├─ Relationship  {relationshipType: hasDeclaredLicense}
        └─ Relationship  {relationshipType: hasConcludedLicense}
 ```
@@ -136,7 +147,7 @@ relationships.
 
 1. **Card YAML** -- reads `license:` from the model card frontmatter. If
    the value is not a vague sentinel (`other`, `custom`, `proprietary`,
-   `unknown`, `unlicensed`), it is passed through `canonicalize_license_id()`,
+   `unlicensed`; `unknown` is handled below), it is passed through `canonicalize_license_id()`,
    which calls `.match(license_id=raw)` on a process-wide cached
    `AggregatedLicenseMatcher` (see `_get_matcher()`) from the `licenseid`
    library for a direct database lookup. Recognised SPDX
@@ -152,7 +163,10 @@ relationships.
    `hf_hub_download` and its text is passed to `detect_license_from_text()`
    from the `licenseid` library. The first match above the 0.85 confidence
    threshold is accepted. The original vague card value is preserved in
-   `extra_data["hf.license_raw"]` for auditability.
+   `extra_data["hf.license_raw"]` for auditability. A card value of
+   `unknown` (any case) that file detection cannot improve is returned as
+   stated, with card provenance, and becomes the `NoAssertionLicense`
+   individual; `other`/`custom`/`proprietary`/`unlicensed` give nothing.
 
 ### `licenseid` dependency
 
@@ -195,70 +209,82 @@ Source: model.pt2 | Field: extra/license
 ### `build_license_elements()` -- `assemble/spdx3/deps_license.py`
 
 This shared helper is called by every code path that needs to emit
-licence relationships. It:
+licence relationships. It asks `get_or_create_license_element()`
+(`assemble/spdx3/_license_elements.py`, the one builder; see
+[license-typing.md](license-typing.md)) for the element, then builds the
+relationship(s):
 
-1. Looks up `exporter.find_license(license_id)` to reuse an existing
-   `simplelicensing_SimpleLicensingText` element when the same licence
-   identifier has already been registered (avoids duplicates when
-   multiple packages share a licence).
-2. If no match is found, creates a new
-   `simplelicensing_SimpleLicensingText` element with:
-   - `name`: first line of the identifier, truncated to 60 characters.
-   - `simplelicensing_licenseText`: the full licence identifier string.
-   - `comment`: `"Metadata provenance: license: <provenance>"`.
-3. Builds and returns two fresh `Relationship` elements:
-   - `hasDeclaredLicense` -- the licence declared in the software
-     artefact itself.
-   - `hasConcludedLicense` -- the licence as concluded by the SBOM
-     creator (currently set to the same value; see in-code comment for
-     planned refinement).
+1. `classify_license()` sorts the value. `None` (absent or blank) stops
+   here: no element, no relationship.
+2. `exporter.find_license(kind, value)` reuses an existing element of the
+   same `(kind, value)`; an expression and a text with the same string
+   stay apart.
+3. Otherwise a `simplelicensing_LicenseExpression`
+   (`simplelicensing_licenseExpression`: the canonical form) or a
+   `simplelicensing_SimpleLicensingText` (`simplelicensing_licenseText`: the
+   stripped text) is created, with `name` (first line, at most 60
+   characters). Its provenance (`comment`, `"Metadata provenance: license:
+   <provenance>"`, and an Annotation) is written only when high-signal at the
+   default `detail = "minimal"` -- a non-manifest source, a `Method`, a
+   `Normalized-From`/`Deprecated-License-Id` note -- and always at
+   `detail = "full"` (`filter_high_signal()`).
+   `NOASSERTION`/`UNKNOWN`/`NONE` create no element: the relationship's `to`
+   is the named individual.
+4. A `hasDeclaredLicense` or `hasConcludedLicense` relationship is built
+   (single value: declared when its source is a transparent manifest, else
+   concluded; two values, main package only: both, with a conflict
+   Annotation when they differ, see license-typing.md).
 
-The caller is responsible for adding both relationships to the exporter.
+A note about how the value changed (`Normalized-From`, `Normalizer`,
+`Deprecated-License-Id`) goes on the new element, or, when the element
+already existed, on this source's relationship; for an individual always
+on the relationship.
+
+The caller is responsible for adding the relationships to the exporter.
 
 ### Call sites
 
 | Call site | Subject package | Trigger condition |
 | :--- | :--- | :--- |
-| `document.py build()` | main Python package | `metadata.license_name` is set |
-| `document.py build()` | each dependency | via `_enrich_from_installed()` |
-| `ai.py add_ai_models()` | each AI model | `ai_model.license` is set |
-| `document.py build_model()` | standalone AI model | `model.license` is set |
+| `document.py build()` | main Python package | a licence value is stated |
+| `document.py build()` | each dependency | installed metadata, installed classifiers, then PyPI (weak `NOASSERTION` last; see license-typing.md) |
+| `ai.py add_ai_models()` | each AI model | `ai_model.license` is stated |
+| `document.py build_model()` | standalone AI model | `model.license` is stated |
+| `_document_files.py` | each tagged source file | `SPDX-License-Identifier:` header |
+
+A package with no stated licence gets no relationship at all.
 
 ### `profileConformance`
 
-When any licence relationship is added, the assembler appends
-`simpleLicensing` to `SpdxDocument.profileConformance`. For documents
-that mix Python and AI content, the check is de-duplicated so the
-profile identifier appears exactly once regardless of how many packages
-carry a licence.
+Derived from the finished graph by
+`assemble/spdx3/_licensing_profiles.py`, for every builder and for
+fragment merge: `simpleLicensing` when the graph has a licence element or a
+declared/concluded licence relationship, `expandedLicensing` when it uses an
+`expandedlicensing_*` element or an individual (which implies
+`simpleLicensing`), neither otherwise.
 
 ### Output elements
 
-For each package with a known licence, the JSON-LD graph contains:
+For a package with a licence the JSON-LD graph contains, for example:
 
 ```jsonc
 {
-  "type": "simplelicensing_SimpleLicensingText",
-  "spdxId": "https://spdx.org/spdxdocs/License/Apache-2.0-1-<uuid>",
+  "type": "simplelicensing_LicenseExpression",
+  "spdxId": "https://spdx.org/spdxdocs/<name>-<uuid>#License-1",
   "name": "Apache-2.0",
-  "simplelicensing_licenseText": "Apache-2.0",
-  "comment": "Metadata provenance: license: Source: pyproject.toml | Field: project.license"
+  "simplelicensing_licenseExpression": "Apache-2.0"
 },
 {
   "type": "Relationship",
-  "spdxId": "https://spdx.org/spdxdocs/Relationship/hasDeclaredLicense1-<uuid>",
+  "spdxId": "https://spdx.org/spdxdocs/<name>-<uuid>#Relationship-1",
   "relationshipType": "hasDeclaredLicense",
-  "from": "https://spdx.org/spdxdocs/Package/mypackage-1-<uuid>",
-  "to": ["https://spdx.org/spdxdocs/License/Apache-2.0-1-<uuid>"]
-},
-{
-  "type": "Relationship",
-  "spdxId": "https://spdx.org/spdxdocs/Relationship/hasConcludedLicense2-<uuid>",
-  "relationshipType": "hasConcludedLicense",
-  "from": "https://spdx.org/spdxdocs/Package/mypackage-1-<uuid>",
-  "to": ["https://spdx.org/spdxdocs/License/Apache-2.0-1-<uuid>"]
+  "from": "https://spdx.org/spdxdocs/<name>-<uuid>#Package-1",
+  "to": ["https://spdx.org/spdxdocs/<name>-<uuid>#License-1"]
 }
 ```
+
+A source that said `NOASSERTION` gives only the relationship, with
+`"to": ["expandedlicensing_NoAssertionLicense"]`.
 
 ## License files are not listed (PEP 639)
 
@@ -302,10 +328,9 @@ file, so the surviving header path is proven untouched.
 
 ## Limitations and future work
 
-- `hasDeclaredLicense` and `hasConcludedLicense` currently point to the
-  same `SimpleLicensingText` element. The SPDX 3 specification allows
-  them to differ (e.g. when multiple declared licences must be concluded
-  as a conjunction). Separate handling is deferred to a future version.
+- `hasDeclaredLicense` and `hasConcludedLicense` may point at the same
+  element (one value) or at two (two-candidate mode, main package only).
+  Multiple declared licences concluded as a conjunction are not modelled.
 - GGUF, Safetensors, ONNX, and most other model formats do not embed a
   machine-readable licence field. Licence data for those models must come
   from an external source such as HuggingFace Hub or a user-supplied
@@ -313,6 +338,10 @@ file, so the surviving header path is proven untouched.
 - `licenseid` text detection is probabilistic (threshold 0.85). Unusual
   licence texts or heavily modified standard licences may not be
   detected. Always verify the concluded licence in the SBOM.
+- A PyPI `License ::` classifier such as `OSI Approved :: MIT License`
+  gives the text `MIT License`, not the SPDX id.
+- A warning for an unknown id in a field that must hold an SPDX expression
+  (PEP 639 `license`, `License-Expression`) is a 0.21.0 follow-up.
 
 ## Related source files
 
@@ -335,14 +364,20 @@ file, so the surviving header path is proven untouched.
 | `src/pitloom/core/ai_metadata.py` | `AiModelMetadata.license`
   field |
 | `src/pitloom/assemble/spdx3/deps_license.py` | `build_license_elements()`,
-  `build_file_declared_license()` shared helpers |
+  `build_file_declared_license()`, `WeakLicense`/`emit_weak_license()` |
+| `src/pitloom/assemble/spdx3/_license_elements.py` | the one licence
+  element builder |
+| `src/pitloom/assemble/spdx3/_licensing_profiles.py` | licensing profiles
+  from the graph |
+| `src/pitloom/core/license_individuals.py` | the named licence
+  individuals table |
 | `src/pitloom/assemble/spdx3/_document_files.py` | `_add_package_files()`,
   `_emit_file_license_relationship()` -- file-level licence wiring |
 | `src/pitloom/assemble/spdx3/document.py` | `build()` -- licence wiring
   (`build_model()` moved to `_document_model.py`, re-exported here) |
 | `src/pitloom/assemble/spdx3/ai.py` | `add_ai_models()` -- AI model
   licence wiring |
-| `src/pitloom/export/spdx3_json.py` | `Spdx3JsonExporter.find_license()`,
+| `src/pitloom/export/spdx3_json.py` | `Spdx3JsonExporter.find_license(kind, value)`,
   `add_license()` |
 | `tests/assemble/test_license_detection.py`,
   `tests/assemble/test_license_normalization.py` | Unit tests for
@@ -358,6 +393,6 @@ file, so the surviving header path is proven untouched.
   hook, vendored real-world fixtures) |
 | `tests/assemble/test_deps_license.py` | Unit tests for
   `build_license_elements()`/`_is_license_concluded()`/
-  `_get_or_create_license_element()`, split out of
+  `get_or_create_license_element()`, split out of
   `test_deps_enrichment_pypi_fallback.py` to stay under the file-size
   soft limit |

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-09-21
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -61,7 +61,7 @@ author, full stop.
 | Extracted field | SPDX 3 destination |
 | :--- | :--- |
 | `copyright_text` | `software_File.software_copyrightText` (native -- shared with `Package` via `software_SoftwareArtifact`) |
-| `spdx_license_identifier` | `hasDeclaredLicense` Relationship + `simplelicensing_SimpleLicensingText` element (native; never `hasConcludedLicense` -- see below) |
+| `spdx_license_identifier` | `hasDeclaredLicense` Relationship + a `simplelicensing_LicenseExpression` (valid SPDX id) or `simplelicensing_SimpleLicensingText` element, or the `NoAssertionLicense`/`NoneLicense` individual for `NOASSERTION`/`NONE` (native; never `hasConcludedLicense` -- see below) |
 | `file_type` | `software_File.software_primaryPurpose`, when the raw tag maps cleanly to `SoftwarePurpose`; `File.summary` for the raw tag value whenever it doesn't map |
 | `content_type` (new, not from the header -- see below) | `software_File.contentType` -- a real IANA media type, detected independently of whatever `SPDX-FileType:` said |
 | `file_contributors` | `File.summary` -- no dedicated native slot exists, but `summary` (on the base `Element` class) is a legitimate free-text home, not an Annotation workaround |
@@ -270,9 +270,11 @@ entirely.
 
 **Nothing is emitted when a file's header scan finds nothing.** No
 `NOASSERTION` license/copyright per file -- a project can have thousands
-of files; only files that actually said something get an entry.
-Different from the dependency-completeness `NOASSERTION` policy, which
-applies to a handful of packages, not every source file.
+of files; only files that actually said something get an entry. Different
+from the `NOASSERTION` copyright policy for dependencies, which applies to a
+handful of packages, not every source file. (No licence is never a
+`NoAssertionLicense` anywhere: see
+[license-typing.md](license-typing.md).)
 
 ## Known limitations
 

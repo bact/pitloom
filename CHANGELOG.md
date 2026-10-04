@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -59,6 +59,8 @@ and this project adheres to
   reported as models ([#263])
 - `generate_wheel_sbom_with_metadata()`; `embed_sbom_in_wheel(identity=...)`
   ([#266])
+- A dependency's licence is also read from its installed `License ::`
+  classifiers, between installed metadata and PyPI ([#276])
 
 ### Changed
 
@@ -134,6 +136,14 @@ and this project adheres to
   `.dist-info/licenses/*` ([#271])
 - Release SBOM is the build hook's, not a re-embedded one; checked, attached
   to the release byte-identical, signed and attested ([#275])
+- A valid SPDX licence value is a canonical `LicenseExpression` (`GPL-2.0+`
+  becomes `GPL-2.0-or-later`); other text stays `SimpleLicensingText`, with a
+  `WARNING:` if it looks like a broken expression ([#276])
+- `NOASSERTION`/`UNKNOWN`/`NONE` are the `NoAssertionLicense`/`NoneLicense`
+  individuals; NoAssertion is weak (a later source wins, never a conflict)
+  ([#276])
+- No licence stated gives no licence relationship and no licensing profile; the
+  `NOASSERTION` fallback is gone and `License-N` ids shift ([#276])
 
 ### Removed
 
@@ -250,6 +260,10 @@ and this project adheres to
 - A fragment `Relationship`/`Annotation` pointing at `NoAssertionElement`,
   `NoneElement`, `SpdxOrganization` or a licence individual no longer fails the
   merge as dangling ([#276])
+- Hugging Face `license: unknown` is recorded as `NOASSERTION`, not dropped
+  ([#276])
+- `profileConformance` lists `simpleLicensing`/`expandedLicensing` from the
+  graph, so a direct build and a fragment merge agree ([#276])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227

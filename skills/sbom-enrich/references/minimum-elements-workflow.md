@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -34,6 +34,13 @@ An element the user leaves unknown is written as `NOASSERTION`/"unknown"
 in the fragment, following CISA 2026's "Explicitly Identifying Unknown
 Information" practice: a stated unknown is a decision, a missing field
 is indistinguishable from an oversight.
+
+For a licence the user says is unknown, write a `Relationship` with
+`relationshipType` `hasDeclaredLicense` (or `hasConcludedLicense`), `from`
+the package's id and `"to": ["expandedlicensing_NoAssertionLicense"]`. No
+licence element is created, and never a `SimpleLicensingText` reading
+"NOASSERTION". Pitloom itself writes no licence relationship for a licence
+nobody stated.
 
 ## Optional cross-check
 

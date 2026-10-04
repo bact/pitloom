@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-18
-Last-Modified: 2026-08-18
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,7 +24,8 @@ single-maintainer project. Scoped to the two highest-value, lowest-harness-compl
 targets:
 
 - **License expression normalization**
-  (`pitloom.extract._license.normalize_license_expression`) -- pure
+  (`pitloom.extract._license.classify_license`, which replaced
+  `normalize_license_expression`) -- pure
   string in, string out, no filesystem/network. By its own contract it
   never raises for any input, so the harness needs no expected-exception
   allowlist at all -- the simplest possible target.
@@ -79,15 +80,17 @@ harness found a genuine crash within seconds: a lone `)` (and several
 related unbalanced-paren shapes) made the third-party `py-spdx-license`
 parser raise `IndexError` from deep in its own parser-stack reduction
 logic, instead of its documented `ParseError`. `normalize_license_expression`
-only caught `ParseError`, so the `IndexError` escaped, breaking the
+(now `classify_license`) only caught `ParseError`, so the `IndexError` escaped, breaking the
 function's own "never raises" contract.
 
-Fixed in `pitloom.extract._license.normalize_license_expression` by
+Fixed in `normalize_license_expression` (since folded into `classify_license`) by
 widening the except clause to also catch the generic case (matching the
 same defensive pattern its sibling `canonicalize_license_id` already
 used for its own third-party call), with a regression test in
 `tests/assemble/test_license_normalization.py`
-(`test_normalize_license_expression_unbalanced_close_paren_falls_back`).
+(`test_normalize_license_expression_unbalanced_close_paren_falls_back`;
+now `test_malformed_input_never_raises` in
+`tests/extract/test_license_classify.py`).
 The underlying bug belongs to `py-spdx-license` upstream, not Pitloom --
 this fix is a defensive boundary, not a claim that Pitloom's own logic
 was wrong.

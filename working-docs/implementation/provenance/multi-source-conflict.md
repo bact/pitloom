@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-09-12
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -43,7 +43,7 @@ URL `https://pitloom.dev/provenance/conflict/1`, envelope:
 ```
 
 Only emitted when candidates actually disagree after normalization
-(`_license.py` `normalize_license_expression`, built on the
+(`_license.py` `classify_license`, built on the
 [`py-spdx-license`](https://github.com/JPEWdev/py-spdx-license) parser —
 a plain `.strip()` comparison alone would false-positive not just on
 casing differences (declared `"mit"` vs. detected `"MIT"`) but on
@@ -116,12 +116,13 @@ own docstring for the field-drift history that motivated this).
 `concluded_license_provenance` params (`None` default — the three other
 call sites, dependency and AI-model licenses, are unaffected, since
 neither has a local second source to detect from today): when given, both
-candidates are run through `normalize_license_expression` before both the
+candidates are run through `classify_license` before both the
 comparison and the license-element lookup/creation, then both
 `hasDeclaredLicense` and `hasConcludedLicense` are always built, and a G2
 conflict Annotation is added on disagreement.
 
-`normalize_license_expression` (also in `_license.py`) is the new,
+`normalize_license_expression` (as first built, in `_license.py`; its
+role is now `classify_license`, see [license-typing.md](../license-typing.md)) is the new,
 stronger canonicalization step: operator casing (`AND`/`OR`/`WITH`/`NOT`)
 is normalized first — but only when the operator stands alone as its own
 whitespace/paren-delimited token, never when it's hyphen-glued into an

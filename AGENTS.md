@@ -88,6 +88,12 @@ or citing any of these one-liners.
   SemVer -- `"1.0"` == `"1.0.0"`, not a compatibility range) apply both to
   equality checks in prose/docstrings and to conflict detection across a
   lock file's duplicate-name entries.
+- **A placeholder value (`UNKNOWN`, `N/A`) is not a claim: keep it weak in a
+  cascade.** Skip it while a later source may know better, remember the
+  first, emit it (with that source's provenance) only if nothing better
+  turns up; a real "none" ends the cascade, absent stays absent, and the held
+  state is per item, never shared across a call's items (PR #276,
+  [recurring-bug-patterns.md](working-docs/implementation/recurring-bug-patterns.md)).
 - **A private third-party API (`obj._attr`) owes no structural guarantee
   beyond what it returns today** (e.g. `packaging.markers.Marker()._markers`
   doesn't pre-group same-precedence boolean terms) -- verify its shape

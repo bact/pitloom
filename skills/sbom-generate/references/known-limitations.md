@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -25,8 +25,7 @@ refusing `ERROR:` names `pyproject.toml`, `setup.cfg` and `setup.py`.
 ## Mixed-ecosystem repos
 
 The SBOM inventories `[project.dependencies]` and what is importable; every
-non-Python dependency leaves no element, no error and no `NOASSERTION`
-placeholder. Look for non-Python ecosystem files beside `pyproject.toml`.
+non-Python dependency leaves no element, no error and no placeholder. Look for non-Python ecosystem files beside `pyproject.toml`.
 
 ## Non-PyPI dependencies
 
@@ -146,3 +145,10 @@ Use when `unzip -l <wheel>` shows `RECORD.jws` or `RECORD.p7s`, or `embed-wheel`
    with WebFetch or `curl` and relay the relevant part; fall back to 1-3.
 5. **Never** add the flag on your own. Non-interactive: report the refusal, the
    explanation and the exact re-run command with the flag.
+
+## A licence that looks like a broken expression
+
+Text with an operator or parenthesis and a known id (`MIT OR`, `(MIT`) is
+kept as `SimpleLicensingText`, not dropped, with one stderr line per value:
+`WARNING: LICENSE=... not a valid SPDX license expression (...); recorded as
+license text`. Fix the source value to get a `LicenseExpression`.

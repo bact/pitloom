@@ -4,8 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Unit tests for ``pitloom.assemble.spdx3.deps_license`` -- license-element
-creation/truncation, declared-vs-concluded classification, and the
-defensive relationship-build raise. Split out of
+creation/truncation, declared-vs-concluded classification, the two-candidate
+conflict rules (``NOASSERTION`` never conflicts, ``NONE`` does against a real
+licence), and the defensive relationship-build raise. Split out of
 test_deps_enrichment_pypi_fallback.py to keep that file under this repo's
 file-size soft limit.
 
