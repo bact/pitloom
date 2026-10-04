@@ -35,6 +35,7 @@ from pitloom.cli.commands.utils import (
 from pitloom.cli.kv_output import print_kv
 from pitloom.core.config import FragmentConfig, read_pitloom_config
 from pitloom.core.path_probe import is_missing_errno
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -199,7 +200,7 @@ def _print_fragment_list_line(
 
 
 def _report_fragment(
-    project_dir: Path, frag: FragmentConfig, own_document_id: Callable[[], str]
+    project_dir: Path, frag: FragmentConfig, own_document_id: Callable[[], str | None]
 ) -> bool:
     """Log/print one configured fragment's status; return True if it's a
     ``required=True`` fragment that's missing, unreadable, not a valid
@@ -240,8 +241,12 @@ def _report_fragment(
         raw, read_ok, elements, doc_id = _fragment_read_status(
             fragment_path, required=frag.required
         )
-    # None (unknown) unless the fragment parsed, as for ELEMENTS.
-    same_document = bool(doc_id) and doc_id == own_document_id() if read_ok else None
+    # None (unknown) unless the fragment parsed, as for ELEMENTS, or when
+    # the project's own id cannot be resolved.
+    same_document: bool | None = None
+    if read_ok:
+        own_id = own_document_id() if doc_id else ""
+        same_document = None if own_id is None else bool(doc_id) and doc_id == own_id
     if same_document:
         log.warning(
             _same_document_message(fragment_path, str(doc_id), required=frag.required)
@@ -261,6 +266,23 @@ def _report_fragment(
     return frag.required and (not exists or not read_ok or bool(same_document))
 
 
+def _own_document_id(project_dir: Path) -> str | None:
+    """The id a ``loom project`` build of *project_dir* gives, or ``None``
+    with one ``WARNING:`` when its metadata cannot be read: the listing
+    goes on, with ``SAME_DOCUMENT=-``."""
+    try:
+        return project_document_id(project_dir)
+    # Any metadata-read failure (ValueError, OSError, a malformed field's
+    # TypeError/AttributeError) only leaves this one key unknown.
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:
+        log.warning(
+            "fragment list: project metadata unreadable, SAME_DOCUMENT unknown: %s",
+            loggable(str(exc)),
+        )
+        return None
+
+
 @cli_error_handler("fragment list failed")
 def _run_fragment_list(args: argparse.Namespace) -> int:
     """Run `pitloom fragment list`."""
@@ -273,7 +295,7 @@ def _run_fragment_list(args: argparse.Namespace) -> int:
 
     # Resolved once, and only for a fragment with an SpdxDocument: it reads
     # the project's metadata and walks its files.
-    own_document_id = functools.cache(lambda: project_document_id(project_dir))
+    own_document_id = functools.cache(lambda: _own_document_id(project_dir))
     unmet_required = [
         _report_fragment(project_dir, frag, own_document_id)
         for frag in pitloom_config.fragments

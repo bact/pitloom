@@ -114,6 +114,7 @@ def project_document_id(project_dir: Path) -> str:
     """The ``SpdxDocument`` id a ``loom project`` build of *project_dir*
     gives (without ``--allow-build``), resolved as :func:`_doc_identity_of`
     resolves it; ``loom fragment list`` compares fragments with it."""
+    configure_logging()
     metadata, _config, _path = resolve_project_with_lockfile(project_dir, None)
     doc_name, doc_uuid = _doc_identity_of(project_dir, metadata)
     return generate_spdx_id("SpdxDocument", doc_name=doc_name, doc_uuid=doc_uuid)

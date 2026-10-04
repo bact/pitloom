@@ -101,7 +101,7 @@ configured and, if so, whether the file could be checked -- display
 only, not yet enforced before merge; `SAME_DOCUMENT` is `true` when the
 fragment is the document a `loom project` build of the directory would
 merge it into (an earlier SBOM of the project), `-` if the file could not
-be read.
+be read or the project's own metadata cannot be (one `WARNING:`).
 A missing or broken fragment logs the same `WARNING:` wording a real
 build would log for it. Exits non-zero only when a `required = true`
 fragment is missing, unreadable, fails to parse as valid SPDX3 JSON-LD,

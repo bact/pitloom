@@ -220,3 +220,31 @@ def test_fragment_list_flags_an_earlier_sbom(
     out, err = capsys.readouterr()
     assert f"SAME_DOCUMENT={str(same).lower()}" in out
     assert len([x for x in err.splitlines() if _SAME_DOCUMENT in x]) == int(same)
+
+
+def test_fragment_list_goes_on_when_the_project_is_unreadable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A project whose metadata a ``loom project`` build cannot read still
+    lists its fragments: ``SAME_DOCUMENT=-`` with one ``WARNING:``, and a
+    required fragment is not failed for it."""
+    earlier = json.loads(
+        _lib(tmp_path / "a", _project(tmp_path / "a", None, False), monkeypatch)
+    )
+    project = _project(tmp_path / "b", earlier, True)
+    pyproject = project / "pyproject.toml"
+    text = pyproject.read_text(encoding="utf-8")
+    pyproject.write_text(
+        text.replace('version = "1.0.0"', 'version = "not a version"', 1),
+        encoding="utf-8",
+    )
+    capsys.readouterr()
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "fragment", "list", "--project-dir", str(project)]
+    )
+    assert __main__.main() == 0
+    out, err = capsys.readouterr()
+    assert "SAME_DOCUMENT=-" in out
+    assert len([x for x in err.splitlines() if "SAME_DOCUMENT unknown" in x]) == 1

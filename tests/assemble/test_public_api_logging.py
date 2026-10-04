@@ -35,6 +35,7 @@ from pitloom.assemble import (
     generate_project_sbom,
     generate_wheel_sbom,
     merge_fragments,
+    project_document_id,
 )
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 
@@ -176,4 +177,17 @@ def test_generate_merged_sbom_configures_logging(
     )
     with pytest.raises(FileNotFoundError):
         generate_merged_sbom(tmp_path / "does-not-exist")
+    assert calls == [True]
+
+
+def test_project_document_id_configures_logging(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    calls = []
+    monkeypatch.setattr(
+        "pitloom.assemble._model_generator.configure_logging",
+        lambda: calls.append(True),
+    )
+    with pytest.raises(FileNotFoundError):
+        project_document_id(tmp_path)
     assert calls == [True]
