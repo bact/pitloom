@@ -1,0 +1,85 @@
+---
+Created: 2026-10-04
+Last-Modified: 2026-10-04
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: CC0-1.0
+---
+
+# Licence typing (PR #276): what was left open
+
+See also: [license-layers.md](license-layers.md) (the three layers and the
+rule prerequisites), [license-typing.md](../implementation/license-typing.md)
+(what #276 built), [roadmap.md](roadmap.md#near-term).
+
+PR #276 merged with one bar: every surface records the same value, even
+where that value is not yet the right one. Everything below was found in
+its review rounds (R1-R10) and left out. Group A will be fixed as is.
+Group B waits for the licence rules (taxonomy, cascade, conflict
+resolution) and may change direction there. Group C is housekeeping.
+
+## A. To fix
+
+- **sdist and wheel run no in-package licence detection.** A directory,
+  the library and the Hatchling hook detect `Apache-2.0` from a `LICENSE`
+  file; `loom wheel` and an sdist record the METADATA `License:` text
+  (seen with a centred Apache header). The sdist main fix (after #282)
+  covers sdists; wheels need `License-File:` selection (0.21.0).
+- **`embed-wheel --project-dir`** records no licence for a silent manifest
+  plus a `LICENSE` file; `loom project` and the hook declare it
+  (`_add_concluded_license` detects only when a licence is already
+  declared).
+- **Merge:** licences are not unified across a fragment merge or
+  `loom merge`; four merge bugs found beside it. Own PR before 0.20.0:
+  [open-items.md](sbom-fragments/open-items.md#found-in-the-pr-276-review-own-pr-before-0200).
+- **Fragment `customIdToUri` targets** are checked for the main namespace
+  only; a dangling target in an imported fragment's namespace passes.
+- **`_classifier_and` orphan texts:** it resolves term texts before
+  checking whether the expression exists, and looks them up unstripped,
+  so hand-typed `LicenseRef-pitloom-classifier-` input can leave text
+  elements nothing references. Not reachable from real classifiers.
+- **setuptools config reading** (version files, `description = file:`,
+  dynamic fallbacks, `attr:` gaps, untagged setuptools output):
+  [setuptools-config-followups.md](setuptools-config-followups.md).
+
+## B. Folded into the licence rules
+
+Each is written up with its evidence in
+[license-layers.md](license-layers.md#findings-for-the-rule-design-pr-276-review-r10);
+user leanings are recorded there, not decisions.
+
+- Weak manifest value (`NOASSERTION`/`UNKNOWN`) vs a real licence from a
+  `LICENSE` file or a model card.
+- Reconcile ranking: the project's own installed metadata vs a `LICENSE`
+  detection.
+- Model file licence vs model card licence: disagreement not recorded.
+- `setup.cfg` `license =` beats `setup.py` `license=` (setuptools does the
+  opposite); same question for other merged sources.
+- Provenance: a shared licence element keeps the first package's source
+  and later reusers record none; a library caller's licence with no
+  provenance gets a default source label (overclaimed).
+- The several-classifiers `WARNING:` fires for a value then discarded.
+- Hugging Face vague values: `unknown` reads the repo `LICENSE`,
+  `NOASSERTION` does not.
+- Text equivalence: CRLF vs LF texts are two elements (leaning:
+  normalise); a licence name keeps a trailing `\r`/spaces; a classifier
+  with a leading or trailing space is a name except in `setup.cfg`.
+- `license = file: LICENSE` in `setup.cfg` is recorded as the text
+  `file: LICENSE` (setuptools rejects it).
+- `WITH DocumentRef-x:AdditionRef-y` (layer 1, upstream).
+
+## C. Housekeeping
+
+- Test readability from the compaction: comment the columns of the
+  `test_licence_cascade` table; split
+  `test_a_named_individual_target_is_its_licence_name` back into two; the
+  name `test_equivalent_spellings_share_one_canonical_value` over-promises
+  for single-spelling rows; `tests/core/test_fragments_dangling_refs.py`
+  imports the assemble-side `tests._license_graph`; its fragment reuses
+  the base document's CreationInfo blank-node id `_:ci`.
+- One surviving mutant (gap terms not deduplicated) is probably
+  equivalent: confirm, then drop the redundant `set()`.
+- Tests reach private names where no public seam exists
+  (`_find_main_document` call count).
+- Over the size limits: `tests/assemble/test_deps_enrichment_pypi_fallback.py`
+  (695 lines, older than #276), `AGENTS.md` (~507), `roadmap.md` (~511).

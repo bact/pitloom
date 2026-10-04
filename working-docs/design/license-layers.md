@@ -198,6 +198,9 @@ the current rule, then what is open):
 
 ## Findings for the rule design (PR #276 review, R10)
 
+The full list of what #276 left open, by group:
+[license-pr276-followups.md](license-pr276-followups.md).
+
 Found while reviewing PR #276 and left out of it: they need the rules
 above, not a case fix. User leanings are recorded as input, not decisions.
 

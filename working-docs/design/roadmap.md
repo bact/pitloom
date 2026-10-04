@@ -430,7 +430,8 @@ See [metadata-quality.md](metadata-quality.md).
   deterministic, correct, not overclaimed, provenance recorded. Prerequisite:
   settle the conflict-resolution model, provenance record and source/role
   taxonomy first. See [license-layers.md](license-layers.md) and its
-  [prerequisites](license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy).
+  [prerequisites](license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy);
+  what PR #276 left open: [license-pr276-followups.md](license-pr276-followups.md).
 
 ### Remote source ingestion
 
