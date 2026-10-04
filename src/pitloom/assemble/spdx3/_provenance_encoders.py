@@ -24,6 +24,7 @@ TRANSPARENT_SOURCES: frozenset[str] = frozenset(
         "setup.cfg",
         "setup.py",
         "wheel metadata",
+        "sdist pkg-info",
         "hugging face hub",
     }
 )

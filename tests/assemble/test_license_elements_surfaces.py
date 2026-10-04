@@ -144,10 +144,10 @@ def _main_package(license_id: str | None) -> list[dict[str, Any]]:
 def _wheel(license_id: str | None) -> list[dict[str, Any]]:
     if license_id and "\n" in license_id:
         pytest.skip("a METADATA header is one line")
-    return _wheelgraph_of(license_id)
+    return _wheel_graph(license_id)
 
 
-def _wheelgraph_of(license_id: str | None) -> list[dict[str, Any]]:
+def _wheel_graph(license_id: str | None) -> list[dict[str, Any]]:
     with tempfile.TemporaryDirectory() as tmp:
         wheel = _make_dummy_wheel(Path(tmp), license_expression=license_id)
         graph: list[dict[str, Any]] = json.loads(
@@ -241,6 +241,21 @@ _SURFACES: dict[str, Callable[[str | None], list[dict[str, Any]]]] = {
 }
 
 
+#: Relationship a licence stated by each surface gets: a transparent manifest
+#: (pyproject, wheel METADATA, sdist PKG-INFO) or a file's own tag is
+#: *declared*; installed metadata and PyPI are *concluded* by design (not
+#: transparent manifests, see ``_is_license_concluded``). The model surfaces
+#: carry no source here, so their type is not asserted.
+_RELATIONSHIP: dict[str, str] = {
+    "dependency-installed": "hasConcludedLicense",
+    "dependency-pypi": "hasConcludedLicense",
+    "main-package": "hasDeclaredLicense",
+    "wheel": "hasDeclaredLicense",
+    "sdist": "hasDeclaredLicense",
+    "file-tag": "hasDeclaredLicense",
+}
+
+
 def _stated(graph: list[dict[str, Any]]) -> list[tuple[str, str | None]]:
     return [(e["type"], license_value(e)) for e in license_elements(graph)]
 
@@ -260,6 +275,13 @@ def test_licence_element_by_surface(
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         graph = _SURFACES[surface](raw)
     targets = license_targets(graph)
+    if expected is not None and surface in _RELATIONSHIP:
+        assert {
+            r["relationshipType"]
+            for r in graph
+            if r.get("relationshipType")
+            in ("hasDeclaredLicense", "hasConcludedLicense")
+        } == {_RELATIONSHIP[surface]}
     if expected is None:
         assert not _stated(graph) and not targets
     elif expected[0] is None:

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -76,7 +76,7 @@ case.
 A parsed field entry is dropped in minimal mode **only** when it was read
 verbatim from a transparent, re-readable manifest
 (`_TRANSPARENT_SOURCES` = pyproject.toml / hatchling build backend / setup.cfg
-/ setup.py / wheel metadata / Hugging Face Hub) with no extraction `method`.
+/ setup.py / wheel metadata / sdist PKG-INFO / Hugging Face Hub) with no extraction `method`.
 Everything else is kept: any recorded `method` (inferred/detected/dynamic/
 caller/directive/inference), a non-manifest source (a pipdeptree scan, a
 binary artifact's internal key, a synthesized phantom package), or the raw

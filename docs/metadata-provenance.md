@@ -147,7 +147,7 @@ the named file with no interpretation involved (e.g. `project.name` from
 `pyproject.toml`). In `detail = "minimal"` (the default), these
 no-`method` entries are dropped entirely when the source is a
 well-known, re-readable manifest (`pyproject.toml`, `setup.cfg`/`setup.py`,
-wheel metadata, the Hugging Face Hub API) -- they add no signal beyond
+wheel metadata, an sdist's `PKG-INFO`, the Hugging Face Hub API) -- they add no signal beyond
 what's already implied by the native field. Set `detail = "full"` to see
 every field's source regardless.
 
