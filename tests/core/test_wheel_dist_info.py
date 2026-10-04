@@ -180,7 +180,7 @@ def test_the_header_block_ends_at_the_first_blank_line(
 ) -> None:
     """Whatever the line ends, and wherever a chunk splits a CRLF."""
     monkeypatch.setattr(wheel_dist_info, "_CHUNK_BYTES", chunk)
-    assert wheel_dist_info._header_block(_stream(data, chunk)) == block
+    assert wheel_dist_info.read_header_block(_stream(data, chunk)) == block
 
 
 @pytest.mark.parametrize(
@@ -220,10 +220,10 @@ def test_the_header_block_is_capped_in_bytes_and_headers(
     stream = _stream(data, 8192)
 
     if unit is None:
-        assert wheel_dist_info._header_block(stream)
+        assert wheel_dist_info.read_header_block(stream)
     else:
-        with pytest.raises(wheel_dist_info._OverCap) as over:
-            wheel_dist_info._header_block(stream)
+        with pytest.raises(wheel_dist_info.HeaderBlockOverCap) as over:
+            wheel_dist_info.read_header_block(stream)
         assert over.value.unit == unit
 
 
@@ -264,10 +264,10 @@ def test_reading_stops_at_the_end_of_the_headers_or_the_cap(
     stream: Any = _Endless(head)
 
     if block is None:
-        with pytest.raises(wheel_dist_info._OverCap):
-            wheel_dist_info._header_block(stream)
+        with pytest.raises(wheel_dist_info.HeaderBlockOverCap):
+            wheel_dist_info.read_header_block(stream)
     else:
-        assert wheel_dist_info._header_block(stream) == block
+        assert wheel_dist_info.read_header_block(stream) == block
 
     assert stream.served <= limit
 

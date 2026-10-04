@@ -56,7 +56,7 @@ from pitloom.extract.ai_model.limits import (
     cap_and_warn,
 )
 from pitloom.extract.ai_model.reader_requirements import require_library
-from pitloom.logging_config import loggable
+from pitloom.logging_config import FILE_OVER_CAP_WARNING, loggable
 
 log = logging.getLogger(__name__)
 
@@ -435,9 +435,10 @@ def attach_usage_references(
                 raw = fh.read(_USAGE_SCAN_MAX_BYTES + 1)
             if len(raw) > _USAGE_SCAN_MAX_BYTES:
                 log.warning(
-                    "FILE=%s: larger than the %d-byte usage-scan cap; skipped",
+                    FILE_OVER_CAP_WARNING,
                     loggable(source.physical_path),
                     _USAGE_SCAN_MAX_BYTES,
+                    "usage-scan",
                 )
                 continue
             content = raw.decode("utf-8")
