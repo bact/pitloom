@@ -15,6 +15,7 @@ document envelope.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -112,9 +113,9 @@ __all__ = [
 
 class FragmentMergeError(ValueError):
     """Raised when merging fragments would produce a referentially-broken
-    SBOM -- a ``Relationship``/``Annotation`` endpoint that resolves to
-    neither an object in the merged graph nor a declared external
-    reference. Merging must not silently succeed in that case; see
+    SBOM -- a ``Relationship``/``Annotation`` endpoint or a ``rootElement``
+    that resolves to neither an object in the merged graph nor a declared
+    external reference. Merging must not silently succeed in that case; see
     :func:`_raise_on_dangling_references`."""
 
 
@@ -179,11 +180,17 @@ def _raise_on_dangling_references(exporter: Spdx3JsonExporter) -> None:
 
 
 def _update_profile_conformance(
-    main_doc: spdx3.SpdxDocument, exporter: Spdx3JsonExporter
+    main_doc: spdx3.SpdxDocument,
+    exporter: Spdx3JsonExporter,
+    fragment_profiles: Iterable[str] = (),
 ) -> None:
-    """Append ``ai``/``dataset`` and the licensing profiles to
+    """Add *fragment_profiles* (what the merged fragments' envelopes
+    declared), ``ai``/``dataset`` and the licensing profiles to
     profileConformance when present."""
     conformance = list(main_doc.profileConformance or [])
+    conformance.extend(
+        p for p in sorted(set(fragment_profiles)) if p not in conformance
+    )
     has_ai = any(isinstance(o, spdx3.ai_AIPackage) for o in exporter.object_set.objects)
     has_dataset = any(
         isinstance(o, spdx3.dataset_DatasetPackage) for o in exporter.object_set.objects
@@ -369,16 +376,30 @@ def _load_fragment(
     return fragment_set, frag_doc_id
 
 
+def _declared_profiles(fragment_set: spdx3.SHACLObjectSet) -> set[str]:
+    """The ``profileConformance`` the fragment's own envelopes declare."""
+    return {
+        str(p)
+        for obj in fragment_set.objects
+        if isinstance(obj, _ENVELOPE_TYPES)
+        for p in getattr(obj, "profileConformance", None) or []
+    }
+
+
 def merge_fragments(
     project_dir: Path,
     fragments: list[FragmentConfig],
     exporter: Spdx3JsonExporter,
-) -> list[str]:
+    *,
+    adopt_fragment_roots: bool = False,
+) -> None:
     """Load SPDX 3 JSON-LD fragment files and merge them into the exporter.
 
-    Returns the ids the fragments' own ``SpdxDocument``/``Sbom`` envelopes
-    root, after unification, in fragment order: ``loom merge`` roots its
-    document at them; a project keeps its own roots.
+    The main document's ``profileConformance`` gains what the merged
+    fragments' envelopes declared. With *adopt_fragment_roots*
+    (``loom merge``), its ``rootElement`` also gains what those envelopes
+    rooted, after unification; a project keeps its own roots. Every root
+    goes through the dangling-reference check below.
 
     A fragment whose ``SpdxDocument`` id is the exporter's own document
     (an earlier SBOM of the same project) is skipped with a ``WARNING:``,
@@ -399,12 +420,14 @@ def merge_fragments(
     merged_any = False
     unmet_required: list[str] = []
     roots: list[str] = []
+    profiles: set[str] = set()
     main_doc = _find_main_document(exporter.object_set)
     main_doc_id = str(main_doc.spdxId) if main_doc and main_doc.spdxId else None
 
     for frag in fragments:
-        fragment_path = Path(frag.base_dir or project_dir) / frag.path
-        loaded = _load_fragment(fragment_path, frag.required, main_doc_id)
+        loaded = _load_fragment(
+            Path(frag.base_dir or project_dir) / frag.path, frag.required, main_doc_id
+        )
         if loaded is None:
             if frag.required:
                 unmet_required.append(frag.path)
@@ -416,17 +439,19 @@ def merge_fragments(
             fragment_imports.append(
                 spdx3.ExternalMap(externalSpdxId=frag_doc_id, locationHint=frag.path)
             )
-        new_roots = _merge_fragment_set(fragment_set, index, frag.path, events)
-        roots.extend(r for r in new_roots if r not in roots)
+        profiles |= _declared_profiles(fragment_set)
+        roots.extend(_merge_fragment_set(fragment_set, index, frag.path, events))
         merged_any = True
 
     _dedupe_relationships(exporter)
 
     if main_doc is not None:
-        _update_profile_conformance(main_doc, exporter)
+        _update_profile_conformance(main_doc, exporter, profiles)
         _add_fragment_imports(main_doc, fragment_imports)
         _emit_unification_annotations(events, main_doc, exporter)
         _add_model_sbom(main_doc, exporter)
+        if adopt_fragment_roots:
+            main_doc.rootElement = sorted({*roots, *(main_doc.rootElement or [])})
 
     # Checked unconditionally -- NOT gated by `merged_any`. A required
     # fragment that's missing is exactly the scenario most likely to leave
@@ -447,4 +472,3 @@ def merge_fragments(
 
     if merged_any:
         _raise_on_dangling_references(exporter)
-    return roots

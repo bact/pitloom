@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -23,12 +23,13 @@ loom merge .spdx3-fragments/ -o combined.spdx3.json
 ```
 
 Merges every `*.json` file directly in the directory, in file-name order,
-into one SPDX 3 document: one `SpdxDocument` with `profileConformance`,
-an `import` entry per fragment document, rooted at what each fragment's
-own `SpdxDocument`/`Sbom` rooted. Its id derives from the fragments'
-content, not the directory, and `created` is `SOURCE_DATE_EPOCH`, else
-the latest `created` of the fragments, never the current time: the same
-fragments give the same bytes. The Python API is
+into one SPDX 3 document: one `SpdxDocument` with `profileConformance`
+(the profiles its elements use, plus those each fragment's document
+declared), an `import` entry per fragment document, rooted at what each
+fragment's own `SpdxDocument`/`Sbom` rooted. Its id derives from the
+fragments' names and content, not the directory, and `created` is
+`SOURCE_DATE_EPOCH`, else the latest `created` of the fragments, never
+the current time: the same fragments give the same bytes. The Python API is
 `pitloom.assemble.generate_merged_sbom()`.
 
 Equal elements unify, here and in a project build with
@@ -45,9 +46,10 @@ SBOM of the same project, with the same `SpdxDocument` id) is skipped
 with a `WARNING:`, and fails the build when `required = true`.
 
 Exits non-zero (with an `ERROR:` line, after a `WARNING:` naming each
-offending reference) if any element in the merged result references an
-id absent from the merge -- most commonly a fragment merged against a
-stale base SBOM (see the note in
+offending reference) if any element or root in the merged result
+references an id absent from the merge and not imported by the merged
+document (a fragment's own `import` is not carried over) -- most
+commonly a fragment merged against a stale base SBOM (see the note in
 [Enrich an SBOM](cli.md#enrich-an-sbom)). Regenerate the base SBOM and
 re-run the fragment-producing step before merging again.
 
@@ -88,7 +90,7 @@ Reads `[tool.pitloom.fragment]` from that directory's `pyproject.toml`
 (default: cwd) and prints one line per configured fragment:
 
 ```text
-PATH=fragments/model.spdx3.json ROLE=ai_model REQUIRED=false EXISTS=true ELEMENTS=42 SHA256=match MODIFIED=2026-09-10T12:00:00+00:00
+PATH=fragments/model.spdx3.json ROLE=ai_model REQUIRED=false EXISTS=true ELEMENTS=42 SHA256=match MODIFIED=2026-09-10T12:00:00+00:00 SAME_DOCUMENT=false
 ```
 
 `ELEMENTS` is the fragment's `@graph` entry count -- `0` for valid JSON
@@ -96,10 +98,14 @@ with no `@graph` key (a real, valid empty fragment), `-` if the file is
 missing, unreadable, or not valid JSON at all; `SHA256` is
 `-`/`unknown`/`match`/`mismatch` depending on whether a `sha256` is
 configured and, if so, whether the file could be checked -- display
-only, not yet enforced before merge.
+only, not yet enforced before merge; `SAME_DOCUMENT` is `true` when the
+fragment is the document a `loom project` build of the directory would
+merge it into (an earlier SBOM of the project), `-` if the file could not
+be read.
 A missing or broken fragment logs the same `WARNING:` wording a real
 build would log for it. Exits non-zero only when a `required = true`
-fragment is missing, unreadable, or fails to parse as valid SPDX3
-JSON-LD -- the same conditions that would also fail an actual build
-(see [Merge fragments](#merge-fragments) above); a non-required missing
-fragment or a `SHA256` mismatch is informational only.
+fragment is missing, unreadable, fails to parse as valid SPDX3 JSON-LD,
+or is that same document -- the same conditions that would also fail
+an actual build (see [Merge fragments](#merge-fragments) above); a
+non-required missing fragment or a `SHA256` mismatch is informational
+only.

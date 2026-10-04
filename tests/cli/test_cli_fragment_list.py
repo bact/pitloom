@@ -30,6 +30,11 @@ from pitloom.core.config import FragmentConfig
 _MINIMAL_PROJECT = '[project]\nname = "smoke"\nversion = "0.1.0"\n'
 
 
+def _unread_document_id() -> str:
+    """The project's own document id, never needed for an unread fragment."""
+    raise AssertionError("own document id resolved for an unread fragment")
+
+
 def _write_pyproject(tmp_path: Path, fragment_toml: str) -> None:
     (tmp_path / "pyproject.toml").write_text(_MINIMAL_PROJECT + fragment_toml)
 
@@ -287,46 +292,33 @@ def test_fragment_list_required_invalid_spdx3_exits_1(
     assert "ELEMENTS=0" in capsys.readouterr().out
 
 
-def test_report_fragment_stat_missing_errno_degrades(
+@pytest.mark.parametrize(
+    ("error", "exists"),
+    [
+        (FileNotFoundError(errno.ENOENT, "No such file or directory"), "false"),
+        (PermissionError(errno.EACCES, "Permission denied"), "true"),
+    ],
+    ids=["missing", "denied"],
+)
+def test_report_fragment_stat_failure(
+    error: OSError,
+    exists: str,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """A stat() race (the file is removed between being listed and being
-    stat'd) must degrade to EXISTS=false, not crash the whole `fragment
-    list` run -- covers _report_fragment's single up-front stat() call.
-    Uses a real ENOENT errno, matching what an actual missing-file race
-    produces (an errno-less OSError doesn't classify as "missing")."""
-    frag = FragmentConfig(path="raced.spdx3.json")
+    """A stat() failure degrades to one line, not a crash: a real ENOENT (a
+    file removed after listing) is EXISTS=false; any other errno is a
+    present but inaccessible file, EXISTS=true, the read attempt explains."""
 
     def _raise_os_error(self: Path) -> os.stat_result:
-        raise FileNotFoundError(errno.ENOENT, "No such file or directory")
+        raise error
 
     monkeypatch.setattr(Path, "stat", _raise_os_error)
-    result = _report_fragment(tmp_path, frag)
-    assert result is False
-    assert "EXISTS=false" in capsys.readouterr().out
-
-
-def test_report_fragment_stat_permission_error_reports_exists_true(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """A stat() failure that ISN'T a "missing path" errno (e.g. a
-    permission error) must report EXISTS=true, not be misclassified as
-    "not found" -- the file is present, just inaccessible; the read
-    attempt below is what should explain why."""
-    frag = FragmentConfig(path="denied.spdx3.json")
-
-    def _raise_os_error(self: Path) -> os.stat_result:
-        raise PermissionError(errno.EACCES, "Permission denied")
-
-    monkeypatch.setattr(Path, "stat", _raise_os_error)
-    result = _report_fragment(tmp_path, frag)
+    frag = FragmentConfig(path="f.spdx3.json")
+    assert _report_fragment(tmp_path, frag, _unread_document_id) is False
     out = capsys.readouterr().out
-    assert result is False
-    assert "EXISTS=true" in out
+    assert f"EXISTS={exists}" in out
     assert "MODIFIED=-" in out
 
 
@@ -368,7 +360,7 @@ def test_fragment_read_status_os_error_on_read(
     monkeypatch.setattr(Path, "read_bytes", _raise_os_error)
 
     with caplog.at_level("WARNING"):
-        raw, read_ok, elements = _fragment_read_status(frag_path, required=True)
+        raw, read_ok, elements, _ = _fragment_read_status(frag_path, required=True)
 
     assert raw is None
     assert read_ok is False
@@ -389,7 +381,7 @@ def test_fragment_read_status_preserves_raw_bytes_on_json_parse_failure(
     content = b"not valid json{{{"
     frag_path.write_bytes(content)
 
-    raw, read_ok, elements = _fragment_read_status(frag_path, required=False)
+    raw, read_ok, elements, _ = _fragment_read_status(frag_path, required=False)
 
     assert raw == content
     assert read_ok is False
@@ -405,7 +397,7 @@ def test_fragment_read_status_tolerates_utf8_bom(tmp_path: Path) -> None:
     frag_path = tmp_path / "bom.spdx3.json"
     frag_path.write_bytes(b"\xef\xbb\xbf" + b'{"@graph": []}')
 
-    raw, read_ok, elements = _fragment_read_status(frag_path, required=False)
+    raw, read_ok, elements, _ = _fragment_read_status(frag_path, required=False)
 
     assert raw is not None
     assert elements == 0
@@ -420,7 +412,7 @@ def test_fragment_read_status_non_list_graph_does_not_crash(tmp_path: Path) -> N
     frag_path = tmp_path / "bad-graph.spdx3.json"
     frag_path.write_text('{"@graph": 5}')
 
-    raw, _read_ok, elements = _fragment_read_status(frag_path, required=False)
+    raw, _read_ok, elements, _ = _fragment_read_status(frag_path, required=False)
 
     assert raw is not None
     assert elements is None

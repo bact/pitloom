@@ -44,7 +44,7 @@ def generate_merged_sbom(
         FileNotFoundError: *fragments_dir* does not exist.
         ValueError: it has no ``*.json`` file.
         pitloom.assemble.FragmentMergeError: the merge left a dangling
-            reference.
+            reference, a root included.
     """
     configure_logging()
     fragments_dir = Path(fragments_dir)
@@ -53,11 +53,14 @@ def generate_merged_sbom(
     files = fragment_files(fragments_dir)
     if not files:
         raise ValueError(f"no JSON fragment files found in {fragments_dir}")
-    exporter = new_merge_document([fragments_dir / f for f in files])
-    roots = merge_fragments(
-        fragments_dir, [FragmentConfig(path=f) for f in files], exporter
+    exporter = new_merge_document(fragments_dir, files)
+    merge_fragments(
+        fragments_dir,
+        [FragmentConfig(path=f) for f in files],
+        exporter,
+        adopt_fragment_roots=True,
     )
-    finish_merge_document(exporter, roots)
+    finish_merge_document(exporter)
     sbom_json = exporter.to_json(pretty=pretty)
     write_sbom_output(sbom_json, output_path)
     return sbom_json

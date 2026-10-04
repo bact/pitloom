@@ -41,6 +41,8 @@ exact call signature.
 
 ::: pitloom.assemble.merge_fragments
 
+::: pitloom.assemble.project_document_id
+
 ::: pitloom.assemble.FragmentMergeError
 
 ## Tracking decorator

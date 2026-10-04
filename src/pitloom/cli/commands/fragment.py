@@ -8,19 +8,24 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import hashlib
 import json
 import logging
 import sys
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble import project_document_id
 from pitloom.assemble.spdx3.fragments import (
+    _find_fragment_document_id,
     _fragment_read_failure_message,
     _missing_fragment_message,
+    _same_document_message,
 )
 from pitloom.cli.commands.utils import (
     _import_spdx3_validate,
@@ -63,11 +68,12 @@ def _run_fragment_validate(args: argparse.Namespace) -> int:
 
 def _fragment_read_status(
     fragment_path: Path, *, required: bool
-) -> tuple[bytes | None, bool, int | None]:
+) -> tuple[bytes | None, bool, int | None, str | None]:
     """Read *fragment_path* once, for the element count, the SPDX3-
     validity check below, and the SHA-256 check in
     :func:`_fragment_sha256_status` -- avoids reading the same fragment
-    file more than once. Returns ``(raw_bytes, read_ok, element_count)``:
+    file more than once. Returns
+    ``(raw_bytes, read_ok, element_count, document_id)``:
 
     - ``raw_bytes`` is the file's contents, or ``None`` only if the file
       itself couldn't be read (not on a JSON-parse failure) -- so a
@@ -83,6 +89,8 @@ def _fragment_read_status(
       JSON.)
     - ``element_count`` is the fragment's ``@graph`` length, or ``None``
       if the parsed JSON isn't an object (not itself a read failure).
+    - ``document_id`` is the fragment's own ``SpdxDocument`` id, or
+      ``None`` without one or when ``read_ok`` is False.
 
     Logs a WARNING (shared wording with ``merge_fragments()``) on any
     read, JSON-parse, or SPDX3-parse failure.
@@ -93,7 +101,7 @@ def _fragment_read_status(
         log.warning(
             _fragment_read_failure_message(fragment_path, exc, required=required)
         )
-        return None, False, None
+        return None, False, None, None
     try:
         # json.loads(bytes) -- not raw.decode("utf-8") + json.loads(str) --
         # to match the real merge path (json.load() on a binary handle):
@@ -110,13 +118,14 @@ def _fragment_read_status(
         log.warning(
             _fragment_read_failure_message(fragment_path, exc, required=required)
         )
-        return raw, False, None
+        return raw, False, None, None
     graph = data.get("@graph", []) if isinstance(data, dict) else None
     elements = len(graph) if isinstance(graph, list) else None
     try:
         # deserialize_data(), not read() -- data is already parsed above,
         # no need to hand the deserializer raw bytes to re-parse as JSON.
-        spdx3.JSONLDDeserializer().deserialize_data(data, spdx3.SHACLObjectSet())
+        object_set = spdx3.SHACLObjectSet()
+        spdx3.JSONLDDeserializer().deserialize_data(data, object_set)
     except Exception as exc:  # pylint: disable=broad-exception-caught
         # Matches merge_fragments()'s own broad catch (fragments.py) --
         # the JSON-LD deserializer can raise a wide variety of exception
@@ -125,8 +134,8 @@ def _fragment_read_status(
         log.warning(
             _fragment_read_failure_message(fragment_path, exc, required=required)
         )
-        return raw, False, elements
-    return raw, True, elements
+        return raw, False, elements, None
+    return raw, True, elements, _find_fragment_document_id(object_set)
 
 
 def _fragment_sha256_status(
@@ -166,6 +175,7 @@ def _print_fragment_list_line(
     elements: int | None,
     sha_status: str,
     modified: str | None,
+    same_document: bool | None,
 ) -> None:
     """Print one `pitloom fragment list` output line for *frag*: every
     KEY=VALUE pair describes the same one data point (this fragment), so
@@ -184,19 +194,24 @@ def _print_fragment_list_line(
         ELEMENTS=elements if elements is not None else "-",
         SHA256=sha_status,
         MODIFIED=modified if modified is not None else "-",
+        SAME_DOCUMENT="-" if same_document is None else str(same_document).lower(),
     )
 
 
-def _report_fragment(project_dir: Path, frag: FragmentConfig) -> bool:
+def _report_fragment(
+    project_dir: Path, frag: FragmentConfig, own_document_id: Callable[[], str]
+) -> bool:
     """Log/print one configured fragment's status; return True if it's a
-    ``required=True`` fragment that's missing, unreadable, or not a valid
-    SPDX3 JSON-LD document on its own -- the same per-fragment conditions
-    that make ``merge_fragments()`` raise ``FragmentMergeError``. This
-    predicts a real build's per-fragment read/parse outcome, not the
-    later cross-fragment merge itself (e.g. a dangling-reference failure
-    that only surfaces once fragments are merged together isn't caught
-    here -- see ``_raise_on_dangling_references`` in
-    ``assemble.spdx3.fragments``)."""
+    ``required=True`` fragment that's missing, unreadable, not a valid
+    SPDX3 JSON-LD document on its own, or the project's own document (an
+    earlier SBOM of it, compared with *own_document_id*, called only for a
+    fragment that has an ``SpdxDocument``) -- the same per-fragment
+    conditions that make ``merge_fragments()`` raise ``FragmentMergeError``
+    in a ``loom project`` build. This predicts a real build's per-fragment
+    outcome, not the later cross-fragment merge itself (e.g. a
+    dangling-reference failure that only surfaces once fragments are
+    merged together isn't caught here -- see
+    ``_raise_on_dangling_references`` in ``assemble.spdx3.fragments``)."""
     fragment_path = project_dir / frag.path
     # A single stat() up front, reused for both `exists` and `modified` --
     # avoids both a second syscall and a TOCTOU gap where a later
@@ -220,19 +235,30 @@ def _report_fragment(project_dir: Path, frag: FragmentConfig) -> bool:
         mtime = stat_result.st_mtime
     if not exists:
         log.warning(_missing_fragment_message(fragment_path, required=frag.required))
-        raw, read_ok, elements = None, False, None
+        raw, read_ok, elements, doc_id = None, False, None, None
     else:
-        raw, read_ok, elements = _fragment_read_status(
+        raw, read_ok, elements, doc_id = _fragment_read_status(
             fragment_path, required=frag.required
+        )
+    # None (unknown) unless the fragment parsed, as for ELEMENTS.
+    same_document = bool(doc_id) and doc_id == own_document_id() if read_ok else None
+    if same_document:
+        log.warning(
+            _same_document_message(fragment_path, str(doc_id), required=frag.required)
         )
 
     sha_status = _fragment_sha256_status(raw, frag.sha256, fragment_path)
     modified = _fragment_modified(mtime) if mtime is not None else None
 
     _print_fragment_list_line(
-        frag, exists=exists, elements=elements, sha_status=sha_status, modified=modified
+        frag,
+        exists=exists,
+        elements=elements,
+        sha_status=sha_status,
+        modified=modified,
+        same_document=same_document,
     )
-    return frag.required and (not exists or not read_ok)
+    return frag.required and (not exists or not read_ok or bool(same_document))
 
 
 @cli_error_handler("fragment list failed")
@@ -245,8 +271,12 @@ def _run_fragment_list(args: argparse.Namespace) -> int:
         log.info("fragment list: no fragments configured")
         return 0
 
+    # Resolved once, and only for a fragment with an SpdxDocument: it reads
+    # the project's metadata and walks its files.
+    own_document_id = functools.cache(lambda: project_document_id(project_dir))
     unmet_required = [
-        _report_fragment(project_dir, frag) for frag in pitloom_config.fragments
+        _report_fragment(project_dir, frag, own_document_id)
+        for frag in pitloom_config.fragments
     ]
     return 1 if any(unmet_required) else 0
 

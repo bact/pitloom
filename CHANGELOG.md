@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -290,8 +290,9 @@ and this project adheres to
 - An sdist reads its root `LICENSE`, `CITATION.cff` and `codemeta.json` as a
   directory does; with no `PKG-INFO`, `project.license` too. A non-object
   `codemeta.json` no longer crashes ([#283])
-- Fragment merge: equal licences unified, a fragment re-declaring base ids no
-  longer crashes, warnings name elements by id ([#284])
+- Fragment merge: equal licences unified, re-declared base ids no longer
+  crash, warnings name elements by id; `fragment list` flags an earlier SBOM
+  of the project (`SAME_DOCUMENT=`) ([#284])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227

@@ -10,6 +10,7 @@ the Hatchling build hook.
 - An earlier SBOM of the same project, configured as a fragment, is skipped
   with one ``WARNING:`` (it once crashed on a duplicate ``spdxId``), and an
   error when it is ``required``.
+- ``loom fragment list`` reports that fragment as the build treats it.
 - A fragment licence equal to the project's own unifies with it.
 
 See also: tests/core/test_fragments_merge_licenses.py (the unification
@@ -20,12 +21,14 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from pitloom import __main__
 from pitloom.assemble import FragmentMergeError, generate_project_sbom
 from pitloom.embed import find_embedded_sbom
 from tests._license_graph import (
@@ -185,3 +188,35 @@ def test_fragment_licence_unifies_with_the_project_licence(
     assert list(values.values()) == ["MIT"]
     assert not next(iter(values)).startswith(ns)
     assert license_targets(graph) == ["MIT", "MIT"]
+
+
+@pytest.mark.parametrize(
+    ("same", "required"),
+    [(False, True), (True, False), (True, True)],
+    ids=["other", "same", "same-required"],
+)
+def test_fragment_list_flags_an_earlier_sbom(
+    same: bool,
+    required: bool,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """``loom fragment list`` sees an earlier SBOM of the project as a build
+    does: ``SAME_DOCUMENT=true``, the build's ``WARNING:``, and exit 1 when
+    it is required."""
+    earlier = json.loads(
+        _lib(tmp_path / "a", _project(tmp_path / "a", None, False), monkeypatch)
+    )
+    if not same:
+        (document,) = [e for e in earlier["@graph"] if e["type"] == "SpdxDocument"]
+        document["spdxId"] += "-other"
+    project = _project(tmp_path / "b", earlier, required)
+    capsys.readouterr()
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "fragment", "list", "--project-dir", str(project)]
+    )
+    assert __main__.main() == int(same and required)
+    out, err = capsys.readouterr()
+    assert f"SAME_DOCUMENT={str(same).lower()}" in out
+    assert len([x for x in err.splitlines() if _SAME_DOCUMENT in x]) == int(same)

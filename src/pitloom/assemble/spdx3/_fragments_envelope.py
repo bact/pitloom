@@ -7,8 +7,9 @@
 fragments merge into it, so the merge adds ``profileConformance``, imports,
 unification Annotations and the model ``Sbom`` as it does for a project.
 
-The document id is content-addressed (the fragments' SHA-256s, sorted), so
-it does not depend on the directory path or the file order; ``created`` is
+The document id is content-addressed (each fragment's name with its
+SHA-256, sorted by name), so it does not depend on the directory path or
+the order the files were written in; ``created`` is
 ``SOURCE_DATE_EPOCH``, else the latest ``created`` of the fragments, never
 the current time.
 
@@ -41,23 +42,25 @@ MERGED_DOC_NAME = "merged"
 _NO_CREATED = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
-def _merged_doc_uuid(fragment_paths: list[Path]) -> str:
-    """UUIDv5 of the fragments' sorted SHA-256s; an unreadable fragment
-    counts by nothing (the merge reports it)."""
-    digests: list[str] = []
-    for path in fragment_paths:
+def _merged_doc_uuid(fragments_dir: Path, names: list[str]) -> str:
+    """UUIDv5 of each fragment's name (relative, POSIX) with its SHA-256,
+    sorted by name: the names decide which equal element survives. An
+    unreadable fragment counts by nothing (the merge reports it)."""
+    entries: list[str] = []
+    for name in sorted(names):
         try:
-            digests.append(sha256_file(path))
+            entries.append(f"{name}\x00{sha256_file(fragments_dir / name)}")
         except OSError:
             continue
-    return str(uuid5(PITLOOM_NS, "\x00".join(sorted(digests))))
+    return str(uuid5(PITLOOM_NS, "\x01".join(entries)))
 
 
-def new_merge_document(fragment_paths: list[Path]) -> Spdx3JsonExporter:
+def new_merge_document(fragments_dir: Path, names: list[str]) -> Spdx3JsonExporter:
     """An exporter holding only the merged document's envelope: the
     ``SpdxDocument`` with the ``core`` and ``software`` profiles, and its
-    creation info, the ``Pitloom`` agent and tool."""
-    doc_uuid = _merged_doc_uuid(fragment_paths)
+    creation info, the ``Pitloom`` agent and tool. *names* are the fragment
+    files, relative to *fragments_dir*."""
+    doc_uuid = _merged_doc_uuid(fragments_dir, names)
     _clear_doc_counters(doc_uuid)
     spdx_ci, agents, tools = build_creation_info(
         CreationMetadata(creation_datetime=_NO_CREATED.isoformat()),
@@ -89,20 +92,18 @@ def _latest_fragment_created(
 ) -> datetime | None:
     """The latest ``created`` of any creation info in the merged graph other
     than the document's own *own*."""
-    found = [
-        info.created
-        for obj in exporter.object_set.objects
-        for info in (obj, getattr(obj, "creationInfo", None))
-        if isinstance(info, spdx3.CreationInfo)
-        and info is not own
-        and isinstance(info.created, datetime)
-    ]
+    found: list[datetime] = []
+    for obj in exporter.object_set.objects:
+        for info in (obj, getattr(obj, "creationInfo", None)):
+            is_info = isinstance(info, spdx3.CreationInfo)
+            created = getattr(info, "created", None) if is_info else None
+            if info is not own and isinstance(created, datetime):
+                found.append(created)
     return max(found, default=None)
 
 
-def finish_merge_document(exporter: Spdx3JsonExporter, roots: list[str]) -> None:
-    """Set the merged document's ``created`` and root it at *roots* (what the
-    fragments' envelopes rooted) beside the model ``Sbom`` the merge added."""
+def finish_merge_document(exporter: Spdx3JsonExporter) -> None:
+    """Set the merged document's ``created``; the merge already rooted it."""
     document = next(
         o for o in exporter.object_set.objects if isinstance(o, spdx3.SpdxDocument)
     )
@@ -115,4 +116,3 @@ def finish_merge_document(exporter: Spdx3JsonExporter, roots: list[str]) -> None
         )
         created = _NO_CREATED
     own.created = created.astimezone(timezone.utc).replace(microsecond=0)
-    document.rootElement = sorted({*roots, *(document.rootElement or [])})

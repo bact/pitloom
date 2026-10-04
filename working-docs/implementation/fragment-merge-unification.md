@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -56,6 +56,14 @@ build), and unifying by id with the base winning (works after the fix
 above, but warns on every Annotation `statement` and imports the
 document into itself).
 
+`loom fragment list` applies the same rule with the same message: a
+fragment whose `SpdxDocument` id is `project_document_id()` (the id a
+`loom project` build would mint, via `_doc_identity_of`) prints
+`SAME_DOCUMENT=true` and fails the listing when required. The id is
+resolved lazily, once, only for a fragment that has an `SpdxDocument`:
+it reads the project's metadata and walks its files. A Hatchling-hook
+build can mint a different id; the listing predicts `loom project`.
+
 ## Licence unification (`_fragments_licenses.py`)
 
 Key: `license_key()` in `_license_elements.py`, the `(kind, value)` a
@@ -83,16 +91,24 @@ unlike a build).
 first, called by the CLI) now builds the envelope before merging:
 
 - id `generate_spdx_id("SpdxDocument", "merged", uuid5(PITLOOM_NS,
-  sorted fragment SHA-256s))`: content-addressed, independent of the
-  directory and of the order the files were written; counters cleared
-  first;
+  each fragment's relative POSIX name with its SHA-256, sorted by
+  name))`: independent of the directory and of the order the files were
+  written; the names count because they decide which equal element
+  survives, and so the roots and `locationHint`s; counters cleared first;
 - creation info from `build_creation_info` (the Pitloom agent and tool);
 - `created`: `SOURCE_DATE_EPOCH`, else the latest `created` among the
   merged elements' creation infos, else 1970-01-01 with one `WARNING:` --
   never the current time;
 - `rootElement`: what the fragments' own `SpdxDocument`/`Sbom` envelopes
   rooted (through the id map, envelopes left out), plus the model `Sbom`,
-  sorted. `merge_fragments()` returns those roots; a project ignores them.
+  sorted. `merge_fragments(adopt_fragment_roots=True)` sets them before
+  its dangling-reference check, which covers every collection's
+  `rootElement`: a root outside the output (also one the fragment only
+  imported; its imports are not carried over) fails as any dangling
+  reference does. A project keeps its own roots, checked the same way;
+- `profileConformance`: the profiles the graph uses plus every merged
+  fragment envelope's declared ones, in `_profile_rank` order -- the same
+  post-merge step for a project.
 
 Fragment files are read in file-name order (`fragment_files()`, sorted by
 name string, not by `Path`, which folds case on Windows). Rejected:

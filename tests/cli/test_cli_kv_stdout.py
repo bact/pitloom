@@ -51,6 +51,7 @@ _FRAGMENT_LIST_KEYS = (
     "ELEMENTS",
     "SHA256",
     "MODIFIED",
+    "SAME_DOCUMENT",
 )
 _SRC = Path(__file__).resolve().parents[2] / "src" / "pitloom"
 

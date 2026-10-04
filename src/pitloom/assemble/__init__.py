@@ -29,6 +29,7 @@ from pitloom.assemble._generators_wheel import (
 from pitloom.assemble._model_generator import (
     enrich_model,
     generate_model_sbom,
+    project_document_id,
 )
 from pitloom.assemble.spdx3.fragments import FragmentMergeError, merge_fragments
 from pitloom.core.build_options import NON_PROJECT_TARGET_REASON, BuildOptions
@@ -72,6 +73,7 @@ __all__ = [
     "generate_wheel_sbom",
     "generate_wheel_sbom_with_metadata",
     "merge_fragments",
+    "project_document_id",
     "target_resolves_to_project",
 ]
 

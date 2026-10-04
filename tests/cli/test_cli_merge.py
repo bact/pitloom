@@ -235,3 +235,30 @@ def test_merge_output_passes_spdx3_validate(
 ) -> None:
     _merge(tmp_path, ["a", "b"], monkeypatch)
     assert_spdx3_validate_ok(tmp_path / "out.spdx3.json")
+
+
+@pytest.mark.parametrize("imported", [False, True], ids=["absent", "imported"])
+def test_merge_fails_on_a_root_outside_the_output(
+    imported: bool,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A fragment root that is not in the merged output fails the merge, as
+    any dangling reference does, also when the fragment itself imported it:
+    the merged document does not carry that import."""
+    document = _document("a", "2026-01-01T00:00:00Z")
+    envelope = document["@graph"][2]
+    envelope["rootElement"].append(_NS + "x#Q")
+    if imported:
+        envelope["import"] = [{"type": "ExternalMap", "externalSpdxId": _NS + "x#Q"}]
+    write_fragment(tmp_path / "in" / "a.json", document)
+    out = tmp_path / "out.spdx3.json"
+    monkeypatch.setattr(
+        "sys.argv", ["loom", "merge", str(tmp_path / "in"), "-o", str(out)]
+    )
+    assert __main__.main() == 1
+    err = capsys.readouterr().err
+    assert f"rootElement references {_NS}x#Q" in err
+    assert "1 dangling reference(s)" in err
+    assert not out.exists()
