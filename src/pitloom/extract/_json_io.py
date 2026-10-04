@@ -7,10 +7,8 @@
 
 See also: :mod:`pitloom._toml_io` (the TOML counterpart, same
 "propagate exceptions, exception-handling policy stays with the caller"
-shape), :mod:`pitloom.extract.lock._common` (``load_lock_json()``, for
-lock files -- adds caching and a dict-shape check), and
-:mod:`pitloom.extract._license_detect`
-(``_read_license_from_codemeta_json()``, for ``codemeta.json``).
+shape) and :mod:`pitloom.extract.lock._common` (``load_lock_json()``,
+for lock files -- adds caching and a dict-shape check).
 ``pitloom.cli.commands.fragment`` needs the same raw-bytes-plus-parse
 shape for SBOM fragment reads (a SHA-256 check alongside the JSON parse)
 but does not call this helper -- it must preserve the raw bytes even when

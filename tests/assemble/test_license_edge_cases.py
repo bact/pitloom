@@ -33,8 +33,8 @@ from pitloom.extract._license import (
     tag_license_normalization,
 )
 from pitloom.extract._license_detect import (
-    _read_license_from_citation_cff,
-    _read_license_from_codemeta_json,
+    _license_from_citation_cff,
+    _license_from_codemeta_json,
     collect_license_candidates,
     find_license_files,
 )
@@ -96,32 +96,24 @@ def test_find_license_files_oserror(tmp_path: Path) -> None:
     assert find_license_files(nonexistent) == []
 
 
-def test_read_license_from_citation_cff_edge_cases() -> None:
-    """_read_license_from_citation_cff handles unparseable CFF and OS errors."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        p = Path(tmpdir)
-        cff = p / "CITATION.cff"
-        cff.write_text(
-            "title: My Project\nauthors:\n  - name: Arthit\n", encoding="utf-8"
-        )
-        assert _read_license_from_citation_cff(p) is None
-
-        # Unicode decode error simulation
-        cff.write_bytes(b"\xff\xfe\x00\x00")
-        assert _read_license_from_citation_cff(p) is None
+@pytest.mark.parametrize(
+    "raw",
+    [b"title: My Project\nauthors:\n  - name: Arthit\n", b"\xff\xfe\x00\x00"],
+    ids=["no-license-field", "not-utf8"],
+)
+def test_license_from_citation_cff_edge_cases(raw: bytes) -> None:
+    """_license_from_citation_cff gives None without a field or for non-UTF-8."""
+    assert _license_from_citation_cff(raw) is None
 
 
-def test_read_license_from_codemeta_json_edge_cases() -> None:
-    """_read_license_from_codemeta_json handles non-string values and decode errors."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        p = Path(tmpdir)
-        cm = p / "codemeta.json"
-        cm.write_text('{"license": 12345}', encoding="utf-8")
-        assert _read_license_from_codemeta_json(p) is None
-
-        # Malformed JSON
-        cm.write_text('{"license": unquoted', encoding="utf-8")
-        assert _read_license_from_codemeta_json(p) is None
+@pytest.mark.parametrize(
+    "raw",
+    [b'{"license": 12345}', b'{"license": unquoted', b'{"license": "\xff"}'],
+    ids=["non-string", "malformed", "not-utf8"],
+)
+def test_license_from_codemeta_json_edge_cases(raw: bytes) -> None:
+    """_license_from_codemeta_json handles non-string values and decode errors."""
+    assert _license_from_codemeta_json(raw) is None
 
 
 def test_collect_license_candidates_file_read_oserror() -> None:
@@ -131,7 +123,7 @@ def test_collect_license_candidates_file_read_oserror() -> None:
         lic = p / "LICENSE"
         lic.write_text("MIT License", encoding="utf-8")
 
-        with patch.object(Path, "read_text", side_effect=OSError("disk error")):
+        with patch.object(Path, "open", side_effect=OSError("disk error")):
             candidates = collect_license_candidates(p)
             assert len(candidates) == 0
 

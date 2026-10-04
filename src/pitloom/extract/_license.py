@@ -44,8 +44,6 @@ from pitloom.extract._license_detect import (
     _LICENSE_SUFFIXES,
     _SPDX_LICENSE_ID_RE,
     _looks_like_spdx_license_id,
-    _read_license_from_citation_cff,
-    _read_license_from_codemeta_json,
     collect_license_candidates,
     find_license_files,
 )
@@ -66,8 +64,6 @@ __all__ = [
     "_SPDX_LICENSE_ID_RE",
     "_looks_like_spdx_license_expression",
     "_looks_like_spdx_license_id",
-    "_read_license_from_citation_cff",
-    "_read_license_from_codemeta_json",
     "_with_tool_tag",
     "ClassifiedLicense",
     "canonicalize_license_id",

@@ -282,6 +282,13 @@ def test_unreadable_pyproject_raises_and_never_falls_to_setup_cfg(
     assert read_sdist(sdist, read_config=False).metadata.name == "demo"
 
 
+def test_pyproject_at_the_cap_is_read(tmp_path: Path) -> None:
+    """Exactly :data:`CONFIG_MEMBER_MAX_BYTES` is read; one more is not."""
+    raw = _OVERSIZE[:CONFIG_MEMBER_MAX_BYTES]
+    sdist = _make_sdist(tmp_path, members={"pyproject.toml": raw})
+    assert read_sdist(sdist).config.pretty is True
+
+
 @_FMT
 def test_unreadable_pyproject_without_pkg_info_still_raises(
     tmp_path: Path, fmt: str

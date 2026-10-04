@@ -21,13 +21,15 @@ import pytest
 from pitloom.extract._license import (
     _looks_like_spdx_license_expression,
     _looks_like_spdx_license_id,
-    _read_license_from_citation_cff,
-    _read_license_from_codemeta_json,
     canonicalize_license_id,
     collect_license_candidates,
     detect_license_for_project,
     detect_license_from_text,
     find_license_files,
+)
+from pitloom.extract._license_detect import (
+    _license_from_citation_cff,
+    _license_from_codemeta_json,
 )
 
 # ---------------------------------------------------------------------------
@@ -143,77 +145,35 @@ def test_find_license_files_empty_dir() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _read_license_from_citation_cff
+# _license_from_citation_cff / _license_from_codemeta_json (absent files:
+# test_collect_candidates_empty_dir)
 # ---------------------------------------------------------------------------
 
 
-def test_citation_cff_scalar() -> None:
-    """Scalar license field in CITATION.cff is extracted."""
-    with tempfile.TemporaryDirectory() as d:
-        p = Path(d)
-        (p / "CITATION.cff").write_text("cff-version: 1.2.0\nlicense: Apache-2.0\n")
-        assert _read_license_from_citation_cff(p) == "Apache-2.0"
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (b"cff-version: 1.2.0\nlicense: Apache-2.0\n", "Apache-2.0"),  # scalar
+        (b'cff-version: 1.2.0\nlicense: "MIT"\n', "MIT"),  # quoted scalar
+        (b"cff-version: 1.2.0\nlicense:\n  - MIT\n  - Apache-2.0\n", "MIT"),  # list
+    ],
+)
+def test_citation_cff(raw: bytes, expected: str) -> None:
+    """The ``license`` scalar, or a list's first item, is extracted."""
+    assert _license_from_citation_cff(raw) == expected
 
 
-def test_citation_cff_scalar_quoted() -> None:
-    """Quoted scalar license field in CITATION.cff is extracted."""
-    with tempfile.TemporaryDirectory() as d:
-        p = Path(d)
-        (p / "CITATION.cff").write_text('cff-version: 1.2.0\nlicense: "MIT"\n')
-        assert _read_license_from_citation_cff(p) == "MIT"
-
-
-def test_citation_cff_list_first_item() -> None:
-    """First item of a license list in CITATION.cff is extracted."""
-    with tempfile.TemporaryDirectory() as d:
-        p = Path(d)
-        (p / "CITATION.cff").write_text(
-            "cff-version: 1.2.0\nlicense:\n  - MIT\n  - Apache-2.0\n"
-        )
-        assert _read_license_from_citation_cff(p) == "MIT"
-
-
-def test_citation_cff_absent() -> None:
-    """Missing CITATION.cff returns None."""
-    with tempfile.TemporaryDirectory() as d:
-        assert _read_license_from_citation_cff(Path(d)) is None
-
-
-# ---------------------------------------------------------------------------
-# _read_license_from_codemeta_json
-# ---------------------------------------------------------------------------
-
-
-def test_codemeta_json_bare_id() -> None:
-    """Bare SPDX License ID in codemeta.json is extracted directly."""
-    with tempfile.TemporaryDirectory() as d:
-        p = Path(d)
-        (p / "codemeta.json").write_text('{"license": "MIT"}')
-        assert _read_license_from_codemeta_json(p) == "MIT"
-
-
-def test_codemeta_json_spdx_url() -> None:
-    """SPDX URL in codemeta.json is reduced to the license ID."""
-    with tempfile.TemporaryDirectory() as d:
-        p = Path(d)
-        (p / "codemeta.json").write_text(
-            '{"license": "https://spdx.org/licenses/Apache-2.0.html"}'
-        )
-        assert _read_license_from_codemeta_json(p) == "Apache-2.0"
-
-
-def test_codemeta_json_absent() -> None:
-    """Missing codemeta.json returns None."""
-    with tempfile.TemporaryDirectory() as d:
-        assert _read_license_from_codemeta_json(Path(d)) is None
-
-
-def test_codemeta_json_non_spdx_value() -> None:
-    """A non-SPDX string in codemeta.json returns None."""
-    with tempfile.TemporaryDirectory() as d:
-        p = Path(d)
-        (p / "codemeta.json").write_text('{"license": "proprietary license text here"}')
-        assert _read_license_from_codemeta_json(p) is None
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (b'{"license": "MIT"}', "MIT"),  # bare SPDX License ID
+        (b'{"license": "https://spdx.org/licenses/Apache-2.0.html"}', "Apache-2.0"),
+        (b'{"license": "proprietary license text here"}', None),  # not an id
+    ],
+)
+def test_codemeta_json(raw: bytes, expected: str | None) -> None:
+    """A bare id is kept, an SPDX URL reduced to its id, other text dropped."""
+    assert _license_from_codemeta_json(raw) == expected
 
 
 # ---------------------------------------------------------------------------

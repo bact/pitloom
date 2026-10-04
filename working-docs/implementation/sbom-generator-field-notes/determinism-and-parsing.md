@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -125,6 +125,17 @@ section 3.6 (determinism of model metadata).
   message) fails on 3.14 only (#270).
   Do: catch `RecursionError` beside the decode error; build a deep-nesting
   fixture that raises on every supported version.
+- **A one-line trim regex can be quadratic; `str.strip` is not.** To
+  drop final line breaks from a licence text, Pitloom used
+  `\A[ \t\r\n]+|(?:\r\n|\n|\r)+\Z`. On text with a long run of line
+  breaks *in the middle*, the `\Z` branch is tried at every position of
+  the run and fails at its end each time: 10 000 breaks took 0.74 s,
+  20 000 took 2.96 s, 40 000 took 12.1 s (CPython 3.10, `re.sub`). A
+  crafted wheel stalled SBOM generation for seconds. The same result from
+  `s.lstrip(" \t\r\n").rstrip("\r\n")` took about 2 µs at every size
+  (#276 final review).
+  Do: trim, split and prefix-test with `str` methods; use a regex only
+  when the pattern needs one, and then time it on adversarial input.
 - **`dict.get(key, default)` guards absence, not type.**
   `data.get("@graph", [])` on `{"@graph": 5}` returns `5`, and `len(5)`
   crashed a whole multi-file listing instead of marking one record bad

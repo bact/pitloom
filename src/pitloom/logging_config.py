@@ -34,6 +34,11 @@ PITLOOM_DEBUG_ENV_VAR = "PITLOOM_DEBUG"
 # (including unset) leaves DEBUG suppressed.
 _TRUTHY = frozenset({"1", "true", "yes", "on"})
 
+#: The ``WARNING:`` for a file skipped, not read, for being over a size
+#: cap. Arguments: the file (through :func:`loggable`), the cap in bytes,
+#: and what the cap is for (e.g. ``"usage-scan"``).
+FILE_OVER_CAP_WARNING = "FILE=%s: larger than the %d-byte %s cap; skipped"
+
 #: Keys already surfaced once via :func:`warn_once` in this process.
 #: Keyed by ``(logger.name, key)`` so two independent call sites can't
 #: collide by picking the same short key string.

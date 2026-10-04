@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import IO, Any, NamedTuple, TypeVar
 
 from pitloom._toml_io import load_toml_bytes
+from pitloom.core import wheel_dist_info
 from pitloom.core.archive_member_names import file_members, zip_file_members
 from pitloom.core.config import (
     PitloomConfig,
@@ -34,6 +35,7 @@ from pitloom.core.config import (
     select_project_config,
 )
 from pitloom.core.project import ProjectFile, ProjectMetadata
+from pitloom.core.wheel_dist_info import HeaderBlockOverCap, read_header_block
 from pitloom.extract._core_metadata import (
     core_metadata_license_with_source,
     parse_project_urls,
@@ -94,7 +96,8 @@ def _parse_pkg_info(pkg_info_text: str, source_label: str) -> ProjectMetadata:
     return metadata
 
 
-#: Root members read whole: metadata and the project's own config.
+#: Root members read: metadata (``PKG-INFO``'s header block) and the
+#: project's own config (whole).
 _PKG_INFO = "PKG-INFO"
 _PYPROJECT = "pyproject.toml"
 _SETUP_CFG = "setup.cfg"
@@ -104,7 +107,11 @@ _ROOT_MEMBERS = (_PKG_INFO, _PYPROJECT, _SETUP_CFG)
 #: ones are a few KiB; a larger one is a read failure, as invalid TOML is.
 CONFIG_MEMBER_MAX_BYTES = 1024 * 1024
 
+_CHUNK_BYTES = 8192
+
 _METADATA_FIELDS = ("name", "version", "description", "dependencies")
+#: What :func:`_parse_pkg_info` reads beyond :data:`_METADATA_FIELDS`.
+_PKG_INFO_ONLY_FIELDS = ("license", "requires_python", "urls", "authors")
 
 
 class SdistContents(NamedTuple):
@@ -121,28 +128,59 @@ class SdistContents(NamedTuple):
 
 
 class _Members(NamedTuple):
-    """Root members read whole (by basename), and every file's entry. A
-    root member over :data:`CONFIG_MEMBER_MAX_BYTES` maps to ``None``."""
+    """Root members read (by basename), and every file's entry. A root
+    member over its cap (see :func:`_read_member`) maps to ``None``."""
 
     root: dict[str, bytes | None]
     files: list[ProjectFile]
 
 
+class _HashingReader:
+    """*stream*, hashed as it is read."""
+
+    def __init__(self, stream: IO[bytes]) -> None:
+        self._stream = stream
+        self._hasher = hashlib.sha256()
+
+    def read(self, size: int, /) -> bytes:
+        """Up to *size* bytes of the stream, hashed."""
+        chunk = self._stream.read(size)
+        self._hasher.update(chunk)
+        return chunk
+
+    def hexdigest(self) -> str:
+        """The SHA-256 of what has been read."""
+        return self._hasher.hexdigest()
+
+
+def _read_capped(reader: _HashingReader, limit: int) -> bytes | None:
+    """*reader*'s bytes, or ``None`` past *limit* (the rest not kept)."""
+    kept = bytearray()
+    while chunk := reader.read(_CHUNK_BYTES):
+        kept += chunk
+        if len(kept) > limit:
+            return None
+    return bytes(kept)
+
+
 def _read_member(name: str, stream: IO[bytes], keep: bool) -> tuple[bytes | None, str]:
-    """Hash *stream* in chunks; return its bytes too when *keep* (``None``
-    past :data:`CONFIG_MEMBER_MAX_BYTES` for a config member)."""
-    hasher = hashlib.sha256()
-    kept: bytearray | None = bytearray() if keep else None
-    limit = None if Path(name).name == _PKG_INFO else CONFIG_MEMBER_MAX_BYTES
+    """Hash *stream* in chunks; with *keep*, return what is read of it too:
+    a ``PKG-INFO``'s header block (:func:`read_header_block`, whose caps
+    bound a header bomb as well as its size), a config member whole up to
+    :data:`CONFIG_MEMBER_MAX_BYTES`; ``None`` over the cap."""
+    reader = _HashingReader(stream)
+    kept: bytes | None = None
     with stream:
-        while chunk := stream.read(8192):
-            hasher.update(chunk)
-            if kept is None:
-                continue
-            kept += chunk
-            if limit is not None and len(kept) > limit:
+        if keep and Path(name).name == _PKG_INFO:
+            try:
+                kept = read_header_block(reader)
+            except HeaderBlockOverCap:
                 kept = None
-    return (bytes(kept) if kept is not None else None), hasher.hexdigest()
+        elif keep:
+            kept = _read_capped(reader, CONFIG_MEMBER_MAX_BYTES)
+        while reader.read(_CHUNK_BYTES):
+            pass
+    return kept, reader.hexdigest()
 
 
 #: One archive file: (install-location name, raw archive name, opener).
@@ -238,6 +276,27 @@ def _metadata_pyproject(raw: bytes | None, sdist_name: str) -> Any:
             field_loss_suffix("skipped", *_METADATA_FIELDS),
         )
         return None
+
+
+def _warn_pkg_info_over_cap(sdist_name: str, *, fallback: bool) -> None:
+    """One ``WARNING:`` for a ``PKG-INFO`` header block over
+    :data:`~pitloom.core.wheel_dist_info.MAX_METADATA_BYTES` or
+    :data:`~pitloom.core.wheel_dist_info.MAX_METADATA_HEADERS`: its fields
+    come from the root ``pyproject.toml`` when *fallback*, else stay
+    unset."""
+    if fallback:
+        loss = field_loss_suffix("degraded", *_METADATA_FIELDS)
+        loss += field_loss_suffix("skipped", *_PKG_INFO_ONLY_FIELDS)
+    else:
+        loss = field_loss_suffix("skipped", *_METADATA_FIELDS, *_PKG_INFO_ONLY_FIELDS)
+    log.warning(
+        "Failed to read PKG-INFO from sdist member: %s: "
+        "header block over %d bytes or %d headers%s",
+        sdist_name,
+        wheel_dist_info.MAX_METADATA_BYTES,
+        wheel_dist_info.MAX_METADATA_HEADERS,
+        loss,
+    )
 
 
 def _metadata_from_pyproject(data: Any) -> ProjectMetadata:
@@ -345,6 +404,8 @@ def read_sdist(sdist_path: Path, *, read_config: bool = True) -> SdistContents:
         metadata = _metadata_from_pyproject(pyproject)
     else:
         metadata = ProjectMetadata(name="unknown")
+    if raw_pkg_info is None and _PKG_INFO in members.root:
+        _warn_pkg_info_over_cap(name, fallback=pyproject is not None)
 
     config, member = (
         _config(members.root, pyproject, name)

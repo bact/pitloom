@@ -134,6 +134,36 @@ only: `poetry-core` derives the licence classifier from it. The result is
 All extractors record their source in `provenance["license"]` using the
 `Source: … | Field: …` convention.
 
+#### Root-file detection (`_license_detect.py`)
+
+Sources 2-4 are read by `collect_license_candidates()`, a thin directory
+adapter over a pure bytes core, `license_candidates_from_members()`
+(`{root-level name: bytes}` -> candidates). The core does no I/O, so an
+sdist can feed it the archive members it already holds; a drift-guard
+test pins that a directory and the same files as bytes give identical
+candidates. Rules:
+
+- **Case** (core): names match the `LICENSE`/`LICENCE`/`COPYING`/
+  `COPYRIGHT` x `""`/`.txt`/`.rst`/`.md` list ignoring case
+  (`pick_license_names()`). Where several names differ only in case (a
+  case-sensitive file system, an archive), the list's own spelling wins,
+  else the smallest in `str` order -- never the listing order, which made
+  the directory pick nondeterministic before.
+- **Size cap** (reader; the adapter here, the sdist scan later): a root
+  file over `LICENSE_FILE_MAX_BYTES` (256 KiB) is skipped, read no further
+  than one byte past the cap, with one `WARNING:` naming it
+  (`warn_over_cap()`, in the `logging_config.FILE_OVER_CAP_WARNING`
+  wording the usage scan shares). Once per file and process (`warn_once`):
+  one run reads a project twice when a lock-file re-read follows the peek.
+  Real licence texts are a few KiB to some tens of KiB, and `licenseid` is
+  slow on large text.
+- **Text** (core): UTF-8 with replacement and universal newlines, as
+  `Path.read_text()` gave it; an empty or whitespace-only file gives no
+  candidate. `codemeta.json` is parsed from bytes, so a UTF-8 BOM is
+  accepted.
+
+The directory side follows a symlinked licence file, as a plain read does.
+
 ### AI model file sources
 
 Only formats that embed metadata in the file itself can carry a licence:
@@ -363,6 +393,7 @@ file, so the surviving header path is proven untouched.
 | File | Role |
 | :--- | :--- |
 | `src/pitloom/extract/_license.py` | `detect_license_from_text()`, `find_license_files()`, `detect_license_for_project()` |
+| `src/pitloom/extract/_license_detect.py` | Root-file detection: bytes core, directory adapter, case rule, size cap |
 | `src/pitloom/extract/_license_classify.py` | `classify_license()`, `same_licence()` and the provenance notes of a rewrite |
 | `src/pitloom/extract/_core_metadata.py` | `core_metadata_license_with_source()` (unfolded headers), `license_cascade()`/`first_license()` (the weak cascade), `license_or_classifier()`, `license_from_classifiers()` (trove parents dropped) |
 | `src/pitloom/extract/wheel.py`, `src/pitloom/extract/project/sdist.py`, `src/pitloom/extract/project/installed.py` | Core Metadata readers (wheel, sdist `PKG-INFO`, installed metadata) via `core_metadata_license_with_source()` |
@@ -386,6 +417,7 @@ file, so the surviving header path is proven untouched.
 | `src/pitloom/assemble/spdx3/document.py` | `build()` -- licence wiring (`build_model()` moved to `_document_model.py`, re-exported here) |
 | `src/pitloom/assemble/spdx3/ai.py` | `add_ai_models()` -- AI model licence wiring |
 | `src/pitloom/export/spdx3_json.py` | `Spdx3JsonExporter.find_license(kind, value)`, `add_license()` |
+| `tests/extract/test_license_detect.py` | Case rule, size cap, and the directory-vs-bytes drift guard |
 | `tests/assemble/test_license_detection.py`, `tests/assemble/test_license_normalization.py` | Unit tests for `_license.py` utilities (originally `tests/test_license.py`, later split -- see `cli-test-coverage-roadmap.md`) |
 | `tests/core/generator/test_generator_project_enrichment.py`, `tests/core/generator/test_generator_project_structure.py` | End-to-end licence export tests with fixture files (originally `tests/test_generator.py`, since split by generation target and further by section -- see `cli-test-coverage-roadmap.md`) |
 | `tests/assemble/test_license_files_not_listed.py` | Declared `[project.license-files]` yield no SBOM element (library, Hatchling hook, vendored real-world fixtures) |
