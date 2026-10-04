@@ -250,7 +250,8 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
         _v("invalid", "exit:2", "--content-type-method", "bogus"),
     ],
     "--max-source-metadata-bytes": [
-        _v("1", "any", "--max-source-metadata-bytes", "1"),
+        _v("8", "any", "--max-source-metadata-bytes", "8"),
+        _v("1", "exit:2", "--max-source-metadata-bytes", "1"),
         _v("-1", "exit:2", "--max-source-metadata-bytes", "-1"),
     ],
     "-v": [_v("-v", "same", "-v")],

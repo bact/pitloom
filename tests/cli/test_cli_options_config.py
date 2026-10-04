@@ -155,20 +155,6 @@ def test_verbose_labels_values_from_a_config_by_its_file_name(
         assert rows[key].rstrip().endswith("[ci.toml]"), rows[key]
 
 
-def test_embed_batch_too_small_byte_cap_warns_once(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    wheels = [
-        str(_make_dummy_wheel(tmp_path / "w", name=name)) for name in ("alpha", "beta")
-    ]
-    argv = ["embed-wheel", *wheels, "--max-source-metadata-bytes", "5"]
-    assert _loom(argv, monkeypatch) == 0
-    err = capsys.readouterr().err
-    assert sum("too small" in line for line in err.splitlines()) == 1
-
-
 def test_embed_with_config_does_not_read_the_replaced_project_config(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

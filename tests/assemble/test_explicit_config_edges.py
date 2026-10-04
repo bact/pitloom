@@ -156,7 +156,7 @@ def test_embed_batch_warns_once_per_batch(
         (project_dir / "pyproject.toml").write_text(
             '[project]\nname = "alpha"\nversion = "1.0.0"\n', encoding="utf-8"
         )
-    overrides = ConfigOverrides(pretty=True, max_source_metadata_bytes=5)
+    overrides = ConfigOverrides(pretty=True)
     with caplog.at_level(logging.WARNING), EmbedFileCache() as cache:
         for wheel in wheels:
             embed_wheel_sbom(
@@ -169,7 +169,6 @@ def test_embed_batch_warns_once_per_batch(
             )
     warnings = logged_warnings(caplog)
     assert count_naming(warnings, "--pretty") == 1
-    assert sum("too small" in w for w in warnings) == 1
 
 
 def test_embed_without_a_batch_still_warns_per_call(
@@ -232,8 +231,7 @@ def test_enrich_model_registry_follows_the_base_project_config(
 def test_embed_external_sbom_inert_byte_cap_warns_once(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """An inert byte cap gets its no-effect warning only, not also the
-    too-small one about a value nothing uses."""
+    """An inert byte cap gets its no-effect warning, once."""
     wheel = _make_dummy_wheel(tmp_path / "w", name="demo")
     sbom = tmp_path / "given.spdx3.json"
     sbom.write_text(generate_project_sbom(_make_sdist(tmp_path)), encoding="utf-8")
@@ -242,12 +240,11 @@ def test_embed_external_sbom_inert_byte_cap_warns_once(
             wheel,
             sbom_path=sbom,
             output_path=tmp_path / "out.whl",
-            overrides=ConfigOverrides(max_source_metadata_bytes=-1),
+            overrides=ConfigOverrides(max_source_metadata_bytes=100),
             allow_mismatch=True,
         )
     warnings = logged_warnings(caplog)
     assert count_naming(warnings, "--max-source-metadata-bytes") == 1
-    assert not any("too small" in w for w in warnings)
 
 
 def test_sdist_relative_registry_resolves_as_for_a_wheel(

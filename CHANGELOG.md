@@ -247,6 +247,9 @@ and this project adheres to
   with one `WARNING:`; `project` wrote `x.spdx3.json.spdx3.json` ([#273])
 - A wheel named `x.WHL` was read by `wheel` and `generate` but refused by
   `embed-wheel`; every wheel surface refuses it, as `pip` does ([#278])
+- `max-source-metadata-bytes` of 1-7 or below 0 is an error, not unlimited;
+  an unknown `[tool.pitloom]` key warns once per file with a hint; `setup.cfg`
+  `creation-tool` was dropped ([#280])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -284,6 +287,7 @@ and this project adheres to
 [#273]: https://github.com/bact/pitloom/pull/273
 [#275]: https://github.com/bact/pitloom/pull/275
 [#278]: https://github.com/bact/pitloom/pull/278
+[#280]: https://github.com/bact/pitloom/pull/280
 
 ## [0.19.0] - 2026-09-18
 

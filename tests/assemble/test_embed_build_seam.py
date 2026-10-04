@@ -47,7 +47,6 @@ from tests.assemble.conftest import _make_dummy_wheel
 from tests.assemble.embed_surfaces_shared import (
     DEPENDENCY,
     RUNNERS,
-    cli_embed,
     config_toml,
     demo_project,
     demo_wheel,
@@ -233,32 +232,13 @@ def test_embed_sbom_bytes_are_deterministic_with_method(
     assert outputs[0] == outputs[1]
 
 
-def test_too_small_byte_cap_warns_once_and_reaches_assembler_as_zero(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    calls: _Recorded,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """``embed-wheel --max-source-metadata-bytes 1`` goes through the same
-    normalisation as its siblings: one ``WARNING:``, then 0 (no cap). The
-    config carries a non-zero cap, so 0 can only come from the flag."""
-    cli_embed(tmp_path, monkeypatch, config_toml(None, 7000), None, 1)
-    warnings = [
-        line
-        for line in capsys.readouterr().err.splitlines()
-        if "max-source-metadata-bytes" in line
-    ]
-    assert len(warnings) == 1, warnings
-    assert warnings[0].startswith("WARNING: ")
-    assert calls.max_bytes() == 0
-
-
 def _every_field_non_default(prov: ProvenanceConfig) -> ProvenanceConfig:
     """*prov* with every field changed away from its default."""
     changed: dict[str, Any] = {}
     for f in dataclasses.fields(prov):
         value = getattr(prov, f.name)
-        changed[f.name] = value + 1 if isinstance(value, int) else f"{value}-x"
+        # +8: the smallest valid change of a byte budget from 0
+        changed[f.name] = value + 8 if isinstance(value, int) else f"{value}-x"
     return dataclasses.replace(prov, **changed)
 
 

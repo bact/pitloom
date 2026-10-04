@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom._toml_io import load_toml_file
+from pitloom.core._config_keys import warn_unknown_keys
 from pitloom.core._config_legacy import (
     _check_moved_creation_keys,
     _check_moved_flat_keys,
@@ -26,12 +27,12 @@ from pitloom.core._config_parse_scan import (
     _read_content_type_settings,
     _read_extract_file_header,
     _read_max_model_extract_bytes,
+    _read_max_source_metadata_bytes,
     _read_scan_model_usage,
 )
 from pitloom.core._config_read import (
     _read_array_of_tables,
     _read_bool_setting,
-    _read_int_setting,
     _read_table,
     _require_choice,
 )
@@ -46,7 +47,6 @@ from pitloom.core.file_names import (
     is_plain_file_name,
     sbom_base_name,
 )
-from pitloom.core.provenance import normalize_max_source_metadata_bytes
 
 _VALID_PROVENANCE_FORMATS: frozenset[str] = frozenset({"annotation", "comment", "both"})
 _VALID_PROVENANCE_DETAIL: frozenset[str] = frozenset({"minimal", "full"})
@@ -119,16 +119,8 @@ def _provenance_str(raw: dict[str, Any], keys: tuple[str, ...], default: str) ->
     return default
 
 
-def _provenance_int(raw: dict[str, Any], keys: tuple[str, ...], default: int) -> int:
-    """Return the first present ``[tool.pitloom.provenance]`` key as an int."""
-    for key in keys:
-        if key in raw:
-            return _read_int_setting(raw, key, default, "[tool.pitloom.provenance]")
-    return default
-
-
 def _read_provenance_settings(
-    pitloom_data: dict[str, Any],
+    pitloom_data: dict[str, Any], *, is_setup_cfg: bool = False
 ) -> tuple[str, str, str, str, int]:
     """Read ``[tool.pitloom.provenance]`` settings."""
     raw = pitloom_data.get("provenance", {})
@@ -160,10 +152,7 @@ def _read_provenance_settings(
         "preserve-source-metadata",
     )
 
-    max_metadata_bytes = _provenance_int(
-        raw, ("max-source-metadata-bytes", "max_source_metadata_bytes"), 0
-    )
-    max_metadata_bytes = normalize_max_source_metadata_bytes(max_metadata_bytes)
+    max_metadata_bytes = _read_max_source_metadata_bytes(raw, is_setup_cfg)
 
     return fmt, schema, detail, preserve, max_metadata_bytes
 
@@ -341,7 +330,7 @@ def _pick_str(*sources: tuple[dict[str, Any], tuple[str, ...]]) -> str | None:
 
 # pylint: disable=too-many-locals
 def parse_pitloom_config(
-    data: dict[str, Any], *, is_setup_cfg: bool = False
+    data: dict[str, Any], *, is_setup_cfg: bool = False, source: str | None = None
 ) -> PitloomConfig:
     """Read ``[tool.pitloom]`` settings and return a :class:`PitloomConfig`.
 
@@ -352,6 +341,10 @@ def parse_pitloom_config(
     :func:`pitloom.extract.project.setuptools_cfg.setup_cfg_pitloom_config`'s
     own call), never for a ``pyproject.toml``-derived *data*, whatever
     that TOML file's own basename happens to be.
+
+    *source* names the file *data* came from in each unknown-key
+    ``WARNING:`` (:func:`~pitloom.core._config_keys.warn_unknown_keys`),
+    which is given before any value is read or checked.
     """
     tool_data = _read_table(data, "tool", "[tool]")
     pitloom_data = _read_table(tool_data, "pitloom", "[tool.pitloom]")
@@ -360,6 +353,7 @@ def parse_pitloom_config(
     _check_moved_creation_keys(pitloom_data, creation_data, is_setup_cfg=is_setup_cfg)
     _check_moved_top_level_tables(pitloom_data, is_setup_cfg=is_setup_cfg)
     _check_moved_flat_keys(pitloom_data, is_setup_cfg=is_setup_cfg)
+    warn_unknown_keys(pitloom_data, is_setup_cfg=is_setup_cfg, source=source)
 
     fragments = _read_fragments(pitloom_data)
     id_registry = _read_id_registry(pitloom_data)
@@ -369,7 +363,7 @@ def parse_pitloom_config(
         provenance_detail,
         provenance_preserve,
         provenance_max_metadata_bytes,
-    ) = _read_provenance_settings(pitloom_data)
+    ) = _read_provenance_settings(pitloom_data, is_setup_cfg=is_setup_cfg)
     enrich_local = _read_enrich_settings(pitloom_data)
     extract_file_header = _read_extract_file_header(pitloom_data)
     scan_model_usage = _read_scan_model_usage(pitloom_data)
@@ -443,7 +437,7 @@ def read_pitloom_config(pyproject_path: Path) -> PitloomConfig:
 
     data: dict[str, Any] = load_toml_file(pyproject_path)
 
-    return parse_pitloom_config(data)
+    return parse_pitloom_config(data, source=str(pyproject_path))
 
 
 #: Where :func:`select_project_config` took the config from.

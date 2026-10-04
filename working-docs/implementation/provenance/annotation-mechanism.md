@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -154,12 +154,14 @@ today's "empty original metadata" case); if the overhead fits but every
 key had to go, the Annotation is emitted with `metadata: {}`. Both log a
 `WARNING`.
 
-A negative or too-small-to-hold-data value (below `_MIN_EFFECTIVE_
-MAX_SOURCE_METADATA_BYTES`, 8 bytes — the smallest possible JCS-encoded
-JSON object, e.g. `{"a":""}`) is normalized to `0` (unlimited) with a
-logged `WARNING`, via `core/provenance.normalize_max_source_metadata_bytes()`
-— called from both the TOML reader and the CLI-override path, so every
-construction route gets the same treatment.
+Only `0` or at least `MIN_SOURCE_METADATA_BYTES` (8 bytes — the smallest
+possible JCS-encoded JSON object, e.g. `{"a":""}`) is valid; a negative,
+non-integer or 1-to-7 value is a `ValueError`, via
+`core/provenance.require_max_source_metadata_bytes()` — called from the
+TOML reader, the CLI flag's argparse type, `ConfigOverrides`,
+`ProvenanceConfig` and the embed path, so every construction route gets the
+same check. (An earlier version collapsed such a value to `0`, unlimited,
+with a `WARNING`: a typo silently removed the cap.)
 
 Unlike every other `[tool.pitloom.provenance]` key, this one also has a
 `--max-source-metadata-bytes` CLI flag and `action.yml` input — a byte

@@ -13,7 +13,10 @@ from typing import TypedDict
 from pitloom.core.content_type_config import ContentTypeConfig, ContentTypeOverride
 from pitloom.core.creation import CreationMetadata, Creator, Tool
 from pitloom.core.enrich_config import EnrichConfig
-from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.provenance import (
+    ProvenanceConfig,
+    require_max_source_metadata_bytes,
+)
 
 _DEFAULT_PROVENANCE_SCHEMA = "pitloom/1"
 VALID_CONTENT_TYPE_METHODS: frozenset[str] = frozenset({"auto", "magika", "extension"})
@@ -177,7 +180,16 @@ class PitloomConfig:
 
     @property
     def provenance(self) -> ProvenanceConfig:
-        """Return ProvenanceConfig constructed from current config settings."""
+        """Return ProvenanceConfig constructed from current config settings.
+
+        Raises:
+            ValueError: ``provenance_max_source_metadata_bytes`` is not ``0``
+                or a valid budget (a config built in code is never parsed).
+        """
+        require_max_source_metadata_bytes(
+            self.provenance_max_source_metadata_bytes,
+            "pitloom_config 'max-source-metadata-bytes'",
+        )
         return ProvenanceConfig(
             format=self.provenance_format,
             schema=self.provenance_schema,

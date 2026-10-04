@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -93,6 +93,20 @@ flags a target given for the wrong kind warns about instead of silently
 doing nothing.
 
 ## `[tool.pitloom]`
+
+A key Pitloom does not know -- in `[tool.pitloom]`, one of its sub-tables
+or an entry of `creator`, `creation-tool`, `content-type.override` or
+`fragment.files` -- is ignored with one `WARNING:` naming the file, the
+table and the key, and either the table that does know it
+(`it belongs in [tool.pitloom.provenance]`) or the closest known key
+(`ofline`: `did you mean 'offline'?`). It is not an error, and warns once
+per file per run, on every source: `pyproject.toml`, `setup.cfg`, an
+sdist's own config (named `archive:member`), `--config` and the Hatchling
+hook. It is given before the values are checked, so a misspelt required key
+shows its hint ahead of the error. A `setup.cfg` `[DEFAULT]` key is checked
+and reported in each section that reads it. Not checked: a misspelt `[tool]`
+table (`[tool.pitlom]`), `setup.cfg` sub-section (`[tool:pitloom:provenence]`)
+and the hook's own `[tool.hatch.build.hooks.pitloom]` options.
 
 | Key | Type | Default | CLI flag | Action input | API param | Meaning |
 | :-- | :--- | :------ | :------- | :------------ | :-------- | :------ |
@@ -280,18 +294,18 @@ changes in the generated SBOM's Annotations.
 | `schema` | string | `"pitloom/1"` | -- | -- | -- | Which statement schema encodes provenance Annotations. |
 | `detail` | `"minimal"` \| `"full"` | `"minimal"` | -- | -- | -- | `"minimal"` emits a field-source Annotation only when the source adds signal the native value can't convey; `"full"` emits the per-field source map for every field. |
 | `preserve-source-metadata` | `"auto"` \| `"always"` \| `"never"` | `"auto"` | -- | -- | -- | Whether to embed an artifact's verbatim original metadata blob. `"auto"` does so only when the artifact isn't shipped with the distribution (and so can't be re-extracted later). |
-| `max-source-metadata-bytes` | non-negative integer | `0` | `--max-source-metadata-bytes` | `max-source-metadata-bytes` | -- | Byte budget for the serialised artifact-metadata `Annotation.statement`. `0` means unlimited (today's behaviour). When exceeded, the largest metadata entries are dropped first and the result is marked `truncated`/`truncatedKeys`/`truncatedKeyCount`/`maxMetadataBytes` -- see [Metadata provenance](metadata-provenance.md#size-bounded-preservation). Unlike its siblings above, this one has a CLI flag / Action input (no dedicated API param -- set it via the same `ProvenanceConfig` object the others use): a byte cap is an operational knob someone may want to override per-run without editing `pyproject.toml`. |
+| `max-source-metadata-bytes` | `0` or an integer >= 8 | `0` | `--max-source-metadata-bytes` | `max-source-metadata-bytes` | `max_source_metadata_bytes` | Byte budget for the serialised artifact-metadata `Annotation.statement`. `0` means unlimited (today's behaviour). When exceeded, the largest metadata entries are dropped first and the result is marked `truncated`/`truncatedKeys`/`truncatedKeyCount`/`maxMetadataBytes` -- see [Metadata provenance](metadata-provenance.md#size-bounded-preservation). Unlike its siblings above, this one has a CLI flag, an Action input and an API parameter (`generate()`, `generate_*_sbom()`; `ConfigOverrides` for `embed_wheel_sbom()`): a byte cap is an operational knob someone may want to override per-run without editing `pyproject.toml`. |
 
 **Invalid values / fallback behaviour:** a non-string value, or a
 `format`/`detail`/`preserve-source-metadata` outside its listed set,
 raises `ValueError` at config-read time. An unknown `schema` id is not
 caught here (`core` doesn't import the assembly layer's encoder
 registry) -- it's caught with a clear error the first time an SBOM is
-actually generated. `max-source-metadata-bytes`: a non-integer or
-`bool` value raises `ValueError` at config-read time; a negative
-value, or a positive value below the smallest possible JSON object it
-could ever hold (8 bytes), is normalised to `0` (unlimited) with a
-logged `WARNING`, not rejected.
+actually generated. `max-source-metadata-bytes`: only `0` (unlimited) or
+at least 8 bytes -- the smallest JSON object it could ever hold -- is
+valid. A non-integer, a `bool`, a negative value or 1 to 7 is an error,
+never "unlimited": at config-read time, on `--max-source-metadata-bytes`
+(exit 2) and on the library's `max_source_metadata_bytes=`.
 
 ## See also
 

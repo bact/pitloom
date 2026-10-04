@@ -45,7 +45,7 @@ from tests.assemble.conftest import _make_dummy_wheel
 from tests.assemble.embed_surfaces_shared import DEPENDENCY, demo_project, demo_wheel
 from tests.assemble.test_generator_no_implicit_config import _TARGET, _seed_registry
 from tests.cli.shared import SAFETENSORS_FIXTURE
-from tests.warning_helpers import error_lines, logged_warnings, stderr_warnings
+from tests.warning_helpers import error_lines
 
 _EPOCH = "1767225600"
 _DECOY_COMMENT = "comment-from-the-decoy"
@@ -382,19 +382,15 @@ def test_byte_cap_flag_overrides_one_field_of_the_config(
 
 @pytest.mark.usefixtures("env_tree")
 @pytest.mark.parametrize("surface", sorted(_CAP_SURFACES))
-def test_too_small_byte_cap_warns_once(
+def test_too_small_byte_cap_is_refused(
     surface: str,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.chdir(tmp_path)
     argv = [*_cap_argv(surface, tmp_path), "--offline"]
-
-    assert _loom([*argv, "--max-source-metadata-bytes", "-1"], monkeypatch) == 0
-
-    logged = [m for m in logged_warnings(caplog) if "too small" in m]
-    printed = [m for m in stderr_warnings(capsys.readouterr().err) if "too small" in m]
-    assert len(logged) == 1, logged
-    assert len(printed) == 1, printed
+    with pytest.raises(SystemExit) as exc:
+        _loom([*argv, "--max-source-metadata-bytes", "5"], monkeypatch)
+    assert exc.value.code == 2
+    assert "at least 8 bytes, got 5" in capsys.readouterr().err

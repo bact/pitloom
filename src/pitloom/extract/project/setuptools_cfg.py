@@ -17,6 +17,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from pitloom.core._config_keys import KNOWN_KEYS
 from pitloom.core.config import (
     _MOVED_CREATION_KEYS,
     PitloomConfig,
@@ -46,6 +47,30 @@ def _section_dict(cfg: configparser.ConfigParser, section: str) -> dict[str, str
     :func:`_section_declares_key` for that question.
     """
     return dict(cfg.items(section)) if cfg.has_section(section) else {}
+
+
+#: ``setup.cfg`` spellings of Pitloom keys, folded into others on reading.
+_CFG_ONLY_KEYS = frozenset(
+    {"tool", "fragments"}
+    | {f"creator{sep}{part}" for sep in "-_" for part in ("name", "type", "email")}
+)
+
+
+def _pitloom_section(cfg: configparser.ConfigParser, section: str) -> dict[str, str]:
+    """A ``[tool:pitloom...]`` section's items, less any key that only
+    ``[DEFAULT]`` gives it and no reader takes: ``configparser`` merges
+    ``[DEFAULT]`` into every section (so ``%(here)s`` interpolates), but such
+    a key is not the user's Pitloom setting, and must not warn as unknown.
+    A ``[DEFAULT]`` value of a key a reader takes is still inherited."""
+    table = section.removeprefix("tool:pitloom").removeprefix(":")
+    takes = KNOWN_KEYS.get(table, frozenset())
+    if table in ("", "creation"):  # the only sections that read these
+        takes |= _CFG_ONLY_KEYS
+    return {
+        key: value
+        for key, value in _section_dict(cfg, section).items()
+        if key in takes or _section_declares_key(cfg, section, key)
+    }
 
 
 def _section_declares_key(
@@ -316,18 +341,23 @@ def read_setup_cfg(
         provenance=prov,
     )
 
-    return project_metadata, _config_if_read(cfg, read_config)
+    return project_metadata, _config_if_read(cfg, read_config, str(setup_cfg_path))
 
 
-def _config_if_read(cfg: configparser.ConfigParser, read: bool) -> PitloomConfig:
-    """``[tool:pitloom]`` from *cfg*, or the defaults without parsing it."""
-    return _read_pitloom_config_from_cfg(cfg) if read else PitloomConfig()
+def _config_if_read(
+    cfg: configparser.ConfigParser, read: bool, source: str
+) -> PitloomConfig:
+    """``[tool:pitloom]`` from *cfg* (the file *source*), or the defaults
+    without parsing it."""
+    return _read_pitloom_config_from_cfg(cfg, source) if read else PitloomConfig()
 
 
-def setup_cfg_pitloom_config(text: str) -> PitloomConfig:
+def setup_cfg_pitloom_config(text: str, source: str | None = None) -> PitloomConfig:
     """``[tool:pitloom]`` from ``setup.cfg`` *text* (e.g. an sdist member),
     taken as :func:`read_setup_cfg` takes it for a directory: only when
     ``[metadata]`` names the project, else the defaults.
+
+    *source* names the file in an unknown-key ``WARNING:``.
 
     Only ``[tool:pitloom]`` is interpolated: a ``%`` elsewhere (e.g. in a
     ``[metadata]`` description) is not this function's concern.
@@ -341,7 +371,7 @@ def setup_cfg_pitloom_config(text: str) -> PitloomConfig:
         cfg.read_string(text, source="setup.cfg")
         if not cfg.get("metadata", "name", raw=True, fallback="").strip():
             return PitloomConfig()
-        return _read_pitloom_config_from_cfg(cfg)
+        return _read_pitloom_config_from_cfg(cfg, source)
     except configparser.Error as exc:  # also a value's bad % interpolation
         # configparser spreads a parse error over several lines.
         raise ValueError(one_line(exc)) from exc
@@ -350,9 +380,11 @@ def setup_cfg_pitloom_config(text: str) -> PitloomConfig:
 def _pick_cfg_str(
     raw: dict[str, str], creation_raw: dict[str, str], *keys: str
 ) -> str | None:
-    """Pick the first non-empty value matching any of the candidate keys."""
-    for key in keys:
-        for src in (creation_raw, raw):
+    """Pick the first non-empty value matching any of the candidate keys,
+    ``[tool:pitloom:creation]`` first whatever the spelling, as ``_pick_str``
+    does for the TOML tables."""
+    for src in (creation_raw, raw):
+        for key in keys:
             val = src.get(key, "").strip()
             if val:
                 return val
@@ -378,7 +410,8 @@ def _parse_creator_from_cfg(
 
 def _clean_creation_keys(tool_pitloom: dict[str, Any]) -> None:
     """Strip legacy and moved creation keys from dictionaries."""
-    for key in _MOVED_CREATION_KEYS:
+    # "tool" is the single-tool spelling of ``creation-tool``, read apart.
+    for key in (*_MOVED_CREATION_KEYS, "tool"):
         tool_pitloom.pop(key, None)
         if "creation" in tool_pitloom:
             tool_pitloom["creation"].pop(key, None)
@@ -391,15 +424,15 @@ def _populate_sub_sections_from_cfg(
     cfg: configparser.ConfigParser, tool_pitloom: dict[str, Any]
 ) -> None:
     """Populate creation, provenance, content-type, and fragment sub-tables."""
-    creation_raw = _section_dict(cfg, "tool:pitloom:creation")
+    creation_raw = _pitloom_section(cfg, "tool:pitloom:creation")
     if creation_raw:
         tool_pitloom["creation"] = parse_sub_section("creation", creation_raw)
 
-    provenance_raw = _section_dict(cfg, "tool:pitloom:provenance")
+    provenance_raw = _pitloom_section(cfg, "tool:pitloom:provenance")
     if provenance_raw:
         tool_pitloom["provenance"] = parse_sub_section("provenance", provenance_raw)
 
-    content_type_raw = _section_dict(cfg, "tool:pitloom:content-type")
+    content_type_raw = _pitloom_section(cfg, "tool:pitloom:content-type")
     if content_type_raw:
         ct = parse_sub_section("content-type", content_type_raw)
         override_raw = _section_dict(cfg, "tool:pitloom:content-type:override")
@@ -410,22 +443,23 @@ def _populate_sub_sections_from_cfg(
             ]
         tool_pitloom["content-type"] = ct
 
-    fragment_raw = _section_dict(cfg, "tool:pitloom:fragment")
+    fragment_raw = _pitloom_section(cfg, "tool:pitloom:fragment")
     if fragment_raw:
         tool_pitloom["fragment"] = parse_sub_section("fragment", fragment_raw)
 
 
 def _read_pitloom_config_from_cfg(
-    cfg: configparser.ConfigParser,
+    cfg: configparser.ConfigParser, source: str | None = None
 ) -> PitloomConfig:
-    """Read ``[tool:pitloom]`` settings from a parsed ``setup.cfg``."""
+    """Read ``[tool:pitloom]`` settings from a parsed ``setup.cfg``, named
+    *source* in an unknown-key ``WARNING:``."""
     if not any(
         cfg.has_section(s) for s in cfg.sections() if s.startswith("tool:pitloom")
     ):
         return PitloomConfig()
 
-    raw = _section_dict(cfg, "tool:pitloom")
-    creation_raw = _section_dict(cfg, "tool:pitloom:creation")
+    raw = _pitloom_section(cfg, "tool:pitloom")
+    creation_raw = _pitloom_section(cfg, "tool:pitloom:creation")
 
     tool_pitloom: dict[str, Any] = {}
     data = {"tool": {"pitloom": tool_pitloom}}
@@ -444,12 +478,6 @@ def _read_pitloom_config_from_cfg(
     if creator:
         tool_pitloom["creator"] = creator
 
-    tool_name = _pick_cfg_str(
-        raw, creation_raw, "creation-tool", "creation_tool", "tool"
-    )
-    if tool_name:
-        tool_pitloom["creation-tool"] = [{"name": tool_name}]
-
     # [tool:pitloom] no-creation-tool, unless [tool:pitloom:creation] has
     # either spelling
     no_tool_keys = ("no-creation-tool", "no_creation_tool")
@@ -461,4 +489,10 @@ def _read_pitloom_config_from_cfg(
                 )
 
     _clean_creation_keys(tool_pitloom)
-    return parse_pitloom_config(data, is_setup_cfg=True)
+    # After the clean-up, which drops every single-valued spelling of it.
+    tool_name = _pick_cfg_str(
+        raw, creation_raw, "creation-tool", "creation_tool", "tool"
+    )
+    if tool_name:
+        tool_pitloom["creation-tool"] = [{"name": tool_name}]
+    return parse_pitloom_config(data, is_setup_cfg=True, source=source)

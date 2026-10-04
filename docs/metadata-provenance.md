@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -86,7 +86,7 @@ template alone can be several KiB. `max-source-metadata-bytes` (also
 `--max-source-metadata-bytes` on the CLI, or the Action's
 `max-source-metadata-bytes` input) caps the serialised
 `Annotation.statement`'s size in UTF-8 bytes; `0` (the default) means
-unlimited.
+unlimited. A negative, non-integer or 1 to 7 value is an error, never "unlimited".
 
 When the budget is exceeded, whole metadata entries are dropped --
 largest first, to keep as many entries as possible -- never a value

@@ -28,10 +28,6 @@ KNOWN: dict[str, tuple[str, str]] = {
     },
     "M/enrich/output/no-o+*": (_KV, "stdout: ['Enrichment fragment written to"),
     "M/merge/output/no-o+*": (_KV, "stdout: ['pitloom: merged"),
-    "M/*/opt/--max-source-metadata-bytes=-1": (
-        "Config cascade parity: `--max-source-metadata-bytes -1`",
-        "exit 0, want 2",
-    ),
     "S2": (
         "Re-embedding lists the previous embedded SBOM",
         "re-embedding changed the SBOM",

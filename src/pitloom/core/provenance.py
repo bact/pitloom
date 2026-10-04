@@ -12,12 +12,10 @@ neither package has to import the other for it.
 
 from __future__ import annotations
 
-import logging
+import operator
 from dataclasses import dataclass
 
 import rfc8785
-
-log = logging.getLogger(__name__)
 
 DEFAULT_PROVENANCE_SCHEMA = "pitloom/1"
 
@@ -32,28 +30,42 @@ _KEY_MAP = {
 
 #: Smallest possible non-empty JCS-encoded JSON object (e.g. ``{"a":""}``),
 #: computed from the real serializer so it can't silently drift from it.
-_MIN_EFFECTIVE_MAX_SOURCE_METADATA_BYTES = len(rfc8785.dumps({"a": ""}))
+MIN_SOURCE_METADATA_BYTES = len(rfc8785.dumps({"a": ""}))
 
 
-def normalize_max_source_metadata_bytes(value: int) -> int:
-    """Collapse a too-small-to-be-useful metadata byte budget to 0.
+def require_max_source_metadata_bytes(
+    value: object, label: str = "max_source_metadata_bytes"
+) -> int:
+    """*value* as an ``int`` when it is ``0`` (no cap) or a budget of at least
+    :data:`MIN_SOURCE_METADATA_BYTES`, the smallest annotation that holds any
+    metadata. A smaller one is an error, never a silent "unlimited".
 
-    ``0`` means "no cap" (embed the full artifact-metadata blob, today's
-    unbounded behavior). A negative value, or a positive value below the
-    smallest possible JCS-encoded JSON object, can never hold any real
-    metadata -- both are treated the same as ``0``, with a logged warning,
-    rather than rejected outright, since they're well-typed but merely
-    pointless rather than structurally invalid.
+    The one validator for every surface that takes the budget: the config
+    key, ``--max-source-metadata-bytes``, ``ConfigOverrides`` and the library
+    kwargs. *label* names the setting in the error, e.g.
+    ``[tool.pitloom.provenance] 'max-source-metadata-bytes'``; ``""`` leaves
+    the message to a caller that names the setting itself. Any
+    :func:`operator.index`-able integer (a ``numpy.int64``) passes; a ``bool``
+    or a ``float`` does not.
+
+    Raises:
+        ValueError: *value* is not an integer, is negative, or is below the
+            minimum without being ``0``.
     """
-    if value != 0 and value < _MIN_EFFECTIVE_MAX_SOURCE_METADATA_BYTES:
-        log.warning(
-            "max-source-metadata-bytes=%d is too small to ever hold data "
-            "(minimum useful value is %d bytes); using 0 (unlimited) instead.",
-            value,
-            _MIN_EFFECTIVE_MAX_SOURCE_METADATA_BYTES,
+    try:
+        if isinstance(value, bool):
+            raise TypeError
+        number = operator.index(value)  # type: ignore[arg-type]
+    except TypeError:
+        raise ValueError(
+            f"{label} must be an integer, got {type(value).__name__}: {value!r}".strip()
+        ) from None
+    if number != 0 and number < MIN_SOURCE_METADATA_BYTES:
+        raise ValueError(
+            f"{label} must be 0 (unlimited) or at least "
+            f"{MIN_SOURCE_METADATA_BYTES} bytes, got {number}".strip()
         )
-        return 0
-    return value
+    return number
 
 
 def parse_provenance_value(value: str) -> dict[str, str]:
@@ -87,7 +99,8 @@ class ProvenanceConfig:
             ("auto", "always", "never").
         max_source_metadata_bytes: Byte budget for the serialized
             artifact-metadata Annotation.statement; 0 (default) means
-            unlimited. See :func:`normalize_max_source_metadata_bytes`.
+            unlimited, below :data:`MIN_SOURCE_METADATA_BYTES` is an error. See
+            :func:`require_max_source_metadata_bytes`.
     """
 
     format: str = "both"
@@ -95,3 +108,11 @@ class ProvenanceConfig:
     detail: str = "minimal"
     preserve_source_metadata: str = "auto"
     max_source_metadata_bytes: int = 0
+
+    def __post_init__(self) -> None:
+        """Reject an invalid budget, however it got here; keep it as a plain int."""
+        object.__setattr__(
+            self,
+            "max_source_metadata_bytes",
+            require_max_source_metadata_bytes(self.max_source_metadata_bytes),
+        )
