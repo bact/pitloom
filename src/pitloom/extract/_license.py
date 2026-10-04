@@ -22,11 +22,14 @@ from __future__ import annotations
 import functools
 import logging
 import re
+from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
+from typing import Literal
 
 from licenseid import AggregatedLicenseMatcher
+from py_spdx_license import ExceptionId as SpdxExceptionId
 from py_spdx_license import ParseError as SpdxExpressionParseError
 from py_spdx_license import parse as parse_spdx_expression
 
@@ -40,6 +43,7 @@ from pitloom.extract._license_detect import (
     collect_license_candidates,
     find_license_files,
 )
+from pitloom.logging_config import warn_once
 
 _logger = logging.getLogger(__name__)
 
@@ -66,7 +70,9 @@ __all__ = [
     "_read_license_from_citation_cff",
     "_read_license_from_codemeta_json",
     "_with_tool_tag",
+    "ClassifiedLicense",
     "canonicalize_license_id",
+    "classify_license",
     "collect_license_candidates",
     "detect_independent_license",
     "detect_license_for_project",
@@ -175,6 +181,116 @@ def normalize_license_expression(raw: str) -> str:
         # either way, same as canonicalize_license_id's fallback below.
         _logger.debug("SPDX expression parser raised unexpectedly for %r: %s", raw, exc)
     return canonicalize_license_id(raw)
+
+
+LicenseKind = Literal["expression", "text", "noassertion", "none"]
+
+
+@dataclass(frozen=True)
+class ClassifiedLicense:
+    """A licence value sorted by what it is. *value* is what to record
+    (the canonical expression, the text, or ``NOASSERTION``/``NONE``);
+    *raw* is the input, for provenance."""
+
+    kind: LicenseKind
+    value: str
+    raw: str
+
+
+#: Longer or multi-line values are licence text; they are not parsed (a
+#: 48 KB body costs seconds in the expression parser).
+_MAX_EXPRESSION_LENGTH = 200
+
+#: One line, one reason; ``%r`` keeps control characters out of the log.
+_NOT_AN_EXPRESSION_MESSAGE = (
+    "LICENSE=%r: not a valid SPDX license expression (%s); recorded as license text"
+)
+
+_EXPRESSION_OPERATOR_RE = re.compile(r"(?<![\w-])(?:AND|OR|WITH|NOT)(?![\w-])")
+_EXPRESSION_TOKEN_RE = re.compile(r"[A-Za-z0-9.+:\-]+")
+#: Valid in SPDX but outside ``py-spdx-license``'s grammar: the "or later"
+#: ``+`` suffix (on a listed licence id only) and an ``AdditionRef-``
+#: addition after ``WITH``.
+_OR_LATER_RE = re.compile(r"([A-Za-z0-9.:\-]+)\+(?=$|[\s)])")
+#: Not followed by ``+``: an addition takes no "or later".
+_ADDITION_REF_RE = re.compile(
+    r"(\bWITH\s+)AdditionRef-[A-Za-z0-9.\-]+(?![A-Za-z0-9.+\-])"
+)
+_USER_DEFINED_PREFIXES = ("LicenseRef-", "DocumentRef-")
+#: Stands in for an addition when checking the rest of the expression.
+_PLACEHOLDER_EXCEPTION = "Classpath-exception-2.0"
+
+
+def _strict_parse(expression: str) -> tuple[str | None, str]:
+    """``(canonical form, "")`` of *expression*, else ``(None, reason)`` in
+    one line. An unknown id is a failure, not a node."""
+    try:
+        node = parse_spdx_expression(expression)
+        if isinstance(node, SpdxExceptionId):
+            return None, "an exception is not a license"
+        return str(node.sort().to_string()), ""
+    except SpdxExpressionParseError as exc:
+        # The message quotes the input, so escape what could break a log line.
+        reason = (str(exc).splitlines() or ["unparsable"])[0]
+        return None, reason.encode("unicode_escape").decode("ascii")
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:  # the parser can raise IndexError and the like
+        return None, type(exc).__name__
+
+
+def _strip_or_later(match: re.Match[str]) -> str:
+    """Drop a ``+``, except after ``LicenseRef-``/``DocumentRef-`` (not valid
+    SPDX): the parse of what is left then fails for a ``+`` after anything
+    but a listed licence id."""
+    token = match.group(1)
+    return match.group(0) if token.startswith(_USER_DEFINED_PREFIXES) else token
+
+
+def _looks_like_expression(cased: str) -> bool:
+    """Whether *cased* has an operator or parenthesis and a known id."""
+    if not ("(" in cased or ")" in cased or _EXPRESSION_OPERATOR_RE.search(cased)):
+        return False
+    return any(
+        _strict_parse(token.removesuffix("+"))[0] is not None
+        for token in _EXPRESSION_TOKEN_RE.findall(cased)
+        if not _EXPRESSION_OPERATOR_RE.fullmatch(token)
+    )
+
+
+def classify_license(raw: str | None) -> ClassifiedLicense | None:
+    """Sort *raw* into an SPDX expression, licence text, ``NOASSERTION`` or
+    ``NONE``; ``None`` when it states no licence (absent, blank, ``UNKNOWN``).
+
+    The words ``UNKNOWN``, ``NOASSERTION`` and ``NONE`` match in any case. A
+    value that parses as an expression of known ids is recorded in its
+    canonical form (``mit and apache-2.0`` -> ``Apache-2.0 AND MIT``). One
+    that is valid SPDX but outside the parser's grammar (``GPL-2.0+``,
+    ``WITH AdditionRef-...``) is kept as written with its operators
+    upper-cased. Anything else is text; text that has an operator or
+    parenthesis and a known id, so looks like a broken expression, also
+    gets one ``WARNING:`` per value per process.
+    """
+    stripped = (raw or "").strip()
+    word = stripped.upper()
+    if not stripped or word == "UNKNOWN":
+        return None
+    if word in ("NOASSERTION", "NONE"):
+        return ClassifiedLicense(
+            "noassertion" if word == "NOASSERTION" else "none", word, raw or ""
+        )
+    if "\n" in stripped or len(stripped) > _MAX_EXPRESSION_LENGTH:
+        return ClassifiedLicense("text", raw or "", raw or "")
+    cased = _SPDX_OPERATOR_CASING_RE.sub(lambda m: m.group(1).upper(), stripped)
+    canonical, reason = _strict_parse(cased)
+    if canonical is not None:
+        return ClassifiedLicense("expression", canonical, raw or "")
+    gapless = _ADDITION_REF_RE.sub(rf"\1{_PLACEHOLDER_EXCEPTION}", cased)
+    gapless = _OR_LATER_RE.sub(_strip_or_later, gapless)
+    if gapless != cased and _strict_parse(gapless)[0] is not None:
+        return ClassifiedLicense("expression", cased, raw or "")
+    if _looks_like_expression(cased):
+        warn_once(_logger, stripped, _NOT_AN_EXPRESSION_MESSAGE, stripped, reason)
+    return ClassifiedLicense("text", raw or "", raw or "")
 
 
 def tag_license_normalization(provenance: str, raw: str, normalized: str) -> str:
