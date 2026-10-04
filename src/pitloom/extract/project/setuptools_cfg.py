@@ -17,9 +17,9 @@ import re
 from pathlib import Path
 from typing import Any
 
-from pitloom.core._config_keys import KNOWN_KEYS
 from pitloom.core.config import (
     _MOVED_CREATION_KEYS,
+    KNOWN_KEYS,
     PitloomConfig,
     parse_pitloom_config,
 )
@@ -49,23 +49,32 @@ def _section_dict(cfg: configparser.ConfigParser, section: str) -> dict[str, str
     return dict(cfg.items(section)) if cfg.has_section(section) else {}
 
 
-#: ``setup.cfg`` spellings of Pitloom keys, folded into others on reading.
-_CFG_ONLY_KEYS = frozenset(
-    {"tool", "fragments"}
+#: ``setup.cfg`` spellings of Pitloom keys, folded into others on reading,
+#: by the section that reads them.
+_CREATION_CFG_KEYS = frozenset(
+    {"tool"}
     | {f"creator{sep}{part}" for sep in "-_" for part in ("name", "type", "email")}
 )
+_CFG_ONLY_KEYS: dict[str, frozenset[str]] = {
+    "": _CREATION_CFG_KEYS | {"fragments"},
+    "creation": _CREATION_CFG_KEYS,
+}
 
 
 def _pitloom_section(cfg: configparser.ConfigParser, section: str) -> dict[str, str]:
-    """A ``[tool:pitloom...]`` section's items, less any key that only
-    ``[DEFAULT]`` gives it and no reader takes: ``configparser`` merges
-    ``[DEFAULT]`` into every section (so ``%(here)s`` interpolates), but such
-    a key is not the user's Pitloom setting, and must not warn as unknown.
-    A ``[DEFAULT]`` value of a key a reader takes is still inherited."""
+    """A ``[tool:pitloom...]`` section's items. A ``[DEFAULT]`` key (merged
+    in by ``configparser``, e.g. for ``%(here)s``) is kept only when the
+    section reads it, so it never warns as unknown."""
     table = section.removeprefix("tool:pitloom").removeprefix(":")
-    takes = KNOWN_KEYS.get(table, frozenset())
-    if table in ("", "creation"):  # the only sections that read these
-        takes |= _CFG_ONLY_KEYS
+    takes = KNOWN_KEYS.get(table, frozenset()) | _CFG_ONLY_KEYS.get(table, frozenset())
+    return _own_items(cfg, section, takes)
+
+
+def _own_items(
+    cfg: configparser.ConfigParser, section: str, takes: frozenset[str] = frozenset()
+) -> dict[str, str]:
+    """*section*'s items, keeping a ``[DEFAULT]``-inherited one only when its
+    key is in *takes*."""
     return {
         key: value
         for key, value in _section_dict(cfg, section).items()
@@ -79,16 +88,9 @@ def _section_declares_key(
     """Return whether *section* itself declares *key*, ignoring any value
     only inherited from ``[DEFAULT]``.
 
-    ``key in cfg[section]``/``cfg.items(section)`` both merge in
-    ``[DEFAULT]`` by design (real, intended value-resolution behaviour) --
-    but that makes them unusable for "was this explicitly declared here"
-    provenance-presence checks: a ``[DEFAULT]`` value shared across
-    sections would make every section's container field look explicitly
-    (and emptily) declared, even one that never mentions the key at all.
-    ``cfg._sections`` is the one place holding each section's own keys
-    with no ``[DEFAULT]`` merge -- an accepted, stable use of
-    :mod:`configparser`'s implementation, since the public API has no
-    equivalent "this section's own keys only" accessor.
+    ``cfg.items(section)`` merges in ``[DEFAULT]``, so a shared value would
+    make every section look as if it declared the key. ``cfg._sections``
+    holds each section's own keys; the public API has no such accessor.
     """
     # pylint: disable-next=protected-access
     sections: dict[str, dict[str, str]] = cfg._sections  # type: ignore[attr-defined]
@@ -435,7 +437,8 @@ def _populate_sub_sections_from_cfg(
     content_type_raw = _pitloom_section(cfg, "tool:pitloom:content-type")
     if content_type_raw:
         ct = parse_sub_section("content-type", content_type_raw)
-        override_raw = _section_dict(cfg, "tool:pitloom:content-type:override")
+        # Every key is a pattern: none comes from [DEFAULT].
+        override_raw = _own_items(cfg, "tool:pitloom:content-type:override")
         if override_raw:
             ct["override"] = [
                 {"pattern": pat, "content-type": ctype}

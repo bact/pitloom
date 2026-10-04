@@ -136,18 +136,19 @@ def _settle_embed_options(
             return None
         valid = require_max_source_metadata_bytes(value)  # even if inert
         if "max_source_metadata_bytes" in INERT[kind]:
-            return None  # an inert cap warned above; no second warning
+            return None  # an inert cap is warned about by settle()
         return valid
 
+    # The cap is checked first: an invalid one is an error, not an inert warning.
     if file_cache is None:
-        settle()
         cap = normalise()
+        settle()
     else:
-        file_cache.once(("inert", kind, given_names), settle)
         cap = file_cache.once(
             ("max_source_metadata_bytes", overrides.max_source_metadata_bytes),
             normalise,
         )
+        file_cache.once(("inert", kind, given_names), settle)
     return dataclasses.replace(overrides, max_source_metadata_bytes=cap)
 
 

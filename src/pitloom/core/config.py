@@ -13,6 +13,7 @@ See Also:
 
 from __future__ import annotations
 
+from pitloom.core._config_keys import KNOWN_KEYS
 from pitloom.core._config_legacy import (
     _MOVED_CREATION_KEYS,
     _MOVED_CREATION_KEYS_LIST_VALID,
@@ -69,6 +70,7 @@ __all__ = [
     "EnrichConfig",
     "FragmentConfig",
     "INT_KEYS",
+    "KNOWN_KEYS",
     "PitloomConfig",
     "ProvenanceConfig",
     "Tool",

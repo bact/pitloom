@@ -424,3 +424,30 @@ def test_setup_cfg_default_cfg_only_key_reaches_no_other_section(
     assert not config.tools  # no top or creation section to inherit it
     text += "[tool:pitloom:creation]\ncomment = c\n"
     assert [t.name for t in setup_cfg_pitloom_config(text).tools or []] == ["D"]
+
+
+def test_setup_cfg_default_fragments_stays_in_the_top_section(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """``[DEFAULT] fragments`` is read by ``[tool:pitloom]`` only; the
+    creation section neither inherits it nor warns about it."""
+    text = (
+        "[DEFAULT]\nfragments = a.json\n[metadata]\nname = d\n"
+        "[tool:pitloom]\noffline = true\n[tool:pitloom:creation]\ncomment = c\n"
+    )
+    with caplog.at_level(logging.WARNING):
+        config = setup_cfg_pitloom_config(text)
+    assert not _warnings(caplog)
+    assert [f.path for f in config.fragments] == ["a.json"]
+
+
+def test_setup_cfg_default_key_is_no_content_type_override() -> None:
+    """Every key of the override section is a pattern, so a ``[DEFAULT]``
+    key (``here`` for ``%(here)s``) must not become one."""
+    text = (
+        "[DEFAULT]\nhere = /p\n[metadata]\nname = d\n"
+        "[tool:pitloom:content-type]\nenabled = true\n"
+        "[tool:pitloom:content-type:override]\n*.bin = application/x-foo\n"
+    )
+    config = setup_cfg_pitloom_config(text)
+    assert [o.pattern for o in config.content_type_overrides] == ["*.bin"]

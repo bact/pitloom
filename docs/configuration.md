@@ -103,8 +103,10 @@ table and the key, and either the table that does know it
 per file per run, on every source: `pyproject.toml`, `setup.cfg`, an
 sdist's own config (named `archive:member`), `--config` and the Hatchling
 hook. It is given before the values are checked, so a misspelt required key
-shows its hint ahead of the error. A `setup.cfg` `[DEFAULT]` key is checked
-and reported in each section that reads it. Not checked: a misspelt `[tool]`
+shows its hint ahead of the error. A `setup.cfg` `[DEFAULT]` key is not
+checked: a `[tool:pitloom...]` section inherits it only when the key is one
+that section reads, and `[tool:pitloom:content-type:override]` never does.
+Not checked: a misspelt `[tool]`
 table (`[tool.pitlom]`), `setup.cfg` sub-section (`[tool:pitloom:provenence]`)
 and the hook's own `[tool.hatch.build.hooks.pitloom]` options.
 

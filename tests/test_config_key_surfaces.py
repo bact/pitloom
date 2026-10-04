@@ -409,10 +409,16 @@ _CALLS = [
 @pytest.mark.parametrize("value", [-1, 1, 7, 4096.0, True])
 @pytest.mark.parametrize("call", _CALLS)
 def test_library_refuses_an_invalid_budget(
-    call: str, value: Any, tmp_path: Path
+    call: str, value: Any, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    with pytest.raises(ValueError, match="must be (0 \\(unlimited\\)|an integer)"):
-        _library_calls(tmp_path)[call](value)
+    """An error, with no warning ahead of it (not even the inert one)."""
+    calls = _library_calls(tmp_path)
+    with (
+        caplog.at_level(logging.WARNING),
+        pytest.raises(ValueError, match="must be (0 \\(unlimited\\)|an integer)"),
+    ):
+        calls[call](value)
+    assert not logged_warnings(caplog)
 
 
 def test_a_library_config_names_itself_in_the_error() -> None:
