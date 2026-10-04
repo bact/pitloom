@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import logging
-import time
 
 import pytest
 
@@ -200,12 +199,16 @@ def test_warning_is_one_line_once_per_value_and_escapes_controls(
     assert "\x1b" not in messages[0]
 
 
-def test_long_text_is_not_parsed() -> None:
-    """A 48 KB body is classified without running the expression parser."""
-    body = "MIT and Apache-2.0 " * 2500
-    start = time.monotonic()
+@pytest.mark.parametrize("body", ["MIT and Apache-2.0 " * 2500, "MIT\nOR Apache-2.0"])
+def test_long_or_multi_line_text_is_not_parsed(
+    body: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A 48 KB body (seconds in the parser) or a multi-line value is text
+    without the expression parser ever being called."""
+    calls: list[str] = []
+    monkeypatch.setattr(_license_classify, "parse_spdx_expression", calls.append)
     got = classify_license(body)
-    assert time.monotonic() - start < 1.0
+    assert not calls
     assert got is not None
     assert got.kind == "text"
 

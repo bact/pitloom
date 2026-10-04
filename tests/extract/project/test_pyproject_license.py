@@ -340,7 +340,7 @@ def test_extract_and_detect_license_tags_a_method_only_for_a_detection(
     expected: tuple[str, str | None],
 ) -> None:
     with tempfile.TemporaryDirectory() as d:
-        with patch(_DETECT, return_value=detected) as detect:
+        with patch(_DETECT, autospec=True, return_value=detected) as detect:
             got = _extract_and_detect_license(_std(license_obj), Path(d))
     assert got == expected
     # The hint's own source is passed on, for a detection to name it.

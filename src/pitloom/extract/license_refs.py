@@ -72,7 +72,9 @@ def classifier_expression(names: Sequence[str]) -> str:
 def classifier_terms(expression: str) -> list[tuple[str, str]] | None:
     """``(LicenseRef id, licence name)`` per term when *expression* is exactly
     what :func:`classifier_expression` writes for two or more names, else
-    ``None`` (any other expression, a user's own references included)."""
+    ``None``. A user's own expression spelled exactly in that form is read
+    as one; any other spelling, other ``LicenseRef-`` terms included, is
+    not."""
     terms = expression.split(_AND)
     if len(terms) < 2:
         return None

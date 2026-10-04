@@ -15,11 +15,12 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3 import _licensing_profiles
+from pitloom.assemble.spdx3 import _licensing_profiles, deps_installed
 from pitloom.assemble.spdx3._licensing_profiles import (
     apply_licensing_profiles,
     licensing_profiles,
@@ -32,6 +33,8 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+
+from .conftest import _FakeMetadata
 
 _P = spdx3.ProfileIdentifierType
 _NO_ASSERTION_LICENSE = (
@@ -155,17 +158,23 @@ def _model(license_id: str | None) -> Spdx3JsonExporter:
     return build_model(model, CreationMetadata())
 
 
-def _deployed(with_package: bool) -> Spdx3JsonExporter:
+def _deployed(licence: str | None) -> Spdx3JsonExporter:
+    """``loom env`` with one package whose installed metadata states
+    *licence*, or with none when *licence* is ``""``; never the real env."""
     doc = DocumentModel(
         project=ProjectMetadata(name="env", version="0.0.0"),
         creation_metadata=CreationMetadata(),
     )
     tree: list[dict[str, Any]] = (
         [{"package": {"key": "x", "package_name": "x", "installed_version": "1"}}]
-        if with_package
+        if licence != ""
         else []
     )
-    return build_deployed(doc, tree, offline=True)
+    fields = {"Version": "1"} | ({"License": licence} if licence else {})
+    with patch.object(
+        deps_installed, "get_pkg_metadata", lambda _name: _FakeMetadata(fields)
+    ):
+        return build_deployed(doc, tree, offline=True)
 
 
 def _merged(tmp_path: Path, target: str | None) -> Spdx3JsonExporter:
@@ -246,8 +255,9 @@ _SURFACES: list[tuple[str, Callable[[Path], Spdx3JsonExporter], list[str]]] = [
     ("model-unknown", lambda _: _model("unknown"), _BOTH),
     ("model-none-licence", lambda _: _model("NONE"), _BOTH),
     ("model-none", lambda _: _model(None), []),
-    ("deployed-empty", lambda _: _deployed(False), []),
-    ("deployed-package", lambda _: _deployed(True), []),
+    ("deployed-empty", lambda _: _deployed(""), []),
+    ("deployed-unlicensed", lambda _: _deployed(None), []),
+    ("deployed-package", lambda _: _deployed("MIT"), [_P.simpleLicensing]),
     ("merge-none", lambda p: _merged(p, None), []),
     (
         "merge-noassertion-individual",

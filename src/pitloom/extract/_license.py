@@ -32,10 +32,10 @@ from licenseid import AggregatedLicenseMatcher
 
 from pitloom.extract._license_classify import (
     _PY_SPDX_LICENSE_VERSION,
-    _SPDX_OPERATOR_CASING_RE,
     ClassifiedLicense,
     classify_license,
     is_listed_name,
+    same_licence,
     tag_deprecated_license_ids,
     tag_license_normalization,
 )
@@ -64,7 +64,6 @@ __all__ = [
     "_PY_SPDX_LICENSE_VERSION",
     "_SPDX_LICENSE_EXPR_KEYWORDS_RE",
     "_SPDX_LICENSE_ID_RE",
-    "_SPDX_OPERATOR_CASING_RE",
     "_looks_like_spdx_license_expression",
     "_looks_like_spdx_license_id",
     "_read_license_from_citation_cff",
@@ -79,6 +78,7 @@ __all__ = [
     "detect_license_from_text",
     "find_license_files",
     "is_listed_name",
+    "same_licence",
     "resolve_license_concluded",
     "tag_deprecated_license_ids",
     "tag_license_normalization",

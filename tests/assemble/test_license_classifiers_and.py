@@ -15,6 +15,7 @@ cross-surface parity table) and :mod:`pitloom.extract.license_refs`.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from collections.abc import Callable
 from importlib.metadata import PackageNotFoundError
@@ -36,7 +37,7 @@ from pitloom.core.models import _clear_doc_counters, compute_doc_uuid
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract.license_refs import classifier_expression, classifier_terms
-from tests._license_graph import graph_of, license_targets
+from tests._license_graph import graph_of, license_targets, two_packages
 from tests._network import assert_spdx3_validate_ok
 
 from .conftest import _FakeMetadata, _make_ci
@@ -98,17 +99,43 @@ def _dependency(installed: dict[str, Any] | None, pypi: dict[str, Any]) -> Any:
     return graph_of(exporter)
 
 
-_SOURCES: dict[str, Callable[[], Any]] = {
-    "dependency-installed": lambda: _dependency(
-        {"Version": "1.0", "classifiers": [_MIT, _APACHE]}, {}
+_SOURCES: dict[str, Callable[[list[str]], Any]] = {
+    "dependency-installed": lambda found: _dependency(
+        {"Version": "1.0", "classifiers": found}, {}
     ),
-    "dependency-pypi": lambda: _dependency(None, {"classifiers": [_APACHE, _MIT]}),
+    "dependency-pypi": lambda found: _dependency(None, {"classifiers": found}),
 }
+_PARENT = "License :: OSI Approved"
 
 
 @pytest.mark.parametrize("source", list(_SOURCES))
-def test_a_dependencys_classifiers_are_the_same_and(source: str) -> None:
-    assert license_targets(_SOURCES[source]()) == [_AND]
+@pytest.mark.parametrize(
+    ("found", "expected", "warnings"),
+    [
+        ([_MIT, _APACHE], _AND, 1),
+        ([_APACHE, _MIT, _APACHE], _AND, 1),
+        ([_PARENT, _MIT], "MIT License", 0),  # a trove parent is a category
+    ],
+)
+def test_a_dependencys_classifiers_are_the_same_and(
+    source: str,
+    found: list[str],
+    expected: str,
+    warnings: int,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        assert license_targets(_SOURCES[source](found)) == [expected]
+    assert len(caplog.records) == warnings
+
+
+def test_one_warning_per_set_of_classifiers(caplog: pytest.LogCaptureFixture) -> None:
+    """The same set warns once per process; another set warns again."""
+    other = "License :: OSI Approved :: BSD License"
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        for found in ([_MIT, _APACHE], [_APACHE, _MIT], [_MIT, other]):
+            _SOURCES["dependency-installed"](found)
+    assert len(caplog.records) == 2
 
 
 def test_the_and_maps_each_term_to_its_names_text_element() -> None:
@@ -126,9 +153,29 @@ def test_the_and_maps_each_term_to_its_names_text_element() -> None:
     assert set(mapped.values()) == {"MIT License", "Apache Software License"}
 
 
-def test_a_name_text_is_shared_with_a_single_classifier_text(tmp_path: Path) -> None:
-    """The member text element is the one a lone ``MIT License`` classifier
-    elsewhere in the document records: one element per text."""
+@pytest.mark.parametrize("order", [["MIT License", _AND], [_AND, "MIT License"]])
+def test_a_name_text_is_shared_with_a_single_classifier_text(order: list[str]) -> None:
+    """The member text element is the one a lone ``MIT License`` elsewhere in
+    the document records, whichever comes first: one element per text."""
+    graph = two_packages(order)
+    texts = {
+        e["simplelicensing_licenseText"]: e["spdxId"]
+        for e in graph
+        if e["type"] == "simplelicensing_SimpleLicensingText"
+    }
+    assert len(texts) == len(
+        [e for e in graph if e["type"] == "simplelicensing_SimpleLicensingText"]
+    )
+    assert sorted(texts) == ["Apache Software License", "MIT License"]
+    (expression,) = [
+        e for e in graph if e["type"] == "simplelicensing_LicenseExpression"
+    ]
+    mapped = {e["value"] for e in expression["simplelicensing_customIdToUri"]}
+    assert mapped == set(texts.values())
+
+
+def test_a_project_with_several_classifiers(tmp_path: Path) -> None:
+    """End to end: the AND, a text element per name, simpleLicensing."""
     (tmp_path / "pyproject.toml").write_text(
         '[project]\nname = "demo"\nversion = "1.0"\n'
         f"classifiers = {json.dumps([_MIT, _APACHE])}\n",

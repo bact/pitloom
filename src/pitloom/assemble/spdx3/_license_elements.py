@@ -18,7 +18,6 @@ See also: :mod:`pitloom.assemble.spdx3.deps_license` (relationships).
 
 from __future__ import annotations
 
-import re
 from typing import NamedTuple
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -35,10 +34,15 @@ from pitloom.extract._license import (
 )
 from pitloom.extract.license_refs import classifier_terms
 
-#: Blank space around a licence text, serialisation not content: leading
-#: blank lines, spaces and tabs (a Core Metadata header loses them) and the
-#: final line breaks (a file or a TOML string ends in them).
-_TEXT_ENDS_RE = re.compile(r"\A[ \t\r\n]+|(?:\r\n|\n|\r)+\Z")
+
+def _without_blank_ends(text: str) -> str:
+    """*text* without its blank ends, serialisation not content:
+    leading blank lines, spaces and tabs (a Core Metadata header loses them)
+    and the final line breaks (a file or a TOML string ends in them). String
+    methods, not a regular expression: an alternation anchored at the end
+    is quadratic on a long run of line breaks inside the text."""
+    return text.lstrip(" \t\r\n").rstrip("\r\n")
+
 
 #: Longest ``name`` kept as is; longer is cut to fit with ``...``.
 _MAX_NAME_LENGTH = 60
@@ -194,14 +198,14 @@ def get_or_create_license_element(
     apart). Leading blank space and the final line breaks are dropped
     first, here only, so every surface records one text (a file or a TOML
     string keeps them, a wheel's ``METADATA`` drops them); the rest is kept
-    as written. The dedup key is
-    that text stripped (the classifier's value), so ``" Foo"`` and ``"Foo"``
+    as written. The dedup key is that text stripped (the classifier's
+    value), so ``"Foo "`` and ``"Foo"``, differing only in trailing spaces,
     share the first-seen element. ``None`` when *license_id* states no
     licence (blank).
     ``NOASSERTION``, ``NONE`` and ``UNKNOWN`` give the named individual, never
     an element; the relationship then carries the source's provenance.
     """
-    license_id = _TEXT_ENDS_RE.sub("", license_id)
+    license_id = _without_blank_ends(license_id)
     terms = classifier_terms(license_id.strip())
     if terms:
         return _classifier_and(

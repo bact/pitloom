@@ -305,6 +305,16 @@ def is_listed_name(name: str, license_id: str) -> bool:
     return bool(listed) and name.strip().casefold() == str(listed["name"]).casefold()
 
 
+def same_licence(first: str, second: str) -> bool:
+    """Whether two classified licence values name one licence: equal, or one
+    is the SPDX List name of the other's id (``MIT License`` and ``MIT``)."""
+    return (
+        first == second
+        or is_listed_name(first, second)
+        or is_listed_name(second, first)
+    )
+
+
 def tag_license_normalization(
     provenance: str, raw: str, normalized: str, *, normalizer: bool = True
 ) -> str:

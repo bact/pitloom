@@ -80,14 +80,16 @@ Details that were decided, not obvious:
   not contain it, and is restored by a bounded match: a user's own
   `LicenseRef-pitloom-gap-000` was once dropped or merged into a neighbour by
   a plain substring replace.
-- **Text as written, less the blank space around it.** Leading blank
-  lines, spaces and tabs, and every final `\n`, `\r\n` or `\r`, are
+- **Text as written, less leading blank space and final line breaks.**
+  Leading blank lines, spaces and tabs, and every final `\n`, `\r\n` or `\r`, are
   serialisation: a file or a TOML string keeps them, a wheel's `METADATA`
   drops them (the email parser strips a header value's leading blanks, the
   writer its final breaks). Keeping one final break (the first rule) still
   left `"...\n\n"` differing between a directory and its wheel, and
   leading spaces did the same. They are dropped once, in the element
-  builder (`_TEXT_ENDS_RE`), before classification, and readers
+  builder (`_without_blank_ends`: string methods, as an end-anchored
+  regular expression was quadratic on a long inner run of line breaks),
+  before classification, and readers
   no longer strip a licence value themselves (PyPI, `setup(license=...)`
   and a PEP 639 string were stripped at read time), so no surface can drop
   more than another. Inner text stays as written. The dedup key is the
@@ -144,6 +146,10 @@ candidates in order, so `License-Expression: UNKNOWN` then
 Provenance names the field: `project.classifiers`, `metadata.classifiers`,
 `setup(classifiers=...)`, or `Field: Classifier` added to a METADATA label.
 
+A trove parent (`License :: OSI Approved`) is dropped when another
+classifier in the same set extends it by `::` (`_licence_classifiers`): it
+adds nothing the child does not say. Alone it is kept, as a name.
+
 Several licence classifiers are one `LicenseExpression`: the AND of
 `LicenseRef-pitloom-classifier-<name>` terms, sorted by classifier and
 without repeats, so Hatchling sorting them and the source not doing so give
@@ -164,6 +170,14 @@ for one name. A `customIdToUri` target in the document's own namespace
 that names no element is a dangling reference at fragment merge.
 A Poetry project's classifiers are not read: `poetry-core` writes the
 licence classifier from `license` itself.
+
+`setup.cfg`'s `file:` directive (`extract/project/_setup_cfg_directives.py`)
+reads a comma-separated list as setuptools' `read_files` does: each path
+stripped, a missing one skipped, the texts joined with a newline. An
+existing file that cannot be read (`OSError`, `UnicodeDecodeError`) is left
+out with one `WARNING:` naming the file and the field
+(`metadata.classifiers`, `metadata.long_description`); it no longer ends the
+read.
 
 `license = "UNKNOWN"` with a `License ::` classifier fails
 `pyproject-metadata`'s PEP 639 check; the reader drops the placeholder
@@ -263,18 +277,21 @@ package's cascade is its field, then its classifiers (above).
 ## Two-candidate mode and conflicts
 
 The main package has a declared value (`license_name`) and an independently
-detected one (`license_concluded`). Both go through the same classification,
-so spelling differences (`mit` vs `MIT`, `GPL-2.0+` vs `GPL-2.0-or-later`,
-`MIT AND MIT` vs `MIT`) are one element and no conflict. Both relationships
-are always built, each for its own role. A G2 `conflict` Annotation is added
-when the values differ, except that a licence name equal to the SPDX List
-name of the other's listed id (a classifier's `MIT License` against a
-detected `MIT`; `is_listed_name`, case-insensitive) is the same licence, and
-a `NoAssertionLicense` candidate never conflicts (it only says "unknown";
-the real licence is the only one with content). `NONE` against a real
-licence is a conflict. Rejected: dropping the NoAssertion relationship when
-the other side is real (it loses that source's statement and provenance for
-no gain).
+detected one (`license_concluded`). Both go through the same classification, so
+spelling differences (`mit` vs `MIT`, `GPL-2.0+` vs `GPL-2.0-or-later`, `MIT AND
+MIT` vs `MIT`) are one element and no conflict. Both relationships are always
+built, each for its own role. A G2 `conflict` Annotation is added when the
+values differ, except that a licence name equal to the SPDX List name of the
+other's listed id (a classifier's `MIT License` against a detected `MIT`;
+`is_listed_name`, case-insensitive) is the same licence, and a
+`NoAssertionLicense` candidate never conflicts (it only says "unknown"; the real
+licence is the only one with content). `NONE` against a real licence is a
+conflict. One rule, `same_licence` (`extract/_license_classify.py`), decides
+"same licence" here and when a static manifest is reconciled with installed
+metadata (`_installed_reconcile.py`), where a weak static value also gives way:
+a real installed licence replaces it, with its provenance. Rejected: dropping
+the NoAssertion relationship when the other side is real (it loses that source's
+statement and provenance for no gain).
 
 ## Hugging Face `license: unknown`
 
@@ -329,7 +346,7 @@ Cross-surface table (`tests/assemble/test_license_elements_surfaces.py`:
 (`test_license_individuals.py`), classifier table, table-vs-bindings
 (`tests/core/test_license_individuals.py`), classifier parity across eight
 surfaces (`test_license_elements_classifier.py`), several classifiers
-(`test_license_classifiers_and.py`), blank space around a text on nine surfaces
+(`test_license_classifiers_and.py`), a text's blank ends on nine surfaces
 (`test_license_text_line_breaks.py`), declared vs concluded on the real
 surfaces, the hook included (`test_license_declared_sources.py`) and the
 four core-metadata readers end to end

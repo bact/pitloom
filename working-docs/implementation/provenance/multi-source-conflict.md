@@ -54,11 +54,12 @@ equivalent-yet-differently-spelled compound expressions too (`"MIT AND
 MIT"` vs. `"MIT"`; `"MIT OR Apache-2.0"` vs. `"Apache-2.0 OR MIT"`) — so
 both candidate values are parsed, deduplicated, and canonically reordered
 before both the comparison and the license-element lookup/creation. A
-value that does not parse is text, compared as written less the blank space
-around it. Two values are the same licence when equal, or when one is the
-SPDX List name of the other's listed id (`is_listed_name`, any case: a
-classifier's `MIT License` against a detected `MIT`). A `NoAssertionLicense`
-candidate never conflicts; `NONE` against a real licence does (detail:
+value that does not parse is text, compared as written less its leading
+blank space and final line breaks. Two values are the same licence when
+equal, or when one is the SPDX List name of the other's listed id
+(`is_listed_name`, any case: a classifier's `MIT License` against a
+detected `MIT`). A `NoAssertionLicense` candidate never conflicts; `NONE`
+against a real licence does (detail:
 [license-typing.md](../license-typing.md#two-candidate-mode-and-conflicts)).
 Full agreement emits no Annotation — both native relationships
 still get built, just pointing at the same license element, and there's nothing
@@ -112,8 +113,8 @@ see `cli-test-coverage-roadmap.md`) assert the paths agree on the same
 project. The
 same review also found the Hatchling and CLI paths each hand-listed their
 own `[tool.poetry]`-gap-fill field merge (`_merge_with_poetry` in
-`project/pyproject.py`, `merge_metadata` in `project/setuptools.py`); both were replaced
-by [`core/project.py`](../../../src/pitloom/core/project.py)'s
+`project/pyproject.py`, `merge_metadata` in `project/setuptools.py`); both
+were replaced by [`core/project.py`](../../../src/pitloom/core/project.py)'s
 `merge_project_metadata`, which iterates `dataclasses.fields()` instead of
 naming every field by hand, so a newly added `ProjectMetadata` field
 merges automatically without a call site needing to be updated (see its
@@ -130,8 +131,9 @@ comparison and the license-element lookup/creation, then both
 conflict Annotation is added on disagreement.
 
 `normalize_license_expression` (as first built, in `_license.py`; its
-role is now `classify_license`, see [license-typing.md](../license-typing.md)) is the new,
-stronger canonicalization step: operator casing (`AND`/`OR`/`WITH`/`NOT`)
+role is now `classify_license`, see
+[license-typing.md](../license-typing.md)) is the new, stronger
+canonicalization step: operator casing (`AND`/`OR`/`WITH`/`NOT`)
 is normalized first — but only when the operator stands alone as its own
 whitespace/paren-delimited token, never when it's hyphen-glued into an
 identifier (`GPL-2.0-or-later`, a custom `LicenseRef-my-or-license`) —

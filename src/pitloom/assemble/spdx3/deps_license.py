@@ -31,7 +31,7 @@ from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.extract._license import classify_license, is_listed_name
+from pitloom.extract._license import classify_license, same_licence
 
 
 # Shared document context plus the element; see build_license_elements.
@@ -92,16 +92,6 @@ def _build_license_relationship(
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
-def _same_licence(first: str, second: str) -> bool:
-    """Whether two recorded licence values name one licence: equal, or one
-    is the SPDX List name of the other's id (``MIT License`` and ``MIT``)."""
-    return (
-        first == second
-        or is_listed_name(first, second)
-        or is_listed_name(second, first)
-    )
-
-
 def build_license_elements(
     license_id: str,
     package_spdx_id: str,
@@ -227,7 +217,7 @@ def build_license_elements(
         declared is not None
         and concluded is not None
         and not (declared.is_noassertion or concluded.is_noassertion)
-        and not _same_licence(declared.value, concluded.value)
+        and not same_licence(declared.value, concluded.value)
     ):
         candidates: list[ConflictCandidate] = [
             {

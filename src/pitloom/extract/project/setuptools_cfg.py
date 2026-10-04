@@ -5,15 +5,14 @@
 
 """Extractor for Python project metadata and Pitloom config from setup.cfg.
 
-See also: :mod:`pitloom.extract.project.setuptools_py` (AST parsing for setup.py)
+See also: :mod:`pitloom.extract.project.setuptools_py` (AST parsing for setup.py),
+:mod:`pitloom.extract.project._setup_cfg_directives` (``file:``/``attr:``)
 and :mod:`pitloom.extract.project.setuptools` (facade).
 """
 
 from __future__ import annotations
 
-import ast
 import configparser
-import re
 from pathlib import Path
 from typing import Any
 
@@ -25,14 +24,15 @@ from pitloom.core.config import (
 )
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._core_metadata import license_or_classifier
+from pitloom.extract.project._setup_cfg_directives import (
+    _resolve_cfg_file_directive,
+    _resolve_cfg_version,
+)
 from pitloom.extract.project._setup_cfg_values import (
     coerce_cfg_value,
     parse_sub_section,
 )
 from pitloom.logging_config import one_line
-
-# Matches "file: some/path" or "attr: module.attribute"
-_DIRECTIVE_RE = re.compile(r"^(file|attr):\s*(.+)$")
 
 
 class _NoProjectNameError(ValueError):
@@ -98,101 +98,6 @@ def _section_declares_key(
     return key in sections.get(section, {})
 
 
-def _resolve_cfg_version_file_directive(
-    value: str, project_dir: Path
-) -> tuple[str | None, str | None]:
-    """Resolve a file: directive for version from setup.cfg."""
-    ver_file = project_dir / value
-    if ver_file.exists():
-        content = ver_file.read_text(encoding="utf-8").strip()
-        if content and "\n" not in content and not content.startswith("#"):
-            return content, f"Source: {value} | Method: file_directive"
-    return None, None
-
-
-def _resolve_cfg_attr_directive(
-    value: str, project_dir: Path
-) -> tuple[str | None, str | None]:
-    """Resolve an attr: directive from setup.cfg."""
-    parts = value.rsplit(".", 1)
-    if len(parts) != 2:
-        return None, None
-    module_path, attr_name = parts
-    module_rel = module_path.replace(".", "/")
-    candidates = [
-        project_dir / (module_rel + ".py"),
-        project_dir / module_rel / "__init__.py",
-        project_dir / "src" / (module_rel + ".py"),
-        project_dir / "src" / module_rel / "__init__.py",
-    ]
-    for module_file in candidates:
-        if module_file.exists():
-            version = _read_version_attr(module_file, attr_name)
-            if version:
-                rel = module_file.relative_to(project_dir).as_posix()
-                return version, f"Source: {rel} | Method: attr_directive"
-    return None, None
-
-
-def _resolve_cfg_version(
-    raw: str,
-    project_dir: Path,
-) -> tuple[str | None, str | None]:
-    """Resolve a version string from ``setup.cfg``, handling directives.
-
-    Supports:
-    * Literal values: ``version = 1.2.3``
-    * File directive: ``version = file: VERSION``
-    * Attr directive (best-effort): ``version = attr: package.__version__``
-    """
-    if not raw:
-        return None, None
-
-    m = _DIRECTIVE_RE.match(raw)
-    if not m:
-        return raw, "Source: setup.cfg | Field: metadata.version"
-
-    directive, value = m.group(1), m.group(2).strip()
-    if directive == "file":
-        return _resolve_cfg_version_file_directive(value, project_dir)
-    # _DIRECTIVE_RE only captures "file" or "attr" in this group, so
-    # "attr" is the only remaining case.
-    return _resolve_cfg_attr_directive(value, project_dir)
-
-
-def _resolve_cfg_file_directive(raw: str, project_dir: Path) -> str | None:
-    """Resolve a ``file: path`` directive or return the raw string unchanged."""
-    if not raw:
-        return None
-    m = _DIRECTIVE_RE.match(raw)
-    if m and m.group(1) == "file":
-        file_path = project_dir / m.group(2).strip()
-        if file_path.exists():
-            return file_path.read_text(encoding="utf-8")
-        return m.group(2).strip()
-    return raw or None
-
-
-def _read_version_attr(file_path: Path, attr_name: str) -> str | None:
-    """Extract a named string attribute from a Python source file via AST."""
-    try:
-        source = file_path.read_text(encoding="utf-8")
-        tree = ast.parse(source, filename=str(file_path))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assign) and len(node.targets) == 1:
-                target = node.targets[0]
-                if (
-                    isinstance(target, ast.Name)
-                    and target.id == attr_name
-                    and isinstance(node.value, ast.Constant)
-                    and isinstance(node.value.value, str)
-                ):
-                    return node.value.value
-    except (OSError, SyntaxError):
-        pass
-    return None
-
-
 def _parse_cfg_authors(metadata: dict[str, str]) -> list[dict[str, str]]:
     """Combine ``author`` and ``author_email`` into a list of author dicts."""
     author_name = metadata.get("author", "").strip()
@@ -241,7 +146,7 @@ def _resolve_cfg_license(
     classifier (inline or ``file:``) by the rule a wheel and an sdist use
     (:func:`~pitloom.extract._core_metadata.license_or_classifier`)."""
     classifiers = _resolve_cfg_file_directive(
-        metadata.get("classifiers", "").strip(), project_dir
+        metadata.get("classifiers", "").strip(), project_dir, "metadata.classifiers"
     )
     license_name, from_classifier = license_or_classifier(
         metadata.get("license", "").strip() or None,
@@ -299,7 +204,9 @@ def read_setup_cfg(
     ).strip() or None
 
     readme = _resolve_cfg_file_directive(
-        metadata_raw.get("long_description", "").strip(), project_dir
+        metadata_raw.get("long_description", "").strip(),
+        project_dir,
+        "metadata.long_description",
     )
 
     authors = _parse_cfg_authors(metadata_raw)

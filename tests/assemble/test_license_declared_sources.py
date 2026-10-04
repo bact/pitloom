@@ -32,7 +32,8 @@ from pitloom.assemble import (
     generate_wheel_sbom,
 )
 from pitloom.assemble.spdx3 import deps_installed
-from pitloom.assemble.spdx3.document import build, build_deployed
+from pitloom.assemble.spdx3.document import build, build_deployed, build_model
+from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectMetadata
@@ -192,6 +193,7 @@ def test_an_in_package_source_is_declared_when_the_manifest_states_nothing(
         (tmp_path / name).write_text(text, encoding="utf-8")
     with patch(
         "pitloom.extract._license.detect_license_from_text",
+        autospec=True,
         side_effect=lambda text: "MIT" if text == _LICENSE_TEXT else None,
     ):
         graph = _read(surface, tmp_path)
@@ -227,3 +229,23 @@ def test_a_deployed_packages_own_installed_metadata_is_declared() -> None:
     with patch.object(deps_installed, "get_pkg_metadata", lambda _name: fake):
         graph = graph_of(build_deployed(doc, tree, offline=True))
     assert _relationships(graph, "x") == [("hasDeclaredLicense", "MIT")]
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("Source: AI model metadata", "hasDeclaredLicense"),
+        ("Source: PyPI JSON API", "hasConcludedLicense"),  # a third-party record
+    ],
+)
+def test_a_models_licence_relationship_follows_its_source(
+    source: str, expected: str
+) -> None:
+    model = AiModelMetadata(
+        format_info=AiModelFormatInfo(model_format=AiModelFormat.ONNX),
+        name="m",
+        license="MIT",
+    )
+    model.provenance["license"] = source
+    graph = graph_of(build_model(model, CreationMetadata()))
+    assert _relationships(graph, "m") == [(expected, "MIT")]

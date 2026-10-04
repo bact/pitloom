@@ -74,13 +74,13 @@ case.
 ### High-signal test (`provenance.py _is_high_signal`)
 
 A parsed field entry is dropped in minimal mode **only** when it was read
-verbatim from a transparent, re-readable manifest
-(`_TRANSPARENT_SOURCES` = pyproject.toml / hatchling build backend / setup.cfg
-/ setup.py / wheel metadata / sdist PKG-INFO / Hugging Face Hub) with no extraction `method`.
-Everything else is kept: any recorded `method` (inferred/detected/dynamic/
-caller/directive/inference), a non-manifest source (a pipdeptree scan, a
-binary artifact's internal key, a synthesized phantom package), or the raw
-PEP 508 `declared_constraint`.
+verbatim from a transparent, re-readable manifest (`_TRANSPARENT_SOURCES` =
+pyproject.toml / hatchling build backend / setup.cfg / setup.py / wheel metadata
+/ sdist PKG-INFO / Hugging Face Hub) with no extraction `method`. Everything
+else is kept: any recorded `method` (inferred/detected/dynamic/
+caller/directive/inference), a non-manifest source (a pipdeptree scan, a binary
+artifact's internal key, a synthesized phantom package), or the raw PEP 508
+`declared_constraint`.
 
 ### Config (`[tool.pitloom.provenance]`)
 

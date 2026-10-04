@@ -46,8 +46,8 @@ from ..conftest import (
 def test_assembler_ai_model_with_license(
     model_name: str, license_id: str, hf_id: str
 ) -> None:
-    """AI model with a license must produce hasDeclaredLicense and
-    hasConcludedLicense relationships, and simpleLicensing in profileConformance.
+    """AI model with a license (its card's) must produce one
+    hasDeclaredLicense relationship, and simpleLicensing in profileConformance.
 
     Model/license pairs are taken from real Hugging Face Hub data recorded in
     the model zoo (test_extract_huggingface.py, 2026-05-08).

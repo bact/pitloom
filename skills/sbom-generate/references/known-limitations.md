@@ -25,7 +25,8 @@ refusing `ERROR:` names `pyproject.toml`, `setup.cfg` and `setup.py`.
 ## Mixed-ecosystem repos
 
 The SBOM inventories `[project.dependencies]` and what is importable; every
-non-Python dependency leaves no element, no error and no placeholder. Look for non-Python ecosystem files beside `pyproject.toml`.
+non-Python dependency leaves no element, no error and no placeholder. Look for
+non-Python ecosystem files beside `pyproject.toml`.
 
 ## Non-PyPI dependencies
 
@@ -83,15 +84,15 @@ are listed does not depend on file order or installed libraries. `loom model
 FILE`, `loom enrich FILE` and `loom generate FILE` give the same stub and the
 same `WARNING:` with exit 0 for a bound, a missing library and a parse failure
 (the wheel gate, ceiling and budget apply to wheel scans only). A file that is
-not a model is no entry in a scan, and an `ERROR:` (exit 1) for those
-commands: empty, an unknown format, or a header that contradicts the suffix,
-which includes a Git LFS pointer. A scan says `WARNING: ... header is a Git
-LFS pointer; not listed as an AI model`; `loom model` and `loom enrich` (any
-suffix) and `loom generate FILE` (model suffixes only, `.bin` included; a
-`.zip` is read as an sdist and fails as one) say `ERROR: model command
-failed:`, `enrichment fragment generation failed:` or `SBOM generation
-failed:`, then `<path>: header is a Git LFS pointer`. The file was not fetched: run `git lfs
-pull` and regenerate.
+not a model is no entry in a scan, and an `ERROR:` (exit 1) for those commands:
+empty, an unknown format, or a header that contradicts the suffix, which
+includes a Git LFS pointer. A scan says `WARNING: ... header is a Git LFS
+pointer; not listed as an AI model`; `loom model` and `loom enrich` (any suffix)
+and `loom generate FILE` (model suffixes only, `.bin` included; a `.zip` is read
+as an sdist and fails as one) say `ERROR: model command failed:`, `enrichment
+fragment generation failed:` or `SBOM generation failed:`, then `<path>: header
+is a Git LFS pointer`. The file was not fetched: run `git lfs pull` and
+regenerate.
 
 Inputs, outputs, hyperparameters, properties and raw metadata are cut at 1000
 entries (one `WARNING:`; the first 1000 in file order, in key order for
@@ -149,6 +150,11 @@ Use when `unzip -l <wheel>` shows `RECORD.jws` or `RECORD.p7s`, or `embed-wheel`
 ## A licence that looks like a broken expression
 
 Text with an operator or parenthesis and a known id (`MIT OR`, `(MIT`) is
-kept as `SimpleLicensingText`, not dropped, with one stderr line per value:
-`WARNING: LICENSE=... not a valid SPDX license expression (...); recorded as
-license text`. Fix the source value to get a `LicenseExpression`.
+kept as `SimpleLicensingText`, not dropped, with one stderr line per value,
+e.g.:
+
+```text
+WARNING: LICENSE='MIT OR': not a valid SPDX license expression (Unexpected 'OR'); recorded as license text
+```
+
+Fix the source value to get a `LicenseExpression`.

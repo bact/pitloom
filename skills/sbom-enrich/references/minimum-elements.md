@@ -97,8 +97,8 @@ Python; see `sbom-generate`'s "Known limitations"), Distribution and Delivery
 (Pitloom's `"unknown"` placeholder and, for a licence a source itself calls
 unknown, the `NoAssertionLicense` individual -- covered; an unstated licence has
 no relationship, and this workflow's final report should follow the same
-convention for anything the user declines to answer), Frequency (process concern, out of scope), Machine-Processable Data
-(SPDX 3 JSON-LD -- covered).
+convention for anything the user declines to answer), Frequency (process
+concern, out of scope), Machine-Processable Data (SPDX 3 JSON-LD -- covered).
 
 ## G7 SBOM for AI 2026 (additive -- apply only when an `ai_AIPackage` is present)
 

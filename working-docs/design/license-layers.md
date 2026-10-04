@@ -105,9 +105,8 @@ and provenance knowledge; a licence library cannot do it.
 - Field names per format: `project.license`/`project.classifiers`,
   `metadata.license`/`metadata.classifiers`, `setup(license=...)`/
   `setup(classifiers=...)`, Core Metadata headers.
-- Core Metadata folding removed; the leading and trailing blank space
-  around a licence text dropped as serialisation, once, in the element
-  builder.
+- Core Metadata folding removed; a licence text's leading blank space and
+  final line breaks dropped as serialisation, once, in the element builder.
 - Declared (the package's own claim) or concluded (a third-party record)
   by source: `is_license_concluded`.
 - G2 two-candidate model: the manifest's value declared, the directory's
@@ -127,11 +126,8 @@ and provenance knowledge; a licence library cannot do it.
 - Design note, not built: `customIdToUri` targets are checked at merge
   only in the main document's namespace (none without an `SpdxDocument`,
   e.g. `loom merge` output); a fragment's own namespace is not checked.
-- Several `License ::` classifiers: one `LicenseExpression`, the AND of
-  `LicenseRef-pitloom-classifier-<name>` terms (the name reversibly encoded
-  as an idstring; sorted by classifier, no repeats), its `customIdToUri`
-  mapping each term to the `SimpleLicensingText` of the name as given. No
-  mapping to a listed id; AND is assumed, with one `WARNING:`.
+- Several `License ::` classifiers: one AND `LicenseExpression`
+  ([license-typing.md](../implementation/license-typing.md#the-main-packages-classifiers)).
 
 ## Prerequisites: conflict resolution, provenance and taxonomy
 
@@ -181,10 +177,11 @@ the current rule, then what is open):
    candidates ([generic-multi-candidate-fields.md](generic-multi-candidate-fields.md)).
 6. **Equivalence.** Expressions in canonical form (listed id case,
    operators, sorted terms, repeats, redundant parentheses, deprecated
-   `X+`); text by exact value less edge blank space; a name equals a listed
-   id by the stop-gap `is_listed_name` (any case). Open: text case and
-   inner spacing; name and classifier to id (layer 1); `LicenseRef-` case;
-   nested AND/OR spellings that do not converge.
+   `X+`); text by exact value less leading blank space and final line
+   breaks; a name equals a listed id by the stop-gap `is_listed_name` (any
+   case). Open: text case and inner spacing; name and classifier to id
+   (layer 1); `LicenseRef-` case; nested AND/OR spellings that do not
+   converge.
 7. **Provenance per value.** `Source`, `Field`, `Method`, `Tool`,
    `Normalized-From`, `Normalizer`, `Deprecated-License-Id`, on the
    element or the source's relationship
@@ -194,9 +191,9 @@ the current rule, then what is open):
    ([provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md));
    a weak statement a later source replaced is not recorded.
 8. **Determinism and tie-breaks.** Classifiers sorted, canonical term
-   order, edge blank space stripped once in the builder, first-seen
-   spelling of a text, one `WARNING:` per value per process. Open: each
-   tie-break written as a rule; first-seen relies on build order.
+   order, leading blank space and final line breaks stripped once in the
+   builder, first-seen spelling of a text, one `WARNING:` per value per
+   process. Open: each tie-break written as a rule; first-seen relies on build order.
 
 ## Rule for future work
 

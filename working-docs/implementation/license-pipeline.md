@@ -125,7 +125,8 @@ after `pyproject.toml` is parsed, in priority order:
 
 `setuptools_cfg.py` (`license`, then `classifiers`), `setuptools_py.py`
 (`setup(license=...)`, then `setup(classifiers=...)`) and `hatchling.py`
-(the build hook: `core.license`, then `core.classifiers`) use the same rule
+(the build hook: `core.license_expression or core.license`, then
+`core.classifiers`) use the same rule
 and fall back to the directory the same way. `poetry.py` reads `license`
 only: `poetry-core` derives the licence classifier from it. The result is
 `ProjectMetadata.license_name`.
@@ -230,9 +231,9 @@ relationship(s):
 3. Otherwise a `simplelicensing_LicenseExpression`
    (`simplelicensing_licenseExpression`: the canonical form) or a
    `simplelicensing_SimpleLicensingText` (`simplelicensing_licenseText`: the
-   text as written less the blank space around it, first seen; deduplicated on
-   the stripped text) is created, with `name` (first line, at most 60
-   characters). Several `License ::` classifiers give one
+   text as written less leading blank space and final line breaks, first
+   seen; deduplicated on the stripped text) is created, with `name` (first
+   line, at most 60 characters). Several `License ::` classifiers give one
    `LicenseExpression` whose `customIdToUri` maps each
    `LicenseRef-pitloom-classifier-` term to its name's text element. Its
    provenance (`comment`, `"Metadata provenance: license: <provenance>"`,
@@ -362,8 +363,11 @@ file, so the surviving header path is proven untouched.
 | File | Role |
 | :--- | :--- |
 | `src/pitloom/extract/_license.py` | `detect_license_from_text()`, `find_license_files()`, `detect_license_for_project()` |
-| `src/pitloom/extract/_license_classify.py` | `classify_license()` and the provenance notes of a rewrite |
-| `src/pitloom/extract/_core_metadata.py` | `core_metadata_license_with_source()` (unfolded headers), `license_cascade()`/`first_license()` (the weak cascade), `license_or_classifier()`, `license_from_classifiers()` |
+| `src/pitloom/extract/_license_classify.py` | `classify_license()`, `same_licence()` and the provenance notes of a rewrite |
+| `src/pitloom/extract/_core_metadata.py` | `core_metadata_license_with_source()` (unfolded headers), `license_cascade()`/`first_license()` (the weak cascade), `license_or_classifier()`, `license_from_classifiers()` (trove parents dropped) |
+| `src/pitloom/extract/wheel.py`, `src/pitloom/extract/project/sdist.py`, `src/pitloom/extract/project/installed.py` | Core Metadata readers (wheel, sdist `PKG-INFO`, installed metadata) via `core_metadata_license_with_source()` |
+| `src/pitloom/extract/project/_installed_reconcile.py` | static vs installed licence check by `same_licence()`; a weak static value gives way |
+| `src/pitloom/extract/project/_setup_cfg_directives.py` | `setup.cfg` `file:`/`attr:` directives; comma-separated `file:` lists, an unreadable file one `WARNING:` |
 | `src/pitloom/extract/license_refs.py` | several classifiers as an AND of `LicenseRef-pitloom-classifier-` terms |
 | `src/pitloom/extract/project/_pyproject_license.py` | `pyproject.toml` licence and classifiers |
 | `src/pitloom/extract/project/pyproject.py` | Python project licence extraction and detection |

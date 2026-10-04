@@ -59,9 +59,9 @@ and this project adheres to
   reported as models ([#263])
 - `generate_wheel_sbom_with_metadata()`; `embed_sbom_in_wheel(identity=...)`
   ([#266])
-- A `License ::` classifier is a licence source after the licence field, for
-  a dependency and on every main-package surface (`pyproject.toml`,
-  `setup.cfg`, `setup.py`, build hook); provenance names the field ([#276])
+- A `License ::` classifier is a licence source after the licence field
+  (manifests, hook, wheel, sdist, dependencies); a trove parent is dropped
+  ([#276])
 
 ### Changed
 
@@ -137,19 +137,17 @@ and this project adheres to
   `.dist-info/licenses/*` ([#271])
 - Release SBOM is the build hook's, not a re-embedded one; checked, attached
   to the release byte-identical, signed and attested ([#275])
-- A valid SPDX licence value is a canonical `LicenseExpression` (`GPL-2.0+`
-  becomes `GPL-2.0-or-later`); other text stays `SimpleLicensingText`, with a
-  `WARNING:` if it looks like a broken expression; operands sort, repeats
-  collapse; text loses only the leading and trailing blank space around it
+- A valid SPDX licence is a canonical `LicenseExpression`; other text is
+  `SimpleLicensingText` less leading blank space and final line breaks
   ([#276])
 - `NOASSERTION`/`UNKNOWN`/`NONE` are the `NoAssertionLicense`/`NoneLicense`
-  individuals; NoAssertion is weak (a later source wins, never a conflict)
-  ([#276])
+  individuals; NoAssertion is weak: any real licence wins, no conflict ([#276])
 - No licence stated gives no licence relationship and no licensing profile; the
   `NOASSERTION` fallback is gone and `License-N` ids shift ([#276])
-- A package's own licence is declared (model file, model card, `LICENSE`/
-  `CITATION.cff` when the manifest has none, `loom env`); PyPI and
-  dependencies' installed metadata stay concluded ([#276])
+- A package's own licence (model file or card, own `LICENSE`, `loom env`) is
+  declared; PyPI and dependencies' installed metadata are concluded ([#276])
+- Several `License ::` classifiers are one AND `LicenseExpression` of
+  `LicenseRef-pitloom-classifier-` terms, with one `WARNING:` ([#276])
 - `max-source-metadata-bytes` of 1-7 or below 0 is an error, not unlimited;
   `normalize_max_source_metadata_bytes()` is now
   `require_max_source_metadata_bytes()` ([#280])
@@ -275,12 +273,9 @@ and this project adheres to
 - Hugging Face `license: unknown` is recorded as `NOASSERTION`, not dropped
   ([#276])
 - Licence text with a trailing newline no longer gains a false detection
-  method; a `LicenseRef-pitloom-gap-*` id is kept; a blank `License` header
-  falls through to the classifier ([#276])
-- Multi-line `License` text from Core Metadata is unfolded; a classifier's
-  `MIT License` no longer conflicts with a detected `MIT` ([#276])
-- Several `License ::` classifiers are one AND `LicenseExpression` of
-  `LicenseRef-pitloom-classifier-` terms, with a `WARNING:` ([#276])
+  method; multi-line `License` text from Core Metadata is unfolded ([#276])
+- `setup.cfg` `file:` reads comma-separated files as setuptools does; an
+  unreadable one is skipped with one `WARNING:`, not a crash ([#276])
 - `profileConformance` lists `simpleLicensing`/`expandedLicensing` from the
   graph, so a direct build and a fragment merge agree ([#276])
 - A wheel named `x.WHL` was read by `wheel` and `generate` but refused by

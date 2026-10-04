@@ -15,7 +15,10 @@ kept as written) and :mod:`tests.assemble.test_license_elements_surfaces`.
 from __future__ import annotations
 
 import email
+import itertools
 import json
+import re
+import time
 from collections.abc import Callable
 from importlib.metadata import PackageNotFoundError
 from pathlib import Path
@@ -30,6 +33,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_project_sbom
 from pitloom.assemble.spdx3 import deps_installed, deps_pypi
+from pitloom.assemble.spdx3._license_elements import _without_blank_ends
 from pitloom.assemble.spdx3.deps import add_dependencies
 from pitloom.assemble.spdx3.document import build, build_deployed, build_model
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
@@ -221,3 +225,25 @@ def test_blank_space_around_a_text_gives_one_text_on_every_surface(
         if e.get("type") == "simplelicensing_SimpleLicensingText"
     ]
     assert texts == [_TEXT]
+
+
+#: The rule as stated, independently written: leading blank lines, spaces
+#: and tabs, and the final line breaks.
+_RULE = re.compile(r"\A[ \t\r\n]+|(?:\r\n|\n|\r)+\Z")
+
+
+def test_blank_ends_follow_the_rule_for_every_short_string() -> None:
+    """Every string up to six characters over ``a``, space, tab, CR, LF."""
+    for size in range(7):
+        for chars in itertools.product("a \t\r\n", repeat=size):
+            text = "".join(chars)
+            assert _without_blank_ends(text) == _RULE.sub("", text), repr(text)
+
+
+def test_a_long_run_of_inner_line_breaks_is_linear() -> None:
+    """A quadratic strip took seconds on 20,000 inner line breaks; the
+    bound is generous, a regression is orders of magnitude slower."""
+    text = "a" + "\n" * 50_000 + "b\n"
+    start = time.monotonic()
+    assert _without_blank_ends(text) == text[:-1]
+    assert time.monotonic() - start < 3

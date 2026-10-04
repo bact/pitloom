@@ -181,6 +181,10 @@ def _graph(metadata: ProjectMetadata) -> list[dict[str, Any]]:
         pytest.param(None, [_MIT, _BSD, _MIT], _BOTH, id="several"),
         # a stated licence wins: the classifiers are not recorded, no WARNING
         pytest.param("MIT", [_MIT, _BSD, _MIT], "MIT", id="license-and-several"),
+        # a trove parent is a category: the licence is its child alone
+        pytest.param(
+            None, ["License :: OSI Approved", _MIT], "MIT License", id="trove-parent"
+        ),
     ],
 )
 def test_main_package_classifier_is_the_same_on_every_surface(
@@ -214,7 +218,7 @@ def test_main_package_classifier_is_the_same_on_every_surface(
     from_classifier = metadata.provenance.get("license", "").endswith(
         ("Field: Classifier", "classifiers", "setup(classifiers=...)")
     )
-    assert from_classifier is (expected in ("BSD License", _BOTH))
+    assert from_classifier is (expected in ("BSD License", "MIT License", _BOTH))
 
 
 @pytest.mark.parametrize(

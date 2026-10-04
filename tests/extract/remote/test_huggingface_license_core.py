@@ -76,6 +76,7 @@ def test_license_from_file_when_card_has_none() -> None:
     with _patch_hf_calls(card_data=card_data):
         with patch(
             "pitloom.extract.remote.huggingface_fetch._detect_license_from_hf_files",
+            autospec=_detect_license_from_hf_files,
             return_value=(
                 "Apache-2.0",
                 "Source: Hugging Face Hub "
@@ -94,6 +95,7 @@ def test_license_from_file_when_card_says_other() -> None:
     with _patch_hf_calls(card_data=card_data):
         with patch(
             "pitloom.extract.remote.huggingface_fetch._detect_license_from_hf_files",
+            autospec=_detect_license_from_hf_files,
             return_value=(
                 "MIT",
                 "Source: Hugging Face Hub "
@@ -116,12 +118,12 @@ def test_vague_license_raw_not_stored_when_card_has_real_spdx_id() -> None:
 
 def test_license_detection_not_called_when_card_has_real_spdx_id() -> None:
     # File detection must be skipped entirely when card YAML already has a valid ID.
-    mock_detect = MagicMock(return_value=(None, None))
     with _patch_hf_calls():
         with patch(
             "pitloom.extract.remote.huggingface_fetch._detect_license_from_hf_files",
-            mock_detect,
-        ):
+            autospec=_detect_license_from_hf_files,
+            return_value=(None, None),
+        ) as mock_detect:
             read_huggingface("mistralai/Mistral-7B-v0.1")
     mock_detect.assert_not_called()
 
@@ -150,6 +152,7 @@ def test_unknown_card_license_loses_to_a_detected_licence() -> None:
     with _patch_hf_calls(card_data=_make_card_data(license="unknown")):
         with patch(
             "pitloom.extract.remote.huggingface_fetch._detect_license_from_hf_files",
+            autospec=_detect_license_from_hf_files,
             return_value=("MIT", "Source: Hugging Face Hub | Method: x"),
         ):
             meta = read_huggingface("org/model")

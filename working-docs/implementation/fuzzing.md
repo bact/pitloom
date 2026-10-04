@@ -72,16 +72,16 @@ worth building preemptively now.
 
 ## First run found a real bug
 
-Before any CI wiring existed, a 50-iteration hand-picked probe plus a
-short random-bytes smoke pass (plain Python, not Atheris -- Atheris
-itself doesn't build on this maintainer's macOS dev machine; see
-`fuzz/README.md`'s platform note) against the license-expression
-harness found a genuine crash within seconds: a lone `)` (and several
-related unbalanced-paren shapes) made the third-party `py-spdx-license`
-parser raise `IndexError` from deep in its own parser-stack reduction
-logic, instead of its documented `ParseError`. `normalize_license_expression`
-(now `classify_license`) only caught `ParseError`, so the `IndexError` escaped, breaking the
-function's own "never raises" contract.
+Before any CI wiring existed, a 50-iteration hand-picked probe plus a short
+random-bytes smoke pass (plain Python, not Atheris -- Atheris itself doesn't
+build on this maintainer's macOS dev machine; see `fuzz/README.md`'s platform
+note) against the license-expression harness found a genuine crash within
+seconds: a lone `)` (and several related unbalanced-paren shapes) made the
+third-party `py-spdx-license` parser raise `IndexError` from deep in its own
+parser-stack reduction logic, instead of its documented `ParseError`.
+`normalize_license_expression` (now `classify_license`) only caught
+`ParseError`, so the `IndexError` escaped, breaking the function's own "never
+raises" contract.
 
 Fixed in `normalize_license_expression` (since folded into `classify_license`) by
 widening the except clause to also catch the generic case (matching the

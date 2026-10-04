@@ -304,7 +304,8 @@ _SPDX_CASE: dict[str, str] = {
 def _check_license_relationships(
     graph: list[dict[str, Any]], ai_pkg_id: str, license_id: str
 ) -> None:
-    """Assert hasDeclaredLicense or hasConcludedLicense relationship exists."""
+    """Assert one hasDeclaredLicense and no hasConcludedLicense: a model's
+    own metadata or its card is the model's own statement."""
     rels = [e for e in graph if e.get("type") == "Relationship"]
     declared = [
         r
@@ -318,11 +319,11 @@ def _check_license_relationships(
         if r.get("relationshipType") == "hasConcludedLicense"
         and r.get("from") == ai_pkg_id
     ]
-    assert len(declared) + len(concluded) == 1, (
-        "expected exactly one license relationship, got "
+    assert (len(declared), len(concluded)) == (1, 0), (
+        "expected one declared license relationship, got "
         f"{len(declared)} declared and {len(concluded)} concluded"
     )
-    license_rel = declared[0] if declared else concluded[0]
+    license_rel = declared[0]
     license_spdx_id = license_rel["to"][0]
     license_elems = [
         e

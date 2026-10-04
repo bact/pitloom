@@ -210,6 +210,11 @@ value) -- so none of these are misreported as a conflict.
   says "not known". Both relationships are still recorded and no `conflict`
   Annotation is added. `NONE` against a real license is a conflict.
 
+The same rule applies where a project's static metadata is checked against
+its installed metadata: an agreeing pair, or a `NOASSERTION`/`UNKNOWN` on
+either side, is no conflict, and a real installed license replaces a
+`NOASSERTION`/`UNKNOWN` static one.
+
 The directory check runs where Pitloom reads a project directory: `loom
 project` or `generate_project_sbom()` on a directory, and the Hatchling
 build hook. An SBOM of an sdist or a wheel records only the license the
@@ -223,7 +228,7 @@ came from:
 | Value | Recorded as |
 | --- | --- |
 | A valid SPDX expression (`mit`, `Apache-2.0 OR MIT`) | a `LicenseExpression`, in canonical form (listed id case, operators upper-case, terms sorted) |
-| Anything else (a license text, `Apache2`) | a `SimpleLicensingText`, as written less the leading and trailing blank space around it |
+| Anything else (a license text, `Apache2`) | a `SimpleLicensingText`, as written less its leading blank space and final line breaks |
 | `NOASSERTION`, `UNKNOWN` (any case) | no element: the relationship points at the `NoAssertionLicense` individual |
 | `NONE` (any case) | no element: the relationship points at the `NoneLicense` individual |
 | Absent or blank | nothing: no license relationship at all |
@@ -258,22 +263,22 @@ recorded, with the first source's provenance, only if none does. `NONE`
 ends the lookup.
 
 The project's own `License ::` classifiers are read the same way: after
-`project.license` in `pyproject.toml` (`Field: project.classifiers`, also
-in the Hatchling build hook), `license` in `setup.cfg`
-(`Field: metadata.classifiers`), `license` in `setup.py`
-(`Field: setup(classifiers=...)`), or `License-Expression`/`License` in a
-wheel, an sdist or installed metadata (`Field: Classifier`). A Poetry
-project's classifiers are not read: Poetry writes the license classifier
-from `license` itself. A multi-line license text in a wheel, an sdist or
-installed metadata is read without the indent the build tool folded it
-with. Several license classifiers are one `LicenseExpression`, the AND of
-`LicenseRef-pitloom-classifier-<name>` terms sorted by classifier, whose
-`customIdToUri` maps each term to a `SimpleLicensingText` of the name as
-written; AND is assumed, with one `WARNING:`, as they may offer a choice.
-So a directory, its sdist, its wheel and the build hook record the
-same declared license, except a license file or text that Pitloom
-identifies as a listed license: the directory and the build hook record
-its id, the sdist and the wheel the text. Only a directory adds the
+`project.license` in `pyproject.toml` (`Field: project.classifiers`, also in the
+Hatchling build hook), `license` in `setup.cfg` (`Field: metadata.classifiers`),
+`license` in `setup.py` (`Field: setup(classifiers=...)`), or
+`License-Expression`/`License` in a wheel, an sdist or installed metadata
+(`Field: Classifier`). A Poetry project's classifiers are not read: Poetry
+writes the license classifier from `license` itself. A trove parent (`License ::
+OSI Approved`) is left out when a more specific classifier under it is present.
+A multi-line license text in a wheel, an sdist or installed metadata is read
+without the indent the build tool folded it with. Several license classifiers
+are one `LicenseExpression`, the AND of `LicenseRef-pitloom-classifier-<name>`
+terms sorted by classifier, whose `customIdToUri` maps each term to a
+`SimpleLicensingText` of the name as written; AND is assumed, with one
+`WARNING:`, as they may offer a choice. So a directory, its sdist, its wheel and
+the build hook record the same declared license, except a license file or text
+that Pitloom identifies as a listed license: the directory and the build hook
+record its id, the sdist and the wheel the text. Only a directory adds the
 concluded second opinion above.
 
 Whose statement a license is decides the relationship. The package's own --

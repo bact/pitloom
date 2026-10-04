@@ -52,11 +52,13 @@ from pitloom.extract._license import (
     detect_license_for_project,
     resolve_license_concluded,
 )
-from pitloom.extract.project.setuptools_cfg import (
+from pitloom.extract.project._setup_cfg_directives import (
     _DIRECTIVE_RE,
+    _resolve_cfg_version,
+)
+from pitloom.extract.project.setuptools_cfg import (
     _NoProjectNameError,
     _read_pitloom_config_from_cfg,
-    _resolve_cfg_version,
     _section_dict,
     read_setup_cfg,
 )

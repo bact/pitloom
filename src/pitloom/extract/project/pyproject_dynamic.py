@@ -148,7 +148,7 @@ def _extract_setuptools_dynamic_version(
         return None, None
 
     # pylint: disable-next=import-outside-toplevel
-    from pitloom.extract.project.setuptools_cfg import (
+    from pitloom.extract.project._setup_cfg_directives import (
         _resolve_cfg_attr_directive,
         _resolve_cfg_version_file_directive,
     )

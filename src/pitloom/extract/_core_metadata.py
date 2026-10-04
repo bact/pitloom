@@ -108,8 +108,12 @@ def _unfolded(value: str | None) -> str | None:
 
 
 def _licence_classifiers(classifiers: Iterable[str]) -> list[str]:
-    """The ``License ::`` classifiers in *classifiers*, sorted, no repeats."""
-    return sorted({c for c in classifiers if c.startswith("License ::")})
+    """The ``License ::`` classifiers in *classifiers*, sorted, no repeats,
+    without a trove parent of another one (``License :: OSI Approved`` next
+    to ``License :: OSI Approved :: MIT License`` is a category, not a
+    licence)."""
+    found = {c for c in classifiers if c.startswith("License ::")}
+    return sorted(c for c in found if not any(o.startswith(c + " ::") for o in found))
 
 
 def _classifier_names(classifiers: Iterable[str]) -> list[str]:

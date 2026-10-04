@@ -25,7 +25,7 @@ from packaging.specifiers import InvalidSpecifier, SpecifierSet
 
 from pitloom.core.project import ConflictCandidate, ProjectMetadata, provenance_key_for
 from pitloom.extract._extract_utils import field_declared
-from pitloom.extract._license import classify_license
+from pitloom.extract._license import classify_license, same_licence
 from pitloom.extract.lock._common import is_same_version
 
 log = logging.getLogger(__name__)
@@ -54,13 +54,31 @@ def _requires_python_equal(a: str, b: str) -> bool:
 
 def _license_equal(a: str, b: str) -> bool:
     """Same licence once classified (``mit`` == ``MIT``, ``GPL-2.0+`` ==
-    ``GPL-2.0-or-later``); a value that states none compares as empty."""
-    return _license_key(a) == _license_key(b)
+    ``GPL-2.0-or-later``, ``MIT License`` == ``MIT``; the rule the declared
+    vs concluded check uses). ``NOASSERTION``/``UNKNOWN`` is weak: it agrees
+    with anything, and :func:`_weak_static_licence` lets the real licence
+    win. A value that states none compares as empty."""
+    first, second = (classify_license(v, warn=False) for v in (a, b))
+    if first is None or second is None:
+        return first is None and second is None
+    if "noassertion" in (first.kind, second.kind):
+        return True
+    return same_licence(first.value, second.value)
 
 
-def _license_key(raw: str) -> str:
-    classified = classify_license(raw, warn=False)
-    return classified.value if classified else ""
+def _weak_static_licence(static: ProjectMetadata, installed: ProjectMetadata) -> bool:
+    """Whether static's licence is only ``NOASSERTION``/``UNKNOWN`` and the
+    installed one states a real licence, which then wins."""
+    first, second = (
+        classify_license(v, warn=False)
+        for v in (static.license_name, installed.license_name)
+    )
+    return (
+        first is not None
+        and first.kind == "noassertion"
+        and second is not None
+        and second.kind != "noassertion"
+    )
 
 
 _FIELD_COMPARATORS: dict[str, Callable[[str, str], bool]] = {
@@ -113,6 +131,9 @@ def _reconcile_conflict_checked_field(
     comparable_installed_value = installed_value if installed_value is not None else ""
     comparator = _FIELD_COMPARATORS[field_name]
     if comparator(comparable_static_value, comparable_installed_value):
+        if field_name == "license_name" and _weak_static_licence(static, installed):
+            merged.license_name = installed.license_name
+            merged.provenance[provenance_key] = installed.provenance[provenance_key]
         return
 
     static_source = static.provenance[provenance_key]
