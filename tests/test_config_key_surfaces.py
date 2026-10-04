@@ -119,7 +119,8 @@ def _one_unknown(messages: list[str], message: str, source_tail: str) -> None:
     (found,) = [m for m in messages if "unknown key" in m]
     assert found.endswith(f" {message}"), found
     source = found.removeprefix("WARNING: ")[: -len(message) - 1]
-    assert source.endswith(source_tail), source
+    # A path is shown as given, so with backslashes on Windows.
+    assert source.replace("\\", "/").endswith(source_tail), source
 
 
 _CLI_SOURCES = {
@@ -199,6 +200,7 @@ def test_two_projects_with_the_same_typo_both_warn(
             target = _kind_target("directory", tmp_path, name)
             generate_project_sbom(target, creation_metadata=_PINNED, offline=True)
     found = [m for m in logged_warnings(caplog) if "unknown key" in m]
+    found = [m.replace("\\", "/") for m in found]
     assert [("/one/" in m, "/two/" in m) for m in found] == [
         (True, False),
         (False, True),
