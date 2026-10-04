@@ -34,6 +34,7 @@ from pitloom.assemble.spdx3.provenance import ConflictCandidate, ProvenanceEncod
 from pitloom.core.models import build_pypi_purl
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.extract._core_metadata import core_metadata_license
 from pitloom.extract._extract_utils import pkg_meta_get
 from pitloom.extract.lock._common import is_same_version, single_exact_pin
 
@@ -422,9 +423,7 @@ def _enrich_from_installed(
         dep_package.software_copyrightText = copyright_text
         filled.add("copyright")
 
-    license_id = pkg_meta_get(pkg_meta, "License-Expression") or pkg_meta_get(
-        pkg_meta, "License"
-    )
+    license_id = core_metadata_license(pkg_meta) or ""
     if _apply_license(
         license_id,
         f"Source: installed metadata | Package: {dep_name}",

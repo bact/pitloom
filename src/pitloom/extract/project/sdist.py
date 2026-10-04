@@ -34,7 +34,10 @@ from pitloom.core.config import (
     select_project_config,
 )
 from pitloom.core.project import ProjectFile, ProjectMetadata
-from pitloom.extract._core_metadata import parse_project_urls
+from pitloom.extract._core_metadata import (
+    core_metadata_license,
+    parse_project_urls,
+)
 from pitloom.extract.project.setuptools_cfg import setup_cfg_pitloom_config
 from pitloom.logging_config import field_loss_suffix
 
@@ -47,7 +50,7 @@ def _parse_pkg_info(pkg_info_text: str, source_label: str) -> ProjectMetadata:
     name = msg.get("Name", "unknown")
     version = msg.get("Version")
     summary = msg.get("Summary")
-    license_name = msg.get("License")
+    license_name = core_metadata_license(msg) or None
     requires_python = msg.get("Requires-Python")
 
     metadata = ProjectMetadata(

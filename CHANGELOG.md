@@ -245,6 +245,8 @@ and this project adheres to
   order ([#272])
 - `sbom-basename`/`--sbom-basename` ending in `.spdx3.json` (any case) loses it
   with one `WARNING:`; `project` wrote `x.spdx3.json.spdx3.json` ([#273])
+- An sdist's licence is read from `PKG-INFO` `License-Expression`, else
+  `License`, as for a wheel; an empty one counts as absent ([#276])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -281,6 +283,7 @@ and this project adheres to
 [#272]: https://github.com/bact/pitloom/pull/272
 [#273]: https://github.com/bact/pitloom/pull/273
 [#275]: https://github.com/bact/pitloom/pull/275
+[#276]: https://github.com/bact/pitloom/pull/276
 
 ## [0.19.0] - 2026-09-18
 

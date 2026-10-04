@@ -78,3 +78,24 @@ def parse_project_urls(
                 label = label.lower()
             urls[label] = url.strip()
     return urls
+
+
+def core_metadata_license(msg: _MessageLike) -> str | None:
+    """The licence a Core-Metadata carrier declares: ``License-Expression``
+    (PEP 639), else the legacy free-text ``License``.
+
+    Spec 2.4+ makes the two mutually exclusive, but a real file can carry
+    both, so the first non-empty one wins, ``License-Expression`` first.
+    ``None`` means neither header is declared; ``""`` means one is
+    declared but empty (declared, authoritative "no value", not absent).
+    Callers decide what that distinction means for their provenance.
+    """
+    declared = False
+    for field in ("License-Expression", "License"):
+        value = _get_str(msg, field)
+        if value is None:
+            continue
+        if value:
+            return value
+        declared = True
+    return "" if declared else None
