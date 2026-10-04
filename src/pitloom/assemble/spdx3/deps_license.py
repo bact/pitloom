@@ -48,6 +48,8 @@ def _is_license_concluded(parsed_prov: dict[str, str]) -> bool:
     return not source or source not in TRANSPARENT_SOURCES
 
 
+# Shared document context plus the element; see build_license_elements.
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def _build_license_relationship(
     package_spdx_id: str,
     element: LicenseElement,
