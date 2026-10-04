@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-08-25
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -13,7 +13,10 @@ they cross-reference each other heavily (shared N1-N6/A1-A2/G1-G4/E1-E2/P1
 taxonomy codes, shared role/method vocabulary). Still-open/future
 provenance questions live at
 [working-docs/design/provenance-enrichment-vocabulary.md](../../design/provenance-enrichment-vocabulary.md)
-instead.
+instead. Licence-specific rules (source classes, roles, conflict model,
+equivalence, provenance keys) and what must be settled before they are made
+systematic:
+[license-layers.md](../../design/license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy).
 
 | File | Covers |
 | :--- | :----- |

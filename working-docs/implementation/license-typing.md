@@ -16,7 +16,9 @@ value -- `MIT`, `MIT AND Apache-2.0`, `NOASSERTION` -- became a
 
 See also: [license-pipeline.md](license-pipeline.md) (sources, data flow,
 call sites), [license-layers.md](../design/license-layers.md) (content,
-source and shape: what moves upstream),
+source and shape: what moves upstream; its
+[prerequisites](../design/license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy)
+list what is still to settle),
 [recurring-bug-patterns.md](recurring-bug-patterns.md) (the
 weak-placeholder lesson) and the user-facing
 `docs/metadata-provenance.md` (provenance keys).

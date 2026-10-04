@@ -13,7 +13,9 @@ design rationale, start here),
 [annotation-mechanism.md](annotation-mechanism.md),
 [role-vocabulary.md](role-vocabulary.md),
 [multi-source-conflict.md](multi-source-conflict.md),
-[phase2-native-backfill-handover.md](phase2-native-backfill-handover.md).
+[phase2-native-backfill-handover.md](phase2-native-backfill-handover.md),
+[license-layers.md](../../design/license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy)
+(licence taxonomy still to settle).
 
 The taxonomy of *why* an Annotation earns its place for each use case
 (G1-G4/A1-A2/E1-E2/P1), plus the Phase 2 native-first backfill
@@ -98,8 +100,12 @@ the corresponding Annotation to the residual**.
 - [x] **N1 — Fragment origin** → `SpdxDocument.imports` + `ExternalMap` (per
   source fragment). Residual in Annotation: the unification *criterion* only.
 - [x] **N2 — Declared vs. concluded license** → distinct `hasDeclaredLicense`
-  (author-stated) / `hasConcludedLicense` (Pitloom-detected). Residual: the
-  detection evidence (see [multi-source-conflict.md](multi-source-conflict.md)).
+  (the package's own statement) / `hasConcludedLicense` (a third-party
+  record, the directory's G2 second opinion, or a library caller's
+  `license_concluded`; PR #276, see
+  [license-typing.md](../license-typing.md#declared-or-concluded-whose-statement)).
+  Residual: the detection evidence (see
+  [multi-source-conflict.md](multi-source-conflict.md)).
 - [x] **N3 — Who/when enriched** → a second `CreationInfo` per enrichment
   run, scoped to *new elements* an enrichment run creates. Residual (every
   field an enrichment run changed, new element or in-place fill alike):

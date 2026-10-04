@@ -14,7 +14,9 @@ SPDX 3 SBOM document.
 
 See also: [license-typing.md](license-typing.md) -- how a value is
 classified (expression, text, `NOASSERTION`/`NONE` individuals), the
-dependency cascade, conflicts and the decisions behind them.
+dependency cascade, conflicts and the decisions behind them;
+[license-layers.md](../design/license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy)
+-- the open questions before the rules are made systematic.
 
 ## Overview
 

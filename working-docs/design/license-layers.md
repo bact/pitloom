@@ -11,7 +11,11 @@ SPDX-License-Identifier: CC0-1.0
 See also: [license-typing.md](../implementation/license-typing.md) (what
 PR #276 built), [license-pipeline.md](../implementation/license-pipeline.md)
 (sources and call sites), [metadata-quality.md](metadata-quality.md)
-(licence follow-ups).
+(licence follow-ups),
+[multi-source-conflict.md](../implementation/provenance/multi-source-conflict.md)
+and [role-vocabulary.md](../implementation/provenance/role-vocabulary.md)
+(conflict model and roles, see
+[Prerequisites](#prerequisites-conflict-resolution-provenance-and-taxonomy)).
 
 Pitloom's licence code does three different jobs. Only the last two are
 Pitloom's; the first belongs in licence libraries, and Pitloom keeps it
@@ -128,6 +132,71 @@ and provenance knowledge; a licence library cannot do it.
   as an idstring; sorted by classifier, no repeats), its `customIdToUri`
   mapping each term to the `SimpleLicensingText` of the name as given. No
   mapping to a listed id; AND is assumed, with one `WARNING:`.
+
+## Prerequisites: conflict resolution, provenance and taxonomy
+
+Goal (roadmap, "Licence rules, systematic"): explicit rules for licence
+sources, normalisation and conflict resolution, applied identically on
+every surface. Each recorded value must be:
+
+- **deterministic**: same input, same bytes, on every surface;
+- **correct**: what the source said, as the SPDX term that means it;
+- **not overclaimed**: no licence, conclusion, conflict or agreement that
+  Pitloom does not have;
+- **provenance recorded**: whose statement, which field, how changed.
+
+PR #276 settled these case by case. Settle the following first (each item:
+the current rule, then what is open):
+
+1. **Source classes.** Own claim declared, third-party record (PyPI, a
+   dependency's installed copy) concluded, by the `Source:` label
+   (`is_license_concluded`: no source concluded, any other label declared); Pitloom's
+   detection concluded only as the G2 second opinion
+   ([license-typing.md](../implementation/license-typing.md#declared-or-concluded-whose-statement)).
+   Open: a typed class carried with the value; where the Hugging Face Hub,
+   GitHub and agent sources sit.
+2. **Roles to SPDX relationships.** `role`
+   ([role-vocabulary.md](../implementation/provenance/role-vocabulary.md))
+   maps to a relationship only in two-candidate mode; a single value maps
+   by source class; the library `license_concluded` slot is always
+   concluded. Open: one mapping table; a role on a single value; SPDX
+   3.1's one concluded licence
+   ([metadata-quality.md](metadata-quality.md#licence-follow-ups-pr-276-review)).
+3. **Weak and final values.** Absent or blank: no relationship;
+   `NOASSERTION`/`UNKNOWN` weak, `NONE` final
+   ([license-typing.md](../implementation/license-typing.md#absent-is-not-noassertion)).
+   Open: Hugging Face `other`/`custom` give nothing, not weak; the same
+   classes for non-licence fields.
+4. **Cascade order per surface.** One helper (`license_cascade`) over
+   each reader's own field list; dependencies installed, then PyPI; the
+   directory only when nothing is stated. Open: one declared order table
+   per surface, tested against every reader; no detection for an sdist or
+   a wheel.
+5. **Conflict model.** G2: two candidates, main package on a directory
+   only; both relationships kept, a `provenance/conflict/1` Annotation
+   when they differ; `NoAssertionLicense` never conflicts, `NONE` does
+   ([multi-source-conflict.md](../implementation/provenance/multi-source-conflict.md)).
+   In a cascade the first stating source wins and later ones are not read.
+   Open: what may never be chosen silently, a cascade choice included; N
+   candidates ([generic-multi-candidate-fields.md](generic-multi-candidate-fields.md)).
+6. **Equivalence.** Expressions in canonical form (listed id case,
+   operators, sorted terms, repeats, redundant parentheses, deprecated
+   `X+`); text by exact value less edge blank space; a name equals a listed
+   id by the stop-gap `is_listed_name` (any case). Open: text case and
+   inner spacing; name and classifier to id (layer 1); `LicenseRef-` case;
+   nested AND/OR spellings that do not converge.
+7. **Provenance per value.** `Source`, `Field`, `Method`, `Tool`,
+   `Normalized-From`, `Normalizer`, `Deprecated-License-Id`, on the
+   element or the source's relationship
+   ([license-typing.md](../implementation/license-typing.md#provenance),
+   [metadata-provenance.md](../implementation/provenance/metadata-provenance.md)).
+   Open: the keys every value must carry; the `method` vocabulary
+   ([provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md));
+   a weak statement a later source replaced is not recorded.
+8. **Determinism and tie-breaks.** Classifiers sorted, canonical term
+   order, edge blank space stripped once in the builder, first-seen
+   spelling of a text, one `WARNING:` per value per process. Open: each
+   tie-break written as a rule; first-seen relies on build order.
 
 ## Rule for future work
 

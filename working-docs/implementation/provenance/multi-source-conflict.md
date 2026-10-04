@@ -12,7 +12,10 @@ See also [annotation-provenance.md](annotation-provenance.md) (canonical
 design rationale, start here),
 [annotation-mechanism.md](annotation-mechanism.md),
 [role-vocabulary.md](role-vocabulary.md),
-[use-case-catalog.md](use-case-catalog.md) (G2's short catalog summary).
+[use-case-catalog.md](use-case-catalog.md) (G2's short catalog summary),
+[license-layers.md](../../design/license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy)
+(the conflict model's open questions, a prerequisite for systematic licence
+rules).
 
 This file is the implementation depth behind G2 -- the largest and
 most fleshed-out use case in the catalog. The `role` vocabulary G2
@@ -51,9 +54,13 @@ equivalent-yet-differently-spelled compound expressions too (`"MIT AND
 MIT"` vs. `"MIT"`; `"MIT OR Apache-2.0"` vs. `"Apache-2.0 OR MIT"`) — so
 both candidate values are parsed, deduplicated, and canonically reordered
 before both the comparison and the license-element lookup/creation. A
-value that fails to parse as a valid SPDX expression at all falls back to
-`canonicalize_license_id`'s bare-id casing lookup, then to the raw string
-unchanged. Full agreement emits no Annotation — both native relationships
+value that does not parse is text, compared as written less the blank space
+around it. Two values are the same licence when equal, or when one is the
+SPDX List name of the other's listed id (`is_listed_name`, any case: a
+classifier's `MIT License` against a detected `MIT`). A `NoAssertionLicense`
+candidate never conflicts; `NONE` against a real licence does (detail:
+[license-typing.md](../license-typing.md#two-candidate-mode-and-conflicts)).
+Full agreement emits no Annotation — both native relationships
 still get built, just pointing at the same license element, and there's nothing
 extrinsic left to assert.
 
@@ -114,8 +121,9 @@ own docstring for the field-drift history that motivated this).
 [`deps_license.py`](../../../src/pitloom/assemble/spdx3/deps_license.py)
 `build_license_elements` gained `concluded_license_id`/
 `concluded_license_provenance` params (`None` default — the three other
-call sites, dependency and AI-model licenses, are unaffected, since
-neither has a local second source to detect from today): when given, both
+call sites, dependency and AI-model licenses, have no local second source
+to detect from today; a single value is declared or concluded by its
+source, `is_license_concluded`): when given, both
 candidates are run through `classify_license` before both the
 comparison and the license-element lookup/creation, then both
 `hasDeclaredLicense` and `hasConcludedLicense` are always built, and a G2
@@ -140,6 +148,8 @@ back with and without a redundant outer paren
 (`GPL-3.0-or-later WITH GCC-exception-3.1` vs.
 `(GPL-3.0-or-later WITH GCC-exception-3.1)`), breaking policy rules that
 compare against one fixed string. Checked `normalize_license_expression`
+(`classify_license` re-checked 2026-10-04 on the pair and the mixed
+`AND`/`OR` cases below: same results)
 against all four of that report's example pairs — every pair normalizes
 to an identical string. Separately verified the harder case, where a
 paren is *not* redundant: for mixed `AND`/`OR` expressions,

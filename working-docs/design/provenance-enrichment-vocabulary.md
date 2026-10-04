@@ -15,6 +15,8 @@ back up later without re-deriving the research.
 See [working-docs/implementation/provenance/](../implementation/provenance/)
 for the shipped provenance mechanism this vocabulary describes
 (`annotation-provenance.md`, `metadata-provenance.md`, and siblings).
+Settling the `role`/`method` taxonomy is also a prerequisite for systematic
+licence rules: [license-layers.md](license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy).
 
 **Origin:** user asked for a dedicated `docs/` (user-facing website) page
 consolidating pitloom's provenance/enrichment vocabulary, since it's
@@ -148,7 +150,7 @@ Paths below reflect the subpackage layout under `src/pitloom/extract/`
 | `method` value | Meaning | Emission site(s) |
 | --- | --- | --- |
 | `dynamic_extraction` | Value read from a Python file at build time (e.g. `__version__`/`__about__.py`), not `pyproject.toml` directly | `src/pitloom/extract/project/pyproject.py:342`, `:363` |
-| `licenseid_detection` | License matched against a known SPDX id via the `licenseid` library -- detected, not declared | `src/pitloom/extract/project/pyproject.py:301`; `src/pitloom/extract/remote/huggingface_fetch.py:233`, `:327`; `src/pitloom/extract/_license.py:354`, `:417` |
+| `licenseid_detection` | License matched against a known SPDX id via the `licenseid` library -- detected, not declared | `src/pitloom/extract/remote/huggingface_fetch.py:258`, `:355`; `src/pitloom/extract/_license.py:181`, `:216`; `src/pitloom/assemble/spdx3/deps_license.py:461` (default for a library `license_concluded`) |
 | `inferred_from_authors` | Copyright text derived from the `authors` list, not read verbatim | `src/pitloom/extract/project/setuptools_cfg.py:285`, `setuptools_py.py:214`; `src/pitloom/extract/project/poetry.py:169`; `src/pitloom/extract/project/hatchling.py:143`; `src/pitloom/extract/project/pyproject.py:202` |
 | `parsed_author_list` | Multiple individual entities extracted by splitting a single, comma-separated author string | `src/pitloom/assemble/spdx3/deps_originator.py:347` |
 | `file_directive` | `pyproject.toml` dynamic field pointed at a file (`{file = "..."}`) | `src/pitloom/extract/project/pyproject_dynamic.py` |

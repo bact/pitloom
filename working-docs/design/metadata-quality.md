@@ -21,6 +21,8 @@ file-size guidance -- moved verbatim, no content changed.
   consolidate every place that documents this vocabulary ad hoc into
   one canonical source. See
   [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md).
+  Also a prerequisite for systematic licence rules:
+  [license-layers.md](license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy).
 - [x] **Generalize multi-source conflict detection beyond license** --
   `build_conflict_annotation`/`ConflictCandidate` now also fires for
   dependency version, not just license. See

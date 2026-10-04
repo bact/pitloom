@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -89,3 +89,13 @@ The measured result on every surface, as a matrix, is in
   root where their contents agree?
 - How far to go before a second package format exists to test the abstraction
   against (sdist is the nearest candidate)?
+- **Two Build SBOMs can carry different package hashes for one wheel**
+  (moved from `roadmap.md`, 2026-10-04). Expected by type (Source and the
+  hook's Build hash the source walk before the build; Analyzed hashes the
+  wheel as built; documented in `docs/cli.md`, "Recomputing the package
+  hash"), but `embed-wheel --project-dir` is also a Build SBOM and hashes the
+  wheel as built, so it differs from the hook's when the build adds payload
+  (shared-data, scripts, generated files, i.e. `.data/` members the source
+  walk cannot see; reproduced with `shared-data` + `force-include`). Decide:
+  leave, say so in the hook's hash comment, or compute the hook's root from
+  the built wheel in a post-build step.

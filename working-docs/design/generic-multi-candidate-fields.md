@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-12
-Last-Modified: 2026-09-12
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -13,7 +13,9 @@ See also
 (G2's implementation depth -- both concrete examples below live there) and
 [role-vocabulary.md](../implementation/provenance/role-vocabulary.md) (the
 current `role` vocabulary this doc's open question would extend or
-complement).
+complement) and
+[license-layers.md](license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy)
+(this question is one of the prerequisites for systematic licence rules).
 
 This is a parked design question, not a solution -- raised while planning
 G2's dependency-version field, deliberately not designed further at that
@@ -26,7 +28,7 @@ assembly call site, with no shared representation carrying the underlying
 labeled values from extraction through assembly:
 
 - **License**: `ProjectMetadata` carries two separate named fields
-  (`license` = declared, `license_concluded` = detected), each extracted
+  (`license_name` = declared, `license_concluded` = detected), each extracted
   independently; `deps_license.py::build_license_elements` takes exactly
   those two named parameters and builds exactly `hasDeclaredLicense`/
   `hasConcludedLicense`.
@@ -40,10 +42,12 @@ values" shape. The open question: is it worth introducing one -- e.g. a
 `FieldCandidates`-style type (a mapping of role -> value) threaded from
 extraction through assembly -- plus a shared per-field export policy
 answering "which roles map to which native SPDX relationship, if any, and
-which are Annotation-only"? License's policy is "declared ->
+which are Annotation-only"? License's two-candidate policy is "declared ->
 hasDeclaredLicense, detected -> hasConcludedLicense, always build both,
-Annotation only on disagreement." Dependency version's policy is "no
-native slot for a second candidate at all, Annotation only." A generic
+Annotation only on disagreement"; a single licence value is mapped by its
+source instead (`is_license_concluded`, PR #276). Dependency version's
+policy is "no native slot for a second candidate at all, Annotation only." A
+generic
 representation would let a third field's policy be expressed the same way
 instead of hand-written again.
 
