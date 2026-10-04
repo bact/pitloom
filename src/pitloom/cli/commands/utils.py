@@ -20,9 +20,11 @@ from pitloom.assemble import (
     detect_sbom_format,
     find_embedded_sbom,
 )
+from pitloom.core.file_identity import FileId, file_id
 from pitloom.core.wheel_dist_info import (
     WheelRefused,
     is_wheel_path,
+    looks_like_wheel_path,
     require_wheel_path,
 )
 
@@ -82,29 +84,43 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
     had_error = False
     for pattern in patterns:
         if glob.has_magic(pattern):
-            matched = [
-                Path(p).resolve()
-                for p in glob.glob(pattern)
-                if Path(p).is_file() and is_wheel_path(p)
-            ]
+            hits = [p for p in glob.glob(pattern) if Path(p).is_file()]
+            # A case-insensitive file system lets ``*.whl`` match ``x.WHL``.
+            refused = [p for p in hits if refuse_non_wheel_like(p)]
+            matched = [_given(p) for p in hits if is_wheel_path(p)]
+            if refused:
+                had_error = True
+                continue
             if not matched:
                 print(f"ERROR: no wheel files matched: {pattern}", file=sys.stderr)
                 had_error = True
                 continue
             wheel_paths.extend(matched)
         else:
-            p = Path(pattern).resolve()
-            if not p.exists():
-                print(f"ERROR: wheel file not found: {p}", file=sys.stderr)
+            if refuse_non_wheel(Path(pattern)):
                 had_error = True
                 continue
-            if refuse_non_wheel(p):
+            p = _given(pattern)
+            if not p.exists():
+                print(f"ERROR: wheel file not found: {p}", file=sys.stderr)
                 had_error = True
                 continue
             wheel_paths.append(p)
     if had_error:
         return []
-    return list(dict.fromkeys(wheel_paths))
+    # One wheel once, however many spellings (letter case, hard links) reach
+    # it; the first spelling is kept.
+    unique: dict[FileId | Path, Path] = {}
+    for wheel in wheel_paths:
+        unique.setdefault(file_id(wheel) or wheel.resolve(), wheel)
+    return list(unique.values())
+
+
+def _given(path: str) -> Path:
+    """*path* made absolute, not normalised: a symlink is not followed and a
+    ``..`` is left as it is. POSIX reads it through a symlinked directory;
+    Win32 collapses it textually, as ``GetFullPathName`` does."""
+    return Path(path).absolute()
 
 
 def report_error_line(exc: Exception) -> None:
@@ -125,6 +141,12 @@ def refuse_non_wheel(path: Path) -> bool:
         report_error_line(exc)
         return True
     return False
+
+
+def refuse_non_wheel_like(path: str) -> bool:
+    """:func:`refuse_non_wheel` for *path* where it looks like a wheel in any
+    letter case but is not spelt ``.whl``; ``False`` for any other file."""
+    return looks_like_wheel_path(path) and refuse_non_wheel(Path(path))
 
 
 def _locate_embedded_sbom_or_report(

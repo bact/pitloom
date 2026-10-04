@@ -57,9 +57,7 @@ def _run_generate_command(args: argparse.Namespace) -> int:
         )
         return 1
 
-    if looks_like_wheel_path(args.target) and refuse_non_wheel(
-        Path(args.target).resolve()
-    ):
+    if looks_like_wheel_path(args.target) and refuse_non_wheel(Path(args.target)):
         return 1
 
     if target_resolves_to_project(args.target):

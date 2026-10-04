@@ -56,6 +56,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.file_names import sbom_base_name, sbom_file_name
+from pitloom.core.wheel_dist_info import require_wheel_path
 from pitloom.extract.wheel import read_wheel, wheel_identity
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
@@ -201,7 +202,10 @@ def embed_wheel_sbom(
     configure_logging()
     if sbom_basename:
         sbom_basename = sbom_base_name(sbom_basename, "--sbom-basename")
-    wheel_obj = Path(wheel_path).resolve()
+    require_wheel_path(wheel_path)
+    # Not resolved: a symlink's name is the one judged, and the one the
+    # embed reports; ``embed_sbom_in_wheel`` resolves to write.
+    wheel_obj = Path(wheel_path).absolute()
     eff_overrides = overrides if overrides is not None else ConfigOverrides()
     if sbom_path is None:
         # Fail on a declared-but-bad registry before the wheel is ever

@@ -500,3 +500,15 @@ def test_a_file_zipfile_cannot_open_refuses_at_open_and_a_missing_one_does_not(
     monkeypatch.setattr(zipfile, "ZipFile", Mock(side_effect=MemoryError))
     with pytest.raises(MemoryError):  # not a refusal
         open_wheel_zip(tmp_path / WHEEL)
+
+
+def test_open_wheel_zip_judges_the_given_name_not_the_path(tmp_path: Path) -> None:
+    blob = raw_wheel(tmp_path / "blob", [("demo-1.0.dist-info/METADATA", "x")])
+    with open_wheel_zip(blob, name="x.whl"):
+        pass
+    with pytest.raises(WheelRefused, match=r"not a \.whl file: x\.WHL"):
+        open_wheel_zip(blob, name="x.WHL")
+    junk = tmp_path / "junk"
+    junk.write_bytes(b"not a zip")
+    with pytest.raises(WheelRefused, match=r"^ARCHIVE='x\.whl': could not open"):
+        open_wheel_zip(junk, name="x.whl")

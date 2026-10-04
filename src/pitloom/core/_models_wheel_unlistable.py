@@ -47,6 +47,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path, PurePath
 
+from pitloom.core.file_identity import FileId, file_id
 from pitloom.core.path_probe import UNLISTABLE_DIR_WARNING, is_missing_errno
 from pitloom.logging_config import one_line
 
@@ -91,20 +92,13 @@ def _install_hook() -> None:
             _hook_installed = True
 
 
-_DirId = tuple[int, int]
+_DirId = FileId
 
 
 def _dir_id(path: PurePath, cache: dict[PurePath, _DirId | None]) -> _DirId | None:
-    """``(st_dev, st_ino)`` of *path*, or ``None`` when it cannot be stat()ed
-    or has no identity: ``st_ino`` is unique only when non-zero (FAT/exFAT
-    and some network shares report 0 for every file)."""
+    """:func:`~pitloom.core.file_identity.file_id` of *path*, cached."""
     if path not in cache:
-        try:
-            result = os.stat(path)
-        except OSError:
-            cache[path] = None
-        else:
-            cache[path] = (result.st_dev, result.st_ino) if result.st_ino else None
+        cache[path] = file_id(path)
     return cache[path]
 
 

@@ -96,7 +96,15 @@ WHEEL_SUFFIX = ".whl"
 
 
 def is_wheel_path(path: Path | str) -> bool:
-    """Whether the file name of *path* ends in exactly ``.whl``."""
+    """Whether the file name of *path* ends in exactly ``.whl``.
+
+    The name is judged as given, not as stored: on a case-insensitive file
+    system ``x.whl`` typed for an on-disk ``x.WHL`` is accepted, as ``pip``
+    does. A glob is matched by the OS's own rules (POSIX is case-sensitive,
+    Windows is not), so ``dist/*.whl`` over ``x.WHL`` is no match on POSIX
+    and a refusal on Windows. A Windows 8.3 short name (``DEMO-1~1.WHL``) is
+    refused.
+    """
     return Path(path).name.endswith(WHEEL_SUFFIX)
 
 
@@ -171,8 +179,12 @@ def wheel_members(
     )
 
 
-def open_wheel_zip(path: Path) -> zipfile.ZipFile:
+def open_wheel_zip(path: Path, *, name: Path | str | None = None) -> zipfile.ZipFile:
     """Open *path* as a ZIP archive.
+
+    *name* is the path the file name is judged by where *path* is a resolved
+    form of what the caller was given (a symlink's target): the name as
+    given, never the resolved one.
 
     Raises:
         WheelRefused: the file name does not end in ``.whl``
@@ -184,7 +196,8 @@ def open_wheel_zip(path: Path) -> zipfile.ZipFile:
         OSError: *path* cannot be opened (missing, permission denied, a
             transient I/O error): left as it is, so a caller can retry it.
     """
-    require_wheel_path(path)
+    given = Path(path if name is None else name)
+    require_wheel_path(given)
     try:
         return zipfile.ZipFile(path, "r")
     except (OSError, MemoryError):
@@ -192,7 +205,7 @@ def open_wheel_zip(path: Path) -> zipfile.ZipFile:
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         raise refusal(
-            path.name, None, f"could not open ({exception_label(exc)})"
+            given.name, None, f"could not open ({exception_label(exc)})"
         ) from exc
 
 

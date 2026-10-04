@@ -57,11 +57,12 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     duplicated -- only SBOM *content* generation differs by design.
     """
     target: str = args.target
-    wheel_path: Path = Path(target).resolve()
+    if refuse_non_wheel(Path(target)):
+        return 1
+    # Absolute, not resolved: the file name is judged as given.
+    wheel_path: Path = Path(target).absolute()
     if not wheel_path.exists():
         print(f"ERROR: wheel file not found: {wheel_path}", file=sys.stderr)
-        return 1
-    if refuse_non_wheel(wheel_path):
         return 1
 
     pitloom_config, options = explicit_config_and_options(args)
