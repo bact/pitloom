@@ -52,6 +52,9 @@ def _read_listed_file(
             loggable(str(exc)),
         )
         return True, None
+    except ValueError:
+        # An embedded NUL names no file; os.path.isfile is False too.
+        return False, None
 
 
 def _resolve_cfg_version_file_directive(

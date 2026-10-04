@@ -22,26 +22,26 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-import hatchling.metadata.core as hatchling_metadata_core
 import pytest
-from hatchling.plugin.manager import PluginManager
 
 from pitloom.assemble import (
     generate_model_sbom,
     generate_project_sbom,
     generate_wheel_sbom,
 )
-from pitloom.assemble.spdx3 import deps_installed
 from pitloom.assemble.spdx3._provenance_encoders import THIRD_PARTY_SOURCES
-from pitloom.assemble.spdx3.document import build, build_deployed, build_model
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.assemble.spdx3.document import build_model
 from pitloom.core.creation import CreationMetadata
-from pitloom.core.document import DocumentModel
-from pitloom.core.project import ProjectMetadata
-from pitloom.extract.project.hatchling import metadata_from_hatchling
-from tests._license_graph import graph_of, license_targets
+from tests._license_graph import (
+    deployed,
+    graph_of,
+    hook_metadata,
+    license_targets,
+    onnx_model,
+    project_graph,
+)
 
-from .conftest import _FakeMetadata, _make_dummy_wheel
+from .conftest import _make_dummy_wheel
 
 _LICENSE_RELATIONSHIPS = ("hasDeclaredLicense", "hasConcludedLicense")
 
@@ -212,25 +212,12 @@ def _read(surface: str, root: Path) -> list[dict[str, Any]]:
             generate_project_sbom(root, offline=True)
         )["@graph"]
         return graph
-    core = hatchling_metadata_core.ProjectMetadata(str(root), PluginManager())
-    metadata = metadata_from_hatchling(core, root)
-    return graph_of(
-        build(DocumentModel(project=metadata, creation_metadata=CreationMetadata()))
-    )
+    return project_graph(hook_metadata(root))
 
 
 def test_a_deployed_packages_own_installed_metadata_is_declared() -> None:
     """``loom env``: the installed copy is the package the SBOM describes."""
-    doc = DocumentModel(
-        project=ProjectMetadata(name="env", version="0.0.0"),
-        creation_metadata=CreationMetadata(),
-    )
-    tree = [{"package": {"key": "x", "package_name": "x", "installed_version": "1"}}]
-    fake = _FakeMetadata({"Version": "1", "License": "MIT"})
-    with patch.object(
-        deps_installed, "get_pkg_metadata", autospec=True, return_value=fake
-    ):
-        graph = graph_of(build_deployed(doc, tree, offline=True))
+    graph = graph_of(deployed({"License": "MIT"}))
     assert _relationships(graph, "x") == [("hasDeclaredLicense", "MIT")]
 
 
@@ -245,11 +232,7 @@ def test_a_deployed_packages_own_installed_metadata_is_declared() -> None:
 def test_a_models_licence_relationship_follows_its_source(
     source: str | None, expected: str
 ) -> None:
-    model = AiModelMetadata(
-        format_info=AiModelFormatInfo(model_format=AiModelFormat.ONNX),
-        name="m",
-        license="MIT",
-    )
+    model = onnx_model("MIT")
     if source is not None:
         model.provenance["license"] = source
     graph = graph_of(build_model(model, CreationMetadata()))

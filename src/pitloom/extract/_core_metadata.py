@@ -112,15 +112,18 @@ def _unfolded(value: str | None) -> str | None:
 _CATEGORY_CLASSIFIER = "License :: OSI Approved"
 
 
-def _licence_classifiers(classifiers: Iterable[str]) -> list[str]:
+def _licence_classifiers(classifiers: Iterable[object]) -> list[str]:
     """The ``License ::`` classifiers in *classifiers*, sorted, no repeats,
     without a trove parent of another one (``License :: OSI Approved`` next
     to ``License :: OSI Approved :: MIT License`` is a category, not a
-    licence) and without :data:`_CATEGORY_CLASSIFIER`."""
+    licence) and without :data:`_CATEGORY_CLASSIFIER`. A non-string entry
+    (a malformed PyPI record) is no classifier."""
     found = {
         c
         for c in classifiers
-        if c.startswith("License ::") and c != _CATEGORY_CLASSIFIER
+        if isinstance(c, str)
+        and c.startswith("License ::")
+        and c != _CATEGORY_CLASSIFIER
     }
     return sorted(c for c in found if not any(o.startswith(c + " ::") for o in found))
 

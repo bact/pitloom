@@ -146,7 +146,8 @@ the current rule, then what is open):
 
 1. **Source classes.** Own claim declared, third-party record (PyPI, a
    dependency's installed copy) concluded, by the `Source:` label
-   (`is_license_concluded`: no source concluded, any other label declared); Pitloom's
+   (`is_license_concluded`: no source or a `THIRD_PARTY_SOURCES` label
+   concluded, any other label declared); Pitloom's
    detection concluded only as the G2 second opinion
    ([license-typing.md](../implementation/license-typing.md#declared-or-concluded-whose-statement)).
    Open: a typed class carried with the value; where the Hugging Face Hub,
@@ -194,6 +195,58 @@ the current rule, then what is open):
    order, leading blank space and final line breaks stripped once in the
    builder, first-seen spelling of a text, one `WARNING:` per value per
    process. Open: each tie-break written as a rule; first-seen relies on build order.
+
+## Findings for the rule design (PR #276 review, R10)
+
+Found while reviewing PR #276 and left out of it: they need the rules
+above, not a case fix. User leanings are recorded as input, not decisions.
+
+- **Weak manifest value vs a real licence elsewhere** (items 3, 4, 5).
+  `license = "NOASSERTION"`/`"UNKNOWN"` with an MIT `LICENSE` gives
+  declared NoAssertion, concluded MIT; a silent manifest gives declared
+  MIT. A model file's `UNKNOWN` blocks the model card's real licence
+  (`ReadmeEnricher` fills only when empty). The dependency cascade already
+  lets a real value replace a weak one. Leaning: the real one is declared,
+  the weak value noted.
+- **Reconcile ranking** (items 4, 5). Silent `setup.cfg`, MIT `LICENSE`,
+  egg-info `License-Expression: Apache-2.0`: the detection is kept as
+  declared, the project's own installed record is the conflict. Leaning:
+  installed metadata outranks a `LICENSE` detection; the detection stays
+  the concluded second opinion.
+- **Model file vs model card** (item 5). A model file's `Apache-2.0` and a
+  card's `mit`: the card is skipped, nothing records the disagreement.
+- **`embed-wheel --project-dir`** (item 4). Silent manifest plus a
+  `LICENSE`: `loom project` and the hook declare it, `embed-wheel
+  --project-dir` records none (`_add_concluded_license` detects only when
+  a licence is already declared).
+- **Several-classifiers `WARNING:` for a value then discarded** (items 5,
+  8). An in-tree egg-info with two licence classifiers warns "recorded as
+  ... AND ..." while pyproject's `MIT` is recorded.
+- **Hugging Face vague values** (item 3). A card `unknown` reads the repo
+  `LICENSE`; `NOASSERTION`/`noassertion` does not (`_VAGUE_LICENSE_VALUES`).
+- **Text equivalence** (item 6, layer 1). CRLF and LF texts are two
+  elements (leaning: normalise inner line endings); a licence name keeps a
+  trailing `\r` or spaces of its first line; a classifier with a leading or
+  trailing space is a name on every surface but `setup.cfg` (which strips),
+  so `"License :: OSI Approved "` is recorded as a licence there.
+- **`license = file: LICENSE` in `setup.cfg`** (item 4). setuptools rejects
+  it; Pitloom records the text `file: LICENSE`.
+- **Shared element provenance** (item 7). A reused licence element keeps
+  the first package's provenance; later reusers record none on their
+  relationship unless the value was normalised (`LicenseElement.noted`),
+  so `loom env` shows zipp's MIT tagged with another package.
+- **Library provenance defaults** (item 7). A library caller's
+  `license_concluded`/`license_name` with no provenance gets
+  `Source: LICENSE | Method: licenseid_detection` or the other candidate's
+  label (`attach_main_package_license` fallbacks): overclaimed.
+- **Fragment `customIdToUri` targets** (item 7). The dangling check covers
+  the main namespace only.
+- **`setup.cfg` field vs `setup.py`** (item 4). `setup.cfg`'s own
+  `license =` beats `setup.py`'s `license=`; setuptools does the opposite
+  (`setup()` keywords win). Same question for other merged sources
+  (pyproject with Poetry).
+- **Merge** (item 6). A fragment's or `loom merge` input's licence is not
+  unified with an equal one already in the graph: own PR before 0.20.0.
 
 ## Rule for future work
 

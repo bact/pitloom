@@ -270,7 +270,10 @@ Hatchling build hook), `license` in `setup.cfg` (`Field: metadata.classifiers`),
 (`Field: Classifier`). A Poetry project's classifiers are not read: Poetry
 writes the license classifier from `license` itself. `License :: OSI Approved`
 is a category, not a license: it is left out, alone or beside a more specific
-classifier under it, as if absent.
+classifier under it, as if absent. `setup.cfg` `classifiers` are listed as
+setuptools lists them (one per line, else comma-separated), and `setup.py`'s
+license, field or classifier, comes before a `setup.cfg` classifier, as in the
+wheel setuptools builds.
 A multi-line license text in a wheel, an sdist or installed metadata is read
 without the indent the build tool folded it with. Several license classifiers
 are one `LicenseExpression`, the AND of `LicenseRef-pitloom-classifier-<name>`

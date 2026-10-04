@@ -41,45 +41,33 @@ from .conftest import _make_ci
 
 
 @pytest.mark.parametrize(
-    ("length", "name"), [(60, "X" * 60), (61, "X" * 57 + "..."), (80, "X" * 57 + "...")]
+    ("value", "name"),
+    [
+        ("X" * 60, "X" * 60),
+        ("X" * 61, "X" * 57 + "..."),
+        ("X" * 80, "X" * 57 + "..."),
+        # a whole custom licence text: only its first line names it
+        (
+            "Custom License\nAll rights reserved.\nSee LICENSE for details.",
+            "Custom License",
+        ),
+    ],
+    ids=["60", "61", "80", "multi-line"],
 )
-def test_get_or_create_license_element_truncates_long_name(
-    length: int, name: str
-) -> None:
+def test_get_or_create_license_element_names_it_short(value: str, name: str) -> None:
     doc_uuid = compute_doc_uuid("longlicense", "1.0", [])
     _clear_doc_counters(doc_uuid)
     exporter = Spdx3JsonExporter()
-    ci = _make_ci()
 
     element = get_or_create_license_element(
-        "X" * length, "Source: test", ci, "longlicense", doc_uuid, exporter
+        value, "Source: test", _make_ci(), "longlicense", doc_uuid, exporter
     )
 
     assert element is not None
     license_text = exporter.object_set.obj_by_id[element.spdx_id]
     assert isinstance(license_text, spdx3.simplelicensing_SimpleLicensingText)
     assert license_text.name == name
-
-
-def test_get_or_create_license_element_truncates_at_first_newline() -> None:
-    """A multi-line license_id (e.g. full custom license text used as its
-    own LicenseRef identifier) must use only its first line as the
-    element's display name."""
-    doc_uuid = compute_doc_uuid("multilinelicense", "1.0", [])
-    _clear_doc_counters(doc_uuid)
-    exporter = Spdx3JsonExporter()
-    ci = _make_ci()
-    multiline_id = "Custom License\nAll rights reserved.\nSee LICENSE for details."
-
-    element = get_or_create_license_element(
-        multiline_id, "Source: test", ci, "multilinelicense", doc_uuid, exporter
-    )
-
-    assert element is not None
-    license_text = exporter.object_set.obj_by_id[element.spdx_id]
-    assert isinstance(license_text, spdx3.simplelicensing_SimpleLicensingText)
-    assert license_text.name == "Custom License"
-    assert license_text.simplelicensing_licenseText == multiline_id
+    assert license_text.simplelicensing_licenseText == value
 
 
 @pytest.mark.parametrize(
@@ -186,6 +174,28 @@ def test_build_license_relationship_raises_when_relationship_build_fails() -> No
         )
 
 
+def _two_candidates(
+    declared: str, concluded: str
+) -> tuple[
+    tuple[spdx3.Relationship | None, spdx3.Relationship | None], Spdx3JsonExporter
+]:
+    """``build_license_elements()`` with both candidates, and its exporter."""
+    doc_uuid = compute_doc_uuid("two", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    exporter = Spdx3JsonExporter()
+    rels = build_license_elements(
+        license_id=declared,
+        package_spdx_id="https://example.com/Package-1",
+        license_provenance="Source: pyproject.toml | Field: project.license",
+        creation_info=_make_ci(),
+        doc_name="two",
+        doc_uuid=doc_uuid,
+        exporter=exporter,
+        concluded_license_id=concluded,
+    )
+    return rels, exporter
+
+
 @pytest.mark.parametrize(
     ("declared", "concluded", "expected"),
     [
@@ -199,20 +209,7 @@ def test_build_license_elements_two_candidates_one_states_no_licence(
 ) -> None:
     """A candidate that states no licence yields no relationship and no
     conflict annotation; the other one is unaffected."""
-    doc_uuid = compute_doc_uuid("one-unknown", "1.0", [])
-    _clear_doc_counters(doc_uuid)
-    exporter = Spdx3JsonExporter()
-
-    rels = build_license_elements(
-        license_id=declared,
-        package_spdx_id="https://example.com/Package-1",
-        license_provenance="Source: pyproject.toml | Field: project.license",
-        creation_info=_make_ci(),
-        doc_name="one-unknown",
-        doc_uuid=doc_uuid,
-        exporter=exporter,
-        concluded_license_id=concluded,
-    )
+    rels, exporter = _two_candidates(declared, concluded)
 
     assert tuple(r is not None for r in rels) == expected
     assert not [
@@ -245,20 +242,7 @@ def test_build_license_elements_two_candidates_with_individuals(
     is none either, nor against ``NONE`` (it only says "unknown"; both
     relationships stay, each for its own role); ``NONE`` against a real
     licence is one."""
-    doc_uuid = compute_doc_uuid("individuals", "1.0", [])
-    _clear_doc_counters(doc_uuid)
-    exporter = Spdx3JsonExporter()
-
-    rel_declared, rel_concluded = build_license_elements(
-        license_id=declared,
-        package_spdx_id="https://example.com/Package-1",
-        license_provenance="Source: pyproject.toml | Field: project.license",
-        creation_info=_make_ci(),
-        doc_name="individuals",
-        doc_uuid=doc_uuid,
-        exporter=exporter,
-        concluded_license_id=concluded,
-    )
+    (rel_declared, rel_concluded), exporter = _two_candidates(declared, concluded)
 
     assert rel_declared is not None and rel_concluded is not None
     assert (rel_declared.to == rel_concluded.to) is same_target

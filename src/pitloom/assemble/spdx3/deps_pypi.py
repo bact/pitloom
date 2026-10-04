@@ -78,8 +78,9 @@ def _extract_pypi_license(info: dict[str, Any], source: str) -> tuple[str | None
     legacy = info.get("license") or None
     if legacy and len(legacy.strip()) > _PYPI_LICENSE_FIELD_MAX_LEN:
         legacy = None
+    classifiers = info.get("classifiers")
     index, licence = license_cascade(
-        [expression, legacy], info.get("classifiers") or []
+        [expression, legacy], classifiers if isinstance(classifiers, list) else []
     )
     return licence, classifier_provenance(source) if index == 2 else source
 

@@ -222,11 +222,9 @@ or citing any of these one-liners.
   (`sys.platform != "win32" and os.geteuid() != 0`) and pass that; same
   trap for any POSIX-only name in a decorator argument, a default
   argument or a module-level `parametrize` list (PR #226).
-- **A long `parametrize` value becomes the test id, and Windows caps an
-  environment variable at 32,767 characters** -- pytest's
-  `PYTEST_CURRENT_TEST` holds the id, so a 48 KB value errored only on
-  `windows-latest`. Give it a short `ids=`; `tests/conftest.py` fails any
-  node id over 1,000 characters on every platform (PR #276, same doc).
+- **A long `parametrize` value becomes the test id, which Windows rejects
+  in `PYTEST_CURRENT_TEST` (32,767-char env cap)** -- give it short `ids=`;
+  `tests/conftest.py` fails any id over 1,000 chars (PR #276, same doc).
 - **A context manager whose `__exit__` can be interrupted must reset its
   shared state in `__enter__`, not in `__exit__`** -- and must not take
   its lock to do so (a worker may hold it for a whole build), must

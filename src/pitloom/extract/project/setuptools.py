@@ -21,7 +21,9 @@ When multiple sources are present, fields are merged with this priority order
 3. ``setup.py`` ``setup()`` keyword arguments (AST-extracted literals only)
 
 For each field the highest-priority non-empty value wins; provenance is
-recorded per field so consumers can audit the source.
+recorded per field so consumers can audit the source. The licence is the
+exception: one from ``setup.cfg``'s classifiers gives way to ``setup.py``'s
+(:func:`_setup_py_over_cfg_classifier`).
 
 .. rubric:: Limitations (static analysis)
 
@@ -48,6 +50,7 @@ from pathlib import Path
 from pitloom._toml_io import TOMLDecodeError, load_toml_file
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
+from pitloom.extract._core_metadata import first_license
 from pitloom.extract._license import (
     detect_license_for_project,
     resolve_license_concluded,
@@ -57,6 +60,7 @@ from pitloom.extract.project._setup_cfg_directives import (
     _resolve_cfg_version,
 )
 from pitloom.extract.project.setuptools_cfg import (
+    CFG_CLASSIFIER_LICENSE_SOURCE,
     _NoProjectNameError,
     _read_pitloom_config_from_cfg,
     _section_dict,
@@ -233,7 +237,9 @@ def read_setuptools(
         )
 
     if cfg_metadata is not None and py_metadata is not None:
-        metadata = merge_project_metadata(cfg_metadata, py_metadata)
+        metadata = _setup_py_over_cfg_classifier(
+            merge_project_metadata(cfg_metadata, py_metadata), py_metadata
+        )
     elif cfg_metadata is not None:
         metadata = cfg_metadata
     else:
@@ -246,6 +252,23 @@ def read_setuptools(
 
     metadata = _resolve_setuptools_license(metadata, project_dir)
     return metadata, cfg_config
+
+
+def _setup_py_over_cfg_classifier(
+    merged: ProjectMetadata, py_metadata: ProjectMetadata
+) -> ProjectMetadata:
+    """*merged* with ``setup.py``'s licence (its field, else its classifier)
+    in place of a licence from ``setup.cfg``'s classifiers, as setuptools
+    takes ``setup()`` keywords over ``setup.cfg`` in a built wheel. A
+    placeholder (``UNKNOWN``) gives way to the classifier
+    (:func:`~pitloom.extract._core_metadata.first_license`)."""
+    if (
+        merged.provenance.get("license") == CFG_CLASSIFIER_LICENSE_SOURCE
+        and first_license([py_metadata.license_name, merged.license_name]) == 0
+    ):
+        merged.license_name = py_metadata.license_name
+        merged.provenance["license"] = py_metadata.provenance["license"]
+    return merged
 
 
 def _resolve_setuptools_license(

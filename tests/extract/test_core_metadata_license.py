@@ -23,9 +23,6 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble.spdx3 import deps_installed
 from pitloom.assemble.spdx3.deps import _finish_dependency_enrichment
 from pitloom.assemble.spdx3.deps_license import _apply_license
-from pitloom.assemble.spdx3.document import build
-from pitloom.core.creation import CreationMetadata
-from pitloom.core.document import DocumentModel
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid
 from pitloom.core.project import ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
@@ -37,7 +34,7 @@ from pitloom.extract._core_metadata import (
 from pitloom.extract.project.installed import _parse_installed_metadata
 from pitloom.extract.project.sdist import _parse_pkg_info, read_sdist
 from pitloom.extract.wheel import _populate_metadata_from_email
-from tests._license_graph import graph_of, license_targets
+from tests._license_graph import graph_of, license_targets, project_graph
 from tests.assemble.conftest import _FakeMetadata, _make_ci
 
 _BASE = "Metadata-Version: 2.4\nName: pkg\nVersion: 1.0.0\n"
@@ -180,13 +177,6 @@ def test_first_license(candidates: list[str | None], expected: int | None) -> No
     assert first_license(candidates) == expected
 
 
-def _main_package_targets(metadata: ProjectMetadata) -> list[str]:
-    exporter = build(
-        DocumentModel(project=metadata, creation_metadata=CreationMetadata())
-    )
-    return license_targets(graph_of(exporter))
-
-
 def _dependency_targets(
     msg: email.message.Message, monkeypatch: pytest.MonkeyPatch
 ) -> tuple[list[str], list[str]]:
@@ -251,7 +241,7 @@ def test_license_readers_agree(
     dependency, sources = _dependency_targets(msg, monkeypatch)
     assert dependency == expected
     for metadata in readers.values():
-        assert _main_package_targets(metadata) == expected
+        assert license_targets(project_graph(metadata)) == expected
     from_classifier = {
         m.provenance.get("license", "").endswith("Field: Classifier")
         for m in readers.values()

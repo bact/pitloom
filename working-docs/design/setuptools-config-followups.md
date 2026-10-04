@@ -30,3 +30,23 @@ Found in the PR #276 review rounds (R8), outside that PR's scope. All in
 - **Directory as a `file:` target warns; setuptools skips it silently.**
   Kept on purpose (an existing path that cannot be read is a real failure,
   not absence). Revisit only if it proves noisy.
+- **Found in R10 (compared with setuptools 84 on 56 projects):**
+  - a `version` file with a BOM: `setup.cfg` records `"\ufeff1.2.3"`, the
+    pyproject path ends the run with `ERROR:` (invalid PEP 440); one policy
+    for both (e.g. `utf-8-sig`);
+  - an invalid single-line version file (`1.2.3 # rel`) is recorded
+    unchecked on the `setup.cfg` path, refused on the pyproject path;
+  - `description = file: X` is not resolved (records `file: X`);
+  - pyproject `dynamic = ["version"]` without `tool.setuptools.dynamic`
+    does not fall back to `setup.cfg [metadata] version` as a real build
+    does; dynamic `classifiers`/`readme` `{file = ...}` are not read (a
+    licence classifier file is lost);
+  - `attr:` gaps: `package_dir` other than `src`, tuple versions,
+    annotated/multi-target assignments, a constant inside a `def` picked by
+    `ast.walk` (setuptools reads top level, then executes);
+  - `pyproject` `{file = ..., attr = ...}` together: setuptools refuses,
+    Pitloom uses `attr`;
+  - `warn_once` is per process: a second `generate_project_sbom` call in
+    one process logs the `FILE=` warning at DEBUG only;
+  - a setuptools-backend project with a `License ::` classifier prints
+    setuptools' untagged 13-line deprecation banner on stderr.

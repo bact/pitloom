@@ -193,6 +193,10 @@ models -- see
 confinement, untagged setuptools warnings -- see
 [setuptools-config-followups.md](setuptools-config-followups.md).
 
+**Merge (own PR before 0.20.0, after #276):** licence dedup across a
+merge and four merge bugs -- see
+[open-items.md](sbom-fragments/open-items.md#found-in-the-pr-276-review-own-pr-before-0200).
+
 **Suggested sequencing after that** (2026-09-16, not a commitment --
 superseded for the next month by [1.0 target](#10-target-2026-10-15)
 below, which is the actual commitment for what ships before mid-October):

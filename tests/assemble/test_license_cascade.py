@@ -17,7 +17,6 @@ See also: :mod:`tests.assemble.test_license_elements_surfaces`.
 
 from __future__ import annotations
 
-from importlib.metadata import PackageNotFoundError
 from typing import Any
 from unittest.mock import patch
 
@@ -29,36 +28,18 @@ from pitloom.assemble.spdx3.deps import add_dependencies
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from tests._license_graph import graph_of, license_targets
+from tests._license_graph import dependency_graph, graph_of, license_targets
 from tests.assemble.conftest import _FakeMetadata, _make_ci
 
 _MIT_CLASSIFIER = ["License :: OSI Approved :: MIT"]
 
 
-def _uninstalled(*_args: object) -> None:
-    raise PackageNotFoundError
-
-
 def _dependency(
-    installed: dict[str, str] | None,
-    *,
-    classifiers: list[str] | None = None,
-    pypi: dict[str, Any] | None = None,
-    offline: bool = False,
+    installed: dict[str, str] | None = None, **kwargs: Any
 ) -> tuple[list[dict[str, Any]], list[object]]:
-    """One dependency through the whole enrichment; *installed* are its
-    installed-metadata fields (``None`` = not installed), *pypi* its PyPI
-    ``info``. Returns the graph and the calls made to the PyPI licence
-    reader."""
-    doc_uuid = compute_doc_uuid("cascade", "1.0", [])
-    _clear_doc_counters(doc_uuid)
-    exporter = Spdx3JsonExporter()
-    ci = _make_ci()
-    exporter.add_creation_info(ci)
-    main = spdx3.software_Package(
-        spdxId="https://x/1#Package-1", name="main", creationInfo=ci
-    )
-    exporter.add_package(main)
+    """One dependency through the whole enrichment (*installed* and *kwargs*
+    as :func:`tests._license_graph.dependency_graph` takes them). Returns
+    the graph and the calls made to the PyPI licence reader."""
     calls: list[object] = []
     real_reader = deps_pypi._extract_pypi_license
 
@@ -66,37 +47,11 @@ def _dependency(
         calls.append(info)
         return real_reader(info, source)
 
-    fields = {"Version": "1.0", **(installed or {})}
-
-    def installed_metadata(_name: str) -> _FakeMetadata:
-        return _FakeMetadata(fields, classifiers=classifiers)
-
-    with (
-        patch.object(deps_installed, "get_package_version", lambda _n: "1.0"),
-        patch.object(
-            deps_installed,
-            "get_pkg_metadata",
-            _uninstalled if installed is None else installed_metadata,
-        ),
-        patch.object(
-            deps_pypi,
-            "_fetch_pypi_release_info",
-            lambda *_a: {"info": pypi} if pypi is not None else None,
-        ),
-        patch.object(deps, "_extract_pypi_license", spy),
-    ):
-        add_dependencies(
-            ["dep==1.0"],
-            "Source: pyproject.toml | Field: project.dependencies",
-            require_spdx_id(main),
-            ci,
-            "cascade",
-            doc_uuid,
-            exporter,
-            offline=offline,
-            provenance_config=ProvenanceConfig(detail="full"),
+    with patch.object(deps, "_extract_pypi_license", spy):
+        graph = dependency_graph(
+            installed, provenance_config=ProvenanceConfig(detail="full"), **kwargs
         )
-    return graph_of(exporter), calls
+    return graph, calls
 
 
 def _license_notes(graph: list[dict[str, Any]]) -> str:
@@ -110,69 +65,93 @@ def _license_notes(graph: list[dict[str, Any]]) -> str:
     )
 
 
+_UNKNOWN = {"installed": {"License": "UNKNOWN"}}
+_FROM_INSTALLED = ("installed metadata", "PyPI")  # this note, never that
+
+
 @pytest.mark.parametrize(
-    "pypi",
+    ("given", "target", "asked", "notes"),
     [
-        {"license_expression": "MIT"},
-        {"classifiers": _MIT_CLASSIFIER},
-        {"license": "UNKNOWN", "classifiers": _MIT_CLASSIFIER},
+        pytest.param(
+            {**_UNKNOWN, "pypi": {"license_expression": "MIT"}}, "MIT", 1, None,
+            id="pypi-expression",
+        ),
+        pytest.param(
+            {**_UNKNOWN, "pypi": {"classifiers": _MIT_CLASSIFIER}}, "MIT", 1, None,
+            id="pypi-classifier",
+        ),
+        pytest.param(
+            {
+                **_UNKNOWN,
+                "pypi": {"license": "UNKNOWN", "classifiers": _MIT_CLASSIFIER},
+            },
+            "MIT", 1, None,
+            id="pypi-placeholder-then-classifier",
+        ),
+        # settled locally: PyPI is not asked
+        pytest.param(
+            {**_UNKNOWN, "classifiers": _MIT_CLASSIFIER, "pypi": {}}, "MIT", 0,
+            ("Field: Classifier", None),
+            id="installed-classifier",
+        ),
+        # nothing later knows better (an empty record, another placeholder,
+        # no PyPI answer): the individual, from the installed source
+        pytest.param(
+            {**_UNKNOWN, "pypi": {}}, "NOASSERTION", None, _FROM_INSTALLED,
+            id="pypi-empty",
+        ),
+        pytest.param(
+            {**_UNKNOWN, "pypi": {"license": "unknown"}}, "NOASSERTION", None,
+            _FROM_INSTALLED,
+            id="pypi-placeholder",
+        ),
+        pytest.param(
+            _UNKNOWN, "NOASSERTION", None, _FROM_INSTALLED, id="pypi-no-answer"
+        ),
+        pytest.param(
+            {**_UNKNOWN, "pypi": {}, "offline": True}, "NOASSERTION", 0, None,
+            id="offline",
+        ),
+        pytest.param(
+            {"pypi": {"license_expression": "NOASSERTION"}}, "NOASSERTION", None,
+            ("PyPI JSON API", None),
+            id="pypi-only-placeholder",
+        ),
+        # NONE is a statement: PyPI is not asked for the licence
+        pytest.param(
+            {"installed": {"License": "NONE"}, "pypi": {"license_expression": "MIT"}},
+            "NONE", 0, None,
+            id="installed-none-ends",
+        ),
+        # two placeholders: one individual, the first source's note
+        pytest.param(
+            {
+                "installed": {"License": "unknown"},
+                "pypi": {"license_expression": "NOASSERTION"},
+            },
+            "NOASSERTION", None, _FROM_INSTALLED,
+            id="first-placeholder-provenance",
+        ),
     ],
-)
-def test_installed_unknown_gives_way_to_pypi(pypi: dict[str, Any]) -> None:
-    graph, calls = _dependency({"License": "UNKNOWN"}, pypi=pypi)
-    assert license_targets(graph) == ["MIT"]
-    assert len(calls) == 1
-
-
-def test_installed_unknown_gives_way_to_an_installed_classifier() -> None:
-    graph, calls = _dependency(
-        {"License": "UNKNOWN"}, classifiers=_MIT_CLASSIFIER, pypi={}
-    )
-    assert license_targets(graph) == ["MIT"]
-    assert not calls  # the licence was settled locally
-    assert "Field: Classifier" in _license_notes(graph)
-
-
-@pytest.mark.parametrize("pypi", [{}, {"license": "unknown"}, None])
-def test_installed_unknown_stays_noassertion_with_its_own_provenance(
-    pypi: dict[str, Any] | None,
+)  # fmt: skip
+def test_licence_cascade(
+    given: dict[str, Any],
+    target: str,
+    asked: int | None,
+    notes: tuple[str, str | None] | None,
 ) -> None:
-    """Nothing later knows better (an empty record, another placeholder, or
-    no PyPI answer): the individual is emitted, from the installed source."""
-    graph, _ = _dependency({"License": "UNKNOWN"}, pypi=pypi)
-    assert license_targets(graph) == ["NOASSERTION"]
-    notes = _license_notes(graph)
-    assert "installed metadata" in notes and "PyPI" not in notes
-
-
-def test_offline_installed_unknown_is_noassertion() -> None:
-    graph, calls = _dependency({"License": "UNKNOWN"}, pypi={}, offline=True)
-    assert license_targets(graph) == ["NOASSERTION"]
-    assert not calls
-
-
-def test_pypi_placeholder_is_noassertion_with_pypi_provenance() -> None:
-    graph, _ = _dependency(None, pypi={"license_expression": "NOASSERTION"})
-    assert license_targets(graph) == ["NOASSERTION"]
-    assert "PyPI JSON API" in _license_notes(graph)
-
-
-def test_installed_none_ends_the_cascade() -> None:
-    """``NONE`` is a statement: PyPI is not asked for the licence."""
-    graph, calls = _dependency({"License": "NONE"}, pypi={"license_expression": "MIT"})
-    assert license_targets(graph) == ["NONE"]
-    assert not calls
-
-
-def test_the_first_placeholder_provides_the_provenance() -> None:
-    """Installed says ``unknown``, PyPI ``NOASSERTION``: one individual,
-    the installed source's note."""
-    graph, _ = _dependency(
-        {"License": "unknown"}, pypi={"license_expression": "NOASSERTION"}
-    )
-    assert license_targets(graph) == ["NOASSERTION"]
-    notes = _license_notes(graph)
-    assert "installed metadata" in notes and "PyPI" not in notes
+    """*given*: the dependency's sources; *asked*: calls to the PyPI licence
+    reader (``None``: not checked); *notes*: a provenance note that must be
+    there, and one that must not."""
+    graph, calls = _dependency(**given)
+    assert license_targets(graph) == [target]
+    if asked is not None:
+        assert len(calls) == asked
+    if notes is not None:
+        present, absent = notes
+        recorded = _license_notes(graph)
+        assert present in recorded
+        assert absent is None or absent not in recorded
 
 
 @pytest.mark.parametrize(
@@ -187,6 +166,9 @@ def test_the_first_placeholder_provides_the_provenance() -> None:
         ({"license_expression": "NONE", "classifiers": _MIT_CLASSIFIER}, "NONE"),
         ({"license_expression": "MIT", "license": "UNKNOWN"}, "MIT"),
         ({"classifiers": ["Programming Language :: Python"]}, None),
+        # a malformed record: a non-string classifier, a non-list value
+        ({"classifiers": [None, 3, *_MIT_CLASSIFIER]}, "MIT"),
+        ({"classifiers": 3}, None),
         ({}, None),
     ],
 )

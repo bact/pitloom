@@ -139,6 +139,18 @@ def _parse_cfg_urls(metadata: dict[str, str]) -> dict[str, str]:
     return urls
 
 
+#: Provenance of a licence taken from a ``setup.cfg`` classifier.
+CFG_CLASSIFIER_LICENSE_SOURCE = "Source: setup.cfg | Field: metadata.classifiers"
+
+
+def _cfg_list(value: str) -> list[str]:
+    """A list-valued ``setup.cfg`` option as setuptools reads it
+    (``ConfigHandler._parse_list``): one item per line when *value* has a
+    newline, else comma-separated; items stripped, blanks left out."""
+    items = value.splitlines() if "\n" in value else value.split(",")
+    return [item.strip() for item in items if item.strip()]
+
+
 def _resolve_cfg_license(
     metadata: dict[str, str], project_dir: Path
 ) -> tuple[str | None, str]:
@@ -149,11 +161,10 @@ def _resolve_cfg_license(
         metadata.get("classifiers", "").strip(), project_dir, "metadata.classifiers"
     )
     license_name, from_classifier = license_or_classifier(
-        metadata.get("license", "").strip() or None,
-        (line.strip() for line in (classifiers or "").splitlines()),
+        metadata.get("license", "").strip() or None, _cfg_list(classifiers or "")
     )
     if from_classifier:
-        return license_name, "Source: setup.cfg | Field: metadata.classifiers"
+        return license_name, CFG_CLASSIFIER_LICENSE_SOURCE
     return license_name, "Source: setup.cfg | Field: metadata.license"
 
 

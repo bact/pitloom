@@ -146,13 +146,12 @@ candidates in order, so `License-Expression: UNKNOWN` then
 Provenance names the field: `project.classifiers`, `metadata.classifiers`,
 `setup(classifiers=...)`, or `Field: Classifier` added to a METADATA label.
 
-A trove parent (`License :: OSI Approved`) is dropped when another
-classifier in the same set extends it by `::` (`_licence_classifiers`): it
-adds nothing the child does not say. `License :: OSI Approved` is also
-dropped alone (`_CATEGORY_CLASSIFIER`), silently, as if absent, so the
-cascade goes on to the next source: it is the only `License ::` classifier
-the trove list uses as a category (84 licence classifiers, only it has
-children), so it states no licence. Any other classifier alone is a name.
+`License :: OSI Approved` is dropped, alone or beside a child, silently,
+as if absent, so the cascade goes on to the next source
+(`_CATEGORY_CLASSIFIER`, `_licence_classifiers`): it is the only
+`License ::` classifier the trove list uses as a category (84 licence
+classifiers, only it has children), so it states no licence. Any other
+classifier alone is a name.
 In `pyproject.toml`, classifiers that state no licence lose to any
 `license`, a placeholder too, and are dropped without the PEP 639
 transitional `WARNING:`.

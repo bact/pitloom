@@ -22,21 +22,6 @@ from pitloom.extract.project._installed_reconcile import reconcile_installed_met
 from tests.extract.conftest import licence_pair
 
 
-def test_reconcile_license_name_conflict_uses_spdx_normalization(
-    tmp_path: Path,
-) -> None:
-    static, installed = licence_pair("MIT", "Apache-2.0")
-
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
-
-    assert merged.license_name == "MIT"
-    # Keyed by "license" (the provenance-key alias), not "license_name" --
-    # matches deps_license.py's own declared-vs-concluded conflict field
-    # label for the same underlying concept.
-    assert "license" in merged.field_conflicts
-    assert "license_name" not in merged.field_conflicts
-
-
 @pytest.mark.parametrize(
     ("static_value", "installed_value", "conflict", "kept"),
     [
@@ -44,6 +29,9 @@ def test_reconcile_license_name_conflict_uses_spdx_normalization(
         ("GPL-2.0+", "GPL-2.0-or-later", False, "GPL-2.0+"),
         ("mit and apache-2.0", "Apache-2.0 AND MIT", False, "mit and apache-2.0"),
         ("MIT", "Apache-2.0", True, "MIT"),
+        # `license = ""` with no LICENSE file found collapses to None but is
+        # still declared: no crash, a real disagreement, static's None kept
+        (None, "MIT", True, None),
         # NOASSERTION/UNKNOWN is weak: no conflict, the real licence wins
         ("MIT", "NOASSERTION", False, "MIT"),
         ("UNKNOWN", "noassertion", False, "UNKNOWN"),
@@ -68,7 +56,12 @@ def test_reconcile_license_comparison_is_by_classified_value(
 
     merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
 
+    # Keyed by "license" (the provenance-key alias), not "license_name",
+    # as deps_license.py labels the declared-vs-concluded conflict.
     assert ("license" in merged.field_conflicts) is conflict
+    assert "license_name" not in merged.field_conflicts
+    if conflict:  # the static candidate, a blank one as ""
+        assert merged.field_conflicts["license"][0]["value"] == (static_value or "")
     assert merged.license_name == kept
     source = "pkg.egg-info" if kept != static_value else "pyproject.toml"
     assert merged.provenance["license"] == f"Source: {source}"
@@ -87,20 +80,3 @@ def test_reconcile_license_comparison_does_not_warn_about_the_value(
         # Not vacuous: the value does warn when it is recorded.
         classify_license(broken)
         assert "not a valid SPDX license expression" in caplog.text
-
-
-def test_reconcile_license_name_declared_empty_vs_installed_conflict(
-    tmp_path: Path,
-) -> None:
-    """Regression: `license = ""` with no LICENSE file found (detection
-    finds nothing) collapses to `license_name=None`, but provenance still
-    records it as declared. Must not crash
-    (a comparator given None raises) and must
-    be treated as a real disagreement, static's None still winning."""
-    static, installed = licence_pair(None, "MIT")
-
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
-
-    assert merged.license_name is None
-    assert "license" in merged.field_conflicts
-    assert merged.field_conflicts["license"][0]["value"] == ""

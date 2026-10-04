@@ -21,7 +21,6 @@ See also: :mod:`tests.core.test_fragments_merge` for the general merge tests.
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,10 +33,9 @@ from pitloom.assemble.spdx3.fragments import (
     FragmentMergeError,
     _find_dangling_references,
     _raise_on_dangling_references,
-    merge_fragments,
 )
-from pitloom.core.config import FragmentConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+from tests._license_graph import merged_fragment
 
 
 def _creation_info() -> spdx3.CreationInfo:
@@ -310,61 +308,6 @@ def test_non_individual_lookalike_is_still_dangling(target: str) -> None:
     assert [d[2] for d in dangling] == [target]
 
 
-def _fragment(namespace: str, target: str) -> dict[str, object]:
-    return {
-        "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
-        "@graph": [
-            {
-                "type": "CreationInfo",
-                "@id": "_:creationinfo0",
-                "specVersion": "3.0.1",
-                "created": "2026-01-01T00:00:00Z",
-                "createdBy": [f"{namespace}#Agent-1"],
-            },
-            {
-                "type": "SoftwareAgent",
-                "spdxId": f"{namespace}#Agent-1",
-                "creationInfo": "_:creationinfo0",
-                "name": "Pitloom",
-            },
-            {
-                "type": "software_Package",
-                "spdxId": f"{namespace}#Package-1",
-                "creationInfo": "_:creationinfo0",
-                "name": "pkg",
-            },
-            {
-                "type": "Relationship",
-                "spdxId": f"{namespace}#Relationship-1",
-                "creationInfo": "_:creationinfo0",
-                "from": f"{namespace}#Package-1",
-                "to": [target],
-                "relationshipType": "hasDeclaredLicense",
-            },
-        ],
-    }
-
-
-def _merge_fragment_into_base(tmp_path: Path, target: str) -> Spdx3JsonExporter:
-    (tmp_path / "frag.spdx3.json").write_text(
-        json.dumps(_fragment("https://spdx.org/spdxdocs/individual-frag", target))
-    )
-    ci = spdx3.CreationInfo(
-        _id="_:ci",
-        specVersion="3.0.1",
-        created=datetime(2026, 1, 1, tzinfo=timezone.utc),
-        createdBy=["https://spdx.org/agent1"],
-    )
-    exporter = Spdx3JsonExporter()
-    exporter.add_document(
-        spdx3.SpdxDocument(
-            spdxId="https://spdx.org/spdxdocs/main-doc", name="main", creationInfo=ci
-        )
-    )
-    merge_fragments(tmp_path, [FragmentConfig(path="frag.spdx3.json")], exporter)
-    return exporter
-
-
 @pytest.mark.parametrize("form", ["compact", "iri"])
 @pytest.mark.parametrize(("compact", "iri"), _INDIVIDUALS)
 def test_merging_a_fragment_that_references_an_individual_succeeds(
@@ -372,9 +315,7 @@ def test_merging_a_fragment_that_references_an_individual_succeeds(
 ) -> None:
     """Both JSON spellings of an individual merge, and the relationship to
     it is kept (not dropped, which would pass vacuously)."""
-    exporter = _merge_fragment_into_base(
-        tmp_path, compact if form == "compact" else iri
-    )
+    exporter = merged_fragment(tmp_path, compact if form == "compact" else iri)
     ends = [
         t
         for o in exporter.object_set.objects
@@ -388,4 +329,4 @@ def test_merging_a_fragment_with_a_truly_dangling_target_still_raises(
     tmp_path: Path,
 ) -> None:
     with pytest.raises(FragmentMergeError, match="dangling reference"):
-        _merge_fragment_into_base(tmp_path, f"{_TERMS}/Core/NoSuchIndividual")
+        merged_fragment(tmp_path, f"{_TERMS}/Core/NoSuchIndividual")

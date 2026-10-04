@@ -21,7 +21,6 @@ import pytest
 
 from pitloom.assemble.spdx3.document import build, build_model
 from pitloom.assemble.spdx3.fragments import merge_fragments
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.config import FragmentConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
@@ -31,6 +30,7 @@ from tests._license_graph import (
     graph_of,
     license_elements,
     license_targets,
+    onnx_model,
     provenance_fields,
     two_packages,
 )
@@ -56,13 +56,10 @@ def _document(declared: str, concluded: str | None, model: str) -> DocumentModel
         license_concluded=concluded,
         files=[file],
     )
-    ai = AiModelMetadata(
-        format_info=AiModelFormatInfo(model_format=AiModelFormat.ONNX),
-        name="m",
-        license=model,
-    )
     return DocumentModel(
-        project=project, creation_metadata=CreationMetadata(), ai_models=[ai]
+        project=project,
+        creation_metadata=CreationMetadata(),
+        ai_models=[onnx_model(model)],
     )
 
 

@@ -10,31 +10,27 @@ and that every builder (project, model, deployed, fragment merge) uses it.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
-from unittest.mock import create_autospec, patch
+from unittest.mock import create_autospec
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3 import _licensing_profiles, deps_installed
+from pitloom.assemble.spdx3 import _licensing_profiles
 from pitloom.assemble.spdx3._licensing_profiles import (
     apply_licensing_profiles,
     licensing_profiles,
 )
-from pitloom.assemble.spdx3.document import build, build_deployed, build_model
+from pitloom.assemble.spdx3.document import build, build_model
 from pitloom.assemble.spdx3.fragments import merge_fragments
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.config import FragmentConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-
-from .conftest import _FakeMetadata
+from tests._license_graph import deployed, merged_fragment, onnx_model
 
 _P = spdx3.ProfileIdentifierType
 _NO_ASSERTION_LICENSE = (
@@ -150,94 +146,7 @@ def _project(license_name: str | None) -> Spdx3JsonExporter:
 
 
 def _model(license_id: str | None) -> Spdx3JsonExporter:
-    model = AiModelMetadata(
-        format_info=AiModelFormatInfo(model_format=AiModelFormat.ONNX),
-        name="m",
-        license=license_id,
-    )
-    return build_model(model, CreationMetadata())
-
-
-def _deployed(licence: str | None) -> Spdx3JsonExporter:
-    """``loom env`` with one package whose installed metadata states
-    *licence*, or with none when *licence* is ``""``; never the real env."""
-    doc = DocumentModel(
-        project=ProjectMetadata(name="env", version="0.0.0"),
-        creation_metadata=CreationMetadata(),
-    )
-    tree: list[dict[str, Any]] = (
-        [{"package": {"key": "x", "package_name": "x", "installed_version": "1"}}]
-        if licence != ""
-        else []
-    )
-    fields = {"Version": "1"} | ({"License": licence} if licence else {})
-    with patch.object(
-        deps_installed,
-        "get_pkg_metadata",
-        autospec=True,
-        return_value=_FakeMetadata(fields),
-    ):
-        return build_deployed(doc, tree, offline=True)
-
-
-def _merged(tmp_path: Path, target: str | None) -> Spdx3JsonExporter:
-    """A licence-free base plus a fragment whose package has a declared
-    licence relationship to *target* (none when ``None``)."""
-    ns = "https://spdx.org/spdxdocs/frag"
-    graph: list[dict[str, Any]] = [
-        {
-            "type": "CreationInfo",
-            "@id": "_:ci",
-            "specVersion": "3.0.1",
-            "created": "2026-01-01T00:00:00Z",
-            "createdBy": [f"{ns}#A"],
-        },
-        {
-            "type": "SoftwareAgent",
-            "spdxId": f"{ns}#A",
-            "creationInfo": "_:ci",
-            "name": "x",
-        },
-        {
-            "type": "software_Package",
-            "spdxId": f"{ns}#P",
-            "creationInfo": "_:ci",
-            "name": "p",
-        },
-    ]
-    if target:
-        graph.append(
-            {
-                "type": "Relationship",
-                "spdxId": f"{ns}#R",
-                "creationInfo": "_:ci",
-                "from": f"{ns}#P",
-                "to": [target],
-                "relationshipType": "hasDeclaredLicense",
-            }
-        )
-    (tmp_path / "f.spdx3.json").write_text(
-        json.dumps(
-            {
-                "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
-                "@graph": graph,
-            }
-        )
-    )
-    ci = spdx3.CreationInfo(
-        _id="_:ci",
-        specVersion="3.0.1",
-        created=datetime(2026, 1, 1, tzinfo=timezone.utc),
-        createdBy=["https://spdx.org/agent1"],
-    )
-    exporter = Spdx3JsonExporter()
-    exporter.add_document(
-        spdx3.SpdxDocument(
-            spdxId="https://spdx.org/spdxdocs/main", name="m", creationInfo=ci
-        )
-    )
-    merge_fragments(tmp_path, [FragmentConfig(path="f.spdx3.json")], exporter)
-    return exporter
+    return build_model(onnx_model(license_id), CreationMetadata())
 
 
 def _conformance(exporter: Spdx3JsonExporter) -> list[str]:
@@ -258,13 +167,13 @@ _SURFACES: list[tuple[str, Callable[[Path], Spdx3JsonExporter], list[str]]] = [
     ("model-unknown", lambda _: _model("unknown"), _BOTH),
     ("model-none-licence", lambda _: _model("NONE"), _BOTH),
     ("model-none", lambda _: _model(None), []),
-    ("deployed-empty", lambda _: _deployed(""), []),
-    ("deployed-unlicensed", lambda _: _deployed(None), []),
-    ("deployed-package", lambda _: _deployed("MIT"), [_P.simpleLicensing]),
-    ("merge-none", lambda p: _merged(p, None), []),
+    ("deployed-empty", lambda _: deployed(None), []),
+    ("deployed-unlicensed", lambda _: deployed({}), []),
+    ("deployed-package", lambda _: deployed({"License": "MIT"}), [_P.simpleLicensing]),
+    ("merge-none", lambda p: merged_fragment(p, None), []),
     (
         "merge-noassertion-individual",
-        lambda p: _merged(p, "expandedlicensing_NoAssertionLicense"),
+        lambda p: merged_fragment(p, "expandedlicensing_NoAssertionLicense"),
         [_P.simpleLicensing, _P.expandedLicensing],
     ),
 ]
@@ -338,9 +247,7 @@ def test_direct_build_and_fragment_merge_give_one_order() -> None:
     """A project built with an AI model and the same project merged with an
     ``ai_AIPackage`` fragment list their profiles identically."""
     project = ProjectMetadata(name="p", version="1.0", license_name="MIT")
-    model = AiModelMetadata(
-        format_info=AiModelFormatInfo(model_format=AiModelFormat.ONNX), name="m"
-    )
+    model = onnx_model(None)
     direct = _conformance(
         build(
             DocumentModel(

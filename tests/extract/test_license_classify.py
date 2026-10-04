@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import itertools
 import logging
 from unittest.mock import create_autospec
 
@@ -62,9 +63,38 @@ _CASES = [
         False,
     ),
     ("LicenseRef-foo", "expression", "LicenseRef-foo", False),
+    ("bsd-3-clause", "expression", "BSD-3-Clause", False),
+    ("GPL-2.0-OR-LATER", "expression", "GPL-2.0-or-later", False),
+    ("MIT AND MIT", "expression", "MIT", False),
+    ("(mit and mit)", "expression", "MIT", False),
+    ("(MIT)", "expression", "MIT", False),
+    # operator words glued into an id are not operators
+    ("LicenseRef-my-or-license", "expression", "LicenseRef-my-or-license", False),
+    ("LicenseRef-and-tool", "expression", "LicenseRef-and-tool", False),
     # grammar gaps: canonical like any expression
     ("Apache-2.0+", "expression", "Apache-2.0+", False),
     ("apache-2.0+", "expression", "Apache-2.0+", False),
+    # grammar-gap terms collapse only when identical
+    ("MIT+ OR MIT+", "expression", "MIT+", False),
+    (
+        "Apache-2.0+  WITH  AdditionRef-x",
+        "expression",
+        "Apache-2.0+ WITH AdditionRef-x",
+        False,
+    ),
+    (
+        "Apache-2.0 WITH AdditionRef-x OR MIT",
+        "expression",
+        "MIT OR Apache-2.0 WITH AdditionRef-x",
+        False,
+    ),
+    ("MIT+ OR MIT", "expression", "MIT OR MIT+", False),  # distinct terms
+    (
+        "apache-2.0+ with classpath-exception-2.0",
+        "expression",
+        "Apache-2.0+ WITH Classpath-exception-2.0",
+        False,
+    ),
     # a deprecated id with a listed successor is replaced by it
     ("GPL-2.0+", "expression", "GPL-2.0-or-later", False),
     ("lgpl-2.1+", "expression", "LGPL-2.1-or-later", False),
@@ -234,48 +264,6 @@ def _value(raw: str) -> str | None:
 
 
 @pytest.mark.parametrize(
-    ("raw", "expected"),
-    [
-        ("bsd-3-clause", "BSD-3-Clause"),
-        ("GPL-2.0-OR-LATER", "GPL-2.0-or-later"),
-        ("MIT AND MIT", "MIT"),
-        ("(mit and mit)", "MIT"),
-        ("(MIT)", "MIT"),
-        # operator words glued into an id are not operators
-        ("LicenseRef-my-or-license", "LicenseRef-my-or-license"),
-        ("LicenseRef-and-tool", "LicenseRef-and-tool"),
-    ],
-)
-def test_expression_values_are_canonical(raw: str, expected: str) -> None:
-    assert _value(raw) == expected
-
-
-def test_equivalent_expressions_share_one_value() -> None:
-    assert _value("MIT OR Apache-2.0") == _value("Apache-2.0 OR MIT")
-    assert _value("GPL-2.0+") == _value("GPL-2.0-or-later") == _value("gpl-2.0+")
-    assert _value("lgpl-2.1+") == _value("LGPL-2.1+")
-    # Redundant parentheses change nothing; a precedence-changing one does.
-    plain = _value("MIT AND Apache-2.0 OR BSD-3-Clause")
-    assert plain == _value("(MIT AND Apache-2.0) OR BSD-3-Clause")
-    assert plain != _value("MIT AND (Apache-2.0 OR BSD-3-Clause)")
-
-
-@pytest.mark.parametrize(
-    "raw",
-    [
-        "MIT OR Apache-2.0",
-        "mit and apache-2.0",
-        "GPL-2.0+",
-        "Apache-2.0+ WITH AdditionRef-x",
-    ],
-)
-def test_classifying_a_recorded_expression_changes_nothing(raw: str) -> None:
-    once = _value(raw)
-    assert once is not None
-    assert _value(once) == once
-
-
-@pytest.mark.parametrize(
     ("name", "license_id", "expected"),
     [
         ("MIT License", "MIT", True),
@@ -363,56 +351,57 @@ _GAP_FORMS = [
 ]
 
 
-def test_grammar_gap_expressions_are_canonical_in_any_spelling() -> None:
-    values = {_value(raw) for raw in _GAP_FORMS}
-    assert len(values) == 1
-    (value,) = values
+def _orders(operator: str) -> list[str]:
+    """Grammar-gap terms joined by *operator*, in every order."""
+    terms = ["Apache-2.0+", "BSD-3-Clause+", "MIT"]
+    return [f" {operator} ".join(order) for order in itertools.permutations(terms)]
+
+
+@pytest.mark.parametrize(
+    "spellings",
+    [
+        ["MIT OR Apache-2.0", "Apache-2.0 OR MIT"],
+        ["GPL-2.0+", "GPL-2.0-or-later", "gpl-2.0+"],
+        ["lgpl-2.1+", "LGPL-2.1+"],
+        # a redundant parenthesis changes nothing
+        ["MIT AND Apache-2.0 OR BSD-3-Clause", "(MIT AND Apache-2.0) OR BSD-3-Clause"],
+        _GAP_FORMS,
+        _orders("AND"),
+        _orders("OR"),
+        # once recorded, classifying the value again changes nothing
+        ["mit and apache-2.0"],
+        ["Apache-2.0+ WITH AdditionRef-x"],
+    ],
+    ids=["or-order", "plus", "lgpl-plus", "parens", "gap", "gap-and", "gap-or",
+         "recorded", "gap-with"],
+)  # fmt: skip
+def test_equivalent_spellings_share_one_canonical_value(spellings: list[str]) -> None:
+    (value,) = {_value(raw) for raw in spellings}
     assert value is not None
     assert "\t" not in value and "  " not in value
     assert _value(value) == value
 
 
-@pytest.mark.parametrize("operator", ["AND", "OR"])
-def test_grammar_gap_terms_sort_whatever_the_input_order(operator: str) -> None:
-    forward = _value(f"Apache-2.0+ {operator} BSD-3-Clause+ {operator} MIT")
-    assert forward is not None
-    assert forward == _value(f"MIT {operator} BSD-3-Clause+ {operator} Apache-2.0+")
-    assert forward == _value(f"BSD-3-Clause+ {operator} MIT {operator} Apache-2.0+")
+def test_a_precedence_changing_parenthesis_is_another_value() -> None:
+    assert _value("MIT AND Apache-2.0 OR BSD-3-Clause") != _value(
+        "MIT AND (Apache-2.0 OR BSD-3-Clause)"
+    )
 
 
 @pytest.mark.parametrize(
-    ("raw", "expected"),
-    [
-        ("MIT+ OR MIT+", "MIT+"),
-        ("Apache-2.0+  WITH  AdditionRef-x", "Apache-2.0+ WITH AdditionRef-x"),
-        (
-            "Apache-2.0 WITH AdditionRef-x OR MIT",
-            "MIT OR Apache-2.0 WITH AdditionRef-x",
-        ),
-        ("MIT+ OR MIT", "MIT OR MIT+"),  # distinct terms are not merged
-        (
-            "apache-2.0+ with classpath-exception-2.0",
-            "Apache-2.0+ WITH Classpath-exception-2.0",
-        ),
-    ],
+    ("raw", "warn"), [("Foo\ud800 bar", True), ("Foo\ud800", False)]
 )
-def test_grammar_gap_terms_collapse_only_when_identical(
-    raw: str, expected: str
+def test_a_lone_surrogate_is_replaced(
+    raw: str, warn: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
-    assert _value(raw) == expected
-
-
-def test_a_lone_surrogate_is_replaced_with_one_warning(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """Else serialisation fails on it (``CanonicalizationError``)."""
-    raw = "Foo\ud800 bar"
+    """Else serialisation fails on it (``CanonicalizationError``): one
+    ``WARNING:`` when recording, none when not."""
     with caplog.at_level(logging.WARNING, logger="pitloom"):
-        got = classify_license(raw)
-        classify_license(raw)
-    assert got == ClassifiedLicense("text", "Foo� bar", "Foo� bar")
-    assert len(caplog.records) == 1
-    assert "\\ud800" in caplog.records[0].getMessage()
+        got = classify_license(raw, warn=warn)
+        classify_license(raw, warn=warn)
+    replaced = raw.replace("\ud800", "\ufffd")
+    assert got == ClassifiedLicense("text", replaced, replaced)
+    assert ["\\ud800" in r.getMessage() for r in caplog.records] == [True] * warn
 
 
 @pytest.mark.parametrize(
@@ -423,15 +412,6 @@ def test_a_grammar_gap_term_that_is_not_valid_spdx_stays_text(raw: str) -> None:
     got = classify_license(raw, warn=False)
     assert got is not None
     assert got.kind == "text"
-
-
-def test_a_lone_surrogate_is_replaced_silently_when_not_recording(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    with caplog.at_level(logging.WARNING, logger="pitloom"):
-        got = classify_license("Foo\ud800", warn=False)
-    assert got == ClassifiedLicense("text", "Foo\ufffd", "Foo\ufffd")
-    assert not caplog.records
 
 
 @pytest.mark.parametrize("separator", ["\x1c", "\x1d", "\x1e", "\x85", " "])

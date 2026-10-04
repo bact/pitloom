@@ -16,26 +16,20 @@ import json
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
 
-import hatchling.metadata.core as hatchling_metadata_core
 import pytest
-from hatchling.plugin.manager import PluginManager
 
-from pitloom.assemble.spdx3.document import build
-from pitloom.core.creation import CreationMetadata
-from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract.project import read_project
-from pitloom.extract.project.hatchling import metadata_from_hatchling
 from pitloom.extract.project.installed import _parse_installed_metadata
 from pitloom.extract.project.sdist import read_sdist
 from pitloom.extract.wheel import _populate_metadata_from_email
 from tests._license_graph import (
-    graph_of,
+    hook_metadata,
     license_elements,
     license_targets,
     license_value,
+    project_graph,
     provenance_fields,
     two_packages,
 )
@@ -90,17 +84,22 @@ def _from_installed(
     )
 
 
+def _pyproject(tmp: Path, licence: str | None, classifiers: list[str]) -> None:
+    """``pyproject.toml`` with ``license = <licence>`` (TOML) and the
+    classifiers."""
+    stated = f"license = {licence}\n" if licence else ""
+    (tmp / "pyproject.toml").write_text(
+        '[project]\nname = "demo"\nversion = "1.0.0"\n'
+        f"{stated}classifiers = {json.dumps(classifiers)}\n",
+        encoding="utf-8",
+    )
+
+
 def _from_pyproject(
     license_name: str | None, classifiers: list[str], tmp: Path
 ) -> ProjectMetadata:
-    licence = (
-        f"license = {{text = {json.dumps(license_name)}}}\n" if license_name else ""
-    )
-    (tmp / "pyproject.toml").write_text(
-        '[project]\nname = "demo"\nversion = "1.0.0"\n'
-        f"{licence}classifiers = {json.dumps(classifiers)}\n",
-        encoding="utf-8",
-    )
+    text = license_name and f"{{text = {json.dumps(license_name)}}}"
+    _pyproject(tmp, text, classifiers)
     return read_project(tmp, include_installed_metadata=False)[0]
 
 
@@ -121,12 +120,7 @@ def _from_pyproject_string(
 ) -> ProjectMetadata:
     """The PEP 639 string form: ``license = "UNKNOWN"`` beside a classifier
     is a conflict for ``pyproject-metadata``, recovered without a drop."""
-    licence = f"license = {json.dumps(license_name)}\n" if license_name else ""
-    (tmp / "pyproject.toml").write_text(
-        '[project]\nname = "demo"\nversion = "1.0.0"\n'
-        f"{licence}classifiers = {json.dumps(classifiers)}\n",
-        encoding="utf-8",
-    )
+    _pyproject(tmp, license_name and json.dumps(license_name), classifiers)
     return read_project(tmp, include_installed_metadata=False)[0]
 
 
@@ -135,8 +129,7 @@ def _from_hook(
 ) -> ProjectMetadata:
     """The Hatchling build hook's reader, on the same ``pyproject.toml``."""
     _from_pyproject(license_name, classifiers, tmp)
-    core = hatchling_metadata_core.ProjectMetadata(str(tmp), PluginManager())
-    return metadata_from_hatchling(core, tmp)
+    return hook_metadata(tmp)
 
 
 def _from_setup_py(
@@ -162,12 +155,6 @@ _READERS: dict[str, Callable[[str | None, list[str], Path], ProjectMetadata]] = 
     "setup.cfg": _from_setup_cfg,
     "setup.py": _from_setup_py,
 }
-
-
-def _graph(metadata: ProjectMetadata) -> list[dict[str, Any]]:
-    return graph_of(
-        build(DocumentModel(project=metadata, creation_metadata=CreationMetadata()))
-    )
 
 
 @pytest.mark.parametrize("surface", list(_READERS))
@@ -219,7 +206,7 @@ def test_main_package_classifier_is_the_same_on_every_surface(
     )
     # Several licence classifiers: one WARNING that AND was assumed.
     assert len(caplog.records) == int(transitional) + int(expected == _BOTH)
-    graph = _graph(metadata)
+    graph = project_graph(metadata)
     assert license_targets(graph) == ([] if expected is None else [expected])
     relationships = {
         r["relationshipType"]
@@ -250,7 +237,7 @@ def test_licence_text_is_kept_as_written_less_its_final_line_breaks(
     text: str, kept: str
 ) -> None:
     metadata = ProjectMetadata(name="p", version="1.0", license_name=text)
-    (element,) = license_elements(_graph(metadata))
+    (element,) = license_elements(project_graph(metadata))
     assert license_value(element) == kept
 
 
@@ -259,7 +246,7 @@ def test_texts_equal_when_stripped_share_the_first_seen_element() -> None:
     metadata = ProjectMetadata(
         name="p", version="1.0", license_name="Foo ", license_concluded="Foo"
     )
-    (element,) = license_elements(_graph(metadata))
+    (element,) = license_elements(project_graph(metadata))
     assert license_value(element) == "Foo "
 
 
@@ -286,5 +273,5 @@ def test_a_rewritten_expression_records_what_it_was(raw: str, value: str) -> Non
 
 def test_a_lone_surrogate_in_a_licence_still_serialises() -> None:
     metadata = ProjectMetadata(name="p", version="1.0", license_name="Foo\ud800")
-    (element,) = license_elements(_graph(metadata))
+    (element,) = license_elements(project_graph(metadata))
     assert license_value(element) == "Foo�"

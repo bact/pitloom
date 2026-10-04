@@ -51,8 +51,8 @@ pitloom/
 │   │   ├── provenance-enrichment-vocabulary-draft-page.md
 │   │   ├── roadmap.md              # Canonical roadmap
 │   │   ├── sbom-enrichment.md
-│   │   ├── setuptools-config-followups.md # setup.cfg directive gaps: attr: crash, file: confinement
-│   │   └── sbom-fragments/          # 5 files -- fragment-merge-design.md, etc.
+│   │   ├── sbom-fragments/          # 5 files -- fragment-merge-design.md, etc.
+│   │   └── setuptools-config-followups.md # setup.cfg directive gaps: attr: crash, file: confinement
 │   ├── implementation/
 │   │   ├── provenance/             # 10 files -- annotation-provenance(-mechanism/-full-plan).md, role-vocabulary.md, etc.
 │   │   ├── adoption-surfaces.md
