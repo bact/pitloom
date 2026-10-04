@@ -21,6 +21,7 @@ from pitloom.assemble.spdx3._package_ids import DEPENDENCY_LABEL, resolve_packag
 from pitloom.assemble.spdx3.deps import _finish_dependency_enrichment
 from pitloom.assemble.spdx3.deps_pypi import _prefetch_pypi_release_infos
 from pitloom.assemble.spdx3.provenance import (
+    DEPLOYED_PACKAGE_SOURCE,
     ProvenanceEncoder,
     emit_provenance,
     resolve_encoder,
@@ -129,6 +130,7 @@ def _build_deployed_package(
         provenance_config=prov_cfg,
         encoder=encoder,
         content_type_method=content_type_method,
+        installed_source=DEPLOYED_PACKAGE_SOURCE,
     )
 
     exporter.add_package(dep_package)

@@ -18,6 +18,7 @@ See also: :mod:`pitloom.assemble.spdx3.deps_license` (relationships).
 
 from __future__ import annotations
 
+import re
 from typing import NamedTuple
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -32,6 +33,12 @@ from pitloom.extract._license import (
     tag_deprecated_license_ids,
     tag_license_normalization,
 )
+from pitloom.extract.license_refs import classifier_terms
+
+#: Blank space around a licence text, serialisation not content: leading
+#: blank lines, spaces and tabs (a Core Metadata header loses them) and the
+#: final line breaks (a file or a TOML string ends in them).
+_TEXT_ENDS_RE = re.compile(r"\A[ \t\r\n]+|(?:\r\n|\n|\r)+\Z")
 
 #: Longest ``name`` kept as is; longer is cut to fit with ``...``.
 _MAX_NAME_LENGTH = 60
@@ -81,6 +88,8 @@ def _get_or_create(
     exporter: Spdx3JsonExporter,
     provenance_config: ProvenanceConfig | None,
     encoder: ProvenanceEncoder | None,
+    verbatim: str | None = None,
+    custom_ids: list[tuple[str, str]] | None = None,
 ) -> LicenseElement:
     existing = exporter.find_license(kind, value)
     if existing:
@@ -96,11 +105,14 @@ def _get_or_create(
             spdxId=spdx_id, creationInfo=creation_info
         )
         element.simplelicensing_licenseExpression = value
+        element.simplelicensing_customIdToUri = [
+            spdx3.DictionaryEntry(key=ref, value=iri) for ref, iri in custom_ids or []
+        ]
     else:
         element = spdx3.simplelicensing_SimpleLicensingText(
             spdxId=spdx_id, creationInfo=creation_info
         )
-        element.simplelicensing_licenseText = value
+        element.simplelicensing_licenseText = value if verbatim is None else verbatim
     element.name = _element_name(value)
     exporter.add_license(element)
     emit_provenance(
@@ -114,6 +126,55 @@ def _get_or_create(
         encoder=encoder,
     )
     return LicenseElement(require_spdx_id(element), value, provenance, True, noted)
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def _classifier_and(
+    expression: str,
+    terms: list[tuple[str, str]],
+    provenance: str,
+    creation_info: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+    provenance_config: ProvenanceConfig | None,
+    encoder: ProvenanceEncoder | None,
+) -> LicenseElement:
+    """The ``AND`` of several ``License ::`` classifiers: one
+    ``LicenseExpression`` whose ``customIdToUri`` maps each
+    ``LicenseRef-pitloom-classifier-`` term to the text element of its
+    licence name (shared with any other use of that text)."""
+    custom_ids = [
+        (
+            ref,
+            _get_or_create(
+                "text",
+                name,
+                provenance,
+                False,
+                creation_info,
+                doc_name,
+                doc_uuid,
+                exporter,
+                provenance_config,
+                encoder,
+            ).spdx_id,
+        )
+        for ref, name in terms
+    ]
+    return _get_or_create(
+        "expression",
+        expression,
+        provenance,
+        False,
+        creation_info,
+        doc_name,
+        doc_uuid,
+        exporter,
+        provenance_config,
+        encoder,
+        custom_ids=custom_ids,
+    )
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -130,10 +191,30 @@ def get_or_create_license_element(
 ) -> LicenseElement | None:
     """Get or create the licence element for *license_id*, deduped by
     ``(kind, value)`` (an expression and a text of the same string stay
-    apart). ``None`` when *license_id* states no licence (blank).
+    apart). Leading blank space and the final line breaks are dropped
+    first, here only, so every surface records one text (a file or a TOML
+    string keeps them, a wheel's ``METADATA`` drops them); the rest is kept
+    as written. The dedup key is
+    that text stripped (the classifier's value), so ``" Foo"`` and ``"Foo"``
+    share the first-seen element. ``None`` when *license_id* states no
+    licence (blank).
     ``NOASSERTION``, ``NONE`` and ``UNKNOWN`` give the named individual, never
     an element; the relationship then carries the source's provenance.
     """
+    license_id = _TEXT_ENDS_RE.sub("", license_id)
+    terms = classifier_terms(license_id.strip())
+    if terms:
+        return _classifier_and(
+            license_id.strip(),
+            terms,
+            license_provenance,
+            creation_info,
+            doc_name,
+            doc_uuid,
+            exporter,
+            provenance_config,
+            encoder,
+        )
     classified = classify_license(license_id)
     if classified is None:
         return None
@@ -168,4 +249,5 @@ def get_or_create_license_element(
         exporter,
         provenance_config,
         encoder,
+        verbatim=classified.raw if kind == "text" else None,
     )

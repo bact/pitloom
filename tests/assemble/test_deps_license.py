@@ -28,8 +28,11 @@ from pitloom.assemble.spdx3._license_elements import (
 )
 from pitloom.assemble.spdx3.deps_license import (
     _build_license_relationship,
-    _is_license_concluded,
     build_license_elements,
+)
+from pitloom.assemble.spdx3.provenance import (
+    is_license_concluded,
+    parse_provenance_value,
 )
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid
 from pitloom.export.spdx3_json import Spdx3JsonExporter
@@ -37,22 +40,25 @@ from pitloom.export.spdx3_json import Spdx3JsonExporter
 from .conftest import _make_ci
 
 
-def test_get_or_create_license_element_truncates_long_name() -> None:
+@pytest.mark.parametrize(
+    ("length", "name"), [(60, "X" * 60), (61, "X" * 57 + "..."), (80, "X" * 57 + "...")]
+)
+def test_get_or_create_license_element_truncates_long_name(
+    length: int, name: str
+) -> None:
     doc_uuid = compute_doc_uuid("longlicense", "1.0", [])
     _clear_doc_counters(doc_uuid)
     exporter = Spdx3JsonExporter()
     ci = _make_ci()
-    long_id = "X" * 80
 
     element = get_or_create_license_element(
-        long_id, "Source: test", ci, "longlicense", doc_uuid, exporter
+        "X" * length, "Source: test", ci, "longlicense", doc_uuid, exporter
     )
 
     assert element is not None
     license_text = exporter.object_set.obj_by_id[element.spdx_id]
     assert isinstance(license_text, spdx3.simplelicensing_SimpleLicensingText)
-    assert license_text.name == "X" * 57 + "..."
-    assert len(license_text.name) == 60
+    assert license_text.name == name
 
 
 def test_get_or_create_license_element_truncates_at_first_newline() -> None:
@@ -76,35 +82,34 @@ def test_get_or_create_license_element_truncates_at_first_newline() -> None:
     assert license_text.simplelicensing_licenseText == multiline_id
 
 
-def test_is_license_concluded_transparent_no_method_classified_as_declared() -> None:
-    """A transparent, method-less source (e.g. read straight out of
-    pyproject.toml, not detected/inferred) is classified as declared, not
-    concluded -- every shipped extractor's real license_concluded
-    provenance is non-transparent (a LICENSE/CITATION.cff/codemeta.json
-    scan), so this only fires for a value a future/library-API caller
-    supplies directly, but build_license_elements()'s single-candidate
-    mode must still classify it correctly rather than assuming "concluded"
-    just because the caller happened to populate license_concluded."""
-    assert (
-        _is_license_concluded({"source": "pyproject.toml", "field": "license"}) is False
-    )
-
-
-def test_is_license_concluded_non_transparent_source_classified_as_concluded() -> None:
-    """A non-transparent source (e.g. an independent LICENSE-file scan) is
-    classified as concluded even with no explicit Method: tag."""
-    assert _is_license_concluded({"source": "LICENSE"}) is True
-
-
-def test_is_license_concluded_method_tag_always_wins() -> None:
-    """An explicit Method: tag (a detection heuristic ran) always means
-    concluded, regardless of source transparency."""
-    assert (
-        _is_license_concluded(
-            {"source": "pyproject.toml", "method": "licenseid_detection"}
-        )
-        is True
-    )
+@pytest.mark.parametrize(
+    ("provenance", "concluded"),
+    [
+        ("Source: pyproject.toml | Field: project.license", False),
+        # How a value was read does not change whose statement it is.
+        ("Source: pyproject.toml | Field: x | Method: licenseid_detection", False),
+        ("Source: LICENSE | Method: licenseid_detection | Tool: licenseid==1", False),
+        ("Source: CITATION.cff | Field: license", False),
+        ("Source: codemeta.json | Field: license", False),
+        ("Source: README.md | Method: yaml_frontmatter", False),
+        ("Source: model.pt2 | Field: extra/license", False),
+        (
+            "Source: Hugging Face Hub | File: LICENSE | Method: licenseid_detection",
+            False,
+        ),
+        ("Source: demo-1.0.dist-info | File: METADATA", False),
+        ("Source: deployed package metadata | Package: dep", False),
+        ("Source: installed metadata | Package: dep", True),
+        ("Source: installed metadata | Package: dep | Field: Classifier", True),
+        ("Source: PyPI JSON API | Package: dep", True),
+        ("Source: PyPI JSON API (cached) | Package: dep", True),
+        ("Field: license", True),  # no source: nobody's statement
+    ],
+)
+def test_is_license_concluded_only_for_a_third_party_record(
+    provenance: str, concluded: bool
+) -> None:
+    assert is_license_concluded(parse_provenance_value(provenance)) is concluded
 
 
 def test_build_license_elements_single_candidate_transparent_source_is_declared() -> (
@@ -226,6 +231,10 @@ def test_build_license_elements_two_candidates_one_states_no_licence(
         ("NONE", "MIT", False, 1),
         ("MIT", "none", False, 1),
         ("NOASSERTION", "NONE", False, 0),
+        # a licence's SPDX List name and its id are one licence, either way
+        ("MIT License", "MIT", False, 0),
+        ("MIT", "mit license", False, 0),
+        ("Apache Software License", "Apache-2.0", False, 1),  # not the List name
     ],
 )
 def test_build_license_elements_two_candidates_with_individuals(

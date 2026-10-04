@@ -22,7 +22,7 @@ from pitloom.core.wheel_dist_info import (
     wheel_members,
 )
 from pitloom.extract._core_metadata import (
-    core_metadata_license,
+    core_metadata_license_with_source,
     parse_project_urls,
 )
 
@@ -93,10 +93,10 @@ def _populate_metadata_from_email(
     if msg.get("Requires-Python"):
         metadata.requires_python = msg["Requires-Python"]
 
-    license_name = core_metadata_license(msg)
+    license_name, license_source = core_metadata_license_with_source(msg, source)
     if license_name:
         metadata.license_name = license_name
-        provenance["license"] = source
+        provenance["license"] = license_source
 
     reqs = msg.get_all("Requires-Dist")
     if reqs:

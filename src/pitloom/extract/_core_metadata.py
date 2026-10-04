@@ -13,8 +13,15 @@ interface.
 from __future__ import annotations
 
 import email.message
+import logging
+import re
+from collections.abc import Iterable, Sequence
 from importlib.metadata import PackageMetadata
 from typing import TYPE_CHECKING
+
+from pitloom.extract._license import classify_license
+from pitloom.extract.license_refs import classifier_expression
+from pitloom.logging_config import warn_once
 
 if TYPE_CHECKING:
     #: The two RFC 822 Core-Metadata carriers callers pass to
@@ -80,22 +87,134 @@ def parse_project_urls(
     return urls
 
 
-def core_metadata_license(msg: _MessageLike) -> str | None:
-    """The licence a Core-Metadata carrier declares: ``License-Expression``
-    (PEP 639), else the legacy free-text ``License``.
+#: One line per set of licence classifiers; ``%r`` escapes them.
+_SEVERAL_CLASSIFIERS_MESSAGE = (
+    "CLASSIFIERS=%r: several license classifiers; recorded as %r, assuming AND"
+    " (they may offer a choice)"
+)
 
-    Spec 2.4+ makes the two mutually exclusive, but a real file can carry
-    both, so the first non-empty one wins, ``License-Expression`` first.
-    ``None`` means neither header is declared; ``""`` means one is
-    declared but empty (declared, authoritative "no value", not absent).
-    Callers decide what that distinction means for their provenance.
-    """
-    declared = False
-    for field in ("License-Expression", "License"):
-        value = _get_str(msg, field)
-        if value is None:
+_logger = logging.getLogger(__name__)
+
+#: The fold a Core-Metadata writer puts before each continuation line of a
+#: multi-line value: 8 spaces (setuptools, hatchling), 7 spaces and ``|``
+#: (the older ``Description`` convention) or a tab (RFC 5322).
+_FOLD_RE = re.compile(r"\n(?:        |       \||\t)")
+
+
+def _unfolded(value: str | None) -> str | None:
+    """*value* with each continuation line's fold removed, so a multi-line
+    licence text reads as the bytes the project wrote."""
+    return None if value is None else _FOLD_RE.sub("\n", value)
+
+
+def _licence_classifiers(classifiers: Iterable[str]) -> list[str]:
+    """The ``License ::`` classifiers in *classifiers*, sorted, no repeats."""
+    return sorted({c for c in classifiers if c.startswith("License ::")})
+
+
+def _classifier_names(classifiers: Iterable[str]) -> list[str]:
+    """The licence names the ``License ::`` classifiers give, in classifier
+    order (sorted), no repeats, blanks left out."""
+    names = (c.rsplit("::", maxsplit=1)[-1].strip() for c in classifiers)
+    return [n for n in dict.fromkeys(names) if n]
+
+
+def license_from_classifiers(classifiers: Iterable[str]) -> str | None:
+    """The licence the ``License ::`` trove classifiers state, or ``None``:
+    one licence name as written; several, their ``AND``
+    (:func:`~pitloom.extract.license_refs.classifier_expression`), in sorted
+    classifier order so a build tool's reordering changes nothing."""
+    names = _classifier_names(_licence_classifiers(classifiers))
+    if not names:
+        return None
+    return names[0] if len(names) == 1 else classifier_expression(names)
+
+
+def _warn_several_classifiers(classifiers: Iterable[str], recorded: str) -> None:
+    """One ``WARNING:`` per set when *recorded* is the ``AND`` of several
+    licence classifiers."""
+    found = _licence_classifiers(classifiers)
+    if len(_classifier_names(found)) > 1:
+        warn_once(
+            _logger,
+            "license-classifiers:" + "\x00".join(found),
+            _SEVERAL_CLASSIFIERS_MESSAGE,
+            found,
+            recorded,
+        )
+
+
+def first_license(candidates: Sequence[str | None]) -> int | None:
+    """The index of the licence to record from *candidates*, in priority
+    order: the first that states one, except that ``NOASSERTION``/``UNKNOWN``
+    is weak and gives way to any later one (``NONE`` is a statement). The
+    first weak one when no other states a licence; ``None`` when none states
+    any (absent, blank). The one weak-cascade rule for a package's own
+    licence fields and classifiers, on every surface."""
+    weak: int | None = None
+    for index, value in enumerate(candidates):
+        classified = classify_license(value, warn=False)
+        if classified is None:
             continue
-        if value:
-            return value
-        declared = True
-    return "" if declared else None
+        if classified.kind != "noassertion":
+            return index
+        if weak is None:
+            weak = index
+    return weak
+
+
+def license_cascade(
+    fields: Sequence[str | None], classifiers: Iterable[str]
+) -> tuple[int | None, str | None]:
+    """``(index, licence)`` of the licence to record from *fields* (in
+    priority order) and then the ``License ::`` *classifiers*, by
+    :func:`first_license`; index ``len(fields)`` is the classifier. ``(None,
+    None)`` when none states a licence. The one cascade for a package's own
+    licence and for a dependency's record."""
+    classifiers = list(classifiers)  # read twice: a generator would be spent
+    candidates = [*fields, license_from_classifiers(classifiers)]
+    index = first_license(candidates)
+    if index is None:
+        return None, None
+    licence = candidates[index]
+    if index == len(fields) and licence is not None:
+        _warn_several_classifiers(classifiers, licence)
+    return index, licence
+
+
+def license_or_classifier(
+    primary: str | None, classifiers: Iterable[str]
+) -> tuple[str | None, bool]:
+    """``(licence, from_classifier)``: *primary*, then a ``License ::``
+    classifier, by :func:`license_cascade`; *primary* as given when neither
+    states a licence."""
+    index, licence = license_cascade([primary], classifiers)
+    if index is None:
+        return primary, False
+    return licence, index == 1
+
+
+def classifier_provenance(source: str) -> str:
+    """*source* with the note that the licence came from a classifier."""
+    return f"{source} | Field: Classifier"
+
+
+def core_metadata_license_with_source(
+    msg: _MessageLike, source: str
+) -> tuple[str | None, str]:
+    """``(licence, provenance)`` for a Core-Metadata carrier read from
+    *source*: ``License-Expression``, ``License``, then its ``License ::``
+    classifiers, by :func:`license_cascade` (so a weak
+    ``License-Expression: UNKNOWN`` gives way to ``License``), each header
+    unfolded; the provenance names the classifier when one was used. When
+    none states a licence: ``None`` if neither header is present, ``""`` if
+    one is present but blank (declared "no value", not absent).
+    """
+    fields = [
+        _unfolded(_get_str(msg, "License-Expression")),
+        _unfolded(_get_str(msg, "License")),
+    ]
+    index, licence = license_cascade(fields, msg.get_all("Classifier") or [])
+    if index is None:
+        return ("" if any(f is not None for f in fields) else None), source
+    return licence, classifier_provenance(source) if index == 2 else source

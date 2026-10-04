@@ -25,11 +25,13 @@ from unittest.mock import patch
 import pytest
 from pyproject_metadata import ConfigurationError, StandardMetadata
 
+from pitloom.extract.project._pyproject_license import (
+    _extract_and_detect_license,
+    _resolve_license_hint,
+)
 from pitloom.extract.project.pyproject import (
     _drop_redundant_license_classifiers,
-    _extract_and_detect_license,
     _is_license_classifier_conflict,
-    _resolve_license_hint,
     read_pyproject,
 )
 
@@ -279,67 +281,115 @@ def test_resolve_license_hint_unrecognised_object() -> None:
 # ---------------------------------------------------------------------------
 
 
+_DETECT = "pitloom.extract.project._pyproject_license.detect_license_for_project"
+
+
+def _std(license_obj: object, classifiers: list[str] | None = None) -> StandardMetadata:
+    return cast(
+        StandardMetadata,
+        SimpleNamespace(license=license_obj, classifiers=classifiers or []),
+    )
+
+
 def test_extract_and_detect_license_hint_none_returns_fallback() -> None:
     """When ``_resolve_license_hint`` cannot produce a hint (missing license
-    file), ``_extract_and_detect_license`` returns its fallback tuple
-    directly (line 296)."""
-    std = SimpleNamespace(license=SimpleNamespace(file="missing-license.txt"))
+    file), ``_extract_and_detect_license`` returns its fallback tuple."""
     with tempfile.TemporaryDirectory() as d:
         license_id, prov = _extract_and_detect_license(
-            cast(StandardMetadata, std), Path(d)
+            _std(SimpleNamespace(file="missing-license.txt")), Path(d)
         )
     assert license_id == "missing-license.txt"
     assert prov is None
 
 
-def test_extract_and_detect_license_detected_differs_from_hint() -> None:
-    """Free-text license hint that ``licenseid`` detection resolves to a
-    *different* SPDX id: reports the detected id with a
-    ``licenseid_detection`` provenance tag (lines 301-303)."""
-    std = SimpleNamespace(license="Some custom license text that isn't SPDX")
+@pytest.mark.parametrize(
+    ("license_obj", "detected", "expected"),
+    [
+        # licenseid identified the text: its provenance, method included.
+        pytest.param(
+            "Some custom license text",
+            ("Apache-2.0", "Source: x | Method: licenseid_detection"),
+            ("Apache-2.0", "Source: x | Method: licenseid_detection"),
+            id="identified",
+        ),
+        # Not identified: the text as written, from the field (no method).
+        pytest.param(
+            SimpleNamespace(text="MIT-like text\n", file=None),
+            ("MIT-like text\n", None),
+            ("MIT-like text\n", None),
+            id="text-kept",
+        ),
+        pytest.param(
+            "Some Custom License Text",
+            ("Some Custom License Text", None),
+            ("Some Custom License Text", None),
+            id="string-kept",
+        ),
+        # An id once stripped: the id, from the field it was read from.
+        pytest.param(
+            SimpleNamespace(text="MIT\n", file=None),
+            ("MIT", None),
+            ("MIT", "Source: pyproject.toml | Field: project.license.text"),
+            id="stripped-id",
+        ),
+    ],
+)
+def test_extract_and_detect_license_tags_a_method_only_for_a_detection(
+    license_obj: object,
+    detected: tuple[str, str | None],
+    expected: tuple[str, str | None],
+) -> None:
     with tempfile.TemporaryDirectory() as d:
-        with patch(
-            "pitloom.extract.project.pyproject.detect_license_for_project",
-            return_value=("Apache-2.0", "Source: detected"),
-        ):
-            license_id, prov = _extract_and_detect_license(
-                cast(StandardMetadata, std), Path(d)
-            )
-    assert license_id == "Apache-2.0"
-    assert prov == (
-        "Source: pyproject.toml | Field: project.license | Method: licenseid_detection"
+        with patch(_DETECT, return_value=detected) as detect:
+            got = _extract_and_detect_license(_std(license_obj), Path(d))
+    assert got == expected
+    # The hint's own source is passed on, for a detection to name it.
+    assert detect.call_args.args[2].startswith("Source: pyproject.toml")
+
+
+_MIT_CLASSIFIER = "License :: OSI Approved :: MIT License"
+_CLASSIFIER_SOURCE = "Source: pyproject.toml | Field: project.classifiers"
+
+
+@pytest.mark.parametrize(
+    ("license_obj", "expected"),
+    [
+        pytest.param(None, ("MIT License", _CLASSIFIER_SOURCE), id="absent"),
+        pytest.param(
+            SimpleNamespace(text="UNKNOWN", file=None),
+            ("MIT License", _CLASSIFIER_SOURCE),
+            id="weak",
+        ),
+        pytest.param("Apache-2.0", ("Apache-2.0", None), id="stated"),
+        pytest.param("NONE", ("NONE", None), id="none-is-a-statement"),
+    ],
+)
+def test_a_license_classifier_follows_project_license(
+    license_obj: object, expected: tuple[str, str | None]
+) -> None:
+    """The rule a wheel and an sdist use; a classifier is never dropped as
+    redundant when ``project.license`` states nothing or a placeholder."""
+    with tempfile.TemporaryDirectory() as d:
+        got = _extract_and_detect_license(
+            _std(license_obj, ["Topic :: Utilities", _MIT_CLASSIFIER]), Path(d)
+        )
+    assert got == expected
+
+
+@pytest.mark.parametrize("text", ["MIT License", "MIT License\n"])
+def test_license_text_with_or_without_a_trailing_newline_is_declared(
+    tmp_path: Path, text: str
+) -> None:
+    """Regression: ``{text = "MIT License\\n"}`` gained a false
+    ``Method: licenseid_detection`` (so ``hasConcludedLicense``) because the
+    stripped fallback differed from the hint. The text is kept as written."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "p"\nversion = "1"\n'
+        f"license = {{text = {text!r}}}\n".replace("'", '"'),
+        encoding="utf-8",
     )
-
-
-def test_extract_and_detect_license_detected_equals_hint_uses_fallback_id() -> None:
-    """Detection agrees with the hint (no new information): when the hint
-    came from license *text* (so a non-``None`` ``fallback_id`` exists),
-    the fallback id/provenance pair is returned instead (lines 305-307)."""
-    std = SimpleNamespace(license=SimpleNamespace(text="MIT-like text"))
-    with tempfile.TemporaryDirectory() as d:
-        with patch(
-            "pitloom.extract.project.pyproject.detect_license_for_project",
-            return_value=("MIT-like text", "Source: irrelevant"),
-        ):
-            license_id, prov = _extract_and_detect_license(
-                cast(StandardMetadata, std), Path(d)
-            )
-    assert license_id == "MIT-like text"
-    assert prov is None
-
-
-def test_extract_and_detect_license_detected_equals_hint_no_fallback_id() -> None:
-    """Detection agrees with the hint and there is no ``fallback_id`` (plain
-    string license hint): falls through to the final
-    ``return detected, prov`` (line 308)."""
-    std = SimpleNamespace(license="Some Custom License Text")
-    with tempfile.TemporaryDirectory() as d:
-        with patch(
-            "pitloom.extract.project.pyproject.detect_license_for_project",
-            return_value=("Some Custom License Text", "Source: detected-prov"),
-        ):
-            license_id, prov = _extract_and_detect_license(
-                cast(StandardMetadata, std), Path(d)
-            )
-    assert license_id == "Some Custom License Text"
-    assert prov == "Source: detected-prov"
+    metadata, _ = read_pyproject(tmp_path / "pyproject.toml")
+    assert metadata.license_name == text
+    assert metadata.provenance["license"] == (
+        "Source: pyproject.toml | Field: project.license"
+    )

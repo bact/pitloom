@@ -35,7 +35,7 @@ from pitloom.core.config import (
 )
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.extract._core_metadata import (
-    core_metadata_license,
+    core_metadata_license_with_source,
     parse_project_urls,
 )
 from pitloom.extract.project.setuptools_cfg import setup_cfg_pitloom_config
@@ -50,7 +50,8 @@ def _parse_pkg_info(pkg_info_text: str, source_label: str) -> ProjectMetadata:
     name = msg.get("Name", "unknown")
     version = msg.get("Version")
     summary = msg.get("Summary")
-    license_name = core_metadata_license(msg) or None
+    license_name, license_source = core_metadata_license_with_source(msg, source_label)
+    license_name = license_name or None
     requires_python = msg.get("Requires-Python")
 
     metadata = ProjectMetadata(
@@ -71,7 +72,7 @@ def _parse_pkg_info(pkg_info_text: str, source_label: str) -> ProjectMetadata:
     if summary:
         metadata.provenance["description"] = source_label
     if license_name:
-        metadata.provenance["license"] = source_label
+        metadata.provenance["license"] = license_source
     if requires_python:
         metadata.provenance["requires_python"] = source_label
 

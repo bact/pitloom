@@ -24,6 +24,7 @@ from typing import Any
 from pitloom._toml_io import load_toml_file
 from pitloom.core.models import normalize_dependency_specifier
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
+from pitloom.extract._core_metadata import license_or_classifier
 from pitloom.extract._extract_utils import field_declared
 from pitloom.extract._license import (
     detect_license_for_project,
@@ -124,17 +125,27 @@ def _resolve_hatchling_license(
     core: Any, project_dir: Path, provenance: dict[str, str]
 ) -> tuple[str | None, str | None]:
     """Extract declared/detected license and concluded license from
-    Hatchling core."""
+    Hatchling core: ``project.license``, then a ``License ::`` classifier
+    (the rule every surface uses), then the project directory."""
     try:
         license_hint = core.license_expression or core.license or None
     except OSError:
         license_hint = None
 
-    license_name, license_prov = detect_license_for_project(project_dir, license_hint)
-    if license_prov:
-        provenance["license"] = license_prov
-    elif license_name:
-        provenance["license"] = _field_provenance("license")
+    license_hint, from_classifier = license_or_classifier(
+        license_hint, core.classifiers or []
+    )
+    if from_classifier:
+        license_name: str | None = license_hint
+        provenance["license"] = _field_provenance("classifiers")
+    else:
+        license_name, license_prov = detect_license_for_project(
+            project_dir, license_hint, _field_provenance("license")
+        )
+        if license_prov:
+            provenance["license"] = license_prov
+        elif license_name:
+            provenance["license"] = _field_provenance("license")
 
     license_concluded, license_concluded_prov = resolve_license_concluded(
         bool(license_hint), project_dir

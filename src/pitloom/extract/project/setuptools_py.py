@@ -19,6 +19,7 @@ from typing import Any
 
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract._core_metadata import license_or_classifier
 from pitloom.extract._extract_utils import field_declared
 
 log = logging.getLogger(__name__)
@@ -165,6 +166,7 @@ def _build_setup_py_provenance(
     has_dependencies: bool,
     has_requires_python: bool,
     has_keywords: bool,
+    license_from_classifier: bool = False,
 ) -> dict[str, str]:
     """Build provenance dictionary for extracted setup.py fields.
 
@@ -184,7 +186,11 @@ def _build_setup_py_provenance(
     if has_readme:
         prov["readme"] = "Source: setup.py | Field: setup(long_description=...)"
     if has_license:
-        prov["license"] = "Source: setup.py | Field: setup(license=...)"
+        prov["license"] = (
+            "Source: setup.py | Field: setup(classifiers=...)"
+            if license_from_classifier
+            else "Source: setup.py | Field: setup(license=...)"
+        )
     if has_authors:
         prov["authors"] = "Source: setup.py | Field: setup(author=...)"
         if authors:
@@ -200,6 +206,12 @@ def _build_setup_py_provenance(
     if has_keywords:
         prov["keywords"] = "Source: setup.py | Field: setup(keywords=...)"
     return prov
+
+
+def _license_kwarg(kwargs: dict[str, Any]) -> str | None:
+    """``setup(license=...)`` as written, or ``None`` when absent or blank."""
+    value = kwargs.get("license")
+    return value if isinstance(value, str) and value.strip() else None
 
 
 def _extract_str_kwarg(kwargs: dict[str, Any], key: str) -> str | None:
@@ -243,7 +255,12 @@ def read_setup_py(
     description = _extract_str_kwarg(kwargs, "description")
     readme = _extract_str_kwarg(kwargs, "long_description")
     requires_python = _extract_str_kwarg(kwargs, "python_requires")
-    license_name = _extract_str_kwarg(kwargs, "license")
+    classifiers = kwargs.get("classifiers")
+    license_name, from_classifier = license_or_classifier(
+        # As written: the licence element builder normalises a text's ends.
+        _license_kwarg(kwargs),
+        [str(c) for c in classifiers] if isinstance(classifiers, (list, tuple)) else [],
+    )
     keywords = _parse_setup_keywords(kwargs)
     urls = _parse_setup_urls(kwargs)
     authors = _parse_setup_authors(kwargs)
@@ -272,6 +289,7 @@ def read_setup_py(
         has_dependencies=field_declared(kwargs, "install_requires"),
         has_requires_python=field_declared(kwargs, "python_requires"),
         has_keywords=field_declared(kwargs, "keywords"),
+        license_from_classifier=from_classifier,
     )
 
     project_metadata = ProjectMetadata(

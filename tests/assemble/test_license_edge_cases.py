@@ -23,6 +23,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import pitloom.extract._license as _license_module
+import pitloom.extract._license_classify as _classify_module
 from pitloom.extract._license import (
     _looks_like_spdx_license_expression,
     _with_tool_tag,
@@ -78,7 +79,7 @@ def test_canonicalize_license_id_match_and_exception() -> None:
 
 def test_tag_license_normalization_and_tool_tags_without_versions() -> None:
     """tag_license_normalization and _with_tool_tag handle None version gracefully."""
-    with patch("pitloom.extract._license._PY_SPDX_LICENSE_VERSION", None):
+    with patch("pitloom.extract._license_classify._PY_SPDX_LICENSE_VERSION", None):
         note = tag_license_normalization("Source: test", "mit", "MIT")
         assert "Normalized-From: mit" in note
         assert "Normalizer:" not in note
@@ -142,13 +143,19 @@ def test_module_level_version_lookup_missing_packages() -> None:
     def _raise(_name: str) -> str:
         raise PackageNotFoundError(_name)
 
+    # Restore each namespace, not reload it again: a reload makes new classes
+    # (``ClassifiedLicense``), which no longer equal instances other tests'
+    # already-imported functions create.
+    saved = [(m, dict(vars(m))) for m in (_classify_module, _license_module)]
     try:
         with patch("importlib.metadata.version", side_effect=_raise):
+            importlib.reload(_classify_module)
             importlib.reload(_license_module)
             assert _license_module._LICENSEID_VERSION is None
-            assert _license_module._PY_SPDX_LICENSE_VERSION is None
+            assert _classify_module._PY_SPDX_LICENSE_VERSION is None
     finally:
-        importlib.reload(_license_module)
+        for module, namespace in saved:
+            vars(module).update(namespace)
 
 
 def test_collect_license_candidates_skips_blank_file_and_continues() -> None:

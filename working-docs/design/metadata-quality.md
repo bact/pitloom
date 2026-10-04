@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -48,3 +48,32 @@ file-size guidance -- moved verbatim, no content changed.
   enrichment only (no exploitability judgement); VEX generation under
   Medium-term is the follow-on triage step. See
   [osv-vulnerability-lookup.md](osv-vulnerability-lookup.md).
+
+## Licence follow-ups (PR #276 review)
+
+Recorded, not built. Context:
+[license-typing.md](../implementation/license-typing.md).
+
+- [ ] **Move licence content (`classify_license`) to py-spdx-license /
+  licenseid; Pitloom keeps an adapter.** See
+  [license-layers.md](license-layers.md).
+- [ ] **No G2 second opinion for an sdist or a wheel.** Their SBOMs record
+  the archive's declared licence only; the directory detection that adds
+  `hasConcludedLicense` runs on a project directory alone (predates #276).
+  An sdist holds the `LICENSE` file, so it could run the same detection.
+- [ ] **A detected licence text differs by surface.** A `license.file`
+  whose text `licenseid` identifies (e.g. an Apache `LICENSE` with centring
+  spaces) is the id on a directory and the hook, the text from an sdist,
+  wheel or installed metadata. Detection on those readers, or none on the
+  directory, would align them; a content decision.
+- [ ] **SPDX 3.1: exactly one concluded licence.** 3.1 requires one
+  `hasConcludedLicense` per artifact. Pitloom targets 3.0.1 and emits none
+  when no source concludes one (an absent licence gives no relationship), so
+  moving to 3.1 needs a rule for that case.
+- [ ] **`LicenseRef-` case.** SPDX matches licence ids case-insensitively,
+  but `LicenseRef-Foo` and `LicenseRef-foo` are two elements, and the parser
+  rejects a lower-case `licenseref-` prefix (recorded as text).
+- [ ] **Per-file tag and copyright.** A file with two
+  `SPDX-License-Identifier:` lines keeps only the first. The main package's
+  `copyrightText` inferred from its authors
+  (`Method: inferred_from_authors`) is not a copyright anyone stated.

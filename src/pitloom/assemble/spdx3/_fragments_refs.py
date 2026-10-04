@@ -68,10 +68,43 @@ def _find_dangling_references(
     """
     known_ids = set(exporter.object_set.obj_by_id.keys())
     external_ids = _declared_external_ids(exporter.object_set)
+    namespace = _document_namespace(exporter)  # once: it scans the graph
     dangling: list[tuple[str, str, str]] = []
     for obj in exporter.object_set.objects:
         dangling.extend(_dangling_refs_for_object(obj, known_ids, external_ids))
+        dangling.extend(_dangling_custom_ids(obj, known_ids, namespace))
     return dangling
+
+
+def _document_namespace(exporter: Spdx3JsonExporter) -> str | None:
+    """The prefix of the main document's own element ids (its id, less any
+    fragment, and ``#``), or ``None`` without a document."""
+    main_doc = _find_main_document(exporter.object_set)
+    spdx_id = str(main_doc.spdxId or "") if main_doc else ""
+    return spdx_id.split("#", 1)[0] + "#" if spdx_id else None
+
+
+def _dangling_custom_ids(
+    obj: spdx3.SHACLObject, known_ids: set[str], namespace: str | None
+) -> list[tuple[str, str, str]]:
+    """A ``LicenseExpression``'s ``customIdToUri`` values in this document's
+    own namespace that resolve to nothing; a value elsewhere is an external
+    licence URI, not checked."""
+    if namespace is None or not isinstance(
+        obj, spdx3.simplelicensing_LicenseExpression
+    ):
+        return []
+    obj_id = str(obj.spdxId or "<unknown>")
+    targets = [
+        str(entry.value)
+        for entry in obj.simplelicensing_customIdToUri
+        if isinstance(entry, spdx3.DictionaryEntry) and entry.value
+    ]
+    return [
+        (obj_id, "simplelicensing_customIdToUri", target)
+        for target in targets
+        if target.startswith(namespace) and target not in known_ids
+    ]
 
 
 def _declared_external_ids(object_set: spdx3.SHACLObjectSet) -> set[str]:

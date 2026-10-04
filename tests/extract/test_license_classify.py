@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for :func:`pitloom.extract._license.classify_license`."""
+"""Tests for :func:`pitloom.extract._license_classify.classify_license`."""
 
 from __future__ import annotations
 
@@ -12,8 +12,12 @@ import time
 
 import pytest
 
-from pitloom.extract import _license
-from pitloom.extract._license import ClassifiedLicense, classify_license
+from pitloom.extract import _license_classify
+from pitloom.extract._license_classify import (
+    ClassifiedLicense,
+    classify_license,
+    is_listed_name,
+)
 
 _LONG_BODY = "Permission is granted to use, copy and modify this software, and " * 800
 
@@ -57,7 +61,7 @@ _CASES = [
         False,
     ),
     ("LicenseRef-foo", "expression", "LicenseRef-foo", False),
-    # grammar gaps: kept as written, operators upper-cased
+    # grammar gaps: canonical like any expression
     ("Apache-2.0+", "expression", "Apache-2.0+", False),
     ("apache-2.0+", "expression", "Apache-2.0+", False),
     # a deprecated id with a listed successor is replaced by it
@@ -77,6 +81,38 @@ _CASES = [
         False,
     ),
     ("GPL-2.0", "expression", "GPL-2.0", False),
+    # an addition after an id that says only/or-later, or a user reference
+    (
+        "GPL-2.0-only WITH AdditionRef-x",
+        "expression",
+        "GPL-2.0-only WITH AdditionRef-x",
+        False,
+    ),
+    (
+        "LicenseRef-a WITH AdditionRef-x",
+        "expression",
+        "LicenseRef-a WITH AdditionRef-x",
+        False,
+    ),
+    (
+        "DocumentRef-d:LicenseRef-a WITH AdditionRef-x",
+        "expression",
+        "DocumentRef-d:LicenseRef-a WITH AdditionRef-x",
+        False,
+    ),
+    # a user's own reference spelled like the gap placeholder is kept
+    (
+        "LicenseRef-pitloom-gap-000 OR Apache-2.0+",
+        "expression",
+        "LicenseRef-pitloom-gap-000 OR Apache-2.0+",
+        False,
+    ),
+    (
+        "LicenseRef-pitloom-gap-0001 OR Apache-2.0+ OR MIT+",
+        "expression",
+        "LicenseRef-pitloom-gap-0001 OR Apache-2.0+ OR MIT+",
+        False,
+    ),
     # `+` only follows a listed licence id
     ("LicenseRef-foo+", "text", "LicenseRef-foo+", False),
     ("DocumentRef-x:LicenseRef-y+", "text", "DocumentRef-x:LicenseRef-y+", False),
@@ -86,6 +122,15 @@ _CASES = [
     ("GPL-2.0-only+", "text", "GPL-2.0-only+", False),
     ("GPL-2.0-or-later+", "text", "GPL-2.0-or-later+", False),
     ("licenseref-foo", "text", "licenseref-foo", False),
+    # an addition needs a licence: a listed id or a well-formed reference
+    ("Foo WITH AdditionRef-x", "text", "Foo WITH AdditionRef-x", False),
+    ("LicenseRef- WITH AdditionRef-x", "text", "LicenseRef- WITH AdditionRef-x", False),
+    (
+        "LicenseRef-a+ WITH AdditionRef-x",
+        "text",
+        "LicenseRef-a+ WITH AdditionRef-x",
+        True,
+    ),
     # looks like an expression, is not: text and one WARNING
     ("GPL-2.0+ OR Foo", "text", "GPL-2.0+ OR Foo", True),
     ("(GPL-2.0+", "text", "(GPL-2.0+", True),
@@ -94,6 +139,8 @@ _CASES = [
     ("MIT with attribution", "text", "MIT with attribution", True),
     ("MIT OR", "text", "MIT OR", True),
     ("(MIT", "text", "(MIT", True),
+    ("MIT)", "text", "MIT)", True),
+    ("GPL-2.0-only+ OR Foo", "text", "GPL-2.0-only+ OR Foo", True),
     ("MIT AND Foo", "text", "MIT AND Foo", True),
     (
         "Apache-2.0 WITH AdditionRef-x AND Foo",
@@ -108,6 +155,7 @@ _CASES = [
     ("Foo AND Bar", "text", "Foo AND Bar", False),
     ("Classpath-exception-2.0", "text", "Classpath-exception-2.0", False),
     ("MIT\nApache-2.0", "text", "MIT\nApache-2.0", False),
+    ("MIT OR\nApache-2.0", "text", "MIT OR\nApache-2.0", False),  # never parsed
     (_LONG_BODY, "text", _LONG_BODY.strip(), False),
     # the length boundary: 200 parses, 201 does not
     (_padded(200), "expression", "MIT", False),
@@ -170,7 +218,7 @@ def test_a_parser_crash_makes_the_value_text(
     def crash(_expression: str) -> None:
         raise IndexError("boom")
 
-    monkeypatch.setattr(_license, "parse_spdx_expression", crash)
+    monkeypatch.setattr(_license_classify, "parse_spdx_expression", crash)
     assert classify_license("MIT") == ClassifiedLicense("text", "MIT", "MIT")
 
 
@@ -221,6 +269,20 @@ def test_classifying_a_recorded_expression_changes_nothing(raw: str) -> None:
     assert _value(once) == once
 
 
+@pytest.mark.parametrize(
+    ("name", "license_id", "expected"),
+    [
+        ("MIT License", "MIT", True),
+        (" mit license ", "mit", True),  # case and padding are spelling
+        ("MIT", "MIT", False),  # an id is not a name
+        ("Apache Software License", "Apache-2.0", False),  # not the List name
+        ("MIT License", "Foo", False),  # not a listed id
+    ],
+)
+def test_is_listed_name(name: str, license_id: str, expected: bool) -> None:
+    assert is_listed_name(name, license_id) is expected
+
+
 @pytest.mark.parametrize("raw", [")", ")(", "A)", ")A", "))", "((unbalanced"])
 def test_malformed_input_never_raises(raw: str) -> None:
     """The parser raises ``IndexError`` for some shapes of unbalanced ``)``
@@ -244,7 +306,7 @@ def test_successor_id_needs_a_listed_current_id(
 ) -> None:
     """The successor comes from the licence list, never from a spelling rule."""
     monkeypatch.setattr(
-        _license,
+        _license_classify,
         "get_spdx_license",
         lambda i: (
             {"licenseId": i, "isDeprecatedLicenseId": listed[i]}
@@ -253,4 +315,126 @@ def test_successor_id_needs_a_listed_current_id(
         ),
     )
     # pylint: disable-next=protected-access
-    assert _license._successor_id("Foo+") == expected
+    assert _license_classify._successor_id("Foo+") == expected
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("MIT OR ISC OR MIT OR ISC", "ISC OR MIT"),
+        ("GPL-2.0-or-later OR MIT OR GPL-2.0-or-later", "GPL-2.0-or-later OR MIT"),
+        ("MIT OR LicenseRef-a OR MIT", "MIT OR LicenseRef-a"),
+        ("MIT AND ISC AND MIT", "ISC AND MIT"),
+        ("MIT OR ISC OR MIT OR ISC OR 0BSD", "0BSD OR ISC OR MIT"),
+    ],
+)
+def test_a_repeated_term_is_one_term_not_a_parser_failure(
+    raw: str, expected: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """``py-spdx-license`` 0.0.1 raises ``TypeError`` from ``sort()`` on
+    these; the value is still a valid expression, with no WARNING."""
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        got = classify_license(raw)
+    assert got is not None
+    assert (got.kind, got.value) == ("expression", expected)
+    assert not caplog.records
+
+
+def test_a_shape_the_library_cannot_sort_keeps_the_parsers_spelling() -> None:
+    """A mixed, nested chain with a repeat: valid, so never text."""
+    got = classify_license("(MIT OR 0BSD AND MIT OR ISC) OR ISC", warn=False)
+    assert got is not None
+    assert (got.kind, got.value) == ("expression", "MIT OR 0BSD AND MIT OR ISC OR ISC")
+
+
+_GAP_FORMS = [
+    "Apache-2.0+ OR MIT",
+    "Apache-2.0+  OR  MIT",
+    "Apache-2.0+\tOR\tMIT",
+    "MIT OR Apache-2.0+",
+    "apache-2.0+ or mit",
+    "MIT OR Apache-2.0+ OR MIT",
+]
+
+
+def test_grammar_gap_expressions_are_canonical_in_any_spelling() -> None:
+    values = {_value(raw) for raw in _GAP_FORMS}
+    assert len(values) == 1
+    (value,) = values
+    assert value is not None
+    assert "\t" not in value and "  " not in value
+    assert _value(value) == value
+
+
+@pytest.mark.parametrize("operator", ["AND", "OR"])
+def test_grammar_gap_terms_sort_whatever_the_input_order(operator: str) -> None:
+    forward = _value(f"Apache-2.0+ {operator} BSD-3-Clause+ {operator} MIT")
+    assert forward is not None
+    assert forward == _value(f"MIT {operator} BSD-3-Clause+ {operator} Apache-2.0+")
+    assert forward == _value(f"BSD-3-Clause+ {operator} MIT {operator} Apache-2.0+")
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("MIT+ OR MIT+", "MIT+"),
+        ("Apache-2.0+  WITH  AdditionRef-x", "Apache-2.0+ WITH AdditionRef-x"),
+        (
+            "Apache-2.0 WITH AdditionRef-x OR MIT",
+            "MIT OR Apache-2.0 WITH AdditionRef-x",
+        ),
+        ("MIT+ OR MIT", "MIT OR MIT+"),  # distinct terms are not merged
+        (
+            "apache-2.0+ with classpath-exception-2.0",
+            "Apache-2.0+ WITH Classpath-exception-2.0",
+        ),
+    ],
+)
+def test_grammar_gap_terms_collapse_only_when_identical(
+    raw: str, expected: str
+) -> None:
+    assert _value(raw) == expected
+
+
+def test_a_lone_surrogate_is_replaced_with_one_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Else serialisation fails on it (``CanonicalizationError``)."""
+    raw = "Foo\ud800 bar"
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        got = classify_license(raw)
+        classify_license(raw)
+    assert got == ClassifiedLicense("text", "Foo� bar", "Foo� bar")
+    assert len(caplog.records) == 1
+    assert "\\ud800" in caplog.records[0].getMessage()
+
+
+@pytest.mark.parametrize(
+    "raw",
+    ["Apache-2.0+ WITH Not-an-exception", "MIT+ OR \x00Apache-2.0\x00", "Foo+ OR MIT+"],
+)
+def test_a_grammar_gap_term_that_is_not_valid_spdx_stays_text(raw: str) -> None:
+    got = classify_license(raw, warn=False)
+    assert got is not None
+    assert got.kind == "text"
+
+
+def test_a_lone_surrogate_is_replaced_silently_when_not_recording(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        got = classify_license("Foo\ud800", warn=False)
+    assert got == ClassifiedLicense("text", "Foo\ufffd", "Foo\ufffd")
+    assert not caplog.records
+
+
+@pytest.mark.parametrize("separator", ["\x1c", "\x1d", "\x1e", "\x85", " "])
+def test_the_warning_reason_is_not_cut_at_a_unicode_line_break(
+    separator: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    raw = f"MIT AND Foo{separator}bar"
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        classify_license(raw)
+    (message,) = [r.getMessage() for r in caplog.records]
+    assert message.endswith("); recorded as license text")
+    assert message.count("'") % 2 == 0

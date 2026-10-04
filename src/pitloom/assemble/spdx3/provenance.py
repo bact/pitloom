@@ -22,12 +22,15 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._provenance_encoders import (
     DEFAULT_SCHEMA_ID,
+    DEPLOYED_PACKAGE_SOURCE,
+    INSTALLED_DEPENDENCY_SOURCE,
     TRANSPARENT_SOURCES,
     VALID_PROVENANCE_DETAIL,
     VALID_PROVENANCE_FORMATS,
     PitloomV1Encoder,
     ProvenanceEncoder,
     filter_high_signal,
+    is_license_concluded,
     resolve_encoder,
 )
 from pitloom.core.models import generate_spdx_id
@@ -57,7 +60,9 @@ __all__ = [
     "ARTIFACT_METADATA_SCHEMA_URL",
     "CONFLICT_SCHEMA_URL",
     "DEFAULT_SCHEMA_ID",
+    "DEPLOYED_PACKAGE_SOURCE",
     "ENRICHMENT_SCHEMA_URL",
+    "INSTALLED_DEPENDENCY_SOURCE",
     "TRANSPARENT_SOURCES",
     "UNIFICATION_SCHEMA_URL",
     "VALID_PROVENANCE_DETAIL",
@@ -74,6 +79,7 @@ __all__ = [
     "build_unification_annotation",
     "emit_provenance",
     "filter_high_signal",
+    "is_license_concluded",
     "parse_provenance_value",
     "resolve_encoder",
 ]

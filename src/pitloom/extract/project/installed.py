@@ -39,7 +39,7 @@ from packaging.utils import canonicalize_name
 
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._core_metadata import (
-    core_metadata_license,
+    core_metadata_license_with_source,
     parse_project_urls,
 )
 from pitloom.extract._extract_utils import field_declared, to_str_list
@@ -293,12 +293,12 @@ def _parse_installed_metadata(
         metadata.requires_python = msg.get("Requires-Python", "") or None
         provenance["requires_python"] = source_label
 
-    license_name = core_metadata_license(msg)
+    license_name, license_source = core_metadata_license_with_source(msg, source_label)
     if license_name is not None:
         # A declared-but-empty header collapses to None; provenance still
         # records it as declared.
         metadata.license_name = license_name or None
-        provenance["license"] = source_label
+        provenance["license"] = license_source
 
     if field_declared(msg, "Keywords"):
         metadata.keywords = to_str_list(msg.get("Keywords"))

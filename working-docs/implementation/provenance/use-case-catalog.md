@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-09-28
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -52,7 +52,8 @@ checklist (N1-N6). G2's own implementation depth lives separately in
   rather than a separate "extracted" word (which would have collided with
   `extract/`, Pitloom's own name for the whole read-a-value pipeline
   stage). The `enrich/` subpackage itself so far has one source
-  (`enrich/readme.py`, local frontmatter, always `"detected"`) --
+  (`enrich/readme.py`, local frontmatter: the licence `"declared"`, the
+  card's own statement; datasets `"detected"`) --
   `"inferred"` is exercised by the AI-agent `sbom-enrich` Skill's
   fragment path, not yet by in-process code.
 - **Preservation** — P1 verbatim original AI-model metadata

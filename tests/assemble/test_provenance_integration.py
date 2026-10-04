@@ -60,7 +60,7 @@ def _build_integrated_model() -> AiModelMetadata:
         base_model_relation="finetune",
         # Dataset creator attribution
         datasets=[DatasetReference(role="trainedOn", metadata=ds_meta)],
-        # Make the license concluded by using a non-transparent source/method.
+        # The model card's own licence, read by a detection method.
         provenance={
             "license": (
                 "Source: model card scan | Field: cardData.license | "
@@ -90,9 +90,10 @@ def test_all_native_construct_types_present() -> None:
     assert "simplelicensing_LicenseExpression" in types
 
 
-def test_declared_vs_concluded_license_present() -> None:
-    """A license produces a hasConcludedLicense relationship because the
-    provenance carries a detection method."""
+def test_a_model_cards_own_license_is_declared_whatever_the_method() -> None:
+    """The model card is the model's own statement: hasDeclaredLicense, even
+    though a detection method read it (only a third-party record is
+    concluded)."""
     graph, _ = _load_graph(_build_integrated_model())
     ai_pkgs = [e for e in graph if e.get("type") == "ai_AIPackage"]
     assert len(ai_pkgs) == 2, "expected derived + base model packages"
@@ -101,15 +102,15 @@ def test_declared_vs_concluded_license_present() -> None:
     )
 
     rels = [e for e in graph if e.get("type") == "Relationship"]
-    concluded = [
+    (declared,) = [
         r
         for r in rels
-        if r.get("relationshipType") == "hasConcludedLicense"
+        if r.get("relationshipType") in ("hasDeclaredLicense", "hasConcludedLicense")
         and r.get("from") == derived_pkg["spdxId"]
     ]
-    assert len(concluded) == 1, "expected one hasConcludedLicense relationship"
+    assert declared["relationshipType"] == "hasDeclaredLicense"
 
-    license_id = concluded[0]["to"][0]
+    license_id = declared["to"][0]
     license_elems = [
         e
         for e in graph

@@ -23,6 +23,7 @@ from pitloom.core.config import (
     parse_pitloom_config,
 )
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract._core_metadata import license_or_classifier
 from pitloom.extract.project._setup_cfg_values import (
     coerce_cfg_value,
     parse_sub_section,
@@ -206,6 +207,24 @@ def _parse_cfg_urls(metadata: dict[str, str]) -> dict[str, str]:
     return urls
 
 
+def _resolve_cfg_license(
+    metadata: dict[str, str], project_dir: Path
+) -> tuple[str | None, str]:
+    """``(licence, provenance)``: ``metadata.license``, then a ``License ::``
+    classifier (inline or ``file:``) by the rule a wheel and an sdist use
+    (:func:`~pitloom.extract._core_metadata.license_or_classifier`)."""
+    classifiers = _resolve_cfg_file_directive(
+        metadata.get("classifiers", "").strip(), project_dir
+    )
+    license_name, from_classifier = license_or_classifier(
+        metadata.get("license", "").strip() or None,
+        (line.strip() for line in (classifiers or "").splitlines()),
+    )
+    if from_classifier:
+        return license_name, "Source: setup.cfg | Field: metadata.classifiers"
+    return license_name, "Source: setup.cfg | Field: metadata.license"
+
+
 def _parse_cfg_requires(raw: str) -> list[str]:
     """Parse a multiline ``install_requires`` value into a list of PEP 508 strings."""
     deps = []
@@ -258,7 +277,7 @@ def read_setup_cfg(
 
     authors = _parse_cfg_authors(metadata_raw)
     keywords = _parse_cfg_keywords(metadata_raw.get("keywords", ""))
-    license_name = metadata_raw.get("license", "").strip() or None
+    license_name, license_source = _resolve_cfg_license(metadata_raw, project_dir)
     urls = _parse_cfg_urls(metadata_raw)
 
     requires_python = (options_raw.get("python_requires") or "").strip() or None
@@ -275,7 +294,7 @@ def read_setup_cfg(
     if readme:
         prov["readme"] = "Source: setup.cfg | Field: metadata.long_description"
     if license_name:
-        prov["license"] = "Source: setup.cfg | Field: metadata.license"
+        prov["license"] = license_source
     # Provenance for a container field is gated on the raw key's *presence*
     # in the file, not on whether parsing it produced a non-empty result --
     # an explicitly-declared-but-empty value (e.g. `install_requires =`)

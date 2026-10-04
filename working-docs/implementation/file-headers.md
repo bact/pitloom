@@ -259,14 +259,12 @@ alphabetically within a key, e.g. `"Contributor: Alice; Contributor:
 Bob; FileType: AUDIO"`.
 
 **A file's `SPDX-License-Identifier` is never `hasConcludedLicense`.**
-`build_license_elements()` picks declared-vs-concluded via whether the
-field's source string is in `TRANSPARENT_SOURCES` -- a file's own path
-is never in that set, so calling it as-is would silently misclassify
-every file's own tag as `hasConcludedLicense`. There's exactly one
-candidate at file granularity and its role is `declared` by
-construction, so `build_file_declared_license()`
-(`assemble/spdx3/deps_license.py`) skips the classification heuristic
-entirely.
+It is the file's own statement. There's exactly one candidate at file
+granularity and its role is `declared` by construction, so
+`build_file_declared_license()` (`assemble/spdx3/deps_license.py`) builds
+`hasDeclaredLicense` directly, without the package-level
+declared-vs-concluded rule (`is_license_concluded`: a single value is
+concluded only for a third-party record such as PyPI; PR #276).
 
 **Nothing is emitted when a file's header scan finds nothing.** No
 `NOASSERTION` license/copyright per file -- a project can have thousands

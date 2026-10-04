@@ -62,9 +62,9 @@ def _dependency(
     calls: list[object] = []
     real_reader = deps_pypi._extract_pypi_license
 
-    def spy(info: dict[str, Any]) -> str | None:
+    def spy(info: dict[str, Any], source: str) -> tuple[str | None, str]:
         calls.append(info)
-        return real_reader(info)
+        return real_reader(info, source)
 
     fields = {"Version": "1.0", **(installed or {})}
 
@@ -193,7 +193,7 @@ def test_the_first_placeholder_provides_the_provenance() -> None:
 def test_pypi_record_skips_a_placeholder_for_something_better(
     info: dict[str, Any], expected: str | None
 ) -> None:
-    assert deps_pypi._extract_pypi_license(info) == expected
+    assert deps_pypi._extract_pypi_license(info, "Source: x")[0] == expected
 
 
 def test_a_held_noassertion_belongs_to_one_dependency() -> None:

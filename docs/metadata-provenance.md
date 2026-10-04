@@ -147,9 +147,9 @@ the named file with no interpretation involved (e.g. `project.name` from
 `pyproject.toml`). In `detail = "minimal"` (the default), these
 no-`method` entries are dropped entirely when the source is a
 well-known, re-readable manifest (`pyproject.toml`, `setup.cfg`/`setup.py`,
-wheel metadata, an sdist's `PKG-INFO`, the Hugging Face Hub API) -- they add no signal beyond
-what's already implied by the native field. Set `detail = "full"` to see
-every field's source regardless.
+wheel metadata, an sdist's `PKG-INFO`, the Hugging Face Hub API) -- they
+add no signal beyond what's already implied by the native field. Set
+`detail = "full"` to see every field's source regardless.
 
 ## How a license source is chosen
 
@@ -168,10 +168,14 @@ expressions written differently (`"MIT AND MIT"` and plain `"MIT"`;
 `"MIT OR Apache-2.0"` and `"Apache-2.0 OR MIT"` all normalise to the same
 value) -- so none of these are misreported as a conflict.
 
-- If only one of the two exists, only that one is recorded, as
-  `hasDeclaredLicense` or `hasConcludedLicense` respectively.
+- If the project states no license, the directory's value is recorded as
+  `hasDeclaredLicense`: a `CITATION.cff`, `codemeta.json` or `LICENSE` file
+  in the project is the project's own statement, however it was read.
 - If both exist and **agree**, both `hasDeclaredLicense` and
-  `hasConcludedLicense` are recorded, pointing at the same license.
+  `hasConcludedLicense` are recorded, pointing at the same license. A
+  license name that is the SPDX License List name of the other value's id
+  (a classifier's `MIT License` and a detected `MIT`) agrees too: two
+  elements, no conflict.
 - If both exist and **disagree**, both are still recorded -- pointing at
   two different licenses -- and Pitloom adds a `conflict` Annotation
   (`field: "license"`) on the package listing both candidates and where
@@ -206,6 +210,11 @@ value) -- so none of these are misreported as a conflict.
   says "not known". Both relationships are still recorded and no `conflict`
   Annotation is added. `NONE` against a real license is a conflict.
 
+The directory check runs where Pitloom reads a project directory: `loom
+project` or `generate_project_sbom()` on a directory, and the Hatchling
+build hook. An SBOM of an sdist or a wheel records only the license the
+archive's metadata states, with no `hasConcludedLicense` second opinion.
+
 ## How a license value is recorded
 
 Every license value goes through one classification, whichever source it
@@ -214,7 +223,7 @@ came from:
 | Value | Recorded as |
 | --- | --- |
 | A valid SPDX expression (`mit`, `Apache-2.0 OR MIT`) | a `LicenseExpression`, in canonical form (listed id case, operators upper-case, terms sorted) |
-| Anything else (a license text, `Apache2`) | a `SimpleLicensingText`, as written (whitespace-trimmed) |
+| Anything else (a license text, `Apache2`) | a `SimpleLicensingText`, as written less the leading and trailing blank space around it |
 | `NOASSERTION`, `UNKNOWN` (any case) | no element: the relationship points at the `NoAssertionLicense` individual |
 | `NONE` (any case) | no element: the relationship points at the `NoneLicense` individual |
 | Absent or blank | nothing: no license relationship at all |
@@ -247,6 +256,32 @@ PyPI JSON API. `NOASSERTION`/`UNKNOWN` is weak in that order: a later source
 that states a license wins, and the `NoAssertionLicense` individual is
 recorded, with the first source's provenance, only if none does. `NONE`
 ends the lookup.
+
+The project's own `License ::` classifiers are read the same way: after
+`project.license` in `pyproject.toml` (`Field: project.classifiers`, also
+in the Hatchling build hook), `license` in `setup.cfg`
+(`Field: metadata.classifiers`), `license` in `setup.py`
+(`Field: setup(classifiers=...)`), or `License-Expression`/`License` in a
+wheel, an sdist or installed metadata (`Field: Classifier`). A Poetry
+project's classifiers are not read: Poetry writes the license classifier
+from `license` itself. A multi-line license text in a wheel, an sdist or
+installed metadata is read without the indent the build tool folded it
+with. Several license classifiers are one `LicenseExpression`, the AND of
+`LicenseRef-pitloom-classifier-<name>` terms sorted by classifier, whose
+`customIdToUri` maps each term to a `SimpleLicensingText` of the name as
+written; AND is assumed, with one `WARNING:`, as they may offer a choice.
+So a directory, its sdist, its wheel and the build hook record the
+same declared license, except a license file or text that Pitloom
+identifies as a listed license: the directory and the build hook record
+its id, the sdist and the wheel the text. Only a directory adds the
+concluded second opinion above.
+
+Whose statement a license is decides the relationship. The package's own --
+its manifest, a file it ships, an AI model file's own metadata, a model card,
+its own installed metadata (the project, or a `loom env` package) -- is
+`hasDeclaredLicense`. A third-party record -- the PyPI JSON API, or a
+dependency's installed copy read for a project SBOM -- is
+`hasConcludedLicense`, as is the directory's second opinion above.
 
 ## How a dependency-version source is chosen
 

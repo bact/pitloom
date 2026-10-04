@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-13
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -195,8 +195,8 @@ of `annotation-provenance.md` 2026-08-25).
 
 | `role` value | Meaning | Actually implemented in `src/`? |
 | --- | --- | --- |
-| `declared` | The subject's own stated claim, however observed | **Yes** -- `src/pitloom/assemble/spdx3/deps_license.py:244` |
-| `detected` | Pitloom's own independent-verification procedure's determination | **Yes** -- `deps_license.py:250`; `src/pitloom/enrich/readme.py:114`, `:138` |
+| `declared` | The subject's own stated claim, however observed | **Yes** -- `src/pitloom/assemble/spdx3/deps_license.py:235` |
+| `detected` | Pitloom's own independent-verification procedure's determination | **Yes** -- `deps_license.py:241`; `src/pitloom/enrich/readme.py:146` (datasets; the card's licence is `declared`, `:122`, PR #276) |
 | `externalReported` | Some other party's own determination, relayed without Pitloom re-deriving it | **No** -- defined and documented (`provenance.py:376-379`) but zero `role="externalReported"` in `src/**/*.py` today |
 | `inferred` | An AI agent's non-deterministic reasoning/judgment | **No** in Pitloom's own code as a literal `role=` keyword argument -- but as of 2026-08-13 it's what the `sbom-enrich` Skill's hand-authored fragments literally write (`Role: inferred`, fixed from the old `Method: inference`) |
 | `sbomAuthorSupplied` | Asserted directly by the human operating Pitloom (or an agent relaying their direct statement) | **Yes**, as of 2026-08-13 -- `_document_files.py:132` now emits `Role: sbomAuthorSupplied` (was `Method: sbomAuthorSupplied`); the `sbom-enrich` Skill's conventions fixed to match |

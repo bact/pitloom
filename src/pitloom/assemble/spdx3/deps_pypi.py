@@ -19,8 +19,11 @@ from urllib.parse import quote as url_quote
 from packaging.utils import canonicalize_name
 
 from pitloom.assemble.spdx3.deps_originator import _extract_name_email_pairs
+from pitloom.extract._core_metadata import (
+    classifier_provenance,
+    license_cascade,
+)
 from pitloom.extract._extract_utils import fetch_json
-from pitloom.extract._license import classify_license
 from pitloom.extract.lock._hash_selection import select_sha256_hash
 
 # Best-effort PyPI JSON API fetch timeout -- short enough that a blocked or
@@ -57,37 +60,28 @@ def _extract_pypi_originator(
     return []
 
 
-def license_from_classifiers(classifiers: Iterable[str]) -> str | None:
-    """The licence a ``License ::`` trove classifier names, or ``None``."""
-    for classifier in classifiers:
-        if classifier.startswith("License ::"):
-            return classifier.rsplit("::", maxsplit=1)[-1].strip()
-    return None
-
-
-def _extract_pypi_license(info: dict[str, Any]) -> str | None:
-    """Return a license expression/identifier from a PyPI JSON API ``info``
-    object, or ``None``. Prefers PEP 639 ``license_expression``, then the
-    legacy free-text ``license`` field (skipped if implausibly long -- see
+def _extract_pypi_license(info: dict[str, Any], source: str) -> tuple[str | None, str]:
+    """Return ``(licence, provenance)`` from a PyPI JSON API ``info`` object
+    read from *source*; the licence is ``None`` when the record states none.
+    Prefers PEP 639 ``license_expression``, then the legacy free-text
+    ``license`` field (skipped if implausibly long -- see
     :data:`_PYPI_LICENSE_FIELD_MAX_LEN`), then an OSI/other ``License ::``
-    trove classifier.
+    trove classifier, whose provenance says so (``Field: Classifier``).
 
     ``UNKNOWN``/``NOASSERTION`` (any case) is a placeholder, skipped while
     looking for a better value; when nothing better exists the first one seen
     is returned, so the record's "I do not know" is not lost. ``NONE`` is a
     statement and is returned as any other value.
     """
-    first_placeholder: str | None = None
-    for field, capped in (("license_expression", False), ("license", True)):
-        value = (info.get(field) or "").strip()
-        if not value or (capped and len(value) > _PYPI_LICENSE_FIELD_MAX_LEN):
-            continue
-        classified = classify_license(value, warn=False)
-        if classified is not None and classified.kind == "noassertion":
-            first_placeholder = first_placeholder or value
-            continue
-        return value
-    return license_from_classifiers(info.get("classifiers") or []) or first_placeholder
+    # As recorded: the licence element builder normalises a text's ends.
+    expression = info.get("license_expression") or None
+    legacy = info.get("license") or None
+    if legacy and len(legacy.strip()) > _PYPI_LICENSE_FIELD_MAX_LEN:
+        legacy = None
+    index, licence = license_cascade(
+        [expression, legacy], info.get("classifiers") or []
+    )
+    return licence, classifier_provenance(source) if index == 2 else source
 
 
 def _fetch_pypi_release_info(name: str, version: str | None) -> dict[str, Any] | None:

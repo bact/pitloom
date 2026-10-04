@@ -107,6 +107,7 @@ _FAKE_CORE_DEFAULTS: dict[str, Any] = {
     "requires_python": "",
     "license": "",
     "license_expression": "",
+    "classifiers": [],
     "keywords": [],
     "authors_data": {"name": [], "email": []},
     "urls": {},

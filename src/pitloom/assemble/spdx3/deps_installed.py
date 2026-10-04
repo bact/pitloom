@@ -30,12 +30,15 @@ from pitloom.assemble.spdx3.deps_originator import (
     _resolve_author_or_maintainer,
     _resolve_metadata_url,
 )
-from pitloom.assemble.spdx3.deps_pypi import license_from_classifiers
-from pitloom.assemble.spdx3.provenance import ConflictCandidate, ProvenanceEncoder
+from pitloom.assemble.spdx3.provenance import (
+    INSTALLED_DEPENDENCY_SOURCE,
+    ConflictCandidate,
+    ProvenanceEncoder,
+)
 from pitloom.core.models import build_pypi_purl
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.extract._core_metadata import core_metadata_license
+from pitloom.extract._core_metadata import core_metadata_license_with_source
 from pitloom.extract._extract_utils import pkg_meta_get
 from pitloom.extract.lock._common import is_same_version, single_exact_pin
 
@@ -358,11 +361,15 @@ def _enrich_from_installed(
     offline: bool = False,
     content_type_method: str = "auto",
     weak: WeakLicense | None = None,
+    installed_source: str = INSTALLED_DEPENDENCY_SOURCE,
 ) -> set[str]:
     """Populate optional fields on a dependency package from installed metadata.
 
     *weak* holds an ``UNKNOWN``/``NOASSERTION`` licence for the caller to emit
-    last (see :class:`~pitloom.assemble.spdx3.deps_license.WeakLicense`)."""
+    last (see :class:`~pitloom.assemble.spdx3.deps_license.WeakLicense`).
+    *installed_source* names the record in provenance; it decides whether
+    the licence is declared or concluded (see
+    :func:`~pitloom.assemble.spdx3.provenance.is_license_concluded`)."""
     try:
         pkg_meta: PackageMetadata = get_pkg_metadata(dep_name)
     except PackageNotFoundError:
@@ -417,7 +424,7 @@ def _enrich_from_installed(
         repo_url=repo_url,
         provenance_config=provenance_config,
         encoder=encoder,
-        provenance_source=f"Source: installed metadata | Package: {dep_name}",
+        provenance_source=f"Source: {installed_source} | Package: {dep_name}",
         offline=offline,
         content_type_method=content_type_method,
     ):
@@ -428,27 +435,21 @@ def _enrich_from_installed(
         dep_package.software_copyrightText = copyright_text
         filled.add("copyright")
 
-    license_source = f"Source: installed metadata | Package: {dep_name}"
-    for license_id, provenance in (
-        (core_metadata_license(pkg_meta), license_source),
-        (
-            license_from_classifiers(pkg_meta.get_all("Classifier") or []),
-            f"{license_source} | Field: Classifier",
-        ),
+    license_id, provenance = core_metadata_license_with_source(
+        pkg_meta, f"Source: {installed_source} | Package: {dep_name}"
+    )
+    if _apply_license(
+        license_id,
+        provenance,
+        dep_package,
+        creation_info,
+        doc_name,
+        doc_uuid,
+        exporter,
+        weak=weak,
+        provenance_config=provenance_config,
+        encoder=encoder,
     ):
-        if _apply_license(
-            license_id,
-            provenance,
-            dep_package,
-            creation_info,
-            doc_name,
-            doc_uuid,
-            exporter,
-            weak=weak,
-            provenance_config=provenance_config,
-            encoder=encoder,
-        ):
-            filled.add("license")
-            break
+        filled.add("license")
 
     return filled

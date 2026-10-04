@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-08-25
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -125,10 +125,18 @@ any of these):
 
 **Role → native relationship mapping is today's default policy, not an
 inherent law.** For license (G2's concrete example, see
-[multi-source-conflict.md](multi-source-conflict.md)): `declared` →
-`hasDeclaredLicense`, `detected` → `hasConcludedLicense` (the only place
-the word "concluded" appears — as SPDX's own relationship-type name,
-applied to the `detected` candidate). This is a policy choice made
+[multi-source-conflict.md](multi-source-conflict.md)): in two-candidate
+mode (the manifest states a licence and the directory's detection is a
+second opinion), `declared` → `hasDeclaredLicense`, `detected` →
+`hasConcludedLicense` (SPDX's own relationship-type name, applied to the
+`detected` candidate). A single value is not mapped by role: whose
+statement it is decides (`is_license_concluded`, PR #276) -- a detected
+`LICENSE` with no manifest licence is the package's own and stays
+`hasDeclaredLicense`; as a single value, only a third-party record (PyPI,
+a dependency's installed copy) is concluded. The detected second opinion
+above and a library caller's `license_concluded` slot are concluded too.
+See
+[license-typing.md](../license-typing.md). This is a policy choice made
 *because* Pitloom's detector has no confidence score today — its one
 output is the only candidate determination available to call
 "concluded," not because a detected value is inherently more

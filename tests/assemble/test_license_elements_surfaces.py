@@ -25,7 +25,9 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+import hatchling.metadata.core as hatchling_metadata_core
 import pytest
+from hatchling.plugin.manager import PluginManager
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_wheel_sbom
@@ -39,6 +41,7 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.extract.project.hatchling import metadata_from_hatchling
 from pitloom.extract.project.sdist import read_sdist
 from tests._license_graph import (
     graph_of,
@@ -229,10 +232,29 @@ def _sdist(license_id: str | None) -> list[dict[str, Any]]:
     )
 
 
+def _hook(license_id: str | None) -> list[dict[str, Any]]:
+    """The Hatchling build hook's reader, *license_id* as ``license.text``."""
+    licence = (
+        "" if license_id is None else f"license = {{text = {json.dumps(license_id)}}}\n"
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / "pyproject.toml").write_text(
+            f'[project]\nname = "demo"\nversion = "1.0.0"\n{licence}',
+            encoding="utf-8",
+        )
+        core = hatchling_metadata_core.ProjectMetadata(str(root), PluginManager())
+        metadata = metadata_from_hatchling(core, root)
+    return graph_of(
+        build(DocumentModel(project=metadata, creation_metadata=CreationMetadata()))
+    )
+
+
 _SURFACES: dict[str, Callable[[str | None], list[dict[str, Any]]]] = {
     "dependency-installed": _deps,
     "dependency-pypi": _pypi,
     "main-package": _main_package,
+    "hook": _hook,
     "wheel": _wheel,
     "sdist": _sdist,
     "standalone-model": _standalone_model,
@@ -241,17 +263,19 @@ _SURFACES: dict[str, Callable[[str | None], list[dict[str, Any]]]] = {
 }
 
 
-#: Relationship a licence stated by each surface gets: a transparent manifest
-#: (pyproject, wheel METADATA, sdist PKG-INFO) or a file's own tag is
-#: *declared*; installed metadata and PyPI are *concluded* by design (not
-#: transparent manifests, see ``_is_license_concluded``). The model surfaces
-#: carry no source here, so their type is not asserted.
+#: Relationship a licence stated by each surface gets: the package's own
+#: statement (pyproject, wheel METADATA, sdist PKG-INFO, a file's own tag, an
+#: AI model's metadata) is *declared*; a dependency's installed metadata and
+#: PyPI are third-party records, *concluded* (see ``is_license_concluded``).
 _RELATIONSHIP: dict[str, str] = {
     "dependency-installed": "hasConcludedLicense",
     "dependency-pypi": "hasConcludedLicense",
     "main-package": "hasDeclaredLicense",
+    "hook": "hasDeclaredLicense",
     "wheel": "hasDeclaredLicense",
     "sdist": "hasDeclaredLicense",
+    "standalone-model": "hasDeclaredLicense",
+    "project-model": "hasDeclaredLicense",
     "file-tag": "hasDeclaredLicense",
 }
 
@@ -275,7 +299,7 @@ def test_licence_element_by_surface(
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         graph = _SURFACES[surface](raw)
     targets = license_targets(graph)
-    if expected is not None and surface in _RELATIONSHIP:
+    if expected is not None:
         assert {
             r["relationshipType"]
             for r in graph
@@ -392,7 +416,7 @@ def test_the_raw_value_is_recorded_per_source(
         ("lgpl-2.1+", "LGPL-2.1+", "LGPL-2.1-or-later"),
         ("GPL-2.0 AND MIT", "mit and gpl-2.0", "GPL-2.0 AND MIT"),
         ("Apache-2.0+", "apache-2.0+", "Apache-2.0+"),
-        ("Foo ", "Foo", "Foo"),
+        ("Foo ", "Foo", "Foo "),
     ],
 )
 def test_equivalent_spellings_are_one_element_and_no_conflict(
@@ -454,9 +478,21 @@ def test_the_deprecated_id_note_is_per_source_on_a_reused_element() -> None:
     assert not provenance_fields(graph, rels[0]["spdxId"])
 
 
+def test_a_reused_element_without_a_note_adds_none_to_the_relationship() -> None:
+    """Only a per-source note goes on the relationship; a non-manifest
+    source's plain provenance is on the element already."""
+    graph = two_packages(["MIT", "MIT"], "Source: installed metadata | Package: d")
+    (element,) = license_elements(graph)
+    assert provenance_fields(graph, element["spdxId"])
+    rels = [e for e in graph if e["type"] == "Relationship"]
+    assert len(rels) == 2
+    assert not any(provenance_fields(graph, r["spdxId"]) for r in rels)
+
+
 @pytest.mark.parametrize("raw", ["GPL-2.0+", "GPL-2.0-only", "MIT", "eCos-2.0"])
 def test_no_deprecated_id_note_where_nothing_is_ambiguous(raw: str) -> None:
     graph = two_packages([raw])
+    assert license_elements(graph)
     assert not any(
         "deprecated-license-id" in f
         for e in license_elements(graph)

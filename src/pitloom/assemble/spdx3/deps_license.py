@@ -20,33 +20,18 @@ from pitloom.assemble.spdx3._license_elements import (
     get_or_create_license_element,
 )
 from pitloom.assemble.spdx3.provenance import (
-    TRANSPARENT_SOURCES,
     ConflictCandidate,
     ProvenanceEncoder,
     build_conflict_annotation,
     emit_provenance,
+    is_license_concluded,
     parse_provenance_value,
 )
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.extract._license import classify_license
-
-
-def _is_license_concluded(parsed_prov: dict[str, str]) -> bool:
-    """Determine if a license is concluded rather than declared.
-
-    A license is concluded if we used a heuristic/detection method,
-    or if the source is not a transparent manifest (e.g. it was extracted
-    from a LICENSE file directly).
-    """
-    if parsed_prov.get("method"):
-        return True
-    source = parsed_prov.get("source", "").strip().lower()
-    if " (" in source:
-        source = source.split(" (", 1)[0].strip()
-    return not source or source not in TRANSPARENT_SOURCES
+from pitloom.extract._license import classify_license, is_listed_name
 
 
 # Shared document context plus the element; see build_license_elements.
@@ -107,6 +92,16 @@ def _build_license_relationship(
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+def _same_licence(first: str, second: str) -> bool:
+    """Whether two recorded licence values name one licence: equal, or one
+    is the SPDX List name of the other's id (``MIT License`` and ``MIT``)."""
+    return (
+        first == second
+        or is_listed_name(first, second)
+        or is_listed_name(second, first)
+    )
+
+
 def build_license_elements(
     license_id: str,
     package_spdx_id: str,
@@ -125,8 +120,10 @@ def build_license_elements(
     license relationships.
 
     Single-candidate mode (*concluded_license_id* falsy, the default):
-    unchanged behavior -- one element, classified as declared XOR concluded
-    via :func:`_is_license_concluded` on *license_provenance*.
+    one element, declared XOR concluded by its source
+    (:func:`~pitloom.assemble.spdx3.provenance.is_license_concluded` on
+    *license_provenance*): the package's own statement is declared, a
+    third-party record concluded.
 
     Two-candidate mode (G2, *concluded_license_id* given -- currently only the
     main project package path supplies this, since it's the only one with a
@@ -140,7 +137,8 @@ def build_license_elements(
     ``NOASSERTION`` (also ``UNKNOWN``) only says "not known", so it never
     conflicts: against a real licence both relationships stay, the real
     licence being the only one with content; ``NONE`` is a statement and
-    conflicts with a real licence.
+    conflicts with a real licence. A licence's SPDX List name against its id
+    (``MIT License`` and ``MIT``) is the same licence, not a conflict.
 
     Dispatches on truthiness, not just ``is None`` -- unlike ``requires_python``,
     a license id is never meaningfully ``""``, so that must not route into
@@ -159,7 +157,7 @@ def build_license_elements(
     if not concluded_license_id:
         if declared is None:
             return None, None
-        if _is_license_concluded(parse_provenance_value(license_provenance)):
+        if is_license_concluded(parse_provenance_value(license_provenance)):
             return None, _build_license_relationship(
                 package_spdx_id,
                 declared,
@@ -228,8 +226,8 @@ def build_license_elements(
     if (
         declared is not None
         and concluded is not None
-        and declared.value != concluded.value
         and not (declared.is_noassertion or concluded.is_noassertion)
+        and not _same_licence(declared.value, concluded.value)
     ):
         candidates: list[ConflictCandidate] = [
             {
@@ -277,14 +275,10 @@ def build_file_declared_license(
     ``hasDeclaredLicense`` Relationship from *file_spdx_id* to it (``None``
     when *license_id* states no licence).
 
-    Unlike :func:`build_license_elements`, this never applies the
-    declared/concluded classification heuristic
-    (:func:`_is_license_concluded`): a file's own ``SPDX-License-Identifier``
-    tag is always its own ``declared`` claim by construction -- there is
-    exactly one candidate at file granularity, nothing to disambiguate
-    against. Calling :func:`build_license_elements` here would silently
-    misclassify it as ``hasConcludedLicense`` instead, since a file's own
-    path is never in :data:`~pitloom.assemble.spdx3.provenance.TRANSPARENT_SOURCES`.
+    A file's own ``SPDX-License-Identifier`` tag is always its own
+    ``declared`` claim by construction -- there is exactly one candidate at
+    file granularity, nothing to disambiguate against -- so this does not
+    consult the source at all.
 
     Dedup is by ``(kind, value)`` via :func:`get_or_create_license_element`
     -- a file whose license matches the project's or another file's reuses
@@ -428,9 +422,11 @@ def attach_main_package_license(
 
     ``metadata.license_name`` truthy does not guarantee two-candidate mode:
     when ``metadata.license_concluded`` is falsy, :func:`build_license_elements`
-    still runs single-candidate on ``license_name``'s own provenance, which
-    can classify it as concluded (``rel_declared is None``). No licence at
-    all (absent or blank) adds no relationship: Pitloom asserts nothing.
+    still runs single-candidate on ``license_name``'s own provenance (an
+    in-package source, so declared, when the manifest states nothing). A
+    ``license_concluded`` with no ``license_name`` is always concluded. No
+    licence at all (absent or blank) adds no relationship: Pitloom asserts
+    nothing.
     """
     # A blank value states no licence: it is absent.
     license_name = (
@@ -442,7 +438,7 @@ def attach_main_package_license(
         else None
     )
     if license_name:
-        rel_declared, rel_concluded = build_license_elements(
+        relationships = build_license_elements(
             license_id=license_name,
             package_spdx_id=require_spdx_id(main_package),
             license_provenance=metadata.provenance.get(
@@ -457,26 +453,38 @@ def attach_main_package_license(
             provenance_config=provenance_config,
             encoder=encoder,
         )
-        if rel_declared:
-            exporter.add_relationship(rel_declared)
-        if rel_concluded:
-            exporter.add_relationship(rel_concluded)
     elif license_concluded:
-        rel_declared, rel_concluded = build_license_elements(
-            license_id=license_concluded,
-            package_spdx_id=require_spdx_id(main_package),
-            license_provenance=metadata.provenance.get(
-                "license_concluded",
-                "Source: LICENSE | Method: licenseid_detection",
+        # The concluded slot is honoured as such, whatever its source.
+        element = get_or_create_license_element(
+            license_concluded,
+            metadata.provenance.get(
+                "license_concluded", "Source: LICENSE | Method: licenseid_detection"
             ),
-            creation_info=spdx_ci,
-            doc_name=metadata.name,
-            doc_uuid=doc_uuid,
-            exporter=exporter,
+            spdx_ci,
+            metadata.name,
+            doc_uuid,
+            exporter,
             provenance_config=provenance_config,
             encoder=encoder,
         )
-        if rel_declared:
-            exporter.add_relationship(rel_declared)
-        if rel_concluded:
-            exporter.add_relationship(rel_concluded)
+        relationships = (
+            None,
+            _build_license_relationship(
+                require_spdx_id(main_package),
+                element,
+                spdx3.RelationshipType.hasConcludedLicense,
+                spdx_ci,
+                metadata.name,
+                doc_uuid,
+                exporter,
+                provenance_config=provenance_config,
+                encoder=encoder,
+            )
+            if element
+            else None,
+        )
+    else:
+        return
+    for rel in relationships:
+        if rel:
+            exporter.add_relationship(rel)

@@ -51,6 +51,7 @@ from pitloom.assemble.spdx3.deps_pypi import (
     _prefetch_pypi_release_infos,
 )
 from pitloom.assemble.spdx3.provenance import (
+    INSTALLED_DEPENDENCY_SOURCE,
     ConflictCandidate,
     ProvenanceEncoder,
     build_conflict_annotation,
@@ -143,10 +144,12 @@ def _enrich_from_pypi(
             filled.add("originator")
 
     if "license" not in already_filled:
-        license_id = _extract_pypi_license(info)
+        license_id, license_source = _extract_pypi_license(
+            info, f"Source: PyPI JSON API | Package: {dep_name}"
+        )
         if _apply_license(
             license_id,
-            f"Source: PyPI JSON API | Package: {dep_name}",
+            license_source,
             dep_package,
             creation_info,
             doc_name,
@@ -185,8 +188,12 @@ def _finish_dependency_enrichment(
     content_type_method: str = "auto",
     locked_hashes: dict[str, str] | None = None,
     locked_versions: dict[str, str] | None = None,
+    installed_source: str = INSTALLED_DEPENDENCY_SOURCE,
 ) -> None:
-    """Apply the shared dependency-package completeness policy."""
+    """Apply the shared dependency-package completeness policy.
+
+    *installed_source* names the installed-metadata record: a project's
+    dependency (default) or a deployed package's own (``loom env``)."""
     dep_package.software_packageUrl = build_pypi_purl(
         dep_name, dep_version if dep_version != "unknown" else None
     )
@@ -205,6 +212,7 @@ def _finish_dependency_enrichment(
         offline=offline,
         content_type_method=content_type_method,
         weak=weak,
+        installed_source=installed_source,
     )
 
     if "hash" not in filled and locked_hashes:

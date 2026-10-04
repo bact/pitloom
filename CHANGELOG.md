@@ -59,8 +59,9 @@ and this project adheres to
   reported as models ([#263])
 - `generate_wheel_sbom_with_metadata()`; `embed_sbom_in_wheel(identity=...)`
   ([#266])
-- A dependency's licence is also read from its installed `License ::`
-  classifiers, between installed metadata and PyPI ([#276])
+- A `License ::` classifier is a licence source after the licence field, for
+  a dependency and on every main-package surface (`pyproject.toml`,
+  `setup.cfg`, `setup.py`, build hook); provenance names the field ([#276])
 
 ### Changed
 
@@ -138,12 +139,17 @@ and this project adheres to
   to the release byte-identical, signed and attested ([#275])
 - A valid SPDX licence value is a canonical `LicenseExpression` (`GPL-2.0+`
   becomes `GPL-2.0-or-later`); other text stays `SimpleLicensingText`, with a
-  `WARNING:` if it looks like a broken expression ([#276])
+  `WARNING:` if it looks like a broken expression; operands sort, repeats
+  collapse; text loses only the leading and trailing blank space around it
+  ([#276])
 - `NOASSERTION`/`UNKNOWN`/`NONE` are the `NoAssertionLicense`/`NoneLicense`
   individuals; NoAssertion is weak (a later source wins, never a conflict)
   ([#276])
 - No licence stated gives no licence relationship and no licensing profile; the
   `NOASSERTION` fallback is gone and `License-N` ids shift ([#276])
+- A package's own licence is declared (model file, model card, `LICENSE`/
+  `CITATION.cff` when the manifest has none, `loom env`); PyPI and
+  dependencies' installed metadata stay concluded ([#276])
 
 ### Removed
 
@@ -262,6 +268,13 @@ and this project adheres to
   merge as dangling ([#276])
 - Hugging Face `license: unknown` is recorded as `NOASSERTION`, not dropped
   ([#276])
+- Licence text with a trailing newline no longer gains a false detection
+  method; a `LicenseRef-pitloom-gap-*` id is kept; a blank `License` header
+  falls through to the classifier ([#276])
+- Multi-line `License` text from Core Metadata is unfolded; a classifier's
+  `MIT License` no longer conflicts with a detected `MIT` ([#276])
+- Several `License ::` classifiers are one AND `LicenseExpression` of
+  `LicenseRef-pitloom-classifier-` terms, with a `WARNING:` ([#276])
 - `profileConformance` lists `simpleLicensing`/`expandedLicensing` from the
   graph, so a direct build and a fragment merge agree ([#276])
 

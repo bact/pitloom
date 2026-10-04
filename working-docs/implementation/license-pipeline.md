@@ -105,22 +105,28 @@ Spdx3JsonExporter.to_json()
 
 ### Python project sources
 
-`src/pitloom/extract/project/pyproject.py` calls
-`detect_license_for_project()` from `_license.py` after parsing
-`pyproject.toml`. That function tries four sources in priority order:
+`src/pitloom/extract/project/_pyproject_license.py` resolves the licence
+after `pyproject.toml` is parsed, in priority order:
 
 1. `project.license` in `pyproject.toml` (PEP 639 SPDX expression or
-   legacy text/file pointer).
-2. `license:` scalar or list in `CITATION.cff`.
-3. `license:` field in `codemeta.json` (URL values are reduced to their
-   SPDX ID segment).
-4. Text content of `LICENSE`, `LICENCE`, `COPYING`, or `COPYRIGHT`
-   (with common suffixes) passed to `detect_license_from_text()` via
-   the `licenseid` library (≥ 0.85 confidence).
+   legacy text/file pointer). Text that `licenseid` identifies gives the
+   id (`Method: licenseid_detection`); other text is kept as written.
+2. A `License ::` classifier, when `project.license` is absent, blank or
+   `UNKNOWN`/`NOASSERTION` (`license_or_classifier`, the wheel/sdist rule).
+3. Only when neither states a licence, the project directory
+   (`detect_license_for_project()` in `_license.py`): `license:` in
+   `CITATION.cff`, then `codemeta.json` (URL values reduced to their SPDX
+   ID segment), then the text of `LICENSE`, `LICENCE`, `COPYING` or
+   `COPYRIGHT` (with common suffixes) via `licenseid` (≥ 0.85 confidence).
+   When the manifest states a licence, the directory is the G2 concluded
+   second opinion instead.
 
-`setuptools.py` and `poetry.py` follow the same pattern: they read
-their respective `license` / `license_name` fields and store the result
-in `ProjectMetadata.license_name`.
+`setuptools_cfg.py` (`license`, then `classifiers`), `setuptools_py.py`
+(`setup(license=...)`, then `setup(classifiers=...)`) and `hatchling.py`
+(the build hook: `core.license`, then `core.classifiers`) use the same rule
+and fall back to the directory the same way. `poetry.py` reads `license`
+only: `poetry-core` derives the licence classifier from it. The result is
+`ProjectMetadata.license_name`.
 
 All extractors record their source in `provenance["license"]` using the
 `Source: … | Field: …` convention.
@@ -198,7 +204,7 @@ After extraction, licence data lives in one of two dataclasses:
 Both carry a `provenance: dict[str, str]` where the `"license"` key
 records a human-readable source description, for example:
 
-```
+```text
 Source: pyproject.toml | Field: project.license
 Source: Hugging Face Hub | File: LICENSE | Method: licenseid_detection
 Source: model.pt2 | Field: extra/license
@@ -222,18 +228,23 @@ relationship(s):
 3. Otherwise a `simplelicensing_LicenseExpression`
    (`simplelicensing_licenseExpression`: the canonical form) or a
    `simplelicensing_SimpleLicensingText` (`simplelicensing_licenseText`: the
-   stripped text) is created, with `name` (first line, at most 60
-   characters). Its provenance (`comment`, `"Metadata provenance: license:
-   <provenance>"`, and an Annotation) is written only when high-signal at the
+   text as written less the blank space around it, first seen; deduplicated on
+   the stripped text) is created, with `name` (first line, at most 60
+   characters). Several `License ::` classifiers give one
+   `LicenseExpression` whose `customIdToUri` maps each
+   `LicenseRef-pitloom-classifier-` term to its name's text element. Its
+   provenance (`comment`, `"Metadata provenance: license: <provenance>"`,
+   and an Annotation) is written only when high-signal at the
    default `detail = "minimal"` -- a non-manifest source, a `Method`, a
    `Normalized-From`/`Deprecated-License-Id` note -- and always at
    `detail = "full"` (`filter_high_signal()`).
    `NOASSERTION`/`UNKNOWN`/`NONE` create no element: the relationship's `to`
    is the named individual.
 4. A `hasDeclaredLicense` or `hasConcludedLicense` relationship is built
-   (single value: declared when its source is a transparent manifest, else
-   concluded; two values, main package only: both, with a conflict
-   Annotation when they differ, see license-typing.md).
+   (single value: declared when the source is the package's own statement,
+   concluded for a third-party record -- PyPI, a dependency's installed
+   copy; two values, main package only: both, with a conflict Annotation
+   when they differ, see license-typing.md).
 
 A note about how the value changed (`Normalized-From`, `Normalizer`,
 `Deprecated-License-Id`) goes on the new element, or, when the element
@@ -338,8 +349,9 @@ file, so the surviving header path is proven untouched.
 - `licenseid` text detection is probabilistic (threshold 0.85). Unusual
   licence texts or heavily modified standard licences may not be
   detected. Always verify the concluded licence in the SBOM.
-- A PyPI `License ::` classifier such as `OSI Approved :: MIT License`
-  gives the text `MIT License`, not the SPDX id.
+- A `License ::` classifier such as `OSI Approved :: MIT License` gives the
+  text `MIT License`, not the SPDX id (a known deviation, see
+  license-typing.md).
 - A warning for an unknown id in a field that must hold an SPDX expression
   (PEP 639 `license`, `License-Expression`) is a 0.21.0 follow-up.
 
@@ -347,52 +359,28 @@ file, so the surviving header path is proven untouched.
 
 | File | Role |
 | :--- | :--- |
-| `src/pitloom/extract/_license.py` | `detect_license_from_text()`,
-  `find_license_files()`, `detect_license_for_project()` |
-| `src/pitloom/extract/project/pyproject.py` | Python project licence
-  extraction and detection |
-| `src/pitloom/extract/project/hatchling.py` | Hatchling build-hook licence
-  extraction |
-| `src/pitloom/extract/project/setuptools.py` | setuptools project licence
-  extraction |
+| `src/pitloom/extract/_license.py` | `detect_license_from_text()`, `find_license_files()`, `detect_license_for_project()` |
+| `src/pitloom/extract/_license_classify.py` | `classify_license()` and the provenance notes of a rewrite |
+| `src/pitloom/extract/_core_metadata.py` | `core_metadata_license_with_source()` (unfolded headers), `license_cascade()`/`first_license()` (the weak cascade), `license_or_classifier()`, `license_from_classifiers()` |
+| `src/pitloom/extract/license_refs.py` | several classifiers as an AND of `LicenseRef-pitloom-classifier-` terms |
+| `src/pitloom/extract/project/_pyproject_license.py` | `pyproject.toml` licence and classifiers |
+| `src/pitloom/extract/project/pyproject.py` | Python project licence extraction and detection |
+| `src/pitloom/extract/project/hatchling.py` | Hatchling build-hook licence extraction |
+| `src/pitloom/extract/project/setuptools.py` | setuptools project licence extraction |
 | `src/pitloom/extract/project/poetry.py` | Poetry project licence extraction |
-| `src/pitloom/extract/remote/huggingface.py` | HuggingFace Hub card YAML
-  and file-based detection |
-| `src/pitloom/extract/ai_model/pytorch_pt2.py` | PT2 archive `extra/license`
-  entry |
+| `src/pitloom/extract/remote/huggingface.py` | HuggingFace Hub card YAML and file-based detection |
+| `src/pitloom/extract/ai_model/pytorch_pt2.py` | PT2 archive `extra/license` entry |
 | `src/pitloom/core/project.py` | `ProjectMetadata.license_name` field |
-| `src/pitloom/core/ai_metadata.py` | `AiModelMetadata.license`
-  field |
-| `src/pitloom/assemble/spdx3/deps_license.py` | `build_license_elements()`,
-  `build_file_declared_license()`, `WeakLicense`/`emit_weak_license()` |
-| `src/pitloom/assemble/spdx3/_license_elements.py` | the one licence
-  element builder |
-| `src/pitloom/assemble/spdx3/_licensing_profiles.py` | licensing profiles
-  from the graph |
-| `src/pitloom/core/license_individuals.py` | the named licence
-  individuals table |
-| `src/pitloom/assemble/spdx3/_document_files.py` | `_add_package_files()`,
-  `_emit_file_license_relationship()` -- file-level licence wiring |
-| `src/pitloom/assemble/spdx3/document.py` | `build()` -- licence wiring
-  (`build_model()` moved to `_document_model.py`, re-exported here) |
-| `src/pitloom/assemble/spdx3/ai.py` | `add_ai_models()` -- AI model
-  licence wiring |
-| `src/pitloom/export/spdx3_json.py` | `Spdx3JsonExporter.find_license(kind, value)`,
-  `add_license()` |
-| `tests/assemble/test_license_detection.py`,
-  `tests/assemble/test_license_normalization.py` | Unit tests for
-  `_license.py` utilities (originally `tests/test_license.py`, later
-  split -- see `cli-test-coverage-roadmap.md`) |
-| `tests/core/generator/test_generator_project_enrichment.py`,
-  `tests/core/generator/test_generator_project_structure.py` | End-to-end
-  licence export tests with fixture files (originally
-  `tests/test_generator.py`, since split by generation target and
-  further by section -- see `cli-test-coverage-roadmap.md`) |
-| `tests/assemble/test_license_files_not_listed.py` | Declared
-  `[project.license-files]` yield no SBOM element (library, Hatchling
-  hook, vendored real-world fixtures) |
-| `tests/assemble/test_deps_license.py` | Unit tests for
-  `build_license_elements()`/`_is_license_concluded()`/
-  `get_or_create_license_element()`, split out of
-  `test_deps_enrichment_pypi_fallback.py` to stay under the file-size
-  soft limit |
+| `src/pitloom/core/ai_metadata.py` | `AiModelMetadata.license` field |
+| `src/pitloom/assemble/spdx3/deps_license.py` | `build_license_elements()`, `build_file_declared_license()`, `WeakLicense`/`emit_weak_license()` |
+| `src/pitloom/assemble/spdx3/_license_elements.py` | the one licence element builder |
+| `src/pitloom/assemble/spdx3/_licensing_profiles.py` | licensing profiles from the graph |
+| `src/pitloom/core/license_individuals.py` | the named licence individuals table |
+| `src/pitloom/assemble/spdx3/_document_files.py` | `_add_package_files()`, `_emit_file_license_relationship()` -- file-level licence wiring |
+| `src/pitloom/assemble/spdx3/document.py` | `build()` -- licence wiring (`build_model()` moved to `_document_model.py`, re-exported here) |
+| `src/pitloom/assemble/spdx3/ai.py` | `add_ai_models()` -- AI model licence wiring |
+| `src/pitloom/export/spdx3_json.py` | `Spdx3JsonExporter.find_license(kind, value)`, `add_license()` |
+| `tests/assemble/test_license_detection.py`, `tests/assemble/test_license_normalization.py` | Unit tests for `_license.py` utilities (originally `tests/test_license.py`, later split -- see `cli-test-coverage-roadmap.md`) |
+| `tests/core/generator/test_generator_project_enrichment.py`, `tests/core/generator/test_generator_project_structure.py` | End-to-end licence export tests with fixture files (originally `tests/test_generator.py`, since split by generation target and further by section -- see `cli-test-coverage-roadmap.md`) |
+| `tests/assemble/test_license_files_not_listed.py` | Declared `[project.license-files]` yield no SBOM element (library, Hatchling hook, vendored real-world fixtures) |
+| `tests/assemble/test_deps_license.py` | Unit tests for `build_license_elements()`/`is_license_concluded()`/`get_or_create_license_element()`, split out of `test_deps_enrichment_pypi_fallback.py` to stay under the file-size soft limit |

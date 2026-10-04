@@ -366,7 +366,8 @@ class Spdx3JsonExporter:
 
         Args:
             kind: ``"expression"`` or ``"text"``.
-            value: The expression or text (e.g. ``"Apache-2.0"``).
+            value: The expression, or the text stripped (a text is indexed
+                by its stripped form, though stored as written).
         """
         return self._license_index.get((kind, value))
 
@@ -389,7 +390,8 @@ class Spdx3JsonExporter:
                 license_element.simplelicensing_licenseExpression,
             )
         else:
-            kind, value = "text", license_element.simplelicensing_licenseText
+            kind = "text"
+            value = (license_element.simplelicensing_licenseText or "").strip()
         if value:
             self._license_index[(kind, value)] = require_spdx_id(license_element)
 
