@@ -138,7 +138,8 @@ dependencies = [
 
 
 def test_build_main_package_noassertion_license_when_undeclared() -> None:
-    """The main project package must assert hasDeclaredLicense: NOASSERTION."""
+    """The main project package must assert hasDeclaredLicense: NOASSERTION,
+    and a NOASSERTION-only document still conforms to simpleLicensing."""
     project = ProjectMetadata(name="nolicenseproject", version="1.0.0")
     doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
 
@@ -171,7 +172,7 @@ def test_build_main_package_noassertion_license_when_undeclared() -> None:
     assert license_rels[0]["to"] == [noassertion["spdxId"]]
 
     spdx_docs = [e for e in graph if e.get("type") == "SpdxDocument"]
-    assert "simpleLicensing" not in spdx_docs[0]["profileConformance"]
+    assert "simpleLicensing" in spdx_docs[0]["profileConformance"]
 
 
 # pylint: disable-next=too-many-locals

@@ -52,6 +52,7 @@ from pitloom.assemble.spdx3._fragments_unify import (
     _UnificationEvents,
     _warn_if_same_name_different_hash,
 )
+from pitloom.assemble.spdx3._licensing_profiles import apply_licensing_profiles
 from pitloom.assemble.spdx3.provenance import build_unification_annotation
 from pitloom.core.config import FragmentConfig
 from pitloom.core.path_probe import is_missing_errno
@@ -178,7 +179,8 @@ def _raise_on_dangling_references(exporter: Spdx3JsonExporter) -> None:
 def _update_profile_conformance(
     main_doc: spdx3.SpdxDocument, exporter: Spdx3JsonExporter
 ) -> None:
-    """Append ``ai``/``dataset`` to profileConformance when present."""
+    """Append ``ai``/``dataset`` and the licensing profiles to
+    profileConformance when present."""
     conformance = list(main_doc.profileConformance or [])
     has_ai = any(isinstance(o, spdx3.ai_AIPackage) for o in exporter.object_set.objects)
     has_dataset = any(
@@ -189,6 +191,7 @@ def _update_profile_conformance(
     if has_dataset and spdx3.ProfileIdentifierType.dataset not in conformance:
         conformance.append(spdx3.ProfileIdentifierType.dataset)
     main_doc.profileConformance = conformance
+    apply_licensing_profiles(main_doc, exporter.object_set.objects)
 
 
 def _mint_extra_id(namespace: str, prefix: str, existing_ids: set[str]) -> str:
