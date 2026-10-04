@@ -52,30 +52,19 @@ def test_phantom_dependency_creates_package_and_dependency_relationship() -> Non
     ]
     assert len(depends_on) == 1
 
-    # Same completeness policy as regular dependencies (add_dependencies):
-    # NOASSERTION for copyright/license rather than a silently absent
-    # field, and the bundled binary's own hash -- already computed
-    # locally -- as its integrity hash.
+    # Same policy as regular dependencies (add_dependencies): NOASSERTION
+    # copyright, no licence claim, and the bundled binary's own hash --
+    # already computed locally -- as its integrity hash.
     assert phantom_pkg["software_copyrightText"] == "NOASSERTION"
     assert phantom_pkg["verifiedUsing"] == [
         {"type": "Hash", "algorithm": "sha256", "hashValue": "c" * 64}
     ]
-    license_rels = [
+    assert not [
         r
         for r in relationships
-        if r["relationshipType"] == "hasDeclaredLicense"
+        if r["relationshipType"] in ("hasDeclaredLicense", "hasConcludedLicense")
         and r["from"] == phantom_pkg["spdxId"]
     ]
-    assert len(license_rels) == 1
-    licenses = {
-        e["spdxId"]: e
-        for e in graph
-        if e.get("type") == "simplelicensing_SimpleLicensingText"
-    }
-    assert (
-        licenses[license_rels[0]["to"][0]]["simplelicensing_licenseText"]
-        == "NOASSERTION"
-    )
 
 
 def test_phantom_dependency_without_version_is_unknown() -> None:

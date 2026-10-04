@@ -35,7 +35,8 @@ def _root_licenses(sbom_json: str, relationship_type: str) -> list[str]:
     (sbom,) = [e for e in graph if e["type"] == "software_Sbom"]
     (root,) = sbom["rootElement"]
     return sorted(
-        by_id[target]["simplelicensing_licenseText"]
+        by_id[target].get("simplelicensing_licenseExpression")
+        or by_id[target]["simplelicensing_licenseText"]
         for rel in graph
         if rel["type"] == "Relationship"
         and rel["from"] == root

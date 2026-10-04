@@ -99,7 +99,7 @@ def _emit_file_header_metadata(
     Nothing is emitted when *package_file* carries no header-derived data
     at all (every field checked here is falsy) -- a project can have
     thousands of files; only ones that actually said something get an
-    entry, unlike the dependency-completeness ``NOASSERTION`` policy in
+    entry, unlike the ``NOASSERTION`` copyright policy in
     :mod:`pitloom.assemble.spdx3.deps`, which applies to a handful of
     packages, not every source file.
     """
@@ -210,19 +210,19 @@ def _emit_file_license_relationship(
         return
     license_provenance = f"Source: {file_path} | Field: SPDX-License-Identifier"
 
-    exporter.add_relationship(
-        build_file_declared_license(
-            license_id,
-            require_spdx_id(package_entry),
-            license_provenance,
-            spdx_ci,
-            doc_name,
-            doc_uuid,
-            exporter,
-            provenance_config=provenance_config,
-            encoder=encoder,
-        )
+    relationship = build_file_declared_license(
+        license_id,
+        require_spdx_id(package_entry),
+        license_provenance,
+        spdx_ci,
+        doc_name,
+        doc_uuid,
+        exporter,
+        provenance_config=provenance_config,
+        encoder=encoder,
     )
+    if relationship:
+        exporter.add_relationship(relationship)
 
 
 @dataclass(frozen=True)

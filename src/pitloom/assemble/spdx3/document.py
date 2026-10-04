@@ -44,6 +44,7 @@ from pitloom.assemble.spdx3._document_model import (
     build_enrichment_fragment,
     build_model,
 )
+from pitloom.assemble.spdx3._licensing_profiles import apply_licensing_profiles
 from pitloom.assemble.spdx3._package_ids import resolve_project_package_ids
 from pitloom.assemble.spdx3.ai import add_ai_models, resolve_ai_model_entity_hits
 from pitloom.assemble.spdx3.creation_info import (
@@ -197,8 +198,9 @@ def build(
 
     ``offline``: when ``False`` (the default), each dependency package's
     supplier/license/copyright gaps left by installed metadata are given a
-    best-effort PyPI JSON API lookup before falling back to ``NOASSERTION``
-    -- see :func:`~pitloom.assemble.spdx3.deps.add_dependencies`.
+    best-effort PyPI JSON API lookup before the licence is left unstated and
+    the copyright is ``NOASSERTION`` -- see
+    :func:`~pitloom.assemble.spdx3.deps.add_dependencies`.
     """
     metadata = doc.project
     prov_cfg = provenance or ProvenanceConfig()
@@ -287,7 +289,6 @@ def build(
         metadata=metadata,
         main_package=main_package,
         spdx_ci=spdx_ci,
-        spdx_doc=spdx_doc,
         doc_uuid=doc_uuid,
         exporter=exporter,
         provenance_config=prov_cfg,
@@ -389,14 +390,6 @@ def build(
         spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.ai)
         if any(m.datasets for m in doc.ai_models):
             spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.dataset)
-        if (
-            any(m.license for m in doc.ai_models)
-            and spdx3.ProfileIdentifierType.simpleLicensing
-            not in spdx_doc.profileConformance
-        ):
-            spdx_doc.profileConformance.append(
-                spdx3.ProfileIdentifierType.simpleLicensing
-            )
         add_ai_models(
             ai_models=doc.ai_models,
             main_package_spdx_id=require_spdx_id(main_package),
@@ -411,10 +404,6 @@ def build(
             enrichment_results_by_model=enrichment_results_by_model,
         )
 
-    if (
-        spdx3.ProfileIdentifierType.simpleLicensing not in spdx_doc.profileConformance
-        and exporter.has_licenses
-    ):
-        spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
+    apply_licensing_profiles(spdx_doc, exporter.object_set.objects)
 
     return exporter

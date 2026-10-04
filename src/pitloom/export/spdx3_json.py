@@ -16,6 +16,7 @@ import rfc8785
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._sbom_io import write_text_lf
+from pitloom.core.license_individuals import INDIVIDUAL_BY_COMPACT_NAME
 
 # Pitloom's own file-naming convention for this exporter's output -- SPDX 3
 # itself doesn't mandate an extension. Canonical home for every module that
@@ -247,7 +248,10 @@ def _resolve_element_name(el: dict[str, Any], spdx_id: str) -> str:
 
 def _build_id_to_name_map(graph: list[dict[str, Any]]) -> dict[str, str]:
     """Build mapping from spdxId to human-readable element name."""
-    id_to_name: dict[str, str] = {}
+    id_to_name: dict[str, str] = {
+        name: individual.spdx_name
+        for name, individual in INDIVIDUAL_BY_COMPACT_NAME.items()
+    }
     for el in graph:
         spdx_id = el.get("spdxId") or el.get("@id")
         if spdx_id:
@@ -289,8 +293,9 @@ class Spdx3JsonExporter:
 
     def __init__(self) -> None:
         self.object_set = spdx3.SHACLObjectSet()
-        # Maps simplelicensing_licenseText -> spdxId for deduplication.
-        self._license_index: dict[str, str] = {}
+        # Maps (kind, value) -> spdxId for licence deduplication: kind is
+        # "expression" or "text", so the same string as each stays apart.
+        self._license_index: dict[tuple[str, str], str] = {}
         # Maps an arbitrary caller-chosen key (e.g. "name|email") -> spdxId,
         # for deduplicating Agents built from external metadata (e.g. two
         # dependencies sharing the same author).
@@ -354,36 +359,41 @@ class Spdx3JsonExporter:
         """
         self.object_set.add(file_obj)
 
-    def find_license(self, license_id: str) -> str | None:
-        """Return the spdxId of an existing SimpleLicensingText with the given
-        ``simplelicensing_licenseText``, or ``None`` if not yet added.
+    def find_license(self, kind: str, value: str) -> str | None:
+        """Return the spdxId of an existing licence element of *kind*
+        (``"expression"`` for a ``LicenseExpression``, ``"text"`` for a
+        ``SimpleLicensingText``) holding *value*, or ``None``.
 
         Args:
-            license_id: The license text value to look up (e.g. ``"Apache-2.0"``).
+            kind: ``"expression"`` or ``"text"``.
+            value: The expression, or the text stripped (a text is indexed
+                by its stripped form, though stored as written).
         """
-        return self._license_index.get(license_id)
-
-    @property
-    def has_licenses(self) -> bool:
-        """Return True if any real (non-NOASSERTION) license text has been added."""
-        return any(k != "NOASSERTION" for k in self._license_index)
+        return self._license_index.get((kind, value))
 
     def add_license(
-        self, simple_licensing_text: spdx3.simplelicensing_SimpleLicensingText
+        self,
+        license_element: (
+            spdx3.simplelicensing_LicenseExpression
+            | spdx3.simplelicensing_SimpleLicensingText
+        ),
     ) -> None:
-        """Add a SimpleLicensingText element to the document.
-
-        Updates the internal license index so subsequent calls to
-        :meth:`find_license` with the same ``simplelicensing_licenseText``
-        return this element's spdxId.
+        """Add a licence element and index it for :meth:`find_license`.
 
         Args:
-            license_text: The simplelicensing_SimpleLicensingText object
+            license_element: A ``LicenseExpression`` or ``SimpleLicensingText``.
         """
-        self.object_set.add(simple_licensing_text)
-        license_id: str | None = simple_licensing_text.simplelicensing_licenseText
-        if license_id:
-            self._license_index[license_id] = require_spdx_id(simple_licensing_text)
+        self.object_set.add(license_element)
+        if isinstance(license_element, spdx3.simplelicensing_LicenseExpression):
+            kind, value = (
+                "expression",
+                license_element.simplelicensing_licenseExpression,
+            )
+        else:
+            kind = "text"
+            value = (license_element.simplelicensing_licenseText or "").strip()
+        if value:
+            self._license_index[(kind, value)] = require_spdx_id(license_element)
 
     def add_relationship(self, relationship: spdx3.Relationship) -> None:
         """Add a relationship to the document.

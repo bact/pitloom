@@ -15,6 +15,7 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.id_registry import FileEntry, IdRegistry
+from tests._license_graph import license_elements, license_value
 
 from ...conftest import fake_build_and_read_path
 from ..conftest import (
@@ -52,12 +53,10 @@ def test_build_file_native_copyright_and_declared_license() -> None:
     assert isinstance(license_targets, list)
     license_target_id = license_targets[0]
     license_elem = next(
-        e
-        for e in graph
-        if e.get("type") == "simplelicensing_SimpleLicensingText"
-        and e.get("spdxId") == license_target_id
+        e for e in license_elements(graph) if e.get("spdxId") == license_target_id
     )
-    assert license_elem["simplelicensing_licenseText"] == "MIT"
+    assert license_elem["type"] == "simplelicensing_LicenseExpression"
+    assert license_value(license_elem) == "MIT"
 
 
 def test_build_file_absolute_physical_path_uses_distribution_path_in_provenance() -> (
@@ -103,7 +102,7 @@ def test_build_file_absolute_physical_path_uses_distribution_path_in_provenance(
     license_rels = [r for r in relationships if r.get("from") == file_elem["spdxId"]]
     license_target_id = cast("list[str]", license_rels[0]["to"])[0]
     license_elem = next(e for e in graph if e.get("spdxId") == license_target_id)
-    assert license_elem["simplelicensing_licenseText"] == "MIT"
+    assert license_value(license_elem) == "MIT"
 
 
 def test_build_file_absolute_physical_path_is_deterministic_across_runs() -> None:
@@ -346,7 +345,7 @@ def test_add_package_files_falls_back_to_distribution_path_lookup() -> None:
 
 def test_build_file_shared_license_dedupes_to_one_element() -> None:
     """Two files declaring the same SPDX-License-Identifier reuse one
-    SimpleLicensingText element, with two separate relationships."""
+    LicenseExpression element, with two separate relationships."""
     files = [
         ProjectFile(
             physical_path="pkg/a.py",
@@ -363,15 +362,10 @@ def test_build_file_shared_license_dedupes_to_one_element() -> None:
     ]
     graph = _build_graph_for_files(files)
 
-    license_elements = [
-        e
-        for e in graph
-        if e.get("type") == "simplelicensing_SimpleLicensingText"
-        and e.get("simplelicensing_licenseText") == "Apache-2.0"
-    ]
-    assert len(license_elements) == 1
+    apache = [e for e in license_elements(graph) if license_value(e) == "Apache-2.0"]
+    assert len(apache) == 1
 
-    license_spdx_id = license_elements[0]["spdxId"]
+    license_spdx_id = apache[0]["spdxId"]
     declared_rels = [
         e
         for e in graph

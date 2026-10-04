@@ -11,7 +11,9 @@ When both are present, ``[project]`` values take precedence and
 
 See also: :mod:`pitloom.extract.project.pyproject_dynamic` for PEP 621
 ``dynamic`` field resolution (``prepare_dynamic_version()``, called from
-:func:`read_pyproject` below).
+:func:`read_pyproject` below), and
+:mod:`pitloom.extract.project._pyproject_license` for ``project.license``
+and the licence classifiers.
 """
 
 from __future__ import annotations
@@ -26,10 +28,10 @@ from pitloom._toml_io import load_toml_file
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
 from pitloom.core.models import normalize_dependency_specifier
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
+from pitloom.extract._core_metadata import license_from_classifiers
 from pitloom.extract._extract_utils import field_declared
 from pitloom.extract._license import (
-    _looks_like_spdx_license_expression,
-    _looks_like_spdx_license_id,
+    classify_license,
     detect_license_for_project,
     resolve_license_concluded,
 )
@@ -37,6 +39,7 @@ from pitloom.extract.lock._common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract.lock.poetry import extract_poetry_lock_dependencies
 from pitloom.extract.lock.poetry_hash import extract_poetry_lock_hashes
 from pitloom.extract.project._poetry_fields import read_poetry_section
+from pitloom.extract.project._pyproject_license import _extract_and_detect_license
 from pitloom.extract.project.poetry import extract_poetry_metadata
 from pitloom.extract.project.pyproject_dynamic import prepare_dynamic_version
 
@@ -93,6 +96,25 @@ def _is_license_classifier_conflict(exc: ConfigurationError) -> bool:
     )
 
 
+def _drop_placeholder_license(data: dict[str, Any]) -> dict[str, Any] | None:
+    """*data* without ``project.license`` when that is only an
+    ``UNKNOWN``/``NOASSERTION`` placeholder, else ``None``. The placeholder
+    is weak, so the ``License ::`` classifier it conflicts with wins anyway
+    (:func:`~pitloom.extract._core_metadata.license_or_classifier`): it is
+    the classifiers that carry the licence, never redundant."""
+    project_data: dict[str, Any] = data.get("project", {})
+    license_value = project_data.get("license")
+    classified = (
+        classify_license(license_value, warn=False)
+        if isinstance(license_value, str)
+        else None
+    )
+    if classified is None or classified.kind != "noassertion":
+        return None
+    kept = {k: v for k, v in project_data.items() if k != "license"}
+    return {**data, "project": kept}
+
+
 def _drop_redundant_license_classifiers(data: dict[str, Any]) -> dict[str, Any]:
     """Strip ``License ::`` trove classifiers from a parsed
     ``pyproject.toml`` mapping, leaving every other classifier and
@@ -145,6 +167,15 @@ def _parse_standard_metadata_with_retry(
     except ConfigurationError as exc:
         if not _is_license_classifier_conflict(exc):
             raise ValueError(f"Failed to parse project metadata: {exc}") from exc
+        # Classifiers that state no licence (a category alone) lose to
+        # any `license`, a placeholder too, and are dropped silently.
+        classifiers = data.get("project", {}).get("classifiers")
+        states_licence = isinstance(classifiers, list) and bool(
+            license_from_classifiers(c for c in classifiers if isinstance(c, str))
+        )
+        placeholder_dropped = (
+            _drop_placeholder_license(data) if states_licence else None
+        )
         # PEP 639 transitional state: a project declares both a modern
         # SPDX `license` expression and legacy `License ::` trove
         # classifiers -- pyproject-metadata treats the combination as a
@@ -153,15 +184,18 @@ def _parse_standard_metadata_with_retry(
         # same release they add the SPDX field. Retry once with the
         # redundant classifiers dropped, keeping the SPDX expression --
         # the newer, more specific PEP 639 source -- as authoritative.
-        if not quiet:
-            log.warning(
-                "%s declares both an SPDX `license` expression and legacy "
-                "`License ::` classifiers -- dropping the redundant "
-                "classifiers and keeping the SPDX expression (PEP 639 "
-                "transitional state)",
-                pyproject_path,
-            )
-        data = _drop_redundant_license_classifiers(data)
+        if placeholder_dropped is not None:
+            data = placeholder_dropped
+        else:
+            if states_licence and not quiet:
+                log.warning(
+                    "%s declares both an SPDX `license` expression and legacy "
+                    "`License ::` classifiers -- dropping the redundant "
+                    "classifiers and keeping the SPDX expression (PEP 639 "
+                    "transitional state)",
+                    pyproject_path,
+                )
+            data = _drop_redundant_license_classifiers(data)
         try:
             return (
                 StandardMetadata.from_pyproject(
@@ -252,7 +286,8 @@ def read_pyproject(
     # short-circuit before the LICENSE file is ever read, so there would be
     # nothing to disagree with.
     license_concluded, license_concluded_prov = resolve_license_concluded(
-        bool(std.license), pyproject_path.parent
+        bool(std.license or license_from_classifiers(std.classifiers)),
+        pyproject_path.parent,
     )
 
     project_data = data.get("project", {})
@@ -382,74 +417,6 @@ def _extract_readme(std: StandardMetadata, override: str | None) -> str | None:
         if hasattr(readme, "text") and readme.text:
             return readme.text
     return None
-
-
-def _resolve_license_hint(
-    license_obj: Any,
-    project_dir: Path,
-) -> tuple[str | None, str, tuple[str | None, str | None]]:
-    """Extract ``(hint, base_prov, fallback)`` from a raw license object.
-
-    *hint* is the text or string to attempt detection on.  *fallback* is the
-    ``(license_id, provenance)`` pair to return when detection finds nothing
-    new.  Returns ``hint=None`` when the object format is unrecognised or the
-    referenced file cannot be read.
-    """
-    base = "Source: pyproject.toml | Field: project.license"
-    if isinstance(license_obj, str):
-        # str: let detect_license_for_project provide the fallback
-        return license_obj.strip(), base, (None, None)
-    if hasattr(license_obj, "text") and license_obj.text:
-        hint = license_obj.text
-        return hint, f"{base}.text", (hint, None)
-    if hasattr(license_obj, "file") and license_obj.file:
-        fname = str(license_obj.file)
-        try:
-            text = (project_dir / fname).read_text(encoding="utf-8", errors="replace")
-            return text, f"Source: {fname}", (fname, None)
-        except OSError:
-            return None, base, (fname, None)
-    return None, base, (str(license_obj), None)
-
-
-def _extract_and_detect_license(
-    std: StandardMetadata,
-    project_dir: Path,
-) -> tuple[str | None, str | None]:
-    """Return ``(license_id, provenance_override)`` from StandardMetadata.
-
-    Handles both plain string format (PEP 639) and License object format.
-    When the metadata field contains license text rather than an SPDX License ID,
-    falls back to :func:`~pitloom.extract._license.detect_license_for_project`
-    which searches the project directory and uses the ``licenseid`` library for
-    text-based detection.
-
-    Returns a 2-tuple:
-
-    * ``license_id`` -- SPDX License ID, SPDX License Expression,
-      or raw string fallback.
-    * ``provenance_override`` -- non-``None`` when provenance differs from the
-      default ``pyproject.toml`` field string (e.g. detected from a file).
-    """
-    license_obj = std.license
-    if not license_obj:
-        return detect_license_for_project(project_dir)
-
-    hint, base_prov, fallback = _resolve_license_hint(license_obj, project_dir)
-    if hint is None:
-        return fallback
-
-    if _looks_like_spdx_license_id(hint) or _looks_like_spdx_license_expression(hint):
-        return hint, None
-
-    detected, prov = detect_license_for_project(project_dir, hint)
-    if detected and detected != hint:
-        return detected, f"{base_prov} | Method: licenseid_detection"
-
-    fallback_id, fallback_prov = fallback
-    if fallback_id is not None:
-        return fallback_id, fallback_prov
-    return detected, prov
 
 
 def _extract_authors(std: StandardMetadata) -> list[dict[str, str]]:

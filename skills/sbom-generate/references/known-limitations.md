@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -25,14 +25,18 @@ refusing `ERROR:` names `pyproject.toml`, `setup.cfg` and `setup.py`.
 ## Mixed-ecosystem repos
 
 The SBOM inventories `[project.dependencies]` and what is importable; every
-non-Python dependency leaves no element, no error and no `NOASSERTION`
-placeholder. Look for non-Python ecosystem files beside `pyproject.toml`.
+non-Python dependency leaves no element, no error and no placeholder. Look for
+non-Python ecosystem files beside `pyproject.toml`.
 
 ## Non-PyPI dependencies
 
 `git+https://...`, a local path requirement or a private-index-only
-package: supplier/license/hash enrichment has nothing to look up, so the
-fields land on `NOASSERTION` -- correct for "genuinely unknown".
+package: unless it is installed locally (its installed metadata is read),
+supplier/license/hash enrichment has nothing to look up, so the copyright
+lands on `NOASSERTION`, supplier and hash stay empty, and the package gets
+no license relationship -- Pitloom never asserts a license it was not told
+(a source that itself says `UNKNOWN`/`NOASSERTION` gives the
+`NoAssertionLicense` individual).
 
 ## AI model formats
 
@@ -80,15 +84,15 @@ are listed does not depend on file order or installed libraries. `loom model
 FILE`, `loom enrich FILE` and `loom generate FILE` give the same stub and the
 same `WARNING:` with exit 0 for a bound, a missing library and a parse failure
 (the wheel gate, ceiling and budget apply to wheel scans only). A file that is
-not a model is no entry in a scan, and an `ERROR:` (exit 1) for those
-commands: empty, an unknown format, or a header that contradicts the suffix,
-which includes a Git LFS pointer. A scan says `WARNING: ... header is a Git
-LFS pointer; not listed as an AI model`; `loom model` and `loom enrich` (any
-suffix) and `loom generate FILE` (model suffixes only, `.bin` included; a
-`.zip` is read as an sdist and fails as one) say `ERROR: model command
-failed:`, `enrichment fragment generation failed:` or `SBOM generation
-failed:`, then `<path>: header is a Git LFS pointer`. The file was not fetched: run `git lfs
-pull` and regenerate.
+not a model is no entry in a scan, and an `ERROR:` (exit 1) for those commands:
+empty, an unknown format, or a header that contradicts the suffix, which
+includes a Git LFS pointer. A scan says `WARNING: ... header is a Git LFS
+pointer; not listed as an AI model`; `loom model` and `loom enrich` (any suffix)
+and `loom generate FILE` (model suffixes only, `.bin` included; a `.zip` is read
+as an sdist and fails as one) say `ERROR: model command failed:`, `enrichment
+fragment generation failed:` or `SBOM generation failed:`, then `<path>: header
+is a Git LFS pointer`. The file was not fetched: run `git lfs pull` and
+regenerate.
 
 Inputs, outputs, hyperparameters, properties and raw metadata are cut at 1000
 entries (one `WARNING:`; the first 1000 in file order, in key order for
@@ -142,3 +146,15 @@ Use when `unzip -l <wheel>` shows `RECORD.jws` or `RECORD.p7s`, or `embed-wheel`
    with WebFetch or `curl` and relay the relevant part; fall back to 1-3.
 5. **Never** add the flag on your own. Non-interactive: report the refusal, the
    explanation and the exact re-run command with the flag.
+
+## A licence that looks like a broken expression
+
+Text with an operator or parenthesis and a known id (`MIT OR`, `(MIT`) is
+kept as `SimpleLicensingText`, not dropped, with one stderr line per value,
+e.g.:
+
+```text
+WARNING: LICENSE='MIT OR': not a valid SPDX license expression (Unexpected 'OR'); recorded as license text
+```
+
+Fix the source value to get a `LicenseExpression`.

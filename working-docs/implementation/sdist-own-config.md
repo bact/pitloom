@@ -30,7 +30,8 @@ the unpacked directory does. Before, `read_project()` returned
   headers; [wheel-identity.md](wheel-identity.md) D3), while the member is
   still hashed whole. A whole-file byte cap would not bound memory: 16 MiB
   of one-line headers parses to over 500 MiB. Over a cap: one `WARNING:`,
-  metadata from `pyproject.toml` as with no `PKG-INFO`.
+  metadata from the root `pyproject.toml` as with no `PKG-INFO` when the
+  sdist has one; without it the metadata fields stay unset.
   `read_sdist()` returns `SdistContents(metadata, files, config,
   config_member)`.
   `read_sdist()` sorts `files` by `distribution_path`, as `read_wheel()`

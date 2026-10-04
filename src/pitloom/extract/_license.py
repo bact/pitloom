@@ -14,7 +14,9 @@ Build the database before first use::
     licenseid update
 
 See Also:
-    :mod:`pitloom.extract._license_detect` for file candidate scanning.
+    :mod:`pitloom.extract._license_detect` for file candidate scanning, and
+    :mod:`pitloom.extract._license_classify` for classifying a value
+    (re-exported here).
 """
 
 from __future__ import annotations
@@ -27,9 +29,16 @@ from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
 from licenseid import AggregatedLicenseMatcher
-from py_spdx_license import ParseError as SpdxExpressionParseError
-from py_spdx_license import parse as parse_spdx_expression
 
+from pitloom.extract._license_classify import (
+    _PY_SPDX_LICENSE_VERSION,
+    ClassifiedLicense,
+    classify_license,
+    is_listed_name,
+    same_licence,
+    tag_deprecated_license_ids,
+    tag_license_normalization,
+)
 from pitloom.extract._license_detect import (
     _LICENSE_STEMS,
     _LICENSE_SUFFIXES,
@@ -46,11 +55,6 @@ try:
 except PackageNotFoundError:
     _LICENSEID_VERSION = None
 
-try:
-    _PY_SPDX_LICENSE_VERSION: str | None = _pkg_version("py-spdx-license")
-except PackageNotFoundError:
-    _PY_SPDX_LICENSE_VERSION = None
-
 __all__ = [
     "_LICENSE_STEMS",
     "_LICENSE_SUFFIXES",
@@ -58,25 +62,24 @@ __all__ = [
     "_PY_SPDX_LICENSE_VERSION",
     "_SPDX_LICENSE_EXPR_KEYWORDS_RE",
     "_SPDX_LICENSE_ID_RE",
-    "_SPDX_OPERATOR_CASING_RE",
     "_looks_like_spdx_license_expression",
     "_looks_like_spdx_license_id",
     "_with_tool_tag",
+    "ClassifiedLicense",
     "canonicalize_license_id",
+    "classify_license",
     "collect_license_candidates",
     "detect_independent_license",
     "detect_license_for_project",
     "detect_license_from_text",
     "find_license_files",
-    "normalize_license_expression",
+    "is_listed_name",
+    "same_licence",
     "resolve_license_concluded",
+    "tag_deprecated_license_ids",
     "tag_license_normalization",
 ]
 
-#: Matches AND/OR/WITH/NOT only when they stand alone as their own token
-_SPDX_OPERATOR_CASING_RE = re.compile(
-    r"(?<![\w-])(and|or|with|not)(?![\w-])", re.IGNORECASE
-)
 
 # Detects compound SPDX expressions: "MIT OR Apache-2.0", "GPL-2.0 WITH ..."
 _SPDX_LICENSE_EXPR_KEYWORDS_RE = re.compile(r"\s+(OR|AND|WITH)\s+", re.IGNORECASE)
@@ -154,35 +157,6 @@ def canonicalize_license_id(raw: str) -> str:
     return raw
 
 
-def normalize_license_expression(raw: str) -> str:
-    """Return *raw* normalized to a canonical SPDX license expression."""
-    operator_cased = _SPDX_OPERATOR_CASING_RE.sub(
-        lambda m: m.group(1).upper(), raw.strip()
-    )
-    try:
-        node = parse_spdx_expression(operator_cased, allow_unknown=True)
-        return str(node.sort().to_string())
-    except SpdxExpressionParseError as exc:
-        _logger.debug("Failed to parse SPDX expression %r: %s", raw, exc)
-    # pylint: disable-next=broad-exception-caught
-    except Exception as exc:
-        # py-spdx-license can raise other than ParseError on malformed
-        # input (e.g. unbalanced ")" -> IndexError); degrade gracefully
-        # either way, same as canonicalize_license_id's fallback below.
-        _logger.debug("SPDX expression parser raised unexpectedly for %r: %s", raw, exc)
-    return canonicalize_license_id(raw)
-
-
-def tag_license_normalization(provenance: str, raw: str, normalized: str) -> str:
-    """Append a note to *provenance* when normalization changed the value."""
-    if raw.strip() == normalized:
-        return provenance
-    note = f"{provenance} | Normalized-From: {raw.strip()}"
-    if _PY_SPDX_LICENSE_VERSION is None:
-        return note
-    return f"{note} | Normalizer: py-spdx-license=={_PY_SPDX_LICENSE_VERSION}"
-
-
 def _with_tool_tag(provenance: str) -> str:
     """Append the ``licenseid`` library version to a detection provenance string."""
     if _LICENSEID_VERSION is None:
@@ -216,24 +190,27 @@ def resolve_license_concluded(
 def detect_license_for_project(
     project_dir: Path,
     license_hint: str | None = None,
+    hint_source: str = "",
 ) -> tuple[str | None, str | None]:
-    """Detect an SPDX license ID for a project, returning ``(id, provenance)``."""
-    if license_hint:
-        hint = license_hint.strip()
-        if _looks_like_spdx_license_id(hint) or _looks_like_spdx_license_expression(
-            hint
-        ):
-            return hint, None
+    """Detect an SPDX license ID for a project, returning ``(id, provenance)``.
 
-        detected = detect_license_from_text(hint)
-        if detected:
-            return detected, _with_tool_tag("Method: licenseid_detection")
-
-    directory_id, directory_prov = detect_independent_license(project_dir)
-    if directory_id:
-        return directory_id, directory_prov
-
-    if license_hint and license_hint.strip():
-        return license_hint.strip(), None
-
-    return None, None
+    A stated *license_hint* is the manifest's own licence: an id or an
+    expression is returned stripped; text that ``licenseid`` identifies gives
+    the id, with *hint_source* and the method in the provenance; other text
+    is returned as written, with no provenance (no detection happened). The
+    project directory is read only when no hint is stated: against a stated
+    licence it is the G2 second opinion (:func:`resolve_license_concluded`),
+    not a replacement.
+    """
+    hint = (license_hint or "").strip()
+    if not hint:
+        return detect_independent_license(project_dir)
+    if _looks_like_spdx_license_id(hint) or _looks_like_spdx_license_expression(hint):
+        return hint, None
+    detected = detect_license_from_text(hint)
+    if detected:
+        method = "Method: licenseid_detection"
+        return detected, _with_tool_tag(
+            f"{hint_source} | {method}" if hint_source else method
+        )
+    return license_hint, None

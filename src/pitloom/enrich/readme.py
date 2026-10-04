@@ -118,7 +118,8 @@ class ReadmeEnricher:
                     field="license",
                     before=None,
                     after=license_value.strip(),
-                    role="detected",
+                    # The card is the model's own statement of its licence.
+                    role="declared",
                     source=source,
                 )
             )

@@ -15,7 +15,6 @@ from collections.abc import Collection, Sequence
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3.deps_license import _add_license_noassertion
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import PhantomDependency
@@ -74,15 +73,6 @@ def add_phantom_dependencies(
         dep_package.software_copyrightText = "NOASSERTION"
         if dep.digest_sha256:
             dep_package.verifiedUsing = [sha256_hash(dep.digest_sha256)]
-        _add_license_noassertion(
-            dep_package,
-            creation_info,
-            doc_name,
-            doc_uuid,
-            exporter,
-            provenance_config=provenance_config,
-            encoder=encoder,
-        )
 
         exporter.add_package(dep_package)
         emit_provenance(

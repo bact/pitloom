@@ -144,6 +144,33 @@ def test_wrong_expected_license_fails(module: ModuleType) -> None:
         module.check_sbom_license(_sbom(), "MIT")
 
 
+@pytest.mark.parametrize(
+    ("target", "individual"),
+    [
+        ("expandedlicensing_NoAssertionLicense", True),
+        ("https://spdx.org/rdf/3.0.1/terms/ExpandedLicensing/NoAssertionLicense", True),
+        # look-alikes of an individual are not one
+        ("urn:x#Foo_NoneLicense", False),
+        ("urn:x#Foo/NoAssertionLicense", False),
+    ],
+)
+def test_a_named_individual_target_is_its_licence_name(
+    module: ModuleType, target: str, individual: bool
+) -> None:
+    """``NoAssertionLicense`` has no element: it reads as ``NOASSERTION``, so
+    it matches that and no real licence."""
+    sbom = _sbom()
+    for rel in _graph(sbom)[3:]:
+        rel["to"] = [target]
+    if not individual:
+        with pytest.raises(module.SbomLicenseError, match="no licence text"):
+            module.check_sbom_license(sbom, "NOASSERTION")
+        return
+    module.check_sbom_license(sbom, "NOASSERTION")
+    with pytest.raises(module.SbomLicenseError, match="NOASSERTION"):
+        module.check_sbom_license(sbom, "Apache-2.0")
+
+
 def _write_wheel(path: Path, sboms: dict[str, bytes]) -> Path:
     """A wheel with a ``.dist-info`` that ``find_embedded_sbom`` accepts."""
     members = {

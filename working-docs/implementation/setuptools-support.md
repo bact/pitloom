@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-24
-Last-Modified: 2026-09-01
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -14,7 +14,9 @@ wheel file discovery below stays a static-config read (never executes
 `loom wheel`/`embed-wheel`'s build-stage path; [poetry-support.md](poetry-support.md)
 for the sibling Poetry backend's wheel-file discovery, which delegates
 to poetry-core's own builder instead of hand-rolling static-config
-resolution the way this file's setuptools discovery has to.
+resolution the way this file's setuptools discovery has to;
+[setuptools-config-followups.md](../design/setuptools-config-followups.md)
+for open `setup.cfg` directive gaps.
 
 ## Motivation
 

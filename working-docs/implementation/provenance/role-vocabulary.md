@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-08-25
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,7 +15,9 @@ design rationale, start here),
 [multi-source-conflict.md](multi-source-conflict.md). The scattered
 `method` (extraction-method) vocabulary is *not* covered here -- see
 [working-docs/design/provenance-enrichment-vocabulary.md](../../design/provenance-enrichment-vocabulary.md)
-§1 (parked, deferred).
+§1 (parked, deferred). Settling roles, their mapping to SPDX relationships
+and the source classes is a prerequisite for systematic licence rules:
+[license-layers.md](../../design/license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy).
 
 The `role` vocabulary is general-purpose -- it is reused by G2
 (multi-source disagreement), E1/E2 (enrichment lineage), and
@@ -125,10 +127,18 @@ any of these):
 
 **Role → native relationship mapping is today's default policy, not an
 inherent law.** For license (G2's concrete example, see
-[multi-source-conflict.md](multi-source-conflict.md)): `declared` →
-`hasDeclaredLicense`, `detected` → `hasConcludedLicense` (the only place
-the word "concluded" appears — as SPDX's own relationship-type name,
-applied to the `detected` candidate). This is a policy choice made
+[multi-source-conflict.md](multi-source-conflict.md)): in two-candidate
+mode (the manifest states a licence and the directory's detection is a
+second opinion), `declared` → `hasDeclaredLicense`, `detected` →
+`hasConcludedLicense` (SPDX's own relationship-type name, applied to the
+`detected` candidate). A single value is not mapped by role: whose
+statement it is decides (`is_license_concluded`, PR #276) -- a detected
+`LICENSE` with no manifest licence is the package's own and stays
+`hasDeclaredLicense`; as a single value, only a third-party record (PyPI,
+a dependency's installed copy) is concluded. The detected second opinion
+above and a library caller's `license_concluded` slot are concluded too.
+See
+[license-typing.md](../license-typing.md). This is a policy choice made
 *because* Pitloom's detector has no confidence score today — its one
 output is the only candidate determination available to call
 "concluded," not because a detected value is inherently more
@@ -139,4 +149,7 @@ detectors or confidence scoring exist, this mapping is where a smarter
 policy would plug in (e.g. falling back to `declared` when `detected`
 confidence is low) — future work, not built. `externalReported`,
 `inferred`, and `sbomAuthorSupplied` never map to a native relationship
-for license (no 3rd/4th/5th native slot exists).
+for license (no 3rd/4th/5th native slot exists). Open: one mapping table
+for single and two-candidate values, and whether every licence value
+carries a role (today only a conflict candidate or an enrichment entry has
+one).

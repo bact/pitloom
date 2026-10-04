@@ -20,6 +20,8 @@ file outside ``.dist-info`` could be misattributed.
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
@@ -262,35 +264,42 @@ def test_extract_pypi_originator_absent_returns_none() -> None:
     assert _extract_pypi_originator({}) == []
 
 
-def test_extract_pypi_license_prefers_license_expression() -> None:
-    info = {"license_expression": "MIT", "license": "some legacy free text"}
-    assert _extract_pypi_license(info) == "MIT"
+_PYPI = "Source: PyPI JSON API | Package: p"
+_PYPI_CLASSIFIER = f"{_PYPI} | Field: Classifier"
 
 
-def test_extract_pypi_license_falls_back_to_legacy_field() -> None:
-    assert _extract_pypi_license({"license": "Apache-2.0"}) == "Apache-2.0"
-
-
-def test_extract_pypi_license_ignores_implausibly_long_legacy_field() -> None:
-    """Regression guard: some PyPI projects paste their entire LICENSE file
-    into the free-text ``license`` metadata field -- that must not be
-    treated as a short license identifier/expression."""
-    info = {"license": "A" * 500}
-    assert _extract_pypi_license(info) is None
-
-
-def test_extract_pypi_license_falls_back_to_classifier() -> None:
-    info = {
-        "classifiers": [
-            "Programming Language :: Python :: 3",
-            "License :: OSI Approved :: MIT License",
-        ]
-    }
-    assert _extract_pypi_license(info) == "MIT License"
-
-
-def test_extract_pypi_license_absent_returns_none() -> None:
-    assert _extract_pypi_license({}) is None
+@pytest.mark.parametrize(
+    ("info", "expected"),
+    [
+        pytest.param(
+            {"license_expression": "MIT", "license": "some legacy free text"},
+            ("MIT", _PYPI),
+            id="expression-first",
+        ),
+        pytest.param({"license": "Apache-2.0"}, ("Apache-2.0", _PYPI), id="legacy"),
+        # A whole LICENSE file pasted into the free-text field is no licence id.
+        pytest.param({"license": "A" * 500}, (None, _PYPI), id="legacy-too-long"),
+        # License-Expression has no length cap: a long one is still recorded.
+        pytest.param(
+            {"license_expression": "A" * 201}, ("A" * 201, _PYPI), id="long-expression"
+        ),
+        pytest.param(
+            {
+                "classifiers": [
+                    "Programming Language :: Python :: 3",
+                    "License :: OSI Approved :: MIT License",
+                ]
+            },
+            ("MIT License", _PYPI_CLASSIFIER),
+            id="classifier",
+        ),
+        pytest.param({}, (None, _PYPI), id="absent"),
+    ],
+)
+def test_extract_pypi_license(
+    info: dict[str, Any], expected: tuple[str | None, str]
+) -> None:
+    assert _extract_pypi_license(info, _PYPI) == expected
 
 
 def test_extract_release_hash_prefers_wheel() -> None:

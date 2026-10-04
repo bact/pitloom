@@ -147,9 +147,9 @@ the named file with no interpretation involved (e.g. `project.name` from
 `pyproject.toml`). In `detail = "minimal"` (the default), these
 no-`method` entries are dropped entirely when the source is a
 well-known, re-readable manifest (`pyproject.toml`, `setup.cfg`/`setup.py`,
-wheel metadata, the Hugging Face Hub API) -- they add no signal beyond
-what's already implied by the native field. Set `detail = "full"` to see
-every field's source regardless.
+wheel metadata, an sdist's `PKG-INFO`, the Hugging Face Hub API) -- they
+add no signal beyond what's already implied by the native field. Set
+`detail = "full"` to see every field's source regardless.
 
 ## How a license source is chosen
 
@@ -168,10 +168,14 @@ expressions written differently (`"MIT AND MIT"` and plain `"MIT"`;
 `"MIT OR Apache-2.0"` and `"Apache-2.0 OR MIT"` all normalise to the same
 value) -- so none of these are misreported as a conflict.
 
-- If only one of the two exists, only that one is recorded, as
-  `hasDeclaredLicense` or `hasConcludedLicense` respectively.
+- If the project states no license, the directory's value is recorded as
+  `hasDeclaredLicense`: a `CITATION.cff`, `codemeta.json` or `LICENSE` file
+  in the project is the project's own statement, however it was read.
 - If both exist and **agree**, both `hasDeclaredLicense` and
-  `hasConcludedLicense` are recorded, pointing at the same license.
+  `hasConcludedLicense` are recorded, pointing at the same license. A
+  license name that is the SPDX License List name of the other value's id
+  (a classifier's `MIT License` and a detected `MIT`) agrees too: two
+  elements, no conflict.
 - If both exist and **disagree**, both are still recorded -- pointing at
   two different licenses -- and Pitloom adds a `conflict` Annotation
   (`field: "license"`) on the package listing both candidates and where
@@ -201,6 +205,92 @@ value) -- so none of these are misreported as a conflict.
   the agent derived itself rather than one the SBOM author stated.
   `externalReported` remains reserved for a future candidate source (a
   linked GitHub/Hugging Face Hub API) -- not built yet.
+
+- A `NOASSERTION` (or `UNKNOWN`) candidate is not a disagreement: it only
+  says "not known". Both relationships are still recorded and no `conflict`
+  Annotation is added. `NONE` against a real license is a conflict.
+
+The same rule applies where a project's static metadata is checked against
+its installed metadata: an agreeing pair, or a `NOASSERTION`/`UNKNOWN` on
+either side, is no conflict, and a real installed license replaces a
+`NOASSERTION`/`UNKNOWN` static one.
+
+The directory check runs where Pitloom reads a project directory: `loom
+project` or `generate_project_sbom()` on a directory, and the Hatchling
+build hook. An SBOM of an sdist or a wheel records only the license the
+archive's metadata states, with no `hasConcludedLicense` second opinion.
+
+## How a license value is recorded
+
+Every license value goes through one classification, whichever source it
+came from:
+
+| Value | Recorded as |
+| --- | --- |
+| A valid SPDX expression (`mit`, `Apache-2.0 OR MIT`) | a `LicenseExpression`, in canonical form (listed id case, operators upper-case, terms sorted) |
+| Anything else (a license text, `Apache2`) | a `SimpleLicensingText`, as written less its leading blank space and final line breaks |
+| `NOASSERTION`, `UNKNOWN` (any case) | no element: the relationship points at the `NoAssertionLicense` individual |
+| `NONE` (any case) | no element: the relationship points at the `NoneLicense` individual |
+| Absent or blank | nothing: no license relationship at all |
+
+A deprecated id ending `+` becomes its `-or-later` successor (`GPL-2.0+` is
+`GPL-2.0-or-later`). A bare deprecated `GPL-2.0` stays as written, because
+whether `-only` or `-or-later` was meant is unknown. Text that has an
+operator or parenthesis and a known id, so looks like a broken expression
+(`MIT OR`), is kept as text with one `WARNING:` per value.
+
+Three provenance keys record what changed, in the entry's `license` field:
+
+| Key | Meaning |
+| --- | --- |
+| `Normalized-From` | The value as the source wrote it, when recording changed it (`mit`, `UNKNOWN`, `GPL-2.0+`). |
+| `Normalizer` | The `py-spdx-license` version that parsed it; present with `Normalized-From` only when a parse took place (not for `UNKNOWN`/`NONE`). |
+| `Deprecated-License-Id` | A deprecated id kept as written, with the successors it could mean (`GPL-2.0 (GPL-2.0-only or GPL-2.0-or-later)`). |
+
+These notes are kept at the default `detail = "minimal"`. They land on the
+license element when this source created it. When the element already
+existed (an earlier package had the same license), the note lands on that
+source's own `hasDeclaredLicense`/`hasConcludedLicense` relationship
+instead, as a `comment` and in the relationship's provenance Annotation. A
+named individual cannot carry a comment or an Annotation, so its notes
+always land on the relationship.
+
+A dependency's license is looked up in order: installed
+`License-Expression`/`License`, installed `License ::` classifiers, then the
+PyPI JSON API. `NOASSERTION`/`UNKNOWN` is weak in that order: a later source
+that states a license wins, and the `NoAssertionLicense` individual is
+recorded, with the first source's provenance, only if none does. `NONE`
+ends the lookup.
+
+The project's own `License ::` classifiers are read the same way: after
+`project.license` in `pyproject.toml` (`Field: project.classifiers`, also in the
+Hatchling build hook), `license` in `setup.cfg` (`Field: metadata.classifiers`),
+`license` in `setup.py` (`Field: setup(classifiers=...)`), or
+`License-Expression`/`License` in a wheel, an sdist or installed metadata
+(`Field: Classifier`). A Poetry project's classifiers are not read: Poetry
+writes the license classifier from `license` itself. `License :: OSI Approved`
+is a category, not a license: it is left out, alone or beside a more specific
+classifier under it, as if absent. `setup.cfg` `classifiers` are listed as
+setuptools lists them (one per line, else comma-separated), and `setup.py`'s
+license, field or classifier, comes before a `setup.cfg` classifier, as in the
+wheel setuptools builds.
+A multi-line license text in a wheel, an sdist or installed metadata is read
+without the indent the build tool folded it with. Several license classifiers
+are one `LicenseExpression`, the AND of `LicenseRef-pitloom-classifier-<name>`
+terms sorted by classifier, whose `customIdToUri` maps each term to a
+`SimpleLicensingText` of the name as written; AND is assumed, with one
+`WARNING:`, as they may offer a choice. So a directory, its sdist, its wheel and
+the build hook record the same declared license, except a license file or text
+that Pitloom identifies as a listed license: the directory and the build hook
+record its id, the sdist and the wheel the text. Only a directory adds the
+concluded second opinion above.
+
+Whose statement a license is decides the relationship. The package's own --
+its manifest, a file it ships, an AI model file's own metadata, a model card,
+its own installed metadata (the project, or a `loom env` package) -- is
+`hasDeclaredLicense`. A third-party record -- the PyPI JSON API, or a
+dependency's installed copy read for a project SBOM -- is
+`hasConcludedLicense`, as is the directory's second opinion above.
 
 ## How a dependency-version source is chosen
 

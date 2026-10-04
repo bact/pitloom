@@ -326,6 +326,8 @@ def _resolve_license(
     Returns ``(license_val, vague_raw_license)`` where *vague_raw_license* is
     the original card YAML value when it was a recognised vague sentinel (e.g.
     ``"other"``), so it can be preserved in ``extra_data["hf.license_raw"]``.
+    A vague value falls back to licence-file detection; ``unknown`` that
+    detection cannot improve is returned as stated (a ``NOASSERTION``).
     """
     card_data: dict[str, Any] = hf_data.get("card_data") or {}
     hub_info: dict[str, Any] = hf_data.get("hub_info") or {}
@@ -353,4 +355,11 @@ def _resolve_license(
             "Source: Hugging Face Hub | Method: licenseid_detection"
         )
         return detected_id, vague_raw
+    if vague_raw and vague_raw.lower() == "unknown":
+        # Nothing detected: the card itself says it does not know, which is a
+        # statement (``NOASSERTION``), unlike ``other``/``custom``.
+        provenance["license"] = (
+            "Source: Hugging Face Hub | Field: model card YAML (license)"
+        )
+        return vague_raw, vague_raw
     return None, vague_raw

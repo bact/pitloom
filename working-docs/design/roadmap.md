@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -189,6 +189,14 @@ models -- see
 [cli-shared-options-ignored.md](cli-shared-options-ignored.md#still-open) and
 [ai-model-scanning.md](../implementation/ai-model-scanning.md).
 
+**setuptools config reading:** `version = attr:` crash, `file:` path
+confinement, untagged setuptools warnings -- see
+[setuptools-config-followups.md](setuptools-config-followups.md).
+
+**Merge (own PR before 0.20.0, after #276):** licence dedup across a
+merge and four merge bugs -- see
+[open-items.md](sbom-fragments/open-items.md#found-in-the-pr-276-review-own-pr-before-0200).
+
 **Suggested sequencing after that** (2026-09-16, not a commitment --
 superseded for the next month by [1.0 target](#10-target-2026-10-15)
 below, which is the actual commitment for what ships before mid-October):
@@ -303,16 +311,9 @@ See [build-backend-improvements.md](build-backend-improvements.md).
   (`_enrich_from_installed`, `deps_originator`) leaks the same way. Needs an
   explicit stage flag (false for wheel/embed), per "Explicit pin beats local
   environment".
-- [ ] **Two Build SBOMs can carry different package hashes for one wheel** --
-  expected by type (Source and the hook's Build hash the source walk before the
-  build; Analyzed hashes the wheel as built; documented in `docs/cli.md`,
-  "Recomputing the package hash"), but `embed-wheel --project-dir` is also a
-  Build SBOM and hashes the wheel as built, so it differs from the hook's when
-  the build adds payload (shared-data, scripts, generated files, i.e. `.data/`
-  members the source walk cannot see; reproduced with
-  `shared-data` + `force-include`). Decide: leave, say so in the hook's hash
-  comment, or compute the hook's root from the built wheel in a post-build
-  step.
+- [ ] **Two Build SBOMs can carry different package hashes for one wheel**
+  (`embed-wheel --project-dir` vs the hook, on build-added payload). See
+  [sbom-package-boundary.md](sbom-package-boundary.md#open-questions).
 - [ ] **What an SBOM counts as inside the package, and package-format
   independence** -- the boundary (payload vs container metadata) and file
   naming (`.data/` listed under its wheel path, not its install destination) use
@@ -423,6 +424,13 @@ compliance/interop, element-level traceability) remain open. See
 ### Metadata quality
 
 See [metadata-quality.md](metadata-quality.md).
+
+- [ ] **Licence rules, systematic** -- explicit rules applied identically on
+  every surface for licence sources, normalisation and conflict resolution:
+  deterministic, correct, not overclaimed, provenance recorded. Prerequisite:
+  settle the conflict-resolution model, provenance record and source/role
+  taxonomy first. See [license-layers.md](license-layers.md) and its
+  [prerequisites](license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy).
 
 ### Remote source ingestion
 

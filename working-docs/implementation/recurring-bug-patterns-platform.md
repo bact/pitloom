@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -367,3 +367,15 @@ the move.
   beneath declares the marker. Classification
   lives in `tests/_network_classify.py`: one errno/winerror set and one
   message pattern shared by the exception and text paths.
+
+- **A long parametrize value becomes the test id, and Windows caps the
+  environment.** pytest sets `PYTEST_CURRENT_TEST` to the node id at setup
+  and teardown; Windows limits an environment variable to 32,767
+  characters. `@pytest.mark.parametrize("body", ["MIT and Apache-2.0 " *
+  2500, ...])` made a 48 KB id: every other leg passed, `windows-latest`
+  errored at setup (PR #276). Give a long string or bytes value a short
+  explicit `ids=`. `tests/conftest.py`'s autouse `_short_nodeid` fixture
+  fails any test whose node id is over `MAX_NODEID_LENGTH` (1,000), on
+  every platform. A fixture, not a `pytest_collection_modifyitems` hook
+  that raises: pytest-xdist drops the message of an exception raised in
+  that hook (an `INTERNALERROR` naming only a node id).

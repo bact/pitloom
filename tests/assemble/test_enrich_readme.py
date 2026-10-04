@@ -122,7 +122,7 @@ def test_enrich_fills_license_gap() -> None:
     assert result.fields[0].field == "license"
     assert result.fields[0].before is None
     assert result.fields[0].after == "mit"
-    assert result.fields[0].role == "detected"
+    assert result.fields[0].role == "declared"
 
 
 def test_enrich_never_overwrites_existing_license() -> None:

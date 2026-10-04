@@ -88,6 +88,12 @@ or citing any of these one-liners.
   SemVer -- `"1.0"` == `"1.0.0"`, not a compatibility range) apply both to
   equality checks in prose/docstrings and to conflict detection across a
   lock file's duplicate-name entries.
+- **A placeholder value (`UNKNOWN`, `N/A`) is not a claim: keep it weak in a
+  cascade.** Skip it while a later source may know better, remember the
+  first, emit it (with that source's provenance) only if nothing better
+  turns up; a real "none" ends the cascade, absent stays absent, and the held
+  state is per item, never shared across a call's items (PR #276,
+  [recurring-bug-patterns.md](working-docs/implementation/recurring-bug-patterns.md)).
 - **A private third-party API (`obj._attr`) owes no structural guarantee
   beyond what it returns today** (e.g. `packaging.markers.Marker()._markers`
   doesn't pre-group same-precedence boolean terms) -- verify its shape
@@ -216,6 +222,9 @@ or citing any of these one-liners.
   (`sys.platform != "win32" and os.geteuid() != 0`) and pass that; same
   trap for any POSIX-only name in a decorator argument, a default
   argument or a module-level `parametrize` list (PR #226).
+- **A long `parametrize` value becomes the test id, which Windows rejects
+  in `PYTEST_CURRENT_TEST` (32,767-char env cap)** -- give it short `ids=`;
+  `tests/conftest.py` fails any id over 1,000 chars (PR #276, same doc).
 - **A context manager whose `__exit__` can be interrupted must reset its
   shared state in `__enter__`, not in `__exit__`** -- and must not take
   its lock to do so (a worker may hold it for a whole build), must

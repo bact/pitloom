@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-09-29
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -22,9 +22,10 @@ file is the detail behind it. Full command reference:
   package is minted on every run.
 - **AI models** (`ai_AIPackage`), keyed by name.
 - **Per-document entities**: a harvest also writes the creator (`Person`
-  or `SoftwareAgent`), `Tool` and licence-text entries. They carry that
-  document's own ids, so a run into another document rewrites them; they
-  are not something to pin.
+  or `SoftwareAgent`), `Tool` and licence entries
+  (`LicenseExpression`/`SimpleLicensingText`). They carry that document's own
+  ids, so a run into another document rewrites them; they are not something to
+  pin.
 - **Datasets** only through the Python SDK
   (`pitloom.loom.Run(..., id_registry=...)`, which ignores
   `[tool.pitloom]`), by path and content hash; index a dataset directory

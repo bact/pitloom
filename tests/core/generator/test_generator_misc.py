@@ -168,9 +168,10 @@ def test_fixture_license_export(fixture_path: Path) -> None:
     - The model format does not embed a license (``meta.license is None``).
 
     When a license is present, asserts that the assembled ``build_model()``
-    output contains both ``hasDeclaredLicense`` and ``hasConcludedLicense``
-    relationships pointing to a ``simplelicensing_SimpleLicensingText`` element
-    whose ``simplelicensing_licenseText`` matches the extracted license string.
+    output contains one ``hasDeclaredLicense`` relationship (the model file's
+    own statement) pointing to a licence element (``LicenseExpression`` or
+    ``SimpleLicensingText``) whose value matches the extracted license string,
+    up to the case of an SPDX id.
     """
     if not fixture_path.exists():
         pytest.skip(f"Fixture not found: {fixture_path}")

@@ -59,6 +59,9 @@ and this project adheres to
   reported as models ([#263])
 - `generate_wheel_sbom_with_metadata()`; `embed_sbom_in_wheel(identity=...)`
   ([#266])
+- A `License ::` classifier is a licence source after the licence field
+  (manifests, hook, wheel, sdist, dependencies); `License :: OSI Approved` is
+  a category, never a licence ([#276])
 
 ### Changed
 
@@ -134,6 +137,17 @@ and this project adheres to
   `.dist-info/licenses/*` ([#271])
 - Release SBOM is the build hook's, not a re-embedded one; checked, attached
   to the release byte-identical, signed and attested ([#275])
+- A valid SPDX licence is a canonical `LicenseExpression`; other text is
+  `SimpleLicensingText` less leading blank space and final line breaks
+  ([#276])
+- `NOASSERTION`/`UNKNOWN`/`NONE` are the `NoAssertionLicense`/`NoneLicense`
+  individuals; NoAssertion is weak: any real licence wins, no conflict ([#276])
+- No licence stated gives no licence relationship and no licensing profile; the
+  `NOASSERTION` fallback is gone and `License-N` ids shift ([#276])
+- A package's own licence (model file or card, own `LICENSE`, `loom env`) is
+  declared; PyPI and dependencies' installed metadata are concluded ([#276])
+- Several `License ::` classifiers are one AND `LicenseExpression` of
+  `LicenseRef-pitloom-classifier-` terms, with one `WARNING:` ([#276])
 - `max-source-metadata-bytes` of 1-7 or below 0 is an error, not unlimited;
   `normalize_max_source_metadata_bytes()` is now
   `require_max_source_metadata_bytes()` ([#280])
@@ -251,13 +265,26 @@ and this project adheres to
   order ([#272])
 - `sbom-basename`/`--sbom-basename` ending in `.spdx3.json` (any case) loses it
   with one `WARNING:`; `project` wrote `x.spdx3.json.spdx3.json` ([#273])
+- An sdist's licence is read from `PKG-INFO` `License-Expression`, else
+  `License`, as for a wheel; an empty one counts as absent ([#276])
+- A fragment `Relationship`/`Annotation` pointing at `NoAssertionElement`,
+  `NoneElement`, `SpdxOrganization` or a licence individual no longer fails the
+  merge as dangling ([#276])
+- Hugging Face `license: unknown` is recorded as `NOASSERTION`, not dropped
+  ([#276])
+- Licence text with a trailing newline no longer gains a false detection
+  method; multi-line `License` text from Core Metadata is unfolded ([#276])
+- `setup.cfg` `file:` lists read as setuptools reads them; an unreadable file,
+  a `version` file too, is skipped with one `WARNING:`, not a crash ([#276])
+- `profileConformance` lists `simpleLicensing`/`expandedLicensing` from the
+  graph, so a direct build and a fragment merge agree ([#276])
 - A wheel named `x.WHL` was read by `wheel` and `generate` but refused by
   `embed-wheel`; every wheel surface refuses it, as `pip` does ([#278])
 - An unknown `[tool.pitloom]` key warns once per file with a hint; `setup.cfg`
   `creation-tool`/`tool` now reaches the SBOM (was dropped) ([#280])
-- sdist `PKG-INFO`: headers only, capped as a wheel's `METADATA`; a licence
-  file is picked by exact case, not listing order, and skipped over 256 KiB
-  with one `WARNING:` ([#282])
+- Licence file picked by exact case, not listing order, skipped over 256 KiB
+  with one `WARNING:`; sdist `PKG-INFO` read as headers only, capped as a
+  wheel's `METADATA` ([#282])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -294,6 +321,7 @@ and this project adheres to
 [#272]: https://github.com/bact/pitloom/pull/272
 [#273]: https://github.com/bact/pitloom/pull/273
 [#275]: https://github.com/bact/pitloom/pull/275
+[#276]: https://github.com/bact/pitloom/pull/276
 [#278]: https://github.com/bact/pitloom/pull/278
 [#280]: https://github.com/bact/pitloom/pull/280
 [#281]: https://github.com/bact/pitloom/pull/281

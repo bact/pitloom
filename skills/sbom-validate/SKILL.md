@@ -60,7 +60,7 @@ conforms to the spec's shape -- it says nothing about whether the SBOM
 covers everything it should. A Pitloom-generated SBOM for a mixed-ecosystem
 project (Python plus a JS/Rust/Go/etc. component) will validate cleanly
 even though the non-Python dependencies are simply missing, not
-NOASSERTION-flagged -- see `sbom-generate`'s "Known limitations" section.
+flagged -- see `sbom-generate`'s "Known limitations" section.
 When a user asks "is this SBOM valid?" meaning "is this SBOM complete?",
 answer both questions, not just the one this skill actually checks.
 

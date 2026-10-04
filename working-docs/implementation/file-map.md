@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -48,9 +48,11 @@ pitloom/
 │   │   ├── mlflow-extractor.md
 │   │   ├── model-metadata-extraction.md
 │   │   ├── provenance-enrichment-vocabulary.md
+│   │   ├── provenance-enrichment-vocabulary-draft-page.md
 │   │   ├── roadmap.md              # Canonical roadmap
 │   │   ├── sbom-enrichment.md
-│   │   └── sbom-fragments/          # 5 files -- fragment-merge-design.md, etc.
+│   │   ├── sbom-fragments/          # 5 files -- fragment-merge-design.md, etc.
+│   │   └── setuptools-config-followups.md # setup.cfg directive gaps: attr: crash, file: confinement
 │   ├── implementation/
 │   │   ├── provenance/             # 10 files -- annotation-provenance(-mechanism/-full-plan).md, role-vocabulary.md, etc.
 │   │   ├── adoption-surfaces.md

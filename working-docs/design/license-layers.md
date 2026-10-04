@@ -1,0 +1,261 @@
+---
+Created: 2026-10-04
+Last-Modified: 2026-10-04
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: CC0-1.0
+---
+
+# Licence handling in three layers
+
+See also: [license-typing.md](../implementation/license-typing.md) (what
+PR #276 built), [license-pipeline.md](../implementation/license-pipeline.md)
+(sources and call sites), [metadata-quality.md](metadata-quality.md)
+(licence follow-ups),
+[multi-source-conflict.md](../implementation/provenance/multi-source-conflict.md)
+and [role-vocabulary.md](../implementation/provenance/role-vocabulary.md)
+(conflict model and roles, see
+[Prerequisites](#prerequisites-conflict-resolution-provenance-and-taxonomy)).
+
+Pitloom's licence code does three different jobs. Only the last two are
+Pitloom's; the first belongs in licence libraries, and Pitloom keeps it
+behind one adapter until it moves.
+
+## Layer 1: licence content (string to SPDX meaning)
+
+What a licence string means, independent of where it was read.
+
+Pitloom does today:
+
+- `extract/_license_classify.py`: `classify_license(raw) ->
+  ClassifiedLicense` (the adapter seam); strict parse and canonical string
+  (`_strict_parse`, `_canonical_string`: listed id case, upper-case
+  operators, sorted terms); the sort `TypeError` workaround on a flat chain
+  with a repeated term; deprecated `X+` to `X-or-later` (`_successor_id`,
+  `_replace_deprecated`); the grammar-gap fallback for `+` and
+  `WITH AdditionRef-` (`_gap_term`, `_gap_expression`); "looks like an
+  expression" (`_looks_like_expression`, one `WARNING:`); deprecated-id
+  notes (`tag_deprecated_license_ids`); the name-vs-id stop-gap
+  `is_listed_name`.
+- `extract/_license.py`: text to id (`detect_license_from_text` over
+  `licenseid`), `canonicalize_license_id`,
+  `_looks_like_spdx_license_expression`.
+- `extract/_license_detect.py`: `_looks_like_spdx_license_id` for
+  `CITATION.cff`/`codemeta.json` values.
+
+`py-spdx-license` 0.0.1 offers a strict parser, an AST and
+`get_license`/`get_exception` over the bundled SPDX List. It lacks a
+canonical form, rejects `+`, `AdditionRef-` and `NOT`, raises `TypeError`
+sorting a flat chain with a repeated term, and maps no name to an id.
+
+`licenseid` 0.3.7 (checked interactively, 2026-10-04) offers more than
+text to id: `licenseid.identifiers.normalize_identifier(expr, db)`
+canonicalises case, operators, sort order and repeats and replaces a
+deprecated id (`mit or apache-2.0` is `Apache-2.0 OR MIT`, `GPL-2.0+` is
+`GPL-2.0-or-later`; `Apache-2.0+` and `WITH AdditionRef-x` pass through
+unchanged); `LicenseDatabase.get_deprecated_mappings()` gives the
+`X+` successors; `get_license_by_name()` maps an SPDX List name, any case
+(`mit license` and `Apache License 2.0` give `MIT` and `Apache-2.0`). It
+does not map a classifier's own name: `Apache Software License` and
+`BSD License` give `None`.
+
+| Item | Target home |
+| --- | --- |
+| Canonical form, sorting, repeats | licenseid (already: `normalize_identifier`); py-spdx-license for the repeated-term sort fix |
+| `+`, `AdditionRef-`, `DocumentRef-` grammar | py-spdx-license |
+| Deprecated id successors | licenseid (already: `get_deprecated_mappings`) |
+| "Looks like an expression" diagnosis | py-spdx-license |
+| SPDX List name to id (`is_listed_name`) | licenseid (already: `get_license_by_name`) |
+| Classifier name to id | licenseid (the real gap) |
+| Licence text to id | licenseid (already) |
+
+Upstream issues to file: py-spdx-license grammar (`+`, `AdditionRef-`,
+`DocumentRef-...:AdditionRef-`, `NOT`) and the sort `TypeError`;
+licenseid classifier-name to id. Before filing a canonical-form or
+successor issue, check whether `normalize_identifier` already covers
+Pitloom's cases (the grammar gaps differ). Whether Pitloom later uses
+`normalize_identifier` and `get_license_by_name` behind the adapter is a
+content decision, not taken in #276.
+
+Deferred until upstream (no Pitloom feature meanwhile):
+
+- `LicenseRef-a WITH DocumentRef-d:AdditionRef-x` as an expression (today
+  text, silent).
+- Classifier or licence name to SPDX id (today `SimpleLicensingText`; several
+  classifiers are an AND of `LicenseRef-pitloom-classifier-` terms, layer 3).
+- An unknown-id `WARNING:` in a field that must hold an SPDX expression.
+- Names differing only in case give two `LicenseRef-` terms (SPDX matches
+  them case-insensitively): needs classifier-to-id knowledge (licenseid).
+  The one category classifier, `License :: OSI Approved`, is dropped
+  already (`license-typing.md`).
+- A licence text `licenseid` identifies is the id on a directory and the
+  hook but text from an sdist, wheel or installed metadata, whose readers
+  run no detection (`metadata-quality.md`).
+
+## Layer 2: licence source (Pitloom)
+
+Where a package states its licence and whose statement it is. Packaging
+and provenance knowledge; a licence library cannot do it.
+
+- Cascade: `License-Expression`, `License`, `License ::` classifiers, then
+  (dependencies) the PyPI JSON API. One rule, `first_license` in
+  `extract/_core_metadata.py`.
+- `NOASSERTION`/`UNKNOWN` is weak (a later source wins); `NONE` is a
+  statement and ends the cascade.
+- Field names per format: `project.license`/`project.classifiers`,
+  `metadata.license`/`metadata.classifiers`, `setup(license=...)`/
+  `setup(classifiers=...)`, Core Metadata headers.
+- Core Metadata folding removed; a licence text's leading blank space and
+  final line breaks dropped as serialisation, once, in the element builder.
+- Declared (the package's own claim) or concluded (a third-party record)
+  by source: `is_license_concluded`.
+- G2 two-candidate model: the manifest's value declared, the directory's
+  detection concluded, a `conflict` Annotation when they differ.
+
+## Layer 3: SBOM shape (Pitloom, PR #276)
+
+- Element classes: `simplelicensing_LicenseExpression`,
+  `simplelicensing_SimpleLicensingText`; the `NoAssertionLicense` and
+  `NoneLicense` individuals.
+- Relationship types `hasDeclaredLicense`/`hasConcludedLicense`; none for
+  an absent licence.
+- One element per classified value (dedup key: kind and value).
+- `profileConformance` derived from the graph.
+- Fragment merge treating named individuals as resolved, and checking each
+  `customIdToUri` target in the document's own namespace.
+- Design note, not built: `customIdToUri` targets are checked at merge
+  only in the main document's namespace (none without an `SpdxDocument`,
+  e.g. `loom merge` output); a fragment's own namespace is not checked.
+- Several `License ::` classifiers: one AND `LicenseExpression`
+  ([license-typing.md](../implementation/license-typing.md#the-main-packages-classifiers)).
+
+## Prerequisites: conflict resolution, provenance and taxonomy
+
+Goal (roadmap, "Licence rules, systematic"): explicit rules for licence
+sources, normalisation and conflict resolution, applied identically on
+every surface. Each recorded value must be:
+
+- **deterministic**: same input, same bytes, on every surface;
+- **correct**: what the source said, as the SPDX term that means it;
+- **not overclaimed**: no licence, conclusion, conflict or agreement that
+  Pitloom does not have;
+- **provenance recorded**: whose statement, which field, how changed.
+
+PR #276 settled these case by case. Settle the following first (each item:
+the current rule, then what is open):
+
+1. **Source classes.** Own claim declared, third-party record (PyPI, a
+   dependency's installed copy) concluded, by the `Source:` label
+   (`is_license_concluded`: no source or a `THIRD_PARTY_SOURCES` label
+   concluded, any other label declared); Pitloom's
+   detection concluded only as the G2 second opinion
+   ([license-typing.md](../implementation/license-typing.md#declared-or-concluded-whose-statement)).
+   Open: a typed class carried with the value; where the Hugging Face Hub,
+   GitHub and agent sources sit.
+2. **Roles to SPDX relationships.** `role`
+   ([role-vocabulary.md](../implementation/provenance/role-vocabulary.md))
+   maps to a relationship only in two-candidate mode; a single value maps
+   by source class; the library `license_concluded` slot is always
+   concluded. Open: one mapping table; a role on a single value; SPDX
+   3.1's one concluded licence
+   ([metadata-quality.md](metadata-quality.md#licence-follow-ups-pr-276-review)).
+3. **Weak and final values.** Absent or blank: no relationship;
+   `NOASSERTION`/`UNKNOWN` weak, `NONE` final
+   ([license-typing.md](../implementation/license-typing.md#absent-is-not-noassertion)).
+   Open: Hugging Face `other`/`custom` give nothing, not weak; the same
+   classes for non-licence fields.
+4. **Cascade order per surface.** One helper (`license_cascade`) over
+   each reader's own field list; dependencies installed, then PyPI; the
+   directory only when nothing is stated. Open: one declared order table
+   per surface, tested against every reader; no detection for an sdist or
+   a wheel.
+5. **Conflict model.** G2: two candidates, main package on a directory
+   only; both relationships kept, a `provenance/conflict/1` Annotation
+   when they differ; `NoAssertionLicense` never conflicts, `NONE` does
+   ([multi-source-conflict.md](../implementation/provenance/multi-source-conflict.md)).
+   In a cascade the first stating source wins and later ones are not read.
+   Open: what may never be chosen silently, a cascade choice included; N
+   candidates ([generic-multi-candidate-fields.md](generic-multi-candidate-fields.md)).
+6. **Equivalence.** Expressions in canonical form (listed id case,
+   operators, sorted terms, repeats, redundant parentheses, deprecated
+   `X+`); text by exact value less leading blank space and final line
+   breaks; a name equals a listed id by the stop-gap `is_listed_name` (any
+   case). Open: text case and inner spacing; name and classifier to id
+   (layer 1); `LicenseRef-` case; nested AND/OR spellings that do not
+   converge.
+7. **Provenance per value.** `Source`, `Field`, `Method`, `Tool`,
+   `Normalized-From`, `Normalizer`, `Deprecated-License-Id`, on the
+   element or the source's relationship
+   ([license-typing.md](../implementation/license-typing.md#provenance),
+   [metadata-provenance.md](../implementation/provenance/metadata-provenance.md)).
+   Open: the keys every value must carry; the `method` vocabulary
+   ([provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md));
+   a weak statement a later source replaced is not recorded.
+8. **Determinism and tie-breaks.** Classifiers sorted, canonical term
+   order, leading blank space and final line breaks stripped once in the
+   builder, first-seen spelling of a text, one `WARNING:` per value per
+   process. Open: each tie-break written as a rule; first-seen relies on build order.
+
+## Findings for the rule design (PR #276 review, R10)
+
+Found while reviewing PR #276 and left out of it: they need the rules
+above, not a case fix. User leanings are recorded as input, not decisions.
+
+- **Weak manifest value vs a real licence elsewhere** (items 3, 4, 5).
+  `license = "NOASSERTION"`/`"UNKNOWN"` with an MIT `LICENSE` gives
+  declared NoAssertion, concluded MIT; a silent manifest gives declared
+  MIT. A model file's `UNKNOWN` blocks the model card's real licence
+  (`ReadmeEnricher` fills only when empty). The dependency cascade already
+  lets a real value replace a weak one. Leaning: the real one is declared,
+  the weak value noted.
+- **Reconcile ranking** (items 4, 5). Silent `setup.cfg`, MIT `LICENSE`,
+  egg-info `License-Expression: Apache-2.0`: the detection is kept as
+  declared, the project's own installed record is the conflict. Leaning:
+  installed metadata outranks a `LICENSE` detection; the detection stays
+  the concluded second opinion.
+- **Model file vs model card** (item 5). A model file's `Apache-2.0` and a
+  card's `mit`: the card is skipped, nothing records the disagreement.
+- **`embed-wheel --project-dir`** (item 4). Silent manifest plus a
+  `LICENSE`: `loom project` and the hook declare it, `embed-wheel
+  --project-dir` records none (`_add_concluded_license` detects only when
+  a licence is already declared).
+- **Several-classifiers `WARNING:` for a value then discarded** (items 5,
+  8). An in-tree egg-info with two licence classifiers warns "recorded as
+  ... AND ..." while pyproject's `MIT` is recorded.
+- **Hugging Face vague values** (item 3). A card `unknown` reads the repo
+  `LICENSE`; `NOASSERTION`/`noassertion` does not (`_VAGUE_LICENSE_VALUES`).
+- **Text equivalence** (item 6, layer 1). CRLF and LF texts are two
+  elements (leaning: normalise inner line endings); a licence name keeps a
+  trailing `\r` or spaces of its first line; a classifier with a leading or
+  trailing space is a name on every surface but `setup.cfg` (which strips),
+  so `"License :: OSI Approved "` is recorded as a licence there.
+- **`license = file: LICENSE` in `setup.cfg`** (item 4). setuptools rejects
+  it; Pitloom records the text `file: LICENSE`.
+- **Shared element provenance** (item 7). A reused licence element keeps
+  the first package's provenance; later reusers record none on their
+  relationship unless the value was normalised (`LicenseElement.noted`),
+  so `loom env` shows zipp's MIT tagged with another package.
+- **Library provenance defaults** (item 7). A library caller's
+  `license_concluded`/`license_name` with no provenance gets
+  `Source: LICENSE | Method: licenseid_detection` or the other candidate's
+  label (`attach_main_package_license` fallbacks): overclaimed.
+- **Fragment `customIdToUri` targets** (item 7). The dangling check covers
+  the main namespace only.
+- **`setup.cfg` field vs `setup.py`** (item 4). `setup.cfg`'s own
+  `license =` beats `setup.py`'s `license=`; setuptools does the opposite
+  (`setup()` keywords win). Same question for other merged sources
+  (pyproject with Poetry).
+- **Merge** (item 6). A fragment's or `loom merge` input's licence is not
+  unified with an equal one already in the graph: own PR before 0.20.0.
+
+## Rule for future work
+
+A change that only alters what a licence string means goes upstream;
+Pitloom changes only the adapter.
+
+## Migration
+
+- Upstream fix lands in py-spdx-license or licenseid.
+- Pitloom raises its floor and drops the matching workaround.
+- `classify_license` shrinks to a call and a mapping to `ClassifiedLicense`;
+  its tests stay as the contract.

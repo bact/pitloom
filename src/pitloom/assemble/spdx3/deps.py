@@ -34,7 +34,11 @@ from pitloom.assemble.spdx3.deps_installed import (
     _resolve_version,
     merge_conflict_candidates,
 )
-from pitloom.assemble.spdx3.deps_license import _add_license_noassertion, _apply_license
+from pitloom.assemble.spdx3.deps_license import (
+    WeakLicense,
+    _apply_license,
+    emit_weak_license,
+)
 from pitloom.assemble.spdx3.deps_originator import (
     _apply_originator,
     _resolve_metadata_url,
@@ -47,6 +51,7 @@ from pitloom.assemble.spdx3.deps_pypi import (
     _prefetch_pypi_release_infos,
 )
 from pitloom.assemble.spdx3.provenance import (
+    INSTALLED_DEPENDENCY_SOURCE,
     ConflictCandidate,
     ProvenanceEncoder,
     build_conflict_annotation,
@@ -88,8 +93,12 @@ def _enrich_from_pypi(
     encoder: ProvenanceEncoder | None = None,
     offline: bool = False,
     content_type_method: str = "auto",
+    weak: WeakLicense | None = None,
 ) -> set[str]:
-    """Best-effort PyPI JSON API fallback for originator, license, and hash."""
+    """Best-effort PyPI JSON API fallback for originator, license, and hash.
+
+    *weak* holds an ``UNKNOWN``/``NOASSERTION`` licence for the caller to emit
+    last (see :class:`~pitloom.assemble.spdx3.deps_license.WeakLicense`)."""
     if {"originator", "license", "hash"}.issubset(already_filled):
         return set()
 
@@ -135,15 +144,18 @@ def _enrich_from_pypi(
             filled.add("originator")
 
     if "license" not in already_filled:
-        license_id = _extract_pypi_license(info)
+        license_id, license_source = _extract_pypi_license(
+            info, f"Source: PyPI JSON API | Package: {dep_name}"
+        )
         if _apply_license(
             license_id,
-            f"Source: PyPI JSON API | Package: {dep_name}",
+            license_source,
             dep_package,
             creation_info,
             doc_name,
             doc_uuid,
             exporter,
+            weak=weak,
             provenance_config=provenance_config,
             encoder=encoder,
         ):
@@ -176,12 +188,17 @@ def _finish_dependency_enrichment(
     content_type_method: str = "auto",
     locked_hashes: dict[str, str] | None = None,
     locked_versions: dict[str, str] | None = None,
+    installed_source: str = INSTALLED_DEPENDENCY_SOURCE,
 ) -> None:
-    """Apply the shared dependency-package completeness policy."""
+    """Apply the shared dependency-package completeness policy.
+
+    *installed_source* names the installed-metadata record: a project's
+    dependency (default) or a deployed package's own (``loom env``)."""
     dep_package.software_packageUrl = build_pypi_purl(
         dep_name, dep_version if dep_version != "unknown" else None
     )
 
+    weak = WeakLicense()
     filled = _enrich_from_installed(
         dep_name,
         dep_package,
@@ -194,6 +211,8 @@ def _finish_dependency_enrichment(
         encoder=encoder,
         offline=offline,
         content_type_method=content_type_method,
+        weak=weak,
+        installed_source=installed_source,
     )
 
     if "hash" not in filled and locked_hashes:
@@ -235,12 +254,12 @@ def _finish_dependency_enrichment(
             encoder=encoder,
             offline=offline,
             content_type_method=content_type_method,
+            weak=weak,
         )
 
-    if "copyright" not in filled:
-        dep_package.software_copyrightText = "NOASSERTION"
     if "license" not in filled:
-        _add_license_noassertion(
+        emit_weak_license(
+            weak,
             dep_package,
             creation_info,
             doc_name,
@@ -249,6 +268,8 @@ def _finish_dependency_enrichment(
             provenance_config=provenance_config,
             encoder=encoder,
         )
+    if "copyright" not in filled:
+        dep_package.software_copyrightText = "NOASSERTION"
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments

@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-07
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -14,7 +14,11 @@ for still-open questions (CreationInfo future enhancements; the
 unbounded artifact-metadata-blob question was resolved 2026-08-26 -- see
 below). The user-facing explainer lives at
 [docs/metadata-provenance.md](../../../docs/metadata-provenance.md) and
-[docs/creation-metadata.md](../../../docs/creation-metadata.md).
+[docs/creation-metadata.md](../../../docs/creation-metadata.md). Licence
+provenance keys and whose statement a licence is:
+[license-typing.md](../license-typing.md#provenance); what is still to
+settle:
+[license-layers.md](../../design/license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy).
 
 This document describes how Pitloom implements metadata provenance
 tracking and uses SPDX 3 CreationInfo for transparency and auditability.
@@ -22,15 +26,14 @@ tracking and uses SPDX 3 CreationInfo for transparency and auditability.
 > **Status (2026-08):** Provenance is now recorded as SPDX 3 Core
 > `Annotation` elements -- systematic and machine-readable -- with the
 > original `comment`-based format kept for back-compat. The native-first
-> backfill (Phase 2) has also landed for five of six items -- declared vs.
+> backfill (Phase 2) has landed for all six items -- declared vs.
 > concluded license, external identifiers (DOI/arXiv/URL), base-model
-> lineage, dataset creator, and fragment-origin `imports` are now emitted
-> as native SPDX constructs with no provenance residual for the value
-> itself; only enrichment `CreationInfo` (N3) remains, blocked on the
-> unbuilt `enrich/` subpackage. G2 (multi-source disagreement detection)
-> is now implemented for license, and generalized to any field for when
-> future candidate sources land. A2 (superseded identity across builds)
-> remains design-only. See
+> lineage, dataset creator, fragment-origin `imports` and enrichment
+> `CreationInfo` (N3, with the `enrich/` MVP) are emitted as native SPDX
+> constructs with no provenance residual for the value itself. G2
+> (multi-source disagreement detection) is now implemented for license, and
+> generalized to any field for when future candidate sources land. A2
+> (superseded identity across builds) remains design-only. See
 > [`annotation-provenance.md`](annotation-provenance.md)
 > §10 for the full design, current status, and code citations for all
 > pending items, and
@@ -141,6 +144,10 @@ consistent, machine-parsable pattern
 - Static extraction: `Source: pyproject.toml | Field: project.name`
 - Dynamic extraction: `Source: src/pkg/__about__.py | Method: dynamic_extraction`
 - Inferred data: `Source: Pitloom generator | Method: inferred_from_authors`
+- Detected licence: `Source: LICENSE | Method: licenseid_detection |
+  Tool: licenseid==<version>`
+- Rewritten licence: `... | Normalized-From: <raw> | Normalizer:
+  py-spdx-license==<version>` (also `Deprecated-License-Id`)
 - Tracking SDK:
   `Source: src/eval.py | Method: inspect_caller (tool: pitloom.loom, function: evaluate)`
 
@@ -164,7 +171,14 @@ Pitloom tracks provenance for the following metadata fields:
 - **authors**: Package authors
   - Source: `pyproject.toml` -> `project.authors`
 - **license**: License information
-  - Source: `pyproject.toml` -> `project.license`
+  - Source: the package's own fields (`project.license`, then its
+    `License ::` classifiers; the Core Metadata, `setup.cfg` and
+    `setup.py` equivalents), else the project directory (`CITATION.cff`,
+    `codemeta.json`, a licence file); for a dependency its installed
+    metadata, then PyPI. Per surface:
+    [license-pipeline.md](../license-pipeline.md)
+- **license_concluded**: the G2 second opinion (directory detection) or a
+  library caller's value; always `hasConcludedLicense`
 - **copyright_text**: Copyright information
   - Source: Pitloom generator (inferred from authors)
 

@@ -9,6 +9,8 @@ Split out of test_installed.py (which covers discovery/parsing) purely to
 stay under this repo's file-size soft limit -- see that module's docstring
 for the shared fixtures directory and test_installed_integration.py for
 read_project()/resolve_project_with_lockfile() end-to-end cases.
+
+See also: :mod:`tests.extract.project.test_installed_reconcile_license`.
 """
 
 # Explicit `== []`/`== {}` keeps the None-vs-empty distinction.
@@ -23,19 +25,11 @@ import pytest
 
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract.project._installed_reconcile import reconcile_installed_metadata
-
-
-def _static(**overrides: object) -> ProjectMetadata:
-    base = ProjectMetadata(name="pkg", version="1.0.0")
-    base.provenance["name"] = "Source: pyproject.toml"
-    base.provenance["version"] = "Source: pyproject.toml"
-    for key, value in overrides.items():
-        setattr(base, key, value)
-    return base
+from tests.extract.conftest import static_metadata
 
 
 def test_reconcile_genuine_version_conflict(tmp_path: Path) -> None:
-    static = _static()
+    static = static_metadata()
     installed = ProjectMetadata(name="pkg", version="1.0.1")
     installed.provenance["version"] = "Source: pkg.egg-info"
 
@@ -49,7 +43,7 @@ def test_reconcile_genuine_version_conflict(tmp_path: Path) -> None:
 
 
 def test_reconcile_pep440_equivalent_not_a_conflict(tmp_path: Path) -> None:
-    static = _static(version="1.0")
+    static = static_metadata(version="1.0")
     static.provenance["version"] = "Source: pyproject.toml"
     installed = ProjectMetadata(name="pkg", version="1.0.0")
     installed.provenance["version"] = "Source: pkg.egg-info"
@@ -75,7 +69,7 @@ def test_reconcile_dynamic_version_gap_fill(tmp_path: Path) -> None:
 def test_reconcile_installed_not_declared_leaves_static_untouched(
     tmp_path: Path,
 ) -> None:
-    static = _static()
+    static = static_metadata()
     installed = ProjectMetadata(name="pkg", version=None)  # not declared
 
     merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
@@ -85,7 +79,7 @@ def test_reconcile_installed_not_declared_leaves_static_untouched(
 
 
 def test_reconcile_requires_python_conflict(tmp_path: Path) -> None:
-    static = _static(requires_python=">=3.9")
+    static = static_metadata(requires_python=">=3.9")
     static.provenance["requires_python"] = "Source: pyproject.toml"
     installed = ProjectMetadata(name="pkg", version="1.0.0", requires_python=">=3.8")
     installed.provenance["version"] = "Source: pkg.egg-info"
@@ -98,7 +92,7 @@ def test_reconcile_requires_python_conflict(tmp_path: Path) -> None:
 
 
 def test_reconcile_requires_python_equivalent_reformatted(tmp_path: Path) -> None:
-    static = _static(requires_python=">=3.9")
+    static = static_metadata(requires_python=">=3.9")
     static.provenance["requires_python"] = "Source: pyproject.toml"
     installed = ProjectMetadata(name="pkg", version="1.0.0", requires_python=">= 3.9")
     installed.provenance["version"] = "Source: pkg.egg-info"
@@ -120,7 +114,7 @@ def test_reconcile_requires_python_declared_empty_vs_installed_conflict(
     InvalidSpecifier _requires_python_equal already catches) -- and must
     be treated as a real disagreement against installed's concrete
     constraint, static's None still winning."""
-    static = _static(requires_python=None)
+    static = static_metadata(requires_python=None)
     static.provenance["requires_python"] = "Source: pyproject.toml"
     installed = ProjectMetadata(name="pkg", version="1.0.0", requires_python=">=3.9")
     installed.provenance["version"] = "Source: pkg.egg-info"
@@ -139,7 +133,7 @@ def test_reconcile_requires_python_declared_empty_both_sides_not_a_conflict(
     """Both sides explicitly declare "no constraint" -- not a conflict,
     and must not crash either (the same None-vs-comparator hazard, with
     the two normalized-empty values actually equal)."""
-    static = _static(requires_python=None)
+    static = static_metadata(requires_python=None)
     static.provenance["requires_python"] = "Source: pyproject.toml"
     installed = ProjectMetadata(name="pkg", version="1.0.0", requires_python="")
     installed.provenance["version"] = "Source: pkg.egg-info"
@@ -151,25 +145,6 @@ def test_reconcile_requires_python_declared_empty_both_sides_not_a_conflict(
     assert "requires_python" not in merged.field_conflicts
 
 
-def test_reconcile_license_name_conflict_uses_spdx_normalization(
-    tmp_path: Path,
-) -> None:
-    static = _static(license_name="MIT")
-    static.provenance["license"] = "Source: pyproject.toml"
-    installed = ProjectMetadata(name="pkg", version="1.0.0", license_name="Apache-2.0")
-    installed.provenance["version"] = "Source: pkg.egg-info"
-    installed.provenance["license"] = "Source: pkg.egg-info"
-
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
-
-    assert merged.license_name == "MIT"
-    # Keyed by "license" (the provenance-key alias), not "license_name" --
-    # matches deps_license.py's own declared-vs-concluded conflict field
-    # label for the same underlying concept.
-    assert "license" in merged.field_conflicts
-    assert "license_name" not in merged.field_conflicts
-
-
 def test_reconcile_requires_python_installed_declared_empty_vs_static_conflict(
     tmp_path: Path,
 ) -> None:
@@ -179,7 +154,7 @@ def test_reconcile_requires_python_installed_declared_empty_vs_static_conflict(
     convention bug), the comparator call must not crash (SpecifierSet(None)
     raises) and the disagreement must still be recorded, with the
     installed candidate's ``value`` normalized to ``""``, never ``None``."""
-    static = _static(requires_python=">=3.9")
+    static = static_metadata(requires_python=">=3.9")
     static.provenance["requires_python"] = "Source: pyproject.toml"
     installed = ProjectMetadata(name="pkg", version="1.0.0", requires_python=None)
     installed.provenance["version"] = "Source: pkg.egg-info"
@@ -229,31 +204,10 @@ def test_reconcile_version_gap_fill_from_installed_declared_empty_is_none(
     assert merged.field_conflicts == {}
 
 
-def test_reconcile_license_name_declared_empty_vs_installed_conflict(
-    tmp_path: Path,
-) -> None:
-    """Regression: `license = ""` with no LICENSE file found (detection
-    finds nothing) collapses to `license_name=None`, but provenance still
-    records it as declared. Must not crash
-    (normalize_license_expression(None) raises AttributeError) and must
-    be treated as a real disagreement, static's None still winning."""
-    static = _static(license_name=None)
-    static.provenance["license"] = "Source: pyproject.toml"
-    installed = ProjectMetadata(name="pkg", version="1.0.0", license_name="MIT")
-    installed.provenance["version"] = "Source: pkg.egg-info"
-    installed.provenance["license"] = "Source: pkg.egg-info"
-
-    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
-
-    assert merged.license_name is None
-    assert "license" in merged.field_conflicts
-    assert merged.field_conflicts["license"][0]["value"] == ""
-
-
 def test_reconcile_quiet_suppresses_warning_but_still_records_conflict(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    static = _static()
+    static = static_metadata()
     installed = ProjectMetadata(name="pkg", version="1.0.1")
     installed.provenance["version"] = "Source: pkg.egg-info"
 
@@ -272,7 +226,7 @@ def test_reconcile_static_never_transiently_holds_installed_value(
     """Regression guard: the merged result's static-wins field must equal
     static's own value throughout -- never briefly set to installed's
     value and "fixed back"."""
-    static = _static()
+    static = static_metadata()
     installed = ProjectMetadata(name="pkg", version="9.9.9")
     installed.provenance["version"] = "Source: pkg.egg-info"
 
@@ -284,7 +238,7 @@ def test_reconcile_static_never_transiently_holds_installed_value(
 def test_reconcile_gap_fill_field_disagreement_not_a_conflict(tmp_path: Path) -> None:
     """description is gap-fill-only -- both declared and disagreeing is
     not flagged; static's value wins unconditionally, no comparison."""
-    static = _static(description="Static summary.")
+    static = static_metadata(description="Static summary.")
     static.provenance["description"] = "Source: pyproject.toml"
     installed = ProjectMetadata(
         name="pkg", version="1.0.0", description="Installed summary."
@@ -299,7 +253,7 @@ def test_reconcile_gap_fill_field_disagreement_not_a_conflict(tmp_path: Path) ->
 
 
 def test_reconcile_gap_fill_field_fills_from_installed(tmp_path: Path) -> None:
-    static = _static()
+    static = static_metadata()
     installed = ProjectMetadata(
         name="pkg", version="1.0.0", description="Installed summary."
     )
@@ -312,7 +266,7 @@ def test_reconcile_gap_fill_field_fills_from_installed(tmp_path: Path) -> None:
 
 
 def test_reconcile_keywords_declared_empty_both_sides(tmp_path: Path) -> None:
-    static = _static(keywords=[])
+    static = static_metadata(keywords=[])
     static.provenance["keywords"] = "Source: pyproject.toml"
     installed = ProjectMetadata(name="pkg", version="1.0.0", keywords=[])
     installed.provenance["version"] = "Source: pkg.egg-info"
@@ -327,7 +281,7 @@ def test_reconcile_keywords_declared_empty_both_sides(tmp_path: Path) -> None:
 def test_reconcile_keywords_header_absent_never_overwrites_static(
     tmp_path: Path,
 ) -> None:
-    static = _static(keywords=["static-kw"])
+    static = static_metadata(keywords=["static-kw"])
     static.provenance["keywords"] = "Source: pyproject.toml"
     installed = ProjectMetadata(name="pkg", version="1.0.0")  # no Keywords header
 
@@ -340,7 +294,7 @@ def test_reconcile_unrelated_fields_never_touched(tmp_path: Path) -> None:
     """name, provenance keys for untouched fields, files,
     locked_dependencies, authors, dependencies, readme, field_conflicts
     itself: none of these participate."""
-    static = _static(
+    static = static_metadata(
         authors=[{"name": "Static Author"}],
         dependencies=["requests>=2"],
         readme="README.md",
@@ -367,7 +321,7 @@ def test_reconcile_field_conflicts_order_is_deterministic(tmp_path: Path) -> Non
     stable declaration order (version, requires_python, license -- the
     provenance-key alias for license_name), never a set's iteration
     order."""
-    static = _static(requires_python=">=3.9", license_name="MIT")
+    static = static_metadata(requires_python=">=3.9", license_name="MIT")
     static.provenance["requires_python"] = "Source: pyproject.toml"
     static.provenance["license"] = "Source: pyproject.toml"
     installed = ProjectMetadata(
@@ -450,7 +404,7 @@ def test_reconcile_does_not_mutate_static_field_conflicts(tmp_path: Path) -> Non
     """Same aliasing regression as above, for field_conflicts: a recorded
     conflict must land only on the returned merged object, never on the
     caller's own static input."""
-    static = _static()
+    static = static_metadata()
     installed = ProjectMetadata(name="pkg", version="1.0.1")
     installed.provenance["version"] = "Source: pkg.egg-info"
 

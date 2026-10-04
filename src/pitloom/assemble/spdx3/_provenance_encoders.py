@@ -24,22 +24,59 @@ TRANSPARENT_SOURCES: frozenset[str] = frozenset(
         "setup.cfg",
         "setup.py",
         "wheel metadata",
+        "sdist pkg-info",
         "hugging face hub",
     }
+)
+
+#: A dependency's installed copy, read for a project SBOM: a record of the
+#: local environment, which need not be the artifact the SBOM describes.
+INSTALLED_DEPENDENCY_SOURCE = "installed metadata"
+#: A deployed package's own installed metadata (``loom env``): that copy is
+#: the package the SBOM describes.
+DEPLOYED_PACKAGE_SOURCE = "deployed package metadata"
+
+#: Records kept about a package by someone other than the package: a licence
+#: read from one is concluded. Every other source -- a manifest, an
+#: in-package file (``LICENSE``, ``CITATION.cff``, a model card), an AI model
+#: file's own metadata, the package's own installed metadata -- is the
+#: package's own statement, so declared, however it was read.
+THIRD_PARTY_SOURCES: frozenset[str] = frozenset(
+    {"pypi json api", INSTALLED_DEPENDENCY_SOURCE}
 )
 
 VALID_PROVENANCE_DETAIL: frozenset[str] = frozenset({"minimal", "full"})
 VALID_PROVENANCE_FORMATS: frozenset[str] = frozenset({"annotation", "comment", "both"})
 
 
+def _source_name(entry: dict[str, str]) -> str:
+    """The lower-case source of a parsed provenance entry, without a
+    parenthesised qualifier."""
+    source = entry.get("source", "").strip().lower()
+    return source.split(" (", 1)[0].strip()
+
+
 def _is_high_signal(entry: dict[str, str]) -> bool:
     """Return whether a parsed field-provenance entry carries high signal."""
-    if entry.get("method"):
+    if (
+        entry.get("method")
+        or entry.get("normalized-from")
+        or entry.get("deprecated-license-id")
+    ):
         return True
-    source = entry.get("source", "").strip().lower()
-    if " (" in source:
-        source = source.split(" (", 1)[0].strip()
+    source = _source_name(entry)
     return not source or source not in TRANSPARENT_SOURCES
+
+
+def is_license_concluded(entry: dict[str, str]) -> bool:
+    """Whether a licence from the parsed provenance *entry* is concluded,
+    not declared: its source is a third-party record
+    (:data:`THIRD_PARTY_SOURCES`) or unknown. How the value was read (a
+    ``Method``, such as ``licenseid`` detection of a ``LICENSE`` file) does
+    not change whose statement it is.
+    """
+    source = _source_name(entry)
+    return not source or source in THIRD_PARTY_SOURCES
 
 
 def filter_high_signal(provenance: dict[str, str]) -> dict[str, str]:

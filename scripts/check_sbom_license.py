@@ -28,6 +28,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from pitloom.core.license_individuals import INDIVIDUAL_BY_REFERENCE
 from pitloom.core.wheel_dist_info import looks_like_wheel_path
 from pitloom.embed import find_embedded_sbom
 
@@ -98,6 +99,9 @@ def _license_texts(graph: list[Any], root: str, relationship_type: str) -> list[
         targets.extend(rel["to"])
     texts: list[str] = []
     for target in targets:
+        if isinstance(target, str) and target in INDIVIDUAL_BY_REFERENCE:
+            texts.append(INDIVIDUAL_BY_REFERENCE[target].spdx_name)
+            continue
         element = by_id.get(target, {}) if isinstance(target, str) else {}
         text = next((element[k] for k in _LICENSE_TEXT_KEYS if k in element), None)
         if not isinstance(text, str):

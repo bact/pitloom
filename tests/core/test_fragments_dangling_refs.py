@@ -3,8 +3,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for :func:`pitloom.assemble.spdx3.fragments._find_dangling_references`
-and :func:`_raise_on_dangling_references` -- the referential-integrity check
+"""Tests for ``_find_dangling_references``
+(:mod:`pitloom.assemble.spdx3._fragments_refs`) and
+``_raise_on_dangling_references`` (:mod:`pitloom.assemble.spdx3.fragments`) --
+the referential-integrity check
 that catches a merged element (typically from a fragment) whose ``Relationship``/
 ``Annotation`` endpoint doesn't resolve to any object actually present in the
 merged graph (and isn't a declared external reference either). The prototypical
@@ -21,16 +23,19 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._fragments_refs import NAMED_INDIVIDUAL_IDS
 from pitloom.assemble.spdx3.fragments import (
     FragmentMergeError,
     _find_dangling_references,
     _raise_on_dangling_references,
 )
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+from tests._license_graph import merged_fragment
 
 
 def _creation_info() -> spdx3.CreationInfo:
@@ -220,3 +225,108 @@ def test_find_dangling_references_excludes_declared_external_imports() -> None:
     result = _find_dangling_references(exporter)
     assert isinstance(result, list)
     assert not result
+
+
+_TERMS = "https://spdx.org/rdf/3.0.1/terms"
+#: Named individuals of SPDX 3 ``Element`` classes (compact JSON name, IRI).
+_INDIVIDUALS = [
+    ("NoAssertionElement", f"{_TERMS}/Core/NoAssertionElement"),
+    ("NoneElement", f"{_TERMS}/Core/NoneElement"),
+    ("SpdxOrganization", f"{_TERMS}/Core/SpdxOrganization"),
+    (
+        "expandedlicensing_NoAssertionLicense",
+        f"{_TERMS}/ExpandedLicensing/NoAssertionLicense",
+    ),
+    (
+        "expandedlicensing_NoneLicense",
+        f"{_TERMS}/ExpandedLicensing/NoneLicense",
+    ),
+]
+#: Look-alikes that are not element individuals: still dangling.
+_NOT_INDIVIDUALS = [
+    f"{_TERMS}/Core/NoSuchIndividual",
+    f"{_TERMS}/Core/HashAlgorithm/sha256",
+    "NoAssertionElement",
+]
+
+
+def _one_package_exporter(
+    *, from_: str | None = None, to: str | None = None
+) -> Spdx3JsonExporter:
+    """An exporter whose only relationship has the given endpoints (the
+    package's id where one is ``None``)."""
+    ci = _creation_info()
+    pkg_id = "https://spdx.org/spdxdocs/x-1#Package-1"
+    exporter = Spdx3JsonExporter()
+    exporter.add_creation_info(ci)
+    exporter.add_package(
+        spdx3.software_Package(spdxId=pkg_id, name="pkg", creationInfo=ci)
+    )
+    exporter.add_relationship(
+        spdx3.Relationship(
+            spdxId="https://spdx.org/spdxdocs/x-1#Relationship-1",
+            from_=from_ or pkg_id,
+            to=[to or pkg_id],
+            relationshipType=spdx3.RelationshipType.hasDeclaredLicense,
+            creationInfo=ci,
+        )
+    )
+    return exporter
+
+
+def test_named_individual_ids_are_read_from_the_bindings() -> None:
+    """Every element individual is covered, and no enumeration value."""
+    assert {iri for _, iri in _INDIVIDUALS} == NAMED_INDIVIDUAL_IDS
+    assert spdx3.HashAlgorithm.sha256 not in NAMED_INDIVIDUAL_IDS
+
+
+@pytest.mark.parametrize("iri", [iri for _, iri in _INDIVIDUALS])
+def test_named_individual_relationship_source_is_not_dangling(iri: str) -> None:
+    """The ``to`` end is covered by the merge test below."""
+    assert not _find_dangling_references(_one_package_exporter(from_=iri))
+
+
+def test_named_individual_annotation_subject_is_not_dangling() -> None:
+    ci = _creation_info()
+    exporter = Spdx3JsonExporter()
+    exporter.add_creation_info(ci)
+    exporter.add_annotation(
+        spdx3.Annotation(
+            spdxId="https://spdx.org/spdxdocs/x-1#Annotation-1",
+            subject=spdx3.IndividualElement.NoneElement,
+            annotationType=spdx3.AnnotationType.other,
+            statement="s",
+            creationInfo=ci,
+        )
+    )
+    assert not _find_dangling_references(exporter)
+
+
+@pytest.mark.parametrize("target", _NOT_INDIVIDUALS)
+def test_non_individual_lookalike_is_still_dangling(target: str) -> None:
+    dangling = _find_dangling_references(_one_package_exporter(to=target))
+    assert [d[2] for d in dangling] == [target]
+
+
+@pytest.mark.parametrize("form", ["compact", "iri"])
+@pytest.mark.parametrize(("compact", "iri"), _INDIVIDUALS)
+def test_merging_a_fragment_that_references_an_individual_succeeds(
+    tmp_path: Path, form: str, compact: str, iri: str
+) -> None:
+    """Both JSON spellings of an individual merge, and the relationship to
+    it is kept (not dropped, which would pass vacuously)."""
+    exporter = merged_fragment(tmp_path, compact if form == "compact" else iri)
+    ends = [
+        t
+        for o in exporter.object_set.objects
+        if isinstance(o, spdx3.Relationship)
+        for t in o.to
+    ]
+    assert ends == [iri]
+
+
+def test_merging_a_fragment_with_a_truly_dangling_target_still_raises(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(FragmentMergeError, match="dangling reference"):
+        merged_fragment(tmp_path, f"{_TERMS}/Core/NoSuchIndividual")

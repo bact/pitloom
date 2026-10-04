@@ -132,7 +132,7 @@ def _extract_setuptools_dynamic_version(
     concept of this setuptools-specific table, so nothing else resolves
     it on this path.
 
-    Delegates to :mod:`pitloom.extract.project.setuptools_cfg`'s
+    Delegates to :mod:`pitloom.extract.project._setup_cfg_directives`'
     ``attr:``/``file:`` resolvers -- the exact same AST-scan/file-read
     logic ``read_setuptools()`` already uses for ``setup.cfg``'s
     ``version = attr: ...``/``version = file: ...`` directives, not a
@@ -148,7 +148,7 @@ def _extract_setuptools_dynamic_version(
         return None, None
 
     # pylint: disable-next=import-outside-toplevel
-    from pitloom.extract.project.setuptools_cfg import (
+    from pitloom.extract.project._setup_cfg_directives import (
         _resolve_cfg_attr_directive,
         _resolve_cfg_version_file_directive,
     )
@@ -164,12 +164,16 @@ def _extract_setuptools_dynamic_version(
         # "\n" (setuptools.config.expand.read_files) -- reproducing that
         # exactly isn't worth it here: _resolve_cfg_version_file_directive
         # already rejects multi-line content as unresolvable, so a
-        # genuine multi-file list would fail there too either way. Only
-        # reading the first path is deliberately out of scope for the
-        # multi-file case (falls through to the generic candidate scan
-        # below), not an attempt to match setuptools' own behavior.
-        path = file_list[0] if isinstance(file_list, list) else file_list
-        return _resolve_cfg_version_file_directive(path, project_dir)
+        # genuine multi-file list would fail there too either way. So only
+        # the first non-blank string entry is read; blank entries are
+        # skipped as setuptools skips them, and a non-string is no file.
+        names = file_list if isinstance(file_list, list) else [file_list]
+        path = next((n for n in names if isinstance(n, str) and n.strip()), None)
+        if path is None:
+            return None, None
+        return _resolve_cfg_version_file_directive(
+            path, project_dir, "pyproject.toml tool.setuptools.dynamic.version"
+        )
 
     return None, None
 

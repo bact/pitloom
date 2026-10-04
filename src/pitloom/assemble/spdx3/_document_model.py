@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._licensing_profiles import apply_licensing_profiles
 from pitloom.assemble.spdx3.ai import (
     _add_base_model_lineage,
     _build_ai_package,
@@ -349,10 +350,9 @@ def build_model(
         spdx3.ProfileIdentifierType.software,
         spdx3.ProfileIdentifierType.ai,
     ]
-    if model.license:
-        spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
     if model.datasets:
         spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.dataset)
+    apply_licensing_profiles(spdx_doc, exporter.object_set.objects)
 
     exporter.add_document(spdx_doc)
     exporter.add_sbom(sbom)

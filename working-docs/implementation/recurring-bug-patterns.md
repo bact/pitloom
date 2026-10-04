@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -95,7 +95,7 @@ shape described, not just the module where each was first found.
     near-identical `if field_declared(...): metadata.x = msg.get(...) or
     None` blocks, all three in `_CONFLICT_CHECKED_FIELDS` and needing the
     same collapse (their reconciler compares via `SpecifierSet`/
-    `normalize_license_expression`/`is_same_version`, none of which
+    `classify_license`/`is_same_version`, none of which
     tolerate the raw uncollapsed value consistently). A fix for
     `requires_python`+`license_name` shipped without `version`, and it
     took two independent full-PR review passes (not the pass that made
@@ -103,6 +103,17 @@ shape described, not just the module where each was first found.
     on one field, immediately check every other field in the same
     frozenset/dict/match-arm for the identical pattern in the same
     change, rather than relying on a later review round to notice.
+- **A placeholder value is not a claim: keep it weak in a cascade.**
+  `UNKNOWN`/`NOASSERTION` from a source that has no idea (a legacy
+  `License: UNKNOWN`, a PyPI `license: UNKNOWN` next to a good classifier) must
+  not end a source cascade or be dropped as absent: skip it while a later
+  source may know better, remember the first one, and emit it (with that
+  source's provenance) only if nothing better turns up. A real "none" ends
+  the cascade; absent stays absent (no claim, SPDX 3 "no assumptions"). The
+  held state is per item, never shared across the items of one call. First
+  built without the weak step (commit 6, PR #276), the review caught that
+  an installed `UNKNOWN` blocked the PyPI lookup that used to find the licence.
+  ([license-typing.md](license-typing.md))
 - **Compare domain identifiers the way the ecosystem/spec does, not as
   raw strings.** A raw `==`/dict-key comparison silently fails to match
   values that a spec treats as equivalent (e.g. PEP 503 package-name

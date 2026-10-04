@@ -1,5 +1,6 @@
 ---
 Created: 2026-08-08
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -77,7 +78,7 @@ and which half is genuinely Annotation-only.
 | Provenance fact | Native SPDX home? | Annotation role |
 | --- | --- | --- |
 | name / version / description / download URL / homepage | Yes (`Element.name`, `software_packageVersion`, `description`, `software_downloadLocation`, `software_homePage`) | none in minimal; source-only in full |
-| license *value* | Yes (`hasDeclaredLicense` + `SimpleLicensingText`) | never the value; only "detected vs declared" (G1) |
+| license *value* | Yes (`hasDeclaredLicense` + `LicenseExpression`/`SimpleLicensingText`, or a named individual) | never the value; only "detected vs declared" (G1) |
 | dependency edge | Yes (`dependsOn`) | never on the edge; see G3 on the package |
 | hashes / files / relationships / PURL / ExternalRef | Yes | never |
 | **inferred / detected / AI-generated** qualifier | Partly — see N2 | **G1 — necessary** (assertedness beyond N2) |

@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-03
+# Last-Modified: 2026-10-04
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -376,7 +376,8 @@ a. **Identify the standard(s):** NTIA 2021, CISA 2026 (current baseline;
    `references/minimum-elements.md` has the checklists, each element
    mapped to the SPDX 3 field that carries it.
 b. **Gap analysis:** per element, check the mapped field in the base SBOM
-   and report present / missing / `NOASSERTION`-or-empty. Don't trust the
+   and report present / missing / `NOASSERTION`-or-empty (a licence with no
+   relationship is missing). Don't trust the
    reference's "covered"/"conditional" calls: they were checked against
    one real SBOM.
    A stub `ai_AIPackage` (step 3) has only a placeholder name: count every
@@ -397,7 +398,8 @@ e. **Contradiction check** before drafting: compare each new answer with
 f. **Draft, validate, register, merge, validate:** reuse steps 6-10
    verbatim. Only *what* is proposed changes, not how it is recorded.
 g. **Final report:** elements now satisfied; those unknown by the user's
-   choice (write `NOASSERTION`, don't omit the field); those with no
+   choice (write `NOASSERTION`, don't omit the field; the licence recipe is
+   in `references/minimum-elements-workflow.md`); those with no
    automatable path (SBOM Author Signature, most G7 AI Security/KPI
    elements, dataset statistical properties), which need something outside
    this workflow.

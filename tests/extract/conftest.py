@@ -107,6 +107,7 @@ _FAKE_CORE_DEFAULTS: dict[str, Any] = {
     "requires_python": "",
     "license": "",
     "license_expression": "",
+    "classifiers": [],
     "keywords": [],
     "authors_data": {"name": [], "email": []},
     "urls": {},
@@ -251,9 +252,37 @@ __all__ = [
     "annotations",
     "assert_declared_empty_authors_no_copyright_text",
     "hatchling_metadata_core",
+    "licence_pair",
     "make_hook",
     "pytest",
+    "static_metadata",
     "types",
     "write_pyproject",
     "write_pyproject_with_pitloom_config",
 ]
+
+
+def static_metadata(**overrides: object) -> ProjectMetadata:
+    """Static (``pyproject.toml``) metadata for ``pkg`` 1.0.0, its name and
+    version declared, with *overrides* set on it."""
+    base = ProjectMetadata(name="pkg", version="1.0.0")
+    base.provenance["name"] = "Source: pyproject.toml"
+    base.provenance["version"] = "Source: pyproject.toml"
+    for key, value in overrides.items():
+        setattr(base, key, value)
+    return base
+
+
+def licence_pair(
+    static_licence: str | None, installed_licence: str | None
+) -> tuple[ProjectMetadata, ProjectMetadata]:
+    """``(static, installed)`` metadata for ``pkg`` 1.0.0, each declaring
+    its licence (``None`` is declared but blank)."""
+    static = static_metadata(license_name=static_licence)
+    static.provenance["license"] = "Source: pyproject.toml"
+    installed = ProjectMetadata(
+        name="pkg", version="1.0.0", license_name=installed_licence
+    )
+    installed.provenance["version"] = "Source: pkg.egg-info"
+    installed.provenance["license"] = "Source: pkg.egg-info"
+    return static, installed

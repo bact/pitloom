@@ -44,8 +44,10 @@ class EnrichedField:
             ``"inferred"`` -- see
             :class:`~pitloom.assemble.spdx3.provenance.ConflictCandidate`).
             A deterministic parser (like the README frontmatter enricher)
-            is always ``"detected"``, never ``"inferred"`` -- that role is
-            reserved for genuine AI-agent judgment.
+            is ``"detected"``, or ``"declared"`` for the subject's own
+            statement it reads (a model card's licence), never
+            ``"inferred"`` -- that role is reserved for genuine AI-agent
+            judgment.
         source: A ``"Key: Value | Key: Value"`` provenance string, same
             convention used everywhere else
             (:func:`~pitloom.core.provenance.parse_provenance_value`).

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-09-28
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -13,7 +13,9 @@ design rationale, start here),
 [annotation-mechanism.md](annotation-mechanism.md),
 [role-vocabulary.md](role-vocabulary.md),
 [multi-source-conflict.md](multi-source-conflict.md),
-[phase2-native-backfill-handover.md](phase2-native-backfill-handover.md).
+[phase2-native-backfill-handover.md](phase2-native-backfill-handover.md),
+[license-layers.md](../../design/license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy)
+(licence taxonomy still to settle).
 
 The taxonomy of *why* an Annotation earns its place for each use case
 (G1-G4/A1-A2/E1-E2/P1), plus the Phase 2 native-first backfill
@@ -52,7 +54,8 @@ checklist (N1-N6). G2's own implementation depth lives separately in
   rather than a separate "extracted" word (which would have collided with
   `extract/`, Pitloom's own name for the whole read-a-value pipeline
   stage). The `enrich/` subpackage itself so far has one source
-  (`enrich/readme.py`, local frontmatter, always `"detected"`) --
+  (`enrich/readme.py`, local frontmatter: the licence `"declared"`, the
+  card's own statement; datasets `"detected"`) --
   `"inferred"` is exercised by the AI-agent `sbom-enrich` Skill's
   fragment path, not yet by in-process code.
 - **Preservation** — P1 verbatim original AI-model metadata
@@ -97,8 +100,12 @@ the corresponding Annotation to the residual**.
 - [x] **N1 — Fragment origin** → `SpdxDocument.imports` + `ExternalMap` (per
   source fragment). Residual in Annotation: the unification *criterion* only.
 - [x] **N2 — Declared vs. concluded license** → distinct `hasDeclaredLicense`
-  (author-stated) / `hasConcludedLicense` (Pitloom-detected). Residual: the
-  detection evidence (see [multi-source-conflict.md](multi-source-conflict.md)).
+  (the package's own statement) / `hasConcludedLicense` (a third-party
+  record, the directory's G2 second opinion, or a library caller's
+  `license_concluded`; PR #276, see
+  [license-typing.md](../license-typing.md#declared-or-concluded-whose-statement)).
+  Residual: the detection evidence (see
+  [multi-source-conflict.md](multi-source-conflict.md)).
 - [x] **N3 — Who/when enriched** → a second `CreationInfo` per enrichment
   run, scoped to *new elements* an enrichment run creates. Residual (every
   field an enrichment run changed, new element or in-place fill alike):

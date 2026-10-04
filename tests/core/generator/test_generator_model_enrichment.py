@@ -46,8 +46,8 @@ from ..conftest import (
 def test_assembler_ai_model_with_license(
     model_name: str, license_id: str, hf_id: str
 ) -> None:
-    """AI model with a license must produce hasDeclaredLicense and
-    hasConcludedLicense relationships, and simpleLicensing in profileConformance.
+    """AI model with a license (its card's) must produce one
+    hasDeclaredLicense relationship, and simpleLicensing in profileConformance.
 
     Model/license pairs are taken from real Hugging Face Hub data recorded in
     the model zoo (test_extract_huggingface.py, 2026-05-08).
@@ -298,7 +298,11 @@ def test_generate_model_sbom_readme_enrichment_end_to_end() -> None:
         # doesn't cover in-place field-fills, only new elements) is lost.
         assert enrichment_anns[0]["creationInfo"] == dataset_creation_info
         assert enrichment_anns[0]["creationInfo"] != ai_creation_info
-        assert all(c["role"] == "detected" for c in statement["changes"])
+        # The card's own licence is declared; its dataset list is detected.
+        assert {c["field"]: c["role"] for c in statement["changes"]} == {
+            "license": "declared",
+            "datasets:tiny-imagenet": "detected",
+        }
 
 
 def test_generate_model_sbom_field_only_enrichment_has_own_creation_info() -> None:

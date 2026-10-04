@@ -25,7 +25,7 @@ from packaging.specifiers import InvalidSpecifier, SpecifierSet
 
 from pitloom.core.project import ConflictCandidate, ProjectMetadata, provenance_key_for
 from pitloom.extract._extract_utils import field_declared
-from pitloom.extract._license import normalize_license_expression
+from pitloom.extract._license import classify_license, same_licence
 from pitloom.extract.lock._common import is_same_version
 
 log = logging.getLogger(__name__)
@@ -52,11 +52,38 @@ def _requires_python_equal(a: str, b: str) -> bool:
         return a.strip() == b.strip()
 
 
+def _license_equal(a: str, b: str) -> bool:
+    """Same licence once classified (``mit`` == ``MIT``, ``GPL-2.0+`` ==
+    ``GPL-2.0-or-later``, ``MIT License`` == ``MIT``; the rule the declared
+    vs concluded check uses). ``NOASSERTION``/``UNKNOWN`` is weak: it agrees
+    with anything, a blank value too, and :func:`_weak_static_licence` lets
+    the real licence win. A value that states none compares as empty."""
+    first, second = (classify_license(v, warn=False) for v in (a, b))
+    if any(c is not None and c.kind == "noassertion" for c in (first, second)):
+        return True
+    if first is None or second is None:
+        return first is None and second is None
+    return same_licence(first.value, second.value)
+
+
+def _weak_static_licence(static: ProjectMetadata, installed: ProjectMetadata) -> bool:
+    """Whether static's licence is only ``NOASSERTION``/``UNKNOWN`` and the
+    installed one states a real licence, which then wins."""
+    first, second = (
+        classify_license(v, warn=False)
+        for v in (static.license_name, installed.license_name)
+    )
+    return (
+        first is not None
+        and first.kind == "noassertion"
+        and second is not None
+        and second.kind != "noassertion"
+    )
+
+
 _FIELD_COMPARATORS: dict[str, Callable[[str, str], bool]] = {
     "version": is_same_version,
-    "license_name": lambda a, b: (
-        normalize_license_expression(a) == normalize_license_expression(b)
-    ),
+    "license_name": _license_equal,
     "requires_python": _requires_python_equal,
 }
 
@@ -96,15 +123,17 @@ def _reconcile_conflict_checked_field(
     # None` -- `requires-python = ""`, PEP 621's "no constraint" convention
     # matching Poetry's `python = "*"`; likewise an empty/undetected
     # `license`). None is not a valid comparator input -- SpecifierSet(None)
-    # and normalize_license_expression(None) both raise instead of
-    # comparing -- so compare against the empty string it's semantically
-    # equivalent to. The real (possibly-None) values are still what's
+    # raises instead of comparing -- so compare against the empty string
+    # it's semantically equivalent to. The real (possibly-None) values are still what's
     # logged; only the comparator call and the recorded candidates'
     # ``value`` (typed ``str``, never ``None``) use the normalized form.
     comparable_static_value = static_value if static_value is not None else ""
     comparable_installed_value = installed_value if installed_value is not None else ""
     comparator = _FIELD_COMPARATORS[field_name]
     if comparator(comparable_static_value, comparable_installed_value):
+        if field_name == "license_name" and _weak_static_licence(static, installed):
+            merged.license_name = installed.license_name
+            merged.provenance[provenance_key] = installed.provenance[provenance_key]
         return
 
     static_source = static.provenance[provenance_key]

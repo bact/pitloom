@@ -16,10 +16,12 @@ from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._licensing_profiles import apply_licensing_profiles
 from pitloom.assemble.spdx3._package_ids import DEPENDENCY_LABEL, resolve_package_id
 from pitloom.assemble.spdx3.deps import _finish_dependency_enrichment
 from pitloom.assemble.spdx3.deps_pypi import _prefetch_pypi_release_infos
 from pitloom.assemble.spdx3.provenance import (
+    DEPLOYED_PACKAGE_SOURCE,
     ProvenanceEncoder,
     emit_provenance,
     resolve_encoder,
@@ -128,6 +130,7 @@ def _build_deployed_package(
         provenance_config=prov_cfg,
         encoder=encoder,
         content_type_method=content_type_method,
+        installed_source=DEPLOYED_PACKAGE_SOURCE,
     )
 
     exporter.add_package(dep_package)
@@ -234,11 +237,7 @@ def _build_deployed_document_envelope(
         spdx3.ProfileIdentifierType.core,
         spdx3.ProfileIdentifierType.software,
     ]
-    if exporter.find_license("dummy") is not None or any(
-        isinstance(obj, spdx3.simplelicensing_SimpleLicensingText)
-        for obj in exporter.object_set.objects
-    ):
-        spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
+    apply_licensing_profiles(spdx_doc, exporter.object_set.objects)
 
     exporter.add_document(spdx_doc)
     exporter.add_sbom(sbom)

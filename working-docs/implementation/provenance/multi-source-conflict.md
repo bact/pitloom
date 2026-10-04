@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-09-12
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,7 +12,10 @@ See also [annotation-provenance.md](annotation-provenance.md) (canonical
 design rationale, start here),
 [annotation-mechanism.md](annotation-mechanism.md),
 [role-vocabulary.md](role-vocabulary.md),
-[use-case-catalog.md](use-case-catalog.md) (G2's short catalog summary).
+[use-case-catalog.md](use-case-catalog.md) (G2's short catalog summary),
+[license-layers.md](../../design/license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy)
+(the conflict model's open questions, a prerequisite for systematic licence
+rules).
 
 This file is the implementation depth behind G2 -- the largest and
 most fleshed-out use case in the catalog. The `role` vocabulary G2
@@ -43,7 +46,7 @@ URL `https://pitloom.dev/provenance/conflict/1`, envelope:
 ```
 
 Only emitted when candidates actually disagree after normalization
-(`_license.py` `normalize_license_expression`, built on the
+(`_license.py` `classify_license`, built on the
 [`py-spdx-license`](https://github.com/JPEWdev/py-spdx-license) parser —
 a plain `.strip()` comparison alone would false-positive not just on
 casing differences (declared `"mit"` vs. detected `"MIT"`) but on
@@ -51,9 +54,14 @@ equivalent-yet-differently-spelled compound expressions too (`"MIT AND
 MIT"` vs. `"MIT"`; `"MIT OR Apache-2.0"` vs. `"Apache-2.0 OR MIT"`) — so
 both candidate values are parsed, deduplicated, and canonically reordered
 before both the comparison and the license-element lookup/creation. A
-value that fails to parse as a valid SPDX expression at all falls back to
-`canonicalize_license_id`'s bare-id casing lookup, then to the raw string
-unchanged. Full agreement emits no Annotation — both native relationships
+value that does not parse is text, compared as written less its leading
+blank space and final line breaks. Two values are the same licence when
+equal, or when one is the SPDX List name of the other's listed id
+(`is_listed_name`, any case: a classifier's `MIT License` against a
+detected `MIT`). A `NoAssertionLicense` candidate never conflicts; `NONE`
+against a real licence does (detail:
+[license-typing.md](../license-typing.md#two-candidate-mode-and-conflicts)).
+Full agreement emits no Annotation — both native relationships
 still get built, just pointing at the same license element, and there's nothing
 extrinsic left to assert.
 
@@ -105,8 +113,8 @@ see `cli-test-coverage-roadmap.md`) assert the paths agree on the same
 project. The
 same review also found the Hatchling and CLI paths each hand-listed their
 own `[tool.poetry]`-gap-fill field merge (`_merge_with_poetry` in
-`project/pyproject.py`, `merge_metadata` in `project/setuptools.py`); both were replaced
-by [`core/project.py`](../../../src/pitloom/core/project.py)'s
+`project/pyproject.py`, `merge_metadata` in `project/setuptools.py`); both
+were replaced by [`core/project.py`](../../../src/pitloom/core/project.py)'s
 `merge_project_metadata`, which iterates `dataclasses.fields()` instead of
 naming every field by hand, so a newly added `ProjectMetadata` field
 merges automatically without a call site needing to be updated (see its
@@ -114,15 +122,18 @@ own docstring for the field-drift history that motivated this).
 [`deps_license.py`](../../../src/pitloom/assemble/spdx3/deps_license.py)
 `build_license_elements` gained `concluded_license_id`/
 `concluded_license_provenance` params (`None` default — the three other
-call sites, dependency and AI-model licenses, are unaffected, since
-neither has a local second source to detect from today): when given, both
-candidates are run through `normalize_license_expression` before both the
+call sites, dependency and AI-model licenses, have no local second source
+to detect from today; a single value is declared or concluded by its
+source, `is_license_concluded`): when given, both
+candidates are run through `classify_license` before both the
 comparison and the license-element lookup/creation, then both
 `hasDeclaredLicense` and `hasConcludedLicense` are always built, and a G2
 conflict Annotation is added on disagreement.
 
-`normalize_license_expression` (also in `_license.py`) is the new,
-stronger canonicalization step: operator casing (`AND`/`OR`/`WITH`/`NOT`)
+`normalize_license_expression` (as first built, in `_license.py`; its
+role is now `classify_license`, see
+[license-typing.md](../license-typing.md)) is the new, stronger
+canonicalization step: operator casing (`AND`/`OR`/`WITH`/`NOT`)
 is normalized first — but only when the operator stands alone as its own
 whitespace/paren-delimited token, never when it's hyphen-glued into an
 identifier (`GPL-2.0-or-later`, a custom `LicenseRef-my-or-license`) —
@@ -139,6 +150,8 @@ back with and without a redundant outer paren
 (`GPL-3.0-or-later WITH GCC-exception-3.1` vs.
 `(GPL-3.0-or-later WITH GCC-exception-3.1)`), breaking policy rules that
 compare against one fixed string. Checked `normalize_license_expression`
+(`classify_license` re-checked 2026-10-04 on the pair and the mixed
+`AND`/`OR` cases below: same results)
 against all four of that report's example pairs — every pair normalizes
 to an identical string. Separately verified the harder case, where a
 paren is *not* redundant: for mixed `AND`/`OR` expressions,

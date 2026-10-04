@@ -60,7 +60,7 @@ def _build_integrated_model() -> AiModelMetadata:
         base_model_relation="finetune",
         # Dataset creator attribution
         datasets=[DatasetReference(role="trainedOn", metadata=ds_meta)],
-        # Make the license concluded by using a non-transparent source/method.
+        # The model card's own licence, read by a detection method.
         provenance={
             "license": (
                 "Source: model card scan | Field: cardData.license | "
@@ -87,12 +87,13 @@ def test_all_native_construct_types_present() -> None:
     assert "dataset_DatasetPackage" in types
     assert "Agent" in types
     assert "Relationship" in types
-    assert "simplelicensing_SimpleLicensingText" in types
+    assert "simplelicensing_LicenseExpression" in types
 
 
-def test_declared_vs_concluded_license_present() -> None:
-    """A license produces a hasConcludedLicense relationship because the
-    provenance carries a detection method."""
+def test_a_model_cards_own_license_is_declared_whatever_the_method() -> None:
+    """The model card is the model's own statement: hasDeclaredLicense, even
+    though a detection method read it (only a third-party record is
+    concluded)."""
     graph, _ = _load_graph(_build_integrated_model())
     ai_pkgs = [e for e in graph if e.get("type") == "ai_AIPackage"]
     assert len(ai_pkgs) == 2, "expected derived + base model packages"
@@ -101,23 +102,23 @@ def test_declared_vs_concluded_license_present() -> None:
     )
 
     rels = [e for e in graph if e.get("type") == "Relationship"]
-    concluded = [
+    (declared,) = [
         r
         for r in rels
-        if r.get("relationshipType") == "hasConcludedLicense"
+        if r.get("relationshipType") in ("hasDeclaredLicense", "hasConcludedLicense")
         and r.get("from") == derived_pkg["spdxId"]
     ]
-    assert len(concluded) == 1, "expected one hasConcludedLicense relationship"
+    assert declared["relationshipType"] == "hasDeclaredLicense"
 
-    license_id = concluded[0]["to"][0]
+    license_id = declared["to"][0]
     license_elems = [
         e
         for e in graph
-        if e.get("type") == "simplelicensing_SimpleLicensingText"
+        if e.get("type") == "simplelicensing_LicenseExpression"
         and e.get("spdxId") == license_id
     ]
     assert len(license_elems) == 1
-    assert license_elems[0]["simplelicensing_licenseText"] == "mit"
+    assert license_elems[0]["simplelicensing_licenseExpression"] == "MIT"
 
     spdx_doc = next(e for e in graph if e.get("type") == "SpdxDocument")
     assert "simpleLicensing" in spdx_doc["profileConformance"]
@@ -333,7 +334,7 @@ def test_provenance_annotations_do_not_duplicate_native_values() -> None:
         assert "creator" not in fields, "dataset creator should be native"
 
     # The license detection *method* is residual signal, but the license value
-    # itself lives in the SimpleLicensingText element.
+    # itself lives in the LicenseExpression element.
     schema_url = "https://pitloom.dev/provenance/fields/1"
     license_statements = [
         stmt
@@ -343,9 +344,11 @@ def test_provenance_annotations_do_not_duplicate_native_values() -> None:
     ]
     for stmt in license_statements:
         license_field = stmt["fields"]["license"]
-        # Method/source evidence is allowed; the raw SPDX id is not duplicated.
-        assert "mit" not in str(license_field), (
-            "license value 'mit' should not be repeated in Annotation"
+        # Method/source evidence is allowed, and the raw spelling in the
+        # normalisation note; the id is not otherwise duplicated.
+        rest = {k: v for k, v in license_field.items() if k != "normalized-from"}
+        assert "MIT" not in str(rest) and "mit" not in str(rest), (
+            "license value 'MIT' should not be repeated in Annotation"
         )
 
 

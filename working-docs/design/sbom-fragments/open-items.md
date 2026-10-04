@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-09-28
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -118,3 +118,17 @@ the original Phase 1/4 plan turned out to already be built.
   `log.warning`. Not planned to change without a native SPDX
   field-provenance construct -- see
   [roadmap-and-resources.md](roadmap-and-resources.md) for the full note.
+
+### Found in the PR #276 review (own PR before 0.20.0)
+
+- Licences are not unified across a fragment merge or `loom merge`: a
+  fragment's `MIT` and the project's `MIT` stay two elements
+  (`_MergeIndex` in `_fragments_unify.py` unifies by id, sha256 or
+  structure, never by licence (kind, value)).
+- `loom merge` output has no `SpdxDocument`, so no `profileConformance`.
+- A project's own earlier SBOM registered as a fragment crashes the run
+  (`Duplicate spdxId ...#File-2`).
+- Merge warnings print object reprs (`<...software_Package object at
+  0x...>`), so stderr differs between runs.
+- `scripts/check_sbom_license.py` expects exactly one `software_Sbom`; a
+  project SBOM with an AI model has two.

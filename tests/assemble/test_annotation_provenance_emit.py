@@ -285,6 +285,20 @@ def test_filter_high_signal_keeps_inferred_and_detected() -> None:
     assert set(kept) == {"copyright_text", "license"}
 
 
+@pytest.mark.parametrize(
+    "note",
+    [
+        "Normalized-From: mit",
+        "Deprecated-License-Id: GPL-2.0 (GPL-2.0-only or GPL-2.0-or-later)",
+    ],
+)
+def test_filter_high_signal_keeps_a_licence_note_on_a_manifest_read(note: str) -> None:
+    """The raw value and the deprecated-id note are evidence even when the
+    source is a transparent manifest read."""
+    prov = {"license": f"Source: pyproject.toml | Field: project.license | {note}"}
+    assert filter_high_signal(prov) == prov
+
+
 def test_filter_high_signal_keeps_nonmanifest_sources() -> None:
     prov = {
         "declared_constraint": "requests>=2.28.0",

@@ -245,49 +245,42 @@ def test_annotate_relationships_skips_missing_from_or_to() -> None:
 # --- Spdx3JsonExporter: license indexing ---
 
 
-def test_add_license_indexes_by_license_text() -> None:
-    ci = _creation_info()
-    exporter = Spdx3JsonExporter()
-    license_text = spdx3.simplelicensing_SimpleLicensingText(
-        spdxId="urn:x#Lic-1", creationInfo=ci
+def _text(spdx_id: str, value: str | None) -> spdx3.simplelicensing_SimpleLicensingText:
+    element = spdx3.simplelicensing_SimpleLicensingText(
+        spdxId=spdx_id, creationInfo=_creation_info()
     )
-    license_text.simplelicensing_licenseText = "MIT"
-    exporter.add_license(license_text)
-    assert exporter.find_license("MIT") == "urn:x#Lic-1"
+    if value is not None:
+        element.simplelicensing_licenseText = value
+    return element
 
 
-def test_add_license_without_license_text_is_not_indexed() -> None:
-    """A SimpleLicensingText with no simplelicensing_licenseText value
-    (falsy) is added to the object set but never registered in the
-    lookup index."""
-    ci = _creation_info()
-    exporter = Spdx3JsonExporter()
-    license_text = spdx3.simplelicensing_SimpleLicensingText(
-        spdxId="urn:x#Lic-1", creationInfo=ci
+def _expression(spdx_id: str, value: str) -> spdx3.simplelicensing_LicenseExpression:
+    return spdx3.simplelicensing_LicenseExpression(
+        spdxId=spdx_id,
+        creationInfo=_creation_info(),
+        simplelicensing_licenseExpression=value,
     )
+
+
+def test_add_license_indexes_by_kind_and_value() -> None:
+    """The same string as an expression and as a text are two entries."""
+    exporter = Spdx3JsonExporter()
+    exporter.add_license(_text("urn:x#Text-1", "MIT"))
+    assert exporter.find_license("text", "MIT") == "urn:x#Text-1"
+    assert exporter.find_license("expression", "MIT") is None
+    exporter.add_license(_expression("urn:x#Expr-1", "MIT"))
+    assert exporter.find_license("expression", "MIT") == "urn:x#Expr-1"
+    assert exporter.find_license("text", "MIT") == "urn:x#Text-1"
+
+
+def test_add_license_without_a_value_is_not_indexed() -> None:
+    """A licence element with no text (falsy) is added to the object set
+    but never registered in the lookup index."""
+    exporter = Spdx3JsonExporter()
+    license_text = _text("urn:x#Lic-1", None)
     exporter.add_license(license_text)
-    assert exporter.find_license("MIT") is None
+    assert exporter.find_license("text", "MIT") is None
     assert license_text in exporter.object_set.objects
-
-
-def test_has_licenses_detects_real_license() -> None:
-    ci = _creation_info()
-    exporter = Spdx3JsonExporter()
-    assert not exporter.has_licenses
-
-    noassert = spdx3.simplelicensing_SimpleLicensingText(
-        spdxId="urn:x#Lic-NoAssert", creationInfo=ci
-    )
-    noassert.simplelicensing_licenseText = "NOASSERTION"
-    exporter.add_license(noassert)
-    assert not exporter.has_licenses
-
-    lic = spdx3.simplelicensing_SimpleLicensingText(
-        spdxId="urn:x#Lic-1", creationInfo=ci
-    )
-    lic.simplelicensing_licenseText = "MIT"
-    exporter.add_license(lic)
-    assert exporter.has_licenses
 
 
 # --- Spdx3JsonExporter: to_json()/to_file() ---

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -83,7 +83,7 @@ covered), Frequency (deployment/process concern, out of scope).
 | Component Dependency Relationship | `Relationship`/`LifecycleScopedRelationship` | covered |
 | Component Hash Value / Algorithm | `verifiedUsing` (`{"algorithm": "sha256", "hashValue": ...}`); set on every `software_File` (including dataset and model files), lock-file-resolved dependencies (via SHA-256 digests in supported lock files, taking priority and applied in both online and offline builds), and PyPI-resolved deps (`_extract_release_hash` fallback, `deps_pypi.py`). The main package carries the SHA-256 Merkle root over its files (`document.py`; commented as not a single-artefact hash) on every `project` (directory), wheel and embed SBOM that has payload files (the wheel's own `.dist-info` is excluded); **not** set on sdist SBOMs or `ai_AIPackage`/`dataset_DatasetPackage` elements | conditional -- present on deps only when a definite version resolves; on the main package, check the SBOM rather than assuming (Merkle root, not an artefact hash); the AI/dataset package-level gaps are listed under G7 below |
 | Component Identifiers | `software_packageUrl` (PURL) | conditional, same as NTIA's "Other Unique Identifiers" |
-| Component License | `simplelicensing_SimpleLicensingText` + relationship (main package, from `project.license`); deps via PyPI JSON API (`_extract_pypi_license`) | conditional (deps, PyPI-resolvable only); main package usually covered when `pyproject.toml` declares a license |
+| Component License | `simplelicensing_LicenseExpression` (valid SPDX expression) or `simplelicensing_SimpleLicensingText` (other text) + `hasDeclaredLicense`/`hasConcludedLicense` relationship (main package, from `project.license`, then its `License ::` classifiers; a single value is declared when the package states it, including a `loom env` package's own installed metadata, and concluded when it is a third-party record: PyPI, or a project dependency's installed copy; beside a stated licence, the project directory's detection is concluded, as is a library caller's `license_concluded`); deps from installed metadata, then installed classifiers, then the PyPI JSON API (`_extract_pypi_license`). No licence stated = **no relationship**; `NoAssertionLicense`/`NoneLicense` individuals only when a source said `NOASSERTION`/`UNKNOWN`/`NONE` | conditional (deps: installed or PyPI-resolvable only); main package usually covered when `pyproject.toml` declares a license; a missing relationship is a **gap** |
 | Component Name | `software_Package.name` | covered |
 | Component Version | `software_packageVersion` | covered |
 
@@ -94,10 +94,11 @@ SBOM Data (re-run `loom` -- covered), Coverage (Pitloom walks the full
 dependency graph -- covered, but a mixed-ecosystem project has real gaps outside
 Python; see `sbom-generate`'s "Known limitations"), Distribution and Delivery
 (deployment concern, out of scope), Explicitly Identifying Unknown Information
-(Pitloom's `"unknown"`/`NOASSERTION` convention -- covered, and this workflow's
-final report should follow the same convention for anything the user declines to
-answer), Frequency (process concern, out of scope), Machine-Processable Data
-(SPDX 3 JSON-LD -- covered).
+(Pitloom's `"unknown"` placeholder and, for a licence a source itself calls
+unknown, the `NoAssertionLicense` individual -- covered; an unstated licence has
+no relationship, and this workflow's final report should follow the same
+convention for anything the user declines to answer), Frequency (process
+concern, out of scope), Machine-Processable Data (SPDX 3 JSON-LD -- covered).
 
 ## G7 SBOM for AI 2026 (additive -- apply only when an `ai_AIPackage` is present)
 
@@ -115,7 +116,7 @@ answer), Frequency (process concern, out of scope), Machine-Processable Data
 | Model properties (architecture, parameter count, etc.) | `ai_typeOfModel` (type + architecture) and `ai_hyperparameter` (list of `DictionaryEntry`, incl. quantization) | covered for architecture/type/hyperparameters; parameter count is a **gap** (not promoted to its own field, even where a format's raw metadata exposes it) |
 | Model input-output properties | `ai_informationAboutApplication` (JSON string) | covered when the model format's extractor populates it; verify per model type |
 | Model training properties | not distinctly modelled (see `ai_typeOfModel` for the closest overlap) | **gap** -- ask/read for training technique detail (pre-training vs. fine-tuning vs. RLHF, etc.) |
-| Model license | `LicenseExpression` relationships (declared/concluded) on the AI package, built by the same `build_license_elements` as the main package; source is the model file (PT2), the Hugging Face card, or local model-card enrichment (`enrich/readme.py`) | conditional -- **gap** only when none of those carry a license; then `sbom-enrich`'s prose-inference steps (2-6) are the way to fill it, reuse them rather than re-deriving |
+| Model license | licence relationships (declared/concluded) on the AI package -- a `LicenseExpression` for a valid SPDX id, else a `SimpleLicensingText` -- built by the same `build_license_elements` as the main package; a Hugging Face card `license: unknown` is the `NoAssertionLicense` individual; source is the model file (PT2), the Hugging Face card, or local model-card enrichment (`enrich/readme.py`) | conditional -- **gap** only when none of those carry a license; then `sbom-enrich`'s prose-inference steps (2-6) are the way to fill it, reuse them rather than re-deriving |
 | Model external references | `externalRef` (arXiv as `documentation`, hub page as `altWebPage`) and DOI as `ExternalIdentifier`, when the source carries them | conditional; **gap** when it carries none |
 
 ### Dataset Properties cluster

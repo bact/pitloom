@@ -22,17 +22,17 @@ from unittest.mock import patch
 import pytest
 
 from pitloom.core.project import ProjectMetadata
-from pitloom.extract.project.setuptools import (
-    _resolve_setuptools_license,
-    read_setup_cfg,
-)
-from pitloom.extract.project.setuptools_cfg import (
-    _parse_cfg_urls,
+from pitloom.extract.project._setup_cfg_directives import (
     _read_version_attr,
     _resolve_cfg_attr_directive,
     _resolve_cfg_file_directive,
     _resolve_cfg_version,
 )
+from pitloom.extract.project.setuptools import (
+    _resolve_setuptools_license,
+    read_setup_cfg,
+)
+from pitloom.extract.project.setuptools_cfg import _parse_cfg_urls
 
 from ..conftest import assert_declared_empty_authors_no_copyright_text
 
@@ -280,7 +280,7 @@ def test_resolve_cfg_file_directive_non_file_directive_returns_raw(
 ) -> None:
     """A directive-shaped value that isn't ``file:`` (e.g. ``attr:``) is not
     resolved as a file path -- the raw string is returned unchanged."""
-    result = _resolve_cfg_file_directive("attr: package.__readme__", tmp_path)
+    result = _resolve_cfg_file_directive("attr: package.__readme__", tmp_path, "x")
     assert result == "attr: package.__readme__"
 
 
