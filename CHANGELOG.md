@@ -155,7 +155,7 @@ and this project adheres to
   `PITLOOM_ID_REGISTRY_PATH=`); counts, hints and `-v` are `INFO:` on stderr
   ([#281])
 - `loom merge` output (also `generate_merged_sbom()`) has an `SpdxDocument`
-  with `profileConformance`, imports and unification annotations ([#PR])
+  with `profileConformance`, imports and unification annotations ([#284])
 
 ### Removed
 
@@ -291,7 +291,7 @@ and this project adheres to
   directory does; with no `PKG-INFO`, `project.license` too. A non-object
   `codemeta.json` no longer crashes ([#283])
 - Fragment merge: equal licences unified, a fragment re-declaring base ids no
-  longer crashes, warnings name elements by id ([#PR])
+  longer crashes, warnings name elements by id ([#284])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -334,6 +334,7 @@ and this project adheres to
 [#281]: https://github.com/bact/pitloom/pull/281
 [#282]: https://github.com/bact/pitloom/pull/282
 [#283]: https://github.com/bact/pitloom/pull/283
+[#284]: https://github.com/bact/pitloom/pull/284
 
 ## [0.19.0] - 2026-09-18
 
