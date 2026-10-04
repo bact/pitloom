@@ -287,7 +287,7 @@ and this project adheres to
   wheel's `METADATA` ([#282])
 - An sdist reads its root `LICENSE`, `CITATION.cff` and `codemeta.json` as a
   directory does; with no `PKG-INFO`, `project.license` too. A non-object
-  `codemeta.json` no longer crashes ([#PR])
+  `codemeta.json` no longer crashes ([#283])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -329,6 +329,7 @@ and this project adheres to
 [#280]: https://github.com/bact/pitloom/pull/280
 [#281]: https://github.com/bact/pitloom/pull/281
 [#282]: https://github.com/bact/pitloom/pull/282
+[#283]: https://github.com/bact/pitloom/pull/283
 
 ## [0.19.0] - 2026-09-18
 
