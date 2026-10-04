@@ -21,6 +21,7 @@ from pitloom.cli.commands.utils import (
     cli_error_handler,
     report_error_line,
 )
+from pitloom.cli.kv_output import print_kv
 
 log = logging.getLogger(__name__)
 
@@ -160,13 +161,14 @@ def _run_verify_wheel_command(args: argparse.Namespace) -> int:
 
     all_ok = True
     for wheel_path in wheel_paths:
-        if not _check_one_wheel(
+        ok = _check_one_wheel(
             wheel_path, args.sbom_filename, fail_on_mismatch=args.fail_on_mismatch
-        ):
-            all_ok = False
+        )
+        print_kv(WHEEL=wheel_path.name, STATUS="ok" if ok else "failed")
+        all_ok = all_ok and ok
 
     if all_ok:
-        print(f"pitloom verify-wheel: {len(wheel_paths)} wheel(s) OK")
+        log.info("verify-wheel: %d wheel(s) OK", len(wheel_paths))
     return 0 if all_ok else 1
 
 

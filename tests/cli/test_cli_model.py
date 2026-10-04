@@ -19,9 +19,11 @@ from pathlib import Path
 import pytest
 
 from pitloom import __main__
+from pitloom.__about__ import __version__
 from pitloom.cli.commands import model as mod_model
 from pitloom.core.creation import CreationMetadata
 from tests.cli.shared import ONNX_FIXTURE, SAFETENSORS_FIXTURE
+from tests.kv_helpers import info_kv, sbom_output_path
 
 
 def test_model_command_explicit_output_path(
@@ -247,9 +249,11 @@ def test_model_command_verbose_shows_model_path(
     monkeypatch.setattr(sys, "argv", ["loom", "model", str(ONNX_FIXTURE), "-v"])
 
     assert __main__.main() == 0
-    out = capsys.readouterr().out
-    assert str(ONNX_FIXTURE.resolve()) in out
-    assert "Pitloom version" in out
+    captured = capsys.readouterr()
+    verbose = info_kv(captured.err)
+    assert verbose["MODEL_FILE"] == str(ONNX_FIXTURE.resolve())
+    assert verbose["PITLOOM_VERSION"] == __version__
+    assert sbom_output_path(captured.out) == verbose["OUTPUT_PATH"]
 
 
 def test_model_command_safetensors_produces_ai_package(
@@ -369,9 +373,11 @@ def test_env_command_verbose(
     )
     monkeypatch.setattr(sys, "argv", ["loom", "env", "-v", "-o", str(out)])
     assert __main__.main() == 0
-    stdout = capsys.readouterr().out
-    assert "Pitloom version" in stdout
-    assert "Output path" in stdout
+    captured = capsys.readouterr()
+    verbose = info_kv(captured.err)
+    assert verbose["PITLOOM_VERSION"] == __version__
+    assert verbose["OUTPUT_PATH"] == str(out)
+    assert sbom_output_path(captured.out) == str(out)
 
 
 def _spaced_target(tmp_path: Path, *, sub_exists: bool) -> str:

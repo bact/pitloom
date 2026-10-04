@@ -17,7 +17,6 @@ from __future__ import annotations
 import fnmatch
 
 _PIPED = "`loom <cmd> -o -` corrupts piped JSON"
-_KV = "`enrich` and `merge` stdout is not `KEY=VALUE`"
 
 # Check-id glob -> (roadmap item, text the failure detail must contain).
 # Both must match: any other failure in the same cell still FAILs.
@@ -26,8 +25,6 @@ KNOWN: dict[str, tuple[str, str]] = {
         f"M/{cmd}/output/-o=-+*": (_PIPED, "JSONDecodeError: Extra data")
         for cmd in ("generate", "project", "wheel", "model", "enrich", "env")
     },
-    "M/enrich/output/no-o+*": (_KV, "stdout: ['Enrichment fragment written to"),
-    "M/merge/output/no-o+*": (_KV, "stdout: ['pitloom: merged"),
     "S2": (
         "Re-embedding lists the previous embedded SBOM",
         "re-embedding changed the SBOM",

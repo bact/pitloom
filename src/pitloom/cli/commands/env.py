@@ -11,11 +11,11 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-from pitloom.__about__ import __version__
 from pitloom.assemble import (
     generate_env_sbom,
 )
 from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
+from pitloom.cli.kv_output import log_verbose
 from pitloom.cli.options import add_offline_argument
 from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.inert_options import ENV, forward_options
@@ -31,8 +31,7 @@ def _run_env_command(args: argparse.Namespace) -> int:
     )
 
     if args.verbose:
-        print(f"Pitloom version : {__version__}")
-        print(f"Output path     : {output_path}")
+        log_verbose(OUTPUT_PATH=output_path)
 
     generate_env_sbom(
         output_path=output_path,

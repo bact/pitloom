@@ -35,6 +35,7 @@ from pitloom.embed import (
     embed_wheel_sbom,
 )
 from tests._network import assert_spdx3_validate_ok
+from tests.kv_helpers import records
 
 from .conftest import _SAMPLE_SPDX3_JSON, _make_dummy_wheel
 
@@ -313,7 +314,7 @@ def test_cli_embed_wheel_single(
     assert __main__.main() == 0
 
     captured = capsys.readouterr()
-    assert "pitloom: embedded" in captured.out
+    assert records(captured.out, "SBOM")
     assert "clipkg-1.0.0-py3-none-any.whl" in captured.out
 
     with WheelFile.open(wheel_path) as wf:
@@ -354,7 +355,7 @@ def test_cli_wheel_embed_flag(
     assert __main__.main() == 0
 
     captured = capsys.readouterr()
-    assert "pitloom: embedded" in captured.out
+    assert records(captured.out, "SBOM")
 
     with WheelFile.open(wheel_path) as wf:
         wf.validate_record()

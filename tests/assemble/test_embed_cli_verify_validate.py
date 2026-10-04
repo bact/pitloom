@@ -27,6 +27,7 @@ import pytest
 
 from pitloom import __main__, _sbom_format
 from pitloom.assemble import EmbeddedSbomLocation, find_embedded_sbom
+from tests.kv_helpers import records
 
 from .conftest import _make_dummy_wheel, _spdx3_json_with_subject
 
@@ -60,7 +61,7 @@ def test_cli_embed_wheel_verify_flag_passes_on_happy_path(
     assert __main__.main() == 0
 
     captured = capsys.readouterr()
-    assert "pitloom: embedded" in captured.out
+    assert records(captured.out, "SBOM")
     assert "WARNING:" not in captured.err
     assert "ERROR:" not in captured.err
 
@@ -99,7 +100,7 @@ def test_cli_embed_wheel_verify_reports_when_post_embed_lookup_fails(
     assert __main__.main() == 1
 
     captured = capsys.readouterr()
-    assert "pitloom: embedded" in captured.out
+    assert records(captured.out, "SBOM")
 
 
 def test_cli_embed_wheel_verify_rereads_wheel_from_disk(
@@ -149,7 +150,7 @@ def test_cli_embed_wheel_verify_rereads_wheel_from_disk(
     assert __main__.main() == 0
 
     captured = capsys.readouterr()
-    assert "pitloom: embedded" in captured.out
+    assert records(captured.out, "SBOM")
     assert "on-disk-value.txt doesn't use the recommended" in captured.err
 
 
@@ -200,7 +201,7 @@ def test_cli_embed_wheel_verify_validate_share_one_disk_lookup(
     assert __main__.main() == 0
 
     captured = capsys.readouterr()
-    assert "pitloom: embedded" in captured.out
+    assert records(captured.out, "SBOM")
     assert call_count == 1
 
 
@@ -255,7 +256,7 @@ def test_cli_embed_wheel_verify_validate_share_one_format_detection(
     assert __main__.main() == 0
 
     captured = capsys.readouterr()
-    assert "pitloom: embedded" in captured.out
+    assert records(captured.out, "SBOM")
     assert call_count == 1
 
 
@@ -289,7 +290,7 @@ def test_cli_embed_wheel_validate_flag_fails_on_invalid_sbom(
     assert __main__.main() == 1
 
     captured = capsys.readouterr()
-    assert "pitloom: embedded" in captured.out
+    assert records(captured.out, "SBOM")
     assert "ERROR:" in captured.err
 
     with zipfile.ZipFile(wheel_path, "r") as zf:
@@ -323,7 +324,7 @@ def test_cli_embed_wheel_validate_flag_skips_unrecognized_format(
     assert __main__.main() == 0
 
     captured = capsys.readouterr()
-    assert "pitloom: embedded" in captured.out
+    assert records(captured.out, "SBOM")
     assert "WARNING:" in captured.err
     assert "no validator registered" in captured.err
     assert "ERROR:" not in captured.err

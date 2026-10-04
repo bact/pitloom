@@ -21,8 +21,12 @@ from pitloom.cli.commands.utils import (
     _validate_spdx3_documents,
     cli_error_handler,
 )
+from pitloom.cli.kv_output import print_kv
 
 log = logging.getLogger(__name__)
+
+#: ``STATUS=`` per :func:`_validate_one_wheel` result.
+_VALIDATE_STATUS = {True: "valid", None: "skipped", False: "failed"}
 
 
 def _validate_location(
@@ -98,25 +102,25 @@ def _run_validate_wheel_command(args: argparse.Namespace) -> int:
     if not wheel_paths:
         return 1
 
-    all_valid = True
-    skipped = 0
+    statuses = []
     for wheel_path in wheel_paths:
-        result = _validate_one_wheel(wheel_path, args.sbom_filename)
-        if result is None:
-            skipped += 1
-        elif not result:
-            all_valid = False
+        status = _VALIDATE_STATUS[_validate_one_wheel(wheel_path, args.sbom_filename)]
+        print_kv(WHEEL=wheel_path.name, STATUS=status)
+        statuses.append(status)
 
-    if all_valid:
-        validated = len(wheel_paths) - skipped
-        if skipped:
-            print(
-                f"pitloom validate-wheel: {validated} wheel(s) valid, "
-                f"{skipped} skipped (no validator for their format)"
-            )
-        else:
-            print(f"pitloom validate-wheel: {validated} wheel(s) valid")
-    return 0 if all_valid else 1
+    if "failed" in statuses:
+        return 1
+    skipped = statuses.count("skipped")
+    if skipped:
+        log.info(
+            "validate-wheel: %d wheel(s) valid, %d skipped "
+            "(no validator for their format)",
+            len(statuses) - skipped,
+            skipped,
+        )
+    else:
+        log.info("validate-wheel: %d wheel(s) valid", len(statuses))
+    return 0
 
 
 def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None:

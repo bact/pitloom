@@ -26,6 +26,7 @@ from pathlib import Path
 import pytest
 
 from pitloom import __main__
+from tests.kv_helpers import records
 
 from .conftest import _make_dummy_wheel, _spdx3_json_with_subject
 
@@ -56,7 +57,7 @@ def test_cli_embed_wheel_sbom_name_mismatch_aborts_before_write(
     captured = capsys.readouterr()
     assert "ERROR:" in captured.err
     assert "name: wheel declares 'realname', SBOM declares 'wrongname'" in captured.err
-    assert "pitloom: embedded" not in captured.out
+    assert not records(captured.out, "SBOM")
     assert wheel_path.read_bytes() == original_bytes
 
 
@@ -93,7 +94,7 @@ def test_cli_embed_wheel_sbom_mismatch_one_wheel_does_not_abort_batch(
     captured = capsys.readouterr()
     assert "ERROR:" in captured.err
     assert "badpkg" in captured.err
-    assert "pitloom: embedded" in captured.out
+    assert records(captured.out, "SBOM")
     assert "goodpkg-1.0.0-py3-none-any.whl" in captured.out
 
     with zipfile.ZipFile(bad_wheel) as zf:
@@ -135,7 +136,7 @@ def test_cli_embed_wheel_sbom_mismatch_allow_mismatch_embeds_anyway(
     assert (
         "name: wheel declares 'realname2', SBOM declares 'wrongname2'" in captured.err
     )
-    assert "pitloom: embedded" in captured.out
+    assert records(captured.out, "SBOM")
 
     with zipfile.ZipFile(wheel_path, "r") as zf:
         assert any(n.endswith(".spdx3.json") and "/sboms/" in n for n in zf.namelist())
@@ -163,7 +164,7 @@ def test_cli_embed_wheel_sbom_matching_name_version_no_warning(
 
     captured = capsys.readouterr()
     assert captured.err == ""
-    assert "pitloom: embedded" in captured.out
+    assert records(captured.out, "SBOM")
 
 
 def test_cli_embed_wheel_no_sbom_flag_skips_cross_check(
@@ -196,5 +197,5 @@ def test_cli_embed_wheel_no_sbom_flag_skips_cross_check(
     assert __main__.main() == 0
 
     captured = capsys.readouterr()
-    assert "pitloom: embedded" in captured.out
+    assert records(captured.out, "SBOM")
     assert "SBOM/wheel" not in captured.err

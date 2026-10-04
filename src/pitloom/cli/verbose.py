@@ -11,7 +11,7 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-from pitloom.__about__ import __version__
+from pitloom.cli.kv_output import log_kv, log_verbose
 from pitloom.cli.options import (
     _load_pitloom_tool_section,
     _quote_optional,
@@ -78,8 +78,7 @@ def _build_creation_option_rows(
     return rows
 
 
-# pylint: disable-next=too-many-locals
-def _print_verbose(
+def log_verbose_options(
     args: argparse.Namespace,
     project_dir: Path,
     output_path: Path,
@@ -87,6 +86,9 @@ def _print_verbose(
     config_path: Path | None,
     creation: _ResolvedCreationMetadata,
 ) -> None:
+    """``-v`` for a project: ``PITLOOM_VERSION``, then one
+    ``INFO: OPTION=<name> SOURCE=<source> VALUE=<value>`` line per effective
+    option. ``VALUE`` goes last: it is the one that may hold a space."""
     pitloom_tool = _load_pitloom_tool_section(config_path)
     config_source = config_source_label(config_path)
     out_src = _resolve_output_source(args, pitloom_config, config_path)
@@ -100,31 +102,14 @@ def _print_verbose(
         config_source,
     )
 
-    top_rows: list[tuple[str, str, str]] = [
-        ("Project directory", str(project_dir), "command-line"),
-        ("Config file", config_file_display(config_path), "command-line"),
-        ("Output path", str(output_path), out_src),
+    rows: list[tuple[str, str, str]] = [
+        ("project_directory", str(project_dir), "command-line"),
+        ("config_file", config_file_display(config_path), "command-line"),
+        ("output_path", str(output_path), out_src),
+        *_build_creation_option_rows(
+            creation, eff_pretty, pretty_src, eff_desc, desc_src
+        ),
     ]
-    option_rows = _build_creation_option_rows(
-        creation,
-        eff_pretty,
-        pretty_src,
-        eff_desc,
-        desc_src,
-    )
-    aligned_rows = top_rows + [
-        (f"  {label}", value, source) for label, value, source in option_rows
-    ]
-
-    label_width = max(len(label) for label, _, _ in aligned_rows)
-    value_width = max(len(value) for _, value, _ in aligned_rows)
-
-    def _print_row(label: str, value: str, source: str) -> None:
-        print(f"{label:<{label_width}} : {value:<{value_width}} [{source}]")
-
-    print(f"Pitloom version: {__version__}")
-    for row in top_rows:
-        _print_row(*row)
-    print("Effective options:")
-    for row in aligned_rows[len(top_rows) :]:
-        _print_row(*row)
+    log_verbose()
+    for name, value, source in rows:
+        log_kv(OPTION=name, SOURCE=source, VALUE=value)

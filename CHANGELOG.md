@@ -137,6 +137,9 @@ and this project adheres to
 - `max-source-metadata-bytes` of 1-7 or below 0 is an error, not unlimited;
   `normalize_max_source_metadata_bytes()` is now
   `require_max_source_metadata_bytes()` ([#280])
+- CLI stdout is `KEY=VALUE` data only (`WHEEL=`/`SBOM=`, `STATUS=`, `FILE=`,
+  `PITLOOM_ID_REGISTRY_PATH=`); counts, hints and `-v` are `INFO:` on stderr
+  ([#PR])
 
 ### Removed
 

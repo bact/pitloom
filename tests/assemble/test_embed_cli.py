@@ -28,6 +28,7 @@ from installer.sources import WheelFile
 from pitloom import __main__
 from pitloom.assemble import find_embedded_sbom
 from pitloom.core.models import get_wheel_files as real_get_wheel_files
+from tests.kv_helpers import info_kv, records, sbom_output_path
 
 from .conftest import _make_dummy_wheel, _spdx3_json_with_subject
 from .test_embed_overrides import _make_ctpkg_project_and_wheel
@@ -157,7 +158,7 @@ def test_cli_embed_wheel_project_dir(
     )
     assert __main__.main() == 0
     out = capsys.readouterr().out
-    assert "pitloom: embedded" in out
+    assert records(out, "SBOM")
 
     # 3. Existing directory with no pyproject.toml/setup.cfg/setup.py at
     # all -- relays read_project()'s own FileNotFoundError message
@@ -234,7 +235,8 @@ def test_cli_wheel_embed_verbose_and_output(
     )
     assert __main__.main() == 0
     captured = capsys.readouterr()
-    assert "Output path" in captured.out
+    assert info_kv(captured.err)["OUTPUT_PATH"] == str(out_file)
+    assert sbom_output_path(captured.out) == str(out_file)
     assert out_file.exists()
 
 
@@ -295,7 +297,7 @@ def test_cli_embed_wheel_single_with_output(
     )
     assert __main__.main() == 0
     captured = capsys.readouterr()
-    assert "pitloom: embedded" in captured.out
+    assert records(captured.out, "SBOM")
     assert "PITLOOM_" in captured.out
     assert out_file.exists()
 
@@ -370,7 +372,7 @@ def test_cli_embed_wheel_multi_resolves_project_files_once(
     assert mocked.call_count == 1
 
     out = capsys.readouterr().out
-    assert out.count("pitloom: embedded") == 2
+    assert len(records(out, "SBOM")) == 2
     assert _read_embedded_sbom(wheel1) == _read_embedded_sbom(wheel2)
 
 
@@ -413,6 +415,6 @@ def test_cli_embed_wheel_multi_cleanup_runs_once_even_if_a_wheel_fails(
         assert __main__.main() == 1
 
     captured = capsys.readouterr()
-    assert "pitloom: embedded" in captured.out
+    assert records(captured.out, "SBOM")
     assert "ERROR:" in captured.err
     cleanup.assert_called_once()

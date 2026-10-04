@@ -579,12 +579,12 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env`
   [Enrich an SBOM](#enrich-an-sbom)). On by default; see
   [Dependency sources and precedence](dependency-sources.md).
 - `-v` / `--verbose` -- on `project`/`generate` with a project directory
-  or sdist: print the effective options and where each came from (a
-  value from an sdist's own `pyproject.toml` is labelled with the archive
-  member, e.g. `demo-1.0.0.tar.gz:pyproject.toml`).
-  `wheel`/`env`/`model`/`enrich` print only the version, target and
-  output path. `generate` on any other target and `embed-wheel` print
-  nothing more and warn that `-v` has no effect.
+  or sdist: log each effective option on stderr as `INFO: OPTION=<name>
+  SOURCE=<source> VALUE=<value>` (an sdist's own `pyproject.toml` source is
+  its member, e.g. `demo-1.0.0.tar.gz:pyproject.toml`). `wheel`/`env`/
+  `model`/`enrich` log `PITLOOM_VERSION`, the target, `OUTPUT_PATH` (`-`:
+  none) and `enrich`'s `PROJECT_DIR`. `generate` on any other target and
+  `embed-wheel` warn that `-v` has no effect.
 - `--id-registry FILE` -- declare a Loom ID registry file, taking
   precedence over the target's own `id-registry` config key -- see [Pin
   ids across fragments](#pin-ids-across-fragments). A relative path
@@ -671,12 +671,12 @@ the rows list it for the targets those commands (or the library's
 separate no-effect warning -- see [Building a project to discover its
 file list](allow-build.md).
 
-Every subcommand that writes an SBOM (`project`, `model`, `env`, `wheel`,
-`embed-wheel`) prints `PITLOOM_SBOM_OUTPUT_PATH=<path>` to stdout after
-writing it -- the resolved path, including when a command's own
-default-naming logic picked it rather than an explicit `-o`. Scripts and
-CI can parse this line instead of re-deriving the default-naming logic
-themselves.
+Stdout is data only (`--help`/`--version` aside), one `KEY=VALUE` record a
+line; counts, hints, `-v` go to stderr as `INFO:`. A written SBOM prints
+`PITLOOM_SBOM_OUTPUT_PATH=<path>` (not for `merge -o -`); embed `WHEEL=<w>
+SBOM=<arcname>`; `verify-`/`validate-wheel` `WHEEL=<w> STATUS=ok|valid|skipped|failed`;
+`fragment validate` `FILE=<f> STATUS=valid`; `id` `PITLOOM_ID_REGISTRY_PATH=<path>`.
+A value with a non-printable character (tab, NBSP, ZWJ) prints quoted, ASCII-escaped.
 
 ## Building a project to discover its file list (`--allow-build`)
 
