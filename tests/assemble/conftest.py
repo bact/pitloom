@@ -88,10 +88,12 @@ class _FakeMetadata:
         fields: dict[str, str],
         project_urls: list[str] | None = None,
         license_files: list[str] | None = None,
+        classifiers: list[str] | None = None,
     ):
         self._fields = fields
         self._project_urls = project_urls or []
         self._license_files = license_files or []
+        self._classifiers = classifiers or []
 
     def __len__(self) -> int:
         return len(self._fields)
@@ -110,6 +112,8 @@ class _FakeMetadata:
             return self._project_urls
         if name == "License-File":
             return self._license_files
+        if name == "Classifier":
+            return self._classifiers or failobj
         return failobj
 
     @property

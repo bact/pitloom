@@ -237,13 +237,17 @@ def _conformance(exporter: Spdx3JsonExporter) -> list[str]:
 
 #: One case per surface: (builder, profiles it must produce).
 _SURFACES: list[tuple[str, Callable[[Path], Spdx3JsonExporter], list[str]]] = [
-    # No declared licence still states NOASSERTION, so it conforms.
-    ("project-undeclared", lambda _: _project(None), [_P.simpleLicensing]),
+    # No licence stated: no licence relationship, no licensing profile.
+    ("project-undeclared", lambda _: _project(None), []),
     ("project-declared", lambda _: _project("MIT"), [_P.simpleLicensing]),
-    ("model-noassertion", lambda _: _model("NOASSERTION"), [_P.simpleLicensing]),
+    # An individual brings both profiles.
+    ("project-noassertion", lambda _: _project("NOASSERTION"), _BOTH),
+    ("model-noassertion", lambda _: _model("NOASSERTION"), _BOTH),
+    ("model-unknown", lambda _: _model("unknown"), _BOTH),
+    ("model-none-licence", lambda _: _model("NONE"), _BOTH),
     ("model-none", lambda _: _model(None), []),
     ("deployed-empty", lambda _: _deployed(False), []),
-    ("deployed-package", lambda _: _deployed(True), [_P.simpleLicensing]),
+    ("deployed-package", lambda _: _deployed(True), []),
     ("merge-none", lambda p: _merged(p, None), []),
     (
         "merge-noassertion-individual",
@@ -316,7 +320,7 @@ def test_profile_order_is_fixed() -> None:
 def test_direct_build_and_fragment_merge_give_one_order() -> None:
     """A project built with an AI model and the same project merged with an
     ``ai_AIPackage`` fragment list their profiles identically."""
-    project = ProjectMetadata(name="p", version="1.0")
+    project = ProjectMetadata(name="p", version="1.0", license_name="MIT")
     model = AiModelMetadata(
         format_info=AiModelFormatInfo(model_format=AiModelFormat.ONNX), name="m"
     )

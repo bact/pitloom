@@ -32,6 +32,7 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.project import ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from tests._license_graph import license_elements
 
 
 def test_generate_project_sbom_sentimentdemo_structure() -> None:
@@ -137,42 +138,23 @@ dependencies = [
             assert purl == expected
 
 
-def test_build_main_package_noassertion_license_when_undeclared() -> None:
-    """The main project package must assert hasDeclaredLicense: NOASSERTION,
-    and a NOASSERTION-only document still conforms to simpleLicensing."""
+def test_build_main_package_makes_no_licence_claim_when_undeclared() -> None:
+    """A project that states no licence gets no licence relationship, no
+    licence element, and no licensing profile: nothing is asserted."""
     project = ProjectMetadata(name="nolicenseproject", version="1.0.0")
     doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
 
-    exporter = build(doc)
-    data = json.loads(exporter.to_json(pretty=True))
-    graph = data["@graph"]
+    graph = json.loads(build(doc).to_json(pretty=True))["@graph"]
 
-    main_pkg = next(
-        p
-        for p in graph
-        if p.get("type") == "software_Package" and p["name"] == "nolicenseproject"
-    )
-    licenses = [
-        e for e in graph if e.get("type") == "simplelicensing_SimpleLicensingText"
+    assert not [
+        e
+        for e in graph
+        if e.get("relationshipType") in ("hasDeclaredLicense", "hasConcludedLicense")
     ]
-    noassertion = next(
-        lic
-        for lic in licenses
-        if lic.get("simplelicensing_licenseText") == "NOASSERTION"
-    )
-
-    rels = [e for e in graph if e.get("type") == "Relationship"]
-    license_rels = [
-        r
-        for r in rels
-        if r.get("from") == main_pkg["spdxId"]
-        and r.get("relationshipType") == "hasDeclaredLicense"
-    ]
-    assert len(license_rels) == 1
-    assert license_rels[0]["to"] == [noassertion["spdxId"]]
-
+    assert not license_elements(graph)
     spdx_docs = [e for e in graph if e.get("type") == "SpdxDocument"]
-    assert "simpleLicensing" in spdx_docs[0]["profileConformance"]
+    assert "simpleLicensing" not in spdx_docs[0]["profileConformance"]
+    assert "expandedLicensing" not in spdx_docs[0]["profileConformance"]
 
 
 # pylint: disable-next=too-many-locals

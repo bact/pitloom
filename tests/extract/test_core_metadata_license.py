@@ -126,7 +126,8 @@ def _installed_dependency_license(
         spdxId="https://example.com/p", name="pkg", creationInfo=ci
     )
     _enrich_from_installed("pkg", package, ci, "doc", "uuid", Spdx3JsonExporter())
-    assert len(seen) == 1
+    # The core-metadata licence first, then the classifiers (none here).
+    assert seen[1:] == [None]
     return seen[0] or None
 
 

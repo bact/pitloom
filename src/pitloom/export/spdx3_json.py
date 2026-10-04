@@ -16,6 +16,7 @@ import rfc8785
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._sbom_io import write_text_lf
+from pitloom.core.license_individuals import INDIVIDUAL_BY_COMPACT_NAME
 
 # Pitloom's own file-naming convention for this exporter's output -- SPDX 3
 # itself doesn't mandate an extension. Canonical home for every module that
@@ -247,7 +248,10 @@ def _resolve_element_name(el: dict[str, Any], spdx_id: str) -> str:
 
 def _build_id_to_name_map(graph: list[dict[str, Any]]) -> dict[str, str]:
     """Build mapping from spdxId to human-readable element name."""
-    id_to_name: dict[str, str] = {}
+    id_to_name: dict[str, str] = {
+        name: individual.spdx_name
+        for name, individual in INDIVIDUAL_BY_COMPACT_NAME.items()
+    }
     for el in graph:
         spdx_id = el.get("spdxId") or el.get("@id")
         if spdx_id:

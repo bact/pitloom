@@ -135,6 +135,34 @@ def test_license_remains_none_when_file_detection_also_fails() -> None:
     assert meta.license is None
 
 
+@pytest.mark.parametrize("raw", ["unknown", "Unknown", "UNKNOWN"])
+def test_unknown_card_license_is_kept_when_detection_finds_nothing(raw: str) -> None:
+    """``unknown`` is the card saying it does not know (a ``NOASSERTION``):
+    kept, as stated, with the card as its source -- unlike ``other``."""
+    with _patch_hf_calls(card_data=_make_card_data(license=raw)):
+        meta = read_huggingface("org/model")
+    assert meta.license == raw
+    assert "model card YAML (license)" in (meta.provenance.get("license") or "")
+    assert meta.extra_data.get("hf.license_raw") == raw
+
+
+def test_unknown_card_license_loses_to_a_detected_licence() -> None:
+    with _patch_hf_calls(card_data=_make_card_data(license="unknown")):
+        with patch(
+            "pitloom.extract.remote.huggingface_fetch._detect_license_from_hf_files",
+            return_value=("MIT", "Source: Hugging Face Hub | Method: x"),
+        ):
+            meta = read_huggingface("org/model")
+    assert meta.license == "MIT"
+
+
+@pytest.mark.parametrize("raw", ["other", "custom", "proprietary", "unlicensed"])
+def test_other_vague_card_licenses_stay_absent(raw: str) -> None:
+    with _patch_hf_calls(card_data=_make_card_data(license=raw)):
+        meta = read_huggingface("org/model")
+    assert meta.license is None
+
+
 def test_detect_license_from_hf_files_returns_none_on_empty_file(
     tmp_path: Any,
 ) -> None:

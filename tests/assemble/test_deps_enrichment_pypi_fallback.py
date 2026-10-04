@@ -31,7 +31,6 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble.spdx3 import deps, deps_pypi
 from pitloom.assemble.spdx3 import deps_installed as deps_mod
 from pitloom.assemble.spdx3.deps import _enrich_from_pypi, add_dependencies
-from pitloom.assemble.spdx3.deps_license import _add_license_noassertion
 from pitloom.assemble.spdx3.deps_originator import _resolve_metadata_url
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
@@ -170,9 +169,9 @@ def test_add_dependencies_pypi_fallback_fills_gaps_and_hash(
 def test_add_dependencies_noassertion_when_nothing_found(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A dependency with no local metadata and no PyPI hit must still get
-    an explicit NOASSERTION copyright and license, not silently absent
-    fields."""
+    """A dependency with no local metadata and no PyPI hit gets an explicit
+    NOASSERTION copyright and no licence claim: a missing licence is not a
+    ``NoAssertionLicense``."""
     monkeypatch.setattr(deps_mod, "get_package_version", _uninstalled)
     monkeypatch.setattr(deps_mod, "get_pkg_metadata", _uninstalled)
     monkeypatch.setattr(
@@ -215,19 +214,18 @@ def test_add_dependencies_noassertion_when_nothing_found(
         r
         for r in relationships
         if r.from_ == require_spdx_id(dep)
-        and r.relationshipType == spdx3.RelationshipType.hasDeclaredLicense
+        and r.relationshipType
+        in (
+            spdx3.RelationshipType.hasDeclaredLicense,
+            spdx3.RelationshipType.hasConcludedLicense,
+        )
     ]
-    assert len(license_rels) == 1
-    licenses = [
+    assert not license_rels
+    assert not [
         o
         for o in exporter.object_set.objects
-        if isinstance(o, spdx3.simplelicensing_SimpleLicensingText)
+        if isinstance(o, spdx3.simplelicensing_AnyLicenseInfo)
     ]
-    noassertion_licenses = [
-        lic for lic in licenses if lic.simplelicensing_licenseText == "NOASSERTION"
-    ]
-    assert len(noassertion_licenses) == 1
-    assert license_rels[0].to == [require_spdx_id(noassertion_licenses[0])]
 
 
 def test_add_dependencies_offline_skips_pypi_entirely(
@@ -501,38 +499,6 @@ def test_add_dependencies_lock_hash_skipped_when_name_absent_from_locked_version
     ]
     dep = next(p for p in packages if p.name == "somepkg")
     assert not dep.verifiedUsing
-
-
-def test_add_license_noassertion_is_deduped() -> None:
-    """Two packages that both fall back to NOASSERTION must share one
-    license element, not mint a duplicate for each."""
-    doc_uuid = compute_doc_uuid("noassertiondedup", "1.0", [])
-    _clear_doc_counters(doc_uuid)
-    exporter = Spdx3JsonExporter()
-    ci = _make_ci()
-
-    for name in ("pkg-a", "pkg-b"):
-        dep_package = spdx3.software_Package(
-            spdxId=generate_spdx_id(
-                "Package", doc_name="noassertiondedup", doc_uuid=doc_uuid
-            ),
-            name=name,
-            creationInfo=ci,
-        )
-        exporter.add_package(dep_package)
-        _add_license_noassertion(
-            dep_package, ci, "noassertiondedup", doc_uuid, exporter
-        )
-
-    licenses = [
-        o
-        for o in exporter.object_set.objects
-        if isinstance(o, spdx3.simplelicensing_SimpleLicensingText)
-    ]
-    noassertion_licenses = [
-        lic for lic in licenses if lic.simplelicensing_licenseText == "NOASSERTION"
-    ]
-    assert len(noassertion_licenses) == 1
 
 
 # ---------------------------------------------------------------------------

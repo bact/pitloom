@@ -99,7 +99,7 @@ def _emit_file_header_metadata(
     Nothing is emitted when *package_file* carries no header-derived data
     at all (every field checked here is falsy) -- a project can have
     thousands of files; only ones that actually said something get an
-    entry, unlike the dependency-completeness ``NOASSERTION`` policy in
+    entry, unlike the ``NOASSERTION`` copyright policy in
     :mod:`pitloom.assemble.spdx3.deps`, which applies to a handful of
     packages, not every source file.
     """

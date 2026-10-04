@@ -5,8 +5,10 @@
 
 """Every surface turns a licence value into the same element: a
 ``LicenseExpression`` for a valid SPDX expression, a ``SimpleLicensingText``
-for anything else, nothing for an absent value; one element per distinct
-licence, whichever surface or package asked for it.
+for anything else, nothing for an absent value, and for ``NOASSERTION``/
+``NONE``/``UNKNOWN`` no element but the ``NoAssertionLicense``/``NoneLicense``
+individual; one element per distinct licence, whichever surface or package
+asked for it.
 
 See also: :mod:`tests.extract.test_license_classify` for the classifier and
 :mod:`pitloom.assemble.spdx3._license_elements` for the one builder.
@@ -18,6 +20,7 @@ import json
 import logging
 import tempfile
 from collections.abc import Callable
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -26,7 +29,7 @@ import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_wheel_sbom
-from pitloom.assemble.spdx3 import deps_installed
+from pitloom.assemble.spdx3 import deps_installed, deps_pypi
 from pitloom.assemble.spdx3.deps import add_dependencies
 from pitloom.assemble.spdx3.deps_license import _apply_license
 from pitloom.assemble.spdx3.document import build, build_model
@@ -36,9 +39,17 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from tests._license_graph import license_elements, license_value
+from pitloom.extract.project.sdist import read_sdist
+from tests._license_graph import (
+    graph_of,
+    license_elements,
+    license_targets,
+    license_value,
+    provenance_fields,
+    two_packages,
+)
 
-from .conftest import _FakeMetadata, _make_ci, _make_dummy_wheel
+from .conftest import _FakeMetadata, _make_ci, _make_dummy_wheel, _make_sdist
 
 _EXPRESSION = "simplelicensing_LicenseExpression"
 _TEXT = "simplelicensing_SimpleLicensingText"
@@ -46,8 +57,13 @@ _FULL_TEXT = (
     "Permission is hereby granted, free of charge,\nto any person obtaining a copy."
 )
 
-#: raw value -> (element type, element value); ``None`` = no element.
-_CASES: list[tuple[str | None, tuple[str, str] | None, bool]] = [
+_NOASSERTION = "NOASSERTION"
+_NONE = "NONE"
+
+#: raw value -> (expected element: ``(type, value)``; an individual:
+#: ``(None, "NOASSERTION"|"NONE")``; ``None`` = nothing), whether a WARNING.
+_Expected = tuple[str | None, str] | None
+_CASES: list[tuple[str | None, _Expected, bool]] = [
     ("MIT", (_EXPRESSION, "MIT"), False),
     ("mit and apache-2.0", (_EXPRESSION, "Apache-2.0 AND MIT"), False),
     (
@@ -58,18 +74,19 @@ _CASES: list[tuple[str | None, tuple[str, str] | None, bool]] = [
     ("LicenseRef-x", (_EXPRESSION, "LicenseRef-x"), False),
     (_FULL_TEXT, (_TEXT, _FULL_TEXT), False),
     ("MIT OR", (_TEXT, "MIT OR"), True),
+    # absent or blank: no claim at all
     (None, None, False),
     ("", None, False),
-    ("UNKNOWN", None, False),
-    ("unknown", None, False),
-    (" UNKNOWN ", None, False),
     ("   ", None, False),
+    # a source that says it does not know, or that there is none
+    ("UNKNOWN", (None, _NOASSERTION), False),
+    ("unknown", (None, _NOASSERTION), False),
+    (" UNKNOWN ", (None, _NOASSERTION), False),
+    ("NOASSERTION", (None, _NOASSERTION), False),
+    ("noassertion", (None, _NOASSERTION), False),
+    ("NONE", (None, _NONE), False),
+    ("none", (None, _NONE), False),
 ]
-
-
-def _graph(exporter: Spdx3JsonExporter) -> list[dict[str, Any]]:
-    graph: list[dict[str, Any]] = json.loads(exporter.to_json())["@graph"]
-    return graph
 
 
 def _project(license_name: str | None) -> ProjectMetadata:
@@ -85,8 +102,7 @@ def _model(license_id: str | None) -> AiModelMetadata:
 
 
 def _deps(license_id: str | None) -> list[dict[str, Any]]:
-    """A dependency whose installed metadata declares *license_id*, through
-    the whole enrichment (so the NOASSERTION fallback applies)."""
+    """A dependency whose installed metadata declares *license_id*."""
     fields = {"Version": "1.0"}
     if license_id is not None:
         fields["License"] = license_id
@@ -115,23 +131,23 @@ def _deps(license_id: str | None) -> list[dict[str, Any]]:
             exporter,
             offline=True,
         )
-    return _graph(exporter)
+    return graph_of(exporter)
 
 
 def _main_package(license_id: str | None) -> list[dict[str, Any]]:
     doc = DocumentModel(
         project=_project(license_id), creation_metadata=CreationMetadata()
     )
-    return _graph(build(doc))
+    return graph_of(build(doc))
 
 
 def _wheel(license_id: str | None) -> list[dict[str, Any]]:
     if license_id and "\n" in license_id:
         pytest.skip("a METADATA header is one line")
-    return _wheel_graph(license_id)
+    return _wheelgraph_of(license_id)
 
 
-def _wheel_graph(license_id: str | None) -> list[dict[str, Any]]:
+def _wheelgraph_of(license_id: str | None) -> list[dict[str, Any]]:
     with tempfile.TemporaryDirectory() as tmp:
         wheel = _make_dummy_wheel(Path(tmp), license_expression=license_id)
         graph: list[dict[str, Any]] = json.loads(
@@ -141,7 +157,7 @@ def _wheel_graph(license_id: str | None) -> list[dict[str, Any]]:
 
 
 def _standalone_model(license_id: str | None) -> list[dict[str, Any]]:
-    return _graph(build_model(_model(license_id), CreationMetadata()))
+    return graph_of(build_model(_model(license_id), CreationMetadata()))
 
 
 def _project_with_model(license_id: str | None) -> list[dict[str, Any]]:
@@ -150,7 +166,7 @@ def _project_with_model(license_id: str | None) -> list[dict[str, Any]]:
         creation_metadata=CreationMetadata(),
         ai_models=[_model(license_id)],
     )
-    return _graph(build(doc))
+    return graph_of(build(doc))
 
 
 def _file_tag(license_id: str | None) -> list[dict[str, Any]]:
@@ -162,28 +178,71 @@ def _file_tag(license_id: str | None) -> list[dict[str, Any]]:
     )
     project = ProjectMetadata(name="p", version="1.0", files=[file])
     doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
-    return _graph(build(doc))
+    return graph_of(build(doc))
 
 
-#: surface -> (builder, whether a package without a licence gets NOASSERTION).
-_SURFACES: dict[str, tuple[Callable[[str | None], list[dict[str, Any]]], bool]] = {
-    "dependency": (_deps, True),
-    "main-package": (_main_package, True),
-    "wheel": (_wheel, True),
-    "standalone-model": (_standalone_model, False),
-    "project-model": (_project_with_model, True),
-    "file-tag": (_file_tag, True),
+def _uninstalled(*_args: object) -> None:
+    raise PackageNotFoundError
+
+
+def _pypi(license_id: str | None) -> list[dict[str, Any]]:
+    """A dependency that is not installed, whose PyPI record carries
+    *license_id* as ``license_expression``."""
+    doc_uuid = compute_doc_uuid("pypi-surface", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    exporter.add_creation_info(ci)
+    main = spdx3.software_Package(
+        spdxId="https://x/1#Package-1", name="main", creationInfo=ci
+    )
+    exporter.add_package(main)
+    info = {} if license_id is None else {"license_expression": license_id}
+    with (
+        patch.object(deps_installed, "get_pkg_metadata", _uninstalled),
+        patch.object(deps_installed, "get_package_version", _uninstalled),
+        patch.object(deps_pypi, "_fetch_pypi_release_info", lambda *_a: {"info": info}),
+    ):
+        add_dependencies(
+            ["dep==1.0"],
+            "Source: pyproject.toml | Field: project.dependencies",
+            require_spdx_id(main),
+            ci,
+            "pypi-surface",
+            doc_uuid,
+            exporter,
+            offline=False,
+        )
+    return graph_of(exporter)
+
+
+def _sdist(license_id: str | None) -> list[dict[str, Any]]:
+    if license_id and "\n" in license_id:
+        pytest.skip("a PKG-INFO header is one line")
+    header = "" if license_id is None else f"License-Expression: {license_id}\n"
+    pkg_info = f"Metadata-Version: 2.4\nName: demo\nVersion: 1.0.0\n{header}"
+    with tempfile.TemporaryDirectory() as tmp:
+        sdist = _make_sdist(Path(tmp), members={"PKG-INFO": pkg_info.encode()})
+        metadata = read_sdist(sdist, read_config=False).metadata
+    return graph_of(
+        build(DocumentModel(project=metadata, creation_metadata=CreationMetadata()))
+    )
+
+
+_SURFACES: dict[str, Callable[[str | None], list[dict[str, Any]]]] = {
+    "dependency-installed": _deps,
+    "dependency-pypi": _pypi,
+    "main-package": _main_package,
+    "wheel": _wheel,
+    "sdist": _sdist,
+    "standalone-model": _standalone_model,
+    "project-model": _project_with_model,
+    "file-tag": _file_tag,
 }
 
 
 def _stated(graph: list[dict[str, Any]]) -> list[tuple[str, str | None]]:
-    """The licence elements a surface was asked for, not the NOASSERTION a
-    package without one gets."""
-    return [
-        (e["type"], license_value(e))
-        for e in license_elements(graph)
-        if license_value(e) != "NOASSERTION"
-    ]
+    return [(e["type"], license_value(e)) for e in license_elements(graph)]
 
 
 @pytest.mark.parametrize("surface", list(_SURFACES))
@@ -194,19 +253,34 @@ def _stated(graph: list[dict[str, Any]]) -> list[tuple[str, str | None]]:
 def test_licence_element_by_surface(
     surface: str,
     raw: str | None,
-    expected: tuple[str, str] | None,
+    expected: _Expected,
     warns: bool,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    build_surface, falls_back = _SURFACES[surface]
     with caplog.at_level(logging.WARNING, logger="pitloom"):
-        graph = build_surface(raw)
-    assert _stated(graph) == ([expected] if expected else [])
+        graph = _SURFACES[surface](raw)
+    targets = license_targets(graph)
     if expected is None:
-        # A value that states no licence is as good as none: NOASSERTION.
-        assert any(
-            license_value(e) == "NOASSERTION" for e in license_elements(graph)
-        ) is (falls_back)
+        assert not _stated(graph) and not targets
+    elif expected[0] is None:
+        # An individual: no element, and the relationship points at it.
+        assert not _stated(graph)
+        assert targets == [expected[1]]
+    else:
+        assert _stated(graph) == [expected]
+        assert targets == [expected[1]]
+    # Whatever the surface, NOASSERTION/NONE are never a licence's own value.
+    assert not [
+        e for e in license_elements(graph) if license_value(e) in {_NOASSERTION, _NONE}
+    ]
+    # The profile follows (the dependency surfaces build no document).
+    documents = [e for e in graph if e["type"] == "SpdxDocument"]
+    if documents:
+        profiles = documents[0]["profileConformance"]
+        assert ("expandedLicensing" in profiles) is bool(
+            expected and expected[0] is None
+        )
+        assert ("simpleLicensing" in profiles) is (expected is not None)
     if warns:
         assert (
             sum(
@@ -239,7 +313,7 @@ def test_same_licence_from_two_dependencies_is_one_element() -> None:
             doc_uuid,
             exporter,
         )
-    graph = _graph(exporter)
+    graph = graph_of(exporter)
     assert [license_value(e) for e in license_elements(graph)] == ["MIT"]
     rels = [e for e in graph if e["type"] == "Relationship"]
     assert len({r["to"][0] for r in rels}) == 1 and len(rels) == 2
@@ -251,49 +325,18 @@ def test_same_licence_from_two_dependencies_is_one_element() -> None:
         ("mit", _EXPRESSION, "MIT", True),
         ("MIT", _EXPRESSION, "MIT", False),
         (" MIT ", _EXPRESSION, "MIT", False),
-        ("none", _TEXT, "none", False),
-        ("NOASSERTION", _TEXT, "NOASSERTION", False),
     ],
 )
 def test_single_candidate_value_is_normalised_and_the_raw_kept(
     raw: str, kind: str, value: str, tagged: bool
 ) -> None:
     """A changed expression records what it was in the provenance; an
-    unchanged one, and NOASSERTION/NONE as written, record nothing."""
+    unchanged one records nothing."""
     graph = _deps(raw)
     (element,) = [e for e in license_elements(graph) if e["type"] == kind]
     assert license_value(element) == value
     statements = " ".join(e["statement"] for e in graph if e["type"] == "Annotation")
     assert ("normalized-from" in statements) is tagged
-
-
-def _provenance_fields(graph: list[dict[str, Any]], subject: str) -> list[str]:
-    """The ``license`` provenance string(s) of every Annotation on *subject*."""
-    out: list[str] = []
-    for e in graph:
-        if e["type"] == "Annotation" and e["subject"] == subject:
-            fields = json.loads(e["statement"]).get("fields", {})
-            if "license" in fields:
-                out.append(json.dumps(fields["license"], sort_keys=True))
-    return out
-
-
-def _two_packages(
-    values: list[str], provenance: str = "Source: pyproject.toml | Field: x"
-) -> list[dict[str, Any]]:
-    """One package per value, each declaring it, sharing one document."""
-    doc_uuid = compute_doc_uuid("pkgs", "1.0", [])
-    _clear_doc_counters(doc_uuid)
-    exporter = Spdx3JsonExporter()
-    ci = _make_ci()
-    exporter.add_creation_info(ci)
-    for i, value in enumerate(values):
-        package = spdx3.software_Package(
-            spdxId=f"https://x/1#Package-{i}", name=f"dep{i}", creationInfo=ci
-        )
-        exporter.add_package(package)
-        _apply_license(value, provenance, package, ci, "pkgs", doc_uuid, exporter)
-    return _graph(exporter)
 
 
 @pytest.mark.parametrize(
@@ -308,13 +351,13 @@ def test_the_raw_value_is_recorded_per_source(
 ) -> None:
     """D2: the raw value stays in provenance, also from a transparent source
     (pyproject) and also when the element already exists."""
-    graph = _two_packages([first, second])
+    graph = two_packages([first, second])
     (element,) = license_elements(graph)
     rels = [e for e in graph if e["type"] == "Relationship"]
     noted = [
         subject
         for subject in [element["spdxId"], *(r["spdxId"] for r in rels)]
-        if any("normalized-from" in f for f in _provenance_fields(graph, subject))
+        if any("normalized-from" in f for f in provenance_fields(graph, subject))
     ]
     expected = element["spdxId"] if note_on == "element" else rels[1]["spdxId"]
     assert noted == [expected]
@@ -336,7 +379,7 @@ def test_equivalent_spellings_are_one_element_and_no_conflict(
     project = ProjectMetadata(
         name="p", version="1.0", license_name=declared, license_concluded=concluded
     )
-    graph = _graph(
+    graph = graph_of(
         build(DocumentModel(project=project, creation_metadata=CreationMetadata()))
     )
     assert [license_value(e) for e in license_elements(graph)] == [value]
@@ -353,23 +396,23 @@ def test_a_bare_deprecated_id_stays_as_written_with_a_note(raw: str) -> None:
     """``GPL-2.0`` is never mapped to ``-only``/``-or-later``: which was meant
     is unknown, so the id stays and the provenance says so (single source,
     and two sources that disagree only in case)."""
-    single = _two_packages([raw])
+    single = two_packages([raw])
     (element,) = license_elements(single)
     assert license_value(element) == "GPL-2.0"
     assert any(
-        _DEPRECATED_NOTE in f for f in _provenance_fields(single, element["spdxId"])
+        _DEPRECATED_NOTE in f for f in provenance_fields(single, element["spdxId"])
     )
 
     project = ProjectMetadata(
         name="p", version="1.0", license_name=raw, license_concluded="GPL-2.0"
     )
-    both = _graph(
+    both = graph_of(
         build(DocumentModel(project=project, creation_metadata=CreationMetadata()))
     )
     (element,) = license_elements(both)
     assert license_value(element) == "GPL-2.0"
     assert any(
-        _DEPRECATED_NOTE in f for f in _provenance_fields(both, element["spdxId"])
+        _DEPRECATED_NOTE in f for f in provenance_fields(both, element["spdxId"])
     )
     assert not [
         e for e in both if e["type"] == "Annotation" and "candidates" in e["statement"]
@@ -377,23 +420,23 @@ def test_a_bare_deprecated_id_stays_as_written_with_a_note(raw: str) -> None:
 
 
 def test_the_deprecated_id_note_is_per_source_on_a_reused_element() -> None:
-    graph = _two_packages(["GPL-2.0 AND MIT", "gpl-2.0 and mit"])
+    graph = two_packages(["GPL-2.0 AND MIT", "gpl-2.0 and mit"])
     (element,) = license_elements(graph)
     rels = [e for e in graph if e["type"] == "Relationship"]
     assert any(
-        _DEPRECATED_NOTE in f for f in _provenance_fields(graph, element["spdxId"])
+        _DEPRECATED_NOTE in f for f in provenance_fields(graph, element["spdxId"])
     )
     assert any(
-        _DEPRECATED_NOTE in f for f in _provenance_fields(graph, rels[1]["spdxId"])
+        _DEPRECATED_NOTE in f for f in provenance_fields(graph, rels[1]["spdxId"])
     )
-    assert not _provenance_fields(graph, rels[0]["spdxId"])
+    assert not provenance_fields(graph, rels[0]["spdxId"])
 
 
 @pytest.mark.parametrize("raw", ["GPL-2.0+", "GPL-2.0-only", "MIT", "eCos-2.0"])
 def test_no_deprecated_id_note_where_nothing_is_ambiguous(raw: str) -> None:
-    graph = _two_packages([raw])
+    graph = two_packages([raw])
     assert not any(
         "deprecated-license-id" in f
         for e in license_elements(graph)
-        for f in _provenance_fields(graph, e["spdxId"])
+        for f in provenance_fields(graph, e["spdxId"])
     )

@@ -22,7 +22,7 @@ from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3.deps_license import _apply_license
+from pitloom.assemble.spdx3.deps_license import WeakLicense, _apply_license
 from pitloom.assemble.spdx3.deps_originator import (
     _apply_originator,
     _find_license_copyright,
@@ -30,6 +30,7 @@ from pitloom.assemble.spdx3.deps_originator import (
     _resolve_author_or_maintainer,
     _resolve_metadata_url,
 )
+from pitloom.assemble.spdx3.deps_pypi import license_from_classifiers
 from pitloom.assemble.spdx3.provenance import ConflictCandidate, ProvenanceEncoder
 from pitloom.core.models import build_pypi_purl
 from pitloom.core.provenance import ProvenanceConfig
@@ -356,8 +357,12 @@ def _enrich_from_installed(
     encoder: ProvenanceEncoder | None = None,
     offline: bool = False,
     content_type_method: str = "auto",
+    weak: WeakLicense | None = None,
 ) -> set[str]:
-    """Populate optional fields on a dependency package from installed metadata."""
+    """Populate optional fields on a dependency package from installed metadata.
+
+    *weak* holds an ``UNKNOWN``/``NOASSERTION`` licence for the caller to emit
+    last (see :class:`~pitloom.assemble.spdx3.deps_license.WeakLicense`)."""
     try:
         pkg_meta: PackageMetadata = get_pkg_metadata(dep_name)
     except PackageNotFoundError:
@@ -423,18 +428,27 @@ def _enrich_from_installed(
         dep_package.software_copyrightText = copyright_text
         filled.add("copyright")
 
-    license_id = core_metadata_license(pkg_meta) or ""
-    if _apply_license(
-        license_id,
-        f"Source: installed metadata | Package: {dep_name}",
-        dep_package,
-        creation_info,
-        doc_name,
-        doc_uuid,
-        exporter,
-        provenance_config=provenance_config,
-        encoder=encoder,
+    license_source = f"Source: installed metadata | Package: {dep_name}"
+    for license_id, provenance in (
+        (core_metadata_license(pkg_meta), license_source),
+        (
+            license_from_classifiers(pkg_meta.get_all("Classifier") or []),
+            f"{license_source} | Field: Classifier",
+        ),
     ):
-        filled.add("license")
+        if _apply_license(
+            license_id,
+            provenance,
+            dep_package,
+            creation_info,
+            doc_name,
+            doc_uuid,
+            exporter,
+            weak=weak,
+            provenance_config=provenance_config,
+            encoder=encoder,
+        ):
+            filled.add("license")
+            break
 
     return filled

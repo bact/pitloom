@@ -238,6 +238,9 @@ def test_reconcile_version_gap_fill_from_installed_declared_empty_is_none(
         ("mit and apache-2.0", "Apache-2.0 AND MIT", False),
         ("MIT", "Apache-2.0", True),
         ("MIT", "NOASSERTION", True),
+        # UNKNOWN is NOASSERTION: a statement, so not the same as absent.
+        ("UNKNOWN", "noassertion", False),
+        ("unknown", "MIT", True),
     ],
 )
 def test_reconcile_license_comparison_is_by_classified_value(

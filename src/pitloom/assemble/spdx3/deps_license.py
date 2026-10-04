@@ -11,12 +11,13 @@ to build declared/concluded license relationships for a dependency package.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._license_elements import (
     LicenseElement,
     get_or_create_license_element,
-    get_or_create_noassertion_element,
 )
 from pitloom.assemble.spdx3.provenance import (
     TRANSPARENT_SOURCES,
@@ -136,6 +137,10 @@ def build_license_elements(
     license element. When they disagree, an additional G2 conflict Annotation
     is emitted on *package_spdx_id* recording both candidates; see
     :func:`~pitloom.assemble.spdx3.provenance.build_conflict_annotation`.
+    ``NOASSERTION`` (also ``UNKNOWN``) only says "not known", so it never
+    conflicts: against a real licence both relationships stay, the real
+    licence being the only one with content; ``NONE`` is a statement and
+    conflicts with a real licence.
 
     Dispatches on truthiness, not just ``is None`` -- unlike ``requires_python``,
     a license id is never meaningfully ``""``, so that must not route into
@@ -224,6 +229,7 @@ def build_license_elements(
         declared is not None
         and concluded is not None
         and declared.value != concluded.value
+        and not (declared.is_noassertion or concluded.is_noassertion)
     ):
         candidates: list[ConflictCandidate] = [
             {
@@ -309,6 +315,26 @@ def build_file_declared_license(
     )
 
 
+@dataclass
+class WeakLicense:
+    """The first ``UNKNOWN``/``NOASSERTION`` a dependency's sources stated.
+
+    ``NOASSERTION`` is weak in a cascade: a later source may know better, so
+    :func:`_apply_license` holds it here instead of emitting it, and the
+    caller emits it (:func:`emit_weak_license`) only when no source gave a
+    licence.
+    ``NONE`` is a statement and is never held.
+    """
+
+    raw: str | None = None
+    provenance: str = ""
+
+    def hold(self, raw: str, provenance: str) -> None:
+        """Keep the first one stated; a later one adds nothing."""
+        if self.raw is None:
+            self.raw, self.provenance = raw, provenance
+
+
 # pylint: disable=too-many-arguments,too-many-positional-arguments
 def _apply_license(
     license_id: str | None,
@@ -319,17 +345,28 @@ def _apply_license(
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
     *,
+    weak: WeakLicense | None = None,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
 ) -> bool:
     """Build and add whichever declared/concluded license relationship(s)
     *license_id* resolves to (see :func:`build_license_elements`). Returns
     whether a relationship was added: ``False`` for a value that states no
-    licence, so the caller falls back to PyPI or NOASSERTION."""
-    if not license_id:
+    licence, so the caller falls back to the next source or leaves the
+    package without one.
+
+    With *weak* given, an ``UNKNOWN``/``NOASSERTION`` is held there, not
+    emitted, and ``False`` is returned: a later source may still state a
+    licence (see :class:`WeakLicense`).
+    """
+    classified = classify_license(license_id)
+    if classified is None:
+        return False
+    if weak is not None and classified.kind == "noassertion":
+        weak.hold(str(license_id), license_provenance)
         return False
     rel_declared, rel_concluded = build_license_elements(
-        license_id=license_id,
+        license_id=str(license_id),
         package_spdx_id=require_spdx_id(dep_package),
         license_provenance=license_provenance,
         creation_info=creation_info,
@@ -348,7 +385,8 @@ def _apply_license(
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
-def _add_license_noassertion(
+def emit_weak_license(
+    weak: WeakLicense,
     dep_package: spdx3.software_Package,
     creation_info: spdx3.CreationInfo,
     doc_name: str,
@@ -358,27 +396,13 @@ def _add_license_noassertion(
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
 ) -> None:
-    """Assert ``hasDeclaredLicense: NOASSERTION`` for a package whose license
-    couldn't be determined locally or via PyPI -- an explicit "we checked
-    and don't know" is more useful to a consumer than a silently absent
-    field, and is the standard SPDX placeholder for exactly this case.
-    Deduped like any other license value, so every such package shares one
-    NOASSERTION element.
-    """
-    element = get_or_create_noassertion_element(
-        "Source: NOASSERTION (no license information found locally or via PyPI)",
-        creation_info,
-        doc_name,
-        doc_uuid,
-        exporter,
-        provenance_config=provenance_config,
-        encoder=encoder,
-    )
-    exporter.add_relationship(
-        _build_license_relationship(
-            require_spdx_id(dep_package),
-            element,
-            spdx3.RelationshipType.hasDeclaredLicense,
+    """Emit the held ``NOASSERTION``, with the first stating source's
+    provenance; nothing when no source stated one."""
+    if weak.raw is not None:
+        _apply_license(
+            weak.raw,
+            weak.provenance,
+            dep_package,
             creation_info,
             doc_name,
             doc_uuid,
@@ -386,7 +410,6 @@ def _add_license_noassertion(
             provenance_config=provenance_config,
             encoder=encoder,
         )
-    )
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -406,12 +429,10 @@ def attach_main_package_license(
     ``metadata.license_name`` truthy does not guarantee two-candidate mode:
     when ``metadata.license_concluded`` is falsy, :func:`build_license_elements`
     still runs single-candidate on ``license_name``'s own provenance, which
-    can classify it as concluded (``rel_declared is None``) -- see the
-    comment on the ``elif`` branch below for why that branch, unlike this
-    one, needs its own NOASSERTION fallback for the symmetric case.
+    can classify it as concluded (``rel_declared is None``). No licence at
+    all (absent or blank) adds no relationship: Pitloom asserts nothing.
     """
-    # A value that states no licence (``UNKNOWN``) is absent, so the
-    # branches below fall back as they do for a missing one.
+    # A blank value states no licence: it is absent.
     license_name = (
         metadata.license_name if classify_license(metadata.license_name) else None
     )
@@ -455,32 +476,7 @@ def attach_main_package_license(
             provenance_config=provenance_config,
             encoder=encoder,
         )
-        # Unlike the `if` branch above, this branch has no second candidate
-        # at all -- when its one candidate (metadata.license_concluded)
-        # classifies as declared rather than concluded, that's the ONLY
-        # relationship this package can get, so it must be emitted for
-        # real, not silently dropped in favour of a NOASSERTION filler.
         if rel_declared:
             exporter.add_relationship(rel_declared)
-        else:
-            _add_license_noassertion(
-                main_package,
-                spdx_ci,
-                metadata.name,
-                doc_uuid,
-                exporter,
-                provenance_config=provenance_config,
-                encoder=encoder,
-            )
         if rel_concluded:
             exporter.add_relationship(rel_concluded)
-    else:
-        _add_license_noassertion(
-            main_package,
-            spdx_ci,
-            metadata.name,
-            doc_uuid,
-            exporter,
-            provenance_config=provenance_config,
-            encoder=encoder,
-        )

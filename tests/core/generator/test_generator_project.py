@@ -360,11 +360,8 @@ def test_build_document_ai_model_license_adds_simple_licensing_profile() -> None
 def test_build_concluded_license_without_declared_license() -> None:
     """When license_name is None but license_concluded is present,
     concluded license relationship must be emitted and simpleLicensing added
-    -- and since there's no declared value at all, the declared side must
-    still get an explicit NOASSERTION relationship, not be silently absent
-    (the elif branch's NOASSERTION fallback exists specifically for this
-    concluded-classified sub-case, distinct from the declared-classified
-    one covered by test_build_transparent_concluded_license_classified_as_declared)."""
+    -- and with no declared value at all, no declared relationship is made:
+    Pitloom asserts nothing it was not told."""
     project = ProjectMetadata(
         name="concluded-only",
         version="1.0.0",
@@ -398,8 +395,7 @@ def test_build_concluded_license_without_declared_license() -> None:
     declared_rels = [
         r for r in rels if r.get("relationshipType") == "hasDeclaredLicense"
     ]
-    assert len(declared_rels) == 1
-    assert licenses[declared_rels[0]["to"][0]] == "NOASSERTION"
+    assert declared_rels == []
 
 
 def test_build_transparent_concluded_license_classified_as_declared() -> None:

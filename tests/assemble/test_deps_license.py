@@ -183,9 +183,9 @@ def test_build_license_relationship_raises_when_relationship_build_fails() -> No
 @pytest.mark.parametrize(
     ("declared", "concluded", "expected"),
     [
-        ("UNKNOWN", "MIT", (False, True)),
-        ("MIT", "UNKNOWN", (True, False)),
-        ("UNKNOWN", "UNKNOWN", (False, False)),
+        ("  ", "MIT", (False, True)),
+        ("MIT", "  ", (True, False)),
+        ("  ", "  ", (False, False)),
     ],
 )
 def test_build_license_elements_two_candidates_one_states_no_licence(
@@ -212,3 +212,58 @@ def test_build_license_elements_two_candidates_one_states_no_licence(
     assert not [
         o for o in exporter.object_set.objects if isinstance(o, spdx3.Annotation)
     ]
+
+
+@pytest.mark.parametrize(
+    ("declared", "concluded", "same_target", "conflicts"),
+    [
+        ("UNKNOWN", "noassertion", True, 0),
+        ("NONE", "none", True, 0),
+        ("NOASSERTION", "MIT", False, 0),
+        ("unknown", "MIT", False, 0),
+        ("MIT", "UNKNOWN", False, 0),
+        ("NONE", "MIT", False, 1),
+        ("MIT", "none", False, 1),
+        ("NOASSERTION", "NONE", False, 0),
+    ],
+)
+def test_build_license_elements_two_candidates_with_individuals(
+    declared: str, concluded: str, same_target: bool, conflicts: int
+) -> None:
+    """Two candidates that are the same individual (``UNKNOWN`` is
+    ``NOASSERTION``) are no conflict. ``NOASSERTION`` against a real licence
+    is none either, nor against ``NONE`` (it only says "unknown"; both
+    relationships stay, each for its own role); ``NONE`` against a real
+    licence is one."""
+    doc_uuid = compute_doc_uuid("individuals", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    exporter = Spdx3JsonExporter()
+
+    rel_declared, rel_concluded = build_license_elements(
+        license_id=declared,
+        package_spdx_id="https://example.com/Package-1",
+        license_provenance="Source: pyproject.toml | Field: project.license",
+        creation_info=_make_ci(),
+        doc_name="individuals",
+        doc_uuid=doc_uuid,
+        exporter=exporter,
+        concluded_license_id=concluded,
+    )
+
+    assert rel_declared is not None and rel_concluded is not None
+    assert (rel_declared.to == rel_concluded.to) is same_target
+    objects = exporter.object_set.objects
+    found = [
+        o
+        for o in objects
+        if isinstance(o, spdx3.Annotation) and "candidates" in (o.statement or "")
+    ]
+    assert len(found) == conflicts
+    # An individual never becomes an element.
+    held = {
+        getattr(o, "simplelicensing_licenseExpression", None)
+        or getattr(o, "simplelicensing_licenseText", None)
+        for o in objects
+        if isinstance(o, spdx3.simplelicensing_AnyLicenseInfo)
+    }
+    assert not {"NOASSERTION", "NONE"} & {h for h in held if h}

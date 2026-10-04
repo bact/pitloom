@@ -410,8 +410,8 @@ complete but isn't. Per-case detail: `references/known-limitations.md`.
   the Python side. Say the SBOM covers the Python packaging surface, not
   the whole repo.
 - **Non-PyPI dependencies** (`git+https://...`, local path, private index)
-  get an entry whose supplier/license/hash stay `NOASSERTION`; name it
-  when an entry looks sparse.
+  get `NOASSERTION` copyright, no supplier/hash/license unless installed
+  (its metadata is read); name it.
 - **AI model formats** are broad, not universal (see the description). An
   unrecognised serialisation is not scanned: say so, don't skip silently.
 - **AI model caps:** an `ai_AIPackage` is a stub (its metadata was not

@@ -198,8 +198,9 @@ def build(
 
     ``offline``: when ``False`` (the default), each dependency package's
     supplier/license/copyright gaps left by installed metadata are given a
-    best-effort PyPI JSON API lookup before falling back to ``NOASSERTION``
-    -- see :func:`~pitloom.assemble.spdx3.deps.add_dependencies`.
+    best-effort PyPI JSON API lookup before the licence is left unstated and
+    the copyright is ``NOASSERTION`` -- see
+    :func:`~pitloom.assemble.spdx3.deps.add_dependencies`.
     """
     metadata = doc.project
     prov_cfg = provenance or ProvenanceConfig()

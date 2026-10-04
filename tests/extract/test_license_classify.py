@@ -31,8 +31,10 @@ _CASES = [
     (None, None, "", False),
     ("", None, "", False),
     ("  \t ", None, "", False),
-    ("UNKNOWN", None, "", False),
-    ("unknown", None, "", False),
+    # UNKNOWN: the source does not know, which is NOASSERTION
+    ("UNKNOWN", "noassertion", "NOASSERTION", False),
+    ("unknown", "noassertion", "NOASSERTION", False),
+    (" Unknown ", "noassertion", "NOASSERTION", False),
     # individuals, in any case
     ("NOASSERTION", "noassertion", "NOASSERTION", False),
     (" noassertion ", "noassertion", "NOASSERTION", False),

@@ -203,6 +203,13 @@ _ADDITION_REF_RE = re.compile(
 )
 #: Ids that already say "only" or "or later" take no ``+``.
 _NO_OR_LATER = ("-only", "-or-later")
+#: Words standing for a named individual; ``UNKNOWN`` is a source saying it
+#: does not know: ``NOASSERTION``. Value: ``(kind, canonical value)``.
+_INDIVIDUAL_WORDS: dict[str, tuple[LicenseKind, str]] = {
+    "NOASSERTION": ("noassertion", "NOASSERTION"),
+    "UNKNOWN": ("noassertion", "NOASSERTION"),
+    "NONE": ("none", "NONE"),
+}
 _USER_DEFINED_PREFIXES = ("LicenseRef-", "DocumentRef-")
 #: Stands in for an addition when checking the rest of the expression.
 _PLACEHOLDER_EXCEPTION = "Classpath-exception-2.0"
@@ -290,7 +297,7 @@ def _looks_like_expression(cased: str) -> bool:
 
 def classify_license(raw: str | None, *, warn: bool = True) -> ClassifiedLicense | None:
     """Sort *raw* into an SPDX expression, licence text, ``NOASSERTION`` or
-    ``NONE``; ``None`` when it states no licence (absent, blank, ``UNKNOWN``).
+    ``NONE``; ``None`` when it states no licence (absent, blank).
 
     The words ``UNKNOWN``, ``NOASSERTION`` and ``NONE`` match in any case. A
     value that parses as an expression of known ids is recorded in its
@@ -306,12 +313,11 @@ def classify_license(raw: str | None, *, warn: bool = True) -> ClassifiedLicense
     """
     stripped = (raw or "").strip()
     word = stripped.upper()
-    if not stripped or word == "UNKNOWN":
+    if not stripped:
         return None
-    if word in ("NOASSERTION", "NONE"):
-        return ClassifiedLicense(
-            "noassertion" if word == "NOASSERTION" else "none", word, raw or ""
-        )
+    if word in _INDIVIDUAL_WORDS:
+        kind, value = _INDIVIDUAL_WORDS[word]
+        return ClassifiedLicense(kind, value, raw or "")
     if "\n" in stripped or len(stripped) > _MAX_EXPRESSION_LENGTH:
         return ClassifiedLicense("text", stripped, raw or "")
     cased = _SPDX_OPERATOR_CASING_RE.sub(lambda m: m.group(1).upper(), stripped)
@@ -330,12 +336,16 @@ def classify_license(raw: str | None, *, warn: bool = True) -> ClassifiedLicense
     return ClassifiedLicense("text", stripped, raw or "")
 
 
-def tag_license_normalization(provenance: str, raw: str, normalized: str) -> str:
-    """Append a note to *provenance* when normalization changed the value."""
+def tag_license_normalization(
+    provenance: str, raw: str, normalized: str, *, normalizer: bool = True
+) -> str:
+    """Append a note to *provenance* when normalization changed the value;
+    *normalizer* false leaves out the parser's version (no parse was
+    involved, as for ``UNKNOWN`` -> ``NOASSERTION``)."""
     if raw.strip() == normalized:
         return provenance
     note = f"{provenance} | Normalized-From: {raw.strip()}"
-    if _PY_SPDX_LICENSE_VERSION is None:
+    if not normalizer or _PY_SPDX_LICENSE_VERSION is None:
         return note
     return f"{note} | Normalizer: py-spdx-license=={_PY_SPDX_LICENSE_VERSION}"
 

@@ -31,8 +31,12 @@ placeholder. Look for non-Python ecosystem files beside `pyproject.toml`.
 ## Non-PyPI dependencies
 
 `git+https://...`, a local path requirement or a private-index-only
-package: supplier/license/hash enrichment has nothing to look up, so the
-fields land on `NOASSERTION` -- correct for "genuinely unknown".
+package: unless it is installed locally (its installed metadata is read),
+supplier/license/hash enrichment has nothing to look up, so the copyright
+lands on `NOASSERTION`, supplier and hash stay empty, and the package gets
+no license relationship -- Pitloom never asserts a license it was not told
+(a source that itself says `UNKNOWN`/`NOASSERTION` gives the
+`NoAssertionLicense` individual).
 
 ## AI model formats
 
