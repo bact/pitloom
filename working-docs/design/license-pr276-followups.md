@@ -67,7 +67,11 @@ Each is written up with its evidence in
 user leanings are recorded there, not decisions.
 
 - Weak manifest value (`NOASSERTION`/`UNKNOWN`) vs a real licence from a
-  `LICENSE` file or a model card.
+  `LICENSE` file or a model card. Common in the wild: old setuptools wrote
+  `License: UNKNOWN` into every sdist that stated no licence, so such an
+  sdist declares `UNKNOWN` (concluded from its `LICENSE`) while its
+  directory declares the `LICENSE` licence (`apply_in_package_license`
+  takes any non-blank value as stated; `first_license` takes it as weak).
 - Reconcile ranking: the project's own installed metadata vs a `LICENSE`
   detection.
 - Model file licence vs model card licence: disagreement not recorded.
