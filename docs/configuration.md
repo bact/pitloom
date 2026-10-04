@@ -206,7 +206,7 @@ pattern falls through to normal detection.
 
 | Key | Type | Default | CLI flag | Action input | API param | Meaning |
 | :-- | :--- | :------ | :------- | :------------ | :-------- | :------ |
-| `files` | array of strings and/or tables | `[]` | -- | -- | -- | Pre-generated SPDX 3 JSON-LD fragment files merged into a project directory's SBOM (not a wheel, sdist, environment or model file SBOM). Each entry is either a plain path string (shorthand -- every other field below defaults) or an inline table with `path` plus any of the fields below. See [Merge fragments](cli.md#merge-fragments), [`loom fragment list`](cli.md#list-configured-fragments). |
+| `files` | array of strings and/or tables | `[]` | -- | -- | -- | Pre-generated SPDX 3 JSON-LD fragment files merged into a project directory's SBOM (not a wheel, sdist, environment or model file SBOM). Each entry is either a plain path string (shorthand -- every other field below defaults) or an inline table with `path` plus any of the fields below. See [Merge fragments](fragments.md#merge-fragments), [`loom fragment list`](fragments.md#list-configured-fragments). |
 
 Kept as its own table (rather than folded into a flat `[tool.pitloom]`
 key) since it's expected to grow more fragment-related settings.

@@ -154,6 +154,8 @@ and this project adheres to
 - CLI stdout is `KEY=VALUE` data only (`WHEEL=`/`SBOM=`, `STATUS=`, `FILE=`,
   `PITLOOM_ID_REGISTRY_PATH=`); counts, hints and `-v` are `INFO:` on stderr
   ([#281])
+- `loom merge` output (also `generate_merged_sbom()`) has an `SpdxDocument`
+  with `profileConformance`, imports and unification annotations ([#PR])
 
 ### Removed
 
@@ -288,6 +290,8 @@ and this project adheres to
 - An sdist reads its root `LICENSE`, `CITATION.cff` and `codemeta.json` as a
   directory does; with no `PKG-INFO`, `project.license` too. A non-object
   `codemeta.json` no longer crashes ([#283])
+- Fragment merge: equal licences unified, a fragment re-declaring base ids no
+  longer crashes, warnings name elements by id ([#PR])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227

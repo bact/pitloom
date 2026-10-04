@@ -14,8 +14,9 @@ disappear.
 Each PATH is an SBOM JSON file or a wheel (``.whl``), whose one embedded
 SBOM is found as ``loom verify-wheel`` finds it
 (:func:`pitloom.embed.find_embedded_sbom`). The root package is the
-single ``software_Package`` in the single ``software_Sbom``'s
-``rootElement``. It must have exactly one ``hasDeclaredLicense`` and one
+single ``software_Package`` in the ``rootElement`` of the one
+``software_Sbom`` rooted at a package (one rooted at an AI model is
+another Sbom of the document). It must have exactly one ``hasDeclaredLicense`` and one
 ``hasConcludedLicense`` relationship, each to exactly one licence whose
 text equals ``--license``.
 """
@@ -59,23 +60,32 @@ def load_sbom(path: Path) -> Any:
 
 
 def _root_package(graph: list[Any]) -> str:
-    sboms = [
-        e for e in graph if isinstance(e, dict) and e.get("type") == "software_Sbom"
-    ]
-    if len(sboms) != 1:
-        raise SbomLicenseError(f"expected one software_Sbom, found {len(sboms)}")
-    roots = sboms[0].get("rootElement")
-    if not isinstance(roots, list) or len(roots) != 1:
-        raise SbomLicenseError(f"expected one software_Sbom root element: {roots}")
-    root = roots[0]
-    if not any(
-        isinstance(e, dict)
-        and e.get("spdxId") == root
-        and e.get("type") == "software_Package"
+    """The root of the one ``software_Sbom`` rooted at a single
+    ``software_Package``; an ``Sbom`` rooted at an AI model or a dataset
+    (a project with a model has one) is not the project's."""
+    packages = {
+        e["spdxId"]
         for e in graph
-    ):
-        raise SbomLicenseError(f"root element is not a software_Package: {root}")
-    return str(root)
+        if isinstance(e, dict)
+        and e.get("type") == "software_Package"
+        and isinstance(e.get("spdxId"), str)
+    }
+    roots = [
+        e["rootElement"][0]
+        for e in graph
+        if isinstance(e, dict)
+        and e.get("type") == "software_Sbom"
+        and isinstance(e.get("rootElement"), list)
+        and len(e["rootElement"]) == 1
+        and isinstance(e["rootElement"][0], str)
+        and e["rootElement"][0] in packages
+    ]
+    if len(roots) != 1:
+        raise SbomLicenseError(
+            f"expected one software_Sbom rooted at a software_Package, "
+            f"found {len(roots)}"
+        )
+    return str(roots[0])
 
 
 def _license_texts(graph: list[Any], root: str, relationship_type: str) -> list[str]:

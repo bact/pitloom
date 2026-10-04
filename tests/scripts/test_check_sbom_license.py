@@ -20,6 +20,7 @@ from typing import Any
 import pytest
 
 _PKG = "urn:x#Package-1"
+_AI = "urn:x#AIPackage-1"
 
 
 @pytest.fixture(name="module")
@@ -90,6 +91,25 @@ def _root_not_package(sbom: dict[str, Any]) -> None:
     _graph(sbom)[1]["type"] = "software_File"
 
 
+def _ai_sbom(sbom: dict[str, Any]) -> None:
+    """A second Sbom, rooted at an AI model, as a project with one has."""
+    _graph(sbom)[1:1] = [
+        {"type": "software_Sbom", "spdxId": "urn:x#Sbom-2", "rootElement": [_AI]},
+        {"type": "ai_AIPackage", "spdxId": _AI, "name": "model"},
+    ]
+
+
+def _second_package_sbom(sbom: dict[str, Any]) -> None:
+    _graph(sbom).append(
+        {"type": "software_Sbom", "spdxId": "urn:x#Sbom-3", "rootElement": [_PKG]}
+    )
+
+
+def _only_ai_sbom(sbom: dict[str, Any]) -> None:
+    _ai_sbom(sbom)
+    del _graph(sbom)[0]
+
+
 def _graph_not_list(sbom: dict[str, Any]) -> None:
     sbom["@graph"] = {}
 
@@ -105,6 +125,12 @@ def _unhashable_ids(sbom: dict[str, Any]) -> None:
 
 def test_valid_sbom_passes(module: ModuleType) -> None:
     module.check_sbom_license(_sbom(), "Apache-2.0")
+
+
+def test_an_ai_model_sbom_beside_the_package_sbom_passes(module: ModuleType) -> None:
+    sbom = _sbom()
+    _ai_sbom(sbom)
+    module.check_sbom_license(sbom, "Apache-2.0")
 
 
 def test_full_iri_relationship_type_passes(module: ModuleType) -> None:
@@ -126,6 +152,8 @@ def test_full_iri_relationship_type_passes(module: ModuleType) -> None:
         _dangling_declared,
         _two_roots,
         _root_not_package,
+        _second_package_sbom,
+        _only_ai_sbom,
         _graph_not_list,
         _to_not_list,
         _unhashable_ids,

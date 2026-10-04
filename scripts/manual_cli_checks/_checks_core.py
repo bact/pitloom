@@ -237,19 +237,33 @@ def check_debug(ctx: Context) -> None:
     ctx.note(f"{len(subcommands)} subcommands, {len(debug)} DEBUG: lines")
 
 
-@check("7", "fragment merge: deterministic, output validates")
+@check("7", "fragment merge: one document, deterministic, output validates")
 def check_fragment_merge(ctx: Context) -> None:
-    fragments = ctx.work / "fragments"
-    fragments.mkdir()
-    for src in sorted(
-        (REPO_ROOT / "tests" / "fixtures" / "fragments").glob("*.spdx3.json")
-    ):
-        shutil.copy2(src, fragments / src.name)
+    # A second directory of another name: the output must not depend on it.
+    for name in ("fragments", "fragments-copy"):
+        (ctx.work / name).mkdir()
+        for src in sorted(
+            (REPO_ROOT / "tests" / "fixtures" / "fragments").glob("*.spdx3.json")
+        ):
+            shutil.copy2(src, ctx.work / name / src.name)
     # Outputs go outside the fragments dir: merge reads every *.spdx3.json.
-    outputs = [ctx.work / "m1.json", ctx.work / "m2.json"]
-    for out in outputs:
-        run_ok("merge", str(fragments), "-o", str(out))
-    expect(outputs[0].read_bytes() == outputs[1].read_bytes(), "merges differ")
+    outputs = [ctx.work / "m1.json", ctx.work / "m2.json", ctx.work / "m3.json"]
+    for out, source in zip(
+        outputs, ("fragments", "fragments", "fragments-copy"), strict=True
+    ):
+        run_ok("merge", str(ctx.work / source), "-o", str(out))
+    expect(
+        len({out.read_bytes() for out in outputs}) == 1,
+        "merges differ (same run twice, or another directory)",
+    )
+    graph = json.loads(outputs[0].read_bytes())["@graph"]
+    documents = [e for e in graph if e.get("type") == "SpdxDocument"]
+    expect(len(documents) == 1, f"{len(documents)} SpdxDocument(s), expected 1")
+    conformance = set(documents[0].get("profileConformance", []))
+    expect(
+        {"core", "software"} <= conformance,
+        f"profileConformance {sorted(conformance)} lacks core/software",
+    )
     if ctx.network:  # validation fetches the SPDX context from spdx.org
         run_ok("fragment", "validate", str(outputs[0]), network=True)
     else:

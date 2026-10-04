@@ -13,11 +13,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from pitloom._sbom_io import STDOUT, write_sbom_output
-from pitloom.assemble import merge_fragments
+from pitloom._sbom_io import STDOUT
+from pitloom.assemble import generate_merged_sbom
+from pitloom.assemble.spdx3.fragments import fragment_files
 from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
-from pitloom.core.config import FragmentConfig
-from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION, Spdx3JsonExporter
+from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 
 log = logging.getLogger(__name__)
 
@@ -33,31 +33,21 @@ def _run_merge_command(args: argparse.Namespace) -> int:
         )
         return 1
 
-    fragment_files = [
-        f.relative_to(fragments_dir).as_posix()
-        for f in sorted(fragments_dir.glob("*.json"))
-        if f.is_file()
-    ]
-    if not fragment_files:
+    files = fragment_files(fragments_dir)
+    if not files:
         print(
             f"ERROR: no JSON fragment files found in {fragments_dir}",
             file=sys.stderr,
         )
         return 1
 
-    exporter = Spdx3JsonExporter()
-    merge_fragments(
-        fragments_dir,
-        [FragmentConfig(path=f) for f in fragment_files],
-        exporter,
-    )
-
-    sbom_json = exporter.to_json(pretty=bool(args.pretty))
     output_path: Path = args.output
-    write_sbom_output(sbom_json, output_path)
+    generate_merged_sbom(
+        fragments_dir, output_path=output_path, pretty=bool(args.pretty)
+    )
     if str(output_path) != STDOUT:
         _print_sbom_output_path(output_path)
-    log.info("merge: merged %d fragment(s)", len(fragment_files))
+    log.info("merge: merged %d fragment(s)", len(files))
     return 0
 
 

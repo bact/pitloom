@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Regression: every public library-API entry point (``pitloom.assemble``'s
-``__all__`` -- ``generate_*``/``enrich_model``/``embed_wheel_sbom``/
-``embed_sbom_in_wheel``/``merge_fragments``) must call
+``__all__`` -- ``generate_*`` (``generate_merged_sbom`` too)/``enrich_model``/
+``embed_wheel_sbom``/``embed_sbom_in_wheel``/``merge_fragments``) must call
 :func:`pitloom.logging_config.configure_logging` before doing anything else,
 so ``log.warning(...)`` output gets the same ``WARNING: `` prefix regardless
 of whether Pitloom is invoked via the CLI, the Hatchling build hook, or as a
@@ -30,6 +30,7 @@ from pitloom.assemble import (
     enrich_model,
     generate,
     generate_env_sbom,
+    generate_merged_sbom,
     generate_model_sbom,
     generate_project_sbom,
     generate_wheel_sbom,
@@ -162,4 +163,17 @@ def test_merge_fragments_configures_logging(
         lambda: calls.append(True),
     )
     merge_fragments(tmp_path, [], Spdx3JsonExporter())
+    assert calls == [True]
+
+
+def test_generate_merged_sbom_configures_logging(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    calls = []
+    monkeypatch.setattr(
+        "pitloom.assemble._generators_merge.configure_logging",
+        lambda: calls.append(True),
+    )
+    with pytest.raises(FileNotFoundError):
+        generate_merged_sbom(tmp_path / "does-not-exist")
     assert calls == [True]

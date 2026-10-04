@@ -5,7 +5,8 @@
 
 """Unification logic and property merging for SPDX 3 fragment files.
 
-See also: :mod:`pitloom.assemble.spdx3.fragments` (facade and merge orchestration).
+See also: :mod:`pitloom.assemble.spdx3.fragments` (facade and merge orchestration)
+and :mod:`pitloom.assemble.spdx3._fragments_licenses` (licence unification).
 """
 
 from __future__ import annotations
@@ -16,6 +17,12 @@ from typing import Any, cast
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._fragments_licenses import (
+    LICENSE_TYPES,
+    find_license_survivor,
+    register_license,
+)
+from pitloom.export.spdx3_describe import describe_value, property_names
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 log = logging.getLogger(__name__)
@@ -40,7 +47,7 @@ _KEYED_DICT_PROPS = frozenset({"ai_hyperparameter", "ai_metric"})
 
 def _class_properties(obj: spdx3.SHACLObject) -> Iterable[str]:
     """Return the declared Python property names on *obj*'s class."""
-    return [k[0] for k in obj.property_keys() if k[0] is not None]
+    return property_names(obj)
 
 
 def _canonical_merge_key(obj: spdx3.SHACLObject) -> tuple[Any, ...]:
@@ -78,9 +85,15 @@ def _sha256_hash(obj: spdx3.Element) -> str | None:
 
 
 def _normalize_value(value: Any) -> Any:
-    """Return a comparable, hashable-shaped representation of a property value."""
+    """Return a comparable, hashable-shaped representation of a property value.
+
+    An element reference compares by id, whether it is the element object
+    (a deserialised fragment links its own) or the id string (a build
+    writes ids); an object with no id (a ``Hash``) by its content."""
     if value is None:
         return (0, None)
+    if isinstance(value, spdx3.Element) and value.spdxId:
+        return (3, "str", str(value.spdxId))
     if isinstance(value, spdx3.SHACLObject):
         return (1, _signature(value))
     if isinstance(value, spdx3.ListProxy):
@@ -100,23 +113,43 @@ def _signature(obj: spdx3.SHACLObject) -> tuple[Any, ...]:
     return tuple(parts)
 
 
-def _remap_object_refs(
-    obj: spdx3.SHACLObject, remap: dict[spdx3.SHACLObject, str]
-) -> None:
-    """Rewrite *obj*'s object-valued properties in place."""
+def _as_id_ref(value: Any, id_map: dict[str, str], seen: set[int]) -> Any:
+    """*value* with an element reference as the id string of the element
+    that survives the merge; an object with no id is rewritten in place."""
+    if isinstance(value, spdx3.Element) and value.spdxId:
+        spdx_id = str(value.spdxId)
+        return id_map.get(spdx_id, spdx_id)
+    if isinstance(value, spdx3.SHACLObject):
+        _to_id_refs(value, id_map, seen)
+    elif isinstance(value, str):
+        return id_map.get(value, value)
+    return value
+
+
+def _to_id_refs(obj: spdx3.SHACLObject, id_map: dict[str, str], seen: set[int]) -> None:
+    """Rewrite *obj*'s element references in place as id strings through
+    *id_map* (dropped id -> surviving id), nested objects with no id
+    (``CreationInfo``, ``DictionaryEntry``) included: a reference to an
+    element object of the fragment would otherwise be serialised as a second
+    copy of it. A string equal to a dropped id (a ``customIdToUri`` value)
+    is rewritten too."""
+    if id(obj) in seen:
+        return
+    seen.add(id(obj))
     for pyname in _class_properties(obj):
+        if pyname == "_id":
+            continue
         value = getattr(obj, pyname, None)
-        if isinstance(value, spdx3.SHACLObject):
-            replacement = remap.get(value)
-            if replacement is not None:
-                setattr(obj, pyname, replacement)
-        elif isinstance(value, spdx3.ListProxy):
+        if isinstance(value, spdx3.ListProxy):
             items = cast(list[Any], value)
             for i, item in enumerate(items):
-                if isinstance(item, spdx3.SHACLObject):
-                    replacement = remap.get(item)
-                    if replacement is not None:
-                        items[i] = replacement
+                new = _as_id_ref(item, id_map, seen)
+                if new is not item:
+                    items[i] = new
+            continue
+        new = _as_id_ref(value, id_map, seen)
+        if new is not value:
+            setattr(obj, pyname, new)
 
 
 def _is_empty(value: Any) -> bool:
@@ -142,24 +175,24 @@ def _merge_scalar(
         if not _is_empty(dup_val):
             setattr(canonical, pyname, dup_val)
         return
-    if not _is_empty(dup_val) and dup_val != canonical_val:
+    if not _is_empty(dup_val) and _normalize_value(dup_val) != _normalize_value(
+        canonical_val
+    ):
         if pyname == "name" and _paths_suffix_match(canonical_val, dup_val):
             log.debug(
-                "Merge: %s %s known as both %r and %r; keeping %r.",
-                type(canonical).__name__,
-                getattr(canonical, "spdxId", "?"),
+                "Merge: %s known as both %r and %r; keeping %r.",
+                describe_value(canonical),
                 canonical_val,
                 dup_val,
                 canonical_val,
             )
             return
         log.warning(
-            "Merge: conflicting %r on %s %s: keeping %r, dropping %r.",
+            "Merge: conflicting %r on %s: keeping %s, dropping %s.",
             pyname,
-            type(canonical).__name__,
-            getattr(canonical, "spdxId", "?"),
-            canonical_val,
-            dup_val,
+            describe_value(canonical),
+            describe_value(canonical_val),
+            describe_value(dup_val),
         )
 
 
@@ -180,20 +213,15 @@ def _merge_list(
     if not dup_items:
         return
 
+    # One key per item: an element by id (object or string), an object with
+    # no id by its content, anything else by value.
+    present = {_normalize_value(existing) for existing in canonical_items}
     merged = list(canonical_items)
     for item in dup_items:
-        if isinstance(item, spdx3.SHACLObject):
-            already = any(
-                isinstance(existing, spdx3.SHACLObject)
-                and type(existing) is type(item)
-                and getattr(existing, "spdxId", object())
-                == getattr(item, "spdxId", None)
-                for existing in canonical_items
-            )
-            if already:
-                continue
-        elif item in canonical_items:
+        key = _normalize_value(item)
+        if key in present:
             continue
+        present.add(key)
         merged.append(item)
 
     if len(merged) != len(canonical_items):
@@ -309,7 +337,10 @@ class _MergeIndex:
         return None
 
     def register(self, obj: spdx3.SHACLObject) -> None:
-        self.exporter.object_set.add(obj)
+        if isinstance(obj, LICENSE_TYPES):
+            register_license(obj, self.exporter)
+        else:
+            self.exporter.object_set.add(obj)
         self._index(obj)
 
 
@@ -328,50 +359,100 @@ def _record_unification(
     rec["fragments"].add(fragment_file)
 
 
+def _envelope_roots(
+    envelopes: list[spdx3.SHACLObject], id_map: dict[str, str]
+) -> list[str]:
+    """The ids the fragment's own ``SpdxDocument``/``Sbom`` envelopes root,
+    through *id_map*, less the envelopes themselves (they are not merged)."""
+    envelope_ids = {str(getattr(e, "spdxId", None)) for e in envelopes}
+    roots: list[str] = []
+    for envelope in envelopes:
+        for root in getattr(envelope, "rootElement", None) or []:
+            root_id = str(root.spdxId if isinstance(root, spdx3.Element) else root)
+            if root_id not in envelope_ids:
+                roots.append(id_map.get(root_id, root_id))
+    return list(dict.fromkeys(roots))
+
+
+def _find_survivor(
+    obj: spdx3.SHACLObject,
+    index: _MergeIndex,
+    pending_licenses: dict[tuple[str, str], str],
+) -> tuple[spdx3.SHACLObject | str | None, str]:
+    """What *obj* unifies with, and by which criterion: by id, licence key,
+    SHA-256, then structure. A ``(None, "")`` result keeps *obj*. A
+    licence survivor is an id (its fields are not folded); any other is the
+    object to fold *obj* into."""
+    spdx_id = getattr(obj, "spdxId", None)
+    by_id = index.find_by_id(spdx_id) if spdx_id else None
+    if by_id is not None:
+        return by_id, "id"
+    if isinstance(obj, LICENSE_TYPES):
+        survivor_id = find_license_survivor(obj, index.exporter, pending_licenses)
+        return survivor_id, "license" if survivor_id else ""
+    if isinstance(obj, _HASHABLE_TYPES):
+        element = _as_element(obj)
+        by_hash = index.find_by_hash(element)
+        if by_hash is not None:
+            return by_hash, "sha256"
+        _warn_if_same_name_different_hash(element, index.exporter.object_set)
+    if isinstance(obj, _STRUCTURAL_TYPES):
+        structural_dup = index.find_structural_duplicate(obj)
+        if structural_dup is not None:
+            return structural_dup, "structural"
+    return None, ""
+
+
 def _merge_fragment_set(
     fragment_set: spdx3.SHACLObjectSet,
     index: _MergeIndex,
     fragment_file: str,
     events: _UnificationEvents,
-) -> None:
+) -> list[str]:
     """Unify and add every top-level element of *fragment_set* into
-    *index*'s exporter."""
-    remap: dict[spdx3.SHACLObject, str] = {}
+    *index*'s exporter; return the ids its envelopes root (see
+    :func:`_envelope_roots`).
+
+    Two passes: first a survivor for every element, then every element
+    reference becomes the survivor's id string, on the elements folded into
+    a survivor as on the kept ones, before any fields are folded -- a
+    deserialised fragment links its references as objects, the document
+    holds ids, and the two must compare equal."""
+    id_map: dict[str, str] = {}
+    folds: list[tuple[spdx3.SHACLObject, spdx3.SHACLObject]] = []
     kept: list[spdx3.SHACLObject] = []
+    envelopes: list[spdx3.SHACLObject] = []
+    pending_licenses: dict[tuple[str, str], str] = {}
 
-    for obj in sorted(fragment_set.objects, key=_canonical_merge_key):
+    objects = sorted(fragment_set.objects, key=_canonical_merge_key)
+    for obj in objects:
         if isinstance(obj, _ENVELOPE_TYPES):
+            envelopes.append(obj)
             continue
-
-        spdx_id = getattr(obj, "spdxId", None)
-        by_id = index.find_by_id(spdx_id) if spdx_id else None
-        if by_id is not None:
-            _merge_properties(_as_element(by_id), _as_element(obj))
-            remap[obj] = require_spdx_id(_as_element(by_id))
+        survivor, criterion = _find_survivor(obj, index, pending_licenses)
+        if survivor is None:
+            kept.append(obj)
             continue
+        dropped_id = require_spdx_id(_as_element(obj))
+        survivor_id = (
+            survivor
+            if isinstance(survivor, str)
+            else require_spdx_id(_as_element(survivor))
+        )
+        id_map[dropped_id] = survivor_id
+        if criterion in ("id", "sha256") and not isinstance(survivor, str):
+            folds.append((survivor, obj))
+        if criterion in ("license", "sha256"):
+            _record_unification(
+                events, survivor_id, criterion, dropped_id, fragment_file
+            )
 
-        if isinstance(obj, _HASHABLE_TYPES):
-            element = _as_element(obj)
-            by_hash = index.find_by_hash(element)
-            if by_hash is not None:
-                survivor = require_spdx_id(by_hash)
-                _merge_properties(by_hash, element)
-                remap[obj] = survivor
-                _record_unification(
-                    events, survivor, "sha256", require_spdx_id(element), fragment_file
-                )
-                continue
-            _warn_if_same_name_different_hash(element, index.exporter.object_set)
-
-        if isinstance(obj, _STRUCTURAL_TYPES):
-            structural_dup = index.find_structural_duplicate(obj)
-            if structural_dup is not None:
-                remap[obj] = require_spdx_id(_as_element(structural_dup))
-                continue
-
-        kept.append(obj)
-
-    for obj in kept:
-        _remap_object_refs(obj, remap)
+    seen: set[int] = set()
+    for obj in objects:
+        if not isinstance(obj, _ENVELOPE_TYPES):
+            _to_id_refs(obj, id_map, seen)
+    for survivor, obj in folds:
+        _merge_properties(_as_element(survivor), _as_element(obj))
     for obj in kept:
         index.register(obj)
+    return _envelope_roots(envelopes, id_map)

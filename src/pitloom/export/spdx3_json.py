@@ -17,6 +17,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._sbom_io import write_text_lf
 from pitloom.core.license_individuals import INDIVIDUAL_BY_COMPACT_NAME
+from pitloom.export.spdx3_describe import describe_graph_element, describe_value
 
 # Pitloom's own file-naming convention for this exporter's output -- SPDX 3
 # itself doesn't mandate an extension. Canonical home for every module that
@@ -52,7 +53,7 @@ def require_spdx_id(element: spdx3.Element) -> str:
             indicate a bug in how the element was constructed.
     """
     if element.spdxId is None:
-        raise ValueError(f"{element!r} has no spdxId assigned")
+        raise ValueError(f"{describe_value(element)} has no spdxId assigned")
     return str(element.spdxId)
 
 
@@ -197,12 +198,6 @@ def _deduplicate_named_elements(
     return result
 
 
-def _describe_graph_element(element: dict[str, Any]) -> str:
-    """Short ``Type:name`` label for a serialized graph element, for a
-    duplicate-id error message."""
-    return f"{element.get('type', 'unknown')}:{element.get('name')}"
-
-
 def _check_no_duplicate_spdx_ids(graph: list[dict[str, Any]]) -> None:
     """Raise ``RuntimeError`` if two elements of *graph* share a
     ``spdxId`` after :func:`_deduplicate_named_elements` has already run.
@@ -230,8 +225,8 @@ def _check_no_duplicate_spdx_ids(graph: list[dict[str, Any]]) -> None:
         if first is not None:
             raise RuntimeError(
                 f"Duplicate spdxId {spdx_id!r}: "
-                f"{_describe_graph_element(first)} and "
-                f"{_describe_graph_element(element)}"
+                f"{describe_graph_element(first)} and "
+                f"{describe_graph_element(element)}"
             )
         seen[spdx_id] = element
 
@@ -377,13 +372,22 @@ class Spdx3JsonExporter:
             spdx3.simplelicensing_LicenseExpression
             | spdx3.simplelicensing_SimpleLicensingText
         ),
+        *,
+        key: tuple[str, str] | None = None,
     ) -> None:
         """Add a licence element and index it for :meth:`find_license`.
 
         Args:
             license_element: A ``LicenseExpression`` or ``SimpleLicensingText``.
+            key: The ``(kind, value)`` to index it under; by default its own
+                expression, or its text stripped. A fragment merge passes the
+                canonical key (see
+                :func:`pitloom.assemble.spdx3._license_elements.license_key`).
         """
         self.object_set.add(license_element)
+        if key is not None:
+            self._license_index.setdefault(key, require_spdx_id(license_element))
+            return
         if isinstance(license_element, spdx3.simplelicensing_LicenseExpression):
             kind, value = (
                 "expression",

@@ -47,9 +47,11 @@ resolution) and may change direction there. Group C is housekeeping.
   (`_add_concluded_license` detects only when a licence is already
   declared). With an sdist as `--project-dir` it reads no licence files
   at all, where `loom project <sdist>` now does (plan Q7: left as is).
-- **Merge:** licences are not unified across a fragment merge or
-  `loom merge`; four merge bugs found beside it. Own PR before 0.20.0:
-  [open-items.md](sbom-fragments/open-items.md#found-in-the-pr-276-review-own-pr-before-0200).
+- **Merge:** fixed (licences unify across a merge; the four merge bugs
+  found beside it), see
+  [fragment-merge-unification.md](../implementation/fragment-merge-unification.md);
+  what is left:
+  [open-items.md](sbom-fragments/open-items.md#left-after-the-fragment-merge-fixes).
 - **Fragment `customIdToUri` targets** are checked for the main namespace
   only; a dangling target in an imported fragment's namespace passes.
 - **`_classifier_and` orphan texts:** it resolves term texts before

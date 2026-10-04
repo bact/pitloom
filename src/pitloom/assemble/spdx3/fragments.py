@@ -6,8 +6,10 @@
 """Merging of pre-generated SPDX 3 fragment files into an SBOM document.
 
 See also: :mod:`pitloom.assemble.spdx3._fragments_unify` for internal unification
-logic and :mod:`pitloom.assemble.spdx3._fragments_refs` for the dangling-reference
-check.
+logic (licences: :mod:`~pitloom.assemble.spdx3._fragments_licenses`),
+:mod:`pitloom.assemble.spdx3._fragments_refs` for the dangling-reference check
+and :mod:`pitloom.assemble.spdx3._fragments_envelope` for ``loom merge``'s
+document envelope.
 """
 
 from __future__ import annotations
@@ -46,7 +48,6 @@ from pitloom.assemble.spdx3._fragments_unify import (
     _normalize_value,
     _paths_suffix_match,
     _record_unification,
-    _remap_object_refs,
     _sha256_hash,
     _signature,
     _UnificationEvents,
@@ -96,14 +97,15 @@ __all__ = [
     "_normalize_value",
     "_paths_suffix_match",
     "_raise_on_dangling_references",
+    "_same_document_message",
     "_record_unification",
-    "_remap_object_refs",
     "_sha256_hash",
     "_signature",
     "_canonical_merge_key",
     "_update_profile_conformance",
     "_warn_if_same_name_different_hash",
     "FragmentMergeError",
+    "fragment_files",
     "merge_fragments",
 ]
 
@@ -295,6 +297,17 @@ def _add_model_sbom(main_doc: spdx3.SpdxDocument, exporter: Spdx3JsonExporter) -
     main_doc.rootElement = root_elements
 
 
+def fragment_files(fragments_dir: Path) -> list[str]:
+    """The ``*.json`` files directly in *fragments_dir* (``loom merge``'s
+    input), as names relative to it, sorted by name: the order they merge
+    in, so an earlier name wins a unification."""
+    return sorted(
+        f.relative_to(fragments_dir).as_posix()
+        for f in fragments_dir.glob("*.json")
+        if f.is_file()
+    )
+
+
 def _missing_fragment_message(fragment_path: Path, *, required: bool) -> str:
     """Wording for a configured fragment file that doesn't exist on disk --
     shared by the real merge and ``pitloom fragment list``'s diagnostic
@@ -317,68 +330,98 @@ def _fragment_read_failure_message(
     return f"Failed to read SBOM fragment {fragment_path}: {exc}{suffix}"
 
 
+def _same_document_message(fragment_path: Path, doc_id: str, *, required: bool) -> str:
+    """Wording for a fragment whose ``SpdxDocument`` is the document it would
+    merge into (an earlier SBOM of the same project): skipped, as a missing
+    one is."""
+    suffix = " -- merge will fail." if required else ""
+    return (
+        f"SBOM fragment {fragment_path} is the document being merged into "
+        f"({doc_id}); skipped{suffix}"
+    )
+
+
+def _load_fragment(
+    fragment_path: Path, required: bool, main_doc_id: str | None
+) -> tuple[spdx3.SHACLObjectSet, str | None] | None:
+    """The fragment's objects and its ``SpdxDocument`` id; ``None``, after
+    one ``WARNING:``, when it is missing, unreadable or the document it
+    would merge into."""
+    if _fragment_is_missing(fragment_path):
+        log.warning(_missing_fragment_message(fragment_path, required=required))
+        return None
+    try:
+        with open(fragment_path, "rb") as f:
+            fragment_set = spdx3.SHACLObjectSet()
+            spdx3.JSONLDDeserializer().read(f, fragment_set)
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:
+        log.warning(
+            _fragment_read_failure_message(fragment_path, exc, required=required)
+        )
+        return None
+    frag_doc_id = _find_fragment_document_id(fragment_set)
+    if frag_doc_id is not None and frag_doc_id == main_doc_id:
+        log.warning(
+            _same_document_message(fragment_path, frag_doc_id, required=required)
+        )
+        return None
+    return fragment_set, frag_doc_id
+
+
 def merge_fragments(
     project_dir: Path,
     fragments: list[FragmentConfig],
     exporter: Spdx3JsonExporter,
-) -> None:
+) -> list[str]:
     """Load SPDX 3 JSON-LD fragment files and merge them into the exporter.
 
+    Returns the ids the fragments' own ``SpdxDocument``/``Sbom`` envelopes
+    root, after unification, in fragment order: ``loom merge`` roots its
+    document at them; a project keeps its own roots.
+
+    A fragment whose ``SpdxDocument`` id is the exporter's own document
+    (an earlier SBOM of the same project) is skipped with a ``WARNING:``,
+    as a missing one is.
+
     Raises :class:`FragmentMergeError` if any ``required=True`` fragment
-    (see :class:`~pitloom.core.config.FragmentConfig`) is missing or
-    couldn't be read, or if the merge leaves the graph referentially
-    broken (see :func:`_raise_on_dangling_references`) -- the latter is
-    skipped when *fragments* is empty or none of it could be ingested,
-    since there is then nothing new whose references could be dangling.
+    (see :class:`~pitloom.core.config.FragmentConfig`) is missing, couldn't
+    be read or is the document itself, or if the merge leaves the graph
+    referentially broken (see :func:`_raise_on_dangling_references`) -- the
+    latter is skipped when *fragments* is empty or none of it could be
+    ingested, since there is then nothing new whose references could be
+    dangling.
     """
     configure_logging()
     index = _MergeIndex(exporter)
     events: _UnificationEvents = {}
     fragment_imports: list[spdx3.ExternalMap] = []
-    seen_import_ids: set[str] = set()
     merged_any = False
     unmet_required: list[str] = []
+    roots: list[str] = []
+    main_doc = _find_main_document(exporter.object_set)
+    main_doc_id = str(main_doc.spdxId) if main_doc and main_doc.spdxId else None
 
     for frag in fragments:
         fragment_path = Path(frag.base_dir or project_dir) / frag.path
-        if _fragment_is_missing(fragment_path):
-            log.warning(
-                _missing_fragment_message(fragment_path, required=frag.required)
-            )
+        loaded = _load_fragment(fragment_path, frag.required, main_doc_id)
+        if loaded is None:
             if frag.required:
                 unmet_required.append(frag.path)
             continue
-        try:
-            with open(fragment_path, "rb") as f:
-                fragment_set = spdx3.SHACLObjectSet()
-                spdx3.JSONLDDeserializer().read(f, fragment_set)
-        # pylint: disable-next=broad-exception-caught
-        except Exception as exc:
-            log.warning(
-                _fragment_read_failure_message(
-                    fragment_path, exc, required=frag.required
-                )
-            )
-            if frag.required:
-                unmet_required.append(frag.path)
-            continue
-
-        frag_doc_id = _find_fragment_document_id(fragment_set)
-        if frag_doc_id and frag_doc_id not in seen_import_ids:
-            seen_import_ids.add(frag_doc_id)
+        fragment_set, frag_doc_id = loaded
+        if frag_doc_id and frag_doc_id not in {
+            m.externalSpdxId for m in fragment_imports
+        }:
             fragment_imports.append(
-                spdx3.ExternalMap(
-                    externalSpdxId=frag_doc_id,
-                    locationHint=frag.path,
-                )
+                spdx3.ExternalMap(externalSpdxId=frag_doc_id, locationHint=frag.path)
             )
-
-        _merge_fragment_set(fragment_set, index, frag.path, events)
+        new_roots = _merge_fragment_set(fragment_set, index, frag.path, events)
+        roots.extend(r for r in new_roots if r not in roots)
         merged_any = True
 
     _dedupe_relationships(exporter)
 
-    main_doc = _find_main_document(exporter.object_set)
     if main_doc is not None:
         _update_profile_conformance(main_doc, exporter)
         _add_fragment_imports(main_doc, fragment_imports)
@@ -404,3 +447,4 @@ def merge_fragments(
 
     if merged_any:
         _raise_on_dangling_references(exporter)
+    return roots
