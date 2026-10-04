@@ -28,6 +28,7 @@ from pitloom.assemble.spdx3.document import build_deployed
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectMetadata
+from tests._license_graph import license_elements
 
 
 def _relationships(graph: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -146,7 +147,7 @@ def test_build_deployed_package_without_key_is_skipped_in_relationship_passes() 
 def test_build_deployed_adds_simple_licensing_profile_when_license_found() -> None:
     """When a dependency's locally-installed metadata resolves a real
     license (offline path via importlib.metadata, not the network), a
-    simplelicensing_SimpleLicensingText element is created and the
+    licence element is created and the
     document's profileConformance gains the simpleLicensing profile
     (lines 232-238). "pytest" is used as the dependency name because it
     is installed in this test environment with a known License-Expression
@@ -166,10 +167,7 @@ def test_build_deployed_adds_simple_licensing_profile_when_license_found() -> No
     exporter = build_deployed(doc, env_tree, offline=True)
     graph = json.loads(exporter.to_json())["@graph"]
 
-    licenses = [
-        e for e in graph if e.get("type") == "simplelicensing_SimpleLicensingText"
-    ]
-    assert licenses, "expected a SimpleLicensingText element from pytest's metadata"
+    assert license_elements(graph), "expected a licence element from pytest's metadata"
 
     spdx_doc = next(e for e in graph if e.get("type") == "SpdxDocument")
     assert "simpleLicensing" in spdx_doc["profileConformance"]
@@ -177,7 +175,7 @@ def test_build_deployed_adds_simple_licensing_profile_when_license_found() -> No
 
 def test_build_deployed_no_simple_licensing_profile_for_empty_environment() -> None:
     """Baseline: with no installed packages at all, no
-    simplelicensing_SimpleLicensingText element is ever created (not even
+    licence element is ever created (not even
     a NOASSERTION one, since that path only runs per-dependency), so the
     simpleLicensing profile must not be added -- the false side of the
     line 232-238 branch."""
@@ -187,10 +185,7 @@ def test_build_deployed_no_simple_licensing_profile_for_empty_environment() -> N
     exporter = build_deployed(doc, [], offline=True)
     graph = json.loads(exporter.to_json())["@graph"]
 
-    licenses = [
-        e for e in graph if e.get("type") == "simplelicensing_SimpleLicensingText"
-    ]
-    assert not licenses
+    assert not license_elements(graph)
 
     spdx_doc = next(e for e in graph if e.get("type") == "SpdxDocument")
     assert "simpleLicensing" not in spdx_doc["profileConformance"]

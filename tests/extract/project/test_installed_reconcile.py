@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract._license import classify_license
 from pitloom.extract.project._installed_reconcile import reconcile_installed_metadata
 
 
@@ -229,13 +230,58 @@ def test_reconcile_version_gap_fill_from_installed_declared_empty_is_none(
     assert merged.field_conflicts == {}
 
 
+@pytest.mark.parametrize(
+    ("static_value", "installed_value", "conflict"),
+    [
+        ("mit", "MIT", False),
+        ("GPL-2.0+", "GPL-2.0-or-later", False),
+        ("mit and apache-2.0", "Apache-2.0 AND MIT", False),
+        ("MIT", "Apache-2.0", True),
+        ("MIT", "NOASSERTION", True),
+    ],
+)
+def test_reconcile_license_comparison_is_by_classified_value(
+    tmp_path: Path, static_value: str, installed_value: str, conflict: bool
+) -> None:
+    static = _static(license_name=static_value)
+    static.provenance["license"] = "Source: pyproject.toml"
+    installed = ProjectMetadata(
+        name="pkg", version="1.0.0", license_name=installed_value
+    )
+    installed.provenance["version"] = "Source: pkg.egg-info"
+    installed.provenance["license"] = "Source: pkg.egg-info"
+
+    merged = reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+
+    assert ("license" in merged.field_conflicts) is conflict
+
+
+def test_reconcile_license_comparison_does_not_warn_about_the_value(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A comparison is not a record of the value: no "not an expression"
+    ``WARNING:`` for text that only looks like a broken expression."""
+    broken = "MIT with reconcile-compare-only"
+    static = _static(license_name=broken)
+    static.provenance["license"] = "Source: pyproject.toml"
+    installed = ProjectMetadata(name="pkg", version="1.0.0", license_name="MIT")
+    installed.provenance["version"] = "Source: pkg.egg-info"
+    installed.provenance["license"] = "Source: pkg.egg-info"
+    with caplog.at_level(logging.WARNING):
+        reconcile_installed_metadata(static, installed, "pkg.egg-info", tmp_path)
+        assert "not a valid SPDX license expression" not in caplog.text
+        # Not vacuous: the value does warn when it is recorded.
+        classify_license(broken)
+        assert "not a valid SPDX license expression" in caplog.text
+
+
 def test_reconcile_license_name_declared_empty_vs_installed_conflict(
     tmp_path: Path,
 ) -> None:
     """Regression: `license = ""` with no LICENSE file found (detection
     finds nothing) collapses to `license_name=None`, but provenance still
     records it as declared. Must not crash
-    (normalize_license_expression(None) raises AttributeError) and must
+    (a comparator given None raises) and must
     be treated as a real disagreement, static's None still winning."""
     static = _static(license_name=None)
     static.provenance["license"] = "Source: pyproject.toml"

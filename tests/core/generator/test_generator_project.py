@@ -34,6 +34,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
+from tests._license_graph import license_values
 from tests.assemble.conftest import _FakeMetadata
 
 
@@ -391,11 +392,7 @@ def test_build_concluded_license_without_declared_license() -> None:
         r for r in rels if r.get("relationshipType") == "hasConcludedLicense"
     ]
     assert len(concluded_rels) == 1
-    licenses = {
-        e["spdxId"]: e.get("simplelicensing_licenseText")
-        for e in graph
-        if e.get("type") == "simplelicensing_SimpleLicensingText"
-    }
+    licenses = license_values(graph)
     assert licenses[concluded_rels[0]["to"][0]] == "MIT"
 
     declared_rels = [
@@ -436,11 +433,7 @@ def test_build_transparent_concluded_license_classified_as_declared() -> None:
         r for r in rels if r.get("relationshipType") == "hasDeclaredLicense"
     ]
     assert len(declared_rels) == 1
-    licenses = {
-        e["spdxId"]: e.get("simplelicensing_licenseText")
-        for e in graph
-        if e.get("type") == "simplelicensing_SimpleLicensingText"
-    }
+    licenses = license_values(graph)
     # Must be the real MIT license, not a NOASSERTION filler -- reverting
     # attach_main_package_license()'s use of the declared relationship
     # build_license_elements() actually returns here would make this

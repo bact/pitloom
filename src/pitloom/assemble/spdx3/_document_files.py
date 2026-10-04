@@ -210,19 +210,19 @@ def _emit_file_license_relationship(
         return
     license_provenance = f"Source: {file_path} | Field: SPDX-License-Identifier"
 
-    exporter.add_relationship(
-        build_file_declared_license(
-            license_id,
-            require_spdx_id(package_entry),
-            license_provenance,
-            spdx_ci,
-            doc_name,
-            doc_uuid,
-            exporter,
-            provenance_config=provenance_config,
-            encoder=encoder,
-        )
+    relationship = build_file_declared_license(
+        license_id,
+        require_spdx_id(package_entry),
+        license_provenance,
+        spdx_ci,
+        doc_name,
+        doc_uuid,
+        exporter,
+        provenance_config=provenance_config,
+        encoder=encoder,
     )
+    if relationship:
+        exporter.add_relationship(relationship)
 
 
 @dataclass(frozen=True)

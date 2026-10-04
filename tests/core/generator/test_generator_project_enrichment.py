@@ -24,6 +24,7 @@ from unittest.mock import patch
 
 from pitloom.assemble import generate_project_sbom
 from pitloom.core.creation import CreationMetadata
+from tests._license_graph import license_elements, license_value
 
 from ..conftest import _AI_MODEL_ROOT, _license_relationships
 
@@ -168,15 +169,11 @@ license = "MIT"
         assert len(declared) == 1
         assert len(concluded) == 1
 
-        license_elems = {
-            e["spdxId"]: e
-            for e in graph
-            if e.get("type") == "simplelicensing_SimpleLicensingText"
-        }
+        license_elems = {e["spdxId"]: e for e in license_elements(graph)}
         declared_license = license_elems[declared[0]["to"][0]]
         concluded_license = license_elems[concluded[0]["to"][0]]
-        assert declared_license["simplelicensing_licenseText"] == "MIT"
-        assert concluded_license["simplelicensing_licenseText"] == "Apache-2.0"
+        assert license_value(declared_license) == "MIT"
+        assert license_value(concluded_license) == "Apache-2.0"
         assert declared_license["spdxId"] != concluded_license["spdxId"]
 
         annotations = [e for e in graph if e.get("type") == "Annotation"]
@@ -308,11 +305,9 @@ license = "mit"
         assert len(concluded) == 1
         assert declared[0]["to"][0] == concluded[0]["to"][0]
 
-        license_elems = [
-            e for e in graph if e.get("type") == "simplelicensing_SimpleLicensingText"
-        ]
+        license_elems = license_elements(graph)
         assert len(license_elems) == 1
-        assert license_elems[0]["simplelicensing_licenseText"] == "MIT"
+        assert license_value(license_elems[0]) == "MIT"
 
         annotations = [e for e in graph if e.get("type") == "Annotation"]
         conflict_anns = [

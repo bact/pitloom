@@ -34,7 +34,11 @@ VALID_PROVENANCE_FORMATS: frozenset[str] = frozenset({"annotation", "comment", "
 
 def _is_high_signal(entry: dict[str, str]) -> bool:
     """Return whether a parsed field-provenance entry carries high signal."""
-    if entry.get("method"):
+    if (
+        entry.get("method")
+        or entry.get("normalized-from")
+        or entry.get("deprecated-license-id")
+    ):
         return True
     source = entry.get("source", "").strip().lower()
     if " (" in source:

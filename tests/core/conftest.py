@@ -40,6 +40,7 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
+from tests._license_graph import license_value
 
 _FRAGMENTS_DIR = Path(__file__).parent.parent / "fixtures" / "fragments"
 
@@ -287,6 +288,19 @@ _AI_LICENSE_CASES: list[tuple[str, str, str]] = [
 ]
 
 
+#: Literal expectations: lower-case id -> its SPDX spelling (an expression);
+#: any other id (``llama3``, ``openrail++``) stays text as written.
+_SPDX_CASE: dict[str, str] = {
+    "apache-2.0": "Apache-2.0",
+    "mit": "MIT",
+    "bsd-3-clause": "BSD-3-Clause",
+    "cc-by-4.0": "CC-BY-4.0",
+    "cc-by-nc-4.0": "CC-BY-NC-4.0",
+    "cc-by-sa-4.0": "CC-BY-SA-4.0",
+    "cc0-1.0": "CC0-1.0",
+}
+
+
 def _check_license_relationships(
     graph: list[dict[str, Any]], ai_pkg_id: str, license_id: str
 ) -> None:
@@ -313,11 +327,20 @@ def _check_license_relationships(
     license_elems = [
         e
         for e in graph
-        if e.get("type") == "simplelicensing_SimpleLicensingText"
+        if e.get("type")
+        in ("simplelicensing_LicenseExpression", "simplelicensing_SimpleLicensingText")
         and e.get("spdxId") == license_spdx_id
     ]
     assert len(license_elems) == 1
-    assert license_elems[0]["simplelicensing_licenseText"] == license_id
+    # A valid id is recorded in its SPDX case ("mit" -> "MIT") as an
+    # expression; anything else stays text as written.
+    spdx_case = _SPDX_CASE.get(license_id.lower())
+    assert license_elems[0]["type"] == (
+        "simplelicensing_LicenseExpression"
+        if spdx_case
+        else "simplelicensing_SimpleLicensingText"
+    )
+    assert license_value(license_elems[0]) == (spdx_case or license_id)
     spdx_docs = [e for e in graph if e.get("type") == "SpdxDocument"]
     assert "simpleLicensing" in spdx_docs[0]["profileConformance"]
 

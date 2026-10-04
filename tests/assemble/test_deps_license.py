@@ -21,9 +21,12 @@ from __future__ import annotations
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._license_elements import (
+    LicenseElement,
+    get_or_create_license_element,
+)
 from pitloom.assemble.spdx3.deps_license import (
     _build_license_relationship,
-    _get_or_create_license_element,
     _is_license_concluded,
     build_license_elements,
 )
@@ -40,11 +43,12 @@ def test_get_or_create_license_element_truncates_long_name() -> None:
     ci = _make_ci()
     long_id = "X" * 80
 
-    spdx_id = _get_or_create_license_element(
+    element = get_or_create_license_element(
         long_id, "Source: test", ci, "longlicense", doc_uuid, exporter
     )
 
-    license_text = exporter.object_set.obj_by_id[spdx_id]
+    assert element is not None
+    license_text = exporter.object_set.obj_by_id[element.spdx_id]
     assert isinstance(license_text, spdx3.simplelicensing_SimpleLicensingText)
     assert license_text.name == "X" * 57 + "..."
     assert len(license_text.name) == 60
@@ -60,11 +64,12 @@ def test_get_or_create_license_element_truncates_at_first_newline() -> None:
     ci = _make_ci()
     multiline_id = "Custom License\nAll rights reserved.\nSee LICENSE for details."
 
-    spdx_id = _get_or_create_license_element(
+    element = get_or_create_license_element(
         multiline_id, "Source: test", ci, "multilinelicense", doc_uuid, exporter
     )
 
-    license_text = exporter.object_set.obj_by_id[spdx_id]
+    assert element is not None
+    license_text = exporter.object_set.obj_by_id[element.spdx_id]
     assert isinstance(license_text, spdx3.simplelicensing_SimpleLicensingText)
     assert license_text.name == "Custom License"
     assert license_text.simplelicensing_licenseText == multiline_id
@@ -164,9 +169,46 @@ def test_build_license_relationship_raises_when_relationship_build_fails() -> No
     with pytest.raises(ValueError, match="Failed to build relationship"):
         _build_license_relationship(
             None,  # type: ignore[arg-type]
-            "http://spdx.org/spdxdocs/license-1",
+            LicenseElement(
+                "http://spdx.org/spdxdocs/license-1", "MIT", "", True, False
+            ),
             spdx3.RelationshipType.hasDeclaredLicense,
             ci,
             "doc",
             "uuid",
+            Spdx3JsonExporter(),
         )
+
+
+@pytest.mark.parametrize(
+    ("declared", "concluded", "expected"),
+    [
+        ("UNKNOWN", "MIT", (False, True)),
+        ("MIT", "UNKNOWN", (True, False)),
+        ("UNKNOWN", "UNKNOWN", (False, False)),
+    ],
+)
+def test_build_license_elements_two_candidates_one_states_no_licence(
+    declared: str, concluded: str, expected: tuple[bool, bool]
+) -> None:
+    """A candidate that states no licence yields no relationship and no
+    conflict annotation; the other one is unaffected."""
+    doc_uuid = compute_doc_uuid("one-unknown", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    exporter = Spdx3JsonExporter()
+
+    rels = build_license_elements(
+        license_id=declared,
+        package_spdx_id="https://example.com/Package-1",
+        license_provenance="Source: pyproject.toml | Field: project.license",
+        creation_info=_make_ci(),
+        doc_name="one-unknown",
+        doc_uuid=doc_uuid,
+        exporter=exporter,
+        concluded_license_id=concluded,
+    )
+
+    assert tuple(r is not None for r in rels) == expected
+    assert not [
+        o for o in exporter.object_set.objects if isinstance(o, spdx3.Annotation)
+    ]

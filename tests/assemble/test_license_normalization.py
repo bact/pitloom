@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Integration tests against the real licenseid database, plus tests for
-G2 license canonicalization (``detect_independent_license``,
-``normalize_license_expression``) and its provenance tagging.
+G2 license detection (``detect_independent_license``) and its provenance
+tagging; expression normalisation is in ``tests/extract/test_license_classify.py``.
 
 See also: test_license_detection.py -- this module's sibling, split from
 the original test_license.py.
@@ -20,11 +20,10 @@ import pytest
 from pitloom.extract._license import (
     _PY_SPDX_LICENSE_VERSION,
     _looks_like_spdx_license_id,
-    canonicalize_license_id,
     detect_independent_license,
     detect_license_for_project,
     detect_license_from_text,
-    normalize_license_expression,
+    tag_deprecated_license_ids,
     tag_license_normalization,
 )
 
@@ -165,158 +164,46 @@ def test_detect_license_for_project_delegates_directory_scan() -> None:
 
 
 # ---------------------------------------------------------------------------
-# normalize_license_expression (G2 canonicalization; independent of the
-# conflict-resolution machinery in deps.py -- these test the pure function).
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "raw,expected",
-    [
-        ("mit", "MIT"),
-        ("MIT", "MIT"),
-        ("bsd-3-clause", "BSD-3-Clause"),
-        ("BSD-3-Clause", "BSD-3-Clause"),
-        # Recognized even though it contains what looks like an operator
-        # substring ("-OR-") -- it's a single, database-known license id,
-        # not a compound expression, so it canonicalizes as a whole token
-        # to the database's own casing (distinct from the *unrecognized*
-        # hyphenated-identifier cases below, which must stay untouched).
-        ("GPL-2.0-OR-LATER", "GPL-2.0-or-later"),
-        ("gpl-2.0-or-later", "GPL-2.0-or-later"),
-    ],
-)
-def test_normalize_license_expression_bare_id_casing(raw: str, expected: str) -> None:
-    """A bare id is canonicalized to its recognized SPDX casing, same as
-    canonicalize_license_id -- normalize_license_expression must not regress
-    this for the simple, non-compound case."""
-    assert normalize_license_expression(raw) == expected
-
-
-@pytest.mark.parametrize(
-    "raw",
-    ["MIT AND MIT", "(MIT AND MIT)", "MIT and MIT", "(mit and mit)", "mit AND mit"],
-)
-def test_normalize_license_expression_dedups_conjunction(raw: str) -> None:
-    """A license AND'd with itself -- however cased, parenthesized, or
-    spelled -- normalizes to the single license, not a compound string."""
-    assert normalize_license_expression(raw) == "MIT"
-
-
-def test_normalize_license_expression_canonical_ordering_is_order_independent() -> None:
-    """A OR B and B OR A are the same license choice -- both orderings must
-    normalize to one identical string, so a G2 comparison between them
-    (candidates entered in different orders from different sources) doesn't
-    misreport a conflict."""
-    a = normalize_license_expression("MIT OR Apache-2.0")
-    b = normalize_license_expression("Apache-2.0 OR MIT")
-    assert a == b
-
-
-@pytest.mark.parametrize(
-    "raw",
-    [
-        "GPL-2.0-or-later",  # recognized id, but already canonical -- no-op
-        "LicenseRef-my-or-license",  # unrecognized -- must pass through verbatim
-        "LicenseRef-and-tool",
-        "LicenseRef-with-exception-name",
-    ],
-)
-def test_normalize_license_expression_never_mangles_hyphenated_identifiers(
-    raw: str,
-) -> None:
-    """The operator-casing preprocessing must never touch and/or/with/not
-    when it's hyphen-glued into an identifier rather than standing alone as
-    its own token -- regression test for the bug caught during design
-    (a naive \\b-word-boundary regex corrupted these into e.g. "-OR-")."""
-    assert normalize_license_expression(raw) == raw
-
-
-def test_normalize_license_expression_unrecognized_value_passes_through() -> None:
-    """A non-SPDX / vendor-specific string that isn't a parseable expression
-    at all is returned unchanged, not mangled or rejected."""
-    assert normalize_license_expression("gemma") == "gemma"
-
-
-def test_normalize_license_expression_malformed_syntax_falls_back_gracefully() -> None:
-    """Genuinely malformed SPDX expression syntax (unbalanced parens) must not
-    raise -- falls back to canonicalize_license_id's own (also
-    graceful-on-failure) behavior rather than propagating a ParseError."""
-    malformed = "((unbalanced"
-    assert normalize_license_expression(malformed) == canonicalize_license_id(malformed)
-
-
-@pytest.mark.parametrize("malformed", [")", ")(", "A)", ")A", "))"])
-def test_normalize_license_expression_unbalanced_close_paren_falls_back(
-    malformed: str,
-) -> None:
-    """A ")" with no matching "(" before it must not raise, even though
-    py-spdx-license itself raises IndexError (not its own ParseError) for
-    this specific shape -- found by fuzzing (fuzz/fuzz_license_expression.py)
-    within seconds of random input. This function's contract is "never
-    raises for any string," so any parser failure, documented or not,
-    takes the same graceful fallback as the "((unbalanced" case above."""
-    assert normalize_license_expression(malformed) == canonicalize_license_id(malformed)
-
-
-def test_normalize_license_expression_idempotent() -> None:
-    """Normalizing an already-normalized expression returns it unchanged --
-    required for the G2 comparison to be stable (declared side and detected
-    side may each independently call this)."""
-    once = normalize_license_expression("MIT OR Apache-2.0")
-    twice = normalize_license_expression(once)
-    assert once == twice
-
-
-@pytest.mark.parametrize(
-    "without_parens,with_parens",
-    [
-        # Real-world regression source: github.com/aquasecurity/trivy/
-        # discussions/10139 -- Trivy reports the same license expression
-        # with and without a redundant outer paren across scans of the
-        # same package, breaking policy rules that compare against one
-        # fixed string. These are that report's own four example pairs.
-        (
-            "GPL-3.0-or-later WITH GCC-exception-3.1",
-            "(GPL-3.0-or-later WITH GCC-exception-3.1)",
-        ),
-        ("MIT AND GPL-3.0-only", "(MIT AND GPL-3.0-only)"),
-        ("MPL-2.0 AND MIT", "(MPL-2.0 AND MIT)"),
-        ("BSD-3-Clause AND IJG AND Zlib", "(BSD-3-Clause AND IJG AND Zlib)"),
-    ],
-)
-def test_normalize_license_expression_strips_redundant_outer_parens(
-    without_parens: str, with_parens: str
-) -> None:
-    """A paren that doesn't change meaning (wraps an already-unambiguous
-    expression) must normalize identically whether present or not."""
-    assert normalize_license_expression(without_parens) == normalize_license_expression(
-        with_parens
-    )
-
-
-def test_normalize_license_expression_keeps_precedence_significant_parens() -> None:
-    """Unlike the redundant-paren case above, a paren that changes the
-    parse (overrides AND-binds-tighter-than-OR default precedence) is
-    semantically load-bearing and must NOT be normalized away -- otherwise
-    two genuinely different licenses would collapse into one string."""
-    no_parens = normalize_license_expression("MIT AND Apache-2.0 OR BSD-3-Clause")
-    redundant_parens = normalize_license_expression(
-        "(MIT AND Apache-2.0) OR BSD-3-Clause"
-    )
-    significant_parens = normalize_license_expression(
-        "MIT AND (Apache-2.0 OR BSD-3-Clause)"
-    )
-    # Explicit parens matching the default precedence change nothing.
-    assert no_parens == redundant_parens
-    # Parens overriding default precedence are a different expression --
-    # must not collapse to the same normalized string as the other two.
-    assert significant_parens != no_parens
-
-
-# ---------------------------------------------------------------------------
 # tag_license_normalization
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("expression", "note"),
+    [
+        ("GPL-2.0", "GPL-2.0 (GPL-2.0-only or GPL-2.0-or-later)"),
+        (
+            "GPL-2.0 AND LGPL-2.1 AND GPL-2.0",
+            "GPL-2.0 (GPL-2.0-only or GPL-2.0-or-later); "
+            "LGPL-2.1 (LGPL-2.1-only or LGPL-2.1-or-later)",
+        ),
+        (
+            "GPL-2.0 WITH Classpath-exception-2.0",
+            "GPL-2.0 (GPL-2.0-only or GPL-2.0-or-later)",
+        ),
+    ],
+)
+def test_tag_deprecated_license_ids_notes_each_ambiguous_id_once(
+    expression: str, note: str
+) -> None:
+    prov = "Source: pyproject.toml | Field: project.license"
+    assert tag_deprecated_license_ids(prov, expression) == (
+        f"{prov} | Deprecated-License-Id: {note}"
+    )
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        "MIT",  # not deprecated
+        "GPL-2.0-only",  # current
+        "GPL-2.0-or-later AND MIT",
+        "eCos-2.0",  # deprecated, but no -only/-or-later pair to choose from
+        "LicenseRef-x",
+    ],
+)
+def test_tag_deprecated_license_ids_leaves_the_rest_alone(expression: str) -> None:
+    assert tag_deprecated_license_ids("Source: x", expression) == "Source: x"
 
 
 def test_tag_license_normalization_noop_when_unchanged() -> None:

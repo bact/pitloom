@@ -17,7 +17,7 @@ Two targets, chosen for being the highest-value untrusted-input surfaces
 with the lowest harness complexity (pure string-in or single-file-in, no
 network, no multi-step state):
 
-- `fuzz_license_expression.py` -- `pitloom.extract._license.normalize_license_expression`.
+- `fuzz_license_expression.py` -- `pitloom.extract._license.classify_license`.
   By its own contract this never raises for any string input, so the
   harness has no expected-exception allowlist at all: any exception is a bug.
 - `fuzz_gguf_header.py` -- `pitloom.extract.ai_model.gguf.read_gguf`, parsing a

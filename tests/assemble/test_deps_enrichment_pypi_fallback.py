@@ -162,9 +162,9 @@ def test_add_dependencies_pypi_fallback_fills_gaps_and_hash(
     licenses = [
         o
         for o in exporter.object_set.objects
-        if isinstance(o, spdx3.simplelicensing_SimpleLicensingText)
+        if isinstance(o, spdx3.simplelicensing_LicenseExpression)
     ]
-    assert any(lic.simplelicensing_licenseText == "MIT" for lic in licenses)
+    assert any(lic.simplelicensing_licenseExpression == "MIT" for lic in licenses)
 
 
 def test_add_dependencies_noassertion_when_nothing_found(

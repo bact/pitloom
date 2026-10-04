@@ -56,8 +56,18 @@ _CASES = [
     ),
     ("LicenseRef-foo", "expression", "LicenseRef-foo", False),
     # grammar gaps: kept as written, operators upper-cased
-    ("GPL-2.0+", "expression", "GPL-2.0+", False),
-    ("gpl-2.0+ or mit", "expression", "gpl-2.0+ OR mit", False),
+    ("Apache-2.0+", "expression", "Apache-2.0+", False),
+    ("apache-2.0+", "expression", "Apache-2.0+", False),
+    # a deprecated id with a listed successor is replaced by it
+    ("GPL-2.0+", "expression", "GPL-2.0-or-later", False),
+    ("lgpl-2.1+", "expression", "LGPL-2.1-or-later", False),
+    ("gpl-2.0+ or mit", "expression", "GPL-2.0-or-later OR MIT", False),
+    (
+        "GPL-2.0+ WITH Classpath-exception-2.0",
+        "expression",
+        "GPL-2.0-or-later WITH Classpath-exception-2.0",
+        False,
+    ),
     (
         "Apache-2.0 WITH AdditionRef-x",
         "expression",
@@ -69,6 +79,10 @@ _CASES = [
     ("LicenseRef-foo+", "text", "LicenseRef-foo+", False),
     ("DocumentRef-x:LicenseRef-y+", "text", "DocumentRef-x:LicenseRef-y+", False),
     ("MIT WITH AdditionRef-x+", "text", "MIT WITH AdditionRef-x+", True),
+    ("GPL-2.0++", "text", "GPL-2.0++", False),
+    ("LGPL-2.1++", "text", "LGPL-2.1++", False),
+    ("GPL-2.0-only+", "text", "GPL-2.0-only+", False),
+    ("GPL-2.0-or-later+", "text", "GPL-2.0-or-later+", False),
     ("licenseref-foo", "text", "licenseref-foo", False),
     # looks like an expression, is not: text and one WARNING
     ("GPL-2.0+ OR Foo", "text", "GPL-2.0+ OR Foo", True),
@@ -87,11 +101,12 @@ _CASES = [
     ),
     # text, silent
     ("Apache2", "text", "Apache2", False),
+    (" Foo ", "text", "Foo", False),
     ("MIT License", "text", "MIT License", False),
     ("Foo AND Bar", "text", "Foo AND Bar", False),
     ("Classpath-exception-2.0", "text", "Classpath-exception-2.0", False),
     ("MIT\nApache-2.0", "text", "MIT\nApache-2.0", False),
-    (_LONG_BODY, "text", _LONG_BODY, False),
+    (_LONG_BODY, "text", _LONG_BODY.strip(), False),
     # the length boundary: 200 parses, 201 does not
     (_padded(200), "expression", "MIT", False),
     (_padded(201), "text", _padded(201), False),
@@ -155,3 +170,85 @@ def test_a_parser_crash_makes_the_value_text(
 
     monkeypatch.setattr(_license, "parse_spdx_expression", crash)
     assert classify_license("MIT") == ClassifiedLicense("text", "MIT", "MIT")
+
+
+def _value(raw: str) -> str | None:
+    got = classify_license(raw)
+    return got.value if got else None
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("bsd-3-clause", "BSD-3-Clause"),
+        ("GPL-2.0-OR-LATER", "GPL-2.0-or-later"),
+        ("MIT AND MIT", "MIT"),
+        ("(mit and mit)", "MIT"),
+        ("(MIT)", "MIT"),
+        # operator words glued into an id are not operators
+        ("LicenseRef-my-or-license", "LicenseRef-my-or-license"),
+        ("LicenseRef-and-tool", "LicenseRef-and-tool"),
+    ],
+)
+def test_expression_values_are_canonical(raw: str, expected: str) -> None:
+    assert _value(raw) == expected
+
+
+def test_equivalent_expressions_share_one_value() -> None:
+    assert _value("MIT OR Apache-2.0") == _value("Apache-2.0 OR MIT")
+    assert _value("GPL-2.0+") == _value("GPL-2.0-or-later") == _value("gpl-2.0+")
+    assert _value("lgpl-2.1+") == _value("LGPL-2.1+")
+    # Redundant parentheses change nothing; a precedence-changing one does.
+    plain = _value("MIT AND Apache-2.0 OR BSD-3-Clause")
+    assert plain == _value("(MIT AND Apache-2.0) OR BSD-3-Clause")
+    assert plain != _value("MIT AND (Apache-2.0 OR BSD-3-Clause)")
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "MIT OR Apache-2.0",
+        "mit and apache-2.0",
+        "GPL-2.0+",
+        "Apache-2.0+ WITH AdditionRef-x",
+    ],
+)
+def test_classifying_a_recorded_expression_changes_nothing(raw: str) -> None:
+    once = _value(raw)
+    assert once is not None
+    assert _value(once) == once
+
+
+@pytest.mark.parametrize("raw", [")", ")(", "A)", ")A", "))", "((unbalanced"])
+def test_malformed_input_never_raises(raw: str) -> None:
+    """The parser raises ``IndexError`` for some shapes of unbalanced ``)``
+    (found by ``fuzz/fuzz_license_expression.py``); the value is text."""
+    got = classify_license(raw)
+    assert got is not None
+    assert got.kind == "text"
+
+
+@pytest.mark.parametrize(
+    ("listed", "expected"),
+    [
+        ({"Foo+": True, "Foo-or-later": False}, "Foo-or-later"),
+        ({"Foo+": True}, None),  # no successor on the list
+        ({"Foo+": True, "Foo-or-later": True}, None),  # successor deprecated too
+        ({"Foo+": False, "Foo-or-later": False}, None),  # not deprecated
+    ],
+)
+def test_successor_id_needs_a_listed_current_id(
+    monkeypatch: pytest.MonkeyPatch, listed: dict[str, bool], expected: str | None
+) -> None:
+    """The successor comes from the licence list, never from a spelling rule."""
+    monkeypatch.setattr(
+        _license,
+        "get_spdx_license",
+        lambda i: (
+            {"licenseId": i, "isDeprecatedLicenseId": listed[i]}
+            if i in listed
+            else None
+        ),
+    )
+    # pylint: disable-next=protected-access
+    assert _license._successor_id("Foo+") == expected
