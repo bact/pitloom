@@ -247,6 +247,9 @@ and this project adheres to
   with one `WARNING:`; `project` wrote `x.spdx3.json.spdx3.json` ([#273])
 - An sdist's licence is read from `PKG-INFO` `License-Expression`, else
   `License`, as for a wheel; an empty one counts as absent ([#276])
+- A fragment `Relationship`/`Annotation` pointing at `NoAssertionElement`,
+  `NoneElement`, `SpdxOrganization` or a licence individual no longer fails the
+  merge as dangling ([#276])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227

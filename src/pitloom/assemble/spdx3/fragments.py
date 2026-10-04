@@ -5,7 +5,9 @@
 
 """Merging of pre-generated SPDX 3 fragment files into an SBOM document.
 
-See also: :mod:`pitloom.assemble.spdx3._fragments_unify` for internal unification logic.
+See also: :mod:`pitloom.assemble.spdx3._fragments_unify` for internal unification
+logic and :mod:`pitloom.assemble.spdx3._fragments_refs` for the dangling-reference
+check.
 """
 
 from __future__ import annotations
@@ -16,6 +18,14 @@ from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._fragments_refs import (
+    _dangling_refs_for_object,
+    _declared_external_ids,
+    _endpoint_id,
+    _find_dangling_references,
+    _find_main_document,
+    _is_dangling,
+)
 from pitloom.assemble.spdx3._fragments_unify import (
     _ENVELOPE_TYPES,
     _HASHABLE_TYPES,
@@ -119,13 +129,6 @@ def _fragment_is_missing(fragment_path: Path) -> bool:
     return False
 
 
-def _endpoint_id(value: str | spdx3.Element | None) -> str | None:
-    """Return a ``Relationship`` endpoint's id."""
-    if value is None or isinstance(value, str):
-        return value
-    return str(value.spdxId) if value.spdxId else None
-
-
 def _dedupe_relationships(exporter: Spdx3JsonExporter) -> None:
     """Drop duplicate ``Relationship`` elements."""
     seen: set[tuple[Any, Any, frozenset[Any]]] = set()
@@ -144,78 +147,6 @@ def _dedupe_relationships(exporter: Spdx3JsonExporter) -> None:
 
     for dup in duplicates:
         exporter.object_set.objects.remove(dup)
-
-
-def _find_dangling_references(
-    exporter: Spdx3JsonExporter,
-) -> list[tuple[str, str, str]]:
-    """Return ``(referencing element id, property name, missing target id)``
-    for every ``Relationship``/``Annotation`` endpoint that doesn't resolve
-    to an object actually present in *exporter*'s merged graph, and isn't
-    a legitimate external reference either (an id declared via the main
-    document's own ``import_`` -- see :func:`_add_fragment_imports`).
-
-    Catches, among other causes, a fragment merged against a stale base
-    SBOM -- e.g. one generated before a Pitloom upgrade changed file
-    discovery for this project's backend (see
-    :func:`pitloom.assemble._model_generator._doc_identity_of`'s
-    docstring): the fragment's element references were minted against a
-    ``doc_uuid`` the current base document no longer uses, so they land
-    in the merged graph pointing at nothing.
-    """
-    known_ids = set(exporter.object_set.obj_by_id.keys())
-    external_ids = _declared_external_ids(exporter.object_set)
-    dangling: list[tuple[str, str, str]] = []
-    for obj in exporter.object_set.objects:
-        dangling.extend(_dangling_refs_for_object(obj, known_ids, external_ids))
-    return dangling
-
-
-def _declared_external_ids(object_set: spdx3.SHACLObjectSet) -> set[str]:
-    """Ids declared as legitimate external references via the main
-    document's own ``import_`` (``ExternalMap.externalSpdxId``)."""
-    main_doc = _find_main_document(object_set)
-    if main_doc is None:
-        return set()
-    return {
-        ext_map.externalSpdxId
-        for ext_map in (main_doc.import_ or [])
-        if isinstance(ext_map, spdx3.ExternalMap) and ext_map.externalSpdxId
-    }
-
-
-def _dangling_refs_for_object(
-    obj: spdx3.SHACLObject, known_ids: set[str], external_ids: set[str]
-) -> list[tuple[str, str, str]]:
-    """Dangling ``(referencing id, property name, missing target id)``
-    entries for one ``Relationship``'s or ``Annotation``'s endpoints."""
-    obj_id = str(getattr(obj, "spdxId", None) or "<unknown>")
-    found: list[tuple[str, str, str]] = []
-    if isinstance(obj, spdx3.Relationship):
-        from_id = _endpoint_id(obj.from_)
-        if _is_dangling(from_id, known_ids, external_ids):
-            found.append((obj_id, "from", from_id or ""))
-        for to in obj.to:
-            to_id = _endpoint_id(to)
-            if _is_dangling(to_id, known_ids, external_ids):
-                found.append((obj_id, "to", to_id or ""))
-    elif isinstance(obj, spdx3.Annotation):
-        subject_id = _endpoint_id(obj.subject)
-        if _is_dangling(subject_id, known_ids, external_ids):
-            found.append((obj_id, "subject", subject_id or ""))
-    return found
-
-
-def _is_dangling(
-    endpoint_id: str | None, known_ids: set[str], external_ids: set[str]
-) -> bool:
-    """Whether *endpoint_id* resolves to neither a known local object nor
-    a declared external reference -- i.e. is genuinely dangling."""
-    return (
-        endpoint_id is not None
-        and endpoint_id not in known_ids
-        and endpoint_id not in external_ids
-    )
 
 
 def _raise_on_dangling_references(exporter: Spdx3JsonExporter) -> None:
@@ -242,13 +173,6 @@ def _raise_on_dangling_references(exporter: Spdx3JsonExporter) -> None:
             "regenerate the base SBOM, then re-run enrichment, before "
             "merging again"
         )
-
-
-def _find_main_document(object_set: spdx3.SHACLObjectSet) -> spdx3.SpdxDocument | None:
-    for obj in object_set.objects:
-        if isinstance(obj, spdx3.SpdxDocument):
-            return obj
-    return None
 
 
 def _update_profile_conformance(
