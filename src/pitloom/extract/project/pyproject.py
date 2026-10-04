@@ -217,7 +217,11 @@ def read_pyproject(
     project_data: dict[str, Any] = data.get("project", {})
     # Without read_config an explicit config replaces [tool.pitloom], so a
     # fault in it must not fail the read.
-    pitloom_config = parse_pitloom_config(data) if read_config else PitloomConfig()
+    pitloom_config = (
+        parse_pitloom_config(data, source=str(pyproject_path))
+        if read_config
+        else PitloomConfig()
+    )
 
     name: str = (project_data.get("name") or "").strip()
     if not project_data or not name:

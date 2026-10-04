@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-21
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -98,8 +98,8 @@ accident of which code path it goes through.
   [id-registry-autosync.md](../implementation/id-registry-autosync.md#id-mint-collision-fix-234)).
   Now the *only* way a registry reaches any of these three -- **Resolved
   by PR A2**, same doc's "Revised in PR A2" section.
-- **`--max-source-metadata-bytes -1`** runs as no cap with no message;
-  check whether the config key accepts it too.
+- ~~**`--max-source-metadata-bytes -1`** runs as no cap with no message.~~ --
+  **Resolved**: `0` or at least 8 on every surface; anything else is an error.
 - **GitHub Action boolean inputs act only on the exact string `true`**
   (`action.yml` tests `= "true"`): `True`, `1` or `yes` are dropped with no
   message. Decide: accept more spellings, or warn on a value that is not
@@ -117,8 +117,8 @@ accident of which code path it goes through.
   sdist alike (`_load_pitloom_tool_section()` returns `{}` for it).
 - **`-v` "Config file" row is tagged `[command-line]`** even for the
   project's own config.
-- **A too-small `max-source-metadata-bytes` warns twice on `project`**
-  (the config is read twice), once on `embed-wheel`.
+- ~~**A too-small `max-source-metadata-bytes` warns twice on `project`**~~ --
+  **Resolved**: a value of 1 to 7 is now an error, not a warning.
 - **A no-effect warning's subject differs by command**: the target as
   typed (`wheel`), a resolved absolute path (local model), the literal
   `"embed-wheel"` (standalone embed batch).
@@ -147,8 +147,10 @@ accident of which code path it goes through.
 
 ## Open questions
 
-- Unknown keys: `WARNING:` or error? (A strict mode may be wanted for a
-  named `--config`.)
+- ~~Unknown keys: `WARNING:` or error?~~ -- **Decided (2026-10-04)**: one
+  `WARNING:` per key per config source, the run goes on; it names the file,
+  and the closest known key or the table that owns the key. A strict mode
+  for a named `--config` may still be wanted.
 - `enrich --project-dir`: should D's identity keys apply without
   `--config`?
 - ~~`sbom-basename`: always a base name (strip a given extension

@@ -50,10 +50,7 @@ from pitloom.core._config_types import _require_valid_content_type_method
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
 from pitloom.core.no_effect import INERT_LOG_PREFIX
-from pitloom.core.provenance import (
-    ProvenanceConfig,
-    normalize_max_source_metadata_bytes,
-)
+from pitloom.core.provenance import ProvenanceConfig, require_max_source_metadata_bytes
 
 log = logging.getLogger(__name__)
 
@@ -83,9 +80,9 @@ class ConfigOverrides:
         max_source_metadata_bytes: Overrides that one provenance field and
             leaves the others as the config (or ``provenance``) set them.
             Applied after ``provenance``, so it wins over that object's own
-            value. Normalised by
-            :func:`~pitloom.core.provenance.normalize_max_source_metadata_bytes`,
-            which warns once about a value too small to hold data.
+            value. Checked by
+            :func:`~pitloom.core.provenance.require_max_source_metadata_bytes`:
+            ``0`` or at least 8, else ``ValueError``.
         pretty: The embed path (``embed_wheel_sbom(overrides=...)``)
             always writes JCS-canonical JSON and warns that a given value
             has no effect, as it does for ``describe_relationship`` and
@@ -162,7 +159,7 @@ def load_config_file(path: Path) -> PitloomConfig:
         raise FileNotFoundError(f"config file not found or not a file: {path}")
     try:
         data = load_toml_file(Path(path))
-        cfg = parse_pitloom_config(data)
+        cfg = parse_pitloom_config(data, source=str(path))
     except ValueError as exc:  # also TOMLDecodeError, UnicodeDecodeError
         raise ValueError(f"config file {path}: {exc}") from exc
     tool = data.get("tool")
@@ -231,7 +228,7 @@ def apply_overrides(cfg: PitloomConfig, overrides: ConfigOverrides) -> PitloomCo
         changes["update_id_registry"] = overrides.update_id_registry
     if overrides.max_source_metadata_bytes is not None:
         changes["provenance_max_source_metadata_bytes"] = (
-            normalize_max_source_metadata_bytes(overrides.max_source_metadata_bytes)
+            require_max_source_metadata_bytes(overrides.max_source_metadata_bytes)
         )
     merged = dataclasses.replace(cfg, **changes)
     _require_valid_content_type_method(merged.content_type_method)

@@ -24,7 +24,7 @@ from pitloom.cli.commands.validate_wheel import add_parser as add_validate_wheel
 from pitloom.cli.commands.verify_wheel import add_parser as add_verify_wheel
 from pitloom.cli.commands.wheel import add_parser as add_wheel
 from pitloom.cli.id import add_parser as add_id
-from pitloom.cli.options import add_debug_argument
+from pitloom.cli.options import add_debug_argument, byte_budget
 from pitloom.cli.options_config import add_config_argument
 from pitloom.core.config import VALID_CONTENT_TYPE_METHODS
 from pitloom.core.creation import (
@@ -185,15 +185,15 @@ def _build_parent_parser() -> argparse.ArgumentParser:
     )
     parent.add_argument(
         "--max-source-metadata-bytes",
-        type=int,
+        type=byte_budget,
         default=None,
         metavar="BYTES",
         help=(
             "Cap the artifact-metadata preservation Annotation's serialized "
             "size to this many UTF-8 bytes; truncates the largest metadata "
-            "entries first when exceeded. 0 (or any value too small to "
-            "hold data) disables the cap. Defers to "
-            "[tool.pitloom.provenance] max-source-metadata-bytes (0, "
+            "entries first when exceeded. 0 disables the cap; 1 to 7 "
+            "(too small to hold data) and negative values are errors. "
+            "Defers to [tool.pitloom.provenance] max-source-metadata-bytes (0, "
             "unbounded, by default) when omitted."
         ),
     )

@@ -134,6 +134,9 @@ and this project adheres to
   `.dist-info/licenses/*` ([#271])
 - Release SBOM is the build hook's, not a re-embedded one; checked, attached
   to the release byte-identical, signed and attested ([#275])
+- `max-source-metadata-bytes` of 1-7 or below 0 is an error, not unlimited;
+  `normalize_max_source_metadata_bytes()` is now
+  `require_max_source_metadata_bytes()` ([#280])
 
 ### Removed
 
@@ -247,6 +250,8 @@ and this project adheres to
   with one `WARNING:`; `project` wrote `x.spdx3.json.spdx3.json` ([#273])
 - A wheel named `x.WHL` was read by `wheel` and `generate` but refused by
   `embed-wheel`; every wheel surface refuses it, as `pip` does ([#278])
+- An unknown `[tool.pitloom]` key warns once per file with a hint; `setup.cfg`
+  `creation-tool`/`tool` now reaches the SBOM (was dropped) ([#280])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -284,6 +289,7 @@ and this project adheres to
 [#273]: https://github.com/bact/pitloom/pull/273
 [#275]: https://github.com/bact/pitloom/pull/275
 [#278]: https://github.com/bact/pitloom/pull/278
+[#280]: https://github.com/bact/pitloom/pull/280
 
 ## [0.19.0] - 2026-09-18
 

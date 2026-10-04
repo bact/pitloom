@@ -113,7 +113,7 @@ inputs:
       to this many UTF-8 bytes; truncates the largest metadata entries
       first when exceeded. Empty (default) defers to
       [tool.pitloom.provenance] max-source-metadata-bytes, which is 0
-      (unbounded) by default.
+      (unbounded) by default. 0 or at least 8; anything else is an error.
     required: false
     default: ""
   config:

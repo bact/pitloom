@@ -42,6 +42,7 @@ from pitloom.cli.options_resolve import (
 )
 from pitloom.core._models_wheel_types import parse_build_timeout
 from pitloom.core.build_options import BuildOptions
+from pitloom.core.provenance import require_max_source_metadata_bytes
 
 __all__ = [
     "_load_pitloom_tool_section",
@@ -66,6 +67,7 @@ __all__ = [
     "add_build_timeout_argument",
     "build_options_from_args",
     "add_debug_argument",
+    "byte_budget",
 ]
 
 
@@ -231,6 +233,19 @@ def build_options_from_args(args: argparse.Namespace) -> BuildOptions:
         no_isolation=args.no_build_isolation,
         timeout=args.build_timeout,
     )
+
+
+def byte_budget(text: str) -> int:
+    """``--max-source-metadata-bytes``: ``0`` or at least 8, as
+    :func:`~pitloom.core.provenance.require_max_source_metadata_bytes`."""
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid int value: {text!r}") from None
+    try:
+        return require_max_source_metadata_bytes(value, "")
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from None
 
 
 def add_debug_argument(parser: argparse.ArgumentParser) -> None:

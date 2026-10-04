@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -775,7 +775,7 @@ Controlled by `[tool.pitloom.provenance]` in `pyproject.toml`:
 format = "both"                    # "annotation" | "comment" | "both" (default)
 detail = "minimal"                 # "minimal" (default) | "full"
 preserve-source-metadata = "auto"  # "auto" (default) | "always" | "never"
-max-source-metadata-bytes = 0      # 0 (default, unlimited) | a byte budget
+max-source-metadata-bytes = 0      # 0 (default, unlimited) | a budget >= 8
 ```
 
 `max-source-metadata-bytes` also has a `--max-source-metadata-bytes BYTES`

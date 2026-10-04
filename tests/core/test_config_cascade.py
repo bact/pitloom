@@ -323,15 +323,9 @@ def test_max_source_metadata_bytes_zero_clears_the_config_cap() -> None:
     assert merged.provenance_max_source_metadata_bytes == 0
 
 
-def test_max_source_metadata_bytes_too_small_warns_once(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    with caplog.at_level(logging.WARNING):
-        merged = apply_overrides(
-            PitloomConfig(), ConfigOverrides(max_source_metadata_bytes=-1)
-        )
-    assert merged.provenance_max_source_metadata_bytes == 0
-    assert caplog.text.count("too small") == 1
+def test_max_source_metadata_bytes_too_small_is_an_error() -> None:
+    with pytest.raises(ValueError, match="at least 8 bytes, got 5"):
+        apply_overrides(PitloomConfig(), ConfigOverrides(max_source_metadata_bytes=5))
 
 
 def _serialisation_signals(sbom_json: str) -> tuple[bool, bool]:

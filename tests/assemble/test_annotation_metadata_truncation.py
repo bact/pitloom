@@ -214,20 +214,14 @@ def test_respects_the_real_byte_budget(budget: int) -> None:
     assert len(ann.statement.encode("utf-8")) <= budget
 
 
-def test_negative_max_bytes_treated_as_unbounded() -> None:
-    ci = _make_ci()
-    metadata = _small_metadata()
-    ann = build_source_metadata_annotation(
-        "urn:doc#ai_AIPackage-1",
-        "gguf",
-        metadata,
-        ci,
-        _DOC_NAME,
-        _DOC_UUID,
-        max_metadata_bytes=-5,
-    )
-    assert ann is not None
-    assert ann.statement is not None
-    statement = json.loads(ann.statement)
-    assert "truncated" not in statement
-    assert statement["metadata"] == metadata
+def test_negative_max_bytes_rejected() -> None:
+    with pytest.raises(ValueError, match="at least 8 bytes"):
+        build_source_metadata_annotation(
+            "urn:doc#ai_AIPackage-1",
+            "gguf",
+            _small_metadata(),
+            _make_ci(),
+            _DOC_NAME,
+            _DOC_UUID,
+            max_metadata_bytes=-5,
+        )
