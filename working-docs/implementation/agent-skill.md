@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-09-29
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -138,7 +138,7 @@ files instruct the agent to scan captured stderr for these prefixes
 after running `loom` and relay any hit to the user in plain language,
 rather than letting it pass by unmentioned just because the command
 exited 0. This is the AI-agent-Skill equivalent of the GitHub Actions
-gap tracked in [roadmap.md](../design/roadmap.md#adoption-surfaces).
+gap tracked in [roadmap.md](../design/roadmap.md#backlog-designed-not-scheduled) (SARIF output).
 
 ## Also available as a Claude Code plugin
 

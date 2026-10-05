@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [license-rules.md](license-rules.md) (rules, rulings and open
 questions), [license-layers.md](license-layers.md) (the three layers), [license-typing.md](../implementation/license-typing.md)
-(what #276 built), [roadmap.md](roadmap.md#near-term).
+(what #276 built), [roadmap.md](roadmap.md#needs-systematic-rules).
 
 PR #276 merged with one bar: every surface records the same value, even
 where that value is not yet the right one. Everything below was found in

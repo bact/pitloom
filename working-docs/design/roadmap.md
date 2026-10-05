@@ -10,447 +10,252 @@ SPDX-License-Identifier: CC0-1.0
 
 > README.md and other docs point here rather than maintaining their own lists.
 
-## Completed
+How to read it: [Done](#done) lists what shipped; [Next](#next-release-plan)
+is the committed order of releases; [To design](#to-design) holds questions
+that need a decision before any code; [Needs systematic
+rules](#needs-systematic-rules) holds cross-cutting rule sets that must apply
+identically on every surface;
+[Open follow-ups by area](#open-follow-ups-by-area)
+are recorded findings, not scheduled; [Backlog](#backlog-designed-not-scheduled)
+and the [Medium-term](#medium-term)/[Long-term](#long-term) lists are ideas.
+Bugs with a target release live in [known-bugs.md](known-bugs.md). Each
+bullet stays one or two lines plus a link; detail lives in the linked doc.
 
-Moved to [roadmap-completed.md](../implementation/roadmap-completed.md).
+## Done
 
-## 1.0 target
+[roadmap-completed.md](../implementation/roadmap-completed.md), including
+everything shipped for 0.20.0 (#226-#284). User-facing documentation is in
+`docs/` ([index](../../docs/index.md)).
 
-1.0 comes after 0.20.0, 0.20.1, 0.21.0 and 0.22.0 (see the release plan
-under [Near-term](#near-term)); no date until 0.21.0 lands. GitHub
-milestone `1.0.0` exists (no issues attached, no due date).
-**Redefined 2026-09-17**: 1.0's headline is **G7 SBOM for AI field
-coverage**, not just stability -- see
-[G7 SBOM for AI field coverage](#g7-sbom-for-ai-field-coverage-10-headline)
-below. Cross-platform CI is already closed
-([PR #220](https://github.com/bact/pitloom/pull/220)), as is the
-`--allow-build` timeout (PR #226); the remaining stability item
-(versioning policy) stays in scope but no longer fills the list on its
-own.
+## Next: release plan
 
-**Scope split, decided 2026-09-17**: deterministic field population
-(anything a file format, a structured API response, or explicit
-`loom`-decorator/SDK input can supply) belongs in core CLI/API, since it
-must stay reproducible per "SBOM output" in CLAUDE.md. Fuzzy mapping
-that core can't do deterministically -- e.g. turning a free-text
-"producer" string into a properly-disambiguated SPDX `Person`/
-`Organization` -- stays the agent/Skill's job (`sbom-enrich`), not
-core's. Every G7 item below is scoped to fit the core/deterministic
-side of that split; anything that would need heuristic disambiguation
-is explicitly left to the Skill and not listed as a core 1.0 item.
+Order (2026-10-05): 0.20.0 -> 0.20.1 -> 0.21.0 -> 0.22.0 -> 1.0. No date for
+1.0 until 0.21.0 lands.
 
-| # | Item | Priority | Impact | Size | Status |
-| :-- | :--- | :--- | :--- | :--- | :--- |
-| 1 | [Real Windows CI run](#testing--ci) | P0 | High | S-M | Done -- CI added ([PR #220](https://github.com/bact/pitloom/pull/220)), fixed test fixtures it exposed |
-| 2 | [Real macOS CI run](#testing--ci) | P0 | High | S | Done -- CI added ([PR #220](https://github.com/bact/pitloom/pull/220)) |
-| 3 | [Mechanical G7 wiring: dataset license + `ai_AIPackage.verifiedUsing`](#g7-sbom-for-ai-field-coverage-10-headline) | P0 | High | S | Not started |
-| 4 | [Fix stale gap claims in `minimum-elements.md`](#g7-sbom-for-ai-field-coverage-10-headline) | P0 | Medium | S | Done 2026-09-20 |
-| 5 | [`--allow-build` timeout](#medium-term) | P0 | High | S | Done (PR #226) |
-| 6 | [Model producer + parameter count (structured sources only)](#g7-sbom-for-ai-field-coverage-10-headline) | P1 | High | M | Not started |
-| 7 | [`loom` SDK: dataset provenance + model training-properties capture](#g7-sbom-for-ai-field-coverage-10-headline) | P1 | High | M-L | Not started |
-| 8 | [Versioning/compatibility policy decision](#versioning-and-compatibility-policy-new-for-10) | P0 | High | S | Needs a decision |
+### 0.20.0
 
-Bumped out of 1.0 by the G7 redefinition (not dropped -- moved back to
-their normal roadmap sections, unstarred): `loom fragment sign` + hash
-verification, generic multi-candidate field representation, JAX/Orbax
-extractor, the merge-policy doc. None are stability- or G7-blocking;
-revisit for 1.1.
+- [x] Embed fix ([#269](https://github.com/bact/pitloom/issues/269)), licence
+  element typing (#276), sdist licence detection (#283), fragment-merge
+  fixes (#284), sdist member order (#272), `sbom-basename` extension (#273).
+- [ ] Docs PR (#285): licence rules, known bugs, test tiers, field notes.
+- [ ] Release checklist: trim `CHANGELOG.md`, skills floor
+  `pitloom>=0.20.0`, tag. See
+  [release-checklist.md](../implementation/release-checklist.md).
 
-**Why this order:**
+### 0.20.1
 
-1-2. **CI first, before anything else** -- unchanged rationale, already
-   done. See git history for detail if needed.
-3-4. **Mechanical G7 wiring, first among the new work** -- both are
-   small, code-verified (not doc-guessed), zero design risk: a
-   dataclass field already extracted and sitting unused, and a hash
-   already computed elsewhere in the same pipeline. Highest
-   impact-per-hour of anything on this list. Fixing the stale skill-doc
-   claims right after prevents the agent/Skill from re-asking users
-   about fields core already covers -- cheap, and directly protects the
-   value of the wiring fix above it.
-5. **`--allow-build` timeout** stayed in its original slot -- the one
-   open correctness gap in shipped 1.0-era code, unrelated to G7 but
-   cheap and independent. Done -- see
-   [allow-build-timeout.md](../implementation/allow-build-timeout.md).
-6-7. **Real extraction work, ordered by size.** Model producer (via
-   structured API data, e.g. Hugging Face Hub's own author/org field --
-   not free-text parsing) and parameter count (per-format, several
-   formats already expose it in their own metadata) are both
-   medium-sized and self-contained. The `loom` SDK expansion is larger
-   (new decorator/builder surface, see
-   [loom-sdk-and-notebooks.md](sbom-fragments/loom-sdk-and-notebooks.md))
-   and goes last among the code items so 3-6 aren't blocked waiting on
-   its design to settle.
-8. **Versioning/compatibility policy** moved last in sequence (not in
-   priority) -- still needs deciding before the tag, but is a decision,
-   not code, so it doesn't compete with the above for implementation
-   time; can happen in parallel any time in the month.
+Crash, mapping and parity fixes, each in
+[known-bugs.md](known-bugs.md#p0-in-0201): a very long lock-file version,
+`-o -` ending stdout with a path line, GGUF `general.license`, a `%` in
+`setup.cfg`, and two `setup.py`/`setup.cfg` merges that disagree with the
+built wheel.
 
-### G7 SBOM for AI field coverage (1.0 headline)
+### 0.21.0
 
-Re-verified against current assembly code (2026-09-17): the skill's own
-[G7 checklist](../../skills/sbom-enrich/references/minimum-elements.md#g7-sbom-for-ai-2026-additive----apply-only-when-an-ai_aipackage-is-present)
-is stale in 4 places (claims "gap" for fields already wired), and most
-of the real gaps are pure wiring (a dataclass field already extracted
-but never read by the assembler) rather than new extraction work. Only
-dataset/model provenance and training-properties need genuinely new
-capture, via an expanded `loom` decorator/SDK. Full breakdown, the
-core-vs-Skill scope split, and implementation order: see
+- [ ] **Registry v3**: one typed table, content gate chosen at lookup;
+  closes the P1 registry bugs. See [id-registry-v3.md](id-registry-v3.md),
+  [id-registry-v3-rollout.md](id-registry-v3-rollout.md).
+- [ ] **Git LFS pointers outside AI models**: one shared detector, one
+  summary `WARNING:`; lands before registry v3. See
+  [known-bugs.md](known-bugs.md#p0-in-0210).
+- [ ] **One default SBOM file name** (PEP 427 escaping) on every surface.
+- [ ] **Unknown SPDX id in an SPDX-only field warns** and **`License-File:`
+  selection** for wheels. See
+  [license-pr276-followups.md](license-pr276-followups.md#a-to-fix).
+- [ ] **Metadata-only AI model readers**: bounded pure-Python header readers
+  replacing library reads, parity-tested; HDF5 last. See
+  [model-metadata-readers.md](model-metadata-readers.md).
+
+### 0.22.0: G7 SBOM for AI field coverage
+
+The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
 [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md).
 
-Note: that checklist lists `hasDataFile` as "covered", but static detection
-is now conditional on `--scan-model-usage` (off by default); update
-`minimum-elements.md` together with G7.
+- [ ] **#3 Mechanical wiring**: dataset licence, `ai_AIPackage.verifiedUsing`
+  copied from its model `software_File`.
+- [ ] **#6 Model producer and parameter count** from structured sources
+  only (Hugging Face Hub fields, per-format metadata).
+- [ ] **#7 `loom` SDK**: dataset provenance and training-properties capture.
+  See [loom-sdk-and-notebooks.md](sbom-fragments/loom-sdk-and-notebooks.md).
+- [ ] The skill's G7 checklist lists `hasDataFile` as covered; static
+  detection is now behind `--scan-model-usage`. Update
+  [minimum-elements.md](../../skills/sbom-enrich/references/minimum-elements.md)
+  with G7.
 
-### Versioning and compatibility policy (new for 1.0)
+**Scope split (decided 2026-09-17):** deterministic field population
+(file formats, structured API responses, explicit `loom` SDK input) belongs
+in core; fuzzy mapping (a free-text "producer" to an SPDX `Person`/
+`Organization`) stays with the `sbom-enrich` Skill.
 
-Not yet decided -- flagging as a required 1.0 decision, not proposing
-an answer. Questions to resolve before the 1.0 tag:
+### 1.0
 
-- Does 1.0 commit to CLI-flag/output-format/library-API stability under
-  SemVer (breaking changes only at a major version bump), replacing
-  CLAUDE.md's current "no backward compat needed yet"?
-- If so, which surfaces are covered by that commitment -- CLI flags and
-  output shape, the public library API (`generate_project_sbom()` etc.),
-  the Hatchling build hook's `[tool.pitloom]` config schema, the GitHub
-  Action's inputs, the Skills/plugin surfaces -- and are they all
-  covered from 1.0.0, or staggered (e.g. CLI stable at 1.0, library API
-  marked experimental until 1.1)?
-- Any deliberately breaking cleanup that should land *before* 1.0 while
-  compat is still free, rather than waiting for a 2.0? (No specific
-  candidate identified in this pass -- worth a deliberate check, not an
-  assumption that none exists.)
+- [ ] **Versioning and compatibility policy** (decision, not code): does
+  1.0 commit to SemVer stability, replacing "no backward compat needed
+  yet"? Which surfaces (CLI flags and output, library API,
+  `[tool.pitloom]` schema, Action inputs, Skills), all at once or
+  staggered? Any breaking cleanup to land before 1.0 while it is free?
+- GitHub milestone `1.0.0` exists (no issues attached, no due date).
 
-### Cut from 1.0 (explicitly deferred)
+**Cut from 1.0** (stay on this roadmap, none block it): OSV.dev lookup,
+CycloneDX and other output formats, `pixi.lock`/`conda-lock.yml`,
+MLflow/W&B Weave/DVC extractors and fragment Phases 2-4, SARIF, SCITT,
+PEP 740, remote ingestion, codename retirement, `loom fragment sign`,
+generic multi-candidate fields, JAX/Orbax.
 
-Named here so scope doesn't creep back in mid-month: OSV.dev
-vulnerability lookup, CycloneDX assembler and any other output format,
-`pixi.lock`/`conda-lock.yml` support, MLflow/W&B Weave/DVC fragment
-extractors and SBOM-fragments Phases 2-4, SARIF output, SCITT
-integration, PEP 740 attestations, remote source ingestion
-(`loom project <url>`), AI model id stability (auto-harvest), the
-provenance/enrichment vocabulary revision (blocked on its own taxonomy
-decision), internal codename retirement, and the ~25 other open
-`enhancement`-labelled GitHub issues not named in the table above. All
-stay on the roadmap; none block 1.0.
+## To design
 
-## Adoption surfaces
+Questions that need a decision before code. Nothing below is decided
+unless the linked doc says so.
 
-Pitloom's other surfaces (library API, CLI, Hatchling build hook, ML
-tracking SDK) all assume the consumer already has Pitloom installed or
-wired into a build backend. These two extend reach beyond that. See
-[adoption-surfaces.md](../implementation/adoption-surfaces.md) for the
-full picture.
+- [ ] **What an SBOM counts as inside the package**, and package-format
+  independence (payload vs container metadata, `.data/` naming). See
+  [sbom-package-boundary.md](sbom-package-boundary.md).
+- [ ] **Generic multi-candidate field representation**: licence, dependency
+  version and project fields each hand-build a `ConflictCandidate` list.
+  See [generic-multi-candidate-fields.md](generic-multi-candidate-fields.md),
+  [metadata-quality.md](metadata-quality.md).
+- [ ] **Provenance and enrichment vocabulary** (Method vs Role, source and
+  role taxonomy; parked draft). See
+  [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md),
+  [docs/metadata-provenance.md](../../docs/metadata-provenance.md).
+- [ ] **AI model id stability** beyond what registry v3 decides. See
+  [ai-model-id-stability.md](ai-model-id-stability.md).
+- [ ] **Archive member names**: name-independent `--allow-build`
+  extraction, `orig_filename`, tar links in sdists. See
+  [archive-member-followups.md](archive-member-followups.md).
+- [ ] **Format-neutral representation** for a second output format
+  (CycloneDX, AIDOC). See
+  [format-neutral-representation.md](format-neutral-representation.md).
+- [ ] **Fragments**: signing and SHA-256 enforcement, SDK ergonomics,
+  element-level traceability, compliance/interop. See
+  [open-items.md](sbom-fragments/open-items.md),
+  [sbom-fragments/README.md](sbom-fragments/README.md),
+  [docs/fragments.md](../../docs/fragments.md).
+- [ ] **Remote repository and forge ingestion** (`loom project <url>`). See
+  [remote-source-ingestion.md](remote-source-ingestion.md).
+- [ ] **VEX output format** (CSAF v2.0 vs OpenVEX), after the OSV lookup.
+  See [osv-vulnerability-lookup.md](osv-vulnerability-lookup.md#relationship-to-csafvex).
 
-- [x] **GitHub Action** (composite `action.yml`) -- generate an SBOM in CI,
-  for any Python project regardless of build backend. See [github-action.md](../implementation/github-action.md).
-- [x] **AI-agent Skills** (`skills/sbom-generate/`, `skills/sbom-enrich/`,
-  `skills/sbom-validate/`) -- generate/enrich/validate an SBOM on
-  request from Claude Code, the Claude Agent SDK, or similar runtimes.
-  See [agent-skill.md](../implementation/agent-skill.md) and
-  [sbom-enrichment.md](sbom-enrichment.md).
-- [x] **Claude Code plugin** (`.claude-plugin/`) -- bundles all three
-  Skills under the `pitloom` plugin namespace (`/plugin install`,
-  `/pitloom:sbom-generate` etc). See
-  [claude-code-plugin.md](../implementation/claude-code-plugin.md).
-- [ ] **Docker container action** (future) -- a `Dockerfile` +
-  `action.yml` `using: docker` variant of the GitHub Action for hermetic
-  or self-hosted-runner use.
-- [ ] **GitHub Action hardening** (future) -- pip constraints/hash-pinning
-  for Pitloom's transitive dependencies (only Pitloom itself is pinned);
-  an isolated venv option; lint `scripts/` in CI (only `examples/ src/
-  tests/` are); known edge cases: `args` containing a literal ASCII RS or a CR
-  inside quotes, quadratic `${PL_ARGS//[[:space:]]/}` on bash 3.2. See
-  [github-action.md](../implementation/github-action.md).
-- [ ] **GitHub Action silently drops invalid boolean inputs** -- any
-  non-empty value other than exactly `true`/`false` (`maybe`, `True`) on the
-  tri-state `enrich`, `extract-file-header`, `update-id-registry`,
-  `content-type`, `offline`, `use-lockfile`, and on the two-state `pretty`,
-  `allow-build`, `no-build-isolation` (case-sensitive `= "true"`, so
-  `allow-build: True` silently skips the build), passes no flag and prints
-  no warning; `use-lockfile` in model/embed-wheel mode is dropped silently
-  too. Violates "no silent deviations".
-- [ ] **SARIF output** -- emit a SARIF file as a build artifact for CI
-  findings (inline PR annotations, Security-tab view), fed by
-  `WARNING:`/`ERROR:` output, OSV.dev results (once built), and license
-  conflicts. See [sarif-output.md](sarif-output.md).
+## Needs systematic rules
 
-## Near-term
+Cross-cutting rule sets: one explicit rule, applied by one shared mechanism
+on every surface (see "Usage surfaces" in [AGENTS.md](../../AGENTS.md)).
+Each found more than one bug that a per-site fix would only move.
 
-**Release plan (2026-10-05):** 0.20.0 ships the
-[#269](https://github.com/bact/pitloom/issues/269) embed fix, licence
-element typing (#276), sdist licence detection (#283), the fragment-merge
-fixes (#284), sdist member order and the `sbom-basename` double extension.
-0.20.1: crash, mapping and parity fixes (long lock-file version, `-o -`
-stdout, GGUF `general.license`, a `%` in `setup.cfg`, two
-`setup.py`/`setup.cfg` merges that disagree with the built wheel). 0.21.0: registry
-v3, the Git LFS pointer policy, the PEP 427 default SBOM name, the
-unknown-id warning and `License-File:` selection. 0.22.0: G7 AI field
-coverage (#3, #6, #7). Then 1.0. Detail: [known-bugs.md](known-bugs.md).
-
-**Next up:**
-[Generic multi-candidate field representation](#metadata-quality) --
-[Non-Hatchling file discovery](#non-hatchling-file-discovery-feature-parity)
-below is now closed for every backend, including `uv_build` (via the
-generic `--allow-build` build-and-read mechanism, not a dedicated static
-rescan -- see below).
-
-**AI model scanning (B, C, D done):** model-candidate type, deterministic
-order, the `--scan-model-usage` gate and wheel scanning. Open: `env` scans no
-models -- see
-[cli-shared-options-ignored.md](cli-shared-options-ignored.md#still-open) and
-[ai-model-scanning.md](../implementation/ai-model-scanning.md).
-
-**setuptools config reading:** `version = attr:` crash, `file:` path
-confinement, untagged setuptools warnings -- see
-[setuptools-config-followups.md](setuptools-config-followups.md).
-
-**Merge (after #276):** done -- see
-[fragment-merge-unification.md](../implementation/fragment-merge-unification.md);
-left: [open-items.md](sbom-fragments/open-items.md#left-after-the-fragment-merge-fixes).
-
-**Suggested sequencing after that** (2026-09-16, not a commitment --
-superseded by the release plan above and the [1.0 target](#10-target)):
-
-1. [Generic multi-candidate field representation](#metadata-quality)
-   -- now concretely motivated: license (`deps_license.py`), dependency
-   version (`deps_installed.py`), and project metadata fields
-   (`extract/project/installed.py`, landed via
-   [installed-dist-info-source.md](installed-dist-info-source.md)) each
-   hand-build their own `ConflictCandidate` list at their own call
-   site -- a third, independent instance of the same duplication is
-   usually the right time to generalize.
-2. [JAX/Orbax model extractor](#extractors) -- design ready (verified
-   against real `orbax-checkpoint` output, not docs alone), independent
-   of the item above.
-3. [OSV.dev vulnerability lookup](#metadata-quality) -- **not** ready to
-   hand to an implementer as-is; needed its own design pass first (SPDX3
-   mapping, which dependency pool to query, PEP 440-based range
-   matching) -- now resolved, see
-   [osv-vulnerability-lookup.md](osv-vulnerability-lookup.md#resolving-the-three-open-design-gaps-2026-09-14).
-   Explicitly **not** in the 1.0 scope below -- too large to design,
-   build, and review in the time remaining alongside everything else.
-
-### Non-Hatchling file discovery (feature parity)
-
-- [x] **`get_wheel_files()` file discovery is not backend-agnostic** --
-  closed (2026-09-15): setuptools, Poetry, PDM-backend, and Flit-core
-  each have a dedicated static rescan module; `uv_build` (and any other
-  backend with no static module, or whose static discovery fails)
-  resolves via a new generic, backend-agnostic build-and-read mechanism
-  gated behind `--allow-build` (real PEP 517 build, opt-in, no
-  `[tool.pitloom]` equivalent -- see [`docs/allow-build.md`](../../docs/allow-build.md)).
-  Track B (compiled/native backends: `maturin`, `scikit-build-core`,
-  `meson-python`) is already covered by the same mechanism once their
-  own toolchain happens to be available -- no further Pitloom code
-  needed. See [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md)
-  for the full design/history.
-- [x] **Unreadable file drops the whole file list silently** -- fixed
-  (2026-09-30, #244): warn once, skip that file only. See
-  [file-scan-unreadable-file.md](../implementation/file-scan-unreadable-file.md).
-- [x] **Unlistable directory drops its subtree silently at discovery** --
-  fixed (2026-09-30, #257): one `WARNING: DIR=...` per directory, every backend.
-  See [file-discovery-unlistable-dir.md](../implementation/file-discovery-unlistable-dir.md).
-- [ ] **setuptools discovery: absolute `physical_path` for a project dir in
-  another letter case** -- on a case-insensitive file system (macOS,
-  Windows), `loom project stproj` for on-disk `StProj` gives every file an
-  absolute `physical_path`: the discoverer's `chdir()` + `os.getcwd()`
-  yields the on-disk case, which no longer matches `project_dir`
-  textually. Hatchling, flit, pdm and poetry are unaffected. Found in
-  #257 review.
-- [ ] **Four remaining follow-ups from PR #215's `--allow-build` review**
-  -- one consolidation cleanup (a hand-rolled `tool` table walk
-  repeated across 6+ modules), one low-priority dev-script dedup, one
-  id-registry gap (`--allow-build`-sourced files can't match a
-  `loom id generate`-pinned entry, since their `physical_path` is an
-  ephemeral temp path -- **partially addressed** 2026-09-15: a separate,
-  previously-unguarded AI-model registry lookup in `_ai_package.py` was
-  found and fixed, but `_document_files.py`'s own `software_File` lookup
-  still needs the harder fix described below), and one precision gap (a
-  real static `uv_build` discoverer for `[tool.uv.build-backend]`, to
-  stop the Hatchling fallback from over-including or, worse,
-  zero-including files for some real packages -- already
-  `WARNING:`-flagged, not silent). None block shipped work; each is
-  independently fixable. See
-  [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md#open-follow-up-tech-debt-from-pr-215s---allow-build-review)
-  for full detail on each.
-
-### Build backend improvements
-
-See [build-backend-improvements.md](build-backend-improvements.md).
-
-### PEP 770 / embed-wheel
-
-- [x] **`loom verify-wheel` / `loom validate-wheel`** ([#202](https://github.com/bact/pitloom/pull/202))
-  -- structural location check and schema/SHACL content validation for
-  a wheel's embedded SBOM, plus `embed-wheel --verify`/`--validate`
-  convenience flags and a pre-embed name/version enforcement check for
-  `--sbom`. See
-  [wheel-verification-commands.md](../implementation/wheel-verification-commands.md).
-- [ ] **Embed and wheel-scan follow-ups** -- signal-safe rewrite temp file,
-  `wheel --embed --sbom-basename`, dependency versions from Pitloom's own
-  environment, renamed `.dist-info`, `--project-dir <sdist>`, one "now" per
-  batch and more. See [embed-wheel-followups.md](embed-wheel-followups.md).
-
-### AI model id stability (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
-
-- [ ] **Registry v3: one typed table, content gate chosen at lookup** --
-  not built; also closes `loom id` skill triggers, hashed-model auto-harvest
-  and in-tree registry churn. See [id-registry-v3.md](id-registry-v3.md).
-- [ ] **Registry follow-ups v3 leaves open** -- src-layout aliases,
-  harvest/lookup gaps, wheel identity and archive readers. See
-  [id-registry-followups.md](id-registry-followups.md).
-
-### Sort-order canonicalization (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
-
-- [x] **Audit where element/entry sort order feeds hash or id
-  construction.** Every `sorted()`/`.sort()` call in the
-  assemble/id-registry path audited; the one genuinely canonical
-  (hash/id-affecting) key was renamed and documented as such, the
-  non-canonical ones marked as not affecting output. No behavior
-  changed. See
-  [sort-order-canonicalization.md](../implementation/sort-order-canonicalization.md).
-
-### Extractors
-
-- [ ] **Additional AI model format extractors**
-  - JAX (Orbax checkpoints) -- higher priority, design ready to
-    implement: findings come from installing `orbax-checkpoint` and
-    inspecting real output, not docs alone. See
-    [jax-orbax-support.md](jax-orbax-support.md)
-  - TensorFlow SavedModel and TensorFlow Lite
-  - Scikit-learn (pickle/joblib; no single standard format -- complex)
-  - See [model-metadata-extraction.md](model-metadata-extraction.md)
-    for the full format table
-- [ ] **MLflow run extractor** (`pitloom.extract.mlflow`,
-  `loom.from_mlflow_run()`) -- reads a completed/active MLflow run's
-  tags/params/metrics into an SPDX 3 AI BOM fragment, keyed against the
-  [STAV](https://github.com/bact/stav) vocabulary with a fallback for
-  non-STAV tag names; eliminates double-instrumenting a training script
-  already using MLflow tracking. Fully designed, not yet built -- see
-  [mlflow-extractor.md](mlflow-extractor.md). W&B Weave and DVC
-  extractors are the same shape of gap; tracked together with this one
-  under [SBOM fragments](#sbom-fragments-merge-system) below since all
-  three feed the fragment-merge pipeline.
-- [x] **Dataset-to-model relationship linking** -- `trainedOn`/`testedOn`
-  `Relationship`s emitted natively, falling back to `RelationshipType.other`
-  for the three relationship types SPDX 3.0.1 itself lacks. See
-  [ai-dataset-linking.md](../implementation/ai-dataset-linking.md).
-- [x] **Croissant dataset size calculation** -- `dataset_DatasetSize`
-  extracted dynamically by summing `cr:totalItems` across `cr:recordSet`
-  entries (or top-level `cr:totalItems`), with graceful `None` fallback.
-
-### SBOM fragments (merge system)
-
-Core merge mechanism, `FragmentConfig`, and `loom fragment list` have
-shipped; several follow-ups (fragment signing/SHA-256 enforcement,
-skill trigger coverage, SDK ergonomics, new extractors,
-compliance/interop, element-level traceability) remain open. See
-[open-items.md](sbom-fragments/open-items.md).
-
-- [ ] **Non-directory targets silently ignore configured fragments** --
-  `loom model` (and `generate` on a model file), Hugging Face, `wheel`,
-  `env` and sdist runs never call `merge_fragments()`, so fragments in
-  `--config`/project config are dropped with no `WARNING:` and exit 0
-  (violates "no silent deviations"). Found reviewing the `sbom-enrich`
-  skill; the skill now says so. Record only.
-- [ ] **`env` drops an unmet requirement silently** -- a dependency
-  pipdeptree reports as not installed (`installed_version: "?"`) loses
-  its `dependsOn` edge with no trace, so the deployed SBOM says nothing
-  about the unmet requirement. Found reviewing PR #236. Record only.
-- [ ] **`env`: two installs sharing one pipdeptree `key` collide** --
-  `build_deployed` keys its id map by `key`, so a second install of the
-  same distribution (e.g. an editable copy next to a site-packages copy)
-  overwrites the first and all edges go to one element. Not seen from
-  pipdeptree yet; found reviewing PR #236. Record only.
-
-### Metadata quality
-
-See [metadata-quality.md](metadata-quality.md).
-
-- [ ] **Licence rules, systematic** -- explicit rules applied identically on
-  every surface for licence sources, normalisation and conflict resolution:
-  deterministic, correct, not overclaimed, provenance recorded. Prerequisite:
-  settle the conflict-resolution model, provenance record and source/role
-  taxonomy first. Current rules and open questions:
+- [ ] **Licence rules**: source taxonomy, cascade per surface, weak and final
+  values, declared vs concluded, conflicts, equivalence, provenance,
+  tie-breaks. Current rules, rulings and 16 open questions:
   [license-rules.md](license-rules.md); layers:
-  [license-layers.md](license-layers.md); what PR #276 left open:
+  [license-layers.md](license-layers.md); what #276 left:
   [license-pr276-followups.md](license-pr276-followups.md).
+- [ ] **Config cascade parity**: every option means the same on every
+  surface, or warns as inert. See
+  [config-cascade-parity.md](config-cascade-parity.md),
+  [cli-shared-options-ignored.md](cli-shared-options-ignored.md),
+  [docs/configuration.md](../../docs/configuration.md).
+- [ ] **Merged manifest sources** (`setup.cfg` + `setup.py`, `[project]` +
+  `[tool.poetry]`): which wins per field, as the build tool decides. See
+  [setuptools-config-followups.md](setuptools-config-followups.md),
+  [license-rules.md](license-rules.md#open-questions) (questions 2, 4).
+- [ ] **Canonical output**: names, identifiers and key order the same for
+  the same real-world thing. See
+  [canonical-output-followups.md](canonical-output-followups.md).
+- [ ] **No silent deviations, per surface**: non-directory targets
+  (`model`, Hugging Face, `wheel`, `env`, sdist) drop configured fragments
+  with no `WARNING:`; the GitHub Action drops any boolean input other than
+  exactly `true`/`false` (`allow-build: True` skips the build). See
+  [known-bugs.md](known-bugs.md#p3-after-0200),
+  [diagnostics-logging-followups.md](diagnostics-logging-followups.md).
+- [ ] **Code health ratchets**: complexity and file-size limits down to the
+  AGENTS.md targets. See
+  [complexity-and-file-size-roadmap.md](complexity-and-file-size-roadmap.md).
+- [ ] **Retire the use-case codenames** (G1-G7, A1-A2, N1-N6, ...; 500+
+  occurrences). See [codename-retirement.md](codename-retirement.md).
 
-### Remote source ingestion
+## Open follow-ups by area
 
-- [ ] **Remote repository and forge ingestion (`loom project <url>`)** --
-  generate SBOMs directly from remote git repositories/forges (GitHub, GitLab)
-  or remote release archives, capturing upstream VCS provenance (commit SHA,
-  tag, repo URL) and delegating parsing to `extract.project` and `extract.lock`.
-  See [remote-source-ingestion.md](remote-source-ingestion.md).
+Recorded findings; each is fixable on its own.
 
-### Testing / CI
+- **File discovery**: setuptools gives absolute `physical_path` for a
+  project dir named in another letter case (macOS, Windows; #257, in
+  [known-bugs.md](known-bugs.md#p3-after-0200)); four #215 follow-ups. See
+  [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md#open-follow-up-tech-debt-from-pr-215s---allow-build-review),
+  [build-backend-improvements.md](build-backend-improvements.md).
+- **`--allow-build`**: what the #226 reviews left. See
+  [allow-build-followups.md](allow-build-followups.md),
+  [docs/allow-build.md](../../docs/allow-build.md).
+- **Embed and wheel scan**: signal-safe rewrite, `wheel --embed
+  --sbom-basename`, dependency versions from Pitloom's own environment and
+  more. See [embed-wheel-followups.md](embed-wheel-followups.md).
+- **setuptools config reading**: `version = attr:` crash, `file:` path
+  confinement, untagged setuptools warnings. See
+  [setuptools-config-followups.md](setuptools-config-followups.md).
+- **ID registry**: what v3 leaves open. See
+  [id-registry-followups.md](id-registry-followups.md).
+- **AI model scanning**: `env` scans no models. See
+  [cli-shared-options-ignored.md](cli-shared-options-ignored.md#still-open),
+  [ai-model-scanning.md](../implementation/ai-model-scanning.md).
+- **Fragments after the merge fixes**: see
+  [open-items.md](sbom-fragments/open-items.md#left-after-the-fragment-merge-fixes).
+- **`loom env`**: an unmet requirement (`installed_version: "?"`) loses its
+  `dependsOn` edge silently; two installs sharing one pipdeptree `key`
+  collide (#236 review). See [known-bugs.md](known-bugs.md#p3-after-0200),
+  [deployed-env-pipdeptree.md](../implementation/deployed-env-pipdeptree.md).
+- **GitHub Action hardening**: hash-pinned transitive dependencies, an
+  isolated venv option, lint `scripts/` in CI, `args` edge cases. See
+  [github-action.md](../implementation/github-action.md),
+  [docs/github-action.md](../../docs/github-action.md).
+- **Testing and CI**: see [testing-ci-followups.md](testing-ci-followups.md).
+- **Diagnostics and logging**: see
+  [diagnostics-logging-followups.md](diagnostics-logging-followups.md).
 
-See [testing-ci-followups.md](testing-ci-followups.md).
+## Backlog: designed, not scheduled
 
-### Diagnostics / logging
-
-See [diagnostics-logging-followups.md](diagnostics-logging-followups.md).
-
-### Internal codenames
-
-- [ ] **Retire the whole letter-number use-case codename taxonomy**
-  (G1-G7, A1-A2, E1-E2, P1, N1-N6, and more -- 500+ occurrences as of
-  2026-09-14), not just "G2" -- meaningful only against
-  `use-case-catalog.md`'s own numbering, meaningless to a future reader
-  in isolation. Sizeable, mechanical-but-not-trivial; an opportunistic
-  path (fold into whichever `working-docs/*.md` a routine reorg already
-  touches) exists alongside a dedicated-PR path. See
-  [codename-retirement.md](codename-retirement.md).
+- [ ] **JAX (Orbax checkpoints)**: design ready, checked against real
+  output. See [jax-orbax-support.md](jax-orbax-support.md).
+- [ ] **Other model formats**: TensorFlow SavedModel/Lite, scikit-learn
+  (pickle/joblib). See
+  [model-metadata-extraction.md](model-metadata-extraction.md),
+  [docs/ai-model-formats.md](../../docs/ai-model-formats.md).
+- [ ] **MLflow run extractor** (`loom.from_mlflow_run()`, keyed against
+  [STAV](https://github.com/bact/stav)); W&B Weave and DVC are the same
+  shape. See [mlflow-extractor.md](mlflow-extractor.md).
+- [ ] **OSV.dev vulnerability lookup**: design gaps resolved. See
+  [osv-vulnerability-lookup.md](osv-vulnerability-lookup.md).
+- [ ] **More lock files** (`pixi.lock`, `conda-lock.yml`). See
+  [lock-files.md](lock-files.md),
+  [docs/dependency-sources.md](../../docs/dependency-sources.md).
+- [ ] **Installed `.dist-info` as a project source**: see
+  [installed-dist-info-source.md](installed-dist-info-source.md).
+- [ ] **SARIF output** for CI findings. See [sarif-output.md](sarif-output.md).
+- [ ] **Docker container action** (`using: docker`) for hermetic or
+  self-hosted runners. See [adoption-surfaces.md](adoption-surfaces.md).
+- Background research: [metadata-sources.md](metadata-sources.md) (how other
+  tools read Python metadata), [sbom-enrichment.md](sbom-enrichment.md),
+  [architecture-overview.md](architecture-overview.md).
 
 ## Medium-term
 
-- [x] **CHANGELOG.md split** -- done 2026-09-30: entries condensed and merged;
-  0.19.0+ stay in `CHANGELOG.md`, older releases in `CHANGELOG-archive.md`.
-- [ ] `roadmap.md` itself is at the 800-line hard limit: move more detailed
-  bullets into design/implementation docs.
-- [ ] **CycloneDX assembler** -- add a CycloneDX serializer consuming the
-  existing `DocumentModel`; no changes to extractors required.
-- [ ] **AIDOC / TechOps renderer** -- additional output format consuming
-  `DocumentModel`.
-- [ ] **Build log extraction** -- capture compiled dependencies, linker flags,
-  and bundled libraries from build output logs.
-- [ ] **VEX (CSAF/OpenVEX) generation** -- consumes the OSV.dev lookup
-  above (once it exists) to classify a component as affected/
-  not_affected/fixed/under_investigation, rather than just listing raw
-  CVE hits. Depends on the OSV enrichment item under Near-term /
-  Metadata quality landing first. Open question: CSAF v2.0
-  (ISO/IEC 20153:2025, OASIS-standardized, heavier, product-tree
-  formalism, vendor-advisory-oriented) vs. OpenVEX (lighter JSON, the
-  more common choice for tool-generated, non-vendor VEX) as the output
-  format -- see
-  [osv-vulnerability-lookup.md](osv-vulnerability-lookup.md#relationship-to-csafvex).
+- [ ] **CycloneDX assembler** consuming the existing `DocumentModel`; no
+  extractor changes.
+- [ ] **AIDOC / TechOps renderer**, another `DocumentModel` output.
+- [ ] **Build log extraction**: compiled dependencies, linker flags and
+  bundled libraries from build output.
+- [ ] **VEX (CSAF/OpenVEX) generation** from the OSV lookup (format: see
+  [To design](#to-design)).
 
 ## Long-term
 
-- [ ] **PEP 740 attestations** -- cryptographic signing and provenance
-  tracking for generated SBOMs.
-- [ ] **IETF SCITT integration** -- submit a generated SBOM as a signed
-  SCITT statement to a transparency service (`loom scitt submit`),
-  receive a receipt back as proof of registration; verify a
-  dependency's own receipt on consume. Complementary to (not a
-  replacement for) the PEP 740 item above. See <https://scitt.io/> and
-  [scitt-integration.md](scitt-integration.md) for the receipt-placement
-  decision, Pitloom's client-only role, and the tooling landscape.
-- [ ] **Performance optimization** -- Rust backend for large-project log
-  parsing; parallel file hashing. See
+- [ ] **PEP 740 attestations** for generated SBOMs.
+- [ ] **IETF SCITT integration**: submit an SBOM as a signed statement
+  (`loom scitt submit`), keep the receipt, verify dependencies' receipts.
+  See [scitt-integration.md](scitt-integration.md).
+- [ ] **Performance**: Rust backend for large-project log parsing, parallel
+  file hashing. See
   [performance-optimizations.md](performance-optimizations.md#rust-backend--parallel-hashing).
-- [ ] **Agentic skill governance (guardrail mode)** -- extend the
-  existing AI-agent Skills (Adoption surfaces above) from "generate an
-  SBOM on request" to "veto/flag a coding agent's own action" -- e.g.
-  block or require override when an agent attempts to pull an unvetted
-  Hugging Face model. Distinct capability from the current Skills:
-  needs a hook into the calling agent's tool-use loop, not just a
-  callable Skill.
-- [ ] **Runtime reachability ("living SBOM")** -- evolve `loom env`
-  (currently a static environment graph, see Market signals above)
-  toward tracking which dependencies are actually loaded/executed at
-  runtime (`sys.modules` introspection or eBPF), to suppress
-  vulnerability noise from installed-but-unreachable code. Large scope
-  -- needs its own design doc before estimating.
+- [ ] **Agentic skill governance (guardrail mode)**: let the Skills veto or
+  flag a coding agent's own action (e.g. pulling an unvetted Hugging Face
+  model); needs a hook into the agent's tool-use loop.
+- [ ] **Runtime reachability ("living SBOM")**: `loom env` tracking which
+  dependencies are loaded at runtime (`sys.modules`, eBPF) to cut
+  vulnerability noise. Needs its own design doc.

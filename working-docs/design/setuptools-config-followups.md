@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [license-typing.md](../implementation/license-typing.md) (the
 `file:` directive rules built in PR #276),
-[roadmap.md](roadmap.md#near-term).
+[roadmap.md](roadmap.md#open-follow-ups-by-area).
 
 Found in the PR #276 review rounds (R8), outside that PR's scope. All in
 `src/pitloom/extract/project/_setup_cfg_directives.py` unless noted.

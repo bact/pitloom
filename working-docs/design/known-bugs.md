@@ -189,6 +189,31 @@ Crashes, broken contracts and small mappings.
 
 ## P3: after 0.20.0
 
+- [ ] **GitHub Action drops invalid boolean inputs silently.** Any
+  non-empty value other than exactly `true`/`false` (`maybe`, `True`) on
+  the tri-state `enrich`, `extract-file-header`, `update-id-registry`,
+  `content-type`, `offline`, `use-lockfile`, and on the two-state
+  `pretty`, `allow-build`, `no-build-isolation` (case-sensitive
+  `= "true"`, so `allow-build: True` skips the build) passes no flag and
+  prints no warning; `use-lockfile` in model/embed-wheel mode is dropped
+  silently too.
+- [ ] **Non-directory targets ignore configured fragments.** `loom model`
+  (and `generate` on a model file), Hugging Face, `wheel`, `env` and sdist
+  runs never call `merge_fragments()`, so fragments in `--config` or
+  project config are dropped with no `WARNING:` and exit 0. The
+  `sbom-enrich` skill says so.
+- [ ] **`loom env` loses an unmet requirement.** A dependency pipdeptree
+  reports as not installed (`installed_version: "?"`) loses its
+  `dependsOn` edge with no trace (#236 review).
+- [ ] **`loom env`: two installs sharing one pipdeptree `key` collide.**
+  `build_deployed` keys its id map by `key`, so an editable copy next to
+  a site-packages copy overwrites the first; all edges go to one element.
+  Not seen from pipdeptree yet (#236 review).
+- [ ] **setuptools discovery: absolute `physical_path` for a project dir
+  named in another letter case.** On macOS and Windows, `loom project
+  stproj` for on-disk `StProj`: the discoverer's `chdir()` +
+  `os.getcwd()` gives the on-disk case, which no longer matches
+  `project_dir` textually. Other backends are unaffected (#257 review).
 - [ ] Case-insensitive member-name collisions in wheels; `--allow-build`
   extraction keeps the last duplicate with a warning.
 - [ ] A scan in a worker thread registers its temp-dir cleanup with its
@@ -209,9 +234,6 @@ Crashes, broken contracts and small mappings.
 
 Seen in past sessions, not reproduced on current `main`:
 
-- `loom env`: a requirement pipdeptree reports as `installed_version:
-  "?"` loses its `dependsOn` edge silently (see also the roadmap's
-  unmet-requirement item).
 - On Windows, `os.replace()` fails while another process holds the
   target open; the registry save should turn that into its existing
   "failed to save" `WARNING:`.

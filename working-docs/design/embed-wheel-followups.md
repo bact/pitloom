@@ -8,7 +8,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # PEP 770 / embed-wheel: open follow-ups
 
-See also: [roadmap.md](roadmap.md#pep-770--embed-wheel),
+See also: [roadmap.md](roadmap.md#open-follow-ups-by-area),
 [sbom-package-boundary.md](sbom-package-boundary.md),
 [archive-member-followups.md](archive-member-followups.md),
 [wheel-verification-commands.md](../implementation/wheel-verification-commands.md).
