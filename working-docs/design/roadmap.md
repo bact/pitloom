@@ -45,7 +45,7 @@ Order (2026-10-05): 0.20.0 -> 0.20.1 -> 0.21.0 -> 0.22.0 -> 1.0. No date for
   [wheel-sbom-verification.md](../implementation/wheel-sbom-verification.md).
 - [ ] CI workflow hardening from the release review. See
   [testing-ci-followups.md](testing-ci-followups.md#ci-workflow-review-0200).
-  Run the fuzz workflow (none since 2026-09-18).
+  Fuzz run after the release passed (2026-10-05).
 
 ### 0.20.1
 
