@@ -385,6 +385,12 @@ def test_apply_in_package_license_is_one_rule_for_every_reader(
         ([], "MIT", None),
         ([("Pixar", 0.996), ("Apache-2.0", 0.992)], "MIT OR Apache-2.0", "Apache-2.0"),
         ([("Pixar", 0.996)], "LicenseRef-Pixar", None),  # one id, not a part
+        # a deprecated "+" id is its successor
+        (
+            [("GPL-2.0-only", 1.069), ("GPL-2.0-or-later", 1.06)],
+            "MIT OR GPL-2.0+",
+            "GPL-2.0-or-later",
+        ),
         ([("MIT", 0.99), ("X11", 0.985)], "X11 licence text, see MIT", None),
         ([("X", 0.9), ("Y", 0.5), ("MIT", 0.905)], "MIT", "MIT"),  # unsorted
     ],

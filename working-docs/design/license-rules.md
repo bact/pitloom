@@ -327,6 +327,9 @@ elsewhere:
   since a Core Metadata reader loses what a file keeps.
 - After R10, no further licence-content questions in #276; the findings
   below were recorded instead.
+- An unstated verbatim GPL-family text concludes the `-only` id
+  `licenseid` ranks first, as 0.19.0 did, not none (user, 2026-10-05, PR
+  #286: the conservative choice; the text cannot tell `-or-later`).
 
 ## Open questions
 

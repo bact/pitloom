@@ -59,6 +59,22 @@ def test_an_sdist_concludes_its_own_licence(fixture: str) -> None:
     assert metadata.metadata.license_concluded == expected["license"]
 
 
+@pytest.mark.parametrize(
+    ("name", "stated", "expected"),
+    [
+        ("pylint-4.1.1-LICENSE", "GPL-2.0+", "GPL-2.0-or-later"),
+        ("astroid-4.3.2-LICENSE", "LGPL-2.1+", "LGPL-2.1-or-later"),
+    ],
+)
+def test_a_stated_deprecated_id_concludes_its_successor(
+    name: str, stated: str, expected: str
+) -> None:
+    """Not the ``-only`` the text alone ranks first: that would conflict
+    with the declared licence."""
+    text = (_CORPUS / name).read_bytes().decode("utf-8")
+    assert detect_license_from_text(text, stated=stated) == expected
+
+
 def test_embed_wheel_concludes_the_stated_licence(tmp_path: Path) -> None:
     """``embed-wheel --project-dir`` passes the wheel's declared licence:
     requests' verbatim Apache 2.0 concludes ``Apache-2.0``, not ``Pixar``."""

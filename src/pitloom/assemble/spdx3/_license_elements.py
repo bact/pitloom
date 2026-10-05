@@ -84,10 +84,12 @@ def license_key(
     :meth:`~pitloom.export.spdx3_json.Spdx3JsonExporter.find_license`), for
     an element a build did not make: an expression in its canonical form
     (``mit`` -> ``MIT``; a classifier ``AND`` and one that is not an
-    expression as written, stripped), a text stripped. A fragment merge
+    expression as written, stripped), a text stripped with its lines of
+    blank space emptied, as a build records it. A fragment merge
     unifies licences by it."""
     if isinstance(element, spdx3.simplelicensing_SimpleLicensingText):
-        return "text", (element.simplelicensing_licenseText or "").strip()
+        text = element.simplelicensing_licenseText or ""
+        return "text", empty_blank_lines(text).strip()
     value = (element.simplelicensing_licenseExpression or "").strip()
     if classifier_terms(value):
         return "expression", value

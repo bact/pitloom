@@ -42,6 +42,7 @@ from pitloom.extract._license_classify import (
     same_licence,
     tag_deprecated_license_ids,
     tag_license_normalization,
+    with_successor_ids,
 )
 from pitloom.extract._license_detect import (
     _LICENSE_STEMS,
@@ -143,8 +144,9 @@ _EXPRESSION_OPERATORS = frozenset({"and", "or", "with"})
 
 
 def _stated_ids(stated: str | None) -> frozenset[str]:
-    """The licence ids *stated* names, case-folded (``MIT OR Apache-2.0``
-    names both); none for a licence text or name."""
+    """The licence ids *stated* names, case-folded, deprecated ``+`` ids as
+    their successors (``MIT OR GPL-2.0+`` names ``MIT`` and
+    ``GPL-2.0-or-later``); none for a licence text or name."""
     value = (stated or "").strip()
     if not (
         _looks_like_spdx_license_id(value) or _looks_like_spdx_license_expression(value)
@@ -152,7 +154,7 @@ def _stated_ids(stated: str | None) -> frozenset[str]:
         return frozenset()
     return frozenset(
         token.casefold()
-        for token in _EXPRESSION_ID_RE.findall(value)
+        for token in _EXPRESSION_ID_RE.findall(with_successor_ids(value))
         if token.casefold() not in _EXPRESSION_OPERATORS
     )
 

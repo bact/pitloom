@@ -158,6 +158,12 @@ def _successor_id(token: str) -> str | None:
     return None
 
 
+def with_successor_ids(value: str) -> str:
+    """*value* with each deprecated ``+`` id replaced by its listed
+    successor (``GPL-2.0+`` -> ``GPL-2.0-or-later``), the rest unchanged."""
+    return _ID_TOKEN_RE.sub(_replace_deprecated, value)
+
+
 def _replace_deprecated(match: re.Match[str]) -> str:
     """The successor of a deprecated id token, unless another ``+`` follows
     (``GPL-2.0++`` is no id)."""
@@ -298,7 +304,7 @@ def classify_license(raw: str | None, *, warn: bool = True) -> ClassifiedLicense
     if "\n" in stripped or len(stripped) > _MAX_EXPRESSION_LENGTH:
         return ClassifiedLicense("text", empty_blank_lines(stripped), raw or "")
     cased = _SPDX_OPERATOR_CASING_RE.sub(lambda m: m.group(1).upper(), stripped)
-    cased = _ID_TOKEN_RE.sub(_replace_deprecated, cased)
+    cased = with_successor_ids(cased)
     canonical, reason = _strict_parse(cased)
     if canonical is not None:
         return ClassifiedLicense("expression", canonical, raw or "")
