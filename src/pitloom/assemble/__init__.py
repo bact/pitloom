@@ -11,6 +11,7 @@ See also:
   :mod:`pitloom.assemble._generators_env` for the wheel and environment
   generators, and :mod:`pitloom.assemble._generators_shared` for what they share.
 - :mod:`pitloom.assemble._model_generator` for AI model SBOM generation and enrichment.
+- :mod:`pitloom.assemble._generators_merge` for merging a fragment directory.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from typing import Any
 
 from pitloom.assemble._generators import generate_project_sbom
 from pitloom.assemble._generators_env import generate_env_sbom
+from pitloom.assemble._generators_merge import generate_merged_sbom
 from pitloom.assemble._generators_wheel import (
     generate_wheel_sbom,
     generate_wheel_sbom_with_metadata,
@@ -27,6 +29,7 @@ from pitloom.assemble._generators_wheel import (
 from pitloom.assemble._model_generator import (
     enrich_model,
     generate_model_sbom,
+    project_document_id,
 )
 from pitloom.assemble.spdx3.fragments import FragmentMergeError, merge_fragments
 from pitloom.core.build_options import NON_PROJECT_TARGET_REASON, BuildOptions
@@ -64,11 +67,13 @@ __all__ = [
     "find_embedded_sbom",
     "generate",
     "generate_env_sbom",
+    "generate_merged_sbom",
     "generate_model_sbom",
     "generate_project_sbom",
     "generate_wheel_sbom",
     "generate_wheel_sbom_with_metadata",
     "merge_fragments",
+    "project_document_id",
     "target_resolves_to_project",
 ]
 

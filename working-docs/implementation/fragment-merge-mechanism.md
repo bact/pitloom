@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-09-18
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,7 +12,9 @@ See also: [roadmap.md](../design/roadmap.md) (Near-term -- "SBOM
 fragments (merge system)"),
 [fragment-merge-design.md](../design/sbom-fragments/fragment-merge-design.md)
 (the original, mostly-superseded design this documents the shipped
-version of -- read this file, not that one, for current behaviour).
+version of -- read this file, not that one, for current behaviour),
+[fragment-merge-unification.md](fragment-merge-unification.md) (references
+by id, licence unification, the `loom merge` envelope).
 
 Split out of `roadmap.md` (2026-09-17) once this item's detail grew
 past a summary.

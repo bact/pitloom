@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Referential-integrity check for a merged SPDX 3 graph: which
-``Relationship``/``Annotation`` endpoints resolve to nothing.
+``Relationship``/``Annotation`` endpoints and collection roots resolve to
+nothing.
 
 An endpoint resolves when it is an object in the graph, an id declared
 external by the main document's ``import_``, or a named individual of the
@@ -51,7 +52,8 @@ def _find_dangling_references(
     exporter: Spdx3JsonExporter,
 ) -> list[tuple[str, str, str]]:
     """Return ``(referencing element id, property name, missing target id)``
-    for every ``Relationship``/``Annotation`` endpoint that doesn't resolve
+    for every ``Relationship``/``Annotation`` endpoint and collection
+    ``rootElement`` that doesn't resolve
     to an object actually present in *exporter*'s merged graph, and isn't
     a legitimate external reference either (an id declared via the main
     document's own ``import_`` -- see
@@ -124,10 +126,16 @@ def _dangling_refs_for_object(
     obj: spdx3.SHACLObject, known_ids: set[str], external_ids: set[str]
 ) -> list[tuple[str, str, str]]:
     """Dangling ``(referencing id, property name, missing target id)``
-    entries for one ``Relationship``'s or ``Annotation``'s endpoints."""
+    entries for one ``Relationship``'s or ``Annotation``'s endpoints, or
+    one collection's (``SpdxDocument``, ``Sbom``) ``rootElement``."""
     obj_id = str(getattr(obj, "spdxId", None) or "<unknown>")
     found: list[tuple[str, str, str]] = []
-    if isinstance(obj, spdx3.Relationship):
+    if isinstance(obj, spdx3.ElementCollection):
+        for root in obj.rootElement:
+            root_id = _endpoint_id(root)
+            if _is_dangling(root_id, known_ids, external_ids):
+                found.append((obj_id, "rootElement", root_id or ""))
+    elif isinstance(obj, spdx3.Relationship):
         from_id = _endpoint_id(obj.from_)
         if _is_dangling(from_id, known_ids, external_ids):
             found.append((obj_id, "from", from_id or ""))

@@ -451,8 +451,9 @@ harvesting them would just write dead entries. See
 for the CI workflow shape this implies.
 
 At build time `merge_fragments` unifies fragment elements -- by shared
-`spdxId`, by identical SHA-256 content, or (for the per-fragment "Pitloom"
-`Agent`/`Tool` copies) by structural equality; **never by name alone**.
+`spdxId`, by identical SHA-256 content, by equal licence (canonical
+expression or text), or (for the per-fragment "Pitloom" `Agent`/`Tool`
+copies) by structural equality; **never by name alone**.
 Fragment envelopes are dropped, duplicate relationships removed, the
 document's `profileConformance` gains `ai`/`dataset` as appropriate, and a
 second `software_Sbom` rooted at the merged `ai_AIPackage` is added, so the

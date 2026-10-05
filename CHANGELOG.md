@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -154,6 +154,8 @@ and this project adheres to
 - CLI stdout is `KEY=VALUE` data only (`WHEEL=`/`SBOM=`, `STATUS=`, `FILE=`,
   `PITLOOM_ID_REGISTRY_PATH=`); counts, hints and `-v` are `INFO:` on stderr
   ([#281])
+- `loom merge` output (also `generate_merged_sbom()`) has an `SpdxDocument`
+  with `profileConformance`, imports and unification annotations ([#284])
 
 ### Removed
 
@@ -288,6 +290,9 @@ and this project adheres to
 - An sdist reads its root `LICENSE`, `CITATION.cff` and `codemeta.json` as a
   directory does; with no `PKG-INFO`, `project.license` too. A non-object
   `codemeta.json` no longer crashes ([#283])
+- Fragment merge: equal licences unified, re-declared base ids no longer
+  crash, warnings name elements by id; `fragment list` flags an earlier SBOM
+  of the project (`SAME_DOCUMENT=`) ([#284])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -330,6 +335,7 @@ and this project adheres to
 [#281]: https://github.com/bact/pitloom/pull/281
 [#282]: https://github.com/bact/pitloom/pull/282
 [#283]: https://github.com/bact/pitloom/pull/283
+[#284]: https://github.com/bact/pitloom/pull/284
 
 ## [0.19.0] - 2026-09-18
 

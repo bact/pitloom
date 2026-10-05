@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -137,6 +137,10 @@ filled in as above:
   "type": "Relationship"
 }
 ```
+
+If the base already has an `MIT` expression, the merge keeps the base's
+element (an `Annotation` records the unification), so the override note
+survives on the relationship's `comment`, not the shared licence.
 
 ### Interactive example: asking the SBOM author
 

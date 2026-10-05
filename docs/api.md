@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-29
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -37,7 +37,11 @@ exact call signature.
 
 ## Fragment merging
 
+::: pitloom.assemble.generate_merged_sbom
+
 ::: pitloom.assemble.merge_fragments
+
+::: pitloom.assemble.project_document_id
 
 ::: pitloom.assemble.FragmentMergeError
 

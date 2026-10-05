@@ -71,6 +71,29 @@ class LicenseElement(NamedTuple):
         return self.spdx_id == INDIVIDUAL_BY_KIND["noassertion"].iri
 
 
+def license_key(
+    element: (
+        spdx3.simplelicensing_LicenseExpression
+        | spdx3.simplelicensing_SimpleLicensingText
+    ),
+) -> tuple[str, str]:
+    """The ``(kind, value)`` a build indexes *element* under (see
+    :meth:`~pitloom.export.spdx3_json.Spdx3JsonExporter.find_license`), for
+    an element a build did not make: an expression in its canonical form
+    (``mit`` -> ``MIT``; a classifier ``AND`` and one that is not an
+    expression as written, stripped), a text stripped. A fragment merge
+    unifies licences by it."""
+    if isinstance(element, spdx3.simplelicensing_SimpleLicensingText):
+        return "text", (element.simplelicensing_licenseText or "").strip()
+    value = (element.simplelicensing_licenseExpression or "").strip()
+    if classifier_terms(value):
+        return "expression", value
+    classified = classify_license(value, warn=False)
+    if classified is not None and classified.kind == "expression":
+        return "expression", classified.value
+    return "expression", value
+
+
 def _element_name(value: str) -> str:
     name = value.strip()
     if "\n" in name:

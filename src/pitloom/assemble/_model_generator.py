@@ -24,7 +24,7 @@ from pitloom.core.inert_options import (
     SDIST,
     settle_inert,
 )
-from pitloom.core.models import compute_doc_uuid, get_wheel_files
+from pitloom.core.models import compute_doc_uuid, generate_spdx_id, get_wheel_files
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich import run_enrichers
@@ -108,6 +108,16 @@ def _doc_identity_of(
         ),
     )
     return project_metadata.name, doc_uuid
+
+
+def project_document_id(project_dir: Path) -> str:
+    """The ``SpdxDocument`` id a ``loom project`` build of *project_dir*
+    gives (without ``--allow-build``), resolved as :func:`_doc_identity_of`
+    resolves it; ``loom fragment list`` compares fragments with it."""
+    configure_logging()
+    metadata, _config, _path = resolve_project_with_lockfile(project_dir, None)
+    doc_name, doc_uuid = _doc_identity_of(project_dir, metadata)
+    return generate_spdx_id("SpdxDocument", doc_name=doc_name, doc_uuid=doc_uuid)
 
 
 # pylint: disable=too-many-arguments,too-many-locals

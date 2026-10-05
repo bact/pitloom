@@ -208,7 +208,7 @@ the others are still processed. The library raises `ValueError`.
 
 Validate a wheel's embedded SBOM content against its format's schema and
 SHACL rules (currently SPDX3 JSON-LD only, via the same `spdx3-validate`
-library used by [`loom fragment validate`](#validate-fragments) --
+library used by [`loom fragment validate`](fragments.md#validate-fragments) --
 needs `pip install "pitloom[validate]"`):
 
 ```bash
@@ -401,70 +401,10 @@ For prose-reading enrichment (an AI agent reading the actual README text,
 not just its frontmatter), see the [Agent Skills](agent-skills.md) page
 instead -- the `sbom-enrich` skill.
 
-### Merge fragments
+### Merge, validate and list fragments
 
-```bash
-loom merge .spdx3-fragments/ -o combined.spdx3.json
-```
-
-Exits non-zero (with an `ERROR:` line, after a `WARNING:` naming each
-offending reference) if any element in the merged result references an
-id absent from the merge -- most commonly a fragment merged against a
-stale base SBOM (see the note above). Regenerate the base SBOM and
-re-run the fragment-producing step before merging again.
-
-`merge`, `fragment`, and `id` each take only their own small flag set,
-not the common options below -- e.g. `--offline`/`-v`/`--config`/
-`--enrich` don't apply to any of them (`id generate`/`id import` do take
-`-o`/`--id-registry`, as an alias for their own target-file flag -- not
-in the common-options sense described below). `merge`'s own `--pretty`
-also defaults to `True` (pretty-printed), the opposite of every other
-subcommand's compact default.
-
-### Validate fragments
-
-```bash
-loom fragment validate combined.spdx3.json
-loom fragment validate base.spdx3.json fragment.spdx3.json  # + merged-graph check
-```
-
-Checks JSON Schema and SHACL conformance via
-[`spdx3-validate`](https://pypi.org/project/spdx3-validate/)'s library
-API (requires the `validate` extra above). Works on any SPDX 3 JSON
-document, not just Pitloom's own output. Passing more than one path also
-validates the graph formed by merging them, which catches type errors
-across `ExternalMap` references -- pass `--no-merge` to skip that and
-check each document only in isolation. Non-zero exit reports every
-finding to stderr with every line `ERROR:`-tagged -- a SHACL violation's
-Severity/Source Shape/Focus Node breakdown spans several `ERROR:` lines,
-not just one.
-
-### List configured fragments
-
-```bash
-loom fragment list
-loom fragment list --project-dir path/to/project
-```
-
-Reads `[tool.pitloom.fragment]` from that directory's `pyproject.toml`
-(default: cwd) and prints one line per configured fragment:
-
-```text
-PATH=fragments/model.spdx3.json ROLE=ai_model REQUIRED=false EXISTS=true ELEMENTS=42 SHA256=match MODIFIED=2026-09-10T12:00:00+00:00
-```
-
-`ELEMENTS` is the fragment's `@graph` entry count -- `0` for valid JSON
-with no `@graph` key (a real, valid empty fragment), `-` if the file is
-missing, unreadable, or not valid JSON at all; `SHA256` is
-`-`/`unknown`/`match`/`mismatch` depending on whether a `sha256` is
-configured and, if so, whether the file could be checked -- display
-only, not yet enforced before merge.
-A missing or broken fragment logs the same `WARNING:` wording a real
-build would log for it. Exits non-zero only when a `required = true`
-fragment is missing, unreadable, or fails to parse as valid SPDX3
-JSON-LD -- the same conditions that would also fail an actual build
-(see [Merge fragments](#merge-fragments) above); a non-required missing
-fragment or a `SHA256` mismatch is informational only.
+`loom merge`, `loom fragment validate` and `loom fragment list`: see
+[SBOM fragments](fragments.md).
 
 ### Pin ids across fragments
 
@@ -793,6 +733,8 @@ does and worked examples.
   resolved lock files feed into Source SBOM dependencies.
 - [Python API](python-api.md) -- calling Pitloom from Python code instead
   of the shell.
+- [SBOM fragments](fragments.md) -- `loom merge`, `loom fragment
+  validate`/`list`, and how fragments unify.
 - [Hatchling build hook](hatchling-build-hook.md) -- generate the SBOM
   automatically at build time instead of a manual CLI call.
 - [GitHub Action](github-action.md) -- run the CLI as a CI step.

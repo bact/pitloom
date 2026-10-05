@@ -223,10 +223,14 @@ def hook_metadata(root: Path) -> ProjectMetadata:
     return metadata_from_hatchling(core, root)
 
 
-def merged_fragment(tmp_path: Path, target: str | None) -> Spdx3JsonExporter:
-    """A licence-free base document merged with a fragment whose package has
-    a ``hasDeclaredLicense`` relationship to *target* (none when ``None``)."""
-    ns = "https://spdx.org/spdxdocs/frag"
+_FRAGMENT_NS = "https://spdx.org/spdxdocs/frag"
+
+
+def fragment_graph(
+    elements: list[dict[str, Any]], ns: str = _FRAGMENT_NS
+) -> dict[str, Any]:
+    """A fragment document: its creation info and agent, then *elements*
+    (``creationInfo`` filled in)."""
     graph: list[dict[str, Any]] = [
         {
             "type": "CreationInfo",
@@ -235,39 +239,64 @@ def merged_fragment(tmp_path: Path, target: str | None) -> Spdx3JsonExporter:
             "created": "2026-01-01T00:00:00Z",
             "createdBy": [f"{ns}#A"],
         },
+        {"type": "SoftwareAgent", "spdxId": f"{ns}#A", "name": "x"},
+        *elements,
+    ]
+    for element in graph[1:]:
+        element.setdefault("creationInfo", "_:ci")
+    return {
+        "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+        "@graph": graph,
+    }
+
+
+def licensed_package(
+    name: str, target: str, ns: str = _FRAGMENT_NS
+) -> list[dict[str, Any]]:
+    """Package *name* of a fragment declaring licence *target*."""
+    return [
+        {"type": "software_Package", "spdxId": f"{ns}#{name}", "name": name},
         {
-            "type": "SoftwareAgent",
-            "spdxId": f"{ns}#A",
-            "creationInfo": "_:ci",
-            "name": "x",
-        },
-        {
-            "type": "software_Package",
-            "spdxId": f"{ns}#P",
-            "creationInfo": "_:ci",
-            "name": "p",
+            "type": "Relationship",
+            "spdxId": f"{ns}#R-{name}",
+            "from": f"{ns}#{name}",
+            "to": [target],
+            "relationshipType": "hasDeclaredLicense",
         },
     ]
-    if target is not None:
-        graph.append(
-            {
-                "type": "Relationship",
-                "spdxId": f"{ns}#R",
-                "creationInfo": "_:ci",
-                "from": f"{ns}#P",
-                "to": [target],
-                "relationshipType": "hasDeclaredLicense",
-            }
-        )
-    (tmp_path / "f.spdx3.json").write_text(
-        json.dumps(
-            {
-                "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
-                "@graph": graph,
-            }
-        ),
-        encoding="utf-8",
+
+
+def license_node(spdx_id: str, kind: str, value: str) -> dict[str, Any]:
+    """A serialised licence element: *kind* ``expression`` or ``text``."""
+    if kind == "expression":
+        return {
+            "type": "simplelicensing_LicenseExpression",
+            "spdxId": spdx_id,
+            "simplelicensing_licenseExpression": value,
+        }
+    return {
+        "type": "simplelicensing_SimpleLicensingText",
+        "spdxId": spdx_id,
+        "simplelicensing_licenseText": value,
+    }
+
+
+def write_fragment(path: Path, document: dict[str, Any]) -> Path:
+    """Write *document* to *path*, making its directory."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(document), encoding="utf-8")
+    return path
+
+
+def merged_fragment(tmp_path: Path, target: str | None) -> Spdx3JsonExporter:
+    """A licence-free base document merged with a fragment whose package has
+    a ``hasDeclaredLicense`` relationship to *target* (none when ``None``)."""
+    elements = (
+        [{"type": "software_Package", "spdxId": f"{_FRAGMENT_NS}#P", "name": "p"}]
+        if target is None
+        else licensed_package("P", target)
     )
+    write_fragment(tmp_path / "f.spdx3.json", fragment_graph(elements))
     ci = spdx3.CreationInfo(
         _id="_:ci",
         specVersion="3.0.1",

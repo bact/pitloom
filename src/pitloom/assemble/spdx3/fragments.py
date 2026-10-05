@@ -6,13 +6,16 @@
 """Merging of pre-generated SPDX 3 fragment files into an SBOM document.
 
 See also: :mod:`pitloom.assemble.spdx3._fragments_unify` for internal unification
-logic and :mod:`pitloom.assemble.spdx3._fragments_refs` for the dangling-reference
-check.
+logic (licences: :mod:`~pitloom.assemble.spdx3._fragments_licenses`),
+:mod:`pitloom.assemble.spdx3._fragments_refs` for the dangling-reference check
+and :mod:`pitloom.assemble.spdx3._fragments_envelope` for ``loom merge``'s
+document envelope.
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -46,7 +49,6 @@ from pitloom.assemble.spdx3._fragments_unify import (
     _normalize_value,
     _paths_suffix_match,
     _record_unification,
-    _remap_object_refs,
     _sha256_hash,
     _signature,
     _UnificationEvents,
@@ -96,23 +98,24 @@ __all__ = [
     "_normalize_value",
     "_paths_suffix_match",
     "_raise_on_dangling_references",
+    "_same_document_message",
     "_record_unification",
-    "_remap_object_refs",
     "_sha256_hash",
     "_signature",
     "_canonical_merge_key",
     "_update_profile_conformance",
     "_warn_if_same_name_different_hash",
     "FragmentMergeError",
+    "fragment_files",
     "merge_fragments",
 ]
 
 
 class FragmentMergeError(ValueError):
     """Raised when merging fragments would produce a referentially-broken
-    SBOM -- a ``Relationship``/``Annotation`` endpoint that resolves to
-    neither an object in the merged graph nor a declared external
-    reference. Merging must not silently succeed in that case; see
+    SBOM -- a ``Relationship``/``Annotation`` endpoint or a ``rootElement``
+    that resolves to neither an object in the merged graph nor a declared
+    external reference. Merging must not silently succeed in that case; see
     :func:`_raise_on_dangling_references`."""
 
 
@@ -177,11 +180,17 @@ def _raise_on_dangling_references(exporter: Spdx3JsonExporter) -> None:
 
 
 def _update_profile_conformance(
-    main_doc: spdx3.SpdxDocument, exporter: Spdx3JsonExporter
+    main_doc: spdx3.SpdxDocument,
+    exporter: Spdx3JsonExporter,
+    fragment_profiles: Iterable[str] = (),
 ) -> None:
-    """Append ``ai``/``dataset`` and the licensing profiles to
+    """Add *fragment_profiles* (what the merged fragments' envelopes
+    declared), ``ai``/``dataset`` and the licensing profiles to
     profileConformance when present."""
     conformance = list(main_doc.profileConformance or [])
+    conformance.extend(
+        p for p in sorted(set(fragment_profiles)) if p not in conformance
+    )
     has_ai = any(isinstance(o, spdx3.ai_AIPackage) for o in exporter.object_set.objects)
     has_dataset = any(
         isinstance(o, spdx3.dataset_DatasetPackage) for o in exporter.object_set.objects
@@ -295,6 +304,17 @@ def _add_model_sbom(main_doc: spdx3.SpdxDocument, exporter: Spdx3JsonExporter) -
     main_doc.rootElement = root_elements
 
 
+def fragment_files(fragments_dir: Path) -> list[str]:
+    """The ``*.json`` files directly in *fragments_dir* (``loom merge``'s
+    input), as names relative to it, sorted by name: the order they merge
+    in, so an earlier name wins a unification."""
+    return sorted(
+        f.relative_to(fragments_dir).as_posix()
+        for f in fragments_dir.glob("*.json")
+        if f.is_file()
+    )
+
+
 def _missing_fragment_message(fragment_path: Path, *, required: bool) -> str:
     """Wording for a configured fragment file that doesn't exist on disk --
     shared by the real merge and ``pitloom fragment list``'s diagnostic
@@ -317,73 +337,121 @@ def _fragment_read_failure_message(
     return f"Failed to read SBOM fragment {fragment_path}: {exc}{suffix}"
 
 
+def _same_document_message(fragment_path: Path, doc_id: str, *, required: bool) -> str:
+    """Wording for a fragment whose ``SpdxDocument`` is the document it would
+    merge into (an earlier SBOM of the same project): skipped, as a missing
+    one is."""
+    suffix = " -- merge will fail." if required else ""
+    return (
+        f"SBOM fragment {fragment_path} is the document being merged into "
+        f"({doc_id}); skipped{suffix}"
+    )
+
+
+def _load_fragment(
+    fragment_path: Path, required: bool, main_doc_id: str | None
+) -> tuple[spdx3.SHACLObjectSet, str | None] | None:
+    """The fragment's objects and its ``SpdxDocument`` id; ``None``, after
+    one ``WARNING:``, when it is missing, unreadable or the document it
+    would merge into."""
+    if _fragment_is_missing(fragment_path):
+        log.warning(_missing_fragment_message(fragment_path, required=required))
+        return None
+    try:
+        with open(fragment_path, "rb") as f:
+            fragment_set = spdx3.SHACLObjectSet()
+            spdx3.JSONLDDeserializer().read(f, fragment_set)
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:
+        log.warning(
+            _fragment_read_failure_message(fragment_path, exc, required=required)
+        )
+        return None
+    frag_doc_id = _find_fragment_document_id(fragment_set)
+    if frag_doc_id is not None and frag_doc_id == main_doc_id:
+        log.warning(
+            _same_document_message(fragment_path, frag_doc_id, required=required)
+        )
+        return None
+    return fragment_set, frag_doc_id
+
+
+def _declared_profiles(fragment_set: spdx3.SHACLObjectSet) -> set[str]:
+    """The ``profileConformance`` the fragment's own envelopes declare."""
+    return {
+        str(p)
+        for obj in fragment_set.objects
+        if isinstance(obj, _ENVELOPE_TYPES)
+        for p in getattr(obj, "profileConformance", None) or []
+    }
+
+
 def merge_fragments(
     project_dir: Path,
     fragments: list[FragmentConfig],
     exporter: Spdx3JsonExporter,
+    *,
+    adopt_fragment_roots: bool = False,
 ) -> None:
     """Load SPDX 3 JSON-LD fragment files and merge them into the exporter.
 
+    The main document's ``profileConformance`` gains what the merged
+    fragments' envelopes declared. With *adopt_fragment_roots*
+    (``loom merge``), its ``rootElement`` also gains what those envelopes
+    rooted, after unification; a project keeps its own roots. Every root
+    goes through the dangling-reference check below.
+
+    A fragment whose ``SpdxDocument`` id is the exporter's own document
+    (an earlier SBOM of the same project) is skipped with a ``WARNING:``,
+    as a missing one is.
+
     Raises :class:`FragmentMergeError` if any ``required=True`` fragment
-    (see :class:`~pitloom.core.config.FragmentConfig`) is missing or
-    couldn't be read, or if the merge leaves the graph referentially
-    broken (see :func:`_raise_on_dangling_references`) -- the latter is
-    skipped when *fragments* is empty or none of it could be ingested,
-    since there is then nothing new whose references could be dangling.
+    (see :class:`~pitloom.core.config.FragmentConfig`) is missing, couldn't
+    be read or is the document itself, or if the merge leaves the graph
+    referentially broken (see :func:`_raise_on_dangling_references`) -- the
+    latter is skipped when *fragments* is empty or none of it could be
+    ingested, since there is then nothing new whose references could be
+    dangling.
     """
     configure_logging()
     index = _MergeIndex(exporter)
     events: _UnificationEvents = {}
     fragment_imports: list[spdx3.ExternalMap] = []
-    seen_import_ids: set[str] = set()
     merged_any = False
     unmet_required: list[str] = []
+    roots: list[str] = []
+    profiles: set[str] = set()
+    main_doc = _find_main_document(exporter.object_set)
+    main_doc_id = str(main_doc.spdxId) if main_doc and main_doc.spdxId else None
 
     for frag in fragments:
-        fragment_path = Path(frag.base_dir or project_dir) / frag.path
-        if _fragment_is_missing(fragment_path):
-            log.warning(
-                _missing_fragment_message(fragment_path, required=frag.required)
-            )
+        loaded = _load_fragment(
+            Path(frag.base_dir or project_dir) / frag.path, frag.required, main_doc_id
+        )
+        if loaded is None:
             if frag.required:
                 unmet_required.append(frag.path)
             continue
-        try:
-            with open(fragment_path, "rb") as f:
-                fragment_set = spdx3.SHACLObjectSet()
-                spdx3.JSONLDDeserializer().read(f, fragment_set)
-        # pylint: disable-next=broad-exception-caught
-        except Exception as exc:
-            log.warning(
-                _fragment_read_failure_message(
-                    fragment_path, exc, required=frag.required
-                )
-            )
-            if frag.required:
-                unmet_required.append(frag.path)
-            continue
-
-        frag_doc_id = _find_fragment_document_id(fragment_set)
-        if frag_doc_id and frag_doc_id not in seen_import_ids:
-            seen_import_ids.add(frag_doc_id)
+        fragment_set, frag_doc_id = loaded
+        if frag_doc_id and frag_doc_id not in {
+            m.externalSpdxId for m in fragment_imports
+        }:
             fragment_imports.append(
-                spdx3.ExternalMap(
-                    externalSpdxId=frag_doc_id,
-                    locationHint=frag.path,
-                )
+                spdx3.ExternalMap(externalSpdxId=frag_doc_id, locationHint=frag.path)
             )
-
-        _merge_fragment_set(fragment_set, index, frag.path, events)
+        profiles |= _declared_profiles(fragment_set)
+        roots.extend(_merge_fragment_set(fragment_set, index, frag.path, events))
         merged_any = True
 
     _dedupe_relationships(exporter)
 
-    main_doc = _find_main_document(exporter.object_set)
     if main_doc is not None:
-        _update_profile_conformance(main_doc, exporter)
+        _update_profile_conformance(main_doc, exporter, profiles)
         _add_fragment_imports(main_doc, fragment_imports)
         _emit_unification_annotations(events, main_doc, exporter)
         _add_model_sbom(main_doc, exporter)
+        if adopt_fragment_roots:
+            main_doc.rootElement = sorted({*roots, *(main_doc.rootElement or [])})
 
     # Checked unconditionally -- NOT gated by `merged_any`. A required
     # fragment that's missing is exactly the scenario most likely to leave

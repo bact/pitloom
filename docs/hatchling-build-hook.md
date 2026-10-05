@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -77,8 +77,9 @@ the table.
 Status/skip/deviation messages the hook logs during a build follow the
 same grep-able `INFO:`/`WARNING:`/`ERROR:` stderr convention as the
 `loom` CLI (see [Command line](cli.md)) -- e.g. a merge failure (see
-[Merge fragments](cli.md#merge-fragments)) fails the build outright with
-an `ERROR:` line, and "generation skipped: hook disabled" is an `INFO:`.
+[Merge fragments](fragments.md#merge-fragments)) fails the build outright
+with an `ERROR:` line, and "generation skipped: hook disabled" is an
+`INFO:`.
 
 ## Configuration
 

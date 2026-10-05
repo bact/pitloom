@@ -119,16 +119,29 @@ the original Phase 1/4 plan turned out to already be built.
   field-provenance construct -- see
   [roadmap-and-resources.md](roadmap-and-resources.md) for the full note.
 
-### Found in the PR #276 review (own PR before 0.20.0)
+### Left after the fragment-merge fixes
 
-- Licences are not unified across a fragment merge or `loom merge`: a
-  fragment's `MIT` and the project's `MIT` stay two elements
-  (`_MergeIndex` in `_fragments_unify.py` unifies by id, sha256 or
-  structure, never by licence (kind, value)).
-- `loom merge` output has no `SpdxDocument`, so no `profileConformance`.
-- A project's own earlier SBOM registered as a fragment crashes the run
-  (`Duplicate spdxId ...#File-2`).
-- Merge warnings print object reprs (`<...software_Package object at
-  0x...>`), so stderr differs between runs.
-- `scripts/check_sbom_license.py` expects exactly one `software_Sbom`; a
-  project SBOM with an AI model has two.
+The five PR #276 review findings (licence unification, the `loom merge`
+envelope, the same-document crash, object reprs in warnings, the
+two-`Sbom` licence check) are fixed: see
+[fragment-merge-unification.md](../../implementation/fragment-merge-unification.md).
+Outside that PR's bar:
+
+- [ ] A fragment's own `import` ExternalMaps are dropped with its
+  envelope.
+- [ ] `customIdToUri` targets in other namespaces are not checked (also
+  in [license-pr276-followups.md](../license-pr276-followups.md)).
+- [ ] expandedLicensing elements are not unified.
+- [ ] A fragment's `CreationInfo` stays in the output when nothing kept
+  references it (valid, but noise).
+- [ ] An earlier SBOM of the project with another namespace (another
+  version) still gives two root packages.
+- [ ] A user's `LicenseRef-` expression unifies by its string alone, not
+  its `customIdToUri` map: two fragments mapping one `LicenseRef-x` to
+  different texts keep the first.
+- [ ] Two equal SHA-256 elements within one fragment are not unified
+  (only across fragments and with the base).
+- [ ] `loom merge` of fragments with no envelope roots the document at
+  the model `Sbom` only; their packages stay unrooted.
+- [ ] `generate_merged_sbom()` takes no `creation_metadata`, config or
+  `describe_relationship`; `loom merge` has no flags for them.

@@ -14,6 +14,7 @@ reached by the higher-level `merge_fragments()` integration tests in
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -77,17 +78,46 @@ def test_merge_comment_concatenates_when_both_present_and_differ() -> None:
     assert canonical.comment == "first; second"
 
 
-def test_merge_list_skips_duplicate_shaclobject_by_spdx_id() -> None:
+def _agent(spdx_id: str = "urn:agent-1") -> spdx3.Agent:
+    agent = spdx3.Agent(name="A1")
+    agent.spdxId = spdx_id
+    return agent
+
+
+def _sha256(value: str = "ab") -> spdx3.Hash:
+    return spdx3.Hash(algorithm=spdx3.HashAlgorithm.sha256, hashValue=value)
+
+
+@pytest.mark.parametrize(
+    ("prop", "existing", "duplicate", "added"),
+    [
+        ("originatedBy", _agent, _agent, False),
+        ("originatedBy", lambda: "urn:agent-1", _agent, False),
+        ("originatedBy", _agent, lambda: "urn:agent-1", False),
+        ("originatedBy", _agent, lambda: _agent("urn:agent-2"), True),
+        ("verifiedUsing", _sha256, _sha256, False),
+        ("verifiedUsing", _sha256, lambda: _sha256("cd"), True),
+    ],
+    ids=["object", "id-then-object", "object-then-id", "other", "hash", "hash-new"],
+)
+def test_merge_list_keys_an_element_by_id_and_a_hash_by_content(
+    prop: str, existing: Any, duplicate: Any, added: bool
+) -> None:
+    """An element reference is present whether held as the object or its id;
+    an object with no id (a ``Hash``) is present when equal in content."""
     canonical = spdx3.software_Package(name="pkg")
-    existing_agent = spdx3.Agent(name="A1")
-    existing_agent.spdxId = "urn:agent-1"
-    canonical.originatedBy = [existing_agent]
+    setattr(canonical, prop, [existing()])
+    unify._merge_list(canonical, prop, getattr(canonical, prop), [duplicate()])
+    assert len(getattr(canonical, prop)) == (2 if added else 1)
 
-    dup_agent = spdx3.Agent(name="A1")
-    dup_agent.spdxId = "urn:agent-1"
 
-    unify._merge_list(canonical, "originatedBy", canonical.originatedBy, [dup_agent])
-    assert list(canonical.originatedBy) == [existing_agent]
+def test_merge_scalar_reference_forms_do_not_conflict(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    canonical = spdx3.software_Package(name="pkg")
+    with caplog.at_level(logging.WARNING):
+        unify._merge_scalar(canonical, "suppliedBy", "urn:agent-1", _agent())
+    assert not caplog.records
 
 
 def test_merge_list_appends_new_scalar_item() -> None:

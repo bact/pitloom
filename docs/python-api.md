@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -491,14 +491,15 @@ searched for or auto-discovered. A declared registry that's missing,
 unreadable or invalid raises `ValueError` when the `with loom.run(...)`
 block (or the decorated call) begins, before any fragment work happens.
 
-The merge itself (`pitloom.assemble.merge_fragments`, called internally
-by `generate()`/`generate_project_sbom()` whenever `[tool.pitloom.fragment]`
-lists files) raises `pitloom.assemble.FragmentMergeError` if any element
-in the merged graph references an id that resolves to nothing -- most
-commonly a fragment recorded against a base SBOM whose element ids have
-since changed (e.g. after a Pitloom upgrade that affects file discovery).
-Regenerate the base SBOM and re-run the fragment-producing script before
-merging again. See [API reference](api.md#fragment-merging).
+The merge itself (`pitloom.assemble.merge_fragments`, run by
+`generate()`/`generate_project_sbom()` whenever `[tool.pitloom.fragment]`
+lists files) raises `pitloom.assemble.FragmentMergeError` if an element
+of the merged graph references an id that resolves to nothing -- most
+commonly a fragment recorded against a base SBOM whose ids have since
+changed: regenerate the base SBOM and re-run the fragment-producing
+script. `generate_merged_sbom(fragments_dir)` merges a directory of
+fragments into one document, as `loom merge` does. See [SBOM
+fragments](fragments.md) and [API reference](api.md#fragment-merging).
 
 ## See also
 
