@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,8 +8,8 @@ SPDX-License-Identifier: CC0-1.0
 
 # Manual CLI integration checks (post-pytest, pre-commit)
 
-See also: [CLAUDE.md](../../CLAUDE.md) ("Testing" section -- short summary
-and when to run these).
+See also: [CLAUDE.md](../../CLAUDE.md) ("Testing" section -- test tiers
+and a short summary of when to run these).
 
 pytest exercises functions in-process. It does not exercise the `loom`
 entry point, subprocess argv parsing, real filesystem/archive I/O across
@@ -19,6 +19,34 @@ an agent run them -- against a real project after any change touching
 `assemble/`, `extract/`, `core/`, `embed.py`, `__main__.py`, or
 `plugins/hatch.py`, before committing. Use a scratch dir (`mktemp -d`),
 never the repo tree, for generated output.
+
+## When to run
+
+The full run takes minutes; pytest already runs a slice of it in CI
+(`tests/scripts/test_manual_cli_checks.py`: `M/completeness`, check 1,
+`B7` and the `M/project/debug/*` cells). So:
+
+- Docs-, tests- or `working-docs/`-only change: skip.
+- Each review/fix round: only the touched area's checks, by `--only`
+  (ids and globs, comma-separated):
+
+  | Area | `--only` |
+  |---|---|
+  | wheel, embed | `3,4a,16,S2,S3,S7,S8,M/wheel/*,M/embed-wheel/*,M/verify-wheel/*,M/validate-wheel/*` |
+  | registry, ids | `9,14,S4,S5,M/id-*/*` |
+  | fragments, merge | `7,S6,M/merge/*,M/fragment-*/*` |
+  | build, `--allow-build`, termination | `B*,10` |
+  | config, options, cascade | `5,12,13,15,M/completeness`, plus `M/<cmd>/*` per command whose options changed |
+  | AI model scan | `15,17,M/model/*` |
+  | network, offline | `8,11` |
+  | any metadata source or assembly | add `1,2,S1` and `M/<cmd>/*` for each command that reads it |
+
+- Once before handoff, and again after merging main into the branch: the
+  full run (`-j 8`; add `--network` when network code changed).
+
+A new numbered check gets a row here. The map is by hand and can drift;
+an area field on each check, selectable by `--only`, is a possible
+follow-up.
 
 ## Running them: `scripts/manual_cli_checks`
 

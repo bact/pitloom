@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-07
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -18,7 +18,7 @@ below). The user-facing explainer lives at
 provenance keys and whose statement a licence is:
 [license-typing.md](../license-typing.md#provenance); what is still to
 settle:
-[license-layers.md](../../design/license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy).
+[license-rules.md](../../design/license-rules.md).
 
 This document describes how Pitloom implements metadata provenance
 tracking and uses SPDX 3 CreationInfo for transparency and auditability.

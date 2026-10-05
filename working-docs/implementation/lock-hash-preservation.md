@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-12
-Last-Modified: 2026-09-14
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -104,10 +104,11 @@ reading -- see the "verify docs against actual code" rule in the root
   sibling artifact on the same package may still have `sha256`.
 - **`uv.lock`**: `pkg["sdist"]["hash"]` / `pkg["wheels"][i]["hash"]`, a
   single `"sha256:<hex>"`-prefixed string per artifact.
-- **`poetry.lock`**: **not uniform across lock versions.** Poetry 2.1+
-  writes a per-package `files` array directly on the `[[package]]`
-  entry, but every 1.x lock instead lists hashes in one *separate*,
-  top-level `[metadata.files]` table keyed by literal package name.
+- **`poetry.lock`**: **not uniform across lock versions.** Lock-version
+  2.0 and later write a per-package `files` array directly on the
+  `[[package]]` entry, but a 1.x lock instead lists hashes in one
+  *separate*, top-level `[metadata.files]` table keyed by literal package
+  name.
   Confirmed by diffing two real fixtures
   (`pastel-0.2.1/poetry.lock`, lock-version 1.1, uses `[metadata.files]`;
   `pendulum-3.2.0/poetry.lock`, lock-version 2.1, uses per-package

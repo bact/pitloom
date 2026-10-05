@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -80,6 +80,18 @@ say).
   give the same bytes.
   Do: document every setting's effect on output, and print what was done.
 
+- **`type(exc).__name__` is useless for some C-extension errors.**
+  `zlib.error.__name__` is `error` (`__module__` is `zlib`), so a refusal
+  read `could not read (error)`. Pitloom prints a module-qualified name
+  for non-builtins (`zlib.error`, `zipfile.BadZipFile`) (#266).
+  Do: label exceptions `f"{type(e).__module__}.{type(e).__qualname__}"`
+  unless the type is a builtin.
+- **Per-thread log capture must not key on a switchable record field.**
+  With `logging.logThreads = False`, `LogRecord.thread` is `None`, so
+  nothing is captured and reader text escapes unscrubbed (see the lessons
+  doc, 3.5). The fix reads `threading.get_ident()` at emit time (#263).
+  Do: key per-thread capture on `threading.get_ident()`.
+
 ## 2. Usage surfaces drift apart
 
 - **A global option must reach every subcommand.** `--debug` was parsed at
@@ -149,3 +161,12 @@ say).
   doc, 3.7.
   Do: compare the surfaces' outputs for one input, not each surface
   alone.
+- **Skill limits are concrete numbers; guard them in a test.** The Agent
+  Skills frontmatter `description` is at most 1,024 characters (Pitloom's
+  left 73 spare). The body limit of 500 lines is the spec's one hard
+  number; under 5,000 tokens is only a recommendation. A 20 KiB byte guard
+  left 27 bytes of headroom and became a trap, so the guard is now 500
+  lines plus a 24 KiB ratchet. Descriptions were cut from 2,072, 1,736 and
+  1,598 to 951, 933 and 926 characters (#235).
+  Do: enforce the spec's hard numbers in a test, and leave real headroom
+  on any self-imposed ratchet.

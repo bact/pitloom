@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -99,6 +99,31 @@ section 3.6 (determinism of model metadata).
   Do: survey each reader's source order: file order is stable, hash-map
   order is not.
 
+- **An output file written inside the scanned tree never settles.** With
+  `id-registry = "src/demo/reg.json"` each run hashes the registry as a
+  project file, then rewrites it: over 4 runs both the SBOM and the
+  registry hash changed every time, with `INFO: ID registry: updated stale
+  entries` on runs 2 to 4. Fragment merge has the same shape when the
+  output lands in its own input folder. Open; registry v3 D7 (decided, not
+  built) excludes the file with a `WARNING:`
+  ([id-registry-followups.md](../../design/id-registry-followups.md)).
+  Do: exclude every file the tool itself writes from its input set,
+  matched by file identity (`samefile`), not by name.
+- **RFC 8785 needs a sanitising pass first.** `rfc8785.dumps` raises
+  `FloatDomainError` on NaN or Infinity and `CanonicalizationError` on a
+  `set`. Sorting a set of frozensets with `<` is not stable: `<` means
+  proper subset, so `sorted([{2}, {1}])` returns its input order. Pitloom
+  sorts set members by each element's canonical bytes (#102).
+  Do: sanitise first, then order sets by canonical JSON bytes, never by
+  Python `<`.
+- **Keep a transparency-log receipt outside the artefact** (decided, not
+  built). A SCITT or Rekor receipt carries a per-submission timestamp and
+  index, and fetching it needs the network; embedding it breaks both
+  reproducibility and hermetic builds. PEP 740 likewise keeps attestations
+  index-hosted. The plan is a sidecar `dist/<wheel>.receipt.cbor`
+  ([scitt-integration.md](../../design/scitt-integration.md)).
+  Do: never embed a per-submission artefact in a reproducible artefact.
+
 ## 2. Parsing traps
 
 - **`json.loads(bytes)` strips a UTF-8 BOM; `json.loads(str)` does not.**
@@ -151,6 +176,28 @@ section 3.6 (determinism of model metadata).
   naming the archive member (#232).
   Do: read an INI file with the interpolation its own tool uses, and
   document the escape.
+- **A `setup.cfg` list is comma-separated when it fits on one line.**
+  setuptools' `ConfigHandler._parse_list` (84.0.0) splits on line breaks
+  when the value has one, else on commas, then strips and drops blanks.
+  A reader splitting on line breaks only took
+  `classifiers = License :: OSI Approved :: MIT License, Programming
+  Language :: Python` as one classifier and declared the licence
+  `Python`, with no warning; in the reverse order the licence was lost.
+  `_cfg_list()` now copies the rule, `file:` contents included (#276).
+  Do: split a list the way the build tool does, and cite its function.
+- **`setup.py` keywords beat `setup.cfg`, field by field.** setuptools'
+  `ConfigHandler.__setitem__` skips a `setup.cfg` option when the
+  `setup()` keyword already set it ("Already inhabited"). Built 2026-10-05
+  with setuptools 84.0.0: `setup.cfg` `classifiers` MIT and `setup.py`
+  `classifiers=[... BSD License]` give a wheel with `Summary` from
+  `setup.py` and the BSD classifier only; lists are replaced, not merged.
+  A reader merging both files with `setup.cfg` first must still put
+  `setup.py`'s licence before a `setup.cfg` classifier's (#276). Open:
+  when `setup.py` has no literal `name=` (the name lives in `setup.cfg`),
+  Pitloom drops the whole `setup()` call, and the same project still
+  declares MIT ([known-bugs.md](../../design/known-bugs.md)).
+  Do: decide precedence per field, as the build tool does, and test it
+  against a real built wheel.
 - **`configparser`'s `[DEFAULT]` makes every section declare its keys.**
   `key in cfg[section]` and `cfg.items(section)` merge `[DEFAULT]` in, so
   a shared default looks like an explicit, possibly empty, per-section
@@ -224,7 +271,57 @@ section 3.6 (determinism of model metadata).
   `poetry.lock`, `pdm.lock`, `Pipfile.lock`, `requirements.txt` (#208,
   #211, #212).
   Do: record how a dependency list was obtained, not only where from.
-- **`METADATA` headers need a count cap as well as a byte cap.** A 28 KB
-  wheel inflated to 16 MiB of short headers parsed to 2.4 million of them;
-  see the lessons doc, 3.8 (#266).
+- **`METADATA` and `PKG-INFO` headers need a count cap as well as a byte
+  cap.** A 28 KB wheel inflated to 16 MiB of short headers parsed to 2.4
+  million of them; see the lessons doc, 3.8 (#266). An sdist's `PKG-INFO`
+  then had only a whole-file byte cap. Re-measured 2026-10-05 (CPython
+  3.10, macOS): 16 MiB of `X-A: b` lines is 2,396,745 headers, and
+  `email.message_from_string` took peak resident memory from 31 MiB to
+  578 MiB in 1.9 s; 4 MiB reached 159 MiB. The same bytes through the
+  header-block reader (16 MiB, 10,000 headers) stopped at header 10,001
+  in 4 ms with no measurable growth. `PKG-INFO` now goes through that
+  reader; the member is still hashed whole (#282).
   Do: stop at the first blank line and cap both bytes and header count.
+- **`packaging.Version` of a very long number raises plain `ValueError`.**
+  `Version("1" * 5000)` raises `ValueError: Exceeds the limit (4300) for
+  integer string conversion`, which is not an `InvalidVersion`. A
+  `METADATA` `Version:` of 5,000 digits turned `verify-wheel`'s "cannot
+  compare" warning into a fatal `ERROR:`. `extract/lock/_common.py` still
+  has the narrow catch (follow-up) (#266).
+  Do: catch `ValueError`, the base of `InvalidVersion`, around every
+  version parse of untrusted text.
+- **HDF5's signature is not always at offset 0.** With a user block
+  (`userblock_size` is 0 or a power of two of at least 512) the
+  `\x89HDF\r\n\x1a\n` signature sits at 512, 1024, 4096, ...
+  (h5py 3.16.0: `userblock_size=256` raises `ValueError`). A first-bytes
+  sniff misclassifies a valid file, which is why HDF5 is admitted by
+  extension; a file under 520 bytes with no magic at 0 cannot be HDF5
+  (#270).
+  Do: search the signature at 0 and at 512 * 2^n, or admit by suffix.
+- **Repeated single-value headers: pick one rule for every reader.**
+  `email.parser` gives `m["Name"] == "first"` (`get_all` gives both);
+  `packaging.metadata.Metadata.from_email` raises an `ExceptionGroup`
+  (`'name' has invalid data`). Pitloom keeps first-wins (#266).
+  Do: document one rule for repeated headers, identical on every reader.
+- **`pickletools.genops` reports truncation itself.** On
+  `b"\x80\x04K\x01"` it raises `ValueError("pickle exhausted before
+  seeing STOP")`, so a "no STOP" branch after the loop is unreachable with
+  `bytes` input and only a mock can reach it (#263, #267).
+  Do: rely on the decoder's own truncation error; no dead fallback.
+- **When you pre-check for a library, copy its exact limit.**
+  `np.load` defaults to `max_header_size=10000` (numpy 2.2.6), but a v2
+  `.npy` header declaring 4 GiB was read before numpy checked it. Pitloom
+  refuses over 10,000 bytes itself, per array in `.npz` too, with a
+  comment naming the source of the number (#263; see lessons doc, 3.3).
+  Do: mirror the library's bound and inclusivity, and say so.
+- **`dataclasses.replace()` is a shallow copy.** The "new" object shared
+  its `dict` fields, so filling provenance into it wrote back into the
+  caller's input. `ProjectMetadata.replace_with_fresh_containers()` now
+  copies them, used at all 4 call sites (#214).
+  Do: copy mutable fields explicitly after `replace()`.
+- **A declared-empty value passed on as `None` crashes the comparator.**
+  `requires-python = ""` means "no constraint", but `SpecifierSet(None)`
+  raises `TypeError` while `SpecifierSet("")` is fine; `license = ""`
+  crashed the same way (#214).
+  Do: keep declared-empty distinct from absent, and pass `""`, not
+  `None`, to comparators.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,6 +9,7 @@ SPDX-License-Identifier: CC0-1.0
 # Field notes: package identity and archives
 
 See also: [README.md](README.md) (index of these notes),
+[spdx-modelling.md](spdx-modelling.md),
 [wheel-identity.md](../wheel-identity.md),
 [archive-member-names.md](../archive-member-names.md),
 [wheel-embedding.md](../wheel-embedding.md),
@@ -232,3 +233,74 @@ matrix").
   functions in the same order as the embed's own check.
   Do: run the cheap, name-only refusals before any build or generation, from
   one shared implementation.
+- **Collecting every ancestor directory of every member is quadratic.**
+  `"/".join(segments[:i])` for each prefix took 7.94 s on 2,000 members of
+  depth 1 to 2,000 (4 MB of names); walking up with `rfind("/")` and
+  stopping at the first known prefix takes 0.005 s, same result. On an
+  8 MB hostile wheel `verify-wheel` fell from 32.6 s to 0.4 s (#266).
+  Do: build the directory set by walking up from each name and stopping
+  at a prefix already seen.
+- **`zipfile` stops a lying size before your byte counter does.** A 1 MB
+  member with `file_size` patched to 100 (local and central header) reads
+  100 bytes, then raises `BadZipFile: Bad CRC-32`. The running counter in
+  the lessons doc, 3.3, is reachable only through a fake stream (#263).
+  Do: keep the counter and the declared-size prefilter as defence in
+  depth, and unit-test the counter with a fake stream.
+- **Entry counts cannot be trusted, but byte sizes bound them.** The
+  plain end record is `<4s4H2LH`, so a 16-bit count tops out at 65,535
+  before ZIP64. A central-directory header is at least 46 bytes
+  (`zipfile.sizeCentralDir`); the end record is 22, ZIP64 end 56, locator
+  20. A 25.6 MB directory cap therefore admits about 556,000 entries, not
+  the 100,000 the count cap claimed (#263).
+  Do: derive the entry bound from directory bytes / 46, or walk the
+  directory; never read the count fields.
+- **Writing a duplicate name warns.** `zipfile` emits `UserWarning:
+  Duplicate name: 'a'`; under `filterwarnings=error` or
+  `PYTHONWARNINGS=error::UserWarning`, an embed that rewrites such a wheel
+  fails on the warning, not on your refusal (#266).
+  Do: refuse duplicates before rewriting, and run every refusal test with
+  `UserWarning` as an error.
+
+## 3. Registry ids and file keys
+
+See [id-registry-v3.md](../../design/id-registry-v3.md) for the planned
+redesign; items marked "decided, not built" are not in the code.
+
+- **A placeholder name used as an identity key merges unrelated
+  packages.** Two wheels whose `METADATA` has no `Name` (`alpha-1.0`,
+  `beta-1.0`) both became root package `unknown`, shared the registry key
+  `unknown`, and beta's SBOM reused alpha's full IRI (`...#Package-1`).
+  The exporter's duplicate-id check sees one document only, so nothing
+  catches it across documents. Open on main; registry v3 Q-C is decided,
+  not built (#234, #235).
+  Do: never key, harvest or look up an identity under a fallback value;
+  mint a fresh id instead.
+- **Match ignore rules against the project-relative path.** The
+  directory-name filter (`build`, ...) tested `file_path.parts` of the
+  absolute path, so a project living under any `/.../build/` directory
+  indexed 0 files, with no warning (`loom id generate src`: 0 files under
+  `e1/build/proj`, 1 under `e1/okdir/proj`). Open on main; fix planned
+  in registry v3
+  ([id-registry-v3-rollout.md](../../design/id-registry-v3-rollout.md)).
+  Do: strip the project root before applying any directory-name filter.
+- **A file stem is not a model identity.** `models/a/m.npy` (zeros) and
+  `models/b/m.npy` (ones) registered as one `ai_AIPackage` entity, key
+  `m`, beside two distinct file entries. Registry v3 Q-A: a model with a
+  file is keyed by its project path (decided, not built).
+  Do: key an artefact by path, or path plus hash, never by basename.
+- **A name held by several elements of one document is not an id key.**
+  A self-referencing extra (`demo[x]; extra == 'all'`) or one dependency
+  pinned at two versions under markers made ids swap between runs: lookup
+  gave the id to the first holder, harvest wrote back the last. Fixed by
+  skipping ambiguous keys at harvest, logged at DEBUG (#235).
+  Do: refuse to pin any key that maps to more than one element in one
+  output.
+- **Reserve loaded ids before fresh counters mint.** Routing a wheel run
+  through a registry in the working directory gave two distinct
+  `software_File` elements the id `#File-2` (one registry-supplied, one
+  freshly minted), an SPDX validity break. Fixed by reserving claimed ids
+  first, plus a last-resort exporter check that runs after the
+  identical-copy dedup; checking before the dedup crashed legitimate
+  repeated `set_model()` calls (#234).
+  Do: reserve externally supplied ids first; check for duplicates only
+  after legitimate merging.

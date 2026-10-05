@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -14,7 +14,7 @@ design rationale, start here),
 [role-vocabulary.md](role-vocabulary.md),
 [multi-source-conflict.md](multi-source-conflict.md),
 [phase2-native-backfill-handover.md](phase2-native-backfill-handover.md),
-[license-layers.md](../../design/license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy)
+[license-rules.md](../../design/license-rules.md)
 (licence taxonomy still to settle).
 
 The taxonomy of *why* an Annotation earns its place for each use case

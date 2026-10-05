@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -18,9 +18,10 @@ open).
 re-verify each on the post-#263 base.
 
 Registry v3 is its own PR, independent of G7. It is cross-cutting and
-touches every surface. Order (user): PR D (step 10, #251, step 9 = #263)
--> small follow-up PRs -> **this PR** -> surface-parity/config/docs sweep
--> 0.20.0 -> G7. Base the branch on a `main` that already has:
+touches every surface. Order (release plan, 2026-10-05): 0.20.0 -> 0.20.1
+-> **this PR** in 0.21.0 -> G7 in 0.22.0 (see
+[roadmap.md](roadmap.md#0210)). Base the branch on a `main` that
+already has:
 
 - **D:** its fixture carries `demo/tiny.safetensors` and `demo/load.py`,
   and usage `hasDataFile` edges are off by default.

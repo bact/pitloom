@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,7 +17,7 @@ design rationale, start here),
 [working-docs/design/provenance-enrichment-vocabulary.md](../../design/provenance-enrichment-vocabulary.md)
 §1 (parked, deferred). Settling roles, their mapping to SPDX relationships
 and the source classes is a prerequisite for systematic licence rules:
-[license-layers.md](../../design/license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy).
+[license-rules.md](../../design/license-rules.md).
 
 The `role` vocabulary is general-purpose -- it is reused by G2
 (multi-source disagreement), E1/E2 (enrichment lineage), and

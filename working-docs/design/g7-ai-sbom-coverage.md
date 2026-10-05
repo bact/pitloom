@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-09-20
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -77,7 +77,7 @@ Model version, Model description, Model external references
 - **Model identifier** and **Dataset identifier** as a *stable external
   ID* (e.g. a Hugging Face hub model/dataset id) are a **different,
   smaller** problem than the existing
-  [AI model id stability](roadmap.md#ai-model-id-stability-follow-up-to-178)
+  [AI model id stability](roadmap.md#to-design)
   item -- that item is about Loom's own ID-registry auto-harvest
   reliability; this is just "surface an already-known hub id as an
   `ExternalIdentifier`" when the model/dataset came from a hub source

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -74,6 +74,58 @@ See also: [README.md](README.md) (index of these notes),
   `${x//pat/}` (#224).
   Do: strip CR from every captured value and test on all three.
 
+- **`Path.resolve()` on a symlink loop differs by version.** On 3.10.18,
+  3.11.12 and 3.12.9 it raises `RuntimeError: Symlink loop` in both strict
+  and non-strict mode; on 3.13 and 3.14 non-strict returns a path silently
+  and `strict=True` raises `OSError` (errno 62, ELOOP). A bare
+  `except (ValueError, OSError)` misses it on 3.10 to 3.12 (PR not
+  identified).
+  Do: catch `RuntimeError` alongside `OSError` around `resolve()` until
+  3.12 is dropped.
+- **`Path("sub/../x").resolve()` collapses `..` when `sub` is absent.**
+  With `x.gguf` present and `sub` missing, `resolve()` names an existing
+  file, but `open("sub/../x.gguf")` raises `FileNotFoundError`, so a
+  command that checks the resolved path and opens the typed one fails
+  (3.10 to 3.14; PR not identified).
+  Do: check and open the same spelling of a path.
+- **A NUL in a path is `ValueError`, not `OSError`.** For `"a\0b.txt"`,
+  `os.stat` and `open` raise `ValueError` (3.10: `embedded null byte`;
+  3.13, 3.14: `stat: embedded null character in path`), while
+  `Path.exists()`, `Path.is_file()` and `os.path.isfile()` return False.
+  A `setup.cfg` `file:` directive is user text, so the probe that tells
+  "missing" (silent, as setuptools skips it) from "unreadable" (one
+  `WARNING:`) catches `ValueError` as missing beside `OSError`
+  (`_read_listed_file()`, #276).
+  Do: catch `ValueError` next to `OSError` around any stat or open of a
+  path taken from file content.
+- **`os.path.normcase` does nothing on macOS.** `normcase("/Tmp/ABC")`
+  returns `/Tmp/ABC` on 3.10 and 3.14 even on a case-insensitive volume,
+  so a "same path" helper built on `normcase(realpath(...))` misses case
+  variants; in the registry v3 review it would have let an in-tree
+  registry keep rewriting itself. Complements the `(st_dev, st_ino)` item
+  above (#257).
+  Do: compare file identity with `os.path.samefile`, not `normcase`.
+- **An unclosed `HTTPError` warns on 3.14 only.** Collecting one emits
+  `ResourceWarning` (3.11 to 3.13: none; 3.14.3: one), which under
+  `filterwarnings=error` fails whichever test is running at garbage
+  collection. `files.pythonhosted.org` answers a bare probe with 404, so
+  real runs hit it (#238 tests, #242 source).
+  Do: `close()` every `HTTPError` you catch, helpers in tests included.
+- **`rmtree(ignore_errors=True)` still raises `RecursionError` on 3.10
+  and 3.11.** A 1,200-deep tree defeats it and
+  `TemporaryDirectory.cleanup()` at the default limit of 1000; 3.12 to
+  3.14 remove it cleanly. The build backend decides the depth, so a
+  successful build looked like a failure and left two temp dirs behind
+  (#226).
+  Do: wrap every temp-tree removal in `except Exception`, then warn if
+  anything is left.
+- **Temp files are created owner-only.** `NamedTemporaryFile` is `0o600`
+  and `mkdtemp` `0o700`, so rewriting a wheel via a temp file and
+  `os.replace` loses the original mode unless you restore it; on NTFS
+  only the read-only bit survives (#220).
+  Do: capture `st_mode` before the rewrite and restore it; test with a
+  read-only file on Windows.
+
 ## 2. Build tools and CI
 
 - **A build backend can break its plugin API in a patch release.**
@@ -119,7 +171,85 @@ See also: [README.md](README.md) (index of these notes),
   Do: call the console entry's `main()` and use its code; mark subprocess
   network use explicitly.
 
+- **A backend below the feature floor drops hook data silently.**
+  Hatchling before 1.29.0 ignores a hook's `build_data["sbom_files"]`: the
+  wheel builds with no SBOM and no warning. Under PEP 440,
+  `1.29.0.dev1 < 1.29.0` and `1.29.0rc1 < 1.29.0`, so compare
+  `Version.release`, or a pre-release that has the feature is refused
+  (#223, floor leg in CI).
+  Do: fail loudly when the backend is too old; compare release segments
+  for feature gates.
+- **Backends hand you OS-native paths.** Hatchling's
+  `recurse_included_files()` joins with `os.path.join`, giving `\` on
+  Windows, and `get_distribution_path()` does a plain string replace.
+  Pitloom runs every backend's `distribution_path` through
+  `to_posix_distribution_path()`
+  ([hatchling-build-hook.md](../hatchling-build-hook.md)).
+  Do: POSIX-normalise every path a backend gives you before it reaches
+  `software_File.name`.
+- **A fresh venv on Python 3.12 or later has no setuptools.** Any
+  `--no-build-isolation` install that falls back to an sdist then has no
+  build backend (setuptools importable on 3.11.12, not on 3.12.9 or
+  3.14.3). In CI this was `fasttext==0.9.3` on 3.14, which also needs
+  `pybind11` it never declares (#222).
+  Do: pre-install the backends sdist builds need, or keep isolation on.
+- **A project built with its own hook needs a bootstrap step.**
+  `build-system.requires = ["hatchling>=1.29.0", "pitloom"]` pulled
+  PyPI's stale hook into isolation, and it crashed on the new Hatchling.
+  CI installs with `HATCH_BUILD_NO_HOOKS=1 pip install
+  --no-build-isolation` on that one step only (#222).
+  Do: switch the self-hook off on the bootstrap install only.
+- **When you swap in a fork, key tool config on the import name.**
+  `fasttext` 0.9.3 ships no Windows wheel and fails from source, so
+  Pitloom moved to `fasttext-community>=0.11.8`, which keeps
+  `import fasttext`; the mypy and pyrefly overrides needed no change
+  (#220, #222).
+  Do: key type-checker overrides on the module name, not the
+  distribution name.
+- **One build budget covers the whole process tree.** A real `uv_build`
+  chain (`loom`, `python -m build`, `pip`, `uv-build`) taking 20.2 s
+  returned in 6.17 s with a 6 s limit and 7.21 s with 7 s (default
+  1200 s). A descendant calling `setsid()` escapes `killpg`, unreported.
+  On Windows CPython ignores `start_new_session` and `taskkill /T` walks
+  by parent PID, so orphans are unreachable; on macOS `killpg` reports
+  `EPERM` once only zombies remain (#226,
+  [allow-build-termination.md](../allow-build-termination.md)).
+  Do: one deadline, kill by process group, document the escape routes.
+- **Give a sandboxed build its own temp root and encoding.** The child
+  gets `TMPDIR`, `TEMP` and `TMP` inside the work dir, so a killed build
+  leaves the system temp dir empty, and `PYTHONIOENCODING=utf-8`
+  because Windows would use cp1252. After a run killed mid `pip install`
+  the next run gave a bit-for-bit identical SBOM (#226).
+  Do: redirect the child's temp variables and fix its encoding.
+- **Probe the interpreter before replacing it.** PEP 668's marker is
+  `EXTERNALLY-MANAGED` in `sysconfig.get_path("stdlib")`, and
+  `PIP_BREAK_SYSTEM_PACKAGES` overrides it. Check that both `purelib` and
+  `scripts` are writable. `setup-python` changes `PATH` for every later
+  step, so the action keeps the workflow's own Python when it is usable
+  (#224).
+  Do: use the existing interpreter when the probe passes.
+- **Linter versions differ between local and CI.** pylint 4.1 stopped
+  honouring a comment-line `# pylint: disable=` before `except`: 4.0.8
+  rated a file 10.00 and 4.1.1 reported `W0718`. CI had 4.1.1 while the
+  local `.venv` had 4.0.8, so local runs passed; 43 comments changed to
+  `disable-next` (#235).
+  Do: use `disable-next`, and run the linter version CI installs.
+- **A search path with both `.` and `src` gives a module two identities.**
+  pyrefly resolved `src/pitloom/...` as `src.pitloom.id_registry._registry`
+  and as `pitloom.id_registry._registry`, so a `TYPE_CHECKING` reference
+  failed with "`Self@src.pitloom...` is not assignable to
+  `pitloom...`" while mypy and pyright were clean (#234).
+  Do: put the package root before the repository root, or list one only.
+- **`uv run --with X` mutates the project; `uvx --from X` does not.**
+  Inside a project, `uv run --with packaging` created `.venv/` and
+  `uv.lock` and built the project (uv 0.10.4); `uvx --from packaging`
+  left only `pyproject.toml` and `src`. A read-only "check with the
+  tool's own Python" recipe in a skill must not alter the checkout (#235).
+  Do: run helper tools with `uvx` or `pipx run`, never `uv run --with`.
+
 ## 3. Test harness
+
+More in [testing-traps.md](testing-traps.md).
 
 - **A capture helper can erase the bug under test.**
   `subprocess.run(text=True)` turns CRLF into LF, so every "stray CR is

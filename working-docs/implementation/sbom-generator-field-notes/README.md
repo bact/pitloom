@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,18 +24,27 @@ item gives the exact format, byte value, version or measured number; the PR
 that found or fixed it; and one "Do:" rule. Items the AI-model notes already
 cover are linked, not repeated. Every claim was checked against the current
 code, a repository fixture, a live interpreter or the cited PR's own record on
-2026-10-02.
+the day it was added (2026-10-02 to 2026-10-05).
 
 ## Files
 
 - [identity-and-archives.md](identity-and-archives.md): package
-  identity; ZIP and tar realities; what an SBOM counts as inside the package.
+  identity; ZIP and tar realities; registry ids and file keys; what an
+  SBOM counts as inside the package.
 - [determinism-and-parsing.md](determinism-and-parsing.md): same input,
   same bytes; parsing traps; lock-file and environment sources.
 - [platform-and-toolchain.md](platform-and-toolchain.md): OS and
-  Python-version traps; build tools and CI; the test harness.
+  Python-version traps; build tools and CI; the first test-harness items.
+- [testing-traps.md](testing-traps.md): ways a test passes, fails or
+  floods the log for the wrong reason.
+- [spdx-modelling.md](spdx-modelling.md): SPDX 3 identity, integrity,
+  claims, profiles, completeness and licences.
+- [remote-metadata.md](remote-metadata.md): what core metadata and
+  PyPI-style sources actually contain.
 - [messages-and-surfaces.md](messages-and-surfaces.md): absent vs
   failed; one message per event; surfaces that drift apart.
+- [process-lessons.md](process-lessons.md): how the review rounds and
+  test tiers were run; the merge bar; proving a test compaction.
 
 ## Five rules that cover most items
 

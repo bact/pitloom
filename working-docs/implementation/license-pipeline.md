@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,7 +15,7 @@ SPDX 3 SBOM document.
 See also: [license-typing.md](license-typing.md) -- how a value is
 classified (expression, text, `NOASSERTION`/`NONE` individuals), the
 dependency cascade, conflicts and the decisions behind them;
-[license-layers.md](../design/license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy)
+[license-rules.md](../design/license-rules.md)
 -- the open questions before the rules are made systematic.
 
 ## Overview
