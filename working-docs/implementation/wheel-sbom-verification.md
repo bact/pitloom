@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-06
-Last-Modified: 2026-09-01
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -31,6 +31,50 @@ embed-wheel" section) -- the manual method documented per-release below
 still applies to a published PyPI wheel specifically (download + run
 against the real artifact), but the same location/schema logic no longer
 needs to be reasoned about by hand.
+
+## Verification of v0.20.0 (2026-10-05)
+
+First release from the rewritten publish workflow (#275): the release SBOM
+is the one the Hatchling hook embedded, attached byte for byte, signed and
+attested; wheel SBOMs list the payload only (#271).
+
+### Method
+
+- Wheel and sdist from the URLs in `https://pypi.org/pypi/pitloom/0.20.0/json`;
+  the six assets of the `v0.20.0` GitHub Release with `gh release download`.
+- `cmp` of the PyPI files against the release assets, and of the release's
+  `pitloom-0.20.0.spdx3.json` against the wheel's
+  `pitloom-0.20.0.dist-info/sboms/` member (`unzip -p`).
+- `loom verify-wheel --fail-on-mismatch --sbom-filename
+  pitloom-0.20.0.spdx3.json`, `loom validate-wheel`, `spdx3-validate --json`,
+  `scripts/check_sbom_license.py --license Apache-2.0` on both copies.
+- Each `software_File` SHA-256 recomputed from the wheel's bytes and
+  compared with the SBOM and with `RECORD`; the package Merkle root
+  recomputed independently (payload members sorted by name, raw digests,
+  unpaired node promoted).
+- `gh attestation verify <file> -R bact/pitloom --signer-workflow
+  bact/pitloom/.github/workflows/pypi-publish.yml --source-ref
+  refs/tags/v0.20.0` and `python -m sigstore verify github --cert-identity
+  https://github.com/bact/pitloom/.github/workflows/pypi-publish.yml@refs/tags/v0.20.0`
+  on the wheel, the sdist and the SBOM.
+
+### Findings
+
+- PyPI SHA-256: wheel `e70801ee...62ca`, sdist `cf47a15e...a5f6`; the
+  downloads and the release assets match them byte for byte. The release
+  SBOM equals the embedded one (`56c0b3e9...0e5d`).
+- `verify-wheel` OK, `validate-wheel` valid, `spdx3-validate` schema and
+  SHACL pass; declared and concluded licence `Apache-2.0`.
+- 232 `software_File`: the 215 payload files plus 17 directories; no
+  `.dist-info` member listed. 0 hash mismatches against the bytes, 0
+  against `RECORD`. Merkle root `2ac19a98...9db0` recomputes exactly.
+- 213 of 215 payload files carry a magika content-type annotation; the two
+  without are empty (`pitloom/py.typed`, `pitloom/cli/__init__.py`).
+- Main package: `pkg:pypi/pitloom@0.20.0`, version `0.20.0`, supplier the
+  author, copyright `Copyright (c) 2026 Arthit Suriyawongkul`, 15
+  `dependsOn` targets; `profileConformance` core, software,
+  simpleLicensing; spec 3.0.1.
+- All three attestations and all three Sigstore bundles verify.
 
 ## Verification of v0.13.3 (2026-08-11)
 

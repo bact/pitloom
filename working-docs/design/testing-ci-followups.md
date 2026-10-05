@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-10-01
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -61,3 +61,58 @@ file-size guidance -- moved verbatim, no content changed.
 - [ ] **Manual-check matrix: standalone `embed-wheel` on `gated-wheel`** --
   add a cell for `--trust-wheel-model` in `scripts/manual_cli_checks/_matrix_plan.py`
   (today only `wheel` runs it live; the other cells are inert).
+
+## CI workflow review (0.20.0)
+
+Found reviewing `.github/` before tagging v0.20.0 (2026-10-05); none
+blocked the release. Highest first.
+
+- [ ] **`codemeta2cff.yml` runs third-party code with a write token
+  (high).** The `contents: write` job keeps checkout credentials and runs
+  `caltechlibrary/codemeta2cff` (downloads and runs a datatools release
+  zip, no checksum) and `dieghernan/cff-validator` (builds `FROM` a mutable
+  `rocker/tidyverse` tag). `push:` has no `branches:`, and path filters do
+  not apply to tag pushes, so it runs on every tag. Split a read-only
+  generate+validate job (`persist-credentials: false`) from a small commit
+  job; limit to `branches: [main]`.
+- [ ] **Dependabot misses the composite actions (medium).** The
+  `github-actions` entry scans `/` only; `.github/actions/*/action.yml`
+  (the `actions/setup-python` pin nearly every workflow uses) gets no
+  bumps. Use `directories: ["/", "/.github/actions/*"]`.
+- [ ] **Docs build only after merge (medium).** `docs.yml` runs `mkdocs
+  build --strict` on push to `main` only; add a `pull_request` trigger and
+  gate the deploy job.
+- [ ] **Action self-test is Linux-only (medium).** The embed-wheel branch,
+  the `args` parsing loop and `--allow-build` in `action.yml` never run on
+  Windows Git Bash or macOS bash 3.2; `action-selftest-install` covers plain
+  project mode only. Add a Windows and a macOS leg.
+- [ ] **Release re-runs (medium, process).** After `publish` has run, use
+  "Re-run failed jobs" only, within the 3-day artifact retention: "Re-run
+  all jobs" rebuilds a wheel with a new `created` time, which PyPI refuses
+  and the release assets would no longer match. Setting `SOURCE_DATE_EPOCH`
+  ([known-bugs.md](known-bugs.md#p3-after-0200)) would make a rebuild
+  identical.
+- [ ] **`release: published` fires for a pre-release too (low).** A
+  GitHub pre-release goes to PyPI; skip it or document it.
+- [ ] **`changelog-check.yml` uses a two-dot diff (low).** A PR whose base
+  is behind `main` sees `main`'s own CHANGELOG edits and passes vacuously;
+  use `base...head`, SHAs through `env:`.
+- [ ] **Raw tool output in the Action (low).** `scripts/action/pitloom-install.sh`
+  echoes pip output and `action-selftest-install.yml` the script's output
+  without a `::stop-commands::` fence; `action.yml` puts the probe's
+  `reason` into `::warning::` without `%` escaping.
+- [ ] **Unvalidated or spliced inputs (low).** `fuzz.yml` splices
+  `inputs.duration_seconds` into `run:` (no integer check); `build.yml`
+  splices step outputs (`wheel_name`, `sbom_path`) into `run:`. Pass
+  through `env:`.
+- [ ] **No `timeout-minutes` (low).** `pypi-publish.yml`'s publish, attach
+  and sign jobs and every other reviewed workflow use the 6-hour default.
+- [ ] **`install-pitloom` env var `GROUPS` (low).** A bash special
+  variable (works today since the inherited value wins); rename
+  `DEP_GROUPS`.
+- [ ] **Coverage gaps (low).** `test.yml` has no Python 3.12 leg;
+  `build.yml` builds the wheel from the tree, the release from the sdist.
+- [ ] **Small hygiene (low).** `actionlint.yml` `curl` without `-f` and no
+  binary checksum; `bandit.yaml` has no SPDX header or branch filter;
+  `version-consistency.yml` paths omit the workflow itself;
+  `ms-sbom-tool.DISABLED` pins actions by tag and has no `permissions:`.

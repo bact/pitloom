@@ -24,7 +24,7 @@ bullet stays one or two lines plus a link; detail lives in the linked doc.
 ## Done
 
 [roadmap-completed.md](../implementation/roadmap-completed.md), including
-everything shipped for 0.20.0 (#226-#284). User-facing documentation is in
+everything shipped in 0.20.0 (#226-#286, released 2026-10-05). User-facing documentation is in
 `docs/` ([index](../../docs/index.md)).
 
 ## Next: release plan
@@ -38,12 +38,14 @@ Order (2026-10-05): 0.20.0 -> 0.20.1 -> 0.21.0 -> 0.22.0 -> 1.0. No date for
   element typing (#276), sdist licence detection (#283), fragment-merge
   fixes (#284), sdist member order (#272), `sbom-basename` extension (#273).
 - [x] Docs PR (#285): licence rules, known bugs, test tiers, field notes.
-- [ ] Release PR (#286): licence detection on real licence files (notice,
+- [x] Release PR (#286): licence detection on real licence files (notice,
   near-tie), raw installed `METADATA`. See
   [license-rules.md](license-rules.md#4-declared-or-concluded).
-- [ ] Release checklist: trim `CHANGELOG.md`, skills floor
-  `pitloom>=0.20.0`, tag. See
-  [release-checklist.md](../implementation/release-checklist.md).
+- [x] Released 2026-10-05; published artefacts verified, see
+  [wheel-sbom-verification.md](../implementation/wheel-sbom-verification.md).
+- [ ] CI workflow hardening from the release review. See
+  [testing-ci-followups.md](testing-ci-followups.md#ci-workflow-review-0200).
+  Run the fuzz workflow (none since 2026-09-18).
 
 ### 0.20.1
 

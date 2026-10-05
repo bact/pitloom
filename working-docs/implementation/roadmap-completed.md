@@ -91,10 +91,10 @@ is not kept in sync with post-ship changes.
 - [x] **Sort-order audit** of the assemble/id-registry path. See
   [sort-order-canonicalization.md](sort-order-canonicalization.md).
 
-## Shipped for 0.20.0 (unreleased)
+## Shipped in 0.20.0 (2026-10-05)
 
 Grouped by area; user-facing detail in `docs/`, decisions in the linked
-implementation docs, every change in `CHANGELOG.md` `[Unreleased]`.
+implementation docs, every change in `CHANGELOG.md` `[0.20.0]`.
 
 - [x] **`--allow-build` timeout and signal-safe builds** (#226, #250, #262)
   -- `--build-timeout`, the whole build tree killed on SIGTERM/Ctrl-C,

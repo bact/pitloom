@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -103,6 +103,10 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
       GitHub Action installs the version its pinned ref carries, so
       `uses: bact/pitloom@<new-tag>` fails until PyPI serves that
       version; don't announce the tag before the publish completes.
+- [ ] If a job fails after `publish` has run, use "Re-run failed jobs"
+      only, within the 3-day artifact retention: "Re-run all jobs"
+      rebuilds a wheel with a new SBOM `created` time, which PyPI refuses
+      and the release assets would no longer match.
 
 ## 3. Post-publish verification (the actual published artifact)
 
