@@ -57,11 +57,14 @@ def _source_name(entry: dict[str, str]) -> str:
 
 
 def _is_high_signal(entry: dict[str, str]) -> bool:
-    """Return whether a parsed field-provenance entry carries high signal."""
+    """Return whether a parsed field-provenance entry carries high signal: a
+    method, a normalisation, a non-manifest source, or a value read from a
+    field other than its own (a licence from the ``classifiers``)."""
     if (
         entry.get("method")
         or entry.get("normalized-from")
         or entry.get("deprecated-license-id")
+        or "classifier" in entry.get("location", "").lower()
     ):
         return True
     source = _source_name(entry)

@@ -106,3 +106,9 @@ Ways a test passes, fails or floods the log for the wrong reason.
   (`tests/assemble/test_embed_file_cache_threads.py`; PR not identified).
   Do: assert on the effect (cleanup ran once, on which thread), not on
   liveness before `join()`.
+- **A hand-made fake of a library object hides what the library does.**
+  The licence reader drift test fed every surface a `_FakeMetadata` dict;
+  the real `importlib.metadata` object dedents values, so the installed
+  surface lost a licence's indent while the test passed (#286).
+  Do: build the real object (`importlib.metadata.PathDistribution` over a
+  `.dist-info` written in `tmp_path`) and patch only the lookup.

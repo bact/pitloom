@@ -199,6 +199,35 @@ Library: `ProjectMetadata(license_concluded=...)` with no
 `license_name` is always `hasConcludedLicense` (the caller named the
 slot).
 
+Text to id (`detect_license_from_text`, `extract/_license.py`, #286), on
+top of `licenseid` 0.3.7 at threshold 0.85:
+
+- Read twice: as written, and with copyright notice lines removed (SPDX
+  matching guidelines omit the notice); the reading whose top score is
+  higher wins. A notice hides MIT from `licenseid` (PyYAML gives `Xnet`)
+  but anchors licence placement in mixed content (ast_serialize).
+- A stated licence (the manifest's value; any id an expression names)
+  wins when it scores within 0.01 of the top in either reading:
+  `licenseid` ranks near-variants above the verbatim text (`Pixar` over
+  `Apache-2.0`, `JSON` over `MIT`).
+- With nothing stated, the better-scoring reading decides: its top match,
+  unless another licence family scores within 0.01 (a runner-up below the
+  0.85 threshold counts), then none. A worse reading never overrides a
+  tie (PyYAML's notice before a JSON/MIT tie would give `Xnet`).
+  `X-only` and `X-or-later` are one family: a verbatim GPL text scores
+  both alike (pylint: 1.069 vs 1.060), so the top match stays, as before
+  #286.
+- Consequence: the concluded value now leans on the declared one in a
+  near-tie, e.g. `-only` vs `-or-later` (astroid, pylint): the second
+  opinion agrees with the manifest where the text cannot tell.
+- Measured on 90 installed licence files: 66 right, 10 wrong, 14 none
+  before; 76/4/10 stated, 73/4/13 unstated. The 4 wrong are composite
+  files (mypy, typing_extensions, mkdocs-material, poetry-core); counted
+  before the family and both-readings refinements. Reading twice doubles
+  the matcher time (MIT 0.25 s to 0.56 s). Corpus:
+  `tests/fixtures/license-texts/`. Upstream issues (not filed): notice
+  hides MIT; near-variant outranks verbatim text.
+
 ## 5. Conflict model
 
 - **G2 declared vs concluded** (`build_license_elements`): both
@@ -298,6 +327,9 @@ elsewhere:
   since a Core Metadata reader loses what a file keeps.
 - After R10, no further licence-content questions in #276; the findings
   below were recorded instead.
+- An unstated verbatim GPL-family text concludes the `-only` id
+  `licenseid` ranks first, as 0.19.0 did, not none (user, 2026-10-05, PR
+  #286: the conservative choice; the text cannot tell `-or-later`).
 
 ## Open questions
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -112,3 +112,16 @@ plans; the lesson holds without the code.
   `Normalized-From: <raw> | Normalizer: py-spdx-license==<v>` (#121).
   Do: compare licences only after canonical parsing, and record the raw
   value and the normaliser version.
+- **A licence text matcher's top hit is not the licence.** `licenseid`
+  0.3.7 scored `Pixar` 0.9963 over `Apache-2.0` 0.9921 on requests'
+  verbatim Apache `LICENSE`, `JSON` 0.935 over `MIT` 0.929 on wcwidth's,
+  and gave `Xnet` 0.902 for PyYAML's MIT (MIT scores 1.013 with the two
+  copyright lines removed; SPDX matching omits the notice). On 90
+  installed licence files: 66 right, 10 wrong, 14 none; reading both with
+  and without the notice, preferring the stated licence within 0.01 and
+  concluding none on an unstated near-tie: 76/4/10 (#286).
+  A verbatim GPL text scores `-only` and `-or-later` alike (pylint 1.069
+  vs 1.060): a tie rule that drops it loses every unstated GPL.
+  Do: treat a near-tie between licence families as no answer unless the
+  package states one of them; keep a corpus of real files that fooled the
+  matcher.

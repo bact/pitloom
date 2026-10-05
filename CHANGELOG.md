@@ -18,9 +18,11 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.19.0...HEAD>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.20.0...HEAD>
 
 ## [Unreleased]
+
+## [0.20.0] - 2026-10-05
 
 ### Added
 
@@ -48,12 +50,11 @@ and this project adheres to
 - `--scan-model-usage`: record which Python files reference a found AI model;
   config key, Action input, `scan_model_usage=`, also on wheels ([#252], [#263])
 - `wheel`, `wheel --embed` and `embed-wheel` without `--project-dir` find AI
-  models inside the wheel, all but the dist-info its file name names;
-  `max-model-extract-bytes` caps a model, 4x that a wheel; beyond it the model
-  stays without metadata ([#263])
-- `--trust-wheel-model` (`trust_wheel_model=`): a wheel's fastText, GGUF, HDF5,
-  ONNX and PyTorch `.pt`/`.pth` models are listed without metadata unless
-  given, one `INFO:` naming each format once per batch; no config key ([#263])
+  models inside the wheel; `max-model-extract-bytes` caps a model (4x for
+  the wheel), beyond which it has no metadata ([#263])
+- `--trust-wheel-model` (`trust_wheel_model=`, no config key): without it, a
+  wheel's fastText, GGUF, HDF5, ONNX and `.pt`/`.pth` models are listed
+  without metadata, with one `INFO:` ([#263])
 - A `.pt`/`.pth` is a PyTorch model only when it opens as a ZIP or a pickle:
   Python `.pth` path-config files (`distutils-precedence.pth`) are no longer
   reported as models ([#263])
@@ -84,11 +85,9 @@ and this project adheres to
   `embed-wheel` ([#231])
 - A relative `--id-registry` (and `id generate` `-o`/PATH) resolves against the
   current directory on every command ([#231], [#235])
-- An sdist reads its own `[tool.pitloom]` (root `pyproject.toml`, else
-  `setup.cfg`) like an unpacked directory; an invalid one fails the run
-  (`--config` bypasses it).
-  `embed-wheel --project-dir <sdist>` no longer merges `--config` fragments
-  ([#232])
+- An sdist reads its own `[tool.pitloom]` like its unpacked directory (an
+  invalid one fails; `--config` bypasses it); `embed-wheel --project-dir
+  <sdist>` no longer merges `--config` fragments ([#232])
 - A declared `[tool.pitloom]` in an unnamed `pyproject.toml` beats
   `setup.cfg`'s ([#232])
 - `sbom-basename` must be a file name: no `/`, `\`, `:` or NUL ([#232])
@@ -101,14 +100,12 @@ and this project adheres to
   are rejected, not migrated ([#234], [#235])
 - `Spdx3JsonExporter.to_json()` raises on a duplicate spdxId with differing
   content ([#234])
-- Renamed `loom ids` to `loom id`, `--registry`/`ids-file`/`registry=` to
-  `--id-registry`/`id-registry`/`id_registry=`, and `--update-registry` etc. to
-  `--update-id-registry` etc.; old `[tool.pitloom]` keys raise a moved-key
-  `ValueError` ([#235])
-- A registry is used only when declared (`--id-registry`, `[tool.pitloom]
-  id-registry`, `--config`), never searched for; suggested name
-  `loom-id-registry.json`; log lines start `ID registry:`; `id generate`/
-  `id import` require `--id-registry` ([#235])
+- Renamed `loom ids` to `loom id`, `--registry` (`ids-file`, `registry=`) to
+  `--id-registry`, `--update-registry` to `--update-id-registry`; old keys
+  raise a moved-key error ([#235])
+- A registry is used only when declared (flag, `[tool.pitloom]`,
+  `--config`), never searched for; suggested name `loom-id-registry.json`;
+  `id generate`/`id import` require `--id-registry` ([#235])
 - A declared registry that is missing, unreadable or invalid is `ERROR:`/exit 1
   on the CLI, `ValueError` from the library and `loom.Run`, and fails the
   Hatchling build ([#235])
@@ -210,9 +207,9 @@ and this project adheres to
   `loom project` does; CI and publish fail if Pitloom's own SBOM lacks it
   ([#243], [#248])
 - `WARNING: licenseid database appears empty` prints once per process ([#243])
-- Project file scan: an unreadable file warns once with its `FILE=` path and is
-  skipped alone; it emptied the whole file list. A directory discovery cannot
-  list warns once with its `DIR=` path; it was dropped silently ([#244], [#257])
+- Project file scan: an unreadable file (`FILE=`) or unlistable directory
+  (`DIR=`) warns once and is skipped alone; before, the file list was emptied
+  or the directory dropped silently ([#244], [#257])
 - `setup.cfg` `[tool:pitloom]`: boolean and integer keys read as in
   `pyproject.toml`, not as strings ([#247])
 - Wheel and sdist file names are the same on every OS (`\` to `/`, `./`
@@ -235,15 +232,13 @@ and this project adheres to
   `--allow-build` did ([#263])
 - A `.keras`/`.pt`/`.pt2` inner member is read bounded (8 MiB), also in project
   scans, and reader warnings are escaped with a stable `FORMAT= FILE=` ([#263])
-- AI model readers refuse a pickle over 250k opcodes or with a decimal number
-  over 4300 digits (never converted), a GGUF header over its 1M budget, a
-  Safetensors header over 16 MiB or an `.npy` header over 10000 bytes, each
-  with one `WARNING:` ([#263], [#267])
+- AI model readers refuse oversized headers (pickle opcodes or digits, GGUF,
+  Safetensors, `.npy`) with one `WARNING:` each; limits in
+  `docs/ai-model-scan-limits.md` ([#263], [#267])
 - A ZIP model over 100k entries (counted as `zipfile` reads them) or 25.6 MB of
   directory is refused ([#263])
-- A model is cut to 1000 entries per list or map, the same ones every run
-  (Safetensors too; also `loom model`), and an unparsed HDF5 config to 500
-  characters, each with one `WARNING:`; a cut model's memory is released
+- A model is cut to 1000 entries per list or map (the same ones every run)
+  and an unparsed HDF5 config to 500 characters, each with one `WARNING:`
   ([#263], [#270])
 - A wheel's identity comes from its own top-level `.dist-info`, reading
   `METADATA` headers only (16 MiB, 10,000); setuptools was `zipp`: regenerate
@@ -293,6 +288,12 @@ and this project adheres to
 - Fragment merge: equal licences unified, re-declared base ids no longer
   crash, warnings name elements by id; `fragment list` flags an earlier SBOM
   of the project (`SAME_DOCUMENT=`) ([#284])
+- Licence detection: a copyright notice no longer hides MIT; a stated licence
+  wins a near-tie (`Apache-2.0`, not `Pixar`); an unstated tie concludes none
+  ([#286])
+- Licence text of an installed dependency keeps its indent; whitespace-only
+  lines are blank on every surface; a classifier licence keeps its provenance
+  ([#286])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -336,6 +337,7 @@ and this project adheres to
 [#282]: https://github.com/bact/pitloom/pull/282
 [#283]: https://github.com/bact/pitloom/pull/283
 [#284]: https://github.com/bact/pitloom/pull/284
+[#286]: https://github.com/bact/pitloom/pull/286
 
 ## [0.19.0] - 2026-09-18
 
@@ -354,4 +356,5 @@ and this project adheres to
 
 ---
 
+[0.20.0]: https://github.com/bact/pitloom/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/bact/pitloom/compare/v0.18.1...v0.19.0

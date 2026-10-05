@@ -30,16 +30,19 @@ from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
 from licenseid import AggregatedLicenseMatcher
+from licenseid.types import LicenseMatch
 
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license_classify import (
     _PY_SPDX_LICENSE_VERSION,
     ClassifiedLicense,
     classify_license,
+    empty_blank_lines,
     is_listed_name,
     same_licence,
     tag_deprecated_license_ids,
     tag_license_normalization,
+    with_successor_ids,
 )
 from pitloom.extract._license_detect import (
     _LICENSE_STEMS,
@@ -75,6 +78,7 @@ __all__ = [
     "detect_independent_license",
     "detect_license_for_project",
     "detect_license_from_text",
+    "empty_blank_lines",
     "find_license_files",
     "is_listed_name",
     "license_from_candidates",
@@ -127,12 +131,117 @@ so this only ever excludes non-license-body input, never a genuine
 short license."""
 
 
-def detect_license_from_text(text: str, threshold: float = 0.85) -> str | None:
+#: Two matches this close are a tie. ``licenseid`` ranks a near-variant of
+#: a listed licence (``Pixar``, a modified Apache 2.0; ``JSON``, MIT plus one
+#: sentence) a few thousandths above the licence itself for its verbatim
+#: text; a different licence scores far lower. A *stated* licence wins a
+#: tie; with none stated, a tie is no detection.
+_STATED_TIE_MARGIN = 0.01
+
+#: The ids an expression names; operators are not ids.
+_EXPRESSION_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9.+:-]*")
+_EXPRESSION_OPERATORS = frozenset({"and", "or", "with"})
+
+
+def _stated_ids(stated: str | None) -> frozenset[str]:
+    """The licence ids *stated* names, case-folded, deprecated ``+`` ids as
+    their successors (``MIT OR GPL-2.0+`` names ``MIT`` and
+    ``GPL-2.0-or-later``); none for a licence text or name."""
+    value = (stated or "").strip()
+    if not (
+        _looks_like_spdx_license_id(value) or _looks_like_spdx_license_expression(value)
+    ):
+        return frozenset()
+    return frozenset(
+        token.casefold()
+        for token in _EXPRESSION_ID_RE.findall(with_successor_ids(value))
+        if token.casefold() not in _EXPRESSION_OPERATORS
+    )
+
+
+def _stated_among(
+    results: Sequence[LicenseMatch], stated: frozenset[str]
+) -> str | None:
+    """The best-scoring id of *results* that *stated* names, when it scores
+    within :data:`_STATED_TIE_MARGIN` of the top match."""
+    if not stated or not results:
+        return None
+    ranked = sorted(results, key=lambda r: -float(r["score"]))
+    floor = float(ranked[0]["score"]) - _STATED_TIE_MARGIN
+    for result in ranked:
+        if float(result["score"]) < floor:
+            return None
+        if str(result["license_id"]).casefold() in stated:
+            return str(result["license_id"])
+    return None
+
+
+def _family(license_id: str) -> str:
+    """*license_id* without its ``-only``/``-or-later`` suffix: a verbatim
+    GPL text scores both alike, and cannot tell them apart."""
+    return re.sub(r"-(?:only|or-later)$", "", license_id)
+
+
+def _decisive(results: Sequence[LicenseMatch], threshold: float) -> str | None:
+    """The top id of *results* when it meets *threshold* and no other
+    licence family scores within :data:`_STATED_TIE_MARGIN` of it (a
+    runner-up below *threshold* counts)."""
+    if not results:
+        return None
+    ranked = sorted(results, key=lambda r: -float(r["score"]))
+    if float(ranked[0]["score"]) < threshold:
+        return None
+    top = str(ranked[0]["license_id"])
+    floor = float(ranked[0]["score"]) - _STATED_TIE_MARGIN
+    for result in ranked[1:]:
+        if float(result["score"]) < floor:
+            break
+        if _family(str(result["license_id"])) != _family(top):
+            return None
+    return top
+
+
+#: A copyright notice line: ``Copyright`` with ``(c)``, a copyright sign or
+#: a year, or ``(c)``/the sign with a year. The SPDX License List Matching
+#: Guidelines leave a notice out of a match; ``licenseid`` can miss a listed
+#: licence behind one (PyYAML's two notice lines give ``Xnet``, not ``MIT``).
+_COPYRIGHT_NOTICE_RE = re.compile(
+    r"^[ \t\ufeff]*(?:copyright[ \t:]*(?:\(c\)|\u00a9|\d)"
+    r"|(?:\(c\)|\u00a9)[ \t]*\d).*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def _readings(matcher: AggregatedLicenseMatcher, text: str) -> list[list[LicenseMatch]]:
+    """*matcher*'s ranked matches for *text* as written and, when it has
+    copyright notice lines, without them: ``licenseid`` uses a notice to
+    place the licence in mixed content, yet misses some licences behind
+    one."""
+    readings = [matcher.match(text)]
+    without_notice = _COPYRIGHT_NOTICE_RE.sub("", text)
+    if without_notice != text:
+        readings.append(matcher.match(without_notice))
+    return readings
+
+
+def _top_score(results: Sequence[LicenseMatch]) -> float:
+    """The best score in *results*, or -1 for none."""
+    return max((float(r["score"]) for r in results), default=-1.0)
+
+
+def detect_license_from_text(
+    text: str, threshold: float = 0.85, *, stated: str | None = None
+) -> str | None:
     """Detect SPDX License ID from *text* using the licenseid library.
 
     Returns the top-ranked SPDX License ID when its score meets *threshold*, or
     ``None`` when the database is not populated, *text* is too short to be a
-    real license body, or no match exceeds the threshold.
+    real license body, or no match exceeds the threshold. *text* is read as
+    written and without its copyright notice lines (:func:`_readings`). A
+    licence *stated* (the manifest's own id or expression) that either
+    reading matches at *threshold* nearly as well as its top match wins
+    (:data:`_STATED_TIE_MARGIN`); else the better-scoring reading decides,
+    ``None`` when its top match is a near-tie with another licence family.
     """
     try:
         matcher = _get_matcher()
@@ -141,9 +250,15 @@ def detect_license_from_text(text: str, threshold: float = 0.85) -> str | None:
             return None
         if len(text.strip()) < _MIN_LICENSE_TEXT_LENGTH:
             return None
-        results = matcher.match(text)
-        filtered = [r for r in results if r["score"] >= threshold]
-        return str(filtered[0]["license_id"]) if filtered else None
+        readings = _readings(matcher, text)
+        wanted = _stated_ids(stated)
+        for results in readings:
+            above = [r for r in results if r["score"] >= threshold]
+            chosen = _stated_among(above, wanted)
+            if chosen:
+                return chosen
+        best = max(readings, key=_top_score)
+        return _decisive(best, threshold)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         _logger.debug("licenseid detection failed: %s", exc)
@@ -170,36 +285,43 @@ def _with_tool_tag(provenance: str) -> str:
 
 
 def license_from_candidates(
-    candidates: Sequence[tuple[str, str]],
+    candidates: Sequence[tuple[str, str]], *, stated: str | None = None
 ) -> tuple[str, str] | None:
     """``(id, provenance)`` from the first of *candidates* (see
     :func:`~pitloom.extract._license_detect.license_candidates_from_members`)
-    that states an id or expression, or whose text ``licenseid`` identifies;
-    ``None`` when none does."""
+    that states an id or expression, or whose text ``licenseid`` identifies
+    (the manifest's *stated* licence winning a near-tie, see
+    :func:`detect_license_from_text`); ``None`` when none does."""
     for value, source in candidates:
         if _looks_like_spdx_license_id(value) or _looks_like_spdx_license_expression(
             value
         ):
             return value, source
-        detected = detect_license_from_text(value)
+        detected = detect_license_from_text(value, stated=stated)
         if detected:
             return detected, _with_tool_tag(f"{source} | Method: licenseid_detection")
     return None
 
 
-def detect_independent_license(project_dir: Path) -> tuple[str | None, str | None]:
-    """Detect a license purely from project-directory files."""
-    found = license_from_candidates(collect_license_candidates(project_dir))
+def detect_independent_license(
+    project_dir: Path, *, stated: str | None = None
+) -> tuple[str | None, str | None]:
+    """Detect a license purely from project-directory files (*stated*: see
+    :func:`license_from_candidates`)."""
+    found = license_from_candidates(
+        collect_license_candidates(project_dir), stated=stated
+    )
     return found if found is not None else (None, None)
 
 
 def resolve_license_concluded(
-    has_declared_license: bool, project_dir: Path
+    has_declared_license: bool, project_dir: Path, *, stated: str | None = None
 ) -> tuple[str | None, str | None]:
-    """Return ``(concluded_id, concluded_provenance)`` (G2 second opinion)."""
+    """Return ``(concluded_id, concluded_provenance)`` (G2 second opinion;
+    *stated*, the declared licence: see :func:`license_from_candidates`)."""
     if not has_declared_license:
         return None, None
-    return detect_independent_license(project_dir)
+    return detect_independent_license(project_dir, stated=stated)
 
 
 def apply_in_package_license(
@@ -211,11 +333,12 @@ def apply_in_package_license(
     states a licence (``license_name`` not blank), the detection is the
     concluded second opinion (G2); when it is silent, the declared licence.
     Nothing changes when no candidate gives a licence."""
-    found = license_from_candidates(candidates)
+    stated = (metadata.license_name or "").strip()
+    found = license_from_candidates(candidates, stated=stated)
     if found is None:
         return
     detected, provenance = found
-    if (metadata.license_name or "").strip():
+    if stated:
         metadata.license_concluded = detected
         metadata.provenance["license_concluded"] = provenance
     else:

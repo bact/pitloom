@@ -161,9 +161,33 @@ def test_blank_space_around_a_text_gives_one_text_on_every_surface(
     assert texts == [_TEXT]
 
 
+@pytest.mark.parametrize("surface", list(_SURFACES))
+def test_a_line_of_blank_space_is_blank_on_every_surface(
+    surface: str, tmp_path: Path
+) -> None:
+    """A line of spaces or tabs inside a text: a Core Metadata reader and a
+    file reader record one text."""
+    written = "Acme Licence\n   \n  No use.\n\t\nEnd\n"
+    graph = _SURFACES[surface](_project_dir(tmp_path, written))
+    texts = [
+        e["simplelicensing_licenseText"]
+        for e in graph
+        if e.get("type") == "simplelicensing_SimpleLicensingText"
+    ]
+    assert texts == ["Acme Licence\n\n  No use.\n\nEnd"]
+
+
 #: The rule as stated, independently written: leading blank lines, spaces
-#: and tabs, and the final line breaks.
+#: and tabs, and the final line breaks, after emptying each line of blank
+#: space (:func:`_blank_lines_emptied`).
 _RULE = re.compile(r"\A[ \t\r\n]+|(?:\r\n|\n|\r)+\Z")
+
+
+def _blank_lines_emptied(text: str) -> str:
+    return "".join(
+        "" if part and not part.strip(" \t") else part
+        for part in re.split(r"([\r\n])", text)
+    )
 
 
 def test_blank_ends_follow_the_rule_for_every_short_string() -> None:
@@ -171,7 +195,8 @@ def test_blank_ends_follow_the_rule_for_every_short_string() -> None:
     for size in range(7):
         for chars in itertools.product("a \t\r\n", repeat=size):
             text = "".join(chars)
-            assert _without_blank_ends(text) == _RULE.sub("", text), repr(text)
+            expected = _RULE.sub("", _blank_lines_emptied(text))
+            assert _without_blank_ends(text) == expected, repr(text)
 
 
 def test_a_long_run_of_inner_line_breaks_is_linear() -> None:

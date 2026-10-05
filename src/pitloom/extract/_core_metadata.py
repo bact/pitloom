@@ -104,7 +104,9 @@ _FOLD_RE = re.compile(r"\n(?:        |       \||\t)")
 def _unfolded(value: str | None) -> str | None:
     """*value* with each continuation line's fold removed, so a multi-line
     licence text reads as the bytes the project wrote."""
-    return None if value is None else _FOLD_RE.sub("\n", value)
+    if value is None:
+        return None
+    return _FOLD_RE.sub("\n", value)
 
 
 #: The one ``License ::`` classifier that is a category in the trove list,
@@ -222,7 +224,9 @@ def core_metadata_license_with_source(
     *source*: ``License-Expression``, ``License``, then its ``License ::``
     classifiers, by :func:`license_cascade` (so a weak
     ``License-Expression: UNKNOWN`` gives way to ``License``), each header
-    unfolded; the provenance names the classifier when one was used. When
+    unfolded, so *msg* is parsed from the raw ``METADATA``/``PKG-INFO``
+    text (:attr:`importlib.metadata.Distribution.metadata` has removed the
+    fold already); the provenance names the classifier when one was used. When
     none states a licence: ``None`` if neither header is present, ``""`` if
     one is present but blank (declared "no value", not absent).
     """

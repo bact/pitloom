@@ -195,7 +195,7 @@ def test_an_in_package_source_is_declared_when_the_manifest_states_nothing(
     with patch(
         "pitloom.extract._license.detect_license_from_text",
         autospec=True,
-        side_effect=lambda text: "MIT" if text == _LICENSE_TEXT else None,
+        side_effect=lambda text, **_: "MIT" if text == _LICENSE_TEXT else None,
     ):
         graph = _read(surface, tmp_path)
     assert sorted(_relationships(graph, "demo")) == expected

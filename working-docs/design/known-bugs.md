@@ -12,7 +12,7 @@ See also: [roadmap.md](roadmap.md),
 [id-registry-v3.md](id-registry-v3.md),
 [id-registry-followups.md](id-registry-followups.md).
 
-Bugs found up to #284, each reproduced on `main` unless marked
+Bugs found up to #286, each reproduced on `main` unless marked
 otherwise. Features and design work stay in the roadmap. A fixed item
 stays ticked, with its PR, until its release ships, then moves to
 [roadmap-completed.md](../implementation/roadmap-completed.md).
@@ -72,6 +72,19 @@ All fixed; most change SBOM output.
   read, then `_clean_creation_keys` pops `creation-tool` straight after,
   so `config.tools` stays empty. Found while adding the unknown-key
   warning.
+- [x] **Licence detection picks a near-variant or misses MIT (S).** Fixed by
+  #286. `licenseid` alone ranked `Pixar` 0.9963 over `Apache-2.0` 0.9921 on
+  requests' verbatim `LICENSE`, `Xnet` over `MIT` on PyYAML's (two notice
+  lines first), `JSON` over `MIT` on wcwidth's. Now: the text is also read
+  without its copyright notices, a stated licence wins a near-tie (0.01),
+  an unstated near-tie with another licence family concludes none.
+  Regression corpus: `tests/fixtures/license-texts/`.
+- [x] **Installed dependency licence text loses its indent (S).** Fixed by
+  #286. `importlib.metadata` dedents each header value, which strips the
+  whole Apache `LICENSE` indent when its first line is blank; now read from
+  the raw `METADATA` as the wheel and sdist readers do.
+- [x] **A classifier licence has no provenance at `minimal` detail (S).**
+  Fixed by #286.
 
 ## P0: in 0.20.1
 
@@ -187,8 +200,43 @@ Crashes, broken contracts and small mappings.
   so a second boundary between runs changes `created` (failed once locally under
   load, 2026-10-04). Pin the epoch in the test.
 
+- [ ] **`loom wheel` invents a copyright text (S).** With no author name
+  in `METADATA` (only `Author-email`), `document.py` writes
+  `Copyright (c) <SBOM year> <package name>`: neither holder nor year comes
+  from the package. Pitloom's own wheel gets `Copyright (c) 2026 pitloom`
+  and no supplier, where the hook records the author. Seen on 0.19.0 too.
+- [ ] **Extras-only dependencies are plain `dependsOn` in a wheel SBOM
+  (S-M).** `loom wheel` lists every `Requires-Dist`, `extra == ...` ones
+  included (Pitloom's wheel: 27 packages, 11 extras-only), with no marker
+  or scope; the hook and `loom project` list 16. Seen on 0.19.0 too.
+
 ## P3: after 0.20.0
 
+- [ ] **`--help` choice order changes per run (S).** `choices=` takes a
+  frozenset (`VALID_CONTENT_TYPE_METHODS`, `VALID_CREATOR_TYPES`), so
+  `{auto,extension,magika}` prints in hash order. Pass a sorted tuple.
+- [ ] **Installed-dependency `METADATA` is read unlike a wheel's (S).**
+  `deps_installed.get_pkg_metadata` reads text through `importlib.metadata`
+  (newlines translated, strict UTF-8): a CRLF `METADATA` gives a licence
+  text without CR where the wheel reader keeps it, and a non-UTF-8 one
+  raises `UnicodeDecodeError` and aborts the run. A dist-info with no
+  metadata file stays silent. Use the wheel's `read_header_block` +
+  `HeaderParser` (#286 review).
+- [ ] **Hugging Face and classifier names state no licence to detection
+  (S).** `huggingface_fetch` and `stated_license()` call
+  `detect_license_from_text` without `stated=`, so a repo `LICENSE` with a
+  card `license: apache-2.0` near-tie gives no detection; a classifier name
+  (`MIT License`) never matches an id (#286 review).
+- [ ] **Licence detection reads each text twice (S).** With a notice line,
+  the matcher runs on the text as written and without the notice: about
+  twice the time per licence text. Skip the second reading when the first
+  is decisive at a high score (#286 review).
+- [ ] **numpy licence text keeps one extra leading space per line (S).**
+  meson-python folds `License:` with 9 spaces; `_unfolded` strips 8.
+  Whitespace-only lines are blank on every surface since #286; the extra
+  space stays (as
+  0.19.0). Stripping a writer's whole fold width needs telling it from the
+  text's own indent.
 - [ ] **GitHub Action drops invalid boolean inputs silently.** Any
   non-empty value other than exactly `true`/`false` (`maybe`, `True`) on
   the tri-state `enrich`, `extract-file-header`, `update-id-registry`,

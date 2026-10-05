@@ -37,7 +37,10 @@ Order (2026-10-05): 0.20.0 -> 0.20.1 -> 0.21.0 -> 0.22.0 -> 1.0. No date for
 - [x] Embed fix ([#269](https://github.com/bact/pitloom/issues/269)), licence
   element typing (#276), sdist licence detection (#283), fragment-merge
   fixes (#284), sdist member order (#272), `sbom-basename` extension (#273).
-- [ ] Docs PR (#285): licence rules, known bugs, test tiers, field notes.
+- [x] Docs PR (#285): licence rules, known bugs, test tiers, field notes.
+- [ ] Release PR (#286): licence detection on real licence files (notice,
+  near-tie), raw installed `METADATA`. See
+  [license-rules.md](license-rules.md#4-declared-or-concluded).
 - [ ] Release checklist: trim `CHANGELOG.md`, skills floor
   `pitloom>=0.20.0`, tag. See
   [release-checklist.md](../implementation/release-checklist.md).
@@ -205,6 +208,11 @@ Recorded findings; each is fixable on its own.
   isolated venv option, lint `scripts/` in CI, `args` edge cases. See
   [github-action.md](../implementation/github-action.md),
   [docs/github-action.md](../../docs/github-action.md).
+- **Licence text detection**: composite licence files (a licence plus
+  bundled third-party notices: mypy, typing_extensions) still conclude a
+  wrong id; two `licenseid` issues to report upstream. See
+  [license-rules.md](license-rules.md#4-declared-or-concluded),
+  [license-layers.md](license-layers.md).
 - **Testing and CI**: see [testing-ci-followups.md](testing-ci-followups.md).
 - **Diagnostics and logging**: see
   [diagnostics-logging-followups.md](diagnostics-logging-followups.md).

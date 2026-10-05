@@ -20,8 +20,12 @@ import pytest
 
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import (
+    _COPYRIGHT_NOTICE_RE,
+    _decisive,
     _looks_like_spdx_license_expression,
     _looks_like_spdx_license_id,
+    _stated_among,
+    _stated_ids,
     apply_in_package_license,
     canonicalize_license_id,
     collect_license_candidates,
@@ -204,27 +208,6 @@ def test_collect_candidates_empty_dir() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Fixture: real licenseid database (skipped when not built)
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture(name="licenseid_db_path")
-def licenseid_db_path_fixture() -> Path:
-    """Skip if the licenseid database has not been built yet.
-
-    Build with: ``licenseid update``
-    """
-    # pylint: disable=import-outside-toplevel
-
-    from licenseid.database import get_default_db_path
-
-    db = Path(get_default_db_path())
-    if not db.exists():
-        pytest.skip("licenseid database not built -- run 'licenseid update'")
-    return db
-
-
-# ---------------------------------------------------------------------------
 # canonicalize_license_id
 # ---------------------------------------------------------------------------
 
@@ -319,7 +302,7 @@ def test_detect_project_from_license_file_with_detection() -> None:
             return_value="MIT",
         ) as mock_detect:
             result_id, prov = detect_license_for_project(p)
-            mock_detect.assert_called_once_with(mit_text)
+            mock_detect.assert_called_once_with(mit_text, stated=None)
         assert result_id == "MIT"
         assert prov is not None
         assert "LICENSE" in prov
@@ -383,3 +366,127 @@ def test_apply_in_package_license_is_one_rule_for_every_reader(
     assert (metadata.license_name, metadata.license_concluded) == expected
     field = "license_concluded" if expected[1] else "license"
     assert metadata.provenance.get(field) == ("Source: LICENSE" if candidates else None)
+
+
+# ---------------------------------------------------------------------------
+# What licenseid misses: a near-variant ranked first, a licence behind a
+# copyright notice
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("scores", "stated", "expected"),
+    [
+        ([("Pixar", 0.996), ("Apache-2.0", 0.992)], "Apache-2.0", "Apache-2.0"),
+        ([("Pixar", 0.996), ("Apache-2.0", 0.992)], "apache-2.0", "Apache-2.0"),
+        ([("Apache-2.0", 0.99), ("ECL-2.0", 0.9)], "ECL-2.0", None),  # too far
+        ([("Pixar", 0.996)], "MIT", None),  # not among the matches
+        ([("Pixar", 0.996)], None, None),
+        ([], "MIT", None),
+        ([("Pixar", 0.996), ("Apache-2.0", 0.992)], "MIT OR Apache-2.0", "Apache-2.0"),
+        ([("Pixar", 0.996)], "LicenseRef-Pixar", None),  # one id, not a part
+        # a deprecated "+" id is its successor
+        (
+            [("GPL-2.0-only", 1.069), ("GPL-2.0-or-later", 1.06)],
+            "MIT OR GPL-2.0+",
+            "GPL-2.0-or-later",
+        ),
+        ([("MIT", 0.99), ("X11", 0.985)], "X11 licence text, see MIT", None),
+        ([("X", 0.9), ("Y", 0.5), ("MIT", 0.905)], "MIT", "MIT"),  # unsorted
+    ],
+)
+def test_a_stated_licence_wins_only_a_near_tie(
+    scores: list[tuple[str, float]], stated: str | None, expected: str | None
+) -> None:
+    results = [{"license_id": i, "score": s} for i, s in scores]
+    found = _stated_among(results, _stated_ids(stated))  # type: ignore[arg-type]
+    assert found == expected
+
+
+@pytest.mark.parametrize(
+    ("scores", "expected"),
+    [
+        ([("JSON", 0.935), ("MIT", 0.929)], None),  # another licence: a tie
+        ([("GPL-3.0-only", 1.076), ("GPL-3.0-or-later", 1.067)], "GPL-3.0-only"),
+        ([("MIT", 0.855), ("JSON", 0.848)], None),  # runner-up below threshold
+        ([("MIT", 0.95), ("JSON", 0.939)], "MIT"),  # a clear lead
+        ([("MIT", 0.84)], None),  # below threshold
+        ([("A", 0.9), ("X", 0.5), ("B", 0.905)], None),  # not sorted by score
+        ([], None),
+    ],
+)
+def test_a_near_tie_with_another_licence_family_is_no_detection(
+    scores: list[tuple[str, float]], expected: str | None
+) -> None:
+    results = [{"license_id": i, "score": s} for i, s in scores]
+    assert _decisive(results, 0.85) == expected  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("line", "is_notice"),
+    [
+        ("Copyright (c) 2017-2021 Ingy d\u00f6t Net", True),
+        ("  Copyright 2006 Kirill Simonov", True),
+        ("COPYRIGHT \u00a9 2020 Acme", True),
+        ("(c) 2020 Acme", True),
+        ("copyright notice and this permission notice shall be", False),
+        ("Copyright holders may not", False),
+        ("Copyright: (c) 2020 Acme", True),
+        ("\ufeffCopyright (c) 2020 Acme", True),
+    ],
+)
+def test_a_copyright_notice_line_is_told_from_licence_text(
+    line: str, is_notice: bool
+) -> None:
+    assert bool(_COPYRIGHT_NOTICE_RE.fullmatch(line)) is is_notice
+
+
+_BODY = "Permission is hereby granted, free of charge, to any person. " * 3
+_NOTICE = "Copyright (c) 2020 Acme\n"
+
+
+# pylint: disable-next=too-few-public-methods
+class _FakeMatcher:
+    """Scores the text as written and without its notice differently."""
+
+    def __init__(self, raw: list[tuple[str, float]], bare: list[tuple[str, float]]):
+        self._by_text = {_NOTICE + _BODY: raw, "\n" + _BODY: bare, _BODY: raw}
+
+    def match(self, text: str = "", **kwargs: str) -> list[dict[str, object]]:
+        if kwargs:  # the empty-database probe
+            return [{"license_id": "MIT", "score": 1.0}]
+        return [{"license_id": i, "score": s} for i, s in self._by_text[text]]
+
+
+@pytest.mark.parametrize(
+    ("text", "raw", "bare", "expected"),
+    [
+        (_BODY, [("MIT", 0.9)], [], "MIT"),  # no notice: one reading
+        (_NOTICE + _BODY, [("Xnet", 0.9)], [("MIT", 1.0)], "MIT"),  # bare better
+        (_NOTICE + _BODY, [("MIT", 0.93)], [("MirOS", 0.6)], "MIT"),  # raw better
+        (_NOTICE + _BODY, [], [("MIT", 0.9)], "MIT"),  # only bare matches
+        (_NOTICE + _BODY, [("X", 0.5)], [("Y", 0.6)], None),  # below threshold
+        # the better reading is a tie: none, never the other reading's top
+        (_NOTICE + _BODY, [("Xnet", 0.95)], [("JSON", 0.96), ("MIT", 0.955)], None),
+    ],
+)
+def test_a_copyright_notice_is_read_both_ways(
+    text: str,
+    raw: list[tuple[str, float]],
+    bare: list[tuple[str, float]],
+    expected: str | None,
+) -> None:
+    with patch(
+        "pitloom.extract._license._get_matcher", return_value=_FakeMatcher(raw, bare)
+    ):
+        assert detect_license_from_text(text) == expected
+
+
+def test_a_stated_licence_is_looked_for_in_both_readings() -> None:
+    """The reading without the notice scores higher, but only the reading as
+    written has the stated licence in a near-tie."""
+    fake = _FakeMatcher([("Pixar", 0.996), ("Apache-2.0", 0.992)], [("Pixar", 0.999)])
+    with patch("pitloom.extract._license._get_matcher", return_value=fake):
+        assert detect_license_from_text(_NOTICE + _BODY, stated="Apache-2.0") == (
+            "Apache-2.0"
+        )

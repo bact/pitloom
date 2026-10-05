@@ -71,7 +71,11 @@ does not map a classifier's own name: `Apache Software License` and
 
 Upstream issues to file: py-spdx-license grammar (`+`, `AdditionRef-`,
 `DocumentRef-...:AdditionRef-`, `NOT`) and the sort `TypeError`;
-licenseid classifier-name to id. Before filing a canonical-form or
+licenseid classifier-name to id; licenseid text matching (#286, scores
+in [license-rules.md](license-rules.md#4-declared-or-concluded)): a leading
+copyright notice hides MIT (PyYAML gives `Xnet`), and a near-variant
+outranks the verbatim licence (`Pixar` over `Apache-2.0`, `JSON` over
+`MIT`). Before filing a canonical-form or
 successor issue, check whether `normalize_identifier` already covers
 Pitloom's cases (the grammar gaps differ). Whether Pitloom later uses
 `normalize_identifier` and `get_license_by_name` behind the adapter is a

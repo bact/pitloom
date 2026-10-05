@@ -240,8 +240,14 @@ def test_license_key_matches_what_a_build_indexes() -> None:
             ),
             ("text", "MIT"),
         ),
+        (
+            spdx3.simplelicensing_SimpleLicensingText(
+                simplelicensing_licenseText="Acme\n \nNo use."
+            ),
+            ("text", "Acme\n\nNo use."),
+        ),
     ],
-    ids=["canonical", "not-an-expression", "text"],
+    ids=["canonical", "not-an-expression", "text", "blank-space-line"],
 )
 def test_license_key(element: Any, key: tuple[str, str]) -> None:
     assert license_key(element) == key

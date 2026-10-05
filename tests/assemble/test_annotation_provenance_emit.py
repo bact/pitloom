@@ -32,6 +32,8 @@ from pitloom.assemble.spdx3.provenance import (
 from pitloom.core.models import _clear_doc_counters
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.extract._core_metadata import classifier_provenance
+from pitloom.extract.project.setuptools_cfg import CFG_CLASSIFIER_LICENSE_SOURCE
 
 from .conftest import _DOC_NAME, _DOC_UUID, _make_ci, _make_subject
 
@@ -306,6 +308,23 @@ def test_filter_high_signal_keeps_nonmanifest_sources() -> None:
         "package": "Source: pipdeptree (deployed environment)",
         "note": "Phantom dependency bundled in distribution artifact",
     }
+    assert filter_high_signal(prov) == prov
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        classifier_provenance("Source: wheel metadata"),  # wheel, sdist, installed
+        CFG_CLASSIFIER_LICENSE_SOURCE,
+        "Source: setup.py | Field: setup(classifiers=...)",
+        "Source: pyproject.toml | Field: project.classifiers",
+        "Source: hatchling build backend | Field: project.classifiers",
+    ],
+)
+def test_filter_high_signal_keeps_a_licence_from_classifiers(source: str) -> None:
+    """A licence read from the classifiers, not the licence field, is a
+    cascade choice worth recording even from a transparent manifest."""
+    prov = {"license": source}
     assert filter_high_signal(prov) == prov
 
 

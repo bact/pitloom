@@ -6,8 +6,8 @@
 # Installs Pitloom for action.yml's "Install Pitloom" step.
 #
 # Env: PL_EXTRAS  comma-separated pip extras (may be empty)
-#      PL_VERSION pitloom-version input: a bare version ("0.19.0"), a
-#                 specifier (">=0.19,<1.0"), or empty to install the version
+#      PL_VERSION pitloom-version input: a bare version ("0.20.0"), a
+#                 specifier (">=0.20,<1.0"), or empty to install the version
 #                 carried by this pinned action checkout.
 #
 # See also: python-resolve.sh, python_probe.py,
@@ -32,7 +32,7 @@ requested_version=$(printf '%s' "${PL_VERSION:-}" | tr -d '[:space:]')
 derived_version=""
 if [ -n "${requested_version}" ]; then
   # A leading comparison operator means a full specifier; only a bare
-  # version needs "==" inserted ("pitloom==>=0.19,<1.0" is invalid).
+  # version needs "==" inserted ("pitloom==>=0.20,<1.0" is invalid).
   case "${requested_version}" in
     [\<\>=!~]*) spec="${spec}${requested_version}" ;;
     *) spec="${spec}==${requested_version}" ;;
