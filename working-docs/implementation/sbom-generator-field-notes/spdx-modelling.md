@@ -120,5 +120,8 @@ plans; the lesson holds without the code.
   installed licence files: 66 right, 10 wrong, 14 none; reading both with
   and without the notice, preferring the stated licence within 0.01 and
   concluding none on an unstated near-tie: 76/4/10 (#286).
-  Do: treat a near-tie as no answer unless the package states one of the
-  tied licences; keep a corpus of real files that fooled the matcher.
+  A verbatim GPL text scores `-only` and `-or-later` alike (pylint 1.069
+  vs 1.060): a tie rule that drops it loses every unstated GPL.
+  Do: treat a near-tie between licence families as no answer unless the
+  package states one of them; keep a corpus of real files that fooled the
+  matcher.

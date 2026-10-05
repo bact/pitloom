@@ -29,6 +29,7 @@ from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract._license import (
     classify_license,
+    empty_blank_lines,
     tag_deprecated_license_ids,
     tag_license_normalization,
 )
@@ -36,12 +37,14 @@ from pitloom.extract.license_refs import classifier_terms
 
 
 def _without_blank_ends(text: str) -> str:
-    """*text* without its blank ends, serialisation not content:
-    leading blank lines, spaces and tabs (a Core Metadata header loses them)
-    and the final line breaks (a file or a TOML string ends in them). String
-    methods, not a regular expression: an alternation anchored at the end
-    is quadratic on a long run of line breaks inside the text."""
-    return text.lstrip(" \t\r\n").rstrip("\r\n")
+    """*text* without its blank ends and with each line of blank space
+    emptied, serialisation not content: leading blank lines, spaces and tabs
+    (a Core Metadata header loses them), the final line breaks (a file or a
+    TOML string ends in them) and whitespace-only lines (a fold wider than
+    8 spaces leaves them, :func:`empty_blank_lines`). The ends by string
+    methods: an alternation
+    anchored at the end is quadratic on a long run of line breaks."""
+    return empty_blank_lines(text).lstrip(" \t\r\n").rstrip("\r\n")
 
 
 #: Longest ``name`` kept as is; longer is cut to fit with ``...``.
@@ -218,13 +221,13 @@ def get_or_create_license_element(
 ) -> LicenseElement | None:
     """Get or create the licence element for *license_id*, deduped by
     ``(kind, value)`` (an expression and a text of the same string stay
-    apart). Leading blank space and the final line breaks are dropped
-    first, here only, so every surface records one text (a file or a TOML
-    string keeps them, a wheel's ``METADATA`` drops them); the rest is kept
-    as written. The dedup key is that text stripped (the classifier's
-    value), so ``"Foo "`` and ``"Foo"``, differing only in trailing spaces,
-    share the first-seen element. ``None`` when *license_id* states no
-    licence (blank).
+    apart). Leading blank space and the final line breaks are dropped and
+    lines of blank space emptied first, here only, so every surface records
+    one text (a file or a TOML string keeps them, a wheel's ``METADATA``
+    drops them); the rest is kept as written. The dedup key is that text
+    stripped (the classifier's value), so ``"Foo "`` and ``"Foo"``,
+    differing only in trailing spaces, share the first-seen element.
+    ``None`` when *license_id* states no licence (blank).
     ``NOASSERTION``, ``NONE`` and ``UNKNOWN`` give the named individual, never
     an element; the relationship then carries the source's provenance.
     """

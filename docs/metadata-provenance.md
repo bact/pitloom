@@ -160,7 +160,12 @@ then a `LICENSE`/`LICENSE.*` file -- checked regardless of whether a
 declared value was already found. A `CITATION.cff`/`codemeta.json` value
 that's already a bare SPDX id is used as-is; anything else (typically a
 `LICENSE` file's full text) is matched against known SPDX licenses via
-`licenseid` (`method: licenseid_detection`). Either way counts as
+`licenseid` (`method: licenseid_detection`). The text is matched as
+written and without its copyright notice lines; the better-scoring of
+the two decides. When two licences match almost equally (a modified variant scores
+just above the licence it modifies), the one the project states wins; with
+none stated, there is no detection. A GPL-family `-only`/`-or-later` pair,
+which the text cannot tell apart, is not such a tie. Either way counts as
 Pitloom's own independent-detection procedure. Both sides are normalised
 before comparison -- not just casing (a declared `"mit"` and a detected
 `"MIT"` are recognised as the same license), but also equivalent compound
@@ -286,8 +291,9 @@ terms sorted by classifier, whose `customIdToUri` maps each term to a
 `WARNING:`, as they may offer a choice. So a directory, its sdist, its wheel and
 the build hook record the same declared license, except a license file or text
 that Pitloom identifies as a listed license: the directory and the build hook
-record its id, the sdist and the wheel the text. Only a directory adds the
-concluded second opinion above.
+record its id, the sdist and the wheel the text. A directory, an sdist and
+the build hook add the concluded second opinion above (a wheel only through
+`embed-wheel --project-dir`).
 
 Whose statement a license is decides the relationship. The package's own --
 its manifest, a file it ships, an AI model file's own metadata, a model card,

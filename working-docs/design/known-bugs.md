@@ -77,8 +77,8 @@ All fixed; most change SBOM output.
   requests' verbatim `LICENSE`, `Xnet` over `MIT` on PyYAML's (two notice
   lines first), `JSON` over `MIT` on wcwidth's. Now: the text is also read
   without its copyright notices, a stated licence wins a near-tie (0.01),
-  an unstated near-tie concludes none. Regression corpus:
-  `tests/fixtures/license-texts/`.
+  an unstated near-tie with another licence family concludes none.
+  Regression corpus: `tests/fixtures/license-texts/`.
 - [x] **Installed dependency licence text loses its indent (S).** Fixed by
   #286. `importlib.metadata` dedents each header value, which strips the
   whole Apache `LICENSE` indent when its first line is blank; now read from
@@ -215,9 +215,26 @@ Crashes, broken contracts and small mappings.
 - [ ] **`--help` choice order changes per run (S).** `choices=` takes a
   frozenset (`VALID_CONTENT_TYPE_METHODS`, `VALID_CREATOR_TYPES`), so
   `{auto,extension,magika}` prints in hash order. Pass a sorted tuple.
+- [ ] **Installed-dependency `METADATA` is read unlike a wheel's (S).**
+  `deps_installed.get_pkg_metadata` reads text through `importlib.metadata`
+  (newlines translated, strict UTF-8): a CRLF `METADATA` gives a licence
+  text without CR where the wheel reader keeps it, and a non-UTF-8 one
+  raises `UnicodeDecodeError` and aborts the run. A dist-info with no
+  metadata file stays silent. Use the wheel's `read_header_block` +
+  `HeaderParser` (#286 review).
+- [ ] **Hugging Face and classifier names state no licence to detection
+  (S).** `huggingface_fetch` and `stated_license()` call
+  `detect_license_from_text` without `stated=`, so a repo `LICENSE` with a
+  card `license: apache-2.0` near-tie gives no detection; a classifier name
+  (`MIT License`) never matches an id (#286 review).
+- [ ] **Licence detection reads each text twice (S).** With a notice line,
+  the matcher runs on the text as written and without the notice: about
+  twice the time per licence text. Skip the second reading when the first
+  is decisive at a high score (#286 review).
 - [ ] **numpy licence text keeps one extra leading space per line (S).**
   meson-python folds `License:` with 9 spaces; `_unfolded` strips 8.
-  Whitespace-only lines are blank since #286; the extra space stays (as
+  Whitespace-only lines are blank on every surface since #286; the extra
+  space stays (as
   0.19.0). Stripping a writer's whole fold width needs telling it from the
   text's own indent.
 - [ ] **GitHub Action drops invalid boolean inputs silently.** Any

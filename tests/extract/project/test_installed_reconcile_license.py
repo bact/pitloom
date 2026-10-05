@@ -43,6 +43,8 @@ from tests.extract.conftest import licence_pair
         ("MIT", "MIT License", False, "MIT"),
         ("MIT License", "MIT", False, "MIT License"),
         ("Apache Software License", "Apache-2.0", True, "Apache Software License"),
+        # a line of spaces (a 9-space fold) is a blank line
+        ("Acme\n\nNo use.", "Acme\n \nNo use.", False, "Acme\n\nNo use."),
     ],
 )
 def test_reconcile_license_comparison_is_by_classified_value(

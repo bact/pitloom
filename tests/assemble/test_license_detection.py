@@ -21,9 +21,11 @@ import pytest
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import (
     _COPYRIGHT_NOTICE_RE,
+    _decisive,
     _looks_like_spdx_license_expression,
     _looks_like_spdx_license_id,
     _stated_among,
+    _stated_ids,
     apply_in_package_license,
     canonicalize_license_id,
     collect_license_candidates,
@@ -381,13 +383,37 @@ def test_apply_in_package_license_is_one_rule_for_every_reader(
         ([("Pixar", 0.996)], "MIT", None),  # not among the matches
         ([("Pixar", 0.996)], None, None),
         ([], "MIT", None),
+        ([("Pixar", 0.996), ("Apache-2.0", 0.992)], "MIT OR Apache-2.0", "Apache-2.0"),
+        ([("Pixar", 0.996)], "LicenseRef-Pixar", None),  # one id, not a part
+        ([("MIT", 0.99), ("X11", 0.985)], "X11 licence text, see MIT", None),
+        ([("X", 0.9), ("Y", 0.5), ("MIT", 0.905)], "MIT", "MIT"),  # unsorted
     ],
 )
 def test_a_stated_licence_wins_only_a_near_tie(
     scores: list[tuple[str, float]], stated: str | None, expected: str | None
 ) -> None:
     results = [{"license_id": i, "score": s} for i, s in scores]
-    assert _stated_among(results, stated) == expected  # type: ignore[arg-type]
+    found = _stated_among(results, _stated_ids(stated))  # type: ignore[arg-type]
+    assert found == expected
+
+
+@pytest.mark.parametrize(
+    ("scores", "expected"),
+    [
+        ([("JSON", 0.935), ("MIT", 0.929)], None),  # another licence: a tie
+        ([("GPL-3.0-only", 1.076), ("GPL-3.0-or-later", 1.067)], "GPL-3.0-only"),
+        ([("MIT", 0.855), ("JSON", 0.848)], None),  # runner-up below threshold
+        ([("MIT", 0.95), ("JSON", 0.939)], "MIT"),  # a clear lead
+        ([("MIT", 0.84)], None),  # below threshold
+        ([("A", 0.9), ("X", 0.5), ("B", 0.905)], None),  # not sorted by score
+        ([], None),
+    ],
+)
+def test_a_near_tie_with_another_licence_family_is_no_detection(
+    scores: list[tuple[str, float]], expected: str | None
+) -> None:
+    results = [{"license_id": i, "score": s} for i, s in scores]
+    assert _decisive(results, 0.85) == expected  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -399,6 +425,8 @@ def test_a_stated_licence_wins_only_a_near_tie(
         ("(c) 2020 Acme", True),
         ("copyright notice and this permission notice shall be", False),
         ("Copyright holders may not", False),
+        ("Copyright: (c) 2020 Acme", True),
+        ("\ufeffCopyright (c) 2020 Acme", True),
     ],
 )
 def test_a_copyright_notice_line_is_told_from_licence_text(
@@ -432,8 +460,8 @@ class _FakeMatcher:
         (_NOTICE + _BODY, [("MIT", 0.93)], [("MirOS", 0.6)], "MIT"),  # raw better
         (_NOTICE + _BODY, [], [("MIT", 0.9)], "MIT"),  # only bare matches
         (_NOTICE + _BODY, [("X", 0.5)], [("Y", 0.6)], None),  # below threshold
-        (_BODY, [("JSON", 0.935), ("MIT", 0.929)], [], None),  # near tie: none
-        (_BODY, [("A", 0.95), ("B", 0.939)], [], "A"),  # a clear lead wins
+        # the better reading is a tie: none, never the other reading's top
+        (_NOTICE + _BODY, [("Xnet", 0.95)], [("JSON", 0.96), ("MIT", 0.955)], None),
     ],
 )
 def test_a_copyright_notice_is_read_both_ways(
@@ -446,3 +474,13 @@ def test_a_copyright_notice_is_read_both_ways(
         "pitloom.extract._license._get_matcher", return_value=_FakeMatcher(raw, bare)
     ):
         assert detect_license_from_text(text) == expected
+
+
+def test_a_stated_licence_is_looked_for_in_both_readings() -> None:
+    """The reading without the notice scores higher, but only the reading as
+    written has the stated licence in a near-tie."""
+    fake = _FakeMatcher([("Pixar", 0.996), ("Apache-2.0", 0.992)], [("Pixar", 0.999)])
+    with patch("pitloom.extract._license._get_matcher", return_value=fake):
+        assert detect_license_from_text(_NOTICE + _BODY, stated="Apache-2.0") == (
+            "Apache-2.0"
+        )

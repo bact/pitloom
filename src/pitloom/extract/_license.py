@@ -37,6 +37,7 @@ from pitloom.extract._license_classify import (
     _PY_SPDX_LICENSE_VERSION,
     ClassifiedLicense,
     classify_license,
+    empty_blank_lines,
     is_listed_name,
     same_licence,
     tag_deprecated_license_ids,
@@ -76,6 +77,7 @@ __all__ = [
     "detect_independent_license",
     "detect_license_for_project",
     "detect_license_from_text",
+    "empty_blank_lines",
     "find_license_files",
     "is_listed_name",
     "license_from_candidates",
@@ -135,19 +137,66 @@ short license."""
 #: tie; with none stated, a tie is no detection.
 _STATED_TIE_MARGIN = 0.01
 
+#: The ids an expression names; operators are not ids.
+_EXPRESSION_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9.+:-]*")
+_EXPRESSION_OPERATORS = frozenset({"and", "or", "with"})
 
-def _stated_among(results: Sequence[LicenseMatch], stated: str | None) -> str | None:
-    """The id of *results* that is the single licence id *stated*, when it
-    scores within :data:`_STATED_TIE_MARGIN` of the top match."""
-    wanted = (stated or "").strip().casefold()
-    if not wanted or not results:
+
+def _stated_ids(stated: str | None) -> frozenset[str]:
+    """The licence ids *stated* names, case-folded (``MIT OR Apache-2.0``
+    names both); none for a licence text or name."""
+    value = (stated or "").strip()
+    if not (
+        _looks_like_spdx_license_id(value) or _looks_like_spdx_license_expression(value)
+    ):
+        return frozenset()
+    return frozenset(
+        token.casefold()
+        for token in _EXPRESSION_ID_RE.findall(value)
+        if token.casefold() not in _EXPRESSION_OPERATORS
+    )
+
+
+def _stated_among(
+    results: Sequence[LicenseMatch], stated: frozenset[str]
+) -> str | None:
+    """The best-scoring id of *results* that *stated* names, when it scores
+    within :data:`_STATED_TIE_MARGIN` of the top match."""
+    if not stated or not results:
         return None
-    top = float(results[0]["score"])
-    for result in results:
-        if str(result["license_id"]).casefold() == wanted:
-            near = float(result["score"]) >= top - _STATED_TIE_MARGIN
-            return str(result["license_id"]) if near else None
+    ranked = sorted(results, key=lambda r: -float(r["score"]))
+    floor = float(ranked[0]["score"]) - _STATED_TIE_MARGIN
+    for result in ranked:
+        if float(result["score"]) < floor:
+            return None
+        if str(result["license_id"]).casefold() in stated:
+            return str(result["license_id"])
     return None
+
+
+def _family(license_id: str) -> str:
+    """*license_id* without its ``-only``/``-or-later`` suffix: a verbatim
+    GPL text scores both alike, and cannot tell them apart."""
+    return re.sub(r"-(?:only|or-later)$", "", license_id)
+
+
+def _decisive(results: Sequence[LicenseMatch], threshold: float) -> str | None:
+    """The top id of *results* when it meets *threshold* and no other
+    licence family scores within :data:`_STATED_TIE_MARGIN` of it (a
+    runner-up below *threshold* counts)."""
+    if not results:
+        return None
+    ranked = sorted(results, key=lambda r: -float(r["score"]))
+    if float(ranked[0]["score"]) < threshold:
+        return None
+    top = str(ranked[0]["license_id"])
+    floor = float(ranked[0]["score"]) - _STATED_TIE_MARGIN
+    for result in ranked[1:]:
+        if float(result["score"]) < floor:
+            break
+        if _family(str(result["license_id"])) != _family(top):
+            return None
+    return top
 
 
 #: A copyright notice line: ``Copyright`` with ``(c)``, a copyright sign or
@@ -155,26 +204,27 @@ def _stated_among(results: Sequence[LicenseMatch], stated: str | None) -> str | 
 #: Guidelines leave a notice out of a match; ``licenseid`` can miss a listed
 #: licence behind one (PyYAML's two notice lines give ``Xnet``, not ``MIT``).
 _COPYRIGHT_NOTICE_RE = re.compile(
-    r"^[ \t]*(?:copyright[ \t]*(?:\(c\)|\u00a9|\d)|(?:\(c\)|\u00a9)[ \t]*\d).*$",
+    r"^[ \t\ufeff]*(?:copyright[ \t:]*(?:\(c\)|\u00a9|\d)"
+    r"|(?:\(c\)|\u00a9)[ \t]*\d).*$",
     re.IGNORECASE | re.MULTILINE,
 )
 
 
-def _matches(
-    matcher: AggregatedLicenseMatcher, text: str, threshold: float
-) -> list[LicenseMatch]:
-    """*matcher*'s ranked matches for *text* scoring at least *threshold*,
-    from the text as written or without its copyright notice lines,
-    whichever matches better: ``licenseid`` uses a notice to place the
-    licence in mixed content, yet misses some licences behind one."""
-    matches = [r for r in matcher.match(text) if r["score"] >= threshold]
+def _readings(matcher: AggregatedLicenseMatcher, text: str) -> list[list[LicenseMatch]]:
+    """*matcher*'s ranked matches for *text* as written and, when it has
+    copyright notice lines, without them: ``licenseid`` uses a notice to
+    place the licence in mixed content, yet misses some licences behind
+    one."""
+    readings = [matcher.match(text)]
     without_notice = _COPYRIGHT_NOTICE_RE.sub("", text)
-    if without_notice == text:
-        return matches
-    other = [r for r in matcher.match(without_notice) if r["score"] >= threshold]
-    if other and (not matches or other[0]["score"] > matches[0]["score"]):
-        return other
-    return matches
+    if without_notice != text:
+        readings.append(matcher.match(without_notice))
+    return readings
+
+
+def _top_score(results: Sequence[LicenseMatch]) -> float:
+    """The best score in *results*, or -1 for none."""
+    return max((float(r["score"]) for r in results), default=-1.0)
 
 
 def detect_license_from_text(
@@ -184,11 +234,12 @@ def detect_license_from_text(
 
     Returns the top-ranked SPDX License ID when its score meets *threshold*, or
     ``None`` when the database is not populated, *text* is too short to be a
-    real license body, or no match exceeds the threshold (copyright notice
-    lines read both ways, see :func:`_matches`). A *stated* licence
-    (the manifest's own id) that the text matches nearly as well as the top
-    match wins the near-tie (:data:`_STATED_TIE_MARGIN`); with none stated,
-    a near-tie between two licences is ``None``.
+    real license body, or no match exceeds the threshold. *text* is read as
+    written and without its copyright notice lines (:func:`_readings`). A
+    licence *stated* (the manifest's own id or expression) that either
+    reading matches at *threshold* nearly as well as its top match wins
+    (:data:`_STATED_TIE_MARGIN`); else the better-scoring reading decides,
+    ``None`` when its top match is a near-tie with another licence family.
     """
     try:
         matcher = _get_matcher()
@@ -197,16 +248,15 @@ def detect_license_from_text(
             return None
         if len(text.strip()) < _MIN_LICENSE_TEXT_LENGTH:
             return None
-        filtered = _matches(matcher, text, threshold)
-        if not filtered:
-            return None
-        chosen = _stated_among(filtered, stated)
-        if chosen:
-            return chosen
-        tied = len(filtered) > 1 and (
-            filtered[1]["score"] >= filtered[0]["score"] - _STATED_TIE_MARGIN
-        )
-        return None if tied else str(filtered[0]["license_id"])
+        readings = _readings(matcher, text)
+        wanted = _stated_ids(stated)
+        for results in readings:
+            above = [r for r in results if r["score"] >= threshold]
+            chosen = _stated_among(above, wanted)
+            if chosen:
+                return chosen
+        best = max(readings, key=_top_score)
+        return _decisive(best, threshold)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         _logger.debug("licenseid detection failed: %s", exc)

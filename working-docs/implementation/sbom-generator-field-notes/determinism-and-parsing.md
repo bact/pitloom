@@ -338,5 +338,8 @@ section 3.6 (determinism of model metadata).
   a tab; meson-python (numpy) uses 9, so removing 8 leaves one space on
   every line and a single space on every blank line (187 in numpy's
   `LICENSE.txt`) (#286).
-  Do: empty whitespace-only lines after unfolding; do not guess a wider
-  fold from the text, whose own indent looks the same.
+  Emptying them in the Core Metadata reader alone broke parity: a file's
+  own line of spaces then differed by surface (#286 review).
+  Do: empty whitespace-only lines in the one normaliser every surface
+  shares; do not guess a wider fold from the text, whose own indent looks
+  the same.

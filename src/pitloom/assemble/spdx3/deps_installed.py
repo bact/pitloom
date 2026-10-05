@@ -60,12 +60,18 @@ log = logging.getLogger(__name__)
 
 def get_pkg_metadata(dep_name: str) -> email.message.Message[str, str]:
     """*dep_name*'s installed Core Metadata, parsed from its raw ``METADATA``
-    (else ``PKG-INFO``) text as the wheel and sdist readers parse theirs:
+    (else ``PKG-INFO``, else an old single-file ``.egg-info``) text as the
+    wheel and sdist readers parse theirs:
     :attr:`importlib.metadata.Distribution.metadata` dedents every
     multi-line value, which also strips a licence text's own indent when
     it starts with a blank line (the Apache ``LICENSE``)."""
     dist = distribution(dep_name)
-    text = dist.read_text("METADATA") or dist.read_text("PKG-INFO") or ""
+    text = (
+        dist.read_text("METADATA")
+        or dist.read_text("PKG-INFO")
+        or dist.read_text("")
+        or ""
+    )
     return email.message_from_string(text)
 
 

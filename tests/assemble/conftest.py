@@ -79,8 +79,9 @@ def _make_meta(**kwargs) -> DatasetMetadata:  # type: ignore[no-untyped-def]
 
 
 class _FakeMetadata:
-    """Minimal stand-in for the ``importlib.metadata.PackageMetadata``
-    protocol. ``__contains__`` is real, so production code's
+    """Minimal stand-in for the :class:`email.message.Message` that
+    ``deps_installed.get_pkg_metadata`` parses from raw ``METADATA``: give
+    multi-line values folded as written. ``__contains__`` is real, so production code's
     ``pkg_meta_get()`` (see ``pitloom.extract._extract_utils``) works
     against it without hitting ``__getitem__``'s missing-key path."""
 

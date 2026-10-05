@@ -49,11 +49,12 @@ and this project adheres to
   several elements under them ([#235])
 - `--scan-model-usage`: record which Python files reference a found AI model;
   config key, Action input, `scan_model_usage=`, also on wheels ([#252], [#263])
-- `wheel`, `wheel --embed` and `embed-wheel` find AI models inside the wheel;
-  `max-model-extract-bytes` caps a model (4x for the wheel), beyond which it
-  has no metadata ([#263])
-- `--trust-wheel-model`: without it, a wheel's fastText, GGUF, HDF5, ONNX and
-  `.pt`/`.pth` models are listed without metadata, with one `INFO:` ([#263])
+- `wheel`, `wheel --embed` and `embed-wheel` without `--project-dir` find AI
+  models inside the wheel; `max-model-extract-bytes` caps a model (4x for
+  the wheel), beyond which it has no metadata ([#263])
+- `--trust-wheel-model` (`trust_wheel_model=`, no config key): without it, a
+  wheel's fastText, GGUF, HDF5, ONNX and `.pt`/`.pth` models are listed
+  without metadata, with one `INFO:` ([#263])
 - A `.pt`/`.pth` is a PyTorch model only when it opens as a ZIP or a pickle:
   Python `.pth` path-config files (`distutils-precedence.pth`) are no longer
   reported as models ([#263])
@@ -103,7 +104,7 @@ and this project adheres to
   `--id-registry`, `--update-registry` to `--update-id-registry`; old keys
   raise a moved-key error ([#235])
 - A registry is used only when declared (flag, `[tool.pitloom]`,
-  `--config`), never searched for; default name `loom-id-registry.json`;
+  `--config`), never searched for; suggested name `loom-id-registry.json`;
   `id generate`/`id import` require `--id-registry` ([#235])
 - A declared registry that is missing, unreadable or invalid is `ERROR:`/exit 1
   on the CLI, `ValueError` from the library and `loom.Run`, and fails the
@@ -288,10 +289,10 @@ and this project adheres to
   crash, warnings name elements by id; `fragment list` flags an earlier SBOM
   of the project (`SAME_DOCUMENT=`) ([#284])
 - Licence detection: a copyright notice no longer hides MIT; a stated licence
-  wins a near-tie (`Pixar` over `Apache-2.0`), an unstated one concludes none
+  wins a near-tie (`Apache-2.0`, not `Pixar`); an unstated tie concludes none
   ([#286])
 - Licence text of an installed dependency keeps its indent; whitespace-only
-  folded lines are blank; a classifier licence keeps its minimal provenance
+  lines are blank on every surface; a classifier licence keeps its provenance
   ([#286])
 
 [#226]: https://github.com/bact/pitloom/pull/226

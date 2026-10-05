@@ -264,3 +264,23 @@ def test_license_readers_agree(
         for m in readers.values()
     } | {sources[0].endswith("Field: Classifier")}
     assert from_classifier == {expected == ["MIT License"]}
+
+
+@pytest.mark.parametrize(
+    ("layout", "member"),
+    [
+        ("pkg-1.0.dist-info", "METADATA"),
+        ("pkg-1.0-py3.10.egg-info", "PKG-INFO"),
+        ("pkg-1.0-py3.10.egg-info", ""),  # one file: an old distutils install
+    ],
+)
+def test_installed_metadata_is_read_from_every_layout(
+    layout: str, member: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / layout
+    target = path / member if member else path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("Metadata-Version: 1.0\nName: pkg\nLicense: MIT\n", "utf-8")
+    installed = importlib.metadata.PathDistribution(path)
+    monkeypatch.setattr(deps_installed, "distribution", lambda _name: installed)
+    assert deps_installed.get_pkg_metadata("pkg")["License"] == "MIT"

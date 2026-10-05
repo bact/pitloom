@@ -257,6 +257,18 @@ def _looks_like_expression(cased: str) -> bool:
     )
 
 
+#: A line of spaces and tabs only, after any line break (CR, LF, CRLF): a
+#: Core Metadata writer folding with more than 8 spaces (numpy's 9) leaves
+#: one on every blank line; a file may have them too.
+_BLANK_LINE_RE = re.compile(r"(?<![^\r\n])[ \t]+(?![^\r\n])")
+
+
+def empty_blank_lines(text: str) -> str:
+    """*text* with each line of only spaces and tabs emptied, so a licence
+    text compares and records alike from a file and from Core Metadata."""
+    return _BLANK_LINE_RE.sub("", text)
+
+
 def classify_license(raw: str | None, *, warn: bool = True) -> ClassifiedLicense | None:
     """Sort *raw* into an SPDX expression, licence text, ``NOASSERTION`` or
     ``NONE``; ``None`` when it states no licence (absent, blank).
@@ -268,7 +280,8 @@ def classify_license(raw: str | None, *, warn: bool = True) -> ClassifiedLicense
     (``LGPL-2.0+`` -> ``LGPL-2.0-or-later``; see :data:`_DEPRECATED_SUCCESSORS`).
     One that is valid SPDX but outside the parser's grammar (``Apache-2.0+``,
     ``WITH AdditionRef-...``) is kept as written, ids in their listed case
-    and operators upper-cased. Anything else is text, stripped; text that
+    and operators upper-cased. Anything else is text, stripped, its lines of
+    blank space emptied (:func:`empty_blank_lines`); text that
     has an operator or parenthesis and a known id, so looks like a broken
     expression, also gets one ``WARNING:`` per value per process, unless
     *warn* is false (a comparison, not a record of the value).
@@ -283,7 +296,7 @@ def classify_license(raw: str | None, *, warn: bool = True) -> ClassifiedLicense
         kind, value = _INDIVIDUAL_WORDS[word]
         return ClassifiedLicense(kind, value, raw or "")
     if "\n" in stripped or len(stripped) > _MAX_EXPRESSION_LENGTH:
-        return ClassifiedLicense("text", stripped, raw or "")
+        return ClassifiedLicense("text", empty_blank_lines(stripped), raw or "")
     cased = _SPDX_OPERATOR_CASING_RE.sub(lambda m: m.group(1).upper(), stripped)
     cased = _ID_TOKEN_RE.sub(_replace_deprecated, cased)
     canonical, reason = _strict_parse(cased)

@@ -14,11 +14,14 @@ from), :mod:`tests.assemble.test_license_detection` (the rules, mocked).
 from __future__ import annotations
 
 import json
+import tarfile
 from pathlib import Path
 
 import pytest
 
-from pitloom.extract._license import detect_license_from_text
+from pitloom._embed_build_sbom import _add_concluded_license
+from pitloom.core.project import ProjectMetadata
+from pitloom.extract._license import _family, detect_license_from_text
 from pitloom.extract.project.sdist import read_sdist
 from tests.fixtures.real_world import REAL_WORLD_ROOT, load_expected
 
@@ -30,14 +33,17 @@ pytestmark = pytest.mark.usefixtures("licenseid_db_path")
 
 @pytest.mark.parametrize("name", sorted(_EXPECTED))
 def test_a_real_licence_file_gives_its_licence_or_none(name: str) -> None:
-    """Stated, the package's own licence; unstated, that licence or no
-    detection (a near-tie), never another licence."""
+    """Stated, the package's own licence; unstated, that licence (or its
+    ``-only``/``-or-later`` sibling) or no detection (a near-tie), never
+    another licence."""
     case = _EXPECTED[name]
     text = (_CORPUS / name).read_bytes().decode("utf-8")
     assert detect_license_from_text(text, stated=case["license"]) == case["stated"]
     assert detect_license_from_text(text) == case["unstated"]
     assert case["stated"] == case["license"]
-    assert case["unstated"] in (None, case["license"])
+    assert case["unstated"] is None or _family(case["unstated"]) == _family(
+        case["license"]
+    )
 
 
 @pytest.mark.parametrize(
@@ -51,3 +57,17 @@ def test_an_sdist_concludes_its_own_licence(fixture: str) -> None:
     expected = load_expected(project)
     metadata = read_sdist(project / expected["sdist_filename"], read_config=False)
     assert metadata.metadata.license_concluded == expected["license"]
+
+
+def test_embed_wheel_concludes_the_stated_licence(tmp_path: Path) -> None:
+    """``embed-wheel --project-dir`` passes the wheel's declared licence:
+    requests' verbatim Apache 2.0 concludes ``Apache-2.0``, not ``Pixar``."""
+    project = REAL_WORLD_ROOT / "setuptools" / "requests-2.34.2"
+    with tarfile.open(project / load_expected(project)["sdist_filename"]) as tar:
+        member = tar.extractfile("requests-2.34.2/LICENSE")
+        assert member is not None
+        (tmp_path / "LICENSE").write_bytes(member.read())
+    metadata = ProjectMetadata(name="requests", version="2.34.2")
+    metadata.license_name = "Apache-2.0"
+    _add_concluded_license(metadata, tmp_path)
+    assert metadata.license_concluded == "Apache-2.0"
