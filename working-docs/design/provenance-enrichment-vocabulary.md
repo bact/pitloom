@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-13
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,7 +16,7 @@ See [working-docs/implementation/provenance/](../implementation/provenance/)
 for the shipped provenance mechanism this vocabulary describes
 (`annotation-provenance.md`, `metadata-provenance.md`, and siblings).
 Settling the `role`/`method` taxonomy is also a prerequisite for systematic
-licence rules: [license-layers.md](license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy).
+licence rules: [license-rules.md](license-rules.md).
 The drafted page content is in
 [provenance-enrichment-vocabulary-draft-page.md](provenance-enrichment-vocabulary-draft-page.md).
 

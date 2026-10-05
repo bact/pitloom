@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,7 +17,7 @@ value -- `MIT`, `MIT AND Apache-2.0`, `NOASSERTION` -- became a
 See also: [license-pipeline.md](license-pipeline.md) (sources, data flow,
 call sites), [license-layers.md](../design/license-layers.md) (content,
 source and shape: what moves upstream; its
-[prerequisites](../design/license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy)
+[license-rules.md](../design/license-rules.md)
 list what is still to settle),
 [recurring-bug-patterns.md](recurring-bug-patterns.md) (the
 weak-placeholder lesson) and the user-facing

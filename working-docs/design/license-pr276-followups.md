@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,8 +8,8 @@ SPDX-License-Identifier: CC0-1.0
 
 # Licence typing (PR #276): what was left open
 
-See also: [license-layers.md](license-layers.md) (the three layers and the
-rule prerequisites), [license-typing.md](../implementation/license-typing.md)
+See also: [license-rules.md](license-rules.md) (rules, rulings and open
+questions), [license-layers.md](license-layers.md) (the three layers), [license-typing.md](../implementation/license-typing.md)
 (what #276 built), [roadmap.md](roadmap.md#near-term).
 
 PR #276 merged with one bar: every surface records the same value, even
@@ -65,7 +65,7 @@ resolution) and may change direction there. Group C is housekeeping.
 ## B. Folded into the licence rules
 
 Each is written up with its evidence in
-[license-layers.md](license-layers.md#findings-for-the-rule-design-pr-276-review-r10);
+[license-rules.md](license-rules.md#open-questions);
 user leanings are recorded there, not decisions.
 
 - Weak manifest value (`NOASSERTION`/`UNKNOWN`) vs a real licence from a

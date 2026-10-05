@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -22,7 +22,7 @@ file-size guidance -- moved verbatim, no content changed.
   one canonical source. See
   [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md).
   Also a prerequisite for systematic licence rules:
-  [license-layers.md](license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy).
+  [license-rules.md](license-rules.md).
 - [x] **Generalize multi-source conflict detection beyond license** --
   `build_conflict_annotation`/`ConflictCandidate` now also fires for
   dependency version, not just license. See

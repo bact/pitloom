@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-12
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -14,7 +14,7 @@ See also
 [role-vocabulary.md](../implementation/provenance/role-vocabulary.md) (the
 current `role` vocabulary this doc's open question would extend or
 complement) and
-[license-layers.md](license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy)
+[license-rules.md](license-rules.md)
 (this question is one of the prerequisites for systematic licence rules).
 
 This is a parked design question, not a solution -- raised while planning

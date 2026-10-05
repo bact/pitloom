@@ -192,22 +192,13 @@ or citing any of these one-liners.
   assertion could see a stray CR (PR #224). Decode bytes yourself, and
   mutation-test a shell/CI change (break key lines one at a time; a
   surviving mutant is a missing or blind test).
-- **`Path.exists()`/`.is_file()` only swallow a specific errno set
-  (ENOENT/ENOTDIR/EBADF/ELOOP on POSIX) -- any other `OSError`, e.g.
-  `PermissionError`, propagates uncaught.** A bare `.exists()` call
-  crashed a real build on a permission-denied fragment before this was
-  classified explicitly (PR #217). The POSIX/Windows split in that
-  classification must `OR` both errno and winerror checks
-  unconditionally -- a real Windows `FileNotFoundError` carries both --
-  never short-circuit on "winerror is set" (PR #217's own first fix got
-  this wrong and wasn't caught until the next review round).
-  **Python 3.14 changes this**: there they swallow `PermissionError` too
-  and return `False`, so the same call raises on 3.10-3.13 and does not
-  on 3.14. Use `os.path.isfile`/`isdir` where the intent is "never
-  raises" (true on every version, no gate needed); in a test, gate the
-  raising assertion on `sys.version_info < (3, 14)` and keep a
-  version-independent probe (`read_bytes()`) so the 3.14 branch is not
-  vacuous (PR #226).
+- **`Path.exists()`/`.is_file()` only swallow a specific errno set** --
+  `PermissionError` propagates on 3.10-3.13 but returns `False` on 3.14
+  (PR #217, #226). Use `os.path.isfile`/`isdir` for "never raises"; a
+  missing-vs-unreadable classifier must OR errno and winerror checks; in
+  a test, gate the raising assertion on the version and keep a
+  version-independent probe (`read_bytes()`)
+  ([recurring-bug-patterns-platform.md](working-docs/implementation/recurring-bug-patterns-platform.md)).
 - **A textual "is this path under the project" check misses on a
   case-insensitive file system**: `os.getcwd()` after `chdir()` gives the
   on-disk case, `Path.resolve()` keeps the caller's (macOS). Fall back to
@@ -226,15 +217,10 @@ or citing any of these one-liners.
   in `PYTEST_CURRENT_TEST` (32,767-char env cap)** -- give it short `ids=`;
   `tests/conftest.py` fails any id over 1,000 chars (PR #276, same doc).
 - **A context manager whose `__exit__` can be interrupted must reset its
-  shared state in `__enter__`, not in `__exit__`** -- and must not take
-  its lock to do so (a worker may hold it for a whole build), must
-  install a *fresh* container rather than `.clear()` one a late writer
-  still references, and must detect "my block ended" by object identity,
-  never by mere presence. An interrupt handler releases its own
-  resources and nothing else: state behind a lock belongs to whoever
-  holds the lock, so "retry the cleanup without the lock" deletes things
-  under a live caller (PR #226, and that retry *was* the previous review
-  round's fix -- reproduce a concurrency claim, never reason it through).
+  shared state in `__enter__`** -- without taking its lock, installing a
+  fresh container, detecting "my block ended" by object identity; an
+  interrupt handler releases only its own resources (PR #226, same doc).
+  Reproduce a concurrency claim, never reason it through.
 - **Mutation testing lies in two ways**: an *equivalent* mutant (a
   rearrangement that changes no semantics) cannot be killed and proves
   nothing, so reinstate the exact pre-fix shape; and an assertion aimed
@@ -426,42 +412,42 @@ For `working-docs/` standalone docs, include `Created` and `Last-Modified` (`YYY
   multiple candidates needing a deterministic tie-break, malformed/
   truncated input. Catches the bug classes under "Recurring bug
   patterns" above before real-world input does.
-- **Manual CLI checks (below) complement pytest, not redundant with
-  it**: pytest catches in-process logic bugs; a real CLI run against a
-  hand-crafted adversarial fixture catches what in-process tests can't
-  -- correct `WARNING:` wording/count on real stderr, `--debug`/env-var
-  threading, determinism, CLI/library-API parity. Run both for any
-  change touching a metadata source or reconciliation/cascade logic.
+- **Test tiers -- run less while editing, everything before merge.**
+  - Tier 1, while editing: the touched or affected tests only
+    (`pytest tests/<area> -k ...`, `--lf`), ruff, mypy.
+  - Tier 2, each review/fix round: the full suite (xdist), every CI linter
+    (see "Linting and formatting", pyrefly included), each new regression
+    test failing on the base tree, branch coverage of the changed files,
+    and the manual CLI checks for the touched area (below).
+  - Tier 3, once per PR before merge: mutation testing (each mutant runs
+    only its module's test files), the full manual CLI checks (before
+    handoff, and again after merging main), the
+    parity/determinism harness, the Windows dry-run, one fresh-context
+    sweep, a fresh-eyes read of any changed `SKILL.md`.
 
 ### Manual CLI integration checks (post-pytest, pre-commit)
 
-pytest exercises functions in-process only -- it doesn't exercise the
-`loom` entry point, subprocess argv parsing, real filesystem/archive I/O,
-or drift between the CLI/library-API/Hatchling-hook/skills surfaces (see
-"Usage surfaces" above). Run 17 checks by hand -- or have an agent run
-them -- against a real project (scratch dir, never the repo tree) after
-any change touching `assemble/`, `extract/`, `core/`, `embed.py`,
-`__main__.py`, or `plugins/hatch.py`, before committing: determinism,
-CLI/library-API/hook parity, embed-wheel/`wheel --embed` parity,
-embed->verify->validate round trip, `--debug`/`PITLOOM_DEBUG` reaching
-every subcommand, skills/plugin surface drift, fragment merge
-determinism, offline-mode zero-network-calls, registry round trip,
-`--allow-build` with/without/ground-truth parity, a setting that
-changes no bytes (`--content-type-method`) still reaching `project` and
-`embed-wheel`, no implicit config for a non-project target, an
-sdist reading its own config as its unpacked directory does, a
-declared-but-missing/invalid `--id-registry` failing the same way on
-every surface, `--scan-model-usage` beating its config key on every
-surface that scans, the wheel ones included, a refused wheel refused
-alike by every command that reads one, and one outcome per kind of AI model
-file (a failed read is a stub; a non-model is no entry) on `project`,
-`wheel` and `loom model`.
-Full commands for each in
-[working-docs/implementation/manual-cli-checks.md](working-docs/implementation/manual-cli-checks.md).
-Run them all with `.venv/bin/python scripts/manual_cli_checks` (add
-`--network` for the network ones): it also runs the declared CLI matrix
-(subcommand x option x environment variable) and order-dependent command
-sequences. A new CLI option or subcommand must get an entry in
+pytest exercises functions in-process only -- it misses the `loom` entry
+point, argv parsing, real filesystem/archive I/O and drift between the
+CLI/library-API/Hatchling-hook/skills surfaces (see "Usage surfaces").
+`.venv/bin/python scripts/manual_cli_checks` runs, in a scratch dir, the
+numbered checks (determinism, surface parity, embed/verify/validate round
+trips, registry, fragment merge, offline, `--allow-build`, refused wheels,
+AI model outcomes), the declared CLI matrix (subcommand x option x
+environment variable) and order-dependent command sequences; `--only`
+takes ids and globs, `--network` adds the network ones. They complement
+pytest: real stderr `WARNING:` wording and count, `--debug` threading,
+CLI/library parity. When to run:
+
+- docs-, tests- or `working-docs/`-only change: skip;
+- each round touching `assemble/`, `extract/`, `core/`, `embed.py`,
+  `__main__.py` or `plugins/hatch.py`: the checks for that area, by
+  `--only` (area map and full commands in
+  [manual-cli-checks.md](working-docs/implementation/manual-cli-checks.md#when-to-run));
+- once before handoff, and again after merging main into the branch: the
+  full run (`-j 8`).
+
+A new CLI option or subcommand must get an entry in
 `scripts/manual_cli_checks/_matrix_plan.py` -- `M/completeness` fails in
 CI until it does.
 

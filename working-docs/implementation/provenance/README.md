@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,7 +16,7 @@ provenance questions live at
 instead. Licence-specific rules (source classes, roles, conflict model,
 equivalence, provenance keys) and what must be settled before they are made
 systematic:
-[license-layers.md](../../design/license-layers.md#prerequisites-conflict-resolution-provenance-and-taxonomy).
+[license-rules.md](../../design/license-rules.md).
 
 | File | Covers |
 | :--- | :----- |
