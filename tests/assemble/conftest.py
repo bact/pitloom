@@ -35,6 +35,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._wheel_sbom_location import _find_dist_info_prefix
@@ -349,3 +350,19 @@ def _make_sdist(
             info.size = len(data)
             tf.addfile(info, io.BytesIO(data))
     return sdist_path
+
+
+@pytest.fixture(name="licenseid_db_path")
+def licenseid_db_path_fixture() -> Path:
+    """Skip if the licenseid database has not been built yet.
+
+    Build with: ``licenseid update``
+    """
+    # pylint: disable=import-outside-toplevel
+
+    from licenseid.database import get_default_db_path
+
+    db = Path(get_default_db_path())
+    if not db.exists():
+        pytest.skip("licenseid database not built -- run 'licenseid update'")
+    return db

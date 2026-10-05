@@ -11,6 +11,7 @@ and installed-dependency readers.
 from __future__ import annotations
 
 import email
+import importlib.metadata
 import io
 import tarfile
 import zipfile
@@ -35,7 +36,7 @@ from pitloom.extract.project.installed import _parse_installed_metadata
 from pitloom.extract.project.sdist import _parse_pkg_info, read_sdist
 from pitloom.extract.wheel import _populate_metadata_from_email
 from tests._license_graph import graph_of, license_targets, project_graph
-from tests.assemble.conftest import _FakeMetadata, _make_ci
+from tests.assemble.conftest import _make_ci
 
 _BASE = "Metadata-Version: 2.4\nName: pkg\nVersion: 1.0.0\n"
 
@@ -144,6 +145,21 @@ _CLASSIFIER_CASES = [
         id="weak-expression-then-legacy",
     ),
     pytest.param("License: a\n        b\n", ["a\nb"], id="folded-text"),
+    # text indented by 8 itself (numpy's BSD): the fold goes, the indent stays
+    pytest.param(
+        "License: a\n                b\n", ["a\n        b"], id="indented-text"
+    ),
+    # blank first line, every line indented (the Apache LICENSE):
+    # importlib.metadata's dedent would strip the indent too
+    pytest.param(
+        "License: \n        \n          A\n          b\n",
+        ["A\n  b"],
+        id="blank-first-line",
+    ),
+    # folded with 9 spaces (numpy): a blank line is left as one space
+    pytest.param(
+        "License: a\n         \n         b\n", ["a\n\n b"], id="nine-space-fold"
+    ),
     pytest.param("Classifier: Topic :: Utilities\n", [], id="no-license"),
 ]
 
@@ -178,15 +194,16 @@ def test_first_license(candidates: list[str | None], expected: int | None) -> No
 
 
 def _dependency_targets(
-    msg: email.message.Message, monkeypatch: pytest.MonkeyPatch
+    metadata_text: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> tuple[list[str], list[str]]:
     """The licence targets and the provenance of each licence a dependency
-    records, through the real cascade (installed metadata, offline)."""
-    fake = _FakeMetadata(
-        {k: v for k, v in msg.items() if k != "Classifier"},
-        classifiers=msg.get_all("Classifier"),
-    )
-    monkeypatch.setattr(deps_installed, "get_pkg_metadata", lambda _name: fake)
+    records, through the real cascade (installed metadata, offline), from a
+    real installed ``.dist-info``."""
+    dist_info = tmp_path / "pkg-1.0.0.dist-info"
+    dist_info.mkdir()
+    (dist_info / "METADATA").write_text(metadata_text, encoding="utf-8")
+    installed = importlib.metadata.PathDistribution(dist_info)
+    monkeypatch.setattr(deps_installed, "distribution", lambda _name: installed)
     sources: list[str] = []
     real = _apply_license
 
@@ -221,7 +238,7 @@ def _dependency_targets(
     ],
 )
 def test_license_readers_agree(
-    extra: str, expected: list[str], monkeypatch: pytest.MonkeyPatch
+    extra: str, expected: list[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Drift guard, end to end: the sdist, wheel, installed-project and
     installed-dependency readers record the same licence for one METADATA,
@@ -238,7 +255,7 @@ def test_license_readers_agree(
     )
     for metadata in readers.values():
         metadata.version = "1.0.0"
-    dependency, sources = _dependency_targets(msg, monkeypatch)
+    dependency, sources = _dependency_targets(_BASE + extra, tmp_path, monkeypatch)
     assert dependency == expected
     for metadata in readers.values():
         assert license_targets(project_graph(metadata)) == expected

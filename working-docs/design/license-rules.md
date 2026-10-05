@@ -199,6 +199,26 @@ Library: `ProjectMetadata(license_concluded=...)` with no
 `license_name` is always `hasConcludedLicense` (the caller named the
 slot).
 
+Text to id (`detect_license_from_text`, `extract/_license.py`, #286), on
+top of `licenseid` 0.3.7 at threshold 0.85:
+
+- Read twice: as written, and with copyright notice lines removed (SPDX
+  matching guidelines omit the notice); the reading whose top score is
+  higher wins. A notice hides MIT from `licenseid` (PyYAML gives `Xnet`)
+  but anchors licence placement in mixed content (ast_serialize).
+- A stated licence (the manifest's value) wins when it scores within 0.01
+  of the top: `licenseid` ranks near-variants above the verbatim text
+  (`Pixar` over `Apache-2.0`, `JSON` over `MIT`).
+- With nothing stated, a near-tie (second within 0.01) concludes none.
+- Consequence: the concluded value now leans on the declared one in a
+  near-tie, e.g. `-only` vs `-or-later` (astroid, pylint): the second
+  opinion agrees with the manifest where the text cannot tell.
+- Measured on 90 installed licence files: 66 right, 10 wrong, 14 none
+  before; 76/4/10 stated, 73/4/13 unstated. The 4 wrong are composite
+  files (mypy, typing_extensions, mkdocs-material, poetry-core). Corpus:
+  `tests/fixtures/license-texts/`. Upstream issues (not filed): notice
+  hides MIT; near-variant outranks verbatim text.
+
 ## 5. Conflict model
 
 - **G2 declared vs concluded** (`build_license_elements`): both

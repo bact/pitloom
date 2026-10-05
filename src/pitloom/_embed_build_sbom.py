@@ -94,7 +94,7 @@ def _add_concluded_license(metadata: ProjectMetadata, project_dir: Path) -> None
     if metadata.license_concluded is not None or not project_dir.is_dir():
         return
     concluded, provenance = resolve_license_concluded(
-        bool(metadata.license_name), project_dir
+        bool(metadata.license_name), project_dir, stated=metadata.license_name
     )
     if not concluded:
         return

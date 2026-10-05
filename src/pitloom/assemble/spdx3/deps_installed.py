@@ -10,10 +10,10 @@ See also: :mod:`pitloom.assemble.spdx3.deps` for the public facade and PyPI enri
 
 from __future__ import annotations
 
+import email
 import logging
 from collections.abc import Iterable
-from importlib.metadata import PackageMetadata, PackageNotFoundError
-from importlib.metadata import metadata as get_pkg_metadata
+from importlib.metadata import PackageNotFoundError, distribution
 from importlib.metadata import version as get_package_version
 
 from packaging.requirements import InvalidRequirement, Requirement
@@ -56,6 +56,17 @@ _DOWNLOAD_LABELS = ("download",)
 _DEFAULT_LOCKED_PROVENANCE = "Source: lock file | Method: resolved_lockfile"
 
 log = logging.getLogger(__name__)
+
+
+def get_pkg_metadata(dep_name: str) -> email.message.Message[str, str]:
+    """*dep_name*'s installed Core Metadata, parsed from its raw ``METADATA``
+    (else ``PKG-INFO``) text as the wheel and sdist readers parse theirs:
+    :attr:`importlib.metadata.Distribution.metadata` dedents every
+    multi-line value, which also strips a licence text's own indent when
+    it starts with a blank line (the Apache ``LICENSE``)."""
+    dist = distribution(dep_name)
+    text = dist.read_text("METADATA") or dist.read_text("PKG-INFO") or ""
+    return email.message_from_string(text)
 
 
 def _parse_dep_name(dep: str) -> str:
@@ -371,7 +382,7 @@ def _enrich_from_installed(
     the licence is declared or concluded (see
     :func:`~pitloom.assemble.spdx3.provenance.is_license_concluded`)."""
     try:
-        pkg_meta: PackageMetadata = get_pkg_metadata(dep_name)
+        pkg_meta = get_pkg_metadata(dep_name)
     except PackageNotFoundError:
         return set()
 

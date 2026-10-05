@@ -1,0 +1,58 @@
+{
+  "RapidFuzz-3.14.5-LICENSE": {
+    "license": "MIT",
+    "note": "no match with the notice",
+    "source": "RapidFuzz==3.14.5: rapidfuzz-3.14.5.dist-info/licenses/LICENSE",
+    "stated": "MIT",
+    "unstated": "MIT"
+  },
+  "ast_serialize-0.11.1-LICENSE": {
+    "license": "MIT",
+    "note": "MIT after a preamble; with no licence stated, MIT 0.930 and JSON 0.927 tie",
+    "source": "ast_serialize==0.11.1: ast_serialize-0.11.1.dist-info/licenses/LICENSE",
+    "stated": "MIT",
+    "unstated": null
+  },
+  "attrs-26.1.0-LICENSE": {
+    "license": "MIT",
+    "note": "MIT-advertising ranked first with the notice",
+    "source": "attrs==26.1.0: attrs-26.1.0.dist-info/licenses/LICENSE",
+    "stated": "MIT",
+    "unstated": "MIT"
+  },
+  "check-wheel-contents-0.6.3-LICENSE": {
+    "license": "MIT",
+    "note": "no match with the notice",
+    "source": "check-wheel-contents==0.6.3: check_wheel_contents-0.6.3.dist-info/licenses/LICENSE",
+    "stated": "MIT",
+    "unstated": "MIT"
+  },
+  "iniconfig-2.3.0-LICENSE": {
+    "license": "MIT",
+    "note": "FSL-1.1-MIT ranked first with the notice",
+    "source": "iniconfig==2.3.0: iniconfig-2.3.0.dist-info/licenses/LICENSE",
+    "stated": "MIT",
+    "unstated": "MIT"
+  },
+  "pydantic-2.13.5-LICENSE": {
+    "license": "MIT",
+    "note": "no match with the notice",
+    "source": "pydantic==2.13.5: pydantic-2.13.5.dist-info/licenses/LICENSE",
+    "stated": "MIT",
+    "unstated": "MIT"
+  },
+  "pytest-9.1.1-LICENSE": {
+    "license": "MIT",
+    "note": "FSL-1.1-MIT ranked first with the notice",
+    "source": "pytest==9.1.1: pytest-9.1.1.dist-info/licenses/LICENSE",
+    "stated": "MIT",
+    "unstated": "MIT"
+  },
+  "wcwidth-0.8.3-LICENSE": {
+    "license": "MIT",
+    "note": "tie without the notice: JSON 0.935, MIT 0.929",
+    "source": "wcwidth==0.8.3: wcwidth-0.8.3.dist-info/licenses/LICENSE",
+    "stated": "MIT",
+    "unstated": null
+  }
+}

@@ -30,3 +30,7 @@ SPDX-License-Identifier: CC0-1.0
     - Captured `pipdeptree --json` / `--json-tree` output for `loom env`
       testing
     - [Details](./pipdeptree/README.md)
+8. Licence text fixtures (`license-texts/`)
+    - Real `LICENSE` files that `licenseid` alone ranks wrong or misses,
+      for licence-detection regression testing
+    - [Details](./license-texts/README.md)

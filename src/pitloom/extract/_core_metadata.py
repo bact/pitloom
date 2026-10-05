@@ -99,12 +99,18 @@ _logger = logging.getLogger(__name__)
 #: multi-line value: 8 spaces (setuptools, hatchling), 7 spaces and ``|``
 #: (the older ``Description`` convention) or a tab (RFC 5322).
 _FOLD_RE = re.compile(r"\n(?:        |       \||\t)")
+#: A line of spaces and tabs only, left by a writer folding with more than
+#: the 8 spaces (numpy's 9): a blank line.
+_BLANK_LINE_RE = re.compile(r"^[ \t]+$", re.MULTILINE)
 
 
 def _unfolded(value: str | None) -> str | None:
-    """*value* with each continuation line's fold removed, so a multi-line
-    licence text reads as the bytes the project wrote."""
-    return None if value is None else _FOLD_RE.sub("\n", value)
+    """*value* with each continuation line's fold removed and each line of
+    blank space emptied, so a multi-line licence text reads as the bytes
+    the project wrote."""
+    if value is None:
+        return None
+    return _BLANK_LINE_RE.sub("", _FOLD_RE.sub("\n", value))
 
 
 #: The one ``License ::`` classifier that is a category in the trove list,
@@ -222,7 +228,9 @@ def core_metadata_license_with_source(
     *source*: ``License-Expression``, ``License``, then its ``License ::``
     classifiers, by :func:`license_cascade` (so a weak
     ``License-Expression: UNKNOWN`` gives way to ``License``), each header
-    unfolded; the provenance names the classifier when one was used. When
+    unfolded, so *msg* is parsed from the raw ``METADATA``/``PKG-INFO``
+    text (:attr:`importlib.metadata.Distribution.metadata` has removed the
+    fold already); the provenance names the classifier when one was used. When
     none states a licence: ``None`` if neither header is present, ``""`` if
     one is present but blank (declared "no value", not absent).
     """

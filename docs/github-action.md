@@ -23,7 +23,7 @@ Standalone SBOM artifact:
 - uses: actions/setup-python@v7
   with:
     python-version: "3.x"
-- uses: bact/pitloom@v0.19.0
+- uses: bact/pitloom@v0.20.0
 ```
 
 Set up Python first: the action uses the Python on `PATH`. See
@@ -32,7 +32,7 @@ Set up Python first: the action uses the Python on `PATH`. See
 Generate and embed PEP 770 SBOM into built wheels:
 
 ```yaml
-- uses: bact/pitloom@v0.19.0
+- uses: bact/pitloom@v0.20.0
   with:
     embed-wheel: "dist/*.whl"
 ```
@@ -50,22 +50,22 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.x"
-      - uses: bact/pitloom@v0.19.0
+      - uses: bact/pitloom@v0.20.0
 ```
 
-Pin a release tag (`@v0.19.0`) or a full commit SHA (`@<sha> # v0.19.0`),
+Pin a release tag (`@v0.20.0`) or a full commit SHA (`@<sha> # v0.20.0`),
 not a branch. The pin also selects the Pitloom version: see
 [What the pin covers](#what-the-pin-covers).
 
 ## What the pin covers
 
 - **Pitloom version:** with `pitloom-version` empty, the action installs the
-  version carried by the pinned ref (tag or SHA) from PyPI. `@v0.19.0` and that
-  tag's commit SHA both give 0.19.0. It fails if the version is not on PyPI: an
+  version carried by the pinned ref (tag or SHA) from PyPI. `@v0.20.0` and that
+  tag's commit SHA both give 0.20.0. It fails if the version is not on PyPI: an
   unreleased commit, a branch between a version bump and its release, or a tag
   pushed before the upload finishes.
-- **`pitloom-version`** overrides it: a version (`0.19.0`) or a specifier
-  (`>=0.19,<1.0`).
+- **`pitloom-version`** overrides it: a version (`0.20.0`) or a specifier
+  (`>=0.20,<1.0`).
 - Pitloom's own dependencies are resolved by pip at run time, not pinned.
 
 ## Python selection
@@ -90,7 +90,7 @@ logic `loom project` uses directly). Point it at an AI model instead of a
 project directory with `model:`:
 
 ```yaml
-- uses: bact/pitloom@v0.19.0
+- uses: bact/pitloom@v0.20.0
   with:
     model: path/to/model.safetensors
 ```
@@ -105,7 +105,7 @@ Embed the SBOM into built wheels (PEP 770) for any build backend
 (`flit`, `setuptools`, `poetry-core`, `maturin`, etc.):
 
 ```yaml
-- uses: bact/pitloom@v0.19.0
+- uses: bact/pitloom@v0.20.0
   with:
     embed-wheel: "dist/*.whl"
 ```
@@ -114,7 +114,7 @@ Pass extra raw CLI flags through with `args:` (shell-quoted, e.g. for
 [creator/creation metadata](creation-metadata.md)):
 
 ```yaml
-- uses: bact/pitloom@v0.19.0
+- uses: bact/pitloom@v0.20.0
   with:
     args: '--creator-name "CI Bot" --creator-type software-agent'
 ```
@@ -190,7 +190,7 @@ jobs:
         with:
           python-version: "3.x"
       # Same release as the action below, which installs its own pinned version.
-      - run: pip install pitloom==0.19.0
+      - run: pip install pitloom==0.20.0
 
       # Extras-free, stem-keyed -- the only path that keeps ai_AIPackage
       # spdxIds stable regardless of whether "ai" extras are installed
@@ -201,7 +201,7 @@ jobs:
       - name: Seed/refresh AI model registry entries
         run: loom id generate --id-registry loom-id-registry.json
 
-      - uses: bact/pitloom@v0.19.0
+      - uses: bact/pitloom@v0.20.0
         with:
           project-path: .
           # Required: nothing auto-discovers a registry -- declare it.
@@ -273,7 +273,7 @@ Inputs (all optional):
 | `no-build-isolation` | `false` | With `allow-build: "true"`, skip creating an isolated build environment and use the runner's already-installed build backend instead. No effect without `allow-build`; explicitly set in model mode, it also logs `::warning::no-build-isolation has no effect in model mode (no project-directory file discovery there)`. |
 | `build-timeout` | *(empty)* | Seconds or `h`/`m`/`s` duration, e.g. `900` or `1h30m`, capping how long an `allow-build` build may run before Pitloom kills it and falls back to static discovery. Passed verbatim to `loom --build-timeout`, which validates it -- no shell-side parsing. Empty uses Pitloom's own default of 20 minutes. No effect without `allow-build`; explicitly set in model mode, it also logs `::warning::build-timeout has no effect in model mode (no project-directory file discovery there)`. See [`--build-timeout`](allow-build.md#timing-out-a-build). |
 | `args` | *(empty)* | Extra raw flags passed through to the `loom` command, e.g. `--verify --validate` when `embed-wheel` is set. |
-| `pitloom-version` | *(empty)* | Pitloom version or specifier, e.g. `0.19.0` or `>=0.19,<1.0`. Empty installs the version of the pinned ref; see [What the pin covers](#what-the-pin-covers). |
+| `pitloom-version` | *(empty)* | Pitloom version or specifier, e.g. `0.20.0` or `>=0.20,<1.0`. Empty installs the version of the pinned ref; see [What the pin covers](#what-the-pin-covers). |
 | `python-version` | *(empty)* | Passed to `actions/setup-python`. Empty uses the Python on `PATH`, falling back to `3.x` with a warning; see [Python selection](#python-selection). |
 | `install` | `true` | Set `false` to skip installing Python/Pitloom and assume `loom` is already on `PATH`. |
 | `upload-artifact` | `true` | Upload the generated SBOM via `actions/upload-artifact`. |
@@ -306,7 +306,7 @@ jobs:
 
       # 2. Generate and embed PEP 770 SBOM into built wheels
       - name: Embed PEP 770 SBOM
-        uses: bact/pitloom@v0.19.0
+        uses: bact/pitloom@v0.20.0
         with:
           embed-wheel: "dist/*.whl"
 

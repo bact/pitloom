@@ -42,8 +42,12 @@ def _section_pr_keys(text: str) -> dict[str, list[int]]:
 
 
 def _unreleased_bullets(text: str) -> list[str]:
-    body = text.split("## [Unreleased]", 1)[1].split("\n## [", 1)[0]
-    return _BULLET.findall(body)
+    """Entries of ``[Unreleased]``, else (right after a release is cut) of
+    the newest released section."""
+    sections = text.split("## [Unreleased]", 1)[1].split("\n## [")
+    return next(
+        (found for body in sections[:2] if (found := _BULLET.findall(body))), []
+    )
 
 
 def test_every_unreleased_entry_links_its_pr() -> None:
@@ -88,3 +92,8 @@ def test_bullet_split_sees_each_entry(section: str, linked: bool) -> None:
     text = f"## [Unreleased]\n\n{section}\n## [0.1.0]\n\n- old\n"
     bullets = _unreleased_bullets(text)
     assert all(_REF_USE.search(b) for b in bullets) is linked
+
+
+def test_empty_unreleased_checks_the_release_just_cut() -> None:
+    text = "## [Unreleased]\n\n## [0.2.0]\n\n- new, no link\n## [0.1.0]\n\n- old\n"
+    assert _unreleased_bullets(text) == ["- new, no link"]

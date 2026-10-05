@@ -16,9 +16,9 @@ import http.client
 import re
 import urllib.request
 from email.utils import getaddresses
-from importlib.metadata import PackageMetadata, PackageNotFoundError
+from importlib.metadata import PackageNotFoundError
 from importlib.metadata import distribution as get_pkg_distribution
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.error import URLError
 from urllib.parse import urlparse
 
@@ -32,6 +32,9 @@ from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract._core_metadata import parse_project_urls
 from pitloom.extract._extract_utils import close_http_error, pkg_meta_get
 from pitloom.extract._file_headers import guess_content_type
+
+if TYPE_CHECKING:
+    from pitloom.extract._extract_utils import CoreMetadata
 
 # A permissive (MIT/BSD-style) LICENSE file's copyright line, e.g.
 # "Copyright (c) 2021 Taneli Hukkinen" or "Copyright © 2019 Filipe Laíns".
@@ -108,7 +111,7 @@ def _extract_name_email_pairs(
 
 
 def _resolve_author_or_maintainer(
-    pkg_meta: PackageMetadata,
+    pkg_meta: CoreMetadata,
 ) -> list[tuple[str | None, str | None]]:
     """Return a list of ``(name, email)`` tuples for a dependency's originator
     from installed metadata, or an empty list. Tries ``Author``/``Author-email``
@@ -139,7 +142,7 @@ def _read_candidate_copyright(candidate: Any) -> str | None:
     return match.group(0).strip() if match else None
 
 
-def _find_license_copyright(dist_name: str, pkg_meta: PackageMetadata) -> str | None:
+def _find_license_copyright(dist_name: str, pkg_meta: CoreMetadata) -> str | None:
     """Return a copyright statement from the dependency's installed
     ``License-File``, or ``None`` if not found.
     """
@@ -161,7 +164,7 @@ def _find_license_copyright(dist_name: str, pkg_meta: PackageMetadata) -> str | 
     return None
 
 
-def _parse_project_urls(pkg_meta: PackageMetadata) -> dict[str, str]:
+def _parse_project_urls(pkg_meta: CoreMetadata) -> dict[str, str]:
     """Return a lowercased-label -> URL dict from ``Project-URL`` metadata
     entries. Delegates to the shared
     :func:`pitloom.extract._core_metadata.parse_project_urls` helper; this

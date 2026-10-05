@@ -325,3 +325,18 @@ section 3.6 (determinism of model metadata).
   crashed the same way (#214).
   Do: keep declared-empty distinct from absent, and pass `""`, not
   `None`, to comparators.
+- **`importlib.metadata` changes multi-line header values.** Its
+  `Distribution.metadata` runs `textwrap.dedent(" " * 8 + value)` on each
+  value: when a `License:` text's first line is blank (the Apache
+  `LICENSE`), the common indent is taken from the licence lines and the
+  licence's own indent goes too. The wheel and sdist readers kept it, so
+  one package gave two texts by surface (#286).
+  Do: parse the raw `METADATA` with `email` on every surface, and unfold
+  it with one shared function.
+- **Core Metadata fold width varies by writer.** setuptools and Hatchling
+  fold continuation lines with 8 spaces, some writers with 7 and `|`, or
+  a tab; meson-python (numpy) uses 9, so removing 8 leaves one space on
+  every line and a single space on every blank line (187 in numpy's
+  `LICENSE.txt`) (#286).
+  Do: empty whitespace-only lines after unfolding; do not guess a wider
+  fold from the text, whose own indent looks the same.

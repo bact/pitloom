@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import email.message
 import http.client
 import json
 import re
@@ -14,9 +15,14 @@ import urllib.request
 from collections.abc import Iterable
 from importlib.metadata import PackageMetadata
 from pathlib import Path, PureWindowsPath
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.error import HTTPError
 from urllib.parse import urlparse
+
+if TYPE_CHECKING:
+    #: An installed or archived package's Core Metadata: parsed from its raw
+    #: text (``email``), or :mod:`importlib.metadata`'s view of it.
+    CoreMetadata = email.message.Message[str, str] | PackageMetadata
 
 
 def sanitize_provenance_text(text: str) -> str:
@@ -111,7 +117,7 @@ def get_first(d: dict[str, Any], *keys: str) -> Any:
     return None
 
 
-def pkg_meta_get(pkg_meta: PackageMetadata, key: str, default: str = "") -> str:
+def pkg_meta_get(pkg_meta: CoreMetadata, key: str, default: str = "") -> str:
     """Return *pkg_meta*'s value for *key*, or *default* when absent.
 
     ``PackageMetadata`` has no ``.get()`` in its ``Protocol`` (only
