@@ -30,6 +30,7 @@ keeps the bytes.
 | `unstated` | `detect_license_from_text(text)`: the licence (or its `-only`/`-or-later` sibling: a GPL text cannot tell), or `null` for a near-tie |
 | `note` | What `licenseid` gives on its own |
 
-The expectations hold for `licenseid` 0.3.7 and its database. A newer
+The expectations and notes hold for `licenseid` 0.4.1 and its SPDX License List
+3.29.0 database (0.4 caps a score at 1). A newer
 `licenseid` may score them differently: a changed `unstated` from `null` to
 the licence is an improvement; any other licence is a regression.

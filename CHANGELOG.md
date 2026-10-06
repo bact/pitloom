@@ -22,8 +22,19 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- setuptools projects: a `setup()` keyword overrides the same `setup.cfg`
+  option unless empty, as setuptools does; SBOM output changes ([#287])
+
 ### Fixed
 
+- `setup.py` without a literal `name=` keeps its other keywords; a `setup.cfg`
+  placeholder licence no longer wins; overridden real values become conflicts
+  ([#287])
+- Licence detection requires `licenseid` 0.4.1 (Windows fix): a runner-up or
+  stated licence that fits the text measurably worse no longer ties; an
+  unusable database warns ([#287])
 - `-o -` leaves stdout as the SBOM alone: no `PITLOOM_SBOM_OUTPUT_PATH=-`
   line, embed `WHEEL=` record on stderr; `embed-wheel -o -` no longer writes
   a file named `-` ([#288])
@@ -344,6 +355,8 @@ and this project adheres to
 [#283]: https://github.com/bact/pitloom/pull/283
 [#284]: https://github.com/bact/pitloom/pull/284
 [#286]: https://github.com/bact/pitloom/pull/286
+[#287]: https://github.com/bact/pitloom/pull/287
+[#288]: https://github.com/bact/pitloom/pull/288
 
 ## [0.19.0] - 2026-09-18
 
@@ -359,7 +372,6 @@ and this project adheres to
   unbalanced `args` quoting is now an error ([#224])
 
 [#224]: https://github.com/bact/pitloom/pull/224
-[#288]: https://github.com/bact/pitloom/pull/288
 
 ---
 

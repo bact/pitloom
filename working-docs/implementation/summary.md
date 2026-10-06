@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -40,7 +40,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
    - `project/setuptools.py`, `project/setuptools_cfg.py`, `project/setuptools_py.py` --
      extract metadata from `setup.cfg` and `setup.py` for setuptools projects;
      `detect_build_backend()` auto-selects the right extractor;
-     `merge_metadata()` fills gaps across sources (setup.cfg > setup.py)
+     a `setup()` keyword overrides the same `setup.cfg` option, as setuptools does
    - Domain-specific extractors are grouped into subpackages: `project/`
      (build backends), `lock/` (lock files), `ai_model/` (model formats),
      `dataset/` (datasets), `remote/` (remote registries/hubs), alongside

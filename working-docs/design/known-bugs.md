@@ -95,6 +95,9 @@ Crashes, broken contracts and small mappings.
   (int digit limit), not `InvalidVersion`; `version_key`,
   `is_usable_version` and `is_same_version` in `extract/lock/_common.py`
   catch only the latter. #266 fixed the same class in `verify-wheel`.
+  #287 adds a caller: the setuptools `version` conflict check
+  (`_field_agreement.values_agree`) crashes the directory read on
+  `setup(version='9' * 5000)` beside a `setup.cfg` version.
 - [x] **`-o -` ends stdout with `PITLOOM_SBOM_OUTPUT_PATH=-` (S).** Fixed:
   no path line for `-`, the embed `WHEEL=` record goes to `INFO:`, and
   `embed-wheel -o -` no longer writes a file named `-`.
@@ -108,14 +111,17 @@ Crashes, broken contracts and small mappings.
   `configparser.ConfigParser` (interpolating; never Raw in any release checked)
   and fails on `50% faster` too; `%%` works.
 
-- [ ] **`setup.py` with no literal `name=` is dropped whole (S).**
+- [x] **`setup.py` with no literal `name=` is dropped whole (S).** Fixed by
+  #287 (`setup.py` and `setup.cfg` merged as setuptools does,
+  [setuptools-support.md](../implementation/setuptools-support.md#precedence)).
   `read_setup_py` raises `ValueError` and `read_setuptools`
   (`extract/project/setuptools.py`) skips every `setup()` keyword, so a
   `setup.cfg` MIT classifier wins where the built wheel carries the
   `setup.py` BSD one: the directory and the wheel disagree. Found
   checking the paper notes (2026-10-05).
 
-- [ ] **A weak `setup.cfg` licence beats a real `setup.py` one (S).**
+- [x] **A weak `setup.cfg` licence beats a real `setup.py` one (S).** Fixed by
+  #287.
   `license = UNKNOWN` in `setup.cfg` plus `setup(license="MIT")` gives
   `NoAssertionLicense`; the built wheel says `License: MIT`.
   `merge_project_metadata` keeps any non-blank first value, where
@@ -172,6 +178,23 @@ Crashes, broken contracts and small mappings.
   legacy wheel with `License: UNKNOWN` and an MIT classifier gets
   `NoAssertionLicense` in its own SBOM, while the same package as a
   dependency gets the classifier's licence (#276 cascade).
+- [ ] **A top match that holds only part of its licence is concluded
+  (S-M, needs a rule).** Found in the #287 review: a BSD-1-Clause file
+  whose notice line ends "All rights reserved." concludes `BSD-2-Clause`
+  (0.927, coverage 0.825): `_COPYRIGHT_NOTICE_RE` drops the whole line,
+  phrase included, and `_fits_worse` checks runner-ups only. Decide a
+  coverage floor for the top match and whether notice stripping keeps a
+  trailing "All rights reserved" (`license-rules.md` §4).
+- [x] **A licenseid database that breaks after the matcher is cached
+  fails silently (S).** Fixed by #287: a `sqlite3.Error` or
+  `DatabaseNotReadyError` from `match()` warns once (as an unusable
+  database does) and drops the cached matcher; `InvalidInputError` (a
+  normal input) stays at debug. licenseid 0.4.1 itself re-creates a
+  deleted database as an empty file on the next lookup.
+- [ ] **Two `SPDX-License-Identifier` tags, one stated, conclude only the
+  stated one (S).** Found in the #287 review, same on `main`: a file
+  tagged `MIT` and `Apache-2.0` with `stated="MIT"` concludes `MIT` and
+  drops `Apache-2.0`.
 - [ ] **A direct-URL dependency is looked up on PyPI by name (S-M).**
   `foo @ git+...` or a private-index package picks up the licence and
   supplier of whatever PyPI project shares its name, possibly a

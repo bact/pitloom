@@ -78,32 +78,40 @@ def _write_model(path: Path) -> None:
     path.write_bytes(struct.pack("<Q", len(header)) + header + b"\0" * 4)
 
 
-def build_wheel(project: Path, out: Path) -> Path:
-    """Build *project*'s wheel offline (``--no-isolation``) with a pinned
-    ``SOURCE_DATE_EPOCH``; skip without ``build``/``hatchling``."""
-    for module in ("build", "hatchling"):
+def _pypa_build(project: Path, out: Path, kind: str, backend: str) -> Path:
+    """Build *project*'s *kind* (``sdist``/``wheel``) offline
+    (``--no-isolation``) with a pinned ``SOURCE_DATE_EPOCH``; skip without
+    ``build`` or the *backend* module."""
+    for module in ("build", backend):
         if importlib.util.find_spec(module) is None:
             raise CheckSkipped(f"needs '{module}' installed (pitloom[build])")
     proc = subprocess.run(  # nosec B603
-        [
-            sys.executable,
-            "-m",
-            "build",
-            "--wheel",
-            "--no-isolation",
-            "--outdir",
-            str(out),
-            str(project),
-        ],
+        [sys.executable, "-m", "build", f"--{kind}", "--no-isolation"]
+        + ["--outdir", str(out), str(project)],
         env=child_env(SOURCE_DATE_EPOCH=SOURCE_DATE_EPOCH),
         stdin=subprocess.DEVNULL,
         capture_output=True,
         timeout=300,
         check=False,
     )
-    expect(proc.returncode == 0, f"wheel build failed: {proc.stderr[-1500:]!r}")
-    (wheel,) = out.glob("*.whl")
-    return wheel
+    expect(proc.returncode == 0, f"{kind} build failed: {proc.stderr[-1500:]!r}")
+    (built,) = out.glob("*.tar.gz" if kind == "sdist" else "*.whl")
+    return built
+
+
+def build_wheel(project: Path, out: Path) -> Path:
+    """Build a Hatchling *project*'s wheel (:func:`_pypa_build`)."""
+    return _pypa_build(project, out, "wheel", "hatchling")
+
+
+def build_setuptools(project: Path, out: Path, kind: str) -> Path:
+    """Build a setuptools *project*'s ``sdist`` or ``wheel`` (*kind*) from a
+    copy, as building writes ``*.egg-info`` into the directory
+    (:func:`_pypa_build`)."""
+    out.mkdir(parents=True, exist_ok=True)
+    copy = out.parent / f"{out.name}-{kind}-src"
+    shutil.copytree(project, copy)
+    return _pypa_build(copy, out, kind, "setuptools")
 
 
 class Fixtures:

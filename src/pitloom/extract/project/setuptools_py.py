@@ -13,14 +13,22 @@ from __future__ import annotations
 
 import ast
 import logging
-from collections.abc import Iterator
+import math
+import os
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
-from pitloom.extract._core_metadata import license_or_classifier
-from pitloom.extract._extract_utils import field_declared
+from pitloom.extract.project._setuptools_options import (
+    SetupOption,
+    SetupOptions,
+    build_setuptools_metadata,
+    requirement_lines,
+    shown_value,
+)
+from pitloom.logging_config import one_line
 
 log = logging.getLogger(__name__)
 
@@ -60,7 +68,7 @@ def _ast_literal(node: ast.expr) -> Any:
     if isinstance(node, ast.Constant):
         return node.value
     if isinstance(node, (ast.List, ast.Tuple)):
-        # All-or-nothing, unlike the dict branch below: silently dropping
+        # All-or-nothing, as the dict branch below: silently dropping
         # just the unresolvable elements would misrepresent a list like
         # `install_requires=[SOME_CONSTANT]` as the literal empty list
         # `[]` -- a "no dependencies" claim indistinguishable from a
@@ -71,16 +79,30 @@ def _ast_literal(node: ast.expr) -> Any:
         values = [_ast_literal(elt) for elt in node.elts]
         return _UNRESOLVABLE if any(v is _UNRESOLVABLE for v in values) else values
     if isinstance(node, ast.Dict):
+        # All-or-nothing too: a dict missing its unresolvable entries would
+        # override setup.cfg's with less than setup.py states.
         result: dict[str, Any] = {}
         for key, value in zip(node.keys, node.values, strict=False):
-            if key is None:
-                continue  # **unpacking
+            if key is None:  # **unpacking
+                return _UNRESOLVABLE
             k = _ast_literal(key)
             v = _ast_literal(value)
-            if isinstance(k, str):
-                result[k] = None if v is _UNRESOLVABLE else v
+            if not isinstance(k, str) or v is _UNRESOLVABLE:
+                return _UNRESOLVABLE
+            result[k] = v
         return result
     return _UNRESOLVABLE
+
+
+#: The ``WARNING:`` tail for a ``setup()`` keyword Pitloom cannot use.
+_UNDECLARED = (
+    " -- treating it as undeclared and falling back to a lower-priority source"
+)
+
+
+def _warn_undeclared(key: str, reason: str, quiet: bool) -> None:
+    if not quiet:
+        log.warning("setup.py: %r %s%s", key, reason, _UNDECLARED)
 
 
 def _extract_setup_kwargs(tree: ast.Module, *, quiet: bool = False) -> dict[str, Any]:
@@ -91,218 +113,190 @@ def _extract_setup_kwargs(tree: ast.Module, *, quiet: bool = False) -> dict[str,
     from the result -- Pitloom has no actual value to report for it, so
     treating it as "declared" would assert a confidently wrong empty
     container (e.g. ``install_requires=[]``) instead of leaving the field
-    open for ``merge_project_metadata()`` to fill from a lower-priority
-    source. A ``WARNING:`` names the dropped kwarg so this isn't a silent
-    deviation -- unless *quiet* (default ``False``), for a caller re-reading
-    the same file a second time.
+    open for ``setup.cfg``'s value. A ``WARNING:`` names a dropped kwarg
+    Pitloom reads (:data:`_OPTIONS`), and each ``**`` unpacking (it may hold
+    one), so this isn't a silent deviation --
+    unless *quiet* (default ``False``), for a caller re-reading the same
+    file a second time.
     """
     node = next(iter_setup_calls(tree), None)
     if node is None:
         return {}
     kwargs: dict[str, Any] = {}
     for kw in node.keywords:
-        if kw.arg is not None:  # skip **expansion
+        if kw.arg is None:  # **expansion: the keywords it holds are unknown
+            # Named only when a plain name: unparsing an expression recurses.
+            held = kw.value.id if isinstance(kw.value, ast.Name) else "..."
+            _warn_undeclared(f"**{held}", "is not read", quiet)
+        else:
             value = _ast_literal(kw.value)
             if value is _UNRESOLVABLE:
-                if not quiet:
-                    log.warning(
-                        "setup.py: %r is declared but its value isn't a"
-                        " statically resolvable literal -- treating it as"
-                        " undeclared and falling back to a lower-priority source",
-                        kw.arg,
-                    )
+                if kw.arg not in _OPTIONS:
+                    continue
+                _warn_undeclared(
+                    kw.arg,
+                    "is declared but its value isn't a statically resolvable literal",
+                    quiet,
+                )
                 continue
             kwargs[kw.arg] = value
     return kwargs
 
 
-def _parse_setup_keywords(kwargs: dict[str, Any]) -> list[str]:
-    """Extract normalized keyword list from setup() kwargs."""
-    keywords_raw = kwargs.get("keywords", [])
-    if isinstance(keywords_raw, str):
-        return [k.strip() for k in keywords_raw.replace(",", " ").split() if k.strip()]
-    if isinstance(keywords_raw, (list, tuple)):
-        return [str(k).strip() for k in keywords_raw if k]
-    return []
+#: A value of a type setuptools would not take for the option.
+_UNREADABLE = object()
 
 
-def _parse_setup_urls(kwargs: dict[str, Any]) -> dict[str, str]:
-    """Extract URLs dictionary from setup() kwargs."""
-    urls: dict[str, str] = {}
-    url = kwargs.get("url", "")
-    if isinstance(url, str) and url.strip():
-        urls["Homepage"] = url.strip()
-    project_urls_raw = kwargs.get("project_urls", {})
-    if isinstance(project_urls_raw, dict):
-        for k, v in project_urls_raw.items():
-            if isinstance(k, str) and isinstance(v, str):
-                urls[k] = v
-    return urls
+def _parse_str(raw: Any) -> Any:
+    return raw.strip() if isinstance(raw, str) else _UNREADABLE
 
 
-def _parse_setup_authors(kwargs: dict[str, Any]) -> list[dict[str, str]]:
-    """Extract authors list from setup() kwargs."""
-    author_name = kwargs.get("author")
-    author_email = kwargs.get("author_email")
-    authors: list[dict[str, str]] = []
-    if isinstance(author_name, str) and author_name.strip():
-        entry: dict[str, str] = {"name": author_name.strip()}
-        if isinstance(author_email, str) and author_email.strip():
-            entry["email"] = author_email.strip()
-        authors.append(entry)
-    return authors
+def _parse_version(raw: Any) -> Any:
+    """setuptools takes a number for the version (``str(1.0)``); not one
+    with no version text (``1e999``) or too long to convert."""
+    if isinstance(raw, float) and not math.isfinite(raw):
+        return _UNREADABLE
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        try:
+            return str(raw)
+        except ValueError:  # over sys.get_int_max_str_digits()
+            return _UNREADABLE
+    return _parse_str(raw)
 
 
-# pylint: disable=too-many-arguments
-def _build_setup_py_provenance(
-    *,
-    has_version: bool,
-    has_description: bool,
-    has_readme: bool,
-    has_license: bool,
-    has_authors: bool,
-    authors: list[dict[str, str]],
-    has_urls: bool,
-    has_dependencies: bool,
-    has_requires_python: bool,
-    has_keywords: bool,
-    license_from_classifier: bool = False,
-) -> dict[str, str]:
-    """Build provenance dictionary for extracted setup.py fields.
+def _parse_license(raw: Any) -> Any:
+    """As written: the licence element builder normalises a text's ends."""
+    return raw if isinstance(raw, str) else _UNREADABLE
 
-    A container field's provenance is gated on *presence* of its own
-    setup() kwarg (``has_urls``, ``has_dependencies``, etc.), not on
-    whether parsing it produced a non-empty result -- an explicitly
-    declared but empty ``install_requires=[]`` is a genuine, authoritative
-    "zero" that ``merge_project_metadata()`` must not silently fill in
-    from a lower-priority source, the same None-vs-[] distinction
-    the ``[project]``-table path in :mod:`.pyproject` already applies.
-    """
-    prov: dict[str, str] = {"name": "Source: setup.py | Field: setup(name=...)"}
-    if has_version:
-        prov["version"] = "Source: setup.py | Field: setup(version=...)"
-    if has_description:
-        prov["description"] = "Source: setup.py | Field: setup(description=...)"
-    if has_readme:
-        prov["readme"] = "Source: setup.py | Field: setup(long_description=...)"
-    if has_license:
-        prov["license"] = (
-            "Source: setup.py | Field: setup(classifiers=...)"
-            if license_from_classifier
-            else "Source: setup.py | Field: setup(license=...)"
+
+def _parse_strings(raw: Any) -> Any:
+    if not isinstance(raw, (list, tuple)) or not all(isinstance(x, str) for x in raw):
+        return _UNREADABLE
+    return [x.strip() for x in raw if x.strip()]
+
+
+def _parse_requirements(raw: Any) -> Any:
+    """A string or a list of strings, read as setuptools reads them
+    (:func:`~pitloom.extract.project._setuptools_options.requirement_lines`)."""
+    if isinstance(raw, str):
+        return requirement_lines(raw)
+    strings = _parse_strings(raw)
+    return strings if strings is _UNREADABLE else requirement_lines("\n".join(raw))
+
+
+def _parse_setup_keywords(raw: Any) -> Any:
+    """``setup(keywords=...)`` as a list: a string is split on commas and
+    whitespace."""
+    if isinstance(raw, str):
+        return [k.strip() for k in raw.replace(",", " ").split() if k.strip()]
+    return _parse_strings(raw)
+
+
+def _parse_project_urls(raw: Any) -> Any:
+    if not isinstance(raw, dict) or not all(
+        isinstance(k, str) and isinstance(v, str) for k, v in raw.items()
+    ):
+        return _UNREADABLE
+    return dict(raw)
+
+
+#: setuptools option -> (its provenance's keyword, parser).
+_OPTIONS: dict[str, tuple[str, Callable[[Any], Any]]] = {
+    "name": ("name", _parse_str),
+    "version": ("version", _parse_version),
+    "description": ("description", _parse_str),
+    "long_description": ("long_description", _parse_str),
+    "license": ("license", _parse_license),
+    "classifiers": ("classifiers", _parse_strings),
+    "keywords": ("keywords", _parse_setup_keywords),
+    "author": ("author", _parse_str),
+    "author_email": ("author", _parse_str),
+    "url": ("url", _parse_str),
+    "project_urls": ("url", _parse_project_urls),
+    "install_requires": ("install_requires", _parse_requirements),
+    "python_requires": ("python_requires", _parse_str),
+}
+
+
+#: Options setuptools normalises before applying ``setup.cfg``
+#: (``Distribution.__init__``): ``version=0`` is ``"0"``, given;
+#: ``install_requires=["# x"]`` is ``[]``, not given.
+_NORMALISED = frozenset({"version", "install_requires"})
+
+
+def _option(key: str, raw: Any, quiet: bool) -> SetupOption | None:
+    """*raw* as an option, or ``None``: quietly for ``None`` (setuptools'
+    own "not set"), with a ``WARNING:`` when Pitloom cannot use it: of a
+    type it does not read (some setuptools converts, as ``url=1``), or a
+    blank string (setuptools keeps it, stating nothing)."""
+    if raw is None:
+        return None
+    label, parse = _OPTIONS[key]
+    value = parse(raw)
+    if value is _UNREADABLE:
+        _warn_undeclared(
+            key, f"has a value Pitloom does not read ({shown_value(raw)})", quiet
         )
-    if has_authors:
-        prov["authors"] = "Source: setup.py | Field: setup(author=...)"
-        if authors:
-            prov["copyright_text"] = (
-                "Source: Pitloom generator | Method: inferred_from_authors"
-            )
-    if has_urls:
-        prov["urls"] = "Source: setup.py | Field: setup(url=...)"
-    if has_dependencies:
-        prov["dependencies"] = "Source: setup.py | Field: setup(install_requires=...)"
-    if has_requires_python:
-        prov["requires_python"] = "Source: setup.py | Field: setup(python_requires=...)"
-    if has_keywords:
-        prov["keywords"] = "Source: setup.py | Field: setup(keywords=...)"
-    return prov
+        return None
+    if isinstance(raw, str) and raw and not raw.strip():
+        _warn_undeclared(key, "is blank", quiet)
+        return None
+    if isinstance(value, str):
+        value = value or None
+    source = f"Source: setup.py | Field: setup({label}=...)"
+    # setuptools normalises these before it applies setup.cfg
+    given = bool(value) if key in _NORMALISED else bool(raw)
+    return SetupOption(value, source, given=given)
 
 
-def _license_kwarg(kwargs: dict[str, Any]) -> str | None:
-    """``setup(license=...)`` as written, or ``None`` when absent or blank."""
-    value = kwargs.get("license")
-    return value if isinstance(value, str) and value.strip() else None
+def read_setup_py_options(project_dir: Path, *, quiet: bool = False) -> SetupOptions:
+    """The setuptools options ``setup.py``'s ``setup()`` call states as
+    literals (see :func:`_extract_setup_kwargs`), ``name`` not required.
+
+    ``quiet`` suppresses this read's own ``WARNING:`` lines (default
+    ``False``) -- for a caller re-reading the same file a second time; see
+    :func:`pitloom.extract.project.read_project`'s own ``quiet``.
+
+    Raises:
+        FileNotFoundError: no ``setup.py``.
+        ValueError: ``setup.py`` cannot be read or parsed; one line.
+    """
+    setup_py_path = project_dir / "setup.py"
+    # isfile: a directory or a FIFO is none, as for setup.cfg; never raises
+    if not os.path.isfile(setup_py_path):
+        raise FileNotFoundError(f"setup.py not found at {setup_py_path}")
+    try:
+        # Bytes: the parser honours a BOM and a PEP 263 coding line.
+        tree = ast.parse(setup_py_path.read_bytes(), filename="setup.py")
+    # ValueError: a null byte before Python 3.12; RecursionError and
+    # MemoryError: a too deeply nested expression.
+    except (OSError, SyntaxError, ValueError, RecursionError, MemoryError) as exc:
+        raise ValueError(f"Could not parse setup.py: {one_line(exc)}") from exc
+    kwargs = _extract_setup_kwargs(tree, quiet=quiet)
+    options = {
+        key: _option(key, kwargs[key], quiet) for key in _OPTIONS if key in kwargs
+    }
+    return {key: option for key, option in options.items() if option is not None}
 
 
-def _extract_str_kwarg(kwargs: dict[str, Any], key: str) -> str | None:
-    """Extract a stripped string kwarg if non-empty."""
-    val = kwargs.get(key)
-    return val.strip() if isinstance(val, str) and val.strip() else None
-
-
-# pylint: disable=too-many-locals
 def read_setup_py(
     project_dir: Path,
     *,
     quiet: bool = False,
 ) -> tuple[ProjectMetadata, PitloomConfig]:
-    """Read project metadata from ``setup.py`` using AST parsing.
+    """Read project metadata from ``setup.py`` alone, by
+    :func:`read_setup_py_options`.
 
-    ``quiet`` suppresses this read's own ``WARNING:`` lines (default
-    ``False``) -- for a caller re-reading the same file a second time; see
-    :func:`pitloom.extract.project.read_project`'s own ``quiet``.
+    Raises:
+        FileNotFoundError: no ``setup.py``.
+        ValueError: ``setup.py`` cannot be parsed, or has no literal
+            ``name``.
     """
-    setup_py_path = project_dir / "setup.py"
-    if not setup_py_path.exists():
-        raise FileNotFoundError(f"setup.py not found at {setup_py_path}")
-
-    try:
-        source = setup_py_path.read_text(encoding="utf-8")
-        tree = ast.parse(source, filename="setup.py")
-    except (OSError, SyntaxError) as exc:
-        raise ValueError(f"Could not parse setup.py: {exc}") from exc
-
-    kwargs = _extract_setup_kwargs(tree, quiet=quiet)
-    name = kwargs.get("name")
-    if not isinstance(name, str) or not name.strip():
+    options = read_setup_py_options(project_dir, quiet=quiet)
+    metadata = build_setuptools_metadata({}, options)
+    if not metadata.name:
         raise ValueError(
             "Could not extract project name from setup.py. "
             "The name= argument must be a string literal."
         )
-    name = name.strip()
-
-    version = _extract_str_kwarg(kwargs, "version")
-    description = _extract_str_kwarg(kwargs, "description")
-    readme = _extract_str_kwarg(kwargs, "long_description")
-    requires_python = _extract_str_kwarg(kwargs, "python_requires")
-    classifiers = kwargs.get("classifiers")
-    license_name, from_classifier = license_or_classifier(
-        # As written: the licence element builder normalises a text's ends.
-        _license_kwarg(kwargs),
-        [str(c) for c in classifiers] if isinstance(classifiers, (list, tuple)) else [],
-    )
-    keywords = _parse_setup_keywords(kwargs)
-    urls = _parse_setup_urls(kwargs)
-    authors = _parse_setup_authors(kwargs)
-
-    install_requires = kwargs.get("install_requires", [])
-    dependencies = (
-        [str(d).strip() for d in install_requires if d]
-        if isinstance(install_requires, (list, tuple))
-        else []
-    )
-
-    prov = _build_setup_py_provenance(
-        # version/description/readme/license have no meaningful "explicitly
-        # declared but empty" state (unlike install_requires/keywords/
-        # python_requires below) -- see AGENTS.md's "tri-state signal"
-        # bullet -- so truthy-gating them is not the same bug.
-        has_version=bool(version),
-        has_description=bool(description),
-        has_readme=bool(readme),
-        has_license=bool(license_name),
-        has_authors=field_declared(kwargs, "author")
-        or field_declared(kwargs, "author_email"),
-        authors=authors,
-        has_urls=field_declared(kwargs, "url")
-        or field_declared(kwargs, "project_urls"),
-        has_dependencies=field_declared(kwargs, "install_requires"),
-        has_requires_python=field_declared(kwargs, "python_requires"),
-        has_keywords=field_declared(kwargs, "keywords"),
-        license_from_classifier=from_classifier,
-    )
-
-    project_metadata = ProjectMetadata(
-        name=name,
-        version=version,
-        description=description,
-        readme=readme,
-        requires_python=requires_python,
-        license_name=license_name,
-        keywords=keywords,
-        authors=authors,
-        urls=urls,
-        dependencies=dependencies,
-        provenance=prov,
-    )
-    return project_metadata, PitloomConfig()
+    return metadata, PitloomConfig()

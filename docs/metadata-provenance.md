@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -35,7 +35,11 @@ convey -- e.g. the value was inferred or detected rather than read
 verbatim. A value with a real native SPDX home (the license itself, the
 package version, a dependency edge) is never restated in the Annotation;
 only *how it was determined* is. Set `detail = "full"` for an exhaustive
-per-field source map instead.
+per-field source map instead. A field built from more than one file names
+them all, comma-separated, with each `Field` in the same order (`Source:
+setup.py, setup.cfg | Field: setup(url=...), metadata.url/project_urls`);
+when every one is a manifest, `minimal` leaves it out like a single
+manifest read.
 
 ## Provenance examples
 
@@ -165,7 +169,9 @@ written and without its copyright notice lines; the better-scoring of
 the two decides. When two licences match almost equally (a modified variant scores
 just above the licence it modifies), the one the project states wins; with
 none stated, there is no detection. A GPL-family `-only`/`-or-later` pair,
-which the text cannot tell apart, is not such a tie. Either way counts as
+which the text cannot tell apart, is not such a tie, nor is a licence the
+text fits measurably worse: matched less closely, or of which the text
+holds less (MIT's text is a quarter of `FSL-1.1-MIT`). Either way counts as
 Pitloom's own independent-detection procedure. Both sides are normalised
 before comparison -- not just casing (a declared `"mit"` and a detected
 `"MIT"` are recognised as the same license), but also equivalent compound
@@ -280,9 +286,9 @@ Hatchling build hook), `license` in `setup.cfg` (`Field: metadata.classifiers`),
 writes the license classifier from `license` itself. `License :: OSI Approved`
 is a category, not a license: it is left out, alone or beside a more specific
 classifier under it, as if absent. `setup.cfg` `classifiers` are listed as
-setuptools lists them (one per line, else comma-separated), and `setup.py`'s
-license, field or classifier, comes before a `setup.cfg` classifier, as in the
-wheel setuptools builds.
+setuptools lists them (one per line, else comma-separated). When `setup.py`
+and `setup.cfg` both state a license, see
+[setuptools projects](cli.md#setuptools-projects-setuppy-and-setupcfg).
 A multi-line license text in a wheel, an sdist or installed metadata is read
 without the indent the build tool folded it with. Several license classifiers
 are one `LicenseExpression`, the AND of `LicenseRef-pitloom-classifier-<name>`

@@ -15,7 +15,7 @@
   },
   "astroid-4.3.2-LICENSE": {
     "license": "LGPL-2.1-or-later",
-    "note": "verbatim LGPL 2.1: -only 1.081, -or-later 1.072; the text cannot tell them apart",
+    "note": "verbatim LGPL 2.1: -only and -or-later both 1.0; the text cannot tell them apart",
     "source": "astroid==4.3.2: astroid-4.3.2.dist-info/licenses/LICENSE",
     "stated": "LGPL-2.1-or-later",
     "unstated": "LGPL-2.1-only"
@@ -50,7 +50,7 @@
   },
   "pylint-4.1.1-LICENSE": {
     "license": "GPL-2.0-or-later",
-    "note": "verbatim GPL 2: -only 1.069, -or-later 1.060; the text cannot tell them apart",
+    "note": "verbatim GPL 2: -only and -or-later both 1.0; the text cannot tell them apart",
     "source": "pylint==4.1.1: pylint-4.1.1.dist-info/licenses/LICENSE",
     "stated": "GPL-2.0-or-later",
     "unstated": "GPL-2.0-only"

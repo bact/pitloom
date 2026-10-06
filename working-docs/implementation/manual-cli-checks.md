@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,6 +38,7 @@ The full run takes minutes; pytest already runs a slice of it in CI
   | build, `--allow-build`, termination | `B*,10` |
   | config, options, cascade | `5,12,13,15,M/completeness`, plus `M/<cmd>/*` per command whose options changed |
   | AI model scan | `15,17,M/model/*` |
+  | setuptools metadata | `1,2,18,S1` |
   | network, offline | `8,11` |
   | any metadata source or assembly | add `1,2,S1` and `M/<cmd>/*` for each command that reads it |
 
@@ -63,7 +64,7 @@ unattended from one stdlib-only runner, on Linux, macOS and Windows:
 
 Use the checkout's own interpreter: the runner tests the `pitloom` that
 interpreter imports, and prints its path first. Besides the numbered
-checks (`1`-`17`, `B1`-`B7`) it runs:
+checks (`1`-`18`, `B1`-`B7`) it runs:
 
 - **The CLI matrix** (`M/<command>/<group>/<variant>`): every subcommand
   x its options x the environment variables that change it
@@ -345,6 +346,17 @@ writes nothing. Automated as check 17
 (`scripts/manual_cli_checks/_checks_model.py::check_model_outcome_parity`).
 Per-kind detail (parse, bound, library, empty, `.pth` text) is in
 `tests/assemble/test_model_outcome_parity.py`.
+
+**18. setuptools: `setup.py` over `setup.cfg`, and the directory, sdist and
+wheel agree**: a project whose `setup.py` states `license="MIT"` and whose
+`setup.cfg` states `license = Apache-2.0` is run as a directory, as its
+built sdist and as its built wheel. All three record MIT, as setuptools
+wrote it; only the directory records Apache-2.0 as a conflict annotation and
+gives the `setup.py and setup.cfg disagree` `WARNING:`, once. The other
+cases (a placeholder licence, a non-literal `name=`, a value Pitloom does not
+read) are pytest's: `tests/extract/project/test_setuptools_merge*.py` and
+`test_setuptools_build_parity.py`. Automated as check 18
+(`scripts/manual_cli_checks/_checks_setuptools.py`).
 
 For a change touching the build subprocess, its kill path or signal
 handling (`--build-timeout`), also run these against a scratch project

@@ -287,6 +287,12 @@ def test_filter_high_signal_keeps_inferred_and_detected() -> None:
     assert set(kept) == {"copyright_text", "license"}
 
 
+def test_filter_high_signal_drops_a_read_of_several_manifests() -> None:
+    joint = "Source: setup.py, setup.cfg | Field: setup(url=...), metadata.url"
+    prov = {"urls": joint, "authors": "Source: setup.py, LICENSE | Field: x"}
+    assert filter_high_signal(prov) == {"authors": prov["authors"]}
+
+
 @pytest.mark.parametrize(
     "note",
     [

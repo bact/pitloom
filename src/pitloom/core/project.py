@@ -256,8 +256,8 @@ class ProjectMetadata:
 #: Maps a :class:`ProjectMetadata` field name to the literal provenance key
 #: its extractors actually record it under, for the cases where they differ:
 #:
-#: - ``license_name``: every producer (``project.pyproject``, ``project.setuptools_py``,
-#:   ``project.setuptools_cfg``) writes ``provenance["license"]``.
+#: - ``license_name``: every producer (``project.pyproject``,
+#:   ``project._setuptools_options``) writes ``provenance["license"]``.
 #: - ``locked_dependency_hashes``: companion to ``locked_dependencies``,
 #:   sharing its ``provenance["locked_dependencies"]`` record so hashes stay
 #:   bound to the winning lock-derived dependency set and never drift.
@@ -322,8 +322,8 @@ def merge_project_metadata(
     The "explicitly declared" check looks up *provenance* by the field's own
     name (e.g. ``provenance["keywords"]``) -- except ``license_name``, whose
     extractors record its provenance under the literal key ``"license"``
-    (see ``project.pyproject``/``project.setuptools_py``/
-    ``project.setuptools_cfg``), not ``"license_name"``; :data:`_PROVENANCE_KEY_ALIASES`
+    (see ``project.pyproject``/``project._setuptools_options``), not
+    ``"license_name"``; :data:`_PROVENANCE_KEY_ALIASES`
     maps that known mismatch so the same presence check finds it.
 
     ``field_conflicts`` is dict-merged the same way as ``provenance``
@@ -332,11 +332,11 @@ def merge_project_metadata(
     :meth:`ProjectMetadata.replace_with_fresh_containers` (never a bare
     ``dataclasses.replace()``, which would alias every un-overridden
     container field to *primary*'s own object) and then explicitly
-    overridden with the merged dict computed here. Both dicts are empty
-    at every current call site (this merge always runs before any
-    conflict reconciliation), but a future caller or ordering change must
-    not silently corrupt either input's own dict via this function's
-    output.
+    overridden with the merged dict computed here. At most one side has
+    conflicts at every current call site (``setup.py`` vs ``setup.cfg`` ones
+    from ``read_setuptools()``; this merge runs before the installed
+    reconciliation), but a future caller or ordering change must not
+    silently corrupt either input's own dict via this function's output.
     """
     merged = primary.replace_with_fresh_containers()
     merged.provenance = {**secondary.provenance, **primary.provenance}

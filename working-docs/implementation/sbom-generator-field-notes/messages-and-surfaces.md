@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -66,7 +66,8 @@ say).
   the lessons doc, 3.7.
   Do: re-read every log line above a new early return.
 - **One message per event, not per occurrence.** A process-wide fact
-  warns once: `WARNING: licenseid database appears empty` (#243). A run
+  warns once: `WARNING: licenseid database cannot be used: <cause>` (#287;
+  was `appears empty`, #243), retried per lookup. A run
   reading two archives warns once per archive: `embed-wheel
   --allow-build` names a bad member once plain and once with `Build: `, a
   documented limit (#251). An unfetched Git LFS checkout is one summary
