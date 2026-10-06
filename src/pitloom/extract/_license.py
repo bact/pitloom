@@ -182,10 +182,41 @@ def _family(license_id: str) -> str:
     return re.sub(r"-(?:only|or-later)$", "", license_id)
 
 
+def _measured(value: object) -> float | None:
+    """*value* as a number; ``None`` where ``licenseid`` measured nothing
+    (0.4 gives ``None``, 0.3 always a number)."""
+    return float(value) if isinstance(value, (int, float)) else None
+
+
+def _fit(match: LicenseMatch) -> tuple[float | None, float | None]:
+    """How closely the input matches *match*'s licence: its ``similarity``,
+    and the share of the licence the input holds, its ``coverage`` (input
+    words over licence words) up to 1, as above 1 the input only has words
+    besides the licence."""
+    coverage = _measured(match.get("coverage"))
+    held = None if coverage is None else min(coverage, 1.0)
+    return _measured(match.get("similarity")), held
+
+
+def _fits_worse(runner_up: LicenseMatch, top: LicenseMatch) -> bool:
+    """Whether *runner_up* fits the input measurably worse than *top*
+    (:func:`_fit`): its similarity, or the share of its licence the input
+    holds, more than :data:`_STATED_TIE_MARGIN` below *top*'s. A score alone
+    cannot tell: ``licenseid`` caps it to 1, where ``MIT`` verbatim and
+    ``FSL-1.1-MIT``, which holds the MIT text as a quarter of its own, both
+    score 1. Unmeasured, it does not."""
+    return any(
+        mine is not None and theirs is not None and mine < theirs - _STATED_TIE_MARGIN
+        for mine, theirs in zip(_fit(runner_up), _fit(top), strict=True)
+    )
+
+
 def _decisive(results: Sequence[LicenseMatch], threshold: float) -> str | None:
     """The top id of *results* when it meets *threshold* and no other
     licence family scores within :data:`_STATED_TIE_MARGIN` of it (a
-    runner-up below *threshold* counts)."""
+    runner-up below *threshold* counts) without fitting the input
+    measurably worse (:func:`_fits_worse`). Equal scores keep
+    ``licenseid``'s own ranking order."""
     if not results:
         return None
     ranked = sorted(results, key=lambda r: -float(r["score"]))
@@ -196,7 +227,9 @@ def _decisive(results: Sequence[LicenseMatch], threshold: float) -> str | None:
     for result in ranked[1:]:
         if float(result["score"]) < floor:
             break
-        if _family(str(result["license_id"])) != _family(top):
+        if _family(str(result["license_id"])) != _family(top) and not _fits_worse(
+            result, ranked[0]
+        ):
             return None
     return top
 

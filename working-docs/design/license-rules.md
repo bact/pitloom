@@ -201,7 +201,7 @@ Library: `ProjectMetadata(license_concluded=...)` with no
 slot).
 
 Text to id (`detect_license_from_text`, `extract/_license.py`, #286), on
-top of `licenseid` 0.3.7 at threshold 0.85:
+top of `licenseid` (0.3.7 and 0.4) at threshold 0.85:
 
 - Read twice: as written, and with copyright notice lines removed (SPDX
   matching guidelines omit the notice); the reading whose top score is
@@ -218,6 +218,15 @@ top of `licenseid` 0.3.7 at threshold 0.85:
   `X-only` and `X-or-later` are one family: a verbatim GPL text scores
   both alike (pylint: 1.069 vs 1.060), so the top match stays, as before
   #286.
+- A runner-up that fits the input measurably worse is no tie (#287): its
+  `similarity`, or the share of its licence the text holds (`coverage` up
+  to 1; above 1 the text only has extra words), more than 0.01 below the
+  top's (`_fits_worse`). Needed since `licenseid` 0.4 caps `score` to 1:
+  MIT's 1.0157 against `JSON` 0.9926 became 1.0 against 0.9926, and
+  `FSL-1.1-MIT` (similarity 1.0, coverage 0.25: MIT's text is a quarter
+  of it) ties MIT at 1.0. The list order is `licenseid`'s ranking, kept
+  for equal scores. Same result on the corpus with 0.3.7 and 0.4; an
+  unmeasured field (a mock, a non-text match) never breaks a tie.
 - Consequence: the concluded value now leans on the declared one in a
   near-tie, e.g. `-only` vs `-or-later` (astroid, pylint): the second
   opinion agrees with the manifest where the text cannot tell.

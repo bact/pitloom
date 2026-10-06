@@ -169,7 +169,9 @@ written and without its copyright notice lines; the better-scoring of
 the two decides. When two licences match almost equally (a modified variant scores
 just above the licence it modifies), the one the project states wins; with
 none stated, there is no detection. A GPL-family `-only`/`-or-later` pair,
-which the text cannot tell apart, is not such a tie. Either way counts as
+which the text cannot tell apart, is not such a tie, nor is a licence the
+text fits measurably worse: matched less closely, or of which the text
+holds less (MIT's text is a quarter of `FSL-1.1-MIT`). Either way counts as
 Pitloom's own independent-detection procedure. Both sides are normalised
 before comparison -- not just casing (a declared `"mit"` and a detected
 `"MIT"` are recognised as the same license), but also equivalent compound
