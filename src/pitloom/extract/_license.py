@@ -297,19 +297,25 @@ def _top_score(results: Sequence[LicenseMatch]) -> float:
     return max((float(r["score"]) for r in results), default=-1.0)
 
 
+def _best_readings(
+    readings: Sequence[Sequence[LicenseMatch]],
+) -> list[Sequence[LicenseMatch]]:
+    """The readings whose top score is the best: one, or both when both
+    reach the cap. A weaker reading decides nothing, nor lets a stated
+    licence win (iniconfig's notice puts ``FSL-1.1-MIT`` on top of the
+    reading as written; without it, MIT scores 1)."""
+    best = max(_top_score(results) for results in readings)
+    return [results for results in readings if _top_score(results) == best]
+
+
 def _best_reading_decides(
     readings: Sequence[Sequence[LicenseMatch]], threshold: float
 ) -> str | None:
-    """The answer of the better-scoring reading; of readings whose top
-    scores are equal (both capped at 1), the first that decides
-    (:func:`_decisive`), so reading order alone never turns an answer into
-    none."""
-    best = max(_top_score(results) for results in readings)
-    answers = (
-        _decisive(results, threshold)
-        for results in readings
-        if _top_score(results) == best
-    )
+    """The answer of the best-scoring reading (:func:`_best_readings`); of
+    two tied at the top, the first that decides (:func:`_decisive`), so a
+    near-tie in one never hides the other's answer. Two that decide
+    differently give the first's: reading order is fixed."""
+    answers = (_decisive(results, threshold) for results in _best_readings(readings))
     return next((answer for answer in answers if answer), None)
 
 
@@ -321,11 +327,12 @@ def detect_license_from_text(
     Returns the top-ranked SPDX License ID when its score meets *threshold*, or
     ``None`` when the database cannot be used, *text* is too short to be a
     real license body, or no match exceeds the threshold. *text* is read as
-    written and without its copyright notice lines (:func:`_readings`). A
-    licence *stated* (the manifest's own id or expression) that either
-    reading matches at *threshold* nearly as well as its top match, and fits
-    the input as well, wins (:data:`_STATED_TIE_MARGIN`); else the
-    better-scoring reading decides (:func:`_best_reading_decides`),
+    written and without its copyright notice lines (:func:`_readings`); the
+    better-scoring reading counts (:func:`_best_readings`). A licence
+    *stated* (the manifest's own id or expression) that it matches at
+    *threshold* nearly as well as its top match, and fits the input as
+    well, wins (:data:`_STATED_TIE_MARGIN`); else that reading decides
+    (:func:`_best_reading_decides`),
     ``None`` when its top match is a near-tie with another licence family.
     """
     matcher = _matcher()
@@ -336,7 +343,7 @@ def detect_license_from_text(
             return None
         readings = _readings(matcher, text)
         wanted = _stated_ids(stated)
-        for results in readings:
+        for results in _best_readings(readings):
             above = [r for r in results if r["score"] >= threshold]
             chosen = _stated_among(above, wanted)
             if chosen:

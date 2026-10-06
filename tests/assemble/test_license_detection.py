@@ -417,9 +417,7 @@ class _FakeMatcher:
     def __init__(self, raw: list[tuple[str, float]], bare: list[tuple[str, float]]):
         self._by_text = {_NOTICE + _BODY: raw, "\n" + _BODY: bare, _BODY: raw}
 
-    def match(self, text: str = "", **kwargs: str) -> list[dict[str, object]]:
-        if kwargs:  # the empty-database probe
-            return [{"license_id": "MIT", "score": 1.0}]
+    def match(self, text: str = "") -> list[dict[str, object]]:
         return [{"license_id": i, "score": s} for i, s in self._by_text[text]]
 
 
@@ -447,11 +445,21 @@ def test_a_copyright_notice_is_read_both_ways(
         assert detect_license_from_text(text) == expected
 
 
-def test_a_stated_licence_is_looked_for_in_both_readings() -> None:
-    """The reading without the notice scores higher, but only the reading as
-    written has the stated licence in a near-tie."""
-    fake = _FakeMatcher([("Pixar", 0.996), ("Apache-2.0", 0.992)], [("Pixar", 0.999)])
+@pytest.mark.parametrize(
+    ("bare", "expected"),
+    [
+        ([("Pixar", 0.999)], "Pixar"),  # the weaker reading's near-tie: not used
+        ([("Pixar", 0.996), ("Apache-2.0", 0.992)], "Apache-2.0"),  # equal tops
+    ],
+    ids=["weaker-reading", "equal-tops"],
+)
+def test_a_stated_licence_is_looked_for_in_the_best_reading(
+    bare: list[tuple[str, float]], expected: str
+) -> None:
+    """Only the stronger reading (the one without the notice here) can make
+    a stated licence win; with equal top scores, either can."""
+    fake = _FakeMatcher([("Pixar", 0.996), ("Apache-2.0", 0.992)], bare)
     with patch("pitloom.extract._license._get_matcher", return_value=fake):
         assert detect_license_from_text(_NOTICE + _BODY, stated="Apache-2.0") == (
-            "Apache-2.0"
+            expected
         )
