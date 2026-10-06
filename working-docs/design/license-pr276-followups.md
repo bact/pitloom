@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -77,8 +77,9 @@ user leanings are recorded there, not decisions.
 - Reconcile ranking: the project's own installed metadata vs a `LICENSE`
   detection.
 - Model file licence vs model card licence: disagreement not recorded.
-- `setup.cfg` `license =` beats `setup.py` `license=` (setuptools does the
-  opposite); same question for other merged sources.
+- [x] `setup.cfg` `license =` beats `setup.py` `license=`: fixed, [#N]
+  (`setup.py` first, as setuptools); open for other merged sources
+  (`[project]` vs `[tool.poetry]`).
 - Provenance: a shared licence element keeps the first package's source
   and later reusers record none; a library caller's licence with no
   provenance gets a default source label (overclaimed).

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -108,14 +108,17 @@ Crashes, broken contracts and small mappings.
   `configparser.ConfigParser` (interpolating; never Raw in any release checked)
   and fails on `50% faster` too; `%%` works.
 
-- [ ] **`setup.py` with no literal `name=` is dropped whole (S).**
+- [x] **`setup.py` with no literal `name=` is dropped whole (S).** Fixed by
+  [#N] (`setup.py` and `setup.cfg` merged as setuptools does,
+  [setuptools-support.md](../implementation/setuptools-support.md#precedence)).
   `read_setup_py` raises `ValueError` and `read_setuptools`
   (`extract/project/setuptools.py`) skips every `setup()` keyword, so a
   `setup.cfg` MIT classifier wins where the built wheel carries the
   `setup.py` BSD one: the directory and the wheel disagree. Found
   checking the paper notes (2026-10-05).
 
-- [ ] **A weak `setup.cfg` licence beats a real `setup.py` one (S).**
+- [x] **A weak `setup.cfg` licence beats a real `setup.py` one (S).** Fixed by
+  [#N].
   `license = UNKNOWN` in `setup.cfg` plus `setup(license="MIT")` gives
   `NoAssertionLicense`; the built wheel says `License: MIT`.
   `merge_project_metadata` keeps any non-blank first value, where

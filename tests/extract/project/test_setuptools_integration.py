@@ -38,24 +38,6 @@ def test_read_setuptools_cfg_only() -> None:
     assert metadata.name == "pkg"
 
 
-def test_read_setuptools_cfg_empty_python_requires_protected_from_py() -> None:
-    """setup.cfg's deliberately-empty python_requires (explicit "no
-    constraint") is primary and must win over setup.py's real constraint
-    through the actual read_setuptools() merge -- merge_project_metadata()
-    must treat cfg's explicitly-declared None as authoritative, not as an
-    absent value to fill from setup.py."""
-    cfg = "[metadata]\nname = cfg-pkg\nversion = 1.0\n[options]\npython_requires =\n"
-    py = (
-        "from setuptools import setup\n"
-        "setup(name='py-pkg', version='9.9', python_requires='>=3.8')\n"
-    )
-    with tempfile.TemporaryDirectory() as d:
-        (Path(d) / "setup.cfg").write_text(cfg)
-        (Path(d) / "setup.py").write_text(py)
-        metadata, _ = read_setuptools(Path(d))
-    assert metadata.requires_python is None
-
-
 def test_read_setuptools_py_only() -> None:
     """read_setuptools() succeeds with setup.py alone."""
     content = "from setuptools import setup\nsetup(name='pkg2', version='2.0')\n"
@@ -63,22 +45,6 @@ def test_read_setuptools_py_only() -> None:
         (Path(d) / "setup.py").write_text(content)
         metadata, _ = read_setuptools(Path(d))
     assert metadata.name == "pkg2"
-
-
-def test_read_setuptools_cfg_wins_over_py() -> None:
-    """setup.cfg fields take precedence over setup.py."""
-    cfg = "[metadata]\nname = cfg-pkg\nversion = 3.0\n"
-    py = (
-        "from setuptools import setup\n"
-        "setup(name='py-pkg', version='9.9', description='from py')\n"
-    )
-    with tempfile.TemporaryDirectory() as d:
-        (Path(d) / "setup.cfg").write_text(cfg)
-        (Path(d) / "setup.py").write_text(py)
-        metadata, _ = read_setuptools(Path(d))
-    assert metadata.name == "cfg-pkg"
-    assert metadata.version == "3.0"
-    assert metadata.description == "from py"
 
 
 def test_read_setuptools_neither_exists() -> None:

@@ -56,6 +56,7 @@ import _checks_build  # noqa: F401  # pylint: disable=unused-import
 import _checks_config  # noqa: F401  # pylint: disable=unused-import
 import _checks_core  # noqa: F401  # pylint: disable=unused-import
 import _checks_model  # noqa: F401  # pylint: disable=unused-import
+import _checks_setuptools  # noqa: F401  # pylint: disable=unused-import
 import _checks_wheel  # noqa: F401  # pylint: disable=unused-import
 import _fixtures
 import _matrix

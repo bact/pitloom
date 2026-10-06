@@ -29,7 +29,7 @@ from pitloom.extract.project._setup_cfg_directives import (
 from pitloom.extract.project.setuptools import (
     read_setup_cfg,
 )
-from pitloom.extract.project.setuptools_cfg import _parse_cfg_urls
+from pitloom.extract.project.setuptools_cfg import _parse_cfg_project_urls
 
 from ..conftest import assert_declared_empty_authors_no_copyright_text
 
@@ -99,14 +99,8 @@ project_urls =
 def test_parse_cfg_urls_skips_blank_key_or_value_lines() -> None:
     """A ``project_urls`` line with an empty key or empty value is skipped,
     and scanning continues to subsequent lines."""
-    urls = _parse_cfg_urls(
-        {
-            "project_urls": (
-                "= https://no-key.example.com\n"
-                "NoValue = \n"
-                "Homepage = https://example.com\n"
-            )
-        }
+    urls = _parse_cfg_project_urls(
+        "= https://no-key.example.com\nNoValue = \nHomepage = https://example.com\n"
     )
     assert urls == {"Homepage": "https://example.com"}
 

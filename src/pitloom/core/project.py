@@ -332,11 +332,11 @@ def merge_project_metadata(
     :meth:`ProjectMetadata.replace_with_fresh_containers` (never a bare
     ``dataclasses.replace()``, which would alias every un-overridden
     container field to *primary*'s own object) and then explicitly
-    overridden with the merged dict computed here. Both dicts are empty
-    at every current call site (this merge always runs before any
-    conflict reconciliation), but a future caller or ordering change must
-    not silently corrupt either input's own dict via this function's
-    output.
+    overridden with the merged dict computed here. At most one side has
+    conflicts at every current call site (``setup.py`` vs ``setup.cfg`` ones
+    from ``read_setuptools()``; this merge runs before the installed
+    reconciliation), but a future caller or ordering change must not
+    silently corrupt either input's own dict via this function's output.
     """
     merged = primary.replace_with_fresh_containers()
     merged.provenance = {**secondary.provenance, **primary.provenance}

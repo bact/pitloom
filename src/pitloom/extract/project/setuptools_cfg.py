@@ -13,6 +13,7 @@ and :mod:`pitloom.extract.project.setuptools` (facade).
 from __future__ import annotations
 
 import configparser
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -23,7 +24,6 @@ from pitloom.core.config import (
     parse_pitloom_config,
 )
 from pitloom.core.project import ProjectMetadata
-from pitloom.extract._core_metadata import license_or_classifier
 from pitloom.extract.project._setup_cfg_directives import (
     _resolve_cfg_file_directive,
     _resolve_cfg_version,
@@ -32,11 +32,16 @@ from pitloom.extract.project._setup_cfg_values import (
     coerce_cfg_value,
     parse_sub_section,
 )
+from pitloom.extract.project._setuptools_options import (
+    SetupOption,
+    SetupOptions,
+    build_setuptools_metadata,
+)
 from pitloom.logging_config import one_line
 
 
 class _NoProjectNameError(ValueError):
-    """A setup.cfg/setup.py file has no project name -- try the next source."""
+    """``setup.cfg`` has no project name, read alone."""
 
 
 def _section_dict(cfg: configparser.ConfigParser, section: str) -> dict[str, str]:
@@ -98,44 +103,18 @@ def _section_declares_key(
     return key in sections.get(section, {})
 
 
-def _parse_cfg_authors(metadata: dict[str, str]) -> list[dict[str, str]]:
-    """Combine ``author`` and ``author_email`` into a list of author dicts."""
-    author_name = metadata.get("author", "").strip()
-    author_email = metadata.get("author_email", "").strip()
-    if not author_name and not author_email:
-        return []
-    entry: dict[str, str] = {}
-    if author_name:
-        entry["name"] = author_name
-    if author_email:
-        entry["email"] = author_email
-    return [entry]
-
-
 def _parse_cfg_keywords(raw: str) -> list[str]:
     """Parse keywords from ``setup.cfg``: space, comma, or newline separated."""
-    if not raw:
-        return []
     return [k.strip() for k in raw.replace(",", " ").split() if k.strip()]
 
 
-def _parse_cfg_urls(metadata: dict[str, str]) -> dict[str, str]:
-    """Parse ``url`` and ``project_urls`` into a uniform URL dict."""
+def _parse_cfg_project_urls(raw: str) -> dict[str, str]:
+    """Parse ``project_urls`` (``Label = URL`` lines) into a dict."""
     urls: dict[str, str] = {}
-
-    single_url = metadata.get("url", "").strip()
-    if single_url:
-        urls["Homepage"] = single_url
-
-    project_urls_raw = metadata.get("project_urls", "")
-    for line in project_urls_raw.splitlines():
-        line = line.strip()
-        if "=" in line:
-            key, _, val = line.partition("=")
-            key, val = key.strip(), val.strip()
-            if key and val:
-                urls[key] = val
-
+    for line in raw.splitlines():
+        key, sep, val = line.partition("=")
+        if sep and key.strip() and val.strip():
+            urls[key.strip()] = val.strip()
     return urls
 
 
@@ -151,23 +130,6 @@ def _cfg_list(value: str) -> list[str]:
     return [item.strip() for item in items if item.strip()]
 
 
-def _resolve_cfg_license(
-    metadata: dict[str, str], project_dir: Path
-) -> tuple[str | None, str]:
-    """``(licence, provenance)``: ``metadata.license``, then a ``License ::``
-    classifier (inline or ``file:``) by the rule a wheel and an sdist use
-    (:func:`~pitloom.extract._core_metadata.license_or_classifier`)."""
-    classifiers = _resolve_cfg_file_directive(
-        metadata.get("classifiers", "").strip(), project_dir, "metadata.classifiers"
-    )
-    license_name, from_classifier = license_or_classifier(
-        metadata.get("license", "").strip() or None, _cfg_list(classifiers or "")
-    )
-    if from_classifier:
-        return license_name, CFG_CLASSIFIER_LICENSE_SOURCE
-    return license_name, "Source: setup.cfg | Field: metadata.license"
-
-
 def _parse_cfg_requires(raw: str) -> list[str]:
     """Parse a multiline ``install_requires`` value into a list of PEP 508 strings."""
     deps = []
@@ -178,109 +140,112 @@ def _parse_cfg_requires(raw: str) -> list[str]:
     return deps
 
 
-# pylint: disable=too-many-locals
-def read_setup_cfg(
-    project_dir: Path, *, read_config: bool = True
-) -> tuple[ProjectMetadata, PitloomConfig]:
-    """Read project metadata from ``setup.cfg``.
+def _cfg_source(field: str) -> str:
+    return f"Source: setup.cfg | Field: {field}"
 
-    Parses ``[metadata]`` for core project info and ``[options]`` for
-    dependency declarations.  Pitloom settings can be placed under a
-    ``[tool:pitloom]`` section (note the colon separator used by
-    ``setup.cfg`` convention). Without *read_config* that section is not
-    parsed and the defaults are returned -- for a caller whose explicit
-    config replaces it, so a fault in it cannot fail the read.
+
+def _str_or_none(value: str) -> str | None:
+    return value.strip() or None
+
+
+#: (section, option, provenance field, parser) for each option read as is.
+_PLAIN_OPTIONS: tuple[tuple[str, str, str, Callable[[str], Any]], ...] = (
+    ("metadata", "name", "metadata.name", _str_or_none),
+    ("metadata", "license", "metadata.license", _str_or_none),
+    ("metadata", "keywords", "metadata.keywords", _parse_cfg_keywords),
+    ("metadata", "author", "metadata.author/author_email", _str_or_none),
+    ("metadata", "author_email", "metadata.author/author_email", _str_or_none),
+    ("metadata", "url", "metadata.url/project_urls", _str_or_none),
+    ("metadata", "project_urls", "metadata.url/project_urls", _parse_cfg_project_urls),
+    ("options", "install_requires", "options.install_requires", _parse_cfg_requires),
+    ("options", "python_requires", "options.python_requires", _str_or_none),
+)
+
+
+def _resolved_options(metadata: dict[str, str], project_dir: Path) -> SetupOptions:
+    """The options whose value needs a directive resolved or two spellings."""
+    options: SetupOptions = {}
+    if "version" in metadata:
+        version, source = _resolve_cfg_version(metadata["version"].strip(), project_dir)
+        options["version"] = SetupOption(version, source or "", bool(version))
+    description = metadata.get("description") or metadata.get("summary")
+    if description is not None:
+        options["description"] = SetupOption(
+            _str_or_none(description), _cfg_source("metadata.description")
+        )
+    if "long_description" in metadata:
+        readme = _resolve_cfg_file_directive(
+            metadata["long_description"].strip(),
+            project_dir,
+            "metadata.long_description",
+        )
+        options["long_description"] = SetupOption(
+            readme, _cfg_source("metadata.long_description")
+        )
+    if "classifiers" in metadata:
+        classifiers = _resolve_cfg_file_directive(
+            metadata["classifiers"].strip(), project_dir, "metadata.classifiers"
+        )
+        options["classifiers"] = SetupOption(
+            _cfg_list(classifiers or ""), CFG_CLASSIFIER_LICENSE_SOURCE
+        )
+    return options
+
+
+def read_setup_cfg_options(
+    project_dir: Path, *, read_config: bool = True
+) -> tuple[SetupOptions, PitloomConfig]:
+    """The setuptools options ``setup.cfg``'s ``[metadata]`` and
+    ``[options]`` state, ``name`` not required, and its ``[tool:pitloom]``
+    settings -- parsed only when ``[metadata]`` names the project and
+    *read_config* is set, else the defaults, so an unused or replaced one
+    cannot fail the read.
+
+    A value inherited from ``[DEFAULT]`` is an option, as in setuptools,
+    but not declared (:func:`_section_declares_key`).
+
+    Raises:
+        FileNotFoundError: no ``setup.cfg``.
     """
     setup_cfg_path = project_dir / "setup.cfg"
     if not setup_cfg_path.exists():
         raise FileNotFoundError(f"setup.cfg not found at {setup_cfg_path}")
-
     cfg = configparser.ConfigParser()
     cfg.read(setup_cfg_path, encoding="utf-8")
+    sections = {s: _section_dict(cfg, s) for s in ("metadata", "options")}
+    options = _resolved_options(sections["metadata"], project_dir)
+    for section, key, field, parse in _PLAIN_OPTIONS:
+        if key in sections[section]:
+            options[key] = SetupOption(
+                parse(sections[section][key]),
+                _cfg_source(field),
+                declared=_section_declares_key(cfg, section, key),
+            )
+    named = bool(options.get("name") and options["name"].value)
+    return options, _config_if_read(cfg, read_config and named, str(setup_cfg_path))
 
-    metadata_raw = _section_dict(cfg, "metadata")
-    options_raw = _section_dict(cfg, "options")
 
-    name = metadata_raw.get("name", "").strip()
-    if not name:
+def read_setup_cfg(
+    project_dir: Path, *, read_config: bool = True
+) -> tuple[ProjectMetadata, PitloomConfig]:
+    """Read project metadata from ``setup.cfg`` alone, by
+    :func:`read_setup_cfg_options`. Pitloom settings can be placed under a
+    ``[tool:pitloom]`` section (note the colon separator used by
+    ``setup.cfg`` convention). Without *read_config* that section is not
+    parsed and the defaults are returned -- for a caller whose explicit
+    config replaces it, so a fault in it cannot fail the read.
+
+    Raises:
+        FileNotFoundError: no ``setup.cfg``.
+        _NoProjectNameError: ``[metadata]`` has no ``name``.
+    """
+    options, config = read_setup_cfg_options(project_dir, read_config=read_config)
+    metadata = build_setuptools_metadata(options, {})
+    if not metadata.name:
         raise _NoProjectNameError(
             "Project name is required in setup.cfg [metadata] section"
         )
-
-    raw_version = metadata_raw.get("version", "").strip()
-    version, version_source = _resolve_cfg_version(raw_version, project_dir)
-
-    description = (
-        metadata_raw.get("description") or metadata_raw.get("summary") or ""
-    ).strip() or None
-
-    readme = _resolve_cfg_file_directive(
-        metadata_raw.get("long_description", "").strip(),
-        project_dir,
-        "metadata.long_description",
-    )
-
-    authors = _parse_cfg_authors(metadata_raw)
-    keywords = _parse_cfg_keywords(metadata_raw.get("keywords", ""))
-    license_name, license_source = _resolve_cfg_license(metadata_raw, project_dir)
-    urls = _parse_cfg_urls(metadata_raw)
-
-    requires_python = (options_raw.get("python_requires") or "").strip() or None
-    install_requires_raw = options_raw.get("install_requires", "")
-    dependencies = _parse_cfg_requires(install_requires_raw)
-
-    prov: dict[str, str] = {"name": "Source: setup.cfg | Field: metadata.name"}
-    # _resolve_cfg_version() always returns a paired (version, source) --
-    # never one truthy without the other -- so version_source alone gates it.
-    if version_source:
-        prov["version"] = version_source
-    if description:
-        prov["description"] = "Source: setup.cfg | Field: metadata.description"
-    if readme:
-        prov["readme"] = "Source: setup.cfg | Field: metadata.long_description"
-    if license_name:
-        prov["license"] = license_source
-    # Provenance for a container field is gated on the raw key's *presence*
-    # in the file, not on whether parsing it produced a non-empty result --
-    # an explicitly-declared-but-empty value (e.g. `install_requires =`)
-    # is a genuine, authoritative "zero" that merge_project_metadata() must
-    # not silently fill in from a lower-priority source, the same
-    # None-vs-[] distinction pyproject.py's [project]-table path already
-    # applies to `keywords`/`urls`/`dependencies`/`authors`.
-    if _section_declares_key(cfg, "metadata", "author") or _section_declares_key(
-        cfg, "metadata", "author_email"
-    ):
-        prov["authors"] = "Source: setup.cfg | Field: metadata.author/author_email"
-        if authors:
-            prov["copyright_text"] = (
-                "Source: Pitloom generator | Method: inferred_from_authors"
-            )
-    if _section_declares_key(cfg, "metadata", "url") or _section_declares_key(
-        cfg, "metadata", "project_urls"
-    ):
-        prov["urls"] = "Source: setup.cfg | Field: metadata.url/project_urls"
-    if _section_declares_key(cfg, "options", "install_requires"):
-        prov["dependencies"] = "Source: setup.cfg | Field: options.install_requires"
-    if _section_declares_key(cfg, "options", "python_requires"):
-        prov["requires_python"] = "Source: setup.cfg | Field: options.python_requires"
-    if _section_declares_key(cfg, "metadata", "keywords"):
-        prov["keywords"] = "Source: setup.cfg | Field: metadata.keywords"
-
-    project_metadata = ProjectMetadata(
-        name=name,
-        version=version,
-        description=description,
-        readme=readme,
-        requires_python=requires_python,
-        license_name=license_name,
-        keywords=keywords,
-        authors=authors,
-        urls=urls,
-        dependencies=dependencies,
-        provenance=prov,
-    )
-
-    return project_metadata, _config_if_read(cfg, read_config, str(setup_cfg_path))
+    return metadata, config
 
 
 def _config_if_read(

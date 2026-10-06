@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -158,10 +158,10 @@ Each found more than one bug that a per-site fix would only move.
   [config-cascade-parity.md](config-cascade-parity.md),
   [cli-shared-options-ignored.md](cli-shared-options-ignored.md),
   [docs/configuration.md](../../docs/configuration.md).
-- [ ] **Merged manifest sources** (`setup.cfg` + `setup.py`, `[project]` +
-  `[tool.poetry]`): which wins per field, as the build tool decides. See
-  [setuptools-config-followups.md](setuptools-config-followups.md),
-  [license-rules.md](license-rules.md#open-questions) (questions 2, 4).
+- [ ] **`[project]` vs `[tool.poetry]` precedence**: which wins per field, as
+  the build tool decides (`setup.cfg` + `setup.py` is done, [#N]). See
+  [license-rules.md](license-rules.md#open-questions) (question 4),
+  [setuptools-support.md](../implementation/setuptools-support.md#out-of-scope-follow-ups).
 - [ ] **Canonical output**: names, identifiers and key order the same for
   the same real-world thing. See
   [canonical-output-followups.md](canonical-output-followups.md).

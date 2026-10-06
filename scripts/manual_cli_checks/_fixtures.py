@@ -106,6 +106,39 @@ def build_wheel(project: Path, out: Path) -> Path:
     return wheel
 
 
+def build_setuptools(project: Path, out: Path, kind: str) -> Path:
+    """Build a setuptools *project*'s ``sdist`` or ``wheel`` (*kind*) offline
+    from a copy (building writes ``*.egg-info`` into the directory); skip
+    without ``build``/``setuptools``."""
+    for module in ("build", "setuptools"):
+        if importlib.util.find_spec(module) is None:
+            raise CheckSkipped(f"needs '{module}' installed (pitloom[build])")
+    out.mkdir(parents=True, exist_ok=True)
+    copy = out.parent / f"{out.name}-{kind}-src"
+    shutil.copytree(project, copy)
+    proc = subprocess.run(  # nosec B603
+        [
+            sys.executable,
+            "-m",
+            "build",
+            f"--{kind}",
+            "--no-isolation",
+            "--skip-dependency-check",
+            "--outdir",
+            str(out),
+            str(copy),
+        ],
+        env=child_env(SOURCE_DATE_EPOCH=SOURCE_DATE_EPOCH),
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        timeout=300,
+        check=False,
+    )
+    expect(proc.returncode == 0, f"{kind} build failed: {proc.stderr[-1500:]!r}")
+    (built,) = out.glob("*.tar.gz" if kind == "sdist" else "*.whl")
+    return built
+
+
 class Fixtures:
     """Lazily built, shared, read-only fixtures; :meth:`stage` copies one
     into a cell's directory for it to use (and modify)."""

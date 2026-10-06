@@ -24,7 +24,7 @@ from pitloom.extract.project.setuptools_py import (
     _UNRESOLVABLE,
     _ast_literal,
     _extract_setup_kwargs,
-    _parse_setup_urls,
+    _parse_project_urls,
 )
 
 from ..conftest import assert_declared_empty_authors_no_copyright_text
@@ -292,7 +292,10 @@ def test_ast_literal_dict_unpacking_and_calls() -> None:
     tree = ast.parse(code)
     kwargs = _extract_setup_kwargs(tree)
     assert kwargs.get("name") == "pkg"
-    assert kwargs.get("project_urls") == {"Docs": "https://doc"}
+    # a dict is a literal only whole: setup.cfg's is used instead
+    assert "project_urls" not in kwargs
+    variable = ast.parse("setup(project_urls={'Docs': U, 'Home': 'https://h'})")
+    assert "project_urls" not in _extract_setup_kwargs(variable)
 
     # No setup call in AST returns empty dict
     no_setup_tree = ast.parse("x = 1\ny = 2\n")
@@ -306,6 +309,6 @@ def test_ast_literal_dict_unpacking_and_calls() -> None:
 
     # Non-dict project_urls and non-string values
     # pylint: disable-next=use-implicit-booleaness-not-comparison
-    assert _parse_setup_urls({"project_urls": "https://invalid"}) == {}
+    assert _parse_project_urls("https://invalid") == {}
     urls_dict = {"Docs": 123, "Home": "https://h"}
-    assert _parse_setup_urls({"project_urls": urls_dict}) == {"Home": "https://h"}
+    assert _parse_project_urls(urls_dict) == {"Home": "https://h"}

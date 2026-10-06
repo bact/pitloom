@@ -20,7 +20,6 @@ from pathlib import Path
 
 import pytest
 
-from pitloom.extract.project._installed_reconcile import _requires_python_equal
 from pitloom.extract.project.installed import (
     _discover_candidate,
     _parse_installed_metadata,
@@ -33,25 +32,6 @@ _FIXTURES = Path(__file__).parents[2] / "fixtures" / "projects"
 
 def _msg(text: str) -> email.message.Message:
     return email.message_from_string(text)
-
-
-# --- _requires_python_equal -------------------------------------------------
-
-
-def test_requires_python_equal_reformatted() -> None:
-    """'>=3.9' and '>= 3.9' are the same specifier set, not a conflict."""
-    assert _requires_python_equal(">=3.9", ">= 3.9")
-
-
-def test_requires_python_equal_genuine_conflict() -> None:
-    assert not _requires_python_equal(">=3.9", ">=3.10")
-
-
-def test_requires_python_equal_invalid_specifier_falls_back_to_string() -> None:
-    """Never raise on an unparseable specifier -- fall back to stripped
-    string equality."""
-    assert _requires_python_equal(" not-a-specifier ", "not-a-specifier")
-    assert not _requires_python_equal("not-a-specifier", "also-not-one")
 
 
 # --- _parse_installed_metadata ----------------------------------------------

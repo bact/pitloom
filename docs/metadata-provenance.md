@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -280,9 +280,9 @@ Hatchling build hook), `license` in `setup.cfg` (`Field: metadata.classifiers`),
 writes the license classifier from `license` itself. `License :: OSI Approved`
 is a category, not a license: it is left out, alone or beside a more specific
 classifier under it, as if absent. `setup.cfg` `classifiers` are listed as
-setuptools lists them (one per line, else comma-separated), and `setup.py`'s
-license, field or classifier, comes before a `setup.cfg` classifier, as in the
-wheel setuptools builds.
+setuptools lists them (one per line, else comma-separated). When `setup.py`
+and `setup.cfg` both state a license, see
+[setuptools projects](cli.md#setuptools-projects-setuppy-and-setupcfg).
 A multi-line license text in a wheel, an sdist or installed metadata is read
 without the indent the build tool folded it with. Several license classifiers
 are one `LicenseExpression`, the AND of `LicenseRef-pitloom-classifier-<name>`

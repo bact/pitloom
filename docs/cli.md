@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -75,6 +75,28 @@ one wins when more than one is present, and what counts as "resolved"
 for each. On by default; pass `--no-use-lockfile` (or set
 `[tool.pitloom] use-lockfile = false`) to fall back to direct dependencies
 and environment introspection only.
+
+#### setuptools projects (`setup.py` and `setup.cfg`)
+
+When a directory has both, Pitloom follows setuptools' own precedence (see
+[`setupcfg.py`](https://github.com/pypa/setuptools/blob/main/setuptools/config/setupcfg.py)):
+a `setup()` keyword is used, and the same `setup.cfg` option only when the
+keyword is empty (`""`, `[]`, `{}`, `None`) or absent. It is decided per
+option (`author` and `author_email` apart, `url` and `project_urls` apart),
+and a list replaces the other, never joins it. The name is `setup.py`'s
+literal, else `setup.cfg`'s. Differences from setuptools:
+
+- `setup.py` is read, never run: a keyword that is not a literal
+  (`name=NAME`) is ignored with a `WARNING:` and `setup.cfg`'s is used.
+- A placeholder licence (`UNKNOWN`, `NOASSERTION`) gives way to a real one in
+  the other file; `NONE` is a statement. setuptools keeps the placeholder.
+- When `setup.py` overrides a different real licence, version or
+  `python_requires` of `setup.cfg`, Pitloom keeps `setup.py`'s, records the
+  other as a conflict annotation and gives one `WARNING:`. A `license` field
+  still beats a classifier in the other file, as in the built wheel.
+
+Only a directory is read this way; an sdist or wheel carries the metadata
+setuptools already merged.
 
 Generate an **Analyzed SBOM** from a pre-built wheel (extracting bundled
 binaries as phantom dependencies):

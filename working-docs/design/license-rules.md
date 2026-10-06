@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -140,11 +140,12 @@ field list followed by the classifiers;
   `PKG-INFO`): `project.license` (a `text`/`file` table that `licenseid`
   identifies gives the id) -> `project.classifiers` -> in-package files.
   Poetry: `license` -> in-package files.
-- **Directory, `setup.cfg`/`setup.py`**: each file's own field ->
-  classifiers; then the two are merged: `setup.cfg`'s field beats
-  `setup.py`'s (any non-blank value, weak included); a licence from
-  `setup.cfg`'s classifiers gives way to `setup.py`'s field or classifier
-  (`_setup_py_over_cfg_classifier`); then in-package files.
+- **Directory, `setup.cfg`/`setup.py`**: `setup(license=)` -> `setup.cfg`
+  `license` -> `License ::` classifiers (`setup.py`'s, else `setup.cfg`'s),
+  by `license_cascade()`: a field beats a classifier in either file, and a
+  placeholder gives way to a real value in the other file; then in-package
+  files. Real vs real: `setup.py`'s is kept, the other recorded as a conflict
+  (`_setuptools_options.py`; setuptools-support.md#precedence).
 - **Directory reconcile** (`loom project`, library; not the hook, sdist,
   wheel or `embed-wheel`): the result above against the in-tree installed
   metadata (`_installed_reconcile.py`). Static wins a real disagreement
@@ -344,24 +345,21 @@ leaning (2026-10-04).
    licence (`ReadmeEnricher` fills only an empty value). Leaning: the
    real one is declared, the weak value noted in provenance "as the
    dependency cascade does" (but see 9: that cascade records nothing).
-2. **Weak value across merged manifest files** (found 2026-10-05).
-   `setup.cfg` `license = UNKNOWN` with `setup.py` `license="MIT"`
-   records `UNKNOWN` (`merge_project_metadata` keeps any non-blank
-   primary value), though `first_license` would let MIT win. No leaning
-   on the rule; 0.20.1 fixes this case for parity with the built wheel
-   (see 4).
+2. **Weak value across merged manifest files** -- ruled ([#N]).
+   A placeholder (`UNKNOWN`/`NOASSERTION`) in one of `setup.py` and
+   `setup.cfg` gives way to a real licence in the other, as in
+   `first_license`. (setuptools itself keeps `setup.py`'s `UNKNOWN`: an
+   accepted difference.) Open for `[project]` vs `[tool.poetry]`.
 3. **Reconcile ranking.** Silent `setup.cfg`, MIT `LICENSE`, egg-info
    `License-Expression: Apache-2.0`: the detection is kept as declared
    and the project's own installed record becomes the conflict. Leaning:
    installed metadata outranks a `LICENSE` detection for declared; the
    detection stays the concluded second opinion; the conflict recorded.
-4. **`setup.cfg` vs `setup.py` field order.** `setup.cfg`'s `license =`
-   beats `setup.py`'s `license=`; setuptools does the opposite
-   (`setup()` keywords win). Same question for other merged sources
-   (pyproject with Poetry). No leaning on the general rule. Scheduled
-   for 0.20.1 as a parity fix, not a rule decision: follow setuptools
-   for `setup.cfg` + `setup.py`, since the built wheel does
-   ([known-bugs.md](known-bugs.md)).
+4. **`setup.cfg` vs `setup.py` field order** -- ruled for setuptools
+   ([#N]): `setup.py` over `setup.cfg`, as setuptools does; a real
+   disagreement keeps `setup.py`'s as the one declared licence and records
+   the other as a conflict. Still open: the same question for other merged
+   sources (pyproject with Poetry), no leaning on a general rule.
 5. **Cascade choices not recorded.** A model file's `Apache-2.0` and its
    card's `mit`: the card is skipped, nothing records the disagreement.
    Same for any two cascade sources. Open: which choices may never be

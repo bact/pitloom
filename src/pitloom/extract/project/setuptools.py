@@ -6,29 +6,19 @@
 """Extractor for Python project metadata from setup.cfg and setup.py.
 
 Supports setuptools-based projects that declare metadata in ``setup.cfg``
-(configparser format) or ``setup.py`` (AST-parsed).  When both files exist,
-``setup.cfg`` values take precedence, following setuptools conventions.
-
-.. rubric:: Conflict resolution
-
-When multiple sources are present, fields are merged with this priority order
-(highest to lowest):
-
-1. ``pyproject.toml [project]`` -- handled upstream by
-   :func:`~pitloom.extract.project.pyproject.read_pyproject`; merged via
-   :func:`~pitloom.core.project.merge_project_metadata` by the assembler.
-2. ``setup.cfg [metadata]`` / ``[options]``
-3. ``setup.py`` ``setup()`` keyword arguments (AST-extracted literals only)
-
-For each field the highest-priority non-empty value wins; provenance is
-recorded per field so consumers can audit the source. The licence is the
-exception: one from ``setup.cfg``'s classifiers gives way to ``setup.py``'s
-(:func:`_setup_py_over_cfg_classifier`).
+(configparser format) or ``setup.py`` (AST-parsed). When both files exist,
+a non-empty ``setup()`` keyword overrides the same ``setup.cfg`` option, as
+setuptools does; :mod:`pitloom.extract.project._setuptools_options` has the
+rule and its one difference (a placeholder licence gives way). A
+``pyproject.toml [project]`` table is read before both, upstream
+(:func:`~pitloom.extract.project.read_project`). Provenance is recorded per
+field.
 
 .. rubric:: Limitations (static analysis)
 
 - Dynamic values in ``setup.py`` (variables, function calls, conditional
-  expressions) are **not resolvable** -- they are silently skipped.
+  expressions) are **not resolvable** -- each is skipped with a
+  ``WARNING:`` and ``setup.cfg``'s value is used.
 - ``version = attr: package.__version__`` in ``setup.cfg`` uses best-effort
   file scanning via AST parsing of the referenced module file.
 - Build-time metadata obtained via PEP 517
@@ -49,8 +39,7 @@ from pathlib import Path
 
 from pitloom._toml_io import TOMLDecodeError, load_toml_file
 from pitloom.core.config import PitloomConfig
-from pitloom.core.project import ProjectMetadata, merge_project_metadata
-from pitloom.extract._core_metadata import first_license
+from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import (
     apply_in_package_license,
     collect_license_candidates,
@@ -59,17 +48,24 @@ from pitloom.extract.project._setup_cfg_directives import (
     _DIRECTIVE_RE,
     _resolve_cfg_version,
 )
+from pitloom.extract.project._setuptools_options import (
+    ConflictReport,
+    SetupOptions,
+    build_setuptools_metadata,
+    record_setuptools_conflicts,
+)
 from pitloom.extract.project.setuptools_cfg import (
-    CFG_CLASSIFIER_LICENSE_SOURCE,
     _NoProjectNameError,
     _read_pitloom_config_from_cfg,
     _section_dict,
     read_setup_cfg,
+    read_setup_cfg_options,
 )
 from pitloom.extract.project.setuptools_py import (
     _ast_literal,
     _extract_setup_kwargs,
     read_setup_py,
+    read_setup_py_options,
 )
 
 log = logging.getLogger(__name__)
@@ -195,77 +191,60 @@ def detect_build_backend(
     return _KNOWN_BACKEND_ALIASES.get(top_level, top_level)
 
 
+def _read_cfg_options(
+    project_dir: Path, read_config: bool
+) -> tuple[SetupOptions, PitloomConfig]:
+    try:
+        return read_setup_cfg_options(project_dir, read_config=read_config)
+    except FileNotFoundError:
+        return {}, PitloomConfig()
+
+
+def _read_py_options(
+    project_dir: Path, cfg: SetupOptions, *, quiet: bool
+) -> SetupOptions:
+    """``setup.py``'s options; none, with a ``WARNING:`` when *cfg* names
+    the project, when it cannot be parsed."""
+    try:
+        return read_setup_py_options(project_dir, quiet=quiet)
+    except FileNotFoundError:
+        return {}
+    except ValueError as exc:
+        name = cfg.get("name")
+        if name is not None and name.value and not quiet:
+            log.warning("%s: %s -- reading setup.cfg alone", project_dir, exc)
+        return {}
+
+
 def read_setuptools(
     project_dir: Path, *, quiet: bool = False, read_config: bool = True
 ) -> tuple[ProjectMetadata, PitloomConfig]:
-    """Read project metadata from ``setup.cfg`` and/or ``setup.py``.
-
-    Merges metadata from both files with ``setup.cfg`` taking precedence
-    over ``setup.py``, following modern setuptools conventions.
+    """Read project metadata from ``setup.cfg`` and/or ``setup.py``, a
+    ``setup()`` keyword overriding the ``setup.cfg`` option as setuptools
+    does (:mod:`pitloom.extract.project._setuptools_options`); a real value
+    overridden is recorded as a conflict.
 
     ``quiet`` suppresses this read's own ``WARNING:`` lines (default
     ``False``) -- for a caller re-reading the same project a second time;
     see :func:`pitloom.extract.project.read_project`'s own ``quiet``.
     Without *read_config*, ``[tool:pitloom]`` is not parsed (see
-    :func:`read_setup_cfg`).
+    :func:`read_setup_cfg`); it is parsed only when ``setup.cfg`` names the
+    project.
+
+    Raises:
+        FileNotFoundError: neither file names the project.
     """
-    setup_cfg = project_dir / "setup.cfg"
-    setup_py = project_dir / "setup.py"
-
-    cfg_metadata: ProjectMetadata | None = None
-    cfg_config: PitloomConfig = PitloomConfig()
-    py_metadata: ProjectMetadata | None = None
-
-    if setup_cfg.exists():
-        try:
-            cfg_metadata, cfg_config = read_setup_cfg(
-                project_dir, read_config=read_config
-            )
-        except (FileNotFoundError, _NoProjectNameError):
-            pass
-
-    if setup_py.exists():
-        try:
-            py_metadata, _ = read_setup_py(project_dir, quiet=quiet)
-        except (FileNotFoundError, ValueError):
-            pass
-
-    if cfg_metadata is None and py_metadata is None:
+    cfg_options, config = _read_cfg_options(project_dir, read_config)
+    py_options = _read_py_options(project_dir, cfg_options, quiet=quiet)
+    metadata = build_setuptools_metadata(cfg_options, py_options)
+    if not metadata.name:
         raise FileNotFoundError(
             f"No usable project metadata found in {project_dir}. "
-            "Expected setup.cfg [metadata] name or setup.py setup(name=...)."
+            "Expected setup.cfg [metadata] name or a literal setup.py "
+            "setup(name=...)."
         )
-
-    if cfg_metadata is not None and py_metadata is not None:
-        metadata = _setup_py_over_cfg_classifier(
-            merge_project_metadata(cfg_metadata, py_metadata), py_metadata
-        )
-    elif cfg_metadata is not None:
-        metadata = cfg_metadata
-    else:
-        if py_metadata is None:  # pragma: no cover
-            # Type-narrowing only: the guard above already proved that
-            # when cfg_metadata is None, py_metadata cannot also be None.
-            raise RuntimeError("unreachable: py_metadata must be set here")
-        metadata = py_metadata
-        cfg_config = PitloomConfig()
-
+    record_setuptools_conflicts(
+        metadata, cfg_options, py_options, ConflictReport(str(project_dir), quiet)
+    )
     apply_in_package_license(metadata, collect_license_candidates(project_dir))
-    return metadata, cfg_config
-
-
-def _setup_py_over_cfg_classifier(
-    merged: ProjectMetadata, py_metadata: ProjectMetadata
-) -> ProjectMetadata:
-    """*merged* with ``setup.py``'s licence (its field, else its classifier)
-    in place of a licence from ``setup.cfg``'s classifiers, as setuptools
-    takes ``setup()`` keywords over ``setup.cfg`` in a built wheel. A
-    placeholder (``UNKNOWN``) gives way to the classifier
-    (:func:`~pitloom.extract._core_metadata.first_license`)."""
-    if (
-        merged.provenance.get("license") == CFG_CLASSIFIER_LICENSE_SOURCE
-        and first_license([py_metadata.license_name, merged.license_name]) == 0
-    ):
-        merged.license_name = py_metadata.license_name
-        merged.provenance["license"] = py_metadata.provenance["license"]
-    return merged
+    return metadata, config

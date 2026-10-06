@@ -5,10 +5,11 @@
 
 """A setuptools project's ``License ::`` classifiers read as setuptools
 reads them: ``setup.cfg``'s list rule (a line each, or comma-separated on
-one line), and ``setup.cfg``'s classifier licence only when ``setup.py``
-states none -- the licence a built wheel's metadata gives.
+one line), and ``setup.py``'s licence over ``setup.cfg``'s -- the licence a
+built wheel's metadata gives.
 
-See also: :mod:`tests.extract.project.test_setuptools_integration`.
+See also: :mod:`tests.extract.project.test_setuptools_integration`,
+:mod:`tests.extract.project.test_setuptools_merge_license`.
 """
 
 from __future__ import annotations
@@ -108,11 +109,16 @@ def test_setup_py_licence_beats_a_setup_cfg_classifier(
     assert metadata.provenance["license"] == f"Source: {source}"
 
 
-def test_a_setup_cfg_licence_field_still_beats_setup_py(tmp_path: Path) -> None:
-    """Only a classifier gives way: ``setup.cfg``'s own field is kept."""
+def test_a_setup_py_licence_field_beats_setup_cfg(tmp_path: Path) -> None:
+    """``setup.cfg``'s own field gives way too, kept as a conflict."""
     _setup_cfg(tmp_path, f"\n    {_BSD}", extra="license = Apache-2.0\n")
     (tmp_path / "setup.py").write_text(
         "from setuptools import setup\nsetup(name='demo', license='MIT')\n",
         encoding="utf-8",
     )
-    assert read_project(tmp_path)[0].license_name == "Apache-2.0"
+    metadata = read_project(tmp_path, quiet=True)[0]
+    assert metadata.license_name == "MIT"
+    assert [c["value"] for c in metadata.field_conflicts["license"]] == [
+        "MIT",
+        "Apache-2.0",
+    ]
