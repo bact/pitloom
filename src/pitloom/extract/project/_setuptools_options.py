@@ -37,12 +37,25 @@ from pitloom.extract._core_metadata import (
     license_from_classifiers,
 )
 from pitloom.extract.project._field_agreement import add_conflict, values_agree
-from pitloom.logging_config import loggable
+from pitloom.logging_config import loggable, one_line
 
 log = logging.getLogger(__name__)
 
 SETUP_PY = "setup.py"
 SETUP_CFG = "setup.cfg"
+
+#: The longest value a ``WARNING:`` quotes.
+_SHOWN_CHARS = 200
+
+
+def shown_value(raw: Any) -> str:
+    """*raw*'s repr for a ``WARNING:``, on one line, cut to
+    :data:`_SHOWN_CHARS`."""
+    try:
+        text = repr(raw)
+    except ValueError:  # an int over sys.get_int_max_str_digits()
+        text = f"<{type(raw).__name__}>"
+    return one_line(text, limit=_SHOWN_CHARS)
 
 
 @dataclass(frozen=True)
@@ -266,11 +279,11 @@ def _record(
     if not report.quiet:
         log.warning(
             "%s: setup.py and setup.cfg disagree on %s"
-            " (setup.py %r, setup.cfg %r) -- keeping %s's",
+            " (setup.py %s, setup.cfg %s) -- keeping %s's",
             loggable(report.subject),
             key,
-            py_side[0],
-            cfg_side[0],
+            shown_value(py_side[0]),
+            shown_value(cfg_side[0]),
             SETUP_PY if py_wins else SETUP_CFG,
         )
 

@@ -11,9 +11,17 @@ See also: test_license_detection.py (detection, mocked),
 test_license_detection_corpus.py (real licence files).
 """
 
-import pytest
+from typing import cast
 
-from pitloom.extract._license import _decisive, _stated_among, _stated_ids
+import pytest
+from licenseid.types import LicenseMatch
+
+from pitloom.extract._license import (
+    _best_reading_decides,
+    _decisive,
+    _stated_among,
+    _stated_ids,
+)
 
 
 @pytest.mark.parametrize(
@@ -29,7 +37,7 @@ from pitloom.extract._license import _decisive, _stated_among, _stated_ids
         ([("Pixar", 0.996)], "LicenseRef-Pixar", None),  # one id, not a part
         # a deprecated "+" id is its successor
         (
-            [("GPL-2.0-only", 1.069), ("GPL-2.0-or-later", 1.06)],
+            [("GPL-2.0-only", 1.0), ("GPL-2.0-or-later", 1.0)],
             "MIT OR GPL-2.0+",
             "GPL-2.0-or-later",
         ),
@@ -49,7 +57,7 @@ def test_a_stated_licence_wins_only_a_near_tie(
     ("scores", "expected"),
     [
         ([("JSON", 0.935), ("MIT", 0.929)], None),  # another licence: a tie
-        ([("GPL-3.0-only", 1.076), ("GPL-3.0-or-later", 1.067)], "GPL-3.0-only"),
+        ([("GPL-3.0-only", 1.0), ("GPL-3.0-or-later", 1.0)], "GPL-3.0-only"),
         ([("MIT", 0.855), ("JSON", 0.848)], None),  # runner-up below threshold
         ([("MIT", 0.95), ("JSON", 0.939)], "MIT"),  # a clear lead
         ([("MIT", 0.84)], None),  # below threshold
@@ -95,8 +103,77 @@ _FitRow = tuple[str, float, "float | None", "float | None"]
 def test_a_runner_up_that_fits_measurably_worse_is_no_tie(
     rows: list[_FitRow], expected: str | None
 ) -> None:
-    results = [
-        {"license_id": i, "score": s, "similarity": sim, "coverage": cov}
-        for i, s, sim, cov in rows
-    ]
-    assert _decisive(results, 0.85) == expected  # type: ignore[arg-type]
+    assert _decisive(_fit_rows(rows), 0.85) == expected
+
+
+def _fit_rows(rows: list[_FitRow]) -> list[LicenseMatch]:
+    """*rows* as ``licenseid`` 0.4 matches (the fields read here only)."""
+    return cast(
+        "list[LicenseMatch]",
+        [
+            {"license_id": i, "score": s, "similarity": sim, "coverage": cov}
+            for i, s, sim, cov in rows
+        ],
+    )
+
+
+_MIT_CAPPED: _FitRow = ("MIT", 1.0, 0.977, 0.959)
+
+
+@pytest.mark.parametrize(
+    ("rows", "stated", "expected"),
+    [
+        # against a capped top, a stated near-variant must fit as well
+        ([_MIT_CAPPED, ("FSL-1.1-MIT", 1.0, 1.0, 0.25)], "FSL-1.1-MIT", None),
+        ([_MIT_CAPPED, ("JSON", 0.990, 0.959, 0.911)], "JSON", None),
+        ([_MIT_CAPPED, ("JSON", 0.995, 0.971, 0.955)], "JSON", "JSON"),  # as close
+        (
+            [("GPL-2.0-only", 1.0, 0.999, 1.0), ("GPL-2.0-or-later", 1.0, 0.999, 1.0)],
+            "GPL-2.0+",
+            "GPL-2.0-or-later",
+        ),
+        # below the cap the score still orders: requests' Apache 2.0 text
+        (
+            [("Pixar", 0.9963, 0.9913, 1.0043), ("Apache-2.0", 0.9921, 0.9421, 0.8859)],
+            "Apache-2.0",
+            "Apache-2.0",
+        ),
+    ],
+    ids=["partial-licence", "less-similar", "close", "or-later", "below-cap"],
+)
+def test_a_stated_licence_must_fit_as_well_as_a_capped_top(
+    rows: list[_FitRow], stated: str, expected: str | None
+) -> None:
+    found = _stated_among(_fit_rows(rows), _stated_ids(stated))
+    assert found == expected
+
+
+_TIED: list[_FitRow] = [_MIT_CAPPED, ("JSON", 0.995, 0.971, 0.955)]
+_DECIDED: list[_FitRow] = [_MIT_CAPPED, ("JSON", 0.990, 0.959, 0.911)]
+
+
+@pytest.mark.parametrize(
+    ("readings", "expected"),
+    [
+        ([_TIED, _DECIDED], "MIT"),  # equal top scores: the one that decides
+        ([_DECIDED, _TIED], "MIT"),
+        ([_TIED, _TIED], None),
+        # a lower-scoring reading never decides over a better one
+        (
+            [
+                [("X", 0.98, 0.98, 1.0), ("Y", 0.975, 0.975, 1.0)],
+                [("MIT", 0.95, 0.95, 1.0)],
+            ],
+            None,
+        ),
+    ],
+    ids=["tie-first", "tie-second", "both-tied", "lower-score"],
+)
+def test_reading_order_alone_never_turns_an_answer_into_none(
+    readings: list[list[_FitRow]], expected: str | None
+) -> None:
+    found = _best_reading_decides(
+        [_fit_rows(rows) for rows in readings],
+        0.85,
+    )
+    assert found == expected

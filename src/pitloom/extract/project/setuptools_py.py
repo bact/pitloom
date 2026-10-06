@@ -26,6 +26,7 @@ from pitloom.extract.project._setuptools_options import (
     SetupOptions,
     build_setuptools_metadata,
     requirement_lines,
+    shown_value,
 )
 from pitloom.logging_config import one_line
 
@@ -222,18 +223,6 @@ _OPTIONS: dict[str, tuple[str, Callable[[Any], Any]]] = {
 #: ``install_requires=["# x"]`` is ``[]``, not given.
 _NORMALISED = frozenset({"version", "install_requires"})
 
-#: The longest value a ``WARNING:`` quotes.
-_SHOWN_CHARS = 200
-
-
-def _shown(raw: Any) -> str:
-    """*raw*'s repr for a ``WARNING:``, cut to :data:`_SHOWN_CHARS`."""
-    try:
-        text = repr(raw)
-    except ValueError:  # an int over sys.get_int_max_str_digits()
-        text = f"<{type(raw).__name__}>"
-    return one_line(text, limit=_SHOWN_CHARS)
-
 
 def _option(key: str, raw: Any, quiet: bool) -> SetupOption | None:
     """*raw* as an option, or ``None``: quietly for ``None`` (setuptools'
@@ -246,7 +235,7 @@ def _option(key: str, raw: Any, quiet: bool) -> SetupOption | None:
     value = parse(raw)
     if value is _UNREADABLE:
         _warn_undeclared(
-            key, f"has a value Pitloom does not read ({_shown(raw)})", quiet
+            key, f"has a value Pitloom does not read ({shown_value(raw)})", quiet
         )
         return None
     if isinstance(raw, str) and raw and not raw.strip():

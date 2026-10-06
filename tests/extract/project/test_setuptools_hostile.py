@@ -40,6 +40,29 @@ def test_a_long_unread_value_is_cut_in_the_warning(
 
 
 @pytest.mark.parametrize(
+    ("cfg", "py"),
+    [
+        # Python's integer digit limit: packaging raises a plain ValueError
+        (
+            "[metadata]\nname = c\n[options]\npython_requires = >=3\n",
+            "python_requires='>=" + "9" * 5000 + "'",
+        ),
+        ("[metadata]\nname = c\nlicense = MIT\n", "license='" + "A" * 100_000 + "'"),
+    ],
+    ids=["long-specifier", "long-licence"],
+)
+def test_a_conflict_on_a_huge_value_warns_on_one_short_line(
+    cfg: str, py: str, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    write_project(tmp_path, cfg, py)
+    caplog.set_level(logging.WARNING)
+    read_setuptools(tmp_path)
+    (message,) = _messages(caplog)
+    assert "disagree" in message
+    assert len(message) < 600
+
+
+@pytest.mark.parametrize(
     ("py", "named"),
     [
         ("name='p', packages=find_packages(), version=V, cmdclass=C", "'version'"),

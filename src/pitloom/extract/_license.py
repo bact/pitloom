@@ -24,12 +24,13 @@ from __future__ import annotations
 import functools
 import logging
 import re
+import sqlite3
 from collections.abc import Sequence
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
-from licenseid import AggregatedLicenseMatcher
+from licenseid import AggregatedLicenseMatcher, DatabaseNotReadyError
 from licenseid.types import LicenseMatch
 
 from pitloom.core.project import ProjectMetadata
@@ -104,6 +105,24 @@ def _get_matcher() -> AggregatedLicenseMatcher:
     return AggregatedLicenseMatcher()
 
 
+#: What ``match()`` raises when the database fails, not the input: a file
+#: deleted, truncated or corrupted after the matcher was built.
+_DATABASE_ERRORS = (sqlite3.Error, DatabaseNotReadyError)
+
+
+def _database_unusable(exc: BaseException) -> None:
+    """Warn once per process that the database cannot be used, and drop the
+    cached matcher, so the next lookup builds (and checks) it again."""
+    _get_matcher.cache_clear()
+    warn_once(
+        _logger,
+        "licenseid database",
+        "licenseid database cannot be used: %s -- license text detection "
+        "and license ID canonicalization skipped",
+        one_line(exc),
+    )
+
+
 def _matcher() -> AggregatedLicenseMatcher | None:
     """The shared matcher, or None when the database cannot be used
     (missing, empty, unreadable). Warned once per process; retried on every
@@ -112,13 +131,7 @@ def _matcher() -> AggregatedLicenseMatcher | None:
         return _get_matcher()
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        warn_once(
-            _logger,
-            "licenseid database",
-            "licenseid database cannot be used: %s -- license text detection "
-            "and license ID canonicalization skipped",
-            one_line(exc),
-        )
+        _database_unusable(exc)
         return None
 
 
@@ -148,6 +161,10 @@ short license."""
 #: tie; with none stated, a tie is no detection.
 _STATED_TIE_MARGIN = 0.01
 
+#: The highest score ``licenseid`` (0.4) gives: a capped score no longer
+#: tells how far above the licence a near-variant scores.
+_SCORE_CAP = 1.0
+
 #: The ids an expression names; operators are not ids.
 _EXPRESSION_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9.+:-]*")
 _EXPRESSION_OPERATORS = frozenset({"and", "or", "with"})
@@ -173,15 +190,23 @@ def _stated_among(
     results: Sequence[LicenseMatch], stated: frozenset[str]
 ) -> str | None:
     """The best-scoring id of *results* that *stated* names, when it scores
-    within :data:`_STATED_TIE_MARGIN` of the top match."""
+    within :data:`_STATED_TIE_MARGIN` of the top match. Against a top match
+    at :data:`_SCORE_CAP` the score no longer tells how close they are, so
+    the stated match must also fit the input as well (:func:`_fits_worse`):
+    ``JSON`` stated over a verbatim MIT text (1.0) is no near-tie, while
+    requests' Apache 2.0 text still concludes a stated ``Apache-2.0`` over
+    ``Pixar`` (0.9921 against 0.9963, a better fit)."""
     if not stated or not results:
         return None
     ranked = sorted(results, key=lambda r: -float(r["score"]))
-    floor = float(ranked[0]["score"]) - _STATED_TIE_MARGIN
+    top_score = float(ranked[0]["score"])
+    floor = top_score - _STATED_TIE_MARGIN
     for result in ranked:
         if float(result["score"]) < floor:
             return None
-        if str(result["license_id"]).casefold() in stated:
+        if str(result["license_id"]).casefold() not in stated:
+            continue
+        if top_score < _SCORE_CAP or not _fits_worse(result, ranked[0]):
             return str(result["license_id"])
     return None
 
@@ -272,6 +297,22 @@ def _top_score(results: Sequence[LicenseMatch]) -> float:
     return max((float(r["score"]) for r in results), default=-1.0)
 
 
+def _best_reading_decides(
+    readings: Sequence[Sequence[LicenseMatch]], threshold: float
+) -> str | None:
+    """The answer of the better-scoring reading; of readings whose top
+    scores are equal (both capped at 1), the first that decides
+    (:func:`_decisive`), so reading order alone never turns an answer into
+    none."""
+    best = max(_top_score(results) for results in readings)
+    answers = (
+        _decisive(results, threshold)
+        for results in readings
+        if _top_score(results) == best
+    )
+    return next((answer for answer in answers if answer), None)
+
+
 def detect_license_from_text(
     text: str, threshold: float = 0.85, *, stated: str | None = None
 ) -> str | None:
@@ -282,8 +323,9 @@ def detect_license_from_text(
     real license body, or no match exceeds the threshold. *text* is read as
     written and without its copyright notice lines (:func:`_readings`). A
     licence *stated* (the manifest's own id or expression) that either
-    reading matches at *threshold* nearly as well as its top match wins
-    (:data:`_STATED_TIE_MARGIN`); else the better-scoring reading decides,
+    reading matches at *threshold* nearly as well as its top match, and fits
+    the input as well, wins (:data:`_STATED_TIE_MARGIN`); else the
+    better-scoring reading decides (:func:`_best_reading_decides`),
     ``None`` when its top match is a near-tie with another licence family.
     """
     matcher = _matcher()
@@ -299,8 +341,10 @@ def detect_license_from_text(
             chosen = _stated_among(above, wanted)
             if chosen:
                 return chosen
-        best = max(readings, key=_top_score)
-        return _decisive(best, threshold)
+        return _best_reading_decides(readings, threshold)
+    except _DATABASE_ERRORS as exc:
+        _database_unusable(exc)
+        return None
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         _logger.debug("licenseid detection failed: %s", exc)
@@ -316,6 +360,8 @@ def canonicalize_license_id(raw: str) -> str:
         results = matcher.match(license_id=raw)
         if results:
             return str(results[0]["license_id"])
+    except _DATABASE_ERRORS as exc:
+        _database_unusable(exc)
     # An input licenseid rejects (not one licence ID) is no failure: debug.
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:

@@ -162,7 +162,7 @@ def test_embed_unusable_license_db_warns_once(
     """A licenseid database that cannot be used warns once, though the
     project is read more than once, and the concluded licence is then
     absent -- the release gate's failure mode."""
-    monkeypatch.setattr(_license, "_get_matcher", _unusable_database)
+    monkeypatch.setattr(_license, "AggregatedLicenseMatcher", _unusable_database)
     project = _project(tmp_path / "proj", None, license_text="Apache License\n" * 20)
     wheel = _make_dummy_wheel(tmp_path / "dist", _NAME, license_expression="Apache-2.0")
 
