@@ -300,10 +300,11 @@ def _top_score(results: Sequence[LicenseMatch]) -> float:
 def _best_readings(
     readings: Sequence[Sequence[LicenseMatch]],
 ) -> list[Sequence[LicenseMatch]]:
-    """The readings whose top score is the best: one, or both when both
-    reach the cap. A weaker reading decides nothing, nor lets a stated
-    licence win (iniconfig's notice puts ``FSL-1.1-MIT`` on top of the
-    reading as written; without it, MIT scores 1)."""
+    """The readings whose top score is the best: one, or both when their
+    top scores are equal (as when both reach the cap). A weaker reading
+    decides nothing, nor lets a stated licence win (iniconfig's notice
+    puts ``FSL-1.1-MIT`` on top of the reading as written; without it, MIT
+    scores 1)."""
     best = max(_top_score(results) for results in readings)
     return [results for results in readings if _top_score(results) == best]
 

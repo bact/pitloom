@@ -205,8 +205,10 @@ top of `licenseid` (0.4.1 or later; also checked on 0.3.7) at threshold 0.85:
 
 - Read twice: as written, and with copyright notice lines removed (SPDX
   matching guidelines omit the notice); only the reading whose top score
-  is higher counts, both when both reach the 1.0 cap (#287). A notice hides MIT from `licenseid` (PyYAML gives `Xnet`)
-  but anchors licence placement in mixed content (ast_serialize).
+  is higher counts, both when their top scores are equal, as when both
+  reach the 1.0 cap (#287). A notice hides MIT from `licenseid` (PyYAML
+  gives `Xnet`) but anchors licence placement in mixed content
+  (ast_serialize).
 - A stated licence (the manifest's value; any id an expression names)
   wins when it scores within 0.01 of the top in that reading:
   `licenseid` ranks near-variants above the verbatim text (`Pixar` over
@@ -221,7 +223,7 @@ top of `licenseid` (0.4.1 or later; also checked on 0.3.7) at threshold 0.85:
   (iniconfig, pytest: `FSL-1.1-MIT`; attrs: `MIT-advertising`), won over
   the verbatim MIT text of the other.
 - With nothing stated, the better-scoring reading decides (of readings
-  tied at the top, both capped at 1, the first that decides, so the as
+  tied at the top, the first that decides, so the as
   written one when both decide: #287): its top match, unless another
   licence family scores within 0.01 (a runner-up below the 0.85
   threshold counts), then none. A worse reading never overrides a
