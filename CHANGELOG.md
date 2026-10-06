@@ -32,7 +32,7 @@ and this project adheres to
 - `setup.py` without a literal `name=` keeps its other keywords; a `setup.cfg`
   placeholder licence no longer wins; overridden real values become conflicts
   ([#287])
-- Licence detection requires `licenseid` 0.4.1 (Windows fix): a runner-up or
+- Licence detection requires `licenseid` 0.4.2 (Windows fixes): a runner-up or
   stated licence that fits the text measurably worse no longer ties; an
   unusable database warns ([#287])
 - `-o -` leaves stdout as the SBOM alone: no `PITLOOM_SBOM_OUTPUT_PATH=-`

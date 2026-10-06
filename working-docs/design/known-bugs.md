@@ -186,11 +186,11 @@ Crashes, broken contracts and small mappings.
   coverage floor for the top match and whether notice stripping keeps a
   trailing "All rights reserved" (`license-rules.md` §4).
 - [x] **A licenseid database that breaks after the matcher is cached
-  fails silently (S).** Fixed by #287: a `sqlite3.Error` or
-  `DatabaseNotReadyError` from `match()` warns once (as an unusable
-  database does) and drops the cached matcher; `InvalidInputError` (a
-  normal input) stays at debug. licenseid 0.4.1 itself re-creates a
-  deleted database as an empty file on the next lookup.
+  fails silently (S).** Fixed by #287: a database error from `match()`
+  warns once (as an unusable database does) and drops the cached matcher;
+  `InvalidInputError` (a normal input) stays at debug. Since licenseid
+  0.4.2 that error is always `DatabaseNotReadyError`, and a lookup no
+  longer re-creates a deleted database as an empty file.
 - [ ] **Two `SPDX-License-Identifier` tags, one stated, conclude only the
   stated one (S).** Found in the #287 review, same on `main`: a file
   tagged `MIT` and `Apache-2.0` with `stated="MIT"` concludes `MIT` and

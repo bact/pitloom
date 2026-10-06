@@ -17,7 +17,6 @@ from __future__ import annotations
 import functools
 import logging
 import shutil
-import sqlite3
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -37,13 +36,11 @@ def _warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
 @pytest.mark.parametrize(
     ("error", "warned"),
     [
-        (sqlite3.OperationalError("no such table: db_metadata"), True),
-        (sqlite3.DatabaseError("file is not a database"), True),
-        (DatabaseNotReadyError("database: empty: x.db"), True),
+        (DatabaseNotReadyError("database: unreadable: x.db: no such table"), True),
         # an input licenseid rejects is no database failure
         (InvalidInputError("option: invalid: license_id: MIT OR X"), False),
     ],
-    ids=["no-table", "not-a-database", "not-ready", "invalid-input"],
+    ids=["not-ready", "invalid-input"],
 )
 def test_a_database_failure_in_a_lookup_warns_once_and_rebuilds(
     error: Exception, warned: bool, caplog: pytest.LogCaptureFixture
@@ -75,8 +72,8 @@ def test_a_real_database_broken_mid_run_warns(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """``licenseid`` checks its database when the matcher is built, not on
-    each lookup: a file damaged afterwards raises a plain ``sqlite3`` error."""
+    """``licenseid`` checks its database when the matcher is built; a file
+    damaged afterwards fails the lookup with ``DatabaseNotReadyError``."""
     db = tmp_path / "licenses.db"
     shutil.copyfile(licenseid_db_path, db)
     real = functools.partial(AggregatedLicenseMatcher, db_path=str(db))
