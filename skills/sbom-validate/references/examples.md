@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-10
-Last-Modified: 2026-09-29
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -67,9 +67,11 @@ spdx3-validate --json sbom.spdx3.json --spdx-version 3.0.1
 loom project . -o sbom.spdx3.json && spdx3-validate --json sbom.spdx3.json
 ```
 
-Write to a file: don't pipe `loom project . -o -` into the validator.
-`loom` still prints a `PITLOOM_SBOM_OUTPUT_PATH=-` line after the JSON on
-stdout, so `spdx3-validate` fails with `JSONDecodeError: Extra data`.
+Or pipe it: with `-o -` stdout is the SBOM alone.
+
+```bash
+loom project . -o - | spdx3-validate --json -
+```
 
 ## Interpreting the result
 

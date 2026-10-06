@@ -35,6 +35,9 @@ and this project adheres to
 - Licence detection requires `licenseid` 0.4.1 (Windows fix): a runner-up or
   stated licence that fits the text measurably worse no longer ties; an
   unusable database warns ([#287])
+- `-o -` leaves stdout as the SBOM alone: no `PITLOOM_SBOM_OUTPUT_PATH=-`
+  line, embed `WHEEL=` record on stderr; `embed-wheel -o -` no longer writes
+  a file named `-` ([#288])
 
 ## [0.20.0] - 2026-10-05
 
@@ -353,6 +356,7 @@ and this project adheres to
 [#284]: https://github.com/bact/pitloom/pull/284
 [#286]: https://github.com/bact/pitloom/pull/286
 [#287]: https://github.com/bact/pitloom/pull/287
+[#288]: https://github.com/bact/pitloom/pull/288
 
 ## [0.19.0] - 2026-09-18
 

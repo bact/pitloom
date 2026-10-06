@@ -65,6 +65,8 @@ def documented_rows() -> dict[str, list[str]]:
     for line in section.splitlines()[1:]:
         if line.startswith("#"):
             break
+        if not line.startswith("|"):  # prose may hold a shell pipe
+            continue
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
         if len(cells) != 2 or cells[0] in ("Target", "") or set(cells[0]) <= {"-"}:
             continue

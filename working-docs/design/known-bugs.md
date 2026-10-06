@@ -98,9 +98,9 @@ Crashes, broken contracts and small mappings.
   #287 adds a caller: the setuptools `version` conflict check
   (`_field_agreement.values_agree`) crashes the directory read on
   `setup(version='9' * 5000)` beside a `setup.cfg` version.
-- [ ] **`-o -` ends stdout with `PITLOOM_SBOM_OUTPUT_PATH=-` (S).** The
-  path line belongs on stderr, or nowhere, when the SBOM itself goes to
-  stdout.
+- [x] **`-o -` ends stdout with `PITLOOM_SBOM_OUTPUT_PATH=-` (S).** Fixed:
+  no path line for `-`, the embed `WHEEL=` record goes to `INFO:`, and
+  `embed-wheel -o -` no longer writes a file named `-`.
 - [ ] **GGUF `general.license` is not mapped (S).** Classify it with
   the licence classifier #276 added.
 - [ ] **`setup.cfg` `%` fails the whole run (S).** `description = 50% faster`
@@ -235,6 +235,17 @@ Crashes, broken contracts and small mappings.
 
 ## P3: after 0.20.0
 
+- [ ] **`-v` logs `OUTPUT_PATH=-` for both "no copy" and "copy to stdout"
+  (S).** `wheel --embed -v` (no `-o`) and `wheel --embed -v -o -` print the
+  same line (`cli/commands/wheel.py`, `docs/cli.md` "Verbose output"). Omit
+  the key when nothing is written (#288 review).
+- [ ] **Action `output: "-"` sets `sbom-path=-` (S).** The upload step then
+  fails on a path named `-`. Refuse `-` in `action.yml`, or write the SBOM
+  to a file (#288 review).
+- [ ] **Library docs never say `output_path="-"` means stdout (S).**
+  `write_sbom_output` gives every generator and `embed_wheel_sbom()` that
+  meaning; neither the docstrings nor `docs/python-api.md` state it, and no
+  library-level test pins it (#288 review).
 - [ ] **`--help` choice order changes per run (S).** `choices=` takes a
   frozenset (`VALID_CONTENT_TYPE_METHODS`, `VALID_CREATOR_TYPES`), so
   `{auto,extension,magika}` prints in hash order. Pass a sorted tuple.

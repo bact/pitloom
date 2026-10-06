@@ -33,15 +33,13 @@ from tests.assemble.conftest import (
     _spdx3_json_with_subject,
 )
 from tests.assemble.embed_surfaces_shared import demo_project
-from tests.cli.shared import SAFETENSORS_FIXTURE
+from tests.cli.shared import (
+    FRAGMENT_FIXTURE,
+    SAFETENSORS_FIXTURE,
+    fragments_dir,
+)
 from tests.kv_helpers import info_kv, info_lines, kv_stdout
 
-_FRAGMENT = (
-    Path(__file__).resolve().parents[1]
-    / "fixtures"
-    / "fragments"
-    / "dataset-fragment.spdx3.json"
-)
 _SBOM_PATH = ("PITLOOM_SBOM_OUTPUT_PATH",)
 _FRAGMENT_LIST_KEYS = (
     "PATH",
@@ -69,18 +67,11 @@ def _wheel_with_sbom(tmp_path: Path, basename: str, content: str) -> str:
     return str(wheel)
 
 
-def _fragments_dir(tmp_path: Path) -> str:
-    fragments = tmp_path / "fragments"
-    fragments.mkdir()
-    shutil.copy(_FRAGMENT, fragments / "a.json")
-    return str(fragments)
-
-
 def _project_with_fragment(tmp_path: Path) -> str:
     project = demo_project(
         tmp_path, '\n[tool.pitloom.fragment]\nfiles = ["f.spdx3.json"]\n'
     )
-    shutil.copy(_FRAGMENT, project / "f.spdx3.json")
+    shutil.copy(FRAGMENT_FIXTURE, project / "f.spdx3.json")
     return str(project)
 
 
@@ -91,7 +82,7 @@ def _fragment_validate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> list[
     monkeypatch.setattr(f"{fragment}._import_spdx3_validate", object)
     monkeypatch.setattr(f"{fragment}._validate_spdx3_documents", lambda *a, **k: 0)
     del tmp_path
-    return ["fragment", "validate", str(_FRAGMENT)]
+    return ["fragment", "validate", str(FRAGMENT_FIXTURE)]
 
 
 def _env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> list[str]:
@@ -166,7 +157,7 @@ _CASES: dict[str, tuple[_Argv, tuple[str, ...], bool]] = {
     ),
     "env": (_env, _SBOM_PATH, True),
     "merge": (
-        lambda t, _: ["merge", _fragments_dir(t), "-o", str(t / "o.json")],
+        lambda t, _: ["merge", fragments_dir(t), "-o", str(t / "o.json")],
         _SBOM_PATH,
         False,
     ),
@@ -185,7 +176,7 @@ _CASES: dict[str, tuple[_Argv, tuple[str, ...], bool]] = {
         False,
     ),
     "id import": (
-        lambda t, _: ["id", "import", str(_FRAGMENT), "-o", str(t / "reg.json")],
+        lambda t, _: ["id", "import", str(FRAGMENT_FIXTURE), "-o", str(t / "reg.json")],
         ("PITLOOM_ID_REGISTRY_PATH",),
         False,
     ),
@@ -274,14 +265,14 @@ def test_fragment_validate_prints_one_line_per_file(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     second = tmp_path / "b.spdx3.json"
-    shutil.copy(_FRAGMENT, second)
+    shutil.copy(FRAGMENT_FIXTURE, second)
     argv = _fragment_validate(tmp_path, monkeypatch)
     monkeypatch.setattr(sys, "argv", ["loom", *argv, str(second)])
 
     assert __main__.main() == 0
 
     out = capsys.readouterr().out
-    assert [r["FILE"] for r in kv_stdout(out)] == [str(_FRAGMENT), str(second)]
+    assert [r["FILE"] for r in kv_stdout(out)] == [str(FRAGMENT_FIXTURE), str(second)]
 
 
 def _writes_stdout(node: ast.AST) -> bool:

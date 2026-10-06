@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
@@ -14,6 +15,15 @@ SAFETENSORS_FIXTURE = (
     FIXTURE_DIR / "aimodels" / "safetensors" / "whisper-tiny-random.safetensors"
 )
 ONNX_FIXTURE = FIXTURE_DIR / "aimodels" / "onnx" / "squeezenet1.1-7.onnx"
+FRAGMENT_FIXTURE = FIXTURE_DIR / "fragments" / "dataset-fragment.spdx3.json"
+
+
+def fragments_dir(tmp_path: Path) -> str:
+    """A ``fragments`` directory under *tmp_path* holding one fragment."""
+    fragments = tmp_path / "fragments"
+    fragments.mkdir()
+    shutil.copy(FRAGMENT_FIXTURE, fragments / "a.json")
+    return str(fragments)
 
 
 def _make_simple_project(tmp_path: Path) -> Path:

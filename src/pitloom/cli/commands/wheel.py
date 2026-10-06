@@ -120,7 +120,7 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
             allow_signed_wheel=args.allow_signed_wheel,
         )
         write_sbom_output(sbom_json, output_path)
-        report_embed_result(arcname, wheel_path.name, removed, floored)
+        report_embed_result(arcname, wheel_path.name, removed, floored, output_path)
 
     if output_path is not None:
         _print_sbom_output_path(output_path)

@@ -13,7 +13,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from pitloom._sbom_io import STDOUT
 from pitloom.assemble import generate_merged_sbom
 from pitloom.assemble.spdx3.fragments import fragment_files
 from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
@@ -45,8 +44,7 @@ def _run_merge_command(args: argparse.Namespace) -> int:
     generate_merged_sbom(
         fragments_dir, output_path=output_path, pretty=bool(args.pretty)
     )
-    if str(output_path) != STDOUT:
-        _print_sbom_output_path(output_path)
+    _print_sbom_output_path(output_path)
     log.info("merge: merged %d fragment(s)", len(files))
     return 0
 

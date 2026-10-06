@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -20,12 +20,9 @@ file-size guidance -- moved verbatim, no content changed.
   silent-data-loss `DEBUG:` messages to `WARNING:`** -- both shipped
   together. See [debug-logging.md](../implementation/debug-logging.md)
   ([PR #201](https://github.com/bact/pitloom/pull/201)).
-- [ ] **`loom <cmd> -o -` corrupts piped JSON** -- with stdout as the
-  SBOM output, `_print_sbom_output_path()`
-  (`cli/commands/utils.py`) still prints
-  `PITLOOM_SBOM_OUTPUT_PATH=-` to stdout after the JSON, on the same
-  stream a consumer expects to be pure SBOM. Found during a
-  `--build-timeout` review, 2026-09-19.
+- [x] **`loom <cmd> -o -` corrupts piped JSON** -- fixed:
+  `_print_sbom_output_path()` (`cli/commands/utils.py`) prints nothing for
+  `-`. See [known-bugs.md](known-bugs.md#p0-in-0201).
 - [x] **Hatchling-heuristic fallback WARNING embeds an untagged
   multi-line exception** -- every backend's discovery-failure `WARNING:`
   now goes through `warn_discovery_failed()`, which collapses the

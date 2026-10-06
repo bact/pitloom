@@ -15,6 +15,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Any
 
+from pitloom._sbom_io import is_stdout
 from pitloom.assemble import (
     EmbeddedSbomLocation,
     detect_sbom_format,
@@ -66,11 +67,16 @@ def existing_model_path(given: Path) -> Path | None:
 def _print_sbom_output_path(output_path: Path | str) -> None:
     """Report the resolved SBOM output path in KEY=VALUE form (see CLAUDE.md).
 
+    Nothing is printed for ``-``: stdout is then the SBOM itself, and a line
+    after it would break ``loom ... -o - | jq .``.
+
     Lets callers (e.g. the GitHub Action) discover the filename a command's
     own default-naming logic picked, without re-deriving it themselves.
     Namespaced "PITLOOM_" so it reads unambiguously as this stdout line,
     distinct from the GitHub Action's own "sbom-path" output.
     """
+    if is_stdout(output_path):
+        return
     print_kv(PITLOOM_SBOM_OUTPUT_PATH=output_path)
 
 
