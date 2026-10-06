@@ -25,8 +25,7 @@ from pitloom import __main__
 from pitloom.cli.parser import _build_parser
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.assemble.embed_surfaces_shared import demo_project
-from tests.cli.shared import SAFETENSORS_FIXTURE
-from tests.cli.test_cli_kv_stdout import _fragments_dir
+from tests.cli.shared import SAFETENSORS_FIXTURE, fragments_dir
 from tests.kv_helpers import info_kv
 
 
@@ -89,7 +88,7 @@ def test_stdout_is_only_the_sbom(
     if "{wheel}" in argv:
         targets["wheel"] = _wheel(tmp_path)
     if "{fragments}" in argv:
-        targets["fragments"] = _fragments_dir(tmp_path)
+        targets["fragments"] = fragments_dir(tmp_path)
     argv = [arg.format(**targets) for arg in argv]
     monkeypatch.setattr(sys, "argv", ["loom", *argv, "-o", "-"])
 
