@@ -109,7 +109,7 @@ Crashes, broken contracts and small mappings.
   and fails on `50% faster` too; `%%` works.
 
 - [x] **`setup.py` with no literal `name=` is dropped whole (S).** Fixed by
-  [#N] (`setup.py` and `setup.cfg` merged as setuptools does,
+  #287 (`setup.py` and `setup.cfg` merged as setuptools does,
   [setuptools-support.md](../implementation/setuptools-support.md#precedence)).
   `read_setup_py` raises `ValueError` and `read_setuptools`
   (`extract/project/setuptools.py`) skips every `setup()` keyword, so a
@@ -118,7 +118,7 @@ Crashes, broken contracts and small mappings.
   checking the paper notes (2026-10-05).
 
 - [x] **A weak `setup.cfg` licence beats a real `setup.py` one (S).** Fixed by
-  [#N].
+  #287.
   `license = UNKNOWN` in `setup.cfg` plus `setup(license="MIT")` gives
   `NoAssertionLicense`; the built wheel says `License: MIT`.
   `merge_project_metadata` keeps any non-blank first value, where

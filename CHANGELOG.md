@@ -25,13 +25,13 @@ and this project adheres to
 ### Changed
 
 - setuptools projects: a non-empty `setup()` keyword overrides the same
-  `setup.cfg` option, as setuptools does; SBOM output changes ([#N])
+  `setup.cfg` option, as setuptools does; SBOM output changes ([#287])
 
 ### Fixed
 
 - `setup.py` without a literal `name=` keeps its other keywords; a placeholder
   `setup.cfg` licence no longer beats a real `setup.py` one; an overridden
-  licence, version or `python_requires` is recorded as a conflict ([#N])
+  licence, version or `python_requires` is recorded as a conflict ([#287])
 
 ## [0.20.0] - 2026-10-05
 
@@ -349,7 +349,7 @@ and this project adheres to
 [#283]: https://github.com/bact/pitloom/pull/283
 [#284]: https://github.com/bact/pitloom/pull/284
 [#286]: https://github.com/bact/pitloom/pull/286
-[#N]: https://github.com/bact/pitloom/pull/N
+[#287]: https://github.com/bact/pitloom/pull/287
 
 ## [0.19.0] - 2026-09-18
 

@@ -159,7 +159,7 @@ Each found more than one bug that a per-site fix would only move.
   [cli-shared-options-ignored.md](cli-shared-options-ignored.md),
   [docs/configuration.md](../../docs/configuration.md).
 - [ ] **`[project]` vs `[tool.poetry]` precedence**: which wins per field, as
-  the build tool decides (`setup.cfg` + `setup.py` is done, [#N]). See
+  the build tool decides (`setup.cfg` + `setup.py` is done, #287). See
   [license-rules.md](license-rules.md#open-questions) (question 4),
   [setuptools-support.md](../implementation/setuptools-support.md#out-of-scope-follow-ups).
 - [ ] **Canonical output**: names, identifiers and key order the same for

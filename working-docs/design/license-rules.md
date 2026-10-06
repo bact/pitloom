@@ -345,7 +345,7 @@ leaning (2026-10-04).
    licence (`ReadmeEnricher` fills only an empty value). Leaning: the
    real one is declared, the weak value noted in provenance "as the
    dependency cascade does" (but see 9: that cascade records nothing).
-2. **Weak value across merged manifest files** -- ruled ([#N]).
+2. **Weak value across merged manifest files** -- ruled (#287).
    A placeholder (`UNKNOWN`/`NOASSERTION`) in one of `setup.py` and
    `setup.cfg` gives way to a real licence in the other, as in
    `first_license`. (setuptools itself keeps `setup.py`'s `UNKNOWN`: an
@@ -356,7 +356,7 @@ leaning (2026-10-04).
    installed metadata outranks a `LICENSE` detection for declared; the
    detection stays the concluded second opinion; the conflict recorded.
 4. **`setup.cfg` vs `setup.py` field order** -- ruled for setuptools
-   ([#N]): `setup.py` over `setup.cfg`, as setuptools does; a real
+   (#287): `setup.py` over `setup.cfg`, as setuptools does; a real
    disagreement keeps `setup.py`'s as the one declared licence and records
    the other as a conflict. Still open: the same question for other merged
    sources (pyproject with Poetry), no leaning on a general rule.

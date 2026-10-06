@@ -77,7 +77,7 @@ user leanings are recorded there, not decisions.
 - Reconcile ranking: the project's own installed metadata vs a `LICENSE`
   detection.
 - Model file licence vs model card licence: disagreement not recorded.
-- [x] `setup.cfg` `license =` beats `setup.py` `license=`: fixed, [#N]
+- [x] `setup.cfg` `license =` beats `setup.py` `license=`: fixed, #287
   (`setup.py` first, as setuptools); open for other merged sources
   (`[project]` vs `[tool.poetry]`).
 - Provenance: a shared licence element keeps the first package's source
