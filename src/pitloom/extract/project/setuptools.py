@@ -7,18 +7,18 @@
 
 Supports setuptools-based projects that declare metadata in ``setup.cfg``
 (configparser format) or ``setup.py`` (AST-parsed). When both files exist,
-a non-empty ``setup()`` keyword overrides the same ``setup.cfg`` option, as
-setuptools does; :mod:`pitloom.extract.project._setuptools_options` has the
-rule and its one difference (a placeholder licence gives way). A
-``pyproject.toml [project]`` table is read before both, upstream
-(:func:`~pitloom.extract.project.read_project`). Provenance is recorded per
-field.
+a ``setup()`` keyword overrides the same ``setup.cfg`` option unless empty,
+as setuptools does; :mod:`pitloom.extract.project._setuptools_options` has
+the rule and where Pitloom differs. A ``pyproject.toml [project]`` table is
+read before both, upstream (:func:`~pitloom.extract.project.read_project`).
+Provenance is recorded per field.
 
 .. rubric:: Limitations (static analysis)
 
 - Dynamic values in ``setup.py`` (variables, function calls, conditional
-  expressions) are **not resolvable** -- each is skipped with a
-  ``WARNING:`` and ``setup.cfg``'s value is used.
+  expressions, ``**`` unpacking) are **not resolvable** -- each keyword
+  Pitloom reads is skipped with a ``WARNING:`` and ``setup.cfg``'s value is
+  used.
 - ``version = attr: package.__version__`` in ``setup.cfg`` uses best-effort
   file scanning via AST parsing of the referenced module file.
 - Build-time metadata obtained via PEP 517
@@ -67,6 +67,7 @@ from pitloom.extract.project.setuptools_py import (
     read_setup_py,
     read_setup_py_options,
 )
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -202,18 +203,20 @@ def _read_cfg_options(
 
 def _read_py_options(
     project_dir: Path, cfg: SetupOptions, *, quiet: bool
-) -> SetupOptions:
-    """``setup.py``'s options; none, with a ``WARNING:`` when *cfg* names
-    the project, when it cannot be parsed."""
+) -> tuple[SetupOptions, str]:
+    """``setup.py``'s options, or none and why it cannot be parsed --
+    with a ``WARNING:`` when *cfg* names the project, so the read goes on."""
     try:
-        return read_setup_py_options(project_dir, quiet=quiet)
+        return read_setup_py_options(project_dir, quiet=quiet), ""
     except FileNotFoundError:
-        return {}
+        return {}, ""
     except ValueError as exc:
         name = cfg.get("name")
         if name is not None and name.value and not quiet:
-            log.warning("%s: %s -- reading setup.cfg alone", project_dir, exc)
-        return {}
+            log.warning(
+                "%s: %s -- reading setup.cfg alone", loggable(str(project_dir)), exc
+            )
+        return {}, f" {exc}."
 
 
 def read_setuptools(
@@ -232,16 +235,19 @@ def read_setuptools(
     project.
 
     Raises:
-        FileNotFoundError: neither file names the project.
+        FileNotFoundError: neither file names the project; the message
+            gives why ``setup.py`` could not be parsed, if so.
+        ValueError: ``setup.cfg`` cannot be read or parsed, or its
+            ``[tool:pitloom]`` settings are invalid; one line.
     """
     cfg_options, config = _read_cfg_options(project_dir, read_config)
-    py_options = _read_py_options(project_dir, cfg_options, quiet=quiet)
+    py_options, py_error = _read_py_options(project_dir, cfg_options, quiet=quiet)
     metadata = build_setuptools_metadata(cfg_options, py_options)
     if not metadata.name:
         raise FileNotFoundError(
             f"No usable project metadata found in {project_dir}. "
             "Expected setup.cfg [metadata] name or a literal setup.py "
-            "setup(name=...)."
+            f"setup(name=...).{py_error}"
         )
     record_setuptools_conflicts(
         metadata, cfg_options, py_options, ConflictReport(str(project_dir), quiet)

@@ -76,34 +76,39 @@ for each. On by default; pass `--no-use-lockfile` (or set
 `[tool.pitloom] use-lockfile = false`) to fall back to direct dependencies
 and environment introspection only.
 
-#### setuptools projects (`setup.py` and `setup.cfg`)
-
-When a directory has both, Pitloom follows setuptools' own precedence (see
-[`setupcfg.py`](https://github.com/pypa/setuptools/blob/main/setuptools/config/setupcfg.py)):
-a `setup()` keyword is used, and the same `setup.cfg` option only when the
-keyword is empty (`""`, `[]`, `{}`, `None`) or absent. It is decided per
-option (`author` and `author_email` apart, `url` and `project_urls` apart),
-and a list replaces the other, never joins it. The name is `setup.py`'s
-literal, else `setup.cfg`'s. Differences from setuptools:
-
-- `setup.py` is read, never run: a keyword that is not a literal
-  (`name=NAME`) is ignored with a `WARNING:` and `setup.cfg`'s is used.
-- A placeholder licence (`UNKNOWN`, `NOASSERTION`) gives way to a real one in
-  the other file; `NONE` is a statement. setuptools keeps the placeholder.
-- When `setup.py` overrides a different real licence, version or
-  `python_requires` of `setup.cfg`, Pitloom keeps `setup.py`'s, records the
-  other as a conflict annotation and gives one `WARNING:`. A `license` field
-  still beats a classifier in the other file, as in the built wheel.
-
-Only a directory is read this way; an sdist or wheel carries the metadata
-setuptools already merged.
-
 Generate an **Analyzed SBOM** from a pre-built wheel (extracting bundled
 binaries as phantom dependencies):
 
 ```bash
 loom wheel path/to/mypackage-1.0.0-py3-none-any.whl -o sbom.spdx3.json
 ```
+
+#### setuptools projects (`setup.py` and `setup.cfg`)
+
+When a directory has both, Pitloom follows setuptools' own precedence (see
+[`setupcfg.py`](https://github.com/pypa/setuptools/blob/main/setuptools/config/setupcfg.py)):
+a `setup()` keyword is used, and the same `setup.cfg` option only when the
+keyword is empty (`""`, `[]`, `{}`, `None`, an `install_requires` of only
+comments) or absent. It is decided per
+option (`author` and `author_email` apart, `url` and `project_urls` apart),
+and a list replaces the other, never joins it. The name is `setup.py`'s
+literal, else `setup.cfg`'s. Differences from setuptools:
+
+- `setup.py` is read, never run: a keyword that is not a literal
+  (`name=NAME`), is blank (`"  "`) or holds a value Pitloom does not read
+  (`url=1`) is ignored with a `WARNING:`, and `setup.cfg`'s is used.
+  A `setup.cfg` `file:` directive in `install_requires` is not read.
+- A placeholder licence (`UNKNOWN`, `NOASSERTION`) in `setup()` gives way to
+  the licence classifier kept, else to the `license` of `setup.cfg` it
+  overrode; setuptools keeps the placeholder. `NONE` is a statement.
+- When `setup.py` overrides a different real name, licence, version or
+  `python_requires` of `setup.cfg`, Pitloom keeps `setup.py`'s, records the
+  other as a conflict annotation and gives one `WARNING:` per field. For the
+  licence, a real `license` field in either file beats a classifier, as in
+  the built wheel.
+
+Only a directory is read this way; an sdist or wheel carries the metadata
+setuptools already merged.
 
 ### Embed an SBOM into a wheel (PEP 770)
 

@@ -18,6 +18,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
+from packaging.utils import canonicalize_name
 
 from pitloom.core.project import ConflictCandidate, ProjectMetadata
 from pitloom.extract._license import classify_license, same_licence
@@ -65,6 +66,7 @@ def _license_equal(a: str, b: str) -> bool:
 
 
 _FIELD_COMPARATORS: dict[str, Callable[[str, str], bool]] = {
+    "name": lambda a, b: canonicalize_name(a) == canonicalize_name(b),  # PEP 503
     "version": is_same_version,
     "license_name": _license_equal,
     "requires_python": _requires_python_equal,
@@ -72,9 +74,9 @@ _FIELD_COMPARATORS: dict[str, Callable[[str, str], bool]] = {
 
 
 def values_agree(field_name: str, a: str | None, b: str | None) -> bool:
-    """Whether *a* and *b* are the same value of *field_name* (one of
-    :data:`CONFLICT_CHECKED_FIELDS`) as the ecosystem compares it, ``None``
-    compared as ``""``."""
+    """Whether *a* and *b* are the same value of *field_name* (``name`` or
+    one of :data:`CONFLICT_CHECKED_FIELDS`) as the ecosystem compares it,
+    ``None`` compared as ``""``."""
     return _FIELD_COMPARATORS[field_name](a or "", b or "")
 
 

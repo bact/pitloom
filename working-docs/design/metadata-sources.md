@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-09-19
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -256,10 +256,10 @@ site-packages tier 2 remain future work -- see
 `working-docs/implementation/setuptools-support.md` for the current
 conflict-resolution behaviour and its known limitations.
 
-Sources 3–5 are combined via `merge_metadata(primary, secondary)` so gaps at
-one level are filled by the next without overwriting already-resolved fields.
-Source 1 (when implemented) will be treated the same way -- as a
-higher-priority primary passed to `merge_metadata`. The in-tree installed
+Sources 4 and 5 are merged per option as setuptools merges them: a given
+`setup()` keyword over the `setup.cfg` option (see
+`working-docs/implementation/setuptools-support.md`, "Precedence"); their
+order in the list above is only the file-read order. The in-tree installed
 source (implemented) and the deferred site-packages source instead use the
 static-wins-on-conflict rule described above, not a rank-based `merge_metadata`
 slot.

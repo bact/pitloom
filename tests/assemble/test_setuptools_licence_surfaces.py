@@ -17,10 +17,7 @@ itself) and test_license_sdist_parity.py (the same check for ``pyproject``).
 from __future__ import annotations
 
 import json
-import os
-import shutil
-import subprocess  # nosec B404
-import sys
+import logging
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -28,7 +25,11 @@ from typing import Any
 import pytest
 
 from pitloom.assemble import generate_project_sbom
+from pitloom.cli.commands._embed_wheel_batch import resolve_project_dir_and_config
+from pitloom.embed import embed_wheel_sbom
 from tests._license_graph import license_value
+from tests._setuptools_build import build_dist
+from tests.assemble.conftest import _make_dummy_wheel
 from tests.assemble.embed_surfaces_shared import run_cli
 
 pytest.importorskip("build", reason="PyPA build is required to build the artefacts")
@@ -68,28 +69,6 @@ def _write_project(root: Path, cfg_licence: str, py_licence: str) -> Path:
     return root
 
 
-def _build(project: Path, out: Path, kind: str) -> Path:
-    """Build *project*'s *kind* (``sdist``/``wheel``) from a copy: building
-    writes ``*.egg-info`` into the directory it builds."""
-    copy = out / f"copy-{kind}"
-    shutil.copytree(project, copy)
-    env = {k: v for k, v in os.environ.items() if k != "PYTHONWARNINGS"}
-    argv = [sys.executable, "-m", "build", f"--{kind}", "--no-isolation"]
-    argv += ["--skip-dependency-check", "--outdir", str(out), str(copy)]
-    proc = subprocess.run(  # nosec B603
-        argv,
-        env=env,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        timeout=180,
-        check=False,
-    )
-    stderr = proc.stderr.decode("utf-8", errors="replace")
-    assert proc.returncode == 0, f"{kind} build failed:\n{stderr[-1500:]}"
-    (artefact,) = out.glob("*.tar.gz" if kind == "sdist" else "*.whl")
-    return artefact
-
-
 @pytest.fixture(scope="module", name="built_projects")
 def _built_projects(
     tmp_path_factory: pytest.TempPathFactory,
@@ -103,8 +82,8 @@ def _built_projects(
         out.mkdir()
         built[name] = {
             "dir": project,
-            "sdist": _build(project, out, "sdist"),
-            "wheel": _build(project, out, "wheel"),
+            "sdist": build_dist(project, out, "sdist"),
+            "wheel": build_dist(project, out, "wheel"),
         }
     return built
 
@@ -189,3 +168,21 @@ def test_one_declared_licence_on_every_surface(
         }
     else:
         assert not conflicts
+
+
+@pytest.mark.parametrize("surface", ["cli", "library"])
+def test_embed_wheel_project_read_warns_once(
+    surface: str, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """``embed-wheel --project-dir`` reads the project once unquiet, on both
+    surfaces: one ``setup.py``/``setup.cfg`` ``WARNING:``, as for the
+    directory (the read's other peeks are quiet)."""
+    project = _write_project(tmp_path / "proj", *_VARIANTS["real-real"])
+    caplog.set_level(logging.WARNING)
+    if surface == "cli":
+        assert resolve_project_dir_and_config(project) is not None
+    else:
+        wheel = _make_dummy_wheel(tmp_path / "dist", "demo")
+        embed_wheel_sbom(wheel, project_dir=project)
+    disagree = [r for r in caplog.records if "disagree on license" in r.getMessage()]
+    assert len(disagree) == 1

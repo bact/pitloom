@@ -24,14 +24,14 @@ and this project adheres to
 
 ### Changed
 
-- setuptools projects: a non-empty `setup()` keyword overrides the same
-  `setup.cfg` option, as setuptools does; SBOM output changes ([#287])
+- setuptools projects: a `setup()` keyword overrides the same `setup.cfg`
+  option unless empty, as setuptools does; SBOM output changes ([#287])
 
 ### Fixed
 
-- `setup.py` without a literal `name=` keeps its other keywords; a placeholder
-  `setup.cfg` licence no longer beats a real `setup.py` one; an overridden
-  licence, version or `python_requires` is recorded as a conflict ([#287])
+- `setup.py` without a literal `name=` keeps its other keywords; a `setup.cfg`
+  placeholder licence no longer wins; overridden real values become conflicts
+  ([#287])
 
 ## [0.20.0] - 2026-10-05
 

@@ -79,11 +79,9 @@ def _reconcile_conflict_checked_field(
     # explicitly-declared-empty source value to None (`str(x) if x else
     # None` -- `requires-python = ""`, PEP 621's "no constraint" convention
     # matching Poetry's `python = "*"`; likewise an empty/undetected
-    # `license`). None is not a valid comparator input -- SpecifierSet(None)
-    # raises instead of comparing -- so compare against the empty string
-    # it's semantically equivalent to. The real (possibly-None) values are still what's
-    # logged; only the comparator call and the recorded candidates'
-    # ``value`` (typed ``str``, never ``None``) use the normalized form.
+    # `license`). The recorded candidates' ``value`` is typed ``str``, never
+    # ``None``, so it takes the empty string None is equivalent to; the
+    # real (possibly-None) values are still what's logged.
     comparable_static_value = static_value if static_value is not None else ""
     comparable_installed_value = installed_value if installed_value is not None else ""
     if values_agree(field_name, comparable_static_value, comparable_installed_value):

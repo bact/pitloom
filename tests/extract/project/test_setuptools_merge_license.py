@@ -198,3 +198,20 @@ def test_an_installed_conflict_adds_to_the_setuptools_one(tmp_path: Path) -> Non
     candidates = metadata.field_conflicts["license"]
     assert [c["value"] for c in candidates] == ["MIT", "Apache-2.0", "BSD-3-Clause"]
     assert candidates[2]["source"].startswith("Source: p.egg-info")
+
+
+@pytest.mark.parametrize(
+    ("cfg_name", "py_name", "conflict"),
+    [("c", "p", ["p", "c"]), ("My_Pkg", "my-pkg", None)],  # PEP 503 equal
+    ids=["different", "same-canonical"],
+)
+def test_a_different_setup_py_name_is_a_conflict(
+    cfg_name: str, py_name: str, conflict: list[str] | None, tmp_path: Path
+) -> None:
+    write_project(tmp_path, f"[metadata]\nname = {cfg_name}\n", f"name={py_name!r}")
+    metadata, _ = read_setuptools(tmp_path, quiet=True)
+    assert metadata.name == py_name
+    candidates = metadata.field_conflicts.get("name")
+    assert (None if candidates is None else [c["value"] for c in candidates]) == (
+        conflict
+    )

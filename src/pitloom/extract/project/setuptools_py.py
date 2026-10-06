@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import ast
 import logging
+import math
+import os
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
@@ -23,6 +25,7 @@ from pitloom.extract.project._setuptools_options import (
     SetupOption,
     SetupOptions,
     build_setuptools_metadata,
+    requirement_lines,
 )
 from pitloom.logging_config import one_line
 
@@ -83,12 +86,22 @@ def _ast_literal(node: ast.expr) -> Any:
                 return _UNRESOLVABLE
             k = _ast_literal(key)
             v = _ast_literal(value)
-            if k is _UNRESOLVABLE or v is _UNRESOLVABLE:
+            if not isinstance(k, str) or v is _UNRESOLVABLE:
                 return _UNRESOLVABLE
-            if isinstance(k, str):
-                result[k] = v
+            result[k] = v
         return result
     return _UNRESOLVABLE
+
+
+#: The ``WARNING:`` tail for a ``setup()`` keyword Pitloom cannot use.
+_UNDECLARED = (
+    " -- treating it as undeclared and falling back to a lower-priority source"
+)
+
+
+def _warn_undeclared(key: str, reason: str, quiet: bool) -> None:
+    if not quiet:
+        log.warning("setup.py: %r %s%s", key, reason, _UNDECLARED)
 
 
 def _extract_setup_kwargs(tree: ast.Module, *, quiet: bool = False) -> dict[str, Any]:
@@ -99,75 +112,152 @@ def _extract_setup_kwargs(tree: ast.Module, *, quiet: bool = False) -> dict[str,
     from the result -- Pitloom has no actual value to report for it, so
     treating it as "declared" would assert a confidently wrong empty
     container (e.g. ``install_requires=[]``) instead of leaving the field
-    open for ``setup.cfg``'s value. A ``WARNING:`` names the dropped kwarg
-    so this isn't a silent deviation -- unless *quiet* (default ``False``),
-    for a caller re-reading the same file a second time.
+    open for ``setup.cfg``'s value. A ``WARNING:`` names a dropped kwarg
+    Pitloom reads (:data:`_OPTIONS`), and each ``**`` unpacking (it may hold
+    one), so this isn't a silent deviation --
+    unless *quiet* (default ``False``), for a caller re-reading the same
+    file a second time.
     """
     node = next(iter_setup_calls(tree), None)
     if node is None:
         return {}
     kwargs: dict[str, Any] = {}
     for kw in node.keywords:
-        if kw.arg is not None:  # skip **expansion
+        if kw.arg is None:  # **expansion: the keywords it holds are unknown
+            # Named only when a plain name: unparsing an expression recurses.
+            held = kw.value.id if isinstance(kw.value, ast.Name) else "..."
+            _warn_undeclared(f"**{held}", "is not read", quiet)
+        else:
             value = _ast_literal(kw.value)
             if value is _UNRESOLVABLE:
-                if not quiet:
-                    log.warning(
-                        "setup.py: %r is declared but its value isn't a"
-                        " statically resolvable literal -- treating it as"
-                        " undeclared and falling back to a lower-priority source",
-                        kw.arg,
-                    )
+                if kw.arg not in _OPTIONS:
+                    continue
+                _warn_undeclared(
+                    kw.arg,
+                    "is declared but its value isn't a statically resolvable literal",
+                    quiet,
+                )
                 continue
             kwargs[kw.arg] = value
     return kwargs
 
 
-def _parse_setup_keywords(raw: Any) -> list[str]:
+#: A value of a type setuptools would not take for the option.
+_UNREADABLE = object()
+
+
+def _parse_str(raw: Any) -> Any:
+    return raw.strip() if isinstance(raw, str) else _UNREADABLE
+
+
+def _parse_version(raw: Any) -> Any:
+    """setuptools takes a number for the version (``str(1.0)``); not one
+    with no version text (``1e999``) or too long to convert."""
+    if isinstance(raw, float) and not math.isfinite(raw):
+        return _UNREADABLE
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        try:
+            return str(raw)
+        except ValueError:  # over sys.get_int_max_str_digits()
+            return _UNREADABLE
+    return _parse_str(raw)
+
+
+def _parse_license(raw: Any) -> Any:
+    """As written: the licence element builder normalises a text's ends."""
+    return raw if isinstance(raw, str) else _UNREADABLE
+
+
+def _parse_strings(raw: Any) -> Any:
+    if not isinstance(raw, (list, tuple)) or not all(isinstance(x, str) for x in raw):
+        return _UNREADABLE
+    return [x.strip() for x in raw if x.strip()]
+
+
+def _parse_requirements(raw: Any) -> Any:
+    """A string or a list of strings, read as setuptools reads them
+    (:func:`~pitloom.extract.project._setuptools_options.requirement_lines`)."""
+    if isinstance(raw, str):
+        return requirement_lines(raw)
+    strings = _parse_strings(raw)
+    return strings if strings is _UNREADABLE else requirement_lines("\n".join(raw))
+
+
+def _parse_setup_keywords(raw: Any) -> Any:
     """``setup(keywords=...)`` as a list: a string is split on commas and
     whitespace."""
     if isinstance(raw, str):
         return [k.strip() for k in raw.replace(",", " ").split() if k.strip()]
-    if isinstance(raw, (list, tuple)):
-        return [str(k).strip() for k in raw if k]
-    return []
+    return _parse_strings(raw)
 
 
-def _parse_str(raw: Any) -> str | None:
-    return raw.strip() or None if isinstance(raw, str) else None
-
-
-def _parse_license(raw: Any) -> str | None:
-    """As written: the licence element builder normalises a text's ends."""
-    return raw if isinstance(raw, str) and raw.strip() else None
-
-
-def _parse_list(raw: Any) -> list[str]:
-    return [str(x).strip() for x in raw if x] if isinstance(raw, (list, tuple)) else []
-
-
-def _parse_project_urls(raw: Any) -> dict[str, str]:
-    if not isinstance(raw, dict):
-        return {}
-    return {k: v for k, v in raw.items() if isinstance(k, str) and isinstance(v, str)}
+def _parse_project_urls(raw: Any) -> Any:
+    if not isinstance(raw, dict) or not all(
+        isinstance(k, str) and isinstance(v, str) for k, v in raw.items()
+    ):
+        return _UNREADABLE
+    return dict(raw)
 
 
 #: setuptools option -> (its provenance's keyword, parser).
 _OPTIONS: dict[str, tuple[str, Callable[[Any], Any]]] = {
     "name": ("name", _parse_str),
-    "version": ("version", _parse_str),
+    "version": ("version", _parse_version),
     "description": ("description", _parse_str),
     "long_description": ("long_description", _parse_str),
     "license": ("license", _parse_license),
-    "classifiers": ("classifiers", _parse_list),
+    "classifiers": ("classifiers", _parse_strings),
     "keywords": ("keywords", _parse_setup_keywords),
     "author": ("author", _parse_str),
     "author_email": ("author", _parse_str),
     "url": ("url", _parse_str),
     "project_urls": ("url", _parse_project_urls),
-    "install_requires": ("install_requires", _parse_list),
+    "install_requires": ("install_requires", _parse_requirements),
     "python_requires": ("python_requires", _parse_str),
 }
+
+
+#: Options setuptools normalises before applying ``setup.cfg``
+#: (``Distribution.__init__``): ``version=0`` is ``"0"``, given;
+#: ``install_requires=["# x"]`` is ``[]``, not given.
+_NORMALISED = frozenset({"version", "install_requires"})
+
+#: The longest value a ``WARNING:`` quotes.
+_SHOWN_CHARS = 200
+
+
+def _shown(raw: Any) -> str:
+    """*raw*'s repr for a ``WARNING:``, cut to :data:`_SHOWN_CHARS`."""
+    try:
+        text = repr(raw)
+    except ValueError:  # an int over sys.get_int_max_str_digits()
+        text = f"<{type(raw).__name__}>"
+    return one_line(text, limit=_SHOWN_CHARS)
+
+
+def _option(key: str, raw: Any, quiet: bool) -> SetupOption | None:
+    """*raw* as an option, or ``None``: quietly for ``None`` (setuptools'
+    own "not set"), with a ``WARNING:`` when Pitloom cannot use it: of a
+    type it does not read (some setuptools converts, as ``url=1``), or a
+    blank string (setuptools keeps it, stating nothing)."""
+    if raw is None:
+        return None
+    label, parse = _OPTIONS[key]
+    value = parse(raw)
+    if value is _UNREADABLE:
+        _warn_undeclared(
+            key, f"has a value Pitloom does not read ({_shown(raw)})", quiet
+        )
+        return None
+    if isinstance(raw, str) and raw and not raw.strip():
+        _warn_undeclared(key, "is blank", quiet)
+        return None
+    if isinstance(value, str):
+        value = value or None
+    source = f"Source: setup.py | Field: setup({label}=...)"
+    # setuptools normalises these before it applies setup.cfg
+    given = bool(value) if key in _NORMALISED else bool(raw)
+    return SetupOption(value, source, given=given)
 
 
 def read_setup_py_options(project_dir: Path, *, quiet: bool = False) -> SetupOptions:
@@ -183,24 +273,21 @@ def read_setup_py_options(project_dir: Path, *, quiet: bool = False) -> SetupOpt
         ValueError: ``setup.py`` cannot be read or parsed; one line.
     """
     setup_py_path = project_dir / "setup.py"
-    if not setup_py_path.exists():
+    # isfile: a directory or a FIFO is none, as for setup.cfg; never raises
+    if not os.path.isfile(setup_py_path):
         raise FileNotFoundError(f"setup.py not found at {setup_py_path}")
     try:
-        source = setup_py_path.read_text(encoding="utf-8")
-        tree = ast.parse(source, filename="setup.py")
-    # ValueError: undecodable bytes, or a null byte before Python 3.12.
-    except (OSError, SyntaxError, ValueError) as exc:
+        # Bytes: the parser honours a BOM and a PEP 263 coding line.
+        tree = ast.parse(setup_py_path.read_bytes(), filename="setup.py")
+    # ValueError: a null byte before Python 3.12; RecursionError and
+    # MemoryError: a too deeply nested expression.
+    except (OSError, SyntaxError, ValueError, RecursionError, MemoryError) as exc:
         raise ValueError(f"Could not parse setup.py: {one_line(exc)}") from exc
     kwargs = _extract_setup_kwargs(tree, quiet=quiet)
-    return {
-        key: SetupOption(
-            parse(kwargs[key]),
-            f"Source: setup.py | Field: setup({label}=...)",
-            bool(kwargs[key]),
-        )
-        for key, (label, parse) in _OPTIONS.items()
-        if key in kwargs
+    options = {
+        key: _option(key, kwargs[key], quiet) for key in _OPTIONS if key in kwargs
     }
+    return {key: option for key, option in options.items() if option is not None}
 
 
 def read_setup_py(

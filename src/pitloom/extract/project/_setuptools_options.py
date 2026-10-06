@@ -11,11 +11,12 @@ option only when the keyword's value is falsy
 (``setuptools.config.setupcfg.ConfigHandler.__setitem__``): per option
 (``author`` and ``author_email`` apart, ``url`` and ``project_urls`` apart),
 on the raw value, a list replacing the other, never joined. Pitloom reads
-``setup.py`` without running it, so a keyword that is not a literal is not
-an option here and ``setup.cfg``'s is used. The licence is the one
-difference: a placeholder (``UNKNOWN``) gives way to a real licence in the
-other file. A real disagreement on the licence, the version or
-``python_requires`` is recorded as a conflict.
+``setup.py`` without running it, so a keyword it cannot use (not a
+literal, blank, of a type it does not read) is not an option here and
+``setup.cfg``'s is used, with a ``WARNING:``. A placeholder licence
+(``UNKNOWN``) gives way to a real licence in the other file. A real
+disagreement on the name, the licence, the version or ``python_requires``
+is recorded as a conflict.
 
 See also: :mod:`pitloom.extract.project.setuptools_py` and
 :mod:`pitloom.extract.project.setuptools_cfg` (the option readers),
@@ -35,6 +36,7 @@ from pitloom.extract._core_metadata import (
     license_from_classifiers,
 )
 from pitloom.extract.project._field_agreement import add_conflict, values_agree
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -48,11 +50,12 @@ class SetupOption:
 
     *value* is parsed (stripped string, list, dict) or ``None``; *source* is
     its provenance. *given* is setuptools' own test, the truthiness of the
-    raw value (``"  "`` is given, ``""``/``[]`` is not): a given ``setup()``
-    keyword overrides ``setup.cfg``. *declared* is whether the file itself
-    names the option (``False`` for a ``setup.cfg`` value only inherited
-    from ``[DEFAULT]``); it gates the provenance of a field whose empty
-    value is a statement (``install_requires = ``).
+    raw value (``""``/``[]`` is not given), of the normalised one for
+    ``version`` and ``install_requires``: a given ``setup()`` keyword
+    overrides ``setup.cfg``. *declared* is whether the file itself states
+    the option (``False`` for a ``setup.cfg`` value only inherited from
+    ``[DEFAULT]``); it gates the provenance of a field whose empty value is
+    a statement (``install_requires = ``).
     """
 
     value: Any
@@ -63,6 +66,44 @@ class SetupOption:
 
 #: A file's options, keyed by setuptools option name.
 SetupOptions = dict[str, SetupOption]
+
+
+def requirement_lines(text: str) -> list[str]:
+    """Requirements in *text* as setuptools reads them
+    (``setuptools._reqs.parse_strings``): a line each, blank lines and
+    ``#`` lines left out, a `` #`` comment dropped, a line ending in ``\\``
+    joined with the next."""
+    lines = (line.strip() for line in text.splitlines())
+    # The comment cut is not stripped: "x \\  # c" does not continue.
+    items = iter(
+        line.partition(" #")[0] for line in lines if line and not line.startswith("#")
+    )
+    requirements: list[str] = []
+    for item in items:
+        parts = [item]
+        while parts and parts[-1].endswith("\\"):
+            following = next(items, None)
+            if following is None:
+                return requirements
+            _cut_continuation(parts)
+            parts.append(following)
+        requirements.append("".join(parts).strip())
+    return requirements
+
+
+def _cut_continuation(parts: list[str]) -> None:
+    """``"".join(parts)[:-2].strip()`` in place, in time linear in the
+    parts removed: setuptools cuts two characters for the ``\\``. Each
+    part starts with a non-blank character, so only the last needs a
+    strip, and it never strips to nothing."""
+    cut = 2
+    while cut and parts:
+        last = parts.pop()
+        if len(last) > cut:
+            parts.append(last[:-cut])
+        cut = max(0, cut - len(last))
+    if parts:
+        parts[-1] = parts[-1].rstrip()
 
 
 def merge_setup_options(cfg: SetupOptions, py: SetupOptions) -> SetupOptions:
@@ -95,11 +136,8 @@ def resolve_setuptools_licence(
     )
     chosen = None if index is None else classifiers if index == 1 else field
     overridden = cfg.get("license")
-    if (
-        overridden is not None
-        and overridden is not field
-        and first_license([licence, overridden.value]) == 1
-    ):
+    # first_license([x, x]) is 0: no check that it is the same option
+    if overridden is not None and first_license([licence, overridden.value]) == 1:
         return overridden.value, overridden.source
     return licence, None if chosen is None else chosen.source
 
@@ -148,8 +186,10 @@ def _provenance(merged: SetupOptions, metadata: ProjectMetadata) -> dict[str, st
             prov[field_name] = option.source
     for prov_key, keys in _PRESENCE_GATED.items():
         declared = [merged[k] for k in keys if k in merged and merged[k].declared]
-        if declared:
-            prov[prov_key] = declared[0].source
+        # the file a value came from, else the one declaring it empty
+        stating = [o for o in declared if o.value] or declared
+        if stating:
+            prov[prov_key] = stating[0].source
     if "authors" in prov and metadata.authors:
         prov["copyright_text"] = (
             "Source: Pitloom generator | Method: inferred_from_authors"
@@ -162,11 +202,6 @@ def build_setuptools_metadata(cfg: SetupOptions, py: SetupOptions) -> ProjectMet
     merged by :func:`merge_setup_options`; name ``""`` when neither file
     names the project."""
     merged = merge_setup_options(cfg, py)
-    # A blank-but-given name ("  ") names nothing: setup.cfg's is used.
-    for name_option in (py.get("name"), cfg.get("name")):
-        if name_option is not None and name_option.value:
-            merged["name"] = name_option
-            break
     metadata = ProjectMetadata(
         name=_value(merged, "name") or "",
         version=_value(merged, "version"),
@@ -181,7 +216,7 @@ def build_setuptools_metadata(cfg: SetupOptions, py: SetupOptions) -> ProjectMet
     metadata.provenance = _provenance(merged, metadata)
     licence, source = resolve_setuptools_licence(merged, cfg)
     metadata.license_name = licence
-    if licence and source:
+    if licence and source:  # a stated licence always has a source
         metadata.provenance["license"] = source
     return metadata
 
@@ -214,7 +249,7 @@ def _record(
         log.warning(
             "%s: setup.py and setup.cfg disagree on %s"
             " (setup.py %r, setup.cfg %r) -- keeping %s's",
-            report.subject,
+            loggable(report.subject),
             key,
             py_side[0],
             cfg_side[0],
@@ -239,7 +274,11 @@ def own_licence(options: SetupOptions) -> tuple[str | None, str]:
 
 
 #: ProjectMetadata field -> option, checked for a real value overridden.
-_OVERRIDE_CHECKED = (("version", "version"), ("requires_python", "python_requires"))
+_OVERRIDE_CHECKED = (
+    ("name", "name"),
+    ("version", "version"),
+    ("requires_python", "python_requires"),
+)
 
 
 def record_setuptools_conflicts(
@@ -248,9 +287,10 @@ def record_setuptools_conflicts(
     py: SetupOptions,
     report: ConflictReport,
 ) -> None:
-    """Record where ``setup.py`` overrides a different real value in
-    ``setup.cfg``: the version, ``python_requires`` and the licence each
-    file states on its own (:func:`own_licence`)."""
+    """Record where the two files state different real values: the name,
+    version and ``python_requires`` ``setup.py`` overrides, and the licence each
+    file states on its own (:func:`own_licence`), whichever file's is kept
+    (a ``license`` field beats a classifier)."""
     for field_name, key in _OVERRIDE_CHECKED:
         py_option, cfg_option = py.get(key), cfg.get(key)
         if not (py_option and cfg_option and py_option.given):

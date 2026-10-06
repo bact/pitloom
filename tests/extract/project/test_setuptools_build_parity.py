@@ -25,10 +25,7 @@ test_setuptools_merge_license.py (the licence).
 from __future__ import annotations
 
 import email
-import os
 import shutil
-import subprocess  # nosec B404
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +33,7 @@ import pytest
 
 from pitloom.extract.project.installed import read_installed_metadata
 from pitloom.extract.project.setuptools import read_setuptools
+from tests._setuptools_build import run_build
 from tests.extract.project.test_setuptools_merge import write_project
 
 _BUILD = (
@@ -62,17 +60,7 @@ def _built_view(copy: Path, tmp_path: Path) -> dict[str, Any]:
     """Build *copy* with setuptools; the comparable view of its METADATA."""
     out = tmp_path / "out"
     out.mkdir()
-    env = {k: v for k, v in os.environ.items() if k != "PYTHONWARNINGS"}
-    run = subprocess.run(  # nosec B603
-        [sys.executable, "-c", _BUILD, str(out)],
-        cwd=copy,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        timeout=120,
-        check=False,
-        env=env,
-    )
-    assert run.returncode == 0, run.stderr.decode(errors="replace")
+    run_build(["-c", _BUILD, str(out)], cwd=copy)
     path = next(out.glob("*.dist-info/METADATA"))
     meta = read_installed_metadata(path, "built", quiet=True)
     assert meta is not None
@@ -188,6 +176,14 @@ _ROWS: list[Any] = [
         id="py-empty-install-requires",
     ),
     pytest.param(
+        _BASE + "[options]\ninstall_requires = requests\n",
+        "version=0, install_requires=['# x']",
+        "",
+        {"version": "0", "dependencies": ["requests"]},
+        {},
+        id="normalised-first",
+    ),
+    pytest.param(
         _BASE + "author = Cfg\nauthor_email = c@x.org\n",
         "author='Py'",
         "",
@@ -260,8 +256,8 @@ def test_directory_read_matches_setuptools_build(
     write_project(project, None, py)
     (project / "setup.cfg").write_bytes(cfg.encode("utf-8"))
     if prelude:
-        text = (project / "setup.py").read_text(encoding="utf-8")
-        (project / "setup.py").write_text(prelude + text, encoding="utf-8")
+        text = (project / "setup.py").read_bytes()
+        (project / "setup.py").write_bytes(prelude.encode() + text)
     copy = tmp_path / "copy"
     shutil.copytree(project, copy)
 

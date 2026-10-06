@@ -13,6 +13,7 @@ and :mod:`pitloom.extract.project.setuptools` (facade).
 from __future__ import annotations
 
 import configparser
+import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,7 @@ from pitloom.extract.project._setuptools_options import (
     SetupOption,
     SetupOptions,
     build_setuptools_metadata,
+    requirement_lines,
 )
 from pitloom.logging_config import one_line
 
@@ -130,14 +132,15 @@ def _cfg_list(value: str) -> list[str]:
     return [item.strip() for item in items if item.strip()]
 
 
-def _parse_cfg_requires(raw: str) -> list[str]:
-    """Parse a multiline ``install_requires`` value into a list of PEP 508 strings."""
-    deps = []
-    for line in raw.splitlines():
-        line = line.strip()
-        if line and not line.startswith("#"):
-            deps.append(line)
-    return deps
+def _cfg_requirements(value: str) -> list[str]:
+    """``install_requires`` as setuptools reads it
+    (``ConfigHandler._parse_requirements_list``): one item per line when
+    *value* has a newline, else ``;``-separated, ``#`` items left out, then
+    :func:`~pitloom.extract.project._setuptools_options.requirement_lines`.
+    A ``file:`` directive is not read."""
+    items = value.splitlines() if "\n" in value else value.split(";")
+    kept = (item.strip() for item in items)
+    return requirement_lines("\n".join(i for i in kept if not i.startswith("#")))
 
 
 def _cfg_source(field: str) -> str:
@@ -157,7 +160,7 @@ _PLAIN_OPTIONS: tuple[tuple[str, str, str, Callable[[str], Any]], ...] = (
     ("metadata", "author_email", "metadata.author/author_email", _str_or_none),
     ("metadata", "url", "metadata.url/project_urls", _str_or_none),
     ("metadata", "project_urls", "metadata.url/project_urls", _parse_cfg_project_urls),
-    ("options", "install_requires", "options.install_requires", _parse_cfg_requires),
+    ("options", "install_requires", "options.install_requires", _cfg_requirements),
     ("options", "python_requires", "options.python_requires", _str_or_none),
 )
 
@@ -205,14 +208,23 @@ def read_setup_cfg_options(
     but not declared (:func:`_section_declares_key`).
 
     Raises:
-        FileNotFoundError: no ``setup.cfg``.
+        FileNotFoundError: no ``setup.cfg`` file (a directory is none, as
+            for setuptools).
+        ValueError: ``setup.cfg`` cannot be read or parsed, or its
+            ``[tool:pitloom]`` settings are invalid; one line.
     """
     setup_cfg_path = project_dir / "setup.cfg"
-    if not setup_cfg_path.exists():
+    if not os.path.isfile(setup_cfg_path):
         raise FileNotFoundError(f"setup.cfg not found at {setup_cfg_path}")
     cfg = configparser.ConfigParser()
-    cfg.read(setup_cfg_path, encoding="utf-8")
-    sections = {s: _section_dict(cfg, s) for s in ("metadata", "options")}
+    try:
+        # read_file, not read: read() skips a file it cannot open.
+        with setup_cfg_path.open(encoding="utf-8") as stream:
+            cfg.read_file(stream)
+        sections = {s: _section_dict(cfg, s) for s in ("metadata", "options")}
+    # configparser.Error: also a value's bad % interpolation
+    except (OSError, UnicodeDecodeError, configparser.Error) as exc:
+        raise ValueError(f"Could not parse setup.cfg: {one_line(exc)}") from exc
     options = _resolved_options(sections["metadata"], project_dir)
     for section, key, field, parse in _PLAIN_OPTIONS:
         if key in sections[section]:
@@ -222,7 +234,11 @@ def read_setup_cfg_options(
                 declared=_section_declares_key(cfg, section, key),
             )
     named = bool(options.get("name") and options["name"].value)
-    return options, _config_if_read(cfg, read_config and named, str(setup_cfg_path))
+    try:
+        config = _config_if_read(cfg, read_config and named, str(setup_cfg_path))
+    except configparser.Error as exc:  # a [tool:pitloom] value's bad %
+        raise ValueError(f"Could not parse setup.cfg: {one_line(exc)}") from exc
+    return options, config
 
 
 def read_setup_cfg(
@@ -237,6 +253,7 @@ def read_setup_cfg(
 
     Raises:
         FileNotFoundError: no ``setup.cfg``.
+        ValueError: as :func:`read_setup_cfg_options`.
         _NoProjectNameError: ``[metadata]`` has no ``name``.
     """
     options, config = read_setup_cfg_options(project_dir, read_config=read_config)

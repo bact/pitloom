@@ -16,15 +16,17 @@ from __future__ import annotations
 import ast
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+from pitloom.extract.project import setuptools_py
 from pitloom.extract.project.setuptools import read_setup_py
 from pitloom.extract.project.setuptools_py import (
     _UNRESOLVABLE,
     _ast_literal,
     _extract_setup_kwargs,
-    _parse_project_urls,
+    read_setup_py_options,
 )
 
 from ..conftest import assert_declared_empty_authors_no_copyright_text
@@ -294,21 +296,74 @@ def test_ast_literal_dict_unpacking_and_calls() -> None:
     assert kwargs.get("name") == "pkg"
     # a dict is a literal only whole: setup.cfg's is used instead
     assert "project_urls" not in kwargs
-    variable = ast.parse("setup(project_urls={'Docs': U, 'Home': 'https://h'})")
-    assert "project_urls" not in _extract_setup_kwargs(variable)
+    for urls in ("{'Docs': U, 'H': 'h'}", "{U: 'x'}", "{1: 'x', 'D': 'd'}", "{**E}"):
+        tree = ast.parse(f"setup(project_urls={urls})")
+        assert "project_urls" not in _extract_setup_kwargs(tree)
 
     # No setup call in AST returns empty dict
     no_setup_tree = ast.parse("x = 1\ny = 2\n")
     # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert _extract_setup_kwargs(no_setup_tree) == {}
 
-    # Non-string dict key ignored by _ast_literal
+    # a non-string key: not a dict setuptools reads as Pitloom does
     expr_stmt = ast.parse("{1: 'val', 'k': 'v'}").body[0]
     dict_node = expr_stmt.value  # type: ignore[attr-defined]
-    assert _ast_literal(dict_node) == {"k": "v"}
+    assert _ast_literal(dict_node) is _UNRESOLVABLE
 
-    # Non-dict project_urls and non-string values
-    # pylint: disable-next=use-implicit-booleaness-not-comparison
-    assert _parse_project_urls("https://invalid") == {}
-    urls_dict = {"Docs": 123, "Home": "https://h"}
-    assert _parse_project_urls(urls_dict) == {"Home": "https://h"}
+
+def test_read_setup_py_options_values_and_sources(tmp_path: Path) -> None:
+    """Strings stripped (a licence as written), blanks left out, and the
+    provenance each option shares with its pair."""
+    (tmp_path / "setup.py").write_text(
+        "setup(name=' p ', license=' MIT ', classifiers=['a', ' '],"
+        " author_email='e@x', project_urls={'A': 'u'}, install_requires=None)\n",
+        encoding="utf-8",
+    )
+    options = read_setup_py_options(tmp_path)
+    assert {k: o.value for k, o in options.items()} == {
+        "name": "p",
+        "license": " MIT ",
+        "classifiers": ["a"],
+        "author_email": "e@x",
+        "project_urls": {"A": "u"},
+    }
+    assert options["author_email"].source.endswith("setup(author=...)")
+    assert options["project_urls"].source.endswith("setup(url=...)")
+    # None is setuptools' "not set": not a declared empty list
+    assert "install_requires" not in options
+    metadata = read_setup_py(tmp_path)[0]
+    assert "dependencies" not in metadata.provenance
+
+
+def test_read_setup_py_options_directory_is_no_setup_py(tmp_path: Path) -> None:
+    (tmp_path / "setup.py").mkdir()  # as a FIFO: none, never opened
+    with pytest.raises(FileNotFoundError):
+        read_setup_py_options(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "error",
+    # a too deeply nested expression (a crash on Python 3.10)
+    [PermissionError("denied"), RecursionError(), MemoryError()],
+    ids=["unreadable", "recursion", "memory"],
+)
+def test_read_setup_py_options_unreadable_file(
+    error: BaseException, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "setup.py").write_bytes(b"setup()\n")
+
+    def fail(*_args: object, **_kwargs: object) -> bytes:
+        raise error
+
+    # Patched on this module's own names, not for every thread.
+    # pylint: disable-next=too-few-public-methods
+    class _Path(type(tmp_path)):  # type: ignore[misc]
+        read_bytes = fail
+
+    if isinstance(error, OSError):
+        project_dir: Path = _Path(tmp_path)
+    else:
+        project_dir = tmp_path
+        monkeypatch.setattr(setuptools_py, "ast", SimpleNamespace(parse=fail))
+    with pytest.raises(ValueError, match="^Could not parse setup.py: "):
+        read_setup_py_options(project_dir)

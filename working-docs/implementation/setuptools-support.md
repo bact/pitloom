@@ -132,8 +132,9 @@ is still read (its other keywords count; name from `setup.cfg`).
 
 `read_setup_py_options()` returns the options as
 `SetupOption(value, source, given, declared)`; `given` is setuptools' own
-test (truthiness of the raw value) and decides whether a keyword overrides
-`setup.cfg`.  `setup.py` has no Pitloom configuration section;
+test (truthiness of the raw value, of the normalised one for `version` and
+`install_requires`) and decides whether a keyword overrides `setup.cfg`.
+A `**` unpacking in `setup()` is not read, with a `WARNING:`.  `setup.py` has no Pitloom configuration section;
 `read_setup_py` always returns a default `PitloomConfig()`.
 
 ### `read_setuptools(project_dir)`
@@ -159,6 +160,9 @@ falsy ("Already inhabited. Skipping."). So, per option:
 - a list replaces the other, never joins it;
 - `""`, `[]`, `{}`, `None` defer to `setup.cfg`; `"  "`, `"UNKNOWN"`,
   `"NONE"` count as given;
+- `version` and `install_requires` are normalised first
+  (`Distribution.__init__`): `version=0` is `"0"`, given;
+  `install_requires=["# x"]` is `[]`, not given;
 - name: `setup.py`'s literal, else `setup.cfg`'s.
 
 Measured with real setuptools 84 builds (`prepare_metadata_for_build_wheel`;
@@ -184,18 +188,32 @@ Measured with real setuptools 84 builds (`prepare_metadata_for_build_wheel`;
 Accepted differences from setuptools:
 
 - (a) `setup.py` is read, never run: a non-literal value is ignored with a
-  `WARNING:` and `setup.cfg`'s is used.
-- (b) A placeholder licence (`UNKNOWN`/`NOASSERTION`) gives way to a real
-  licence in the other file, as in every Pitloom cascade; `NONE` is a
-  statement.
-- (c) A whitespace-only `setup()` string is stripped to no value.
-- (d) When `setup.py` overrides a different real licence, version or
-  `python_requires`, Pitloom keeps `setup.py`'s and records the other as a
+  `WARNING:` and `setup.cfg`'s is used. So is a value Pitloom does not read:
+  a type setuptools rejects (`version=True`, `classifiers='x'`) or converts
+  (`url=1`, `project_urls={'a': 1}`, a nested `install_requires` list). A
+  version number is converted as setuptools does (`version=1.5` ->
+  `"1.5"`), and requirements are read line by line as setuptools reads
+  them (`requirement_lines`: a string split into lines, ` #` comments
+  dropped, `\` continuations joined; a one-line `setup.cfg` value split on
+  `;`); a `setup.cfg` `file:` directive is not (follow-up below).
+- (b) A placeholder licence (`UNKNOWN`/`NOASSERTION`) in `setup()` gives
+  way to the licence classifier kept (`setup.py`'s replace `setup.cfg`'s),
+  else to the `setup.cfg` `license` it overrode
+  (`resolve_setuptools_licence`); `NONE` is a statement. A `setup.cfg`
+  placeholder gives way as in setuptools. `setup(license='UNKNOWN',
+  classifiers=[<no licence>])` keeps `UNKNOWN` over a `setup.cfg` licence
+  classifier, as the wheel does: the classifiers were replaced.
+- (c) A whitespace-only `setup()` string is ignored with a `WARNING:` and
+  `setup.cfg`'s is used: setuptools keeps the blank, which states nothing
+  (and for `name` fails the build).
+- (d) When `setup.py` overrides a different real name (PEP 503), licence,
+  version or `python_requires`, Pitloom keeps `setup.py`'s and records the other as a
   conflict Annotation (one declared licence, not two), with one `WARNING:
   <dir>: setup.py and setup.cfg disagree on <field> (setup.py ...,
-  setup.cfg ...) -- keeping <file>'s`. For the licence a field beats a
-  classifier in either file, so `setup.cfg`'s `license` can beat a
-  `setup.py` classifier. Equality is PEP 440 / licence equivalence
+  setup.cfg ...) -- keeping <file>'s`, one per field. For the licence a
+  real field beats a classifier in either file, so `setup.cfg`'s `license`
+  can beat a `setup.py` classifier; a `setup()` placeholder gives way to
+  `setup.py`'s own classifier first. Equality is PEP 440 / licence equivalence
   (`_field_agreement.values_agree`).
 - (e) In-tree installed metadata (`.egg-info`/`.dist-info`) disagreeing
   too adds to the conflict record instead of replacing it
@@ -203,7 +221,7 @@ Accepted differences from setuptools:
 
 Only directory surfaces (`loom project`, `generate <dir>`,
 `generate_project_sbom()`) read the two files; sdist and wheel surfaces read
-the metadata setuptools wrote, so they agree except for (b).
+the metadata setuptools wrote, so they agree except for (a)-(c).
 
 Rejected:
 
@@ -220,11 +238,33 @@ Rejected:
 - `[project]` vs `[tool.poetry]` precedence (the other merged pair).
 - Resolving module constants for `setup(name=NAME)`.
 - First-match `setup()` call: an earlier `logger.setup()` wins.
+- `setup(license_expression=...)` (setuptools' current spelling, written as
+  `License-Expression`) is not read from `setup.py`.
+- `setup.cfg` `install_requires = file: requirements.txt`: setuptools
+  reads the file, Pitloom keeps the text.
+- Provenance of a field built from two options (`author` +
+  `author_email`, `url` + `project_urls`) names one source, the first
+  option with a value, even when the other value came from the other file:
+  a provenance string holds one source.
+- A `setup()` string's trailing whitespace: setuptools keeps it in
+  `Summary`, Pitloom strips both ends.
 - `keywords = a b`: setuptools keeps one string, Pitloom splits on
   whitespace and commas.
 - `[tool:pitloom]` is ignored when only `setup.py` names the project.
 - `apply_in_package_license` treats a weak licence as stated.
 - A real-world sdist parity test (directory vs sdist vs wheel).
+- A non-empty value only inherited from `setup.cfg` `[DEFAULT]` has no
+  provenance for the presence-gated fields (`install_requires`,
+  `keywords`, `python_requires`, authors, urls); gate on "declared or
+  value".
+- `setup.cfg` spellings setuptools accepts and Pitloom ignores: dashed
+  keys (`author-email`, `home-page`, `python-requires`,
+  `install-requires`, `long-description`), the aliases `home_page` and
+  `classifier`, and setuptools' first-wins order of `summary` and
+  `description`.
+- A project can carry two `field: "license"` conflict Annotations: the
+  `setup.py`/`setup.cfg` one and the declared-vs-detected one; each is a
+  separate disagreement, told apart by its candidates' sources.
 
 ## Wheel file discovery (`_models_wheel_setuptools.discover()`)
 

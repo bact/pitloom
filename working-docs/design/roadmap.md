@@ -53,7 +53,7 @@ Crash, mapping and parity fixes, each in
 [known-bugs.md](known-bugs.md#p0-in-0201): a very long lock-file version,
 `-o -` ending stdout with a path line, GGUF `general.license`, a `%` in
 `setup.cfg`, and two `setup.py`/`setup.cfg` merges that disagree with the
-built wheel.
+built wheel (fixed, #287).
 
 ### 0.21.0
 

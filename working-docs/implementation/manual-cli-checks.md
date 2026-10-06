@@ -348,13 +348,14 @@ Per-kind detail (parse, bound, library, empty, `.pth` text) is in
 `tests/assemble/test_model_outcome_parity.py`.
 
 **18. setuptools: `setup.py` over `setup.cfg`, and the directory, sdist and
-wheel agree**: a project whose `setup.py` and `setup.cfg` give different
-values (including a placeholder `license = UNKNOWN` in `setup.cfg` against
-`setup(license="MIT")`, and a `setup.py` without a literal `name=`) is run
-as a directory, as its built sdist and as its built wheel. All three record
-the `setup.py` values, as setuptools wrote them; only the directory records
-the overridden value as a conflict annotation and gives the `setup.py and
-setup.cfg disagree` `WARNING:`. Automated as check 18
+wheel agree**: a project whose `setup.py` states `license="MIT"` and whose
+`setup.cfg` states `license = Apache-2.0` is run as a directory, as its
+built sdist and as its built wheel. All three record MIT, as setuptools
+wrote it; only the directory records Apache-2.0 as a conflict annotation and
+gives the `setup.py and setup.cfg disagree` `WARNING:`, once. The other
+cases (a placeholder licence, a non-literal `name=`, a value Pitloom does not
+read) are pytest's: `tests/extract/project/test_setuptools_merge*.py` and
+`test_setuptools_build_parity.py`. Automated as check 18
 (`scripts/manual_cli_checks/_checks_setuptools.py`).
 
 For a change touching the build subprocess, its kill path or signal
