@@ -30,6 +30,7 @@ from dataclasses import dataclass
 from typing import Any, NamedTuple
 
 from pitloom.core.project import ConflictCandidate, ProjectMetadata, provenance_key_for
+from pitloom.core.provenance import parse_provenance_value
 from pitloom.extract._core_metadata import (
     first_license,
     license_cascade,
@@ -165,7 +166,7 @@ _VALUE_GATED = {
 }
 
 #: Provenance key -> the options it is read from, its provenance set when
-#: either is declared, even empty.
+#: either is declared, even empty. Built from both files, it names both.
 _PRESENCE_GATED = {
     "requires_python": ("python_requires",),
     "keywords": ("keywords",),
@@ -173,6 +174,23 @@ _PRESENCE_GATED = {
     "authors": ("author", "author_email"),
     "urls": ("url", "project_urls"),
 }
+
+
+def _joint_source(options: list[SetupOption]) -> str:
+    """The provenance of a field built from *options*: the one option's,
+    or, from both files, ``Source: setup.py, setup.cfg | Field: <setup.py
+    field>, <setup.cfg field>``."""
+    by_file: dict[str, str] = {}
+    for option in options:
+        entry = parse_provenance_value(option.source)
+        by_file.setdefault(entry["source"], entry["location"])
+    if len(by_file) == 1:
+        return options[0].source
+    files = (SETUP_PY, SETUP_CFG)
+    return (
+        f"Source: {', '.join(files)}"
+        f" | Field: {', '.join(by_file[name] for name in files)}"
+    )
 
 
 def _provenance(merged: SetupOptions, metadata: ProjectMetadata) -> dict[str, str]:
@@ -186,10 +204,10 @@ def _provenance(merged: SetupOptions, metadata: ProjectMetadata) -> dict[str, st
             prov[field_name] = option.source
     for prov_key, keys in _PRESENCE_GATED.items():
         declared = [merged[k] for k in keys if k in merged and merged[k].declared]
-        # the file a value came from, else the one declaring it empty
-        stating = [o for o in declared if o.value] or declared
+        # the files the values came from, else the one declaring it empty
+        stating = [o for o in declared if o.value] or declared[:1]
         if stating:
-            prov[prov_key] = stating[0].source
+            prov[prov_key] = _joint_source(stating)
     if "authors" in prov and metadata.authors:
         prov["copyright_text"] = (
             "Source: Pitloom generator | Method: inferred_from_authors"

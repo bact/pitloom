@@ -242,10 +242,6 @@ Rejected:
   `License-Expression`) is not read from `setup.py`.
 - `setup.cfg` `install_requires = file: requirements.txt`: setuptools
   reads the file, Pitloom keeps the text.
-- Provenance of a field built from two options (`author` +
-  `author_email`, `url` + `project_urls`) names one source, the first
-  option with a value, even when the other value came from the other file:
-  a provenance string holds one source.
 - A `setup()` string's trailing whitespace: setuptools keeps it in
   `Summary`, Pitloom strips both ends.
 - `keywords = a b`: setuptools keeps one string, Pitloom splits on
@@ -379,7 +375,21 @@ authors      -> "Source: setup.py | Field: setup(author=...)"
 
 Provenance follows the option that won: a `setup.cfg` value used because the
 `setup()` keyword was empty carries `setup.cfg`'s label; an overridden real
-value is kept as a conflict candidate.
+value is kept as a conflict candidate. A field built from two options from
+different files (`author` from `setup.py`, `author_email` from `setup.cfg`;
+`url` and `project_urls`) names both, `setup.py` first, comma-separated in
+one string (`_joint_source`):
+
+```text
+authors -> "Source: setup.py, setup.cfg | Field: setup(author=...), metadata.author/author_email"
+```
+
+Rejected: brackets (`Source: [setup.py, setup.cfg]` reads as a JSON array
+but is a string), a JSON list for `source` (changes the `pitloom/1` field
+type for every reader), per-part keys (`author_email`, `project_urls`: keys
+no other producer writes), a `Method:` marker (says merged, not from where).
+Every name in the source is a manifest, so `minimal` detail still hides it
+(`_is_high_signal`).
 
 ## Fixture project
 

@@ -19,11 +19,11 @@ from typing import Any
 import pytest
 
 from pitloom.core.project import ProjectMetadata
-from pitloom.extract.project._setuptools_options import requirement_lines
 from pitloom.extract.project.setuptools import read_setuptools
 
 _PY = "Source: setup.py"
 _CFG = "Source: setup.cfg"
+_BOTH = "Source: setup.py, setup.cfg"
 
 
 def write_project(root: Path, cfg: str | None, py: str | None) -> None:
@@ -41,9 +41,10 @@ def _origin(metadata: ProjectMetadata, key: str) -> str | None:
     source = metadata.provenance.get(key)
     if source is None:
         return None
-    return (
-        "py" if source.startswith(_PY) else "cfg" if source.startswith(_CFG) else source
-    )
+    for origin, prefix in (("both", _BOTH), ("py", _PY), ("cfg", _CFG)):
+        if source.startswith(prefix):
+            return origin
+    return source
 
 
 _NAMED = "[metadata]\nname = c\n"
@@ -156,7 +157,7 @@ _ROWS: list[Any] = [
         _NAMED + "author = C\nauthor_email = c@x.org\n",
         "author='P'",
         {"authors": [{"name": "P", "email": "c@x.org"}]},
-        {"authors": "py"},
+        {"authors": "both"},
         id="author-split",
     ),
     pytest.param(
@@ -198,7 +199,7 @@ _ROWS: list[Any] = [
         _NAMED + "project_urls =\n    Source = https://s.example\n",
         "url='https://py.example'",
         {"urls": {"Homepage": "https://py.example", "Source": "https://s.example"}},
-        {"urls": "py"},
+        {"urls": "both"},
         id="url-split",
     ),
     pytest.param(
@@ -247,6 +248,33 @@ def test_setup_py_overrides_setup_cfg_per_option(
     # inferred from the authors kept, never from the other file's
     inferred = bool(metadata.authors) and "authors" in metadata.provenance
     assert ("copyright_text" in metadata.provenance) is inferred
+
+
+@pytest.mark.parametrize(
+    ("cfg", "py", "key", "fields"),
+    [
+        (
+            "author = C\n",
+            "author_email='p@x.org'",
+            "authors",
+            "setup(author=...), metadata.author/author_email",
+        ),
+        (
+            "url = https://c\n",
+            "project_urls={'S': 'https://s'}",
+            "urls",
+            "setup(url=...), metadata.url/project_urls",
+        ),
+    ],
+    ids=["cfg-author-py-email", "cfg-url-py-urls"],
+)
+def test_a_field_built_from_both_files_names_both(
+    cfg: str, py: str, key: str, fields: str, tmp_path: Path
+) -> None:
+    """setup.py first, whichever file states which part."""
+    write_project(tmp_path, _NAMED + cfg, py)
+    metadata, _ = read_setuptools(tmp_path, quiet=True)
+    assert metadata.provenance[key] == f"{_BOTH} | Field: {fields}"
 
 
 @pytest.mark.parametrize(
@@ -466,26 +494,3 @@ def test_an_unused_pitloom_section_cannot_fail_the_read(
         with pytest.raises(FileNotFoundError):
             read_setuptools(tmp_path)
         assert not caplog.records
-
-
-def test_setup_cfg_requirements_read_as_setuptools_reads_them(tmp_path: Path) -> None:
-    """One shared reader for both files (``requirement_lines``)."""
-    write_project(
-        tmp_path,
-        _NAMED + "[options]\ninstall_requires =\n    requests >= 2.0  # c\n"
-        "    # c\n    idna \\\n    >=3\n",
-        None,
-    )
-    assert read_setuptools(tmp_path)[0].dependencies == ["requests >= 2.0", "idna>=3"]
-    write_project(tmp_path, _NAMED + "[options]\ninstall_requires = a; b # c\n", None)
-    assert read_setuptools(tmp_path)[0].dependencies == ["a", "b"]  # one line: ;
-    # a "#" item is left out before it is split into lines
-    write_project(tmp_path, _NAMED + "[options]\ninstall_requires = #\x0ba; b\n", None)
-    assert read_setuptools(tmp_path)[0].dependencies == ["b"]
-    assert requirement_lines("a\nb \\") == ["a"]  # nothing to join: dropped
-    # setuptools' own quirks: a comment cut is not stripped before "\\" is
-    # looked for, and "\\" cuts two characters
-    assert requirement_lines("x \\  # c\ny") == ["x \\", "y"]
-    assert requirement_lines("ab \\\n\\\nc") == ["ac"]
-    assert requirement_lines("a  \\\nb") == ["ab"]
-    assert requirement_lines("\\\nb") == ["b"]

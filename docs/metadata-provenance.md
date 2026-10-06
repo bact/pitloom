@@ -35,7 +35,11 @@ convey -- e.g. the value was inferred or detected rather than read
 verbatim. A value with a real native SPDX home (the license itself, the
 package version, a dependency edge) is never restated in the Annotation;
 only *how it was determined* is. Set `detail = "full"` for an exhaustive
-per-field source map instead.
+per-field source map instead. A field built from more than one file names
+them all, comma-separated, with each `Field` in the same order (`Source:
+setup.py, setup.cfg | Field: setup(url=...), metadata.url/project_urls`);
+when every one is a manifest, `minimal` leaves it out like a single
+manifest read.
 
 ## Provenance examples
 

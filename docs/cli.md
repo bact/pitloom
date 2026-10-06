@@ -108,7 +108,9 @@ literal, else `setup.cfg`'s. Differences from setuptools:
   the built wheel.
 
 Only a directory is read this way; an sdist or wheel carries the metadata
-setuptools already merged.
+setuptools already merged. With `detail = "full"` provenance, an author or
+URL entry built from both files names both, `setup.py` first:
+`Source: setup.py, setup.cfg | Field: setup(author=...), metadata.author/author_email`.
 
 ### Embed an SBOM into a wheel (PEP 770)
 

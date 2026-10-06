@@ -11,6 +11,8 @@ See also:
 - :mod:`tests.extract.test_setuptools_cfg_config` for [tool:pitloom] config
   in setup.cfg.
 - :mod:`tests.extract.test_setuptools_py` for setup.py and merge/fixture tests.
+- :mod:`tests.extract.project.test_setuptools_merge` for the setup.py over
+  setup.cfg merge.
 """
 
 from __future__ import annotations
@@ -26,10 +28,13 @@ from pitloom.extract.project._setup_cfg_directives import (
     _resolve_cfg_file_directive,
     _resolve_cfg_version,
 )
+from pitloom.extract.project._setuptools_options import requirement_lines
 from pitloom.extract.project.setuptools import (
     read_setup_cfg,
+    read_setuptools,
 )
 from pitloom.extract.project.setuptools_cfg import _parse_cfg_project_urls
+from tests.extract.project.test_setuptools_merge import write_project
 
 from ..conftest import assert_declared_empty_authors_no_copyright_text
 
@@ -331,3 +336,33 @@ def test_read_setup_cfg_content_type_without_override() -> None:
         _, config = read_setup_cfg(Path(d))
     assert config.content_type.enabled is True
     assert len(config.content_type.overrides) == 0
+
+
+_CFG_NAMED = "[metadata]\nname = c\n"
+
+
+def test_setup_cfg_requirements_read_as_setuptools_reads_them(tmp_path: Path) -> None:
+    """One shared reader for both files (``requirement_lines``)."""
+    write_project(
+        tmp_path,
+        _CFG_NAMED + "[options]\ninstall_requires =\n    requests >= 2.0  # c\n"
+        "    # c\n    idna \\\n    >=3\n",
+        None,
+    )
+    assert read_setuptools(tmp_path)[0].dependencies == ["requests >= 2.0", "idna>=3"]
+    write_project(
+        tmp_path, _CFG_NAMED + "[options]\ninstall_requires = a; b # c\n", None
+    )
+    assert read_setuptools(tmp_path)[0].dependencies == ["a", "b"]  # one line: ;
+    # a "#" item is left out before it is split into lines
+    write_project(
+        tmp_path, _CFG_NAMED + "[options]\ninstall_requires = #\x0ba; b\n", None
+    )
+    assert read_setuptools(tmp_path)[0].dependencies == ["b"]
+    assert requirement_lines("a\nb \\") == ["a"]  # nothing to join: dropped
+    # setuptools' own quirks: a comment cut is not stripped before "\\" is
+    # looked for, and "\\" cuts two characters
+    assert requirement_lines("x \\  # c\ny") == ["x \\", "y"]
+    assert requirement_lines("ab \\\n\\\nc") == ["ac"]
+    assert requirement_lines("a  \\\nb") == ["ab"]
+    assert requirement_lines("\\\nb") == ["b"]
