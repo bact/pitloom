@@ -52,7 +52,7 @@ from pitloom.extract._license_detect import (
     collect_license_candidates,
     find_license_files,
 )
-from pitloom.logging_config import one_line
+from pitloom.logging_config import one_line, warn_once
 
 _logger = logging.getLogger(__name__)
 
@@ -96,35 +96,30 @@ _SPDX_LICENSE_EXPR_KEYWORDS_RE = re.compile(r"\s+(OR|AND|WITH)\s+", re.IGNORECAS
 
 
 @functools.lru_cache(maxsize=1)
-def _get_matcher() -> AggregatedLicenseMatcher | None:
+def _get_matcher() -> AggregatedLicenseMatcher:
     """Return a process-wide shared matcher instead of one per lookup --
     each construction opens a sqlite3 connection, wasteful at project scale.
+    A failed construction raises and is not cached: :func:`_matcher` retries
+    it on the next lookup."""
+    return AggregatedLicenseMatcher()
 
-    None when the database cannot be used (missing, empty, unreadable),
-    warned once: the failure is cached too, so later lookups neither retry
-    nor warn again.
-    """
+
+def _matcher() -> AggregatedLicenseMatcher | None:
+    """The shared matcher, or None when the database cannot be used
+    (missing, empty, unreadable). Warned once per process; retried on every
+    lookup, so a database built later in a long-lived process is used."""
     try:
-        return AggregatedLicenseMatcher()
+        return _get_matcher()
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        _logger.warning(
+        warn_once(
+            _logger,
+            "licenseid database",
             "licenseid database cannot be used: %s -- license text detection "
             "and license ID canonicalization skipped",
             one_line(exc),
         )
         return None
-
-
-@functools.cache
-def _warn_empty_database() -> None:
-    """Warn once per process: an empty database is a fact about the
-    environment, not about each lookup, so one run's several detections
-    (a project read, then an embed of each wheel) share one warning."""
-    _logger.warning(
-        "licenseid database appears empty -- "
-        "run 'licenseid update' to enable license text detection"
-    )
 
 
 def _looks_like_spdx_license_expression(value: str) -> bool:
@@ -283,7 +278,7 @@ def detect_license_from_text(
     """Detect SPDX License ID from *text* using the licenseid library.
 
     Returns the top-ranked SPDX License ID when its score meets *threshold*, or
-    ``None`` when the database is not populated, *text* is too short to be a
+    ``None`` when the database cannot be used, *text* is too short to be a
     real license body, or no match exceeds the threshold. *text* is read as
     written and without its copyright notice lines (:func:`_readings`). A
     licence *stated* (the manifest's own id or expression) that either
@@ -291,13 +286,10 @@ def detect_license_from_text(
     (:data:`_STATED_TIE_MARGIN`); else the better-scoring reading decides,
     ``None`` when its top match is a near-tie with another licence family.
     """
-    matcher = _get_matcher()
+    matcher = _matcher()
     if matcher is None:
         return None
     try:
-        if not matcher.match(license_id="MIT"):
-            _warn_empty_database()
-            return None
         if len(text.strip()) < _MIN_LICENSE_TEXT_LENGTH:
             return None
         readings = _readings(matcher, text)
@@ -317,7 +309,7 @@ def detect_license_from_text(
 
 def canonicalize_license_id(raw: str) -> str:
     """Return the canonical SPDX License ID for *raw*, or *raw* unchanged."""
-    matcher = _get_matcher()
+    matcher = _matcher()
     if matcher is None:
         return raw
     try:

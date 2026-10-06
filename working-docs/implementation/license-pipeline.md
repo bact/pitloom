@@ -211,9 +211,9 @@ relationships.
    which calls `.match(license_id=raw)` on a process-wide cached
    `AggregatedLicenseMatcher` (see `_get_matcher()`) from the `licenseid`
    library for a direct database lookup. A matcher that cannot be built
-   (database missing, empty or unreadable) is cached as `None` and warned
-   once (`licenseid database cannot be used: ...`); every lookup then
-   returns its input. Recognised SPDX
+   (database missing, empty or unreadable) warns once per process
+   (`licenseid database cannot be used: ...`, `_matcher()`) and the lookup
+   returns its input; the failure is not cached, so the next lookup retries. Recognised SPDX
    License IDs are returned in canonical casing (e.g. `"apache-2.0"` →
    `"Apache-2.0"`). Values not recognised — proprietary or non-SPDX
    identifiers such as `"gemma"`, `"llama3.2"`, or deprecated bare

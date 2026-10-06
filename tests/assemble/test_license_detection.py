@@ -15,7 +15,7 @@ match is decisive).
 import logging
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -215,20 +215,25 @@ def test_an_unusable_database_warns_once_and_degrades(
 ) -> None:
     """A matcher that cannot be built (a missing, corrupt or unreadable
     database) is one WARNING naming the cause, not a silent debug line;
-    every lookup then degrades: the raw id, no detected licence."""
+    every lookup then degrades: the raw id, no detected licence. The build
+    is retried, so a database fixed later in the process is used."""
+    fixed = MagicMock()
+    fixed.match.return_value = [{"license_id": "MIT"}]
+    broken = RuntimeError("database: unreadable:\nx.db")
     with patch(
         "pitloom.extract._license.AggregatedLicenseMatcher",
-        side_effect=RuntimeError("database: unreadable:\nx.db"),
+        side_effect=[broken, broken, broken, fixed],
     ) as matcher_class:
         with caplog.at_level(logging.WARNING, logger="pitloom.extract._license"):
             results = [
                 canonicalize_license_id("mit"),
                 detect_license_from_text("MIT License " * 20),
                 canonicalize_license_id("apache-2.0"),
+                canonicalize_license_id("mit"),
             ]
 
-    assert results == ["mit", None, "apache-2.0"]
-    assert matcher_class.call_count == 1
+    assert results == ["mit", None, "apache-2.0", "MIT"]
+    assert matcher_class.call_count == 4
     (message,) = [r.getMessage() for r in caplog.records]
     assert "licenseid database cannot be used" in message
     assert "database: unreadable: x.db" in message

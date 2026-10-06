@@ -167,25 +167,3 @@ def test_detect_independent_license_loop_continuation() -> None:
             detected, prov = detect_independent_license(p)
             assert detected is None
             assert prov is None
-
-
-def test_detect_license_from_text_empty_db_warns_once(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
-) -> None:
-    """An empty database is warned about once per process, not per lookup."""
-    empty = MagicMock()
-    empty.match.return_value = []
-    monkeypatch.setattr(_license_module, "_get_matcher", lambda: empty)
-    _license_module._warn_empty_database.cache_clear()
-    try:
-        with caplog.at_level("WARNING", logger="pitloom.extract._license"):
-            results = [
-                _license_module.detect_license_from_text(text)
-                for text in ("x" * 200, "y" * 200)
-            ]
-    finally:
-        _license_module._warn_empty_database.cache_clear()
-
-    assert results == [None, None]
-    assert empty.match.call_count == 2
-    assert sum("appears empty" in r.message for r in caplog.records) == 1
