@@ -52,6 +52,7 @@ from pitloom.extract._license_detect import (
     collect_license_candidates,
     find_license_files,
 )
+from pitloom.logging_config import one_line
 
 _logger = logging.getLogger(__name__)
 
@@ -95,10 +96,24 @@ _SPDX_LICENSE_EXPR_KEYWORDS_RE = re.compile(r"\s+(OR|AND|WITH)\s+", re.IGNORECAS
 
 
 @functools.lru_cache(maxsize=1)
-def _get_matcher() -> AggregatedLicenseMatcher:
+def _get_matcher() -> AggregatedLicenseMatcher | None:
     """Return a process-wide shared matcher instead of one per lookup --
-    each construction opens a sqlite3 connection, wasteful at project scale."""
-    return AggregatedLicenseMatcher()
+    each construction opens a sqlite3 connection, wasteful at project scale.
+
+    None when the database cannot be used (missing, empty, unreadable),
+    warned once: the failure is cached too, so later lookups neither retry
+    nor warn again.
+    """
+    try:
+        return AggregatedLicenseMatcher()
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:
+        _logger.warning(
+            "licenseid database cannot be used: %s -- license text detection "
+            "and license ID canonicalization skipped",
+            one_line(exc),
+        )
+        return None
 
 
 @functools.cache
@@ -276,8 +291,10 @@ def detect_license_from_text(
     (:data:`_STATED_TIE_MARGIN`); else the better-scoring reading decides,
     ``None`` when its top match is a near-tie with another licence family.
     """
+    matcher = _get_matcher()
+    if matcher is None:
+        return None
     try:
-        matcher = _get_matcher()
         if not matcher.match(license_id="MIT"):
             _warn_empty_database()
             return None
@@ -300,10 +317,14 @@ def detect_license_from_text(
 
 def canonicalize_license_id(raw: str) -> str:
     """Return the canonical SPDX License ID for *raw*, or *raw* unchanged."""
+    matcher = _get_matcher()
+    if matcher is None:
+        return raw
     try:
-        results = _get_matcher().match(license_id=raw)
+        results = matcher.match(license_id=raw)
         if results:
             return str(results[0]["license_id"])
+    # An input licenseid rejects (not one licence ID) is no failure: debug.
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         _logger.debug("Failed to canonicalize license id %r: %s", raw, exc)

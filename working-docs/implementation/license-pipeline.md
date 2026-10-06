@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -210,7 +210,10 @@ relationships.
    `unlicensed`; `unknown` is handled below), it is passed through `canonicalize_license_id()`,
    which calls `.match(license_id=raw)` on a process-wide cached
    `AggregatedLicenseMatcher` (see `_get_matcher()`) from the `licenseid`
-   library for a direct database lookup. Recognised SPDX
+   library for a direct database lookup. A matcher that cannot be built
+   (database missing, empty or unreadable) is cached as `None` and warned
+   once (`licenseid database cannot be used: ...`); every lookup then
+   returns its input. Recognised SPDX
    License IDs are returned in canonical casing (e.g. `"apache-2.0"` →
    `"Apache-2.0"`). Values not recognised — proprietary or non-SPDX
    identifiers such as `"gemma"`, `"llama3.2"`, or deprecated bare

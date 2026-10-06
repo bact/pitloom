@@ -32,8 +32,9 @@ and this project adheres to
 - `setup.py` without a literal `name=` keeps its other keywords; a `setup.cfg`
   placeholder licence no longer wins; overridden real values become conflicts
   ([#287])
-- Licence text detection works with `licenseid` 0.4, which caps scores at 1:
-  a runner-up that fits the text measurably worse no longer ties ([#287])
+- Licence detection requires `licenseid` 0.4.1 (Windows fix): a runner-up that
+  fits the text measurably worse no longer ties; an unusable database warns
+  ([#287])
 
 ## [0.20.0] - 2026-10-05
 

@@ -201,7 +201,7 @@ Library: `ProjectMetadata(license_concluded=...)` with no
 slot).
 
 Text to id (`detect_license_from_text`, `extract/_license.py`, #286), on
-top of `licenseid` (0.3.7 and 0.4) at threshold 0.85:
+top of `licenseid` (0.4.1 or later; also checked on 0.3.7) at threshold 0.85:
 
 - Read twice: as written, and with copyright notice lines removed (SPDX
   matching guidelines omit the notice); the reading whose top score is

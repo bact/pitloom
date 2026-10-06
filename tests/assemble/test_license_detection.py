@@ -210,21 +210,28 @@ def test_collect_candidates_empty_dir() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_canonicalize_license_id_match_failure_logs_and_returns_raw(
+def test_an_unusable_database_warns_once_and_degrades(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A failure inside AggregatedLicenseMatcher (e.g. a corrupt database) is
-    caught, logged, and the raw input is returned unchanged -- same fallback
-    behaviour as before logging was added."""
+    """A matcher that cannot be built (a missing, corrupt or unreadable
+    database) is one WARNING naming the cause, not a silent debug line;
+    every lookup then degrades: the raw id, no detected licence."""
     with patch(
         "pitloom.extract._license.AggregatedLicenseMatcher",
-        side_effect=RuntimeError("db corrupt"),
-    ):
-        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._license"):
-            result = canonicalize_license_id("mit")
+        side_effect=RuntimeError("database: unreadable:\nx.db"),
+    ) as matcher_class:
+        with caplog.at_level(logging.WARNING, logger="pitloom.extract._license"):
+            results = [
+                canonicalize_license_id("mit"),
+                detect_license_from_text("MIT License " * 20),
+                canonicalize_license_id("apache-2.0"),
+            ]
 
-    assert result == "mit"
-    assert any("mit" in r.message for r in caplog.records)
+    assert results == ["mit", None, "apache-2.0"]
+    assert matcher_class.call_count == 1
+    (message,) = [r.getMessage() for r in caplog.records]
+    assert "licenseid database cannot be used" in message
+    assert "database: unreadable: x.db" in message
 
 
 # ---------------------------------------------------------------------------
@@ -232,7 +239,9 @@ def test_canonicalize_license_id_match_failure_logs_and_returns_raw(
 # ---------------------------------------------------------------------------
 
 
-def test_detect_license_from_text_db_not_populated(tmp_path: Path) -> None:
+def test_detect_license_from_text_db_not_populated(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     """Returns None gracefully when the licenseid database is not populated."""
     with patch(
         "licenseid.matcher.get_default_db_path",
@@ -240,6 +249,7 @@ def test_detect_license_from_text_db_not_populated(tmp_path: Path) -> None:
     ):
         result = detect_license_from_text("MIT License\n\nPermission is hereby granted")
         assert result is None
+    assert "licenseid database cannot be used" in caplog.text
 
 
 # ---------------------------------------------------------------------------

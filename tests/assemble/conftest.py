@@ -357,11 +357,12 @@ def _make_sdist(
 def licenseid_db_path_fixture() -> Path:
     """Skip if the licenseid database has not been built yet.
 
-    Build with: ``licenseid update``
+    Build with: ``licenseid update``. Only a missing file skips: a database
+    that exists but cannot be opened must fail the tests, not hide.
     """
     # pylint: disable=import-outside-toplevel
 
-    from licenseid.database import get_default_db_path
+    from licenseid.datadir import get_default_db_path
 
     db = Path(get_default_db_path())
     if not db.exists():
