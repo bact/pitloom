@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,6 +21,20 @@ and this project adheres to
 - Commit history: <https://github.com/bact/pitloom/compare/v0.20.0...HEAD>
 
 ## [Unreleased]
+
+### Changed
+
+- setuptools projects: a `setup()` keyword overrides the same `setup.cfg`
+  option unless empty, as setuptools does; SBOM output changes ([#287])
+
+### Fixed
+
+- `setup.py` without a literal `name=` keeps its other keywords; a `setup.cfg`
+  placeholder licence no longer wins; overridden real values become conflicts
+  ([#287])
+- Licence detection requires `licenseid` 0.4.1 (Windows fix): a runner-up or
+  stated licence that fits the text measurably worse no longer ties; an
+  unusable database warns ([#287])
 
 ## [0.20.0] - 2026-10-05
 
@@ -338,6 +352,7 @@ and this project adheres to
 [#283]: https://github.com/bact/pitloom/pull/283
 [#284]: https://github.com/bact/pitloom/pull/284
 [#286]: https://github.com/bact/pitloom/pull/286
+[#287]: https://github.com/bact/pitloom/pull/287
 
 ## [0.19.0] - 2026-09-18
 

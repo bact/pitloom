@@ -59,7 +59,8 @@ def _source_name(entry: dict[str, str]) -> str:
 def _is_high_signal(entry: dict[str, str]) -> bool:
     """Return whether a parsed field-provenance entry carries high signal: a
     method, a normalisation, a non-manifest source, or a value read from a
-    field other than its own (a licence from the ``classifiers``)."""
+    field other than its own (a licence from the ``classifiers``). A source
+    naming several manifests (``setup.py, setup.cfg``) is a manifest read."""
     if (
         entry.get("method")
         or entry.get("normalized-from")
@@ -68,7 +69,9 @@ def _is_high_signal(entry: dict[str, str]) -> bool:
     ):
         return True
     source = _source_name(entry)
-    return not source or source not in TRANSPARENT_SOURCES
+    return not source or any(
+        name.strip() not in TRANSPARENT_SOURCES for name in source.split(",")
+    )
 
 
 def is_license_concluded(entry: dict[str, str]) -> bool:

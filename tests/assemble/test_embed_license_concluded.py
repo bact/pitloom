@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -149,36 +148,21 @@ def test_embed_explicit_config_still_concludes_license(tmp_path: Path) -> None:
     assert _root_licenses(sbom_json, "hasConcludedLicense") == ["MIT"]
 
 
-# pylint: disable-next=too-few-public-methods
-class _EmptyMatcher:
-    """A licenseid matcher over an empty database."""
-
-    def match(self, *_args: object, **_kwargs: object) -> list[object]:
-        return []
+def _unusable_database() -> object:
+    raise RuntimeError("database: not found: licenses.db")
 
 
-@pytest.fixture(name="fresh_empty_db_warning")
-def fresh_empty_db_warning_fixture() -> Iterator[None]:
-    """Reset the process-wide warn-once state around the test."""
-    # pylint: disable-next=protected-access
-    _license._warn_empty_database.cache_clear()
-    yield
-    # pylint: disable-next=protected-access
-    _license._warn_empty_database.cache_clear()
-
-
-@pytest.mark.usefixtures("fresh_empty_db_warning")
 @pytest.mark.parametrize("explicit_config", [False, True])
-def test_embed_empty_license_db_warns_once(
+def test_embed_unusable_license_db_warns_once(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     explicit_config: bool,
 ) -> None:
-    """Text detection on an empty database warns once, though the project
-    is read more than once, and the concluded licence is then absent -- the
-    release gate's failure mode."""
-    monkeypatch.setattr(_license, "_get_matcher", _EmptyMatcher)
+    """A licenseid database that cannot be used warns once, though the
+    project is read more than once, and the concluded licence is then
+    absent -- the release gate's failure mode."""
+    monkeypatch.setattr(_license, "AggregatedLicenseMatcher", _unusable_database)
     project = _project(tmp_path / "proj", None, license_text="Apache License\n" * 20)
     wheel = _make_dummy_wheel(tmp_path / "dist", _NAME, license_expression="Apache-2.0")
 
@@ -189,6 +173,6 @@ def test_embed_empty_license_db_warns_once(
             pitloom_config=PitloomConfig() if explicit_config else None,
         )
 
-    warnings = [r for r in caplog.records if "database appears empty" in r.message]
+    warnings = [r for r in caplog.records if "database cannot be used" in r.message]
     assert len(warnings) == 1
     assert not _root_licenses(sbom_json, "hasConcludedLicense")

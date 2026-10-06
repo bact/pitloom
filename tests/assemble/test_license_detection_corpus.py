@@ -75,6 +75,32 @@ def test_a_stated_deprecated_id_concludes_its_successor(
     assert detect_license_from_text(text, stated=stated) == expected
 
 
+@pytest.mark.parametrize(
+    ("name", "stated"),
+    [
+        ("RapidFuzz-3.14.5-LICENSE", "JSON"),
+        ("RapidFuzz-3.14.5-LICENSE", "Xnet"),
+        ("RapidFuzz-3.14.5-LICENSE", "FSL-1.1-MIT"),
+        ("pydantic-2.13.5-LICENSE", "JSON"),
+        # on top of the reading with the notice, a weaker one
+        ("iniconfig-2.3.0-LICENSE", "FSL-1.1-MIT"),
+        ("iniconfig-2.3.0-LICENSE", "FSL-1.1-MIT OR MIT"),
+        ("pytest-9.1.1-LICENSE", "FSL-1.1-MIT"),
+        ("attrs-26.1.0-LICENSE", "MIT-advertising"),
+    ],
+)
+def test_a_stated_near_variant_does_not_beat_a_verbatim_text(
+    name: str, stated: str
+) -> None:
+    """A verbatim MIT text scores 1, the cap, and a near-variant within
+    0.01 of it: the declared near-variant fits measurably worse, so the
+    concluded licence stays MIT and the mismatch stays visible. A
+    near-variant on top of the weaker reading (with the notice) does not
+    win either."""
+    text = (_CORPUS / name).read_bytes().decode("utf-8")
+    assert detect_license_from_text(text, stated=stated) == "MIT"
+
+
 def test_embed_wheel_concludes_the_stated_licence(tmp_path: Path) -> None:
     """``embed-wheel --project-dir`` passes the wheel's declared licence:
     requests' verbatim Apache 2.0 concludes ``Apache-2.0``, not ``Pixar``."""

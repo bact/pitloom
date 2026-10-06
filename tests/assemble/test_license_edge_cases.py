@@ -29,7 +29,6 @@ from pitloom.extract._license import (
     _with_tool_tag,
     canonicalize_license_id,
     detect_independent_license,
-    detect_license_from_text,
     tag_license_normalization,
 )
 from pitloom.extract._license_detect import (
@@ -44,15 +43,6 @@ def test_looks_like_spdx_license_expression_newlines_and_length() -> None:
     """_looks_like_spdx_license_expression rejects newlines and long strings."""
     assert not _looks_like_spdx_license_expression("MIT OR\nApache-2.0")
     assert not _looks_like_spdx_license_expression("MIT OR " + ("Apache-2.0 " * 30))
-
-
-def test_detect_license_from_text_exception_handling() -> None:
-    """detect_license_from_text catches matcher exceptions and returns None."""
-    with patch(
-        "pitloom.extract._license.AggregatedLicenseMatcher",
-        side_effect=RuntimeError("matcher error"),
-    ):
-        assert detect_license_from_text("some license text") is None
 
 
 def test_canonicalize_license_id_match_and_exception() -> None:
@@ -177,25 +167,3 @@ def test_detect_independent_license_loop_continuation() -> None:
             detected, prov = detect_independent_license(p)
             assert detected is None
             assert prov is None
-
-
-def test_detect_license_from_text_empty_db_warns_once(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
-) -> None:
-    """An empty database is warned about once per process, not per lookup."""
-    empty = MagicMock()
-    empty.match.return_value = []
-    monkeypatch.setattr(_license_module, "_get_matcher", lambda: empty)
-    _license_module._warn_empty_database.cache_clear()
-    try:
-        with caplog.at_level("WARNING", logger="pitloom.extract._license"):
-            results = [
-                _license_module.detect_license_from_text(text)
-                for text in ("x" * 200, "y" * 200)
-            ]
-    finally:
-        _license_module._warn_empty_database.cache_clear()
-
-    assert results == [None, None]
-    assert empty.match.call_count == 2
-    assert sum("appears empty" in r.message for r in caplog.records) == 1

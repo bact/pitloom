@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -140,11 +140,12 @@ field list followed by the classifiers;
   `PKG-INFO`): `project.license` (a `text`/`file` table that `licenseid`
   identifies gives the id) -> `project.classifiers` -> in-package files.
   Poetry: `license` -> in-package files.
-- **Directory, `setup.cfg`/`setup.py`**: each file's own field ->
-  classifiers; then the two are merged: `setup.cfg`'s field beats
-  `setup.py`'s (any non-blank value, weak included); a licence from
-  `setup.cfg`'s classifiers gives way to `setup.py`'s field or classifier
-  (`_setup_py_over_cfg_classifier`); then in-package files.
+- **Directory, `setup.cfg`/`setup.py`**: `setup(license=)` -> `setup.cfg`
+  `license` -> `License ::` classifiers (`setup.py`'s, else `setup.cfg`'s),
+  by `license_cascade()`: a field beats a classifier in either file, and a
+  placeholder gives way to a real value in the other file; then in-package
+  files. Real vs real: `setup.py`'s is kept, the other recorded as a conflict
+  (`_setuptools_options.py`; setuptools-support.md#precedence).
 - **Directory reconcile** (`loom project`, library; not the hook, sdist,
   wheel or `embed-wheel`): the result above against the in-tree installed
   metadata (`_installed_reconcile.py`). Static wins a real disagreement
@@ -200,23 +201,45 @@ Library: `ProjectMetadata(license_concluded=...)` with no
 slot).
 
 Text to id (`detect_license_from_text`, `extract/_license.py`, #286), on
-top of `licenseid` 0.3.7 at threshold 0.85:
+top of `licenseid` (0.4.1 or later; also checked on 0.3.7) at threshold 0.85:
 
 - Read twice: as written, and with copyright notice lines removed (SPDX
-  matching guidelines omit the notice); the reading whose top score is
-  higher wins. A notice hides MIT from `licenseid` (PyYAML gives `Xnet`)
-  but anchors licence placement in mixed content (ast_serialize).
+  matching guidelines omit the notice); only the reading whose top score
+  is higher counts, both when their top scores are equal, as when both
+  reach the 1.0 cap (#287). A notice hides MIT from `licenseid` (PyYAML
+  gives `Xnet`) but anchors licence placement in mixed content
+  (ast_serialize).
 - A stated licence (the manifest's value; any id an expression names)
-  wins when it scores within 0.01 of the top in either reading:
+  wins when it scores within 0.01 of the top in that reading:
   `licenseid` ranks near-variants above the verbatim text (`Pixar` over
-  `Apache-2.0`, `JSON` over `MIT`).
-- With nothing stated, the better-scoring reading decides: its top match,
-  unless another licence family scores within 0.01 (a runner-up below the
-  0.85 threshold counts), then none. A worse reading never overrides a
+  `Apache-2.0`, `JSON` over `MIT`). Against a top match at the 1.0 cap
+  the score no longer tells how close they are, so the stated licence
+  must also not fit measurably worse (`_fits_worse`, #287): `JSON`,
+  `Xnet` or `FSL-1.1-MIT` stated over a verbatim MIT text concludes `MIT`
+  and the mismatch stays visible; below the cap the score still orders
+  (requests: stated `Apache-2.0` 0.9921 over `Pixar` 0.9963, though
+  Pixar fits better). Until #287 either reading could hold the stated
+  licence: a near-variant on top of the weaker reading, with the notice
+  (iniconfig, pytest: `FSL-1.1-MIT`; attrs: `MIT-advertising`), won over
+  the verbatim MIT text of the other.
+- With nothing stated, the better-scoring reading decides (of readings
+  tied at the top, the first that decides, so the as
+  written one when both decide: #287): its top match, unless another
+  licence family scores within 0.01 (a runner-up below the 0.85
+  threshold counts), then none. A worse reading never overrides a
   tie (PyYAML's notice before a JSON/MIT tie would give `Xnet`).
   `X-only` and `X-or-later` are one family: a verbatim GPL text scores
-  both alike (pylint: 1.069 vs 1.060), so the top match stays, as before
-  #286.
+  both alike (pylint: 1.069 vs 1.060 in 0.3.7, both 1.0 in 0.4), so
+  the top match stays, as before #286.
+- A runner-up that fits the input measurably worse is no tie (#287): its
+  `similarity`, or the share of its licence the text holds (`coverage` up
+  to 1; above 1 the text only has extra words), more than 0.01 below the
+  top's (`_fits_worse`). Needed since `licenseid` 0.4 caps `score` to 1:
+  MIT's 1.0157 against `JSON` 0.9926 became 1.0 against 0.9926, and
+  `FSL-1.1-MIT` (similarity 1.0, coverage 0.25: MIT's text is a quarter
+  of it) ties MIT at 1.0. The list order is `licenseid`'s ranking, kept
+  for equal scores. Same result on the corpus with 0.3.7 and 0.4; an
+  unmeasured field (a mock, a non-text match) never breaks a tie.
 - Consequence: the concluded value now leans on the declared one in a
   near-tie, e.g. `-only` vs `-or-later` (astroid, pylint): the second
   opinion agrees with the manifest where the text cannot tell.
@@ -344,24 +367,21 @@ leaning (2026-10-04).
    licence (`ReadmeEnricher` fills only an empty value). Leaning: the
    real one is declared, the weak value noted in provenance "as the
    dependency cascade does" (but see 9: that cascade records nothing).
-2. **Weak value across merged manifest files** (found 2026-10-05).
-   `setup.cfg` `license = UNKNOWN` with `setup.py` `license="MIT"`
-   records `UNKNOWN` (`merge_project_metadata` keeps any non-blank
-   primary value), though `first_license` would let MIT win. No leaning
-   on the rule; 0.20.1 fixes this case for parity with the built wheel
-   (see 4).
+2. **Weak value across merged manifest files** -- ruled (#287).
+   A placeholder (`UNKNOWN`/`NOASSERTION`) in one of `setup.py` and
+   `setup.cfg` gives way to a real licence in the other, as in
+   `first_license`. (setuptools itself keeps `setup.py`'s `UNKNOWN`: an
+   accepted difference.) Open for `[project]` vs `[tool.poetry]`.
 3. **Reconcile ranking.** Silent `setup.cfg`, MIT `LICENSE`, egg-info
    `License-Expression: Apache-2.0`: the detection is kept as declared
    and the project's own installed record becomes the conflict. Leaning:
    installed metadata outranks a `LICENSE` detection for declared; the
    detection stays the concluded second opinion; the conflict recorded.
-4. **`setup.cfg` vs `setup.py` field order.** `setup.cfg`'s `license =`
-   beats `setup.py`'s `license=`; setuptools does the opposite
-   (`setup()` keywords win). Same question for other merged sources
-   (pyproject with Poetry). No leaning on the general rule. Scheduled
-   for 0.20.1 as a parity fix, not a rule decision: follow setuptools
-   for `setup.cfg` + `setup.py`, since the built wheel does
-   ([known-bugs.md](known-bugs.md)).
+4. **`setup.cfg` vs `setup.py` field order** -- ruled for setuptools
+   (#287): `setup.py` over `setup.cfg`, as setuptools does; a real
+   disagreement keeps `setup.py`'s as the one declared licence and records
+   the other as a conflict. Still open: the same question for other merged
+   sources (pyproject with Poetry), no leaning on a general rule.
 5. **Cascade choices not recorded.** A model file's `Apache-2.0` and its
    card's `mit`: the card is skipped, nothing records the disagreement.
    Same for any two cascade sources. Open: which choices may never be
