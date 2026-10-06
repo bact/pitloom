@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,6 +21,12 @@ and this project adheres to
 - Commit history: <https://github.com/bact/pitloom/compare/v0.20.0...HEAD>
 
 ## [Unreleased]
+
+### Fixed
+
+- `-o -` leaves stdout as the SBOM alone: no `PITLOOM_SBOM_OUTPUT_PATH=-`
+  line, embed `WHEEL=` record on stderr; `embed-wheel -o -` no longer writes
+  a file named `-` ([#288])
 
 ## [0.20.0] - 2026-10-05
 
@@ -353,6 +359,7 @@ and this project adheres to
   unbalanced `args` quoting is now an error ([#224])
 
 [#224]: https://github.com/bact/pitloom/pull/224
+[#288]: https://github.com/bact/pitloom/pull/288
 
 ---
 

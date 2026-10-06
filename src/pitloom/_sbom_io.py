@@ -24,6 +24,12 @@ from typing import TextIO
 STDOUT = "-"
 
 
+def is_stdout(output_path: Path | str | None) -> bool:
+    """Whether *output_path* is ``-``: the SBOM is then all of stdout, so no
+    data line may follow it there."""
+    return output_path is not None and str(output_path) == STDOUT
+
+
 def open_text_lf(path: Path | str) -> TextIO:
     """Open *path* for writing UTF-8 text with ``\\n`` line endings."""
     return open(path, "w", encoding="utf-8", newline="\n")  # noqa: SIM115
@@ -54,7 +60,7 @@ def write_sbom_output(sbom_json: str, output_path: Path | str | None) -> None:
     nowhere for ``None``."""
     if output_path is None:
         return
-    if str(output_path) == STDOUT:
+    if is_stdout(output_path):
         write_stdout_lf(sbom_json)
     else:
         write_text_lf(output_path, sbom_json)
@@ -62,6 +68,7 @@ def write_sbom_output(sbom_json: str, output_path: Path | str | None) -> None:
 
 __all__ = [
     "STDOUT",
+    "is_stdout",
     "open_text_lf",
     "write_sbom_output",
     "write_stdout_lf",

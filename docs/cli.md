@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -613,8 +613,10 @@ file list](allow-build.md).
 
 Stdout is data only (`--help`/`--version` aside), one `KEY=VALUE` record a
 line; counts, hints, `-v` go to stderr as `INFO:`. A written SBOM prints
-`PITLOOM_SBOM_OUTPUT_PATH=<path>` (not for `merge -o -`); embed `WHEEL=<w>
-SBOM=<arcname>`; `verify-`/`validate-wheel` `WHEEL=<w> STATUS=ok|valid|skipped|failed`;
+`PITLOOM_SBOM_OUTPUT_PATH=<path>`; embed `WHEEL=<w> SBOM=<arcname>`.
+With `-o -` stdout is the SBOM alone (`loom project . -o - | jq .`): no
+path line, and the embed record is an `INFO:` line.
+Others: `verify-`/`validate-wheel` `WHEEL=<w> STATUS=ok|valid|skipped|failed`;
 `fragment validate` `FILE=<f> STATUS=valid`; `id` `PITLOOM_ID_REGISTRY_PATH=<path>`.
 A value with a non-printable character (tab, NBSP, ZWJ) prints quoted, ASCII-escaped.
 

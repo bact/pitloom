@@ -20,9 +20,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from pitloom._sbom_io import is_stdout
 from pitloom.assemble import ConfigOverrides, embed_wheel_sbom
 from pitloom.cli.commands.utils import report_error_line
-from pitloom.cli.kv_output import print_kv
+from pitloom.cli.kv_output import log_kv, print_kv
 from pitloom.cli.options_config import (
     creation_flags_given,
     load_explicit_config,
@@ -51,9 +52,11 @@ def report_embed_result(
     wheel_name: str,
     removed: tuple[str, ...],
     timestamp_floored: bool = False,
+    output_path: Path | str | None = None,
 ) -> None:
     """Print the embed's ``WHEEL=<wheel name> SBOM=<arcname>`` data line,
-    plus one ``INFO:`` line per notable side effect.
+    plus one ``INFO:`` line per notable side effect. For ``-o -`` the
+    record is an ``INFO:`` line instead: stdout is then the SBOM alone.
 
     Shared by ``wheel --embed`` and ``embed-wheel`` so both report results
     identically -- see ``pitloom.cli.commands.wheel._run_wheel_command``/
@@ -62,7 +65,8 @@ def report_embed_result(
     can call it directly instead of taking it as a callback parameter --
     a plain function-to-function call, not an ``Any``-typed indirection.
     """
-    print_kv(WHEEL=wheel_name, SBOM=arcname)
+    report = log_kv if is_stdout(output_path) else print_kv
+    report(WHEEL=wheel_name, SBOM=arcname)
     for stale_arcname in removed:
         if stale_arcname.endswith(RECORD_SIGNATURES):
             log.info(
@@ -268,5 +272,5 @@ def try_embed_one_wheel(
     except (ValueError, OSError) as exc:
         report_error_line(exc)
         return None
-    report_embed_result(arcname, wheel_path.name, removed, floored)
+    report_embed_result(arcname, wheel_path.name, removed, floored, output_path)
     return embedded_wheel_path, arcname

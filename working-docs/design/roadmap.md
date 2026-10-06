@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -51,7 +51,7 @@ Order (2026-10-05): 0.20.0 -> 0.20.1 -> 0.21.0 -> 0.22.0 -> 1.0. No date for
 
 Crash, mapping and parity fixes, each in
 [known-bugs.md](known-bugs.md#p0-in-0201): a very long lock-file version,
-`-o -` ending stdout with a path line, GGUF `general.license`, a `%` in
+GGUF `general.license`, a `%` in
 `setup.cfg`, and two `setup.py`/`setup.cfg` merges that disagree with the
 built wheel.
 

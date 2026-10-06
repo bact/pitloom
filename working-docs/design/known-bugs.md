@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -95,9 +95,9 @@ Crashes, broken contracts and small mappings.
   (int digit limit), not `InvalidVersion`; `version_key`,
   `is_usable_version` and `is_same_version` in `extract/lock/_common.py`
   catch only the latter. #266 fixed the same class in `verify-wheel`.
-- [ ] **`-o -` ends stdout with `PITLOOM_SBOM_OUTPUT_PATH=-` (S).** The
-  path line belongs on stderr, or nowhere, when the SBOM itself goes to
-  stdout.
+- [x] **`-o -` ends stdout with `PITLOOM_SBOM_OUTPUT_PATH=-` (S).** Fixed:
+  no path line for `-`, the embed `WHEEL=` record goes to `INFO:`, and
+  `embed-wheel -o -` no longer writes a file named `-`.
 - [ ] **GGUF `general.license` is not mapped (S).** Classify it with
   the licence classifier #276 added.
 - [ ] **`setup.cfg` `%` fails the whole run (S).** `description = 50% faster`
