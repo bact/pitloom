@@ -321,6 +321,30 @@ Crashes, broken contracts and small mappings.
   its own during `taskkill /F /T`, taskkill reports failure, so the
   `WARNING:` says "could not confirm the build process tree terminated"
   although it did. A Job Object would confirm it (0.21.0).
+- [ ] **The registry harvest `INFO:` can print a negative count (S).**
+  `_sync_registry()` (`assemble/_generators_shared.py`) logs `added %d
+  new file(s), %d new entit(y/ies)` from the net counts of `harvest()`.
+  Two library calls on the example project in a row printed `added 0 new
+  file(s), -1 new entit(y/ies)`: a stale key released in the same pass
+  makes the net count negative. Log gross additions, or the "updated stale
+  entries" line when any count is not positive. Found while checking doc
+  examples.
+- [ ] **`loom.run` never calls `configure_logging()` (S).** `loom.py` and
+  `_loom*.py` have no call, so a script using the decorator or context
+  manager prints its registry messages (`_loom_caller.py`,
+  `_loom_active_run.py`) bare, with no `WARNING:` tag. Those messages also
+  say `loom: ...` where every sibling `pitloom.id_registry` message says
+  `ID registry: ...`. Seen running `examples/sentimentdemo-aibom`'s
+  `train.py` on current `main`. The same example's committed
+  `loom-id-registry.json` is stale against its scripts' hashes, so running `train` and
+  `evaluate` straight from a checkout (the pipeline script refreshes the
+  registry between stages) logs the "SHA-256 no longer matches" message.
+- [ ] **`loom fragment validate A B` fails on two `loom.run` fragments (S).**
+  Both fragments name their creation info `_:CreationInfo0`, so the
+  merged-graph check sees one `CreationInfo` with several `created` values
+  (14 `ERROR:` lines); each fragment alone, and `--no-merge`, is valid.
+  `loom merge` of the same three fragments succeeds. Not yet checked
+  whether the validator or Pitloom's blank-node labels are at fault.
 
 ## Leads to verify
 

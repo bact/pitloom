@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-29
+Last-Modified: 2026-10-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -45,20 +45,11 @@ Then, in the same session, ask in plain language or invoke explicitly:
 
 ## Installation
 
-From a Claude Code CLI session:
-
-```text
-/plugin marketplace add bact/pitloom
-/plugin install pitloom@pitloom
-```
-
-This registers Pitloom's repository as a marketplace named `pitloom` and
-installs the `pitloom` plugin from it -- all three Skills become
-available in every session immediately after.
-
-From the Claude Desktop app, use the plugin browser instead of the slash
-commands above: click the **+** button, select **Plugins**, choose **Add
-plugin**, and provide `bact/pitloom` as the source.
+Run the two commands from the quick guide in a Claude Code CLI session. They
+register Pitloom's repository as a marketplace named `pitloom` and install the
+`pitloom` plugin from it; all three Skills are available in every session
+immediately after. In the Claude Desktop app, use the plugin browser instead
+(**+** > **Plugins** > **Add plugin**, source `bact/pitloom`).
 
 ## Usage details
 

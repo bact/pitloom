@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -101,14 +101,9 @@ gives a format-only entry: the step succeeds and the action surfaces the
 included), or is absent or unreadable, fails the step.
 See [AI model scan limits](ai-model-scan-limits.md#which-scans-apply-which-limits).
 
-Embed the SBOM into built wheels (PEP 770) for any build backend
-(`flit`, `setuptools`, `poetry-core`, `maturin`, etc.):
-
-```yaml
-- uses: bact/pitloom@v0.20.0
-  with:
-    embed-wheel: "dist/*.whl"
-```
+Set `embed-wheel: "dist/*.whl"` (see the quick guide) to embed the SBOM into
+built wheels (PEP 770) for any build backend (`flit`, `setuptools`,
+`poetry-core`, `maturin`, etc.).
 
 Pass extra raw CLI flags through with `args:` (shell-quoted, e.g. for
 [creator/creation metadata](creation-metadata.md)):
@@ -132,114 +127,12 @@ exit behaviour.
 `-v` in `args` logs each effective option as an `INFO:` line, so each
 becomes a `::notice::` annotation; GitHub caps how many a step shows.
 
-## Persisting the Loom ID registry in CI
+## Loom ID registry in CI
 
-A [Loom ID registry](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-loom-id)
-is used only when declared -- via the `id-registry` input below, or via
-`[tool.pitloom] id-registry` in the project's own config. Nothing is
-auto-discovered. Once declared, `loom project`/`wheel`/`env` (and this
-Action, which wraps them) harvest newly-minted ids back into it by
-default -- see `update-id-registry` in [Configuration](configuration.md).
-That write only ever touches the runner's local checkout; it never needs
-elevated permissions itself
-(that's a `git push`, which Pitloom never does). But the write is
-ephemeral unless a workflow step commits it back, so a release/publish
-job that intentionally runs with `permissions: contents: read` (common
-for trusted PyPI publishing -- see this repo's own
-[`pypi-publish.yml`](https://github.com/bact/pitloom/blob/main/.github/workflows/pypi-publish.yml))
-can update `loom-id-registry.json` locally but shouldn't have its permissions
-relaxed just to push that one file.
-
-Instead, run registry maintenance in a separate, appropriately-scoped
-workflow -- the same shape this repo already uses to commit a generated
-`CITATION.cff` back to the repo
-([`codemeta2cff.yml`](https://github.com/bact/pitloom/blob/main/.github/workflows/codemeta2cff.yml)).
-
-A declared `id-registry` that doesn't exist yet is now an `ERROR:`, not
-silently skipped -- so the registry file must exist before the build
-step below runs. Either commit one made by `loom id generate`
-(recommended, so every build reads the same committed file) or keep the
-seed step in the snippet below (it also creates the file on its first
-run, so the very first workflow run still succeeds):
-
-```yaml
-name: Update Loom ID registry
-
-on:
-  push:
-    branches: [main]
-    paths:
-      - "src/**"
-      - "data/**"
-      - "models/**"
-
-permissions: read-all
-
-concurrency:
-  group: update-loom-id-registry-${{ github.ref }}
-  cancel-in-progress: false
-
-jobs:
-  update-id-registry:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write  # EndBug/add-and-commit needs write to push loom-id-registry.json
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.x"
-      # Same release as the action below, which installs its own pinned version.
-      - run: pip install pitloom==0.20.0
-
-      # Extras-free, stem-keyed -- the only path that keeps ai_AIPackage
-      # spdxIds stable regardless of whether "ai" extras are installed
-      # (auto-harvest excludes AI packages -- see below). Creates
-      # loom-id-registry.json on first run. Only omit this step if a
-      # loom-id-registry.json is already committed to the repo -- a
-      # declared-but-missing registry now fails the step below.
-      - name: Seed/refresh AI model registry entries
-        run: loom id generate --id-registry loom-id-registry.json
-
-      - uses: bact/pitloom@v0.20.0
-        with:
-          project-path: .
-          # Required: nothing auto-discovers a registry -- declare it.
-          # Must already exist by this point (the seed step above
-          # creates it on first run) -- a declared-but-missing registry
-          # is an ERROR:, not silently skipped.
-          id-registry: loom-id-registry.json
-          # Optional: richer ai_AIPackage metadata (architecture,
-          # hyperparameters, etc.) -- NOT what keeps spdxIds stable, that's
-          # the step above. Omit if there are no AI models, or if sparse
-          # metadata is acceptable.
-          extras: "ai"
-
-      - name: Commit and push updated loom-id-registry.json
-        uses: EndBug/add-and-commit@v11.0.0
-        with:
-          message: "Update loom-id-registry.json"
-          add: "loom-id-registry.json"
-```
-
-Two things worth calling out about that snippet:
-
-- **AI model id stability doesn't come from `extras: "ai"` or from
-  auto-harvest at all.** `ai_AIPackage` elements are deliberately excluded
-  from auto-harvest, because their correct registry key is the model
-  file's stem -- which only ever comes from the extras-free
-  `loom id generate` step above. `extras: "ai"` only affects metadata
-  richness (architecture, hyperparameters, etc.), not which spdxId a model
-  gets.
-- **Race conditions**: this workflow never competes with the publish
-  workflow to push (the publish job doesn't commit, per the guidance
-  above). It can race with *itself*, though -- two pushes to `main` close
-  together could trigger two concurrent runs both trying to commit and
-  push. The `concurrency:` group above queues same-branch runs instead of
-  racing them. One sequencing caveat remains, shared by any
-  generated-and-committed file (this repo's own `CITATION.cff` included):
-  cutting a release at the exact moment a registry-update commit is in
-  flight could still pick up a slightly-stale `loom-id-registry.json`.
+Declare a registry with the `id-registry` input (or `[tool.pitloom] id-registry`);
+the action then harvests newly minted ids back into it, in the runner's
+checkout only. To commit it back without relaxing a publish job's permissions,
+see [Loom ID registry: In CI](id-registry.md#in-ci).
 
 ## Configuration
 
@@ -268,7 +161,7 @@ Inputs (all optional):
 | `offline` | *(empty)* | `true`/`false` to force network access (PyPI/Hugging Face lookups) off or on; empty defers to `[tool.pitloom] offline` (off by default). |
 | `use-lockfile` | *(empty)* | `true`/`false` to force the lock/pin file cascade off or on; empty defers to `[tool.pitloom] use-lockfile` (on by default). Only applies in project mode -- a no-op in model/embed-wheel mode, since neither reads a lock file. See [Dependency sources and precedence](dependency-sources.md). |
 | `trust-wheel-model` | `false` | **SECURITY:** with `embed-wheel` **and `project-path: ""`**, `"true"` reads AI model files inside the wheel with every format reader, including those that can crash or hang on a hostile file (fastText, GGUF, HDF5, ONNX, PyTorch `.pt`/`.pth`); by default such a model is listed without metadata. Only for a wheel you trust: a hostile model file can crash or hang the step or exhaust memory. No `[tool.pitloom]` equivalent. With the default `project-path: .` the action passes `--project-dir`, the models are read from the project, not the wheel, and the input logs `::warning::trust-wheel-model has no effect with project-path set`; outside `embed-wheel` mode it logs `::warning::trust-wheel-model has no effect without embed-wheel (no wheel is read here)`. |
-| `allow-signed-wheel` | `false` | **SECURITY:** with `embed-wheel`, `"true"` embeds into a wheel that carries a `RECORD` signature (`RECORD.jws`, `RECORD.p7s`), removing the signature (one `INFO:` per file); re-sign afterwards. By default such a wheel is refused and left untouched. Order the steps build, `embed-wheel`, sign/attest, upload: the embed invalidates signatures and hashes over the wheel file. See [Embed an SBOM into a wheel](cli.md#embed-an-sbom-into-a-wheel-pep-770). No `[tool.pitloom]` equivalent. Outside `embed-wheel` mode it logs `::warning::allow-signed-wheel has no effect without embed-wheel (no wheel is rewritten here)`. |
+| `allow-signed-wheel` | `false` | **SECURITY:** with `embed-wheel`, `"true"` embeds into a wheel that carries a `RECORD` signature (`RECORD.jws`, `RECORD.p7s`), removing the signature (one `INFO:` per file); re-sign afterwards. By default such a wheel is refused and left untouched. Order the steps build, `embed-wheel`, sign/attest, upload: the embed invalidates signatures and hashes over the wheel file. See [Signed wheels](wheel-sbom.md#signed-wheels). No `[tool.pitloom]` equivalent. Outside `embed-wheel` mode it logs `::warning::allow-signed-wheel has no effect without embed-wheel (no wheel is rewritten here)`. |
 | `allow-build` | `false` | **SECURITY:** `"true"` lets Pitloom invoke the scanned project's own PEP 517 build backend (subprocess; may install build-requires from the network) to discover a wheel's real file list. Executes third-party build-time code from the project being scanned -- only enable for a project whose build script you trust. No `[tool.pitloom]` equivalent; defaults to `"false"`, not empty, since there's no config layer to defer to. Applies in project/embed-wheel mode; explicitly set in model mode, it has no effect and logs `::warning::allow-build has no effect in model mode (no project-directory file discovery there)`. See [`--allow-build`](allow-build.md). |
 | `no-build-isolation` | `false` | With `allow-build: "true"`, skip creating an isolated build environment and use the runner's already-installed build backend instead. No effect without `allow-build`; explicitly set in model mode, it also logs `::warning::no-build-isolation has no effect in model mode (no project-directory file discovery there)`. |
 | `build-timeout` | *(empty)* | Seconds or `h`/`m`/`s` duration, e.g. `900` or `1h30m`, capping how long an `allow-build` build may run before Pitloom kills it and falls back to static discovery. Passed verbatim to `loom --build-timeout`, which validates it -- no shell-side parsing. Empty uses Pitloom's own default of 20 minutes. No effect without `allow-build`; explicitly set in model mode, it also logs `::warning::build-timeout has no effect in model mode (no project-directory file discovery there)`. See [`--build-timeout`](allow-build.md#timing-out-a-build). |

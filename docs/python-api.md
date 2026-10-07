@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,7 +12,7 @@ Use this when you're calling Pitloom from Python code you control --
 a build script, a notebook, or a training/evaluation pipeline that wants
 to record its own provenance as it runs.
 
-Three different needs, three different entry points:
+Three entry points:
 
 - **[Generator functions](#generator-functions)** -- call `generate()` (or
   a target-specific function) to produce a full SBOM, the same output
@@ -26,6 +26,9 @@ Three different needs, three different entry points:
   evaluation script with `@loom.run(...)` to emit a small SPDX fragment
   describing what that run produced, to be merged into the SBOM later.
 
+To embed an SBOM in a built wheel from code, see [Wheel SBOMs: From
+Python](wheel-sbom.md#from-python).
+
 See the [API reference](api.md) for exact call signatures, parameter
 types, and defaults, generated from the docstrings.
 
@@ -33,18 +36,8 @@ types, and defaults, generated from the docstrings.
 
 ```bash
 pip install pitloom
-```
-
-Install with AI model metadata extraction support:
-
-```bash
-pip install "pitloom[ai]"
-```
-
-Install with extra content type detection:
-
-```bash
-pip install "pitloom[content-type]"
+pip install "pitloom[ai]"            # AI model metadata extraction
+pip install "pitloom[content-type]"  # content type detection (magika)
 ```
 
 ## Generator functions
@@ -100,117 +93,44 @@ below.
 
 Every generator function (`generate()`, `generate_project_sbom()`,
 `generate_wheel_sbom()`, `generate_model_sbom()`, `generate_env_sbom()`,
-`enrich_model()`) and `embed_wheel_sbom()` take `pitloom_config=`, the
-library equivalent of the CLI's `--config FILE` -- pass an already-built
-`PitloomConfig` instead of a path. It **replaces** the target's own
-`[tool.pitloom]` outright, not merges with it: a field the given
-`PitloomConfig` leaves at its default reverts to the default, not to
-whatever the target's own config would have set. On a target with no
-`[tool.pitloom]` of its own (a wheel, an installed environment, a model
-file, `enrich_model()` without `project_target=`), it is the *only*
-config that call can ever get -- nothing is read from the current
-directory. See [Where settings come from in
-Configuration](configuration.md#where-settings-come-from) for the full
-per-surface table.
+`enrich_model()`) and `embed_wheel_sbom()` take `pitloom_config=`, the library
+equivalent of `--config FILE`: an already-built `PitloomConfig`. It
+**replaces** the target's own `[tool.pitloom]` outright: a field left at its
+default reverts to the default, not to what the target's config would set. On a
+target with no `[tool.pitloom]` of its own (a wheel, an installed environment,
+a model file, `enrich_model()` without `project_target=`) it is the *only*
+config that call can get: nothing is read from the current directory. See
+[Where settings come from](configuration.md#where-settings-come-from).
 
-On `generate_project_sbom()` specifically, passing `pitloom_config=`
-*together with* `project_metadata=` skips re-reading the project
-entirely (the caller is asserting the two are already consistent, e.g.
-re-using a prior resolution); passing `pitloom_config=` alone still
-re-reads `project_target`'s metadata fresh, but with the project's own
-`[tool.pitloom]` replaced by the value given -- that replaced config is
-not parsed, so an invalid one in the project (or inside an sdist) does
-not fail the call. An sdist's own config is read as its unpacked
-directory's is (see [Where settings come
-from](configuration.md#where-settings-come-from)).
+On `generate_project_sbom()`, `pitloom_config=` *with* `project_metadata=`
+skips re-reading the project (the caller asserts the two are consistent);
+`pitloom_config=` alone re-reads `project_target`'s metadata with the project's
+own `[tool.pitloom]` replaced by the value given. The replaced config is not
+parsed, so an invalid one in the project (or inside an sdist) does not fail the
+call. An sdist's own config is read as its unpacked directory's is.
 
-`max_source_metadata_bytes=` is also new on `generate()`,
-`generate_wheel_sbom()`, `generate_env_sbom()` and
-`generate_model_sbom()` -- the same byte cap as
-`--max-source-metadata-bytes` on the CLI (see [Metadata
-provenance](metadata-provenance.md)).
+Other arguments that mirror a CLI flag or config key:
 
-`scan_model_usage=` is on `generate()`, `generate_project_sbom()` and
-`generate_wheel_sbom()` (also `ConfigOverrides.scan_model_usage` for
-`embed_wheel_sbom()`, with or without `project_dir=`): `True` records which
-Python files reference each discovered AI model file (`hasDataFile`), the
-CLI's `--scan-model-usage`. Off by default; AI models are found either way
--- in a project directory or inside a wheel -- and one `INFO:` line says so
-when the setting was never given (an explicit `False` is silent). Other
-targets warn that it has no effect. For a wheel, an AI model file is copied
-out one at a time, each up to the config's `max-model-extract-bytes` (a
-bad value in `pitloom_config=` raises `ValueError`) and four times that in
-all; a model beyond either stays listed without its metadata. Models in a
-wheel in the fastText, GGUF, HDF5, ONNX or PyTorch `.pt`/`.pth` formats are
-listed without metadata, with one `INFO:` per call: their readers run in the
-calling process, and a hostile file can crash or hang them or exhaust memory.
-`trust_wheel_model=True` (`generate()`,
-`generate_wheel_sbom()`, `ConfigOverrides.trust_wheel_model` for
-`embed_wheel_sbom()` without `project_dir=`; the CLI's `--trust-wheel-model`)
-reads them: for a wheel you trust only. No config key, so a config cannot opt in;
-other targets warn that it has no effect.
+- `max_source_metadata_bytes=` (`generate()`, `generate_wheel_sbom()`,
+  `generate_env_sbom()`, `generate_model_sbom()`): `--max-source-metadata-bytes`;
+  see [Metadata provenance](metadata-provenance.md).
+- `scan_model_usage=` (`generate()`, `generate_project_sbom()`,
+  `generate_wheel_sbom()`; `ConfigOverrides.scan_model_usage` for
+  `embed_wheel_sbom()`, with or without `project_dir=`): `--scan-model-usage`.
+  Other targets warn that it has no effect.
+- `trust_wheel_model=True` (`generate()`, `generate_wheel_sbom()`;
+  `ConfigOverrides.trust_wheel_model` for `embed_wheel_sbom()` without
+  `project_dir=`): `--trust-wheel-model`, for a wheel you trust only. It has no
+  config key, so a config cannot opt in. Other targets warn that it has no
+  effect.
+- `id_registry=`: `--id-registry`; see [Loom ID registry](id-registry.md#from-python).
+- `build_options=BuildOptions(...)`: `--allow-build` and its companions, with
+  no config-file equivalent; see [`--allow-build`](allow-build.md#from-python).
 
-`id_registry=` (or a target's own `[tool.pitloom] id-registry`, or an
-`id-registry` in `pitloom_config=`) is the only way a registry is ever
-used -- nothing is searched for or auto-discovered. Precedence:
-`id_registry=` wins over the applicable config's `id-registry` key, which
-wins over no registry at all (silently). A relative `id_registry=` path
-resolves against the project directory for a project directory target
-(and `embed_wheel_sbom(project_dir=...)`, and `enrich_model(project_target=dir)`
--- the project the enrichment fragment will merge into), and against the
-current directory for any other target, an sdist included. The CLI makes
-`--id-registry` absolute against the current directory first, so there
-it always means the file under the current directory. A declared
-registry file that's missing, unreadable or invalid raises `ValueError`
-(`"ID registry file <path>: <reason>"`) rather than being silently
-skipped or replaced.
-
-Pass `build_options=BuildOptions(allow=True)` to
-`generate()`/`generate_project_sbom()` to let Pitloom invoke a project's
-own PEP 517 build backend to discover its real file list, when static
-discovery has no module for the backend (e.g. `uv_build`) or a supported
-backend's own static discovery fails -- see
-[`--allow-build`](allow-build.md) for the full security rationale, which
-applies identically here. Unlike
-`use_lockfile` above, it has **no** `[tool.pitloom]` config-file
-equivalent and must be passed explicitly every call -- there is no
-config layer for a scanned project to silently opt itself into.
-
-```python
-from pathlib import Path
-from pitloom import BuildOptions, generate
-
-generate(
-    Path("/path/to/project"),
-    output_path=Path("sbom.spdx3.json"),
-    build_options=BuildOptions(allow=True, timeout=900),
-)
-```
-
-`BuildOptions` mirrors the three CLI flags:
-
-| Field | CLI flag | Default |
-| --- | --- | --- |
-| `allow` (`bool`) | `--allow-build` | `False` |
-| `no_isolation` (`bool`) | `--no-build-isolation` | `False` |
-| `timeout` (`int` seconds or `None`) | `--build-timeout` | `None` (1200 s) |
-
-`timeout` is plain `int` seconds -- **not** a duration string; the CLI's
-own `h`/`m`/`s` grammar is a CLI/Action-layer convenience only.
-`BuildOptions(...)` validates its fields when constructed, for every
-target: a non-`bool` `allow`/`no_isolation` (e.g. the string `"false"`)
-or a non-`int` `timeout` raises `TypeError`; a `timeout` outside 1 to
-604800 raises `ValueError`. A field set where it has no effect -- a
-target other than a project directory, or `no_isolation`/`timeout`
-without `allow` -- logs one `WARNING: Build: ...` line per field,
-naming the field by its CLI flag spelling (e.g. `--build-timeout`)
-followed by "has no effect" and the reason -- even when `BuildOptions`
-was constructed directly and no CLI flag was ever typed. Intentional:
-the same warning stays recognisable and grep-able regardless of which
-surface (CLI, library API, ...) triggered it. Logged as early as
-possible on every surface -- before any project-metadata or lock-file
-`WARNING:` a project directory target might also trigger -- so it's
-never buried later in a run's output.
+What `scan_model_usage` records, and which wheel models are listed without
+metadata and why: [Configuration](configuration.md) and [AI model scan
+limits](ai-model-scan-limits.md#formats-gated-in-wheels). For a wheel, a bad
+`max-model-extract-bytes` in `pitloom_config=` raises `ValueError`.
 
 `pitloom.assemble` also exposes `generate_wheel_sbom()` (and
 `generate_wheel_sbom_with_metadata()`, which returns `(json, metadata)`: the
@@ -223,118 +143,6 @@ subcommands cover. See [AI model formats](ai-model-formats.md) for what
 beside the wheel/model file -- either may belong to an unrelated
 project; `pitloom_config=` is the only config any of them can get (see
 above).
-
-### Wheel embedding functions
-
-For programmatic PEP 770 post-build wheel injection:
-
-```python
-from pathlib import Path
-from pitloom.assemble import ConfigOverrides, embed_sbom_in_wheel, embed_wheel_sbom
-
-# 1. Generate and embed SBOM in one step
-modified_wheel, arcname, sbom_json, removed, floored = embed_wheel_sbom(
-    wheel_path=Path("dist/mypackage-1.0.0-py3-none-any.whl"),
-    project_dir=Path("."),
-    overrides=ConfigOverrides(offline=True),  # optional
-    # ConfigOverrides also accepts build_options=BuildOptions(...) (no
-    # [tool.pitloom] equivalent) -- see the --allow-build docs above.
-)
-
-# 2. Or embed an externally-generated, pre-written SBOM file (checked)
-modified_wheel, arcname, sbom_json, removed, floored = embed_wheel_sbom(
-    wheel_path=Path("dist/mypackage-1.0.0-py3-none-any.whl"),
-    sbom_path=Path("sbom.spdx3.json"),
-    allow_mismatch=False,  # default: raise ValueError on a name/version mismatch
-)
-
-# 3. Or embed arbitrary pre-generated SBOM content (unchecked, lower-level)
-modified_wheel, arcname, removed, floored = embed_sbom_in_wheel(
-    wheel_path=Path("dist/mypackage-1.0.0-py3-none-any.whl"),
-    sbom_content=sbom_json_string,
-    sbom_filename="custom.spdx3.json",  # optional
-)
-```
-
-`removed` lists any prior Pitloom-embedded SBOM entries cleaned up as part
-of the embed; `floored` is `True` when the wheel's ZIP entry timestamp had
-to be floored to 1980-01-01 (see [Configuration](configuration.md#toolpitloomcreation)).
-
-With `sbom_path=` (form 2, the equivalent of the CLI's `embed-wheel --sbom`),
-the SBOM's declared subject name/version (PEP 503/440-normalised) is
-cross-checked against the wheel's own `.dist-info/METADATA` *before*
-anything is written: a mismatch raises `ValueError` and nothing is
-written, unless `allow_mismatch=True` downgrades it to a `WARNING:` log
-and lets the embed proceed. Form 1 (a Pitloom-generated SBOM) is never
-checked -- it's built from the same wheel metadata, so it can't diverge.
-A Pitloom-generated SBOM lists the wheel's payload only (see
-[the CLI notes](cli.md#embed-an-sbom-into-a-wheel-pep-770)). A wheel with a
-`RECORD` signature (`RECORD.jws`, `RECORD.p7s`) raises `ValueError` and is left
-untouched, unless `allow_signed_wheel=True` removes the signature the rewrite
-invalidates (the removed names are returned with any stale SBOMs). Embed before
-signing, attesting, uploading or hashing the wheel file.
-A wheel's name and version come from its own top-level `.dist-info` (see
-[the CLI notes](cli.md#embed-an-sbom-into-a-wheel-pep-770)). A wheel with one
-of the problems below raises `ValueError` (all but the fifth the subclass
-`pitloom.core.wheel_dist_info.WheelRefused`), naming the archive (and the
-member, where one is at fault), and nothing is written:
-
-- a member that cannot be read;
-- two members with one name;
-- a NUL in a member name;
-- a file that is not a ZIP archive, or that `zipfile` cannot open;
-- no single own `.dist-info` (plain `ValueError`);
-- (embed only) a member of its own `.dist-info` under a non-conforming name.
-
-A file that cannot be opened at all (missing, permission denied) raises
-`OSError`. Pass `identity=(name, version)` to `embed_sbom_in_wheel()` where
-you have already read them from the wheel's `METADATA`: the default file
-name is made from it and `METADATA` is not read, or warned about, again.
-`pitloom.extract.wheel.wheel_identity(metadata)` gives that pair from the
-`ProjectMetadata` of `read_wheel()`, or of `generate_wheel_sbom_with_metadata()`
-(above): `None` for a field the wheel did not declare.
-Form 3, `embed_sbom_in_wheel()`, is the lower-level, unchecked archive
-primitive both forms 1 and 2 converge on -- calling it directly (bypassing
-`embed_wheel_sbom()`) skips the cross-check entirely, same as it skips
-SBOM *generation*.
-
-#### Batch embedding with `EmbedFileCache`
-
-Embedding into several wheels from the same *project_dir* in a loop --
-what the CLI's `embed-wheel dist/*.whl --project-dir .` does -- should
-share one `EmbedFileCache` across the whole batch instead of calling
-`embed_wheel_sbom()` per wheel with no cache: without it, each call
-independently resolves *project_dir*'s file list (and, with
-`--allow-build`, reruns the real PEP 517 build) once per wheel instead of
-once for the batch, and repeats each ineffective build flag's
-`WARNING:` once per wheel.
-
-```python
-from pathlib import Path
-from pitloom.embed import EmbedFileCache, embed_wheel_sbom
-
-wheels = [Path("dist/mypackage-1.0.0-py3-none-any.whl"), Path("dist/mypackage-1.0.0-py2-none-any.whl")]
-
-with EmbedFileCache() as cache:
-    for wheel in wheels:
-        embed_wheel_sbom(
-            wheel_path=wheel,
-            project_dir=Path("."),
-            file_cache=cache,
-        )
-```
-
-`EmbedFileCache` must be used as a context manager around the whole
-batch: it resolves *project_dir*'s file list (and any `--allow-build`
-build) once, on the batch's first call, and removes its temporary
-directories on exit -- including on SIGTERM/SIGHUP or Ctrl-C, via the
-same `TerminationGuard` the `--allow-build` docs describe. Every call
-in one batch must use the same *project_dir*, file-scan settings and
-build options -- a call that doesn't raises `ValueError`. Passing
-`file_cache=` to `embed_wheel_sbom()` outside the `with` block raises
-`RuntimeError`.
-Advanced/batch use only -- a single `embed_wheel_sbom()` call needs no
-`file_cache` and manages its own resolve-then-cleanup cycle.
 
 ### Config
 
@@ -483,8 +291,7 @@ both creator and tool). See [Creation metadata](creation-metadata.md).
 
 Pass `id_registry=` (a path, or an already-loaded `IdRegistry`) to
 consult a Loom ID registry read-only when minting ids for datasets, the
-model, and the generating script -- see [Loom IDs across
-fragments](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-loom-id).
+model, and the generating script -- see [Loom ID registry](id-registry.md).
 As on every other surface, this is the only way `loom.run`/`loom.Run`
 ever uses a registry: with none given, no registry is used -- nothing is
 searched for or auto-discovered. A declared registry that's missing,
@@ -504,6 +311,8 @@ fragments](fragments.md) and [API reference](api.md#fragment-merging).
 ## See also
 
 - [Command line](cli.md) -- the same generation targets, from a shell.
+- [Wheel SBOMs](wheel-sbom.md#from-python) -- embedding an SBOM in a wheel.
+- [Loom ID registry](id-registry.md#from-python) and [`--allow-build`](allow-build.md#from-python) -- their library arguments.
 - [Dependency sources and precedence](dependency-sources.md) -- how
   resolved lock files feed into Source SBOM dependencies.
 - [Hatchling build hook](hatchling-build-hook.md) -- how registered

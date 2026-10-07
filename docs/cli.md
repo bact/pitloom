@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,10 +8,14 @@ SPDX-License-Identifier: CC0-1.0
 
 # Command line
 
-Use this when you want a one-off SBOM from a terminal, a Makefile target,
-or any shell script. The console script is installed under two names,
-`loom` and `pitloom` -- pick whichever reads better; they run the same
-tool.
+Use this when you want a one-off SBOM from a terminal, a Makefile target, or
+any shell script. The console script is installed as `loom` and `pitloom`;
+they run the same tool.
+
+See also: [Wheel SBOMs and PEP 770 embedding](wheel-sbom.md),
+[SBOM fragments](fragments.md) and [Loom ID registry](id-registry.md), which hold the
+`embed-wheel`, `verify-wheel`, `validate-wheel`, `merge`, `fragment` and `id`
+subcommands.
 
 ## Quick guide
 
@@ -26,282 +30,80 @@ loom project .     # SBOM for the Python project in the current dir
 
 ```bash
 pip install pitloom
-```
-
-Install with AI model metadata extraction support:
-
-```bash
-pip install "pitloom[ai]"
-```
-
-Install with extra content type detection:
-
-```bash
-pip install "pitloom[content-type]"
-```
-
-Install with SPDX 3 schema/SHACL validation support (`loom fragment
-validate`, `loom validate-wheel`):
-
-```bash
-pip install "pitloom[validate]"
+pip install "pitloom[ai]"            # AI model metadata extraction
+pip install "pitloom[content-type]"  # content type detection (magika)
+pip install "pitloom[validate]"      # SPDX 3 schema/SHACL validation (loom fragment validate, loom validate-wheel)
 ```
 
 ## Usage details
 
 ### Generate an SBOM
 
-Generate a **Source SBOM** for a Python project in the current directory:
+Generate a **Source SBOM** for a Python project (default: the current
+directory):
 
 ```bash
 loom project .
 loom project /path/to/project -o sbom.spdx3.json
 ```
 
-> **Limitation:** the per-file inventory (file list and hashes)
-> is backend-aware and accurate for Flit-core, PDM-backend, Poetry,
-> Hatchling, setuptools, and uv_build
-> (uv_build needs the [`--allow-build` flag](allow-build.md)).
-> Other backends (e.g. maturin, scikit-build-core, meson-python)
-> fall back to a heuristic and log a `WARNING:`.
+> **Limitation:** the per-file inventory (file list and hashes) is
+> backend-aware and accurate for Flit-core, PDM-backend, Poetry, Hatchling,
+> setuptools and uv_build (uv_build needs [`--allow-build`](allow-build.md)).
+> Other backends (maturin, scikit-build-core, meson-python, ...) fall back to
+> a heuristic and log a `WARNING:`.
 
 If a lock file (`pylock.toml`, `uv.lock`, `poetry.lock`, `pdm.lock`,
-`Pipfile.lock`, or a fully pinned `requirements.txt`) is present next
-to `pyproject.toml` (or `setup.py`, for `Pipfile.lock`/`requirements.txt`),
-its resolved transitive dependencies are added to the Source SBOM's
-dependency list too -- see
-[Dependency sources and precedence](dependency-sources.md) for which
-one wins when more than one is present, and what counts as "resolved"
-for each. On by default; pass `--no-use-lockfile` (or set
-`[tool.pitloom] use-lockfile = false`) to fall back to direct dependencies
-and environment introspection only.
+`Pipfile.lock`, or a fully pinned `requirements.txt`) sits next to
+`pyproject.toml` (or `setup.py`, for `Pipfile.lock`/`requirements.txt`), its
+resolved transitive dependencies join the dependency list. This is on by
+default; `--no-use-lockfile` (or `[tool.pitloom] use-lockfile = false`) falls
+back to direct dependencies and environment introspection. See [Dependency
+sources and precedence](dependency-sources.md) for which lock file wins and
+what counts as "resolved".
 
-Generate an **Analyzed SBOM** from a pre-built wheel (extracting bundled
-binaries as phantom dependencies):
+Generate an **Analyzed SBOM** from a built wheel (bundled binaries become
+phantom dependencies):
 
 ```bash
 loom wheel path/to/mypackage-1.0.0-py3-none-any.whl -o sbom.spdx3.json
 ```
 
-#### setuptools projects (`setup.py` and `setup.cfg`)
+To embed SBOMs in wheels, check them, or recompute a package hash, see
+[Wheel SBOMs and PEP 770 embedding](wheel-sbom.md).
 
-When a directory has both, Pitloom follows setuptools' own precedence (see
-[`setupcfg.py`](https://github.com/pypa/setuptools/blob/main/setuptools/config/setupcfg.py)):
-a `setup()` keyword is used, and the same `setup.cfg` option only when the
-keyword is empty (`""`, `[]`, `{}`, `None`, an `install_requires` of only
-comments) or absent. It is decided per
-option (`author` and `author_email` apart, `url` and `project_urls` apart),
-and a list replaces the other, never joins it. The name is `setup.py`'s
-literal, else `setup.cfg`'s. Differences from setuptools:
-
-- `setup.py` is read, never run: a keyword that is not a literal
-  (`name=NAME`), is blank (`"  "`) or holds a value Pitloom does not read
-  (`url=1`) is ignored with a `WARNING:`, and `setup.cfg`'s is used.
-  A `setup.cfg` `file:` directive in `install_requires` is not read.
-- A placeholder licence (`UNKNOWN`, `NOASSERTION`) in `setup()` gives way to
-  the licence classifier kept, else to the `license` of `setup.cfg` it
-  overrode; setuptools keeps the placeholder. `NONE` is a statement.
-- When `setup.py` overrides a different real name, licence, version or
-  `python_requires` of `setup.cfg`, Pitloom keeps `setup.py`'s, records the
-  other as a conflict annotation and gives one `WARNING:` per field. For the
-  licence, a real `license` field in either file beats a classifier, as in
-  the built wheel.
-
-Only a directory is read this way; an sdist or wheel carries the metadata
-setuptools already merged. With `detail = "full"` provenance, an author or
-URL entry built from both files names both, `setup.py` first:
-`Source: setup.py, setup.cfg | Field: setup(author=...), metadata.author/author_email`.
-
-### Embed an SBOM into a wheel (PEP 770)
-
-Generate and embed an SPDX 3 SBOM directly into one or more built `.whl`
-files (writing to `.dist-info/sboms/` and updating `.dist-info/RECORD`):
-
-```bash
-loom embed-wheel dist/*.whl --project-dir .
-```
-
-`--project-dir` rescans the source project so the SBOM can carry project
-metadata (dependencies, license, AI models). It is never inferred from
-the current directory -- pass it explicitly, even when the shell is
-already sitting in the project root, since the current directory may not
-be the wheel's own project.
-
-Without `--project-dir` (and without `--sbom`, below), `embed-wheel`
-still embeds a standalone-wheel SBOM built from the wheel's own contents
-alone -- no project directory scan, so no AI-model enrichment and no
-`[tool.pitloom]` beyond an explicit `--config`. AI models inside the wheel
-are found (see `--scan-model-usage`):
-
-```bash
-loom embed-wheel dist/mypackage-1.0.0-py3-none-any.whl
-```
-
-With `--project-dir`, the file list and hashes always come from the
-wheel itself, so they're accurate regardless of build backend. What can
-still be affected by the Source SBOM limitation above is `--content-type`
-and `--extract-file-header`, for any backend still on the Hatchling-based
-fallback (see above): that per-file enrichment can silently fail to
-attach to any file (falls back to no content-type/header data for it,
-not a wrong one).
-
-Or inject an existing pre-generated SBOM into built wheels:
-
-```bash
-loom embed-wheel dist/*.whl --sbom sbom.spdx3.json
-```
-
-`sbom.spdx3.json`'s declared subject name/version (PEP 503/440-normalised)
-is cross-checked against the target wheel's own `.dist-info/METADATA`
-*before* anything is written: a mismatch is an `ERROR:` that aborts the
-embed (exit 1, nothing written); pass `--allow-mismatch` to downgrade it
-to a `WARNING:` and embed anyway (useful for CI/automation that wants
-best-effort embedding). A Pitloom-generated SBOM (no `--sbom`) is never
-checked -- it's built from the same wheel metadata, so it can't diverge.
-
-Every wheel-reading command (`loom wheel`, `generate <whl>`, `embed-wheel`,
-`wheel --embed`) lists the wheel's payload only: nothing under the wheel's own
-`.dist-info` (`METADATA`, `WHEEL`, `RECORD`, `licenses/`, `sboms/`,
-signatures). An SBOM describes the packaged project, not the package
-container, so a listed hash never goes stale when the embed rewrites `RECORD`
-and adds `sboms/`. The Hatchling build hook and `loom project` list no
-`.dist-info/licenses/*` file either. An external SBOM given with `--sbom` is
-embedded verbatim and may list `.dist-info` files.
-
-**SECURITY:** a wheel that carries a `RECORD` signature (`RECORD.jws`,
-`RECORD.p7s`) is refused, and left untouched, by `embed-wheel` and `wheel
---embed`: the embed rewrites `RECORD`, so the signature would stop verifying.
-`--allow-signed-wheel` removes the signature files and embeds (one `INFO:` per
-file); re-sign the wheel afterwards. Like `--allow-build`, it has no
-`[tool.pitloom]` equivalent: it is a per-run decision. Pitloom sees only
-signatures inside the wheel. Any embed changes the wheel file's own digest, so
-a signature or attestation over the file (detached GPG `.asc`, Sigstore bundle,
-PEP 740 attestation) and a recorded wheel hash (lock file, `pip --hash`) stop
-matching, and Pitloom cannot detect them: embed first, then sign, attest,
-upload and hash.
-
-`--sbom-basename NAME` overrides the embedded file's basename (a trailing
-`.spdx3.json` is optional and dropped with a `WARNING:`; default:
-derived from the wheel's own name/version, `<name>-<version>.spdx3.json`; a
-control character, whitespace, `/`, `\` or `:` in either becomes `_`; with no
-name or version in `METADATA`, or a name over 255 characters, the wheel's
-`.dist-info` directory name, escaped the same way, is used instead).
-`-o`/`--output` names the modified wheel's own output path and is
-rejected with an `ERROR:` when more than one wheel is passed -- ambiguous
-without a per-wheel naming scheme; omit it to modify each wheel in place.
-
-Check a wheel's embedded SBOM is at the correct PEP 770 location
-(`.dist-info/sboms/`), uses its format's recommended extension, and its
-declared subject name/version (PEP 503/440-normalised) match the wheel's
-own `.dist-info/METADATA`:
-
-```bash
-loom verify-wheel dist/*.whl
-loom verify-wheel dist/mypackage-1.0.0-py3-none-any.whl --sbom-filename mypackage-1.0.0.spdx3.json
-loom verify-wheel dist/*.whl --fail-on-mismatch
-```
-
-A missing SBOM is an `ERROR:` (exit 1); a present-but-non-conventional
-extension is a `WARNING:` only -- not fatal, still exit 0. Multiple
-`sboms/` entries need `--sbom-filename` to pick one, else it's an
-`ERROR:`. A name/version mismatch is a `WARNING:` by default (exit 0);
-pass `--fail-on-mismatch` to make it an `ERROR:` (exit 1) instead. When
-the SBOM's subject name/version can't be extracted at all (unsupported
-format, or SPDX3 with an unexpected graph shape), the cross-check is
-skipped with a `WARNING:` naming why, regardless of `--fail-on-mismatch`.
-
-A wheel's own `.dist-info` is the top-level directory its file name names
-(PEP 503/440 comparison); where the file name names none, the only top-level
-`.dist-info`, with a `WARNING:` where the file name is a wheel name. A
-`.dist-info` vendored deeper in the tree is never the wheel's own. With none,
-or several, not exactly one named by the file name, `loom wheel` and `loom
-generate` warn and name the package `unknown`; `wheel --embed`, `embed-wheel`,
-`verify-wheel` and `validate-wheel` refuse the wheel. `METADATA`
-is read for its headers only (at most 16 MiB and 10,000 headers); past a cap,
-one `WARNING:` per command and the name is `unknown`.
-
-`loom wheel`, `loom generate`, `loom wheel --embed` and `loom embed-wheel`
-read every member, and refuse a file that is not a ZIP and a wheel whose
-member cannot be read (damaged, encrypted, a name that is not UTF-8), that
-holds one name twice (also as `a/M` and `a\M`) or a NUL in a name (`zipfile`
-cuts it there, so an installer extracts it under another member's name);
-`wheel --embed` and `embed-wheel` also refuse one whose own `.dist-info` has a
-non-conforming member name. `loom verify-wheel` reads only the member names,
-the own `.dist-info`'s `METADATA` and the embedded SBOM, and `loom
-validate-wheel` only the names and the embedded SBOM: a damaged other member
-does not fail them, but a damaged member they read, a duplicate or NUL name,
-or a file `zipfile` cannot open does.
-Each refusal is one `ERROR:` naming the archive and, where there is one, the
-member; exit 1, nothing written (not even the `-o` copy). With several wheels
-the others are still processed. The library raises `ValueError`.
-
-Validate a wheel's embedded SBOM content against its format's schema and
-SHACL rules (currently SPDX3 JSON-LD only, via the same `spdx3-validate`
-library used by [`loom fragment validate`](fragments.md#validate-fragments) --
-needs `pip install "pitloom[validate]"`):
-
-```bash
-loom validate-wheel dist/*.whl
-```
-
-An embedded file in an unrecognised format prints a `WARNING:` and skips
-validation (exit 0) rather than failing -- unsupported isn't the same as
-invalid. `embed-wheel` itself takes `--verify`/`--validate` as convenience
-flags that run these same checks against the wheel just embedded:
-
-```bash
-loom embed-wheel dist/*.whl --project-dir . --verify --validate
-```
-
-Embedding and the post-embed check are independent steps -- a `--verify`/
-`--validate` failure is reported and affects the exit code, but the
-embed itself isn't rolled back.
-
-Or use `--embed` directly on `loom wheel`:
-
-```bash
-loom wheel dist/mypackage-1.0.0-py3-none-any.whl --embed
-```
-
-It embeds the same kind of SBOM `embed-wheel` does: RFC 8785 canonical
-JSON, no relationship descriptions, no registry update -- so `--pretty`,
-`--describe-relationship` and `--update-id-registry` warn and have no
-effect, and `-o FILE` writes a copy of exactly what was embedded.
-
-Generate a **Deployed SBOM** reflecting the exact installed environment
-graph:
+Generate a **Deployed SBOM** of the installed environment graph:
 
 ```bash
 loom env -o env.spdx3.json
 ```
 
-Generate an **Analyzed SBOM** for a single AI model file, without a Python
-project directory. Supported local formats: GGUF, ONNX, Safetensors,
-PyTorch (`.pt`/`.pth`), Keras, HDF5, NumPy, fastText -- see [AI model
-formats](ai-model-formats.md) for the full extension/install-extra table:
+Generate an **Analyzed SBOM** for a single AI model file, with no Python
+project directory. Supported formats: GGUF, ONNX, Safetensors, PyTorch
+(`.pt`/`.pth`, PT2/ExecuTorch `.pt2`), Keras, HDF5, NumPy, fastText; see [AI
+model formats](ai-model-formats.md) for extensions and install extras:
 
 ```bash
 loom model path/to/model.safetensors -o model.spdx3.json
 loom model path/to/model.gguf --pretty
 ```
 
-A model whose read fails (a truncated file, a bound exceeded, a missing
-extra) is still written, as a format-only entry with one `WARNING:` and exit
-status 0, as a project scan lists it. A file that is not a model (empty, an
-unknown format, a header that contradicts the suffix such as a Git LFS
-pointer), an absent one or an unreadable one is an `ERROR:` and exit
-status 1. See [AI model scan
+A model whose read fails (truncated, a bound exceeded, a missing extra) is
+still written as a format-only entry, with one `WARNING:` and exit 0, as a
+project scan lists it. A file that is not a model (empty, an unknown format, a
+header contradicting the suffix such as a Git LFS pointer), absent or
+unreadable is an `ERROR:` and exit 1. See [AI model scan
 limits](ai-model-scan-limits.md#which-scans-apply-which-limits).
 
-Or pass a Hugging Face Hub URL or model ID directly -- no local file
-required (needs `pip install pitloom[huggingface_hub]`):
+Or pass a Hugging Face Hub URL or model ID, with no local file (needs `pip
+install pitloom[huggingface_hub]`):
 
 ```bash
 loom model https://huggingface.co/mistralai/Mistral-7B-v0.1
 loom model Qwen/Qwen3-235B-A22B   # bare model ID also works
 ```
 
-Or use the smart unified entrypoint, which auto-detects the target type:
+Or let `generate` detect the target type:
 
 ```bash
 loom generate . -o sbom.spdx3.json                           # project directory -> Source SBOM
@@ -309,308 +111,177 @@ loom generate path/to/model.safetensors -o model.spdx3.json  # AI model asset   
 loom generate env -o env.spdx3.json                          # installed venv    -> Deployed SBOM
 ```
 
-`-o`/`--output` is required for `generate`: unlike `project`/`wheel`/
-`model`/`env`, which each know their target type and so have an obvious
-default filename, `generate` dispatches across several target types with
-no single natural default -- pass `-o` explicitly, or use the
-target-specific command for its own default.
+`generate` requires `-o`/`--output`: it dispatches across several target
+types with no single natural default filename, unlike `project`/`wheel`/
+`model`/`env`. Pass `-o`, or use the target-specific command.
 
-#### Recomputing the package hash
+#### setuptools projects (`setup.py` and `setup.cfg`)
 
-The package element's `verifiedUsing` holds a SHA-256 Merkle root over the
-wheel's payload, and what it covers follows the SBOM type:
+When a directory has both, Pitloom follows setuptools' own precedence (see
+[`setupcfg.py`](https://github.com/pypa/setuptools/blob/main/setuptools/config/setupcfg.py)):
+a `setup()` keyword is used, and the same `setup.cfg` option only when the
+keyword is empty (`""`, `[]`, `{}`, `None`, an `install_requires` of only
+comments) or absent. It is decided per option (`author` and `author_email`
+apart, `url` and `project_urls` apart), and a list replaces the other, never
+joins it. The name is `setup.py`'s literal, else `setup.cfg`'s. Differences
+from setuptools:
 
-- **Analyzed** (`loom wheel`, `generate <whl>`, `embed-wheel` without a project
-  directory, `wheel --embed`): the wheel as built.
-- **Source** (`loom project`) and the **Build** SBOM of the Hatchling hook: the
-  source files the build backend selects, hashed before the build. When the
-  build adds payload of its own (shared data, scripts, generated or repaired
-  files) the root differs from the built wheel's: expected, as the two describe
-  different things.
-- **Build** with `embed-wheel --project-dir`: the wheel as built, so it can
-  differ from the hook's root for the same wheel.
+- `setup.py` is read, never run. A keyword that is not a literal
+  (`name=NAME`), is blank (`"  "`) or holds a value Pitloom does not read
+  (`url=1`) is ignored with a `WARNING:`, and `setup.cfg`'s is used. A
+  `setup.cfg` `file:` directive in `install_requires` is not read.
+- A placeholder licence (`UNKNOWN`, `NOASSERTION`) in `setup()` gives way to
+  the licence classifier kept, else to the `license` of `setup.cfg` it
+  overrode; setuptools keeps the placeholder. `NONE` is a statement.
+- When `setup.py` overrides a different real name, licence, version or
+  `python_requires` of `setup.cfg`, Pitloom keeps `setup.py`'s, records the
+  other as a conflict annotation and gives one `WARNING:` per field. For the
+  licence, a real `license` field in either file beats a classifier, as in the
+  built wheel.
 
-A wheel's `<name>-<version>.data/` directory (PEP 427: files installed outside
-`site-packages`, such as `scripts/`, `data/` and `headers/`, which an installer
-moves to their destination) is payload, not packaging metadata: it is listed
-and hashed under its path in the wheel, e.g.
-`demo-1.0.data/data/share/demo/d.txt`, not under its install destination. The
-Hatchling hook and `loom project` cannot see it before the build, which is one
-reason their root differs from the built wheel's.
-
-To recompute the root of a built wheel:
-
-1. Take every wheel member except those under the wheel's own `.dist-info`
-   (the top-level directory its file name names, compared per PEP 503 names and
-   PEP 440 versions). Another `*.dist-info` deeper in the tree is payload.
-   Directory entries are not members.
-2. Name each by its install-location path (POSIX, normalised). A member with
-   a name that is not one (`\`, `./`, `//`, `..`, an absolute path) is
-   normalised or skipped by Pitloom, each with a `WARNING:`; the snippet below
-   reads names as stored, so it reproduces the root of a conforming wheel only.
-3. Sort by that path (Python `sorted`, code-point order).
-4. A leaf is the raw 32-byte SHA-256 of the member's bytes.
-5. Combine adjacent pairs as `sha256(left || right)`; an odd last node is
-   promoted unchanged; repeat until one node remains.
-6. The root is that node in lowercase hex. A single file's root is its own
-   digest; an empty payload has no hash.
-
-A wheel with no single own `.dist-info` (none, or several that its file name
-does not pick out) has no `.dist-info` to leave out: `loom wheel` lists and
-hashes every member, and the embed commands refuse it.
-
-SBOM relationships and directory elements are not part of it.
-
-```python
-import hashlib
-import zipfile
-
-
-def package_hash(wheel: str, own_dist_info: str) -> str | None:
-    leaves = {}
-    with zipfile.ZipFile(wheel) as zf:
-        for name in zf.namelist():
-            if name.endswith("/") or name.split("/")[0] == own_dist_info:
-                continue
-            leaves[name] = hashlib.sha256(zf.read(name)).digest()
-    level = [leaves[name] for name in sorted(leaves)]
-    if not level:
-        return None
-    while len(level) > 1:
-        nxt = [
-            hashlib.sha256(level[i] + level[i + 1]).digest()
-            for i in range(0, len(level) - 1, 2)
-        ]
-        if len(level) % 2:
-            nxt.append(level[-1])
-        level = nxt
-    return level[0].hex()
-
-
-print(package_hash("pkg-1.0-py3-none-any.whl", "pkg-1.0.dist-info"))
-```
+Only a directory is read this way; an sdist or wheel carries the metadata
+setuptools already merged. With `detail = "full"` provenance, an author or URL
+entry built from both files names both, `setup.py` first:
+`Source: setup.py, setup.cfg | Field: setup(author=...), metadata.author/author_email`.
 
 ### Enrich an SBOM
 
-Fill AI-model metadata gaps (license, datasets) from a local
-`README.md`/`MODEL_CARD.md`'s YAML frontmatter -- off by default, opt in
-with `--enrich` on `loom model`/`loom project`/`loom generate`, or run it
-standalone to produce a mergeable fragment:
+Fill AI-model metadata gaps (licence, datasets) from a local
+`README.md`/`MODEL_CARD.md`'s YAML frontmatter. Off by default: opt in with
+`--enrich` on `loom model`/`project`/`generate`, or run it standalone to
+produce a mergeable fragment:
 
 ```bash
 loom model path/to/model.safetensors --enrich -o model.spdx3.json
 
-# Standalone: writes a fragment, doesn't generate a full SBOM
+# Standalone: writes a fragment, not a full SBOM
 loom enrich path/to/model.safetensors -o model.enrich.spdx3.json
 # When merging into a project-level (not single-model) base SBOM, add:
 loom enrich path/to/model.safetensors --project-dir . -o model.enrich.spdx3.json
 ```
 
-Register the fragment under `[tool.pitloom.fragment]` and re-run
-`loom project`/`loom generate` to merge it in.
+Register the fragment under `[tool.pitloom.fragment]` and re-run `loom
+project`/`loom generate` to merge it in. For an AI agent that reads the README
+prose, not just its frontmatter, use the `sbom-enrich` skill ([Agent
+Skills](agent-skills.md)).
 
 > **Note:** `--project-dir`'s document identity (and every spdxId in the
-> resulting SBOM) is derived from the resolved file list, so it changes
-> whenever that file list changes for the same project -- e.g. after a
-> Pitloom upgrade that changes file discovery for the project's build
-> backend (see the Source SBOM limitation above). If merging into a
-> base SBOM generated by an older Pitloom version, regenerate that base
-> SBOM first -- otherwise the fragment's element references won't match
-> the base document's ids, and the merge fails outright (see below).
+> resulting SBOM) derives from the resolved file list, so it changes whenever
+> that list changes for the same project, e.g. after a Pitloom upgrade that
+> changes file discovery for the project's build backend (see the Source SBOM
+> limitation above). When merging into a base SBOM from an older Pitloom,
+> regenerate the base first, or the fragment's element references will not
+> match the base's ids and the merge fails outright.
 >
-> The same applies to `--use-lockfile`/`--no-use-lockfile` (see
-> [Generate an SBOM](#generate-an-sbom) above): the document identity
-> also depends on whether the lock-file cascade ran. `loom enrich
-> --project-dir DIR` auto-matches *DIR*'s own `[tool.pitloom] use-lockfile`
-> config when no explicit flag is given, so only pass one here if the
-> base SBOM's own generation used an explicit CLI-flag override that
-> disagreed with that config.
-
-For prose-reading enrichment (an AI agent reading the actual README text,
-not just its frontmatter), see the [Agent Skills](agent-skills.md) page
-instead -- the `sbom-enrich` skill.
+> The same applies to `--use-lockfile`/`--no-use-lockfile`: the identity also
+> depends on whether the lock-file cascade ran. `loom enrich --project-dir
+> DIR` matches *DIR*'s own `[tool.pitloom] use-lockfile` when no flag is
+> given, so pass one only if the base SBOM was generated with an explicit CLI
+> override that disagreed with that config.
 
 ### Merge, validate and list fragments
 
-`loom merge`, `loom fragment validate` and `loom fragment list`: see
-[SBOM fragments](fragments.md).
+`loom merge`, `loom fragment validate` and `loom fragment list`: see [SBOM
+fragments](fragments.md).
 
 ### Pin ids across fragments
 
-Fragments are written by independent runs, so the same dataset or model
-would normally get a different `spdxId` in each run. Pin ids ahead of
-time, or reuse ids already present in an SBOM:
+Independent runs give the same dataset or model different `spdxId`s. Pin ids
+ahead of time, or reuse ids from an existing SBOM:
 
 ```bash
 loom id generate data src --entity model -o loom-id-registry.json
 loom id import existing-sbom.spdx3.json -o loom-id-registry.json
 ```
 
-(`-o`/`--id-registry` is required unless the project's own
-`pyproject.toml`/`setup.cfg` already declares `id-registry` -- see
-below.)
-
-`--entity NAME:software_Package` pins a dependency's, or the project's
-own, package id: `project`, `wheel`, `embed-wheel` and the Hatchling build
-hook reuse both, `env` a dependency's only.
-
-`id generate [PATH...]` flags: `-o`/`--id-registry FILE` (registry file to
-create or update), `--project-dir DIR`, `-e`/`--entity NAME[:TYPE]`
-(repeatable -- register an explicit entity id ahead of a run; `TYPE`
-defaults to `ai_AIPackage`). `id import SBOM_FILE` takes only
-`-o`/`--id-registry FILE`.
-
-Target file: `-o`/`--id-registry` if given -- a relative value resolves
-against the current directory, like every other command; a relative
-`PATH` argument to `generate` does too -- else the project's own
-configured `id-registry` key, read the same way every other Pitloom
-surface selects `pyproject.toml`'s `[tool.pitloom]` vs. `setup.cfg`'s
-`[tool:pitloom]` (`generate`: from `--project-dir`; `import`: from the
-current directory). The registry location is required, never assumed:
-with neither `-o`/`--id-registry` nor a declared `id-registry` key,
-`id generate`/`id import` print one line --
-`ERROR: no ID registry declared: pass --id-registry FILE or set
-id-registry in [tool.pitloom]` (`[tool:pitloom]` for a
-setup.cfg-configured project) -- exit 1, and write nothing. There is no
-implicit default registry file; `loom-id-registry.json` is only the
-suggested name to declare. Registry keys (and the implicit default
-`PATH`s -- `src`/`data`/`models`) stay relative to `--project-dir`
-regardless of where `-o`/`PATH` resolve from. A missing target is
-created. A target that exists but can't be loaded (not valid JSON,
-wrong version, etc.) is one `ERROR:` line and exit 1 -- it is never
-silently replaced, and a broken/invalid `pyproject.toml`/`setup.cfg` is
-the same one `ERROR:` line, never a traceback (and takes precedence
-over the "no registry declared" error above).
-
-Each `generate` `PATH` must resolve inside `--project-dir`; a `PATH`
-outside it -- directly, or reached only through a symlink -- is
-`ERROR: PATH <p> is outside --project-dir <dir>` and exit 1. `..` is
-collapsed lexically before any symlink is followed. A symlink
-that itself lives *inside* the project is fine either way, even when it
-points somewhere outside (e.g. `data/models -> ../bigdisk/models`):
-`generate` indexes it under its in-project location, the same as the
-implicit default `PATH`s do.
-
-After a successful write that *created* a new registry file -- never on
-a write to one that already existed -- and unless the target is the
-project's own declared `id-registry` (whether it came from the config's
-own key, or from `-o`/`--id-registry` naming that same file), `id
-generate`/`id import` log `INFO: ID registry: to use this registry, add
-to [tool.pitloom] in pyproject.toml: id-registry = "<path>"` for a
-pyproject.toml-configured project (a `json.dumps`-quoted TOML string). When
-the table already declares a different `id-registry`, the line reads
-`INFO: ID registry: to use this registry, change id-registry in
-[tool.pitloom] in pyproject.toml to: id-registry = "<path>"` instead:
-replace that key, never add a second one (a repeated key is invalid TOML).
-For a setup.cfg-configured project the line names `[tool:pitloom] in
-setup.cfg` instead, and the path is unquoted (`id-registry = <path>`,
-no quotes) -- `setup.cfg`'s `[tool:pitloom]` values are read as plain INI
-strings, with no quote-stripping, so a quoted value would become part of
-the value itself. Either way the `id-registry = ...` part can be pasted
-verbatim so the next run can declare it.
-
-`project`/`wheel`/`env` also harvest newly-minted ids back into a
-*declared* registry after each run (`--update-id-registry` on by
-default, or `--no-update-id-registry`) -- it never creates one. A name
-held by several elements of one document that read the registry is not
-written; a self-referencing extra, or a bundled library named like the
-project or a dependency, never reads it and does not count. See
-[Loom IDs across fragments](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-loom-id)
-for what's excluded (`ai_AIPackage`, `dataset_DatasetPackage`) and why.
+Full reference, including the `--id-registry` precedence and automatic harvest
+of new ids (`--update-id-registry`): [Loom ID registry](id-registry.md).
 
 ## Useful flags
 
-Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env`
-(not `merge`/`fragment`/`id`, see above), unless noted otherwise:
+Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env` (not
+`merge`/`fragment`/`id`, which take only their own flags), unless noted:
 
 - `-o FILE` / `--output FILE` -- explicit output path.
 - `--config FILE` -- read `[tool.pitloom]` from *FILE* instead of the
-  target's own `pyproject.toml`. On a project target (`project`,
-  `generate` on a project directory or sdist, `embed-wheel
-  --project-dir`), it replaces the project's own config outright, not
-  merges with it. On every other target (`wheel`, `env`, `model`,
-  `enrich`, `embed-wheel` without `--project-dir`), it is the *only*
-  config that target can ever get -- none of these read the current
+  target's own `pyproject.toml`. On a project target (`project`, `generate` on
+  a project directory or sdist, `embed-wheel --project-dir`) it replaces the
+  project's own config outright, not merges with it. On every other target
+  (`wheel`, `env`, `model`, `enrich`, `embed-wheel` without `--project-dir`)
+  it is the *only* config that target can get: none of them read the current
   directory or the target's own location. A relative path inside *FILE*
-  (`id-registry`, a fragment's `path`) resolves against *FILE*'s own
-  directory. A missing or invalid *FILE* is an `ERROR:`, except under
-  `embed-wheel --sbom`, where it is not read at all and only warns. The
-  replaced project config is not parsed, so `--config` also rescues a
-  project or sdist whose own `[tool.pitloom]` is invalid. See
-  [Where settings come from](configuration.md#where-settings-come-from)
-  for the full precedence table.
-- `--pretty` -- indent the JSON for human reading (default: compact).
-- `--offline` -- forbid network access (PyPI/Hugging Face lookups).
-  Not on `enrich` either.
-- `--use-lockfile` / `--no-use-lockfile` -- only on `project`/`generate` (not
-  `model`/`wheel`/`embed-wheel`/`env`, which never read a lock file) and
-  `enrich` (for `--project-dir` document identity matching, see
-  [Enrich an SBOM](#enrich-an-sbom)). On by default; see
-  [Dependency sources and precedence](dependency-sources.md).
-- `-v` / `--verbose` -- on `project`/`generate` with a project directory
-  or sdist: log each effective option on stderr as `INFO: OPTION=<name>
+  (`id-registry`, a fragment's `path`) resolves against *FILE*'s directory. A
+  missing or invalid *FILE* is an `ERROR:`, except under `embed-wheel --sbom`,
+  where it is not read and only warns. The replaced project config is not
+  parsed, so `--config` also rescues a project or sdist whose own
+  `[tool.pitloom]` is invalid. See [Where settings come
+  from](configuration.md#where-settings-come-from) for the precedence table.
+- `--pretty` -- indent the JSON (default: compact).
+- `--offline` -- forbid network access (PyPI/Hugging Face lookups). Not on
+  `enrich` either.
+- `--use-lockfile` / `--no-use-lockfile` -- only on `project`/`generate` (the
+  other targets never read a lock file) and `enrich` (for `--project-dir`
+  document identity matching, see [Enrich an SBOM](#enrich-an-sbom)). On by
+  default; see [Dependency sources and precedence](dependency-sources.md).
+- `-v` / `--verbose` -- on `project`/`generate` with a project directory or
+  sdist: log each effective option on stderr as `INFO: OPTION=<name>
   SOURCE=<source> VALUE=<value>` (an sdist's own `pyproject.toml` source is
-  its member, e.g. `demo-1.0.0.tar.gz:pyproject.toml`). `wheel`/`env`/
-  `model`/`enrich` log `PITLOOM_VERSION`, the target, `OUTPUT_PATH` (`-`:
-  none) and `enrich`'s `PROJECT_DIR`. `generate` on any other target and
-  `embed-wheel` warn that `-v` has no effect.
-- `--id-registry FILE` -- declare a Loom ID registry file, taking
-  precedence over the target's own `id-registry` config key -- see [Pin
-  ids across fragments](#pin-ids-across-fragments). A relative path
-  resolves against the current directory on every command. Nothing is
-  ever searched for; without this flag or a config key, no registry is
-  used. A declared file that's missing, unreadable or invalid is an
-  `ERROR:` and exit 1.
+  its member, e.g. `demo-1.0.0.tar.gz:pyproject.toml`). `wheel`/`env`/`model`/
+  `enrich` log `PITLOOM_VERSION`, the target, `OUTPUT_PATH` (`-`: none) and
+  `enrich`'s `PROJECT_DIR`. `generate` on any other target and `embed-wheel`
+  warn that `-v` has no effect.
+- `--id-registry FILE` -- declare a Loom ID registry, taking precedence over the
+  target's own `id-registry` key. Nothing is searched for; a declared file
+  that is missing, unreadable or invalid is an `ERROR:` and exit 1. See [Loom ID
+  registry](id-registry.md).
 - `--describe-relationship` / `--no-describe-relationship` -- include (or
   suppress) human-readable text on SPDX relationships.
-- `--content-type` / `--no-content-type` -- detect each file's real
-  content type via magika/mimetypes (off by default: real per-file
-  cost). `--content-type-method {auto,magika,extension}` picks the
-  detector: `auto` tries magika and falls back to an extension guess,
-  `magika` errors immediately if the `magika` package isn't installed,
-  `extension` skips magika entirely (stdlib-only).
+- `--content-type` / `--no-content-type` -- detect each file's real content
+  type via magika/mimetypes (off by default: real per-file cost).
+  `--content-type-method {auto,magika,extension}` picks the detector: `auto`
+  tries magika, then an extension guess; `magika` errors at once if magika is
+  not installed; `extension` skips magika (stdlib-only).
 - `--scan-model-usage` / `--no-scan-model-usage` -- on a project directory
   (`project`, `generate <dir>`, `embed-wheel --project-dir`, and the Hatchling
-  hook via the `scan-model-usage` config key) or a built wheel (`wheel`,
-  `wheel --embed`, `embed-wheel` without `--project-dir`), also record which
-  Python files reference each discovered AI model file (`hasDataFile`). Off
-  by default: it reads every Python file (one over 1 MiB is skipped with a
-  `WARNING:`). AI models are found either way; when the
-  setting was never given (no flag, no config key), one `INFO:` line says
-  how many were found and names the flag (on a wheel also a `--config` file or
-  `pitloom_config=`, as no config is read implicitly there) -- once per
-  `embed-wheel` run, and not when `--no-scan-model-usage` or `scan-model-usage = false` says off.
-  Usage-scan limits: [AI model scan limits](ai-model-scan-limits.md).
+  hook via the `scan-model-usage` key) or a built wheel (`wheel`, `wheel
+  --embed`, `embed-wheel` without `--project-dir`), also record which Python
+  files reference each discovered AI model file (`hasDataFile`). Off by
+  default: it reads every Python file (one over 1 MiB is skipped with a
+  `WARNING:`). AI models are found either way. When the setting was never
+  given (no flag, no config key), one `INFO:` line says how many were found
+  and names the flag (on a wheel also a `--config` file or `pitloom_config=`,
+  as no config is read implicitly there), once per `embed-wheel` run, and not
+  when `--no-scan-model-usage` or `scan-model-usage = false` says off.
+  Limits: [AI model scan limits](ai-model-scan-limits.md).
 - `--allow-signed-wheel` -- `embed-wheel` and `wheel --embed`: embed into a
-  wheel with a `RECORD` signature by removing the signature (see
-  [Embed an SBOM into a wheel](#embed-an-sbom-into-a-wheel-pep-770)). Signatures
-  over the wheel file itself are not detected: embed before signing. No
-  `[tool.pitloom]` equivalent.
+  wheel with a `RECORD` signature by removing the signature. See [Signed
+  wheels](wheel-sbom.md#signed-wheels). No `[tool.pitloom]` equivalent.
 - `--trust-wheel-model` -- on a built wheel (`wheel`, `wheel --embed`,
-  `embed-wheel` without `--project-dir`), read AI model files with every
-  format reader. By default a fastText, GGUF, HDF5, ONNX or PyTorch
-  `.pt`/`.pth` model in a wheel is listed without metadata (one `INFO:` per scan naming
-  the formats met; in a batch, each format once per run): those readers run in Pitloom's own process, where a
-  hostile file can crash them, hang them or exhaust memory. Use it only for a
-  wheel you trust; Ctrl-C cannot interrupt a native reader. A project
-  directory is not gated, and with `embed-wheel --project-dir` the models are
-  read from the project, not the wheel. No config key, so no config file can
-  opt in. See [AI model scan limits](ai-model-scan-limits.md#formats-gated-in-wheels);
-  which settings change the SBOM: [Settings that change the SBOM](ai-model-scan-limits.md#settings-that-change-the-sbom).
+  `embed-wheel` without `--project-dir`), read AI model files with every format
+  reader. By default a fastText, GGUF, HDF5, ONNX or PyTorch `.pt`/`.pth`
+  model in a wheel is listed without metadata (one `INFO:` per scan naming the
+  formats met; in a batch, each format once per run), because those readers run
+  in Pitloom's own process, where a hostile file can crash them, hang them or
+  exhaust memory. Use it only for a wheel you trust; Ctrl-C cannot interrupt a
+  native reader. A project directory is not gated, and with `embed-wheel
+  --project-dir` the models are read from the project, not the wheel. No config
+  key, so no config file can opt in. See [AI model scan
+  limits](ai-model-scan-limits.md#formats-gated-in-wheels) and [Settings that
+  change the SBOM](ai-model-scan-limits.md#settings-that-change-the-sbom).
 
-See [Enrich an SBOM](#enrich-an-sbom) above for `--enrich`/`--no-enrich`,
-and [Building a project to discover its file list](allow-build.md) for
-`--allow-build`/`--no-build-isolation`/`--build-timeout` (only on
-`project`/`generate`/`embed-wheel`).
+`--enrich`/`--no-enrich`: see [Enrich an SBOM](#enrich-an-sbom).
+`--allow-build`/`--no-build-isolation`/`--build-timeout` (only on `project`/
+`generate`/`embed-wheel`): see [Building a project to discover its file
+list](allow-build.md), an off-by-default, security-relevant opt-in with no
+`[tool.pitloom]` equivalent.
 
 ### Options with no effect
 
-A subcommand's parent parser offers every shared flag above to every
-target, but not every target can act on every one -- e.g. a wheel has no
-source files to scan a header from, and a wheel-embedded SBOM is always
-canonical JSON regardless of `--pretty`. Passing one that doesn't apply
-prints one `WARNING: Options: <target>: <flag> has no effect <reason>`
-and drops it, rather than silently ignoring it:
+A subcommand's parent parser offers every shared flag to every target, but not
+every target can act on every one: a wheel has no source files to scan a
+header from, and a wheel-embedded SBOM is always canonical JSON regardless of
+`--pretty`. A flag that does not apply prints one `WARNING: Options: <target>:
+<flag> has no effect <reason>` and is dropped, never silently ignored:
 
 | Target | Options that warn |
 | --- | --- |
@@ -627,104 +298,92 @@ and drops it, rather than silently ignoring it:
 | embed-wheel without --project-dir | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--update-id-registry` |
 | embed-wheel --sbom | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--content-type-method`, `--max-source-metadata-bytes`, `--offline`, `--id-registry`, `--update-id-registry`, `--creator-*`, `--config`, `--project-dir` |
 
-Each `--flag` above also covers its `--no-flag` boolean-negation form
-where one exists (e.g. `--no-enrich`, `--no-pretty`); the warning names
-both spellings, e.g. `--enrich/--no-enrich`.
+Each `--flag` also covers its `--no-flag` form where one exists (e.g.
+`--no-enrich`); the warning names both, e.g. `--enrich/--no-enrich`.
 
-`--describe-relationship` warning on `embed-wheel`/`enrich` is a current
-decision, not a permanent one -- it may change in a future release.
-`--use-lockfile` is offered only by `project`, `generate` and `enrich`;
-the rows list it for the targets those commands (or the library's
-`use_lockfile=`) can reach without a lock-file cascade.
-`--allow-build`/`--no-build-isolation`/`--build-timeout` have their own,
-separate no-effect warning -- see [Building a project to discover its
-file list](allow-build.md).
+The `--describe-relationship` warning on `embed-wheel`/`enrich` is a current
+decision, not a permanent one. `--use-lockfile` is offered only by `project`,
+`generate` and `enrich`; the rows list it for the targets those commands (or
+the library's `use_lockfile=`) can reach without a lock-file cascade.
+`--allow-build`/`--no-build-isolation`/`--build-timeout` have their own
+no-effect warning: see [Building a project to discover its file
+list](allow-build.md).
+
+### Output
 
 Stdout is data only (`--help`/`--version` aside), one `KEY=VALUE` record a
-line; counts, hints, `-v` go to stderr as `INFO:`. A written SBOM prints
-`PITLOOM_SBOM_OUTPUT_PATH=<path>`; embed `WHEEL=<w> SBOM=<arcname>`.
-With `-o -` stdout is the SBOM alone (`loom project . -o - | jq .`): no
-path line, and the embed record is an `INFO:` line.
-Others: `verify-`/`validate-wheel` `WHEEL=<w> STATUS=ok|valid|skipped|failed`;
-`fragment validate` `FILE=<f> STATUS=valid`; `id` `PITLOOM_ID_REGISTRY_PATH=<path>`.
-A value with a non-printable character (tab, NBSP, ZWJ) prints quoted, ASCII-escaped.
-
-## Building a project to discover its file list (`--allow-build`)
-
-`--allow-build` (with `--no-build-isolation` and `--build-timeout`) opts
-`project`/`generate`/`embed-wheel` into invoking the target project's own
-PEP 517 build backend to discover its real file list, instead of
-Pitloom's default static read -- a security-relevant, off-by-default
-decision with no `[tool.pitloom]` config-file equivalent. See [Building a
-project to discover its file list](allow-build.md) for the full
-security rationale, the flags, `--build-timeout`'s duration grammar, and
-signal-handling behaviour (Ctrl-C/SIGTERM/SIGHUP/SIGKILL) during a build.
+line; counts, hints and `-v` go to stderr as `INFO:`. A written SBOM prints
+`PITLOOM_SBOM_OUTPUT_PATH=<path>`; embed prints `WHEEL=<w> SBOM=<arcname>`.
+With `-o -` stdout is the SBOM alone (`loom project . -o - | jq .`): no path
+line, and the embed record is an `INFO:` line. Others: `verify-`/
+`validate-wheel` `WHEEL=<w> STATUS=ok|valid|skipped|failed`; `fragment
+validate` `FILE=<f> STATUS=valid`; `id` `PITLOOM_ID_REGISTRY_PATH=<path>`. A
+value with a non-printable character (tab, NBSP, ZWJ) prints quoted,
+ASCII-escaped.
 
 ## Debugging
 
-`--debug` is global -- unlike the flags above, it works before *any*
-subcommand, including `merge`/`fragment`/`id`:
+`--debug` is global: unlike the flags above, it works before *any* subcommand,
+including `merge`/`fragment`/`id`:
 
 ```bash
 loom --debug project .
 ```
 
-Surfaces `DEBUG:`-level diagnostics on stderr (e.g. why a metadata
-extraction step was skipped) that are otherwise suppressed. Setting the
-`PITLOOM_DEBUG` environment variable (`1`/`true`/`yes`/`on`,
-case-insensitive) has the same effect and also covers entry points that
-don't parse this flag themselves: the Hatchling build hook and every
+It surfaces `DEBUG:`-level diagnostics on stderr (e.g. why a metadata
+extraction step was skipped). Setting the `PITLOOM_DEBUG` environment variable
+(`1`/`true`/`yes`/`on`, case-insensitive) has the same effect and also covers
+entry points that do not parse this flag: the Hatchling build hook and every
 public library-API function (`generate_project_sbom()`, etc.).
 
 `--no-debug` overrides an ambient `PITLOOM_DEBUG=1` back off for this
-invocation -- useful when it's set globally (a shell profile, CI) and a
-specific invocation should stay quiet. Omitting `--debug` entirely
-(neither flag given) leaves `PITLOOM_DEBUG` as found, ambient or not.
-Under the hood, `--no-debug` sets `PITLOOM_DEBUG=0` in the process
-environment for the rest of the run; this only looks scoped to "one
-run" because the CLI process exits afterward. A script embedding
-Pitloom's library API and calling it more than once in one long-lived
-process should not rely on `--no-debug`/`apply_debug_override(False)`
-to reset itself between calls -- see `apply_debug_override()`'s
-docstring in `pitloom/logging_config.py`.
+invocation, useful when it is set globally (a shell profile, CI). Omitting
+both flags leaves `PITLOOM_DEBUG` as found. `--no-debug` sets
+`PITLOOM_DEBUG=0` in the process environment for the rest of the run, which
+looks scoped to one run only because the CLI process then exits. A script
+calling the library API repeatedly in one long-lived process should not rely
+on `--no-debug`/`apply_debug_override(False)` to reset between calls; see
+`apply_debug_override()`'s docstring in `pitloom/logging_config.py`.
 
-Ctrl-C ends any command with one `ERROR: interrupted` line and exit
-status 130. With `--debug` (or `PITLOOM_DEBUG`) the Python traceback
-follows it, showing where the command was interrupted -- useful for a
-run that seems stuck.
+Ctrl-C ends any command with one `ERROR: interrupted` line and exit status
+130. With `--debug` (or `PITLOOM_DEBUG`) the Python traceback follows, showing
+where the command was interrupted: useful for a run that seems stuck.
 
 ## Configuration
 
-See [Configuration](configuration.md) for the full reference -- every
-`[tool.pitloom]` setting, its default, and its CLI/Action/API mapping.
-The sections below walk through the two settings with the most nuance.
+See [Configuration](configuration.md) for every `[tool.pitloom]` setting, its
+default and its CLI/Action/API mapping. Two settings need more explanation.
 
 ### Creator and creation metadata
 
-These flags apply to project, AI model, and Hugging Face SBOM generation
-alike. `--creator-name` is repeatable -- each occurrence starts a new
-creator, in order; `--creator-type` (`person` default, `organization`,
-`software-agent`, `agent`) and `--creator-email` set the type/email of the
-*most recently named* creator. `--creation-tool` records *what* produced
-it (default `"Pitloom"`, also repeatable; `--no-creation-tool` to omit);
-`--creation-comment`/`--creation-datetime` set free-text provenance and an
-ISO 8601 timestamp:
+These flags apply to project, AI model and Hugging Face SBOM generation alike.
+`--creator-name` is repeatable: each occurrence starts a new creator, in
+order. `--creator-type` (`person` default, `organization`, `software-agent`,
+`agent`) and `--creator-email` set the type/email of the *most recently named*
+creator. `--creation-tool` records *what* produced the SBOM (default
+`"Pitloom"`, repeatable; `--no-creation-tool` omits it).
+`--creation-comment`/`--creation-datetime` set free-text provenance and an ISO
+8601 timestamp:
 
 ```bash
 loom project . --creator-name "Alice" --creator-email "alice@example.com"
 loom project . --creator-name "Acme Corp" --creator-type organization
+loom project . --creator-name "Acme Corp" --creator-type organization --creator-name Alice
 loom project . --creation-datetime "2026-01-15T10:00:00Z" --creation-comment "CI run #123"
 ```
 
-The same fields can be set in `pyproject.toml` under
-`[[tool.pitloom.creator]]` / `[[tool.pitloom.creation-tool]]` (CLI flags
-take precedence, replacing the whole list rather than merging):
+The same fields can be set in `pyproject.toml`. CLI flags take precedence,
+replacing the whole list rather than merging:
 
 ```toml
 [[tool.pitloom.creator]]
 name = "Alice"
 email = "alice@example.com"
 type = "person"       # or "organization", "software-agent", "agent"
+
+[[tool.pitloom.creator]]
+name = "Acme Corp"
+type = "organization"
 
 [[tool.pitloom.creation-tool]]
 name = "MyCompany SBOM Wrapper"
@@ -734,8 +393,8 @@ creation-datetime = "2026-01-15T10:00:00Z"
 creation-comment = "Generated in CI pipeline #123"
 ```
 
-See [Creation metadata](creation-metadata.md) for what these fields record
-and why.
+See [Creation metadata](creation-metadata.md) for what these fields record and
+why.
 
 ### Metadata provenance
 
@@ -750,24 +409,21 @@ max-source-metadata-bytes = 0      # 0 (default, unlimited) | a budget >= 8
 ```
 
 `max-source-metadata-bytes` also has a `--max-source-metadata-bytes BYTES`
-CLI flag -- an operational override for the byte cap without editing
-`pyproject.toml`, unlike every other key above.
-
-See [Metadata provenance](metadata-provenance.md) for what each setting
-does and worked examples.
+flag, an operational override for the byte cap that needs no `pyproject.toml`
+edit, unlike every other key above. See [Metadata
+provenance](metadata-provenance.md) for what each setting does.
 
 ## See also
 
+- [Wheel SBOMs and PEP 770 embedding](wheel-sbom.md) -- `embed-wheel`,
+  `verify-wheel`, `validate-wheel`, the package hash.
 - [Building a project to discover its file list](allow-build.md) -- the
-  full `--allow-build`/`--no-build-isolation`/`--build-timeout` reference.
-- [Dependency sources and precedence](dependency-sources.md) -- how
-  resolved lock files feed into Source SBOM dependencies.
-- [Python API](python-api.md) -- calling Pitloom from Python code instead
-  of the shell.
-- [SBOM fragments](fragments.md) -- `loom merge`, `loom fragment
-  validate`/`list`, and how fragments unify.
-- [Hatchling build hook](hatchling-build-hook.md) -- generate the SBOM
-  automatically at build time instead of a manual CLI call.
-- [GitHub Action](github-action.md) -- run the CLI as a CI step.
+  `--allow-build`/`--no-build-isolation`/`--build-timeout` reference.
+- [Dependency sources and precedence](dependency-sources.md) -- how lock
+  files feed Source SBOM dependencies.
+- [SBOM fragments](fragments.md) and [Loom ID registry](id-registry.md).
+- [Python API](python-api.md) -- the same targets from Python code.
+- [Hatchling build hook](hatchling-build-hook.md) and [GitHub
+  Action](github-action.md) -- generate SBOMs at build time or in CI.
 - [AI model formats](ai-model-formats.md) -- every format `loom model`
   supports, with install extras.

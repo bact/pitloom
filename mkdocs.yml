@@ -18,7 +18,9 @@ watch:
 nav:
   - Home: index.md
   - Command line: cli.md
+  - Wheel SBOMs (PEP 770): wheel-sbom.md
   - SBOM fragments: fragments.md
+  - Loom ID registry: id-registry.md
   - Building a project (--allow-build): allow-build.md
   - AI model formats: ai-model-formats.md
   - AI model scan limits: ai-model-scan-limits.md
@@ -31,6 +33,7 @@ nav:
   - Claude Code plugin: claude-code-plugin.md
   - Reference:
       - Configuration: configuration.md
+      - Dependency sources: dependency-sources.md
       - Creation metadata: creation-metadata.md
       - Metadata provenance: metadata-provenance.md
       - Resources: resources.md
