@@ -85,11 +85,15 @@ loom model Qwen/Qwen3-235B-A22B                # ... or a Hugging Face Hub model
 loom generate . -o sbom.spdx3.json             # detect the target type (-o is required)
 ```
 
-`-o FILE` sets the output path. Lock files (`pylock.toml`, `uv.lock`,
-`poetry.lock`, `pdm.lock`, `Pipfile.lock`, pinned `requirements.txt`) are
-read automatically; opt out with `--no-use-lockfile`. Local model formats:
-GGUF, ONNX, Safetensors, PyTorch (`.pt`/`.pth`, `.pt2`), Keras, HDF5, NumPy,
-fastText.
+`-o FILE` sets the output path. The per-file inventory (file list, hashes)
+follows the project's build backend: accurate for Flit-core, Hatchling,
+PDM-backend, Poetry and setuptools, and for uv_build with `--allow-build`;
+other backends fall back to a heuristic with a `WARNING:`.
+Lock files (`pylock.toml`, `uv.lock`, `poetry.lock`, `pdm.lock`,
+`Pipfile.lock`, pinned `requirements.txt`) are read automatically;
+opt out with `--no-use-lockfile`.
+Local AI model formats: GGUF, ONNX, Safetensors,
+PyTorch (`.pt`/`.pth`, `.pt2`), Keras, HDF5, NumPy, fastText.
 
 AI-model gaps (licence, datasets) can be filled from a README or model card's
 YAML frontmatter, opt in with `--enrich`, or standalone as a mergeable

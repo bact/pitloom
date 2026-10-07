@@ -127,114 +127,12 @@ exit behaviour.
 `-v` in `args` logs each effective option as an `INFO:` line, so each
 becomes a `::notice::` annotation; GitHub caps how many a step shows.
 
-## Persisting the Loom ID registry in CI
+## Loom ID registry in CI
 
-A [Loom ID registry](id-registry.md)
-is used only when declared -- via the `id-registry` input below, or via
-`[tool.pitloom] id-registry` in the project's own config. Nothing is
-auto-discovered. Once declared, `loom project`/`wheel`/`env` (and this
-Action, which wraps them) harvest newly-minted ids back into it by
-default -- see `update-id-registry` in [Configuration](configuration.md).
-That write only ever touches the runner's local checkout; it never needs
-elevated permissions itself
-(that's a `git push`, which Pitloom never does). But the write is
-ephemeral unless a workflow step commits it back, so a release/publish
-job that intentionally runs with `permissions: contents: read` (common
-for trusted PyPI publishing -- see this repo's own
-[`pypi-publish.yml`](https://github.com/bact/pitloom/blob/main/.github/workflows/pypi-publish.yml))
-can update `loom-id-registry.json` locally but shouldn't have its permissions
-relaxed just to push that one file.
-
-Instead, run registry maintenance in a separate, appropriately-scoped
-workflow -- the same shape this repo already uses to commit a generated
-`CITATION.cff` back to the repo
-([`codemeta2cff.yml`](https://github.com/bact/pitloom/blob/main/.github/workflows/codemeta2cff.yml)).
-
-A declared `id-registry` that doesn't exist yet is now an `ERROR:`, not
-silently skipped -- so the registry file must exist before the build
-step below runs. Either commit one made by `loom id generate`
-(recommended, so every build reads the same committed file) or keep the
-seed step in the snippet below (it also creates the file on its first
-run, so the very first workflow run still succeeds):
-
-```yaml
-name: Update Loom ID registry
-
-on:
-  push:
-    branches: [main]
-    paths:
-      - "src/**"
-      - "data/**"
-      - "models/**"
-
-permissions: read-all
-
-concurrency:
-  group: update-loom-id-registry-${{ github.ref }}
-  cancel-in-progress: false
-
-jobs:
-  update-id-registry:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write  # EndBug/add-and-commit needs write to push loom-id-registry.json
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.x"
-      # Same release as the action below, which installs its own pinned version.
-      - run: pip install pitloom==0.20.0
-
-      # Extras-free, stem-keyed -- the only path that keeps ai_AIPackage
-      # spdxIds stable regardless of whether "ai" extras are installed
-      # (auto-harvest excludes AI packages -- see below). Creates
-      # loom-id-registry.json on first run. Only omit this step if a
-      # loom-id-registry.json is already committed to the repo -- a
-      # declared-but-missing registry now fails the step below.
-      - name: Seed/refresh AI model registry entries
-        run: loom id generate --id-registry loom-id-registry.json
-
-      - uses: bact/pitloom@v0.20.0
-        with:
-          project-path: .
-          # Required: nothing auto-discovers a registry -- declare it.
-          # Must already exist by this point (the seed step above
-          # creates it on first run) -- a declared-but-missing registry
-          # is an ERROR:, not silently skipped.
-          id-registry: loom-id-registry.json
-          # Optional: richer ai_AIPackage metadata (architecture,
-          # hyperparameters, etc.) -- NOT what keeps spdxIds stable, that's
-          # the step above. Omit if there are no AI models, or if sparse
-          # metadata is acceptable.
-          extras: "ai"
-
-      - name: Commit and push updated loom-id-registry.json
-        uses: EndBug/add-and-commit@v11.0.0
-        with:
-          message: "Update loom-id-registry.json"
-          add: "loom-id-registry.json"
-```
-
-Two things worth calling out about that snippet:
-
-- **AI model id stability doesn't come from `extras: "ai"` or from
-  auto-harvest at all.** `ai_AIPackage` elements are deliberately excluded
-  from auto-harvest, because their correct registry key is the model
-  file's stem -- which only ever comes from the extras-free
-  `loom id generate` step above. `extras: "ai"` only affects metadata
-  richness (architecture, hyperparameters, etc.), not which spdxId a model
-  gets.
-- **Race conditions**: this workflow never competes with the publish
-  workflow to push (the publish job doesn't commit, per the guidance
-  above). It can race with *itself*, though -- two pushes to `main` close
-  together could trigger two concurrent runs both trying to commit and
-  push. The `concurrency:` group above queues same-branch runs instead of
-  racing them. One sequencing caveat remains, shared by any
-  generated-and-committed file (this repo's own `CITATION.cff` included):
-  cutting a release at the exact moment a registry-update commit is in
-  flight could still pick up a slightly-stale `loom-id-registry.json`.
+Declare a registry with the `id-registry` input (or `[tool.pitloom] id-registry`);
+the action then harvests newly minted ids back into it, in the runner's
+checkout only. To commit it back without relaxing a publish job's permissions,
+see [Loom ID registry: In CI](id-registry.md#in-ci).
 
 ## Configuration
 

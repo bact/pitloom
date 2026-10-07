@@ -11,8 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 See also: [Command line](cli.md) for every other subcommand and the common
 flags, [Hatchling build hook](hatchling-build-hook.md) and
 [GitHub Action](github-action.md) for embedding at build time or in CI, and
-[Python API](python-api.md#wheel-embedding-functions) for the same operations
-from code.
+[From Python](#from-python) for the same operations from code.
 
 Commands that read or rewrite built `.whl` files: `loom wheel`,
 `embed-wheel`, `verify-wheel` and `validate-wheel`.
@@ -249,3 +248,116 @@ def package_hash(wheel: str, own_dist_info: str) -> str | None:
 
 print(package_hash("pkg-1.0-py3-none-any.whl", "pkg-1.0.dist-info"))
 ```
+
+## From Python
+
+Programmatic PEP 770 post-build wheel injection. Exact signatures: [API
+reference](api.md#wheel-embedding).
+
+```python
+from pathlib import Path
+from pitloom.assemble import ConfigOverrides, embed_sbom_in_wheel, embed_wheel_sbom
+
+# 1. Generate and embed SBOM in one step
+modified_wheel, arcname, sbom_json, removed, floored = embed_wheel_sbom(
+    wheel_path=Path("dist/mypackage-1.0.0-py3-none-any.whl"),
+    project_dir=Path("."),
+    overrides=ConfigOverrides(offline=True),  # optional
+    # ConfigOverrides also accepts build_options=BuildOptions(...) (no
+    # [tool.pitloom] equivalent) -- see [`--allow-build`](allow-build.md#from-python).
+)
+
+# 2. Or embed an externally-generated, pre-written SBOM file (checked)
+modified_wheel, arcname, sbom_json, removed, floored = embed_wheel_sbom(
+    wheel_path=Path("dist/mypackage-1.0.0-py3-none-any.whl"),
+    sbom_path=Path("sbom.spdx3.json"),
+    allow_mismatch=False,  # default: raise ValueError on a name/version mismatch
+)
+
+# 3. Or embed arbitrary pre-generated SBOM content (unchecked, lower-level)
+modified_wheel, arcname, removed, floored = embed_sbom_in_wheel(
+    wheel_path=Path("dist/mypackage-1.0.0-py3-none-any.whl"),
+    sbom_content=sbom_json_string,
+    sbom_filename="custom.spdx3.json",  # optional
+)
+```
+
+`removed` lists any prior Pitloom-embedded SBOM entries cleaned up as part
+of the embed; `floored` is `True` when the wheel's ZIP entry timestamp had
+to be floored to 1980-01-01 (see [Configuration](configuration.md#toolpitloomcreation)).
+
+With `sbom_path=` (form 2, the equivalent of the CLI's `embed-wheel --sbom`),
+the SBOM's declared subject name/version (PEP 503/440-normalised) is
+cross-checked against the wheel's own `.dist-info/METADATA` *before*
+anything is written: a mismatch raises `ValueError` and nothing is
+written, unless `allow_mismatch=True` downgrades it to a `WARNING:` log
+and lets the embed proceed. Form 1 (a Pitloom-generated SBOM) is never
+checked -- it's built from the same wheel metadata, so it can't diverge.
+A Pitloom-generated SBOM lists the wheel's payload only (see
+[Wheel SBOMs](wheel-sbom.md#what-an-sbom-lists)). A wheel with a
+`RECORD` signature (`RECORD.jws`, `RECORD.p7s`) raises `ValueError` and is left
+untouched, unless `allow_signed_wheel=True` removes the signature the rewrite
+invalidates (the removed names are returned with any stale SBOMs). Embed before
+signing, attesting, uploading or hashing the wheel file.
+A wheel's name and version come from its own top-level `.dist-info` (see
+[Wheel SBOMs](wheel-sbom.md#what-an-sbom-lists)). A wheel with one
+of the problems below raises `ValueError` (all but the fifth the subclass
+`pitloom.core.wheel_dist_info.WheelRefused`), naming the archive (and the
+member, where one is at fault), and nothing is written:
+
+- a member that cannot be read;
+- two members with one name;
+- a NUL in a member name;
+- a file that is not a ZIP archive, or that `zipfile` cannot open;
+- no single own `.dist-info` (plain `ValueError`);
+- (embed only) a member of its own `.dist-info` under a non-conforming name.
+
+A file that cannot be opened at all (missing, permission denied) raises
+`OSError`. Pass `identity=(name, version)` to `embed_sbom_in_wheel()` where
+you have already read them from the wheel's `METADATA`: the default file
+name is made from it and `METADATA` is not read, or warned about, again.
+`pitloom.extract.wheel.wheel_identity(metadata)` gives that pair from the
+`ProjectMetadata` of `read_wheel()`, or of `generate_wheel_sbom_with_metadata()`
+(see [Python API](python-api.md)): `None` for a field the wheel did not declare.
+Form 3, `embed_sbom_in_wheel()`, is the lower-level, unchecked archive
+primitive both forms 1 and 2 converge on -- calling it directly (bypassing
+`embed_wheel_sbom()`) skips the cross-check entirely, same as it skips
+SBOM *generation*.
+
+### Batch embedding with `EmbedFileCache`
+
+Embedding into several wheels from the same *project_dir* in a loop --
+what the CLI's `embed-wheel dist/*.whl --project-dir .` does -- should
+share one `EmbedFileCache` across the whole batch instead of calling
+`embed_wheel_sbom()` per wheel with no cache: without it, each call
+independently resolves *project_dir*'s file list (and, with
+`--allow-build`, reruns the real PEP 517 build) once per wheel instead of
+once for the batch, and repeats each ineffective build flag's
+`WARNING:` once per wheel.
+
+```python
+from pathlib import Path
+from pitloom.embed import EmbedFileCache, embed_wheel_sbom
+
+wheels = [Path("dist/mypackage-1.0.0-py3-none-any.whl"), Path("dist/mypackage-1.0.0-py2-none-any.whl")]
+
+with EmbedFileCache() as cache:
+    for wheel in wheels:
+        embed_wheel_sbom(
+            wheel_path=wheel,
+            project_dir=Path("."),
+            file_cache=cache,
+        )
+```
+
+`EmbedFileCache` must be used as a context manager around the whole
+batch: it resolves *project_dir*'s file list (and any `--allow-build`
+build) once, on the batch's first call, and removes its temporary
+directories on exit -- including on SIGTERM/SIGHUP or Ctrl-C, via the
+same `TerminationGuard` the `--allow-build` docs describe. Every call
+in one batch must use the same *project_dir*, file-scan settings and
+build options -- a call that doesn't raises `ValueError`. Passing
+`file_cache=` to `embed_wheel_sbom()` outside the `with` block raises
+`RuntimeError`.
+Advanced/batch use only -- a single `embed_wheel_sbom()` call needs no
+`file_cache` and manages its own resolve-then-cleanup cycle.

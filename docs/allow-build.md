@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-10-01
+Last-Modified: 2026-10-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -163,14 +163,56 @@ with only exited processes left, so it goes unreported there).
   background processes a successful build leaves running -- may not be
   reachable.
 
-Library API callers pass `BuildOptions(timeout=...)` as plain `int`
-seconds (no duration-string parsing there) -- see
-[`docs/python-api.md`](python-api.md).
+## From Python
+
+Pass `build_options=BuildOptions(allow=True)` to
+`generate()`/`generate_project_sbom()` to let Pitloom invoke a project's own
+PEP 517 build backend to discover its real file list, when static discovery
+has no module for the backend (e.g. `uv_build`) or a supported backend's own
+static discovery fails. The security rationale above applies identically.
+Unlike `use_lockfile=`, it has **no** `[tool.pitloom]` config-file equivalent
+and must be passed explicitly every call: there is no
+config layer for a scanned project to silently opt itself into.
+
+```python
+from pathlib import Path
+from pitloom import BuildOptions, generate
+
+generate(
+    Path("/path/to/project"),
+    output_path=Path("sbom.spdx3.json"),
+    build_options=BuildOptions(allow=True, timeout=900),
+)
+```
+
+`BuildOptions` mirrors the three CLI flags:
+
+| Field | CLI flag | Default |
+| --- | --- | --- |
+| `allow` (`bool`) | `--allow-build` | `False` |
+| `no_isolation` (`bool`) | `--no-build-isolation` | `False` |
+| `timeout` (`int` seconds or `None`) | `--build-timeout` | `None` (1200 s) |
+
+`timeout` is plain `int` seconds -- **not** a duration string; the CLI's
+own `h`/`m`/`s` grammar is a CLI/Action-layer convenience only.
+`BuildOptions(...)` validates its fields when constructed, for every
+target: a non-`bool` `allow`/`no_isolation` (e.g. the string `"false"`)
+or a non-`int` `timeout` raises `TypeError`; a `timeout` outside 1 to
+604800 raises `ValueError`. A field set where it has no effect -- a
+target other than a project directory, or `no_isolation`/`timeout`
+without `allow` -- logs one `WARNING: Build: ...` line per field,
+naming the field by its CLI flag spelling (e.g. `--build-timeout`)
+followed by "has no effect" and the reason -- even when `BuildOptions`
+was constructed directly and no CLI flag was ever typed. Intentional:
+the same warning stays recognisable and grep-able regardless of which
+surface (CLI, library API, ...) triggered it. Logged as early as
+possible on every surface -- before any project-metadata or lock-file
+`WARNING:` a project directory target might also trigger -- so it's
+never buried later in a run's output.
 
 ## See also
 
 - [Command line](cli.md) -- every other subcommand and flag.
-- [Python API](python-api.md) -- `BuildOptions`, the library-API
-  equivalent of these flags.
+- [Python API](python-api.md) -- the rest of the library API.
 - [GitHub Action](github-action.md) -- the `allow-build`/
   `no-build-isolation`/`build-timeout` Action inputs.
