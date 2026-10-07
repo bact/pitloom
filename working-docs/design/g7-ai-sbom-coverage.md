@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -56,7 +56,9 @@ Model version, Model description, Model external references
   author/org field, the same "trust the source's own structured data"
   principle `_apply_originator` already uses for PyPI-resolved
   dependencies) -- never via free-text parsing of an arbitrary string,
-  which is the agent-Skill's job per the scope split above.
+  which is the agent-Skill's job per the scope split above. Per-format
+  structured sources already read but kept only in `properties`: ONNX's
+  standard `model_author` metadata property, PT2 `extra/author`.
 - **Parameter count** -- no dataclass field yet. Several formats
   (GGUF, Safetensors, HF `config.json`) already expose this in their
   own metadata (`raw_metadata`/`properties`) without a dedicated

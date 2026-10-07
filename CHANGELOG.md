@@ -20,6 +20,16 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.20.1...HEAD>
 
+## [Unreleased]
+
+### Fixed
+
+- An AI model with no name of its own, or an ONNX exporter-default
+  `graph.name` (`torch_jit`, `tf2onnx`, ...), is named after its file, not
+  its format; ONNX `model_license` is the declared licence ([#PR])
+
+[#PR]: https://github.com/bact/pitloom/pull/PR
+
 ## [0.20.1] - 2026-10-07
 
 ### Changed

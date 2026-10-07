@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -149,7 +149,8 @@ Each found more than one bug that a per-site fix would only move.
 
 - [ ] **Licence rules**: source taxonomy, cascade per surface, weak and final
   values, declared vs concluded, conflicts, equivalence, provenance,
-  tie-breaks. Current rules, rulings and 16 open questions:
+  tie-breaks. Current rules, rulings and 17 open questions (a licence
+  name or URL to its SPDX id: 11, 17):
   [license-rules.md](license-rules.md); layers:
   [license-layers.md](license-layers.md); what #276 left:
   [license-pr276-followups.md](license-pr276-followups.md).

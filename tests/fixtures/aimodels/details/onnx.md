@@ -27,7 +27,8 @@ File details for `onnx/`. See also: [AI model fixtures](../README.md)
 
 Notable metadata extracted by the ONNX extractor:
 
-- `name` = `"main_graph"` (from `graph.name`)
+- `name` = `None` (`graph.name` is the exporter default `main_graph`; the
+  SBOM package is named after the file, `encoder-model-q4f16`)
 - `type_of_model` = `"neural network"` (empty domain falls back to default)
 - `properties["opset.ai.onnx"]` = `"14"`
 - `properties["opset.com.microsoft"]` = `"1"` (Microsoft contrib ops for
@@ -52,7 +53,8 @@ Notable metadata extracted by the ONNX extractor:
 
 Notable metadata extracted by the ONNX extractor:
 
-- `name` = `"torch_jit"` (PyTorch JIT export)
+- `name` = `None` (`graph.name` is the PyTorch exporter default
+  `torch_jit`; the SBOM package is named `gpt2-tiny-decoder`)
 - `properties["opset.ai.onnx"]` = `"13"`
 - `outputs` includes `logits` and 10 KV-cache tensors
   (`present.0.key` … `present.4.value`) - unique decoder structure
@@ -105,7 +107,8 @@ Notable metadata extracted by the ONNX extractor:
 
 Notable metadata extracted by the ONNX extractor:
 
-- `name` = `"torch_jit"` (PyTorch JIT export sets the graph name to `torch_jit`)
+- `name` = `None` (`graph.name` is the PyTorch exporter default
+  `torch_jit`; the SBOM package is named `resnet-tiny-beans`)
 - `type_of_model` = `"neural network"` (empty domain falls back to default)
 - `properties["opset.ai.onnx"]` = `"11"`
 

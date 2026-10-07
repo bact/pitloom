@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -165,9 +166,73 @@ def test_onnx_no_graph_name_falls_back(tmp_path: Path) -> None:
         meta = read_onnx(model_file)
 
     assert meta.name is None
+    assert "name" not in meta.provenance
     assert meta.description is None
     assert meta.version is None
+    assert meta.license is None
+    assert "license" not in meta.provenance
     assert meta.format_info.model_format == AiModelFormat.ONNX
+
+
+def _read_mock(tmp_path: Path, **kwargs: Any) -> Any:
+    """Run read_onnx() on a mocked ModelProto built from *kwargs*."""
+    model_file = tmp_path / "model.onnx"
+    model_file.write_bytes(b"fake")
+    mock_onnx = MagicMock()
+    mock_onnx.load.return_value = _make_onnx_mock(**kwargs)
+    with patch.dict("sys.modules", {"onnx": mock_onnx}):
+        return read_onnx(model_file)
+
+
+@pytest.mark.parametrize(
+    ("graph_name", "expected"),
+    [
+        # Exporter defaults name the tool, not the model
+        ("torch-jit-export", None),
+        ("torch_jit", None),
+        ("main_graph", None),
+        ("tf2onnx", None),
+        # Exact match only: a real name that merely contains a default stays
+        ("torch_jit_resnet", "torch_jit_resnet"),
+        ("Torch_JIT", "Torch_JIT"),
+    ],
+)
+def test_onnx_exporter_default_graph_name_is_not_a_name(
+    tmp_path: Path, graph_name: str, expected: str | None
+) -> None:
+    meta = _read_mock(tmp_path, graph_name=graph_name)
+    assert meta.name == expected
+    if expected is None:
+        assert "name" not in meta.provenance
+    else:
+        assert meta.provenance["name"].endswith("Field: graph.name")
+
+
+@pytest.mark.parametrize(
+    ("metadata_props", "expected"),
+    [
+        ({"model_license": "Apache-2.0"}, "Apache-2.0"),
+        ({"model_license": "  CC-BY-4.0\n"}, "CC-BY-4.0"),
+        ({"model_license": "https://example.org/l"}, "https://example.org/l"),
+        # Present but empty is no statement
+        ({"model_license": ""}, None),
+        ({"model_license": "   "}, None),
+        # Only the ONNX IR standard key is read, not ad-hoc spellings
+        ({"license": "MIT"}, None),
+        ({}, None),
+    ],
+)
+def test_onnx_model_license(
+    tmp_path: Path, metadata_props: dict[str, str], expected: str | None
+) -> None:
+    meta = _read_mock(tmp_path, metadata_props=metadata_props)
+    assert meta.license == expected
+    if expected is None:
+        assert "license" not in meta.provenance
+    else:
+        assert meta.provenance["license"].endswith("Field: model_license")
+    # The verbatim property is kept alongside the promoted licence
+    assert meta.properties.items() >= metadata_props.items()
 
 
 def test_onnx_tensor_specs_missing_dtype_shape_and_dim() -> None:

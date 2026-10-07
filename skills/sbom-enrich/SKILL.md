@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-04
+# Last-Modified: 2026-10-07
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -193,9 +193,10 @@ Steps:
 3. Read the project's `README.md` / model card **prose** and other local
    docs. Propose only fields for gaps step 2 left untouched; do not
    restate what it already found.
-   - An `ai_AIPackage` is a stub (Pitloom did not read the file) when its
-     `name` is its format (`gguf`, `onnx`, ...), it has no `ai_*` property
-     and no `comment` entry `Source: <the model file> | Field: ...`; a read
+   - An `ai_AIPackage` is a stub (Pitloom did not read the file) when it
+     has no `ai_*` property and no `comment` entry `Source: <the model
+     file> | Field: ...` (its `name` is then the file's stem, `Method:
+     file_name_stem`); a read
      model has such entries. A `comment` citing the README (`Source:
      README.md | Method: yaml_frontmatter`, from `--enrich`) does not make
      it read. The base run's stderr says why: `required library not

@@ -21,6 +21,20 @@ from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
+# graph.name values written by exporters when the user names nothing: they
+# identify the tool, not the model, so they are not read as its name.
+_EXPORTER_DEFAULT_GRAPH_NAMES = frozenset(
+    {
+        "main_graph",  # torch.onnx dynamo exporter, onnxscript
+        "tf2onnx",  # tf2onnx
+        "torch-jit-export",  # torch.onnx TorchScript exporter, before 1.10
+        "torch_jit",  # torch.onnx TorchScript exporter, 1.10 and later
+    }
+)
+
+# Standard metadata_props key defined by the ONNX IR spec ("Optional Metadata")
+_MODEL_LICENSE_KEY = "model_license"
+
 
 def _onnx_tensor_specs(value_infos: Any) -> list[dict[str, Any]]:
     """Convert ONNX ValueInfoProto list to plain dicts."""
@@ -65,9 +79,35 @@ def _extract_onnx_properties(
     return properties
 
 
+def _resolve_onnx_name(
+    graph_name: str, source: str, provenance: dict[str, str]
+) -> str | None:
+    """Return ``graph.name``, or ``None`` when it is empty or an exporter
+    default, leaving the name to the assembler's file-name fallback."""
+    if not graph_name or graph_name in _EXPORTER_DEFAULT_GRAPH_NAMES:
+        return None
+    provenance["name"] = f"{source} | Field: graph.name"
+    return graph_name
+
+
+def _resolve_onnx_license(
+    properties: dict[str, str], source: str, provenance: dict[str, str]
+) -> str | None:
+    """Return the ``model_license`` metadata property, if it has a value."""
+    license_expr = properties.get(_MODEL_LICENSE_KEY, "").strip()
+    if not license_expr:
+        return None
+    provenance["license"] = f"{source} | Field: {_MODEL_LICENSE_KEY}"
+    return license_expr
+
+
 # pylint: disable=too-many-locals
 def read_onnx(model_path: Path) -> AiModelMetadata:
     """Extract metadata from an ONNX model file.
+
+    ``name`` is ``graph.name``, or ``None`` when ``graph.name`` is empty or
+    an exporter default (``torch_jit``, ``tf2onnx``, ...).
+    ``license`` is the standard ``model_license`` metadata property.
 
     Requires the ``onnx`` package (``pip install onnx``).
     """
@@ -105,12 +145,8 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
     if framework_version:
         provenance["framework_version"] = f"{source} | Field: producer_version"
 
-    graph_name = model.graph.name if model.graph.name else None
+    name = _resolve_onnx_name(model.graph.name, source, provenance)
     doc_string = model.doc_string if model.doc_string else None
-
-    name = graph_name
-    if name:
-        provenance["name"] = f"{source} | Field: graph.name"
 
     description = doc_string
     if description:
@@ -123,6 +159,7 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
 
     domain = model.domain if model.domain else None
     properties = _extract_onnx_properties(model, source, provenance)
+    license_expr = _resolve_onnx_license(properties, source, provenance)
 
     # Input tensor specifications
     inputs = _onnx_tensor_specs(model.graph.input)
@@ -145,6 +182,7 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
         name=name,
         description=description,
         version=version,
+        license=license_expr,
         type_of_model=domain or "neural network",
         properties=properties,
         inputs=inputs,

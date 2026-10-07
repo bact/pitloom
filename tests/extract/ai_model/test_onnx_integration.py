@@ -54,8 +54,9 @@ def test_whisper_encoder_format(whisper_encoder_metadata: AiModelMetadata) -> No
 
 
 def test_whisper_encoder_name(whisper_encoder_metadata: AiModelMetadata) -> None:
-    assert whisper_encoder_metadata.name == "main_graph"
-    assert "graph.name" in whisper_encoder_metadata.provenance["name"]
+    # graph.name "main_graph" is an exporter default, not the model's name
+    assert whisper_encoder_metadata.name is None
+    assert "name" not in whisper_encoder_metadata.provenance
 
 
 def test_whisper_encoder_opsets(whisper_encoder_metadata: AiModelMetadata) -> None:
@@ -117,7 +118,7 @@ def test_gpt2_decoder_format(gpt2_decoder_metadata: AiModelMetadata) -> None:
 
 
 def test_gpt2_decoder_name(gpt2_decoder_metadata: AiModelMetadata) -> None:
-    assert gpt2_decoder_metadata.name == "torch_jit"
+    assert gpt2_decoder_metadata.name is None  # graph.name "torch_jit"
 
 
 def test_gpt2_decoder_opset(gpt2_decoder_metadata: AiModelMetadata) -> None:
@@ -236,8 +237,7 @@ def test_resnet_beans_format(resnet_beans_metadata: AiModelMetadata) -> None:
 
 
 def test_resnet_beans_name(resnet_beans_metadata: AiModelMetadata) -> None:
-    # PyTorch JIT ONNX exports use "torch_jit" as the graph name
-    assert resnet_beans_metadata.name == "torch_jit"
+    assert resnet_beans_metadata.name is None  # graph.name "torch_jit"
 
 
 def test_resnet_beans_opset(resnet_beans_metadata: AiModelMetadata) -> None:

@@ -15,6 +15,10 @@ from __future__ import annotations
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._ai_package import (
+    ai_package_name,
+    ai_package_provenance,
+)
 from pitloom.assemble.spdx3.ai import (
     _add_base_model_lineage,
     _build_ai_package,
@@ -36,13 +40,42 @@ def test_build_ai_package_minimal() -> None:
     assert not pkg.ai_typeOfModel
 
 
-def test_build_ai_package_name_falls_back_to_format() -> None:
-    ci = _make_ci()
+@pytest.mark.parametrize(
+    ("name", "file_name", "expected", "name_provenance"),
+    [
+        ("tiny-model", "deepcut.onnx", "tiny-model", None),
+        (None, "deepcut.onnx", "deepcut", "Method: file_name_stem"),
+        (None, "model.tar.gz", "model.tar", "Method: file_name_stem"),
+        (None, None, "onnx", None),
+        (None, "", "onnx", None),
+    ],
+)
+def test_ai_package_name_cascade(
+    name: str | None,
+    file_name: str | None,
+    expected: str,
+    name_provenance: str | None,
+) -> None:
+    """Own name, else file name stem (with its provenance), else format --
+    the same value for the package name and its spdxId prefix."""
     model = AiModelMetadata(
-        format_info=AiModelFormatInfo(model_format=AiModelFormat.ONNX)
+        name=name,
+        format_info=AiModelFormatInfo(
+            file_name=file_name, model_format=AiModelFormat.ONNX
+        ),
+        provenance={"version": "Source: x.onnx | Field: model_version"},
     )
-    pkg = _build_ai_package(model, ci, _DOC_NAME, _DOC_UUID)
-    assert pkg.name == "onnx"
+    before = dict(model.provenance)
+    pkg = _build_ai_package(model, _make_ci(), _DOC_NAME, _DOC_UUID)
+    assert pkg.name == ai_package_name(model) == expected
+    assert f"#AIPackage-{expected}-" in str(pkg.spdxId)
+    provenance = ai_package_provenance(model)
+    if name_provenance is None:
+        assert "name" not in provenance
+    else:
+        assert provenance["name"].endswith(name_provenance)
+        assert provenance["version"] == before["version"]
+    assert model.provenance == before  # the model's own map is not mutated
 
 
 def test_build_ai_package_entity_spdx_id_override() -> None:

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -106,7 +106,7 @@ concern, out of scope), Machine-Processable Data (SPDX 3 JSON-LD -- covered).
 
 | Element | Pitloom/SPDX 3 field | Status |
 | :--- | :--- | :--- |
-| Model name | `ai_AIPackage.name` | covered; **gap** for a stub, whose `name` is only its format (see `sbom-enrich`, step 3) |
+| Model name | `ai_AIPackage.name` | covered; **gap** when `name` is only the file's stem (`Method: file_name_stem`: a stub, or a format with no name field; see `sbom-enrich`, step 3) |
 | Model identifier | DOI as `ExternalIdentifier` (type `other`) and the hub page as an `altWebPage` `externalRef`, when the source carries them; no PURL or hub-id identifier | conditional; **gap** when the model has neither a DOI nor a hub page |
 | Model version | `software_packageVersion`, when the format/source carries one (GGUF, ONNX `model_version`, PT2 extra file, Safetensors `modelspec.version`, Hugging Face) | conditional -- verify per model type |
 | Model timestamp | `CreationInfo.created` on the AI package's own `CreationInfo` | covered |
