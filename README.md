@@ -288,7 +288,7 @@ BibTeX:
 @software{Suriyawongkul_Pitloom_SBOM_2026,
     author = {Suriyawongkul, Arthit},
     doi = {10.5281/zenodo.19246283},
-    month = aug,
+    month = oct,
     title = {{Pitloom - SBOM generator for AI models and Python projects}},
     url = {https://github.com/bact/pitloom},
     version = {0.20.1},
