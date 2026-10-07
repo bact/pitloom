@@ -42,12 +42,35 @@ def _section_pr_keys(text: str) -> dict[str, list[int]]:
 
 
 def _unreleased_bullets(text: str) -> list[str]:
-    """Entries of ``[Unreleased]``, else (right after a release is cut) of
-    the newest released section."""
-    sections = text.split("## [Unreleased]", 1)[1].split("\n## [")
+    """Entries of ``[Unreleased]``, else (right after a release is cut, with
+    the heading empty or removed) of the newest released section."""
+    _, found_heading, after = text.partition("## [Unreleased]")
+    sections = (after if found_heading else text).split("\n## [")
+    if not found_heading:
+        sections = sections[1:]  # what precedes the first version heading
     return next(
         (found for body in sections[:2] if (found := _BULLET.findall(body))), []
     )
+
+
+_NEW = "### Fixed\n\n- new ([#3])\n"
+_OLD = "### Fixed\n\n- old ([#1])\n"
+_RELEASE_STATES = [
+    f"# C\n\n## [Unreleased]\n\n{_NEW}\n## [1.0.0]\n\n{_OLD}",
+    f"# C\n\n## [Unreleased]\n\n## [1.0.0]\n\n{_NEW}",
+    f"# C\n\n## [1.0.0] - 2026-01-01\n\n{_NEW}\n## [0.9.0]\n\n{_OLD}",
+]
+
+
+@pytest.mark.parametrize(
+    "text",
+    _RELEASE_STATES,
+    ids=["unreleased-filled", "unreleased-empty", "unreleased-removed"],
+)
+def test_unreleased_bullets_in_every_release_state(text: str) -> None:
+    """Right after a release is cut the heading may be empty or gone; the
+    newest entry is still found, never the older release's."""
+    assert [b.split(" (")[0] for b in _unreleased_bullets(text)] == ["- new"]
 
 
 def test_every_unreleased_entry_links_its_pr() -> None:

@@ -18,9 +18,9 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.20.0...HEAD>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.20.1...HEAD>
 
-## [Unreleased]
+## [0.20.1] - 2026-10-07
 
 ### Changed
 
@@ -38,6 +38,10 @@ and this project adheres to
 - `-o -` leaves stdout as the SBOM alone: no `PITLOOM_SBOM_OUTPUT_PATH=-`
   line, embed `WHEEL=` record on stderr; `embed-wheel -o -` no longer writes
   a file named `-` ([#288])
+
+[#287]: https://github.com/bact/pitloom/pull/287
+[#288]: https://github.com/bact/pitloom/pull/288
+[#289]: https://github.com/bact/pitloom/pull/289
 
 ## [0.20.0] - 2026-10-05
 
@@ -355,9 +359,6 @@ and this project adheres to
 [#283]: https://github.com/bact/pitloom/pull/283
 [#284]: https://github.com/bact/pitloom/pull/284
 [#286]: https://github.com/bact/pitloom/pull/286
-[#287]: https://github.com/bact/pitloom/pull/287
-[#288]: https://github.com/bact/pitloom/pull/288
-[#289]: https://github.com/bact/pitloom/pull/289
 
 ## [0.19.0] - 2026-09-18
 
@@ -376,5 +377,6 @@ and this project adheres to
 
 ---
 
+[0.20.1]: https://github.com/bact/pitloom/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/bact/pitloom/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/bact/pitloom/compare/v0.18.1...v0.19.0
