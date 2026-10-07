@@ -116,7 +116,7 @@ def test_onnx_basic_extraction(tmp_path: Path) -> None:
         graph_name="ResNet50",
         doc_string="Image classification model",
         model_version=2,
-        domain="ai.onnx",
+        domain="org.example",
         metadata_props={"author": "test", "task": "classification"},
         opset_versions={"": 17, "com.microsoft": 1},
     )
@@ -131,10 +131,11 @@ def test_onnx_basic_extraction(tmp_path: Path) -> None:
     assert meta.name == "ResNet50"
     assert meta.description == "Image classification model"
     assert meta.version == "2"
-    assert meta.type_of_model == "ai.onnx"
+    # domain is the owner's namespace, not a model type
+    assert meta.type_of_model == "neural network"
     assert meta.properties["author"] == "test"
     assert meta.properties["task"] == "classification"
-    assert meta.properties["domain"] == "ai.onnx"
+    assert meta.properties["domain"] == "org.example"
     assert "opset.ai.onnx" in meta.properties
     assert meta.properties["opset.ai.onnx"] == "17"
     assert len(meta.inputs) == 1
@@ -293,3 +294,24 @@ def test_onnx_load_failure(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> 
 
     # Load failure is now logged at debug level before being re-raised.
     assert any("model.onnx" in r.message for r in caplog.records)
+
+
+@pytest.mark.parametrize(
+    ("model_version", "expected", "semver"),
+    [
+        (1, "1", False),
+        (0xFFFF_FFFF, "4294967295", False),  # largest simple number
+        (0x0001_0002_0000_0159, "1.2.345", True),  # the spec's example
+        (1 << 48, "1.0.0", True),
+        (1 << 32, "0.1.0", True),  # lowest SemVer: MINOR alone sets the flag
+        (-1, "65535.65535.4294967295", True),  # int64 read as unsigned
+    ],
+)
+def test_onnx_model_version_semver_bit_packed(
+    tmp_path: Path, model_version: int, expected: str, semver: bool
+) -> None:
+    meta = _read_mock(tmp_path, model_version=model_version)
+    assert meta.version == expected
+    assert meta.provenance["version"].endswith(
+        "Method: semver_bit_packed" if semver else "Field: model_version"
+    )

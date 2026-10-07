@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,7 +24,7 @@ item gives the exact format, byte value, version or measured number; the PR
 that found or fixed it; and one "Do:" rule. Items the AI-model notes already
 cover are linked, not repeated. Every claim was checked against the current
 code, a repository fixture, a live interpreter or the cited PR's own record on
-the day it was added (2026-10-02 to 2026-10-07).
+the day it was added (2026-10-02 to 2026-10-08).
 
 ## Files
 
@@ -41,6 +41,9 @@ the day it was added (2026-10-02 to 2026-10-07).
   claims, profiles, completeness and licences.
 - [remote-metadata.md](remote-metadata.md): what core metadata and
   PyPI-style sources actually contain.
+- [model-file-metadata.md](model-file-metadata.md): what AI model files
+  carry and what their fields mean (ONNX `domain`, exporter-default names,
+  packed versions, standard keys).
 - [messages-and-surfaces.md](messages-and-surfaces.md): absent vs
   failed; one message per event; surfaces that drift apart.
 - [process-lessons.md](process-lessons.md): how the review rounds and

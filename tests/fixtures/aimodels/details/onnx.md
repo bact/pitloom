@@ -29,7 +29,7 @@ Notable metadata extracted by the ONNX extractor:
 
 - `name` = `None` (`graph.name` is the exporter default `main_graph`; the
   SBOM package is named after the file, `encoder-model-q4f16`)
-- `type_of_model` = `"neural network"` (empty domain falls back to default)
+- `type_of_model` = `"neural network"` (ONNX has no model-type field)
 - `properties["opset.ai.onnx"]` = `"14"`
 - `properties["opset.com.microsoft"]` = `"1"` (Microsoft contrib ops for
   quantised kernels)
@@ -82,7 +82,7 @@ Notable metadata extracted by the ONNX extractor:
 Notable metadata extracted by the ONNX extractor:
 
 - `name` = `"inception_v2"` (from `graph.name`)
-- `type_of_model` = `"neural network"` (empty domain falls back to default)
+- `type_of_model` = `"neural network"` (ONNX has no model-type field)
 - `properties["opset.ai.onnx"]` = `"9"` - oldest opset in the fixture set
 - 487 graph inputs: the first is `data_0` [1, 3, 224, 224]; the remaining
   486 are weight initializers listed in `graph.input` following the pre-ONNX
@@ -109,7 +109,7 @@ Notable metadata extracted by the ONNX extractor:
 
 - `name` = `None` (`graph.name` is the PyTorch exporter default
   `torch_jit`; the SBOM package is named `resnet-tiny-beans`)
-- `type_of_model` = `"neural network"` (empty domain falls back to default)
+- `type_of_model` = `"neural network"` (ONNX has no model-type field)
 - `properties["opset.ai.onnx"]` = `"11"`
 
 ---
@@ -133,5 +133,5 @@ Notable metadata extracted by the ONNX extractor:
 Notable metadata extracted by the ONNX extractor:
 
 - `name` = `"main"` (from `graph.name`)
-- `type_of_model` = `"neural network"` (domain is empty, falls back to default)
+- `type_of_model` = `"neural network"` (ONNX has no model-type field)
 - `properties["opset.ai.onnx"]` = `"7"`

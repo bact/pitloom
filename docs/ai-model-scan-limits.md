@@ -239,7 +239,7 @@ named after the model file's stem when the model has no name of its own.
 | PT2 / ExecuTorch | Hyperparameters. Description, licence, author and tags only in the "rich" layout |
 | Keras v3 | Outputs. Hyperparameters are the scalar entries of `config` only |
 | HDF5 / Keras v1-v2 | Whatever the `model_config` attribute lacks |
-| ONNX | Hyperparameters. Name when `graph.name` is an exporter default (`torch_jit`, `main_graph`, `tf2onnx`, ...). Licence only from the standard `model_license` metadata property. Tensors stored in external data files are not read (`load_external_data=False`) |
+| ONNX | Hyperparameters. Name when `graph.name` is an exporter default (`torch_jit`, `main_graph`, `tf2onnx`, ...). Licence only from the standard `model_license` metadata property ([ONNX IR optional metadata](https://onnx.ai/onnx/repo-docs/IR.html#optional-metadata)). A `model_version` with any of its upper 32 bits set is bit-packed SemVer ([ONNX versioning](https://onnx.ai/onnx/repo-docs/Versioning.html)) and is recorded as `MAJOR.MINOR.PATCH`; otherwise the plain number. `domain` is the owner's reverse-DNS namespace, not a model type, and is kept in the verbatim metadata only. Tensors stored in external data files are not read (`load_external_data=False`) |
 | fastText | Name, description, version, inputs. Labels only for supervised models |
 
 **Not detected, or not scanned:**

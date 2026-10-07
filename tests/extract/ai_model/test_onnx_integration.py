@@ -178,7 +178,7 @@ def test_inception_v2_name(inception_v2_metadata: AiModelMetadata) -> None:
 
 
 def test_inception_v2_type_of_model(inception_v2_metadata: AiModelMetadata) -> None:
-    # Empty domain falls back to "neural network"
+    # ONNX has no model-type field: always "neural network"
     assert inception_v2_metadata.type_of_model == "neural network"
 
 
@@ -307,7 +307,7 @@ def test_onnx_integration_no_version(squeezenet_metadata: AiModelMetadata) -> No
 
 
 def test_onnx_integration_type_of_model(squeezenet_metadata: AiModelMetadata) -> None:
-    # Empty domain falls back to "neural network"
+    # ONNX has no model-type field: always "neural network"
     assert squeezenet_metadata.type_of_model == "neural network"
 
 

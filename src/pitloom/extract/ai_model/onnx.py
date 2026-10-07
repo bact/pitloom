@@ -25,15 +25,22 @@ log = logging.getLogger(__name__)
 # identify the tool, not the model, so they are not read as its name.
 _EXPORTER_DEFAULT_GRAPH_NAMES = frozenset(
     {
-        "main_graph",  # torch.onnx dynamo exporter, onnxscript
+        "main_graph",  # torch.onnx, seen from PyTorch 2.6.0
         "tf2onnx",  # tf2onnx
-        "torch-jit-export",  # torch.onnx TorchScript exporter, before 1.10
-        "torch_jit",  # torch.onnx TorchScript exporter, 1.10 and later
+        "torch-jit-export",  # torch.onnx, seen from PyTorch 1.8
+        "torch_jit",  # torch.onnx, seen from PyTorch 1.12.0 and 1.13.1
     }
 )
 
-# Standard metadata_props key defined by the ONNX IR spec ("Optional Metadata")
+# Standard metadata_props key defined by the ONNX IR spec ("Optional Metadata"):
+# https://onnx.ai/onnx/repo-docs/IR.html#optional-metadata
 _MODEL_LICENSE_KEY = "model_license"
+
+# model_version packs SemVer as MAJOR (16 bits), MINOR (16), PATCH (32); zero
+# upper 32 bits mark a simple number instead. See "Serializing SemVer version
+# numbers in protobuf" in https://onnx.ai/onnx/repo-docs/Versioning.html
+_SEMVER_FLAG_SHIFT = 32
+_UINT64_MASK = 0xFFFF_FFFF_FFFF_FFFF
 
 
 def _onnx_tensor_specs(value_infos: Any) -> list[dict[str, Any]]:
@@ -90,6 +97,20 @@ def _resolve_onnx_name(
     return graph_name
 
 
+def _decode_model_version(value: int) -> tuple[str, bool]:
+    """Return ``(version, is_semver)`` for an ONNX ``model_version``.
+
+    See https://onnx.ai/onnx/repo-docs/Versioning.html
+    """
+    packed = value & _UINT64_MASK
+    if packed >> _SEMVER_FLAG_SHIFT == 0:
+        return str(value), False
+    major = packed >> 48
+    minor = (packed >> _SEMVER_FLAG_SHIFT) & 0xFFFF
+    patch = packed & 0xFFFF_FFFF
+    return f"{major}.{minor}.{patch}", True
+
+
 def _resolve_onnx_license(
     properties: dict[str, str], source: str, provenance: dict[str, str]
 ) -> str | None:
@@ -108,6 +129,9 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
     ``name`` is ``graph.name``, or ``None`` when ``graph.name`` is empty or
     an exporter default (``torch_jit``, ``tf2onnx``, ...).
     ``license`` is the standard ``model_license`` metadata property.
+    ``version`` is ``model_version``, decoded to ``MAJOR.MINOR.PATCH`` when
+    its upper 32 bits are non-zero (bit-packed SemVer). ``type_of_model`` is
+    always ``"neural network"``; ``domain`` is kept in ``properties`` only.
 
     Requires the ``onnx`` package (``pip install onnx``).
     """
@@ -154,10 +178,11 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
 
     version: str | None = None
     if model.model_version:
-        version = str(model.model_version)
-        provenance["version"] = f"{source} | Field: model_version"
+        version, is_semver = _decode_model_version(model.model_version)
+        provenance["version"] = f"{source} | Field: model_version" + (
+            " | Method: semver_bit_packed" if is_semver else ""
+        )
 
-    domain = model.domain if model.domain else None
     properties = _extract_onnx_properties(model, source, provenance)
     license_expr = _resolve_onnx_license(properties, source, provenance)
 
@@ -183,7 +208,9 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
         description=description,
         version=version,
         license=license_expr,
-        type_of_model=domain or "neural network",
+        # ONNX has no model-type field. ``domain`` is the owner's reverse-DNS
+        # namespace (``org.onnx``), not a type; it stays in ``properties``.
+        type_of_model="neural network",
         properties=properties,
         inputs=inputs,
         outputs=outputs,

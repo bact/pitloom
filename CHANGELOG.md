@@ -26,9 +26,11 @@ and this project adheres to
 
 - An AI model with no name of its own, or an ONNX exporter-default
   `graph.name` (`torch_jit`, `tf2onnx`, ...), is named after its file, not
-  its format; ONNX `model_license` is the declared licence ([#PR])
+  its format; ONNX `model_license` is the declared licence, a bit-packed
+  SemVer `model_version` reads as `1.2.3`, and `domain` no longer becomes the
+  model type ([#292])
 
-[#PR]: https://github.com/bact/pitloom/pull/PR
+[#292]: https://github.com/bact/pitloom/pull/292
 
 ## [0.20.1] - 2026-10-07
 

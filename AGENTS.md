@@ -7,9 +7,11 @@
 - **`roadmap.md` stays a summary, not a duplicate**: once a roadmap item's design/open-questions detail grows enough to warrant its own file under `working-docs/design/`, move the detail there and trim the `roadmap.md` bullet back to one-to-two lines plus a `See [doc.md](doc.md)` link. Don't leave full detail in both places -- one will drift from the other unnoticed. The same split applies by kind, not just size: a completed item's decisions/rationale/paths-rejected belongs in `working-docs/implementation/` (not `design/`), trimmed from `roadmap.md` the same way once it has its own doc. A roadmap item that's abandoned or superseded but still worth keeping to prevent re-litigating it later moves to `working-docs/archive/` instead of staying in the active list. A still-unimplemented item that's genuinely small (a few lines, no real design decisions yet) is fine to keep inline in `roadmap.md` with no dedicated file -- split it out only once it grows enough to actually warrant one.
 - Implementation docs and progress reports: `working-docs/implementation/` -- record of what WAS built: decisions made, why things are the way they are, paths considered and rejected in service of something that did get built, revisions. Not a user manual.
 - Rejected paths: `working-docs/archive/` -- evaluations of something wholesale rejected.
-- Paper notes: `working-docs/paper-notes/` -- sourced raw material for an
-  academic write-up (system, results, history, human-AI sessions). Add to
-  it when a finding is worth publishing; start at its `README.md`.
+- Paper notes: sourced raw material for an academic write-up, in
+  `working-docs/implementation/sbom-generator-field-notes/` (start at its
+  `README.md`) and
+  `working-docs/implementation/ai-model-scan-security-lessons.md`. Add to
+  them when a finding is worth publishing.
 - Test fixtures: `tests/fixtures/README.md`
 - Private alpha, one developer. No backward compat needed yet.
 - `working-docs/` is internal notes only -- content can change without notice. The user-facing website (`docs/`) must never link into it. Reference a PR or issue number instead.

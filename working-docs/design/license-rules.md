@@ -425,7 +425,7 @@ leaning (2026-10-04).
     names and listed full texts stay `SimpleLicensingText`, a known
     deviation; name-only case differences give two `LicenseRef-` terms.
     Same for a listed name in a model file (ONNX `model_license` `MIT
-    License`, #PR).
+    License`, #292).
 12. **Detected text by surface.** A `license.file` text `licenseid`
     identifies is the id on a directory and the hook, the text from an
     sdist, wheel or installed metadata (`stated_license()` is not run on
@@ -450,7 +450,7 @@ leaning (2026-10-04).
     written rule; first-seen text spelling depends on build order.
 17. **Licence URL to id.** A value that is only a URL stays
     `SimpleLicensingText`; the ONNX spec allows one for `model_license`
-    (#PR), and PyPI `License:` and model cards carry them too. The SPDX
+    (#292), and PyPI `License:` and model cards carry them too. The SPDX
     License List
     ([licenses.json](https://spdx.org/licenses/licenses.json)) gives each
     id a `reference` (`https://spdx.org/licenses/<id>.html`, one id by
