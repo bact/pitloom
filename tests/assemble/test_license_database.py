@@ -19,11 +19,13 @@ import functools
 import logging
 import shutil
 import sqlite3
+from importlib.metadata import version
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 from licenseid import AggregatedLicenseMatcher, DatabaseNotReadyError, InvalidInputError
+from packaging.version import Version
 
 from pitloom.extract import _license
 from pitloom.extract._license import canonicalize_license_id, detect_license_from_text
@@ -173,11 +175,16 @@ def test_hostile_input_is_never_a_database_failure(
 
 _HUGE_ID = "A" * 50_001 + "+"
 
+# Fixed in licenseid 0.4.3; the floor (0.4.2) still has the bug.
+_LICENSEID_FAILS_ON_HUGE_ID = Version(version("licenseid")) < Version("0.4.3")
+
 
 @pytest.mark.xfail(
+    _LICENSEID_FAILS_ON_HUGE_ID,
     strict=True,
-    reason="licenseid 0.4.2 reports SQLite's refusal of a LIKE pattern over "
-    "50,000 bytes, built from a licence id in the text, as a database failure",
+    reason="licenseid before 0.4.3 reports SQLite's refusal of a LIKE pattern "
+    "over 50,000 bytes, built from a licence id in the text, as a database "
+    "failure",
 )
 @pytest.mark.parametrize(
     "text",
