@@ -199,7 +199,7 @@ jobs:
         with:
           python-version: "3.x"
       # Same release as the action below, which installs its own pinned version.
-      - run: pip install pitloom==0.20.0
+      - run: pip install pitloom==0.20.1
 
       # Extras-free, stem-keyed -- the only path that keeps ai_AIPackage
       # spdxIds stable regardless of whether "ai" extras are installed
@@ -210,7 +210,7 @@ jobs:
       - name: Seed/refresh AI model registry entries
         run: loom id generate --id-registry loom-id-registry.json
 
-      - uses: bact/pitloom@v0.20.0
+      - uses: bact/pitloom@v0.20.1
         with:
           project-path: .
           # Required: nothing auto-discovers a registry -- declare it.

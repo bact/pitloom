@@ -23,7 +23,7 @@ description: >-
   2026 minimum elements"), sbom-generate triggers and hands off here.
 license: Apache-2.0
 compatibility: >-
-  Requires a shell, Python 3.10+ and pitloom >= 0.20.0 (pip, uvx or pipx);
+  Requires a shell, Python 3.10+ and pitloom >= 0.20.1 (pip, uvx or pipx);
   a local AI model file needs pitloom[ai] and the post-merge check needs
   pitloom[validate]. Needs an existing Pitloom SBOM (sbom-generate) and file
   write access to the project. Needs network access to install pitloom;
@@ -71,11 +71,11 @@ See `references/examples.md` for a full worked example.
 
 ## Requirements
 
-Python >= 3.10 and **pitloom >= 0.20.0** (earlier releases lack
+Python >= 3.10 and **pitloom >= 0.20.1** (earlier releases lack
 `--id-registry`, `loom id` and `--build-timeout`), the `loom`/`pitloom`
-entry point: `pip install "pitloom>=0.20.0"`; an AI model file needs
-`pip install "pitloom[ai]>=0.20.0"`; the mandatory post-merge check needs
-`pip install "pitloom[validate]>=0.20.0"`. Ephemeral runs and the pin
+entry point: `pip install "pitloom>=0.20.1"`; an AI model file needs
+`pip install "pitloom[ai]>=0.20.1"`; the mandatory post-merge check needs
+`pip install "pitloom[validate]>=0.20.1"`. Ephemeral runs and the pin
 spelling: `sbom-generate`'s "Run without installing anything persistent".
 
 Snippets are POSIX shell. On Windows use `python` or `py` for `python3`,
@@ -292,8 +292,8 @@ Steps:
    ```
 
    With no persistent install, replace `python3` by `uvx --from
-   "pitloom>=0.20.0" python` (or, with pipx, `pipx run --spec
-   "pitloom>=0.20.0" python`; its "already on your PATH" notice is
+   "pitloom>=0.20.1" python` (or, with pipx, `pipx run --spec
+   "pitloom>=0.20.1" python`; its "already on your PATH" notice is
    harmless). With `pipx install`, use the venv's
    interpreter (`$(pipx environment --value PIPX_LOCAL_VENVS)/pitloom/bin/python`;
    `Scripts\python.exe` on Windows); on Windows otherwise use `py` or
@@ -328,7 +328,7 @@ Steps:
     `<merged-sbom-file>` -- a syntactically valid fragment can still miss
     a required property or use the wrong relationship type, which only
     shape/SHACL validation catches. Minimal fallback: `pip install
-    "pitloom[validate]>=0.20.0"` then `loom fragment validate
+    "pitloom[validate]>=0.20.1"` then `loom fragment validate
     <merged-sbom-file>`.
 11. Tell the user what was found deterministically (step 2), what was
     inferred from prose (step 6), and what the SBOM author supplied

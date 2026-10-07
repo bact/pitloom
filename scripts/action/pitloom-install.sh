@@ -6,7 +6,7 @@
 # Installs Pitloom for action.yml's "Install Pitloom" step.
 #
 # Env: PL_EXTRAS  comma-separated pip extras (may be empty)
-#      PL_VERSION pitloom-version input: a bare version ("0.20.0"), a
+#      PL_VERSION pitloom-version input: a bare version ("0.20.1"), a
 #                 specifier (">=0.20,<1.0"), or empty to install the version
 #                 carried by this pinned action checkout.
 #

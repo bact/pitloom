@@ -25,7 +25,7 @@ description: >-
   one is sbom-enrich.
 license: Apache-2.0
 compatibility: >-
-  Requires a shell, Python 3.10+ and pitloom >= 0.20.0 (pip, uvx or pipx).
+  Requires a shell, Python 3.10+ and pitloom >= 0.20.1 (pip, uvx or pipx).
   AI model targets need pitloom[ai] (or a format extra such as
   pitloom[gguf]); --allow-build needs pitloom[build]; --content-type needs
   pitloom[content-type]. Needs network access to install pitloom and for
@@ -68,11 +68,11 @@ See `references/examples.md` for copy-paste recipes.
 
 ## Requirements
 
-- Python >= 3.10 and **pitloom >= 0.20.0** (earlier releases lack
+- Python >= 3.10 and **pitloom >= 0.20.1** (earlier releases lack
   `--id-registry`, `loom id` and `--build-timeout`), the `loom`/`pitloom`
-  entry point -- `pip install "pitloom>=0.20.0"`, or run ephemeral via
+  entry point -- `pip install "pitloom>=0.20.1"`, or run ephemeral via
   `uvx`/`pipx`. Extras take the floor after the extra:
-  `"pitloom[ai]>=0.20.0"`.
+  `"pitloom[ai]>=0.20.1"`.
 - AI model targets, and any project or wheel that ships model files,
   need the `ai` extra (`pitloom[ai]`) or a
   format-specific one (`pitloom[huggingface_hub]`, `pitloom[gguf]`,
@@ -89,19 +89,19 @@ and PowerShell equivalents (PowerShell 5.1 has no `&&`: run the commands
 one per line):
 
 ```bash
-uvx --from "pitloom>=0.20.0" loom generate <target> -o sbom.spdx3.json
+uvx --from "pitloom>=0.20.1" loom generate <target> -o sbom.spdx3.json
 ```
 
 or
 
 ```bash
-pipx run --spec "pitloom>=0.20.0" loom generate <target> -o sbom.spdx3.json
+pipx run --spec "pitloom>=0.20.1" loom generate <target> -o sbom.spdx3.json
 ```
 
 Fall back to a normal install only if neither `uv` nor `pipx` is available:
 
 ```bash
-pip install "pitloom>=0.20.0"
+pip install "pitloom>=0.20.1"
 loom generate <target> -o sbom.spdx3.json
 ```
 
