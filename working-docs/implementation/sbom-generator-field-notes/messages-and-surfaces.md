@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -73,6 +73,21 @@ say).
   documented limit (#251). An unfetched Git LFS checkout is one summary
   line per run (decided; lessons doc 3.10).
   Do: name the event first, then decide how many lines it deserves.
+- **A once-only warning turns one false alarm into a hidden failure.**
+  `licenseid` 0.4.2 reports every SQLite error on a read as
+  `DatabaseNotReadyError`, including SQLite refusing a `LIKE` pattern
+  over 50,000 bytes that it built from the input: a licence id of 50,001
+  characters ending in `+`, given as an id or found in a text's
+  `SPDX-License-Identifier:` tag, `License:` field or JSON `"license"`.
+  Pitloom warns once per process and drops its cached matcher, so that
+  input spends the one warning and a later real database failure goes
+  unreported. Pitloom now skips lookups of ids over 200 characters,
+  counted after stripping as `licenseid` strips (a first guard counted
+  padding, and `" " * 300 + "mit"` lost its `MIT`); the text path waits
+  for an upstream fix (#289).
+  Do: classify a dependency's error by its cause, not by the layer that
+  raised it; make sure no input can fire a once-only warning; let a
+  guard in front of a library normalise its input as the library does.
 - **A deviation is announced, and the truth kept.** When a value has to
   deviate (a ZIP entry floored to 1980, a stale SBOM removed from the
   wheel), Pitloom says so in one `INFO:` line and keeps the true value in

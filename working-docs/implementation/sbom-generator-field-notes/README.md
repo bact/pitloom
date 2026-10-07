@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,7 +24,7 @@ item gives the exact format, byte value, version or measured number; the PR
 that found or fixed it; and one "Do:" rule. Items the AI-model notes already
 cover are linked, not repeated. Every claim was checked against the current
 code, a repository fixture, a live interpreter or the cited PR's own record on
-the day it was added (2026-10-02 to 2026-10-05).
+the day it was added (2026-10-02 to 2026-10-07).
 
 ## Files
 

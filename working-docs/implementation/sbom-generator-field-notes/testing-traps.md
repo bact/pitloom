@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -112,3 +112,24 @@ Ways a test passes, fails or floods the log for the wrong reason.
   surface lost a licence's indent while the test passed (#286).
   Do: build the real object (`importlib.metadata.PathDistribution` over a
   `.dist-info` written in `tmp_path`) and patch only the lookup.
+- **A narrowed `except` is untested until the dependency really fails.**
+  #289 caught only `DatabaseNotReadyError` from `licenseid` 0.4.2; CI was
+  green, but only mocks raised it. The new tests copy the real database
+  into `tmp_path` and damage it after the matcher is built (delete,
+  truncate, zero the 4 KiB header, drop one table): one `WARNING:`, no
+  licence, a working lookup once the file is restored, and a deleted file
+  never re-created. On `licenseid` 0.4.1 all four fail, so they also
+  enforce the version floor. A table of hostile inputs on a healthy
+  database (FTS operators, NUL, a lone surrogate, SQL injection, 100,000
+  characters) must neither warn nor rebuild the matcher; it found the
+  `LIKE` limit above (messages-and-surfaces.md).
+  Do: damage a real copy of the dependency's files mid-run; pair that
+  with hostile input on a healthy copy, which must stay silent.
+- **Track an upstream bug with a strict `xfail`, and check its reason.**
+  `xfail(strict=True)` turns the upstream fix into a red XPASS, the cue
+  to drop the marker and raise the floor. A strict `xfail` passes on any
+  failure, so run it once with `--runxfail`: one case first passed
+  outright, because text appended after a JSON document made it no
+  longer JSON, and the trigger needs the whole text to be JSON (#289).
+  Do: give each upstream-bug case its own `xfail(strict=True)` and read
+  its `--runxfail` failure once.

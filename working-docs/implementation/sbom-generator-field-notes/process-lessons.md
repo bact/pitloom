@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -79,3 +79,13 @@ lessons doc, section 2, are not repeated.
   `configure_logging()`, which every public entry point must (3957608f).
   Do: let one unknown field make that field unknown, never the record or
   the run; check every new public function against the entry-point rules.
+- **Ask a reviewer for the siblings of a found bug, probed live.** In
+  #289, round 1 found the false database warning for two input shapes (a
+  long id, a long `SPDX-License-Identifier:` tag). Round 2 was asked which
+  other inputs reach the same failure on a healthy database and probed
+  `licenseid` 0.4.2 on a copy: three more shapes (a `License:` field, a
+  URL-form tag, a JSON `"license"` field), plus the inputs that do not
+  trigger it and why (quoted FTS terms, chunked `IN` lists, `=` lookups). The known-bugs entry, the
+  `xfail` table and the upstream handoff were widened to match.
+  Do: once a bug is confirmed, brief the next round to enumerate every
+  input path to the same failure, with a live repro per path.
