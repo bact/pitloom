@@ -355,8 +355,16 @@ def detect_license_from_text(
         return None
 
 
+#: Longer than any licence id: not looked up. ``licenseid`` builds a SQL
+#: ``LIKE`` pattern from the id, and SQLite refuses one over 50,000 bytes,
+#: which ``licenseid`` reports as a database failure.
+_MAX_LICENSE_ID_CHARS = 200
+
+
 def canonicalize_license_id(raw: str) -> str:
     """Return the canonical SPDX License ID for *raw*, or *raw* unchanged."""
+    if len(raw.strip()) > _MAX_LICENSE_ID_CHARS:
+        return raw
     matcher = _matcher()
     if matcher is None:
         return raw

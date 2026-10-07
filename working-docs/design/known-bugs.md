@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -189,8 +189,18 @@ Crashes, broken contracts and small mappings.
   fails silently (S).** Fixed by #287: a database error from `match()`
   warns once (as an unusable database does) and drops the cached matcher;
   `InvalidInputError` (a normal input) stays at debug. Since licenseid
-  0.4.2 that error is always `DatabaseNotReadyError`, and a lookup no
-  longer re-creates a deleted database as an empty file.
+  0.4.2 (#289) that error is always `DatabaseNotReadyError`, and a lookup
+  no longer re-creates a deleted database as an empty file.
+- [ ] **A licence id over 50,000 characters ending in `+` reads as a broken
+  licenseid database (S, upstream).** Found in the #289 review: in a text it
+  can sit in an `SPDX-License-Identifier:` tag, a `License:` field or a JSON
+  `"license"` field. licenseid 0.4.2 builds a SQL `LIKE` pattern from the
+  id, SQLite refuses one over 50,000 bytes, and licenseid raises
+  `DatabaseNotReadyError`: one false `WARNING:`, which as `warn_once` also
+  hides a later real failure. #289 skips lookups of an id over 200
+  characters (`canonicalize_license_id`); a licence text holding such an id
+  still warns (strict `xfail` in `test_license_database.py`). Fix belongs in
+  licenseid (an input error).
 - [ ] **Two `SPDX-License-Identifier` tags, one stated, conclude only the
   stated one (S).** Found in the #287 review, same on `main`: a file
   tagged `MIT` and `Apache-2.0` with `stated="MIT"` concludes `MIT` and
