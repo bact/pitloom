@@ -97,7 +97,7 @@ def _link_errors(source: Path) -> list[str]:
         if not path.exists():
             errors.append(f"{where}: no such file")
         elif fragment and path.suffix == ".md" and fragment not in _anchors(path):
-            errors.append(f"{where}: no heading with that anchor in {rel(path)}")
+            errors.append(f"{where}: no heading with that anchor in {path.name}")
     return errors
 
 
