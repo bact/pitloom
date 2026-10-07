@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -33,18 +33,8 @@ types, and defaults, generated from the docstrings.
 
 ```bash
 pip install pitloom
-```
-
-Install with AI model metadata extraction support:
-
-```bash
-pip install "pitloom[ai]"
-```
-
-Install with extra content type detection:
-
-```bash
-pip install "pitloom[content-type]"
+pip install "pitloom[ai]"            # AI model metadata extraction
+pip install "pitloom[content-type]"  # content type detection (magika)
 ```
 
 ## Generator functions
@@ -268,13 +258,13 @@ written, unless `allow_mismatch=True` downgrades it to a `WARNING:` log
 and lets the embed proceed. Form 1 (a Pitloom-generated SBOM) is never
 checked -- it's built from the same wheel metadata, so it can't diverge.
 A Pitloom-generated SBOM lists the wheel's payload only (see
-[the CLI notes](cli.md#embed-an-sbom-into-a-wheel-pep-770)). A wheel with a
+[Wheel SBOMs](wheel-sbom.md#what-an-sbom-lists)). A wheel with a
 `RECORD` signature (`RECORD.jws`, `RECORD.p7s`) raises `ValueError` and is left
 untouched, unless `allow_signed_wheel=True` removes the signature the rewrite
 invalidates (the removed names are returned with any stale SBOMs). Embed before
 signing, attesting, uploading or hashing the wheel file.
 A wheel's name and version come from its own top-level `.dist-info` (see
-[the CLI notes](cli.md#embed-an-sbom-into-a-wheel-pep-770)). A wheel with one
+[Wheel SBOMs](wheel-sbom.md#what-an-sbom-lists)). A wheel with one
 of the problems below raises `ValueError` (all but the fifth the subclass
 `pitloom.core.wheel_dist_info.WheelRefused`), naming the archive (and the
 member, where one is at fault), and nothing is written:
@@ -483,8 +473,7 @@ both creator and tool). See [Creation metadata](creation-metadata.md).
 
 Pass `id_registry=` (a path, or an already-loaded `IdRegistry`) to
 consult a Loom ID registry read-only when minting ids for datasets, the
-model, and the generating script -- see [Loom IDs across
-fragments](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-loom-id).
+model, and the generating script -- see [Loom ID registry](id-registry.md).
 As on every other surface, this is the only way `loom.run`/`loom.Run`
 ever uses a registry: with none given, no registry is used -- nothing is
 searched for or auto-discovered. A declared registry that's missing,

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -101,14 +101,9 @@ gives a format-only entry: the step succeeds and the action surfaces the
 included), or is absent or unreadable, fails the step.
 See [AI model scan limits](ai-model-scan-limits.md#which-scans-apply-which-limits).
 
-Embed the SBOM into built wheels (PEP 770) for any build backend
-(`flit`, `setuptools`, `poetry-core`, `maturin`, etc.):
-
-```yaml
-- uses: bact/pitloom@v0.20.0
-  with:
-    embed-wheel: "dist/*.whl"
-```
+Set `embed-wheel: "dist/*.whl"` (see the quick guide) to embed the SBOM into
+built wheels (PEP 770) for any build backend (`flit`, `setuptools`,
+`poetry-core`, `maturin`, etc.).
 
 Pass extra raw CLI flags through with `args:` (shell-quoted, e.g. for
 [creator/creation metadata](creation-metadata.md)):
@@ -134,7 +129,7 @@ becomes a `::notice::` annotation; GitHub caps how many a step shows.
 
 ## Persisting the Loom ID registry in CI
 
-A [Loom ID registry](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-loom-id)
+A [Loom ID registry](id-registry.md)
 is used only when declared -- via the `id-registry` input below, or via
 `[tool.pitloom] id-registry` in the project's own config. Nothing is
 auto-discovered. Once declared, `loom project`/`wheel`/`env` (and this
@@ -268,7 +263,7 @@ Inputs (all optional):
 | `offline` | *(empty)* | `true`/`false` to force network access (PyPI/Hugging Face lookups) off or on; empty defers to `[tool.pitloom] offline` (off by default). |
 | `use-lockfile` | *(empty)* | `true`/`false` to force the lock/pin file cascade off or on; empty defers to `[tool.pitloom] use-lockfile` (on by default). Only applies in project mode -- a no-op in model/embed-wheel mode, since neither reads a lock file. See [Dependency sources and precedence](dependency-sources.md). |
 | `trust-wheel-model` | `false` | **SECURITY:** with `embed-wheel` **and `project-path: ""`**, `"true"` reads AI model files inside the wheel with every format reader, including those that can crash or hang on a hostile file (fastText, GGUF, HDF5, ONNX, PyTorch `.pt`/`.pth`); by default such a model is listed without metadata. Only for a wheel you trust: a hostile model file can crash or hang the step or exhaust memory. No `[tool.pitloom]` equivalent. With the default `project-path: .` the action passes `--project-dir`, the models are read from the project, not the wheel, and the input logs `::warning::trust-wheel-model has no effect with project-path set`; outside `embed-wheel` mode it logs `::warning::trust-wheel-model has no effect without embed-wheel (no wheel is read here)`. |
-| `allow-signed-wheel` | `false` | **SECURITY:** with `embed-wheel`, `"true"` embeds into a wheel that carries a `RECORD` signature (`RECORD.jws`, `RECORD.p7s`), removing the signature (one `INFO:` per file); re-sign afterwards. By default such a wheel is refused and left untouched. Order the steps build, `embed-wheel`, sign/attest, upload: the embed invalidates signatures and hashes over the wheel file. See [Embed an SBOM into a wheel](cli.md#embed-an-sbom-into-a-wheel-pep-770). No `[tool.pitloom]` equivalent. Outside `embed-wheel` mode it logs `::warning::allow-signed-wheel has no effect without embed-wheel (no wheel is rewritten here)`. |
+| `allow-signed-wheel` | `false` | **SECURITY:** with `embed-wheel`, `"true"` embeds into a wheel that carries a `RECORD` signature (`RECORD.jws`, `RECORD.p7s`), removing the signature (one `INFO:` per file); re-sign afterwards. By default such a wheel is refused and left untouched. Order the steps build, `embed-wheel`, sign/attest, upload: the embed invalidates signatures and hashes over the wheel file. See [Signed wheels](wheel-sbom.md#signed-wheels). No `[tool.pitloom]` equivalent. Outside `embed-wheel` mode it logs `::warning::allow-signed-wheel has no effect without embed-wheel (no wheel is rewritten here)`. |
 | `allow-build` | `false` | **SECURITY:** `"true"` lets Pitloom invoke the scanned project's own PEP 517 build backend (subprocess; may install build-requires from the network) to discover a wheel's real file list. Executes third-party build-time code from the project being scanned -- only enable for a project whose build script you trust. No `[tool.pitloom]` equivalent; defaults to `"false"`, not empty, since there's no config layer to defer to. Applies in project/embed-wheel mode; explicitly set in model mode, it has no effect and logs `::warning::allow-build has no effect in model mode (no project-directory file discovery there)`. See [`--allow-build`](allow-build.md). |
 | `no-build-isolation` | `false` | With `allow-build: "true"`, skip creating an isolated build environment and use the runner's already-installed build backend instead. No effect without `allow-build`; explicitly set in model mode, it also logs `::warning::no-build-isolation has no effect in model mode (no project-directory file discovery there)`. |
 | `build-timeout` | *(empty)* | Seconds or `h`/`m`/`s` duration, e.g. `900` or `1h30m`, capping how long an `allow-build` build may run before Pitloom kills it and falls back to static discovery. Passed verbatim to `loom --build-timeout`, which validates it -- no shell-side parsing. Empty uses Pitloom's own default of 20 minutes. No effect without `allow-build`; explicitly set in model mode, it also logs `::warning::build-timeout has no effect in model mode (no project-directory file discovery there)`. See [`--build-timeout`](allow-build.md#timing-out-a-build). |

@@ -11,19 +11,20 @@
 **Pitloom** automates the generation of [SPDX 3]-compliant
 software bills of materials (SBOMs) for Python applications and AI models.
 
-It extracts metadata directly from common Python build backends
-(Flit, Hatchling, PDM, Poetry, setuptools, and uv_build) and
-leading AI model formats,
-including PyTorch, ONNX, Safetensors, GGUF, and FastText.
+It extracts metadata directly from Python projects, whether declared in
+the standard `[project]` table (Flit, Hatchling, PDM, uv_build and others),
+Poetry's `[tool.poetry]`, or setuptools' `setup.cfg` and `setup.py`,
+and from leading AI model formats,
+including PyTorch, ONNX, Safetensors, GGUF, and fastText.
 
 With native Hatchling integration and an official GitHub Action,
 Pitloom embeds SBOMs directly into your wheel distribution under
-`.dist-info/sboms` in full compliance with the
-PyPA [Package Installation Metadata][dist-info] specification ([PEP 770]) -
+`.dist-info/sboms`, following the
+PyPA [Package Installation Metadata][dist-info] specification ([PEP 770]) --
 offering software supply chain transparency without disrupting
 the build pipeline.
 
-See user manual at <https://bact.github.io/pitloom/>
+User manual: <https://bact.github.io/pitloom/>
 
 [SPDX 3]: https://spdx.github.io/spdx-spec/
 [dist-info]: https://packaging.python.org/en/latest/specifications/recording-installed-packages/#the-dist-info-directory
@@ -36,11 +37,10 @@ See user manual at <https://bact.github.io/pitloom/>
 - [Quick start](#quick-start)
 - [Usage](#usage)
 - [Example](#example)
-- [Detailed features](#detailed-features)
-- [Metadata provenance](#metadata-provenance)
-- [References](#references)
+- [Learn more](#learn-more)
 - [Pitloom's own SBOM and signatures](#pitlooms-own-sbom-and-signatures)
 - [License](#license)
+- [Citation](#citation)
 - [Name](#name)
 
 ## Quick start
@@ -50,137 +50,63 @@ pip install pitloom
 loom project .     # SBOM for the Python project in the current dir
 ```
 
-### Optional features
-
-Install extras to enable more metadata extraction:
+Extras enable more metadata extraction (see [CONTRIBUTING.md](CONTRIBUTING.md)
+for the dev install):
 
 ```bash
-pip install "pitloom[ai]"              # Get metadata from AI model file and Hugging Face Hub
-pip install "pitloom[content-type]"    # Get content type from Magika
+pip install "pitloom[ai]"              # AI model files and Hugging Face Hub
+pip install "pitloom[content-type]"    # content type detection (Magika)
 ```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev install.
 
 ## Usage
 
+Pitloom produces the same SBOM for the same target on every surface. Pick the
+one that fits how you work:
+
 | Surface | Reach for this when... |
 | :--- | :--- |
-| [Command line](#command-line) (`loom` / `pitloom`) | You want a one-off SBOM from a terminal, a Makefile target, or any shell script. |
-| [Hatchling build hook](#hatchling-build-hook) | You build wheels with Hatchling and want an SBOM embedded automatically. |
-| [Python API](#python-api) | You are calling Pitloom from Python code you control. |
-| [Python tracking decorator](#python-tracking-decorator) | You are training/fine-tuning a model and want to capture provenance as you go, as an SPDX fragment. |
-| [GitHub Action](#use-pitloom-as-a-github-action) | Your project isn't Hatchling-based, or you just want CI to produce an SBOM artifact. |
-| [Agent Skill](#use-pitloom-as-an-ai-agent-skill) | You want an AI coding agent to generate (and optionally enrich) an SBOM on request. |
-| [Claude Code plugin](#use-pitloom-as-a-claude-code-plugin) | You use Claude Code and want the Skills installable with one command. |
-
-See [docs/agent-skills.md](docs/agent-skills.md) and
-[docs/claude-code-plugin.md](docs/claude-code-plugin.md) for a dedicated
-walkthrough of the Agent Skills and the Claude Code plugin.
+| [Command line](docs/cli.md) (`loom` / `pitloom`) | You want a one-off SBOM from a terminal, a Makefile target or a shell script. |
+| [Hatchling build hook](docs/hatchling-build-hook.md) | You build wheels with Hatchling and want an SBOM embedded automatically. |
+| [Python API](docs/python-api.md) | You call Pitloom from Python code, or want to capture provenance while training or evaluating a model (tracking decorator). |
+| [GitHub Action](docs/github-action.md) | Your project is not Hatchling-based, or you want CI to produce an SBOM artifact. |
+| [Agent Skills](docs/agent-skills.md) | You want an AI coding agent to generate, enrich or validate an SBOM on request. |
+| [Claude Code plugin](docs/claude-code-plugin.md) | You use Claude Code and want the Skills installed with one command. |
 
 ### Command line
 
-`loom -h` shows the full option list.
-
-#### Generate an SBOM
-
-Generate a **Source SBOM** for a Python project in the current directory:
+`loom -h` lists every option.
 
 ```bash
-loom project .
-loom project /path/to/project -o sbom.spdx3.json
+loom project .                                 # Source SBOM of a project
+loom wheel dist/pkg-1.0-py3-none-any.whl       # Analyzed SBOM of a built wheel
+loom env -o env.spdx3.json                     # Deployed SBOM of the installed environment
+loom model path/to/model.safetensors           # Analyzed SBOM of one AI model file
+loom model Qwen/Qwen3-235B-A22B                # ... or a Hugging Face Hub model (needs pitloom[huggingface_hub])
+loom generate . -o sbom.spdx3.json             # detect the target type (-o is required)
 ```
 
-Works for any Python project; per-file discovery (which files, hashes,
-Merkle root) is backend-aware for Hatchling, setuptools, Poetry,
-PDM-backend, and Flit-core, and falls back to a Hatchling-based
-heuristic with a warning for other backends -- see
-[Command line](docs/cli.md#generate-an-sbom) for the full limitation
-note. If a lock file (`pylock.toml`, `uv.lock`, `poetry.lock`, `pdm.lock`,
-`Pipfile.lock`, or pinned `requirements.txt`) is present, Pitloom includes
-its exact resolved dependencies automatically (opt out with
-`--no-use-lockfile`) -- see
-[Dependency sources](docs/dependency-sources.md).
+`-o FILE` sets the output path. Lock files (`pylock.toml`, `uv.lock`,
+`poetry.lock`, `pdm.lock`, `Pipfile.lock`, pinned `requirements.txt`) are
+read automatically; opt out with `--no-use-lockfile`. Local model formats:
+GGUF, ONNX, Safetensors, PyTorch (`.pt`/`.pth`, `.pt2`), Keras, HDF5, NumPy,
+fastText.
 
-Generate an **Analyzed SBOM** from a pre-built wheel
-(extracting bundled binaries as phantom dependencies):
+AI-model gaps (licence, datasets) can be filled from a README or model card's
+YAML frontmatter, opt in with `--enrich`, or standalone as a mergeable
+fragment:
 
 ```bash
-loom wheel path/to/mypackage-1.0.0-py3-none-any.whl -o sbom.spdx3.json
-```
-
-Generate a **Deployed SBOM** reflecting the exact installed environment graph:
-
-```bash
-loom env -o env.spdx3.json
-```
-
-Generate an **Analyzed SBOM** for a single AI model file,
-without a Python project directory
-(output written to the current working directory).
-Supported local formats: GGUF, ONNX, Safetensors, PyTorch (`.pt`/`.pth`),
-PyTorch PT2/ExecuTorch (`.pt2`), Keras, HDF5, NumPy, fastText:
-
-```bash
-loom model path/to/model.safetensors -o model.spdx3.json
-loom model path/to/model.gguf --pretty
-```
-
-Or pass a Hugging Face Hub URL or model ID directly -- no local file
-required. Pitloom fetches metadata from the Hub (model card, `config.json`,
-`tokenizer_config.json`, `generation_config.json`) and produces an enriched
-`ai_AIPackage` SBOM. Requires `huggingface_hub`
-(`pip install pitloom[huggingface_hub]`):
-
-```bash
-loom model https://huggingface.co/mistralai/Mistral-7B-v0.1
-loom model Qwen/Qwen3-235B-A22B   # bare model ID also works
-```
-
-Or use the smart unified entrypoint:
-
-```bash
-loom generate . -o sbom.spdx3.json                           # project directory -> Source SBOM
-loom generate path/to/model.safetensors -o model.spdx3.json  # AI model asset   -> Analyzed SBOM
-loom generate env -o env.spdx3.json                          # installed venv    -> Deployed SBOM
-```
-
-`-o`/`--output` is required for `generate`: unlike `project`/`wheel`/
-`model`/`env`, which each know their target type and so have an obvious
-default filename, `generate` dispatches across several target types with
-no single natural default -- pass `-o` explicitly, or use the
-target-specific command for its own default.
-
-#### Enrich an SBOM
-
-Fill AI-model metadata gaps (license, datasets) from a local
-`README.md`/`MODEL_CARD.md`'s YAML frontmatter -- off by default, opt in
-with `--enrich` on `loom model`/`loom project`/`loom generate`, or run it
-standalone to produce a mergeable fragment:
-
-```bash
-loom model path/to/model.safetensors --enrich -o model.spdx3.json
-
-# Standalone: writes a fragment, doesn't generate a full SBOM
 loom enrich path/to/model.safetensors -o model.enrich.spdx3.json
-# When merging into a project-level (not single-model) base SBOM, add:
-loom enrich path/to/model.safetensors --project-dir . -o model.enrich.spdx3.json
 ```
 
-Register the fragment under `[tool.pitloom.fragment]` and re-run
-`loom project`/`loom generate` to merge it in. See
-[Command line](docs/cli.md#enrich-an-sbom) and
-[Agent Skills](docs/agent-skills.md) for the full surface list
-(Python API, Hatchling hook, GitHub Action, Skill).
+See [Command line](docs/cli.md) for per-command detail,
+[Wheel SBOMs](docs/wheel-sbom.md) for `embed-wheel`, `verify-wheel` and
+`validate-wheel`, and [SBOM fragments](docs/fragments.md) for merging.
 
 ### Hatchling build hook
 
-Pitloom can embed an SBOM automatically into every wheel you build, at
-`.dist-info/sboms/<name>-<version>.spdx3.json` by default (e.g.
-`.dist-info/sboms/mypackage-1.0.0.spdx3.json`), per
-[PEP 770](https://peps.python.org/pep-0770/) (wheels only).
-
-Add `pitloom` as a build requirement (Hatchling **1.29.0+** required) and
-register the hook:
+Embeds an SBOM at `.dist-info/sboms/<name>-<version>.spdx3.json` in every
+wheel built ([PEP 770], compact canonical JSON). Needs Hatchling **1.29.0+**:
 
 ```toml
 [build-system]
@@ -191,55 +117,38 @@ build-backend = "hatchling.build"
 enabled = true    # set to false to skip SBOM generation
 ```
 
-That's all -- `hatch build`/`python -m build` now embeds the SBOM, always
-as compact canonical JSON. Basename and fragments are configured under
-`[tool.pitloom]`; creator/tool metadata uses the same
-`[[tool.pitloom.creator]]` / `[[tool.pitloom.creation-tool]]` /
-`[tool.pitloom.creation]` tables the CLI reads (see
-[Creation metadata](#creation-metadata) below):
-
-```toml
-[tool.pitloom]
-sbom-basename = "custom-bom"       # -> "custom-bom.spdx3.json" (default: "<name>-<version>")
-                                   # ("custom-bom.spdx3.json" also works: extension dropped, with a WARNING)
-
-[tool.pitloom.fragment]
-files = ["fragments/model.json"]   # merge externally tracked fragments
-```
+Basename, fragments, creators and provenance are set under `[tool.pitloom]`;
+see the [hook page](docs/hatchling-build-hook.md) and
+[Configuration](docs/configuration.md).
 
 ### Python API
-
-The SBOM generator can be used programmatically
-via the smart `generate()` entry point or target-specific functions:
 
 ```python
 from pathlib import Path
 from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.assemble import generate, generate_project_sbom
 
-# Smart auto-detection entrypoint
+# Detects the target type
 generate(
     target=Path("/path/to/project"),
     output_path=Path("sbom.spdx3.json"),
     creation_metadata=CreationMetadata(creators=[Creator(name="Your Name")]),
 )
 
-# Or target-specific generator
+# Or a target-specific generator
 generate_project_sbom(
     project_target=Path("/path/to/project"),
     output_path=Path("sbom.spdx3.json"),
 )
 ```
 
-`pitloom.assemble` also exposes `generate_wheel_sbom()`,
-`generate_model_sbom()`, and `generate_env_sbom()`.
+`pitloom.assemble` also has `generate_wheel_sbom()`, `generate_model_sbom()`
+and `generate_env_sbom()`.
 
-### Python tracking decorator
-
-Developers can annotate scripts or Jupyter notebooks to generate external
-SBOM fragments that Pitloom will merge during the build process, as a
-function decorator or a context manager. Use `set_model` when generating
-a new model, and `use_model` when consuming one for inference or evaluation:
+**Tracking decorator.** Annotate a training or evaluation script, as a
+decorator or a context manager, to write an SBOM fragment that Pitloom merges
+at build time. Use `set_model` for a model you produce, `use_model` for one
+you consume:
 
 ```python
 from pitloom import loom
@@ -259,13 +168,12 @@ def evaluate_model():
     # ... evaluation logic ...
 ```
 
-See [Python tracking decorator advanced usage](#python-tracking-decorator-advanced-usage)
-below for more details.
+See [Python API](docs/python-api.md) for lineage between several datasets in
+one run, and [Loom ID registry](docs/id-registry.md) for stable ids across fragments.
 
-### Use Pitloom as a GitHub Action
+### GitHub Action
 
-Add SBOM generation to any repository's CI, for any Python build backend,
-not just Hatchling:
+SBOM generation in CI, for any Python build backend:
 
 ```yaml
 - uses: actions/setup-python@v7
@@ -274,58 +182,28 @@ not just Hatchling:
 - uses: bact/pitloom@v0.20.0
 ```
 
-See [docs/github-action.md](docs/github-action.md) for inputs, outputs,
-and more recipes.
+Add `embed-wheel: "dist/*.whl"` to embed the SBOM into built wheels. See
+[GitHub Action](docs/github-action.md) for inputs, outputs and recipes.
 
-### Use Pitloom as an AI-agent skill
+### Agent Skills and Claude Code plugin
 
-`skills/sbom-generate/`, `skills/sbom-enrich/`, and `skills/sbom-validate/`
-are ready-to-install [Agent Skills](https://www.anthropic.com/) for
-Claude Code and the Claude Agent SDK: `sbom-generate` generates an SBOM
-on request; `sbom-enrich` augments an existing one with detail read from
-a README or model card (or, interactively, asked directly of the SBOM
-author), via Pitloom's fragment system; `sbom-validate` checks any
-SPDX 3 document's schema/shape conformance.
+`skills/sbom-generate/`, `skills/sbom-enrich/` and `skills/sbom-validate/`
+are [Agent Skills](https://agentskills.io) for Claude Code, the Claude Agent
+SDK and other compatible clients. Ask in plain language ("generate an SBOM
+for this project") or invoke one: `/sbom-generate [target]`,
+`/sbom-enrich [sbom-file]`, `/sbom-validate [sbom-file]`. Generate first;
+`sbom-enrich` needs an existing Pitloom SBOM.
 
-```bash
-mkdir -p ~/.claude/skills   # or .claude/skills for a project-scoped install
-cp -r /path/to/pitloom/skills/sbom-generate \
-      /path/to/pitloom/skills/sbom-enrich \
-      /path/to/pitloom/skills/sbom-validate ~/.claude/skills/
-```
-
-Once installed, either ask in plain language ("generate an SBOM for this
-project", "enrich this SBOM with the dataset it was trained on",
-"validate this SBOM") or invoke a skill explicitly with
-`/sbom-generate [target]` / `/sbom-enrich [sbom-file]` /
-`/sbom-validate [sbom-file]`. Generate first, enrich and validate
-second -- `sbom-enrich` needs a Pitloom-generated SBOM to already exist:
-
-```text
-/sbom-generate .                          # or /sbom-generate models/my-model.safetensors
-/sbom-enrich sbom.spdx3.json
-/sbom-validate sbom.spdx3.json
-```
-
-See [docs/agent-skills.md](docs/agent-skills.md) for a walkthrough of all
-three skills and full install instructions.
-
-### Use Pitloom as a Claude Code plugin
-
-The Skills above are also installable as a plugin, self-hosted from this
-repository:
+For Claude Code, install all three as a plugin from this repository:
 
 ```text
 /plugin marketplace add bact/pitloom
 /plugin install pitloom@pitloom
 ```
 
-Once installed, all three Skills are namespaced under the plugin:
-`/pitloom:sbom-generate [target]`, `/pitloom:sbom-enrich [sbom-file]`,
-and `/pitloom:sbom-validate [sbom-file]` (or just ask in plain
-language -- natural-language triggering works the same as standalone
-Skills). See [docs/claude-code-plugin.md](docs/claude-code-plugin.md)
-for what the plugin bundles.
+The Skills are then namespaced, e.g. `/pitloom:sbom-generate`. See [Agent
+Skills](docs/agent-skills.md) (install into other clients) and [Claude Code
+plugin](docs/claude-code-plugin.md).
 
 ## Example
 
@@ -335,198 +213,32 @@ loom project sentimentdemo
 ```
 
 The generated SBOM includes project metadata, dependencies with version
-constraints, SPDX relationships, creator/creation info, and per-field
-metadata provenance. See a more complete example in the
-[examples/](./examples/) directory.
+constraints, SPDX relationships, creator/creation info and per-field metadata
+provenance. See a more complete example in [examples/](./examples/).
 
-## Detailed features
+## Learn more
 
-### Creation metadata
-
-These flags apply to project, AI model, and Hugging Face SBOM generation
-alike. `--creator-name` is repeatable -- each occurrence starts a new
-creator, in order; `--creator-type` (`person` default, `organization`,
-`software-agent`, `agent`) and `--creator-email` set the type/email of the
-*most recently named* creator. `--creation-tool` records *what* produced
-it (default `"Pitloom"`, also repeatable; `--no-creation-tool` to omit);
-`--creation-comment`/`--creation-datetime` set free-text provenance and an
-ISO 8601 timestamp:
-
-```bash
-loom project . --creator-name "Alice" --creator-email "alice@example.com"
-loom project . --creator-name "Acme Corp" --creator-type organization
-loom project . --creator-name "Acme Corp" --creator-type organization --creator-name Alice
-loom project . --creation-datetime "2026-01-15T10:00:00Z" --creation-comment "CI run #123"
-```
-
-The same fields can be set in `pyproject.toml` under
-`[[tool.pitloom.creator]]` / `[[tool.pitloom.creation-tool]]` (CLI flags
-take precedence, replacing the whole list rather than merging):
-
-```toml
-[[tool.pitloom.creator]]
-name = "Alice"
-email = "alice@example.com"
-type = "person"       # or "organization", "software-agent", "agent"
-
-[[tool.pitloom.creator]]
-name = "Acme Corp"
-type = "organization"
-
-[[tool.pitloom.creation-tool]]
-name = "MyCompany SBOM Wrapper"
-
-[tool.pitloom.creation]
-creation-datetime = "2026-01-15T10:00:00Z"
-creation-comment = "Generated in CI pipeline #123"
-```
-
-See [Creation metadata](docs/creation-metadata.md) for what these fields
-record and why -- the who/what/when/how model behind every element Pitloom
-emits.
-
-### Loom IDs across fragments (`loom id`)
-
-Fragments are written by independent runs, so the same dataset or model
-would normally get a different `spdxId` in each -- leaving the merged SBOM
-as disconnected islands. A Loom ID registry fixes that, but only when you
-declare one -- nothing is ever searched for or auto-discovered, on any
-surface (every CLI subcommand, the Hatchling build hook, the library API
-including `loom.Run`, and the GitHub Action). Declare a registry with
-`--id-registry FILE` on the command line, or with `id-registry` in the
-project's own `[tool.pitloom]` (or in a `--config` file):
-
-```toml
-[tool.pitloom]
-id-registry = "loom-id-registry.json"
-```
-
-```console
-loom id generate data src --entity model      # pin ids before running
-loom id import existing-sbom.spdx3.json       # or reuse ids from an SBOM
-loom project                                  # uses the declared registry
-```
-
-Precedence is `--id-registry`/`id_registry=` first, then the applicable
-config's `id-registry` key, then no registry at all -- silently, on
-every surface except `loom id generate`/`loom id import` themselves:
-those two require a declared location (`-o`/`--id-registry`, or the
-project's own `id-registry` key) and print one `ERROR:` line and exit 1
-otherwise -- there's no implicit `loom-id-registry.json` fallback file.
-Given the same registry, a file, directory, dependency package, the
-project's own package (`project`, `wheel`, `embed-wheel` and the Hatchling
-hook) or AI model carries the same id everywhere, except that a
-`src/`-layout project's files are not found by `wheel` or sdist targets
-(their paths differ from the project's). A `loom.Run` dataset is looked up by file path and hash; datasets found at
-build time and `env`'s root package are not looked up, so a registry entry
-doesn't pin them. Regeneration is stable: an unchanged file keeps its id;
-changed content gets a fresh one (different bytes are different
-provenance). A package name held by two elements of one document that
-both read the registry (two versions of one dependency behind different
-markers) cannot be pinned automatically: runs don't record it, and a
-pinned id for it goes to the first of them, with a `WARNING:`. A
-self-referencing extra, or a bundled library named like the project or a
-dependency, never reads the registry: it silently gets its own id, and runs
-still record the name for the project or dependency. `loom id import` of
-an SBOM skips every name held by several elements, with one `INFO:` line.
-
-A declared registry that's missing, unreadable, or invalid is fatal: the
-CLI prints one `ERROR:` line and exits 1; the library API and `loom.Run`
-raise `ValueError`; the Hatchling build hook logs one `ERROR:` and fails
-the build. Create one with `loom id generate`/`loom id import` -- see
-above -- which also print a `[tool.pitloom]` line to add, but only when
-that run *created* a new registry file (not when writing to one that
-already existed) and the target isn't already declared in the project's
-own config.
-
-`loom project`/`wheel`/`env` also harvest newly-minted ids back into a
-*declared* registry after each run (`update-id-registry`, on by default;
-never creates one) -- running `loom project`, then `loom wheel
---id-registry loom-id-registry.json` and `loom env --id-registry
-loom-id-registry.json` keeps the same spdxIds without a manual `id
-generate`/`import` step in between.
-`ai_AIPackage` and `dataset_DatasetPackage` entries are the exceptions:
-`loom id generate` remains the way to register AI models, since their
-stable key (the model file's stem) can't safely come from auto-harvest;
-datasets found at build time aren't registry-consulted at all, so
-harvesting them would just write dead entries. See
-[Persisting the Loom ID registry in CI](docs/github-action.md#persisting-the-loom-id-registry-in-ci)
-for the CI workflow shape this implies.
-
-At build time `merge_fragments` unifies fragment elements -- by shared
-`spdxId`, by identical SHA-256 content, by equal licence (canonical
-expression or text), or (for the per-fragment "Pitloom" `Agent`/`Tool`
-copies) by structural equality; **never by name alone**.
-Fragment envelopes are dropped, duplicate relationships removed, the
-document's `profileConformance` gains `ai`/`dataset` as appropriate, and a
-second `software_Sbom` rooted at the merged `ai_AIPackage` is added, so the
-wheel ships one connected AI-pipeline graph: the packaged training script
-`generates` the model, which was `trainedOn` datasets that trace back
-via `hasInput` to the raw data.
-
-### Python tracking decorator advanced usage
-
-`loom.run` accepts the same [creation metadata](#creation-metadata) as the
-CLI and build hook, via `creation_metadata=CreationMetadata(...)`. With
-none given, the fragment records the unattended-run default (Pitloom
-itself as both creator and tool).
-
-The run also records *which script produced what*: the calling script
-becomes a `software_File` (with an SHA-256 hash) with `generates`
-relationships to the model it trained and/or the output datasets it wrote.
-Datasets that exist on disk get `verifiedUsing` SHA-256 hashes. These
-`generates` edges are scoped `build` (`LifecycleScopedRelationship`) --
-they describe a build-time step, not something that runs in the shipped
-artifact. Contrast with the `hasDataFile` relationship Pitloom emits when it
-detects a script *using* a model file at runtime (e.g. a `predict.py` that
-loads it). Static scanning for such scripts needs `--scan-model-usage` (off
-by default); a `loom.run` that declares `use_model` emits it regardless. It
-is scoped `runtime`.
-
-A single run can cover more than one independent preprocessing stage --
-e.g. producing train/valid/test splits from separate raw sources in one
-`loom.run` block -- without their `hasInput` lineage bleeding into each
-other. Pass `input_datasets=` on `add_output_dataset()` to name exactly
-which `add_input_dataset()` calls a given output derives from:
-
-```python
-with loom.run("fragments/preprocess.json") as run:
-    for split in ("train", "valid", "test"):
-        sources = [f"rawdata/{split}/{label}.txt" for label in labels]
-        for source in sources:
-            run.add_input_dataset(source, dataset_type="text")
-        run.add_output_dataset(
-            f"data/{split}.txt", dataset_type="text", input_datasets=sources
-        )
-```
-
-Omit `input_datasets` (the default) when a run has exactly one output
-batch -- it then derives from every input the run declared, as before.
-
-## Metadata provenance
-
-Pitloom tracks the source of each metadata field in the SBOM as SPDX 3
-Core `Annotation` elements (plus a legacy `comment` form kept for
-back-compat), so questions like "why does the SBOM say the concluded
-license is MIT?" have a traceable answer. See
-[Metadata provenance](docs/metadata-provenance.md) for the full explainer
-and a worked example.
-
-## References
-
-- [SPDX 3.0 Specification](https://spdx.dev/wp-content/uploads/sites/31/2024/12/SPDX-3.0.1-1.pdf)
-- [PEP 770 – SBOM metadata in Python packages](https://peps.python.org/pep-0770/)
-- [Resources and standards list](docs/resources.md)
-- Bennet et al., [“Implementing AI Bill of Materials with SPDX 3.0”](https://www.linuxfoundation.org/research/ai-bom),
+- [Configuration](docs/configuration.md): every `[tool.pitloom]` setting and
+  how each surface reads it.
+- [Creation metadata](docs/creation-metadata.md): who, what, when and how each
+  element records its creation (`--creator-name`, `--creation-tool`, ...).
+- [Metadata provenance](docs/metadata-provenance.md): SPDX 3 `Annotation`
+  elements recording the source of each field, so "why does the SBOM say the
+  concluded licence is MIT?" has a traceable answer.
+- [Loom ID registry](docs/id-registry.md): an optional registry that keeps `spdxId`s
+  stable across fragments and runs.
+- [Resources](docs/resources.md): SBOM, AIBOM and SPDX reading list.
+- [SPDX 3.0 Specification](https://spdx.dev/wp-content/uploads/sites/31/2024/12/SPDX-3.0.1-1.pdf),
+  [PEP 770](https://peps.python.org/pep-0770/) and Bennet et al.,
+  [“Implementing AI Bill of Materials with SPDX 3.0”](https://www.linuxfoundation.org/research/ai-bom),
   The Linux Foundation, 2024.
 
 ## Pitloom's own SBOM and signatures
 
-Pitloom's own [Hatchling build hook](#hatchling-build-hook) writes
-Pitloom's SBOM into its wheel, at
-`.dist-info/sboms/<name>-<version>.spdx3.json` ([PEP 770]). The
-release build installs the `content-type` extra, so every non-empty file's
-content type is detected by magika.
+Pitloom's [Hatchling build hook](#hatchling-build-hook) writes Pitloom's SBOM
+into its wheel, at `.dist-info/sboms/<name>-<version>.spdx3.json` ([PEP 770]).
+The release build installs the `content-type` extra, so every non-empty
+file's content type is detected by magika.
 
 Each [GitHub release](https://github.com/bact/pitloom/releases) attaches:
 
@@ -537,7 +249,9 @@ Each [GitHub release](https://github.com/bact/pitloom/releases) attaches:
 The same three files also have a GitHub artifact attestation (build
 provenance), kept by GitHub, not attached to the release.
 
-To check a download:
+To check a download (`<file>` is the wheel, the sdist or the SBOM; the
+Sigstore bundle path defaults to `<file>.sigstore.json`, `--bundle` overrides
+it):
 
 ```shell
 loom verify-wheel <file>.whl
@@ -549,9 +263,6 @@ gh attestation verify <file> -R bact/pitloom \
   --signer-workflow bact/pitloom/.github/workflows/pypi-publish.yml \
   --source-ref refs/tags/v<version>
 ```
-
-`<file>` is the wheel, the sdist or the SBOM. The Sigstore bundle path
-defaults to `<file>.sigstore.json` (`--bundle` overrides it).
 
 ## License
 

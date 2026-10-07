@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -36,10 +36,18 @@ Equal elements unify, here and in a project build with
 `[tool.pitloom.fragment]`: the same `spdxId`, the same SHA-256 (files and
 packages), the same agent or tool, and the same licence -- an expression
 or a text with the same canonical value, so `mit` and `MIT` are one
-element, while an expression and a text stay two. The earlier one is kept
-(the project's own, then the earlier fragment, by file name for `loom
-merge`), and an `Annotation` records each unification. A kept licence
-keeps its own `name` and `comment`.
+element, while an expression and a text stay two. Elements are never unified
+by name alone. The earlier one is kept (the project's own, then the earlier
+fragment, by file name for `loom merge`), and an `Annotation` records each
+unification. A kept licence keeps its own `name` and `comment`. To make
+independent runs agree on ids in the first place, see [Loom ID registry](id-registry.md).
+
+In a project build, fragment envelopes are dropped and duplicate relationships
+removed. The document's `profileConformance` gains `ai`/`dataset` as
+appropriate, and a second `software_Sbom` rooted at the merged `ai_AIPackage`
+is added, so the wheel ships one connected AI-pipeline graph: the packaged
+training script `generates` the model, which was `trainedOn` datasets that
+trace back via `hasInput` to the raw data.
 
 A configured fragment that is the document being merged into (an earlier
 SBOM of the same project, with the same `SpdxDocument` id) is skipped

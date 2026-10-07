@@ -37,7 +37,7 @@ dropped via `exclude`.
 ## Setuptools
 
 `sampleproject-setuptools/` is a minimal Python package that exercises
-Pitloom's setuptools metadata extraction (`pitloom.extract.setuptools`)
+Pitloom's setuptools metadata extraction (`pitloom.extract.project.setuptools`)
 and wheel file discovery (`pitloom.core._models_wheel_setuptools`). It
 uses the common transitional layout: `pyproject.toml` for the
 `[build-system]` table only, with all project metadata in `setup.cfg`

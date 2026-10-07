@@ -99,22 +99,22 @@ returns.
 @loom.run(FRAGMENT_PATH, pretty=True)
 def preprocess() -> tuple[Path, Path]:
     loom.add_input_dataset(
-        "data/raw/pos.txt", dataset_type=stav_spdx.dataset.DatasetType.text.name
+        "data/raw/pos.txt", dataset_type=stav_spdx_dataset.DatasetType.text.name
     )
     loom.add_input_dataset(
-        "data/raw/neg.txt", dataset_type=stav_spdx.dataset.DatasetType.text.name
+        "data/raw/neg.txt", dataset_type=stav_spdx_dataset.DatasetType.text.name
     )
 
     # ... tokenise, label, split ...
 
     loom.add_output_dataset(
         "data/processed/train.txt",
-        dataset_type=stav_spdx.dataset.DatasetType.text.name,
+        dataset_type=stav_spdx_dataset.DatasetType.text.name,
         data_preprocessing=PREPROCESSING_STEPS,
     )
     loom.add_output_dataset(
         "data/processed/test.txt",
-        dataset_type=stav_spdx.dataset.DatasetType.text.name,
+        dataset_type=stav_spdx_dataset.DatasetType.text.name,
         data_preprocessing=PREPROCESSING_STEPS,
     )
 ```
@@ -156,11 +156,11 @@ part of a script:
 with loom.run(FRAGMENT_PATH, pretty=True):
     loom.set_model(
         name="sentimentdemo",
-        model_type=str(stav_dpv.ai.AITechnique.SupervisedLearning),
+        model_type=str(stav_dpv_ai.AITechnique.SupervisedLearning),
         hyperparameters={"lr": "0.5", "epoch": "25", "wordNgrams": "2", ...},
     )
     loom.add_dataset("data/processed/train.txt",
-                     dataset_type=stav_spdx.dataset.DatasetType.text.name)
+                     dataset_type=stav_spdx_dataset.DatasetType.text.name)
 
     model = fasttext.train_supervised(input=str(TRAIN_FILE), **HYPERPARAMS)
     model.save_model(str(MODEL_PATH))
@@ -200,10 +200,10 @@ so that the relationship type comes out as `testedOn` instead of
 ```python
 with loom.run(FRAGMENT_PATH, pretty=True):
     loom.set_model(
-        name="sentimentdemo", model_type=str(stav_dpv.ai.AITechnique.SupervisedLearning)
+        name="sentimentdemo", model_type=str(stav_dpv_ai.AITechnique.SupervisedLearning)
     )
     loom.add_validation_dataset(
-        "data/processed/test.txt", dataset_type=stav_spdx.dataset.DatasetType.text.name
+        "data/processed/test.txt", dataset_type=stav_spdx_dataset.DatasetType.text.name
     )
 
     model = fasttext.load_model(str(MODEL_PATH))
