@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
+from licenseid import get_default_db_path
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._wheel_sbom_location import _find_dist_info_prefix
@@ -360,10 +361,6 @@ def licenseid_db_path_fixture() -> Path:
     Build with: ``licenseid update``. Only a missing file skips: a database
     that exists but cannot be opened must fail the tests, not hide.
     """
-    # pylint: disable=import-outside-toplevel
-
-    from licenseid.datadir import get_default_db_path
-
     db = Path(get_default_db_path())
     if not db.exists():
         pytest.skip("licenseid database not built -- run 'licenseid update'")

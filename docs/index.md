@@ -14,16 +14,23 @@ SPDX-License-Identifier: CC0-1.0
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/bact/pitloom/badge)](https://scorecard.dev/viewer/?uri=github.com/bact/pitloom)
 [![DOI](https://img.shields.io/badge/doi-10.5281%2Fzenodo.19246283-blue)](https://doi.org/10.5281/zenodo.19246283)
 
-**Pitloom** automates the generation of SPDX 3-compliant SBOMs for AI models
-and Python projects, documenting the composition and provenance of software
-systems. It reads metadata directly from Python packages and AI models
-(GGUF, ONNX, PyTorch, Safetensors) and offers native Hatchling integration
-so SBOMs can be generated automatically as part of a build.
+**Pitloom** automates the generation of [SPDX 3]-compliant
+software bills of materials (SBOMs) for Python applications and AI models.
 
-When used with Hatchling, it embeds the generated SBOM directly into
-the Python distribution package (wheel) `.dist-info/sboms` --
-follows [PEP 770].
+It extracts metadata directly from common Python build backends
+(Flit, Hatchling, PDM, Poetry, setuptools, and uv_build) and
+leading AI model formats,
+including PyTorch, ONNX, Safetensors, GGUF, and FastText.
 
+With native Hatchling integration and an official GitHub Action,
+Pitloom embeds SBOMs directly into your wheel distribution under
+`.dist-info/sboms` in full compliance with the
+PyPA [Package Installation Metadata][dist-info] specification ([PEP 770]) -
+offering software supply chain transparency without disrupting
+the build pipeline.
+
+[SPDX 3]: https://spdx.github.io/spdx-spec/
+[dist-info]: https://packaging.python.org/en/latest/specifications/recording-installed-packages/#the-dist-info-directory
 [PEP 770]: https://peps.python.org/pep-0770/
 
 ## Install
@@ -90,7 +97,7 @@ please read our [Security policy][security].
 
 If you use Pitloom in your academic work, please cite it as follows:
 
-> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.20.0) [Computer software]. https://doi.org/10.5281/zenodo.19246283
+> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.20.0) [Computer software]. <https://doi.org/10.5281/zenodo.19246283>
 
 BibTeX:
 

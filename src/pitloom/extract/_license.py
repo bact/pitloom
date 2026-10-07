@@ -24,7 +24,6 @@ from __future__ import annotations
 import functools
 import logging
 import re
-import sqlite3
 from collections.abc import Sequence
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
@@ -103,11 +102,6 @@ def _get_matcher() -> AggregatedLicenseMatcher:
     A failed construction raises and is not cached: :func:`_matcher` retries
     it on the next lookup."""
     return AggregatedLicenseMatcher()
-
-
-#: What ``match()`` raises when the database fails, not the input: a file
-#: deleted, truncated or corrupted after the matcher was built.
-_DATABASE_ERRORS = (sqlite3.Error, DatabaseNotReadyError)
 
 
 def _database_unusable(exc: BaseException) -> None:
@@ -350,7 +344,9 @@ def detect_license_from_text(
             if chosen:
                 return chosen
         return _best_reading_decides(readings, threshold)
-    except _DATABASE_ERRORS as exc:
+    # The database failed after the matcher was built (deleted, truncated,
+    # corrupted): licenseid raises this for any failed read.
+    except DatabaseNotReadyError as exc:
         _database_unusable(exc)
         return None
     # pylint: disable-next=broad-exception-caught
@@ -359,8 +355,16 @@ def detect_license_from_text(
         return None
 
 
+#: Longer than any licence id: not looked up. ``licenseid`` builds a SQL
+#: ``LIKE`` pattern from the id, and SQLite refuses one over 50,000 bytes,
+#: which ``licenseid`` reports as a database failure.
+_MAX_LICENSE_ID_CHARS = 200
+
+
 def canonicalize_license_id(raw: str) -> str:
     """Return the canonical SPDX License ID for *raw*, or *raw* unchanged."""
+    if len(raw.strip()) > _MAX_LICENSE_ID_CHARS:
+        return raw
     matcher = _matcher()
     if matcher is None:
         return raw
@@ -368,7 +372,7 @@ def canonicalize_license_id(raw: str) -> str:
         results = matcher.match(license_id=raw)
         if results:
             return str(results[0]["license_id"])
-    except _DATABASE_ERRORS as exc:
+    except DatabaseNotReadyError as exc:
         _database_unusable(exc)
     # An input licenseid rejects (not one licence ID) is no failure: debug.
     # pylint: disable-next=broad-exception-caught

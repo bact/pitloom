@@ -12,12 +12,14 @@ from the original test_license.py; test_license_detection_ties.py (when a
 match is decisive).
 """
 
+import functools
 import logging
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from licenseid import AggregatedLicenseMatcher
 
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import (
@@ -247,10 +249,10 @@ def test_an_unusable_database_warns_once_and_degrades(
 def test_detect_license_from_text_db_not_populated(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Returns None gracefully when the licenseid database is not populated."""
+    """Returns None gracefully when the licenseid database is missing."""
     with patch(
-        "licenseid.matcher.get_default_db_path",
-        return_value=str(tmp_path / "empty.db"),
+        "pitloom.extract._license.AggregatedLicenseMatcher",
+        functools.partial(AggregatedLicenseMatcher, db_path=str(tmp_path / "x.db")),
     ):
         result = detect_license_from_text("MIT License\n\nPermission is hereby granted")
         assert result is None
