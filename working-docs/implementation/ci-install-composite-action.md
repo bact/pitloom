@@ -148,8 +148,9 @@ trusting the diff.
 - pip is still upgraded (through uv): `pip-audit` and the
   `pip install --dry-run` wheel checks run the interpreter's own pip.
 - Cache: uv's download cache replaces setup-python's pip cache. The input
-  defaults to setup-uv's `auto`, which skips the cache on release and
-  tag-push events, so `pypi-publish.yml` never restores one. The cache key
+  defaults to setup-uv's `auto`, which skips the cache on release,
+  tag-push, `pull_request_target` and `workflow_run` events and on
+  self-hosted runners, so `pypi-publish.yml` never restores one. The cache key
   hashes only the root `pyproject.toml`; setup-uv's default glob would
   also hash every fixture `pyproject.toml` under `tests/`. The key suffix
   includes the job id: jobs with the same OS and Python install different

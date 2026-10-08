@@ -16,8 +16,9 @@ inputs:
     required: true
   cache:
     description: >-
-      uv download cache: "true", "false" or "auto" (on, except for release
-      and tag-push events, so a release build never restores a cache).
+      uv download cache: "true", "false" or "auto" (setup-uv's rule: on for
+      GitHub-hosted runners, off for release, tag-push, pull_request_target
+      and workflow_run events, so a release build never restores a cache).
     required: false
     default: "auto"
 
