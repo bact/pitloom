@@ -237,8 +237,8 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
     ``license`` is the standard ``model_license`` metadata property.
     ``version`` is ``model_version``, decoded to ``MAJOR.MINOR.PATCH`` when
     its upper 32 bits are non-zero (bit-packed SemVer). ``type_of_model`` is
-    ``"neural network"``, unset when the model imports the ``ai.onnx.ml``
-    opset; ``domain`` is kept in ``properties`` only. ``inputs`` and
+    ``"neural network"``, unset when a node uses an ``ai.onnx.ml``
+    operator; ``domain`` is kept in ``properties`` only. ``inputs`` and
     ``outputs`` give each tensor's NumPy-style ``dtype`` name; ``inputs``
     leaves out the initializers an IR version 3 graph lists as inputs
     (from IR 4 on, such an input is one with a default, and kept). A

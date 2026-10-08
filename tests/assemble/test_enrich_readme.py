@@ -190,6 +190,31 @@ def test_enrich_ignores_non_string_dataset_entries() -> None:
     assert len(result.fields) == 1
 
 
+def _alias_bomb(levels: int) -> str:
+    """Frontmatter whose expanded alias tree has 10**levels leaves."""
+    lines = ["l0: &l0 [a, b, c, d, e, f, g, h, i, j]"]
+    for n in range(1, levels + 1):
+        lines.append(f"l{n}: &l{n} [{', '.join([f'*l{n - 1}'] * 10)}]")
+    return "---\nlicense: mit\n" + "\n".join(lines) + "\n---\n"
+
+
+@pytest.mark.parametrize(
+    "frontmatter",
+    [_alias_bomb(40), "---\nlicense: mit\nx: &a [*a]\n---\n"],
+    ids=["alias-bomb", "alias-cycle"],
+)
+def test_enrich_ignores_yaml_aliases_in_unread_keys(frontmatter: str) -> None:
+    """Regression: a lone-surrogate walk over the whole frontmatter took
+    10x longer per alias level, and raised RecursionError on a cycle, losing
+    the licence. Only the keys the enricher reads are walked."""
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d)
+        (p / "README.md").write_text(frontmatter)
+        model = AiModelMetadata()
+        ReadmeEnricher().enrich(model, model_dir=p)
+    assert model.license == "mit"
+
+
 def test_enrich_malformed_frontmatter_is_noop() -> None:
     with tempfile.TemporaryDirectory() as d:
         p = Path(d)
