@@ -3,29 +3,53 @@
 
 name: Set up Python for Pitloom CI
 description: >
-  Runs actions/setup-python with Pitloom CI's shared version/cache config.
+  Runs actions/setup-python, then installs uv with its download cache and
+  sets UV_PYTHON to that interpreter for later steps
+  (./.github/actions/install-pitloom installs with uv into it).
   Does NOT check out the repo: a local composite action can only be loaded
   after checkout already happened in the caller's own job, so every caller
-  must keep its own actions/checkout step before this one. Does NOT
-  upgrade pip either -- every caller follows this with
-  ./.github/actions/install-pitloom, which already does that as its own
-  first step.
+  must keep its own actions/checkout step before this one.
 
 inputs:
   python-version:
     description: Python version passed to actions/setup-python.
     required: true
-  cache-pip:
-    description: Whether to enable pip dependency caching.
+  cache:
+    description: >-
+      uv download cache: "true", "false" or "auto" (setup-uv's rule: on for
+      GitHub-hosted runners, off for release, tag-push, pull_request_target
+      and workflow_run events, so a release build never restores a cache).
     required: false
-    default: "true"
+    default: "auto"
 
 runs:
   using: composite
   steps:
     - name: Set up Python ${{ inputs.python-version }}
+      id: python
       uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
       with:
         python-version: ${{ inputs.python-version }}
-        cache: ${{ inputs.cache-pip == 'true' && 'pip' || '' }}
-        cache-dependency-path: pyproject.toml
+
+    - name: Point uv at this Python
+      # "uv pip install --system" otherwise takes the first Python on PATH;
+      # every runner image has its own too (Windows: registry 3.12 and
+      # Miniconda; macOS: Homebrew; Ubuntu: /usr/bin/python3). Read from
+      # env and written with printf, so a Windows path's backslashes stay
+      # literal.
+      shell: bash
+      env:
+        PYTHON_PATH: ${{ steps.python.outputs.python-path }}
+      run: printf 'UV_PYTHON=%s\n' "$PYTHON_PATH" >> "$GITHUB_ENV"
+
+    - name: Set up uv
+      uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+      with:
+        version-file: .github/uv/requirements.txt
+        enable-cache: ${{ inputs.cache }}
+        # Only the root pyproject.toml: the default glob also hashes every
+        # fixture pyproject.toml under tests/.
+        cache-dependency-glob: pyproject.toml
+        # Per job: jobs install different groups/extras, and the first job
+        # to finish saves the key, so a shared key holds a partial cache.
+        cache-suffix: ${{ github.job }}-py${{ inputs.python-version }}

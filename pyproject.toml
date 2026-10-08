@@ -317,7 +317,7 @@ addopts = [
     "--import-mode=importlib",
     "-n",
     "auto",
-    "--dist=loadscope",
+    "--dist=worksteal",
     "--strict-markers",
     "--strict-config",
 ]

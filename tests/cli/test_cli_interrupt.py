@@ -78,10 +78,9 @@ def test_ctrl_c_is_one_error_line_and_exit_130(
 ) -> None:
     """Ctrl-C in a subcommand is ``ERROR: interrupted`` and 130, never a
     raw traceback; the traceback follows it only when debugging."""
-    if env is None:
-        monkeypatch.delenv(PITLOOM_DEBUG_ENV_VAR, raising=False)
-    else:
-        monkeypatch.setenv(PITLOOM_DEBUG_ENV_VAR, env)
+    # setenv "0", not delenv: delenv on an absent name records no restore,
+    # so --debug's direct write would leak into later tests.
+    monkeypatch.setenv(PITLOOM_DEBUG_ENV_VAR, "0" if env is None else env)
     monkeypatch.setattr(mod_project, "generate_project_sbom", _interrupt)
 
     assert _run_project(monkeypatch, tmp_path, *top_level) == 130
@@ -102,7 +101,7 @@ def test_ctrl_c_under_termination_guard_cleans_up_first(
 ) -> None:
     """Ctrl-C during a held build: the guard's cleanups run and its
     SIGTERM handler is restored before the ``ERROR:`` line is printed."""
-    monkeypatch.delenv(PITLOOM_DEBUG_ENV_VAR, raising=False)
+    monkeypatch.setenv(PITLOOM_DEBUG_ENV_VAR, "0")
     assert signal.getsignal(signal.SIGTERM) == signal.SIG_DFL
     stderr_at_cleanup: list[str] = []
 
@@ -129,7 +128,7 @@ def test_console_main_reraises_with_traceback_printout_off(
 ) -> None:
     """``console_main()`` reports the same one line, then re-raises for
     Python to end the process by SIGINT, with nothing more printed."""
-    monkeypatch.delenv(PITLOOM_DEBUG_ENV_VAR, raising=False)
+    monkeypatch.setenv(PITLOOM_DEBUG_ENV_VAR, "0")
     monkeypatch.setattr(sys, "excepthook", sys.excepthook)
     monkeypatch.setattr(mod_project, "generate_project_sbom", _interrupt)
     project_dir = _make_simple_project(tmp_path)

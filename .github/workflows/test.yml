@@ -76,12 +76,12 @@ jobs:
       - name: Run tests
         run: |
           if [ "${{ matrix.coverage }}" == "true" ]; then
-            pytest tests/ -v --tb=short \
+            pytest tests/ -v --tb=short --durations=20 \
               --cov=pitloom \
               --cov-report=xml \
               --cov-report=term-missing
           else
-            pytest tests/ -v --tb=short
+            pytest tests/ -v --tb=short --durations=20
           fi
 
       - name: Upload coverage reports to Codecov

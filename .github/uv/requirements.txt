@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+#
+# uv version for CI, read by astral-sh/setup-uv (version-file) in
+# .github/actions/setup-python. A requirements file so Dependabot bumps it.
+uv==0.12.18

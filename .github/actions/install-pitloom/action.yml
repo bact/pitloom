@@ -8,7 +8,9 @@ description: >-
   self-referential pyproject.toml build dependency (see
   working-docs/implementation/hatchling-build-hook.md). Shared by every
   CI workflow that needs a working local install instead of copy-pasting
-  the same bootstrap sequence.
+  the same bootstrap sequence. Installs with "uv pip" into the Python
+  ./.github/actions/setup-python names in UV_PYTHON (that action also
+  installs uv), so it must run first.
 
 inputs:
   hatchling-version:
@@ -29,21 +31,23 @@ inputs:
   groups:
     description: >-
       Dependency-group flags to install before the local package (e.g.
-      "--group test --group lint"). Installed in its own "pip install"
+      "--group test --group lint"). Installed in its own "uv pip install"
       call, without "--no-build-isolation" (see the "runs" step below for
       why that flag is scoped to package-spec only). Empty adds nothing.
     required: false
     default: ""
   package-spec:
     description: >-
-      Bare pip install target for the local package, with no shell
+      Bare install target for the local package, with no shell
       quoting or flags embedded (e.g. "." or ".[ai,content-type]").
-      Combine with the "editable" input for a "pip install -e" install.
-    required: true
+      Combine with the "editable" input for an editable install. Empty
+      skips the local package and its build tools (e.g. a job that only
+      runs linters from "groups").
+    required: false
+    default: ""
   editable:
     description: >-
-      "true" installs package-spec with "pip install -e" instead of a
-      normal install.
+      "true" installs package-spec with "-e" instead of a normal install.
     required: false
     default: "false"
 
@@ -61,39 +65,54 @@ runs:
       env:
         HATCHLING_VERSION: ${{ inputs.hatchling-version }}
         EXTRA_PACKAGES: ${{ inputs.extra-packages }}
-        GROUPS: ${{ inputs.groups }}
+        INSTALL_GROUPS: ${{ inputs.groups }}
         PACKAGE_SPEC: ${{ inputs.package-spec }}
         EDITABLE: ${{ inputs.editable }}
+        # Windows keeps uv's cache (D:) and the toolcache Python (C:) on
+        # different drives, where a hardlink fails with a warning and falls
+        # back to a copy; copy everywhere so all OSes take the same path.
+        UV_LINK_MODE: copy
       run: |
-        python -m pip install --upgrade pip
-        if [ -n "$HATCHLING_VERSION" ]; then
-          pip install "hatchling==$HATCHLING_VERSION"
-        else
-          pip install hatchling
-        fi
-        # EXTRA_PACKAGES/GROUPS are intentionally unquoted -- each is a
-        # space-separated list of independent pip arguments, and this
-        # still only word-splits the already-substituted value; it can't
-        # reintroduce shell-metacharacter injection the way a direct
+        # --system: a non-venv interpreter, the one setup-python put in
+        # UV_PYTHON. pip is still upgraded: pip-audit and the
+        # "pip install --dry-run" wheel checks run the interpreter's own pip.
+        uv pip install --system --upgrade pip
+        # EXTRA_PACKAGES/INSTALL_GROUPS are intentionally unquoted -- each
+        # is a space-separated list of independent install arguments, and
+        # this still only word-splits the already-substituted value; it
+        # can't reintroduce shell-metacharacter injection the way a direct
         # GitHub expression splice into the script text can.
-        pip install setuptools $EXTRA_PACKAGES
-        if [ -n "$GROUPS" ]; then
+        if [ -n "$PACKAGE_SPEC" ]; then
+          if [ -n "$HATCHLING_VERSION" ]; then
+            uv pip install --system "hatchling==$HATCHLING_VERSION"
+          else
+            uv pip install --system hatchling
+          fi
+          uv pip install --system setuptools $EXTRA_PACKAGES
+        elif [ -n "$EXTRA_PACKAGES" ]; then
+          uv pip install --system $EXTRA_PACKAGES
+        fi
+        if [ -n "$INSTALL_GROUPS" ]; then
           # No --no-build-isolation here -- that flag exists only to stop
           # PACKAGE_SPEC's self-referential Pitloom build below (see that
-          # comment). GROUPS packages aren't self-referential and may
-          # need their own isolated build from sdist (e.g. fuzz.yml's
+          # comment). INSTALL_GROUPS packages aren't self-referential and
+          # may need their own isolated build from sdist (e.g. fuzz.yml's
           # atheris, no wheel below Python 3.12).
-          pip install $GROUPS
+          uv pip install --system $INSTALL_GROUPS
+        fi
+        if [ -z "$PACKAGE_SPEC" ]; then
+          exit 0
         fi
         # pyproject.toml lists "pitloom" as its own build dependency
         # (self-embeds its SBOM); an isolated build of PACKAGE_SPEC would
         # otherwise fetch "pitloom" fresh off PyPI (possibly stale or
         # crashing) instead of using this checkout's own source.
         # --no-build-isolation skips that fetch, scoped to just this call
-        # so it doesn't affect GROUPS above; HATCH_BUILD_NO_HOOKS skips
-        # the build hook itself (nothing provides it yet).
+        # so it doesn't affect INSTALL_GROUPS above; HATCH_BUILD_NO_HOOKS
+        # skips the build hook itself (nothing provides it yet).
+        editable=""
         if [ "$EDITABLE" = "true" ]; then
-          HATCH_BUILD_NO_HOOKS=1 pip install -e "$PACKAGE_SPEC" --no-build-isolation
-        else
-          HATCH_BUILD_NO_HOOKS=1 pip install "$PACKAGE_SPEC" --no-build-isolation
+          editable=1
         fi
+        HATCH_BUILD_NO_HOOKS=1 uv pip install --system --no-build-isolation \
+          ${editable:+-e} "$PACKAGE_SPEC"
