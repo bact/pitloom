@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -53,13 +53,14 @@ model`, and a Git LFS pointer is not one under any candidate suffix (`.onnx`,
 as an AI model`.
 
 A recognised model can still be recorded as a stub: an `ai_AIPackage` named
-after its format, with no `ai_*` property, a `contains` link to its
-`software_File` and that file's SHA-256. A read model's `comment` has
-`Source: <model file> | Field: ...` entries; a stub's has none. With
-`--enrich` a stub can carry a `comment` from the README (`Source: README.md
-| Method: yaml_frontmatter`) and is still unread. (A format-named entry with
-other properties was read: NumPy, fastText and classic PyTorch carry no
-model name.)
+after its file's stem (`Method: file_name_stem`), with no `ai_*` property, a
+`contains` link to its `software_File` and that file's SHA-256. A read
+model's `comment` has `Source: <model file> | Field: ...` entries; a stub's
+has none. With `--enrich` a stub can carry a `comment` from the README
+(`Source: README.md | Method: yaml_frontmatter`) and is still unread. (A
+file-named entry with other properties was read: NumPy, fastText and
+classic PyTorch carry no model name, nor does an ONNX file whose
+`graph.name` is an exporter default.)
 Causes, each with its own stderr line:
 
 - Wheel gate: fastText, GGUF, HDF5, ONNX and PyTorch `.pt`/`.pth` inside a

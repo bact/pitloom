@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-04
+# Last-Modified: 2026-10-07
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -415,9 +415,8 @@ complete but isn't. Per-case detail: `references/known-limitations.md`.
 - **AI model formats** are broad, not universal (see the description). An
   unrecognised serialisation is not scanned: say so, don't skip silently.
 - **AI model caps:** an `ai_AIPackage` is a stub (its metadata was not
-  read) when its `name` is its format (`gguf`, `onnx`, ...), it has no
-  `ai_*` property and no `comment` entry `Source: <model file> | Field:
-  ...`; a read model has such entries (some formats carry no name). With
+  read) when it has no `ai_*` property and no `comment` entry `Source:
+  <model file> | Field: ...`; a read model has such entries. With
   `--enrich` a stub can still carry a README `comment` (`Method:
   yaml_frontmatter`). Name the reason from stderr: the wheel gate (`INFO:`,
   see `--trust-wheel-model`); `required library not installed` (install

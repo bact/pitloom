@@ -13,7 +13,7 @@ File details for `onnx/`. See also: [AI model fixtures](../README.md)
 
 | Property | Value |
 | :--- | :--- |
-| Format | ONNX (IR version 8, opsets: ai.onnx 14, com.microsoft 1) |
+| Format | ONNX (IR version 7, opsets: ai.onnx 14, com.microsoft 1) |
 | Architecture | Whisper tiny - speech encoder |
 | Task | Automatic speech recognition (encoder half only) |
 | Quantisation | Q4F16 (4-bit weights, float16 activations) |
@@ -27,8 +27,9 @@ File details for `onnx/`. See also: [AI model fixtures](../README.md)
 
 Notable metadata extracted by the ONNX extractor:
 
-- `name` = `"main_graph"` (from `graph.name`)
-- `type_of_model` = `"neural network"` (empty domain falls back to default)
+- `name` = `None` (`graph.name` is the exporter default `main_graph`; the
+  SBOM package is named after the file, `encoder-model-q4f16`)
+- `type_of_model` = `"neural network"` (ONNX has no model-type field)
 - `properties["opset.ai.onnx"]` = `"14"`
 - `properties["opset.com.microsoft"]` = `"1"` (Microsoft contrib ops for
   quantised kernels)
@@ -39,7 +40,7 @@ Notable metadata extracted by the ONNX extractor:
 
 | Property | Value |
 | :--- | :--- |
-| Format | ONNX (IR version 8, opset 13) |
+| Format | ONNX (IR version 7, opset 13) |
 | Architecture | GPT-2 causal language model decoder |
 | Task | Text generation with KV-cache outputs |
 | Inputs | `input_ids`: INT64; `attention_mask`: INT64 |
@@ -52,7 +53,8 @@ Notable metadata extracted by the ONNX extractor:
 
 Notable metadata extracted by the ONNX extractor:
 
-- `name` = `"torch_jit"` (PyTorch JIT export)
+- `name` = `None` (`graph.name` is the PyTorch exporter default
+  `torch_jit`; the SBOM package is named `gpt2-tiny-decoder`)
 - `properties["opset.ai.onnx"]` = `"13"`
 - `outputs` includes `logits` and 10 KV-cache tensors
   (`present.0.key` … `present.4.value`) - unique decoder structure
@@ -80,7 +82,7 @@ Notable metadata extracted by the ONNX extractor:
 Notable metadata extracted by the ONNX extractor:
 
 - `name` = `"inception_v2"` (from `graph.name`)
-- `type_of_model` = `"neural network"` (empty domain falls back to default)
+- `type_of_model` = `"neural network"` (ONNX has no model-type field)
 - `properties["opset.ai.onnx"]` = `"9"` - oldest opset in the fixture set
 - 487 graph inputs: the first is `data_0` [1, 3, 224, 224]; the remaining
   486 are weight initializers listed in `graph.input` following the pre-ONNX
@@ -92,7 +94,7 @@ Notable metadata extracted by the ONNX extractor:
 
 | Property | Value |
 | :--- | :--- |
-| Format | ONNX (IR version 7, opset 11) |
+| Format | ONNX (IR version 6, opset 11) |
 | Architecture | ResNet (2-stage, basic blocks) fine-tuned for bean disease |
 | Task | Image classification - 3 classes: angular\_leaf\_spot, bean\_rust, healthy |
 | Input | `pixel_values`: float32 `[batch, channels, 224, 224]` |
@@ -105,8 +107,9 @@ Notable metadata extracted by the ONNX extractor:
 
 Notable metadata extracted by the ONNX extractor:
 
-- `name` = `"torch_jit"` (PyTorch JIT export sets the graph name to `torch_jit`)
-- `type_of_model` = `"neural network"` (empty domain falls back to default)
+- `name` = `None` (`graph.name` is the PyTorch exporter default
+  `torch_jit`; the SBOM package is named `resnet-tiny-beans`)
+- `type_of_model` = `"neural network"` (ONNX has no model-type field)
 - `properties["opset.ai.onnx"]` = `"11"`
 
 ---
@@ -130,5 +133,5 @@ Notable metadata extracted by the ONNX extractor:
 Notable metadata extracted by the ONNX extractor:
 
 - `name` = `"main"` (from `graph.name`)
-- `type_of_model` = `"neural network"` (domain is empty, falls back to default)
+- `type_of_model` = `"neural network"` (ONNX has no model-type field)
 - `properties["opset.ai.onnx"]` = `"7"`

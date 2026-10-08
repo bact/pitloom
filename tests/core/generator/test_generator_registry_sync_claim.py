@@ -27,6 +27,7 @@ same scenarios exercised through the public ``generate_wheel_sbom()``/
 from __future__ import annotations
 
 import hashlib
+import logging
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -450,3 +451,25 @@ def test_resolve_file_hits_absolute_physical_path_falls_back_to_distribution_pat
         call.args[1] == absolute_physical for call in spy.call_args_list
     )
     assert not called_with_absolute
+
+
+def test_ai_model_collision_warning_names_the_shown_name(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The collision warning labels each model by the name its SBOM shows
+    (stripped), not the padded name read from the file."""
+    registry = IdRegistry.new("ai-project")
+    registry.register_entity("BERT", "ai_AIPackage")
+    ai_models = [
+        AiModelMetadata(
+            name=" BERT ",
+            format_info=AiModelFormatInfo(model_format=AiModelFormat.GGUF),
+        )
+        for _ in range(2)
+    ]
+    with caplog.at_level(logging.WARNING):
+        hits = resolve_ai_model_entity_hits(ai_models, IdRegistrySession(registry))
+    assert hits[0] is not None and hits[1] is None
+    warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+    assert len(warnings) == 1
+    assert "both BERT and BERT; BERT gets" in warnings[0]  # labels unpadded

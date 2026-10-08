@@ -87,10 +87,11 @@ def _ai_model_identity(
     that only need the identity tuple (:func:`build_enrichment_fragment`)
     depend on this clear to get the correct, reproducible id.
     """
+    pkg_name, _ = model.resolve_name()
     if doc_identity is not None:
         doc_name, doc_uuid = doc_identity
     else:
-        doc_name = model.name or model.format_info.file_name or "model"
+        doc_name = pkg_name
         doc_uuid = compute_doc_uuid(
             name=doc_name,
             version=model.version or "unknown",
@@ -100,7 +101,6 @@ def _ai_model_identity(
     if entity_spdx_id is not None:
         return doc_name, doc_uuid, entity_spdx_id
     _clear_doc_counters(doc_uuid)
-    pkg_name = model.name or str(model.format_info.model_format)
     ai_package_spdx_id = generate_spdx_id(
         f"AIPackage-{pkg_name}", doc_name=doc_name, doc_uuid=doc_uuid
     )
@@ -255,7 +255,7 @@ def build_model(
     _add_base_model_lineage(ai_pkg, model, lineage_ctx)
     emit_provenance(
         subject=ai_pkg,
-        provenance=model.provenance,
+        provenance=model.resolve_name()[1],
         creation_info=spdx_ci,
         doc_name=doc_name,
         doc_uuid=doc_uuid,
