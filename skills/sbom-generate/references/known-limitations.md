@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -79,6 +79,16 @@ model caps"). Beyond that:
   `artifact-metadata` annotation's `metadata` (kept as read; not every
   field, e.g. an ONNX graph name) or the model file. Which fields are escaped:
   <https://bact.github.io/pitloom/metadata-reading-back/>.
+- No `ai_typeOfModel` on an ONNX model: a node uses an `ai.onnx.ml`
+  operator (trees, linear models, SVMs), and the file does not say which
+  kind of model that is, so it is left unset, silently. Otherwise it is
+  `neural network` (the ONNX-ML opset import alone does not count).
+- Reading values back from the `artifact-metadata` annotation (`/2`):
+  collections (`labels`, shapes) are JSON arrays, scalars are text, and
+  `valueTypes` names the type of each (`integer`, `float`, `boolean`).
+  fastText `labels` is a JSON array too, so parse it, do not split on
+  commas. A `truncated` or `maxEntries` key means entries were cut at the
+  cap. How to decode: <https://bact.github.io/pitloom/metadata-reading-back/>.
 - After the per-wheel budget is spent, later models are stubbed without a
   further line, except one over the ceiling or missing its library, which
   adds its own.

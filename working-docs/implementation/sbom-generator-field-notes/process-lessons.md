@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -89,3 +89,15 @@ lessons doc, section 2, are not repeated.
   `xfail` table and the upstream handoff were widened to match.
   Do: once a bug is confirmed, brief the next round to enumerate every
   input path to the same failure, with a live repro per path.
+- **Review the stated rule against the set it describes.** An Opus review
+  of #294's display-escape rule found the code sound but the wording
+  ("a code point a reader cannot see") wider than the fixed list: variation
+  selectors, Hangul fillers (U+3164, U+FFA0) and rarer Cf code points are
+  left out. The list is fixed, not derived from Unicode properties, on
+  purpose: Python 3.10 ships Unicode 13 and 3.13 ships 15.1, so a derived
+  set would change output between interpreters. A zero-width joiner is
+  also needed in Thai, Persian and Indic text, so escaping U+200B-200D in
+  prose produces false alarms.
+  Do: state a fixed list as a fixed list, name what is excluded and why,
+  and test every Bidi_Control and Default_Ignorable code point is either
+  in the set or on a named exclusion list.

@@ -24,7 +24,7 @@ only), as compact canonical JSON.
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.29.0", "pitloom>=0.20.1"]
+requires = ["hatchling>=1.29.0", "pitloom>=0.20.2"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]

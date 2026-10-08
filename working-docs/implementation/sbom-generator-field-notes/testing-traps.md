@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -133,3 +133,19 @@ Ways a test passes, fails or floods the log for the wrong reason.
   longer JSON, and the trigger needs the whole text to be JSON (#289).
   Do: give each upstream-bug case its own `xfail(strict=True)` and read
   its `--runxfail` failure once.
+- **A hand-built fixture shares its author's assumptions.** The ONNX
+  `type_of_model` rule passed every unit fixture and failed on the first
+  real tf2onnx file (#294). Run the generator on a real project that
+  uses the formats (here PyThaiNLP `main`: 3 ONNX plus 5 CRFsuite models,
+  no `WARNING:`, schema and SHACL valid) before merging a reader change.
+  Do: keep one real-data acceptance run per format family, offline-skipped.
+- **A skipped upload shows a stale number.** Codecov reported 89% for a
+  module that was at 100%: failing CI runs skip the upload step, so the
+  last passing run's figure stayed. Forcing the upload with `always()`
+  would replace it with a partial figure from failed tests, so the step
+  was left alone (#294).
+  Do: before trusting a coverage drop, check the run actually uploaded.
+- **Adding a keyword to a test helper can trip the argument limit.**
+  `_save(..., node_domain=)` made 7 arguments against pylint's 6
+  (`too-many-arguments`), found only by CI's pylint (#294).
+  Do: run pylint on the tests directory you touched, not just ruff.
