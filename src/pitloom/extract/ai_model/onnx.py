@@ -32,9 +32,13 @@ _EXPORTER_DEFAULT_GRAPH_NAMES = frozenset(
     }
 )
 
+# metadata_props keys sit under this prefix in properties, so a free-form
+# key never collides with a field-derived one (domain, opset.<domain>)
+_METADATA_PROPS_PREFIX = "metadata_props."
+
 # Standard metadata_props key defined by the ONNX IR spec ("Optional Metadata"):
 # https://onnx.ai/onnx/repo-docs/IR.html#optional-metadata
-_MODEL_LICENSE_KEY = "model_license"
+_MODEL_LICENSE_KEY = _METADATA_PROPS_PREFIX + "model_license"
 
 # model_version packs SemVer as MAJOR (16 bits), MINOR (16), PATCH (32); zero
 # upper 32 bits mark a simple number instead. See "Serializing SemVer version
@@ -71,31 +75,19 @@ def _extract_onnx_properties(
 ) -> dict[str, str]:
     """Extract domain, opset versions, and metadata_props into properties dict.
 
-    A ``metadata_props`` key equal to a field-derived key (``domain``,
-    ``opset.<domain>``) is dropped with a warning; the field keeps its value.
+    ``metadata_props`` keys get the ``metadata_props.`` prefix, so they never
+    collide with ``domain`` or ``opset.<domain>``.
     """
-    fields: dict[str, str] = {}
+    properties: dict[str, str] = {}
     if model.domain:
-        fields["domain"] = model.domain
+        properties["domain"] = model.domain
     for opset in model.opset_import:
         opset_domain = opset.domain if opset.domain else "ai.onnx"
-        fields[f"opset.{opset_domain}"] = str(opset.version)
-    record_dict_field_provenance(provenance, "properties", fields, source)
-
-    props: dict[str, str] = {}
+        properties[f"opset.{opset_domain}"] = str(opset.version)
     for prop in model.metadata_props:
-        if prop.key in fields:
-            log.warning(
-                "ONNX metadata_props key %s is also a model field; "
-                "kept the field's value",
-                loggable(prop.key),
-            )
-            continue
-        props[prop.key] = prop.value
-    record_dict_field_provenance(
-        provenance, "properties", props, source, location_prefix="metadata_props."
-    )
-    return {**fields, **props}
+        properties[_METADATA_PROPS_PREFIX + prop.key] = prop.value
+    record_dict_field_provenance(provenance, "properties", properties, source)
+    return properties
 
 
 def _resolve_onnx_name(
@@ -130,7 +122,7 @@ def _resolve_onnx_license(
     license_expr = properties.get(_MODEL_LICENSE_KEY, "").strip()
     if not license_expr:
         return None
-    provenance["license"] = f"{source} | Field: metadata_props.{_MODEL_LICENSE_KEY}"
+    provenance["license"] = f"{source} | Field: {_MODEL_LICENSE_KEY}"
     return license_expr
 
 
@@ -144,6 +136,8 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
     ``version`` is ``model_version``, decoded to ``MAJOR.MINOR.PATCH`` when
     its upper 32 bits are non-zero (bit-packed SemVer). ``type_of_model`` is
     always ``"neural network"``; ``domain`` is kept in ``properties`` only.
+    ``properties`` holds ``domain``, ``opset.<domain>`` and every
+    ``metadata_props`` entry as ``metadata_props.<key>``.
 
     Requires the ``onnx`` package (``pip install onnx``).
     """

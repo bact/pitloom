@@ -156,8 +156,8 @@ def test_onnx_basic_extraction(tmp_path: Path) -> None:
     assert meta.version == "2"
     # domain is the owner's namespace, not a model type
     assert meta.type_of_model == "neural network"
-    assert meta.properties["author"] == "test"
-    assert meta.properties["task"] == "classification"
+    assert meta.properties["metadata_props.author"] == "test"
+    assert meta.properties["metadata_props.task"] == "classification"
     assert meta.properties["domain"] == "org.example"
     assert "opset.ai.onnx" in meta.properties
     assert meta.properties["opset.ai.onnx"] == "17"
@@ -256,7 +256,10 @@ def test_onnx_model_license(
             "Field: metadata_props.model_license"
         )
     # The verbatim property is kept alongside the promoted licence
-    assert meta.properties.items() >= metadata_props.items()
+    assert (
+        meta.properties.items()
+        >= {f"metadata_props.{k}": v for k, v in metadata_props.items()}.items()
+    )
 
 
 def test_onnx_tensor_specs_missing_dtype_shape_and_dim() -> None:
@@ -345,28 +348,30 @@ def test_mocked_model_proto_fields_exist() -> None:
     for proto, fields in (
         (onnx.ModelProto, _MODEL_PROTO_FIELDS),
         (onnx.ValueInfoProto, _VALUE_INFO_FIELDS),
-        (onnx.TensorShapeProto.Dimension, _DIMENSION_FIELDS[1:]),
+        (
+            onnx.TensorShapeProto.Dimension,
+            [f for f in _DIMENSION_FIELDS if f != "HasField"],
+        ),
     ):
         assert set(fields) <= set(proto.DESCRIPTOR.fields_by_name), proto
 
 
-@pytest.mark.parametrize("key", ["domain", "opset.ai.onnx"])
-def test_onnx_metadata_props_cannot_shadow_a_field(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture, key: str
+@pytest.mark.parametrize("key", ["domain", "opset.ai.onnx", "metadata_props.x"])
+@pytest.mark.parametrize("field_domain", ["org.example", ""])
+def test_onnx_metadata_props_never_collide_with_fields(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, key: str, field_domain: str
 ) -> None:
-    """A metadata_props key equal to a field-derived key loses to the field,
-    with a warning; other keys keep their metadata_props provenance."""
+    """A metadata_props key spelt like a field-derived key, with or without
+    that field set, keeps its own entry; the fields keep theirs."""
     with caplog.at_level(logging.WARNING, logger="pitloom.extract.ai_model.onnx"):
-        meta = _read_mock(
-            tmp_path,
-            domain="org.example",
-            metadata_props={key: "NLP", "task": "ner"},
-        )
-    assert meta.properties["domain"] == "org.example"
+        meta = _read_mock(tmp_path, domain=field_domain, metadata_props={key: "NLP"})
+    assert meta.properties[f"metadata_props.{key}"] == "NLP"
+    assert meta.properties.get("domain") == (field_domain or None)
     assert meta.properties["opset.ai.onnx"] == "17"
-    assert meta.properties["task"] == "ner"
-    assert meta.provenance["properties.domain"].endswith("Field: domain")
-    assert meta.provenance["properties.task"].endswith("Field: metadata_props.task")
-    assert [r.getMessage() for r in caplog.records] == [
-        f"ONNX metadata_props key {key} is also a model field; kept the field's value"
-    ]
+    assert len(meta.properties) == 2 + bool(field_domain)
+    assert meta.provenance[f"properties.metadata_props.{key}"].endswith(
+        f"Field: metadata_props.{key}"
+    )
+    if field_domain:
+        assert meta.provenance["properties.domain"].endswith("Field: domain")
+    assert not caplog.records

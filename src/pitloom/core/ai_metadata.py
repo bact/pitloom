@@ -265,12 +265,15 @@ class AiModelMetadata:
 
         The model's own :attr:`name`, else its file name stem, else its
         format. :attr:`name` itself stays as read from the file (``None``
-        when the file names no model); a stem fallback adds a ``name``
-        entry to the returned copy of :attr:`provenance`.
+        when the file names no model). The provenance is always a new dict,
+        a copy of :attr:`provenance`, with a ``name`` entry added for a
+        stem fallback.
         """
+        provenance = dict(self.provenance)
         if self.name:
-            return self.name, self.provenance
+            return self.name, provenance
         stem = self.file_name_stem
         if stem:
-            return stem, {**self.provenance, "name": FILE_NAME_STEM_PROVENANCE}
-        return str(self.format_info.model_format), self.provenance
+            provenance["name"] = FILE_NAME_STEM_PROVENANCE
+            return stem, provenance
+        return str(self.format_info.model_format), provenance

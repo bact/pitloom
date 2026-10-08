@@ -25,9 +25,10 @@ and this project adheres to
 ### Fixed
 
 - An unnamed AI model, or an ONNX exporter-default `graph.name` (`torch_jit`,
-  `tf2onnx`), is named after its file, not its format ([#292])
-- ONNX: `model_license` is the declared licence, packed SemVer `model_version`
-  reads as `1.2.3`, `domain` is no longer the model type ([#292])
+  `tf2onnx`), is named after its file, as is a `loom model` document; ids
+  change ([#292])
+- ONNX: reads `model_license` and packed SemVer `model_version`; `domain` is
+  not the model type; `metadata_props` keys are prefixed ([#292])
 - A licence id over 50,000 characters no longer reads as a broken licence
   database: requires `licenseid` 0.4.3 ([#292])
 
