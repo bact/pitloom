@@ -23,8 +23,11 @@ from pitloom.core.canonical_json import (
     MAX_SAFE_INTEGER,
     canonical_json,
     canonical_json_bytes,
+    canonical_json_indented,
+    indent_canonical,
     json_safe,
 )
+from tests.json_text_helpers import without_token_whitespace
 
 
 # pylint: disable-next=too-few-public-methods
@@ -111,3 +114,35 @@ def test_deep_nesting_takes_one_frame_per_level() -> None:
     for _ in range(depth):
         value = [value]
     assert canonical_json(value) == "[" * depth + "1" + "]" * depth
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ({}, "{}"),
+        ([], "[]"),
+        ("s", '"s"'),
+        ([[]], "[\n  []\n]"),
+        ({"b": [1, {}], "a": 2}, '{\n  "a": 2,\n  "b": [\n    1,\n    {}\n  ]\n}'),
+        # structural characters, quotes and backslashes inside strings
+        ({"k": 'a, b: {c} [d] "e" \\'}, '{\n  "k": "a, b: {c} [d] \\"e\\" \\\\"\n}'),
+        # RFC 8785 order is UTF-16 code units: U+10000 sorts before U+E000
+        (
+            {"\ue000": 1, "\U00010000": 2},
+            '{\n  "\U00010000": 2,\n  "\ue000": 1\n}',
+        ),
+    ],
+    ids=["object", "array", "scalar", "nested-empty", "keys", "strings", "utf16-order"],
+)
+def test_indented_canonical_json(value: object, expected: str) -> None:
+    assert canonical_json_indented(value) == expected
+    # only whitespace between tokens was added
+    assert without_token_whitespace(canonical_json_indented(value)) == (
+        canonical_json(value)
+    )
+
+
+def test_indent_width_is_a_parameter() -> None:
+    assert (
+        indent_canonical('{"a":[1]}', indent=4) == '{\n    "a": [\n        1\n    ]\n}'
+    )

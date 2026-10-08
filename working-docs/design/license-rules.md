@@ -26,6 +26,10 @@ cascading. Sections 1 to 8 record the behaviour shipped in PR #276
 merge), checked against `src/pitloom` on 2026-10-05.
 [Open questions](#open-questions) records what is not settled, with the
 evidence and the user's leanings. A leaning is input, not a decision.
+Questions on how licence values are spelled, classified and compared
+(normalisation, equivalence, case, names and URLs to ids) live in
+[canonical-output-followups.md](canonical-output-followups.md#6-licence-identifiers-expressions-and-texts)
+(C11 to C21); their numbers here stay as pointers.
 
 ## Goal
 
@@ -400,7 +404,9 @@ leaning (2026-10-04).
    `LICENSE`; `NOASSERTION`/`noassertion` does not. Also: a non-vague
    card value means the repository files are not read at all, so there
    is no second opinion; `other`/`custom` with nothing detected give no
-   value, not a weak one. No leaning.
+   value, not a weak one. No leaning. One rule for `other` across
+   formats (GGUF): C16 in
+   [canonical-output-followups.md](canonical-output-followups.md).
 9. **Provenance.** A reused element keeps the first package's provenance;
    later reusers record none unless their value was normalised, so
    `loom env` shows zipp's MIT tagged with another package. A replaced
@@ -412,22 +418,8 @@ leaning (2026-10-04).
    declared label for a concluded value with none): overclaimed. Open:
    the keys every value must carry; the `method` vocabulary
    ([provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md)).
-10. **Text equivalence.** CRLF and LF texts are two elements. Leaning:
-    normalise inner CRLF/CR to LF (line endings are encoding, not
-    content), everything else inner kept as written. Line endings in
-    every text value, not only licences:
-    [canonical-output-followups.md](canonical-output-followups.md#c7-inner-line-endings-in-text-values).
-    A licence `name` keeps a trailing `\r` or spaces of the text's first line. A
-    classifier with a trailing space is read as a name on every surface
-    but `setup.cfg` (which strips), so `"License :: OSI Approved "` is
-    recorded as the licence `OSI Approved`; one with a leading space is
-    not read as a licence classifier at all. Open too: text case and
-    inner spacing; `LicenseRef-` case; nested AND/OR spellings.
-11. **Classifier or licence name to id** (layer 1, upstream `licenseid`):
-    names and listed full texts stay `SimpleLicensingText`, a known
-    deviation; name-only case differences give two `LicenseRef-` terms.
-    Same for a listed name in a model file (ONNX `model_license` `MIT
-    License`, #292).
+10. **Text equivalence.** Moved to canonical output [C11][c11].
+11. **Classifier or licence name to id.** Moved to canonical output [C12][c12].
 12. **Detected text by surface.** A `license.file` text `licenseid`
     identifies is the id on a directory and the hook, the text from an
     sdist, wheel or installed metadata (`stated_license()` is not run on
@@ -444,31 +436,17 @@ leaning (2026-10-04).
 15. **Fragment merge.** Shipped in #284 (the leaning was "own PR before
     0.20.0"). Left: `customIdToUri` targets in other namespaces are not
     checked; expandedLicensing elements are not unified; a user's
-    `LicenseRef-` unifies by string, not by its map; licence
+    `LicenseRef-` unifies by string, not by its map (now C13 in
+    [canonical-output-followups.md](canonical-output-followups.md)); licence
     relationships of one package across fragments are not compared
     (section 5). See
     [open-items.md][open-items].
-16. **Tie-breaks as rules.** Each tie-break in section 8 is code, not a
-    written rule; first-seen text spelling depends on build order.
-17. **Licence URL to id.** A value that is only a URL stays
-    `SimpleLicensingText`; the ONNX spec allows one for `model_license`
-    (#292), and PyPI `License:` and model cards carry them too. The SPDX
-    License List
-    ([licenses.json](https://spdx.org/licenses/licenses.json)) gives each
-    id a `reference` (`https://spdx.org/licenses/<id>.html`, one id by
-    construction) and `seeAlso` URLs. The `py-spdx-license` data Pitloom
-    already bundles has both keys, so no network access is needed and the
-    result is fixed by the bundled list version. Measured on that data
-    (729 licences, 2026-10-07): 891 `seeAlso` URLs after folding scheme,
-    `www.` and a trailing `/`; 43 map to more than one id, all
-    same-text families (the GNU GPL-2.0 page: `GPL-2.0-only`,
-    `GPL-2.0-or-later` and the deprecated `GPL-2.0`, `GPL-2.0+`; each
-    GFDL text: 7 ids). Open: which folding (scheme, `www.`, trailing
-    `/`, `.html`/`.txt`, a `#L` fragment); an ambiguous URL stays text
-    or becomes `NOASSERTION` (never a guessed `-only`); whether
-    deprecated ids are candidates; the provenance tag for the rewrite
-    (as `tag_license_normalization`); whether it lives in Pitloom or
-    upstream with item 11.
+16. **Tie-breaks as rules.** Moved to canonical output [C19][c19].
+17. **Licence URL to id.** Moved to canonical output [C18][c18].
 
 [msc]: ../implementation/provenance/multi-source-conflict.md
 [open-items]: sbom-fragments/open-items.md#left-after-the-fragment-merge-fixes
+[c11]: canonical-output-followups.md#c11-licence-text-and-name-equivalence-beyond-line-endings
+[c12]: canonical-output-followups.md#c12-licence-or-classifier-name-to-spdx-id
+[c18]: canonical-output-followups.md#c18-licence-url-to-id
+[c19]: canonical-output-followups.md#c19-licence-tie-breaks-as-written-rules

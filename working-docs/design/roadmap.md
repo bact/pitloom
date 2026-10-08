@@ -161,9 +161,10 @@ Each found more than one bug that a per-site fix would only move.
 
 - [ ] **Licence rules**: source taxonomy, cascade per surface, weak and final
   values, declared vs concluded, conflicts, equivalence, provenance,
-  tie-breaks. Current rules, rulings and 17 open questions (a licence
-  name or URL to its SPDX id: 11, 17):
-  [license-rules.md](license-rules.md); layers:
+  tie-breaks. Current rules, rulings and 17 open questions:
+  [license-rules.md](license-rules.md); normalisation questions (a licence
+  name or URL to its id, case, equivalence): section 6 of
+  [canonical-output-followups.md](canonical-output-followups.md); layers:
   [license-layers.md](license-layers.md); what #276 left:
   [license-pr276-followups.md](license-pr276-followups.md).
 - [ ] **Config cascade parity**: every option means the same on every
@@ -180,7 +181,9 @@ Each found more than one bug that a per-site fix would only move.
   See [ai-model-corpus.md](ai-model-corpus.md).
 - [ ] **Canonical output**: same bytes and ids for the same input, same
   shape for the same value in every format and surface. See
-  [canonical-output-followups.md](canonical-output-followups.md).
+  [canonical-output-followups.md](canonical-output-followups.md). Decided
+  2026-10-08: RFC 8785 key order everywhere (pretty = canonical plus
+  indentation), LF in text values; next, stable `CreationInfo` IRIs.
 - [ ] **No silent deviations, per surface**: non-directory targets
   (`model`, Hugging Face, `wheel`, `env`, sdist) drop configured fragments
   with no `WARNING:`; the GitHub Action drops any boolean input other than

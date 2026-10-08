@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -90,6 +90,9 @@ Deferred until upstream (no Pitloom feature meanwhile):
 - An unknown-id `WARNING:` in a field that must hold an SPDX expression.
 - Names differing only in case give two `LicenseRef-` terms (SPDX matches
   them case-insensitively): needs classifier-to-id knowledge (licenseid).
+  The open normalisation questions (names, case, URLs, canonical form):
+  C12 to C14, C18 in
+  [canonical-output-followups.md](canonical-output-followups.md).
   The one category classifier, `License :: OSI Approved`, is dropped
   already (`license-typing.md`).
 - A licence text `licenseid` identifies is the id on a directory and the

@@ -16,6 +16,7 @@ import rfc8785
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._sbom_io import write_text_lf
+from pitloom.core.canonical_json import canonical_json_indented
 from pitloom.core.license_individuals import INDIVIDUAL_BY_COMPACT_NAME
 from pitloom.export.spdx3_describe import describe_graph_element, describe_value
 
@@ -457,7 +458,7 @@ class Spdx3JsonExporter:
                 _annotate_relationships(data["@graph"])
             data["@graph"].sort(key=_graph_sort_key)
         if pretty:
-            return json.dumps(data, indent=2, sort_keys=True, ensure_ascii=False)
+            return canonical_json_indented(data)
         return rfc8785.dumps(data).decode("utf-8")
 
     def to_file(self, file_path: str, pretty: bool = False) -> None:

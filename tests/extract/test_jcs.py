@@ -28,6 +28,7 @@ import rfc8785
 
 from pitloom.assemble import generate_project_sbom
 from pitloom.core.creation import CreationMetadata
+from tests.json_text_helpers import without_token_whitespace
 
 # Fixed creation timestamp so every test call with the same pyproject produces
 # identical output.  Without this, datetime.now() makes two successive calls
@@ -182,9 +183,8 @@ def test_compact_output_graph_array_order_preserved() -> None:
 def test_pretty_output_keys_sorted() -> None:
     """Pretty output (pretty=True) must also have keys sorted.
 
-    Pretty mode uses json.dumps(sort_keys=True) which satisfies the key
-    ordering requirement.  It is NOT full JCS (it has indentation), but
-    sorted keys make diffs more readable and comparisons more predictable.
+    Pretty mode is the canonical text plus indentation (see
+    ``test_pretty_output_is_the_canonical_text_with_indentation``).
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
@@ -195,6 +195,17 @@ def test_pretty_output_keys_sorted() -> None:
         violations = _keys_sorted_recursive(data)
 
         assert not violations, "\n".join(violations)
+
+
+def test_pretty_output_is_the_canonical_text_with_indentation() -> None:
+    """Pretty differs from compact by whitespace between tokens only."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(_PYPROJECT)
+        pretty = _sbom_pretty(tmppath)
+        compact = _sbom_compact(tmppath)
+    assert pretty != compact
+    assert without_token_whitespace(pretty) == compact
 
 
 def test_pretty_output_is_not_jcs_canonical() -> None:

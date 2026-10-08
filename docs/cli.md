@@ -217,7 +217,8 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env` (not
   parsed, so `--config` also rescues a project or sdist whose own
   `[tool.pitloom]` is invalid. See [Where settings come
   from](configuration.md#where-settings-come-from) for the precedence table.
-- `--pretty` -- indent the JSON (default: compact).
+- `--pretty` -- indent the JSON (default: compact). Only whitespace between
+  tokens is added; key order and values are the compact (RFC 8785) text's.
 - `--offline` -- forbid network access (PyPI/Hugging Face lookups). Not on
   `enrich` either.
 - `--use-lockfile` / `--no-use-lockfile` -- only on `project`/`generate` (the

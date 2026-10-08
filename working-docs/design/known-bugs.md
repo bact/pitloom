@@ -381,8 +381,8 @@ Crashes, broken contracts and small mappings.
 - [ ] **A model licence that is a name or URL becomes licence text (S).**
   Found in the #292 black-box round: ONNX `model_license` "Apache License
   2.0" gives a `SimpleLicensingText` holding the name, not `Apache-2.0`; a
-  URL is kept as text, not a reference. Check against how the other
-  readers and `license-rules.md` normalise a stated name.
+  URL is kept as text, not a reference. The rule to apply is open: C12 and
+  C18 in [canonical-output-followups.md](canonical-output-followups.md).
 - [ ] **Model provenance cites fields the SBOM never shows (S-M).** Found
   in the CRFsuite review (same for fastText and others): `framework`,
   `format_version` and `properties.*` get provenance in the package comment
@@ -478,17 +478,19 @@ Crashes, broken contracts and small mappings.
   #294: ONNX and NumPy write NumPy names (`float32`), Safetensors its own
   (`F32`, `BF16`). Pick one vocabulary for `inputs`/`outputs` `dtype`.
 - [ ] **GGUF licence `other` and comma lists (S, needs a decision).**
-  `general.license` `other` ignores `.license.name`/`.link` (logged above);
-  `apache-2.0,mit` becomes a `SimpleLicensingText` of the raw string. Decide:
-  a `LicenseRef` from `.name`; a comma list as `AND` or `OR`.
+  Questions, moved to
+  [canonical-output-followups.md](canonical-output-followups.md#6-licence-identifiers-expressions-and-texts)
+  (C15, C16).
 - [ ] **GGUF hyperparameter suffixes incomplete (S).** Not matched:
   `.attention.layer_norm_epsilon`, `.expert_count`, `.expert_used_count`,
   `.rope.scaling.*`; they land in properties.
 - [ ] **One invalid UTF-8 GGUF string fails the whole file (S).**
   `_field_value` decodes strictly; the `UnicodeDecodeError` (a `ValueError`)
   becomes "Failed to read GGUF file". Decode with replacement, one `WARNING:`.
-- [ ] **GGUF `general.license` with a zero-width character (S).** `strip()`
-  keeps U+200B; the licence is display-escaped, so harmless, but not trimmed.
+- [ ] **GGUF `general.license` with a zero-width character (S).** A
+  question, moved to
+  [canonical-output-followups.md](canonical-output-followups.md#c17-invisible-characters-at-the-edges-of-a-licence-value)
+  (C17).
 - [ ] **PT2 lists lifted parameters as inputs; framework `executorch` (S).**
   `example-model.pt2` (`archive_format` `pt2`: a `torch.export` archive, not
   an ExecuTorch `.pte`) gives inputs `p_line_weight`, `p_line_bias`, `x`;

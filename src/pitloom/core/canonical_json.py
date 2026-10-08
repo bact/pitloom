@@ -90,3 +90,47 @@ def canonical_json_bytes(value: object) -> bytes:
 def canonical_json(value: object) -> str:
     """*value*, made :func:`json_safe`, as RFC 8785 text."""
     return canonical_json_bytes(value).decode("utf-8")
+
+
+def indent_canonical(text: str, indent: int = 2) -> str:
+    """RFC 8785 *text* with line breaks and indentation added, nothing else.
+
+    Whitespace is added only between tokens, never inside a string, so
+    removing it again gives *text* back and the key order is canonical.
+    An empty object or array stays ``{}`` or ``[]``.
+    """
+    out: list[str] = []
+    depth = 0
+    in_string = False
+    escaped = False
+    for index, char in enumerate(text):
+        out.append(char)
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            in_string = True
+        elif char in "{[":
+            if text[index + 1 : index + 2] in ("}", "]"):
+                continue
+            depth += 1
+            out.append("\n" + " " * (indent * depth))
+        elif char in "}]":
+            if text[index - 1 : index] in ("{", "["):
+                continue
+            depth -= 1
+            out.insert(-1, "\n" + " " * (indent * depth))
+        elif char == ",":
+            out.append("\n" + " " * (indent * depth))
+        elif char == ":":
+            out.append(" ")
+    return "".join(out)
+
+
+def canonical_json_indented(value: object, indent: int = 2) -> str:
+    """:func:`canonical_json` of *value*, indented (see :func:`indent_canonical`)."""
+    return indent_canonical(canonical_json(value), indent)

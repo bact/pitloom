@@ -23,6 +23,7 @@ from uuid import uuid4
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._sbom_io import open_text_lf
+from pitloom.core.canonical_json import canonical_json_indented
 from pitloom.core.iri import doc_namespace, iri_segment
 from pitloom.id_registry._harvest import _harvest_elements, _sorted_by_spdx_id
 from pitloom.id_registry._types import (
@@ -303,6 +304,6 @@ class IdRegistry:
         }
         target.parent.mkdir(parents=True, exist_ok=True)
         with open_text_lf(target) as f:
-            json.dump(data, f, indent=2, sort_keys=True, ensure_ascii=False)
+            f.write(canonical_json_indented(data))
             f.write("\n")
         self.path = target

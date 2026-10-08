@@ -33,7 +33,7 @@ and this project adheres to
 
 - Model annotations: collections as arrays, scalars as text (RFC 8785 floats);
   schema `/2` adds `valueTypes`, `maxEntries`; fastText `labels` is a JSON
-  array; embedded JSON is RFC 8785 ([#294])
+  array; embedded JSON is RFC 8785; `--pretty` is the same text indented ([#294])
 - Model, base model, dataset and creator names over 1024 characters are cut,
   ending in a digest of the full name; labels over 4 KiB dropped; each with a
   `WARNING:` ([#294])

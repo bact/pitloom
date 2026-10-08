@@ -112,7 +112,7 @@ and the hook's own `[tool.hatch.build.hooks.pitloom]` options.
 
 | Key | Type | Default | CLI flag | Action input | API param | Meaning |
 | :-- | :--- | :------ | :------- | :------------ | :-------- | :------ |
-| `pretty` | bool | `false` | `--pretty` / `--no-pretty` | `pretty` | `pretty` | Indent the JSON output with 2 spaces. Not used for an SBOM embedded in a wheel (`embed-wheel`, `wheel --embed`, including its `-o` copy), which is always compact; the flags warn there. |
+| `pretty` | bool | `false` | `--pretty` / `--no-pretty` | `pretty` | `pretty` | Indent the JSON output with 2 spaces (whitespace only; key order stays RFC 8785). Not used for an SBOM embedded in a wheel (`embed-wheel`, `wheel --embed`, including its `-o` copy), which is always compact; the flags warn there. |
 | `describe-relationship` | bool | `false` | `--describe-relationship` / `--no-describe-relationship` | -- | `describe_relationship` | Include human-readable text on SPDX relationships. Not used for an SBOM embedded in a wheel, as for `pretty`. |
 | `sbom-basename` | string | *(derived from project name/version)* | -- | -- | `sbom_basename` | Base filename for the generated SBOM; `.spdx3.json` is added. The extension is optional: one trailing `.spdx3.json` (any case) is dropped with a `WARNING:`, so `x.spdx3.json` gives `x.spdx3.json`. |
 | `offline` | bool | `false` | `--offline` | `offline` | `offline` | Skip the PyPI JSON API fallback used to fill dependency metadata gaps. Network attempted, best-effort, by default -- any failure (including no network) silently falls back to local-only data. |

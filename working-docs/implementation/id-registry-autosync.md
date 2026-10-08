@@ -8,8 +8,8 @@ SPDX-License-Identifier: CC0-1.0
 
 # Auto-sync the Loom ID registry after SBOM generation
 
-See also: [roadmap-completed.md](roadmap-completed.md), the "Loom IDs
-across fragments" section of the top-level [README.md](../../README.md#loom-ids-across-fragments-loom-id).
+See also: [roadmap-completed.md](roadmap-completed.md), the user guide
+[docs/id-registry.md](../../docs/id-registry.md).
 
 Split out of `roadmap.md` (2026-09-17) once this item's detail grew
 past a summary.

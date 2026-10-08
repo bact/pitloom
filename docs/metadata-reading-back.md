@@ -74,8 +74,8 @@ Pitloom applies them, and the order a program reading the SBOM undoes them.
    artifact-metadata annotation is not escaped: it keeps the text as read.
 5. **JSON.** Each embedded JSON text (an `Annotation.statement`,
    `ai_informationAboutApplication`, a property holding a list) is written
-   with RFC 8785 (JCS), then the SBOM itself is, too (`--pretty` indents
-   it instead). JCS escapes only `"`, `\` and the C0 controls U+0000 to
+   with RFC 8785 (JCS), then the SBOM itself is, too (`--pretty` is the same
+   text with indentation, nothing else). JCS escapes only `"`, `\` and the C0 controls U+0000 to
    U+001F; every other character, U+202E included, is written as UTF-8.
    The backslash of a step 4 escape is therefore `\\` in the file. Keys
    read from a model are never JSON key names of the SBOM: they are
