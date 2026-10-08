@@ -42,17 +42,20 @@ def _should_preserve_metadata(
 
 
 def _source_metadata_blob(ai_model: AiModelMetadata) -> tuple[str, dict[str, Any]]:
-    """Return ``(format_tag, metadata)`` for P1 preservation."""
+    """Return ``(format_tag, metadata)`` for P1 preservation.
+
+    A model file's metadata is its reader's ``raw_metadata``. Only a model
+    of no file format (a Hugging Face model) falls back to ``properties``
+    and the ``extra_data``/``extra_lists`` slots.
+    """
     fmt = str(ai_model.format_info.model_format)
-    if ai_model.raw_metadata:
+    if ai_model.raw_metadata or fmt != str(AiModelFormat.UNKNOWN):
         return fmt, dict(ai_model.raw_metadata)
     blob: dict[str, Any] = {}
     blob.update(ai_model.properties)
     blob.update(ai_model.extra_data)
     blob.update(ai_model.extra_lists)
-    if fmt == str(AiModelFormat.UNKNOWN) and (
-        ai_model.extra_data or ai_model.extra_lists
-    ):
+    if ai_model.extra_data or ai_model.extra_lists:
         fmt = "huggingface"
     return fmt, blob
 

@@ -14,6 +14,7 @@ See also: formats/test_crfsuite.py for the reader's own tests.
 from __future__ import annotations
 
 import json
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from unittest import mock
@@ -71,9 +72,9 @@ def test_complete_fixture_is_read_through_read_ai_model(
     assert complete.raw_metadata == {
         "labels": _COMPLETE_LABELS,
         "model_type": "FOMC",
-        "num_attributes": 14,
-        "num_features": 24,
-        "num_labels": 5,
+        "num_attributes": "14",
+        "num_features": "24",
+        "num_labels": "5",
     }
     assert complete.outputs == [{"name": "label_sequence", "shape": [5]}]
     assert complete.description == (
@@ -193,6 +194,9 @@ def test_blank_name_falls_back_to_the_file_stem() -> None:
     assert "name" not in meta.provenance  # resolve_name copies, never mutates
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows file names cannot hold a pipe"
+)
 def test_a_provenance_source_name_is_sanitised(tmp_path: Path) -> None:
     path = tmp_path / "a|b.crfsuite"
     path.write_bytes(_COMPLETE.read_bytes())

@@ -405,13 +405,12 @@ Crashes, broken contracts and small mappings.
   20 GB RSS (S).** Native fastText reader on a hostile header, found in the
   CRFsuite review; the metadata-only fastText reader in
   [model-metadata-readers.md](model-metadata-readers.md) closes it.
-- [ ] **A `properties` list has a different type per format in the
-  artifact-metadata annotation (S).** Found in the CRFsuite sweep: fastText
-  has no `raw_metadata`, so the annotation copies `properties["labels"]` as
-  a JSON-array *string* (a string inside JSON), while CRFsuite's
-  `raw_metadata` gives a real array. Give fastText a `raw_metadata` that
-  keeps its other fields, or decode JSON-array properties in
-  `_source_metadata_blob()`.
+- [ ] **A GGUF float32 value shows its float64 widening (S).** Found in
+  the annotation-uniformity change (#294), same in `properties` and
+  `hyperparameters` before it: `_field_value()` takes numpy's `tolist()`, a
+  float64, so a stored `1e-6` is the text `9.999999974752427e-07`. Format a
+  `FLOAT32` scalar from its float32 value (shortest repr that round-trips
+  as float32) in all three places at once.
 - [ ] **A model label or name with a bidi override reaches the SBOM raw
   (S).** Found in the CRFsuite black-box round: control characters are
   JSON-escaped, but U+202E and similar bidi controls in a label are written

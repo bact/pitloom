@@ -12,7 +12,12 @@ import logging
 import struct
 from pathlib import Path
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+    source_metadata,
+)
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
@@ -192,7 +197,7 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
         architecture=architecture,
         quantization=quantization,
         properties=properties,
-        raw_metadata=dict(raw_metadata),
+        raw_metadata=source_metadata(raw_metadata),
         inputs=inputs,
         provenance=provenance,
     )

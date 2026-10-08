@@ -31,7 +31,12 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+    source_metadata,
+)
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
@@ -201,6 +206,7 @@ def read_keras(model_path: Path) -> AiModelMetadata:
         type_of_model=type_of_model,
         hyperparameters=hyperparameters,
         properties=properties,
+        raw_metadata=source_metadata(properties),
         inputs=inputs,
         provenance=provenance,
     )

@@ -30,8 +30,9 @@ and this project adheres to
 
 ### Changed
 
-- fastText `properties["labels"]` is a JSON array string, not comma-joined
-  ([#294])
+- fastText `properties["labels"]` is a JSON array string, not comma-joined;
+  artifact-metadata annotations of every model format hold collections as
+  arrays and scalars as text ([#294])
 
 ### Fixed
 

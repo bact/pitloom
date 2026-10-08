@@ -14,7 +14,7 @@ repository root, in a throwaway venv that is never a Pitloom dependency:
 
 from pathlib import Path
 
-import pycrfsuite  # pyright: ignore[reportMissingImports]
+import pycrfsuite  # pyright: ignore[reportMissingImports]  # pyrefly: ignore[missing-import]
 
 HERE = Path(__file__).parent
 

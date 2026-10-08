@@ -100,6 +100,6 @@ def test_read_pt2_zip_whitespace_only_version_file_skips_provenance() -> None:
     mock_zf.open.return_value.__enter__.return_value.read.return_value = b"  \n"
 
     res = _read_pt2_zip(mock_zf, "Source: model.pt2")
-    (_, _, version, _, _, _, provenance, _, _) = res
+    (_, _, version, _, _, _, provenance, _, _, _) = res
     assert version is None
     assert "version" not in provenance

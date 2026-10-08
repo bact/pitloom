@@ -40,6 +40,36 @@ MAX_ARCHIVE_MEMBER_BYTES = 8 * 1024 * 1024
 #: tensor, a few thousand at most.
 MAX_MODEL_ZIP_ENTRIES = 100_000
 
+#: Member names of a model ZIP shown in ``properties.archive_contents``.
+ARCHIVE_CONTENTS_SHOWN = 20
+
+
+def record_archive_contents(
+    names: list[str],
+    source: str,
+    properties: dict[str, str],
+    provenance: dict[str, str],
+) -> list[str]:
+    """Record an archive whose members are *names* in *properties*: the
+    first :data:`ARCHIVE_CONTENTS_SHOWN` names as ``archive_contents``
+    (ending ``, ... (<N> total)`` when that cuts the list) and the count of
+    members as ``archive_member_count``, each with its *provenance*.
+
+    Returns:
+        The names shown, for ``raw_metadata["archive_contents"]``.
+    """
+    shown = names[:ARCHIVE_CONTENTS_SHOWN]
+    text = ", ".join(shown)
+    if len(names) > ARCHIVE_CONTENTS_SHOWN:
+        text += f", ... ({len(names)} total)"
+    properties["archive_contents"] = text
+    properties["archive_member_count"] = str(len(names))
+    field = f"{source} | Field: ZIP archive structure"
+    provenance["properties.archive_contents"] = field
+    provenance["properties.archive_member_count"] = f"{field} | Method: member_count"
+    return shown
+
+
 # Most central-directory bytes allowed: the entry cap at 256 bytes an entry,
 # several times a real entry's. ``zipfile`` reads the directory by its byte
 # size, not by the entry count, so an archive may understate the count.

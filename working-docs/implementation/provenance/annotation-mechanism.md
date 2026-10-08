@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -187,3 +187,76 @@ whitespace, so every statement also shrank a little for free.
 `Decimal`, etc.) changed from relying on `json.dumps`'s `default=str`
 hook (which `rfc8785.dumps()` has no equivalent of) to stringifying them
 itself before the value ever reaches the serializer.
+
+### Value types in artifact-metadata `metadata` (2026-10-08)
+
+**Decision (user, #294).** In `metadata`, every *collection* is a real JSON
+array (or object, where the file has a mapping) and every *scalar* is
+*text*: the same text as the model's `properties` map. No JSON numbers or
+booleans. Every model format follows it, so a consumer handles all
+formats the same way: parse a string if you need a number.
+
+**Why a collection is an array.** A list stored as a string (fastText
+`labels` as `"[\"a\", \"b\"]"`, PT2 `tags` as `"a, b"`) forces a second
+parse and an ambiguous separator (a label may contain `,`). Found in the
+#294 review: fastText gave a JSON-in-a-string while CRFsuite (native
+`raw_metadata`) gave an array, so one key had two types.
+
+**Why a scalar is text, not a number.**
+
+- *Precision.* RFC 8785 (JCS, how `statement` is canonicalised) serialises
+  every number as an IEEE-754 double (ECMAScript rules), so an integer
+  above 2^53 cannot round-trip, and many consumers (JavaScript, `jq`,
+  databases) parse JSON numbers into doubles. A float32 stored in a file is
+  widened on the way in: GGUF's `1e-6` was recorded as
+  `9.999999974752427e-07`. Text carries exactly what Pitloom read.
+- *No computation.* Nothing in Pitloom reads the annotation back, and
+  nobody is expected to calculate on these values; they are provenance.
+- *Same as SPDX.* The typed SPDX 3 fields Pitloom fills from the same data
+  (`ai_hyperparameter`, `DictionaryEntry.value`) are strings. The
+  annotation matches them, so one value has one spelling everywhere.
+- *No int/float ambiguity.* `1`, `1.0` and `"1"` are three different
+  facts to a typed consumer; text keeps the reader's own spelling.
+
+**Alternatives rejected.**
+
+- Native numbers where the file stores a number (GGUF's old behaviour):
+  keeps types but carries the precision hazards above, and needs a rule
+  per format for which values are "the file's own".
+- Decoding JSON-looking strings in the annotation builder: a GGUF string
+  that merely looks like an array would be converted silently.
+- Leaving the formats inconsistent and documenting it: every consumer would
+  need a per-format decoder.
+
+**Consequences.** The `properties` map, hyperparameters and provenance are
+unchanged; only the annotation's `metadata` values change type, for the
+formats that had flattened collections or native scalars. A new reader
+sets `raw_metadata` through the shared helper; the guard test that runs
+every fixture fails on a number, a boolean or a string that parses as a
+JSON array or object. The GGUF float32 widening is a separate known bug
+(see [known-bugs.md](../../design/known-bugs.md)).
+
+**Follow-up rules (2026-10-08, #294 review).**
+
+- *Collection elements* are text spelt as JSON spells them (`true`,
+  `false`, `null`, `1`, `0.5`); a top-level scalar stays `str()`. Every
+  collection with non-string elements comes from JSON (HDF5 `metrics`,
+  PT2 `tags`), and its `properties` text is that JSON (`json.dumps`), so
+  "the same text as `properties`" means JSON's spelling there. PT2 `tags`
+  property text (comma-joined) now spells its elements the same way, via
+  the shared `source_element_text()`. Rejected: `str()` everywhere (gives
+  `"True"` beside `properties` `true`); a per-collection "came from JSON"
+  flag (every current collection would set it, so one rule is simpler).
+- *A key without a value is absent*, never `null` (a GGUF field with no
+  parts). A `null` *element* is the text `"null"`, like `true`: elements
+  are uniformly text, and the guard test asserts every scalar is a string.
+- *Nesting is bounded* at `SOURCE_METADATA_MAX_DEPTH` (32) levels; a
+  deeper part becomes its `json.dumps` text, or `<nested over 32 levels>`
+  where that raises. The recursive walk raised `RecursionError` from about
+  490 levels (two frames a level) and lost the whole model; measured
+  without the bound, the rest of the pipeline (`_sanitize_for_json`,
+  `rfc8785`) also fails from 491 levels, so 32 leaves a wide margin and
+  far exceeds any real metadata.
+- *Archive listings* record `archive_member_count` (always, text) beside
+  the 20 names, since the `... (N total)` marker lives only in the
+  `properties` text, which the SBOM does not carry.

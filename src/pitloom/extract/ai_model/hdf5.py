@@ -57,7 +57,12 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+    source_metadata,
+)
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model.hdf5_config import (
     RAW_CONFIG_CHARS,
@@ -202,6 +207,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
         type_of_model: str | None = None
         hyperparameters: dict[str, Any] = {}
         properties: dict[str, str] = {}
+        collections: dict[str, Any] = {}
         inputs: list[dict[str, Any]] = []
         provenance: dict[str, str] = {}
 
@@ -253,7 +259,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
         if training_config_raw:
             log_training_config_problem(
                 parse_training_config(
-                    training_config_raw, source, properties, provenance
+                    training_config_raw, source, properties, provenance, collections
                 )
             )
 
@@ -270,6 +276,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
         type_of_model=type_of_model,
         hyperparameters=hyperparameters,
         properties=properties,
+        raw_metadata=source_metadata(properties, collections),
         inputs=inputs,
         provenance=provenance,
     )

@@ -13,7 +13,12 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+    source_metadata,
+)
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
@@ -365,6 +370,6 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         quantization=quantization,
         hyperparameters=hyperparameters,
         properties=properties,
-        raw_metadata=raw_metadata,
+        raw_metadata=source_metadata(raw_metadata),
         provenance=provenance,
     )

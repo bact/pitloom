@@ -12,6 +12,8 @@ library, making them easy to test and to consume from any serializer.
 
 from __future__ import annotations
 
+import json
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import PurePosixPath
@@ -86,6 +88,88 @@ def model_file_suffixes() -> frozenset[str]:
     """Every suffix a model file of a supported format can have."""
     return SHARED_MODEL_SUFFIXES | {
         ext for fmt in AiModelFormat for ext in fmt.extensions
+    }
+
+
+# Nesting levels of a collection kept as JSON in raw_metadata; a deeper part
+# becomes its JSON text, so a hostile nesting never exhausts the stack in
+# this walk or in the canonical serialisation of the SBOM.
+SOURCE_METADATA_MAX_DEPTH = 32
+
+_JSON_SCALARS = (bool, int, float)
+
+
+def source_element_text(value: Any) -> str:
+    """A scalar inside a collection as text: a string as is; ``None``, a
+    boolean or a number as JSON spells it (``null``, ``true``, ``1``), the
+    spelling of the collection's JSON text in ``properties``; anything
+    else ``str(value)``."""
+    if isinstance(value, str):
+        return value
+    if value is None or isinstance(value, _JSON_SCALARS):
+        return json.dumps(value)
+    return str(value)
+
+
+def _collection_text(value: Any) -> str:
+    """*value*, a collection nested too deeply to keep, as its JSON text."""
+    try:
+        return json.dumps(value, default=str)
+    except (RecursionError, TypeError, ValueError):
+        return f"<nested over {SOURCE_METADATA_MAX_DEPTH} levels>"
+
+
+def _source_collection(value: Any, depth: int) -> Any:
+    """A collection element of :func:`source_metadata_value`, *depth* levels
+    inside the top-level collection."""
+    if not isinstance(value, (Mapping, list, tuple)):
+        return source_element_text(value)
+    if depth >= SOURCE_METADATA_MAX_DEPTH:
+        return _collection_text(value)
+    if isinstance(value, Mapping):
+        return {
+            str(key): _source_collection(item, depth + 1) for key, item in value.items()
+        }
+    return [_source_collection(item, depth + 1) for item in value]
+
+
+def source_metadata_value(value: Any) -> Any:
+    """*value* as :attr:`AiModelMetadata.raw_metadata` holds it.
+
+    A mapping becomes a dict and a list or tuple a list; ``None`` stays
+    ``None``; any other value becomes ``str(value)``, the text a reader
+    puts in ``properties``. Inside a collection every scalar is text too: a
+    string as is, ``None``, a boolean or a number as JSON spells it
+    (``null``, ``true``, ``0.5``), the spelling of the collection's JSON
+    text in ``properties``. A collection over
+    :data:`SOURCE_METADATA_MAX_DEPTH` levels down is its JSON text. A
+    number or a boolean is never kept as one: it is never computed on, and
+    a JSON number would widen a float32 or round an integer above 2**53.
+    """
+    if value is None:
+        return None
+    if isinstance(value, (Mapping, list, tuple)):
+        return _source_collection(value, 0)
+    return str(value)
+
+
+def source_metadata(
+    items: Mapping[str, Any], collections: Mapping[str, Any] | None = None
+) -> dict[str, Any]:
+    """A reader's :attr:`AiModelMetadata.raw_metadata`: *items* (usually its
+    ``properties``) with each key of *collections* set to that native
+    list or mapping, every value through :func:`source_metadata_value`.
+
+    A key of *collections* keeps its place in *items*; one not in *items*
+    comes after them. A key whose value is ``None`` is left out: the file
+    holds no value for it.
+    """
+    merged = dict(items)
+    merged.update(collections or {})
+    return {
+        key: source_metadata_value(value)
+        for key, value in merged.items()
+        if value is not None
     }
 
 
@@ -219,17 +303,16 @@ class AiModelMetadata:
     # Format-specific key/value metadata (e.g. GGUF general.*, ONNX metadata_props)
     properties: dict[str, str] = field(default_factory=dict)
 
-    # Complete, verbatim original metadata map in the model's own key
-    # vocabulary and value types (e.g. the full GGUF kv-store or safetensors
-    # ``__metadata__``), for lossless preservation (P1) when the model is not
-    # shipped with the distribution and cannot be re-extracted later. Optional:
-    # extractors populate it where a clean complete map is available; when
-    # empty the assembler falls back to ``properties``. Distinct from
-    # ``properties`` (a stringified, curated subset) -- this keeps native
-    # value types (ints/lists) intact. Not verbatim for a GGUF array: it is
-    # recorded as ``{"length": N, "type": "<element type>"}`` (no ``type``
-    # for an element code the format does not define), its elements never
-    # recorded.
+    # The model file's own metadata in its own key vocabulary (e.g. the
+    # full GGUF kv-store or safetensors ``__metadata__``), for preservation
+    # (P1) when the model is not shipped with the distribution and cannot be
+    # re-extracted later. Every reader sets it with :func:`source_metadata`:
+    # a collection is a list (or a dict for a mapping), a scalar is text,
+    # the same text as in ``properties`` (inside a collection, JSON's
+    # spelling: ``true``, ``null``), a key without a value absent. A GGUF
+    # array is recorded as ``{"length": "N", "type": "<element type>"}``
+    # (no ``type`` for an element code the format does not define), its
+    # elements never recorded.
     raw_metadata: dict[str, Any] = field(default_factory=dict)
 
     # Input and output tensor specifications

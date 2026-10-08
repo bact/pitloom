@@ -158,7 +158,7 @@ def test_read_pytorch_zip_inspect_failure_logs_and_continues(
     mock_zf.open.side_effect = RuntimeError("bad CRC-32")
 
     with caplog.at_level(logging.DEBUG, logger="pitloom.extract.ai_model.pytorch"):
-        type_of_model, properties, provenance = _read_pytorch_zip(
+        type_of_model, properties, _, provenance = _read_pytorch_zip(
             mock_zf, "Source: model.pt"
         )
 
@@ -191,8 +191,14 @@ def test_read_pytorch_zip_large_file_list() -> None:
     mock_zf = MagicMock()
     mock_zf.namelist.return_value = [f"file_{i}.bin" for i in range(25)]
 
-    _, properties, _ = _read_pytorch_zip(mock_zf, "Source: model.pt")
+    _, properties, raw_metadata, provenance = _read_pytorch_zip(
+        mock_zf, "Source: model.pt"
+    )
     assert "... (25 total)" in properties["archive_contents"]
+    assert raw_metadata["archive_contents"] == [f"file_{i}.bin" for i in range(20)]
+    assert properties["archive_member_count"] == "25"
+    assert raw_metadata["archive_member_count"] == "25"
+    assert "properties.archive_member_count" in provenance
 
 
 def test_read_pytorch_is_zipfile_oserror(tmp_path: Path) -> None:

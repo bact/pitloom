@@ -75,7 +75,7 @@ def test_every_array_of_a_real_file_is_its_length(fixture: Path) -> None:
         assert key not in meta.properties
         assert key not in meta.hyperparameters
         assert meta.properties[f"{key}.length"] == str(length)
-        assert meta.raw_metadata[key] == {"length": length, "type": element}
+        assert meta.raw_metadata[key] == {"length": str(length), "type": element}
         assert meta.provenance[f"properties.{key}.length"] == _provenance(
             key, fixture.name
         )
@@ -97,25 +97,25 @@ _NESTED = struct.pack("<IQ", ARRAY, 2) + b"".join(
 @pytest.mark.parametrize(
     ("key", "body", "raw"),
     [
-        ("e", array(STRING, 0, key=b"e"), {"length": 0, "type": "STRING"}),
-        ("u", array(99, 0, key=b"u"), {"length": 0}),  # not a GGUF type
-        ("n", kv(b"n", ARRAY, _NESTED), {"length": 2, "type": "ARRAY"}),
+        ("e", array(STRING, 0, key=b"e"), {"length": "0", "type": "STRING"}),
+        ("u", array(99, 0, key=b"u"), {"length": "0"}),  # not a GGUF type
+        ("n", kv(b"n", ARRAY, _NESTED), {"length": "2", "type": "ARRAY"}),
         (
             "s",
             array(STRING, 2, string("a") + string("bc"), key=b"s"),
-            {"length": 2, "type": "STRING"},
+            {"length": "2", "type": "STRING"},
         ),
         (
             "llama.attention.head_count",
             array(
                 INT32, 3, struct.pack("<3i", 4, 4, 8), key=b"llama.attention.head_count"
             ),
-            {"length": 3, "type": "INT32"},
+            {"length": "3", "type": "INT32"},
         ),
         (
             "general.name",
             array(STRING, 1, string("x"), key=b"general.name"),
-            {"length": 1, "type": "STRING"},
+            {"length": "1", "type": "STRING"},
         ),
     ],
     ids=["empty", "unknown-type", "nested", "strings", "hyperparameter-suffix", "name"],
@@ -127,7 +127,7 @@ def test_an_array_of_any_shape_is_its_top_level_length(
     its header declares; a nested one counts its rows, not its leaves; a
     per-layer hyperparameter is a property; an array is never a name."""
     meta = _read(tmp_path, 1, body)
-    assert meta.properties[f"{key}.length"] == str(raw["length"])
+    assert meta.properties[f"{key}.length"] == raw["length"]
     assert meta.raw_metadata[key] == raw
     assert key not in meta.properties
     assert not meta.hyperparameters
@@ -190,8 +190,8 @@ def test_a_real_length_key_wins_over_an_array_length(
     assert meta.provenance["properties.x.length"] == (
         "Source: m.gguf | Field: x.length"
     )
-    assert meta.raw_metadata["x"] == {"length": 2, "type": "UINT8"}
-    assert meta.raw_metadata["x.length"] == 99
+    assert meta.raw_metadata["x"] == {"length": "2", "type": "UINT8"}
+    assert meta.raw_metadata["x.length"] == "99"
     (message,) = logged_warnings(caplog)
     assert message == (
         "GGUF key x.length is in the file; the length of array x is not a property"
@@ -271,6 +271,6 @@ def test_loom_model_and_a_project_scan_record_the_same_lengths(tmp_path: Path) -
     comment, statement = _model_view(single)
     assert _provenance("tokenizer.ggml.tokens", fixture.name) in comment
     assert statement["metadata"]["tokenizer.ggml.tokens"] == {
-        "length": 512,
+        "length": "512",
         "type": "STRING",
     }

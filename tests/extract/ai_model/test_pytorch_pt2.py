@@ -173,13 +173,21 @@ def test_read_pytorch_pt2_extra_author_in_properties(tmp_path: Path) -> None:
     assert meta.properties.get("author") == "Alice"
 
 
-def test_read_pytorch_pt2_extra_tags_json_array(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("tags", "text"),
+    [(["a", "b"], "a, b"), (["x", True, None, 1], "x, true, null, 1")],
+    ids=["strings", "json-scalars"],
+)
+def test_read_pytorch_pt2_extra_tags_json_array(
+    tmp_path: Path, tags: list[object], text: str
+) -> None:
+    """A tag is spelt as the annotation's element is: JSON's spelling."""
     model_file = tmp_path / "model.pt2"
     model_file.write_bytes(
-        _make_pt2_zip({"mdl/extra/tags": _json.dumps(["a", "b"]).encode()})
+        _make_pt2_zip({"mdl/extra/tags": _json.dumps(tags).encode()})
     )
     meta = read_pytorch_pt2(model_file)
-    assert meta.properties.get("tags") == "a, b"
+    assert meta.properties.get("tags") == text
 
 
 def test_read_pytorch_pt2_malformed_metadata_json_logs_and_name_is_none(
@@ -239,7 +247,7 @@ def test_read_pt2_extra_files_read_failure_logs_and_returns_none(
     properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
     with caplog.at_level(logging.DEBUG, logger="pitloom.extract.ai_model.pytorch_pt2"):
-        name, description, version, license_expr = _read_pt2_extra_files(
+        name, description, version, license_expr, tags = _read_pt2_extra_files(
             mock_zf, "", "Source: model.pt2", properties, provenance
         )
 
@@ -247,6 +255,7 @@ def test_read_pt2_extra_files_read_failure_logs_and_returns_none(
     assert description is None
     assert version is None
     assert license_expr is None
+    assert tags is None
     assert "name" not in provenance
     assert any("extra/name" in r.message for r in caplog.records)
 
@@ -266,7 +275,7 @@ def test_read_pt2_extra_files_model_version_read_failure_logs_once(
     properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
     with caplog.at_level(logging.DEBUG, logger="pitloom.extract.ai_model.pytorch_pt2"):
-        _, _, version, _ = _read_pt2_extra_files(
+        _, _, version, _, _ = _read_pt2_extra_files(
             mock_zf, "", "Source: model.pt2", properties, provenance
         )
 
@@ -290,7 +299,7 @@ def test_read_pt2_zip_archive_version_read_failure_logs_and_continues(
     with caplog.at_level(logging.DEBUG, logger="pitloom.extract.ai_model.pytorch_pt2"):
         result = _read_pt2_zip(mock_zf, "Source: model.pt2")
 
-    (_, _, _, _, format_version, _, provenance, _, _) = result
+    (_, _, _, _, format_version, _, provenance, _, _, _) = result
     assert format_version is None
     assert "format_version" not in provenance
     assert any("archive_version" in r.message for r in caplog.records)
@@ -405,6 +414,9 @@ def test_read_pt2_zip_large_file_list() -> None:
     res = _read_pt2_zip(mock_zf, "Source: test.pt2")
     properties = res[5]
     assert "... (25 total)" in properties["archive_contents"]
+    assert res[9]["archive_contents"] == [f"entry_{i}.bin" for i in range(20)]
+    assert properties["archive_member_count"] == res[9]["archive_member_count"] == "25"
+    assert "properties.archive_member_count" in res[6]
 
 
 def test_read_pytorch_pt2_is_zipfile_oserror(tmp_path: Path) -> None:
@@ -428,8 +440,9 @@ def test_read_pt2_extra_tags_string_fallback() -> None:
     )
     props: dict[str, str] = {}
     prov: dict[str, str] = {}
-    _read_pt2_extra_files(mock_zf, "", "Source: test.pt2", props, prov)
+    tags = _read_pt2_extra_files(mock_zf, "", "Source: test.pt2", props, prov)[4]
     assert props.get("tags") == '{"not_a_list": true}'
+    assert tags is None
 
     # 2. Invalid JSON string
     mock_zf.open.return_value.__enter__.return_value.read.return_value = (
@@ -437,8 +450,9 @@ def test_read_pt2_extra_tags_string_fallback() -> None:
     )
     props2: dict[str, str] = {}
     prov2: dict[str, str] = {}
-    _read_pt2_extra_files(mock_zf, "", "Source: test.pt2", props2, prov2)
+    tags2 = _read_pt2_extra_files(mock_zf, "", "Source: test.pt2", props2, prov2)[4]
     assert props2.get("tags") == "plain_tag_string"
+    assert tags2 is None
 
 
 def test_read_pt2_meta_entry_empty_dict() -> None:

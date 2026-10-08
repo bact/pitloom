@@ -98,7 +98,6 @@ ai = [
     "numpy>=2.2.6,<2.3; python_version<'3.11'", # based on wheel availability
     "numpy>=2.3.5,<3; python_version>='3.11'",  # based on wheel availability
     "onnx>=1.22.0",
-    "python-crfsuite>=0.9.12",
     "safetensors[numpy]>=0.8.0",
 ]
 # PyPA build: powers --allow-build's build-and-read file discovery
@@ -110,7 +109,6 @@ ai = [
 build = ["build>=1.2.2"]
 content-type = ["magika>=1.0.3"]
 
-crfsuite = ["python-crfsuite>=0.9.12"]
 fasttext = [
     # Same rationale as the "ai" extra's fasttext line above -- keep both
     # in sync.

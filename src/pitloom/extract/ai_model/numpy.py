@@ -20,7 +20,12 @@ import zipfile
 from pathlib import Path
 from typing import IO, Any
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+    source_metadata,
+)
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model.archive_member import open_model_binary
 from pitloom.extract.ai_model.limits import MAX_MODEL_ENTRIES, ModelLimitExceeded
@@ -299,5 +304,6 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
         type_of_model="numpy array",
         inputs=inputs,
         properties=properties,
+        raw_metadata=source_metadata(properties),
         provenance=provenance,
     )

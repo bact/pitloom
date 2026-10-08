@@ -54,8 +54,10 @@ Every extraction is read-only and inspects the file's own structure
 A GGUF array (a tokenizer vocabulary, scores, per-layer values) is recorded
 as its element count only, property `<key>.length` (for example
 `tokenizer.ggml.tokens.length`); in the verbatim artifact-metadata annotation
-the key holds `{"length": N, "type": "<element type>"}` (`type` is left out
-for an element code the format does not define).
+the key holds `{"length": "N", "type": "<element type>"}` (`type` is left
+out for an element code the format does not define). In that annotation a
+collection is a JSON array and a scalar is text, for every format; see
+[Metadata provenance](metadata-provenance.md#preserved-artifact-metadata).
 
 A CRFsuite model is read by Pitloom itself (header and label strings only;
 never the feature weights or the attribute strings, which come from the

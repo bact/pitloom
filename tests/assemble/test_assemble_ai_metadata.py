@@ -74,6 +74,16 @@ def test_source_metadata_blob_prefers_raw_metadata() -> None:
     assert blob == {"general.name": "test-model"}
 
 
+def test_source_metadata_blob_of_a_model_file_never_falls_back() -> None:
+    """A model file's annotation is its reader's ``raw_metadata`` only:
+    ``properties`` is a text map, never copied in its place."""
+    model = AiModelMetadata(
+        format_info=AiModelFormatInfo(model_format=AiModelFormat.ONNX),
+        properties={"p": "1"},
+    )
+    assert _source_metadata_blob(model) == ("onnx", {})
+
+
 def test_source_metadata_blob_falls_back_to_properties_and_extras() -> None:
     model = AiModelMetadata(
         properties={"p": "1"},

@@ -355,13 +355,15 @@ def parse_training_config(
     source: str,
     properties: dict[str, str],
     provenance: dict[str, str],
+    collections: dict[str, Any] | None = None,
 ) -> ConfigProblem | None:
     """Parse ``training_config`` JSON from a Keras v1/v2 HDF5 model.
 
     Extracts:
 
     - ``loss`` -> ``properties["loss"]`` (updated in-place)
-    - ``metrics`` -> ``properties["metrics"]`` (updated in-place)
+    - ``metrics`` -> ``properties["metrics"]`` (updated in-place), and
+      when a list or an object, also ``collections["metrics"]``
     - ``optimizer_config.class_name`` (or ``optimizer.class_name``)
       -> ``properties["optimizer"]`` (updated in-place)
     - Per-field source paths -> ``provenance`` (updated in-place)
@@ -371,6 +373,8 @@ def parse_training_config(
         source: Provenance source string (e.g. ``"Source: model.h5"``).
         properties: Updated in-place with optimizer, loss, and metrics entries.
         provenance: Updated in-place with per-field source descriptions.
+        collections: Updated in-place with ``metrics`` as read, for
+            :func:`pitloom.core.ai_metadata.source_metadata`.
 
     Returns:
         ``None``, or why the attribute could not be read whole: not a JSON
@@ -400,6 +404,8 @@ def parse_training_config(
     metrics = training_config.get("metrics")
     if metrics:
         properties["metrics"] = json.dumps(metrics)
+        if collections is not None and isinstance(metrics, (list, dict)):
+            collections["metrics"] = metrics
         provenance["properties.metrics"] = f"{source} | Field: training_config.metrics"
     lost.remove("properties.metrics")
 

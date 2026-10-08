@@ -11,16 +11,24 @@ References:
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Callable
 from pathlib import Path
 from zipfile import ZipFile
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+    source_element_text,
+    source_metadata,
+)
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model.archive_member import (
     open_model_zip,
     read_archive_member,
+    record_archive_contents,
 )
 from pitloom.extract.ai_model.limits import ModelLimitExceeded
 from pitloom.logging_config import field_loss_suffix, loggable
@@ -43,9 +51,6 @@ def _read_pt2_meta_entry(
     Returns:
         Tuple of (name, provenance_value), both ``None`` on failure.
     """
-    # pylint: disable=import-outside-toplevel
-    import json
-
     try:
         meta = json.loads(read_archive_member(zf, meta_entry))
         if isinstance(meta, dict):
@@ -146,7 +151,7 @@ def _read_pt2_extra_files(
     source: str,
     properties: dict[str, str],
     provenance: dict[str, str],
-) -> tuple[str | None, str | None, str | None, str | None]:
+) -> tuple[str | None, str | None, str | None, str | None, list[object] | None]:
     """Read metadata from the ``extra/`` directory of a PT2 Archive.
 
     ExecuTorch archives may include individual UTF-8 files under
@@ -168,11 +173,10 @@ def _read_pt2_extra_files(
         provenance: Provenance dict updated in-place with field sources.
 
     Returns:
-        Tuple of ``(name, description, version, license_expr)``.
+        Tuple of ``(name, description, version, license_expr, tags)``;
+        *tags* is the ``extra/tags`` list, or ``None`` when the file holds
+        none or not a JSON array.
     """
-    # pylint: disable=import-outside-toplevel
-    import json
-
     file_list = set(zf.namelist())
     name: str | None = None
     description: str | None = None
@@ -204,21 +208,29 @@ def _read_pt2_extra_files(
         properties["author"] = author
         provenance["properties.author"] = f"{source} | Field: extra/author"
 
+    tags: list[object] | None = None
     tags_raw = _read_text("extra/tags", "properties.tags")
     if tags_raw:
-        try:
-            tags_list = json.loads(tags_raw)
-            if isinstance(tags_list, list):
-                properties["tags"] = ", ".join(str(t) for t in tags_list)
-            else:
-                properties["tags"] = tags_raw
-        # pylint: disable-next=broad-exception-caught
-        except Exception as exc:
-            _warn_pt2_extra_tags_malformed(exc)
-            properties["tags"] = tags_raw
+        properties["tags"], tags = _parse_pt2_tags(tags_raw)
         provenance["properties.tags"] = f"{source} | Field: extra/tags"
 
-    return name, description, version, license_expr
+    return name, description, version, license_expr, tags
+
+
+def _parse_pt2_tags(tags_raw: str) -> tuple[str, list[object] | None]:
+    """``(property text, list)`` of an ``extra/tags`` file: a JSON array is
+    its elements' :func:`~pitloom.core.ai_metadata.source_element_text`
+    comma-joined, and the list itself; anything else is its raw text and
+    ``None``."""
+    try:
+        tags = json.loads(tags_raw)
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:
+        _warn_pt2_extra_tags_malformed(exc)
+        return tags_raw, None
+    if isinstance(tags, list):
+        return ", ".join(source_element_text(t) for t in tags), tags
+    return tags_raw, None
 
 
 def _read_pt2_graph_io(
@@ -246,9 +258,6 @@ def _read_pt2_graph_io(
         ``{"name": str}``.  Returns empty lists if the file is absent or
         unparseable.
     """
-    # pylint: disable=import-outside-toplevel
-    import json
-
     model_json_path = f"{prefix}models/model.json"
     if model_json_path not in zf.namelist():
         return [], []
@@ -336,6 +345,7 @@ def _read_pt2_zip(
     dict[str, str],
     list[dict[str, object]],
     list[dict[str, object]],
+    dict[str, object],
 ]:
     """Read metadata from a PT2 Archive ZIP."""
     file_list = zf.namelist()
@@ -345,12 +355,8 @@ def _read_pt2_zip(
     properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
 
-    properties["archive_contents"] = ", ".join(file_list[:20])
-    if len(file_list) > 20:
-        properties["archive_contents"] += f", ... ({len(file_list)} total)"
-    provenance["properties.archive_contents"] = (
-        f"{source} | Field: ZIP archive structure"
-    )
+    shown = record_archive_contents(file_list, source, properties, provenance)
+    collections: dict[str, list[object]] = {"archive_contents": list(shown)}
 
     prefix = _detect_root_prefix(file_list)
 
@@ -372,9 +378,11 @@ def _read_pt2_zip(
 
     # ExecuTorch rich format: extra/ metadata directory (updates properties/provenance
     # in-place; returns scalar fields that may override the above).
-    extra_name, extra_desc, extra_ver, extra_license = _read_pt2_extra_files(
+    extra_name, extra_desc, extra_ver, extra_license, tags = _read_pt2_extra_files(
         zf, prefix, source, properties, provenance
     )
+    if tags is not None:
+        collections["tags"] = tags
 
     # extra/ values override METADATA.json when both are present.
     if extra_name:
@@ -400,6 +408,7 @@ def _read_pt2_zip(
         provenance,
         inputs,
         outputs,
+        source_metadata(properties, collections),
     )
 
 
@@ -462,6 +471,7 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
             provenance,
             inputs,
             outputs,
+            raw_metadata,
         ) = _read_pt2_zip(zf, source)
 
     return AiModelMetadata(
@@ -476,6 +486,7 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
         version=version,
         license=license_expr,
         properties=properties,
+        raw_metadata=raw_metadata,
         provenance=provenance,
         inputs=inputs,
         outputs=outputs,

@@ -11,7 +11,12 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+    source_metadata,
+)
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
@@ -253,6 +258,7 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
         # namespace (``org.onnx``), not a type; it stays in ``properties``.
         type_of_model="neural network",
         properties=properties,
+        raw_metadata=source_metadata(properties),
         inputs=inputs,
         outputs=outputs,
         provenance=provenance,

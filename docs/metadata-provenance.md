@@ -81,6 +81,64 @@ This transparency is crucial for:
 - **Machine consumption**: Automated tools can parse provenance
 - **Human review**: Manual inspection of data sources
 
+## Preserved artifact metadata
+
+`preserve-source-metadata` embeds an artifact's own metadata in one
+`Annotation.statement` of kind `artifact-metadata`, keyed as the file
+names it. The rule is the same for every model format:
+
+- a collection in the file (a label list, an archive listing, a metrics
+  list) is a JSON array, or a JSON object where the file has a mapping;
+- a scalar is text: the same text as in the model's properties (and
+  hyperparameters, where a value appears there). A number or boolean is
+  never a JSON number or boolean, since a JSON consumer may widen or round
+  it (an integer above 2^53);
+- collection elements are text too, spelt as JSON spells them, which is
+  how the collection's JSON text in the properties spells them: `true`,
+  `false`, `null`, `1`, `0.5` (an HDF5 metric `{"acc": true}` is
+  `{"acc": "true"}`; a PT2 tag `null` is `"null"`);
+- a key the file holds no value for is left out, never `null`;
+- a collection nested over 32 levels keeps its first 32 levels; the part
+  below is its JSON text (or `<nested over 32 levels>` where even that
+  nests too deeply), so a hostile nesting never stops the model being read;
+- a GGUF array is a summary object of text, `{"length": "N", "type":
+  "<element type>"}`, never its elements.
+
+A fastText classifier:
+
+```json
+{
+  "schema": "https://pitloom.dev/provenance/artifact-metadata/1",
+  "kind": "artifact-metadata",
+  "format": "fasttext",
+  "metadata": {
+    "labels": ["__label__q", "__label__pos", "__label__neu", "__label__neg"],
+    "lossName": "softmax"
+  }
+}
+```
+
+A CRFsuite tagger:
+
+```json
+{
+  "schema": "https://pitloom.dev/provenance/artifact-metadata/1",
+  "kind": "artifact-metadata",
+  "format": "crfsuite",
+  "metadata": {
+    "labels": ["I", "E"],
+    "model_type": "FOMC",
+    "num_attributes": "2",
+    "num_features": "4",
+    "num_labels": "2"
+  }
+}
+```
+
+An archive listing (`archive_contents` of a PyTorch or PT2 archive) holds
+the first 20 member names, the same ones the property text shows;
+`archive_member_count` beside it is the number of members in the archive.
+
 ## Size-bounded preservation
 
 `preserve-source-metadata` can embed an artifact's verbatim original
@@ -104,7 +162,7 @@ always marked explicitly in the same envelope, never silent:
   "format": "gguf",
   "metadata": {
     "general.architecture": "llama",
-    "block_count": 32
+    "llama.block_count": "32"
   },
   "truncated": true,
   "truncatedKeys": ["tokenizer.chat_template"],

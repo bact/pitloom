@@ -18,7 +18,12 @@ import json
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+    source_metadata,
+)
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model.formats import FormatError, LimitExceeded, Limits
 from pitloom.extract.ai_model.formats.crfsuite import (
@@ -100,13 +105,6 @@ def read_crfsuite(model_path: Path) -> AiModelMetadata:
         "num_features": str(model.num_features),
         "num_labels": str(len(labels)),
     }
-    raw_metadata: dict[str, Any] = {
-        "labels": list(labels),
-        "model_type": model.model_type,
-        "num_attributes": model.num_attributes,
-        "num_features": model.num_features,
-        "num_labels": len(labels),
-    }
     provenance = {
         "framework": f"{source} | Field: magic",
         "format_version": f"{source} | Field: version",
@@ -135,7 +133,7 @@ def read_crfsuite(model_path: Path) -> AiModelMetadata:
         description=_description(labels),
         type_of_model="conditional random field",
         properties=properties,
-        raw_metadata=raw_metadata,
+        raw_metadata=source_metadata(properties, {"labels": labels}),
         outputs=outputs,
         provenance=provenance,
     )

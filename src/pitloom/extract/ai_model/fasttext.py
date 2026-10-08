@@ -12,7 +12,12 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+    source_metadata,
+)
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
@@ -99,15 +104,11 @@ def _extract_fasttext_args(
     return hyperparameters, properties, type_of_model
 
 
-def _extract_fasttext_outputs(
-    model: Any,
-) -> tuple[dict[str, str], list[dict[str, Any]]]:
+def _extract_fasttext_labels(model: Any) -> list[str]:
     """Read supervised labels when available."""
-    properties: dict[str, str] = {}
-    outputs: list[dict[str, Any]] = []
     get_labels = getattr(model, "get_labels", None)
     if get_labels is None:
-        return properties, outputs
+        return []
 
     try:
         labels = get_labels()
@@ -117,12 +118,8 @@ def _extract_fasttext_outputs(
             "skipped", "properties.labels", "outputs"
         )
         log.warning(msg, loggable(str(exc)))
-        return properties, outputs
-
-    if labels:
-        properties["labels"] = json.dumps(list(labels), ensure_ascii=False)
-        outputs = [{"name": "label_probabilities", "shape": [len(labels)]}]
-    return properties, outputs
+        return []
+    return list(labels or ())
 
 
 def read_fasttext(model_path: Path) -> AiModelMetadata:
@@ -158,7 +155,14 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
     domain: list[str] = ["text classification", "natural language processing"]
     provenance: dict[str, str] = {}
     hyperparameters, args_properties, type_of_model = _extract_fasttext_args(model)
-    properties, outputs = _extract_fasttext_outputs(model)
+    labels = _extract_fasttext_labels(model)
+    properties: dict[str, str] = {}
+    collections: dict[str, list[str]] = {}
+    outputs: list[dict[str, Any]] = []
+    if labels:
+        properties["labels"] = json.dumps(labels, ensure_ascii=False)
+        collections["labels"] = labels
+        outputs = [{"name": "label_probabilities", "shape": [len(labels)]}]
     properties.update(args_properties)
 
     # Exact per-key provenance: each hyperparameter maps to its own fastText
@@ -189,6 +193,7 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
         type_of_model=type_of_model,
         hyperparameters=hyperparameters,
         properties=properties,
+        raw_metadata=source_metadata(properties, collections),
         outputs=outputs,
         provenance=provenance,
     )
