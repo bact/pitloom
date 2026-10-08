@@ -6,6 +6,7 @@
 """Tests for pitloom.enrich.readme: local README/model-card frontmatter enrichment."""
 
 import tempfile
+import threading
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -211,7 +212,16 @@ def test_enrich_ignores_yaml_aliases_in_unread_keys(frontmatter: str) -> None:
         p = Path(d)
         (p / "README.md").write_text(frontmatter)
         model = AiModelMetadata()
-        ReadmeEnricher().enrich(model, model_dir=p)
+        # A daemon thread, so a regression fails here instead of hanging CI.
+        worker = threading.Thread(
+            target=ReadmeEnricher().enrich,
+            args=(model,),
+            kwargs={"model_dir": p},
+            daemon=True,
+        )
+        worker.start()
+        worker.join(timeout=30)
+        assert not worker.is_alive(), "enrich walked the alias tree"
     assert model.license == "mit"
 
 
