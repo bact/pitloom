@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -201,7 +201,7 @@ Library: `ProjectMetadata(license_concluded=...)` with no
 slot).
 
 Text to id (`detect_license_from_text`, `extract/_license.py`, #286), on
-top of `licenseid` (0.4.2 or later; also checked on 0.3.7) at threshold 0.85:
+top of `licenseid` (0.4.3 or later; also checked on 0.3.7) at threshold 0.85:
 
 - Read twice: as written, and with copyright notice lines removed (SPDX
   matching guidelines omit the notice); only the reading whose top score
@@ -424,6 +424,8 @@ leaning (2026-10-04).
 11. **Classifier or licence name to id** (layer 1, upstream `licenseid`):
     names and listed full texts stay `SimpleLicensingText`, a known
     deviation; name-only case differences give two `LicenseRef-` terms.
+    Same for a listed name in a model file (ONNX `model_license` `MIT
+    License`, #292).
 12. **Detected text by surface.** A `license.file` text `licenseid`
     identifies is the id on a directory and the hook, the text from an
     sdist, wheel or installed metadata (`stated_license()` is not run on
@@ -446,6 +448,25 @@ leaning (2026-10-04).
     [open-items.md][open-items].
 16. **Tie-breaks as rules.** Each tie-break in section 8 is code, not a
     written rule; first-seen text spelling depends on build order.
+17. **Licence URL to id.** A value that is only a URL stays
+    `SimpleLicensingText`; the ONNX spec allows one for `model_license`
+    (#292), and PyPI `License:` and model cards carry them too. The SPDX
+    License List
+    ([licenses.json](https://spdx.org/licenses/licenses.json)) gives each
+    id a `reference` (`https://spdx.org/licenses/<id>.html`, one id by
+    construction) and `seeAlso` URLs. The `py-spdx-license` data Pitloom
+    already bundles has both keys, so no network access is needed and the
+    result is fixed by the bundled list version. Measured on that data
+    (729 licences, 2026-10-07): 891 `seeAlso` URLs after folding scheme,
+    `www.` and a trailing `/`; 43 map to more than one id, all
+    same-text families (the GNU GPL-2.0 page: `GPL-2.0-only`,
+    `GPL-2.0-or-later` and the deprecated `GPL-2.0`, `GPL-2.0+`; each
+    GFDL text: 7 ids). Open: which folding (scheme, `www.`, trailing
+    `/`, `.html`/`.txt`, a `#L` fragment); an ambiguous URL stays text
+    or becomes `NOASSERTION` (never a guessed `-only`); whether
+    deprecated ids are candidates; the provenance tag for the rewrite
+    (as `tag_license_normalization`); whether it lives in Pitloom or
+    upstream with item 11.
 
 [msc]: ../implementation/provenance/multi-source-conflict.md
 [open-items]: sbom-fragments/open-items.md#left-after-the-fragment-merge-fixes

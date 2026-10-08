@@ -244,7 +244,8 @@ def test_a_single_file_gets_the_scans_entry_and_the_scans_warning(
     # A fragment names the package only to enrich it; an SBOM holds it.
     assert len(packages) == (surface == "generate_model_sbom")
     if kind.warning and packages and not kind.degraded:
-        assert packages[0]["name"] == str(kind.fmt)  # a format-only entry
+        # A format-only entry, named after its file
+        assert packages[0]["name"] == Path(kind.name).stem
     assert _expect_warning(kind, logged_warnings(caplog)) == scan_messages
 
 

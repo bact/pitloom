@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -26,7 +26,7 @@ the project or wheel.
 
 | What you see | Cause | Section |
 | :----------- | :---- | :------ |
-| An `ai_AIPackage` named after its format (`gguf`, `onnx`, ...) and nothing else, plus one `INFO:` | Wheel scan, format not read without `--trust-wheel-model` | [Formats gated in wheels](#formats-gated-in-wheels) |
+| An `ai_AIPackage` named after its file (`weights` for `weights.gguf`) and nothing else, plus one `INFO:` | Wheel scan, format not read without `--trust-wheel-model` | [Formats gated in wheels](#formats-gated-in-wheels) |
 | Same, plus `WARNING: ... scan ceiling; metadata not read` | File larger than `max-model-extract-bytes` | [Size and count caps](#size-and-count-caps) |
 | Same, plus `WARNING: AI model scan: the per-wheel budget of N bytes ...` | The wheel's total budget is spent | [Size and count caps](#size-and-count-caps) |
 | Same, plus another `...; metadata not read` line | A bound inside the file was exceeded | [Size and count caps](#size-and-count-caps) |
@@ -44,9 +44,10 @@ entries does not depend on the order of the files, the budget or the
 installed libraries.
 
 The format-only entry has exactly this: an `ai_AIPackage` whose
-`name` is the format name and which has no `ai_*` property and no `comment`
-entry `Source: <model file> | Field: ...` (a read model has such entries), a
-`contains` relationship to the model's `software_File`, and that file's
+`name` is the model file's stem (`comment` entry `name: Source: Pitloom
+generator | Method: file_name_stem`), no `ai_*` property and no `comment`
+entry `Source: <model file> | Field: ...` (a read model has such entries),
+a `contains` relationship to the model's `software_File`, and that file's
 SHA-256 hash. The hash comes from the file list and does not depend on the
 model being read. With `--enrich` (project scans) a stub can also carry a
 `comment` from the README or model card, `Source: README.md | Method:
@@ -218,12 +219,13 @@ the header), so it matches the files a scan lists.
 ## What cannot be recorded
 
 **Whatever the cause.** The `ai_AIPackage` carries name, version,
-description, type of model (and architecture), hyperparameters (and
-quantisation), and the inputs and outputs (as `informationAboutApplication`).
+description, licence (`hasDeclaredLicense`), type of model (and
+architecture), hyperparameters (and quantisation), and the inputs and outputs
+(as `informationAboutApplication`).
 Properties that fit no field are kept only in the verbatim artifact-metadata
 annotation. The framework name, framework version and format version a
 reader finds are not written to an SPDX field of their own. The package is
-named after the format when the file has no name.
+named after the model file's stem when the model has no name of its own.
 
 **Fields a format never carries**, even when fully read:
 
@@ -236,7 +238,7 @@ named after the format when the file has no name.
 | PT2 / ExecuTorch | Hyperparameters. Description, licence, author and tags only in the "rich" layout |
 | Keras v3 | Outputs. Hyperparameters are the scalar entries of `config` only |
 | HDF5 / Keras v1-v2 | Whatever the `model_config` attribute lacks |
-| ONNX | Hyperparameters. Tensors stored in external data files are not read (`load_external_data=False`) |
+| ONNX | Hyperparameters. Name when `graph.name` is blank or an exporter default (`torch_jit`, `main_graph`, `tf2onnx`, ...). Licence only from the standard `model_license` metadata property ([ONNX IR optional metadata](https://onnx.ai/onnx/repo-docs/IR.html#optional-metadata)). A `model_version` with any of its upper 32 bits set (a negative one included) is bit-packed SemVer ([ONNX versioning](https://onnx.ai/onnx/repo-docs/Versioning.html)) and is recorded as `MAJOR.MINOR.PATCH`; otherwise the plain number. `domain` is the owner's reverse-DNS namespace, not a model type, and is kept in the verbatim metadata only; `metadata_props` entries are kept as `metadata_props.<key>`; a repeated key keeps its last value, with one `WARNING:` per file. Tensors stored in external data files are not read (`load_external_data=False`) |
 | fastText | Name, description, version, inputs. Labels only for supervised models |
 
 **Not detected, or not scanned:**

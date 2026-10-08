@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -97,8 +96,8 @@ def _ai_model_entity_candidates(ai_model: AiModelMetadata) -> list[str]:
     each in order and claims the first hit.
     """
     candidates: list[str] = []
-    if ai_model.name:
-        candidates.append(ai_model.name)
+    if ai_model.own_name:
+        candidates.append(ai_model.own_name)
     if ai_model.format_info.physical_path:
         # The scanner already stores a stable path; this guard is
         # defensive for a hand-built AiModelMetadata whose physical_path is
@@ -111,8 +110,8 @@ def _ai_model_entity_candidates(ai_model: AiModelMetadata) -> list[str]:
         )
         if resolved:
             candidates.append(resolved)
-    if ai_model.format_info.file_name:
-        candidates.append(Path(ai_model.format_info.file_name).stem)
+    if ai_model.file_name_stem:
+        candidates.append(ai_model.file_name_stem)
     return candidates
 
 
@@ -309,7 +308,7 @@ def _build_ai_package(
     entity_spdx_id: str | None = None,
 ) -> spdx3.ai_AIPackage:
     """Build an ``ai_AIPackage`` SPDX 3 element from an :class:`AiModelMetadata`."""
-    pkg_name = ai_model.name or str(ai_model.format_info.model_format)
+    pkg_name, _ = ai_model.resolve_name()
     ai_pkg = spdx3.ai_AIPackage(
         spdxId=entity_spdx_id
         or generate_spdx_id(

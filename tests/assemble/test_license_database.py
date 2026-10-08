@@ -138,7 +138,7 @@ _HOSTILE_IDS = [
     "MIT OR",
     "()",
     "M" * 100_000,
-    "Apache-" + "2" * 50_001 + "+",  # SQLite refuses so long a LIKE pattern
+    "Apache-" + "2" * 50_001 + "+",  # over SQLite's LIKE pattern limit
     "",
 ]
 
@@ -174,11 +174,6 @@ def test_hostile_input_is_never_a_database_failure(
 _HUGE_ID = "A" * 50_001 + "+"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="licenseid 0.4.2 reports SQLite's refusal of a LIKE pattern over "
-    "50,000 bytes, built from a licence id in the text, as a database failure",
-)
 @pytest.mark.parametrize(
     "text",
     [
@@ -200,4 +195,5 @@ def test_a_huge_licence_id_in_a_text_is_no_database_failure(
     with patch.object(_license, "AggregatedLicenseMatcher", real):
         with caplog.at_level(logging.WARNING, logger=_license.__name__):
             detect_license_from_text(text)
+            assert canonicalize_license_id("mit") == "MIT"  # still usable
     assert not _warnings(caplog)

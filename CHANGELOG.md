@@ -20,6 +20,20 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.20.1...HEAD>
 
+## [Unreleased]
+
+### Fixed
+
+- An unnamed AI model, or an ONNX exporter-default `graph.name` (`torch_jit`,
+  `tf2onnx`), is named after its file, as is a `loom model` document; ids
+  change ([#292])
+- ONNX: reads `model_license` and packed SemVer `model_version`; `domain` is
+  not the model type; `metadata_props` keys are prefixed ([#292])
+- A licence id over 50,000 characters in a licence text no longer reads as
+  a broken licence database: requires `licenseid` 0.4.3 ([#292])
+
+[#292]: https://github.com/bact/pitloom/pull/292
+
 ## [0.20.1] - 2026-10-07
 
 ### Changed

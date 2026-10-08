@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -57,6 +57,9 @@ built wheel (fixed, #287).
 
 ### 0.21.0
 
+- [ ] **CRFsuite models** (next after #292; PyThaiNLP bundles five):
+  `lCRF` magic on `.crfsuite`/`.model`, labels and counts, stdlib-only
+  reader in `formats/`. See [crfsuite-support.md](crfsuite-support.md).
 - [ ] **Registry v3**: one typed table, content gate chosen at lookup;
   closes the P1 registry bugs. See [id-registry-v3.md](id-registry-v3.md),
   [id-registry-v3-rollout.md](id-registry-v3-rollout.md).
@@ -149,7 +152,8 @@ Each found more than one bug that a per-site fix would only move.
 
 - [ ] **Licence rules**: source taxonomy, cascade per surface, weak and final
   values, declared vs concluded, conflicts, equivalence, provenance,
-  tie-breaks. Current rules, rulings and 16 open questions:
+  tie-breaks. Current rules, rulings and 17 open questions (a licence
+  name or URL to its SPDX id: 11, 17):
   [license-rules.md](license-rules.md); layers:
   [license-layers.md](license-layers.md); what #276 left:
   [license-pr276-followups.md](license-pr276-followups.md).

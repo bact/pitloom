@@ -12,6 +12,8 @@ See also: :mod:`tests.assemble.test_assemble_ai`.
 
 from __future__ import annotations
 
+import pytest
+
 from pitloom.assemble.spdx3._ai_package import _ai_model_entity_candidates
 from pitloom.assemble.spdx3.ai import _should_preserve_metadata, _source_metadata_blob
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
@@ -179,3 +181,29 @@ def test_lookup_ai_model_entity_absolute_path_no_fallback_skips_candidate() -> N
         )
     )
     assert _lookup_ai_model_entity(model, registry) == "urn:doc#AIPackage-5"
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        (" BERT ", ["BERT", "m/bert.gguf", "bert"]),
+        ("  ", ["m/bert.gguf", "bert"]),
+        (None, ["m/bert.gguf", "bert"]),
+    ],
+)
+def test_entity_candidates_use_the_shown_name(
+    name: str | None, expected: list[str]
+) -> None:
+    """The registry is looked up by the name the SBOM shows (stripped; a
+    blank one is no name), so an id imported from that SBOM is found."""
+    model = AiModelMetadata(
+        name=name,
+        format_info=AiModelFormatInfo(
+            file_name="bert.gguf",
+            physical_path="m/bert.gguf",
+            model_format=AiModelFormat.GGUF,
+        ),
+    )
+    assert _ai_model_entity_candidates(model) == expected
+    # the first name candidate is the name the SBOM shows, or its stem
+    assert model.resolve_name()[0] in (expected[0], expected[-1])

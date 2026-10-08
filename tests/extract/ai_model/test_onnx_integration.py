@@ -16,6 +16,7 @@ See also: test_onnx_mocked.py for the mocked onnx.ModelProto unit tests.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import pytest
@@ -54,8 +55,9 @@ def test_whisper_encoder_format(whisper_encoder_metadata: AiModelMetadata) -> No
 
 
 def test_whisper_encoder_name(whisper_encoder_metadata: AiModelMetadata) -> None:
-    assert whisper_encoder_metadata.name == "main_graph"
-    assert "graph.name" in whisper_encoder_metadata.provenance["name"]
+    # graph.name "main_graph" is an exporter default, not the model's name
+    assert whisper_encoder_metadata.name is None
+    assert "name" not in whisper_encoder_metadata.provenance
 
 
 def test_whisper_encoder_opsets(whisper_encoder_metadata: AiModelMetadata) -> None:
@@ -117,7 +119,7 @@ def test_gpt2_decoder_format(gpt2_decoder_metadata: AiModelMetadata) -> None:
 
 
 def test_gpt2_decoder_name(gpt2_decoder_metadata: AiModelMetadata) -> None:
-    assert gpt2_decoder_metadata.name == "torch_jit"
+    assert gpt2_decoder_metadata.name is None  # graph.name "torch_jit"
 
 
 def test_gpt2_decoder_opset(gpt2_decoder_metadata: AiModelMetadata) -> None:
@@ -177,7 +179,7 @@ def test_inception_v2_name(inception_v2_metadata: AiModelMetadata) -> None:
 
 
 def test_inception_v2_type_of_model(inception_v2_metadata: AiModelMetadata) -> None:
-    # Empty domain falls back to "neural network"
+    # ONNX has no model-type field: always "neural network"
     assert inception_v2_metadata.type_of_model == "neural network"
 
 
@@ -236,8 +238,7 @@ def test_resnet_beans_format(resnet_beans_metadata: AiModelMetadata) -> None:
 
 
 def test_resnet_beans_name(resnet_beans_metadata: AiModelMetadata) -> None:
-    # PyTorch JIT ONNX exports use "torch_jit" as the graph name
-    assert resnet_beans_metadata.name == "torch_jit"
+    assert resnet_beans_metadata.name is None  # graph.name "torch_jit"
 
 
 def test_resnet_beans_opset(resnet_beans_metadata: AiModelMetadata) -> None:
@@ -307,7 +308,7 @@ def test_onnx_integration_no_version(squeezenet_metadata: AiModelMetadata) -> No
 
 
 def test_onnx_integration_type_of_model(squeezenet_metadata: AiModelMetadata) -> None:
-    # Empty domain falls back to "neural network"
+    # ONNX has no model-type field: always "neural network"
     assert squeezenet_metadata.type_of_model == "neural network"
 
 
@@ -347,3 +348,75 @@ def test_onnx_integration_provenance_fields(
 ) -> None:
     assert "inputs" in squeezenet_metadata.provenance
     assert "outputs" in squeezenet_metadata.provenance
+
+
+@pytest.mark.parametrize(
+    ("fixture", "ir_version"),
+    [
+        (WHISPER_ENCODER_FIXTURE, "7"),
+        (GPT2_DECODER_FIXTURE, "7"),
+        (INCEPTION_V2_FIXTURE, "3"),
+        (RESNET_BEANS_FIXTURE, "6"),
+        (SQUEEZENET_FIXTURE, "3"),
+    ],
+    ids=lambda value: value.stem if isinstance(value, Path) else value,
+)
+def test_onnx_fixture_ir_version(fixture: Path, ir_version: str) -> None:
+    """The IR versions tests/fixtures/aimodels/details/onnx.md documents."""
+    pytest.importorskip("onnx")
+    assert read_onnx(fixture).format_info.format_version == ir_version
+
+
+def _stamped_model(path: Path, *props: tuple[str, str]) -> None:
+    """Write a one-node ONNX model stamped the way PyThaiNLP stamps its
+    models: exporter-default graph name, packed SemVer, metadata_props."""
+    onnx = pytest.importorskip("onnx")
+    helper = onnx.helper
+    tensor = helper.make_tensor_value_info("x", onnx.TensorProto.FLOAT, [1])
+    graph = helper.make_graph(
+        [helper.make_node("Identity", ["x"], ["y"])],
+        "torch_jit",
+        [tensor],
+        [helper.make_tensor_value_info("y", onnx.TensorProto.FLOAT, [1])],
+    )
+    model = helper.make_model(graph)
+    model.domain = "org.example"
+    model.model_version = (1 << 48) | (2 << 32) | 3
+    for key, value in props:
+        entry = model.metadata_props.add()
+        entry.key, entry.value = key, value
+    onnx.save(model, str(path))
+
+
+def test_onnx_real_stamped_model(tmp_path: Path) -> None:
+    """The mocked reader tests' fields, end to end through a real file."""
+    path = tmp_path / "deepcut.onnx"
+    _stamped_model(path, ("model_license", " Apache-2.0 "), ("model_author", "A, B"))
+    meta = read_onnx(path)
+    assert meta.name is None
+    assert meta.resolve_name()[0] == "deepcut"
+    assert meta.version == "1.2.3"
+    assert meta.provenance["version"] == (
+        "Source: deepcut.onnx | Field: model_version | Method: semver_bit_packed"
+    )
+    assert meta.license == "Apache-2.0"
+    assert meta.type_of_model == "neural network"
+    assert meta.properties["domain"] == "org.example"
+    assert meta.properties["metadata_props.model_author"] == "A, B"
+
+
+def test_onnx_real_repeated_key_keeps_last(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A real file with a repeated metadata_props key (which the ONNX checker
+    rejects, but onnx.save writes) keeps the last value, with one warning."""
+    path = tmp_path / "dup.onnx"
+    _stamped_model(path, ("model_license", "MIT"), ("model_license", "Apache-2.0"))
+    onnx = pytest.importorskip("onnx")
+    assert len(onnx.load(str(path)).metadata_props) == 2  # the file repeats it
+    with caplog.at_level(logging.WARNING, logger="pitloom.extract.ai_model.onnx"):
+        meta = read_onnx(path)
+    assert meta.license == "Apache-2.0"
+    [record] = caplog.records
+    assert record.name == "pitloom.extract.ai_model.onnx"
+    assert "more than once" in record.getMessage()

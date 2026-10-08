@@ -5,7 +5,8 @@
 
 """Direct unit tests for pitloom.assemble.spdx3.ai package and lineage building.
 
-See also: :mod:`tests.assemble.test_assemble_ai_metadata`.
+See also: :mod:`tests.assemble.test_assemble_ai_metadata`,
+:mod:`tests.core.test_ai_metadata` (the name cascade itself).
 """
 
 # pylint: disable=missing-function-docstring
@@ -15,12 +16,22 @@ from __future__ import annotations
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._document_model import _ai_model_identity
 from pitloom.assemble.spdx3.ai import (
     _add_base_model_lineage,
     _build_ai_package,
     _LineageContext,
+    add_ai_models,
 )
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.assemble.spdx3.document import build_model
+from pitloom.core.ai_metadata import (
+    FILE_NAME_STEM_PROVENANCE,
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+)
+from pitloom.core.creation import CreationMetadata
+from pitloom.core.iri import doc_namespace
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
@@ -36,13 +47,20 @@ def test_build_ai_package_minimal() -> None:
     assert not pkg.ai_typeOfModel
 
 
-def test_build_ai_package_name_falls_back_to_format() -> None:
-    ci = _make_ci()
+@pytest.mark.parametrize(
+    ("name", "expected"), [("  tiny  ", "tiny"), (None, "deepcut")]
+)
+def test_package_named_by_resolve_name(name: str | None, expected: str) -> None:
+    """The package name and its spdxId prefix both use the resolved name."""
     model = AiModelMetadata(
-        format_info=AiModelFormatInfo(model_format=AiModelFormat.ONNX)
+        name=name,
+        format_info=AiModelFormatInfo(
+            file_name="deepcut.onnx", model_format=AiModelFormat.ONNX
+        ),
     )
-    pkg = _build_ai_package(model, ci, _DOC_NAME, _DOC_UUID)
-    assert pkg.name == "onnx"
+    pkg = _build_ai_package(model, _make_ci(), _DOC_NAME, _DOC_UUID)
+    assert pkg.name == model.resolve_name()[0] == expected
+    assert f"#AIPackage-{expected}-" in str(pkg.spdxId)
 
 
 def test_build_ai_package_entity_spdx_id_override() -> None:
@@ -280,3 +298,58 @@ def test_add_base_model_lineage_no_relationship_when_build_relationship_none(
         if isinstance(obj, spdx3.Relationship)
     ]
     assert relationships == []
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"), [("tiny-model", "tiny-model"), (None, "deepcut")]
+)
+def test_model_document_named_like_package(name: str | None, expected: str) -> None:
+    """A single-model SBOM's document and package share one name cascade."""
+    model = AiModelMetadata(
+        name=name,
+        format_info=AiModelFormatInfo(
+            file_name="deepcut.onnx", model_format=AiModelFormat.ONNX
+        ),
+    )
+    doc_name, doc_uuid, pkg_id = _ai_model_identity(model)
+    assert doc_name == expected
+    assert pkg_id.startswith(
+        f"{doc_namespace(expected, doc_uuid)}#AIPackage-{expected}-"
+    )
+
+
+def _ai_package_sbom_text(model: AiModelMetadata, surface: str) -> str:
+    """The SBOM JSON for *model* built by one assembly *surface*."""
+    if surface == "single-model":
+        return build_model(model, CreationMetadata()).to_json()
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    main_pkg = spdx3.software_Package(
+        spdxId=generate_spdx_id("Package", doc_name=_DOC_NAME, doc_uuid=_DOC_UUID),
+        name="main",
+        creationInfo=ci,
+    )
+    exporter.add_package(main_pkg)
+    add_ai_models(
+        [model], require_spdx_id(main_pkg), {}, ci, _DOC_NAME, _DOC_UUID, exporter
+    )
+    return exporter.to_json()
+
+
+@pytest.mark.parametrize("surface", ["project", "single-model"])
+@pytest.mark.parametrize(("name", "derived"), [(None, True), ("tiny", False)])
+def test_name_provenance_reaches_the_sbom(
+    surface: str, name: str | None, derived: bool
+) -> None:
+    """Every assembly surface records a file-stem name as derived, and only
+    then."""
+    model = AiModelMetadata(
+        name=name,
+        format_info=AiModelFormatInfo(
+            file_name="deepcut.onnx", model_format=AiModelFormat.ONNX
+        ),
+        provenance={"version": "Source: deepcut.onnx | Field: model_version"},
+    )
+    text = _ai_package_sbom_text(model, surface)
+    assert "model_version" in text  # provenance is emitted at all
+    assert (FILE_NAME_STEM_PROVENANCE in text) is derived

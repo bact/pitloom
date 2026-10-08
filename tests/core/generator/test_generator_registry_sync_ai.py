@@ -31,33 +31,22 @@ from pitloom.id_registry import EntityEntry, IdRegistry
 
 
 def _numpy_models() -> list[AiModelMetadata]:
-    """10 unnamed NumPy-format models -- one ``m00/numpy.npy`` plus nine
-    ``w.npy`` siblings. Every model's
-    ``name`` is unset, so ``_build_ai_package``'s ``pkg_name`` falls back
-    to ``str(AiModelFormat.NUMPY)`` ("numpy") for *all ten*, same as the
-    real gap: they all mint under the identical
+    """10 unnamed NumPy-format models, ``m00/numpy.npy`` to
+    ``m09/numpy.npy``. Every model's ``name`` is unset, so
+    ``AiModelMetadata.resolve_name()`` falls back to the shared file stem
+    ("numpy") for *all ten*: they all mint under the identical
     ``(doc_uuid, "AIPackage-numpy")`` counter regardless of their
-    different file stems."""
-    models = [
+    different paths."""
+    return [
         AiModelMetadata(
             format_info=AiModelFormatInfo(
                 file_name="numpy.npy",
-                file_path_relative="m00/numpy.npy",
+                file_path_relative=f"m{i:02d}/numpy.npy",
                 model_format=AiModelFormat.NUMPY,
             ),
         )
+        for i in range(10)
     ]
-    models.extend(
-        AiModelMetadata(
-            format_info=AiModelFormatInfo(
-                file_name="w.npy",
-                file_path_relative=f"m{i:02d}/w.npy",
-                model_format=AiModelFormat.NUMPY,
-            ),
-        )
-        for i in range(1, 10)
-    )
-    return models
 
 
 def _assert_ten_distinct_ai_package_ids(exporter: object) -> None:
