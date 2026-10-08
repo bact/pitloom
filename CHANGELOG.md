@@ -18,9 +18,9 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.20.1...HEAD>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.20.2...HEAD>
 
-## [Unreleased]
+## [0.20.2] - 2026-10-09
 
 ### Added
 
@@ -415,6 +415,7 @@ and this project adheres to
 
 ---
 
+[0.20.2]: https://github.com/bact/pitloom/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/bact/pitloom/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/bact/pitloom/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/bact/pitloom/compare/v0.18.1...v0.19.0

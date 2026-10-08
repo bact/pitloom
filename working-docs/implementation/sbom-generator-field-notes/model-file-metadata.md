@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-08
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -63,3 +63,12 @@ and the three ONNX models bundled with PyThaiNLP 5.3.9 (`deepcut.onnx`,
   17).
   Do: read the standard keys only; expect them absent; point model owners
   at the spec's keys and fields instead of a generator-specific format.
+- **An ONNX opset import is not evidence of ONNX-ML operators.** tf2onnx
+  adds an `ai.onnx.ml` opset import to plain neural networks, so a rule
+  "ML domain imported means not a neural network" unset `type_of_model`
+  for PyThaiNLP's deepcut model. Only a rule on the nodes
+  (`node.domain == "ai.onnx.ml"`) was right. The fixtures never showed it
+  because they were built by hand with `onnx.helper`; the PyThaiNLP
+  `main` acceptance run (#294) did.
+  Do: derive a model's kind from what the graph executes, not from what
+  an exporter declares; test the rule on files from the real exporters.

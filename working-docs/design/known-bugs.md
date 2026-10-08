@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -271,6 +271,30 @@ Crashes, broken contracts and small mappings.
   or scope; the hook and `loom project` list 16. Seen on 0.19.0 too.
 
 ## P3: after 0.20.0
+
+- [ ] **Deep metadata text depends on call-stack depth (S).**
+  `core/ai_metadata.py:162` `_collection_text` falls back to
+  `<nested over 32 levels>` on `RecursionError`, so the CLI and the
+  Hatchling hook (deeper stack) can write different bytes for a 500-950
+  deep PT2 `extra/tags`. Decide from an explicit depth count.
+- [ ] **Display escape can merge two JSON keys (S).** Keys `"a<U+202E>"`
+  and `"a\\u202e"` in one `ai_informationAboutApplication` object spell
+  the same after `escape_display_controls_in_json`; one entry is dropped.
+- [ ] **PT2 tags spelt as Python repr (S, cross-format).**
+  `pytorch_pt2.py:233` uses `source_element_text()` (scalars only) for
+  non-scalar tags: `a, {'k': [1, True]}, null`. Use canonical JSON, as
+  HDF5 `metrics` and `labels` do.
+- [ ] **Label count recorded differently (S, cross-format).** CRFsuite
+  always has `properties.num_labels`; fastText only `outputs[0].shape`,
+  and nothing when all labels are dropped. CRFsuite with 0 labels emits
+  `labels = "[]"`, supervised fastText with none emits nothing.
+- [ ] **CRFsuite description ambiguity (low).** Labels joined by `", "`
+  (a label may contain it or a newline); `backslashreplace` `\xff` looks
+  like a real 4-character label.
+- [ ] **fastText `getArgs()` failure drops `domain` silently (low).**
+  The warning does not name `domain`.
+- [ ] **`_loom_active_run.py:185` names the document `self.model.name or
+  "model"` (low).** Not in this diff; check it against the name cascade.
 
 - [ ] **Escape/cap hardening from the Opus review of #294 (S each).**
   (a) Hangul fillers U+115F, U+1160, U+3164, U+FFA0 render blank but are

@@ -109,14 +109,27 @@ class ReadmeEnricher:
         frontmatter = _parse_frontmatter(text)
         if frontmatter is None:
             return EnrichmentResult(source_name=self.name)
-        # YAML reads "\ud800" as a lone surrogate, which no output can hold.
-        if escape_lone_surrogates_in(frontmatter)[1]:
+        # Only the two keys read below, and only their strings: YAML aliases
+        # make the whole frontmatter an expanded tree of exponential size (or
+        # a cycle). A "\ud800" in YAML is a lone surrogate no output can hold.
+        license_value = frontmatter.get("license")
+        datasets_value = frontmatter.get("datasets")
+        read = {
+            "license": license_value if isinstance(license_value, str) else None,
+            "datasets": (
+                [e for e in datasets_value if isinstance(e, str)]
+                if isinstance(datasets_value, list)
+                else None
+            ),
+        }
+        read, lone = escape_lone_surrogates_in(read)
+        if lone:
             log.warning(LONE_SURROGATES_WARNING, "", loggable(str(card_path)))
+        license_value, datasets_value = read["license"], read["datasets"]
 
         source = f"Source: {card_path.name} | Method: yaml_frontmatter"
         changed: list[EnrichedField] = []
 
-        license_value = frontmatter.get("license")
         if (
             not model.license
             and isinstance(license_value, str)
@@ -135,7 +148,6 @@ class ReadmeEnricher:
             model.license = license_value.strip()
             model.provenance["license"] = source
 
-        datasets_value = frontmatter.get("datasets")
         if isinstance(datasets_value, list):
             existing_names = {
                 ref.metadata.name for ref in model.datasets if ref.metadata.name
