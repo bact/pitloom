@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -143,6 +143,17 @@ the move.
   of the fickling stderr capture (`_stderr_capture.py`). Any other
   process-global state a test can change (logger handlers, `sys.stderr`
   proxies, signal handlers, `warnings` filters) needs the same restore.
+- **`--dist=loadscope` hides cross-module leaks that `worksteal` shows.**
+  loadscope keeps a module on one worker, so a leak only reaches tests of
+  modules that happen to follow it. Switching to worksteal (for speed)
+  exposed `PITLOOM_DEBUG=1` leaking from
+  `test_ctrl_c_is_one_error_line_and_exit_130[debug-flag]` (a `delenv` on
+  an absent name records no restore; `--debug` then writes `os.environ`
+  directly) into `test_stdout_is_key_value_only`. Found by an autouse probe
+  that diffs `os.environ` against the session start at each test's setup
+  and names the previous test on that worker. Fix: `tests/_environ.py`
+  restores `os.environ` after every test (autouse in `tests/conftest.py`),
+  and the test uses `setenv("0")`.
 - **A version floor asserted in many places drifts -- and nothing checks
   it.** `scripts/check_version_consistency.py` covers Pitloom's *own*
   version string only, not dependency floors. The Hatchling floor lives in
@@ -177,7 +188,7 @@ the move.
 - **`gh pr checks` lists job names, not workflow names, and `paths-ignore`
   skips workflows on docs-only commits.** A "missing" check usually
   means a differently-named job of a workflow that did run (`Python 3.10
-  on ubuntu-latest` is `build.yml`; pylint is a step inside `Ruff (Lint &
+  on ubuntu-latest` is `build.yml`; flake8 is a step inside `Ruff (Lint &
   Format)`, not its own check). Confirm with `gh run list --workflow=...`
   before concluding a check didn't run.
 - **A test helper that normalises what it captures hides the bug class

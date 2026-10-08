@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-09-18
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -131,9 +131,64 @@ passed explicitly). If `pyright` disagrees with `mypy --strict`/
 `pyrefly check` on the same file, check environment resolution before
 trusting the diff.
 
+## Revision 2026-10-08: installs with `uv pip`
+
+- `setup-python` now also runs `astral-sh/setup-uv`, with the uv version
+  pinned in `.github/uv/requirements.txt` (setup-uv's `version-file`; a
+  requirements file so Dependabot's pip ecosystem bumps it -- a plain
+  `version:` input would never be updated);
+  `install-pitloom` runs every install as `uv pip install --system` into
+  the setup-python interpreter. Local measurement, lint job inputs on
+  Python 3.10: pip 29 s cold / 12 s warm, uv 4 s / under 1 s, with the
+  same resolved package set.
+- The call structure is unchanged. uv's `--no-build-isolation` is also
+  invocation-global, so `--group` stays in its own isolated call (uv's
+  `--no-build-isolation-package` would allow one call; not taken, to keep
+  the two resolves identical to the pip version).
+- pip is still upgraded (through uv): `pip-audit` and the
+  `pip install --dry-run` wheel checks run the interpreter's own pip.
+- Cache: uv's download cache replaces setup-python's pip cache. The input
+  defaults to setup-uv's `auto`, which skips the cache on release,
+  tag-push, `pull_request_target` and `workflow_run` events and on
+  self-hosted runners, so `pypi-publish.yml` never restores one. The cache key
+  hashes only the root `pyproject.toml`; setup-uv's default glob would
+  also hash every fixture `pyproject.toml` under `tests/`. The key suffix
+  includes the job id: jobs with the same OS and Python install different
+  groups/extras, and the first to finish saves the shared key, so without
+  it a light job (Ruff) would leave every heavier job a partial cache.
+- `package-spec` is optional: empty installs only `extra-packages` and
+  `groups`, skipping hatchling, setuptools and the local build. The Ruff
+  job uses it, since ruff and flake8 never import Pitloom. Pylint runs as
+  its own job (`-j` rejected: a parallel run reported a C1803 that a
+  serial run does not).
+- The env var `GROUPS` was renamed `INSTALL_GROUPS`: `GROUPS` is a bash
+  special variable (shellcheck SC2128). The environment value happened to
+  win, but nothing guaranteed it.
+- Still pip, by design: the user-facing action's
+  `scripts/action/pitloom-install.sh` (a user's runner may have no uv),
+  `action-selftest.yml`'s `pip install --dry-run`, and tests that check a
+  wheel installs with pip.
+- Interpreter: `setup-python` writes its `python-path` output to
+  `UV_PYTHON` (via `GITHUB_ENV`, with `printf` so a Windows path's
+  backslashes stay literal). Without it `--system` takes the first
+  non-venv Python on `PATH`, and every runner image has its own (Windows:
+  a registry 3.12 and Miniconda; macOS: Homebrew; Ubuntu:
+  `/usr/bin/python3`, externally managed); setup-python's comes first
+  today, but only by `PATH` order. No workflow calls uv directly, so the
+  variable reaches nothing else.
+- `UV_LINK_MODE=copy` (install step only): on Windows uv's cache (`D:`) and
+  the toolcache Python (`C:`) are on different drives, where a hardlink
+  fails with a warning and falls back to a copy.
+- Trap: `--system` skips virtual environments, even one first on `PATH`.
+  To try the script locally, set `UV_PYTHON=<venv>/bin/python` (it wins
+  over `--system`'s lookup and still accepts a venv), or it installs into
+  whatever non-venv Python comes next (here: a pyenv interpreter with the
+  developer's editable installs).
+
 ## Where
 
-- `.github/actions/install-pitloom/action.yml`
+- `.github/actions/install-pitloom/action.yml`,
+  `.github/actions/setup-python/action.yml`
 - `.github/workflows/{build,hatch-integration,pypi-publish,test,lint,
   typecheck,pip-audit,docs,fuzz,action-selftest,actionlint}.yml`
 - `working-docs/design/roadmap.md`: "CI workflow step duplication" item,

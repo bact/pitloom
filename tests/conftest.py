@@ -18,6 +18,7 @@ import pytest
 
 from pitloom.extract._license import _get_matcher
 from pitloom.logging_config import _WARNED_ONCE
+from tests._environ import environ_restored
 
 # pylint: disable-next=unused-import
 from tests._network import (  # noqa: F401
@@ -144,6 +145,13 @@ def _restore_pitloom_logger() -> Iterator[None]:
     yield
     logger.handlers = handlers
     logger.setLevel(level)
+
+
+@pytest.fixture(autouse=True)
+def _restore_environ() -> Iterator[None]:
+    """Put ``os.environ`` back after each test (see :mod:`tests._environ`)."""
+    with environ_restored():
+        yield
 
 
 @pytest.fixture(autouse=True)
