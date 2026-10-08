@@ -85,8 +85,8 @@ Notable metadata extracted by the ONNX extractor:
 - `type_of_model` = `"neural network"` (ONNX has no model-type field)
 - `properties["opset.ai.onnx"]` = `"9"` - oldest opset in the fixture set
 - 487 graph inputs: the first is `data_0` [1, 3, 224, 224]; the remaining
-  486 are weight initializers listed in `graph.input` following the pre-ONNX
-  opset-9 convention where initializers were included in the input list
+  486 are weight initializers listed in `graph.input` (IR version 3 lists
+  initializers as inputs). `inputs` holds `data_0` only, dtype `float32`
 
 ---
 

@@ -21,7 +21,6 @@ import pytest
 
 from pitloom.extract.ai_model.formats import (
     FormatError,
-    LimitExceeded,
     Limits,
     Malformed,
     UnsupportedVersion,
@@ -87,10 +86,10 @@ class _Recording(io.BytesIO):
         (
             _COMPLETE,
             CrfsuiteModel(
-                "FOMC", 100, 24, 14, ("บุคคล", "O", "B-LOC", "I PER/x", "E-X:1")
+                "FOMC", 100, 24, 14, 5, ("บุคคล", "O", "B-LOC", "I PER/x", "E-X:1")
             ),
         ),
-        (_MINIMAL, CrfsuiteModel("FOMC", 100, 4, 2, ("I", "E"))),
+        (_MINIMAL, CrfsuiteModel("FOMC", 100, 4, 2, 2, ("I", "E"))),
     ],
     ids=["complete", "minimal"],
 )
@@ -103,7 +102,13 @@ def test_limits_equal_to_the_fixture_are_enough() -> None:
     limits = Limits(
         max_crfsuite_labels=_NUM_LABELS, max_crfsuite_labels_chunk_bytes=_LAB_SIZE
     )
-    assert len(_read(_COMPLETE, limits).labels) == _NUM_LABELS
+    assert _read(_COMPLETE, limits).labels == (
+        "บุคคล",
+        "O",
+        "B-LOC",
+        "I PER/x",
+        "E-X:1",
+    )
 
 
 def test_reads_the_headers_and_the_labels_chunk_only() -> None:
@@ -118,18 +123,33 @@ def test_reads_the_headers_and_the_labels_chunk_only() -> None:
     assert source.bytes_in(_OFF_AREF + 12, _SIZE) == 0
 
 
-def test_too_many_labels_is_refused_before_the_labels_chunk_is_read() -> None:
+@pytest.mark.parametrize(
+    ("limits", "reason"),
+    [
+        (
+            Limits(max_crfsuite_labels=_NUM_LABELS - 1),
+            f"more than {_NUM_LABELS - 1} labels",
+        ),
+        (
+            Limits(max_crfsuite_labels_chunk_bytes=_LAB_SIZE - 1),
+            f"labels CQDB over {_LAB_SIZE - 1} bytes",
+        ),
+    ],
+    ids=["label-count", "labels-chunk"],
+)
+def test_a_labels_bound_leaves_the_labels_unread_and_the_counts_read(
+    limits: Limits, reason: str
+) -> None:
     source = _Recording(_COMPLETE)
-    with pytest.raises(LimitExceeded, match="labels"):
-        read_crfsuite(source, Limits(max_crfsuite_labels=_NUM_LABELS - 1))
-    assert source.bytes_in(_OFF_LAB, _SIZE) == 0
+    model = read_crfsuite(source, limits)
+    assert model == CrfsuiteModel("FOMC", 100, 24, 14, _NUM_LABELS, None, reason)
+    assert source.bytes_in(_OFF_LAB, _OFF_ATTR) == 24  # the chunk's header only
 
 
-def test_an_oversized_labels_chunk_is_refused_unread() -> None:
-    source = _Recording(_COMPLETE)
-    with pytest.raises(LimitExceeded, match="CQDB"):
-        read_crfsuite(source, Limits(max_crfsuite_labels_chunk_bytes=_LAB_SIZE - 1))
-    assert source.bytes_in(_OFF_LAB, _SIZE) == 24  # its header only
+def test_a_labels_bound_still_checks_the_labels_chunk_header() -> None:
+    data = _mutate(_COMPLETE, (_OFF_LAB, b"XXXX"))
+    with pytest.raises(Malformed, match="labels CQDB tag"):
+        _read(data, Limits(max_crfsuite_labels=1))
 
 
 @pytest.mark.parametrize("length", [*range(61), _SIZE - 1])
@@ -174,7 +194,9 @@ def test_zero_labels_are_valid() -> None:
 )
 def test_label_bytes_decode_without_failing(raw: bytes, label: str) -> None:
     data = _mutate(_COMPLETE, (_record(2) + 8, raw))  # "B-LOC"
-    assert _read(data).labels[2] == label
+    labels = _read(data).labels
+    assert labels is not None
+    assert labels[2] == label
 
 
 _BAD = [

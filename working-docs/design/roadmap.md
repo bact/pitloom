@@ -175,8 +175,11 @@ Each found more than one bug that a per-site fix would only move.
   the build tool decides (`setup.cfg` + `setup.py` is done, #287). See
   [license-rules.md](license-rules.md#open-questions) (question 4),
   [setuptools-support.md](../implementation/setuptools-support.md#out-of-scope-follow-ups).
-- [ ] **Canonical output**: names, identifiers and key order the same for
-  the same real-world thing. See
+- [ ] **AI model corpus**: more real-world model files per format (small for
+  diversity, large for boundaries) to size and rank the caps and hardening.
+  See [ai-model-corpus.md](ai-model-corpus.md).
+- [ ] **Canonical output**: same bytes and ids for the same input, same
+  shape for the same value in every format and surface. See
   [canonical-output-followups.md](canonical-output-followups.md).
 - [ ] **No silent deviations, per surface**: non-directory targets
   (`model`, Hugging Face, `wheel`, `env`, sdist) drop configured fragments

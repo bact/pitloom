@@ -44,6 +44,7 @@ __all__ = [
     "recordable_labels",
     "settle_read_text",
     "warn_name_cut",
+    "warn_no_label",
 ]
 
 log = logging.getLogger(__name__)
@@ -174,9 +175,16 @@ def recordable_labels(labels: Sequence[str], limits: Limits) -> tuple[str, ...]:
     cap = limits.max_label_bytes
     for label in labels:
         if len(label.encode("utf-8", "surrogatepass")) > cap:
-            log.warning("a label over %d bytes; no label recorded", cap)
+            warn_no_label(f"a label over {cap} bytes")
             return ()
     return tuple(labels)
+
+
+def warn_no_label(reason: str) -> None:
+    """The one warning for a model whose labels are not recorded because
+    *reason* (a bound exceeded, one short phrase); the caller still records
+    the label count. The scanner adds the ``FORMAT=``/``FILE=`` prefix."""
+    log.warning("%s; no label recorded", reason)
 
 
 def settle_read_text(meta: AiModelMetadata, fmt: str, where: str) -> None:

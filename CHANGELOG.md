@@ -47,9 +47,12 @@ and this project adheres to
   `tf2onnx`), is named after its file, as is a `loom model` document; ids
   change ([#292])
 - ONNX: reads `model_license` and packed SemVer `model_version`; `domain` is
-  not the model type; `metadata_props` keys are prefixed ([#292])
+  not the model type; `metadata_props` keys are prefixed; NumPy dtype names;
+  initializers are not inputs; ONNX-ML has no type ([#292], [#294])
 - A licence id over 50,000 characters in a licence text no longer reads as
   a broken licence database: requires `licenseid` 0.4.3 ([#292])
+- fastText cbow/skipgram vocabulary no longer read as labels; GGUF big-endian
+  format version, non-integer `file_type`, blank version fixed ([#294])
 
 [#292]: https://github.com/bact/pitloom/pull/292
 [#294]: https://github.com/bact/pitloom/pull/294

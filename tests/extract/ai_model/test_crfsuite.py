@@ -29,13 +29,16 @@ from pitloom.core.ai_metadata import (
 from pitloom.extract.ai_model import REGISTRY, crfsuite, read_ai_model
 from pitloom.extract.ai_model.formats import Limits
 from pitloom.extract.ai_model.formats.crfsuite import CrfsuiteModel, read_crfsuite
-from pitloom.extract.ai_model.limits import MAX_MODEL_ENTRIES, ModelLimitExceeded
+from pitloom.extract.ai_model.limits import MAX_MODEL_ENTRIES
 from tests.warning_helpers import logged_warnings
 
 _FIXTURES = Path(__file__).parents[2] / "fixtures" / "aimodels" / "crfsuite"
 _COMPLETE = _FIXTURES / "complete.crfsuite"
 _MINIMAL = _FIXTURES / "minimal.model"
 _COMPLETE_LABELS = ["บุคคล", "O", "B-LOC", "I PER/x", "E-X:1"]
+# A tagger emits one label per input item: the length is symbolic, as an
+# ONNX dim_param is.
+_OUTPUTS = [{"name": "label_sequence", "shape": ["sequence_length"]}]
 
 
 @pytest.fixture(name="complete")
@@ -49,7 +52,7 @@ def _patched_header(
     """Replace the reader with one returning a model of *labels*."""
     fake: mock.MagicMock = mock.create_autospec(
         read_crfsuite,
-        return_value=CrfsuiteModel("FOMC", 100, 7, 3, labels),
+        return_value=CrfsuiteModel("FOMC", 100, 7, 3, len(labels), labels),
     )
     monkeypatch.setattr(crfsuite, "read_crfsuite_header", fake)
     return fake
@@ -77,7 +80,7 @@ def test_complete_fixture_is_read_through_read_ai_model(
         "num_features": "24",
         "num_labels": "5",
     }
-    assert complete.outputs == [{"name": "label_sequence", "shape": [5]}]
+    assert complete.outputs == _OUTPUTS
     assert complete.description == (
         "CRFsuite model with 5 labels: บุคคล, O, B-LOC, I PER/x, E-X:1"
     )
@@ -111,7 +114,7 @@ def test_provenance_cites_where_each_value_came_from(
         "format_version": f"{src} | Field: version",
         "type_of_model": f"{src} | Field: header.type | Method: crfsuite_model_type",
         "description": f"{src} | Field: labels CQDB | Method: generated_from_labels",
-        "outputs": f"{src} | Field: header.num_labels (label count)",
+        "outputs": f"{src} | Field: header.type (one label per item)",
         "properties.labels": f"{src} | Field: labels CQDB",
         "properties.model_type": f"{src} | Field: header.type",
         "properties.num_attributes": f"{src} | Field: header.num_attrs",
@@ -154,7 +157,7 @@ def test_description_names_at_most_twenty_labels(
     # only the description is cut
     assert meta.raw_metadata["labels"] == list(labels)
     assert json.loads(meta.properties["labels"]) == list(labels)
-    assert meta.outputs == [{"name": "label_sequence", "shape": [count]}]
+    assert meta.outputs == _OUTPUTS
 
 
 def test_no_labels_means_no_description_and_no_outputs(
@@ -249,14 +252,36 @@ def test_an_unreadable_file_is_a_value_error_like_the_other_readers(
         crfsuite.read_crfsuite(_directory(tmp_path))
 
 
-def test_limit_exceeded_becomes_model_limit_exceeded(
+@pytest.mark.parametrize(
+    ("limits", "reason"),
+    [
+        (Limits(max_crfsuite_labels=4), "more than 4 labels"),
+        (Limits(max_crfsuite_labels_chunk_bytes=2072), "labels CQDB over 2072 bytes"),
+    ],
+    ids=["label-count", "labels-chunk"],
+)
+def test_a_labels_bound_keeps_the_counts_and_records_no_label(
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    limits: Limits,
+    reason: str,
 ) -> None:
-    monkeypatch.setattr(crfsuite, "_LIMITS", Limits(max_crfsuite_labels=2))
-    with pytest.raises(ModelLimitExceeded, match="2 labels") as info:
-        read_ai_model(_COMPLETE)
-    assert info.value.__cause__ is None
-    assert info.value.__suppress_context__ is True  # raised `from None`
+    """Same outcome as a label over the length cap: the model is read, its
+    counts kept, no label anywhere, one warning; not a stub."""
+    monkeypatch.setattr(crfsuite, "_LIMITS", limits)
+    meta = read_ai_model(_COMPLETE)
+    assert logged_warnings(caplog) == [f"{reason}; no label recorded"]
+    assert meta.properties == {
+        "model_type": "FOMC",
+        "num_attributes": "14",
+        "num_features": "24",
+        "num_labels": "5",
+    }
+    assert "labels" not in meta.raw_metadata
+    assert meta.description is None
+    assert meta.outputs == _OUTPUTS
+    assert meta.type_of_model == "conditional random field"
+    assert not {"description", "properties.labels"} & set(meta.provenance)
 
 
 def test_the_label_cap_is_the_model_entry_cap(
@@ -308,7 +333,7 @@ def test_a_label_over_the_cap_keeps_the_counts_and_drops_the_labels(
     assert "labels" not in meta.raw_metadata
     assert meta.description is None
     assert meta.properties["num_labels"] == "2"
-    assert meta.outputs == [{"name": "label_sequence", "shape": [2]}]
+    assert meta.outputs == _OUTPUTS
     assert "properties.labels" not in meta.provenance
     assert "description" not in meta.provenance
     assert "outputs" in meta.provenance

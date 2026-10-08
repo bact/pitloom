@@ -160,9 +160,12 @@ number.
    consistency checks). Never the weights, the attribute strings or the
    `LFRF`/`AFRF` reference lists.
 4. **Labels go to the source-metadata properties and the description;
-   `outputs` has fastText's shape** (one entry, name and
-   `shape: [n_labels]`, no strings; fastText names it
-   `label_probabilities`, CRFsuite `label_sequence`).
+   `outputs` is one `label_sequence` entry, no strings,
+   `shape: ["sequence_length"]`** (revised 2026-10-08: it was
+   `[n_labels]`, copied from fastText's `label_probabilities`, which read
+   as a fixed-length output; a tagger emits one label per input item, so
+   the length is symbolic, spelt as an ONNX `dim_param` is, and the label
+   count stays in `num_labels`).
    Properties: `labels` (a JSON array: a label may contain `, `),
    `num_labels`, `num_attributes`, `num_features`, `model_type` (`FOMC`).
    fastText switches to the same JSON array first (decided 2026-10-08).
@@ -189,10 +192,13 @@ Same discipline as the other `formats/` readers:
   CRFsuite does); every offset must lie inside `size`
   and leave room for the chunk header it points to; chunk tags must match
   (`FEAT`, `CQDB`, `CQDB`).
-- `num_labels` must equal the labels CQDB's backward-array size, and both
-  stay under the entry cap; each key inside its chunk, the whole labels
-  chunk under a byte cap (no separate per-string cap); ids `0..n-1` in
-  order.
+- `num_labels` must equal the labels CQDB's backward-array size; each
+  key inside its chunk; ids `0..n-1` in order. Over the label count cap
+  or the labels-chunk byte cap (no separate per-string cap in the
+  reader), the labels chunk stays unread past its header and the model
+  is kept with its counts, no label and one `WARNING:`, as for a label
+  over 4 KiB (revised 2026-10-08: was a `LimitExceeded` stub that lost
+  the counts already read).
 - Byte-order mark other than `0x62445371` or a non-zero flag in the labels
   CQDB, a type other than `FOMC` or a version other than 100:
   `UnsupportedVersion` (stub plus one `WARNING:`), not a guess. An

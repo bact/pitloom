@@ -27,7 +27,6 @@ import pytest
 
 from pitloom.extract.ai_model.formats import (
     FormatError,
-    LimitExceeded,
     Limits,
     Malformed,
 )
@@ -37,6 +36,8 @@ _FIXTURES = Path(__file__).parents[3] / "fixtures" / "aimodels" / "crfsuite"
 _COMPLETE = (_FIXTURES / "complete.crfsuite").read_bytes()
 _MINIMAL = (_FIXTURES / "minimal.model").read_bytes()
 _LIMITS = Limits()
+# Bounds every fixture exceeds: the labels stay unread
+_TIGHT = Limits(max_crfsuite_labels=1, max_crfsuite_labels_chunk_bytes=2072)
 _BUDGET = _LIMITS.max_crfsuite_labels_chunk_bytes + 108
 _CHUNKS = ("feat", "lab", "attr", "lref", "aref")
 
@@ -56,12 +57,12 @@ class _Counting(io.BytesIO):
         return data
 
 
-def _outcome(data: bytes) -> _Outcome:
+def _outcome(data: bytes, limits: Limits = _LIMITS) -> _Outcome:
     """The model, or the class of the :class:`FormatError` raised; any other
     exception propagates. Checks the read budget either way."""
     source = _Counting(data)
     try:
-        result: _Outcome = read_crfsuite(source, _LIMITS)
+        result: _Outcome = read_crfsuite(source, limits)
     except FormatError as exc:
         result = type(exc)
     assert source.total <= _BUDGET
@@ -126,10 +127,11 @@ def test_a_misplaced_chunk_offset_is_malformed(index: int, kind: str) -> None:
         (_patched(_COMPLETE, 4, "<I", 0), Malformed, "declared size"),
         (_COMPLETE[: len(_COMPLETE) // 2], Malformed, "declared size"),
         (_MINIMAL[: len(_MINIMAL) // 2], Malformed, "declared size"),
+        # over the label cap but not the labels chunk's count: inconsistent
         (
             _patched(_COMPLETE, 20, "<I", _LIMITS.max_crfsuite_labels + 1),
-            LimitExceeded,
-            "labels",
+            Malformed,
+            "count differs",
         ),
     ],
     ids=["size-0", "half", "half-minimal", "labels-over-limit"],
@@ -181,8 +183,9 @@ def test_a_labels_cqdb_without_room_for_hash_tables_is_refused() -> None:
         read_crfsuite(io.BytesIO(data), _LIMITS)
 
 
+@pytest.mark.parametrize("limits", [_LIMITS, _TIGHT], ids=["default", "tight"])
 @pytest.mark.parametrize("data", [_COMPLETE, _MINIMAL], ids=["complete", "minimal"])
-def test_every_field_at_every_boundary_value(data: bytes) -> None:
+def test_every_field_at_every_boundary_value(data: bytes, limits: Limits) -> None:
     size = len(data)
     refused = 0
     for offset in _fields(data):
@@ -190,8 +193,10 @@ def test_every_field_at_every_boundary_value(data: bytes) -> None:
         values = {0, 1, size - 1, size, size + 1, 2**31, 2**32 - 1}
         values |= {(original - 1) & 0xFFFFFFFF, (original + 1) & 0xFFFFFFFF}
         for value in sorted(values - {original}):
-            outcome = _outcome(_patched(data, offset, "<I", value))
+            outcome = _outcome(_patched(data, offset, "<I", value), limits)
             refused += not isinstance(outcome, CrfsuiteModel)
+            if isinstance(outcome, CrfsuiteModel) and limits is _TIGHT:
+                assert outcome.labels is None
     assert refused > 0
 
 

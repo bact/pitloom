@@ -66,6 +66,7 @@ def _onnx_input(name: str) -> bytes:
 def _crfsuite_labelled(monkeypatch: pytest.MonkeyPatch, label: str) -> bytes:
     with (_CRFSUITE / "complete.crfsuite").open("rb") as handle:
         model = read_crfsuite_header(handle, Limits())
+    assert model.labels is not None
     patched = model._replace(labels=(label, *model.labels[1:]))
     monkeypatch.setattr(crfsuite, "read_crfsuite_header", lambda *_a, **_k: patched)
     return (_CRFSUITE / "complete.crfsuite").read_bytes()

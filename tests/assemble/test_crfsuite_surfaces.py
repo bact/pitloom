@@ -175,6 +175,7 @@ def test_a_label_over_the_cap_gives_the_same_one_warning_on_every_surface(
     no label reaches the SBOM, the count does."""
     with _COMPLETE.open("rb") as handle:
         model = read_crfsuite_header(handle, Limits())
+    assert model.labels is not None
     over = model._replace(labels=(*model.labels[:-1], "x" * 4097))
     monkeypatch.setattr(
         crfsuite, "read_crfsuite_header", lambda *_args, **_kwargs: over

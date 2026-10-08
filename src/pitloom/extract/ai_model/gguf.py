@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import logging
-import struct
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -38,6 +37,11 @@ _GGUF_ARCH_KEY = "general.architecture"
 _GGUF_VERSION_KEY = "general.version"
 _GGUF_FILE_TYPE_KEY = "general.file_type"
 _GGUF_LICENSE_KEY = "general.license"
+# The reader's own pseudo-field for the header version, read in the file's
+# byte order
+_GGUF_FORMAT_VERSION_KEY = "GGUF.version"
+# LlamaFileType.GUESSED: llama.cpp's "file type not stated", not a type
+_GGUF_FILE_TYPE_GUESSED = 1024
 
 # Hyperparameter key suffixes that are architecture-specific
 _GGUF_HYPERPARAM_SUFFIXES = (
@@ -67,19 +71,21 @@ def _resolve_quantization(file_type_value: Any) -> str | None:
     enum does not know is returned as the raw integer string.
 
     Args:
-        file_type_value: The raw value extracted from the ``general.file_type``
-            GGUF field (an integer or a list containing one integer).
+        file_type_value: The scalar value of the ``general.file_type``
+            GGUF field.
 
     Returns:
-        Quantization name string (e.g. ``"Q4_K_M"``) or ``None``.
+        Quantization name string (e.g. ``"Q4_K_M"``), or ``None`` for a
+        value that is no integer (a bool, a string, a float) or is
+        ``GUESSED`` (not stated). The value stays in ``properties``.
     """
-    if file_type_value is None:
+    if (
+        isinstance(file_type_value, bool)
+        or not isinstance(file_type_value, int)
+        or file_type_value == _GGUF_FILE_TYPE_GUESSED
+    ):
         return None
-
-    try:
-        int_val = int(file_type_value)
-    except (TypeError, ValueError):
-        return None
+    int_val = file_type_value
 
     try:
         # pylint: disable=import-outside-toplevel
@@ -98,20 +104,6 @@ def _resolve_quantization(file_type_value: Any) -> str | None:
     for prefix in ("MOSTLY_", "ALL_"):
         name = name.removeprefix(prefix)
     return name
-
-
-def _read_gguf_format_version(model_path: Path, source: str) -> tuple[str | None, str]:
-    """Read GGUF format version from the binary header (uint32 at offset 4)."""
-    try:
-        with model_path.open("rb") as fh:
-            fh.seek(4)
-            ver_bytes = fh.read(4)
-        if len(ver_bytes) == 4:
-            format_version = str(struct.unpack("<I", ver_bytes)[0])
-            return format_version, f"{source} | Field: GGUF header version (bytes 4-7)"
-    except OSError:
-        pass
-    return None, ""
 
 
 def _type_name(gguf_type: Any) -> str:
@@ -256,9 +248,8 @@ def _extract_gguf_core_fields(
         architecture = value_text(fields[_GGUF_ARCH_KEY])
         provenance["architecture"] = f"{source} | Field: {_GGUF_ARCH_KEY}"
 
-    version: str | None = None
-    if _GGUF_VERSION_KEY in fields and fields[_GGUF_VERSION_KEY] is not None:
-        version = value_text(fields[_GGUF_VERSION_KEY])
+    version = _stated_text(fields.get(_GGUF_VERSION_KEY), scalar=True)
+    if version:
         provenance["version"] = f"{source} | Field: {_GGUF_VERSION_KEY}"
 
     quantization: str | None = None
@@ -270,12 +261,26 @@ def _extract_gguf_core_fields(
     return name, description, architecture, version, quantization
 
 
+def _stated_text(value: Any, *, scalar: bool = False) -> str | None:
+    """*value* stripped, or ``None`` when absent or blank. Only a string
+    counts, unless *scalar*: then a number is its text too (a version may
+    be written as one). A bool never counts."""
+    if isinstance(value, str):
+        text = value.strip()
+    elif scalar and isinstance(value, (int, float)) and not isinstance(value, bool):
+        text = value_text(value)
+    else:
+        return None
+    return text or None
+
+
 def _read_gguf_license(
     fields: dict[str, Any], source: str, provenance: dict[str, str]
 ) -> str | None:
-    """Return ``general.license`` (an SPDX expression by the GGUF spec), if set."""
-    value = fields.get(_GGUF_LICENSE_KEY)
-    license_expr = value_text(value).strip() if value is not None else ""
+    """Return ``general.license`` (an SPDX expression by the GGUF spec), if
+    it is a non-blank string; a value of another type stays in
+    ``properties`` only."""
+    license_expr = _stated_text(fields.get(_GGUF_LICENSE_KEY))
     if not license_expr:
         return None
     provenance["license"] = f"{source} | Field: {_GGUF_LICENSE_KEY}"
@@ -377,10 +382,10 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
     """
     fields, raw_metadata, derived = _load_fields(model_path)
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
-    format_version, prov_ver = _read_gguf_format_version(model_path, source)
     provenance: dict[str, str] = {}
+    format_version = _stated_text(fields.get(_GGUF_FORMAT_VERSION_KEY), scalar=True)
     if format_version:
-        provenance["format_version"] = prov_ver
+        provenance["format_version"] = f"{source} | Field: {_GGUF_FORMAT_VERSION_KEY}"
 
     (
         name,

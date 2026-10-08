@@ -10,7 +10,9 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [roadmap.md](roadmap.md),
 [id-registry-v3.md](id-registry-v3.md),
-[id-registry-followups.md](id-registry-followups.md).
+[id-registry-followups.md](id-registry-followups.md),
+[canonical-output-followups.md](canonical-output-followups.md) (open
+canonicalisation questions behind several bugs here).
 
 Bugs found up to #286, each reproduced on `main` unless marked
 otherwise. Features and design work stay in the roadmap. A fixed item
@@ -388,7 +390,9 @@ Crashes, broken contracts and small mappings.
   a shipped model skips the artifact-metadata annotation under
   `preserve-source-metadata=auto`, so the values (e.g. CRFsuite labels
   beyond the 20 in the description) appear nowhere. Either emit them or
-  drop their provenance.
+  drop their provenance. Repro: `loom project` (or `loom wheel`, auto mode)
+  on pythainlp gives 8 `ai_AIPackage` and 0 artifact-metadata annotations,
+  while each `fields` provenance still cites `properties.*`.
 - [ ] **`loom model` on a 100-byte truncated `lid.176.ftz` ran to about
   20 GB RSS (S).** Native fastText reader on a hostile header, found in the
   CRFsuite review; the metadata-only fastText reader in
@@ -463,11 +467,58 @@ Crashes, broken contracts and small mappings.
 - [ ] **Safetensors tensor names are recorded as `inputs` (S).** The reader
   calls it a "lightweight inventory"; `ai_informationAboutApplication`
   inputs mean model inputs. Check this is intended (the PT2 `model.json`
-  graph names are the same kind of stand-in).
+  graph names are the same kind of stand-in). Same class: PT2 lists lifted
+  parameters as inputs (below); ONNX initializers were fixed in #294.
 - [ ] **ONNX loads the whole protobuf into memory (M).** `onnx.load(...,
   load_external_data=False)` still parses every graph node. fastText's full
   load is logged above; both go with the metadata-only readers in
   [model-metadata-readers.md](model-metadata-readers.md).
+
+- [ ] **Model dtype vocabularies differ across formats (S-M).** Found in
+  #294: ONNX and NumPy write NumPy names (`float32`), Safetensors its own
+  (`F32`, `BF16`). Pick one vocabulary for `inputs`/`outputs` `dtype`.
+- [ ] **GGUF licence `other` and comma lists (S, needs a decision).**
+  `general.license` `other` ignores `.license.name`/`.link` (logged above);
+  `apache-2.0,mit` becomes a `SimpleLicensingText` of the raw string. Decide:
+  a `LicenseRef` from `.name`; a comma list as `AND` or `OR`.
+- [ ] **GGUF hyperparameter suffixes incomplete (S).** Not matched:
+  `.attention.layer_norm_epsilon`, `.expert_count`, `.expert_used_count`,
+  `.rope.scaling.*`; they land in properties.
+- [ ] **One invalid UTF-8 GGUF string fails the whole file (S).**
+  `_field_value` decodes strictly; the `UnicodeDecodeError` (a `ValueError`)
+  becomes "Failed to read GGUF file". Decode with replacement, one `WARNING:`.
+- [ ] **GGUF `general.license` with a zero-width character (S).** `strip()`
+  keeps U+200B; the licence is display-escaped, so harmless, but not trimmed.
+- [ ] **PT2 lists lifted parameters as inputs; framework `executorch` (S).**
+  `example-model.pt2` (`archive_format` `pt2`: a `torch.export` archive, not
+  an ExecuTorch `.pte`) gives inputs `p_line_weight`, `p_line_bias`, `x`;
+  `signature.input_specs` marks only `x` as `user_input`. Read user inputs
+  only, framework `pytorch` with `torch_version` (`2.11.0`, unread). The
+  fixture's `details/pytorch-pt2.md` claims `inputs` = `[x]`.
+- [ ] **Safetensors name and framework (S).** `ss_base_model_version` (the
+  base model, not this one) is a name candidate; prefer `ss_output_name`.
+  Framework is the raw `format` value `pt`, not `pytorch`.
+- [ ] **Keras `layer_count` counts `InputLayer` (S).** `len(layers)` in
+  `hdf5_config.py`; Keras's own summary does not count it.
+- [ ] **Type of model holds a class or training mode (S).** PyTorch
+  `OrderedDict` (a state dict) and fastText `supervised`/`cbow`/`skipgram`
+  reach `ai_typeOfModel`; neither is a model type. Map or drop.
+- [ ] **`software_primaryPurpose` never set on `ai_AIPackage` (S).**
+  Documented as fragment-only; decide whether a model gets `model` by default.
+- [ ] **Quantised fastText (`.ftz`) leaves `quantization` empty (S).**
+  `args.qout`/the quantised state is never read.
+- [ ] **CRFsuite description ambiguous; hash-table offset 0 (S).** Empty,
+  comma or backslash labels read ambiguously in `CRFsuite model with N
+  labels: a, b` (quote them). `_check_hash_tables` skips a table with offset
+  0 even when its count is non-zero.
+- [ ] **AI model usage hint names CLI flags in library messages (S).**
+  `_USAGE_HINT` (`extract/scanner.py`) says `pass --scan-model-usage` from
+  `generate_project_sbom()` and the hook too; the setting text differs per
+  producer. Word it per surface through one helper.
+- [ ] **Unreadable model handling differs by case (S).** A truncated
+  `.crfsuite` or `.onnx` exits 0 with a `WARNING:`; an empty `.model`
+  exits 1 with `ERROR: ... not an AI model file`. The ONNX warning repeats
+  itself: `failed to extract metadata; Failed to load ONNX model from <path>`.
 
 ## Leads to verify
 

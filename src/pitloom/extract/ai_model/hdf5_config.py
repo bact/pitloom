@@ -262,11 +262,12 @@ def _read_model_config(model_config: dict[str, Any], done: _Progress) -> None:
     done.lost.remove("type_of_model")
 
     config = _member_object(model_config, "config", "model_config.config")
-    done.name = _member_text(config, "name", "model_config.config.name") or (
-        _member_text(config, "model_name", "model_config.config.model_name")
-    )
-    if done.name:
-        provenance["name"] = f"{source} | Field: model_config.config.name"
+    for key in ("name", "model_name"):
+        name_field = f"model_config.config.{key}"
+        done.name = _member_text(config, key, name_field)
+        if done.name:
+            provenance["name"] = f"{source} | Field: {name_field}"
+            break
     done.lost.remove("name")
 
     # Layers are recorded before the hyperparameters, as SBOM output has always

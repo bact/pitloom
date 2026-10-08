@@ -87,7 +87,12 @@ def _extract_fasttext_args(
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         msg = "Failed to read fastText model.f.getArgs(): %s" + field_loss_suffix(
-            "skipped", "hyperparameters", "properties.lossName", "type_of_model"
+            "skipped",
+            "hyperparameters",
+            "properties.lossName",
+            "type_of_model",
+            "properties.labels",
+            "outputs",
         )
         log.warning(msg, loggable(str(exc)))
         return hyperparameters, properties, type_of_model
@@ -136,7 +141,10 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
     binding at ``model.f.getArgs()``.  This extractor reads all available
     training hyperparameters and maps them to the SPDX 3 AI profile
     ``hyperparameter`` field.  The model type (``skipgram``, ``cbow``, or
-    ``supervised``) is mapped to ``type_of_model``.
+    ``supervised``) is mapped to ``type_of_model``.  Labels, ``outputs``
+    and the ``text classification`` domain are read for a ``supervised``
+    model only: an unsupervised model's ``get_labels()`` is its word
+    vocabulary.
 
     Extracted hyperparameters: dim, lr, epoch, wordNgrams, minCount,
     minCountLabel, minn, maxn, neg, bucket, ws (window size).
@@ -154,12 +162,17 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
     model = _load_fasttext_model(model_path)
 
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
-    # Since fastText is a text classification and word embedding library,
-    # we will assume the domains.
-    domain: list[str] = ["text classification", "natural language processing"]
     provenance: dict[str, str] = {}
     hyperparameters, args_properties, type_of_model = _extract_fasttext_args(model)
-    read_labels = _extract_fasttext_labels(model)
+    # Only a supervised model is a classifier with labels: on a cbow or
+    # skipgram model get_labels() returns the word vocabulary (training
+    # text), so it is never called there.
+    supervised = type_of_model == "supervised"
+    read_labels = _extract_fasttext_labels(model) if supervised else []
+    # fastText is a text library; a supervised model classifies text.
+    domain = ["natural language processing"]
+    if supervised:
+        domain.insert(0, "text classification")
     labels = list(recordable_labels(read_labels, _LIMITS))
     properties: dict[str, str] = {}
     collections: dict[str, list[str]] = {}

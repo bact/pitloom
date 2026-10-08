@@ -59,14 +59,43 @@ _PATCH_MASK = 0xFFFF_FFFF
 _UINT64_MASK = 0xFFFF_FFFF_FFFF_FFFF
 
 
-def _onnx_tensor_specs(value_infos: Any) -> list[dict[str, Any]]:
-    """Convert ONNX ValueInfoProto list to plain dicts."""
+# TensorProto element type names that differ from NumPy's dtype name; every
+# other name, lowercased, is NumPy's (int64, bool, float16, complex64) or,
+# for a type NumPy lacks (bfloat16, string, float8e4m3fn), ONNX's own.
+_NUMPY_DTYPE_NAMES = {"FLOAT": "float32", "DOUBLE": "float64"}
+
+# Opset domain of the ONNX-ML operators (trees, linear models, SVMs, ...)
+_ONNX_ML_DOMAIN = "ai.onnx.ml"
+
+
+def _dtype_name(elem_type: int, type_names: Any) -> str | None:
+    """The NumPy-style name of an ONNX ``TensorProto.DataType`` value, from
+    the enum's own names (*type_names*: ``TensorProto.DataType``), so the
+    same file reads the same under every ``onnx`` version. ``None`` for
+    ``UNDEFINED`` or a value the enum does not know."""
+    try:
+        name = str(type_names.Name(elem_type))
+    except ValueError:
+        return None
+    if name == "UNDEFINED":
+        return None
+    return _NUMPY_DTYPE_NAMES.get(name, name.lower())
+
+
+def _onnx_tensor_specs(
+    value_infos: Any, type_names: Any, skip: frozenset[str] = frozenset()
+) -> list[dict[str, Any]]:
+    """Convert ONNX ValueInfoProto list to plain dicts, leaving out the
+    names in *skip*."""
     specs = []
     for vi in value_infos:
+        if vi.name in skip:
+            continue
         spec: dict[str, Any] = {"name": vi.name}
         tensor_type = vi.type.tensor_type
-        if tensor_type.HasField("elem_type"):
-            spec["dtype"] = tensor_type.elem_type
+        dtype = _dtype_name(tensor_type.elem_type, type_names)
+        if dtype is not None:
+            spec["dtype"] = dtype
         shape = tensor_type.shape
         if shape:
             dims = []
@@ -145,6 +174,23 @@ def _resolve_onnx_name(
     return name
 
 
+def _initializer_names(graph: Any) -> frozenset[str]:
+    """Names of a graph's weights (dense and sparse initializers): an IR
+    version 3 graph also lists them in ``graph.input``."""
+    names = {tensor.name for tensor in graph.initializer}
+    names.update(sparse.values.name for sparse in graph.sparse_initializer)
+    return frozenset(names)
+
+
+def _onnx_type_of_model(model: Any) -> str | None:
+    """``"neural network"``, unless an opset import is the ONNX-ML domain:
+    such a model may be a tree ensemble, a linear model or an SVM, which
+    the file does not say, so the type is left unset."""
+    if any(opset.domain == _ONNX_ML_DOMAIN for opset in model.opset_import):
+        return None
+    return "neural network"
+
+
 def _decode_model_version(value: int) -> tuple[str, bool]:
     """Return ``(version, is_semver)`` for an ONNX ``model_version``.
 
@@ -182,7 +228,10 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
     ``license`` is the standard ``model_license`` metadata property.
     ``version`` is ``model_version``, decoded to ``MAJOR.MINOR.PATCH`` when
     its upper 32 bits are non-zero (bit-packed SemVer). ``type_of_model`` is
-    always ``"neural network"``; ``domain`` is kept in ``properties`` only.
+    ``"neural network"``, unset when the model imports the ``ai.onnx.ml``
+    opset; ``domain`` is kept in ``properties`` only. ``inputs`` and
+    ``outputs`` give each tensor's NumPy-style ``dtype`` name; ``inputs``
+    leaves out the initializers an IR version 3 graph lists as inputs.
     ``properties`` holds ``domain``, ``opset.<domain>`` and every
     ``metadata_props`` entry as ``metadata_props.<key>``.
 
@@ -239,13 +288,14 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
     properties, natives = _extract_onnx_properties(model, source, provenance)
     license_expr = _resolve_onnx_license(properties, source, provenance)
 
-    # Input tensor specifications
-    inputs = _onnx_tensor_specs(model.graph.input)
+    type_names = onnx.TensorProto.DataType
+    inputs = _onnx_tensor_specs(
+        model.graph.input, type_names, _initializer_names(model.graph)
+    )
     if inputs:
         provenance["inputs"] = f"{source} | Field: graph.input"
 
-    # Output tensor specifications
-    outputs = _onnx_tensor_specs(model.graph.output)
+    outputs = _onnx_tensor_specs(model.graph.output, type_names)
     if outputs:
         provenance["outputs"] = f"{source} | Field: graph.output"
 
@@ -263,7 +313,7 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
         license=license_expr,
         # ONNX has no model-type field. ``domain`` is the owner's reverse-DNS
         # namespace (``org.onnx``), not a type; it stays in ``properties``.
-        type_of_model="neural network",
+        type_of_model=_onnx_type_of_model(model),
         properties=properties,
         **source_metadata(properties, natives),
         inputs=inputs,

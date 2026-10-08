@@ -157,6 +157,26 @@ def test_parse_model_config_no_name_skips_name_provenance() -> None:
     assert "name" not in provenance
 
 
+@pytest.mark.parametrize(
+    ("config", "field"),
+    [
+        ({"name": "m", "model_name": "other"}, "name"),
+        ({"model_name": "m"}, "model_name"),
+        ({"name": "", "model_name": "m"}, "model_name"),
+    ],
+    ids=["name", "model-name", "blank-name"],
+)
+def test_parse_model_config_name_provenance_cites_its_field(
+    config: dict[str, str], field: str
+) -> None:
+    """Regression: a name from ``model_name`` was cited as ``config.name``."""
+    provenance: dict[str, str] = {}
+    raw = _json.dumps({"class_name": "Sequential", "config": config})
+    _, name, _ = parse_model_config(raw, "Source: m.h5", {}, [], {}, provenance)
+    assert name == "m"
+    assert provenance["name"] == f"Source: m.h5 | Field: model_config.config.{field}"
+
+
 def test_parse_model_config_config_not_a_dict_is_a_problem() -> None:
     # A malformed model_config where "config" isn't a dict must not raise:
     # what was read before it is kept and the problem is returned.

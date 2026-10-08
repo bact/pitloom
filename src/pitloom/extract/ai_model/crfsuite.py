@@ -27,11 +27,11 @@ from pitloom.core.ai_metadata import (
 )
 from pitloom.core.canonical_json import canonical_json
 from pitloom.extract._extract_utils import sanitize_provenance_text
-from pitloom.extract.ai_model.formats import FormatError, LimitExceeded, Limits
+from pitloom.extract.ai_model.formats import FormatError, Limits
 from pitloom.extract.ai_model.formats.crfsuite import (
     read_crfsuite as read_crfsuite_header,
 )
-from pitloom.extract.ai_model.limits import ModelLimitExceeded, recordable_labels
+from pitloom.extract.ai_model.limits import recordable_labels, warn_no_label
 
 _LIMITS = Limits(max_crfsuite_labels=MAX_MODEL_ENTRIES)
 
@@ -75,7 +75,12 @@ def read_crfsuite(model_path: Path) -> AiModelMetadata:
 
     Reads the header and the label strings only: never the feature weights
     or the attribute strings (training-text features). The file carries no
-    name, version or licence.
+    name, version or licence. A model over a labels bound (count, chunk
+    size, one label's length) keeps its counts but records no label, with
+    one warning.
+
+    ``outputs`` is one ``label_sequence`` of symbolic length
+    ``sequence_length``: a tagger emits one label per input item.
 
     Args:
         model_path: Path to a CRFsuite model (``.crfsuite``, or ``.model``).
@@ -84,26 +89,26 @@ def read_crfsuite(model_path: Path) -> AiModelMetadata:
         AiModelMetadata with available fields populated.
 
     Raises:
-        pitloom.extract.ai_model.limits.ModelLimitExceeded: The model holds
-            more labels, or a larger labels chunk, than the bounds allow.
         ValueError: The file cannot be read as a CRFsuite model.
     """
     try:
         with model_path.open("rb") as handle:
             model = read_crfsuite_header(handle, _LIMITS)
-    except LimitExceeded as exc:
-        raise ModelLimitExceeded(exc.reason) from None
     except FormatError as exc:
         raise ValueError(f"not a readable CRFsuite model: {exc.reason}") from exc
     except OSError as exc:
         raise ValueError(f"Failed to read CRFsuite file {model_path}: {exc}") from exc
 
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
-    count = len(model.labels)
-    labels = recordable_labels(model.labels, _LIMITS)
+    count = model.num_labels
+    labels: tuple[str, ...] = ()
+    if model.labels is None:
+        warn_no_label(model.labels_unread or "labels unread")
+    else:
+        labels = recordable_labels(model.labels, _LIMITS)
     properties: dict[str, str] = {}
     natives: dict[str, Any] = {}
-    if len(labels) == count:  # recordable_labels skipped none
+    if model.labels is not None and len(labels) == count:  # none skipped
         properties["labels"] = canonical_json(list(labels))
         natives["labels"] = labels
     properties["model_type"] = model.model_type
@@ -130,8 +135,10 @@ def read_crfsuite(model_path: Path) -> AiModelMetadata:
             f"{source} | Field: labels CQDB | Method: generated_from_labels"
         )
     if count:
-        provenance["outputs"] = f"{source} | Field: header.num_labels (label count)"
-        outputs = [{"name": "label_sequence", "shape": [count]}]
+        # One label per input item: the length is the input's, not the
+        # label count (that is properties.num_labels).
+        provenance["outputs"] = f"{source} | Field: header.type (one label per item)"
+        outputs = [{"name": "label_sequence", "shape": ["sequence_length"]}]
 
     return AiModelMetadata(
         format_info=AiModelFormatInfo(

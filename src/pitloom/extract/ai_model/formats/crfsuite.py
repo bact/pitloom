@@ -12,7 +12,8 @@ is a 48-byte little-endian header and five chunks in a fixed order:
 :func:`read_crfsuite` reads the header, the chunk headers, and the labels
 database whole under :attr:`Limits.max_crfsuite_labels_chunk_bytes`. It never
 reads the weights, the attribute strings (training-text features) or the
-reference lists.
+reference lists. A model over a labels bound is still read, without its
+label strings: the counts and the type are known from the headers.
 
 CRFsuite itself checks almost none of this; every bound here is the
 reader's own. ``CQDB`` offsets are relative to the start of their chunk,
@@ -27,7 +28,7 @@ import os
 import struct
 from typing import IO, NamedTuple
 
-from ._errors import LimitExceeded, Malformed, UnsupportedVersion
+from ._errors import Malformed, UnsupportedVersion
 from ._limits import Limits
 
 _HEADER = struct.Struct("<4sI4sIIIIIIIII")
@@ -53,16 +54,22 @@ class CrfsuiteModel(NamedTuple):
         num_features: The ``FEAT`` chunk's count; the header's own
             ``num_features`` is never set by CRFsuite.
         num_attributes: How many attribute strings the model holds.
+        num_labels: How many labels the model holds.
         labels: The label strings, in id order (the training's first-seen
             order). Bytes before the first NUL, decoded as UTF-8 with
-            ``backslashreplace``.
+            ``backslashreplace``. ``None`` when a labels bound kept them
+            unread.
+        labels_unread: Why the labels were not read (the bound exceeded,
+            one short phrase), or ``None`` when they were.
     """
 
     model_type: str
     version: int
     num_features: int
     num_attributes: int
-    labels: tuple[str, ...]
+    num_labels: int
+    labels: tuple[str, ...] | None
+    labels_unread: str | None = None
 
 
 class _Header(NamedTuple):
@@ -91,9 +98,12 @@ def read_crfsuite(source: IO[bytes], limits: Limits) -> CrfsuiteModel:
     ``limits.max_crfsuite_labels_chunk_bytes + 108`` bytes. Bytes past the
     header's ``size`` are ignored.
 
+    More labels than :attr:`Limits.max_crfsuite_labels`, or a labels chunk
+    over :attr:`Limits.max_crfsuite_labels_chunk_bytes`, leaves the labels
+    chunk unread past its header: ``labels`` is ``None`` and
+    ``labels_unread`` says which bound. Every other check still applies.
+
     Raises:
-        LimitExceeded: More labels than :attr:`Limits.max_crfsuite_labels`,
-            or a labels chunk over :attr:`Limits.max_crfsuite_labels_chunk_bytes`.
         Malformed: Truncated, a wrong magic or chunk tag, or sizes,
             offsets or records inconsistent with each other.
         UnsupportedVersion: A model type other than ``FOMC``, a version
@@ -102,13 +112,17 @@ def read_crfsuite(source: IO[bytes], limits: Limits) -> CrfsuiteModel:
     """
     header = _read_header(source)
     num_features = _read_feature_count(source, header)
-    if header.num_labels > limits.max_crfsuite_labels:
-        raise LimitExceeded(f"more than {limits.max_crfsuite_labels} labels")
-    labels = _read_labels(source, header, limits)
+    labels, unread = _read_labels(source, header, limits)
     _check_attributes(source, header)
     _check_references(source, header)
     return CrfsuiteModel(
-        _TYPE.decode("ascii"), _VERSION, num_features, header.num_attrs, labels
+        _TYPE.decode("ascii"),
+        _VERSION,
+        num_features,
+        header.num_attrs,
+        header.num_labels,
+        labels,
+        unread,
     )
 
 
@@ -172,8 +186,14 @@ def _read_feature_count(source: IO[bytes], header: _Header) -> int:
     return int(num)
 
 
-def _read_labels(source: IO[bytes], header: _Header, limits: Limits) -> tuple[str, ...]:
-    """Checks 8 to 11: the labels ``CQDB``, read whole once bounded."""
+def _read_labels(
+    source: IO[bytes], header: _Header, limits: Limits
+) -> tuple[tuple[str, ...] | None, str | None]:
+    """Checks 8 to 11: the labels ``CQDB``, read whole once bounded.
+
+    Returns ``(labels, None)``, or ``(None, reason)`` with the chunk's
+    header checked but the chunk unread when a bound is exceeded.
+    """
     raw = _read_exact(source, header.off_labels, _CQDB.size)
     tag, size, flag, byteorder, bwd_size, bwd_offset = _CQDB.unpack(raw)
     if tag != b"CQDB":
@@ -184,15 +204,16 @@ def _read_labels(source: IO[bytes], header: _Header, limits: Limits) -> tuple[st
         raise UnsupportedVersion(f"labels CQDB flag {flag}")
     if not _CQDB_DATA_START <= size <= header.off_attrs - header.off_labels:
         raise Malformed("labels CQDB size outside its chunk")
-    if size > limits.max_crfsuite_labels_chunk_bytes:
-        raise LimitExceeded(
-            f"labels CQDB over {limits.max_crfsuite_labels_chunk_bytes} bytes"
-        )
     cqdb = _Cqdb(size, bwd_size, bwd_offset)
     _check_backward_array(cqdb, header.num_labels, "labels")
+    if header.num_labels > limits.max_crfsuite_labels:
+        return None, f"more than {limits.max_crfsuite_labels} labels"
+    if size > limits.max_crfsuite_labels_chunk_bytes:
+        return None, f"labels CQDB over {limits.max_crfsuite_labels_chunk_bytes} bytes"
     chunk = raw + _read_exact(source, header.off_labels + _CQDB.size, size - _CQDB.size)
     _check_hash_tables(chunk, cqdb)
-    return tuple(_decode_label(chunk, cqdb, i) for i in range(header.num_labels))
+    labels = tuple(_decode_label(chunk, cqdb, i) for i in range(header.num_labels))
+    return labels, None
 
 
 def _check_backward_array(cqdb: _Cqdb, count: int, what: str) -> None:

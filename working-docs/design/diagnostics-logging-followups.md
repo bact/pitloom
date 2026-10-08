@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -37,11 +37,9 @@ file-size guidance -- moved verbatim, no content changed.
   [config-sources.md](../implementation/config-sources.md); remaining
   open gap in
   [cli-shared-options-ignored.md](cli-shared-options-ignored.md).
-- [ ] **Canonical output follow-ups** -- name comparison across types;
-  key-order audit of project-metadata sources. Sorted keys, UTC `Z`, LF and
-  percent-encoded names in ids (an AI model name with a space gave an invalid
-  IRI) are built.
-  See [canonical-output-followups.md](canonical-output-followups.md).
+- [ ] **Canonical output follow-ups** -- name comparison and
+  normalisation, key and list order, escape and line-ending scope, pretty
+  mode. See [canonical-output-followups.md](canonical-output-followups.md).
 - [x] **`enrich` and `merge` stdout is not `KEY=VALUE`** -- fixed: every
   command's stdout is `KEY=VALUE` data lines only, through
   `pitloom.cli.kv_output.print_kv()`; counts, hints and `-v` are `INFO:` on

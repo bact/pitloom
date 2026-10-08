@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,7 +16,8 @@ Summarised in [roadmap.md](roadmap.md) as one bullet linking here.
 See also: [archive-member-names.md](../implementation/archive-member-names.md)
 (what PR #251 built and why),
 [allow-build-followups.md](allow-build-followups.md) (other `--allow-build`
-gaps).
+gaps), [canonical-output-followups.md](canonical-output-followups.md) (name
+comparison and Unicode normalisation in SBOM output).
 
 ## 1. `--allow-build` extraction depends on the filesystem
 

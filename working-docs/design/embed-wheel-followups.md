@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -80,11 +80,5 @@ from the roadmap on 2026-10-05. Each was found in the PR named in it.
   with a plain model name on the pre-#253 code. Identity schemes:
   [sbom-enrichment.md](sbom-enrichment.md). Found reviewing PR #253.
 - [ ] **Resolve "now" once per batch in multi-wheel `embed-wheel`** --
-  the CLI resolves `CreationMetadata` once per batch but leaves
-  `creation_datetime` unset, so each wheel calls `now()` for its own
-  `created`: two SBOMs from one command can differ by a second. Leaning:
-  read `now` once, only when neither `creation-datetime` nor
-  `SOURCE_DATE_EPOCH` is set, on both the CLI and the library
-  `file_cache=` path. Still open: `_embed_wheel.py`'s ZIP entry timestamp
-  also calls `now()`; should it share the batch's value? Found de-flaking
-  PR #230.
+  two SBOMs from one command can differ by a second in `created`. See
+  [canonical-output-followups.md](canonical-output-followups.md#c8-one-now-per-embed-wheel-batch).

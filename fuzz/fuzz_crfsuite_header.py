@@ -10,7 +10,9 @@ untrusted-input boundary: it parses the header, chunk headers and labels
 string database of a CRFsuite model file a user points ``loom model`` or
 ``loom generate`` at. Its documented error contract is
 ``pitloom.extract.ai_model.formats.FormatError`` (``Malformed``,
-``UnsupportedVersion``, ``LimitExceeded``), which this harness swallows.
+``UnsupportedVersion``), which this harness swallows. Each input runs
+under the default bounds and under bounds every input exceeds, so the
+path that leaves the labels unread is fuzzed too.
 Anything else escaping ``_run_one`` (``struct.error``, ``IndexError``,
 ``UnicodeDecodeError``, ``MemoryError``, ...) is a bug, as is a read past
 ``max_crfsuite_labels_chunk_bytes + 108`` bytes.
@@ -37,6 +39,7 @@ from pitloom.extract.ai_model.formats import (  # noqa: E402
 from pitloom.extract.ai_model.formats.crfsuite import read_crfsuite  # noqa: E402
 
 _LIMITS = Limits()
+_TIGHT = Limits(max_crfsuite_labels=1, max_crfsuite_labels_chunk_bytes=2072)
 _BUDGET = _LIMITS.max_crfsuite_labels_chunk_bytes + 108
 
 
@@ -55,13 +58,14 @@ class _Counting(io.BytesIO):
 
 def _run_one(data: bytes) -> None:
     """Feed fuzzer bytes to the reader and check its read budget."""
-    source = _Counting(data)
-    try:
-        read_crfsuite(source, _LIMITS)
-    except FormatError:
-        pass  # Expected: the reader's documented error contract.
-    if source.total > _BUDGET:
-        raise RuntimeError(f"read {source.total} bytes, budget {_BUDGET}")
+    for limits in (_LIMITS, _TIGHT):
+        source = _Counting(data)
+        try:
+            read_crfsuite(source, limits)
+        except FormatError:
+            pass  # Expected: the reader's documented error contract.
+        if source.total > _BUDGET:
+            raise RuntimeError(f"read {source.total} bytes, budget {_BUDGET}")
 
 
 # atheris/libFuzzer entrypoint name:

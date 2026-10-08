@@ -414,8 +414,10 @@ leaning (2026-10-04).
    ([provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md)).
 10. **Text equivalence.** CRLF and LF texts are two elements. Leaning:
     normalise inner CRLF/CR to LF (line endings are encoding, not
-    content), everything else inner kept as written. A licence `name`
-    keeps a trailing `\r` or spaces of the text's first line. A
+    content), everything else inner kept as written. Line endings in
+    every text value, not only licences:
+    [canonical-output-followups.md](canonical-output-followups.md#c7-inner-line-endings-in-text-values).
+    A licence `name` keeps a trailing `\r` or spaces of the text's first line. A
     classifier with a trailing space is read as a name on every surface
     but `setup.cfg` (which strips), so `"License :: OSI Approved "` is
     recorded as the licence `OSI Approved`; one with a leading space is

@@ -26,8 +26,7 @@ from pitloom.extract.ai_model.onnx import read_onnx
 
 _ONNX = Path(__file__).parent.parent.parent / "fixtures" / "aimodels" / "onnx"
 
-# ONNX elem_type 1 = FLOAT  (TensorProto.FLOAT)
-_ONNX_FLOAT = 1
+_ONNX_FLOAT = "float32"  # TensorProto.FLOAT, by its NumPy name
 
 
 # ---------------------------------------------------------------------------
@@ -189,10 +188,10 @@ def test_inception_v2_opset(inception_v2_metadata: AiModelMetadata) -> None:
 
 
 def test_inception_v2_data_input(inception_v2_metadata: AiModelMetadata) -> None:
-    # First input is the image tensor; remaining inputs are weight initializers
-    # (older ONNX format included initializers in graph.input)
+    # IR version 3 lists the 486 weight initializers in graph.input too;
+    # they are not inputs
     inputs = inception_v2_metadata.inputs
-    assert len(inputs) > 1  # data + weight initializers
+    assert len(inputs) == 1
     data_in = inputs[0]
     assert data_in["name"] == "data_0"
     assert data_in["dtype"] == _ONNX_FLOAT
@@ -327,7 +326,7 @@ def test_onnx_integration_no_domain_property(
 def test_onnx_integration_inputs(squeezenet_metadata: AiModelMetadata) -> None:
     # First input is the image tensor 'data' with shape [1, 3, 224, 224]
     inputs = squeezenet_metadata.inputs
-    assert len(inputs) > 0
+    assert len(inputs) == 1  # the 53 initializers in graph.input are left out
     data_input = inputs[0]
     assert data_input["name"] == "data"
     assert data_input["dtype"] == _ONNX_FLOAT
