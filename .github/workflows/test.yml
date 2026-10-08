@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   test:
-    name: Test on Python ${{ matrix.python-version }} (${{ matrix.os }}${{ matrix.runner-temp && ', TEMP on RUNNER_TEMP' || '' }})
+    name: Test on Python ${{ matrix.python-version }} (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -34,12 +34,6 @@ jobs:
             python-version: "3.10"
           - os: windows-latest
             python-version: "3.11"
-          # Measurement, temporary: the same Windows leg with TMP/TEMP (and
-          # so pytest's basetemp) on RUNNER_TEMP (D:, the checkout's drive)
-          # instead of the default C:\Users\...\Temp. Remove once compared.
-          - os: windows-latest
-            python-version: "3.11"
-            runner-temp: true
           - os: macos-latest
             python-version: "3.13"
           - os: ubuntu-latest
@@ -80,11 +74,12 @@ jobs:
         run: licenseid update
 
       - name: Run tests
-        env:
-          RUNNER_TEMP_AS_TMP: ${{ matrix.runner-temp }}
+        # Windows: TMP/TEMP (and so pytest's basetemp and every subprocess's
+        # temp files) on RUNNER_TEMP, the checkout's D: drive, instead of
+        # C:\Users\RUNNER~1\...\Temp; file-heavy tests ran faster there.
         # --junitxml: every test's time, for comparing legs (artifact below).
         run: |
-          if [ "$RUNNER_TEMP_AS_TMP" = "true" ]; then
+          if [ "$RUNNER_OS" = "Windows" ]; then
             export TMP="$RUNNER_TEMP" TEMP="$RUNNER_TEMP"
           fi
           if [ "${{ matrix.coverage }}" == "true" ]; then
@@ -102,7 +97,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: pytest-junit-${{ matrix.os }}-py${{ matrix.python-version }}${{ matrix.runner-temp && '-runner-temp' || '' }}
+          name: pytest-junit-${{ matrix.os }}-py${{ matrix.python-version }}
           path: pytest-junit.xml
           retention-days: 14
 
