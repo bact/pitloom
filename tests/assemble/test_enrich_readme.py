@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from pitloom import __main__
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.enrich_config import EnrichConfig
@@ -246,3 +247,40 @@ def test_enricher_protocol_raises_not_implemented(tmp_path: Path) -> None:
     """Enricher.enrich raises NotImplementedError when invoked directly."""
     with pytest.raises(NotImplementedError):
         Enricher.enrich(None, None, model_dir=tmp_path)  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# Untrusted exception text on stderr
+# ---------------------------------------------------------------------------
+
+
+def _stderr_lines(capfd: pytest.CaptureFixture[str], argv: list[str]) -> list[str]:
+    with patch("sys.argv", ["loom", *argv]):
+        assert __main__.main() == 0
+    return capfd.readouterr().err.splitlines()
+
+
+@pytest.mark.parametrize("failure", ["frontmatter", "enricher"])
+def test_an_exception_quoting_untrusted_text_is_one_tagged_line(
+    failure: str, tmp_path: Path, capfd: pytest.CaptureFixture[str]
+) -> None:
+    """A YAML error quotes the card's own line; an enricher's exception may
+    hold anything. Neither spills an untagged line, a forged ``::error::``
+    line or a raw bidi control onto stderr."""
+    model = tmp_path / "m.gguf"
+    model.write_bytes(b"GGUF" + (3).to_bytes(4, "little") + bytes(16))
+    hostile = "::error::evil\u202e: [x"
+    (tmp_path / "README.md").write_text(
+        f'---\nkey: "a"\n{hostile}\n---\n', encoding="utf-8"
+    )
+    argv = ["enrich", str(model), "-o", str(tmp_path / "f.json")]
+    if failure == "enricher":
+        error = ValueError(f"line one\n{hostile}")
+        with patch.object(ReadmeEnricher, "enrich", side_effect=error):
+            lines = _stderr_lines(capfd, argv)
+    else:
+        lines = _stderr_lines(capfd, argv)
+    failed = [line for line in lines if "evil" in line]
+    assert len(failed) == 1 and failed[0].startswith("WARNING: ")
+    assert all(line.startswith(("ERROR: ", "WARNING: ", "INFO: ")) for line in lines)
+    assert "\u202e" not in "\n".join(lines)

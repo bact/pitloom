@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-13
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -118,7 +118,7 @@ it). §1/§2 below and the drafted page content are updated to match.
    byte length via dictionary-level, greedy-heaviest-key-first
    truncation, marked with `truncated`/`truncatedKeys`/
    `truncatedKeyCount`/`maxMetadataBytes` in the statement envelope when
-   it fires. Also gained a `--max-source-metadata-bytes` CLI flag /
+   it fires; the 1,000-key entry cap adds `maxEntries` (#294). Also gained a `--max-source-metadata-bytes` CLI flag /
    `action.yml` input, a deliberate exception to this table's
    config-only precedent. See
    `working-docs/implementation/provenance/annotation-mechanism.md`'s
@@ -233,7 +233,7 @@ string (convention: `working-docs/implementation/provenance/annotation-mechanism
 | `"unification"` -- `https://pitloom.dev/provenance/unification/1` | `build_unification_annotation()` | Why fragment elements were unified (A1: SHA-256 content-equality merge) | `provenance.py:41`, `321-356` |
 | `"conflict"` -- `https://pitloom.dev/provenance/conflict/1` | `build_conflict_annotation()` | Multi-source field-value disagreement (G2), e.g. declared vs. detected license | `provenance.py:47`, `403-440` |
 | `"enrichment"` -- `https://pitloom.dev/provenance/enrichment/1` | `build_enrichment_annotation()` | What an enrichment run changed (E1 override lineage / E2 inferred-vs-not marker); reuses the §2 role vocabulary (also `working-docs/implementation/provenance/role-vocabulary.md`) in each `changes[].role` | `provenance.py:51`, `461-491` |
-| `"artifact-metadata"` -- `https://pitloom.dev/provenance/artifact-metadata/1` | `build_source_metadata_annotation()` | Verbatim preserved original AI-model metadata (P1), config-gated by `preserve-source-metadata` | `provenance.py:44`, `494-531` |
+| `"artifact-metadata"` -- `https://pitloom.dev/provenance/artifact-metadata/2` | `build_source_metadata_annotation()` | Verbatim preserved original AI-model metadata (P1), config-gated by `preserve-source-metadata` | `provenance.py:44`, `494-531` |
 
 `docs/metadata-provenance.md:50`'s example `schema` URL
 (`.../provenance/1`, bare) doesn't match the shipped encoder

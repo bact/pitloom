@@ -21,7 +21,7 @@ import json
 import logging
 from typing import Any
 
-from pitloom.logging_config import field_loss_suffix
+from pitloom.logging_config import field_loss_suffix, loggable, one_line
 
 log = logging.getLogger(__name__)
 
@@ -99,7 +99,7 @@ def _safe_load_json(
         # File may legitimately not exist (e.g. non-generative models lack
         # generation_config.json) -- hf_hub_download raises for that same
         # as for a genuine failure, so this can't be promoted to WARNING.
-        log.debug("Failed to load %s for %s: %s", filename, model_id, exc)
+        log.debug("Failed to load %s for %s: %s", filename, model_id, one_line(exc))
         return None
 
 
@@ -126,7 +126,7 @@ def _load_model_card(
             "library_name",
             "language",
         )
-        log.warning(msg, model_id, exc)
+        log.warning(msg, loggable(model_id), one_line(exc))
         return None, {}
 
 
@@ -173,7 +173,7 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
             "downloads",
             "tags",
         )
-        log.warning(msg, model_id, exc)
+        log.warning(msg, loggable(model_id), one_line(exc))
         return {}
 
 
@@ -195,7 +195,7 @@ def _list_license_files_in_repo(model_id: str) -> list[str]:
         msg = "Failed to list repo files for %s: %s" + field_loss_suffix(
             "skipped", "license (file-based detection)"
         )
-        log.warning(msg, model_id, exc)
+        log.warning(msg, loggable(model_id), one_line(exc))
         return []
 
 
@@ -244,7 +244,7 @@ def _detect_license_from_hf_files(
                 "Failed to download/read license file %s for %s: %s"
                 + field_loss_suffix("skipped", "license")
             )
-            log.warning(msg, filename, model_id, exc)
+            log.warning(msg, loggable(filename), loggable(model_id), one_line(exc))
             continue
 
         if not text:

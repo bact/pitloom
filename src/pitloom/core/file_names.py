@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import unicodedata
 
+from pitloom.core.untrusted_text import DISPLAY_CONTROLS
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import warn_once
 
@@ -87,13 +88,15 @@ def sbom_file_name(sbom_basename: str, label: str = CONFIG_BASENAME_LABEL) -> st
 def escape_file_name_part(part: str) -> str:
     """*part* (a project name or version) with each character that is unsafe
     in a file name replaced by ``_``: a control character (Unicode category
-    ``C*``: ESC, newline, DEL, C1, format characters), whitespace, and what
-    :func:`is_plain_file_name` refuses (a separator, a colon). Every other
-    character stays, ``-``, ``+`` and ``.`` included, so a name that is already
-    safe is unchanged."""
+    ``C*``: ESC, newline, DEL, C1, format characters), a code point of
+    :data:`~pitloom.core.untrusted_text.DISPLAY_CONTROLS`, whitespace, and
+    what :func:`is_plain_file_name` refuses (a separator, a colon). Every
+    other character stays, ``-``, ``+`` and ``.`` included, so a name that is
+    already safe is unchanged."""
     return "".join(
         "_"
         if char in _NOT_IN_A_FILE_NAME
+        or char in DISPLAY_CONTROLS
         or char.isspace()
         or unicodedata.category(char).startswith("C")
         else char

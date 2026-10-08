@@ -96,11 +96,10 @@ def _add_concluded_license(metadata: ProjectMetadata, project_dir: Path) -> None
     concluded, provenance = resolve_license_concluded(
         bool(metadata.license_name), project_dir, stated=metadata.license_name
     )
-    if not concluded:
+    if concluded is None or provenance is None:
         return
     metadata.license_concluded = concluded
-    if provenance:
-        metadata.provenance["license_concluded"] = provenance
+    metadata.provenance["license_concluded"] = provenance
 
 
 class EmbedFileCache:

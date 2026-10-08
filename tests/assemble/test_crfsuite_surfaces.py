@@ -30,6 +30,11 @@ import pytest
 from pitloom import __main__
 from pitloom.assemble import generate_model_sbom, generate_project_sbom
 from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.extract.ai_model import crfsuite
+from pitloom.extract.ai_model.formats import Limits
+from pitloom.extract.ai_model.formats.crfsuite import (
+    read_crfsuite as read_crfsuite_header,
+)
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
 from tests._wheel_models import write_model_wheel
 from tests.id_registry.surfaces_base import demo_project
@@ -159,3 +164,34 @@ def test_two_project_runs_over_both_fixtures_are_byte_identical(
         outputs.append(out.read_bytes())
     assert len(_ai_packages(outputs[0].decode("utf-8"))) == 2  # not vacuous
     assert outputs[0] == outputs[1]
+
+
+def test_a_label_over_the_cap_gives_the_same_one_warning_on_every_surface(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The reader's warning gets the scanner's ``FORMAT=``/``FILE=`` prefix;
+    no label reaches the SBOM, the count does."""
+    with _COMPLETE.open("rb") as handle:
+        model = read_crfsuite_header(handle, Limits())
+    over = model._replace(labels=(*model.labels[:-1], "x" * 4097))
+    monkeypatch.setattr(
+        crfsuite, "read_crfsuite_header", lambda *_args, **_kwargs: over
+    )
+    caplog.set_level(logging.WARNING)
+    seen = {}
+    for surface in _SURFACES:
+        caplog.clear()
+        work = tmp_path / surface
+        work.mkdir()
+        sbom = _cli(surface, "m.crfsuite", _COMPLETE.read_bytes(), work, monkeypatch)
+        (package,) = _ai_packages(sbom)
+        assert "description" not in package
+        assert "x" * 4097 not in sbom
+        (message,) = [m for m in logged_warnings(caplog) if "FORMAT=" in m]
+        (path,) = file_values([message])
+        seen[surface] = message.replace(path, "<file>")
+    assert set(seen.values()) == {
+        "FORMAT=crfsuite FILE=<file>: a label over 4096 bytes; no label recorded"
+    }

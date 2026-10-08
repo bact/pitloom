@@ -11,9 +11,9 @@ emission, and :func:`pitloom.core.provenance.parse_provenance_value`.
 
 from __future__ import annotations
 
-import json
 from typing import Protocol
 
+from pitloom.core.canonical_json import canonical_json
 from pitloom.core.provenance import parse_provenance_value
 
 #: Transparent, re-readable manifest sources.
@@ -119,7 +119,7 @@ class PitloomV1Encoder:
             field: parse_provenance_value(src) for field, src in provenance.items()
         }
         envelope = {"schema": self.schema_url, "kind": "fields", "fields": fields}
-        return json.dumps(envelope, ensure_ascii=False, sort_keys=True)
+        return canonical_json(envelope)
 
 
 _ENCODERS: dict[str, ProvenanceEncoder] = {

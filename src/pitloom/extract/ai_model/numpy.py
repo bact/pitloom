@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import IO, Any
 
 from pitloom.core.ai_metadata import (
+    MAX_MODEL_ENTRIES,
     AiModelFormat,
     AiModelFormatInfo,
     AiModelMetadata,
@@ -28,7 +29,7 @@ from pitloom.core.ai_metadata import (
 )
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model.archive_member import open_model_binary
-from pitloom.extract.ai_model.limits import MAX_MODEL_ENTRIES, ModelLimitExceeded
+from pitloom.extract.ai_model.limits import ModelLimitExceeded
 from pitloom.extract.ai_model.reader_requirements import require_library
 from pitloom.logging_config import loggable
 
@@ -293,7 +294,6 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
         raise ValueError(f"Failed to read NumPy file {model_path}: {exc}") from exc
 
     provenance["type_of_model"] = f"{source} | Field: format type"
-
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
             file_name=model_path.name,
@@ -304,6 +304,6 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
         type_of_model="numpy array",
         inputs=inputs,
         properties=properties,
-        raw_metadata=source_metadata(properties),
+        **source_metadata(properties),
         provenance=provenance,
     )

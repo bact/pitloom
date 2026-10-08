@@ -19,6 +19,8 @@ from typing import TYPE_CHECKING, Any
 from urllib.error import HTTPError
 from urllib.parse import urlparse
 
+from pitloom.core.untrusted_text import escape_display_controls
+
 if TYPE_CHECKING:
     #: An installed or archived package's Core Metadata: parsed from its raw
     #: text (``email``), or :mod:`importlib.metadata`'s view of it.
@@ -26,7 +28,8 @@ if TYPE_CHECKING:
 
 
 def sanitize_provenance_text(text: str) -> str:
-    """Escape ``|`` in untrusted text destined for a provenance string.
+    """Escape ``|`` and the invisible and bidi controls in untrusted text
+    destined for a provenance string.
 
     :func:`~pitloom.core.provenance.parse_provenance_value` splits a
     provenance string on ``|`` to find its ``Source:``/``Field:``/``Method:``
@@ -39,8 +42,13 @@ def sanitize_provenance_text(text: str) -> str:
     not just to dict keys passed to :func:`record_dict_field_provenance` --
     the same untrusted filename also flows directly into scalar-field
     provenance (``name``, ``version``, ...) built without that helper.
+
+    A provenance string is shown to a reader (an Annotation ``statement``,
+    the element's ``comment``), so the controls are written as text, as in
+    every other display string
+    (:func:`~pitloom.core.untrusted_text.escape_display_controls`).
     """
-    return text.replace("|", "/")
+    return escape_display_controls(text.replace("|", "/"))
 
 
 def record_dict_field_provenance(

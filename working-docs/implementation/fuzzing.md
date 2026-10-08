@@ -45,7 +45,7 @@ targets:
   length check in it is Pitloom's to get right; CRFsuite itself checks
   almost none and segfaults on bad offsets. In memory, no temp file;
   besides the `FormatError` contract it asserts the read budget
-  (`max_crfsuite_label_bytes + 108` bytes). CI seeds it with the CRFsuite
+  (`max_crfsuite_labels_chunk_bytes + 108` bytes). CI seeds it with the CRFsuite
   fixtures. A scratch differential run before it landed (about 223,000
   mutations of the fixtures and five PyThaiNLP models, labels compared
   with python-crfsuite in a subprocess) found no escaping exception and

@@ -8,7 +8,7 @@ its boundary values, every byte flipped, and a seeded mutation loop.
 
 Every outcome is a :class:`CrfsuiteModel` or a :class:`FormatError`, never
 another exception, and no input makes the reader read more than
-``max_crfsuite_label_bytes + 108`` bytes.
+``max_crfsuite_labels_chunk_bytes + 108`` bytes.
 
 See also: :mod:`pitloom.extract.ai_model.formats.crfsuite` and
 ``test_crfsuite.py`` (one case per check, on the fixtures).
@@ -37,7 +37,7 @@ _FIXTURES = Path(__file__).parents[3] / "fixtures" / "aimodels" / "crfsuite"
 _COMPLETE = (_FIXTURES / "complete.crfsuite").read_bytes()
 _MINIMAL = (_FIXTURES / "minimal.model").read_bytes()
 _LIMITS = Limits()
-_BUDGET = _LIMITS.max_crfsuite_label_bytes + 108
+_BUDGET = _LIMITS.max_crfsuite_labels_chunk_bytes + 108
 _CHUNKS = ("feat", "lab", "attr", "lref", "aref")
 
 _Outcome = CrfsuiteModel | type[FormatError]

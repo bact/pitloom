@@ -15,6 +15,7 @@ itself) and :mod:`docs/ai-model-scan-limits.md` (what is documented).
 
 from __future__ import annotations
 
+import json
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -114,3 +115,26 @@ def test_the_cli_names_the_model_as_it_was_given(
     (message,) = [m for m in logged_warnings(caplog) if "entries in" in m]
     assert f"FILE={given}:" in message
     assert str(tmp_path) not in message
+
+
+@pytest.mark.parametrize("budget", [0, 10_000], ids=["no-budget", "budget"])
+def test_the_annotation_counts_the_keys_over_the_cap(
+    budget: int, tmp_path: Path
+) -> None:
+    """The keys the cap left out are counted, not named; a byte budget's
+    dropped keys are named and counted with them."""
+    path, _, _ = _safetensors(tmp_path)
+    graph = json.loads(generate_model_sbom(path, max_source_metadata_bytes=budget))[
+        "@graph"
+    ]
+    (statement,) = [
+        json.loads(e["statement"])
+        for e in graph
+        if e.get("type") == "Annotation" and '"artifact-metadata"' in e["statement"]
+    ]
+    named = statement.get("truncatedKeys", [])
+    assert bool(named) == bool(budget)
+    assert statement["truncated"] is True
+    assert statement["maxEntries"] == MAX_MODEL_ENTRIES
+    assert statement["truncatedKeyCount"] == _OVER - MAX_MODEL_ENTRIES + len(named)
+    assert len(statement["metadata"]) + statement["truncatedKeyCount"] == _OVER

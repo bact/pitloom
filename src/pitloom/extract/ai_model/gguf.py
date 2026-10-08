@@ -18,7 +18,9 @@ from pitloom.core.ai_metadata import (
     AiModelFormatInfo,
     AiModelMetadata,
     source_metadata,
+    value_text,
 )
+from pitloom.core.scalar_text import scalar_text
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
@@ -35,6 +37,7 @@ _GGUF_DESCRIPTION_KEYS = ("general.description",)
 _GGUF_ARCH_KEY = "general.architecture"
 _GGUF_VERSION_KEY = "general.version"
 _GGUF_FILE_TYPE_KEY = "general.file_type"
+_GGUF_LICENSE_KEY = "general.license"
 
 # Hyperparameter key suffixes that are architecture-specific
 _GGUF_HYPERPARAM_SUFFIXES = (
@@ -154,16 +157,39 @@ def _array_summary(gguf_field: Any) -> dict[str, Any]:
     return summary
 
 
+def _float32_double(value: Any) -> float:
+    """The double whose shortest decimal is the shortest decimal of
+    *value*, a ``numpy.float32``.
+
+    ``numpy.format_float_scientific(unique=True)`` gives that decimal
+    whatever the print options; ``str()`` follows them
+    (``legacy="1.13"`` prints ``1.0000001`` as ``1``).
+    """
+    # pylint: disable-next=import-outside-toplevel
+    import numpy  # a dependency of gguf, imported once a file is read
+
+    return float(numpy.format_float_scientific(value, unique=True))
+
+
 def _field_value(gguf_field: Any) -> Any:
     """Resolve a scalar GGUF field to a plain Python value (arrays: see
-    :func:`_read_fields`)."""
+    :func:`_read_fields`).
+
+    A ``FLOAT32`` is the double whose shortest decimal is the float32's own
+    (:func:`_float32_double`), not the double it widens to, so the stored
+    ``1e-6`` is spelt ``0.000001``, not ``9.999999974752427e-7``. It
+    converts back to the same float32; a ``FLOAT64`` is kept as stored.
+    """
     parts = gguf_field.parts
     if not parts:
         return None
     last = parts[-1]
+    type_name = _type_name(gguf_field.types[0]) if gguf_field.types else ""
     # String fields are stored as raw byte arrays; decode explicitly
-    if gguf_field.types and _type_name(gguf_field.types[0]) == "STRING":
+    if type_name == "STRING":
         return last.tobytes().decode("utf-8")
+    if type_name == "FLOAT32" and len(last) == 1:
+        return _float32_double(last[0])
     if hasattr(last, "tolist"):
         val = last.tolist()
         return val[0] if isinstance(val, list) and len(val) == 1 else val
@@ -214,25 +240,25 @@ def _extract_gguf_core_fields(
     name: str | None = None
     for key in _GGUF_NAME_KEYS:
         if key in fields and fields[key] is not None:
-            name = str(fields[key])
+            name = value_text(fields[key])
             provenance["name"] = f"{source} | Field: {key}"
             break
 
     description: str | None = None
     for key in _GGUF_DESCRIPTION_KEYS:
         if key in fields and fields[key] is not None:
-            description = str(fields[key])
+            description = value_text(fields[key])
             provenance["description"] = f"{source} | Field: {key}"
             break
 
-    architecture: str | None = fields.get(_GGUF_ARCH_KEY)
-    if architecture is not None:
-        architecture = str(architecture)
+    architecture: str | None = None
+    if fields.get(_GGUF_ARCH_KEY) is not None:
+        architecture = value_text(fields[_GGUF_ARCH_KEY])
         provenance["architecture"] = f"{source} | Field: {_GGUF_ARCH_KEY}"
 
     version: str | None = None
     if _GGUF_VERSION_KEY in fields and fields[_GGUF_VERSION_KEY] is not None:
-        version = str(fields[_GGUF_VERSION_KEY])
+        version = value_text(fields[_GGUF_VERSION_KEY])
         provenance["version"] = f"{source} | Field: {_GGUF_VERSION_KEY}"
 
     quantization: str | None = None
@@ -242,6 +268,18 @@ def _extract_gguf_core_fields(
             provenance["quantization"] = f"{source} | Field: {_GGUF_FILE_TYPE_KEY}"
 
     return name, description, architecture, version, quantization
+
+
+def _read_gguf_license(
+    fields: dict[str, Any], source: str, provenance: dict[str, str]
+) -> str | None:
+    """Return ``general.license`` (an SPDX expression by the GGUF spec), if set."""
+    value = fields.get(_GGUF_LICENSE_KEY)
+    license_expr = value_text(value).strip() if value is not None else ""
+    if not license_expr:
+        return None
+    provenance["license"] = f"{source} | Field: {_GGUF_LICENSE_KEY}"
+    return license_expr
 
 
 def _categorize_gguf_fields(
@@ -265,7 +303,7 @@ def _categorize_gguf_fields(
         ):
             hyperparameters[key] = value
         else:
-            properties[key] = str(value)
+            properties[key] = scalar_text(value)
 
     record_dict_field_provenance(provenance, "hyperparameters", hyperparameters, source)
     record_dict_field_provenance(provenance, "properties", properties, source)
@@ -355,6 +393,7 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
     hyperparameters, properties = _categorize_gguf_fields(
         fields, source, provenance, derived
     )
+    license_expr = _read_gguf_license(fields, source, provenance)
 
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
@@ -368,8 +407,9 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         version=version,
         architecture=architecture,
         quantization=quantization,
+        license=license_expr,
         hyperparameters=hyperparameters,
         properties=properties,
-        raw_metadata=source_metadata(raw_metadata),
+        **source_metadata(raw_metadata),
         provenance=provenance,
     )

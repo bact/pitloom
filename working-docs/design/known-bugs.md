@@ -101,8 +101,9 @@ Crashes, broken contracts and small mappings.
 - [x] **`-o -` ends stdout with `PITLOOM_SBOM_OUTPUT_PATH=-` (S).** Fixed:
   no path line for `-`, the embed `WHEEL=` record goes to `INFO:`, and
   `embed-wheel -o -` no longer writes a file named `-`.
-- [ ] **GGUF `general.license` is not mapped (S).** Classify it with
-  the licence classifier #276 added.
+- [ ] **Safetensors licence keys are not mapped (S).** They stay in the
+  verbatim annotation only; classify them like GGUF `general.license` (mapped
+  in #294). GGUF `general.license.name`/`.link` are also unread.
 - [ ] **`setup.cfg` `%` fails the whole run (S).** `description = 50% faster`
   gives `ERROR: SBOM generation failed: '%' must be followed by ...`. setuptools
   84's own `setup.py --description` fails the same way. Decided: keep failing,
@@ -139,6 +140,12 @@ Crashes, broken contracts and small mappings.
   pointer's SHA-256 and no warning. Decided: one shared detector, one
   summary `WARNING:` per run, one line per file at `--debug`; lands
   before registry v3, which reuses it for loom `path=`.
+- [ ] **A fragment value may lose to an extracted one (S-M, own PR).**
+  Unconfirmed in #294: a fragment or catalogue `description` should win
+  over the one generated from a CRFsuite model's labels
+  (`Method: generated_from_labels`); check the merge order treats
+  extracted and generated values as weak, for every field, not only this
+  one.
 - [ ] **Same AI model gets different ids per surface; enrichment can hit
   the wrong model (S-M).** Found in the #292 review: `loom model` looks an
   AI model up in the registry by file stem only. `_model_generator.py`
@@ -363,28 +370,12 @@ Crashes, broken contracts and small mappings.
   (14 `ERROR:` lines); each fragment alone, and `--no-merge`, is valid.
   `loom merge` of the same three fragments succeeds. Not yet checked
   whether the validator or Pitloom's blank-node labels are at fault.
-- [ ] **A model's metadata key can forge a provenance entry in the
-  `comment` (S).** Found in the #292 review: `build_provenance_comment()`
-  (`assemble/spdx3/provenance.py`) joins `field: source` pairs with `; `,
-  and only the source part is sanitised. An ONNX `metadata_props` key such
-  as `x; license: Source: forged.onnx | Field: model_license` becomes a
-  provenance field name `properties.metadata_props.x; license: ...`, which
-  reads as a second licence entry; a key with a newline is written raw. The
-  machine-readable Annotation (JSON) is not affected. Same on `main` for
-  ONNX (raw keys); not yet checked for the other formats whose property
-  keys come from the file (GGUF, Safetensors). Escape the field part as
-  the source part is.
-- [ ] **No length cap on a model name read from the file (S).** Found in
-  the #292 review: a 1 MB ONNX `graph.name` gives a 2 MB `spdxId` and an
-  18 MB SBOM (the name appears several times); no crash, deterministic.
-  Same for any format whose name comes from the file. Cap the name (with
-  a `WARNING:`) where `AiModelMetadata.resolve_name()` returns it.
 - [ ] **AI model `framework` provenance cites a value the SBOM never
   shows (S).** Found in the #292 black-box round, same on `main`: ONNX
   `producer_name`/`producer_version` land in `format_info.framework*` and
   their provenance reaches the package comment and annotation, but nothing
-  in `assemble/` writes `framework`. Either emit it or drop its
-  provenance (check the other readers).
+  in `assemble/` writes `framework` (nor `framework_version`). Either emit
+  it or drop its provenance (check the other readers).
 - [ ] **A model licence that is a name or URL becomes licence text (S).**
   Found in the #292 black-box round: ONNX `model_license` "Apache License
   2.0" gives a `SimpleLicensingText` holding the name, not `Apache-2.0`; a
@@ -398,25 +389,33 @@ Crashes, broken contracts and small mappings.
   `preserve-source-metadata=auto`, so the values (e.g. CRFsuite labels
   beyond the 20 in the description) appear nowhere. Either emit them or
   drop their provenance.
-- [ ] **No test that every `Method:` value in `src/` has a row in
-  `docs/metadata-provenance.md` (S).** The table already lacks
-  `resolved_lockfile`, `flit_dynamic_metadata` and `pdm_dynamic_version`.
 - [ ] **`loom model` on a 100-byte truncated `lid.176.ftz` ran to about
   20 GB RSS (S).** Native fastText reader on a hostile header, found in the
   CRFsuite review; the metadata-only fastText reader in
   [model-metadata-readers.md](model-metadata-readers.md) closes it.
-- [ ] **A GGUF float32 value shows its float64 widening (S).** Found in
-  the annotation-uniformity change (#294), same in `properties` and
-  `hyperparameters` before it: `_field_value()` takes numpy's `tolist()`, a
-  float64, so a stored `1e-6` is the text `9.999999974752427e-07`. Format a
-  `FLOAT32` scalar from its float32 value (shortest repr that round-trips
-  as float32) in all three places at once.
-- [ ] **A model label or name with a bidi override reaches the SBOM raw
-  (S).** Found in the CRFsuite black-box round: control characters are
-  JSON-escaped, but U+202E and similar bidi controls in a label are written
-  as is into the generated description (GGUF/ONNX names and descriptions
-  behave the same). Decide one policy for untrusted model text shown to
-  readers.
+- [ ] **`loom merge` of a `loom enrich` fragment and a model SBOM writes
+  invalid SPDX (M).** Found in the option D black-box round, not caused by
+  it: merged elements get `creationInfo: ""` and a CreationInfo with no
+  `@id`, so `loom fragment validate` fails, with or without annotations.
+  Related to, but not the same as, the `_:CreationInfo0` entry above.
+- [ ] **Bidi controls in annotation keys are not escaped (S).** Found in
+  #294: a model key with U+202E stays raw as a key of a provenance
+  annotation's `fields` object (`hyperparameters.<key>`) and in an
+  enrichment annotation's `changes[].field`/`after` (`datasets:<name>`,
+  uncut too). Both are JSON statements, not display properties; escaping
+  them needs the dict key kept raw for lookups and the display form only at
+  the statement, through `escape_display_controls_in_json`. Documented in
+  `metadata-reading-back.md`. The artifact-metadata annotation stays as
+  read by design.
+- [ ] **ONNX graph and input names are not in the artifact-metadata
+  annotation (S).** Found in #294: the docs say the annotation keeps the
+  text the display escape changed, but ONNX `raw_metadata` holds only
+  opsets and `metadata_props`, so an escaped graph or input name has no
+  original in the SBOM. Add them, or narrow the claim per format.
+- [ ] **A base model URL is unbounded (S).** Found in #294: the base model
+  name is cut at 1024 characters, but its `externalRef` locator
+  (`https://huggingface.co/<id>`) keeps the whole id read (a 1 MiB id gives
+  a 1 MiB locator). Bound or drop an over-long locator.
 - [ ] **Over-cap CRFsuite model keeps only its name (S).** A model with more
   than 1,000 labels (or a hostile `num_labels`) gets the stub entry, though
   the header counts are cheap to read. Same stub rule as every format;
@@ -445,6 +444,30 @@ Crashes, broken contracts and small mappings.
   this can now happen for ONNX as for the other formats. Decide whether a
   disagreement is a `WARNING:` (see
   [license-rules.md](license-rules.md)).
+
+- [ ] **Keras v3 does not read `compile_config` (S).** The HDF5/Keras v1-v2
+  reader takes optimizer, loss and metrics from `training_config`; the v3
+  reader (`keras.py`) reads `config` and `build_config` only.
+- [ ] **PT2 / ExecuTorch reader never sets `type_of_model` (S).** No
+  `ai_typeOfModel` for a `.pt2`, though `framework="executorch"` is set.
+- [ ] **PT2 root-level `version` file is read as the model version (S).**
+  `_read_pt2_zip` (`pytorch_pt2.py`) takes it as `version`, overridden by
+  `extra/model_version`. Unverified (no `torch` here): a real
+  `torch.export` / `torch.save` zip is believed to hold a serialization
+  format number there, which would be a format version, not a model version.
+  Check against a real archive.
+- [ ] **`AiModelUsage` has no producer (M).** `limitations`,
+  `safety_risk_assessment`, `known_biases`, `intended_use` and
+  `unintended_use` are assembled (`_ai_package.py`) but no reader or Hugging
+  Face fetch fills them. Wire a source (model card sections) or drop them.
+- [ ] **Safetensors tensor names are recorded as `inputs` (S).** The reader
+  calls it a "lightweight inventory"; `ai_informationAboutApplication`
+  inputs mean model inputs. Check this is intended (the PT2 `model.json`
+  graph names are the same kind of stand-in).
+- [ ] **ONNX loads the whole protobuf into memory (M).** `onnx.load(...,
+  load_external_data=False)` still parses every graph node. fastText's full
+  load is logged above; both go with the metadata-only readers in
+  [model-metadata-readers.md](model-metadata-readers.md).
 
 ## Leads to verify
 

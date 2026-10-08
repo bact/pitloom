@@ -30,6 +30,7 @@ from pitloom.extract.ai_model import REGISTRY, crfsuite, read_ai_model
 from pitloom.extract.ai_model.formats import Limits
 from pitloom.extract.ai_model.formats.crfsuite import CrfsuiteModel, read_crfsuite
 from pitloom.extract.ai_model.limits import MAX_MODEL_ENTRIES, ModelLimitExceeded
+from tests.warning_helpers import logged_warnings
 
 _FIXTURES = Path(__file__).parents[2] / "fixtures" / "aimodels" / "crfsuite"
 _COMPLETE = _FIXTURES / "complete.crfsuite"
@@ -63,7 +64,7 @@ def test_complete_fixture_is_read_through_read_ai_model(
     assert complete.format_info.file_name == "complete.crfsuite"
     assert complete.type_of_model == "conditional random field"
     assert complete.properties == {
-        "labels": json.dumps(_COMPLETE_LABELS, ensure_ascii=False),
+        "labels": '["บุคคล","O","B-LOC","I PER/x","E-X:1"]',
         "model_type": "FOMC",
         "num_attributes": "14",
         "num_features": "24",
@@ -279,9 +280,9 @@ def test_registry_entry_is_the_adapter() -> None:
     [
         ("x" * 64, "x" * 64),
         ("x" * 65, "x" * 61 + "..."),
-        ("x" * 1_000_000, "x" * 61 + "..."),
+        ("x" * 4096, "x" * 61 + "..."),
     ],
-    ids=["at-limit", "over-limit", "1mb"],
+    ids=["at-limit", "over-limit", "at-label-cap"],
 )
 def test_description_cuts_each_label(
     monkeypatch: pytest.MonkeyPatch, label: str, shown: str
@@ -292,3 +293,22 @@ def test_description_cuts_each_label(
     assert meta.description == f"CRFsuite model with 2 labels: O, {shown}"
     # the labels themselves are kept whole in the properties
     assert json.loads(meta.properties["labels"]) == ["O", label]
+
+
+def test_a_label_over_the_cap_keeps_the_counts_and_drops_the_labels(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A 4097-byte label: no label anywhere (properties, annotation,
+    description), one warning, the counts and output shape still read."""
+    _patched_header(monkeypatch, ("O", "x" * 4097))
+    meta = read_ai_model(_COMPLETE)
+    (message,) = logged_warnings(caplog)
+    assert "a label over 4096 bytes; no label recorded" in message
+    assert "labels" not in meta.properties
+    assert "labels" not in meta.raw_metadata
+    assert meta.description is None
+    assert meta.properties["num_labels"] == "2"
+    assert meta.outputs == [{"name": "label_sequence", "shape": [2]}]
+    assert "properties.labels" not in meta.provenance
+    assert "description" not in meta.provenance
+    assert "outputs" in meta.provenance

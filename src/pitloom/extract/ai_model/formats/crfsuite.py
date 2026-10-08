@@ -10,7 +10,7 @@ is a 48-byte little-endian header and five chunks in a fixed order:
 ``FEAT`` (the feature weights), a ``CQDB`` string database of labels, a
 ``CQDB`` of attributes, ``LFRF`` and ``AFRF`` (feature references).
 :func:`read_crfsuite` reads the header, the chunk headers, and the labels
-database whole under :attr:`Limits.max_crfsuite_label_bytes`. It never
+database whole under :attr:`Limits.max_crfsuite_labels_chunk_bytes`. It never
 reads the weights, the attribute strings (training-text features) or the
 reference lists.
 
@@ -88,12 +88,12 @@ def read_crfsuite(source: IO[bytes], limits: Limits) -> CrfsuiteModel:
     *source* is a seekable binary file. Reads the 48-byte header, the
     ``FEAT``/``LFRF``/``AFRF`` chunk headers, the labels chunk (whole,
     bounded) and the attributes chunk header: at most
-    ``limits.max_crfsuite_label_bytes + 108`` bytes. Bytes past the
+    ``limits.max_crfsuite_labels_chunk_bytes + 108`` bytes. Bytes past the
     header's ``size`` are ignored.
 
     Raises:
         LimitExceeded: More labels than :attr:`Limits.max_crfsuite_labels`,
-            or a labels chunk over :attr:`Limits.max_crfsuite_label_bytes`.
+            or a labels chunk over :attr:`Limits.max_crfsuite_labels_chunk_bytes`.
         Malformed: Truncated, a wrong magic or chunk tag, or sizes,
             offsets or records inconsistent with each other.
         UnsupportedVersion: A model type other than ``FOMC``, a version
@@ -184,8 +184,10 @@ def _read_labels(source: IO[bytes], header: _Header, limits: Limits) -> tuple[st
         raise UnsupportedVersion(f"labels CQDB flag {flag}")
     if not _CQDB_DATA_START <= size <= header.off_attrs - header.off_labels:
         raise Malformed("labels CQDB size outside its chunk")
-    if size > limits.max_crfsuite_label_bytes:
-        raise LimitExceeded(f"labels CQDB over {limits.max_crfsuite_label_bytes} bytes")
+    if size > limits.max_crfsuite_labels_chunk_bytes:
+        raise LimitExceeded(
+            f"labels CQDB over {limits.max_crfsuite_labels_chunk_bytes} bytes"
+        )
     cqdb = _Cqdb(size, bwd_size, bwd_offset)
     _check_backward_array(cqdb, header.num_labels, "labels")
     chunk = raw + _read_exact(source, header.off_labels + _CQDB.size, size - _CQDB.size)

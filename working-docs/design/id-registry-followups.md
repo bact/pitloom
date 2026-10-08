@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -163,3 +163,34 @@ from file discovery and from `id generate`'s indexing (the latter is the
 custom-name gap in
 [diagnostics-logging-followups.md](diagnostics-logging-followups.md)),
 with one `WARNING:`.
+
+### Bounded `spdxId` minting for long or hostile names
+
+Raised 2026-10-08 in #294 (model name cap). An `spdxId` embeds the element
+name (`AIPackage-<name>-N`), so id size follows name size: a 1 MB model
+name gave a 2 MB id. #294 caps a model name at 1024 characters with a
+digest of the full name in the cut name, which keeps ids bounded (at most
+about 9 KB when percent-encoded) and keeps two distinct long names apart.
+Fixed there, not here: that is the minimum that makes every identity path
+(document uuid, minting prefix, enrich identity, registry key) agree.
+
+Considered for the id scheme, not done in #294:
+
+- An id segment that is a short slug (about 48 characters) plus a digest of
+  the verbatim name, so id size no longer depends on the name and the
+  display name can be a clean cut. The user's view: an `spdxId` need not
+  contain the original name or id.
+- It changes every existing id, so apply it to all name-based prefixes
+  (`Package-`, `File-`, `Agent-`, `AIPackage-`), not to AI packages alone,
+  and settle it with the v3 id key (D10) in one go.
+- The registry harvest and the enrich identity read the SBOM's `name`, not
+  the model file. Without the digest in the visible name, two names that
+  cut to the same text still collide ("name held by several elements").
+  Any new scheme must carry the identity in something the harvest can read
+  (the id itself, or an identifier or property on the element).
+- Identity comes from the verbatim name and the display form is derived
+  (escaped, cut); the bidi lookup bug in #294 (registry stored the escaped
+  name, minting looked up the raw one) is the same split.
+
+See also: [id-registry-v3.md](id-registry-v3.md),
+[ai-model-id-stability.md](ai-model-id-stability.md).

@@ -5,7 +5,9 @@
 
 """The artifact-metadata annotation of every AI model format: a collection
 is a JSON array (or object), a scalar is text, the same text as in
-``properties``; the keys are the reader's own.
+``properties`` and ``ai_hyperparameter``, spelt by
+:func:`~pitloom.core.scalar_text.scalar_text` and typed in ``valueTypes``;
+the keys are the reader's own.
 
 See also: :func:`pitloom.core.ai_metadata.source_metadata` (the one rule
 every reader applies) and :mod:`tests.core.test_ai_metadata` (its unit
@@ -17,7 +19,9 @@ tests).
 from __future__ import annotations
 
 import json
+import math
 import pickle  # nosec B403 -- writes a test file, never loads one
+import re
 import struct
 import zipfile
 from collections.abc import Callable
@@ -28,8 +32,17 @@ import pytest
 
 from pitloom.assemble import generate_model_sbom
 from pitloom.core.ai_metadata import SOURCE_METADATA_MAX_DEPTH, AiModelFormat
+from pitloom.core.canonical_json import canonical_json
+from pitloom.core.scalar_text import scalar_text
 from pitloom.extract.ai_model import read_ai_model
-from tests.extract.ai_model.gguf_builders import FLOAT32, gguf_file, kv
+from tests.extract.ai_model.gguf_builders import (
+    BOOL,
+    FLOAT32,
+    FLOAT64,
+    UINT64,
+    gguf_file,
+    kv,
+)
 
 _AIMODELS = Path(__file__).parents[1] / "fixtures" / "aimodels"
 
@@ -66,7 +79,6 @@ _FOLDER_LISTS = {
     "pytorch_pt2": {"archive_contents", "tags"},
 }
 
-_BOOL, _UINT64 = 7, 10
 _TRAINING_CONFIG = {
     "loss": "mse",
     "optimizer_config": {"class_name": "Adam", "config": {}},
@@ -103,11 +115,13 @@ def _h5(attrs: dict[str, str]) -> Callable[[Path], Path]:
 def _gguf(tmp_path: Path) -> Path:
     path = tmp_path / "m.gguf"
     body = (
-        kv(b"big", _UINT64, struct.pack("<Q", 2**63 + 1))
-        + kv(b"flag", _BOOL, b"\x01")
+        kv(b"big", UINT64, struct.pack("<Q", 2**63 + 1))
+        + kv(b"flag", BOOL, b"\x01")
         + kv(b"eps", FLOAT32, struct.pack("<f", 1e-6))
+        + kv(b"wide", FLOAT64, struct.pack("<d", 1e-6 + 2**-60))
+        + kv(b"nan", FLOAT32, struct.pack("<f", float("nan")))
     )
-    path.write_bytes(gguf_file(0, 3, body))
+    path.write_bytes(gguf_file(0, 5, body))
     return path
 
 
@@ -194,7 +208,13 @@ _CRAFTED = {
     "gguf-wide-scalars": _Case(
         AiModelFormat.GGUF,
         _gguf,
-        expected={"big": "9223372036854775809", "flag": "True"},
+        expected={
+            "big": "9223372036854775809",
+            "flag": "true",
+            "eps": "0.000001",
+            "wide": "0.0000010000000000008673",
+            "nan": "NaN",
+        },
     ),
     "pytorch-raw-pickle": _Case(
         AiModelFormat.PYTORCH,
@@ -212,7 +232,12 @@ _FIXTURES = sorted(
 _CASES = {f"{p.parent.name}/{p.name}": _fixture(p) for p in _FIXTURES} | _CRAFTED
 
 
-def _annotation_metadata(path: Path) -> dict[str, Any] | None:
+class _Sbom(NamedTuple):
+    statement: dict[str, Any] | None  # the artifact-metadata statement
+    hyperparameters: dict[str, str]  # ai_hyperparameter, key -> value
+
+
+def _sbom(path: Path) -> _Sbom:
     graph = json.loads(generate_model_sbom(path))["@graph"]
     statements = [
         json.loads(e["statement"])
@@ -221,7 +246,14 @@ def _annotation_metadata(path: Path) -> dict[str, Any] | None:
         and '"artifact-metadata"' in e.get("statement", "")
     ]
     assert len(statements) <= 1
-    return statements[0]["metadata"] if statements else None
+    package = next(e for e in graph if e.get("type") == "ai_AIPackage")
+    hyper = {e["key"]: e["value"] for e in package.get("ai_hyperparameter", [])}
+    return _Sbom(statements[0] if statements else None, hyper)
+
+
+def _annotation_metadata(path: Path) -> dict[str, Any] | None:
+    statement = _sbom(path).statement
+    return statement["metadata"] if statement else None
 
 
 def _scalars(value: Any) -> list[Any]:
@@ -251,12 +283,79 @@ def _spelt(value: Any) -> Any:
     return value if isinstance(value, str) else json.dumps(value)
 
 
-def _file_keys(path: Path, fmt: AiModelFormat) -> list[str] | None:
-    """The keys the file itself names, when they are not its properties."""
+def _file_keys(path: Path, fmt: AiModelFormat) -> dict[str, str] | None:
+    """The keys the file itself names, when they are not its properties,
+    each with the type the file declares (``ARRAY``, ``FLOAT32``, ...)."""
     if fmt is not AiModelFormat.GGUF:
         return None
     gguf = pytest.importorskip("gguf")
-    return list(gguf.GGUFReader(str(path)).fields)
+    return {
+        key: field.types[0].name if field.types else ""
+        for key, field in gguf.GGUFReader(str(path)).fields.items()
+    }
+
+
+# Properties a reader holds as the text of an integer (every other key of a
+# format with no file-declared types is a string or a collection).
+_INTEGER_PROPERTIES = frozenset(
+    {
+        "archive_member_count",
+        "layer_count",
+        "num_attributes",
+        "num_features",
+        "num_labels",
+    }
+)
+
+
+def _expected_type(key: str, file_type: str | None) -> str | None:
+    """The ``valueTypes`` entry *key* must have, from the GGUF type the file
+    declares, else from its property name."""
+    if file_type is not None:
+        if file_type == "BOOL":
+            return "boolean"
+        if file_type.startswith(("INT", "UINT")):
+            return "integer"
+        return "float" if file_type.startswith("FLOAT") else None
+    if key in _INTEGER_PROPERTIES or key.startswith("opset."):
+        return "integer"
+    return None
+
+
+_TYPE_PATTERNS = {
+    "integer": re.compile(r"-?\d+"),
+    "boolean": re.compile(r"true|false"),
+}
+
+# Python's and JSON's own spellings, which scalar_text never writes.
+_FOREIGN_SPELLINGS = frozenset(
+    {"True", "False", "inf", "-inf", "nan", "Infinity", "-Infinity"}
+)
+
+
+def _check_value_types(
+    statement: dict[str, Any], file_keys: dict[str, str] | None
+) -> None:
+    """``valueTypes`` names exactly the non-string scalar keys, each typed as
+    its text is spelt; it is absent when empty."""
+    metadata = statement["metadata"]
+    types = statement.get("valueTypes")
+    assert types != {}  # left out when empty
+    expected = {
+        key: kind
+        for key in metadata
+        if isinstance(metadata[key], str)
+        and (kind := _expected_type(key, (file_keys or {}).get(key)))
+    }
+    assert (types or {}) == expected
+    for key, kind in expected.items():
+        text = metadata[key]
+        if kind == "float":
+            number = float(text)
+            assert scalar_text(number) == text
+            assert math.isfinite(number) or text in {"NaN", "INF", "-INF"}
+        else:
+            assert _TYPE_PATTERNS[kind].fullmatch(text), (key, text)
 
 
 @pytest.mark.parametrize("case_id", sorted(_CASES))
@@ -269,14 +368,20 @@ def test_annotation_collections_are_arrays_and_scalars_text(
     path = case.make(tmp_path)
     meta = read_ai_model(path)
     assert meta.format_info.model_format is case.fmt
-    metadata = _annotation_metadata(path)
+    sbom = _sbom(path)
+    metadata = sbom.statement["metadata"] if sbom.statement else None
 
     file_keys = _file_keys(path, case.fmt)
     expected_keys = file_keys if file_keys is not None else list(meta.properties)
     # The serialised statement sorts its keys, so the order is not compared.
     assert sorted(metadata or {}) == sorted(expected_keys)
-    if metadata is None:
+    for key, native in meta.hyperparameters.items():
+        assert sbom.hyperparameters[key] == scalar_text(native)
+    texts = [*meta.properties.values(), *sbom.hyperparameters.values()]
+    assert _FOREIGN_SPELLINGS.isdisjoint(texts + _scalars(metadata or {}))
+    if sbom.statement is None or metadata is None:
         return
+    _check_value_types(sbom.statement, file_keys)
     for scalar in _scalars(metadata):
         assert isinstance(scalar, str), (scalar, type(scalar))
         assert _json_collection(scalar) is None, scalar
@@ -290,10 +395,36 @@ def test_annotation_collections_are_arrays_and_scalars_text(
             assert text is None or value == text
         elif text is not None and (parsed := _json_collection(text)) is not None:
             assert value == _spelt(parsed)  # elements spelt as in the text
-        if key in meta.hyperparameters:
-            assert value == str(meta.hyperparameters[key])
+        if key in sbom.hyperparameters:
+            assert value == sbom.hyperparameters[key]
     for key, value in (case.expected or {}).items():
         assert metadata[key] == value
+
+
+def _embedded_json(value: Any) -> list[str]:
+    """Every string at any depth of *value* that is the JSON text of a list
+    or an object, and every such string inside those, at any depth."""
+    if isinstance(value, dict):
+        return [t for item in value.values() for t in _embedded_json(item)]
+    if isinstance(value, list):
+        return [t for item in value for t in _embedded_json(item)]
+    if isinstance(value, str) and (parsed := _json_collection(value)) is not None:
+        return [value, *_embedded_json(parsed)]
+    return []
+
+
+@pytest.mark.parametrize("case_id", sorted(_CASES))
+def test_every_embedded_json_text_is_canonical(case_id: str, tmp_path: Path) -> None:
+    """Each JSON text in an SBOM string (an annotation statement,
+    ``ai_informationAboutApplication``) is RFC 8785, and so is each one
+    inside it."""
+    case = _CASES[case_id]
+    if case.fmt in _LIBRARIES:
+        pytest.importorskip(_LIBRARIES[case.fmt])
+    texts = _embedded_json(json.loads(generate_model_sbom(case.make(tmp_path))))
+    assert texts  # the statements at least
+    for text in texts:
+        assert text == canonical_json(json.loads(text)), text
 
 
 def test_every_model_format_has_a_case() -> None:

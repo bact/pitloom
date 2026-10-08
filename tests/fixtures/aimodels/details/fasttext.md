@@ -64,7 +64,7 @@ Notable metadata extracted by the fastText extractor:
 - `hyperparameters`: `dim=21`, `lr=0.05`, `epoch=100`, `wordNgrams=4`,
   `minCount=1`, `minn=3`, `maxn=6`, `neg=5`, `bucket=33502`, `ws=5`
 - `properties["lossName"]` = `"softmax"`
-- `properties["labels"]` = `'["__label__q", "__label__pos", "__label__neu", "__label__neg"]'`
+- `properties["labels"]` = `'["__label__q","__label__pos","__label__neu","__label__neg"]'`
   (JSON array string, in the order the model stores them)
 - `name`, `description`, `version` are all `None` - fastText binary files
   do not embed a model name or description

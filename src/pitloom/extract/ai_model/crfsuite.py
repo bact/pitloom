@@ -14,29 +14,31 @@ See also: :mod:`pitloom.extract.ai_model.formats.crfsuite`.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
 from pitloom.core.ai_metadata import (
+    MAX_MODEL_ENTRIES,
     AiModelFormat,
     AiModelFormatInfo,
     AiModelMetadata,
+    record_scalar_property,
     source_metadata,
 )
+from pitloom.core.canonical_json import canonical_json
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model.formats import FormatError, LimitExceeded, Limits
 from pitloom.extract.ai_model.formats.crfsuite import (
     read_crfsuite as read_crfsuite_header,
 )
-from pitloom.extract.ai_model.limits import MAX_MODEL_ENTRIES, ModelLimitExceeded
+from pitloom.extract.ai_model.limits import ModelLimitExceeded, recordable_labels
 
 _LIMITS = Limits(max_crfsuite_labels=MAX_MODEL_ENTRIES)
 
 #: Labels named in the generated description; the rest are counted.
 _DESCRIPTION_LABELS = 20
 
-#: Characters of one label shown in the description (a label can be 1 MiB).
+#: Characters of one label shown in the description (a label can be 4 KiB).
 _SHOWN_LABEL_CHARS = 64
 
 # Where each property comes from in the file. Written by hand: the generic
@@ -97,14 +99,20 @@ def read_crfsuite(model_path: Path) -> AiModelMetadata:
         raise ValueError(f"Failed to read CRFsuite file {model_path}: {exc}") from exc
 
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
-    labels = model.labels
-    properties = {
-        "labels": json.dumps(list(labels), ensure_ascii=False),
-        "model_type": model.model_type,
-        "num_attributes": str(model.num_attributes),
-        "num_features": str(model.num_features),
-        "num_labels": str(len(labels)),
-    }
+    count = len(model.labels)
+    labels = recordable_labels(model.labels, _LIMITS)
+    properties: dict[str, str] = {}
+    natives: dict[str, Any] = {}
+    if len(labels) == count:  # recordable_labels skipped none
+        properties["labels"] = canonical_json(list(labels))
+        natives["labels"] = labels
+    properties["model_type"] = model.model_type
+    for key, value in (
+        ("num_attributes", model.num_attributes),
+        ("num_features", model.num_features),
+        ("num_labels", count),
+    ):
+        record_scalar_property(properties, natives, key, value)
     provenance = {
         "framework": f"{source} | Field: magic",
         "format_version": f"{source} | Field: version",
@@ -113,15 +121,17 @@ def read_crfsuite(model_path: Path) -> AiModelMetadata:
         ),
     }
     for key, location in _PROPERTY_FIELDS.items():
-        provenance[f"properties.{key}"] = f"{source} | Field: {location}"
+        if key in properties:
+            provenance[f"properties.{key}"] = f"{source} | Field: {location}"
 
     outputs: list[dict[str, Any]] = []
     if labels:
         provenance["description"] = (
             f"{source} | Field: labels CQDB | Method: generated_from_labels"
         )
+    if count:
         provenance["outputs"] = f"{source} | Field: header.num_labels (label count)"
-        outputs = [{"name": "label_sequence", "shape": [len(labels)]}]
+        outputs = [{"name": "label_sequence", "shape": [count]}]
 
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
@@ -133,7 +143,7 @@ def read_crfsuite(model_path: Path) -> AiModelMetadata:
         description=_description(labels),
         type_of_model="conditional random field",
         properties=properties,
-        raw_metadata=source_metadata(properties, {"labels": labels}),
+        **source_metadata(properties, natives),
         outputs=outputs,
         provenance=provenance,
     )

@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Sequence
 
+from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.id_registry._registry import IdRegistry
 
 log = logging.getLogger("pitloom.id_registry")
@@ -116,7 +117,10 @@ class IdRegistrySession:
         matches under *type_name*, claim it, and return it -- or ``None``.
 
         *names* are tried in order (e.g. an AI model's declared name,
-        then its file stem); the first raw hit is used. *on_miss* is
+        then its file stem), each as given, then display-escaped
+        (:func:`~pitloom.core.untrusted_text.escape_display_controls`): a
+        registry imported from an SBOM holds a model's ``name`` as the SBOM
+        shows it, escaped. The first raw hit is used. *on_miss* is
         called only when every name in *names* is a raw miss -- never
         when a hit exists but this session's claim is rejected. Returns
         ``None`` immediately, without calling *on_miss*, when no registry
@@ -125,9 +129,11 @@ class IdRegistrySession:
         if self._registry is None:
             return None
         for name in names:
-            spdx_id = self._registry.lookup_entity(name, type_name)
-            if spdx_id is not None:
-                return self._claim(claimant, spdx_id)
+            shown = escape_display_controls(name)
+            for spelling in (name, shown) if shown != name else (name,):
+                spdx_id = self._registry.lookup_entity(spelling, type_name)
+                if spdx_id is not None:
+                    return self._claim(claimant, spdx_id)
         if on_miss is not None:
             on_miss()
         return None

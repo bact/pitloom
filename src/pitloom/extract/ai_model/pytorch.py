@@ -23,6 +23,7 @@ from pitloom.core.ai_metadata import (
     AiModelFormat,
     AiModelFormatInfo,
     AiModelMetadata,
+    SourceMetadata,
     source_metadata,
 )
 from pitloom.extract._extract_utils import sanitize_provenance_text
@@ -147,7 +148,7 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
 def _read_pytorch_zip(
     zf: ZipFile,
     source: str,
-) -> tuple[str | None, dict[str, str], dict[str, Any], dict[str, str]]:
+) -> tuple[str | None, dict[str, str], SourceMetadata, dict[str, str]]:
     """Read metadata from a classic ZIP-based PyTorch archive.
 
     Args:
@@ -162,7 +163,7 @@ def _read_pytorch_zip(
     properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
 
-    shown = record_archive_contents(file_list, source, properties, provenance)
+    natives = record_archive_contents(file_list, source, properties, provenance)
 
     # Inspect archive/data.pkl safely via fickling.
     pkl_entry = next(
@@ -185,8 +186,7 @@ def _read_pytorch_zip(
             )
             log.warning(msg, loggable(pkl_entry), loggable(source), loggable(str(exc)))
 
-    raw_metadata = source_metadata(properties, {"archive_contents": shown})
-    return type_of_model, properties, raw_metadata, provenance
+    return type_of_model, properties, source_metadata(properties, natives), provenance
 
 
 def read_pytorch(model_path: Path) -> AiModelMetadata:
@@ -249,6 +249,7 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
             raise ValueError(
                 f"Failed to read PyTorch file {model_path}: {exc}"
             ) from exc
+        raw = source_metadata(properties)
         return AiModelMetadata(
             format_info=AiModelFormatInfo(
                 file_name=model_path.name,
@@ -257,15 +258,13 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
             ),
             type_of_model=type_of_model,
             properties=properties,
-            raw_metadata=source_metadata(properties),
+            **raw,
             provenance=provenance,
         )
 
     try:
         with open_model_zip(model_path) as zf:
-            type_of_model, properties, raw_metadata, provenance = _read_pytorch_zip(
-                zf, source
-            )
+            type_of_model, properties, raw, provenance = _read_pytorch_zip(zf, source)
     except (OSError, zipfile.BadZipFile) as exc:
         raise ValueError(f"Failed to read PyTorch file {model_path}: {exc}") from exc
 
@@ -277,6 +276,6 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
         ),
         type_of_model=type_of_model,
         properties=properties,
-        raw_metadata=raw_metadata,
+        **raw,
         provenance=provenance,
     )

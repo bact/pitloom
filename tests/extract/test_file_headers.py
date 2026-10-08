@@ -7,7 +7,7 @@
 
 import logging
 import sys
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -321,3 +321,23 @@ def test_resolve_content_type_override_is_case_sensitive() -> None:
     a differently-cased path must not match."""
     overrides = (ContentTypeOverride(pattern="*.PNG", content_type="image/png"),)
     assert resolve_content_type_override("assets/logo.png", overrides) is None
+
+
+@pytest.mark.parametrize(
+    ("label", "mime"),
+    [("unknown", "application/octet-stream"), ("empty", "inode/x-empty"), ("py", "")],
+    ids=["unknown", "empty", "no-mime"],
+)
+def test_guess_content_type_inconclusive_magika_falls_back_to_extension(
+    monkeypatch: pytest.MonkeyPatch, label: str, mime: str
+) -> None:
+    """A magika result that is inconclusive (label ``unknown``/``empty``,
+    or no MIME type) is not used; the extension guess answers instead."""
+    verdict = SimpleNamespace(output=SimpleNamespace(label=label, mime_type=mime))
+    fake = SimpleNamespace(identify_bytes=lambda data: verdict)
+    monkeypatch.setattr("pitloom.extract._file_headers._get_magika", lambda: fake)
+
+    assert guess_content_type(b"whatever bytes", "example.py") == (
+        "text/x-python",
+        "extension_guess",
+    )

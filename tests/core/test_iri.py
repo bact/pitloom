@@ -7,7 +7,8 @@
 
 See also: tests/assemble/test_name_iri_surfaces.py (every surface emits the
 sanitised id), tests/core/test_models.py (``generate_spdx_id`` and
-``reserve_spdx_ids``).
+``reserve_spdx_ids``), tests/core/test_untrusted_text.py (the invisible and
+bidi controls encoded, the same set as every display-safety helper).
 """
 
 from __future__ import annotations
@@ -87,18 +88,6 @@ def test_iri_segment_ucschar_boundaries(code_point: int, kept: bool) -> None:
     """Each RFC 3987 ``ucschar`` range edge, inside and out."""
     char = chr(code_point)
     assert (iri_segment(char) == char) is kept
-
-
-@pytest.mark.parametrize(
-    "code_point", [0x200D, 0x200E, 0x200F, 0x2029, 0x202A, 0x202E, 0x202F]
-)
-def test_iri_segment_encodes_exactly_the_bidi_formatting_characters(
-    code_point: int,
-) -> None:
-    """RFC 3987 section 4.1 bans U+200E, U+200F and U+202A to U+202E."""
-    char = chr(code_point)
-    banned = code_point in (0x200E, 0x200F) or 0x202A <= code_point <= 0x202E
-    assert (iri_segment(char) != char) is banned
 
 
 def test_iri_segment_is_injective() -> None:

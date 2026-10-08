@@ -23,6 +23,7 @@ from pitloom.core.enrich_config import EnrichConfig
 from pitloom.core.project import project_relative_or_fallback
 from pitloom.enrich.base import Enricher, EnrichmentResult
 from pitloom.enrich.readme import ReadmeEnricher
+from pitloom.logging_config import one_line
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +53,9 @@ def run_enrichers(
             results.append(enricher.enrich(model, model_dir=model_dir))
         # pylint: disable-next=broad-exception-caught
         except Exception as exc:
-            log.warning("Enricher %r failed, skipping: %s", enricher.name, exc)
+            log.warning(
+                "Enricher %r failed, skipping: %s", enricher.name, one_line(exc)
+            )
     return results
 
 

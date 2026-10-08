@@ -21,6 +21,10 @@ import json as _json
 from typing import Any
 from unittest.mock import MagicMock
 
+import pytest
+
+from pitloom.core.ai_metadata import source_metadata
+from pitloom.extract.ai_model import hdf5_config
 from pitloom.extract.ai_model.hdf5 import _decode_h5_attr
 from pitloom.extract.ai_model.hdf5_config import (
     extract_input_from_layers,
@@ -43,6 +47,22 @@ def test_decode_h5_attr_numpy_like_tobytes() -> None:
     fake_numpy_bytes = MagicMock(spec=["tobytes"])  # no dtype
     fake_numpy_bytes.tobytes.return_value = b"tensorflow"
     assert _decode_h5_attr(fake_numpy_bytes) == "tensorflow"
+
+
+@pytest.mark.parametrize(
+    ("make", "expected"),
+    [
+        (lambda np: np.float64(1e-7), "1e-7"),
+        (lambda np: np.float32(0.5), "0.5"),
+        (lambda np: np.int64(3), "3"),
+        (lambda np: np.bool_(True), "true"),
+    ],
+    ids=["float64", "float32", "int64", "bool"],
+)
+def test_decode_h5_attr_number_is_its_scalar_text(make: Any, expected: str) -> None:
+    """Regression: a numeric attribute was its raw bytes decoded as UTF-8."""
+    numpy = pytest.importorskip("numpy")
+    assert _decode_h5_attr(make(numpy)) == expected
 
 
 def test_decode_h5_attr_plain_str() -> None:
@@ -225,6 +245,35 @@ def test_parse_training_config_empty_dict_populates_nothing() -> None:
     assert provenance == {}
 
 
+@pytest.mark.parametrize(
+    ("value", "text", "kind"),
+    [
+        ({"out": "mse", "a": "x"}, '{"a":"x","out":"mse"}', None),
+        (["mse", "mae"], '["mse","mae"]', None),
+        (True, "true", "boolean"),
+        (1e-7, "1e-7", "float"),
+        (2**60, "1152921504606846976", "integer"),
+        ("mse", "mse", None),
+        (None, None, None),
+    ],
+    ids=["dict", "list", "bool", "float", "int", "str", "null"],
+)
+@pytest.mark.parametrize("key", ["loss", "metrics"])
+def test_parse_training_config_loss_and_metrics_spelling(
+    key: str, value: Any, text: str | None, kind: str | None
+) -> None:
+    """``properties`` holds the shared scalar text or a collection's JSON
+    text; the annotation gets the value typed, or the collection itself."""
+    properties: dict[str, str] = {}
+    natives: dict[str, Any] = {}
+    parse_training_config(_json.dumps({key: value}), "S", properties, {}, natives)
+    assert properties.get(key) == text
+    raw = source_metadata(properties, natives)
+    expected = value if isinstance(value, (list, dict)) else text
+    assert raw["raw_metadata"].get(key) == expected
+    assert raw["raw_metadata_types"].get(key) == kind
+
+
 def test_parse_training_config_optimizer_without_class_name() -> None:
     # optimizer is a dict but has no (or an empty) class_name.
     properties: dict[str, str] = {}
@@ -304,3 +353,33 @@ def test_a_bad_part_keeps_what_follows_it_in_the_same_order() -> None:
     )
     assert problem is not None and problem.lost == ("properties.optimizer",)
     assert list(props) == ["layer_count", "loss", "metrics"]
+
+
+@pytest.mark.parametrize(
+    ("optimizer", "lost"),
+    [
+        ({"class_name": "Adam"}, ("properties.metrics",)),
+        (5, ("properties.optimizer", "properties.metrics")),
+    ],
+    ids=["optimizer-ok", "optimizer-bad"],
+)
+def test_metrics_too_deep_to_serialise_is_a_problem_not_a_crash(
+    optimizer: Any, lost: tuple[str, ...], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A collection the parser held but the serialiser's stack cannot is
+    left out, named in the problem with any optimizer problem; the loss
+    is kept."""
+
+    def too_deep(value: object) -> str:
+        raise RecursionError
+
+    monkeypatch.setattr(hdf5_config, "canonical_json", too_deep)
+    props: dict[str, str] = {}
+    prov: dict[str, str] = {}
+    raw = _json.dumps({"loss": "mse", "metrics": ["a"], "optimizer": optimizer})
+    problem = parse_training_config(raw, "S", props, prov)
+    assert problem is not None and problem.lost == lost
+    assert problem.text.endswith("training_config.metrics is nested too deeply")
+    assert problem.text.count(";") == len(lost) - 1
+    assert props["loss"] == "mse" and "metrics" not in props
+    assert "properties.metrics" not in prov

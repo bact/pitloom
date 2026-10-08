@@ -143,9 +143,6 @@ def read_keras(model_path: Path) -> AiModelMetadata:
             of its members is over a bound.
     """
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
-    # .keras is always Keras v3 native format
-    format_version = "v3"
-    framework = "keras"
     framework_version: str | None = None
     name: str | None = None
     type_of_model: str | None = None
@@ -193,20 +190,19 @@ def read_keras(model_path: Path) -> AiModelMetadata:
             loggable(str(exc)),
         )
         raise ValueError(f"Failed to read Keras file {model_path}: {exc}") from exc
-
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
             file_name=model_path.name,
             model_format=AiModelFormat.KERAS,
-            format_version=format_version,
-            framework=framework,
+            format_version="v3",  # .keras is always the Keras v3 native format
+            framework="keras",
             framework_version=framework_version,
         ),
         name=name,
         type_of_model=type_of_model,
         hyperparameters=hyperparameters,
         properties=properties,
-        raw_metadata=source_metadata(properties),
+        **source_metadata(properties),
         inputs=inputs,
         provenance=provenance,
     )

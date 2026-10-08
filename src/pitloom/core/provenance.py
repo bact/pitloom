@@ -68,6 +68,27 @@ def require_max_source_metadata_bytes(
     return number
 
 
+# The characters that structure the provenance comment, each written as
+# its \uXXXX escape: ";" ends an entry, a line break starts a new one, and
+# ":" (in the field part only) ends the field name.
+_COMMENT_SOURCE_ESCAPES = {ord(char): f"\\u{ord(char):04x}" for char in ";\r\n"}
+_COMMENT_FIELD_ESCAPES = {
+    **_COMMENT_SOURCE_ESCAPES,
+    ord(":"): "\\u003a",
+}
+
+
+def escape_provenance_comment_part(text: str, *, field: bool = False) -> str:
+    """*text*, one part of a ``"<field>: <source>; ..."`` provenance comment
+    entry, with the characters that structure the comment written as
+    ``\\uXXXX``, the spelling of the display escape
+    (:func:`~pitloom.core.untrusted_text.escape_display_controls`): ``;``,
+    CR and LF in either part, and ``:`` too in the *field* part. A field
+    or a file name read from a model cannot then forge or split an entry;
+    a usual key (``properties.general.name``) is unchanged."""
+    return text.translate(_COMMENT_FIELD_ESCAPES if field else _COMMENT_SOURCE_ESCAPES)
+
+
 def parse_provenance_value(value: str) -> dict[str, str]:
     """Parse ``"Source: X | Field: Y"`` into a structured dict."""
     parsed: dict[str, str] = {}

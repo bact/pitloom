@@ -43,9 +43,9 @@ Extension slots populated:
 * ``extra_lists`` - language codes (``hf.language``), model-specific tags
   (``hf.tags``), arXiv paper IDs (``hf.arxiv``)
 
-Requires ``huggingface_hub`` (``pip install pitloom[huggingface]``).
-License detection also requires ``licenseid`` (``pip install pitloom[license]``)
-with an up-to-date database (``licenseid update``).
+Requires ``huggingface_hub`` (``pip install pitloom[huggingface_hub]``).
+License detection uses ``licenseid`` (a core dependency) with an up-to-date
+database (``licenseid update``).
 
 See also: this module is a thin facade. Fetching raw Hugging Face Hub data
 and resolving the license lives in
@@ -64,6 +64,7 @@ from pitloom.core.ai_metadata import (
     AiModelMetadata,
     AiModelUsage,
 )
+from pitloom.extract.ai_model.limits import settle_read_text
 from pitloom.extract.remote.huggingface_fetch import (
     _fetch_all_hf_data,
     _resolve_license,
@@ -79,6 +80,7 @@ from pitloom.extract.remote.huggingface_field import (
     _parse_info_tags,
     _resolve_base_model_id,
 )
+from pitloom.logging_config import loggable
 
 __all__ = ["is_huggingface_source", "parse_hf_model_id", "read_huggingface"]
 
@@ -146,7 +148,7 @@ def read_huggingface(source: str) -> AiModelMetadata:
         raise ImportError(
             "The 'huggingface_hub' package is required "
             "to extract Hugging Face model metadata. "
-            "Install it with: pip install pitloom[huggingface]"
+            "Install it with: pip install pitloom[huggingface_hub]"
         ) from exc
 
     model_id = parse_hf_model_id(source)
@@ -181,7 +183,7 @@ def read_huggingface(source: str) -> AiModelMetadata:
     extra_lists = _build_extra_lists(hf_data, tag_data.arxiv_ids, provenance)
     library_name = _get_library_name(hf_data)
 
-    return AiModelMetadata(
+    meta = AiModelMetadata(
         format_info=AiModelFormatInfo(
             file_name=None,
             model_format=AiModelFormat.UNKNOWN,
@@ -204,3 +206,5 @@ def read_huggingface(source: str) -> AiModelMetadata:
         extra_data=extra_data,
         extra_lists=extra_lists,
     )
+    settle_read_text(meta, "huggingface", loggable(hf_url))
+    return meta

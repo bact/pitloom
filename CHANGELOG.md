@@ -27,12 +27,19 @@ and this project adheres to
 - CRFsuite models (`.crfsuite`, or `.model` with the `lCRF` magic): labels,
   counts and a label-based description, from a bounded header reader
   ([#294])
+- GGUF `general.license` becomes the model's licence ([#294])
 
 ### Changed
 
-- fastText `properties["labels"]` is a JSON array string, not comma-joined;
-  artifact-metadata annotations of every model format hold collections as
-  arrays and scalars as text ([#294])
+- Model annotations: collections as arrays, scalars as text (RFC 8785 floats);
+  schema `/2` adds `valueTypes`, `maxEntries`; fastText `labels` is a JSON
+  array; embedded JSON is RFC 8785 ([#294])
+- Model, base model, dataset and creator names over 1024 characters are cut,
+  ending in a digest of the full name; labels over 4 KiB dropped; each with a
+  `WARNING:` ([#294])
+- Invisible, bidi and control characters from a model are shown as `\uXXXX`
+  (URLs percent-encoded), licences included; a lone surrogate no longer
+  aborts the SBOM ([#294])
 
 ### Fixed
 

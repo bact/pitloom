@@ -18,16 +18,10 @@ the version number come from?" have a traceable answer.
 
 Provenance is recorded as SPDX 3 Core `Annotation` elements -- structured,
 machine-readable JSON keyed by field name -- with the original human-readable
-`comment` form kept alongside for back-compat. Controlled by
-`[tool.pitloom.provenance]` in `pyproject.toml`:
-
-```toml
-[tool.pitloom.provenance]
-format = "both"                    # "annotation" | "comment" | "both" (default)
-detail = "minimal"                 # "minimal" (default) | "full"
-preserve-source-metadata = "auto"  # "auto" (default) | "always" | "never"
-max-source-metadata-bytes = 0      # 0 (default, unlimited) | a byte budget
-```
+`comment` form kept alongside for back-compat. The `format`, `detail`,
+`preserve-source-metadata` and `max-source-metadata-bytes` keys of
+`[tool.pitloom.provenance]` control it; their values, defaults and flags are
+in [Configuration](configuration.md#toolpitloomprovenance).
 
 By default (`detail = "minimal"`), a field only gets a provenance
 Annotation when it adds something the native SPDX value can't already
@@ -52,7 +46,7 @@ author-declared):
   "annotationType": "other",
   "contentType": "application/json",
   "subject": "https://spdx.org/spdxdocs/mypackage-.../#Package-1",
-  "statement": "{\"schema\":\"https://pitloom.dev/provenance/fields/1\",\"fields\":{\"license\":{\"source\":\"LICENSE\",\"method\":\"licenseid_detection\"}}}"
+  "statement": "{\"fields\":{\"license\":{\"method\":\"licenseid_detection\",\"source\":\"LICENSE\"}},\"kind\":\"fields\",\"schema\":\"https://pitloom.dev/provenance/fields/1\"}"
 }
 ```
 
@@ -89,32 +83,54 @@ names it. The rule is the same for every model format:
 
 - a collection in the file (a label list, an archive listing, a metrics
   list) is a JSON array, or a JSON object where the file has a mapping;
-- a scalar is text: the same text as in the model's properties (and
-  hyperparameters, where a value appears there). A number or boolean is
-  never a JSON number or boolean, since a JSON consumer may widen or round
-  it (an integer above 2^53);
-- collection elements are text too, spelt as JSON spells them, which is
-  how the collection's JSON text in the properties spells them: `true`,
-  `false`, `null`, `1`, `0.5` (an HDF5 metric `{"acc": true}` is
-  `{"acc": "true"}`; a PT2 tag `null` is `"null"`);
+- a scalar is text: the same text as in the model's properties and in
+  its `ai_hyperparameter` values, where a value appears there. A number
+  or boolean is never a JSON number or boolean, since a JSON consumer may
+  widen or round it (an integer above 2^53);
+- the text of a scalar has one spelling: a boolean `true` or `false`; an
+  integer in decimal, at any size; a float in the
+  [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) (ECMAScript)
+  spelling, the shortest decimal that reads back as the same double
+  (`0.00001`, `1e-7`, `100`, `1e+21`); NaN and the infinities, which RFC
+  8785 has no spelling for, `NaN`, `INF` and `-INF` (the XSD `double`
+  spellings). `-0.0` is `0`, as in RFC 8785: the value is equal, only the
+  sign of the zero is lost;
+- a GGUF `FLOAT32` value is spelt as the float32's own shortest decimal,
+  not as the double it widens to: a stored `1e-5` is `0.00001`, not
+  `9.999999747378752e-06`. The text reads back as the same float32. A
+  `FLOAT64` value keeps its own spelling. Only GGUF declares a value
+  float32; another format's float is spelt as the double it reads as;
+- `valueTypes` maps each top-level `metadata` key whose value is a
+  non-string scalar in the source to `integer`, `float` or `boolean`, so a
+  consumer can read the text back as its type without knowing the format.
+  A key not in it is a string, a collection or a GGUF array summary.
+  `valueTypes` is left out when no key has a type;
+- collection elements are text too, spelt the same way (`null` for a
+  missing value): `true`, `false`, `null`, `1`, `0.5` (an HDF5 metric
+  `{"acc": true}` is `{"acc": "true"}`; a PT2 tag `null` is `"null"`).
+  Elements are not typed;
 - a key the file holds no value for is left out, never `null`;
 - a collection nested over 32 levels keeps its first 32 levels; the part
   below is its JSON text (or `<nested over 32 levels>` where even that
   nests too deeply), so a hostile nesting never stops the model being read;
 - a GGUF array is a summary object of text, `{"length": "N", "type":
-  "<element type>"}`, never its elements.
+  "<element type>"}`, never its elements;
+- text is kept as the file holds it, bidi and zero-width controls
+  included: the annotation is data, its values JSON strings for a program
+  to read. The properties shown to a reader have those controls escaped
+  instead (see [Reading values back](metadata-reading-back.md)).
 
 A fastText classifier:
 
 ```json
 {
-  "schema": "https://pitloom.dev/provenance/artifact-metadata/1",
-  "kind": "artifact-metadata",
   "format": "fasttext",
+  "kind": "artifact-metadata",
   "metadata": {
     "labels": ["__label__q", "__label__pos", "__label__neu", "__label__neg"],
     "lossName": "softmax"
-  }
+  },
+  "schema": "https://pitloom.dev/provenance/artifact-metadata/2"
 }
 ```
 
@@ -122,18 +138,50 @@ A CRFsuite tagger:
 
 ```json
 {
-  "schema": "https://pitloom.dev/provenance/artifact-metadata/1",
-  "kind": "artifact-metadata",
   "format": "crfsuite",
+  "kind": "artifact-metadata",
   "metadata": {
     "labels": ["I", "E"],
     "model_type": "FOMC",
     "num_attributes": "2",
     "num_features": "4",
     "num_labels": "2"
+  },
+  "schema": "https://pitloom.dev/provenance/artifact-metadata/2",
+  "valueTypes": {
+    "num_attributes": "integer",
+    "num_features": "integer",
+    "num_labels": "integer"
   }
 }
 ```
+
+A GGUF model (`stories260K.gguf`, some keys left out here), whose
+`llama.attention.layer_norm_rms_epsilon` is the `ai_hyperparameter` value
+`0.00001` too:
+
+```json
+{
+  "format": "gguf",
+  "kind": "artifact-metadata",
+  "metadata": {
+    "general.architecture": "llama",
+    "llama.attention.layer_norm_rms_epsilon": "0.00001",
+    "llama.block_count": "5",
+    "tokenizer.ggml.model": "llama",
+    "tokenizer.ggml.tokens": {"length": "512", "type": "STRING"}
+  },
+  "schema": "https://pitloom.dev/provenance/artifact-metadata/2",
+  "valueTypes": {
+    "llama.attention.layer_norm_rms_epsilon": "float",
+    "llama.block_count": "integer"
+  }
+}
+```
+
+A Hugging Face model, which is no model file, follows the same rules
+(`"format": "huggingface"`): its Hub and `config.json` scalars are text,
+typed in `valueTypes`, its lists and objects arrays and objects.
 
 An archive listing (`archive_contents` of a PyTorch or PT2 archive) holds
 the first 20 member names, the same ones the property text shows;
@@ -144,30 +192,28 @@ the first 20 member names, the same ones the property text shows;
 `preserve-source-metadata` can embed an artifact's verbatim original
 metadata (e.g. a GGUF model's key/value header) into a single
 `Annotation.statement`. For a real model this can be large -- a chat
-template alone can be several KiB. `max-source-metadata-bytes` (also
-`--max-source-metadata-bytes` on the CLI, or the Action's
-`max-source-metadata-bytes` input) caps the serialised
-`Annotation.statement`'s size in UTF-8 bytes; `0` (the default) means
-unlimited. A negative, non-integer or 1 to 7 value is an error, never "unlimited".
+template alone can be several KiB. `max-source-metadata-bytes` caps the
+serialised `Annotation.statement`'s size in UTF-8 bytes; `0` (the default)
+means unlimited. Valid values and its flag, Action input and API parameter:
+[Configuration](configuration.md#toolpitloomprovenance).
 
 When the budget is exceeded, whole metadata entries are dropped --
 largest first, to keep as many entries as possible -- never a value
-truncated mid-string, which would produce invalid JSON. The reduction is
+truncated mid-string, which would produce invalid JSON. A dropped key's
+`valueTypes` entry goes with it. The reduction is
 always marked explicitly in the same envelope, never silent:
 
 ```json
 {
-  "schema": "https://pitloom.dev/provenance/artifact-metadata/1",
-  "kind": "artifact-metadata",
   "format": "gguf",
-  "metadata": {
-    "general.architecture": "llama",
-    "llama.block_count": "32"
-  },
+  "kind": "artifact-metadata",
+  "maxMetadataBytes": 500,
+  "metadata": {"general.architecture": "llama", "llama.block_count": "32"},
+  "schema": "https://pitloom.dev/provenance/artifact-metadata/2",
   "truncated": true,
-  "truncatedKeys": ["tokenizer.chat_template"],
   "truncatedKeyCount": 1,
-  "maxMetadataBytes": 500
+  "truncatedKeys": ["tokenizer.chat_template"],
+  "valueTypes": {"llama.block_count": "integer"}
 }
 ```
 
@@ -178,11 +224,34 @@ claims a budget its own overhead violates would be worse than omitting
 it. A budget that forces every key to be dropped, but still fits the
 marker overhead, is emitted with `metadata: {}` and a `WARNING`.
 
-The `Annotation.statement` value is itself serialised via RFC 8785 (JSON
-Canonicalization Scheme, JCS) -- the same canonicalization the whole SBOM
-document uses -- so it has no insignificant whitespace and a
-deterministic key order; byte-for-byte comparing or hashing this blob
-across runs with unchanged input is safe.
+A model file with more than 1000 metadata keys keeps its first 1000 (the
+[entry cap](ai-model-scan-limits.md#size-and-count-caps)). The keys left
+out are counted, not named -- listing them would cost what the cap saves
+-- and `maxEntries` names the cap. For a Safetensors model of 1500
+`__metadata__` keys (its 1000 kept keys left out here):
+
+```json
+{
+  "maxEntries": 1000,
+  "truncated": true,
+  "truncatedKeyCount": 500
+}
+```
+
+When the byte budget drops keys from the same annotation, `truncatedKeys`
+and `maxMetadataBytes` are added and `truncatedKeyCount` counts both: the
+keys named in `truncatedKeys` and those over `maxEntries`.
+
+Every JSON text Pitloom writes -- each `Annotation.statement`,
+`ai_informationAboutApplication`, and the text of a model property holding
+a list or an object (fastText and CRFsuite `labels`, HDF5
+`loss`/`metrics`) -- is serialised via RFC 8785 (JSON Canonicalization
+Scheme, JCS), the same canonicalization the whole SBOM document uses: no
+insignificant whitespace and a deterministic key order, so byte-for-byte
+comparing or hashing it across runs with unchanged input is safe. A value
+RFC 8785 has no spelling for is a string in it: NaN and the infinities
+`NaN`, `INF` and `-INF`, an integer beyond +-(2^53 - 1) its full decimal
+text.
 
 ## What the `method` values mean
 
@@ -198,7 +267,7 @@ value, not just where it read it from. Values in use today:
 | `file_directive` | A `pyproject.toml` dynamic field pointed at a file (`{file = "..."}`); the value was read from that file. |
 | `attr_directive` | A `pyproject.toml` dynamic field pointed at a Python attribute (`{attr = "..."}`); the value was imported and read from code. |
 | `inspect_caller` | Recorded automatically by the `pitloom.loom` tracking SDK via Python stack inspection -- identifies which script/function called the SDK. |
-| `synthetic environment root` | The element is Pitloom's own synthesized placeholder root package for an installed environment (`loom env`), not extracted from any source file. |
+| `synthetic` | The element is Pitloom's own synthesized placeholder root package for an installed environment (`loom env`), not extracted from any source file. |
 | `magika_content_detection` | Per-file content type resolved by the [`magika`](https://pypi.org/project/magika/) content-detection library. |
 | `extension_guess` | Per-file content type resolved by a filename-extension fallback (no `magika`, or no confident result). |
 | `file_name_stem` | An AI model's name is its file name without the last extension: the file names no model (or only an exporter default). |
@@ -206,6 +275,11 @@ value, not just where it read it from. Values in use today:
 | `array_length` | A GGUF array field: only its element count is recorded (property `<key>.length`); the elements are not recorded. |
 | `crfsuite_model_type` | A CRFsuite model's type of model, `conditional random field`, derived from the header's model type (`FOMC`, a first-order Markov CRF, the only type CRFsuite writes). |
 | `generated_from_labels` | A CRFsuite model's description, written by Pitloom from the model's labels (the file has no description): the label count and the first 20 labels, each cut to 64 characters. |
+| `resolved_lockfile` | A dependency version pinned by a lock file (`pylock.toml`, `uv.lock`, `poetry.lock` and similar), not by the project's own requirement specifier. |
+| `pinned_requirements` | A dependency version pinned with `==` or `===` in a `requirements.txt`; weaker evidence than a real lock file, so tagged separately. |
+| `pdm_dynamic_version` | A PDM dynamic `version`, resolved from `[tool.pdm.version]` with PDM's own resolver; the tag ends with the declared source in parentheses, e.g. `pdm_dynamic_version(file)`. |
+| `flit_dynamic_metadata` | A Flit dynamic `version` or `description`, read from the module's `__version__` and docstring with flit-core's own AST scan. |
+| `member_count` | A ZIP-based model archive's member count (property `archive_member_count`), read from the archive's central directory. |
 | `yaml_frontmatter` | Read from a local README/model card's YAML frontmatter block during enrichment. |
 
 A field with **no** `method` -- just a `source` -- was read verbatim from
@@ -257,13 +331,13 @@ value) -- so none of these are misreported as a conflict.
 
   ```json
   {
-    "schema": "https://pitloom.dev/provenance/conflict/1",
-    "kind": "conflict",
-    "field": "license",
     "candidates": [
-      {"value": "MIT", "role": "declared", "source": "Source: pyproject.toml | Field: project.license"},
-      {"value": "Apache-2.0", "role": "detected", "source": "Source: LICENSE | Method: licenseid_detection | Tool: licenseid==0.3.0"}
-    ]
+      {"role": "declared", "source": "Source: pyproject.toml | Field: project.license", "value": "MIT"},
+      {"role": "detected", "source": "Source: LICENSE | Method: licenseid_detection | Tool: licenseid==0.3.0", "value": "Apache-2.0"}
+    ],
+    "field": "license",
+    "kind": "conflict",
+    "schema": "https://pitloom.dev/provenance/conflict/1"
   }
   ```
 
@@ -394,13 +468,13 @@ wins), and Pitloom adds a `conflict` Annotation (`field:
 
 ```json
 {
-  "schema": "https://pitloom.dev/provenance/conflict/1",
-  "kind": "conflict",
-  "field": "dependency_version",
   "candidates": [
-    {"value": ">=2.0", "role": "declared", "source": "Source: pyproject.toml | Field: dependencies"},
-    {"value": "1.5.0", "role": "declared", "source": "Source: requirements.txt | Method: resolved_lockfile"}
-  ]
+    {"role": "declared", "source": "Source: pyproject.toml | Field: dependencies", "value": ">=2.0"},
+    {"role": "declared", "source": "Source: requirements.txt | Method: resolved_lockfile", "value": "1.5.0"}
+  ],
+  "field": "dependency_version",
+  "kind": "conflict",
+  "schema": "https://pitloom.dev/provenance/conflict/1"
 }
 ```
 
@@ -418,3 +492,6 @@ to set it.
 
 - [Dependency sources and precedence](dependency-sources.md) -- how
   resolved lock files feed into Source SBOM dependencies and provenance.
+- [Reading values back](metadata-reading-back.md) -- the layers a value
+  passes through (caps, scalar text, display escape, RFC 8785) and the
+  order to undo them.

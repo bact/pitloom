@@ -216,6 +216,11 @@ Steps:
      itself would give (hyperparameters, inputs, outputs) are better read
      than inferred: tell the user the cause before inferring them from
      prose.
+   - A name ending `...~<hex>`, a CRFsuite/fastText model with
+     `num_labels` but no `labels` or description, or `\uXXXX` in a name or
+     description is a Pitloom cap or escape, not a gap to fill from prose:
+     see `sbom-generate`'s known limitations. Never write the cut name, a
+     dropped label or an unescaped control back in a fragment.
 4. **Interactive session only -- ask the SBOM author about remaining
    gaps they're plausibly positioned to know:** intended use, training-data
    provenance/consent, deployment restrictions -- not facts derivable from

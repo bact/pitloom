@@ -8,9 +8,13 @@ SPDX-License-Identifier: CC0-1.0
 
 # AI model formats
 
-Use this when you want to know exactly which AI/ML model file formats
-`loom model` reads, which optional dependency each one needs, and what
-Pitloom actually pulls out of the file.
+See also: [AI model scan limits](ai-model-scan-limits.md) for why a model
+can be missing metadata, and [Metadata provenance](metadata-provenance.md)
+for the annotations named below.
+
+Use this when you want to know which AI model file formats `loom model`
+reads, what each format can hold, what Pitloom takes from it, and where
+each value ends up in the SBOM.
 
 ## Quick guide
 
@@ -19,56 +23,177 @@ pip install "pitloom[ai]"
 loom model path/to/model.safetensors -o model.spdx3.json
 ```
 
-`loom model` auto-detects the format from the file itself, not just the
-extension: a file is a model when its header confirms a format (its magic
-bytes, a ZIP header for `.keras`, `.pt2` and `.npz`, or a ZIP header or a
-protocol 2 to 5 pickle for `.pt` and `.pth`). ONNX has no signature at
-offset 0, and an HDF5 one may sit after a userblock, so their suffixes admit
-any non-empty file. A header that contradicts the suffix (text named `.gguf`)
-is not a model, and a Git LFS pointer is not one under any suffix; see
+`pip install "pitloom[ai]"` installs every optional reader library below;
+install a single extra (`pitloom[gguf]`, ...) if you need one format only.
+Every reader is read-only: Pitloom never runs model code and never calls
+`pickle.load()`. See [Command line](cli.md) for `loom model` and the other
+targets that scan for models.
+
+## How a file is recognised
+
+A file is a model when its header confirms a format. The header check comes
+first, so a file named on the command line is read whatever its suffix (a
+`x.dat` with GGUF magic is GGUF); a project or wheel scan only looks at the
+suffixes below. A header that contradicts the suffix (text named `.gguf`)
+is not a model, and a Git LFS pointer is never one; see
 [What is a model](ai-model-scan-limits.md#what-is-a-model).
 
-## Supported formats
+| Format | Suffixes scanned | Header check | Reads | Library (extra) |
+| :----- | :--------------- | :----------- | :---- | :-------------- |
+| CRFsuite | `.crfsuite`, `.model` | magic `lCRF` | header and label strings | none |
+| fastText | `.ftz`, `.bin` | magic `BA 16 4F 2F` | whole model, in memory | `fasttext-community` (`fasttext`) |
+| GGUF | `.gguf` | magic `GGUF` | key-value header (memory-mapped) | `gguf` (`gguf`) |
+| HDF5, Keras v1-v2 | `.h5`, `.hdf5` | HDF5 magic, or any non-empty file (a userblock moves the signature) | root attributes | `h5py` (`hdf5`) |
+| Keras v3 | `.keras` | ZIP | `config.json`, `metadata.json` | none |
+| NumPy | `.npy`, `.npz` | `.npy`: magic `\x93NUMPY`; `.npz`: ZIP | array headers | `numpy` (`numpy`) |
+| ONNX | `.onnx` | none: any non-empty file | whole protobuf, in memory; external data files not loaded | `onnx` (`onnx`) |
+| PyTorch classic | `.pt`, `.pth` | ZIP, or pickle protocol 2-5 (a text `.pth` path file is not a model) | archive listing, top of `data.pkl` | `fickling` (`pytorch`), optional: without it, no type of model |
+| PT2 / ExecuTorch | `.pt2` | ZIP | archive listing, small text and JSON members | none |
+| Safetensors | `.safetensors` | 8-byte little-endian header size, then `{` | JSON header | `safetensors` (`safetensors`) |
+| Hugging Face Hub | model ID or URL, not a file | -- | Hub API, model card, config files | `huggingface_hub` (`huggingface_hub`) |
 
-| Format | Extension(s) | Install extra |
-| :----- | :----------- | :------------- |
-| CRFsuite | `.crfsuite`, `.model` (only with the `lCRF` magic) | (none -- stdlib only) |
-| fastText | `.ftz`, `.bin` | `pip install fasttext-community` |
-| GGUF | `.gguf` | `pip install gguf` |
-| HDF5 / Keras v1-v2 | `.h5`, `.hdf5` | `pip install h5py` |
-| Keras v3 | `.keras` | (none -- stdlib only) |
-| NumPy | `.npy`, `.npz` | `pip install numpy` |
-| ONNX | `.onnx` | `pip install onnx` |
-| PyTorch classic | `.pt`, `.pth` (a ZIP or a pickle; a plain-text `.pth` path-config file is not a model) | `pip install fickling` (safe pickle inspection) |
-| PyTorch PT2 / ExecuTorch | `.pt2` | (none -- stdlib only) |
-| Safetensors | `.safetensors` | `pip install safetensors` |
+An HDF5 file with a `keras_version` attribute is reported as format
+`keras`, otherwise as `hdf5` (and then only its format is recorded).
+`.bin` and `.model` are shared with other tools: such a file is a model only
+when it carries a supported format's magic (usually fastText or CRFsuite), and no
+warning is given otherwise.
 
-`pip install "pitloom[ai]"` pulls in every optional dependency above at
-once; install a single extractor's package directly if you only need one
-format.
+## What each format holds
 
-Every extraction is read-only and inspects the file's own structure
-(binary header, ZIP archive contents, or safe AST inspection of a pickle)
--- Pitloom never executes model code or calls `pickle.load()`.
+One row per format. **Yes**: read into an SBOM field. **Kept**: read, and
+kept only in the verbatim artifact-metadata annotation (see
+[Where each field goes](#where-each-field-goes)). **Part**: partly; see the
+note. **Fixed**: a constant Pitloom sets for the format. **No**: the format
+can hold it, Pitloom does not read it. **--**: the format has no such field.
 
-A GGUF array (a tokenizer vocabulary, scores, per-layer values) is recorded
-as its element count only, property `<key>.length` (for example
-`tokenizer.ggml.tokens.length`); in the verbatim artifact-metadata annotation
-the key holds `{"length": "N", "type": "<element type>"}` (`type` is left
-out for an element code the format does not define). In that annotation a
-collection is a JSON array and a scalar is text, for every format; see
-[Metadata provenance](metadata-provenance.md#preserved-artifact-metadata).
+| Format | Name | Description | Version | Licence | Type, architecture | Hyperparameters | Inputs, outputs | Labels | Training, evaluation | Other keys |
+| :----- | :--- | :---------- | :------ | :------ | :----------------- | :-------------- | :-------------- | :----- | :-------------- | :--------- |
+| CRFsuite | -- | Part [1] | -- | -- | Fixed | -- | Part [2] | Kept | -- | Kept |
+| fastText | -- | -- | -- | -- | Yes [3] | Part [4] | Part [2] | Kept | Kept (loss) | -- |
+| GGUF | Yes | Yes | Yes | Yes [5] | Yes | Part [6] | No | Kept [7] | -- | Kept |
+| HDF5, Keras v1-v2 | Yes | -- | -- | -- | Yes [8] | Part [9] | Part [10] | -- | Kept [11] | Kept |
+| Keras v3 | Yes | -- | -- | -- | Yes [8] | Part [9] | Part [10] | -- | No [12] | Kept |
+| NumPy | -- | -- | -- | -- | Fixed | -- | Yes [13] | -- | -- | -- |
+| ONNX | Part [14] | Yes | Yes [15] | Yes [16] | Fixed | -- | Yes | -- | -- | Kept [17] |
+| PyTorch classic | -- | -- | -- | -- | Part [18] | No | No | -- | No | Kept [19] |
+| PT2 / ExecuTorch | Yes | Yes | Yes | Yes | -- | -- | Part [20] | -- | -- | Kept [19] |
+| Safetensors | Part [21] | Part [21] | Part [21] | No [21] | Part [21] | -- | Part [22] | -- | -- | Kept |
+| Hugging Face Hub | Yes | Yes | -- | Yes [23] | Yes | Part [24] | -- | No | Kept [25] | Kept |
 
-A CRFsuite model is read by Pitloom itself (header and label strings only;
-never the feature weights or the attribute strings, which come from the
-training text). Its SBOM entry has type of model `conditional random
-field` and a description Pitloom generates from the labels. When the
-verbatim artifact-metadata annotation is preserved
-(`preserve-source-metadata`), it also holds all the labels, in the order
-training first saw them, and the label, attribute and feature counts.
+1. Generated by Pitloom from the labels (`Method: generated_from_labels`),
+   not written by the model's producer.
+2. One output, its shape the label count (`label_sequence` for CRFsuite,
+   `label_probabilities` for a supervised fastText model). Feature weights
+   and CRFsuite attribute strings (training-text features) are never read.
+   A model with a label over 4 KiB keeps its counts but no label (see
+   [scan limits](ai-model-scan-limits.md#size-and-count-caps)).
+3. `args.model` (`supervised`, `cbow`, `skipgram`). The domain is fixed:
+   `text classification`, `natural language processing`.
+4. 11 of the training `args`: `bucket`, `dim`, `epoch`, `lr`, `maxn`,
+   `minCount`, `minCountLabel`, `minn`, `neg`, `wordNgrams`, `ws`.
+5. `general.license` (an SPDX expression by the GGUF spec), trimmed and
+   classified like any model licence. `general.license.name` and `.link` are
+   not read.
+6. Keys ending `.context_length`, `.embedding_length`,
+   `.feed_forward_length`, `.block_count`, `.attention.head_count`,
+   `.attention.head_count_kv`, `.attention.layer_norm_rms_epsilon`,
+   `.rope.freq_base`, `.rope.dimension_count`; plus `quantization`, the name
+   of `general.file_type`. Every other key is kept.
+7. An array (a tokenizer vocabulary, scores, per-layer values) is recorded
+   by length only: `{"length": "N", "type": "<element type>"}` in the
+   annotation (`type` left out for an element code the format does not
+   define); its elements are never read.
+8. The Keras class name (`Sequential`, `Functional`, ...).
+9. The scalar entries of the model `config`.
+10. The input shape only (Keras v3 `build_config`; v1-v2 the first layer's
+    `batch_input_shape`). No outputs.
+11. Optimizer class name, loss and metrics names from `training_config`.
+12. `compile_config` is not read.
+13. Shape and dtype; for `.npz`, one entry per array, with its name.
+14. `graph.name`, unless blank or an exporter default (`torch_jit`,
+    `main_graph`, `tf2onnx`, ...).
+15. `model_version`; a bit-packed SemVer value (any of its upper 32 bits
+    set) as `MAJOR.MINOR.PATCH`
+    ([ONNX versioning](https://onnx.ai/onnx/repo-docs/Versioning.html)).
+16. The standard `model_license` metadata property
+    ([ONNX IR optional metadata](https://onnx.ai/onnx/repo-docs/IR.html#optional-metadata)).
+17. `domain`, `opset.<domain>` and every `metadata_props` entry as
+    `metadata_props.<key>`; a repeated key keeps its last value, with one
+    `WARNING:` per file.
+18. The class at the top of `data.pkl` (often `OrderedDict` for a state
+    dict), found by `fickling` without running the pickle.
+19. The archive member list and count; for PT2 also `extra/author` and
+    `extra/tags`. PT2 name, description, version and licence come from
+    `extra/` (or `METADATA.json` and a root `version` file).
+20. Tensor names from `models/model.json`, no shapes.
+21. Only from conventional `__metadata__` keys: name `modelspec.title`,
+    `name` or `ss_base_model_version`; description `modelspec.description`
+    or `description`; version `modelspec.version` or `version`;
+    architecture `modelspec.architecture` or `architecture`; quantisation
+    `modelspec.precision` or `precision`. A licence key is kept only.
+22. Tensor names, recorded as inputs, without dtype or shape.
+23. Model card `license`, or a licence file detected when the card has none
+    or a vague one. Also from the Hub: DOI, arXiv IDs, page URL, base model,
+    datasets, domains (pipeline tag).
+24. Selected values of `config.json` and `generation_config.json`.
+25. The model card's `model-index` evaluation results, as read.
 
-Size and header limits, the wheel-scan gate and the fields a format cannot
-carry are in [AI model scan limits](ai-model-scan-limits.md).
+## Where each field goes
+
+One row per field of `AiModelMetadata` (`pitloom.core.ai_metadata`), one
+column per output format. Formats are named as in the tables above; "HF" is
+the Hugging Face Hub, "card" a README or model card read with `--enrich`.
+
+| Field | Filled by | SPDX 3.0.1 JSON-LD |
+| :---- | :-------- | :----------------- |
+| `name` | GGUF, ONNX, Keras, HDF5, PT2, Safetensors, HF | `ai_AIPackage.name`; without one, the file name's stem (`Method: file_name_stem`), else the format |
+| `description` | GGUF, ONNX, PT2, Safetensors, CRFsuite, HF | `ai_AIPackage.description` |
+| `version` | GGUF, ONNX, PT2, Safetensors | `ai_AIPackage.software_packageVersion` |
+| `license` | ONNX, PT2, HF, card | licence element plus `hasDeclaredLicense` (the model's own statement) or `hasConcludedLicense` (a third-party source); see [How a license value is recorded](metadata-provenance.md#how-a-license-value-is-recorded) |
+| `type_of_model` | CRFsuite, fastText, HDF5, Keras, NumPy, ONNX, PyTorch, HF | `ai_typeOfModel`, first entry |
+| `architecture` | GGUF, Safetensors, HF | `ai_typeOfModel`, after `type_of_model` |
+| `quantization` | GGUF, Safetensors | `ai_hyperparameter`, key `quantization`, first |
+| `hyperparameters` | GGUF, fastText, HDF5, Keras, HF | `ai_hyperparameter`, one `DictionaryEntry` per key, sorted by key, value as text |
+| `domain`, `usage.domains` | fastText, HF | `ai_domain` |
+| `inputs`, `outputs` | see the table above | `ai_informationAboutApplication`, JSON keys `inputs`, `outputs` |
+| `usage.intended_use`, `usage.unintended_use` | none today | `ai_informationAboutApplication`, JSON keys `intended_use`, `unintended_use` |
+| `usage.limitations` | none today | `ai_limitation`, joined with `; ` |
+| `usage.safety_risk_assessment` | none today | `ai_safetyRiskAssessment` (`high`, `medium`, `low`, `serious`) |
+| `usage.known_biases` | none today | `ai_AIPackage.comment`, `Known biases: ...` |
+| `doi` | HF | `externalIdentifier`, type `other`, comment `DOI` |
+| `arxiv_ids` | HF | `externalRef`, type `documentation` |
+| `url` | HF | `externalRef`, type `altWebPage` |
+| `base_model`, `base_model_relation` | HF | `Relationship` `descendantOf` to an `ai_AIPackage` for the base model (made if absent); the relation in its `comment` |
+| `datasets` | HF, card | `dataset_DatasetPackage` plus `Relationship` `trainedOn` or `testedOn` |
+| `properties`, `raw_metadata`, `raw_metadata_types` | every format | `Annotation` of kind `artifact-metadata` (schema `https://pitloom.dev/provenance/artifact-metadata/2`): `metadata`, `valueTypes`, `format`; only when preserved, see below |
+| `raw_metadata_dropped` | any format, over the entry cap | that annotation's `truncatedKeyCount` |
+| `extra_data`, `extra_lists` | HF | that annotation, `format` `huggingface` |
+| `provenance` | every format | `ai_AIPackage.comment` (`Metadata provenance: ...`) and/or a provenance `Annotation`, by `[tool.pitloom.provenance] format` |
+| `format_info.model_format` | every format | the artifact-metadata annotation's `format` |
+| `format_info.format_version`, `framework`, `framework_version` | most formats | not written: cited in the provenance only |
+| `format_info.file_path_relative` | project and wheel scans | `Relationship` `contains` from the `ai_AIPackage` to the model's `software_File` (which has the SHA-256) |
+| `usage_files` | `--scan-model-usage` | `LifecycleScopedRelationship` `hasDataFile`, scope `runtime`, from each `.py` `software_File` to the model's |
+
+The artifact-metadata annotation is written when
+`preserve-source-metadata` says so: by default (`auto`) only for a model
+whose file is not in the SBOM's file list, as with `loom model FILE`; see
+[Preserved artifact metadata](metadata-provenance.md#preserved-artifact-metadata).
+In it a collection is a JSON array (or object) and a scalar is text, for
+every format.
+
+Text a model's source wrote is untrusted: bidi and zero-width controls in
+the properties shown to a reader are written as `\uXXXX`, with one
+`WARNING:` per model, while the artifact-metadata annotation keeps the text
+as read. Which properties, and how to read them back: [Reading values
+back](metadata-reading-back.md). Long names and labels are capped: see
+[scan limits](ai-model-scan-limits.md#size-and-count-caps).
+
+No model format fills `ai_metric`, `ai_metricDecisionThreshold`,
+`ai_energyConsumption`, `ai_autonomyType`, `ai_modelDataPreprocessing`,
+`ai_modelExplainability`, `ai_sensitivePersonalInformation`,
+`ai_standardCompliance`, `software_primaryPurpose`, `suppliedBy` or
+`verifiedUsing` on an `ai_AIPackage`; an
+[SBOM fragment](fragments.md) can add them.
 
 ## Hugging Face Hub models
 
@@ -81,19 +206,45 @@ loom model https://huggingface.co/mistralai/Mistral-7B-v0.1
 loom model Qwen/Qwen3-235B-A22B
 ```
 
-This reads the model card, `config.json`, `tokenizer_config.json`, and
-`generation_config.json` from the Hub API and produces an enriched
-`ai_AIPackage`.
+This reads the model card, `config.json`, `tokenizer_config.json`,
+`generation_config.json` and the Hub's model information, and produces an
+`ai_AIPackage` as in the tables above.
 
 ## Not yet supported
 
 JAX (Orbax), TensorFlow SavedModel, TensorFlow Lite, and scikit-learn
 (pickle/joblib) are on the roadmap but not implemented yet.
 
+## Adding a format
+
+The tables are kept one row per model format and per field, one column per
+output format, so that either grows by one line or one column.
+
+- **A new SBOM output format** (CycloneDX, another SPDX version): add a
+  column to [Where each field goes](#where-each-field-goes). The SPDX 3
+  mapping lives in `pitloom.assemble.spdx3._ai_package` and
+  `pitloom.assemble.spdx3.ai`; a new format gets its own assembler that
+  reads the same `AiModelMetadata`.
+- **A new model format**: add a row to the tables in
+  [How a file is recognised](#how-a-file-is-recognised) and
+  [What each format holds](#what-each-format-holds), and its name to the
+  "Filled by" cells it fills. In code: an `AiModelFormat` member (suffixes,
+  magic) in `pitloom.core.ai_metadata`; a reader in
+  `pitloom.extract.ai_model` (a library-free header reader goes in its
+  `formats` subpackage), registered in `REGISTRY` in
+  `pitloom.extract.ai_model.reader` (and in `_EXTENSION_ADMITS` there when
+  the format has no magic); its library in
+  `pitloom.extract.ai_model.reader_requirements` and a `pyproject.toml`
+  extra; a decision on the wheel gate
+  (`pitloom.extract.scanner_wheel.WHEEL_GATED_FORMATS`); and fixtures
+  under `tests/fixtures/aimodels/`.
+
 ## See also
 
-- [AI model scan limits](ai-model-scan-limits.md) -- why a model can be
-  missing metadata: caps, gated formats, fields not recorded.
+- [AI model scan limits](ai-model-scan-limits.md) -- caps, gated formats
+  in wheels, and what a format cannot record.
+- [Metadata provenance](metadata-provenance.md) -- the provenance and
+  artifact-metadata annotations.
 - [Command line](cli.md) -- the `loom model` command in context with
   Pitloom's other generation targets.
 - [Python API](python-api.md) -- `generate_model_sbom()`, the equivalent

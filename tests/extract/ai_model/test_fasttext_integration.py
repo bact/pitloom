@@ -78,8 +78,9 @@ def test_sentiment_demo_loss(sentiment_demo_metadata: AiModelMetadata) -> None:
 
 
 def test_sentiment_demo_labels(sentiment_demo_metadata: AiModelMetadata) -> None:
-    labels = json.loads(sentiment_demo_metadata.properties["labels"])
-    assert set(labels) == {"__label__pos", "__label__neu", "__label__neg", "__label__q"}
+    assert sentiment_demo_metadata.properties["labels"] == (  # RFC 8785, file order
+        '["__label__q","__label__pos","__label__neu","__label__neg"]'
+    )
 
 
 def test_sentiment_demo_outputs(sentiment_demo_metadata: AiModelMetadata) -> None:

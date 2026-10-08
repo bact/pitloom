@@ -29,7 +29,7 @@ network, no multi-step state):
   `pitloom.extract.ai_model.formats.crfsuite.read_crfsuite`, Pitloom's own
   pure-Python reader of a CRFsuite model's header and labels. Swallows
   `FormatError` (its documented contract); any other exception, or a read
-  over `max_crfsuite_label_bytes + 108` bytes, is a crash. CI seeds it with
+  over `max_crfsuite_labels_chunk_bytes + 108` bytes, is a crash. CI seeds it with
   a copy of `tests/fixtures/aimodels/crfsuite/`.
 
 ## Platform note

@@ -21,6 +21,7 @@ from pitloom.core.ai_metadata import (
     AiModelFormat,
     AiModelFormatInfo,
     AiModelMetadata,
+    SourceMetadata,
     source_element_text,
     source_metadata,
 )
@@ -345,7 +346,7 @@ def _read_pt2_zip(
     dict[str, str],
     list[dict[str, object]],
     list[dict[str, object]],
-    dict[str, object],
+    SourceMetadata,
 ]:
     """Read metadata from a PT2 Archive ZIP."""
     file_list = zf.namelist()
@@ -355,8 +356,7 @@ def _read_pt2_zip(
     properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
 
-    shown = record_archive_contents(file_list, source, properties, provenance)
-    collections: dict[str, list[object]] = {"archive_contents": list(shown)}
+    natives = record_archive_contents(file_list, source, properties, provenance)
 
     prefix = _detect_root_prefix(file_list)
 
@@ -382,7 +382,7 @@ def _read_pt2_zip(
         zf, prefix, source, properties, provenance
     )
     if tags is not None:
-        collections["tags"] = tags
+        natives["tags"] = tags
 
     # extra/ values override METADATA.json when both are present.
     if extra_name:
@@ -408,7 +408,7 @@ def _read_pt2_zip(
         provenance,
         inputs,
         outputs,
-        source_metadata(properties, collections),
+        source_metadata(properties, natives),
     )
 
 
@@ -471,7 +471,7 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
             provenance,
             inputs,
             outputs,
-            raw_metadata,
+            raw,
         ) = _read_pt2_zip(zf, source)
 
     return AiModelMetadata(
@@ -486,7 +486,7 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
         version=version,
         license=license_expr,
         properties=properties,
-        raw_metadata=raw_metadata,
+        **raw,
         provenance=provenance,
         inputs=inputs,
         outputs=outputs,

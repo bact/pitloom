@@ -8,16 +8,16 @@ SPDX-License-Identifier: CC0-1.0
 
 # CRFsuite model support
 
-Status: built in PR #294, under review; the
-decisions below are what was built. Summarised in [roadmap.md](roadmap.md)
-as one bullet linking here. Step-by-step plan:
-[crfsuite-implementation-plan.md](crfsuite-implementation-plan.md).
+Status: built in PR #294; the decisions below are what was built.
+Summarised in [roadmap.md](../design/roadmap.md) as one bullet linking here.
+Step-by-step plan: [crfsuite-implementation-plan.md](crfsuite-implementation-plan.md).
 
-See also: [model-metadata-readers.md](model-metadata-readers.md) (the
+See also: [crfsuite-implementation-plan.md](crfsuite-implementation-plan.md),
+[model-metadata-readers.md](../design/model-metadata-readers.md) (the
 stdlib-only `formats/` subpackage this reader is built in),
-[model-metadata-extraction.md](model-metadata-extraction.md) (planned
+[model-metadata-extraction.md](../design/model-metadata-extraction.md) (planned
 formats table),
-[model-file-metadata.md](../implementation/sbom-generator-field-notes/model-file-metadata.md)
+[model-file-metadata.md](sbom-generator-field-notes/model-file-metadata.md)
 (what model files carry, measured).
 
 ## Why

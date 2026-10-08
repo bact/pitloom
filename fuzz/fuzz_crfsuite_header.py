@@ -13,7 +13,7 @@ string database of a CRFsuite model file a user points ``loom model`` or
 ``UnsupportedVersion``, ``LimitExceeded``), which this harness swallows.
 Anything else escaping ``_run_one`` (``struct.error``, ``IndexError``,
 ``UnicodeDecodeError``, ``MemoryError``, ...) is a bug, as is a read past
-``max_crfsuite_label_bytes + 108`` bytes.
+``max_crfsuite_labels_chunk_bytes + 108`` bytes.
 
 Pure Python and in memory: no third-party package and no temp file.
 Seed it with ``tests/fixtures/aimodels/crfsuite/`` as the corpus directory.
@@ -37,7 +37,7 @@ from pitloom.extract.ai_model.formats import (  # noqa: E402
 from pitloom.extract.ai_model.formats.crfsuite import read_crfsuite  # noqa: E402
 
 _LIMITS = Limits()
-_BUDGET = _LIMITS.max_crfsuite_label_bytes + 108
+_BUDGET = _LIMITS.max_crfsuite_labels_chunk_bytes + 108
 
 
 class _Counting(io.BytesIO):

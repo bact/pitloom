@@ -57,13 +57,18 @@ built wheel (fixed, #287).
 
 ### 0.21.0
 
-- [ ] **Same AI model, same id on every surface** (next after the CRFsuite
-  PR): `loom model`, `loom enrich` and `loom id generate` use the project
+- [x] **One spelling for scalar text**, built in #294. See
+  [scalar-text-spelling.md](../implementation/scalar-text-spelling.md).
+- [ ] **Same AI model, same id on every surface** (first item after #294):
+  `loom model`, `loom enrich` and `loom id generate` use the project
   scan's name lookup, so enrichment cannot hit the wrong model. See
   [known-bugs.md](known-bugs.md#p0-in-0210).
-- [x] **CRFsuite models** (#293, provisional): `lCRF` magic on
-  `.crfsuite`/`.model`, stdlib-only bounded reader. See
-  [crfsuite-support.md](crfsuite-support.md).
+- [x] **CRFsuite models** (#294): `lCRF` magic, stdlib-only bounded reader.
+  See [crfsuite-support.md](../implementation/crfsuite-support.md).
+- [ ] **Fragment value beats an extracted one** (own PR): a fragment or
+  catalogue value must win over a value read from or generated for the
+  model (e.g. a CRFsuite description). See
+  [known-bugs.md](known-bugs.md#p0-in-0210).
 - [ ] **Registry v3**: one typed table, content gate chosen at lookup;
   closes the P1 registry bugs. See [id-registry-v3.md](id-registry-v3.md),
   [id-registry-v3-rollout.md](id-registry-v3-rollout.md).

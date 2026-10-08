@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-31
-Last-Modified: 2026-09-07
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,7 +15,7 @@ roadmap's own priority order, as a scoped follow-on to Poetry wheel-file
 discovery rather than as part of a general lock-file initiative. Its
 design (source-stage-only scoping, direct/transitive dedup, additive
 `dependsOn` edges with `RelationshipCompleteness` left conservatively unset) came from
-[sbom-lifecycle-stages.md](sbom-lifecycle-stages.md)'s source/build/deployed
+[sbom-lifecycle-stages.md](../implementation/sbom-lifecycle-stages.md)'s source/build/deployed
 staging model, which this document's priority table doesn't use -- worth
 reconciling if the two priority framings diverge as more formats land.
 

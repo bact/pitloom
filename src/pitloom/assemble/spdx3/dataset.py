@@ -9,7 +9,14 @@ from __future__ import annotations
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._ai_package import cap_related_name
+from pitloom.assemble.spdx3._display_text import (
+    DATASET,
+    DATASET_CREATOR,
+    DATASET_RELATIONSHIP,
+)
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
+from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
@@ -124,9 +131,9 @@ def _add_dataset_creator_agent(
     doc_name: str,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
-) -> None:
+) -> spdx3.Agent:
     """Create an Agent element for a dataset's creator and wire a publishedBy
-    relationship linking the dataset to the Agent.
+    relationship linking the dataset to the Agent; return the Agent.
     """
     creator_agent = spdx3.Agent(
         spdxId=generate_spdx_id(
@@ -146,6 +153,30 @@ def _add_dataset_creator_agent(
     )
     if rel_creator:
         exporter.add_relationship(rel_creator)
+    return creator_agent
+
+
+def _dataset_relationship(
+    ai_package_spdx_id: str,
+    dataset_pkg: spdx3.dataset_DatasetPackage,
+    role: str,
+    creation_info: spdx3.CreationInfo,
+    doc: tuple[str, str],
+) -> spdx3.Relationship | None:
+    """The relationship from the model to *dataset_pkg* for *role*; *doc* is
+    the document name and uuid."""
+    rel_type, fallback_comment = _role_to_rel(role)
+    rel = build_relationship(
+        from_id=ai_package_spdx_id,
+        to_ids=[require_spdx_id(dataset_pkg)],
+        rel_type=rel_type,
+        doc_name=doc[0],
+        doc_uuid=doc[1],
+        creation_info=creation_info,
+    )
+    if rel and fallback_comment and rel_type == spdx3.RelationshipType.other:
+        rel.comment = fallback_comment
+    return rel
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -157,12 +188,18 @@ def add_datasets_for_model(
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
     *,
+    ai_model: AiModelMetadata,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
     dataset_creation_info: dict[str, spdx3.CreationInfo] | None = None,
-) -> None:
+) -> list[tuple[str, spdx3.Element]]:
     """Build ``dataset_DatasetPackage`` and relationship elements for each
-    dataset reference.
+    dataset reference; return the elements holding display text, labelled
+    for :func:`~pitloom.assemble.spdx3._ai_package.finish_ai_package`.
+
+    Each dataset's name and creator name is cut as *ai_model*'s own name
+    is, with the warning naming *ai_model*
+    (:func:`~pitloom.assemble.spdx3._ai_package.cap_related_name`).
 
     Args:
         dataset_creation_info: Optional override map, dataset name ->
@@ -173,6 +210,7 @@ def add_datasets_for_model(
             the shared *creation_info* param, unchanged behavior for every
             existing call site.
     """
+    created: list[tuple[str, spdx3.Element]] = []
     for dataset_ref in datasets:
         meta = dataset_ref.metadata
         element_creation_info = (
@@ -183,7 +221,9 @@ def add_datasets_for_model(
         dataset_pkg = _build_dataset_package(
             meta, element_creation_info, doc_name, doc_uuid
         )
+        dataset_pkg.name = cap_related_name(meta.name, "dataset name", ai_model)
         exporter.object_set.add(dataset_pkg)
+        created.append((DATASET, dataset_pkg))
         emit_provenance(
             subject=dataset_pkg,
             provenance=meta.provenance,
@@ -196,25 +236,30 @@ def add_datasets_for_model(
         )
 
         if meta.creator:
-            _add_dataset_creator_agent(
-                dataset_pkg_spdx_id=require_spdx_id(dataset_pkg),
-                creator_name=meta.creator,
-                creation_info=element_creation_info,
-                doc_name=doc_name,
-                doc_uuid=doc_uuid,
-                exporter=exporter,
+            created.append(
+                (
+                    DATASET_CREATOR,
+                    _add_dataset_creator_agent(
+                        dataset_pkg_spdx_id=require_spdx_id(dataset_pkg),
+                        creator_name=cap_related_name(
+                            meta.creator, "dataset creator name", ai_model
+                        ),
+                        creation_info=element_creation_info,
+                        doc_name=doc_name,
+                        doc_uuid=doc_uuid,
+                        exporter=exporter,
+                    ),
+                )
             )
 
-        rel_type, fallback_comment = _role_to_rel(dataset_ref.role)
-        rel = build_relationship(
-            from_id=ai_package_spdx_id,
-            to_ids=[require_spdx_id(dataset_pkg)],
-            rel_type=rel_type,
-            doc_name=doc_name,
-            doc_uuid=doc_uuid,
-            creation_info=element_creation_info,
+        rel = _dataset_relationship(
+            ai_package_spdx_id,
+            dataset_pkg,
+            dataset_ref.role,
+            element_creation_info,
+            (doc_name, doc_uuid),
         )
         if rel:
-            if fallback_comment and rel_type == spdx3.RelationshipType.other:
-                rel.comment = fallback_comment
             exporter.add_relationship(rel)
+            created.append((DATASET_RELATIONSHIP, rel))
+    return created

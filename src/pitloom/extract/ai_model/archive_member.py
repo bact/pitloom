@@ -25,6 +25,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import IO, Any, NamedTuple
 
+from pitloom.core.ai_metadata import record_scalar_property
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, charge_read
 
 #: Largest metadata member read whole: 8 MiB. A ``.keras`` ``config.json``,
@@ -49,25 +50,27 @@ def record_archive_contents(
     source: str,
     properties: dict[str, str],
     provenance: dict[str, str],
-) -> list[str]:
+) -> dict[str, Any]:
     """Record an archive whose members are *names* in *properties*: the
     first :data:`ARCHIVE_CONTENTS_SHOWN` names as ``archive_contents``
     (ending ``, ... (<N> total)`` when that cuts the list) and the count of
     members as ``archive_member_count``, each with its *provenance*.
 
     Returns:
-        The names shown, for ``raw_metadata["archive_contents"]``.
+        The native values of both keys (the names shown, the count), for
+        :func:`~pitloom.core.ai_metadata.source_metadata`.
     """
     shown = names[:ARCHIVE_CONTENTS_SHOWN]
     text = ", ".join(shown)
     if len(names) > ARCHIVE_CONTENTS_SHOWN:
         text += f", ... ({len(names)} total)"
     properties["archive_contents"] = text
-    properties["archive_member_count"] = str(len(names))
+    natives: dict[str, Any] = {"archive_contents": shown}
+    record_scalar_property(properties, natives, "archive_member_count", len(names))
     field = f"{source} | Field: ZIP archive structure"
     provenance["properties.archive_contents"] = field
     provenance["properties.archive_member_count"] = f"{field} | Method: member_count"
-    return shown
+    return natives
 
 
 # Most central-directory bytes allowed: the entry cap at 256 bytes an entry,

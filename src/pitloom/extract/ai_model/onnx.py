@@ -15,6 +15,7 @@ from pitloom.core.ai_metadata import (
     AiModelFormat,
     AiModelFormatInfo,
     AiModelMetadata,
+    record_scalar_property,
     source_metadata,
 )
 from pitloom.extract._extract_utils import (
@@ -83,8 +84,11 @@ def _onnx_tensor_specs(value_infos: Any) -> list[dict[str, Any]]:
 
 def _extract_onnx_properties(
     model: Any, source: str, provenance: dict[str, str]
-) -> dict[str, str]:
+) -> tuple[dict[str, str], dict[str, int]]:
     """Extract domain, opset versions, and metadata_props into properties dict.
+
+    Returns ``(properties, natives)``: *natives* holds each opset version as
+    the integer it is, for :func:`~pitloom.core.ai_metadata.source_metadata`.
 
     ``metadata_props`` keys get the ``metadata_props.`` prefix, so they never
     collide with ``domain`` or ``opset.<domain>``. A key the file repeats
@@ -92,11 +96,14 @@ def _extract_onnx_properties(
     file names how many keys repeat and the first few.
     """
     properties: dict[str, str] = {}
+    natives: dict[str, int] = {}
     if model.domain:
         properties["domain"] = model.domain
     for opset in model.opset_import:
         opset_domain = opset.domain if opset.domain else "ai.onnx"
-        properties[f"opset.{opset_domain}"] = str(opset.version)
+        record_scalar_property(
+            properties, natives, f"opset.{opset_domain}", opset.version
+        )
     repeated: dict[str, None] = {}  # insertion-ordered set
     for prop in model.metadata_props:
         key = _METADATA_PROPS_PREFIX + prop.key
@@ -106,7 +113,7 @@ def _extract_onnx_properties(
     if repeated:
         _warn_repeated_keys(list(repeated))
     record_dict_field_provenance(provenance, "properties", properties, source)
-    return properties
+    return properties, natives
 
 
 def _warn_repeated_keys(keys: list[str]) -> None:
@@ -229,7 +236,7 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
             " | Method: semver_bit_packed" if is_semver else ""
         )
 
-    properties = _extract_onnx_properties(model, source, provenance)
+    properties, natives = _extract_onnx_properties(model, source, provenance)
     license_expr = _resolve_onnx_license(properties, source, provenance)
 
     # Input tensor specifications
@@ -258,7 +265,7 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
         # namespace (``org.onnx``), not a type; it stays in ``properties``.
         type_of_model="neural network",
         properties=properties,
-        raw_metadata=source_metadata(properties),
+        **source_metadata(properties, natives),
         inputs=inputs,
         outputs=outputs,
         provenance=provenance,

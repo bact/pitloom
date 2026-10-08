@@ -31,6 +31,7 @@ import contextlib
 import importlib
 import inspect
 import io
+import json
 import re
 import shlex
 from collections.abc import Iterator
@@ -286,3 +287,26 @@ def test_scan_found_examples(name: str, cases: list[Snippet], least: int) -> Non
     changed fence style, a moved file) would leave its parametrized test with
     no cases to fail."""
     assert len(cases) >= least, f"only {len(cases)} {name} examples found"
+
+
+def _unsorted_keys(node: Any) -> list[str]:
+    """Object key lists under *node* that are not in sorted order."""
+    if isinstance(node, list):
+        return [bad for item in node for bad in _unsorted_keys(item)]
+    if not isinstance(node, dict):
+        return []
+    bad = [] if list(node) == sorted(node) else [str(list(node))]
+    return bad + [b for value in node.values() for b in _unsorted_keys(value)]
+
+
+def test_provenance_envelope_examples_use_canonical_key_order() -> None:
+    """A statement envelope (`schema` key) is RFC 8785 text, so its keys are
+    sorted at every level; a hand-written example in another order misleads."""
+    path = REPO_ROOT / "docs" / "metadata-provenance.md"
+    envelopes = 0
+    for block in fenced_blocks(path):
+        if block.lang != "json" or '"schema"' not in block.body:
+            continue
+        envelopes += 1
+        assert not _unsorted_keys(json.loads(block.body)), block.ident
+    assert envelopes >= 5

@@ -284,6 +284,27 @@ def test_fasttext_labels_json_round_trip(tmp_path: Path, labels: list[str]) -> N
         assert "ดี" in meta.properties["labels"]
 
 
+def test_fasttext_label_over_the_cap_keeps_the_count(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Same rule as CRFsuite: no label recorded, one warning, the label
+    count still in ``outputs``."""
+    model_file = tmp_path / "model.bin"
+    model_file.write_bytes(b"\x00")
+    mock_fasttext = MagicMock()
+    mock_fasttext.load_model.return_value = _make_fasttext_model(
+        model_name="supervised", labels=["__label__a", "x" * 4097]
+    )
+    with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
+        meta = read_fasttext(model_file)
+    (record,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert record.getMessage() == "a label over 4096 bytes; no label recorded"
+    assert "labels" not in meta.properties
+    assert "labels" not in meta.raw_metadata
+    assert "properties.labels" not in meta.provenance
+    assert meta.outputs == [{"name": "label_probabilities", "shape": [2]}]
+
+
 def test_fasttext_supervised_outputs_label_count(tmp_path: Path) -> None:
     model_file = tmp_path / "classifier.bin"
     model_file.write_bytes(b"fake")

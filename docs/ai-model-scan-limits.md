@@ -82,9 +82,8 @@ unreadable one fails instead: one `ERROR:` (`model command failed:`,
 path and the reason, e.g. `header is a Git LFS pointer`, `header is not gguf`
 or `file is empty`; an absent file has its own message) and exit status 1,
 with nothing written, where a scan lists no entry. `loom model` and `loom
-enrich` take a file of any suffix; `loom generate FILE` takes only the model
-suffixes (`.bin`, `.crfsuite`, `.ftz`, `.gguf`, `.h5`, `.hdf5`, `.keras`,
-`.model`, `.npy`, `.npz`, `.onnx`, `.pt`, `.pt2`, `.pth`, `.safetensors`):
+enrich` take a file of any suffix; `loom generate FILE` takes only the
+[suffixes scanned](ai-model-formats.md#how-a-file-is-recognised) for models:
 any other file is read as a project (an sdist archive, or a directory), and
 fails as one. A script that used the exit status to detect an unreadable
 model must look for the `WARNING:` instead.
@@ -107,10 +106,12 @@ Values are exact; "stub" is the format-only entry described above.
 | GGUF string | 8 MiB per key or string | GGUF | No | Stub: `... GGUF string of <N> bytes; metadata not read`. A string that runs past the end of the file is left to the reader, which fails it |
 | GGUF version | 2 and 3 are walked; a version the `gguf` package reads but the walk does not know is refused | GGUF | No | Stub: `... GGUF version <N>, not bounded; metadata not read` |
 | CRFsuite labels | 1000 labels, and a labels chunk (its hash tables and every label string, read whole) of at most 1 MiB (1048576 bytes); the feature weights and attribute strings are never read | CRFsuite | No | Stub: `... more than 1000 labels; metadata not read` (or `labels CQDB over 1048576 bytes`). Real models hold a few to a few dozen labels |
+| Label length | 4 KiB (4096 bytes) of UTF-8 per label | CRFsuite, fastText | No | Model kept with its counts (`num_labels`, the `outputs` shape) but no label: no `labels` property or annotation key, no description generated from them. `WARNING: FORMAT=<fmt> FILE=<path>: a label over 4096 bytes; no label recorded`. The generated CRFsuite description also shows at most 64 characters of each of its first 20 labels |
+| Model name | 1024 characters (code points), including the trailing `...~<digest>` when cut | The name shown for every model (its own name, or its file name stem), and the names a model brings in: its base model, its datasets and their creators; on every surface. A name also seeds the `spdxId` (the base model's and creator's too), the registry key and an enrichment's target | No | Name cut to its first 1012 characters, `...`, `~` and the first 8 hex digits of the SHA-256 of the whole name, so two long names that share a start stay apart; a model's own name gets `Note: cut to 1024 characters` in its provenance; the artifact-metadata annotation keeps the name as read. `WARNING: FORMAT=<fmt> FILE=<path>: model name of <N> characters cut to 1024` (or `base model name`, `dataset name`, `dataset creator name`) |
 | Safetensors header | 16 MiB | Safetensors | No | Stub: `... Safetensors header of <N> bytes; metadata not read` |
 | `.npy` header | 10000 bytes (NumPy's own limit) | `.npy`, and each array in an `.npz` | No | Stub: `... .npy header of <N> bytes, over 10000; metadata not read` |
 | `.npz` members | Reading stops after 1001 arrays; then the entry cap below applies | `.npz` | No | See the entry cap |
-| Entries per list or map | 1000, the first ones: in file order, except Safetensors `__metadata__`, which has none and keeps its first 1000 keys in sorted order. Safetensors' well-known keys (`modelspec.title`, `name`, `format`, ...) are read from the whole `__metadata__`, so they set the model's name, version and so on even when they sort past the cut | `inputs`, `outputs`, `hyperparameters`, `properties`, `raw_metadata` of every format; project and wheel scans, `loom model FILE` and `loom enrich FILE`. Not a Hugging Face model (`loom model <ID>` reads the Hub API, uncut) | No | Model kept, lists trimmed, provenance of dropped keys removed: `WARNING: FORMAT=<fmt> FILE=<path>: more than 1000 entries in <fields>; the first 1000 of each are kept` |
+| Entries per list or map | 1000, the first ones: in file order, except Safetensors `__metadata__`, which has none and keeps its first 1000 keys in sorted order. Safetensors' well-known keys (`modelspec.title`, `name`, `format`, ...) are read from the whole `__metadata__`, so they set the model's name, version and so on even when they sort past the cut | `inputs`, `outputs`, `hyperparameters`, `properties`, `raw_metadata` of every format; project and wheel scans, `loom model FILE` and `loom enrich FILE`. Not a Hugging Face model (`loom model <ID>` reads the Hub API, uncut) | No | Model kept, lists trimmed, provenance of dropped keys removed, the artifact-metadata annotation's `truncatedKeyCount` counting the `raw_metadata` keys left out ([marker](metadata-provenance.md#size-bounded-preservation)): `WARNING: FORMAT=<fmt> FILE=<path>: more than 1000 entries in <fields>; the first 1000 of each are kept` |
 | Archive listing | First 20 names (`properties.archive_contents`, ending `, ... (<N> total)` when cut; an array of the same 20 names in the artifact-metadata annotation), with the member count in `archive_member_count` | PyTorch classic, PT2 | No | No log line, since nearly every checkpoint has a file per tensor; the count and the text say it is cut |
 | Artifact-metadata nesting | 32 levels of a collection; a deeper part is kept as its JSON text | The artifact-metadata annotation of every format (HDF5 `metrics`, PT2 `tags`) | No | No log line; the deeper part is text, `<nested over 32 levels>` where its JSON text nests too deeply to write |
 | Unparsed Keras config | First 500 characters (`properties.model_config_raw`) | HDF5, only when neither the class nor the name could be read | No | One `WARNING: FORMAT=<fmt> FILE=<path>: model_config is not valid JSON (<error>); kept as properties.model_config_raw, the first 500 of <N> characters ...` (the cut is part of the same line; `is not a JSON object` for a JSON that is not an object, `is not valid JSON (nested too deeply)` for a nesting the parser cannot take, `model_config.class_name is not a string` for a class that is not text); the fields not read are named after it, `Field(s) affected (skipped)`. A valid config without a class or name longer than 500 characters: `Unparsed model_config of <N> characters; the first 500 are kept ...` |
@@ -180,7 +181,7 @@ To read them, for a wheel you trust:
 | :------ | :-- |
 | CLI | `--trust-wheel-model` on `wheel`, `wheel --embed` or `embed-wheel` without `--project-dir` |
 | Python API | `trust_wheel_model=True` on `generate()` or `generate_wheel_sbom()`; `ConfigOverrides.trust_wheel_model` for `embed_wheel_sbom()` without `project_dir=` |
-| GitHub Action | Input `trust-wheel-model: "true"`, with `embed-wheel` and `project-path: ""` only. With a `project-path` the models come from the project and the action logs `::warning::trust-wheel-model has no effect with project-path set`; outside `embed-wheel` it logs `::warning::trust-wheel-model has no effect without embed-wheel` |
+| GitHub Action | Input `trust-wheel-model: "true"`, with `embed-wheel` and `project-path: ""` only; elsewhere it warns that it has no effect ([GitHub Action](github-action.md#configuration)) |
 
 There is no `[tool.pitloom]` key, on purpose: a config file can sit in the
 untrusted tree, so it must not be able to switch the protection off. On any
@@ -222,29 +223,19 @@ the header), so it matches the files a scan lists.
 
 ## What cannot be recorded
 
-**Whatever the cause.** The `ai_AIPackage` carries name, version,
-description, licence (`hasDeclaredLicense`), type of model (and
-architecture), hyperparameters (and quantisation), and the inputs and outputs
-(as `informationAboutApplication`).
-Properties that fit no field are kept only in the verbatim artifact-metadata
-annotation. The framework name, framework version and format version a
-reader finds are not written to an SPDX field of their own. The package is
-named after the model file's stem when the model has no name of its own.
+**Whatever the cause.** Which field each value lands in, which fields have
+no SPDX property of their own (framework, format version), and when a licence
+is declared or concluded: [Where each field
+goes](ai-model-formats.md#where-each-field-goes). Properties that fit no field
+are kept only in the verbatim artifact-metadata annotation.
 
-**Fields a format never carries**, even when fully read:
+**Fields a format never carries**, even when fully read: see
+[What each format holds](ai-model-formats.md#what-each-format-holds). Beyond
+that table:
 
-| Format | Always absent |
-| :----- | :------------ |
-| NumPy | Name, description, version, hyperparameters, outputs. A `.npy` gives one input (shape, dtype); an `.npz` gives one per array |
-| Safetensors | Outputs, hyperparameters, type of model. Inputs are tensor names only, with no shapes or dtypes. Name, version, description, architecture and quantisation only if the `__metadata__` header has the matching key |
-| GGUF | Inputs and outputs (tensors are not listed), type of model. Array values (vocabulary, scores, per-layer values) are never recorded, only their length as `<key>.length` |
-| PyTorch classic | Name, version, architecture, inputs, outputs, hyperparameters. Only the class at the top of `data.pkl` (needs `fickling`; without it, no type of model) |
-| PT2 / ExecuTorch | Hyperparameters. Description, licence, author and tags only in the "rich" layout |
-| Keras v3 | Outputs. Hyperparameters are the scalar entries of `config` only |
-| HDF5 / Keras v1-v2 | Whatever the `model_config` attribute lacks |
-| ONNX | Hyperparameters. Name when `graph.name` is blank or an exporter default (`torch_jit`, `main_graph`, `tf2onnx`, ...). Licence only from the standard `model_license` metadata property ([ONNX IR optional metadata](https://onnx.ai/onnx/repo-docs/IR.html#optional-metadata)). A `model_version` with any of its upper 32 bits set (a negative one included) is bit-packed SemVer ([ONNX versioning](https://onnx.ai/onnx/repo-docs/Versioning.html)) and is recorded as `MAJOR.MINOR.PATCH`; otherwise the plain number. `domain` is the owner's reverse-DNS namespace, not a model type, and is kept in the verbatim metadata only; `metadata_props` entries are kept as `metadata_props.<key>`; a repeated key keeps its last value, with one `WARNING:` per file. Tensors stored in external data files are not read (`load_external_data=False`) |
-| CRFsuite | Name, version, licence, inputs, hyperparameters. Architecture. The description is generated from the labels (`Method: generated_from_labels`) and the outputs are one `label_sequence` of shape `[<label count>]`, both only when the model has labels |
-| fastText | Name, description, version, inputs. Labels only for supervised models |
+- A PT2 / ExecuTorch archive gives description, licence, author and tags only
+  in the "rich" layout.
+- HDF5 / Keras v1-v2 gives only what the `model_config` attribute holds.
 
 **Not detected, or not scanned:**
 
@@ -271,12 +262,9 @@ named after the model file's stem when the model has no name of its own.
   (truncated, corrupt) gives `WARNING: FORMAT=<fmt> FILE=<path>: failed to
   extract metadata; <error>` and a stub. A missing optional library gives
   a stub and `required library not installed`.
-- A file whose header contradicts its model suffix (text named `.gguf`,
-  `.keras`, `.npz`, `.safetensors`...) is not a model: no `ai_AIPackage`, one
-  `WARNING: ... header is not <fmt>; not listed as an AI model`, and the file
-  is still listed as a `software_File`. A Git LFS pointer is one under any
-  candidate suffix (`.onnx`, `.h5`, `.pt`, `.bin` included): `header is a Git
-  LFS pointer; not listed as an AI model`; run `git lfs pull`.
+- A file whose header contradicts its model suffix, or a Git LFS pointer, is
+  not a model, but is still listed as a `software_File`; see [What is a
+  model](#what-is-a-model).
 
 ## Known limitations
 
@@ -314,6 +302,8 @@ it free. Figures are approximate, from measurements on one machine.
 
 - [AI model formats](ai-model-formats.md) -- formats, extensions, install
   extras.
+- [Reading values back](metadata-reading-back.md) -- how caps, scalar text
+  and the display escape combine, and how to read a value back.
 - [Configuration](configuration.md) -- `max-model-extract-bytes`,
   `scan-model-usage`, `max-source-metadata-bytes`.
 - [Command line](cli.md) -- `--trust-wheel-model`, `--scan-model-usage`.

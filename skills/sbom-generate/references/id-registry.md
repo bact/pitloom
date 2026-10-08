@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,8 +10,8 @@ SPDX-License-Identifier: CC0-1.0
 
 Companion to `../SKILL.md`'s "Pinning element ids" section, which holds the
 rule that matters most: a registry is used **only when declared**. This
-file is the detail behind it. Full command reference:
-[docs/cli.md's "Pin ids across fragments"](https://bact.github.io/pitloom/cli/#pin-ids-across-fragments).
+file is the detail behind it. Full reference:
+[Loom ID registry](https://bact.github.io/pitloom/id-registry/).
 
 ## What a registry pins
 

@@ -100,7 +100,9 @@ def test_the_fixtures_read_as_documented(data: bytes, expected: CrfsuiteModel) -
 
 
 def test_limits_equal_to_the_fixture_are_enough() -> None:
-    limits = Limits(max_crfsuite_labels=_NUM_LABELS, max_crfsuite_label_bytes=_LAB_SIZE)
+    limits = Limits(
+        max_crfsuite_labels=_NUM_LABELS, max_crfsuite_labels_chunk_bytes=_LAB_SIZE
+    )
     assert len(_read(_COMPLETE, limits).labels) == _NUM_LABELS
 
 
@@ -109,7 +111,7 @@ def test_reads_the_headers_and_the_labels_chunk_only() -> None:
     read_crfsuite(source, Limits())
     total = sum(n for _, n in source.reads)
     assert total == 48 + 12 + _LAB_SIZE + 24 + 12 + 12
-    assert total <= Limits().max_crfsuite_label_bytes + 108
+    assert total <= Limits().max_crfsuite_labels_chunk_bytes + 108
     assert source.bytes_in(_OFF_FEAT + 12, _OFF_LAB) == 0  # feature weights
     assert source.bytes_in(_OFF_ATTR + 24, _OFF_LREF) == 0  # attribute strings
     assert source.bytes_in(_OFF_LREF + 12, _OFF_AREF) == 0
@@ -126,7 +128,7 @@ def test_too_many_labels_is_refused_before_the_labels_chunk_is_read() -> None:
 def test_an_oversized_labels_chunk_is_refused_unread() -> None:
     source = _Recording(_COMPLETE)
     with pytest.raises(LimitExceeded, match="CQDB"):
-        read_crfsuite(source, Limits(max_crfsuite_label_bytes=_LAB_SIZE - 1))
+        read_crfsuite(source, Limits(max_crfsuite_labels_chunk_bytes=_LAB_SIZE - 1))
     assert source.bytes_in(_OFF_LAB, _SIZE) == 24  # its header only
 
 

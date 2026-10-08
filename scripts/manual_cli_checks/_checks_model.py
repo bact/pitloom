@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import re
 import struct
+import zipfile
 from pathlib import Path
 
 from _fixtures import build_wheel, write_project
@@ -22,6 +23,7 @@ from _harness import (
     Context,
     check,
     expect,
+    expect_tagged,
     load_graph,
     run_loom,
     run_ok,
@@ -129,3 +131,78 @@ def check_model_outcome_parity(ctx: Context) -> None:
         expect("Git LFS pointer" in errors[0], f"loom model {pointer}: {errors}")
         expect(not refused.exists(), f"loom model {pointer}: output written")
     ctx.note("project, wheel and loom model: one entry per confirmed model")
+
+
+def _gguf(*pairs: tuple[str, str]) -> bytes:
+    """A GGUF v3 file of string key/value pairs and no tensors."""
+    body = b"".join(
+        struct.pack("<Q", len(key.encode()))
+        + key.encode()
+        + struct.pack("<I", 8)
+        + struct.pack("<Q", len(value.encode()))
+        + value.encode()
+        for key, value in pairs
+    )
+    return b"GGUF" + struct.pack("<IQQ", 3, 0, len(pairs)) + body
+
+
+def _package_ids(path: Path) -> dict[str, str]:
+    return {
+        e["name"]: e["spdxId"] for e in load_graph(path) if e["type"] == "ai_AIPackage"
+    }
+
+
+def _hostile_project(root: Path) -> Path:
+    """The demo project with the models of :func:`check_hostile_model_text`."""
+    project = write_project(root)
+    models = project / "demo"
+    (models / "bidi.gguf").write_bytes(_gguf(("general.name", "evil\u202etxt.exe")))
+    for tail in ("a", "b"):
+        name = "n" * 1100 + tail
+        (models / f"long{tail}.gguf").write_bytes(_gguf(("general.name", name)))
+    with zipfile.ZipFile(models / "s.keras", "w") as zf:
+        zf.writestr("metadata.json", '{"keras_version": "3.0.0"}')
+        zf.writestr("config.json", '{"config": {"name": "k\\ud800"}}')
+    return project
+
+
+@check("19", "hostile model text: escaped, cut apart, ids kept across id import")
+def check_hostile_model_text(ctx: Context) -> None:
+    """A project with a model named with U+202E, two models whose names
+    share their first 1100 characters, and a Keras file whose config holds
+    a lone surrogate. ``project`` exits 0 with tagged stderr; the bidi name
+    is escaped, the long names cut to two different names; after ``id
+    import`` and a version bump (a new document), every model keeps its id."""
+    project = _hostile_project(ctx.work / "proj")
+    first, registry = ctx.work / "first.json", ctx.work / "registry.json"
+    result = run_ok("project", str(project), "-o", str(first), *_COMMON)
+    expect_tagged(result)
+    ids = _package_ids(first)
+    expect("evil\\u202etxt.exe" in ids, f"bidi name not escaped: {sorted(ids)}")
+    expect("k\\ud800" in ids, f"lone surrogate not written as text: {sorted(ids)}")
+    long_names = [name for name in ids if name.startswith("nnn")]
+    expect(
+        len(long_names) == 2 and {len(n) for n in long_names} == {1024},
+        f"long names: {[len(n) for n in long_names]}",
+    )
+    run_ok("id", "import", str(first), "-o", str(registry))
+    pyproject = project / "pyproject.toml"
+    text = pyproject.read_text(encoding="utf-8")
+    pyproject.write_text(text.replace('version = "0.1"', 'version = "0.2"'))
+    second = ctx.work / "second.json"
+    run_ok(
+        "project",
+        str(project),
+        "-o",
+        str(second),
+        "--id-registry",
+        str(registry),
+        *_COMMON,
+    )
+    documents = [
+        [e["spdxId"] for e in load_graph(path) if e["type"] == "SpdxDocument"]
+        for path in (first, second)
+    ]
+    expect(documents[0] != documents[1], "the version bump kept the document")
+    expect(_package_ids(second) == ids, "ids changed across id import")
+    ctx.note("bidi, long and surrogate names: escaped, apart, ids kept")

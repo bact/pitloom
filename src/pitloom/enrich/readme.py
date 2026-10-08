@@ -30,8 +30,14 @@ import yaml
 
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
+from pitloom.core.untrusted_text import escape_lone_surrogates_in
 from pitloom.enrich.base import EnrichedField, EnrichmentResult
-from pitloom.logging_config import field_loss_suffix
+from pitloom.logging_config import (
+    LONE_SURROGATES_WARNING,
+    field_loss_suffix,
+    loggable,
+    one_line,
+)
 
 log = logging.getLogger(__name__)
 
@@ -70,7 +76,7 @@ def _parse_frontmatter(text: str) -> dict[str, Any] | None:
         msg = "Failed to parse model-card frontmatter: %s" + field_loss_suffix(
             "skipped", "license", "datasets"
         )
-        log.warning(msg, exc)
+        log.warning(msg, one_line(exc))
         return None
     return data if isinstance(data, dict) else None
 
@@ -97,12 +103,15 @@ class ReadmeEnricher:
             msg = "Failed to read model card %s: %s" + field_loss_suffix(
                 "skipped", "license", "datasets"
             )
-            log.warning(msg, card_path, exc)
+            log.warning(msg, loggable(str(card_path)), one_line(exc))
             return EnrichmentResult(source_name=self.name)
 
         frontmatter = _parse_frontmatter(text)
         if frontmatter is None:
             return EnrichmentResult(source_name=self.name)
+        # YAML reads "\ud800" as a lone surrogate, which no output can hold.
+        if escape_lone_surrogates_in(frontmatter)[1]:
+            log.warning(LONE_SURROGATES_WARNING, "", loggable(str(card_path)))
 
         source = f"Source: {card_path.name} | Method: yaml_frontmatter"
         changed: list[EnrichedField] = []

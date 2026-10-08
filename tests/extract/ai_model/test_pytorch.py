@@ -195,9 +195,11 @@ def test_read_pytorch_zip_large_file_list() -> None:
         mock_zf, "Source: model.pt"
     )
     assert "... (25 total)" in properties["archive_contents"]
-    assert raw_metadata["archive_contents"] == [f"file_{i}.bin" for i in range(20)]
+    raw = raw_metadata["raw_metadata"]
+    assert raw["archive_contents"] == [f"file_{i}.bin" for i in range(20)]
     assert properties["archive_member_count"] == "25"
-    assert raw_metadata["archive_member_count"] == "25"
+    assert raw["archive_member_count"] == "25"
+    assert raw_metadata["raw_metadata_types"] == {"archive_member_count": "integer"}
     assert "properties.archive_member_count" in provenance
 
 

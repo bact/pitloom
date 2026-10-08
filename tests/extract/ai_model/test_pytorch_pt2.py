@@ -414,8 +414,16 @@ def test_read_pt2_zip_large_file_list() -> None:
     res = _read_pt2_zip(mock_zf, "Source: test.pt2")
     properties = res[5]
     assert "... (25 total)" in properties["archive_contents"]
-    assert res[9]["archive_contents"] == [f"entry_{i}.bin" for i in range(20)]
-    assert properties["archive_member_count"] == res[9]["archive_member_count"] == "25"
+    raw = res[9]
+    assert raw["raw_metadata"]["archive_contents"] == [
+        f"entry_{i}.bin" for i in range(20)
+    ]
+    assert (
+        properties["archive_member_count"]
+        == raw["raw_metadata"]["archive_member_count"]
+    )
+    assert raw["raw_metadata"]["archive_member_count"] == "25"
+    assert raw["raw_metadata_types"] == {"archive_member_count": "integer"}
     assert "properties.archive_member_count" in res[6]
 
 

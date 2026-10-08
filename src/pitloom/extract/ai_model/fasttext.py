@@ -7,7 +7,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -18,14 +17,19 @@ from pitloom.core.ai_metadata import (
     AiModelMetadata,
     source_metadata,
 )
+from pitloom.core.canonical_json import canonical_json
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
+from pitloom.extract.ai_model.formats import Limits
+from pitloom.extract.ai_model.limits import recordable_labels
 from pitloom.extract.ai_model.reader_requirements import missing_library
 from pitloom.logging_config import field_loss_suffix, loggable
 
 log = logging.getLogger(__name__)
+
+_LIMITS = Limits()
 
 # Maps Args attribute names (from model.f.getArgs()) to hyperparameter keys.
 # The Python fasttext package exposes training configuration via the C++
@@ -155,14 +159,16 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
     domain: list[str] = ["text classification", "natural language processing"]
     provenance: dict[str, str] = {}
     hyperparameters, args_properties, type_of_model = _extract_fasttext_args(model)
-    labels = _extract_fasttext_labels(model)
+    read_labels = _extract_fasttext_labels(model)
+    labels = list(recordable_labels(read_labels, _LIMITS))
     properties: dict[str, str] = {}
     collections: dict[str, list[str]] = {}
     outputs: list[dict[str, Any]] = []
     if labels:
-        properties["labels"] = json.dumps(labels, ensure_ascii=False)
+        properties["labels"] = canonical_json(labels)
         collections["labels"] = labels
-        outputs = [{"name": "label_probabilities", "shape": [len(labels)]}]
+    if read_labels:
+        outputs = [{"name": "label_probabilities", "shape": [len(read_labels)]}]
     properties.update(args_properties)
 
     # Exact per-key provenance: each hyperparameter maps to its own fastText
@@ -182,7 +188,6 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
 
     if outputs:
         provenance["outputs"] = f"{source} | Field: labels (supervised class count)"
-
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
             file_name=model_path.name,
@@ -193,7 +198,7 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
         type_of_model=type_of_model,
         hyperparameters=hyperparameters,
         properties=properties,
-        raw_metadata=source_metadata(properties, collections),
+        **source_metadata(properties, collections),
         outputs=outputs,
         provenance=provenance,
     )
