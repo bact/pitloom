@@ -67,7 +67,7 @@ _NUMPY_DTYPE_NAMES = {"FLOAT": "float32", "DOUBLE": "float64"}
 # Last IR version whose graph.input lists every initializer too
 _LAST_IR_WITH_WEIGHT_INPUTS = 3
 
-# Opset domain of the ONNX-ML operators (trees, linear models, SVMs, ...)
+# Operator domain of the ONNX-ML operators (trees, linear models, SVMs, ...)
 _ONNX_ML_DOMAIN = "ai.onnx.ml"
 
 
@@ -190,10 +190,12 @@ def _initializer_names(model: Any) -> frozenset[str]:
 
 
 def _onnx_type_of_model(model: Any) -> str | None:
-    """``"neural network"``, unless an opset import is the ONNX-ML domain:
-    such a model may be a tree ensemble, a linear model or an SVM, which
-    the file does not say, so the type is left unset."""
-    if any(opset.domain == _ONNX_ML_DOMAIN for opset in model.opset_import):
+    """``"neural network"``, unless a node uses an ONNX-ML operator: such a
+    model may be a tree ensemble, a linear model or an SVM, which the file
+    does not say, so the type is left unset. The opset *import* of the
+    ONNX-ML domain is not evidence: exporters such as tf2onnx add it to
+    plain neural networks."""
+    if any(node.domain == _ONNX_ML_DOMAIN for node in model.graph.node):
         return None
     return "neural network"
 

@@ -48,7 +48,8 @@ Pitloom applies them, and the order a program reading the SBOM undoes them.
    the stored value. A NumPy float32 from another format is spelt as the
    double it widens to (`0.000009999999747378752`).
 4. **Display escape.** In the elements shown to a reader, each code point
-   a reader cannot see, or that changes how the text around it is shown,
+   of a fixed list of invisible or text-direction-changing code points
+   (variation selectors and some rarer ones are not on it)
    is written as the six characters `\uXXXX`, in lowercase hex (`\u202e`),
    so U+202E cannot turn `txt.exe` into `exe.txt` on screen: the C0
    controls but TAB, LF and CR, DEL and the C1 controls (U+007F to

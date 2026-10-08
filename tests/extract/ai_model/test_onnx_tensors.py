@@ -33,6 +33,7 @@ def _save(
     initializers: tuple[str, ...] = (),
     sparse: tuple[str, ...] = (),
     opsets: tuple[tuple[str, int], ...] = (("", 13),),
+    node_domain: str = "",
     out_type: int = TensorProto.FLOAT,
 ) -> Path:
     """An Identity graph from the first input, *initializers* (dense) and
@@ -51,7 +52,7 @@ def _save(
         for name in sparse
     ]
     graph = helper.make_graph(
-        [helper.make_node("Identity", [first], ["y"])],
+        [helper.make_node("Identity", [first], ["y"], domain=node_domain)],
         "main",
         graph_inputs,
         [helper.make_tensor_value_info("y", out_type, ["N"])],
@@ -137,20 +138,34 @@ def test_a_shape_is_given_only_when_the_file_has_one(
 
 
 @pytest.mark.parametrize(
-    ("opsets", "expected"),
+    ("opsets", "node_domain", "expected"),
     [
-        ((("", 13),), "neural network"),
-        ((("", 13), ("com.microsoft", 1)), "neural network"),
-        ((("", 13), ("ai.onnx.ml", 3)), None),
-        ((("ai.onnx.ml", 3),), None),
+        ((("", 13),), "", "neural network"),
+        ((("", 13), ("com.microsoft", 1)), "", "neural network"),
+        # tf2onnx adds the ML opset import to plain networks (PyThaiNLP's
+        # deepcut.onnx: Conv/Relu only): an import is not evidence
+        ((("", 13), ("ai.onnx.ml", 3)), "", "neural network"),
+        ((("", 13), ("ai.onnx.ml", 3)), "ai.onnx.ml", None),
+        ((("ai.onnx.ml", 3),), "ai.onnx.ml", None),
     ],
-    ids=["onnx", "contrib", "onnx-and-ml", "ml-only"],
+    ids=["onnx", "contrib", "ml-import-only", "ml-node", "ml-only"],
 )
 def test_an_onnx_ml_model_has_no_type_of_model(
-    tmp_path: Path, opsets: tuple[tuple[str, int], ...], expected: str | None
+    tmp_path: Path,
+    opsets: tuple[tuple[str, int], ...],
+    node_domain: str,
+    expected: str | None,
 ) -> None:
     """ONNX-ML operators (trees, linear models, SVMs) are not a neural
-    network, and the file does not say which: left unset, silently."""
-    meta = read_onnx(_save(tmp_path / "m.onnx", [_value_info("x")], opsets=opsets))
+    network, and the file does not say which: left unset, silently. Only a
+    node in the ML domain counts, not the opset import."""
+    meta = read_onnx(
+        _save(
+            tmp_path / "m.onnx",
+            [_value_info("x")],
+            opsets=opsets,
+            node_domain=node_domain,
+        )
+    )
     assert meta.type_of_model == expected
     assert meta.name == "main"  # a user's graph name, not an exporter default

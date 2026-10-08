@@ -124,8 +124,9 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
     ([ONNX versioning](https://onnx.ai/onnx/repo-docs/Versioning.html)).
 16. The standard `model_license` metadata property
     ([ONNX IR optional metadata](https://onnx.ai/onnx/repo-docs/IR.html#optional-metadata)).
-17. Type of model `neural network`, unset when the model imports the
-    ONNX-ML opset (`ai.onnx.ml`: trees, linear models, SVMs). Each input
+17. Type of model `neural network`, unset when a node uses an ONNX-ML
+    operator (`ai.onnx.ml`: trees, linear models, SVMs); the opset import
+    alone does not count (tf2onnx adds it to plain networks). Each input
     and output has its name, shape (`dim_param` names kept as text) and
     dtype by its NumPy name (`float32`, `int64`), or ONNX's own, lowercased,
     for a type NumPy lacks (`bfloat16`, `string`); no shape for an unknown

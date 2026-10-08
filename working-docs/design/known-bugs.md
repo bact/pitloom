@@ -272,6 +272,19 @@ Crashes, broken contracts and small mappings.
 
 ## P3: after 0.20.0
 
+- [ ] **Escape/cap hardening from the Opus review of #294 (S each).**
+  (a) Hangul fillers U+115F, U+1160, U+3164, U+FFA0 render blank but are
+  not in `DISPLAY_CONTROLS`; add, plus a test that every Bidi_Control is
+  in the set or on a named exclusion list. (b) U+200B-U+200D are escaped
+  in prose, so Thai/Persian/Indic ZWNJ/ZWJ text is mangled and warns;
+  escape them only in identity fields. (c) fastText has no label-count
+  cap; share `recordable_labels` with CRFsuite. (d) Lone-surrogate escape
+  runs before the name cut, which may split `\udXXX`. (e) Format-only
+  stub entries skip `settle_read_text` (non-UTF-8 stem would raise
+  `CanonicalizationError`); `physical_path` should stay out of the walk.
+  (f) `_license_classify._replace_surrogates` uses U+FFFD, the shared
+  rule `\udXXX`.
+
 - [ ] **`-v` logs `OUTPUT_PATH=-` for both "no copy" and "copy to stdout"
   (S).** `wheel --embed -v` (no `-o`) and `wheel --embed -v -o -` print the
   same line (`cli/commands/wheel.py`, `docs/cli.md` "Verbose output"). Omit

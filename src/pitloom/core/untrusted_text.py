@@ -62,9 +62,11 @@ __all__ = [
     "escape_lone_surrogates_in",
 ]
 
-#: The code points every display-safety helper neutralises, one rule: a
-#: code point a reader cannot see, or that changes how the text around it
-#: is shown. The C0 controls but TAB, LF and CR, DEL and the C1 controls
+#: The code points every display-safety helper neutralises: a fixed list
+#: (not derived from Unicode properties, so output is identical across
+#: Python versions) of invisible or text-direction-changing code points.
+#: Variation selectors and some rarer Cf/Default_Ignorable code points
+#: are left out. The C0 controls but TAB, LF and CR, DEL and the C1 controls
 #: (U+0000-U+0008, U+000B, U+000C, U+000E-U+001F, U+007F-U+009F); U+00AD
 #: SOFT HYPHEN; U+034F COMBINING GRAPHEME JOINER; U+061C ARABIC LETTER MARK;
 #: U+180E MONGOLIAN VOWEL SEPARATOR; the zero-width characters and the
