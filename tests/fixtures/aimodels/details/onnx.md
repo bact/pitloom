@@ -13,7 +13,7 @@ File details for `onnx/`. See also: [AI model fixtures](../README.md)
 
 | Property | Value |
 | :--- | :--- |
-| Format | ONNX (IR version 8, opsets: ai.onnx 14, com.microsoft 1) |
+| Format | ONNX (IR version 7, opsets: ai.onnx 14, com.microsoft 1) |
 | Architecture | Whisper tiny - speech encoder |
 | Task | Automatic speech recognition (encoder half only) |
 | Quantisation | Q4F16 (4-bit weights, float16 activations) |
@@ -40,7 +40,7 @@ Notable metadata extracted by the ONNX extractor:
 
 | Property | Value |
 | :--- | :--- |
-| Format | ONNX (IR version 8, opset 13) |
+| Format | ONNX (IR version 7, opset 13) |
 | Architecture | GPT-2 causal language model decoder |
 | Task | Text generation with KV-cache outputs |
 | Inputs | `input_ids`: INT64; `attention_mask`: INT64 |
@@ -94,7 +94,7 @@ Notable metadata extracted by the ONNX extractor:
 
 | Property | Value |
 | :--- | :--- |
-| Format | ONNX (IR version 7, opset 11) |
+| Format | ONNX (IR version 6, opset 11) |
 | Architecture | ResNet (2-stage, basic blocks) fine-tuned for bean disease |
 | Task | Image classification - 3 classes: angular\_leaf\_spot, bean\_rust, healthy |
 | Input | `pixel_values`: float32 `[batch, channels, 224, 224]` |

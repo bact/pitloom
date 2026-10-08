@@ -17,7 +17,7 @@ from pitloom.extract._extract_utils import (
     sanitize_provenance_text,
 )
 from pitloom.extract.ai_model.reader_requirements import missing_library
-from pitloom.logging_config import loggable
+from pitloom.logging_config import loggable, one_line
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +36,9 @@ _EXPORTER_DEFAULT_GRAPH_NAMES = frozenset(
 # key never collides with a field-derived one (domain, opset.<domain>)
 _METADATA_PROPS_PREFIX = "metadata_props."
 
+# Characters of a metadata_props key shown in a warning
+_SHOWN_KEY_CHARS = 40
+
 # Standard metadata_props key defined by the ONNX IR spec ("Optional Metadata"):
 # https://onnx.ai/onnx/repo-docs/IR.html#optional-metadata
 _MODEL_LICENSE_KEY = _METADATA_PROPS_PREFIX + "model_license"
@@ -44,6 +47,9 @@ _MODEL_LICENSE_KEY = _METADATA_PROPS_PREFIX + "model_license"
 # upper 32 bits mark a simple number instead. See "Serializing SemVer version
 # numbers in protobuf" in https://onnx.ai/onnx/repo-docs/Versioning.html
 _SEMVER_FLAG_SHIFT = 32
+_MAJOR_SHIFT = 48
+_MINOR_MASK = 0xFFFF
+_PATCH_MASK = 0xFFFF_FFFF
 _UINT64_MASK = 0xFFFF_FFFF_FFFF_FFFF
 
 
@@ -76,7 +82,9 @@ def _extract_onnx_properties(
     """Extract domain, opset versions, and metadata_props into properties dict.
 
     ``metadata_props`` keys get the ``metadata_props.`` prefix, so they never
-    collide with ``domain`` or ``opset.<domain>``.
+    collide with ``domain`` or ``opset.<domain>``. A key the file repeats
+    (the ONNX checker rejects that) keeps its last value; one warning per
+    file names how many keys repeat and the first few.
     """
     properties: dict[str, str] = {}
     if model.domain:
@@ -84,34 +92,61 @@ def _extract_onnx_properties(
     for opset in model.opset_import:
         opset_domain = opset.domain if opset.domain else "ai.onnx"
         properties[f"opset.{opset_domain}"] = str(opset.version)
+    repeated: dict[str, None] = {}  # insertion-ordered set
     for prop in model.metadata_props:
-        properties[_METADATA_PROPS_PREFIX + prop.key] = prop.value
+        key = _METADATA_PROPS_PREFIX + prop.key
+        if key in properties:
+            repeated[prop.key] = None
+        properties[key] = prop.value
+    if repeated:
+        _warn_repeated_keys(list(repeated))
     record_dict_field_provenance(provenance, "properties", properties, source)
     return properties
+
+
+def _warn_repeated_keys(keys: list[str]) -> None:
+    """One warning for every repeated ``metadata_props`` key in a file,
+    naming the first few, each cut short."""
+    shown = ", ".join(one_line(key, limit=_SHOWN_KEY_CHARS) for key in keys[:3])
+    more = ", ..." if len(keys) > 3 else ""
+    log.warning(
+        "ONNX metadata_props: %d key(s) appear more than once; kept the last "
+        "value of each: %s%s",
+        len(keys),
+        shown,
+        more,
+    )
 
 
 def _resolve_onnx_name(
     graph_name: str, source: str, provenance: dict[str, str]
 ) -> str | None:
-    """Return ``graph.name``, or ``None`` when it is empty or an exporter
-    default, leaving the name to the assembler's file-name fallback."""
-    if not graph_name or graph_name in _EXPORTER_DEFAULT_GRAPH_NAMES:
+    """Return ``graph.name``, stripped, unless blank or an exporter default.
+
+    ``None`` leaves the shown name to
+    :meth:`~pitloom.core.ai_metadata.AiModelMetadata.resolve_name`.
+    """
+    name = graph_name.strip()
+    if not name or name in _EXPORTER_DEFAULT_GRAPH_NAMES:
         return None
     provenance["name"] = f"{source} | Field: graph.name"
-    return graph_name
+    return name
 
 
 def _decode_model_version(value: int) -> tuple[str, bool]:
     """Return ``(version, is_semver)`` for an ONNX ``model_version``.
 
+    The int64 is read as its 64 bits, as the packing rule defines it, so a
+    negative value has its upper bits set and decodes as SemVer (``-1`` is
+    ``65535.65535.4294967295``).
     See https://onnx.ai/onnx/repo-docs/Versioning.html
     """
     packed = value & _UINT64_MASK
     if packed >> _SEMVER_FLAG_SHIFT == 0:
         return str(value), False
-    major = packed >> 48
-    minor = (packed >> _SEMVER_FLAG_SHIFT) & 0xFFFF
-    patch = packed & 0xFFFF_FFFF
+    major = packed >> _MAJOR_SHIFT
+    minor = (packed >> _SEMVER_FLAG_SHIFT) & _MINOR_MASK
+    patch = packed & _PATCH_MASK
     return f"{major}.{minor}.{patch}", True
 
 
@@ -130,8 +165,8 @@ def _resolve_onnx_license(
 def read_onnx(model_path: Path) -> AiModelMetadata:
     """Extract metadata from an ONNX model file.
 
-    ``name`` is ``graph.name``, or ``None`` when ``graph.name`` is empty or
-    an exporter default (``torch_jit``, ``tf2onnx``, ...).
+    ``name`` is ``graph.name`` stripped, or ``None`` when it is blank or an
+    exporter default (``torch_jit``, ``tf2onnx``, ...).
     ``license`` is the standard ``model_license`` metadata property.
     ``version`` is ``model_version``, decoded to ``MAJOR.MINOR.PATCH`` when
     its upper 32 bits are non-zero (bit-packed SemVer). ``type_of_model`` is

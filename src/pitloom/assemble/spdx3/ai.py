@@ -57,7 +57,7 @@ def _ai_model_label(ai_model: AiModelMetadata, index: int) -> str:
     :class:`~pitloom.id_registry.IdRegistrySession` collision warning --
     never used as a lookup key, only for the message."""
     return (
-        ai_model.name
+        ai_model.own_name
         or ai_model.format_info.file_path_relative
         or ai_model.format_info.file_name
         or f"ai_models[{index}]"

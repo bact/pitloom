@@ -195,4 +195,5 @@ def test_a_huge_licence_id_in_a_text_is_no_database_failure(
     with patch.object(_license, "AggregatedLicenseMatcher", real):
         with caplog.at_level(logging.WARNING, logger=_license.__name__):
             detect_license_from_text(text)
+            assert canonicalize_license_id("mit") == "MIT"  # still usable
     assert not _warnings(caplog)

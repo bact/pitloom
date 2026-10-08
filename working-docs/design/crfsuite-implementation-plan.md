@@ -10,9 +10,10 @@ SPDX-License-Identifier: CC0-1.0
 
 Step-by-step plan for agents of different capability. Read
 [crfsuite-support.md](crfsuite-support.md) (decisions and format) first;
-this file is the how. Every format fact here was checked against CRFsuite's
-source (`chokkan/crfsuite` at `dc5b6c7`, the commit python-crfsuite 0.9.12
-vendors) and real files; anything not verified says so.
+this file is the how. Every format fact (there and here) was checked against
+CRFsuite's source (`chokkan/crfsuite` at `dc5b6c7`, the commit
+python-crfsuite 0.9.12 vendors) and real files; anything not verified says
+so.
 
 See also: [model-metadata-readers.md](model-metadata-readers.md) (the
 `formats/` subpackage rules), AGENTS.md (binding for every step).
@@ -41,69 +42,12 @@ See also: [model-metadata-readers.md](model-metadata-readers.md) (the
 | 7 | Docs, skills, plugin, CHANGELOG | S | 4-6 |
 | 8 | Review loop, mutation, manual checks, real files | L | all |
 
-## Format facts the code depends on
+## Format facts and traps
 
-All integers are little-endian `uint32`, written byte by byte
-(`crf1d_model.c` `write_uint32`, not host order).
-
-Header, 48 bytes, struct `<4sI4sIIIIIIIII`: `magic` `lCRF`, `size`,
-`type` `FOMC`, `version` 100, `num_features`, `num_labels`, `num_attrs`,
-`off_features`, `off_labels`, `off_attrs`, `off_labelrefs`,
-`off_attrrefs`. Chunks follow in exactly that order: `FEAT`, labels
-`CQDB`, attributes `CQDB`, `LFRF`, `AFRF`; on every file seen, each chunk
-ends where the next starts and `AFRF` ends at `size`.
-
-- `FEAT`: `<4sII` tag, size, num; then `num` records of 20 bytes, so
-  `size == 12 + 20 * num`.
-- `CQDB`: 24-byte header `<4sIIIII` = tag, `size` (whole chunk, header
-  included), `flag`, `byteorder` (`0x62445371`), `bwd_size`, `bwd_offset`;
-  then 256 table refs `{offset, num}` (2048 bytes); records start at
-  `OFFSET_DATA = 2072`. A record is `<iI` id, `ksize` (string length **plus
-  the NUL**), then the key bytes and the NUL. Then the hash tables, then the
-  backward array: `bwd_size` uint32 record offsets indexed by id. **All
-  CQDB offsets are relative to the CQDB chunk start**, not the file.
-- `LFRF`/`AFRF`: `<4sII` tag, size, num; then offsets and per-item lists.
-  `AFRF.num == num_attrs`; `LFRF.num` is `num_labels + 2` on every file
-  seen, reason not found in the source: do not check it.
-
-### Traps (read before writing code)
-
-1. **`header.num_features` is always 0.** The writer never sets it. The
-   real count is `FEAT.num`.
-2. **CRFsuite validates almost nothing.** Its loader checks only that the
-   file is over 48 bytes; python-crfsuite adds a magic check. It ignores
-   `size`, `type`, `version` and trailing bytes, and **segfaults** on a bad
-   label offset, a wrong byte-order mark or an inflated `num_labels`
-   (measured). "As lenient as CRFsuite" is not a goal; every bound below is
-   ours.
-3. **Record offsets are chunk-relative; `ksize` counts the NUL.** Off by
-   the chunk offset or by one byte reads garbage that still looks like a
-   string.
-4. **Label order is meaningful.** Ids are assigned in first-seen training
-   order; the backward array is indexed by id. Keep that order; never sort
-   labels (determinism comes from the file, not from sorting).
-5. **Labels are bytes.** CRFsuite does no encoding; python-crfsuite writes
-   UTF-8 but accepts `bytes` labels, and then cannot load the model it
-   wrote (`UnicodeDecodeError`). Decode with
-   `errors="backslashreplace"`: never crash, never guess an encoding.
-6. **An embedded NUL truncates** in CRFsuite (C strings). Take the bytes
-   before the first NUL, as CRFsuite does.
-7. **Zero labels and zero attributes are valid on disk** (an empty training
-   set saves). `bwd_offset` is 0 when a CQDB has no records.
-8. **`flag` is always 0.** `CQDB_ONEWAY` (`0x1`) would drop the backward
-   array, making labels unreadable by id; the CRF writer never sets it.
-9. **Never read attribute strings.** Thousands per model, training-text
-   features (privacy). Read only the attributes CQDB header (24 bytes).
-10. **`.model` is a shared suffix** (SentencePiece, gensim and others). A
-    `.model` without `lCRF` must stay silent, exactly as a non-model `.bin`
-    is today; a `.crfsuite` without `lCRF` warns (a contradicted suffix,
-    like `.gguf`). Do not put `.crfsuite` in `_EXTENSION_ADMITS`.
-11. **A labels list inside `raw_metadata` is one entry** to
-    `cap_entries()`; the generic cap never shortens it. The reader caps the
-    label count itself.
-12. **Fixture bytes are not proven identical across platforms** (float
-    weights; identical across runs and processes on one macOS arm64
-    machine only). Commit the binaries; tests never regenerate them.
+The verified on-disk layout (header, chunk order, `FEAT`, `CQDB` records,
+`LFRF`/`AFRF`) and the twelve traps it makes easy to get wrong are in
+[crfsuite-support.md](crfsuite-support.md#traps); read both first. Steps
+below cite traps by number.
 
 ## Step 0: fastText labels as a JSON array (S, own PR)
 
@@ -139,17 +83,25 @@ Files:
   `tests/fixtures/aimodels/crfsuite/minimal.model`: its output.
 - `tests/fixtures/aimodels/details/crfsuite.md`, rows in
   `tests/fixtures/aimodels/README.md` (subdirectory list, table with
-  source and licence CC0-1.0, details link), and the sdist globs in
-  `pyproject.toml` next to the other formats' fixture globs.
+  source and licence CC0-1.0, details link), and
+  `tests/fixtures/aimodels/crfsuite/*.crfsuite` and `*.model` in the
+  `[tool.hatch.build.targets.sdist] exclude` list of `pyproject.toml`, next
+  to the other formats' fixture globs.
 
 Generator (python-crfsuite 0.9.12 in a throwaway venv; it is never a
 Pitloom dependency or dependency-group member):
 
+The file needs the SPDX header block (AGENTS.md "File headers"); the
+venv path is relative, never `/tmp` (no such directory on Windows).
+`tests/fixtures/` is outside the lint and type-check scope, so the
+untyped `train()` is acceptable there and nowhere else.
+
 ```python
 """Generate the CRFsuite test fixtures (python-crfsuite 0.9.12).
 
-python -m venv /tmp/crf && /tmp/crf/bin/pip install python-crfsuite==0.9.12
-/tmp/crf/bin/python generate_fixtures.py
+python -m venv .crf-venv
+.crf-venv/bin/pip install python-crfsuite==0.9.12
+.crf-venv/bin/python tests/fixtures/aimodels/crfsuite/generate_fixtures.py
 """
 from pathlib import Path
 
@@ -204,9 +156,9 @@ isolation test scans every module in `formats/` automatically), no
 logging, no global state, errors from `formats._errors`, typed, docstring
 with "See also" to the adapter.
 
-`formats/_limits.py`: add two fields and extend the hard-coded tuple in
+`formats/_limits.py`: add two fields, extend the hard-coded tuple in
 `__post_init__` (it validates fields by name; a field left out is not
-validated):
+validated) and the class docstring's `Attributes:`:
 
 ```python
 max_crfsuite_labels: int = 1000
@@ -215,7 +167,8 @@ max_crfsuite_label_bytes: int = 1 << 20  # labels CQDB chunk, read whole
 
 `formats/__init__.py`: list the module in the docstring's "Modules:".
 
-API (a `NamedTuple`, like `pickle_walk`'s results):
+API (a `NamedTuple`, like `pickle_walk`'s results; `limits` is required,
+as in `pickle_walk`: a `Limits()` default trips ruff B008):
 
 ```python
 class CrfsuiteModel(NamedTuple):
@@ -228,9 +181,7 @@ class CrfsuiteModel(NamedTuple):
     labels: tuple[str, ...]  # id order
 
 
-def read_crfsuite(
-    source: IO[bytes], limits: Limits = Limits()
-) -> CrfsuiteModel:
+def read_crfsuite(source: IO[bytes], limits: Limits) -> CrfsuiteModel:
     """Read a CRFsuite model's header and label strings, nothing else.
 
     *source* is a seekable binary file. Reads the 48-byte header, the
@@ -321,8 +272,11 @@ Cases (each asserts the exact error class and a stable substring of
 Plus a property test: for every byte position of `minimal.model`,
 truncating there and flipping that byte each give either a
 `CrfsuiteModel` or a `FormatError`, never another exception (4,484
-positions, fast). Add an atheris target to the `fuzz` group next to the
-existing ones.
+positions, fast). Add an atheris target `fuzz/fuzz_crfsuite_header.py`
+modelled on the existing `fuzz/fuzz_*.py`, add it to the matrix in
+`.github/workflows/fuzz.yml`, and list it in
+`working-docs/implementation/fuzzing.md` (the `fuzz` dependency group
+already has atheris).
 
 ## Step 4: adapter and registry (M)
 
@@ -335,14 +289,21 @@ CRFSUITE = ("crfsuite", (".crfsuite",), b"lCRF")
 `src/pitloom/extract/ai_model/crfsuite.py`, modelled on `safetensors.py`
 (the closest header-only reader) and `_pickle_bounds.py` (error mapping):
 
+The adapter follows the `read_<format>` naming of the other readers; the
+`formats` function of the same name is imported under an alias:
+
 ```python
+from pitloom.extract.ai_model.formats.crfsuite import (
+    read_crfsuite as read_crfsuite_header,
+)
+
 _DESCRIPTION_LABELS = 20  # labels named in the generated description
 
 
-def read_crfsuite_model(model_path: Path) -> AiModelMetadata:
+def read_crfsuite(model_path: Path) -> AiModelMetadata:
     try:
         with model_path.open("rb") as handle:
-            model = read_crfsuite(handle, _LIMITS)
+            model = read_crfsuite_header(handle, _LIMITS)
     except LimitExceeded as exc:
         raise ModelLimitExceeded(exc.reason) from None
     except FormatError as exc:
@@ -365,7 +326,7 @@ Field mapping:
 | `format_info.format_version` | `"100"` | `{source} \| Field: version` |
 | `description` | generated (below), only when labels exist | `{source} \| Field: labels \| Method: generated_from_labels` |
 | `outputs` | `[{"name": "label_sequence", "shape": [n]}]` when labels exist | `{source} \| Field: labels (label count)` |
-| `properties` | `labels` (JSON array string), `num_labels`, `num_attributes`, `num_features`, `model_type` | `record_dict_field_provenance(...)` |
+| `properties` | `labels` (JSON array string), `num_labels`, `num_attributes`, `num_features`, `model_type`, every value a `str` (`str()` the counts) | by hand, map below |
 | `raw_metadata` | same keys, native types (`labels` a list) | -- |
 
 ```python
@@ -381,6 +342,27 @@ def _description(labels: tuple[str, ...]) -> str | None:
 
 `properties["labels"] = json.dumps(list(labels), ensure_ascii=False)`: a
 JSON array, as fastText after step 0.
+
+Property provenance is written by hand, not with
+`record_dict_field_provenance()`: that helper writes `Field: <key>`, which
+for `num_features` would cite the header field that is always 0
+([trap 1](crfsuite-support.md#traps)).
+
+```python
+_PROPERTY_FIELDS = {
+    "labels": "labels CQDB",
+    "model_type": "header.type",
+    "num_attributes": "header.num_attrs",
+    "num_features": "FEAT.num",
+    "num_labels": "header.num_labels",
+}
+for key, location in _PROPERTY_FIELDS.items():
+    provenance[f"properties.{key}"] = f"{source} | Field: {location}"
+```
+
+Labels decoded with `backslashreplace` can still hold control characters
+or newlines; the SBOM JSON escapes them, so the description needs no extra
+escaping. Any log message that names a label goes through `loggable()`.
 
 `outputs` follows fastText: one entry naming the output and its class
 count, never the label strings (they are already in properties and the
@@ -421,11 +403,14 @@ rule, not a reader change.
 
 ## Step 5: one source for model suffixes (M)
 
-Today two hand-kept lists decide "could be a model": the scanner's
-`_ALLOWED_EXTS` (`extract/scanner.py`, enum extensions plus `.zip`,
-`.bin`) and `loom generate FILE`'s `_MODEL_FILE_EXTENSIONS`
-(`assemble/__init__.py`, a literal tuple without `.zip`). Adding `.model`
-by hand to both repeats the drift AGENTS.md warns about.
+Two lists decide "could be a model": the scanner's `_ALLOWED_EXTS`
+(`extract/scanner.py`, already derived from the enum, plus `.zip` and
+`.bin` written by hand) and `loom generate FILE`'s
+`_MODEL_FILE_EXTENSIONS` (`assemble/__init__.py`, a literal tuple, no
+`.zip`). Adding `.model` by hand to both repeats the drift AGENTS.md warns
+about. `loom id generate` also goes through the scanner's list
+(`is_model_candidate_name`, `id_registry/_registry.py`), so `.model`
+reaches it too.
 
 - Add to `core/ai_metadata.py` (next to the enum):
 
@@ -454,7 +439,10 @@ by hand to both repeats the drift AGENTS.md warns about.
   `b"\n\x0f"` plus filler) in a project scan logs nothing at `INFO` or
   above and lists no model; `loom model x.model` on it refuses with the
   existing "not an AI model file of a supported format" message;
-  `loom generate x.model` routes to the model branch for a CRFsuite file.
+  `loom generate x.model` routes to the model branch for a CRFsuite file;
+  `loom id generate` registers a CRFsuite `.model` and skips a
+  SentencePiece one; a Git LFS pointer named `x.model` gets the pointer
+  warning, once ([trap 10](crfsuite-support.md#traps)).
 
 ## Step 6: surface tests (M)
 
@@ -469,6 +457,11 @@ Per AGENTS.md "a test asserting on one surface doesn't cover the others":
   `--trust-wheel-model` (not gated).
 - Determinism: two `loom project` runs over a project holding both
   fixtures give identical bytes.
+- Manual check 17 (`scripts/manual_cli_checks/_checks_model.py`,
+  `check_model_outcome_parity`): add a Git LFS pointer named `x.model` to
+  its `_POINTERS` and a truncated CRFsuite file next to its truncated
+  Safetensors one, so the real CLI shows the same outcomes. No new CLI
+  option, so `_matrix_plan.py` needs nothing.
 
 ## Step 7: docs, skills, plugin (S)
 
@@ -484,6 +477,9 @@ Update, in British English, each with `Last-Modified` where it has one:
 - `skills/sbom-generate/SKILL.md` description (the only trigger) and
   `references/known-limitations.md`; `.claude-plugin/plugin.json`
   keywords;
+- `docs/metadata-provenance.md` "What the `method` values mean": rows
+  for `crfsuite_model_type` and `generated_from_labels` (no test catches a
+  missing row);
 - `CHANGELOG.md` `### Added`: one bullet, about 160 characters;
 - `working-docs/design/crfsuite-support.md`: status to "built in #N",
   then move decisions to `working-docs/implementation/` per AGENTS.md;

@@ -46,8 +46,9 @@ and the three ONNX models bundled with PyThaiNLP 5.3.9 (`deepcut.onnx`,
   int64. The versioning doc packs SemVer as MAJOR (16 bits), MINOR (16),
   PATCH (32); non-zero upper 32 bits mark SemVer, zero marks a simple
   number. `1.0.0` is stored as 281474976710656, which a plain `str()` puts
-  in the SBOM as the version. `0.0.x` cannot be expressed as SemVer, and
-  the section is non-normative.
+  in the SBOM as the version. `0.0.x` cannot be expressed as SemVer. The
+  packing rule is a MUST; using SemVer for models at all is only a
+  recommended convention (the spec requires no scheme).
   Do: decode by the format's own rule and record the decoding in
   provenance (`Method: semver_bit_packed`).
 - **Standard metadata keys exist, but exporters leave them empty.** The

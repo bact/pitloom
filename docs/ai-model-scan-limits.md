@@ -45,10 +45,9 @@ installed libraries.
 
 The format-only entry has exactly this: an `ai_AIPackage` whose
 `name` is the model file's stem (`comment` entry `name: Source: Pitloom
-generator | Method: file_name_stem`) and which has no `ai_*` property and no
-`comment` entry `Source: <model file> | Field: ...` (a read model has such
-entries), a
-`contains` relationship to the model's `software_File`, and that file's
+generator | Method: file_name_stem`), no `ai_*` property and no `comment`
+entry `Source: <model file> | Field: ...` (a read model has such entries),
+a `contains` relationship to the model's `software_File`, and that file's
 SHA-256 hash. The hash comes from the file list and does not depend on the
 model being read. With `--enrich` (project scans) a stub can also carry a
 `comment` from the README or model card, `Source: README.md | Method:
@@ -239,7 +238,7 @@ named after the model file's stem when the model has no name of its own.
 | PT2 / ExecuTorch | Hyperparameters. Description, licence, author and tags only in the "rich" layout |
 | Keras v3 | Outputs. Hyperparameters are the scalar entries of `config` only |
 | HDF5 / Keras v1-v2 | Whatever the `model_config` attribute lacks |
-| ONNX | Hyperparameters. Name when `graph.name` is an exporter default (`torch_jit`, `main_graph`, `tf2onnx`, ...). Licence only from the standard `model_license` metadata property ([ONNX IR optional metadata](https://onnx.ai/onnx/repo-docs/IR.html#optional-metadata)). A `model_version` with any of its upper 32 bits set is bit-packed SemVer ([ONNX versioning](https://onnx.ai/onnx/repo-docs/Versioning.html)) and is recorded as `MAJOR.MINOR.PATCH`; otherwise the plain number. `domain` is the owner's reverse-DNS namespace, not a model type, and is kept in the verbatim metadata only; `metadata_props` entries are kept as `metadata_props.<key>`. Tensors stored in external data files are not read (`load_external_data=False`) |
+| ONNX | Hyperparameters. Name when `graph.name` is blank or an exporter default (`torch_jit`, `main_graph`, `tf2onnx`, ...). Licence only from the standard `model_license` metadata property ([ONNX IR optional metadata](https://onnx.ai/onnx/repo-docs/IR.html#optional-metadata)). A `model_version` with any of its upper 32 bits set (a negative one included) is bit-packed SemVer ([ONNX versioning](https://onnx.ai/onnx/repo-docs/Versioning.html)) and is recorded as `MAJOR.MINOR.PATCH`; otherwise the plain number. `domain` is the owner's reverse-DNS namespace, not a model type, and is kept in the verbatim metadata only; `metadata_props` entries are kept as `metadata_props.<key>`; a repeated key keeps its last value, with one `WARNING:` per file. Tensors stored in external data files are not read (`load_external_data=False`) |
 | fastText | Name, description, version, inputs. Labels only for supervised models |
 
 **Not detected, or not scanned:**

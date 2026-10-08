@@ -5,7 +5,8 @@
 
 """Direct unit tests for pitloom.assemble.spdx3.ai package and lineage building.
 
-See also: :mod:`tests.assemble.test_assemble_ai_metadata`.
+See also: :mod:`tests.assemble.test_assemble_ai_metadata`,
+:mod:`tests.core.test_ai_metadata` (the name cascade itself).
 """
 
 # pylint: disable=missing-function-docstring
@@ -23,7 +24,12 @@ from pitloom.assemble.spdx3.ai import (
     add_ai_models,
 )
 from pitloom.assemble.spdx3.document import build_model
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    FILE_NAME_STEM_PROVENANCE,
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+)
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.iri import doc_namespace
 from pitloom.core.models import generate_spdx_id
@@ -42,46 +48,19 @@ def test_build_ai_package_minimal() -> None:
 
 
 @pytest.mark.parametrize(
-    ("name", "file_name", "expected", "name_provenance"),
-    [
-        ("tiny-model", "deepcut.onnx", "tiny-model", None),
-        (None, "deepcut.onnx", "deepcut", "Method: file_name_stem"),
-        (None, "model.tar.gz", "model.tar", "Method: file_name_stem"),
-        (None, None, "onnx", None),
-        (None, "", "onnx", None),
-        ("", "deepcut.onnx", "deepcut", "Method: file_name_stem"),
-    ],
+    ("name", "expected"), [("  tiny  ", "tiny"), (None, "deepcut")]
 )
-def test_resolve_name_cascade(
-    name: str | None,
-    file_name: str | None,
-    expected: str,
-    name_provenance: str | None,
-) -> None:
-    """Own name, else file name stem (with its provenance), else format --
-    the same value for the package name and its spdxId prefix."""
+def test_package_named_by_resolve_name(name: str | None, expected: str) -> None:
+    """The package name and its spdxId prefix both use the resolved name."""
     model = AiModelMetadata(
         name=name,
         format_info=AiModelFormatInfo(
-            file_name=file_name, model_format=AiModelFormat.ONNX
+            file_name="deepcut.onnx", model_format=AiModelFormat.ONNX
         ),
-        provenance={"version": "Source: x.onnx | Field: model_version"},
     )
-    before = dict(model.provenance)
     pkg = _build_ai_package(model, _make_ci(), _DOC_NAME, _DOC_UUID)
-    resolved, provenance = model.resolve_name()
-    assert pkg.name == resolved == expected
+    assert pkg.name == model.resolve_name()[0] == expected
     assert f"#AIPackage-{expected}-" in str(pkg.spdxId)
-    assert model.name == name  # the read value stays as read
-    if name_provenance is None:
-        assert "name" not in provenance
-    else:
-        assert provenance["name"].endswith(name_provenance)
-        assert provenance["version"] == before["version"]
-    assert model.provenance == before  # the model's own map is not mutated
-    provenance["probe"] = "x"  # a copy in every branch, never an alias
-    assert "probe" not in model.provenance
-    assert "probe" not in model.resolve_name()[1]
 
 
 def test_build_ai_package_entity_spdx_id_override() -> None:
@@ -373,4 +352,4 @@ def test_name_provenance_reaches_the_sbom(
     )
     text = _ai_package_sbom_text(model, surface)
     assert "model_version" in text  # provenance is emitted at all
-    assert ("file_name_stem" in text) is derived
+    assert (FILE_NAME_STEM_PROVENANCE in text) is derived

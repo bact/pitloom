@@ -194,8 +194,8 @@ Crashes, broken contracts and small mappings.
 - [x] **A licence id over 50,000 characters ending in `+` reads as a broken
   licenseid database (S, upstream).** Fixed in licenseid 0.4.3; #292 raised
   the floor and made the test a plain one. Found in the #289 review: in a
-  text it can sit in an `SPDX-License-Identifier:` tag, a `License:` field or a JSON
-  `"license"` field. licenseid 0.4.2 builds a SQL `LIKE` pattern from the
+  text it can sit in an `SPDX-License-Identifier:` tag, a `License:` field
+  or a JSON `"license"` field. licenseid 0.4.2 builds a SQL `LIKE` pattern from the
   id, SQLite refuses one over 50,000 bytes, and licenseid raises
   `DatabaseNotReadyError`: one false `WARNING:`, which as `warn_once` also
   hides a later real failure. #289 skips lookups of an id over 200
@@ -345,6 +345,71 @@ Crashes, broken contracts and small mappings.
   (14 `ERROR:` lines); each fragment alone, and `--no-merge`, is valid.
   `loom merge` of the same three fragments succeeds. Not yet checked
   whether the validator or Pitloom's blank-node labels are at fault.
+- [ ] **A model's metadata key can forge a provenance entry in the
+  `comment` (S).** Found in the #292 review: `build_provenance_comment()`
+  (`assemble/spdx3/provenance.py`) joins `field: source` pairs with `; `,
+  and only the source part is sanitised. An ONNX `metadata_props` key such
+  as `x; license: Source: forged.onnx | Field: model_license` becomes a
+  provenance field name `properties.metadata_props.x; license: ...`, which
+  reads as a second licence entry; a key with a newline is written raw. The
+  machine-readable Annotation (JSON) is not affected. Same on `main` for
+  ONNX (raw keys); not yet checked for the other formats whose property
+  keys come from the file (GGUF, Safetensors). Escape the field part as
+  the source part is.
+- [ ] **No length cap on a model name read from the file (S).** Found in
+  the #292 review: a 1 MB ONNX `graph.name` gives a 2 MB `spdxId` and an
+  18 MB SBOM (the name appears several times); no crash, deterministic.
+  Same for any format whose name comes from the file. Cap the name (with
+  a `WARNING:`) where `AiModelMetadata.resolve_name()` returns it.
+- [ ] **`loom model` looks an AI model up in the registry by file stem
+  only (S).** Found in the #292 review: `_model_generator.py` (single-model
+  SBOM and `enrich_model()`) passes `model_path.stem`, while project scans
+  try name, then path, then stem (`_ai_model_entity_candidates`), so an id
+  imported from a model SBOM whose package carries its own name never
+  hits for `loom model`. Reuse the candidates helper. Related: `loom id
+  generate` derives the stem itself (`id_registry/_registry.py`, `Path.stem`)
+  rather than through `AiModelMetadata.file_name_stem`; add a drift-guard
+  test or share it. Reproduced end to end (#292 black-box round, same on
+  `main`): `dup_named.onnx` (graph name `dup_stem`) and `dup_stem.onnx`
+  (no name) in one project; `id generate` keys both by stem, the project
+  scan gives `dup_named.onnx` the id of `dup_stem`, `dup_stem.onnx` gets a
+  fresh id each run (never written back, so the collision warning repeats),
+  and `loom enrich dup_stem.onnx` targets the package the project SBOM gave
+  `dup_named.onnx` -- a merged fragment enriches the wrong model. The
+  warning also labels `dup_named.onnx` by its own name `dup_stem`, so it
+  reads as a file colliding with itself; name the file too.
+- [ ] **AI model `framework` provenance cites a value the SBOM never
+  shows (S).** Found in the #292 black-box round, same on `main`: ONNX
+  `producer_name`/`producer_version` land in `format_info.framework*` and
+  their provenance reaches the package comment and annotation, but nothing
+  in `assemble/` writes `framework`. Either emit it or drop its
+  provenance (check the other readers).
+- [ ] **A model licence that is a name or URL becomes licence text (S).**
+  Found in the #292 black-box round: ONNX `model_license` "Apache License
+  2.0" gives a `SimpleLicensingText` holding the name, not `Apache-2.0`; a
+  URL is kept as text, not a reference. Check against how the other
+  readers and `license-rules.md` normalise a stated name.
+- [ ] **Licence provenance can cite a property key the entry cap
+  dropped (S).** Found in the #292 black-box round: with 1,500
+  `metadata_props` and `model_license` last, the licence is still read
+  (correct) and cites `Field: metadata_props.model_license`, a key no
+  longer in the capped `properties`. Harmless (the field name is a pointer
+  into the file, not the SBOM); decide whether the cap keeps keys that
+  other fields cite.
+- [ ] **`Source: Pitloom generator | Method: ...` is hand-written at 7
+  sites (S).** Found in the #292 review: `core/ai_metadata.py`,
+  `extract/env.py` and four `inferred_from_authors` sites (pyproject,
+  poetry, setuptools options, hatchling). Add one helper in
+  `core/provenance.py` (e.g. `generator_provenance(method)`) and use it at
+  each.
+- [ ] **File licence and README licence disagree silently (S).** Found in
+  the #292 review: with `--enrich`, the README enricher only fills a
+  missing licence (`enrich/readme.py`), so an ONNX file declaring
+  `Apache-2.0` next to a README saying `mit` keeps `Apache-2.0` with no
+  message. #292 made ONNX files carry a licence for the first time, so
+  this can now happen for ONNX as for the other formats. Decide whether a
+  disagreement is a `WARNING:` (see
+  [license-rules.md](license-rules.md)).
 
 ## Leads to verify
 

@@ -217,6 +217,11 @@ def _read_mock(tmp_path: Path, **kwargs: Any) -> Any:
         # Exact match only: a real name that merely contains a default stays
         ("torch_jit_resnet", "torch_jit_resnet"),
         ("Torch_JIT", "Torch_JIT"),
+        # Blank is no name; padding is not part of one
+        ("   ", None),
+        ("\t\n", None),
+        ("  ResNet  ", "ResNet"),
+        (" torch_jit ", None),
     ],
 )
 def test_onnx_exporter_default_graph_name_is_not_a_name(
@@ -324,21 +329,27 @@ def test_onnx_load_failure(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> 
 @pytest.mark.parametrize(
     ("model_version", "expected", "semver"),
     [
+        (0, None, False),  # no version: nothing recorded
         (1, "1", False),
         (0xFFFF_FFFF, "4294967295", False),  # largest simple number
         (0x0001_0002_0000_0159, "1.2.345", True),  # the spec's example
         (1 << 48, "1.0.0", True),
         (1 << 32, "0.1.0", True),  # lowest SemVer: MINOR alone sets the flag
-        (-1, "65535.65535.4294967295", True),  # int64 read as unsigned
+        (-1, "65535.65535.4294967295", True),  # int64 read as its 64 bits
+        (-(2**63), "32768.0.0", True),  # int64 minimum: only the top bit
     ],
 )
 def test_onnx_model_version_semver_bit_packed(
-    tmp_path: Path, model_version: int, expected: str, semver: bool
+    tmp_path: Path, model_version: int, expected: str | None, semver: bool
 ) -> None:
     meta = _read_mock(tmp_path, model_version=model_version)
     assert meta.version == expected
-    assert meta.provenance["version"].endswith(
-        "Method: semver_bit_packed" if semver else "Field: model_version"
+    if expected is None:
+        assert "version" not in meta.provenance
+        return
+    assert meta.provenance["version"] == (
+        "Source: model.onnx | Field: model_version"
+        + (" | Method: semver_bit_packed" if semver else "")
     )
 
 
@@ -375,3 +386,40 @@ def test_onnx_metadata_props_never_collide_with_fields(
     if field_domain:
         assert meta.provenance["properties.domain"].endswith("Field: domain")
     assert not caplog.records
+
+
+def _entry(key: str, value: str) -> MagicMock:
+    entry = MagicMock(spec=["key", "value"])
+    entry.key, entry.value = key, value
+    return entry
+
+
+def test_onnx_repeated_metadata_props_key_warns_once_keeps_last(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Repeated keys (the ONNX checker rejects them) keep the file's last
+    value; one bounded warning per file counts them, whatever the file
+    holds (a hostile file must not flood the log or fill one line)."""
+    long_key = "K" * 100_000
+    keys = ["model_license", long_key, "a\nb", "fourth_key", "fifth_key"]
+    model = _make_onnx_mock()
+    model.metadata_props = [_entry("task", "ner")]
+    for value in ("MIT", "BSD-3-Clause", "Apache-2.0"):
+        model.metadata_props += [_entry(key, value) for key in keys]
+    model_file = tmp_path / "model.onnx"
+    model_file.write_bytes(b"fake")
+    with patch.dict("sys.modules", {"onnx": _mock_onnx_module(model)}):
+        with caplog.at_level(logging.WARNING, logger="pitloom.extract.ai_model.onnx"):
+            meta = read_onnx(model_file)
+    assert meta.license == "Apache-2.0"
+    assert meta.properties["metadata_props.task"] == "ner"
+    assert meta.properties[f"metadata_props.{long_key}"] == "Apache-2.0"
+    messages = [r.getMessage() for r in caplog.records]
+    assert len(messages) == 1
+    assert "5 key(s) appear more than once" in messages[0]
+    assert "model_license" in messages[0]
+    assert "\n" not in messages[0]
+    assert len(messages[0]) < 300
+    # The first three keys are named, the rest only counted
+    assert "fourth_key" not in messages[0] and "fifth_key" not in messages[0]
+    assert messages[0].endswith(", ...")

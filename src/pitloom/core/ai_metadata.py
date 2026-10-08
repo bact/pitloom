@@ -173,7 +173,7 @@ class AiModelMetadata:
     name: str | None = None
     description: str | None = None
     version: str | None = None
-    license: str | None = None  # SPDX license expression if available
+    license: str | None = None  # licence as read: SPDX expression, name or URL
 
     # External identifiers and references (DOI, arXiv, repository / model-card URL)
     # Maps to SPDX 3: externalIdentifier / externalRef
@@ -256,24 +256,35 @@ class AiModelMetadata:
     extra_lists: dict[str, list[Any]] = field(default_factory=dict)
 
     @property
+    def own_name(self) -> str:
+        """:attr:`name` stripped, or ``""`` when it is absent or blank."""
+        return (self.name or "").strip()
+
+    @property
     def file_name_stem(self) -> str:
-        """The stem of ``format_info.file_name``, or ``""`` without one."""
+        """The stem of ``format_info.file_name``, or ``""`` without one.
+
+        ``file_name`` is a base name (every reader sets it from the file's
+        or archive member's last component), so POSIX parsing is exact.
+        """
         return PurePosixPath(self.format_info.file_name or "").stem
 
     def resolve_name(self) -> tuple[str, dict[str, str]]:
         """The name to show for this model, and the provenance to go with it.
 
-        The model's own :attr:`name`, else its file name stem, else its
-        format. :attr:`name` itself stays as read from the file (``None``
-        when the file names no model). The provenance is always a new dict,
-        a copy of :attr:`provenance`, with a ``name`` entry added for a
-        stem fallback.
+        The model's own :attr:`name` stripped (a blank one is no name),
+        else its file name stem, else its format. :attr:`name` itself stays
+        as read from the file (``None`` when the file names no model). The
+        provenance is always a new dict, a copy of :attr:`provenance`, with
+        a ``name`` entry set for a stem fallback and dropped for the format
+        fallback (a reader's entry for a blank name cites nothing shown).
         """
         provenance = dict(self.provenance)
-        if self.name:
-            return self.name, provenance
+        if self.own_name:
+            return self.own_name, provenance
         stem = self.file_name_stem
         if stem:
             provenance["name"] = FILE_NAME_STEM_PROVENANCE
             return stem, provenance
+        provenance.pop("name", None)
         return str(self.format_info.model_format), provenance

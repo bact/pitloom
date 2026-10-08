@@ -52,30 +52,99 @@ Little-endian throughout. A 48-byte header, `struct` `<4sI4sIIIIIIIII`:
 | 24 | num_attrs | as in the table |
 | 28-44 | offsets of `FEAT`, labels, attributes, `LFRF`, `AFRF` | ascending, inside the file |
 
-- `FEAT` chunk: `<4sII` = tag, size, feature count; then the weights.
-- Labels and attributes are each a CQDB (constant quark database: string
-  to id and back). CQDB header `<4sIIIII` = `CQDB`, size, flag, byte-order
-  mark `0x62445371`, backward-array size, backward-array offset; then 256
-  hash tables. The backward array holds one record offset per id; a
-  record is `int32` id, `uint32` key size (NUL included), the key bytes.
-  So label strings are read by id, in id order, without hashing.
-- `LFRF`/`AFRF`: label and attribute feature references (tag, size, ...).
-  Not needed.
+Chunks and CQDB records: next section.
+
+### Byte layout in detail
+
+All integers are little-endian `uint32`, written byte by byte
+(`crf1d_model.c` `write_uint32`, not host order).
+
+Header, 48 bytes, struct `<4sI4sIIIIIIIII`: `magic` `lCRF`, `size`,
+`type` `FOMC`, `version` 100, `num_features`, `num_labels`, `num_attrs`,
+`off_features`, `off_labels`, `off_attrs`, `off_labelrefs`,
+`off_attrrefs`. Chunks follow in exactly that order: `FEAT`, labels
+`CQDB`, attributes `CQDB`, `LFRF`, `AFRF`; on every file seen, each chunk
+ends where the next starts and `AFRF` ends at `size`.
+
+- `FEAT`: `<4sII` tag, size, num; then `num` records of 20 bytes, so
+  `size == 12 + 20 * num`.
+- `CQDB`: 24-byte header `<4sIIIII` = tag, `size` (whole chunk, header
+  included), `flag`, `byteorder` (`0x62445371`), `bwd_size`, `bwd_offset`;
+  then 256 table refs `{offset, num}` (2048 bytes); records start at
+  `OFFSET_DATA = 2072`. A record is `<iI` id, `ksize` (string length **plus
+  the NUL**), then the key bytes and the NUL. Then the hash tables, then the
+  backward array: `bwd_size` uint32 record offsets indexed by id. **All
+  CQDB offsets are relative to the CQDB chunk start**, not the file.
+- `LFRF`/`AFRF`: `<4sII` tag, size, num; then offsets and per-item lists.
+  `AFRF.num == num_attrs`; `LFRF.num` is `num_labels + 2` on every file
+  seen, reason not found in the source: do not check it.
+
+### Traps
+
+What the layout above makes easy to get wrong. The
+[implementation plan](crfsuite-implementation-plan.md) cites these by
+number.
+
+1. **`header.num_features` is always 0.** The writer never sets it. The
+   real count is `FEAT.num`.
+2. **CRFsuite validates almost nothing.** Its loader checks only that the
+   file is over 48 bytes; python-crfsuite adds a magic check. It ignores
+   `size`, `type`, `version` and trailing bytes, and **segfaults** on a bad
+   label offset, a wrong byte-order mark or an inflated `num_labels`
+   (measured). "As lenient as CRFsuite" is not a goal; every bound below is
+   ours.
+3. **Record offsets are chunk-relative; `ksize` counts the NUL.** Off by
+   the chunk offset or by one byte reads garbage that still looks like a
+   string.
+4. **Label order is meaningful.** Ids are assigned in first-seen training
+   order; the backward array is indexed by id. Keep that order; never sort
+   labels (determinism comes from the file, not from sorting).
+5. **Labels are bytes.** CRFsuite does no encoding; python-crfsuite writes
+   UTF-8 but accepts `bytes` labels, and then cannot load the model it
+   wrote (`UnicodeDecodeError`). Decode with
+   `errors="backslashreplace"`: never crash, never guess an encoding.
+6. **An embedded NUL truncates** in CRFsuite (C strings). Take the bytes
+   before the first NUL, as CRFsuite does.
+7. **Zero labels and zero attributes are valid on disk** (an empty training
+   set saves). `bwd_offset` is 0 when a CQDB has no records.
+8. **`flag` is always 0.** `CQDB_ONEWAY` (`0x1`) would drop the backward
+   array, making labels unreadable by id; the CRF writer never sets it.
+9. **Never read attribute strings.** Thousands per model, training-text
+   features (privacy). Read only the attributes CQDB header (24 bytes).
+10. **`.model` is a shared suffix** (SentencePiece, gensim and others). A
+    `.model` without `lCRF` must stay silent, exactly as a non-model `.bin`
+    is today; a `.crfsuite` without `lCRF` warns (a contradicted suffix,
+    like `.gguf`). Do not put `.crfsuite` in `_EXTENSION_ADMITS`. **Except
+    a Git LFS pointer:** a pointer named `.model` (an unfetched
+    `tokenizer.model`, `spiece.model`, common in Hugging Face repos) gets the
+    existing `header is a Git LFS pointer; not listed as an AI model`
+    warning, as a pointer named `.bin` does today. Decided 2026-10-08:
+    accept that (consistent with `.bin`); the 0.21.0 roadmap item "Git LFS
+    pointers outside AI models" (one summary warning) will quiet both.
+    Test it explicitly so the behaviour is chosen, not accidental.
+11. **A labels list inside `raw_metadata` is one entry** to
+    `cap_entries()`; the generic cap never shortens it. The reader caps the
+    label count itself.
+12. **Fixture bytes are not proven identical across platforms** (float
+    weights; identical across runs and processes on one macOS arm64
+    machine only). Commit the binaries; tests never regenerate them.
 
 ## Decisions (2026-10-08)
 
 1. **Detection: suffix filter, then magic.** Scan `.crfsuite` and
    `.model` as candidate suffixes; a file is CRFsuite only when it starts
    with `lCRF`. `.model` is shared (SentencePiece writes a protobuf
-   `.model`), so it joins `.zip` and `.bin` in the scanner's
-   `_ALLOWED_EXTS` rather than becoming a format extension; the
+   `.model`), so it becomes a shared suffix next to `.bin`
+   (`SHARED_MODEL_SUFFIXES`, feeding both the scanner and `loom generate`;
+   plan step 5) rather than a format extension; the
    `AiModelFormat` member is `CRFSUITE = ("crfsuite", (".crfsuite",),
    b"lCRF")`. A `.model` without the magic is not a model and must stay
-   as quiet as a non-model `.bin` is today.
+   as quiet as a non-model `.bin` is today (nothing at `INFO` or above);
+   a Git LFS pointer named `.model` warns, as one named `.bin` does.
 2. **Pure-Python header-and-label reader, no python-crfsuite.** Built as
    `pitloom.extract.ai_model.formats.crfsuite`: stdlib only, no Pitloom
    import (the isolation test applies), seekable binary file plus a
-   `Limits` object in, a frozen `CrfsuiteHeader` dataclass out, errors from
+   `Limits` object in, a `CrfsuiteModel` named tuple out, errors from
    `formats._errors`. So it can leave with the rest of `formats/` as its
    own distribution later. A thin adapter in `extract/ai_model/crfsuite.py`
    maps it to `AiModelMetadata`, adds provenance and Pitloom's wording.
@@ -87,8 +156,9 @@ Little-endian throughout. A 48-byte header, `struct` `<4sI4sIIIIIIIII`:
    (count only). Never the weights, the attribute strings, `LFRF` or
    `AFRF`.
 4. **Labels go to the source-metadata properties and the description;
-   `outputs` follows fastText** (one `label_sequence` entry with the label
-   count, no strings).
+   `outputs` has fastText's shape** (one entry, name and
+   `shape: [n_labels]`, no strings; fastText names it
+   `label_probabilities`, CRFsuite `label_sequence`).
    Properties: `labels` (a JSON array: a label may contain `, `),
    `num_labels`, `num_attributes`, `num_features`, `model_type` (`FOMC`).
    fastText switches to the same JSON array first (decided 2026-10-08).
@@ -116,8 +186,9 @@ Same discipline as the other `formats/` readers:
   and leave room for the chunk header it points to; chunk tags must match
   (`FEAT`, `CQDB`, `CQDB`).
 - `num_labels` must equal the labels CQDB's backward-array size, and both
-  stay under the entry cap; each key size under a per-string cap and
-  inside its chunk; ids `0..n-1` with no gap or duplicate.
+  stay under the entry cap; each key inside its chunk, the whole labels
+  chunk under a byte cap (no separate per-string cap); ids `0..n-1` in
+  order.
 - Byte-order mark other than `0x62445371`, or a type other than `FOMC`:
   `UnsupportedVersion` (stub plus one `WARNING:`), not a guess.
 - Total bytes read bounded by the labels chunk, never by the attribute
@@ -126,7 +197,8 @@ Same discipline as the other `formats/` readers:
 ## Tests
 
 - **Generated fixtures**, small, made by a committed generator script with
-  python-crfsuite (a test/fixture-only dependency, never a runtime one):
+  python-crfsuite, installed in a throwaway venv (never a runtime or
+  dependency-group member):
   - a complete one: several labels including non-ASCII ones, every
     section populated, `.crfsuite` suffix;
   - an imperfect one: `.model` suffix, one or two labels, minimal
@@ -136,7 +208,7 @@ Same discipline as the other `formats/` readers:
   count mismatch, bad byte-order mark, non-UTF-8 label) are mutated from
   these in the tests, not committed.
 - A SentencePiece-shaped `.model` (protobuf bytes, no magic) is not a
-  model and logs nothing at `WARNING:`.
+  model and logs nothing at `INFO` or above.
 - The PyThaiNLP files are measured evidence (counts above), not fixtures:
   most have no stated licence.
 - Each fixture gets its `tests/fixtures/README.md` entry with source and
@@ -145,7 +217,8 @@ Same discipline as the other `formats/` readers:
 ## Open questions
 
 Resolved by reading CRFsuite's source and running python-crfsuite 0.9.12
-(details in the implementation plan):
+(details in [Traps](#traps) and
+[Byte layout in detail](#byte-layout-in-detail) above):
 
 - **Label encoding.** CRFsuite stores bytes; python-crfsuite cannot load a
   non-UTF-8 label it wrote. Decode with `backslashreplace`, never refuse.

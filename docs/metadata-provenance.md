@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -143,6 +143,8 @@ value, not just where it read it from. Values in use today:
 | `synthetic environment root` | The element is Pitloom's own synthesized placeholder root package for an installed environment (`loom env`), not extracted from any source file. |
 | `magika_content_detection` | Per-file content type resolved by the [`magika`](https://pypi.org/project/magika/) content-detection library. |
 | `extension_guess` | Per-file content type resolved by a filename-extension fallback (no `magika`, or no confident result). |
+| `file_name_stem` | An AI model's name is its file name without the last extension: the file names no model (or only an exporter default). |
+| `semver_bit_packed` | An ONNX integer `model_version` decoded as bit-packed SemVer (`MAJOR.MINOR.PATCH`). |
 | `array_length` | A GGUF array field: only its element count is recorded (property `<key>.length`); the elements are not recorded. |
 | `yaml_frontmatter` | Read from a local README/model card's YAML frontmatter block during enrichment. |
 

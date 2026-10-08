@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-07
+# Last-Modified: 2026-10-08
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -381,7 +381,7 @@ b. **Gap analysis:** per element, check the mapped field in the base SBOM
    relationship is missing). Don't trust the
    reference's "covered"/"conditional" calls: they were checked against
    one real SBOM.
-   A stub `ai_AIPackage` (step 3) has only a placeholder name: count every
+   A stub `ai_AIPackage` (step 3) has only a name from its file: count every
    G7 model element as missing for it and report its stderr cause first.
 c. **Resolve gaps by the precedence of steps 2-5:** deterministic `loom
    enrich`, then local prose, then (interactive only, consent-gated per

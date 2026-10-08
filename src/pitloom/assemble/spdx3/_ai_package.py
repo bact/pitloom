@@ -96,8 +96,8 @@ def _ai_model_entity_candidates(ai_model: AiModelMetadata) -> list[str]:
     each in order and claims the first hit.
     """
     candidates: list[str] = []
-    if ai_model.name:
-        candidates.append(ai_model.name)
+    if ai_model.own_name:
+        candidates.append(ai_model.own_name)
     if ai_model.format_info.physical_path:
         # The scanner already stores a stable path; this guard is
         # defensive for a hand-built AiModelMetadata whose physical_path is

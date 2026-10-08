@@ -29,8 +29,8 @@ and this project adheres to
   change ([#292])
 - ONNX: reads `model_license` and packed SemVer `model_version`; `domain` is
   not the model type; `metadata_props` keys are prefixed ([#292])
-- A licence id over 50,000 characters no longer reads as a broken licence
-  database: requires `licenseid` 0.4.3 ([#292])
+- A licence id over 50,000 characters in a licence text no longer reads as
+  a broken licence database: requires `licenseid` 0.4.3 ([#292])
 
 [#292]: https://github.com/bact/pitloom/pull/292
 
