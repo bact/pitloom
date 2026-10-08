@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC0-1.0
 # Names in SPDX identifiers: IRI segment encoding
 
 See also: [canonical-output-followups.md](../design/canonical-output-followups.md)
-(the remaining name-policy questions), `src/pitloom/core/iri.py`.
+(open name comparison and normalisation questions), `src/pitloom/core/iri.py`.
 
 ## Defect
 
@@ -72,7 +72,7 @@ only caller that applies it to a prefix, and every caller passes a raw name.
 - `loom model` looks its model up by file stem, not name, so an id imported
   from a titled model's SBOM is not reused there. Not caused by the encoding
   (same on the pre-fix code); tracked in
-  [canonical-output-followups.md](../design/canonical-output-followups.md).
+  [known-bugs.md](../design/known-bugs.md#p0-in-0210).
 - `reserve_spdx_ids()` parses `<prefix>-<n>` out of a stored id, so its
   prefix is the encoded one. `generate_spdx_id()` keys its counter on the
   encoded prefix too, so a reservation and the next mint meet on the same

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -72,9 +72,9 @@ Recorded, not built. Context:
   `hasConcludedLicense` per artifact. Pitloom targets 3.0.1 and emits none
   when no source concludes one (an absent licence gives no relationship), so
   moving to 3.1 needs a rule for that case.
-- [ ] **`LicenseRef-` case.** SPDX matches licence ids case-insensitively,
-  but `LicenseRef-Foo` and `LicenseRef-foo` are two elements, and the parser
-  rejects a lower-case `licenseref-` prefix (recorded as text).
+- [ ] **`LicenseRef-` case.** Moved to
+  [canonical-output-followups.md](canonical-output-followups.md#c13-case-of-licenseref--ids)
+  (C13).
 - [ ] **Per-file tag and copyright.** A file with two
   `SPDX-License-Identifier:` lines keeps only the first. The main package's
   `copyrightText` inferred from its authors

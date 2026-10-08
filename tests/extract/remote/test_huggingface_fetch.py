@@ -354,3 +354,37 @@ def test_load_model_info_failure_logs_and_returns_empty(
             result = _load_model_info("org/model")
     assert not result
     assert any("org/model" in r.message for r in caplog.records)
+
+
+_HOSTILE = OSError("404 for o/m\n::error::forged\u202e")
+
+
+@pytest.mark.parametrize(
+    ("patched", "call"),
+    [
+        ("huggingface_hub.ModelCard.load", lambda: _load_model_card("o/m")),
+        ("huggingface_hub.model_info", lambda: _load_model_info("o/m")),
+        ("huggingface_hub.list_repo_files", lambda: _list_license_files_in_repo("o/m")),
+        (
+            "huggingface_hub.hf_hub_download",
+            lambda: _detect_license_from_hf_files("o/m", revision="1"),
+        ),
+    ],
+    ids=["model-card", "model-info", "list-files", "download"],
+)
+def test_a_hub_error_is_logged_on_one_escaped_line(
+    patched: str, call: Any, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A server-controlled error message cannot spill or forge a line."""
+    with (
+        patch(patched, side_effect=_HOSTILE),
+        patch(
+            "huggingface_hub.list_repo_files",
+            side_effect=_HOSTILE if "list" in patched else None,
+            return_value=["LICENSE"],
+        ),
+    ):
+        call()
+    messages = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+    (message,) = [m for m in messages if "forged" in m]
+    assert "\n" not in message and "\u202e" not in message

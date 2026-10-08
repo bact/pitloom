@@ -8,12 +8,18 @@
 from __future__ import annotations
 
 import logging
-import struct
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+    source_metadata,
+    value_text,
+)
+from pitloom.core.scalar_text import scalar_text
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
@@ -30,6 +36,12 @@ _GGUF_DESCRIPTION_KEYS = ("general.description",)
 _GGUF_ARCH_KEY = "general.architecture"
 _GGUF_VERSION_KEY = "general.version"
 _GGUF_FILE_TYPE_KEY = "general.file_type"
+_GGUF_LICENSE_KEY = "general.license"
+# The reader's own pseudo-field for the header version, read in the file's
+# byte order
+_GGUF_FORMAT_VERSION_KEY = "GGUF.version"
+# LlamaFileType.GUESSED: llama.cpp's "file type not stated", not a type
+_GGUF_FILE_TYPE_GUESSED = 1024
 
 # Hyperparameter key suffixes that are architecture-specific
 _GGUF_HYPERPARAM_SUFFIXES = (
@@ -59,19 +71,21 @@ def _resolve_quantization(file_type_value: Any) -> str | None:
     enum does not know is returned as the raw integer string.
 
     Args:
-        file_type_value: The raw value extracted from the ``general.file_type``
-            GGUF field (an integer or a list containing one integer).
+        file_type_value: The scalar value of the ``general.file_type``
+            GGUF field.
 
     Returns:
-        Quantization name string (e.g. ``"Q4_K_M"``) or ``None``.
+        Quantization name string (e.g. ``"Q4_K_M"``), or ``None`` for a
+        value that is no integer (a bool, a string, a float) or is
+        ``GUESSED`` (not stated). The value stays in ``properties``.
     """
-    if file_type_value is None:
+    if (
+        isinstance(file_type_value, bool)
+        or not isinstance(file_type_value, int)
+        or file_type_value == _GGUF_FILE_TYPE_GUESSED
+    ):
         return None
-
-    try:
-        int_val = int(file_type_value)
-    except (TypeError, ValueError):
-        return None
+    int_val = file_type_value
 
     try:
         # pylint: disable=import-outside-toplevel
@@ -90,20 +104,6 @@ def _resolve_quantization(file_type_value: Any) -> str | None:
     for prefix in ("MOSTLY_", "ALL_"):
         name = name.removeprefix(prefix)
     return name
-
-
-def _read_gguf_format_version(model_path: Path, source: str) -> tuple[str | None, str]:
-    """Read GGUF format version from the binary header (uint32 at offset 4)."""
-    try:
-        with model_path.open("rb") as fh:
-            fh.seek(4)
-            ver_bytes = fh.read(4)
-        if len(ver_bytes) == 4:
-            format_version = str(struct.unpack("<I", ver_bytes)[0])
-            return format_version, f"{source} | Field: GGUF header version (bytes 4-7)"
-    except OSError:
-        pass
-    return None, ""
 
 
 def _type_name(gguf_type: Any) -> str:
@@ -149,16 +149,39 @@ def _array_summary(gguf_field: Any) -> dict[str, Any]:
     return summary
 
 
+def _float32_double(value: Any) -> float:
+    """The double whose shortest decimal is the shortest decimal of
+    *value*, a ``numpy.float32``.
+
+    ``numpy.format_float_scientific(unique=True)`` gives that decimal
+    whatever the print options; ``str()`` follows them
+    (``legacy="1.13"`` prints ``1.0000001`` as ``1``).
+    """
+    # pylint: disable-next=import-outside-toplevel
+    import numpy  # a dependency of gguf, imported once a file is read
+
+    return float(numpy.format_float_scientific(value, unique=True))
+
+
 def _field_value(gguf_field: Any) -> Any:
     """Resolve a scalar GGUF field to a plain Python value (arrays: see
-    :func:`_read_fields`)."""
+    :func:`_read_fields`).
+
+    A ``FLOAT32`` is the double whose shortest decimal is the float32's own
+    (:func:`_float32_double`), not the double it widens to, so the stored
+    ``1e-6`` is spelt ``0.000001``, not ``9.999999974752427e-7``. It
+    converts back to the same float32; a ``FLOAT64`` is kept as stored.
+    """
     parts = gguf_field.parts
     if not parts:
         return None
     last = parts[-1]
+    type_name = _type_name(gguf_field.types[0]) if gguf_field.types else ""
     # String fields are stored as raw byte arrays; decode explicitly
-    if gguf_field.types and _type_name(gguf_field.types[0]) == "STRING":
+    if type_name == "STRING":
         return last.tobytes().decode("utf-8")
+    if type_name == "FLOAT32" and len(last) == 1:
+        return _float32_double(last[0])
     if hasattr(last, "tolist"):
         val = last.tolist()
         return val[0] if isinstance(val, list) and len(val) == 1 else val
@@ -209,25 +232,24 @@ def _extract_gguf_core_fields(
     name: str | None = None
     for key in _GGUF_NAME_KEYS:
         if key in fields and fields[key] is not None:
-            name = str(fields[key])
+            name = value_text(fields[key])
             provenance["name"] = f"{source} | Field: {key}"
             break
 
     description: str | None = None
     for key in _GGUF_DESCRIPTION_KEYS:
         if key in fields and fields[key] is not None:
-            description = str(fields[key])
+            description = value_text(fields[key])
             provenance["description"] = f"{source} | Field: {key}"
             break
 
-    architecture: str | None = fields.get(_GGUF_ARCH_KEY)
-    if architecture is not None:
-        architecture = str(architecture)
+    architecture: str | None = None
+    if fields.get(_GGUF_ARCH_KEY) is not None:
+        architecture = value_text(fields[_GGUF_ARCH_KEY])
         provenance["architecture"] = f"{source} | Field: {_GGUF_ARCH_KEY}"
 
-    version: str | None = None
-    if _GGUF_VERSION_KEY in fields and fields[_GGUF_VERSION_KEY] is not None:
-        version = str(fields[_GGUF_VERSION_KEY])
+    version = _stated_text(fields.get(_GGUF_VERSION_KEY), scalar=True)
+    if version:
         provenance["version"] = f"{source} | Field: {_GGUF_VERSION_KEY}"
 
     quantization: str | None = None
@@ -237,6 +259,32 @@ def _extract_gguf_core_fields(
             provenance["quantization"] = f"{source} | Field: {_GGUF_FILE_TYPE_KEY}"
 
     return name, description, architecture, version, quantization
+
+
+def _stated_text(value: Any, *, scalar: bool = False) -> str | None:
+    """*value* stripped, or ``None`` when absent or blank. Only a string
+    counts, unless *scalar*: then a number is its text too (a version may
+    be written as one). A bool never counts."""
+    if isinstance(value, str):
+        text = value.strip()
+    elif scalar and isinstance(value, (int, float)) and not isinstance(value, bool):
+        text = value_text(value)
+    else:
+        return None
+    return text or None
+
+
+def _read_gguf_license(
+    fields: dict[str, Any], source: str, provenance: dict[str, str]
+) -> str | None:
+    """Return ``general.license`` (an SPDX expression by the GGUF spec), if
+    it is a non-blank string; a value of another type stays in
+    ``properties`` only."""
+    license_expr = _stated_text(fields.get(_GGUF_LICENSE_KEY))
+    if not license_expr:
+        return None
+    provenance["license"] = f"{source} | Field: {_GGUF_LICENSE_KEY}"
+    return license_expr
 
 
 def _categorize_gguf_fields(
@@ -260,7 +308,7 @@ def _categorize_gguf_fields(
         ):
             hyperparameters[key] = value
         else:
-            properties[key] = str(value)
+            properties[key] = scalar_text(value)
 
     record_dict_field_provenance(provenance, "hyperparameters", hyperparameters, source)
     record_dict_field_provenance(provenance, "properties", properties, source)
@@ -334,10 +382,10 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
     """
     fields, raw_metadata, derived = _load_fields(model_path)
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
-    format_version, prov_ver = _read_gguf_format_version(model_path, source)
     provenance: dict[str, str] = {}
+    format_version = _stated_text(fields.get(_GGUF_FORMAT_VERSION_KEY), scalar=True)
     if format_version:
-        provenance["format_version"] = prov_ver
+        provenance["format_version"] = f"{source} | Field: {_GGUF_FORMAT_VERSION_KEY}"
 
     (
         name,
@@ -350,6 +398,7 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
     hyperparameters, properties = _categorize_gguf_fields(
         fields, source, provenance, derived
     )
+    license_expr = _read_gguf_license(fields, source, provenance)
 
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
@@ -363,8 +412,9 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         version=version,
         architecture=architecture,
         quantization=quantization,
+        license=license_expr,
         hyperparameters=hyperparameters,
         properties=properties,
-        raw_metadata=raw_metadata,
+        **source_metadata(raw_metadata),
         provenance=provenance,
     )

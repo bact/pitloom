@@ -55,9 +55,16 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+    source_metadata,
+    value_text,
+)
+from pitloom.core.scalar_text import scalar_type
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model.hdf5_config import (
     RAW_CONFIG_CHARS,
@@ -112,8 +119,10 @@ def _decode_h5_attr(value: Any) -> str | None:
     buffer of an array holding objects is never used: it is pointers, which
     differ per run.
 
-    An attribute with an empty dataspace (``h5py.Empty``) has a dtype but no
-    data, and decodes to ``None``.
+    A numeric or boolean attribute is its
+    :func:`~pitloom.core.ai_metadata.value_text`. An attribute with an
+    empty dataspace (``h5py.Empty``) has a dtype but no data, and decodes to
+    ``None``.
 
     Raises:
         _UnsupportedAttribute: A compound dtype with an object field.
@@ -132,20 +141,48 @@ def _decode_h5_attr(value: Any) -> str | None:
         return "\n".join(str(_decode_h5_attr(leaf)) for leaf in leaves)
     if getattr(dtype, "kind", None) in ("S", "U"):
         return _decode_text_array(value)
-    if hasattr(value, "tobytes"):
+    if hasattr(value, "tobytes") and scalar_type(value) is None:  # not a number
         return str(value.tobytes().decode("utf-8", errors="replace"))
-    return str(value)
+    return value_text(value)
 
 
-def _attr_text(attrs: Any, name: str) -> str | None:
-    """The text of root attribute *name*; ``None`` when it is absent. One
-    that cannot be read (a type h5py has no NumPy equivalent for, a compound
-    with a string field) is one ``WARNING:`` naming the fields it would set."""
+class _Attribute(NamedTuple):
+    """A root attribute as read: its text, and its value when that is a
+    number or a boolean (else ``None``), for ``valueTypes``."""
+
+    text: str | None
+    scalar: Any = None
+
+
+def _read_attr(attrs: Any, name: str) -> _Attribute:
+    """Root attribute *name*; no text when it is absent. One that cannot be
+    read (a type h5py has no NumPy equivalent for, a compound with a string
+    field) is one ``WARNING:`` naming the fields it would set."""
     try:
-        return _decode_h5_attr(attrs.get(name))
+        value = attrs.get(name)
+        text = _decode_h5_attr(value)
     except _READ_ERRORS as exc:
         log_attribute_problem(name, exc)
-        return None
+        return _Attribute(None)
+    return _Attribute(text, value if scalar_type(value) is not None else None)
+
+
+def _keras_format_version(
+    keras_version: str, source: str, provenance: dict[str, str]
+) -> str:
+    """The Keras HDF5 format generation, ``v1`` for Keras 1.x and ``v2``
+    for any later (or unparsable) version, recording the provenance of
+    ``keras_version`` (the Keras library version, e.g. ``2.15.0``, not the
+    model's) as the framework version too."""
+    provenance["framework_version"] = f"{source} | Field: keras_version attribute"
+    try:
+        keras_major = int(keras_version.split(".")[0])
+    except (ValueError, IndexError):
+        keras_major = 2
+    provenance["format_version"] = (
+        f"{source} | Field: keras_version attribute (major version)"
+    )
+    return "v1" if keras_major == 1 else "v2"
 
 
 # pylint: disable-next=too-many-locals
@@ -202,35 +239,25 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
         type_of_model: str | None = None
         hyperparameters: dict[str, Any] = {}
         properties: dict[str, str] = {}
+        natives: dict[str, Any] = {}
         inputs: list[dict[str, Any]] = []
         provenance: dict[str, str] = {}
 
-        keras_version_raw = _attr_text(hf.attrs, "keras_version")
-        model_config_raw = _attr_text(hf.attrs, "model_config")
-        training_config_raw = _attr_text(hf.attrs, "training_config")
-        backend_raw = _attr_text(hf.attrs, "backend")
+        keras_version_raw = _read_attr(hf.attrs, "keras_version").text
+        model_config = _read_attr(hf.attrs, "model_config")
+        model_config_raw = model_config.text
+        training_config_raw = _read_attr(hf.attrs, "training_config").text
+        backend = _read_attr(hf.attrs, "backend")
 
         if keras_version_raw:
-            # keras_version is the Keras library version (e.g. "2.15.0"),
-            # not the model's semantic version.
             framework = "keras"
             framework_version = keras_version_raw
-            provenance["framework_version"] = (
-                f"{source} | Field: keras_version attribute"
-            )
-            # Derive the Keras HDF5 format generation from the major library version:
-            # Keras 1.x -> "v1", Keras 2.x and later HDF5 legacy mode -> "v2".
-            try:
-                keras_major = int(keras_version_raw.split(".")[0])
-            except (ValueError, IndexError):
-                keras_major = 2
-            format_version = "v1" if keras_major == 1 else "v2"
-            provenance["format_version"] = (
-                f"{source} | Field: keras_version attribute (major version)"
+            format_version = _keras_format_version(
+                keras_version_raw, source, provenance
             )
 
-        if backend_raw:
-            properties["backend"] = backend_raw
+        if backend.text:
+            properties["backend"] = backend.text
             provenance["properties.backend"] = f"{source} | Field: backend attribute"
 
         if model_config_raw:
@@ -241,6 +268,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
                 inputs,
                 properties,
                 provenance,
+                natives,
             )
             kept_raw = not type_of_model and not name
             if kept_raw:
@@ -253,10 +281,14 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
         if training_config_raw:
             log_training_config_problem(
                 parse_training_config(
-                    training_config_raw, source, properties, provenance
+                    training_config_raw, source, properties, provenance, natives
                 )
             )
 
+    # A number or boolean attribute is typed; its text is never cut (64 bits).
+    for key, attr in (("backend", backend), ("model_config_raw", model_config)):
+        if key in properties and attr.scalar is not None:
+            natives[key] = attr.scalar
     fmt = AiModelFormat.KERAS if keras_version_raw else AiModelFormat.HDF5
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
@@ -270,6 +302,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
         type_of_model=type_of_model,
         hyperparameters=hyperparameters,
         properties=properties,
+        **source_metadata(properties, natives),
         inputs=inputs,
         provenance=provenance,
     )

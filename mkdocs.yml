@@ -36,6 +36,7 @@ nav:
       - Dependency sources: dependency-sources.md
       - Creation metadata: creation-metadata.md
       - Metadata provenance: metadata-provenance.md
+      - Reading values back: metadata-reading-back.md
       - Resources: resources.md
 
 theme:

@@ -10,17 +10,36 @@ See also: :mod:`pitloom.assemble.spdx3.ai` for model assembly into SBOM document
 
 from __future__ import annotations
 
-import json
+import logging
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._display_text import (
+    BASE_MODEL,
+    BASE_MODEL_RELATIONSHIP,
+    escape_element_display_text,
+)
 from pitloom.assemble.spdx3.provenance import build_source_metadata_annotation
-from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    MAX_MODEL_NAME_CHARS,
+    AiModelFormat,
+    AiModelMetadata,
+    SourceMetadata,
+    cap_model_name,
+    source_metadata,
+    value_text,
+)
+from pitloom.core.canonical_json import canonical_json
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import project_relative_or_fallback
+from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.logging_config import NAME_CUT_WARNING, loggable
+
+log = logging.getLogger(__name__)
 
 # Valid SPDX 3 ai_safetyRiskAssessmentType enum values (lowercase).
 _SAFETY_RISK_VALUES = {"high", "medium", "low", "serious"}
@@ -41,20 +60,29 @@ def _should_preserve_metadata(
     return not shipped
 
 
-def _source_metadata_blob(ai_model: AiModelMetadata) -> tuple[str, dict[str, Any]]:
-    """Return ``(format_tag, metadata)`` for P1 preservation."""
+def _source_metadata_blob(ai_model: AiModelMetadata) -> tuple[str, SourceMetadata]:
+    """Return ``(format_tag, source metadata)`` for P1 preservation.
+
+    A model file's metadata is its reader's ``raw_metadata`` and
+    ``raw_metadata_types``. Only a model of no file format (a Hugging Face
+    model) falls back to ``properties`` and the ``extra_data``/
+    ``extra_lists`` slots, through the same
+    :func:`~pitloom.core.ai_metadata.source_metadata` as a reader: scalars
+    as text, typed in ``valueTypes``.
+    """
     fmt = str(ai_model.format_info.model_format)
-    if ai_model.raw_metadata:
-        return fmt, dict(ai_model.raw_metadata)
+    if ai_model.raw_metadata or fmt != str(AiModelFormat.UNKNOWN):
+        return fmt, SourceMetadata(
+            raw_metadata=dict(ai_model.raw_metadata),
+            raw_metadata_types=dict(ai_model.raw_metadata_types),
+        )
     blob: dict[str, Any] = {}
     blob.update(ai_model.properties)
     blob.update(ai_model.extra_data)
     blob.update(ai_model.extra_lists)
-    if fmt == str(AiModelFormat.UNKNOWN) and (
-        ai_model.extra_data or ai_model.extra_lists
-    ):
+    if ai_model.extra_data or ai_model.extra_lists:
         fmt = "huggingface"
-    return fmt, blob
+    return fmt, source_metadata(blob)
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
@@ -72,15 +100,17 @@ def _emit_source_metadata(
     """Emit a verbatim artifact-metadata preservation Annotation for *ai_model*."""
     if not _should_preserve_metadata(ai_model, file_spdx_ids, preserve_source_metadata):
         return
-    source_format, metadata = _source_metadata_blob(ai_model)
+    source_format, source = _source_metadata_blob(ai_model)
     annotation = build_source_metadata_annotation(
         subject_spdx_id=require_spdx_id(ai_pkg),
         source_format=source_format,
-        metadata=metadata,
+        metadata=source["raw_metadata"],
         creation_info=creation_info,
         doc_name=doc_name,
         doc_uuid=doc_uuid,
         max_metadata_bytes=max_source_metadata_bytes,
+        value_types=source["raw_metadata_types"],
+        capped_key_count=ai_model.raw_metadata_dropped,
     )
     if annotation is not None:
         exporter.add_annotation(annotation)
@@ -166,19 +196,46 @@ class _LineageContext:
     cache: dict[str, str] = field(default_factory=dict)
 
 
-def _find_or_create_base_pkg(base_model_str: str, ctx: _LineageContext) -> str:
-    """Find existing base model package or create a new external reference node."""
-    pkg_name = (
-        base_model_str.rsplit("/", maxsplit=1)[-1]
-        if "/" in base_model_str
-        else base_model_str
+def _model_where(ai_model: AiModelMetadata) -> tuple[str, str]:
+    """The ``FORMAT=``/``FILE=`` values naming *ai_model* in a warning."""
+    info = ai_model.format_info
+    where = info.physical_path or info.file_path_relative or info.file_name
+    return (
+        _source_metadata_blob(ai_model)[0],  # "huggingface" for a Hub model
+        loggable(where or ai_model.url or ai_model.resolve_name()[0]),
     )
+
+
+def cap_related_name(name: str, label: str, ai_model: AiModelMetadata) -> str:
+    """*name*, of an element *ai_model* brings in (its *label*, e.g.
+    ``"dataset name"``), cut as a model's own name is
+    (:func:`~pitloom.core.ai_metadata.cap_model_name`), and said so."""
+    capped = cap_model_name(name)
+    if capped != name:
+        log.warning(
+            NAME_CUT_WARNING,
+            *_model_where(ai_model),
+            label,
+            len(name),
+            MAX_MODEL_NAME_CHARS,
+        )
+    return capped
+
+
+def _find_or_create_base_pkg(
+    base_model_str: str, ctx: _LineageContext, ai_model: AiModelMetadata
+) -> tuple[str, spdx3.ai_AIPackage | None]:
+    """Find an existing base model package, or create a new external
+    reference node; return its spdxId and the package when created."""
+    pkg_name = cap_related_name(
+        base_model_str.rsplit("/", maxsplit=1)[-1], "base model name", ai_model
+    )
+    # A package already finished has its name escaped.
+    names = {base_model_str, pkg_name}
+    names |= {escape_display_controls(name) for name in names}
     for obj in ctx.exporter.object_set.objects:
-        if isinstance(obj, spdx3.ai_AIPackage) and obj.name in (
-            base_model_str,
-            pkg_name,
-        ):
-            return require_spdx_id(obj)
+        if isinstance(obj, spdx3.ai_AIPackage) and obj.name in names:
+            return require_spdx_id(obj), None
 
     base_spdx_id = generate_spdx_id(
         f"AIPackage-{pkg_name}", doc_name=ctx.doc_name, doc_uuid=ctx.doc_uuid
@@ -201,24 +258,28 @@ def _find_or_create_base_pkg(base_model_str: str, ctx: _LineageContext) -> str:
         )
     )
     ctx.exporter.add_package(base_pkg)
-    return base_spdx_id
+    return base_spdx_id, base_pkg
 
 
 def _add_base_model_lineage(
     ai_pkg: spdx3.ai_AIPackage,
     ai_model: AiModelMetadata,
     ctx: _LineageContext,
-) -> None:
-    """Add native descendantOf Relationship linking ai_pkg to its base model."""
+) -> list[tuple[str, spdx3.Element]]:
+    """Add native descendantOf Relationship linking ai_pkg to its base model;
+    return the elements created, labelled for :func:`finish_ai_package`."""
     base_model_id = ai_model.base_model or ai_model.extra_data.get("hf.base_model")
     if not base_model_id:
-        return
+        return []
 
+    created: list[tuple[str, spdx3.Element]] = []
     base_model_str = str(base_model_id)
     base_spdx_id = ctx.cache.get(base_model_str)
     if base_spdx_id is None:
-        base_spdx_id = _find_or_create_base_pkg(base_model_str, ctx)
+        base_spdx_id, base_pkg = _find_or_create_base_pkg(base_model_str, ctx, ai_model)
         ctx.cache[base_model_str] = base_spdx_id
+        if base_pkg is not None:
+            created.append((BASE_MODEL, base_pkg))
 
     rel_relation = ai_model.base_model_relation or ai_model.extra_data.get(
         "hf.base_model_relation"
@@ -237,6 +298,8 @@ def _add_base_model_lineage(
         if rel_relation:
             rel.comment = f"base_model_relation:{rel_relation}"
         ctx.exporter.add_relationship(rel)
+        created.append((BASE_MODEL_RELATIONSHIP, rel))
+    return created
 
 
 def _populate_ai_pkg_hyperparameters(
@@ -253,7 +316,7 @@ def _populate_ai_pkg_hyperparameters(
         ai_model.hyperparameters.items(), key=lambda item: str(item[0])
     ):
         hyperparameter_entries.append(
-            spdx3.DictionaryEntry(key=str(key), value=str(val))
+            spdx3.DictionaryEntry(key=str(key), value=value_text(val))
         )
     if hyperparameter_entries:
         ai_pkg.ai_hyperparameter = hyperparameter_entries
@@ -297,7 +360,46 @@ def _populate_ai_pkg_io_application(
     if ai_model.usage.unintended_use:
         io_parts["unintended_use"] = ai_model.usage.unintended_use
     if io_parts:
-        ai_pkg.ai_informationAboutApplication = json.dumps(io_parts, ensure_ascii=False)
+        ai_pkg.ai_informationAboutApplication = canonical_json(io_parts)
+
+
+def finish_display_text(
+    ai_model: AiModelMetadata, elements: Iterable[tuple[str, spdx3.Element]]
+) -> None:
+    """Escape the invisible and bidi controls in the display text of each
+    of *elements*, built from *ai_model* and each labelled for the warning
+    (``""`` for the model's own package), and say once which properties had
+    one; quiet when none had."""
+    changed = sorted(
+        {
+            f"{label} {prop}" if label else prop
+            for label, element in elements
+            for prop in escape_element_display_text(element)
+        }
+    )
+    if not changed:
+        return
+    log.warning(
+        "FORMAT=%s FILE=%s: invisible or bidi control characters written as "
+        "\\uXXXX in %s",
+        *_model_where(ai_model),
+        ", ".join(changed),
+    )
+
+
+def finish_ai_package(
+    ai_pkg: spdx3.ai_AIPackage,
+    ai_model: AiModelMetadata,
+    related: Iterable[tuple[str, spdx3.Element]] = (),
+) -> None:
+    """:func:`finish_display_text` for *ai_pkg*, built from *ai_model*, and
+    the *related* elements the model brought in (its base model, its
+    datasets). Called by every surface once the last of them is written (the
+    provenance ``comment`` included), so one model gives one warning. The
+    ``spdxId`` keeps the name as resolved (its IRI percent-encodes these
+    controls), so it still agrees with the registry; the artifact-metadata
+    annotation keeps the model's metadata as read."""
+    finish_display_text(ai_model, [("", ai_pkg), *related])
 
 
 def _build_ai_package(
@@ -307,7 +409,10 @@ def _build_ai_package(
     doc_uuid: str,
     entity_spdx_id: str | None = None,
 ) -> spdx3.ai_AIPackage:
-    """Build an ``ai_AIPackage`` SPDX 3 element from an :class:`AiModelMetadata`."""
+    """Build an ``ai_AIPackage`` SPDX 3 element from an :class:`AiModelMetadata`.
+
+    Its display text is escaped by :func:`finish_ai_package`, once its
+    provenance comment is written too."""
     pkg_name, _ = ai_model.resolve_name()
     ai_pkg = spdx3.ai_AIPackage(
         spdxId=entity_spdx_id

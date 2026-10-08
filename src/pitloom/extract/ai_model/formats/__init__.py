@@ -14,10 +14,12 @@ state.
 
 Modules:
 
+- :mod:`.crfsuite`: the header and label strings of a CRFsuite model.
 - :mod:`.pickle_walk`: the opcodes of a pickle, without converting its
   decimal numbers.
 
-See also: :mod:`pitloom.extract.ai_model._pickle_bounds` (Pitloom's adapter).
+See also: :mod:`pitloom.extract.ai_model._pickle_bounds` and
+:mod:`pitloom.extract.ai_model.crfsuite` (Pitloom's adapters).
 """
 
 from __future__ import annotations

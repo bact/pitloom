@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -19,7 +19,9 @@ D-numbers below refer to it),
 [ai-model-id-stability.md](ai-model-id-stability.md),
 [id-registry-autosync.md](../implementation/id-registry-autosync.md),
 [skills-trigger-coverage.md](../implementation/skills-trigger-coverage.md),
-[diagnostics-logging-followups.md](diagnostics-logging-followups.md).
+[diagnostics-logging-followups.md](diagnostics-logging-followups.md),
+[canonical-output-followups.md](canonical-output-followups.md) (name
+comparison and normalisation that registry keys depend on).
 
 ## Open
 
@@ -42,8 +44,8 @@ Left open by the wheel-identity work (#266). Reading limits and refusals:
 
 Selection and naming rules:
 
-- **`.WHL` (upper case)** is a wheel to some surfaces and not to others, so the
-  same file fails with a different error on each. Pick one rule.
+- **`.WHL` (upper case)**: fixed by #278
+  ([known-bugs.md](known-bugs.md#p0-in-0200)).
 - **`core/_models_wheel_types.py` `is_dist_info_path`** is one more
   "top-level `.dist-info`" predicate beside those of `core/wheel_dist_info`,
   and its docstring says "wheel's own": it matches any top-level
@@ -62,10 +64,8 @@ Selection and naming rules:
 
 Ids, names and output:
 
-- **sdist member order leaks into `File-N` ids.** The wheel reader sorts by
-  install path; the sdist reader lists tar members in archive order. Confirmed:
-  the same five files in reverse order gave `PKG-INFO` `File-2` in one SBOM
-  and `File-7` in the other. Sort as `read_wheel` does.
+- **sdist member order leaked into `File-N` ids**: fixed by #272
+  ([known-bugs.md](known-bugs.md#p0-in-0200)).
 - **The sentinel `unknown` becomes a registry key.** Distinct wheels whose
   identity is unknown share `unknown-...#Package-1`. Skip the registry lookup
   and harvest when the name did not come from `METADATA`.
@@ -134,6 +134,16 @@ an unrelated main-document element *of the same type* still merges (the
 and a re-minted id can in theory collide with a *later* fragment that
 carries the same id. Accepted for now.
 
+### `pitloom.loom` run namespaces
+
+Moved from [canonical-output-followups.md](canonical-output-followups.md)
+(an id-scheme question). One run mints ids under several `doc_name`s --
+the model name, each dataset name, the script path and `"loom"` -- with a
+random `uuid4` document uuid, so one fragment spans several namespaces and
+differs every run. Found while fixing the IRI encoding (#253); see
+[id-registry-autosync.md](../implementation/id-registry-autosync.md) for
+why reservation is a no-op there.
+
 ## Resolved by registry v3 (planned, not built)
 
 Kept here so older links still land; each closes when v3 merges.
@@ -163,3 +173,36 @@ from file discovery and from `id generate`'s indexing (the latter is the
 custom-name gap in
 [diagnostics-logging-followups.md](diagnostics-logging-followups.md)),
 with one `WARNING:`.
+
+### Bounded `spdxId` minting for long or hostile names
+
+Raised 2026-10-08 in #294 (model name cap). An `spdxId` embeds the element
+name (`AIPackage-<name>-N`), so id size follows name size: a 1 MB model
+name gave a 2 MB id. #294 caps a model name at 1024 characters with a
+digest of the full name in the cut name, which keeps ids bounded (at most
+about 12 KB per occurrence when percent-encoded) and keeps two distinct long names apart.
+Fixed there, not here: that is the minimum that makes every identity path
+(document uuid, minting prefix, enrich identity, registry key) agree.
+
+Considered for the id scheme, not done in #294:
+
+- An id segment that is a short slug (about 48 characters) plus a digest of
+  the verbatim name, so id size no longer depends on the name and the
+  display name can be a clean cut. The user's view: an `spdxId` need not
+  contain the original name or id.
+- It changes every existing id, so apply it to all name-based prefixes
+  (`Package-`, `File-`, `Agent-`, `AIPackage-`), not to AI packages alone,
+  and settle it with the v3 id design in one go.
+- The registry harvest and the enrich identity read the SBOM's `name`, not
+  the model file. Without the digest in the visible name, two names that
+  cut to the same text still collide ("name held by several elements").
+  Any new scheme must carry the identity in something the harvest can read
+  (the id itself, or an identifier or property on the element).
+- Identity comes from the verbatim name and the display form is derived
+  (escaped, cut); the bidi lookup bug in #294 (registry stored the escaped
+  name, minting looked up the raw one) is the same split.
+
+See also: [id-registry-v3.md](id-registry-v3.md),
+[ai-model-id-stability.md](ai-model-id-stability.md); the name cap, its cut
+layout and the open name-normalisation questions are in
+[canonical-output-followups.md](canonical-output-followups.md).

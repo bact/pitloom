@@ -79,3 +79,26 @@ def test_hdf5_fixture_provenance_has_framework_version(fixture_hdf5: Any) -> Non
 
 def test_hdf5_fixture_provenance_has_name(fixture_hdf5: Any) -> None:
     assert "name" in fixture_hdf5.provenance
+
+
+@pytest.mark.parametrize(
+    ("attrs", "key", "text", "kind"),
+    [
+        ({"backend": True}, "backend", "true", "boolean"),
+        ({"backend": 2**62}, "backend", "4611686018427387904", "integer"),
+        ({"backend": 1e-7}, "backend", "1e-7", "float"),
+        ({"backend": "tensorflow"}, "backend", "tensorflow", None),
+        ({"model_config": 5}, "model_config_raw", "5", "integer"),
+    ],
+    ids=["backend-bool", "backend-int", "backend-float", "backend-str", "config-int"],
+)
+def test_a_numeric_root_attribute_is_typed(
+    attrs: dict[str, Any], key: str, text: str, kind: str | None, tmp_path: Path
+) -> None:
+    h5py = pytest.importorskip("h5py")
+    path = tmp_path / "m.h5"
+    with h5py.File(path, "w") as hf:
+        hf.attrs.update(attrs)
+    meta = read_hdf5(path)
+    assert meta.properties[key] == meta.raw_metadata[key] == text
+    assert meta.raw_metadata_types.get(key) == kind

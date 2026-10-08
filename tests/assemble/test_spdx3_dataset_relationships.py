@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 
 import pytest
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
 from pitloom.assemble.spdx3.document import build as build_doc
@@ -41,6 +42,23 @@ def _make_exporter() -> Spdx3JsonExporter:
 # ---------------------------------------------------------------------------
 
 
+def _add(
+    ai_spdx_id: str,
+    datasets: list[DatasetReference],
+    ci: spdx3.CreationInfo,
+    exporter: Spdx3JsonExporter,
+) -> None:
+    add_datasets_for_model(
+        ai_spdx_id,
+        datasets,
+        ci,
+        _DOC_NAME,
+        _DOC_UUID,
+        exporter,
+        ai_model=AiModelMetadata(),
+    )
+
+
 def test_add_datasets_trained_on_relationship() -> None:
     _clear_doc_counters(_DOC_UUID)
     exporter = _make_exporter()
@@ -48,7 +66,7 @@ def test_add_datasets_trained_on_relationship() -> None:
     ai_spdx_id = generate_spdx_id("AIPackage", doc_name=_DOC_NAME, doc_uuid=_DOC_UUID)
 
     datasets = [DatasetReference(role="trainedOn", metadata=_make_meta())]
-    add_datasets_for_model(ai_spdx_id, datasets, ci, _DOC_NAME, _DOC_UUID, exporter)
+    _add(ai_spdx_id, datasets, ci, exporter)
 
     # Inspect the exported graph for the relationship
     data = json.loads(exporter.to_json())
@@ -64,7 +82,7 @@ def test_add_datasets_tested_on_relationship() -> None:
     ai_spdx_id = generate_spdx_id("AIPackage", doc_name=_DOC_NAME, doc_uuid=_DOC_UUID)
 
     datasets = [DatasetReference(role="testedOn", metadata=_make_meta())]
-    add_datasets_for_model(ai_spdx_id, datasets, ci, _DOC_NAME, _DOC_UUID, exporter)
+    _add(ai_spdx_id, datasets, ci, exporter)
 
     data = json.loads(exporter.to_json())
     rels = [e for e in data["@graph"] if e.get("type") == "Relationship"]
@@ -78,7 +96,7 @@ def test_add_datasets_finetuned_on_falls_back_to_other() -> None:
     ai_spdx_id = generate_spdx_id("AIPackage", doc_name=_DOC_NAME, doc_uuid=_DOC_UUID)
 
     datasets = [DatasetReference(role="finetunedOn", metadata=_make_meta())]
-    add_datasets_for_model(ai_spdx_id, datasets, ci, _DOC_NAME, _DOC_UUID, exporter)
+    _add(ai_spdx_id, datasets, ci, exporter)
 
     data = json.loads(exporter.to_json())
     rels = [e for e in data["@graph"] if e.get("type") == "Relationship"]
@@ -94,7 +112,7 @@ def test_add_datasets_unknown_role_falls_back_to_other() -> None:
     ai_spdx_id = generate_spdx_id("AIPackage", doc_name=_DOC_NAME, doc_uuid=_DOC_UUID)
 
     datasets = [DatasetReference(role="someNewRole", metadata=_make_meta())]
-    add_datasets_for_model(ai_spdx_id, datasets, ci, _DOC_NAME, _DOC_UUID, exporter)
+    _add(ai_spdx_id, datasets, ci, exporter)
 
     data = json.loads(exporter.to_json())
     rels = [e for e in data["@graph"] if e.get("type") == "Relationship"]
@@ -111,7 +129,7 @@ def test_add_datasets_multiple_datasets() -> None:
         DatasetReference(role="trainedOn", metadata=DatasetMetadata(name="Train")),
         DatasetReference(role="testedOn", metadata=DatasetMetadata(name="Test")),
     ]
-    add_datasets_for_model(ai_spdx_id, datasets, ci, _DOC_NAME, _DOC_UUID, exporter)
+    _add(ai_spdx_id, datasets, ci, exporter)
 
     data = json.loads(exporter.to_json())
     graph = data["@graph"]
@@ -125,7 +143,7 @@ def test_add_datasets_empty_list_no_elements() -> None:
     ci = _make_ci()
     ai_spdx_id = generate_spdx_id("AIPackage", doc_name=_DOC_NAME, doc_uuid=_DOC_UUID)
 
-    add_datasets_for_model(ai_spdx_id, [], ci, _DOC_NAME, _DOC_UUID, exporter)
+    _add(ai_spdx_id, [], ci, exporter)
 
     data = json.loads(exporter.to_json())
     graph = data.get("@graph", [])
@@ -152,7 +170,7 @@ def test_add_datasets_skips_relationships_when_build_relationship_none(
             role="trainedOn", metadata=_make_meta(creator="Dataset Creators Org")
         )
     ]
-    add_datasets_for_model(ai_spdx_id, datasets, ci, _DOC_NAME, _DOC_UUID, exporter)
+    _add(ai_spdx_id, datasets, ci, exporter)
 
     data = json.loads(exporter.to_json())
     graph = data.get("@graph", [])

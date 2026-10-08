@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -114,7 +114,7 @@ another. Each kind has its own schema URL, embedded in the statement:
 | `unification` | `https://pitloom.dev/provenance/unification/1` | Why two fragment elements were merged into one (matching SHA-256 content). |
 | `conflict` | `https://pitloom.dev/provenance/conflict/1` | Multi-source field-value disagreement, e.g. declared vs. detected license. |
 | `enrichment` | `https://pitloom.dev/provenance/enrichment/1` | What an enrichment run changed on an element; each entry in `changes[]` carries a `role` from the epistemic vocabulary above. |
-| `artifact-metadata` | `https://pitloom.dev/provenance/artifact-metadata/1` | Verbatim preserved original AI-model metadata, gated by `[tool.pitloom.provenance] preserve-source-metadata`. |
+| `artifact-metadata` | `https://pitloom.dev/provenance/artifact-metadata/2` | Verbatim preserved original AI-model metadata, gated by `[tool.pitloom.provenance] preserve-source-metadata`. |
 
 This schema URL is a different thing from `[tool.pitloom.provenance]
 schema` in `pyproject.toml` (default `"pitloom/1"`): the config value

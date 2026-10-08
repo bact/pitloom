@@ -15,6 +15,7 @@ tests.
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Any, TypedDict, cast
@@ -145,7 +146,7 @@ def test_fasttext_get_args_failure_logs_and_returns_empty(
 
     mock_model = MagicMock()
     mock_model.f.getArgs.side_effect = RuntimeError("binding mismatch")
-    mock_model.get_labels.return_value = []
+    mock_model.get_labels.return_value = ["word"]
 
     mock_fasttext = MagicMock()
     mock_fasttext.load_model.return_value = mock_model
@@ -156,7 +157,11 @@ def test_fasttext_get_args_failure_logs_and_returns_empty(
 
     assert meta.hyperparameters == {}
     assert meta.type_of_model is None
-    assert any("getArgs" in r.message for r in caplog.records)
+    # not known to be supervised: its label list may be the vocabulary
+    mock_model.get_labels.assert_not_called()
+    assert meta.outputs == []
+    (message,) = [r.getMessage() for r in caplog.records if "getArgs" in r.message]
+    assert "properties.labels, outputs" in message
 
 
 def test_fasttext_get_labels_failure_logs_and_returns_empty_outputs(
@@ -167,7 +172,7 @@ def test_fasttext_get_labels_failure_logs_and_returns_empty_outputs(
     model_file = tmp_path / "model.bin"
     model_file.write_bytes(b"fake")
 
-    mock_model = _make_fasttext_model()
+    mock_model = _make_fasttext_model(model_name="supervised")
     mock_model.get_labels.side_effect = RuntimeError("binding mismatch")
 
     mock_fasttext = MagicMock()
@@ -255,8 +260,53 @@ def test_fasttext_supervised_with_labels(tmp_path: Path) -> None:
 
     assert meta.type_of_model == "supervised"
     assert meta.properties["lossName"] == "softmax"
-    assert "__label__pos" in meta.properties["labels"]
-    assert "__label__neg" in meta.properties["labels"]
+    assert json.loads(meta.properties["labels"]) == ["__label__pos", "__label__neg"]
+
+
+@pytest.mark.parametrize(
+    "labels",
+    [
+        ["__label__a,b", "__label__c"],
+        ['__label__say "hi"', "__label__plain"],
+        ["__label__ดี", "__label__ไม่ดี,มาก", "__label__a"],
+        ["z", "a", "m"],
+    ],
+    ids=["comma", "quote", "thai", "order-kept"],
+)
+def test_fasttext_labels_json_round_trip(tmp_path: Path, labels: list[str]) -> None:
+    """Labels are a JSON array string: awkward characters survive, order kept."""
+    model_file = tmp_path / "model.bin"
+    model_file.write_bytes(b"\x00")
+    mock_fasttext = MagicMock()
+    mock_fasttext.load_model.return_value = _make_fasttext_model(
+        model_name="supervised", loss_name="softmax", labels=labels
+    )
+    with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
+        meta = read_fasttext(model_file)
+    assert json.loads(meta.properties["labels"]) == labels
+    if any(ord(c) > 127 for label in labels for c in label):
+        assert "ดี" in meta.properties["labels"]
+
+
+def test_fasttext_label_over_the_cap_keeps_the_count(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Same rule as CRFsuite: no label recorded, one warning, the label
+    count still in ``outputs``."""
+    model_file = tmp_path / "model.bin"
+    model_file.write_bytes(b"\x00")
+    mock_fasttext = MagicMock()
+    mock_fasttext.load_model.return_value = _make_fasttext_model(
+        model_name="supervised", labels=["__label__a", "x" * 4097]
+    )
+    with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
+        meta = read_fasttext(model_file)
+    (record,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert record.getMessage() == "a label over 4096 bytes; no label recorded"
+    assert "labels" not in meta.properties
+    assert "labels" not in meta.raw_metadata
+    assert "properties.labels" not in meta.provenance
+    assert meta.outputs == [{"name": "label_probabilities", "shape": [2]}]
 
 
 def test_fasttext_supervised_outputs_label_count(tmp_path: Path) -> None:
@@ -279,18 +329,36 @@ def test_fasttext_supervised_outputs_label_count(tmp_path: Path) -> None:
     assert "outputs" in meta.provenance
 
 
-def test_fasttext_unsupervised_no_outputs(tmp_path: Path) -> None:
-    model_file = tmp_path / "skipgram.bin"
+@pytest.mark.parametrize(
+    ("model_name", "labels_read", "domain"),
+    [
+        ("supervised", True, ["text classification", "natural language processing"]),
+        ("skipgram", False, ["natural language processing"]),
+        ("cbow", False, ["natural language processing"]),
+    ],
+)
+def test_fasttext_labels_and_classification_only_when_supervised(
+    tmp_path: Path, model_name: str, labels_read: bool, domain: list[str]
+) -> None:
+    """On a cbow or skipgram model fastText's get_labels() returns the word
+    vocabulary (training text): never called, so no labels, no outputs and
+    no text-classification domain; the training args are still read."""
+    model_file = tmp_path / "model.bin"
     model_file.write_bytes(b"fake")
-
-    mock_model = _make_fasttext_model(model_name="skipgram", labels=[])
+    words = ["</s>", "secret", "words"]
+    mock_model = _make_fasttext_model(model_name=model_name, labels=words)
     mock_fasttext = MagicMock()
     mock_fasttext.load_model.return_value = mock_model
 
     with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
         meta = read_fasttext(model_file)
 
-    assert meta.outputs == []
+    assert mock_model.get_labels.called is labels_read
+    assert ("labels" in meta.properties) is labels_read
+    assert bool(meta.outputs) is labels_read
+    assert meta.domain == domain
+    assert meta.type_of_model == model_name
+    assert meta.hyperparameters["dim"] == 100
 
 
 def test_fasttext_ftz_extension(tmp_path: Path) -> None:
@@ -371,7 +439,9 @@ def test_fasttext_no_get_labels_method_returns_empty_outputs(
     model_file.write_bytes(b"fake")
 
     mock_f = MagicMock()
-    mock_f.getArgs.return_value = _make_fasttext_args(_FASTTEXT_ARGS_DEFAULTS)
+    mock_f.getArgs.return_value = _make_fasttext_args(
+        {**_FASTTEXT_ARGS_DEFAULTS, "model_name": "supervised"}
+    )
 
     mock_model = MagicMock(spec=["f"])
     mock_model.f = mock_f

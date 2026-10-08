@@ -34,7 +34,7 @@ Notable metadata extracted by the fastText extractor:
 - `hyperparameters`: `dim=16`, `lr=0.05`, `epoch=5`, `wordNgrams=1`,
   `minCount=1000`, `minn=2`, `maxn=4`, `neg=5`, `bucket=2000000`, `ws=5`
 - `properties["lossName"]` = `"hs"` (hierarchical softmax)
-- `properties["labels"]` contains 176 comma-separated language codes
+- `properties["labels"]` is a JSON array string of 176 language codes (order as read)
 - `name`, `description`, `version` are all `None`
 
 ---
@@ -64,6 +64,7 @@ Notable metadata extracted by the fastText extractor:
 - `hyperparameters`: `dim=21`, `lr=0.05`, `epoch=100`, `wordNgrams=4`,
   `minCount=1`, `minn=3`, `maxn=6`, `neg=5`, `bucket=33502`, `ws=5`
 - `properties["lossName"]` = `"softmax"`
-- `properties["labels"]` = `"__label__pos,__label__neg,__label__neu,__label__q"`
+- `properties["labels"]` = `'["__label__q","__label__pos","__label__neu","__label__neg"]'`
+  (JSON array string, in the order the model stores them)
 - `name`, `description`, `version` are all `None` - fastText binary files
   do not embed a model name or description

@@ -11,15 +11,25 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+    source_metadata,
+)
+from pitloom.core.canonical_json import canonical_json
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
+from pitloom.extract.ai_model.formats import Limits
+from pitloom.extract.ai_model.limits import recordable_labels
 from pitloom.extract.ai_model.reader_requirements import missing_library
 from pitloom.logging_config import field_loss_suffix, loggable
 
 log = logging.getLogger(__name__)
+
+_LIMITS = Limits()
 
 # Maps Args attribute names (from model.f.getArgs()) to hyperparameter keys.
 # The Python fasttext package exposes training configuration via the C++
@@ -77,7 +87,12 @@ def _extract_fasttext_args(
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         msg = "Failed to read fastText model.f.getArgs(): %s" + field_loss_suffix(
-            "skipped", "hyperparameters", "properties.lossName", "type_of_model"
+            "skipped",
+            "hyperparameters",
+            "properties.lossName",
+            "type_of_model",
+            "properties.labels",
+            "outputs",
         )
         log.warning(msg, loggable(str(exc)))
         return hyperparameters, properties, type_of_model
@@ -98,15 +113,11 @@ def _extract_fasttext_args(
     return hyperparameters, properties, type_of_model
 
 
-def _extract_fasttext_outputs(
-    model: Any,
-) -> tuple[dict[str, str], list[dict[str, Any]]]:
+def _extract_fasttext_labels(model: Any) -> list[str]:
     """Read supervised labels when available."""
-    properties: dict[str, str] = {}
-    outputs: list[dict[str, Any]] = []
     get_labels = getattr(model, "get_labels", None)
     if get_labels is None:
-        return properties, outputs
+        return []
 
     try:
         labels = get_labels()
@@ -116,12 +127,8 @@ def _extract_fasttext_outputs(
             "skipped", "properties.labels", "outputs"
         )
         log.warning(msg, loggable(str(exc)))
-        return properties, outputs
-
-    if labels:
-        properties["labels"] = ",".join(labels)
-        outputs = [{"name": "label_probabilities", "shape": [len(labels)]}]
-    return properties, outputs
+        return []
+    return list(labels or ())
 
 
 def read_fasttext(model_path: Path) -> AiModelMetadata:
@@ -134,7 +141,10 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
     binding at ``model.f.getArgs()``.  This extractor reads all available
     training hyperparameters and maps them to the SPDX 3 AI profile
     ``hyperparameter`` field.  The model type (``skipgram``, ``cbow``, or
-    ``supervised``) is mapped to ``type_of_model``.
+    ``supervised``) is mapped to ``type_of_model``.  Labels, ``outputs``
+    and the ``text classification`` domain are read for a ``supervised``
+    model only: an unsupervised model's ``get_labels()`` is its word
+    vocabulary.
 
     Extracted hyperparameters: dim, lr, epoch, wordNgrams, minCount,
     minCountLabel, minn, maxn, neg, bucket, ws (window size).
@@ -152,12 +162,26 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
     model = _load_fasttext_model(model_path)
 
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
-    # Since fastText is a text classification and word embedding library,
-    # we will assume the domains.
-    domain: list[str] = ["text classification", "natural language processing"]
     provenance: dict[str, str] = {}
     hyperparameters, args_properties, type_of_model = _extract_fasttext_args(model)
-    properties, outputs = _extract_fasttext_outputs(model)
+    # Only a supervised model is a classifier with labels: on a cbow or
+    # skipgram model get_labels() returns the word vocabulary (training
+    # text), so it is never called there.
+    supervised = type_of_model == "supervised"
+    read_labels = _extract_fasttext_labels(model) if supervised else []
+    # fastText is a text library; a supervised model classifies text.
+    domain = ["natural language processing"]
+    if supervised:
+        domain.insert(0, "text classification")
+    labels = list(recordable_labels(read_labels, _LIMITS))
+    properties: dict[str, str] = {}
+    collections: dict[str, list[str]] = {}
+    outputs: list[dict[str, Any]] = []
+    if labels:
+        properties["labels"] = canonical_json(labels)
+        collections["labels"] = labels
+    if read_labels:
+        outputs = [{"name": "label_probabilities", "shape": [len(read_labels)]}]
     properties.update(args_properties)
 
     # Exact per-key provenance: each hyperparameter maps to its own fastText
@@ -177,7 +201,6 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
 
     if outputs:
         provenance["outputs"] = f"{source} | Field: labels (supervised class count)"
-
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
             file_name=model_path.name,
@@ -188,6 +211,7 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
         type_of_model=type_of_model,
         hyperparameters=hyperparameters,
         properties=properties,
+        **source_metadata(properties, collections),
         outputs=outputs,
         provenance=provenance,
     )

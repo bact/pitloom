@@ -231,6 +231,8 @@ def test_build_source_metadata_annotation_embeds_verbatim() -> None:
     assert ann.statement is not None
     statement = json.loads(ann.statement)
     assert statement["schema"] == ARTIFACT_METADATA_SCHEMA_URL
+    assert ARTIFACT_METADATA_SCHEMA_URL.endswith("/artifact-metadata/2")
+    assert "valueTypes" not in statement  # none given
     assert statement["kind"] == "artifact-metadata"
     assert statement["format"] == "gguf"
     # native value types preserved; bytes base64-encoded.
@@ -249,12 +251,15 @@ def test_build_source_metadata_annotation_empty_returns_none() -> None:
     )
 
 
+def _no_constant(token: str) -> None:
+    raise AssertionError(f"non-standard JSON token {token}")
+
+
 def test_build_source_metadata_annotation_nan_and_infinity_are_valid_json() -> None:
-    """A malformed/adversarial binary model can produce NaN/Infinity float
-    metadata. Plain ``json.dumps`` serializes those as the non-standard
-    ``NaN``/``Infinity``/``-Infinity`` tokens (RFC 8259 forbids them) --
-    ``default=`` is never consulted since floats are natively serializable.
-    The statement must instead be valid, strict JSON."""
+    """A malformed/adversarial binary model can produce NaN/infinity float
+    metadata, which strict JSON (RFC 8259) has no token for: the statement
+    must be valid JSON, each such value spelt as
+    :func:`~pitloom.core.scalar_text.scalar_text` spells it."""
     ci = _make_ci()
     ann = build_source_metadata_annotation(
         "urn:doc#ai_AIPackage-1",
@@ -266,15 +271,11 @@ def test_build_source_metadata_annotation_nan_and_infinity_are_valid_json() -> N
     )
     assert ann is not None
     assert ann.statement is not None
-    assert "NaN" not in ann.statement.replace('"NaN"', "")
-    assert "Infinity" not in ann.statement.replace('"Infinity"', "").replace(
-        '"-Infinity"', ""
-    )
-    statement = json.loads(ann.statement)  # must not raise
+    statement = json.loads(ann.statement, parse_constant=_no_constant)
     assert statement["metadata"] == {
         "nan": "NaN",
-        "pos_inf": "Infinity",
-        "neg_inf": "-Infinity",
+        "pos_inf": "INF",
+        "neg_inf": "-INF",
     }
 
 
@@ -298,22 +299,6 @@ def test_build_source_metadata_annotation_set_is_deterministic() -> None:
     assert statement["metadata"]["tags"] == ["alpha", "gamma", "zebra"]
 
 
-def test_sanitize_for_json_orders_unsortable_elements_deterministically() -> None:
-    """``sorted()`` on raw set elements can silently "succeed" without
-    raising ``TypeError`` yet still be non-deterministic -- e.g. `frozenset`
-    ordering (`<` means "is a proper subset of", not a total order) depends
-    on the input set's own iteration order, which is itself
-    ``PYTHONHASHSEED``-dependent. Ordering by canonical JSON form instead of
-    Python's native `<` must stay stable regardless of insertion order."""
-    # pylint: disable=import-outside-toplevel
-
-    from pitloom.assemble.spdx3.provenance import _sanitize_for_json
-
-    set_a = {frozenset({1, 2}), frozenset({3, 4}), frozenset({5})}
-    set_b = {frozenset({5}), frozenset({3, 4}), frozenset({1, 2})}
-    assert _sanitize_for_json(set_a) == _sanitize_for_json(set_b)
-
-
 # ---------------------------------------------------------------------------
 # RFC 8785 (JCS) canonicalization of Annotation.statement
 # ---------------------------------------------------------------------------
@@ -329,21 +314,3 @@ def test_build_json_annotation_uses_compact_rfc8785_separators() -> None:
     assert ann.statement is not None
     assert ": " not in ann.statement
     assert ", " not in ann.statement
-
-
-def test_sanitize_for_json_stringifies_unsupported_types() -> None:
-    """RFC 8785 has no default=str-style hook (unlike plain json.dumps) --
-    the sanitizer must stringify unrecognized types itself, matching the
-    previous default=str fallback's behavior."""
-    # pylint: disable=import-outside-toplevel
-    from decimal import Decimal
-
-    from pitloom.assemble.spdx3.provenance import _sanitize_for_json
-
-    # pylint: disable-next=too-few-public-methods
-    class _Unrecognized:
-        def __str__(self) -> str:
-            return "unrecognized-value"
-
-    assert _sanitize_for_json(Decimal("1.5")) == "1.5"
-    assert _sanitize_for_json(_Unrecognized()) == "unrecognized-value"

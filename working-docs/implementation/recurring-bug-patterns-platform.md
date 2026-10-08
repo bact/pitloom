@@ -390,3 +390,11 @@ the move.
   every platform. A fixture, not a `pytest_collection_modifyitems` hook
   that raises: pytest-xdist drops the message of an exception raised in
   that hook (an `INTERNALERROR` naming only a node id).
+- **On Python 3.14, `zipfile.ZipFile.writestr()` with a plain name stamps the
+  entry from `SOURCE_DATE_EPOCH`, and ZIP cannot hold a date before 1980.**
+  A test that sets `SOURCE_DATE_EPOCH=0` and then builds a zip passes on
+  3.10 to 3.13 and fails on 3.14 only (`struct.error: 'H' format requires
+  0 <= number <= 65535`), and a red leg skips the Codecov upload, so the
+  coverage shown goes stale (PR #294: three tests, only the 3.14 leg). Use
+  `315532800` (1980-01-01) in such a test; production code passes an explicit
+  `ZipInfo(date_time=...)`. Five other tests set `"0"` and build no zip today.

@@ -23,6 +23,7 @@ from pitloom.__about__ import __version__
 from pitloom.cli.commands import model as mod_model
 from pitloom.core.creation import CreationMetadata
 from tests.cli.shared import ONNX_FIXTURE, SAFETENSORS_FIXTURE
+from tests.json_text_helpers import without_token_whitespace
 from tests.kv_helpers import info_kv, sbom_output_path
 
 
@@ -435,3 +436,24 @@ def test_the_path_as_typed_reaches_the_generator_when_it_opens(
     __main__.main()
     assert seen == [Path(target)]
     assert ".." in str(seen[0])
+
+
+def test_model_pretty_is_the_compact_sbom_with_indentation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """End to end: ``--pretty`` adds whitespace between tokens only."""
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
+    outputs: dict[str, str] = {}
+    for name, extra in (("compact", []), ("pretty", ["--pretty"])):
+        out = tmp_path / f"{name}.json"
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            ["loom", "model", str(SAFETENSORS_FIXTURE), "-o", str(out), *extra],
+        )
+        assert __main__.main() == 0
+        outputs[name] = out.read_text(encoding="utf-8")
+    assert outputs["pretty"] != outputs["compact"]
+    assert without_token_whitespace(outputs["pretty"]).rstrip() == (
+        outputs["compact"].rstrip()
+    )

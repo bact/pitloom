@@ -20,18 +20,34 @@ from __future__ import annotations
 import contextlib
 import contextvars
 import logging
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from itertools import islice
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    MAX_MODEL_ENTRIES,
+    MAX_MODEL_NAME_CHARS,
+    AiModelFormat,
+    AiModelMetadata,
+)
+from pitloom.core.untrusted_text import escape_lone_surrogates_in
+from pitloom.extract.ai_model.formats import Limits
+from pitloom.logging_config import LONE_SURROGATES_WARNING, NAME_CUT_WARNING
+
+__all__ = [
+    "MAX_MODEL_ENTRIES",
+    "ModelLimitExceeded",
+    "ScanBudgetExceeded",
+    "cap_and_warn",
+    "cap_entries",
+    "charge_read",
+    "charging_reads",
+    "recordable_labels",
+    "settle_read_text",
+    "warn_name_cut",
+    "warn_no_label",
+]
 
 log = logging.getLogger(__name__)
-
-#: Most entries kept per list or map of one model (inputs, outputs,
-#: hyperparameters, properties, raw metadata). A real model has tens to a
-#: few hundreds; the first ones stay: in file order, or in key order for
-#: Safetensors ``__metadata__``, which the library returns in no fixed order.
-MAX_MODEL_ENTRIES = 1000
 
 
 class ModelLimitExceeded(Exception):
@@ -86,8 +102,9 @@ def charge_read(size: int) -> None:
 
 def cap_entries(meta: AiModelMetadata) -> list[str]:
     """Keep the first :data:`MAX_MODEL_ENTRIES` entries of each list and map
-    of *meta*, and drop the provenance of the dropped keys. Returns the
-    sorted names of the fields cut.
+    of *meta*, and drop the provenance and the ``raw_metadata_types`` of
+    the dropped keys; add the number of ``raw_metadata`` keys dropped to
+    ``raw_metadata_dropped``. Returns the sorted names of the fields cut.
 
     "First" is the order a reader hands over: file order, which is the same
     on every run; a reader whose source has none (Safetensors
@@ -108,9 +125,16 @@ def cap_entries(meta: AiModelMetadata) -> list[str]:
     for name in ("hyperparameters", "properties", "raw_metadata"):
         mapping = getattr(meta, name)
         if len(mapping) > MAX_MODEL_ENTRIES:
+            if name == "raw_metadata":
+                meta.raw_metadata_dropped += len(mapping) - MAX_MODEL_ENTRIES
             kept[name] = dict(islice(mapping.items(), MAX_MODEL_ENTRIES))
             setattr(meta, name, kept[name])
             cut.append(name)
+    if "raw_metadata" in kept:
+        types = meta.raw_metadata_types
+        meta.raw_metadata_types = {
+            key: types[key] for key in kept["raw_metadata"] if key in types
+        }
     if kept:
         meta.provenance = {
             key: value
@@ -127,8 +151,10 @@ def cap_and_warn(meta: AiModelMetadata, fmt: AiModelFormat, where: str) -> None:
     surface that reads a local model file goes through (the project and wheel
     scans, ``loom model`` and ``loom enrich``), so it is cut the same way, and
     announced in the same words, on each. A Hugging Face model
-    (``read_huggingface``) is not cut."""
+    (``read_huggingface``) is not cut. Then :func:`settle_read_text`, so
+    the text is walked once cut."""
     cut = cap_entries(meta)
+    settle_read_text(meta, fmt, where)
     if cut:
         log.warning(
             "FORMAT=%s FILE=%s: more than %d entries in %s; the first %d of "
@@ -138,6 +164,50 @@ def cap_and_warn(meta: AiModelMetadata, fmt: AiModelFormat, where: str) -> None:
             MAX_MODEL_ENTRIES,
             ", ".join(cut),
             MAX_MODEL_ENTRIES,
+        )
+
+
+def recordable_labels(labels: Sequence[str], limits: Limits) -> tuple[str, ...]:
+    """*labels*, or none of them when one is longer than
+    ``limits.max_label_bytes`` in UTF-8, with one warning. A label is
+    untrusted text of any length; the caller still records the label count
+    it read. The scanner adds the ``FORMAT=``/``FILE=`` prefix."""
+    cap = limits.max_label_bytes
+    for label in labels:
+        if len(label.encode("utf-8", "surrogatepass")) > cap:
+            warn_no_label(f"a label over {cap} bytes")
+            return ()
+    return tuple(labels)
+
+
+def warn_no_label(reason: str) -> None:
+    """The one warning for a model whose labels are not recorded because
+    *reason* (a bound exceeded, one short phrase); the caller still records
+    the label count. The scanner adds the ``FORMAT=``/``FILE=`` prefix."""
+    log.warning("%s; no label recorded", reason)
+
+
+def settle_read_text(meta: AiModelMetadata, fmt: str, where: str) -> None:
+    """The text rules for a model as read, each said once naming *where*:
+    every lone surrogate, which no UTF-8 output can hold, written as text
+    (:func:`~pitloom.core.untrusted_text.escape_lone_surrogates_in`), then
+    :func:`warn_name_cut`. Called once per model, before anything is
+    derived from its text (an id, a name): by :func:`cap_and_warn` for a
+    model file, by ``read_huggingface`` for a Hugging Face model."""
+    if escape_lone_surrogates_in(meta)[1]:
+        log.warning(LONE_SURROGATES_WARNING, f"FORMAT={fmt} ", where)
+    warn_name_cut(meta, fmt, where)
+
+
+def warn_name_cut(meta: AiModelMetadata, fmt: str, where: str) -> None:
+    """Say once, naming *where*, that the name *meta* shows was cut to
+    :data:`~pitloom.core.ai_metadata.MAX_MODEL_NAME_CHARS` code points
+    (:meth:`~pitloom.core.ai_metadata.AiModelMetadata.resolve_name`); quiet
+    when it was not. Called once per model, by :func:`settle_read_text`."""
+    length = meta.name_cut_length()
+    if length is not None:
+        log.warning(
+            NAME_CUT_WARNING, fmt, where, "model name", length, MAX_MODEL_NAME_CHARS
         )
 
 

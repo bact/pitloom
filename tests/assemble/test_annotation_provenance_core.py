@@ -96,6 +96,10 @@ def test_pitloom_v1_encoder_produces_valid_json_with_schema_marker() -> None:
         "source": "pyproject.toml",
         "location": "project.name",
     }
+    assert body == (  # RFC 8785: compact, keys sorted
+        '{"fields":{"name":{"location":"project.name","source":"pyproject.toml"}},'
+        '"kind":"fields","schema":"https://pitloom.dev/provenance/fields/1"}'
+    )
 
 
 def test_pitloom_v1_encoder_content_type() -> None:

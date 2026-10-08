@@ -8,11 +8,16 @@
 Every SPDX document namespace and every ``spdxId`` built from a name goes
 through :func:`iri_segment`, so a name with a space or ``#`` yields a valid
 IRI. The element's ``name`` keeps the original text.
+
+See also: :mod:`pitloom.core.untrusted_text` (the invisible and bidi
+controls percent-encoded here).
 """
 
 from __future__ import annotations
 
 import string
+
+from pitloom.core.untrusted_text import DISPLAY_CONTROLS
 
 __all__ = ["SPDX_DOCS_BASE", "doc_namespace", "iri_segment"]
 
@@ -23,10 +28,9 @@ SPDX_DOCS_BASE = "https://spdx.org/spdxdocs/"
 # Valid unencoded in both an ipath segment and an ifragment.
 _SAFE_ASCII = frozenset(string.ascii_letters + string.digits + "-._~!$&'()*+,;=:@")
 
-# RFC 3987 section 4.1: an IRI must not contain bidi formatting characters.
-_BIDI_FORMATTING = frozenset(
-    chr(code_point) for code_point in (0x200E, 0x200F, *range(0x202A, 0x202F))
-)
+# RFC 3987 section 4.1 bans the bidi formatting characters (U+200E, U+200F,
+# U+202A-U+202E) from an IRI; the isolates, zero-width characters and BOM in
+# the shared display-control set are encoded with them.
 
 
 def _is_ucschar(code_point: int) -> bool:
@@ -47,7 +51,7 @@ def _is_ucschar(code_point: int) -> bool:
 def _is_safe(char: str) -> bool:
     if char in _SAFE_ASCII:
         return True
-    return char not in _BIDI_FORMATTING and _is_ucschar(ord(char))
+    return char not in DISPLAY_CONTROLS and _is_ucschar(ord(char))
 
 
 def iri_segment(name: str) -> str:

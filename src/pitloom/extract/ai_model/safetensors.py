@@ -12,12 +12,18 @@ import logging
 import struct
 from pathlib import Path
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    MAX_MODEL_ENTRIES,
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+    source_metadata,
+)
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
-from pitloom.extract.ai_model.limits import MAX_MODEL_ENTRIES, ModelLimitExceeded
+from pitloom.extract.ai_model.limits import ModelLimitExceeded
 from pitloom.extract.ai_model.reader_requirements import missing_library
 from pitloom.logging_config import loggable
 
@@ -169,8 +175,8 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
     # The well-known keys above came from the whole map; only what is kept
     # below is cut. Exact per-key provenance: each entry is traceable to its
     # own ``__metadata__`` key.
-    raw_metadata = _stable_metadata(metadata)
-    properties = dict(raw_metadata)
+    raw = source_metadata(_stable_metadata(metadata))
+    properties = dict(raw["raw_metadata"])  # every value is text
     record_dict_field_provenance(
         provenance, "properties", properties, source, location_prefix="__metadata__."
     )
@@ -192,7 +198,11 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
         architecture=architecture,
         quantization=quantization,
         properties=properties,
-        raw_metadata=dict(raw_metadata),
+        **raw,
+        # The keys _stable_metadata cut (every value is a string, so
+        # source_metadata keeps every key); cap_entries adds the one past
+        # the cap.
+        raw_metadata_dropped=len(metadata) - len(raw["raw_metadata"]),
         inputs=inputs,
         provenance=provenance,
     )

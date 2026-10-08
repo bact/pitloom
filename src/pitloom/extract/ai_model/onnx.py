@@ -11,7 +11,13 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+    record_scalar_property,
+    source_metadata,
+)
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
@@ -53,18 +59,50 @@ _PATCH_MASK = 0xFFFF_FFFF
 _UINT64_MASK = 0xFFFF_FFFF_FFFF_FFFF
 
 
-def _onnx_tensor_specs(value_infos: Any) -> list[dict[str, Any]]:
-    """Convert ONNX ValueInfoProto list to plain dicts."""
+# TensorProto element type names that differ from NumPy's dtype name; every
+# other name, lowercased, is NumPy's (int64, bool, float16, complex64) or,
+# for a type NumPy lacks (bfloat16, string, float8e4m3fn), ONNX's own.
+_NUMPY_DTYPE_NAMES = {"FLOAT": "float32", "DOUBLE": "float64"}
+
+# Last IR version whose graph.input lists every initializer too
+_LAST_IR_WITH_WEIGHT_INPUTS = 3
+
+# Operator domain of the ONNX-ML operators (trees, linear models, SVMs, ...)
+_ONNX_ML_DOMAIN = "ai.onnx.ml"
+
+
+def _dtype_name(elem_type: int, type_names: Any) -> str | None:
+    """The NumPy-style name of an ONNX ``TensorProto.DataType`` value, from
+    the enum's own names (*type_names*: ``TensorProto.DataType``), so the
+    same file reads the same under every ``onnx`` version. ``None`` for
+    ``UNDEFINED`` or a value the enum does not know."""
+    try:
+        name = str(type_names.Name(elem_type))
+    except ValueError:
+        return None
+    if name == "UNDEFINED":
+        return None
+    return _NUMPY_DTYPE_NAMES.get(name, name.lower())
+
+
+def _onnx_tensor_specs(
+    value_infos: Any, type_names: Any, skip: frozenset[str] = frozenset()
+) -> list[dict[str, Any]]:
+    """Convert ONNX ValueInfoProto list to plain dicts, leaving out the
+    names in *skip*."""
     specs = []
     for vi in value_infos:
+        if vi.name in skip:
+            continue
         spec: dict[str, Any] = {"name": vi.name}
         tensor_type = vi.type.tensor_type
-        if tensor_type.HasField("elem_type"):
-            spec["dtype"] = tensor_type.elem_type
-        shape = tensor_type.shape
-        if shape:
+        dtype = _dtype_name(tensor_type.elem_type, type_names)
+        if dtype is not None:
+            spec["dtype"] = dtype
+        # No shape field: an unknown rank, or no tensor (a sequence, a map)
+        if tensor_type.HasField("shape"):
             dims = []
-            for d in shape.dim:
+            for d in tensor_type.shape.dim:
                 if d.HasField("dim_value"):
                     dims.append(d.dim_value)
                 elif d.HasField("dim_param"):
@@ -78,8 +116,11 @@ def _onnx_tensor_specs(value_infos: Any) -> list[dict[str, Any]]:
 
 def _extract_onnx_properties(
     model: Any, source: str, provenance: dict[str, str]
-) -> dict[str, str]:
+) -> tuple[dict[str, str], dict[str, int]]:
     """Extract domain, opset versions, and metadata_props into properties dict.
+
+    Returns ``(properties, natives)``: *natives* holds each opset version as
+    the integer it is, for :func:`~pitloom.core.ai_metadata.source_metadata`.
 
     ``metadata_props`` keys get the ``metadata_props.`` prefix, so they never
     collide with ``domain`` or ``opset.<domain>``. A key the file repeats
@@ -87,11 +128,14 @@ def _extract_onnx_properties(
     file names how many keys repeat and the first few.
     """
     properties: dict[str, str] = {}
+    natives: dict[str, int] = {}
     if model.domain:
         properties["domain"] = model.domain
     for opset in model.opset_import:
         opset_domain = opset.domain if opset.domain else "ai.onnx"
-        properties[f"opset.{opset_domain}"] = str(opset.version)
+        record_scalar_property(
+            properties, natives, f"opset.{opset_domain}", opset.version
+        )
     repeated: dict[str, None] = {}  # insertion-ordered set
     for prop in model.metadata_props:
         key = _METADATA_PROPS_PREFIX + prop.key
@@ -101,7 +145,7 @@ def _extract_onnx_properties(
     if repeated:
         _warn_repeated_keys(list(repeated))
     record_dict_field_provenance(provenance, "properties", properties, source)
-    return properties
+    return properties, natives
 
 
 def _warn_repeated_keys(keys: list[str]) -> None:
@@ -131,6 +175,29 @@ def _resolve_onnx_name(
         return None
     provenance["name"] = f"{source} | Field: graph.name"
     return name
+
+
+def _initializer_names(model: Any) -> frozenset[str]:
+    """Names of a graph's weights (dense and sparse initializers) up to IR
+    version 3, which lists them in ``graph.input`` too; none from IR 4 on,
+    where a name in both is an input the initializer gives a default."""
+    if model.ir_version > _LAST_IR_WITH_WEIGHT_INPUTS:
+        return frozenset()
+    graph = model.graph
+    names = {tensor.name for tensor in graph.initializer}
+    names.update(sparse.values.name for sparse in graph.sparse_initializer)
+    return frozenset(names)
+
+
+def _onnx_type_of_model(model: Any) -> str | None:
+    """``"neural network"``, unless a node uses an ONNX-ML operator: such a
+    model may be a tree ensemble, a linear model or an SVM, which the file
+    does not say, so the type is left unset. The opset *import* of the
+    ONNX-ML domain is not evidence: exporters such as tf2onnx add it to
+    plain neural networks."""
+    if any(node.domain == _ONNX_ML_DOMAIN for node in model.graph.node):
+        return None
+    return "neural network"
 
 
 def _decode_model_version(value: int) -> tuple[str, bool]:
@@ -170,7 +237,13 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
     ``license`` is the standard ``model_license`` metadata property.
     ``version`` is ``model_version``, decoded to ``MAJOR.MINOR.PATCH`` when
     its upper 32 bits are non-zero (bit-packed SemVer). ``type_of_model`` is
-    always ``"neural network"``; ``domain`` is kept in ``properties`` only.
+    ``"neural network"``, unset when the model imports the ``ai.onnx.ml``
+    opset; ``domain`` is kept in ``properties`` only. ``inputs`` and
+    ``outputs`` give each tensor's NumPy-style ``dtype`` name; ``inputs``
+    leaves out the initializers an IR version 3 graph lists as inputs
+    (from IR 4 on, such an input is one with a default, and kept). A
+    ``shape`` is given only where the file has one: not for an unknown
+    rank or a non-tensor value (a sequence).
     ``properties`` holds ``domain``, ``opset.<domain>`` and every
     ``metadata_props`` entry as ``metadata_props.<key>``.
 
@@ -224,16 +297,17 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
             " | Method: semver_bit_packed" if is_semver else ""
         )
 
-    properties = _extract_onnx_properties(model, source, provenance)
+    properties, natives = _extract_onnx_properties(model, source, provenance)
     license_expr = _resolve_onnx_license(properties, source, provenance)
 
-    # Input tensor specifications
-    inputs = _onnx_tensor_specs(model.graph.input)
+    type_names = onnx.TensorProto.DataType
+    inputs = _onnx_tensor_specs(
+        model.graph.input, type_names, _initializer_names(model)
+    )
     if inputs:
         provenance["inputs"] = f"{source} | Field: graph.input"
 
-    # Output tensor specifications
-    outputs = _onnx_tensor_specs(model.graph.output)
+    outputs = _onnx_tensor_specs(model.graph.output, type_names)
     if outputs:
         provenance["outputs"] = f"{source} | Field: graph.output"
 
@@ -251,8 +325,9 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
         license=license_expr,
         # ONNX has no model-type field. ``domain`` is the owner's reverse-DNS
         # namespace (``org.onnx``), not a type; it stays in ``properties``.
-        type_of_model="neural network",
+        type_of_model=_onnx_type_of_model(model),
         properties=properties,
+        **source_metadata(properties, natives),
         inputs=inputs,
         outputs=outputs,
         provenance=provenance,

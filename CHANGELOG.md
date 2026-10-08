@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -22,17 +22,41 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- CRFsuite models (`.crfsuite`, or `.model` with the `lCRF` magic): labels,
+  counts and a label-based description, from a bounded header reader
+  ([#294])
+- GGUF `general.license` becomes the model's licence ([#294])
+
+### Changed
+
+- Model annotations: collections as arrays, scalars as text (RFC 8785 floats);
+  schema `/2` adds `valueTypes`, `maxEntries`; fastText `labels` is a JSON
+  array; embedded JSON is RFC 8785; `--pretty` is the same text indented ([#294])
+- Model, base model, dataset and creator names over 1024 characters are cut,
+  ending in a digest of the full name; labels over 4 KiB dropped; each with a
+  `WARNING:` ([#294])
+- Invisible, bidi and control characters from a model are shown as `\uXXXX`
+  (URLs percent-encoded), licences included; a lone surrogate no longer
+  aborts the SBOM. In every SBOM's provenance comments, `;`, CR, LF (and `:`
+  in a field) are `\uXXXX` too: `requests>=2\u003b python_version...` ([#294])
+
 ### Fixed
 
 - An unnamed AI model, or an ONNX exporter-default `graph.name` (`torch_jit`,
   `tf2onnx`), is named after its file, as is a `loom model` document; ids
   change ([#292])
 - ONNX: reads `model_license` and packed SemVer `model_version`; `domain` is
-  not the model type; `metadata_props` keys are prefixed ([#292])
+  not the model type; `metadata_props` keys are prefixed; NumPy dtype names;
+  IR 3 initializers are not inputs; ONNX-ML has no type ([#292], [#294])
 - A licence id over 50,000 characters in a licence text no longer reads as
   a broken licence database: requires `licenseid` 0.4.3 ([#292])
+- fastText cbow/skipgram vocabulary no longer read as labels; GGUF big-endian
+  format version, non-integer `file_type`, blank version fixed ([#294])
 
 [#292]: https://github.com/bact/pitloom/pull/292
+[#294]: https://github.com/bact/pitloom/pull/294
 
 ## [0.20.1] - 2026-10-07
 

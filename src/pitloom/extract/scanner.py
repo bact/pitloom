@@ -34,7 +34,12 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import IO
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+    model_file_suffixes,
+)
 from pitloom.core.inert_options import PARAM_TO_FLAG
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
 from pitloom.extract._extract_utils import sanitize_provenance_text
@@ -82,14 +87,7 @@ USAGE_SETTING_PROJECT = "scan-model-usage = true"
 USAGE_SETTING_WHEEL = "scan-model-usage = true in a --config file or pitloom_config"
 
 # Extensions that might genuinely be AI models.
-_ALLOWED_EXTS: frozenset[str] = frozenset(
-    {".zip", ".bin"}
-    | {
-        ext.lower()
-        for fmt in AiModelFormat.__members__.values()
-        for ext in fmt.extensions
-    }
-)
+_ALLOWED_EXTS: frozenset[str] = model_file_suffixes() | {".zip"}
 
 # A usage source larger than this is skipped, not read whole.
 _USAGE_SCAN_MAX_BYTES = 1024 * 1024

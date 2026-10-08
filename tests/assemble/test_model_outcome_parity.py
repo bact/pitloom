@@ -43,6 +43,14 @@ from tests._wheel_models import safetensors_bytes, write_model_wheel
 from tests.extract.ai_model.gguf_builders import gguf_file
 from tests.warning_helpers import error_lines, file_values, logged_warnings
 
+_CRFSUITE_MINIMAL = (
+    Path(__file__).parent.parent
+    / "fixtures"
+    / "aimodels"
+    / "crfsuite"
+    / "minimal.model"
+)
+_CRFSUITE_COMPLETE = _CRFSUITE_MINIMAL.with_name("complete.crfsuite")
 _LFS = b"version https://git-lfs.github.com/spec/v1\noid sha256:00\nsize 1\n"
 _LFS_WARNING = "header is a Git LFS pointer; not listed as an AI model"
 _NOT_A_MODEL = "not an AI model file"  # what a refused file with no reason says
@@ -127,8 +135,36 @@ _KINDS = {
         f"lfs{suffix}": Kind(
             f"m{suffix}", _LFS, None, _LFS_WARNING, refusal="header is a Git LFS"
         )
-        for suffix in (".gguf", ".onnx", ".pt", ".bin")
+        for suffix in (".gguf", ".onnx", ".pt", ".bin", ".model")
     },
+    # ``.model`` is shared (SentencePiece writes a protobuf one): without
+    # the CRFsuite signature it is silently not a model; with it, a model
+    "sentencepiece_model": Kind(
+        "m.model", b"\n\x0f" + bytes(32), None, None, refusal=_NOT_A_MODEL
+    ),
+    "crfsuite_model": Kind(
+        "m.model", _CRFSUITE_MINIMAL.read_bytes(), AiModelFormat.CRFSUITE, None
+    ),
+    # signature kept, header cut short: read in part, with the reader's error
+    "parse_crfsuite": Kind(
+        "m.crfsuite",
+        _CRFSUITE_COMPLETE.read_bytes()[:-5],
+        AiModelFormat.CRFSUITE,
+        "failed to extract metadata",
+    ),
+    "parse_crfsuite_model": Kind(
+        "m.model",
+        _CRFSUITE_MINIMAL.read_bytes()[:-5],
+        AiModelFormat.CRFSUITE,
+        "failed to extract metadata",
+    ),
+    "text_crfsuite": Kind(
+        "m.crfsuite",
+        b"plain text",
+        None,
+        "header is not crfsuite; not listed",
+        refusal="header is not crfsuite",
+    ),
     "text_pth": Kind("m.pth", b"import os\n", None, None, refusal=_NOT_A_MODEL),
     "empty_onnx": Kind("m.onnx", b"", None, None, refusal="file is empty"),
 }

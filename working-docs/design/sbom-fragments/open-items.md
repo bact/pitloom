@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -137,8 +137,8 @@ Outside that PR's bar:
 - [ ] An earlier SBOM of the project with another namespace (another
   version) still gives two root packages.
 - [ ] A user's `LicenseRef-` expression unifies by its string alone, not
-  its `customIdToUri` map: two fragments mapping one `LicenseRef-x` to
-  different texts keep the first.
+  its `customIdToUri` map. The comparison rule is open: C13 in
+  [canonical-output-followups.md](../canonical-output-followups.md#c13-case-of-licenseref--ids).
 - [ ] Two equal SHA-256 elements within one fragment are not unified
   (only across fragments and with the base).
 - [ ] `loom merge` of fragments with no envelope roots the document at

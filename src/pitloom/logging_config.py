@@ -20,6 +20,8 @@ import os
 import sys
 import threading
 
+from pitloom.core.untrusted_text import DISPLAY_CONTROLS
+
 # Guards the handlers.clear()/addHandler() swap below (see
 # configure_logging()'s docstring) and the _WARNED_ONCE read-then-write in
 # warn_once() -- one lock for all shared mutable state in this module.
@@ -39,6 +41,18 @@ _TRUTHY = frozenset({"1", "true", "yes", "on"})
 #: and what the cap is for (e.g. ``"usage-scan"``).
 FILE_OVER_CAP_WARNING = "FILE=%s: larger than the %d-byte %s cap; skipped"
 
+#: The ``WARNING:`` for text holding a lone surrogate (U+D800 to U+DFFF),
+#: written as text (:func:`~pitloom.core.untrusted_text.escape_lone_surrogates`).
+#: Arguments: a prefix (``"FORMAT=<fmt> "`` for a model, else ``""``) and
+#: the file, through :func:`loggable`.
+LONE_SURROGATES_WARNING = "%sFILE=%s: lone surrogates written as \\uXXXX"
+
+#: The ``WARNING:`` for a name cut to
+#: :data:`~pitloom.core.ai_metadata.MAX_MODEL_NAME_CHARS`. Arguments: the
+#: format, the file (through :func:`loggable`), what the name is of (e.g.
+#: ``"model name"``), its length and the cap.
+NAME_CUT_WARNING = "FORMAT=%s FILE=%s: %s of %d characters cut to %d"
+
 #: Keys already surfaced once via :func:`warn_once` in this process.
 #: Keyed by ``(logger.name, key)`` so two independent call sites can't
 #: collide by picking the same short key string.
@@ -51,8 +65,13 @@ def loggable(text: str) -> str:
     one) cannot forge a second tagged line, e.g. ``::error::``, on stderr.
 
     The one escaping every message interpolating such text goes through.
+    Text holding a code point of
+    :data:`~pitloom.core.untrusted_text.DISPLAY_CONTROLS` is escaped too,
+    printable or not (U+034F is a printable combining mark).
     """
-    return text if text.isprintable() else ascii(text)
+    if text.isprintable() and DISPLAY_CONTROLS.isdisjoint(text):
+        return text
+    return ascii(text)
 
 
 def _debug_requested(debug: bool | None) -> bool:

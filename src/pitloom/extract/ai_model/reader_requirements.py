@@ -42,8 +42,8 @@ def _package(module: str, what: str) -> Requirement:
     )
 
 
-# Formats not listed (Keras v3, PyTorch, PT2) read through the standard
-# library; PyTorch's fickling is optional and its absence is not an error.
+# Formats not listed (CRFsuite, Keras v3, PyTorch, PT2) read through the
+# standard library; PyTorch's fickling is optional and its absence is not an error.
 REQUIREMENTS: dict[AiModelFormat, Requirement] = {
     AiModelFormat.FASTTEXT: Requirement(
         "fasttext",

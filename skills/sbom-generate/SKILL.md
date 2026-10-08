@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-07
+# Last-Modified: 2026-10-08
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -9,11 +9,11 @@ name: sbom-generate
 description: >-
   Generate an SPDX 3 SBOM or AIBOM with Pitloom for a Python project, sdist,
   built wheel, installed environment, local AI model file (GGUF, ONNX,
-  PyTorch/PT2, Safetensors, Keras, HDF5, NumPy, fastText) or Hugging Face
-  model. Triggers: "generate/create/give me an SBOM/BOM", "gen SBOM of this
-  model", "SBOM of this project", "SPDX 3 document", "software bill of
-  materials", "dependency inventory", "AIBOM", "document this model's
-  provenance". Also owns
+  PyTorch/PT2, Safetensors, Keras, HDF5, NumPy, fastText, CRFsuite) or
+  Hugging Face model. Triggers: "generate/create/give me an SBOM/BOM", "gen
+  SBOM of this model", "SBOM of this project", "SPDX 3 document", "software
+  bill of materials", "dependency inventory", "AIBOM", "document this
+  model's provenance". Also owns
   combined asks, generating first, then handing off to sbom-enrich:
   "generate SBOM and enrich it", "complete/full SBOM", "SBOM meeting CISA
   2026/NTIA/G7 minimum elements". Also PEP 770 wheel embedding ("embed the
@@ -243,7 +243,7 @@ Pitloom's wheel SBOMs list the payload only (nothing under the wheel's own
 including `--output` (rejected when more than one wheel matches) and
 `--sbom-basename` (a name without extension; a trailing `.spdx3.json` is
 dropped with a `WARNING:`):
-<https://bact.github.io/pitloom/cli/>.
+<https://bact.github.io/pitloom/wheel-sbom/>.
 
 **Signed wheels.** A `RECORD.jws`/`RECORD.p7s` signature would stop verifying
 once `RECORD` is rewritten, so Pitloom refuses the wheel (`ERROR:`, exit 1,
@@ -313,18 +313,12 @@ does not name. It is not a model bound.
   header tag scanning (copyright, contributor, license, file type). On by
   default; cheap, no need to pass it explicitly.
 - `--scan-model-usage` / `--no-scan-model-usage` -- record which Python
-  files reference each discovered AI model file (`hasDataFile`), for a
-  project directory (`project`, `generate <dir>`, `embed-wheel
-  --project-dir`, and the Hatchling hook via the `scan-model-usage` config
-  key) or a built wheel (`wheel`, `generate <whl>`, `wheel --embed`,
-  `embed-wheel` without `--project-dir`). Off by
-  default and **opt-in only**: add it only when the request asks which code
-  loads a model. Models are found either way; when the setting was
-  never given, one `INFO:` line says how many were found and names this flag
-  (on a wheel also a `--config` file, as none is read implicitly; once
-  per run; silent after an explicit `--no-scan-model-usage` or
-  `scan-model-usage = false`). sdist, env, model-file and Hugging Face
-  targets, `enrich` and `embed-wheel --sbom` warn that it has no effect.
+  files reference each discovered AI model file (`hasDataFile`), on a project
+  directory (also the Hatchling hook, via the `scan-model-usage` config key)
+  or a built wheel; other targets, `enrich` and `embed-wheel --sbom` warn that
+  it has no effect. Off by default and **opt-in only**: add it only when the
+  request asks which code loads a model. Models are found either way; when
+  the setting was never given, one `INFO:` line names this flag.
 - `--allow-signed-wheel` -- `embed-wheel` and `wheel --embed` only; removes a
   `RECORD` signature (see "Signed wheels"). Never add it unless the user agrees.
 - `--trust-wheel-model` -- on a built wheel, also read the model formats whose
@@ -439,6 +433,13 @@ complete but isn't. Per-case detail: `references/known-limitations.md`.
   (exit 1) instead.
   Never raise the ceiling or add `--trust-wheel-model` on your own; tell the
   user. Caps: <https://bact.github.io/pitloom/ai-model-scan-limits/>.
+- **Name ends `...~<hex>`, labels missing, `\u202e` in text:** caps on
+  model text, one `WARNING: FORMAT=<fmt> FILE=<path>:` each: `model name
+  of <N> characters cut to 1024`; `a label over 4096 bytes; no label
+  recorded` (all dropped, `num_labels` kept);
+  `invisible or bidi control characters written as \uXXXX in <properties>`.
+  Original text: the `artifact-metadata` annotation or the model file.
+  Detail: `references/known-limitations.md`.
 - **Unsupported build backend:** check `[build-system] build-backend`
   *before* generating. Hatchling, setuptools, Poetry, PDM-backend and
   Flit-core get accurate file discovery; any other (`uv_build`,

@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-09-08
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -93,9 +93,10 @@ support a single `creator-name`/`creator-email`/`creator-type` and a single
 `creation-tool`. Projects that need more than one creator or tool should use
 `pyproject.toml` or the library API.
 
-See [Command line](cli.md#configuration) for the `--creator-*` /
-`--creation-*` CLI flags and the `[[tool.pitloom.creator]]` /
-`[[tool.pitloom.creation-tool]]` / `[tool.pitloom.creation]`
-`pyproject.toml` tables used to set these fields -- the [Hatchling build
-hook](hatchling-build-hook.md) and [Python API](python-api.md) read the
+See [Command line](cli.md#creator-and-creation-metadata) for the
+`--creator-*` / `--creation-*` CLI flags, and
+[Configuration](configuration.md#toolpitloomcreation) for the
+`[[tool.pitloom.creator]]` / `[[tool.pitloom.creation-tool]]` /
+`[tool.pitloom.creation]` tables used to set these fields -- the [Hatchling
+build hook](hatchling-build-hook.md) and [Python API](python-api.md) read the
 same tables.

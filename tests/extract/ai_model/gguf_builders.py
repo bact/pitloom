@@ -20,8 +20,11 @@ UINT8 = 0
 UINT32 = 4
 INT32 = 5
 FLOAT32 = 6
+BOOL = 7
 STRING = 8
 ARRAY = 9
+UINT64 = 10
+FLOAT64 = 12
 
 
 def gguf_file(

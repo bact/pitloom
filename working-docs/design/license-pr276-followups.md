@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -86,12 +86,13 @@ user leanings are recorded there, not decisions.
 - The several-classifiers `WARNING:` fires for a value then discarded.
 - Hugging Face vague values: `unknown` reads the repo `LICENSE`,
   `NOASSERTION` does not.
-- Text equivalence: CRLF vs LF texts are two elements (leaning:
-  normalise); a licence name keeps a trailing `\r`/spaces; a classifier
-  with a leading or trailing space is a name except in `setup.cfg`.
+- Text equivalence (CRLF vs LF, a name's trailing `\r`, classifier edge
+  spaces): now C11 in
+  [canonical-output-followups.md](canonical-output-followups.md).
 - `license = file: LICENSE` in `setup.cfg` is recorded as the text
   `file: LICENSE` (setuptools rejects it).
-- `WITH DocumentRef-x:AdditionRef-y` (layer 1, upstream).
+- `WITH DocumentRef-x:AdditionRef-y` (layer 1, upstream; C14 in
+  [canonical-output-followups.md](canonical-output-followups.md)).
 
 ## C. Housekeeping
 

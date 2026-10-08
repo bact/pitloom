@@ -20,13 +20,15 @@ from pitloom.assemble.spdx3.ai import (
     _build_ai_package,
     _emit_source_metadata,
     _LineageContext,
+    add_model_license,
+    finish_ai_package,
+    finish_display_text,
 )
 from pitloom.assemble.spdx3.creation_info import (
     build_creation_info,
     build_enrichment_elements,
 )
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
-from pitloom.assemble.spdx3.deps_license import build_license_elements
 from pitloom.assemble.spdx3.provenance import (
     ProvenanceEncoder,
     build_enrichment_annotation,
@@ -192,8 +194,9 @@ def build_enrichment_fragment(
         if dataset_ref.metadata.name in dataset_creation_info
     ]
     if new_datasets:
-        add_datasets_for_model(
+        related = add_datasets_for_model(
             ai_package_spdx_id=ai_package_spdx_id,
+            ai_model=model,
             datasets=new_datasets,
             creation_info=spdx_ci,
             doc_name=doc_name,
@@ -201,6 +204,7 @@ def build_enrichment_fragment(
             exporter=exporter,
             dataset_creation_info=dataset_creation_info,
         )
+        finish_display_text(model, related)
 
     for enrich_ci, changes in annotation_groups:
         exporter.add_annotation(
@@ -252,7 +256,7 @@ def build_model(
         doc_uuid=doc_uuid,
         exporter=exporter,
     )
-    _add_base_model_lineage(ai_pkg, model, lineage_ctx)
+    related = _add_base_model_lineage(ai_pkg, model, lineage_ctx)
     emit_provenance(
         subject=ai_pkg,
         provenance=model.resolve_name()[1],
@@ -290,8 +294,9 @@ def build_model(
     )
 
     if model.datasets:
-        add_datasets_for_model(
+        related += add_datasets_for_model(
             ai_package_spdx_id=require_spdx_id(ai_pkg),
+            ai_model=model,
             datasets=model.datasets,
             creation_info=spdx_ci,
             doc_name=doc_name,
@@ -313,25 +318,16 @@ def build_model(
                 ),
             )
         )
-
-    if model.license:
-        rel_declared, rel_concluded = build_license_elements(
-            license_id=model.license,
-            package_spdx_id=require_spdx_id(ai_pkg),
-            license_provenance=model.provenance.get(
-                "license", "Source: AI model metadata"
-            ),
-            creation_info=spdx_ci,
-            doc_name=doc_name,
-            doc_uuid=doc_uuid,
-            exporter=exporter,
-            provenance_config=prov_cfg,
-            encoder=encoder,
-        )
-        if rel_declared:
-            exporter.add_relationship(rel_declared)
-        if rel_concluded:
-            exporter.add_relationship(rel_concluded)
+    related += add_model_license(
+        model,
+        require_spdx_id(ai_pkg),
+        "Source: AI model metadata",
+        (spdx_ci, doc_name, doc_uuid),
+        exporter,
+        prov_cfg,
+        encoder,
+    )
+    finish_ai_package(ai_pkg, model, related)
 
     sbom = spdx3.software_Sbom(
         spdxId=generate_spdx_id("Sbom", doc_name=doc_name, doc_uuid=doc_uuid),

@@ -19,7 +19,13 @@ from pathlib import Path
 from typing import IO, Any
 from zipfile import ZipFile
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.ai_metadata import (
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+    SourceMetadata,
+    source_metadata,
+)
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model import archive_member
 from pitloom.extract.ai_model._pickle_bounds import first_pickle
@@ -27,6 +33,7 @@ from pitloom.extract.ai_model._stderr_capture import capture_stderr
 from pitloom.extract.ai_model.archive_member import (
     open_archive_member,
     open_model_zip,
+    record_archive_contents,
 )
 from pitloom.extract.ai_model.limits import ModelLimitExceeded
 from pitloom.logging_config import field_loss_suffix, loggable, one_line
@@ -141,7 +148,7 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
 def _read_pytorch_zip(
     zf: ZipFile,
     source: str,
-) -> tuple[str | None, dict[str, str], dict[str, str]]:
+) -> tuple[str | None, dict[str, str], SourceMetadata, dict[str, str]]:
     """Read metadata from a classic ZIP-based PyTorch archive.
 
     Args:
@@ -149,20 +156,14 @@ def _read_pytorch_zip(
         source: Provenance source string (e.g. "Source: model.pt").
 
     Returns:
-        Tuple of (type_of_model, properties, provenance).
+        Tuple of (type_of_model, properties, raw_metadata, provenance).
     """
     file_list = zf.namelist()
     type_of_model: str | None = None
     properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
 
-    shown = file_list[:20]
-    properties["archive_contents"] = ", ".join(shown)
-    if len(file_list) > 20:
-        properties["archive_contents"] += f", ... ({len(file_list)} total)"
-    provenance["properties.archive_contents"] = (
-        f"{source} | Field: ZIP archive structure"
-    )
+    natives = record_archive_contents(file_list, source, properties, provenance)
 
     # Inspect archive/data.pkl safely via fickling.
     pkl_entry = next(
@@ -185,7 +186,7 @@ def _read_pytorch_zip(
             )
             log.warning(msg, loggable(pkl_entry), loggable(source), loggable(str(exc)))
 
-    return type_of_model, properties, provenance
+    return type_of_model, properties, source_metadata(properties, natives), provenance
 
 
 def read_pytorch(model_path: Path) -> AiModelMetadata:
@@ -248,6 +249,7 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
             raise ValueError(
                 f"Failed to read PyTorch file {model_path}: {exc}"
             ) from exc
+        raw = source_metadata(properties)
         return AiModelMetadata(
             format_info=AiModelFormatInfo(
                 file_name=model_path.name,
@@ -256,12 +258,13 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
             ),
             type_of_model=type_of_model,
             properties=properties,
+            **raw,
             provenance=provenance,
         )
 
     try:
         with open_model_zip(model_path) as zf:
-            type_of_model, properties, provenance = _read_pytorch_zip(zf, source)
+            type_of_model, properties, raw, provenance = _read_pytorch_zip(zf, source)
     except (OSError, zipfile.BadZipFile) as exc:
         raise ValueError(f"Failed to read PyTorch file {model_path}: {exc}") from exc
 
@@ -273,5 +276,6 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
         ),
         type_of_model=type_of_model,
         properties=properties,
+        **raw,
         provenance=provenance,
     )

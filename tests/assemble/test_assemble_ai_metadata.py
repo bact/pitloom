@@ -12,14 +12,31 @@ See also: :mod:`tests.assemble.test_assemble_ai`.
 
 from __future__ import annotations
 
+import json
+import math
+from unittest.mock import create_autospec
+
 import pytest
+import rfc8785
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._ai_package import _ai_model_entity_candidates
-from pitloom.assemble.spdx3.ai import _should_preserve_metadata, _source_metadata_blob
-from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.assemble.spdx3.ai import (
+    _emit_source_metadata,
+    _should_preserve_metadata,
+    _source_metadata_blob,
+)
+from pitloom.core.ai_metadata import (
+    AiModelFormat,
+    AiModelFormatInfo,
+    AiModelMetadata,
+    SourceMetadata,
+)
+from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.id_registry import EntityEntry, IdRegistry, IdRegistrySession
 
 from ..conftest import fake_build_and_read_path
+from .conftest import _DOC_NAME, _DOC_UUID, _make_ci
 
 
 def _lookup_ai_model_entity(
@@ -66,12 +83,27 @@ def test_should_preserve_metadata_auto_no_relative_path() -> None:
 def test_source_metadata_blob_prefers_raw_metadata() -> None:
     model = AiModelMetadata(
         format_info=AiModelFormatInfo(model_format=AiModelFormat.GGUF),
-        raw_metadata={"general.name": "test-model"},
+        raw_metadata={"general.name": "test-model", "n": "1"},
+        raw_metadata_types={"n": "integer"},
         properties={"ignored": "yes"},
     )
     fmt, blob = _source_metadata_blob(model)
     assert fmt == "gguf"
-    assert blob == {"general.name": "test-model"}
+    assert blob == SourceMetadata(
+        raw_metadata={"general.name": "test-model", "n": "1"},
+        raw_metadata_types={"n": "integer"},
+    )
+
+
+def test_source_metadata_blob_of_a_model_file_never_falls_back() -> None:
+    """A model file's annotation is its reader's ``raw_metadata`` only:
+    ``properties`` is a text map, never copied in its place."""
+    model = AiModelMetadata(
+        format_info=AiModelFormatInfo(model_format=AiModelFormat.ONNX),
+        properties={"p": "1"},
+    )
+    empty = SourceMetadata(raw_metadata={}, raw_metadata_types={})
+    assert _source_metadata_blob(model) == ("onnx", empty)
 
 
 def test_source_metadata_blob_falls_back_to_properties_and_extras() -> None:
@@ -82,7 +114,48 @@ def test_source_metadata_blob_falls_back_to_properties_and_extras() -> None:
     )
     fmt, blob = _source_metadata_blob(model)
     assert fmt == "huggingface"
-    assert blob == {"p": "1", "hf.sha": "abc123", "hf.tags": ["a", "b"]}
+    assert blob["raw_metadata"] == {"p": "1", "hf.sha": "abc123", "hf.tags": ["a", "b"]}
+
+
+def test_huggingface_annotation_is_text_typed_canonical_json() -> None:
+    """A Hugging Face model's annotation follows the same ``/2`` rules as a
+    model file's: scalars text, typed in ``valueTypes``, an integer past
+    2**53 and an infinity never reach the canonical serialiser as numbers."""
+    model = AiModelMetadata(
+        properties={"p": "1"},
+        extra_data={
+            "hf.tokenizer_max_length": 2**60,
+            "hf.lr": 1e-7,
+            "hf.limit": math.inf,
+            "hf.gated": True,
+            "hf.config": {"layers": 2, "tied": False, "eps": None},
+        },
+        extra_lists={"hf.dims": [1, 0.5]},
+    )
+    ai_pkg = spdx3.ai_AIPackage(spdxId="urn:doc#ai_AIPackage-1", name="m")
+    exporter = create_autospec(Spdx3JsonExporter, instance=True)
+    _emit_source_metadata(
+        model, ai_pkg, {}, "always", 0, _make_ci(), _DOC_NAME, _DOC_UUID, exporter
+    )
+    statement_text = exporter.add_annotation.call_args.args[0].statement
+    statement = json.loads(statement_text)
+    assert statement_text == rfc8785.dumps(statement).decode("utf-8")
+    assert statement["format"] == "huggingface"
+    assert statement["metadata"] == {
+        "p": "1",
+        "hf.tokenizer_max_length": "1152921504606846976",
+        "hf.lr": "1e-7",
+        "hf.limit": "INF",
+        "hf.gated": "true",
+        "hf.config": {"layers": "2", "tied": "false", "eps": "null"},
+        "hf.dims": ["1", "0.5"],
+    }
+    assert statement["valueTypes"] == {
+        "hf.gated": "boolean",
+        "hf.limit": "float",
+        "hf.lr": "float",
+        "hf.tokenizer_max_length": "integer",
+    }
 
 
 def test_source_metadata_blob_unknown_format_no_extras_stays_unknown() -> None:

@@ -22,6 +22,7 @@ from unittest.mock import patch
 
 import pytest
 
+from pitloom.core.canonical_json import canonical_json
 from pitloom.id_registry import (
     DEFAULT_ID_REGISTRY_FILENAME,
     DIRECTORY_ENTITY_TYPE,
@@ -29,6 +30,7 @@ from pitloom.id_registry import (
     resolve_registry,
 )
 from pitloom.id_registry._types import _REGISTRY_VERSION
+from tests.json_text_helpers import without_token_whitespace
 
 
 def test_resolve_registry_error(tmp_path: Path) -> None:
@@ -291,3 +293,19 @@ def test_load_rejects_old_registry_version(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="ID registry file"):
         resolve_registry(registry_path, None, tmp_path)
+
+
+def test_saved_registry_is_canonical_text_with_indentation(tmp_path: Path) -> None:
+    """RFC 8785 key order (U+10000 before U+E000), indentation only added."""
+    registry = IdRegistry(namespace="urn:x")
+    registry.register_file(".py", "0" * 64)
+    registry.register_file("\U00010000.py", "1" * 64)
+    path = tmp_path / "reg.json"
+    registry.save(path)
+    text = path.read_text(encoding="utf-8")
+    assert text.index("\U00010000.py") < text.index(".py")
+    assert text.endswith("}\n")
+    compact = without_token_whitespace(text).rstrip("\n")
+    assert compact == canonical_json(json.loads(text))
+    assert text != compact  # indented, so the check above is not vacuous
+    assert IdRegistry.load(path).files.keys() == registry.files.keys()

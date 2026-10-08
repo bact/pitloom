@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -80,8 +80,9 @@ loom env -o env.spdx3.json
 
 Generate an **Analyzed SBOM** for a single AI model file, with no Python
 project directory. Supported formats: GGUF, ONNX, Safetensors, PyTorch
-(`.pt`/`.pth`, PT2/ExecuTorch `.pt2`), Keras, HDF5, NumPy, fastText; see [AI
-model formats](ai-model-formats.md) for extensions and install extras:
+(`.pt`/`.pth`, PT2/ExecuTorch `.pt2`), Keras, HDF5, NumPy, fastText,
+CRFsuite; see [AI model formats](ai-model-formats.md) for extensions and
+install extras:
 
 ```bash
 loom model path/to/model.safetensors -o model.spdx3.json
@@ -216,7 +217,8 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env` (not
   parsed, so `--config` also rescues a project or sdist whose own
   `[tool.pitloom]` is invalid. See [Where settings come
   from](configuration.md#where-settings-come-from) for the precedence table.
-- `--pretty` -- indent the JSON (default: compact).
+- `--pretty` -- indent the JSON (default: compact). Only whitespace between
+  tokens is added; key order and values are the compact (RFC 8785) text's.
 - `--offline` -- forbid network access (PyPI/Hugging Face lookups). Not on
   `enrich` either.
 - `--use-lockfile` / `--no-use-lockfile` -- only on `project`/`generate` (the
@@ -246,28 +248,24 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env` (not
   hook via the `scan-model-usage` key) or a built wheel (`wheel`, `wheel
   --embed`, `embed-wheel` without `--project-dir`), also record which Python
   files reference each discovered AI model file (`hasDataFile`). Off by
-  default: it reads every Python file (one over 1 MiB is skipped with a
-  `WARNING:`). AI models are found either way. When the setting was never
-  given (no flag, no config key), one `INFO:` line says how many were found
-  and names the flag (on a wheel also a `--config` file or `pitloom_config=`,
-  as no config is read implicitly there), once per `embed-wheel` run, and not
-  when `--no-scan-model-usage` or `scan-model-usage = false` says off.
-  Limits: [AI model scan limits](ai-model-scan-limits.md).
+  default: it reads every Python file. AI models are found either way. When
+  the setting was never given (no flag, no config key), one `INFO:` line says
+  how many were found and names the flag (on a wheel also a `--config` file or
+  `pitloom_config=`, as no config is read implicitly there), once per
+  `embed-wheel` run. Caps and what it misses: [AI model scan
+  limits](ai-model-scan-limits.md).
 - `--allow-signed-wheel` -- `embed-wheel` and `wheel --embed`: embed into a
   wheel with a `RECORD` signature by removing the signature. See [Signed
   wheels](wheel-sbom.md#signed-wheels). No `[tool.pitloom]` equivalent.
 - `--trust-wheel-model` -- on a built wheel (`wheel`, `wheel --embed`,
-  `embed-wheel` without `--project-dir`), read AI model files with every format
-  reader. By default a fastText, GGUF, HDF5, ONNX or PyTorch `.pt`/`.pth`
-  model in a wheel is listed without metadata (one `INFO:` per scan naming the
-  formats met; in a batch, each format once per run), because those readers run
-  in Pitloom's own process, where a hostile file can crash them, hang them or
-  exhaust memory. Use it only for a wheel you trust; Ctrl-C cannot interrupt a
-  native reader. A project directory is not gated, and with `embed-wheel
-  --project-dir` the models are read from the project, not the wheel. No config
-  key, so no config file can opt in. See [AI model scan
-  limits](ai-model-scan-limits.md#formats-gated-in-wheels) and [Settings that
-  change the SBOM](ai-model-scan-limits.md#settings-that-change-the-sbom).
+  `embed-wheel` without `--project-dir`), also read the AI model formats that
+  are otherwise listed without metadata in a wheel, because a hostile file can
+  crash, hang or exhaust memory in their readers. Use it only for a wheel you
+  trust. With `embed-wheel --project-dir` the models are read from the
+  project, not the wheel. No config key, so no config file can opt in. Which
+  formats, and why: [Formats gated in
+  wheels](ai-model-scan-limits.md#formats-gated-in-wheels); see also [Settings
+  that change the SBOM](ai-model-scan-limits.md#settings-that-change-the-sbom).
 
 `--enrich`/`--no-enrich`: see [Enrich an SBOM](#enrich-an-sbom).
 `--allow-build`/`--no-build-isolation`/`--build-timeout` (only on `project`/
@@ -398,20 +396,11 @@ why.
 
 ### Metadata provenance
 
-Controlled by `[tool.pitloom.provenance]` in `pyproject.toml`:
-
-```toml
-[tool.pitloom.provenance]
-format = "both"                    # "annotation" | "comment" | "both" (default)
-detail = "minimal"                 # "minimal" (default) | "full"
-preserve-source-metadata = "auto"  # "auto" (default) | "always" | "never"
-max-source-metadata-bytes = 0      # 0 (default, unlimited) | a budget >= 8
-```
-
-`max-source-metadata-bytes` also has a `--max-source-metadata-bytes BYTES`
-flag, an operational override for the byte cap that needs no `pyproject.toml`
-edit, unlike every other key above. See [Metadata
-provenance](metadata-provenance.md) for what each setting does.
+Set by `[tool.pitloom.provenance]` (keys and defaults:
+[Configuration](configuration.md#toolpitloomprovenance); what each does:
+[Metadata provenance](metadata-provenance.md)). Of its keys, only
+`max-source-metadata-bytes` has a flag, `--max-source-metadata-bytes BYTES`,
+to change the byte cap for one run.
 
 ## See also
 

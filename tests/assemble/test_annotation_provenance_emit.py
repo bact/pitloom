@@ -23,7 +23,6 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble.spdx3 import provenance as provenance_module
 from pitloom.assemble.spdx3.provenance import (
     ProvenanceEncoder,
-    _sanitize_for_json,
     build_provenance_annotation,
     emit_provenance,
     filter_high_signal,
@@ -416,12 +415,6 @@ def test_emit_provenance_full_keeps_all_fields() -> None:
     assert annotations[0].statement is not None
     statement = json.loads(annotations[0].statement)
     assert set(statement["fields"]) == {"name", "version"}
-
-
-def test_sanitize_for_json_passes_through_plain_float() -> None:
-    """A finite, non-NaN/non-Infinity float is returned unchanged -- only
-    the NaN/Infinity special cases get rewritten to strings."""
-    assert _sanitize_for_json(3.14) == 3.14
 
 
 def test_emit_provenance_skips_comment_assignment_when_comment_builder_empty(

@@ -54,12 +54,12 @@ def test_assembler_ai_model_with_inputs_outputs() -> None:
     assert pkg["software_packageVersion"] == "1.0.0"
     assert pkg["ai_typeOfModel"] == ["linear regression"]
 
-    info = json.loads(pkg["ai_informationAboutApplication"])
-    assert info["inputs"] == [{"name": "x"}]
-    assert info["outputs"] == [{"name": "linear"}]
+    assert pkg["ai_informationAboutApplication"] == (  # RFC 8785
+        '{"inputs":[{"name":"x"}],"outputs":[{"name":"linear"}]}'
+    )
 
     hp = pkg["ai_hyperparameter"]
-    assert any(e["key"] == "trainable" and e["value"] == "True" for e in hp)
+    assert any(e["key"] == "trainable" and e["value"] == "true" for e in hp)
 
     # profileConformance must include "ai"
     spdx_docs = [e for e in graph if e.get("type") == "SpdxDocument"]

@@ -12,12 +12,10 @@ See Also:
 
 from __future__ import annotations
 
-import base64
 import logging
-import math
+from collections.abc import Mapping
 from typing import Any, TypedDict, cast
 
-import rfc8785
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._provenance_encoders import (
@@ -33,10 +31,17 @@ from pitloom.assemble.spdx3._provenance_encoders import (
     is_license_concluded,
     resolve_encoder,
 )
+from pitloom.core.ai_metadata import MAX_MODEL_ENTRIES
+from pitloom.core.canonical_json import (
+    canonical_json,
+    canonical_json_bytes,
+    json_safe,
+)
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.project import ConflictCandidate
 from pitloom.core.provenance import (
     ProvenanceConfig,
+    escape_provenance_comment_part,
     parse_provenance_value,
     require_max_source_metadata_bytes,
 )
@@ -48,7 +53,9 @@ log = logging.getLogger(__name__)
 UNIFICATION_SCHEMA_URL = "https://pitloom.dev/provenance/unification/1"
 
 #: Statement-schema URL for a preserved verbatim artifact-metadata blob (P1).
-ARTIFACT_METADATA_SCHEMA_URL = "https://pitloom.dev/provenance/artifact-metadata/1"
+#: A scalar is its :func:`~pitloom.core.scalar_text.scalar_text`;
+#: ``valueTypes`` names the type of each non-string scalar.
+ARTIFACT_METADATA_SCHEMA_URL = "https://pitloom.dev/provenance/artifact-metadata/2"
 
 #: Statement-schema URL for a multi-source field-value disagreement (G2).
 CONFLICT_SCHEMA_URL = "https://pitloom.dev/provenance/conflict/1"
@@ -85,42 +92,6 @@ __all__ = [
 ]
 
 
-# pylint: disable=too-many-return-statements
-def _sanitize_for_json(obj: object) -> object:
-    """Recursively normalize preserved raw metadata into JSON-safe values."""
-    if isinstance(obj, float):
-        if math.isnan(obj):
-            return "NaN"
-        if math.isinf(obj):
-            return "Infinity" if obj > 0 else "-Infinity"
-        return obj
-    if isinstance(obj, (bytes, bytearray)):
-        return base64.b64encode(bytes(obj)).decode("ascii")
-    if isinstance(obj, dict):
-        return {str(k): _sanitize_for_json(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_sanitize_for_json(v) for v in obj]
-    if isinstance(obj, (set, frozenset)):
-        sanitized = [_sanitize_for_json(v) for v in obj]
-        return sorted(sanitized, key=_canonical_bytes)
-    if isinstance(obj, (str, int, bool)) or obj is None:
-        return obj
-    # RFC 8785 has no default=str-style hook for unrecognized types (unlike
-    # plain json.dumps) -- stringify anything else here so it never reaches
-    # the serializer, matching the previous default=str fallback.
-    return str(obj)
-
-
-def _canonical_bytes(obj: object) -> bytes:
-    """Serialize obj via RFC 8785 (JSON Canonicalization Scheme), as bytes."""
-    return rfc8785.dumps(cast(Any, _sanitize_for_json(obj)))
-
-
-def _canonical_json(obj: object) -> str:
-    """Serialize obj via RFC 8785 (JSON Canonicalization Scheme), as a str."""
-    return _canonical_bytes(obj).decode("utf-8")
-
-
 def _build_json_annotation(
     subject_spdx_id: str,
     statement_obj: dict[str, Any],
@@ -134,7 +105,7 @@ def _build_json_annotation(
         annotationType=spdx3.AnnotationType.other,
         contentType="application/json",
         subject=subject_spdx_id,
-        statement=_canonical_json(statement_obj),
+        statement=canonical_json(statement_obj),
     )
 
 
@@ -153,7 +124,7 @@ def build_unification_annotation(
         "criterion": criterion,
         # Canonical: RFC 8785 (JCS) canonicalizes JSON *object* member
         # order but not *array* order, so these sorts are load-bearing
-        # for output determinism, not redundant with _canonical_bytes().
+        # for output determinism, not redundant with canonical_json().
         "unified": sorted(unified_ids),
         "fragments": sorted(fragments),
     }
@@ -208,26 +179,42 @@ def build_enrichment_annotation(
     )
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def _artifact_metadata_envelope(
     source_format: str,
     kept_metadata: dict[str, Any],
     dropped_keys: list[str],
     max_metadata_bytes: int,
+    value_types: Mapping[str, str],
+    capped_key_count: int,
 ) -> dict[str, Any]:
-    """Build the artifact-metadata ``statement`` envelope (P1)."""
+    """Build the artifact-metadata ``statement`` envelope (P1).
+
+    ``valueTypes`` holds the *value_types* of the kept keys, and is left out
+    when there are none. ``truncatedKeyCount`` counts both the *dropped_keys*
+    (named in ``truncatedKeys``, cut to ``maxMetadataBytes``) and the
+    *capped_key_count* keys the reader left out over ``maxEntries``
+    (unnamed: listing them would cost what the cap saves).
+    """
     statement: dict[str, Any] = {
         "schema": ARTIFACT_METADATA_SCHEMA_URL,
         "kind": "artifact-metadata",
         "format": source_format,
         "metadata": kept_metadata,
     }
-    if dropped_keys:
+    kept_types = {k: v for k, v in value_types.items() if k in kept_metadata}
+    if kept_types:
+        statement["valueTypes"] = kept_types  # RFC 8785 sorts the keys
+    if dropped_keys or capped_key_count:
         statement["truncated"] = True
+        statement["truncatedKeyCount"] = len(dropped_keys) + capped_key_count
+    if dropped_keys:
         # Canonical: RFC 8785 doesn't reorder JSON arrays (see
         # build_unification_annotation above) -- this sort is load-bearing.
         statement["truncatedKeys"] = sorted(dropped_keys)
-        statement["truncatedKeyCount"] = len(dropped_keys)
         statement["maxMetadataBytes"] = max_metadata_bytes
+    if capped_key_count:
+        statement["maxEntries"] = MAX_MODEL_ENTRIES
     return statement
 
 
@@ -235,9 +222,12 @@ def _truncate_metadata_for_budget(
     metadata: dict[str, Any],
     source_format: str,
     max_metadata_bytes: int,
+    value_types: Mapping[str, str],
+    capped_key_count: int,
 ) -> tuple[dict[str, Any], list[str]] | None:
     """Drop the largest metadata entries first until the artifact-metadata
-    envelope's serialized size fits ``max_metadata_bytes``.
+    envelope's serialized size fits ``max_metadata_bytes``. A dropped key
+    takes its ``valueTypes`` entry with it.
 
     Returns ``(kept_metadata, dropped_keys)`` -- ``dropped_keys`` is empty
     when nothing needed dropping. Returns ``None`` if even an empty
@@ -249,19 +239,24 @@ def _truncate_metadata_for_budget(
     thousands) that this stays cheap even though it isn't asymptotically
     optimal.
     """
-    sanitized = cast(dict[str, Any], _sanitize_for_json(metadata))
+    sanitized = cast(dict[str, Any], json_safe(metadata))
 
     def envelope_bytes(kept: dict[str, Any], dropped: list[str]) -> int:
         envelope = _artifact_metadata_envelope(
-            source_format, kept, dropped, max_metadata_bytes
+            source_format,
+            kept,
+            dropped,
+            max_metadata_bytes,
+            value_types,
+            capped_key_count,
         )
-        return len(_canonical_bytes(envelope))
+        return len(canonical_json_bytes(envelope))
 
     if envelope_bytes(sanitized, []) <= max_metadata_bytes:
         return sanitized, []
 
     entry_bytes = {
-        key: len(_canonical_bytes(key)) + 1 + len(_canonical_bytes(value))
+        key: len(canonical_json_bytes(key)) + 1 + len(canonical_json_bytes(value))
         for key, value in sanitized.items()
     }
     # Canonical: this order (largest entry first, key as tiebreak) decides
@@ -290,8 +285,18 @@ def build_source_metadata_annotation(
     doc_name: str,
     doc_uuid: str,
     max_metadata_bytes: int = 0,
+    value_types: Mapping[str, str] | None = None,
+    capped_key_count: int = 0,
 ) -> spdx3.Annotation | None:
     """Return an Annotation embedding verbatim original metadata (P1).
+
+    *value_types* (``AiModelMetadata.raw_metadata_types``) becomes the
+    envelope's ``valueTypes``, cut to the keys kept.
+
+    *capped_key_count* (``AiModelMetadata.raw_metadata_dropped``), the keys
+    the reader left out over :data:`~pitloom.core.ai_metadata.MAX_MODEL_ENTRIES`,
+    marks the result ``truncated`` with that ``truncatedKeyCount`` and
+    ``maxEntries``, without naming the keys.
 
     ``max_metadata_bytes`` (0 = unlimited, the default) caps the serialized
     Annotation's size: when exceeded, the largest metadata entries are
@@ -305,11 +310,12 @@ def build_source_metadata_annotation(
         return None
 
     max_metadata_bytes = require_max_source_metadata_bytes(max_metadata_bytes)
+    types = value_types or {}
     dropped_keys: list[str] = []
     kept_metadata = metadata
     if max_metadata_bytes:
         result = _truncate_metadata_for_budget(
-            metadata, source_format, max_metadata_bytes
+            metadata, source_format, max_metadata_bytes, types, capped_key_count
         )
         if result is None:
             log.warning(
@@ -331,7 +337,12 @@ def build_source_metadata_annotation(
             )
 
     statement = _artifact_metadata_envelope(
-        source_format, kept_metadata, dropped_keys, max_metadata_bytes
+        source_format,
+        kept_metadata,
+        dropped_keys,
+        max_metadata_bytes,
+        types,
+        capped_key_count,
     )
     annotation_spdx_id = generate_spdx_id(
         "Annotation", doc_name=doc_name, doc_uuid=doc_uuid
@@ -342,11 +353,15 @@ def build_source_metadata_annotation(
 
 
 def build_provenance_comment(provenance: dict[str, str]) -> str | None:
-    """Return the human-readable ``"Metadata provenance: ..."`` comment form."""
+    """Return the human-readable ``"Metadata provenance: ..."`` comment form,
+    each part through
+    :func:`~pitloom.core.provenance.escape_provenance_comment_part`."""
     if not provenance:
         return None
     return "Metadata provenance: " + "; ".join(
-        f"{field}: {source}" for field, source in provenance.items()
+        f"{escape_provenance_comment_part(field, field=True)}: "
+        f"{escape_provenance_comment_part(source)}"
+        for field, source in provenance.items()
     )
 
 

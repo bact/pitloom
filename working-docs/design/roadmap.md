@@ -57,9 +57,18 @@ built wheel (fixed, #287).
 
 ### 0.21.0
 
-- [ ] **CRFsuite models** (next after #292; PyThaiNLP bundles five):
-  `lCRF` magic on `.crfsuite`/`.model`, labels and counts, stdlib-only
-  reader in `formats/`. See [crfsuite-support.md](crfsuite-support.md).
+- [x] **One spelling for scalar text**, built in #294. See
+  [scalar-text-spelling.md](../implementation/scalar-text-spelling.md).
+- [ ] **Same AI model, same id on every surface** (first item after #294):
+  `loom model`, `loom enrich` and `loom id generate` use the project
+  scan's name lookup, so enrichment cannot hit the wrong model. See
+  [known-bugs.md](known-bugs.md#p0-in-0210).
+- [x] **CRFsuite models** (#294): `lCRF` magic, stdlib-only bounded reader.
+  See [crfsuite-support.md](../implementation/crfsuite-support.md).
+- [ ] **Fragment value beats an extracted one** (own PR): a fragment or
+  catalogue value must win over a value read from or generated for the
+  model (e.g. a CRFsuite description). See
+  [known-bugs.md](known-bugs.md#p0-in-0210).
 - [ ] **Registry v3**: one typed table, content gate chosen at lookup;
   closes the P1 registry bugs. See [id-registry-v3.md](id-registry-v3.md),
   [id-registry-v3-rollout.md](id-registry-v3-rollout.md).
@@ -152,9 +161,10 @@ Each found more than one bug that a per-site fix would only move.
 
 - [ ] **Licence rules**: source taxonomy, cascade per surface, weak and final
   values, declared vs concluded, conflicts, equivalence, provenance,
-  tie-breaks. Current rules, rulings and 17 open questions (a licence
-  name or URL to its SPDX id: 11, 17):
-  [license-rules.md](license-rules.md); layers:
+  tie-breaks. Current rules, rulings and 17 open questions:
+  [license-rules.md](license-rules.md); normalisation questions (a licence
+  name or URL to its id, case, equivalence): section 6 of
+  [canonical-output-followups.md](canonical-output-followups.md); layers:
   [license-layers.md](license-layers.md); what #276 left:
   [license-pr276-followups.md](license-pr276-followups.md).
 - [ ] **Config cascade parity**: every option means the same on every
@@ -166,9 +176,14 @@ Each found more than one bug that a per-site fix would only move.
   the build tool decides (`setup.cfg` + `setup.py` is done, #287). See
   [license-rules.md](license-rules.md#open-questions) (question 4),
   [setuptools-support.md](../implementation/setuptools-support.md#out-of-scope-follow-ups).
-- [ ] **Canonical output**: names, identifiers and key order the same for
-  the same real-world thing. See
-  [canonical-output-followups.md](canonical-output-followups.md).
+- [ ] **AI model corpus**: more real-world model files per format (small for
+  diversity, large for boundaries) to size and rank the caps and hardening.
+  See [ai-model-corpus.md](ai-model-corpus.md).
+- [ ] **Canonical output**: same bytes and ids for the same input, same
+  shape for the same value in every format and surface. See
+  [canonical-output-followups.md](canonical-output-followups.md). Decided
+  2026-10-08: RFC 8785 key order everywhere (pretty = canonical plus
+  indentation), LF in text values; next, stable `CreationInfo` IRIs.
 - [ ] **No silent deviations, per surface**: non-directory targets
   (`model`, Hugging Face, `wheel`, `env`, sdist) drop configured fragments
   with no `WARNING:`; the GitHub Action drops any boolean input other than

@@ -22,6 +22,7 @@ from pitloom.assemble.spdx3.dataset import (
     _build_dataset_package,
     add_datasets_for_model,
 )
+from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.dataset_metadata import DatasetReference
 from pitloom.core.models import _clear_doc_counters, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter
@@ -260,7 +261,15 @@ def test_add_datasets_provenance_annotation_and_comment() -> None:
             metadata=_make_meta(provenance={"name": "Source: test.json | Field: name"}),
         )
     ]
-    add_datasets_for_model(ai_spdx_id, datasets, ci, _DOC_NAME, _DOC_UUID, exporter)
+    add_datasets_for_model(
+        ai_spdx_id,
+        datasets,
+        ci,
+        _DOC_NAME,
+        _DOC_UUID,
+        exporter,
+        ai_model=AiModelMetadata(),
+    )
 
     data = json.loads(exporter.to_json())
     graph = data["@graph"]

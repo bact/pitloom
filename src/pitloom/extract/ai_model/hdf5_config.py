@@ -22,6 +22,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, NamedTuple
 
+from pitloom.core.ai_metadata import record_scalar_property
+from pitloom.core.canonical_json import canonical_json
 from pitloom.extract._extract_utils import record_dict_field_provenance
 from pitloom.logging_config import field_loss_suffix, one_line
 
@@ -168,15 +170,10 @@ def extract_input_from_layers(
     return [], ""
 
 
-def _extract_layers_info(
-    layers: list[Any],
-    source: str,
-    properties: dict[str, str],
-    inputs: list[dict[str, Any]],
-    provenance: dict[str, str],
-) -> None:
+def _extract_layers_info(layers: list[Any], done: _Progress) -> None:
     """Extract layer count and input shapes from layers list."""
-    properties["layer_count"] = str(len(layers))
+    source, inputs, provenance = done.source, done.inputs, done.provenance
+    record_scalar_property(done.properties, done.natives, "layer_count", len(layers))
     provenance["properties.layer_count"] = (
         f"{source} | Field: model_config.config.layers (count)"
     )
@@ -219,6 +216,8 @@ class _Progress:
         inputs: Filled in place.
         properties: Filled in place.
         provenance: Filled in place.
+        natives: Filled in place with the native value of each property
+            held as text, for :func:`pitloom.core.ai_metadata.source_metadata`.
         type_of_model: The model class, once read.
         name: The model name, once read.
         lost: The fields the stages not yet passed would set, so that a raise
@@ -230,6 +229,7 @@ class _Progress:
     inputs: list[dict[str, Any]]
     properties: dict[str, str]
     provenance: dict[str, str]
+    natives: dict[str, Any] = field(default_factory=dict)
     type_of_model: str | None = None
     name: str | None = None
     lost: list[str] = field(default_factory=lambda: list(_MODEL_CONFIG_FIELDS))
@@ -247,9 +247,7 @@ def _read_layers(config: dict[str, Any], done: _Progress) -> None:
         raise _ConfigShapeError("model_config.config.layers is not a list")
     done.lost.remove("properties.layer_count")
     if layers is not None:
-        _extract_layers_info(
-            layers, done.source, done.properties, done.inputs, done.provenance
-        )
+        _extract_layers_info(layers, done)
 
 
 def _read_model_config(model_config: dict[str, Any], done: _Progress) -> None:
@@ -264,11 +262,12 @@ def _read_model_config(model_config: dict[str, Any], done: _Progress) -> None:
     done.lost.remove("type_of_model")
 
     config = _member_object(model_config, "config", "model_config.config")
-    done.name = _member_text(config, "name", "model_config.config.name") or (
-        _member_text(config, "model_name", "model_config.config.model_name")
-    )
-    if done.name:
-        provenance["name"] = f"{source} | Field: model_config.config.name"
+    for key in ("name", "model_name"):
+        name_field = f"model_config.config.{key}"
+        done.name = _member_text(config, key, name_field)
+        if done.name:
+            provenance["name"] = f"{source} | Field: {name_field}"
+            break
     done.lost.remove("name")
 
     # Layers are recorded before the hyperparameters, as SBOM output has always
@@ -296,6 +295,7 @@ def _read_model_config(model_config: dict[str, Any], done: _Progress) -> None:
             )
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def parse_model_config(
     raw: str,
     source: str,
@@ -303,8 +303,14 @@ def parse_model_config(
     inputs: list[dict[str, Any]],
     properties: dict[str, str],
     provenance: dict[str, str],
+    natives: dict[str, Any] | None = None,
 ) -> tuple[str | None, str | None, ConfigProblem | None]:
     """Parse ``model_config`` JSON from a Keras v1/v2 HDF5 model.
+
+    *hyperparameters*, *inputs*, *properties* and *provenance* are filled in
+    place; *natives*, when given, with the native value of each property
+    held as text (``layer_count``), for
+    :func:`pitloom.core.ai_metadata.source_metadata`.
 
     Returns:
         ``(type_of_model, name, problem)``. *problem* is ``None``, or why the
@@ -312,6 +318,8 @@ def parse_model_config(
         it not an object or a string); what was read before it is kept.
     """
     done = _Progress(source, hyperparameters, inputs, properties, provenance)
+    if natives is not None:
+        done.natives = natives
     problem: str | None = None
     try:
         _read_model_config(_json_object(raw, "model_config"), done)
@@ -350,18 +358,47 @@ def _read_optimizer(
         )
 
 
+def _record_json_value(
+    properties: dict[str, str], natives: dict[str, Any], key: str, value: Any
+) -> None:
+    """Record JSON *value* of ``training_config`` under *key*: a string as
+    is; a number or a boolean as by
+    :func:`~pitloom.core.ai_metadata.record_scalar_property`; a list or an
+    object as its JSON text in *properties* and as read in *natives*.
+
+    Raises:
+        _ConfigShapeError: *value* is nested too deeply to serialise (the
+            parser's stack held it, the serialiser's did not).
+    """
+    if isinstance(value, str):
+        properties[key] = value
+    elif isinstance(value, (list, dict)):
+        try:
+            properties[key] = canonical_json(value)
+        except RecursionError as exc:
+            raise _ConfigShapeError(
+                f"training_config.{key} is nested too deeply"
+            ) from exc
+        natives[key] = value
+    else:
+        record_scalar_property(properties, natives, key, value)
+
+
 def parse_training_config(
     raw: str,
     source: str,
     properties: dict[str, str],
     provenance: dict[str, str],
+    natives: dict[str, Any] | None = None,
 ) -> ConfigProblem | None:
     """Parse ``training_config`` JSON from a Keras v1/v2 HDF5 model.
 
     Extracts:
 
-    - ``loss`` -> ``properties["loss"]`` (updated in-place)
-    - ``metrics`` -> ``properties["metrics"]`` (updated in-place)
+    - ``loss`` and ``metrics`` -> ``properties`` (updated in-place): a
+      string as is, a number or a boolean its scalar text, a list or an
+      object its JSON text; the value as read, when not a string, also
+      -> ``natives``
     - ``optimizer_config.class_name`` (or ``optimizer.class_name``)
       -> ``properties["optimizer"]`` (updated in-place)
     - Per-field source paths -> ``provenance`` (updated in-place)
@@ -371,11 +408,15 @@ def parse_training_config(
         source: Provenance source string (e.g. ``"Source: model.h5"``).
         properties: Updated in-place with optimizer, loss, and metrics entries.
         provenance: Updated in-place with per-field source descriptions.
+        natives: Updated in-place with ``loss`` and ``metrics`` as read,
+            when not a string, for
+            :func:`pitloom.core.ai_metadata.source_metadata`.
 
     Returns:
         ``None``, or why the attribute could not be read whole: not a JSON
-        object (nothing is read), or an optimizer that is not an object with
-        a string class name (loss and metrics are read).
+        object (nothing is read), an optimizer that is not an object with
+        a string class name (loss and metrics are read), or a loss or
+        metrics nested too deeply to serialise (that field is not read).
     """
     lost = list(_TRAINING_CONFIG_FIELDS)
     try:
@@ -391,20 +432,22 @@ def parse_training_config(
     except _ConfigShapeError as exc:
         optimizer_error = exc
 
-    loss = training_config.get("loss")
-    if loss is not None:
-        properties["loss"] = str(loss)
-        provenance["properties.loss"] = f"{source} | Field: training_config.loss"
-    lost.remove("properties.loss")
+    sink: dict[str, Any] = {} if natives is None else natives
+    errors = [] if optimizer_error is None else [optimizer_error]
+    for key in ("loss", "metrics"):
+        value = training_config.get(key)
+        # A null loss is absent; a null or empty metrics too.
+        if value is not None and (key == "loss" or value):
+            try:
+                _record_json_value(properties, sink, key, value)
+            except _ConfigShapeError as exc:
+                errors.append(exc)
+                continue
+            provenance[f"properties.{key}"] = f"{source} | Field: training_config.{key}"
+        lost.remove(f"properties.{key}")
 
-    metrics = training_config.get("metrics")
-    if metrics:
-        properties["metrics"] = json.dumps(metrics)
-        provenance["properties.metrics"] = f"{source} | Field: training_config.metrics"
-    lost.remove("properties.metrics")
-
-    if optimizer_error is not None:
-        return ConfigProblem(one_line(optimizer_error), tuple(lost))
+    if errors:
+        return ConfigProblem("; ".join(one_line(e) for e in errors), tuple(lost))
     return None
 
 

@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat
-from pitloom.extract.ai_model.onnx import _onnx_tensor_specs, read_onnx
+from pitloom.extract.ai_model.onnx import _dtype_name, _onnx_tensor_specs, read_onnx
 
 _ONNX = Path(__file__).parent.parent.parent / "fixtures" / "aimodels" / "onnx"
 
@@ -47,10 +47,24 @@ _VALUE_INFO_FIELDS = ["name", "type"]
 _DIMENSION_FIELDS = ["HasField", "dim_param", "dim_value"]
 
 
+class _DataType:  # pylint: disable=too-few-public-methods
+    """The ``Name()`` of ``onnx.TensorProto.DataType``, for a few values."""
+
+    _NAMES = {0: "UNDEFINED", 1: "FLOAT", 7: "INT64", 11: "DOUBLE", 16: "BFLOAT16"}
+
+    @classmethod
+    # pylint: disable-next=invalid-name
+    def Name(cls, number: int) -> str:  # noqa: N802 - protobuf's spelling
+        if number not in cls._NAMES:
+            raise ValueError(f"no value {number}")
+        return cls._NAMES[number]
+
+
 def _mock_onnx_module(model: MagicMock | None = None) -> MagicMock:
     """A mock ``onnx`` module whose ``load()`` returns *model*."""
-    mock_onnx = MagicMock(spec=["load"])
+    mock_onnx = MagicMock(spec=["load", "TensorProto"])
     mock_onnx.load.return_value = model
+    mock_onnx.TensorProto.DataType = _DataType
     return mock_onnx
 
 
@@ -67,6 +81,7 @@ def _make_onnx_mock(
 ) -> MagicMock:
     """Build a minimal mock of an onnx.ModelProto."""
     model = MagicMock(spec=_MODEL_PROTO_FIELDS)
+    model.ir_version = 8
     model.graph.name = graph_name
     model.doc_string = doc_string
     model.model_version = model_version
@@ -268,12 +283,12 @@ def test_onnx_model_license(
 
 
 def test_onnx_tensor_specs_missing_dtype_shape_and_dim() -> None:
-    """_onnx_tensor_specs handles a missing elem_type, a falsy shape, and a
+    """_onnx_tensor_specs handles a missing elem_type, an unset shape, and a
     dimension with neither dim_value nor dim_param set."""
     vi_no_dtype_no_shape = MagicMock(spec=_VALUE_INFO_FIELDS)
     vi_no_dtype_no_shape.name = "no_dtype"
+    vi_no_dtype_no_shape.type.tensor_type.elem_type = 0  # UNDEFINED
     vi_no_dtype_no_shape.type.tensor_type.HasField.return_value = False
-    vi_no_dtype_no_shape.type.tensor_type.shape = None
 
     dim_no_field = MagicMock(spec=_DIMENSION_FIELDS)
     dim_no_field.HasField.return_value = False
@@ -284,12 +299,29 @@ def test_onnx_tensor_specs_missing_dtype_shape_and_dim() -> None:
     vi_unknown_dim.type.tensor_type.elem_type = _ONNX_FLOAT
     vi_unknown_dim.type.tensor_type.shape.dim = [dim_no_field]
 
-    specs = _onnx_tensor_specs([vi_no_dtype_no_shape, vi_unknown_dim])
+    specs = _onnx_tensor_specs([vi_no_dtype_no_shape, vi_unknown_dim], _DataType)
 
     assert specs[0] == {"name": "no_dtype"}
     assert "dtype" not in specs[0]
     assert "shape" not in specs[0]
     assert specs[1]["shape"] == [None]
+
+
+@pytest.mark.parametrize(
+    ("elem_type", "expected"),
+    [
+        (1, "float32"),
+        (11, "float64"),
+        (7, "int64"),
+        (16, "bfloat16"),
+        (0, None),
+        (999, None),
+    ],
+    ids=["float", "double", "int64", "bfloat16", "undefined", "unknown"],
+)
+def test_dtype_name(elem_type: int, expected: str | None) -> None:
+    """NumPy's name, else ONNX's lowercased; never the enum number."""
+    assert _dtype_name(elem_type, _DataType) == expected
 
 
 def test_onnx_zero_ir_version_skips_format_version(tmp_path: Path) -> None:

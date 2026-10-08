@@ -18,8 +18,13 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3.ai import add_ai_models
+from pitloom.core.ai_metadata import AiModelMetadata
+from pitloom.core.models import generate_spdx_id
 from pitloom.core.project import ProjectMetadata
+from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract.project import read_project
 from pitloom.extract.project.installed import _parse_installed_metadata
 from pitloom.extract.project.sdist import read_sdist
@@ -33,7 +38,7 @@ from tests._license_graph import (
     provenance_fields,
     two_packages,
 )
-from tests.assemble.conftest import _make_sdist
+from tests.assemble.conftest import _DOC_NAME, _DOC_UUID, _make_ci, _make_sdist
 
 _BSD = "License :: OSI Approved :: BSD License"
 _MIT = "License :: OSI Approved :: MIT License"
@@ -275,3 +280,43 @@ def test_a_lone_surrogate_in_a_licence_still_serialises() -> None:
     metadata = ProjectMetadata(name="p", version="1.0", license_name="Foo\ud800")
     (element,) = license_elements(project_graph(metadata))
     assert license_value(element) == "Foo�"
+
+
+@pytest.mark.parametrize(
+    ("source", "relationship"),
+    [
+        ("", "hasConcludedLicense"),  # no source named: unknown, so concluded
+        ("Source: PyPI JSON API", "hasConcludedLicense"),  # a third-party record
+        ("Source: model file", "hasDeclaredLicense"),  # the model's own statement
+    ],
+    ids=["empty", "third-party", "own-file"],
+)
+def test_ai_model_licence_is_concluded_unless_its_own_source_states_it(
+    source: str, relationship: str
+) -> None:
+    exporter = Spdx3JsonExporter()
+    creation_info = _make_ci()
+    main_pkg = spdx3.software_Package(
+        spdxId=generate_spdx_id("Package", doc_name=_DOC_NAME, doc_uuid=_DOC_UUID),
+        name="main",
+        creationInfo=creation_info,
+    )
+    exporter.add_package(main_pkg)
+    model = AiModelMetadata(name="m", license="MIT", provenance={"license": source})
+
+    add_ai_models(
+        [model],
+        require_spdx_id(main_pkg),
+        {},
+        creation_info,
+        _DOC_NAME,
+        _DOC_UUID,
+        exporter,
+    )
+
+    kinds = {
+        str(obj.relationshipType).rsplit("/", 1)[-1]
+        for obj in exporter.object_set.objects
+        if isinstance(obj, spdx3.Relationship)
+    }
+    assert {"hasConcludedLicense", "hasDeclaredLicense"} & kinds == {relationship}

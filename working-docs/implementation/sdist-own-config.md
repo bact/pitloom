@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-21
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,7 +11,8 @@ SPDX-License-Identifier: CC0-1.0
 See also: [config-sources.md](config-sources.md) (the rule this completes,
 PR #231), [roadmap.md](../design/roadmap.md) (steps 7-10),
 [canonical-output-followups.md](../design/canonical-output-followups.md)
-(item #2, still open; #1/#3/#4 were folded in here).
+(the questions left open; sorted keys, UTC `Z` and LF were folded in
+here).
 
 ## What was built
 

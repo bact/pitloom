@@ -37,7 +37,7 @@ The full run takes minutes; pytest already runs a slice of it in CI
   | fragments, merge | `7,S6,M/merge/*,M/fragment-*/*` |
   | build, `--allow-build`, termination | `B*,10` |
   | config, options, cascade | `5,12,13,15,M/completeness`, plus `M/<cmd>/*` per command whose options changed |
-  | AI model scan | `15,17,M/model/*` |
+  | AI model scan | `15,17,19,M/model/*` |
   | setuptools metadata | `1,2,18,S1` |
   | network, offline | `8,11` |
   | any metadata source or assembly | add `1,2,S1` and `M/<cmd>/*` for each command that reads it |
@@ -380,3 +380,16 @@ with `--allow-build --no-build-isolation`):
   left, and two runs with a pinned `--creation-datetime` byte-identical;
 - invalid `--build-timeout` values (`0`, `1.5h`, `500ms`, `1H`,
   `604801`): exit 2.
+
+**19. Hostile model text**: a project with a GGUF model named with
+U+202E, two GGUF models whose names share their first 1100 characters, and
+a Keras file whose `config.json` holds a lone surrogate (`"\ud800"`).
+`project` exits 0 with every stderr line tagged; the bidi name is shown as
+`\u202e`, the surrogate as `\ud800` text, the long names cut to two
+different 1024-character names (digest tail). After `id import` and a
+version bump (a new `SpdxDocument`), `project --id-registry` gives every
+model the same id. Automated as check 19
+(`scripts/manual_cli_checks/_checks_model.py::check_hostile_model_text`);
+per-surface detail in `tests/id_registry/test_registry_display_escape.py`,
+`tests/assemble/test_long_model_names.py` and
+`tests/assemble/test_lone_surrogates.py`.

@@ -93,7 +93,7 @@ Lock files (`pylock.toml`, `uv.lock`, `poetry.lock`, `pdm.lock`,
 `Pipfile.lock`, pinned `requirements.txt`) are read automatically;
 opt out with `--no-use-lockfile`.
 Local AI model formats: GGUF, ONNX, Safetensors,
-PyTorch (`.pt`/`.pth`, `.pt2`), Keras, HDF5, NumPy, fastText.
+PyTorch (`.pt`/`.pth`, `.pt2`), Keras, HDF5, NumPy, fastText, CRFsuite.
 
 AI-model gaps (licence, datasets) can be filled from a README or model card's
 YAML frontmatter, opt in with `--enrich`, or standalone as a mergeable

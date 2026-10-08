@@ -22,7 +22,10 @@ from pitloom.assemble.spdx3._ai_package import (
     _LineageContext,
     _should_preserve_metadata,
     _source_metadata_blob,
+    finish_ai_package,
+    finish_display_text,
 )
+from pitloom.assemble.spdx3._display_text import LICENSE
 from pitloom.assemble.spdx3.creation_info import build_enrichment_elements
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
 from pitloom.assemble.spdx3.deps_license import build_license_elements
@@ -48,8 +51,54 @@ __all__ = [
     "_should_preserve_metadata",
     "_source_metadata_blob",
     "add_ai_models",
+    "add_model_license",
+    "finish_ai_package",
+    "finish_display_text",
     "resolve_ai_model_entity_hits",
 ]
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def add_model_license(
+    ai_model: AiModelMetadata,
+    package_spdx_id: str,
+    default_source: str,
+    doc: tuple[spdx3.CreationInfo, str, str],
+    exporter: Spdx3JsonExporter,
+    config: ProvenanceConfig | None,
+    encoder: ProvenanceEncoder | None,
+) -> list[tuple[str, spdx3.Element]]:
+    """Build *ai_model*'s licence element and its declared or concluded
+    relationship, when it states a licence; return the licence elements,
+    labelled :data:`~pitloom.assemble.spdx3._display_text.LICENSE` for
+    :func:`finish_ai_package`, whose text came
+    from the model. *doc* is the creation info, document name and uuid;
+    *default_source* is the provenance when the model records none."""
+    if not ai_model.license:
+        return []
+    creation_info, doc_name, doc_uuid = doc
+    relationships = build_license_elements(
+        license_id=ai_model.license,
+        package_spdx_id=package_spdx_id,
+        license_provenance=ai_model.provenance.get("license", default_source),
+        creation_info=creation_info,
+        doc_name=doc_name,
+        doc_uuid=doc_uuid,
+        exporter=exporter,
+        provenance_config=config,
+        encoder=encoder,
+    )
+    licenses: dict[str, spdx3.Element] = {}
+    for rel in relationships:
+        if rel is None:
+            continue
+        exporter.add_relationship(rel)
+        for target in rel.to:
+            target_id = target if isinstance(target, str) else require_spdx_id(target)
+            element = exporter.object_set.find_by_id(target_id)
+            if isinstance(element, spdx3.Element):
+                licenses[target_id] = element
+    return [(LICENSE, licenses[key]) for key in sorted(licenses)]
 
 
 def _ai_model_label(ai_model: AiModelMetadata, index: int) -> str:
@@ -173,7 +222,7 @@ def _add_single_ai_model(
     )
     exporter.add_package(ai_pkg)
     ai_pkg_id = require_spdx_id(ai_pkg)
-    _add_base_model_lineage(ai_pkg, ai_model, lineage_ctx)
+    related = _add_base_model_lineage(ai_pkg, ai_model, lineage_ctx)
 
     emit_provenance(
         subject=ai_pkg,
@@ -202,8 +251,9 @@ def _add_single_ai_model(
     )
 
     if ai_model.datasets:
-        add_datasets_for_model(
+        related += add_datasets_for_model(
             ai_package_spdx_id=ai_pkg_id,
+            ai_model=ai_model,
             datasets=ai_model.datasets,
             creation_info=creation_info,
             doc_name=doc_name,
@@ -225,25 +275,16 @@ def _add_single_ai_model(
                 ),
             )
         )
-
-    if ai_model.license:
-        rel_declared, rel_concluded = build_license_elements(
-            license_id=ai_model.license,
-            package_spdx_id=ai_pkg_id,
-            license_provenance=ai_model.provenance.get(
-                "license", "Source: model file / Hugging Face Hub"
-            ),
-            creation_info=creation_info,
-            doc_name=doc_name,
-            doc_uuid=doc_uuid,
-            exporter=exporter,
-            provenance_config=config,
-            encoder=encoder,
-        )
-        if rel_declared:
-            exporter.add_relationship(rel_declared)
-        if rel_concluded:
-            exporter.add_relationship(rel_concluded)
+    related += add_model_license(
+        ai_model,
+        ai_pkg_id,
+        "Source: model file / Hugging Face Hub",
+        (creation_info, doc_name, doc_uuid),
+        exporter,
+        config,
+        encoder,
+    )
+    finish_ai_package(ai_pkg, ai_model, related)
 
     rel = build_relationship(
         from_id=main_package_spdx_id,
