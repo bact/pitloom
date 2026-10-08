@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,6 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 See also: [roadmap.md](roadmap.md) (the summary bullet this file expands
 on), [windows-macos-ci.md](../implementation/windows-macos-ci.md),
 [ci-install-composite-action.md](../implementation/ci-install-composite-action.md),
+[ci-test-speed.md](../implementation/ci-test-speed.md),
 [allow-build-termination.md](../implementation/allow-build-termination.md).
 
 Split out of `roadmap.md` (2026-09-28) once this section grew past the
@@ -38,6 +39,21 @@ file-size guidance -- moved verbatim, no content changed.
   inline in each file (a local composite action can't check itself out).
   `version-consistency.yml` (no cache/pip-install step) and the two
   intentionally-different `licenseid update` steps were left untouched.
+- [x] **CI speed** -- uv installs, separate Pylint job, `worksteal`,
+  Windows `TEMP` on `D:`, per-test junit artifacts. See
+  [ci-test-speed.md](../implementation/ci-test-speed.md)
+  ([PR #295](https://github.com/bact/pitloom/pull/295),
+  [PR #297](https://github.com/bact/pitloom/pull/297)).
+- [ ] **spdx3-validate offline/cached schema (test time)** -- the tests
+  that call it are about 24 % of Windows test time and reach the network
+  on every call. Fix belongs in spdx3-validate (offline validation); then
+  pin it in the `test` group. Same remedy as the network-retry item below.
+- [ ] **`licenseid` matching speed** -- 0.7-1.4 s per licence file
+  locally, about 12 % of Windows test time (licence-corpus tests).
+  Upstream, in `licenseid`.
+- [ ] **macOS straggler (low)** -- the two 20 s build-timeout tests start
+  late on 3 workers; scheduling them first would save about 10 s there
+  (not the critical path).
 - [ ] **Verify `--allow-build` termination on real platforms** -- the
   Windows paths (Ctrl-Break/SIGBREAK, `taskkill /F /T` tree kill) and
   Pitloom as PID 1 in a container without `--init` are covered by mocks
@@ -112,9 +128,8 @@ blocked the release. Highest first.
   through `env:`.
 - [ ] **No `timeout-minutes` (low).** `pypi-publish.yml`'s publish, attach
   and sign jobs and every other reviewed workflow use the 6-hour default.
-- [ ] **`install-pitloom` env var `GROUPS` (low).** A bash special
-  variable (works today since the inherited value wins); rename
-  `DEP_GROUPS`.
+- [x] **`install-pitloom` env var `GROUPS` (low).** Renamed
+  `INSTALL_GROUPS` ([PR #295](https://github.com/bact/pitloom/pull/295)).
 - [ ] **Coverage gaps (low).** `test.yml` has no Python 3.12 leg;
   `build.yml` builds the wheel from the tree, the release from the sdist.
 - [ ] **Small hygiene (low).** `actionlint.yml` `curl` without `-f` and no
