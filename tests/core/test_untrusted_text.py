@@ -115,6 +115,28 @@ def test_the_json_form_decodes_to_the_escaped_strings() -> None:
 
 
 @pytest.mark.parametrize(
+    ("number", "kept"),
+    [
+        (1e16, 1e16),  # RFC 8785 writes it 10000000000000000
+        (-(2.0**60), -(2.0**60)),
+        (2**60 + 1, "1152921504606846977"),  # no double: a string already
+        (2**53 - 1, 2**53 - 1),
+        (1.5e300, 1.5e300),
+    ],
+    ids=["integral-double", "negative-double", "big-int", "max-safe-int", "big"],
+)
+def test_the_json_form_keeps_a_number_a_number(number: object, kept: object) -> None:
+    text = escape_display_controls_in_json(canonical_json({"a": number, "b": "\u202e"}))
+    # JCS spells a double's shortest decimal: read the number back as one
+    assert json.loads(text, parse_int=float) == {"a": kept, "b": "\\u202e"}
+
+
+def test_an_integer_literal_over_any_double_is_its_text() -> None:
+    text = f'{{"a": {"9" * 400}, "b": "\u202e"}}'
+    assert json.loads(escape_display_controls_in_json(text))["a"] == "9" * 400
+
+
+@pytest.mark.parametrize(
     "text",
     ['{"b": 1, "a": "x"}', "not json \u202e", "not json"],
     ids=["json-without-a-control", "text-with-one", "text-without-one"],

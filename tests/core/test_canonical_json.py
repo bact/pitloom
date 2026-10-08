@@ -48,6 +48,7 @@ class _Unrecognised:
         (-MAX_SAFE_INTEGER, -MAX_SAFE_INTEGER),
         (MAX_SAFE_INTEGER + 1, "9007199254740992"),
         (-MAX_SAFE_INTEGER - 1, "-9007199254740992"),
+        (2**16000 - 1, "<integer of 16000 bits>"),  # str() refuses it
         (True, True),
         (None, None),
         ("s", "s"),
@@ -67,6 +68,7 @@ class _Unrecognised:
         "min-int",
         "over-max-int",
         "under-min-int",
+        "over-str-limit-int",
         "bool",
         "none",
         "str",
@@ -83,10 +85,30 @@ def test_json_safe(value: object, safe: object) -> None:
     canonical_json(value)  # never raises
 
 
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ({True: 1, False: 0}, {"true": 1, "false": 0}),
+        ({1e-7: 1, 2**60: 2}, {"1e-7": 1, "1152921504606846976": 2}),
+        ({None: 1, (1, 2): 2}, {"null": 1, "(1, 2)": 2}),
+        ({1: "a", "1": "b"}, {"1": "b"}),  # the later one stays
+        ({"1": "b", 1: "a"}, {"1": "a"}),
+    ],
+    ids=["booleans", "numbers", "none-and-other", "int-then-str", "str-then-int"],
+)
+def test_a_mapping_key_is_spelt_as_a_value(
+    value: dict[object, object], expected: dict[str, object]
+) -> None:
+    assert json_safe(value) == expected
+    assert json_safe({"k": [value]}) == {"k": [expected]}
+
+
 def test_numpy_scalars_are_json_values() -> None:
     np = pytest.importorskip("numpy")
     value = [np.bool_(True), np.int64(7), np.uint64(2**63), np.float32(np.inf)]
     assert canonical_json(value) == '[true,7,"9223372036854775808","INF"]'
+    keys = {np.bool_(False): 1, np.float32(0.1): 2}
+    assert canonical_json(keys) == '{"0.10000000149011612":2,"false":1}'
 
 
 def test_set_order_does_not_depend_on_insertion_order() -> None:

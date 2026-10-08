@@ -149,6 +149,8 @@ def test_a_cut_name_without_provenance_gets_none() -> None:
             None,
         ),
         ({1: "x"}, {"1": "x"}, None),
+        ({True: 1, 1e-7: 2, None: 3}, {"true": "1", "1e-7": "2", "null": "3"}, None),
+        (2**3000, "<integer of 3001 bits>", None),  # no integer text to type
         ([], [], None),
         (
             [float("nan"), float("-inf"), 2**63 + 1, b"x"],
@@ -166,6 +168,8 @@ def test_a_cut_name_without_provenance_gets_none() -> None:
         "tuple",
         "nested",
         "int-key",
+        "scalar-keys",
+        "huge-int",
         "empty",
         "odd",
         "bytes",

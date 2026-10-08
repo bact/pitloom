@@ -64,6 +64,9 @@ _UINT64_MASK = 0xFFFF_FFFF_FFFF_FFFF
 # for a type NumPy lacks (bfloat16, string, float8e4m3fn), ONNX's own.
 _NUMPY_DTYPE_NAMES = {"FLOAT": "float32", "DOUBLE": "float64"}
 
+# Last IR version whose graph.input lists every initializer too
+_LAST_IR_WITH_WEIGHT_INPUTS = 3
+
 # Opset domain of the ONNX-ML operators (trees, linear models, SVMs, ...)
 _ONNX_ML_DOMAIN = "ai.onnx.ml"
 
@@ -96,10 +99,10 @@ def _onnx_tensor_specs(
         dtype = _dtype_name(tensor_type.elem_type, type_names)
         if dtype is not None:
             spec["dtype"] = dtype
-        shape = tensor_type.shape
-        if shape:
+        # No shape field: an unknown rank, or no tensor (a sequence, a map)
+        if tensor_type.HasField("shape"):
             dims = []
-            for d in shape.dim:
+            for d in tensor_type.shape.dim:
                 if d.HasField("dim_value"):
                     dims.append(d.dim_value)
                 elif d.HasField("dim_param"):
@@ -174,9 +177,13 @@ def _resolve_onnx_name(
     return name
 
 
-def _initializer_names(graph: Any) -> frozenset[str]:
-    """Names of a graph's weights (dense and sparse initializers): an IR
-    version 3 graph also lists them in ``graph.input``."""
+def _initializer_names(model: Any) -> frozenset[str]:
+    """Names of a graph's weights (dense and sparse initializers) up to IR
+    version 3, which lists them in ``graph.input`` too; none from IR 4 on,
+    where a name in both is an input the initializer gives a default."""
+    if model.ir_version > _LAST_IR_WITH_WEIGHT_INPUTS:
+        return frozenset()
+    graph = model.graph
     names = {tensor.name for tensor in graph.initializer}
     names.update(sparse.values.name for sparse in graph.sparse_initializer)
     return frozenset(names)
@@ -231,7 +238,10 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
     ``"neural network"``, unset when the model imports the ``ai.onnx.ml``
     opset; ``domain`` is kept in ``properties`` only. ``inputs`` and
     ``outputs`` give each tensor's NumPy-style ``dtype`` name; ``inputs``
-    leaves out the initializers an IR version 3 graph lists as inputs.
+    leaves out the initializers an IR version 3 graph lists as inputs
+    (from IR 4 on, such an input is one with a default, and kept). A
+    ``shape`` is given only where the file has one: not for an unknown
+    rank or a non-tensor value (a sequence).
     ``properties`` holds ``domain``, ``opset.<domain>`` and every
     ``metadata_props`` entry as ``metadata_props.<key>``.
 
@@ -290,7 +300,7 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
 
     type_names = onnx.TensorProto.DataType
     inputs = _onnx_tensor_specs(
-        model.graph.input, type_names, _initializer_names(model.graph)
+        model.graph.input, type_names, _initializer_names(model)
     )
     if inputs:
         provenance["inputs"] = f"{source} | Field: graph.input"

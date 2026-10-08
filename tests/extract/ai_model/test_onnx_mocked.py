@@ -81,6 +81,7 @@ def _make_onnx_mock(
 ) -> MagicMock:
     """Build a minimal mock of an onnx.ModelProto."""
     model = MagicMock(spec=_MODEL_PROTO_FIELDS)
+    model.ir_version = 8
     model.graph.name = graph_name
     model.doc_string = doc_string
     model.model_version = model_version
@@ -282,12 +283,12 @@ def test_onnx_model_license(
 
 
 def test_onnx_tensor_specs_missing_dtype_shape_and_dim() -> None:
-    """_onnx_tensor_specs handles a missing elem_type, a falsy shape, and a
+    """_onnx_tensor_specs handles a missing elem_type, an unset shape, and a
     dimension with neither dim_value nor dim_param set."""
     vi_no_dtype_no_shape = MagicMock(spec=_VALUE_INFO_FIELDS)
     vi_no_dtype_no_shape.name = "no_dtype"
     vi_no_dtype_no_shape.type.tensor_type.elem_type = 0  # UNDEFINED
-    vi_no_dtype_no_shape.type.tensor_type.shape = None
+    vi_no_dtype_no_shape.type.tensor_type.HasField.return_value = False
 
     dim_no_field = MagicMock(spec=_DIMENSION_FIELDS)
     dim_no_field.HasField.return_value = False

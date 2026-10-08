@@ -281,9 +281,10 @@ def _check_attributes(source: IO[bytes], header: _Header) -> None:
 def _check_references(source: IO[bytes], header: _Header) -> None:
     """Check 13: the ``LFRF`` and ``AFRF`` chunk headers and counts.
 
-    ``LFRF.num`` is ``num_labels + 2`` in every file seen (the reason is not
-    in CRFsuite's source), so it is only bounded: its offset array must fit
-    before ``AFRF``.
+    ``LFRF.num`` is ``num_labels + 2``: CRFsuite's writer opens the chunk
+    with ``crf1dmw_open_labelrefs(writer, L+2)`` (``crf1d_encode.c``). It
+    is only bounded, not compared: its offset array must fit before
+    ``AFRF``.
     """
     tag, _size, num = _CHUNK.unpack(
         _read_exact(source, header.off_labelrefs, _CHUNK.size)

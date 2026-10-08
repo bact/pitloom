@@ -88,7 +88,9 @@ names it. The rule is the same for every model format:
   or boolean is never a JSON number or boolean, since a JSON consumer may
   widen or round it (an integer above 2^53);
 - the text of a scalar has one spelling: a boolean `true` or `false`; an
-  integer in decimal, at any size; a float in the
+  integer in decimal, up to 640 digits (a longer one is
+  `<integer of N bits>`, N its bit length, and has no `valueTypes`
+  entry); a float in the
   [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) (ECMAScript)
   spelling, the shortest decimal that reads back as the same double
   (`0.00001`, `1e-7`, `100`, `1e+21`); NaN and the infinities, which RFC

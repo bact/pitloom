@@ -13,9 +13,8 @@ code-unit order, one spelling per number.
 
 RFC 8785 has no spelling for NaN, the infinities or an integer outside
 +-(2**53 - 1), and no hook for other types; :func:`json_safe` turns each
-into a string first (the first three as
-:func:`~pitloom.core.scalar_text.scalar_text` spells them, the integer in
-full decimal), so serialisation never raises on a value read from a file.
+into a string first, as :func:`~pitloom.core.scalar_text.scalar_text`
+spells it, so serialisation never raises on a value read from a file.
 
 See also: :mod:`pitloom.core.scalar_text` (a scalar's text outside JSON).
 """
@@ -29,7 +28,15 @@ from typing import Any, cast
 
 import rfc8785
 
-from pitloom.core.scalar_text import BOOLEAN, FLOAT, INTEGER, scalar_text, scalar_type
+from pitloom.core.scalar_text import (
+    BOOLEAN,
+    FLOAT,
+    INTEGER,
+    integer_text,
+    key_text,
+    scalar_text,
+    scalar_type,
+)
 
 #: Largest magnitude of an integer RFC 8785 serialises as a number.
 MAX_SAFE_INTEGER = 2**53 - 1
@@ -42,7 +49,7 @@ def _json_safe_scalar(value: Any) -> object:
         return bool(value)
     if kind == INTEGER:
         number = int(value)
-        return number if abs(number) <= MAX_SAFE_INTEGER else str(number)
+        return number if abs(number) <= MAX_SAFE_INTEGER else integer_text(number)
     if kind == FLOAT:
         number_f = float(value)
         return number_f if math.isfinite(number_f) else scalar_text(number_f)
@@ -52,12 +59,15 @@ def _json_safe_scalar(value: Any) -> object:
 def json_safe(value: object) -> object:
     """*value* with everything RFC 8785 cannot serialise made a string.
 
-    - a mapping's keys as ``str()``;
+    - a mapping's keys as :func:`~pitloom.core.scalar_text.key_text`
+      spells them (``true``, ``1e-7``); of two keys spelt the same
+      (``1`` and ``"1"``), the later one in the mapping's order stays;
     - a list or a tuple as a list; a set or a frozenset as a list sorted by
       each element's canonical form (a set has no stable order);
     - ``bytes`` as Base64;
     - NaN, infinity and negative infinity as ``NaN``, ``INF``, ``-INF``;
-    - an integer beyond +-(2**53 - 1) as its decimal text;
+    - an integer beyond +-(2**53 - 1) as its
+      :func:`~pitloom.core.scalar_text.integer_text`;
     - a string, ``None`` and other scalars as JSON values;
     - anything else as ``str()``.
     """
@@ -70,7 +80,7 @@ def json_safe(value: object) -> object:
     if isinstance(value, Mapping):
         mapping: dict[str, object] = {}
         for key, item in value.items():
-            mapping[str(key)] = json_safe(item)
+            mapping[key_text(key)] = json_safe(item)
         return mapping
     if isinstance(value, (list, tuple)):
         items: list[object] = []

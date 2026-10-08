@@ -21,7 +21,7 @@ from typing import Any, TypedDict
 
 from pitloom.core.canonical_json import canonical_json
 from pitloom.core.dataset_metadata import DatasetReference
-from pitloom.core.scalar_text import scalar_text, scalar_type
+from pitloom.core.scalar_text import key_text, scalar_text, scalar_type, text_type
 
 # Provenance of a name derived from the model's file name
 FILE_NAME_STEM_PROVENANCE = "Source: Pitloom generator | Method: file_name_stem"
@@ -96,6 +96,8 @@ def model_file_suffixes() -> frozenset[str]:
 #: Most code points of the name shown for a model (:meth:`AiModelMetadata.
 #: resolve_name`), which also seeds its ``spdxId``: a name read from a file
 #: is untrusted and unbounded. A longer name is cut by :func:`cap_model_name`.
+#: The bound applies before the display escape, so the name shown can be
+#: longer: each escaped code point adds five characters.
 MAX_MODEL_NAME_CHARS = 1024
 
 #: What ends a name :func:`cap_model_name` cut, before its digest.
@@ -116,7 +118,8 @@ def cap_model_name(name: str) -> str:
     *name* in UTF-8: that many code points in all, and different for two
     names that differ anywhere. Every identity built from a model's name
     (its document, its ``spdxId``, the registry key, an enrichment's
-    target) sees the same cut name."""
+    target) sees the same cut name. The display escape comes after, so
+    the name shown can be longer than :data:`MAX_MODEL_NAME_CHARS`."""
     if len(name) <= MAX_MODEL_NAME_CHARS:
         return name
     digest = hashlib.sha256(name.encode("utf-8", "surrogatepass")).hexdigest()
@@ -172,7 +175,8 @@ def _source_collection(value: Any, depth: int) -> Any:
         return _collection_text(value)
     if isinstance(value, Mapping):
         return {
-            str(key): _source_collection(item, depth + 1) for key, item in value.items()
+            key_text(key): _source_collection(item, depth + 1)
+            for key, item in value.items()
         }
     return [_source_collection(item, depth + 1) for item in value]
 
@@ -184,7 +188,8 @@ def source_metadata_value(value: Any) -> Any:
     out). A mapping becomes a dict and a list or tuple a list; any other
     value becomes its :func:`value_text`, the text a reader puts in
     ``properties``. Inside a collection every
-    scalar is text too (:func:`source_element_text`). A collection over
+    scalar is text too (:func:`source_element_text`), and every key its
+    :func:`~pitloom.core.scalar_text.key_text`. A collection over
     :data:`SOURCE_METADATA_MAX_DEPTH` levels down is its JSON text. A
     number or a boolean is never kept as one: it is never computed on, and
     a JSON number would widen a float32 or round an integer above 2**53.
@@ -227,7 +232,7 @@ def source_metadata(
     A key of *natives* keeps its place in *items*; one not in *items*
     comes after them. A key whose value is ``None`` is left out: the file
     holds no value for it. The types map each key whose value is a
-    non-string scalar to its :func:`~pitloom.core.scalar_text.scalar_type`,
+    non-string scalar to its :func:`~pitloom.core.scalar_text.text_type`,
     so a reader hands over the native value of every key it wants typed.
     """
     merged = dict(items)
@@ -238,7 +243,7 @@ def source_metadata(
         if value is None:
             continue
         metadata[key] = source_metadata_value(value)
-        kind = scalar_type(value)
+        kind = text_type(value)
         if kind is not None:
             value_types[key] = kind
     return SourceMetadata(raw_metadata=metadata, raw_metadata_types=value_types)

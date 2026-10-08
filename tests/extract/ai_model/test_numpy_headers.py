@@ -12,12 +12,14 @@ See also:
 from __future__ import annotations
 
 import io
+import json
 import struct
 import tempfile
 import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from pitloom.assemble import generate_model_sbom
 from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.extract.ai_model.numpy import (
     _detect_numpy_kind,
@@ -114,3 +116,21 @@ def test_detect_numpy_kind_bad_zipfile_handled() -> None:
     """BadZipFile or OSError from zipfile.is_zipfile is gracefully caught."""
     with patch("zipfile.is_zipfile", side_effect=zipfile.BadZipFile("corrupt")):
         assert _detect_numpy_kind(Path("test_model.npy")) == "npy"
+
+
+def test_an_npz_dimension_over_str_limit_keeps_the_sbom(tmp_path: Path) -> None:
+    """A hex literal passes ``ast.literal_eval`` at any size; ``str()`` of
+    the 16000-bit value it gives raises past Python's 4300-digit limit."""
+    header = "{'descr': '<f4', 'fortran_order': False, 'shape': (0x%s,), }"
+    header = (header % ("f" * 4000)).ljust(4031) + "\n"
+    path = tmp_path / "huge.npz"
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr(
+            "w.npy",
+            b"\x93NUMPY\x01\x00"
+            + struct.pack("<H", len(header))
+            + header.encode("latin1"),
+        )
+    assert read_numpy(path).inputs[0]["shape"] == [16**4000 - 1]
+    sbom = generate_model_sbom(path)
+    assert "<integer of 16000 bits>" in json.dumps(json.loads(sbom))

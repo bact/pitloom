@@ -36,9 +36,17 @@ Pitloom applies them, and the order a program reading the SBOM undoes them.
    its cap: each escaped code point adds five characters.
 3. **Scalar text.** A number or boolean is text with one spelling: `true`,
    `false`, a decimal integer, a float in RFC 8785 spelling, `NaN`, `INF`,
-   `-INF`; `-0.0` is `0`. In the annotation, `valueTypes` names each
-   top-level key whose value was an `integer`, `float` or `boolean`
+   `-INF`; `-0.0` is `0`. An integer over 640 digits is
+   `<integer of N bits>` (`<negative integer of N bits>`), N its bit
+   length, also inside an embedded JSON text. In the annotation,
+   `valueTypes` names each top-level key whose value was an `integer`,
+   `float` or `boolean`, but not such an over-long integer
    ([preserved artifact metadata](metadata-provenance.md#preserved-artifact-metadata)).
+   A GGUF `FLOAT32` is spelt as the float32's own shortest decimal
+   (`0.00001`): read back as a double it gives the double nearest
+   0.00001, not the double the float32 widens to; narrow it to float32 for
+   the stored value. A NumPy float32 from another format is spelt as the
+   double it widens to (`0.000009999999747378752`).
 4. **Display escape.** In the elements shown to a reader, each code point
    a reader cannot see, or that changes how the text around it is shown,
    is written as the six characters `\uXXXX`, in lowercase hex (`\u202e`),

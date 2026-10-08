@@ -97,8 +97,9 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
 4. 11 of the training `args`: `bucket`, `dim`, `epoch`, `lr`, `maxn`,
    `minCount`, `minCountLabel`, `minn`, `neg`, `wordNgrams`, `ws`.
 5. `general.license` (an SPDX expression by the GGUF spec), trimmed and
-   classified like any model licence; only a non-blank string counts, as
-   for `general.version`. `general.license.name` and `.link` are not read.
+   classified like any model licence; only a non-blank string counts
+   (`general.version` may also be a number, read as its text).
+   `general.license.name` and `.link` are not read.
 6. Keys ending `.context_length`, `.embedding_length`,
    `.feed_forward_length`, `.block_count`, `.attention.head_count`,
    `.attention.head_count_kv`, `.attention.layer_norm_rms_epsilon`,
@@ -127,8 +128,10 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
     ONNX-ML opset (`ai.onnx.ml`: trees, linear models, SVMs). Each input
     and output has its name, shape (`dim_param` names kept as text) and
     dtype by its NumPy name (`float32`, `int64`), or ONNX's own, lowercased,
-    for a type NumPy lacks (`bfloat16`, `string`). An initializer (weight)
-    that an IR version 3 graph also lists in `graph.input` is not an input.
+    for a type NumPy lacks (`bfloat16`, `string`); no shape for an unknown
+    rank or a non-tensor value (a sequence). An initializer (weight) that
+    an IR version 3 graph also lists in `graph.input` is not an input; from
+    IR version 4 on, a name in both is an input with a default, and kept.
 18. `domain`, `opset.<domain>` and every `metadata_props` entry as
     `metadata_props.<key>`; a repeated key keeps its last value, with one
     `WARNING:` per file.

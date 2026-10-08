@@ -93,13 +93,47 @@ def test_every_element_type_is_a_name_never_its_number(tmp_path: Path) -> None:
     assert meta.outputs == [{"name": "y", "dtype": "float32", "shape": ["N"]}]
 
 
-def test_initializers_listed_as_inputs_are_not_inputs(tmp_path: Path) -> None:
-    """Regression: an IR version 3 graph lists its weights in graph.input."""
+@pytest.mark.parametrize(
+    ("ir_version", "names"),
+    [(3, ["x"]), (4, ["x", "w", "s"]), (8, ["x", "w", "s"])],
+    ids=["ir3", "ir4", "ir8"],
+)
+def test_initializers_listed_as_inputs_are_inputs_from_ir4(
+    tmp_path: Path, ir_version: int, names: list[str]
+) -> None:
+    """Regression: an IR version 3 graph lists its weights in graph.input;
+    from IR 4 on, a name in both is an input its initializer defaults."""
     inputs = [_value_info("x"), _value_info("w"), _value_info("s")]
     path = _save(tmp_path / "m.onnx", inputs, initializers=("w",), sparse=("s",))
+    model = onnx.load(str(path))
+    model.ir_version = ir_version
+    onnx.save(model, str(path))
     meta = read_onnx(path)
-    assert meta.inputs == [{"name": "x", "dtype": "float32", "shape": ["N"]}]
+    assert [spec["name"] for spec in meta.inputs] == names
+    assert meta.inputs[0] == {"name": "x", "dtype": "float32", "shape": ["N"]}
     assert meta.provenance["inputs"] == "Source: m.onnx | Field: graph.input"
+
+
+@pytest.mark.parametrize(
+    ("value_info", "expected"),
+    [
+        (helper.make_tensor_value_info("v", TensorProto.FLOAT, None), {}),
+        (helper.make_tensor_value_info("v", TensorProto.FLOAT, []), {"shape": []}),
+        (
+            helper.make_tensor_sequence_value_info("v", TensorProto.FLOAT, None),
+            {},
+        ),
+    ],
+    ids=["unknown-rank", "scalar", "sequence"],
+)
+def test_a_shape_is_given_only_when_the_file_has_one(
+    tmp_path: Path, value_info: Any, expected: dict[str, Any]
+) -> None:
+    """Regression: ``if shape`` on a protobuf message is always true, so an
+    unknown rank and a sequence both read as a scalar's ``[]``."""
+    meta = read_onnx(_save(tmp_path / "m.onnx", [_value_info("x"), value_info]))
+    spec = meta.inputs[1]
+    assert {k: v for k, v in spec.items() if k == "shape"} == expected
 
 
 @pytest.mark.parametrize(

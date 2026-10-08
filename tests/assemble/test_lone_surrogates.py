@@ -61,7 +61,9 @@ def test_a_keras_model_with_a_lone_surrogate_still_gives_an_sbom(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    monkeypatch.setenv("SOURCE_DATE_EPOCH", "0")
+    # 1980-01-01, the ZIP date floor: Python 3.14's writestr() stamps from
+    # SOURCE_DATE_EPOCH, and an earlier one raises struct.error.
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "315532800")
     if surface == "library-project":
         root = demo_project(tmp_path)
         _keras(root / "demo" / "m.keras")

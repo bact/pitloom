@@ -395,7 +395,7 @@ Crashes, broken contracts and small mappings.
   while each `fields` provenance still cites `properties.*`.
 - [ ] **`loom model` on a 100-byte truncated `lid.176.ftz` ran to about
   20 GB RSS (S).** Native fastText reader on a hostile header, found in the
-  CRFsuite review; the metadata-only fastText reader in
+  CRFsuite review (a 400-byte cut reached about 7 GB); the metadata-only fastText reader in
   [model-metadata-readers.md](model-metadata-readers.md) closes it.
 - [ ] **`loom merge` of a `loom enrich` fragment and a model SBOM writes
   invalid SPDX (M).** Found in the option D black-box round, not caused by
@@ -496,7 +496,8 @@ Crashes, broken contracts and small mappings.
   an ExecuTorch `.pte`) gives inputs `p_line_weight`, `p_line_bias`, `x`;
   `signature.input_specs` marks only `x` as `user_input`. Read user inputs
   only, framework `pytorch` with `torch_version` (`2.11.0`, unread). The
-  fixture's `details/pytorch-pt2.md` claims `inputs` = `[x]`.
+  fixture's `details/pytorch-pt2.md` claims `inputs` = `[x]`. Malformed
+  `model.json` shapes: see the PT2 entry at the end of this section.
 - [ ] **Safetensors name and framework (S).** `ss_base_model_version` (the
   base model, not this one) is a name candidate; prefer `ss_output_name`.
   Framework is the raw `format` value `pt`, not `pytorch`.
@@ -521,6 +522,41 @@ Crashes, broken contracts and small mappings.
   `.crfsuite` or `.onnx` exits 0 with a `WARNING:`; an empty `.model`
   exits 1 with `ERROR: ... not an AI model file`. The ONNX warning repeats
   itself: `failed to extract metadata; Failed to load ONNX model from <path>`.
+
+- [ ] **Keras v3 `config.json` values are not type-checked (S).** Found in
+  the #294 review: `extract/ai_model/keras.py:83-98` takes `class_name` and
+  `config.name` as they are, so `"class_name": {"a": 1}` or a non-string
+  name aborts the whole run (`loom project` exits non-zero). Share
+  `hdf5_config.parse_model_config` between Keras v1/v2 and v3: v3 also
+  omits `InputLayer` `batch_shape` inputs, `layer_count` and the
+  `model_name` fallback, and drops `dtype` from hyperparameters, unlike
+  HDF5. Add a drift-guard test over one model in both formats.
+- [ ] **PT2: a malformed `model.json` drops all PT2 metadata (S).** Found
+  in the #294 review: `models/model.json` as a list, `graph_module` as a
+  list, `"inputs": null` or a non-string tensor name each lose every PT2
+  field (`pytorch_pt2.py:265-278`), not just the bad one.
+- [ ] **Blank text fields are kept by some readers (S).** Found in the #294
+  review: Safetensors and ONNX `doc_string` and GGUF `general.description`
+  keep a blank or padded value (`"  "`) with its provenance, while PT2,
+  GGUF `general.version` and ONNX `model_license` strip it and drop a blank
+  one. One shared stated-text helper for every reader.
+- [ ] **fastText labels have no cap (S).** Found in the #294 review: a
+  trained model records all its labels (1,200 in one), with no cap or
+  `WARNING:`, while CRFsuite stops at 1,000; the docs describe only
+  CRFsuite's cap.
+- [ ] **`numpy.timedelta64` makes `canonical_json` raise (S).** Found in
+  the #294 review: it is a `numbers.Integral`, so `json_safe` takes it as
+  an integer and raises `TypeError`. No reader yields one today.
+- [ ] **`escape_display_controls_in_json` edge cases (S).** Found in the
+  #294 review, no reachable path: two keys can escape to the same text
+  (the later stays, silently), and a decoded `\ud800` next to a control
+  raises `CanonicalizationError`.
+- [ ] **Model metadata spellings differ across readers (S).** Found in the
+  #294 review: counts are `num_labels`/`num_features` in CRFsuite and
+  fastText but `GGUF.tensor_count`, `layer_count` and
+  `archive_member_count` elsewhere; `type_of_model` mixes class names,
+  training modes and families (see the type-of-model entry above); a
+  non-string Keras v3 `date_saved` lands in properties as an integer.
 
 ## Leads to verify
 

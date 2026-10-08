@@ -47,6 +47,7 @@ one JCS uses for its own ``\\u00xx`` escapes, four lowercase hex digits.
 from __future__ import annotations
 
 import json
+import math
 import re
 from typing import Any
 
@@ -145,6 +146,17 @@ def _escape_strings(value: Any) -> Any:
     return value
 
 
+def _json_int(text: str) -> int | float:
+    """A JSON integer literal as a double, as RFC 8785 reads every number:
+    it writes no integer beyond +-(2**53 - 1) as a number
+    (:func:`~pitloom.core.canonical_json.json_safe` makes it a string), so
+    such a literal is a double's spelling (``1e16`` as
+    ``10000000000000000``), which as an integer would be made a string. A
+    literal beyond any double stays an integer."""
+    as_float = float(text)
+    return as_float if math.isfinite(as_float) else int(text)
+
+
 def escape_display_controls_in_json(text: str) -> str:
     """JSON *text* whose strings, keys and values, are each
     :func:`escape_display_controls`'d: decoding the result gives the
@@ -153,7 +165,7 @@ def escape_display_controls_in_json(text: str) -> str:
     when a string changed; *text* itself otherwise. Text that is not JSON
     is escaped as display text."""
     try:
-        data = json.loads(text)
+        data = json.loads(text, parse_int=_json_int)
     except ValueError:
         return escape_display_controls(text)
     shown = _escape_strings(data)

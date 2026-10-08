@@ -22,7 +22,12 @@ from typing import Any
 
 import pytest
 
-from pitloom.core.scalar_text import scalar_text, scalar_type
+from pitloom.core.scalar_text import (
+    MAX_INTEGER_DIGITS,
+    scalar_text,
+    scalar_type,
+    text_type,
+)
 
 # RFC 8785 Appendix B: IEEE 754 double (big-endian hex) -> JSON spelling.
 _RFC8785_APPENDIX_B = [
@@ -80,11 +85,39 @@ def test_a_double_is_spelt_as_rfc8785_appendix_b(
         (2**53 + 1, "9007199254740993"),  # not a double: never rounded
         (2**64 - 1, "18446744073709551615"),
         (-(2**63), "-9223372036854775808"),
+        (10**MAX_INTEGER_DIGITS - 1, "9" * MAX_INTEGER_DIGITS),
+        (-(10**MAX_INTEGER_DIGITS) + 1, "-" + "9" * MAX_INTEGER_DIGITS),
     ],
+    ids=lambda value: str(value)[:24],
 )
-def test_an_integer_is_decimal_at_any_size(value: int, expected: str) -> None:
+def test_an_integer_is_decimal_up_to_the_digit_cap(value: int, expected: str) -> None:
+    # The lowest limit Python accepts (none before 3.10.7): the spelling
+    # never depends on it.
+    limit = getattr(sys, "get_int_max_str_digits", lambda: 0)()
+    set_limit = getattr(sys, "set_int_max_str_digits", lambda _: None)
+    set_limit(MAX_INTEGER_DIGITS)
+    try:
+        assert scalar_text(value) == expected
+    finally:
+        set_limit(limit)
+    assert scalar_type(value) == text_type(value) == "integer"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (10**MAX_INTEGER_DIGITS, "<integer of 2127 bits>"),
+        (-(10**MAX_INTEGER_DIGITS), "<negative integer of 2127 bits>"),
+        (2**16000 - 1, "<integer of 16000 bits>"),  # str() refuses it
+    ],
+    ids=["cap", "negative", "over-str-limit"],
+)
+def test_an_integer_over_the_digit_cap_is_its_bit_length_untyped(
+    value: int, expected: str
+) -> None:
     assert scalar_text(value) == expected
     assert scalar_type(value) == "integer"
+    assert text_type(value) is None  # the text is no integer to type back
 
 
 @pytest.mark.parametrize(

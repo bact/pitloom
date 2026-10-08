@@ -78,9 +78,10 @@ ends where the next starts and `AFRF` ends at `size`.
   backward array: `bwd_size` uint32 record offsets indexed by id. **All
   CQDB offsets are relative to the CQDB chunk start**, not the file.
 - `LFRF`/`AFRF`: `<4sII` tag, size, num; then offsets and per-item lists.
-  `AFRF.num == num_attrs`; `LFRF.num` is `num_labels + 2` on every file
-  seen, reason not found in the source: bound it (its offset array fits
-  before `AFRF`), do not compare it with `num_labels`.
+  `AFRF.num == num_attrs`; `LFRF.num` is `num_labels + 2`, as the writer
+  opens it (`crf1dmw_open_labelrefs(writer, L+2)`, `crf1d_encode.c`):
+  bound it (its offset array fits before `AFRF`), do not compare it with
+  `num_labels`.
 
 ### Traps
 
