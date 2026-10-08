@@ -26,6 +26,7 @@ helper = onnx.helper
 TensorProto = onnx.TensorProto
 
 
+# pylint: disable-next=too-many-arguments
 def _save(
     path: Path,
     graph_inputs: list[Any],
