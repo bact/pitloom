@@ -14,9 +14,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import PurePosixPath
 from typing import Any
 
 from pitloom.core.dataset_metadata import DatasetReference
+
+# Provenance of a name derived from the model's file name
+FILE_NAME_STEM_PROVENANCE = "Source: Pitloom generator | Method: file_name_stem"
 
 
 class AiModelFormat(str, Enum):
@@ -250,3 +254,23 @@ class AiModelMetadata:
     #   "hf.language"  -> ["en", "th"]
     #   "hf.tags"      -> ["pretrained", "reasoning"]
     extra_lists: dict[str, list[Any]] = field(default_factory=dict)
+
+    @property
+    def file_name_stem(self) -> str:
+        """The stem of ``format_info.file_name``, or ``""`` without one."""
+        return PurePosixPath(self.format_info.file_name or "").stem
+
+    def resolve_name(self) -> tuple[str, dict[str, str]]:
+        """The name to show for this model, and the provenance to go with it.
+
+        The model's own :attr:`name`, else its file name stem, else its
+        format. :attr:`name` itself stays as read from the file (``None``
+        when the file names no model); a stem fallback adds a ``name``
+        entry to the returned copy of :attr:`provenance`.
+        """
+        if self.name:
+            return self.name, self.provenance
+        stem = self.file_name_stem
+        if stem:
+            return stem, {**self.provenance, "name": FILE_NAME_STEM_PROVENANCE}
+        return str(self.format_info.model_format), self.provenance

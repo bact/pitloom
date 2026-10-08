@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from pathlib import Path, PurePosixPath
 from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -25,32 +24,6 @@ from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 # Valid SPDX 3 ai_safetyRiskAssessmentType enum values (lowercase).
 _SAFETY_RISK_VALUES = {"high", "medium", "low", "serious"}
-
-# Provenance of a package name derived from the model's file name
-_FILE_NAME_STEM_PROVENANCE = "Source: Pitloom generator | Method: file_name_stem"
-
-
-def _file_name_stem(ai_model: AiModelMetadata) -> str:
-    """The stem of *ai_model*'s file name, or ``""`` without one."""
-    return PurePosixPath(ai_model.format_info.file_name or "").stem
-
-
-def ai_package_name(ai_model: AiModelMetadata) -> str:
-    """The ``ai_AIPackage`` name: the model's own name, else its file name
-    stem, else its format."""
-    return (
-        ai_model.name
-        or _file_name_stem(ai_model)
-        or str(ai_model.format_info.model_format)
-    )
-
-
-def ai_package_provenance(ai_model: AiModelMetadata) -> dict[str, str]:
-    """*ai_model*'s provenance, plus the name's when :func:`ai_package_name`
-    derived it from the file name."""
-    if ai_model.name or not _file_name_stem(ai_model):
-        return ai_model.provenance
-    return {**ai_model.provenance, "name": _FILE_NAME_STEM_PROVENANCE}
 
 
 def _should_preserve_metadata(
@@ -137,8 +110,8 @@ def _ai_model_entity_candidates(ai_model: AiModelMetadata) -> list[str]:
         )
         if resolved:
             candidates.append(resolved)
-    if ai_model.format_info.file_name:
-        candidates.append(Path(ai_model.format_info.file_name).stem)
+    if ai_model.file_name_stem:
+        candidates.append(ai_model.file_name_stem)
     return candidates
 
 
@@ -335,7 +308,7 @@ def _build_ai_package(
     entity_spdx_id: str | None = None,
 ) -> spdx3.ai_AIPackage:
     """Build an ``ai_AIPackage`` SPDX 3 element from an :class:`AiModelMetadata`."""
-    pkg_name = ai_package_name(ai_model)
+    pkg_name, _ = ai_model.resolve_name()
     ai_pkg = spdx3.ai_AIPackage(
         spdxId=entity_spdx_id
         or generate_spdx_id(

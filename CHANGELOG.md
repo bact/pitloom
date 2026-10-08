@@ -24,11 +24,12 @@ and this project adheres to
 
 ### Fixed
 
-- An AI model with no name of its own, or an ONNX exporter-default
-  `graph.name` (`torch_jit`, `tf2onnx`, ...), is named after its file, not
-  its format; ONNX `model_license` is the declared licence, a bit-packed
-  SemVer `model_version` reads as `1.2.3`, and `domain` no longer becomes the
-  model type ([#292])
+- An unnamed AI model, or an ONNX exporter-default `graph.name` (`torch_jit`,
+  `tf2onnx`), is named after its file, not its format ([#292])
+- ONNX: `model_license` is the declared licence, packed SemVer `model_version`
+  reads as `1.2.3`, `domain` is no longer the model type ([#292])
+- A licence id over 50,000 characters no longer reads as a broken licence
+  database: requires `licenseid` 0.4.3 ([#292])
 
 [#292]: https://github.com/bact/pitloom/pull/292
 

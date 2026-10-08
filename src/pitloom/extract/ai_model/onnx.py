@@ -69,21 +69,33 @@ def _onnx_tensor_specs(value_infos: Any) -> list[dict[str, Any]]:
 def _extract_onnx_properties(
     model: Any, source: str, provenance: dict[str, str]
 ) -> dict[str, str]:
-    """Extract domain, opset versions, and metadata_props into properties dict."""
-    properties: dict[str, str] = {}
-    domain = model.domain if model.domain else None
-    if domain:
-        properties["domain"] = domain
+    """Extract domain, opset versions, and metadata_props into properties dict.
 
+    A ``metadata_props`` key equal to a field-derived key (``domain``,
+    ``opset.<domain>``) is dropped with a warning; the field keeps its value.
+    """
+    fields: dict[str, str] = {}
+    if model.domain:
+        fields["domain"] = model.domain
     for opset in model.opset_import:
         opset_domain = opset.domain if opset.domain else "ai.onnx"
-        properties[f"opset.{opset_domain}"] = str(opset.version)
+        fields[f"opset.{opset_domain}"] = str(opset.version)
+    record_dict_field_provenance(provenance, "properties", fields, source)
 
+    props: dict[str, str] = {}
     for prop in model.metadata_props:
-        properties[prop.key] = prop.value
-
-    record_dict_field_provenance(provenance, "properties", properties, source)
-    return properties
+        if prop.key in fields:
+            log.warning(
+                "ONNX metadata_props key %s is also a model field; "
+                "kept the field's value",
+                loggable(prop.key),
+            )
+            continue
+        props[prop.key] = prop.value
+    record_dict_field_provenance(
+        provenance, "properties", props, source, location_prefix="metadata_props."
+    )
+    return {**fields, **props}
 
 
 def _resolve_onnx_name(
@@ -118,7 +130,7 @@ def _resolve_onnx_license(
     license_expr = properties.get(_MODEL_LICENSE_KEY, "").strip()
     if not license_expr:
         return None
-    provenance["license"] = f"{source} | Field: {_MODEL_LICENSE_KEY}"
+    provenance["license"] = f"{source} | Field: metadata_props.{_MODEL_LICENSE_KEY}"
     return license_expr
 
 

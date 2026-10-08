@@ -15,16 +15,14 @@ from __future__ import annotations
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3._ai_package import (
-    ai_package_name,
-    ai_package_provenance,
-)
+from pitloom.assemble.spdx3._document_model import _ai_model_identity
 from pitloom.assemble.spdx3.ai import (
     _add_base_model_lineage,
     _build_ai_package,
     _LineageContext,
 )
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.iri import doc_namespace
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
@@ -67,9 +65,10 @@ def test_ai_package_name_cascade(
     )
     before = dict(model.provenance)
     pkg = _build_ai_package(model, _make_ci(), _DOC_NAME, _DOC_UUID)
-    assert pkg.name == ai_package_name(model) == expected
+    resolved, provenance = model.resolve_name()
+    assert pkg.name == resolved == expected
     assert f"#AIPackage-{expected}-" in str(pkg.spdxId)
-    provenance = ai_package_provenance(model)
+    assert model.name == name  # the read value stays as read
     if name_provenance is None:
         assert "name" not in provenance
     else:
@@ -313,3 +312,21 @@ def test_add_base_model_lineage_no_relationship_when_build_relationship_none(
         if isinstance(obj, spdx3.Relationship)
     ]
     assert relationships == []
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"), [("tiny-model", "tiny-model"), (None, "deepcut")]
+)
+def test_model_document_named_like_package(name: str | None, expected: str) -> None:
+    """A single-model SBOM's document and package share one name cascade."""
+    model = AiModelMetadata(
+        name=name,
+        format_info=AiModelFormatInfo(
+            file_name="deepcut.onnx", model_format=AiModelFormat.ONNX
+        ),
+    )
+    doc_name, doc_uuid, pkg_id = _ai_model_identity(model)
+    assert doc_name == expected
+    assert pkg_id.startswith(
+        f"{doc_namespace(expected, doc_uuid)}#AIPackage-{expected}-"
+    )

@@ -33,8 +33,8 @@ from pitloom.id_registry import EntityEntry, IdRegistry
 def _numpy_models() -> list[AiModelMetadata]:
     """10 unnamed NumPy-format models, ``m00/numpy.npy`` to
     ``m09/numpy.npy``. Every model's ``name`` is unset, so
-    ``ai_package_name()`` falls back to the shared file stem ("numpy") for
-    *all ten*: they all mint under the identical
+    ``AiModelMetadata.resolve_name()`` falls back to the shared file stem
+    ("numpy") for *all ten*: they all mint under the identical
     ``(doc_uuid, "AIPackage-numpy")`` counter regardless of their
     different paths."""
     return [

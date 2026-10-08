@@ -14,10 +14,6 @@ from __future__ import annotations
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3._ai_package import (
-    ai_package_name,
-    ai_package_provenance,
-)
 from pitloom.assemble.spdx3._licensing_profiles import apply_licensing_profiles
 from pitloom.assemble.spdx3.ai import (
     _add_base_model_lineage,
@@ -94,7 +90,7 @@ def _ai_model_identity(
     if doc_identity is not None:
         doc_name, doc_uuid = doc_identity
     else:
-        doc_name = model.name or model.format_info.file_name or "model"
+        doc_name, _ = model.resolve_name()
         doc_uuid = compute_doc_uuid(
             name=doc_name,
             version=model.version or "unknown",
@@ -104,7 +100,7 @@ def _ai_model_identity(
     if entity_spdx_id is not None:
         return doc_name, doc_uuid, entity_spdx_id
     _clear_doc_counters(doc_uuid)
-    pkg_name = ai_package_name(model)
+    pkg_name, _ = model.resolve_name()
     ai_package_spdx_id = generate_spdx_id(
         f"AIPackage-{pkg_name}", doc_name=doc_name, doc_uuid=doc_uuid
     )
@@ -259,7 +255,7 @@ def build_model(
     _add_base_model_lineage(ai_pkg, model, lineage_ctx)
     emit_provenance(
         subject=ai_pkg,
-        provenance=ai_package_provenance(model),
+        provenance=model.resolve_name()[1],
         creation_info=spdx_ci,
         doc_name=doc_name,
         doc_uuid=doc_uuid,

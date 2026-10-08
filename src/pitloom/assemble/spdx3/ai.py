@@ -22,7 +22,6 @@ from pitloom.assemble.spdx3._ai_package import (
     _LineageContext,
     _should_preserve_metadata,
     _source_metadata_blob,
-    ai_package_provenance,
 )
 from pitloom.assemble.spdx3.creation_info import build_enrichment_elements
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
@@ -178,7 +177,7 @@ def _add_single_ai_model(
 
     emit_provenance(
         subject=ai_pkg,
-        provenance=ai_package_provenance(ai_model),
+        provenance=ai_model.resolve_name()[1],
         creation_info=creation_info,
         doc_name=doc_name,
         doc_uuid=doc_uuid,

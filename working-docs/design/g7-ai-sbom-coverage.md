@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -59,6 +59,13 @@ Model version, Model description, Model external references
   which is the agent-Skill's job per the scope split above. Per-format
   structured sources already read but kept only in `properties`: ONNX's
   standard `model_author` metadata property, PT2 `extra/author`.
+  Follow-up from #292 (PyThaiNLP's three ONNX models now set
+  `model_author`, yet the SBOM shows no supplier): decide `originatedBy`
+  vs `suppliedBy` (an author is an originator; the supplier is whoever
+  ships the file, often the enclosing package's supplier), and whether one
+  string makes one `Agent` or several. The ONNX IR spec does not define a
+  list form; PyThaiNLP writes `"A, B, C"`, and splitting on commas is
+  free-text parsing (a `"Lastname, Firstname"` value breaks it).
 - **Parameter count** -- no dataclass field yet. Several formats
   (GGUF, Safetensors, HF `config.json`) already expose this in their
   own metadata (`raw_metadata`/`properties`) without a dedicated

@@ -29,6 +29,30 @@ _ONNX = Path(__file__).parent.parent.parent / "fixtures" / "aimodels" / "onnx"
 # ONNX elem_type 1 = FLOAT  (TensorProto.FLOAT)
 _ONNX_FLOAT = 1
 
+# The onnx.ModelProto fields read_onnx() reads; a spec keeps a misspelt
+# field from passing as an auto-created mock attribute
+_MODEL_PROTO_FIELDS = [
+    "doc_string",
+    "domain",
+    "graph",
+    "ir_version",
+    "metadata_props",
+    "model_version",
+    "opset_import",
+    "producer_name",
+    "producer_version",
+]
+
+_VALUE_INFO_FIELDS = ["name", "type"]
+_DIMENSION_FIELDS = ["HasField", "dim_param", "dim_value"]
+
+
+def _mock_onnx_module(model: MagicMock | None = None) -> MagicMock:
+    """A mock ``onnx`` module whose ``load()`` returns *model*."""
+    mock_onnx = MagicMock(spec=["load"])
+    mock_onnx.load.return_value = model
+    return mock_onnx
+
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
 def _make_onnx_mock(
@@ -42,7 +66,7 @@ def _make_onnx_mock(
     outputs: list[MagicMock] | None = None,
 ) -> MagicMock:
     """Build a minimal mock of an onnx.ModelProto."""
-    model = MagicMock()
+    model = MagicMock(spec=_MODEL_PROTO_FIELDS)
     model.graph.name = graph_name
     model.doc_string = doc_string
     model.model_version = model_version
@@ -51,7 +75,7 @@ def _make_onnx_mock(
     # metadata_props
     props = []
     for k, v in (metadata_props or {}).items():
-        p = MagicMock()
+        p = MagicMock(spec=["key", "value"])
         p.key = k
         p.value = v
         props.append(p)
@@ -60,7 +84,7 @@ def _make_onnx_mock(
     # opset_import
     opsets = []
     for dom, ver in (opset_versions or {"": 17}).items():
-        o = MagicMock()
+        o = MagicMock(spec=["domain", "version"])
         o.domain = dom
         o.version = ver
         opsets.append(o)
@@ -70,13 +94,13 @@ def _make_onnx_mock(
     def _make_vi(
         name: str, dtype: int = 1, shape: list[int | str] | None = None
     ) -> MagicMock:
-        vi = MagicMock()
+        vi = MagicMock(spec=_VALUE_INFO_FIELDS)
         vi.name = name
         vi.type.tensor_type.elem_type = dtype
         vi.type.tensor_type.HasField.return_value = True
         dims = []
         for d in shape or []:
-            dim = MagicMock()
+            dim = MagicMock(spec=_DIMENSION_FIELDS)
             if isinstance(d, int):
                 dim.HasField.side_effect = lambda f: f == "dim_value"
                 dim.dim_value = d
@@ -121,8 +145,7 @@ def test_onnx_basic_extraction(tmp_path: Path) -> None:
         opset_versions={"": 17, "com.microsoft": 1},
     )
 
-    mock_onnx = MagicMock()
-    mock_onnx.load.return_value = mock_model
+    mock_onnx = _mock_onnx_module(mock_model)
 
     with patch.dict("sys.modules", {"onnx": mock_onnx}):
         meta = read_onnx(model_file)
@@ -160,8 +183,7 @@ def test_onnx_no_graph_name_falls_back(tmp_path: Path) -> None:
     mock_model.graph.input = []
     mock_model.graph.output = []
 
-    mock_onnx = MagicMock()
-    mock_onnx.load.return_value = mock_model
+    mock_onnx = _mock_onnx_module(mock_model)
 
     with patch.dict("sys.modules", {"onnx": mock_onnx}):
         meta = read_onnx(model_file)
@@ -179,8 +201,7 @@ def _read_mock(tmp_path: Path, **kwargs: Any) -> Any:
     """Run read_onnx() on a mocked ModelProto built from *kwargs*."""
     model_file = tmp_path / "model.onnx"
     model_file.write_bytes(b"fake")
-    mock_onnx = MagicMock()
-    mock_onnx.load.return_value = _make_onnx_mock(**kwargs)
+    mock_onnx = _mock_onnx_module(_make_onnx_mock(**kwargs))
     with patch.dict("sys.modules", {"onnx": mock_onnx}):
         return read_onnx(model_file)
 
@@ -231,7 +252,9 @@ def test_onnx_model_license(
     if expected is None:
         assert "license" not in meta.provenance
     else:
-        assert meta.provenance["license"].endswith("Field: model_license")
+        assert meta.provenance["license"].endswith(
+            "Field: metadata_props.model_license"
+        )
     # The verbatim property is kept alongside the promoted licence
     assert meta.properties.items() >= metadata_props.items()
 
@@ -239,15 +262,15 @@ def test_onnx_model_license(
 def test_onnx_tensor_specs_missing_dtype_shape_and_dim() -> None:
     """_onnx_tensor_specs handles a missing elem_type, a falsy shape, and a
     dimension with neither dim_value nor dim_param set."""
-    vi_no_dtype_no_shape = MagicMock()
+    vi_no_dtype_no_shape = MagicMock(spec=_VALUE_INFO_FIELDS)
     vi_no_dtype_no_shape.name = "no_dtype"
     vi_no_dtype_no_shape.type.tensor_type.HasField.return_value = False
     vi_no_dtype_no_shape.type.tensor_type.shape = None
 
-    dim_no_field = MagicMock()
+    dim_no_field = MagicMock(spec=_DIMENSION_FIELDS)
     dim_no_field.HasField.return_value = False
 
-    vi_unknown_dim = MagicMock()
+    vi_unknown_dim = MagicMock(spec=_VALUE_INFO_FIELDS)
     vi_unknown_dim.name = "unknown_dim"
     vi_unknown_dim.type.tensor_type.HasField.return_value = True
     vi_unknown_dim.type.tensor_type.elem_type = _ONNX_FLOAT
@@ -270,8 +293,7 @@ def test_onnx_zero_ir_version_skips_format_version(tmp_path: Path) -> None:
     mock_model.graph.input = []
     mock_model.graph.output = []
 
-    mock_onnx = MagicMock()
-    mock_onnx.load.return_value = mock_model
+    mock_onnx = _mock_onnx_module(mock_model)
 
     with patch.dict("sys.modules", {"onnx": mock_onnx}):
         meta = read_onnx(model_file)
@@ -284,7 +306,7 @@ def test_onnx_load_failure(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> 
     model_file = tmp_path / "model.onnx"
     model_file.write_bytes(b"corrupt")
 
-    mock_onnx = MagicMock()
+    mock_onnx = _mock_onnx_module()
     mock_onnx.load.side_effect = RuntimeError("bad protobuf")
 
     with patch.dict("sys.modules", {"onnx": mock_onnx}):
@@ -315,3 +337,36 @@ def test_onnx_model_version_semver_bit_packed(
     assert meta.provenance["version"].endswith(
         "Method: semver_bit_packed" if semver else "Field: model_version"
     )
+
+
+def test_mocked_model_proto_fields_exist() -> None:
+    """The mocks' specs name real ONNX protobuf fields."""
+    onnx = pytest.importorskip("onnx")
+    for proto, fields in (
+        (onnx.ModelProto, _MODEL_PROTO_FIELDS),
+        (onnx.ValueInfoProto, _VALUE_INFO_FIELDS),
+        (onnx.TensorShapeProto.Dimension, _DIMENSION_FIELDS[1:]),
+    ):
+        assert set(fields) <= set(proto.DESCRIPTOR.fields_by_name), proto
+
+
+@pytest.mark.parametrize("key", ["domain", "opset.ai.onnx"])
+def test_onnx_metadata_props_cannot_shadow_a_field(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, key: str
+) -> None:
+    """A metadata_props key equal to a field-derived key loses to the field,
+    with a warning; other keys keep their metadata_props provenance."""
+    with caplog.at_level(logging.WARNING, logger="pitloom.extract.ai_model.onnx"):
+        meta = _read_mock(
+            tmp_path,
+            domain="org.example",
+            metadata_props={key: "NLP", "task": "ner"},
+        )
+    assert meta.properties["domain"] == "org.example"
+    assert meta.properties["opset.ai.onnx"] == "17"
+    assert meta.properties["task"] == "ner"
+    assert meta.provenance["properties.domain"].endswith("Field: domain")
+    assert meta.provenance["properties.task"].endswith("Field: metadata_props.task")
+    assert [r.getMessage() for r in caplog.records] == [
+        f"ONNX metadata_props key {key} is also a model field; kept the field's value"
+    ]
