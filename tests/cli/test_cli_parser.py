@@ -127,7 +127,6 @@ def test_debug_flag_omitted_respects_ambient_env_var(
 ) -> None:
     """--debug/--no-debug both omitted must not clobber an ambient
     PITLOOM_DEBUG=1 -- apply_debug_override(None) is a no-op."""
-    monkeypatch.delenv("PITLOOM_DEBUG", raising=False)
     monkeypatch.setenv("PITLOOM_DEBUG", "1")
     monkeypatch.setattr(
         sys,
@@ -154,7 +153,6 @@ def test_no_debug_flag_overrides_ambient_env_var(
 ) -> None:
     """--no-debug forces the logger back to INFO for this run even when
     PITLOOM_DEBUG=1 is set in the environment."""
-    monkeypatch.delenv("PITLOOM_DEBUG", raising=False)
     monkeypatch.setenv("PITLOOM_DEBUG", "1")
     monkeypatch.setattr(
         sys,

@@ -36,20 +36,15 @@ jobs:
           python-version: "3.10"
 
       - name: Install dependencies
+        # Ruff and flake8 only parse source: no package, no test or extra
+        # dependencies.
         uses: ./.github/actions/install-pitloom
         with:
-          groups: --group lint --group test
-          package-spec: ".[ai,content-type]"
+          groups: --group lint
 
       - name: Ruff check
         run: |
           ruff check examples/ src/ tests/
-
-      - name: Pylint
-        # tests/*/: pylint does not descend from the tests/ package into
-        # subfolders without __init__.py.
-        run: |
-          pylint examples/ src/ tests/ tests/*/
 
       - name: Flake8
         run: |
@@ -58,3 +53,29 @@ jobs:
       - name: Ruff formatter check
         run: |
           ruff format --check examples/ src/ tests/
+
+  pylint:
+    # Own job: the slowest linter, run in parallel with the others.
+    name: Pylint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: ./.github/actions/setup-python
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        # Pylint imports what it checks: test and extra dependencies too.
+        uses: ./.github/actions/install-pitloom
+        with:
+          groups: --group lint --group test
+          package-spec: ".[ai,content-type]"
+
+      - name: Pylint
+        # tests/*/: pylint does not descend from the tests/ package into
+        # subfolders without __init__.py. No -j: parallel runs infer
+        # differently and report messages a serial (local) run does not.
+        run: |
+          pylint examples/ src/ tests/ tests/*/
