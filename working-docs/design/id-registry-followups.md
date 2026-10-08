@@ -45,7 +45,7 @@ Left open by the wheel-identity work (#266). Reading limits and refusals:
 Selection and naming rules:
 
 - **`.WHL` (upper case)**: fixed by #278
-  ([known-bugs.md](known-bugs.md#p0-in-0200)).
+  ([known-bugs.md](../implementation/roadmap-completed.md#bugs-fixed-in-0200)).
 - **`core/_models_wheel_types.py` `is_dist_info_path`** is one more
   "top-level `.dist-info`" predicate beside those of `core/wheel_dist_info`,
   and its docstring says "wheel's own": it matches any top-level
@@ -65,7 +65,7 @@ Selection and naming rules:
 Ids, names and output:
 
 - **sdist member order leaked into `File-N` ids**: fixed by #272
-  ([known-bugs.md](known-bugs.md#p0-in-0200)).
+  ([known-bugs.md](../implementation/roadmap-completed.md#bugs-fixed-in-0200)).
 - **The sentinel `unknown` becomes a registry key.** Distinct wheels whose
   identity is unknown share `unknown-...#Package-1`. Skip the registry lookup
   and harvest when the name did not come from `METADATA`.

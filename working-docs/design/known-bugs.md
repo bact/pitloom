@@ -20,117 +20,6 @@ stays ticked, with its PR, until its release ships, then moves to
 [roadmap-completed.md](../implementation/roadmap-completed.md).
 Size: S under half a day, M about a day.
 
-## P0: in 0.20.0
-
-All fixed; most change SBOM output.
-
-- [x] **Every licence is emitted as an off-list licence text (M).** Fixed by
-  #276. All
-  licence elements came from `_get_or_create_license_element()`
-  (`assemble/spdx3/deps_license.py`), which always built a
-  `simplelicensing_SimpleLicensingText`, defined by SPDX 3 as a licence
-  "not listed on the SPDX License List". `MIT`, `MIT AND Apache-2.0` and
-  `NOASSERTION` all become custom licence texts; no
-  `simplelicensing_LicenseExpression` and no
-  `expandedlicensing_NoAssertionLicense` is ever emitted. The normaliser
-  runs only when two licence sources conflict, so `license = "mit and
-  apache-2.0"` stays verbatim with no `WARNING:`. Affects dependencies,
-  wheel `License-Expression`, AI models and Hugging Face cards, and
-  per-file `SPDX-License-Identifier`. Decided for 0.20.0: NOASSERTION
-  becomes the `expandedlicensing_NoAssertionLicense` individual;
-  normalised expressions use canonical term order, the raw value kept in
-  provenance. Land before G7 #3 (dataset licences).
-- [x] **sdist member order changes ids (S).** Fixed by #272. The same five files
-  in reverse archive order gave PKG-INFO `File-2` in one SBOM and `File-8` in
-  the other. Sort members before minting, as #266 did for wheels.
-- [x] **`sbom-basename = "x.spdx3.json"` gives `x.spdx3.json.spdx3.json` (S).**
-  Fixed by #273. Treat the value as a base name; strip a given `.spdx3.json`.
-- [x] **Re-embedding lists the previous embedded SBOM (S).** Fixed by
-  #271 (payload-only wheel SBOMs); a cross-surface regression test pins
-  it.
-- [x] **A negative `--max-source-metadata-bytes` is accepted (S).** Fixed by
-  #280 (1-7 too). `-1` runs with exit 0; reject it with the one-line config
-  error, as `max-model-extract-bytes` does.
-- [x] **sdist runs no in-package licence detection (S-M).** Fixed by #283. No G2
-  concluded second opinion and no declared fallback when the manifest is silent;
-  the directory has both. (Was "sdist `license_files` are not read"; that field
-  went with #271.) Decided: shared detection helper for sdist and directory, 256
-  KiB licence-member cap with one `WARNING:`, deterministic case pick, PKG-INFO
-  cap, PKG-INFO-less sdist reads `project.license`; `License-File:` selection in
-  0.21.0.
-- [x] **An unknown `[tool.pitloom]` key is ignored silently (S).** Fixed by
-  #280. `ofline = true` gives no warning. Decided: one `WARNING:` per key, run
-  continues.
-- [x] **`.WHL` (uppercase) is handled differently per surface (S).** Fixed by
-  #278.
-- [x] **`enrich`/`merge`/`fragment` stdout is prose, not `KEY=VALUE`
-  (S).** Fixed by #281 (every subcommand).
-- [x] **`lock-hash-preservation.md` says "Poetry 2.1+ writes per-package
-  `files`"** -- lock-version 2.0 does too; only 1.1 uses
-  `[metadata.files]` (doc only). Fixed in the 0.20.0 docs PR.
-
-- [x] **setup.cfg `tool = X` never sets the creation tool (S).** Fixed by #280.
-  `[tool:pitloom] tool = X` (and `[tool:pitloom:creation] tool = X`) is
-  read, then `_clean_creation_keys` pops `creation-tool` straight after,
-  so `config.tools` stays empty. Found while adding the unknown-key
-  warning.
-- [x] **Licence detection picks a near-variant or misses MIT (S).** Fixed by
-  #286. `licenseid` alone ranked `Pixar` 0.9963 over `Apache-2.0` 0.9921 on
-  requests' verbatim `LICENSE`, `Xnet` over `MIT` on PyYAML's (two notice
-  lines first), `JSON` over `MIT` on wcwidth's. Now: the text is also read
-  without its copyright notices, a stated licence wins a near-tie (0.01),
-  an unstated near-tie with another licence family concludes none.
-  Regression corpus: `tests/fixtures/license-texts/`.
-- [x] **Installed dependency licence text loses its indent (S).** Fixed by
-  #286. `importlib.metadata` dedents each header value, which strips the
-  whole Apache `LICENSE` indent when its first line is blank; now read from
-  the raw `METADATA` as the wheel and sdist readers do.
-- [x] **A classifier licence has no provenance at `minimal` detail (S).**
-  Fixed by #286.
-
-## P0: in 0.20.1
-
-Crashes, broken contracts and small mappings.
-
-- [ ] **A very long version number crashes lock-file reading (S).**
-  `packaging.Version("1." + "9" * 5000)` raises a plain `ValueError`
-  (int digit limit), not `InvalidVersion`; `version_key`,
-  `is_usable_version` and `is_same_version` in `extract/lock/_common.py`
-  catch only the latter. #266 fixed the same class in `verify-wheel`.
-  #287 adds a caller: the setuptools `version` conflict check
-  (`_field_agreement.values_agree`) crashes the directory read on
-  `setup(version='9' * 5000)` beside a `setup.cfg` version.
-- [x] **`-o -` ends stdout with `PITLOOM_SBOM_OUTPUT_PATH=-` (S).** Fixed:
-  no path line for `-`, the embed `WHEEL=` record goes to `INFO:`, and
-  `embed-wheel -o -` no longer writes a file named `-`.
-- [ ] **Safetensors licence keys are not mapped (S).** They stay in the
-  verbatim annotation only; classify them like GGUF `general.license` (mapped
-  in #294). GGUF `general.license.name`/`.link` are also unread.
-- [ ] **`setup.cfg` `%` fails the whole run (S).** `description = 50% faster`
-  gives `ERROR: SBOM generation failed: '%' must be followed by ...`. setuptools
-  84's own `setup.py --description` fails the same way. Decided: keep failing,
-  with one `ERROR:` naming the file, section and key and the `%%` fix.
-  Precondition met (2026-10-04): pbr 7.0.3 reads `setup.cfg` with
-  `configparser.ConfigParser` (interpolating; never Raw in any release checked)
-  and fails on `50% faster` too; `%%` works.
-
-- [x] **`setup.py` with no literal `name=` is dropped whole (S).** Fixed by
-  #287 (`setup.py` and `setup.cfg` merged as setuptools does,
-  [setuptools-support.md](../implementation/setuptools-support.md#precedence)).
-  `read_setup_py` raises `ValueError` and `read_setuptools`
-  (`extract/project/setuptools.py`) skips every `setup()` keyword, so a
-  `setup.cfg` MIT classifier wins where the built wheel carries the
-  `setup.py` BSD one: the directory and the wheel disagree. Found
-  checking the paper notes (2026-10-05).
-
-- [x] **A weak `setup.cfg` licence beats a real `setup.py` one (S).** Fixed by
-  #287.
-  `license = UNKNOWN` in `setup.cfg` plus `setup(license="MIT")` gives
-  `NoAssertionLicense`; the built wheel says `License: MIT`.
-  `merge_project_metadata` keeps any non-blank first value, where
-  `first_license` would skip the weak one
-  ([license-rules.md](license-rules.md#open-questions), question 2).
-
 ## P0: in 0.21.0
 
 - [ ] **One default SBOM file name on every surface (S-M).** `loom
@@ -269,6 +158,27 @@ Crashes, broken contracts and small mappings.
   (S-M).** `loom wheel` lists every `Requires-Dist`, `extra == ...` ones
   included (Pitloom's wheel: 27 packages, 11 extras-only), with no marker
   or scope; the hook and `loom project` list 16. Seen on 0.19.0 too.
+
+- [ ] **A very long version number crashes lock-file reading (S).**
+  `packaging.Version("1." + "9" * 5000)` raises a plain `ValueError`
+  (int digit limit), not `InvalidVersion`; `version_key`,
+  `is_usable_version` and `is_same_version` in `extract/lock/_common.py`
+  catch only the latter. #266 fixed the same class in `verify-wheel`.
+  #287 adds a caller: the setuptools `version` conflict check
+  (`_field_agreement.values_agree`) crashes the directory read on
+  `setup(version='9' * 5000)` beside a `setup.cfg` version.
+
+- [ ] **Safetensors licence keys are not mapped (S).** They stay in the
+  verbatim annotation only; classify them like GGUF `general.license` (mapped
+  in #294). GGUF `general.license.name`/`.link` are also unread.
+
+- [ ] **`setup.cfg` `%` fails the whole run (S).** `description = 50% faster`
+  gives `ERROR: SBOM generation failed: '%' must be followed by ...`. setuptools
+  84's own `setup.py --description` fails the same way. Decided: keep failing,
+  with one `ERROR:` naming the file, section and key and the `%%` fix.
+  Precondition met (2026-10-04): pbr 7.0.3 reads `setup.cfg` with
+  `configparser.ConfigParser` (interpolating; never Raw in any release checked)
+  and fails on `50% faster` too; `%%` works.
 
 ## P3: after 0.20.0
 

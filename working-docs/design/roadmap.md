@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,12 +24,12 @@ bullet stays one or two lines plus a link; detail lives in the linked doc.
 ## Done
 
 [roadmap-completed.md](../implementation/roadmap-completed.md), including
-everything shipped in 0.20.0 (#226-#286, released 2026-10-05). User-facing documentation is in
+everything shipped in 0.20.0 (#226-#286, released 2026-10-05); 0.20.1 and 0.20.2 are listed under Next. User-facing documentation is in
 `docs/` ([index](../../docs/index.md)).
 
 ## Next: release plan
 
-Order (2026-10-05): 0.20.0 -> 0.20.1 -> 0.21.0 -> 0.22.0 -> 1.0. No date for
+Order (2026-10-09): 0.20.0 -> 0.20.1 -> 0.20.2 -> 0.21.0 -> 0.22.0 -> 1.0. No date for
 1.0 until 0.21.0 lands.
 
 ### 0.20.0
@@ -49,26 +49,43 @@ Order (2026-10-05): 0.20.0 -> 0.20.1 -> 0.21.0 -> 0.22.0 -> 1.0. No date for
 
 ### 0.20.1
 
-Crash, mapping and parity fixes, each in
-[known-bugs.md](known-bugs.md#p0-in-0201): a very long lock-file version,
-GGUF `general.license`, a `%` in
-`setup.cfg`, and two `setup.py`/`setup.cfg` merges that disagree with the
-built wheel (fixed, #287).
+Shipped 2026-10-07 (#287, #289, #291): setuptools precedence, licence
+detection on Windows. Three planned fixes (a very long lock-file version,
+Safetensors licence keys, a `%` in `setup.cfg`) did not make it; they are in
+[known-bugs.md](known-bugs.md#p2-in-0210).
 
-### 0.21.0
+### 0.20.2
+
+Release cut 2026-10-09 (bump PR; tag pending). AI model metadata made
+uniform and safer:
 
 - [x] **One spelling for scalar text**, built in #294. See
   [scalar-text-spelling.md](../implementation/scalar-text-spelling.md).
+- [x] **CRFsuite models** (#294): `lCRF` magic, stdlib-only bounded reader.
+  See [crfsuite-support.md](../implementation/crfsuite-support.md).
+- [x] **ONNX names, licence and version** (#292); **name, label and entry
+  caps, display escape of bidi/invisible text, RFC 8785 embedded JSON,
+  GGUF `general.license`** (#294).
+- Known issue: a generated CRFsuite description can override a fragment
+  description (see 0.21.0, "Fragment value beats an extracted one").
+
+### 0.21.0
+
 - [ ] **Same AI model, same id on every surface** (first item after #294):
   `loom model`, `loom enrich` and `loom id generate` use the project
   scan's name lookup, so enrichment cannot hit the wrong model. See
   [known-bugs.md](known-bugs.md#p0-in-0210).
-- [x] **CRFsuite models** (#294): `lCRF` magic, stdlib-only bounded reader.
-  See [crfsuite-support.md](../implementation/crfsuite-support.md).
 - [ ] **Fragment value beats an extracted one** (own PR): a fragment or
   catalogue value must win over a value read from or generated for the
   model (e.g. a CRFsuite description). See
   [known-bugs.md](known-bugs.md#p0-in-0210).
+- [ ] **Canonical output, next steps**: LF in text values (plan first), stable
+  `CreationInfo` IRIs. See
+  [canonical-output-followups.md](canonical-output-followups.md),
+  [creation-info-iri.md](creation-info-iri.md).
+- [ ] **Hardening from the #294 reviews** (Hangul fillers, ZWJ in prose,
+  fastText label cap, cross-format label counts): see
+  [known-bugs.md](known-bugs.md#p3-after-0200).
 - [ ] **Registry v3**: one typed table, content gate chosen at lookup;
   closes the P1 registry bugs. See [id-registry-v3.md](id-registry-v3.md),
   [id-registry-v3-rollout.md](id-registry-v3-rollout.md).

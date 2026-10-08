@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -45,7 +45,7 @@ Pitloom ships three Skills:
 
 The three Skills refer to each other, so install all three together.
 
-**Requirements.** A shell, Python 3.10 or later and `pitloom` 0.20.1 or
+**Requirements.** A shell, Python 3.10 or later and `pitloom` 0.20.2 or
 later (pip, `uvx` or `pipx`; earlier releases lack `--id-registry`,
 `loom id` and `--build-timeout`, which the Skills use); network access to
 install it and, for PyPI and Hugging Face lookups, at run time. AI model

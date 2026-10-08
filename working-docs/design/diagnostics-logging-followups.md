@@ -22,7 +22,7 @@ file-size guidance -- moved verbatim, no content changed.
   ([PR #201](https://github.com/bact/pitloom/pull/201)).
 - [x] **`loom <cmd> -o -` corrupts piped JSON** -- fixed:
   `_print_sbom_output_path()` (`cli/commands/utils.py`) prints nothing for
-  `-`. See [known-bugs.md](known-bugs.md#p0-in-0201).
+  `-`. See [roadmap-completed.md](../implementation/roadmap-completed.md#bugs-fixed-in-0201).
 - [x] **Hatchling-heuristic fallback WARNING embeds an untagged
   multi-line exception** -- every backend's discovery-failure `WARNING:`
   now goes through `warn_discovery_failed()`, which collapses the
