@@ -14,6 +14,7 @@ Pitloom applies them).
 
 from __future__ import annotations
 
+import dataclasses
 import io
 import pickle
 import pickletools
@@ -140,7 +141,7 @@ def test_the_decimal_window_holds_a_sign_digits_and_l() -> None:
     assert first_pickle(b"L-999L\n.", limits).end == 8
 
 
-@pytest.mark.parametrize("field", ["max_pickle_opcodes", "max_pickle_decimal_digits"])
+@pytest.mark.parametrize("field", [field.name for field in dataclasses.fields(Limits)])
 def test_a_limit_below_one_is_refused(field: str) -> None:
     with pytest.raises(ValueError, match=field):
         Limits(**{field: 0})

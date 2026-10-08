@@ -8,9 +8,9 @@ SPDX-License-Identifier: CC0-1.0
 
 # CRFsuite model support
 
-Status: designed, not built. Next AI-format work after #292 (ONNX names
-and licences), ahead of the PyTorch metadata-only reader. Summarised in
-[roadmap.md](roadmap.md) as one bullet linking here. Step-by-step plan:
+Status: built in PR #294, under review; the
+decisions below are what was built. Summarised in [roadmap.md](roadmap.md)
+as one bullet linking here. Step-by-step plan:
 [crfsuite-implementation-plan.md](crfsuite-implementation-plan.md).
 
 See also: [model-metadata-readers.md](model-metadata-readers.md) (the
@@ -70,14 +70,17 @@ ends where the next starts and `AFRF` ends at `size`.
   `size == 12 + 20 * num`.
 - `CQDB`: 24-byte header `<4sIIIII` = tag, `size` (whole chunk, header
   included), `flag`, `byteorder` (`0x62445371`), `bwd_size`, `bwd_offset`;
-  then 256 table refs `{offset, num}` (2048 bytes); records start at
-  `OFFSET_DATA = 2072`. A record is `<iI` id, `ksize` (string length **plus
+  then 256 table refs `{offset, num}` (2048 bytes; `num` is two buckets per
+  record, and CRFsuite sizes its backward array as `sum(num / 2)`, so a lying
+  ref makes it read past its buffers: the reader checks them); records start
+  at `OFFSET_DATA = 2072`, so a CQDB is never smaller, even when empty. A record is `<iI` id, `ksize` (string length **plus
   the NUL**), then the key bytes and the NUL. Then the hash tables, then the
   backward array: `bwd_size` uint32 record offsets indexed by id. **All
   CQDB offsets are relative to the CQDB chunk start**, not the file.
 - `LFRF`/`AFRF`: `<4sII` tag, size, num; then offsets and per-item lists.
   `AFRF.num == num_attrs`; `LFRF.num` is `num_labels + 2` on every file
-  seen, reason not found in the source: do not check it.
+  seen, reason not found in the source: bound it (its offset array fits
+  before `AFRF`), do not compare it with `num_labels`.
 
 ### Traps
 
@@ -153,8 +156,9 @@ number.
    the PyThaiNLP files serve instead (see Tests).
 3. **What it reads.** The header; the `FEAT` chunk header (count only);
    the labels CQDB (every label string); the attributes CQDB header
-   (count only). Never the weights, the attribute strings, `LFRF` or
-   `AFRF`.
+   (count only); the `LFRF` and `AFRF` chunk headers (tag and count, as
+   consistency checks). Never the weights, the attribute strings or the
+   `LFRF`/`AFRF` reference lists.
 4. **Labels go to the source-metadata properties and the description;
    `outputs` has fastText's shape** (one entry, name and
    `shape: [n_labels]`, no strings; fastText names it
@@ -189,8 +193,10 @@ Same discipline as the other `formats/` readers:
   stay under the entry cap; each key inside its chunk, the whole labels
   chunk under a byte cap (no separate per-string cap); ids `0..n-1` in
   order.
-- Byte-order mark other than `0x62445371`, or a type other than `FOMC`:
-  `UnsupportedVersion` (stub plus one `WARNING:`), not a guess.
+- Byte-order mark other than `0x62445371` or a non-zero flag in the labels
+  CQDB, a type other than `FOMC` or a version other than 100:
+  `UnsupportedVersion` (stub plus one `WARNING:`), not a guess. An
+  attributes CQDB whose byte order differs is `Malformed`.
 - Total bytes read bounded by the labels chunk, never by the attribute
   or feature counts.
 

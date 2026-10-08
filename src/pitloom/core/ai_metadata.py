@@ -65,6 +65,7 @@ class AiModelFormat(str, Enum):
         return str(self.value)
 
     UNKNOWN = "unknown"
+    CRFSUITE = ("crfsuite", (".crfsuite",), b"lCRF")
     FASTTEXT = ("fasttext", (".ftz",), b"\xba\x16\x4f\x2f")
     GGUF = ("gguf", (".gguf",), b"GGUF")
     HDF5 = ("hdf5", (".h5", ".hdf5"), b"\x89HDF\r\n\x1a\n")
@@ -74,6 +75,18 @@ class AiModelFormat(str, Enum):
     PYTORCH = ("pytorch", (".pt", ".pth"))
     PYTORCH_PT2 = ("pytorch_pt2", (".pt2",))
     SAFETENSORS = ("safetensors", (".safetensors",))
+
+
+# Suffixes several formats share; a file with one is a model only when its
+# header proves a format.
+SHARED_MODEL_SUFFIXES: frozenset[str] = frozenset({".bin", ".model"})
+
+
+def model_file_suffixes() -> frozenset[str]:
+    """Every suffix a model file of a supported format can have."""
+    return SHARED_MODEL_SUFFIXES | {
+        ext for fmt in AiModelFormat for ext in fmt.extensions
+    }
 
 
 @dataclass

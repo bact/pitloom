@@ -113,6 +113,7 @@ def test_generate_registers_ai_model_entity(tmp_path: Path) -> None:
 _LFS = b"version https://git-lfs.github.com/spec/v1\noid sha256:00\n"
 _GGUF = AiModelFormat.GGUF.magic or b""
 _HDF5 = AiModelFormat.HDF5.magic or b""
+_CRF = AiModelFormat.CRFSUITE.magic or b""
 
 
 @pytest.mark.parametrize(
@@ -121,6 +122,10 @@ _HDF5 = AiModelFormat.HDF5.magic or b""
         ("ok.gguf", _GGUF + b"\0" * 16, True),
         ("ok.bin", _GGUF + b"\0" * 16, True),  # magic, a suffix a scan reads
         ("ok.h5", _HDF5 + b"\0" * 16, True),
+        # ``.model`` is shared: a model only with the CRFsuite signature
+        ("ok.model", _CRF + b"\0" * 16, True),
+        ("sp.model", b"\n\x0f" + b"\0" * 16, False),
+        ("lfs.model", _LFS, False),
         ("ok.onnx", b"\x08\x07", True),
         ("empty.onnx", b"", False),
         ("lfs.gguf", _LFS, False),

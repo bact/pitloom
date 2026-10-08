@@ -146,6 +146,8 @@ value, not just where it read it from. Values in use today:
 | `file_name_stem` | An AI model's name is its file name without the last extension: the file names no model (or only an exporter default). |
 | `semver_bit_packed` | An ONNX integer `model_version` decoded as bit-packed SemVer (`MAJOR.MINOR.PATCH`). |
 | `array_length` | A GGUF array field: only its element count is recorded (property `<key>.length`); the elements are not recorded. |
+| `crfsuite_model_type` | A CRFsuite model's type of model, `conditional random field`, derived from the header's model type (`FOMC`, a first-order Markov CRF, the only type CRFsuite writes). |
+| `generated_from_labels` | A CRFsuite model's description, written by Pitloom from the model's labels (the file has no description): the label count and the first 20 labels, each cut to 64 characters. |
 | `yaml_frontmatter` | Read from a local README/model card's YAML frontmatter block during enrichment. |
 
 A field with **no** `method` -- just a `source` -- was read verbatim from

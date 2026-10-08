@@ -33,7 +33,7 @@ the project or wheel.
 | Only the first 1000 inputs, hyperparameters, ... | Entry cap | [Size and count caps](#size-and-count-caps) |
 | A format-only stub, plus `WARNING: ... failed to extract metadata; <error>` | The reader could not parse a file whose header is that of a model (truncated, corrupt) | [What cannot be recorded](#what-cannot-be-recorded) |
 | A field a format cannot carry (no model name in a `.npy`) | Not a limit: the format has no such field | [What cannot be recorded](#what-cannot-be-recorded) |
-| No `ai_AIPackage`, only the file entry, plus `WARNING: FORMAT=<fmt> FILE=<path>: header is not <fmt>; not listed as an AI model` | The header contradicts the model suffix, as text named `.gguf` does; a Git LFS pointer (any candidate suffix, `.bin` and `.zip` included, which then has no `FORMAT=`) says `header is a Git LFS pointer` instead | [What is a model](#what-is-a-model) |
+| No `ai_AIPackage`, only the file entry, plus `WARNING: FORMAT=<fmt> FILE=<path>: header is not <fmt>; not listed as an AI model` | The header contradicts the model suffix, as text named `.gguf` does; a Git LFS pointer (any candidate suffix, `.bin`, `.model` and `.zip` included, which then have no `FORMAT=`) says `header is a Git LFS pointer` instead | [What is a model](#what-is-a-model) |
 | No model at all | Not a detected model, or a target that does not scan models | [What cannot be recorded](#what-cannot-be-recorded) |
 
 A file that is a model by its header gets exactly one entry on every
@@ -83,10 +83,11 @@ path and the reason, e.g. `header is a Git LFS pointer`, `header is not gguf`
 or `file is empty`; an absent file has its own message) and exit status 1,
 with nothing written, where a scan lists no entry. `loom model` and `loom
 enrich` take a file of any suffix; `loom generate FILE` takes only the model
-suffixes (`.gguf`, `.safetensors`, `.onnx`, `.pt`, `.pth`, `.pt2`, `.h5`,
-`.hdf5`, `.keras`, `.npy`, `.npz`, `.bin`, `.ftz`): any other file is read
-as a project (an sdist archive, or a directory), and fails as one. A script that used the exit status to
-detect an unreadable model must look for the `WARNING:` instead.
+suffixes (`.bin`, `.crfsuite`, `.ftz`, `.gguf`, `.h5`, `.hdf5`, `.keras`,
+`.model`, `.npy`, `.npz`, `.onnx`, `.pt`, `.pt2`, `.pth`, `.safetensors`):
+any other file is read as a project (an sdist archive, or a directory), and
+fails as one. A script that used the exit status to detect an unreadable
+model must look for the `WARNING:` instead.
 The 1000-entry cap applies as in the scans, with the same one `WARNING:`.
 
 ## Size and count caps
@@ -105,6 +106,7 @@ Values are exact; "stub" is the format-only entry described above.
 | GGUF array nesting | 4 levels | GGUF | No | Stub: `... GGUF arrays nested over 4; metadata not read` |
 | GGUF string | 8 MiB per key or string | GGUF | No | Stub: `... GGUF string of <N> bytes; metadata not read`. A string that runs past the end of the file is left to the reader, which fails it |
 | GGUF version | 2 and 3 are walked; a version the `gguf` package reads but the walk does not know is refused | GGUF | No | Stub: `... GGUF version <N>, not bounded; metadata not read` |
+| CRFsuite labels | 1000 labels, and a labels chunk (its hash tables and every label string, read whole) of at most 1 MiB (1048576 bytes); the feature weights and attribute strings are never read | CRFsuite | No | Stub: `... more than 1000 labels; metadata not read` (or `labels CQDB over 1048576 bytes`). Real models hold a few to a few dozen labels |
 | Safetensors header | 16 MiB | Safetensors | No | Stub: `... Safetensors header of <N> bytes; metadata not read` |
 | `.npy` header | 10000 bytes (NumPy's own limit) | `.npy`, and each array in an `.npz` | No | Stub: `... .npy header of <N> bytes, over 10000; metadata not read` |
 | `.npz` members | Reading stops after 1001 arrays; then the entry cap below applies | `.npz` | No | See the entry cap |
@@ -182,17 +184,17 @@ To read them, for a wheel you trust:
 There is no `[tool.pitloom]` key, on purpose: a config file can sit in the
 untrusted tree, so it must not be able to switch the protection off. On any
 other target the option warns that it has no effect. Safetensors, Keras v3,
-NumPy and PT2 readers do not pass the file to a native library and are not
-gated; the caps above still apply to them.
+NumPy, PT2 and CRFsuite readers do not pass the file to a native library
+and are not gated; the caps above still apply to them.
 
 ## What is a model
 
-A file is a candidate when its suffix is a model suffix, or `.bin` or
-`.zip`. It is a model when its header confirms a format:
+A file is a candidate when its suffix is a model suffix, or `.bin`,
+`.model` or `.zip`. It is a model when its header confirms a format:
 
 | Format | Header that confirms it |
 | :----- | :---------------------- |
-| fastText, GGUF, NumPy `.npy` | Its magic bytes, whatever the suffix; the suffix alone is not enough |
+| CRFsuite, fastText, GGUF, NumPy `.npy` | Its magic bytes (`lCRF` at offset 0 for CRFsuite), whatever the suffix; the suffix alone is not enough |
 | Safetensors | A length of at most 100 MB, then `{`, whatever the suffix |
 | Keras v3 (`.keras`), PT2, NumPy `.npz` | A ZIP header (`PK\x03\x04`, or `PK\x05\x06` for an archive with no member) |
 | PyTorch (`.pt`, `.pth`) | A ZIP header or a protocol 2 to 5 pickle; a `.pth` is also a Python path-configuration text file, so a text `.pt` or `.pth` is no model and gets no warning (a Git LFS pointer does) |
@@ -208,9 +210,10 @@ header` and no entry appear only when it turns unreadable between the two
 reads. A file whose header contradicts its model suffix is not listed, with
 one `WARNING: FORMAT=<fmt> FILE=<path>: header is not <fmt>; not listed as an
 AI model`. A Git LFS pointer gets `FILE=<path>: header is a Git LFS pointer;
-not listed as an AI model`, under any candidate suffix (a `.bin` or `.zip`
-pointer names no format, so it has no `FORMAT=`); a `.pt` or `.pth` that is
-path-configuration text is silent, a pointer under those suffixes is not.
+not listed as an AI model`, under any candidate suffix (a `.bin`, `.model`
+or `.zip` pointer names no format, so it has no `FORMAT=`); a `.pt` or `.pth`
+that is path-configuration text is silent, a pointer under those suffixes is
+not.
 This also catches a rare real file that fails its signature (a Safetensors
 header of more than 100 MB, a ZIP with data before it). `loom id generate`
 registers an `ai_AIPackage` entity by the same rule (the suffix filter, then
@@ -239,13 +242,15 @@ named after the model file's stem when the model has no name of its own.
 | Keras v3 | Outputs. Hyperparameters are the scalar entries of `config` only |
 | HDF5 / Keras v1-v2 | Whatever the `model_config` attribute lacks |
 | ONNX | Hyperparameters. Name when `graph.name` is blank or an exporter default (`torch_jit`, `main_graph`, `tf2onnx`, ...). Licence only from the standard `model_license` metadata property ([ONNX IR optional metadata](https://onnx.ai/onnx/repo-docs/IR.html#optional-metadata)). A `model_version` with any of its upper 32 bits set (a negative one included) is bit-packed SemVer ([ONNX versioning](https://onnx.ai/onnx/repo-docs/Versioning.html)) and is recorded as `MAJOR.MINOR.PATCH`; otherwise the plain number. `domain` is the owner's reverse-DNS namespace, not a model type, and is kept in the verbatim metadata only; `metadata_props` entries are kept as `metadata_props.<key>`; a repeated key keeps its last value, with one `WARNING:` per file. Tensors stored in external data files are not read (`load_external_data=False`) |
+| CRFsuite | Name, version, licence, inputs, hyperparameters. Architecture. The description is generated from the labels (`Method: generated_from_labels`) and the outputs are one `label_sequence` of shape `[<label count>]`, both only when the model has labels |
 | fastText | Name, description, version, inputs. Labels only for supervised models |
 
 **Not detected, or not scanned:**
 
-- A `.bin` file without the fastText magic bytes is not detected, and no
-  warning is given. Only files with a model extension are candidates; a
-  model renamed to `weights.dat` is not found.
+- A `.bin` file without the fastText (or another format's) magic bytes, or
+  a `.model` file without the CRFsuite one, is not detected, and no warning
+  is given: other tools use these suffixes too. Only files with a model
+  extension are candidates; a model renamed to `weights.dat` is not found.
 - Models inside archives other than those a reader opens itself: a model
   in a `.zip`, `.tar` or nested wheel is not found. The readers open the
   ZIP structure of Keras v3, PyTorch, PT2 and `.npz` files only.

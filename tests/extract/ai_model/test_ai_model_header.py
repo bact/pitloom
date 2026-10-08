@@ -67,6 +67,15 @@ def _lfs_gguf(tmp: Path) -> Path:
     return f
 
 
+def _text_named(name: str) -> Callable[[Path], Path]:
+    def make(tmp: Path) -> Path:
+        f = tmp / name
+        f.write_text("just some notes", encoding="utf-8")
+        return f
+
+    return make
+
+
 def _empty_ftz(tmp: Path) -> Path:
     f = tmp / "model.ftz"
     f.write_bytes(b"")
@@ -98,6 +107,11 @@ def _dir_onnx(tmp: Path) -> Path:
 @pytest.mark.parametrize(
     ("path_factory", "expected"),
     [
+        (_fixture("crfsuite/complete.crfsuite"), AiModelFormat.CRFSUITE),
+        # the magic decides on the shared `.model` suffix
+        (_fixture("crfsuite/minimal.model"), AiModelFormat.CRFSUITE),
+        (_text_named("notes.crfsuite"), AiModelFormat.UNKNOWN),
+        (_text_named("notes.model"), AiModelFormat.UNKNOWN),
         (_fixture("fasttext/lid.176.ftz"), AiModelFormat.FASTTEXT),
         (_fixture("gguf/stories260K.gguf"), AiModelFormat.GGUF),
         (_fixture("hdf5/example-model.h5"), AiModelFormat.HDF5),
@@ -158,8 +172,14 @@ _LFS_URLS = (
     "https://hawser.github.com/spec/v1",
     "http://git-media.io/v/2",
 )
-_GGUF, _NPY, _FT = (
-    _magic(f) for f in (AiModelFormat.GGUF, AiModelFormat.NUMPY, AiModelFormat.FASTTEXT)
+_GGUF, _NPY, _FT, _CRF = (
+    _magic(f)
+    for f in (
+        AiModelFormat.GGUF,
+        AiModelFormat.NUMPY,
+        AiModelFormat.FASTTEXT,
+        AiModelFormat.CRFSUITE,
+    )
 )
 
 
@@ -171,6 +191,12 @@ _GGUF, _NPY, _FT = (
         (_NPY + b"\0" * 5, "x.bin", AiModelFormat.NUMPY),
         (_FT + b"\0" * 5, "", AiModelFormat.FASTTEXT),
         (_GGUF, "x.onnx", AiModelFormat.GGUF),
+        (_CRF + b"\0" * 5, "x.model", AiModelFormat.CRFSUITE),
+        (_CRF + b"\0" * 5, "x.bin", AiModelFormat.CRFSUITE),
+        (_CRF[:-1], "x.crfsuite", AiModelFormat.UNKNOWN),
+        (_CRF[:-1], "x.model", AiModelFormat.UNKNOWN),
+        (_LFS, "x.crfsuite", AiModelFormat.UNKNOWN),
+        (_LFS, "x.model", AiModelFormat.UNKNOWN),
         # a truncated magic is no magic, and a magic format has no extension
         # fallback (a Git LFS pointer is text): D3
         (_GGUF[:-1], "x.gguf", AiModelFormat.UNKNOWN),
@@ -248,6 +274,9 @@ def test_detect_from_header(header: bytes, name: str, expected: AiModelFormat) -
     [
         (_LFS, "x.gguf", AiModelFormat.GGUF),
         (_LFS, "x.ftz", AiModelFormat.FASTTEXT),
+        (_LFS, "x.crfsuite", AiModelFormat.CRFSUITE),
+        (b"text, not lCRF", "x.crfsuite", AiModelFormat.CRFSUITE),
+        (_CRF, "x.crfsuite", None),
         (_LFS, "x.npy", AiModelFormat.NUMPY),
         (_LFS, "x.keras", AiModelFormat.KERAS),
         (_LFS, "x.NPZ", AiModelFormat.NUMPY),

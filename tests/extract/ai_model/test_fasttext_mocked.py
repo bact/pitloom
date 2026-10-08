@@ -15,6 +15,7 @@ tests.
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Any, TypedDict, cast
@@ -255,8 +256,32 @@ def test_fasttext_supervised_with_labels(tmp_path: Path) -> None:
 
     assert meta.type_of_model == "supervised"
     assert meta.properties["lossName"] == "softmax"
-    assert "__label__pos" in meta.properties["labels"]
-    assert "__label__neg" in meta.properties["labels"]
+    assert json.loads(meta.properties["labels"]) == ["__label__pos", "__label__neg"]
+
+
+@pytest.mark.parametrize(
+    "labels",
+    [
+        ["__label__a,b", "__label__c"],
+        ['__label__say "hi"', "__label__plain"],
+        ["__label__ดี", "__label__ไม่ดี,มาก", "__label__a"],
+        ["z", "a", "m"],
+    ],
+    ids=["comma", "quote", "thai", "order-kept"],
+)
+def test_fasttext_labels_json_round_trip(tmp_path: Path, labels: list[str]) -> None:
+    """Labels are a JSON array string: awkward characters survive, order kept."""
+    model_file = tmp_path / "model.bin"
+    model_file.write_bytes(b"\x00")
+    mock_fasttext = MagicMock()
+    mock_fasttext.load_model.return_value = _make_fasttext_model(
+        model_name="supervised", loss_name="softmax", labels=labels
+    )
+    with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
+        meta = read_fasttext(model_file)
+    assert json.loads(meta.properties["labels"]) == labels
+    if any(ord(c) > 127 for label in labels for c in label):
+        assert "ดี" in meta.properties["labels"]
 
 
 def test_fasttext_supervised_outputs_label_count(tmp_path: Path) -> None:

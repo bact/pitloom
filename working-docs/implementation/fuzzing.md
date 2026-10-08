@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-18
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -13,7 +13,7 @@ least one dynamic analysis tool be applied to any proposed major
 production release ... before its release." See `fuzz/README.md` for
 how to actually run the harnesses this doc explains the *why* behind.
 
-## Scope: two targets, not more
+## Scope: three targets, not more
 
 Pitloom has several untrusted-input parsing boundaries (AI model file
 formats, license expressions, `pyproject.toml`/`setup.cfg` parsing,
@@ -37,6 +37,24 @@ targets:
   interesting code (`GGUFReader` takes a bare file path, no wrapping
   container format to construct first, unlike e.g. Safetensors' header
   framing or a wheel's ZIP structure).
+
+- **CRFsuite header and labels**
+  (`pitloom.extract.ai_model.formats.crfsuite.read_crfsuite`) -- added
+  with CRFsuite support because, unlike GGUF, the parser is Pitloom's own
+  code (stdlib `struct`, no third-party reader), so every offset and
+  length check in it is Pitloom's to get right; CRFsuite itself checks
+  almost none and segfaults on bad offsets. In memory, no temp file;
+  besides the `FormatError` contract it asserts the read budget
+  (`max_crfsuite_label_bytes + 108` bytes). CI seeds it with the CRFsuite
+  fixtures. A scratch differential run before it landed (about 223,000
+  mutations of the fixtures and five PyThaiNLP models, labels compared
+  with python-crfsuite in a subprocess) found no escaping exception and
+  no read over budget, but one divergence: CRFsuite sizes the labels
+  backward array from the 256 hash-table counts, not the CQDB header, so
+  a file with a short count read fine in Pitloom while CRFsuite returned
+  heap garbage or crashed. The seeded loop in
+  `tests/extract/ai_model/formats/test_crfsuite_adversarial.py` keeps
+  the error-class invariant in every test run.
 
 Other parsers remain candidates for a future scope expansion but aren't
 in it now -- see `fuzz/README.md`'s "Adding a new target" for the shape

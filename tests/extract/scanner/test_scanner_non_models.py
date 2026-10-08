@@ -56,9 +56,13 @@ _NOT_FMT_WARNING = "FORMAT=gguf FILE=src/m.gguf: header is not gguf; "
         ("m.onnx", b"", None),  # absent, empty or a directory
         ("m.gguf", b"", None),
         ("m.bin", b"text", None),
+        # ``.model`` is shared (SentencePiece): as silent as a non-model .bin
+        ("pkg/spiece.model", b"\n\x0f" + bytes(32), None),
+        ("m.model", b"", None),
         ("m.pth", b"import os\n", None),
         # the header contradicts the suffix: one WARNING
         ("m.gguf", b"plain text", _NOT_FMT_WARNING),
+        ("m.crfsuite", b"plain text", _NOT_FMT_WARNING.replace("gguf", "crfsuite")),
         # a Git LFS pointer is no model under any candidate suffix: a magic
         # one, one that admits any header, PyTorch's, and one that names no
         # format (no FORMAT= to give)
@@ -66,6 +70,7 @@ _NOT_FMT_WARNING = "FORMAT=gguf FILE=src/m.gguf: header is not gguf; "
         ("m.onnx", _LFS, _LFS_WARNING % ("FORMAT=onnx ", "m.onnx")),
         ("m.pt", _LFS, _LFS_WARNING % ("FORMAT=pytorch ", "m.pt")),
         ("m.bin", _LFS, _LFS_WARNING % ("", "m.bin")),
+        ("m.model", _LFS, _LFS_WARNING % ("", "m.model")),
         ("m.zip", _LFS, _LFS_WARNING % ("", "m.zip")),
     ],
 )

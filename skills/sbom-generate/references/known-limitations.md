@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,16 +41,18 @@ no license relationship -- Pitloom never asserts a license it was not told
 ## AI model formats
 
 Recognised: GGUF, ONNX, PyTorch, PyTorch PT2/ExecuTorch, Safetensors, Keras,
-HDF5, NumPy, fastText, plus Hugging Face Hub. A file is a model only when its
-header does not contradict its format: magic bytes (GGUF, fastText, `.npy`,
-Safetensors), a ZIP header (`.keras`, `.pt2`, `.npz`) or a ZIP or pickle
-protocol 2-5 header (`.pt`/`.pth`); ONNX and HDF5 are accepted by suffix when
-the file is not empty. A Python path-configuration `.pth` or an older pickle
-is not a model (silent); text named `.gguf`, `.keras`, `.safetensors`... is
-not either, with one `WARNING: ... header is not <fmt>; not listed as an AI
-model`, and a Git LFS pointer is not one under any candidate suffix (`.onnx`,
-`.h5`, `.pt`, `.bin` included), with `header is a Git LFS pointer; not listed
-as an AI model`.
+HDF5, NumPy, fastText, CRFsuite, plus Hugging Face Hub. A file is a model only
+when its header does not contradict its format: magic bytes (GGUF, fastText,
+CRFsuite `lCRF`, `.npy`, Safetensors), a ZIP header (`.keras`, `.pt2`,
+`.npz`) or a ZIP or pickle protocol 2-5 header (`.pt`/`.pth`); ONNX and HDF5
+are accepted by suffix when the file is not empty. A Python
+path-configuration `.pth` or an older pickle is not a model (silent), nor is
+a `.bin` or `.model` file without a format's magic (other tools use those
+suffixes); text named `.gguf`, `.keras`,
+`.safetensors`... is not either, with one `WARNING: ... header is not <fmt>;
+not listed as an AI model`, and a Git LFS pointer is not one under any
+candidate suffix (`.onnx`, `.h5`, `.pt`, `.bin`, `.model` included), with
+`header is a Git LFS pointer; not listed as an AI model`.
 
 A recognised model can still be recorded as a stub: an `ai_AIPackage` named
 after its file's stem (`Method: file_name_stem`), with no `ai_*` property, a
@@ -58,8 +60,8 @@ after its file's stem (`Method: file_name_stem`), with no `ai_*` property, a
 model's `comment` has `Source: <model file> | Field: ...` entries; a stub's
 has none. With `--enrich` a stub can carry a `comment` from the README
 (`Source: README.md | Method: yaml_frontmatter`) and is still unread. (A
-file-named entry with other properties was read: NumPy, fastText and
-classic PyTorch carry no model name, nor does an ONNX file whose
+file-named entry with other properties was read: NumPy, fastText, CRFsuite
+and classic PyTorch carry no model name, nor does an ONNX file whose
 `graph.name` is an exporter default.)
 Causes, each with its own stderr line:
 
@@ -76,7 +78,8 @@ Causes, each with its own stderr line:
   installed; ...` -- install `pitloom[ai]` or the format's extra.
 - A bound inside the file (pickle size/opcodes/decimal number length, GGUF
   header, Safetensors header, `.npy` header, archive member size, ZIP entry
-  count or central-directory size): `WARNING: ... metadata not read`.
+  count or central-directory size, CRFsuite label count or labels chunk
+  size): `WARNING: ... metadata not read`.
 - A file with a model's header that the reader cannot parse (truncated,
   corrupt): `WARNING: ... failed to extract metadata; <error>`.
 

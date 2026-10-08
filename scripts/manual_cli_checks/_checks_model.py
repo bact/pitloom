@@ -18,6 +18,7 @@ from pathlib import Path
 from _fixtures import build_wheel, write_project
 from _harness import (
     DATETIME,
+    REPO_ROOT,
     Context,
     check,
     expect,
@@ -30,9 +31,14 @@ _TRUNCATED = "trunc.safetensors"
 _LFS = "lfs.gguf"
 _LFS_ONNX = "lfs.onnx"  # a suffix that admits any header, but not a pointer
 _LFS_BIN = "lfs.bin"  # names no format: a warning with no FORMAT=
-_POINTERS = (_LFS, _LFS_BIN, _LFS_ONNX)
+_LFS_MODEL = "x.model"  # a suffix shared with SentencePiece: magic required
+_POINTERS = (_LFS, _LFS_BIN, _LFS_ONNX, _LFS_MODEL)
+_CRF_TRUNCATED = "trunc.crfsuite"
 _FILE = re.compile(r"FILE=(\S+): ")
 _POINTER = b"version https://git-lfs.github.com/spec/v1\noid sha256:00\nsize 1\n"
+_CRFSUITE = (
+    REPO_ROOT / "tests" / "fixtures" / "aimodels" / "crfsuite" / "complete.crfsuite"
+)
 _COMMON = ["--creation-datetime", DATETIME, "--offline"]
 
 
@@ -54,18 +60,20 @@ def _ai_packages(path: Path) -> int:
 
 @check("17", "model outcome parity: project, wheel, loom model list alike")
 def check_model_outcome_parity(ctx: Context) -> None:
-    """A truncated Safetensors file (a model whose read fails) and Git LFS
-    pointers named ``.gguf``, ``.onnx`` and ``.bin`` (not models) in one
-    project. ``project`` and ``wheel`` list the truncated file (an
-    ``ai_AIPackage`` besides the good model's) and not the pointer; each warns
-    once per file, with the same text. ``loom model`` writes the truncated
-    file's SBOM with that same warning and exit 0, and refuses a pointer with
-    one ``ERROR:`` and exit 1, nothing written."""
+    """A truncated Safetensors file and a truncated CRFsuite file (models
+    whose read fails) and Git LFS pointers named ``.gguf``, ``.onnx``, ``.bin``
+    and ``.model`` (not models) in one project. ``project`` and ``wheel`` list
+    each truncated file (an ``ai_AIPackage`` besides the good model's) and no
+    pointer; each warns once per file, with the same text. ``loom model``
+    writes a truncated file's SBOM with that same warning and exit 0, and
+    refuses a pointer with one ``ERROR:`` and exit 1, nothing written."""
     project = write_project(ctx.work / "proj")
     models = project / "demo"
     header = b'{"a": 1}'
     truncated = struct.pack("<Q", 200) + header  # declares 200 bytes, has 8
     (models / _TRUNCATED).write_bytes(truncated)
+    crf = _CRFSUITE.read_bytes()
+    (models / _CRF_TRUNCATED).write_bytes(crf[:-5])  # header size past the end
     for pointer in _POINTERS:
         (models / pointer).write_bytes(_POINTER)
     wheel = build_wheel(project, ctx.work / "dist")
@@ -81,15 +89,15 @@ def check_model_outcome_parity(ctx: Context) -> None:
     for surface, result in warnings.items():
         by_file = _warnings_by_file(result.stderr_lines)
         expect(
-            sorted(by_file) == sorted([*_POINTERS, _TRUNCATED])
+            sorted(by_file) == sorted([*_POINTERS, _TRUNCATED, _CRF_TRUNCATED])
             and all(len(v) == 1 for v in by_file.values()),
             f"{surface}: want one WARNING per file, got {by_file}",
         )
         expect(by_file == expected, f"{surface}: warnings differ from project's")
-        # The good model and the truncated one: not the pointer.
+        # The good model and the two truncated ones: not the pointers.
         expect(
-            _ai_packages(outputs[surface]) == 2,
-            f"{surface}: {_ai_packages(outputs[surface])} ai_AIPackage, want 2",
+            _ai_packages(outputs[surface]) == 3,
+            f"{surface}: {_ai_packages(outputs[surface])} ai_AIPackage, want 3",
         )
     for pointer in _POINTERS:
         expect(
@@ -98,13 +106,17 @@ def check_model_outcome_parity(ctx: Context) -> None:
         )
 
     single = ctx.work / "m.json"
-    ok = run_ok("model", str(models / _TRUNCATED), "-o", str(single), *_COMMON)
-    by_file = _warnings_by_file(ok.stderr_lines)
-    expect(
-        by_file == {_TRUNCATED: expected[_TRUNCATED]},
-        f"loom model: warnings {by_file} differ from the scan's",
-    )
-    expect(_ai_packages(single) == 1, "loom model: want one ai_AIPackage")
+    for truncated_name in (_TRUNCATED, _CRF_TRUNCATED):
+        ok = run_ok("model", str(models / truncated_name), "-o", str(single), *_COMMON)
+        by_file = _warnings_by_file(ok.stderr_lines)
+        expect(
+            by_file == {truncated_name: expected[truncated_name]},
+            f"loom model {truncated_name}: warnings {by_file} differ from the scan's",
+        )
+        expect(
+            _ai_packages(single) == 1,
+            f"loom model {truncated_name}: want one ai_AIPackage",
+        )
 
     refused = ctx.work / "lfs.json"
     for pointer in _POINTERS:

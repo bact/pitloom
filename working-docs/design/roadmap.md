@@ -57,9 +57,13 @@ built wheel (fixed, #287).
 
 ### 0.21.0
 
-- [ ] **CRFsuite models** (next after #292; PyThaiNLP bundles five):
-  `lCRF` magic on `.crfsuite`/`.model`, labels and counts, stdlib-only
-  reader in `formats/`. See [crfsuite-support.md](crfsuite-support.md).
+- [ ] **Same AI model, same id on every surface** (next after the CRFsuite
+  PR): `loom model`, `loom enrich` and `loom id generate` use the project
+  scan's name lookup, so enrichment cannot hit the wrong model. See
+  [known-bugs.md](known-bugs.md#p0-in-0210).
+- [x] **CRFsuite models** (#293, provisional): `lCRF` magic on
+  `.crfsuite`/`.model`, stdlib-only bounded reader. See
+  [crfsuite-support.md](crfsuite-support.md).
 - [ ] **Registry v3**: one typed table, content gate chosen at lookup;
   closes the P1 registry bugs. See [id-registry-v3.md](id-registry-v3.md),
   [id-registry-v3-rollout.md](id-registry-v3-rollout.md).

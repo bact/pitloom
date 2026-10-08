@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-07
+# Last-Modified: 2026-10-08
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -9,11 +9,11 @@ name: sbom-generate
 description: >-
   Generate an SPDX 3 SBOM or AIBOM with Pitloom for a Python project, sdist,
   built wheel, installed environment, local AI model file (GGUF, ONNX,
-  PyTorch/PT2, Safetensors, Keras, HDF5, NumPy, fastText) or Hugging Face
-  model. Triggers: "generate/create/give me an SBOM/BOM", "gen SBOM of this
-  model", "SBOM of this project", "SPDX 3 document", "software bill of
-  materials", "dependency inventory", "AIBOM", "document this model's
-  provenance". Also owns
+  PyTorch/PT2, Safetensors, Keras, HDF5, NumPy, fastText, CRFsuite) or
+  Hugging Face model. Triggers: "generate/create/give me an SBOM/BOM", "gen
+  SBOM of this model", "SBOM of this project", "SPDX 3 document", "software
+  bill of materials", "dependency inventory", "AIBOM", "document this
+  model's provenance". Also owns
   combined asks, generating first, then handing off to sbom-enrich:
   "generate SBOM and enrich it", "complete/full SBOM", "SBOM meeting CISA
   2026/NTIA/G7 minimum elements". Also PEP 770 wheel embedding ("embed the

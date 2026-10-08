@@ -139,6 +139,24 @@ Crashes, broken contracts and small mappings.
   pointer's SHA-256 and no warning. Decided: one shared detector, one
   summary `WARNING:` per run, one line per file at `--debug`; lands
   before registry v3, which reuses it for loom `path=`.
+- [ ] **Same AI model gets different ids per surface; enrichment can hit
+  the wrong model (S-M).** Found in the #292 review: `loom model` looks an
+  AI model up in the registry by file stem only. `_model_generator.py`
+  (single-model SBOM and `enrich_model()`) passes `model_path.stem`, while project scans
+  try name, then path, then stem (`_ai_model_entity_candidates`), so an id
+  imported from a model SBOM whose package carries its own name never
+  hits for `loom model`. Reuse the candidates helper. Related: `loom id
+  generate` derives the stem itself (`id_registry/_registry.py`, `Path.stem`)
+  rather than through `AiModelMetadata.file_name_stem`; add a drift-guard
+  test or share it. Reproduced end to end (#292 black-box round, same on
+  `main`): `dup_named.onnx` (graph name `dup_stem`) and `dup_stem.onnx`
+  (no name) in one project; `id generate` keys both by stem, the project
+  scan gives `dup_named.onnx` the id of `dup_stem`, `dup_stem.onnx` gets a
+  fresh id each run (never written back, so the collision warning repeats),
+  and `loom enrich dup_stem.onnx` targets the package the project SBOM gave
+  `dup_named.onnx` -- a merged fragment enriches the wrong model. The
+  warning also labels `dup_named.onnx` by its own name `dup_stem`, so it
+  reads as a file colliding with itself; name the file too.
 
 ## P1: fixed by registry v3 in 0.21.0 (decided, in its spec)
 
@@ -361,23 +379,6 @@ Crashes, broken contracts and small mappings.
   18 MB SBOM (the name appears several times); no crash, deterministic.
   Same for any format whose name comes from the file. Cap the name (with
   a `WARNING:`) where `AiModelMetadata.resolve_name()` returns it.
-- [ ] **`loom model` looks an AI model up in the registry by file stem
-  only (S).** Found in the #292 review: `_model_generator.py` (single-model
-  SBOM and `enrich_model()`) passes `model_path.stem`, while project scans
-  try name, then path, then stem (`_ai_model_entity_candidates`), so an id
-  imported from a model SBOM whose package carries its own name never
-  hits for `loom model`. Reuse the candidates helper. Related: `loom id
-  generate` derives the stem itself (`id_registry/_registry.py`, `Path.stem`)
-  rather than through `AiModelMetadata.file_name_stem`; add a drift-guard
-  test or share it. Reproduced end to end (#292 black-box round, same on
-  `main`): `dup_named.onnx` (graph name `dup_stem`) and `dup_stem.onnx`
-  (no name) in one project; `id generate` keys both by stem, the project
-  scan gives `dup_named.onnx` the id of `dup_stem`, `dup_stem.onnx` gets a
-  fresh id each run (never written back, so the collision warning repeats),
-  and `loom enrich dup_stem.onnx` targets the package the project SBOM gave
-  `dup_named.onnx` -- a merged fragment enriches the wrong model. The
-  warning also labels `dup_named.onnx` by its own name `dup_stem`, so it
-  reads as a file colliding with itself; name the file too.
 - [ ] **AI model `framework` provenance cites a value the SBOM never
   shows (S).** Found in the #292 black-box round, same on `main`: ONNX
   `producer_name`/`producer_version` land in `format_info.framework*` and
@@ -389,6 +390,41 @@ Crashes, broken contracts and small mappings.
   2.0" gives a `SimpleLicensingText` holding the name, not `Apache-2.0`; a
   URL is kept as text, not a reference. Check against how the other
   readers and `license-rules.md` normalise a stated name.
+- [ ] **Model provenance cites fields the SBOM never shows (S-M).** Found
+  in the CRFsuite review (same for fastText and others): `framework`,
+  `format_version` and `properties.*` get provenance in the package comment
+  and fields annotation, but nothing in `assemble/` emits those fields, and
+  a shipped model skips the artifact-metadata annotation under
+  `preserve-source-metadata=auto`, so the values (e.g. CRFsuite labels
+  beyond the 20 in the description) appear nowhere. Either emit them or
+  drop their provenance.
+- [ ] **No test that every `Method:` value in `src/` has a row in
+  `docs/metadata-provenance.md` (S).** The table already lacks
+  `resolved_lockfile`, `flit_dynamic_metadata` and `pdm_dynamic_version`.
+- [ ] **`loom model` on a 100-byte truncated `lid.176.ftz` ran to about
+  20 GB RSS (S).** Native fastText reader on a hostile header, found in the
+  CRFsuite review; the metadata-only fastText reader in
+  [model-metadata-readers.md](model-metadata-readers.md) closes it.
+- [ ] **A `properties` list has a different type per format in the
+  artifact-metadata annotation (S).** Found in the CRFsuite sweep: fastText
+  has no `raw_metadata`, so the annotation copies `properties["labels"]` as
+  a JSON-array *string* (a string inside JSON), while CRFsuite's
+  `raw_metadata` gives a real array. Give fastText a `raw_metadata` that
+  keeps its other fields, or decode JSON-array properties in
+  `_source_metadata_blob()`.
+- [ ] **A model label or name with a bidi override reaches the SBOM raw
+  (S).** Found in the CRFsuite black-box round: control characters are
+  JSON-escaped, but U+202E and similar bidi controls in a label are written
+  as is into the generated description (GGUF/ONNX names and descriptions
+  behave the same). Decide one policy for untrusted model text shown to
+  readers.
+- [ ] **Over-cap CRFsuite model keeps only its name (S).** A model with more
+  than 1,000 labels (or a hostile `num_labels`) gets the stub entry, though
+  the header counts are cheap to read. Same stub rule as every format;
+  revisit with the metadata-only readers.
+- [ ] **Empty `x.crfsuite` and empty `x.model` give different messages from
+  `loom model` (cosmetic).** `file is empty` vs `not an AI model file of a
+  supported format`; the shared-suffix rule explains it.
 - [ ] **Licence provenance can cite a property key the entry cap
   dropped (S).** Found in the #292 black-box round: with 1,500
   `metadata_props` and `model_license` last, the licence is still read

@@ -6,7 +6,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # AI model fixtures
 
-The `fasttext/`, `gguf/`, `hdf5/`, `keras/`, `numpy/`, `onnx/`,
+The `crfsuite/`, `fasttext/`, `gguf/`, `hdf5/`, `keras/`, `numpy/`, `onnx/`,
 `pytorch/`, `pytorch_pt2/`, and `safetensors/` subdirectories
 contain small AI model files used as integration test fixtures.
 The files are committed to the repository because they are small enough
@@ -41,6 +41,8 @@ subprocess with a timeout. Excluded from the sdist.
 
 | Path | Format | Task | License |
 | :--- | :--- | :--- | :--- |
+| `crfsuite/complete.crfsuite` | CRFsuite | Generated sequence labeller: 5 labels (Thai, space, punctuation), 14 attributes | CC0-1.0 |
+| `crfsuite/minimal.model` | CRFsuite (`.model` suffix) | Generated sequence labeller: 2 labels, 2 attributes | CC0-1.0 |
 | `fasttext/lid.176.ftz` | fastText | Language identification | CC-BY-SA-3.0 |
 | `fasttext/sentimentdemo.bin` | fastText | Text sentiment classification | CC0-1.0 |
 | `gguf/ggml-vocab-bert-bge.gguf` | GGUF | Tokenizer vocabulary - BERT BGE (vocab only) | MIT |
@@ -71,6 +73,7 @@ subprocess with a timeout. Excluded from the sdist.
 
 One file per format, with source, licence and notable extracted metadata:
 
+- [CRFsuite](details/crfsuite.md) (`crfsuite/`)
 - [fastText](details/fasttext.md) (`fasttext/`)
 - [GGUF](details/gguf.md) (`gguf/`)
 - [HDF5 (legacy Keras)](details/hdf5.md) (`hdf5/`)

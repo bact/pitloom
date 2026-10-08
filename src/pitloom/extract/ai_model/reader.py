@@ -5,7 +5,7 @@
 
 """Extractor for model metadata from AI model files.
 
-Supports fastText, GGUF, HDF5, Keras, NumPy, ONNX, PyTorch,
+Supports CRFsuite, fastText, GGUF, HDF5, Keras, NumPy, ONNX, PyTorch,
 PyTorch PT2, and Safetensors formats.
 
 Some formats require optional dependencies to read metadata:
@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.extract.ai_model.crfsuite import read_crfsuite
 from pitloom.extract.ai_model.fasttext import read_fasttext
 from pitloom.extract.ai_model.gguf import read_gguf
 from pitloom.extract.ai_model.hdf5 import read_hdf5
@@ -84,6 +85,7 @@ class FormatInfo:
 # Safetensors has no fixed magic: it uses an 8-byte LE uint64 header-size
 # followed by an opening '{'; this heuristic lives in _match_magic.
 REGISTRY: tuple[FormatInfo, ...] = (
+    FormatInfo(format=AiModelFormat.CRFSUITE, reader=read_crfsuite),
     FormatInfo(format=AiModelFormat.FASTTEXT, reader=read_fasttext),
     FormatInfo(format=AiModelFormat.GGUF, reader=read_gguf),
     FormatInfo(format=AiModelFormat.HDF5, reader=read_hdf5),

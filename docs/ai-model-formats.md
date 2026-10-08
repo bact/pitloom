@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -32,6 +32,7 @@ is not a model, and a Git LFS pointer is not one under any suffix; see
 
 | Format | Extension(s) | Install extra |
 | :----- | :----------- | :------------- |
+| CRFsuite | `.crfsuite`, `.model` (only with the `lCRF` magic) | (none -- stdlib only) |
 | fastText | `.ftz`, `.bin` | `pip install fasttext-community` |
 | GGUF | `.gguf` | `pip install gguf` |
 | HDF5 / Keras v1-v2 | `.h5`, `.hdf5` | `pip install h5py` |
@@ -55,6 +56,14 @@ as its element count only, property `<key>.length` (for example
 `tokenizer.ggml.tokens.length`); in the verbatim artifact-metadata annotation
 the key holds `{"length": N, "type": "<element type>"}` (`type` is left out
 for an element code the format does not define).
+
+A CRFsuite model is read by Pitloom itself (header and label strings only;
+never the feature weights or the attribute strings, which come from the
+training text). Its SBOM entry has type of model `conditional random
+field` and a description Pitloom generates from the labels. When the
+verbatim artifact-metadata annotation is preserved
+(`preserve-source-metadata`), it also holds all the labels, in the order
+training first saw them, and the label, attribute and feature counts.
 
 Size and header limits, the wheel-scan gate and the fields a format cannot
 carry are in [AI model scan limits](ai-model-scan-limits.md).

@@ -200,6 +200,8 @@ exclude = [
     ".gitignore",
     ".markdownlint.json",
     "AGENTS.md",
+    "tests/fixtures/aimodels/crfsuite/*.crfsuite",
+    "tests/fixtures/aimodels/crfsuite/*.model",
     "tests/fixtures/aimodels/fasttext/*.bin",
     "tests/fixtures/aimodels/fasttext/*.ftz",
     "tests/fixtures/aimodels/gguf/*.gguf",

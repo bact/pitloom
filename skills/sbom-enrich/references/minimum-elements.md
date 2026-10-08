@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -111,7 +111,7 @@ concern, out of scope), Machine-Processable Data (SPDX 3 JSON-LD -- covered).
 | Model version | `software_packageVersion`, when the format/source carries one (GGUF, ONNX `model_version`, PT2 extra file, Safetensors `modelspec.version`, Hugging Face) | conditional -- verify per model type |
 | Model timestamp | `CreationInfo.created` on the AI package's own `CreationInfo` | covered |
 | Model producer | none -- the Hugging Face Hub `author` is captured into `extra_data` only, never emitted as an `Agent` | **gap** |
-| Model description | `ai_AIPackage.description`, when the format/source carries one (GGUF, ONNX, PT2, Safetensors, Hugging Face; distinct from the *main* `software_Package.description`) | conditional -- verify per model type |
+| Model description | `ai_AIPackage.description`, when the format/source carries one (GGUF, ONNX, PT2, Safetensors, Hugging Face; distinct from the *main* `software_Package.description`). A CRFsuite model's description is Pitloom's own summary of its labels (`Method: generated_from_labels`), not the producer's | conditional -- verify per model type; a `generated_from_labels` description is a **gap** for a producer-written one |
 | Model hash value / algorithm | none -- `verifiedUsing` is not set on `ai_AIPackage` (`_build_ai_package`), even though the shipped model file's own `software_File` carries a SHA-256 and is linked by `contains` | **gap** -- do not recompute; the hash is already in the SBOM on the linked `software_File`, so a fragment can reuse it. A core wiring fix is planned, separate from this skill |
 | Model properties (architecture, parameter count, etc.) | `ai_typeOfModel` (type + architecture) and `ai_hyperparameter` (list of `DictionaryEntry`, incl. quantization) | covered for architecture/type/hyperparameters; parameter count is a **gap** (not promoted to its own field, even where a format's raw metadata exposes it) |
 | Model input-output properties | `ai_informationAboutApplication` (JSON string) | covered when the model format's extractor populates it; verify per model type |

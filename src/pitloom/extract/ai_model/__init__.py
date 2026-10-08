@@ -5,7 +5,7 @@
 
 """Extractor for model metadata from AI model files.
 
-Supports fastText, GGUF, HDF5, Keras, NumPy, ONNX, PyTorch,
+Supports CRFsuite, fastText, GGUF, HDF5, Keras, NumPy, ONNX, PyTorch,
 PyTorch PT2, and Safetensors formats.
 
 Per-format extractors in this subpackage are internal implementation

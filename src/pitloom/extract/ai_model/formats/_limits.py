@@ -26,13 +26,24 @@ class Limits:
             the default interpreter configuration. Real model pickles use
             the binary integer opcodes; a protocol 0 integer of a model
             has at most ~20 digits.
+        max_crfsuite_labels: Most labels in one CRFsuite model. Real
+            models hold a few to a few dozen.
+        max_crfsuite_label_bytes: Largest CRFsuite labels chunk, which is
+            read whole: its hash tables and every label string.
     """
 
     max_pickle_opcodes: int = 250_000
     max_pickle_decimal_digits: int = 4300
+    max_crfsuite_labels: int = 1000
+    max_crfsuite_label_bytes: int = 1 << 20
 
     def __post_init__(self) -> None:
-        for name in ("max_pickle_opcodes", "max_pickle_decimal_digits"):
+        for name in (
+            "max_pickle_opcodes",
+            "max_pickle_decimal_digits",
+            "max_crfsuite_labels",
+            "max_crfsuite_label_bytes",
+        ):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, int) or value < 1:
                 raise ValueError(f"Limits.{name} must be an int of at least 1")

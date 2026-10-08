@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -22,6 +22,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- CRFsuite models (`.crfsuite`, or `.model` with the `lCRF` magic): labels,
+  counts and a label-based description, from a bounded header reader
+  ([#294])
+
+### Changed
+
+- fastText `properties["labels"]` is a JSON array string, not comma-joined
+  ([#294])
+
 ### Fixed
 
 - An unnamed AI model, or an ONNX exporter-default `graph.name` (`torch_jit`,
@@ -33,6 +44,7 @@ and this project adheres to
   a broken licence database: requires `licenseid` 0.4.3 ([#292])
 
 [#292]: https://github.com/bact/pitloom/pull/292
+[#294]: https://github.com/bact/pitloom/pull/294
 
 ## [0.20.1] - 2026-10-07
 

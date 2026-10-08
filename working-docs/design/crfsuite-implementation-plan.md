@@ -32,7 +32,7 @@ See also: [model-metadata-readers.md](model-metadata-readers.md) (the
 
 | Step | What | Tier | Depends on |
 |---|---|---|---|
-| 0 | fastText `properties["labels"]` as a JSON array (own small PR, first) | S | -- |
+| 0 | fastText `properties["labels"]` as a JSON array (first commit of the same PR) | S | -- |
 | 1 | Fixtures and generator | S | -- |
 | 2 | `formats/crfsuite.py` reader | L | 1 |
 | 3 | Adversarial tests for the reader | L | 2 |
@@ -49,7 +49,7 @@ The verified on-disk layout (header, chunk order, `FEAT`, `CQDB` records,
 [crfsuite-support.md](crfsuite-support.md#traps); read both first. Steps
 below cite traps by number.
 
-## Step 0: fastText labels as a JSON array (S, own PR)
+## Step 0: fastText labels as a JSON array (S)
 
 Decided 2026-10-08: every reader that records a label list in
 `properties` writes a JSON array string, never a comma-joined one (a label
@@ -204,11 +204,11 @@ check that bounds the read):
 | 6 | FEAT tag; `FEAT.size == 12 + 20 * num`; ends at or before `off_labels` | `Malformed` |
 | 7 | `num_labels <= limits.max_crfsuite_labels` | `LimitExceeded` |
 | 8 | labels CQDB: tag, `byteorder == 0x62445371`, `flag == 0` | `Malformed` / `UnsupportedVersion` for byte order and flag |
-| 9 | `24 <= cqdb.size <= off_attrs - off_labels` and `cqdb.size <= limits.max_crfsuite_label_bytes` | `Malformed` / `LimitExceeded` |
-| 10 | `bwd_size == num_labels`; if non-zero, `2072 <= bwd_offset` and `bwd_offset + 4 * n <= cqdb.size` | `Malformed` |
+| 9 | `2072 <= cqdb.size <= off_attrs - off_labels` (the writer pads even an empty CQDB to its first record) and `cqdb.size <= limits.max_crfsuite_label_bytes` | `Malformed` / `LimitExceeded` |
+| 10 | `bwd_size == num_labels`; if non-zero, `2072 <= bwd_offset` and `bwd_offset + 4 * n <= cqdb.size`. Then the 256 hash-table refs: `sum(num // 2) == bwd_size` and every non-empty table `2072 <= offset`, `offset + 8 * num <= cqdb.size` (CRFsuite sizes its backward array from the refs and reads past its buffers, or crashes, when they lie) | `Malformed` |
 | 11 | per id: `2072 <= rec_off <= cqdb.size - 8`; record id equals its index; `1 <= ksize`; key ends inside the chunk; last key byte is NUL | `Malformed` |
-| 12 | attributes CQDB header: tag, byte order, `bwd_size == num_attrs`, chunk ends at or before `off_labelrefs` | `Malformed` |
-| 13 | LFRF and AFRF tags; `AFRF.num == num_attrs` | `Malformed` |
+| 12 | attributes CQDB header: tag, byte order, `2072 <= size <= off_labelrefs - off_attrs`, `bwd_size == num_attrs`, the backward array inside the chunk (as 10), and `off_attrrefs + 12 + 4 * num_attrs <= header.size`. Only the labels CQDB's hash-table refs are checked; the attributes chunk's are not, as its strings are never read | `Malformed` |
+| 13 | LFRF and AFRF tags; `AFRF.num == num_attrs`; `LFRF` offset array fits before `AFRF` (`LFRF.num` is `num_labels + 2` in every file seen, so it is bounded, not compared) | `Malformed` |
 
 Core of check 11 (the part most likely to be written wrong):
 
@@ -238,7 +238,7 @@ reading the PyThaiNLP files is a manual check, not a test (no licence).
 
 ## Step 3: adversarial tests (L)
 
-`tests/extract/ai_model/formats/test_crfsuite_hostile.py`. Build each case
+`tests/extract/ai_model/formats/test_crfsuite_adversarial.py`. Build each case
 from `complete.crfsuite` bytes in memory with a small patch helper, one
 `parametrize` entry per check in the table above, short `ids=`:
 
@@ -313,8 +313,8 @@ def read_crfsuite(model_path: Path) -> AiModelMetadata:
 ```
 
 `_LIMITS = Limits(max_crfsuite_labels=MAX_MODEL_ENTRIES)`. An `OSError`
-propagates as in the other readers (check what `safetensors.py` does and
-match it).
+becomes `ValueError("Failed to read CRFsuite file ...")`, as in the other
+readers (`safetensors.py`, `gguf.py`, ...).
 
 Field mapping:
 

@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -119,7 +120,7 @@ def _extract_fasttext_outputs(
         return properties, outputs
 
     if labels:
-        properties["labels"] = ",".join(labels)
+        properties["labels"] = json.dumps(list(labels), ensure_ascii=False)
         outputs = [{"name": "label_probabilities", "shape": [len(labels)]}]
     return properties, outputs
 

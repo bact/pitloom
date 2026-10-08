@@ -32,6 +32,7 @@ from pitloom.assemble._model_generator import (
     project_document_id,
 )
 from pitloom.assemble.spdx3.fragments import FragmentMergeError, merge_fragments
+from pitloom.core.ai_metadata import model_file_suffixes
 from pitloom.core.build_options import NON_PROJECT_TARGET_REASON, BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides
@@ -77,21 +78,7 @@ __all__ = [
     "target_resolves_to_project",
 ]
 
-_MODEL_FILE_EXTENSIONS = (
-    ".gguf",
-    ".safetensors",
-    ".onnx",
-    ".pt",
-    ".pth",
-    ".pt2",
-    ".h5",
-    ".hdf5",
-    ".keras",
-    ".npy",
-    ".npz",
-    ".bin",
-    ".ftz",
-)
+_MODEL_FILE_EXTENSIONS = tuple(sorted(model_file_suffixes()))
 
 
 def _classify_target(target: Path | str) -> str:

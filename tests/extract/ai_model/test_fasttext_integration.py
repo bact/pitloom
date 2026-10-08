@@ -15,6 +15,7 @@ See also: test_fasttext_mocked.py for the mocked fasttext model unit tests.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -77,8 +78,7 @@ def test_sentiment_demo_loss(sentiment_demo_metadata: AiModelMetadata) -> None:
 
 
 def test_sentiment_demo_labels(sentiment_demo_metadata: AiModelMetadata) -> None:
-    labels_str = sentiment_demo_metadata.properties["labels"]
-    labels = labels_str.split(",")
+    labels = json.loads(sentiment_demo_metadata.properties["labels"])
     assert set(labels) == {"__label__pos", "__label__neu", "__label__neg", "__label__q"}
 
 
@@ -152,8 +152,7 @@ def test_lid_176_loss(lid_176_metadata: AiModelMetadata) -> None:
 
 
 def test_lid_176_labels(lid_176_metadata: AiModelMetadata) -> None:
-    labels_str = lid_176_metadata.properties["labels"]
-    labels = labels_str.split(",")
+    labels = json.loads(lid_176_metadata.properties["labels"])
     assert len(labels) == 176
     assert "__label__en" in labels
     assert "__label__de" in labels
