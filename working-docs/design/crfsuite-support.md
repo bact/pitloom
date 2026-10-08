@@ -10,7 +10,8 @@ SPDX-License-Identifier: CC0-1.0
 
 Status: designed, not built. Next AI-format work after #292 (ONNX names
 and licences), ahead of the PyTorch metadata-only reader. Summarised in
-[roadmap.md](roadmap.md) as one bullet linking here.
+[roadmap.md](roadmap.md) as one bullet linking here. Step-by-step plan:
+[crfsuite-implementation-plan.md](crfsuite-implementation-plan.md).
 
 See also: [model-metadata-readers.md](model-metadata-readers.md) (the
 stdlib-only `formats/` subpackage this reader is built in),
@@ -46,7 +47,7 @@ Little-endian throughout. A 48-byte header, `struct` `<4sI4sIIIIIIIII`:
 | 4 | size | equals the file size |
 | 8 | type | `FOMC` (first-order Markov CRF, the only type CRFsuite writes) |
 | 12 | version | 100 |
-| 16 | num_features | 0 (the real count is in the `FEAT` chunk) |
+| 16 | num_features | always 0: the writer never sets it; the count is `FEAT.num` |
 | 20 | num_labels | as in the table |
 | 24 | num_attrs | as in the table |
 | 28-44 | offsets of `FEAT`, labels, attributes, `LFRF`, `AFRF` | ascending, inside the file |
@@ -85,9 +86,13 @@ Little-endian throughout. A 48-byte header, `struct` `<4sI4sIIIIIIIII`:
    the labels CQDB (every label string); the attributes CQDB header
    (count only). Never the weights, the attribute strings, `LFRF` or
    `AFRF`.
-4. **Labels go to the source-metadata properties and the description.**
-   Properties: `labels` (comma-joined), `num_labels`, `num_attributes`,
-   `num_features`, `type` (`FOMC`). `raw_metadata` keeps the label list
+4. **Labels go to the source-metadata properties and the description;
+   `outputs` follows fastText** (one `label_sequence` entry with the label
+   count, no strings).
+   Properties: `labels` (a JSON array: a label may contain `, `),
+   `num_labels`, `num_attributes`, `num_features`, `model_type` (`FOMC`).
+   fastText switches to the same JSON array first (decided 2026-10-08).
+   `raw_metadata` keeps the label list
    and counts with native types. Description, generated: e.g.
    `CRFsuite model with 26 labels: B-URL, I-URL, O, ...`, its provenance
    marked as generated, not read (`Method: ...`). Long label lists are cut
@@ -106,7 +111,8 @@ Little-endian throughout. A 48-byte header, `struct` `<4sI4sIIIIIIIII`:
 
 Same discipline as the other `formats/` readers:
 
-- `size` must equal the file size; every offset must lie inside the file
+- `size` must not exceed the file size (bytes past it are ignored, as
+  CRFsuite does); every offset must lie inside `size`
   and leave room for the chunk header it points to; chunk tags must match
   (`FEAT`, `CQDB`, `CQDB`).
 - `num_labels` must equal the labels CQDB's backward-array size, and both
@@ -138,19 +144,26 @@ Same discipline as the other `formats/` readers:
 
 ## Open questions
 
-- **Label encoding.** CRFsuite stores bytes; PyThaiNLP's are UTF-8. A
-  non-UTF-8 label: refuse the file as malformed, or decode with
-  `backslashreplace` and keep going?
-- **Description cut.** How many labels before `...` (the entry cap, or a
-  smaller display cap)? And a real description from a fragment or
-  catalogue must win over the generated one: confirm the merge order
-  treats a generated description as weak.
-- **Generator determinism.** Does python-crfsuite training give
-  byte-identical output across runs and platforms? If not, commit the
-  binaries and keep the script as the record of how they were made.
+Resolved by reading CRFsuite's source and running python-crfsuite 0.9.12
+(details in the implementation plan):
+
+- **Label encoding.** CRFsuite stores bytes; python-crfsuite cannot load a
+  non-UTF-8 label it wrote. Decode with `backslashreplace`, never refuse.
+- **Generator determinism.** Byte-identical across runs and processes on
+  one machine; across platforms unverified. Commit the binaries.
+- **Big-endian files.** None: CRFsuite writes little-endian byte by byte,
+  whatever the host.
+- **Description cut.** 20 labels, then `... (N more)`.
+
+Still open:
+
+- A real description from a fragment or catalogue must win over the
+  generated one: confirm the merge order treats it as weak.
 - **Personal-data hints.** Label names such as `B-PERSON`, `B-PHONE`,
   `B-EMAIL` suggest a model trained on personal data. Leave any
   `ai_useSensitivePersonalInformation` inference to the `sbom-enrich`
   Skill (fuzzy), not core.
-- **Big-endian files.** CRFsuite's writer is little-endian on every file
-  seen; no big-endian sample exists to test against.
+- SPDX 3.1 `additionalInformation`
+  ([spdx-3-model#1267](https://github.com/spdx/spdx-3-model/pull/1267),
+  open): a native dictionary for labels and counts, replacing the JSON in
+  `ai_informationAboutApplication`, once released.

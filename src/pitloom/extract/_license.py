@@ -355,9 +355,8 @@ def detect_license_from_text(
         return None
 
 
-#: Longer than any licence id: not looked up. ``licenseid`` builds a SQL
-#: ``LIKE`` pattern from the id, and SQLite refuses one over 50,000 bytes,
-#: which ``licenseid`` reports as a database failure.
+#: Longer than any licence id: not looked up, so a hostile id costs no
+#: database query.
 _MAX_LICENSE_ID_CHARS = 200
 
 

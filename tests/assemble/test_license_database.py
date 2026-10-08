@@ -138,7 +138,7 @@ _HOSTILE_IDS = [
     "MIT OR",
     "()",
     "M" * 100_000,
-    "Apache-" + "2" * 50_001 + "+",  # SQLite refuses so long a LIKE pattern
+    "Apache-" + "2" * 50_001 + "+",  # over SQLite's LIKE pattern limit
     "",
 ]
 
