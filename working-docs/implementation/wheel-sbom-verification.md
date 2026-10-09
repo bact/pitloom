@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-06
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -31,6 +31,31 @@ embed-wheel" section) -- the manual method documented per-release below
 still applies to a published PyPI wheel specifically (download + run
 against the real artifact), but the same location/schema logic no longer
 needs to be reasoned about by hand.
+
+## Verification of v0.20.2 (2026-10-09)
+
+Same method as v0.20.0 below, against `https://pypi.org/pypi/pitloom/0.20.2/json`
+and the `v0.20.2` GitHub Release (publish run succeeded in 2m38s).
+`python -m sigstore verify github` from `sigstore` 4.5.0 in a scratch venv.
+
+### Findings
+
+- PyPI SHA-256: wheel `54710373...ce1b92ba`, sdist `3ce9a846...d5239d77`;
+  the downloads and the release assets match them byte for byte. The
+  release SBOM equals the embedded one (`7c84d896...40a52a6b`).
+- `verify-wheel` OK, `validate-wheel` valid, `spdx3-validate` schema and
+  SHACL pass; licence `Apache-2.0` on both copies.
+- 240 `software_File`: the 223 payload files plus 17 directories (the 17
+  without a hash are `pitloom`, `pitloom/enrich`, ...). 0 hash mismatches
+  against the bytes, 0 against `RECORD`. Merkle root `c9e6a6e7...f44d1c`
+  recomputes exactly, by an independent script (payload members sorted by
+  name, `.dist-info` excluded, raw digests, unpaired node promoted).
+- Main package `pkg:pypi/pitloom@0.20.2`, version `0.20.2`.
+- All three `gh attestation verify` checks (signer workflow, source ref
+  `refs/tags/v0.20.2`) exit 0, and all three Sigstore bundles verify
+  (`OK`). `gh attestation verify` printed nothing in a non-interactive run,
+  so the exit code is the evidence.
+- A fresh venv `pip install pitloom==0.20.2` reports `Pitloom 0.20.2`.
 
 ## Verification of v0.20.0 (2026-10-05)
 
