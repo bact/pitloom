@@ -216,9 +216,10 @@ git clone https://github.com/bact/sentimentdemo.git
 loom project sentimentdemo
 ```
 
-The generated SBOM includes project metadata, dependencies with version
-constraints, SPDX relationships, creator/creation info and per-field metadata
-provenance. See a more complete example in [examples/](./examples/).
+The generated SBOM includes project metadata, dependencies (extras included)
+with version constraints, SPDX relationships, creator/creation info and
+per-field metadata provenance. See a more complete example in
+[examples/](./examples/).
 
 ## Learn more
 

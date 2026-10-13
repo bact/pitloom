@@ -13,3 +13,16 @@ trim_trailing_whitespace = true
 
 [*.py]
 indent_size = 4
+
+# Vendored third-party files: keep their bytes as published.
+[tests/fixtures/{real-world-extras,real-world-locks}/**]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+
+[tests/fixtures/license-texts/*-LICENSE]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset

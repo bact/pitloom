@@ -1,0 +1,210 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs", "hatch-fancy-pypi-readme"]
+build-backend = "hatchling.build"
+
+[project]
+name = "service-identity"
+dynamic = ["version", "readme"]
+authors = [{ name = "Hynek Schlawack", email = "hs@ox.cx" }]
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.8"
+description = "Service identity verification for pyOpenSSL & cryptography."
+keywords = ["cryptography", "openssl", "pyopenssl"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Security :: Cryptography",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+dependencies = [
+    # Keep in-sync with tests/constraints/*.
+    "attrs>=19.1.0",
+    "cryptography>=47",
+]
+
+[project.urls]
+Documentation = "https://service-identity.readthedocs.io/"
+Changelog = "https://service-identity.readthedocs.io/en/stable/changelog.html"
+GitHub = "https://github.com/pyca/service-identity"
+Funding = "https://github.com/sponsors/hynek"
+Tidelift = "https://tidelift.com/subscription/pkg/pypi-service-identity?utm_source=pypi-service-identity&utm_medium=pypi"
+Mastodon = "https://mastodon.social/@hynek"
+Twitter = "https://twitter.com/hynek"
+
+[project.optional-dependencies]
+idna = ["idna"]
+
+
+[dependency-groups]
+tests = ["coverage[toml]>=5.0.2", "pytest"]
+docs = ["sphinx", "furo", "myst-parser", "sphinx-notfound-page", "pyOpenSSL"]
+mypy = ["mypy", "types-pyOpenSSL", "idna"]
+dev = [
+    { include-group = "tests" },
+    { include-group = "mypy" },
+    "pyOpenSSL",
+]
+
+
+[tool.hatch.version]
+source = "vcs"
+raw-options = { local_scheme = "no-local-version" }
+
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/markdown"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+text = "# Service Identity Verification for pyOpenSSL & *cryptography*\n"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.md"
+start-after = "spiel-begin -->\n"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+text = """
+
+
+## Release Information
+
+"""
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "CHANGELOG.md"
+pattern = "\n(###.+?\n)## "
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+text = """
+----
+
+[Complete Changelog →](https://service-identity.readthedocs.io/en/stable/changelog.html)
+"""
+
+
+[tool.pytest.ini_options]
+addopts = ["-ra", "--strict-markers", "--strict-config"]
+xfail_strict = true
+testpaths = "tests"
+filterwarnings = ["once::Warning"]
+norecursedirs = ["tests/typing"]
+
+
+[tool.coverage.run]
+parallel = true
+branch = true
+source = ["service_identity", "tests"]
+
+[tool.coverage.paths]
+source = ["src", ".tox/py*/**/site-packages"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_also = [
+    # allow defensive code
+    "^\\s*raise AssertionError\\b",
+    "^\\s*raise NotImplementedError\\b",
+    "^\\s*return NotImplemented\\b",
+    "^\\s*raise$",
+
+    # typing-related code
+    "^if (False|TYPE_CHECKING):",
+    ": \\.\\.\\.(\\s*#.*)?$",
+    "^ +\\.\\.\\.$",
+    "-> ['\"]?NoReturn['\"]?:",
+
+    # Tests
+    '^if pytest\.importorskip\(',
+]
+
+
+[tool.interrogate]
+omit-covered-files = true
+verbose = 2
+fail-under = 100
+whitelist-regex = ["test_.*"]
+
+
+[tool.ruff]
+src = ["src", "tests"]
+line-length = 79
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "A001",    # shadowing is fine
+    "ANN",     # Mypy is better at this
+    "ARG001",  # we don't control all args passed in
+    "ARG005",  # we need stub lambdas
+    "COM",     # ruff format takes care of our commas
+    "D",       # We prefer our own docstring style.
+    "E501",    # leave line-length enforcement to ruff format
+    "FIX",     # Yes, we want XXX as a marker.
+    "INP001",  # sometimes we want Python files outside of packages
+    "ISC001",  # conflicts with ruff format
+    "N801",    # some artistic freedom when naming things after RFCs
+    "N802",    # ditto
+    "PLR2004", # numbers are sometimes fine
+    "RUF001",  # leave my smart characters alone
+    "SLF001",  # private members are accessed by friendly functions
+    "TCH",     # TYPE_CHECKING blocks break autodocs
+    "TD",      # we don't follow other people's todo style
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "B018",    # "useless" expressions can be useful in tests
+    "PLC1901", # empty strings are falsey, but are less specific in tests
+    "PT005",   # we always add underscores and explicit name
+    "PT011",   # broad is fine
+    "S101",    # assert
+    "S301",    # I know pickle is bad, but people use it.
+    "SIM300",  # Yoda rocks in asserts
+    "TRY301",  # tests need to raise exceptions
+]
+"docs/pyopenssl_example.py" = [
+    "T201", # print is fine in the example
+    "T203", # pprint is fine in the example
+]
+
+[tool.ruff.lint.isort]
+lines-between-types = 1
+lines-after-imports = 2
+
+
+[[tool.ty.overrides]]
+include = ["tests"]
+rules.all = "ignore"
+
+
+[tool.mypy]
+strict = true
+pretty = true
+
+show_error_codes = true
+enable_error_code = ["ignore-without-code"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "tests.typing.*"
+ignore_errors = false
+
+[[tool.mypy.overrides]]
+module = "cryptography.*"
+follow_imports = "skip"

@@ -1,0 +1,188 @@
+[build-system]
+requires = ["setuptools>=77.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dulwich"
+description = "Python Git Library"
+readme = "README.rst"
+authors = [{name = "Jelmer Vernooij", email = "jelmer@jelmer.uk"}]
+license = "Apache-2.0 OR GPL-2.0-or-later"
+keywords = ["vcs", "git"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Operating System :: POSIX",
+    "Operating System :: Microsoft :: Windows",
+    "Topic :: Software Development :: Version Control",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "urllib3>=2.2.2",
+    'typing_extensions >=4.6.0 ; python_version < "3.12"',
+]
+dynamic = ["version"]
+license-files = ["COPYING"]
+
+[project.urls]
+Homepage = "https://www.dulwich.io/"
+Repository = "https://www.dulwich.io/code/"
+GitHub = "https://github.com/dulwich/dulwich"
+"Bug Tracker" = "https://github.com/dulwich/dulwich/issues"
+
+[project.optional-dependencies]
+fastimport = ["fastimport"]
+https = ["urllib3>=2.2.2"]
+pgp = ["gpg"]
+paramiko = ["paramiko"]
+colordiff = ["rich"]
+dev = [
+    "ruff==0.16.9",
+    "mypy==2.3.1",
+    "dissolve>=0.1.1",
+    "codespell==2.4.3",
+]
+hypothesis = ["hypothesis>=6"]
+merge = ["merge3"]
+fuzzing = ["atheris"]
+patiencediff = ["patiencediff"]
+range_diff = ["munkres"]
+aiohttp = ["aiohttp"]
+
+[project.scripts]
+dulwich = "dulwich.cli:main"
+
+[tool.mypy]
+strict = true
+disallow_untyped_defs = true
+disallow_untyped_calls = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+strict_equality = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "atheris"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "fastimport"
+ignore_missing_imports = true
+no_implicit_reexport = false
+disallow_untyped_calls = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "fastimport.*"
+ignore_missing_imports = true
+no_implicit_reexport = false
+disallow_untyped_calls = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "patiencediff"
+ignore_missing_imports = true
+no_implicit_reexport = false
+disallow_untyped_calls = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "merge3"
+ignore_missing_imports = true
+disallow_untyped_calls = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "sshsig.*"
+ignore_missing_imports = true
+disallow_untyped_calls = false
+warn_return_any = false
+
+[tool.setuptools]
+packages = [
+    "dulwich",
+    "dulwich.aiohttp",
+    "dulwich.cloud",
+    "dulwich.porcelain",
+    "dulwich.tests",
+]
+include-package-data = true
+zip-safe = false
+script-files = [
+    "bin/dul-receive-pack",
+    "bin/dul-upload-pack",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "dulwich.__version__"}
+
+[tool.ruff.lint]
+select = [
+    "ANN",
+    "D",
+    "E",
+    "F",
+    "I",
+    "PIE",
+    "UP",
+    "RSE",
+    "RUF",
+]
+ignore = [
+    "ANN001",
+    "ANN002",
+    "ANN003",
+    "ANN201",
+    "ANN202",
+    "ANN204",
+    "ANN205",
+    "ANN206",
+    "E501",  # line too long
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["D"]  # Don't require docstrings in tests
+"contrib/test_*.py" = ["D"]  # Don't require docstrings in tests
+"fuzzing/**/*.py" = ["D"]  # Don't require docstrings in fuzzing
+"examples/**/*.py" = ["D"]  # Don't require docstrings in examples
+"devscripts/**/*.py" = ["D"]  # Don't require docstrings in devscripts
+"docs/conf.py" = ["D"]  # Don't require docstrings in docs config
+"setup.py" = ["D"]  # Don't require docstrings in setup.py
+
+[tool.cibuildwheel]
+skip = ""
+environment = {PATH="$HOME/.cargo/bin:$PATH"}
+before-build = "pip install -U setuptools-rust && curl https://sh.rustup.rs -sSf | sh -s -- --profile=minimal -y && rustup show"
+
+[tool.cibuildwheel.linux]
+skip = "*-musllinux_*"
+archs = ["auto", "aarch64"]
+before-build = "pip install -U setuptools-rust && yum -y install libatomic && curl https://sh.rustup.rs -sSf | sh -s -- --profile=minimal -y && rustup show"
+
+[tool.cibuildwheel.android]
+before-build = "pip install -U setuptools-rust && curl https://sh.rustup.rs -sSf | sh -s -- --profile=minimal -y && rustup target add aarch64-linux-android x86_64-linux-android && rustup show"
+
+[tool.cibuildwheel.macos]
+archs = ["auto", "universal2", "x86_64", "arm64"]
+before-all = "rustup target add x86_64-apple-darwin aarch64-apple-darwin"
+skip = """\
+    cp*-macosx_universal2 \
+    """
+
+[[tool.cibuildwheel.overrides]]
+select = "*-macosx_x86_64"
+environment = {PATH="$HOME/.cargo/bin:$PATH", CARGO_BUILD_TARGET="x86_64-apple-darwin", ARCHFLAGS="-arch x86_64", MACOSX_DEPLOYMENT_TARGET="10.12"}

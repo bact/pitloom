@@ -60,7 +60,8 @@ This directory (like the rest of `tests/fixtures/`) is excluded from
 Pitloom's own published sdist and wheel
 (`pyproject.toml`'s `[tool.hatch.build.targets.sdist]`/`[tool.hatch.build.targets.wheel]`),
 to avoid redistributing vendored third-party source in a release
-artifact.
+artifact. `.gitattributes` (`-text`), `.editorconfig` and
+`.markdownlintignore` keep the vendored files byte for byte.
 
 ## Notable cases
 
@@ -124,6 +125,11 @@ artifact.
   lock has several real instances of this (`httpx`, `coverage`,
   `mkdocstrings`, `hishel`); `unearth`'s doesn't, so together they cover
   both the dedup path and the plain case.
+- **`findpython` and `dep-logic` are the no-extras PDM cases.** Their
+  `pyproject.toml` has `[tool.pdm.dev-dependencies]` only, no
+  `[project.optional-dependencies]`, so the lock pins the default group and
+  nothing for extras. Each also carries its real `README.md`, read because
+  its `pyproject.toml` declares `readme = "README.md"`.
 - **`home-assistant-core`'s `requirements.txt` is the reject case, not
   the accept case.** Its real root `requirements.txt` mixes exact pins
   (`aiodns==4.0.4`) with range specifiers (`certifi>=2021.5.30`) and a
@@ -154,6 +160,8 @@ artifact.
 | `uv.lock` | [pypa/abi3audit](https://github.com/pypa/abi3audit) | 0.0.26 | MIT | GitHub tag `v0.0.26` | GitHub tag `v0.0.26` |
 | `pdm.lock` | [pdm-project/pdm](https://github.com/pdm-project/pdm) | 2.29.0 | MIT | GitHub tag `2.29.0` | GitHub tag `2.29.0` |
 | `pdm.lock` | [frostming/unearth](https://github.com/frostming/unearth) | 0.18.3 | MIT | GitHub tag `0.18.3` | GitHub tag `0.18.3` |
+| `pdm.lock` | [frostming/findpython](https://github.com/frostming/findpython) | 0.8.0 | MIT | GitHub tag `0.8.0` | GitHub tag `0.8.0` |
+| `pdm.lock` | [pdm-project/dep-logic](https://github.com/pdm-project/dep-logic) | 0.7.2 | Apache-2.0 | GitHub tag `0.7.2` | GitHub tag `0.7.2` |
 | `Pipfile.lock` | [psf/requests-html](https://github.com/psf/requests-html) | 0.10.0 | MIT | GitHub tag `v0.10.0` (`setup.py`) | GitHub tag `v0.10.0` |
 | `Pipfile.lock` | [kennethreitz/responder](https://github.com/kennethreitz/responder) | 2.0.0 | Apache-2.0 | GitHub tag `v2.0.0` (`setup.py`) | GitHub tag `v2.0.0` |
 | `requirements.txt` (reject case) | [home-assistant/core](https://github.com/home-assistant/core) | 2026.9.0 | Apache-2.0 | GitHub tag `2026.9.0` | GitHub tag `2026.9.0` |

@@ -1,0 +1,66 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+
+[project]
+name = "mousebender"
+version = "2025.1"
+authors = [
+    { name = "Brett Cannon", email = "brett@python.org" },
+    { name = "Derek Keeler", email = "derek@suchcool.ca" },
+]
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+keywords = ["packaging", "Simple Repository API",
+            "PEP 503", "PEP 592", "PEP 658", "PEP 691", "PEP 700",
+            "PEP 714", "PEP 740", "PEP 792"]
+classifiers = [
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "License :: OSI Approved :: BSD License",
+]
+dynamic = ["description"]
+
+dependencies = ["packaging >= 20.9", "typing-extensions>=4.6.0"]
+
+[project.optional-dependencies]
+
+test = [
+    "pytest >= 6.0.1",
+    "importlib-resources >= 1.4.0",
+    "coverage[toml] >= 5.0.4",
+    "pytest-cov >= 2.8.1",
+]
+
+doc = [
+    "sphinx",
+    "tomli; python_version < '3.11'",
+    "furo",
+    "sphinx-copybutton",
+    "sphinx-prompt",
+    ]
+
+[project.urls]
+Documentation = "https://mousebender.readthedocs.io/"
+Changelog = "https://github.com/brettcannon/mousebender/releases"
+Repository = "https://github.com/brettcannon/mousebender"
+Issues = "https://github.com/brettcannon/mousebender/issues"
+"Fiscal support" = "https://github.com/sponsors/brettcannon/"
+
+[tool.coverage]
+run.source = ["mousebender/"]
+run.branch = true
+report.fail_under = 100
+
+[tool.isort]
+profile = "black"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "D", "B", "A", "ANN", "RUF", "I"]
+ignore = ["E501", "D203", "D213"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D", "ANN"]
+"noxfile.py" = ["ANN", "A001"]
+"docs/conf.py" = ["D100"]

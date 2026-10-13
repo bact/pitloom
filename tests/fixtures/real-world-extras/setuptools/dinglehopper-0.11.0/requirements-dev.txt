@@ -1,0 +1,14 @@
+pytest
+pytest-cov
+black
+pre-commit
+
+ruff
+pytest-ruff
+
+mypy
+types-lxml
+types-setuptools
+pytest-mypy
+
+liccheck
