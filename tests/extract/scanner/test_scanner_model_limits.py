@@ -69,8 +69,10 @@ def test_a_pickle_over_the_opcode_bound_is_one_warning_and_a_stub(
     assert model.format_info.model_format == AiModelFormat.PYTORCH
     assert not model.provenance
     (message,) = logged_warnings(caplog)
-    assert message.startswith("FORMAT=pytorch FILE=m.pt: pickle with more than 5 ")
-    assert message.endswith("metadata not read")
+    assert message == (
+        "FORMAT=pytorch FILE=m.pt: larger than the 5-opcode pickle cap;"
+        " metadata not read"
+    )
 
 
 def test_a_long_decimal_pickle_gives_the_same_sbom_whatever_the_digit_limit(
@@ -100,8 +102,8 @@ def test_a_long_decimal_pickle_gives_the_same_sbom_whatever_the_digit_limit(
         )
     assert runs[0] == runs[1]
     assert runs[0][1] == [
-        "FORMAT=pytorch FILE=demo/m.pt: pickle with a decimal number over 4300 "
-        "digits; metadata not read"
+        "FORMAT=pytorch FILE=demo/m.pt: larger than the 4300-digit pickle-decimal"
+        " cap; metadata not read"
     ]
 
 
@@ -123,9 +125,11 @@ def test_a_safetensors_header_over_the_cap_is_one_warning_and_a_stub(
         assert model.format_info.model_format == AiModelFormat.SAFETENSORS
         assert not model.provenance
     messages = logged_warnings(caplog)
-    assert len(messages) == 2
-    assert all(m.startswith("FORMAT=safetensors FILE=") for m in messages)
-    assert all("header of 50000000 bytes" in m for m in messages)
+    tail = ": larger than the 16777216-byte Safetensors-header cap; metadata not read"
+    assert messages == [
+        f"FORMAT=safetensors FILE={where}{tail}"
+        for where in ("m.safetensors", "demo/w.safetensors")
+    ]
 
 
 def test_a_gguf_over_the_count_bound_is_one_warning_and_a_stub(
@@ -154,7 +158,10 @@ def test_an_npz_over_the_header_bound_is_one_warning_and_a_stub_in_a_wheel(
     assert model.format_info.model_format == AiModelFormat.NUMPY
     assert not model.provenance
     (message,) = logged_warnings(caplog)
-    assert message.startswith("FORMAT=numpy FILE=demo/m.npz: .npy header of ")
+    assert message == (
+        "FORMAT=numpy FILE=demo/m.npz: larger than the 10000-byte .npy-header cap;"
+        " metadata not read"
+    )
 
 
 def test_an_npz_of_many_members_is_cut_to_the_entry_cap_with_one_warning(
@@ -167,7 +174,10 @@ def test_an_npz_of_many_members_is_cut_to_the_entry_cap_with_one_warning(
         f"a{i:04d}" for i in range(MAX_MODEL_ENTRIES)
     ]
     (message,) = logged_warnings(caplog)
-    assert "more than 1000 entries in inputs" in message
+    assert message == (
+        "FORMAT=numpy FILE=m.npz: larger than the 1000-entry per-field cap;"
+        " the first 1000 kept in inputs"
+    )
 
 
 # -- per-model entry caps ------------------------------------------------------
@@ -248,8 +258,11 @@ def test_inner_reads_are_charged_to_the_wheel_budget_and_the_warning_names_it(
     assert len(models) == 8
     assert sum(bool(m.provenance) for m in models) == 3
     (message,) = logged_warnings(caplog)
-    assert message.startswith("AI model scan: the per-wheel budget of 1048576 bytes")
-    assert "files in evil name-1.0.0-py3-none-any.whl is spent;" in message
+    assert message == (
+        "FILE=evil name-1.0.0-py3-none-any.whl: larger than the 1048576-byte"
+        " per-wheel model-scan budget cap; the model that would pass it and the"
+        " models not yet read are listed without metadata"
+    )
 
 
 @pytest.mark.skipif(_NO_CONTROL_CHAR_NAMES, reason="control characters in file names")

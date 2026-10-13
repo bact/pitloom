@@ -15,11 +15,13 @@ from collections.abc import Collection, Sequence
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._dep_scope import REQUIRED_EDGE
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import PhantomDependency
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
+from pitloom.extract.copyright_notices import COPYRIGHT_NOASSERTION
 
 __all__ = ["add_phantom_dependencies"]
 
@@ -70,7 +72,7 @@ def add_phantom_dependencies(
             dep_package.software_packageVersion = "unknown"
 
         dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
-        dep_package.software_copyrightText = "NOASSERTION"
+        dep_package.software_copyrightText = COPYRIGHT_NOASSERTION
         if dep.digest_sha256:
             dep_package.verifiedUsing = [sha256_hash(dep.digest_sha256)]
 
@@ -93,10 +95,12 @@ def add_phantom_dependencies(
             build_relationship(
                 from_id=main_package_spdx_id,
                 to_ids=[require_spdx_id(dep_package)],
-                rel_type=spdx3.RelationshipType.dependsOn,
+                rel_type=REQUIRED_EDGE.rel_type,
                 doc_name=doc_name,
                 doc_uuid=doc_uuid,
                 creation_info=creation_info,
+                rel_class=spdx3.LifecycleScopedRelationship,
+                scope=REQUIRED_EDGE.scope,
             ),
         )
 

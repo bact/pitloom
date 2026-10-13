@@ -177,10 +177,10 @@ def read_project(
             same "skip for a caller that discards the result" rationale,
             not one another's setting.
         quiet: Suppress this read's own ``WARNING:`` lines (default
-            ``False``). For a caller re-reading the same, already-read
-            *project_path* a second time and only interested in a setting
-            unrelated to the warning's cause -- never for a caller doing
-            the only read that will happen.
+            ``False``). For a caller whose result is discarded or whose
+            warnings another read of the same *project_path* emits (a
+            config peek, a registry peek) -- never for the one read whose
+            metadata is used.
         read_config: Whether to parse the project's own ``[tool.pitloom]``
             (default ``True``). Pass ``False`` when an explicit config
             replaces it: the defaults are returned instead, so a fault in

@@ -20,12 +20,14 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
+import logging
 import threading
 from collections.abc import Callable, Hashable
 from pathlib import Path
 from types import TracebackType
 from typing import TypeVar, cast
 
+from packaging.utils import canonicalize_name
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.document import build as assemble_spdx3
@@ -39,11 +41,20 @@ from pitloom.core.models import get_wheel_files, merkle_root_of_files
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.extract._license import resolve_license_concluded
+from pitloom.extract.authors import (
+    CORE_METADATA_HINT,
+    AuthorSplit,
+    warn_author_splits,
+    warn_project_authors_unread,
+)
 from pitloom.extract.binary import find_phantom_dependencies
+from pitloom.extract.project import read_project
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.id_registry import IdRegistry
 
 _T = TypeVar("_T")
+
+log = logging.getLogger(__name__)
 
 
 def _merge_file_extras(
@@ -100,6 +111,46 @@ def _add_concluded_license(metadata: ProjectMetadata, project_dir: Path) -> None
         return
     metadata.license_concluded = concluded
     metadata.provenance["license_concluded"] = provenance
+
+
+def _adopt_project_authors(
+    metadata: ProjectMetadata, project_dir: Path, *, quiet: bool = False
+) -> bool:
+    """Take *metadata*'s authors from *project_dir* when it declares them;
+    whether it did.
+
+    Wheel ``METADATA`` lists the authors with an address before the others
+    (see :func:`~pitloom.extract.authors.author_pairs`)
+    and a poetry-core wheel only the first one; the project's own metadata
+    has every author in declared order, as ``loom project`` reads it. The
+    embed's one used read of the project, so it warns unless *quiet* (a
+    batch's later wheels).
+    """
+    try:
+        project, _, _ = read_project(
+            project_dir,
+            include_locked_dependencies=False,
+            include_installed_metadata=False,
+            quiet=quiet,
+            read_config=False,
+        )
+    except (OSError, ValueError) as exc:
+        warn_project_authors_unread(str(project_dir), exc, "wheel METADATA")
+        return False
+    source = project.provenance.get("authors")
+    if source is None:
+        return False
+    if canonicalize_name(project.name) != canonicalize_name(metadata.name):
+        log.warning(
+            "%s: project %r is not the wheel's %r; authors from the wheel METADATA",
+            project_dir,
+            project.name,
+            metadata.name,
+        )
+        return False
+    metadata.authors = list(project.authors)
+    metadata.provenance["authors"] = source
+    return True
 
 
 class EmbedFileCache:
@@ -353,8 +404,13 @@ def _build_sbom_from_project_and_wheel(
     *,
     build_options: BuildOptions = BuildOptions(),
     file_cache: EmbedFileCache | None = None,
+    author_splits: list[AuthorSplit] | None = None,
 ) -> str:
     """Generate a canonical Build SBOM from project sources and wheel files.
+
+    *author_splits* holds the wheel ``Author`` strings split into several
+    names (:func:`~pitloom.extract.wheel.read_wheel`), warned about only
+    when the project's own authors do not replace the wheel's.
 
     *build_options* is a separate parameter, not read off
     ``pitloom_config``: it deliberately has no ``[tool.pitloom]`` cascade
@@ -402,6 +458,12 @@ def _build_sbom_from_project_and_wheel(
             files=merged_files
         )
         _add_concluded_license(project_metadata, Path(project_dir))
+        if not _adopt_project_authors(
+            project_metadata,
+            Path(project_dir),
+            quiet=not cache.first_use(("adopt-authors", str(project_dir))),
+        ):
+            warn_author_splits(author_splits or [], hint=CORE_METADATA_HINT)
         merkle_root = merkle_root_of_files(merged_files)
         ai_models = scan_project_for_ai_models(
             project_dir,
@@ -416,13 +478,11 @@ def _build_sbom_from_project_and_wheel(
         enrichment_results = run_enrichers_for_models(
             ai_models, pitloom_config.enrich, project_dir
         )
-    phantom_deps = find_phantom_dependencies(merged_files)
-
     doc = DocumentModel(
         project=project_metadata,
         creation_metadata=creation_metadata or CreationMetadata(),
         ai_models=ai_models,
-        phantom_dependencies=phantom_deps,
+        phantom_dependencies=find_phantom_dependencies(merged_files),
     )
     exporter = assemble_spdx3(
         doc,

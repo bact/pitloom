@@ -153,7 +153,7 @@ def test_a_zip64_archive_over_the_cap_is_refused_under_both_conventions(
     for entries, refused in ((CAP, False), (CAP + 1, True)):
         path.write_bytes(zip64_fixed(entries))
         if refused:
-            with pytest.raises(ModelLimitExceeded, match="more than 3 entries"):
+            with pytest.raises(ModelLimitExceeded, match="3-entry ZIP-archive cap"):
                 with open_model_binary(path):
                     pass
         else:

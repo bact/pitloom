@@ -43,14 +43,15 @@ guessed. A dependency reference that names a specific extra on the
 package it points at (e.g. ``uvicorn[standard]``) still walks *that
 package's own* ``optional-dependencies[extra]`` list, since an extra a
 real dependency requests is part of what actually gets installed -- see
-:func:`_enqueue_requested_extras`.
+:func:`_enqueue_requested_extras`. The project's own extras are pinned
+separately, direct references only: :func:`extract_uv_lock_extra_pins`.
 """
 
 from __future__ import annotations
 
 import logging
 from collections import deque
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -70,7 +71,7 @@ from pitloom.extract.lock._common import (
 
 log = logging.getLogger(__name__)
 
-__all__ = ["extract_uv_lock_dependencies"]
+__all__ = ["extract_uv_lock_dependencies", "extract_uv_lock_extra_pins"]
 
 #: uv.lock ``source`` keys that mark a package as not resolvable to a
 #: meaningful PyPI version pin -- mirrors ``poetry.lock``'s
@@ -382,28 +383,13 @@ def _expected_project_name(project_dir: Path) -> str | None:
     return name if isinstance(name, str) and name else None
 
 
-def extract_uv_lock_dependencies(
-    project_dir: Path, expected_name: str | None = None
-) -> list[str] | None:
-    """Read ``uv.lock`` next to ``pyproject.toml`` and return the
-    project's own transitive main/runtime dependencies (the root
-    package's own ``dependencies``, plus everything *they* in turn
-    depend on) as exact-pin PEP 508 strings.
-
-    *expected_name* disambiguates a shared uv workspace lock's multiple
-    local package entries (see :func:`_find_root_package`) -- pass the
-    caller's already-resolved :attr:`~pitloom.core.project.ProjectMetadata.name`
-    (``apply_locked_dependencies()`` always does) to avoid re-parsing
-    ``pyproject.toml`` a second time just for this. When omitted (e.g. a
-    caller invoking this extractor directly, outside the cascade), falls
-    back to reading it via :func:`_expected_project_name`.
-
-    Returns ``None`` when no ``uv.lock`` is present, it can't be parsed,
-    or the project's own package entry can't be identified -- this is
-    optional enrichment, never a requirement. ``None`` (as opposed to a
-    valid-but-empty ``[]``) distinguishes an absent/unusable lock from a
-    real one whose root package simply has zero runtime dependencies.
-    """
+def _read_root_package(
+    project_dir: Path, expected_name: str | None
+) -> tuple[dict[str, Any], dict[str, list[dict[str, Any]]]] | None:
+    """Return the project's own ``[[package]]`` entry in *project_dir*'s
+    ``uv.lock`` and the lock's canonical-name package index, or ``None``
+    (after a ``WARNING:`` for anything but an absent file) when the lock or
+    its root entry is unusable -- see :func:`extract_uv_lock_dependencies`."""
     lock_path = project_dir / "uv.lock"
     data = load_lock_toml(lock_path)
     if data is None:
@@ -448,15 +434,85 @@ def extract_uv_lock_dependencies(
             lock_path,
         )
         return None
+    return root, by_name
+
+
+def extract_uv_lock_dependencies(
+    project_dir: Path, expected_name: str | None = None
+) -> list[str] | None:
+    """Read ``uv.lock`` next to ``pyproject.toml`` and return the
+    project's own transitive main/runtime dependencies (the root
+    package's own ``dependencies``, plus everything *they* in turn
+    depend on) as exact-pin PEP 508 strings.
+
+    *expected_name* disambiguates a shared uv workspace lock's multiple
+    local package entries (see :func:`_find_root_package`) -- pass the
+    caller's already-resolved :attr:`~pitloom.core.project.ProjectMetadata.name`
+    (``apply_locked_dependencies()`` always does) to avoid re-parsing
+    ``pyproject.toml`` a second time just for this. When omitted (e.g. a
+    caller invoking this extractor directly, outside the cascade), falls
+    back to reading it via :func:`_expected_project_name`.
+
+    Returns ``None`` when no ``uv.lock`` is present, it can't be parsed,
+    or the project's own package entry can't be identified -- this is
+    optional enrichment, never a requirement. ``None`` (as opposed to a
+    valid-but-empty ``[]``) distinguishes an absent/unusable lock from a
+    real one whose root package simply has zero runtime dependencies.
+    """
+    loaded = _read_root_package(project_dir, expected_name)
+    if loaded is None:
+        return None
+    root, by_name = loaded
 
     root_dependencies = root.get("dependencies", [])
     if not isinstance(root_dependencies, list):
         log.warning(
             "%s: project package's 'dependencies' key is %s, expected a "
             "list -- ignoring uv.lock",
-            lock_path,
+            project_dir / "uv.lock",
             type(root_dependencies).__name__,
         )
         return None
 
     return _collect_transitive_dependencies(root_dependencies, by_name)
+
+
+def extract_uv_lock_extra_pins(
+    project_dir: Path, expected_name: str | None, wanted: frozenset[str]
+) -> list[str]:
+    """Exact pins for the requirements the project's own extras list
+    directly (the root entry's ``optional-dependencies`` table), limited
+    to the PEP 503 names in *wanted*; no transitive walk.
+
+    A reference resolves as in the runtime walk: an ambiguous or
+    non-registry one is skipped with its ``WARNING:``.
+    """
+    # Read after the runtime pass accepted this same file.
+    root, by_name = _read_root_package(project_dir, expected_name) or ({}, {})
+    optional = root.get("optional-dependencies")
+    if not isinstance(optional, dict):
+        return []
+    pins: list[str] = []
+    for ref in _wanted_refs(optional, wanted):
+        pkg = _resolved_package_for_dependency(ref, by_name)
+        pin = _pinned_dep_for_package(pkg) if pkg is not None else None
+        if pin is not None:
+            pins.append(pin)
+    return pins
+
+
+def _wanted_refs(
+    optional: dict[str, Any], wanted: frozenset[str]
+) -> Iterator[dict[str, Any]]:
+    """The first reference to each name in *wanted* among *optional*'s
+    lists (extra -> references), extras in sorted order; anything else is
+    skipped silently."""
+    seen: set[str] = set()
+    for extra in sorted(optional):
+        refs = optional[extra]
+        for ref in refs if isinstance(refs, list) else []:
+            name = ref.get("name") if isinstance(ref, dict) else None
+            canonical = canonicalize_name(name) if isinstance(name, str) else ""
+            if canonical in wanted and canonical not in seen:
+                seen.add(canonical)
+                yield ref

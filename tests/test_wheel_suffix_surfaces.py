@@ -27,7 +27,6 @@ from __future__ import annotations
 import glob
 import os
 import sys
-import tempfile
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
@@ -45,26 +44,13 @@ from pitloom.core.wheel_dist_info import (
 )
 from pitloom.embed import embed_sbom_in_wheel, embed_wheel_sbom, find_embedded_sbom
 from pitloom.extract.wheel import read_wheel
+from tests._symlink import CAN_SYMLINK
 from tests._wheel_damage import damaged_wheel
 
 _NAME = "demo-1.0-py3-none-any"
 
 
-def _can_symlink() -> bool:
-    """Whether this process may create a file symlink (Windows needs a
-    privilege)."""
-    with tempfile.TemporaryDirectory() as directory:
-        target = Path(directory) / "target"
-        target.write_bytes(b"")
-        try:
-            (Path(directory) / "link").symlink_to(target)
-        except (OSError, NotImplementedError):
-            return False
-    return True
-
-
-_SYMLINKS = _can_symlink()
-_DOTDOT = _SYMLINKS and sys.platform != "win32"  # Win32 collapses ".." textually
+_DOTDOT = CAN_SYMLINK and sys.platform != "win32"  # Win32 collapses ".." textually
 
 _CLI: dict[str, list[str]] = {
     "wheel": ["wheel", "{w}"],
@@ -158,7 +144,7 @@ def test_cli_lowercase_control_is_accepted(
 
 
 @pytest.mark.parametrize("command", sorted(_CLI))
-@pytest.mark.skipif(not _SYMLINKS, reason="needs a symlink")
+@pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symlink")
 def test_cli_judges_a_symlink_by_its_own_name(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -178,7 +164,7 @@ def test_cli_judges_a_symlink_by_its_own_name(
 
 
 @pytest.mark.parametrize("command", sorted(_CLI))
-@pytest.mark.skipif(not _SYMLINKS, reason="needs a symlink")
+@pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symlink")
 def test_cli_refuses_a_symlink_named_uppercase(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -239,7 +225,7 @@ def test_library_reads_dotdot_through_a_symlinked_directory(
     assert decoy.read_bytes() == b"decoy"
 
 
-@pytest.mark.skipif(not _SYMLINKS, reason="needs a symlink")
+@pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symlink")
 def test_embed_reports_the_wheel_by_the_name_it_was_given(tmp_path: Path) -> None:
     blob = _wheel(tmp_path / "store", "store-blob")
     link = tmp_path / f"{_NAME}.whl"
@@ -278,7 +264,7 @@ def test_library_refuses_an_uppercase_extension(tmp_path: Path, name: str) -> No
 
 
 @pytest.mark.parametrize("name", sorted(_LIB))
-@pytest.mark.skipif(not _SYMLINKS, reason="needs a symlink")
+@pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symlink")
 def test_library_judges_a_symlink_by_its_own_name(tmp_path: Path, name: str) -> None:
     blob = _wheel(tmp_path / "store", "store-blob", sbom=True)
     link = tmp_path / f"{_NAME}.whl"
@@ -384,7 +370,7 @@ _EMBEDS: dict[str, Callable[[Path, pytest.MonkeyPatch], object]] = {
 
 
 @pytest.mark.parametrize("name", sorted(_EMBEDS))
-@pytest.mark.skipif(not _SYMLINKS, reason="needs a symlink")
+@pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symlink")
 def test_embed_picks_the_dist_info_by_the_name_given(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -401,7 +387,7 @@ def test_embed_picks_the_dist_info_by_the_name_given(
 
 
 @pytest.mark.parametrize("name", ["embed-wheel", "wheel-embed"])
-@pytest.mark.skipif(not _SYMLINKS, reason="needs a symlink")
+@pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symlink")
 def test_cli_embed_refusal_names_the_link_not_its_target(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -419,7 +405,7 @@ def test_cli_embed_refusal_names_the_link_not_its_target(
 
 
 @pytest.mark.parametrize("name", ["embed_wheel_sbom", "embed_sbom_in_wheel"])
-@pytest.mark.skipif(not _SYMLINKS, reason="needs a symlink")
+@pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symlink")
 def test_library_embed_refusal_names_the_link_not_its_target(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str
 ) -> None:
@@ -458,7 +444,7 @@ def test_collect_keeps_one_spelling_in_another_letter_case(tmp_path: Path) -> No
 @pytest.mark.skipif(sys.platform == "win32", reason="a privilege there")
 def test_a_posix_process_can_symlink() -> None:
     """Keeps the probe from turning every symlink case into a skip."""
-    assert _SYMLINKS is True
+    assert CAN_SYMLINK is True
 
 
 def test_collect_falls_back_to_the_resolved_path_without_an_identity(
@@ -473,7 +459,7 @@ def test_collect_falls_back_to_the_resolved_path_without_an_identity(
     assert utils._collect_wheel_paths([str(one), str(one)]) == [one]
 
 
-@pytest.mark.skipif(not _SYMLINKS, reason="needs a symlink")
+@pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symlink")
 def test_unreadable_member_is_reported_under_the_name_given(tmp_path: Path) -> None:
     damaged = damaged_wheel(tmp_path, "deflate")
     blob = tmp_path / "blob"

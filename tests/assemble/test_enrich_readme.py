@@ -184,7 +184,9 @@ def test_enrich_dedupes_datasets_by_name() -> None:
 def test_enrich_ignores_non_string_dataset_entries() -> None:
     with tempfile.TemporaryDirectory() as d:
         p = Path(d)
-        (p / "README.md").write_text("---\ndatasets:\n  - 42\n  - valid-name\n---\n")
+        (p / "README.md").write_text(
+            '---\ndatasets:\n  - 42\n  - "  "\n  - valid-name\n---\n'
+        )
         model = AiModelMetadata()
         result = ReadmeEnricher().enrich(model, model_dir=p)
     assert [ref.metadata.name for ref in model.datasets] == ["valid-name"]

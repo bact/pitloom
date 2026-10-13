@@ -23,8 +23,17 @@ from pitloom.core.wheel_dist_info import (
 )
 from pitloom.extract._core_metadata import (
     core_metadata_license_with_source,
+    parse_core_metadata_authors,
     parse_project_urls,
 )
+from pitloom.extract._license_detect import (
+    LICENSE_FILE_CAP,
+    LICENSE_FILE_MAX_BYTES,
+    pick_license_names,
+)
+from pitloom.extract.authors import AuthorSplit
+from pitloom.extract.copyright_notices import apply_in_package_copyright
+from pitloom.logging_config import warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -54,19 +63,39 @@ def _hash_wheel_entry(
     )
 
 
-def _parse_metadata_authors(msg: email.message.Message) -> list[dict[str, str]]:
-    """Extract authors from email METADATA message."""
-    authors: list[dict[str, str]] = []
-    author_name = msg.get("Author")
-    author_email = msg.get("Author-email")
-    if author_name or author_email:
-        author_dict: dict[str, str] = {}
-        if author_name:
-            author_dict["name"] = author_name
-        if author_email:
-            author_dict["email"] = author_email
-        authors.append(author_dict)
-    return authors
+def _license_members(
+    zf: zipfile.ZipFile,
+    members: list[tuple[str, zipfile.ZipInfo]],
+    prefix: str,
+    wheel: Path,
+) -> dict[str, bytes]:
+    """The licence files of the own ``.dist-info`` *prefix*, basename to
+    bytes: the names :func:`~pitloom.extract._license_detect.\
+pick_license_names` picks among the files right in its ``licenses/``
+    (PEP 639), then right in it (an older wheel), a name in ``licenses/``
+    winning. One over the size cap is warned about, as *wheel*:name, and
+    left out."""
+    found: dict[str, bytes] = {}
+    for folder in (f"{prefix}licenses/", prefix):
+        # A nested name ("vendor/LICENSE") is no licence-file name.
+        here = {
+            name[len(folder) :]: info
+            for name, info in members
+            if name.startswith(folder)
+        }
+        for base in pick_license_names(here):
+            if base in found:
+                continue
+            # Read whole above (hashed): a damaged member refused the wheel.
+            with zf.open(here[base]) as fh:
+                raw = fh.read(LICENSE_FILE_MAX_BYTES + 1)
+            if len(raw) > LICENSE_FILE_MAX_BYTES:
+                warn_over_cap(
+                    log, LICENSE_FILE_CAP, f"{wheel}:{folder}{base}", once=True
+                )
+                continue
+            found[base] = raw
+    return found
 
 
 def _parse_metadata_urls(msg: email.message.Message) -> dict[str, str]:
@@ -79,8 +108,10 @@ def _populate_metadata_from_email(
     provenance: dict[str, str],
     msg: email.message.Message,
     source: str,
+    author_splits: list[AuthorSplit] | None = None,
 ) -> None:
-    """Populate ProjectMetadata and provenance from parsed METADATA msg."""
+    """Populate ProjectMetadata and provenance from parsed METADATA msg;
+    *author_splits* as for :func:`read_wheel`."""
     name, version = name_version_from_email_message(msg)
     if name:
         metadata.name = name
@@ -103,7 +134,9 @@ def _populate_metadata_from_email(
         metadata.dependencies = reqs
         provenance["dependencies"] = source
 
-    metadata.authors = _parse_metadata_authors(msg)
+    metadata.authors = parse_core_metadata_authors(msg, splits=author_splits)
+    if metadata.authors:
+        provenance["authors"] = source
     metadata.urls = _parse_metadata_urls(msg)
 
 
@@ -138,11 +171,17 @@ def payload_files(files: list[ProjectFile], wheel_name: str) -> list[ProjectFile
     return [f for f in files if not f.distribution_path.startswith(prefix)]
 
 
-def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFile]]:
+def read_wheel(
+    wheel_path: Path | str, *, author_splits: list[AuthorSplit] | None = None
+) -> tuple[ProjectMetadata, list[ProjectFile]]:
     """Extract project metadata and file records from a built wheel.
 
     Args:
         wheel_path: Path to the .whl file.
+        author_splits: When given, an ``Author`` string split into several
+            names is appended to it instead of warned about, for a caller
+            that may replace the wheel's authors
+            (:func:`~pitloom.extract.authors.warn_author_splits`).
 
     Returns:
         A tuple of (ProjectMetadata, list of ProjectFile): the wheel's
@@ -188,11 +227,17 @@ def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFil
             if choice.prefix
             else None
         )
+        licences = (
+            _license_members(zf, members, choice.prefix, wheel_path_obj)
+            if choice.prefix
+            else {}
+        )
 
     if msg is not None:
-        _populate_metadata_from_email(metadata, provenance, msg, source)
+        _populate_metadata_from_email(metadata, provenance, msg, source, author_splits)
+    metadata.provenance = provenance
+    apply_in_package_copyright(metadata, licences, archive)
     # Archive order is the writer's; SPDX ids are minted in file order.
     project_files.sort(key=lambda f: f.distribution_path)
-    metadata.provenance = provenance
     metadata.files = project_files
     return metadata, project_files

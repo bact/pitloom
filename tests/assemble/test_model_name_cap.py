@@ -54,7 +54,7 @@ _CUT = (
     + "...~"
     + hashlib.sha256(_LONG.encode()).hexdigest()[:8]
 )
-_WARNING = f"model name of {len(_LONG)} characters cut to {MAX_MODEL_NAME_CHARS}"
+_WARNING = ": larger than the 1024-character name cap; model name cut"
 _COMMON = ["--creation-datetime", "2026-01-01T00:00:00Z", "--offline"]
 
 
@@ -107,7 +107,7 @@ def _ai_package(sbom: str) -> dict[str, Any]:
 
 
 def _name_warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
-    return [m for m in logged_warnings(caplog) if "model name of" in m]
+    return [m for m in logged_warnings(caplog) if m.endswith(_WARNING)]
 
 
 @pytest.mark.parametrize("surface", ["model", "project"])
@@ -135,7 +135,7 @@ def test_a_long_name_is_cut_once_and_the_same_every_run(
         monkeypatch.setattr(sys, "argv", argv)
         assert __main__.main() == 0
         (message,) = _name_warnings(caplog)
-        assert _WARNING in message
+        assert message.startswith("FORMAT=")
         assert "FILE=" in message
         runs.append(out.read_bytes())
     assert runs[0] == runs[1]
@@ -157,7 +157,7 @@ def test_the_library_api_cuts_and_warns_once(
     path.write_bytes(_gguf(tmp_path))
     surface(path, output_path=tmp_path / "out.json")
     (message,) = _name_warnings(caplog)
-    assert _WARNING in message
+    assert message == f"FORMAT=gguf FILE={path}{_WARNING}"
     text = (tmp_path / "out.json").read_text(encoding="utf-8")
     names = [e.get("name") for e in json.loads(text)["@graph"]]
     assert _LONG not in names
@@ -205,11 +205,7 @@ def test_the_names_a_model_brings_in_are_cut_too(
     }
     base = [e for e in graph if e["type"] == "ai_AIPackage" and e["name"] != "m"]
     assert [e["name"] for e in base] == [cap_model_name(_LONG)]
-    assert sorted(m.split(": ", 1)[1] for m in logged_warnings(caplog)) == [
-        f"{label} of {length} characters cut to {MAX_MODEL_NAME_CHARS}"
-        for label, length in (
-            ("base model name", len(_LONG)),
-            ("dataset creator name", len(_LONG) + 1),
-            ("dataset name", len(_LONG) + 1),
-        )
+    assert sorted(logged_warnings(caplog)) == [
+        f"FORMAT=gguf FILE=m.gguf: larger than the 1024-character name cap; {label} cut"
+        for label in ("base model name", "dataset creator name", "dataset name")
     ]

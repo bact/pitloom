@@ -22,16 +22,12 @@ from pitloom.core.models import (
     compute_doc_uuid,
     generate_spdx_id,
     get_wheel_files,
-    normalize_dependency_specifier,
     reserve_spdx_ids,
 )
 
 
 def test_models_edge_cases() -> None:
-    """normalize_dependency_specifier handles bad reqs and build_relationship None."""
-    assert normalize_dependency_specifier("invalid requirement syntax >= 1.0 <=") == (
-        "invalid requirement syntax >= 1.0 <="
-    )
+    """_normalize_dep handles bad reqs and build_relationship None."""
     assert _normalize_dep("") == ""
     assert _normalize_dep("---not-a-dep") == "---not-a-dep"
     assert (

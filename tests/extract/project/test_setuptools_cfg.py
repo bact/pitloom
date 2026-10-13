@@ -221,7 +221,6 @@ def test_read_setup_cfg_provenance() -> None:
     assert "setup.cfg" in metadata.provenance.get("name", "")
     assert "setup.cfg" in metadata.provenance.get("version", "")
     assert "setup.cfg" in metadata.provenance.get("authors", "")
-    assert "inferred_from_authors" in metadata.provenance.get("copyright_text", "")
 
 
 def test_read_setup_cfg_declared_empty_author_no_copyright_text() -> None:

@@ -90,7 +90,7 @@ path = "src/mypackage/__about__.py"
 
 def test_provenance_in_sbom_output() -> None:
     """In the default minimal mode, provenance appears for high-signal fields
-    (e.g. the inferred copyright) but NOT for trivially-native ones (name,
+    (e.g. the copyright found) but NOT for trivially-native ones (name,
     which is already ``Element.name`` read verbatim from pyproject.toml)."""
     pyproject_content = """
 [project]
@@ -105,6 +105,7 @@ authors = [{name = "Jane Doe"}]
         tmppath = Path(tmpdir)
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
+        (tmppath / "LICENSE").write_text("Copyright (c) 2024 Jane Doe\n")
 
         sbom_json = generate_project_sbom(
             tmppath,
@@ -119,10 +120,10 @@ authors = [{name = "Jane Doe"}]
         )
         comment = main_package["comment"]
 
-        # High-signal (inferred) copyright provenance is kept ...
+        # High-signal copyright provenance (a method) is kept ...
         assert "Metadata provenance:" in comment
         assert "copyright_text:" in comment
-        assert "inferred_from_authors" in comment
+        assert "copyright_notice_lines" in comment
         # ... but the trivial name/version field-source is dropped in minimal.
         assert "project.name" not in comment
 
@@ -209,10 +210,9 @@ authors = [
         # Check that provenance tracks authors
         assert "authors" in metadata.provenance
         assert "pyproject.toml" in metadata.provenance["authors"]
-
-        # Check that copyright provenance is tracked
-        assert "copyright_text" in metadata.provenance
-        assert "inferred_from_authors" in metadata.provenance["copyright_text"]
+        # No licence file: no copyright text, nor its provenance
+        assert metadata.copyright_text is None
+        assert "copyright_text" not in metadata.provenance
 
 
 def test_provenance_emitted_as_annotation_in_sbom_output() -> None:
@@ -231,6 +231,7 @@ authors = [{name = "Jane Doe"}]
         tmppath = Path(tmpdir)
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
+        (tmppath / "LICENSE").write_text("Copyright (c) 2024 Jane Doe\n")
 
         sbom_json = generate_project_sbom(tmppath)
         sbom_data = json.loads(sbom_json)
@@ -252,10 +253,10 @@ authors = [{name = "Jane Doe"}]
         assert annotations[0]["annotationType"] == "other"
         assert annotations[0]["contentType"] == "application/json"
         statement = json.loads(annotations[0]["statement"])
-        # Only the high-signal (inferred) field is present in minimal mode.
+        # Only the high-signal field (a method) is present in minimal mode.
         assert set(statement["fields"]) == {"copyright_text"}
         assert (
-            statement["fields"]["copyright_text"]["method"] == "inferred_from_authors"
+            statement["fields"]["copyright_text"]["method"] == "copyright_notice_lines"
         )
 
         # "both" (the default) still writes the legacy comment too.

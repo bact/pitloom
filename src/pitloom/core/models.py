@@ -17,8 +17,6 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4, uuid5
 
-from hatchling.metadata.utils import normalize_requirement
-from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
@@ -60,19 +58,8 @@ __all__ = [
     "generate_spdx_id",
     "get_wheel_files",
     "merkle_root_of_files",
-    "normalize_dependency_specifier",
     "reserve_spdx_ids",
 ]
-
-
-def normalize_dependency_specifier(dep: str) -> str:
-    """Return *dep* with its package name canonicalized to PEP 503 form."""
-    try:
-        req = Requirement(dep)
-    except InvalidRequirement:
-        return dep
-    normalize_requirement(req)
-    return str(req)
 
 
 def build_pypi_purl(name: str, version: str | None) -> str:

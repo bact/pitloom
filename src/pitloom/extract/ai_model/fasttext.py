@@ -173,7 +173,7 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
     domain = ["natural language processing"]
     if supervised:
         domain.insert(0, "text classification")
-    labels = list(recordable_labels(read_labels, _LIMITS))
+    labels = list(recordable_labels(read_labels, _LIMITS, str(model_path)))
     properties: dict[str, str] = {}
     collections: dict[str, list[str]] = {}
     outputs: list[dict[str, Any]] = []

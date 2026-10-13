@@ -108,7 +108,8 @@ def resolve_project_dir_and_config(
     in-tree installed-metadata resolution is skipped too
     (``include_installed_metadata=False``) for the same build-stage
     rationale, and purely to skip that I/O since this caller discards the
-    metadata anyway.
+    metadata anyway. The read is quiet for the same reason: the project's
+    metadata warnings come from the embed's read that adopts its authors.
 
     Without *read_config* (a ``--config`` replaces it) the
     project's own config is not read at all, as
@@ -129,6 +130,7 @@ def resolve_project_dir_and_config(
             proj_path,
             include_locked_dependencies=False,
             include_installed_metadata=False,
+            quiet=True,
         )
     except FileNotFoundError as exc:
         # read_project()'s own message already names the specific reason

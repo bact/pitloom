@@ -8,7 +8,8 @@
 
 See also: test_poetry_parsing.py for low-level ``[tool.poetry]`` parsing,
 test_poetry_pyproject.py for ``read_pyproject()`` integration; this file
-covers the sibling ``poetry.lock`` extractor those don't.
+covers the sibling ``poetry.lock`` extractor those don't, and
+test_poetry_integration.py reads it from fixture and real-world projects.
 """
 
 # Explicit `== []`/`== {}` keeps the None-vs-empty distinction.
@@ -24,31 +25,7 @@ from pitloom.extract.lock.poetry import (
     _main_group_package_or_none,
     extract_poetry_lock_dependencies,
 )
-from pitloom.extract.project.pyproject import read_pyproject
-
-FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "projects"
-POETRY_FIXTURE = FIXTURES / "sampleproject-poetry"
-REAL_WORLD_LOCKS = (
-    Path(__file__).parent.parent.parent / "fixtures" / "real-world-locks" / "poetry"
-)
-
-
-#: Every real ``poetry lock``-generated file carries this table --
-#: `extract_poetry_lock_dependencies()` uses its presence to distinguish
-#: a genuine (if empty) poetry.lock from an unrelated/truncated TOML
-#: document that merely happens to be named ``poetry.lock``. Prepended
-#: by `_write_lock()` below so every other test in this file, which
-#: exercises `package`-list handling rather than this check itself, does
-#: not need to repeat it.
-_METADATA = '[metadata]\nlock-version = "2.1"\n'
-
-
-def _write_lock(tmp_dir: Path, content: str) -> None:
-    # Appended, not prepended: a bare top-level `key = value` line in
-    # *content* (e.g. a malformed `package = "not-a-list"` test fixture)
-    # would otherwise land inside the `[metadata]` table itself if
-    # `_METADATA`'s `[metadata]` header came first in the file.
-    (tmp_dir / "poetry.lock").write_text(content + _METADATA, encoding="utf-8")
+from tests.extract.lock.poetry_lock_shared import write_lock
 
 
 def test_no_lock_file_returns_none() -> None:
@@ -67,7 +44,7 @@ def test_valid_lock_with_no_packages_returns_empty_list_not_none() -> None:
     winning (if empty) result rather than "not present"."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(tmp_path, "")
+        write_lock(tmp_path, "")
 
         assert extract_poetry_lock_dependencies(tmp_path) == []
 
@@ -127,7 +104,7 @@ def test_malformed_toml_returns_none_and_warns(
 ) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(tmp_path, "this is not [ valid toml")
+        write_lock(tmp_path, "this is not [ valid toml")
 
         with caplog.at_level(logging.WARNING):
             result = extract_poetry_lock_dependencies(tmp_path)
@@ -139,7 +116,7 @@ def test_malformed_toml_returns_none_and_warns(
 def test_main_group_package_included() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(
+        write_lock(
             tmp_path,
             '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n',
         )
@@ -152,7 +129,7 @@ def test_main_group_package_included() -> None:
 def test_dev_only_group_package_excluded() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(
+        write_lock(
             tmp_path,
             '[[package]]\nname = "pytest"\nversion = "8.0.0"\ngroups = ["dev"]\n',
         )
@@ -172,7 +149,7 @@ def test_dev_only_group_non_registry_sourced_package_is_silent(
     checked here for `_main_group_package_or_none`'s own ordering."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(
+        write_lock(
             tmp_path,
             '[[package]]\nname = "dev-only-vcs"\nversion = "0.1.0"\n'
             'groups = ["dev"]\n[package.source]\ntype = "git"\n',
@@ -190,7 +167,7 @@ def test_package_in_main_and_dev_groups_included() -> None:
     -- only *exclusively* non-main packages are dropped."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(
+        write_lock(
             tmp_path,
             '[[package]]\nname = "shared-pkg"\nversion = "1.0.0"\n'
             'groups = ["main", "dev"]\n',
@@ -204,7 +181,7 @@ def test_missing_groups_key_defaults_to_main() -> None:
     entirely -- treat that as the default (``main``), not "exclude"."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(tmp_path, '[[package]]\nname = "legacy-pkg"\nversion = "1.0.0"\n')
+        write_lock(tmp_path, '[[package]]\nname = "legacy-pkg"\nversion = "1.0.0"\n')
 
         assert extract_poetry_lock_dependencies(tmp_path) == ["legacy-pkg==1.0.0"]
 
@@ -218,7 +195,7 @@ def test_malformed_groups_field_skipped_and_warns(
     the same way a routine non-main-group package does."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(
+        write_lock(
             tmp_path,
             '[[package]]\nname = "odd-pkg"\nversion = "1.0.0"\ngroups = "main"\n',
         )
@@ -235,7 +212,7 @@ def test_legacy_poetry_category_main_and_dev() -> None:
     category = "main" must be included, while category = "dev" must be excluded."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(
+        write_lock(
             tmp_path,
             '[[package]]\nname = "runtime-pkg"\nversion = "1.0.0"\n'
             'category = "main"\n\n'
@@ -255,7 +232,7 @@ def test_legacy_poetry_malformed_category_skipped_and_warns(
     not silently excluded with no diagnostic."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(
+        write_lock(
             tmp_path,
             '[[package]]\nname = "bad-category-pkg"\nversion = "1.0.0"\n'
             'category = ["main"]\n',
@@ -273,7 +250,7 @@ def test_optional_package_excluded() -> None:
     dependency -- must be excluded."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(
+        write_lock(
             tmp_path,
             '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
             'optional = true\ngroups = ["main"]\n',
@@ -289,7 +266,7 @@ def test_conflicting_versions_for_same_package_warns_and_excludes(
     warn_conflicting_versions is emitted and the package is skipped."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(
+        write_lock(
             tmp_path,
             '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n\n'
             '[[package]]\nname = "requests"\nversion = "2.32.0"\ngroups = ["main"]\n',
@@ -305,7 +282,7 @@ def test_conflicting_versions_for_same_package_warns_and_excludes(
 def test_equivalent_versions_for_same_package_not_conflicted() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(
+        write_lock(
             tmp_path,
             '[[package]]\nname = "requests"\nversion = "2.31"\ngroups = ["main"]\n\n'
             '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n',
@@ -327,7 +304,7 @@ def test_malformed_package_entry_skipped() -> None:
     crash -- the rest of the lock file is still processed."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(
+        write_lock(
             tmp_path,
             '[[package]]\nname = "incomplete"\n\n'
             '[[package]]\nname = "complete-pkg"\nversion = "2.0.0"\n',
@@ -345,7 +322,7 @@ def test_malformed_package_entry_warns(caplog: pytest.LogCaptureFixture) -> None
     (:func:`pitloom.extract.lock._common.warn_missing_version`)."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(tmp_path, '[[package]]\nname = "incomplete"\n')
+        write_lock(tmp_path, '[[package]]\nname = "incomplete"\n')
 
         with caplog.at_level(logging.WARNING):
             result = extract_poetry_lock_dependencies(tmp_path)
@@ -362,7 +339,7 @@ def test_missing_name_skipped_and_warns(caplog: pytest.LogCaptureFixture) -> Non
     before ``version`` is ever read)."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(tmp_path, '[[package]]\nversion = "1.0.0"\n')
+        write_lock(tmp_path, '[[package]]\nversion = "1.0.0"\n')
 
         with caplog.at_level(logging.WARNING):
             result = extract_poetry_lock_dependencies(tmp_path)
@@ -378,7 +355,7 @@ def test_malformed_package_entry_empty_version_skipped() -> None:
     ``pdm.py``, which all also reject an empty-string version."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(
+        write_lock(
             tmp_path,
             '[[package]]\nname = "broken"\nversion = ""\n\n'
             '[[package]]\nname = "complete-pkg"\nversion = "2.0.0"\n',
@@ -392,7 +369,7 @@ def test_package_table_not_a_list_warns(caplog: pytest.LogCaptureFixture) -> Non
     to degrade to an empty list with zero logging."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(tmp_path, 'package = "not-a-list"\n')
+        write_lock(tmp_path, 'package = "not-a-list"\n')
 
         with caplog.at_level(logging.WARNING):
             result = extract_poetry_lock_dependencies(tmp_path)
@@ -411,7 +388,7 @@ def test_non_pep508_sourced_package_excluded(
     emitted as a misleading ``name==version`` PyPI pin."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(
+        write_lock(
             tmp_path,
             '[[package]]\nname = "local-dep"\nversion = "0.1.0"\n'
             f'[package.source]\ntype = "{source_type}"\n',
@@ -430,167 +407,10 @@ def test_legacy_source_package_still_included() -> None:
     directory/file/git/url sources, it must not be excluded."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(
+        write_lock(
             tmp_path,
             '[[package]]\nname = "private-pkg"\nversion = "1.0.0"\n'
             '[package.source]\ntype = "legacy"\nurl = "https://example.com/simple"\n',
         )
 
         assert extract_poetry_lock_dependencies(tmp_path) == ["private-pkg==1.0.0"]
-
-
-def test_fixture_lock_excludes_dev_group_dependency() -> None:
-    """Real-world fixture: `pytest`/`mypy`/`ruff` live only in
-    `[tool.poetry.group.dev.dependencies]` and must not appear."""
-    result = extract_poetry_lock_dependencies(POETRY_FIXTURE)
-
-    assert result is not None
-    names = {dep.split("==", maxsplit=1)[0] for dep in result}
-    assert "pytest" not in names
-    assert "numpy" in names
-
-
-def test_read_pyproject_populates_locked_dependencies() -> None:
-    """Integration: `read_pyproject()` wires `poetry.lock` parsing into
-    `ProjectMetadata.locked_dependencies` with its own provenance entry."""
-    metadata, _config = read_pyproject(POETRY_FIXTURE / "pyproject.toml")
-
-    assert metadata.locked_dependencies
-    assert metadata.provenance["locked_dependencies"] == (
-        "Source: poetry.lock | Method: resolved_lockfile"
-    )
-
-
-def test_read_pyproject_populates_locked_dependency_hashes() -> None:
-    """Regression: `_try_read_poetry()` applies `poetry.lock`-resolved
-    dependencies directly, bypassing the `cascade.py`
-    cascade entirely -- a hash-extraction call placed only in the
-    cascade would never run for this, the common poetry case. See
-    lock-hash-preservation.md."""
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        (tmp_path / "pyproject.toml").write_text(
-            '[tool.poetry]\nname = "pkg"\nversion = "1.0.0"\n', encoding="utf-8"
-        )
-        sha256 = "a" * 64
-        _write_lock(
-            tmp_path,
-            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n'
-            f'files = [{{file = "requests-2.31.0-py3-none-any.whl", '
-            f'hash = "sha256:{sha256}"}}]\n',
-        )
-
-        metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
-
-        assert metadata.locked_dependency_hashes == {"requests": sha256}
-
-
-def test_read_pyproject_pep621_project_with_minimal_poetry_still_reads_lock(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """Regression: a PEP 621 ``[project]``-primary layout whose
-    ``[tool.poetry]`` section is present only for non-metadata settings
-    (no ``name`` -- a legitimate, encouraged modern style) used to raise
-    inside ``extract_poetry_metadata()``, which silently suppressed
-    ``poetry.lock`` reading entirely even though the two are unrelated."""
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        (tmp_path / "pyproject.toml").write_text(
-            '[project]\nname = "pkg"\nversion = "1.0.0"\n'
-            '[tool.poetry]\npackages = [{include = "pkg"}]\n',
-            encoding="utf-8",
-        )
-        _write_lock(
-            tmp_path,
-            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n',
-        )
-
-        with caplog.at_level(logging.WARNING):
-            metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
-
-        assert metadata.name == "pkg"
-        assert metadata.locked_dependencies == ["requests==2.31.0"]
-        assert metadata.provenance["locked_dependencies"] == (
-            "Source: poetry.lock | Method: resolved_lockfile"
-        )
-        assert "could not be parsed" in caplog.text
-
-
-def test_read_pyproject_no_lock_file_leaves_locked_dependencies_empty() -> None:
-    """A Poetry project with no `poetry.lock` at all gets an empty
-    `locked_dependencies` and no provenance entry for it -- optional
-    enrichment, never a requirement."""
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        (tmp_path / "pyproject.toml").write_text(
-            '[tool.poetry]\nname = "pkg"\nversion = "1.0.0"\n',
-            encoding="utf-8",
-        )
-
-        metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
-
-        assert metadata.locked_dependencies == []
-        assert "locked_dependencies" not in metadata.provenance
-
-
-def test_real_world_pendulum_hybrid_project_and_tool_poetry_tables() -> None:
-    """`pendulum` declares both `[project]` (PEP 621) and `[tool.poetry]`
-    -- confirms the hybrid shape resolves name/version via `[project]`
-    while `poetry.lock` reading still runs."""
-    metadata, _config = read_pyproject(
-        REAL_WORLD_LOCKS / "pendulum-3.2.0" / "pyproject.toml"
-    )
-
-    assert metadata.name == "pendulum"
-    assert metadata.locked_dependencies
-    assert metadata.provenance["locked_dependencies"] == (
-        "Source: poetry.lock | Method: resolved_lockfile"
-    )
-
-
-def test_real_world_cleo_tool_poetry_only() -> None:
-    """`cleo` has `[tool.poetry]` only, no `[project]` table at all."""
-    metadata, _config = read_pyproject(
-        REAL_WORLD_LOCKS / "cleo-2.1.0" / "pyproject.toml"
-    )
-
-    assert metadata.name == "cleo"
-    assert metadata.locked_dependencies
-    assert metadata.provenance["locked_dependencies"] == (
-        "Source: poetry.lock | Method: resolved_lockfile"
-    )
-
-
-def test_real_world_pastel_tool_poetry_only() -> None:
-    """`pastel` uses legacy Poetry 1.x `category = "dev"` for all entries;
-    verifies dev dependencies are excluded and locked_dependencies is empty."""
-    metadata, _config = read_pyproject(
-        REAL_WORLD_LOCKS / "pastel-0.2.1" / "pyproject.toml"
-    )
-
-    assert metadata.name == "pastel"
-    assert metadata.locked_dependencies == []
-    assert metadata.provenance["locked_dependencies"] == (
-        "Source: poetry.lock | Method: resolved_lockfile"
-    )
-
-
-def test_real_world_tomlkit_has_no_main_group_dependencies() -> None:
-    """`tomlkit` is a standalone TOML library with no runtime
-    dependencies -- every entry in its `poetry.lock` belongs to the
-    `dev`/docs/test groups, none to `main`. A real, valid "empty resolved
-    set" case: `read_pyproject()` still succeeds, leaves
-    `locked_dependencies` empty, but *does* record provenance for it --
-    a real, parsed ``poetry.lock`` that authoritatively resolves to zero
-    ``main``-group packages is a genuine answer, not the same as no lock
-    file being present at all (see ``cascade.py``'s
-    None-vs-``[]`` extractor contract)."""
-    metadata, _config = read_pyproject(
-        REAL_WORLD_LOCKS / "tomlkit-0.15.1" / "pyproject.toml"
-    )
-
-    assert metadata.name == "tomlkit"
-    assert metadata.locked_dependencies == []
-    assert metadata.provenance["locked_dependencies"] == (
-        "Source: poetry.lock | Method: resolved_lockfile"
-    )

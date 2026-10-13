@@ -24,7 +24,7 @@ from __future__ import annotations
 import functools
 import logging
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
@@ -51,6 +51,11 @@ from pitloom.extract._license_detect import (
     _looks_like_spdx_license_id,
     collect_license_candidates,
     find_license_files,
+    license_candidates_from_members,
+)
+from pitloom.extract.copyright_notices import (
+    COPYRIGHT_NOTICE_LINE_RE,
+    apply_in_package_copyright,
 )
 from pitloom.logging_config import one_line, warn_once
 
@@ -73,6 +78,7 @@ __all__ = [
     "_with_tool_tag",
     "ClassifiedLicense",
     "apply_in_package_license",
+    "apply_in_package_license_files",
     "canonicalize_license_id",
     "classify_license",
     "collect_license_candidates",
@@ -263,24 +269,14 @@ def _decisive(results: Sequence[LicenseMatch], threshold: float) -> str | None:
     return top
 
 
-#: A copyright notice line: ``Copyright`` with ``(c)``, a copyright sign or
-#: a year, or ``(c)``/the sign with a year. The SPDX License List Matching
-#: Guidelines leave a notice out of a match; ``licenseid`` can miss a listed
-#: licence behind one (PyYAML's two notice lines give ``Xnet``, not ``MIT``).
-_COPYRIGHT_NOTICE_RE = re.compile(
-    r"^[ \t\ufeff]*(?:copyright[ \t:]*(?:\(c\)|\u00a9|\d)"
-    r"|(?:\(c\)|\u00a9)[ \t]*\d).*$",
-    re.IGNORECASE | re.MULTILINE,
-)
-
-
 def _readings(matcher: AggregatedLicenseMatcher, text: str) -> list[list[LicenseMatch]]:
     """*matcher*'s ranked matches for *text* as written and, when it has
-    copyright notice lines, without them: ``licenseid`` uses a notice to
-    place the licence in mixed content, yet misses some licences behind
-    one."""
+    copyright notice lines (:data:`COPYRIGHT_NOTICE_LINE_RE`, templates
+    too), without them: ``licenseid`` uses a notice to place the licence in
+    mixed content, yet misses some licences behind one (PyYAML's two notice
+    lines give ``Xnet``, not ``MIT``)."""
     readings = [matcher.match(text)]
-    without_notice = _COPYRIGHT_NOTICE_RE.sub("", text)
+    without_notice = COPYRIGHT_NOTICE_LINE_RE.sub("", text)
     if without_notice != text:
         readings.append(matcher.match(without_notice))
     return readings
@@ -432,7 +428,7 @@ def apply_in_package_license(
 ) -> None:
     """Record what the project's own licence files say (*candidates*, see
     :func:`license_from_candidates`) on *metadata*, the one rule for every
-    project reader (directory, Hatchling hook, sdist): when the manifest
+    project reader (:func:`apply_in_package_license_files`): when the manifest
     states a licence (``license_name`` not blank), the detection is the
     concluded second opinion (G2); when it is silent, the declared licence.
     Nothing changes when no candidate gives a licence."""
@@ -447,6 +443,24 @@ def apply_in_package_license(
     else:
         metadata.license_name = detected
         metadata.provenance["license"] = provenance
+
+
+def apply_in_package_license_files(
+    metadata: ProjectMetadata,
+    members: Mapping[str, bytes],
+    archive: str | None = None,
+) -> None:
+    """Record what the project's own licence sources say on *metadata*,
+    the one call every project reader (directory, Hatchling hook, sdist)
+    makes: its licence (:func:`apply_in_package_license`) and the copyright
+    notices found (:func:`~pitloom.extract.copyright_notices.\
+apply_in_package_copyright`). *members* maps a root-level name to its bytes
+    (:func:`~pitloom.extract._license_detect.read_license_members` for a
+    directory); *archive* names the archive they come from."""
+    apply_in_package_license(
+        metadata, license_candidates_from_members(members, archive)
+    )
+    apply_in_package_copyright(metadata, members, archive)
 
 
 def detect_license_for_project(

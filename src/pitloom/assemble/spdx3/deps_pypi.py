@@ -18,12 +18,9 @@ from urllib.parse import quote as url_quote
 
 from packaging.utils import canonicalize_name
 
-from pitloom.assemble.spdx3.deps_originator import _extract_name_email_pairs
-from pitloom.extract._core_metadata import (
-    classifier_provenance,
-    license_cascade,
-)
+from pitloom.extract._core_metadata import classifier_provenance, license_cascade
 from pitloom.extract._extract_utils import fetch_json
+from pitloom.extract.authors import dependency_author_pairs
 from pitloom.extract.lock._hash_selection import select_sha256_hash
 
 # Best-effort PyPI JSON API fetch timeout -- short enough that a blocked or
@@ -42,22 +39,27 @@ _PYPI_MAX_CONCURRENT_FETCHES = 8
 
 
 def _extract_pypi_originator(
-    info: dict[str, Any],
+    info: dict[str, Any], package: str
 ) -> list[tuple[str | None, str | None]]:
-    """Return a list of ``(name, email)`` tuples for a dependency's originator
-    from a PyPI JSON API ``info`` object, or an empty list. Same
-    author-then-maintainer precedence as
+    """Return a list of ``(name, email)`` tuples for the dependency
+    *package*'s originator from a PyPI JSON API ``info`` object, or an
+    empty list. Same author-then-maintainer precedence and reading as
     :func:`~pitloom.assemble.spdx3.deps_originator._resolve_author_or_maintainer`."""
     for name_key, email_key in (
         ("author", "author_email"),
         ("maintainer", "maintainer_email"),
     ):
-        results = _extract_name_email_pairs(
-            info.get(name_key) or "", info.get(email_key) or ""
+        results = dependency_author_pairs(
+            package, _text(info.get(name_key)), _text(info.get(email_key))
         )
         if results:
             return results
     return []
+
+
+def _text(value: Any) -> str | None:
+    """A JSON field as text: ``None`` unless a string."""
+    return value if isinstance(value, str) else None
 
 
 def _extract_pypi_license(info: dict[str, Any], source: str) -> tuple[str | None, str]:

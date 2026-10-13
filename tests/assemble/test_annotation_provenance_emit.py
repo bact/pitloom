@@ -279,7 +279,7 @@ def test_filter_high_signal_drops_transparent_manifest_reads() -> None:
 def test_filter_high_signal_keeps_inferred_and_detected() -> None:
     prov = {
         "name": "Source: pyproject.toml | Field: project.name",
-        "copyright_text": "Source: Pitloom generator | Method: inferred_from_authors",
+        "copyright_text": "Source: LICENSE | Method: copyright_notice_lines",
         "license": "Source: LICENSE | Method: licenseid_detection",
     }
     kept = filter_high_signal(prov)
@@ -353,9 +353,7 @@ def test_emit_provenance_minimal_filters_trivial_fields() -> None:
         subject=pkg,
         provenance={
             "name": "Source: pyproject.toml | Field: project.name",
-            "copyright_text": (
-                "Source: Pitloom generator | Method: inferred_from_authors"
-            ),
+            "copyright_text": "Source: LICENSE | Method: copyright_notice_lines",
         },
         creation_info=ci,
         doc_name=_DOC_NAME,

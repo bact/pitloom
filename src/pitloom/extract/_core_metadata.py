@@ -20,6 +20,11 @@ from importlib.metadata import PackageMetadata
 from typing import TYPE_CHECKING
 
 from pitloom.extract._license import classify_license
+from pitloom.extract.authors import (
+    CORE_METADATA_HINT,
+    AuthorSplit,
+    read_author_fields,
+)
 from pitloom.extract.license_refs import classifier_expression
 from pitloom.logging_config import warn_once
 
@@ -44,6 +49,26 @@ def _get_str(msg: _MessageLike, name: str) -> str | None:
     it may raise/misbehave on a missing key rather than returning
     ``None`` the way :meth:`email.message.Message.get` does."""
     return msg[name] if name in msg else None
+
+
+def parse_core_metadata_authors(
+    msg: _MessageLike, *, quiet: bool = False, splits: list[AuthorSplit] | None = None
+) -> list[dict[str, str]]:
+    """A package's own authors from ``Author``/``Author-email``, by
+    :func:`~pitloom.extract.authors.read_author_fields`: the one reading of
+    a free-text author field on every surface. A split ``Author`` warns
+    once per call (unless *quiet*), or is appended to *splits* when given.
+
+    A route that also has the ``pyproject.toml`` (an sdist,
+    ``embed-wheel --project-dir``) uses its declared authors instead.
+    """
+    return read_author_fields(
+        _get_str(msg, "Author"),
+        _get_str(msg, "Author-email"),
+        quiet=quiet,
+        splits=splits,
+        hint=CORE_METADATA_HINT,
+    )
 
 
 def parse_project_urls(

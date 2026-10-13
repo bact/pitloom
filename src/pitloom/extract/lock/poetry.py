@@ -30,6 +30,7 @@ from typing import Any
 from pitloom.extract.lock._common import (
     default_group_included,
     has_required_top_level_table,
+    is_usable_version,
     load_lock_toml,
     resolve_pinned_dependencies,
     shape_validated_package,
@@ -37,10 +38,11 @@ from pitloom.extract.lock._common import (
     warn_not_genuine_lock_file,
     warn_top_level_key_wrong_type,
 )
+from pitloom.extract.lock._extra_pins import packages_named, requirement_names
 
 log = logging.getLogger(__name__)
 
-__all__ = ["extract_poetry_lock_dependencies"]
+__all__ = ["extract_poetry_lock_dependencies", "extract_poetry_lock_extra_pins"]
 
 _DEFAULT_GROUP = "main"
 
@@ -119,9 +121,11 @@ def _is_main_group(validated: dict[str, Any], name: str) -> bool:
     )
 
 
-def _main_group_package_or_none(pkg: object) -> dict[str, Any] | None:
-    """Return *pkg* when it's a well-formed, non-optional, main-group,
-    registry-sourced entry -- ``None`` otherwise.
+def _main_group_package_or_none(
+    pkg: object, *, allow_optional: bool = False
+) -> dict[str, Any] | None:
+    """Return *pkg* when it's a well-formed, main-group, registry-sourced
+    entry, non-optional unless *allow_optional* -- ``None`` otherwise.
 
     Mirrors the skip policy :func:`pitloom.extract.project.poetry._poetry_dep_to_pep508`
     already applies to direct ``[tool.poetry.dependencies]`` entries: a
@@ -134,7 +138,8 @@ def _main_group_package_or_none(pkg: object) -> dict[str, Any] | None:
         return None
     name = validated["name"]
 
-    if validated.get("optional") is True or not _is_main_group(validated, name):
+    optional = validated.get("optional") is True and not allow_optional
+    if optional or not _is_main_group(validated, name):
         return None
     source = validated.get("source")
     source_type = source.get("type") if isinstance(source, dict) else None
@@ -142,3 +147,40 @@ def _main_group_package_or_none(pkg: object) -> dict[str, Any] | None:
         warn_non_registry_source("poetry.lock", name, source_type)
         return None
     return validated
+
+
+def _extras_table_names(extras: object) -> set[str]:
+    """PEP 503 names listed by a ``poetry.lock`` ``[extras]`` table (extra
+    -> requirement strings, e.g. ``["tomli ; python_version < '3.11'"]``);
+    an entry that is not a string or not PEP 508 is ignored."""
+    names: set[str] = set()
+    for requirements in extras.values() if isinstance(extras, dict) else []:
+        names |= requirement_names(
+            requirements if isinstance(requirements, list) else []
+        )
+    return names
+
+
+def extract_poetry_lock_extra_pins(
+    project_dir: Path, wanted: frozenset[str]
+) -> list[str]:
+    """Exact pins for the requirements the project's own extras list
+    directly (the lock's top-level ``[extras]`` table), limited to the PEP
+    503 names in *wanted*; no transitive walk.
+
+    Such a package is a ``main``-group entry marked ``optional = true``
+    (or not, when another group also needs it); one non-registry-sourced
+    or resolved to conflicting versions is skipped with a ``WARNING:``.
+    """
+    # Read after the runtime pass accepted this same file.
+    data = load_lock_toml(project_dir / "poetry.lock") or {}
+    targets = _extras_table_names(data.get("extras")) & wanted
+    pairs: list[tuple[str, str]] = []
+    for raw in packages_named(data.get("package"), targets):
+        # A malformed entry was already warned about by the runtime pass.
+        if not is_usable_version(raw.get("version")):
+            continue
+        pkg = _main_group_package_or_none(raw, allow_optional=True)
+        if pkg is not None:
+            pairs.append((pkg["name"], pkg["version"]))
+    return resolve_pinned_dependencies(pairs, "poetry.lock") or []

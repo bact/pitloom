@@ -165,6 +165,23 @@ _PLAIN_OPTIONS: tuple[tuple[str, str, str, Callable[[str], Any]], ...] = (
 )
 
 
+_EXTRAS_SECTION = "options.extras_require"
+
+
+def _extras_option(text: str) -> SetupOption | None:
+    """``[options.extras_require]`` of the ``setup.cfg`` *text*: extra (or
+    ``extra:marker``) -> requirements. Read again with the keys' case kept,
+    since ``configparser`` lowercases them and a marker's value is
+    case-sensitive. ``None`` without the section."""
+    cased = configparser.ConfigParser()
+    cased.optionxform = str  # type: ignore[assignment,method-assign]
+    cased.read_string(text, source="setup.cfg")
+    if not cased.has_section(_EXTRAS_SECTION):
+        return None
+    extras = {k: _cfg_requirements(v) for k, v in cased.items(_EXTRAS_SECTION)}
+    return SetupOption(extras, _cfg_source(_EXTRAS_SECTION))
+
+
 def _resolved_options(metadata: dict[str, str], project_dir: Path) -> SetupOptions:
     """The options whose value needs a directive resolved or two spellings."""
     options: SetupOptions = {}
@@ -218,10 +235,12 @@ def read_setup_cfg_options(
         raise FileNotFoundError(f"setup.cfg not found at {setup_cfg_path}")
     cfg = configparser.ConfigParser()
     try:
-        # read_file, not read: read() skips a file it cannot open.
+        # opened here, not read(): read() skips a file it cannot open.
         with setup_cfg_path.open(encoding="utf-8") as stream:
-            cfg.read_file(stream)
+            text = stream.read()
+        cfg.read_string(text, source=str(setup_cfg_path))
         sections = {s: _section_dict(cfg, s) for s in ("metadata", "options")}
+        extras = _extras_option(text)
     # configparser.Error: also a value's bad % interpolation
     except (OSError, UnicodeDecodeError, configparser.Error) as exc:
         raise ValueError(f"Could not parse setup.cfg: {one_line(exc)}") from exc
@@ -233,6 +252,8 @@ def read_setup_cfg_options(
                 _cfg_source(field),
                 declared=_section_declares_key(cfg, section, key),
             )
+    if extras is not None:
+        options["extras_require"] = extras
     named = bool(options.get("name") and options["name"].value)
     try:
         config = _config_if_read(cfg, read_config and named, str(setup_cfg_path))

@@ -17,7 +17,9 @@ import re
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 
-from pitloom.logging_config import FILE_OVER_CAP_WARNING, loggable, warn_once
+from pitloom.core.path_confine import open_inside
+from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, is_missing_errno
+from pitloom.logging_config import Cap, loggable, one_line, warn_once, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -31,8 +33,13 @@ CODEMETA_JSON = "codemeta.json"
 
 #: Largest license file (or ``CITATION.cff``/``codemeta.json``) read for
 #: detection. Real license texts are a few KiB to some tens of KiB; a
-#: larger one is skipped with one ``WARNING:`` (:func:`warn_over_cap`).
+#: larger one is skipped with one ``WARNING:`` (:data:`LICENSE_FILE_CAP`).
 LICENSE_FILE_MAX_BYTES = 256 * 1024
+#: :data:`LICENSE_FILE_MAX_BYTES` as every reader of a licence source warns
+#: of it: through :func:`~pitloom.logging_config.warn_over_cap`, with
+#: ``once=True`` (one run reads a project more than once: a lock-file
+#: re-read, a declared and a concluded licence, always alike).
+LICENSE_FILE_CAP = Cap(LICENSE_FILE_MAX_BYTES, "byte", "license-detection")
 
 # Heuristic: single-token SPDX License IDs and expressions like "GPL-3.0-or-later"
 _SPDX_LICENSE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.\-+]*$")
@@ -183,42 +190,49 @@ def license_candidates_from_members(
     return candidates
 
 
-def warn_over_cap(where: str) -> None:
-    """The one ``WARNING:`` for a detection input over
-    :data:`LICENSE_FILE_MAX_BYTES`; *where* names the file. Once per file
-    and process: one run reads a project more than once (a lock-file
-    re-read, a declared and a concluded licence), always alike."""
-    warn_once(
-        log,
-        f"license-over-cap:{where}",
-        FILE_OVER_CAP_WARNING,
-        loggable(where),
-        LICENSE_FILE_MAX_BYTES,
-        "license-detection",
-    )
-
-
-def _read_root_file(path: Path) -> bytes | None:
+def read_license_file(path: Path, root: Path | None = None) -> bytes | None:
     """*path*'s bytes, read no further than one byte past the cap; ``None``
-    when it cannot be read (absent too) or is over the cap (warned)."""
+    when it is absent, cannot be read or is over the cap. With *root*, a
+    file not inside it (a symlink out) is not read
+    (:func:`~pitloom.core.path_confine.open_inside`): its content is no
+    part of the project. A file present but not read is warned about, once
+    per file and process."""
     try:
-        with path.open("rb") as fh:
+        with path.open("rb") if root is None else open_inside(path, root) as fh:
             raw = fh.read(LICENSE_FILE_MAX_BYTES + 1)
-    except OSError:
+    except OSError as exc:
+        if not is_missing_errno(exc):
+            warn_once(
+                log,
+                f"license-unreadable:{path}",
+                UNREADABLE_FILE_WARNING,
+                loggable(str(path)),
+                "for license files",
+                one_line(exc),
+            )
         return None
     if len(raw) > LICENSE_FILE_MAX_BYTES:
-        warn_over_cap(str(path))
+        warn_over_cap(log, LICENSE_FILE_CAP, str(path), once=True)
         return None
     return raw
+
+
+def read_license_members(project_dir: Path) -> dict[str, bytes]:
+    """The licence sources in *project_dir* (``CITATION.cff``,
+    ``codemeta.json`` and :func:`find_license_files`), name to bytes, as
+    :func:`license_candidates_from_members` takes them. A source resolving
+    outside *project_dir* (a symlink out) is not read
+    (:func:`read_license_file`)."""
+    members: dict[str, bytes] = {}
+    paths = [project_dir / CITATION_CFF, project_dir / CODEMETA_JSON]
+    for path in [*paths, *find_license_files(project_dir)]:
+        raw = read_license_file(path, project_dir)
+        if raw is not None:
+            members[path.name] = raw
+    return members
 
 
 def collect_license_candidates(project_dir: Path) -> list[tuple[str, str]]:
     """Return ``[(value, source_description), ...]`` for all license
     sources in *project_dir* (see :func:`license_candidates_from_members`)."""
-    members: dict[str, bytes] = {}
-    paths = [project_dir / CITATION_CFF, project_dir / CODEMETA_JSON]
-    for path in [*paths, *find_license_files(project_dir)]:
-        raw = _read_root_file(path)
-        if raw is not None:
-            members[path.name] = raw
-    return license_candidates_from_members(members)
+    return license_candidates_from_members(read_license_members(project_dir))

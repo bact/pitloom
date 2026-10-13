@@ -462,5 +462,6 @@ def test_an_extensionless_header_over_the_cap_is_still_safetensors(
     declared = 17 * 1024 * 1024
     path = tmp_path / "model"
     path.write_bytes(struct.pack("<Q", declared) + b"{")
-    with pytest.raises(ModelLimitExceeded, match=f"header of {declared} bytes"):
+    match = "larger than the 16777216-byte Safetensors-header cap"
+    with pytest.raises(ModelLimitExceeded, match=match):
         read_ai_model(path)

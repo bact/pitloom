@@ -10,7 +10,7 @@ from __future__ import annotations
 import io
 import json
 from collections import defaultdict
-from typing import Any
+from typing import Any, NamedTuple
 
 import rfc8785
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -284,6 +284,31 @@ def _annotate_relationships(graph: list[dict[str, Any]]) -> None:
             _annotate_single_relationship(node, id_to_name)
 
 
+class AgentKey(NamedTuple):
+    """An Agent's identity in :class:`Spdx3JsonExporter`'s Agent index;
+    build one with :func:`agent_key`."""
+
+    agent_type: str
+    name: str
+    email: str
+    scope: str
+
+
+def agent_key(
+    agent_cls: type[spdx3.Agent],
+    name: str | None,
+    email: str | None,
+    scope: str = "",
+) -> AgentKey:
+    """The identity two Agents share when they are the same agent: the
+    SPDX 3 class (a Person and an Organization of one name are two agents),
+    the stripped name and email, and *scope* (e.g. the package a
+    contributor group belongs to)."""
+    return AgentKey(
+        agent_cls.__name__, (name or "").strip(), (email or "").strip(), scope
+    )
+
+
 class Spdx3JsonExporter:
     """Exports SPDX 3 data structures to JSON-LD format using spdx-python-model."""
 
@@ -292,10 +317,9 @@ class Spdx3JsonExporter:
         # Maps (kind, value) -> spdxId for licence deduplication: kind is
         # "expression" or "text", so the same string as each stays apart.
         self._license_index: dict[tuple[str, str], str] = {}
-        # Maps an arbitrary caller-chosen key (e.g. "name|email") -> spdxId,
-        # for deduplicating Agents built from external metadata (e.g. two
-        # dependencies sharing the same author).
-        self._agent_index: dict[str, str] = {}
+        # Maps an agent_key() -> spdxId, for deduplicating Agents built
+        # from external metadata (e.g. two dependencies sharing an author).
+        self._agent_index: dict[AgentKey, str] = {}
         #: spdxIds of packages built without an ID registry lookup because
         #: another package of this document owns their name (see
         #: :mod:`pitloom.assemble.spdx3._package_ids`). Run auto-harvest
@@ -318,14 +342,14 @@ class Spdx3JsonExporter:
         """
         self.object_set.add(person)
 
-    def add_agent(self, agent: spdx3.Agent, *, key: str | None = None) -> None:
+    def add_agent(self, agent: spdx3.Agent, *, key: AgentKey | None = None) -> None:
         """Add a creator Agent (Person, Organization, SoftwareAgent, or the
         generic Agent).
 
         Args:
             agent: Any ``Agent`` subclass used in ``CreationInfo.createdBy``
                 or elsewhere (e.g. a dependency's ``suppliedBy``).
-            key: Optional dedup key (e.g. ``"name|email"``). When given,
+            key: Optional dedup key from :func:`agent_key`. When given,
                 updates the internal agent index so a subsequent
                 :meth:`find_agent` call with the same key returns this
                 agent's spdxId instead of a caller minting a duplicate.
@@ -334,7 +358,7 @@ class Spdx3JsonExporter:
         if key:
             self._agent_index[key] = require_spdx_id(agent)
 
-    def find_agent(self, key: str) -> str | None:
+    def find_agent(self, key: AgentKey) -> str | None:
         """Return the spdxId of an existing Agent registered under *key* via
         :meth:`add_agent`, or ``None`` if not yet added."""
         return self._agent_index.get(key)

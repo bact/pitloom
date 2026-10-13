@@ -16,34 +16,34 @@ import logging
 import pytest
 
 from pitloom.extract.project.poetry import (
-    _parse_poetry_authors,
     _parse_poetry_deps,
     _poetry_constraint_to_pep440,
     _poetry_dep_to_pep508,
+    parse_poetry_authors,
 )
 
 # ---------------------------------------------------------------------------
-# _parse_poetry_authors
+# parse_poetry_authors
 # ---------------------------------------------------------------------------
 
 
 def test_parse_authors_name_and_email() -> None:
-    authors = _parse_poetry_authors(["Alice Smith <alice@example.com>"])
+    authors = parse_poetry_authors(["Alice Smith <alice@example.com>"])
     assert authors == [{"name": "Alice Smith", "email": "alice@example.com"}]
 
 
 def test_parse_authors_name_only() -> None:
-    authors = _parse_poetry_authors(["Bob Jones"])
+    authors = parse_poetry_authors(["Bob Jones"])
     assert authors == [{"name": "Bob Jones"}]
 
 
 def test_parse_authors_email_only() -> None:
-    authors = _parse_poetry_authors(["<carol@example.com>"])
+    authors = parse_poetry_authors(["<carol@example.com>"])
     assert authors == [{"email": "carol@example.com"}]
 
 
 def test_parse_authors_multiple() -> None:
-    authors = _parse_poetry_authors(
+    authors = parse_poetry_authors(
         [
             "Alice <a@example.com>",
             "Bob <b@example.com>",
@@ -55,13 +55,13 @@ def test_parse_authors_multiple() -> None:
 
 
 def test_parse_authors_non_string_skipped() -> None:
-    authors = _parse_poetry_authors([42, None, "Valid <v@example.com>"])
+    authors = parse_poetry_authors([42, None, "Valid <v@example.com>"])
     assert len(authors) == 1
     assert authors[0]["name"] == "Valid"
 
 
 def test_parse_authors_empty_list() -> None:
-    assert not _parse_poetry_authors([])
+    assert not parse_poetry_authors([])
 
 
 # ---------------------------------------------------------------------------
@@ -183,7 +183,7 @@ def test_dep_skip_logs_warning(
 
 def test_parse_authors_unmatched_email_bracket_skipped() -> None:
     """An entry with an unclosed '<' fails the author regex and is skipped."""
-    authors = _parse_poetry_authors(["Name <unclosed", "Valid <v@example.com>"])
+    authors = parse_poetry_authors(["Name <unclosed", "Valid <v@example.com>"])
     assert authors == [{"name": "Valid", "email": "v@example.com"}]
 
 

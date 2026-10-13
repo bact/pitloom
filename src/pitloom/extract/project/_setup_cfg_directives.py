@@ -12,40 +12,52 @@ from __future__ import annotations
 
 import ast
 import logging
-import os
 import re
 from pathlib import Path
 
+from pitloom.core.path_confine import open_inside
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, is_missing_errno
-from pitloom.logging_config import loggable, warn_once
+from pitloom.extract._license_detect import decode_text
+from pitloom.logging_config import Cap, loggable, warn_once, warn_over_cap
 
 log = logging.getLogger(__name__)
 
 # Matches "file: some/path" or "attr: module.attribute"; a "file:" list may
 # be wrapped across lines, as setuptools reads it.
 _DIRECTIVE_RE = re.compile(r"^(file|attr):\s*(.+)$", re.DOTALL)
+#: Largest file a ``file:`` directive reads (``setup.cfg``, and the
+#: ``pyproject.toml`` dynamic version); a larger one is skipped, warned.
+MAX_LISTED_FILE_BYTES = 1024 * 1024
 
 
 def _read_listed_file(
     project_dir: Path, name: str, what: str
 ) -> tuple[bool, str | None]:
-    """``(found, text)`` for the file *name* a directive lists. A missing
-    one (a dangling symlink too) is ``(False, None)``, silently, as
-    setuptools skips it; one that cannot be read (a directory, no
-    permission, not UTF-8) is ``(True, None)`` with one ``WARNING:`` per
-    file and *what* (e.g. ``"setup.cfg metadata.version"``) per process,
-    since one run reads a project more than once."""
+    """``(found, text)`` for the file *name* a directive lists, opened as
+    written and only inside *project_dir*
+    (:func:`~pitloom.core.path_confine.open_inside`), its newlines read as
+    setuptools reads them. A missing one (a dangling symlink too) is
+    ``(False, None)``, silently, as setuptools skips it; one that is not
+    read (outside the project, not a regular file, no permission, not
+    UTF-8, over :data:`MAX_LISTED_FILE_BYTES`) is ``(True, None)`` with one
+    ``WARNING:`` per file and *what* (e.g. ``"setup.cfg metadata.version"``)
+    per process, since one run reads a project more than once."""
     path = project_dir / name
+    once = f"setup-cfg-file:{path}\x00{what}"
     try:
-        # os.stat, not Path.stat: Python 3.10's pathlib binds it at import.
-        os.stat(path)
-        return True, path.read_text(encoding="utf-8")
+        with open_inside(path, project_dir) as handle:
+            raw = handle.read(MAX_LISTED_FILE_BYTES + 1)
+        if len(raw) > MAX_LISTED_FILE_BYTES:
+            cap = Cap(MAX_LISTED_FILE_BYTES, "byte", "file-directive")
+            warn_over_cap(log, cap, name, f"skipped for {what}", once=True, key=once)
+            return True, None
+        return True, decode_text(raw)
     except (OSError, UnicodeDecodeError) as exc:
         if isinstance(exc, OSError) and is_missing_errno(exc):
             return False, None
         warn_once(
             log,
-            f"setup-cfg-file:{path}\x00{what}",
+            once,
             UNREADABLE_FILE_WARNING,
             loggable(name),
             f"for {what}",

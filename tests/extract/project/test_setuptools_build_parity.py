@@ -18,8 +18,12 @@ Not compared: ``Home-page`` vs ``Homepage`` key spelling (``urls`` keys are
 compared as Pitloom's reader names them on both sides), ``Description`` and
 ``Classifier`` headers (no comparable ProjectMetadata field).
 
+The authors are compared whole with the wheel route's read of that
+``METADATA``: ``author`` is free text, split the same on both.
+
 See also: test_setuptools_merge.py (the merge rule),
-test_setuptools_merge_license.py (the licence).
+test_setuptools_merge_license.py (the licence),
+tests/test_author_split_surfaces.py (authors on every surface).
 """
 
 from __future__ import annotations
@@ -31,6 +35,7 @@ from typing import Any
 
 import pytest
 
+from pitloom.extract._core_metadata import parse_core_metadata_authors
 from pitloom.extract.project.installed import read_installed_metadata
 from pitloom.extract.project.setuptools import read_setuptools
 from tests._setuptools_build import run_build
@@ -267,3 +272,47 @@ def test_directory_read_matches_setuptools_build(
     want = {**_DEFAULTS, **expect}
     assert pitloom == {**want, **{k: v[0] for k, v in differ.items()}}
     assert built == {**want, **{k: v[1] for k, v in differ.items()}}
+
+
+_ANN_BOB = [{"name": "Ann Lee"}, {"name": "Bob Ray"}]
+
+
+@pytest.mark.parametrize(
+    ("cfg", "py", "expected"),
+    [
+        (
+            _BASE + "author = Ann Lee, Bob Ray\nauthor_email = a@x.org\n",
+            "",
+            [*_ANN_BOB, {"email": "a@x.org"}],
+        ),
+        (
+            _BASE + "author = Ann Lee and Bob Ray\nauthor_email = a@x.org, b@x.org\n",
+            "",
+            [{"email": "a@x.org"}, {"email": "b@x.org"}, *_ANN_BOB],
+        ),
+        (_BASE, "author='Ann Lee, Bob Ray'", _ANN_BOB),
+        (
+            _BASE + "author = Ann Lee\nauthor_email = a@x.org\n",
+            "",
+            [{"name": "Ann Lee", "email": "a@x.org"}],
+        ),
+    ],
+    ids=["cfg-list-address", "cfg-and-two-addresses", "py-list", "cfg-one"],
+)
+def test_directory_authors_match_wheel_route_on_setuptools_build(
+    tmp_path: Path, cfg: str, py: str, expected: list[dict[str, str]]
+) -> None:
+    """Drift guard: the directory read of ``author``/``author_email`` equals
+    the wheel route's read of the ``METADATA`` real setuptools writes."""
+    project = tmp_path / "project"
+    project.mkdir()
+    write_project(project, cfg, py)
+    copy = tmp_path / "copy"
+    shutil.copytree(project, copy)
+    out = tmp_path / "out"
+    out.mkdir()
+    run_build(["-c", _BUILD, str(out)], cwd=copy)
+    msg = email.message_from_bytes(next(out.glob("*.dist-info/METADATA")).read_bytes())
+
+    assert read_setuptools(project, quiet=True)[0].authors == expected
+    assert parse_core_metadata_authors(msg, quiet=True) == expected

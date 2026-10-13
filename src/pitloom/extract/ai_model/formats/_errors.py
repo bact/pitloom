@@ -24,7 +24,16 @@ class FormatError(Exception):
 
 
 class LimitExceeded(FormatError):
-    """The file declares or holds more than a :class:`Limits` bound allows."""
+    """The file declares or holds more than a :class:`Limits` bound allows.
+
+    Attributes:
+        bound: The :class:`Limits` field (or property) exceeded, e.g.
+            ``"max_pickle_opcodes"``.
+    """
+
+    def __init__(self, reason: str, bound: str) -> None:
+        super().__init__(reason)
+        self.bound = bound
 
 
 class Malformed(FormatError):

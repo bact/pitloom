@@ -331,9 +331,7 @@ def test_max_source_metadata_bytes_too_small_is_an_error() -> None:
 def _serialisation_signals(sbom_json: str) -> tuple[bool, bool]:
     """(pretty-printed, relationships described) for one SBOM."""
     relationships = [
-        node
-        for node in json.loads(sbom_json)["@graph"]
-        if node.get("type") == "Relationship"
+        node for node in json.loads(sbom_json)["@graph"] if "relationshipType" in node
     ]
     assert relationships, "fixture must produce relationships to describe"
     return "\n  " in sbom_json, any("description" in r for r in relationships)

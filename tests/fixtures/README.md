@@ -34,3 +34,7 @@ SPDX-License-Identifier: CC0-1.0
     - Real `LICENSE` files that `licenseid` alone ranks wrong or misses,
       for licence-detection regression testing
     - [Details](./license-texts/README.md)
+9. Real-world extras fixtures (`real-world-extras/`)
+    - Real `pyproject.toml` files of published packages that declare
+      extras, one or more per build backend, for extras-reader testing
+    - [Details](./real-world-extras/README.md)

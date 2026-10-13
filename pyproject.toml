@@ -199,6 +199,7 @@ exclude = [
     ".editorconfig",
     ".gitignore",
     ".markdownlint.json",
+    ".markdownlintignore",
     "AGENTS.md",
     "tests/fixtures/aimodels/crfsuite/*.crfsuite",
     "tests/fixtures/aimodels/crfsuite/*.model",
@@ -221,6 +222,7 @@ exclude = [
     "tests/fixtures/huggingface-hub/*.txt",
     "tests/fixtures/real-world-projects/",
     "tests/fixtures/real-world-locks/",
+    "tests/fixtures/real-world-extras/",
 ]
 
 [tool.hatch.build.targets.wheel]

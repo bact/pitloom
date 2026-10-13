@@ -41,9 +41,8 @@ from pitloom.extract.ai_model import (
 )
 from pitloom.extract.ai_model import numpy as numpy_reader
 from pitloom.extract.ai_model._gguf_bounds import check_gguf_header
-from pitloom.extract.ai_model.archive_member import ArchiveMemberTooLarge
 from pitloom.extract.ai_model.gguf import read_gguf
-from pitloom.extract.ai_model.limits import ModelLimitExceeded
+from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
 from pitloom.extract.ai_model.pytorch import (
     _fickling_get_top_class,
     read_pytorch,
@@ -97,11 +96,11 @@ def test_a_raw_pickle_is_bounded_but_trailing_data_is_not_its_size(
 
     big = tmp_path / "big.pt"
     big.write_bytes(pickle.dumps("x" * 5000, protocol=2))
-    with pytest.raises(ModelLimitExceeded) as excinfo:
+    with pytest.raises(ModelOverCap) as excinfo:
         read_pytorch(big)
     # Not an archive member: the reason says what the file is.
-    assert not isinstance(excinfo.value, ArchiveMemberTooLarge)
-    assert excinfo.value.reason == "first pickle not complete within 1000 bytes"
+    assert excinfo.value.member is None
+    assert excinfo.value.reason == "larger than the 1000-byte first-pickle cap"
 
 
 def test_a_raw_pickle_over_the_cap_is_reported_as_a_file_not_a_member(
@@ -114,8 +113,10 @@ def test_a_raw_pickle_over_the_cap_is_reported_as_a_file_not_a_member(
     (model,) = discover_ai_models(project_candidates(tmp_path, files))
     assert not model.provenance  # format-only
     (message,) = logged_warnings(caplog)
-    assert "FILE=big.pt: first pickle not complete within 1000 bytes" in message
-    assert "archive member" not in message
+    assert message == (
+        "FORMAT=pytorch FILE=big.pt: larger than the 1000-byte first-pickle cap;"
+        " metadata not read"
+    )
 
 
 # -- fickling's stderr ------------------------------------------------------
@@ -189,33 +190,60 @@ def test_a_fickling_failure_is_one_warning_and_no_type(
 # -- GGUF -------------------------------------------------------------------
 
 
+_BUDGET = "larger than the 1000000-unit GGUF-header cap"
+_DECLARES = "GGUF header declares "
+_UNDER_CAP = "GGUF array of 1000 elements, more than the file holds"
+
+#: A hostile header, and the reason it is refused.
 _HOSTILE_GGUF = {
-    "tensors-beyond-file": gguf_file(10**6, 0),
-    "tensors-over-cap": gguf_file(2**40, 0),
-    "kv-beyond-file": gguf_file(0, 10**6),
-    "kv-over-cap": gguf_file(0, 2**40),
-    "string-array-beyond-file": gguf_file(0, 1, array(8, 10**9), tail=64),
-    "scalar-array-beyond-file": gguf_file(0, 1, array(4, 10**9), tail=64),
-    "string-array-under-cap-beyond-file": gguf_file(0, 1, array(8, 1000), tail=64),
-    "scalar-array-under-cap-beyond-file": gguf_file(0, 1, array(4, 1000), tail=64),
-    "array-over-cap": gguf_file(0, 1, array(7, 2**40)),
-    "string-over-cap": gguf_file(0, 1, kv(b"k", 8, struct.pack("<Q", 2**40))),
-    "big-endian": gguf_file(0, 1, array(8, 10**9, endian=">"), endian=">", tail=64),
-    "nested": gguf_file(
-        0, 1, kv(b"k", 9, struct.pack("<IQ", 9, 1) + struct.pack("<IQ", 8, 10**9))
+    "tensors-beyond-file": (gguf_file(10**6, 0), f"{_DECLARES}1000000 tensors"),
+    "tensors-over-cap": (gguf_file(2**40, 0), f"{_DECLARES}{2**40} tensors"),
+    "kv-beyond-file": (gguf_file(0, 10**6), f"{_DECLARES}1000000 key/value pairs"),
+    "kv-over-cap": (gguf_file(0, 2**40), f"{_DECLARES}{2**40} key/value pairs"),
+    "string-array-beyond-file": (gguf_file(0, 1, array(8, 10**9), tail=64), _BUDGET),
+    "scalar-array-beyond-file": (gguf_file(0, 1, array(4, 10**9), tail=64), _BUDGET),
+    "string-array-under-cap-beyond-file": (
+        gguf_file(0, 1, array(8, 1000), tail=64),
+        _UNDER_CAP,
+    ),
+    "scalar-array-under-cap-beyond-file": (
+        gguf_file(0, 1, array(4, 1000), tail=64),
+        _UNDER_CAP,
+    ),
+    "array-over-cap": (gguf_file(0, 1, array(7, 2**40)), _BUDGET),
+    "string-over-cap": (
+        gguf_file(0, 1, kv(b"k", 8, struct.pack("<Q", 2**40))),
+        "larger than the 8388608-byte GGUF-string cap",
+    ),
+    "big-endian": (
+        gguf_file(0, 1, array(8, 10**9, endian=">"), endian=">", tail=64),
+        _BUDGET,
+    ),
+    "nested": (
+        gguf_file(
+            0, 1, kv(b"k", 9, struct.pack("<IQ", 9, 1) + struct.pack("<IQ", 8, 10**9))
+        ),
+        _BUDGET,
     ),
     # The reader follows any depth, so the walker refuses what it cannot follow.
-    "nested-too-deep": gguf_file(
-        0,
-        1,
-        kv(b"k", 9, struct.pack("<IQ", 9, 1) * 5 + struct.pack("<IQ", 8, 10**9)),
+    "nested-too-deep": (
+        gguf_file(
+            0,
+            1,
+            kv(b"k", 9, struct.pack("<IQ", 9, 1) * 5 + struct.pack("<IQ", 8, 10**9)),
+        ),
+        "larger than the 4-level GGUF-array-nesting cap",
     ),
     # One numpy view per element, scalar or not.
-    "scalar-array-over-budget": gguf_file(0, 1, array(0, 10**6, b"\0" * 10**6)),
-    "scalar-arrays-sum-over-budget": gguf_file(
-        0, 2, array(0, 600_000, b"\0" * 600_000) * 2
+    "scalar-array-over-budget": (
+        gguf_file(0, 1, array(0, 10**6, b"\0" * 10**6)),
+        _BUDGET,
     ),
-    "tensors-over-budget": gguf_file(300_000, 0, tail=24 * 300_000),
+    "scalar-arrays-sum-over-budget": (
+        gguf_file(0, 2, array(0, 600_000, b"\0" * 600_000) * 2),
+        _BUDGET,
+    ),
+    "tensors-over-budget": (gguf_file(300_000, 0, tail=24 * 300_000), _BUDGET),
 }
 
 
@@ -223,10 +251,12 @@ _HOSTILE_GGUF = {
 def test_a_hostile_gguf_header_is_refused_before_the_reader(
     case: str, tmp_path: Path
 ) -> None:
+    data, reason = _HOSTILE_GGUF[case]
     path = tmp_path / "m.gguf"
-    path.write_bytes(_HOSTILE_GGUF[case])
-    with pytest.raises(ModelLimitExceeded):
+    path.write_bytes(data)
+    with pytest.raises(ModelLimitExceeded) as excinfo:
         check_gguf_header(path)
+    assert excinfo.value.reason == reason
     gguf = pytest.importorskip("gguf")
     with mock.patch.object(gguf, "GGUFReader", side_effect=AssertionError):
         with pytest.raises(ModelLimitExceeded):
@@ -329,7 +359,7 @@ def test_tensors_pairs_and_every_element_share_one_budget(
     if within:
         check_gguf_header(path)
     else:
-        with pytest.raises(ModelLimitExceeded):
+        with pytest.raises(ModelOverCap, match="the 8-unit GGUF-header cap"):
             check_gguf_header(path)
 
 
@@ -338,7 +368,7 @@ def test_nesting_is_followed_to_the_limit_and_refused_beyond(tmp_path: Path) -> 
     path.write_bytes(gguf_file(0, 1, kv(b"k", 9, _NESTED_4)))
     check_gguf_header(path)
     path.write_bytes(gguf_file(0, 1, kv(b"k", 9, struct.pack("<IQ", 9, 1) + _NESTED_4)))
-    with pytest.raises(ModelLimitExceeded, match="nested"):
+    with pytest.raises(ModelLimitExceeded, match="4-level GGUF-array-nesting cap"):
         check_gguf_header(path)
 
 

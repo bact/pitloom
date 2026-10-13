@@ -19,7 +19,7 @@ from pitloom.core.project import PhantomDependency, ProjectFile, ProjectMetadata
 
 def test_phantom_dependency_creates_package_and_dependency_relationship() -> None:
     """A phantom dependency produces a software_Package (name/version) and a
-    dependsOn Relationship from the main package to it."""
+    runtime-scoped dependsOn edge from the main package to it."""
     project = ProjectMetadata(name="main-project", version="1.0.0")
     doc = DocumentModel(
         project=project,
@@ -45,8 +45,10 @@ def test_phantom_dependency_creates_package_and_dependency_relationship() -> Non
     relationships = [e for e in graph if e.get("type") == "Relationship"]
     depends_on = [
         r
-        for r in relationships
-        if r["relationshipType"] == "dependsOn"
+        for r in graph
+        if r.get("type") == "LifecycleScopedRelationship"
+        and r["relationshipType"] == "dependsOn"
+        and r["scope"] == "runtime"
         and r["from"] == main_package["spdxId"]
         and phantom_pkg["spdxId"] in r["to"]
     ]

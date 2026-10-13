@@ -69,10 +69,9 @@ _SPDX_CONTRIBUTOR_TAG_RE = re.compile(r"^SPDX-FileContributor:\s*(.+?)\s*$")
 _SPDX_FILETYPE_TAG_RE = re.compile(r"^SPDX-FileType:\s*(.+?)\s*$")
 _SPDX_LICENSE_TAG_RE = re.compile(r"^SPDX-License-Identifier:\s*(.+?)\s*$")
 
-# Fallback for files that predate SPDX tagging. Own copy, not imported from
-# assemble/spdx3/deps.py's _COPYRIGHT_LINE_RE -- that one scans a different
-# corpus (a dependency's installed License-File, first 500 chars) for a
-# different purpose; extract/ shouldn't import from assemble/.
+# Fallback for files that predate SPDX tagging, in a file's comment header.
+# Not copyright_notices.COPYRIGHT_NOTICE_LINE_RE: that one reads a whole
+# licence file, this one a source file's leading comments.
 _BARE_COPYRIGHT_RE = re.compile(r"^Copyright\s+(?:\(c\)|©)?\s*\S.*$", re.IGNORECASE)
 
 # magika labels that mean "no real determination", worth falling back to

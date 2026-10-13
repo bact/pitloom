@@ -23,18 +23,22 @@ import pytest
 
 from pitloom import __main__
 from pitloom.id_registry import PACKAGE_ENTITY_TYPE, IdRegistry
-from tests.id_registry.package_ids_base import MAIN, build_doc, make_doc
+from tests.id_registry.package_ids_base import MAIN, build_doc, make_doc, phantom
 
 _PREFIX = "INFO: ID registry: not imported (name held by several elements): "
 
 
 def _import(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, dependencies: list[str]
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    dependencies: list[str],
+    phantoms: tuple[str, ...] = (),
 ) -> Path:
-    sbom_path = tmp_path / "demo.spdx3.json"
-    sbom_path.write_text(
-        build_doc(make_doc(dependencies=dependencies), None).to_json(), "utf-8"
+    doc = make_doc(
+        dependencies=dependencies, phantom=[phantom(n, "1") for n in phantoms]
     )
+    sbom_path = tmp_path / "demo.spdx3.json"
+    sbom_path.write_text(build_doc(doc, None).to_json(), "utf-8")
     registry_path = tmp_path / "registry.json"
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(
@@ -74,9 +78,9 @@ def test_id_import_still_skips_a_name_a_non_reader_shares(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """An imported SBOM carries no record of which element never looked the
-    registry up: a self-referencing dependency still makes its name
+    registry up: a phantom named like the project still makes its name
     ambiguous for ``id import`` (run auto-harvest writes it)."""
-    registry_path = _import(monkeypatch, tmp_path, [f"{MAIN}[x]; extra == 'all'"])
+    registry_path = _import(monkeypatch, tmp_path, [], phantoms=("Demo",))
 
     lines = [
         line for line in capsys.readouterr().err.splitlines() if "not imported" in line

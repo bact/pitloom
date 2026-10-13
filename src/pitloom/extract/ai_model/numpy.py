@@ -29,9 +29,9 @@ from pitloom.core.ai_metadata import (
 )
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model.archive_member import open_model_binary
-from pitloom.extract.ai_model.limits import ModelLimitExceeded
+from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
 from pitloom.extract.ai_model.reader_requirements import require_library
-from pitloom.logging_config import loggable
+from pitloom.logging_config import Cap, loggable
 
 log = logging.getLogger(__name__)
 
@@ -63,9 +63,7 @@ def _bounded_header(fp: IO[bytes], major: int) -> IO[bytes]:
         raise ValueError("truncated .npy header")
     length = int.from_bytes(prefix, "little")
     if length > _MAX_NPY_HEADER_BYTES:
-        raise ModelLimitExceeded(
-            f".npy header of {length} bytes, over {_MAX_NPY_HEADER_BYTES}"
-        )
+        raise ModelOverCap(Cap(_MAX_NPY_HEADER_BYTES, "byte", ".npy-header"))
     return io.BytesIO(prefix + fp.read(length))
 
 

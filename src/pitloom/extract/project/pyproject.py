@@ -13,7 +13,9 @@ See also: :mod:`pitloom.extract.project.pyproject_dynamic` for PEP 621
 ``dynamic`` field resolution (``prepare_dynamic_version()``, called from
 :func:`read_pyproject` below), and
 :mod:`pitloom.extract.project._pyproject_license` for ``project.license``
-and the licence classifiers.
+and the licence classifiers, and
+:mod:`pitloom.extract.project._pyproject_fields` for the ``[project]``
+fields read from :class:`pyproject_metadata.StandardMetadata`.
 """
 
 from __future__ import annotations
@@ -26,20 +28,32 @@ from pyproject_metadata import ConfigurationError, StandardMetadata
 
 from pitloom._toml_io import load_toml_file
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
-from pitloom.core.models import normalize_dependency_specifier
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
+from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.extract._core_metadata import license_from_classifiers
 from pitloom.extract._extract_utils import field_declared
 from pitloom.extract._license import (
-    apply_in_package_license,
+    apply_in_package_license_files,
     classify_license,
-    collect_license_candidates,
 )
+from pitloom.extract._license_detect import read_license_members
 from pitloom.extract.lock._common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract.lock.poetry import extract_poetry_lock_dependencies
 from pitloom.extract.lock.poetry_hash import extract_poetry_lock_hashes
+from pitloom.extract.project._poetry_extras import defer_to_poetry_lists
 from pitloom.extract.project._poetry_fields import read_poetry_section
-from pitloom.extract.project._pyproject_license import stated_pyproject_license
+from pitloom.extract.project._pyproject_fields import (
+    build_provenance,
+    confine_readme_file,
+    extract_authors,
+    extract_readme,
+    strip_missing_readme,
+)
+from pitloom.extract.project._pyproject_license import (
+    confine_license_file,
+    stated_pyproject_license,
+)
+from pitloom.extract.project._setuptools_dynamic import read_setuptools_dynamic
 from pitloom.extract.project.poetry import extract_poetry_metadata
 from pitloom.extract.project.pyproject_dynamic import prepare_dynamic_version
 
@@ -68,8 +82,8 @@ def _read_pyproject_fallback(
     if name:
         prov["name"] = "Source: pyproject.toml | Field: project.name"
     metadata = ProjectMetadata(name=name, provenance=prov)
-    apply_in_package_license(
-        metadata, collect_license_candidates(pyproject_path.parent)
+    apply_in_package_license_files(
+        metadata, read_license_members(pyproject_path.parent)
     )
     return metadata, pitloom_config
 
@@ -271,7 +285,9 @@ def read_pyproject(
     data, dynamic_fields, version_source, description_source = prepare_dynamic_version(
         data, project_data, pyproject_path, quiet=quiet
     )
-    data, readme_override = _strip_missing_readme(project_data, pyproject_path, data)
+    data, readme_override = strip_missing_readme(project_data, pyproject_path, data)
+    data = confine_readme_file(data, pyproject_path.parent, quiet=quiet)
+    data = confine_license_file(data, pyproject_path.parent, quiet=quiet)
 
     std, data = _parse_standard_metadata_with_retry(
         data, pyproject_path, dynamic_fields, quiet=quiet
@@ -282,7 +298,7 @@ def read_pyproject(
     )
 
     project_data = data.get("project", {})
-    provenance = _build_provenance(
+    provenance = build_provenance(
         project_data, version_source, license_prov, description_source
     )
     # Presence-gated, not truthy-gated -- see AGENTS.md's "tri-state
@@ -297,19 +313,21 @@ def read_pyproject(
         name=std.name,
         version=str(std.version) if std.version else None,
         description=std.description,
-        readme=_extract_readme(std, readme_override),
+        readme=extract_readme(std, readme_override),
         requires_python=str(std.requires_python) if std.requires_python else None,
         license_name=license_name,
         keywords=std.keywords or [],
-        authors=_extract_authors(std),
+        authors=extract_authors(std, project_data),
         urls=std.urls or {},
         dependencies=[normalize_dependency_specifier(str(d)) for d in std.dependencies],
         provenance=provenance,
     )
-    apply_in_package_license(
-        metadata, collect_license_candidates(pyproject_path.parent)
+    apply_in_package_license_files(
+        metadata, read_license_members(pyproject_path.parent)
     )
-
+    # Before the merge: a non-empty list wins it whole, as a static one.
+    dynamic = read_setuptools_dynamic(data, pyproject_path.parent, quiet=quiet)
+    dynamic.add_dependencies(metadata)
     # Fill any remaining gaps from [tool.poetry] (project fields win).
     poetry_meta = _try_read_poetry(
         data,
@@ -317,109 +335,21 @@ def read_pyproject(
         include_locked_dependencies=include_locked_dependencies,
         quiet=quiet,
     )
+    from_poetry = defer_to_poetry_lists(metadata, poetry_meta, data)
     if poetry_meta is not None:
         metadata = merge_project_metadata(metadata, poetry_meta)
+    dynamic.add_extras(
+        metadata,
+        {
+            extra: [str(r) for r in reqs]
+            for extra, reqs in std.optional_dependencies.items()
+        },
+        declared=field_declared(project_data, "optional-dependencies")
+        and not from_poetry,
+        quiet=quiet,
+    )
 
     return metadata, pitloom_config
-
-
-# ---------------------------------------------------------------------------
-# Private helpers
-# ---------------------------------------------------------------------------
-
-_FIELD_PROVENANCE = {
-    "description": "Source: pyproject.toml | Field: project.description",
-    "urls": "Source: pyproject.toml | Field: project.urls",
-    "dependencies": "Source: pyproject.toml | Field: project.dependencies",
-    "authors": "Source: pyproject.toml | Field: project.authors",
-    "license": "Source: pyproject.toml | Field: project.license",
-    "keywords": "Source: pyproject.toml | Field: project.keywords",
-    "readme": "Source: pyproject.toml | Field: project.readme",
-}
-
-
-def _build_provenance(
-    project_data: dict[str, Any],
-    version_source: str | None,
-    license_prov_override: str | None = None,
-    description_source: str | None = None,
-) -> dict[str, str]:
-    """Build the provenance dict from the raw project section data."""
-    prov: dict[str, str] = {
-        "name": "Source: pyproject.toml | Field: project.name",
-    }
-    if version_source:
-        prov["version"] = version_source
-    elif field_declared(project_data, "version"):
-        prov["version"] = "Source: pyproject.toml | Field: project.version"
-
-    for field_key, source in _FIELD_PROVENANCE.items():
-        if field_key == "description" and description_source:
-            prov["description"] = description_source
-        elif field_key == "license":
-            # license_prov_override, when truthy, always sets prov["license"]
-            # here -- nothing downstream can unset it, so no post-loop
-            # fallback is needed for that case.
-            if license_prov_override:
-                prov["license"] = license_prov_override
-            elif field_declared(project_data, field_key):
-                prov["license"] = source
-        elif field_declared(project_data, field_key):
-            prov[field_key] = source
-
-    if project_data.get("authors"):
-        prov["copyright_text"] = (
-            "Source: Pitloom generator | Method: inferred_from_authors"
-        )
-
-    return prov
-
-
-def _strip_missing_readme(
-    project_data: dict[str, Any],
-    pyproject_path: Path,
-    data: dict[str, Any],
-) -> tuple[dict[str, Any], str | None]:
-    """Remove a readme entry whose file does not exist to avoid parse errors.
-
-    Returns the (possibly modified) data dict and an optional readme override
-    value that the caller can use to preserve the declared filename.
-    """
-    readme_field = project_data.get("readme")
-    if not (readme_field and isinstance(readme_field, str)):
-        return data, None
-    if (pyproject_path.parent / readme_field).exists():
-        return data, None
-    stripped = {
-        **data,
-        "project": {k: v for k, v in data["project"].items() if k != "readme"},
-    }
-    return stripped, readme_field
-
-
-def _extract_readme(std: StandardMetadata, override: str | None) -> str | None:
-    """Return the readme text or filename from StandardMetadata."""
-    if override is not None:
-        return override
-    readme = std.readme
-    if readme:
-        if hasattr(readme, "file") and readme.file:
-            return str(readme.file)
-        if hasattr(readme, "text") and readme.text:
-            return readme.text
-    return None
-
-
-def _extract_authors(std: StandardMetadata) -> list[dict[str, str]]:
-    """Return authors as a list of ``{name, email?}`` dicts."""
-    result = []
-    for name, email in std.authors:
-        entry: dict[str, str] = {"name": name} if name else {}
-        if email:
-            entry["email"] = email
-        if entry:
-            result.append(entry)
-    return result
 
 
 def _try_read_poetry(
@@ -463,16 +393,9 @@ def _try_read_poetry(
     except (ValueError, KeyError) as exc:
         if locked_dependencies is None:
             return None
-        # Not gated by `if not quiet:` like this function's sibling
-        # warnings: this branch is only reachable when locked_dependencies
-        # is not None, i.e. only when include_locked_dependencies=True --
-        # resolve_project_with_lockfile()'s peek always calls this with
-        # include_locked_dependencies=False, so the peek can never reach
-        # this branch to have already logged it. The one real
-        # (include_locked_dependencies=True) call -- whether the single
-        # explicit-use_lockfile read or the peek-then-decide's quiet=True
-        # reread -- is therefore always this warning's only possible
-        # emission, never a duplicate of one the peek already made.
+        # Not quiet-gated: reachable only with include_locked_dependencies,
+        # which resolve_project_with_lockfile()'s peek never passes, so
+        # this is the warning's one emission, never a repeat.
         log.warning(
             "%s: [tool.poetry] metadata could not be parsed (%s) -- "
             "skipping Poetry gap-fill, but still applying poetry.lock's "

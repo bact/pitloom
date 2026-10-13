@@ -172,7 +172,7 @@ def test_the_check_refuses_exactly_what_zipfile_opens_over_the_cap(
             with open_model_binary(path):
                 pass
     elif real > CAP:
-        with pytest.raises(ModelLimitExceeded, match="more than 3 entries"):
+        with pytest.raises(ModelLimitExceeded, match="3-entry ZIP-archive cap"):
             with open_model_zip(path):
                 pass
     else:
@@ -190,7 +190,9 @@ def test_the_cap_is_inclusive_at_its_real_value(tmp_path: Path) -> None:
         path = tmp_path / f"{entries}.zip"
         path.write_bytes(zip64_fixed(entries))
         if refused:
-            with pytest.raises(ModelLimitExceeded, match="more than 100000 entries"):
+            with pytest.raises(
+                ModelLimitExceeded, match="100000-entry ZIP-archive cap"
+            ):
                 with open_model_binary(path):
                     pass
         else:
@@ -209,7 +211,8 @@ def test_the_directory_byte_cap_is_inclusive(
     path = tmp_path / "m.zip"
     path.write_bytes(d + eocd(2, len(d)))
     if refused:
-        with pytest.raises(ModelLimitExceeded, match=f"central directory of {len(d)} "):
+        match = f"the {len(d) - 1}-byte ZIP-central-directory cap"
+        with pytest.raises(ModelLimitExceeded, match=match):
             open_model_zip(path).__enter__()
     else:
         with open_model_zip(path) as zf:
@@ -306,7 +309,7 @@ def test_every_reader_that_opens_a_model_zip_refuses_one_over_the_cap(
     path = tmp_path / name
     build(path)
     monkeypatch.setattr(archive_member, "MAX_MODEL_ZIP_ENTRIES", 4)
-    with pytest.raises(ModelLimitExceeded, match="more than 4 entries"):
+    with pytest.raises(ModelLimitExceeded, match="4-entry ZIP-archive cap"):
         read_ai_model(path, model_format=fmt)
     # In a scan: one warning, a format-only entry.
     # pylint: disable-next=unbalanced-tuple-unpacking
@@ -321,5 +324,5 @@ def test_every_reader_that_opens_a_model_zip_refuses_one_over_the_cap(
     (message,) = logged_warnings(caplog)
     assert message == (
         f"FORMAT={fmt} FILE={name}: "
-        "ZIP archive of more than 4 entries; metadata not read"
+        "larger than the 4-entry ZIP-archive cap; metadata not read"
     )

@@ -305,15 +305,6 @@ def test_unreadable_pyproject_without_pkg_info_still_raises(
         read_sdist(sdist)
 
 
-def test_unreadable_pyproject_without_config_logs_nothing(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    sdist = _make_sdist(tmp_path, members={"pyproject.toml": _OVERSIZE})
-    with caplog.at_level(logging.WARNING):
-        read_sdist(sdist, read_config=False)
-    assert not caplog.records
-
-
 @_FMT
 def test_oversize_first_member_still_wins_over_a_later_one(
     tmp_path: Path, fmt: str
@@ -327,7 +318,8 @@ def test_oversize_first_member_still_wins_over_a_later_one(
         },
         fmt=fmt,
     )
-    with pytest.raises(ValueError, match=rf"{sdist.name}:pyproject.toml: over"):
+    match = f"{sdist.name}:pyproject.toml: larger than the 1048576-byte config-member"
+    with pytest.raises(ValueError, match=match + " cap; not read"):
         read_sdist(sdist)
 
 

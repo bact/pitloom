@@ -36,6 +36,7 @@ from pitloom.core.models import (
 )
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.extract.authors import dependency_author_splits
 from pitloom.id_registry import IdRegistry, IdRegistrySession
 
 
@@ -169,6 +170,7 @@ def _build_deployed_inter_relationships(
                 dep_keys_with_parents.add(child_key)
             child_spdx_id = package_spdx_ids.get(child_key)
             if child_spdx_id:
+                # Plain edge: an installed package is no evidence of runtime use.
                 dep_rel = build_relationship(
                     from_id=parent_spdx_id,
                     to_ids=[child_spdx_id],
@@ -314,24 +316,26 @@ def build_deployed(
     )
 
     package_spdx_ids: dict[str, str] = {}
-    for node in env_tree:
-        pkg_info = node.get("package", {})
-        dep_name = pkg_info.get("package_name") or pkg_info.get("key", "unknown")
-        lookup_key = _deployed_lookup_key(pkg_info, dep_name)
-        spdx_id = _build_deployed_package(
-            node,
-            metadata.name,
-            doc_uuid,
-            spdx_ci,
-            resolved_hits.get(lookup_key),
-            exporter,
-            release_info_cache,
-            prov_cfg,
-            encoder,
-            offline,
-            content_type_method,
-        )
-        package_spdx_ids[lookup_key] = spdx_id
+    # One author-split warning for every package of the document.
+    with dependency_author_splits():
+        for node in env_tree:
+            pkg_info = node.get("package", {})
+            dep_name = pkg_info.get("package_name") or pkg_info.get("key", "unknown")
+            lookup_key = _deployed_lookup_key(pkg_info, dep_name)
+            spdx_id = _build_deployed_package(
+                node,
+                metadata.name,
+                doc_uuid,
+                spdx_ci,
+                resolved_hits.get(lookup_key),
+                exporter,
+                release_info_cache,
+                prov_cfg,
+                encoder,
+                offline,
+                content_type_method,
+            )
+            package_spdx_ids[lookup_key] = spdx_id
 
     dep_keys_with_parents = _build_deployed_inter_relationships(
         env_tree, package_spdx_ids, metadata.name, doc_uuid, spdx_ci, exporter

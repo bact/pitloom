@@ -245,9 +245,6 @@ def test_setup_py_overrides_setup_cfg_per_option(
     metadata, _ = read_setuptools(tmp_path, quiet=True)
     assert {k: getattr(metadata, k) for k in fields} == fields
     assert {k: _origin(metadata, k) for k in origins} == origins
-    # inferred from the authors kept, never from the other file's
-    inferred = bool(metadata.authors) and "authors" in metadata.provenance
-    assert ("copyright_text" in metadata.provenance) is inferred
 
 
 @pytest.mark.parametrize(

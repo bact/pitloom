@@ -67,7 +67,9 @@ def test_read_tar_sdist(tmp_path: Path, sample_pkg_info: str) -> None:
     assert metadata.name == "demo-sdist-pkg"
     assert metadata.version == "1.2.3"
     assert metadata.description == "A demo package for sdist testing"
-    assert metadata.authors == [{"name": "Alice Developer"}]
+    assert metadata.authors == [
+        {"name": "Alice Developer", "email": "alice@example.com"}
+    ]
     assert metadata.dependencies == ["requests>=2.28.0"]
     assert len(files) == 3
 
@@ -259,6 +261,40 @@ def test_read_tar_sdist_pyproject_only_fallback(tmp_path: Path) -> None:
     assert len(files) == 1
 
 
+@pytest.mark.parametrize(
+    ("declared", "expected", "warned"),
+    [
+        ('["Click>=8.0", "Foo_Bar"]', ["click>=8.0", "foo-bar"], False),
+        ("[]", [], False),
+        ('"requests"', [], True),
+        ("[1]", [], True),
+    ],
+    ids=["normalised", "empty", "string", "non-string-item"],
+)
+def test_read_tar_sdist_pyproject_only_dependencies(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    declared: str,
+    expected: list[str],
+    warned: bool,
+) -> None:
+    """Base dependencies are normalised like the directory route's; a value
+    that is not a list of strings is ignored with one ``WARNING:`` (a
+    string is not split into one-letter packages)."""
+    sdist_path = tmp_path / "depkg-1.0.tar.gz"
+    pyproj = f'[project]\nname = "depkg"\nversion = "1.0"\ndependencies = {declared}\n'
+    with tarfile.open(sdist_path, "w:gz") as tf:
+        ti = tarfile.TarInfo(name="depkg-1.0/pyproject.toml")
+        ti.size = len(pyproj.encode())
+        tf.addfile(ti, io.BytesIO(pyproj.encode()))
+
+    with caplog.at_level(logging.WARNING, logger="pitloom.extract.project.sdist"):
+        metadata, *_ = read_sdist(sdist_path)
+    assert metadata.dependencies == expected
+    assert ("project.dependencies" in caplog.text) is warned
+    assert ("dependencies" in metadata.provenance) is not warned
+
+
 def test_read_tar_sdist_pyproject_malformed_falls_back_to_unknown(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -410,6 +446,12 @@ def _archive_names(sdist: Path) -> list[str]:
         return tf.getnames()
 
 
+def _cap_text(limits: dict[str, int]) -> str:
+    """``<limit>-<unit>`` of the one header-block cap *limits* lowers."""
+    ((key, limit),) = limits.items()
+    return f"{limit}-{'header' if key == 'MAX_METADATA_HEADERS' else 'byte'}"
+
+
 _PKG_INFO_HEAD = b"Metadata-Version: 2.1\nName: big\nVersion: 9.9\nLicense: MIT\n"
 
 
@@ -457,6 +499,7 @@ def test_pkg_info_header_block_over_cap_is_not_read(
         assert not warnings
         return
     (message,) = warnings
-    assert "PKG-INFO" in message and sdist.name in message
-    assert "header block over" in message
-    assert f"Field(s) affected ({status}): name" in message
+    assert message.startswith(
+        f"FILE={sdist}:PKG-INFO: larger than the {_cap_text(limits)} header-block"
+        f" cap; not read | Field(s) affected ({status}): name, "
+    )

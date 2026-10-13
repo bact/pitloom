@@ -343,8 +343,8 @@ def test_dependency_named_like_the_project_never_looks_up(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """A self-referencing extra (``demo[x]``) names the project itself: the
-    main package owns the registry id and the dependency mints its own,
-    silently -- no claim WARNING."""
+    main package owns the registry id and the self-reference adds no
+    package, silently -- no claim WARNING."""
     registry = IdRegistry.new("pins")
     pinned = registry.register_entity(MAIN, PACKAGE_ENTITY_TYPE)
 
@@ -353,9 +353,7 @@ def test_dependency_named_like_the_project_never_looks_up(
             make_doc(dependencies=[f"{MAIN.upper()}[x]; extra == 'all'"]), registry
         )
 
-    by_version = {p.version: p.spdx_id for p in packages(exporter)}
-    assert by_version["1.0.0"] == pinned  # the main package
-    assert by_version["unknown"] != pinned  # the self-dependency
+    assert [(p.version, p.spdx_id) for p in packages(exporter)] == [("1.0.0", pinned)]
     assert not claim_warnings(caplog)
 
 

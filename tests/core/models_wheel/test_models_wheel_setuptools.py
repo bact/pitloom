@@ -26,6 +26,7 @@ from pitloom.core._models_wheel_setuptools import (
     discover,
 )
 from pitloom.core._models_wheel_types import IncludedFile
+from tests._symlink import case_sensitive
 
 FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "projects"
 PACKAGES_FIND_FIXTURE = FIXTURES / "sampleproject-setuptools"
@@ -455,22 +456,29 @@ def test_load_distribution_does_not_leak_dynamic_import_across_projects(
     assert dist_b.metadata.version == "2.0.0"
 
 
+@pytest.mark.parametrize("case", ["same", "other"], ids=["same-case", "other-case"])
 def test_isolated_sys_modules_removes_only_newly_imported_modules(
-    tmp_path: Path,
+    tmp_path: Path, case: str
 ) -> None:
     """The context manager removes module names added to ``sys.modules``
     while it's active *and* loaded from beneath the given project
     directory, but leaves a name that was already present before it
     started alone -- using fake module entries (not a real import) to
     keep this deterministic regardless of what else the process has
-    already imported."""
+    already imported. Regression: a module file spelling the project in
+    another letter case (a case-insensitive file system) was outside."""
+    project = tmp_path / "p"
+    project.mkdir()
+    if case == "other" and case_sensitive(tmp_path):
+        pytest.skip("file system is case-sensitive")
+    spelt = tmp_path / ("P" if case == "other" else "p")
     pre_existing = "_pitloom_test_pre_existing_module"
     newly_added = "_pitloom_test_newly_added_module"
     sys.modules[pre_existing] = ModuleType(pre_existing)
     try:
-        with _isolated_sys_modules(tmp_path):
+        with _isolated_sys_modules(project):
             added_module = ModuleType(newly_added)
-            added_module.__file__ = str(tmp_path / "pkg" / "mod.py")
+            added_module.__file__ = str(spelt / "pkg" / "mod.py")
             sys.modules[newly_added] = added_module
             assert newly_added in sys.modules
 

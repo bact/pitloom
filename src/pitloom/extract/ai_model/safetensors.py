@@ -23,9 +23,9 @@ from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
-from pitloom.extract.ai_model.limits import ModelLimitExceeded
+from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
 from pitloom.extract.ai_model.reader_requirements import missing_library
-from pitloom.logging_config import loggable
+from pitloom.logging_config import Cap, loggable
 
 log = logging.getLogger(__name__)
 
@@ -55,7 +55,8 @@ def _check_header_length(model_path: Path) -> None:
     if len(prefix) == 8:
         (length,) = struct.unpack("<Q", prefix)
         if length > MAX_SAFETENSORS_HEADER_BYTES:
-            raise ModelLimitExceeded(f"Safetensors header of {length} bytes")
+            cap = Cap(MAX_SAFETENSORS_HEADER_BYTES, "byte", "Safetensors-header")
+            raise ModelOverCap(cap)
 
 
 def _stable_metadata(raw: dict[str, str]) -> dict[str, str]:

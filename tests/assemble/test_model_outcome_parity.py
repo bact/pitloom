@@ -340,10 +340,10 @@ def test_the_entry_set_does_not_depend_on_the_wheel_budget(
 
     assert BUDGET_FACTOR * size < len(names) * size  # the budget runs out
     assert scan(size) == names
-    assert any("per-wheel budget" in m for m in logged_warnings(caplog))  # it did
+    assert any("model-scan budget cap" in m for m in logged_warnings(caplog))
     caplog.clear()
     assert scan(10**7) == names  # unconstrained: the same set
-    assert not any("per-wheel budget" in m for m in logged_warnings(caplog))
+    assert not any("model-scan budget cap" in m for m in logged_warnings(caplog))
 
 
 @pytest.mark.parametrize("kind", ["good", "parse"])

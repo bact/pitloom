@@ -39,6 +39,7 @@ from pitloom.core._models_wheel_types import (
     to_posix_distribution_path,
     warn_discovery_failed,
 )
+from pitloom.core.path_confine import is_inside
 from pitloom.logging_config import one_line
 
 if TYPE_CHECKING:
@@ -117,7 +118,9 @@ def _isolated_sys_modules(project_dir: Path) -> Iterator[None]:
             if module_file is None:
                 continue
             try:
-                in_project = resolved_project_dir in Path(module_file).resolve().parents
+                in_project = is_inside(
+                    Path(module_file).resolve(), resolved_project_dir
+                )
             except (OSError, RuntimeError, ValueError):
                 in_project = False
             if in_project:

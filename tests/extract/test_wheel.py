@@ -141,6 +141,9 @@ def test_read_wheel_authors_name_and_email(tmp_path: Path) -> None:
     metadata, _ = read_wheel(wheel_path)
 
     assert metadata.authors == [{"name": "Jane Doe", "email": "jane@example.com"}]
+    assert metadata.provenance["authors"] == (
+        f"Source: wheel METADATA | File: {wheel_path.name}"
+    )
 
 
 def test_read_wheel_authors_email_only(tmp_path: Path) -> None:
@@ -238,3 +241,30 @@ def test_read_wheel_project_url_without_comma_is_ignored(tmp_path: Path) -> None
     metadata, _ = read_wheel(wheel_path)
 
     assert metadata.urls == {}
+
+
+def test_read_wheel_copyright_from_own_dist_info_licence_files(
+    tmp_path: Path,
+) -> None:
+    """The own ``.dist-info``'s licence files: ``licenses/`` before the
+    ``.dist-info`` root for one name, a nested licence file and another
+    ``.dist-info``'s left out."""
+    wheel_path = tmp_path / "pkg-1.0.0-py3-none-any.whl"
+    with zipfile.ZipFile(wheel_path, "w") as zf:
+        zf.writestr("pkg-1.0.0.dist-info/METADATA", "Name: pkg\nVersion: 1.0.0\n")
+        info = "pkg-1.0.0.dist-info/"
+        zf.writestr(f"{info}licenses/LICENSE", "Copyright (c) 2019 Licenses\n")
+        zf.writestr(f"{info}LICENSE", "Copyright (c) 2019 Root\n")
+        zf.writestr(f"{info}COPYING", "Copyright (c) 2020 Root Copying\n")
+        zf.writestr(f"{info}licenses/vendor/LICENSE", "Copyright (c) 2021 Nested\n")
+        zf.writestr("pkg/_vendor/x-1.dist-info/LICENSE", "Copyright (c) 2022 X\n")
+
+    metadata, _ = read_wheel(wheel_path)
+
+    assert metadata.copyright_text == (
+        "Copyright (c) 2019 Licenses\nCopyright (c) 2020 Root Copying"
+    )
+    assert metadata.provenance["copyright_text"] == (
+        "Source: LICENSE, COPYING | File: pkg-1.0.0-py3-none-any.whl"
+        " | Method: copyright_notice_lines"
+    )

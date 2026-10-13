@@ -69,8 +69,11 @@ def test_models_past_the_budget_are_format_only_with_one_warning(
     )
     assert len(copies) == fits  # a model past the budget is not even started
     (message,) = logged_warnings(caplog)
-    assert f"per-wheel budget of {budget} bytes" in message
-    assert message.startswith("AI model scan: ")
+    assert message == (
+        f"FILE={wheel.name}: larger than the {budget}-byte per-wheel model-scan"
+        " budget cap; the model that would pass it and the models not yet read"
+        " are listed without metadata"
+    )
 
 
 def test_a_wheel_within_the_budget_reads_every_model(
@@ -106,7 +109,7 @@ def test_the_budget_counts_bytes_read_not_bytes_declared(
     assert len(models) == len(_NAMES)
     assert _read_count(models) == fits < len(_NAMES)
     (message,) = logged_warnings(caplog)
-    assert "per-wheel budget" in message
+    assert "per-wheel model-scan budget cap" in message
 
 
 @pytest.mark.parametrize(
@@ -140,7 +143,7 @@ def test_models_totalling_exactly_the_budget_are_all_read(
     assert _read_count(models) == BUDGET_FACTOR
     messages = logged_warnings(caplog)
     assert len(messages) == (count - BUDGET_FACTOR)  # none, then one
-    assert all("per-wheel budget" in m for m in messages)
+    assert all("per-wheel model-scan budget cap" in m for m in messages)
 
 
 def test_the_budget_is_per_wheel(tmp_path: Path) -> None:

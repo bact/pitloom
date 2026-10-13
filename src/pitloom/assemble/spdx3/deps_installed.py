@@ -430,7 +430,7 @@ def _enrich_from_installed(
     if version and version != "unknown":
         dep_package.software_packageUrl = build_pypi_purl(dep_name, version)
 
-    originators = _resolve_author_or_maintainer(pkg_meta)
+    originators = _resolve_author_or_maintainer(pkg_meta, dep_name)
     if _apply_originator(
         originators,
         dep_package,

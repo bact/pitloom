@@ -184,6 +184,15 @@ def _parse_requirements(raw: Any) -> Any:
     return strings if strings is _UNREADABLE else requirement_lines("\n".join(raw))
 
 
+def _parse_extras(raw: Any) -> Any:
+    """``extras_require``: extra name -> a string or a list of strings, each
+    read as :func:`_parse_requirements` does."""
+    if not isinstance(raw, dict) or not all(isinstance(k, str) for k in raw):
+        return _UNREADABLE
+    parsed = {key: _parse_requirements(value) for key, value in raw.items()}
+    return _UNREADABLE if _UNREADABLE in parsed.values() else parsed
+
+
 def _parse_setup_keywords(raw: Any) -> Any:
     """``setup(keywords=...)`` as a list: a string is split on commas and
     whitespace."""
@@ -215,6 +224,7 @@ _OPTIONS: dict[str, tuple[str, Callable[[Any], Any]]] = {
     "project_urls": ("url", _parse_project_urls),
     "install_requires": ("install_requires", _parse_requirements),
     "python_requires": ("python_requires", _parse_str),
+    "extras_require": ("extras_require", _parse_extras),
 }
 
 
@@ -293,7 +303,7 @@ def read_setup_py(
             ``name``.
     """
     options = read_setup_py_options(project_dir, quiet=quiet)
-    metadata = build_setuptools_metadata({}, options)
+    metadata = build_setuptools_metadata({}, options, quiet=quiet)
     if not metadata.name:
         raise ValueError(
             "Could not extract project name from setup.py. "

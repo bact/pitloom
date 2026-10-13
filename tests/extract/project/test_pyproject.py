@@ -27,10 +27,12 @@ import pytest
 from pyproject_metadata import StandardMetadata
 
 from pitloom.core._config_types import PitloomConfig
+from pitloom.extract.project._pyproject_fields import (
+    build_provenance,
+    extract_authors,
+    extract_readme,
+)
 from pitloom.extract.project.pyproject import (
-    _build_provenance,
-    _extract_authors,
-    _extract_readme,
     _read_pyproject_fallback,
     _try_read_poetry,
     read_pyproject,
@@ -193,24 +195,24 @@ version = "not-a-valid-version!!"
 
 
 # ---------------------------------------------------------------------------
-# _build_provenance -- direct unit tests for branches unreachable/awkward
+# build_provenance -- direct unit tests for branches unreachable/awkward
 # to reach purely through read_pyproject()
 # ---------------------------------------------------------------------------
 
 
-def test_build_provenance_no_version_source_no_version_field() -> None:
+def testbuild_provenance_no_version_source_no_version_field() -> None:
     """Neither a resolved dynamic-version source nor a declared
     ``project.version`` field: the ``version`` key is omitted entirely
     (line 185->188)."""
-    prov = _build_provenance({"name": "pkg"}, version_source=None)
+    prov = build_provenance({"name": "pkg"}, version_source=None)
     assert "version" not in prov
 
 
-def test_build_provenance_license_override_without_declared_field() -> None:
+def testbuild_provenance_license_override_without_declared_field() -> None:
     """``license_prov_override`` is set but ``project.license`` was never
     declared: the override still lands in ``prov["license"]`` via the
     fallback branch at the end of the function (line 198)."""
-    prov = _build_provenance(
+    prov = build_provenance(
         {"name": "pkg"},
         version_source=None,
         license_prov_override="Source: LICENSE | Method: licenseid_detection",
@@ -219,38 +221,39 @@ def test_build_provenance_license_override_without_declared_field() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _extract_readme -- inline readme text (PEP 621 {text = ...} table)
+# extract_readme -- inline readme text (PEP 621 {text = ...} table)
 # ---------------------------------------------------------------------------
 
 
-def test_extract_readme_inline_text() -> None:
+def testextract_readme_inline_text() -> None:
     """A readme object exposing ``.text`` (no usable ``.file``) returns the
     inline text directly (lines 238-239)."""
     fake_readme = SimpleNamespace(file=None, text="Hello from inline readme.")
     std = SimpleNamespace(readme=fake_readme)
-    result = _extract_readme(cast(StandardMetadata, std), override=None)
+    result = extract_readme(cast(StandardMetadata, std), override=None)
     assert result == "Hello from inline readme."
 
 
-def test_extract_readme_no_file_no_text() -> None:
+def testextract_readme_no_file_no_text() -> None:
     """A readme object with neither a usable ``.file`` nor ``.text``
     resolves to ``None``."""
     fake_readme = SimpleNamespace(file=None, text=None)
     std = SimpleNamespace(readme=fake_readme)
-    result = _extract_readme(cast(StandardMetadata, std), override=None)
+    result = extract_readme(cast(StandardMetadata, std), override=None)
     assert result is None
 
 
 # ---------------------------------------------------------------------------
-# _extract_authors -- entries that resolve to nothing get skipped
+# extract_authors -- entries that resolve to nothing get skipped
 # ---------------------------------------------------------------------------
 
 
-def test_extract_authors_skips_empty_entries() -> None:
+def testextract_authors_skips_empty_entries() -> None:
     """An ``(name, email)`` pair that is entirely empty is dropped rather
     than appended as an empty dict (line 318->314)."""
     std = SimpleNamespace(authors=[("", ""), ("Bob", ""), ("", "carol@example.com")])
-    result = _extract_authors(cast(StandardMetadata, std))
+    raw = [{"name": "x"}, {"name": "Bob"}, {"email": "carol@example.com"}]
+    result = extract_authors(cast(StandardMetadata, std), {"authors": raw})
     assert result == [{"name": "Bob"}, {"email": "carol@example.com"}]
 
 
@@ -296,3 +299,98 @@ def test_read_pyproject_records_readme_provenance() -> None:
         metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
     expected_prov = "Source: pyproject.toml | Field: project.readme"
     assert metadata.provenance.get("readme") == expected_prov
+
+
+def test_pyproject_author_with_comma_is_one_author(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """``[project].authors`` is structured: ``pyproject-metadata`` keeps a
+    comma inside a name, and Pitloom never splits it (no warning)."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "x"\nversion = "1"\n'
+        'authors = [{name = "Doe, Jane", email = "j@example.com"},'
+        ' {name = "Roe and Rex"}]\n',
+        encoding="utf-8",
+    )
+    with caplog.at_level("WARNING"):
+        metadata, _ = read_pyproject(tmp_path / "pyproject.toml")
+    assert metadata.authors == [
+        {"name": "Doe, Jane", "email": "j@example.com"},
+        {"name": "Roe and Rex"},
+    ]
+    assert caplog.messages == []
+
+
+@pytest.mark.parametrize(
+    ("readme", "read", "field"),
+    [('"R.md"', True, None), ('"s/../R.md"', True, None),
+     ('"../out.md"', False, "project.readme"), ('"{out}"', False, "project.readme"),
+     ('"link.md"', False, "project.readme"),
+     ('{{file = "R.md", content-type = "text/plain"}}', True, None),
+     ('{{file = "../out.md", content-type = "text/plain"}}', False,
+      "project.readme.file"),
+     ('{{file = "../out.md", content-type = ""}}', False, None)],
+    ids=["inside", "dotdot-inside", "dotdot-out", "absolute", "symlink-out",
+         "table-inside", "table-out", "table-no-type"],
+)  # fmt: skip
+def test_a_readme_outside_the_project_is_not_read(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    readme: str,
+    read: bool,
+    field: str | None,
+) -> None:
+    """Regression: ``pyproject-metadata`` read ``project.readme`` wherever it
+    pointed. Now the field is dropped with one ``WARNING:``, worded as for a
+    licence file; a shape it reads no file for is left to it."""
+    project = tmp_path / "p"
+    (project / "s").mkdir(parents=True)
+    (project / "R.md").write_text("Inside", encoding="utf-8")
+    (tmp_path / "out.md").write_text("Leaked", encoding="utf-8")
+    if "link" in readme:
+        try:
+            (project / "link.md").symlink_to(tmp_path / "out.md")
+        except OSError:  # Windows without the symlink privilege
+            pytest.skip("cannot create a symlink here")
+    readme = readme.format(out=(tmp_path / "out.md").as_posix())
+    (project / "pyproject.toml").write_text(
+        f'[project]\nname = "pkg"\nversion = "1"\nreadme = {readme}\n',
+        encoding="utf-8",
+    )
+    with caplog.at_level("WARNING"):
+        metadata, _ = read_pyproject(project / "pyproject.toml")
+        read_pyproject(project / "pyproject.toml", quiet=True)
+    assert (metadata.readme is not None) == read
+    name = readme.split('"')[1]
+    assert caplog.messages == (
+        [f"FILE={name}: could not read for {field}; outside the project directory"]
+        if field
+        else []
+    )
+
+
+@pytest.mark.parametrize(
+    "readme",
+    ['{file = "gone.md", content-type = "text/plain"}', '"../out.txt"',
+     '{file = "../out.md"}'],
+    ids=["missing", "no-suffix-out", "no-type-key-out"],
+)  # fmt: skip
+def test_a_readme_pyproject_metadata_rejects_still_fails_the_parse(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, readme: str
+) -> None:
+    """Only a file ``pyproject-metadata`` would read is confined: a missing
+    one, or a readme it rejects first, still fails the parse unwarned."""
+    project = tmp_path / "p"
+    project.mkdir()
+    for name in ("out.txt", "out.md"):
+        (tmp_path / name).write_text("Leaked", encoding="utf-8")
+    (project / "pyproject.toml").write_text(
+        f'[project]\nname = "pkg"\nversion = "1"\nreadme = {readme}\n',
+        encoding="utf-8",
+    )
+    with (
+        caplog.at_level("WARNING"),
+        pytest.raises(ValueError, match="Failed to parse project metadata"),
+    ):
+        read_pyproject(project / "pyproject.toml")
+    assert not caplog.messages

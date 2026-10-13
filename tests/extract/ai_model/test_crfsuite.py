@@ -255,8 +255,8 @@ def test_an_unreadable_file_is_a_value_error_like_the_other_readers(
 @pytest.mark.parametrize(
     ("limits", "reason"),
     [
-        (Limits(max_crfsuite_labels=4), "more than 4 labels"),
-        (Limits(max_crfsuite_labels_chunk_bytes=2072), "labels CQDB over 2072 bytes"),
+        (Limits(max_crfsuite_labels=4), "4-label label-count"),
+        (Limits(max_crfsuite_labels_chunk_bytes=2072), "2072-byte labels-chunk"),
     ],
     ids=["label-count", "labels-chunk"],
 )
@@ -270,7 +270,9 @@ def test_a_labels_bound_keeps_the_counts_and_records_no_label(
     counts kept, no label anywhere, one warning; not a stub."""
     monkeypatch.setattr(crfsuite, "_LIMITS", limits)
     meta = read_ai_model(_COMPLETE)
-    assert logged_warnings(caplog) == [f"{reason}; no label recorded"]
+    assert logged_warnings(caplog) == [
+        f"FILE={_COMPLETE}: larger than the {reason} cap; no label recorded"
+    ]
     assert meta.properties == {
         "model_type": "FOMC",
         "num_attributes": "14",
@@ -328,7 +330,7 @@ def test_a_label_over_the_cap_keeps_the_counts_and_drops_the_labels(
     _patched_header(monkeypatch, ("O", "x" * 4097))
     meta = read_ai_model(_COMPLETE)
     (message,) = logged_warnings(caplog)
-    assert "a label over 4096 bytes; no label recorded" in message
+    assert message.endswith(": larger than the 4096-byte label cap; no label recorded")
     assert "labels" not in meta.properties
     assert "labels" not in meta.raw_metadata
     assert meta.description is None

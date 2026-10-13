@@ -153,7 +153,7 @@ class ReadmeEnricher:
                 ref.metadata.name for ref in model.datasets if ref.metadata.name
             }
             for entry in datasets_value:
-                if not isinstance(entry, str) or not entry.strip():
+                if not entry.strip():  # non-strings were dropped above
                     continue
                 dataset_name = entry.strip()
                 if dataset_name in existing_names:

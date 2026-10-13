@@ -22,7 +22,12 @@ from typing import Any
 
 import pytest
 
-from pitloom.extract.project import read_project, resolve_project_with_lockfile
+from pitloom.core.path_confine import open_inside
+from pitloom.extract.project import (
+    _setup_cfg_directives,
+    read_project,
+    resolve_project_with_lockfile,
+)
 from pitloom.extract.project.setuptools_cfg import read_setup_cfg
 
 _MIT = "License :: OSI Approved :: MIT License"
@@ -50,7 +55,7 @@ def test_several_files_are_joined_as_setuptools_joins_them(
     spec: str, readme: str | None, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     (tmp_path / "a.txt").write_bytes(b"one")
-    (tmp_path / "b.txt").write_bytes(b"two\n")
+    (tmp_path / "b.txt").write_bytes(b"two\r\n")  # read in text mode
     _setup_cfg(tmp_path, f"version = 1.0\nlong_description = file: {spec}\n")
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         metadata, _ = read_setup_cfg(tmp_path)
@@ -91,14 +96,14 @@ def _unreadable(
     else:
         bad.write_text("x", encoding="utf-8")
     if kind == "open-denied":
-        real = Path.read_text
+        real = open_inside
 
-        def denied(self: Path, *args: Any, **kwargs: Any) -> str:
-            if self.name == "bad":
-                raise PermissionError(errno.EACCES, "Permission denied", str(self))
-            return real(self, *args, **kwargs)
+        def denied(written: Path, root: Path) -> Any:
+            if written.name == "bad":
+                raise PermissionError(errno.EACCES, "Permission denied", str(written))
+            return real(written, root)
 
-        monkeypatch.setattr(Path, "read_text", denied)
+        monkeypatch.setattr(_setup_cfg_directives, "open_inside", denied)
     with _stat_denied(bad, monkeypatch) if kind == "stat-denied" else nullcontext():
         yield
 
@@ -276,3 +281,62 @@ def test_a_name_that_is_no_file_is_skipped_silently(
         metadata = read_project(tmp_path)[0]
     assert (metadata.version, metadata.readme) == (version, readme)
     assert not caplog.records
+
+
+@pytest.mark.parametrize(
+    ("name", "warning"),
+    [
+        ("VER", None),
+        ("s/../VER", None),
+        ("../out", "could not read for {what}; outside the project directory"),
+        ("{out}", "could not read for {what}; outside the project directory"),
+        ("link", "could not read for {what}; outside the project directory"),
+        ("big", "larger than the 3-byte file-directive cap; skipped for {what}"),
+    ],
+    ids=["inside", "dotdot-inside", "dotdot-out", "absolute", "symlink-out", "cap"],
+)
+@pytest.mark.parametrize(
+    ("manifest", "what"),
+    [
+        ("setup.cfg", "setup.cfg metadata.version"),
+        ("pyproject.toml", "pyproject.toml tool.setuptools.dynamic.version"),
+    ],
+    ids=["cfg", "toml"],
+)
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def test_a_version_file_is_read_only_inside_the_project_and_under_the_cap(
+    name: str,
+    warning: str | None,
+    manifest: str,
+    what: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression: the ``file`` version directive read any path, ``..``,
+    absolute or through a symlink, and any size. Now as the dynamic
+    requirements reader: outside the project or over the cap, no version
+    and one ``WARNING:`` naming the file as written."""
+    monkeypatch.setattr(_setup_cfg_directives, "MAX_LISTED_FILE_BYTES", 3)
+    project = tmp_path / "p"
+    (project / "s").mkdir(parents=True)
+    (project / "VER").write_bytes(b"2.0")
+    (project / "big").write_bytes(b"2.0\n")
+    (tmp_path / "out").write_bytes(b"6.6")
+    if name == "link":
+        try:
+            (project / "link").symlink_to(tmp_path / "out")
+        except OSError:  # Windows without the symlink privilege
+            pytest.skip("cannot create a symlink here")
+    name = name.format(out=(tmp_path / "out").as_posix())
+    if manifest == "setup.cfg":
+        _setup_cfg(project, f"version = file: {name}\n")
+    else:
+        (project / manifest).write_text(
+            _PYPROJECT_VERSION_FILE.format(files=f"'{name}'"), encoding="utf-8"
+        )
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        metadata = read_project(project)[0]
+    assert metadata.version == (None if warning else "2.0")
+    expected = [] if warning is None else [f"FILE={name}: {warning.format(what=what)}"]
+    assert caplog.messages == expected

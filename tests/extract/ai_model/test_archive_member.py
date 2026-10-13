@@ -26,10 +26,8 @@ from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.project import ProjectFile
 from pitloom.extract.ai_model import archive_member, read_ai_model
 from pitloom.extract.ai_model import numpy as numpy_reader
-from pitloom.extract.ai_model.archive_member import (
-    ArchiveMemberTooLarge,
-    read_archive_member,
-)
+from pitloom.extract.ai_model.archive_member import read_archive_member
+from pitloom.extract.ai_model.limits import ModelOverCap
 from pitloom.extract.scanner import discover_ai_models
 from pitloom.extract.scanner_project import project_candidates
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
@@ -113,9 +111,10 @@ def test_a_bomb_member_is_one_warning_and_a_kept_model_in_a_wheel(
     assert model.format_info.file_path_relative == f"demo/{name}"
     assert not model.provenance  # format-only
     (message,) = logged_warnings(caplog)
-    assert message.startswith("FORMAT=")
-    assert f"FILE=demo/{name}: archive member {member} larger than {_CAP} bytes" in (
-        message
+    fmt = model.format_info.model_format
+    assert message == (
+        f"FORMAT={fmt} FILE=demo/{name}:{member}: larger than the {_CAP}-byte"
+        " archive-member cap; metadata not read"
     )
 
 
@@ -129,7 +128,10 @@ def test_a_bomb_member_in_a_project_file_is_the_same_warning(
     (model,) = discover_ai_models(project_candidates(tmp_path, files))
     assert model.format_info.file_path_relative == name
     (message,) = logged_warnings(caplog)
-    assert f"FILE={name}: archive member {member} larger than" in message
+    assert message == (
+        f"FORMAT=keras FILE={name}:{member}: larger than the {_CAP}-byte"
+        " archive-member cap; metadata not read"
+    )
 
 
 def test_members_up_to_the_cap_are_still_read(tmp_path: Path) -> None:
@@ -147,10 +149,10 @@ def test_the_cap_is_inclusive(size: int) -> None:
         if size <= _CAP:
             assert len(read_archive_member(zf, "x")) == size
         else:
-            with pytest.raises(ArchiveMemberTooLarge) as excinfo:
+            with pytest.raises(ModelOverCap) as excinfo:
                 read_archive_member(zf, "x")
             assert excinfo.value.member == "x"
-            assert excinfo.value.limit == _CAP
+            assert excinfo.value.cap.limit == _CAP
 
 
 def test_the_npy_v3_header_length_is_bounded(monkeypatch: pytest.MonkeyPatch) -> None:

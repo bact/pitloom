@@ -92,7 +92,7 @@ Source = "https://github.com/bact/sentimentdemo"
         assert "numpy" in dep_names
 
         # Check relationships
-        relationships = [elem for elem in graph if elem["type"] == "Relationship"]
+        relationships = [elem for elem in graph if "relationshipType" in elem]
         assert len(relationships) >= 3  # At least 3 dependencies
 
 

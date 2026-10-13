@@ -17,35 +17,40 @@ exclusively by the Hatchling build hook
 
 from __future__ import annotations
 
-from email.utils import parseaddr
 from pathlib import Path
 from typing import Any
 
 from pitloom._toml_io import load_toml_file
-from pitloom.core.models import normalize_dependency_specifier
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
+from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.extract._core_metadata import license_or_classifier
 from pitloom.extract._extract_utils import field_declared
 from pitloom.extract._license import (
-    apply_in_package_license,
-    collect_license_candidates,
+    apply_in_package_license_files,
     stated_license,
 )
+from pitloom.extract._license_detect import read_license_members
+from pitloom.extract.project._optional_dependencies import add_optional_dependencies
+from pitloom.extract.project._poetry_extras import defer_to_poetry_lists
 from pitloom.extract.project.pyproject import _try_read_poetry
 
 _PROVENANCE_SOURCE = "Source: Hatchling build backend"
 
 
-def _poetry_fallback_metadata(project_dir: Path) -> ProjectMetadata | None:
-    """Return ``[tool.poetry]`` gap-fill metadata for *project_dir*, or ``None``.
+def _poetry_fallback_metadata(
+    metadata: ProjectMetadata, project_dir: Path
+) -> tuple[ProjectMetadata, bool]:
+    """*metadata* with gaps filled from *project_dir*'s ``[tool.poetry]``,
+    and whether its dependency lists replace ``[project]``'s
+    (:func:`~pitloom.extract.project._poetry_extras.defer_to_poetry_lists`).
 
     Mirrors the fallback :func:`~pitloom.extract.project.pyproject.read_pyproject`
     already performs: re-reads ``pyproject.toml`` and reuses
     :func:`~pitloom.extract.project.pyproject._try_read_poetry` so the Hatchling hook
     path can also recover ``authors``/``keywords``/``urls`` (and similar)
-    from ``[tool.poetry]`` when ``[project]`` is incomplete. Returns ``None``
-    when ``pyproject.toml`` is missing or has no usable ``[tool.poetry]``
-    section.
+    from ``[tool.poetry]`` when ``[project]`` is incomplete. *metadata* is
+    returned as is when ``pyproject.toml`` is missing or has no usable
+    ``[tool.poetry]`` section.
 
     Passes ``include_locked_dependencies=False``: this path runs from the
     Hatchling build hook (build/embed stage), where ``poetry.lock`` --
@@ -55,38 +60,23 @@ def _poetry_fallback_metadata(project_dir: Path) -> ProjectMetadata | None:
     """
     pyproject_path = project_dir / "pyproject.toml"
     if not pyproject_path.exists():
-        return None
+        return metadata, False
     data: dict[str, Any] = load_toml_file(pyproject_path)
-    return _try_read_poetry(data, project_dir, include_locked_dependencies=False)
+    poetry_meta = _try_read_poetry(data, project_dir, include_locked_dependencies=False)
+    from_poetry = defer_to_poetry_lists(metadata, poetry_meta, data)
+    if poetry_meta is not None:
+        metadata = merge_project_metadata(metadata, poetry_meta)
+    return metadata, from_poetry
 
 
-def _authors_from_data(authors_data: dict[str, list[str]]) -> list[dict[str, str]]:
-    """Convert Hatchling's ``authors_data`` into ``[{name, email?}, ...]``.
-
-    ``authors_data`` has two keys populated by
-    ``hatchling.metadata.core.CoreMetadata.authors_data``:
-
-    - ``"name"``: authors that declared only a ``name`` (no email).
-    - ``"email"``: RFC 5322 address strings for authors that declared an
-      ``email`` (``"Name <email>"`` when a name was also given, or a bare
-      ``"email"`` otherwise).
-    """
-    result: list[dict[str, str]] = []
-
-    for name in authors_data.get("name", []):
-        if name:
-            result.append({"name": name})
-
-    for entry in authors_data.get("email", []):
-        display_name, email_address = parseaddr(entry)
-        author: dict[str, str] = {}
-        if display_name:
-            author["name"] = display_name
-        if email_address:
-            author["email"] = email_address
+def _declared_authors(authors: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Hatchling's ``authors`` as ``[{name?, email?}, ...]`` in declared
+    order, without empty values and entries left with neither."""
+    result = []
+    for entry in authors:
+        author = {k: v for k, v in entry.items() if k in ("name", "email") and v}
         if author:
             result.append(author)
-
     return result
 
 
@@ -181,13 +171,9 @@ def metadata_from_hatchling(
     # `dependencies = []` is a genuine, authoritative "zero" that
     # merge_project_metadata() must not silently fill in from a
     # lower-priority source ([tool.poetry] gap-fill below).
-    authors = _authors_from_data(core.authors_data or {})
+    authors = _declared_authors(core.authors or [])
     if _hatchling_field_declared(core, "authors"):
         provenance["authors"] = _field_provenance("authors")
-        if authors:
-            provenance["copyright_text"] = (
-                "Source: Pitloom generator | Method: inferred_from_authors"
-            )
 
     urls = dict(core.urls or {})
     if _hatchling_field_declared(core, "urls"):
@@ -217,13 +203,19 @@ def metadata_from_hatchling(
         dependencies=dependencies,
         provenance=provenance,
     )
-    apply_in_package_license(metadata, collect_license_candidates(project_dir))
+    apply_in_package_license_files(metadata, read_license_members(project_dir))
 
     # Fill any remaining gaps from [tool.poetry], exactly mirroring what
     # read_pyproject() does for the CLI path (project fields always win).
-    poetry_meta = _poetry_fallback_metadata(project_dir)
-    if poetry_meta is not None:
-        metadata = merge_project_metadata(metadata, poetry_meta)
+    metadata, from_poetry = _poetry_fallback_metadata(metadata, project_dir)
+    # Hatchling has already expanded a self-reference (`demo[dev]`).
+    add_optional_dependencies(
+        metadata,
+        core.optional_dependencies,
+        declared=_hatchling_field_declared(core, "optional-dependencies")
+        and not from_poetry,
+        source=_PROVENANCE_SOURCE,
+    )
 
     return metadata
 

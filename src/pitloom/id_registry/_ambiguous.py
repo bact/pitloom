@@ -61,10 +61,10 @@ def _ambiguous_entity_keys(objects: Iterable[Any]) -> frozenset[tuple[str, str]]
 
     Run auto-harvest (:func:`pitloom.assemble._generators_shared._sync_registry`)
     first leaves out the elements that never look the registry up (a
-    self-referencing dependency, a phantom named like the project or a
-    dependency), so they neither count nor get written, and the one
-    element that looks the name up is written. ``id import`` has no such
-    record and passes every element.
+    non-PEP 508 dependency string named like the project, a phantom named
+    like the project or a dependency), so they neither count nor get
+    written, and the one element that looks the name up is written. ``id
+    import`` has no such record and passes every element.
     """
     counts = Counter(key for key in map(_entity_key_of, objects) if key is not None)
     return frozenset(key for key, count in counts.items() if count > 1)

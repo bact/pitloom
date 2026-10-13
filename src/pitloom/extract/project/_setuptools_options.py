@@ -13,8 +13,8 @@ option only when the keyword's value is falsy
 on the raw value, a list replacing the other, never joined. Pitloom reads
 ``setup.py`` without running it, so a keyword it cannot use (not a
 literal, blank, of a type it does not read) is not an option here and
-``setup.cfg``'s is used, with a ``WARNING:``. A placeholder licence
-(``UNKNOWN``) gives way to a real licence in the other file. A real
+``setup.cfg``'s is used, with a ``WARNING:``. A placeholder licence or
+author (``UNKNOWN``) gives way to a real one in the other file. A real
 disagreement on the name, the licence, the version or ``python_requires``
 is recorded as a conflict.
 
@@ -29,13 +29,22 @@ import logging
 from dataclasses import dataclass
 from typing import Any, NamedTuple
 
+from packaging.markers import InvalidMarker
+from packaging.requirements import InvalidRequirement, Requirement
+
 from pitloom.core.project import ConflictCandidate, ProjectMetadata, provenance_key_for
 from pitloom.core.provenance import parse_provenance_value
+from pitloom.core.requirements import (
+    add_marker,
+    flatten_optional_dependencies,
+    warn_skipped_extra_entry,
+)
 from pitloom.extract._core_metadata import (
     first_license,
     license_cascade,
     license_from_classifiers,
 )
+from pitloom.extract.authors import is_unset_placeholder, read_author_fields
 from pitloom.extract.project._field_agreement import add_conflict, values_agree
 from pitloom.logging_config import loggable, one_line
 
@@ -156,10 +165,78 @@ def resolve_setuptools_licence(
     return licence, None if chosen is None else chosen.source
 
 
-def _authors(merged: SetupOptions) -> list[dict[str, str]]:
-    name, email = _value(merged, "author"), _value(merged, "author_email")
-    entry = {k: v for k, v in (("name", name), ("email", email)) if v}
-    return [entry] if entry else []
+def _extra_requirements(
+    key: str, requirements: list[str], quiet: bool
+) -> tuple[str, list[str]]:
+    """``(extra, requirements)`` for an ``extras_require`` *key*; setuptools'
+    ``extra:marker`` key gives each requirement the marker too. A
+    requirement or marker that cannot be read is dropped with a
+    ``WARNING:``."""
+    extra, _, marker = key.partition(":")
+    if not marker:  # as setuptools: an empty marker is none, a blank one invalid
+        return extra.strip(), requirements
+    merged: list[str] = []
+    for text in requirements:
+        try:
+            req = Requirement(text)
+            add_marker(req, marker)
+        except (InvalidRequirement, InvalidMarker):
+            warn_skipped_extra_entry(
+                "extras_require",
+                key,
+                text,
+                "not a valid PEP 508 requirement or marker",
+                quiet=quiet,
+            )
+            continue
+        merged.append(str(req))
+    return extra.strip(), merged
+
+
+def _dependencies(merged: SetupOptions, quiet: bool) -> list[str]:
+    """``install_requires``, then each ``extras_require`` extra's
+    requirements tagged as a built wheel's ``Requires-Dist`` has them
+    (:func:`~pitloom.core.requirements.flatten_optional_dependencies`); an
+    ``extra:marker`` key with no extra gives an unconditional requirement."""
+    base = list(_value(merged, "install_requires") or [])
+    extras: dict[str, list[str]] = {}
+    for key, requirements in (_value(merged, "extras_require") or {}).items():
+        extra, reqs = _extra_requirements(key, requirements, quiet)
+        if extra:
+            extras.setdefault(extra, []).extend(reqs)
+        else:
+            base.extend(reqs)
+    return flatten_optional_dependencies(
+        base, extras, _value(merged, "name"), source="extras_require", quiet=quiet
+    )
+
+
+def _stated_author_options(merged: SetupOptions, cfg: SetupOptions) -> SetupOptions:
+    """*merged* with an ``author``/``author_email`` holding the ``UNKNOWN``
+    placeholder replaced by ``setup.cfg``'s real one, else left out: a
+    placeholder is no statement, so it neither hides a real value nor
+    records ``authors`` provenance."""
+    stated = dict(merged)
+    for key in ("author", "author_email"):
+        option = stated.get(key)
+        if option is None or not is_unset_placeholder(option.value):
+            continue
+        fallback = cfg.get(key)
+        if fallback is None or is_unset_placeholder(fallback.value):
+            del stated[key]
+        else:
+            stated[key] = fallback
+    return stated
+
+
+def _authors(merged: SetupOptions, quiet: bool) -> list[dict[str, str]]:
+    """``author`` and ``author_email`` read as setuptools writes them to
+    ``Author`` and ``Author-email`` and a wheel's reader reads them back
+    (:func:`~pitloom.extract.authors.read_author_fields`): ``author`` is a
+    free-text field, split on commas and ``and`` with a ``WARNING:``."""
+    return read_author_fields(
+        _value(merged, "author"), _value(merged, "author_email"), quiet=quiet
+    )
 
 
 def _urls(merged: SetupOptions) -> dict[str, str]:
@@ -183,7 +260,7 @@ _VALUE_GATED = {
 _PRESENCE_GATED = {
     "requires_python": ("python_requires",),
     "keywords": ("keywords",),
-    "dependencies": ("install_requires",),
+    "dependencies": ("install_requires", "extras_require"),
     "authors": ("author", "author_email"),
     "urls": ("url", "project_urls"),
 }
@@ -191,22 +268,22 @@ _PRESENCE_GATED = {
 
 def _joint_source(options: list[SetupOption]) -> str:
     """The provenance of a field built from *options*: the one option's,
-    or, from both files, ``Source: setup.py, setup.cfg | Field: <setup.py
-    field>, <setup.cfg field>``."""
-    by_file: dict[str, str] = {}
+    or, from several, ``Source: <files> | Field: <fields>`` with the files
+    in ``setup.py``, ``setup.cfg`` order."""
+    if len(options) == 1:
+        return options[0].source
+    by_file: dict[str, list[str]] = {}
     for option in options:
         entry = parse_provenance_value(option.source)
-        by_file.setdefault(entry["source"], entry["location"])
-    if len(by_file) == 1:
-        return options[0].source
-    files = (SETUP_PY, SETUP_CFG)
-    return (
-        f"Source: {', '.join(files)}"
-        f" | Field: {', '.join(by_file[name] for name in files)}"
-    )
+        fields = by_file.setdefault(entry["source"], [])
+        if entry["location"] not in fields:
+            fields.append(entry["location"])
+    names = [name for name in (SETUP_PY, SETUP_CFG) if name in by_file]
+    fields = [field for name in names for field in by_file[name]]
+    return f"Source: {', '.join(names)} | Field: {', '.join(fields)}"
 
 
-def _provenance(merged: SetupOptions, metadata: ProjectMetadata) -> dict[str, str]:
+def _provenance(merged: SetupOptions) -> dict[str, str]:
     prov: dict[str, str] = {}
     name = _value(merged, "name")
     if name:
@@ -221,18 +298,17 @@ def _provenance(merged: SetupOptions, metadata: ProjectMetadata) -> dict[str, st
         stating = [o for o in declared if o.value] or declared[:1]
         if stating:
             prov[prov_key] = _joint_source(stating)
-    if "authors" in prov and metadata.authors:
-        prov["copyright_text"] = (
-            "Source: Pitloom generator | Method: inferred_from_authors"
-        )
     return prov
 
 
-def build_setuptools_metadata(cfg: SetupOptions, py: SetupOptions) -> ProjectMetadata:
+def build_setuptools_metadata(
+    cfg: SetupOptions, py: SetupOptions, *, quiet: bool = False
+) -> ProjectMetadata:
     """:class:`~pitloom.core.project.ProjectMetadata` from *cfg* and *py*
     merged by :func:`merge_setup_options`; name ``""`` when neither file
-    names the project."""
-    merged = merge_setup_options(cfg, py)
+    names the project. *quiet* silences the ``WARNING:`` for an
+    ``extras_require`` entry that cannot be used and for the authors."""
+    merged = _stated_author_options(merge_setup_options(cfg, py), cfg)
     metadata = ProjectMetadata(
         name=_value(merged, "name") or "",
         version=_value(merged, "version"),
@@ -240,11 +316,11 @@ def build_setuptools_metadata(cfg: SetupOptions, py: SetupOptions) -> ProjectMet
         readme=_value(merged, "long_description"),
         requires_python=_value(merged, "python_requires"),
         keywords=list(_value(merged, "keywords") or []),
-        authors=_authors(merged),
+        authors=_authors(merged, quiet),
         urls=_urls(merged),
-        dependencies=list(_value(merged, "install_requires") or []),
+        dependencies=_dependencies(merged, quiet),
     )
-    metadata.provenance = _provenance(merged, metadata)
+    metadata.provenance = _provenance(merged)
     licence, source = resolve_setuptools_licence(merged, cfg)
     metadata.license_name = licence
     if licence and source:  # a stated licence always has a source

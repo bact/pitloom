@@ -41,9 +41,9 @@ from pitloom._toml_io import TOMLDecodeError, load_toml_file
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import (
-    apply_in_package_license,
-    collect_license_candidates,
+    apply_in_package_license_files,
 )
+from pitloom.extract._license_detect import read_license_members
 from pitloom.extract.project._setup_cfg_directives import (
     _DIRECTIVE_RE,
     _resolve_cfg_version,
@@ -242,7 +242,7 @@ def read_setuptools(
     """
     cfg_options, config = _read_cfg_options(project_dir, read_config)
     py_options, py_error = _read_py_options(project_dir, cfg_options, quiet=quiet)
-    metadata = build_setuptools_metadata(cfg_options, py_options)
+    metadata = build_setuptools_metadata(cfg_options, py_options, quiet=quiet)
     if not metadata.name:
         raise FileNotFoundError(
             f"No usable project metadata found in {project_dir}. "
@@ -252,5 +252,5 @@ def read_setuptools(
     record_setuptools_conflicts(
         metadata, cfg_options, py_options, ConflictReport(str(project_dir), quiet)
     )
-    apply_in_package_license(metadata, collect_license_candidates(project_dir))
+    apply_in_package_license_files(metadata, read_license_members(project_dir))
     return metadata, config
