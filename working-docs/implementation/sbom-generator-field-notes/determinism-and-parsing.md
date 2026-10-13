@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -198,6 +198,14 @@ section 3.6 (determinism of model metadata).
   declares MIT ([known-bugs.md](../../design/known-bugs.md)).
   Do: decide precedence per field, as the build tool does, and test it
   against a real built wheel.
+- **A `[tool.setuptools.dynamic]` requirements file is not a pip file.**
+  Measured on setuptools 84: the listed files are joined and parsed once as
+  PEP 508 lines, `-r`/`-e`/`--index-url` fail the build, non-UTF-8 fails,
+  a missing file only warns. `dinglehopper` 0.11.0 takes all 25 entries
+  this way (14 required, 11 in `dev`); a reader of `[project]` alone found
+  none (#300).
+  Do: follow the build tool's reading, and add what it lacks for untrusted
+  input (a size cap, confinement to the project directory).
 - **`configparser`'s `[DEFAULT]` makes every section declare its keys.**
   `key in cfg[section]` and `cfg.items(section)` merge `[DEFAULT]` in, so
   a shared default looks like an explicit, possibly empty, per-section
@@ -343,3 +351,17 @@ section 3.6 (determinism of model metadata).
   Do: empty whitespace-only lines in the one normaliser every surface
   shares; do not guess a wider fold from the text, whose own indent looks
   the same.
+- **A walk over a whole parsed YAML document expands its aliases.**
+  `yaml.safe_load` keeps an alias as one shared object, so a walker that
+  visits every reference costs the size of the *expanded* tree. A model
+  card under 1 KB (`l0: &l0 [10 strings]`, then `lN: &lN [*l(N-1) x10]`)
+  loads in 0.001 s at 7 levels; the 0.20.2 release candidate's
+  lone-surrogate walk over its frontmatter took 0.23 s at 6 levels, 2.3 s
+  at 7, about 4 minutes at 9 (10x per level). `x: &a [*a]` raised
+  `RecursionError`, which the enricher runner caught as "failed" and so
+  lost the licence and datasets of the whole card. Found by a
+  fresh-context review of the release diff (#294, fixed before the tag).
+  Do: walk only the keys you consume, flattened to strings; if a whole
+  document must be walked, memoise by `id()` with a cycle guard. Test
+  the regression with both an alias bomb and a cycle, under a time bound
+  (a daemon thread joined with a timeout) so it fails instead of hanging.

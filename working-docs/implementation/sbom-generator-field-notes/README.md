@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-09
+Last-Modified: 2026-10-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,7 +24,7 @@ item gives the exact format, byte value, version or measured number; the PR
 that found or fixed it; and one "Do:" rule. Items the AI-model notes already
 cover are linked, not repeated. Every claim was checked against the current
 code, a repository fixture, a live interpreter or the cited PR's own record on
-the day it was added (2026-10-02 to 2026-10-08).
+the day it was added (2026-10-02 to 2026-10-10).
 
 ## Files
 
@@ -38,7 +38,8 @@ the day it was added (2026-10-02 to 2026-10-08).
 - [testing-traps.md](testing-traps.md): ways a test passes, fails or
   floods the log for the wrong reason.
 - [spdx-modelling.md](spdx-modelling.md): SPDX 3 identity, integrity,
-  claims, profiles, completeness and licences.
+  claims, profiles, completeness and licences; dependency scope for extras;
+  author strings.
 - [remote-metadata.md](remote-metadata.md): what core metadata and
   PyPI-style sources actually contain.
 - [model-file-metadata.md](model-file-metadata.md): what AI model files

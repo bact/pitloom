@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-09
+Last-Modified: 2026-10-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -149,15 +149,11 @@ Size: S under half a day, M about a day.
   so a second boundary between runs changes `created` (failed once locally under
   load, 2026-10-04). Pin the epoch in the test.
 
-- [ ] **`loom wheel` invents a copyright text (S).** With no author name
-  in `METADATA` (only `Author-email`), `document.py` writes
-  `Copyright (c) <SBOM year> <package name>`: neither holder nor year comes
-  from the package. Pitloom's own wheel gets `Copyright (c) 2026 pitloom`
-  and no supplier, where the hook records the author. Seen on 0.19.0 too.
-- [ ] **Extras-only dependencies are plain `dependsOn` in a wheel SBOM
-  (S-M).** `loom wheel` lists every `Requires-Dist`, `extra == ...` ones
-  included (Pitloom's wheel: 27 packages, 11 extras-only), with no marker
-  or scope; the hook and `loom project` list 16. Seen on 0.19.0 too.
+- [ ] **`loom wheel` copyright year is the SBOM's (S).** With no author
+  name in `METADATA` (only `Author-email`), the holder now comes from the
+  `Author-email` display name or address (#300), but the year is still the
+  SBOM's year, not the package's. Not re-checked since #300: the wheel
+  route had no supplier where the hook records the author.
 
 - [ ] **A very long version number crashes lock-file reading (S).**
   `packaging.Version("1." + "9" * 5000)` raises a plain `ValueError`
@@ -181,6 +177,10 @@ Size: S under half a day, M about a day.
   and fails on `50% faster` too; `%%` works.
 
 ## P3: after 0.20.0
+
+Follow-ups from the extras and authors work (#300): see
+[extras-parity.md](../implementation/extras-parity.md#open-questions),
+the one list.
 
 - [ ] **Deep metadata text depends on call-stack depth (S).**
   `core/ai_metadata.py:162` `_collection_text` falls back to

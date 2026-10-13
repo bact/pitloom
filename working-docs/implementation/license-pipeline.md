@@ -172,8 +172,8 @@ through the directory's rule (`license_from_project_table()`); a
 - **Size cap** (reader; the directory adapter and the sdist scan): a root
   file over `LICENSE_FILE_MAX_BYTES` (256 KiB) is skipped, read no further
   than one byte past the cap, with one `WARNING:` naming it
-  (`warn_over_cap()`, in the `logging_config.FILE_OVER_CAP_WARNING`
-  wording the usage scan shares). Once per file and process (`warn_once`):
+  (`logging_config.warn_over_cap()` with `LICENSE_FILE_CAP`, `once=True`,
+  the wording the usage scan shares). Once per file and process:
   one run reads a project twice when a lock-file re-read follows the peek.
   Real licence texts are a few KiB to some tens of KiB, and `licenseid` is
   slow on large text.

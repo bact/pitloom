@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-14
-Last-Modified: 2026-10-03
+Last-Modified: 2026-10-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -135,9 +135,10 @@ existing code to this module's `_parse_installed_metadata`/
 first-comma-only split logic nearly verbatim. Deliberately not unified in
 V1: `wheel.py` is a separate, working, tested path (`embed-wheel`'s
 wheel-internal-METADATA source, unrelated to this in-tree feature) with
-its own known gaps (flattens all authors into one entry; takes every
-`Requires-Dist` including extras-only ones) that this module's parser was
-written to avoid, not inherit. `wheel.py`'s parser also handles
+its own known gaps at the time (flattened authors; extras-only
+`Requires-Dist` as required), both fixed in #300: authors now come from the
+shared `extract/_core_metadata.py` reader, extras-only entries become
+`hasOptionalDependency` edges. `wheel.py`'s parser also handles
 `Download-URL` (-> `urls["Download"]`); this module's does not -- not an
 oversight, just not in this feature's V1 field scope (see the field
 mapping table above). Worth unifying into one shared RFC 822
