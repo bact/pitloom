@@ -131,6 +131,9 @@ from setuptools:
   (`name=NAME`), is blank (`"  "`) or holds a value Pitloom does not read
   (`url=1`) is ignored with a `WARNING:`, and `setup.cfg`'s is used. A
   `setup.cfg` `file:` directive in `install_requires` is not read.
+- A `setup.cfg` `file:` directive, and `[tool.setuptools.dynamic]`
+  `version = {file = ...}`, read a file only inside the project directory
+  and up to 1 MiB; another file is skipped with a `WARNING:`.
 - A placeholder licence (`UNKNOWN`, `NOASSERTION`) in `setup()` gives way to
   the licence classifier kept, else to the `license` of `setup.cfg` it
   overrode; setuptools keeps the placeholder. `NONE` is a statement.

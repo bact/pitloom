@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-04
-Last-Modified: 2026-09-12
+Last-Modified: 2026-10-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,8 +17,9 @@ SPDX-License-Identifier: CC0-1.0
 Every Source SBOM (`loom project`/`loom generate`) always includes your
 project's **declared dependencies** -- the version ranges listed in
 `pyproject.toml`'s `[project.dependencies]` (or `[tool.poetry.dependencies]`
-for a Poetry project), e.g. `requests>=2.0`. These are read directly and
-always present, with or without a lock file.
+for a Poetry project), e.g. `requests>=2.0`, **and the project's own extras**
+(see [Extras and the optional edge](#extras-and-the-optional-edge)). These
+are read directly and always present, with or without a lock file.
 
 If a **lock file** is also present next to `pyproject.toml`, Pitloom
 additionally reads its exact resolved versions and adds any dependency
@@ -32,20 +33,96 @@ declares `requests>=2.0` and your lock file resolved it to `2.31.0`, the
 package's `software_packageVersion` and PyPI PURL become `2.31.0` (with
 enrichment fetching metadata for that exact release), while the
 original declared range is preserved in the element's
-`declared_constraint` provenance annotation. Transitive dependencies
-revealed only by the lock file (e.g. `idna==3.7`) are added as new,
-additive entries.
+`declared_constraint` provenance annotation. The same holds for a
+requirement of one of your own extras for `uv.lock`, `poetry.lock` and
+`pdm.lock` (see the table). Transitive dependencies revealed only by the
+lock file (e.g. `idna==3.7`) are added as new, additive entries.
+
+## Extras and the optional edge
+
+Every route describing a project lists its own extras: a directory (`loom
+project`), an sdist, a wheel, the Hatchling build hook and the GitHub
+Action; `loom env` describes an environment, not a project, and lists
+none. The sources are `[project.optional-dependencies]`, Poetry's
+`[tool.poetry.extras]` and setuptools' `extras_require`. Each requirement
+is tagged `; extra == "x"`, as a built wheel writes it, in the dependency's
+`declared_constraint` provenance. An extra's requirement on the project
+itself (`demo[dev]` in `all`) is replaced by the requirements of the extras
+it names, its marker joined to theirs; Hatchling drops that marker and
+setuptools and flit_core keep the requirement as declared, but the
+relationships come out the same. A cycle of such requirements is dropped
+where it closes, with a `WARNING:`. Pitloom keeps every such requirement
+as declared, with a `WARNING:`, when replacing them would read or copy
+more than 100,000 entries or nest more than 64 markers. PEP 735
+`[dependency-groups]`, Poetry's `group.*` and PDM's `dev-dependencies` are
+**not** listed: a wheel carries no equivalent.
+
+Poetry's `[tool.poetry.extras]` is ignored, with a `WARNING:`, when
+`[project]` has a non-empty `dependencies` or `optional-dependencies`, as
+Poetry 2 does. A `[project]` list declared empty counts as absent there:
+Poetry then builds from `[tool.poetry.dependencies]` and
+`[tool.poetry.extras]`. A Poetry `optional = true` dependency that no
+extra lists is skipped with a `WARNING:`.
+
+A setuptools project may list `dependencies` or `optional-dependencies` in
+`[project] dynamic` and name requirements files for them in
+`[tool.setuptools.dynamic]` (`optional-dependencies.dev = {file =
+"requirements-dev.txt"}`). A directory reads those files as setuptools does:
+comment and blank lines skipped, paths relative to the project directory.
+Each of these is skipped with a `WARNING:`: a file that is missing,
+unreadable, not UTF-8, over 1 MiB or outside the project directory; once
+the table's files reach 4 MiB in all, every file after; a pip option line
+such as `-r` or `-e`, which setuptools does not accept; and an `attr`
+directive. A file listed twice is read once, by any path that opens it (a
+hard link too); a path that cannot be opened as written is not found.
+
+Any other `dynamic` `dependencies` or `optional-dependencies` is computed
+by the build backend at build time (a PDM or Hatchling plugin, say). A
+directory read cannot know it: it lists no requirement from that field,
+without a message, and a wheel or sdist built from the project does carry
+it.
+
+How a dependency is related to the project:
+
+| Where it is declared | Relationship | Lifecycle scope |
+| :--- | :--- | :---: |
+| `[project].dependencies`, any locked transitive dependency, or a bundled (phantom) library | `dependsOn` (a `LifecycleScopedRelationship`) | `runtime` |
+| Only under one or more extras, locked or not | `hasOptionalDependency`, comment `extras: a, b` (sorted) | none |
+| Both | `dependsOn`, as above | `runtime` |
+
+A lock does not make an extra's requirement `dependsOn`, even when another
+dependency needs it: Pitloom reads which packages a lock resolved, not which
+package needs which. A requirement that is not valid PEP 508, or whose
+marker's extra condition cannot be isolated (`extra == "a" or
+python_version < "3.9"`), is recorded as required, with a `WARNING:`.
+For the same reason a package only the lock names (a transitive one) is
+`dependsOn` with scope `runtime`, even if only an extra's requirement
+needs it: the lock does not say.
+
+A self-referencing extra (`demo[dev]` inside `full`) adds no package of its
+own: its requirements are listed with both extras (`extras: dev, full`).
+Hatchling expands it when it writes a wheel and other backends keep it, so
+every route gives the same packages and comments.
+
+### Naming your extras
+
+Pitloom never infers a lifecycle scope from an extra's name: to a packaging
+tool, `dev`, `lint` and `async` are all just extras. Still, name an extra
+after the lifecycle stage it serves (`dev`, `lint` or `docs` for
+development, `test` or `tests` for testing) and keep feature names (`full`,
+`async`, `postgres`) for optional runtime features: an optional setting
+that maps an extra to a scope the project states is planned.
 
 ## Supported lock formats, and what counts as "resolved"
 
 | Priority | Format | File | What's included |
 | :---: | :--- | :--- | :--- |
-| 1 (highest) | PEP 751 | `pylock.toml` | Every resolved package the file records for its declared `default-groups` (a package needed only for a non-default dependency-group/extra, per its own `marker` field, is excluded). |
-| 2 | uv | `uv.lock` | Your project's own main/runtime dependencies, walked transitively (dependencies of dependencies, and so on), including any extra a real dependency requests on another package (e.g. `uvicorn[standard]` pulls in `uvicorn`'s own `standard` extra). Your project's *own* `optional-dependencies`/`dev-dependencies` groups (the ones a user would have to opt into, e.g. `pip install yourpkg[dev]`) are not included. A dependency pinned to more than one version for different Python versions is skipped, not guessed at, and nothing depending only on it is walked into either -- see below. |
-| 3 | Poetry | `poetry.lock` | Packages in the `main` dependency group only (not `[tool.poetry.group.*]` dev/extra groups). |
-| 4 | PDM | `pdm.lock` | Packages in the `default` dependency group only. |
-| 5 | Pipenv | `Pipfile.lock` | Packages in the `default` section only (not `develop`). A package whose resolved `version` isn't a single exact `==`/`===` pin is skipped, not guessed at. |
-| 6 (lowest) | -- | pinned `requirements.txt` | Not a real lock file -- only used when *every* line in the file is already a single exact `==`/`===` pin. If even one line is unpinned, ranged, a pip option (`-e`, `-r`, `--hash`, ...), a URL-based requirement (even one that looks like it points at a tagged release), or one package name is pinned to two conflicting versions, the **whole file** is skipped, not just that line -- see below. |
+| 1 (highest) | PEP 751 | `pylock.toml` | Every resolved package the file records for its declared `default-groups` (a package needed only for a non-default dependency-group/extra, per its own `marker` field, is excluded; your own extras are not pinned). |
+| 2 | uv | `uv.lock` | Your project's own main/runtime dependencies, walked transitively (dependencies of dependencies, and so on), including any extra a real dependency requests on another package (e.g. `uvicorn[standard]` pulls in `uvicorn`'s own `standard` extra). Your project's *own* extras (e.g. `pip install yourpkg[dev]`) add the exact pin of each requirement they list directly, not the extras' transitive closure; `dev-dependencies` groups are not included. A dependency pinned to more than one version for different Python versions is skipped, not guessed at, and nothing depending only on it is walked into either -- see below. |
+| 3 | Poetry | `poetry.lock` | Packages in the `main` dependency group only (not `[tool.poetry.group.*]` groups), plus the pins of requirements your own `[tool.poetry.extras]` list directly. |
+| 4 | PDM | `pdm.lock` | Packages in the `default` dependency group only, plus the pins of requirements your own extras list directly (needs static `[project.optional-dependencies]` keys). |
+| 5 | Pipenv | `Pipfile.lock` | Packages in the `default` section only (not `develop`; no extras). A package whose resolved `version` isn't a single exact `==`/`===` pin is skipped, not guessed at. |
+| 6 (lowest) | -- | pinned `requirements.txt` | Not a real lock file -- only used when *every* line in the file is already a single exact `==`/`===` pin (no extras). If even one line is unpinned, ranged, a pip option (`-e`, `-r`, `--hash`, ...), a URL-based requirement (even one that looks like it points at a tagged release), or one package name is pinned to two conflicting versions, the **whole file** is skipped, not just that line -- see below. |
 
 `requirements.txt`'s entry is tagged `Method: pinned_requirements` in
 its provenance annotation (see "How to tell which source was used"

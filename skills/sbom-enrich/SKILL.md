@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-08
+# Last-Modified: 2026-10-12
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -207,8 +207,9 @@ Steps:
      AI model` -- the file is no model and has no `ai_AIPackage` at all (for
      a pointer, an unfetched Git LFS file: run `git lfs pull` and
      regenerate). On a wheel base,
-     the gate `INFO:` naming `--trust-wheel-model`, `... scan ceiling;
-     metadata not read`, or `per-wheel budget ... is spent` -- tell the
+     the gate `INFO:` naming `--trust-wheel-model`, `...
+     max-model-extract-bytes cap; metadata not read`, or `... per-wheel
+     model-scan budget cap; ...` -- tell the
      user; never add the flag or raise `max-model-extract-bytes` yourself.
      Any other `...; metadata not read` -- a fixed bound. (`... identity
      unknown` is the wheel's own name/version, not a model: see

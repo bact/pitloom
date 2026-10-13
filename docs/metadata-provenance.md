@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-12
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -264,8 +264,8 @@ value, not just where it read it from. Values in use today:
 | --- | --- |
 | `dynamic_extraction` | Read from a Python file at build time (e.g. a `__version__` or `__about__.py` variable), not from `pyproject.toml` directly. |
 | `licenseid_detection` | License text matched against a known SPDX license using the [`licenseid`](https://pypi.org/project/licenseid/) library -- detected, not author-declared. |
-| `inferred_from_authors` | Derived from the `authors` list (e.g. a copyright statement), not read verbatim from any single field. |
-| `parsed_author_list` | Extracted multiple individual entities by splitting a single, comma-separated author string. |
+| `copyright_notice_lines` | The main package's copyright text: the copyright notice lines of the named licence files, as written (see [How the copyright text is found](#how-the-copyright-text-is-found)). |
+| `parsed_author_list` | A dependency's originators, when its author fields name more than one (several addresses, or a free-text name split on `,` and `and`). |
 | `file_directive` | A `pyproject.toml` dynamic field pointed at a file (`{file = "..."}`); the value was read from that file. |
 | `attr_directive` | A `pyproject.toml` dynamic field pointed at a Python attribute (`{attr = "..."}`); the value was imported and read from code. |
 | `inspect_caller` | Recorded automatically by the `pitloom.loom` tracking SDK via Python stack inspection -- identifies which script/function called the SDK. |
@@ -437,7 +437,10 @@ the build hook record the same declared license, except a license file or text
 that Pitloom identifies as a listed license: the directory and the build hook
 record its id, the sdist and the wheel the text. A directory, an sdist and
 the build hook add the concluded second opinion above (a wheel only through
-`embed-wheel --project-dir`).
+`embed-wheel --project-dir`). A directory's `[project].license` `file`, or
+`[project].readme` file, outside the project directory (`..`, an absolute
+path or a symlink out) is not read: the field is dropped with a `WARNING:`
+naming it.
 
 Whose statement a license is decides the relationship. The package's own --
 its manifest, a file it ships, an AI model file's own metadata, a model card,
@@ -445,6 +448,83 @@ its own installed metadata (the project, or a `loom env` package) -- is
 `hasDeclaredLicense`. A third-party record -- the PyPI JSON API, or a
 dependency's installed copy read for a project SBOM -- is
 `hasConcludedLicense`, as is the directory's second opinion above.
+
+## How the copyright text is found
+
+A package's `copyrightText` is the text of the copyright notices *found*
+for it, never generated. For the main package these are the notice lines
+of its own licence files: `LICENSE`, `LICENCE`, `COPYING` and `COPYRIGHT`
+(bare, or `.txt`, `.rst`, `.md`) at the project root, at the sdist's
+root, or in the wheel's `.dist-info/licenses/` (else its `.dist-info`
+itself) -- the files the license detection reads, in its order. A
+dependency's are those of the `License-File`s its installed metadata
+lists.
+
+A notice line is `Copyright` with `(c)`, `©` or a year, or `(c)`/`©`
+with a year (`Copyright (c) 2019, Brett Cannon`, `© 2020 Acme`), kept as
+written with the rest of its line (`All rights reserved.`). Prose about
+copyright (`the copyright holder`) is not a notice, nor is a licence
+template's placeholder (`Copyright [yyyy] [name of copyright owner]`),
+nor the Free Software Foundation's own notice heading a GNU licence
+document (between its title line -- `GNU ... GENERAL PUBLIC LICENSE` or
+`GNU Free Documentation License`, any case, alone on its line, a Markdown
+heading or an underlined reStructuredText title -- and `Version N,
+<date>` lines and its `Everyone is permitted to copy and distribute
+verbatim copies` line): a project notice before or after the licence text,
+or under such a title written inside a sentence, is kept. Several notices
+are joined by a line break in file order, a repeat left out; the
+provenance names the files they came from (`method:
+copyright_notice_lines`).
+
+When no file holds a notice, the copyright text is `NOASSERTION`, with no
+provenance: Pitloom does not say the package has none (`NONE`). A licence
+file that exists but cannot be read, is over the 256 KiB cap, or resolves
+outside the project directory (a symlink out of it), is skipped with a
+`WARNING:` naming it.
+
+## How authors are read
+
+Every `[project].authors` entry, in declared order, is an `originatedBy`
+Agent of the main package, on every route but `loom env`; maintainers are
+not. An author, or a dependency's originator, is a `Person`, or an
+`Organization` when its name holds the whole word `others` or `et al`
+(`and others (see AUTHORS)`; `Jan Brothers` is a person). There is one
+Agent per type, name and email, shared with an SBOM creator or another
+package: a `Person` and an `Organization` of the same name are different
+agents. The authors never make the copyright text (see
+[How the copyright text is found](#how-the-copyright-text-is-found)).
+
+A structured entry is one author, never split: a `[project].authors` table,
+a Poetry `authors` string, a quoted display name in `Author-email` (one
+mailbox, RFC 5322: `"Ann, Bob" <team@example.com>` is one author named
+`Ann, Bob`; typographic quotes, `“Ann, Bob”`, hold a name together too). A free-text field cannot tell a list from one name containing
+a comma, so it is split on `,` and `and`, with one `WARNING:` per SBOM:
+core-metadata `Author` (a wheel's `METADATA`, an sdist's `PKG-INFO`),
+`setup.cfg` `author`, `setup.py` `author=`, and a dependency's `Author` or
+`Maintainer` (one line for all dependencies, naming the first and the
+count). Each comma-separated part is tested on its own for a contributor
+group, which is not split on `and`: `Jane and others` is the same
+`Organization` as in a table, and Hatchling's `Doe, Jane, Ann and others`
+(name-only authors joined) reads as `Doe`, `Jane` and the group `Ann and
+others`. A split part ending in `<address>` is read as a name and address,
+and a group after it is its own (`Jane <j@x.org> et al.` is `Jane` with
+the address, and `et al.`); a split right after an address is not warned
+about. A free-text field is read up to 65,536 characters and 1,000 names (or
+address entries); past either, the rest is not read, with one `WARNING:`
+when the authors read are used (not for `PKG-INFO` authors an sdist's
+`pyproject.toml` replaces). The
+core metadata specification's `Author` example, `C. Schultz, Universal Features
+Syndicate, Los Angeles, CA <cschultz@peanuts.example.com>`, reads as four
+authors, the last `CA` with the address. An address is checked as written
+(`a@b c` is not `a@bc`), a comma inside `<...>` included: an address of
+the project's own that is no address is not recorded, with a `WARNING:`,
+and a name stated before it is kept (`Ann <a@b c>` is `Ann`). The `UNKNOWN` older
+setuptools writes is no author: in `setup.py` it gives way to `setup.cfg`'s
+author. An sdist's `pyproject.toml` gives the declared authors as a
+directory's does (`[project].authors`, else `[tool.poetry].authors`); one
+that cannot be read leaves the `PKG-INFO` authors, with a `WARNING:`, as `embed-wheel
+--project-dir` does. How a wheel's `METADATA` reorders authors:
+[What an SBOM lists](wheel-sbom.md#what-an-sbom-lists).
 
 ## How a dependency-version source is chosen
 
@@ -484,6 +564,10 @@ Note the declared candidate's `value` is a PEP 440 specifier expression
 (e.g. `">=2.0"`), not a version, when the dependency was declared as a
 range rather than pinned exactly -- the exact-pin case instead has a
 concrete version on both sides.
+
+A dependency's `declared_constraint` annotation holds every string declared
+for that package, extras included (see [Extras and the optional
+edge](dependency-sources.md#extras-and-the-optional-edge)), joined by ` | `.
 
 ## See also
 

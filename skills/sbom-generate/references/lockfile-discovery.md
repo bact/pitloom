@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-09-29
+Last-Modified: 2026-10-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -28,7 +28,13 @@ When a lock file is present:
   resolve to their exact locked version rather than falling back to host
   environment introspection.
 - Transitive dependencies from the lock file are emitted as SPDX 3
-  `software_Package` elements connected via `dependsOn` relationships.
+  `software_Package` elements connected via `dependsOn` relationships with
+  lifecycle scope `runtime`.
+- `uv.lock`, `poetry.lock` and `pdm.lock` also pin the requirements the
+  project's own extras list directly, not their transitive closure
+  (`pdm.lock` only for static `[project.optional-dependencies]` keys); the
+  others pin no extras. A pinned extra-only requirement stays
+  `hasOptionalDependency`.
 - SHA-256 package hashes are extracted directly from supported lock files
   for `verifiedUsing` integrity validation, preserved in offline builds and
   prioritised over PyPI lookups.

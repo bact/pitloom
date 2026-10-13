@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-12
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -19,6 +19,57 @@ and this project adheres to
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.20.2...HEAD>
+
+## [Unreleased]
+
+### Added
+
+- Every route but `loom env` lists the project's extras as
+  `hasOptionalDependency` (no scope, comment `extras: a, b`), pinned by
+  `uv.lock`, `poetry.lock` and `pdm.lock` ([#300])
+- A directory reads `[tool.setuptools.dynamic]` `file =` requirements for
+  dependencies and extras ([#300])
+- Every `[project].authors` entry is an `originatedBy` of the main package,
+  one Agent per type, name and email; `embed-wheel --project-dir` uses them
+  ([#300])
+
+### Changed
+
+- Required, locked and phantom edges are `dependsOn` with scope `runtime` (not
+  in `loom env`); `doc_uuid` changes for a project with extras or requirements
+  files ([#300])
+- Free-text author fields (`Author`, `setup.cfg`/`setup.py` `author`, a
+  dependency's) are split on `,`/`and` on every route, one `WARNING:` per SBOM
+  ([#300])
+- Author splitting reads up to 65,536 characters/1,000 names, keeps a quoted
+  `Author-email` name (`"…"`, `“…”`) whole and finds an `and others`/`et al.`
+  group in each part ([#300])
+- `copyrightText` is a notice from the project's licence files (never a GNU
+  licence's own FSF notice), else `NOASSERTION`; no longer made from the
+  authors ([#300])
+- Every input over a cap (model bounds, labels, names, wheel/sdist header
+  blocks, config members) warns `<KEY>=…: larger than the N-unit … cap;
+  <outcome>` ([#300])
+
+### Fixed
+
+- Poetry `optional = true` dependencies are no longer required; a Poetry 2
+  `[tool.poetry]` without `name` is read; an sdist keeps every
+  `[tool.poetry].authors` entry ([#300])
+- An author named `... Brothers` is a Person, not a group; a setuptools
+  `UNKNOWN` author is no author; a stated name stays beside an invalid
+  address ([#300])
+- A creator's name and email are stripped; `embed-wheel --project-dir` warns
+  once about a split in the adopted project authors, `--config` or not
+  ([#300])
+- A licence file, `project.license.file`, `project.readme` or a setuptools
+  `file:`/`{file =}` version or text file outside the project is not read; a
+  `project.license.file` `Source:` is project-relative ([#300])
+- Crafted author fields, copyright lines, extras self-references and
+  requirements files no longer take quadratic or exponential time or memory
+  ([#300])
+
+[#300]: https://github.com/bact/pitloom/pull/300
 
 ## [0.20.2] - 2026-10-09
 
