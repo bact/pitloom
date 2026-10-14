@@ -191,6 +191,20 @@ same path, a guard test forbids direct calls); a field's bad
 addresses are one warning per field (first three shown, an ellipsis when
 cut, singular and plural counts).
 
+Fixed 2026-10-14 (second batch): a Poetry dependency's version, extras,
+`git`/`url` source and `python`/`markers`/`platform` keys are written as
+poetry-core writes them (its own code converts them; combined keys keep
+poetry-core's order, same environments); `[tool.poetry.dependencies]` is
+ignored, with a `WARNING:`, when poetry-core ignores it; the `[tool.poetry]`
+gap-fill applies only to a Poetry backend (or none declared); a `path`
+dependency is skipped with a `WARNING:`. `Author-email` splits exactly like
+`Author`; `Two names, two addresses` is a documented limit, not paired by
+position; an `Author-email` entry is never split on `and` (one author on
+every route); an entry with no `<`, `>` or `@` is a name. A requirement
+with its own extra condition inside an extra is
+`hasOptionalDependency` (`extras: dev, x`) with one `WARNING:`; the author
+warning helpers moved to `extract/_author_warnings.py`.
+
 Every cap warns through `warn_over_cap` (decided 2026-10-12): the model
 scan bounds, labels, names and per-wheel budget, the wheel/sdist header
 block and the sdist config member read `<KEY>=…: larger than the <limit>-
@@ -230,69 +244,58 @@ Reader gaps:
    --extra x` sample (PEP 751 `extras`, marker `'x' in extras`).
 2. `setup.cfg` `install_requires = file:` / `extras_require` `file:` are not
    read; the sdist pyproject fallback reads no `dynamic` field.
-3. Poetry `markers`/`python` keys on an optional dependency are dropped; the
-   wheel ANDs them into the marker.
-4. Wheel/sdist dependency names are not canonicalised for non-Hatchling
+3. Wheel/sdist dependency names are not canonicalised for non-Hatchling
    backends (poetry-core writes `idna (>=3)`).
-5. Poetry builds that Pitloom reads differently: with a non-empty
-   `[project] optional-dependencies` and no declared `dependencies`,
-   poetry-core ignores `[tool.poetry.dependencies]`, Pitloom fills the base
-   list from it; Poetry `git`/`url`/`path` sources and per-dependency
-   `extras` are skipped; the gap-fill applies whatever the build backend.
-6. No `build-backend` gets Hatchling file discovery ("Hatchling file
+4. No `build-backend` gets Hatchling file discovery ("Hatchling file
    discovery failed" on `dinglehopper`); PEP 517 means setuptools.
-7. With `requirements.txt` as the dynamic source, the lock cascade also
+5. With `requirements.txt` as the dynamic source, the lock cascade also
    logs "isn't pinned -- ignoring requirements.txt".
-8. The directory route expands self-references and canonicalises names
+6. The directory route expands self-references and canonicalises names
    where setuptools' wheel keeps `demo[x]` and the spelling (spelling only).
 
 Structure and tests:
 
-9. A dynamic `dependencies` file keeps an invalid line as required
+7. A dynamic `dependencies` file keeps an invalid line as required
    (assembly warns) while an extras file skips it; an empty extra (`etils`
    `epath-no-tf`) has no representation in the dependency list.
-10. `extract/lock/uv.py` is over the soft limit (518); splitting out the
+8. `extract/lock/uv.py` is over the soft limit (518); splitting out the
     extras pins needs a public accessor for three private helpers. At the
     limit: `assemble/spdx3/deps.py` (500), `_embed_build_sbom.py` (491).
-11. A dependency's unusable `Author-email` is dropped without a trace
+9. A dependency's unusable `Author-email` is dropped without a trace
     (a per-document summary like the split one is the option); the pinned
     rows `name-only-merge-open-question` follow the name-only merge, now closed by the agent-key rule.
-12. `NOTICE*`, `license-files` and `license.file` are not read for the
+10. `NOTICE*`, `license-files` and `license.file` are not read for the
     notice, because licence detection does not read them; widening the shared
     discovery changes detection on every route.
-13. A notice with no `Copyright`/`(c)`/`©` marker or no year
+11. A notice with no `Copyright`/`(c)`/`©` marker or no year
     (`Copyright Microsoft Corporation`) does not match; it cannot be told
     from prose such as "Copyright holders".
-14. A wheel's licence is still METADATA-only; its licence files now feed the
+12. A wheel's licence is still METADATA-only; its licence files now feed the
     copyright only. `loom env` has a synthetic root (copyright
     `NOASSERTION`); the in-tree installed reconcile reads no `License-File`.
-15. `extract/_license.py` is 505 lines; `apply_in_package_license_files`
+13. `extract/_license.py` is 505 lines; `apply_in_package_license_files`
     cannot move to `copyright_notices.py` (import cycle).
-16. An installed dist's `RECORD` entry with `..` passes the dist-info check
+14. An installed dist's `RECORD` entry with `..` passes the dist-info check
     and its `License-File` reads outside it (predates this work; reach grew
     from 500 characters to 256 KiB).
-17. SBOM text from new sources (`copyrightText`, Agent names, the `extras:`
+15. SBOM text from new sources (`copyrightText`, Agent names, the `extras:`
     comment) carries display controls unescaped, as existing package fields do.
-18. `embed-wheel` reads the project three times
+16. `embed-wheel` reads the project three times
     (`_adopt_project_authors`, `_embed_generate`, registry peek); the
     directory route reads every licence file four times.
-19. `Author-email: Doe, Jane <j@x.org>` (unquoted comma, legacy data) loses
-    "Doe"; a requirement carrying its own `extra ==` marker inside an extra
-    is recorded as required though never installable; setup.py `Author: Jane,
-    Bob` with two addresses gives four agents for two people.
-20. The split hint names `--project-dir`, which `loom wheel` lacks;
+17. The split hint names `--project-dir`, which `loom wheel` lacks;
     `cli_error_handler` prints exception text raw; `_parse_poetry_deps` and
     `deps_originator` docstrings are stale; `deps.py` (502) is over the soft
     limit and `_embed_build_sbom.py` is at 500 lines.
-21. `[tool.hatch.version] path` (`pyproject_dynamic.py`) is read without
+18. `[tool.hatch.version] path` (`pyproject_dynamic.py`) is read without
     project confinement; an absolute `path` holding `__version__` probably
     raises an uncaught `ValueError` in `relative_to(project_dir)`.
-22. An empty licence file records `license_name` provenance while the value
+19. An empty licence file records `license_name` provenance while the value
     is `None` (predates this work).
-23. `ProjectMetadata.readme` holds pyproject-metadata's joined, often
+20. `ProjectMetadata.readme` holds pyproject-metadata's joined, often
     absolute path on the directory route (`extract_readme`,
     `str(readme.file)`); it never reaches the SBOM today.
-24. Third-party parsers Pitloom cannot screen for deeply nested markers:
+21. Third-party parsers Pitloom cannot screen for deeply nested markers:
     Hatchling's own `core.dependencies` raises `RecursionError` inside the
     build hook (a plain Hatchling build crashes too); setuptools file
     discovery parses `install_requires` itself, so its warned fallback
@@ -300,6 +303,16 @@ Structure and tests:
     runs pipdeptree in a subprocess (untested with a crafted `METADATA`).
     The `_dep_scope` "not a valid PEP 508 requirement" warning prints the
     whole text (about 1.8 KB for a crafted line).
-25. `authors.py` is 575 lines (soft limit ~500): the warning helpers
-    (`_shown*`, `_counted`, `_warn_not_addresses`) could move to their own
-    module.
+22. `requires_python` from `[tool.poetry.dependencies] python` still uses the
+    old caret/tilde converter (`^3.8` gives `>=3.8,<4.0.0`, poetry-core
+    writes `<4.0`; same meaning); `format_python_constraint` is the follow-up.
+23. A name-only structured author (`{name = "Ann and Bob"}` or `"Doe,
+    Jane"`) is one author on the directory route and the hook, but two on
+    the wheel, sdist and installed routes: backends write it into `Author`
+    verbatim, where `setup.py` free text also lands, so the reader cannot
+    tell them apart. Measured with Hatchling 1.32.3, setuptools 84,
+    flit_core 4.0.2 and pdm-backend 2.4.9; `Author-email` (name and
+    address) agrees everywhere. Needs a ruling: never split `Author` either
+    (which un-splits `setup.py` free text too)?
+24. A Poetry `path` dependency is skipped on the directory route while the
+    wheel carries a `file://` URL (by design, not portable).
