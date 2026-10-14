@@ -30,6 +30,7 @@ from pitloom.extract._license import (
     stated_license,
 )
 from pitloom.extract._license_detect import read_license_members
+from pitloom.extract.authors import collapse_whitespace
 from pitloom.extract.project._optional_dependencies import add_optional_dependencies
 from pitloom.extract.project.pyproject import fill_from_poetry
 
@@ -62,10 +63,13 @@ def _poetry_fallback_metadata(
 
 def _declared_authors(authors: list[dict[str, str]]) -> list[dict[str, str]]:
     """Hatchling's ``authors`` as ``[{name?, email?}, ...]`` in declared
-    order, without empty values and entries left with neither."""
+    order, without empty values and entries left with neither, a name's
+    white space collapsed
+    (:func:`~pitloom.extract.authors.collapse_whitespace`)."""
     result = []
     for entry in authors:
-        author = {k: v for k, v in entry.items() if k in ("name", "email") and v}
+        named = {**entry, "name": collapse_whitespace(entry.get("name") or "")}
+        author = {k: v for k, v in named.items() if k in ("name", "email") and v}
         if author:
             result.append(author)
     return result

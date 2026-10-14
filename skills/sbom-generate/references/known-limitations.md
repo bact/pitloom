@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-12
+Last-Modified: 2026-10-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,7 +41,8 @@ no license relationship -- Pitloom never asserts a license it was not told
 ## Extras, edge kinds and authors
 
 - **Extras** (`[project.optional-dependencies]`, Poetry extras, setuptools
-  `extras_require` or `[tool.setuptools.dynamic]` requirements files) are
+  `extras_require`, `[tool.setuptools.dynamic]` or `setup.cfg` `file:`
+  requirements files) are
   listed on every route except `loom env`. PEP 735 dependency-groups,
   Poetry `group.*` and PDM `dev-dependencies` are not (a wheel has no
   equivalent).
@@ -53,13 +54,19 @@ no license relationship -- Pitloom never asserts a license it was not told
 - Every `[project].authors` entry is `originatedBy` of the main package;
   maintainers are not. The authors never make the copyright text: it is the
   notice lines found in the project's own `LICENSE`/`COPYING` files, else
-  `NOASSERTION`. A free-text author field
-  (`Author`, `Author-email`, `setup.cfg`/`setup.py` `author`) is split on
-  `,` and `;` (`Author`/`author` on `and` too; an `Author-email` entry such
-  as `Ann and Bob <t@x.org>` is one author) with a `WARNING:`; names and addresses are never paired
-  by position (`Jane, Bob` plus two addresses is four authors). A bare wheel's `METADATA` loses the declared order and
-  poetry-core writes only the first author; `embed-wheel --project-dir` and
-  an sdist with `pyproject.toml` keep it.
+  `NOASSERTION`. A name field (`Author`, `setup.cfg`/`setup.py` `author`)
+  is one author: `Jane, Bob` or `Ann and Bob` there is one author
+  (backends write a name-only author so; a free-text list of names is one
+  author too: for the project's own, holding `,`, `;` or `and`, one `INFO:
+  AUTHOR=...: read as one author; it may list several`). It is cut only after a closed `<address>` or a bare address,
+  with a `WARNING:`: `Ann <a@x.org>; Bob <b@x.org>` is two authors, `Doe,
+  Jane <j@x.org>` one. An address field (`Author-email`, `author_email`)
+  is split on `,` and `;`, never `and` (`Ann and Bob <t@x.org>` is one
+  author), with a `WARNING:`; a name and addresses are never paired by position
+  (`Jane, Bob` plus two addresses is three authors). A bare wheel's
+  `METADATA` loses the declared order and poetry-core writes only the
+  first author; `embed-wheel --project-dir` and an sdist with
+  `pyproject.toml` keep it.
 - Detail: <https://bact.github.io/pitloom/dependency-sources/#extras-and-the-optional-edge>
   <https://bact.github.io/pitloom/metadata-provenance/#how-authors-are-read>
   and <https://bact.github.io/pitloom/metadata-provenance/#how-the-copyright-text-is-found>.
@@ -129,7 +136,8 @@ Every cap, its value and message (the single source of truth):
 ## Unsupported build backend
 
 Hatchling, setuptools, Poetry, PDM-backend and Flit-core get accurate
-file-level discovery (files, hashes, Merkle root) by default. Any other
+file-level discovery (files, hashes, Merkle root) by default; no
+`build-backend` declared means setuptools (PEP 517). Any other
 backend (`uv_build`, or one still without its own toolchain, e.g.
 `maturin`/`scikit-build-core`/`meson-python`) falls back to a
 Hatchling-based heuristic. Project-level metadata (name, version,

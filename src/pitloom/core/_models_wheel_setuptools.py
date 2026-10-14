@@ -69,6 +69,11 @@ _IMPERATIVE_PACKAGING_KWARGS = frozenset(
     }
 )
 
+# A setup() keyword argument outside the static config that turns
+# setuptools' auto-discovery off (``ext_modules``: setuptools' own
+# ``ConfigDiscovery._explicitly_specified``) or changes the file list.
+_AUTO_DISCOVERY_BLOCKERS = _IMPERATIVE_PACKAGING_KWARGS | {"ext_modules"}
+
 
 @contextmanager
 def _chdir(project_dir: Path) -> Iterator[None]:
@@ -167,7 +172,13 @@ def _load_distribution(
         pyproject_data, "setuptools"
     )
     has_setup_cfg = setup_cfg_path.is_file()
-    if not has_pyproject and not has_setup_cfg:
+    if not (
+        has_pyproject
+        or has_setup_cfg
+        or _auto_discovery_only(
+            project_dir, has_pyproject_file=pyproject_data is not None
+        )
+    ):
         return None
 
     dist = Distribution()
@@ -278,21 +289,23 @@ def _dedupe_by_distribution_path(
     return list(seen.values())
 
 
-def _setup_py_packaging_kwargs(setup_py_path: Path) -> list[str]:
-    """Names of :data:`_IMPERATIVE_PACKAGING_KWARGS` passed to any
-    ``setup()``/``setuptools.setup()``-named call found in
-    *setup_py_path*, regardless of whether the value itself is a static
-    literal -- unlike metadata extraction, this only needs to know a
-    packaging-relevant argument was passed at all, not its value. Every
-    matching call is inspected, not just the first, so an unrelated
-    ``.setup()``-named call earlier in the file (e.g. ``logger.setup()``)
-    can't hide the real one. A ``**kwargs`` unpack in a matching call's
-    argument list is itself reported (as the literal string
-    ``"**kwargs"``) since its contents can't be inspected statically and
-    may hide a packaging-relevant argument. An empty list means no
-    ``setup.py``, no ``setup()``-named call, or none of these arguments
-    (or an unpack) present; never raises (a ``setup.py`` this module
-    can't even parse is not this function's problem to report)."""
+def _setup_py_packaging_kwargs(
+    setup_py_path: Path, names: frozenset[str] = _IMPERATIVE_PACKAGING_KWARGS
+) -> list[str] | None:
+    """Names of *names* passed to any ``setup()``/``setuptools.setup()``-
+    named call found in *setup_py_path*, regardless of whether the value
+    itself is a static literal -- unlike metadata extraction, this only
+    needs to know a packaging-relevant argument was passed at all, not
+    its value. Every matching call is inspected, not just the first, so
+    an unrelated ``.setup()``-named call earlier in the file (e.g.
+    ``logger.setup()``) can't hide the real one. A ``**kwargs`` unpack in
+    a matching call's argument list is itself reported (as the literal
+    string ``"**kwargs"``) since its contents can't be inspected
+    statically and may hide a packaging-relevant argument. An empty list
+    means a ``setup()``-named call passing none of them; ``None`` means
+    no readable ``setup.py`` or no ``setup()``-named call in it. Never
+    raises (a ``setup.py`` this module can't even parse is not this
+    function's problem to report)."""
     # pylint: disable-next=import-outside-toplevel
     from pitloom.extract.project.setuptools_py import iter_setup_calls
 
@@ -301,15 +314,31 @@ def _setup_py_packaging_kwargs(setup_py_path: Path) -> list[str]:
             setup_py_path.read_text(encoding="utf-8"), filename=str(setup_py_path)
         )
     except (OSError, SyntaxError, UnicodeDecodeError):
-        return []
+        return None
+    calls = list(iter_setup_calls(tree))
+    if not calls:
+        return None
     found: set[str] = set()
-    for node in iter_setup_calls(tree):
+    for node in calls:
         for kw in node.keywords:
             if kw.arg is None:
                 found.add("**kwargs")
-            elif kw.arg in _IMPERATIVE_PACKAGING_KWARGS:
+            elif kw.arg in names:
                 found.add(kw.arg)
     return sorted(found)
+
+
+def _auto_discovery_only(project_dir: Path, *, has_pyproject_file: bool) -> bool:
+    """Whether setuptools' own auto-discovery alone decides the file list
+    when neither ``pyproject.toml`` nor ``setup.cfg`` configures it: a
+    ``setup.py`` whose ``setup()`` call passes no file-selection argument
+    (:data:`_AUTO_DISCOVERY_BLOCKERS`), or no ``setup.py`` beside a
+    parsed ``pyproject.toml`` (PEP 517's ``setuptools.build_meta:__legacy__``
+    default for a ``pyproject.toml`` with no ``build-backend``)."""
+    setup_py_path = project_dir / "setup.py"
+    if not setup_py_path.is_file():
+        return has_pyproject_file
+    return _setup_py_packaging_kwargs(setup_py_path, _AUTO_DISCOVERY_BLOCKERS) == []
 
 
 def _warn_if_setup_py_overrides_packaging(project_dir: Path) -> None:

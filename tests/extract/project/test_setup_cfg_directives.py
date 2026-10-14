@@ -12,6 +12,7 @@ See also: :mod:`tests.extract.project.test_setuptools_cfg`.
 
 from __future__ import annotations
 
+import ast
 import errno
 import logging
 import os
@@ -19,6 +20,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from typing import Any
+from unittest import mock
 
 import pytest
 
@@ -28,7 +30,11 @@ from pitloom.extract.project import (
     read_project,
     resolve_project_with_lockfile,
 )
+from pitloom.extract.project._setup_cfg_directives import (
+    _resolve_cfg_attr_directive,
+)
 from pitloom.extract.project.setuptools_cfg import read_setup_cfg
+from tests._bounded import run_bounded_in_child
 
 _MIT = "License :: OSI Approved :: MIT License"
 
@@ -340,3 +346,68 @@ def test_a_version_file_is_read_only_inside_the_project_and_under_the_cap(
     assert metadata.version == (None if warning else "2.0")
     expected = [] if warning is None else [f"FILE={name}: {warning.format(what=what)}"]
     assert caplog.messages == expected
+
+
+_ATTR = "pitloom.extract.project._setup_cfg_directives:_resolve_cfg_attr_directive"
+_NINE = ("9", "Source: m.py | Method: attr_directive")
+
+
+@pytest.mark.parametrize(
+    "value",
+    [".".join(["a"] * 300000), "-" * 500000 + "1", "not " * 200000 + "1"],
+    ids=["attributes", "unary-minus", "not"],
+)
+def test_attr_directive_survives_a_deep_assignment(tmp_path: Path, value: str) -> None:
+    """Regression: the whole module was parsed, so one under the file cap
+    crashed the run (a C stack overflow on 3.10, ``RecursionError`` or
+    ``MemoryError`` later). Only a line assigning the attribute is parsed,
+    one over the line cap skipped; run in a child, so a crash fails the
+    test and not the session."""
+    module = f"__version__ = {value}\n__version__ = '9'\n"
+    (tmp_path / "m.py").write_text(module, encoding="utf-8")
+    assert run_bounded_in_child(_ATTR, "m.__version__", tmp_path, "t") == _NINE
+
+
+@pytest.mark.parametrize(
+    ("over", "expected"),
+    [(0, ("9" * 240, _NINE[1])), (1, _NINE)],
+    ids=["at-cap", "over-cap"],
+)
+def test_attr_line_over_the_cap_is_skipped(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    over: int,
+    expected: tuple[str, str],
+) -> None:
+    """A line of :data:`MAX_ATTR_LINE_CHARS` characters is parsed; a longer
+    one is skipped with one ``WARNING:`` and the next assignment read."""
+    line = f"__version__ = '{'9' * (240 + over)}'"
+    assert len(line) == _setup_cfg_directives.MAX_ATTR_LINE_CHARS + over
+    (tmp_path / "m.py").write_text(f"{line}\n__version__ = '9'\n", encoding="utf-8")
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        found = _resolve_cfg_attr_directive("m.__version__", tmp_path, "t")
+    assert found == expected
+    cap = "FILE=m.py: larger than the 256-character attr-directive-line cap;"
+    assert caplog.messages == [f"{cap} __version__ line skipped for t"] * over
+
+
+@pytest.mark.parametrize("error", [RecursionError, MemoryError])
+def test_attr_line_the_parser_cannot_hold_is_skipped(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    error: type[BaseException],
+) -> None:
+    """A line the parser runs out of stack or memory on is a skipped read
+    with one ``WARNING:``, never a crash or an empty ``ERROR:``."""
+    parser = mock.Mock(spec=ast)
+    parser.parse.side_effect = error
+    monkeypatch.setattr(_setup_cfg_directives, "ast", parser)
+    (tmp_path / "m.py").write_text("__version__ = '1'\n", encoding="utf-8")
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        found = _resolve_cfg_attr_directive("m.__version__", tmp_path, "t")
+    assert found == (None, None)
+    assert caplog.messages == [
+        f"FILE=m.py: could not read for t; {error.__name__} parsing the"
+        " __version__ line"
+    ]

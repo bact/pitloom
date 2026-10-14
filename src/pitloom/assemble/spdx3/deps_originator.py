@@ -36,11 +36,12 @@ from pitloom.export.spdx3_json import (
 from pitloom.extract._core_metadata import parse_project_urls
 from pitloom.extract._extract_utils import close_http_error, pkg_meta_get
 from pitloom.extract._file_headers import guess_content_type
-from pitloom.extract.authors import dependency_author_pairs, is_contributor_group
+from pitloom.extract.authors import is_contributor_group
 from pitloom.extract.copyright_notices import (
     join_copyright_notices,
     read_license_text,
 )
+from pitloom.extract.dependency_authors import dependency_originator_pairs
 
 if TYPE_CHECKING:
     from pitloom.extract._extract_utils import CoreMetadata
@@ -50,32 +51,31 @@ def _resolve_author_or_maintainer(
     pkg_meta: CoreMetadata, package: str
 ) -> list[tuple[str | None, str | None]]:
     """Return a list of ``(name, email)`` tuples for the dependency
-    *package*'s originator from installed metadata, or an empty list.
-    Tries ``Author``/``Author-email`` first, then falls back to
-    ``Maintainer``/``Maintainer-email``; each pair is read as a package's
-    own authors are (:func:`~pitloom.extract.authors.dependency_author_pairs`)."""
-    for name_field, email_field in (
-        ("Author", "Author-email"),
-        ("Maintainer", "Maintainer-email"),
-    ):
-        results = dependency_author_pairs(
-            package,
-            pkg_meta_get(pkg_meta, name_field),
-            pkg_meta_get(pkg_meta, email_field),
-        )
-        if results:
-            return results
-    return []
+    *package*'s originator from installed metadata, or an empty list:
+    ``Author``/``Author-email``, or ``Maintainer``/``Maintainer-email`` when
+    neither author field is stated, each pair read as a package's own
+    authors are
+    (:func:`~pitloom.extract.dependency_authors.dependency_originator_pairs`).
+    """
+    return dependency_originator_pairs(
+        package,
+        (("Author", "Author-email"), ("Maintainer", "Maintainer-email")),
+        lambda field: pkg_meta_get(pkg_meta, field),
+    )
 
 
-def _read_candidate_text(candidate: Any) -> str | None:
+def _read_candidate_text(candidate: Any, dist: Any) -> str | None:
     """The text of the installed file *candidate* (an
-    :class:`importlib.metadata.PackagePath`) when it is under a
-    ``.dist-info`` (:func:`~pitloom.extract.copyright_notices.read_license_text`:
-    capped, a present file that cannot be read warned about); else ``None``."""
-    if not is_dist_info_path(str(candidate)):
+    :class:`importlib.metadata.PackagePath` of the distribution *dist*)
+    when it is under a ``.dist-info`` and resolves inside it, whatever its
+    ``RECORD`` entry spells (``..``, a symlink out)
+    (:func:`~pitloom.extract.copyright_notices.read_license_text`: capped, a
+    present file that is not read warned about); else ``None``."""
+    entry = str(candidate)
+    if not is_dist_info_path(entry):
         return None
-    return read_license_text(Path(candidate.locate()))
+    dist_info = Path(dist.locate_file(entry.split("/", 1)[0]))
+    return read_license_text(Path(candidate.locate()), dist_info)
 
 
 def _find_license_copyright(dist_name: str, pkg_meta: CoreMetadata) -> str | None:
@@ -96,7 +96,7 @@ def _find_license_copyright(dist_name: str, pkg_meta: CoreMetadata) -> str | Non
         for license_file in license_files
         for candidate in package_files
         if candidate.name == license_file
-        and (text := _read_candidate_text(candidate)) is not None
+        and (text := _read_candidate_text(candidate, dist)) is not None
     )
     found = join_copyright_notices(texts)
     return None if found is None else found[0]

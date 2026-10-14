@@ -20,7 +20,7 @@ from packaging.utils import canonicalize_name
 
 from pitloom.extract._core_metadata import classifier_provenance, license_cascade
 from pitloom.extract._extract_utils import fetch_json
-from pitloom.extract.authors import dependency_author_pairs
+from pitloom.extract.dependency_authors import dependency_originator_pairs
 from pitloom.extract.lock._hash_selection import select_sha256_hash
 
 # Best-effort PyPI JSON API fetch timeout -- short enough that a blocked or
@@ -44,17 +44,13 @@ def _extract_pypi_originator(
     """Return a list of ``(name, email)`` tuples for the dependency
     *package*'s originator from a PyPI JSON API ``info`` object, or an
     empty list. Same author-then-maintainer precedence and reading as
-    :func:`~pitloom.assemble.spdx3.deps_originator._resolve_author_or_maintainer`."""
-    for name_key, email_key in (
-        ("author", "author_email"),
-        ("maintainer", "maintainer_email"),
-    ):
-        results = dependency_author_pairs(
-            package, _text(info.get(name_key)), _text(info.get(email_key))
-        )
-        if results:
-            return results
-    return []
+    :func:`~pitloom.assemble.spdx3.deps_originator._resolve_author_or_maintainer`
+    (:func:`~pitloom.extract.dependency_authors.dependency_originator_pairs`)."""
+    return dependency_originator_pairs(
+        package,
+        (("author", "author_email"), ("maintainer", "maintainer_email")),
+        lambda key: _text(info.get(key)),
+    )
 
 
 def _text(value: Any) -> str | None:

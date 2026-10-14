@@ -224,7 +224,7 @@ def test_locked_dependencies_dedup_is_case_and_separator_insensitive() -> None:
     graph = json.loads(exporter.to_json())["@graph"]
 
     package_names = [e["name"] for e in graph if e.get("type") == "software_Package"]
-    assert sorted(package_names) == ["Django", "idna", "main-project", "my_package"]
+    assert sorted(package_names) == ["django", "idna", "main-project", "my-package"]
 
     relationships = [
         e

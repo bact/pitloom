@@ -120,10 +120,9 @@ def read_pyproject_toml(project_dir: Path) -> dict[str, object] | None:
 
 def _detect_setuptools_from_legacy_files(project_dir: Path) -> str | None:
     """``"setuptools"`` when *project_dir* has a ``setup.cfg``/``setup.py``
-    to back it up, else ``None`` -- the shared fallback for every case
-    where no ``build-backend`` value is resolvable from ``pyproject.toml``
-    (absent, unparseable, or present but without a ``build-backend``
-    key)."""
+    to back it up, else ``None`` -- the fallback when ``pyproject.toml``
+    is absent or unparseable, or its ``build-system`` or
+    ``build-backend`` has the wrong shape."""
     if (project_dir / "setup.cfg").exists() or (project_dir / "setup.py").exists():
         return "setuptools"
     return None
@@ -152,12 +151,15 @@ def detect_build_backend(
     lower-case identifier, matched on its top-level module name (the
     part before the first ``.``/``:``) -- not a substring match, so a
     backend like ``"my_setuptools_shim.api"`` is never misdetected as
-    ``"setuptools"``. Falls back to ``"setuptools"`` when ``setup.cfg``
-    or ``setup.py`` exists and no ``build-backend`` value is resolvable
-    -- because ``pyproject.toml`` is entirely absent, because it exists
-    but is unparseable, or because it exists but has no
-    ``build-backend`` key (a legacy PEP 518-only ``[build-system]``
-    declaration, which is still a real setuptools project).
+    ``"setuptools"``.
+
+    A parsed ``pyproject.toml`` with no ``[build-system]`` table, or one
+    without a ``build-backend`` key, is ``"setuptools"``: PEP 517 has
+    build frontends fall back to ``setuptools.build_meta:__legacy__``
+    then. With ``pyproject.toml`` absent or unparseable, a
+    ``build-system`` that is not a table, or a ``build-backend`` that is
+    empty or not a string, a ``setup.cfg``/``setup.py`` makes it
+    ``"setuptools"``, else it is ``None``.
 
     *pyproject_data*, when omitted, is read and parsed here. Pass the
     result of a prior :func:`read_pyproject_toml` call instead when the
@@ -179,11 +181,13 @@ def detect_build_backend(
         if data is None:
             return _detect_setuptools_from_legacy_files(project_dir)
 
+    build_system = data.get("build-system")
+    if build_system is None or (
+        isinstance(build_system, dict) and "build-backend" not in build_system
+    ):
+        return "setuptools"
     build_backend = declared_build_backend(data)
     if build_backend is None:
-        # PEP 518-only pyproject.toml (no build-backend key) -- still a
-        # real setuptools project if setup.cfg/setup.py back it up, same
-        # fallback as when pyproject.toml is absent entirely.
         return _detect_setuptools_from_legacy_files(project_dir)
     return backend_identifier(build_backend)
 

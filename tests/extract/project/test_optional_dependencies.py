@@ -243,10 +243,10 @@ def test_setuptools_unreadable_extras_require_is_undeclared(
     assert "extras_require" in caplog.text
 
 
-_CFG_FILE_EXTRA = (
+_CFG_INVALID_EXTRA = (
     "setup.cfg",
-    "[metadata]\nname = pkg\n[options.extras_require]\na = file: req.txt\n",
-    "'file: req.txt' of 'a' (extras_require): not a valid PEP 508 requirement",
+    "[metadata]\nname = pkg\n[options.extras_require]\na = !!\n",
+    "'!!' of 'a' (extras_require): not a valid PEP 508 requirement",
 )
 _PY_MARKER_EXTRA = (
     "setup.py",
@@ -258,8 +258,8 @@ _PY_MARKER_EXTRA = (
 @pytest.mark.parametrize("quiet", [False, True], ids=["warns", "quiet"])
 @pytest.mark.parametrize(
     ("filename", "text", "message"),
-    [_CFG_FILE_EXTRA, _PY_MARKER_EXTRA],
-    ids=["cfg-file", "py-marker"],
+    [_CFG_INVALID_EXTRA, _PY_MARKER_EXTRA],
+    ids=["cfg-invalid", "py-marker"],
 )
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def test_setuptools_invalid_extra_warning_names_extras_require(

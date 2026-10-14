@@ -21,6 +21,7 @@ file outside ``.dist-info`` could be misattributed.
 from __future__ import annotations
 
 import logging
+from importlib.metadata import PathDistribution
 from pathlib import Path
 from typing import Any
 
@@ -43,8 +44,11 @@ from pitloom.assemble.spdx3.deps_pypi import (
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract._license_detect import LICENSE_FILE_MAX_BYTES
+from tests._symlink import CAN_SYMLINK, case_sensitive
 
 from .conftest import _FakeMetadata, _make_ci
+
+_SYMLINK = pytest.mark.skipif(not CAN_SYMLINK, reason="cannot create a symlink")
 
 # ---------------------------------------------------------------------------
 # _resolve_author_or_maintainer -- single address, Maintainer fallback, multi-address
@@ -100,7 +104,7 @@ def test_resolve_author_or_maintainer_plain_name_no_email() -> None:
 
 
 def test_resolve_author_or_maintainer_absent_returns_none() -> None:
-    assert _resolve_author_or_maintainer(_FakeMetadata({}), "p") == []
+    assert not _resolve_author_or_maintainer(_FakeMetadata({}), "p")
 
 
 def test_enrich_from_installed_sets_originated_by(
@@ -198,8 +202,12 @@ class _FakePackagePath:
 
 # pylint: disable-next=too-few-public-methods
 class _FakeDistribution:
-    def __init__(self, files: list[_FakePackagePath]):
+    def __init__(self, root: Path, files: list[_FakePackagePath]):
+        self._root = root
         self.files = files
+
+    def locate_file(self, path: str) -> Path:
+        return self._root / path
 
 
 _LIC = "mypkg-1.0.dist-info/licenses/"
@@ -253,7 +261,7 @@ def test_find_license_copyright(
     expected: str | None,
 ) -> None:
     fake_dist = _FakeDistribution(
-        [_FakePackagePath(tmp_path, path, text) for path, text in files]
+        tmp_path, [_FakePackagePath(tmp_path, path, text) for path, text in files]
     )
     monkeypatch.setattr(deps_originator, "get_pkg_distribution", lambda name: fake_dist)
 
@@ -265,6 +273,63 @@ def test_find_license_copyright(
     assert len(messages) == len(failed)
     for message, path in zip(messages, failed, strict=True):
         assert message.startswith(f"FILE={tmp_path / path}: ")
+
+
+_SECRET = "Copyright (c) 2026 Secret\n"
+
+
+@pytest.mark.parametrize(
+    ("entry", "expected", "warned"),
+    [
+        ("mypkg-1.0.dist-info/../../secret/LICENSE", None, True),
+        ("{secret}", None, False),
+        pytest.param("mypkg-1.0.dist-info/LICENSE", None, True, marks=_SYMLINK),
+        ("mypkg-1.0.dist-info/licenses/LICENSE", "Copyright (c) 2026 Real", False),
+        ("MYPKG-1.0.dist-info/licenses/LICENSE", "Copyright (c) 2026 Real", False),
+    ],
+    ids=["dotdot", "absolute", "symlink", "inside", "case-insensitive"],
+)
+# pylint: disable-next=too-many-arguments
+def test_find_license_copyright_record_entry_confined(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    entry: str,
+    expected: str | None,
+    warned: bool,
+) -> None:
+    """A ``RECORD`` entry is read only inside the ``.dist-info`` it names,
+    as the installed file system resolves it: ``..``, an absolute path or a
+    symlink out is never read; a case-insensitive spelling still is."""
+    if entry.startswith("MYPKG") and case_sensitive(tmp_path):
+        pytest.skip("needs a case-insensitive file system")
+    site, secret = tmp_path / "site", tmp_path / "secret" / "LICENSE"
+    dist_info = site / "mypkg-1.0.dist-info"
+    (dist_info / "licenses").mkdir(parents=True)
+    secret.parent.mkdir()
+    secret.write_text(_SECRET, encoding="utf-8")
+    (dist_info / "licenses" / "LICENSE").write_text(
+        "Copyright (c) 2026 Real\n", encoding="utf-8"
+    )
+    if entry == "mypkg-1.0.dist-info/LICENSE":
+        (dist_info / "LICENSE").symlink_to(secret)
+    record = entry.format(secret=secret.as_posix())
+    (dist_info / "RECORD").write_text(f"{record},,\n", encoding="utf-8")
+    dist = PathDistribution(dist_info)
+    monkeypatch.setattr(deps_originator, "get_pkg_distribution", lambda name: dist)
+
+    meta = _FakeMetadata({}, license_files=["LICENSE"])
+    with caplog.at_level(logging.WARNING):
+        assert _find_license_copyright("mypkg", meta) == expected
+    messages = [r.getMessage() for r in caplog.records]
+    assert messages == (
+        [
+            f"FILE={site / record}: could not read for license files; "
+            "outside the project directory"
+        ]
+        if warned
+        else []
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -290,7 +355,7 @@ def test_extract_pypi_originator_falls_back_to_maintainer() -> None:
 
 
 def test_extract_pypi_originator_absent_returns_none() -> None:
-    assert _extract_pypi_originator({}, "p") == []
+    assert not _extract_pypi_originator({}, "p")
 
 
 _PYPI = "Source: PyPI JSON API | Package: p"

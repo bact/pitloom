@@ -230,7 +230,7 @@ def test_non_canonical_dependency_name_hits_canonical_key() -> None:
     exporter = build_doc(make_doc(dependencies=["Fake_Dep==1.0", "other>=2"]), registry)
 
     ids = {p.name: p.spdx_id for p in packages(exporter)}
-    assert ids["Fake_Dep"] == pinned
+    assert ids["fake-dep"] == pinned
     assert ids["other"] == other
 
 
@@ -241,7 +241,7 @@ def test_locked_transitive_dependency_id_comes_from_registry() -> None:
     exporter = build_doc(make_doc(locked=["Locked_Lib==3.0"]), registry)
 
     ids = {p.name: p.spdx_id for p in packages(exporter)}
-    assert ids["Locked_Lib"] == pinned
+    assert ids["locked-lib"] == pinned
 
 
 def test_phantom_dependency_id_comes_from_registry() -> None:
@@ -299,7 +299,7 @@ def test_same_name_different_versions_first_claimant_takes_pinned_id(
     assert len(warnings) == 2  # one per build
     assert pinned in warnings[0]
     assert "dependency foo 1.0" in warnings[0]
-    assert "dependency Foo 2.0 gets a new id" in warnings[0]
+    assert "dependency foo 2.0 gets a new id" in warnings[0]
 
 
 def test_dependency_and_phantom_dependency_of_one_name_are_two_elements(
@@ -318,7 +318,7 @@ def test_dependency_and_phantom_dependency_of_one_name_are_two_elements(
         )
 
     by_name = {p.name: p.spdx_id for p in packages(exporter)}
-    assert by_name["lib_foo"] == pinned
+    assert by_name["lib-foo"] == pinned
     assert by_name["Lib.Foo"] != pinned
     assert not claim_warnings(caplog)
 

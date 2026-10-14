@@ -33,12 +33,12 @@ from pitloom.extract.wheel import read_wheel
 
 _A = {"name": "Ann", "email": "ann@example.com"}
 _B = {"name": "Bob", "email": "bob@example.com"}
-_A2 = {"name": "Ann", "email": "a@x.org"}
-_B2 = {"name": "Bob", "email": "b@x.org"}
 _JE = {"email": "j@x.org"}
 _J = {"name": "Jane", **_JE}
-#: The separators a split warning names: ``Author``'s, ``Author-email``'s.
-_ALL, _COMMAS = "',' / ';' / 'and'", "',' / ';'"
+_AE = {"email": "a@x.org"}
+#: A quoted display name holding angle brackets, with its address.
+_QB = {"name": "A <b>", **_AE}
+_QB_LEE = {"name": '"A <b>" Lee', **_AE}
 #: The ``Author`` example of the core metadata specification, folded.
 _SPEC_AUTHOR = (
     "C. Schultz, Universal Features Syndicate,\n"
@@ -49,17 +49,9 @@ _SPEC_AUTHOR = (
 @pytest.mark.parametrize(
     ("author", "author_email", "expected"),
     [
-        ("Ann, Bob and Cee", None, [{"name": n} for n in ("Ann", "Bob", "Cee")]),
         (None, "Ann <ann@example.com>, Bob <bob@example.com>", [_A, _B]),
-        # hatchling/setuptools: addressed authors, then name-only ones
-        ("Cee, Dan", "Ann <ann@example.com>", [_A, {"name": "Cee"}, {"name": "Dan"}]),
         (None, "ann@example.com", [{"email": "ann@example.com"}]),
         ("Ann", "ann@example.com", [_A]),
-        (
-            "Ann and Bob",
-            "team@example.com",
-            [{"name": "Ann"}, {"name": "Bob"}, {"email": "team@example.com"}],
-        ),
         (None, None, []),
         ("UNKNOWN", "UNKNOWN", []),
         ("  ", "", []),
@@ -90,26 +82,6 @@ _SPEC_AUTHOR = (
         ),
         ("UNKNOWN  ", None, []),
         (
-            "Alexander Sandberg, Sandra Anderson, Roland, andy",
-            None,
-            [
-                {"name": n}
-                for n in ("Alexander Sandberg", "Sandra Anderson", "Roland", "andy")
-            ],
-        ),
-        # an address ending a name part is that part's: the comma split
-        # cannot tell C. Schultz's affiliation from three more authors
-        (
-            _SPEC_AUTHOR,
-            None,
-            [
-                {"name": "C. Schultz"},
-                {"name": "Universal Features Syndicate"},
-                {"name": "Los Angeles"},
-                {"name": "CA", "email": "cschultz@peanuts.example.com"},
-            ],
-        ),
-        (
             "Ann <ann@example.org>",
             "Ann <ann@example.com>",
             [_A, {"name": "Ann", "email": "ann@example.org"}],
@@ -122,35 +94,11 @@ _SPEC_AUTHOR = (
             "team@example.com",
             [_A, {"email": "team@example.com"}],
         ),
-        # a contributor group stays whole, as a [project].authors entry
         ("Jane and others", None, [{"name": "Jane and others"}]),
         (
             "J. Smith et al.",
             "team@example.com",
             [{"name": "J. Smith et al.", "email": "team@example.com"}],
-        ),
-        # the group test is per comma-separated part: hatchling joins the
-        # name-only authors [{name="Doe, Jane"}, {name="Ann and others"}]
-        (
-            "Doe, Jane, Ann and others",
-            None,
-            [{"name": n} for n in ("Doe", "Jane", "Ann and others")],
-        ),
-        (
-            "Smith, J. et al.",
-            "team@example.com",
-            [{"name": "Smith"}, {"name": "J. et al."}, {"email": "team@example.com"}],
-        ),
-        # an address ends its entry: a group after it is a part of its own
-        (
-            "Jane Doe <j@x.org> et al.",
-            None,
-            [{"name": "Jane Doe", "email": "j@x.org"}, {"name": "et al."}],
-        ),
-        (
-            "Jane Doe <j@x.org>, and others",
-            None,
-            [{"name": "Jane Doe", "email": "j@x.org"}, {"name": "and others"}],
         ),
         (
             "Jane and others <t@x.org>",
@@ -158,11 +106,6 @@ _SPEC_AUTHOR = (
             [{"name": "Jane and others", "email": "t@x.org"}],
         ),
         ("Ann <others@x.org>", None, [{"name": "Ann", "email": "others@x.org"}]),
-        (
-            "Ann and Bob <others@x.org>",
-            None,
-            [{"name": "Ann"}, {"name": "Bob", "email": "others@x.org"}],
-        ),
         ("<et.al@x.org>", None, [{"email": "et.al@x.org"}]),
         # typographic quotes hold a display name together, as "" do
         (
@@ -173,29 +116,75 @@ _SPEC_AUTHOR = (
                 {"name": "O\u2019Brien", "email": "o@x.org"},
             ],
         ),
-        ("Ann <a@x.org>; Bob <b@x.org>", None, [_A2, _B2]),
-        # Author-email is split on , and ; as Author, never on "and": a
-        # part with no <, > or @ is a name
+        # Author-email is split on , and ;, never on "and": a part with no
+        # <, > or @ is a name
         (None, "Doe, Jane <j@x.org>", [{"name": "Doe"}, _J]),
         ("Doe", "Doe, Jane <j@x.org>", [{"name": "Doe"}, _J]),
         (None, "Ann and Bob <b@x.org>", [{"name": "Ann and Bob", "email": "b@x.org"}]),
         (None, "Ann and Bob", [{"name": "Ann and Bob"}]),
         (None, "Jane <j@x.org> and others", [_J, {"name": "and others"}]),
         (None, "Jane and others <j@x.org>", [{"name": "Jane and others", **_JE}]),
-        # Author is split as Author-email: quotes, ';', a bare address
-        ('"Doe, Jane", Ann', None, [{"name": "Doe, Jane"}, {"name": "Ann"}]),
+        # Author entries read as Author-email ones: quotes, a bare address
         ("\u201cDoe, Jane\u201d", None, [{"name": "Doe, Jane"}]),
         ('""', None, []),
-        ("Ann; Bob", None, [{"name": "Ann"}, {"name": "Bob"}]),
         ("a@x.org", "b@x.org", [{"email": "a@x.org"}, {"email": "b@x.org"}]),
+        # Author is cut only after an address -- a free-text list of names
+        # is one author, its name all the text before a sole <
+        ("Ann, Bob and Cee", None, [{"name": "Ann, Bob and Cee"}]),
+        # hatchling/setuptools: addressed authors, then name-only ones
+        ("Cee, Dan", "Ann <ann@example.com>", [_A, {"name": "Cee, Dan"}]),
+        (
+            "Ann and Bob",
+            "team@example.com",
+            [{"name": "Ann and Bob", "email": "team@example.com"}],
+        ),
+        ("Doe, Jane", None, [{"name": "Doe, Jane"}]),
+        ("Doe, Jane <j@x.org>", None, [{"name": "Doe, Jane", **_JE}]),
+        ("Ann; Bob", None, [{"name": "Ann; Bob"}]),
+        ('"Doe, Jane", Ann', None, [{"name": '"Doe, Jane", Ann'}]),
+        (
+            "Ann and Bob <others@x.org>",
+            None,
+            [{"name": "Ann and Bob", "email": "others@x.org"}],
+        ),
+        # Hatchling joins [{name="Doe, Jane"}, {name="Ann and others"}]
+        ("Doe, Jane, Ann and others", None, [{"name": "Doe, Jane, Ann and others"}]),
+        (
+            "Smith, J. et al.",
+            "team@example.com",
+            [{"name": "Smith, J. et al.", "email": "team@example.com"}],
+        ),
+        # the specification's own example: one author with an affiliation
+        (
+            _SPEC_AUTHOR,
+            None,
+            [
+                {
+                    "name": "C. Schultz, Universal Features Syndicate, Los Angeles, CA",
+                    "email": "cschultz@peanuts.example.com",
+                }
+            ],
+        ),
+        # a folded name, quoted or not, address or not, is one-spaced
+        (
+            _SPEC_AUTHOR.partition(" <")[0],
+            None,
+            [{"name": "C. Schultz, Universal Features Syndicate, Los Angeles, CA"}],
+        ),
+        ("Ann\r\n\tLee", None, [{"name": "Ann Lee"}]),
+        ('"Ann\n        Lee" <a@x.org>', None, [{"name": "Ann Lee", **_AE}]),
+        # angle brackets inside a quoted display name are its text
+        ('"A <b>" <a@x.org>', None, [_QB]),
+        (None, '"A <b>" <a@x.org>, Bob <bob@example.com>', [_QB, _B]),
+        ('"A \\"<b>\\" C" <a@x.org>', None, [{"name": 'A "<b>" C', **_AE}]),
+        (None, "\u201cA <b>\u201d <a@x.org>", [_QB]),
+        ('"A <b>" Lee <a@x.org>', None, [_QB_LEE]),
+        (None, '"A <b>" Lee <a@x.org>', [_QB_LEE]),
     ],
     ids=[
-        "author-only",
         "email-list",
-        "both",
         "bare-address",
         "legacy-pair",
-        "legacy-names-shared-address",
         "absent",
         "unknown",
         "blank",
@@ -209,8 +198,6 @@ _SPEC_AUTHOR = (
         "unknown-without-address",
         "bare-address-list",
         "unknown-padded",
-        "and-inside-word",
-        "spec-example",
         "author-own-address",
         "and-inside-address",
         "comment-name",
@@ -218,27 +205,39 @@ _SPEC_AUTHOR = (
         "author-address-legacy",
         "and-others",
         "et-al-legacy-pair",
-        "hatchling-joined-group",
-        "comma-before-et-al",
-        "address-then-group",
-        "address-comma-group",
         "group-with-address",
         "group-word-in-address",
-        "group-word-in-address-split",
         "group-word-address-only",
         "typographic-quotes",
-        "semicolon-in-author",
         "unquoted-comma-email",
         "unquoted-comma-email-repeat",
         "and-in-email",
         "and-in-email-name",
         "group-after-address-in-email",
         "group-in-email",
-        "quoted-name-in-author",
         "typographic-name-in-author",
         "empty-quoted-name",
-        "semicolon-names",
         "address-in-author",
+        "one-list",
+        "one-both",
+        "one-and-legacy-pair",
+        "one-comma",
+        "one-comma-address",
+        "one-semicolon",
+        "one-quote-inside",
+        "one-and-address",
+        "one-joined-group",
+        "one-group-legacy-pair",
+        "one-spec-example",
+        "folded-name-only",
+        "folded-crlf-tab",
+        "folded-quoted",
+        "quoted-brackets-author",
+        "quoted-brackets-email",
+        "quoted-brackets-escaped-quote",
+        "quoted-brackets-typographic",
+        "quoted-brackets-then-text-author",
+        "quoted-brackets-then-text-email",
     ],
 )
 def test_parse_core_metadata_authors(
@@ -289,6 +288,11 @@ def test_parse_core_metadata_authors(
             ["Ann <a@b c>"],
         ),
         ("Unknown <a b>", None, [], ["Unknown <a b>"]),
+        # an address needs its closing >; an empty <> is no address to note
+        ("Ann <a@x.org", "", [{"name": "Ann"}], ["Ann <a@x.org"]),
+        ("Ann <>", "", [{"name": "Ann"}], []),
+        # one Author mailbox; text after its address makes it no address
+        ("Ann <a@x.org> Lee", "", [{"name": "Ann"}], ["Ann <a@x.org> Lee"]),
     ],
     ids=[
         "words-name",
@@ -305,6 +309,9 @@ def test_parse_core_metadata_authors(
         "comma-in-email-address",
         "not-legacy-pair",
         "unknown-placeholder",
+        "unclosed-address",
+        "empty-address",
+        "text-after-address",
     ],
 )
 def test_author_email_entry_without_an_address(
@@ -350,28 +357,20 @@ def test_author_email_entry_without_an_address(
         (None, '"Doe, Jane" <jane@example.com>', None),
         (None, '"Ann and Bob" <team@example.com>', None),
         (None, "Ann and Bob <team@example.com>", None),
-        ("Ann, Bob", None, ("Ann, Bob", 2, _ALL)),
-        ("Ann and Bob", None, ("Ann and Bob", 2, _ALL)),
-        ("Ann, Bob and Cee", "Dan <dan@example.com>", ("Ann, Bob and Cee", 3, _ALL)),
-        ("Ann, Bob", "team@example.com", ("Ann, Bob", 2, _ALL)),
-        # shown on one line
-        (_SPEC_AUTHOR, None, (" ".join(_SPEC_AUTHOR.split()), 4, _ALL)),
         ("J. Smith et al.", None, None),
-        ("Smith, J. et al.", None, ("Smith, J. et al.", 2, _ALL)),
         # a split right after an address is no guess
-        ("Ann <a@x.org>, Bob <b@x.org>", None, None),
-        ("Jane Doe <j@x.org> et al.", None, None),
-        ("Jane Doe <j@x.org>, and others", None, None),
-        # Author-email splits on , and ; and warns as Author; one line for
-        # both fields, naming every separator used
-        (None, "Doe, Jane <j@x.org>", ("Doe, Jane <j@x.org>", 2, _COMMAS)),
-        ("Ann", "Doe, Jane <j@x.org>", ("Doe, Jane <j@x.org>", 2, _COMMAS)),
+        (None, "Ann <a@x.org>, Bob <b@x.org>", None),
+        (None, "Jane Doe <j@x.org> et al.", None),
+        (None, "Jane Doe <j@x.org>, and others", None),
         (None, "a@x.org, b@x.org", None),
-        (
-            "Ann, Bob",
-            "Doe, Jane <j@x.org>",
-            (["Doe, Jane <j@x.org>", "Ann, Bob"], 4, _ALL),
-        ),
+        (None, "Doe, Jane <j@x.org>", ("Doe, Jane <j@x.org>", 2)),
+        ("Ann", "Doe, Jane <j@x.org>", ("Doe, Jane <j@x.org>", 2)),
+        # an Author holding no address is never split, so never warned about
+        ("Ann, Bob", None, None),
+        ("Ann and Bob", None, None),
+        ("Ann, Bob", "team@example.com", None),
+        (_SPEC_AUTHOR, None, None),
+        ("Ann, Bob", "Doe, Jane <j@x.org>", ("Doe, Jane <j@x.org>", 2)),
     ],
     ids=[
         "single",
@@ -379,32 +378,31 @@ def test_author_email_entry_without_an_address(
         "quoted-comma-whole",
         "quoted-and-whole",
         "unquoted-and-whole",
-        "comma",
-        "and",
-        "three-names",
-        "legacy-address",
-        "spec-example",
         "contributor-group",
-        "comma-before-group",
         "addresses",
         "address-then-group",
         "address-comma-group",
+        "email-addresses",
         "email-comma",
         "email-comma-author-whole",
-        "email-addresses",
-        "both-fields",
+        "one-comma",
+        "one-and",
+        "one-legacy-pair",
+        "one-spec-example",
+        "one-both-fields",
     ],
 )
 def test_split_author_warns_once(
     caplog: pytest.LogCaptureFixture,
     author: str | None,
     author_email: str | None,
-    warned: tuple[str | list[str], int, str] | None,
+    warned: tuple[str, int] | None,
     quiet: bool,
 ) -> None:
-    """A split ``Author`` or ``Author-email`` gets one ``WARNING:`` per call
-    naming the strings, the count and the separators (``and`` only for
-    ``Author``); nothing split, or *quiet*, none -- no other line either."""
+    """A split ``Author-email`` gets one ``WARNING:`` per call naming the
+    string and the count; an ``Author`` holding no address is never split
+    (its cuts: tests/extract/test_authors_name_field.py); nothing split, or
+    *quiet*, no line -- no other line either."""
     msg = email.message.Message()
     if author is not None:
         msg["Author"] = author
@@ -416,33 +414,36 @@ def test_split_author_warns_once(
         assert caplog.messages == []
     else:
         (line,) = caplog.messages
-        field, count, on = warned
-        assert line.startswith(f"AUTHOR={field!r}: split into {count} names on {on};")
+        field, count = warned
+        assert line.startswith(
+            f"AUTHOR_EMAIL={field!r}: split into {count} entries on ',' / ';';"
+        )
 
 
 def test_warn_splits_several_fields_is_one_line(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """One line; each separator named once, in order."""
+    """One line for several split fields, their entries counted together."""
     with caplog.at_level(logging.WARNING):
-        splits = [
-            AuthorSplit("A, B", 2, ("','", "';'")),
-            AuthorSplit("C and D and E", 3),
-        ]
+        splits = [AuthorSplit("A, B", 2), AuthorSplit("C; D; E", 3)]
         warn_author_splits(splits, hint=CORE_METADATA_HINT)
     (line,) = caplog.messages
     assert line.startswith(
-        f"AUTHOR=['A, B', 'C and D and E']: split into 5 names on {_ALL};"
+        "AUTHOR_EMAIL=['A, B', 'C; D; E']: split into 5 entries on ',' / ';';"
     )
-    assert "--project-dir" in line
+    assert line.endswith(CORE_METADATA_HINT)
 
 
 def test_split_authors_same_on_wheel_and_sdist_readers(
     caplog: pytest.LogCaptureFixture, tmp_path: Path
 ) -> None:
-    """Drift guard: one ``Author`` string through the wheel ``METADATA`` and
-    sdist ``PKG-INFO`` readers gives the same names and the same warning."""
-    text = "Metadata-Version: 2.4\nName: demo\nVersion: 1.0\nAuthor: Ann, Bob\n"
+    """Drift guard: one ``Author``/``Author-email`` pair through the wheel
+    ``METADATA`` and sdist ``PKG-INFO`` readers gives the same names and the
+    same warning."""
+    text = (
+        "Metadata-Version: 2.4\nName: demo\nVersion: 1.0\nAuthor: Ann, Bob\n"
+        "Author-email: Cee, Dan <d@x.org>\n"
+    )
     wheel = tmp_path / "demo-1.0-py3-none-any.whl"
     with zipfile.ZipFile(wheel, "w") as zf:
         zf.writestr("demo-1.0.dist-info/METADATA", text)
@@ -456,5 +457,9 @@ def test_split_authors_same_on_wheel_and_sdist_readers(
         with caplog.at_level(logging.WARNING):
             seen.append((read().authors, list(caplog.messages)))
     assert seen[0] == seen[1]
-    assert seen[0][0] == [{"name": "Ann"}, {"name": "Bob"}]
+    assert seen[0][0] == [
+        {"name": "Cee"},
+        {"name": "Dan", "email": "d@x.org"},
+        {"name": "Ann, Bob"},
+    ]
     assert len(seen[0][1]) == 1

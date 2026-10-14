@@ -75,7 +75,9 @@ _CORE_METADATA = (
 )
 #: An author with an address and no name is named by the address.
 _DECLARED = ["Ann", "Bob", "Cee", "Dan", "eve@example.com"]
-_WHEEL_ORDER = ["Ann", "Cee", "eve@example.com", "Bob", "Dan"]
+#: A wheel lists the addressed authors first; ``Author: Bob, Dan`` is one
+#: author (the backend's joined name-only entries cannot be told apart).
+_WHEEL_ORDER = ["Ann", "Cee", "eve@example.com", "Bob, Dan"]
 #: Builds a route's SBOM in a scratch directory.
 _Route = Callable[[Path, pytest.MonkeyPatch], str]
 

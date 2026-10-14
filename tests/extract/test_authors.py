@@ -20,19 +20,26 @@ from collections.abc import Callable
 
 import pytest
 
+from pitloom.assemble.spdx3.deps_originator import _resolve_author_or_maintainer
+from pitloom.assemble.spdx3.deps_pypi import _extract_pypi_originator
 from pitloom.extract.authors import (
     AUTHOR_FIELD_MAX_CHARS,
     AuthorSplit,
     _outside_entries,
     _parts,
-    dependency_author_pairs,
     dependency_author_splits,
     read_author_fields,
     warn_author_splits,
 )
+from pitloom.extract.dependency_authors import dependency_author_pairs
 from tests._bounded import run_bounded_in_child
+from tests.assemble.conftest import _FakeMetadata
 
 _SPLIT = [{"name": "Ann"}, {"name": "Bob"}]
+_REASON = (
+    " on ',' / ';'; an address field cannot tell a list from one name"
+    " containing a comma"
+)
 
 
 @pytest.mark.parametrize(
@@ -43,21 +50,18 @@ _SPLIT = [{"name": "Ann"}, {"name": "Bob"}]
 def test_read_author_fields_warning(
     caplog: pytest.LogCaptureFixture, deferred: bool, quiet: bool, warned: bool
 ) -> None:
-    """One ``WARNING:`` ending with the hint; none when quiet; with *splits*
-    given, the split string goes to it for the caller to warn about."""
+    """One ``WARNING:`` for a split address field, ending with the hint;
+    none when quiet; with *splits* given, the split string goes to it for
+    the caller to warn about."""
     splits: list[AuthorSplit] | None = [] if deferred else None
     with caplog.at_level(logging.WARNING):
         authors = read_author_fields(
-            "Ann and Bob", None, quiet=quiet, splits=splits, hint=" -- HINT"
+            None, "Ann; Bob", quiet=quiet, splits=splits, hint=" -- HINT"
         )
     assert authors == _SPLIT
-    assert splits == ([AuthorSplit("Ann and Bob", 2)] if deferred else None)
+    assert splits == ([AuthorSplit("Ann; Bob", 2)] if deferred else None)
     assert caplog.messages == (
-        [
-            "AUTHOR='Ann and Bob': split into 2 names on ',' / ';' / 'and'; a free-text"
-            " author field cannot tell a list from one name containing a comma"
-            " -- HINT"
-        ]
+        [f"AUTHOR_EMAIL='Ann; Bob': split into 2 entries{_REASON} -- HINT"]
         if warned
         else []
     )
@@ -67,18 +71,19 @@ def test_dependency_splits_one_summary_per_document(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Every split in the block gives one line: the first, and how many
-    dependencies were split; a dependency read twice counts once."""
+    dependencies were split; a dependency read twice counts once, and an
+    ``Author`` holding no address is never split."""
     with caplog.at_level(logging.WARNING), dependency_author_splits():
-        assert dependency_author_pairs("a", "Ann, Bob", None) == [
+        assert dependency_author_pairs("a", None, "Ann, Bob") == [
             ("Ann", None),
             ("Bob", None),
         ]
-        dependency_author_pairs("b", "Cee and Dan and Eve", None)
-        dependency_author_pairs("b", "Cee and Dan and Eve", None)
-        dependency_author_pairs("c", "Fay", None)
+        dependency_author_pairs("b", None, "Cee; Dan; Eve")
+        dependency_author_pairs("b", None, "Cee; Dan; Eve")
+        assert dependency_author_pairs("c", "Fay, Gus", None) == [("Fay, Gus", None)]
         assert caplog.messages == []
     (line,) = caplog.messages
-    assert line.startswith("AUTHOR='Ann, Bob': split into 2 names on ',' / ';'")
+    assert line.startswith("AUTHOR_EMAIL='Ann, Bob': split into 2 entries on")
     assert "(PACKAGE=a; 2 dependencies split in all)" in line
 
 
@@ -91,10 +96,10 @@ def test_dependency_split_outside_block_or_on_error(
     with caplog.at_level(logging.WARNING):
         if inside:
             with pytest.raises(RuntimeError), dependency_author_splits():
-                dependency_author_pairs("a", "Ann, Bob", None)
+                dependency_author_pairs("a", None, "Ann, Bob")
                 raise RuntimeError("stop")
         else:
-            dependency_author_pairs("a", "Ann, Bob", None)
+            dependency_author_pairs("a", None, "Ann, Bob")
     assert len(caplog.messages) == (0 if inside else 1)
 
 
@@ -107,6 +112,8 @@ def test_dependency_address_problem_is_quiet(caplog: pytest.LogCaptureFixture) -
     assert caplog.messages == []
 
 
+_TWO_MAILBOXES = "Ann <a@x.org>, Bob <b@x.org>"
+_NAME_REASON = "; a name field is cut only after an address"
 _NOT_ADDRESSES = "; ".join(f"x{i} at y@" for i in range(1000))
 _NOT_AN_ADDRESS = ": not an email address; "
 
@@ -127,11 +134,11 @@ def _dependency_split(names: str | None, addresses: str | None) -> None:
             ],
         ),
         (
-            lambda: read_author_fields("Ann <a b>, Bob <c d>", "e@ f"),
+            lambda: read_author_fields("Ann <a b>", "e@ f, Bob <c d>"),
             [
-                f"AUTHOR_EMAIL='e@ f'{_NOT_AN_ADDRESS}not recorded",
-                f"AUTHOR=['Ann <a b>', 'Bob <c d>']{_NOT_AN_ADDRESS}2 entries"
+                f"AUTHOR_EMAIL=['e@ f', 'Bob <c d>']{_NOT_AN_ADDRESS}2 entries"
                 " not recorded",
+                f"AUTHOR='Ann <a b>'{_NOT_AN_ADDRESS}not recorded",
             ],
         ),
         (
@@ -139,27 +146,36 @@ def _dependency_split(names: str | None, addresses: str | None) -> None:
             [f"AUTHOR_EMAIL='y@ {'y' * 117}'...{_NOT_AN_ADDRESS}not recorded"],
         ),
         (
-            lambda: read_author_fields("Ann, " + "b" * 200, None),
-            [f"AUTHOR='Ann, {'b' * 115}'...: split into 2 names"],
+            lambda: read_author_fields(None, "Ann, " + "b" * 200),
+            [f"AUTHOR_EMAIL='Ann, {'b' * 115}'...: split into 2 entries"],
         ),
         (
             lambda: warn_author_splits(
                 [AuthorSplit(f"{c}, {c}", 2) for c in "ABCD"], hint=""
             ),
-            ["AUTHOR=['A, A', 'B, B', 'C, C', ...]: split into 8 names"],
+            ["AUTHOR_EMAIL=['A, A', 'B, B', 'C, C', ...]: split into 8 entries"],
         ),
-        (
-            lambda: _dependency_split("Ann, Bob", None),
-            [
-                "AUTHOR='Ann, Bob': split into 2 names on ',' / ';' / 'and'"
-                " (PACKAGE=a; 1 dependency split in all)"
-            ],
-        ),
+        (lambda: _dependency_split("Ann, Bob", None), []),
         (
             lambda: _dependency_split(None, "Doe, Jane <j@x.org>"),
             [
-                "AUTHOR='Doe, Jane <j@x.org>': split into 2 names on ',' / ';'"
-                " (PACKAGE=a; 1 dependency split in all)"
+                "AUTHOR_EMAIL='Doe, Jane <j@x.org>': split into 2 entries on"
+                " ',' / ';' (PACKAGE=a; 1 dependency split in all)"
+            ],
+        ),
+        (
+            lambda: _dependency_split(_TWO_MAILBOXES, None),
+            [
+                f"AUTHOR={_TWO_MAILBOXES!r}: split into 2 entries on ',' / ';'"
+                f" (PACKAGE=a; 1 dependency split in all){_NAME_REASON}"
+            ],
+        ),
+        (
+            lambda: read_author_fields(_TWO_MAILBOXES, "Doe, Jane <j@x.org>"),
+            [
+                f"AUTHOR_EMAIL='Doe, Jane <j@x.org>': split into 2 entries{_REASON}",
+                f"AUTHOR={_TWO_MAILBOXES!r}: split into 2 entries on ',' / ';'"
+                f"{_NAME_REASON}",
             ],
         ),
     ],
@@ -169,8 +185,10 @@ def _dependency_split(names: str | None, addresses: str | None) -> None:
         "cut",
         "split-cut",
         "splits-cut",
+        "dependency-author-unsplit",
         "one-dependency",
-        "dependency-address-field",
+        "one-dependency-name-field",
+        "line-per-key",
     ],
 )
 def test_one_bounded_line_per_field(
@@ -179,7 +197,8 @@ def test_one_bounded_line_per_field(
     """Regression: one line per entry holding no address (1000 for one
     crafted field), an excerpt cut without ``...``, ``1 dependencies``. Now
     one line per field, at most three entries shown, ``...`` where cut,
-    the count in the right number."""
+    the count in the right number; a dependency's ``Author`` is one author,
+    no split line."""
     with caplog.at_level(logging.WARNING):
         call()
     assert len(caplog.messages) == len(lines)
@@ -187,43 +206,54 @@ def test_one_bounded_line_per_field(
         assert message.startswith(line)
 
 
-#: The lookahead regex splits the one-pass splitter replaces: the oracle. A
-#: separator counts outside an ``<...>`` (no ``>`` before the next ``<``)
-#: and outside ``"`` quotes (an even number follow).
-_OUTSIDE = r"""(?![^<>]*>)(?=(?:[^"]*"[^"]*")*[^"]*$)"""
-_ENTRY_SEPARATOR = re.compile(r"[,;]")
-_AND = re.compile(r"\band\b")
+#: The lookahead regex split the one-pass splitter replaces: the oracle. A
+#: ``,`` or ``;`` counts outside an ``<...>`` (no ``>`` before the next
+#: ``<``) and outside ``"`` quotes (an even number follow); captured, so
+#: the name-field oracle can join segments again.
+_ORACLE = re.compile(r"""([,;])(?![^<>]*>)(?=(?:[^"]*"[^"]*")*[^"]*$)""")
+#: A segment less one trailing ``(comment)``: the lazy text before it.
+_LESS_COMMENT = re.compile(r"(?s)(.*?)(?:\([^()]*\)\s*)?")
+#: A segment that ends a mailbox: an ``<...>`` last, or one bare address.
+_MAILBOX_END = re.compile(r"(?s)\s*(?:.*<.*>|[^@\s]+@[^@\s]+)\s*")
 
 
-def _oracle_parts(text: str, splits_and: bool) -> list[str]:
-    """A field's stripped parts by the lookahead regexes: on ``,``/``;``,
-    then, in a name field, each part on ``and``."""
-    entry = re.compile(f"(?:{_ENTRY_SEPARATOR.pattern}){_OUTSIDE}")
-    and_ = re.compile(f"(?:{_AND.pattern}){_OUTSIDE}")
-    raw = [
-        name
-        for part in entry.split(text)
-        for name in (and_.split(part) if splits_and else [part])
-    ]
-    return [name.strip() for name in raw if name.strip()]
+def _oracle_pieces(text: str, named: bool) -> list[str]:
+    """*text* split by :data:`_ORACLE`; *named*, a separator is a cut only
+    after a segment ending a mailbox (:data:`_MAILBOX_END`, less a
+    comment) or a blank segment right after a cut."""
+    split = _ORACLE.split(text)
+    segments, separators = split[0::2], split[1::2]
+    if not named:
+        return segments
+    pieces, fresh = [segments[0]], True
+    for segment, separator, following in zip(
+        segments, separators, segments[1:], strict=False
+    ):
+        less = _LESS_COMMENT.fullmatch(segment)
+        ends = bool(less and _MAILBOX_END.fullmatch(less.group(1)))
+        fresh = ends or (fresh and not segment.strip())
+        if fresh:
+            pieces.append(following)
+        else:
+            pieces[-1] += separator + following
+    return pieces
 
 
-def test_one_pass_splitter_matches_the_regex_splits() -> None:
+@pytest.mark.parametrize("named", [False, True], ids=["address-field", "name-field"])
+def test_one_pass_splitter_matches_the_regex_splits(named: bool) -> None:
     """Drift guard: on every short string of the significant ASCII
-    characters (unbalanced ``<``/``>``/``"`` too), the one-pass splits on
-    ``,``/``;`` and on ``and`` equal the lookahead regex splits, and so do
-    a name field's parts (on both) and an address field's (never on
-    ``and``)."""
-    alphabet = ["a", "and", " ", ",", ";", '"', "<", ">", "x"]
+    characters (unbalanced ``<``/``>``/``"``/``(`` too), the one-pass split
+    on ``,``/``;`` equals the lookahead regex split -- a name field's cut
+    only after a mailbox -- and a field's stripped parts are its stripped,
+    non-blank pieces (never split on ``and``)."""
+    alphabet = ["a", "and", " ", ",", ";", '"', "<", ">", "x", "@", "a@x", "(", ")"]
     rng = random.Random(20261011)
-    for _ in range(3000):
+    for _ in range(6000):
         text = "".join(rng.choice(alphabet) for _ in range(rng.randint(0, 9)))
-        for separator in (_ENTRY_SEPARATOR, _AND):
-            oracle = re.compile(f"(?:{separator.pattern}){_OUTSIDE}")
-            assert _outside_entries(text, separator) == oracle.split(text), text
-        for splits_and in (True, False):
-            parts = _parts(text, splits_and)[0]
-            assert parts == _oracle_parts(text, splits_and), (text, splits_and)
+        oracle = _oracle_pieces(text, named)
+        assert _outside_entries(text, named) == oracle, text
+        parts = [p.strip() for p in oracle if p.strip()]
+        assert _parts(text, named)[0] == parts, text
 
 
 @pytest.mark.parametrize(
@@ -247,7 +277,7 @@ def test_typographic_quotes_hold_an_entry_together(
 ) -> None:
     """A typographic opening quote holds ``,``/``;`` until its closing
     quote; a closing quote alone (an apostrophe) holds nothing."""
-    assert _outside_entries(text, _ENTRY_SEPARATOR) == entries
+    assert _outside_entries(text) == entries
 
 
 def _fastest(call: Callable[[], object]) -> float:
@@ -260,74 +290,88 @@ def _fastest(call: Callable[[], object]) -> float:
     return min(times)
 
 
-def _split_entries(text: str) -> list[str]:
-    return _outside_entries(text, _ENTRY_SEPARATOR)
-
-
-def _split_ands(text: str) -> list[str]:
-    return _outside_entries(text, _AND)
-
-
 @pytest.mark.parametrize(
-    ("split", "unit"),
+    ("unit", "named", "cuts"),
     [
-        ("_split_entries", "a,"),
-        ("_split_ands", "a and "),
-        ("_split_entries", '"x",'),
-        ("_split_entries", "\u201cx\u201d,"),
+        ("a,", False, True),
+        ('"x",', False, True),
+        ("\u201cx\u201d,", False, True),
+        ("a,", True, False),
+        ("a ,", True, False),
+        ("a@x,", True, True),
+        ("<a@x>(c),", True, True),
     ],
-    ids=["commas", "ands", "quotes", "typographic-quotes"],
+    ids=[
+        "commas",
+        "quotes",
+        "typographic",
+        "name-commas",
+        "names",
+        "addresses",
+        "mailboxes",
+    ],
 )
-def test_the_splitters_run_in_linear_time(split: str, unit: str) -> None:
-    """Regression: the lookahead splits rescanned the rest of the text at
-    each separator (``'a,' * 80000`` took 46 s). Uncapped: four times the
-    text takes about four times as long (under eight, past a floor for
-    timer noise), and ~160,000 characters split at once."""
+def test_the_splitter_runs_in_linear_time(unit: str, named: bool, cuts: bool) -> None:
+    """Regression: the lookahead split rescanned the rest of the text at
+    each separator (``'a,' * 80000`` took 46 s); a name field held
+    together must not rescan its growing entry either. Uncapped: four
+    times the text takes about four times as long (under eight, past a
+    floor for timer noise), and ~160,000 characters split at once."""
     small = unit * (10000 // len(unit))
     large = small * 4
-    call = globals()[split]
-    floor = max(_fastest(lambda: call(small)), 0.005)
-    assert _fastest(lambda: call(large)) < 8 * floor
+    floor = max(_fastest(lambda: _outside_entries(small, named)), 0.005)
+    assert _fastest(lambda: _outside_entries(large, named)) < 8 * floor
     huge = unit * (160000 // len(unit))  # one separator per unit
-    parts = run_bounded_in_child(f"{__name__}:{split}", huge)
-    assert len(parts) == len(huge) // len(unit) + 1
+    parts = run_bounded_in_child(f"{__name__}:_outside_entries", huge, named)
+    assert len(parts) == (len(huge) // len(unit) + 1 if cuts else 1)
 
 
 _CHARS = f"{AUTHOR_FIELD_MAX_CHARS}-character"
 _NAME_LIST = ", ".join(f"n{i}" for i in range(1001))
 _ADDRESS_LIST = ", ".join(f"a{i}@x.org" for i in range(1001))
+_MAILBOX_LIST = ", ".join(f"n{i} <a{i}@x.org>" for i in range(1001))
 
 
 @pytest.mark.parametrize(
     ("names", "addresses", "first", "kept", "line"),
     [
         (
-            _NAME_LIST,
             None,
+            _NAME_LIST,
             {"name": "n0"},
             1000,
-            "1000-name author-field cap; only the first 1000 names read of 'n0,",
+            "1000-entry author-field cap; only the first 1000 entries read of 'n0,",
+        ),
+        (_NAME_LIST, None, {"name": _NAME_LIST}, 1, None),
+        (
+            _MAILBOX_LIST,
+            None,
+            {"name": "n0", "email": "a0@x.org"},
+            1000,
+            "1000-entry author-field cap; only the first 1000 entries read of 'n0 <",
+        ),
+        ("Ann, " + "y" * 70000, None, None, 0, f"{_CHARS} author-field cap; 'Ann, y"),
+        (
+            "Ann <a@x.org>, " + "y" * 70000,
+            None,
+            {"name": "Ann", "email": "a@x.org"},
+            1,
+            f"{_CHARS} author-field cap; only the first 1 entry read of 'Ann <a",
         ),
         (
-            "Ann, " + "y" * 70000,
             None,
+            "Ann, " + "y" * 70000,
             {"name": "Ann"},
             1,
-            f"{_CHARS} author-field cap; only the first 1 name read of 'Ann, yy",
+            f"{_CHARS} author-field cap; only the first 1 entry read of 'Ann, yy",
         ),
+        (None, "y" * 70000 + ", Bob", None, 0, f"{_CHARS} author-field cap; 'yy"),
         (
-            "y" * 70000 + ", Bob",
             None,
-            None,
-            0,
-            f"{_CHARS} author-field cap; only the first 0 names read of 'yy",
-        ),
-        (
             "\x1b[1m, " + "y" * 70000,
-            None,
             {"name": "\x1b[1m"},
             1,
-            f"{_CHARS} author-field cap; only the first 1 name read of '\\x1b[1m, yy",
+            f"{_CHARS} author-field cap; only the first 1 entry read of '\\x1b[1m, y",
         ),
         (
             None,
@@ -337,7 +381,17 @@ _ADDRESS_LIST = ", ".join(f"a{i}@x.org" for i in range(1001))
             "1000-entry author-field cap; only the first 1000 entries read of 'a0@",
         ),
     ],
-    ids=["names", "chars", "chars-one-name", "escaped-once", "entries"],
+    ids=[
+        "names",
+        "author-no-name-cap",
+        "author-entries",
+        "author-chars",
+        "author-chars-mailbox",
+        "chars",
+        "chars-one-name",
+        "escaped-once",
+        "entries",
+    ],
 )
 def test_an_author_field_over_the_cap_warns_once(
     caplog: pytest.LogCaptureFixture,
@@ -345,12 +399,14 @@ def test_an_author_field_over_the_cap_warns_once(
     addresses: str | None,
     first: dict[str, str] | None,
     kept: int,
-    line: str,
+    line: str | None,
 ) -> None:
-    """Past a cap the rest is not read, a name cut by the character cap
-    neither; one ``WARNING:`` per field and process saying what was read,
-    with a bounded excerpt escaped once; a quiet (discarded) read says
-    nothing."""
+    """Past a cap the rest is not read, an entry cut by the character cap
+    neither (an ``Author`` holding no address, one entry, not at all); one
+    ``WARNING:`` per field and process saying what was read, with a bounded
+    excerpt escaped once; a quiet (discarded) read says nothing. An
+    ``Author`` holding no address is one entry, never over the entry cap;
+    one holding mailboxes is cut and capped as an address field is."""
     with caplog.at_level(logging.WARNING):
         authors = read_author_fields(names, addresses, quiet=True)
         assert caplog.messages == []
@@ -358,10 +414,14 @@ def test_an_author_field_over_the_cap_warns_once(
             assert read_author_fields(names, addresses, splits=[]) == authors
     assert len(authors) == kept
     assert authors[:1] == ([] if first is None else [first])
+    if line is None:
+        assert caplog.messages == []
+        return
     (cap,) = caplog.messages
     key = "AUTHOR" if names else "AUTHOR_EMAIL"
     assert cap.startswith(f"FIELD={key}: larger than the {line}")
     assert len(cap) < 400
+    assert cap.endswith("... not read") is (kept == 0)
 
 
 def test_fields_sharing_the_shown_excerpt_warn_each(
@@ -374,3 +434,62 @@ def test_fields_sharing_the_shown_excerpt_warn_each(
         read_author_fields("z" * 70000 + ", Bob", None)
         dependency_author_pairs("a", "z" * 70000 + ", Cee", None)
     assert [m.startswith("FIELD=AUTHOR: ") for m in caplog.messages] == [True] * 3
+
+
+#: A dependency's originator from its fields (core-metadata names), by the
+#: installed and the PyPI route (``author_email``-style keys).
+_DEPENDENCY_ROUTES: dict[str, Callable[[dict[str, str]], object]] = {
+    "installed": lambda fields: _resolve_author_or_maintainer(
+        _FakeMetadata(fields), "p"
+    ),
+    "pypi": lambda fields: _extract_pypi_originator(
+        {k.lower().replace("-", "_"): v for k, v in fields.items()}, "p"
+    ),
+}
+_DOE = "Doe, Jane <j@x.org>"
+
+
+@pytest.mark.parametrize("route", sorted(_DEPENDENCY_ROUTES))
+@pytest.mark.parametrize(
+    ("fields", "expected", "line"),
+    [
+        (
+            {"Maintainer-email": _DOE},
+            [("Doe", None), ("Jane", "j@x.org")],
+            f"MAINTAINER_EMAIL={_DOE!r}: split into 2 entries",
+        ),
+        ({"Maintainer": "z" * 70000}, [], "FIELD=MAINTAINER: larger than the"),
+        ({"Author": "Ann <a@x.org, Bob <b@x.org>", "Maintainer": "Zed"}, [], ""),
+        (
+            {"Author": "Ann <a@x.org>, Bob <b@x.org>", "Maintainer": "Zed"},
+            [("Ann", "a@x.org"), ("Bob", "b@x.org")],
+            "AUTHOR='Ann <a@x.org>, Bob <b@x.org>': split into 2 entries",
+        ),
+        ({"Author-email": "a@b c", "Maintainer": "Zed"}, [], ""),
+        ({"Author": "UNKNOWN", "Maintainer": "Zed"}, [("Zed", None)], ""),
+        ({"Author": " ", "Maintainer": "Zed"}, [("Zed", None)], ""),
+    ],
+    ids=[
+        "maintainer-split-key",
+        "maintainer-cap-key",
+        "unread-author-no-fallback",
+        "two-mailbox-author-no-fallback",
+        "unread-address-no-fallback",
+        "placeholder-author-falls-back",
+        "blank-author-falls-back",
+    ],
+)
+def test_dependency_maintainer_only_for_an_absent_author(
+    caplog: pytest.LogCaptureFixture,
+    route: str,
+    fields: dict[str, str],
+    expected: list[tuple[str | None, str | None]],
+    line: str,
+) -> None:
+    """Regression: an ``Author`` stated but read as no one fell back to the
+    ``Maintainer``, crediting the package to Zed; a maintainer field's
+    warning named ``AUTHOR_EMAIL``. Only an absent author pair (missing,
+    blank, ``UNKNOWN``) falls back, and a warning names the field read."""
+    with caplog.at_level(logging.WARNING):
+        assert _DEPENDENCY_ROUTES[route](fields) == expected
+    assert [m[: len(line)] for m in caplog.messages] == ([line] if line else [])

@@ -17,14 +17,17 @@ file only exercises the cascade and wiring, using ``pylock.toml`` and
 """
 
 import logging
+import os
 import tempfile
 from pathlib import Path
 
 import pytest
 
+from pitloom.assemble import generate_project_sbom
 from pitloom.core.project import ProjectMetadata
-from pitloom.extract.lock import apply_locked_dependencies
+from pitloom.extract.lock import apply_locked_dependencies, cascade
 from pitloom.extract.project import read_project
+from tests.assemble.embed_surfaces_shared import run_cli
 
 
 def _write_pylock(tmp_dir: Path, name: str, version: str) -> None:
@@ -271,3 +274,98 @@ def test_read_project_no_metadata_source_never_reaches_cascade() -> None:
 
         with pytest.raises(FileNotFoundError):
             read_project(tmp_path)
+
+
+def _dynamic_project(root: Path, listed: str, text: str) -> Path:
+    """A setuptools project reading its dependencies from *listed*
+    (``[tool.setuptools.dynamic]``), with ``requirements.txt`` holding
+    *text*, ``other.txt`` a copy and ``linked.txt`` a hard link to it."""
+    root.mkdir(exist_ok=True)
+    (root / "pyproject.toml").write_text(
+        '[build-system]\nbuild-backend = "setuptools.build_meta"\n'
+        '[project]\nname = "demo"\nversion = "1"\ndynamic = ["dependencies"]\n'
+        f'[tool.setuptools.dynamic]\ndependencies = {{file = "{listed}"}}\n',
+        encoding="utf-8",
+    )
+    (root / "requirements.txt").write_text(text, encoding="utf-8")
+    (root / "other.txt").write_text(text, encoding="utf-8")
+    os.link(root / "requirements.txt", root / "linked.txt")
+    return root
+
+
+@pytest.mark.parametrize("surface", ["cli", "lib"])
+@pytest.mark.parametrize(
+    ("listed", "ignored"),
+    [
+        ("requirements.txt", False),
+        ("./requirements.txt", False),
+        ("linked.txt", False),
+        ("other.txt", True),
+    ],
+    ids=["named", "dot-slash", "hard-link", "merely-present"],
+)
+def test_dynamic_dependencies_file_is_not_a_lock(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    surface: str,
+    listed: str,
+    ignored: bool,
+) -> None:
+    """``requirements.txt`` the project reads its dependencies from is not
+    tried as a lock, so nothing is "ignored"; one merely present still is
+    (and says so)."""
+    project = _dynamic_project(tmp_path / "p", listed, "requests>=2\n")
+    out = tmp_path / "sbom.json"
+
+    with caplog.at_level(logging.WARNING):
+        if surface == "cli":
+            run_cli(["project", str(project), "--offline", "-o", str(out)], monkeypatch)
+        else:
+            generate_project_sbom(project, output_path=out, offline=True)
+
+    ignoring = [m for m in caplog.messages if "ignoring requirements.txt" in m]
+    assert len(ignoring) == ignored
+    assert "requests" in out.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("listed", "locked"),
+    [("requirements.txt", []), ("other.txt", ["requests==2.0"])],
+    ids=["named", "merely-present"],
+)
+def test_pinned_dynamic_dependencies_file_is_not_a_lock(
+    tmp_path: Path, listed: str, locked: list[str]
+) -> None:
+    """A fully pinned ``requirements.txt`` read as the dependencies is not
+    also their lock; one merely present is."""
+    project = _dynamic_project(tmp_path, listed, "requests==2.0\n")
+
+    metadata = read_project(project)[0]
+
+    assert metadata.dependencies == ["requests==2.0"]
+    assert metadata.dependency_files == [listed]
+    assert metadata.locked_dependencies == locked
+
+
+@pytest.mark.parametrize(
+    ("listed", "ignored"),
+    [("./requirements.txt", False), ("linked.txt", True)],
+    ids=["by-path", "link-unknown"],
+)
+def test_without_file_identity_the_path_decides(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    listed: str,
+    ignored: bool,
+) -> None:
+    """With no file identity (FAT/exFAT), the listed path alone tells the
+    dependencies file: a hard link is then a different file."""
+    monkeypatch.setattr(cascade, "file_id", lambda _path: None)
+    project = _dynamic_project(tmp_path, listed, "requests>=2\n")
+
+    with caplog.at_level(logging.WARNING):
+        read_project(project)
+
+    assert ("ignoring requirements.txt" in caplog.text) == ignored

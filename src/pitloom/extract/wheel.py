@@ -178,9 +178,9 @@ def read_wheel(
 
     Args:
         wheel_path: Path to the .whl file.
-        author_splits: When given, an ``Author`` string split into several
-            names is appended to it instead of warned about, for a caller
-            that may replace the wheel's authors
+        author_splits: When given, an ``Author``/``Author-email`` string
+            split into several entries is appended to it instead of warned
+            about, for a caller that may replace the wheel's authors
             (:func:`~pitloom.extract.authors.warn_author_splits`).
 
     Returns:

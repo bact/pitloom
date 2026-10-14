@@ -137,18 +137,6 @@ def test_detect_build_backend_empty_string() -> None:
         assert detect_build_backend(Path(d)) is None
 
 
-def test_detect_build_backend_pep518_only_falls_back_to_setuptools() -> None:
-    """A pyproject.toml with [build-system] but no build-backend key (a
-    legacy PEP 518-only declaration) is still detected as setuptools
-    when setup.cfg/setup.py back it up -- same fallback as when
-    pyproject.toml is absent entirely, not a silent None."""
-    content = '[build-system]\nrequires = ["setuptools"]\n'
-    with tempfile.TemporaryDirectory() as d:
-        (Path(d) / "pyproject.toml").write_text(content)
-        (Path(d) / "setup.cfg").write_text("[metadata]\nname = pkg\n")
-        assert detect_build_backend(Path(d)) == "setuptools"
-
-
 def test_detect_build_backend_unparseable_pyproject_falls_back_to_setuptools() -> None:
     """Regression: a ``pyproject.toml`` that exists but is unparseable
     (malformed TOML) must fall back to the same setup.cfg/setup.py check
@@ -233,3 +221,22 @@ def test_detect_build_backend_legacy_colon_suffix() -> None:
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "pyproject.toml").write_text(content)
         assert detect_build_backend(Path(d)) == "setuptools"
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        '[project]\nname = "pkg"\n',
+        "[build-system]\n",
+        '[build-system]\nrequires = ["setuptools"]\n',
+        "",
+    ],
+    ids=["no-table", "empty-table", "no-backend-key", "empty-file"],
+)
+def test_detect_build_backend_pep517_default_is_setuptools(
+    tmp_path: Path, content: str
+) -> None:
+    """No ``build-backend`` declared: PEP 517 frontends build with
+    setuptools' legacy backend, with or without a setup.cfg/setup.py."""
+    (tmp_path / "pyproject.toml").write_text(content, encoding="utf-8")
+    assert detect_build_backend(tmp_path) == "setuptools"

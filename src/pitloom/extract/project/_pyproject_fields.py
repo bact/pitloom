@@ -22,6 +22,7 @@ from pyproject_metadata import StandardMetadata
 from pitloom.core.path_confine import OutsideRootError, open_inside
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
 from pitloom.extract._extract_utils import field_declared
+from pitloom.extract.authors import collapse_whitespace
 from pitloom.logging_config import loggable, warn_once
 
 log = logging.getLogger(__name__)
@@ -176,13 +177,16 @@ def extract_authors(
 
     ``pyproject_metadata`` fills ``"Unknown"`` for an entry declaring only an
     ``email``; the raw ``[project].authors`` entry (same order) says whether a
-    name was declared, and an undeclared one stays absent.
+    name was declared, and an undeclared one stays absent. A name has its
+    white space collapsed, as every surface reads it
+    (:func:`~pitloom.extract.authors.collapse_whitespace`).
     """
     result = []
     # std.authors is validated one-to-one with the raw entries.
     raws = project_data.get("authors", [])
     for (name, email), raw in zip(std.authors, raws, strict=True):
-        entry: dict[str, str] = {"name": name} if name and raw.get("name") else {}
+        name = collapse_whitespace(name or "") if raw.get("name") else ""
+        entry: dict[str, str] = {"name": name} if name else {}
         if email:
             entry["email"] = email
         if entry:

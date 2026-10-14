@@ -17,6 +17,7 @@ from pathlib import Path
 
 from pitloom.core.path_confine import open_inside
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, is_missing_errno
+from pitloom.core.project import project_relative_or_fallback
 from pitloom.extract._license_detect import decode_text
 from pitloom.logging_config import Cap, loggable, warn_once, warn_over_cap
 
@@ -28,45 +29,86 @@ _DIRECTIVE_RE = re.compile(r"^(file|attr):\s*(.+)$", re.DOTALL)
 #: Largest file a ``file:`` directive reads (``setup.cfg``, and the
 #: ``pyproject.toml`` dynamic version); a larger one is skipped, warned.
 MAX_LISTED_FILE_BYTES = 1024 * 1024
+#: Longest line assigning an ``attr:`` directive's attribute that is parsed:
+#: a version literal needs far fewer characters, and a longer line could
+#: nest deep enough to exhaust the parser (a C stack overflow on 3.10).
+MAX_ATTR_LINE_CHARS = 256
 
 
-def _read_listed_file(
+def _read_listed_bytes(
     project_dir: Path, name: str, what: str
-) -> tuple[bool, str | None]:
-    """``(found, text)`` for the file *name* a directive lists, opened as
+) -> tuple[bool, bytes | None]:
+    """``(found, content)`` for the file *name* a directive lists, opened as
     written and only inside *project_dir*
-    (:func:`~pitloom.core.path_confine.open_inside`), its newlines read as
-    setuptools reads them. A missing one (a dangling symlink too) is
-    ``(False, None)``, silently, as setuptools skips it; one that is not
-    read (outside the project, not a regular file, no permission, not
-    UTF-8, over :data:`MAX_LISTED_FILE_BYTES`) is ``(True, None)`` with one
-    ``WARNING:`` per file and *what* (e.g. ``"setup.cfg metadata.version"``)
-    per process, since one run reads a project more than once."""
+    (:func:`~pitloom.core.path_confine.open_inside`). A missing one (a
+    dangling symlink too) is ``(False, None)``, silently, as setuptools
+    skips it; one that is not read (outside the project, not a regular
+    file, no permission, over :data:`MAX_LISTED_FILE_BYTES`) is ``(True,
+    None)`` with one ``WARNING:`` per file and *what* (e.g. ``"setup.cfg
+    metadata.version"``) per process, since one run reads a project more
+    than once, naming the file as written."""
     path = project_dir / name
-    once = f"setup-cfg-file:{path}\x00{what}"
     try:
         with open_inside(path, project_dir) as handle:
             raw = handle.read(MAX_LISTED_FILE_BYTES + 1)
-        if len(raw) > MAX_LISTED_FILE_BYTES:
-            cap = Cap(MAX_LISTED_FILE_BYTES, "byte", "file-directive")
-            warn_over_cap(log, cap, name, f"skipped for {what}", once=True, key=once)
-            return True, None
-        return True, decode_text(raw)
-    except (OSError, UnicodeDecodeError) as exc:
-        if isinstance(exc, OSError) and is_missing_errno(exc):
+    except OSError as exc:
+        if is_missing_errno(exc):
             return False, None
-        warn_once(
-            log,
-            once,
-            UNREADABLE_FILE_WARNING,
-            loggable(name),
-            f"for {what}",
-            loggable(str(exc)),
-        )
+        _warn_unread(path, name, what, exc)
         return True, None
     except ValueError:
         # An embedded NUL names no file; os.path.isfile is False too.
         return False, None
+    if len(raw) > MAX_LISTED_FILE_BYTES:
+        cap = Cap(MAX_LISTED_FILE_BYTES, "byte", "file-directive")
+        once = _once_key(path, what)
+        outcome = f"skipped for {what}"
+        warn_over_cap(log, cap, name, outcome, once=True, key=once)
+        return True, None
+    return True, raw
+
+
+def _once_key(path: Path, what: str) -> str:
+    return f"setup-cfg-file:{path}\x00{what}"
+
+
+def _warn_unread(path: Path, name: str, what: str, exc: Exception) -> None:
+    """One ``WARNING:`` per *path* and *what*, per process, that the listed
+    file *name* was not read for *what* (*exc*)."""
+    warn_once(
+        log,
+        _once_key(path, what),
+        UNREADABLE_FILE_WARNING,
+        loggable(name),
+        f"for {what}",
+        loggable(str(exc)),
+    )
+
+
+def read_listed_file(
+    project_dir: Path, name: str, what: str
+) -> tuple[bool, str | None]:
+    """``(found, text)`` for the file *name* a directive lists, as
+    :func:`_read_listed_bytes` reads it, its newlines read as setuptools
+    reads them; one that is not UTF-8 is ``(True, None)``, warned alike."""
+    found, raw = _read_listed_bytes(project_dir, name, what)
+    if raw is None:
+        return found, None
+    try:
+        return True, decode_text(raw)
+    except UnicodeDecodeError as exc:
+        _warn_unread(project_dir / name, name, what, exc)
+        return True, None
+
+
+def listed_file_readable(project_dir: Path, name: str, what: str) -> bool:
+    """Whether a build backend may read the file *name* (a dynamic
+    version's source) for *what*: missing (the backend reports that), or
+    inside *project_dir*, a regular file and within
+    :data:`MAX_LISTED_FILE_BYTES` (:func:`_read_listed_bytes`, which warns
+    otherwise). Its encoding is the backend's to read (PEP 263)."""
+    found, raw = _read_listed_bytes(project_dir, name, what)
+    return not found or raw is not None
 
 
 def _resolve_cfg_version_file_directive(
@@ -74,7 +116,7 @@ def _resolve_cfg_version_file_directive(
 ) -> tuple[str | None, str | None]:
     """Resolve a ``file:`` directive for the version, read for *what*: no
     version for a missing, unreadable (warned) or multi-line file."""
-    _, text = _read_listed_file(project_dir, value, what)
+    _, text = read_listed_file(project_dir, value, what)
     content = (text or "").strip()
     if content and "\n" not in content and not content.startswith("#"):
         return content, f"Source: {value} | Method: file_directive"
@@ -82,27 +124,35 @@ def _resolve_cfg_version_file_directive(
 
 
 def _resolve_cfg_attr_directive(
-    value: str, project_dir: Path
+    value: str, project_dir: Path, what: str
 ) -> tuple[str | None, str | None]:
-    """Resolve an attr: directive from setup.cfg."""
+    """Resolve an ``attr:`` directive, read for *what*: each candidate
+    module file read as :func:`read_listed_file` reads one (inside
+    *project_dir* only, capped, warned when present but not read)."""
     parts = value.rsplit(".", 1)
     if len(parts) != 2:
         return None, None
     module_path, attr_name = parts
     module_rel = module_path.replace(".", "/")
-    candidates = [
-        project_dir / (module_rel + ".py"),
-        project_dir / module_rel / "__init__.py",
-        project_dir / "src" / (module_rel + ".py"),
-        project_dir / "src" / module_rel / "__init__.py",
-    ]
-    for module_file in candidates:
-        if module_file.exists():
-            version = _read_version_attr(module_file, attr_name)
-            if version:
-                rel = module_file.relative_to(project_dir).as_posix()
-                return version, f"Source: {rel} | Method: attr_directive"
+    for name in (
+        f"{module_rel}.py",
+        f"{module_rel}/__init__.py",
+        f"src/{module_rel}.py",
+        f"src/{module_rel}/__init__.py",
+    ):
+        _, text = read_listed_file(project_dir, name, what)
+        version = _read_version_attr(text, attr_name, name, what) if text else None
+        if version:
+            return version, f"Source: {source_name(name)} | Method: attr_directive"
     return None, None
+
+
+def source_name(name: str) -> str:
+    """*name*, a file read inside the project, as a provenance ``Source``:
+    project-relative in POSIX form, or its base name when written absolute
+    (:func:`~pitloom.core.project.project_relative_or_fallback`)."""
+    path = Path(name)
+    return project_relative_or_fallback(path.as_posix(), path.name)
 
 
 def _resolve_cfg_version(
@@ -130,7 +180,7 @@ def _resolve_cfg_version(
         )
     # _DIRECTIVE_RE only captures "file" or "attr" in this group, so
     # "attr" is the only remaining case.
-    return _resolve_cfg_attr_directive(value, project_dir)
+    return _resolve_cfg_attr_directive(value, project_dir, "setup.cfg metadata.version")
 
 
 def _resolve_cfg_file_directive(raw: str, project_dir: Path, field: str) -> str | None:
@@ -140,7 +190,7 @@ def _resolve_cfg_file_directive(raw: str, project_dir: Path, field: str) -> str 
     exist is skipped, and when none exists the list itself is returned as a
     filename hint. One that exists but cannot be read is skipped with one
     ``WARNING:`` naming it and the setup.cfg *field*
-    (:func:`_read_listed_file`); ``None`` when nothing was read."""
+    (:func:`read_listed_file`); ``None`` when nothing was read."""
     if not raw:
         return None
     m = _DIRECTIVE_RE.match(raw)
@@ -150,7 +200,7 @@ def _resolve_cfg_file_directive(raw: str, project_dir: Path, field: str) -> str 
     texts: list[str] = []
     found = False
     for name in names:
-        exists, text = _read_listed_file(project_dir, name, f"setup.cfg {field}")
+        exists, text = read_listed_file(project_dir, name, f"setup.cfg {field}")
         found = found or exists
         if text is not None:
             texts.append(text)
@@ -159,21 +209,56 @@ def _resolve_cfg_file_directive(raw: str, project_dir: Path, field: str) -> str 
     return None if found or not names else ", ".join(names)
 
 
-def _read_version_attr(file_path: Path, attr_name: str) -> str | None:
-    """Extract a named string attribute from a Python source file via AST."""
+def _read_version_attr(source: str, attr_name: str, name: str, what: str) -> str | None:
+    """The string first assigned to *attr_name* in the Python *source* (the
+    file *name*, read for *what*), never the whole file parsed: only each
+    line assigning it, one at a time (:func:`_assigned_string`). A line
+    over :data:`MAX_ATTR_LINE_CHARS` is skipped with one ``WARNING:`` per
+    file and *what*, per process."""
+    assignment = re.compile(
+        rf"^[ \t]*{re.escape(attr_name)}[ \t]*=(?!=).*$", re.MULTILINE
+    )
+    for found in assignment.finditer(source):
+        line = found.group().strip()
+        if len(line) > MAX_ATTR_LINE_CHARS:
+            cap = Cap(MAX_ATTR_LINE_CHARS, "character", "attr-directive-line")
+            outcome = f"{attr_name} line skipped for {what}"
+            warn_over_cap(log, cap, name, outcome, once=True)
+            continue
+        value = _assigned_string(line, attr_name, name, what)
+        if value is not None:
+            return value
+    return None
+
+
+def _assigned_string(line: str, attr_name: str, name: str, what: str) -> str | None:
+    """The string *line* (from the file *name*) assigns to *attr_name*, or
+    ``None``; a line the parser cannot hold (``RecursionError``,
+    ``MemoryError``) is skipped with one ``WARNING:``."""
     try:
-        source = file_path.read_text(encoding="utf-8")
-        tree = ast.parse(source, filename=str(file_path))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assign) and len(node.targets) == 1:
-                target = node.targets[0]
-                if (
-                    isinstance(target, ast.Name)
-                    and target.id == attr_name
-                    and isinstance(node.value, ast.Constant)
-                    and isinstance(node.value.value, str)
-                ):
-                    return node.value.value
-    except (OSError, SyntaxError):
-        pass
+        tree = ast.parse(line)
+    except (SyntaxError, ValueError):  # ValueError: a NUL, before 3.12
+        return None
+    except (RecursionError, MemoryError) as exc:
+        reason = f"{type(exc).__name__} parsing the {attr_name} line"
+        warn_once(
+            log,
+            f"attr-line:{name}\x00{what}",
+            UNREADABLE_FILE_WARNING,
+            loggable(name),
+            f"for {what}",
+            reason,
+        )
+        return None
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Assign) and len(node.targets) == 1):
+            continue
+        target, value = node.targets[0], node.value
+        if (
+            isinstance(target, ast.Name)
+            and target.id == attr_name
+            and isinstance(value, ast.Constant)
+            and isinstance(value.value, str)
+        ):
+            return value.value
     return None

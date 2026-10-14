@@ -49,8 +49,9 @@ def test_normalize_dep_pep503() -> None:
     assert _normalize_dep("PyProject.Metadata") == "pyproject-metadata"
     assert _normalize_dep("hatchling>=1.29.0") == "hatchling>=1.29.0"
     assert _normalize_dep("  tomli>=2.0; python_version<'3.11'  ") == (
-        "tomli>=2.0; python_version<'3.11'"
+        'tomli>=2.0; python_version < "3.11"'
     )
+    assert _normalize_dep("Not A Req!") == "not A Req!"
     assert _normalize_dep("My---Pkg") == "my-pkg"
 
 

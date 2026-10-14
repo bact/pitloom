@@ -217,3 +217,15 @@ def test_resolve_pdm_dynamic_version_quiet_resolution_failure(
     assert version is None
     assert source is None
     assert "failed for" not in caplog.text
+
+
+def test_resolve_pdm_dynamic_version_file_source_without_path(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """``source = "file"`` with no string ``path``: nothing to confine, left
+    to pdm-backend, whose failure is warned."""
+    data = {"tool": {"pdm": {"version": {"source": "file"}}}}
+    with caplog.at_level(logging.WARNING):
+        version, source = resolve_pdm_dynamic_version(PDM_FIXTURE, data, ["version"])
+    assert (version, source) == (None, None)
+    assert "PDM dynamic version resolution failed" in caplog.text

@@ -310,9 +310,12 @@ def add_dependencies(
     the same PEP 440 version (``"1.0"``/``"1.0.0"``), e.g. the same
     package listed under more than one ``pyproject.toml`` extra, each
     split by a ``python_version`` marker -- collapse into a single
-    ``software_Package`` node, keeping the first-seen literal name for
-    display. Their raw declared strings are preserved together in that
-    node's provenance comment.
+    ``software_Package`` node, named by the first-seen string's name
+    (:func:`~pitloom.assemble.spdx3.document.build` gives every route's
+    strings one spelling first). Their declared strings are kept together,
+    sorted, in that node's provenance comment: a backend that sorts
+    ``Requires-Dist`` (Hatchling) gives the same text as one that keeps
+    the declared order (setuptools).
 
     *completeness*, when given (e.g. ``spdx3.RelationshipCompleteness.complete``
     for a lock-resolved transitive-dependency call), is set on every
@@ -418,7 +421,7 @@ def add_dependencies(
         )
         dep_provenance_fields: dict[str, str] = {
             "dependencies": dep_provenance,
-            "declared_constraint": " | ".join(declared_constraints),
+            "declared_constraint": " | ".join(sorted(declared_constraints)),
         }
         if version_note:
             dep_provenance_fields["version"] = version_note

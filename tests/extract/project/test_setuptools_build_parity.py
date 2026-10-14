@@ -19,7 +19,8 @@ compared as Pitloom's reader names them on both sides), ``Description`` and
 ``Classifier`` headers (no comparable ProjectMetadata field).
 
 The authors are compared whole with the wheel route's read of that
-``METADATA``: ``author`` is free text, split the same on both.
+``METADATA``: one ``author`` is one author, ``author_email`` split the
+same on both.
 
 See also: test_setuptools_merge.py (the merge rule),
 test_setuptools_merge_license.py (the licence),
@@ -274,30 +275,43 @@ def test_directory_read_matches_setuptools_build(
     assert built == {**want, **{k: v[1] for k, v in differ.items()}}
 
 
-_ANN_BOB = [{"name": "Ann Lee"}, {"name": "Bob Ray"}]
-
-
 @pytest.mark.parametrize(
     ("cfg", "py", "expected"),
     [
+        # one author value is one author, never split
         (
             _BASE + "author = Ann Lee, Bob Ray\nauthor_email = a@x.org\n",
             "",
-            [*_ANN_BOB, {"email": "a@x.org"}],
+            [{"name": "Ann Lee, Bob Ray", "email": "a@x.org"}],
         ),
         (
             _BASE + "author = Ann Lee and Bob Ray\nauthor_email = a@x.org, b@x.org\n",
             "",
-            [{"email": "a@x.org"}, {"email": "b@x.org"}, *_ANN_BOB],
+            [
+                {"email": "a@x.org"},
+                {"email": "b@x.org"},
+                {"name": "Ann Lee and Bob Ray"},
+            ],
         ),
-        (_BASE, "author='Ann Lee, Bob Ray'", _ANN_BOB),
+        (_BASE, "author='Ann Lee, Bob Ray'", [{"name": "Ann Lee, Bob Ray"}]),
+        (
+            _BASE,
+            "author='Doe, Jane <j@x.org>'",
+            [{"name": "Doe, Jane", "email": "j@x.org"}],
+        ),
         (
             _BASE + "author = Ann Lee\nauthor_email = a@x.org\n",
             "",
             [{"name": "Ann Lee", "email": "a@x.org"}],
         ),
     ],
-    ids=["cfg-list-address", "cfg-and-two-addresses", "py-list", "cfg-one"],
+    ids=[
+        "one-cfg-list-address",
+        "one-cfg-and-two-addresses",
+        "one-py-list",
+        "one-py-name-address",
+        "cfg-one",
+    ],
 )
 def test_directory_authors_match_wheel_route_on_setuptools_build(
     tmp_path: Path, cfg: str, py: str, expected: list[dict[str, str]]

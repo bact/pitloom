@@ -88,7 +88,9 @@ def test_a_long_decimal_pickle_gives_the_same_sbom_whatever_the_digit_limit(
     (tmp_path / "demo" / "__init__.py").write_text("", encoding="utf-8")
     (tmp_path / "demo" / "m.pt").write_bytes(b"\x80\x02I" + b"9" * 5000 + b"\n.")
     (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname = "demo"\nversion = "1.0.0"\n', encoding="utf-8"
+        '[build-system]\nbuild-backend = "hatchling.build"\n'
+        '[project]\nname = "demo"\nversion = "1.0.0"\n',
+        encoding="utf-8",
     )
     runs = []
     for limit_off in (False, True):

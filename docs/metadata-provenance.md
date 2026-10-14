@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-10-12
+Last-Modified: 2026-10-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -265,7 +265,7 @@ value, not just where it read it from. Values in use today:
 | `dynamic_extraction` | Read from a Python file at build time (e.g. a `__version__` or `__about__.py` variable), not from `pyproject.toml` directly. |
 | `licenseid_detection` | License text matched against a known SPDX license using the [`licenseid`](https://pypi.org/project/licenseid/) library -- detected, not author-declared. |
 | `copyright_notice_lines` | The main package's copyright text: the copyright notice lines of the named licence files, as written (see [How the copyright text is found](#how-the-copyright-text-is-found)). |
-| `parsed_author_list` | A dependency's originators, when its author fields name more than one (several addresses, or a free-text name split on `,` and `and`). |
+| `parsed_author_list` | A dependency's originators, when its author fields name more than one (several address-field entries, or a name beside them). |
 | `file_directive` | A `pyproject.toml` dynamic field pointed at a file (`{file = "..."}`); the value was read from that file. |
 | `attr_directive` | A `pyproject.toml` dynamic field pointed at a Python attribute (`{attr = "..."}`); the value was imported and read from code. |
 | `inspect_caller` | Recorded automatically by the `pitloom.loom` tracking SDK via Python stack inspection -- identifies which script/function called the SDK. |
@@ -440,7 +440,9 @@ the build hook add the concluded second opinion above (a wheel only through
 `embed-wheel --project-dir`). A directory's `[project].license` `file`, or
 `[project].readme` file, outside the project directory (`..`, an absolute
 path or a symlink out) is not read: the field is dropped with a `WARNING:`
-naming it.
+naming it. So is a file a dynamic `version` names (`[tool.hatch.version]
+path`, a setuptools `attr` or `file`, Flit's module, PDM's `path`), or one
+over 1 MiB: no version is read from it.
 
 Whose statement a license is decides the relationship. The package's own --
 its manifest, a file it ships, an AI model file's own metadata, a model card,
@@ -479,7 +481,8 @@ copyright_notice_lines`).
 When no file holds a notice, the copyright text is `NOASSERTION`, with no
 provenance: Pitloom does not say the package has none (`NONE`). A licence
 file that exists but cannot be read, is over the 256 KiB cap, or resolves
-outside the project directory (a symlink out of it), is skipped with a
+outside the project directory (a symlink out of it) or, for a dependency,
+outside its `.dist-info` (a `RECORD` entry with `..`), is skipped with a
 `WARNING:` naming it.
 
 ## How authors are read
@@ -491,51 +494,84 @@ not. An author, or a dependency's originator, is a `Person`, or an
 (`and others (see AUTHORS)`; `Jan Brothers` is a person). There is one
 Agent per type, name and email, shared with an SBOM creator or another
 package: a `Person` and an `Organization` of the same name are different
-agents. The authors never make the copyright text (see
+agents. A dependency's originator is its `Author` and `Author-email`, or,
+only when neither is stated (absent, blank or `UNKNOWN`), its `Maintainer`
+and `Maintainer-email`: an author that is stated but not read is no reason
+to credit the maintainer. The authors never make the copyright text (see
 [How the copyright text is found](#how-the-copyright-text-is-found)).
 
 A structured entry is one author, never split: a `[project].authors` table,
-a Poetry `authors` string, a quoted display name in `Author` or
-`Author-email` (one mailbox, RFC 5322: `"Ann, Bob" <team@example.com>` is one author named
-`Ann, Bob`; typographic quotes, `“Ann, Bob”`, hold a name together too). A free-text field cannot tell a list from one name containing
-a comma, so it is split on `,` and `;` outside quotes and `<...>`, a name
-field's parts on `and` too, with one `WARNING:` per SBOM (`split into 2
-names on ',' / ';' / 'and'`, or `on ',' / ';'` when only an address field
-was split): core-metadata `Author` and `Author-email` (a
-wheel's `METADATA`, an sdist's `PKG-INFO`), `setup.cfg` `author` and
-`author_email`, `setup.py` `author=` and `author_email=`, and a dependency's
-`Author` or `Maintainer` fields (one line for all dependencies, naming the
-first and the count). Each comma-separated part is tested on its own for a contributor
-group, which is not split on `and`: `Jane and others` is the same
-`Organization` as in a table, and Hatchling's `Doe, Jane, Ann and others`
-(name-only authors joined) reads as `Doe`, `Jane` and the group `Ann and
-others`. A split part ending in `<address>` is read as a name and address,
-and a group after it is its own (`Jane <j@x.org> et al.` is `Jane` with
-the address, and `et al.`); a split right after an address is not warned
-about. Both fields are read alike, a part with no `<`, `>` or `@` a name
-(`Author-email: john at example dot com` is a `Person` of that name, with
-no warning): `Author-email: Doe, Jane <j@x.org>` is `Doe`, and `Jane` with
-the address. An `Author-email` entry is never split on `and`: `Ann and Bob
-<t@x.org>`, as backends write `{name = "Ann and Bob", email = "t@x.org"}`,
-is one author on every route; in `Author`, where backends write a name-only
-author and `setup.py` free text lands alike, `Ann and Bob` is two. Names and addresses are never paired
-by position, as a reordered or partial field would pair them wrongly:
-`Author: Jane, Bob` with `Author-email: a@x.org, b@x.org` is four authors;
-only one name beside one bare address is one author. A free-text field is read up to 65,536 characters and 1,000 names (or
-address entries); past either, the rest is not read, with one `WARNING:`
-when the authors read are used (not for `PKG-INFO` authors an sdist's
-`pyproject.toml` replaces). The
-core metadata specification's `Author` example, `C. Schultz, Universal Features
-Syndicate, Los Angeles, CA <cschultz@peanuts.example.com>`, reads as four
-authors, the last `CA` with the address. An address is checked as written
+a Poetry `authors` string, a quoted display name (one mailbox, RFC 5322:
+`"Ann, Bob" <team@example.com>` is one author named `Ann, Bob`;
+typographic quotes, `“Ann, Bob”`, hold a name together too). A name field
+is one author too, on every route, unless it holds several complete
+mailboxes: core-metadata `Author` (a wheel's `METADATA`, an sdist's
+`PKG-INFO`, a dependency's `Author` or `Maintainer`), `setup.cfg` `author`
+and `setup.py` `author=`. Backends write a name-only author there as
+declared (`{name = "Doe, Jane"}` is `Author: Doe, Jane`), so `Doe, Jane`,
+`Jane, Bob` and `Ann and Bob` are one author each. The limit: a free-text
+list of names in one `Author` is one author as well (`setup.py`
+`author="Jane, Bob"`, or Hatchling's two name-only authors joined, `Doe,
+Jane, Ann and others`, which is one `Organization`). So a project's own
+name field read as one author (a wheel's `Author`, an sdist's `PKG-INFO`
+whose `pyproject.toml` declares no authors, `setup.cfg`/`setup.py`
+`author`) gets one `INFO:` per SBOM when it holds `,`, `;` or the word
+`and` outside quotes and `<...>` (`AUTHOR='Ann, Bob': read as one author;
+it may list several ...`); a dependency's, a structured entry and
+`Author-email` get none. A name field is cut
+on `,` or `;` (outside quotes and `<...>`) only where the text proves a
+list: after a closed `<address>` or a bare address, never after a name.
+So `Ann <a@x.org>; Bob <b@x.org>` is Ann and Bob with their addresses, and
+`a@x.org, b@x.org` two authors, as in `Author-email`; `Doe, Jane
+<j@x.org>` is one mailbox, its name all the text before the `<` (`<` or
+`>` inside a quoted name is part of the name); `Doe, Jane <j@x.org>, Bob
+Lee <b@x.org>` is two; `Ann <a@x.org>, Bob` is Ann with the address and
+`Bob`. A cut gets one `WARNING:` (`AUTHOR='Ann <a@x.org>; Bob <b@x.org>':
+split into 2 entries on ',' / ';'; a name field is cut only after an
+address`). An entry with text after its address, other than a trailing
+`(comment)` or a contributor group, records its name alone (`Ann <a@x.org>
+Lee` is `Ann`), and one whose address is not closed before the next
+records no one (`Ann <a@x.org, Bob <b@x.org>`); either gets a `WARNING:`
+(see below).
+A name, in any field or table, has each run of white space read as one
+space: a folded `Author` (`Ann` and `Lee` on two lines) is `Ann Lee`, as
+`setup.cfg` and `[project].authors` give it.
+
+An address field is a list: core-metadata `Author-email`, `setup.cfg`
+`author_email`, `setup.py` `author_email=` and a dependency's
+`Author-email` or `Maintainer-email`. It is split on `,` and `;` outside
+quotes and `<...>`, never on `and`: `Ann and Bob <t@x.org>`, as backends
+write `{name = "Ann and Bob", email = "t@x.org"}`, is one author on every
+route. An entry with no `<`, `>` or `@` is a name (`john at example dot
+com` is a `Person` of that name, with no warning), so `Author-email: Doe,
+Jane <j@x.org>` is `Doe`, and `Jane` with the address: the field cannot
+tell a list from one unquoted name containing a comma, and a split after
+a name gets one `WARNING:` per SBOM (`AUTHOR_EMAIL='Doe, Jane <j@x.org>':
+split into 2 entries on ',' / ';'`; one line for all dependencies, naming
+the first and the count). A split right after an address is not warned
+about, and a contributor group after an address is an entry of its own,
+in either field (`Jane <j@x.org> et al.` is `Jane` with the address, and
+`et al.`). A
+name and addresses are never paired by position, as a reordered or
+partial field would pair them wrongly: `Author: Jane, Bob` with
+`Author-email: a@x.org, b@x.org` is three authors; only one name beside
+one bare address is one author. A free-text field is read up to 65,536
+characters and 1,000 entries; past either, the rest is not read, nor the
+entry the character cap cuts (an `Author` holding no address, one entry,
+not at all), with one
+`WARNING:` when the authors read are used (not for `PKG-INFO` authors an
+sdist's `pyproject.toml` replaces). The core metadata specification's
+`Author` example, `C. Schultz, Universal Features Syndicate, Los Angeles,
+CA <cschultz@peanuts.example.com>`, reads as one author with the address,
+the affiliation in the name. An address is checked as written
 (`a@b c` is not `a@bc`), a comma inside `<...>` included: an address of
 the project's own (an entry holding `<`, `>` or `@`) that is no address
 is not recorded, with one `WARNING:`
 per field naming the first three and how many (`AUTHOR_EMAIL=['a', 'b',
-'c', ...]: not an email address; 5 entries not recorded`),
-and a name stated before it is kept (`Ann <a@b c>` is `Ann`). The `UNKNOWN` older
-setuptools writes is no author: in `setup.py` it gives way to `setup.cfg`'s
-author. An sdist's `pyproject.toml` gives the declared authors as a
+'c', ...]: not an email address; 5 entries not recorded`), and a name
+stated before its one `<` is kept (`Ann <a@b c>` is `Ann`). The `UNKNOWN`
+older setuptools writes is no author: in `setup.py` it gives way to
+`setup.cfg`'s author. An sdist's `pyproject.toml` gives the declared authors as a
 directory's does (`[project].authors`, else `[tool.poetry].authors`); one
 that cannot be read leaves the `PKG-INFO` authors, with a `WARNING:`, as `embed-wheel
 --project-dir` does. How a wheel's `METADATA` reorders authors:
@@ -582,7 +618,14 @@ concrete version on both sides.
 
 A dependency's `declared_constraint` annotation holds every string declared
 for that package, extras included (see [Extras and the optional
-edge](dependency-sources.md#extras-and-the-optional-edge)), joined by ` | `.
+edge](dependency-sources.md#extras-and-the-optional-edge)), sorted and
+joined by ` | `. Every route spells a dependency alike: the package name
+is the PEP 503 name its `pkg:pypi` PURL uses (`Foo_Bar` is `foo-bar`), and
+each declared string is spelt as `packaging` writes it, whether the source
+kept the spelling (a setuptools wheel) or not. `loom env` names each
+installed distribution the same way (`PyYAML` is `pyyaml`), whatever its
+`.dist-info` spells. The SBOM's own root package keeps the name the
+project declares (`Foo_Bar`), on every route; only its PURL is PEP 503.
 
 ## See also
 

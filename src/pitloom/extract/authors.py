@@ -8,25 +8,33 @@ every surface: core-metadata ``Author``/``Author-email`` (wheel, sdist
 ``PKG-INFO``, a dependency's installed or PyPI record), ``setup.cfg``
 ``author``/``author_email`` and ``setup.py`` ``setup(author=...)``.
 
-Both fields are split on ``,`` and ``;`` outside a quoted display name
-and an ``<address>``; a name field's parts then on ``and``, never an
-address field's (backends write a structured ``{name = "Ann and Bob",
-email = ...}`` as ``Ann and Bob <...>``). A field cannot tell a list from
-one name containing a comma, so a split is warned about. Each
-comma-separated part is tested on its own for a contributor group (``Jane
-and others``, ``J. et al.``), which is not split on ``and``; a group after
-an ``<address>`` (``Jane <j@x.org> et al.``) is a part of its own. A part
-holding no ``<``, ``>`` or ``@`` is a name; any other is read as an address
-entry: an address that is no address is not recorded, the
-name stated before it kept, with one ``WARNING:`` per field naming the
-count and the first few. One pass reads each field, capped
-(:data:`AUTHOR_FIELD_MAX_CHARS`, :data:`AUTHOR_FIELD_MAX_NAMES`): a cap
-warns whenever the value read is used, a read whose value is discarded
-(*quiet*) warns about nothing. A structured entry -- one display name in
-``"`` or typographic quotes, one ``[project].authors`` table, one Poetry
-``authors`` string -- is one author and is never split.
+Both fields are read by one splitter (:func:`_parts`), cut on ``,`` and
+``;`` outside a quoted display name and an ``<address>``, never on
+``and``; they differ only in where a cut may happen. An address field
+(``Author-email``) is a list (RFC 5322), cut after any separator; it
+cannot tell a list from one unquoted name containing a comma, so a cut
+after a name is warned about. A name field (``Author``) is cut only where
+the text proves a list: after a closed ``<address>`` or a bare address
+(:func:`_ends_mailbox`), never after a name, as backends write a
+structured name-only author (``{name = "Doe, Jane"}``) there verbatim;
+``Doe, Jane`` and ``Ann and Bob`` stay one author (an ``INFO:`` that it
+may list several), and a cut is warned about. A contributor group after
+an ``<address>`` (``Jane <j@x.org> et al.``) is an entry of its own in
+either field. An entry holding no ``<``,
+``>`` or ``@`` is a name; any other is read as one mailbox, the name
+before its ``<`` held together: an address that is no address is not
+recorded, the name stated before it kept, with one ``WARNING:`` per field
+naming the count and the first few. A display name has each run of white
+space read as one space (:func:`collapse_whitespace`), on every surface.
+One pass reads each field, capped (:data:`AUTHOR_FIELD_MAX_CHARS`,
+:data:`AUTHOR_FIELD_MAX_NAMES`): a cap warns whenever the value read is
+used, a read whose value is discarded (*quiet*) warns about nothing. A
+structured entry -- one display name in ``"`` or typographic quotes, one
+``[project].authors`` table, one Poetry ``authors`` string -- is one
+author and is never split.
 
-See also: :mod:`pitloom.extract._author_warnings` (the warnings) and
+See also: :mod:`pitloom.extract._author_warnings` (the warnings),
+:mod:`pitloom.extract.dependency_authors` (a dependency's originators) and
 :mod:`pitloom.extract._core_metadata`
 (:func:`~pitloom.extract._core_metadata.parse_core_metadata_authors`).
 """
@@ -35,17 +43,14 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator
-from email.utils import getaddresses, quote, unquote
+from email.utils import getaddresses, unquote
 from typing import TYPE_CHECKING, NamedTuple
 
 from pitloom.extract._author_warnings import (
-    ADDRESS_SEPARATORS,
     CORE_METADATA_HINT,
-    NAME_SEPARATORS,
     AuthorSplit,
     counted,
     dependency_author_splits,
-    report_dependency_splits,
     warn_author_splits,
     warn_field_cap,
     warn_not_addresses,
@@ -60,14 +65,16 @@ if TYPE_CHECKING:
 __all__ = [
     "AUTHOR_FIELD_MAX_CHARS",
     "AUTHOR_FIELD_MAX_NAMES",
+    "AUTHOR_KEYS",
     "CORE_METADATA_HINT",
     "AuthorSplit",
     "author_pairs",
-    "dependency_author_pairs",
+    "collapse_whitespace",
     "dependency_author_splits",
     "is_contributor_group",
     "is_unset_placeholder",
     "read_author_fields",
+    "stated_text",
     "warn_author_splits",
     "warn_project_authors_unread",
 ]
@@ -76,15 +83,13 @@ __all__ = [
 #: others (see AUTHORS)``, ``et al.`` -- whole words, so ``Jan Brothers`` is
 #: a person.
 _CONTRIBUTOR_GROUP_RE = re.compile(r"\b(?:others|et\s+al)\b", re.IGNORECASE)
-#: A ``,`` or ``;`` between two entries, then a whole-word ``and`` between
-#: two names: each outside a quoted display name and an address
-#: (:func:`_outside_entries`).
+#: A ``,`` or ``;`` between two author-field entries, outside a quoted
+#: display name and an address (:func:`_outside_entries`).
 _ENTRY_SEPARATOR_RE = re.compile(r"[,;]")
-_AND_RE = re.compile(r"\band\b")
+#: What may join several names in one name field: ``,``, ``;``, ``and``.
+_JOINER_RE = re.compile(r"[,;]|(?<=\s)and(?=\s)", re.IGNORECASE)
 #: An angle bracket, opening or closing an address.
 _ANGLE_RE = re.compile(r"[<>]")
-#: An ``<address>``, left out when testing a name for a contributor group.
-_ADDRESS_PART_RE = re.compile(r"<[^<>]*>")
 #: What makes a part an address entry rather than a name.
 _ADDRESS_MARK_RE = re.compile(r"[<>@]")
 #: A typographic opening quote and its closing quote.
@@ -95,7 +100,7 @@ _QUOTE_RE = re.compile('["“”‘’]')
 #: The most characters of one free-text author or address field read; the
 #: rest is not read (its last, possibly cut, name neither).
 AUTHOR_FIELD_MAX_CHARS = 64 * 1024
-#: The most names (or address entries) read from one author field.
+#: The most entries read from one author field.
 AUTHOR_FIELD_MAX_NAMES = 1000
 
 
@@ -146,79 +151,96 @@ class _Quoting:
         return bool(self._awaited) or self._after % 2 == 1
 
 
-def _outside_entries(text: str, separator: re.Pattern[str]) -> list[str]:
-    """*text* split on *separator* where it is neither inside a quoted
-    display name (:class:`_Quoting`) nor inside a ``<...>`` address: where
-    the next angle bracket after it is not ``>``. One pass, each bracket
-    and quote looked at once."""
-    angles = [(m.start(), m.group()) for m in _ANGLE_RE.finditer(text)]
-    quoting = _Quoting(text)
-
-    def spans() -> Iterator[tuple[int, int]]:
-        index = 0
-        for found in separator.finditer(text):
-            while index < len(angles) and angles[index][0] < found.end():
-                index += 1
-            in_address = index < len(angles) and angles[index][1] == ">"
-            if not in_address and not quoting.inside(found.start()):
-                yield found.span()
-
-    return _split_at(text, spans())
-
-
-def _and_split(text: str, splits_and: bool) -> list[str]:
-    """*text* split on ``and`` (:func:`_outside_entries`) if *splits_and*."""
-    return _outside_entries(text, _AND_RE) if splits_and else [text]
-
-
-def _group_split(part: str, splits_and: bool) -> list[str]:
-    """One comma-separated *part* of a field as entries: a contributor group
-    stays whole, as a ``[project].authors`` entry does, unless it follows
-    an ``<address>`` (``Jane <j@x.org> et al.``), which ends the entry
-    before it; any other part is split on ``and`` if *splits_and*."""
-    bare = _ADDRESS_PART_RE.sub(" ", part)
-    if not is_contributor_group(bare):
-        return _and_split(part, splits_and)
-    closed = part.rfind(">") + 1
-    if closed and is_contributor_group(part[closed:]):
-        return [*_and_split(part[:closed], splits_and), part[closed:]]
-    return [part]
-
-
 #: An address Pitloom records: one ``@``, text on both sides, no space.
 _ADDRESS_RE = re.compile(r"[^@\s]+@[^@\s]+")
 #: An RFC 5322 comment ending an address entry: ``ann@example.com (Ann)``.
 _TRAILING_COMMENT_RE = re.compile(r"\([^()]*\)\s*$")
 
 
-def _parts(field: str, splits_and: bool) -> tuple[list[str], bool]:
-    """*field* as stripped parts (:func:`_outside_entries`,
-    :func:`_group_split`), and whether a split was a guess: a separator
-    after a name (a part with no ``<``, ``>`` or ``@``; an address entry
-    ends an author) could be inside one name."""
-    raw = [
-        name
-        for part in _outside_entries(field, _ENTRY_SEPARATOR_RE)
-        for name in _group_split(part, splits_and)
-    ]
+def _ends_mailbox(segment: str) -> bool:
+    """Whether *segment*, the text between two separators, ends a mailbox,
+    less a trailing comment: a closed ``<address>`` (``Ann <a@x.org>``) or
+    a bare address (``a@x.org``). Where a name field may be cut."""
+    text = _TRAILING_COMMENT_RE.sub("", segment).strip()
+    return (text.endswith(">") and "<" in text) or bool(_ADDRESS_RE.fullmatch(text))
+
+
+def _separators(
+    text: str, pattern: re.Pattern[str] = _ENTRY_SEPARATOR_RE
+) -> Iterator[tuple[int, int]]:
+    """The spans of the ``,`` and ``;`` (*pattern*) in *text* neither
+    inside a quoted display name (:class:`_Quoting`) nor inside a
+    ``<...>`` address: where the next angle bracket after it is not ``>``.
+    One pass, each bracket and quote looked at once."""
+    angles = [(m.start(), m.group()) for m in _ANGLE_RE.finditer(text)]
+    quoting = _Quoting(text)
+    index = 0
+    for found in pattern.finditer(text):
+        while index < len(angles) and angles[index][0] < found.end():
+            index += 1
+        in_address = index < len(angles) and angles[index][1] == ">"
+        if not in_address and not quoting.inside(found.start()):
+            yield found.span()
+
+
+def _mailbox_cuts(
+    text: str, spans: Iterator[tuple[int, int]]
+) -> Iterator[tuple[int, int]]:
+    """The separator *spans* of a name field *text* that are cuts: after a
+    segment (the text since the last separator) that ends a mailbox
+    (:func:`_ends_mailbox`), or a blank one right after a cut (``;;``).
+    Each segment looked at once."""
+    last = cut = 0  # where the last separator, and the last cut, ended
+    for begin, end in spans:
+        segment = text[last:begin]
+        fresh, last = last == cut, end
+        if _ends_mailbox(segment) or (fresh and not segment.strip()):
+            cut = end
+            yield begin, end
+
+
+def _outside_entries(text: str, named: bool = False) -> list[str]:
+    """*text* split on its separators (:func:`_separators`); a *named*
+    field (a name field) only on those after a mailbox
+    (:func:`_mailbox_cuts`)."""
+    spans = _separators(text)
+    return _split_at(text, _mailbox_cuts(text, spans) if named else spans)
+
+
+def _group_split(part: str) -> list[str]:
+    """One comma-separated *part* of an author field as entries: a
+    contributor group after an ``<address>`` (``Jane <j@x.org> et al.``)
+    is an entry of its own, the address ending the one before it."""
+    closed = part.rfind(">") + 1
+    if closed and is_contributor_group(part[closed:]):
+        return [part[:closed], part[closed:]]
+    return [part]
+
+
+def _parts(field: str, named: bool = False) -> tuple[list[str], bool]:
+    """An author *field* as stripped parts (:func:`_outside_entries`,
+    :func:`_group_split`), and whether a cut is warned about: in a *named*
+    field, any cut on a separator; in an address field, a cut after a name
+    (a part with no ``<``, ``>`` or ``@``; an address entry ends an
+    author), which could be inside one name."""
+    pieces = _outside_entries(field, named)
+    raw = [name for part in pieces for name in _group_split(part)]
     parts = [part.strip() for part in raw if part.strip()]
-    guessed = any(not _ADDRESS_MARK_RE.search(left) for left in parts[:-1])
-    return parts, guessed
+    if named:
+        return parts, len(pieces) > 1
+    return parts, any(not _ADDRESS_MARK_RE.search(left) for left in parts[:-1])
 
 
 class _Field(NamedTuple):
-    """A field's key, the singular and plural of one of its parts, and the
-    separators it is split on, as a split warning names them: ``and`` only
-    in a name field."""
+    """A field's key (``AUTHOR``, ``MAINTAINER_EMAIL``) and whether it is a
+    name field, cut only after a mailbox (:func:`_parts`)."""
 
     key: str
-    unit: str
-    units: str
-    separators: tuple[str, ...]
+    named: bool
 
 
-_NAME_FIELD = _Field("AUTHOR", "name", "names", NAME_SEPARATORS)
-_ADDRESS_FIELD = _Field("AUTHOR_EMAIL", "entry", "entries", ADDRESS_SEPARATORS)
+#: The keys of the author name and address fields.
+AUTHOR_KEYS = ("AUTHOR", "AUTHOR_EMAIL")
 
 
 class _Report(NamedTuple):
@@ -234,9 +256,10 @@ class _Report(NamedTuple):
 def _capped(field: str, parts: list[str], what: _Field, warn: bool) -> list[str]:
     """*parts* of *field* within :data:`AUTHOR_FIELD_MAX_CHARS` and
     :data:`AUTHOR_FIELD_MAX_NAMES`: past the first, the last part (maybe
-    cut) is dropped too. With *warn*, one ``WARNING:`` once per field and
-    process naming the cap hit (the character cap when both are) and what
-    was read (:func:`~pitloom.extract._author_warnings.warn_field_cap`)."""
+    cut; a name field's one part when it holds no mailbox) is dropped too.
+    With *warn*, one ``WARNING:`` once per field and process naming the
+    cap hit (the character cap when both are) and what was read
+    (:func:`~pitloom.extract._author_warnings.warn_field_cap`)."""
     cut = len(field) > AUTHOR_FIELD_MAX_CHARS
     if not cut and len(parts) <= AUTHOR_FIELD_MAX_NAMES:
         return parts
@@ -245,9 +268,9 @@ def _capped(field: str, parts: list[str], what: _Field, warn: bool) -> list[str]
         cap = (
             Cap(AUTHOR_FIELD_MAX_CHARS, "character", "author-field", "FIELD")
             if cut
-            else Cap(AUTHOR_FIELD_MAX_NAMES, what.unit, "author-field", "FIELD")
+            else Cap(AUTHOR_FIELD_MAX_NAMES, "entry", "author-field", "FIELD")
         )
-        read = counted(len(kept), what.unit, what.units)
+        read = counted(len(kept), "entry", "entries") if kept else None
         warn_field_cap(field, what.key, cap, read)
     return kept
 
@@ -258,7 +281,7 @@ def is_unset_placeholder(value: object) -> bool:
     return isinstance(value, str) and value.strip() == "UNKNOWN"
 
 
-def _stated_text(value: str | None) -> str:
+def stated_text(value: str | None) -> str:
     """*value* stripped, ``""`` when absent, blank or
     :func:`is_unset_placeholder`."""
     return "" if is_unset_placeholder(value) else (value or "").strip()
@@ -282,40 +305,63 @@ def _quoted(name: str) -> str | None:
     return None
 
 
-def _ascii_quoted(entry: str) -> str:
-    """*entry* with a display name in typographic quotes (``“Doe, Jane”
-    <j@x.org>``) put in ``"`` quotes, as :func:`email.utils.getaddresses`
-    reads them."""
-    head, angle, tail = entry.rpartition("<")
-    name = head.strip()
-    if angle and len(name) > 1 and _TYPOGRAPHIC_QUOTES.get(name[0]) == name[-1]:
-        return f'"{quote(name[1:-1])}" <{tail}'
-    return entry
+def collapse_whitespace(name: str) -> str:
+    """*name* with each run of white space one space and none at its ends:
+    a folded ``Author`` (``Ann\\n        Bob``) reads as the ``Ann\\nBob``
+    and ``Ann Bob`` other surfaces write."""
+    return " ".join(name.split())
+
+
+def _mailbox_name(head: str) -> str:
+    """The display name *head*, before an ``<address>`` or a whole name
+    entry: its text when all one quoted display name (:func:`_quoted`),
+    else *head*, white space collapsed (:func:`collapse_whitespace`)."""
+    quoted = _quoted(head.strip())
+    return collapse_whitespace(head if quoted is None else quoted)
+
+
+def _sole_address(head: str) -> bool:
+    """Whether *head*, the text before an entry's last ``<``, holds no
+    other angle bracket outside a quoted display name: it is all one
+    (:func:`_quoted`, escaped quotes too) or each of its brackets is inside
+    one (:class:`_Quoting`), as in ``"A <b>" <a@x.org>``."""
+    if _quoted(head.strip()) is not None:
+        return True
+    quoting = _Quoting(head)
+    return all(quoting.inside(found.start()) for found in _ANGLE_RE.finditer(head))
 
 
 def _read_entry(
     entry: str, key: str, noted: list[tuple[str, str]] | None
 ) -> list[tuple[str, str]]:
-    """``(raw display name, address)`` of one part of a field. A part
-    holding no ``<``, ``>`` or ``@`` is a name, unquoted
-    (:func:`_quoted`). Otherwise the address is checked as written --
-    after the last ``<`` and closed by ``>``, less a trailing comment:
-    :func:`email.utils.getaddresses` drops a space or an extra ``@`` (``a@b
-    c`` reads ``a@bc``), and that address is no one's. With no valid
-    address, a display name stated before the ``<`` is kept alone (``("Ann",
-    "")``); the address, unless an empty ``<>``, is not recorded, its
-    ``(key, entry)`` appended to *noted* (when given) for
+    """``(raw display name, address)`` of one entry, a part of an author
+    field (:func:`_parts`). An entry holding no ``<``, ``>`` or ``@`` is a
+    name (:func:`_mailbox_name`). Any other is one mailbox, its address
+    checked as written -- after the last ``<`` and closed by ``>``, less a
+    trailing comment: :func:`email.utils.getaddresses` drops a space or an
+    extra ``@`` (``a@b c`` reads ``a@bc``), and that address is no one's.
+    Its display name is all the text before a sole ``<``
+    (:func:`_mailbox_name`), a comma in it included (``Doe, Jane
+    <j@x.org>``), as are brackets inside quotes (:func:`_sole_address`); a
+    bare address may give one in a comment (``a@x.org (Ann)``). With no
+    valid address, or a second ``<`` (two addresses are no one mailbox),
+    nothing before the last ``<`` is kept, and a display name stated before
+    a sole ``<`` is kept alone (``("Ann", "")``); the address, unless an
+    empty ``<>``, is not recorded, its ``(key, entry)`` appended to *noted*
+    (when given) for
     :func:`~pitloom.extract._author_warnings.warn_not_addresses`, as is an
     entry left with nothing."""
     if not _ADDRESS_MARK_RE.search(entry):
-        quoted = _quoted(entry)
-        name = entry if quoted is None else quoted
-        return [(name, "")] if name.strip() else []
-    entry = _ascii_quoted(entry)
+        name = _mailbox_name(entry)
+        return [(name, "")] if name else []
     head, angle, tail = _TRAILING_COMMENT_RE.sub("", entry).rpartition("<")
     tail = tail.strip()
     written = tail.removesuffix(">").strip()
-    if (not angle or tail.endswith(">")) and _ADDRESS_RE.fullmatch(written):
+    sole = _sole_address(head)
+    stated = _mailbox_name(head) if angle and sole else ""
+    if sole and (not angle or tail.endswith(">")) and _ADDRESS_RE.fullmatch(written):
+        if angle:
+            return [(stated, written)]
         found = [
             (name, addr.strip())
             for name, addr in getaddresses([entry])
@@ -323,7 +369,6 @@ def _read_entry(
         ]
         if found:
             return found
-    stated = unquote(head.strip()) if angle and not _ANGLE_RE.search(head) else ""
     name = _display_name(stated, written) or ""
     if noted is not None and (written or not name):
         noted.append((key, entry.strip()))
@@ -335,11 +380,14 @@ def _field_entries(
 ) -> list[tuple[str, str]]:
     """``(raw display name, address)`` per part of the field *text*
     (:func:`_parts`, :func:`_read_entry`), capped (:func:`_capped`); a
-    guessed split is appended to *splits*."""
-    parts, guessed = _parts(text[:AUTHOR_FIELD_MAX_CHARS], what is _NAME_FIELD)
+    warned split is appended to *splits*, as is a name field read as one
+    part that holds a :data:`_JOINER_RE` outside quotes and ``<...>``."""
+    read = text[:AUTHOR_FIELD_MAX_CHARS]
+    parts, warned = _parts(read, what.named)
     parts = _capped(text, parts, what, report.caps)
-    if guessed and len(parts) > 1:
-        splits.append(AuthorSplit(text, len(parts), what.separators))
+    one = len(parts) == 1 and what.named
+    if (warned and len(parts) > 1) or (one and any(_separators(parts[0], _JOINER_RE))):
+        splits.append(AuthorSplit(text, len(parts), what.key, what.named))
     return [
         pair for part in parts for pair in _read_entry(part, what.key, report.addresses)
     ]
@@ -356,54 +404,61 @@ def author_pairs(
     splits: list[AuthorSplit],
     quiet: bool,
     address_warnings: bool = True,
+    keys: tuple[str, str] = AUTHOR_KEYS,
 ) -> list[NameEmail]:
     """``(name, email)`` pairs from a free-text name field and its address
-    field (``Author``/``Author-email``, ``author``/``author_email``).
+        field (``Author``/``Author-email``, ``author``/``author_email``).
 
-    Both fields are read alike (:func:`_field_entries`): split on ``,``
-    and ``;`` outside a quoted display name and an ``<address>``, the name
-    field's parts on ``and`` too -- a comma-separated part that is a
-    contributor group stays whole, one after an ``<address>`` is its own --
-    a part with no ``<``, ``>`` or ``@`` a name, any other an address
-    entry. So ``Author-email: Doe, Jane <j@x.org>`` is ``Doe`` and ``Jane``
-    with the address, as in ``Author``; ``Author-email: Ann and Bob
-    <t@x.org>`` is one author, ``Author: Ann and Bob <t@x.org>`` two. The
-    legacy pair -- names and one bare address -- is one author with both,
-    or, when the names split or hold an address,
-    name-only authors plus the address on its own. A name is never paired
-    with an address by position: two names and two addresses are four
-    authors. Repeats are dropped, and a name already read from the address
-    field; ``UNKNOWN`` and blank fields count as absent, and so does an
-    ``Unknown`` display name beside an address.
+        Both are cut on ``,`` and ``;`` outside a quoted display name and an
+        ``<address>``, never on ``and``, a contributor group after an
+        ``<address>`` an entry of its own (:func:`_field_entries`): the address
+        field after any separator, the name field only after a closed
+        ``<address>`` or a bare address (``Author: Doe, Jane`` and ``Author:
+        Ann and Bob`` are one author each; ``Author: Ann <a@x.org>; Bob
+        <b@x.org>`` is two, as in ``Author-email``). Each entry is read alike
+        (:func:`_read_entry`): one with no ``<``, ``>`` or ``@`` a name, any
+        other one mailbox. So ``Author-email: Doe, Jane <j@x.org>`` is ``Doe``,
+        and ``Jane`` with the address; ``Author: Doe, Jane <j@x.org>`` is
+        ``Doe, Jane`` with it. The legacy pair -- a name and one bare address
+        -- is one author with both, or, when the name holds an address, the
+        two on their own. A name is never paired with an
+        address by position: one name and two addresses are three authors.
+        Repeats are dropped, and a name already read from the address field;
+        ``UNKNOWN`` and blank fields count as absent, and so does an
+        ``Unknown`` display name beside an address.
 
-    Order: the address field's authors first, then the name field's, each
-    in field order. Hatchling and
-    setuptools write the authors that have an address to ``Author-email``
-    and the rest to ``Author``, each in declared order, so the interleaving
-    declared in ``pyproject.toml`` cannot be recovered from these headers;
-    the one fixed rule keeps the result stable.
+        Order: the address field's authors first, then the name field's, each
+        in field order. Hatchling and
+        setuptools write the authors that have an address to ``Author-email``
+        and the rest to ``Author``, each in declared order, so the interleaving
+        declared in ``pyproject.toml`` cannot be recovered from these headers;
+        the one fixed rule keeps the result stable.
 
-    An address entry holding no address of the form ``local@domain`` is not
-    recorded, its stated display name kept, with one ``WARNING:`` per field
-    (unless *quiet* or not *address_warnings*). Each field split where a
-    separator could be inside a name is appended to *splits*, for the
-    caller's one warning. A field over :data:`AUTHOR_FIELD_MAX_CHARS` or
-    :data:`AUTHOR_FIELD_MAX_NAMES` is read up to the cap, with one
-    ``WARNING:`` once per field and process: a cap warns whenever the value
-    read is used, and *quiet* marks a read whose value is discarded (or
-    re-reads a field already reported), which warns about nothing.
+        An address entry holding no address of the form ``local@domain`` is not
+        recorded, its stated display name kept, with one ``WARNING:`` per field
+        (unless *quiet* or not *address_warnings*). An address field cut where
+        a separator could be inside a name, and a name field cut at all, are
+        appended to *splits*, for the caller's warning, as is a name field read
+    as one author though it holds ``,``, ``;`` or ``and`` (one entry). A field over
+        :data:`AUTHOR_FIELD_MAX_CHARS` or :data:`AUTHOR_FIELD_MAX_NAMES` is read
+        up to the cap, with one
+        ``WARNING:`` once per field and process: a cap warns whenever the value
+        read is used, and *quiet* marks a read whose value is discarded (or
+        re-reads a field already reported), which warns about nothing. A
+        ``WARNING:`` names a field by its key in *keys* (name field, address
+        field).
     """
     noted: list[tuple[str, str]] | None = [] if address_warnings and not quiet else None
     report = _Report(caps=not quiet, addresses=noted)
-    names_text = _stated_text(names)
-    parsed = _field_entries(_stated_text(addresses), _ADDRESS_FIELD, splits, report)
-    named = _field_entries(names_text, _NAME_FIELD, splits, report)
+    names_text = stated_text(names)
+    address_field = _Field(keys[1], named=False)
+    parsed = _field_entries(stated_text(addresses), address_field, splits, report)
+    named = _field_entries(names_text, _Field(keys[0], named=True), splits, report)
     warn_not_addresses(noted or [])
     if named and len(parsed) == 1 and not parsed[0][0].strip() and parsed[0][1]:
-        # The legacy pair: the address cannot be fairly attributed to any
-        # one of several names, nor to one that wrote its own, so it stands
-        # on its own.
-        if len(named) == 1 and not _ADDRESS_MARK_RE.search(names_text):
+        # The legacy pair: the address cannot be fairly attributed to a
+        # name that wrote its own, so it stands on its own.
+        if not _ADDRESS_MARK_RE.search(names_text):
             parsed = [(named[0][0], parsed[0][1])]
         else:
             parsed = [*named, *parsed]
@@ -425,9 +480,9 @@ def read_author_fields(
     """:func:`author_pairs` as ``{name?, email?}`` dicts (the shape of
     :attr:`pitloom.core.project.ProjectMetadata.authors`).
 
-    A split name gets one ``WARNING:`` per call ending with *hint* (unless
-    *quiet*: a read whose value is discarded, which warns about nothing);
-    with *splits* given, the split names are appended to it
+    A split field gets one ``WARNING:`` per key and call ending with *hint*
+    (unless *quiet*: a read whose value is discarded, which warns about
+    nothing); with *splits* given, the splits are appended to it
     instead, for a caller that warns only once it knows these authors are
     the ones used (:func:`warn_author_splits`).
     """
@@ -441,20 +496,3 @@ def read_author_fields(
     if splits is None:
         warn_author_splits(noted, quiet=quiet, hint=hint)
     return authors
-
-
-def dependency_author_pairs(
-    package: str, names: str | None, addresses: str | None
-) -> list[NameEmail]:
-    """A dependency's originator pairs from one name/address field pair, by
-    :func:`author_pairs`. A split is reported once per document by the
-    enclosing :func:`dependency_author_splits` block, or at once outside
-    one; an address entry that is no address is left out quietly (another
-    project's record, one line each would flood a large environment). A
-    field over a cap warns: these authors are used."""
-    splits: list[AuthorSplit] = []
-    pairs = author_pairs(
-        names, addresses, splits=splits, quiet=False, address_warnings=False
-    )
-    report_dependency_splits(package, splits)
-    return pairs

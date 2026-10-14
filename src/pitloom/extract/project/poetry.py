@@ -94,6 +94,7 @@ from pitloom.extract._license import (
     apply_in_package_license_files,
 )
 from pitloom.extract._license_detect import read_license_members
+from pitloom.extract.authors import collapse_whitespace
 from pitloom.extract.project._poetry_extras import (
     drop_ignored_dependencies,
     drop_ignored_extras,
@@ -328,7 +329,9 @@ def _resolve_poetry_license(
 
 def parse_poetry_authors(authors: list[Any]) -> list[dict[str, str]]:
     """Parse Poetry ``"Name <email>"`` author strings into dicts, one per
-    string, never split (the directory and sdist routes' one reading)."""
+    string, never split, a name's white space collapsed
+    (:func:`~pitloom.extract.authors.collapse_whitespace`; the directory and
+    sdist routes' one reading)."""
     result: list[dict[str, str]] = []
     for author in authors:
         if not isinstance(author, str):
@@ -337,7 +340,7 @@ def parse_poetry_authors(authors: list[Any]) -> list[dict[str, str]]:
         if not m:
             continue
         entry: dict[str, str] = {}
-        name_part = (m.group("name") or "").strip()
+        name_part = collapse_whitespace(m.group("name") or "")
         email_part = (m.group("email") or "").strip()
         if name_part:
             entry["name"] = name_part

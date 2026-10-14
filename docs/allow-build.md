@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -55,10 +55,10 @@ it executes third-party build-time code from the project being scanned
 - On any failure (network unavailable, backend not installed, build
   script error, timeout), Pitloom falls back to the same static file
   discovery used without the flag -- usually the Hatchling heuristic;
-  where static discovery is unsupported (e.g. a `setup.py`-only project
-  with no `[project]` table), the SBOM lists no files, with a
-  `WARNING:`. `--allow-build`'s worst case is never worse than leaving
-  it off.
+  where static discovery is unsupported (e.g. a `setup.py` passing
+  `packages` itself, with no `[project]` table), the SBOM lists no files,
+  with a `WARNING:`. `--allow-build`'s worst case is never worse than
+  leaving it off.
 - It changes the file list, so which AI models are found can differ from a
   run without it; see [Settings that change the
   SBOM](ai-model-scan-limits.md#settings-that-change-the-sbom).

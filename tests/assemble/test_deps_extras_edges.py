@@ -274,7 +274,7 @@ def test_dependency_ids_and_bytes_are_stable() -> None:
     ) == [
         ("Relationship-1", "alpha"),
         ("Relationship-2", "beta"),
-        ("Relationship-3", "Gamma"),
+        ("Relationship-3", "gamma"),
         ("Relationship-4", "delta"),
     ]
     assert sorted(
@@ -285,7 +285,7 @@ def test_dependency_ids_and_bytes_are_stable() -> None:
         ("Package-1", MAIN),
         ("Package-2", "alpha"),
         ("Package-3", "beta"),
-        ("Package-4", "Gamma"),
+        ("Package-4", "gamma"),
         ("Package-5", "delta"),
     ]
     assert second == first

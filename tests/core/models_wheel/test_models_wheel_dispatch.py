@@ -127,7 +127,8 @@ def test_get_wheel_files_setuptools_no_pyproject_skips_doomed_hatchling_attempt(
     table) -- skip that doomed attempt and its confusing
     Hatchling-branded error, logging one clear warning instead of two."""
     (tmp_path / "setup.py").write_text(
-        'from setuptools import setup\nsetup(name="pkg", version="1.0.0")\n',
+        "from setuptools import setup\n"
+        'setup(name="pkg", version="1.0.0", packages=["pkg"])\n',
         encoding="utf-8",
     )
 
@@ -157,7 +158,8 @@ def test_get_wheel_files_setuptools_build_system_only_skips_doomed_hatchling_att
         encoding="utf-8",
     )
     (tmp_path / "setup.py").write_text(
-        'from setuptools import setup\nsetup(name="pkg", version="1.0.0")\n',
+        "from setuptools import setup\n"
+        'setup(name="pkg", version="1.0.0", packages=["pkg"])\n',
         encoding="utf-8",
     )
 

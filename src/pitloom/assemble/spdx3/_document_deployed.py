@@ -35,21 +35,31 @@ from pitloom.core.models import (
     reserve_spdx_ids,
 )
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract.authors import dependency_author_splits
 from pitloom.id_registry import IdRegistry, IdRegistrySession
 
 
+def _deployed_name(pkg_info: dict[str, Any]) -> str:
+    """The name a deployed package is shown, enriched and looked up by:
+    its distribution name (pipdeptree's ``package_name``, else its
+    ``key``) as every other route shows a dependency, the PEP 503 name its
+    ``pkg:pypi`` PURL uses
+    (:func:`~pitloom.core.requirements.normalize_dependency_specifier`):
+    ``PyYAML`` is ``pyyaml``."""
+    name = pkg_info.get("package_name") or pkg_info.get("key", "unknown")
+    return normalize_dependency_specifier(name, quiet=True)
+
+
 def _deployed_lookup_key(pkg_info: dict[str, Any], dep_name: str) -> str:
     """Return the pipdeptree-graph key used to key *package_spdx_ids* /
     build dependsOn edges from *env_tree* -- pipdeptree's own ``key``
-    field, falling back to a lowercased *dep_name*. Unrelated to the
-    registry lookup key: the registry PEP 503-canonicalizes a package name
-    itself (see :func:`pitloom.id_registry._types._entity_key`), so
-    :func:`_resolve_deployed_package_hits` passes *dep_name* verbatim to
-    :func:`~pitloom.assemble.spdx3._package_ids.resolve_package_id`, the
-    same lookup the project and wheel surfaces use."""
-    return str(pkg_info.get("key", dep_name.lower()))
+    field, falling back to *dep_name* (:func:`_deployed_name`). Unrelated
+    to the registry lookup key: the registry PEP 503-canonicalizes a
+    package name itself (see :func:`pitloom.id_registry._types._entity_key`),
+    the same lookup the project and wheel surfaces use."""
+    return str(pkg_info.get("key", dep_name))
 
 
 def _resolve_deployed_package_hits(
@@ -73,7 +83,7 @@ def _resolve_deployed_package_hits(
     hits: dict[str, str] = {}
     for node in env_tree:
         pkg_info = node.get("package", {})
-        dep_name = pkg_info.get("package_name") or pkg_info.get("key", "unknown")
+        dep_name = _deployed_name(pkg_info)
         lookup_key = _deployed_lookup_key(pkg_info, dep_name)
         claimed_id = resolve_package_id(session, DEPENDENCY_LABEL, dep_name)
         if claimed_id is not None:
@@ -103,7 +113,7 @@ def _build_deployed_package(
     on the exact same hit :func:`build_deployed`'s caller reserved,
     instead of deriving its own lookup key from *node* a second time."""
     pkg_info = node.get("package", {})
-    dep_name = pkg_info.get("package_name") or pkg_info.get("key", "unknown")
+    dep_name = _deployed_name(pkg_info)
     dep_version = pkg_info.get("installed_version", "unknown")
 
     spdx_id = resolved_id
@@ -307,8 +317,7 @@ def build_deployed(
         if offline
         else _prefetch_pypi_release_infos(
             (
-                node.get("package", {}).get("package_name")
-                or node.get("package", {}).get("key", "unknown"),
+                _deployed_name(node.get("package", {})),
                 node.get("package", {}).get("installed_version", "unknown"),
             )
             for node in env_tree
@@ -320,7 +329,7 @@ def build_deployed(
     with dependency_author_splits():
         for node in env_tree:
             pkg_info = node.get("package", {})
-            dep_name = pkg_info.get("package_name") or pkg_info.get("key", "unknown")
+            dep_name = _deployed_name(pkg_info)
             lookup_key = _deployed_lookup_key(pkg_info, dep_name)
             spdx_id = _build_deployed_package(
                 node,

@@ -346,7 +346,8 @@ def test_a_marker_joined_over_the_nesting_cap_is_not_joined(
         if quiet
         else [
             f"FIELD={_SRC}: {cap}; self-references kept as declared",
-            f"Skipping extra entry {str(parse_requirement(_AT_CAP))!r} of 'dev'"
+            f"Skipping extra entry {str(parse_requirement(_AT_CAP))[:120]!r}..."
+            " of 'dev'"
             f" ({_SRC}): {cap}",
         ]
     )

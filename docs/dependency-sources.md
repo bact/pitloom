@@ -38,6 +38,10 @@ requirement of one of your own extras for `uv.lock`, `poetry.lock` and
 `pdm.lock` (see the table). Transitive dependencies revealed only by the
 lock file (e.g. `idna==3.7`) are added as new, additive entries.
 
+A dependency is named by its PEP 503 name (`Foo_Bar` is `foo-bar`) on
+every route, `loom env` included; see [How a dependency-version source is
+chosen](metadata-provenance.md#how-a-dependency-version-source-is-chosen).
+
 ## Extras and the optional edge
 
 Every route describing a project lists its own extras: a directory (`loom
@@ -88,9 +92,18 @@ comment and blank lines skipped, paths relative to the project directory.
 Each of these is skipped with a `WARNING:`: a file that is missing,
 unreadable, not UTF-8, over 1 MiB or outside the project directory; once
 the table's files reach 4 MiB in all, every file after; a pip option line
-such as `-r` or `-e`, which setuptools does not accept; and an `attr`
-directive. A file listed twice is read once, by any path that opens it (a
-hard link too); a path that cannot be opened as written is not found.
+such as `-r` or `-e`, or a line that is not valid PEP 508, both of which
+setuptools does not accept; and an `attr` directive. A file listed twice
+is read once, by any path that opens it (a hard link too); a path that
+cannot be opened as written is not found.
+`setup.cfg`'s `file:` directive in `install_requires` and
+`[options.extras_require]` (`dev = file: requirements-dev.txt`, several
+files comma-separated) is read by the same rules, a one-line file split on
+`;` as setuptools splits it. A `dynamic` field that
+`[tool.setuptools.dynamic]` has no key for takes `setup.cfg`'s and
+`setup.py`'s `install_requires` or `extras_require`, as setuptools does.
+A file read this way (`requirements.txt` included) declares dependencies:
+it is not also read as a pinned lock below.
 
 Any other `dynamic` `dependencies` or `optional-dependencies` is computed
 by the build backend at build time (a PDM or Hatchling plugin, say). A
@@ -137,7 +150,7 @@ that maps an extra to a scope the project states is planned.
 
 | Priority | Format | File | What's included |
 | :---: | :--- | :--- | :--- |
-| 1 (highest) | PEP 751 | `pylock.toml` | Every resolved package the file records for its declared `default-groups` (a package needed only for a non-default dependency-group/extra, per its own `marker` field, is excluded; your own extras are not pinned). |
+| 1 (highest) | PEP 751 | `pylock.toml` | Every resolved package the file records for its declared `default-groups` (a package needed only for a non-default dependency-group/extra, per its own `marker` field, is excluded). An own extra's requirement is pinned only when the exporter put its package in the file: `uv export` and `pip lock` write only the selected packages. |
 | 2 | uv | `uv.lock` | Your project's own main/runtime dependencies, walked transitively (dependencies of dependencies, and so on), including any extra a real dependency requests on another package (e.g. `uvicorn[standard]` pulls in `uvicorn`'s own `standard` extra). Your project's *own* extras (e.g. `pip install yourpkg[dev]`) add the exact pin of each requirement they list directly, not the extras' transitive closure; `dev-dependencies` groups are not included. A dependency pinned to more than one version for different Python versions is skipped, not guessed at, and nothing depending only on it is walked into either -- see below. |
 | 3 | Poetry | `poetry.lock` | Packages in the `main` dependency group only (not `[tool.poetry.group.*]` groups), plus the pins of requirements your own `[tool.poetry.extras]` list directly. |
 | 4 | PDM | `pdm.lock` | Packages in the `default` dependency group only, plus the pins of requirements your own extras list directly (needs static `[project.optional-dependencies]` keys). |

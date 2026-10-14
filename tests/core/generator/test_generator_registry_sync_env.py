@@ -175,13 +175,9 @@ def test_generate_env_sbom_dep_added_then_removed_returns_to_original_bytes(
 def test_generate_env_sbom_reuses_package_id_despite_name_case_mismatch(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A package's declared name (``PyYAML``, what harvest stores as the
-    element's ``name``) and pipdeptree's own lowercased ``key`` (used only
-    to query the lookup) must resolve to the same registry entry -- both
-    sides go through PEP 503 canonicalization
-    (:func:`packaging.utils.canonicalize_name`), so a purely-cosmetic name
-    mismatch doesn't leave the harvested entry dead weight and the
-    package's id unstable across runs."""
+    """A package whose distribution name (``PyYAML``) differs from
+    pipdeptree's ``key`` (``pyyaml``) is shown, harvested and looked up by
+    its PEP 503 name, so a second run reuses the id the first harvested."""
     monkeypatch.chdir(tmp_path)
     registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("env-sync", path=registry_path).save()
@@ -202,7 +198,7 @@ def test_generate_env_sbom_reuses_package_id_despite_name_case_mismatch(
     first_pkg_id = next(
         e["spdxId"]
         for e in first_id
-        if e.get("type") == "software_Package" and e.get("name") == "PyYAML"
+        if e.get("type") == "software_Package" and e.get("name") == "pyyaml"
     )
 
     second_json = _run()
@@ -210,6 +206,6 @@ def test_generate_env_sbom_reuses_package_id_despite_name_case_mismatch(
     second_pkg_id = next(
         e["spdxId"]
         for e in json.loads(second_json)["@graph"]
-        if e.get("type") == "software_Package" and e.get("name") == "PyYAML"
+        if e.get("type") == "software_Package" and e.get("name") == "pyyaml"
     )
     assert second_pkg_id == first_pkg_id

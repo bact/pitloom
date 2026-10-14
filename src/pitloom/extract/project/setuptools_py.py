@@ -21,11 +21,11 @@ from typing import Any
 
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract.project._requirements_files import requirement_lines
 from pitloom.extract.project._setuptools_options import (
     SetupOption,
     SetupOptions,
     build_setuptools_metadata,
-    requirement_lines,
     shown_value,
 )
 from pitloom.logging_config import one_line
@@ -177,7 +177,7 @@ def _parse_strings(raw: Any) -> Any:
 
 def _parse_requirements(raw: Any) -> Any:
     """A string or a list of strings, read as setuptools reads them
-    (:func:`~pitloom.extract.project._setuptools_options.requirement_lines`)."""
+    (:func:`~pitloom.extract.project._requirements_files.requirement_lines`)."""
     if isinstance(raw, str):
         return requirement_lines(raw)
     strings = _parse_strings(raw)

@@ -25,7 +25,7 @@ from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 
 from pitloom.core.pep508 import MAX_MARKER_NESTING, parse_marker, parse_requirement
-from pitloom.logging_config import Cap, warn_over_cap
+from pitloom.logging_config import Cap, excerpt, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -38,8 +38,12 @@ MAX_EXPANSION_ENTRIES = 100_000
 #: ``packaging`` parses a marker recursively, a few frames a level. Over
 #: it, every self-reference is kept as declared.
 MAX_EXPANSION_MARKERS = 64
+#: The reason a skipping ``WARNING:`` gives for a requirement that cannot
+#: be parsed.
+NOT_PEP_508 = "not a valid PEP 508 requirement"
 
 __all__ = [
+    "NOT_PEP_508",
     "add_marker",
     "flatten_optional_dependencies",
     "normalize_dependency_specifier",
@@ -57,7 +61,7 @@ def warn_skipped_dependency(
     :func:`warn_skipped_extra_entry` for an entry of no particular extra.
     Silent when *quiet*."""
     if not quiet:
-        log.warning("Skipping dependency %r (%s): %s", entry, source, reason)
+        log.warning("Skipping dependency %s (%s): %s", excerpt(entry), source, reason)
 
 
 def warn_skipped_extra_entry(
@@ -65,10 +69,15 @@ def warn_skipped_extra_entry(
 ) -> None:
     """``WARNING:`` that *entry* of *extra* declared in *source* (e.g.
     ``optional-dependencies``) is not used: the one wording every route
-    shares. Silent when *quiet*."""
+    shares, *entry* as :func:`~pitloom.logging_config.excerpt` shows it.
+    Silent when *quiet*."""
     if not quiet:
         log.warning(
-            "Skipping extra entry %r of %r (%s): %s", entry, extra, source, reason
+            "Skipping extra entry %s of %r (%s): %s",
+            excerpt(entry),
+            extra,
+            source,
+            reason,
         )
 
 
@@ -99,10 +108,13 @@ def add_marker(req: Requirement, marker: str) -> None:
     req.marker = parse_marker(joined, quiet=True)
 
 
-def normalize_dependency_specifier(dep: str) -> str:
-    """Return *dep* with its package name canonicalized to PEP 503 form."""
+def normalize_dependency_specifier(dep: str, *, quiet: bool = False) -> str:
+    """Return *dep* with its package name and extras canonicalized to PEP
+    503 form, its specifier and marker spelt as ``packaging`` spells them;
+    *dep* as it is when not PEP 508 (*quiet* silences the nesting-cap
+    ``WARNING:``)."""
     try:
-        req = parse_requirement(dep)
+        req = parse_requirement(dep, quiet=quiet)
     except InvalidRequirement:
         return dep
     normalize_requirement(req)
@@ -197,7 +209,7 @@ def _parse_extras(
                     source,
                     canonicalize_name(extra),
                     text,
-                    "not a valid PEP 508 requirement",
+                    NOT_PEP_508,
                     quiet=quiet,
                 )
     return by_extra

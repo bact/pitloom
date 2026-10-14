@@ -5,13 +5,14 @@
 
 """One author reading on every surface, by field kind.
 
-A free-text author field (``setup.cfg`` ``author``, ``setup.py``
+A free-text name field (``setup.cfg`` ``author``, ``setup.py``
 ``setup(author=...)``, core-metadata ``Author`` in a wheel or sdist
-``PKG-INFO``, a dependency's installed or PyPI record) is split on ``,`` /
-``;`` / ``and`` with one ``WARNING:``; its address field on ``,`` / ``;``
-only. A structured one-entry-per-author table (``[project].authors``,
-Poetry ``authors``, a quoted ``Author-email`` display name, an unquoted
-one as backends write ``Ann and Bob <t@x.org>``) never is.
+``PKG-INFO``, a dependency's installed or PyPI record) is one author unless
+it holds several complete mailboxes, cut only after each; its address field
+is split on ``,`` / ``;`` only; a cut gets one ``WARNING:``. A structured
+one-entry-per-author table (``[project].authors``, Poetry ``authors``, a
+quoted ``Author-email`` display name, an unquoted one as backends write
+``Ann and Bob <t@x.org>``) never is.
 
 See also: tests/test_author_split_warnings.py (when a split is warned
 about), tests/test_author_surfaces.py (order and assembly on every route),
@@ -31,27 +32,23 @@ from typing import Any
 
 import pytest
 
-from pitloom.assemble.spdx3.deps_originator import _resolve_author_or_maintainer
-from pitloom.assemble.spdx3.deps_pypi import _extract_pypi_originator
 from pitloom.assemble.spdx3.document import build
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectMetadata
-from pitloom.extract.authors import dependency_author_splits
-from pitloom.extract.project import read_project
-from pitloom.extract.project.sdist import read_sdist
 from pitloom.extract.wheel import read_wheel
 from tests._author_routes import (
     CREATED,
+    ONE_AUTHOR_HINTS,
+    ONE_AUTHOR_LINE,
     SPLIT_MARK,
-    core_headers,
+    SURFACES,
+    Surface,
     hook_sbom,
     isolate,
+    one_author_lines,
+    read_dir,
     write_wheel,
 )
-from tests.assemble.conftest import _FakeMetadata, _make_sdist
-
-#: Reads (author, author_email) through one surface: its authors.
-_Surface = Callable[[Path, str | None, str | None], list[dict[str, str]]]
 
 
 @pytest.fixture(autouse=True)
@@ -59,115 +56,88 @@ def _isolated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     isolate(tmp_path, monkeypatch)
 
 
-def _read_dir(tmp_path: Path) -> list[dict[str, str]]:
-    return read_project(
-        tmp_path, include_locked_dependencies=False, include_installed_metadata=False
-    )[0].authors
-
-
-def _setup_cfg(tmp_path: Path, author: str | None, email_: str | None) -> Any:
-    fields = {"author": author, "author_email": email_}
-    stated = "".join(f"{k} = {v}\n" for k, v in fields.items() if v is not None)
-    (tmp_path / "setup.cfg").write_text(
-        f"[metadata]\nname = demo\nversion = 1.0\n{stated}", encoding="utf-8"
-    )
-    return _read_dir(tmp_path)
-
-
-def _setup_py(tmp_path: Path, author: str | None, email_: str | None) -> Any:
-    fields = {"author": author, "author_email": email_}
-    stated = "".join(f", {k}={v!r}" for k, v in fields.items() if v is not None)
-    (tmp_path / "setup.py").write_text(
-        f"from setuptools import setup\nsetup(name='demo', version='1.0'{stated})\n",
-        encoding="utf-8",
-    )
-    return _read_dir(tmp_path)
-
-
-def _wheel(tmp_path: Path, author: str | None, email_: str | None) -> Any:
-    return read_wheel(write_wheel(tmp_path, core_headers(author, email_)))[0].authors
-
-
-def _sdist(tmp_path: Path, author: str | None, email_: str | None) -> Any:
-    members: dict[str, bytes | None] = {
-        "PKG-INFO": core_headers(author, email_).encode(),
-        "pyproject.toml": None,
-    }
-    return read_sdist(_make_sdist(tmp_path, members=members)).metadata.authors
-
-
-def _as_dicts(pairs: list[tuple[str | None, str | None]]) -> list[dict[str, str]]:
-    return [
-        {k: v for k, v in (("name", name), ("email", addr)) if v}
-        for name, addr in pairs
-    ]
-
-
-def _dep_installed(_tmp: Path, author: str | None, email_: str | None) -> Any:
-    named = {"Author": author, "Author-email": email_}
-    fields = {k: v for k, v in named.items() if v is not None}
-    with dependency_author_splits():
-        return _as_dicts(_resolve_author_or_maintainer(_FakeMetadata(fields), "dep"))
-
-
-def _dep_pypi(_tmp: Path, author: str | None, email_: str | None) -> Any:
-    with dependency_author_splits():
-        info = {"author": author, "author_email": email_}
-        return _as_dicts(_extract_pypi_originator(info, "dep"))
-
-
-_SURFACES: dict[str, _Surface] = {
-    "setup-cfg": _setup_cfg,
-    "setup-py": _setup_py,
-    "wheel-metadata": _wheel,
-    "sdist-pkg-info": _sdist,
-    "dependency-installed": _dep_installed,
-    "dependency-pypi": _dep_pypi,
-}
-
-_ANN, _BOB = {"name": "Ann Lee"}, {"name": "Bob Ray"}
+_ANN = {"name": "Ann Lee"}
 _ANN_AND_BOB = {"name": "Ann and Bob", "email": "t@x.org"}
 
 
-@pytest.mark.parametrize("surface", sorted(_SURFACES))
+@pytest.mark.parametrize("surface", sorted(SURFACES))
 @pytest.mark.parametrize(
-    ("author", "email_", "expected"),
+    ("author", "email_", "expected", "told"),
     [
-        ("Ann Lee, Bob Ray", "a@x.org", [_ANN, _BOB, {"email": "a@x.org"}]),
-        ("Ann Lee and Bob Ray", None, [_ANN, _BOB]),
-        # documented limit: names and addresses are never paired by
+        ("Ann Lee", "a@x.org", [{"name": "Ann Lee", "email": "a@x.org"}], ""),
+        ("Sandra Anders", None, [{"name": "Sandra Anders"}], ""),
+        ("Ann; Bob", None, [{"name": "Ann; Bob"}], "one"),
+        ("Ann <a;b@x.org>", None, [{"name": "Ann", "email": "a;b@x.org"}], ""),
+        # a group after an address: not one author
+        (
+            "Ann, Bob <b@x.org> et al.",
+            None,
+            [{"name": "Ann, Bob", "email": "b@x.org"}, {"name": "et al."}],
+            "",
+        ),
+        # a free-text list in one Author is one author, and pairs with one
+        # bare address as any one name does
+        (
+            "Ann Lee, Bob Ray",
+            "a@x.org",
+            [{"name": "Ann Lee, Bob Ray", "email": "a@x.org"}],
+            "one",
+        ),
+        # documented limit: a name and addresses are never paired by
         # position, which a reordered or partial field would mis-pair
         (
             "Ann Lee, Bob Ray",
             "a@x.org, b@x.org",
-            [{"email": "a@x.org"}, {"email": "b@x.org"}, _ANN, _BOB],
+            [{"email": "a@x.org"}, {"email": "b@x.org"}, {"name": "Ann Lee, Bob Ray"}],
+            "one",
         ),
-        ("Ann Lee", "a@x.org", [{"name": "Ann Lee", "email": "a@x.org"}]),
-        # the group test is per comma-separated part
+        # a contributor group joined to names is one author
         (
             "Ann Lee, Bob Ray and others",
             None,
-            [_ANN, {"name": "Bob Ray and others"}],
+            [{"name": "Ann Lee, Bob Ray and others"}],
+            "one",
         ),
-        # the address field is split on ',' as the name field: Doe is kept
+        # the address field is split on ',': Doe is kept, with a warning
         # (never on 'and': see test_and_in_address_entry_one_author...)
         (
             "Ann Lee",
             "Doe, Jane <j@x.org>",
             [{"name": "Doe"}, {"name": "Jane", "email": "j@x.org"}, _ANN],
+            "split",
         ),
-        ('"Lee, Ann"', None, [{"name": "Lee, Ann"}]),
+        ('"Lee, Ann"', None, [{"name": "Lee, Ann"}], ""),
+        # the name before a sole <address> is held together
+        (
+            "Doe, Jane <j@x.org>",
+            None,
+            [{"name": "Doe, Jane", "email": "j@x.org"}],
+            "one",
+        ),
+        # several complete mailboxes are cut after each closed >
+        (
+            "Ann <a@x.org>, Bob <b@x.org>",
+            None,
+            [{"name": "Ann", "email": "a@x.org"}, {"name": "Bob", "email": "b@x.org"}],
+            "split",
+        ),
     ],
     ids=[
-        "list-one-address",
-        "and",
-        "two-names-two-addresses-limit",
         "one-author",
-        "group",
+        "and-in-a-word",
+        "semicolon",
+        "semicolon-in-address",
+        "group-after-address",
+        "one-list-legacy-pair",
+        "name-two-addresses-limit",
+        "one-group",
         "unquoted-comma-address",
         "quoted-name",
+        "one-comma-name-address",
+        "two-mailboxes",
     ],
 )
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def test_free_text_author_same_on_every_surface(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
@@ -175,13 +145,21 @@ def test_free_text_author_same_on_every_surface(
     author: str | None,
     email_: str | None,
     expected: list[dict[str, str]],
+    told: str,
 ) -> None:
     """The same ``author``/``author_email`` gives the same authors on every
-    surface, and one split warning exactly when the names were split."""
-    with caplog.at_level(logging.WARNING):
-        assert _SURFACES[surface](tmp_path, author, email_) == expected
+    surface, one split warning exactly when a field was split, and one
+    ``INFO:`` when a project's own name field holding ``,``, ``;`` or
+    ``and`` was read as one author (never for a dependency)."""
+    with caplog.at_level(logging.INFO):
+        assert SURFACES[surface](tmp_path, author, email_) == expected
     splits = [m for m in caplog.messages if SPLIT_MARK in m]
-    assert len(splits) == (0 if len(expected) == 1 else 1)
+    assert len(splits) == int(told == "split")
+    hint = ONE_AUTHOR_HINTS.get(surface)
+    one = [ONE_AUTHOR_LINE.format(repr(author), hint)]
+    assert one_author_lines(caplog) == (
+        one if told == "one" and hint is not None else []
+    )
 
 
 _STRUCTURED_PEP621 = """\
@@ -267,17 +245,17 @@ def test_contributor_group_same_agents_on_table_and_free_text(
         f'authors = [{{name = "{group}"}}]\n',
         encoding="utf-8",
     )
-    agents = [_originator_agents(_read_dir(table))]
-    agents.append(_originator_agents(_setup_cfg(free, group, None)))
+    agents = [_originator_agents(read_dir(table))]
+    agents.append(_originator_agents(SURFACES["setup-cfg"](free, group, None)))
     assert agents == [[("Organization", group)]] * 2
 
 
 @pytest.mark.parametrize(
     ("pyproject", "read"),
     [
-        (_STRUCTURED_PEP621, _read_dir),
+        (_STRUCTURED_PEP621, read_dir),
         (_STRUCTURED_PEP621, _hook),
-        (_STRUCTURED_POETRY, _read_dir),
+        (_STRUCTURED_POETRY, read_dir),
     ],
     ids=["pep621-directory", "pep621-hatchling-hook", "poetry-directory"],
 )
@@ -293,21 +271,73 @@ def test_structured_entries_never_split(
     assert not [m for m in caplog.messages if SPLIT_MARK in m]
 
 
-def _structured(read: Callable[[Path], list[dict[str, str]]]) -> _Surface:
-    """*read* of a project declaring only :data:`_ONE_AND_PEP621`."""
+#: A project whose one structured author is name-only, ``NAME``.
+_NAME_ONLY_PEP621 = _STRUCTURED_PEP621.partition("authors = [")[0] + (
+    'authors = [{name = "NAME"}]\n'
+)
+_NAME_ONLY_POETRY = (
+    _STRUCTURED_POETRY.partition("authors = [")[0] + 'authors = ["NAME"]\n'
+)
 
-    def surface(tmp_path: Path, _author: str | None, _email: str | None) -> Any:
-        (tmp_path / "pyproject.toml").write_text(_ONE_AND_PEP621, encoding="utf-8")
+
+def _structured(
+    read: Callable[[Path], list[dict[str, str]]], pyproject: str
+) -> Surface:
+    """*read* of a project whose ``pyproject.toml`` is *pyproject*, its
+    ``"NAME"`` the author asked for (a TOML string, escaped as JSON)."""
+
+    def surface(tmp_path: Path, author: str | None, _email: str | None) -> Any:
+        text = pyproject.replace('"NAME"', json.dumps(author or ""))
+        (tmp_path / "pyproject.toml").write_text(text, encoding="utf-8")
         return read(tmp_path)
 
     return surface
 
 
 _ONE_AND_SURFACES = {
-    **_SURFACES,
-    "pep621-directory": _structured(_read_dir),
-    "pep621-hatchling-hook": _structured(_hook),
+    **SURFACES,
+    "pep621-directory": _structured(read_dir, _ONE_AND_PEP621),
+    "pep621-hatchling-hook": _structured(_hook, _ONE_AND_PEP621),
 }
+_NAME_ONLY_SURFACES = {
+    **SURFACES,
+    "pep621-directory": _structured(read_dir, _NAME_ONLY_PEP621),
+    "pep621-hatchling-hook": _structured(_hook, _NAME_ONLY_PEP621),
+    "poetry-directory": _structured(read_dir, _NAME_ONLY_POETRY),
+}
+
+
+@pytest.mark.parametrize("surface", sorted(_NAME_ONLY_SURFACES))
+@pytest.mark.parametrize(
+    "name", ["Jane, Bob", "Ann and Bob", "Doe, Jane"], ids=["comma", "and", "doe"]
+)
+def test_one_name_field_one_author_on_every_surface(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, surface: str, name: str
+) -> None:
+    """One ``Author``/``author`` value, or one name-only structured entry,
+    is one author named as written on every route, with no split warning;
+    a project's own free-text value gets one ``INFO:`` that it may list
+    several, a structured entry and a dependency none."""
+    with caplog.at_level(logging.INFO):
+        assert _NAME_ONLY_SURFACES[surface](tmp_path, name, None) == [{"name": name}]
+    assert not [m for m in caplog.messages if SPLIT_MARK in m]
+    hint = ONE_AUTHOR_HINTS.get(surface)
+    one = [] if hint is None else [ONE_AUTHOR_LINE.format(repr(name), hint)]
+    assert one_author_lines(caplog) == one
+
+
+@pytest.mark.parametrize("surface", sorted(_NAME_ONLY_SURFACES))
+@pytest.mark.parametrize(
+    "name", ["Ann\n        Lee", "Ann\r\n\tLee"], ids=["folded", "crlf-tab"]
+)
+def test_folded_name_one_spaced_on_every_surface(
+    tmp_path: Path, surface: str, name: str
+) -> None:
+    """Regression: a folded ``Author`` kept its newline and indent in the
+    wheel's name (``Ann\\n        Lee``) while ``setup.cfg`` gave
+    ``Ann\\nLee``; every route reads one name, each run of white space one
+    space."""
+    assert _NAME_ONLY_SURFACES[surface](tmp_path, name, None) == [{"name": "Ann Lee"}]
 
 
 @pytest.mark.parametrize("surface", sorted(_ONE_AND_SURFACES))
@@ -317,11 +347,12 @@ def test_and_in_address_entry_one_author_on_every_surface(
     """``{name = "Ann and Bob", email = "t@x.org"}`` is one author on the
     directory and hook routes (structured) and on every route reading the
     ``Author-email: Ann and Bob <t@x.org>`` backends write for it, with no
-    split warning."""
+    split warning and no one-author ``INFO:``."""
     read = _ONE_AND_SURFACES[surface]
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.INFO):
         assert read(tmp_path, None, "Ann and Bob <t@x.org>") == [_ANN_AND_BOB]
     assert not [m for m in caplog.messages if SPLIT_MARK in m]
+    assert not one_author_lines(caplog)
 
 
 @pytest.mark.parametrize(
@@ -333,20 +364,21 @@ def test_and_in_address_entry_one_author_on_every_surface(
             [{"name": "Doe, Jane", "email": "j@x.org"}],
             False,
         ),
-        # the same backends, a name-only entry: joined into free text
-        ("Author: Lee, Ann\n", [{"name": "Lee"}, {"name": "Ann"}], True),
-        # poetry-core: the first author, name and address apart
+        # the same backends write a name-only entry into Author, read whole
+        ("Author: Lee, Ann\n", [{"name": "Lee, Ann"}], False),
+        # poetry-core, the first author, name and address apart, paired
+        # again
         (
             "Author: Doe, Jane\nAuthor-email: j@x.org\n",
-            [{"name": "Doe"}, {"name": "Jane"}, {"email": "j@x.org"}],
-            True,
+            [{"name": "Doe, Jane", "email": "j@x.org"}],
+            False,
         ),
-        # hatchling, two name-only entries: the group stays a part of its
-        # own, never one Organization of every name
+        # limit: hatchling joins two name-only entries into one Author, read
+        # as one author (an Organization, for the group)
         (
             "Author: Lee, Ann, Bob and others\n",
-            [{"name": "Lee"}, {"name": "Ann"}, {"name": "Bob and others"}],
-            True,
+            [{"name": "Lee, Ann, Bob and others"}],
+            False,
         ),
         # the same backends leave a name holding "and" unquoted (Hatchling
         # 1.32, setuptools 84, flit_core 4, pdm 2.4): an address entry is
@@ -355,9 +387,9 @@ def test_and_in_address_entry_one_author_on_every_surface(
     ],
     ids=[
         "quoted-address-whole",
-        "name-only-entry-limit",
-        "poetry-core-limit",
-        "name-only-group-limit",
+        "one-name-only-entry",
+        "one-poetry-core-pair",
+        "two-name-only-entries-limit",
         "and-in-address-entry-whole",
     ],
 )
@@ -369,10 +401,10 @@ def test_wheel_of_structured_entry(
     warned: bool,
 ) -> None:
     """What backends write for ``{name = "Doe, Jane", ...}``: an
-    ``Author-email`` entry, quoted or with ``and``, stays whole; a name a
-    backend writes into the free-text ``Author`` is split (the inherent
-    limit; ``--project-dir`` or an sdist with ``pyproject.toml`` has the
-    declared names)."""
+    ``Author-email`` entry, quoted or with ``and``, stays whole, and so does
+    a name a backend writes into ``Author``; several name-only entries
+    joined there are one author (the inherent limit; ``--project-dir`` or an
+    sdist with ``pyproject.toml`` has the declared names)."""
     text = "Metadata-Version: 2.4\nName: demo\nVersion: 1.0\n" + headers
     with caplog.at_level(logging.WARNING):
         assert read_wheel(write_wheel(tmp_path, text))[0].authors == expected

@@ -51,7 +51,7 @@ from pitloom.assemble.spdx3.fragments import (
 from pitloom.core.ai_metadata import AiModelFormatInfo, AiModelMetadata
 from pitloom.core.config import FragmentConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.extract.authors import dependency_author_pairs
+from pitloom.extract.dependency_authors import dependency_author_pairs
 
 
 def _make_ci() -> spdx3.CreationInfo:
@@ -290,7 +290,7 @@ def test_deps_pypi_fetch_release_info_mocked() -> None:
 def test_deps_originator_edge_branches() -> None:
     """dependency_author_pairs, _parse_project_urls, remote authors edge branches."""
     assert not dependency_author_pairs("p", "", "  ")
-    assert len(dependency_author_pairs("p", "Alice, , and Bob", "")) == 2
+    assert len(dependency_author_pairs("p", "", "Alice, , and Bob")) == 2
 
     # Documented limit: a quoted display name is one mailbox (RFC 5322), so
     # one author, never split, even when it lists several people sharing one

@@ -22,8 +22,8 @@ from typing import Any
 import pytest
 
 from pitloom.assemble import generate_project_sbom
-from pitloom.extract.project import _setuptools_dynamic, read_project
-from pitloom.extract.project._setuptools_dynamic import requirements_and_options
+from pitloom.extract.project import _requirements_files, read_project
+from pitloom.extract.project._requirements_files import requirements_and_options
 from tests._setuptools_build import run_build
 from tests._symlink import CAN_SYMLINK, case_sensitive
 
@@ -176,11 +176,12 @@ _ROWS: list[Any] = [
         {"a.txt": b"\xef\xbb\xbfsix\nc\n"}, ['c; extra == "x"'], _OPTS,
         "Skipping extra entry '\\ufeffsix' of 'x'", id="bom-extra-line",
     ),
-    # Kept as read (setuptools fails the build on either): assembly records
-    # each as required with one WARNING (test_invalid_dependency_line_warns_once).
+    # Skipped as an extra's (setuptools fails the build on it).
     pytest.param(
-        _D, 'dependencies = {file = "a.txt"}\n', _INVALID, ["!!", "\ufeffsix", "c"],
-        _DEPS, None, id="invalid-line-kept",
+        _D, 'dependencies = {file = "a.txt"}\n', {"a.txt": b"!!\nc\n"}, ["c"],
+        _DEPS,
+        f"Skipping dependency '!!' ({_DYN}.dependencies): not a valid PEP 508",
+        id="invalid-line-skipped",
     ),
     pytest.param(
         _D, 'dependencies = {attr = "pkg.X"}\n', {}, [], None,
@@ -244,14 +245,18 @@ def test_invalid_dependency_line_warns_once(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """End to end, an invalid line (here also a BOM-prefixed one) of a
-    ``dependencies`` file gets exactly one ``WARNING:`` naming it."""
+    ``dependencies`` file gets exactly one ``WARNING:`` naming it: skipped
+    when read, never reaching assembly."""
     project = _project(tmp_path, _D, 'dependencies = {file = "a.txt"}\n', _INVALID)
 
     with caplog.at_level(logging.WARNING):
         generate_project_sbom(project, offline=True)
 
     for line in ("'!!'", "'\\ufeffsix'"):
-        assert len([m for m in caplog.messages if line in m]) == 1, line
+        assert [m for m in caplog.messages if line in m] == [
+            f"Skipping dependency {line} ({_DYN}.dependencies): not a valid PEP 508"
+            " requirement"
+        ], line
 
 
 def test_absolute_path_is_not_read(
@@ -334,7 +339,7 @@ def test_a_file_over_its_cap_warns_once(
     listing it, without naming one. Now once per resolved file and run
     (here listed by two directives, spelt two ways, the project read
     twice after a quiet read), naming the first directive."""
-    monkeypatch.setattr(_setuptools_dynamic, "MAX_REQUIREMENTS_FILE_BYTES", 3)
+    monkeypatch.setattr(_requirements_files, "MAX_REQUIREMENTS_FILE_BYTES", 3)
     project = _project(
         tmp_path,
         f"{_D}, {_O}",
@@ -384,7 +389,7 @@ def test_total_cap_stops_reading(
     2 bytes, then the first again for the extra, counted again) are read
     while the total is within the cap: one over it stops the reading, with
     one ``WARNING:`` counting the files not read; *c* would still fit."""
-    monkeypatch.setattr(_setuptools_dynamic, "MAX_REQUIREMENTS_TOTAL_BYTES", total)
+    monkeypatch.setattr(_requirements_files, "MAX_REQUIREMENTS_TOTAL_BYTES", total)
     project = _project(
         tmp_path,
         f"{_D}, {_O}",
@@ -457,7 +462,7 @@ def test_quiet_silences_warnings(
             0
         ]
 
-    assert metadata.dependencies == ["!!"]
+    assert not metadata.dependencies
     assert not caplog.records
 
 

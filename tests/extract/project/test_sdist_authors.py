@@ -165,7 +165,7 @@ def test_unreadable_pyproject_keeps_pkg_info_authors(
     read only for the declared authors that cannot be read leaves
     ``PKG-INFO``'s, with one ``WARNING:`` worded as ``embed-wheel
     --project-dir``'s (or, over its cap, as every cap): the declared order
-    and unsplit names are lost."""
+    is lost, and name-only authors joined into one ``Author`` read as one."""
     sdist = _make_sdist(
         tmp_path, members={"PKG-INFO": _PKG_INFO, "pyproject.toml": pyproject}
     )
@@ -199,13 +199,15 @@ def test_sdist_warns_only_when_pkg_info_authors_are_used(
 ) -> None:
     """Regression: the archive's declared authors replace ``PKG-INFO``'s,
     so neither a split nor a cap is warned about for the discarded read;
-    used, ``PKG-INFO``'s ``Author`` warns once."""
-    pkg_info = f"Metadata-Version: 2.4\nName: demo\nVersion: 1.0\nAuthor: {author}\n"
+    used, ``PKG-INFO``'s ``Author-email`` warns once."""
+    head = "Metadata-Version: 2.4\nName: demo\nVersion: 1.0\n"
+    pkg_info = f"{head}Author-email: {author}\n"
     sdist = _make_sdist(
         tmp_path,
         members={"PKG-INFO": pkg_info.encode(), "pyproject.toml": pyproject},
     )
     with caplog.at_level(logging.WARNING):
         read_sdist(sdist)
-    about = [m for m in caplog.messages if m.startswith(("AUTHOR=", "FIELD=AUTHOR"))]
+    keys = ("AUTHOR_EMAIL=", "FIELD=AUTHOR_EMAIL")
+    about = [m for m in caplog.messages if m.startswith(keys)]
     assert len(about) == warnings

@@ -57,7 +57,7 @@ def add_optional_dependencies(
         entry = parse_provenance_value(prior) if prior else {}
         own = parse_provenance_value(source)["source"]
         sources = dict.fromkeys(s for s in (entry.get("source"), own) if s)
-        fields = [f for f in (entry.get("location"), field) if f]
+        fields = dict.fromkeys(f for f in (entry.get("location"), field) if f)
         metadata.provenance["dependencies"] = (
             f"Source: {', '.join(sources)} | Field: {', '.join(fields)}"
         )

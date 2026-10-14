@@ -408,9 +408,10 @@ def _build_sbom_from_project_and_wheel(
 ) -> str:
     """Generate a canonical Build SBOM from project sources and wheel files.
 
-    *author_splits* holds the wheel ``Author`` strings split into several
-    names (:func:`~pitloom.extract.wheel.read_wheel`), warned about only
-    when the project's own authors do not replace the wheel's.
+    *author_splits* holds the wheel ``Author``/``Author-email`` strings
+    split into several entries (:func:`~pitloom.extract.wheel.read_wheel`),
+    warned about only when the project's own authors do not replace the
+    wheel's.
 
     *build_options* is a separate parameter, not read off
     ``pitloom_config``: it deliberately has no ``[tool.pitloom]`` cascade

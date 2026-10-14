@@ -25,7 +25,8 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.extra_gate import Gate, MarkerShapeError, read_gate
 from pitloom.core.pep508 import parse_requirement
-from pitloom.core.requirements import warn_joined_extra_entry
+from pitloom.core.requirements import NOT_PEP_508, warn_joined_extra_entry
+from pitloom.logging_config import excerpt
 
 log = logging.getLogger(__name__)
 
@@ -76,7 +77,7 @@ def _gate(dep: str, req: Requirement | None, *, self_reference: bool) -> Gate:
     optional for any of them, with a ``WARNING:``
     (:func:`~pitloom.core.requirements.warn_joined_extra_entry`)."""
     if req is None:
-        _warn_required("Dependency %r is not a valid PEP 508 requirement", dep)
+        _warn_required(f"Dependency %s is {NOT_PEP_508}", excerpt(dep))
         return None
     if req.marker is None:
         return None

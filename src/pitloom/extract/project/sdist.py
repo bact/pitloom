@@ -10,8 +10,9 @@ the project's own Pitloom config (the root ``pyproject.toml``'s
 the unpacked project directory.
 
 See also: :mod:`pitloom.extract.project.reader` (the directory counterpart),
-:func:`pitloom.core.config.select_project_config` (the rule both share) and
-:mod:`pitloom.extract.project._sdist_scan` (the archive pass).
+:func:`pitloom.core.config.select_project_config` (the rule both share),
+:mod:`pitloom.extract.project._sdist_scan` (the archive pass) and
+:mod:`pitloom.extract.project._sdist_pyproject` (the fallback).
 """
 
 from __future__ import annotations
@@ -31,17 +32,14 @@ from pitloom.core.config import (
     select_project_config,
 )
 from pitloom.core.project import ProjectFile, ProjectMetadata
-from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.extract._core_metadata import (
     core_metadata_license_with_source,
     parse_core_metadata_authors,
     parse_project_urls,
 )
-from pitloom.extract._extract_utils import field_declared
 from pitloom.extract._license import apply_in_package_license_files
-from pitloom.extract.authors import warn_project_authors_unread
-from pitloom.extract.project._optional_dependencies import add_optional_dependencies
-from pitloom.extract.project._pyproject_license import license_from_project_table
+from pitloom.extract.authors import collapse_whitespace, warn_project_authors_unread
+from pitloom.extract.project._sdist_pyproject import metadata_from_pyproject
 from pitloom.extract.project._sdist_scan import (
     PKG_INFO,
     PYPROJECT,
@@ -53,7 +51,7 @@ from pitloom.extract.project.poetry import (
     parse_poetry_authors,
 )
 from pitloom.extract.project.setuptools_cfg import setup_cfg_pitloom_config
-from pitloom.logging_config import Cap, field_loss_suffix, loggable, warn_over_cap
+from pitloom.logging_config import Cap, field_loss_suffix, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -114,8 +112,6 @@ def _parse_pkg_info(
     return metadata
 
 
-_PYPROJECT_LICENSE_SOURCE = "Source: pyproject.toml | Field: project.license"
-_PYPROJECT_DEPENDENCIES_SOURCE = "Source: pyproject.toml | Field: project.dependencies"
 _PYPROJECT_AUTHORS_SOURCE = "Source: pyproject.toml | Field: project.authors"
 
 _METADATA_FIELDS = ("name", "version", "description", "dependencies")
@@ -176,90 +172,6 @@ def _warn_pkg_info_over_cap(sdist_name: str, cap: Cap, *, fallback: bool) -> Non
     warn_over_cap(log, cap, f"{sdist_name}:{PKG_INFO}", f"not read{loss}")
 
 
-def _warn_ignored(where: str, key: str, value: object, expected: str) -> None:
-    """One ``WARNING:``: *key* of the archive's ``pyproject.toml`` (*where*,
-    ``<archive>:pyproject.toml``) is ignored for not being *expected*. The
-    key may hold an untrusted extra name: ``%r`` escapes it."""
-    log.warning(
-        "%s: %r is %s, expected %s -- ignoring it",
-        loggable(where),
-        key,
-        type(value).__name__,
-        expected,
-    )
-
-
-def _base_dependencies(proj: dict[str, Any], where: str) -> list[str] | None:
-    """``[project].dependencies`` as normalised requirement strings.
-
-    A value that is not a list of strings is ignored with one ``WARNING:``.
-    ``None`` when not declared or ignored."""
-    deps = proj.get("dependencies")
-    if deps is None:
-        return None
-    if not isinstance(deps, list) or not all(isinstance(d, str) for d in deps):
-        _warn_ignored(where, "project.dependencies", deps, "list of strings")
-        return None
-    return [normalize_dependency_specifier(d) for d in deps]
-
-
-def _optional_dependencies_table(
-    proj: dict[str, Any], where: str
-) -> dict[str, list[str]] | None:
-    """``[project.optional-dependencies]`` as extra -> requirement strings.
-
-    A table that is not a table, an extra that is not a list, or an item
-    that is not a string is ignored with one ``WARNING:``; the other
-    entries stay. ``None`` when not declared or not a table."""
-    table = proj.get("optional-dependencies")
-    if table is None:
-        return None
-    if not isinstance(table, dict):
-        _warn_ignored(where, "project.optional-dependencies", table, "table")
-        return None
-    usable: dict[str, list[str]] = {}
-    for extra, items in table.items():
-        if isinstance(items, list) and all(isinstance(i, str) for i in items):
-            usable[extra] = items
-            continue
-        key = f"project.optional-dependencies.{extra}"
-        _warn_ignored(where, key, items, "list of strings")
-    return usable
-
-
-def _metadata_from_pyproject(
-    data: Any, licence: dict[str, bytes], sdist_name: str
-) -> ProjectMetadata:
-    """Fallback ProjectMetadata from a parsed ``pyproject.toml``; its
-    licence as a directory reads it, a ``license.file`` from *licence*.
-    A warning names the member as *sdist_name*:``pyproject.toml``."""
-    where = f"{sdist_name}:{PYPROJECT}"
-    proj = data.get("project", {}) if isinstance(data, dict) else {}
-    if not isinstance(proj, dict):
-        proj = {}
-    license_name, license_prov = license_from_project_table(proj, licence.get)
-    dependencies = _base_dependencies(proj, where)
-    metadata = ProjectMetadata(
-        name=proj.get("name", "unknown"),
-        version=proj.get("version"),
-        description=proj.get("description"),
-        license_name=license_name,
-        dependencies=dependencies or [],
-    )
-    if dependencies is not None:
-        metadata.provenance["dependencies"] = _PYPROJECT_DEPENDENCIES_SOURCE
-    optional = _optional_dependencies_table(proj, where)
-    add_optional_dependencies(
-        metadata,
-        optional,
-        declared=optional is not None,  # a non-table is ignored: not credited
-        source="Source: pyproject.toml",
-    )
-    if license_prov or field_declared(proj, "license"):
-        metadata.provenance["license"] = license_prov or _PYPROJECT_LICENSE_SOURCE
-    return metadata
-
-
 class _DeclaredAuthors(NamedTuple):
     """The authors a ``pyproject.toml`` declares, and their provenance."""
 
@@ -282,8 +194,10 @@ def _poetry_authors(pyproject: Any) -> _DeclaredAuthors | None:
 
 def _declared_authors(pyproject: Any) -> _DeclaredAuthors | None:
     """``[project].authors`` of a parsed ``pyproject.toml`` as
-    ``{name?, email?}`` dicts in declared order, else, as the directory
-    fills that gap, ``[tool.poetry].authors`` (:func:`_poetry_authors`);
+    ``{name?, email?}`` dicts in declared order (a name's white space
+    collapsed, :func:`~pitloom.extract.authors.collapse_whitespace`), else,
+    as the directory fills that gap, ``[tool.poetry].authors``
+    (:func:`_poetry_authors`);
     ``None`` when neither is declared as a list of tables with string
     values or of strings (``PKG-INFO`` then stays the source)."""
     proj = pyproject.get("project") if isinstance(pyproject, dict) else None
@@ -298,7 +212,8 @@ def _declared_authors(pyproject: Any) -> _DeclaredAuthors | None:
             isinstance(entry.get(key, ""), str) for key in ("name", "email")
         ):
             return None
-        author = {key: entry[key] for key in ("name", "email") if entry.get(key)}
+        named = {**entry, "name": collapse_whitespace(entry.get("name", ""))}
+        author = {key: named[key] for key in ("name", "email") if named.get(key)}
         if author:
             authors.append(author)
     return _DeclaredAuthors(authors, _PYPROJECT_AUTHORS_SOURCE)
@@ -321,7 +236,8 @@ def _apply_declared_authors(
 def _optional_pyproject(raw: bytes | Cap, sdist_name: str) -> Any:
     """The root ``pyproject.toml`` parsed only for the declared authors, or
     ``None`` with one ``WARNING:`` when it cannot be: the authors then come
-    from ``PKG-INFO``, without their declared order and unsplit names."""
+    from ``PKG-INFO``, without their declared order, name-only authors
+    joined into one ``Author`` field read as one."""
     where = f"{sdist_name}:{PYPROJECT}"
     if isinstance(raw, Cap):
         outcome = f"project metadata not read, authors from the {PKG_INFO}"
@@ -425,7 +341,7 @@ def read_sdist(sdist_path: Path, *, read_config: bool = True) -> SdistContents:
             quiet_authors=declared_authors is not None,
         )
     elif pyproject is not None:
-        metadata = _metadata_from_pyproject(pyproject, members.licence, name)
+        metadata = metadata_from_pyproject(pyproject, members.licence, name)
     else:
         metadata = ProjectMetadata(name="unknown")
     _apply_declared_authors(metadata, declared_authors)

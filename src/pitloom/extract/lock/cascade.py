@@ -30,6 +30,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import NamedTuple
 
+from pitloom.core.file_identity import file_id
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import parse_provenance_value
 from pitloom.extract.lock._common import POETRY_LOCK_SOURCE_NAME
@@ -172,6 +173,21 @@ def _apply_source_extra_pins(
         )
 
 
+def _declares_dependencies(
+    metadata: ProjectMetadata, project_dir: Path, name: str
+) -> bool:
+    """Whether the lock source *name* is one of the files *metadata*'s
+    dependencies were read from (``dependency_files``), known by identity
+    or by path: the project's declared dependencies, not a lock."""
+    lock = project_dir / name
+    lock_id = file_id(lock)
+    return any(
+        project_dir / listed == lock
+        or (lock_id is not None and file_id(project_dir / listed) == lock_id)
+        for listed in metadata.dependency_files
+    )
+
+
 def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> None:
     """Overlay the highest-priority available lock/pin source's resolved
     dependencies onto *metadata*, in place.
@@ -213,6 +229,10 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
     genuine, authoritative answer, and must win outright rather than
     being conflated with "no lock here" and letting a lower-priority
     source add dependencies the winning lock says don't exist).
+
+    A source the project reads its dependencies from
+    (``[tool.setuptools.dynamic]`` naming ``requirements.txt``) is not a
+    lock and is not tried: nothing in it is ignored.
     """
     previous = metadata.provenance.get("locked_dependencies")
     previous_source = (
@@ -245,6 +265,8 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
         _LOCK_SOURCES if previous_rank is None else _LOCK_SOURCES[:previous_rank]
     )
     for source in sources_to_try:
+        if _declares_dependencies(metadata, project_dir, source.name):
+            continue
         dependencies = source.extractor(project_dir, metadata.name)
         if dependencies is None:
             continue

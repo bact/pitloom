@@ -186,8 +186,9 @@ def _generate_embed_sbom_json(
 ) -> tuple[str, str | None]:
     """Resolve the SBOM JSON to embed and its effective basename.
 
-    *author_splits*: the wheel ``Author`` strings split into several names,
-    warned about only on a branch that uses the wheel's authors.
+    *author_splits*: the wheel ``Author``/``Author-email`` strings split
+    into several entries, warned about only on a branch that uses the
+    wheel's authors.
 
     *file_cache*: see :func:`~pitloom.embed.embed_wheel_sbom`'s own
     docstring -- passed through unchanged to

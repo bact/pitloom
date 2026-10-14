@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from pitloom.extract.project import _setuptools_dynamic, read_project
+from pitloom.extract.project import _requirements_files, read_project
 from tests._symlink import CAN_SYMLINK, case_sensitive
 
 _DYN = "tool.setuptools.dynamic"
@@ -38,7 +38,7 @@ def _link(project: Path, how: str, monkeypatch: pytest.MonkeyPatch) -> None:
     if how in ("hard", "no-identity"):
         os.link(project / "a.txt", project / "b.txt")
     if how == "no-identity":  # st_ino 0 (FAT/exFAT): known as written
-        monkeypatch.setattr(_setuptools_dynamic, "file_id", lambda _fd: None)
+        monkeypatch.setattr(_requirements_files, "file_id", lambda _fd: None)
     if how == "case":
         if not CAN_SYMLINK or case_sensitive(project.parent):
             pytest.skip("needs a symlink on a case-insensitive file system")
@@ -47,7 +47,7 @@ def _link(project: Path, how: str, monkeypatch: pytest.MonkeyPatch) -> None:
     if how == "read-error":
         (project / "b.txt").write_bytes(b"attrs\n")
         monkeypatch.setattr(
-            _setuptools_dynamic,
+            _requirements_files,
             "open_inside",
             lambda written, _root: (
                 _ReadFails if written.name == "b.txt" else io.FileIO

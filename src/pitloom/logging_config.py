@@ -74,6 +74,23 @@ def loggable(text: str) -> str:
     return ascii(text)
 
 
+#: Characters of a value :func:`excerpt` shows.
+EXCERPT_CHARS = 120
+
+
+def excerpt(value: object) -> str:
+    """*value* for a warning as one literal, escaped once: on one line, at
+    most :data:`EXCERPT_CHARS` characters, ``...`` after it when cut. A
+    string is its ``repr`` when printable, else its ASCII-escaped literal
+    (:func:`loggable`); any other value is its ``repr``, escaped alike."""
+    is_text = isinstance(value, str)
+    text = " ".join((value if isinstance(value, str) else repr(value)).split())
+    cut = text[:EXCERPT_CHARS]
+    escaped = loggable(cut)
+    literal = repr(cut) if is_text and escaped == cut else escaped
+    return literal + ("..." if len(text) > EXCERPT_CHARS else "")
+
+
 def _debug_requested(debug: bool | None) -> bool:
     """Resolve the effective debug flag: an explicit ``debug`` argument
     wins; ``None`` falls back to the ``PITLOOM_DEBUG`` environment

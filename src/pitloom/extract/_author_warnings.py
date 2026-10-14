@@ -6,7 +6,9 @@
 """The ``WARNING:`` lines of the free-text author reading: a guessed split,
 an address entry holding no address, a field over a cap, a project whose
 declared authors cannot be read, and the one line per document for its
-dependencies' splits. Each shows a field as one bounded, escaped literal.
+dependencies' splits; and the ``INFO:`` line for a project's name field
+read as one author that may list several. Each shows a field as one
+bounded, escaped literal.
 
 See also: :mod:`pitloom.extract.authors` (the reading, which re-exports
 the public names).
@@ -21,35 +23,25 @@ from collections.abc import Iterator
 from contextvars import ContextVar
 from typing import NamedTuple
 
-from pitloom.logging_config import Cap, loggable, one_line, warn_over_cap
+from pitloom.logging_config import Cap, excerpt, loggable, one_line, warn_over_cap
 
 _logger = logging.getLogger(__name__)
 
-#: Characters of a field shown in a warning.
-_SHOWN_CHARS = 120
 #: Fields (or entries) shown in a warning naming several.
 _SHOWN_FIELDS = 3
 
 
-#: What a name field (``Author``) is split on, as a split warning names it.
-NAME_SEPARATORS = ("','", "';'", "'and'")
-#: What an address field (``Author-email``) is split on: never ``and``.
-ADDRESS_SEPARATORS = ("','", "';'")
-
-
 class AuthorSplit(NamedTuple):
-    """A free-text author field split into several names, how many, and on
-    what (:data:`NAME_SEPARATORS` or :data:`ADDRESS_SEPARATORS`)."""
+    """A free-text author field split on ``,`` or ``;``, into how many
+    entries, its key, and whether it is a name field (``Author``, cut only
+    after an address) rather than an address field (``Author-email``, cut
+    after a name). One entry: a name field read as one author though it
+    holds ``,``, ``;`` or ``and`` (:func:`warn_author_splits`)."""
 
     field: str
-    names: int
-    separators: tuple[str, ...] = NAME_SEPARATORS
-
-
-def _separators(splits: list[AuthorSplit]) -> str:
-    """The separators of every split in *splits*, once each, in order."""
-    found = dict.fromkeys(sep for split in splits for sep in split.separators)
-    return " / ".join(found)
+    entries: int
+    key: str = "AUTHOR_EMAIL"
+    named: bool = False
 
 
 def counted(count: int, unit: str, units: str) -> str:
@@ -57,73 +49,81 @@ def counted(count: int, unit: str, units: str) -> str:
     return f"{count} {unit if count == 1 else units}"
 
 
-def shown(field: str) -> str:
-    """*field* for a warning as one quoted literal, escaped once: on one
-    line, at most :data:`_SHOWN_CHARS` characters, its ``repr`` when
-    printable, else its ASCII-escaped literal
-    (:func:`~pitloom.logging_config.loggable`); ``...`` after it when cut."""
-    text = " ".join(field.split())
-    cut = text[:_SHOWN_CHARS]
-    escaped = loggable(cut)
-    literal = repr(cut) if escaped == cut else escaped
-    return literal + ("..." if len(text) > _SHOWN_CHARS else "")
-
-
 def shown_list(fields: list[str]) -> str:
-    """One field :func:`shown`, or several as ``[a, b, c, ...]``: the first
-    :data:`_SHOWN_FIELDS`, ``...`` when there are more."""
+    """One field as :func:`~pitloom.logging_config.excerpt` shows it, or
+    several as ``[a, b, c, ...]``: the first :data:`_SHOWN_FIELDS`, ``...``
+    when there are more."""
     if len(fields) == 1:
-        return shown(fields[0])
-    listed = [shown(field) for field in fields[:_SHOWN_FIELDS]]
+        return excerpt(fields[0])
+    listed = [excerpt(field) for field in fields[:_SHOWN_FIELDS]]
     if len(fields) > _SHOWN_FIELDS:
         listed.append("...")
     return f"[{', '.join(listed)}]"
 
 
-def warn_field_cap(field: str, key: str, cap: Cap, read: str) -> None:
+def warn_field_cap(field: str, key: str, cap: Cap, read: str | None) -> None:
     """One ``WARNING:`` once per *field* (its whole text) and process
     (:func:`~pitloom.logging_config.warn_over_cap`) that it is over *cap*:
-    *key* names the field, *read* what was read (``3 names``)."""
+    *key* names the field, *read* what was read (``3 entries``; ``None``:
+    nothing)."""
     digest = hashlib.sha256(field.encode("utf-8", "surrogatepass")).hexdigest()
-    outcome = f"only the first {read} read of {shown(field)}"
+    shown = excerpt(field)
+    outcome = f"only the first {read} read of {shown}" if read else f"{shown} not read"
     warn_over_cap(_logger, cap, key, outcome, once=True, key=f"{key}:{digest}")
 
 
-#: One line per document whose free-text author names were split; the
-#: first ``%s`` is the string, or the strings when several were split
-#: (:func:`shown_list`); the third the separators (:func:`_separators`);
-#: the last the caller's hint.
-_NAMES_SPLIT_MESSAGE = (
-    "AUTHOR=%s: split into %s on %s; a free-text author field"
-    " cannot tell a list from one name containing a comma%s"
-)
+#: One line per key of the free-text author fields split: the key, the
+#: field, or the fields when several were split (:func:`shown_list`), the
+#: count, the reason (:func:`_split_reason`), then the caller's hint.
+_SPLIT_MESSAGE = "%s=%s: split into %s on ',' / ';'; %s%s"
 #: The hint for a split read from core metadata.
 CORE_METADATA_HINT = (
-    " -- use --project-dir or an sdist with pyproject.toml for declared"
-    " [project].authors"
+    " -- a project directory or an sdist with pyproject.toml keeps the declared authors"
 )
-#: One line per document whose dependencies' free-text authors were split.
+#: One line for the name fields read as one author that may list several:
+#: the key, the field or fields (:func:`shown_list`), then the caller's hint.
+_ONE_AUTHOR_MESSAGE = (
+    "%s=%s: read as one author; it may list several"
+    " ('Doe, Jane' and 'Ann and Bob' cannot be told from lists)%s"
+)
+#: One line per document whose dependencies' author fields were split,
+#: naming the first and its reason (:func:`_split_reason`).
 _DEPENDENCY_SPLIT_MESSAGE = (
-    "AUTHOR=%s: split into %s on %s (PACKAGE=%s; %s split in"
-    " all); a free-text author field cannot tell a list from one name"
-    " containing a comma"
+    "%s=%s: split into %s on ',' / ';' (PACKAGE=%s; %s split in all); %s"
 )
+
+
+def _split_reason(split: AuthorSplit) -> str:
+    """Why *split* is warned about: a name field is cut only after an
+    address; an address field cannot tell a list from one name."""
+    if split.named:
+        return "a name field is cut only after an address"
+    return "an address field cannot tell a list from one name containing a comma"
 
 
 def warn_author_splits(
     splits: list[AuthorSplit], *, quiet: bool = False, hint: str
 ) -> None:
-    """One ``WARNING:`` for all the names in *splits* (unless *quiet*),
-    ending with *hint*."""
-    if splits and not quiet:
-        total = sum(split.names for split in splits)
+    """One ``WARNING:`` per key of *splits* cut, in order, for all its
+    entries, and one ``INFO:`` for the name fields read as one author (one
+    entry), each field once (unless *quiet*), each ending with *hint*."""
+    if quiet:
+        return
+    cut = [split for split in splits if split.entries > 1]
+    for key in dict.fromkeys(split.key for split in cut):
+        same = [split for split in cut if split.key == key]
         _logger.warning(
-            _NAMES_SPLIT_MESSAGE,
-            shown_list([split.field for split in splits]),
-            counted(total, "name", "names"),
-            _separators(splits),
+            _SPLIT_MESSAGE,
+            key,
+            shown_list([split.field for split in same]),
+            counted(sum(split.entries for split in same), "entry", "entries"),
+            _split_reason(same[0]),
             hint,
         )
+    one = [split for split in splits if split.entries == 1]
+    if one:
+        fields = list(dict.fromkeys(split.field for split in one))
+        _logger.info(_ONE_AUTHOR_MESSAGE, one[0].key, shown_list(fields), hint)
 
 
 #: One line per field holding address entries that hold no address: the
@@ -143,7 +143,8 @@ def warn_not_addresses(noted: list[tuple[str, str]]) -> None:
 
 
 #: One line when the project metadata read for the declared authors cannot
-#: be read: their declared order and unsplit names are lost.
+#: be read: their declared order is lost, and name-only authors joined into
+#: one ``Author`` field read as one.
 _PROJECT_UNREAD_MESSAGE = "%s: project metadata not read (%s); authors from the %s"
 
 
@@ -172,11 +173,12 @@ def _warn_dependency_splits(found: list[_DependencySplit]) -> None:
         packages = {split.package for split in found}
         _logger.warning(
             _DEPENDENCY_SPLIT_MESSAGE,
-            shown(first.split.field),
-            counted(first.split.names, "name", "names"),
-            _separators([first.split]),
+            first.split.key,
+            excerpt(first.split.field),
+            counted(first.split.entries, "entry", "entries"),
             loggable(first.package),
             counted(len(packages), "dependency", "dependencies"),
+            _split_reason(first.split),
         )
 
 
@@ -194,10 +196,11 @@ def dependency_author_splits() -> Iterator[None]:
 
 
 def report_dependency_splits(package: str, splits: list[AuthorSplit]) -> None:
-    """*package*'s author *splits*, for the enclosing
+    """*package*'s author *splits* cut, for the enclosing
     :func:`dependency_author_splits` block, or warned about at once outside
-    one."""
-    found = [_DependencySplit(package, split) for split in splits]
+    one; a one-author reading is not reported (one line per dependency
+    would flood a large environment)."""
+    found = [_DependencySplit(package, s) for s in splits if s.entries > 1]
     collector = _DEPENDENCY_SPLITS.get()
     if collector is None:
         _warn_dependency_splits(found)

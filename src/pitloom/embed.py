@@ -223,7 +223,8 @@ def embed_wheel_sbom(
         id_registry = _resolve_embed_registry(project_dir, pitloom_config, id_registry)
     # Before the SBOM is generated: that may run a build.
     refuse_unembeddable_wheel(wheel_obj, allow_signed_wheel)
-    # The wheel's split Author is warned about only where its authors are used.
+    # The wheel's split Author-email is warned about only where its authors
+    # are used.
     author_splits: list[AuthorSplit] = []
     wheel_metadata, _ = read_wheel(wheel_obj, author_splits=author_splits)
 

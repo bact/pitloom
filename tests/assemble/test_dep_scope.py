@@ -178,12 +178,22 @@ def test_entry_requiring_extras_together_is_optional(
     )
 
 
+_LONG_UNPARSABLE = "foo >= ; extra == " + '"x" or ' * 300
+
+
+@pytest.mark.parametrize(
+    ("dep", "shown"),
+    [
+        ('foo >= ; extra == "x"', repr('foo >= ; extra == "x"')),
+        (_LONG_UNPARSABLE, repr(_LONG_UNPARSABLE[:120]) + "..."),
+    ],
+    ids=["short-whole", "long-cut"],
+)
 def test_unparsable_dependency_is_required_with_one_warning(
-    caplog: pytest.LogCaptureFixture,
+    caplog: pytest.LogCaptureFixture, dep: str, shown: str
 ) -> None:
     """Not PEP 508, so no gate can be read: required, warned once for the
-    string however often it is declared."""
-    dep = 'foo >= ; extra == "x"'
+    string however often it is declared, shown cut when long."""
     with caplog.at_level("WARNING"):
         edge = dependency_edge([dep, dep], "demo")
 
@@ -193,7 +203,7 @@ def test_unparsable_dependency_is_required_with_one_warning(
         None,
     )
     assert [r.getMessage() for r in caplog.records] == [
-        f"Dependency {dep!r} is not a valid PEP 508 requirement"
+        f"Dependency {shown} is not a valid PEP 508 requirement"
         " -- recorded as a required dependency"
     ]
 

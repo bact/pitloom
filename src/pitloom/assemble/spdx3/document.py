@@ -18,6 +18,7 @@ re-exported below, so each name is importable from this module.
 
 from __future__ import annotations
 
+import dataclasses
 from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -71,6 +72,7 @@ from pitloom.core.models import (
     reserve_spdx_ids,
 )
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
 from pitloom.extract.authors import dependency_author_splits
@@ -174,6 +176,23 @@ def _build_main_package(
     return main_package
 
 
+def _canonical(dependencies: list[str]) -> list[str]:
+    """*dependencies* as the SBOM shows them, one rule whichever route
+    read them (a setuptools wheel keeps ``Foo_Bar``, a ``[project]`` read
+    gives ``foo-bar``): the PEP 503 name the ``pkg:pypi`` PURL uses, and
+    ``packaging``'s spelling of the rest
+    (:func:`~pitloom.core.requirements.normalize_dependency_specifier`)."""
+    return [normalize_dependency_specifier(d, quiet=True) for d in dependencies]
+
+
+def _with_canonical_dependencies(doc: DocumentModel) -> DocumentModel:
+    """*doc* with its project's dependencies :func:`_canonical`."""
+    project = dataclasses.replace(
+        doc.project, dependencies=_canonical(doc.project.dependencies)
+    )
+    return dataclasses.replace(doc, project=project)
+
+
 # pylint: disable=too-many-locals
 # pylint: disable-next=too-many-arguments
 def build(
@@ -199,6 +218,7 @@ def build(
     the copyright is ``NOASSERTION`` -- see
     :func:`~pitloom.assemble.spdx3.deps.add_dependencies`.
     """
+    doc = _with_canonical_dependencies(doc)
     metadata = doc.project
     prov_cfg = provenance or ProvenanceConfig()
     encoder: ProvenanceEncoder = resolve_encoder(prov_cfg.schema)
@@ -220,8 +240,10 @@ def build(
     deduplicated_locked, locked_versions = _dedup_and_locked_versions(
         metadata.locked_dependencies
     )
-    transitive_only = _locked_transitive_only_dependencies(
-        metadata, deduplicated_locked=deduplicated_locked
+    transitive_only = _canonical(
+        _locked_transitive_only_dependencies(
+            metadata, deduplicated_locked=deduplicated_locked
+        )
     )
     # One shared session across files, directories, AI models and packages:
     # a registry hit any of them resolves is claimed by whichever comes

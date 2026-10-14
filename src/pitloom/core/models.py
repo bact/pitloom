@@ -23,6 +23,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.core._models_wheel import _resolve_file_header_extras, get_wheel_files
 from pitloom.core._models_wheel_types import FileHeaderExtras
 from pitloom.core.iri import doc_namespace, iri_segment
+from pitloom.core.requirements import normalize_dependency_specifier
 
 if TYPE_CHECKING:
     from pitloom.core.project import ProjectFile
@@ -118,8 +119,11 @@ _DEP_NAME_RE = re.compile(r"^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?")
 
 
 def _normalize_dep(dep: str) -> str:
-    """Normalize the package-name portion of a dependency specifier."""
-    dep = dep.strip()
+    """*dep* as the SBOM shows it
+    (:func:`~pitloom.core.requirements.normalize_dependency_specifier`),
+    so every route's spelling seeds alike; a string that is not PEP 508
+    with only its leading name normalised."""
+    dep = normalize_dependency_specifier(dep.strip(), quiet=True)
     match = _DEP_NAME_RE.match(dep)
     if not match:
         return dep

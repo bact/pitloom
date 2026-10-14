@@ -238,16 +238,16 @@ def test_setup_py_packaging_kwargs_detects_only_relevant_names(
     assert _setup_py_packaging_kwargs(setup_py) == ["package_data", "packages"]
 
 
-def test_setup_py_packaging_kwargs_no_setup_call_returns_empty(
+def test_setup_py_packaging_kwargs_no_setup_call_returns_none(
     tmp_path: Path,
 ) -> None:
     """No ``setup()``/``setuptools.setup()`` call in the file (or no
-    file, or a syntax error) is not this function's problem -- an empty
-    list, not an exception."""
+    file) is ``None``, not an exception and not the empty list a
+    metadata-only ``setup()`` call gives."""
     setup_py = tmp_path / "setup.py"
     setup_py.write_text("print('not a real setup.py')\n", encoding="utf-8")
-    assert _setup_py_packaging_kwargs(setup_py) == []
-    assert _setup_py_packaging_kwargs(tmp_path / "missing.py") == []
+    assert _setup_py_packaging_kwargs(setup_py) is None
+    assert _setup_py_packaging_kwargs(tmp_path / "missing.py") is None
 
 
 def test_setup_py_packaging_kwargs_no_false_positive_on_metadata_only(
@@ -336,8 +336,8 @@ def test_discover_warns_when_setup_py_overrides_packaging_imperatively(
 
 def test_discover_returns_none_without_static_config(tmp_path: Path) -> None:
     """A setuptools project with neither ``[tool.setuptools]`` in
-    ``pyproject.toml`` nor a ``setup.cfg`` (packages only resolvable by
-    executing an imperative ``setup.py``) is out of scope -- ``None``
+    ``pyproject.toml`` nor a ``setup.cfg``, whose ``setup.py`` passes
+    ``packages`` imperatively, is out of scope -- ``None``
     signals the caller to fall back, not "found zero files"."""
     (tmp_path / "pyproject.toml").write_text(
         '[build-system]\nrequires = ["setuptools"]\n'
@@ -345,7 +345,8 @@ def test_discover_returns_none_without_static_config(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     (tmp_path / "setup.py").write_text(
-        'from setuptools import setup\nsetup(name="pkg", version="1.0.0")\n',
+        "from setuptools import setup\n"
+        'setup(name="pkg", version="1.0.0", packages=["pkg"])\n',
         encoding="utf-8",
     )
 

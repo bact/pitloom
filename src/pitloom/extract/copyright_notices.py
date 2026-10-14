@@ -152,11 +152,12 @@ def find_copyright_notices(text: str) -> list[str]:
     return list(dict.fromkeys(notices))
 
 
-def read_license_text(path: Path) -> str | None:
+def read_license_text(path: Path, root: Path | None = None) -> str | None:
     """The text of the licence file *path*, read as a project's own
-    (:func:`~pitloom.extract._license_detect.read_license_file`: capped, a
-    present file that cannot be read warned about); ``None`` when not read."""
-    raw = read_license_file(path)
+    (:func:`~pitloom.extract._license_detect.read_license_file`: capped,
+    with *root* not read outside it, a present file that is not read warned
+    about); ``None`` when not read."""
+    raw = read_license_file(path, root)
     return None if raw is None else decode_text(raw, errors="replace")
 
 

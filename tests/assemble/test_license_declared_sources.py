@@ -85,7 +85,9 @@ def _model_file(tmp: Path) -> list[dict[str, Any]]:
 
 def _project_scan(tmp: Path) -> list[dict[str, Any]]:
     (tmp / "pyproject.toml").write_text(
-        '[project]\nname = "demo"\nversion = "1.0"\n', encoding="utf-8"
+        '[build-system]\nbuild-backend = "hatchling.build"\n'
+        '[project]\nname = "demo"\nversion = "1.0"\n',
+        encoding="utf-8",
     )
     (tmp / "demo").mkdir()
     (tmp / "demo" / "__init__.py").write_text("", encoding="utf-8")
