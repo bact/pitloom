@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-10
-Last-Modified: 2026-10-12
+Last-Modified: 2026-10-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,9 +16,9 @@ See also: [extra-lifecycle-scope.md](../design/extra-lifecycle-scope.md)
 field notes [spdx-modelling.md](sbom-generator-field-notes/spdx-modelling.md)
 sections 4 and 5.
 
-**Status:** built on branch `optional-dependencies-parity` (provisional
-#300); docs, skills and CHANGELOG done. Open items are listed
-[below](#open-questions) only.
+**Status:** built on branch `optional-dependencies-parity`
+([#300](https://github.com/bact/pitloom/pull/300)); docs, skills and
+CHANGELOG done. Open items are listed [below](#open-questions) only.
 
 ## Why
 
@@ -181,7 +181,15 @@ version/text reader is confined and capped (1 MiB); an outside
 a `project.license.file` `Source:` is project-relative. Not confined by
 design: the model-card enricher (a Hugging Face cache `README.md` is a
 symlink into `blobs/`) and the Hatchling hook (Hatchling reads the readme
-itself).
+itself). The model-card read is capped at 1 MiB (`MODEL_CARD_MAX_BYTES`),
+not confined; a frontmatter closed within the cap is used.
+
+Fixed 2026-10-14: deeply nested markers (every packaging `Requirement` and
+`Marker` parse goes through `core/pep508.py`: a nesting over 64 is refused
+with one cap `WARNING:` before parsing, a stray `RecursionError` takes the
+same path, a guard test forbids direct calls); a field's bad
+addresses are one warning per field (first three shown, an ellipsis when
+cut, singular and plural counts).
 
 Every cap warns through `warn_over_cap` (decided 2026-10-12): the model
 scan bounds, labels, names and per-wheel budget, the wheel/sdist header
@@ -260,26 +268,38 @@ Structure and tests:
     `NOASSERTION`); the in-tree installed reconcile reads no `License-File`.
 15. `extract/_license.py` is 505 lines; `apply_in_package_license_files`
     cannot move to `copyright_notices.py` (import cycle).
-16. A dependency string with about 900 nested parentheses raises
-    `RecursionError` inside `packaging.Requirement()` (not
-    `InvalidRequirement`), at every `Requirement()` call site and in
-    `_GateParser`.
-17. An installed dist's `RECORD` entry with `..` passes the dist-info check
+16. An installed dist's `RECORD` entry with `..` passes the dist-info check
     and its `License-File` reads outside it (predates this work; reach grew
     from 500 characters to 256 KiB).
-18. SBOM text from new sources (`copyrightText`, Agent names, the `extras:`
+17. SBOM text from new sources (`copyrightText`, Agent names, the `extras:`
     comment) carries display controls unescaped, as existing package fields do.
-19. `embed-wheel` reads the project three times
+18. `embed-wheel` reads the project three times
     (`_adopt_project_authors`, `_embed_generate`, registry peek); the
     directory route reads every licence file four times.
-20. Up to 1000 per-entry "not an email address" warnings can print for one
-    crafted address field; aggregate. The excerpt in the split warning has no
-    ellipsis and can read "1 names".
-21. `Author-email: Doe, Jane <j@x.org>` (unquoted comma, legacy data) loses
+19. `Author-email: Doe, Jane <j@x.org>` (unquoted comma, legacy data) loses
     "Doe"; a requirement carrying its own `extra ==` marker inside an extra
     is recorded as required though never installable; setup.py `Author: Jane,
     Bob` with two addresses gives four agents for two people.
-22. The split hint names `--project-dir`, which `loom wheel` lacks;
+20. The split hint names `--project-dir`, which `loom wheel` lacks;
     `cli_error_handler` prints exception text raw; `_parse_poetry_deps` and
     `deps_originator` docstrings are stale; `deps.py` (502) is over the soft
     limit and `_embed_build_sbom.py` is at 500 lines.
+21. `[tool.hatch.version] path` (`pyproject_dynamic.py`) is read without
+    project confinement; an absolute `path` holding `__version__` probably
+    raises an uncaught `ValueError` in `relative_to(project_dir)`.
+22. An empty licence file records `license_name` provenance while the value
+    is `None` (predates this work).
+23. `ProjectMetadata.readme` holds pyproject-metadata's joined, often
+    absolute path on the directory route (`extract_readme`,
+    `str(readme.file)`); it never reaches the SBOM today.
+24. Third-party parsers Pitloom cannot screen for deeply nested markers:
+    Hatchling's own `core.dependencies` raises `RecursionError` inside the
+    build hook (a plain Hatchling build crashes too); setuptools file
+    discovery parses `install_requires` itself, so its warned fallback
+    depends on the Python version for nesting around 400 to 900; `loom env`
+    runs pipdeptree in a subprocess (untested with a crafted `METADATA`).
+    The `_dep_scope` "not a valid PEP 508 requirement" warning prints the
+    whole text (about 1.8 KB for a crafted line).
+25. `authors.py` is 575 lines (soft limit ~500): the warning helpers
+    (`_shown*`, `_counted`, `_warn_not_addresses`) could move to their own
+    module.
