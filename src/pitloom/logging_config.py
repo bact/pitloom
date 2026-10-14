@@ -19,6 +19,8 @@ import logging
 import os
 import sys
 import threading
+from collections.abc import Mapping
+from dataclasses import dataclass, replace
 
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
 
@@ -36,22 +38,20 @@ PITLOOM_DEBUG_ENV_VAR = "PITLOOM_DEBUG"
 # (including unset) leaves DEBUG suppressed.
 _TRUTHY = frozenset({"1", "true", "yes", "on"})
 
-#: The ``WARNING:`` for a file skipped, not read, for being over a size
-#: cap. Arguments: the file (through :func:`loggable`), the cap in bytes,
-#: and what the cap is for (e.g. ``"usage-scan"``).
-FILE_OVER_CAP_WARNING = "FILE=%s: larger than the %d-byte %s cap; skipped"
+#: The one ``WARNING:`` for an input over a cap, logged by
+#: :func:`warn_over_cap`. Arguments: the key naming the input
+#: (:attr:`Cap.subject`), the input (through :func:`loggable`), the cap
+#: (:attr:`Cap.reason`), and what was and was not read or done.
+OVER_CAP_WARNING = "%s=%s: %s; %s"
+
+# The LogRecord attribute holding (cap, outcome) of an OVER_CAP_WARNING.
+_OVER_CAP_ATTR = "pitloom_over_cap"
 
 #: The ``WARNING:`` for text holding a lone surrogate (U+D800 to U+DFFF),
 #: written as text (:func:`~pitloom.core.untrusted_text.escape_lone_surrogates`).
 #: Arguments: a prefix (``"FORMAT=<fmt> "`` for a model, else ``""``) and
 #: the file, through :func:`loggable`.
 LONE_SURROGATES_WARNING = "%sFILE=%s: lone surrogates written as \\uXXXX"
-
-#: The ``WARNING:`` for a name cut to
-#: :data:`~pitloom.core.ai_metadata.MAX_MODEL_NAME_CHARS`. Arguments: the
-#: format, the file (through :func:`loggable`), what the name is of (e.g.
-#: ``"model name"``), its length and the cap.
-NAME_CUT_WARNING = "FORMAT=%s FILE=%s: %s of %d characters cut to %d"
 
 #: Keys already surfaced once via :func:`warn_once` in this process.
 #: Keyed by ``(logger.name, key)`` so two independent call sites can't
@@ -72,6 +72,23 @@ def loggable(text: str) -> str:
     if text.isprintable() and DISPLAY_CONTROLS.isdisjoint(text):
         return text
     return ascii(text)
+
+
+#: Characters of a value :func:`excerpt` shows.
+EXCERPT_CHARS = 120
+
+
+def excerpt(value: object) -> str:
+    """*value* for a warning as one literal, escaped once: on one line, at
+    most :data:`EXCERPT_CHARS` characters, ``...`` after it when cut. A
+    string is its ``repr`` when printable, else its ASCII-escaped literal
+    (:func:`loggable`); any other value is its ``repr``, escaped alike."""
+    is_text = isinstance(value, str)
+    text = " ".join((value if isinstance(value, str) else repr(value)).split())
+    cut = text[:EXCERPT_CHARS]
+    escaped = loggable(cut)
+    literal = repr(cut) if is_text and escaped == cut else escaped
+    return literal + ("..." if len(text) > EXCERPT_CHARS else "")
 
 
 def _debug_requested(debug: bool | None) -> bool:
@@ -191,7 +208,13 @@ def configure_logging(*, debug: bool | None = None) -> None:
         logger.handlers = [handler]
 
 
-def warn_once(log: logging.Logger, key: str, msg: str, *args: object) -> None:
+def warn_once(
+    log: logging.Logger,
+    key: str,
+    msg: str,
+    *args: object,
+    extra: Mapping[str, object] | None = None,
+) -> None:
     """Log *msg* at WARNING the first time *key* fires on *log* in this
     process, DEBUG on every later occurrence.
 
@@ -209,13 +232,73 @@ def warn_once(log: logging.Logger, key: str, msg: str, *args: object) -> None:
 
     *key* is scoped by ``log.name`` internally, so two unrelated call
     sites picking the same short key string (e.g. ``"version"``) can't
-    silently suppress each other's first occurrence.
+    silently suppress each other's first occurrence. *extra* is set on
+    the record, as :meth:`logging.Logger.log` sets it.
     """
     dedup_key = (log.name, key)
     with _CONFIG_LOCK:
         first_occurrence = dedup_key not in _WARNED_ONCE
         _WARNED_ONCE.add(dedup_key)
-    log.log(logging.WARNING if first_occurrence else logging.DEBUG, msg, *args)
+    level = logging.WARNING if first_occurrence else logging.DEBUG
+    log.log(level, msg, *args, extra=extra)
+
+
+@dataclass(frozen=True)
+class Cap:
+    """A limit Pitloom puts on an input, as :func:`warn_over_cap` names it:
+    ``<subject>=<where>: larger than the <limit>-<unit> <purpose> cap``."""
+
+    #: The most the input may hold, in *unit*.
+    limit: int
+    #: What *limit* counts, singular (``"byte"``, ``"entry"``).
+    unit: str
+    #: What the cap is for (``"license-detection"``).
+    purpose: str
+    #: The key naming the input, ``"FILE"`` or ``"FIELD"``, after the keys
+    #: of :meth:`after` (``"FORMAT=gguf FILE"``).
+    subject: str = "FILE"
+
+    @property
+    def reason(self) -> str:
+        """What an input over this cap is, the same in a ``WARNING:`` and
+        in an error's text."""
+        return f"larger than the {self.limit}-{self.unit} {self.purpose} cap"
+
+    def after(self, keys: str) -> Cap:
+        """This cap, its input named after *keys* (``"FORMAT=gguf"``,
+        trusted text): the keys a subsystem puts first."""
+        return replace(self, subject=f"{keys} {self.subject}")
+
+
+def warn_over_cap(
+    log: logging.Logger,
+    cap: Cap,
+    where: str,
+    outcome: str = "skipped",
+    *,
+    once: bool = False,
+    key: str | None = None,
+) -> None:
+    """The one ``WARNING:`` for an input over *cap*: *where* names the
+    input (escaped through :func:`loggable`), *outcome* what was read and
+    what was not. *once*: through :func:`warn_once`, once per cap and
+    input in this process, the input known by *key* (default *where*)
+    when two spellings name one input. The record carries *cap* and
+    *outcome* for :func:`over_cap_of`."""
+    args = (cap.subject, loggable(where), cap.reason, outcome)
+    extra = {_OVER_CAP_ATTR: (cap, outcome)}
+    if once:
+        seen = f"over-cap:{cap.purpose}:{where if key is None else key}"
+        warn_once(log, seen, OVER_CAP_WARNING, *args, extra=extra)
+    else:
+        log.warning(OVER_CAP_WARNING, *args, extra=extra)
+
+
+def over_cap_of(record: logging.LogRecord) -> tuple[Cap, str] | None:
+    """The cap and outcome of a record :func:`warn_over_cap` logged, so a
+    caller relaying it can name the input in its own words; else ``None``."""
+    found: tuple[Cap, str] | None = getattr(record, _OVER_CAP_ATTR, None)
+    return found
 
 
 def field_loss_suffix(status: str, *fields: str) -> str:

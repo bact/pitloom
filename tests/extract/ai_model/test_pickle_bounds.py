@@ -44,8 +44,18 @@ def test_first_pickle_rejects_malformed(data: bytes) -> None:
 @pytest.mark.parametrize(
     ("constant", "small", "large", "reason"),
     [
-        ("MAX_PICKLE_OPCODES", b"\x80\x02N.", pickle.dumps([1, 2, 3], 2), "opcodes"),
-        ("MAX_PICKLE_DECIMAL_DIGITS", b"I12\n.", b"I123456\n.", "5 digits"),
+        (
+            "MAX_PICKLE_OPCODES",
+            b"\x80\x02N.",
+            pickle.dumps([1, 2, 3], 2),
+            "5-opcode pickle cap",
+        ),
+        (
+            "MAX_PICKLE_DECIMAL_DIGITS",
+            b"I12\n.",
+            b"I123456\n.",
+            "5-digit pickle-decimal cap",
+        ),
     ],
 )
 def test_the_adapter_reads_its_constants_at_call_time(
@@ -66,7 +76,7 @@ def test_the_pickle_opcode_cap_is_250k(opcodes: int, refused: bool) -> None:
     """``PROTO``, ``NONE`` repeated, ``STOP``: *opcodes* in all."""
     data = b"\x80\x02" + b"N" * (opcodes - 2) + b"."
     if refused:
-        with pytest.raises(ModelLimitExceeded, match="250000 opcodes"):
+        with pytest.raises(ModelLimitExceeded, match="250000-opcode pickle cap"):
             first_pickle(data)
     else:
         assert first_pickle(data) == data
@@ -89,7 +99,7 @@ def test_a_decimal_number_over_4300_digits_is_refused(
     against it; 4300 is CPython's default ``int_max_str_digits``."""
     data = _decimal(code, sign + b"9" * digits)
     if refused:
-        with pytest.raises(ModelLimitExceeded, match="over 4300 digits"):
+        with pytest.raises(ModelLimitExceeded, match="4300-digit pickle-decimal cap"):
             first_pickle(data)
     else:
         assert first_pickle(data) == data
@@ -98,8 +108,8 @@ def test_a_decimal_number_over_4300_digits_is_refused(
 @pytest.mark.parametrize(
     ("data", "reason"),
     [
-        (_decimal(b"I", b"1" + b" " * 4302), "argument over 4302 bytes"),
-        (b"\x80\x02L" + b"9" * 5000, "number over 4300 digits"),  # no newline
+        (_decimal(b"I", b"1" + b" " * 4302), "4302-byte pickle-decimal cap"),
+        (b"\x80\x02L" + b"9" * 5000, "4300-digit pickle-decimal cap"),  # no newline
     ],
     ids=["padded", "unterminated"],
 )

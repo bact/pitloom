@@ -22,6 +22,7 @@ from typing import Any, TypedDict
 from pitloom.core.canonical_json import canonical_json
 from pitloom.core.dataset_metadata import DatasetReference
 from pitloom.core.scalar_text import key_text, scalar_text, scalar_type, text_type
+from pitloom.logging_config import Cap
 
 # Provenance of a name derived from the model's file name
 FILE_NAME_STEM_PROVENANCE = "Source: Pitloom generator | Method: file_name_stem"
@@ -100,6 +101,9 @@ def model_file_suffixes() -> frozenset[str]:
 #: longer: each escaped code point adds five characters.
 MAX_MODEL_NAME_CHARS = 1024
 
+#: :data:`MAX_MODEL_NAME_CHARS` as a model warning names it.
+MODEL_NAME_CAP = Cap(MAX_MODEL_NAME_CHARS, "character", "name")
+
 #: What ends a name :func:`cap_model_name` cut, before its digest.
 MODEL_NAME_CUT_MARK = "..."
 
@@ -139,6 +143,15 @@ SOURCE_METADATA_MAX_DEPTH = 32
 #: Applied by :func:`pitloom.extract.ai_model.limits.cap_entries`; here so
 #: the annotation can name it without importing the readers.
 MAX_MODEL_ENTRIES = 1000
+
+#: :data:`MAX_MODEL_ENTRIES` as a model warning names it.
+MODEL_ENTRIES_CAP = Cap(MAX_MODEL_ENTRIES, "entry", "per-field")
+
+
+def model_cap(cap: Cap, fmt: str) -> Cap:
+    """*cap* naming a model as every model warning does,
+    ``FORMAT=<fmt> FILE=<path>``."""
+    return cap.after(f"FORMAT={fmt}")
 
 
 def value_text(value: Any) -> str:

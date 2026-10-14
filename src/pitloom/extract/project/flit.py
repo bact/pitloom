@@ -25,7 +25,23 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from pitloom.extract.project._setup_cfg_directives import listed_file_readable
+
 log = logging.getLogger(__name__)
+
+
+def _version_files_inside(files: list[Path], project_dir: Path) -> bool:
+    """Whether flit-core may read each of *files* (under *project_dir*,
+    named relative to it): none that exists is outside it, not a regular
+    file or over the cap
+    (:func:`~pitloom.extract.project._setup_cfg_directives.listed_file_readable`,
+    which warns about it); flit-core decodes them itself (PEP 263)."""
+    return all(
+        listed_file_readable(
+            project_dir, path.relative_to(project_dir).as_posix(), "tool.flit.module"
+        )
+        for path in files
+    )
 
 
 def resolve_flit_dynamic_metadata(
@@ -71,9 +87,12 @@ def resolve_flit_dynamic_metadata(
     from flit_core.config import read_flit_config
     from flit_core.versionno import normalise_version
 
+    project_dir = pyproject_path.parent.absolute()
     try:
         loaded_cfg = read_flit_config(pyproject_path)
-        module = Module(loaded_cfg.module, pyproject_path.parent)
+        module = Module(loaded_cfg.module, project_dir)
+        if not _version_files_inside(module.version_files, project_dir):
+            return {}
         docstring, version = get_docstring_and_version_via_ast(module)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:

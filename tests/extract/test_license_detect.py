@@ -16,27 +16,22 @@ from __future__ import annotations
 import itertools
 import logging
 from pathlib import Path
-from typing import IO, Any
+from typing import IO
 from unittest.mock import patch
 
 import pytest
 
+from pitloom.core.path_confine import open_inside
+from pitloom.extract import _license_detect
 from pitloom.extract._license_detect import (
     LICENSE_FILE_MAX_BYTES,
     collect_license_candidates,
     find_license_files,
     license_candidates_from_members,
     pick_license_names,
+    read_license_members,
 )
-
-
-def _case_sensitive(directory: Path) -> bool:
-    """Whether *directory* can hold two names differing only in case."""
-    probe = directory / "case-probe"
-    probe.mkdir()
-    (probe / "a").write_bytes(b"")
-    (probe / "A").write_bytes(b"")
-    return len(list(probe.iterdir())) == 2
+from tests._symlink import CAN_SYMLINK, case_sensitive
 
 
 @pytest.mark.parametrize(
@@ -78,7 +73,7 @@ def test_find_license_files_ignores_iterdir_order(
 
 
 def test_find_license_files_on_a_case_sensitive_directory(tmp_path: Path) -> None:
-    if not _case_sensitive(tmp_path):
+    if not case_sensitive(tmp_path):
         pytest.skip("file system cannot hold LICENSE and License side by side")
     (tmp_path / "License").write_text("other", encoding="utf-8")
     (tmp_path / "LICENSE").write_text("MIT", encoding="utf-8")
@@ -125,22 +120,53 @@ def test_a_codemeta_json_that_is_not_an_object_states_nothing(
     assert license_candidates_from_members(files) == expected
 
 
-def test_symlinked_license_is_followed_and_dangling_one_skipped(
-    tmp_path: Path,
-) -> None:
-    """The directory side follows a symlinked license file, as a plain read
-    does; a dangling one is no file and no candidate."""
-    target = tmp_path / "elsewhere.txt"
-    target.write_text("MIT License", encoding="utf-8")
-    project = tmp_path / "project"
-    project.mkdir()
-    try:
-        (project / "LICENSE").symlink_to(target)
-        (project / "COPYING").symlink_to(tmp_path / "missing")
-    except OSError as exc:  # Windows without the symlink privilege
-        pytest.skip(f"cannot create a symlink: {exc}")
+_OUTSIDE = "could not read for license files; outside the project directory"
 
-    assert collect_license_candidates(project) == [("MIT License", "Source: LICENSE")]
+
+@pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symlink")
+@pytest.mark.parametrize(
+    "target",
+    ["project/docs", "outside", "PROJECT/docs"],
+    ids=["inside", "outside", "inside-other-case"],
+)
+def test_a_licence_symlink_is_read_only_inside_the_project(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, target: str
+) -> None:
+    """A licence source is read through a symlink only when it resolves
+    inside the project (by identity too: a case-insensitive file system
+    spells the project two ways); one out of it is not read -- its notice
+    is no one's in this project -- with one ``WARNING:``. A dangling one is
+    no file."""
+    project = tmp_path / "project"
+    (project / "docs").mkdir(parents=True)
+    (tmp_path / "outside").mkdir()
+    folded = target.startswith("PROJECT")
+    if folded and case_sensitive(tmp_path):
+        pytest.skip("file system is case-sensitive")
+    real = tmp_path / target.lower() / "LICENSE.txt"
+    real.write_text("Copyright (c) 2026 Somebody Else\n", encoding="utf-8")
+    (project / "LICENSE").symlink_to(tmp_path / target / "LICENSE.txt")
+    (project / "CITATION.cff").symlink_to(tmp_path / "outside" / "missing")
+    with caplog.at_level(logging.WARNING):
+        members = read_license_members(project)
+        assert read_license_members(project) == members  # warned once
+    inside = target != "outside"
+    assert list(members) == (["LICENSE"] if inside else [])
+    assert caplog.messages == (
+        [] if inside else [f"FILE={project / 'LICENSE'}: {_OUTSIDE}"]
+    )
+
+
+@pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symlink")
+def test_a_licence_symlink_loop_is_left_to_the_read(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A symlink loop does not resolve: not called outside the project,
+    and not read."""
+    (tmp_path / "CITATION.cff").symlink_to(tmp_path / "CITATION.cff")
+    with caplog.at_level(logging.WARNING):
+        assert not read_license_members(tmp_path)
+    assert not [m for m in caplog.messages if _OUTSIDE in m]
 
 
 class _ReadSpy:
@@ -191,14 +217,15 @@ def test_detection_input_over_cap_is_skipped_with_one_warning(
     (tmp_path / name).write_bytes(raw)
     (tmp_path / "COPYING").write_text("GPL", encoding="utf-8")
     sizes: list[int] = []
-    real_open = Path.open
 
-    def spy_open(path: Path, *args: Any, **kwargs: Any) -> _ReadSpy:
-        return _ReadSpy(real_open(path, *args, **kwargs), sizes)
+    def spy_open(path: Path, root: Path) -> _ReadSpy:
+        return _ReadSpy(open_inside(path, root), sizes)
 
     with (
         caplog.at_level(logging.WARNING),
-        patch.object(Path, "open", autospec=True, side_effect=spy_open),
+        patch.object(
+            _license_detect, "open_inside", autospec=True, side_effect=spy_open
+        ),
     ):
         found = collect_license_candidates(tmp_path)
         # One run reads a project more than once: still one WARNING:.

@@ -18,11 +18,12 @@ re-exported below, so each name is importable from this module.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import dataclasses
 from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._dep_scope import is_self_reference
 from pitloom.assemble.spdx3._document_conflicts import attach_metadata_field_conflicts
 from pitloom.assemble.spdx3._document_deployed import build_deployed
 from pitloom.assemble.spdx3._document_files import (
@@ -45,6 +46,7 @@ from pitloom.assemble.spdx3._document_model import (
     build_model,
 )
 from pitloom.assemble.spdx3._licensing_profiles import apply_licensing_profiles
+from pitloom.assemble.spdx3._main_authors import add_main_package_originators
 from pitloom.assemble.spdx3._package_ids import resolve_project_package_ids
 from pitloom.assemble.spdx3.ai import add_ai_models, resolve_ai_model_entity_hits
 from pitloom.assemble.spdx3.creation_info import (
@@ -70,8 +72,11 @@ from pitloom.core.models import (
     reserve_spdx_ids,
 )
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
+from pitloom.extract.authors import dependency_author_splits
+from pitloom.extract.copyright_notices import COPYRIGHT_NOASSERTION
 from pitloom.id_registry import IdRegistry, IdRegistrySession
 
 __all__ = [
@@ -134,15 +139,9 @@ def _build_main_package(
         main_package.software_downloadLocation = download_location
     if metadata.urls.get("Homepage"):
         main_package.software_homePage = metadata.urls.get("Homepage")
-    created = spdx_ci.created
-    if isinstance(created, datetime):
-        created_year = created.year
-    else:
-        created_year = datetime.now(timezone.utc).year
-    main_package.software_copyrightText = f"Copyright (c) {created_year} " + (
-        metadata.authors[0].get("name", metadata.name)
-        if metadata.authors
-        else metadata.name
+    # The notices found in its licence files; none found is no assertion.
+    main_package.software_copyrightText = (
+        metadata.copyright_text or COPYRIGHT_NOASSERTION
     )
     main_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
     if creation_metadata.build_datetime:
@@ -177,6 +176,23 @@ def _build_main_package(
     return main_package
 
 
+def _canonical(dependencies: list[str]) -> list[str]:
+    """*dependencies* as the SBOM shows them, one rule whichever route
+    read them (a setuptools wheel keeps ``Foo_Bar``, a ``[project]`` read
+    gives ``foo-bar``): the PEP 503 name the ``pkg:pypi`` PURL uses, and
+    ``packaging``'s spelling of the rest
+    (:func:`~pitloom.core.requirements.normalize_dependency_specifier`)."""
+    return [normalize_dependency_specifier(d, quiet=True) for d in dependencies]
+
+
+def _with_canonical_dependencies(doc: DocumentModel) -> DocumentModel:
+    """*doc* with its project's dependencies :func:`_canonical`."""
+    project = dataclasses.replace(
+        doc.project, dependencies=_canonical(doc.project.dependencies)
+    )
+    return dataclasses.replace(doc, project=project)
+
+
 # pylint: disable=too-many-locals
 # pylint: disable-next=too-many-arguments
 def build(
@@ -202,6 +218,7 @@ def build(
     the copyright is ``NOASSERTION`` -- see
     :func:`~pitloom.assemble.spdx3.deps.add_dependencies`.
     """
+    doc = _with_canonical_dependencies(doc)
     metadata = doc.project
     prov_cfg = provenance or ProvenanceConfig()
     encoder: ProvenanceEncoder = resolve_encoder(prov_cfg.schema)
@@ -223,8 +240,10 @@ def build(
     deduplicated_locked, locked_versions = _dedup_and_locked_versions(
         metadata.locked_dependencies
     )
-    transitive_only = _locked_transitive_only_dependencies(
-        metadata, deduplicated_locked=deduplicated_locked
+    transitive_only = _canonical(
+        _locked_transitive_only_dependencies(
+            metadata, deduplicated_locked=deduplicated_locked
+        )
     )
     # One shared session across files, directories, AI models and packages:
     # a registry hit any of them resolves is claimed by whichever comes
@@ -310,7 +329,13 @@ def build(
         None
         if offline
         else _prefetch_combined_release_info(
-            metadata.dependencies, transitive_only, locked_versions=locked_versions
+            [
+                dep
+                for dep in metadata.dependencies
+                if not is_self_reference(dep, metadata.name)
+            ],
+            transitive_only,
+            locked_versions=locked_versions,
         )
     )
 
@@ -318,29 +343,11 @@ def build(
     locked_dependencies_provenance = metadata.provenance.get(
         "locked_dependencies", _DEFAULT_LOCKED_PROVENANCE
     )
-    add_dependencies(
-        dependencies=metadata.dependencies,
-        dep_provenance=metadata.provenance.get("dependencies", "Unknown source"),
-        main_package_spdx_id=require_spdx_id(main_package),
-        creation_info=spdx_ci,
-        doc_name=metadata.name,
-        doc_uuid=doc_uuid,
-        exporter=exporter,
-        offline=offline,
-        provenance_config=prov_cfg,
-        encoder=encoder,
-        content_type_method=content_type_method,
-        release_info_cache=release_info_cache,
-        locked_versions=locked_versions,
-        locked_provenance=locked_dependencies_provenance,
-        locked_hashes=metadata.locked_dependency_hashes,
-        resolved_ids=package_ids.dependencies,
-    )
-
-    if transitive_only:
+    # One author-split warning for every dependency of the document.
+    with dependency_author_splits():
         add_dependencies(
-            dependencies=transitive_only,
-            dep_provenance=locked_dependencies_provenance,
+            dependencies=metadata.dependencies,
+            dep_provenance=metadata.provenance.get("dependencies", "Unknown source"),
             main_package_spdx_id=require_spdx_id(main_package),
             creation_info=spdx_ci,
             doc_name=metadata.name,
@@ -351,10 +358,32 @@ def build(
             encoder=encoder,
             content_type_method=content_type_method,
             release_info_cache=release_info_cache,
-            completeness=_locked_dependencies_completeness(metadata),
+            locked_versions=locked_versions,
+            locked_provenance=locked_dependencies_provenance,
             locked_hashes=metadata.locked_dependency_hashes,
             resolved_ids=package_ids.dependencies,
+            project_name=metadata.name,
         )
+
+        if transitive_only:
+            add_dependencies(
+                dependencies=transitive_only,
+                dep_provenance=locked_dependencies_provenance,
+                main_package_spdx_id=require_spdx_id(main_package),
+                creation_info=spdx_ci,
+                doc_name=metadata.name,
+                doc_uuid=doc_uuid,
+                exporter=exporter,
+                offline=offline,
+                provenance_config=prov_cfg,
+                encoder=encoder,
+                content_type_method=content_type_method,
+                release_info_cache=release_info_cache,
+                completeness=_locked_dependencies_completeness(metadata),
+                locked_hashes=metadata.locked_dependency_hashes,
+                resolved_ids=package_ids.dependencies,
+                project_name=metadata.name,
+            )
 
     # --- Files ---
     file_spdx_ids = _add_package_files(
@@ -403,6 +432,22 @@ def build(
             encoder=encoder,
             enrichment_results_by_model=enrichment_results_by_model,
         )
+
+    # --- Authors, last: no Agent minted earlier changes id ---
+    add_main_package_originators(
+        main_package,
+        metadata,
+        # A named creator per Agent; none: the one SoftwareAgent "Pitloom".
+        (
+            list(zip(doc.creation_metadata.creators, agents, strict=True))
+            if doc.creation_metadata.creators
+            else []
+        ),
+        spdx_ci,
+        doc_uuid,
+        exporter,
+        offline=offline,
+    )
 
     apply_licensing_profiles(spdx_doc, exporter.object_set.objects)
 

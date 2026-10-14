@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-12
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -18,7 +18,8 @@ licence scored above the verbatim one, a licence hidden behind its
 copyright notice), or a near-tie the rules must not drop (a GPL text
 scores `-only` and `-or-later` alike). Each file is the package's own
 licence, kept with its notice. `.gitattributes` marks
-the `*-LICENSE` files `-text`, so a Windows checkout keeps the bytes.
+the `*-LICENSE` files `-text`, so a Windows checkout keeps the bytes, and
+`.editorconfig` exempts them, so an editor keeps them too.
 
 `expected.json`, one entry per file:
 

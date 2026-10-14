@@ -24,11 +24,12 @@ from pitloom.assemble.spdx3._display_text import (
 )
 from pitloom.assemble.spdx3.provenance import build_source_metadata_annotation
 from pitloom.core.ai_metadata import (
-    MAX_MODEL_NAME_CHARS,
+    MODEL_NAME_CAP,
     AiModelFormat,
     AiModelMetadata,
     SourceMetadata,
     cap_model_name,
+    model_cap,
     source_metadata,
     value_text,
 )
@@ -37,7 +38,7 @@ from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import project_relative_or_fallback
 from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.logging_config import NAME_CUT_WARNING, loggable
+from pitloom.logging_config import loggable, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -212,13 +213,8 @@ def cap_related_name(name: str, label: str, ai_model: AiModelMetadata) -> str:
     (:func:`~pitloom.core.ai_metadata.cap_model_name`), and said so."""
     capped = cap_model_name(name)
     if capped != name:
-        log.warning(
-            NAME_CUT_WARNING,
-            *_model_where(ai_model),
-            label,
-            len(name),
-            MAX_MODEL_NAME_CHARS,
-        )
+        fmt, where = _model_where(ai_model)
+        warn_over_cap(log, model_cap(MODEL_NAME_CAP, fmt), where, f"{label} cut")
     return capped
 
 

@@ -22,9 +22,9 @@ from pitloom.core.project import ProjectMetadata, merge_project_metadata
 from pitloom.extract.project.poetry import (
     _convert_caret,
     _convert_tilde,
-    _parse_poetry_authors,
     _poetry_constraint_to_pep440,
     extract_poetry_metadata,
+    parse_poetry_authors,
 )
 
 from ..conftest import assert_declared_empty_authors_no_copyright_text
@@ -128,7 +128,6 @@ def test_extract_provenance_sources() -> None:
     assert "tool.poetry.version" in metadata.provenance.get("version", "")
     assert "tool.poetry.description" in metadata.provenance.get("description", "")
     assert "tool.poetry.authors" in metadata.provenance.get("authors", "")
-    assert "inferred_from_authors" in metadata.provenance.get("copyright_text", "")
 
 
 def test_extract_provenance_empty_declared_dependencies() -> None:
@@ -359,4 +358,4 @@ def test_convert_caret_and_tilde_edge_cases() -> None:
 
     # Authors with invalid string formats
     # pylint: disable-next=use-implicit-booleaness-not-comparison
-    assert _parse_poetry_authors([123, "", "   "]) == []
+    assert parse_poetry_authors([123, "", "   "]) == []

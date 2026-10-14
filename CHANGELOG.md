@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -19,6 +19,68 @@ and this project adheres to
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.20.2...HEAD>
+
+## [Unreleased]
+
+### Added
+
+- Every route but `loom env` lists extras as `hasOptionalDependency` (no
+  scope, `extras: a, b`, an inner extra marker joined, warned), pinned by
+  `uv.lock`, `poetry.lock`, `pdm.lock` ([#300])
+- A directory reads `[tool.setuptools.dynamic]` and `setup.cfg` `file:`
+  requirements, other `dynamic` deps from `setup.cfg`/`setup.py`; bad lines
+  warn; never a lock ([#300])
+- Every `[project].authors` entry is an `originatedBy` of the main package,
+  one Agent per type, name and email; `embed-wheel --project-dir` uses them
+  ([#300])
+
+### Changed
+
+- Required, locked and phantom edges are `dependsOn` with scope `runtime` (not
+  in `loom env`) ([#300])
+- A dependency is named (PEP 503) and declared alike on every route, `loom
+  env` too; `doc_uuid` changes for a project with extras or requirements files
+  ([#300])
+- One `Author`/`author` is one author on every route (`Jane, Bob` too), cut
+  only next to an address; a project's holding `,`/`;`/`and` gets an `INFO:`
+  ([#300])
+- `Author-email` splits on `,`/`;`, not `and`; a split warns; a dependency's
+  maintainer stands in only for an absent author ([#300])
+- Author fields read up to 65,536 characters/1,000 entries; a quoted
+  name (`"…"`, `“…”`) stays whole; a name's white space is collapsed ([#300])
+- `copyrightText` is a notice from the project's licence files (never a GNU
+  licence's own FSF notice), else `NOASSERTION`; no longer made from the
+  authors ([#300])
+- Every input over a cap (model bounds, labels, names, wheel/sdist header
+  blocks, config members, a 1 MiB model card) warns `<KEY>=…: larger than the
+  N-unit … cap; <outcome>` ([#300])
+
+### Fixed
+
+- Poetry dependencies match poetry-core's (`optional`, `markers`/`python`,
+  git/url, extras; `path` warns), read only for a Poetry backend; a nameless
+  2.x `[tool.poetry]` is read ([#300])
+- An sdist keeps all its authors; no `build-backend` lists setuptools' files
+  (PEP 517), not Hatchling's; setuptools' deprecation banners are `DEBUG:`
+  lines, not untagged stderr ([#300])
+- An author named `... Brothers` is a Person, not a group; a setuptools
+  `UNKNOWN` author is no author; a stated name stays beside an invalid
+  address, warned once per field ([#300])
+- A creator's name and email are stripped; `embed-wheel --project-dir` warns
+  once about a split in the adopted project authors, `--config` or not
+  ([#300])
+- A licence file, `project.license.file` or `project.readme` outside the
+  project is not read; a `project.license.file` `Source:` is project-relative
+  ([#300])
+- A dynamic version file (setuptools, Hatch, Flit, PDM) outside the project,
+  or a dependency `License-File` outside its `.dist-info`, is not read ([#300])
+- Crafted author fields, copyright lines, extras self-references and
+  requirements files no longer take quadratic or exponential time or memory
+  ([#300])
+- A requirement or marker nesting over 64 parentheses warns instead of
+  crashing the run ([#300])
+
+[#300]: https://github.com/bact/pitloom/pull/300
 
 ## [0.20.2] - 2026-10-09
 

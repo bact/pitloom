@@ -374,7 +374,7 @@ dependencies = ["requests>=2.28.0"]
 def test_spdx3_provenance_format_annotation_omits_comment() -> None:
     """With provenance_format='annotation', provenance moves entirely into
     Annotations -- the main package's comment is not set from provenance.
-    Uses an ``authors`` entry so a high-signal (inferred copyright) field
+    Uses a ``LICENSE`` notice so a high-signal (copyright found) field
     exists under the default minimal detail."""
     pyproject_content = """
 [project]
@@ -387,6 +387,7 @@ authors = [{name = "Jane Doe"}]
         tmppath = Path(tmpdir)
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
+        (tmppath / "LICENSE").write_text("Copyright (c) 2024 Jane Doe\n")
 
         project_metadata, pitloom_config, _ = read_project(tmppath)
         pitloom_config = dataclasses.replace(

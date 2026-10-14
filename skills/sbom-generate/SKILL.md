@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-08
+# Last-Modified: 2026-10-12
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -416,9 +416,9 @@ complete but isn't. Per-case detail: `references/known-limitations.md`.
   see `--trust-wheel-model`); `required library not installed` (install
   `pitloom[ai]`); `failed to extract metadata` (the file has a model's header
   but could not be parsed: truncated or corrupt, so check the file); `...
-  scan ceiling; metadata not read`, the `max-model-extract-bytes` ceiling
-  (512 MiB, config key only, wheel scans); the per-wheel budget (4x the
-  ceiling, one `WARNING: ... per-wheel budget ... is spent`); any other
+  max-model-extract-bytes cap; metadata not read`, the ceiling (512 MiB,
+  config key only, wheel scans); the per-wheel budget (4x the ceiling, one
+  `WARNING: ... model-scan budget cap; ...`); any other
   `WARNING: ... metadata not read`, a fixed bound. Lists past 1000 entries are
   cut with one `WARNING:`. A model whose read fails (a bound, a missing
   library, a parse failure) is a stub, never dropped, with the same
@@ -434,9 +434,9 @@ complete but isn't. Per-case detail: `references/known-limitations.md`.
   Never raise the ceiling or add `--trust-wheel-model` on your own; tell the
   user. Caps: <https://bact.github.io/pitloom/ai-model-scan-limits/>.
 - **Name ends `...~<hex>`, labels missing, `\u202e` in text:** caps on
-  model text, one `WARNING: FORMAT=<fmt> FILE=<path>:` each: `model name
-  of <N> characters cut to 1024`; `a label over 4096 bytes; no label
-  recorded` (all dropped, `num_labels` kept);
+  model text, one `WARNING: FORMAT=<fmt> FILE=<path>:` each: `larger than
+  the 1024-character name cap; model name cut`; `larger than the 4096-byte
+  label cap; no label recorded` (all dropped, `num_labels` kept);
   `invisible or bidi control characters written as \uXXXX in <properties>`.
   Original text: the `artifact-metadata` annotation or the model file.
   Detail: `references/known-limitations.md`.

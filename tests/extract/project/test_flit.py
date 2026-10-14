@@ -144,3 +144,21 @@ def test_read_pyproject_resolves_flit_dynamic_fields() -> None:
     assert metadata.provenance["description"] == (
         "Source: pyproject.toml | Method: flit_dynamic_metadata"
     )
+
+
+def test_resolve_flit_dynamic_metadata_reads_a_pep_263_module(tmp_path: Path) -> None:
+    """Regression: the confinement check decoded the module as UTF-8, so a
+    ``latin-1`` one (PEP 263) lost its version and description; flit-core
+    reads the bytes and honours the declaration, and so does the check."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[build-system]\nbuild-backend = "flit_core.buildapi"\n'
+        '[project]\nname = "m"\ndynamic = ["version", "description"]\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "m.py").write_bytes(
+        b'# -*- coding: latin-1 -*-\n"""Caf\xe9 module."""\n__version__ = "1.2"\n'
+    )
+    result = resolve_flit_dynamic_metadata(
+        tmp_path / "pyproject.toml", ["version", "description"]
+    )
+    assert result == {"version": "1.2", "description": "Caf\u00e9 module."}

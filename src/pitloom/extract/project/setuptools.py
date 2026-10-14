@@ -41,9 +41,9 @@ from pitloom._toml_io import TOMLDecodeError, load_toml_file
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import (
-    apply_in_package_license,
-    collect_license_candidates,
+    apply_in_package_license_files,
 )
+from pitloom.extract._license_detect import read_license_members
 from pitloom.extract.project._setup_cfg_directives import (
     _DIRECTIVE_RE,
     _resolve_cfg_version,
@@ -79,6 +79,8 @@ __all__ = [
     "_read_pitloom_config_from_cfg",
     "_resolve_cfg_version",
     "_section_dict",
+    "backend_identifier",
+    "declared_build_backend",
     "detect_build_backend",
     "read_pyproject_toml",
     "read_setup_cfg",
@@ -118,10 +120,9 @@ def read_pyproject_toml(project_dir: Path) -> dict[str, object] | None:
 
 def _detect_setuptools_from_legacy_files(project_dir: Path) -> str | None:
     """``"setuptools"`` when *project_dir* has a ``setup.cfg``/``setup.py``
-    to back it up, else ``None`` -- the shared fallback for every case
-    where no ``build-backend`` value is resolvable from ``pyproject.toml``
-    (absent, unparseable, or present but without a ``build-backend``
-    key)."""
+    to back it up, else ``None`` -- the fallback when ``pyproject.toml``
+    is absent or unparseable, or its ``build-system`` or
+    ``build-backend`` has the wrong shape."""
     if (project_dir / "setup.cfg").exists() or (project_dir / "setup.py").exists():
         return "setuptools"
     return None
@@ -150,12 +151,15 @@ def detect_build_backend(
     lower-case identifier, matched on its top-level module name (the
     part before the first ``.``/``:``) -- not a substring match, so a
     backend like ``"my_setuptools_shim.api"`` is never misdetected as
-    ``"setuptools"``. Falls back to ``"setuptools"`` when ``setup.cfg``
-    or ``setup.py`` exists and no ``build-backend`` value is resolvable
-    -- because ``pyproject.toml`` is entirely absent, because it exists
-    but is unparseable, or because it exists but has no
-    ``build-backend`` key (a legacy PEP 518-only ``[build-system]``
-    declaration, which is still a real setuptools project).
+    ``"setuptools"``.
+
+    A parsed ``pyproject.toml`` with no ``[build-system]`` table, or one
+    without a ``build-backend`` key, is ``"setuptools"``: PEP 517 has
+    build frontends fall back to ``setuptools.build_meta:__legacy__``
+    then. With ``pyproject.toml`` absent or unparseable, a
+    ``build-system`` that is not a table, or a ``build-backend`` that is
+    empty or not a string, a ``setup.cfg``/``setup.py`` makes it
+    ``"setuptools"``, else it is ``None``.
 
     *pyproject_data*, when omitted, is read and parsed here. Pass the
     result of a prior :func:`read_pyproject_toml` call instead when the
@@ -177,17 +181,30 @@ def detect_build_backend(
         if data is None:
             return _detect_setuptools_from_legacy_files(project_dir)
 
-    build_system = data.get("build-system", {})
-    build_backend = ""
-    if isinstance(build_system, dict):
-        raw_backend = build_system.get("build-backend", "")
-        if isinstance(raw_backend, str):
-            build_backend = raw_backend
-    if not build_backend:
-        # PEP 518-only pyproject.toml (no build-backend key) -- still a
-        # real setuptools project if setup.cfg/setup.py back it up, same
-        # fallback as when pyproject.toml is absent entirely.
+    build_system = data.get("build-system")
+    if build_system is None or (
+        isinstance(build_system, dict) and "build-backend" not in build_system
+    ):
+        return "setuptools"
+    build_backend = declared_build_backend(data)
+    if build_backend is None:
         return _detect_setuptools_from_legacy_files(project_dir)
+    return backend_identifier(build_backend)
+
+
+def declared_build_backend(data: dict[str, object]) -> str | None:
+    """*data*'s ``[build-system] build-backend``, or ``None`` when it is
+    absent, empty or not a string."""
+    build_system = data.get("build-system")
+    backend = (
+        build_system.get("build-backend") if isinstance(build_system, dict) else None
+    )
+    return backend if isinstance(backend, str) and backend else None
+
+
+def backend_identifier(build_backend: str) -> str:
+    """The lower-case identifier of *build_backend*, matched on its
+    top-level module name (``poetry.core.masonry.api`` is ``poetry``)."""
     top_level = build_backend.split(":")[0].split(".")[0].lower()
     return _KNOWN_BACKEND_ALIASES.get(top_level, top_level)
 
@@ -242,7 +259,7 @@ def read_setuptools(
     """
     cfg_options, config = _read_cfg_options(project_dir, read_config)
     py_options, py_error = _read_py_options(project_dir, cfg_options, quiet=quiet)
-    metadata = build_setuptools_metadata(cfg_options, py_options)
+    metadata = build_setuptools_metadata(cfg_options, py_options, quiet=quiet)
     if not metadata.name:
         raise FileNotFoundError(
             f"No usable project metadata found in {project_dir}. "
@@ -252,5 +269,5 @@ def read_setuptools(
     record_setuptools_conflicts(
         metadata, cfg_options, py_options, ConflictReport(str(project_dir), quiet)
     )
-    apply_in_package_license(metadata, collect_license_candidates(project_dir))
+    apply_in_package_license_files(metadata, read_license_members(project_dir))
     return metadata, config

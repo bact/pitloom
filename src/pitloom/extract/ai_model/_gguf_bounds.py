@@ -26,7 +26,8 @@ import mmap
 import struct
 from pathlib import Path
 
-from pitloom.extract.ai_model.limits import ModelLimitExceeded
+from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
+from pitloom.logging_config import Cap
 
 #: Budget for the tensors, key/value pairs and array elements (scalar, string
 #: and nested-array, at every depth) a header declares, all together. Real
@@ -75,10 +76,6 @@ def _reader_accepts(version: int) -> bool:
     return version in READER_SUPPORTED_VERSIONS
 
 
-def _over_budget(what: str) -> ModelLimitExceeded:
-    return ModelLimitExceeded(f"GGUF {what}, over the {MAX_GGUF_COUNT} budget")
-
-
 class _Walker:
     """A cursor over the key/value section of a mapped file."""
 
@@ -89,11 +86,11 @@ class _Walker:
         self.u64 = struct.Struct(endian + "Q")
         self.elements = 0  # tensors, pairs and array elements, all together
 
-    def charge(self, count: int, what: str) -> None:
+    def charge(self, count: int) -> None:
         """Spend *count* of the budget."""
         self.elements += count
         if self.elements > MAX_GGUF_COUNT:
-            raise _over_budget(what)
+            raise ModelOverCap(Cap(MAX_GGUF_COUNT, "unit", "GGUF-header"))
 
     def number(self, reader: struct.Struct, offset: int) -> int:
         """The unsigned integer at *offset*."""
@@ -105,7 +102,7 @@ class _Walker:
         """The offset after the length-prefixed string at *offset*."""
         length = self.number(self.u64, offset)
         if length > _MAX_STRING_BYTES:
-            raise ModelLimitExceeded(f"GGUF string of {length} bytes")
+            raise ModelOverCap(Cap(_MAX_STRING_BYTES, "byte", "GGUF-string"))
         end = offset + 8 + length
         if end > self.size:
             raise _Malformed
@@ -119,7 +116,7 @@ class _Walker:
             return self.string(offset)
         if vtype == _ARRAY:
             if depth >= _MAX_NESTING:  # the reader follows any depth
-                raise ModelLimitExceeded(f"GGUF arrays nested over {_MAX_NESTING}")
+                raise ModelOverCap(Cap(_MAX_NESTING, "level", "GGUF-array-nesting"))
             return self.array(offset, depth + 1)
         raise _Malformed
 
@@ -129,7 +126,7 @@ class _Walker:
         elem = self.number(self.u32, offset)
         count = self.number(self.u64, offset + 4)
         offset += 12
-        self.charge(count, f"array of {count} elements")
+        self.charge(count)
         if elem in _SCALAR_BYTES:
             end = offset + count * _SCALAR_BYTES[elem]
             if end > self.size:
@@ -155,8 +152,8 @@ def _walk(data: mmap.mmap, endian: str) -> None:
         raise ModelLimitExceeded(f"GGUF header declares {n_tensors} tensors")
     if n_kv * _MIN_KV_BYTES > size:
         raise ModelLimitExceeded(f"GGUF header declares {n_kv} key/value pairs")
-    walker.charge(n_tensors * _RECORD_WEIGHT, f"header declares {n_tensors} tensors")
-    walker.charge(n_kv * _RECORD_WEIGHT, f"header declares {n_kv} key/value pairs")
+    walker.charge(n_tensors * _RECORD_WEIGHT)
+    walker.charge(n_kv * _RECORD_WEIGHT)
     offset = _HEADER_BYTES
     for _ in range(n_kv):
         offset = walker.string(offset)
@@ -169,10 +166,11 @@ def check_gguf_header(path: Path) -> None:
     loop over.
 
     Raises:
-        ModelLimitExceeded: Arrays nest too deep, a string is over its
-            cap, the declared tensors, pairs or array elements are over the
-            budget or cannot fit in the file, or the version is one the
-            reader reads and this module does not know. A string that runs
+        ModelOverCap: Arrays nest too deep, a string is over its cap, or
+            the declared tensors, pairs and array elements are over the
+            budget.
+        ModelLimitExceeded: They cannot fit in the file, or the version is
+            one the reader reads and this module does not know. A string that runs
             past the end of the file is left to the reader.
         OSError: The file cannot be read.
     """

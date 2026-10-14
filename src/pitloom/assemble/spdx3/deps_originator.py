@@ -15,9 +15,9 @@ import functools
 import http.client
 import re
 import urllib.request
-from email.utils import getaddresses
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import distribution as get_pkg_distribution
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.error import URLError
 from urllib.parse import urlparse
@@ -28,124 +28,60 @@ from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core._models_wheel_types import is_dist_info_path
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
-from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.export.spdx3_json import (
+    Spdx3JsonExporter,
+    agent_key,
+    require_spdx_id,
+)
 from pitloom.extract._core_metadata import parse_project_urls
 from pitloom.extract._extract_utils import close_http_error, pkg_meta_get
 from pitloom.extract._file_headers import guess_content_type
+from pitloom.extract.authors import is_contributor_group
+from pitloom.extract.copyright_notices import (
+    join_copyright_notices,
+    read_license_text,
+)
+from pitloom.extract.dependency_authors import dependency_originator_pairs
 
 if TYPE_CHECKING:
     from pitloom.extract._extract_utils import CoreMetadata
 
-# A permissive (MIT/BSD-style) LICENSE file's copyright line, e.g.
-# "Copyright (c) 2021 Taneli Hukkinen" or "Copyright © 2019 Filipe Laíns".
-_COPYRIGHT_LINE_RE = re.compile(
-    r"^\s*Copyright\s+(?:\(c\)|©)?\s*\S.*$", re.IGNORECASE | re.MULTILINE
-)
-# Only the file's head is searched -- see _find_license_copyright.
-_COPYRIGHT_SEARCH_HEAD_CHARS = 500
-
-
-def _split_names(name: str) -> list[str]:
-    """Split a comma-/``and``-separated name list into stripped parts."""
-    return [part.strip() for part in re.split(r",|\band\b", name) if part.strip()]
-
-
-def _resolve_address_entry(
-    parsed_name: str, parsed_email: str, fallback_name: str
-) -> list[tuple[str | None, str | None]]:
-    """Resolve one :func:`email.utils.getaddresses` result into one or more
-    ``(name, email)`` tuples.
-
-    A single parsed address's display name can itself be a comma-separated
-    list of names sharing one address -- e.g. ``'"Author One, Author Two,
-    Author Three" <x@example.com>'``, seen in the wild on PyPI for a real
-    package, where the address belongs to a person not even in the name
-    list. The address cannot be fairly attributed to any of the listed
-    names, so it is split into individual name-only tuples plus one extra
-    email-only, name-``None`` tuple that keeps the address on its own
-    anonymous Person rather than discarding or misattributing it.
-    """
-    resolved_name = parsed_name.strip() or fallback_name or None
-    resolved_email = parsed_email.strip() or None
-    name_parts = _split_names(resolved_name) if resolved_name else []
-
-    if len(name_parts) > 1:
-        entries: list[tuple[str | None, str | None]] = [
-            (part, None) for part in name_parts
-        ]
-        if resolved_email:
-            entries.append((None, resolved_email))
-        return entries
-    if resolved_name or resolved_email:
-        return [(resolved_name, resolved_email)]
-    return []
-
-
-def _extract_name_email_pairs(
-    name: str, email_raw: str
-) -> list[tuple[str | None, str | None]]:
-    """Return a list of ``(name, email)`` tuples from metadata fields.
-
-    *email_raw* may carry an RFC 5322 ``"Name <email>"`` form (how PEP 621
-    ``[project.authors]`` round-trips through core metadata / PyPI's JSON
-    API), a bare address, or -- commonly for a maintainer field -- a
-    comma-separated list of several such entries; :func:`email.utils.
-    getaddresses` handles all three (unlike :func:`email.utils.parseaddr`,
-    which mis-parses a multi-entry list as one malformed address and
-    silently returns nothing). See :func:`_resolve_address_entry` for how
-    each parsed address is turned into one or more tuples.
-
-    If *email_raw* is empty but *name* contains a comma-separated list of
-    names, it splits them into individual tuples.
-    """
-    name = name.strip()
-    email_raw = email_raw.strip()
-
-    if email_raw:
-        results: list[tuple[str | None, str | None]] = []
-        for parsed_name, parsed_email in getaddresses([email_raw]):
-            results.extend(_resolve_address_entry(parsed_name, parsed_email, name))
-        return results
-
-    return [(part, None) for part in _split_names(name)]
-
 
 def _resolve_author_or_maintainer(
-    pkg_meta: CoreMetadata,
+    pkg_meta: CoreMetadata, package: str
 ) -> list[tuple[str | None, str | None]]:
-    """Return a list of ``(name, email)`` tuples for a dependency's originator
-    from installed metadata, or an empty list. Tries ``Author``/``Author-email``
-    first, then falls back to ``Maintainer``/``Maintainer-email``."""
-    for name_field, email_field in (
-        ("Author", "Author-email"),
-        ("Maintainer", "Maintainer-email"),
-    ):
-        results = _extract_name_email_pairs(
-            pkg_meta_get(pkg_meta, name_field), pkg_meta_get(pkg_meta, email_field)
-        )
-        if results:
-            return results
-    return []
+    """Return a list of ``(name, email)`` tuples for the dependency
+    *package*'s originator from installed metadata, or an empty list:
+    ``Author``/``Author-email``, or ``Maintainer``/``Maintainer-email`` when
+    neither author field is stated, each pair read as a package's own
+    authors are
+    (:func:`~pitloom.extract.dependency_authors.dependency_originator_pairs`).
+    """
+    return dependency_originator_pairs(
+        package,
+        (("Author", "Author-email"), ("Maintainer", "Maintainer-email")),
+        lambda field: pkg_meta_get(pkg_meta, field),
+    )
 
 
-def _read_candidate_copyright(candidate: Any) -> str | None:
-    """Read head of dist-info candidate file and extract copyright regex match."""
-    if not is_dist_info_path(str(candidate)):
+def _read_candidate_text(candidate: Any, dist: Any) -> str | None:
+    """The text of the installed file *candidate* (an
+    :class:`importlib.metadata.PackagePath` of the distribution *dist*)
+    when it is under a ``.dist-info`` and resolves inside it, whatever its
+    ``RECORD`` entry spells (``..``, a symlink out)
+    (:func:`~pitloom.extract.copyright_notices.read_license_text`: capped, a
+    present file that is not read warned about); else ``None``."""
+    entry = str(candidate)
+    if not is_dist_info_path(entry):
         return None
-    try:
-        text = candidate.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
-        return None
-    if not text:
-        return None
-    match = _COPYRIGHT_LINE_RE.search(text[:_COPYRIGHT_SEARCH_HEAD_CHARS])
-    return match.group(0).strip() if match else None
+    dist_info = Path(dist.locate_file(entry.split("/", 1)[0]))
+    return read_license_text(Path(candidate.locate()), dist_info)
 
 
 def _find_license_copyright(dist_name: str, pkg_meta: CoreMetadata) -> str | None:
-    """Return a copyright statement from the dependency's installed
-    ``License-File``, or ``None`` if not found.
-    """
+    """The copyright notices in the dependency's installed ``License-File``
+    files (:func:`~pitloom.extract.copyright_notices.join_copyright_notices`,
+    in ``License-File`` order), or ``None`` when none holds one."""
     license_files = pkg_meta.get_all("License-File") or []
     if not license_files:
         return None
@@ -155,13 +91,15 @@ def _find_license_copyright(dist_name: str, pkg_meta: CoreMetadata) -> str | Non
         return None
 
     package_files = dist.files or []
-    for license_file in license_files:
-        for candidate in package_files:
-            if candidate.name == license_file:
-                match = _read_candidate_copyright(candidate)
-                if match:
-                    return match
-    return None
+    texts = (
+        (license_file, text)
+        for license_file in license_files
+        for candidate in package_files
+        if candidate.name == license_file
+        and (text := _read_candidate_text(candidate, dist)) is not None
+    )
+    found = join_copyright_notices(texts)
+    return None if found is None else found[0]
 
 
 def _parse_project_urls(pkg_meta: CoreMetadata) -> dict[str, str]:
@@ -243,7 +181,7 @@ def _resolve_remote_authors_file(
 
 # pylint: disable=too-many-arguments,too-many-locals
 # pylint: disable-next=too-many-positional-arguments
-def _get_or_create_originator_agent(
+def get_or_create_originator_agent(
     name: str | None,
     email: str | None,
     creation_info: spdx3.CreationInfo,
@@ -256,30 +194,30 @@ def _get_or_create_originator_agent(
     offline: bool = False,
     content_type_method: str = "auto",
 ) -> tuple[str, str | None]:
-    """Get or create an Agent for a dependency's originator, deduped
-    by ``name``/``email`` so packages sharing an author reuse one Agent."""
-    key = f"{name or ''}|{email or ''}"
-    is_others = bool(name and "others" in name.lower())
-    if is_others:
-        key += f"|{repo_url or package_name or 'unknown'}"
+    """Get or create an Agent for a dependency's originator, deduped by
+    :func:`~pitloom.export.spdx3_json.agent_key` so packages sharing an
+    author reuse one Agent; a contributor group is an Organization, one per
+    repository or package."""
+    is_others = is_contributor_group(name)
+    agent_cls: type[spdx3.Agent] = spdx3.Organization if is_others else spdx3.Person
+    scope = (repo_url or package_name or "unknown") if is_others else ""
+    key = agent_key(agent_cls, name, email, scope)
     existing = exporter.find_agent(key)
     if existing:
         return existing, None
 
-    agent_type = "Organization" if is_others else "Person"
     kwargs = {
-        "spdxId": generate_spdx_id(agent_type, doc_name=doc_name, doc_uuid=doc_uuid),
+        "spdxId": generate_spdx_id(
+            agent_cls.__name__, doc_name=doc_name, doc_uuid=doc_uuid
+        ),
         "name": name or email,
         "creationInfo": creation_info,
     }
-    agent: spdx3.Agent
     if is_others:
         kwargs["comment"] = (
             "Represents a group of additional contributors referenced externally."
         )
-        agent = spdx3.Organization(**kwargs)  # type: ignore[arg-type]
-    else:
-        agent = spdx3.Person(**kwargs)  # type: ignore[arg-type]
+    agent = agent_cls(**kwargs)  # type: ignore[arg-type]
     if email:
         agent.externalIdentifier = [
             spdx3.ExternalIdentifier(
@@ -334,7 +272,7 @@ def _collect_originator_agents(
     for name, email in originators:
         if not (name or email):
             continue
-        agent_id, attribution_text = _get_or_create_originator_agent(
+        agent_id, attribution_text = get_or_create_originator_agent(
             name,
             email,
             creation_info,

@@ -38,7 +38,7 @@ from packaging.utils import NormalizedName, canonicalize_name
 from packaging.version import Version
 
 from pitloom.core.archive_member_names import zip_file_members
-from pitloom.logging_config import loggable
+from pitloom.logging_config import Cap, loggable, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -374,12 +374,16 @@ def resolve_own_dist_info(
 
 
 class HeaderBlockOverCap(Exception):
-    """A header block over a cap: its size and unit."""
+    """A header block over *cap*."""
 
-    def __init__(self, cap: int, unit: str) -> None:
-        super().__init__(cap, unit)
+    def __init__(self, cap: Cap) -> None:
+        super().__init__(cap.reason)
         self.cap = cap
-        self.unit = unit
+
+
+def _bytes_cap() -> Cap:
+    """:data:`MAX_METADATA_BYTES`, looked up now (a test lowers it)."""
+    return Cap(MAX_METADATA_BYTES, "byte", "header-block")
 
 
 # pylint: disable-next=too-few-public-methods
@@ -412,7 +416,7 @@ def _lines(stream: ByteReader) -> Iterator[bytes]:
             start = match.end()
         pending += chunk[start:]
         if len(pending) > MAX_METADATA_BYTES:
-            raise HeaderBlockOverCap(MAX_METADATA_BYTES, "bytes")
+            raise HeaderBlockOverCap(_bytes_cap())
     if pending or carry:
         yield bytes(pending) + carry
 
@@ -434,11 +438,12 @@ def read_header_block(stream: ByteReader) -> bytes:
             break
         total += len(line)
         if total > MAX_METADATA_BYTES:
-            raise HeaderBlockOverCap(MAX_METADATA_BYTES, "bytes")
+            raise HeaderBlockOverCap(_bytes_cap())
         if not line.startswith((b" ", b"\t")):
             headers += 1
             if headers > MAX_METADATA_HEADERS:
-                raise HeaderBlockOverCap(MAX_METADATA_HEADERS, "headers")
+                cap = Cap(MAX_METADATA_HEADERS, "header", "header-block")
+                raise HeaderBlockOverCap(cap)
         kept.append(line)
     return b"".join(kept)
 
@@ -475,12 +480,7 @@ def read_metadata_headers(
             block = read_header_block(member)
     except HeaderBlockOverCap as over:
         if report:
-            log.warning(
-                "ARCHIVE=%r ENTRY=%r: header block over %d %s -- identity unknown",
-                archive,
-                info.orig_filename,
-                over.cap,
-                over.unit,
-            )
+            where = f"{archive}:{info.orig_filename}"
+            warn_over_cap(log, over.cap, where, "identity unknown")
         return None
     return email.parser.HeaderParser().parsestr(block.decode("utf-8", "replace"))

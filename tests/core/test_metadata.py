@@ -353,16 +353,30 @@ max-source-metadata-bytes = "5000"
             read_pyproject(pyproject_path)
 
 
-def test_creator_empty_name_raises() -> None:
-    """``Creator(name="")`` raises ValueError eagerly at construction."""
+@pytest.mark.parametrize("name", ["", "   "], ids=["empty", "whitespace"])
+def test_creator_without_name_raises(name: str) -> None:
+    """An empty or whitespace-only name is no name: ValueError eagerly at
+    construction."""
     with pytest.raises(ValueError, match="Creator name must be non-empty"):
-        Creator(name="")
+        Creator(name=name)
 
 
-def test_creator_whitespace_name_raises() -> None:
-    """``Creator(name="   ")`` raises ValueError eagerly at construction."""
-    with pytest.raises(ValueError, match="Creator name must be non-empty"):
-        Creator(name="   ")
+@pytest.mark.parametrize(
+    ("name", "email", "expected"),
+    [
+        (" Bob ", " bob@example.com ", ("Bob", "bob@example.com")),
+        ("Bob", None, ("Bob", None)),
+        ("Bob", "", ("Bob", None)),
+        ("Bob", "  ", ("Bob", None)),
+    ],
+    ids=["padded", "no-email", "empty-email", "blank-email"],
+)
+def test_creator_name_and_email_stripped(
+    name: str, email: str | None, expected: tuple[str, str | None]
+) -> None:
+    """Name and address are stripped; a blank address is none."""
+    creator = Creator(name=name, email=email)
+    assert (creator.name, creator.email) == expected
 
 
 def test_tool_empty_name_raises() -> None:

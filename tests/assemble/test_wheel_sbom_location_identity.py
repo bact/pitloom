@@ -266,8 +266,10 @@ def test_a_metadata_over_a_cap_is_not_read(
         assert read_wheel_name_version(zf, "foo-1.0.dist-info/") == (None, None)
 
     (record,) = [r for r in caplog.records if r.levelno == logging.WARNING]
-    assert "ENTRY='foo-1.0.dist-info/METADATA'" in record.getMessage()
-    assert "over 10 bytes" in record.getMessage()
+    assert record.getMessage() == (
+        f"FILE={path.name}:foo-1.0.dist-info/METADATA: larger than the 10-byte"
+        " header-block cap; identity unknown"
+    )
 
 
 @pytest.mark.parametrize("report", [False, True])

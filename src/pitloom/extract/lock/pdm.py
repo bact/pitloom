@@ -44,10 +44,13 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from packaging.utils import canonicalize_name
+
 from pitloom.extract.lock._common import (
     default_group_included,
     find_first_present_key,
     has_required_top_level_table,
+    is_usable_version,
     load_lock_toml,
     resolve_pinned_dependencies,
     shape_validated_package,
@@ -55,10 +58,11 @@ from pitloom.extract.lock._common import (
     warn_not_genuine_lock_file,
     warn_top_level_key_wrong_type,
 )
+from pitloom.extract.lock._extra_pins import packages_named
 
 log = logging.getLogger(__name__)
 
-__all__ = ["extract_pdm_lock_dependencies"]
+__all__ = ["extract_pdm_lock_dependencies", "extract_pdm_lock_extra_pins"]
 
 #: The default (main/runtime) group name in a ``pdm.lock``'s per-package
 #: ``groups`` list -- PDM's equivalent of ``poetry.lock``'s ``"main"``.
@@ -89,10 +93,15 @@ def _default_group_package_or_none(pkg: object) -> dict[str, Any] | None:
 
     if not default_group_included(validated, "pdm.lock", _DEFAULT_GROUP, name):
         return None
+    return _registry_package_or_none(validated)
 
+
+def _registry_package_or_none(validated: dict[str, Any]) -> dict[str, Any] | None:
+    """*validated*, or ``None`` with a ``WARNING:`` when it is not
+    registry-sourced."""
     non_registry_key = find_first_present_key(validated, _NON_REGISTRY_KEYS)
     if non_registry_key is not None:
-        warn_non_registry_source("pdm.lock", name, non_registry_key)
+        warn_non_registry_source("pdm.lock", validated["name"], non_registry_key)
         return None
     return validated
 
@@ -130,3 +139,52 @@ def extract_pdm_lock_dependencies(project_dir: Path) -> list[str] | None:
 
     pairs = [(pkg["name"], pkg["version"]) for pkg in default_group_packages]
     return resolve_pinned_dependencies(pairs, "pdm.lock")
+
+
+def _declared_extras(project_dir: Path) -> frozenset[str]:
+    """PEP 503 names of the extras ``pyproject.toml`` declares statically
+    (``[project.optional-dependencies]``); PDM records an extra and a
+    development group alike as a lock group, so only this tells them
+    apart."""
+    data = load_lock_toml(project_dir / "pyproject.toml") or {}
+    project = data.get("project")
+    optional = (
+        project.get("optional-dependencies") if isinstance(project, dict) else None
+    )
+    return frozenset(
+        canonicalize_name(extra)
+        for extra in (optional if isinstance(optional, dict) else {})
+    )
+
+
+def extract_pdm_lock_extra_pins(project_dir: Path, wanted: frozenset[str]) -> list[str]:
+    """Exact pins for the packages ``pdm.lock`` resolved for one of the
+    project's own extras (a lock group named as an extra in
+    ``pyproject.toml``), limited to the PEP 503 names in *wanted*.
+
+    A lock group holds an extra's whole closure, so *wanted* (the extras'
+    direct requirement names) is what keeps this to direct entries. An
+    extra PDM did not lock pins nothing.
+    """
+    # Read after the runtime pass accepted this same file.
+    data = load_lock_toml(project_dir / "pdm.lock") or {}
+    extras = _declared_extras(project_dir)
+    pairs: list[tuple[str, str]] = []
+    for raw in packages_named(data.get("package"), wanted):
+        if (
+            is_usable_version(raw.get("version"))
+            and _in_groups(raw, extras)
+            and _registry_package_or_none(raw) is not None
+        ):
+            pairs.append((raw["name"], raw["version"]))
+    return resolve_pinned_dependencies(pairs, "pdm.lock") or []
+
+
+def _in_groups(validated: dict[str, Any], groups: frozenset[str]) -> bool:
+    """Whether *validated*'s ``groups`` list names one of *groups* (PEP 503
+    names); a missing or malformed list names none."""
+    listed = validated.get("groups")
+    return isinstance(listed, list) and any(
+        isinstance(group, str) and canonicalize_name(group) in groups
+        for group in listed
+    )

@@ -87,11 +87,13 @@ def test_a_model_file_is_capped_like_a_scan_with_one_warning(
     assert local.provenance == scanned.provenance
     (local_message,) = logged_warnings(caplog)
     assert local_message.replace(str(path), path.name) == scan_message
-    assert "more than 1000 entries in " in local_message
+    assert ": larger than the 1000-entry per-field cap; the first 1000 kept in " in (
+        local_message
+    )
 
     caplog.clear()
     _SURFACES[surface](path, output_path=tmp_path / "out.json")
-    (message,) = [m for m in logged_warnings(caplog) if "entries in" in m]
+    (message,) = [m for m in logged_warnings(caplog) if "per-field" in m]
     assert message == local_message
 
 
@@ -112,7 +114,7 @@ def test_the_cli_names_the_model_as_it_was_given(
         sys, "argv", ["loom", command, str(given), "-o", str(tmp_path / "out.json")]
     )
     assert __main__.main() == 0
-    (message,) = [m for m in logged_warnings(caplog) if "entries in" in m]
+    (message,) = [m for m in logged_warnings(caplog) if "per-field" in m]
     assert f"FILE={given}:" in message
     assert str(tmp_path) not in message
 

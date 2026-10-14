@@ -10,8 +10,9 @@ the project's own Pitloom config (the root ``pyproject.toml``'s
 the unpacked project directory.
 
 See also: :mod:`pitloom.extract.project.reader` (the directory counterpart),
-:func:`pitloom.core.config.select_project_config` (the rule both share) and
-:mod:`pitloom.extract.project._sdist_scan` (the archive pass).
+:func:`pitloom.core.config.select_project_config` (the rule both share),
+:mod:`pitloom.extract.project._sdist_scan` (the archive pass) and
+:mod:`pitloom.extract.project._sdist_pyproject` (the fallback).
 """
 
 from __future__ import annotations
@@ -24,7 +25,6 @@ from pathlib import Path
 from typing import Any, NamedTuple, TypeVar
 
 from pitloom._toml_io import load_toml_bytes
-from pitloom.core import wheel_dist_info
 from pitloom.core.config import (
     PitloomConfig,
     parse_pitloom_config,
@@ -34,27 +34,36 @@ from pitloom.core.config import (
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.extract._core_metadata import (
     core_metadata_license_with_source,
+    parse_core_metadata_authors,
     parse_project_urls,
 )
-from pitloom.extract._extract_utils import field_declared
-from pitloom.extract._license import apply_in_package_license
-from pitloom.extract._license_detect import license_candidates_from_members
-from pitloom.extract.project._pyproject_license import license_from_project_table
+from pitloom.extract._license import apply_in_package_license_files
+from pitloom.extract.authors import collapse_whitespace, warn_project_authors_unread
+from pitloom.extract.project._sdist_pyproject import metadata_from_pyproject
 from pitloom.extract.project._sdist_scan import (
-    CONFIG_MEMBER_MAX_BYTES,
     PKG_INFO,
     PYPROJECT,
     SETUP_CFG,
     scan_archive,
 )
+from pitloom.extract.project.poetry import (
+    POETRY_AUTHORS_SOURCE,
+    parse_poetry_authors,
+)
 from pitloom.extract.project.setuptools_cfg import setup_cfg_pitloom_config
-from pitloom.logging_config import field_loss_suffix
+from pitloom.logging_config import Cap, field_loss_suffix, warn_over_cap
 
 log = logging.getLogger(__name__)
 
 
-def _parse_pkg_info(pkg_info_text: str, source_label: str) -> ProjectMetadata:
-    """Parse Metadata-Version 2.x PKG-INFO content into ProjectMetadata."""
+def _parse_pkg_info(
+    pkg_info_text: str, source_label: str, *, quiet_authors: bool = False
+) -> ProjectMetadata:
+    """Parse Metadata-Version 2.x PKG-INFO content into ProjectMetadata.
+
+    *quiet_authors* silences every author ``WARNING:`` (a split, a cap, an
+    address) when the archive's ``pyproject.toml`` declares the authors,
+    which then replace these: a discarded read."""
     msg = email.message_from_string(pkg_info_text)
     name = msg.get("Name", "unknown")
     version = msg.get("Version")
@@ -90,9 +99,9 @@ def _parse_pkg_info(pkg_info_text: str, source_label: str) -> ProjectMetadata:
         metadata.urls = urls
         metadata.provenance["urls"] = source_label
 
-    author = msg.get("Author")
-    if author and author != "UNKNOWN":
-        metadata.authors = [{"name": author}]
+    authors = parse_core_metadata_authors(msg, quiet=quiet_authors)
+    if authors:
+        metadata.authors = authors
         metadata.provenance["authors"] = source_label
 
     requires_dist = msg.get_all("Requires-Dist") or []
@@ -103,7 +112,7 @@ def _parse_pkg_info(pkg_info_text: str, source_label: str) -> ProjectMetadata:
     return metadata
 
 
-_PYPROJECT_LICENSE_SOURCE = "Source: pyproject.toml | Field: project.license"
+_PYPROJECT_AUTHORS_SOURCE = "Source: pyproject.toml | Field: project.authors"
 
 _METADATA_FIELDS = ("name", "version", "description", "dependencies")
 #: What :func:`_parse_pkg_info` reads beyond :data:`_METADATA_FIELDS`.
@@ -123,37 +132,36 @@ class SdistContents(NamedTuple):
     config_member: str | None
 
 
-def _member_bytes(root: dict[str, bytes | None], member: str, sdist_name: str) -> bytes:
+def _member_bytes(root: dict[str, bytes | Cap], member: str, sdist_name: str) -> bytes:
     """A present root member's bytes; over the cap is a read failure."""
     raw = root[member]
-    if raw is None:
-        raise ValueError(
-            f"config file {sdist_name}:{member}: "
-            f"over {CONFIG_MEMBER_MAX_BYTES} bytes, not read"
-        )
+    if isinstance(raw, Cap):
+        raise ValueError(f"config file {sdist_name}:{member}: {raw.reason}; not read")
     return raw
 
 
-def _metadata_pyproject(raw: bytes | None, sdist_name: str) -> Any:
+def _metadata_pyproject(raw: bytes | Cap, sdist_name: str) -> Any:
     """The root ``pyproject.toml`` parsed for metadata only (no PKG-INFO,
     config not read), or ``None`` with one ``WARNING:`` when it cannot be."""
+    skipped = field_loss_suffix("skipped", *_METADATA_FIELDS)
+    if isinstance(raw, Cap):
+        warn_over_cap(log, raw, f"{sdist_name}:{PYPROJECT}", f"not read{skipped}")
+        return None
     try:
-        if raw is None:
-            raise ValueError(f"over {CONFIG_MEMBER_MAX_BYTES} bytes")
         return load_toml_bytes(raw)
     except ValueError as exc:  # TOMLDecodeError, UnicodeDecodeError
         log.warning(
             "Failed to parse pyproject.toml from sdist member: %s%s",
             f"{sdist_name}: {exc}",
-            field_loss_suffix("skipped", *_METADATA_FIELDS),
+            skipped,
         )
         return None
 
 
-def _warn_pkg_info_over_cap(sdist_name: str, *, fallback: bool) -> None:
-    """One ``WARNING:`` for a ``PKG-INFO`` header block over
-    :data:`~pitloom.core.wheel_dist_info.MAX_METADATA_BYTES` or
-    :data:`~pitloom.core.wheel_dist_info.MAX_METADATA_HEADERS`: its fields
+def _warn_pkg_info_over_cap(sdist_name: str, cap: Cap, *, fallback: bool) -> None:
+    """One ``WARNING:`` for a ``PKG-INFO`` header block over *cap*
+    (:data:`~pitloom.core.wheel_dist_info.MAX_METADATA_BYTES` or
+    :data:`~pitloom.core.wheel_dist_info.MAX_METADATA_HEADERS`): its fields
     come from the root ``pyproject.toml`` when *fallback*, else stay
     unset."""
     if fallback:
@@ -161,33 +169,85 @@ def _warn_pkg_info_over_cap(sdist_name: str, *, fallback: bool) -> None:
         loss += field_loss_suffix("skipped", *_PKG_INFO_ONLY_FIELDS)
     else:
         loss = field_loss_suffix("skipped", *_METADATA_FIELDS, *_PKG_INFO_ONLY_FIELDS)
-    log.warning(
-        "Failed to read PKG-INFO from sdist member: %s: "
-        "header block over %d bytes or %d headers%s",
-        sdist_name,
-        wheel_dist_info.MAX_METADATA_BYTES,
-        wheel_dist_info.MAX_METADATA_HEADERS,
-        loss,
-    )
+    warn_over_cap(log, cap, f"{sdist_name}:{PKG_INFO}", f"not read{loss}")
 
 
-def _metadata_from_pyproject(data: Any, licence: dict[str, bytes]) -> ProjectMetadata:
-    """Fallback ProjectMetadata from a parsed ``pyproject.toml``; its
-    licence as a directory reads it, a ``license.file`` from *licence*."""
-    proj = data.get("project", {}) if isinstance(data, dict) else {}
-    if not isinstance(proj, dict):
-        proj = {}
-    license_name, license_prov = license_from_project_table(proj, licence.get)
-    metadata = ProjectMetadata(
-        name=proj.get("name", "unknown"),
-        version=proj.get("version"),
-        description=proj.get("description"),
-        license_name=license_name,
-        dependencies=proj.get("dependencies", []),
-    )
-    if license_prov or field_declared(proj, "license"):
-        metadata.provenance["license"] = license_prov or _PYPROJECT_LICENSE_SOURCE
-    return metadata
+class _DeclaredAuthors(NamedTuple):
+    """The authors a ``pyproject.toml`` declares, and their provenance."""
+
+    authors: list[dict[str, str]]
+    source: str
+
+
+def _poetry_authors(pyproject: Any) -> _DeclaredAuthors | None:
+    """``[tool.poetry].authors`` (``"Name <email>"`` strings, never split)
+    as the directory reads them, or ``None`` when not a list of strings."""
+    tool = pyproject.get("tool") if isinstance(pyproject, dict) else None
+    poetry = tool.get("poetry") if isinstance(tool, dict) else None
+    declared = poetry.get("authors") if isinstance(poetry, dict) else None
+    if not isinstance(declared, list) or not all(
+        isinstance(entry, str) for entry in declared
+    ):
+        return None
+    return _DeclaredAuthors(parse_poetry_authors(declared), POETRY_AUTHORS_SOURCE)
+
+
+def _declared_authors(pyproject: Any) -> _DeclaredAuthors | None:
+    """``[project].authors`` of a parsed ``pyproject.toml`` as
+    ``{name?, email?}`` dicts in declared order (a name's white space
+    collapsed, :func:`~pitloom.extract.authors.collapse_whitespace`), else,
+    as the directory fills that gap, ``[tool.poetry].authors``
+    (:func:`_poetry_authors`);
+    ``None`` when neither is declared as a list of tables with string
+    values or of strings (``PKG-INFO`` then stays the source)."""
+    proj = pyproject.get("project") if isinstance(pyproject, dict) else None
+    declared = proj.get("authors") if isinstance(proj, dict) else None
+    if declared is None:
+        return _poetry_authors(pyproject)
+    if not isinstance(declared, list):
+        return None
+    authors: list[dict[str, str]] = []
+    for entry in declared:
+        if not isinstance(entry, dict) or not all(
+            isinstance(entry.get(key, ""), str) for key in ("name", "email")
+        ):
+            return None
+        named = {**entry, "name": collapse_whitespace(entry.get("name", ""))}
+        author = {key: named[key] for key in ("name", "email") if named.get(key)}
+        if author:
+            authors.append(author)
+    return _DeclaredAuthors(authors, _PYPROJECT_AUTHORS_SOURCE)
+
+
+def _apply_declared_authors(
+    metadata: ProjectMetadata, declared: _DeclaredAuthors | None
+) -> None:
+    """Take *metadata*'s authors from the archive's ``pyproject.toml``
+    (*declared*, :func:`_declared_authors`) when it declares them:
+    ``PKG-INFO`` lists authors with an address before the others, the
+    declared order is only in ``pyproject.toml`` (see
+    :func:`~pitloom.extract.authors.author_pairs`)."""
+    if declared is None:
+        return
+    metadata.authors = declared.authors
+    metadata.provenance["authors"] = declared.source
+
+
+def _optional_pyproject(raw: bytes | Cap, sdist_name: str) -> Any:
+    """The root ``pyproject.toml`` parsed only for the declared authors, or
+    ``None`` with one ``WARNING:`` when it cannot be: the authors then come
+    from ``PKG-INFO``, without their declared order, name-only authors
+    joined into one ``Author`` field read as one."""
+    where = f"{sdist_name}:{PYPROJECT}"
+    if isinstance(raw, Cap):
+        outcome = f"project metadata not read, authors from the {PKG_INFO}"
+        warn_over_cap(log, raw, where, outcome)
+        return None
+    try:
+        return load_toml_bytes(raw)
+    except ValueError as exc:  # TOMLDecodeError, UnicodeDecodeError
+        warn_project_authors_unread(where, exc, PKG_INFO)
+        return None
 
 
 _T = TypeVar("_T")
@@ -203,7 +263,7 @@ def _member_config(sdist_name: str, member: str, parse: Callable[[], _T]) -> _T:
 
 
 def _config(
-    root: dict[str, bytes | None], pyproject: Any, sdist_name: str
+    root: dict[str, bytes | Cap], pyproject: Any, sdist_name: str
 ) -> tuple[PitloomConfig, str | None]:
     """The archive's own config and the member it came from, chosen by the
     rule a directory uses (:func:`~pitloom.core.config.select_project_config`).
@@ -268,23 +328,26 @@ def read_sdist(sdist_path: Path, *, read_config: bool = True) -> SdistContents:
     if PYPROJECT in members.root and read_config:
         raw = _member_bytes(members.root, PYPROJECT, name)
         pyproject = _member_config(name, PYPROJECT, lambda: load_toml_bytes(raw))
-    elif PYPROJECT in members.root and raw_pkg_info is None:
+    elif PYPROJECT in members.root and not isinstance(raw_pkg_info, bytes):
         pyproject = _metadata_pyproject(members.root[PYPROJECT], name)
+    elif PYPROJECT in members.root:
+        pyproject = _optional_pyproject(members.root[PYPROJECT], name)
 
-    if raw_pkg_info is not None:
+    declared_authors = _declared_authors(pyproject)
+    if isinstance(raw_pkg_info, bytes):
         metadata = _parse_pkg_info(
             raw_pkg_info.decode("utf-8", errors="replace"),
             f"Source: sdist PKG-INFO | File: {sdist_path.name}",
+            quiet_authors=declared_authors is not None,
         )
     elif pyproject is not None:
-        metadata = _metadata_from_pyproject(pyproject, members.licence)
+        metadata = metadata_from_pyproject(pyproject, members.licence, name)
     else:
         metadata = ProjectMetadata(name="unknown")
-    if raw_pkg_info is None and PKG_INFO in members.root:
-        _warn_pkg_info_over_cap(name, fallback=pyproject is not None)
-    apply_in_package_license(
-        metadata, license_candidates_from_members(members.licence, sdist_path.name)
-    )
+    _apply_declared_authors(metadata, declared_authors)
+    if isinstance(raw_pkg_info, Cap):
+        _warn_pkg_info_over_cap(name, raw_pkg_info, fallback=pyproject is not None)
+    apply_in_package_license_files(metadata, members.licence, sdist_path.name)
 
     config, member = (
         _config(members.root, pyproject, name)

@@ -150,7 +150,10 @@ def _locked_transitive_only_dependencies(
 ) -> list[str]:
     """Return *metadata*'s locked (e.g. ``poetry.lock``-resolved) dependencies
     that aren't already a direct dependency, so a package declared both
-    directly and in the lock gets one ``dependsOn`` edge, not two.
+    directly and in the lock gets one edge, not two: the direct one. An
+    extras-only package so keeps its ``hasOptionalDependency`` edge when
+    locked: a flat ``name==version`` lock list does not show a package is
+    required (``poetry.lock`` puts extras-only packages in ``main``).
 
     Names are compared PEP 503-canonicalized (lowercased, ``-``/``_``/``.``
     folded to ``-``) since a lock file's resolved package names are

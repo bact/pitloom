@@ -13,6 +13,7 @@ file-size soft limit.
 
 from __future__ import annotations
 
+import logging
 import tempfile
 from importlib.metadata import PackageNotFoundError
 from pathlib import Path
@@ -26,6 +27,7 @@ from pitloom.extract.project.hatchling import (
     _hatchling_field_declared,
     metadata_from_hatchling,
 )
+from pitloom.extract.project.pyproject import read_pyproject
 from pitloom.plugins.hatch import (
     _check_hatchling_sbom_support,
 )
@@ -61,11 +63,11 @@ def test_metadata_from_hatchling_maps_dependencies() -> None:
 
 
 def test_metadata_from_hatchling_declared_empty_authors_no_copyright_text() -> None:
-    """An explicitly declared but empty ``authors`` (``authors_data`` with
-    no names or emails) must still record provenance for ``authors``, but
+    """An explicitly declared but empty ``authors`` (an empty
+    ``authors`` list) must still record provenance for ``authors``, but
     with no authors to derive a name from, no ``copyright_text`` is
     inferred."""
-    hatch_meta = _fake_hatch_metadata(core={"authors_data": {"name": [], "email": []}})
+    hatch_meta = _fake_hatch_metadata(core={"authors": []})
     metadata = metadata_from_hatchling(hatch_meta, Path("."))
     assert_declared_empty_authors_no_copyright_text(metadata)
 
@@ -147,43 +149,29 @@ def test_metadata_from_hatchling_maps_urls() -> None:
 
 
 def test_metadata_from_hatchling_maps_authors() -> None:
-    """``authors_data`` (name-only and email entries) must map to
-    ``[{name, email?}, ...]``."""
+    """``authors`` keep their declared order and their ``name``/``email``;
+    empty values are dropped, and an entry left with neither is skipped."""
     hatch_meta = _fake_hatch_metadata(
         core={
-            "authors_data": {
-                "name": ["Bob"],
-                "email": ["Alice Smith <alice@example.com>", "carol@example.com"],
-            }
+            "authors": [
+                {"name": "Bob"},
+                {"name": "Alice Smith", "email": "alice@example.com"},
+                {"name": "", "email": "carol@example.com"},
+                {"name": "", "email": ""},
+                {"name": "Dan", "email": ""},
+            ]
         }
     )
     metadata = metadata_from_hatchling(hatch_meta, Path("."))
-    assert {"name": "Bob"} in metadata.authors
-    assert {"name": "Alice Smith", "email": "alice@example.com"} in metadata.authors
-    assert {"email": "carol@example.com"} in metadata.authors
+    assert metadata.authors == [
+        {"name": "Bob"},
+        {"name": "Alice Smith", "email": "alice@example.com"},
+        {"email": "carol@example.com"},
+        {"name": "Dan"},
+    ]
     assert metadata.provenance["authors"] == (
         "Source: Hatchling build backend | Field: project.authors"
     )
-
-
-def test_metadata_from_hatchling_authors_skip_blank_name_and_email() -> None:
-    """A blank name-only entry is skipped (loop continues to the next
-    entry); an email entry that parses to a display name but no address
-    (e.g. ``"Alice <>"``) keeps only the name; an entry that parses to
-    neither name nor address (e.g. an empty string) is dropped entirely."""
-    hatch_meta = _fake_hatch_metadata(
-        core={
-            "authors_data": {
-                "name": ["", "Bob"],
-                "email": ["Alice <>", "", "carol@example.com"],
-            }
-        }
-    )
-    metadata = metadata_from_hatchling(hatch_meta, Path("."))
-    assert {"name": "Bob"} in metadata.authors
-    assert {"name": "Alice"} in metadata.authors
-    assert {"email": "carol@example.com"} in metadata.authors
-    assert len(metadata.authors) == 3
 
 
 def test_metadata_from_hatchling_no_version_skips_provenance() -> None:
@@ -194,15 +182,15 @@ def test_metadata_from_hatchling_no_version_skips_provenance() -> None:
     assert "version" not in metadata.provenance
 
 
-def test_metadata_from_hatchling_tolerates_none_authors_data() -> None:
-    """``authors_data=None`` must not crash ``metadata_from_hatchling``.
+def test_metadata_from_hatchling_tolerates_none_authors() -> None:
+    """``authors=None`` must not crash ``metadata_from_hatchling``.
 
     Every sibling field is defended with ``or []``/``or {}``; a duck-typed
     stand-in (or a future Hatchling release) returning ``None`` for
-    ``authors_data`` must degrade to "no authors" rather than raising
+    ``authors`` must degrade to "no authors" rather than raising
     ``AttributeError`` from ``None.get(...)``.
     """
-    hatch_meta = _fake_hatch_metadata(core={"authors_data": None})
+    hatch_meta = _fake_hatch_metadata(core={"authors": None})
     metadata = metadata_from_hatchling(hatch_meta, Path("."))
     assert not metadata.authors
     assert "authors" not in metadata.provenance
@@ -286,14 +274,12 @@ def test_metadata_from_hatchling_tolerates_missing_license_file() -> None:
         assert metadata.license_name is None
 
 
-def test_metadata_from_hatchling_fills_gaps_from_poetry() -> None:
-    """``[tool.poetry]`` fills authors/keywords missing from ``[project]``.
-
-    ``read_pyproject`` (the CLI path) already recovers these fields from
-    ``[tool.poetry]`` via ``_try_read_poetry()``/``_merge_with_poetry()``;
-    the Hatchling hook path must do the same so a project relying on this
-    gap-fill is not silently incomplete when built via the hook.
-    """
+def test_metadata_from_hatchling_does_not_fill_gaps_from_poetry(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Hatchling does not read ``[tool.poetry]``: its ``authors`` and
+    ``keywords`` fill no gap in ``[project]``, with one ``WARNING:`` naming
+    them, on the hook and the CLI alike."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_pyproject(tmp_path, POETRY_GAP_FILL_PYPROJECT)
@@ -301,16 +287,22 @@ def test_metadata_from_hatchling_fills_gaps_from_poetry() -> None:
         hatch_pm = hatchling_metadata_core.ProjectMetadata(
             str(tmp_path), PluginManager()
         )
-        metadata = metadata_from_hatchling(hatch_pm, tmp_path)
+        with caplog.at_level(logging.WARNING):
+            hook = metadata_from_hatchling(hatch_pm, tmp_path)
+            cli, _ = read_pyproject(tmp_path / "pyproject.toml")
 
-        # [project] fields are untouched.
-        assert metadata.name == "testpkg"
+    for metadata in (hook, cli):
         assert metadata.description == "Test package."
-        # Fields absent from [project] are recovered from [tool.poetry].
-        assert metadata.authors == [
-            {"name": "Poetry Author", "email": "poetry@example.com"}
+        assert not metadata.authors
+        assert not metadata.keywords
+    assert (
+        caplog.messages
+        == [
+            "Ignoring [tool.poetry] authors, keywords: "
+            "build-backend 'hatchling.build' does not read it"
         ]
-        assert metadata.keywords == ["from-poetry", "gap-fill"]
+        * 2
+    )
 
 
 def test_check_hatchling_sbom_support_raises_when_metadata_missing() -> None:

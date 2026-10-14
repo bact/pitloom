@@ -24,6 +24,7 @@ import pytest
 
 import pitloom.extract._license as _license_module
 import pitloom.extract._license_classify as _classify_module
+from pitloom.extract import _license_detect
 from pitloom.extract._license import (
     _looks_like_spdx_license_expression,
     _with_tool_tag,
@@ -113,7 +114,9 @@ def test_collect_license_candidates_file_read_oserror() -> None:
         lic = p / "LICENSE"
         lic.write_text("MIT License", encoding="utf-8")
 
-        with patch.object(Path, "open", side_effect=OSError("disk error")):
+        with patch.object(
+            _license_detect, "open_inside", side_effect=OSError("disk error")
+        ):
             candidates = collect_license_candidates(p)
             assert len(candidates) == 0
 

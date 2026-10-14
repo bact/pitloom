@@ -17,7 +17,6 @@ itself) and test_license_sdist_parity.py (the same check for ``pyproject``).
 from __future__ import annotations
 
 import json
-import logging
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -25,7 +24,6 @@ from typing import Any
 import pytest
 
 from pitloom.assemble import generate_project_sbom
-from pitloom.cli.commands._embed_wheel_batch import resolve_project_dir_and_config
 from pitloom.embed import embed_wheel_sbom
 from tests._license_graph import license_value
 from tests._setuptools_build import build_dist
@@ -172,17 +170,18 @@ def test_one_declared_licence_on_every_surface(
 
 @pytest.mark.parametrize("surface", ["cli", "library"])
 def test_embed_wheel_project_read_warns_once(
-    surface: str, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    surface: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """``embed-wheel --project-dir`` reads the project once unquiet, on both
     surfaces: one ``setup.py``/``setup.cfg`` ``WARNING:``, as for the
-    directory (the read's other peeks are quiet)."""
+    directory (the config reads and the registry peek are quiet)."""
     project = _write_project(tmp_path / "proj", *_VARIANTS["real-real"])
-    caplog.set_level(logging.WARNING)
+    wheel = _make_dummy_wheel(tmp_path / "dist", "demo")
     if surface == "cli":
-        assert resolve_project_dir_and_config(project) is not None
+        run_cli(["embed-wheel", str(wheel), "--project-dir", str(project)], monkeypatch)
     else:
-        wheel = _make_dummy_wheel(tmp_path / "dist", "demo")
         embed_wheel_sbom(wheel, project_dir=project)
-    disagree = [r for r in caplog.records if "disagree on license" in r.getMessage()]
-    assert len(disagree) == 1
+    assert capsys.readouterr().err.count("disagree on license") == 1

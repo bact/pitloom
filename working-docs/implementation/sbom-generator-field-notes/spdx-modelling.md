@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -125,3 +125,87 @@ plans; the lesson holds without the code.
   Do: treat a near-tie between licence families as no answer unless the
   package states one of them; keep a corpus of real files that fooled the
   matcher.
+
+## 4. Dependency scope: SPDX lifecycle vs Python extras
+
+- **Python has no lifecycle scope.** SPDX 3.0.1 gives a relationship one
+  scope (`design`, `build`, `development`, `test`, `runtime`, `other`); a
+  Python project states only required, optional under a free-form extra name
+  (`dev`, `test`, `full`, `async` look alike to a build tool), PEP 735 groups
+  (never in a wheel) and build requirements. PyThaiNLP 5.4.0: 152 of 154
+  `Requires-Dist` lines carry `extra ==` (2026-10-09).
+- **A first design claimed `runtime` for every extra.** Review caught it:
+  `runtime` on a `dev` or `lint` extra asserts what the project never stated.
+  Built: `hasOptionalDependency` with no scope; required stays `dependsOn` +
+  `runtime` (#300).
+  Do: emit the weaker claim by default; let the project state the scope.
+- **Proposed practice (to present with a provenance taxonomy).** Name an
+  extra after its lifecycle stage, keep feature names for runtime options,
+  and map extra to scope in configuration: a name becomes data only when the
+  project says so; inferring it is a guess with its own provenance (Method,
+  not Role). Design only:
+  [extra-lifecycle-scope.md](../../design/extra-lifecycle-scope.md).
+- **Build tools disagree on the same pyproject.** Hatchling 1.32 expands a
+  self-referencing extra and sorts; setuptools 84 keeps `demo[dev]`;
+  poetry-core 2.5 keeps it and writes the first author only.
+  Do: resolve the self-reference yourself on every route.
+- **A lock list is not who needs whom.** A lock reaches the generator as a
+  flat `name==version` list. pendulum 3.2.0's `poetry.lock` puts
+  `time-machine` in `main` (`optional = false`) though only its `test` extra
+  and `test` group need it, so "locked" does not prove "required at runtime"
+  (#300).
+  Do: keep an extra-only dependency optional unless a lock records a path to
+  it from the required set.
+
+## 5. Author strings: splitting and typing
+
+- **Two problems in one field.** `Holger Krekel, Bruno Oliveira and others`
+  needs *span detection* (a comma separates authors, orders a name as in
+  `Doe, Jane`, or sits in `Acme, Inc.`) and *typing* (Person, Organization
+  or unknown). PEP 621 forbids a comma in a pyproject author name; core
+  metadata `Author:`, `setup.cfg` and `setup.py` are free text.
+- **Rule by field kind, not by surface.** The first version split `Author:`
+  on the wheel route only, so one author list gave different SBOMs from a
+  wheel, a `setup.cfg` and a dependency's record. The second split every
+  free-text field on `,` / `and`; then measured builds (Hatchling, setuptools,
+  flit_core, pdm-backend) showed backends write a structured name-only author
+  (`{name = "Doe, Jane"}`) into `Author` verbatim, so one declared author
+  was one on the directory route and two from the wheel: the field cannot
+  tell a backend's one name from `setup.py` free text. Built (#300): the
+  address field, a list by RFC 5322 syntax, splits on `,` / `;` (never
+  `and`), with one `WARNING:` per document. The name field was at first
+  never split, so `Author: Ann <a@x.org>; Bob <b@x.org>` (free text, two
+  complete mailboxes) recorded nobody: one mailbox cannot hold two
+  addresses. The rule kept: one reader for both fields, differing only in
+  where a cut may happen; the name field is cut only where the text proves
+  a list, after a closed `<address>` or a bare address, never after a name,
+  so `Doe, Jane <j@x.org>` and `Jane, Bob` stay one author (a free-text
+  list of names in one `Author` is one author, the stated limit), and the
+  same two-mailbox text reads alike in `Author` and `Author-email`. A
+  heuristic (multi-word names, legal suffixes) was rejected: right often
+  enough to hide where it is wrong.
+  Do: decide by what the writers put in the field, not what it may hold;
+  cut only where the text itself proves a boundary; check a reading
+  against real backend output on every route.
+- **Do not type a name you cannot type (design only).** SPDX 3.0.1 `Agent`
+  is concrete and the range of `originatedBy`/`suppliedBy`; a lone handle
+  (`TheBloke`, `Qwen`) is honest only as `Agent`. A wrong `Person` costs:
+  personal data in an SBOM, liability pinned on an employee, sanctions
+  screening that misses an organisation. Candidate NLP / NER pipeline
+  (footprint and accuracy unmeasured):
+  [author-entity-recognition.md](../../design/author-entity-recognition.md).
+- **A "found" field is never composed.** SPDX 3.0.1 defines `copyrightText` as
+  the notices *found* for the element (`NONE`: none whatsoever; `NOASSERTION`:
+  no determination). A line built from the authors and the SBOM creation year
+  asserts what no source stated, and a creation year is not a notice year.
+  Read the notice lines verbatim from the licence files, else `NOASSERTION`;
+  never `NONE`, because absence in the files read is not absence in the
+  package. A licence *document* also holds notices (the GPL preamble's FSF
+  line): found is not the same as the project's.
+- **Installed is not used.** An environment listing (`loom env`) supplies
+  versions and the installed requirement graph, not the lifecycle stage in
+  which a package is used: a package may be a development tool or the result
+  of an extra. Scope `runtime` is claimed where the source states a
+  requirement (declared, locked) or ships the code (bundled); a plain
+  `dependsOn` states only what is known.
+

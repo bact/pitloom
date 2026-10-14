@@ -302,7 +302,9 @@ def test_fasttext_label_over_the_cap_keeps_the_count(
     with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
         meta = read_fasttext(model_file)
     (record,) = [r for r in caplog.records if r.levelno == logging.WARNING]
-    assert record.getMessage() == "a label over 4096 bytes; no label recorded"
+    assert record.getMessage() == (
+        f"FILE={model_file}: larger than the 4096-byte label cap; no label recorded"
+    )
     assert "labels" not in meta.properties
     assert "labels" not in meta.raw_metadata
     assert "properties.labels" not in meta.provenance

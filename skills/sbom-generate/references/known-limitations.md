@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-09
+Last-Modified: 2026-10-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,9 +24,9 @@ refusing `ERROR:` names `pyproject.toml`, `setup.cfg` and `setup.py`.
 
 ## Mixed-ecosystem repos
 
-The SBOM inventories `[project.dependencies]` and what is importable; every
-non-Python dependency leaves no element, no error and no placeholder. Look for
-non-Python ecosystem files beside `pyproject.toml`.
+The SBOM inventories `[project.dependencies]`, the project's extras and what
+is importable; every non-Python dependency leaves no element, no error and no
+placeholder. Look for non-Python ecosystem files beside `pyproject.toml`.
 
 ## Non-PyPI dependencies
 
@@ -37,6 +37,41 @@ lands on `NOASSERTION`, supplier and hash stay empty, and the package gets
 no license relationship -- Pitloom never asserts a license it was not told
 (a source that itself says `UNKNOWN`/`NOASSERTION` gives the
 `NoAssertionLicense` individual).
+
+## Extras, edge kinds and authors
+
+- **Extras** (`[project.optional-dependencies]`, Poetry extras, setuptools
+  `extras_require`, `[tool.setuptools.dynamic]` or `setup.cfg` `file:`
+  requirements files) are
+  listed on every route except `loom env`. PEP 735 dependency-groups,
+  Poetry `group.*` and PDM `dev-dependencies` are not (a wheel has no
+  equivalent).
+- A required or locked dependency is `dependsOn` with lifecycle scope
+  `runtime`; one only under extras is `hasOptionalDependency`, **no** scope,
+  comment `extras: a, b`, even when a lock resolved it. Never read a
+  lifecycle from an extra's name (`dev`, `test`): say it is optional,
+  nothing more. `loom env` edges are plain `dependsOn`.
+- Every `[project].authors` entry is `originatedBy` of the main package;
+  maintainers are not. The authors never make the copyright text: it is the
+  notice lines found in the project's own `LICENSE`/`COPYING` files, else
+  `NOASSERTION`. A name field (`Author`, `setup.cfg`/`setup.py` `author`)
+  is one author: `Jane, Bob` or `Ann and Bob` there is one author
+  (backends write a name-only author so; a free-text list of names is one
+  author too: for the project's own, holding `,`, `;` or `and`, one `INFO:
+  AUTHOR=...: read as one author; it may list several`). It is cut only
+  next to an address (after a closed `<address>` or a bare address, before
+  a bare address, between two `<address>` entries), with a `WARNING:`:
+  `Ann <a@x.org>; Bob <b@x.org>` and `Ann <a@x.org> and Bob <b@x.org>` are
+  two authors, `Doe, Jane <j@x.org>` one. An address field (`Author-email`, `author_email`)
+  is split on `,` and `;`, never `and` (`Ann and Bob <t@x.org>` is one
+  author), with a `WARNING:`; a name and addresses are never paired by position
+  (`Jane, Bob` plus two addresses is three authors). A bare wheel's
+  `METADATA` loses the declared order and poetry-core writes only the
+  first author; `embed-wheel --project-dir` and an sdist with
+  `pyproject.toml` keep it.
+- Detail: <https://bact.github.io/pitloom/dependency-sources/#extras-and-the-optional-edge>
+  <https://bact.github.io/pitloom/metadata-provenance/#how-authors-are-read>
+  and <https://bact.github.io/pitloom/metadata-provenance/#how-the-copyright-text-is-found>.
 
 ## AI model formats
 
@@ -58,15 +93,15 @@ model caps"). Beyond that:
   model's own name, or its file name stem, whichever is shown, and its
   base model, dataset and dataset creator names. The id registry and the
   `spdxId` use the same cut name. `WARNING: FORMAT=<fmt> FILE=<path>:
-  model name of <N> characters cut to 1024` (or `base model name`,
-  `dataset name`, `dataset creator name`).
+  larger than the 1024-character name cap; model name cut` (or `base model
+  name`, `dataset name`, `dataset creator name`).
 - A `\udXXX` in a name or value was a lone surrogate in the file (a JSON
   or YAML `"\ud800"`), which UTF-8 cannot hold: `WARNING: FORMAT=<fmt>
   FILE=<path>: lone surrogates written as \uXXXX`.
 - A CRFsuite or fastText model with no `labels` but a `num_labels` (or an
   `outputs` shape) had a label over 4 KiB: then none is recorded, and a
   CRFsuite model gets no generated description. `WARNING: FORMAT=<fmt>
-  FILE=<path>: a label over 4096 bytes; no label recorded`. A CRFsuite
+  FILE=<path>: larger than the 4096-byte label cap; no label recorded`. A CRFsuite
   description shows at most 20 labels of 64 characters each, by design.
 - `\u202e`, `\ufeff` and the like in a name, description, type,
   hyperparameter, `ai_informationAboutApplication`, a reference, a
@@ -103,7 +138,8 @@ Every cap, its value and message (the single source of truth):
 ## Unsupported build backend
 
 Hatchling, setuptools, Poetry, PDM-backend and Flit-core get accurate
-file-level discovery (files, hashes, Merkle root) by default. Any other
+file-level discovery (files, hashes, Merkle root) by default; no
+`build-backend` declared means setuptools (PEP 517). Any other
 backend (`uv_build`, or one still without its own toolchain, e.g.
 `maturin`/`scikit-build-core`/`meson-python`) falls back to a
 Hatchling-based heuristic. Project-level metadata (name, version,

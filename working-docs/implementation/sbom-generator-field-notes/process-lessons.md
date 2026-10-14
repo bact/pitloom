@@ -101,3 +101,23 @@ lessons doc, section 2, are not repeated.
   Do: state a fixed list as a fixed list, name what is excluded and why,
   and test every Bidi_Control and Default_Ignorable code point is either
   in the set or on a named exclusion list.
+- **Review the release diff once more, with fresh eyes, after the PR
+  review rounds.** Eight review rounds of #294 left an exponential-time
+  walk in the README enricher (see determinism-and-parsing.md, YAML
+  aliases) that two fresh-context reviewers of `v0.20.1..HEAD` found in
+  minutes, along with three cross-format spelling gaps. The cause was a
+  late fix (the lone-surrogate walk) that broadened what code touched.
+  Do: after the last PR round, review the whole release range by area
+  with fresh agents; a fix added in a late round is the likeliest place.
+- **A release verification is its own artefact.** For 0.20.2: byte
+  comparison of PyPI vs release assets, `verify-wheel`, `validate-wheel`,
+  `spdx3-validate`, a Merkle root recomputed by an independent script
+  (223 payload files, `.dist-info` excluded), `gh attestation verify`
+  (silent when not on a TTY: use the exit code) and `sigstore verify
+  github` on the release copies. 240 `software_File` = 223 payload + 17
+  directories.
+  Do: record the evidence in the repo the day of the release.
+- **A bugs list needs a re-homing step at release time.** Moving a
+  released section to the completed list would have archived three
+  unfixed bugs that sat under "in 0.20.1". Move only ticked items; the
+  open ones go to the next release's section.

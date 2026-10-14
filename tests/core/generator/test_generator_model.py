@@ -253,14 +253,11 @@ def test_build_deployed_reuses_registry_entity_by_name() -> None:
 
 
 def test_build_deployed_reuses_registry_entity_by_canonicalized_name() -> None:
-    """A harvested entry keyed by a package's *declared* name (e.g.
-    ``"PyYAML"``, what ``_build_deployed_package`` sets as the element's
-    own ``name``) must still be found by a later run's lookup, which only
-    has pipdeptree's *key* (e.g. ``"pyyaml"``) to query with -- both sides
-    now go through :func:`packaging.utils.canonicalize_name`
-    (:mod:`pitloom.id_registry._harvest`'s ``_import_sbom_element`` on harvest,
-    :func:`pitloom.assemble.spdx3._document_deployed._resolve_deployed_package_hits`
-    on lookup), so the raw-string mismatch no longer loses the hit."""
+    """An entry registered under a package's declared name (``"PyYAML"``,
+    as ``--entity`` writes it) is found by the deployed lookup, which
+    shows and looks the package up by its PEP 503 name (``"pyyaml"``):
+    the registry canonicalizes both sides
+    (:func:`pitloom.id_registry._types._entity_key`)."""
     project = ProjectMetadata(name="deployed-environment", version="0.0.0")
     doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
     env_tree = [
@@ -274,15 +271,13 @@ def test_build_deployed_reuses_registry_entity_by_canonicalized_name() -> None:
     ]
 
     registry = IdRegistry.new("deployed-environment")
-    # Simulates a harvested entry: registered under the canonical form of
-    # the declared name, exactly as _import_sbom_element now stores it.
-    registered_id = registry.register_entity("pyyaml", "software_Package")
+    registered_id = registry.register_entity("PyYAML", "software_Package")
 
     exporter = build_deployed(doc, env_tree, registry=registry)
     graph = json.loads(exporter.to_json())["@graph"]
 
     packages = [e for e in graph if e.get("type") == "software_Package"]
-    pyyaml_pkg = next(p for p in packages if p["name"] == "PyYAML")
+    pyyaml_pkg = next(p for p in packages if p["name"] == "pyyaml")
     assert pyyaml_pkg["spdxId"] == registered_id
 
 

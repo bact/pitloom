@@ -29,11 +29,12 @@ def assert_declared_empty_authors_no_copyright_text(metadata: ProjectMetadata) -
     """Assert the shared contract every ``ProjectMetadata`` producer applies
     to an explicitly declared but empty ``authors`` field: provenance is
     still recorded (presence, not truthiness, gates it -- see AGENTS.md's
-    "tri-state signal" bullet), but with no author to derive a name from,
-    no ``copyright_text`` is inferred.
+    "tri-state signal" bullet). The authors never make a copyright text:
+    with no licence file, there is none, nor its provenance.
     """
     assert metadata.authors == []
     assert "authors" in metadata.provenance
+    assert metadata.copyright_text is None
     assert "copyright_text" not in metadata.provenance
 
 
@@ -109,9 +110,10 @@ _FAKE_CORE_DEFAULTS: dict[str, Any] = {
     "license_expression": "",
     "classifiers": [],
     "keywords": [],
-    "authors_data": {"name": [], "email": []},
+    "authors": [],
     "urls": {},
     "dependencies": [],
+    "optional_dependencies": {},
 }
 
 
@@ -139,9 +141,10 @@ def _fake_hatch_metadata(
     """
     merged_core = {"raw_name": name, **_FAKE_CORE_DEFAULTS, **(core or {})}
     core_attr_to_config_key = {
-        "authors_data": "authors",
+        "authors": "authors",
         "urls": "urls",
         "dependencies": "dependencies",
+        "optional_dependencies": "optional-dependencies",
         "keywords": "keywords",
         "requires_python": "requires-python",
     }

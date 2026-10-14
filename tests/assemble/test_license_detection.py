@@ -23,7 +23,6 @@ from licenseid import AggregatedLicenseMatcher
 
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import (
-    _COPYRIGHT_NOTICE_RE,
     _looks_like_spdx_license_expression,
     _looks_like_spdx_license_id,
     apply_in_package_license,
@@ -385,27 +384,8 @@ def test_apply_in_package_license_is_one_rule_for_every_reader(
 
 # ---------------------------------------------------------------------------
 # What licenseid misses: a near-variant ranked first, a licence behind a
-# copyright notice
+# copyright notice (what a notice line is: tests/extract/test_copyright_notices.py)
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    ("line", "is_notice"),
-    [
-        ("Copyright (c) 2017-2021 Ingy d\u00f6t Net", True),
-        ("  Copyright 2006 Kirill Simonov", True),
-        ("COPYRIGHT \u00a9 2020 Acme", True),
-        ("(c) 2020 Acme", True),
-        ("copyright notice and this permission notice shall be", False),
-        ("Copyright holders may not", False),
-        ("Copyright: (c) 2020 Acme", True),
-        ("\ufeffCopyright (c) 2020 Acme", True),
-    ],
-)
-def test_a_copyright_notice_line_is_told_from_licence_text(
-    line: str, is_notice: bool
-) -> None:
-    assert bool(_COPYRIGHT_NOTICE_RE.fullmatch(line)) is is_notice
 
 
 _BODY = "Permission is hereby granted, free of charge, to any person. " * 3

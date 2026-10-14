@@ -54,6 +54,7 @@ _FIELD_SHAPES: dict[str, tuple[Callable[[Any], bool], str]] = {
     "repository": (_is_str, "a string"),
     "documentation": (_is_str, "a string"),
     "dependencies": (is_table, "a table"),
+    "extras": (is_table, "a table"),
 }
 
 

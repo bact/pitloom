@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -50,6 +50,8 @@ loom project /path/to/project -o sbom.spdx3.json
 > **Limitation:** the per-file inventory (file list and hashes) is
 > backend-aware and accurate for Flit-core, PDM-backend, Poetry, Hatchling,
 > setuptools and uv_build (uv_build needs [`--allow-build`](allow-build.md)).
+> A `pyproject.toml` declaring no `build-backend` is read as setuptools, as
+> PEP 517 build frontends build it.
 > Other backends (maturin, scikit-build-core, meson-python, ...) fall back to
 > a heuristic and log a `WARNING:`.
 
@@ -129,8 +131,11 @@ from setuptools:
 
 - `setup.py` is read, never run. A keyword that is not a literal
   (`name=NAME`), is blank (`"  "`) or holds a value Pitloom does not read
-  (`url=1`) is ignored with a `WARNING:`, and `setup.cfg`'s is used. A
-  `setup.cfg` `file:` directive in `install_requires` is not read.
+  (`url=1`) is ignored with a `WARNING:`, and `setup.cfg`'s is used.
+- A `setup.cfg` `file:` directive, and `[tool.setuptools.dynamic]`
+  `version = {file = ...}`, read a file only inside the project directory
+  and up to 1 MiB; another file is skipped with a `WARNING:`. Requirements
+  files follow [Dependency sources](dependency-sources.md#extras-and-the-optional-edge).
 - A placeholder licence (`UNKNOWN`, `NOASSERTION`) in `setup()` gives way to
   the licence classifier kept, else to the `license` of `setup.cfg` it
   overrode; setuptools keeps the placeholder. `NONE` is a statement.
@@ -148,7 +153,8 @@ entry built from both files names both, `setup.py` first:
 ### Enrich an SBOM
 
 Fill AI-model metadata gaps (licence, datasets) from a local
-`README.md`/`MODEL_CARD.md`'s YAML frontmatter. Off by default: opt in with
+`README.md`/`MODEL_CARD.md`'s YAML frontmatter (read up to 1 MiB: [Size and
+count caps](ai-model-scan-limits.md#size-and-count-caps)). Off by default: opt in with
 `--enrich` on `loom model`/`project`/`generate`, or run it standalone to
 produce a mergeable fragment:
 

@@ -187,15 +187,15 @@ def test_the_header_block_ends_at_the_first_blank_line(
     ("data", "limits", "unit"),
     [
         (b"A: 1\nB: 2\nC: 3\n", {"MAX_METADATA_HEADERS": 3}, None),
-        (b"A: 1\nB: 2\nC: 3\nD: 4\n", {"MAX_METADATA_HEADERS": 3}, "headers"),
+        (b"A: 1\nB: 2\nC: 3\nD: 4\n", {"MAX_METADATA_HEADERS": 3}, "header"),
         # A continuation line is not another header.
         (b"A: 1\n" + b" x\n\t\n" * 50, {"MAX_METADATA_HEADERS": 1}, None),
         # The counted ends are CR too: no ``\n`` to hide behind.
-        (b"A: 1\rB: 2\rC: 3\rD: 4\r", {"MAX_METADATA_HEADERS": 3}, "headers"),
+        (b"A: 1\rB: 2\rC: 3\rD: 4\r", {"MAX_METADATA_HEADERS": 3}, "header"),
         (b"A: 12345\n", {"MAX_METADATA_BYTES": 9}, None),
-        (b"A: 123456\n", {"MAX_METADATA_BYTES": 9}, "bytes"),
+        (b"A: 123456\n", {"MAX_METADATA_BYTES": 9}, "byte"),
         # One line without an end: caught while it is still being read.
-        (b"x" * 10_000, {"MAX_METADATA_BYTES": 9_999}, "bytes"),
+        (b"x" * 10_000, {"MAX_METADATA_BYTES": 9_999}, "byte"),
         (b"x" * 9_999, {"MAX_METADATA_BYTES": 9_999}, None),
     ],
     ids=[
@@ -224,7 +224,8 @@ def test_the_header_block_is_capped_in_bytes_and_headers(
     else:
         with pytest.raises(wheel_dist_info.HeaderBlockOverCap) as over:
             wheel_dist_info.read_header_block(stream)
-        assert over.value.unit == unit
+        assert over.value.cap.unit == unit
+        assert over.value.cap.limit == next(iter(limits.values()))
 
 
 class _Endless(io.RawIOBase):
@@ -290,9 +291,23 @@ def _zip_with(
     ("metadata", "limits", "warning"),
     [
         (b"Name: demo\nVersion: 1.0\n\nbody " * 1000, {}, None),
-        (None, {}, "no demo-1.0.dist-info/METADATA"),
-        (b"A: 1\nB: 2\nC: 3\n", {"MAX_METADATA_HEADERS": 2}, "over 2 headers"),
-        (b"A: 12345678\n", {"MAX_METADATA_BYTES": 9}, "over 9 bytes"),
+        (
+            None,
+            {},
+            "ARCHIVE='a.whl': no demo-1.0.dist-info/METADATA -- identity unknown",
+        ),
+        (
+            b"A: 1\nB: 2\nC: 3\n",
+            {"MAX_METADATA_HEADERS": 2},
+            "FILE=a.whl:demo-1.0.dist-info/METADATA: larger than the 2-header"
+            " header-block cap; identity unknown",
+        ),
+        (
+            b"A: 12345678\n",
+            {"MAX_METADATA_BYTES": 9},
+            "FILE=a.whl:demo-1.0.dist-info/METADATA: larger than the 9-byte"
+            " header-block cap; identity unknown",
+        ),
     ],
     ids=["read", "absent", "too-many-headers", "too-large"],
 )
@@ -317,8 +332,7 @@ def test_the_metadata_headers_or_one_warning_saying_why_not(
         assert msg.get_payload() == ""  # headers only: the body is not parsed
     else:
         assert msg is None
-        (message,) = messages
-        assert warning in message and message.endswith("identity unknown")
+        assert messages == [warning]
 
 
 def test_the_metadata_headers_refuse_a_member_that_cannot_be_read(

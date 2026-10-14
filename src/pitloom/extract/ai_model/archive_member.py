@@ -11,8 +11,9 @@ archive may inflate to gigabytes. Every reader reads a metadata member
 through :func:`read_archive_member`, which never holds more than
 :data:`MAX_ARCHIVE_MEMBER_BYTES` of it.
 
-See also: :mod:`pitloom.extract.scanner` (reports
-:class:`ArchiveMemberTooLarge` as one warning and keeps the model).
+See also: :mod:`pitloom.extract.scanner` (reports a member over the cap,
+a :class:`~pitloom.extract.ai_model.limits.ModelOverCap`, as one warning
+and keeps the model).
 """
 
 from __future__ import annotations
@@ -26,7 +27,12 @@ from pathlib import Path
 from typing import IO, Any, NamedTuple
 
 from pitloom.core.ai_metadata import record_scalar_property
-from pitloom.extract.ai_model.limits import ModelLimitExceeded, charge_read
+from pitloom.extract.ai_model.limits import (
+    ModelLimitExceeded,
+    ModelOverCap,
+    charge_read,
+)
+from pitloom.logging_config import Cap
 
 #: Largest metadata member read whole: 8 MiB. A ``.keras`` ``config.json``,
 #: a ``.pt`` ``data.pkl`` (structure only, the tensors are other members)
@@ -111,31 +117,13 @@ class _ZipfileApi(NamedTuple):
     zip64_locator_size: int
 
 
-class ArchiveMemberTooLarge(ModelLimitExceeded):
-    """A member inside a model archive holds more than
-    :data:`MAX_ARCHIVE_MEMBER_BYTES`.
-
-    A :class:`~pitloom.extract.ai_model.limits.ModelLimitExceeded`: a
-    reader's ``except Exception`` fallback must let it through.
-
-    Attributes:
-        member: The member's name in the archive.
-        limit: The cap in bytes.
-    """
-
-    def __init__(self, member: str, limit: int) -> None:
-        super().__init__(f"archive member larger than {limit} bytes")
-        self.member = member
-        self.limit = limit
-
-
 def read_archive_member(zf: zipfile.ZipFile, name: str) -> bytes:
     """Return member *name* of *zf*.
 
     Raises:
-        ArchiveMemberTooLarge: The member holds more than
-            :data:`MAX_ARCHIVE_MEMBER_BYTES`; at most one byte more than
-            that was read.
+        pitloom.extract.ai_model.limits.ModelOverCap: The member holds
+            more than :data:`MAX_ARCHIVE_MEMBER_BYTES`; at most one byte
+            more than that was read.
         pitloom.extract.ai_model.limits.ScanBudgetExceeded: A producer is
             counting reads and its budget is spent.
     """
@@ -144,7 +132,9 @@ def read_archive_member(zf: zipfile.ZipFile, name: str) -> bytes:
     with zf.open(name) as fh:
         data = fh.read(limit + 1)
     if len(data) > limit:
-        raise ArchiveMemberTooLarge(name, limit)
+        raise ModelOverCap(
+            Cap(MAX_ARCHIVE_MEMBER_BYTES, "byte", "archive-member"), name
+        )
     charge_read(len(data))
     return data
 
@@ -290,11 +280,12 @@ def check_zip_bounds(fh: IO[bytes]) -> None:
         return
     start, size = found
     if size > _MAX_ZIP_DIRECTORY_BYTES:
-        raise ModelLimitExceeded(f"ZIP central directory of {size} bytes")
+        cap = Cap(_MAX_ZIP_DIRECTORY_BYTES, "byte", "ZIP-central-directory")
+        raise ModelOverCap(cap)
     # Looked up at call time: a test lowers the module constant.
-    cap = MAX_MODEL_ZIP_ENTRIES
-    if _count_exceeds_cap(fh, start, size, cap):
-        raise ModelLimitExceeded(f"ZIP archive of more than {cap} entries")
+    cap = Cap(MAX_MODEL_ZIP_ENTRIES, "entry", "ZIP-archive")
+    if _count_exceeds_cap(fh, start, size, cap.limit):
+        raise ModelOverCap(cap)
 
 
 @contextmanager

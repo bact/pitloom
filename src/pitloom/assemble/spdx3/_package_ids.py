@@ -13,11 +13,13 @@ installed and a bundled package with the same PEP 503 name reach the same
 registry key -- the key ``IdRegistry`` harvest writes back for each of
 them.
 
-A dependency named like the project, or a phantom dependency named like
-the project or a dependency, never looks up: it mints a fresh id, silently,
-and is recorded in
+A dependency named like the project adds no package (see
+:class:`~pitloom.assemble.spdx3._dep_scope.DependencyScopes`). A non-PEP
+508 dependency string whose fallback name is the project's, or a phantom
+dependency named like the project or a dependency, never looks up: it
+mints a fresh id, silently, and is recorded in
 :attr:`~pitloom.export.spdx3_json.Spdx3JsonExporter.registry_non_readers`.
-Run auto-harvest leaves those out, so the package owning the name is
+Run auto-harvest leaves it out, so the package owning the name is
 written. A name held by several packages that do look up (two versions of
 one dependency, two phantoms) is not written (see
 :func:`pitloom.id_registry._ambiguous._ambiguous_entity_keys`); an existing
@@ -94,7 +96,7 @@ class DependencyIdHits:
 
     def looked_up(self, canonical_name: str) -> bool:
         """Whether a dependency named *canonical_name* looked the registry
-        up; ``False`` when another package of the document owns the name."""
+        up; ``False`` when the main package owns the name."""
         return canonical_name not in self._not_looked_up
 
     def take(self, canonical_name: str, claimant: str) -> str | None:
@@ -149,11 +151,15 @@ def _resolve_dependency_hits(
     """Resolve *dependencies* (PEP 508 strings) once per canonical name,
     in the given (deterministic) order.
 
-    *seen* holds the canonical names that never look up and is extended
+    *seen* holds the canonical names already claimed and is extended
     with each dependency's own. It starts with the project's name: a
     dependency named like the project itself (a self-referencing extra,
-    ``demo[x]; extra == 'all'``) never looks up, because the main package
-    owns that name, so it mints a fresh id without a claim ``WARNING:``.
+    ``demo[x]; extra == 'all'``) is skipped, since it adds no package (see
+    :class:`~pitloom.assemble.spdx3._dep_scope.DependencyScopes`). Unlike
+    there, a non-PEP 508 string is matched by its fallback name too: the
+    main package owns that name's registry id either way, so that
+    dependency mints a fresh id and is a non-reader
+    (:meth:`DependencyIdHits.looked_up`).
     A later dependency of an already-seen dependency name shares that
     name's lookup instead (:meth:`DependencyIdHits.take`).
     """
@@ -178,9 +184,9 @@ def _resolve_phantom_ids(
     indices of the phantoms that never looked up.
 
     A phantom named like the project or a dependency (*seen*) never looks
-    up, same as a self-referencing extra: its name already belongs to
-    another package of the document. Two phantoms of one name both look
-    up, so the second gets the claim ``WARNING:``.
+    up: its name already belongs to another package of the document. Two
+    phantoms of one name both look up, so the second gets the claim
+    ``WARNING:``.
     """
     hits: list[str | None] = []
     not_looked_up: set[int] = set()

@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-07
-Last-Modified: 2026-09-01
+Last-Modified: 2026-10-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -291,7 +291,7 @@ case for Poetry support (issue [#62]).  It has:
   marked `optional = true` (an extra, not a default runtime dependency),
   are excluded from `locked_dependencies` for the same reason
   (`_main_group_package_or_none()` in `src/pitloom/extract/lock/poetry.py`).
-- **`[tool.poetry.extras]`** -- optional extras are not yet mapped to
-  `ProjectMetadata`. This is a schema-wide gap, not Poetry-specific:
-  `ProjectMetadata` has no extras/optional-dependencies field for any
-  backend (Hatchling and setuptools don't get this either).
+- **`[tool.poetry.extras]`** -- read since #300: an optional dependency is
+  listed once per extra naming it, tagged `extra == "x"`, and its
+  `poetry.lock` pin is applied as an extras pin. Its `markers`/`python` keys
+  are still dropped. See [extras-parity.md](extras-parity.md).

@@ -1,0 +1,5 @@
+# Vendored third-party files, kept byte for byte as published
+# (see tests/fixtures/README.md); the fixture folders' own README.md
+# files are still linted.
+tests/fixtures/real-world-extras/*/*/
+tests/fixtures/real-world-locks/*/*/

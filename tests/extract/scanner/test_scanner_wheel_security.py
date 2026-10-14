@@ -67,6 +67,12 @@ def _assert_format_only_stub(model: Any) -> None:
     assert model.name is None and not model.properties and not model.provenance
 
 
+_CEILING_WARNING = (
+    f"FORMAT=safetensors FILE={_NAME}: larger than the 1000-byte"
+    " max-model-extract-bytes cap; metadata not read"
+)
+
+
 def _messages(caplog: pytest.LogCaptureFixture) -> list[str]:
     return logged_warnings(caplog)
 
@@ -79,8 +85,7 @@ def test_declared_size_over_the_ceiling_is_refused_before_any_copy(
     (model,) = _scan(wheel, _CEILING)
     _assert_format_only_stub(model)
     (message,) = _messages(caplog)
-    assert re.search(r"\d+ bytes exceeds the 1000-byte scan ceiling", message)
-    assert _NAME in message
+    assert message == _CEILING_WARNING
     assert not copies
 
 
@@ -120,7 +125,7 @@ def test_a_stream_longer_than_declared_stops_at_the_ceiling(
     (model,) = _scan(wheel, _CEILING)
     _assert_format_only_stub(model)
     (message,) = _messages(caplog)
-    assert "read more than 1000 bytes, over the 1000-byte scan ceiling" in message
+    assert message == _CEILING_WARNING
     (copy,) = copies
     assert not copy.exists()
 
@@ -309,7 +314,7 @@ def test_a_hostile_member_name_forges_no_log_line(
         monkeypatch,
     )
     lines = capsys.readouterr().err.splitlines()
-    ceiling = [line for line in lines if "scan ceiling" in line]
+    ceiling = [line for line in lines if "max-model-extract-bytes cap" in line]
     assert len(ceiling) == 1
     assert ceiling[0].startswith("WARNING: FORMAT=")
     assert not [line for line in lines if line.startswith("ERROR:")]

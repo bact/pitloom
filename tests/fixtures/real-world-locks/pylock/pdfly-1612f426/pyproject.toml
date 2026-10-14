@@ -1,0 +1,149 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "pdfly"
+authors = [
+  { name = "Martin Thoma", email = "info@martin-thoma.de" },
+  { name = "Lucas Cimon (@Lucas-C)" },
+]
+maintainers = [
+  { name = "Martin Thoma", email = "info@martin-thoma.de" },
+  { name = "Lucas Cimon (@Lucas-C)" },
+]
+description = "A pure-python CLI application to manipulate PDF files"
+readme = "README.md"
+dynamic = ["version"]
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+requires-python = ">=3.10.0"
+
+keywords = ["pdf", "cli", "tools", "compression", "metadata", "signature", "booklet"]
+
+# https://pypi.org/pypi?%3Aaction=list_classifiers
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+
+dependencies = [
+    "pypdf[full]>=5.1.0",
+    "typer>=0.12.4",
+    "pillow",
+    "pydantic",
+    "rich",
+    "fpdf2>=2.8.1",
+    "asn1crypto",
+    "cryptography",
+    "endesive",
+    "requests>=2.32.5",  # required by endesive.signer
+]
+
+[dependency-groups]
+dev = ["black", "check-wheel-contents", "flake8", "flake8-bugbear", "flake8-comprehensions", "flake8-isort", "flake8-simplify", "flit", "mypy", "pre-commit>=3.2.0", "pydantic", "pytest", "pytest-cov", "pytest-socket", "pytest-timeout", "rich", "ruff"]
+docs = ["attrs", "sphinx", "sphinx_rtd_theme", "sphinx-autobuild", "myst_parser"]  # attrs is required for myst, but not automatically installed by myst
+
+[project.urls]
+Source = "https://github.com/py-pdf/pdfly"
+
+[project.scripts]
+pdfly = "pdfly.cli:entry_point"
+
+[tool.pytest.ini_options]
+addopts = "--disable-socket --doctest-modules --cov=. --cov-report html:tests/reports/coverage-html --cov-report term-missing --ignore=docs/ --durations=3 --timeout=30"
+doctest_encoding = "utf-8"
+testpaths = ["tests"]
+
+[tool.black]
+line-length = 79
+
+[tool.isort]
+line_length = 79
+indent = '    '
+multi_line_output = 3
+include_trailing_comma = true
+known_third_party = ["pytest", "setuptools"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D401",  # First line of docstring should be in imperative mood - false positives
+    "CPY001",  # Missing copyright notice at top of file
+    "D205",  # 1 blank line required between summary line and description
+    "D400",  # First line should end with a period
+    "D415",  # First line should end with a period
+    # Introduces bugs
+    "RUF005",
+    "DTZ001", # The use of `datetime.datetime()` without `tzinfo` is necessary
+    # Personal preference
+    "D212",  # I want multiline-docstrings to start at the second line
+    "D407",  # google-style docstrings don't have dashses
+    "BLE",  # we want to capture Exception sometimes
+    "COM812",  # yes, they make the diff smaller
+    "D100",  # Missing docstring in public module
+    "D105",  # Missing docstring in magic method
+    "D106",  # Missing docstring in public nested class
+    "D107",  # Missing docstring in `__init__`
+    "D203", # one-blank-line-before-class
+    "EM",  # exception messages
+    "G004",  # f-string in logging statement
+    "RET",
+    "S110", # `try`-`except`-`pass` detected, consider logging the exception
+    "SIM105",  # contextlib.suppress
+    "SIM108",  # don't enforce ternary operators
+    "SIM300",  # yoda conditions
+    "TID252",  # we want relative imports
+    "TRY", # I don't know what this is about
+    # As long as we are not on Python 3.11+
+    "UP006", "UP007",
+    "UP031",  # Use format specifiers instead of percent format
+    # for the moment, fix it later:
+    "T201",  # print
+    "DTZ006",  # datetime without timezone
+    "SIM115",  # context handler for opening files
+    "A",  # Variable is shadowing a built-in
+    "B904", # Within an `except` clause, raise exceptions with
+    "B905",  # `zip()` without an explicit `strict=` parameter
+    "C901",
+    "D101",  # Missing docstring in public class
+    "D102", # Missing docstring in public method
+    "D103",  # Missing docstring in public function
+    "D417",  # Missing argument descriptions in the docstring
+    "FBT001", # Boolean positional arg in function definition
+    "FBT002", # Boolean default value in function definition
+    "FBT003", # Boolean positional value in function call
+    "PLC0415", # `import` should be at the top-level of a file
+    "PGH", # Use specific error messages
+    "PLR0912", # Too many branches
+    "PLR0913",  # Too many arguments to function call
+    "PLR0915", # Too many statements
+    "PLR0917",  # Too many positional arguments
+    "PLR2004", # Magic value
+    "PLW",  # global variables
+    "PTH110",  # `os.path.exists()` should be replaced by `Path.exists()`
+    "PTH123", # `open()` should be replaced by `Path.open()`
+    "S101",  # Use of `assert` detected
+    "SLF001",  # Private member accessed
+    "INP001",  # File `docs/conf.py` is part of an implicit namespace package. Add an `__init__.py`.
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 20  # Recommended: 10
+
+[tool.ruff.lint.per-file-ignores]
+"sample-files/*" = ["D100", "INP001", "FA102", "I001"]
+"make_release.py" = ["T201", "S603", "S607"]

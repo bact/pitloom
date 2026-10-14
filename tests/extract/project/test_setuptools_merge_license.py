@@ -3,8 +3,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The licence of a project with both ``setup.py`` and ``setup.cfg``, and the
-real values ``setup.py`` overrides, kept as conflicts.
+"""The licence of a project with both ``setup.py`` and ``setup.cfg``, the
+real values ``setup.py`` overrides, kept as conflicts, and the ``UNKNOWN``
+placeholder licence or author giving way.
 
 See also: test_setuptools_merge.py (the other options),
 test_setuptools_license_classifiers.py (the classifier rules).
@@ -215,3 +216,39 @@ def test_a_different_setup_py_name_is_a_conflict(
     assert (None if candidates is None else [c["value"] for c in candidates]) == (
         conflict
     )
+
+
+_CFG_AUTHOR = "Source: setup.cfg | Field: metadata.author/author_email"
+
+
+@pytest.mark.parametrize(
+    ("cfg", "py", "authors", "source"),
+    [
+        ("author = Ann", "author='UNKNOWN'", [{"name": "Ann"}], _CFG_AUTHOR),
+        ("", "author='UNKNOWN'", [], None),
+        ("author = UNKNOWN", "author='UNKNOWN'", [], None),
+        ("author = UNKNOWN", None, [], None),
+        ("author_email = UNKNOWN", None, [], None),
+        (
+            "author = UNKNOWN\nauthor_email = a@x.org",
+            None,
+            [{"email": "a@x.org"}],
+            _CFG_AUTHOR,
+        ),
+    ],
+    ids=["weak-py", "weak-py-alone", "both-weak", "cfg", "cfg-email", "weak-name"],
+)
+def test_setuptools_author_placeholder(
+    cfg: str,
+    py: str | None,
+    authors: list[dict[str, str]],
+    source: str | None,
+    tmp_path: Path,
+) -> None:
+    """``UNKNOWN`` is no author: it gives way to a real one in the other
+    file, and alone records no ``authors`` provenance, as ``PKG-INFO``'s
+    ``Author: UNKNOWN`` does not."""
+    write_project(tmp_path, _named(cfg), py)
+    metadata, _ = read_setuptools(tmp_path, quiet=True)
+    assert metadata.authors == authors
+    assert metadata.provenance.get("authors") == source

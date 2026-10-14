@@ -4,11 +4,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for PDM ``pdm.lock`` resolved-dependency parsing
-(:mod:`pitloom.extract.lock.pdm`) and its overlay onto
-``ProjectMetadata.locked_dependencies`` via ``read_project()``'s lock
-cascade (:mod:`pitloom.extract.lock.cascade`).
+(:mod:`pitloom.extract.lock.pdm`).
 
-See also: test_poetry.py/test_uv.py for the sibling lock
+See also: test_pdm_integration.py (its overlay onto
+``ProjectMetadata.locked_dependencies`` via ``read_project()``, and the
+real-world fixtures); test_poetry.py/test_uv.py for the sibling lock
 extractors this module's tests mirror in shape;
 test_cascade.py for the cascade mechanism's own tests,
 including the priority-order-consistency regression this format's
@@ -22,11 +22,6 @@ from pathlib import Path
 import pytest
 
 from pitloom.extract.lock.pdm import extract_pdm_lock_dependencies
-from pitloom.extract.project import read_project
-
-REAL_WORLD_LOCKS = (
-    Path(__file__).parent.parent.parent / "fixtures" / "real-world-locks" / "pdm"
-)
 
 #: Every genuine `pdm.lock` carries this table -- appended to *body* by
 #: default so tests that aren't specifically about the genuineness check
@@ -396,138 +391,3 @@ def test_same_name_equivalent_versions_not_conflicted() -> None:
         )
 
         assert extract_pdm_lock_dependencies(tmp_path) == ["pkg==1.0"]
-
-
-# --- read_project() cascade integration -----------------------------------
-
-
-def test_read_project_populates_locked_dependencies() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        (tmp_path / "pyproject.toml").write_text(
-            '[project]\nname = "demo"\nversion = "1.0.0"\n', encoding="utf-8"
-        )
-        _write_lock(
-            tmp_path,
-            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
-            'groups = ["default"]\n',
-        )
-
-        metadata, _config, _path = read_project(tmp_path)
-
-        assert metadata.locked_dependencies == ["requests==2.31.0"]
-        assert metadata.provenance["locked_dependencies"] == (
-            "Source: pdm.lock | Method: resolved_lockfile"
-        )
-
-
-def test_read_project_pdm_lock_never_overrides_poetry_lock(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """Regression: `pdm.lock` ranks *below* `poetry.lock` in the shared
-    priority order -- when both are present (an unusual but possible
-    project layout), `poetry.lock`'s already-applied result must win,
-    and `pdm.lock` must never silently override it. This is the exact
-    class of bug a naive "first entry with data wins" cascade would
-    introduce once a lower-than-`poetry.lock`-ranked format is added."""
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        (tmp_path / "pyproject.toml").write_text(
-            '[tool.poetry]\nname = "demo"\nversion = "1.0.0"\n', encoding="utf-8"
-        )
-        (tmp_path / "poetry.lock").write_text(
-            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n'
-            '[metadata]\nlock-version = "2.1"\n',
-            encoding="utf-8",
-        )
-        _write_lock(
-            tmp_path,
-            '[[package]]\nname = "httpx"\nversion = "0.28.1"\ngroups = ["default"]\n',
-        )
-
-        with caplog.at_level(logging.WARNING):
-            metadata, _config, _path = read_project(tmp_path)
-
-        assert metadata.locked_dependencies == ["requests==2.31.0"]
-        assert metadata.provenance["locked_dependencies"] == (
-            "Source: poetry.lock | Method: resolved_lockfile"
-        )
-        assert "supersedes" not in caplog.text
-
-
-def test_read_project_pdm_lock_used_when_no_poetry_lock_present() -> None:
-    """A non-Poetry project (no `[tool.poetry]` at all, so `poetry.lock`
-    was never applied) still gets `pdm.lock`'s data normally -- the
-    priority-order gate only blocks *actual* higher-ranked data, not the
-    mere possibility of it."""
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        (tmp_path / "pyproject.toml").write_text(
-            '[project]\nname = "demo"\nversion = "1.0.0"\n', encoding="utf-8"
-        )
-        _write_lock(
-            tmp_path,
-            '[[package]]\nname = "httpx"\nversion = "0.28.1"\ngroups = ["default"]\n',
-        )
-
-        metadata, _config, _path = read_project(tmp_path)
-
-        assert metadata.locked_dependencies == ["httpx==0.28.1"]
-        assert metadata.provenance["locked_dependencies"] == (
-            "Source: pdm.lock | Method: resolved_lockfile"
-        )
-
-
-def test_read_project_uv_lock_still_overrides_pdm_lock() -> None:
-    """`uv.lock` outranks `pdm.lock` -- confirm adding `pdm.lock` to the
-    cascade didn't disturb the existing higher-priority entries."""
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        (tmp_path / "pyproject.toml").write_text(
-            '[project]\nname = "demo"\nversion = "1.0.0"\n', encoding="utf-8"
-        )
-        (tmp_path / "uv.lock").write_text(
-            'version = 1\nrevision = 1\nrequires-python = ">=3.10"\n'
-            '[[package]]\nname = "demo"\nversion = "1.0.0"\n'
-            'source = { editable = "." }\n'
-            'dependencies = [{ name = "requests" }]\n\n'
-            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
-            'source = { registry = "https://pypi.org/simple" }\n',
-            encoding="utf-8",
-        )
-        _write_lock(
-            tmp_path,
-            '[[package]]\nname = "httpx"\nversion = "0.28.1"\ngroups = ["default"]\n',
-        )
-
-        metadata, _config, _path = read_project(tmp_path)
-
-        assert metadata.locked_dependencies == ["requests==2.31.0"]
-        assert metadata.provenance["locked_dependencies"] == (
-            "Source: uv.lock | Method: resolved_lockfile"
-        )
-
-
-# --- real-world fixtures ---------------------------------------------------
-
-
-def test_real_world_pdm() -> None:
-    """`pdm-project/pdm` -- PDM's own package (self-hosting case)."""
-    metadata, _config, _path = read_project(REAL_WORLD_LOCKS / "pdm-2.29.0")
-
-    assert metadata.name == "pdm"
-    names = {dep.split("==", maxsplit=1)[0] for dep in metadata.locked_dependencies}
-    assert "httpx" in names
-    assert "coverage" not in names  # test-group only
-    assert metadata.provenance["locked_dependencies"] == (
-        "Source: pdm.lock | Method: resolved_lockfile"
-    )
-
-
-def test_real_world_unearth() -> None:
-    metadata, _config, _path = read_project(REAL_WORLD_LOCKS / "unearth-0.18.3")
-
-    assert metadata.name == "unearth"
-    names = {dep.split("==", maxsplit=1)[0] for dep in metadata.locked_dependencies}
-    assert "anyio" in names
-    assert "sphinx" not in names  # doc-group only, per the unearth pdm.lock sample

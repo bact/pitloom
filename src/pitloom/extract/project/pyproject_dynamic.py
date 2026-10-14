@@ -24,6 +24,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from pitloom.extract.project._setup_cfg_directives import (
+    read_listed_file,
+    source_name,
+)
 from pitloom.extract.project.flit import resolve_flit_dynamic_metadata
 from pitloom.extract.project.pdm import resolve_pdm_dynamic_version
 from pitloom.extract.project.setuptools import detect_build_backend
@@ -153,9 +157,10 @@ def _extract_setuptools_dynamic_version(
         _resolve_cfg_version_file_directive,
     )
 
+    what = "pyproject.toml tool.setuptools.dynamic.version"
     attr = version_directive.get("attr")
     if attr:
-        return _resolve_cfg_attr_directive(attr, project_dir)
+        return _resolve_cfg_attr_directive(attr, project_dir, what)
 
     file_list = version_directive.get("file")
     if file_list:
@@ -171,9 +176,7 @@ def _extract_setuptools_dynamic_version(
         path = next((n for n in names if isinstance(n, str) and n.strip()), None)
         if path is None:
             return None, None
-        return _resolve_cfg_version_file_directive(
-            path, project_dir, "pyproject.toml tool.setuptools.dynamic.version"
-        )
+        return _resolve_cfg_version_file_directive(path, project_dir, what)
 
     return None, None
 
@@ -194,51 +197,46 @@ def _extract_dynamic_version(
     hatch_version_path = (
         pyproject_data.get("tool", {}).get("hatch", {}).get("version", {}).get("path")
     )
-    if hatch_version_path:
-        p = project_dir / hatch_version_path
-        if p.exists():
-            version = _read_version_from_file(p)
-            if version:
-                return (
-                    version,
-                    f"Source: {p.relative_to(project_dir).as_posix()}"
-                    " | Method: dynamic_extraction",
-                )
+    if isinstance(hatch_version_path, str) and hatch_version_path:
+        version, source = _read_dynamic_version(
+            project_dir, hatch_version_path, "tool.hatch.version.path"
+        )
+        if version:
+            return version, source
 
     package_name = pyproject_data.get("project", {}).get("name", "").replace("-", "_")
-    candidates = [
-        project_dir / "src" / package_name / "__about__.py",
-        project_dir / "src" / package_name / "__version__.py",
-        project_dir / "src" / "__about__.py",
-        project_dir / "src" / "__version__.py",
-        project_dir / package_name / "__about__.py",
-        project_dir / package_name / "__version__.py",
-        project_dir / "__about__.py",
-        project_dir / "__version__.py",
-    ]
-    for p in candidates:
-        if p.exists():
-            version = _read_version_from_file(p)
-            if version:
-                return (
-                    version,
-                    f"Source: {p.relative_to(project_dir).as_posix()}"
-                    " | Method: dynamic_extraction",
-                )
+    for name in (
+        f"src/{package_name}/__about__.py",
+        f"src/{package_name}/__version__.py",
+        "src/__about__.py",
+        "src/__version__.py",
+        f"{package_name}/__about__.py",
+        f"{package_name}/__version__.py",
+        "__about__.py",
+        "__version__.py",
+    ):
+        version, source = _read_dynamic_version(project_dir, name, "dynamic version")
+        if version:
+            return version, source
 
     return None, None
 
 
-def _read_version_from_file(file_path: Path) -> str | None:
-    """Extract ``__version__ = "x.y.z"`` from a Python source file."""
-    try:
-        for line in file_path.read_text(encoding="utf-8").splitlines():
-            if "__version__" in line and "=" in line:
-                # partition() on a line already confirmed to contain "="
-                # always finds the separator, so value is never the
-                # empty-string not-found case.
-                _, _, value = line.partition("=")
-                return value.strip().strip('"').strip("'")
-    except (OSError, UnicodeDecodeError):
-        pass
-    return None
+def _read_dynamic_version(
+    project_dir: Path, name: str, what: str
+) -> tuple[str | None, str | None]:
+    """``(version, provenance_source)`` from the ``__version__ = "x.y.z"``
+    line of the file *name*, read for *what* inside *project_dir* only
+    (:func:`~pitloom.extract.project._setup_cfg_directives.read_listed_file`:
+    capped, warned when present but not read); ``(None, None)`` when none."""
+    _, text = read_listed_file(project_dir, name, what)
+    for line in (text or "").splitlines():
+        if "__version__" in line and "=" in line:
+            # partition() on a line already confirmed to contain "="
+            # always finds the separator.
+            _, _, value = line.partition("=")
+            version = value.strip().strip('"').strip("'")
+            if not version:
+                return None, None
+            return version, f"Source: {source_name(name)} | Method: dynamic_extraction"
+    return None, None

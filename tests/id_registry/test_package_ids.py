@@ -230,7 +230,7 @@ def test_non_canonical_dependency_name_hits_canonical_key() -> None:
     exporter = build_doc(make_doc(dependencies=["Fake_Dep==1.0", "other>=2"]), registry)
 
     ids = {p.name: p.spdx_id for p in packages(exporter)}
-    assert ids["Fake_Dep"] == pinned
+    assert ids["fake-dep"] == pinned
     assert ids["other"] == other
 
 
@@ -241,7 +241,7 @@ def test_locked_transitive_dependency_id_comes_from_registry() -> None:
     exporter = build_doc(make_doc(locked=["Locked_Lib==3.0"]), registry)
 
     ids = {p.name: p.spdx_id for p in packages(exporter)}
-    assert ids["Locked_Lib"] == pinned
+    assert ids["locked-lib"] == pinned
 
 
 def test_phantom_dependency_id_comes_from_registry() -> None:
@@ -299,7 +299,7 @@ def test_same_name_different_versions_first_claimant_takes_pinned_id(
     assert len(warnings) == 2  # one per build
     assert pinned in warnings[0]
     assert "dependency foo 1.0" in warnings[0]
-    assert "dependency Foo 2.0 gets a new id" in warnings[0]
+    assert "dependency foo 2.0 gets a new id" in warnings[0]
 
 
 def test_dependency_and_phantom_dependency_of_one_name_are_two_elements(
@@ -318,7 +318,7 @@ def test_dependency_and_phantom_dependency_of_one_name_are_two_elements(
         )
 
     by_name = {p.name: p.spdx_id for p in packages(exporter)}
-    assert by_name["lib_foo"] == pinned
+    assert by_name["lib-foo"] == pinned
     assert by_name["Lib.Foo"] != pinned
     assert not claim_warnings(caplog)
 
@@ -343,8 +343,8 @@ def test_dependency_named_like_the_project_never_looks_up(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """A self-referencing extra (``demo[x]``) names the project itself: the
-    main package owns the registry id and the dependency mints its own,
-    silently -- no claim WARNING."""
+    main package owns the registry id and the self-reference adds no
+    package, silently -- no claim WARNING."""
     registry = IdRegistry.new("pins")
     pinned = registry.register_entity(MAIN, PACKAGE_ENTITY_TYPE)
 
@@ -353,9 +353,7 @@ def test_dependency_named_like_the_project_never_looks_up(
             make_doc(dependencies=[f"{MAIN.upper()}[x]; extra == 'all'"]), registry
         )
 
-    by_version = {p.version: p.spdx_id for p in packages(exporter)}
-    assert by_version["1.0.0"] == pinned  # the main package
-    assert by_version["unknown"] != pinned  # the self-dependency
+    assert [(p.version, p.spdx_id) for p in packages(exporter)] == [("1.0.0", pinned)]
     assert not claim_warnings(caplog)
 
 

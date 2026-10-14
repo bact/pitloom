@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-09
+Last-Modified: 2026-10-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -253,3 +253,14 @@ Moved from [known-bugs.md](../design/known-bugs.md).
   `merge_project_metadata` keeps any non-blank first value, where
   `first_license` would skip the weak one
   ([license-rules.md](../design/license-rules.md#open-questions), question 2).
+
+## Bugs fixed in 0.21.0 (unreleased)
+
+Moved from [known-bugs.md](../design/known-bugs.md).
+
+- [x] **Source and wheel SBOMs disagree on optional dependencies (M)**, and
+  **extras-only dependencies are plain `dependsOn` in a wheel SBOM (S-M)**.
+  Fixed by #300 (provisional): extras on every route as
+  `hasOptionalDependency` with no scope, all authors as `originatedBy`. See
+  [extras-parity.md](extras-parity.md). PyThaiNLP 5.4.0: 79 packages from the
+  wheel route, 3 from `loom project .` before the fix.

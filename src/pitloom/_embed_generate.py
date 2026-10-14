@@ -49,6 +49,11 @@ from pitloom.core.inert_options import (
 from pitloom.core.models import merkle_root_of_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import require_max_source_metadata_bytes
+from pitloom.extract.authors import (
+    CORE_METADATA_HINT,
+    AuthorSplit,
+    warn_author_splits,
+)
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.project import read_project
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
@@ -86,8 +91,9 @@ def _resolve_embed_registry(
     elif project_dir is None:
         cfg = PitloomConfig()
     else:
-        # quiet=True: a discarded peek (only cfg.id_registry is used) --
-        # _generate_embed_sbom_json's real re-read emits this WARNING once.
+        # quiet=True: a discarded peek (only cfg.id_registry is used); the
+        # project's metadata warnings come from the read that adopts its
+        # authors (_adopt_project_authors).
         _, cfg, _ = read_project(
             Path(project_dir).resolve(),
             include_locked_dependencies=False,
@@ -152,6 +158,17 @@ def _settle_embed_options(
     return dataclasses.replace(overrides, max_source_metadata_bytes=cap)
 
 
+def _settle_project_build_options(
+    build_options: BuildOptions, file_cache: EmbedFileCache | None, proj_root: Path
+) -> BuildOptions:
+    """*build_options* settled for *proj_root* when its target plan says to
+    (:func:`~pitloom.core.build_options.target_settle_plan`), else as given."""
+    settle, reason = target_settle_plan(proj_root)
+    if not settle:
+        return build_options
+    return _settle_build_options(build_options, file_cache, proj_root, reason)
+
+
 # pylint: disable=too-many-arguments
 def _generate_embed_sbom_json(
     wheel_metadata: ProjectMetadata,
@@ -165,8 +182,13 @@ def _generate_embed_sbom_json(
     id_registry: str | Path | IdRegistry | None,
     overrides: ConfigOverrides,
     file_cache: EmbedFileCache | None = None,
+    author_splits: list[AuthorSplit] | None = None,
 ) -> tuple[str, str | None]:
     """Resolve the SBOM JSON to embed and its effective basename.
+
+    *author_splits*: the wheel ``Author``/``Author-email`` strings split
+    into several entries, warned about only on a branch that uses the
+    wheel's authors.
 
     *file_cache*: see :func:`~pitloom.embed.embed_wheel_sbom`'s own
     docstring -- passed through unchanged to
@@ -206,6 +228,7 @@ def _generate_embed_sbom_json(
             EMBED_STANDALONE, wheel_metadata.name, given, overrides, file_cache
         )
         cfg = resolve_standalone_config(pitloom_config, overrides)
+        warn_author_splits(author_splits or [], hint=CORE_METADATA_HINT)
         sbom_json = _build_sbom_standalone_wheel(
             wheel_path,
             wheel_metadata,
@@ -224,22 +247,22 @@ def _generate_embed_sbom_json(
     # ahead of any config-parse WARNING: that read can produce. (An
     # earlier, quiet=True peek in _resolve_embed_registry never warns,
     # but still raises there on a malformed config, before this settling.)
-    settle, reason = target_settle_plan(proj_root)
-    settled_build_options = (
-        _settle_build_options(overrides.build_options, file_cache, proj_root, reason)
-        if settle
-        else overrides.build_options
+    settled_build_options = _settle_project_build_options(
+        overrides.build_options, file_cache, proj_root
     )
     if pitloom_config is None:
         # Only [tool.pitloom] config is used here -- skip the lock/pin
         # cascade (embed-wheel is build-stage; a source-stage lock file's
         # resolved dependencies must never leak into an embedded SBOM) and
         # skip in-tree installed-metadata resolution (same build-stage
-        # rationale, and this caller discards the metadata anyway).
+        # rationale, and this caller discards the metadata anyway). Quiet:
+        # the metadata is discarded, so its warnings come from the read
+        # that adopts the authors (_adopt_project_authors).
         _, cfg, _ = read_project(
             proj_root,
             include_locked_dependencies=False,
             include_installed_metadata=False,
+            quiet=True,
         )
     else:
         cfg = pitloom_config
@@ -256,6 +279,7 @@ def _generate_embed_sbom_json(
         creation_metadata or cfg.creation_metadata,
         build_options=settled_build_options,
         file_cache=file_cache,
+        author_splits=author_splits,
     )
     return sbom_json, sbom_basename or cfg.sbom_basename
 

@@ -21,11 +21,11 @@ from typing import Any
 
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract.project._requirements_files import requirement_lines
 from pitloom.extract.project._setuptools_options import (
     SetupOption,
     SetupOptions,
     build_setuptools_metadata,
-    requirement_lines,
     shown_value,
 )
 from pitloom.logging_config import one_line
@@ -177,11 +177,20 @@ def _parse_strings(raw: Any) -> Any:
 
 def _parse_requirements(raw: Any) -> Any:
     """A string or a list of strings, read as setuptools reads them
-    (:func:`~pitloom.extract.project._setuptools_options.requirement_lines`)."""
+    (:func:`~pitloom.extract.project._requirements_files.requirement_lines`)."""
     if isinstance(raw, str):
         return requirement_lines(raw)
     strings = _parse_strings(raw)
     return strings if strings is _UNREADABLE else requirement_lines("\n".join(raw))
+
+
+def _parse_extras(raw: Any) -> Any:
+    """``extras_require``: extra name -> a string or a list of strings, each
+    read as :func:`_parse_requirements` does."""
+    if not isinstance(raw, dict) or not all(isinstance(k, str) for k in raw):
+        return _UNREADABLE
+    parsed = {key: _parse_requirements(value) for key, value in raw.items()}
+    return _UNREADABLE if _UNREADABLE in parsed.values() else parsed
 
 
 def _parse_setup_keywords(raw: Any) -> Any:
@@ -215,6 +224,7 @@ _OPTIONS: dict[str, tuple[str, Callable[[Any], Any]]] = {
     "project_urls": ("url", _parse_project_urls),
     "install_requires": ("install_requires", _parse_requirements),
     "python_requires": ("python_requires", _parse_str),
+    "extras_require": ("extras_require", _parse_extras),
 }
 
 
@@ -293,7 +303,7 @@ def read_setup_py(
             ``name``.
     """
     options = read_setup_py_options(project_dir, quiet=quiet)
-    metadata = build_setuptools_metadata({}, options)
+    metadata = build_setuptools_metadata({}, options, quiet=quiet)
     if not metadata.name:
         raise ValueError(
             "Could not extract project name from setup.py. "

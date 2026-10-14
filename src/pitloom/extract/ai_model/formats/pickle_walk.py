@@ -99,7 +99,8 @@ def walk_opcodes(source: bytes | IO[bytes], limits: Limits) -> Iterator[Opcode]:
         count += 1
         if count > limits.max_pickle_opcodes:
             raise LimitExceeded(
-                f"pickle with more than {limits.max_pickle_opcodes} opcodes"
+                f"pickle with more than {limits.max_pickle_opcodes} opcodes",
+                "max_pickle_opcodes",
             )
         yield Opcode(op.name, pos)
         if code == _STOP:
@@ -129,12 +130,16 @@ def _skip_decimal(stream: IO[bytes], limits: Limits) -> None:
     ):
         raise LimitExceeded(
             "pickle with a decimal number over "
-            f"{limits.max_pickle_decimal_digits} digits"
+            f"{limits.max_pickle_decimal_digits} digits",
+            "max_pickle_decimal_digits",
         )
     if not text.endswith(b"\n"):
         if len(text) <= window:
             raise Malformed("no newline found when trying to read stringnl")
-        raise LimitExceeded(f"pickle with a decimal argument over {window} bytes")
+        raise LimitExceeded(
+            f"pickle with a decimal argument over {window} bytes",
+            "max_pickle_decimal_bytes",
+        )
 
 
 def _read_arg(arg: pickletools.ArgumentDescriptor, stream: IO[bytes]) -> None:

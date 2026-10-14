@@ -11,8 +11,10 @@ cascade (:mod:`pitloom.extract.lock.cascade`).
 See also: test_pylock_markers.py for this same module's
 ``dependency_groups``/``extras`` marker-evaluation tests, split out once
 that cluster alone grew past this repo's per-file line-count guidance;
-test_poetry.py for the sibling ``poetry.lock`` extractor this
-module's tests mirror in shape; test_cascade.py for the
+test_pylock_real_world.py for the vendored real-world ``pylock.toml``
+fixtures and the fixture README's claims about them; test_poetry.py for
+the sibling ``poetry.lock`` extractor this module's tests mirror in shape;
+test_cascade.py for the
 cascade mechanism's own tests (priority ordering, the ``setup.py``-only
 wiring, the override provenance note).
 """

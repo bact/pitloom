@@ -32,8 +32,6 @@ _ALLOWED = {
     # spdx3_utc_now(): the fallback of resolve_creation_datetime-style
     # cascades; callers try the pin and SOURCE_DATE_EPOCH first.
     "assemble/spdx3/creation_info.py": 1,
-    # The copyright year when CreationInfo.created is not a datetime.
-    "assemble/spdx3/document.py": 1,
     # ZIP entry time when neither the SBOM datetime nor an epoch is set.
     "_embed_wheel.py": 1,
     # Hatchling hook: after creation-datetime and SOURCE_DATE_EPOCH.

@@ -20,6 +20,9 @@ file outside ``.dist-info`` could be misattributed.
 
 from __future__ import annotations
 
+import logging
+from importlib.metadata import PathDistribution
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -30,7 +33,6 @@ from pitloom.assemble.spdx3 import deps_originator
 from pitloom.assemble.spdx3.deps import _enrich_from_installed
 from pitloom.assemble.spdx3.deps_originator import (
     _find_license_copyright,
-    _resolve_address_entry,
     _resolve_author_or_maintainer,
     _resolve_remote_authors_file,
 )
@@ -41,8 +43,12 @@ from pitloom.assemble.spdx3.deps_pypi import (
 )
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.extract._license_detect import LICENSE_FILE_MAX_BYTES
+from tests._symlink import CAN_SYMLINK, case_sensitive
 
 from .conftest import _FakeMetadata, _make_ci
+
+_SYMLINK = pytest.mark.skipif(not CAN_SYMLINK, reason="cannot create a symlink")
 
 # ---------------------------------------------------------------------------
 # _resolve_author_or_maintainer -- single address, Maintainer fallback, multi-address
@@ -51,7 +57,7 @@ from .conftest import _FakeMetadata, _make_ci
 
 def test_resolve_author_or_maintainer_from_author_email() -> None:
     meta = _FakeMetadata({"Author-email": "Trail of Bits <opensource@trailofbits.com>"})
-    assert _resolve_author_or_maintainer(meta) == [
+    assert _resolve_author_or_maintainer(meta, "p") == [
         ("Trail of Bits", "opensource@trailofbits.com")
     ]
 
@@ -60,7 +66,7 @@ def test_resolve_author_or_maintainer_falls_back_to_maintainer() -> None:
     meta = _FakeMetadata(
         {"Maintainer-email": "Taneli Hukkinen <hukkin@users.noreply.github.com>"}
     )
-    assert _resolve_author_or_maintainer(meta) == [
+    assert _resolve_author_or_maintainer(meta, "p") == [
         (
             "Taneli Hukkinen",
             "hukkin@users.noreply.github.com",
@@ -85,7 +91,7 @@ def test_resolve_author_or_maintainer_handles_multiple_maintainer_addresses() ->
             )
         }
     )
-    assert _resolve_author_or_maintainer(meta) == [
+    assert _resolve_author_or_maintainer(meta, "p") == [
         ("Bernát Gábor", "gaborjbernat@gmail.com"),
         ("Kemal Zebari", "kemalzebra@gmail.com"),
         ("Vineet Naik", "naikvin@gmail.com"),
@@ -94,11 +100,11 @@ def test_resolve_author_or_maintainer_handles_multiple_maintainer_addresses() ->
 
 def test_resolve_author_or_maintainer_plain_name_no_email() -> None:
     meta = _FakeMetadata({"Author": "Some Org"})
-    assert _resolve_author_or_maintainer(meta) == [("Some Org", None)]
+    assert _resolve_author_or_maintainer(meta, "p") == [("Some Org", None)]
 
 
 def test_resolve_author_or_maintainer_absent_returns_none() -> None:
-    assert _resolve_author_or_maintainer(_FakeMetadata({})) == []
+    assert not _resolve_author_or_maintainer(_FakeMetadata({}), "p")
 
 
 def test_enrich_from_installed_sets_originated_by(
@@ -166,16 +172,22 @@ def test_enrich_from_installed_dedupes_shared_supplier_agent(
 
 
 # ---------------------------------------------------------------------------
-# _find_license_copyright -- License-File must be matched under .dist-info
+# _find_license_copyright -- License-File under .dist-info, every notice
 # ---------------------------------------------------------------------------
 
 
 class _FakePackagePath:
-    """Minimal stand-in for ``importlib.metadata.PackagePath``."""
+    """Minimal stand-in for ``importlib.metadata.PackagePath``: *path* in
+    the installed tree, its content written under *root*."""
 
-    def __init__(self, path: str, content: str):
+    def __init__(self, root: Path, path: str, content: str | None):
         self._path = path
-        self._content = content
+        self._file = root / path
+        self._file.parent.mkdir(parents=True, exist_ok=True)
+        if content is None:  # a directory: present, but no file to read
+            self._file.mkdir()
+        else:
+            self._file.write_bytes(content.encode("utf-8"))
 
     @property
     def name(self) -> str:
@@ -184,57 +196,139 @@ class _FakePackagePath:
     def __str__(self) -> str:
         return self._path
 
-    def read_text(self, encoding: str = "utf-8") -> str:
-        _ = encoding
-        return self._content
+    def locate(self) -> Path:
+        return self._file
 
 
 # pylint: disable-next=too-few-public-methods
 class _FakeDistribution:
-    def __init__(self, files: list[_FakePackagePath]):
+    def __init__(self, root: Path, files: list[_FakePackagePath]):
+        self._root = root
         self.files = files
 
+    def locate_file(self, path: str) -> Path:
+        return self._root / path
 
-def test_find_license_copyright_ignores_same_named_file_outside_dist_info(
+
+_LIC = "mypkg-1.0.dist-info/licenses/"
+_OVER_CAP = "Copyright (c) 2026 Big\n" + "x" * LICENSE_FILE_MAX_BYTES
+
+
+@pytest.mark.parametrize(
+    ("files", "license_files", "expected"),
+    [
+        # A same-named file outside .dist-info (vendored), listed first so a
+        # basename-only match would pick it, is not the dependency's.
+        (
+            [
+                ("mypkg/vendor/otherlib/LICENSE", "Copyright (c) 2015 Vendored\n"),
+                (f"{_LIC}LICENSE", "Copyright (c) 2026 Real Author\n"),
+            ],
+            ["LICENSE"],
+            "Copyright (c) 2026 Real Author",
+        ),
+        (
+            [("mypkg-1.0.dist-info/LICENSE.txt", "Copyright (c) 2026 Root\n")],
+            ["LICENSE.txt"],
+            "Copyright (c) 2026 Root",
+        ),
+        # Every notice of every License-File in order, a repeat left out,
+        # one past the first 500 characters too.
+        (
+            [
+                (
+                    f"{_LIC}LICENSE",
+                    "Copyright (c) 2026 A\n" + "x\n" * 300 + "(C) 2027 B\n",
+                ),
+                (f"{_LIC}NOTICE", "Copyright (c) 2026 A\nCopyright 2028 C\n"),
+            ],
+            ["LICENSE", "NOTICE"],
+            "Copyright (c) 2026 A\n(C) 2027 B\nCopyright 2028 C",
+        ),
+        ([(f"{_LIC}LICENSE", "No notice at all.\n")], ["LICENSE"], None),
+        ([(f"{_LIC}LICENSE", _OVER_CAP)], ["LICENSE"], None),
+        ([(f"{_LIC}LICENSE", None)], ["LICENSE"], None),
+    ],
+    ids=["vendored", "dist-info-root", "several", "none", "over-cap", "unreadable"],
+)
+# pylint: disable-next=too-many-arguments
+def test_find_license_copyright(
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    files: list[tuple[str, str | None]],
+    license_files: list[str],
+    expected: str | None,
 ) -> None:
-    """Regression: License-File was matched by basename only
-    (candidate.name != license_file), so a same-named LICENSE file
-    bundled elsewhere in the installed package tree -- e.g. vendored
-    third-party code at mypkg/vendor/otherlib/LICENSE -- could be matched
-    instead of the real dist-info one, misattributing that library's
-    copyright to the dependency. Listed first here specifically to prove
-    basename-only matching would have picked it.
-    """
-    vendored_license = _FakePackagePath(
-        "mypkg/vendor/otherlib/LICENSE",
-        "Copyright (c) 2015 Vendored Author\n",
+    fake_dist = _FakeDistribution(
+        tmp_path, [_FakePackagePath(tmp_path, path, text) for path, text in files]
     )
-    real_license = _FakePackagePath(
-        "mypkg-1.0.dist-info/licenses/LICENSE",
-        "Copyright (c) 2026 Real Author\n",
-    )
-    fake_dist = _FakeDistribution([vendored_license, real_license])
     monkeypatch.setattr(deps_originator, "get_pkg_distribution", lambda name: fake_dist)
+
+    meta = _FakeMetadata({}, license_files=license_files)
+    with caplog.at_level(logging.WARNING):
+        assert _find_license_copyright("mypkg", meta) == expected
+    failed = [path for path, text in files if text is None or text == _OVER_CAP]
+    messages = [r.getMessage() for r in caplog.records]
+    assert len(messages) == len(failed)
+    for message, path in zip(messages, failed, strict=True):
+        assert message.startswith(f"FILE={tmp_path / path}: ")
+
+
+_SECRET = "Copyright (c) 2026 Secret\n"
+
+
+@pytest.mark.parametrize(
+    ("entry", "expected", "warned"),
+    [
+        ("mypkg-1.0.dist-info/../../secret/LICENSE", None, True),
+        ("{secret}", None, False),
+        pytest.param("mypkg-1.0.dist-info/LICENSE", None, True, marks=_SYMLINK),
+        ("mypkg-1.0.dist-info/licenses/LICENSE", "Copyright (c) 2026 Real", False),
+        ("MYPKG-1.0.dist-info/licenses/LICENSE", "Copyright (c) 2026 Real", False),
+    ],
+    ids=["dotdot", "absolute", "symlink", "inside", "case-insensitive"],
+)
+# pylint: disable-next=too-many-arguments
+def test_find_license_copyright_record_entry_confined(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    entry: str,
+    expected: str | None,
+    warned: bool,
+) -> None:
+    """A ``RECORD`` entry is read only inside the ``.dist-info`` it names,
+    as the installed file system resolves it: ``..``, an absolute path or a
+    symlink out is never read; a case-insensitive spelling still is."""
+    if entry.startswith("MYPKG") and case_sensitive(tmp_path):
+        pytest.skip("needs a case-insensitive file system")
+    site, secret = tmp_path / "site", tmp_path / "secret" / "LICENSE"
+    dist_info = site / "mypkg-1.0.dist-info"
+    (dist_info / "licenses").mkdir(parents=True)
+    secret.parent.mkdir()
+    secret.write_text(_SECRET, encoding="utf-8")
+    (dist_info / "licenses" / "LICENSE").write_text(
+        "Copyright (c) 2026 Real\n", encoding="utf-8"
+    )
+    if entry == "mypkg-1.0.dist-info/LICENSE":
+        (dist_info / "LICENSE").symlink_to(secret)
+    record = entry.format(secret=secret.as_posix())
+    (dist_info / "RECORD").write_text(f"{record},,\n", encoding="utf-8")
+    dist = PathDistribution(dist_info)
+    monkeypatch.setattr(deps_originator, "get_pkg_distribution", lambda name: dist)
 
     meta = _FakeMetadata({}, license_files=["LICENSE"])
-    assert _find_license_copyright("mypkg", meta) == "Copyright (c) 2026 Real Author"
-
-
-def test_find_license_copyright_matches_dist_info_root_not_only_licenses_subdir(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    license_file = _FakePackagePath(
-        "mypkg-1.0.dist-info/LICENSE.txt",
-        "Copyright (c) 2026 Root Dist-Info Author\n",
-    )
-    fake_dist = _FakeDistribution([license_file])
-    monkeypatch.setattr(deps_originator, "get_pkg_distribution", lambda name: fake_dist)
-
-    meta = _FakeMetadata({}, license_files=["LICENSE.txt"])
-    assert (
-        _find_license_copyright("mypkg", meta)
-        == "Copyright (c) 2026 Root Dist-Info Author"
+    with caplog.at_level(logging.WARNING):
+        assert _find_license_copyright("mypkg", meta) == expected
+    messages = [r.getMessage() for r in caplog.records]
+    assert messages == (
+        [
+            f"FILE={site / record}: could not read for license files; "
+            "outside the project directory"
+        ]
+        if warned
+        else []
     )
 
 
@@ -245,7 +339,7 @@ def test_find_license_copyright_matches_dist_info_root_not_only_licenses_subdir(
 
 def test_extract_pypi_originator_from_author() -> None:
     info = {"author": "Trail of Bits", "author_email": "opensource@trailofbits.com"}
-    assert _extract_pypi_originator(info) == [
+    assert _extract_pypi_originator(info, "p") == [
         ("Trail of Bits", "opensource@trailofbits.com")
     ]
 
@@ -255,13 +349,13 @@ def test_extract_pypi_originator_falls_back_to_maintainer() -> None:
         "maintainer": "Taneli Hukkinen",
         "maintainer_email": "hukkin@users.noreply.github.com",
     }
-    assert _extract_pypi_originator(info) == [
+    assert _extract_pypi_originator(info, "p") == [
         ("Taneli Hukkinen", "hukkin@users.noreply.github.com")
     ]
 
 
 def test_extract_pypi_originator_absent_returns_none() -> None:
-    assert _extract_pypi_originator({}) == []
+    assert not _extract_pypi_originator({}, "p")
 
 
 _PYPI = "Source: PyPI JSON API | Package: p"
@@ -405,22 +499,6 @@ def test_extract_release_hash_validates_hex_sha256() -> None:
     # No "sha256" key at all, and a non-string "sha256" value
     assert _extract_release_hash({"urls": [{"digests": {"md5": "x"}}]}) is None
     assert _extract_release_hash({"urls": [{"digests": {"sha256": 12345}}]}) is None
-
-
-# ---------------------------------------------------------------------------
-# _resolve_address_entry -- no-email and all-empty edge cases
-# ---------------------------------------------------------------------------
-
-
-def test_resolve_address_entry_multiple_names_no_email_appends_no_extra() -> None:
-    """Several comma-separated names sharing no address must not append an
-    extra email-only tuple (branch: ``resolved_email`` falsy)."""
-    entries = _resolve_address_entry("Author One, Author Two", "", "fallback")
-    assert entries == [("Author One", None), ("Author Two", None)]
-
-
-def test_resolve_address_entry_all_empty_returns_empty_list() -> None:
-    assert _resolve_address_entry("", "", "") == []
 
 
 # ---------------------------------------------------------------------------

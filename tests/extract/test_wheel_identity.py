@@ -214,7 +214,7 @@ def test_a_member_that_cannot_be_read_refuses_the_wheel(
 @pytest.mark.parametrize(
     ("text", "limits", "name", "warning"),
     [
-        (_REAL, {"MAX_METADATA_BYTES": len(_REAL) - 1}, "unknown", "bytes"),
+        (_REAL, {"MAX_METADATA_BYTES": len(_REAL) - 1}, "unknown", "byte"),
         # A description after the headers may be any size.
         (_REAL + "\n" + "x" * 1000, {"MAX_METADATA_BYTES": 100}, "demo", None),
     ],
@@ -245,9 +245,10 @@ def test_a_metadata_header_block_over_a_cap_is_not_read(
     if warning is None:
         assert not warnings
     else:
-        (message,) = warnings
-        assert f"over {limits.popitem()[1]} {warning}" in message
-        assert "METADATA" in message and message.endswith("identity unknown")
+        assert warnings == [
+            f"FILE={_WHEEL}:demo-1.0.dist-info/METADATA: larger than the"
+            f" {len(_REAL) - 1}-{warning} header-block cap; identity unknown"
+        ]
 
 
 def test_an_own_dist_info_without_metadata_says_so(
@@ -289,7 +290,7 @@ def test_sixteen_mebibytes_of_short_headers_do_not_cost_hundreds_of_megabytes(
     assert metadata.name == "unknown"
     assert peak < 32 * 1024 * 1024
     (warning,) = _warnings(caplog)
-    assert f"over {MAX_METADATA_HEADERS} headers" in warning
+    assert f"larger than the {MAX_METADATA_HEADERS}-header header-block cap" in warning
 
 
 @pytest.mark.parametrize(

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -107,6 +107,27 @@ warn and name the package `unknown`; `wheel --embed`, `embed-wheel`,
 `verify-wheel` and `validate-wheel` refuse the wheel. `METADATA` is read for
 its headers only (at most 16 MiB and 10,000 headers); past a cap, one
 `WARNING:` per command and the name is `unknown`.
+
+**Authors.** A wheel's `METADATA` does not keep `[project].authors` as
+declared. Backends write a name-only author into the free-text `Author`
+field, so authors with an email address are read first, then name-only
+ones; several name-only authors joined in one `Author` read as one author
+(an `INFO:` says it may list several when it holds `,`, `;` or `and`);
+a name-only author beside a single email-only one reads as one author, but
+one beside two read as three (never paired by position); and poetry-core
+writes only the first author. With `embed-wheel --project-dir` (and the
+GitHub Action) the project's declared authors are used instead, with no
+`WARNING:` for the wheel's split `Author` or `Author-email` (one for a
+split in the project's own free-text `author` or `author_email`,
+`--config` or not); when the project's name differs from the wheel's, a
+`WARNING:` says so and the wheel's authors are kept.
+How `Author` (cut only next to an address) and `Author-email` (split) are
+read and what each author becomes: [How authors are
+read](metadata-provenance.md#how-authors-are-read).
+
+**Dependencies.** The wheel's `Requires-Dist` lines, extras included, become
+the same packages and relationships as from a source directory; see [Extras
+and the optional edge](dependency-sources.md#extras-and-the-optional-edge).
 
 ### Signed wheels
 

@@ -387,3 +387,99 @@ def test_license_text_with_or_without_a_trailing_newline_is_declared(
     assert metadata.provenance["license"] == (
         "Source: pyproject.toml | Field: project.license"
     )
+
+
+@pytest.mark.parametrize(
+    ("name", "outside"),
+    [("L", False), ("s/../L", False), ("../out", True), ("{out}", True),
+     ("link", True)],
+    ids=["inside", "dotdot-inside", "dotdot-out", "absolute", "symlink-out"],
+)  # fmt: skip
+def test_a_license_file_outside_the_project_is_not_read(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, name: str, outside: bool
+) -> None:
+    """Regression: ``pyproject-metadata`` read ``project.license.file``
+    wherever it pointed, and its text became the declared licence. Now the
+    field is dropped with one ``WARNING:``, worded as for a licence file."""
+    project = tmp_path / "p"
+    (project / "s").mkdir(parents=True)
+    (project / "L").write_text("Inside terms", encoding="utf-8")
+    (tmp_path / "out").write_text("Leaked terms", encoding="utf-8")
+    if name == "link":
+        try:
+            (project / "link").symlink_to(tmp_path / "out")
+        except OSError:  # Windows without the symlink privilege
+            pytest.skip("cannot create a symlink here")
+    name = name.format(out=(tmp_path / "out").as_posix())
+    (project / "pyproject.toml").write_text(
+        f'[project]\nname = "pkg"\nversion = "1"\nlicense = {{file = \'{name}\'}}\n',
+        encoding="utf-8",
+    )
+    with caplog.at_level(logging.WARNING):
+        metadata, _ = read_pyproject(project / "pyproject.toml")
+        read_pyproject(project / "pyproject.toml", quiet=True)
+    assert metadata.license_name == (None if outside else "Inside terms")
+    assert caplog.messages == (
+        [
+            f"FILE={name}: could not read for project.license.file;"
+            " outside the project directory"
+        ]
+        if outside
+        else []
+    )
+
+
+def test_a_missing_license_file_is_left_to_pyproject_metadata(tmp_path: Path) -> None:
+    """Only a file outside the project is dropped: a missing one still
+    fails the parse, as ``pyproject-metadata`` reports it."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "pkg"\nversion = "1"\nlicense = {file = "gone"}\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="Failed to parse project metadata"):
+        read_pyproject(tmp_path / "pyproject.toml")
+
+
+def test_a_license_file_provenance_is_the_same_in_every_checkout(
+    tmp_path: Path,
+) -> None:
+    """Regression: an empty licence file is read again from the path
+    ``pyproject-metadata`` joined onto the project directory, which gave an
+    absolute ``Source:`` that differed between two checkouts."""
+    provenance = []
+    for project in (tmp_path / "a", tmp_path / "b" / "c"):
+        (project / "docs").mkdir(parents=True)
+        (project / "docs" / "L").write_bytes(b"")
+        (project / "pyproject.toml").write_text(
+            '[project]\nname = "pkg"\nversion = "1"\nlicense = {file = "docs/L"}\n',
+            encoding="utf-8",
+        )
+        metadata, _ = read_pyproject(project / "pyproject.toml")
+        provenance.append(metadata.provenance["license"])
+    assert provenance == ["Source: docs/L"] * 2
+
+
+@pytest.mark.parametrize(
+    ("file", "project_dir", "expected"),
+    [("p/docs/L", "p", ("Terms", "Source: docs/L", ("docs/L", None))),
+     ("{tmp}/p/docs/L", "{tmp}/p", ("Terms", "Source: docs/L", ("docs/L", None))),
+     ("{tmp}/elsewhere/L", "{tmp}/p", (None, "Source: pyproject.toml | Field:"
+                                       " project.license", ("L", None)))],
+    ids=["relative-dir", "absolute-below", "absolute-not-below"],
+)  # fmt: skip
+def test_resolve_license_hint_names_the_file_project_relative(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    file: str,
+    project_dir: str,
+    expected: tuple[str | None, str, tuple[str, None]],
+) -> None:
+    """The file ``pyproject-metadata`` joined onto the project directory is
+    read there, and named relative to it, else by its name alone."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "p" / "docs").mkdir(parents=True)
+    (tmp_path / "p" / "docs" / "L").write_text("Terms", encoding="utf-8")
+    tmp = tmp_path.as_posix()
+    license_obj = SimpleNamespace(text="", file=Path(file.format(tmp=tmp)))
+    got = _resolve_license_hint(license_obj, Path(project_dir.format(tmp=tmp)))
+    assert got == expected

@@ -22,13 +22,13 @@ from pathlib import Path
 
 import pytest
 
+from pitloom.extract.project._requirements_files import requirement_lines
 from pitloom.extract.project._setup_cfg_directives import (
     _read_version_attr,
     _resolve_cfg_attr_directive,
     _resolve_cfg_file_directive,
     _resolve_cfg_version,
 )
-from pitloom.extract.project._setuptools_options import requirement_lines
 from pitloom.extract.project.setuptools import (
     read_setup_cfg,
     read_setuptools,
@@ -221,7 +221,6 @@ def test_read_setup_cfg_provenance() -> None:
     assert "setup.cfg" in metadata.provenance.get("name", "")
     assert "setup.cfg" in metadata.provenance.get("version", "")
     assert "setup.cfg" in metadata.provenance.get("authors", "")
-    assert "inferred_from_authors" in metadata.provenance.get("copyright_text", "")
 
 
 def test_read_setup_cfg_declared_empty_author_no_copyright_text() -> None:
@@ -309,15 +308,25 @@ def test_setuptools_cfg_version_and_attr_edge_cases() -> None:
         (p / "VERSION").write_text("1.0.0\n# comment\n")
         assert _resolve_cfg_version("file: VERSION", p) == (None, None)
 
-        # Python file with syntax error and multi-target assign
-        bad_py = p / "bad.py"
-        bad_py.write_text("a = b = '1.0'\ndef invalid_syntax(")
-        assert _read_version_attr(bad_py, "__version__") is None
+        # Python source with a syntax error, a NUL, an unclosed bracket
+        source = "a = '1.0'\ndef invalid("
+        assert _read_version_attr(source, "invalid", "m.py", "t") is None
+        assert _read_version_attr("a = ('1.0'", "a", "m.py", "t") is None
+        # Tokenizes on every Python, but is not a statement: only the parser objects
+        assert _read_version_attr("a = = '1'", "a", "m.py", "t") is None
+        source = "__version__ = '1'\x00"
+        assert _read_version_attr(source, "__version__", "m.py", "t") is None
+        # A value that is not a string: no version
+        source = "__version__ = 1"
+        assert _read_version_attr(source, "__version__", "m.py", "t") is None
 
         # Existing file without matching attribute
         clean_py = p / "clean.py"
         clean_py.write_text("other_var = '2.0.0'\n")
-        assert _resolve_cfg_attr_directive("clean.__version__", p) == (None, None)
+        assert _resolve_cfg_attr_directive("clean.__version__", p, "t") == (
+            None,
+            None,
+        )
 
 
 def test_read_setup_cfg_content_type_without_override() -> None:

@@ -38,6 +38,7 @@ from pitloom.core.ai_metadata import (
     AiModelFormat,
     AiModelFormatInfo,
     AiModelMetadata,
+    model_cap,
     model_file_suffixes,
 )
 from pitloom.core.inert_options import PARAM_TO_FLAG
@@ -54,14 +55,14 @@ from pitloom.extract.ai_model import (
     read_ai_model,
     refusal_reason,
 )
-from pitloom.extract.ai_model.archive_member import ArchiveMemberTooLarge
 from pitloom.extract.ai_model.limits import (
     ModelLimitExceeded,
+    ModelOverCap,
     ScanBudgetExceeded,
     cap_and_warn,
 )
 from pitloom.extract.ai_model.reader_requirements import require_library
-from pitloom.logging_config import FILE_OVER_CAP_WARNING, loggable
+from pitloom.logging_config import Cap, loggable, over_cap_of, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -88,6 +89,9 @@ USAGE_SETTING_WHEEL = "scan-model-usage = true in a --config file or pitloom_con
 
 # Extensions that might genuinely be AI models.
 _ALLOWED_EXTS: frozenset[str] = model_file_suffixes() | {".zip"}
+
+# The outcome of a model kept as a format-only entry over a bound.
+_METADATA_NOT_READ = "metadata not read"
 
 # A usage source larger than this is skipped, not read whole.
 _USAGE_SCAN_MAX_BYTES = 1024 * 1024
@@ -181,23 +185,6 @@ class UsageSource:
     read_path: Path | None = None
 
 
-class ModelTooLarge(Exception):
-    """Raised by a candidate's ``materialize`` when the file exceeds the size
-    ceiling, before or while copying it. The scanner logs it and keeps a
-    format-only entry, so every ``FORMAT=``/``FILE=`` string has one owner.
-
-    Attributes:
-        size: The declared size; ``None`` when the copy was aborted after
-            reading more than *limit* bytes, so the size is not known.
-        limit: The ceiling in bytes.
-    """
-
-    def __init__(self, size: int | None, limit: int) -> None:
-        super().__init__(f"{size} bytes exceeds the {limit}-byte limit")
-        self.size = size
-        self.limit = limit
-
-
 def _restore_source_name(meta: AiModelMetadata, path: Path, dist_name: str) -> None:
     """Rewrite the ``Source: <file name>`` prefix a reader derived from
     *path* to *dist_name*, when a copy under another name was read.
@@ -235,10 +222,16 @@ def _relog_reader_records(
 ) -> None:
     """Log what a reader logged, as the scanner's own messages: the stable
     ``FORMAT=``/``FILE=`` prefix on a warning, the text escaped, the
-    temporary copy's path and name replaced by the model's."""
+    temporary copy's path and name replaced by the model's. An over-cap
+    warning is said again through the shared helper, naming the model."""
     dist_name = PurePosixPath(candidate.distribution_path).name
     copied = f"Source: {sanitize_provenance_text(path.name)}"
     for record in records:
+        over = over_cap_of(record)
+        if over is not None:  # a reader warns over a cap once per read
+            cap, outcome = over
+            warn_over_cap(log, model_cap(cap, fmt), candidate.physical_path, outcome)
+            continue
         text = record.getMessage()
         if path.name != dist_name:
             text = text.replace(
@@ -322,35 +315,20 @@ def read_model_candidate(candidate: ModelCandidate) -> AiModelMetadata:
             fmt,
         )
         return meta
-    except ModelTooLarge as e:
-        if e.size is None:
-            size = f"read more than {e.limit} bytes, over"
-        else:
-            size = f"{e.size} bytes exceeds"
-        log.warning(
-            "FORMAT=%s FILE=%s: %s the %d-byte scan ceiling; metadata not read",
-            fmt,
-            where,
-            size,
-            e.limit,
-        )
+    except ModelOverCap as e:
+        path_in = candidate.physical_path
+        if e.member is not None:
+            path_in += f":{e.member}"
+        warn_over_cap(log, model_cap(e.cap, fmt), path_in, _METADATA_NOT_READ)
     except ScanBudgetExceeded:
         log.debug("Scan budget spent; %s kept without metadata", where)
-    except ArchiveMemberTooLarge as e:
-        log.warning(
-            "FORMAT=%s FILE=%s: archive member %s larger than %d bytes; "
-            "metadata not read",
-            fmt,
-            where,
-            loggable(e.member),
-            e.limit,
-        )
     except ModelLimitExceeded as e:
         log.warning(
-            "FORMAT=%s FILE=%s: %s; metadata not read",
+            "FORMAT=%s FILE=%s: %s; %s",
             fmt,
             where,
             loggable(e.reason),
+            _METADATA_NOT_READ,
         )
     except ImportError as e:
         log.warning(
@@ -432,11 +410,10 @@ def attach_usage_references(
             with source.open() as fh:
                 raw = fh.read(_USAGE_SCAN_MAX_BYTES + 1)
             if len(raw) > _USAGE_SCAN_MAX_BYTES:
-                log.warning(
-                    FILE_OVER_CAP_WARNING,
-                    loggable(source.physical_path),
-                    _USAGE_SCAN_MAX_BYTES,
-                    "usage-scan",
+                warn_over_cap(
+                    log,
+                    Cap(_USAGE_SCAN_MAX_BYTES, "byte", "usage-scan"),
+                    source.physical_path,
                 )
                 continue
             content = raw.decode("utf-8")

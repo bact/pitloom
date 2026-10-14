@@ -31,17 +31,21 @@ class Creator:
 
     Attributes:
         name: Display name of the person or organisation that initiated
-            the SBOM generation.
+            the SBOM generation.  Stripped in ``__post_init__``: the
+            creator Agent carries the name an author is matched on.
         type: Agent subclass: ``"person"`` (default), ``"organization"``,
             ``"software-agent"``, or the generic ``"agent"``.  All four are
             valid ``createdBy`` types per the SPDX 3 spec.  Validated (and
             normalised to lower-case, stripped) in ``__post_init__``.
         email: E-mail address of the creator.  Recorded as an ``email``
-            external identifier on the creator Agent.
+            external identifier on the creator Agent.  Stripped in
+            ``__post_init__``; an empty or whitespace-only address is no
+            address (``None``).
 
     Raises:
-        ValueError: If ``name`` is empty or whitespace-only, or if ``type``
-            (after normalisation) is not one of :data:`VALID_CREATOR_TYPES`.
+        ValueError: If ``name`` is empty or whitespace-only (no name), or if
+            ``type`` (after normalisation) is not one of
+            :data:`VALID_CREATOR_TYPES`.
     """
 
     name: str
@@ -49,8 +53,11 @@ class Creator:
     email: str | None = None
 
     def __post_init__(self) -> None:
-        if not self.name or not self.name.strip():
+        name = (self.name or "").strip()
+        if not name:
             raise ValueError(f"Creator name must be non-empty, got {self.name!r}.")
+        self.name = name
+        self.email = (self.email or "").strip() or None
         normalized = (self.type or "person").strip().lower()
         if normalized not in VALID_CREATOR_TYPES:
             valid = ", ".join(sorted(VALID_CREATOR_TYPES))

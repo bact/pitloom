@@ -26,6 +26,7 @@ from pitloom.core._models_wheel_setuptools import (
     discover,
 )
 from pitloom.core._models_wheel_types import IncludedFile
+from tests._symlink import case_sensitive
 
 FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "projects"
 PACKAGES_FIND_FIXTURE = FIXTURES / "sampleproject-setuptools"
@@ -113,12 +114,10 @@ def test_discover_succeeds_on_legacy_table_form_license(tmp_path: Path) -> None:
     2.34.2, see ``tests/fixtures/real-world-projects/setuptools/``) --
     must still resolve successfully.
 
-    setuptools>=77 warns (never raises outside pytest's own
-    ``filterwarnings = ["error"]``) on each of these forms during
-    ``apply_configuration()``; without the scoped
-    ``SetuptoolsDeprecationWarning`` ignore entry in this project's own
-    pytest config, this test fails even though real (non-pytest) usage
-    of ``discover()`` never did."""
+    setuptools>=77 warns on each of these forms during
+    ``apply_configuration()``; ``discover()`` records those warnings as
+    ``DEBUG`` lines, so pytest's ``filterwarnings = ["error"]`` never sees
+    them."""
     (tmp_path / "pyproject.toml").write_text(
         "[build-system]\n"
         'requires = ["setuptools"]\n'
@@ -237,16 +236,16 @@ def test_setup_py_packaging_kwargs_detects_only_relevant_names(
     assert _setup_py_packaging_kwargs(setup_py) == ["package_data", "packages"]
 
 
-def test_setup_py_packaging_kwargs_no_setup_call_returns_empty(
+def test_setup_py_packaging_kwargs_no_setup_call_returns_none(
     tmp_path: Path,
 ) -> None:
     """No ``setup()``/``setuptools.setup()`` call in the file (or no
-    file, or a syntax error) is not this function's problem -- an empty
-    list, not an exception."""
+    file) is ``None``, not an exception and not the empty list a
+    metadata-only ``setup()`` call gives."""
     setup_py = tmp_path / "setup.py"
     setup_py.write_text("print('not a real setup.py')\n", encoding="utf-8")
-    assert _setup_py_packaging_kwargs(setup_py) == []
-    assert _setup_py_packaging_kwargs(tmp_path / "missing.py") == []
+    assert _setup_py_packaging_kwargs(setup_py) is None
+    assert _setup_py_packaging_kwargs(tmp_path / "missing.py") is None
 
 
 def test_setup_py_packaging_kwargs_no_false_positive_on_metadata_only(
@@ -335,8 +334,8 @@ def test_discover_warns_when_setup_py_overrides_packaging_imperatively(
 
 def test_discover_returns_none_without_static_config(tmp_path: Path) -> None:
     """A setuptools project with neither ``[tool.setuptools]`` in
-    ``pyproject.toml`` nor a ``setup.cfg`` (packages only resolvable by
-    executing an imperative ``setup.py``) is out of scope -- ``None``
+    ``pyproject.toml`` nor a ``setup.cfg``, whose ``setup.py`` passes
+    ``packages`` imperatively, is out of scope -- ``None``
     signals the caller to fall back, not "found zero files"."""
     (tmp_path / "pyproject.toml").write_text(
         '[build-system]\nrequires = ["setuptools"]\n'
@@ -344,7 +343,8 @@ def test_discover_returns_none_without_static_config(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     (tmp_path / "setup.py").write_text(
-        'from setuptools import setup\nsetup(name="pkg", version="1.0.0")\n',
+        "from setuptools import setup\n"
+        'setup(name="pkg", version="1.0.0", packages=["pkg"])\n',
         encoding="utf-8",
     )
 
@@ -455,22 +455,29 @@ def test_load_distribution_does_not_leak_dynamic_import_across_projects(
     assert dist_b.metadata.version == "2.0.0"
 
 
+@pytest.mark.parametrize("case", ["same", "other"], ids=["same-case", "other-case"])
 def test_isolated_sys_modules_removes_only_newly_imported_modules(
-    tmp_path: Path,
+    tmp_path: Path, case: str
 ) -> None:
     """The context manager removes module names added to ``sys.modules``
     while it's active *and* loaded from beneath the given project
     directory, but leaves a name that was already present before it
     started alone -- using fake module entries (not a real import) to
     keep this deterministic regardless of what else the process has
-    already imported."""
+    already imported. Regression: a module file spelling the project in
+    another letter case (a case-insensitive file system) was outside."""
+    project = tmp_path / "p"
+    project.mkdir()
+    if case == "other" and case_sensitive(tmp_path):
+        pytest.skip("file system is case-sensitive")
+    spelt = tmp_path / ("P" if case == "other" else "p")
     pre_existing = "_pitloom_test_pre_existing_module"
     newly_added = "_pitloom_test_newly_added_module"
     sys.modules[pre_existing] = ModuleType(pre_existing)
     try:
-        with _isolated_sys_modules(tmp_path):
+        with _isolated_sys_modules(project):
             added_module = ModuleType(newly_added)
-            added_module.__file__ = str(tmp_path / "pkg" / "mod.py")
+            added_module.__file__ = str(spelt / "pkg" / "mod.py")
             sys.modules[newly_added] = added_module
             assert newly_added in sys.modules
 

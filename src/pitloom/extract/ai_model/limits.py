@@ -8,8 +8,9 @@ file exceeds one.
 
 A model file is untrusted: what it declares (an entry count, an array
 length, a header size) decides how much a parser allocates or loops. A
-reader checks the declaration first and raises :class:`ModelLimitExceeded`;
-the scanner reports it once and keeps a format-only entry.
+reader checks the declaration first and raises :class:`ModelOverCap`
+(:class:`ModelLimitExceeded` for a declaration the file cannot hold); the
+scanner reports it once and keeps a format-only entry.
 
 See also: :mod:`pitloom.extract.scanner` (reports the exceptions) and
 :mod:`pitloom.extract.ai_model.archive_member` (bounded archive reads).
@@ -25,17 +26,20 @@ from itertools import islice
 
 from pitloom.core.ai_metadata import (
     MAX_MODEL_ENTRIES,
-    MAX_MODEL_NAME_CHARS,
+    MODEL_ENTRIES_CAP,
+    MODEL_NAME_CAP,
     AiModelFormat,
     AiModelMetadata,
+    model_cap,
 )
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
 from pitloom.extract.ai_model.formats import Limits
-from pitloom.logging_config import LONE_SURROGATES_WARNING, NAME_CUT_WARNING
+from pitloom.logging_config import LONE_SURROGATES_WARNING, Cap, warn_over_cap
 
 __all__ = [
     "MAX_MODEL_ENTRIES",
     "ModelLimitExceeded",
+    "ModelOverCap",
     "ScanBudgetExceeded",
     "cap_and_warn",
     "cap_entries",
@@ -44,7 +48,6 @@ __all__ = [
     "recordable_labels",
     "settle_read_text",
     "warn_name_cut",
-    "warn_no_label",
 ]
 
 log = logging.getLogger(__name__)
@@ -64,6 +67,21 @@ class ModelLimitExceeded(Exception):
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
         self.reason = reason
+
+
+class ModelOverCap(ModelLimitExceeded):
+    """A model file, or a member of its archive, over *cap*; the scanner
+    says so through :func:`~pitloom.logging_config.warn_over_cap`.
+
+    Attributes:
+        cap: The cap exceeded.
+        member: The archive member over it, ``None`` for the file itself.
+    """
+
+    def __init__(self, cap: Cap, member: str | None = None) -> None:
+        super().__init__(cap.reason)
+        self.cap = cap
+        self.member = member
 
 
 class ScanBudgetExceeded(ModelLimitExceeded):
@@ -156,35 +174,27 @@ def cap_and_warn(meta: AiModelMetadata, fmt: AiModelFormat, where: str) -> None:
     cut = cap_entries(meta)
     settle_read_text(meta, fmt, where)
     if cut:
-        log.warning(
-            "FORMAT=%s FILE=%s: more than %d entries in %s; the first %d of "
-            "each are kept",
-            fmt,
-            where,
-            MAX_MODEL_ENTRIES,
-            ", ".join(cut),
-            MAX_MODEL_ENTRIES,
-        )
+        outcome = f"the first {MAX_MODEL_ENTRIES} kept in {', '.join(cut)}"
+        warn_over_cap(log, model_cap(MODEL_ENTRIES_CAP, fmt), where, outcome)
 
 
-def recordable_labels(labels: Sequence[str], limits: Limits) -> tuple[str, ...]:
+#: What a model whose labels are not recorded keeps: its label count.
+NO_LABEL = "no label recorded"
+
+
+def recordable_labels(
+    labels: Sequence[str], limits: Limits, where: str
+) -> tuple[str, ...]:
     """*labels*, or none of them when one is longer than
-    ``limits.max_label_bytes`` in UTF-8, with one warning. A label is
-    untrusted text of any length; the caller still records the label count
-    it read. The scanner adds the ``FORMAT=``/``FILE=`` prefix."""
-    cap = limits.max_label_bytes
+    ``limits.max_label_bytes`` in UTF-8, with one warning naming *where*
+    (the model file). A label is untrusted text of any length; the caller
+    still records the label count it read."""
+    cap = Cap(limits.max_label_bytes, "byte", "label")
     for label in labels:
-        if len(label.encode("utf-8", "surrogatepass")) > cap:
-            warn_no_label(f"a label over {cap} bytes")
+        if len(label.encode("utf-8", "surrogatepass")) > cap.limit:
+            warn_over_cap(log, cap, where, NO_LABEL)
             return ()
     return tuple(labels)
-
-
-def warn_no_label(reason: str) -> None:
-    """The one warning for a model whose labels are not recorded because
-    *reason* (a bound exceeded, one short phrase); the caller still records
-    the label count. The scanner adds the ``FORMAT=``/``FILE=`` prefix."""
-    log.warning("%s; no label recorded", reason)
 
 
 def settle_read_text(meta: AiModelMetadata, fmt: str, where: str) -> None:
@@ -201,14 +211,11 @@ def settle_read_text(meta: AiModelMetadata, fmt: str, where: str) -> None:
 
 def warn_name_cut(meta: AiModelMetadata, fmt: str, where: str) -> None:
     """Say once, naming *where*, that the name *meta* shows was cut to
-    :data:`~pitloom.core.ai_metadata.MAX_MODEL_NAME_CHARS` code points
+    :data:`~pitloom.core.ai_metadata.MODEL_NAME_CAP` code points
     (:meth:`~pitloom.core.ai_metadata.AiModelMetadata.resolve_name`); quiet
     when it was not. Called once per model, by :func:`settle_read_text`."""
-    length = meta.name_cut_length()
-    if length is not None:
-        log.warning(
-            NAME_CUT_WARNING, fmt, where, "model name", length, MAX_MODEL_NAME_CHARS
-        )
+    if meta.name_cut_length() is not None:
+        warn_over_cap(log, model_cap(MODEL_NAME_CAP, fmt), where, "model name cut")
 
 
 def _provenance_kept(key: str, kept: dict[str, dict[str, object]]) -> bool:

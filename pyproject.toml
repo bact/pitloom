@@ -199,6 +199,7 @@ exclude = [
     ".editorconfig",
     ".gitignore",
     ".markdownlint.json",
+    ".markdownlintignore",
     "AGENTS.md",
     "tests/fixtures/aimodels/crfsuite/*.crfsuite",
     "tests/fixtures/aimodels/crfsuite/*.model",
@@ -221,6 +222,7 @@ exclude = [
     "tests/fixtures/huggingface-hub/*.txt",
     "tests/fixtures/real-world-projects/",
     "tests/fixtures/real-world-locks/",
+    "tests/fixtures/real-world-extras/",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -337,20 +339,6 @@ filterwarnings = [
     # `loom fragment validate`'s tests) instantiates the deprecated
     # ConjunctiveGraph internally; nothing Pitloom-side to fix.
     "ignore:ConjunctiveGraph is deprecated:DeprecationWarning:rdflib.plugins.parsers.jsonld",
-    # setuptools' own pyproject.toml applier (invoked by
-    # _models_wheel_setuptools.discover(), a real-library-delegation
-    # module that reads a target *project's* pyproject.toml, not
-    # Pitloom's own) warns -- never raises outside pytest -- on legacy
-    # pre-PEP-639 metadata forms a real-world project may still use
-    # (`project.license` as a TOML table, `tool.setuptools.license-files`,
-    # `License ::` trove classifiers). Nothing Pitloom-side to fix: this
-    # is the *target* project's own metadata style, not something
-    # discover() emits. No message component -- multiple distinct
-    # deprecation messages come from this one module for this one class
-    # of legacy metadata, and pinning to setuptools' verbose, multi-line
-    # message text would be far more brittle than scoping to the
-    # category+module setuptools itself uses for exactly this warning.
-    "ignore::setuptools.warnings.SetuptoolsDeprecationWarning:setuptools.config._apply_pyprojecttoml",
 ]
 
 [tool.pylint.messages_control]

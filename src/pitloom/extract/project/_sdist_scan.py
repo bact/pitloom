@@ -26,10 +26,10 @@ from pitloom.core.archive_member_names import file_members, zip_file_members
 from pitloom.core.project import ProjectFile
 from pitloom.core.wheel_dist_info import HeaderBlockOverCap, read_header_block
 from pitloom.extract._license_detect import (
-    LICENSE_FILE_MAX_BYTES,
+    LICENSE_FILE_CAP,
     license_source_names,
-    warn_over_cap,
 )
+from pitloom.logging_config import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -44,16 +44,20 @@ ROOT_MEMBERS = (PKG_INFO, PYPROJECT, SETUP_CFG)
 #: ones are a few KiB; a larger one is a read failure, as invalid TOML is.
 CONFIG_MEMBER_MAX_BYTES = 1024 * 1024
 
+#: :data:`CONFIG_MEMBER_MAX_BYTES`, as the reader names it.
+CONFIG_MEMBER_CAP = Cap(CONFIG_MEMBER_MAX_BYTES, "byte", "config-member")
+
 _CHUNK_BYTES = 8192
 
 
 class ArchiveMembers(NamedTuple):
     """Root members read (by basename), and every file's entry. A root
-    member over its cap (see :func:`_read_member`) maps to ``None``.
+    member over its cap (see :func:`_read_member`) maps to that
+    :class:`~pitloom.logging_config.Cap`.
     *licence* holds the project's licence sources by basename (see
     :func:`_licence_member_names`); one over the cap is left out."""
 
-    root: dict[str, bytes | None]
+    root: dict[str, bytes | Cap]
     files: list[ProjectFile]
     licence: dict[str, bytes]
 
@@ -76,26 +80,26 @@ class _HashingReader:
         return self._hasher.hexdigest()
 
 
-def _read_capped(reader: _HashingReader, limit: int) -> bytes | None:
-    """*reader*'s bytes, or ``None`` past *limit* (the rest not kept)."""
+def _read_capped(reader: _HashingReader, cap: Cap) -> bytes | Cap:
+    """*reader*'s bytes, or *cap* past its limit (the rest not kept)."""
     kept = bytearray()
     while chunk := reader.read(_CHUNK_BYTES):
         kept += chunk
-        if len(kept) > limit:
-            return None
+        if len(kept) > cap.limit:
+            return cap
     return bytes(kept)
 
 
-def _read_pkg_info(reader: _HashingReader) -> bytes | None:
+def _read_pkg_info(reader: _HashingReader) -> bytes | Cap:
     """A ``PKG-INFO``'s header block (:func:`read_header_block`, whose caps
-    bound a header bomb as well as its size); ``None`` over the cap."""
+    bound a header bomb as well as its size), or the cap it is over."""
     try:
         return read_header_block(reader)
-    except HeaderBlockOverCap:
-        return None
+    except HeaderBlockOverCap as over:
+        return over.cap
 
 
-_Keep = Callable[[_HashingReader], bytes | None]
+_Keep = Callable[[_HashingReader], bytes | Cap]
 
 
 def _keep_for(basename: str) -> _Keep:
@@ -104,15 +108,16 @@ def _keep_for(basename: str) -> _Keep:
     up to :data:`~pitloom.extract._license_detect.LICENSE_FILE_MAX_BYTES`."""
     if basename == PKG_INFO:
         return _read_pkg_info
-    in_root = basename in ROOT_MEMBERS
-    limit = CONFIG_MEMBER_MAX_BYTES if in_root else LICENSE_FILE_MAX_BYTES
-    return functools.partial(_read_capped, limit=limit)
+    cap = CONFIG_MEMBER_CAP if basename in ROOT_MEMBERS else LICENSE_FILE_CAP
+    return functools.partial(_read_capped, cap=cap)
 
 
-def _read_member(stream: IO[bytes], keep: _Keep | None) -> tuple[bytes | None, str]:
+def _read_member(
+    stream: IO[bytes], keep: _Keep | None
+) -> tuple[bytes | Cap | None, str]:
     """Hash *stream* in chunks; with *keep*, return what it reads too."""
     reader = _HashingReader(stream)
-    kept: bytes | None = None
+    kept: bytes | Cap | None = None
     with stream:
         if keep is not None:
             kept = keep(reader)
@@ -181,11 +186,11 @@ def _scan(
             continue
         keep = wanted or name in licence_names
         content, digest = _read_member(stream, _keep_for(basename) if keep else None)
-        if wanted:
+        if wanted and content is not None:
             members.root[basename] = content
-        elif keep and content is None:
-            warn_over_cap(f"{archive}:{name}")
-        elif keep and content is not None:
+        elif isinstance(content, Cap):
+            warn_over_cap(log, content, f"{archive}:{name}", once=True)
+        elif content is not None:
             members.licence[basename] = content
         if not root_only:
             members.files.append(

@@ -14,6 +14,7 @@ See also: :mod:`pitloom.extract.ai_model.formats.crfsuite`.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -31,7 +32,10 @@ from pitloom.extract.ai_model.formats import FormatError, Limits
 from pitloom.extract.ai_model.formats.crfsuite import (
     read_crfsuite as read_crfsuite_header,
 )
-from pitloom.extract.ai_model.limits import recordable_labels, warn_no_label
+from pitloom.extract.ai_model.limits import NO_LABEL, recordable_labels
+from pitloom.logging_config import Cap, warn_over_cap
+
+log = logging.getLogger(__name__)
 
 _LIMITS = Limits(max_crfsuite_labels=MAX_MODEL_ENTRIES)
 
@@ -70,6 +74,13 @@ def _description(labels: tuple[str, ...]) -> str | None:
     return f"CRFsuite model with {len(labels)} {noun}: {shown}{suffix}"
 
 
+def _labels_cap(bound: str) -> Cap:
+    """The cap of :data:`_LIMITS` field *bound*, a labels bound."""
+    if bound == "max_crfsuite_labels":
+        return Cap(_LIMITS.max_crfsuite_labels, "label", "label-count")
+    return Cap(_LIMITS.max_crfsuite_labels_chunk_bytes, "byte", "labels-chunk")
+
+
 def read_crfsuite(model_path: Path) -> AiModelMetadata:
     """Extract metadata from a CRFsuite model file.
 
@@ -102,10 +113,11 @@ def read_crfsuite(model_path: Path) -> AiModelMetadata:
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
     count = model.num_labels
     labels: tuple[str, ...] = ()
-    if model.labels is None:
-        warn_no_label(model.labels_unread or "labels unread")
+    if model.labels_unread is not None:
+        cap = _labels_cap(model.labels_unread)
+        warn_over_cap(log, cap, str(model_path), NO_LABEL)
     else:
-        labels = recordable_labels(model.labels, _LIMITS)
+        labels = recordable_labels(model.labels or (), _LIMITS, str(model_path))
     properties: dict[str, str] = {}
     natives: dict[str, Any] = {}
     if model.labels is not None and len(labels) == count:  # none skipped

@@ -17,6 +17,7 @@ from pitloom.logging_config import (
     PITLOOM_DEBUG_ENV_VAR,
     apply_debug_override,
     configure_logging,
+    excerpt,
     one_line,
 )
 
@@ -252,3 +253,21 @@ def test_configure_logging_concurrent_reconfigure_never_drops_a_record(
 )
 def test_one_line(value: object, expected: str) -> None:
     assert one_line(value) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("six>=1", "'six>=1'"),
+        ("a" * 120, repr("a" * 120)),
+        ("a" * 121, repr("a" * 120) + "..."),
+        ("a\n  b", "'a b'"),
+        ("\x1b[31m", "'\\x1b[31m'"),
+        ("\x1b" * 200, ascii("\x1b" * 120) + "..."),
+        (5, "5"),
+    ],
+    ids=["short", "at-cap", "over-cap", "multi-line", "escaped", "escaped-cut", "int"],
+)
+def test_excerpt(value: object, expected: str) -> None:
+    """One literal, escaped once, cut after :data:`EXCERPT_CHARS`."""
+    assert excerpt(value) == expected

@@ -13,30 +13,48 @@ option only when the keyword's value is falsy
 on the raw value, a list replacing the other, never joined. Pitloom reads
 ``setup.py`` without running it, so a keyword it cannot use (not a
 literal, blank, of a type it does not read) is not an option here and
-``setup.cfg``'s is used, with a ``WARNING:``. A placeholder licence
-(``UNKNOWN``) gives way to a real licence in the other file. A real
+``setup.cfg``'s is used, with a ``WARNING:``. A placeholder licence or
+author (``UNKNOWN``) gives way to a real one in the other file. A real
 disagreement on the name, the licence, the version or ``python_requires``
 is recorded as a conflict.
 
 See also: :mod:`pitloom.extract.project.setuptools_py` and
 :mod:`pitloom.extract.project.setuptools_cfg` (the option readers),
+:mod:`pitloom.extract.project._requirements_files` (``file:`` requirements),
 :mod:`pitloom.extract.project._field_agreement` (the conflict rule).
 """
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, NamedTuple
 
+from packaging.markers import InvalidMarker
+from packaging.requirements import InvalidRequirement
+
+from pitloom.core.pep508 import parse_requirement
 from pitloom.core.project import ConflictCandidate, ProjectMetadata, provenance_key_for
 from pitloom.core.provenance import parse_provenance_value
+from pitloom.core.requirements import (
+    NOT_PEP_508,
+    add_marker,
+    flatten_optional_dependencies,
+    warn_skipped_extra_entry,
+)
 from pitloom.extract._core_metadata import (
     first_license,
     license_cascade,
     license_from_classifiers,
 )
+from pitloom.extract.authors import is_unset_placeholder, read_author_fields
 from pitloom.extract.project._field_agreement import add_conflict, values_agree
+from pitloom.extract.project._requirements_files import (
+    ListedFiles,
+    RequirementsFiles,
+    pep508_only,
+    setup_cfg_requirement_lines,
+)
 from pitloom.logging_config import loggable, one_line
 
 log = logging.getLogger(__name__)
@@ -82,44 +100,6 @@ class SetupOption:
 SetupOptions = dict[str, SetupOption]
 
 
-def requirement_lines(text: str) -> list[str]:
-    """Requirements in *text* as setuptools reads them
-    (``setuptools._reqs.parse_strings``): a line each, blank lines and
-    ``#`` lines left out, a `` #`` comment dropped, a line ending in ``\\``
-    joined with the next."""
-    lines = (line.strip() for line in text.splitlines())
-    # The comment cut is not stripped: "x \\  # c" does not continue.
-    items = iter(
-        line.partition(" #")[0] for line in lines if line and not line.startswith("#")
-    )
-    requirements: list[str] = []
-    for item in items:
-        parts = [item]
-        while parts and parts[-1].endswith("\\"):
-            following = next(items, None)
-            if following is None:
-                return requirements
-            _cut_continuation(parts)
-            parts.append(following)
-        requirements.append("".join(parts).strip())
-    return requirements
-
-
-def _cut_continuation(parts: list[str]) -> None:
-    """``"".join(parts)[:-2].strip()`` in place, in time linear in the
-    parts removed: setuptools cuts two characters for the ``\\``. Each
-    part starts with a non-blank character, so only the last needs a
-    strip, and it never strips to nothing."""
-    cut = 2
-    while cut and parts:
-        last = parts.pop()
-        if len(last) > cut:
-            parts.append(last[:-cut])
-        cut = max(0, cut - len(last))
-    if parts:
-        parts[-1] = parts[-1].rstrip()
-
-
 def merge_setup_options(cfg: SetupOptions, py: SetupOptions) -> SetupOptions:
     """*cfg* with each *py* option that setuptools keeps over it: one that is
     given, or one ``setup.cfg`` does not have."""
@@ -156,10 +136,137 @@ def resolve_setuptools_licence(
     return licence, None if chosen is None else chosen.source
 
 
-def _authors(merged: SetupOptions) -> list[dict[str, str]]:
-    name, email = _value(merged, "author"), _value(merged, "author_email")
-    entry = {k: v for k, v in (("name", name), ("email", email)) if v}
-    return [entry] if entry else []
+def _extra_requirements(
+    key: str, requirements: list[str], quiet: bool
+) -> tuple[str, list[str]]:
+    """``(extra, requirements)`` for an ``extras_require`` *key*; setuptools'
+    ``extra:marker`` key gives each requirement the marker too. A
+    requirement or marker that cannot be read is dropped with a
+    ``WARNING:``."""
+    extra, _, marker = key.partition(":")
+    if not marker:  # as setuptools: an empty marker is none, a blank one invalid
+        return extra.strip(), requirements
+    merged: list[str] = []
+    for text in requirements:
+        try:
+            req = parse_requirement(text, quiet=quiet)
+            add_marker(req, marker)
+        except (InvalidRequirement, InvalidMarker):
+            warn_skipped_extra_entry(
+                "extras_require",
+                key,
+                text,
+                f"{NOT_PEP_508} or marker",
+                quiet=quiet,
+            )
+            continue
+        merged.append(str(req))
+    return extra.strip(), merged
+
+
+def split_extras(
+    merged: SetupOptions, quiet: bool
+) -> tuple[list[str], dict[str, list[str]]]:
+    """``extras_require`` as ``(unconditional, extras)``: an
+    ``extra:marker`` key's marker joined to each requirement, one with no
+    extra unconditional, as setuptools moves it to ``install_requires``."""
+    unconditional: list[str] = []
+    extras: dict[str, list[str]] = {}
+    for key, requirements in (_value(merged, "extras_require") or {}).items():
+        extra, reqs = _extra_requirements(key, requirements, quiet)
+        if extra:
+            extras.setdefault(extra, []).extend(reqs)
+        else:
+            unconditional.extend(reqs)
+    return unconditional, extras
+
+
+def _dependencies(merged: SetupOptions, quiet: bool) -> list[str]:
+    """``install_requires``, then each ``extras_require`` extra's
+    requirements tagged as a built wheel's ``Requires-Dist`` has them
+    (:func:`~pitloom.core.requirements.flatten_optional_dependencies`); an
+    ``extra:marker`` key with no extra gives an unconditional requirement."""
+    unconditional, extras = split_extras(merged, quiet)
+    base = list(_value(merged, "install_requires") or []) + unconditional
+    return flatten_optional_dependencies(
+        base, extras, _value(merged, "name"), source="extras_require", quiet=quiet
+    )
+
+
+def read_listed_requirements(
+    merged: SetupOptions, *, quiet: bool = False
+) -> tuple[SetupOptions, list[str]]:
+    """*merged* with each ``file:`` directive
+    (:class:`~pitloom.extract.project._requirements_files.ListedFiles`) of
+    ``install_requires`` and ``extras_require`` read, by one
+    :class:`~pitloom.extract.project._requirements_files.RequirementsFiles`
+    so its caps and read-once hold across them, an ``install_requires``
+    entry that is not PEP 508 skipped with a ``WARNING:`` (setuptools fails
+    the build on it), and the files read, as listed."""
+    base = merged.get("install_requires")
+    extras = merged.get("extras_require")
+    values = [None if base is None else base.value]
+    values += [] if extras is None else list(extras.value.values())
+    listed = [v for v in values if isinstance(v, ListedFiles)]
+    files = (
+        RequirementsFiles(listed[0].project_dir, SETUP_CFG, "options", quiet)
+        if listed
+        else None
+    )
+
+    def read(value: Any, key: str) -> Any:
+        if files is None or not isinstance(value, ListedFiles):
+            return value
+        return files.requirements(value.names, key, setup_cfg_requirement_lines)
+
+    resolved = dict(merged)
+    if base is not None:
+        reqs = read(base.value, "install_requires")
+        field = parse_provenance_value(base.source)["location"]
+        resolved["install_requires"] = replace(
+            base, value=pep508_only(reqs, field, quiet)
+        )
+    if extras is not None:
+        resolved["extras_require"] = replace(
+            extras,
+            value={
+                extra: read(reqs, f"extras_require.{extra}")
+                for extra, reqs in extras.value.items()
+            },
+        )
+    if files is None:
+        return resolved, []
+    files.warn_skipped()
+    return resolved, list(files.used)
+
+
+def _stated_author_options(merged: SetupOptions, cfg: SetupOptions) -> SetupOptions:
+    """*merged* with an ``author``/``author_email`` holding the ``UNKNOWN``
+    placeholder replaced by ``setup.cfg``'s real one, else left out: a
+    placeholder is no statement, so it neither hides a real value nor
+    records ``authors`` provenance."""
+    stated = dict(merged)
+    for key in ("author", "author_email"):
+        option = stated.get(key)
+        if option is None or not is_unset_placeholder(option.value):
+            continue
+        fallback = cfg.get(key)
+        if fallback is None or is_unset_placeholder(fallback.value):
+            del stated[key]
+        else:
+            stated[key] = fallback
+    return stated
+
+
+def _authors(merged: SetupOptions, quiet: bool) -> list[dict[str, str]]:
+    """``author`` and ``author_email`` read as setuptools writes them to
+    ``Author`` and ``Author-email`` and a wheel's reader reads them back
+    (:func:`~pitloom.extract.authors.read_author_fields`): ``author`` is
+    one author, cut only next to an address; ``author_email`` is split on
+    ``,`` and ``;``; a split warns."""
+    return read_author_fields(
+        _value(merged, "author"), _value(merged, "author_email"), quiet=quiet
+    )
 
 
 def _urls(merged: SetupOptions) -> dict[str, str]:
@@ -183,7 +290,7 @@ _VALUE_GATED = {
 _PRESENCE_GATED = {
     "requires_python": ("python_requires",),
     "keywords": ("keywords",),
-    "dependencies": ("install_requires",),
+    "dependencies": ("install_requires", "extras_require"),
     "authors": ("author", "author_email"),
     "urls": ("url", "project_urls"),
 }
@@ -191,22 +298,22 @@ _PRESENCE_GATED = {
 
 def _joint_source(options: list[SetupOption]) -> str:
     """The provenance of a field built from *options*: the one option's,
-    or, from both files, ``Source: setup.py, setup.cfg | Field: <setup.py
-    field>, <setup.cfg field>``."""
-    by_file: dict[str, str] = {}
+    or, from several, ``Source: <files> | Field: <fields>`` with the files
+    in ``setup.py``, ``setup.cfg`` order."""
+    if len(options) == 1:
+        return options[0].source
+    by_file: dict[str, list[str]] = {}
     for option in options:
         entry = parse_provenance_value(option.source)
-        by_file.setdefault(entry["source"], entry["location"])
-    if len(by_file) == 1:
-        return options[0].source
-    files = (SETUP_PY, SETUP_CFG)
-    return (
-        f"Source: {', '.join(files)}"
-        f" | Field: {', '.join(by_file[name] for name in files)}"
-    )
+        fields = by_file.setdefault(entry["source"], [])
+        if entry["location"] not in fields:
+            fields.append(entry["location"])
+    names = [name for name in (SETUP_PY, SETUP_CFG) if name in by_file]
+    fields = [field for name in names for field in by_file[name]]
+    return f"Source: {', '.join(names)} | Field: {', '.join(fields)}"
 
 
-def _provenance(merged: SetupOptions, metadata: ProjectMetadata) -> dict[str, str]:
+def _provenance(merged: SetupOptions) -> dict[str, str]:
     prov: dict[str, str] = {}
     name = _value(merged, "name")
     if name:
@@ -221,18 +328,18 @@ def _provenance(merged: SetupOptions, metadata: ProjectMetadata) -> dict[str, st
         stating = [o for o in declared if o.value] or declared[:1]
         if stating:
             prov[prov_key] = _joint_source(stating)
-    if "authors" in prov and metadata.authors:
-        prov["copyright_text"] = (
-            "Source: Pitloom generator | Method: inferred_from_authors"
-        )
     return prov
 
 
-def build_setuptools_metadata(cfg: SetupOptions, py: SetupOptions) -> ProjectMetadata:
+def build_setuptools_metadata(
+    cfg: SetupOptions, py: SetupOptions, *, quiet: bool = False
+) -> ProjectMetadata:
     """:class:`~pitloom.core.project.ProjectMetadata` from *cfg* and *py*
     merged by :func:`merge_setup_options`; name ``""`` when neither file
-    names the project."""
-    merged = merge_setup_options(cfg, py)
+    names the project. *quiet* silences the ``WARNING:`` for an
+    ``extras_require`` entry that cannot be used and for the authors."""
+    merged = _stated_author_options(merge_setup_options(cfg, py), cfg)
+    merged, files = read_listed_requirements(merged, quiet=quiet)
     metadata = ProjectMetadata(
         name=_value(merged, "name") or "",
         version=_value(merged, "version"),
@@ -240,11 +347,12 @@ def build_setuptools_metadata(cfg: SetupOptions, py: SetupOptions) -> ProjectMet
         readme=_value(merged, "long_description"),
         requires_python=_value(merged, "python_requires"),
         keywords=list(_value(merged, "keywords") or []),
-        authors=_authors(merged),
+        authors=_authors(merged, quiet),
         urls=_urls(merged),
-        dependencies=list(_value(merged, "install_requires") or []),
+        dependencies=_dependencies(merged, quiet),
+        dependency_files=files,
     )
-    metadata.provenance = _provenance(merged, metadata)
+    metadata.provenance = _provenance(merged)
     licence, source = resolve_setuptools_licence(merged, cfg)
     metadata.license_name = licence
     if licence and source:  # a stated licence always has a source

@@ -29,6 +29,7 @@ from unittest import mock
 
 import pytest
 
+from pitloom._embed_generate import _settle_project_build_options
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.build_signals import BUILD_ACTIVITY, TerminationGuard
 from pitloom.core.config import ContentTypeOverride, PitloomConfig
@@ -382,3 +383,26 @@ def test_interrupted_cleanup_still_runs_the_guard_fallback(
             embed_wheel_sbom(wheel_path, project_dir=tmp_path)
 
     assert fallback == ["removed"]
+
+
+@pytest.mark.parametrize(
+    ("kind", "settled"),
+    [("missing", False), ("plain-file", False), ("directory", True)],
+)
+def test_settle_project_build_options_only_for_a_project(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, kind: str, settled: bool
+) -> None:
+    """A path that is neither directory nor sdist is left as given, with no
+    build-flag ``WARNING:``; a project directory is settled (and warns)."""
+    target = tmp_path / "project"
+    if kind == "plain-file":
+        target.write_text("not a project", encoding="utf-8")
+    elif kind == "directory":
+        target.mkdir()
+    options = BuildOptions(no_isolation=True)
+
+    with caplog.at_level("WARNING", logger="pitloom"):
+        result = _settle_project_build_options(options, None, target)
+
+    assert (result is not options) is settled
+    assert ("--no-build-isolation has no effect" in caplog.text) is settled

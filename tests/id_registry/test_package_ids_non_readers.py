@@ -6,9 +6,10 @@
 """Packages that never look the registry up do not make a name ambiguous
 for run auto-harvest.
 
-A self-referencing dependency, and a phantom dependency named like the
-project or a dependency, mint their own id without a lookup (their name
-belongs to another package of the document). Run auto-harvest neither
+A phantom dependency named like the project or a dependency, or a non-PEP
+508 dependency string whose fallback name is the project's, mints its own
+id without a lookup (its name belongs to another package of the document);
+a self-referencing dependency adds no package at all. Run auto-harvest neither
 counts nor writes them, so the one package that does look the name up is
 written and pinned on the next run. ``id import`` has no such knowledge and
 still skips every multi-holder name.
@@ -53,7 +54,6 @@ _SELF_EXTRA = f"{MAIN}[x]; extra == 'all'"
 
 #: doc kwargs -> the name one reader and one non-reader share.
 _SHARED_NAME_DOCS: dict[str, tuple[dict[str, Any], str]] = {
-    "self-referencing-dependency": ({"dependencies": [_SELF_EXTRA]}, MAIN),
     "phantom-like-project": ({"phantom": [phantom("Demo", "1")]}, MAIN),
     "phantom-like-dependency": (
         {"dependencies": ["libfoo==1.0"], "phantom": [phantom("libfoo", "1")]},
@@ -98,11 +98,30 @@ def test_non_readers_are_exactly_the_packages_that_never_looked_up(
     expected = {
         p.spdx_id
         for p in packages(exporter)
-        if (p.name == MAIN and p.spdx_id != root)
-        or (p.version == "1" and p.name in {"Demo", "libfoo"})
+        if p.version == "1" and p.name in {"Demo", "libfoo"}
     }
-    assert len(expected) == 3  # non-vacuous: self-dependency and two phantoms
+    assert len(expected) == 2  # non-vacuous: two phantoms
+    assert [p.spdx_id for p in packages(exporter) if p.name == MAIN] == [root]
     assert exporter.registry_non_readers == expected
+
+
+def test_non_pep_508_dependency_named_like_project_is_a_non_reader(
+    tmp_path: Path,
+) -> None:
+    """Its fallback name is the project's, so it is a package of its own
+    that never looks up: run auto-harvest still writes the main package."""
+    doc = make_doc(dependencies=[f"{MAIN}==1.0 ; !!"])
+    registry = IdRegistry.new("r", tmp_path / "registry.json")
+
+    exporter = build_doc(doc, registry)
+    _harvest(exporter, registry)
+
+    root = _root_id(exporter)
+    (other,) = [p.spdx_id for p in packages(exporter) if p.spdx_id != root]
+    assert [p.name for p in packages(exporter)] == [MAIN, MAIN]
+    assert exporter.registry_non_readers == {other}
+    assert registry.lookup_entity(MAIN, PACKAGE_ENTITY_TYPE) == root
+    assert _root_id(build_doc(doc, registry)) == root
 
 
 def test_two_versions_of_one_dependency_both_look_up(tmp_path: Path) -> None:
@@ -168,7 +187,7 @@ def _self_referencing_run(surface: str, tmp_path: Path, registry: Path) -> str:
 
 
 @pytest.mark.parametrize("surface", ["project", "wheel"])
-def test_self_referencing_dependency_main_package_is_pinned_on_run_two(
+def test_self_reference_adds_no_package_and_root_is_pinned_on_run_two(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, surface: str
 ) -> None:
     registry_path = tmp_path / "registry.json"
@@ -181,7 +200,7 @@ def test_self_referencing_dependency_main_package_is_pinned_on_run_two(
         registry_bytes = registry_path.read_bytes()
         third = _self_referencing_run(surface, tmp_path, registry_path)
 
-    assert [p.name for p in sbom_packages(first)].count(MAIN) == 2  # non-vacuous
+    assert [p.name for p in sbom_packages(first)].count(MAIN) == 1  # no self-package
     assert after_first[MAIN] == root_element_id(first)
     assert root_element_id(second) == after_first[MAIN]
     assert second == first
@@ -190,8 +209,11 @@ def test_self_referencing_dependency_main_package_is_pinned_on_run_two(
     assert not _warnings(caplog)
 
 
-def test_hook_pins_the_main_package_a_project_run_harvested(tmp_path: Path) -> None:
-    """The hook never harvests; it reads what a project run wrote."""
+def test_hook_pins_the_root_a_project_run_harvested_beside_a_self_reference(
+    tmp_path: Path,
+) -> None:
+    """The hook never harvests; it reads what a project run wrote. The
+    self-reference adds no package on either surface."""
     registry_path = tmp_path / "registry.json"
     IdRegistry.new("r").save(registry_path)
     project = project_with_dependencies(tmp_path / "run", [_SELF_EXTRA])
@@ -208,5 +230,5 @@ def test_hook_pins_the_main_package_a_project_run_harvested(tmp_path: Path) -> N
     sbom_json = staging.read_text(encoding="utf-8")
     hook.finalize("standard", build_data, "")
 
-    assert [p.name for p in sbom_packages(sbom_json)].count(MAIN) == 2
+    assert [p.name for p in sbom_packages(sbom_json)].count(MAIN) == 1
     assert root_element_id(sbom_json) == pinned

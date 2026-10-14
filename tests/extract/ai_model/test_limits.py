@@ -131,11 +131,10 @@ def test_a_label_over_the_cap_drops_every_label_with_one_warning(
     labels: list[str], kept: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
     assert _LABEL_BYTES == 4096
-    assert recordable_labels(labels, Limits()) == (tuple(labels) if kept else ())
+    assert recordable_labels(labels, Limits(), "m") == (tuple(labels) if kept else ())
     warnings = logged_warnings(caplog)
-    assert warnings == (
-        [] if kept else [f"a label over {_LABEL_BYTES} bytes; no label recorded"]
-    )
+    message = "FILE=m: larger than the 4096-byte label cap; no label recorded"
+    assert warnings == ([] if kept else [message])
 
 
 @pytest.mark.parametrize("extra", [0, 1], ids=["at-cap", "over"])
@@ -146,5 +145,8 @@ def test_a_cut_name_is_said_once_with_its_length(
         format_info=AiModelFormatInfo(file_name="x" * (MAX_MODEL_NAME_CHARS + extra))
     )
     warn_name_cut(meta, "gguf", "m.gguf")
-    expected = "FORMAT=gguf FILE=m.gguf: model name of 1025 characters cut to 1024"
+    expected = (
+        "FORMAT=gguf FILE=m.gguf: larger than the 1024-character name cap;"
+        " model name cut"
+    )
     assert logged_warnings(caplog) == ([expected] if extra else [])

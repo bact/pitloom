@@ -259,6 +259,7 @@ def test_loom_model_and_a_project_scan_record_the_same_lengths(tmp_path: Path) -
     (project / "demo" / "__init__.py").write_text("", encoding="utf-8")
     (project / "demo" / fixture.name).write_bytes(fixture.read_bytes())
     (project / "pyproject.toml").write_text(
+        '[build-system]\nbuild-backend = "hatchling.build"\n'
         '[project]\nname = "demo"\nversion = "1.0.0"\n\n'
         '[tool.pitloom.provenance]\npreserve-source-metadata = "always"\n',
         encoding="utf-8",

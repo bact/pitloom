@@ -12,6 +12,7 @@ See also: :mod:`tests.extract.project.test_setuptools_cfg`.
 
 from __future__ import annotations
 
+import ast
 import errno
 import logging
 import os
@@ -19,11 +20,21 @@ from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from typing import Any
+from unittest import mock
 
 import pytest
 
-from pitloom.extract.project import read_project, resolve_project_with_lockfile
+from pitloom.core.path_confine import open_inside
+from pitloom.extract.project import (
+    _setup_cfg_directives,
+    read_project,
+    resolve_project_with_lockfile,
+)
+from pitloom.extract.project._setup_cfg_directives import (
+    _resolve_cfg_attr_directive,
+)
 from pitloom.extract.project.setuptools_cfg import read_setup_cfg
+from tests._bounded import run_bounded_in_child
 
 _MIT = "License :: OSI Approved :: MIT License"
 
@@ -50,7 +61,7 @@ def test_several_files_are_joined_as_setuptools_joins_them(
     spec: str, readme: str | None, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     (tmp_path / "a.txt").write_bytes(b"one")
-    (tmp_path / "b.txt").write_bytes(b"two\n")
+    (tmp_path / "b.txt").write_bytes(b"two\r\n")  # read in text mode
     _setup_cfg(tmp_path, f"version = 1.0\nlong_description = file: {spec}\n")
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         metadata, _ = read_setup_cfg(tmp_path)
@@ -91,14 +102,14 @@ def _unreadable(
     else:
         bad.write_text("x", encoding="utf-8")
     if kind == "open-denied":
-        real = Path.read_text
+        real = open_inside
 
-        def denied(self: Path, *args: Any, **kwargs: Any) -> str:
-            if self.name == "bad":
-                raise PermissionError(errno.EACCES, "Permission denied", str(self))
-            return real(self, *args, **kwargs)
+        def denied(written: Path, root: Path) -> Any:
+            if written.name == "bad":
+                raise PermissionError(errno.EACCES, "Permission denied", str(written))
+            return real(written, root)
 
-        monkeypatch.setattr(Path, "read_text", denied)
+        monkeypatch.setattr(_setup_cfg_directives, "open_inside", denied)
     with _stat_denied(bad, monkeypatch) if kind == "stat-denied" else nullcontext():
         yield
 
@@ -276,3 +287,169 @@ def test_a_name_that_is_no_file_is_skipped_silently(
         metadata = read_project(tmp_path)[0]
     assert (metadata.version, metadata.readme) == (version, readme)
     assert not caplog.records
+
+
+@pytest.mark.parametrize(
+    ("name", "warning"),
+    [
+        ("VER", None),
+        ("s/../VER", None),
+        ("../out", "could not read for {what}; outside the project directory"),
+        ("{out}", "could not read for {what}; outside the project directory"),
+        ("link", "could not read for {what}; outside the project directory"),
+        ("big", "larger than the 3-byte file-directive cap; skipped for {what}"),
+    ],
+    ids=["inside", "dotdot-inside", "dotdot-out", "absolute", "symlink-out", "cap"],
+)
+@pytest.mark.parametrize(
+    ("manifest", "what"),
+    [
+        ("setup.cfg", "setup.cfg metadata.version"),
+        ("pyproject.toml", "pyproject.toml tool.setuptools.dynamic.version"),
+    ],
+    ids=["cfg", "toml"],
+)
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def test_a_version_file_is_read_only_inside_the_project_and_under_the_cap(
+    name: str,
+    warning: str | None,
+    manifest: str,
+    what: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression: the ``file`` version directive read any path, ``..``,
+    absolute or through a symlink, and any size. Now as the dynamic
+    requirements reader: outside the project or over the cap, no version
+    and one ``WARNING:`` naming the file as written."""
+    monkeypatch.setattr(_setup_cfg_directives, "MAX_LISTED_FILE_BYTES", 3)
+    project = tmp_path / "p"
+    (project / "s").mkdir(parents=True)
+    (project / "VER").write_bytes(b"2.0")
+    (project / "big").write_bytes(b"2.0\n")
+    (tmp_path / "out").write_bytes(b"6.6")
+    if name == "link":
+        try:
+            (project / "link").symlink_to(tmp_path / "out")
+        except OSError:  # Windows without the symlink privilege
+            pytest.skip("cannot create a symlink here")
+    name = name.format(out=(tmp_path / "out").as_posix())
+    if manifest == "setup.cfg":
+        _setup_cfg(project, f"version = file: {name}\n")
+    else:
+        (project / manifest).write_text(
+            _PYPROJECT_VERSION_FILE.format(files=f"'{name}'"), encoding="utf-8"
+        )
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        metadata = read_project(project)[0]
+    assert metadata.version == (None if warning else "2.0")
+    expected = [] if warning is None else [f"FILE={name}: {warning.format(what=what)}"]
+    assert caplog.messages == expected
+
+
+_ATTR = "pitloom.extract.project._setup_cfg_directives:_resolve_cfg_attr_directive"
+_NINE = ("9", "Source: m.py | Method: attr_directive")
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        ".".join(["a"] * 300000),
+        "-" * 500000 + "1",
+        "not " * 200000 + "1",
+        "(\n" + ".".join(["a"] * 300000) + "\n)",
+        "(" * 300000 + "1" + ")" * 300000,
+    ],
+    ids=["attributes", "unary-minus", "not", "joined-lines", "brackets"],
+)
+def test_attr_directive_survives_a_deep_assignment(tmp_path: Path, value: str) -> None:
+    """Regression: the whole module was parsed, so one under the file cap
+    crashed the run (a C stack overflow on 3.10, ``RecursionError`` or
+    ``MemoryError`` later). Only a logical line assigning the attribute is
+    parsed, one over the line cap (its physical lines joined) skipped; run
+    in a child, so a crash fails the test and not the session."""
+    module = f"__version__ = {value}\n__version__ = '9'\n"
+    (tmp_path / "m.py").write_text(module, encoding="utf-8")
+    assert run_bounded_in_child(_ATTR, "m.__version__", tmp_path, "t") == _NINE
+
+
+@pytest.mark.parametrize(
+    ("template", "digits"),
+    [("__version__ = '{}'", 240), ("__version__ = (\n    '{}'\n)", 232)],
+    ids=["one-line", "joined-lines"],
+)
+@pytest.mark.parametrize("over", [0, 1], ids=["at-cap", "over-cap"])
+def test_attr_line_over_the_cap_is_skipped(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    template: str,
+    digits: int,
+    over: int,
+) -> None:
+    """A logical line of :data:`MAX_ATTR_LINE_CHARS` characters, its
+    physical lines joined, is parsed; a longer one is skipped with one
+    ``WARNING:`` and the next assignment read."""
+    line = template.format("9" * (digits + over))
+    assert len(line) == _setup_cfg_directives.MAX_ATTR_LINE_CHARS + over
+    (tmp_path / "m.py").write_text(f"{line}\n__version__ = '9'\n", encoding="utf-8")
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        found = _resolve_cfg_attr_directive("m.__version__", tmp_path, "t")
+    assert found == (_NINE if over else ("9" * digits, _NINE[1]))
+    cap = "FILE=m.py: larger than the 256-character attr-directive-line cap;"
+    assert caplog.messages == [f"{cap} __version__ line skipped for t"] * over
+
+
+@pytest.mark.parametrize(
+    "module",
+    [
+        "__version__ = (\n    '1.0'\n)\n",
+        "__version__ = \\\n    '1.0'\n",
+        "x = 1; __version__ = '1.0'\n",
+        "__version__ = 1; __version__ = 2\n__version__ = '1.0'\n",
+        "__version__: str = '1.0'\n",
+        "version = __version__ = '1.0'\n",
+        "if True:\n    __version__ = '1.0'\n",
+        "__version__: str\n__version__ = ('1.0'  # ')'\n)",
+    ],
+    ids=[
+        "parenthesised",
+        "backslash",
+        "after-semicolon",
+        "twice-on-a-line",
+        "annotated",
+        "chained",
+        "indented",
+        "annotation-only-then-comment",
+    ],
+)
+def test_attr_directive_reads_each_assignment_form(tmp_path: Path, module: str) -> None:
+    """Regression: only a one-line ``name = 'x'`` was read, so a
+    parenthesised or ``;``-joined assignment gave no version. Every form
+    setuptools reads statically: a logical line, an annotated or a chained
+    target, after a ``;``."""
+    (tmp_path / "m.py").write_text(module, encoding="utf-8")
+    found = _resolve_cfg_attr_directive("m.__version__", tmp_path, "t")
+    assert found == ("1.0", _NINE[1])
+
+
+@pytest.mark.parametrize("error", [RecursionError, MemoryError])
+def test_attr_line_the_parser_cannot_hold_is_skipped(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    error: type[BaseException],
+) -> None:
+    """A line the parser runs out of stack or memory on is a skipped read
+    with one ``WARNING:``, never a crash or an empty ``ERROR:``."""
+    parser = mock.Mock(spec=ast)
+    parser.parse.side_effect = error
+    monkeypatch.setattr(_setup_cfg_directives, "ast", parser)
+    (tmp_path / "m.py").write_text("__version__ = '1'\n", encoding="utf-8")
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        found = _resolve_cfg_attr_directive("m.__version__", tmp_path, "t")
+    assert found == (None, None)
+    assert caplog.messages == [
+        f"FILE=m.py: could not read for t; {error.__name__} parsing the"
+        " __version__ line"
+    ]

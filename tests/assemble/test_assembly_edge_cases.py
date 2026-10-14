@@ -35,12 +35,10 @@ from pitloom.assemble.spdx3.deps_installed import (
 from pitloom.assemble.spdx3.deps_originator import (
     _apply_originator,
     _collect_originator_agents,
-    _extract_name_email_pairs,
     _find_license_copyright,
-    _get_or_create_originator_agent,
     _parse_project_urls,
-    _read_candidate_copyright,
     _resolve_remote_authors_file,
+    get_or_create_originator_agent,
 )
 from pitloom.assemble.spdx3.deps_pypi import _fetch_pypi_release_info
 from pitloom.assemble.spdx3.fragments import (
@@ -53,6 +51,7 @@ from pitloom.assemble.spdx3.fragments import (
 from pitloom.core.ai_metadata import AiModelFormatInfo, AiModelMetadata
 from pitloom.core.config import FragmentConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.extract.dependency_authors import dependency_author_pairs
 
 
 def _make_ci() -> spdx3.CreationInfo:
@@ -135,31 +134,8 @@ def test_enrich_from_installed_unknown_version_skips_purl() -> None:
     assert getattr(dep_pkg, "software_packageUrl", None) is None
 
 
-def test_deps_originator_candidate_copyright_and_find_license() -> None:
-    """_read_candidate_copyright and _find_license_copyright handle errors."""
-
-    class MockDecodeErrFile:
-        """A licence file whose read fails to decode."""
-
-        def __str__(self) -> str:
-            return "foo-1.0.dist-info/LICENSE"
-
-        def read_text(self, encoding: str = "utf-8") -> str:
-            raise UnicodeDecodeError("utf-8", b"", 0, 1, "err")
-
-    class MockEmptyFile:
-        """An empty licence file."""
-
-        def __str__(self) -> str:
-            return "foo-1.0.dist-info/LICENSE"
-
-        # pylint: disable-next=unused-argument
-        def read_text(self, encoding: str = "utf-8") -> str:
-            return ""
-
-    assert _read_candidate_copyright(MockDecodeErrFile()) is None
-    assert _read_candidate_copyright(MockEmptyFile()) is None
-
+def test_find_license_copyright_without_the_package() -> None:
+    """An uninstalled dependency has no licence file to read."""
     # Package not found in _find_license_copyright
     mock_pkg_meta = MagicMock()
     mock_pkg_meta.get_all.return_value = ["LICENSE"]
@@ -312,26 +288,17 @@ def test_deps_pypi_fetch_release_info_mocked() -> None:
 
 
 def test_deps_originator_edge_branches() -> None:
-    """_extract_name_email_pairs, _parse_project_urls, remote authors edge branches."""
-    # _extract_name_email_pairs with empty name/email or commas with spaces
-    assert _extract_name_email_pairs("", "  ") == []
-    assert len(_extract_name_email_pairs("Alice, , and Bob", "")) == 2
+    """dependency_author_pairs, _parse_project_urls, remote authors edge branches."""
+    assert not dependency_author_pairs("p", "", "  ")
+    assert len(dependency_author_pairs("p", "", "Alice, , and Bob")) == 2
 
-    # A single address's display name can itself be a comma-separated list
-    # of names sharing one address (seen in the wild on PyPI for a real
-    # package, where the address belongs to a person not even in the name
-    # list). The shared address can't be fairly attributed to any one
-    # listed name, so it splits into name-only tuples plus one extra
-    # email-only tuple that keeps the address on its own anonymous Person.
-    assert _extract_name_email_pairs(
-        "",
-        '"Author One, Author Two, Author Three" <x@example.com>',
-    ) == [
-        ("Author One", None),
-        ("Author Two", None),
-        ("Author Three", None),
-        (None, "x@example.com"),
-    ]
+    # Documented limit: a quoted display name is one mailbox (RFC 5322), so
+    # one author, never split, even when it lists several people sharing one
+    # address (seen on PyPI): one Person. The package's own wheel reads it
+    # so too.
+    assert dependency_author_pairs(
+        "p", "", '"Author One, Author Two, Author Three" <x@example.com>'
+    ) == [("Author One, Author Two, Author Three", "x@example.com")]
 
     # _parse_project_urls with malformed entry without comma
     mock_pkg = MagicMock()
@@ -365,37 +332,14 @@ def test_deps_originator_edge_branches() -> None:
     assert loc2 == "https://github.com/foo/bar/blob/HEAD/AUTHORS"
     assert text2 is None
 
-    # _find_license_copyright where files exist but no copyright matches
-    class MockNoMatchFile:
-        """A licence file with no copyright line."""
-
-        name = "LICENSE"
-
-        def __str__(self) -> str:
-            return "pkg-1.0.dist-info/LICENSE"
-
-        # pylint: disable-next=unused-argument
-        def read_text(self, encoding: str = "utf-8") -> str:
-            return "No copyright statement here at all."
-
-    mock_dist = MagicMock()
-    mock_dist.files = [MockNoMatchFile()]
-    mock_pkg_with_lic = MagicMock()
-    mock_pkg_with_lic.get_all.return_value = ["LICENSE"]
-    with patch(
-        "pitloom.assemble.spdx3.deps_originator.get_pkg_distribution",
-        return_value=mock_dist,
-    ):
-        assert _find_license_copyright("mypkg", mock_pkg_with_lic) is None
-
-    # _get_or_create_originator_agent with remote authors contentType
+    # get_or_create_originator_agent with remote authors contentType
     exporter = Spdx3JsonExporter()
     creation_info = _make_ci()
     with patch(
         "pitloom.assemble.spdx3.deps_originator._resolve_remote_authors_file",
         return_value=("https://raw.../AUTHORS", "text/plain", "Author text"),
     ):
-        aid, attr_text = _get_or_create_originator_agent(
+        aid, attr_text = get_or_create_originator_agent(
             "and others (see AUTHORS.txt)",
             None,
             creation_info,
@@ -415,7 +359,7 @@ def test_deps_originator_edge_branches() -> None:
     )
     dep_pkg.software_attributionText = ["Initial attribution"]
     with patch(
-        "pitloom.assemble.spdx3.deps_originator._get_or_create_originator_agent",
+        "pitloom.assemble.spdx3.deps_originator.get_or_create_originator_agent",
         return_value=("http://spdx.org/spdxdocs/aid", "Second attribution"),
     ):
         _collect_originator_agents(

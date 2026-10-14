@@ -9,9 +9,9 @@ A name-keyed registry cannot pin a name several looking-up elements hold:
 ids swapped between runs whenever harvest kept one element (the last in
 ``spdxId`` order) and lookup handed the id to another (the first
 claimant). Harvest leaves such a name alone; a pinned id goes to the first
-claimant, with the claim ``WARNING:``. A self-referencing extra, or a
-phantom named like another package, never looks up, so run auto-harvest
-writes the name for the package that does.
+claimant, with the claim ``WARNING:``. A phantom named like another
+package never looks up, so run auto-harvest writes the name for the
+package that does; a self-referencing extra adds no package at all.
 
 See also: :mod:`tests.id_registry.test_package_ids` (the single-owner
 cases), :mod:`tests.id_registry.test_package_ids_non_readers` (packages
@@ -75,7 +75,7 @@ def _names(sbom_json: str) -> list[str]:
 # --- (A) self-referencing extra ---------------------------------------
 
 
-def test_wheel_self_referencing_extra_keeps_root_id_stable(
+def test_wheel_self_reference_adds_no_package_and_root_id_is_stable(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     registry_path, _ = new_registry(tmp_path)
@@ -84,7 +84,7 @@ def test_wheel_self_referencing_extra_keeps_root_id_stable(
     with caplog.at_level("WARNING"):
         runs = [generate_wheel_sbom(wheel, id_registry=registry_path) for _ in range(3)]
 
-    assert _names(runs[0]).count(MAIN) == 2  # non-vacuous: main + self-dependency
+    assert _names(runs[0]) == [MAIN, DEPENDENCY]  # the self-reference adds none
     assert len({root_element_id(run) for run in runs}) == 1
     assert runs[1] == runs[0]
     assert runs[2] == runs[0]

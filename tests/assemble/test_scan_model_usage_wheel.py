@@ -329,9 +329,11 @@ def test_ceiling_comes_from_the_config(
     assert f"demo/{_MODEL}" in sbom
     assert f"Source: {_MODEL}" not in sbom  # nothing was read from the model
     assert package.get("ai_typeOfModel") is None
-    (message,) = [m for m in logged_warnings(caplog) if "scan ceiling" in m]
-    assert f"demo/{_MODEL}" in message
-    assert "64-byte" in message
+    (message,) = [m for m in logged_warnings(caplog) if "-extract-bytes cap" in m]
+    assert message == (
+        f"FORMAT=safetensors FILE=demo/{_MODEL}: larger than the 64-byte"
+        " max-model-extract-bytes cap; metadata not read"
+    )
 
 
 @pytest.mark.parametrize("surface", _SURFACES)

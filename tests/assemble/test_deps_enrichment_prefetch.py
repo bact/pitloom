@@ -43,7 +43,7 @@ from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract._extract_utils import fetch_json
 from tests._network import skip_on_network_error
 
-from .conftest import _FakeMetadata, _make_ci
+from .conftest import _make_ci
 
 
 def _uninstalled(*_args: object, **_kwargs: object) -> None:
@@ -216,15 +216,6 @@ def test_fetch_pypi_release_info_live_network(
     digest = _extract_release_hash(release_info)
     assert digest is not None
     assert len(digest) == 64  # hex sha256
-
-
-def test_extract_name_email_pairs_parses_comma_separated_names() -> None:
-    meta = _FakeMetadata({"Author": "Alice, Bob and Charlie"})
-    assert deps_originator._resolve_author_or_maintainer(meta) == [
-        ("Alice", None),
-        ("Bob", None),
-        ("Charlie", None),
-    ]
 
 
 def test_apply_originator_creates_others_external_ref() -> None:

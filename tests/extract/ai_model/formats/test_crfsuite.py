@@ -124,25 +124,22 @@ def test_reads_the_headers_and_the_labels_chunk_only() -> None:
 
 
 @pytest.mark.parametrize(
-    ("limits", "reason"),
+    ("limits", "bound"),
     [
-        (
-            Limits(max_crfsuite_labels=_NUM_LABELS - 1),
-            f"more than {_NUM_LABELS - 1} labels",
-        ),
+        (Limits(max_crfsuite_labels=_NUM_LABELS - 1), "max_crfsuite_labels"),
         (
             Limits(max_crfsuite_labels_chunk_bytes=_LAB_SIZE - 1),
-            f"labels CQDB over {_LAB_SIZE - 1} bytes",
+            "max_crfsuite_labels_chunk_bytes",
         ),
     ],
     ids=["label-count", "labels-chunk"],
 )
 def test_a_labels_bound_leaves_the_labels_unread_and_the_counts_read(
-    limits: Limits, reason: str
+    limits: Limits, bound: str
 ) -> None:
     source = _Recording(_COMPLETE)
     model = read_crfsuite(source, limits)
-    assert model == CrfsuiteModel("FOMC", 100, 24, 14, _NUM_LABELS, None, reason)
+    assert model == CrfsuiteModel("FOMC", 100, 24, 14, _NUM_LABELS, None, bound)
     assert source.bytes_in(_OFF_LAB, _OFF_ATTR) == 24  # the chunk's header only
 
 

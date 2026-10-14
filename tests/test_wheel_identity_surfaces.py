@@ -450,7 +450,11 @@ def test_the_embed_does_not_read_and_warn_about_metadata_twice(
 
     said = [x for x in capsys.readouterr().err.splitlines() if x.endswith("unknown")]
     assert len(said) == 1, said
-    assert "over 2 headers" in said[0]  # the cap is what made it unknown
+    # The cap is what made it unknown.
+    assert said[0].endswith(
+        ".whl:demo-1.0.dist-info/METADATA: larger than the 2-header header-block"
+        " cap; identity unknown"
+    )
     with zipfile.ZipFile(wheel) as archive:
         sboms = [n for n in archive.namelist() if "/sboms/" in n]
     assert sboms == ["demo-1.0.dist-info/sboms/demo-1.0.spdx3.json"]

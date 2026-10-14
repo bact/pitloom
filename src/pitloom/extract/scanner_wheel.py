@@ -38,16 +38,19 @@ from pitloom.core.wheel_dist_info import (
     wheel_members,
 )
 from pitloom.extract.ai_model import SNIFF_BYTES
-from pitloom.extract.ai_model.limits import ScanBudgetExceeded, charging_reads
+from pitloom.extract.ai_model.limits import (
+    ModelOverCap,
+    ScanBudgetExceeded,
+    charging_reads,
+)
 from pitloom.extract.scanner import (
     USAGE_SETTING_WHEEL,
     ModelCandidate,
-    ModelTooLarge,
     ReaderGate,
     UsageSource,
     scan_ai_models,
 )
-from pitloom.logging_config import loggable
+from pitloom.logging_config import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -87,7 +90,11 @@ class _Scratch:
         self.guard = guard
         self.wheel = wheel
         self.max_bytes = max_bytes
-        self.budget = BUDGET_FACTOR * max_bytes
+        self.ceiling = Cap(max_bytes, "byte", "max-model-extract-bytes")
+        self.budget_cap = Cap(
+            BUDGET_FACTOR * max_bytes, "byte", "per-wheel model-scan budget"
+        )
+        self.budget = self.budget_cap.limit
         self.spent = 0
         self.exhausted = False
         self._path: Path | None = None
@@ -123,13 +130,12 @@ class _Scratch:
         """Stop copying for the rest of the wheel, saying so once."""
         if not self.exhausted:
             self.exhausted = True
-            log.warning(
-                "%sthe per-wheel budget of %d bytes for copying and reading "
-                "model files in %s is spent; the model that would pass it and "
-                "the models not yet read are listed without metadata",
-                MODEL_SCAN_ACTIVITY.log_prefix,
-                self.budget,
-                loggable(self.wheel),
+            warn_over_cap(
+                log,
+                self.budget_cap,
+                self.wheel,
+                "the model that would pass it and the models not yet read are "
+                "listed without metadata",
             )
         raise ScanBudgetExceeded
 
@@ -167,7 +173,7 @@ def _copy_out(
             scratch.guard.raise_if_pending()
             copied += len(chunk)
             if copied > scratch.max_bytes:
-                raise ModelTooLarge(None, scratch.max_bytes)
+                raise ModelOverCap(scratch.ceiling)
             scratch.spend(len(chunk))
             dst.write(chunk)
 
@@ -193,7 +199,7 @@ def _materializer(
     @contextlib.contextmanager
     def _materialize() -> Iterator[Path]:
         if info.file_size > scratch.max_bytes:
-            raise ModelTooLarge(info.file_size, scratch.max_bytes)
+            raise ModelOverCap(scratch.ceiling)
         if scratch.exhausted or scratch.spent + info.file_size > scratch.budget:
             scratch.exhaust()
         target: Path | None = None

@@ -22,16 +22,12 @@ from pitloom.core.models import (
     compute_doc_uuid,
     generate_spdx_id,
     get_wheel_files,
-    normalize_dependency_specifier,
     reserve_spdx_ids,
 )
 
 
 def test_models_edge_cases() -> None:
-    """normalize_dependency_specifier handles bad reqs and build_relationship None."""
-    assert normalize_dependency_specifier("invalid requirement syntax >= 1.0 <=") == (
-        "invalid requirement syntax >= 1.0 <="
-    )
+    """_normalize_dep handles bad reqs and build_relationship None."""
     assert _normalize_dep("") == ""
     assert _normalize_dep("---not-a-dep") == "---not-a-dep"
     assert (
@@ -53,8 +49,9 @@ def test_normalize_dep_pep503() -> None:
     assert _normalize_dep("PyProject.Metadata") == "pyproject-metadata"
     assert _normalize_dep("hatchling>=1.29.0") == "hatchling>=1.29.0"
     assert _normalize_dep("  tomli>=2.0; python_version<'3.11'  ") == (
-        "tomli>=2.0; python_version<'3.11'"
+        'tomli>=2.0; python_version < "3.11"'
     )
+    assert _normalize_dep("Not A Req!") == "not A Req!"
     assert _normalize_dep("My---Pkg") == "my-pkg"
 
 

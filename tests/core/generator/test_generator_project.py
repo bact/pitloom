@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import tempfile
-from datetime import datetime, timezone, tzinfo
 from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -170,29 +169,25 @@ def test_build_main_package_purl_normalizes_name() -> None:
     assert main_package["software_packageUrl"] == "pkg:pypi/my-package@2.0.0"
 
 
-def test_build_main_package_copyright_year_fallback_when_created_not_datetime(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """When spdx_ci.created is not a datetime, fall back to current UTC year."""
-
-    class MockDatetime(datetime):
-        """datetime whose now() returns a fixed instant."""
-
-        @classmethod
-        # Signature mirrors datetime.now(); the annotation names this local
-        # class, which pylint cannot resolve under postponed evaluation.
-        # pylint: disable-next=unused-argument,undefined-variable
-        def now(cls, tz: tzinfo | None = None) -> MockDatetime:
-            return cls(2026, 3, 15, 12, 0, tzinfo=timezone.utc)
-
-    monkeypatch.setattr("pitloom.assemble.spdx3.document.datetime", MockDatetime)
-    project = ProjectMetadata(name="fallback-year-pkg")
+@pytest.mark.parametrize(
+    ("found", "expected"),
+    [
+        ("Copyright (c) 2019 A\n(c) 2020 B", "Copyright (c) 2019 A\n(c) 2020 B"),
+        (None, "NOASSERTION"),
+    ],
+    ids=["found", "none"],
+)
+def test_build_main_package_copyright_text(found: str | None, expected: str) -> None:
+    """The notices found, else ``NOASSERTION``: never generated, whatever
+    the authors and the creation time (unknown here)."""
+    project = ProjectMetadata(
+        name="pkg", authors=[{"name": "Ann"}], copyright_text=found
+    )
     doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
     spdx_ci = MagicMock(spec=spdx3.CreationInfo)
     spdx_ci.created = None
     pkg = _build_main_package(doc, spdx_ci, [], "00000000-0000-0000-0000-000000000000")
-    assert pkg.software_copyrightText is not None
-    assert "Copyright (c) 2026" in pkg.software_copyrightText
+    assert pkg.software_copyrightText == expected
 
 
 def test_magika_version_is_cached(monkeypatch: pytest.MonkeyPatch) -> None:

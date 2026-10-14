@@ -35,8 +35,8 @@ from pitloom.extract.ai_model.archive_member import (
     open_model_zip,
     record_archive_contents,
 )
-from pitloom.extract.ai_model.limits import ModelLimitExceeded
-from pitloom.logging_config import field_loss_suffix, loggable, one_line
+from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
+from pitloom.logging_config import Cap, field_loss_suffix, loggable, one_line
 
 log = logging.getLogger(__name__)
 
@@ -87,9 +87,7 @@ def _bounded_pickle(pkl_file: IO[bytes]) -> bytes | None:
         return first_pickle(data[:limit])
     except ValueError as exc:
         if len(data) > limit:
-            raise ModelLimitExceeded(
-                f"first pickle not complete within {limit} bytes"
-            ) from None
+            raise ModelOverCap(Cap(limit, "byte", "first-pickle")) from None
         msg = "fickling failed to parse pickle bytes: %s" + field_loss_suffix(
             "skipped", "type_of_model"
         )

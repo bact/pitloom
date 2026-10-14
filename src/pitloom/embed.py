@@ -57,6 +57,7 @@ from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.file_names import sbom_base_name, sbom_file_name
 from pitloom.core.wheel_dist_info import require_wheel_path
+from pitloom.extract.authors import AuthorSplit
 from pitloom.extract.wheel import read_wheel, wheel_identity
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
@@ -222,7 +223,10 @@ def embed_wheel_sbom(
         id_registry = _resolve_embed_registry(project_dir, pitloom_config, id_registry)
     # Before the SBOM is generated: that may run a build.
     refuse_unembeddable_wheel(wheel_obj, allow_signed_wheel)
-    wheel_metadata, _ = read_wheel(wheel_obj)
+    # The wheel's split Author-email is warned about only where its authors
+    # are used.
+    author_splits: list[AuthorSplit] = []
+    wheel_metadata, _ = read_wheel(wheel_obj, author_splits=author_splits)
 
     sbom_json, eff_basename = _generate_embed_sbom_json(
         wheel_metadata,
@@ -235,6 +239,7 @@ def embed_wheel_sbom(
         id_registry=id_registry,
         overrides=eff_overrides,
         file_cache=file_cache,
+        author_splits=author_splits,
     )
     wheel_name, wheel_version = wheel_identity(wheel_metadata)
     if sbom_path is not None:

@@ -1,0 +1,163 @@
+[project]
+name = "etils"
+description = "Collection of common python utils"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+authors = [{name = "Conchylicultor", email="etils@google.com"}]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "License :: OSI Approved :: Apache Software License",
+    # Note: Python and license automatically added by some tools
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+keywords = [
+    "utils", "jax", "tensorflow", "tf", "machine learning", "deep learning"
+]
+# No default dependencies (submodules deps are optional and should be
+# installed individually)
+dependencies = []
+
+# This is set automatically by flit using `etils.__version__`
+dynamic = ["version"]
+
+[project.urls]
+homepage = "https://github.com/google/etils"
+repository = "https://github.com/google/etils"
+documentation = "https://etils.readthedocs.io"
+changelog = "https://github.com/google/etils/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+array-types = [
+    # Do not add anything here. `array_types` is an alias for `enp`
+    "etils[enp]",
+]
+eapp = [
+    "absl-py",
+    "simple_parsing",
+    "etils[epy]",
+]
+ecolab = [
+    "jupyter",
+    "numpy",
+    "mediapy",
+    "packaging",
+    "protobuf",
+    "etils[enp]",
+    "etils[epy]",
+    "etils[etree]",
+]
+edc = [
+    # Do not add anything here. `edc` is an alias for `epy`
+    "etils[epy]",
+]
+enp = [
+    "numpy",
+    "einops",
+    "etils[epy]",
+]
+epath = [
+    "fsspec",
+    "typing_extensions",
+    "zipp",
+    "etils[epy]",
+]
+epath-gcs = [
+    "gcsfs",
+    "etils[epath]",
+]
+epath-s3 = [
+    "s3fs",
+    "etils[epath]",
+]
+epy = [
+    "typing_extensions",
+]
+etqdm = [
+    "absl-py",
+    "tqdm",
+    "etils[epy]",
+]
+etree = [
+    "etils[array_types]",
+    "etils[epy]",
+    "etils[enp]",
+    "etils[etqdm]",
+]
+etree-dm = [
+    "dm-tree",
+    "etils[etree]",
+]
+etree-jax = [
+    "jax[cpu]",
+    "etils[etree]",
+]
+etree-tf = [
+    "tensorflow",
+    "etils[etree]",
+]
+lazy-imports = [
+    "etils[ecolab]",
+]
+all = [
+    "etils[array-types]",
+    "etils[eapp]",
+    "etils[ecolab]",
+    "etils[edc]",
+    "etils[enp]",
+    "etils[epath]",
+    "etils[epath-gcs]",
+    "etils[epath-s3]",
+    "etils[epy]",
+    "etils[etqdm]",
+    "etils[etree]",
+    "etils[etree-dm]",
+    "etils[etree-jax]",
+    "etils[etree-tf]",
+]
+
+# DEPRECATED: Kept to avoid pip warning
+epath-no-tf = []
+
+dev = [
+    "pytest",
+    "pytest-subtests",
+    "pytest-xdist",
+    "pyink",
+    "pylint>=2.6.0",
+    # Lazy deps
+    "chex",
+    "fiddle",  # For `epy.pretty_repr`
+    # "grain",  # For `etree.spec_like`  # TODO(epot): Add once released
+    "torch",
+    "optree",  # For `etree.optree`
+    "tensorflow_datasets",  # To test lazy_imports
+    "pydantic",  # To test pydantic serialization of epath.Path
+]
+docs = [
+    "sphinx-apitree[ext]",
+    "etils[dev,all]",  # Install lazy deps
+]
+
+[tool.flit.sdist]
+# Do not release tests, doc on PyPI
+exclude = [
+  "*/**/README.md",
+  "**/docs/**",
+  "**/*_test.py",
+  "**/tests/**",
+]
+
+[tool.pyink]
+# Formatting configuration to follow Google style-guide
+line-length = 80
+preview = true
+pyink-indentation = 2
+pyink-use-majority-quotes = true
+
+[build-system]
+requires = ["flit_core >=3.8,<4"]
+build-backend = "flit_core.buildapi"

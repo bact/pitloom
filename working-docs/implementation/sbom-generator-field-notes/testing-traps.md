@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-09
+Last-Modified: 2026-10-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -149,3 +149,9 @@ Ways a test passes, fails or floods the log for the wrong reason.
   `_save(..., node_domain=)` made 7 arguments against pylint's 6
   (`too-many-arguments`), found only by CI's pylint (#294).
   Do: run pylint on the tests directory you touched, not just ruff.
+- **A "stays the same" test passes if the input never arrived.** "An
+  extra-only dependency the lock also resolves stays optional" passes too
+  when the lock pin never reaches the document. The test runs it locked and
+  unlocked, and the real-fixture case first asserts `time-machine==2.16.0`
+  is in `locked_dependencies` (#300).
+  Do: assert the precondition took effect, and run the opposite case.

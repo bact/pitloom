@@ -194,10 +194,19 @@ class ProjectMetadata:
     requires_python: str | None = None
     license_name: str | None = None
     license_concluded: str | None = None
+    #: The copyright notices found in the project's own licence files
+    #: (:mod:`pitloom.extract.copyright_notices`), ``None`` when none was.
+    copyright_text: str | None = None
     keywords: list[str] = field(default_factory=list)
     authors: list[dict[str, str]] = field(default_factory=list)
     urls: dict[str, str] = field(default_factory=dict)
     dependencies: list[str] = field(default_factory=list)
+    #: The files, relative to the project directory as the project lists
+    #: them, the dependencies were read from (a requirements file
+    #: ``[tool.setuptools.dynamic]`` or ``setup.cfg``'s ``file:`` names):
+    #: declared dependencies, never a lock
+    #: (:func:`~pitloom.extract.lock.cascade.apply_locked_dependencies`).
+    dependency_files: list[str] = field(default_factory=list)
     locked_dependencies: list[str] = field(default_factory=list)
     locked_dependency_hashes: dict[str, str] = field(default_factory=dict)
     provenance: dict[str, str] = field(default_factory=dict)
@@ -217,6 +226,7 @@ class ProjectMetadata:
         "authors",
         "urls",
         "dependencies",
+        "dependency_files",
         "locked_dependencies",
         "locked_dependency_hashes",
         "provenance",

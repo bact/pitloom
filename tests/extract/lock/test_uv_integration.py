@@ -152,12 +152,14 @@ def test_real_world_flask() -> None:
     Has multiple marker-conditional duplicate names (e.g. `click`),
     exercising the ambiguity-skip path against real data. Transitive
     walk adds `zipp` (a dependency of `importlib-metadata`, not a direct
-    Flask dependency) beyond the root's own immediate dependency list."""
+    Flask dependency) beyond the root's own immediate dependency list.
+    The extras ``async``/``dotenv`` are pinned last, direct entries only:
+    ``asgiref``'s own ``typing-extensions`` stays out."""
     metadata, _config, _path = read_project(REAL_WORLD_LOCKS / "flask-3.1.3")
 
     assert metadata.name == "Flask"
-    names = {dep.split("==", maxsplit=1)[0] for dep in metadata.locked_dependencies}
-    assert names == {
+    names = [dep.split("==", maxsplit=1)[0] for dep in metadata.locked_dependencies]
+    assert set(names[:-2]) == {
         "blinker",
         "importlib-metadata",
         "itsdangerous",
@@ -166,6 +168,11 @@ def test_real_world_flask() -> None:
         "werkzeug",
         "zipp",
     }
+    assert metadata.locked_dependencies[-2:] == [
+        "asgiref==3.11.0",
+        "python-dotenv==1.2.1",
+    ]
+    assert "typing-extensions" not in names
     assert "click" not in names  # ambiguous (ships two marker-conditional versions)
     assert metadata.provenance["locked_dependencies"] == (
         "Source: uv.lock | Method: resolved_lockfile"
@@ -175,7 +182,9 @@ def test_real_world_flask() -> None:
 def test_real_world_fastapi_cli() -> None:
     """Transitive walk pulls in `typer`'s and `uvicorn`'s own
     dependencies (`click`, `rich`, `h11`, etc.), not just the root's four
-    immediate dependencies."""
+    immediate dependencies; the extras add their direct, not yet pinned
+    requirements (``fastapi-cloud-cli``, ``fastapi-new``) and nothing of
+    their closure."""
     metadata, _config, _path = read_project(REAL_WORLD_LOCKS / "fastapi-cli-0.0.32")
 
     assert metadata.name == "fastapi-cli"
@@ -186,6 +195,8 @@ def test_real_world_fastapi_cli() -> None:
         "click",
         "colorama",
         "exceptiongroup",
+        "fastapi-cloud-cli",
+        "fastapi-new",
         "h11",
         "httptools",
         "idna",

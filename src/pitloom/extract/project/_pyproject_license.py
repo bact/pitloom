@@ -13,16 +13,34 @@ wheel and an sdist share).
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
 from pyproject_metadata import License
 
+from pitloom.core.project import project_relative_or_fallback
 from pitloom.extract._core_metadata import license_or_classifier
 from pitloom.extract._license import stated_license
-from pitloom.extract._license_detect import decode_text
+from pitloom.extract._license_detect import decode_text, read_license_file
+from pitloom.extract.project._pyproject_fields import drop_outside_file
 
 _CLASSIFIER_PROVENANCE = "Source: pyproject.toml | Field: project.classifiers"
+_LICENSE_FILE_FIELD = "project.license.file"
+
+
+def confine_license_file(
+    data: dict[str, Any], project_dir: Path, *, quiet: bool = False
+) -> dict[str, Any]:
+    """*data* (with a ``[project]`` table) without ``project.license`` when
+    its ``file`` is outside *project_dir*
+    (:func:`~pitloom.extract.project._pyproject_fields.drop_outside_file`)."""
+    license_table = data["project"].get("license")
+    name = license_table.get("file") if isinstance(license_table, dict) else None
+    if not isinstance(name, str) or not name:
+        return data
+    file = (name, _LICENSE_FILE_FIELD)
+    return drop_outside_file(data, project_dir, "license", file, quiet=quiet)
 
 
 def _resolve_license_hint(
@@ -43,13 +61,22 @@ def _resolve_license_hint(
         hint = license_obj.text
         return hint, f"{base}.text", (hint, None)
     if project_dir is not None and getattr(license_obj, "file", None):
-        fname = str(license_obj.file)
-        try:
-            text = (project_dir / fname).read_text(encoding="utf-8", errors="replace")
-            return text, f"Source: {fname}", (fname, None)
-        except OSError:
+        path = _as_written(Path(license_obj.file), project_dir)
+        # No absolute path in the SBOM: it differs between checkouts.
+        fname = project_relative_or_fallback(path.as_posix(), path.name)
+        raw = read_license_file(project_dir / path, project_dir)
+        if raw is None:
             return None, base, (fname, None)
+        return decode_text(raw, "replace"), f"Source: {fname}", (fname, None)
     return None, base, (str(license_obj), None)
+
+
+def _as_written(path: Path, project_dir: Path) -> Path:
+    """*path*, which ``pyproject-metadata`` joined onto *project_dir*,
+    relative to it again; unchanged when it is not below it as spelled."""
+    with suppress(ValueError):
+        return path.relative_to(project_dir)
+    return path
 
 
 def stated_pyproject_license(
@@ -66,7 +93,7 @@ def stated_pyproject_license(
     ``License ::`` classifier
     (:func:`~pitloom.extract._core_metadata.license_or_classifier`, the rule
     a wheel and an sdist use). The project's own licence files are not read
-    here: :func:`~pitloom.extract._license.apply_in_package_license` adds
+    here: :func:`~pitloom.extract._license.apply_in_package_license_files` adds
     them, on every reader alike.
 
     Returns a 2-tuple:

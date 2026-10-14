@@ -138,8 +138,9 @@ def test_read_pyproject_explicit_empty_keywords_not_filled_from_poetry() -> None
     """Regression: `[project] keywords = []` is an explicit declaration of
     zero keywords, not an omission -- `[tool.poetry] keywords` must not
     silently fill it back in via `merge_project_metadata()`'s
-    empty-container gap-fill (see `_FIELD_PROVENANCE`'s `"keywords"` entry,
-    which records this explicit-declaration provenance)."""
+    empty-container gap-fill (see `_pyproject_fields.FIELD_PROVENANCE`'s
+    `"keywords"` entry, which records this explicit-declaration
+    provenance)."""
     content = """
 [project]
 name = "project-name"
@@ -237,7 +238,7 @@ def test_fixture_read_poetry_main_dependencies_only() -> None:
     # main deps present
     assert "xformers" in dep_names
     assert "fire" in dep_names
-    assert "mistral_common" in dep_names
+    assert "mistral-common" in dep_names
     assert "safetensors" in dep_names
     assert "pillow" in dep_names
     # dev-group deps NOT present (pytest, ruff, mypy, etc.)

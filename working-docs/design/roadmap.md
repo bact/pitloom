@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-09
+Last-Modified: 2026-10-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -83,6 +83,15 @@ uniform and safer:
   `CreationInfo` IRIs. See
   [canonical-output-followups.md](canonical-output-followups.md),
   [creation-info-iri.md](creation-info-iri.md).
+- [x] **Extras, edge kind and authors on every route** (#300): built; open
+  follow-ups in [extras-parity.md](../implementation/extras-parity.md#open-questions).
+- [ ] **Per-lock "reaching path"**: tell a lock-only package reached only
+  through an extra from a required one (today `runtime`). Only `uv.lock` has
+  a root walk; build with `pylock.toml`. See
+  [extras-parity.md](../implementation/extras-parity.md#open-questions).
+- [ ] **Optional lifecycle scope for extras** (a `[tool.pitloom]` mapping the
+  project states; never guessed from a name). See
+  [extra-lifecycle-scope.md](extra-lifecycle-scope.md).
 - [ ] **Hardening from the #294 reviews** (Hangul fillers, ZWJ in prose,
   fastText label cap, cross-format label counts): see
   [known-bugs.md](known-bugs.md#p3-after-0200).
@@ -169,6 +178,9 @@ unless the linked doc says so.
   [remote-source-ingestion.md](remote-source-ingestion.md).
 - [ ] **VEX output format** (CSAF v2.0 vs OpenVEX), after the OSV lookup.
   See [osv-vulnerability-lookup.md](osv-vulnerability-lookup.md#relationship-to-csafvex).
+- [ ] **Author strings: NLP / named-entity recognition** (candidate): span
+  splitting and Person vs Organization typing; today a warning, no guess.
+  See [author-entity-recognition.md](author-entity-recognition.md).
 
 ## Needs systematic rules
 

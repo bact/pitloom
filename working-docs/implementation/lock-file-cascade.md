@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-04
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -199,7 +199,8 @@ a real environment, `uv.py`:
    own `dependencies` list (main/runtime only -- the *root* package's
    own `optional-dependencies` and `dev-dependencies` groups are the
    project's own extras/dev groups, excluded the same way `poetry.lock`'s
-   non-main groups are).
+   non-main groups are; since #300 the extras' direct requirements get
+   their pins in a separate pass, `extract/lock/_extra_pins.py`).
 3. If a dependency appears more than once in that reachable subgraph,
    compares their versions: if they agree (PEP 440), collapses them to
    one entry; if they disagree, skips the package with a `WARNING:`

@@ -194,5 +194,6 @@ def test_a_label_over_the_cap_gives_the_same_one_warning_on_every_surface(
         (path,) = file_values([message])
         seen[surface] = message.replace(path, "<file>")
     assert set(seen.values()) == {
-        "FORMAT=crfsuite FILE=<file>: a label over 4096 bytes; no label recorded"
+        "FORMAT=crfsuite FILE=<file>: larger than the 4096-byte label cap;"
+        " no label recorded"
     }

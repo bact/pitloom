@@ -1,0 +1,82 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dparse"
+version = "0.6.4"
+description = "A parser for Python dependency files"
+keywords = ["dparse"]
+readme = "README.rst"
+authors = [
+    {name = "Jannis Gebauer", email = "support@pyup.io"},
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+requires-python = ">=3.7"
+dependencies = [
+    "packaging",
+    "tomli; python_version < '3.11'",
+]
+license = {text = "MIT license"}
+
+[project.urls]
+Homepage = "https://github.com/pyupio/dparse"
+
+[project.optional-dependencies]
+pipenv = [
+    "pipenv",
+]
+conda = [
+    "pyyaml",
+]
+poetry = [
+    "poetry",
+]
+all = [
+    "dparse[poetry]",
+    "dparse[pipenv]",
+    "dparse[conda]"
+]
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers"
+markers = [
+    "conda: requires the conda extra",
+    "pipenv: requires the pipenv extra",
+    "poetry: requires the poetry extra",
+    "basic: requires no extras",
+]
+
+[tool.coverage.run]
+source_pkgs = ["dparse"]
+branch = true
+parallel = true
+omit = [
+]
+
+[tool.coverage.paths]
+source = ["dparse", "*/dparse"]
+
+[tool.coverage.report]
+exclude_lines = [
+]
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "$version"
+version_scheme = "pep440"
+version_provider = "pep621"
+update_changelog_on_bump = false
+annotated_tag = true
+changelog_incremental = false

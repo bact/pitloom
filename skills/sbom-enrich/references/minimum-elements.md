@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -42,12 +42,12 @@ rename.
 
 | 2021 element | Pitloom/SPDX 3 field | Status |
 | :--- | :--- | :--- |
-| Supplier Name | dependency: `originatedBy` -> `Agent` via `_apply_originator`/PyPI JSON API (`deps_originator.py`, called from `deps.py`'s `_enrich_from_pypi`); main package: `software_Package.suppliedBy`, but only set when `[[tool.pitloom.creator]]` is configured (`document.py`'s `_build_main_package`) | conditional (deps, PyPI-resolvable only); **gap** for the main package unless `[[tool.pitloom.creator]]` is set -- same config also fixes `Author of SBOM Data` below, see the note there. Note the field differs: deps get `originatedBy`, only the main package gets `suppliedBy` |
+| Supplier Name | dependency: `originatedBy` -> `Agent` via `_apply_originator`/PyPI JSON API (`deps_originator.py`, called from `deps.py`'s `_enrich_from_pypi`); main package: `originatedBy` -> one `Agent` per `[project].authors` entry (covered when authors are declared), and `software_Package.suppliedBy`, only set when `[[tool.pitloom.creator]]` is configured (`document.py`'s `_build_main_package`) | conditional (deps, PyPI-resolvable only); main package: **covered** by `originatedBy` when authors are declared, a **gap** for `suppliedBy` unless `[[tool.pitloom.creator]]` is set -- same config also fixes `Author of SBOM Data` below, see the note there |
 | Component Name | `software_Package.name` / `ai_AIPackage.name` | covered |
 | Version of the Component | `software_packageVersion` (explicit `"unknown"` string when not resolvable -- already matches the 2021/2026 "indicate unknown" guidance) | covered |
 | Other Unique Identifiers | `software_packageUrl` (PURL); main package always, deps only when resolvable | conditional |
-| Dependency Relationship | `Relationship`/`LifecycleScopedRelationship` (`contains`, `dependsOn`, `hasDataFile`, `generates`, etc.) | covered |
-| Author of SBOM Data | `CreationInfo.createdBy` -> `SoftwareAgent` named "Pitloom" (the *tool*, not a person/org) unless `[[tool.pitloom.creator]]` is configured | **gap** unless the project configures `[[tool.pitloom.creator]]` -- check that first before asking the user. **One config answers two elements at once:** the same creator Agent also becomes the main package's `suppliedBy` (`document.py`: "so only assert it for a real named creator -- not for the default SoftwareAgent 'Pitloom', which is the SBOM tool, not the package's supplier"), so this single fix closes both `Author of SBOM Data`/`SBOM Author` *and* `Supplier Name`/`Component Producer` for the main package in one answer -- lead with this when ranking gaps by effort-to-impact |
+| Dependency Relationship | `Relationship`/`LifecycleScopedRelationship` (`contains`, `dependsOn` with scope `runtime`, `hasOptionalDependency` for extras, `hasDataFile`, `generates`, etc.) | covered |
+| Author of SBOM Data | `CreationInfo.createdBy` -> `SoftwareAgent` named "Pitloom" (the *tool*, not a person/org) unless `[[tool.pitloom.creator]]` is configured | **gap** unless the project configures `[[tool.pitloom.creator]]` -- check that first before asking the user. **One config answers two elements at once:** the same creator Agent also becomes the main package's `suppliedBy` (`document.py`: "so only assert it for a real named creator -- not for the default SoftwareAgent 'Pitloom', which is the SBOM tool, not the package's supplier"), so this single fix closes both `Author of SBOM Data`/`SBOM Author` *and* the main package's `suppliedBy` in one answer (its `originatedBy` is already set when the project declares authors) -- lead with this when ranking gaps by effort-to-impact |
 | Timestamp | `CreationInfo.created` | covered |
 
 Practices (process expectations, not data fields -- report as satisfied/not by
@@ -79,7 +79,7 @@ covered), Frequency (deployment/process concern, out of scope).
 
 | Element | Pitloom/SPDX 3 field | Status |
 | :--- | :--- | :--- |
-| Component Producer | dependency: `originatedBy` via `_apply_originator` (`deps_originator.py`) from PyPI JSON API; main package: `software_Package.suppliedBy`, only when `[[tool.pitloom.creator]]` is configured | conditional (deps, PyPI-resolvable only); **gap** for the main package unless `[[tool.pitloom.creator]]` is set -- see NTIA's "Supplier Name" row above |
+| Component Producer | dependency: `originatedBy` via `_apply_originator` (`deps_originator.py`) from PyPI JSON API; main package: `originatedBy` from `[project].authors`, and `suppliedBy` only when `[[tool.pitloom.creator]]` is configured | conditional (deps, PyPI-resolvable only); main package **covered** when authors are declared -- see NTIA's "Supplier Name" row above |
 | Component Dependency Relationship | `Relationship`/`LifecycleScopedRelationship` | covered |
 | Component Hash Value / Algorithm | `verifiedUsing` (`{"algorithm": "sha256", "hashValue": ...}`); set on every `software_File` (including dataset and model files), lock-file-resolved dependencies (via SHA-256 digests in supported lock files, taking priority and applied in both online and offline builds), and PyPI-resolved deps (`_extract_release_hash` fallback, `deps_pypi.py`). The main package carries the SHA-256 Merkle root over its files (`document.py`; commented as not a single-artefact hash) on every `project` (directory), wheel and embed SBOM that has payload files (the wheel's own `.dist-info` is excluded); **not** set on sdist SBOMs or `ai_AIPackage`/`dataset_DatasetPackage` elements | conditional -- present on deps only when a definite version resolves; on the main package, check the SBOM rather than assuming (Merkle root, not an artefact hash); the AI/dataset package-level gaps are listed under G7 below |
 | Component Identifiers | `software_packageUrl` (PURL) | conditional, same as NTIA's "Other Unique Identifiers" |
@@ -160,8 +160,8 @@ actually in the project.
   the person or organisation that ran it. Who should be recorded as the SBOM
   author -- you, or an organisation? This can also be set permanently via
   `[[tool.pitloom.creator]]` in `pyproject.toml` (note the double brackets --
-  it's an array of tables) so future runs don't need to ask -- and it also fills
-  in Component Producer for the main package at the same time."
+  it's an array of tables) so future runs don't need to ask -- and it also
+  records the main package's supplier (`suppliedBy`) at the same time."
 - **Component/Model Producer**: "Is this dependency/model something your
   organisation built, or a third-party component? If third-party, do you know
   the maintaining organisation or project (check the package's PyPI page, GitHub

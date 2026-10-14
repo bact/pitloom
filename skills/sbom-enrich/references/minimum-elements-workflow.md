@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -18,7 +18,7 @@ Lead with effort-to-impact, not checklist order. Before asking, rank the
 remaining gaps: quick answers (a plain yes/no, a fact the user obviously
 already knows) and answers that resolve multiple elements or multiple
 standards at once go first (e.g. setting `[[tool.pitloom.creator]]` closes
-both `SBOM Author` and `Component Producer` for the main package in one
+both `SBOM Author` and the main package's `suppliedBy` in one
 step -- see `minimum-elements.md`'s NTIA "Supplier Name" row for why). Say
 up front which few answers would close most of the remaining gap, so the
 user can judge where their time actually pays off -- don't just work a

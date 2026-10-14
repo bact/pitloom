@@ -59,8 +59,10 @@ class CrfsuiteModel(NamedTuple):
             order). Bytes before the first NUL, decoded as UTF-8 with
             ``backslashreplace``. ``None`` when a labels bound kept them
             unread.
-        labels_unread: Why the labels were not read (the bound exceeded,
-            one short phrase), or ``None`` when they were.
+        labels_unread: The :class:`Limits` field of the bound that kept
+            the labels unread (``"max_crfsuite_labels"``,
+            ``"max_crfsuite_labels_chunk_bytes"``), or ``None`` when they
+            were read.
     """
 
     model_type: str
@@ -191,8 +193,9 @@ def _read_labels(
 ) -> tuple[tuple[str, ...] | None, str | None]:
     """Checks 8 to 11: the labels ``CQDB``, read whole once bounded.
 
-    Returns ``(labels, None)``, or ``(None, reason)`` with the chunk's
-    header checked but the chunk unread when a bound is exceeded.
+    Returns ``(labels, None)``, or ``(None, bound)`` (the :class:`Limits`
+    field) with the chunk's header checked but the chunk unread when a bound
+    is exceeded.
     """
     raw = _read_exact(source, header.off_labels, _CQDB.size)
     tag, size, flag, byteorder, bwd_size, bwd_offset = _CQDB.unpack(raw)
@@ -207,9 +210,9 @@ def _read_labels(
     cqdb = _Cqdb(size, bwd_size, bwd_offset)
     _check_backward_array(cqdb, header.num_labels, "labels")
     if header.num_labels > limits.max_crfsuite_labels:
-        return None, f"more than {limits.max_crfsuite_labels} labels"
+        return None, "max_crfsuite_labels"
     if size > limits.max_crfsuite_labels_chunk_bytes:
-        return None, f"labels CQDB over {limits.max_crfsuite_labels_chunk_bytes} bytes"
+        return None, "max_crfsuite_labels_chunk_bytes"
     chunk = raw + _read_exact(source, header.off_labels + _CQDB.size, size - _CQDB.size)
     _check_hash_tables(chunk, cqdb)
     labels = tuple(_decode_label(chunk, cqdb, i) for i in range(header.num_labels))

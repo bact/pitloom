@@ -321,7 +321,7 @@ def test_id_generate_entity_flag_hits_env_lookup(
     pyyaml_pkg = next(
         e
         for e in graph
-        if e.get("type") == "software_Package" and e.get("name") == "PyYAML"
+        if e.get("type") == "software_Package" and e.get("name") == "pyyaml"
     )
     assert pyyaml_pkg["spdxId"] == registered_id
 

@@ -48,9 +48,24 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from pitloom.extract.project._setup_cfg_directives import listed_file_readable
+
 log = logging.getLogger(__name__)
 
 _RESOLVABLE_SOURCES = frozenset({"file", "scm"})
+
+
+def _version_file_inside(project_dir: Path, version_config: dict[str, Any]) -> bool:
+    """Whether pdm-backend may read the ``source = "file"`` *path*: not
+    when it is present but outside *project_dir*, not a regular file or
+    over the cap
+    (:func:`~pitloom.extract.project._setup_cfg_directives.listed_file_readable`,
+    which warns about it). A missing or non-string one is left to
+    pdm-backend to report, as is its encoding."""
+    path = version_config.get("path")
+    if not isinstance(path, str):
+        return True
+    return listed_file_readable(project_dir, path, "tool.pdm.version.path")
 
 
 def resolve_pdm_dynamic_version(
@@ -84,7 +99,9 @@ def resolve_pdm_dynamic_version(
         path = version_config.get("path", "")
         source = "file" if path and (project_dir / path).exists() else None
 
-    if source is None:
+    if source is None or (
+        source == "file" and not _version_file_inside(project_dir, version_config)
+    ):
         return None, None
     if source not in _RESOLVABLE_SOURCES:
         if not quiet:

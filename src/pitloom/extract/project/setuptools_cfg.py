@@ -6,7 +6,8 @@
 """Extractor for Python project metadata and Pitloom config from setup.cfg.
 
 See also: :mod:`pitloom.extract.project.setuptools_py` (AST parsing for setup.py),
-:mod:`pitloom.extract.project._setup_cfg_directives` (``file:``/``attr:``)
+:mod:`pitloom.extract.project._setup_cfg_directives` (``file:``/``attr:``),
+:mod:`pitloom.extract.project._requirements_files` (``file:`` requirements)
 and :mod:`pitloom.extract.project.setuptools` (facade).
 """
 
@@ -25,6 +26,11 @@ from pitloom.core.config import (
     parse_pitloom_config,
 )
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract.project._requirements_files import (
+    ListedFiles,
+    setup_cfg_file_names,
+    setup_cfg_requirement_lines,
+)
 from pitloom.extract.project._setup_cfg_directives import (
     _resolve_cfg_file_directive,
     _resolve_cfg_version,
@@ -37,7 +43,6 @@ from pitloom.extract.project._setuptools_options import (
     SetupOption,
     SetupOptions,
     build_setuptools_metadata,
-    requirement_lines,
 )
 from pitloom.logging_config import one_line
 
@@ -132,15 +137,15 @@ def _cfg_list(value: str) -> list[str]:
     return [item.strip() for item in items if item.strip()]
 
 
-def _cfg_requirements(value: str) -> list[str]:
-    """``install_requires`` as setuptools reads it
-    (``ConfigHandler._parse_requirements_list``): one item per line when
-    *value* has a newline, else ``;``-separated, ``#`` items left out, then
-    :func:`~pitloom.extract.project._setuptools_options.requirement_lines`.
-    A ``file:`` directive is not read."""
-    items = value.splitlines() if "\n" in value else value.split(";")
-    kept = (item.strip() for item in items)
-    return requirement_lines("\n".join(i for i in kept if not i.startswith("#")))
+def _cfg_requirements(value: str, project_dir: Path) -> list[str] | ListedFiles:
+    """A requirements value (``install_requires``, an extra) as setuptools
+    reads it (:func:`~pitloom.extract.project._requirements_files.\
+setup_cfg_requirement_lines`), or the files its ``file:`` directive lists
+    in *project_dir*, read when the options are merged."""
+    names = setup_cfg_file_names(value)
+    if names is None:
+        return setup_cfg_requirement_lines(value)
+    return ListedFiles(project_dir, names)
 
 
 def _cfg_source(field: str) -> str:
@@ -160,9 +165,27 @@ _PLAIN_OPTIONS: tuple[tuple[str, str, str, Callable[[str], Any]], ...] = (
     ("metadata", "author_email", "metadata.author/author_email", _str_or_none),
     ("metadata", "url", "metadata.url/project_urls", _str_or_none),
     ("metadata", "project_urls", "metadata.url/project_urls", _parse_cfg_project_urls),
-    ("options", "install_requires", "options.install_requires", _cfg_requirements),
     ("options", "python_requires", "options.python_requires", _str_or_none),
 )
+
+
+_EXTRAS_SECTION = "options.extras_require"
+
+
+def _extras_option(text: str, project_dir: Path) -> SetupOption | None:
+    """``[options.extras_require]`` of the ``setup.cfg`` *text*: extra (or
+    ``extra:marker``) -> requirements. Read again with the keys' case kept,
+    since ``configparser`` lowercases them and a marker's value is
+    case-sensitive. ``None`` without the section."""
+    cased = configparser.ConfigParser()
+    cased.optionxform = str  # type: ignore[assignment,method-assign]
+    cased.read_string(text, source="setup.cfg")
+    if not cased.has_section(_EXTRAS_SECTION):
+        return None
+    extras = {
+        k: _cfg_requirements(v, project_dir) for k, v in cased.items(_EXTRAS_SECTION)
+    }
+    return SetupOption(extras, _cfg_source(_EXTRAS_SECTION))
 
 
 def _resolved_options(metadata: dict[str, str], project_dir: Path) -> SetupOptions:
@@ -218,10 +241,12 @@ def read_setup_cfg_options(
         raise FileNotFoundError(f"setup.cfg not found at {setup_cfg_path}")
     cfg = configparser.ConfigParser()
     try:
-        # read_file, not read: read() skips a file it cannot open.
+        # opened here, not read(): read() skips a file it cannot open.
         with setup_cfg_path.open(encoding="utf-8") as stream:
-            cfg.read_file(stream)
+            text = stream.read()
+        cfg.read_string(text, source=str(setup_cfg_path))
         sections = {s: _section_dict(cfg, s) for s in ("metadata", "options")}
+        extras = _extras_option(text, project_dir)
     # configparser.Error: also a value's bad % interpolation
     except (OSError, UnicodeDecodeError, configparser.Error) as exc:
         raise ValueError(f"Could not parse setup.cfg: {one_line(exc)}") from exc
@@ -233,6 +258,14 @@ def read_setup_cfg_options(
                 _cfg_source(field),
                 declared=_section_declares_key(cfg, section, key),
             )
+    if "install_requires" in sections["options"]:
+        options["install_requires"] = SetupOption(
+            _cfg_requirements(sections["options"]["install_requires"], project_dir),
+            _cfg_source("options.install_requires"),
+            declared=_section_declares_key(cfg, "options", "install_requires"),
+        )
+    if extras is not None:
+        options["extras_require"] = extras
     named = bool(options.get("name") and options["name"].value)
     try:
         config = _config_if_read(cfg, read_config and named, str(setup_cfg_path))

@@ -19,6 +19,7 @@ from typing import Any
 from packaging.utils import canonicalize_name
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._dep_scope import DependencyScopes
 from pitloom.assemble.spdx3._package_ids import (
     DEPENDENCY_LABEL,
     DependencyIdHits,
@@ -60,6 +61,7 @@ from pitloom.assemble.spdx3.provenance import (
 from pitloom.core.models import build_pypi_purl, build_relationship, generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
+from pitloom.extract.copyright_notices import COPYRIGHT_NOASSERTION
 from pitloom.extract.lock._common import is_same_version
 
 __all__ = [
@@ -126,7 +128,7 @@ def _enrich_from_pypi(
         repo_url = home_page
 
     if "originator" not in already_filled:
-        originators = _extract_pypi_originator(info)
+        originators = _extract_pypi_originator(info, dep_name)
         if _apply_originator(
             originators,
             dep_package,
@@ -269,7 +271,7 @@ def _finish_dependency_enrichment(
             encoder=encoder,
         )
     if "copyright" not in filled:
-        dep_package.software_copyrightText = "NOASSERTION"
+        dep_package.software_copyrightText = COPYRIGHT_NOASSERTION
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -294,24 +296,30 @@ def add_dependencies(
     locked_provenance: str | None = None,
     locked_hashes: dict[str, str] | None = None,
     resolved_ids: DependencyIdHits | None = None,
+    project_name: str | None = None,
 ) -> None:
     """Build SPDX ``software_Package`` and ``Relationship`` elements for
     dependencies.
+
+    Each edge's kind comes from
+    :class:`~pitloom.assemble.spdx3._dep_scope.DependencyScopes`, which also
+    drops a string naming *project_name* (default *doc_name*) itself.
 
     Multiple declared dependency strings that resolve to the same
     package -- same PEP 503-canonicalized name (``Django``/``django``) and
     the same PEP 440 version (``"1.0"``/``"1.0.0"``), e.g. the same
     package listed under more than one ``pyproject.toml`` extra, each
     split by a ``python_version`` marker -- collapse into a single
-    ``software_Package`` node, keeping the first-seen literal name for
-    display. Their raw declared strings are preserved together in that
-    node's provenance comment.
+    ``software_Package`` node, named by the first-seen string's name
+    (:func:`~pitloom.assemble.spdx3.document.build` gives every route's
+    strings one spelling first). Their declared strings are kept together,
+    sorted, in that node's provenance comment: a backend that sorts
+    ``Requires-Dist`` (Hatchling) gives the same text as one that keeps
+    the declared order (setuptools).
 
     *completeness*, when given (e.g. ``spdx3.RelationshipCompleteness.complete``
     for a lock-resolved transitive-dependency call), is set on every
-    ``dependsOn`` relationship this call creates. Omitted (the default)
-    leaves the relationship's ``completeness`` unset, unchanged from
-    before this parameter existed.
+    relationship this call creates. Omitted (the default) leaves it unset.
 
     *release_info_cache*, when given, is used as-is instead of prefetching
     PyPI release info for this call's own *dependencies* -- callers that
@@ -359,10 +367,11 @@ def add_dependencies(
     :func:`~pitloom.assemble.spdx3._package_ids.resolve_project_package_ids`);
     a package with a hit uses it instead of minting an id. Ids are never
     looked up here: they must be reserved before the first one is minted.
-    A package whose name never looked up is added to
-    :attr:`~pitloom.export.spdx3_json.Spdx3JsonExporter.registry_non_readers`
-    (see :func:`~pitloom.assemble.spdx3._package_ids.dependency_package_id`).
     """
+    scopes = DependencyScopes(
+        dependencies, doc_name if project_name is None else project_name
+    )
+    dependencies = [dep for dep in dependencies if not scopes.is_self_reference(dep)]
     resolved = [
         _resolve_dependency_with_conflict(
             dep, locked_versions, dep_provenance, locked_provenance
@@ -412,7 +421,7 @@ def add_dependencies(
         )
         dep_provenance_fields: dict[str, str] = {
             "dependencies": dep_provenance,
-            "declared_constraint": " | ".join(declared_constraints),
+            "declared_constraint": " | ".join(sorted(declared_constraints)),
         }
         if version_note:
             dep_provenance_fields["version"] = version_note
@@ -474,13 +483,19 @@ def add_dependencies(
             encoder=encoder,
         )
 
+        edge = scopes.edge(declared_constraints)
         rel_kwargs: dict[str, Any] = {}
+        if edge.scope is not None:
+            rel_kwargs["rel_class"] = spdx3.LifecycleScopedRelationship
+            rel_kwargs["scope"] = edge.scope
+        if edge.comment is not None:
+            rel_kwargs["comment"] = edge.comment
         if completeness is not None:
             rel_kwargs["completeness"] = completeness
         dep_rel = build_relationship(
             from_id=main_package_spdx_id,
             to_ids=[require_spdx_id(dep_package)],
-            rel_type=spdx3.RelationshipType.dependsOn,
+            rel_type=edge.rel_type,
             doc_name=doc_name,
             doc_uuid=doc_uuid,
             creation_info=creation_info,
