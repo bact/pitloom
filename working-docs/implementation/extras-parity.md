@@ -235,6 +235,14 @@ requirement warning shows an excerpt. A present but unreadable dependency
 `Author` no longer falls back to the Maintainer. The pylock fixtures are
 exercised by `tests/extract/lock/test_pylock_real_world.py`.
 
+Fixed after the 2026-10-14 delta review: several mailboxes joined by
+`and`/`&`/newline in a name field are cut after each closed `>`; a bare
+address after a name is its own author; setuptools' deprecation text for the
+target project goes to DEBUG; the `attr` version reader reads parenthesised,
+`;`-joined, annotated and chained assignments again (still capped); a
+transitive lock package is named canonically (all six lock formats);
+poetry-core's internals are resolved lazily with a drift-guard test.
+
 Decided 2026-10-14: an empty licence file keeps its provenance (the raw key
 was present: the convention); a structured author never splits; sorted joins
 and canonical names accepted.
@@ -274,13 +282,9 @@ Reader gaps:
    file discovery is now setuptools (no longer PEP 517); a `setup.py` passing
    `packages=[...]` itself, and a flat layout with several top-level
    packages (three warnings in a row), still fall back.
-6. Setuptools' own multi-line deprecation text now reaches stderr for a
-   project with no `build-backend` that uses legacy `license` or classifiers
-   (it already did for a declared setuptools): untagged, so it breaks the
-   stderr rule; route it to DEBUG?
-7. An empty extra (`etils` `epath-no-tf`) has no representation in the flat
+6. An empty extra (`etils` `epath-no-tf`) has no representation in the flat
    dependency list.
-8. A `uv export` with default groups folds dev tools in unmarked, so they read
+7. A `uv export` with default groups folds dev tools in unmarked, so they read
    as required runtime dependencies; a lock pinning one name at two versions
    (flask `click`) is skipped with a warning and the SBOM then showed 8.5.0
    from the running environment (cause not checked; an explicit pin must not
@@ -289,45 +293,47 @@ Reader gaps:
 
 Structure and tests:
 
-9. `extract/lock/uv.py` is over the soft limit (518); splitting the extras
+8. `extract/lock/uv.py` is over the soft limit (518); splitting the extras
    pins needs a public accessor for three private helpers. At the limit:
    `deps.py` (500), `_embed_build_sbom.py` (500), `authors.py` (498).
-10. A dependency's unusable `Author-email` entry is dropped without a trace
+9. A dependency's unusable `Author-email` entry is dropped without a trace
     (a per-document summary like the split one is the option).
-11. `NOTICE*`, `license-files` and `license.file` are not read for the notice;
+10. `NOTICE*`, `license-files` and `license.file` are not read for the notice;
     a notice with no marker or no year does not match; a wheel's licence is
     METADATA-only; `loom env` has a synthetic root (copyright `NOASSERTION`).
-12. `extract/_license.py` is 505 lines; `apply_in_package_license_files`
+11. `extract/_license.py` is 505 lines; `apply_in_package_license_files`
     cannot move to `copyright_notices.py` (import cycle).
-13. SBOM text from new sources (`copyrightText`, Agent names, the `extras:`
+12. SBOM text from new sources (`copyrightText`, Agent names, the `extras:`
     comment) carries display controls unescaped, as existing package fields do.
-14. `embed-wheel` reads the project three times; the directory route reads
+13. `embed-wheel` reads the project three times; the directory route reads
     every licence file four times.
-15. `cli_error_handler` prints exception text raw; the `_dep_scope`
+14. `cli_error_handler` prints exception text raw; the `_dep_scope`
     "declared as %r" warnings and the `core/pep508.py` cap warning still print
     whole or unescaped text.
-16. Third-party parsers Pitloom cannot screen for deeply nested markers or
+15. Third-party parsers Pitloom cannot screen for deeply nested markers or
     crafted modules: Hatchling's `core.dependencies` (a plain build crashes
     too), setuptools discovery, flit-core's whole-module parse (bounded only
     by size), `loom env`'s pipdeptree subprocess (untested).
-17. Flit and PDM version files are check-then-delegate (a file swapped between
+16. Flit and PDM version files are check-then-delegate (a file swapped between
     the check and the backend's open is not caught) and read twice;
     `read_listed_file` still lives in `_setup_cfg_directives.py`; the
     setuptools `file` provenance keeps the raw value; PDM raises `TypeError`
-    on a non-string `path` with no `source`; a multi-line version assignment
-    is no longer read by `attr`.
-18. `ProjectMetadata.readme` holds pyproject-metadata's joined, often absolute
+    on a non-string `path` with no `source`; the line-based `attr` reader can pick up a
+    `__version__ = "x"` inside a docstring, and skips a non-string first
+    assignment where setuptools stops at it.
+17. `ProjectMetadata.readme` holds pyproject-metadata's joined, often absolute
     path on the directory route (it never reaches the SBOM).
-19. `requires_python` from `[tool.poetry.dependencies] python` uses the old
+18. `requires_python` from `[tool.poetry.dependencies] python` uses the old
     caret/tilde converter (`^3.8` gives `>=3.8,<4.0.0`, poetry-core writes
     `<4.0`; same meaning).
-20. Hatchling joins name-only authors into one `Author:` header, so a bare
+19. Hatchling joins name-only authors into one `Author:` header, so a bare
     wheel cannot recover the declared structure (the `INFO:` says so); the
     directory route and the hook keep each declared name.
-21. Author edge cases: an escaped quote inside a partly quoted name records
-    nothing, with a warning; `Doe, a@x.org, b@x.org` drops `Doe` (warned); an
-    `Author` cut warns while the same text cut in `Author-email` does not;
+20. Author edge cases: an escaped quote inside a partly quoted name records
+    nothing, with a warning; `Ann <a@x.org> and Bob <b@x.org>` gives `[]`
+    in `Author-email` (the `and` cut is name-field only); an `Author` cut
+    warns while the same text cut in `Author-email` does not;
     a Poetry `path` dependency is skipped on the directory route while the
     wheel carries a `file://` URL.
-22. `tests/extract/project/test_setuptools_dynamic.py` is 504 lines and
+21. `tests/extract/project/test_setuptools_dynamic.py` is 504 lines and
     `tests/core/models_wheel/test_models_wheel_setuptools.py` 549.

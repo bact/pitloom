@@ -11,8 +11,11 @@ See also: :mod:`pitloom.extract.project.setuptools_cfg` (the reader).
 from __future__ import annotations
 
 import ast
+import io
 import logging
 import re
+import tokenize
+from collections.abc import Iterator
 from pathlib import Path
 
 from pitloom.core.path_confine import open_inside
@@ -29,9 +32,10 @@ _DIRECTIVE_RE = re.compile(r"^(file|attr):\s*(.+)$", re.DOTALL)
 #: Largest file a ``file:`` directive reads (``setup.cfg``, and the
 #: ``pyproject.toml`` dynamic version); a larger one is skipped, warned.
 MAX_LISTED_FILE_BYTES = 1024 * 1024
-#: Longest line assigning an ``attr:`` directive's attribute that is parsed:
-#: a version literal needs far fewer characters, and a longer line could
-#: nest deep enough to exhaust the parser (a C stack overflow on 3.10).
+#: Longest logical line assigning an ``attr:`` directive's attribute that
+#: is parsed, its physical lines joined: a version literal needs far fewer
+#: characters, and a longer line could nest deep enough to exhaust the
+#: parser (a C stack overflow on 3.10).
 MAX_ATTR_LINE_CHARS = 256
 
 
@@ -209,21 +213,52 @@ def _resolve_cfg_file_directive(raw: str, project_dir: Path, field: str) -> str 
     return None if found or not names else ", ".join(names)
 
 
+def _assignment_starts(source: str, attr_name: str) -> Iterator[int]:
+    """Where each line assigning *attr_name* starts, its indentation left
+    out, in order: a plain, annotated (``__version__: str = ...``) or
+    chained (``version = __version__ = ...``) target, after a ``;`` too."""
+    assigned = re.compile(rf"(?<![\w.]){re.escape(attr_name)}[ \t]*(?::[^=\n]*)?=(?!=)")
+    last = -1  # where the last line yielded starts
+    for found in assigned.finditer(source):
+        line = source.rfind("\n", 0, found.start()) + 1
+        if line > last:
+            last = line
+            before = source[line : found.start()]  # each line's once
+            yield found.start() - len(before.lstrip(" \t"))
+
+
+def _logical_line(source: str, start: int) -> str | None:
+    """The logical line of *source* from *start*: physical lines joined
+    while a bracket is open or a line ends with ``\\``, as the tokenizer
+    reads them, at most :data:`MAX_ATTR_LINE_CHARS` characters of it
+    looked at; ``None`` when it does not end within them (or the text there
+    does not tokenize, which only the source's end can make shorter)."""
+    window = source[start : start + MAX_ATTR_LINE_CHARS + 1]
+    lines = io.StringIO(window).readlines()
+    tokens = tokenize.generate_tokens(iter(lines).__next__)
+    try:
+        end = next(t for t in tokens if t.type == tokenize.NEWLINE)
+    except (tokenize.TokenError, SyntaxError, StopIteration):
+        return None
+    row, col = end.start
+    line = "".join(lines[: row - 1]) + lines[row - 1][:col]
+    return line if len(line) <= MAX_ATTR_LINE_CHARS else None
+
+
 def _read_version_attr(source: str, attr_name: str, name: str, what: str) -> str | None:
     """The string first assigned to *attr_name* in the Python *source* (the
     file *name*, read for *what*), never the whole file parsed: only each
-    line assigning it, one at a time (:func:`_assigned_string`). A line
-    over :data:`MAX_ATTR_LINE_CHARS` is skipped with one ``WARNING:`` per
-    file and *what*, per process."""
-    assignment = re.compile(
-        rf"^[ \t]*{re.escape(attr_name)}[ \t]*=(?!=).*$", re.MULTILINE
-    )
-    for found in assignment.finditer(source):
-        line = found.group().strip()
-        if len(line) > MAX_ATTR_LINE_CHARS:
-            cap = Cap(MAX_ATTR_LINE_CHARS, "character", "attr-directive-line")
-            outcome = f"{attr_name} line skipped for {what}"
-            warn_over_cap(log, cap, name, outcome, once=True)
+    logical line assigning it (:func:`_assignment_starts`,
+    :func:`_logical_line`), one at a time (:func:`_assigned_string`). One
+    longer than :data:`MAX_ATTR_LINE_CHARS` is skipped with one
+    ``WARNING:`` per file and *what*, per process."""
+    for start in _assignment_starts(source, attr_name):
+        line = _logical_line(source, start)
+        if line is None:
+            if len(source) - start > MAX_ATTR_LINE_CHARS:
+                cap = Cap(MAX_ATTR_LINE_CHARS, "character", "attr-directive-line")
+                outcome = f"{attr_name} line skipped for {what}"
+                warn_over_cap(log, cap, name, outcome, once=True)
             continue
         value = _assigned_string(line, attr_name, name, what)
         if value is not None:
@@ -231,10 +266,21 @@ def _read_version_attr(source: str, attr_name: str, name: str, what: str) -> str
     return None
 
 
+def _targets(node: ast.AST) -> list[ast.expr]:
+    """The targets of an assignment *node* given a value: each of a chained
+    ``a = b = ...``, or an annotated one's; none for any other node."""
+    if isinstance(node, ast.Assign):
+        return node.targets
+    if isinstance(node, ast.AnnAssign) and node.value is not None:
+        return [node.target]
+    return []
+
+
 def _assigned_string(line: str, attr_name: str, name: str, what: str) -> str | None:
-    """The string *line* (from the file *name*) assigns to *attr_name*, or
-    ``None``; a line the parser cannot hold (``RecursionError``,
-    ``MemoryError``) is skipped with one ``WARNING:``."""
+    """The string *line* (from the file *name*) assigns to *attr_name*, as
+    one target of an assignment or an annotated one, or ``None``; a line
+    the parser cannot hold (``RecursionError``, ``MemoryError``) is skipped
+    with one ``WARNING:``."""
     try:
         tree = ast.parse(line)
     except (SyntaxError, ValueError):  # ValueError: a NUL, before 3.12
@@ -251,12 +297,9 @@ def _assigned_string(line: str, attr_name: str, name: str, what: str) -> str | N
         )
         return None
     for node in ast.walk(tree):
-        if not (isinstance(node, ast.Assign) and len(node.targets) == 1):
-            continue
-        target, value = node.targets[0], node.value
+        value = getattr(node, "value", None)
         if (
-            isinstance(target, ast.Name)
-            and target.id == attr_name
+            any(isinstance(t, ast.Name) and t.id == attr_name for t in _targets(node))
             and isinstance(value, ast.Constant)
             and isinstance(value.value, str)
         ):

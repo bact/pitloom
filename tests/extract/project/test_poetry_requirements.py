@@ -8,22 +8,40 @@ writes (:mod:`pitloom.extract.project._poetry_requirements`), checked
 against a real poetry-core build through the directory, sdist and wheel
 routes.
 
+The poetry-core internals used are drift-guarded here
+(:func:`test_poetry_core_internals_drift_guard`).
+
 See also: test_poetry_extras.py (extras, ignored tables, build backend),
 test_poetry_parsing.py.
 """
 
 import logging
 import shutil
+import sys
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
 from packaging.markers import Marker
 from packaging.requirements import Requirement
+from poetry.core.constraints.generic import (
+    parse_constraint as parse_generic_constraint,
+)
+from poetry.core.constraints.version import (
+    parse_constraint as parse_version_constraint,
+)
+from poetry.core.factory import Factory
+from poetry.core.packages.dependency import Dependency
+from poetry.core.packages.utils.utils import create_nested_marker
+from poetry.core.version.markers import parse_marker
 
 from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.extract.project import read_project
-from pitloom.extract.project._poetry_requirements import poetry_requirement
+from pitloom.extract.project._poetry_requirements import (
+    _poetry_core,
+    poetry_requirement,
+)
 from pitloom.extract.project.sdist import read_sdist
 from pitloom.extract.wheel import read_wheel
 
@@ -241,3 +259,57 @@ def test_deeply_nested_markers_refused(caplog: pytest.LogCaptureFixture) -> None
         assert poetry_requirement("a", {"version": "1", "markers": markers}) is None
     assert "marker-nesting" in caplog.text
     assert "Skipping dependency 'a' (Poetry)" in caplog.text
+
+
+@pytest.fixture(name="fresh_core")
+def _fresh_core() -> Iterator[None]:
+    """poetry-core's functions looked up afresh, and again after."""
+    _poetry_core.cache_clear()
+    yield
+    _poetry_core.cache_clear()
+
+
+@pytest.mark.usefixtures("fresh_core")
+def test_poetry_core_internals_drift_guard() -> None:
+    """Drift guard: the poetry-core internals the conversion calls (no
+    upper version bound) are the ones this module imports, and they
+    convert one table of every key they handle; a release that moves one
+    fails here (at import, or on the result), not quietly at run time."""
+    assert _poetry_core() == (
+        Factory.create_dependency,
+        parse_version_constraint,
+        parse_generic_constraint,
+        create_nested_marker,
+        parse_marker,
+    )
+    assert isinstance(Dependency.__dict__["base_pep_508_name"], property)
+    table = {
+        "version": "^1.2",
+        "extras": ["B", "a"],
+        "python": "~3.9",
+        "platform": "linux",
+        "markers": "os_name == 'posix'",
+    }
+    assert poetry_requirement("Foo_Bar", table) == (
+        'foo-bar[a,b]<2.0,>=1.2; (os_name == "posix" and python_version == "3.9")'
+        ' and sys_platform == "linux"'
+    )
+
+
+@pytest.mark.usefixtures("fresh_core")
+@pytest.mark.parametrize("moved", ["module", "attribute"])
+def test_moved_poetry_core_internal_skips_with_one_warning(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, moved: str
+) -> None:
+    """A poetry-core release that moves a module or attribute the
+    conversion uses: every Poetry table skipped, one ``WARNING:``, no
+    crash."""
+    if moved == "module":
+        monkeypatch.setitem(sys.modules, "poetry.core.factory", None)
+    else:
+        monkeypatch.delattr(Dependency, "base_pep_508_name")
+    with caplog.at_level(logging.WARNING):
+        assert poetry_requirement("a", "^1") is None
+        assert poetry_requirement("b", {"version": "1"}) is None
+    (line,) = caplog.messages
+    assert line.startswith("poetry-core: API not found (")

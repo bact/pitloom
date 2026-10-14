@@ -58,9 +58,11 @@ no license relationship -- Pitloom never asserts a license it was not told
   is one author: `Jane, Bob` or `Ann and Bob` there is one author
   (backends write a name-only author so; a free-text list of names is one
   author too: for the project's own, holding `,`, `;` or `and`, one `INFO:
-  AUTHOR=...: read as one author; it may list several`). It is cut only after a closed `<address>` or a bare address,
-  with a `WARNING:`: `Ann <a@x.org>; Bob <b@x.org>` is two authors, `Doe,
-  Jane <j@x.org>` one. An address field (`Author-email`, `author_email`)
+  AUTHOR=...: read as one author; it may list several`). It is cut only
+  next to an address (after a closed `<address>` or a bare address, before
+  a bare address, between two `<address>` entries), with a `WARNING:`:
+  `Ann <a@x.org>; Bob <b@x.org>` and `Ann <a@x.org> and Bob <b@x.org>` are
+  two authors, `Doe, Jane <j@x.org>` one. An address field (`Author-email`, `author_email`)
   is split on `,` and `;`, never `and` (`Ann and Bob <t@x.org>` is one
   author), with a `WARNING:`; a name and addresses are never paired by position
   (`Jane, Bob` plus two addresses is three authors). A bare wheel's

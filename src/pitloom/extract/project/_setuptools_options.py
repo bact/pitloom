@@ -262,7 +262,7 @@ def _authors(merged: SetupOptions, quiet: bool) -> list[dict[str, str]]:
     """``author`` and ``author_email`` read as setuptools writes them to
     ``Author`` and ``Author-email`` and a wheel's reader reads them back
     (:func:`~pitloom.extract.authors.read_author_fields`): ``author`` is
-    one author, cut only after an address; ``author_email`` is split on
+    one author, cut only next to an address; ``author_email`` is split on
     ``,`` and ``;``; a split warns."""
     return read_author_fields(
         _value(merged, "author"), _value(merged, "author_email"), quiet=quiet

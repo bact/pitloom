@@ -8,7 +8,7 @@
 A free-text name field (``setup.cfg`` ``author``, ``setup.py``
 ``setup(author=...)``, core-metadata ``Author`` in a wheel or sdist
 ``PKG-INFO``, a dependency's installed or PyPI record) is one author unless
-it holds several complete mailboxes, cut only after each; its address field
+it holds several complete mailboxes, cut only next to them; its address field
 is split on ``,`` / ``;`` only; a cut gets one ``WARNING:``. A structured
 one-entry-per-author table (``[project].authors``, Poetry ``authors``, a
 quoted ``Author-email`` display name, an unquoted one as backends write

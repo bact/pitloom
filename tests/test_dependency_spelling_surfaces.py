@@ -193,3 +193,57 @@ def test_installed_distribution_shows_the_canonical_name(
         if node["type"] == "software_Package"
     }
     assert {described[c] for c in _INSTALLED.values()} == set(_INSTALLED)
+
+
+#: Two locked packages as a lock file may spell them; every lock reader
+#: keeps the spelling, and the SBOM shows the PEP 503 name.
+_LOCKED = (("My_Pkg", "1.0"), ("Zope.Interface", "6.0"))
+
+
+def _toml_packages(table: str, extra: str = "") -> str:
+    return "".join(
+        f'[[{table}]]\nname = "{n}"\nversion = "{v}"\n{extra}' for n, v in _LOCKED
+    )
+
+
+_LOCK_FILES = {
+    "requirements.txt": "".join(f"{n}=={v}\n" for n, v in _LOCKED),
+    "pylock.toml": 'lock-version = "1.0"\ncreated-by = "t"\n'
+    + _toml_packages("packages"),
+    "uv.lock": 'version = 1\nrevision = 1\n[[package]]\nname = "demo"\n'
+    'version = "1.0"\nsource = { editable = "." }\ndependencies = ['
+    + ", ".join(f'{{ name = "{n}" }}' for n, _ in _LOCKED)
+    + "]\n"
+    + _toml_packages("package", 'source = { registry = "https://pypi.org/simple" }\n'),
+    "poetry.lock": _toml_packages("package", 'groups = ["main"]\nfiles = []\n')
+    + '[metadata]\nlock-version = "2.1"\n',
+    "pdm.lock": _toml_packages("package", 'groups = ["default"]\n')
+    + '[metadata]\nlock_version = "4.5.1"\ngroups = ["default"]\n',
+    "Pipfile.lock": json.dumps(
+        {
+            "_meta": {"pipfile-spec": 6},
+            "default": {n: {"version": f"=={v}"} for n, v in _LOCKED},
+        }
+    ),
+}
+
+
+@pytest.mark.parametrize("lock", sorted(_LOCK_FILES))
+def test_locked_only_package_shows_the_canonical_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, lock: str
+) -> None:
+    """A package only a lock file names (no declared dependency) is shown
+    by its PEP 503 name and PURL, whatever the lock spells."""
+    isolate(tmp_path, monkeypatch)
+    project = tmp_path / "p"
+    project.mkdir()
+    pyproject = '[project]\nname = "demo"\nversion = "1.0"\n'
+    (project / "pyproject.toml").write_text(pyproject, encoding="utf-8")
+    (project / lock).write_text(_LOCK_FILES[lock], encoding="utf-8")
+
+    view = dependency_view(generate_project_sbom(project, offline=True))
+
+    assert [row[:2] for row in view] == [
+        ("my-pkg", "pkg:pypi/my-pkg@1.0"),
+        ("zope-interface", "pkg:pypi/zope-interface@6.0"),
+    ]

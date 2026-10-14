@@ -265,9 +265,9 @@ value, not just where it read it from. Values in use today:
 | `dynamic_extraction` | Read from a Python file at build time (e.g. a `__version__` or `__about__.py` variable), not from `pyproject.toml` directly. |
 | `licenseid_detection` | License text matched against a known SPDX license using the [`licenseid`](https://pypi.org/project/licenseid/) library -- detected, not author-declared. |
 | `copyright_notice_lines` | The main package's copyright text: the copyright notice lines of the named licence files, as written (see [How the copyright text is found](#how-the-copyright-text-is-found)). |
-| `parsed_author_list` | A dependency's originators, when its author fields name more than one (several address-field entries, or a name beside them). |
+| `parsed_author_list` | A dependency's originators, when its author fields name more than one (several address-field entries, several mailboxes in a name field, or a name beside them). |
 | `file_directive` | A `pyproject.toml` dynamic field pointed at a file (`{file = "..."}`); the value was read from that file. |
-| `attr_directive` | A `pyproject.toml` dynamic field pointed at a Python attribute (`{attr = "..."}`); the value was imported and read from code. |
+| `attr_directive` | A dynamic field pointed at a Python attribute (`pyproject.toml` `{attr = "..."}`, `setup.cfg` `attr:`); the string assigned to it was read from the module's source, which is never imported. |
 | `inspect_caller` | Recorded automatically by the `pitloom.loom` tracking SDK via Python stack inspection -- identifies which script/function called the SDK. |
 | `synthetic` | The element is Pitloom's own synthesized placeholder root package for an installed environment (`loom env`), not extracted from any source file. |
 | `magika_content_detection` | Per-file content type resolved by the [`magika`](https://pypi.org/project/magika/) content-detection library. |
@@ -517,18 +517,21 @@ name field read as one author (a wheel's `Author`, an sdist's `PKG-INFO`
 whose `pyproject.toml` declares no authors, `setup.cfg`/`setup.py`
 `author`) gets one `INFO:` per SBOM when it holds `,`, `;` or the word
 `and` outside quotes and `<...>` (`AUTHOR='Ann, Bob': read as one author;
-it may list several ...`); a dependency's, a structured entry and
-`Author-email` get none. A name field is cut
-on `,` or `;` (outside quotes and `<...>`) only where the text proves a
-list: after a closed `<address>` or a bare address, never after a name.
-So `Ann <a@x.org>; Bob <b@x.org>` is Ann and Bob with their addresses, and
-`a@x.org, b@x.org` two authors, as in `Author-email`; `Doe, Jane
-<j@x.org>` is one mailbox, its name all the text before the `<` (`<` or
-`>` inside a quoted name is part of the name); `Doe, Jane <j@x.org>, Bob
-Lee <b@x.org>` is two; `Ann <a@x.org>, Bob` is Ann with the address and
-`Bob`. A cut gets one `WARNING:` (`AUTHOR='Ann <a@x.org>; Bob <b@x.org>':
-split into 2 entries on ',' / ';'; a name field is cut only after an
-address`). An entry with text after its address, other than a trailing
+it may list several ...`), unless its address is not recorded; a
+dependency's, a structured entry and `Author-email` get none. A name field
+is cut only where the text proves a list, next to an address: on `,` or
+`;` (outside quotes and `<...>`) after a closed `<address>` or a bare
+address, or before a bare address (which carries no name); and between
+two closed `<address>` entries, a joining `and` or `&` left out. Never
+between two names. So `Ann <a@x.org>; Bob <b@x.org>` and `Ann <a@x.org>
+and Bob <b@x.org>` are Ann and Bob with their addresses, `a@x.org,
+b@x.org` two authors, and `Doe, a@x.org` `Doe` and the address, as in
+`Author-email`; `Doe, Jane <j@x.org>` is one mailbox, its name all the
+text before the `<` (`<` or `>` inside a quoted name is part of the name);
+`Doe, Jane <j@x.org>, Bob Lee <b@x.org>` is two; `Ann <a@x.org>, Bob` is
+Ann with the address and `Bob`. A cut gets one `WARNING:`
+(`AUTHOR='Ann <a@x.org>; Bob <b@x.org>': split into 2 entries next to an
+address; a name field is never cut between names`). An entry with text after its address, other than a trailing
 `(comment)` or a contributor group, records its name alone (`Ann <a@x.org>
 Lee` is `Ann`), and one whose address is not closed before the next
 records no one (`Ann <a@x.org, Bob <b@x.org>`); either gets a `WARNING:`

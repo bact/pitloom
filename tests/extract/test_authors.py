@@ -6,16 +6,14 @@
 """Tests for :mod:`pitloom.extract.authors`: when a split is warned about,
 and the one summary line for a document's dependencies.
 
-See also: tests/extract/test_core_metadata_authors.py (the reading itself)
-and tests/test_author_split_surfaces.py (the same reading on every surface).
+See also: tests/extract/test_core_metadata_authors.py (the reading itself),
+tests/extract/test_author_parts.py (the splitter) and
+tests/test_author_split_surfaces.py (the same reading on every surface).
 """
 
 from __future__ import annotations
 
 import logging
-import random
-import re
-import time
 from collections.abc import Callable
 
 import pytest
@@ -25,14 +23,11 @@ from pitloom.assemble.spdx3.deps_pypi import _extract_pypi_originator
 from pitloom.extract.authors import (
     AUTHOR_FIELD_MAX_CHARS,
     AuthorSplit,
-    _outside_entries,
-    _parts,
     dependency_author_splits,
     read_author_fields,
     warn_author_splits,
 )
 from pitloom.extract.dependency_authors import dependency_author_pairs
-from tests._bounded import run_bounded_in_child
 from tests.assemble.conftest import _FakeMetadata
 
 _SPLIT = [{"name": "Ann"}, {"name": "Bob"}]
@@ -113,7 +108,7 @@ def test_dependency_address_problem_is_quiet(caplog: pytest.LogCaptureFixture) -
 
 
 _TWO_MAILBOXES = "Ann <a@x.org>, Bob <b@x.org>"
-_NAME_REASON = "; a name field is cut only after an address"
+_NAME_REASON = "; a name field is never cut between names"
 _NOT_ADDRESSES = "; ".join(f"x{i} at y@" for i in range(1000))
 _NOT_AN_ADDRESS = ": not an email address; "
 
@@ -166,7 +161,7 @@ def _dependency_split(names: str | None, addresses: str | None) -> None:
         (
             lambda: _dependency_split(_TWO_MAILBOXES, None),
             [
-                f"AUTHOR={_TWO_MAILBOXES!r}: split into 2 entries on ',' / ';'"
+                f"AUTHOR={_TWO_MAILBOXES!r}: split into 2 entries next to an address"
                 f" (PACKAGE=a; 1 dependency split in all){_NAME_REASON}"
             ],
         ),
@@ -174,7 +169,7 @@ def _dependency_split(names: str | None, addresses: str | None) -> None:
             lambda: read_author_fields(_TWO_MAILBOXES, "Doe, Jane <j@x.org>"),
             [
                 f"AUTHOR_EMAIL='Doe, Jane <j@x.org>': split into 2 entries{_REASON}",
-                f"AUTHOR={_TWO_MAILBOXES!r}: split into 2 entries on ',' / ';'"
+                f"AUTHOR={_TWO_MAILBOXES!r}: split into 2 entries next to an address"
                 f"{_NAME_REASON}",
             ],
         ),
@@ -204,126 +199,6 @@ def test_one_bounded_line_per_field(
     assert len(caplog.messages) == len(lines)
     for message, line in zip(caplog.messages, lines, strict=True):
         assert message.startswith(line)
-
-
-#: The lookahead regex split the one-pass splitter replaces: the oracle. A
-#: ``,`` or ``;`` counts outside an ``<...>`` (no ``>`` before the next
-#: ``<``) and outside ``"`` quotes (an even number follow); captured, so
-#: the name-field oracle can join segments again.
-_ORACLE = re.compile(r"""([,;])(?![^<>]*>)(?=(?:[^"]*"[^"]*")*[^"]*$)""")
-#: A segment less one trailing ``(comment)``: the lazy text before it.
-_LESS_COMMENT = re.compile(r"(?s)(.*?)(?:\([^()]*\)\s*)?")
-#: A segment that ends a mailbox: an ``<...>`` last, or one bare address.
-_MAILBOX_END = re.compile(r"(?s)\s*(?:.*<.*>|[^@\s]+@[^@\s]+)\s*")
-
-
-def _oracle_pieces(text: str, named: bool) -> list[str]:
-    """*text* split by :data:`_ORACLE`; *named*, a separator is a cut only
-    after a segment ending a mailbox (:data:`_MAILBOX_END`, less a
-    comment) or a blank segment right after a cut."""
-    split = _ORACLE.split(text)
-    segments, separators = split[0::2], split[1::2]
-    if not named:
-        return segments
-    pieces, fresh = [segments[0]], True
-    for segment, separator, following in zip(
-        segments, separators, segments[1:], strict=False
-    ):
-        less = _LESS_COMMENT.fullmatch(segment)
-        ends = bool(less and _MAILBOX_END.fullmatch(less.group(1)))
-        fresh = ends or (fresh and not segment.strip())
-        if fresh:
-            pieces.append(following)
-        else:
-            pieces[-1] += separator + following
-    return pieces
-
-
-@pytest.mark.parametrize("named", [False, True], ids=["address-field", "name-field"])
-def test_one_pass_splitter_matches_the_regex_splits(named: bool) -> None:
-    """Drift guard: on every short string of the significant ASCII
-    characters (unbalanced ``<``/``>``/``"``/``(`` too), the one-pass split
-    on ``,``/``;`` equals the lookahead regex split -- a name field's cut
-    only after a mailbox -- and a field's stripped parts are its stripped,
-    non-blank pieces (never split on ``and``)."""
-    alphabet = ["a", "and", " ", ",", ";", '"', "<", ">", "x", "@", "a@x", "(", ")"]
-    rng = random.Random(20261011)
-    for _ in range(6000):
-        text = "".join(rng.choice(alphabet) for _ in range(rng.randint(0, 9)))
-        oracle = _oracle_pieces(text, named)
-        assert _outside_entries(text, named) == oracle, text
-        parts = [p.strip() for p in oracle if p.strip()]
-        assert _parts(text, named)[0] == parts, text
-
-
-@pytest.mark.parametrize(
-    ("text", "entries"),
-    [
-        ("\u201cDoe, Jane\u201d <j@x>, Bo", ["\u201cDoe, Jane\u201d <j@x>", " Bo"]),
-        ("\u2018Doe; Jane\u2019, Bo", ["\u2018Doe; Jane\u2019", " Bo"]),
-        ("O\u2019Brien, Bo", ["O\u2019Brien", " Bo"]),
-        ("\u201cDoe, Jane", ["\u201cDoe", " Jane"]),
-        ("\u201dDoe, Jane\u201c", ["\u201dDoe", " Jane\u201c"]),
-        ("\u201cA\u201d, \u201cB, C\u201d", ["\u201cA\u201d", " \u201cB, C\u201d"]),
-        (
-            "\u201cA, \u2018B\u2019, C\u201d, D",
-            ["\u201cA, \u2018B\u2019, C\u201d", " D"],
-        ),
-    ],
-    ids=["double", "single", "apostrophe", "unclosed", "reversed", "two", "nested"],
-)
-def test_typographic_quotes_hold_an_entry_together(
-    text: str, entries: list[str]
-) -> None:
-    """A typographic opening quote holds ``,``/``;`` until its closing
-    quote; a closing quote alone (an apostrophe) holds nothing."""
-    assert _outside_entries(text) == entries
-
-
-def _fastest(call: Callable[[], object]) -> float:
-    """The fastest of three runs of *call*, in seconds."""
-    times = []
-    for _ in range(3):
-        start = time.perf_counter()
-        call()
-        times.append(time.perf_counter() - start)
-    return min(times)
-
-
-@pytest.mark.parametrize(
-    ("unit", "named", "cuts"),
-    [
-        ("a,", False, True),
-        ('"x",', False, True),
-        ("\u201cx\u201d,", False, True),
-        ("a,", True, False),
-        ("a ,", True, False),
-        ("a@x,", True, True),
-        ("<a@x>(c),", True, True),
-    ],
-    ids=[
-        "commas",
-        "quotes",
-        "typographic",
-        "name-commas",
-        "names",
-        "addresses",
-        "mailboxes",
-    ],
-)
-def test_the_splitter_runs_in_linear_time(unit: str, named: bool, cuts: bool) -> None:
-    """Regression: the lookahead split rescanned the rest of the text at
-    each separator (``'a,' * 80000`` took 46 s); a name field held
-    together must not rescan its growing entry either. Uncapped: four
-    times the text takes about four times as long (under eight, past a
-    floor for timer noise), and ~160,000 characters split at once."""
-    small = unit * (10000 // len(unit))
-    large = small * 4
-    floor = max(_fastest(lambda: _outside_entries(small, named)), 0.005)
-    assert _fastest(lambda: _outside_entries(large, named)) < 8 * floor
-    huge = unit * (160000 // len(unit))  # one separator per unit
-    parts = run_bounded_in_child(f"{__name__}:_outside_entries", huge, named)
-    assert len(parts) == (len(huge) // len(unit) + 1 if cuts else 1)
 
 
 _CHARS = f"{AUTHOR_FIELD_MAX_CHARS}-character"

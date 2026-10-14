@@ -37,12 +37,14 @@ and this project adheres to
 ### Changed
 
 - Required, locked and phantom edges are `dependsOn` with scope `runtime` (not
-  in `loom env`); a dependency is named (PEP 503) and declared alike on every
-  route, `loom env` too; `doc_uuid` changes for a project with extras or
-  requirements files ([#300])
+  in `loom env`) ([#300])
+- A dependency is named (PEP 503) and declared alike on every route, `loom
+  env` too; `doc_uuid` changes for a project with extras or requirements files
+  ([#300])
 - One `Author`/`author` is one author on every route (`Jane, Bob` too), cut
-  only after an address (a project's holding `,`/`;`/`and` gets an `INFO:`);
-  `Author-email` splits on `,`/`;`, not `and`; a split warns; a dependency's
+  only next to an address; a project's holding `,`/`;`/`and` gets an `INFO:`
+  ([#300])
+- `Author-email` splits on `,`/`;`, not `and`; a split warns; a dependency's
   maintainer stands in only for an absent author ([#300])
 - Author fields read up to 65,536 characters/1,000 entries; a quoted
   name (`"…"`, `“…”`) stays whole; a name's white space is collapsed ([#300])
@@ -57,21 +59,25 @@ and this project adheres to
 
 - Poetry dependencies match poetry-core's (`optional`, `markers`/`python`,
   git/url, extras; `path` warns), read only for a Poetry backend; a nameless
-  2.x `[tool.poetry]` is read; an sdist keeps all its authors; no
-  `build-backend` lists setuptools' files (PEP 517), not Hatchling's ([#300])
+  2.x `[tool.poetry]` is read ([#300])
+- An sdist keeps all its authors; no `build-backend` lists setuptools' files
+  (PEP 517), not Hatchling's; setuptools' deprecation banners are `DEBUG:`
+  lines, not untagged stderr ([#300])
 - An author named `... Brothers` is a Person, not a group; a setuptools
   `UNKNOWN` author is no author; a stated name stays beside an invalid
   address, warned once per field ([#300])
 - A creator's name and email are stripped; `embed-wheel --project-dir` warns
   once about a split in the adopted project authors, `--config` or not
   ([#300])
-- A licence file, `project.license.file`, `project.readme`, a dynamic version
-  file (setuptools, Hatch, Flit, PDM) or a dependency `License-File` outside
-  the project or `.dist-info` is not read; a `project.license.file` `Source:`
-  is project-relative ([#300])
+- A licence file, `project.license.file` or `project.readme` outside the
+  project is not read; a `project.license.file` `Source:` is project-relative
+  ([#300])
+- A dynamic version file (setuptools, Hatch, Flit, PDM) outside the project,
+  or a dependency `License-File` outside its `.dist-info`, is not read ([#300])
 - Crafted author fields, copyright lines, extras self-references and
-  requirements files no longer take quadratic or exponential time or memory;
-  a requirement or marker nesting over 64 parentheses warns instead of
+  requirements files no longer take quadratic or exponential time or memory
+  ([#300])
+- A requirement or marker nesting over 64 parentheses warns instead of
   crashing the run ([#300])
 
 [#300]: https://github.com/bact/pitloom/pull/300

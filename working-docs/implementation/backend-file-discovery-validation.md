@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-28
-Last-Modified: 2026-09-15
+Last-Modified: 2026-10-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -379,6 +379,14 @@ README for their own notes.
     in `tests/core/models_wheel/test_models_wheel_setuptools.py`,
     covering all three forms in one synthetic fixture. Confirmed to
     fail without the filter and pass with it.
+  - **Revised (PR #300)**: outside pytest the banners still reached
+    stderr as untagged multi-line text (Python's default warning
+    display). `discover()` now records them with
+    `warnings.catch_warnings(record=True)` and logs each as one `DEBUG`
+    line; the `pyproject.toml` ignore entry is gone. Regression test:
+    `test_setuptools_banners_are_debug_lines` in
+    `tests/test_setuptools_default_backend_surfaces.py` (a real
+    `loom --debug project` process).
 - **PDM discovery wrote to disk in two more cases**, found by a
   code-review pass over this round's own PDM/Flit work, not by the
   fixture-diffing method above (neither vendored fixture triggers

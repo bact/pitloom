@@ -57,8 +57,8 @@ def parse_core_metadata_authors(
     """A package's own authors from ``Author``/``Author-email``, by
     :func:`~pitloom.extract.authors.read_author_fields`: the one reading of
     a free-text author field on every surface. ``Author`` is one author
-    unless it holds several complete mailboxes, cut only after each closed
-    ``<address>`` or bare address; ``Author-email`` is a list. A split
+    unless it holds several complete mailboxes, cut only next to an
+    address; ``Author-email`` is a list. A split
     field warns once per key and call (unless *quiet*), or is appended to
     *splits* when given.
 

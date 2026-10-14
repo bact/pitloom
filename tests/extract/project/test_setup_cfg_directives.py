@@ -354,41 +354,83 @@ _NINE = ("9", "Source: m.py | Method: attr_directive")
 
 @pytest.mark.parametrize(
     "value",
-    [".".join(["a"] * 300000), "-" * 500000 + "1", "not " * 200000 + "1"],
-    ids=["attributes", "unary-minus", "not"],
+    [
+        ".".join(["a"] * 300000),
+        "-" * 500000 + "1",
+        "not " * 200000 + "1",
+        "(\n" + ".".join(["a"] * 300000) + "\n)",
+        "(" * 300000 + "1" + ")" * 300000,
+    ],
+    ids=["attributes", "unary-minus", "not", "joined-lines", "brackets"],
 )
 def test_attr_directive_survives_a_deep_assignment(tmp_path: Path, value: str) -> None:
     """Regression: the whole module was parsed, so one under the file cap
     crashed the run (a C stack overflow on 3.10, ``RecursionError`` or
-    ``MemoryError`` later). Only a line assigning the attribute is parsed,
-    one over the line cap skipped; run in a child, so a crash fails the
-    test and not the session."""
+    ``MemoryError`` later). Only a logical line assigning the attribute is
+    parsed, one over the line cap (its physical lines joined) skipped; run
+    in a child, so a crash fails the test and not the session."""
     module = f"__version__ = {value}\n__version__ = '9'\n"
     (tmp_path / "m.py").write_text(module, encoding="utf-8")
     assert run_bounded_in_child(_ATTR, "m.__version__", tmp_path, "t") == _NINE
 
 
 @pytest.mark.parametrize(
-    ("over", "expected"),
-    [(0, ("9" * 240, _NINE[1])), (1, _NINE)],
-    ids=["at-cap", "over-cap"],
+    ("template", "digits"),
+    [("__version__ = '{}'", 240), ("__version__ = (\n    '{}'\n)", 232)],
+    ids=["one-line", "joined-lines"],
 )
+@pytest.mark.parametrize("over", [0, 1], ids=["at-cap", "over-cap"])
 def test_attr_line_over_the_cap_is_skipped(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
+    template: str,
+    digits: int,
     over: int,
-    expected: tuple[str, str],
 ) -> None:
-    """A line of :data:`MAX_ATTR_LINE_CHARS` characters is parsed; a longer
-    one is skipped with one ``WARNING:`` and the next assignment read."""
-    line = f"__version__ = '{'9' * (240 + over)}'"
+    """A logical line of :data:`MAX_ATTR_LINE_CHARS` characters, its
+    physical lines joined, is parsed; a longer one is skipped with one
+    ``WARNING:`` and the next assignment read."""
+    line = template.format("9" * (digits + over))
     assert len(line) == _setup_cfg_directives.MAX_ATTR_LINE_CHARS + over
     (tmp_path / "m.py").write_text(f"{line}\n__version__ = '9'\n", encoding="utf-8")
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         found = _resolve_cfg_attr_directive("m.__version__", tmp_path, "t")
-    assert found == expected
+    assert found == (_NINE if over else ("9" * digits, _NINE[1]))
     cap = "FILE=m.py: larger than the 256-character attr-directive-line cap;"
     assert caplog.messages == [f"{cap} __version__ line skipped for t"] * over
+
+
+@pytest.mark.parametrize(
+    "module",
+    [
+        "__version__ = (\n    '1.0'\n)\n",
+        "__version__ = \\\n    '1.0'\n",
+        "x = 1; __version__ = '1.0'\n",
+        "__version__ = 1; __version__ = 2\n__version__ = '1.0'\n",
+        "__version__: str = '1.0'\n",
+        "version = __version__ = '1.0'\n",
+        "if True:\n    __version__ = '1.0'\n",
+        "__version__: str\n__version__ = ('1.0'  # ')'\n)",
+    ],
+    ids=[
+        "parenthesised",
+        "backslash",
+        "after-semicolon",
+        "twice-on-a-line",
+        "annotated",
+        "chained",
+        "indented",
+        "annotation-only-then-comment",
+    ],
+)
+def test_attr_directive_reads_each_assignment_form(tmp_path: Path, module: str) -> None:
+    """Regression: only a one-line ``name = 'x'`` was read, so a
+    parenthesised or ``;``-joined assignment gave no version. Every form
+    setuptools reads statically: a logical line, an annotated or a chained
+    target, after a ``;``."""
+    (tmp_path / "m.py").write_text(module, encoding="utf-8")
+    found = _resolve_cfg_attr_directive("m.__version__", tmp_path, "t")
+    assert found == ("1.0", _NINE[1])
 
 
 @pytest.mark.parametrize("error", [RecursionError, MemoryError])

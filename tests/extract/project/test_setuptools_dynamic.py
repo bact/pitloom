@@ -173,8 +173,8 @@ _ROWS: list[Any] = [
     ),
     pytest.param(
         _O, 'optional-dependencies.x = {file = "a.txt"}\n',
-        {"a.txt": b"\xef\xbb\xbfsix\nc\n"}, ['c; extra == "x"'], _OPTS,
-        "Skipping extra entry '\\ufeffsix' of 'x'", id="bom-extra-line",
+        {"a.txt": b"\xef\xbb\xbfsix\nc\n"},
+        ['six; extra == "x"', 'c; extra == "x"'], _OPTS, None, id="bom",
     ),
     # Skipped as an extra's (setuptools fails the build on it).
     pytest.param(

@@ -308,9 +308,10 @@ def test_setuptools_cfg_version_and_attr_edge_cases() -> None:
         (p / "VERSION").write_text("1.0.0\n# comment\n")
         assert _resolve_cfg_version("file: VERSION", p) == (None, None)
 
-        # Python source with a syntax error, a NUL, a multi-target assign
-        source = "a = b = '1.0'\ndef invalid("
-        assert _read_version_attr(source, "a", "m.py", "t") is None
+        # Python source with a syntax error, a NUL, an unclosed bracket
+        source = "a = '1.0'\ndef invalid("
+        assert _read_version_attr(source, "invalid", "m.py", "t") is None
+        assert _read_version_attr("a = ('1.0'", "a", "m.py", "t") is None
         source = "__version__ = '1'\x00"
         assert _read_version_attr(source, "__version__", "m.py", "t") is None
         # A value that is not a string: no version

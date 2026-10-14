@@ -325,7 +325,8 @@ def _unreadable(exc: Exception) -> _Unreadable:
 
 
 def _read_text(handle: BinaryIO) -> tuple[str, int] | Exception:
-    """The UTF-8 text of the listed file open as *handle* and its size in
+    """The UTF-8 text of the listed file open as *handle*, less a leading
+    byte-order mark (as pip reads a requirements file), and its size in
     bytes, else why it is not read: :class:`_TooLarge` over
     :data:`MAX_REQUIREMENTS_FILE_BYTES`, :class:`_Unreadable` not UTF-8 or
     not readable."""
@@ -336,6 +337,6 @@ def _read_text(handle: BinaryIO) -> tuple[str, int] | Exception:
     if len(raw) > MAX_REQUIREMENTS_FILE_BYTES:
         return _TooLarge()
     try:
-        return raw.decode("utf-8"), len(raw)
+        return raw.decode("utf-8-sig"), len(raw)  # a leading BOM is no text
     except UnicodeDecodeError as exc:
         return _Unreadable(f"not UTF-8: {one_line(exc)}")

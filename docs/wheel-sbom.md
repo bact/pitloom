@@ -121,7 +121,7 @@ GitHub Action) the project's declared authors are used instead, with no
 split in the project's own free-text `author` or `author_email`,
 `--config` or not); when the project's name differs from the wheel's, a
 `WARNING:` says so and the wheel's authors are kept.
-How `Author` (cut only after an address) and `Author-email` (split) are
+How `Author` (cut only next to an address) and `Author-email` (split) are
 read and what each author becomes: [How authors are
 read](metadata-provenance.md#how-authors-are-read).
 

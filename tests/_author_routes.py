@@ -33,7 +33,7 @@ from tests.extract.conftest import make_hook
 CREATED = CreationMetadata(creation_datetime="2024-05-01T00:00:00Z")
 #: In every author split ``WARNING:``, a name or an address field's, and
 #: in no other line.
-SPLIT_MARK = "on ',' / ';'"
+SPLIT_MARK = ": split into "
 #: The ``INFO:`` for a project's name field read as one author that may
 #: list several: the field's excerpt, then the route's hint.
 ONE_AUTHOR_LINE = (
@@ -42,7 +42,8 @@ ONE_AUTHOR_LINE = (
 )
 #: The hint of a route reading core metadata.
 CORE_HINT = (
-    " -- a project directory or an sdist with pyproject.toml keeps the declared authors"
+    " -- only authors listed in pyproject.toml (a project directory or an sdist)"
+    " are read one by one"
 )
 #: The hint ending :data:`ONE_AUTHOR_LINE` per surface reading a project's
 #: own free-text ``author``; any other surface gives none.

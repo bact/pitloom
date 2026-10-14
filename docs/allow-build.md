@@ -54,8 +54,9 @@ it executes third-party build-time code from the project being scanned
   waits on stdin gets EOF instead of hanging.
 - On any failure (network unavailable, backend not installed, build
   script error, timeout), Pitloom falls back to the same static file
-  discovery used without the flag -- usually the Hatchling heuristic;
-  where static discovery is unsupported (e.g. a `setup.py` passing
+  discovery used without the flag -- the build backend's own (setuptools
+  for a project declaring none), the Hatchling heuristic only when that
+  fails; where static discovery is unsupported (e.g. a `setup.py` passing
   `packages` itself, with no `[project]` table), the SBOM lists no files,
   with a `WARNING:`. `--allow-build`'s worst case is never worse than
   leaving it off.

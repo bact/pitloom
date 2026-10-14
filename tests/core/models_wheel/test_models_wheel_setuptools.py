@@ -114,12 +114,10 @@ def test_discover_succeeds_on_legacy_table_form_license(tmp_path: Path) -> None:
     2.34.2, see ``tests/fixtures/real-world-projects/setuptools/``) --
     must still resolve successfully.
 
-    setuptools>=77 warns (never raises outside pytest's own
-    ``filterwarnings = ["error"]``) on each of these forms during
-    ``apply_configuration()``; without the scoped
-    ``SetuptoolsDeprecationWarning`` ignore entry in this project's own
-    pytest config, this test fails even though real (non-pytest) usage
-    of ``discover()`` never did."""
+    setuptools>=77 warns on each of these forms during
+    ``apply_configuration()``; ``discover()`` records those warnings as
+    ``DEBUG`` lines, so pytest's ``filterwarnings = ["error"]`` never sees
+    them."""
     (tmp_path / "pyproject.toml").write_text(
         "[build-system]\n"
         'requires = ["setuptools"]\n'

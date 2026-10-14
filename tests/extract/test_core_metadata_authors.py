@@ -128,7 +128,7 @@ _SPEC_AUTHOR = (
         ("\u201cDoe, Jane\u201d", None, [{"name": "Doe, Jane"}]),
         ('""', None, []),
         ("a@x.org", "b@x.org", [{"email": "a@x.org"}, {"email": "b@x.org"}]),
-        # Author is cut only after an address -- a free-text list of names
+        # Author is cut only next to an address -- a free-text list of names
         # is one author, its name all the text before a sole <
         ("Ann, Bob and Cee", None, [{"name": "Ann, Bob and Cee"}]),
         # hatchling/setuptools: addressed authors, then name-only ones

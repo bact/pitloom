@@ -84,8 +84,7 @@ _ROWS: list[Any] = [
     ),
     pytest.param(
         _cfg("install_requires = file: a.txt\n"),
-        {"a.txt": b"\xef\xbb\xbfsix\nc\n"}, ["c"], _REQ,
-        "Skipping dependency '\\ufeffsix' (options.install_requires)",
+        {"a.txt": b"\xef\xbb\xbfsix\nc\n"}, ["six", "c"], _REQ, None,
         id="bom",
     ),
     pytest.param(

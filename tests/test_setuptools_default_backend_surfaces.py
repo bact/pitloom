@@ -15,6 +15,9 @@ Every surface scanning a project directory goes through
 ``get_wheel_files()``; the Hatchling build hook names its backend and is
 not affected.
 
+Setuptools' own deprecation banners on the target project's legacy
+licence metadata are ``DEBUG`` lines, never untagged stderr.
+
 See also: tests/extract/project/test_setuptools_cfg_backend.py
 (``detect_build_backend()``),
 tests/core/models_wheel/test_models_wheel_setuptools.py (the discoverer).
@@ -24,13 +27,17 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import shutil
+import subprocess
+import sys
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
+import pitloom
 from pitloom.assemble import generate, generate_project_sbom
 from pitloom.embed import embed_wheel_sbom
 from tests._setuptools_build import run_build
@@ -181,3 +188,46 @@ def test_every_surface_reads_setuptools_files_quietly(
     assert not _warnings(caplog)
     if "embed" not in surface:  # An embed lists the wheel's own files.
         assert listed == {"ns/demo/__init__.py", "ns/demo/a.py"}
+
+
+_LEGACY_LICENCE = (
+    '[project]\nname = "demo"\nversion = "1.0"\nlicense = {text = "MIT"}\n'
+    'classifiers = ["License :: OSI Approved :: MIT License"]\n'
+)
+_TAGS = ("ERROR: ", "WARNING: ", "INFO: ", "DEBUG: ")
+
+
+@pytest.mark.parametrize(
+    "build_system",
+    ["", '[build-system]\nbuild-backend = "setuptools.build_meta"\n'],
+    ids=["no-backend", "setuptools-backend"],
+)
+def test_setuptools_banners_are_debug_lines(tmp_path: Path, build_system: str) -> None:
+    """Regression: setuptools' multi-line ``SetuptoolsDeprecationWarning``
+    banners for a ``project.license`` table and a ``License ::`` classifier
+    reached stderr untagged. A real ``loom --debug project`` process (no
+    pytest warning filter): every stderr line is tagged, the banners one
+    ``DEBUG:`` line each."""
+    project = tmp_path / "proj"
+    (project / "demo").mkdir(parents=True)
+    (project / "demo" / "__init__.py").write_text("", encoding="utf-8")
+    pyproject = build_system + _LEGACY_LICENCE
+    (project / "pyproject.toml").write_text(pyproject, encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONWARNINGS"}
+    # The pitloom under test, not whichever one the interpreter installs.
+    source = str(Path(pitloom.__file__).parents[1])
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, [source, env.get("PYTHONPATH")]))
+    argv = ["--debug", "project", str(project), "--offline", "-o", "out.json"]
+    result = subprocess.run(  # nosec B603
+        [sys.executable, "-m", "pitloom", *argv],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        check=True,
+    )
+    lines = result.stderr.decode("utf-8").splitlines()
+    assert [line for line in lines if not line.startswith(_TAGS)] == []
+    banners = [line for line in lines if "SetuptoolsDeprecationWarning: " in line]
+    assert len(banners) == 2
+    assert all(line.startswith("DEBUG: ") for line in banners)
+    assert "`project.license` as a TOML table" in banners[0]

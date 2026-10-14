@@ -32,10 +32,10 @@ _SHOWN_FIELDS = 3
 
 
 class AuthorSplit(NamedTuple):
-    """A free-text author field split on ``,`` or ``;``, into how many
-    entries, its key, and whether it is a name field (``Author``, cut only
-    after an address) rather than an address field (``Author-email``, cut
-    after a name). One entry: a name field read as one author though it
+    """A free-text author field split, into how many entries, its key, and
+    whether it is a name field (``Author``, cut only next to an address)
+    rather than an address field (``Author-email``, cut on ``,`` or ``;``
+    after a name). One entry: a name field recorded as one author though it
     holds ``,``, ``;`` or ``and`` (:func:`warn_author_splits`)."""
 
     field: str
@@ -74,11 +74,15 @@ def warn_field_cap(field: str, key: str, cap: Cap, read: str | None) -> None:
 
 #: One line per key of the free-text author fields split: the key, the
 #: field, or the fields when several were split (:func:`shown_list`), the
-#: count, the reason (:func:`_split_reason`), then the caller's hint.
-_SPLIT_MESSAGE = "%s=%s: split into %s on ',' / ';'; %s%s"
-#: The hint for a split read from core metadata.
+#: count, where and why (:func:`_split_where`, :func:`_split_reason`), then
+#: the caller's hint.
+_SPLIT_MESSAGE = "%s=%s: split into %s %s; %s%s"
+#: The hint for a split read from core metadata: only a ``pyproject.toml``
+#: authors list keeps each author apart (a ``setup.cfg`` ``author`` is the
+#: same free text in every route).
 CORE_METADATA_HINT = (
-    " -- a project directory or an sdist with pyproject.toml keeps the declared authors"
+    " -- only authors listed in pyproject.toml (a project directory or an sdist)"
+    " are read one by one"
 )
 #: One line for the name fields read as one author that may list several:
 #: the key, the field or fields (:func:`shown_list`), then the caller's hint.
@@ -87,17 +91,22 @@ _ONE_AUTHOR_MESSAGE = (
     " ('Doe, Jane' and 'Ann and Bob' cannot be told from lists)%s"
 )
 #: One line per document whose dependencies' author fields were split,
-#: naming the first and its reason (:func:`_split_reason`).
-_DEPENDENCY_SPLIT_MESSAGE = (
-    "%s=%s: split into %s on ',' / ';' (PACKAGE=%s; %s split in all); %s"
-)
+#: naming the first, where and why (:func:`_split_where`,
+#: :func:`_split_reason`).
+_DEPENDENCY_SPLIT_MESSAGE = "%s=%s: split into %s %s (PACKAGE=%s; %s split in all); %s"
+
+
+def _split_where(split: AuthorSplit) -> str:
+    """Where *split* was cut: a name field next to an address, an address
+    field on any separator."""
+    return "next to an address" if split.named else "on ',' / ';'"
 
 
 def _split_reason(split: AuthorSplit) -> str:
-    """Why *split* is warned about: a name field is cut only after an
-    address; an address field cannot tell a list from one name."""
+    """Why *split* is warned about: a name field is never cut between
+    names; an address field cannot tell a list from one name."""
     if split.named:
-        return "a name field is cut only after an address"
+        return "a name field is never cut between names"
     return "an address field cannot tell a list from one name containing a comma"
 
 
@@ -117,6 +126,7 @@ def warn_author_splits(
             key,
             shown_list([split.field for split in same]),
             counted(sum(split.entries for split in same), "entry", "entries"),
+            _split_where(same[0]),
             _split_reason(same[0]),
             hint,
         )
@@ -176,6 +186,7 @@ def _warn_dependency_splits(found: list[_DependencySplit]) -> None:
             first.split.key,
             excerpt(first.split.field),
             counted(first.split.entries, "entry", "entries"),
+            _split_where(first.split),
             loggable(first.package),
             counted(len(packages), "dependency", "dependencies"),
             _split_reason(first.split),
