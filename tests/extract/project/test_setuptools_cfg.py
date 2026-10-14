@@ -312,6 +312,8 @@ def test_setuptools_cfg_version_and_attr_edge_cases() -> None:
         source = "a = '1.0'\ndef invalid("
         assert _read_version_attr(source, "invalid", "m.py", "t") is None
         assert _read_version_attr("a = ('1.0'", "a", "m.py", "t") is None
+        # Tokenizes on every Python, but is not a statement: only the parser objects
+        assert _read_version_attr("a = = '1'", "a", "m.py", "t") is None
         source = "__version__ = '1'\x00"
         assert _read_version_attr(source, "__version__", "m.py", "t") is None
         # A value that is not a string: no version
