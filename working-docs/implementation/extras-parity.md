@@ -217,102 +217,117 @@ member is `FILE=<archive>:<member>`, as the licence cap already was. The
 guard (`tests/test_cap_warnings.py`) follows a `Cap` across modules
 (holders, carrier assignments, returns) and has no pending list.
 
+Fixed 2026-10-14 (third batch): a name-field `Author` is one author, cut
+only after a closed `<address>` or a bare address (never after a plain name;
+`Author-email` cuts after any `,`/`;` outside quotes and brackets, never on
+`and`); a one-author reading of a value holding `,`, `;` or `and` gives one
+`INFO:` on the core-metadata routes. `setup.cfg` `install_requires` and
+`extras_require` `file:` are read by one shared reader (also the pyproject
+dynamic one). No `build-backend` (or no `build-system`) uses setuptools file
+discovery, as PEP 517 says. Every route shows the PEP 503 name for a
+dependency (`loom env` too), the joined `declared_constraint` is sorted, the
+main package keeps its declared name with a canonical PURL; `doc_uuid` changes
+for non-canonically spelt projects. Dynamic version files, a dependency's
+`License-File` from `RECORD`, and `[project].readme` are confined; a
+`requirements.txt` the project names is not also read as a lock; an invalid
+dynamic requirement line is skipped like an extras one; an invalid
+requirement warning shows an excerpt. A present but unreadable dependency
+`Author` no longer falls back to the Maintainer. The pylock fixtures are
+exercised by `tests/extract/lock/test_pylock_real_world.py`.
+
+Decided 2026-10-14: an empty licence file keeps its provenance (the raw key
+was present: the convention); a structured author never splits; sorted joins
+and canonical names accepted.
+
 ## Open questions
 
 One line each; the long form is here only (known-bugs.md points here).
 Lifecycle-scope questions are in
 [extra-lifecycle-scope.md](../design/extra-lifecycle-scope.md#open-questions).
+Ambiguities that need research, not a fix, are in
+[open-research-questions.md](sbom-generator-field-notes/open-research-questions.md).
 
-Decided 2026-10-12 (a creator Organization and a same-named Person are
-different agents, 2026-10-11: the agent type is part of the identity):
-
-- PDM with `dynamic = ["optional-dependencies"]` pins nothing: accepted.
-  Checked: `dynamic` `dependencies` and `optional-dependencies` are both
-  silent on PDM, Hatchling and setuptools (no table), so it is consistent;
-  documented in `dependency-sources.md`.
-- No per-lock "reaching path" flag now: a lock-only package reached only
-  through an extra keeps `dependsOn` + `runtime` (known limitation,
-  documented without claiming more; only `uv.lock` has a root walk, so a
-  one-format fix would break parity). Revisit with `pylock.toml` (item 1);
-  promoting an extra-only dependency from a lock stays rejected
-  (`time-machine`).
+Decided earlier: a creator Organization and a same-named Person are
+different agents (the agent type is part of the identity); PDM
+`dynamic = ["optional-dependencies"]` pins nothing (silent on every
+backend, documented); no per-lock "reaching path" flag now (only `uv.lock`
+has a root walk; promoting an extra-only dependency from a lock stays
+rejected, `time-machine`).
 
 Reader gaps:
 
-1. `pylock.toml` has no extras-pin extractor and, ranked first, blocks the
-   uv/Poetry/PDM extras pins; needs a real `uv export --format pylock.toml
-   --extra x` sample (PEP 751 `extras`, marker `'x' in extras`).
-2. `setup.cfg` `install_requires = file:` / `extras_require` `file:` are not
-   read; the sdist pyproject fallback reads no `dynamic` field.
-3. Wheel/sdist dependency names are not canonicalised for non-Hatchling
-   backends (poetry-core writes `idna (>=3)`).
-4. No `build-backend` gets Hatchling file discovery ("Hatchling file
-   discovery failed" on `dinglehopper`); PEP 517 means setuptools.
-5. With `requirements.txt` as the dynamic source, the lock cascade also
-   logs "isn't pinned -- ignoring requirements.txt".
-6. The directory route expands self-references and canonicalises names
-   where setuptools' wheel keeps `demo[x]` and the spelling (spelling only).
+1. `pylock.toml` has no extras-pin extractor: `uv export` and `pip lock` write
+   no `extras` keys or `'x' in extras` markers, only the selected packages
+   (real fixtures under `real-world-locks/pylock/`), so a pin exists only
+   when the exporter selected the extra. The extractor design needs the PEP
+   751 keys from a producer that writes them (`pdm export -f pylock`
+   untried: PDM is not installed).
+2. An archive with no `PKG-INFO` leaves `dynamic` fields unresolved (now
+   warned, not resolved); a `setup.cfg`-only archive is not read and gets
+   the name `unknown`.
+3. A wrapped `setup.cfg` `file:` value reads both files with no warning where
+   setuptools fails the build; `long_description`/`classifiers` `file:` still
+   treat a missing file silently.
+4. A poetry-core wheel's `idna (>=3)` form is parsed only where packaging
+   validates it.
+5. `[tool.poetry]` without a `build-backend`: metadata is read from it, while
+   file discovery is now setuptools (no longer PEP 517); a `setup.py` passing
+   `packages=[...]` itself, and a flat layout with several top-level
+   packages (three warnings in a row), still fall back.
+6. Setuptools' own multi-line deprecation text now reaches stderr for a
+   project with no `build-backend` that uses legacy `license` or classifiers
+   (it already did for a declared setuptools): untagged, so it breaks the
+   stderr rule; route it to DEBUG?
+7. An empty extra (`etils` `epath-no-tf`) has no representation in the flat
+   dependency list.
+8. A `uv export` with default groups folds dev tools in unmarked, so they read
+   as required runtime dependencies; a lock pinning one name at two versions
+   (flask `click`) is skipped with a warning and the SBOM then showed 8.5.0
+   from the running environment (cause not checked; an explicit pin must not
+   fall back to local introspection); every export with a project entry
+   warns that its own directory entry is skipped.
 
 Structure and tests:
 
-7. A dynamic `dependencies` file keeps an invalid line as required
-   (assembly warns) while an extras file skips it; an empty extra (`etils`
-   `epath-no-tf`) has no representation in the dependency list.
-8. `extract/lock/uv.py` is over the soft limit (518); splitting out the
-    extras pins needs a public accessor for three private helpers. At the
-    limit: `assemble/spdx3/deps.py` (500), `_embed_build_sbom.py` (491).
-9. A dependency's unusable `Author-email` is dropped without a trace
-    (a per-document summary like the split one is the option); the pinned
-    rows `name-only-merge-open-question` follow the name-only merge, now closed by the agent-key rule.
-10. `NOTICE*`, `license-files` and `license.file` are not read for the
-    notice, because licence detection does not read them; widening the shared
-    discovery changes detection on every route.
-11. A notice with no `Copyright`/`(c)`/`©` marker or no year
-    (`Copyright Microsoft Corporation`) does not match; it cannot be told
-    from prose such as "Copyright holders".
-12. A wheel's licence is still METADATA-only; its licence files now feed the
-    copyright only. `loom env` has a synthetic root (copyright
-    `NOASSERTION`); the in-tree installed reconcile reads no `License-File`.
-13. `extract/_license.py` is 505 lines; `apply_in_package_license_files`
+9. `extract/lock/uv.py` is over the soft limit (518); splitting the extras
+   pins needs a public accessor for three private helpers. At the limit:
+   `deps.py` (500), `_embed_build_sbom.py` (500), `authors.py` (498).
+10. A dependency's unusable `Author-email` entry is dropped without a trace
+    (a per-document summary like the split one is the option).
+11. `NOTICE*`, `license-files` and `license.file` are not read for the notice;
+    a notice with no marker or no year does not match; a wheel's licence is
+    METADATA-only; `loom env` has a synthetic root (copyright `NOASSERTION`).
+12. `extract/_license.py` is 505 lines; `apply_in_package_license_files`
     cannot move to `copyright_notices.py` (import cycle).
-14. An installed dist's `RECORD` entry with `..` passes the dist-info check
-    and its `License-File` reads outside it (predates this work; reach grew
-    from 500 characters to 256 KiB).
-15. SBOM text from new sources (`copyrightText`, Agent names, the `extras:`
+13. SBOM text from new sources (`copyrightText`, Agent names, the `extras:`
     comment) carries display controls unescaped, as existing package fields do.
-16. `embed-wheel` reads the project three times
-    (`_adopt_project_authors`, `_embed_generate`, registry peek); the
-    directory route reads every licence file four times.
-17. The split hint names `--project-dir`, which `loom wheel` lacks;
-    `cli_error_handler` prints exception text raw; `_parse_poetry_deps` and
-    `deps_originator` docstrings are stale; `deps.py` (502) is over the soft
-    limit and `_embed_build_sbom.py` is at 500 lines.
-18. `[tool.hatch.version] path` (`pyproject_dynamic.py`) is read without
-    project confinement; an absolute `path` holding `__version__` probably
-    raises an uncaught `ValueError` in `relative_to(project_dir)`.
-19. An empty licence file records `license_name` provenance while the value
-    is `None` (predates this work).
-20. `ProjectMetadata.readme` holds pyproject-metadata's joined, often
-    absolute path on the directory route (`extract_readme`,
-    `str(readme.file)`); it never reaches the SBOM today.
-21. Third-party parsers Pitloom cannot screen for deeply nested markers:
-    Hatchling's own `core.dependencies` raises `RecursionError` inside the
-    build hook (a plain Hatchling build crashes too); setuptools file
-    discovery parses `install_requires` itself, so its warned fallback
-    depends on the Python version for nesting around 400 to 900; `loom env`
-    runs pipdeptree in a subprocess (untested with a crafted `METADATA`).
-    The `_dep_scope` "not a valid PEP 508 requirement" warning prints the
-    whole text (about 1.8 KB for a crafted line).
-22. `requires_python` from `[tool.poetry.dependencies] python` still uses the
-    old caret/tilde converter (`^3.8` gives `>=3.8,<4.0.0`, poetry-core
-    writes `<4.0`; same meaning); `format_python_constraint` is the follow-up.
-23. A name-only structured author (`{name = "Ann and Bob"}` or `"Doe,
-    Jane"`) is one author on the directory route and the hook, but two on
-    the wheel, sdist and installed routes: backends write it into `Author`
-    verbatim, where `setup.py` free text also lands, so the reader cannot
-    tell them apart. Measured with Hatchling 1.32.3, setuptools 84,
-    flit_core 4.0.2 and pdm-backend 2.4.9; `Author-email` (name and
-    address) agrees everywhere. Needs a ruling: never split `Author` either
-    (which un-splits `setup.py` free text too)?
-24. A Poetry `path` dependency is skipped on the directory route while the
-    wheel carries a `file://` URL (by design, not portable).
+14. `embed-wheel` reads the project three times; the directory route reads
+    every licence file four times.
+15. `cli_error_handler` prints exception text raw; the `_dep_scope`
+    "declared as %r" warnings and the `core/pep508.py` cap warning still print
+    whole or unescaped text.
+16. Third-party parsers Pitloom cannot screen for deeply nested markers or
+    crafted modules: Hatchling's `core.dependencies` (a plain build crashes
+    too), setuptools discovery, flit-core's whole-module parse (bounded only
+    by size), `loom env`'s pipdeptree subprocess (untested).
+17. Flit and PDM version files are check-then-delegate (a file swapped between
+    the check and the backend's open is not caught) and read twice;
+    `read_listed_file` still lives in `_setup_cfg_directives.py`; the
+    setuptools `file` provenance keeps the raw value; PDM raises `TypeError`
+    on a non-string `path` with no `source`; a multi-line version assignment
+    is no longer read by `attr`.
+18. `ProjectMetadata.readme` holds pyproject-metadata's joined, often absolute
+    path on the directory route (it never reaches the SBOM).
+19. `requires_python` from `[tool.poetry.dependencies] python` uses the old
+    caret/tilde converter (`^3.8` gives `>=3.8,<4.0.0`, poetry-core writes
+    `<4.0`; same meaning).
+20. Hatchling joins name-only authors into one `Author:` header, so a bare
+    wheel cannot recover the declared structure (the `INFO:` says so); the
+    directory route and the hook keep each declared name.
+21. Author edge cases: an escaped quote inside a partly quoted name records
+    nothing, with a warning; `Doe, a@x.org, b@x.org` drops `Doe` (warned); an
+    `Author` cut warns while the same text cut in `Author-email` does not;
+    a Poetry `path` dependency is skipped on the directory route while the
+    wheel carries a `file://` URL.
+22. `tests/extract/project/test_setuptools_dynamic.py` is 504 lines and
+    `tests/core/models_wheel/test_models_wheel_setuptools.py` 549.

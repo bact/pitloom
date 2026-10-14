@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-10
+Last-Modified: 2026-10-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -166,13 +166,27 @@ plans; the lesson holds without the code.
   metadata `Author:`, `setup.cfg` and `setup.py` are free text.
 - **Rule by field kind, not by surface.** The first version split `Author:`
   on the wheel route only, so one author list gave different SBOMs from a
-  wheel, a `setup.cfg` and a dependency's record. Built (#300): every
-  free-text field splits on `,` / `and` with one `WARNING:` per document,
-  naming the way to the declared names; a structured entry
-  (`[project].authors`, a quoted `Author-email` display name) never splits.
-  A heuristic (multi-word names, legal suffixes) was rejected: right often
+  wheel, a `setup.cfg` and a dependency's record. The second split every
+  free-text field on `,` / `and`; then measured builds (Hatchling, setuptools,
+  flit_core, pdm-backend) showed backends write a structured name-only author
+  (`{name = "Doe, Jane"}`) into `Author` verbatim, so one declared author
+  was one on the directory route and two from the wheel: the field cannot
+  tell a backend's one name from `setup.py` free text. Built (#300): the
+  address field, a list by RFC 5322 syntax, splits on `,` / `;` (never
+  `and`), with one `WARNING:` per document. The name field was at first
+  never split, so `Author: Ann <a@x.org>; Bob <b@x.org>` (free text, two
+  complete mailboxes) recorded nobody: one mailbox cannot hold two
+  addresses. The rule kept: one reader for both fields, differing only in
+  where a cut may happen; the name field is cut only where the text proves
+  a list, after a closed `<address>` or a bare address, never after a name,
+  so `Doe, Jane <j@x.org>` and `Jane, Bob` stay one author (a free-text
+  list of names in one `Author` is one author, the stated limit), and the
+  same two-mailbox text reads alike in `Author` and `Author-email`. A
+  heuristic (multi-word names, legal suffixes) was rejected: right often
   enough to hide where it is wrong.
-  Do: decide by the field's kind, warn rather than guess, state the limit.
+  Do: decide by what the writers put in the field, not what it may hold;
+  cut only where the text itself proves a boundary; check a reading
+  against real backend output on every route.
 - **Do not type a name you cannot type (design only).** SPDX 3.0.1 `Agent`
   is concrete and the range of `originatedBy`/`suppliedBy`; a lone handle
   (`TheBloke`, `Qwen`) is honest only as `Agent`. A wrong `Person` costs:

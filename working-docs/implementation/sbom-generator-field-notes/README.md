@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-10
+Last-Modified: 2026-10-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -47,6 +47,10 @@ the day it was added (2026-10-02 to 2026-10-10).
   packed versions, standard keys).
 - [messages-and-surfaces.md](messages-and-surfaces.md): absent vs
   failed; one message per event; surfaces that drift apart.
+- [open-research-questions.md](open-research-questions.md): where the
+  formats cannot say what a generator needs (a string that may be one value
+  or a list, author kinds, extras and scope, backend disagreements,
+  hostile input); each item says what was measured, chosen and left open.
 - [process-lessons.md](process-lessons.md): how the review rounds and
   test tiers were run; the merge bar; proving a test compaction.
 
