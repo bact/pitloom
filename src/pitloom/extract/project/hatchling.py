@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom._toml_io import load_toml_file
-from pitloom.core.project import ProjectMetadata, merge_project_metadata
+from pitloom.core.project import ProjectMetadata
 from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.extract._core_metadata import license_or_classifier
 from pitloom.extract._extract_utils import field_declared
@@ -31,8 +31,7 @@ from pitloom.extract._license import (
 )
 from pitloom.extract._license_detect import read_license_members
 from pitloom.extract.project._optional_dependencies import add_optional_dependencies
-from pitloom.extract.project._poetry_extras import defer_to_poetry_lists
-from pitloom.extract.project.pyproject import _try_read_poetry
+from pitloom.extract.project.pyproject import fill_from_poetry
 
 _PROVENANCE_SOURCE = "Source: Hatchling build backend"
 
@@ -40,17 +39,11 @@ _PROVENANCE_SOURCE = "Source: Hatchling build backend"
 def _poetry_fallback_metadata(
     metadata: ProjectMetadata, project_dir: Path
 ) -> tuple[ProjectMetadata, bool]:
-    """*metadata* with gaps filled from *project_dir*'s ``[tool.poetry]``,
-    and whether its dependency lists replace ``[project]``'s
-    (:func:`~pitloom.extract.project._poetry_extras.defer_to_poetry_lists`).
-
-    Mirrors the fallback :func:`~pitloom.extract.project.pyproject.read_pyproject`
-    already performs: re-reads ``pyproject.toml`` and reuses
-    :func:`~pitloom.extract.project.pyproject._try_read_poetry` so the Hatchling hook
-    path can also recover ``authors``/``keywords``/``urls`` (and similar)
-    from ``[tool.poetry]`` when ``[project]`` is incomplete. *metadata* is
-    returned as is when ``pyproject.toml`` is missing or has no usable
-    ``[tool.poetry]`` section.
+    """*metadata* with gaps filled from *project_dir*'s ``[tool.poetry]``
+    as :func:`~pitloom.extract.project.pyproject.read_pyproject` fills them
+    (:func:`~pitloom.extract.project.pyproject.fill_from_poetry`), and
+    whether its dependency lists replace ``[project]``'s. *metadata* is
+    returned as is when ``pyproject.toml`` is missing.
 
     Passes ``include_locked_dependencies=False``: this path runs from the
     Hatchling build hook (build/embed stage), where ``poetry.lock`` --
@@ -62,11 +55,9 @@ def _poetry_fallback_metadata(
     if not pyproject_path.exists():
         return metadata, False
     data: dict[str, Any] = load_toml_file(pyproject_path)
-    poetry_meta = _try_read_poetry(data, project_dir, include_locked_dependencies=False)
-    from_poetry = defer_to_poetry_lists(metadata, poetry_meta, data)
-    if poetry_meta is not None:
-        metadata = merge_project_metadata(metadata, poetry_meta)
-    return metadata, from_poetry
+    return fill_from_poetry(
+        metadata, data, project_dir, include_locked_dependencies=False
+    )
 
 
 def _declared_authors(authors: list[dict[str, str]]) -> list[dict[str, str]]:

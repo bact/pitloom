@@ -238,7 +238,7 @@ def test_fixture_read_poetry_main_dependencies_only() -> None:
     # main deps present
     assert "xformers" in dep_names
     assert "fire" in dep_names
-    assert "mistral_common" in dep_names
+    assert "mistral-common" in dep_names
     assert "safetensors" in dep_names
     assert "pillow" in dep_names
     # dev-group deps NOT present (pytest, ruff, mypy, etc.)

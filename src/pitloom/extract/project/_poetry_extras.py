@@ -4,8 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """``[tool.poetry.extras]``: which dependencies each extra lists, and
-whether Poetry builds the dependency lists from ``[tool.poetry]`` or
-``[project]``.
+which ``[tool.poetry]`` tables a build reads: whether Poetry builds the
+dependency lists from ``[tool.poetry]`` or ``[project]``, and whether the
+build backend is Poetry's at all.
 
 See also: :mod:`pitloom.extract.project.poetry` and
 :mod:`pitloom.extract.project.pyproject` (the callers).
@@ -19,10 +20,35 @@ from typing import Any
 
 from packaging.utils import canonicalize_name
 
-from pitloom.core.project import ProjectMetadata
-from pitloom.core.requirements import warn_skipped_extra_entry
+from pitloom.core.project import ProjectMetadata, provenance_key_for
+from pitloom.core.requirements import (
+    warn_skipped_dependency,
+    warn_skipped_extra_entry,
+)
+from pitloom.extract.project.setuptools import (
+    backend_identifier,
+    declared_build_backend,
+)
 
 log = logging.getLogger(__name__)
+
+#: ``[project] dynamic`` entries that make poetry-core add
+#: ``[tool.poetry.dependencies]`` to a ``[project]`` list.
+_LIST_FIELDS = {"dependencies", "optional-dependencies"}
+#: ``[tool.poetry]`` keys by the :class:`ProjectMetadata` field they fill.
+_GAP_FIELDS = {
+    "version": "version",
+    "description": "description",
+    "readme": "readme",
+    "authors": "authors",
+    "license": "license_name",
+    "keywords": "keywords",
+    "homepage": "urls",
+    "repository": "urls",
+    "documentation": "urls",
+    "dependencies": "dependencies",
+    "extras": "dependencies",
+}
 
 
 def project_lists_used(data: dict[str, Any]) -> bool:
@@ -70,12 +96,87 @@ def drop_ignored_extras(
     ``[tool.poetry.extras]``; with a ``WARNING:``."""
     if "extras" not in poetry or not project_lists_used(data):
         return poetry
-    _warn(
-        quiet,
-        "Ignoring [tool.poetry.extras]: [project] declares "
-        "dependencies or optional-dependencies, which Poetry reads instead",
+    warn_ignored_poetry_table(
+        "[tool.poetry.extras]",
+        "[project] declares dependencies or optional-dependencies, "
+        "which Poetry reads instead",
+        quiet=quiet,
     )
     return {key: value for key, value in poetry.items() if key != "extras"}
+
+
+def drop_ignored_dependencies(
+    poetry: dict[str, Any], data: dict[str, Any], *, quiet: bool
+) -> tuple[dict[str, Any], bool]:
+    """*poetry* with only the ``python`` key of ``dependencies``, and
+    ``True``, when poetry-core 2.4 ignores the table's dependencies:
+    ``[project]`` has a non-empty ``optional-dependencies`` entry, no
+    non-empty ``dependencies`` and lists neither in ``dynamic``
+    (``DependencyGroup.dependencies``, measured). One ``WARNING:`` when a
+    dependency is dropped."""
+    deps = poetry.get("dependencies")
+    project = data.get("project")
+    if not isinstance(deps, dict) or not isinstance(project, dict):
+        return poetry, False
+    optional = project.get("optional-dependencies")
+    dynamic = project.get("dynamic")
+    if (
+        project.get("dependencies")
+        or not (isinstance(optional, dict) and any(optional.values()))
+        or (isinstance(dynamic, list) and _LIST_FIELDS & set(map(str, dynamic)))
+    ):
+        return poetry, False
+    kept = {name: spec for name, spec in deps.items() if name.lower() == "python"}
+    if len(kept) < len(deps):
+        warn_ignored_poetry_table(
+            "[tool.poetry.dependencies]",
+            "[project] declares optional-dependencies and no dependencies, "
+            "which Poetry reads instead",
+            quiet=quiet,
+        )
+    return {**poetry, "dependencies": kept}, True
+
+
+def poetry_backend_reads(data: dict[str, Any]) -> bool:
+    """Whether the build backend reads ``[tool.poetry]``: it is Poetry's,
+    or no ``build-backend`` is declared (read as before, see
+    ``docs/dependency-sources.md``)."""
+    backend = declared_build_backend(data)
+    return backend is None or backend_identifier(backend) == "poetry"
+
+
+def warn_unread_poetry_fields(
+    metadata: ProjectMetadata, data: dict[str, Any], *, quiet: bool
+) -> None:
+    """One ``WARNING:`` naming the ``[tool.poetry]`` keys that would fill
+    a gap in *metadata* but are not read: the build backend is not
+    Poetry's (:func:`poetry_backend_reads`)."""
+    backend = declared_build_backend(data)
+    tool = data.get("tool")
+    poetry = tool.get("poetry") if isinstance(tool, dict) else None
+    if poetry_backend_reads(data) or not isinstance(poetry, dict):
+        return
+    unread = [
+        key
+        for key, field in _GAP_FIELDS.items()
+        if key in poetry
+        and not getattr(metadata, field)
+        and provenance_key_for(field) not in metadata.provenance
+    ]
+    if unread:
+        warn_ignored_poetry_table(
+            f"[tool.poetry] {', '.join(unread)}",
+            f"build-backend {backend!r} does not read it",
+            quiet=quiet,
+        )
+
+
+def warn_ignored_poetry_table(what: str, reason: str, *, quiet: bool) -> None:
+    """``WARNING:`` that *what* (a table, or a table's keys) is not read,
+    and why: the one wording of every ignored ``[tool.poetry]`` part.
+    Silent when *quiet*."""
+    if not quiet:
+        log.warning("Ignoring %s: %s", what, reason)
 
 
 def requirements_per_table(
@@ -139,16 +240,10 @@ def extras_requirements(
                     quiet=quiet,
                 )
     for key in sorted(optional - listed if warn_unlisted else ()):
-        _warn(
-            quiet,
-            "Skipping Poetry dependency %r: optional and listed "
-            "in no [tool.poetry.extras] extra",
+        warn_skipped_dependency(
+            "Poetry",
             entries[key][0],
+            "optional and listed in no [tool.poetry.extras] extra",
+            quiet=quiet,
         )
     return by_extra, listed
-
-
-def _warn(quiet: bool, message: str, *args: str) -> None:
-    """Log *message* at ``WARNING`` unless *quiet*."""
-    if not quiet:
-        log.warning(message, *args)

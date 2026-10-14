@@ -54,8 +54,10 @@ no license relationship -- Pitloom never asserts a license it was not told
   maintainers are not. The authors never make the copyright text: it is the
   notice lines found in the project's own `LICENSE`/`COPYING` files, else
   `NOASSERTION`. A free-text author field
-  (`Author`, `setup.cfg`/`setup.py` `author`) is split on `,` and `and`
-  with a `WARNING:`. A bare wheel's `METADATA` loses the declared order and
+  (`Author`, `Author-email`, `setup.cfg`/`setup.py` `author`) is split on
+  `,` and `;` (`Author`/`author` on `and` too; an `Author-email` entry such
+  as `Ann and Bob <t@x.org>` is one author) with a `WARNING:`; names and addresses are never paired
+  by position (`Jane, Bob` plus two addresses is four authors). A bare wheel's `METADATA` loses the declared order and
   poetry-core writes only the first author; `embed-wheel --project-dir` and
   an sdist with `pyproject.toml` keep it.
 - Detail: <https://bact.github.io/pitloom/dependency-sources/#extras-and-the-optional-edge>

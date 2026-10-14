@@ -43,8 +43,21 @@ __all__ = [
     "add_marker",
     "flatten_optional_dependencies",
     "normalize_dependency_specifier",
+    "warn_joined_extra_entry",
+    "warn_skipped_dependency",
     "warn_skipped_extra_entry",
 ]
+
+
+def warn_skipped_dependency(
+    source: str, entry: object, reason: str, *, quiet: bool = False
+) -> None:
+    """``WARNING:`` that the dependency *entry* declared in *source* (e.g.
+    ``Poetry``) is not listed: the wording of
+    :func:`warn_skipped_extra_entry` for an entry of no particular extra.
+    Silent when *quiet*."""
+    if not quiet:
+        log.warning("Skipping dependency %r (%s): %s", entry, source, reason)
 
 
 def warn_skipped_extra_entry(
@@ -57,6 +70,21 @@ def warn_skipped_extra_entry(
         log.warning(
             "Skipping extra entry %r of %r (%s): %s", entry, extra, source, reason
         )
+
+
+def warn_joined_extra_entry(entry: str, extras: Iterable[str]) -> None:
+    """``WARNING:`` that *entry*, requiring several *extras* together (a
+    requirement with an extra marker of its own, declared in another
+    extra), is recorded as optional for any of them: the wording of
+    :func:`warn_skipped_extra_entry` for an entry kept. Read when the
+    document is assembled, so never from a read whose value is discarded
+    (no *quiet*)."""
+    log.warning(
+        "Ignoring the inner extra condition of extra entry %r: recorded as"
+        " optional (extras: %s)",
+        entry,
+        ", ".join(sorted(extras)),
+    )
 
 
 def add_marker(req: Requirement, marker: str) -> None:

@@ -35,6 +35,10 @@ _A = {"name": "Ann", "email": "ann@example.com"}
 _B = {"name": "Bob", "email": "bob@example.com"}
 _A2 = {"name": "Ann", "email": "a@x.org"}
 _B2 = {"name": "Bob", "email": "b@x.org"}
+_JE = {"email": "j@x.org"}
+_J = {"name": "Jane", **_JE}
+#: The separators a split warning names: ``Author``'s, ``Author-email``'s.
+_ALL, _COMMAS = "',' / ';' / 'and'", "',' / ';'"
 #: The ``Author`` example of the core metadata specification, folded.
 _SPEC_AUTHOR = (
     "C. Schultz, Universal Features Syndicate,\n"
@@ -170,6 +174,20 @@ _SPEC_AUTHOR = (
             ],
         ),
         ("Ann <a@x.org>; Bob <b@x.org>", None, [_A2, _B2]),
+        # Author-email is split on , and ; as Author, never on "and": a
+        # part with no <, > or @ is a name
+        (None, "Doe, Jane <j@x.org>", [{"name": "Doe"}, _J]),
+        ("Doe", "Doe, Jane <j@x.org>", [{"name": "Doe"}, _J]),
+        (None, "Ann and Bob <b@x.org>", [{"name": "Ann and Bob", "email": "b@x.org"}]),
+        (None, "Ann and Bob", [{"name": "Ann and Bob"}]),
+        (None, "Jane <j@x.org> and others", [_J, {"name": "and others"}]),
+        (None, "Jane and others <j@x.org>", [{"name": "Jane and others", **_JE}]),
+        # Author is split as Author-email: quotes, ';', a bare address
+        ('"Doe, Jane", Ann', None, [{"name": "Doe, Jane"}, {"name": "Ann"}]),
+        ("\u201cDoe, Jane\u201d", None, [{"name": "Doe, Jane"}]),
+        ('""', None, []),
+        ("Ann; Bob", None, [{"name": "Ann"}, {"name": "Bob"}]),
+        ("a@x.org", "b@x.org", [{"email": "a@x.org"}, {"email": "b@x.org"}]),
     ],
     ids=[
         "author-only",
@@ -210,6 +228,17 @@ _SPEC_AUTHOR = (
         "group-word-address-only",
         "typographic-quotes",
         "semicolon-in-author",
+        "unquoted-comma-email",
+        "unquoted-comma-email-repeat",
+        "and-in-email",
+        "and-in-email-name",
+        "group-after-address-in-email",
+        "group-in-email",
+        "quoted-name-in-author",
+        "typographic-name-in-author",
+        "empty-quoted-name",
+        "semicolon-names",
+        "address-in-author",
     ],
 )
 def test_parse_core_metadata_authors(
@@ -227,11 +256,12 @@ def test_parse_core_metadata_authors(
 @pytest.mark.parametrize(
     ("author", "author_email", "expected", "unreadable"),
     [
+        # no <, > or @: a name, as in Author, not an address
         (
             "Jane",
             "john at example dot com",
-            [{"name": "Jane"}],
-            ["john at example dot com"],
+            [{"name": "john at example dot com"}, {"name": "Jane"}],
+            [],
         ),
         (
             None,
@@ -250,8 +280,8 @@ def test_parse_core_metadata_authors(
         ("Ann <none>", "Ann <a@b c>", [{"name": "Ann"}], ["Ann <a@b c>", "Ann <none>"]),
         (None, '"Doe, Jane" <x y>', [{"name": "Doe, Jane"}], ['"Doe, Jane" <x y>']),
         ("Jane <j@x, y.org>", None, [{"name": "Jane"}], ["Jane <j@x, y.org>"]),
-        # in an address field a comma ends an entry, even inside <...>
-        (None, "Jane <j@x, y.org>", [{"name": "Jane"}], ["Jane <j@x", "y.org>"]),
+        # a comma inside <...> ends no entry, in either field
+        (None, "Jane <j@x, y.org>", [{"name": "Jane"}], ["Jane <j@x, y.org>"]),
         (
             "Ann <a@b c>",
             "t@x.org",
@@ -261,7 +291,7 @@ def test_parse_core_metadata_authors(
         ("Unknown <a b>", None, [], ["Unknown <a b>"]),
     ],
     ids=[
-        "words",
+        "words-name",
         "semicolon",
         "partial",
         "unparsable",
@@ -319,24 +349,36 @@ def test_author_email_entry_without_an_address(
         ("Ann Lee", "ann@example.com", None),
         (None, '"Doe, Jane" <jane@example.com>', None),
         (None, '"Ann and Bob" <team@example.com>', None),
-        ("Ann, Bob", None, ("Ann, Bob", 2)),
-        ("Ann and Bob", None, ("Ann and Bob", 2)),
-        ("Ann, Bob and Cee", "Dan <dan@example.com>", ("Ann, Bob and Cee", 3)),
-        ("Ann, Bob", "team@example.com", ("Ann, Bob", 2)),
+        (None, "Ann and Bob <team@example.com>", None),
+        ("Ann, Bob", None, ("Ann, Bob", 2, _ALL)),
+        ("Ann and Bob", None, ("Ann and Bob", 2, _ALL)),
+        ("Ann, Bob and Cee", "Dan <dan@example.com>", ("Ann, Bob and Cee", 3, _ALL)),
+        ("Ann, Bob", "team@example.com", ("Ann, Bob", 2, _ALL)),
         # shown on one line
-        (_SPEC_AUTHOR, None, (" ".join(_SPEC_AUTHOR.split()), 4)),
+        (_SPEC_AUTHOR, None, (" ".join(_SPEC_AUTHOR.split()), 4, _ALL)),
         ("J. Smith et al.", None, None),
-        ("Smith, J. et al.", None, ("Smith, J. et al.", 2)),
+        ("Smith, J. et al.", None, ("Smith, J. et al.", 2, _ALL)),
         # a split right after an address is no guess
         ("Ann <a@x.org>, Bob <b@x.org>", None, None),
         ("Jane Doe <j@x.org> et al.", None, None),
         ("Jane Doe <j@x.org>, and others", None, None),
+        # Author-email splits on , and ; and warns as Author; one line for
+        # both fields, naming every separator used
+        (None, "Doe, Jane <j@x.org>", ("Doe, Jane <j@x.org>", 2, _COMMAS)),
+        ("Ann", "Doe, Jane <j@x.org>", ("Doe, Jane <j@x.org>", 2, _COMMAS)),
+        (None, "a@x.org, b@x.org", None),
+        (
+            "Ann, Bob",
+            "Doe, Jane <j@x.org>",
+            (["Doe, Jane <j@x.org>", "Ann, Bob"], 4, _ALL),
+        ),
     ],
     ids=[
         "single",
         "legacy-pair",
         "quoted-comma-whole",
         "quoted-and-whole",
+        "unquoted-and-whole",
         "comma",
         "and",
         "three-names",
@@ -347,18 +389,22 @@ def test_author_email_entry_without_an_address(
         "addresses",
         "address-then-group",
         "address-comma-group",
+        "email-comma",
+        "email-comma-author-whole",
+        "email-addresses",
+        "both-fields",
     ],
 )
 def test_split_author_warns_once(
     caplog: pytest.LogCaptureFixture,
     author: str | None,
     author_email: str | None,
-    warned: tuple[str, int] | None,
+    warned: tuple[str | list[str], int, str] | None,
     quiet: bool,
 ) -> None:
-    """A split ``Author`` gets one ``WARNING:`` per call naming the string
-    and the count; nothing split, or *quiet*, none -- no other line
-    either."""
+    """A split ``Author`` or ``Author-email`` gets one ``WARNING:`` per call
+    naming the strings, the count and the separators (``and`` only for
+    ``Author``); nothing split, or *quiet*, none -- no other line either."""
     msg = email.message.Message()
     if author is not None:
         msg["Author"] = author
@@ -370,17 +416,24 @@ def test_split_author_warns_once(
         assert caplog.messages == []
     else:
         (line,) = caplog.messages
-        assert line.startswith(f"AUTHOR={warned[0]!r}: split into {warned[1]} names")
+        field, count, on = warned
+        assert line.startswith(f"AUTHOR={field!r}: split into {count} names on {on};")
 
 
 def test_warn_splits_several_fields_is_one_line(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
+    """One line; each separator named once, in order."""
     with caplog.at_level(logging.WARNING):
-        splits = [AuthorSplit("A, B", 2), AuthorSplit("C and D and E", 3)]
+        splits = [
+            AuthorSplit("A, B", 2, ("','", "';'")),
+            AuthorSplit("C and D and E", 3),
+        ]
         warn_author_splits(splits, hint=CORE_METADATA_HINT)
     (line,) = caplog.messages
-    assert line.startswith("AUTHOR=['A, B', 'C and D and E']: split into 5 names")
+    assert line.startswith(
+        f"AUTHOR=['A, B', 'C and D and E']: split into 5 names on {_ALL};"
+    )
     assert "--project-dir" in line
 
 

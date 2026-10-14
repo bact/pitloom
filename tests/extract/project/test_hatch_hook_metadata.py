@@ -13,6 +13,7 @@ file-size soft limit.
 
 from __future__ import annotations
 
+import logging
 import tempfile
 from importlib.metadata import PackageNotFoundError
 from pathlib import Path
@@ -26,6 +27,7 @@ from pitloom.extract.project.hatchling import (
     _hatchling_field_declared,
     metadata_from_hatchling,
 )
+from pitloom.extract.project.pyproject import read_pyproject
 from pitloom.plugins.hatch import (
     _check_hatchling_sbom_support,
 )
@@ -272,14 +274,12 @@ def test_metadata_from_hatchling_tolerates_missing_license_file() -> None:
         assert metadata.license_name is None
 
 
-def test_metadata_from_hatchling_fills_gaps_from_poetry() -> None:
-    """``[tool.poetry]`` fills authors/keywords missing from ``[project]``.
-
-    ``read_pyproject`` (the CLI path) already recovers these fields from
-    ``[tool.poetry]`` via ``_try_read_poetry()``/``_merge_with_poetry()``;
-    the Hatchling hook path must do the same so a project relying on this
-    gap-fill is not silently incomplete when built via the hook.
-    """
+def test_metadata_from_hatchling_does_not_fill_gaps_from_poetry(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Hatchling does not read ``[tool.poetry]``: its ``authors`` and
+    ``keywords`` fill no gap in ``[project]``, with one ``WARNING:`` naming
+    them, on the hook and the CLI alike."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_pyproject(tmp_path, POETRY_GAP_FILL_PYPROJECT)
@@ -287,16 +287,22 @@ def test_metadata_from_hatchling_fills_gaps_from_poetry() -> None:
         hatch_pm = hatchling_metadata_core.ProjectMetadata(
             str(tmp_path), PluginManager()
         )
-        metadata = metadata_from_hatchling(hatch_pm, tmp_path)
+        with caplog.at_level(logging.WARNING):
+            hook = metadata_from_hatchling(hatch_pm, tmp_path)
+            cli, _ = read_pyproject(tmp_path / "pyproject.toml")
 
-        # [project] fields are untouched.
-        assert metadata.name == "testpkg"
+    for metadata in (hook, cli):
         assert metadata.description == "Test package."
-        # Fields absent from [project] are recovered from [tool.poetry].
-        assert metadata.authors == [
-            {"name": "Poetry Author", "email": "poetry@example.com"}
+        assert not metadata.authors
+        assert not metadata.keywords
+    assert (
+        caplog.messages
+        == [
+            "Ignoring [tool.poetry] authors, keywords: "
+            "build-backend 'hatchling.build' does not read it"
         ]
-        assert metadata.keywords == ["from-poetry", "gap-fill"]
+        * 2
+    )
 
 
 def test_check_hatchling_sbom_support_raises_when_metadata_missing() -> None:

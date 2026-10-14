@@ -23,8 +23,8 @@ import pytest
 from pitloom.extract.authors import (
     AUTHOR_FIELD_MAX_CHARS,
     AuthorSplit,
-    _outside_addresses,
-    _outside_quotes,
+    _outside_entries,
+    _parts,
     dependency_author_pairs,
     dependency_author_splits,
     read_author_fields,
@@ -54,7 +54,7 @@ def test_read_author_fields_warning(
     assert splits == ([AuthorSplit("Ann and Bob", 2)] if deferred else None)
     assert caplog.messages == (
         [
-            "AUTHOR='Ann and Bob': split into 2 names on ',' / 'and'; a free-text"
+            "AUTHOR='Ann and Bob': split into 2 names on ',' / ';' / 'and'; a free-text"
             " author field cannot tell a list from one name containing a comma"
             " -- HINT"
         ]
@@ -78,7 +78,7 @@ def test_dependency_splits_one_summary_per_document(
         dependency_author_pairs("c", "Fay", None)
         assert caplog.messages == []
     (line,) = caplog.messages
-    assert line.startswith("AUTHOR='Ann, Bob': split into 2 names on ',' / 'and'")
+    assert line.startswith("AUTHOR='Ann, Bob': split into 2 names on ',' / ';'")
     assert "(PACKAGE=a; 2 dependencies split in all)" in line
 
 
@@ -102,18 +102,18 @@ def test_dependency_split_outside_block_or_on_error(
 def test_dependency_address_problem_is_quiet(caplog: pytest.LogCaptureFixture) -> None:
     """Another project's unusable address is left out without a line."""
     with caplog.at_level(logging.WARNING), dependency_author_splits():
-        pairs = dependency_author_pairs("a", "Ann", "ann at example dot com")
+        pairs = dependency_author_pairs("a", "Ann", "ann@example dot com")
     assert pairs == [("Ann", None)]
     assert caplog.messages == []
 
 
-_NOT_ADDRESSES = "; ".join(f"x{i} at y" for i in range(1000))
+_NOT_ADDRESSES = "; ".join(f"x{i} at y@" for i in range(1000))
 _NOT_AN_ADDRESS = ": not an email address; "
 
 
-def _dependency_split() -> None:
+def _dependency_split(names: str | None, addresses: str | None) -> None:
     with dependency_author_splits():
-        dependency_author_pairs("a", "Ann, Bob", None)
+        dependency_author_pairs("a", names, addresses)
 
 
 @pytest.mark.parametrize(
@@ -122,21 +122,21 @@ def _dependency_split() -> None:
         (
             lambda: read_author_fields(None, _NOT_ADDRESSES),
             [
-                "AUTHOR_EMAIL=['x0 at y', 'x1 at y', 'x2 at y', ...]"
+                "AUTHOR_EMAIL=['x0 at y@', 'x1 at y@', 'x2 at y@', ...]"
                 f"{_NOT_AN_ADDRESS}1000 entries not recorded"
             ],
         ),
         (
-            lambda: read_author_fields("Ann <a b>, Bob <c d>", "e f"),
+            lambda: read_author_fields("Ann <a b>, Bob <c d>", "e@ f"),
             [
-                f"AUTHOR_EMAIL='e f'{_NOT_AN_ADDRESS}not recorded",
+                f"AUTHOR_EMAIL='e@ f'{_NOT_AN_ADDRESS}not recorded",
                 f"AUTHOR=['Ann <a b>', 'Bob <c d>']{_NOT_AN_ADDRESS}2 entries"
                 " not recorded",
             ],
         ),
         (
-            lambda: read_author_fields(None, "y" * 200),
-            [f"AUTHOR_EMAIL='{'y' * 120}'...{_NOT_AN_ADDRESS}not recorded"],
+            lambda: read_author_fields(None, "y@ " + "y" * 200),
+            [f"AUTHOR_EMAIL='y@ {'y' * 117}'...{_NOT_AN_ADDRESS}not recorded"],
         ),
         (
             lambda: read_author_fields("Ann, " + "b" * 200, None),
@@ -149,14 +149,29 @@ def _dependency_split() -> None:
             ["AUTHOR=['A, A', 'B, B', 'C, C', ...]: split into 8 names"],
         ),
         (
-            _dependency_split,
+            lambda: _dependency_split("Ann, Bob", None),
             [
-                "AUTHOR='Ann, Bob': split into 2 names on ',' / 'and' (PACKAGE=a;"
-                " 1 dependency split in all)"
+                "AUTHOR='Ann, Bob': split into 2 names on ',' / ';' / 'and'"
+                " (PACKAGE=a; 1 dependency split in all)"
+            ],
+        ),
+        (
+            lambda: _dependency_split(None, "Doe, Jane <j@x.org>"),
+            [
+                "AUTHOR='Doe, Jane <j@x.org>': split into 2 names on ',' / ';'"
+                " (PACKAGE=a; 1 dependency split in all)"
             ],
         ),
     ],
-    ids=["flood", "per-field", "cut", "split-cut", "splits-cut", "one-dependency"],
+    ids=[
+        "flood",
+        "per-field",
+        "cut",
+        "split-cut",
+        "splits-cut",
+        "one-dependency",
+        "dependency-address-field",
+    ],
 )
 def test_one_bounded_line_per_field(
     caplog: pytest.LogCaptureFixture, call: Callable[[], object], lines: list[str]
@@ -172,23 +187,43 @@ def test_one_bounded_line_per_field(
         assert message.startswith(line)
 
 
-#: The one-regex splits the one-pass splitters replace: the oracle.
-_OLD_NAME_SEPARATOR = re.compile(r"(?:,|\band\b)(?![^<>]*>)")
-_OLD_ENTRY_SEPARATOR = re.compile(r"""[,;](?=(?:[^"]*"[^"]*")*[^"]*$)""")
-_NAME_SEPARATOR = re.compile(r",|\band\b")
+#: The lookahead regex splits the one-pass splitter replaces: the oracle. A
+#: separator counts outside an ``<...>`` (no ``>`` before the next ``<``)
+#: and outside ``"`` quotes (an even number follow).
+_OUTSIDE = r"""(?![^<>]*>)(?=(?:[^"]*"[^"]*")*[^"]*$)"""
+_ENTRY_SEPARATOR = re.compile(r"[,;]")
+_AND = re.compile(r"\band\b")
 
 
-def test_one_pass_splitters_match_the_regex_splits() -> None:
+def _oracle_parts(text: str, splits_and: bool) -> list[str]:
+    """A field's stripped parts by the lookahead regexes: on ``,``/``;``,
+    then, in a name field, each part on ``and``."""
+    entry = re.compile(f"(?:{_ENTRY_SEPARATOR.pattern}){_OUTSIDE}")
+    and_ = re.compile(f"(?:{_AND.pattern}){_OUTSIDE}")
+    raw = [
+        name
+        for part in entry.split(text)
+        for name in (and_.split(part) if splits_and else [part])
+    ]
+    return [name.strip() for name in raw if name.strip()]
+
+
+def test_one_pass_splitter_matches_the_regex_splits() -> None:
     """Drift guard: on every short string of the significant ASCII
-    characters (unbalanced ``<``/``>``/``"`` too), the one-pass splits equal
-    the lookahead regex splits they replace."""
+    characters (unbalanced ``<``/``>``/``"`` too), the one-pass splits on
+    ``,``/``;`` and on ``and`` equal the lookahead regex splits, and so do
+    a name field's parts (on both) and an address field's (never on
+    ``and``)."""
     alphabet = ["a", "and", " ", ",", ";", '"', "<", ">", "x"]
     rng = random.Random(20261011)
     for _ in range(3000):
         text = "".join(rng.choice(alphabet) for _ in range(rng.randint(0, 9)))
-        names = _outside_addresses(text, _NAME_SEPARATOR)
-        assert names == _OLD_NAME_SEPARATOR.split(text), text
-        assert _outside_quotes(text) == _OLD_ENTRY_SEPARATOR.split(text), text
+        for separator in (_ENTRY_SEPARATOR, _AND):
+            oracle = re.compile(f"(?:{separator.pattern}){_OUTSIDE}")
+            assert _outside_entries(text, separator) == oracle.split(text), text
+        for splits_and in (True, False):
+            parts = _parts(text, splits_and)[0]
+            assert parts == _oracle_parts(text, splits_and), (text, splits_and)
 
 
 @pytest.mark.parametrize(
@@ -212,7 +247,7 @@ def test_typographic_quotes_hold_an_entry_together(
 ) -> None:
     """A typographic opening quote holds ``,``/``;`` until its closing
     quote; a closing quote alone (an apostrophe) holds nothing."""
-    assert _outside_quotes(text) == entries
+    assert _outside_entries(text, _ENTRY_SEPARATOR) == entries
 
 
 def _fastest(call: Callable[[], object]) -> float:
@@ -225,18 +260,23 @@ def _fastest(call: Callable[[], object]) -> float:
     return min(times)
 
 
-def _split_names(text: str) -> list[str]:
-    return _outside_addresses(text, _NAME_SEPARATOR)
+def _split_entries(text: str) -> list[str]:
+    return _outside_entries(text, _ENTRY_SEPARATOR)
+
+
+def _split_ands(text: str) -> list[str]:
+    return _outside_entries(text, _AND)
 
 
 @pytest.mark.parametrize(
     ("split", "unit"),
     [
-        ("_split_names", "a,"),
-        ("_split_names", "a and "),
-        ("_outside_quotes", '"x",'),
+        ("_split_entries", "a,"),
+        ("_split_ands", "a and "),
+        ("_split_entries", '"x",'),
+        ("_split_entries", "\u201cx\u201d,"),
     ],
-    ids=["commas", "ands", "quotes"],
+    ids=["commas", "ands", "quotes", "typographic-quotes"],
 )
 def test_the_splitters_run_in_linear_time(split: str, unit: str) -> None:
     """Regression: the lookahead splits rescanned the rest of the text at

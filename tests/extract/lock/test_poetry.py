@@ -383,9 +383,8 @@ def test_non_pep508_sourced_package_excluded(
     source_type: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     """Regression: a poetry.lock entry resolved from a local path or VCS
-    has no meaningful PyPI version pin -- it must be excluded the same way
-    `_poetry_dep_to_pep508()` excludes it from direct dependencies, not
-    emitted as a misleading ``name==version`` PyPI pin."""
+    has no meaningful PyPI version pin -- it must be excluded, not emitted
+    as a misleading ``name==version`` PyPI pin."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_lock(

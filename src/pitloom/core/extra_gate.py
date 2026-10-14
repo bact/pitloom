@@ -16,14 +16,21 @@ pins asked for the project's extras
 from __future__ import annotations
 
 import re
-from typing import TypeAlias
+from typing import NamedTuple, TypeAlias
 
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
 from pitloom.core.pep508 import MAX_MARKER_NESTING, marker_nesting
 
-__all__ = ["Gate", "MarkerShapeError", "is_extra_gated", "parse_gate"]
+__all__ = [
+    "Gate",
+    "GateReading",
+    "MarkerShapeError",
+    "is_extra_gated",
+    "parse_gate",
+    "read_gate",
+]
 
 #: The extras a requirement is gated by, or ``None`` when it is required
 #: (no extra gate). Never empty.
@@ -36,6 +43,18 @@ _TOKEN = re.compile(
 
 class MarkerShapeError(ValueError):
     """The marker's extra gate cannot be isolated from its other terms."""
+
+
+class GateReading(NamedTuple):
+    """A marker's extra gate, and the extras an ``and`` requires together."""
+
+    gate: Gate
+    #: The extras of every ``and`` requiring two or more different extras
+    #: at once (``extra == "x" and extra == "dev"``: a requirement with an
+    #: extra marker of its own, declared in another extra); empty if none.
+    #: Each such ``and`` gates by any of its extras, the condition that
+    #: they hold together ignored.
+    joined: frozenset[str]
 
 
 # pylint: disable-next=too-few-public-methods
@@ -54,6 +73,7 @@ class _GateParser:
             self._tokens.append(match.group().strip())
             pos = match.end()
         self._pos = 0
+        self.joined: set[str] = set()
 
     def parse(self) -> Gate:
         """The whole marker's gate."""
@@ -90,10 +110,13 @@ class _GateParser:
         while self._peek() == "and":
             self._pos += 1
             gates.append(self._atom())
-        extra_gates = [gate for gate in gates if gate is not None]
+        extra_gates = {gate for gate in gates if gate is not None}
+        if not extra_gates:
+            return None
+        union: frozenset[str] = frozenset().union(*extra_gates)
         if len(extra_gates) > 1:
-            raise MarkerShapeError("extra and extra")
-        return extra_gates[0] if extra_gates else None
+            self.joined |= union
+        return union
 
     def _atom(self) -> Gate:
         if self._peek() == "(":
@@ -116,9 +139,11 @@ class _GateParser:
         return frozenset({canonicalize_name(value[1:-1])})
 
 
-def parse_gate(marker: str) -> Gate:
-    """The extra gate of a requirement whose marker reads *marker*:
-    ``None`` when it names no extra.
+def read_gate(marker: str) -> GateReading:
+    """The extra gate of a requirement whose marker reads *marker*
+    (``None`` when it names no extra), and the extras an ``and`` requires
+    together (:attr:`GateReading.joined`): ``extra == "x" and extra ==
+    "dev"`` is gated by ``dev`` and ``x``, as an ``or`` of them.
 
     Raises:
         MarkerShapeError: the gate cannot be isolated (``extra == "a" or
@@ -128,10 +153,21 @@ def parse_gate(marker: str) -> Gate:
     """
     if marker_nesting(marker, marker=True) > MAX_MARKER_NESTING:
         raise MarkerShapeError("nested too deep")
+    parser = _GateParser(marker)
     try:
-        return _GateParser(marker).parse()
+        gate = parser.parse()
     except RecursionError as exc:
         raise MarkerShapeError("nested too deep") from exc
+    return GateReading(gate, frozenset(parser.joined))
+
+
+def parse_gate(marker: str) -> Gate:
+    """The extra gate of :func:`read_gate`.
+
+    Raises:
+        MarkerShapeError: as :func:`read_gate`.
+    """
+    return read_gate(marker).gate
 
 
 def is_extra_gated(req: Requirement) -> bool:

@@ -107,7 +107,6 @@ def test_dependency_edge(
     [
         'foo; extra != "x"',
         'foo; extra == "a" or python_version < "3.9"',
-        'foo; extra == "a" and extra == "b"',
         'foo; extra in "ab"',
         'foo; "a" not in extra',
         'foo; extra == ""',
@@ -117,7 +116,6 @@ def test_dependency_edge(
     ids=[
         "not-equal",
         "or-python",
-        "and-extra",
         "in",
         "not-in",
         "empty-name",
@@ -136,6 +134,48 @@ def test_unisolatable_extra_gate_is_required_with_one_warning(
         f"Dependency 'foo' declared as {dep!r} has an extra marker that can't be"
         " isolated -- recorded as a required dependency"
     ]
+
+
+#: An entry with its own extra marker, declared in extra ``dev``, as each
+#: backend writes it to ``Requires-Dist``: (marker, comment, warned).
+_JOINED = {
+    "setuptools-pdm": ('extra == "x" and extra == "dev"', "extras: dev, x", True),
+    "hatchling": ("(extra == 'x') and extra == 'dev'", "extras: dev, x", True),
+    "flit": ("extra == \"dev\" and ( extra == 'x')", "extras: dev, x", True),
+    "or-and": (
+        '(extra == "a" or extra == "b") and extra == "dev"',
+        "extras: a, b, dev",
+        True,
+    ),
+    "same-extra": ('extra == "dev" and extra == "dev"', "extras: dev", False),
+    "hatchling-same": ("(extra == 'dev') and extra == 'dev'", "extras: dev", False),
+}
+
+
+@pytest.mark.parametrize(
+    ("marker", "comment", "warned"), _JOINED.values(), ids=list(_JOINED)
+)
+def test_entry_requiring_extras_together_is_optional(
+    marker: str, comment: str, warned: bool, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Regression: ``foo; extra == 'x'`` declared in extra ``dev`` (``extra
+    == "x" and extra == "dev"``) was recorded as required, though never
+    installed without an extra. It is optional for any of them, with one
+    ``WARNING:`` that the inner condition is ignored; an extra repeated
+    is no inner condition."""
+    dep = f"foo; {marker}"
+    with caplog.at_level("WARNING"):
+        edge = dependency_edge([dep, dep], "demo")
+
+    assert (edge.rel_type, edge.scope, edge.comment) == (_OPT, None, comment)
+    assert caplog.messages == (
+        [
+            f"Ignoring the inner extra condition of extra entry {dep!r}: recorded"
+            f" as optional ({comment})"
+        ]
+        if warned
+        else []
+    )
 
 
 def test_unparsable_dependency_is_required_with_one_warning(

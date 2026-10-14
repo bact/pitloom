@@ -24,9 +24,9 @@ and this project adheres to
 
 ### Added
 
-- Every route but `loom env` lists the project's extras as
-  `hasOptionalDependency` (no scope, comment `extras: a, b`), pinned by
-  `uv.lock`, `poetry.lock` and `pdm.lock` ([#300])
+- Every route but `loom env` lists extras as `hasOptionalDependency` (no
+  scope, `extras: a, b`, an inner extra marker joined, warned), pinned by
+  `uv.lock`, `poetry.lock`, `pdm.lock` ([#300])
 - A directory reads `[tool.setuptools.dynamic]` `file =` requirements for
   dependencies and extras ([#300])
 - Every `[project].authors` entry is an `originatedBy` of the main package,
@@ -38,11 +38,11 @@ and this project adheres to
 - Required, locked and phantom edges are `dependsOn` with scope `runtime` (not
   in `loom env`); `doc_uuid` changes for a project with extras or requirements
   files ([#300])
-- Free-text author fields (`Author`, `setup.cfg`/`setup.py` `author`, a
-  dependency's) are split on `,`/`and` on every route, one `WARNING:` per SBOM
-  ([#300])
+- Free-text `Author`/`Author-email` (core metadata, `setup.cfg`, `setup.py`, a
+  dependency's) split alike on `,`/`;` (`Author` on `and` too), one
+  `WARNING:` per SBOM ([#300])
 - Author splitting reads up to 65,536 characters/1,000 names, keeps a quoted
-  `Author-email` name (`"…"`, `“…”`) whole and finds an `and others`/`et al.`
+  name (`"…"`, `“…”`) whole and finds an `and others`/`et al.`
   group in each part ([#300])
 - `copyrightText` is a notice from the project's licence files (never a GNU
   licence's own FSF notice), else `NOASSERTION`; no longer made from the
@@ -53,9 +53,9 @@ and this project adheres to
 
 ### Fixed
 
-- Poetry `optional = true` dependencies are no longer required; a Poetry 2
-  `[tool.poetry]` without `name` is read; an sdist keeps every
-  `[tool.poetry].authors` entry ([#300])
+- Poetry dependencies match poetry-core's (`optional`, `markers`/`python`,
+  git/url, extras; `path` warns), read only for a Poetry backend; a nameless
+  2.x `[tool.poetry]` is read; an sdist keeps all its authors ([#300])
 - An author named `... Brothers` is a Person, not a group; a setuptools
   `UNKNOWN` author is no author; a stated name stays beside an invalid
   address, warned once per field ([#300])

@@ -6,7 +6,9 @@
 """Extras of real published ``pyproject.toml`` files, one or more per backend.
 
 See also: ``tests/fixtures/real-world-extras/README.md`` (the fixtures) and
-:mod:`tests.extract.project.test_optional_dependencies` (synthetic cases).
+:mod:`tests.extract.project.test_optional_dependencies` (synthetic cases);
+``test_poetry_requirements.py`` builds cachy with poetry-core and compares
+the directory, sdist and wheel routes.
 """
 
 import re
@@ -72,8 +74,8 @@ _PINNED = {
         'tomli; python_version < "3.11"',
     ],
     "cachy": [
-        'msgpack-python<0.6.0,>=0.5; extra == "msgpack"',
-        'python-memcached<2.0.0,>=1.59; extra == "memcached"',
+        'msgpack-python<0.6,>=0.5; extra == "msgpack"',
+        'python-memcached<2.0,>=1.59; extra == "memcached"',
         'redis<4.0.0,>=3.3.6; extra == "redis"',
     ],
 }

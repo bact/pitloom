@@ -56,8 +56,9 @@ def parse_core_metadata_authors(
 ) -> list[dict[str, str]]:
     """A package's own authors from ``Author``/``Author-email``, by
     :func:`~pitloom.extract.authors.read_author_fields`: the one reading of
-    a free-text author field on every surface. A split ``Author`` warns
-    once per call (unless *quiet*), or is appended to *splits* when given.
+    a free-text author field on every surface. A split ``Author`` or
+    ``Author-email`` warns once per call (unless *quiet*), or is appended
+    to *splits* when given.
 
     A route that also has the ``pyproject.toml`` (an sdist,
     ``embed-wheel --project-dir``) uses its declared authors instead.

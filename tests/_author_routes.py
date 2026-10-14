@@ -5,8 +5,9 @@
 
 """Shared builders for the author surface tests.
 
-See also: tests/test_author_surfaces.py and
-tests/test_author_split_surfaces.py (the users).
+See also: tests/test_author_surfaces.py,
+tests/test_author_split_surfaces.py and tests/test_author_split_warnings.py
+(the users).
 """
 
 from __future__ import annotations
@@ -20,6 +21,16 @@ from pitloom.core.creation import CreationMetadata
 from tests.extract.conftest import make_hook
 
 CREATED = CreationMetadata(creation_datetime="2024-05-01T00:00:00Z")
+#: In every author split ``WARNING:``, whichever field was split.
+SPLIT_MARK = "names on ',' / ';'"
+
+
+def core_headers(author: str | None, email_: str | None) -> str:
+    """A ``demo`` core-metadata text with these ``Author`` and
+    ``Author-email`` headers, each left out when ``None``."""
+    text = "Metadata-Version: 2.4\nName: demo\nVersion: 1.0\n"
+    text += f"Author: {author}\n" if author is not None else ""
+    return text + (f"Author-email: {email_}\n" if email_ is not None else "")
 
 
 def isolate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

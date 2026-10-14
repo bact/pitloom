@@ -40,7 +40,11 @@ from pitloom.extract._license_detect import read_license_members
 from pitloom.extract.lock._common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract.lock.poetry import extract_poetry_lock_dependencies
 from pitloom.extract.lock.poetry_hash import extract_poetry_lock_hashes
-from pitloom.extract.project._poetry_extras import defer_to_poetry_lists
+from pitloom.extract.project._poetry_extras import (
+    defer_to_poetry_lists,
+    poetry_backend_reads,
+    warn_unread_poetry_fields,
+)
 from pitloom.extract.project._poetry_fields import read_poetry_section
 from pitloom.extract.project._pyproject_deep import hold_deep_requirements
 from pitloom.extract.project._pyproject_fields import (
@@ -332,16 +336,13 @@ def read_pyproject(
     # Before the merge: a non-empty list wins it whole, as a static one.
     dynamic = read_setuptools_dynamic(data, pyproject_path.parent, quiet=quiet)
     dynamic.add_dependencies(metadata)
-    # Fill any remaining gaps from [tool.poetry] (project fields win).
-    poetry_meta = _try_read_poetry(
+    metadata, from_poetry = fill_from_poetry(
+        metadata,
         data,
         pyproject_path.parent,
         include_locked_dependencies=include_locked_dependencies,
         quiet=quiet,
     )
-    from_poetry = defer_to_poetry_lists(metadata, poetry_meta, data)
-    if poetry_meta is not None:
-        metadata = merge_project_metadata(metadata, poetry_meta)
     dynamic.add_extras(
         metadata,
         held.restore_optional(
@@ -358,14 +359,54 @@ def read_pyproject(
     return metadata, pitloom_config
 
 
+def fill_from_poetry(
+    metadata: ProjectMetadata,
+    data: dict[str, Any],
+    project_dir: Path,
+    *,
+    include_locked_dependencies: bool,
+    quiet: bool = False,
+) -> tuple[ProjectMetadata, bool]:
+    """*metadata*, read from ``[project]``, with its gaps filled from
+    ``[tool.poetry]`` (``[project]`` fields win), and whether its
+    dependency lists replace ``[project]``'s
+    (:func:`~pitloom.extract.project._poetry_extras.defer_to_poetry_lists`):
+    the one gap-fill of the CLI and the Hatchling hook.
+
+    Only a Poetry build backend, or none declared, reads ``[tool.poetry]``
+    (:func:`~pitloom.extract.project._poetry_extras.poetry_backend_reads`);
+    for any other, a ``[tool.poetry]`` key that would fill a gap is
+    reported with one ``WARNING:`` and only ``poetry.lock`` is applied.
+    *include_locked_dependencies* and *quiet* are :func:`_try_read_poetry`'s.
+    """
+    read_fields = poetry_backend_reads(data)
+    if not read_fields:
+        warn_unread_poetry_fields(metadata, data, quiet=quiet)
+    poetry_meta = _try_read_poetry(
+        data,
+        project_dir,
+        include_locked_dependencies=include_locked_dependencies,
+        quiet=quiet,
+        read_fields=read_fields,
+    )
+    from_poetry = defer_to_poetry_lists(metadata, poetry_meta, data)
+    if poetry_meta is not None:
+        metadata = merge_project_metadata(metadata, poetry_meta)
+    return metadata, from_poetry
+
+
 def _try_read_poetry(
     data: dict[str, Any],
     project_dir: Path,
     *,
     include_locked_dependencies: bool = True,
     quiet: bool = False,
+    read_fields: bool = True,
 ) -> ProjectMetadata | None:
     """Return poetry metadata when ``[tool.poetry]`` is present, else ``None``.
+
+    Without *read_fields*, ``[tool.poetry]``'s own fields are not read:
+    only ``poetry.lock`` (``None`` when it is not read either).
 
     When *include_locked_dependencies* is true (the default, used by every
     ``read_pyproject()`` caller), also reads a sibling ``poetry.lock`` for
@@ -394,22 +435,27 @@ def _try_read_poetry(
         if include_locked_dependencies
         else None
     )
-    try:
-        metadata = extract_poetry_metadata(data, project_dir, quiet=quiet)
-    except (ValueError, KeyError) as exc:
+    if not read_fields:
         if locked_dependencies is None:
             return None
-        # Not quiet-gated: reachable only with include_locked_dependencies,
-        # which resolve_project_with_lockfile()'s peek never passes, so
-        # this is the warning's one emission, never a repeat.
-        log.warning(
-            "%s: [tool.poetry] metadata could not be parsed (%s) -- "
-            "skipping Poetry gap-fill, but still applying poetry.lock's "
-            "resolved dependencies",
-            project_dir,
-            exc,
-        )
         metadata = ProjectMetadata(name="")
+    else:
+        try:
+            metadata = extract_poetry_metadata(data, project_dir, quiet=quiet)
+        except (ValueError, KeyError) as exc:
+            if locked_dependencies is None:
+                return None
+            # Not quiet-gated: reachable only with include_locked_dependencies,
+            # which resolve_project_with_lockfile()'s peek never passes, so
+            # this is the warning's one emission, never a repeat.
+            log.warning(
+                "%s: [tool.poetry] metadata could not be parsed (%s) -- "
+                "skipping Poetry gap-fill, but still applying poetry.lock's "
+                "resolved dependencies",
+                project_dir,
+                exc,
+            )
+            metadata = ProjectMetadata(name="")
     if locked_dependencies is not None:
         metadata.locked_dependencies = locked_dependencies
         metadata.provenance["locked_dependencies"] = (

@@ -495,21 +495,33 @@ agents. The authors never make the copyright text (see
 [How the copyright text is found](#how-the-copyright-text-is-found)).
 
 A structured entry is one author, never split: a `[project].authors` table,
-a Poetry `authors` string, a quoted display name in `Author-email` (one
-mailbox, RFC 5322: `"Ann, Bob" <team@example.com>` is one author named
+a Poetry `authors` string, a quoted display name in `Author` or
+`Author-email` (one mailbox, RFC 5322: `"Ann, Bob" <team@example.com>` is one author named
 `Ann, Bob`; typographic quotes, `“Ann, Bob”`, hold a name together too). A free-text field cannot tell a list from one name containing
-a comma, so it is split on `,` and `and`, with one `WARNING:` per SBOM:
-core-metadata `Author` (a wheel's `METADATA`, an sdist's `PKG-INFO`),
-`setup.cfg` `author`, `setup.py` `author=`, and a dependency's `Author` or
-`Maintainer` (one line for all dependencies, naming the first and the
-count). Each comma-separated part is tested on its own for a contributor
+a comma, so it is split on `,` and `;` outside quotes and `<...>`, a name
+field's parts on `and` too, with one `WARNING:` per SBOM (`split into 2
+names on ',' / ';' / 'and'`, or `on ',' / ';'` when only an address field
+was split): core-metadata `Author` and `Author-email` (a
+wheel's `METADATA`, an sdist's `PKG-INFO`), `setup.cfg` `author` and
+`author_email`, `setup.py` `author=` and `author_email=`, and a dependency's
+`Author` or `Maintainer` fields (one line for all dependencies, naming the
+first and the count). Each comma-separated part is tested on its own for a contributor
 group, which is not split on `and`: `Jane and others` is the same
 `Organization` as in a table, and Hatchling's `Doe, Jane, Ann and others`
 (name-only authors joined) reads as `Doe`, `Jane` and the group `Ann and
 others`. A split part ending in `<address>` is read as a name and address,
 and a group after it is its own (`Jane <j@x.org> et al.` is `Jane` with
 the address, and `et al.`); a split right after an address is not warned
-about. A free-text field is read up to 65,536 characters and 1,000 names (or
+about. Both fields are read alike, a part with no `<`, `>` or `@` a name
+(`Author-email: john at example dot com` is a `Person` of that name, with
+no warning): `Author-email: Doe, Jane <j@x.org>` is `Doe`, and `Jane` with
+the address. An `Author-email` entry is never split on `and`: `Ann and Bob
+<t@x.org>`, as backends write `{name = "Ann and Bob", email = "t@x.org"}`,
+is one author on every route; in `Author`, where backends write a name-only
+author and `setup.py` free text lands alike, `Ann and Bob` is two. Names and addresses are never paired
+by position, as a reordered or partial field would pair them wrongly:
+`Author: Jane, Bob` with `Author-email: a@x.org, b@x.org` is four authors;
+only one name beside one bare address is one author. A free-text field is read up to 65,536 characters and 1,000 names (or
 address entries); past either, the rest is not read, with one `WARNING:`
 when the authors read are used (not for `PKG-INFO` authors an sdist's
 `pyproject.toml` replaces). The
@@ -517,7 +529,8 @@ core metadata specification's `Author` example, `C. Schultz, Universal Features
 Syndicate, Los Angeles, CA <cschultz@peanuts.example.com>`, reads as four
 authors, the last `CA` with the address. An address is checked as written
 (`a@b c` is not `a@bc`), a comma inside `<...>` included: an address of
-the project's own that is no address is not recorded, with one `WARNING:`
+the project's own (an entry holding `<`, `>` or `@`) that is no address
+is not recorded, with one `WARNING:`
 per field naming the first three and how many (`AUTHOR_EMAIL=['a', 'b',
 'c', ...]: not an email address; 5 entries not recorded`),
 and a name stated before it is kept (`Ann <a@b c>` is `Ann`). The `UNKNOWN` older

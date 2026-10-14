@@ -23,8 +23,9 @@ from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.core.extra_gate import Gate, MarkerShapeError, parse_gate
+from pitloom.core.extra_gate import Gate, MarkerShapeError, read_gate
 from pitloom.core.pep508 import parse_requirement
+from pitloom.core.requirements import warn_joined_extra_entry
 
 log = logging.getLogger(__name__)
 
@@ -70,14 +71,17 @@ def _warn_required(message: str, *args: str) -> None:
 def _gate(dep: str, req: Requirement | None, *, self_reference: bool) -> Gate:
     """*dep*'s extra gate. A marker whose gate cannot be isolated, or a
     *dep* that is not PEP 508 (*req* ``None``), counts as required, with a
-    ``WARNING:`` worded for a *self_reference* or another dependency."""
+    ``WARNING:`` worded for a *self_reference* or another dependency. One
+    requiring several extras together is never installed without an extra:
+    optional for any of them, with a ``WARNING:``
+    (:func:`~pitloom.core.requirements.warn_joined_extra_entry`)."""
     if req is None:
         _warn_required("Dependency %r is not a valid PEP 508 requirement", dep)
         return None
     if req.marker is None:
         return None
     try:
-        return parse_gate(str(req.marker))
+        reading = read_gate(str(req.marker))
     except MarkerShapeError:
         if self_reference:
             log.warning(
@@ -95,6 +99,9 @@ def _gate(dep: str, req: Requirement | None, *, self_reference: bool) -> Gate:
                 dep,
             )
         return None
+    if reading.joined:
+        warn_joined_extra_entry(dep, reading.joined)
+    return reading.gate
 
 
 # pylint: disable-next=too-few-public-methods

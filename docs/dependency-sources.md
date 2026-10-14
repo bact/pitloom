@@ -62,7 +62,23 @@ Poetry's `[tool.poetry.extras]` is ignored, with a `WARNING:`, when
 Poetry 2 does. A `[project]` list declared empty counts as absent there:
 Poetry then builds from `[tool.poetry.dependencies]` and
 `[tool.poetry.extras]`. A Poetry `optional = true` dependency that no
-extra lists is skipped with a `WARNING:`.
+extra lists is skipped with a `WARNING:`. `[tool.poetry.dependencies]` is
+ignored too, with a `WARNING:`, when `[project]` has an extra with a
+requirement, no `dependencies` and neither in `dynamic`, as poetry-core
+does.
+
+Each Poetry dependency is read as poetry-core writes it: its version
+constraint (`^1.0` is `>=1.0,<2.0`), `extras` (`name[a,b]`), a `git` or
+`url` source (`name @ git+https://…@rev`) and its `markers`, `python` and
+`platform` keys as one marker. Where two or more of those keys combine,
+poetry-core simplifies the joined marker and Pitloom keeps each term: the
+same environments match. A `path` dependency is skipped with a `WARNING:`
+(a local path is not portable).
+
+`[tool.poetry]` fills what `[project]` leaves out only when the
+`build-backend` is Poetry's or none is declared; for another backend, one
+`WARNING:` names the `[tool.poetry]` keys not read, and only `poetry.lock`
+is used.
 
 A setuptools project may list `dependencies` or `optional-dependencies` in
 `[project] dynamic` and name requirements files for them in
@@ -95,7 +111,10 @@ dependency needs it: Pitloom reads which packages a lock resolved, not which
 package needs which. A requirement that is not valid PEP 508 (one whose
 marker nests over 64 parentheses deep counts as one), or whose marker's
 extra condition cannot be isolated (`extra == "a" or python_version <
-"3.9"`), is recorded as required, with a `WARNING:`.
+"3.9"`), is recorded as required, with a `WARNING:`. One with an extra
+condition of its own inside an extra (`foo; extra == 'x'` in `dev`) is
+optional for both (`extras: dev, x`), its inner condition ignored with a
+`WARNING:`.
 For the same reason a package only the lock names (a transitive one) is
 `dependsOn` with scope `runtime`, even if only an extra's requirement
 needs it: the lock does not say.

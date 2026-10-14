@@ -233,8 +233,9 @@ def _stated_author_options(merged: SetupOptions, cfg: SetupOptions) -> SetupOpti
 def _authors(merged: SetupOptions, quiet: bool) -> list[dict[str, str]]:
     """``author`` and ``author_email`` read as setuptools writes them to
     ``Author`` and ``Author-email`` and a wheel's reader reads them back
-    (:func:`~pitloom.extract.authors.read_author_fields`): ``author`` is a
-    free-text field, split on commas and ``and`` with a ``WARNING:``."""
+    (:func:`~pitloom.extract.authors.read_author_fields`): each is a
+    free-text field, split on ``,`` and ``;`` (``author`` on ``and`` too)
+    with a ``WARNING:``."""
     return read_author_fields(
         _value(merged, "author"), _value(merged, "author_email"), quiet=quiet
     )

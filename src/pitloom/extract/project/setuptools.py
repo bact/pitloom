@@ -79,6 +79,8 @@ __all__ = [
     "_read_pitloom_config_from_cfg",
     "_resolve_cfg_version",
     "_section_dict",
+    "backend_identifier",
+    "declared_build_backend",
     "detect_build_backend",
     "read_pyproject_toml",
     "read_setup_cfg",
@@ -177,17 +179,28 @@ def detect_build_backend(
         if data is None:
             return _detect_setuptools_from_legacy_files(project_dir)
 
-    build_system = data.get("build-system", {})
-    build_backend = ""
-    if isinstance(build_system, dict):
-        raw_backend = build_system.get("build-backend", "")
-        if isinstance(raw_backend, str):
-            build_backend = raw_backend
-    if not build_backend:
+    build_backend = declared_build_backend(data)
+    if build_backend is None:
         # PEP 518-only pyproject.toml (no build-backend key) -- still a
         # real setuptools project if setup.cfg/setup.py back it up, same
         # fallback as when pyproject.toml is absent entirely.
         return _detect_setuptools_from_legacy_files(project_dir)
+    return backend_identifier(build_backend)
+
+
+def declared_build_backend(data: dict[str, object]) -> str | None:
+    """*data*'s ``[build-system] build-backend``, or ``None`` when it is
+    absent, empty or not a string."""
+    build_system = data.get("build-system")
+    backend = (
+        build_system.get("build-backend") if isinstance(build_system, dict) else None
+    )
+    return backend if isinstance(backend, str) and backend else None
+
+
+def backend_identifier(build_backend: str) -> str:
+    """The lower-case identifier of *build_backend*, matched on its
+    top-level module name (``poetry.core.masonry.api`` is ``poetry``)."""
     top_level = build_backend.split(":")[0].split(".")[0].lower()
     return _KNOWN_BACKEND_ALIASES.get(top_level, top_level)
 

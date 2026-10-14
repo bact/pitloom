@@ -112,14 +112,15 @@ its headers only (at most 16 MiB and 10,000 headers); past a cap, one
 declared. Backends write a name-only author into the free-text `Author`
 field, so authors with an email address are read first, then name-only
 ones; a name-only author beside a single email-only one reads as one
-author; and poetry-core writes only the first author. With `embed-wheel
+author, but two of each read as four (never paired by position); and
+poetry-core writes only the first author. With `embed-wheel
 --project-dir` (and the GitHub Action) the project's declared authors are
 used instead, with no `WARNING:` for the wheel's split (one for a split in
 the project's own free-text `author`, `--config` or not); when the
 project's name differs from the wheel's, a `WARNING:` says so and the
 wheel's authors are kept.
-How the `Author` field
-is split and what each author becomes: [How authors are
+How `Author` and `Author-email`
+are split and what each author becomes: [How authors are
 read](metadata-provenance.md#how-authors-are-read).
 
 **Dependencies.** The wheel's `Requires-Dist` lines, extras included, become

@@ -355,11 +355,19 @@ def test_uv_root_without_usable_extras(tmp_path: Path, root_extra: str) -> None:
     [
         ('foo; extra == "x"', {"foo"}),
         ('foo; extra == "x" and python_version < "3.9"', {"foo"}),
+        ('foo; extra == "x" and extra == "dev"', {"foo"}),
         ('foo; extra == "x" or python_version < "3.9"', set()),
         ('foo; extra != "x"', set()),
         ("foo; python_version < '3.9'", set()),
     ],
-    ids=["gated", "gated-and", "or-non-extra", "not-equal", "no-extra"],
+    ids=[
+        "gated",
+        "gated-and",
+        "extras-joined",
+        "or-non-extra",
+        "not-equal",
+        "no-extra",
+    ],
 )
 def test_extra_pins_ask_only_what_the_edges_call_optional(
     tmp_path: Path, declared: str, wanted: set[str]

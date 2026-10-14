@@ -45,34 +45,32 @@ def _extract(
         pytest.param(
             {"python": "^3.9", "req": "^2.0", "attrs": {"version": ">=23", **_OPT}},
             {"full": ["attrs"]},
-            ["req>=2.0,<3.0.0", 'attrs>=23; extra == "full"'],
+            ["req<3.0,>=2.0", 'attrs>=23; extra == "full"'],
             id="basic",
         ),
         pytest.param(
             {"attrs": {"version": "~1.2", **_OPT}},
             {"b": ["attrs"], "a": ["attrs"]},
-            ['attrs<1.3.0,>=1.2; extra == "a"', 'attrs<1.3.0,>=1.2; extra == "b"'],
+            ['attrs<1.3,>=1.2; extra == "a"', 'attrs<1.3,>=1.2; extra == "b"'],
             id="two-extras",
         ),
         pytest.param(
             {"Foo_Bar": {"version": "^1.0", **_OPT}},
             {"x": ["foo-bar"]},
-            ['foo-bar<2.0.0,>=1.0; extra == "x"'],
+            ['foo-bar<2.0,>=1.0; extra == "x"'],
             id="name-spelling",
         ),
         pytest.param(
             {"foo-bar": {"version": "^1.0", **_OPT}},
             {"x": ["Foo_Bar"]},
-            ['foo-bar<2.0.0,>=1.0; extra == "x"'],
+            ['foo-bar<2.0,>=1.0; extra == "x"'],
             id="extra-entry-spelling",
         ),
-        # Limit: the `python`/`markers` keys are dropped; poetry-core writes
-        # `six (==1.16) ; (python_version < "3.12") and (extra == "x")`.
         pytest.param(
             {"six": {"version": "1.16", "python": "<3.12", **_OPT}},
             {"x": ["six"]},
-            ['six==1.16; extra == "x"'],
-            id="dict-extra-keys-limit",
+            ['six==1.16; python_version < "3.12" and extra == "x"'],
+            id="python-key",
         ),
         pytest.param(
             {"b": {"version": "1", **_OPT}, "P": {"version": "*", **_OPT}},
@@ -86,8 +84,6 @@ def _extract(
             ["req", 'attrs; extra == "x"', 'six; extra == "x"'],
             id="non-optional-listed-is-extra-only",
         ),
-        # Limit: as above, each table's `python` key is dropped; poetry-core
-        # writes `sc (>=1) ; (python_version < "3.11") and (extra == "x")`.
         pytest.param(
             {
                 "sc": [
@@ -97,8 +93,12 @@ def _extract(
                 "req": "*",
             },
             {"x": ["sc"]},
-            ["req", 'sc>=1; extra == "x"', 'sc>=2; extra == "x"'],
-            id="list-form-optional-limit",
+            [
+                "req",
+                'sc>=1; python_version < "3.11" and extra == "x"',
+                'sc>=2; python_version >= "3.11" and extra == "x"',
+            ],
+            id="list-form-optional",
         ),
         pytest.param(
             {"sc": [{"version": ">=1"}, {"version": ">=2"}, {"version": ">=2"}]},
@@ -112,13 +112,11 @@ def _extract(
             ["sc>=2"],
             id="list-form-partly-optional",
         ),
-        # Limit: skipped with a WARNING:; poetry-core writes the direct
-        # reference `attrs @ git+https://x/y ; extra == "x"`.
         pytest.param(
             {"attrs": {**_OPT, "git": "https://x/y"}},
             {"x": ["attrs"]},
-            [],
-            id="unrepresentable-optional-limit",
+            ['attrs @ git+https://x/y ; extra == "x"'],
+            id="git-optional",
         ),
     ],
 )
@@ -128,8 +126,7 @@ def test_optional_dependency_tagged_per_extra(
     expected: list[str],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Expected as poetry-core 2.4.1 writes ``Requires-Dist``, but the
-    ``limit`` rows."""
+    """Expected as poetry-core 2.4.1 writes ``Requires-Dist``, normalised."""
     with caplog.at_level(logging.WARNING):
         got, _ = _extract(deps, extras)
     assert got == expected
@@ -139,11 +136,9 @@ def test_optional_dependency_tagged_per_extra(
 @pytest.mark.parametrize(
     ("extras", "needle", "prefix"),
     [
-        pytest.param(None, "attrs", "Skipping Poetry dependency", id="no-extras-table"),
-        pytest.param(
-            {}, "attrs", "Skipping Poetry dependency", id="empty-extras-table"
-        ),
-        pytest.param({"x": []}, "attrs", "Skipping Poetry dependency", id="not-listed"),
+        pytest.param(None, "attrs", "Skipping dependency", id="no-extras-table"),
+        pytest.param({}, "attrs", "Skipping dependency", id="empty-extras-table"),
+        pytest.param({"x": []}, "attrs", "Skipping dependency", id="not-listed"),
         pytest.param(
             {"x": ["ghost"]}, "ghost", "Skipping extra entry", id="undeclared"
         ),
@@ -165,7 +160,7 @@ def test_unlisted_or_undeclared_warns_once(
     "deps",
     [
         pytest.param({"attrs": {"version": "1", **_OPT}}, id="optional"),
-        pytest.param({"attrs": {**_OPT, "git": "https://x/y"}}, id="unrepresentable"),
+        pytest.param({"attrs": {**_OPT, "path": "../a"}}, id="unrepresentable"),
     ],
 )
 def test_listed_entry_not_warned_as_unlisted_or_undeclared(
@@ -275,14 +270,14 @@ _PG = '[project.optional-dependencies]\npg = ["psycopg2>=2"]\n'
         pytest.param(
             _DYNAMIC + _PG,
             _POETRY,
-            ["req>=2.1,<3.0.0", 'psycopg2>=2; extra == "pg"'],
+            ["req<3.0,>=2.1", 'psycopg2>=2; extra == "pg"'],
             "tool.poetry.dependencies, project.optional-dependencies",
             id="poetry-base-project-extras",
         ),
         pytest.param(
             _DYNAMIC + _PG,
             _POETRY + _POETRY_EXTRAS,
-            ["req>=2.1,<3.0.0", 'psycopg2>=2; extra == "pg"'],
+            ["req<3.0,>=2.1", 'psycopg2>=2; extra == "pg"'],
             "tool.poetry.dependencies, project.optional-dependencies",
             id="poetry-extras-ignored",
         ),
@@ -296,28 +291,28 @@ _PG = '[project.optional-dependencies]\npg = ["psycopg2>=2"]\n'
         pytest.param(
             _DYNAMIC,
             _POETRY + _POETRY_EXTRAS,
-            ["req>=2.1,<3.0.0", 'attrs; extra == "x"'],
+            ["req<3.0,>=2.1", 'attrs; extra == "x"'],
             "tool.poetry.dependencies, tool.poetry.extras",
             id="poetry-only",
         ),
         pytest.param(
             _DYNAMIC,
             _POETRY_UNNAMED + _POETRY_EXTRAS,
-            ["req>=2.1,<3.0.0", 'attrs; extra == "x"'],
+            ["req<3.0,>=2.1", 'attrs; extra == "x"'],
             "tool.poetry.dependencies, tool.poetry.extras",
             id="poetry2-unnamed",
         ),
         pytest.param(
             "dependencies = []\n",
             _POETRY + _POETRY_EXTRAS,
-            ["req>=2.1,<3.0.0", 'attrs; extra == "x"'],
+            ["req<3.0,>=2.1", 'attrs; extra == "x"'],
             "tool.poetry.dependencies, tool.poetry.extras",
             id="declared-empty-deps",
         ),
         pytest.param(
             "dependencies = []\noptional-dependencies = {}\n",
             _POETRY + _POETRY_EXTRAS,
-            ["req>=2.1,<3.0.0", 'attrs; extra == "x"'],
+            ["req<3.0,>=2.1", 'attrs; extra == "x"'],
             "tool.poetry.dependencies, tool.poetry.extras",
             id="declared-empty-both",
         ),
@@ -359,3 +354,119 @@ def test_project_and_poetry_tables(
         assert not [m for m in warned if "listed in no" in m]
     if "name" not in poetry:
         assert not warned
+
+
+_HATCHLING = '[build-system]\nbuild-backend = "hatchling.build"\n'
+_POETRY_CORE = '[build-system]\nbuild-backend = "poetry.core.masonry.api"\n'
+_POETRY_ONLY_PYTHON = '[tool.poetry.dependencies]\npython = "^3.8"\n'
+
+
+@pytest.mark.parametrize(
+    ("project", "poetry", "expected", "warned"),
+    [
+        pytest.param(_PG, _POETRY, ['psycopg2>=2; extra == "pg"'], 1, id="extras"),
+        pytest.param(
+            "dependencies = []\n" + _PG,
+            _POETRY,
+            ['psycopg2>=2; extra == "pg"'],
+            1,
+            id="declared-empty",
+        ),
+        pytest.param(
+            _PG, _POETRY_ONLY_PYTHON, ['psycopg2>=2; extra == "pg"'], 0, id="python"
+        ),
+        pytest.param(
+            "[project.optional-dependencies]\npg = []\n",
+            _POETRY,
+            ["req<3.0,>=2.1"],
+            0,
+            id="empty-extra",
+        ),
+    ],
+)
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def test_poetry_dependencies_ignored_beside_project_extras(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    project: str,
+    poetry: str,
+    expected: list[str],
+    warned: int,
+) -> None:
+    """poetry-core ignores ``[tool.poetry.dependencies]`` when ``[project]``
+    has an extra with a requirement, no ``dependencies`` and neither in
+    ``dynamic``: one ``WARNING:``, the ``python`` key still read, quiet
+    honoured."""
+    path = tmp_path / "pyproject.toml"
+    path.write_text(
+        f'[project]\nname = "p"\nversion = "1"\n{project}{poetry}', encoding="utf-8"
+    )
+    with caplog.at_level(logging.WARNING):
+        meta, _ = read_pyproject(path)
+        read_pyproject(path, quiet=True)
+    assert meta.dependencies == expected
+    assert meta.requires_python == ">=3.8,<4.0.0" or "python" not in poetry
+    ignored = [m for m in caplog.messages if "[tool.poetry.dependencies]" in m]
+    assert (
+        ignored
+        == [
+            "Ignoring [tool.poetry.dependencies]: [project] declares "
+            "optional-dependencies and no dependencies, which Poetry reads instead"
+        ]
+        * warned
+    )
+    fields = meta.provenance["dependencies"].rpartition("Field: ")[2]
+    assert fields.startswith("tool.poetry.dependencies") == ("pg = []" in project)
+
+
+@pytest.mark.parametrize(
+    ("build_system", "filled"),
+    [
+        pytest.param(_HATCHLING, False, id="hatchling"),
+        pytest.param(
+            '[build-system]\nbuild-backend = "setuptools.build_meta"\n',
+            False,
+            id="setuptools",
+        ),
+        pytest.param(_POETRY_CORE, True, id="poetry-core"),
+        pytest.param(
+            '[build-system]\nbuild-backend = "poetry.masonry.api"\n',
+            True,
+            id="poetry-legacy",
+        ),
+        pytest.param('[build-system]\nrequires = ["x"]\n', True, id="no-backend"),
+        pytest.param("", True, id="no-build-system"),
+    ],
+)
+def test_gap_fill_only_for_poetry_backend(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, build_system: str, filled: bool
+) -> None:
+    """Only poetry-core (or no declared backend, as before) reads
+    ``[tool.poetry]``; another backend's project gets one ``WARNING:``
+    naming the keys that would have filled a gap, and keeps
+    ``poetry.lock``."""
+    (tmp_path / "pyproject.toml").write_text(
+        f'{build_system}[project]\nname = "p"\nversion = "1"\nkeywords = ["k"]\n'
+        '[tool.poetry]\nauthors = ["A <a@x.org>"]\nkeywords = ["poetry"]\n'
+        'homepage = "https://x.org"\n' + _POETRY_ONLY_PYTHON,
+        encoding="utf-8",
+    )
+    (tmp_path / "poetry.lock").write_text(
+        '[[package]]\nname = "idna"\nversion = "3.7"\ngroups = ["main"]\n'
+        '[metadata]\nlock-version = "2.1"\n',
+        encoding="utf-8",
+    )
+    with caplog.at_level(logging.WARNING):
+        meta, _ = read_pyproject(tmp_path / "pyproject.toml")
+    assert bool(meta.authors) == bool(meta.urls) == filled
+    assert meta.keywords == ["k"]
+    assert meta.locked_dependencies == ["idna==3.7"]
+    backend = build_system.partition('"')[2].rstrip('"\n')
+    assert caplog.messages == (
+        []
+        if filled
+        else [
+            "Ignoring [tool.poetry] authors, homepage, dependencies: "
+            f"build-backend {backend!r} does not read it"
+        ]
+    )

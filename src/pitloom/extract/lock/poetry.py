@@ -127,11 +127,12 @@ def _main_group_package_or_none(
     """Return *pkg* when it's a well-formed, main-group, registry-sourced
     entry, non-optional unless *allow_optional* -- ``None`` otherwise.
 
-    Mirrors the skip policy :func:`pitloom.extract.project.poetry._poetry_dep_to_pep508`
-    already applies to direct ``[tool.poetry.dependencies]`` entries: a
-    package resolved from a local path or VCS has no meaningful PyPI
-    version pin, so including it here would misrepresent it as an
-    ordinary published release (wrong PURL, bogus PyPI enrichment lookup).
+    A package resolved from a local path, a URL or VCS has no meaningful
+    PyPI version pin, so including it here would misrepresent it as an
+    ordinary published release (wrong PURL, bogus PyPI enrichment lookup);
+    a direct ``[tool.poetry.dependencies]`` entry on such a source is a
+    ``name @ URL`` direct reference
+    (:mod:`pitloom.extract.project._poetry_requirements`), never a pin.
     """
     validated = shape_validated_package(pkg, "poetry.lock")
     if validated is None:

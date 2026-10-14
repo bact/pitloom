@@ -44,15 +44,22 @@ Supports Poetry-based projects that declare metadata under ``[tool.poetry]``
 
 .. rubric:: Dependency conversion
 
-Poetry uses ``^X.Y`` / ``~X.Y`` version specifiers which are not valid
-PEP 508.  This module converts them to PEP 440 ranges on a best-effort
-basis:
+Each dependency becomes the requirement poetry-core writes for it
+(:mod:`pitloom.extract.project._poetry_requirements`): its version
+constraint, ``extras``, ``git``/``url`` source and ``markers``/``python``/
+``platform`` keys; a ``path`` source is skipped with a ``WARNING:``. The
+``python`` key's own constraint (``requires_python``) is converted on a
+best-effort basis:
 
 * ``^X.Y.Z`` (X > 0) -> ``>=X.Y.Z,<X+1.0.0``
 * ``^0.Y.Z``          -> ``>=0.Y.Z,<0.Y+1.0``
 * ``~X.Y.Z``          -> ``>=X.Y.Z,<X.Y+1.0``
-* ``*``               -> no constraint (package name only)
+* ``*``               -> no constraint
 * Anything else       -> passed through unchanged.
+
+With a non-empty ``[project] optional-dependencies``, no ``[project]
+dependencies`` and neither in ``[project] dynamic``, poetry-core ignores
+the table's dependencies, and so does this module, with a ``WARNING:``.
 
 .. rubric:: Extras
 
@@ -88,6 +95,7 @@ from pitloom.extract._license import (
 )
 from pitloom.extract._license_detect import read_license_members
 from pitloom.extract.project._poetry_extras import (
+    drop_ignored_dependencies,
     drop_ignored_extras,
     extras_requirements,
     requirements_per_table,
@@ -98,6 +106,7 @@ from pitloom.extract.project._poetry_fields import (
     read_poetry_section,
     warn_wrong_type,
 )
+from pitloom.extract.project._poetry_requirements import poetry_requirement
 
 log = logging.getLogger(__name__)
 
@@ -153,6 +162,7 @@ def extract_poetry_metadata(
     had_extras = "extras" in poetry
     poetry = drop_ignored_extras(poetry, data, quiet=quiet)
     extras_ignored = had_extras and "extras" not in poetry
+    poetry, deps_ignored = drop_ignored_dependencies(poetry, data, quiet=quiet)
 
     name = (poetry.get("name") or "").strip()
     name_field = "tool.poetry.name"
@@ -190,6 +200,8 @@ def extract_poetry_metadata(
         license_prov=licence_files.provenance,
         python_declared=python_declared,
     )
+    if deps_ignored:
+        prov.pop("dependencies", None)
     prov = {"name": f"Source: pyproject.toml | Field: {name_field}", **prov}
 
     return ProjectMetadata(
@@ -347,9 +359,10 @@ def _parse_poetry_deps(
     """Convert ``[tool.poetry.dependencies]`` to a PEP 508 list plus requires-python.
 
     The ``python`` key is extracted as ``requires_python`` (matched
-    case-insensitively); all other entries are converted to PEP 508
-    strings on a best-effort basis, one per table of the list form (its
-    ``python``/``markers`` keys dropped, as an inline table's are). An entry
+    case-insensitively); every other entry becomes the requirement
+    poetry-core writes for it
+    (:func:`~pitloom.extract.project._poetry_requirements.poetry_requirement`),
+    one per table of the list form, each with its own marker. An entry
     with every table ``optional = true`` is listed once per extra of
     *extras* (``[tool.poetry.extras]``, extra name to dependency names,
     matched by canonical name) that names it, tagged ``extra == "x"``;
@@ -388,7 +401,7 @@ def _parse_poetry_deps(
             python_declared = True
             continue
         every, required = requirements_per_table(
-            constraint, partial(_poetry_dep_to_pep508, pkg, quiet=quiet)
+            constraint, partial(poetry_requirement, pkg, quiet=quiet)
         )
         if not every:
             continue
@@ -467,34 +480,3 @@ def _poetry_constraint_to_pep440(constraint: Any) -> str | None:
         return _convert_tilde(constraint[1:])
 
     return str(constraint)
-
-
-def _poetry_dep_to_pep508(
-    name: str, constraint: Any, *, quiet: bool = False
-) -> str | None:
-    """Convert a single Poetry dependency entry to a PEP 508 string.
-
-    Handles string constraints and inline-table constraints
-    (``{version = "^1.0", ...}``); skips, with a ``WARNING:``, an entry
-    with a ``path``, ``git`` or ``url`` source, which Poetry writes as a
-    direct reference (``name @ git+https://...``) that is not read here.
-
-    Returns ``None`` for a skipped entry.
-    """
-    if isinstance(constraint, dict):
-        source = next((k for k in ("path", "git", "url") if k in constraint), None)
-        if source is not None:
-            if not quiet:
-                log.warning(
-                    "Skipping Poetry dependency %r: %s-sourced dependencies "
-                    "are not read",
-                    name,
-                    source,
-                )
-            return None
-        constraint = constraint.get("version", "*")
-
-    ver_spec = _poetry_constraint_to_pep440(constraint)
-    if ver_spec is None:
-        return name
-    return f"{name}{ver_spec}"

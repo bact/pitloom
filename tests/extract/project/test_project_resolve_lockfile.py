@@ -124,15 +124,14 @@ def test_resolve_project_with_lockfile_does_not_duplicate_poetry_warning(
 ) -> None:
     """Regression: the peek-then-reread's `quiet` flag must reach every
     warning reachable during [tool.poetry] gap-fill metadata parsing, not
-    just the PEP 621/pyproject-metadata path -- a git/path/url-sourced
-    Poetry dependency logs its own WARNING: from a different module
-    (pitloom.extract.project.poetry), reached via a different call chain than the
-    PEP 639 case above."""
+    just the PEP 621/pyproject-metadata path -- a path-sourced Poetry
+    dependency logs its own WARNING: from a different module, reached via
+    a different call chain than the PEP 639 case above."""
     (tmp_path / "pyproject.toml").write_text(
         '[tool.poetry]\nname = "pkg"\nversion = "1.0.0"\n'
         "[tool.poetry.dependencies]\n"
         'python = "^3.10"\n'
-        'mylib = {git = "https://example.com/mylib.git"}\n',
+        'mylib = {path = "../mylib"}\n',
         encoding="utf-8",
     )
 
@@ -142,7 +141,7 @@ def test_resolve_project_with_lockfile_does_not_duplicate_poetry_warning(
         )
 
     assert metadata.name == "pkg"
-    assert caplog.text.count("Skipping Poetry dependency") == 1
+    assert caplog.text.count("Skipping dependency") == 1
 
 
 def test_resolve_project_with_lockfile_poetry_parse_failure_warning_not_lost(
