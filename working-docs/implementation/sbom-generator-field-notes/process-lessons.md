@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-09
+Last-Modified: 2026-10-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -121,3 +121,47 @@ lessons doc, section 2, are not repeated.
   released section to the completed list would have archived three
   unfixed bugs that sat under "in 0.20.1". Move only ticked items; the
   open ones go to the next release's section.
+
+## Extras, authors and copyright on every route (#300, 2026-10-09 to 14)
+
+One PR, about 15 delegated rounds, 140 files changed, 21 numbered open
+questions left. Numbers for a method section; the maintainer made every
+ruling, agents did the reading, building and reviewing.
+
+- **Split the agents by file ownership, and run the gate only when all land.**
+  Up to four agents ran at once, each told which files it owned and which not
+  to touch. A full-suite run on the shared tree is red while another agent is
+  mid-edit (80 failures once, all in the author code), so the gate (tests,
+  coverage, linters, manual CLI checks) ran after the last agent reported.
+  Do: name the files each agent owns; trust a shared-tree red run only after
+  every agent has stopped.
+- **A fresh read-only review after every batch found regressions the
+  previous batch introduced.** The "never split `Author`" ruling lost people
+  that HEAD recorded; the next review reproduced six findings against both HEAD
+  and the tree, then mutation-tested the new branches (24 mutants, 23 killed).
+  Do: give each review the HEAD copy (`git archive`) to run alongside the tree.
+- **Ask the maintainer when a request overrides an earlier ruling.** "Never
+  split structured authors" met "split `Author-email` alike"; one question
+  with three options (each with its cost) settled it in one answer and kept
+  the rule from flipping a third time.
+- **Measure the producers before designing the reader.** Hatchling 1.32.3,
+  setuptools 84, flit_core 4.0.2, pdm-backend 2.4.9, poetry-core 2.4.1 and uv
+  0.10.4 were run on probe projects; the matrix (what each writes for authors,
+  extras, self-references, markers) replaced three assumptions, one of them
+  the premise of a planned feature (uv and pip write no PEP 751 extras keys).
+- **Verify a supplied list before using it.** A list of ten "projects that use
+  `pylock.toml`" was wrong in six places (a lock only on `main`, an issue about
+  something else, a scanner fixture that is not valid PEP 751, a project with
+  no lock). Each entry was checked for producer, file, version, size and
+  licence, and the report lists what was excluded and why.
+- **Keep working notes committed.** An uncommitted edit to the open-question
+  list was discarded by accident and regenerated from the conversation;
+  commit `working-docs/` in small steps, as the code is.
+- **State the evidence behind a counter.** "62 packages" in a fixture README
+  was a count of `[[packages]]` entries (including the project itself and two
+  `click` entries); the test now says entries.
+- **Decide quickly what is out of scope.** The stopping rule was: the
+  in-flight change lands, one delta review finds nothing Medium or higher, the
+  rest is recorded as numbered open questions. It held; 21 items moved to
+  follow-ups.
+

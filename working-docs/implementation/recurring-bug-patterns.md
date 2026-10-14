@@ -351,3 +351,53 @@ shape described, not just the module where each was first found.
   fragility finding, run the actual import in a fresh interpreter (both
   orders) -- it's faster and more conclusive than manually tracing which
   module's `__init__.py` reaches which line first.
+
+## From PR #300 (extras, authors, copyright on every route)
+
+- **Coverage that depends on the interpreter.** `_assigned_string`'s
+  `except (SyntaxError, ValueError)` is reached by a NUL on 3.10/3.11
+  (`ast.parse`: "source code string cannot contain null bytes") but not on
+  3.12+, where the tokenizer rejects it first in `_logical_line`. The local
+  `.venv` is 3.10 and showed 100%; Codecov reported one line missed (line 287,
+  found through `api.codecov.io/.../file_report/<path>?sha=<sha>`). Fix: a row
+  that tokenizes everywhere and is not a statement (`a = = '1'`).
+  Do: for every `except` tuple that lists several exception types, write one
+  row per type that is raised on every supported version.
+- **A reversal needs a probe corpus.** The ruling "one `Author` value is one
+  author" (2026-10-14) was implemented and tested, and the 11,500 tests
+  passed, while `Ann <a@x.org> and Bob <b@x.org>` recorded nobody and the
+  dependency route fell back to the Maintainer. The tests pinned the new rule,
+  not what HEAD recorded. A fresh read-only review that ran HEAD and the tree
+  on the same inputs found it. The fix (cut only where the text proves a
+  list) came from the maintainer's option answer, not a guess.
+  Do: before accepting a change of reading, run 30 to 50 representative inputs
+  through the old and new code and list each input whose record count fell.
+- **A hint must be conditioned on what the branch did.** The one-author
+  `INFO:` fired next to the "not recorded" `WARNING:` for the same value.
+  Do: emit a status line only on the path that recorded the thing it names.
+- **A test that pins a loss is wrong even when the rule says so.** The row
+  `bare-address-after-name` expected `[b@x.org]` for `Doe, a@x.org, b@x.org`
+  because the splitter dropped `Doe` and `a@x.org`; it stayed green for a
+  round. Do: when a row's expected value has fewer records than its input
+  names people, justify it in the row's comment or fix the code.
+- **Warn-once keys must name the whole input.** A key made from a 120
+  character excerpt merged two different over-cap fields into one warning.
+  Do: key on a hash of the whole value plus the field name.
+- **A confinement check and the open must be one operation.** A textual
+  `in .parents` test failed on a case-insensitive file system (macOS) and a
+  check followed by the backend's own open (Flit, PDM) leaves a swap window.
+  `core/path_confine.py` compares `(st_dev, st_ino)` of the opened handle with
+  the resolved path and treats `st_ino == 0` as no identity.
+- **A deterministic cap before a parser beats catching its exception.**
+  `ast.parse` on a 300,000-attribute expression segfaults 3.10 (exit 139), so
+  a `try/except RecursionError` cannot protect it; the line is capped by
+  length first, and the tests run the input in a child process.
+- **Reuse the tool's own code for a tool's own syntax.** A hand-written Poetry
+  caret converter wrote `^0.0.3` as `<0.1.0`; poetry-core writes `<0.0.4`.
+  poetry-core is a dependency, so its converter is used, behind a lazy lookup
+  and a drift-guard test (no upper pin).
+- **An agent's "the tree is clean" is a claim about its start.** The maintainer
+  committed between turns; an agent's base for its fail-on-base proof was a
+  commit, not the working tree. Check `git log` and `git status` before and
+  after every delegated round.
+

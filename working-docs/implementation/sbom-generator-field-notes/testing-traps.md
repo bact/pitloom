@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-10
+Last-Modified: 2026-10-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -155,3 +155,25 @@ Ways a test passes, fails or floods the log for the wrong reason.
   unlocked, and the real-fixture case first asserts `time-machine==2.16.0`
   is in `locked_dependencies` (#300).
   Do: assert the precondition took effect, and run the opposite case.
+- **Coverage is per interpreter, and a green local 100% can still upload a
+  miss.** The branch `except (SyntaxError, ValueError)` around `ast.parse` is
+  reached by a NUL byte on 3.10/3.11 only (3.12+ rejects it in the tokenizer
+  first); the local 3.10 run covered it and the PR's Codecov report did not
+  (#300). `api.codecov.io/api/v2/github/<org>/repos/<repo>/file_report/<path>
+  ?sha=<sha>` gives the missed line numbers without a login.
+  Do: cover every `except` type with an input that fails the same way on each
+  supported version.
+- **Compare a type checker's count against HEAD with the same interpreter.**
+  `pyrefly` on a `git archive` copy with a different Python found 71 errors
+  against 41 locally; `--python-interpreter <venv python>` gave 41 on both.
+  Do: pin the interpreter before calling an error count "new".
+- **A thread timeout cannot interrupt a regex.** `re` holds the GIL, so a
+  test that bounds a quadratic splitter with a thread still hangs; the bound
+  is a child process killed at the limit (`tests/_bounded.py`
+  `run_bounded_in_child`). A 300,000-attribute expression also segfaults 3.10
+  (exit 139), which only a child process survives.
+- **A fail-on-base proof must run the copy's own code.** A subprocess test
+  that launched `loom` passed on the base copy because the installed
+  Pitloom, not the copy, ran; pinning `PYTHONPATH` to the copy's `src` made it
+  fail as it should.
+

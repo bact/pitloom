@@ -262,6 +262,25 @@ or citing any of these one-liners.
   yields a non-list and crashes `len()` if `@graph` is present but not a
   list (PR #217). Add an explicit `isinstance` check on the value for
   any external/user-editable file.
+- **A branch only some Python versions reach is missed by the coverage
+  upload.** A NUL in source is a `ValueError` from `ast.parse` on 3.10/3.11
+  and a tokenizer `SyntaxError` first on 3.12+; local 3.10 showed 100%, the
+  upload did not (PR #300). Cover each `except` with an input that fails
+  the same way on every version.
+- **A ruling that reverses a reading needs a before/after sweep.** "A name
+  field is one author" silently lost people that HEAD recorded
+  (`Ann <a@x.org> and Bob <b@x.org>`, `Doe, a@x.org, b@x.org`); only a
+  fresh review running HEAD against the tree found it (PR #300). Run a
+  probe corpus through both and list every input that yielded records
+  before and none now.
+- **Measure the real tools before designing a reader.** `uv export` and
+  `pip lock` write no PEP 751 extras keys or markers, which changed the
+  lock-pin design (PR #300). Build or run each backend/producer on one probe
+  first; write the matrix in the working doc.
+- **Compare a linter's error count against HEAD with the same interpreter.**
+  `pyrefly` run from a `git archive` copy with another interpreter gave 71
+  errors against 41; with `--python-interpreter` the same 41 (PR #300).
+  Detail: [recurring-bug-patterns.md](working-docs/implementation/recurring-bug-patterns.md).
 
 ## CLI output
 
