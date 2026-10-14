@@ -36,6 +36,7 @@ from pitloom.assemble.spdx3.provenance import (
     ProvenanceEncoder,
 )
 from pitloom.core.models import build_pypi_purl
+from pitloom.core.pep508 import parse_requirement
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract._core_metadata import core_metadata_license_with_source
@@ -78,7 +79,7 @@ def get_pkg_metadata(dep_name: str) -> email.message.Message[str, str]:
 def _parse_dep_name(dep: str) -> str:
     """Return the bare package name from a PEP 508 dependency specifier."""
     try:
-        return Requirement(dep).name
+        return parse_requirement(dep).name
     except InvalidRequirement:
         pass
     for op in _VERSION_OPERATORS:
@@ -124,7 +125,7 @@ def _extract_exact_pin(dep: str) -> tuple[Requirement | None, str | None]:
     version -- the opposite of "explicit pin beats local environment".
     """
     try:
-        req = Requirement(dep)
+        req = parse_requirement(dep)
     except InvalidRequirement:
         return None, _extract_pin_from_unparseable(dep)
     for spec in req.specifier:

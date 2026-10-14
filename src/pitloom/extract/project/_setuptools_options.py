@@ -30,8 +30,9 @@ from dataclasses import dataclass
 from typing import Any, NamedTuple
 
 from packaging.markers import InvalidMarker
-from packaging.requirements import InvalidRequirement, Requirement
+from packaging.requirements import InvalidRequirement
 
+from pitloom.core.pep508 import parse_requirement
 from pitloom.core.project import ConflictCandidate, ProjectMetadata, provenance_key_for
 from pitloom.core.provenance import parse_provenance_value
 from pitloom.core.requirements import (
@@ -178,7 +179,7 @@ def _extra_requirements(
     merged: list[str] = []
     for text in requirements:
         try:
-            req = Requirement(text)
+            req = parse_requirement(text, quiet=quiet)
             add_marker(req, marker)
         except (InvalidRequirement, InvalidMarker):
             warn_skipped_extra_entry(

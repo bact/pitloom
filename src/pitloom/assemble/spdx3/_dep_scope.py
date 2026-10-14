@@ -24,6 +24,7 @@ from packaging.utils import canonicalize_name
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.extra_gate import Gate, MarkerShapeError, parse_gate
+from pitloom.core.pep508 import parse_requirement
 
 log = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ REQUIRED_EDGE = DependencyEdge(
 
 def _requirement(dep: str) -> Requirement | None:
     try:
-        return Requirement(dep)
+        return parse_requirement(dep)
     except InvalidRequirement:
         return None
 

@@ -517,7 +517,9 @@ core metadata specification's `Author` example, `C. Schultz, Universal Features
 Syndicate, Los Angeles, CA <cschultz@peanuts.example.com>`, reads as four
 authors, the last `CA` with the address. An address is checked as written
 (`a@b c` is not `a@bc`), a comma inside `<...>` included: an address of
-the project's own that is no address is not recorded, with a `WARNING:`,
+the project's own that is no address is not recorded, with one `WARNING:`
+per field naming the first three and how many (`AUTHOR_EMAIL=['a', 'b',
+'c', ...]: not an email address; 5 entries not recorded`),
 and a name stated before it is kept (`Ann <a@b c>` is `Ann`). The `UNKNOWN` older
 setuptools writes is no author: in `setup.py` it gives way to `setup.cfg`'s
 author. An sdist's `pyproject.toml` gives the declared authors as a

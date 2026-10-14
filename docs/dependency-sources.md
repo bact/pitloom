@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-04
-Last-Modified: 2026-10-11
+Last-Modified: 2026-10-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -92,9 +92,10 @@ How a dependency is related to the project:
 
 A lock does not make an extra's requirement `dependsOn`, even when another
 dependency needs it: Pitloom reads which packages a lock resolved, not which
-package needs which. A requirement that is not valid PEP 508, or whose
-marker's extra condition cannot be isolated (`extra == "a" or
-python_version < "3.9"`), is recorded as required, with a `WARNING:`.
+package needs which. A requirement that is not valid PEP 508 (one whose
+marker nests over 64 parentheses deep counts as one), or whose marker's
+extra condition cannot be isolated (`extra == "a" or python_version <
+"3.9"`), is recorded as required, with a `WARNING:`.
 For the same reason a package only the lock names (a transitive one) is
 `dependsOn` with scope `runtime`, even if only an extra's requirement
 needs it: the lock does not say.

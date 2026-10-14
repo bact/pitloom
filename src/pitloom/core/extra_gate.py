@@ -21,6 +21,8 @@ from typing import TypeAlias
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
+from pitloom.core.pep508 import MAX_MARKER_NESTING, marker_nesting
+
 __all__ = ["Gate", "MarkerShapeError", "is_extra_gated", "parse_gate"]
 
 #: The extras a requirement is gated by, or ``None`` when it is required
@@ -120,10 +122,16 @@ def parse_gate(marker: str) -> Gate:
 
     Raises:
         MarkerShapeError: the gate cannot be isolated (``extra == "a" or
-            python_version < "3.9"``, ``extra != "x"``); the caller
-            records the requirement as required.
+            python_version < "3.9"``, ``extra != "x"``), or *marker* nests
+            over :data:`~pitloom.core.pep508.MAX_MARKER_NESTING`; the
+            caller records the requirement as required.
     """
-    return _GateParser(marker).parse()
+    if marker_nesting(marker, marker=True) > MAX_MARKER_NESTING:
+        raise MarkerShapeError("nested too deep")
+    try:
+        return _GateParser(marker).parse()
+    except RecursionError as exc:
+        raise MarkerShapeError("nested too deep") from exc
 
 
 def is_extra_gated(req: Requirement) -> bool:

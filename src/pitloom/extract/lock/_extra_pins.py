@@ -27,10 +27,11 @@ from collections.abc import Callable, Iterable, Iterator, Set
 from pathlib import Path
 from typing import Any
 
-from packaging.requirements import InvalidRequirement, Requirement
+from packaging.requirements import InvalidRequirement
 from packaging.utils import canonicalize_name
 
 from pitloom.core.extra_gate import is_extra_gated
+from pitloom.core.pep508 import parse_requirement
 from pitloom.core.project import ProjectMetadata
 
 log = logging.getLogger(__name__)
@@ -72,7 +73,7 @@ def requirement_names(
     names: set[str] = set()
     for dep in dependencies:
         try:
-            req = Requirement(dep) if isinstance(dep, str) else None
+            req = parse_requirement(dep) if isinstance(dep, str) else None
         except InvalidRequirement:
             continue
         if req is not None and gated in (None, is_extra_gated(req)):
@@ -104,7 +105,7 @@ def apply_extra_pins(
     )
     pins = sorted(
         extractor(project_dir, metadata.name, wanted),
-        key=lambda pin: canonicalize_name(Requirement(pin).name),
+        key=lambda pin: canonicalize_name(parse_requirement(pin).name),
     )
     if not pins:
         return

@@ -42,6 +42,7 @@ from pitloom.extract.lock.poetry import extract_poetry_lock_dependencies
 from pitloom.extract.lock.poetry_hash import extract_poetry_lock_hashes
 from pitloom.extract.project._poetry_extras import defer_to_poetry_lists
 from pitloom.extract.project._poetry_fields import read_poetry_section
+from pitloom.extract.project._pyproject_deep import hold_deep_requirements
 from pitloom.extract.project._pyproject_fields import (
     build_provenance,
     confine_readme_file,
@@ -288,6 +289,7 @@ def read_pyproject(
     data, readme_override = strip_missing_readme(project_data, pyproject_path, data)
     data = confine_readme_file(data, pyproject_path.parent, quiet=quiet)
     data = confine_license_file(data, pyproject_path.parent, quiet=quiet)
+    data, held = hold_deep_requirements(data, quiet=quiet)
 
     std, data = _parse_standard_metadata_with_retry(
         data, pyproject_path, dynamic_fields, quiet=quiet
@@ -319,7 +321,9 @@ def read_pyproject(
         keywords=std.keywords or [],
         authors=extract_authors(std, project_data),
         urls=std.urls or {},
-        dependencies=[normalize_dependency_specifier(str(d)) for d in std.dependencies],
+        dependencies=held.restore_dependencies(
+            [normalize_dependency_specifier(str(d)) for d in std.dependencies]
+        ),
         provenance=provenance,
     )
     apply_in_package_license_files(
@@ -340,10 +344,12 @@ def read_pyproject(
         metadata = merge_project_metadata(metadata, poetry_meta)
     dynamic.add_extras(
         metadata,
-        {
-            extra: [str(r) for r in reqs]
-            for extra, reqs in std.optional_dependencies.items()
-        },
+        held.restore_optional(
+            {
+                extra: [str(r) for r in reqs]
+                for extra, reqs in std.optional_dependencies.items()
+            }
+        ),
         declared=field_declared(project_data, "optional-dependencies")
         and not from_poetry,
         quiet=quiet,

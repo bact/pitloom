@@ -5,9 +5,12 @@
 
 """Tests for pitloom.enrich.readme: local README/model-card frontmatter enrichment."""
 
+import logging
 import tempfile
 import threading
 from pathlib import Path
+from types import TracebackType
+from typing import IO, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -19,10 +22,12 @@ from pitloom.core.enrich_config import EnrichConfig
 from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import Enricher
 from pitloom.enrich.readme import (
+    MODEL_CARD_MAX_BYTES,
     ReadmeEnricher,
     _find_model_card_file,
     _parse_frontmatter,
 )
+from tests._symlink import CAN_SYMLINK
 
 # ---------------------------------------------------------------------------
 # _parse_frontmatter
@@ -257,10 +262,130 @@ def test_enrich_oserror_recovery() -> None:
         p = Path(d)
         card = p / "README.md"
         card.write_text("---\nlicense: mit\n---\n")
-        with patch.object(Path, "read_text", side_effect=OSError("read error")):
+        with patch.object(Path, "open", side_effect=OSError("read error")):
             model = AiModelMetadata()
             result = ReadmeEnricher().enrich(model, model_dir=p)
             assert not result.fields
+
+
+_CAP = MODEL_CARD_MAX_BYTES
+_OPENING = "---\nlicense: mit\n"
+
+
+def _card(size: int, closing: str) -> bytes:
+    """A *size*-byte card opening a ``license: mit`` frontmatter, closed
+    at once and followed by prose (``"first"``), closed by the file's last
+    three bytes (``"last"``) or not closed (``"none"``), padded by a YAML
+    comment."""
+    if closing == "first":
+        head = f"{_OPENING}---\n"
+        return (head + "y" * (size - len(head))).encode()
+    tail = "\n---" if closing == "last" else ""
+    pad = size - len(_OPENING) - len("#") - len(tail)
+    return f"{_OPENING}#{'x' * pad}{tail}".encode()
+
+
+@pytest.mark.parametrize(
+    ("size", "closing", "read", "warned"),
+    [
+        (_CAP - 1, "last", True, False),
+        (_CAP, "last", True, False),
+        (_CAP + 1, "last", False, True),
+        (_CAP + 1, "first", True, False),
+        (_CAP, "none", False, False),
+    ],
+    ids=["under", "at-cap", "one-over", "over-closed-within", "unclosed-at-cap"],
+)
+def test_a_card_over_the_cap(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    size: int,
+    closing: str,
+    read: bool,
+    warned: bool,
+) -> None:
+    """Read up to the 1 MiB cap: a frontmatter closed within it is used, the
+    rest of the card unread; one not closed within it skips the card with
+    one ``WARNING:`` per card and process (each model in a directory
+    enriches from it), unless the whole card is read."""
+    card = tmp_path / "README.md"
+    card.write_bytes(_card(size, closing))
+    assert card.stat().st_size == size
+    with caplog.at_level(logging.WARNING):
+        models = [AiModelMetadata(), AiModelMetadata()]
+        for model in models:
+            ReadmeEnricher().enrich(model, model_dir=tmp_path)
+    assert [m.license for m in models] == ["mit" if read else None] * 2
+    assert caplog.messages == (
+        [
+            f"FILE={card}: larger than the 1048576-byte model-card cap;"
+            " frontmatter not closed within it; skipped | Field(s) affected"
+            " (skipped): license, datasets"
+        ]
+        if warned
+        else []
+    )
+
+
+class _CountingReader:
+    """A binary file handle counting the bytes read through it."""
+
+    def __init__(self, handle: IO[Any]) -> None:
+        self.handle = handle
+        self.read_bytes = 0
+
+    def __enter__(self) -> "_CountingReader":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self.handle.close()
+
+    def read(self, size: int = -1) -> Any:
+        data = self.handle.read(size)
+        self.read_bytes += len(data)
+        return data
+
+
+def test_a_huge_card_is_read_bounded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Regression: the whole card was read into memory. A card four times
+    the cap, with no frontmatter, is read one byte past the cap and holds
+    none, as read whole: no ``WARNING:``."""
+    (tmp_path / "README.md").write_bytes(b"x" * (4 * _CAP))
+    opened: list[_CountingReader] = []
+    real_open = Path.open
+
+    def counting_open(path: Path, *args: Any, **kwargs: Any) -> _CountingReader:
+        opened.append(_CountingReader(real_open(path, *args, **kwargs)))
+        return opened[-1]
+
+    monkeypatch.setattr(Path, "open", counting_open)
+    with caplog.at_level(logging.WARNING):
+        result = ReadmeEnricher().enrich(AiModelMetadata(), model_dir=tmp_path)
+    assert not result.fields
+    assert [reader.read_bytes for reader in opened] == [_CAP + 1]
+    assert caplog.messages == []
+
+
+@pytest.mark.skipif(not CAN_SYMLINK, reason="cannot create a file symlink here")
+def test_a_symlinked_card_is_read(tmp_path: Path) -> None:
+    """A Hugging Face cache ``snapshots/<rev>/README.md`` is a symlink into
+    ``blobs/``, outside the model's directory: read, not confined."""
+    blob = tmp_path / "blobs" / "0123abcd"
+    blob.parent.mkdir()
+    blob.write_text("---\nlicense: mit\n---\n", encoding="utf-8")
+    snapshot = tmp_path / "snapshots" / "rev"
+    snapshot.mkdir(parents=True)
+    (snapshot / "README.md").symlink_to(blob)
+    model = AiModelMetadata()
+    ReadmeEnricher().enrich(model, model_dir=snapshot)
+    assert model.license == "mit"
 
 
 def test_run_enrichers_failing_enricher_logged(tmp_path: Path) -> None:

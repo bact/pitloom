@@ -286,21 +286,27 @@ def test_author_email_entry_without_an_address(
     quiet: bool,
 ) -> None:
     """Entries split on ``;`` too; one with no ``local@domain`` address is
-    not recorded (no invented address), with one ``WARNING:`` each, tagged
-    with the field it is in."""
+    not recorded (no invented address), with one ``WARNING:`` per field,
+    tagged with its key, naming the entries and, when several, the count."""
     msg = email.message.Message()
     if author is not None:
         msg["Author"] = author
     msg["Author-email"] = author_email
     with caplog.at_level(logging.WARNING):
         assert parse_core_metadata_authors(msg, quiet=quiet) == expected
+    by_key: dict[str, list[str]] = {}
+    for e in unreadable:
+        key = "AUTHOR" if e in (author or "") else "AUTHOR_EMAIL"
+        by_key.setdefault(key, []).append(e)
     assert caplog.messages == (
         []
         if quiet
         else [
-            f"{'AUTHOR' if e in (author or '') else 'AUTHOR_EMAIL'}={e!r}:"
-            " not an email address; not recorded"
-            for e in unreadable
+            f"{key}={entries[0]!r}: not an email address; not recorded"
+            if len(entries) == 1
+            else f"{key}={entries!r}: not an email address;"
+            f" {len(entries)} entries not recorded"
+            for key, entries in by_key.items()
         ]
     )
 

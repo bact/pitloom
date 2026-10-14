@@ -15,7 +15,10 @@ the equivalent gap for a *local* model file sitting next to a local
 
 Not prose parsing -- no NLP, no regex-hunting through free text. Only
 structured YAML frontmatter fields are read, which keeps this
-deterministic and easy to unit test. See
+deterministic and easy to unit test. A card is read up to
+:data:`MODEL_CARD_MAX_BYTES`, not confined to the model's directory: a
+Hugging Face cache ``snapshots/<rev>/README.md`` is a symlink into
+``blobs/``. See
 ``working-docs/design/sbom-enrichment.md`` for the broader enrichment
 design this is one piece of.
 """
@@ -34,9 +37,11 @@ from pitloom.core.untrusted_text import escape_lone_surrogates_in
 from pitloom.enrich.base import EnrichedField, EnrichmentResult
 from pitloom.logging_config import (
     LONE_SURROGATES_WARNING,
+    Cap,
     field_loss_suffix,
     loggable,
     one_line,
+    warn_over_cap,
 )
 
 log = logging.getLogger(__name__)
@@ -45,6 +50,17 @@ log = logging.getLogger(__name__)
 #: case-insensitively against what's actually on disk, same convention as
 #: ``_license.py``'s ``_LICENSE_STEMS``.
 _MODEL_CARD_STEMS = ("README.md", "MODEL_CARD.md")
+
+#: The most bytes of a model card read. Only its leading YAML frontmatter
+#: is used; a Hugging Face card is some KiB to a few hundred (a long
+#: ``model-index`` of evaluation results included), so 1 MiB holds any
+#: real frontmatter while a crafted multi-gigabyte card is never read whole.
+MODEL_CARD_MAX_BYTES = 1024 * 1024
+#: :data:`MODEL_CARD_MAX_BYTES` as :func:`~pitloom.logging_config.warn_over_cap`
+#: names it, once per card and process (each model in a directory reads it).
+MODEL_CARD_CAP = Cap(MODEL_CARD_MAX_BYTES, "byte", "model-card")
+#: What a warning of this module says is lost.
+_FIELDS_SKIPPED = field_loss_suffix("skipped", "license", "datasets")
 
 
 def _find_model_card_file(model_dir: Path) -> Path | None:
@@ -62,23 +78,48 @@ def _find_model_card_file(model_dir: Path) -> Path | None:
     return None
 
 
+def _frontmatter_block(text: str) -> str | None:
+    """The text between *text*'s leading ``---`` and the next ``---``, or
+    ``None`` when it does not start with one or it is not closed."""
+    parts = text.split("---", 2) if text.startswith("---") else []
+    return parts[1] if len(parts) == 3 else None
+
+
 def _parse_frontmatter(text: str) -> dict[str, Any] | None:
     """Return the leading ``---\\n...\\n---`` YAML block as a dict, or
     ``None`` when absent, malformed, or not a mapping at the top level."""
-    if not text.startswith("---"):
-        return None
-    parts = text.split("---", 2)
-    if len(parts) < 3:
+    block = _frontmatter_block(text)
+    if block is None:
         return None
     try:
-        data = yaml.safe_load(parts[1])
+        data = yaml.safe_load(block)
     except yaml.YAMLError as exc:
-        msg = "Failed to parse model-card frontmatter: %s" + field_loss_suffix(
-            "skipped", "license", "datasets"
-        )
+        msg = "Failed to parse model-card frontmatter: %s" + _FIELDS_SKIPPED
         log.warning(msg, one_line(exc))
         return None
     return data if isinstance(data, dict) else None
+
+
+def _read_card(card_path: Path) -> str | None:
+    """*card_path*'s text, its first :data:`MODEL_CARD_MAX_BYTES` (one byte
+    past them read, never the rest); ``None``, with a ``WARNING:``, when it
+    cannot be read or is over the cap with a frontmatter not closed within
+    it. A frontmatter closed within the cap is the one the whole card holds,
+    and a card not starting with one holds none, so neither warns."""
+    try:
+        with card_path.open("rb") as fh:
+            raw = fh.read(MODEL_CARD_MAX_BYTES + 1)
+    except OSError as exc:
+        msg = "Failed to read model card %s: %s" + _FIELDS_SKIPPED
+        log.warning(msg, loggable(str(card_path)), one_line(exc))
+        return None
+    text = raw[:MODEL_CARD_MAX_BYTES].decode("utf-8", errors="replace")
+    over = len(raw) > MODEL_CARD_MAX_BYTES
+    if over and text.startswith("---") and _frontmatter_block(text) is None:
+        outcome = "frontmatter not closed within it; skipped" + _FIELDS_SKIPPED
+        warn_over_cap(log, MODEL_CARD_CAP, str(card_path), outcome, once=True)
+        return None
+    return text
 
 
 # pylint: disable=too-few-public-methods
@@ -97,16 +138,8 @@ class ReadmeEnricher:
         if card_path is None:
             return EnrichmentResult(source_name=self.name)
 
-        try:
-            text = card_path.read_text(encoding="utf-8", errors="replace")
-        except OSError as exc:
-            msg = "Failed to read model card %s: %s" + field_loss_suffix(
-                "skipped", "license", "datasets"
-            )
-            log.warning(msg, loggable(str(card_path)), one_line(exc))
-            return EnrichmentResult(source_name=self.name)
-
-        frontmatter = _parse_frontmatter(text)
+        text = _read_card(card_path)
+        frontmatter = None if text is None else _parse_frontmatter(text)
         if frontmatter is None:
             return EnrichmentResult(source_name=self.name)
         # Only the two keys read below, and only their strings: YAML aliases

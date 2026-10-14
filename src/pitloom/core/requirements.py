@@ -6,8 +6,9 @@
 """PEP 508 dependency strings as a built wheel's ``Requires-Dist`` lists
 them: names canonicalized, extras tagged ``extra == "x"``.
 
-No Pitloom imports but :mod:`pitloom.logging_config`, so any extractor
-can use it without an import cycle through :mod:`pitloom.core.models`.
+No Pitloom imports but :mod:`pitloom.logging_config` and
+:mod:`pitloom.core.pep508`, so any extractor can use it without an import
+cycle through :mod:`pitloom.core.models`.
 """
 
 from __future__ import annotations
@@ -19,10 +20,11 @@ from dataclasses import dataclass
 from typing import NamedTuple, TypeAlias
 
 from hatchling.metadata.utils import normalize_requirement
-from packaging.markers import Marker
+from packaging.markers import InvalidMarker
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 
+from pitloom.core.pep508 import MAX_MARKER_NESTING, parse_marker, parse_requirement
 from pitloom.logging_config import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
@@ -61,15 +63,18 @@ def add_marker(req: Requirement, marker: str) -> None:
     """Join *marker* to *req*'s own marker with ``and``, in place.
 
     Raises:
-        packaging.markers.InvalidMarker: *marker* is not a valid marker.
+        packaging.markers.InvalidMarker: *marker* is not a valid marker,
+            or the joined one nests too deep
+            (:func:`~pitloom.core.pep508.parse_marker`, quietly).
     """
-    req.marker = Marker(f"({req.marker}) and ({marker})" if req.marker else marker)
+    joined = f"({req.marker}) and ({marker})" if req.marker else marker
+    req.marker = parse_marker(joined, quiet=True)
 
 
 def normalize_dependency_specifier(dep: str) -> str:
     """Return *dep* with its package name canonicalized to PEP 503 form."""
     try:
-        req = Requirement(dep)
+        req = parse_requirement(dep)
     except InvalidRequirement:
         return dep
     normalize_requirement(req)
@@ -92,8 +97,10 @@ def flatten_optional_dependencies(
     existing marker is kept: ``x; python_version < "3.11"`` in extra ``e``
     becomes ``x; python_version < "3.11" and extra == "e"``. A requirement
     that is not valid PEP 508 is skipped with a ``WARNING:``, since it
-    cannot be tagged and left bare it would read as a required dependency.
-    ``None`` (no table) and ``{}`` (an empty table) add nothing.
+    cannot be tagged and left bare it would read as a required dependency;
+    so is one whose tagged marker nests over
+    :data:`~pitloom.core.pep508.MAX_MARKER_NESTING`. ``None`` (no table)
+    and ``{}`` (an empty table) add nothing.
 
     A requirement on *project_name* itself (``demo[dev]`` in extra ``all``)
     is expanded Pitloom's own way: replaced by the requirements of the
@@ -103,8 +110,9 @@ def flatten_optional_dependencies(
     cycle of self-references is dropped where it closes (an extra already
     being expanded adds nothing again), with one ``WARNING:`` per cycle
     naming its extras. An expansion over :data:`MAX_EXPANSION_ENTRIES` or
-    :data:`MAX_EXPANSION_MARKERS` is not done: every self-reference is kept
-    as declared, with one ``WARNING:``.
+    :data:`MAX_EXPANSION_MARKERS`, or joining a marker nesting over
+    :data:`~pitloom.core.pep508.MAX_MARKER_NESTING`, is not done: every
+    self-reference is kept as declared, with one ``WARNING:``.
 
     No build backend writes exactly these strings: Hatchling 1.32.3 drops
     the self-reference's marker and fails the build on a cycle; setuptools
@@ -134,7 +142,11 @@ def flatten_optional_dependencies(
         tag = f'extra == "{extra}"'
         seen: set[str] = set()
         for text in texts[extra]:
-            tagged = normalize_dependency_specifier(_with_marker(text, tag))
+            try:
+                tagged = normalize_dependency_specifier(_with_marker(text, tag))
+            except (InvalidMarker, InvalidRequirement) as exc:
+                warn_skipped_extra_entry(source, extra, text, str(exc), quiet=quiet)
+                continue
             if tagged not in seen:
                 seen.add(tagged)
                 flat.append(tagged)
@@ -151,7 +163,7 @@ def _parse_extras(
         parsed = by_extra.setdefault(canonicalize_name(extra), [])
         for text in requirements:
             try:
-                parsed.append(Requirement(text))
+                parsed.append(parse_requirement(text, quiet=quiet))
             except InvalidRequirement:
                 warn_skipped_extra_entry(
                     source,
@@ -199,12 +211,23 @@ def _warn_cycles(expansion: _Expansion, source: str, quiet: bool) -> None:
 
 def _with_marker(text: str, marker: str | None) -> str:
     """The requirement *text* with *marker* joined to its own
-    (:func:`add_marker`); *text* as is when *marker* is ``None``."""
+    (:func:`add_marker`); *text* as is when *marker* is ``None``.
+
+    Raises:
+        packaging.markers.InvalidMarker: the joined marker nests too deep
+            (:func:`~pitloom.core.pep508.parse_marker`).
+        packaging.requirements.InvalidRequirement: *text* cannot be
+            parsed (:func:`~pitloom.core.pep508.parse_requirement`).
+    """
     if marker is None:
         return text
-    req = Requirement(text)
+    req = parse_requirement(text, quiet=True)
     add_marker(req, marker)
     return str(req)
+
+
+#: The parentheses a marker joined while expanding may nest.
+_NESTING_CAP = Cap(MAX_MARKER_NESTING, "level", "marker-nesting", "FIELD")
 
 
 class _OverCap(Exception):
@@ -401,7 +424,10 @@ class _Expansion:
                 )
             self._count(len(sub.texts))
             for text in sub.texts:
-                texts.setdefault(_with_marker(text, item.marker))
+                try:
+                    texts.setdefault(_with_marker(text, item.marker))
+                except (InvalidMarker, InvalidRequirement) as exc:
+                    raise _OverCap(_NESTING_CAP) from exc
         return _Expanded(list(texts), markers)
 
     def _count(self, entries: int) -> None:

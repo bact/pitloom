@@ -31,9 +31,10 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from packaging.markers import InvalidMarker, Marker
+from packaging.markers import InvalidMarker
 from packaging.utils import canonicalize_name
 
+from pitloom.core.pep508 import parse_marker
 from pitloom.extract.lock._common import (
     find_first_present_key,
     is_usable_version,
@@ -340,9 +341,9 @@ def _group_marker_excludes(
     """
     try:
         # pylint: disable=protected-access
-        tree = Marker(marker_str)._markers  # noqa: SLF001
+        tree = parse_marker(marker_str)._markers  # noqa: SLF001
         return _evaluate_group_node(tree, environment) is False
-    except (InvalidMarker, RecursionError, TypeError, ValueError) as exc:
+    except (InvalidMarker, TypeError, ValueError) as exc:
         log.warning(
             "Skipping pylock.toml entry %r's 'marker' %r: %s -- treating "
             "as an unconstrained (included) marker",

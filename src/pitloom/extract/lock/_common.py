@@ -27,12 +27,13 @@ from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import Any, Literal, TypeGuard, TypeVar
 
-from packaging.requirements import InvalidRequirement, Requirement
+from packaging.requirements import InvalidRequirement
 from packaging.specifiers import SpecifierSet
 from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion, Version
 
 from pitloom._toml_io import TOMLDecodeError, load_toml_file
+from pitloom.core.pep508 import parse_requirement
 from pitloom.extract._json_io import load_json_bytes
 from pitloom.extract.lock._common_warnings import (
     warn_conflicting_versions,
@@ -449,7 +450,7 @@ def parse_exact_pin_requirement(req_str: str) -> tuple[str, str, str] | None:
     when it represents a single exact ``==`` or ``===`` pin without a direct URL
     reference, or ``None`` otherwise."""
     try:
-        req = Requirement(req_str)
+        req = parse_requirement(req_str)
     except (InvalidRequirement, TypeError):
         return None
     if req.url is not None:

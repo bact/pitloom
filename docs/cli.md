@@ -151,7 +151,8 @@ entry built from both files names both, `setup.py` first:
 ### Enrich an SBOM
 
 Fill AI-model metadata gaps (licence, datasets) from a local
-`README.md`/`MODEL_CARD.md`'s YAML frontmatter. Off by default: opt in with
+`README.md`/`MODEL_CARD.md`'s YAML frontmatter (read up to 1 MiB: [Size and
+count caps](ai-model-scan-limits.md#size-and-count-caps)). Off by default: opt in with
 `--enrich` on `loom model`/`project`/`generate`, or run it standalone to
 produce a mergeable fragment:
 

@@ -28,6 +28,7 @@ from pitloom.extract.authors import (
     dependency_author_pairs,
     dependency_author_splits,
     read_author_fields,
+    warn_author_splits,
 )
 from tests._bounded import run_bounded_in_child
 
@@ -104,6 +105,71 @@ def test_dependency_address_problem_is_quiet(caplog: pytest.LogCaptureFixture) -
         pairs = dependency_author_pairs("a", "Ann", "ann at example dot com")
     assert pairs == [("Ann", None)]
     assert caplog.messages == []
+
+
+_NOT_ADDRESSES = "; ".join(f"x{i} at y" for i in range(1000))
+_NOT_AN_ADDRESS = ": not an email address; "
+
+
+def _dependency_split() -> None:
+    with dependency_author_splits():
+        dependency_author_pairs("a", "Ann, Bob", None)
+
+
+@pytest.mark.parametrize(
+    ("call", "lines"),
+    [
+        (
+            lambda: read_author_fields(None, _NOT_ADDRESSES),
+            [
+                "AUTHOR_EMAIL=['x0 at y', 'x1 at y', 'x2 at y', ...]"
+                f"{_NOT_AN_ADDRESS}1000 entries not recorded"
+            ],
+        ),
+        (
+            lambda: read_author_fields("Ann <a b>, Bob <c d>", "e f"),
+            [
+                f"AUTHOR_EMAIL='e f'{_NOT_AN_ADDRESS}not recorded",
+                f"AUTHOR=['Ann <a b>', 'Bob <c d>']{_NOT_AN_ADDRESS}2 entries"
+                " not recorded",
+            ],
+        ),
+        (
+            lambda: read_author_fields(None, "y" * 200),
+            [f"AUTHOR_EMAIL='{'y' * 120}'...{_NOT_AN_ADDRESS}not recorded"],
+        ),
+        (
+            lambda: read_author_fields("Ann, " + "b" * 200, None),
+            [f"AUTHOR='Ann, {'b' * 115}'...: split into 2 names"],
+        ),
+        (
+            lambda: warn_author_splits(
+                [AuthorSplit(f"{c}, {c}", 2) for c in "ABCD"], hint=""
+            ),
+            ["AUTHOR=['A, A', 'B, B', 'C, C', ...]: split into 8 names"],
+        ),
+        (
+            _dependency_split,
+            [
+                "AUTHOR='Ann, Bob': split into 2 names on ',' / 'and' (PACKAGE=a;"
+                " 1 dependency split in all)"
+            ],
+        ),
+    ],
+    ids=["flood", "per-field", "cut", "split-cut", "splits-cut", "one-dependency"],
+)
+def test_one_bounded_line_per_field(
+    caplog: pytest.LogCaptureFixture, call: Callable[[], object], lines: list[str]
+) -> None:
+    """Regression: one line per entry holding no address (1000 for one
+    crafted field), an excerpt cut without ``...``, ``1 dependencies``. Now
+    one line per field, at most three entries shown, ``...`` where cut,
+    the count in the right number."""
+    with caplog.at_level(logging.WARNING):
+        call()
+    assert len(caplog.messages) == len(lines)
+    for message, line in zip(caplog.messages, lines, strict=True):
+        assert message.startswith(line)
 
 
 #: The one-regex splits the one-pass splitters replace: the oracle.

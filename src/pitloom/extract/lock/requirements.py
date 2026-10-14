@@ -55,8 +55,9 @@ import logging
 import re
 from pathlib import Path
 
-from packaging.requirements import InvalidRequirement, Requirement
+from packaging.requirements import InvalidRequirement
 
+from pitloom.core.pep508 import parse_requirement
 from pitloom.extract._extract_utils import sanitize_url_credentials
 from pitloom.extract.lock._common import (
     resolve_pinned_dependencies,
@@ -172,7 +173,7 @@ def _pinned_name_version_for_line(
         )
         return None
     try:
-        requirement = Requirement(line)
+        requirement = parse_requirement(line)
     except InvalidRequirement as exc:
         exc_msg = sanitize_url_credentials(str(exc))
         log.warning(

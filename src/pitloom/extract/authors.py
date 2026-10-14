@@ -14,7 +14,8 @@ comma-separated part is tested on its own for a contributor group
 (``Jane and others``, ``J. et al.``), which is not split on ``and``; a
 name part ending in ``<address>`` is read as an address entry, and a group
 after it (``Jane <j@x.org> et al.``) is a part of its own; an address that
-is no address is not recorded, the name stated before it kept. One pass
+is no address is not recorded, the name stated before it kept, with one
+``WARNING:`` per field naming the count and the first few. One pass
 reads each field, capped (:data:`AUTHOR_FIELD_MAX_CHARS`,
 :data:`AUTHOR_FIELD_MAX_NAMES`): a cap warns whenever the value read is
 used, a read whose value is discarded (*quiet*) warns about nothing. A
@@ -68,6 +69,8 @@ AUTHOR_FIELD_MAX_CHARS = 64 * 1024
 AUTHOR_FIELD_MAX_NAMES = 1000
 #: Characters of a field shown in a warning.
 _SHOWN_CHARS = 120
+#: Fields (or entries) shown in a warning naming several.
+_SHOWN_FIELDS = 3
 
 
 def is_contributor_group(name: str | None) -> bool:
@@ -170,8 +173,9 @@ class _Report(NamedTuple):
 
     #: A field over a cap (:func:`_capped`).
     caps: bool
-    #: An address entry holding no address (:func:`_read_entry`).
-    addresses: bool
+    #: Where the ``(key, entry)`` of an address entry holding no address
+    #: is noted (:func:`_read_entry`); ``None``: not warned about.
+    addresses: list[tuple[str, str]] | None
 
 
 def _split_names(
@@ -206,28 +210,46 @@ def _capped(
             if cut
             else Cap(AUTHOR_FIELD_MAX_NAMES, unit, "author-field", "FIELD")
         )
-        read = f"{len(kept)} {unit if len(kept) == 1 else units}"
+        read = _counted(len(kept), unit, units)
         digest = hashlib.sha256(field.encode("utf-8", "surrogatepass")).hexdigest()
         outcome = f"only the first {read} read of {_shown(field)}"
         warn_over_cap(_logger, cap, key, outcome, once=True, key=f"{key}:{digest}")
     return kept
 
 
+def _counted(count: int, unit: str, units: str) -> str:
+    """*count* and *unit*, or *units* unless one: ``1 name``, ``2 names``."""
+    return f"{count} {unit if count == 1 else units}"
+
+
 def _shown(field: str) -> str:
     """*field* for a warning as one quoted literal, escaped once: on one
     line, at most :data:`_SHOWN_CHARS` characters, its ``repr`` when
     printable, else its ASCII-escaped literal
-    (:func:`~pitloom.logging_config.loggable`)."""
-    text = " ".join(field.split())[:_SHOWN_CHARS]
-    escaped = loggable(text)
-    return repr(text) if escaped == text else escaped
+    (:func:`~pitloom.logging_config.loggable`); ``...`` after it when cut."""
+    text = " ".join(field.split())
+    shown = text[:_SHOWN_CHARS]
+    escaped = loggable(shown)
+    literal = repr(shown) if escaped == shown else escaped
+    return literal + ("..." if len(text) > _SHOWN_CHARS else "")
+
+
+def _shown_list(fields: list[str]) -> str:
+    """One field :func:`_shown`, or several as ``[a, b, c, ...]``: the first
+    :data:`_SHOWN_FIELDS`, ``...`` when there are more."""
+    if len(fields) == 1:
+        return _shown(fields[0])
+    shown = [_shown(field) for field in fields[:_SHOWN_FIELDS]]
+    if len(fields) > _SHOWN_FIELDS:
+        shown.append("...")
+    return f"[{', '.join(shown)}]"
 
 
 #: One line per document whose free-text author names were split; the
-#: first ``%s`` is the string (:func:`_shown`), or the list of strings when
-#: several were split; the last ``%s`` is the caller's hint.
+#: first ``%s`` is the string, or the strings when several were split
+#: (:func:`_shown_list`); the last ``%s`` is the caller's hint.
 _NAMES_SPLIT_MESSAGE = (
-    "AUTHOR=%s: split into %d names on ',' / 'and'; a free-text author field"
+    "AUTHOR=%s: split into %s on ',' / 'and'; a free-text author field"
     " cannot tell a list from one name containing a comma%s"
 )
 #: The hint for a split read from core metadata.
@@ -237,9 +259,9 @@ CORE_METADATA_HINT = (
 )
 #: One line per document whose dependencies' free-text authors were split.
 _DEPENDENCY_SPLIT_MESSAGE = (
-    "AUTHOR=%s: split into %d names on ',' / 'and' (PACKAGE=%s; %d dependencies"
-    " split in all); a free-text author field cannot tell a list from one name"
-    " containing a comma"
+    "AUTHOR=%s: split into %s on ',' / 'and' (PACKAGE=%s; %s split in all); a"
+    " free-text author field cannot tell a list from one name containing a"
+    " comma"
 )
 
 
@@ -250,15 +272,10 @@ def warn_author_splits(
     ending with *hint*."""
     if splits and not quiet:
         total = sum(split.names for split in splits)
-        shown_fields = [_shown(split.field) for split in splits]
         _logger.warning(
             _NAMES_SPLIT_MESSAGE,
-            (
-                shown_fields[0]
-                if len(shown_fields) == 1
-                else f"[{', '.join(shown_fields)}]"
-            ),
-            total,
+            _shown_list([split.field for split in splits]),
+            _counted(total, "name", "names"),
             hint,
         )
 
@@ -292,9 +309,10 @@ _TYPOGRAPHIC_QUOTES = {"\u201c": "\u201d", "\u2018": "\u2019"}
 _ENTRY_TOKEN_RE = re.compile('[",;\u201c\u201d\u2018\u2019]')
 #: An RFC 5322 comment ending an address entry: ``ann@example.com (Ann)``.
 _TRAILING_COMMENT_RE = re.compile(r"\([^()]*\)\s*$")
-#: One line per address entry that holds no address; ``%s`` is the field's
-#: key (``AUTHOR_EMAIL``, or ``AUTHOR`` for an entry in the name field).
-_NOT_AN_ADDRESS_MESSAGE = "%s=%s: not an email address; not recorded"
+#: One line per field holding address entries that hold no address: the
+#: field's key (``AUTHOR_EMAIL``, or ``AUTHOR`` for an entry in the name
+#: field), the entries (:func:`_shown_list`) and, when several, how many.
+_NOT_AN_ADDRESS_MESSAGE = "%s=%s: not an email address; %snot recorded"
 
 
 def _ascii_quoted(entry: str) -> str:
@@ -308,15 +326,17 @@ def _ascii_quoted(entry: str) -> str:
     return entry
 
 
-def _read_entry(entry: str, key: str, warn: bool) -> list[tuple[str, str]]:
+def _read_entry(
+    entry: str, key: str, noted: list[tuple[str, str]] | None
+) -> list[tuple[str, str]]:
     """``(raw display name, address)`` of one address entry. The address is
     checked as written -- after the last ``<`` and closed by ``>``, less a
     trailing comment: :func:`email.utils.getaddresses` drops a space or an
     extra ``@`` (``a@b c`` reads ``a@bc``), and that address is no one's.
     With no valid address, a display name stated before the ``<`` is kept
     alone (``("Ann", "")``); the address, unless an empty ``<>``, is not
-    recorded, with a ``WARNING:`` tagged *key* (with *warn*), as is an
-    entry left with nothing."""
+    recorded, its ``(key, entry)`` appended to *noted* (when given) for
+    :func:`_warn_not_addresses`, as is an entry left with nothing."""
     entry = _ascii_quoted(entry)
     head, angle, tail = _TRAILING_COMMENT_RE.sub("", entry).rpartition("<")
     tail = tail.strip()
@@ -331,9 +351,18 @@ def _read_entry(entry: str, key: str, warn: bool) -> list[tuple[str, str]]:
             return found
     stated = unquote(head.strip()) if angle and not _ANGLE_RE.search(head) else ""
     name = _display_name(stated, written) or ""
-    if warn and (written or not name):
-        _logger.warning(_NOT_AN_ADDRESS_MESSAGE, key, _shown(entry.strip()))
+    if noted is not None and (written or not name):
+        noted.append((key, entry.strip()))
     return [(name, "")] if name else []
+
+
+def _warn_not_addresses(noted: list[tuple[str, str]]) -> None:
+    """One ``WARNING:`` per key of *noted*, in order: its entries holding
+    no address, the first few shown, and how many when several."""
+    for key in dict.fromkeys(key for key, _ in noted):
+        entries = [entry for at, entry in noted if at == key]
+        count = f"{len(entries)} entries " if len(entries) > 1 else ""
+        _logger.warning(_NOT_AN_ADDRESS_MESSAGE, key, _shown_list(entries), count)
 
 
 def _address_entries(
@@ -412,8 +441,8 @@ def author_pairs(
     the one fixed rule keeps the result stable.
 
     An address entry holding no address of the form ``local@domain`` is not
-    recorded, its stated display name kept, with a ``WARNING:`` (unless
-    *quiet* or not *address_warnings*). Each name string that was split
+    recorded, its stated display name kept, with one ``WARNING:`` per field
+    (unless *quiet* or not *address_warnings*). Each name string that was split
     where a separator could be inside a name is appended to *splits*, for
     the caller's one warning. A field over :data:`AUTHOR_FIELD_MAX_CHARS` or
     :data:`AUTHOR_FIELD_MAX_NAMES` is read up to the cap, with one
@@ -421,10 +450,12 @@ def author_pairs(
     read is used, and *quiet* marks a read whose value is discarded (or
     re-reads a field already reported), which warns about nothing.
     """
-    report = _Report(caps=not quiet, addresses=address_warnings and not quiet)
+    noted: list[tuple[str, str]] | None = [] if address_warnings and not quiet else None
+    report = _Report(caps=not quiet, addresses=noted)
     names_text = _stated_text(names)
     parsed = _address_entries(_stated_text(addresses), report)
     named = _name_entries(names_text, splits, report)
+    _warn_not_addresses(noted or [])
     pairs: list[NameEmail] = [
         (_display_name(name, addr), addr or None) for name, addr in parsed
     ]
@@ -503,9 +534,9 @@ def _warn_dependency_splits(found: list[_DependencySplit]) -> None:
         _logger.warning(
             _DEPENDENCY_SPLIT_MESSAGE,
             _shown(first.split.field),
-            first.split.names,
+            _counted(first.split.names, "name", "names"),
             loggable(first.package),
-            len(packages),
+            _counted(len(packages), "dependency", "dependencies"),
         )
 
 

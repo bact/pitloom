@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-12
+Last-Modified: 2026-10-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -48,8 +48,8 @@ and this project adheres to
   licence's own FSF notice), else `NOASSERTION`; no longer made from the
   authors ([#300])
 - Every input over a cap (model bounds, labels, names, wheel/sdist header
-  blocks, config members) warns `<KEY>=…: larger than the N-unit … cap;
-  <outcome>` ([#300])
+  blocks, config members, a 1 MiB model card) warns `<KEY>=…: larger than the
+  N-unit … cap; <outcome>` ([#300])
 
 ### Fixed
 
@@ -58,7 +58,7 @@ and this project adheres to
   `[tool.poetry].authors` entry ([#300])
 - An author named `... Brothers` is a Person, not a group; a setuptools
   `UNKNOWN` author is no author; a stated name stays beside an invalid
-  address ([#300])
+  address, warned once per field ([#300])
 - A creator's name and email are stripped; `embed-wheel --project-dir` warns
   once about a split in the adopted project authors, `--config` or not
   ([#300])
@@ -66,8 +66,9 @@ and this project adheres to
   `file:`/`{file =}` version or text file outside the project is not read; a
   `project.license.file` `Source:` is project-relative ([#300])
 - Crafted author fields, copyright lines, extras self-references and
-  requirements files no longer take quadratic or exponential time or memory
-  ([#300])
+  requirements files no longer take quadratic or exponential time or memory;
+  a requirement or marker nesting over 64 parentheses warns instead of
+  crashing the run ([#300])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 

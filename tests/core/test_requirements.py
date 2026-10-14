@@ -17,12 +17,14 @@ from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
 from pitloom.core import requirements
+from pitloom.core.pep508 import MAX_MARKER_NESTING, parse_requirement
 from pitloom.core.requirements import (
     add_marker,
     flatten_optional_dependencies,
     normalize_dependency_specifier,
 )
 from tests._bounded import run_bounded
+from tests._deep_marker import nested_marker
 
 _SRC = "optional-dependencies"
 
@@ -318,6 +320,35 @@ def test_expansion_over_a_cap_keeps_self_references(
     expected = f"FIELD={_SRC}: larger than the {warning} cap; self-references"
     assert caplog.messages == (
         [] if quiet or warning is None else [f"{expected} kept as declared"]
+    )
+
+
+_AT_CAP = "x; " + nested_marker(MAX_MARKER_NESTING)
+
+
+@pytest.mark.parametrize("quiet", [False, True], ids=["warns", "quiet"])
+def test_a_marker_joined_over_the_nesting_cap_is_not_joined(
+    caplog: pytest.LogCaptureFixture, quiet: bool
+) -> None:
+    """A requirement at the nesting cap parses, but joined to another
+    marker it nests over it: a required one is kept, an extra's skipped, a
+    self-reference reaching it keeps every self-reference as declared, each
+    with one ``WARNING:``; *quiet* silences them."""
+    optional = {"all": ["demo[dev]; os_name == 'a'"], "dev": [_AT_CAP]}
+    with caplog.at_level(logging.WARNING):
+        flat = flatten_optional_dependencies(
+            [_AT_CAP], optional, "demo", source=_SRC, quiet=quiet
+        )
+    assert flat == [_AT_CAP, 'demo[dev]; os_name == "a" and extra == "all"']
+    cap = "larger than the 64-level marker-nesting cap"
+    assert caplog.messages == (
+        []
+        if quiet
+        else [
+            f"FIELD={_SRC}: {cap}; self-references kept as declared",
+            f"Skipping extra entry {str(parse_requirement(_AT_CAP))!r} of 'dev'"
+            f" ({_SRC}): {cap}",
+        ]
     )
 
 
