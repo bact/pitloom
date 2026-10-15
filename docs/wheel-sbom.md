@@ -108,7 +108,9 @@ warn and name the package `unknown`; `wheel --embed`, `embed-wheel`,
 its headers only (at most 16 MiB and 10,000 headers); past a cap, one
 `WARNING:` per command and the name is `unknown`. That placeholder is not
 looked up in or recorded into an ID registry: the package gets a per-document
-id and, with a registry declared, one `INFO:` says so. The ids of an
+id and, with a registry declared, one `INFO:` says so (once per
+`embed-wheel` batch). The same holds for `wheel --embed` and `embed-wheel`,
+with or without `--project-dir`. The ids of an
 unidentified wheel depend on its base file name (as given, no case folding,
 the same on every OS) as well as its payload: the same file name and bytes
 give the same SBOM, two such wheels with one payload but different file names

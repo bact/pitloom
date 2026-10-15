@@ -19,6 +19,7 @@ re-exported below, so each name is importable from this module.
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Callable
 from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -205,6 +206,7 @@ def build(
     enrichment_results_by_model: list[list[EnrichmentResult]] | None = None,
     offline: bool = False,
     content_type_method: str = "auto",
+    identity_info_due: Callable[[], bool] | None = None,
 ) -> Spdx3JsonExporter:
     """Assemble SPDX 3 elements from a :class:`~pitloom.core.document.DocumentModel`.
 
@@ -295,7 +297,7 @@ def build(
     exporter.add_package(main_package)
     if not doc.identity_known:
         exporter.registry_non_readers.add(require_spdx_id(main_package))
-        if registry is not None:
+        if registry is not None and (identity_info_due is None or identity_info_due()):
             info_identity_unknown()
     emit_provenance(
         subject=main_package,

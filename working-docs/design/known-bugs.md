@@ -60,7 +60,8 @@ Size: S under half a day, M about a day.
 ## P1: registry v3 in 0.21.0 (some built, some not)
 
 - [ ] **sdist placeholder names.** An sdist with no `Name` is `unknown` and is
-  still looked up and harvested. (Wheels: fixed in PR #305 with
+  still looked up and harvested; two sdists whose PKG-INFO lacks `Name` share one
+  doc uuid and reuse a pinned `unknown` id. (Wheels: fixed in PR #305 with
   `identity_known` and a file-name uuid seed.) See
   [id-registry-followups.md](id-registry-followups.md#wheel-identity-and-archive-readers).
 - [x] **A registry inside the scanned tree never settles.** Fixed by

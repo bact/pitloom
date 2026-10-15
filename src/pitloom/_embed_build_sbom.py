@@ -46,11 +46,14 @@ from pitloom.enrich import run_enrichers_for_models
 from pitloom.extract.authors import CORE_METADATA_HINT, AuthorSplit, warn_author_splits
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.scanner_project import scan_project_for_ai_models
+from pitloom.extract.wheel import wheel_document_identity
 from pitloom.id_registry import IdRegistry, registry_copy, registry_file_path
 
 _T = TypeVar("_T")
 #: The batch memo key of the registry left-out warning.
 _REGISTRY_LEFT_OUT = ("registry-left-out",)
+#: The batch memo key of the unknown-identity INFO.
+_IDENTITY_UNKNOWN = ("identity-unknown",)
 
 
 def _left_out(settled: dict[Hashable, object], registry: Path) -> None:
@@ -306,6 +309,14 @@ class EmbedFileCache:
         """
         return self.first_use(_REGISTRY_LEFT_OUT)
 
+    def identity_info_due(self) -> bool:
+        """Whether the unknown-identity ``INFO:`` is still due in this
+        block: one per batch.
+
+        Raises :class:`RuntimeError` outside a ``with`` block.
+        """
+        return self.first_use(_IDENTITY_UNKNOWN)
+
     def _require_block(self, method: str) -> None:
         if self._guard is None:
             raise RuntimeError(
@@ -314,7 +325,7 @@ class EmbedFileCache:
             )
 
 
-# pylint: disable-next=too-many-arguments
+# pylint: disable-next=too-many-arguments,too-many-locals
 def _build_sbom_from_project_and_wheel(
     project_dir: Path,
     wheel_metadata: ProjectMetadata,
@@ -322,6 +333,7 @@ def _build_sbom_from_project_and_wheel(
     registry: IdRegistry | None,
     creation_metadata: CreationMetadata | None,
     *,
+    wheel_path: Path,
     build_options: BuildOptions = BuildOptions(),
     file_cache: EmbedFileCache | None = None,
     author_splits: list[AuthorSplit] | None = None,
@@ -332,6 +344,9 @@ def _build_sbom_from_project_and_wheel(
     split into several entries (:func:`~pitloom.extract.wheel.read_wheel`),
     warned about only when the project's own authors do not replace the
     wheel's.
+
+    *wheel_path* is the wheel *wheel_metadata* was read from (see
+    :func:`~pitloom.extract.wheel.wheel_document_identity`).
 
     *build_options* is a separate parameter, not read off
     ``pitloom_config``: it deliberately has no ``[tool.pitloom]`` cascade
@@ -414,6 +429,7 @@ def _build_sbom_from_project_and_wheel(
         creation_metadata=creation_metadata or CreationMetadata(),
         ai_models=ai_models,
         phantom_dependencies=find_phantom_dependencies(merged_files),
+        **wheel_document_identity(wheel_metadata, wheel_path),
     )
     exporter = assemble_spdx3(
         doc,
@@ -421,6 +437,9 @@ def _build_sbom_from_project_and_wheel(
         sbom_type=spdx3.software_SbomType.build,
         registry=registry,
         enrichment_results_by_model=enrichment_results,
+        identity_info_due=(
+            file_cache.identity_info_due if file_cache is not None else None
+        ),
         **pitloom_config.assemble_options,
     )
     # Fragments merge only into a project directory's SBOM, as for

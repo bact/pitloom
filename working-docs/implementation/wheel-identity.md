@@ -105,7 +105,9 @@ names (`matching_dist_infos`), so a foreign `.dist-info` cannot hide a model.
   `registry_non_readers`, one `INFO:` when a registry is declared; the base
   file name seeds the document uuid, `DocumentModel.identity_seed`, so
   same-payload wheels of different names do not share ids; no other document
-  type passes a seed), exit 0; `wheel --embed`, `embed-wheel`,
+  type passes a seed; `wheel_document_identity()` is the one helper the wheel
+  generator, `embed-wheel` standalone and `embed-wheel --project-dir` use; the
+  `INFO:` goes once per `embed-wheel` batch, `EmbedFileCache.identity_info_due`), exit 0; `wheel --embed`, `embed-wheel`,
   `verify-wheel` and `validate-wheel` refuse the wheel with that text. The
   model scan skips the one directory the file name names, and none where
   several do, as `read_wheel` takes none of them. The scan does not skip a

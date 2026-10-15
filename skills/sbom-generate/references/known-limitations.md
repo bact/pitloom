@@ -199,7 +199,7 @@ With no single own `.dist-info`, or a `METADATA` that is missing or over a cap,
 SBOM that names the wheel `unknown`; an ID registry neither looks up nor
 records that placeholder (one `INFO:` when a registry is declared); its ids
 derive from the wheel's file name and payload, so a renamed copy gets new ids.
-The embeds do the same for a `METADATA`
+The embeds do the same (one registry `INFO:` per batch) for a `METADATA`
 that is missing or over a cap, but fail with the `ERROR:` above where there is
 no single `.dist-info` to write into. Where the file name names no top-level
 `.dist-info` but one other exists, every one of these commands uses it and logs

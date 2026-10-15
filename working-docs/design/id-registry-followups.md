@@ -72,7 +72,10 @@ Ids, names and output:
 - ~~**The sentinel `unknown` becomes a registry key.**~~ Resolved
   2026-10-15 for wheels: `identity_known` is `False`, the package is not looked
   up or recorded, one `INFO:`, and the base file name seeds the document uuid.
-  Still open: the sdist placeholders
+  Embed routes (standalone, `--project-dir`) share the helper
+  `wheel_document_identity()`, the `INFO:` once per batch. Still open: the
+  sdist placeholders (two sdists with PKG-INFO lacking `Name` share a doc uuid
+  and reuse a pinned `unknown` id)
   (`extract/project/sdist.py` `Name` default `unknown`, `_sdist_pyproject.py`;
   `_parse_pkg_info` sets `provenance['name']` even when absent) are unfixed.
 - **Default SBOM file name:** switch embed, the Hatchling hook and `loom

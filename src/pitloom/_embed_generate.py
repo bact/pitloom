@@ -46,7 +46,7 @@ from pitloom.core.inert_options import (
     INERT,
     settle_inert,
 )
-from pitloom.core.models import archive_base_name, merkle_root_of_files
+from pitloom.core.models import merkle_root_of_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import require_max_source_metadata_bytes
 from pitloom.core.walk_rules import without_registry_copies
@@ -58,7 +58,7 @@ from pitloom.extract.authors import (
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.project import read_project
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
-from pitloom.extract.wheel import wheel_identity
+from pitloom.extract.wheel import wheel_document_identity
 from pitloom.id_registry import (
     IdRegistry,
     registry_base_dir,
@@ -284,6 +284,7 @@ def _generate_embed_sbom_json(
         cfg,
         resolve_registry(id_registry, cfg.id_registry, registry_base_dir(proj_root)),
         creation_metadata or cfg.creation_metadata,
+        wheel_path=wheel_path,
         build_options=settled_build_options,
         file_cache=file_cache,
         author_splits=author_splits,
@@ -334,20 +335,21 @@ def _build_sbom_standalone_wheel(
             file_cache is None or file_cache.first_use(("gate-hint", str(fmt)))
         ),
     )
-    known = wheel_identity(wheel_metadata)[0] is not None
     doc = DocumentModel(
         project=wheel_metadata.replace_with_fresh_containers(files=files),
         creation_metadata=creation_metadata,
         ai_models=ai_models,
         phantom_dependencies=find_phantom_dependencies(files),
-        identity_known=known,
-        identity_seed=None if known else archive_base_name(wheel_path),
+        **wheel_document_identity(wheel_metadata, wheel_path),
     )
     exporter = assemble_spdx3(
         doc,
         merkle_root=merkle_root_of_files(files),
         sbom_type=spdx3.software_SbomType.analyzed,
         registry=registry,
+        identity_info_due=(
+            file_cache.identity_info_due if file_cache is not None else None
+        ),
         **cfg.assemble_options,
     )
     return exporter.to_json(pretty=False)

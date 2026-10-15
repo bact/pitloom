@@ -12,6 +12,7 @@ See also: test_models_wheel_exclude_path.py (``get_wheel_files(exclude_path=)``)
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 
 import pytest
@@ -199,6 +200,25 @@ def test_registry_copy_member_in_another_case(tmp_path: Path) -> None:
     copy = RegistryCopy(registry, project)
     assert copy.matches("Demo/REG.json") is folds
     assert copy.matches("Demo/other.json") is False
+
+
+def test_registry_copy_member_in_another_case_by_identity(tmp_path: Path) -> None:
+    """Where the file system keeps case, a member spelt in another case is
+    the registry only if that spelling is the registry's own inode (a hard
+    link): the rule a case-insensitive file system applies by itself."""
+    if not case_sensitive(tmp_path):
+        pytest.skip("case folding is covered by the test above")
+    project, registry = _rooted(tmp_path, "demo/reg.json")
+    alias = project / "Demo" / "REG.json"
+    alias.parent.mkdir()
+    try:
+        os.link(registry, alias)
+    except OSError:
+        pytest.skip("hard links unavailable on this file system")
+    write_file(project, "Demo/Reg.json", REG)  # same letters, another file
+    copy = RegistryCopy(registry, project)
+    assert copy.matches("Demo/REG.json")
+    assert not copy.matches("Demo/Reg.json")
 
 
 @pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symlink")
