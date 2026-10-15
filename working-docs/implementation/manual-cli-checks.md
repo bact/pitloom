@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -33,7 +33,8 @@ The full run takes minutes; pytest already runs a slice of it in CI
   | Area | `--only` |
   |---|---|
   | wheel, embed | `3,4a,16,S2,S3,S7,S8,M/wheel/*,M/embed-wheel/*,M/verify-wheel/*,M/validate-wheel/*` |
-  | registry, ids | `9,14,S4,S5,M/id-*/*` |
+  | registry, ids | `9,14,20,21,S4,S5,M/id-*/*` |
+  | `loom.run` (SDK), dataset hashing, loom models | `20,21` |
   | fragments, merge | `7,S6,M/merge/*,M/fragment-*/*` |
   | build, `--allow-build`, termination | `B*,10` |
   | config, options, cascade | `5,12,13,15,M/completeness`, plus `M/<cmd>/*` per command whose options changed |
@@ -64,7 +65,7 @@ unattended from one stdlib-only runner, on Linux, macOS and Windows:
 
 Use the checkout's own interpreter: the runner tests the `pitloom` that
 interpreter imports, and prints its path first. Besides the numbered
-checks (`1`-`18`, `B1`-`B7`) it runs:
+checks (`1`-`21`, `B1`-`B7`) it runs:
 
 - **The CLI matrix** (`M/<command>/<group>/<variant>`): every subcommand
   x its options x the environment variables that change it
@@ -286,12 +287,13 @@ must both apply it; `-v` on the archive labels it
 with `--config good.toml` succeeds. Automated as check 13; the
 library-level counterpart is `tests/assemble/test_sdist_own_config.py`.
 
-**14. Declared-but-missing/invalid `--id-registry` is one ERROR, every
-CLI surface**: `--id-registry` pointing at a missing file, and again at
-one containing `"{"` (invalid JSON), on `project`, `wheel`, `env`,
-`model` and `embed-wheel` -- each of the 10 runs must exit 1 with
-exactly one `ERROR:` line containing `ID registry file` and no output
-file written. Automated as check 14
+**14. Declared-but-missing/invalid/v2 `--id-registry` is one ERROR, every
+CLI surface**: `--id-registry` pointing at a missing file, at
+one containing `"{"` (invalid JSON), and at a `"version": 2` file, on
+`project`, `wheel`, `env`, `model` and `embed-wheel` -- each of the 15
+runs must exit 1 with exactly one `ERROR:` line containing
+`ID registry file` (the v2 one also `version 2, expected 3`) and no
+output file written. Automated as check 14
 (`scripts/manual_cli_checks/_checks_core.py::check_registry_missing_invalid`).
 This check is flag-only, on those five CLI surfaces; it does not cover
 a registry declared via the project's own `[tool.pitloom] id-registry`
@@ -393,3 +395,29 @@ model the same id. Automated as check 19
 per-surface detail in `tests/id_registry/test_registry_display_escape.py`,
 `tests/assemble/test_long_model_names.py` and
 `tests/assemble/test_lone_surrogates.py`.
+
+**20. `loom.run` dataset ids from any directory**: `loom id generate`
+registers `data/t.txt` (as a `software_File`, and as a
+`dataset_DatasetPackage` by `-e data/t.txt:dataset_DatasetPackage`); a
+`loom.run` script declares `data/t.txt` and the directory `corpus/`. Two
+runs from the project root give the same ids, both from the registry, and a
+`contains` edge from the dataset to its file; a run from `sub/` naming
+`../data/t.txt` keeps the file's id (keyed from the registry's project
+root) and the directory's Merkle root (its `comment` says "over 2 files").
+Renaming a file in `corpus/` changes the root; no run writes the registry.
+Automated as check 20
+(`scripts/manual_cli_checks/_checks_loom.py::check_loom_dataset_ids`);
+per-case detail in `tests/core/test_loom_dataset.py`.
+
+**21. `loom.run` models recorded by loom itself**: `loom id generate`
+registers a data file and the script, and pins the dataset by `-e
+data.txt:dataset_DatasetPackage`, but no model. A training script
+(`set_model("m", path="model.bin")`, a separate process) logs exactly one
+`INFO: ID registry: added 1 new id(s)`; an evaluation script
+(`use_model(..., path=)`) gets the same model id, logs nothing and leaves
+the registry bytes unchanged. A script that rewrites `model.bin` and then
+raises exits 1, writes no fragment and leaves the registry bytes unchanged;
+the next training run (those new bytes) gets a new id with exactly one
+`content changed` INFO. Automated as check 21
+(`scripts/manual_cli_checks/_checks_loom.py::check_loom_model_ids`);
+per-case detail in `tests/core/test_loom_model.py`.

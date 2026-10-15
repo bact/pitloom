@@ -43,24 +43,43 @@ class OutsideRootError(OSError):
         super().__init__("outside the project directory")
 
 
-def is_inside(path: PurePath, root: PurePath) -> bool:
-    """Whether *path* is *root* or lies below it, both already resolved.
+def inside_ancestor(path: PurePath, root: PurePath) -> PurePath | None:
+    """The one of *path* and its ancestors that is *root*, both already
+    resolved; ``None`` when *path* is not *root* and not below it.
 
     By spelling first, else by file identity: *path* or one of its
     ancestors is the file *root* is (a case-insensitive file system spells
     one directory two ways, and ``resolve()`` keeps a symlink target's
-    spelling). A *root* with no identity (missing, or ``st_ino`` 0 on
-    FAT/exFAT) is matched by spelling only. Never raises.
+    spelling). The ancestor is returned as *path* spells it, so
+    ``path.relative_to()`` of it always works. A *root* with no identity
+    (missing, or ``st_ino`` 0 on FAT/exFAT) is matched by spelling only.
+    Never raises.
     """
     if path == root or root in path.parents:
-        return True
+        return root
     root_id = file_id(root)
-    return root_id is not None and any(
-        file_id(ancestor) == root_id for ancestor in (path, *path.parents)
+    if root_id is None:
+        return None
+    return next(
+        (
+            ancestor
+            for ancestor in (path, *path.parents)
+            if file_id(ancestor) == root_id
+        ),
+        None,
     )
 
 
-def _open_nonblocking(path: str, flags: int) -> int:
+def is_inside(path: PurePath, root: PurePath) -> bool:
+    """Whether *path* is *root* or lies below it, both already resolved
+    (see :func:`inside_ancestor`). Never raises."""
+    return inside_ancestor(path, root) is not None
+
+
+def open_nonblocking(path: str, flags: int) -> int:
+    """``os.open`` for :func:`open`'s *opener*: a FIFO opens at once, with
+    no writer, so the caller's ``fstat()`` can refuse it instead of
+    blocking."""
     return os.open(path, flags | _NONBLOCK)
 
 
@@ -85,7 +104,7 @@ def open_inside(written: Path, root: Path) -> BinaryIO:
     if not stat.S_ISREG(os.stat(written).st_mode):
         raise NotRegularFileError
     with ExitStack() as refused:
-        handle = refused.enter_context(open(written, "rb", opener=_open_nonblocking))
+        handle = refused.enter_context(open(written, "rb", opener=open_nonblocking))
         _check_opened(handle, written, root)
         refused.pop_all()  # checked: the caller closes it
     return handle

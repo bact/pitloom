@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-10
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC0-1.0
 # Known bugs, by priority
 
 See also: [roadmap.md](roadmap.md),
-[id-registry-v3.md](id-registry-v3.md),
+[id-registry-v3.md](../implementation/id-registry-v3.md),
 [id-registry-followups.md](id-registry-followups.md),
 [canonical-output-followups.md](canonical-output-followups.md) (open
 canonicalisation questions behind several bugs here).
@@ -29,8 +29,8 @@ Size: S under half a day, M about a day.
 - [ ] **Git LFS pointers outside AI models (M, decided).** A dataset or
   any other file that is an unfetched pointer is listed with the
   pointer's SHA-256 and no warning. Decided: one shared detector, one
-  summary `WARNING:` per run, one line per file at `--debug`; lands
-  before registry v3, which reuses it for loom `path=`.
+  summary `WARNING:` per run, one line per file at `--debug`. Registry v3
+  shipped without it; loom `path=` should reuse it.
 - [ ] **A fragment value may lose to an extracted one (S-M, own PR).**
   Unconfirmed in #294: a fragment or catalogue `description` should win
   over the one generated from a CRFsuite model's labels
@@ -56,24 +56,29 @@ Size: S under half a day, M about a day.
   warning also labels `dup_named.onnx` by its own name `dup_stem`, so it
   reads as a file colliding with itself; name the file too.
 
-## P1: fixed by registry v3 in 0.21.0 (decided, in its spec)
+## P1: registry v3 in 0.21.0 (some built, some not)
 
 - [ ] **Wheels with no `Name` share one package id.** Two different
   wheels both become `unknown` and the second reuses the first's IRI
-  (Q-C: folded into v3).
-- [ ] **A registry inside the scanned tree never settles.** Each run
-  hashes the registry as a project file, then rewrites it: 4 runs, 4
-  different SBOMs and registries.
-- [ ] **A project under any `build/` directory indexes nothing.**
-  `_is_eligible_file` matches ignored directory names against the
-  absolute path (`id_registry/_types.py`); `loom id generate` writes 0
-  files, silently.
+  (Q-C: planned for v3, not built; see
+  [id-registry-followups.md](id-registry-followups.md)).
+- [x] **A registry inside the scanned tree never settles.** Fixed by
+  registry v3 (PR #305, D7): the declared registry is left out of the file
+  set, with one `WARNING:` per run. (Was: each run hashed the registry as a
+  project file, then rewrote it: 4 runs, 4 different SBOMs and registries.)
+- [x] **A project under any `build/` directory indexes nothing.** Fixed
+  by registry v3 (PR #305): `_is_eligible_file` matches ignored directory
+  names against the project-relative path. (Was: the absolute path, so
+  `loom id generate` wrote 0 files, silently.)
 - [ ] **Same-stem model files share one entity.** `a/model.gguf` and
-  `b/model.gguf` get one `ai_AIPackage` key (Q-A: key by project path).
+  `b/model.gguf` get one `ai_AIPackage` key (Q-A: key by project path). v3
+  registers such a stem by name only, with one `INFO:` per run; the key is
+  not by path.
 - [ ] **A package key without a version gives every release one id**
-  (Q-D: PEP 503 name plus PEP 440 version).
-- [ ] **`normcase` does not fold case on macOS**, so a `same_path`
-  helper built on it misses case variants; use `(st_dev, st_ino)`.
+  (Q-D: PEP 503 name plus PEP 440 version). Not built in v3.
+- [x] **`normcase` does not fold case on macOS**, so a `same_path`
+  helper built on it misses case variants. Fixed by registry v3 (PR #305):
+  `core/walk_rules.same_path` falls back to `(st_dev, st_ino)`.
 
 ## P2: in 0.21.0
 
@@ -295,7 +300,9 @@ the one list.
   its own during `taskkill /F /T`, taskkill reports failure, so the
   `WARNING:` says "could not confirm the build process tree terminated"
   although it did. A Job Object would confirm it (0.21.0).
-- [ ] **The registry harvest `INFO:` can print a negative count (S).**
+- [x] **The registry harvest `INFO:` can print a negative count (S).** Fixed
+  by registry v3 (PR #305): `added N new id(s)` counts distinct new ids.
+  (Original report:)
   `_sync_registry()` (`assemble/_generators_shared.py`) logs `added %d
   new file(s), %d new entit(y/ies)` from the net counts of `harvest()`.
   Two library calls on the example project in a row printed `added 0 new
@@ -303,16 +310,11 @@ the one list.
   makes the net count negative. Log gross additions, or the "updated stale
   entries" line when any count is not positive. Found while checking doc
   examples.
-- [ ] **`loom.run` never calls `configure_logging()` (S).** `loom.py` and
-  `_loom*.py` have no call, so a script using the decorator or context
-  manager prints its registry messages (`_loom_caller.py`,
-  `_loom_active_run.py`) bare, with no `WARNING:` tag. Those messages also
-  say `loom: ...` where every sibling `pitloom.id_registry` message says
-  `ID registry: ...`. Seen running `examples/sentimentdemo-aibom`'s
-  `train.py` on current `main`. The same example's committed
-  `loom-id-registry.json` is stale against its scripts' hashes, so running `train` and
-  `evaluate` straight from a checkout (the pipeline script refreshes the
-  registry between stages) logs the "SHA-256 no longer matches" message.
+- [x] **`loom.run` never calls `configure_logging()` (S).** Fixed by
+  registry v3 (PR #305): `loom.Run` configures logging first, so its messages
+  carry their `WARNING:`/`INFO:` tag. The `loom: ...` sub-prefix (against
+  `ID registry: ...` elsewhere) is kept on purpose, and the example's
+  committed registry is regenerated by its pipeline script.
 - [ ] **`loom fragment validate A B` fails on two `loom.run` fragments (S).**
   Both fragments name their creation info `_:CreationInfo0`, so the
   merged-graph check sees one `CreationInfo` with several `created` values

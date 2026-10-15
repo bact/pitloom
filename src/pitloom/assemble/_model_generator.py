@@ -37,9 +37,11 @@ from pitloom.extract.remote import is_huggingface_source, read_huggingface
 from pitloom.extract.scanner import read_model_candidate
 from pitloom.extract.scanner_project import local_model_candidate
 from pitloom.id_registry import (
+    AI_PACKAGE_TYPE,
     IdRegistry,
     IdRegistrySession,
     registry_base_dir,
+    registry_file_path,
     resolve_registry,
 )
 from pitloom.logging_config import configure_logging
@@ -71,7 +73,9 @@ def _read_local_model(model_path: Path) -> AiModelMetadata:
 
 
 def _doc_identity_of(
-    project_dir: Path, project_metadata: ProjectMetadata
+    project_dir: Path,
+    project_metadata: ProjectMetadata,
+    registry: IdRegistry | None = None,
 ) -> tuple[str, str]:
     """``(doc_name, doc_uuid)`` for *project_metadata*, resolved from
     *project_dir* (see :func:`~pitloom.core.models.compute_doc_uuid` for
@@ -87,6 +91,9 @@ def _doc_identity_of(
     after a Pitloom upgrade that changes file discovery for this
     project's backend, or the fragment's element references may not
     match the base document's spdxIds.
+
+    The file walk leaves out *registry*'s own file, as in the project's
+    SBOM, so both compute the same Merkle root.
     """
     # build_options intentionally omitted (no --allow-build): the only
     # production caller, enrich_model() (`loom enrich --project-dir`), has
@@ -94,7 +101,9 @@ def _doc_identity_of(
     # always a no-op; call it immediately.
     merkle_root: str | None = None
     if not project_dir.is_file():  # an sdist has no file walk, as in its SBOM
-        merkle_root, project_files, _cleanup = get_wheel_files(project_dir)
+        merkle_root, project_files, _cleanup = get_wheel_files(
+            project_dir, exclude_path=registry_file_path(registry)
+        )
         _cleanup()
         project_metadata.files = project_files
     doc_uuid = compute_doc_uuid(
@@ -115,8 +124,11 @@ def project_document_id(project_dir: Path) -> str:
     gives (without ``--allow-build``), resolved as :func:`_doc_identity_of`
     resolves it; ``loom fragment list`` compares fragments with it."""
     configure_logging()
-    metadata, _config, _path = resolve_project_with_lockfile(project_dir, None)
-    doc_name, doc_uuid = _doc_identity_of(project_dir, metadata)
+    metadata, config, _path = resolve_project_with_lockfile(project_dir, None)
+    registry = resolve_registry(
+        None, config.id_registry, registry_base_dir(project_dir)
+    )
+    doc_name, doc_uuid = _doc_identity_of(project_dir, metadata, registry)
     return generate_spdx_id("SpdxDocument", doc_name=doc_name, doc_uuid=doc_uuid)
 
 
@@ -183,8 +195,8 @@ def generate_model_sbom(
         # after paying for a model read and enrichment first.
         resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
         model = _read_local_model(model_path)
-        entity_spdx_id = IdRegistrySession(resolved_registry).entity_id(
-            model_path.stem, [model_path.stem], "ai_AIPackage"
+        entity_spdx_id = IdRegistrySession(resolved_registry).lookup_id(
+            model_path.stem, AI_PACKAGE_TYPE, [model_path.stem]
         )
         enrichment_results = run_enrichers(model, cfg.enrich, model_path.parent)
 
@@ -267,7 +279,9 @@ def enrich_model(
             base_config.id_registry,
             registry_base_dir(project_dir),
         )
-        base_doc_identity = _doc_identity_of(project_dir, base_metadata)
+        base_doc_identity = _doc_identity_of(
+            project_dir, base_metadata, resolved_registry
+        )
 
     model = _read_local_model(model_path)
     # Unlike generate_model_sbom()/generate_project_sbom(), the config's
@@ -278,8 +292,8 @@ def enrich_model(
     enrich_config = dataclasses.replace(cfg.enrich, local=enrich is not False)
     results = run_enrichers(model, enrich_config, model_path.parent)
 
-    entity_spdx_id = IdRegistrySession(resolved_registry).entity_id(
-        model_path.stem, [model_path.stem], "ai_AIPackage"
+    entity_spdx_id = IdRegistrySession(resolved_registry).lookup_id(
+        model_path.stem, AI_PACKAGE_TYPE, [model_path.stem]
     )
 
     exporter = build_enrichment_fragment(

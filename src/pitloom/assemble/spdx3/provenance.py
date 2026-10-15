@@ -406,8 +406,9 @@ def emit_provenance(
     *,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
-) -> None:
-    """Write provenance for *subject* as an Annotation, a ``.comment``, or both."""
+) -> spdx3.Annotation | None:
+    """Write provenance for *subject* as an Annotation, a ``.comment``, or
+    both; return the Annotation added, if any."""
     config = provenance_config or ProvenanceConfig()
     provenance_format = config.format
     provenance_detail = config.detail
@@ -426,7 +427,7 @@ def emit_provenance(
         provenance = filter_high_signal(provenance)
 
     if not provenance:
-        return
+        return None
 
     if provenance_format in ("comment", "both"):
         comment = build_provenance_comment(provenance)
@@ -446,3 +447,5 @@ def emit_provenance(
         )
         if annotation is not None:
             exporter.add_annotation(annotation)
+        return annotation
+    return None

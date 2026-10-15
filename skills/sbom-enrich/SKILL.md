@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-12
+# Last-Modified: 2026-10-15
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -353,9 +353,12 @@ Merging a fragment whose ids the base SBOM does not have makes
 `merge_fragments()` log a `WARNING:` per dangling reference, then fail (the
 CLI prints an `ERROR:` and exits non-zero) rather than write a broken SBOM.
 Regenerate the base SBOM, re-run enrichment and merge again; never retry
-the same merge. Never create or write an ID registry the user did not
-declare to fix it. Likely causes, in order: a Pitloom upgrade changed file
-discovery; a registry mismatch between the base run and `loom enrich`;
+the same merge. Never create or write an ID registry to fix it, and
+never pin ids from this skill: if the user asks to pin ids or create a
+registry, hand off to `sbom-generate` ("Pinning element ids"); non-interactive
+(no user to ask): change nothing and report the `loom id generate` command.
+Likely causes, in order: a Pitloom upgrade changed file discovery; a registry
+mismatch between the base run and `loom enrich`;
 `--project-dir` omitted; a `--config`/`--use-lockfile` mismatch; a base
 built with `--allow-build`; one dependency name held twice. Why each
 misses, and the fix for the last: `references/dangling-references.md`.

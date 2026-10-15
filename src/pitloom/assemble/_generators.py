@@ -39,7 +39,12 @@ from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.extract.project import resolve_project_with_lockfile
 from pitloom.extract.scanner_project import scan_project_for_ai_models
-from pitloom.id_registry import IdRegistry, registry_base_dir, resolve_registry
+from pitloom.id_registry import (
+    IdRegistry,
+    registry_base_dir,
+    registry_file_path,
+    resolve_registry,
+)
 from pitloom.logging_config import configure_logging
 
 log = logging.getLogger(__name__)
@@ -205,6 +210,7 @@ def generate_project_sbom(
                 content_type_method=cfg.content_type.method,
                 content_type_overrides=cfg.content_type.overrides,
                 build_options=build_options,
+                exclude_path=registry_file_path(resolved_registry),
             )
 
         # cleanup_discovery (a no-op unless --allow-build's build-and-read

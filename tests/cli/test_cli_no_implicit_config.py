@@ -40,7 +40,12 @@ import pytest
 
 from pitloom import __main__
 from pitloom.assemble.spdx3.deps import _finish_dependency_enrichment
-from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, FileEntry, IdRegistry
+from pitloom.id_registry import (
+    DEFAULT_ID_REGISTRY_FILENAME,
+    FILE_TYPE,
+    IdRegistry,
+    RegistryEntry,
+)
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.assemble.embed_surfaces_shared import DEPENDENCY, demo_project, demo_wheel
 from tests.assemble.test_generator_no_implicit_config import _TARGET, _seed_registry
@@ -258,7 +263,7 @@ def test_relative_id_registry_resolves_against_the_config(
     # The demo project's file too, so either target adopts a seeded id.
     seeded = IdRegistry.load(registry)
     source = Path(files.fields["project"], "demo", "__init__.py").read_bytes()
-    seeded.files["demo/__init__.py"] = FileEntry(
+    seeded.elements[(FILE_TYPE, "demo/__init__.py")] = RegistryEntry(
         spdx_id=f"{seeded.namespace}#File-demo-seeded",
         sha256=hashlib.sha256(source).hexdigest(),
     )

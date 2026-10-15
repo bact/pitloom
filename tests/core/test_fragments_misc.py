@@ -31,7 +31,12 @@ from pitloom.assemble.spdx3.fragments import (
 )
 from pitloom.core.config import FragmentConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
+from pitloom.id_registry import (
+    DATASET_PACKAGE_TYPE,
+    DEFAULT_ID_REGISTRY_FILENAME,
+    FILE_TYPE,
+    IdRegistry,
+)
 
 from .conftest import (
     _by_type,
@@ -71,7 +76,7 @@ class TestRegistryUnification:
         assert len(ai_pkgs) == 1
         assert (
             ai_pkgs[0]["spdxId"]
-            == registry.entities[("ai_AIPackage", "demo-model")].spdx_id
+            == registry.elements[("ai_AIPackage", "demo-model")].spdx_id
         )
 
     def test_dataset_appears_once_and_lineage_chain_connects(
@@ -85,13 +90,24 @@ class TestRegistryUnification:
         assert len(by_name["data/train.txt"]) == 1
         assert len(by_name["data/raw.txt"]) == 1
 
-        train_id = registry.files["data/train.txt"].spdx_id
-        raw_id = registry.files["data/raw.txt"].spdx_id
+        train_id = registry.elements[(DATASET_PACKAGE_TYPE, "data/train.txt")].spdx_id
+        raw_id = registry.elements[(DATASET_PACKAGE_TYPE, "data/raw.txt")].spdx_id
         assert by_name["data/train.txt"][0]["spdxId"] == train_id
         assert by_name["data/raw.txt"][0]["spdxId"] == raw_id
 
         rels = _relationships(graph)
-        model_id = registry.entities[("ai_AIPackage", "demo-model")].spdx_id
+        for package_id, name in (
+            (train_id, "data/train.txt"),
+            (raw_id, "data/raw.txt"),
+        ):
+            file_id = registry.elements[(FILE_TYPE, name)].spdx_id
+            assert any(
+                r["relationshipType"] == "contains"
+                and r["from"] == package_id
+                and r["to"] == [file_id]
+                for r in rels
+            )
+        model_id = registry.elements[("ai_AIPackage", "demo-model")].spdx_id
         assert any(
             r["relationshipType"] == "hasInput"
             and r["from"] == train_id
@@ -117,16 +133,22 @@ class TestRegistryUnification:
         """The fragment's script File and the wheel's own File for the same
         script must be one element, and the generates edges hang off it."""
         graph, _, registry = merged
-        train_script_id = registry.files["src/fragdemo/train.py"].spdx_id
-        preprocess_script_id = registry.files["src/fragdemo/preprocess.py"].spdx_id
+        train_script_id = registry.elements[
+            (FILE_TYPE, "src/fragdemo/train.py")
+        ].spdx_id
+        preprocess_script_id = registry.elements[
+            (FILE_TYPE, "src/fragdemo/preprocess.py")
+        ].spdx_id
 
         files = _by_type(graph, "software_File")
         assert [f["spdxId"] for f in files].count(train_script_id) == 1
         assert [f["spdxId"] for f in files].count(preprocess_script_id) == 1
 
         rels = _relationships(graph)
-        model_id = registry.entities[("ai_AIPackage", "demo-model")].spdx_id
-        train_txt_id = registry.files["data/train.txt"].spdx_id
+        model_id = registry.elements[("ai_AIPackage", "demo-model")].spdx_id
+        train_txt_id = registry.elements[
+            (DATASET_PACKAGE_TYPE, "data/train.txt")
+        ].spdx_id
         assert any(
             r["relationshipType"] == "generates"
             and r["from"] == train_script_id
@@ -158,7 +180,7 @@ class TestRegistryUnification:
         sboms = _by_type(graph, "software_Sbom")
         assert len(sboms) == 2
         assert set(docs[0]["rootElement"]) == {s["spdxId"] for s in sboms}
-        model_id = registry.entities[("ai_AIPackage", "demo-model")].spdx_id
+        model_id = registry.elements[("ai_AIPackage", "demo-model")].spdx_id
         assert any(s["rootElement"] == [model_id] for s in sboms)
 
     def test_single_pitloom_agent_and_tool(

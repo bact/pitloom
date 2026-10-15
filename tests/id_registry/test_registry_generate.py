@@ -14,6 +14,7 @@ See also: test_registry.py, test_registry_import.py, shared.py.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -24,11 +25,20 @@ from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.project import ProjectFile
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.id_registry import (
+    AI_PACKAGE_TYPE,
     DEFAULT_ID_REGISTRY_FILENAME,
+    FILE_TYPE,
     IdRegistry,
+    RegistryEntry,
 )
 from pitloom.id_registry._types import _iter_files
 from tests.id_registry.shared import _sha256
+from tests.registry_helpers import make_registry
+
+
+def _files(registry: IdRegistry) -> dict[str, RegistryEntry]:
+    """The registry's ``software_File`` entries, name -> entry."""
+    return {name: e for (t, name), e in registry.elements.items() if t == FILE_TYPE}
 
 
 def _make_project(tmp_path: Path) -> Path:
@@ -44,11 +54,12 @@ def test_generate_indexes_files_with_hashes(tmp_path: Path) -> None:
     registry = IdRegistry.new("proj")
     registry.generate([Path("src"), Path("data")], root)
 
-    assert set(registry.files) == {"src/a.py", "data/x.txt"}
-    assert registry.files["src/a.py"].sha256 == _sha256(b"print(1)\n")
-    assert registry.files["data/x.txt"].sha256 == _sha256(b"hello\n")
+    files = _files(registry)
+    assert set(files) == {"src/a.py", "data/x.txt"}
+    assert files["src/a.py"].sha256 == _sha256(b"print(1)\n")
+    assert files["data/x.txt"].sha256 == _sha256(b"hello\n")
     # Every id lives in the registry namespace with a #File-<n> fragment.
-    for entry in registry.files.values():
+    for entry in files.values():
         assert entry.spdx_id.startswith(f"{registry.namespace}#File-")
 
 
@@ -56,10 +67,10 @@ def test_generate_is_stable_for_unchanged_files(tmp_path: Path) -> None:
     root = _make_project(tmp_path)
     registry = IdRegistry.new("proj")
     registry.generate([Path("src"), Path("data")], root)
-    before = {p: e.spdx_id for p, e in registry.files.items()}
+    before = _files(registry)
 
     registry.generate([Path("src"), Path("data")], root)
-    after = {p: e.spdx_id for p, e in registry.files.items()}
+    after = _files(registry)
     assert after == before
 
 
@@ -67,12 +78,12 @@ def test_generate_mints_new_id_for_changed_content(tmp_path: Path) -> None:
     root = _make_project(tmp_path)
     registry = IdRegistry.new("proj")
     registry.generate([Path("data")], root)
-    old_id = registry.files["data/x.txt"].spdx_id
+    old_id = _files(registry)["data/x.txt"].spdx_id
 
     (root / "data" / "x.txt").write_bytes(b"changed\n")
     registry.generate([Path("data")], root)
 
-    new_entry = registry.files["data/x.txt"]
+    new_entry = _files(registry)["data/x.txt"]
     assert new_entry.spdx_id != old_id
     assert new_entry.sha256 == _sha256(b"changed\n")
 
@@ -90,8 +101,8 @@ def test_generate_preserves_namespace_across_regeneration(tmp_path: Path) -> Non
     reloaded.generate([Path("src"), Path("data")], root)
     assert reloaded.namespace == namespace
     # Old entries kept, new files appended with fresh ids.
-    assert reloaded.files["src/a.py"].spdx_id == registry.files["src/a.py"].spdx_id
-    assert "data/new.txt" in reloaded.files
+    assert _files(reloaded)["src/a.py"] == _files(registry)["src/a.py"]
+    assert "data/new.txt" in _files(reloaded)
 
 
 def test_generate_registers_ai_model_entity(tmp_path: Path) -> None:
@@ -104,10 +115,11 @@ def test_generate_registers_ai_model_entity(tmp_path: Path) -> None:
     registry = IdRegistry.new("proj")
     registry.generate([Path("models")], root)
 
-    assert "models/sentimentdemo.bin" in registry.files
-    assert ("ai_AIPackage", "sentimentdemo") in registry.entities
-    entity = registry.entities[("ai_AIPackage", "sentimentdemo")]
+    assert "models/sentimentdemo.bin" in _files(registry)
+    entity = registry.get(AI_PACKAGE_TYPE, "sentimentdemo")
+    assert entity is not None
     assert entity.spdx_id.startswith(f"{registry.namespace}#AIPackage-")
+    assert entity.sha256 == _sha256(b"GGUF" + b"\x00" * 16)  # the model gate (D3)
 
 
 _LFS = b"version https://git-lfs.github.com/spec/v1\noid sha256:00\n"
@@ -161,8 +173,8 @@ def test_generate_registers_an_entity_exactly_for_what_a_scan_lists(
         usage_hint=lambda: False,
     )
 
-    assert rel in registry.files
-    assert bool(registry.entities) is is_model
+    assert rel in _files(registry)
+    assert (registry.get(AI_PACKAGE_TYPE, Path(name).stem) is not None) is is_model
     assert bool(listed) is is_model
 
 
@@ -175,7 +187,7 @@ def test_generate_skips_registry_file_itself(tmp_path: Path) -> None:
 
     reloaded = IdRegistry.load(registry_path)
     reloaded.generate([Path(".")], root)
-    assert DEFAULT_ID_REGISTRY_FILENAME not in reloaded.files
+    assert DEFAULT_ID_REGISTRY_FILENAME not in _files(reloaded)
 
 
 def test_generate_handles_oserror(
@@ -193,7 +205,7 @@ def test_generate_handles_oserror(
 
     registry = IdRegistry.new("test")
     registry.generate([root / "src"], root)
-    assert "src/test.txt" not in registry.files
+    assert "src/test.txt" not in _files(registry)
 
 
 def test_iter_files_edge_cases(
@@ -221,3 +233,188 @@ def test_iter_files_edge_cases(
 
     # Duplicate file
     assert list(_iter_files([Path("."), Path(".")], tmp_path)) == [f]
+
+
+def test_generate_indexes_a_project_below_an_ignored_directory_name(
+    tmp_path: Path,
+) -> None:
+    """Only the project-relative directory names are ignored: a project
+    under ``<tmp>/build/`` (or ``dist``, ``venv``) is indexed in full."""
+    project = tmp_path / "build" / "dist" / "proj"
+    project.mkdir(parents=True)
+    root = _make_project(project)
+    (root / "src" / "build").mkdir()
+    (root / "src" / "build" / "skipped.py").write_bytes(b"x\n")
+
+    registry = IdRegistry.new("proj")
+    registry.generate([Path("src"), Path("data")], root)
+
+    # Still ignored inside the project, below the walk root.
+    assert set(_files(registry)) == {"src/a.py", "data/x.txt"}
+
+
+def test_generate_leaves_out_the_declared_registry(tmp_path: Path) -> None:
+    root = _make_project(tmp_path)
+    declared = root / "src" / "my-ids.json"
+    declared.write_text("{}", encoding="utf-8")
+
+    unexcluded = IdRegistry.new("proj")
+    unexcluded.generate([Path("src")], root)
+    registry = IdRegistry.new("proj")
+    registry.generate([Path("src")], root, exclude=declared)
+
+    assert "src/my-ids.json" in _files(unexcluded)  # not vacuous
+    assert set(_files(registry)) == {"src/a.py"}
+
+
+def test_iter_files_exclude_matches_another_spelling(tmp_path: Path) -> None:
+    root = _make_project(tmp_path)
+    declared = root / "src" / "my-ids.json"
+    declared.write_text("{}", encoding="utf-8")
+    spelled = root / "data" / ".." / "src" / "my-ids.json"
+
+    files = list(_iter_files([root / "src"], root, spelled))
+    assert files == [root / "src" / "a.py"]
+
+
+def test_iter_files_outside_the_project_ignores_names_below_the_walk_root(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "build" / "proj"
+    project.mkdir(parents=True)
+    outside = tmp_path / "build" / "other"
+    (outside / "node_modules").mkdir(parents=True)
+    (outside / "node_modules" / "skipped.js").write_bytes(b"x\n")
+    (outside / "kept.txt").write_bytes(b"x\n")
+
+    assert list(_iter_files([outside], project)) == [outside / "kept.txt"]
+
+
+def _model_project(tmp_path: Path, data: bytes = _GGUF + b"\0" * 16) -> Path:
+    (tmp_path / "models").mkdir(exist_ok=True)
+    (tmp_path / "models" / "tiny.gguf").write_bytes(data)
+    return tmp_path
+
+
+@pytest.fixture(autouse=True)
+def _info_level(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, logger="pitloom.id_registry")
+
+
+def _content_changed(caplog: pytest.LogCaptureFixture, name: str) -> list[str]:
+    return [
+        r.getMessage()
+        for r in caplog.records
+        if r.getMessage().startswith(f"ID registry: content changed for {name};")
+    ]
+
+
+def test_generate_gates_a_model_entry_on_its_hash(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """An ``ai_AIPackage`` entry holding the file's hash is reused; one
+    holding another hash, or none, is a retrained or unknown model: one
+    INFO and a new id that replaces the entry (D3, D12)."""
+    root = _model_project(tmp_path)
+    same = ("urn:x#AIPackage-3", _sha256(_GGUF + b"\0" * 16))
+    other = ("urn:x#AIPackage-3", "c" * 64)
+    no_hash = ("urn:x#AIPackage-3", None)
+
+    for entry, kept in ((same, True), (other, False), (no_hash, False)):
+        caplog.clear()
+        registry = make_registry({(AI_PACKAGE_TYPE, "tiny"): entry}, namespace="urn:x")
+        registry.generate([Path("models")], root)
+
+        got = registry.get(AI_PACKAGE_TYPE, "tiny")
+        assert got is not None
+        assert (got.spdx_id == entry[0]) is kept
+        assert got.sha256 == same[1]
+        assert len(_content_changed(caplog, "tiny")) == (0 if kept else 1)
+        assert "models/tiny.gguf" in _files(registry)  # non-vacuous: it ran
+
+
+def test_generate_a_retrained_model_is_a_new_id_and_a_rerun_is_stable(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    root = _model_project(tmp_path)
+    registry_path = root / "reg.json"
+    registry = IdRegistry.new("proj", path=registry_path, project_root=root)
+    registry.generate([Path("models")], root)
+    registry.save()
+    old = registry.get(AI_PACKAGE_TYPE, "tiny")
+    assert old is not None
+
+    # Unchanged bytes: the saved file is byte-identical, nothing is logged.
+    first = registry_path.read_bytes()
+    caplog.clear()
+    again = IdRegistry.load(registry_path)
+    again.generate([Path("models")], root)
+    again.save()
+    assert registry_path.read_bytes() == first
+    assert not _content_changed(caplog, "tiny")
+
+    # Retrained (other bytes): one INFO, a new id, the old key replaced.
+    _model_project(tmp_path, _GGUF + b"\1" * 16)
+    again.generate([Path("models")], root)
+    new = again.get(AI_PACKAGE_TYPE, "tiny")
+    assert new is not None
+    assert new.spdx_id != old.spdx_id
+    assert new.sha256 != old.sha256
+    assert len(_content_changed(caplog, "tiny")) == 1
+    assert sum(1 for (t, _n) in again.elements if t == AI_PACKAGE_TYPE) == 1
+
+
+def test_generate_a_stem_shared_by_model_files_is_name_only_and_stable(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """No one file stands for a stem two files share, and a hash gate would
+    re-mint on every run: name only, one INFO per run."""
+    for directory, byte in (("a", b"\0"), ("b", b"\1")):
+        (tmp_path / directory).mkdir()
+        (tmp_path / directory / "m.gguf").write_bytes(_GGUF + byte * 16)
+
+    registry = IdRegistry.new("proj", project_root=tmp_path)
+    registry.generate([Path("a"), Path("b")], tmp_path)
+    first = registry.get(AI_PACKAGE_TYPE, "m")
+    assert first is not None
+    assert first.sha256 is None
+    caplog.clear()
+    registry.generate([Path("a"), Path("b")], tmp_path)
+
+    assert registry.get(AI_PACKAGE_TYPE, "m") == first
+    assert [r.getMessage() for r in caplog.records if "share the name" in r.message]
+    assert not _content_changed(caplog, "m")
+
+
+def test_generate_a_stem_becoming_shared_drops_its_hash_and_back(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """1 -> 2 files: the entry keeps its id and loses its hash, as a fresh
+    registry over the same tree has none. 2 -> 1: a sha-less entry given a
+    hash is D12's ``content changed`` row: a new id, once, with the INFO."""
+    (tmp_path / "a").mkdir()
+    (tmp_path / "a" / "m.gguf").write_bytes(_GGUF + b"\0" * 16)
+    registry = IdRegistry.new("proj", project_root=tmp_path)
+    registry.generate([Path("a")], tmp_path)
+    single = registry.get(AI_PACKAGE_TYPE, "m")
+    assert single is not None and single.sha256 is not None  # non-vacuous
+
+    (tmp_path / "b").mkdir()
+    (tmp_path / "b" / "m.gguf").write_bytes(_GGUF + b"\1" * 16)
+    registry.generate([Path("a"), Path("b")], tmp_path)
+    fresh = IdRegistry.new("proj", project_root=tmp_path)
+    fresh.generate([Path("a"), Path("b")], tmp_path)
+
+    fresh_entry = fresh.get(AI_PACKAGE_TYPE, "m")
+    assert fresh_entry is not None and fresh_entry.sha256 is None
+    assert registry.get(AI_PACKAGE_TYPE, "m") == RegistryEntry(single.spdx_id)
+    assert not _content_changed(caplog, "m")
+
+    (tmp_path / "b" / "m.gguf").unlink()
+    registry.generate([Path("a"), Path("b")], tmp_path)
+
+    back = registry.get(AI_PACKAGE_TYPE, "m")
+    assert back is not None
+    assert back.spdx_id != single.spdx_id
+    assert back.sha256 == single.sha256
+    assert len(_content_changed(caplog, "m")) == 1

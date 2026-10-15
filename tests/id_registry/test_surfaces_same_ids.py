@@ -39,7 +39,7 @@ from pitloom.assemble import (
     generate_project_sbom,
     generate_wheel_sbom,
 )
-from pitloom.id_registry import DIRECTORY_ENTITY_TYPE, PACKAGE_ENTITY_TYPE, IdRegistry
+from pitloom.id_registry import AI_PACKAGE_TYPE, FILE_TYPE, PACKAGE_TYPE, IdRegistry
 from tests.cli.shared import SAFETENSORS_FIXTURE
 from tests.extract.conftest import make_hook
 from tests.id_registry.surfaces_shared import (
@@ -49,12 +49,12 @@ from tests.id_registry.surfaces_shared import (
 )
 
 #: The demo package's directory name, registered under
-#: :data:`~pitloom.id_registry.DIRECTORY_ENTITY_TYPE` -- see
+#: :data:`~pitloom.id_registry.FILE_TYPE` with no hash -- see
 #: ``_document_files.py``'s directory-hit resolution.
 _DIRECTORY_NAME = "demo"
 
 #: The demo project's own name: its main ``software_Package``, registered
-#: under :data:`~pitloom.id_registry.PACKAGE_ENTITY_TYPE`.
+#: under :data:`~pitloom.id_registry.PACKAGE_TYPE`.
 _MAIN_PACKAGE_NAME = "demo"
 
 _MODEL_STEM = SAFETENSORS_FIXTURE.stem
@@ -69,10 +69,10 @@ def _snapshot_path(tmp_path: Path) -> Path:
     project = demo_project(tmp_path / "snapshot-source")
     registry = IdRegistry.new("snapshot")
     registry.generate([project / "demo"], project)
-    registry.register_entity(_DIRECTORY_NAME, DIRECTORY_ENTITY_TYPE)
-    registry.register_entity(_MAIN_PACKAGE_NAME, PACKAGE_ENTITY_TYPE)
-    registry.register_entity(DEPENDENCY, PACKAGE_ENTITY_TYPE)
-    registry.register_entity(_MODEL_STEM, "ai_AIPackage")
+    registry.register(FILE_TYPE, _DIRECTORY_NAME)
+    registry.register(PACKAGE_TYPE, _MAIN_PACKAGE_NAME)
+    registry.register(PACKAGE_TYPE, DEPENDENCY)
+    registry.register(AI_PACKAGE_TYPE, _MODEL_STEM)
 
     path = tmp_path / "snapshot.json"
     registry.save(path)
@@ -89,17 +89,20 @@ def _fresh_copy(snapshot_path: Path, destination: Path) -> Path:
 def _snapshot_ids(snapshot_path: Path) -> dict[str, str | None]:
     registry = IdRegistry.load(snapshot_path)
     return {
-        "file": registry.lookup_file("demo/__init__.py", _init_sha(snapshot_path)),
-        "directory": registry.lookup_entity(_DIRECTORY_NAME, DIRECTORY_ENTITY_TYPE),
-        "main": registry.lookup_entity(_MAIN_PACKAGE_NAME, PACKAGE_ENTITY_TYPE),
-        "dependency": registry.lookup_entity(DEPENDENCY, PACKAGE_ENTITY_TYPE),
-        "model": registry.lookup_entity(_MODEL_STEM, "ai_AIPackage"),
+        "file": registry.lookup(
+            FILE_TYPE, ["demo/__init__.py"], sha256=_init_sha(snapshot_path)
+        ),
+        "directory": registry.lookup(FILE_TYPE, [_DIRECTORY_NAME]),
+        "main": registry.lookup(PACKAGE_TYPE, [_MAIN_PACKAGE_NAME]),
+        "dependency": registry.lookup(PACKAGE_TYPE, [DEPENDENCY]),
+        "model": registry.lookup(AI_PACKAGE_TYPE, [_MODEL_STEM]),
     }
 
 
 def _init_sha(snapshot_path: Path) -> str:
-    registry = IdRegistry.load(snapshot_path)
-    return registry.files["demo/__init__.py"].sha256
+    entry = IdRegistry.load(snapshot_path).get(FILE_TYPE, "demo/__init__.py")
+    assert entry is not None and entry.sha256 is not None
+    return entry.sha256
 
 
 def _elements(sbom_json: str) -> list[dict[str, Any]]:

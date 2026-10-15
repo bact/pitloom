@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -132,7 +132,11 @@ becomes a `::notice::` annotation; GitHub caps how many a step shows.
 Declare a registry with the `id-registry` input (or `[tool.pitloom] id-registry`);
 the action then harvests newly minted ids back into it, in the runner's
 checkout only. To commit it back without relaxing a publish job's permissions,
-see [Loom ID registry: In CI](id-registry.md#in-ci).
+see [Loom ID registry: In CI](id-registry.md#in-ci). A registry committed
+under an earlier Pitloom release (format version 2) fails the step with an
+`ERROR:`; regenerate it with `loom id generate` or `loom id import`. A
+version 3 registry needs the action pinned to the first release with registry
+format 3: `@v0.20.2` reads version 2 only.
 
 ## Configuration
 

@@ -16,14 +16,18 @@ See also: :mod:`tests.test_wall_clock_sources` (the same kind of guard).
 from __future__ import annotations
 
 import io
+import os
 import re
+import stat
 import sys
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
 from pitloom._sbom_io import (
     open_text_lf,
+    replace_text_lf,
     write_sbom_output,
     write_stdout_lf,
     write_text_lf,
@@ -59,6 +63,82 @@ def test_open_text_lf_translates_nothing(tmp_path: Path) -> None:
     with open_text_lf(path) as f:
         f.write("a\nb\n")
     assert path.read_bytes() == b"a\nb\n"
+
+
+def test_replace_text_lf_new_file_is_like_open(tmp_path: Path) -> None:
+    """A new file gets the bytes and the permission bits ``open()`` gives
+    one (the umask's, not a private temporary file's ``0o600``)."""
+    plain, replaced = tmp_path / "plain.json", tmp_path / "replaced.json"
+    write_text_lf(plain, _TEXT)
+    replace_text_lf(replaced, _TEXT)
+    assert replaced.read_bytes() == _TEXT.encode("utf-8")
+    assert stat.S_IMODE(replaced.stat().st_mode) == stat.S_IMODE(plain.stat().st_mode)
+    assert sorted(os.listdir(tmp_path)) == ["plain.json", "replaced.json"]
+
+
+def test_replace_text_lf_keeps_the_symlink_and_the_mode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Replacing through a symlink replaces the file it names, which keeps
+    its permission bits (spied on Windows, where NTFS has only read-only)."""
+    real, link = tmp_path / "real.json", tmp_path / "link.json"
+    real.write_bytes(b"old\n")
+    os.chmod(real, 0o640)
+    try:
+        link.symlink_to(real)
+    except OSError:  # pragma: no cover - Windows without symlink privilege
+        pytest.skip("cannot create a symlink here")
+    mode = stat.S_IMODE(real.stat().st_mode)
+    chmod = Mock(wraps=os.chmod)
+    monkeypatch.setattr("pitloom._sbom_io.os.chmod", chmod)
+
+    replace_text_lf(link, _TEXT)
+
+    assert link.is_symlink()
+    assert real.read_bytes() == _TEXT.encode("utf-8")
+    assert chmod.call_args.args[1] == mode
+    if sys.platform != "win32":
+        assert stat.S_IMODE(real.stat().st_mode) == 0o640
+    assert sorted(os.listdir(tmp_path)) == ["link.json", "real.json"]
+
+
+#: Whether a read-only file refuses this process (root writes through 0o444).
+_READ_ONLY_REFUSES = sys.platform == "win32" or os.geteuid() != 0
+
+
+@pytest.mark.skipif(not _READ_ONLY_REFUSES, reason="root writes a read-only file")
+def test_replace_text_lf_refuses_a_read_only_file(tmp_path: Path) -> None:
+    """A read-only target raises, as ``open(path, "w")`` does, on every
+    platform: replacing the directory entry would bypass the mode."""
+    path = tmp_path / "ids.json"
+    path.write_bytes(b"old\n")
+    os.chmod(path, 0o444)
+    try:
+        with pytest.raises(PermissionError):
+            replace_text_lf(path, _TEXT)
+        assert path.read_bytes() == b"old\n"
+    finally:
+        os.chmod(path, 0o644)
+    assert sorted(os.listdir(tmp_path)) == ["ids.json"]
+
+
+def test_replace_text_lf_writes_through_its_exclusive_descriptor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The temporary file is written through the descriptor ``O_EXCL``
+    created, never reopened by name, and in binary mode (no CRLF)."""
+    opened: list[object] = []
+    real_open = open
+
+    def _spy(file: object, *args: object, **kwargs: object) -> object:
+        opened.append(file)
+        return real_open(file, *args, **kwargs)  # type: ignore[call-overload]
+
+    monkeypatch.setattr("builtins.open", _spy)
+    replace_text_lf(tmp_path / "out.json", _TEXT)
+
+    assert [type(file) for file in opened] == [int]
+    assert (tmp_path / "out.json").read_bytes() == _TEXT.encode("utf-8")
 
 
 @pytest.mark.parametrize(

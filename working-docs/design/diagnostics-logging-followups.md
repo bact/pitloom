@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -84,7 +84,7 @@ file-size guidance -- moved verbatim, no content changed.
   in-package-tree registry item in
   [id-registry-followups.md](id-registry-followups.md#a-declared-registry-inside-the-package-tree-never-settles);
   planned fix: registry v3's D7 (`id generate` gets the registry path as
-  an exclude), see [id-registry-v3.md](id-registry-v3.md).
+  an exclude), see [id-registry-v3.md](../implementation/id-registry-v3.md).
 
 - [ ] **Big item: config cascade parity across usage surfaces** -- ~20
   differences in how a setting is read, applied, errored on and reported

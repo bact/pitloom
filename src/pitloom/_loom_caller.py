@@ -3,32 +3,50 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Caller inspection and provenance helpers for Loom runs.
+"""Caller inspection, provenance and registry-miss helpers for Loom runs.
 
-See also: :mod:`pitloom._loom_active_run` for active run lifecycle and graph building.
+See also: :mod:`pitloom._loom_active_run` for active run lifecycle and graph
+building, :mod:`pitloom._loom_dataset` for dataset and file elements,
+:mod:`pitloom._loom_model` for models.
 """
 
 from __future__ import annotations
 
 import contextlib
+import functools
 import inspect
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
-from spdx_python_model.bindings import v3_0_1 as spdx3
-
 from pitloom.__about__ import __version__
+from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract._extract_utils import sanitize_provenance_text
-from pitloom.id_registry import IdRegistrySession, sha256_file
+from pitloom.id_registry import (
+    AI_PACKAGE_TYPE,
+    FILE_TYPE,
+    IdRegistry,
+    IdRegistrySession,
+)
 from pitloom.logging_config import field_loss_suffix, warn_once
 
 log = logging.getLogger("pitloom.loom")
 
+#: loom is a standalone SDK invoked from ad hoc scripts/notebooks, not
+#: through a pyproject.toml-based [tool.pitloom.provenance] config -- so
+#: provenance is always recorded both ways (Annotation + legacy comment)
+#: rather than threading a format setting through the whole SDK surface.
+LOOM_PROVENANCE_CONFIG = ProvenanceConfig(format="both")
+
+#: Pitloom's own modules on the stack of a loom call; caller provenance
+#: names the first frame outside them.
 _SKIPPED_LOOM_FILENAMES = frozenset(
     {
         "loom.py",
         "_loom_active_run.py",
         "_loom_caller.py",
+        "_loom_dataset.py",
+        "_loom_model.py",
     }
 )
 
@@ -122,32 +140,41 @@ def _record_hyperparameter_provenance(
         provenance[f"hyperparameters.{key}"] = f"{caller_info} | Field: {safe_key}"
 
 
-def _hash_and_registry_lookup(
-    name: str, session: IdRegistrySession
-) -> tuple[spdx3.Hash | None, str | None]:
-    """Compute SHA-256 Hash for *name* and resolve its registered spdxId."""
-    path = Path(name)
-    if not path.is_file():
-        return None, None
+def warn_registry_miss(registry: IdRegistry, type_name: str, name: str) -> None:
+    """The one ``WARNING:`` for a loom lookup of *name* under *type_name*
+    that missed in *registry*: an entry under that type whose SHA-256 no
+    longer matches (content changed); for a model, *name* held only under
+    another type; else untracked. A dataset is not told about other types:
+    its own file shares its name under ``software_File``."""
+    if registry.get(type_name, name) is not None:
+        log.warning(
+            "loom: registry entry for %r exists but its SHA-256 no "
+            "longer matches; minting a new spdxId (content changed).",
+            name,
+        )
+    elif type_name == AI_PACKAGE_TYPE and registry.has_name(name):
+        log.warning(
+            "loom: registry entry for entity %r exists but under a "
+            "different type; minting a new spdxId.",
+            name,
+        )
+    else:
+        kind = "file" if type_name == FILE_TYPE else "entity"
+        log.warning(
+            "loom: %s %r not found in registry; minting a new spdxId (untracked %s).",
+            kind,
+            name,
+            kind,
+        )
 
-    sha256 = sha256_file(path)
-    hash_element = spdx3.Hash(algorithm=spdx3.HashAlgorithm.sha256, hashValue=sha256)
 
-    def _on_miss() -> None:
-        # Only called when a registry is loaded (see IdRegistrySession.file_id).
-        registry = session.registry
-        if registry is not None and name in registry.files:
-            log.warning(
-                "loom: registry entry for %r exists but its SHA-256 no "
-                "longer matches; minting a new spdxId (content changed).",
-                name,
-            )
-        else:
-            log.warning(
-                "loom: file %r not found in registry; minting a new spdxId "
-                "(untracked file).",
-                name,
-            )
-
-    registered_id = session.file_id(name, [name], sha256, on_miss=_on_miss)
-    return hash_element, registered_id
+def registry_miss_callback(
+    session: IdRegistrySession, type_name: str, name: str
+) -> Callable[[], None] | None:
+    """The *on_miss* of a loom lookup: :func:`warn_registry_miss` for
+    *session*'s registry, or ``None`` when no registry is loaded (nothing
+    is looked up)."""
+    registry = session.registry
+    if registry is None:
+        return None
+    return functools.partial(warn_registry_miss, registry, type_name, name)

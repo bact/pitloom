@@ -28,8 +28,8 @@ from typing import Any
 import pytest
 
 from pitloom.assemble import generate_project_sbom, generate_wheel_sbom
-from pitloom.id_registry import PACKAGE_ENTITY_TYPE, IdRegistry
-from pitloom.id_registry._ambiguous import _ambiguous_entity_keys
+from pitloom.id_registry import PACKAGE_TYPE, IdRegistry
+from pitloom.id_registry._ambiguous import _ambiguous_keys
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.id_registry.package_ids_base import (
     MAIN,
@@ -202,7 +202,7 @@ def test_phantom_sharing_a_name_with_a_pin_never_looks_up(
     """The dependency or main package owns the name and takes the pin; the
     phantom mints its own id, silently."""
     registry = IdRegistry.new(pin_namespace)
-    pinned = registry.register_entity("libfoo", PACKAGE_ENTITY_TYPE)
+    pinned = registry.register(PACKAGE_TYPE, "libfoo")
     doc = make_doc(**doc_kwargs)
 
     with caplog.at_level("WARNING"):
@@ -214,7 +214,7 @@ def test_phantom_sharing_a_name_with_a_pin_never_looks_up(
     holders = [p for p in packages(first) if p.spdx_id == pinned]
     assert len(holders) == 1
     assert holders[0].version != "1"  # not the phantom
-    assert registry.lookup_entity("libfoo", PACKAGE_ENTITY_TYPE) == pinned
+    assert registry.lookup(PACKAGE_TYPE, ["libfoo"]) == pinned
     assert not claim_warnings(caplog)
 
 
@@ -291,10 +291,10 @@ def test_import_sbom_does_not_write_an_ambiguous_name(tmp_path: Path) -> None:
 
     skipped = registry.import_sbom(sbom_path)
 
-    assert skipped == {(PACKAGE_ENTITY_TYPE, "foo")}
-    assert registry.lookup_entity("foo", PACKAGE_ENTITY_TYPE) is None
-    assert registry.lookup_entity("bar", PACKAGE_ENTITY_TYPE) is not None
-    assert registry.lookup_entity(MAIN, PACKAGE_ENTITY_TYPE) is not None
+    assert skipped == {(PACKAGE_TYPE, "foo")}
+    assert registry.lookup(PACKAGE_TYPE, ["foo"]) is None
+    assert registry.lookup(PACKAGE_TYPE, ["bar"]) is not None
+    assert registry.lookup(PACKAGE_TYPE, [MAIN]) is not None
 
 
 def test_import_sbom_leaves_an_existing_ambiguous_entry_untouched(
@@ -302,16 +302,16 @@ def test_import_sbom_leaves_an_existing_ambiguous_entry_untouched(
 ) -> None:
     sbom_path = _write_sbom(tmp_path, {"dependencies": ["foo==1.0", "Foo==2.0"]})
     registry = IdRegistry.new("r")
-    pinned = registry.register_entity("foo", PACKAGE_ENTITY_TYPE)
-    before = dict(registry.entities)
+    pinned = registry.register(PACKAGE_TYPE, "foo")
+    before = dict(registry.elements)
 
     registry.import_sbom(sbom_path)
 
-    assert registry.lookup_entity("foo", PACKAGE_ENTITY_TYPE) == pinned
-    assert {k: v for k, v in registry.entities.items() if k in before} == before
+    assert registry.lookup(PACKAGE_TYPE, ["foo"]) == pinned
+    assert {k: v for k, v in registry.elements.items() if k in before} == before
 
 
-def test_ambiguous_entity_keys_counts_only_named_typed_non_file_elements() -> None:
+def test_ambiguous_keys_counts_only_named_typed_elements() -> None:
     # pylint: disable-next=too-few-public-methods
     class Named:
         """A minimal named, typed SPDX element."""
@@ -342,4 +342,4 @@ def test_ambiguous_entity_keys_counts_only_named_typed_non_file_elements() -> No
         Untyped("foo-bar"),
     ]
 
-    assert _ambiguous_entity_keys(objects) == {(PACKAGE_ENTITY_TYPE, "foo-bar")}
+    assert _ambiguous_keys(objects) == {(PACKAGE_TYPE, "foo-bar")}

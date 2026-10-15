@@ -34,6 +34,9 @@ HYPERPARAMS: dict[str, str | int | float] = {
     "wordNgrams": 2,
     "dim": 20,
     "loss": "softmax",
+    # One thread makes training reproducible: the saved model (and so its
+    # hash and registry entry) is then identical on every run.
+    "thread": 1,
 }
 
 
@@ -54,6 +57,7 @@ def train() -> Path:
         # can resolve it to the formal "SupervisedLearning" concept unambiguously.
         loom.set_model(
             name="sentimentdemo",
+            path=MODEL_PATH,
             model_type=str(stav_dpv_ai.AITechnique.SupervisedLearning),
             hyperparameters={k: str(v) for k, v in HYPERPARAMS.items()},
         )

@@ -39,6 +39,7 @@ def evaluate() -> tuple[int, float, float]:
     ):
         loom.use_model(
             name="sentimentdemo",
+            path=MODEL_PATH,
             model_type=str(stav_dpv_ai.AITechnique.SupervisedLearning),
         )
         # Creates a ``testedOn`` SPDX relationship from the model to this dataset.

@@ -20,22 +20,22 @@ import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3 import _fragments_unify as unify
+from pitloom.export.spdx3_json import Spdx3JsonExporter, sha256_hash
 
 
-def test_sha256_hash_skips_non_sha256_algorithm() -> None:
-    element = spdx3.software_File(name="a.py")
-    element.verifiedUsing = [
-        spdx3.Hash(algorithm=spdx3.HashAlgorithm.md5, hashValue="deadbeef")
-    ]
-    assert unify._sha256_hash(element) is None
-
-
-def test_sha256_hash_skips_empty_hash_value() -> None:
-    element = spdx3.software_File(name="a.py")
-    element.verifiedUsing = [
-        spdx3.Hash(algorithm=spdx3.HashAlgorithm.sha256, hashValue="")
-    ]
-    assert unify._sha256_hash(element) is None
+def test_merge_index_unifies_hashes_differing_only_in_case() -> None:
+    upper, lower = "AB" * 32, "ab" * 32
+    assert upper != lower
+    exporter = Spdx3JsonExporter()
+    first = spdx3.software_File(name="a.py")
+    first.verifiedUsing = [sha256_hash(lower)]
+    exporter.object_set.add(first)
+    second = spdx3.software_File(name="a.py")
+    # Built directly: sha256_hash() would lowercase it.
+    raw = spdx3.Hash(algorithm=spdx3.HashAlgorithm.sha256, hashValue=upper)
+    second.verifiedUsing = [raw]
+    assert raw.hashValue == upper
+    assert unify._MergeIndex(exporter).find_by_hash(second) is first
 
 
 def test_normalize_value_plain_list() -> None:

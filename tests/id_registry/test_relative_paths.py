@@ -27,7 +27,7 @@ comment describing 'how surface X does Y' is a claim, not a fact."):
   target -- sdist/wheel/model/env/standalone -- or no project at all).
   ``pitloom id generate``/``pitloom id import`` resolve a relative
   ``-o``/``--id-registry`` the same way -- against cwd -- via their own
-  :func:`pitloom.cli.id._resolve_id_registry_target` (``id import``'s
+  :func:`pitloom.cli._id_target._resolve_id_registry_target` (``id import``'s
   project directory *is* cwd already, so this is only observable for
   ``id generate`` with a ``--project-dir`` different from cwd); a
   relative PATH argument to ``id generate`` resolves against cwd too.

@@ -31,7 +31,7 @@ from pitloom.core.project import ProjectFile
 from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import EnrichedField, EnrichmentResult
 from pitloom.extract.scanner_project import scan_project_for_ai_models
-from pitloom.id_registry import EntityEntry, IdRegistry
+from tests.registry_helpers import make_registry
 
 _NUMPY = Path(__file__).parent.parent / "fixtures" / "aimodels" / "numpy"
 _NAMESPACE = "https://example.org/doc"
@@ -176,10 +176,7 @@ def test_registry_pin_goes_to_first_model_in_sorted_order(
     reverse: bool,
 ) -> None:
     pin = f"{_NAMESPACE}#AIPackage-pinned-1"
-    registry = IdRegistry(
-        namespace=_NAMESPACE,
-        entities={("ai_AIPackage", "w"): EntityEntry(spdx_id=pin)},
-    )
+    registry = make_registry({("ai_AIPackage", "w"): (pin, None)}, namespace=_NAMESPACE)
     with caplog.at_level(logging.WARNING, logger="pitloom.id_registry"):
         sbom, _ = _generate(
             _project(tmp_path), monkeypatch, reverse=reverse, id_registry=registry

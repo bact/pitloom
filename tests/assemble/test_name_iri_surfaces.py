@@ -133,7 +133,7 @@ def test_registry_round_trips_an_encoded_id(
     registry = IdRegistry.new("unused", path=registry_path)
     registry.import_sbom(first)
     registry.save()
-    model_id = registry.lookup_entity(_TITLE, "ai_AIPackage")
+    model_id = registry.lookup("ai_AIPackage", [_TITLE])
     assert model_id is not None
     assert model_id.startswith(f"{_BASE}{_ENCODED}-")
 

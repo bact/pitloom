@@ -49,7 +49,7 @@ def _write_sample_sbom(path: Path) -> dict[str, str]:
 
     file_hash = _sha256(b"train data\n")
     dataset = spdx3.dataset_DatasetPackage(
-        spdxId=f"{namespace}#File-7",
+        spdxId=f"{namespace}#DatasetPackage-7",
         name="data/processed/train.txt",
         creationInfo=ci,
         verifiedUsing=[
@@ -100,7 +100,7 @@ def _write_sample_sbom(path: Path) -> dict[str, str]:
 
     return {
         "namespace": namespace,
-        "dataset_id": f"{namespace}#File-7",
+        "dataset_id": f"{namespace}#DatasetPackage-7",
         "dataset_hash": file_hash,
         "script_id": f"{namespace}#File-3",
         "script_hash": script_hash,

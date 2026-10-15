@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -263,15 +263,18 @@ matrix").
 
 ## 3. Registry ids and file keys
 
-See [id-registry-v3.md](../../design/id-registry-v3.md) for the planned
-redesign; items marked "decided, not built" are not in the code.
+See [id-registry-v3.md](../id-registry-v3.md) for the built redesign. Q-C
+(placeholder names) and Q-D (a package version in the key) are decided but
+not built, and stay open in
+[known-bugs.md](../../design/known-bugs.md). The build and its lessons:
+[id-registry-v3-lessons.md](id-registry-v3-lessons.md).
 
 - **A placeholder name used as an identity key merges unrelated
   packages.** Two wheels whose `METADATA` has no `Name` (`alpha-1.0`,
   `beta-1.0`) both became root package `unknown`, shared the registry key
   `unknown`, and beta's SBOM reused alpha's full IRI (`...#Package-1`).
   The exporter's duplicate-id check sees one document only, so nothing
-  catches it across documents. Open on main; registry v3 Q-C is decided,
+  catches it across documents. Still open after registry v3: Q-C is decided,
   not built (#234, #235).
   Do: never key, harvest or look up an identity under a fallback value;
   mint a fresh id instead.
@@ -279,14 +282,15 @@ redesign; items marked "decided, not built" are not in the code.
   directory-name filter (`build`, ...) tested `file_path.parts` of the
   absolute path, so a project living under any `/.../build/` directory
   indexed 0 files, with no warning (`loom id generate src`: 0 files under
-  `e1/build/proj`, 1 under `e1/okdir/proj`). Open on main; fix planned
-  in registry v3
-  ([id-registry-v3-rollout.md](../../design/id-registry-v3-rollout.md)).
+  `e1/build/proj`, 1 under `e1/okdir/proj`). Fixed in registry v3 (PR #305,
+  [id-registry-v3-rollout.md](../id-registry-v3-rollout.md)).
   Do: strip the project root before applying any directory-name filter.
 - **A file stem is not a model identity.** `models/a/m.npy` (zeros) and
   `models/b/m.npy` (ones) registered as one `ai_AIPackage` entity, key
-  `m`, beside two distinct file entries. Registry v3 Q-A: a model with a
-  file is keyed by its project path (decided, not built).
+  `m`, beside two distinct file entries. Registry v3 registers several
+  same-stem model files by name only, with one `INFO:` per run, so they no
+  longer pose as one content-gated model; keying a model by its project path
+  (Q-A) is not built.
   Do: key an artefact by path, or path plus hash, never by basename.
 - **A name held by several elements of one document is not an id key.**
   A self-referencing extra (`demo[x]; extra == 'all'`) or one dependency

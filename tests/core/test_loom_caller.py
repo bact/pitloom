@@ -13,7 +13,6 @@ See also:
 from __future__ import annotations
 
 import collections
-import hashlib
 import json
 import logging
 import tempfile
@@ -23,7 +22,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom import _loom_caller, loom
-from pitloom.id_registry import EntityEntry, FileEntry, IdRegistry, IdRegistrySession
+from tests.registry_helpers import make_registry
 
 
 def test_loom_functions_raise_runtime_error_without_active_run() -> None:
@@ -208,77 +207,21 @@ def test_caller_info_warns_once_then_downgrades_to_debug(
     assert matching[1].levelname == "DEBUG"
 
 
-def test_hash_and_registry_lookup_content_changed_warning(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """_hash_and_registry_lookup logs a warning when a file's hash changed."""
-    with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
-        f.write(b"modified content")
-        file_path = f.name
-
-    try:
-        registry = IdRegistry(
-            namespace="https://spdx.org/spdxdocs/test",
-            files={
-                file_path: FileEntry(
-                    spdx_id="https://spdx.org/spdxdocs/doc/test-File-1",
-                    sha256="0" * 64,
-                )
-            },
-            entities={},
-        )
-        with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
-            # pylint: disable=protected-access
-            hash_elem, registered_id = _loom_caller._hash_and_registry_lookup(
-                file_path, IdRegistrySession(registry)
-            )
-            assert hash_elem is not None
-            assert registered_id is None
-            assert any("content changed" in r.message for r in caplog.records)
-    finally:
-        Path(file_path).unlink(missing_ok=True)
-
-
-def test_hash_and_registry_lookup_streams_without_read_bytes(
-    tmp_path: Path,
-) -> None:
-    """``_hash_and_registry_lookup()`` must stream the file in chunks
-    (CLAUDE.md: never load an entire file into memory) rather than
-    ``Path.read_bytes()`` -- same digest either way, but
-    ``Path.read_bytes`` must never be called."""
-    file_path = tmp_path / "data.txt"
-    content = b"x" * 20000  # several chunk-sizes, not a coincidental fit
-    file_path.write_bytes(content)
-    expected_digest = hashlib.sha256(content).hexdigest()
-
-    with patch.object(
-        Path, "read_bytes", side_effect=AssertionError("read_bytes must not be used")
-    ):
-        # pylint: disable-next=protected-access
-        hash_elem, registered_id = _loom_caller._hash_and_registry_lookup(
-            str(file_path), IdRegistrySession(None)
-        )
-
-    assert registered_id is None
-    assert hash_elem is not None
-    assert hash_elem.hashValue == expected_digest
-
-
 def test_active_run_set_model_registry_type_mismatch_warning(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """ActiveRun.set_model logs warning when an entity has a different type."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "type_mismatch.spdx3.json"
-        registry = IdRegistry(
-            namespace="https://spdx.org/spdxdocs/test",
-            files={},
-            entities={
-                ("software_Package", "my_model"): EntityEntry(
-                    # Different from ai_AIPackage
-                    spdx_id="https://spdx.org/spdxdocs/doc/test-Package-1",
+        registry = make_registry(
+            {
+                # Different from ai_AIPackage
+                ("software_Package", "my_model"): (
+                    "https://spdx.org/spdxdocs/doc/test-Package-1",
+                    None,
                 )
             },
+            namespace="https://spdx.org/spdxdocs/test",
         )
         with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
             with loom.run(output_file, id_registry=registry) as run:

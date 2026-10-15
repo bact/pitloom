@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,16 +11,20 @@ SPDX-License-Identifier: CC0-1.0
 See also: [id-registry-v3.md](id-registry-v3.md) (the design: decisions
 D1-D16, invariants I1-I7, API, format, lookup table, loom datasets and
 models, namespace) -- read it first; section numbers continue from it;
-[id-registry-followups.md](id-registry-followups.md) (what v3 leaves
+[id-registry-followups.md](../design/id-registry-followups.md) (what v3 leaves
 open).
 
-**Status: plan, not built.** Anchors were checked on `main` at `4c052dd`;
-re-verify each on the post-#263 base.
+**Status: built (PR #305, 2026-10-15).** This is the plan as it stood before
+the build; where the code differs, the design file's [What changed during
+the build](id-registry-v3-build-notes.md) is right. The
+anchors below were verified on `5962a968` (post-#300). D10 (hard `ERROR:`
+on a v2 file, no migration) and the ceiling key `max-dataset-hash-bytes`
+(default 4 GiB, config-only) were confirmed by the user on 2026-10-14.
 
 Registry v3 is its own PR, independent of G7. It is cross-cutting and
 touches every surface. Order (release plan, 2026-10-05): 0.20.0 -> 0.20.1
 -> **this PR** in 0.21.0 -> G7 in 0.22.0 (see
-[roadmap.md](roadmap.md#0210)). Base the branch on a `main` that
+[roadmap.md](../design/roadmap.md#0210)). Base the branch on a `main` that
 already has:
 
 - **D:** its fixture carries `demo/tiny.safetensors` and `demo/load.py`,
@@ -81,10 +85,11 @@ same commit.
   added N new id(s) to <path>` (D4). `updated stale entries in <path>`,
   `no file path resolved; skipping auto-update.` and `failed to save`
   stay.
-- **`id generate` / `id import` output** (`cli/id.py`
+- **`id generate` / `id import` output** (`cli/id.py:248`
   `_report_registry_written()`): stdout `PITLOOM_ID_REGISTRY_PATH=<path>`;
   the count is `INFO: ID registry: holds N file(s) and M entit(y/ies)`,
-  becoming `holds N id(s)`, N = `id_count()`.
+  becoming `holds N id(s)`, N = `id_count()`. Already printed today; commit
+  3 changes only the count text.
 - **Kept:** `ID registry: content changed for %s; minting a new spdxId
   (old: %s).` (now also for a model retrain); loom's `registry entry for
   %r exists but its SHA-256 no longer matches ...`, `... exists but under
@@ -93,7 +98,7 @@ same commit.
   type.
 - **New WARNINGs:**
   - `ID registry: <path> is inside the project's file set; left out of
-    the SBOM's files and Merkle root` (D7, one shared place, so every
+    it` (reworded after review: the phrase has to be true on every surface) (D7, one shared place, so every
     surface gets it identically);
   - `loom: file %r is outside the ID registry's project root %s; minting
     a new spdxId` (8.3);
@@ -119,7 +124,7 @@ tests/`) on its own, so it can be bisected.
 
 0. **Docs only: record the decisions** in these design files. Done
    2026-09-30.
-1. **Share one sha256 extractor.** `sha256_of()` in
+1. **Share one sha256 extractor.** `sha256_of()` (does not exist yet) in
    `export/spdx3_json.py` (lowercased; used by `_fragments_unify` and the
    registry). One parametrised test (none, a non-sha256 algorithm, an
    empty value then the next, uppercase). Effect: merge-by-hash now
@@ -128,13 +133,20 @@ tests/`) on its own, so it can be bisected.
    `_is_eligible_file`** (approved): it matches ignored names against the
    *absolute* path's parts, so a project under `/x/build/...` is skipped
    entirely; match the project-relative parts instead. New
-   `core/walk_rules.py` (`IGNORED_DIR_NAMES`, `same_path` with realpath on
+   `core/walk_rules.py` (does not exist yet; `IGNORED_DIR_NAMES`, from the
+   private `id_registry/_types.py:62` `_IGNORED_DIR_NAMES`; `same_path` with realpath on
    both sides: the CLI keeps the registry path lexical while the project
    dir is resolved, and macOS `/tmp` is `/private/tmp`). Thread
    `exclude_path` through every `get_wheel_files` caller that has a
    registry (generator, hook, `_doc_identity_of`, embed, and the embed
    discovery cache key) so the project SBOM and an enrich fragment
-   compute the same Merkle root. Skip the exclusion part if P13 has merged
+   compute the same Merkle root. Also: the Hatchling hook resolves the
+   registry (`plugins/hatch.py` ~:358) AFTER `get_wheel_files` (~:154), so
+   reorder; `_doc_identity_of` (`assemble/_model_generator.py:73`) needs a
+   registry parameter; `EmbedFileCache.resolve`/`resolved_from`
+   (`_embed_build_sbom.py` ~:288-302) needs a registry slot; `_iter_files`
+   uses `Path.is_file()`, switch to `path_probe.is_regular_file`. Wheel
+   Merkle comment precedent: `assemble/spdx3/document.py:170`. Skip the exclusion part if P13 has merged
    on its own.
 3. **Registry v3: one typed table.** `_types`, `_registry`, new
    `_format`, `_harvest`, `_ambiguous`, `_session`: section 4 invariants,
@@ -155,6 +167,8 @@ tests/`) on its own, so it can be bisected.
    runs); D2's typed-id invariant on every surface's output; a round trip
    per section 7 row, including the src-layout alias and a hashed
    AIPackage through `id import`; manual check 14 gains a `v2` label.
+   `tests/id_registry/shared.py:51-58` builds a DatasetPackage with a
+   `#File-7` id; fix it here.
 6. **Merge by id requires the same type (D11).**
    `_fragments_unify._merge_fragment_set`; the new id avoids the base's
    and the current fragment's ids; the element is renamed before it is
@@ -169,14 +183,14 @@ tests/`) on its own, so it can be bisected.
    `loom.Run(pitloom_config=)` (D14); the config key with its generalised
    validator; `docs/configuration.md` rows (the new key; `id-registry`'s
    "loom.Run never reads any `[tool.pitloom]` config" sentence becomes
-   "reads only an explicit `pitloom_config=`"). New manual check 16 (ids
+   "reads only an explicit `pitloom_config=`"). New manual check 20 (ids
    stable across runs and from a subdirectory, a `contains` edge, a stable
    directory root).
 7b. **Deferred model resolution in loom (D13, D15).** New
    `_loom_model.py` (also in `_SKIPPED_LOOM_FILENAMES`); `path=` on
    `set_model`/`use_model`; `persist_registry` moved out of
    `_generators_shared.py`; `_harvestable` admits hashed AIPackages. New
-   manual check 17 (train/eval scripts share one id; a retrain re-mints
+   manual check 21 (train/eval scripts share one id; a retrain re-mints
    with one INFO; a raising script leaves the registry unchanged). Must
    land before commit 8, which uses `path=`.
 8. **The example to registry v3.** Regenerate
@@ -267,15 +281,23 @@ tests/`) on its own, so it can be bisected.
   declared-but-invalid registry, now with `v2` (check 14); determinism
   over two runs with a committed registry (checks 12 and S4 compare raw
   bytes and the matrix masks the UUID4 namespace, so they hold across the
-  format change); new checks 16 and 17. Run the whole runner after
+  format change); new checks 20 and 21 (16-19 exist). Run the whole runner after
   commits 3, 4, 7 and 7b.
 - **Validation:** spdx3-validate each surface's output with a loom
   dataset, via `tests/_network.py` (`network` marker).
 - **Size:** every file at 500 lines or fewer. Split `_format.py` out of
-  `_registry.py` (303 lines); `cli/id.py` (453) moves its config-slot
+  `_registry.py` (309 lines); `cli/id.py` (459) moves its config-slot
   helpers to `cli/_id_target.py` if it passes about 480;
   `tests/core/test_loom_registry.py` (514) sheds its script-file tests.
   About 60 test files touch the registry; most go through the API.
+
+**Config key and skills.** The new config key touches `_config_keys.py`
+KNOWN_KEYS, `_config_types.py` (default, INT_KEYS, field, _FIELD_KEYS),
+`_config_parse_scan.py`, `_config_parse.py`,
+`tests/extract/project/test_setup_cfg_values.py`, `tests/core/test_config.py`
+and `docs/configuration.md`. `require_max_model_extract_bytes` hard-codes
+its key, so generalise it with a key parameter. The skill `sbom-generate`
+description is 1021/1024 chars, so id triggers need a trim-and-rewrite.
 
 **Traps** worth naming before coding:
 
@@ -301,7 +323,7 @@ tests/`) on its own, so it can be bisected.
   D6).
 - The sdist/wheel alias gap for a registry seeded only by `id generate`,
   and per-document entries (Agents, Tools, Licences) rewritten on
-  harvest. See [id-registry-followups.md](id-registry-followups.md).
+  harvest. See [id-registry-followups.md](../design/id-registry-followups.md).
 - logfmt quoting of `KEY=VALUE` output (separate PR P1).
 - Loom fallback ids that change every run (problem 11): G7 #7.
 - Any v2 migration (D10).

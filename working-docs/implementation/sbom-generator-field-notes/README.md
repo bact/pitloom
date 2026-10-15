@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-14
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -31,6 +31,9 @@ the day it was added (2026-10-02 to 2026-10-10).
 - [identity-and-archives.md](identity-and-archives.md): package
   identity; ZIP and tar realities; registry ids and file keys; what an
   SBOM counts as inside the package.
+- [id-registry-v3-lessons.md](id-registry-v3-lessons.md): a typed,
+  content-gated id registry; Merkle leaves that bind the path; deferring
+  work to run exit; harvest churn.
 - [determinism-and-parsing.md](determinism-and-parsing.md): same input,
   same bytes; parsing traps; lock-file and environment sources.
 - [platform-and-toolchain.md](platform-and-toolchain.md): OS and

@@ -22,11 +22,15 @@ from pitloom.core._config_read import (
     _require_choice,
 )
 from pitloom.core._config_types import (
+    DEFAULT_MAX_DATASET_HASH_BYTES,
     DEFAULT_MAX_MODEL_EXTRACT_BYTES,
     VALID_CONTENT_TYPE_METHODS,
 )
 from pitloom.core.content_type_config import ContentTypeOverride
-from pitloom.core.model_extract_limit import require_max_model_extract_bytes
+from pitloom.core.model_extract_limit import (
+    require_max_dataset_hash_bytes,
+    require_max_model_extract_bytes,
+)
 from pitloom.core.provenance import require_max_source_metadata_bytes
 
 _CONTENT_TYPE_RE = re.compile(r"^[^/\s]+/[^/\s]+$")
@@ -83,6 +87,14 @@ def _read_max_model_extract_bytes(pitloom_data: dict[str, Any]) -> int:
     (see :func:`~pitloom.core.model_extract_limit.require_max_model_extract_bytes`)."""
     return require_max_model_extract_bytes(
         pitloom_data.get("max-model-extract-bytes", DEFAULT_MAX_MODEL_EXTRACT_BYTES)
+    )
+
+
+def _read_max_dataset_hash_bytes(pitloom_data: dict[str, Any]) -> int:
+    """Read ``[tool.pitloom] max-dataset-hash-bytes``, a positive integer
+    (see :func:`~pitloom.core.model_extract_limit.require_max_dataset_hash_bytes`)."""
+    return require_max_dataset_hash_bytes(
+        pitloom_data.get("max-dataset-hash-bytes", DEFAULT_MAX_DATASET_HASH_BYTES)
     )
 
 

@@ -58,6 +58,21 @@ def require_spdx_id(element: spdx3.Element) -> str:
     return str(element.spdxId)
 
 
+def sha256_of(obj: object) -> str | None:
+    """Return the lowercase SHA-256 hex digest from *obj*'s ``verifiedUsing``.
+
+    The first ``sha256`` ``Hash`` with a non-empty value wins; ``None`` when
+    there is none. Lowercased so the same bytes compare equal however a
+    producer spelled the digest.
+    """
+    for h in getattr(obj, "verifiedUsing", None) or []:
+        if getattr(h, "algorithm", None) == spdx3.HashAlgorithm.sha256:
+            value = getattr(h, "hashValue", None)
+            if value:
+                return str(value).lower()
+    return None
+
+
 def sha256_hash(hex_digest: str, *, comment: str | None = None) -> spdx3.Hash:
     """Build a ``verifiedUsing`` SHA-256 ``Hash`` element for *hex_digest*.
 

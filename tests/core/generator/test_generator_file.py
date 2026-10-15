@@ -14,8 +14,9 @@ from pitloom.assemble.spdx3.document import build
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
-from pitloom.id_registry import FileEntry, IdRegistry
+from pitloom.id_registry import FILE_TYPE
 from tests._license_graph import license_elements, license_value
+from tests.registry_helpers import make_registry
 
 from ...conftest import fake_build_and_read_path
 from ..conftest import (
@@ -322,9 +323,9 @@ def test_add_package_files_falls_back_to_distribution_path_lookup() -> None:
     match auto-harvested file entries, silently defeating cross-run id
     stability for exactly the most common Python project layout."""
     registered_id = "https://spdx.org/spdxdocs/pinned-1#File-9"
-    registry = IdRegistry(
+    registry = make_registry(
+        {(FILE_TYPE, "pkg/mod.py"): (registered_id, "a" * 64)},
         namespace="https://spdx.org/spdxdocs/pinned-1",
-        files={"pkg/mod.py": FileEntry(spdx_id=registered_id, sha256="a" * 64)},
     )
     files = [
         ProjectFile(

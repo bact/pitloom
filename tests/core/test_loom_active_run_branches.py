@@ -16,13 +16,15 @@ See also:
 
 from __future__ import annotations
 
+import errno
 import json
+import logging
+import os
 from pathlib import Path
-from typing import Any
 
 import pytest
 
-from pitloom import _loom_active_run, loom
+from pitloom import loom
 
 from .conftest import _relationships
 
@@ -75,30 +77,47 @@ def test_finalize_skips_has_data_file_relationship_when_none(
     assert not _relationships(graph)
 
 
-def test_script_file_has_no_verified_using_when_hash_lookup_returns_none(
+@pytest.mark.parametrize(
+    ("failure", "warns"),
+    [("gone", False), ("raced", False), ("unreadable", True)],
+    ids=["gone", "raced", "unreadable"],
+)
+def test_script_file_without_a_hash_when_it_cannot_be_read(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    failure: str,
+    warns: bool,
 ) -> None:
-    """_build_script_file leaves verifiedUsing unset when
-    _hash_and_registry_lookup can't compute a hash for the script (e.g. it
-    isn't a real on-disk file from the lookup's point of view)."""
-    # pylint: disable-next=protected-access
-    real_lookup = _loom_active_run._hash_and_registry_lookup
-
-    def fake_lookup(name: str, registry: Any) -> tuple[None, None] | Any:
-        if name.endswith(".py"):
-            return None, None
-        return real_lookup(name, registry)
-
+    """The script deleted before the run ends, or between its check and its
+    read: its ``software_File`` has no hash, silently; unreadable: no hash
+    and the shared ``FILE=`` warning."""
+    monkeypatch.chdir(tmp_path)
+    script = tmp_path / "train.py"
+    script.write_text("print('hi')\n", encoding="utf-8")
     monkeypatch.setattr(
-        "pitloom._loom_active_run._hash_and_registry_lookup", fake_lookup
+        "pitloom._loom_active_run._get_caller_script_path", lambda: "train.py"
     )
+    if failure != "gone":
+        error = PermissionError if failure == "unreadable" else FileNotFoundError
+        code = errno.EACCES if failure == "unreadable" else errno.ENOENT
+
+        def _fails(path: Path) -> bytes:
+            raise error(code, os.strerror(code), str(path))
+
+        monkeypatch.setattr("pitloom._loom_dataset.sha256_digest", _fails)
 
     output_file = tmp_path / "frag_no_script_hash.json"
-    with loom.run(output_file):
-        loom.set_model("test-model")
-        loom.add_dataset("train.txt")
+    with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
+        with loom.run(output_file):
+            loom.set_model("test-model")
+            loom.add_dataset("train.txt")
+            if failure == "gone":
+                script.unlink()
 
     graph = json.loads(output_file.read_text())["@graph"]
-    (script,) = [e for e in graph if e["type"] == "software_File"]
-    assert "verifiedUsing" not in script
+    (script_file,) = [e for e in graph if e["type"] == "software_File"]
+    assert script_file["name"] == "train.py"
+    assert "verifiedUsing" not in script_file
+    unreadable = [r for r in caplog.records if "could not read" in r.getMessage()]
+    assert len(unreadable) == int(warns)

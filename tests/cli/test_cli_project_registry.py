@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from pitloom import __main__
-from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
+from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, FILE_TYPE, IdRegistry
 
 from ..conftest import _assert_no_duplicate_spdx_ids
 
@@ -73,7 +73,8 @@ def test_loom_project_repeated_runs_never_duplicate_ids(
         outputs.append(run_json)
 
     registry_after_first = IdRegistry.load(registry_path)
-    assert registry_after_first.files
-    assert registry_after_first.entities
+    assert registry_after_first.id_count()
+    assert any(t == FILE_TYPE for t, _ in registry_after_first.elements)
+    assert any(t != FILE_TYPE for t, _ in registry_after_first.elements)
 
     assert outputs[0] == outputs[1] == outputs[2]

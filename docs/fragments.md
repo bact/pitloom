@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -33,14 +33,18 @@ the current time: the same fragments give the same bytes. The Python API is
 `pitloom.assemble.generate_merged_sbom()`.
 
 Equal elements unify, here and in a project build with
-`[tool.pitloom.fragment]`: the same `spdxId`, the same SHA-256 (files and
-packages), the same agent or tool, and the same licence -- an expression
-or a text with the same canonical value, so `mit` and `MIT` are one
-element, while an expression and a text stay two. Elements are never unified
-by name alone. The earlier one is kept (the project's own, then the earlier
-fragment, by file name for `loom merge`), and an `Annotation` records each
-unification. A kept licence keeps its own `name` and `comment`. To make
-independent runs agree on ids in the first place, see [Loom ID registry](id-registry.md).
+`[tool.pitloom.fragment]`: the same `spdxId` and type, the same SHA-256 and
+type (files, packages, datasets), the same agent or tool, and the
+same licence -- an expression or a text with the same canonical value, so
+`mit` and `MIT` are one element, while an expression and a text stay two.
+Elements are never unified by name alone. The earlier one is kept (the
+project's own, then the earlier fragment, by file name for `loom merge`), and
+an `Annotation` records each unification. A kept licence keeps its own `name`
+and `comment`. A fragment element whose `spdxId` an element of another type
+already holds is not unified with it: both are kept, and the fragment's
+element gets a new id in the merged document's namespace, with a `WARNING:`.
+To make independent runs agree on ids in the first place, see [Loom ID
+registry](id-registry.md).
 
 In a project build, fragment envelopes are dropped and duplicate relationships
 removed. The document's `profileConformance` gains `ai`/`dataset` as

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -13,9 +13,9 @@ id-stability work (PR #178), and items the registry v3 design leaves
 open on purpose. [roadmap.md](roadmap.md) keeps a one-to-two-line bullet
 for each and links here.
 
-See also: [id-registry-v3.md](id-registry-v3.md) (the planned redesign;
+See also: [id-registry-v3.md](../implementation/id-registry-v3.md) (the built redesign;
 D-numbers below refer to it),
-[id-registry-v3-rollout.md](id-registry-v3-rollout.md),
+[id-registry-v3-rollout.md](../implementation/id-registry-v3-rollout.md),
 [ai-model-id-stability.md](ai-model-id-stability.md),
 [id-registry-autosync.md](../implementation/id-registry-autosync.md),
 [skills-trigger-coverage.md](../implementation/skills-trigger-coverage.md),
@@ -96,7 +96,11 @@ so alternating `project`/`wheel` runs still change the registry's bytes
 (package entries are stable); `env`'s root `deployed-environment` package
 is always minted, and a pinned id for it is overwritten on harvest. See
 [id-registry-autosync.md](../implementation/id-registry-autosync.md).
-Not changed by v3.
+Not changed by v3. Auto-harvest also records the `SoftwareAgent`/`Tool`
+'Pitloom' under per-document ids, so project/wheel alternation in the
+`src/` layout still rewrites the registry (`updated stale entries`). Fix
+idea: limit `_harvestable` in `assemble/_generators_shared.py` to the four
+registry types, or mark agents and tools as non-readers.
 
 ### AIPackage lookups outside loom stay ungated until G7 #3
 
@@ -116,13 +120,11 @@ directory (`loom id generate build/x`) is skipped silently. v3's commit 2
 fixes only the absolute-path half of this check (it will match
 project-relative parts) and keeps both quirks.
 
-### The in-tree registry exclusion misses build-and-read files
-
-v3 excludes the declared registry file from discovery by path (D7). With
-`--allow-build`, a discovered file's path points into a temporary
-extraction directory and never matches, so an in-tree registry is still
-listed there. Related to the `--allow-build` id-registry gap in
-[roadmap.md](roadmap.md).
+Resolved by registry v3 (checked in `id_registry/_types.py`): the check
+now matches the project-relative parent directories only, so a project
+under an ancestor `build/` is indexed and a *file* named `build` is
+eligible. Still open: an explicit PATH inside an ignored directory
+(`loom id generate build/x`) is skipped without a message.
 
 ### Merge by id: same-type coincidences and re-minted ids
 
@@ -134,6 +136,10 @@ an unrelated main-document element *of the same type* still merges (the
 and a re-minted id can in theory collide with a *later* fragment that
 carries the same id. Accepted for now.
 
+Resolved by registry v3: the different-type fold (D11, in
+`assemble/spdx3/_fragments_unify.py`). The same-type and later-fragment
+gaps stay open; see "Registry v3: follow-ups" below.
+
 ### `pitloom.loom` run namespaces
 
 Moved from [canonical-output-followups.md](canonical-output-followups.md)
@@ -144,9 +150,168 @@ differs every run. Found while fixing the IRI encoding (#253); see
 [id-registry-autosync.md](../implementation/id-registry-autosync.md) for
 why reservation is a no-op there.
 
-## Resolved by registry v3 (planned, not built)
+## Registry v3: follow-ups (2026-10-15)
 
-Kept here so older links still land; each closes when v3 merges.
+Found while building and reviewing v3 (commits 0b to 7b). Facts were checked
+by the implementers against the tree; code locations are given where an item
+is easy to lose. D-numbers refer to [id-registry-v3.md](../implementation/id-registry-v3.md).
+
+### G7 blockers (Day 2)
+
+- **Retrains laundered into old ids (D15 against D16).** Once G7 #3 hashes
+  the AIPackages of the project, wheel and embed surfaces, their ungated name
+  lookups (D16) still return the old id after a retrain. Harvest then writes
+  `(name, new sha)` under the OLD id, and a later gated `loom` lookup of the
+  new bytes hits the old id. G7 #3 must gate those lookups in the same change,
+  or D15 must be limited to elements that did a gated lookup.
+- **Harvest keys a model by its extracted `.name`, `id generate` by the file
+  stem.** When they differ, `_release_stale_keys_for_id` drops the stem key,
+  because the src-layout alias rule (`_is_alias`) only accepts names that are
+  path suffixes of each other. Extend the alias rule, or key the harvest by
+  the lookup key, before G7 #3 makes names diverge more often.
+
+### Security and edge cases
+
+Dataset hashing and paths:
+
+- **Directory-dataset hashing has no file-count cap.** Millions of tiny files
+  stay under the byte ceiling (`max-dataset-hash-bytes`) while the walk and
+  the member list grow without bound: measured 88.8 MB peak for 200,000
+  files, about 440 bytes per file. Add a count cap beside the byte one.
+- **An output dataset is hashed when declared** (`add_output_dataset`), so
+  one declared before the step wrote the file carries the hash of the file it
+  replaces. Defer output-dataset hashing to run exit, as models are.
+- **The same dataset declared twice is hashed twice.** Cache the digest per
+  run, keyed on the real path.
+- **`id generate` does not index files below a symlinked directory** (a file
+  symlink is indexed), so a `loom.Run` keys such a path lexically and finds no
+  entry. Documented in `docs/id-registry.md`; decide whether it is a gap.
+- **A dataset member that vanishes between listing and hashing** warns
+  `could not read`; a single vanished file is silent. Align the two.
+- **Symlinked subdirectories of a directory dataset are not followed.**
+  Documented in `docs/python-api.md`; decide whether it is a gap.
+- **Case-insensitive file system.** A path matched by identity (`st_dev`,
+  `st_ino`) keeps the caller's casing below the root, so the registry lookup
+  misses. Normalise the tail to the on-disk case, or look up by identity.
+- **`registry_key_for_path` is documented as never raising**
+  (`id_registry/resolve.py`) but calls `os.getcwd()`, which raises
+  `FileNotFoundError` when the current directory was deleted. Catch it.
+
+Registry file I/O:
+
+- **Windows: `os.replace` fails while another process has the registry
+  open.** The save logs the failed-to-save `WARNING:` and the update is lost.
+- **A killed process can leave `.<registry>.<hex>.tmp`** beside an in-tree
+  registry, and a later scan would list it: D7 excludes by exact path only.
+- **A registry replaced mid-run by a file with another namespace.**
+  `rebase()` adopts the new namespace; ids already replayed keep the old one.
+
+Loom:
+
+- **`loom` never configured logging before 7b.** `loom.Run` now calls
+  `configure_logging()`, which replaces handlers a user had set on the
+  `pitloom` logger. Documented in `docs/python-api.md`; or add to the
+  handlers instead.
+- **A model declared twice under one name with different files:** the last
+  declaration owns the entry.
+- **`run.model` is `None` inside the `with` block** (resolved at exit, D13),
+  so user code reading it there breaks. Document it or expose a provisional
+  value.
+- **Two truly simultaneous loom exits can write the same id for different
+  models into their fragments.** The registry stays one key per id (the later
+  save is refused, `WARNING: another run saved ... first`), but the fragment
+  is already written, so the claim "a lost update is never a wrong id" was
+  false for it (corrected in
+  [id-registry-v3.md](../implementation/id-registry-v3.md) 8.4; documented in
+  `docs/id-registry.md`). Fix idea: claim ids by rebase-and-save before
+  writing the fragment.
+- **Two model files with the same stem** (`a/m.gguf`, `b/m.gguf`) are
+  registered name-only, with one `INFO:` per run.
+- **A local dataset package is keyed by the caller's string**, as passed, by
+  decision (2026-10-15): `../data/t.txt` from a subdirectory misses the
+  package pin while its `software_File` hits. Documented.
+- **A hashless `-e path:software_File` pin, then a regeneration,** logs
+  `content changed` and mints a new id (the D12 trade-off). Consider adopting
+  the hash on first sight for file pins.
+- **Bootstrap from an empty registry** logs two `untracked file` `WARNING:`s,
+  for the `data/processed/` files the pipeline creates later.
+- **`IdRegistry.load` type handling:** it takes a `Path`; check that other
+  argument types fail with one clear error (raised in the 2026-10-15 review;
+  details not recorded).
+
+Merge and warnings:
+
+- **A later fragment re-declaring a main-namespace id** (for example
+  `<ns>#DatasetPackage-1`) that is not in the base can collide with an id
+  minted earlier in the same merge. Needs a pre-scan of all fragments.
+- **`loom fragment list` now computes the registry exclusion**, so an invalid
+  declared registry reports `SAME_DOCUMENT` unknown instead of an id.
+- **`load_config_file` says "--config file"** (`core/config_cascade.py`) even
+  when loom is the caller.
+- **Merge hash-survivor policy.** When two fragments carry the same bytes the
+  survivor is the first indexed, so a minted fragment-local id can beat a
+  registry-pinned one: the sentimentdemo bootstrap loses `#File-8`/`#File-9`
+  in the merged wheel SBOM. Prefer the registry-pinned id as survivor.
+- **`id import` of an SBOM whose `ai_AIPackage` name differs from the file
+  stem** releases the stem key `id generate` made, and its hash gate (a
+  pre-existing behaviour). It matters more now that hashes gate ids: see the
+  G7 blocker on harvest keys above.
+- **A loom retrain logs `added 1 new id(s)`** for the replacement id of the
+  retrained model, although the key already existed; the count is by ids
+  under keys the registry did not hold elsewhere. Align the wording or count.
+- **Two alias rules for one fact.** `_harvest._is_files_path_alias` and the
+  one-direction tail check in `core/_models_wheel.py` (`_DeclaredRegistry`)
+  both decide whether a `src/`-layout path and a distribution path are one
+  file. Unify them in one helper.
+- **Harvest churn.** Harvest now never erases a recorded sha (ruling
+  2026-10-14); a package whose lock sha changes replaces it, so alternating
+  runs with and without the lock can still rewrite the registry.
+
+### Design questions for the user
+
+1. ~~Should a local dataset's package be keyed by its D9 path too?~~ Decided
+   2026-10-15: no, the caller's string as passed.
+2. ~~"Harvest never erases a sha" for every type.~~ Decided 2026-10-15:
+   harvest records a sha256 only for `software_File` and `ai_AIPackage` (the
+   two content-gated types) and never erases a recorded one.
+3. **Default `project_root` when none is set is the registry file's
+   directory** (commit 3). Confirm.
+
+### Tooling
+
+- **pyrefly cannot resolve the sibling imports in `scripts/manual_cli_checks`**
+  (about 30 baseline errors, plus 2 from `_checks_loom`). Adding that
+  directory to pyrefly's `search-path` would clear them.
+- **`core/model_extract_limit.py` no longer fits its name:** it now also holds
+  the dataset ceiling validator `require_positive_ceiling`. Rename (for
+  example `core/ceilings.py`) in a small PR.
+- **`_embed_build_sbom.py` is 507 lines**, over the soft limit. Split before
+  adding to it.
+- **Local command traps:** `pytest -p no:xdist` fails because the config
+  passes `-n` (use `-n0`); a bare `.venv/bin/mypy` exits 2 here, as no
+  targets are configured (use `mypy src tests`); a bare `flake8` crashes on
+  `.venv` (scope it to `examples src tests`).
+
+## Resolved by registry v3
+
+Kept here so older links still land. Each item below was checked against
+the v3 code on 2026-10-15.
+
+### The in-tree registry exclusion covers build-and-read files
+
+Found in v3 (D7), fixed in the finalisation round: a `--allow-build`
+discovered file's path points into a temporary extraction directory, so the
+exclusion also matches a build-and-read copy by the registry's
+project-relative path (or a tail of it, for a `src/` layout) plus an equal
+sha256 (`_DeclaredRegistry` in `core/_models_wheel.py`). The `--allow-build`
+id-registry gap in [roadmap.md](roadmap.md) is a separate item.
+
+### A write-protected registry is not overwritten
+
+The atomic temp-file write would replace a read-only (`chmod 444`) registry
+on POSIX, where the old in-place save failed. Decided 2026-10-15: it is not
+overwritten on any platform; the save fails with the failed-to-save
+`WARNING:`/`ERROR:` as before.
 
 ### Skill trigger coverage for `loom id generate`/`loom id import`
 
@@ -162,6 +327,10 @@ Decided in v3: a model's sha256 is a gate once recorded (D3), a retrained
 model is a new model, and hashed `ai_AIPackage` elements are
 auto-harvested (D15); unhashed ones stay excluded. See
 [ai-model-id-stability.md](ai-model-id-stability.md).
+Resolved by registry v3: harvest records a hashed `ai_AIPackage` with its
+sha256 and never erases a recorded one (`id_registry/_harvest.py`), so
+`id import` no longer loses the hash. The ungated lookups elsewhere are a
+separate, open hazard (below).
 
 ### A declared registry inside the package tree never settles
 
@@ -173,6 +342,11 @@ from file discovery and from `id generate`'s indexing (the latter is the
 custom-name gap in
 [diagnostics-logging-followups.md](diagnostics-logging-followups.md)),
 with one `WARNING:`.
+Resolved by registry v3: the declared registry is left out of project and
+wheel discovery with one `WARNING:` (`core/walk_rules.py`,
+`core/_models_wheel.py`) and out of `id generate` indexing
+(`_iter_files(exclude=...)`); the latter skips it without a message (see
+"Registry v3: follow-ups").
 
 ### Bounded `spdxId` minting for long or hostile names
 
@@ -202,7 +376,7 @@ Considered for the id scheme, not done in #294:
   (escaped, cut); the bidi lookup bug in #294 (registry stored the escaped
   name, minting looked up the raw one) is the same split.
 
-See also: [id-registry-v3.md](id-registry-v3.md),
+See also: [id-registry-v3.md](../implementation/id-registry-v3.md),
 [ai-model-id-stability.md](ai-model-id-stability.md); the name cap, its cut
 layout and the open name-normalisation questions are in
 [canonical-output-followups.md](canonical-output-followups.md).

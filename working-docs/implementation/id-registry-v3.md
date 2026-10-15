@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,31 +8,33 @@ SPDX-License-Identifier: CC0-1.0
 
 # Loom ID registry v3: one typed table, content gate chosen at lookup
 
-See also: [id-registry-v3-rollout.md](id-registry-v3-rollout.md) (surfaces,
+See also: [id-registry-v3-build-notes.md](id-registry-v3-build-notes.md)
+(what changed during the build), [id-registry-v3-rollout.md](id-registry-v3-rollout.md) (surfaces,
 messages, commits, verification, out of scope; sections 10-14 continue
 this file's numbering),
-[id-registry-autosync.md](../implementation/id-registry-autosync.md)
+[id-registry-autosync.md](id-registry-autosync.md)
 (v2 as built: harvest, stale-key release, ambiguity, claims),
-[id-registry-followups.md](id-registry-followups.md) (items v3 leaves
-open), [ai-model-id-stability.md](ai-model-id-stability.md),
-[g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md) (G7 #3 builds on this),
-[roadmap.md](roadmap.md).
+[id-registry-followups.md](../design/id-registry-followups.md) (items v3 leaves
+open), [ai-model-id-stability.md](../design/ai-model-id-stability.md),
+[g7-ai-sbom-coverage.md](../design/g7-ai-sbom-coverage.md) (G7 #3 builds on this),
+[roadmap.md](../design/roadmap.md).
 
-**Status: design, not built.** The code on `main` is still registry v2.
-This file (the design) and the rollout file (how it lands) are the
-implementers' brief. Every decision is final (user, 2026-09-30); nothing
-is open. Registry v3 is its own PR, independent of G7 (order and base
-branch: rollout, top). The `file:line` anchors were checked on `main` at
-`4c052dd`; re-verify each against the post-#263 base before coding.
+**Status: built (PR #305, 2026-10-15).** The body below is the design as
+agreed (user, 2026-09-30; D10 and the ceiling key confirmed 2026-10-14);
+[id-registry-v3-build-notes.md](id-registry-v3-build-notes.md) records where
+the code differs. The `file:line` anchors and "does not exist yet" remarks
+were written against `5962a968` (post-#300), before the build: the code is
+the authority. Registry v3 is its own PR, independent of G7 (order and base
+branch: rollout, top). Lessons for the paper:
+[id-registry-v3-lessons.md](sbom-generator-field-notes/id-registry-v3-lessons.md).
 
 ## 0. Revisions to the first draft (user, 2026-09-30)
 
-The body reads as final. What moved since the first draft: D3 (the model
-sha256 is now a gate), D12 (`register()` is uniform), D13 (loom resolves
-models at run exit and **writes the registry**), D14 (`loom.Run(
-pitloom_config=)`), D15 (hashed AIPackages are auto-harvested); and the
-former open items are decided: D10, the ceiling key and the directory
-`Hash.comment` (8.2), and commit 2 also fixing `_is_eligible_file`
+The body reads as final. Moved since the first draft: D3 (the model sha256
+is a gate), D12 (`register()` is uniform), D13 (loom resolves models at run
+exit and **writes the registry**), D14 (`loom.Run(pitloom_config=)`), D15
+(hashed AIPackages are auto-harvested). Decided: D10, the ceiling key, the
+directory `Hash.comment` (8.2), and commit 2 fixing `_is_eligible_file`
 (rollout section 12).
 
 ## 1. Why
@@ -85,22 +87,18 @@ Problems:
    `_loom_caller._hash_and_registry_lookup` returns `(None, None)` when
    `Path(name).is_file()` is false.
 8. **Namespace.** `IdRegistry.new` mints a random UUID4 namespace
-   (`_registry.py:68-70`).
-9. **Fragment merge by id ignores type.** `_fragments_unify._MergeIndex.find_by_id`
-   matches by id alone. Take a loom DatasetPackage and a project
-   `software_File` that both hit `files[path]`. The DatasetPackage is
-   folded into the File: `dataset_datasetType`/`dataset_dataPreprocessing`
-   are silently lost, and `trainedOn` points at a `software_File`. Which
-   element survives depends on the merge order.
-10. **Loom probes with `Path.is_file()`, not `path_probe.is_regular_file`.**
-    As a result, a permission error behaves differently per Python
-    version (see AGENTS.md, `Path.exists()`/`.is_file()`).
-11. **Loom's fallback ids are never stable.** Without a registry, a loom
-    id is `generate_spdx_id("DatasetPackage", name, doc_uuid)`: the dataset
-    name becomes the *document* name (a path puts `/` into the
-    namespace), and `doc_uuid` is a fresh UUID4 on every run
-    (`_loom_active_run.py:73`). Out of scope here; recorded for the loom
-    SDK work (G7 #7).
+   (`_registry.py:69-72`).
+9. **Fragment merge by id ignores type** (`_MergeIndex.find_by_id`). A loom
+   DatasetPackage and a project `software_File` that both hit `files[path]`
+   fold together: `dataset_datasetType`/`dataset_dataPreprocessing` are
+   lost, `trainedOn` points at a `software_File`, and the survivor depends
+   on merge order.
+10. **Loom probes with `Path.is_file()`, not `path_probe.is_regular_file`**,
+    so a permission error differs per Python version (AGENTS.md).
+11. **Loom's fallback ids are never stable.** Without a registry a loom id
+    is `generate_spdx_id("DatasetPackage", name, doc_uuid)`: the name
+    becomes the *document* name, and `doc_uuid` is a fresh UUID4 per run.
+    Out of scope; recorded for the loom SDK work (G7 #7).
 
 ## 3. Decisions (user, 2026-09-30)
 
@@ -125,7 +123,7 @@ Each decision gives its reason; rejected alternatives follow "Rejected".
   name-only entry. Why (user): a retrained model is a new model.
   Rejected: the first draft's "record only, never a gate", which kept the
   id across retrains (the open question in
-  [ai-model-id-stability.md](ai-model-id-stability.md)).
+  [ai-model-id-stability.md](../design/ai-model-id-stability.md)).
 - **D4: one count in the log line:** `added N new id(s)`, where N counts
   distinct ids (a src-layout alias adds a key, not an id). logfmt quoting
   of `KEY=VALUE` lines is a separate PR (P1).
@@ -172,7 +170,13 @@ Each decision gives its reason; rejected alternatives follow "Rejected".
   when the `id_registry=` argument is not passed. An explicit argument
   wins (the cascade). Every other key is documented as not applying to
   loom (a config key a surface can't use is documented, never warned).
-  Loom never reads an implicit `[tool.pitloom]`. Why: parity with the
+  Loom never reads an implicit `[tool.pitloom]`. `load_config_file` raises
+  `FileNotFoundError`; loom converts it to `ValueError`. It resolves a
+  relative `id-registry` against the config file's directory, so a
+  config-sourced registry path is config-file-relative, while an
+  `id_registry=` argument stays cwd-relative (document both). Loom never
+  saved the registry before and has no `update-id-registry` notion: both
+  are new behaviour (D13). Why: parity with the
   library API's `pitloom_config=`, and the ceiling needs a way in without
   a CLI. Rejected: removing `id_registry=` in favour of
   `PitloomConfig(id_registry=...)`; reading only the ceiling and
@@ -189,7 +193,7 @@ Each decision gives its reason; rejected alternatives follow "Rejected".
   wheel, `loom model`, embed). Why: those surfaces do not hash AIPackages
   until G7 #3; gate them then, so every surface agrees with loom. Until
   then a project SBOM reuses a name-matched id even after a retrain
-  ([id-registry-followups.md](id-registry-followups.md)).
+  ([id-registry-followups.md](../design/id-registry-followups.md)).
 
 Smaller decisions (user, 2026-09-30):
 
@@ -223,14 +227,15 @@ Smaller decisions (user, 2026-09-30):
 
 ```text
 key   = (compact type, name)   # _element_key(type, name): PEP 503 name for software_Package
-entry = {spdxId, sha256?}      # sha256 whenever the harvested/registered element has one
+entry = {spdxId, sha256?}      # sha256 only on software_File / ai_AIPackage, when the element has one
 ```
 
 - **I1, harvest records and never classifies.** Every named element with
   an `spdxId` and a compact type other than `"object"` is written under
-  its own key, with `sha256_of(obj)` or no hash. `sha256_of()` lives in
-  `export/spdx3_json.py`, lowercases, and replaces both extractors
-  (problem 5).
+  its own key. Only `software_File` and `ai_AIPackage` entries (the
+  content-gated types) get `sha256_of(obj)` or no hash; every other type
+  never keeps one. `sha256_of()` lives in `export/spdx3_json.py`,
+  lowercases, and replaces both extractors (problem 5).
 - **I2, the lookup chooses the gate.** A gated lookup passes `sha256=`
   and hits only when the entry's sha256 is equal (case-insensitive). An
   entry with no sha256 never satisfies a gated lookup. An ungated lookup
@@ -259,7 +264,7 @@ entry = {spdxId, sha256?}      # sha256 whenever the harvested/registered elemen
 
 The `id_registry/_*.py` modules are private; public names are re-exported
 from `id_registry/__init__.py`. Load/save moves to a new `_format.py` so
-`_registry.py` (303 lines) stays well under the limit.
+`_registry.py` (309 lines) stays well under the limit.
 
 v2 -> v3:
 
@@ -307,6 +312,14 @@ v2 -> v3:
 `generate()` registers `(software_File, rel_path, sha256)` for each file,
 and `(ai_AIPackage, stem, sha256)` for each model file (D3).
 
+v2 behaviours v3 keeps:
+
+- `IdRegistrySession` lookup retries each name display-escaped
+  (`escape_display_controls`).
+- `generate()` registers only files passing `is_model_candidate_name` plus
+  `detect_ai_model_format != UNKNOWN` as models.
+- `save()` writes via `canonical_json_indented`.
+
 ## 6. File format, version 3
 
 As `save()` writes it (keys sorted at every level):
@@ -353,18 +366,18 @@ As `save()` writes it (keys sorted at every level):
 
 | Caller (v2 anchor) | Type | Candidate names, in order | Gate |
 | --- | --- | --- | --- |
-| Project file (`_document_files.py:342`) | `software_File` | physical path (`project_relative_or_fallback`), then distribution path | sha256 |
-| Directory (`_document_files.py:291`) | `software_File` | directory path | none |
-| Own, dependency, phantom package (`_package_ids.py:71`); deployed package (`_document_deployed.py`) | `software_Package` | canonical name | none |
-| AI model in a project or wheel (`ai.py:95`) | `ai_AIPackage` | name, path, stem (`_ai_model_entity_candidates`; a wheel's path is the raw archive name) | none (D16) |
-| `loom model` / `enrich` (`_model_generator.py:151`, `:246`) | `ai_AIPackage` | stem | none (D16) |
-| loom model (`_loom_active_run.py:109-126` today; 8.4) | `ai_AIPackage` | name, at `finalize()` | sha256 of the `path=` file if it is a regular file, else none |
-| loom script (`_loom_active_run.py:407`) | `software_File` | D9 key (8.3) | sha256 |
+| Project file (`_document_files.py:319`) | `software_File` | physical path (`project_relative_or_fallback`), then distribution path | sha256 |
+| Directory (`_document_files.py:268`) | `software_File` | directory path | none |
+| Own, dependency, phantom package (`_package_ids.py:73`); deployed package (`_document_deployed.py`) | `software_Package` | canonical name | none |
+| AI model in a project or wheel (`ai.py:144`) | `ai_AIPackage` | name, path, stem (`_ai_package.py:120` `_ai_model_entity_candidates`; a wheel's path is the raw archive name) | none (D16) |
+| `loom model` / `enrich` (`assemble/_model_generator.py:186`, `:281`) | `ai_AIPackage` | stem | none (D16) |
+| loom model (`_loom_active_run.py:124`, `set_model` :99-151, today; 8.4) | `ai_AIPackage` | name, at `finalize()` | sha256 of the `path=` file if it is a regular file, else none |
+| loom script (`_loom_active_run.py:409`) | `software_File` | D9 key (8.3) | sha256 |
 | loom dataset package (new) | `dataset_DatasetPackage` | the caller's string | none, every dataset kind |
 | loom dataset file (new, single-file dataset) | `software_File` | D9 key (8.3) | sha256 |
 
 **Who writes the registry.** `id generate`/`id import`; the auto-harvest
-in `_sync_registry` (`_generators_shared.py`), which excludes unhashed
+in `_sync_registry` (`assemble/_generators_shared.py:51`, tail :81-101), which excludes unhashed
 `ai_AIPackage` and every `dataset_DatasetPackage` (D15); and, new, loom's
 `finalize()`, which writes only `(ai_AIPackage, name, sha256)` on a gated
 miss (D13). Loom never writes dataset, file or script entries.
@@ -503,8 +516,14 @@ from.
   both writers log the same `ID registry: ...` lines. To survive two loom
   processes sharing one registry file, it re-loads the file just before
   saving, replays only this run's new entries, and saves atomically. No
-  file locking; a lost update would only cause a re-mint on the next run,
-  never a wrong id.
+  file locking. A lost update to the registry costs a re-mint on the next
+  run, but two loom runs that exit at the very same moment can each write
+  the same id for a different model into their fragments: the registry
+  keeps one key per id and the run that saves second logs `another run
+  saved ... first`, yet its fragment is already written. (The first draft
+  said "never a wrong id"; that holds for the registry, not for fragments.
+  Fix idea: claim ids by rebase-and-save before writing the fragment; see
+  [id-registry-followups.md](../design/id-registry-followups.md).)
 - Effect: training (`set_model(path=)`) and evaluation
   (`use_model(path=)`) fragments share one AIPackage id with no
   `id generate --entity`; a retrain gets a new id with one INFO.
@@ -512,7 +531,7 @@ from.
 ## 9. Registry namespace (D8)
 
 Today `IdRegistry.new` mints `doc_namespace(project, uuid4())`
-(`_registry.py:68-70`), and `id import` into an empty registry adopts the
+(`_registry.py:69-72`), and `id import` into an empty registry adopts the
 imported document's namespace (unchanged).
 
 - Keep the UUID4, minted once when the registry is created. The registry
@@ -526,3 +545,8 @@ imported document's namespace (unchanged).
 - Rejected: `uuid5(PITLOOM_NS, project_name)`. Two unrelated projects
   called `demo` would get the same ids, and SPDX ids must be globally
   unique. Record this rejection in the implementation doc.
+
+## What changed during the build
+
+Moved to [id-registry-v3-build-notes.md](id-registry-v3-build-notes.md), with
+the rulings of the 2026-10-15 review round.

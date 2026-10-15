@@ -22,7 +22,8 @@ from unittest.mock import patch
 import pytest
 
 from pitloom import loom
-from pitloom.id_registry import EntityEntry, FileEntry, IdRegistry
+from pitloom.id_registry import DATASET_PACKAGE_TYPE, FILE_TYPE
+from tests.registry_helpers import make_registry
 
 from .conftest import _relationships
 
@@ -65,20 +66,22 @@ def test_loom_dataset_without_existing_file_has_no_hash() -> None:
 
 
 def test_loom_registry_id_reuse_for_dataset_and_model() -> None:
-    """A dataset/model already registered gets the registry's spdxId."""
+    """A dataset, its file and the model already registered get the
+    registry's spdxIds, each under its own type."""
     namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
-    registry = IdRegistry(
+    registry = make_registry(
+        {
+            (FILE_TYPE, _EXISTING_FILE): (
+                f"{namespace}#File-1",
+                _sha256_of(_EXISTING_FILE),
+            ),
+            (DATASET_PACKAGE_TYPE, _EXISTING_FILE): (
+                f"{namespace}#DatasetPackage-1",
+                None,
+            ),
+            ("ai_AIPackage", "registered-model"): (f"{namespace}#AIPackage-1", None),
+        },
         namespace=namespace,
-        files={
-            _EXISTING_FILE: FileEntry(
-                spdx_id=f"{namespace}#File-1", sha256=_sha256_of(_EXISTING_FILE)
-            )
-        },
-        entities={
-            ("ai_AIPackage", "registered-model"): EntityEntry(
-                spdx_id=f"{namespace}#AIPackage-1"
-            )
-        },
     )
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -91,7 +94,13 @@ def test_loom_registry_id_reuse_for_dataset_and_model() -> None:
         (model,) = [e for e in graph if e["type"] == "ai_AIPackage"]
         assert model["spdxId"] == f"{namespace}#AIPackage-1"
         (ds,) = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
-        assert ds["spdxId"] == f"{namespace}#File-1"
+        assert ds["spdxId"] == f"{namespace}#DatasetPackage-1"
+        (data_file,) = [
+            e
+            for e in graph
+            if e["type"] == "software_File" and e["name"] == _EXISTING_FILE
+        ]
+        assert data_file["spdxId"] == f"{namespace}#File-1"
 
 
 def test_loom_registry_hash_mismatch_warns_and_mints_new_id(
@@ -99,14 +108,9 @@ def test_loom_registry_hash_mismatch_warns_and_mints_new_id(
 ) -> None:
     """A registry entry with non-matching recorded hash is treated as unregistered."""
     namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
-    registry = IdRegistry(
+    registry = make_registry(
+        {(FILE_TYPE, _EXISTING_FILE): (f"{namespace}#File-1", "0" * 64)},  # wrong
         namespace=namespace,
-        files={
-            _EXISTING_FILE: FileEntry(
-                spdx_id=f"{namespace}#File-1",
-                sha256="0" * 64,  # deliberately wrong
-            )
-        },
     )
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -117,8 +121,9 @@ def test_loom_registry_hash_mismatch_warns_and_mints_new_id(
                 loom.add_dataset(_EXISTING_FILE)
 
         graph = json.loads(output_file.read_text())["@graph"]
-        (ds,) = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
-        assert ds["spdxId"] != f"{namespace}#File-1"
+        files = [e for e in graph if e.get("name") == _EXISTING_FILE]
+        assert {e["type"] for e in files} == {"software_File", "dataset_DatasetPackage"}
+        assert f"{namespace}#File-1" not in {e["spdxId"] for e in files}
         assert any("no longer matches" in r.message for r in caplog.records)
 
 
@@ -231,11 +236,9 @@ def test_loom_set_model_called_twice_with_registry_gets_two_ids(
     no-registry behaviour (two elements) except for the warning, which
     is the truthful record of which call got the registered id."""
     namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
-    registry = IdRegistry(
+    registry = make_registry(
+        {("ai_AIPackage", "m"): (f"{namespace}#AIPackage-1", None)},
         namespace=namespace,
-        entities={
-            ("ai_AIPackage", "m"): EntityEntry(spdx_id=f"{namespace}#AIPackage-1")
-        },
     )
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -258,44 +261,6 @@ def test_loom_set_model_called_twice_with_registry_gets_two_ids(
         assert len(warnings) == 1
 
 
-def test_loom_same_file_as_input_and_output_dataset_gets_two_ids(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """The same file name added via both ``add_input_dataset()`` and
-    ``add_dataset()`` (a legitimate loom pattern: a file used both as raw
-    input and re-declared as the training dataset) with a registry: the
-    second call is unconditionally a miss -- not raise, two distinct
-    ``dataset_DatasetPackage`` elements, one collision warning."""
-    namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
-    registry = IdRegistry(
-        namespace=namespace,
-        files={
-            _EXISTING_FILE: FileEntry(
-                spdx_id=f"{namespace}#File-1", sha256=_sha256_of(_EXISTING_FILE)
-            )
-        },
-    )
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        output_file = Path(tmpdir) / "frag.json"
-        with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
-            with loom.run(output_file, id_registry=registry):
-                loom.add_input_dataset(_EXISTING_FILE)
-                loom.add_dataset(_EXISTING_FILE)
-
-        graph = json.loads(output_file.read_text())["@graph"]
-        datasets = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
-        assert len(datasets) == 2
-        assert datasets[0]["spdxId"] != datasets[1]["spdxId"]
-        assert f"{namespace}#File-1" in {d["spdxId"] for d in datasets}
-        warnings = [
-            r
-            for r in caplog.records
-            if r.levelname == "WARNING" and "registered for both" in r.message
-        ]
-        assert len(warnings) == 1
-
-
 def test_loom_set_model_called_twice_with_different_content_gets_two_ids(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -306,11 +271,9 @@ def test_loom_set_model_called_twice_with_different_content_gets_two_ids(
     registered for both ...``, matching what happens with no registry
     at all."""
     namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
-    registry = IdRegistry(
+    registry = make_registry(
+        {("ai_AIPackage", "m"): (f"{namespace}#AIPackage-1", None)},
         namespace=namespace,
-        entities={
-            ("ai_AIPackage", "m"): EntityEntry(spdx_id=f"{namespace}#AIPackage-1")
-        },
     )
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -333,21 +296,28 @@ def test_loom_set_model_called_twice_with_different_content_gets_two_ids(
         assert len(warnings) == 1
 
 
-def test_loom_same_file_as_dataset_with_different_type_gets_two_ids(
-    caplog: pytest.LogCaptureFixture,
+@pytest.mark.parametrize("second_type", ["text", "image"], ids=["same", "other"])
+def test_loom_same_file_as_two_datasets_gets_two_packages_one_file(
+    caplog: pytest.LogCaptureFixture, second_type: str
 ) -> None:
     """The same file added via ``add_input_dataset()`` then ``add_dataset()``
-    with *different* ``dataset_type`` values is a genuine second element
-    -- not the identical-repeat case above. Must not raise, and each
-    dataset keeps its own distinct id plus one collision warning."""
+    (as raw input and as the training set; a second ``dataset_type`` or
+    not) with a registry: two ``dataset_DatasetPackage`` elements, the
+    second one's id minted with one collision warning; one shared
+    ``software_File`` (the run's cache), so its claim never collides."""
     namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
-    registry = IdRegistry(
-        namespace=namespace,
-        files={
-            _EXISTING_FILE: FileEntry(
-                spdx_id=f"{namespace}#File-1", sha256=_sha256_of(_EXISTING_FILE)
-            )
+    registry = make_registry(
+        {
+            (FILE_TYPE, _EXISTING_FILE): (
+                f"{namespace}#File-1",
+                _sha256_of(_EXISTING_FILE),
+            ),
+            (DATASET_PACKAGE_TYPE, _EXISTING_FILE): (
+                f"{namespace}#DatasetPackage-1",
+                None,
+            ),
         },
+        namespace=namespace,
     )
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -355,13 +325,21 @@ def test_loom_same_file_as_dataset_with_different_type_gets_two_ids(
         with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
             with loom.run(output_file, id_registry=registry):
                 loom.add_input_dataset(_EXISTING_FILE, dataset_type="text")
-                loom.add_dataset(_EXISTING_FILE, dataset_type="image")
+                loom.add_dataset(_EXISTING_FILE, dataset_type=second_type)
 
         graph = json.loads(output_file.read_text())["@graph"]
         datasets = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
         assert len(datasets) == 2
         assert datasets[0]["spdxId"] != datasets[1]["spdxId"]
-        assert f"{namespace}#File-1" in {d["spdxId"] for d in datasets}
+        assert f"{namespace}#DatasetPackage-1" in {d["spdxId"] for d in datasets}
+        (data_file,) = [e for e in graph if e["type"] == "software_File"]
+        assert data_file["spdxId"] == f"{namespace}#File-1"
+        contains = [
+            r for r in _relationships(graph) if r["relationshipType"] == "contains"
+        ]
+        assert sorted(r["from"] for r in contains) == sorted(
+            d["spdxId"] for d in datasets
+        )
         warnings = [
             r
             for r in caplog.records
@@ -384,13 +362,9 @@ def test_loom_input_then_output_dataset_after_file_rewrite_gets_two_ids(
     data_file = tmp_path / "data.txt"
     data_file.write_text("before\n")
     namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
-    registry = IdRegistry(
+    registry = make_registry(
+        {(FILE_TYPE, "data.txt"): (f"{namespace}#File-1", _sha256_of("data.txt"))},
         namespace=namespace,
-        files={
-            "data.txt": FileEntry(
-                spdx_id=f"{namespace}#File-1", sha256=_sha256_of("data.txt")
-            )
-        },
     )
 
     output_file = tmp_path / "frag.json"
@@ -412,26 +386,24 @@ def test_loom_script_file_hit_shares_id_with_dataset_gets_two_ids(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The generating script's own registry hit
-    (``_build_script_file()``'s ``_hash_and_registry_lookup()`` call) is
-    a loom registry hit like any other, and must go through the run's
-    claims the same way ``set_model()``/``add_*_dataset()`` do. A
-    registry where a dataset's key and the script's key happen to share
-    one id (e.g. two independently-registered files that were never
-    meant to collide) must not raise at ``Run.__exit__``: the dataset
-    claims the id first, the script's own hit is a miss and gets its own
-    fresh id plus one collision warning."""
+    """The generating script's own registry hit is a loom registry hit like
+    any other, and goes through the run's claims the same way a dataset's
+    file does. A registry where a dataset file's key and the script's key
+    share one id (two independently-registered files never meant to
+    collide) must not raise at ``Run.__exit__``: the dataset's file claims
+    the id first, the script's own hit is a miss and gets its own fresh id
+    plus one collision warning."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "data.txt").write_text("data\n")
     (tmp_path / "script.py").write_text("print('hi')\n")
     namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
     shared_id = f"{namespace}#File-1"
-    registry = IdRegistry(
-        namespace=namespace,
-        files={
-            "data.txt": FileEntry(spdx_id=shared_id, sha256=_sha256_of("data.txt")),
-            "script.py": FileEntry(spdx_id=shared_id, sha256=_sha256_of("script.py")),
+    registry = make_registry(
+        {
+            (FILE_TYPE, "data.txt"): (shared_id, _sha256_of("data.txt")),
+            (FILE_TYPE, "script.py"): (shared_id, _sha256_of("script.py")),
         },
+        namespace=namespace,
     )
 
     output_file = tmp_path / "frag.json"
@@ -444,12 +416,9 @@ def test_loom_script_file_hit_shares_id_with_dataset_gets_two_ids(
                 loom.add_input_dataset("data.txt")
 
     graph = json.loads(output_file.read_text())["@graph"]
-    (dataset,) = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
-    (script_file,) = [
-        e for e in graph if e["type"] == "software_File" and e["name"] == "script.py"
-    ]
-    assert dataset["spdxId"] != script_file["spdxId"]
-    assert shared_id in {dataset["spdxId"], script_file["spdxId"]}
+    files = {e["name"]: e for e in graph if e["type"] == "software_File"}
+    data_id, script_id = files["data.txt"]["spdxId"], files["script.py"]["spdxId"]
+    assert data_id == shared_id != script_id  # the dataset's file claimed it first
     warnings = [
         r
         for r in caplog.records
@@ -468,11 +437,9 @@ def test_loom_set_model_hyperparameters_then_set_model_again_gets_two_ids(
     only at the first call's own time misses, since the mutation happens
     after that. Must not raise, two distinct ids, one warning."""
     namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
-    registry = IdRegistry(
+    registry = make_registry(
+        {("ai_AIPackage", "m"): (f"{namespace}#AIPackage-1", None)},
         namespace=namespace,
-        entities={
-            ("ai_AIPackage", "m"): EntityEntry(spdx_id=f"{namespace}#AIPackage-1")
-        },
     )
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -509,6 +476,7 @@ def test_loom_repl_caller_gets_no_script_file() -> None:
                 loom.add_dataset(_EXISTING_FILE)
 
         graph = json.loads(output_file.read_text())["@graph"]
-        assert not [e for e in graph if e["type"] == "software_File"]
+        files = [e["name"] for e in graph if e["type"] == "software_File"]
+        assert files == [_EXISTING_FILE]  # the dataset's file, no script
         rels = _relationships(graph)
         assert not [r for r in rels if r.get("relationshipType") == "generates"]

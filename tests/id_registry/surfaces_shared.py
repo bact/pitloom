@@ -42,6 +42,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
@@ -55,10 +56,16 @@ from pitloom.assemble import (
     generate_wheel_sbom,
 )
 from pitloom.embed import embed_wheel_sbom
+from tests._wheel_models import safetensors_bytes, write_model_wheel
 from tests.cli.shared import SAFETENSORS_FIXTURE
 from tests.extract.conftest import make_hook
 from tests.id_registry.surfaces_base import (
+    DEMO_INIT_CONTENT,
     DEPENDENCY,
+    LOOM_MODEL,
+    LOOM_SCRIPT,
+    LOOM_SCRIPT_BYTES,
+    MODEL_FILE,
     UNDECLARED,
     Declare,
     _explicit_pitloom_config,
@@ -79,6 +86,8 @@ __all__ = [
     "SURFACES",
     "UNDECLARED",
     "Declare",
+    "MODEL_RUNNERS",
+    "declare_via",
     "demo_project",
     "demo_wheel",
     "lib_embed_wheel_sbom",
@@ -324,3 +333,55 @@ SURFACES: dict[str, Callable[[Path, pytest.MonkeyPatch, Declare], object]] = {
     "hook": run_hook,
     "loom-run": run_loom,
 }
+
+
+# --- Model-bearing runners (not in SURFACES: they add no new surface) ----
+
+
+def lib_project_with_model(
+    tmp_path: Path, _mp: pytest.MonkeyPatch, declare: Declare
+) -> None:
+    """The demo project plus ``demo/tiny.safetensors``."""
+    project = demo_project(tmp_path, _own_key_toml(declare))
+    (project / "demo" / MODEL_FILE).write_bytes(safetensors_bytes())
+    generate_project_sbom(project, creation_metadata=None, id_registry=declare.flag)
+
+
+def lib_wheel_with_model(
+    tmp_path: Path, _mp: pytest.MonkeyPatch, declare: Declare
+) -> None:
+    """A wheel holding ``demo/__init__.py`` and ``demo/tiny.safetensors``."""
+    wheel = write_model_wheel(
+        tmp_path / "dist",
+        {
+            "demo/__init__.py": DEMO_INIT_CONTENT,
+            f"demo/{MODEL_FILE}": safetensors_bytes(),
+        },
+    )
+    generate_wheel_sbom(wheel, id_registry=declare.flag)
+
+
+def run_loom_with_model(
+    tmp_path: Path, mp: pytest.MonkeyPatch, declare: Declare
+) -> None:
+    """One ``loom.run`` that names a model; the run's script is a file too."""
+    mp.chdir(tmp_path)
+    (tmp_path / LOOM_SCRIPT).write_bytes(LOOM_SCRIPT_BYTES)
+    caller = "pitloom._loom_active_run._get_caller_script_path"
+    with patch(caller, return_value=LOOM_SCRIPT):
+        with loom.run(tmp_path / "frag.spdx3.json", id_registry=declare.flag):
+            loom.set_model(LOOM_MODEL)
+
+
+MODEL_RUNNERS: dict[str, Callable[[Path, pytest.MonkeyPatch, Declare], None]] = {
+    "project-with-model": lib_project_with_model,
+    "wheel-with-model": lib_wheel_with_model,
+    "loom-with-model": run_loom_with_model,
+}
+
+
+def declare_via(surface: str, registry: Path) -> Declare:
+    """A :class:`Declare` pointing *surface* at *registry* by the first
+    route it supports (the flag, else the project's own key)."""
+    modes = SUPPORTED_MODES.get(surface, ("flag",))
+    return Declare(**{"flag" if "flag" in modes else modes[0]: registry})

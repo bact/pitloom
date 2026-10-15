@@ -159,9 +159,7 @@ def test_assembler_ai_model_reuses_registry_entity_by_physical_path() -> None:
     )
 
     registry = IdRegistry.new("ai-project")
-    registered_id = registry.register_entity(
-        "src/sentimentdemo/model.bin", "ai_AIPackage"
-    )
+    registered_id = registry.register("ai_AIPackage", "src/sentimentdemo/model.bin")
 
     exporter = build(doc, registry=registry)
     data = json.loads(exporter.to_json(pretty=True))
@@ -188,7 +186,7 @@ def test_assembler_ai_model_reuses_registry_entity_by_file_stem() -> None:
     )
 
     registry = IdRegistry.new("ai-project")
-    registered_id = registry.register_entity("model", "ai_AIPackage")
+    registered_id = registry.register("ai_AIPackage", "model")
 
     exporter = build(doc, registry=registry)
     graph = json.loads(exporter.to_json())["@graph"]
@@ -214,7 +212,7 @@ def test_assembler_ai_model_no_registry_match_mints_fresh_id() -> None:
     )
 
     registry = IdRegistry.new("ai-project")
-    unrelated_id = registry.register_entity("some-other-model", "ai_AIPackage")
+    unrelated_id = registry.register("ai_AIPackage", "some-other-model")
 
     exporter = build(doc, registry=registry)
     graph = json.loads(exporter.to_json())["@graph"]
@@ -242,7 +240,7 @@ def test_build_deployed_reuses_registry_entity_by_name() -> None:
     ]
 
     registry = IdRegistry.new("deployed-environment")
-    registered_id = registry.register_entity("requests", "software_Package")
+    registered_id = registry.register("software_Package", "requests")
 
     exporter = build_deployed(doc, env_tree, registry=registry)
     graph = json.loads(exporter.to_json())["@graph"]
@@ -257,7 +255,7 @@ def test_build_deployed_reuses_registry_entity_by_canonicalized_name() -> None:
     as ``--entity`` writes it) is found by the deployed lookup, which
     shows and looks the package up by its PEP 503 name (``"pyyaml"``):
     the registry canonicalizes both sides
-    (:func:`pitloom.id_registry._types._entity_key`)."""
+    (:func:`pitloom.id_registry._types._element_key`)."""
     project = ProjectMetadata(name="deployed-environment", version="0.0.0")
     doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
     env_tree = [
@@ -271,7 +269,7 @@ def test_build_deployed_reuses_registry_entity_by_canonicalized_name() -> None:
     ]
 
     registry = IdRegistry.new("deployed-environment")
-    registered_id = registry.register_entity("PyYAML", "software_Package")
+    registered_id = registry.register("software_Package", "PyYAML")
 
     exporter = build_deployed(doc, env_tree, registry=registry)
     graph = json.loads(exporter.to_json())["@graph"]
@@ -297,7 +295,7 @@ def test_build_deployed_no_registry_match_mints_fresh_id() -> None:
     ]
 
     registry = IdRegistry.new("deployed-environment")
-    unrelated_id = registry.register_entity("some-other-package", "software_Package")
+    unrelated_id = registry.register("software_Package", "some-other-package")
 
     exporter = build_deployed(doc, env_tree, registry=registry)
     graph = json.loads(exporter.to_json())["@graph"]

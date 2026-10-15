@@ -21,6 +21,7 @@ from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._fragments_ids import mint_extra_id
 from pitloom.assemble.spdx3._fragments_refs import (
     _dangling_refs_for_object,
     _declared_external_ids,
@@ -49,7 +50,6 @@ from pitloom.assemble.spdx3._fragments_unify import (
     _normalize_value,
     _paths_suffix_match,
     _record_unification,
-    _sha256_hash,
     _signature,
     _UnificationEvents,
     _warn_if_same_name_different_hash,
@@ -93,14 +93,12 @@ __all__ = [
     "_merge_list",
     "_merge_properties",
     "_merge_scalar",
-    "_mint_extra_id",
     "_missing_fragment_message",
     "_normalize_value",
     "_paths_suffix_match",
     "_raise_on_dangling_references",
     "_same_document_message",
     "_record_unification",
-    "_sha256_hash",
     "_signature",
     "_canonical_merge_key",
     "_update_profile_conformance",
@@ -203,16 +201,6 @@ def _update_profile_conformance(
     apply_licensing_profiles(main_doc, exporter.object_set.objects)
 
 
-def _mint_extra_id(namespace: str, prefix: str, existing_ids: set[str]) -> str:
-    """Mint a fresh ``<namespace>#<prefix>-<n>`` id not in existing_ids."""
-    n = 1
-    while True:
-        candidate = f"{namespace}#{prefix}-{n}"
-        if candidate not in existing_ids:
-            return candidate
-        n += 1
-
-
 def _find_fragment_document_id(fragment_set: spdx3.SHACLObjectSet) -> str | None:
     """Return the ``spdxId`` of the ``SpdxDocument`` envelope in *fragment_set*."""
     for obj in fragment_set.objects:
@@ -261,7 +249,7 @@ def _emit_unification_annotations(
     for survivor_id in sorted(events):
         for criterion in sorted(events[survivor_id]):
             rec = events[survivor_id][criterion]
-            ann_id = _mint_extra_id(namespace, "Annotation-unification", existing_ids)
+            ann_id = mint_extra_id(namespace, "Annotation-unification", existing_ids)
             existing_ids.add(ann_id)
             exporter.add_annotation(
                 build_unification_annotation(
@@ -289,7 +277,7 @@ def _add_model_sbom(main_doc: spdx3.SpdxDocument, exporter: Spdx3JsonExporter) -
     if namespace is None:
         return
     existing_ids = set(exporter.object_set.obj_by_id.keys())
-    sbom_id = _mint_extra_id(namespace, "Sbom", existing_ids)
+    sbom_id = mint_extra_id(namespace, "Sbom", existing_ids)
 
     model_sbom = spdx3.software_Sbom(
         spdxId=sbom_id,
@@ -414,15 +402,15 @@ def merge_fragments(
     dangling.
     """
     configure_logging()
-    index = _MergeIndex(exporter)
+    main_doc = _find_main_document(exporter.object_set)
+    main_doc_id = str(main_doc.spdxId) if main_doc and main_doc.spdxId else None
+    index = _MergeIndex(exporter, main_doc_id)
     events: _UnificationEvents = {}
     fragment_imports: list[spdx3.ExternalMap] = []
     merged_any = False
     unmet_required: list[str] = []
     roots: list[str] = []
     profiles: set[str] = set()
-    main_doc = _find_main_document(exporter.object_set)
-    main_doc_id = str(main_doc.spdxId) if main_doc and main_doc.spdxId else None
 
     for frag in fragments:
         loaded = _load_fragment(

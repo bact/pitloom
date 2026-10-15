@@ -5,13 +5,16 @@
 
 """Internal implementation of the active :mod:`pitloom.loom` recording run.
 
-See also: :mod:`pitloom._loom_caller` for stack inspection and provenance helpers,
-and :mod:`pitloom.loom` for the public facade.
+See also: :mod:`pitloom._loom_caller` for stack inspection and provenance
+helpers, :mod:`pitloom._loom_dataset` for dataset and file elements,
+:mod:`pitloom._loom_model` for models (resolved at run exit), and
+:mod:`pitloom.loom` for the public facade.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from uuid import uuid4
 
@@ -21,58 +24,93 @@ from pitloom._loom_caller import (
     _default_run_comment,
     _get_caller_info,
     _get_caller_script_path,
-    _hash_and_registry_lookup,
     _record_hyperparameter_provenance,
 )
+from pitloom._loom_dataset import LoomElements
+from pitloom._loom_model import LoomModels
 from pitloom._sbom_io import write_text_lf
 from pitloom.assemble.spdx3.creation_info import build_creation_info
-from pitloom.assemble.spdx3.provenance import emit_provenance
+from pitloom.core.config import PitloomConfig
+from pitloom.core.config_cascade import load_config_file
 from pitloom.core.creation import CreationMetadata
-from pitloom.core.models import build_relationship, generate_spdx_id
-from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.model_extract_limit import require_max_dataset_hash_bytes
+from pitloom.core.models import build_relationship
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.id_registry import IdRegistry, IdRegistrySession, resolve_registry
+from pitloom.logging_config import configure_logging, one_line
 
 log = logging.getLogger("pitloom.loom")
-
-#: loom is a standalone SDK invoked from ad hoc scripts/notebooks, not
-#: through a pyproject.toml-based [tool.pitloom.provenance] config -- so
-#: provenance is always recorded both ways (Annotation + legacy comment)
-#: rather than threading a format setting through the whole SDK surface.
-_LOOM_PROVENANCE_CONFIG = ProvenanceConfig(format="both")
 
 __all__ = [
     "_ActiveRun",
     "_default_run_comment",
     "_get_caller_info",
     "_get_caller_script_path",
-    "_hash_and_registry_lookup",
     "_record_hyperparameter_provenance",
+    "loom_config",
 ]
+
+
+def loom_config(pitloom_config: PitloomConfig | str | Path | None) -> PitloomConfig:
+    """The config of a loom run: *pitloom_config* itself, the file it names
+    loaded like ``--config`` (a relative path from the current directory),
+    else the defaults. Never an implicit ``[tool.pitloom]``.
+
+    Raises:
+        ValueError: the named file is missing, unreadable or invalid; the
+            message names it.
+    """
+    if pitloom_config is None:
+        return PitloomConfig()
+    if isinstance(pitloom_config, PitloomConfig):
+        return pitloom_config
+    path = Path(pitloom_config)
+    try:
+        return load_config_file(path)
+    except FileNotFoundError as exc:
+        raise ValueError(str(exc)) from exc
+    except OSError as exc:
+        raise ValueError(f"config file {path}: {one_line(exc)}") from exc
 
 
 # pylint: disable=too-many-instance-attributes
 class _ActiveRun:
     """Internal state for an active BOM recording run."""
 
+    # pylint: disable-next=too-many-arguments
     def __init__(
         self,
         output_file: str,
         pretty: bool = False,
         creation_metadata: CreationMetadata | None = None,
         id_registry: str | Path | IdRegistry | None = None,
+        *,
+        pitloom_config: PitloomConfig | str | Path | None = None,
     ):
-        # First statement: an undeclared registry never applies, but a
-        # declared-and-bad one must fail before _active_run is set (its
-        # caller assigns this constructor's result directly to the
-        # module global -- an exception here means that assignment never
-        # happens).
-        resolved = resolve_registry(id_registry, None, Path.cwd())
+        # First: a declared-and-bad config or registry must fail before
+        # _active_run is set (its caller assigns this constructor's result
+        # directly to the module global -- an exception here means that
+        # assignment never happens). Of the config, loom reads only the
+        # registry (the id_registry argument wins), its update switch and
+        # the dataset hash ceiling.
+        configure_logging()
+        config = loom_config(pitloom_config)
+        resolved = resolve_registry(id_registry, config.id_registry, Path.cwd())
+        max_hash_bytes = require_max_dataset_hash_bytes(
+            config.max_dataset_hash_bytes, "pitloom_config"
+        )
+        self.update_id_registry: bool = config.update_id_registry
         self.output_file = output_file
         self.pretty = pretty
         self.doc_uuid = str(uuid4())
         self.session = IdRegistrySession(resolved)
-        self.caller_script_path = _get_caller_script_path()
+        script_path = _get_caller_script_path()
+        # (as captured, absolute now: the script may change directory)
+        self.caller_script: tuple[str, Path] | None = (
+            None
+            if script_path is None
+            else (script_path, Path(os.path.abspath(script_path)))
+        )
         self._model_generated: bool | None = None
 
         self.creation_info, agents, tools = build_creation_info(
@@ -87,7 +125,22 @@ class _ActiveRun:
             self.exporter.add_agent(agent)
         for tool in tools:
             self.exporter.object_set.add(tool)
+        self.elements = LoomElements(
+            session=self.session,
+            exporter=self.exporter,
+            creation_info=self.creation_info,
+            doc_uuid=self.doc_uuid,
+            max_hash_bytes=max_hash_bytes,
+        )
+        self.models = LoomModels(
+            session=self.session,
+            exporter=self.exporter,
+            creation_info=self.creation_info,
+            doc_uuid=self.doc_uuid,
+            update_id_registry=self.update_id_registry,
+        )
 
+        #: The run's model: ``None`` until :meth:`finalize` resolves it.
         self.model: spdx3.ai_AIPackage | None = None
         self.datasets: list[spdx3.dataset_DatasetPackage] = []
         self.validation_datasets: list[spdx3.dataset_DatasetPackage] = []
@@ -96,58 +149,26 @@ class _ActiveRun:
             tuple[spdx3.dataset_DatasetPackage, list[str] | None]
         ] = []
 
+    # pylint: disable-next=too-many-arguments
     def set_model(
         self,
         name: str,
         model_type: str | None = None,
         hyperparameters: dict[str, str] | None = None,
         generated: bool | None = None,
+        *,
+        path: str | os.PathLike[str] | None = None,
     ) -> None:
-        """Define the primary AI model being trained."""
-        caller_info = _get_caller_info()
-
-        def _on_miss() -> None:
-            registry = self.session.registry
-            if registry is not None and registry.has_entity_named(name):
-                log.warning(
-                    "loom: registry entry for entity %r exists but under a "
-                    "different type; minting a new spdxId.",
-                    name,
-                )
-            else:
-                log.warning(
-                    "loom: entity %r not found in registry; minting a new spdxId "
-                    "(untracked entity).",
-                    name,
-                )
-
-        registered_id = self.session.entity_id(
-            name, [name], "ai_AIPackage", on_miss=_on_miss
-        )
-        self.model = spdx3.ai_AIPackage(
-            spdxId=registered_id or generate_spdx_id("AIPackage", name, self.doc_uuid),
-            name=name,
-            creationInfo=self.creation_info,
-        )
-        self._model_generated = generated
-        if model_type is not None:
-            self.model.ai_typeOfModel = [model_type]
-        provenance: dict[str, str] = {"package": caller_info}
-        if hyperparameters is not None:
-            self.model.ai_hyperparameter = [
-                spdx3.DictionaryEntry(key=k, value=v)
-                for k, v in sorted(hyperparameters.items())
-            ]
-            _record_hyperparameter_provenance(provenance, hyperparameters, caller_info)
-        self.exporter.add_package(self.model)
-        emit_provenance(
-            subject=self.model,
-            provenance=provenance,
-            creation_info=self.creation_info,
-            doc_name=name,
-            doc_uuid=self.doc_uuid,
-            exporter=self.exporter,
-            provenance_config=_LOOM_PROVENANCE_CONFIG,
+        """Declare the primary AI model being trained. *path*, its file, is
+        hashed at run exit and gates its registry lookup (see
+        :mod:`pitloom._loom_model`)."""
+        self.models.declare(
+            name,
+            model_type=model_type,
+            hyperparameters=hyperparameters,
+            generated=generated,
+            path=path,
+            caller_info=_get_caller_info(),
         )
 
     def use_model(
@@ -155,86 +176,42 @@ class _ActiveRun:
         name: str,
         model_type: str | None = None,
         hyperparameters: dict[str, str] | None = None,
+        *,
+        path: str | os.PathLike[str] | None = None,
     ) -> None:
-        """Define the primary AI model being consumed/loaded by the current run."""
+        """Declare the primary AI model being consumed/loaded by the current
+        run; *path* as for :meth:`set_model`."""
         self.set_model(
             name,
             model_type=model_type,
             hyperparameters=hyperparameters,
             generated=False,
+            path=path,
         )
 
     def set_model_hyperparameters(self, hyperparameters: dict[str, str]) -> None:
-        """Update the active model with hyperparameters captured after training."""
-        if self.model is None:
-            raise RuntimeError(
-                "No model set. Call set_model() before set_model_hyperparameters()."
-            )
-        self.model.ai_hyperparameter = [
-            spdx3.DictionaryEntry(key=k, value=v)
-            for k, v in sorted(hyperparameters.items())
-        ]
-        provenance: dict[str, str] = {}
-        _record_hyperparameter_provenance(
-            provenance, hyperparameters, _get_caller_info()
-        )
-        emit_provenance(
-            subject=self.model,
-            provenance=provenance,
-            creation_info=self.creation_info,
-            doc_name=self.model.name or "model",
-            doc_uuid=self.doc_uuid,
-            exporter=self.exporter,
-            provenance_config=_LOOM_PROVENANCE_CONFIG,
-        )
+        """Update the last declared model with hyperparameters captured after
+        training."""
+        self.models.set_hyperparameters(hyperparameters, _get_caller_info())
 
     def _build_dataset_package(
         self, name: str, dataset_type: str
     ) -> spdx3.dataset_DatasetPackage:
-        """Build a ``dataset_DatasetPackage`` for *name*."""
-        caller_info = _get_caller_info()
-        hash_element, registered_id = _hash_and_registry_lookup(name, self.session)
-        dataset_pkg = spdx3.dataset_DatasetPackage(
-            spdxId=registered_id
-            or generate_spdx_id("DatasetPackage", name, self.doc_uuid),
-            name=name,
-            creationInfo=self.creation_info,
-        )
-        emit_provenance(
-            subject=dataset_pkg,
-            provenance={"package": caller_info},
-            creation_info=self.creation_info,
-            doc_name=name,
-            doc_uuid=self.doc_uuid,
-            exporter=self.exporter,
-            provenance_config=_LOOM_PROVENANCE_CONFIG,
-        )
-        if hash_element is not None:
-            dataset_pkg.verifiedUsing = [hash_element]
-
-        dt = getattr(
-            spdx3.dataset_DatasetType, dataset_type, spdx3.dataset_DatasetType.text
-        )
-        dataset_pkg.dataset_datasetType = [dt]
-        return dataset_pkg
+        """Build a ``dataset_DatasetPackage`` for *name* (see
+        :meth:`~pitloom._loom_dataset.LoomElements.dataset`)."""
+        return self.elements.dataset(name, dataset_type, _get_caller_info())
 
     def add_dataset(self, name: str, dataset_type: str = "text") -> None:
         """Add a dataset used for training in the current run."""
-        dataset_pkg = self._build_dataset_package(name, dataset_type)
-        self.datasets.append(dataset_pkg)
-        self.exporter.add_package(dataset_pkg)
+        self.datasets.append(self._build_dataset_package(name, dataset_type))
 
     def add_validation_dataset(self, name: str, dataset_type: str = "text") -> None:
         """Add a dataset used for validation/testing."""
-        dataset_pkg = self._build_dataset_package(name, dataset_type)
-        self.validation_datasets.append(dataset_pkg)
-        self.exporter.add_package(dataset_pkg)
+        self.validation_datasets.append(self._build_dataset_package(name, dataset_type))
 
     def add_input_dataset(self, name: str, dataset_type: str = "text") -> None:
         """Declare a raw/source dataset consumed by a preprocessing step."""
-        dataset_pkg = self._build_dataset_package(name, dataset_type)
-        self.input_datasets.append(dataset_pkg)
-        self.exporter.add_package(dataset_pkg)
+        self.input_datasets.append(self._build_dataset_package(name, dataset_type))
 
     def add_output_dataset(
         self,
@@ -249,7 +226,6 @@ class _ActiveRun:
             dataset_pkg.dataset_dataPreprocessing = data_preprocessing
 
         self.output_datasets.append((dataset_pkg, input_datasets))
-        self.exporter.add_package(dataset_pkg)
 
     def _emit_model_dataset_relationships(self) -> None:
         """Emit trainedOn and testedOn relationships for models and datasets."""
@@ -329,7 +305,10 @@ class _ActiveRun:
                 self.exporter.add_relationship(rel)
 
     def finalize(self) -> None:
-        """Finalize the run and output the SBOM fragment."""
+        """Resolve the declared models, emit the relationships, write the
+        fragment, then save the model ids the registry gained: the fragment
+        first, so a failed write leaves no entry that no fragment carries."""
+        self.model, self._model_generated = self.models.resolve()
         self._emit_model_dataset_relationships()
         self._emit_output_input_dataset_relationships()
         self._emit_script_file_and_generates()
@@ -338,11 +317,11 @@ class _ActiveRun:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         write_text_lf(output_path, self.exporter.to_json(pretty=self.pretty))
+        self.models.persist()
 
     def _emit_script_file_and_generates(self) -> None:
         """Emit a ``software_File`` for the calling script and relationships."""
-        script_path = self.caller_script_path
-        if script_path is None:
+        if self.caller_script is None:
             return
 
         if self.model is not None:
@@ -359,8 +338,7 @@ class _ActiveRun:
         if self.model is None and not output_targets:
             return
 
-        script_file = self._build_script_file(script_path)
-        self.exporter.add_file(script_file)
+        script_file = self.elements.script_file(*self.caller_script)
         script_id = require_spdx_id(script_file)
 
         if generates_model and self.model is not None:
@@ -403,19 +381,3 @@ class _ActiveRun:
             )
             if rel3:
                 self.exporter.add_relationship(rel3)
-
-    def _build_script_file(self, script_path: str) -> spdx3.software_File:
-        """Build the ``software_File`` for the generating script."""
-        hash_element, registered_id = _hash_and_registry_lookup(
-            script_path, self.session
-        )
-        script_file = spdx3.software_File(
-            spdxId=registered_id
-            or generate_spdx_id("File", script_path, self.doc_uuid),
-            name=script_path,
-            creationInfo=self.creation_info,
-        )
-        script_file.software_fileKind = spdx3.software_FileKindType.file
-        if hash_element is not None:
-            script_file.verifiedUsing = [hash_element]
-        return script_file

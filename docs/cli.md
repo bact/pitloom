@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-14
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -200,6 +200,13 @@ ahead of time, or reuse ids from an existing SBOM:
 loom id generate data src --entity model -o loom-id-registry.json
 loom id import existing-sbom.spdx3.json -o loom-id-registry.json
 ```
+
+`id generate` also takes `--namespace IRI` (a new registry's document
+namespace) and `-e NAME:dataset_DatasetPackage` (pin a `loom.Run` dataset by
+the string its script passes). The registry file is JSON: `version: 3`,
+`namespace`, `project_root` (relative to the file) and `elements`, a table of
+`spdxId`s keyed by element type and name. A version 2 file from an earlier
+release is an `ERROR:` (exit 1) on every command: delete it and re-run.
 
 Full reference, including the `--id-registry` precedence and automatic harvest
 of new ids (`--update-id-registry`): [Loom ID registry](id-registry.md).

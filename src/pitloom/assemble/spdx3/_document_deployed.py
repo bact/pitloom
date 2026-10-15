@@ -57,7 +57,7 @@ def _deployed_lookup_key(pkg_info: dict[str, Any], dep_name: str) -> str:
     build dependsOn edges from *env_tree* -- pipdeptree's own ``key``
     field, falling back to *dep_name* (:func:`_deployed_name`). Unrelated
     to the registry lookup key: the registry PEP 503-canonicalizes a
-    package name itself (see :func:`pitloom.id_registry._types._entity_key`),
+    package name itself (see :func:`pitloom.id_registry._types._element_key`),
     the same lookup the project and wheel surfaces use."""
     return str(pkg_info.get("key", dep_name))
 

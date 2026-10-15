@@ -239,7 +239,7 @@ def test_stdout_is_key_value_only(
         ("verify-wheel", "verify-wheel: 1 wheel(s) OK"),
         ("merge", "merge: merged 1 fragment(s)"),
         ("fragment validate", "fragment validate: 1 document(s) valid"),
-        ("id import", "ID registry: holds 0 file(s) and 2 entit(y/ies)"),
+        ("id import", "ID registry: holds 2 id(s)"),
     ],
 )
 def test_summary_is_an_info_line(

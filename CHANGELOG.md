@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-14
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -33,6 +33,10 @@ and this project adheres to
 - Every `[project].authors` entry is an `originatedBy` of the main package,
   one Agent per type, name and email; `embed-wheel --project-dir` uses them
   ([#300])
+- `loom id generate --namespace IRI` sets a new registry's document namespace
+  instead of a random UUID4 one ([#305])
+- `loom.Run`/`loom.run` take `pitloom_config=` (`id-registry`,
+  `update-id-registry`, `max-dataset-hash-bytes`) ([#305])
 
 ### Changed
 
@@ -54,6 +58,17 @@ and this project adheres to
 - Every input over a cap (model bounds, labels, names, wheel/sdist header
   blocks, config members, a 1 MiB model card) warns `<KEY>=…: larger than the
   N-unit … cap; <outcome>` ([#300])
+- ID registry format v3: one `elements` table keyed by type and name, plus
+  `project_root`; a v2 file is an `ERROR:`, not migrated. `id generate`
+  records a model's SHA-256; harvest writes a hashed `ai_AIPackage` ([#305])
+- `loom.Run` dataset files are a `dataset_DatasetPackage` that `contains` a
+  `software_File`; a directory gets a Merkle root; `max-dataset-hash-bytes`
+  (4 GiB) caps the read ([#305])
+- `loom.set_model()`/`use_model()` take `path=`: the file's SHA-256 gates the
+  model's registry id, and a new model is saved to the registry ([#305])
+- API: `FileEntry`/`EntityEntry` become `RegistryEntry`; new `persist_registry`,
+  `registry_key_for_path`, `type_id_prefix`. `loom.Run` messages carry their
+  `WARNING:`/`INFO:` tag ([#305])
 
 ### Fixed
 
@@ -79,8 +94,12 @@ and this project adheres to
   ([#300])
 - A requirement or marker nesting over 64 parentheses warns instead of
   crashing the run ([#300])
+- `id import` keeps a model's hash; a registry inside the project settles;
+  `id generate` indexes a project under `build/` and warns on an unlistable
+  subdirectory; a merge keeps same-id elements of different types apart ([#305])
 
 [#300]: https://github.com/bact/pitloom/pull/300
+[#305]: https://github.com/bact/pitloom/pull/305
 
 ## [0.20.2] - 2026-10-09
 

@@ -33,6 +33,7 @@ __all__ = [
     "UNREADABLE_FILE_WARNING",
     "is_missing_errno",
     "is_regular_file",
+    "stat_if_present",
 ]
 
 #: errno values Path.exists()/is_file() themselves treat as "this path
@@ -73,18 +74,21 @@ def is_missing_errno(exc: OSError) -> bool:
     )
 
 
-def is_regular_file(path: Path) -> bool:
-    """``Path.is_file()``, except a genuine access failure raises.
-
-    ``False`` for a missing path (per :func:`is_missing_errno`) or a
-    non-regular one; the ``stat()`` ``OSError`` otherwise (e.g.
+def stat_if_present(path: str | os.PathLike[str]) -> os.stat_result | None:
+    """``os.stat(path)``, or ``None`` for a missing path (per
+    :func:`is_missing_errno`); any other ``OSError`` (e.g.
     ``PermissionError`` for a file under a directory without search
-    permission), on every Python version.
-    """
+    permission) raises, on every Python version."""
     try:
-        mode = os.stat(path).st_mode
+        return os.stat(path)
     except OSError as exc:
         if is_missing_errno(exc):
-            return False
+            return None
         raise
-    return stat.S_ISREG(mode)
+
+
+def is_regular_file(path: Path) -> bool:
+    """``Path.is_file()``, except a genuine access failure raises (see
+    :func:`stat_if_present`); ``False`` for a missing or non-regular path."""
+    result = stat_if_present(path)
+    return result is not None and stat.S_ISREG(result.st_mode)

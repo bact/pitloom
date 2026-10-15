@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import subprocess
 import zipfile
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -32,8 +33,12 @@ from pitloom.assemble import (
 from pitloom.assemble._generators_shared import _sync_registry
 from pitloom.core.creation import CreationMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
-from pitloom.id_registry._types import FileEntry
+from pitloom.id_registry import (
+    DEFAULT_ID_REGISTRY_FILENAME,
+    FILE_TYPE,
+    IdRegistry,
+    RegistryEntry,
+)
 
 from ...conftest import _assert_no_duplicate_spdx_ids
 from ..conftest import _find_file_element, _make_wheel, _write_smoke_project
@@ -55,9 +60,9 @@ def _exporter_with_one_package() -> Spdx3JsonExporter:
 
 
 def test_sync_registry_excludes_dataset_packages(tmp_path: Path) -> None:
-    """``dataset_DatasetPackage`` is excluded the same way ``ai_AIPackage``
-    is: nothing in ``build()`` ever looks a dataset up by name, so a
-    harvested entry would just be dead, silently-overwritten weight."""
+    """``dataset_DatasetPackage`` is never harvested: a dataset id is pinned
+    deliberately (``id generate -e NAME:dataset_DatasetPackage`` or ``id
+    import``), never from a run's fallback id."""
     ci = spdx3.CreationInfo(
         specVersion="3.0.1", created=datetime(2026, 1, 1, tzinfo=timezone.utc)
     )
@@ -75,7 +80,7 @@ def test_sync_registry_excludes_dataset_packages(tmp_path: Path) -> None:
 
     _sync_registry(exporter, registry, True)
 
-    assert not registry.has_entity_named("flores-200")
+    assert not registry.has_name("flores-200")
 
 
 def test_sync_registry_skips_when_registry_has_no_path(
@@ -89,7 +94,7 @@ def test_sync_registry_skips_when_registry_has_no_path(
     with caplog.at_level("WARNING"):
         _sync_registry(exporter, registry, True)
 
-    assert not registry.entities
+    assert not registry.elements
     assert "no file path resolved" in caplog.text
 
 
@@ -115,12 +120,14 @@ def test_sync_registry_logs_updated_when_net_counts_are_zero(
 ) -> None:
     """A harvest that releases one stale file key and adds a new one in
     the same pass nets to zero size change, but real content changed --
-    the INFO message must say so (not "added 0 new file(s), 0 new
-    entit(y/ies)", which reads as if nothing happened when a save did)."""
+    the INFO message must say so (not "added 0 new id(s)", which reads as if
+    nothing happened when a save did)."""
     registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     shared_id = "https://spdx.org/spdxdocs/x-1#File-1"
     registry = IdRegistry.new("net-zero-change", path=registry_path)
-    registry.files["old.py"] = FileEntry(spdx_id=shared_id, sha256="a" * 64)
+    registry.elements[(FILE_TYPE, "old.py")] = RegistryEntry(
+        spdx_id=shared_id, sha256="a" * 64
+    )
     registry.save()
 
     ci = spdx3.CreationInfo(
@@ -141,10 +148,12 @@ def test_sync_registry_logs_updated_when_net_counts_are_zero(
     with caplog.at_level("INFO"):
         _sync_registry(exporter, registry, True)
 
-    assert "old.py" not in registry.files
-    assert registry.files["new.py"].spdx_id == shared_id
+    assert registry.get(FILE_TYPE, "old.py") is None
+    new_entry = registry.get(FILE_TYPE, "new.py")
+    assert new_entry is not None
+    assert new_entry.spdx_id == shared_id
     assert "updated stale entries" in caplog.text
-    assert "added 0 new file(s)" not in caplog.text
+    assert "added 0 new id(s)" not in caplog.text
 
 
 def test_generate_project_sbom_auto_updates_registry(tmp_path: Path) -> None:
@@ -157,7 +166,7 @@ def test_generate_project_sbom_auto_updates_registry(tmp_path: Path) -> None:
     generate_project_sbom(tmp_path, id_registry=registry_path)
 
     reloaded = IdRegistry.load(registry_path)
-    assert reloaded.files
+    assert reloaded.elements
 
 
 def test_generate_project_sbom_respects_no_update_id_registry(tmp_path: Path) -> None:
@@ -169,8 +178,7 @@ def test_generate_project_sbom_respects_no_update_id_registry(tmp_path: Path) ->
     generate_project_sbom(tmp_path, id_registry=registry_path, update_id_registry=False)
 
     reloaded = IdRegistry.load(registry_path)
-    assert not reloaded.files
-    assert not reloaded.entities
+    assert not reloaded.elements
 
 
 def test_generate_project_sbom_stable_ids_across_two_runs(tmp_path: Path) -> None:
@@ -220,10 +228,10 @@ def test_generate_project_sbom_stable_ids_across_two_runs(tmp_path: Path) -> Non
 def test_generate_project_sbom_does_not_auto_harvest_ai_packages(
     tmp_path: Path,
 ) -> None:
-    """``ai_AIPackage`` elements are produced (however AI extras resolve),
-    but are deliberately excluded from auto-harvest -- their correct
-    registry key (the file's stem) only comes from ``pitloom id
-    generate``, not from the element's own (extraction-dependent) name."""
+    """A project's ``ai_AIPackage`` elements carry no hash, so they are
+    not harvested: their name depends on extraction, and their registry
+    key (the file's stem) comes from ``pitloom id generate``. (A hashed one
+    is, see test_generator_registry_harvestable.py.)"""
     _write_smoke_project(tmp_path)
     registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("smoke-project", path=registry_path).save()
@@ -234,7 +242,7 @@ def test_generate_project_sbom_does_not_auto_harvest_ai_packages(
     assert any(e.get("type") == "ai_AIPackage" for e in graph)
 
     reloaded = IdRegistry.load(registry_path)
-    assert not any(type_name == "ai_AIPackage" for type_name, _ in reloaded.entities)
+    assert not any(type_name == "ai_AIPackage" for type_name, _ in reloaded.elements)
 
 
 def test_generate_wheel_sbom_auto_updates_registry(
@@ -248,7 +256,7 @@ def test_generate_wheel_sbom_auto_updates_registry(
     generate_wheel_sbom(wheel_path, id_registry=registry_path)
 
     reloaded = IdRegistry.load(registry_path)
-    assert reloaded.files
+    assert reloaded.elements
 
 
 def test_generate_wheel_sbom_respects_no_update_id_registry(
@@ -262,7 +270,7 @@ def test_generate_wheel_sbom_respects_no_update_id_registry(
     generate_wheel_sbom(wheel_path, id_registry=registry_path, update_id_registry=False)
 
     reloaded = IdRegistry.load(registry_path)
-    assert not reloaded.files
+    assert not reloaded.elements
 
 
 def test_generate_env_sbom_auto_updates_registry(
@@ -291,7 +299,7 @@ def test_generate_env_sbom_auto_updates_registry(
         generate_env_sbom(id_registry=registry_path)
 
     reloaded = IdRegistry.load(registry_path)
-    assert ("software_Package", "requests") in reloaded.entities
+    assert ("software_Package", "requests") in reloaded.elements
 
 
 def test_generate_env_sbom_respects_no_update_id_registry(
@@ -320,7 +328,7 @@ def test_generate_env_sbom_respects_no_update_id_registry(
         generate_env_sbom(id_registry=registry_path, update_id_registry=False)
 
     reloaded = IdRegistry.load(registry_path)
-    assert not reloaded.entities
+    assert not reloaded.elements
 
 
 def _make_nested_wheel(tmp_path: Path, name: str, version: str) -> Path:
@@ -367,39 +375,36 @@ def test_generate_wheel_sbom_repeated_runs_never_duplicate_ids(
     _assert_no_duplicate_spdx_ids(first_json)
 
     registry_after_first = IdRegistry.load(registry_path)
-    assert registry_after_first.files
-    assert registry_after_first.entities
+    # A file is registered with its hash, a directory without one.
+    entries = list(registry_after_first.elements.values())
+    assert any(entry.sha256 is not None for entry in entries)
+    assert any(entry.sha256 is None for entry in entries)
 
-    real_lookup_file = IdRegistry.lookup_file
-    real_lookup_entity = IdRegistry.lookup_entity
+    real_lookup = IdRegistry.lookup
     file_hits = 0
-    entity_hits = 0
+    directory_hits = 0
 
-    def _counting_lookup_file(self: IdRegistry, path: str, sha256: str) -> str | None:
-        nonlocal file_hits
-        result = real_lookup_file(self, path, sha256)
-        if result is not None:
-            file_hits += 1
-        return result
-
-    def _counting_lookup_entity(
-        self: IdRegistry, name: str, type_name: str
+    def _counting_lookup(
+        self: IdRegistry,
+        type_name: str,
+        names: Sequence[str],
+        *,
+        sha256: str | None = None,
     ) -> str | None:
-        nonlocal entity_hits
-        result = real_lookup_entity(self, name, type_name)
-        if result is not None:
-            entity_hits += 1
+        nonlocal file_hits, directory_hits
+        result = real_lookup(self, type_name, names, sha256=sha256)
+        if result is not None and sha256 is not None:
+            file_hits += 1
+        elif result is not None:
+            directory_hits += 1
         return result
 
-    with (
-        patch.object(IdRegistry, "lookup_file", _counting_lookup_file),
-        patch.object(IdRegistry, "lookup_entity", _counting_lookup_entity),
-    ):
+    with patch.object(IdRegistry, "lookup", _counting_lookup):
         second_json = _run()
     _assert_no_duplicate_spdx_ids(second_json)
 
     assert file_hits >= 1
-    assert entity_hits >= 1
+    assert directory_hits >= 1
 
     third_json = _run()
     _assert_no_duplicate_spdx_ids(third_json)
@@ -427,7 +432,7 @@ def test_generate_wheel_sbom_new_file_does_not_collide_with_registered_ids(
         wheel_path, id_registry=registry_path, creation_metadata=creation_metadata
     )
     _assert_no_duplicate_spdx_ids(first_json)
-    assert IdRegistry.load(registry_path).files
+    assert IdRegistry.load(registry_path).elements
 
     # Rebuild the "same" wheel with one extra, never-before-seen file --
     # name/version/dependencies are unchanged, so doc_uuid (and therefore

@@ -8,7 +8,7 @@ own main package, its dependencies and its phantom dependencies.
 
 Every package resolves through one lookup shape,
 :func:`resolve_package_id` (claimant label + raw name, registry type
-:data:`~pitloom.id_registry.PACKAGE_ENTITY_TYPE`), so a declared, an
+:data:`~pitloom.id_registry.PACKAGE_TYPE`), so a declared, an
 installed and a bundled package with the same PEP 503 name reach the same
 registry key -- the key ``IdRegistry`` harvest writes back for each of
 them.
@@ -22,7 +22,7 @@ mints a fresh id, silently, and is recorded in
 Run auto-harvest leaves it out, so the package owning the name is
 written. A name held by several packages that do look up (two versions of
 one dependency, two phantoms) is not written (see
-:func:`pitloom.id_registry._ambiguous._ambiguous_entity_keys`); an existing
+:func:`pitloom.id_registry._ambiguous._ambiguous_keys`); an existing
 pin for it goes to the first claimant, in the order main package,
 dependencies, phantom dependencies.
 
@@ -45,7 +45,7 @@ from packaging.utils import canonicalize_name
 from pitloom.assemble.spdx3.deps_installed import _parse_dep_name
 from pitloom.core.document import DocumentModel
 from pitloom.id_registry import (
-    PACKAGE_ENTITY_TYPE,
+    PACKAGE_TYPE,
     IdRegistrySession,
     warn_claim_collision,
 )
@@ -70,7 +70,7 @@ def resolve_package_id(session: IdRegistrySession, label: str, name: str) -> str
 
     *name* is passed verbatim; the registry PEP 503-canonicalizes it.
     """
-    return session.entity_id(f"{label} {name}", [name], PACKAGE_ENTITY_TYPE)
+    return session.lookup_id(f"{label} {name}", PACKAGE_TYPE, [name])
 
 
 # pylint: disable-next=too-few-public-methods

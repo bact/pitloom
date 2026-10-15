@@ -11,10 +11,12 @@ public facade and re-exports what it needs from there.
 """
 
 import contextlib
+import os
 import types
 from pathlib import Path
 
 from pitloom._loom_active_run import _ActiveRun
+from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.models import _clear_doc_counters
 from pitloom.id_registry import IdRegistry
@@ -33,7 +35,7 @@ class Run(contextlib.ContextDecorator):
     Can be used as a context manager::
 
         with loom.run("fragments/train.spdx3.json") as run:
-            run.set_model("my-model")
+            run.set_model("my-model", path="model.bin")
             run.add_dataset("train.txt")
             run.add_validation_dataset("valid.txt")
             # ... training code ...
@@ -71,24 +73,41 @@ class Run(contextlib.ContextDecorator):
             and the creator defaults to the ``SoftwareAgent`` "Pitloom".
         id_registry: A ``pitloom.id_registry.IdRegistry``, a path to a
             registry JSON file (relative to the current working
-            directory), or ``None`` (default) for no registry -- never
-            searched for. Consulted read-only: datasets, the model, and
-            the generating script all get the registered ``spdxId`` when
-            one exists for them, so independently generated fragments
-            can be unified at merge time without name-based matching.
+            directory), or ``None`` (default): the config's
+            ``id-registry``, else no registry -- never searched for.
+            Datasets, their files, the model, and the generating script
+            all get the registered ``spdxId`` when one exists for them, so
+            independently generated fragments can be unified at merge time
+            without name-based matching. Loom writes one kind of entry: a
+            model declared with ``path=`` whose file the registry does not
+            know, saved when the run ends, after the fragment.
+        pitloom_config: A ``pitloom.core.config.PitloomConfig``, or a path
+            to a config file read like ``--config`` (relative to the
+            current working directory; missing or invalid raises
+            ``ValueError``), or ``None`` (default): the built-in defaults.
+            No ``[tool.pitloom]`` is ever read implicitly. Loom reads only
+            ``max-dataset-hash-bytes``, ``id-registry`` (when *id_registry*
+            is not given; a relative path in a config file is relative to
+            that file's directory) and ``update-id-registry`` (``false``:
+            no model is registered). Every other key does not apply to
+            loom.
     """
 
+    # pylint: disable-next=too-many-arguments
     def __init__(
         self,
         output_file: str | Path,
         pretty: bool = False,
         creation_metadata: CreationMetadata | None = None,
         id_registry: str | Path | IdRegistry | None = None,
+        *,
+        pitloom_config: PitloomConfig | str | Path | None = None,
     ):
         self.output_file = str(output_file)
         self.pretty = pretty
         self.creation_metadata = creation_metadata or CreationMetadata()
         self.id_registry = id_registry
+        self.pitloom_config = pitloom_config
         self.previous_run: _ActiveRun | None = None
 
     def __enter__(self) -> _ActiveRun:
@@ -100,6 +119,7 @@ class Run(contextlib.ContextDecorator):
             pretty=self.pretty,
             creation_metadata=self.creation_metadata,
             id_registry=self.id_registry,
+            pitloom_config=self.pitloom_config,
         )
         return _active_run
 
@@ -135,8 +155,17 @@ def set_model(
     model_type: str | None = None,
     hyperparameters: dict[str, str] | None = None,
     generated: bool | None = None,
+    *,
+    path: str | os.PathLike[str] | None = None,
 ) -> None:
-    """Set the name of the AI model being trained in the current run."""
+    """Declare the AI model being trained in the current run.
+
+    Resolved when the run ends without an exception: *path*, the model's
+    file (relative to the current directory at this call), is then hashed;
+    with a registry, the hash gates the lookup of *name*, and a model the
+    registry does not know is registered. A file rewritten in between is a
+    new model with a new id.
+    """
     if _active_run is None:
         raise RuntimeError(
             "No active loom.run() found. Please use `loom.set_model()` inside a "
@@ -147,6 +176,7 @@ def set_model(
         model_type=model_type,
         hyperparameters=hyperparameters,
         generated=generated,
+        path=path,
     )
 
 
@@ -154,8 +184,11 @@ def use_model(
     name: str,
     model_type: str | None = None,
     hyperparameters: dict[str, str] | None = None,
+    *,
+    path: str | os.PathLike[str] | None = None,
 ) -> None:
-    """Explicitly declare an AI model consumed by the current run (for inference)."""
+    """Explicitly declare an AI model consumed by the current run (for
+    inference); *path* as for :func:`set_model`."""
     if _active_run is None:
         raise RuntimeError(
             "No active loom.run() found. Please use `loom.use_model()` inside a "
@@ -165,6 +198,7 @@ def use_model(
         name,
         model_type=model_type,
         hyperparameters=hyperparameters,
+        path=path,
     )
 
 

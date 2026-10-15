@@ -50,7 +50,7 @@ from pitloom.extract.authors import (
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.project import read_project
 from pitloom.extract.scanner_project import scan_project_for_ai_models
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import IdRegistry, registry_file_path
 
 _T = TypeVar("_T")
 
@@ -276,13 +276,15 @@ class EmbedFileCache:
         project_dir: Path,
         pitloom_config: PitloomConfig,
         build_options: BuildOptions,
+        exclude_path: Path | None = None,
     ) -> list[ProjectFile]:
-        """Return the cached file list, running discovery on first use.
+        """Return the cached file list (without *exclude_path*, the
+        declared registry), running discovery on first use.
 
         Raises :class:`RuntimeError` outside a ``with`` block, and
         :class:`ValueError` when a later call in the block asks for a
-        different project directory, file-scan settings or build options
-        than the first -- the cached list would silently not match it.
+        different project directory, file-scan settings, build options
+        or excluded file than the first -- the cached list would not match.
         """
         content_type = pitloom_config.content_type
         resolved_from = (
@@ -292,6 +294,7 @@ class EmbedFileCache:
             content_type.method,
             content_type.overrides,
             build_options,
+            exclude_path,
         )
         with self._lock:
             # Inside the lock: the block may have closed while another
@@ -307,6 +310,7 @@ class EmbedFileCache:
                     content_type_overrides=content_type.overrides,
                     skip_merkle_root=True,
                     build_options=build_options,
+                    exclude_path=exclude_path,
                 )
                 if self._guard is not block:
                     # The block this discovery was started for closed
@@ -327,7 +331,7 @@ class EmbedFileCache:
             elif resolved_from != self._resolved_from:
                 raise ValueError(
                     "EmbedFileCache: every call in one batch must use the same "
-                    "project directory, file-scan settings and build options"
+                    "project directory, file-scan settings, build options and registry"
                 )
             return self._resolved[0]
 
@@ -439,7 +443,9 @@ def _build_sbom_from_project_and_wheel(
         if file_cache is not None
         else EmbedFileCache()
     ) as cache:
-        project_files = cache.resolve(project_dir, pitloom_config, build_options)
+        project_files = cache.resolve(
+            project_dir, pitloom_config, build_options, registry_file_path(registry)
+        )
         # Layer content-type/file-header extras onto the wheel's own
         # file records rather than replacing them outright: replacing
         # would drop any build-hook-injected files (e.g. compiled

@@ -123,7 +123,7 @@ def _ai_model_entity_candidates(ai_model: AiModelMetadata) -> list[str]:
 
     Returns the candidate names only -- no registry lookup here; a
     caller passes this list to
-    :meth:`~pitloom.id_registry.IdRegistrySession.entity_id`, which tries
+    :meth:`~pitloom.id_registry.IdRegistrySession.lookup_id`, which tries
     each in order and claims the first hit.
     """
     candidates: list[str] = []

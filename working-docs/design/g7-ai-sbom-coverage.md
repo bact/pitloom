@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,6 +15,16 @@ item), [minimum-elements.md](../../skills/sbom-enrich/references/minimum-element
 
 Split out of `roadmap.md` (2026-09-17) once this item's detail grew
 past a summary.
+
+> **Gating hazard: registry v3 landed (PR #305), so G7 #3 must gate the
+> project, wheel, `loom model` and embed `ai_AIPackage` registry lookups by
+> sha256 in the same change.** v3 auto-harvests a hashed `ai_AIPackage` but
+> leaves those lookups ungated (D16). Once G7 #3 hashes those packages, a
+> retrained model would still get the old id by name, and harvest would then
+> write `(name, new sha)` under the old id, where a later gated `loom` lookup
+> of the new bytes finds it. See the "G7 blockers" in
+> [id-registry-followups.md](id-registry-followups.md) and D15/D16 in
+> [id-registry-v3.md](../implementation/id-registry-v3.md).
 
 ## Scope split (decided 2026-09-17)
 
@@ -50,7 +60,8 @@ Model version, Model description, Model external references
 - **`ai_AIPackage.verifiedUsing`** (model file hash) -- the model file
   is already SHA-256-hashed elsewhere in the same pipeline for its
   `software_File` element; never copied onto the `ai_AIPackage` element
-  itself. Reuse the existing hash, don't recompute it.
+  itself. Reuse the existing hash, don't recompute it. (A `loom.run` model
+  declared with `path=` already carries it, since registry v3.)
 - **Model producer** -- no field on `AiModelMetadata` yet. In scope for
   core *only* via a structured source (Hugging Face Hub API's own
   author/org field, the same "trust the source's own structured data"

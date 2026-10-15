@@ -27,4 +27,9 @@ def file_id(path: PurePath | str | int) -> FileId | None:
         result = os.fstat(path) if isinstance(path, int) else os.stat(path)
     except (OSError, ValueError):
         return None
+    return stat_id(result)
+
+
+def stat_id(result: os.stat_result) -> FileId | None:
+    """:func:`file_id` from a ``stat()`` result already in hand."""
     return (result.st_dev, result.st_ino) if result.st_ino else None

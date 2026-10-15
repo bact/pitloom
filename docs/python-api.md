@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -243,10 +243,31 @@ def evaluate_model():
 - (A) and (C) set the relationship between the code and the model.
 - (B) sets the relationship between the code and the dataset.
 
+Pass `path=` (the model file, relative to the current directory at the call)
+to `set_model()` or `use_model()` to give the model a SHA-256
+(`verifiedUsing`). The file is hashed when the run ends without an
+exception, so write it before the block exits. With a [Loom ID
+registry](id-registry.md), the hash gates the lookup: a training and an
+evaluation script declaring the same model name and file share one id, and a
+retrained file gets a new one. Without `path=` (one `WARNING:` when a registry
+is loaded), or when it is not a file when the run ends (one `WARNING:`), the
+model is matched by name only and gets no hash. In the context-manager form,
+`run.model` is `None` until the block exits.
+
 The run also records *which script produced what*: the calling script
 becomes a `software_File` (with a SHA-256 hash) with `generates`
 relationships to the model it trained and/or the output datasets it
-wrote. Datasets that exist on disk get `verifiedUsing` SHA-256 hashes.
+wrote. A dataset that is a file gets a SHA-256 hash and a `software_File`
+it `contains`; a directory gets a SHA-256 Merkle root over its files' paths
+and content, its `comment` saying so, and no file elements. Below a dataset
+directory, the [directories `id generate` skips](id-registry.md#directories-that-are-skipped)
+and symbolic links to directories are left out of the root, as is the
+declared registry file. A missing or remote dataset name gets no hash.
+Hashing one dataset reads at most `max-dataset-hash-bytes` (4 GiB by
+default); over it, the dataset gets no hash and one `WARNING:`.
+A dataset is hashed when it is declared, an output dataset too: call
+`add_output_dataset()` after the step has written the file, or it carries the
+hash of the file it replaces.
 These `generates` edges are scoped `build` -- they describe a build-time
 step, not something that runs in the shipped artifact. Contrast with the
 `hasDataFile` relationship Pitloom emits when it detects a script *using*
@@ -284,19 +305,45 @@ project`/`loom generate` call merges them into the main SBOM:
 files = ["fragments/train.json", "fragments/eval.json"]
 ```
 
+`loom.run`/`loom.Run` calls `configure_logging()` as it begins, so its
+`WARNING:` and `INFO:` lines carry their tag as on the CLI. Each run resets
+the `pitloom` logger's level (`INFO`, or `DEBUG` with `PITLOOM_DEBUG`) and
+replaces its handlers with one stderr handler; propagation to the root
+logger is left alone, so an application's own root handler also prints them.
+
 `loom.run` accepts the same creator/tool/timestamp overrides as the CLI
 and build hook, via `creation_metadata=CreationMetadata(...)`. With none
 given, the fragment records the unattended-run default (Pitloom itself as
 both creator and tool). See [Creation metadata](creation-metadata.md).
 
 Pass `id_registry=` (a path, or an already-loaded `IdRegistry`) to
-consult a Loom ID registry read-only when minting ids for datasets, the
-model, and the generating script -- see [Loom ID registry](id-registry.md).
-As on every other surface, this is the only way `loom.run`/`loom.Run`
-ever uses a registry: with none given, no registry is used -- nothing is
-searched for or auto-discovered. A declared registry that's missing,
-unreadable or invalid raises `ValueError` when the `with loom.run(...)`
-block (or the decorated call) begins, before any fragment work happens.
+consult a Loom ID registry when minting ids for datasets, the model, and
+the generating script -- see [Loom ID registry](id-registry.md). A dataset
+package is looked up by the name exactly as passed, with no path
+normalisation (`../data/t.txt` from a subdirectory misses a package pinned as
+`data/t.txt`); a file (a dataset's, or the script) by its path from the
+registry's project root and its hash, so it keeps its id from any directory
+(a path outside the root gets a new id and a `WARNING:`). A file reached
+through a symlinked directory is keyed by the path as written, which
+`id generate` does not index, so it finds no entry. The one entry loom
+writes is a model declared with `path=` (hashed when the run ends) whose file
+the registry does not know, saved after the fragment;
+`update-id-registry = false` in `pitloom_config` stops it.
+As on every other surface, `loom.run`/`loom.Run` uses a registry only when
+one is declared (`id_registry=`, or `id-registry` in `pitloom_config=`
+below): with none, no registry is used -- nothing is searched for or
+auto-discovered. A declared registry that's missing, unreadable or invalid
+(a format version 2 file included) raises `ValueError` when the `with
+loom.run(...)` block (or the decorated call) begins, before any fragment
+work happens.
+
+`loom.run` reads no `[tool.pitloom]` of its own. Pass `pitloom_config=` (a
+`PitloomConfig`, or the path of a TOML file holding `[tool.pitloom]`,
+relative to the current directory) to set `id-registry`,
+`update-id-registry` or `max-dataset-hash-bytes`; no other key has an
+effect there.
+`id_registry=` wins over the config's `id-registry`. A config file that is
+missing, unreadable or invalid raises `ValueError` as the run begins.
 
 The merge itself (`pitloom.assemble.merge_fragments`, run by
 `generate()`/`generate_project_sbom()` whenever `[tool.pitloom.fragment]`

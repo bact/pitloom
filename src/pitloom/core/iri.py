@@ -15,11 +15,12 @@ controls percent-encoded here).
 
 from __future__ import annotations
 
+import re
 import string
 
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
 
-__all__ = ["SPDX_DOCS_BASE", "doc_namespace", "iri_segment"]
+__all__ = ["SPDX_DOCS_BASE", "doc_namespace", "iri_segment", "require_namespace_iri"]
 
 #: Base IRI of every Pitloom-minted SPDX document namespace.
 SPDX_DOCS_BASE = "https://spdx.org/spdxdocs/"
@@ -75,3 +76,32 @@ def iri_segment(name: str) -> str:
 def doc_namespace(doc_name: str, doc_uuid: str) -> str:
     """Return the SPDX document namespace for (*doc_name*, *doc_uuid*)."""
     return f"{SPDX_DOCS_BASE}{iri_segment(doc_name)}-{doc_uuid}"
+
+
+_SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*:(?=.)")
+_PERCENT = re.compile(r"%[0-9A-Fa-f]{2}")
+# gen-delims a path, query or host may carry, besides the ipchars above.
+_EXTRA_ASCII = frozenset("/?[]")
+
+
+def require_namespace_iri(value: str) -> str:
+    """Return *value* when it can be a document namespace, else raise
+    ``ValueError``.
+
+    A namespace is an absolute IRI (RFC 3987): a scheme and something after
+    it, only characters an IRI allows (a ``%`` followed by two hex digits),
+    and no ``#``, because every ``spdxId`` appends its own ``#<fragment>``.
+    """
+    if not value:
+        raise ValueError("namespace is empty")
+    if "#" in value:
+        raise ValueError(f"namespace {value!r} must not contain '#'")
+    if not _SCHEME.match(value):
+        raise ValueError(
+            f"namespace {value!r} is not an absolute IRI (a scheme is needed, "
+            "as in https://example.org/ns)"
+        )
+    rest = _PERCENT.sub("", value)
+    if not all(_is_safe(char) or char in _EXTRA_ASCII for char in rest):
+        raise ValueError(f"namespace {value!r} has a character an IRI cannot hold")
+    return value

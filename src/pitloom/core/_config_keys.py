@@ -49,6 +49,7 @@ KNOWN_KEYS: dict[str, frozenset[str]] = {
             "extract-file-header",
             "fragment",
             "id-registry",
+            "max-dataset-hash-bytes",
             "max-model-extract-bytes",
             "offline",
             "pretty",

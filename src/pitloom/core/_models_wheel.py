@@ -26,8 +26,9 @@ from __future__ import annotations
 import hashlib
 import logging
 import operator
+import os
 from collections.abc import Callable
-from pathlib import Path
+from pathlib import Path, PurePath, PurePosixPath
 
 from pitloom.core._models_wheel_dispatch import (
     _discover_included_files,
@@ -42,8 +43,11 @@ from pitloom.core._models_wheel_unlistable import warn_unlistable_dirs
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.content_type_config import ContentTypeOverride
+from pitloom.core.file_hash import sha256_digest
+from pitloom.core.path_confine import inside_ancestor
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, is_regular_file
 from pitloom.core.project import ProjectFile, project_relative_or_fallback
+from pitloom.core.walk_rules import SameFile, warn_registry_left_out
 
 log = logging.getLogger(__name__)
 
@@ -152,6 +156,61 @@ def _build_project_file_entry(
     return project_file, digest_bytes
 
 
+# pylint: disable-next=too-few-public-methods
+class _DeclaredRegistry:
+    """Whether a discovered file is the declared registry: the file itself
+    (:class:`~pitloom.core.walk_rules.SameFile`), or a build-and-read copy
+    of it -- a file outside *project_dir* whose wheel path is the
+    registry's project-relative path or a tail of it (a ``src/`` layout
+    drops the leading parts) and whose bytes are the registry's."""
+
+    def __init__(self, registry: Path, project_dir: Path) -> None:
+        self._same = SameFile(registry)
+        self._registry = registry
+        self._project_dir = project_dir
+        self._parts = _parts_below(registry, project_dir)
+        self._digest: bytes | None = None
+
+    def __call__(self, included_file: IncludedFile) -> bool:
+        return self._same.matches(included_file.path) or self._is_copy(included_file)
+
+    def _is_copy(self, included_file: IncludedFile) -> bool:
+        parts = PurePosixPath(included_file.distribution_path).parts
+        if not self._parts or not parts or self._parts[-len(parts) :] != parts:
+            return False
+        if _parts_below(Path(included_file.path), self._project_dir) is not None:
+            return False  # a project file: SameFile alone decides
+        try:
+            if self._digest is None:
+                self._digest = sha256_digest(self._registry)
+            return sha256_digest(included_file.path) == self._digest
+        except OSError:  # an unreadable copy is warned about by the scan
+            return False
+
+
+def _parts_below(path: Path, directory: Path) -> tuple[str, ...] | None:
+    """*path*'s resolved parts below the resolved *directory*, else ``None``
+    (see :func:`~pitloom.core.path_confine.inside_ancestor`)."""
+    real = PurePath(os.path.realpath(path))
+    ancestor = inside_ancestor(real, directory)
+    return None if ancestor is None else real.relative_to(ancestor).parts
+
+
+def _without_excluded(
+    included_files: list[IncludedFile], exclude_path: Path | None, project_dir: Path
+) -> list[IncludedFile]:
+    """*included_files* minus the *exclude_path* file (see
+    :class:`_DeclaredRegistry`), with one ``WARNING:`` when it was in the
+    list."""
+    if exclude_path is None:
+        return included_files
+    is_registry = _DeclaredRegistry(exclude_path, project_dir)
+    kept = [f for f in included_files if not is_registry(f)]
+    if len(kept) != len(included_files):
+        warn_registry_left_out(exclude_path)
+    return kept
+
+
 # pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
 def get_wheel_files(
     project_dir: Path,
@@ -163,6 +222,7 @@ def get_wheel_files(
     assume_backend: str | None = None,
     skip_merkle_root: bool = False,
     build_options: BuildOptions = BuildOptions(),
+    exclude_path: Path | None = None,
 ) -> tuple[str | None, list[ProjectFile], Callable[[], None]]:
     """Get all files included in the wheel and compute their SHA-256 Merkle root.
 
@@ -203,6 +263,14 @@ def get_wheel_files(
     ``physical_path`` that diverges from *project_dir*'s own on-disk
     identity -- see :class:`~pitloom.core.project.ProjectFile`'s
     ``physical_path`` contract.
+
+    *exclude_path*, the declared Loom ID registry file, is left out of the
+    result (and so of the Merkle root) when the walk finds it, with one
+    ``WARNING:``: the registry is rewritten after the SBOM is built, so
+    counting it would change the root on every run. Matched by file
+    identity, or, for a build-and-read copy outside *project_dir*, by its
+    wheel path and bytes (see :class:`_DeclaredRegistry`). ``None``
+    excludes nothing.
 
     *skip_merkle_root* skips per-file SHA-256 hashing and the Merkle
     root computation: the returned root is always ``None`` and every
@@ -283,7 +351,7 @@ def get_wheel_files(
         scanned: tuple[str | None, list[ProjectFile]] | None = None
         try:
             scanned = _scan_included_files(
-                included_files,
+                _without_excluded(included_files, exclude_path, project_dir),
                 project_dir,
                 need_bytes=(
                     scan_file_headers or detect_content_type or not skip_merkle_root

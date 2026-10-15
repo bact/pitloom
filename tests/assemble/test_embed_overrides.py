@@ -34,7 +34,7 @@ from pitloom.embed import (
     ConfigOverrides,
     embed_wheel_sbom,
 )
-from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, FileEntry, IdRegistry
+from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, FILE_TYPE, IdRegistry
 
 from .conftest import _make_dummy_wheel
 
@@ -509,9 +509,7 @@ def test_embed_standalone_wheel_uses_only_an_explicit_registry(
     member = "standalonereg/__init__.py"
     with zipfile.ZipFile(wheel_path) as archive:
         digest = hashlib.sha256(archive.read(member)).hexdigest()
-    registry.files[member] = FileEntry(
-        spdx_id=f"{namespace}#File-seeded", sha256=digest
-    )
+    registry.register(FILE_TYPE, member, sha256=digest)
     registry.save(tmp_path / DEFAULT_ID_REGISTRY_FILENAME)
     monkeypatch.chdir(tmp_path)
 

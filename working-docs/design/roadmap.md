@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-10
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -95,11 +95,11 @@ uniform and safer:
 - [ ] **Hardening from the #294 reviews** (Hangul fillers, ZWJ in prose,
   fastText label cap, cross-format label counts): see
   [known-bugs.md](known-bugs.md#p3-after-0200).
-- [ ] **Registry v3**: one typed table, content gate chosen at lookup;
-  closes the P1 registry bugs. See [id-registry-v3.md](id-registry-v3.md),
-  [id-registry-v3-rollout.md](id-registry-v3-rollout.md).
+- [x] **Registry v3** (PR #305): built. See
+  [id-registry-v3.md](../implementation/id-registry-v3.md); open follow-ups in
+  [id-registry-followups.md](id-registry-followups.md).
 - [ ] **Git LFS pointers outside AI models**: one shared detector, one
-  summary `WARNING:`; lands before registry v3. See
+  summary `WARNING:`; registry v3 (built) ships without it. See
   [known-bugs.md](known-bugs.md#p0-in-0210).
 - [ ] **One default SBOM file name** (PEP 427 escaping) on every surface.
 - [ ] **Unknown SPDX id in an SPDX-only field warns** and **`License-File:`
@@ -161,7 +161,8 @@ unless the linked doc says so.
   role taxonomy; parked draft). See
   [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md),
   [docs/metadata-provenance.md](../../docs/metadata-provenance.md).
-- [ ] **AI model id stability** beyond what registry v3 decides. See
+- [ ] **AI model id stability** beyond what registry v3 built (the other
+  AIPackage lookups gated by sha256 with G7 #3). See
   [ai-model-id-stability.md](ai-model-id-stability.md).
 - [ ] **Archive member names**: name-independent `--allow-build`
   extraction, `orig_filename`, tar links in sdists. See

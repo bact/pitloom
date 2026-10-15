@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4, uuid5
 
@@ -58,6 +58,7 @@ __all__ = [
     "compute_doc_uuid",
     "generate_spdx_id",
     "get_wheel_files",
+    "merkle_root",
     "merkle_root_of_files",
     "reserve_spdx_ids",
 ]
@@ -96,6 +97,22 @@ def _build_merkle_tree(leaf_hashes: list[bytes]) -> str:
     return nodes[0].hex()
 
 
+def merkle_root(leaves: Sequence[bytes]) -> str:
+    """The hex root of the binary Merkle tree over *leaves*, in the order
+    given: a pair hashes to ``sha256(left + right)``, an unpaired node is
+    promoted unchanged, so one leaf is its own root.
+
+    The one tree algorithm for a package and a dataset directory; the
+    caller orders the leaves and decides what a leaf holds.
+
+    Raises:
+        ValueError: *leaves* is empty (there is no root to give).
+    """
+    if not leaves:
+        raise ValueError("merkle_root() needs at least one leaf")
+    return _build_merkle_tree(list(leaves))
+
+
 def merkle_root_of_files(files: Iterable[ProjectFile]) -> str | None:
     """The package Merkle root of *files*, or ``None`` for no files.
 
@@ -110,9 +127,7 @@ def merkle_root_of_files(files: Iterable[ProjectFile]) -> str | None:
     ordered = sorted(files, key=lambda f: f.distribution_path)
     if not ordered:
         return None
-    return _build_merkle_tree(
-        [bytes.fromhex(cast(str, f.digest_sha256)) for f in ordered]
-    )
+    return merkle_root([bytes.fromhex(cast(str, f.digest_sha256)) for f in ordered])
 
 
 _DEP_NAME_RE = re.compile(r"^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?")
@@ -135,6 +150,7 @@ def compute_doc_uuid(
     name: str,
     version: str,
     dependencies: list[str],
+    # pylint: disable-next=redefined-outer-name
     merkle_root: str | None = None,
     locked_dependencies: list[str] | None = None,
     locked_dependencies_provenance: str | None = None,
@@ -227,7 +243,7 @@ def reserve_spdx_ids(doc_name: str, doc_uuid: str, spdx_ids: Iterable[str]) -> N
     Intended for a registry auto-harvested from an earlier run of the exact
     same document (same name/version/dependencies -> same deterministic
     *doc_uuid*): the registry looks ids up by content hash/name first (see
-    ``pitloom.id_registry.IdRegistry.lookup_file``/``lookup_entity``), and only a
+    ``pitloom.id_registry.IdRegistry.lookup``), and only a
     lookup *miss* falls back to minting here -- without a reservation, a
     fresh mint doesn't know the registry already claimed a number in this
     same namespace and can hand out a duplicate. Call once per document,

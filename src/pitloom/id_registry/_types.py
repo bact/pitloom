@@ -6,214 +6,207 @@
 """Types and helper routines for Loom ID registry management.
 
 See also: :mod:`pitloom.id_registry._registry` for ``IdRegistry`` itself,
+:mod:`pitloom.id_registry._format` for the file format,
 :mod:`pitloom.id_registry._harvest` for harvest and claim helpers,
 :mod:`pitloom.id_registry.resolve` for registry resolution.
 """
 
 from __future__ import annotations
 
-import hashlib
 import logging
-from collections.abc import Iterable, Iterator
+import os
+import stat
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from packaging.utils import canonicalize_name
-from spdx_python_model.bindings import v3_0_1 as spdx3
+
+from pitloom.core.file_hash import sha256_digest
+from pitloom.core.path_probe import UNLISTABLE_DIR_WARNING, stat_if_present
+from pitloom.core.walk_rules import IGNORED_DIR_NAMES, SameFile
+from pitloom.logging_config import loggable, one_line
 
 log = logging.getLogger("pitloom.id_registry")
 
 __all__ = [
+    "AI_PACKAGE_TYPE",
+    "DATASET_PACKAGE_TYPE",
     "DEFAULT_ID_REGISTRY_FILENAME",
-    "DIRECTORY_ENTITY_TYPE",
-    "EntityEntry",
-    "FileEntry",
-    "PACKAGE_ENTITY_TYPE",
-    "_IGNORED_DIR_NAMES",
+    "FILE_TYPE",
+    "PACKAGE_TYPE",
+    "RegistryEntry",
     "_REGISTRY_VERSION",
-    "_entity_key",
+    "_element_key",
     "_iter_files",
-    "_require_scalar_str",
-    "_sha256_from_verified_using",
-    "_type_id_prefix",
+    "_require_names",
     "registry_file_error",
     "sha256_file",
+    "type_id_prefix",
 ]
 
-#: The suggested registry file name, and the one file ``id generate`` never
-#: indexes. There is no default registry: nothing looks for this file.
+#: The suggested registry file name, which ``id generate`` never indexes
+#: (nor the declared registry, whatever its name). There is no default
+#: registry: nothing looks for this file.
 DEFAULT_ID_REGISTRY_FILENAME = "loom-id-registry.json"
 
-#: The SPDX 3 compact type a directory is registered under (an
-#: :class:`~spdx_python_model.bindings.v3_0_1.software_File` with
-#: ``software_fileKind == directory`` -- there is no dedicated "directory"
-#: SHACL type, so it shares ``software_File``'s compact type with a regular
-#: file entry). Shared constant so a directory lookup/harvest never drifts
-#: from a hand-typed literal.
-DIRECTORY_ENTITY_TYPE = "software_File"
+#: SPDX 3 compact types the registry keys elements by. A directory is a
+#: ``software_File`` too (``software_fileKind == directory``).
+FILE_TYPE = "software_File"
+PACKAGE_TYPE = "software_Package"
+AI_PACKAGE_TYPE = "ai_AIPackage"
+DATASET_PACKAGE_TYPE = "dataset_DatasetPackage"
 
-#: The SPDX 3 compact type a deployed dependency package (and a project's
-#: own main package) is registered under -- shared by
-#: :func:`~pitloom.assemble.spdx3._document_deployed._build_deployed_package`'s
-#: lookup and :func:`_entity_key`'s canonicalization (see its docstring).
-PACKAGE_ENTITY_TYPE = "software_Package"
-
-_IGNORED_DIR_NAMES = frozenset(
-    {
-        ".git",
-        "__pycache__",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".pyrefly_cache",
-        ".ruff_cache",
-        ".venv",
-        "venv",
-        "node_modules",
-        "dist",
-        "build",
-        ".tox",
-        ".hatch",
-        "fragments",
-    }
-)
-
-_REGISTRY_VERSION = 2
+_REGISTRY_VERSION = 3
 
 
 @dataclass
-class FileEntry:
-    """A single registered file: its stable ``spdxId`` and content hash."""
+class RegistryEntry:
+    """One registered element: its stable ``spdxId`` and, when known, the
+    SHA-256 of its content (lowercase hex).
+
+    ``sha256`` is ``None`` when there is no hash; ``""`` is never a hash
+    and is rejected, so "no hash" has one spelling.
+    """
 
     spdx_id: str
-    sha256: str
+    sha256: str | None = None
 
     def __post_init__(self) -> None:
-        self.sha256 = self.sha256.lower()
+        if self.sha256 is not None:
+            if not self.sha256:
+                raise ValueError("RegistryEntry.sha256 must be None or non-empty")
+            self.sha256 = self.sha256.lower()
 
 
-@dataclass
-class EntityEntry:
-    """A single registered named entity (e.g. an AI model) and its ``spdxId``.
+def _element_key(*, type_name: str, name: str) -> tuple[str, str]:
+    """Return the registry key ``(type_name, name)`` for an element.
 
-    No ``type`` field: :class:`~pitloom.id_registry.IdRegistry` keys its
-    ``entities`` dict by ``(type, name)``, so the type already lives in the
-    key -- storing it again here would be the same fact in two places, free
-    to drift out of sync on a hand-edited registry file.
+    The one place a :data:`PACKAGE_TYPE` name is PEP 503 canonicalised
+    (:func:`packaging.utils.canonicalize_name`), so a declared ``"PyYAML"``
+    and a looked-up ``"pyyaml"`` hit one entry. Every other type keeps
+    its name verbatim. Keyword-only: both arguments are ``str``, so a
+    swapped positional call would still type-check.
     """
-
-    spdx_id: str
-
-
-def _entity_key(name: str, type_name: str) -> tuple[str, str]:
-    """Return the ``entities`` dict key for a named entity of *type_name*.
-
-    The single place a :data:`PACKAGE_ENTITY_TYPE` entity's name is PEP 503
-    canonicalized (:func:`packaging.utils.canonicalize_name`) -- every
-    reader/writer of :attr:`~pitloom.id_registry.IdRegistry.entities` for
-    that type (:meth:`~pitloom.id_registry.IdRegistry.register_entity`,
-    :meth:`~pitloom.id_registry.IdRegistry.lookup_entity`, harvest via
-    :func:`~pitloom.id_registry._harvest._import_sbom_element`) goes
-    through this, so a package's declared name (e.g. ``"PyYAML"``) and a
-    lowercased lookup key (e.g. ``"pyyaml"``, from pipdeptree) always
-    resolve to the identical entry. Every other entity type is keyed by
-    its name verbatim.
-    """
-    if type_name == PACKAGE_ENTITY_TYPE:
+    if type_name == PACKAGE_TYPE:
         return (type_name, canonicalize_name(name))
     return (type_name, name)
 
 
-def _require_scalar_str(value: Any, field: str) -> str:
-    """Return *value* if it is a ``str``, else raise ``TypeError``.
-
-    Used by :meth:`~pitloom.id_registry.IdRegistry.load` for every scalar
-    entry field (``spdxId``, ``sha256``) that a hand-edited registry file
-    could carry as the wrong JSON type (``null``, a list, a number) --
-    ``str(value)`` alone would silently stringify any of those instead of
-    surfacing them as the malformed entry they are. Raises ``TypeError``
-    (not :func:`registry_file_error` directly) so it composes with the
-    existing ``except (KeyError, TypeError, AttributeError)`` catch around
-    every entry-parsing call site.
-    """
-    if not isinstance(value, str):
-        raise TypeError(
-            f"{field!r} must be a string, got {type(value).__name__}: {value!r}"
-        )
-    return value
+def _require_names(names: Sequence[str]) -> None:
+    """Raise ``TypeError`` when *names* is one ``str``: a ``str`` is a
+    ``Sequence[str]`` too, and would be tried character by character."""
+    if isinstance(names, str):
+        raise TypeError("names must be a sequence of names, not one str")
 
 
 def registry_file_error(path: Path, reason: str) -> ValueError:
-    """Build the one ``ValueError`` shape every :meth:`IdRegistry.load`
-    failure raises: ``ID registry file {path}: {reason}``.
+    """Build the one ``ValueError`` shape every registry file failure
+    raises: ``ID registry file {path}: {reason}``.
 
     A single helper so every failure reason (not found, unreadable, bad
-    JSON, wrong shape, wrong version, malformed entry, duplicate) shares
-    identical wording up to its *reason* -- the CLI, the library API and
-    the Hatchling hook all surface this message verbatim.
+    JSON, wrong shape, wrong version, malformed entry, duplicate, a
+    project root that cannot be stored) shares identical wording up to
+    its *reason* -- the CLI, the library API and the Hatchling hook all
+    surface this message verbatim.
     """
     return ValueError(f"ID registry file {path}: {reason}")
 
 
 def sha256_file(path: Path) -> str:
-    """Return the hex-encoded SHA-256 digest of *path*'s contents.
-
-    Streams the file in chunks (never ``read_bytes()``/``Path.read_text()``
-    the whole thing into memory at once) -- narrow public helper so
-    sibling modules needing a file's SHA-256 (:mod:`pitloom.id_registry`,
-    :mod:`pitloom._loom_caller`) share one implementation instead of each
-    writing its own chunked-read loop.
-    """
-    digest = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+    """Return the hex-encoded SHA-256 digest of *path*'s contents, streamed
+    by the shared reader (:func:`~pitloom.core.file_hash.sha256_digest`),
+    never read whole."""
+    return sha256_digest(path).hex()
 
 
-def _type_id_prefix(type_name: str) -> str:
-    """Return the SPDX ID fragment prefix for a SHACL type name."""
+def type_id_prefix(type_name: str) -> str:
+    """Return the spdxId fragment prefix for a compact type name: the part
+    after the first ``_`` (``software_File`` -> ``File``), else the name."""
     _, _, rest = type_name.partition("_")
     return rest or type_name
 
 
-def _sha256_from_verified_using(obj: Any) -> str | None:
-    """Return the SHA-256 hex digest from *obj*'s ``verifiedUsing`` list."""
-    for h in getattr(obj, "verifiedUsing", None) or []:
-        if getattr(h, "algorithm", None) == spdx3.HashAlgorithm.sha256:
-            value = getattr(h, "hashValue", None)
-            if value:
-                return str(value)
-    return None
+def _relative_parts(file_path: Path, root: Path, project_root: Path) -> tuple[str, ...]:
+    """*file_path*'s directory parts below *project_root*, else below the
+    walk *root* (a path outside the project).
+
+    Never the absolute parts: a project under ``/x/build/`` must not be
+    skipped because of a directory above it.
+    """
+    try:
+        return file_path.relative_to(project_root).parts[:-1]
+    except ValueError:
+        return file_path.relative_to(root).parts[:-1]
 
 
-def _is_eligible_file(file_path: Path, seen: set[Path]) -> bool:
-    """Check if a path is an eligible, unvisited file for registry indexing."""
-    if not file_path.is_file():
+def _is_eligible_file(
+    file_path: Path,
+    seen: set[Path],
+    relative_dirs: tuple[str, ...],
+    exclude: SameFile | None,
+) -> bool:
+    """Check if a path is an eligible, unvisited file for registry indexing.
+
+    *relative_dirs* are its parent directory names below the project;
+    *exclude* matches the declared registry file, which is never indexed.
+    A ``stat()`` failure other than absence raises (see
+    :func:`~pitloom.core.path_probe.stat_if_present`).
+    """
+    if any(part in IGNORED_DIR_NAMES for part in relative_dirs):
         return False
-    if any(part in _IGNORED_DIR_NAMES for part in file_path.parts):
+    if file_path.name == DEFAULT_ID_REGISTRY_FILENAME or file_path in seen:
         return False
-    if file_path.name == DEFAULT_ID_REGISTRY_FILENAME:
+    file_stat = stat_if_present(file_path)
+    if file_stat is None or not stat.S_ISREG(file_stat.st_mode):
         return False
-    if file_path in seen:
-        return False
-    return True
+    return exclude is None or not exclude.matches(file_path, file_stat)
 
 
-def _iter_files(paths: list[Path], project_root: Path) -> Iterator[Path]:
-    """Yield every regular file under *paths* in deterministic order."""
+def _warn_unlistable(error: OSError) -> None:
+    """``os.walk``'s *onerror*: a directory left out of the index, said."""
+    log.warning(
+        UNLISTABLE_DIR_WARNING,
+        loggable(os.fspath(error.filename)),
+        "for ID registry indexing",
+        one_line(error),
+    )
+
+
+def _walk_files(root: Path) -> list[Path]:
+    """Every file name below the directory *root*, sorted as ``Path``s; a
+    directory named in :data:`~pitloom.core.walk_rules.IGNORED_DIR_NAMES`
+    is pruned, a symlink to a directory is not followed, and one that
+    cannot be listed gets the shared ``DIR=`` warning."""
+    found: list[Path] = []
+    for dirpath, dirnames, filenames in os.walk(root, onerror=_warn_unlistable):
+        dirnames[:] = [name for name in dirnames if name not in IGNORED_DIR_NAMES]
+        found.extend(Path(dirpath, name) for name in filenames)
+    found.sort()
+    return found
+
+
+def _iter_files(
+    paths: list[Path], project_root: Path, exclude: Path | None = None
+) -> Iterator[Path]:
+    """Yield every regular file under *paths* in deterministic order,
+    except the *exclude* file (the declared registry).
+
+    A missing path is skipped with a warning; one that cannot be
+    ``stat()``-ed raises, on every Python version."""
     seen: set[Path] = set()
+    excluded = None if exclude is None else SameFile(exclude)
 
     for raw_path in paths:
         root = raw_path if raw_path.is_absolute() else project_root / raw_path
-        if not root.exists():
+        root_stat = stat_if_present(root)
+        if root_stat is None:
             log.warning("ID registry: path not found, skipping: %s", root)
             continue
 
-        candidates: Iterable[Path] = (
-            [root] if root.is_file() else sorted(root.rglob("*"))
-        )
+        candidates = _walk_files(root) if stat.S_ISDIR(root_stat.st_mode) else [root]
         for file_path in candidates:
-            if _is_eligible_file(file_path, seen):
+            relative_dirs = _relative_parts(file_path, root, project_root)
+            if _is_eligible_file(file_path, seen, relative_dirs, excluded):
                 seen.add(file_path)
                 yield file_path

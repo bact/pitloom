@@ -416,12 +416,12 @@ def check_content_type_method_fetch(ctx: Context) -> None:
 
 @check(
     "14",
-    "declared registry missing/invalid: one ERROR:, exit 1, no output, every surface",
+    "declared registry missing/invalid/v2: one ERROR:, exit 1, no output, each surface",
 )
 def check_registry_missing_invalid(ctx: Context) -> None:
-    """A declared ``--id-registry`` that is missing or unparseable is a
-    hard failure on every surface that accepts the flag -- never silent
-    auto-discovery, never a partial SBOM."""
+    """A declared ``--id-registry`` that is missing, unparseable or of an
+    unsupported version is a hard failure on every surface that accepts the
+    flag -- never silent auto-discovery, never a partial SBOM."""
     project = write_project(ctx.work / "proj")
     wheel = _build_wheel(ctx, project, ctx.work / "dist")
     model = ctx.work / "model.safetensors"
@@ -430,6 +430,11 @@ def check_registry_missing_invalid(ctx: Context) -> None:
     invalid = ctx.work / "invalid.json"
     invalid.write_text("{", encoding="utf-8")
     missing = ctx.work / "missing.json"  # never created
+    v2 = ctx.work / "v2.json"
+    v2.write_text(
+        json.dumps({"elements": {}, "namespace": "https://x.org/n", "version": 2}),
+        encoding="utf-8",
+    )
 
     commands: dict[str, list[str]] = {
         "project": ["project", str(project), "--offline"],
@@ -439,7 +444,7 @@ def check_registry_missing_invalid(ctx: Context) -> None:
         "embed-wheel": ["embed-wheel", "--project-dir", str(project), "--offline"],
     }
     for name, argv in commands.items():
-        for label, registry in (("missing", missing), ("invalid", invalid)):
+        for label, registry in (("missing", missing), ("invalid", invalid), ("v2", v2)):
             case_dir = ctx.work / "cases" / f"{name}-{label}"
             case_dir.mkdir(parents=True)
             out = case_dir / "out.json"
@@ -464,5 +469,12 @@ def check_registry_missing_invalid(ctx: Context) -> None:
                 bool(error_lines) and "ID registry file" in error_lines[0],
                 f"{name}/{label}: {error_lines} does not name 'ID registry file'",
             )
+            if label == "v2":
+                expect(
+                    "version 2, expected 3" in error_lines[0],
+                    f"{name}/v2: {error_lines} does not say 'version 2, expected 3'",
+                )
             expect(not out.exists(), f"{name}/{label}: output written despite failure")
-    ctx.note(f"{len(commands)} surfaces x missing/invalid registry: one ERROR:, exit 1")
+    ctx.note(
+        f"{len(commands)} surfaces x missing/invalid/v2 registry: one ERROR:, exit 1"
+    )

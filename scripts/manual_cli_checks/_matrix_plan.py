@@ -30,6 +30,8 @@ from pitloom.core.inert_options import (
     WHEEL,
 )
 
+_NAMESPACE = "https://example.org/ns/matrix"
+
 Args = Callable[[Fixtures, Path], list[str]]
 
 
@@ -322,6 +324,10 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
     "--fail-on-mismatch": [_v("--fail-on-mismatch", "same", "--fail-on-mismatch")],
     "--no-merge": [_v("--no-merge", "same", "--no-merge")],
     "-e": [_v("entity", "changes", "-e", "matrix-entity")],
+    "--namespace": [
+        _v("IRI", f"contains:{_NAMESPACE}", "--namespace", _NAMESPACE),
+        _v("relative", "exit:2", "--namespace", "relative/ns"),
+    ],
     "--config": [
         Variant(
             "file",
