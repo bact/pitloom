@@ -213,7 +213,7 @@ def _run(tag: str, cmd: list[str]) -> str:
 
 def _inject(kind: str, lines: list[str]) -> list[str]:
     """Wrap a step's lines so it runs against a broken registry (design
-    D10, section 6) or a read-only one (build notes, 2026-10-15 rulings),
+    D10, section 6) or a read-only one (build notes),
     then put the registry back."""
     if kind == "readonly":
         return ['chmod 444 "$REG"', *lines, 'chmod 644 "$REG"']

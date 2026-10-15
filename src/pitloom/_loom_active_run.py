@@ -73,7 +73,6 @@ def loom_config(pitloom_config: PitloomConfig | str | Path | None) -> PitloomCon
         raise ValueError(f"config file {path}: {one_line(exc)}") from exc
 
 
-# pylint: disable=too-many-instance-attributes
 def _append_once(
     packages: list[spdx3.dataset_DatasetPackage], package: spdx3.dataset_DatasetPackage
 ) -> None:
@@ -82,6 +81,7 @@ def _append_once(
         packages.append(package)
 
 
+# pylint: disable-next=too-many-instance-attributes
 class _ActiveRun:
     """Internal state for an active BOM recording run."""
 

@@ -4,8 +4,8 @@
 
 """Keeps the order-matrix checks (``O*`` in ``scripts/manual_cli_checks``)
 honest: each invariant fires on a doctored step and stays quiet on the
-clean one, G classifies convergence, the generated scripts parse, and a
-deliberately broken registry lookup in a real run is caught.
+clean one, G classifies convergence, and the allow-list names its item
+only for its own case.
 
 See also: ``tests/scripts/test_manual_cli_checks.py`` (the runner),
 ``test_manual_cli_checks_order_runs.py`` (the scripts and real runs).
@@ -201,7 +201,7 @@ def _readonly(s: _Seq) -> None:
 
 
 def _gen_erased(s: _Seq) -> None:
-    """`id generate` drops a recorded sha256 (D12; BN ruling 2026-10-15)."""
+    """`id generate` drops a recorded sha256 (D12; BN)."""
     s.ops[1] = "gen"
     _erased(s)
 
@@ -302,7 +302,7 @@ def test_each_invariant_fires_on_its_doctored_step(
 def test_an_id_import_dropping_a_gate_with_its_info_is_clean(
     mcc: dict[str, ModuleType], tmp_path: Path
 ) -> None:
-    """BN ruling 2026-10-15: the imported id wins over a gated entry and its
+    """BN: the imported id wins over a gated entry and its
     sha256 goes, said once; a read-only step with the one failed-save
     line is clean too."""
     (tmp_path / "proj" / "pkg").mkdir(parents=True)

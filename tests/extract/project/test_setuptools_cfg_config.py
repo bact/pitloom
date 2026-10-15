@@ -6,8 +6,9 @@
 """Tests for [tool:pitloom] configuration parsing from setup.cfg.
 
 See also:
-- :mod:`tests.extract.test_setuptools_cfg` for core metadata extraction from setup.cfg.
-- :mod:`tests.extract.test_setuptools_py` for setup.py extraction.
+- :mod:`tests.extract.project.test_setuptools_cfg`
+  for core metadata extraction from setup.cfg.
+- :mod:`tests.extract.project.test_setuptools_py` for setup.py extraction.
 """
 
 from __future__ import annotations

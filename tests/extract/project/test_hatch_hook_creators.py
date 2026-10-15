@@ -6,8 +6,9 @@
 """Tests for creator and tool handling in the Hatchling build hook.
 
 See also:
-- :mod:`tests.extract.test_hatch_hook_hook_basic` for hook lifecycle and staging.
-- :mod:`tests.extract.test_hatch_hook_hook_integration` for integration tests.
+- :mod:`tests.extract.project.test_hatch_hook_hook_basic`
+  for hook lifecycle and staging.
+- :mod:`tests.extract.project.test_hatch_hook_hook_integration` for integration tests.
 """
 
 # pylint: disable=protected-access

@@ -9,7 +9,7 @@ v2 or unparsable registry, or a read-only one.
   no output, the broken bytes left as they were, and on a CLI surface
   exactly one ``ERROR:`` naming the registry file (``version 2, expected
   3`` for a v2 file); ``loom.Run`` raises ``ValueError`` instead.
-- Read-only (build notes, 2026-10-15 rulings): the registry is not
+- Read-only (build notes, order-matrix round): the registry is not
   overwritten; one ``ID registry: failed to save <path>: <reason>`` line,
   the only ``ERROR:`` and exit 1 for ``id generate``/``id import``, else a
   ``WARNING:``, no ``ERROR:`` and exit 0.

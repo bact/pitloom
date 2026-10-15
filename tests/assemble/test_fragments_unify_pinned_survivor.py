@@ -9,7 +9,7 @@ A minted id's namespace belongs to its one fragment; a pinned id's is shared
 by every fragment that uses the registry. Merge ranks an id by the number of
 sources (base document and fragments) holding an id in its namespace, counted
 over all fragments before the first merge, so the survivor does not depend on
-fragment order. A tie keeps the earlier element (the pre-existing rule), and
+fragment order. A tie keeps the earlier element, and
 every reference to the other id follows the survivor.
 
 See also: tests/core/test_fragments_merge_id_types.py (type clash) and

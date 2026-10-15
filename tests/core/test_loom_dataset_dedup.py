@@ -3,8 +3,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for one ``dataset_DatasetPackage`` per name per loom run, and for
-``loom.run()`` leaving no active run behind when it fails to write.
+"""Tests for one ``dataset_DatasetPackage`` per (name, content digest) per loom
+run, and for ``loom.run()`` leaving no active run behind when it fails to
+write.
 
 See also:
 - :mod:`tests.core.test_loom_registry` for registry consultation.

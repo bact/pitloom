@@ -11,7 +11,7 @@ returns an :class:`EnrichmentResult` describing exactly what it changed.
 That return value, not a post-hoc diff of the whole object, is what the
 assemble layer uses to build a per-enrichment ``CreationInfo`` (N3) and
 the ``enrichment`` Annotation (E1/E2); see
-``working-docs/implementation/annotation-provenance.md``.
+``working-docs/implementation/provenance/annotation-provenance.md``.
 """
 
 from __future__ import annotations

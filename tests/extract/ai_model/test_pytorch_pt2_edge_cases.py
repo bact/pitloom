@@ -6,8 +6,7 @@
 """Edge-case tests for the PyTorch PT2 Archive metadata extractor.
 
 See also: :mod:`tests.extract.ai_model.test_pytorch_pt2` for the primary mocked and
-integration test suite this file was split out of to stay under the
-project's file-size limit.
+integration test suite.
 """
 
 # pylint: disable=missing-function-docstring

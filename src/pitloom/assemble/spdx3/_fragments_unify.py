@@ -3,9 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Unification logic and property merging for SPDX 3 fragment files.
+"""Unification of the elements of SPDX 3 fragment files.
 
-See also: :mod:`pitloom.assemble.spdx3.fragments` (facade and merge orchestration),
+See also: :mod:`pitloom.assemble.spdx3.fragments` (facade and merge
+orchestration), :mod:`pitloom.assemble.spdx3._fragments_props` (property
+merging), :mod:`pitloom.assemble.spdx3._fragments_hashes` (digest conflicts),
 :mod:`pitloom.assemble.spdx3._fragments_licenses` (licence unification) and
 :mod:`pitloom.assemble.spdx3._fragments_ids` (ids minted during a merge).
 """
@@ -119,8 +121,9 @@ def _to_id_refs(obj: spdx3.SHACLObject, id_map: dict[str, str], seen: set[int]) 
 class _MergeIndex:
     """Cumulative unification state across fragments.
 
-    *namespace* (the main document's id) is where a fragment element whose
-    id another type holds gets its new id; without one, the id's own."""
+    *namespace* (the main document's id) is where a fragment element that
+    must be kept apart from a holder of its id gets its new id; without
+    one, the id's own namespace."""
 
     def __init__(
         self, exporter: Spdx3JsonExporter, namespace: str | None = None
@@ -155,10 +158,9 @@ class _MergeIndex:
     def outranks(self, candidate: spdx3.SHACLObject, holder: spdx3.SHACLObject) -> bool:
         """True when *candidate*'s id is more likely registry-pinned than
         *holder*'s: its id is free in the document and its namespace is held
-        by more sources. A minted id's
-        namespace belongs to its one fragment; a pinned id's is shared by
-        every fragment and the base that use the registry. A tie keeps
-        *holder*, the earlier."""
+        by more sources. A minted id's namespace belongs to its one
+        fragment; a pinned id's is shared by every fragment and the base
+        that use the registry. A tie keeps *holder*, the earlier."""
 
         def held_by(obj: spdx3.SHACLObject) -> int:
             spdx_id = str(getattr(obj, "spdxId", "")).partition("#")[0]

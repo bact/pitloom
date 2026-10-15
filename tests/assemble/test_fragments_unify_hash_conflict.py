@@ -7,9 +7,9 @@
 
 Folding them would leave one element with two SHA-256 values: the content
 differs, so they are two artefacts. The fragment's element is kept apart
-under a new id with one ``WARNING:``, the mechanism a type clash already
-uses (D11); the earlier element keeps the id. Case-only and
-cross-algorithm differences, and an element with no digest, still fold.
+under a new id with one ``WARNING:``, as a type clash is (D11); the
+earlier element keeps the id. Case-only and cross-algorithm differences,
+and an element with no digest, still fold.
 
 See also: tests/core/test_fragments_merge_id_types.py (type clash).
 """

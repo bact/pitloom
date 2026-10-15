@@ -108,7 +108,7 @@ def _resolve_id_registry_target(
     ``True`` exactly when *path* is the project's own declared
     ``id-registry`` (whether that came from the config's own key or from a
     *flag* that happens to name the same file), i.e. exactly when a config
-    hint (see :func:`_run_id_generate`) is *not* worth printing afterwards;
+    hint (:func:`_log_config_hint`) is *not* worth printing afterwards;
     *slot* names the ``[tool.pitloom]``/``[tool:pitloom]`` table that hint
     should point at, and whether it already declares another registry.
     """

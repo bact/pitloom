@@ -7,8 +7,8 @@
 required elements, profile conformance, relationship validity, file
 hashes, and the main package's PyPI PURL.
 
-See also: test_spdx3_compliance_shacl.py -- this module's sibling, split
-from the original test_spdx3_compliance.py.
+See also: test_spdx3_compliance_shacl.py -- the sibling covering SHACL shape
+constraints.
 """
 
 import json

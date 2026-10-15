@@ -8,6 +8,8 @@
 See also: :mod:`pitloom.id_registry._types` for ``RegistryEntry`` and file
 traversal, :mod:`pitloom.id_registry._format` for the file format,
 :mod:`pitloom.id_registry._counters` for the id counters,
+:mod:`pitloom.id_registry._generate` for indexing a project's files,
+:mod:`pitloom.id_registry._persist` for rebasing and replaying changes,
 :mod:`pitloom.id_registry._harvest` for SBOM-element harvest helpers,
 :mod:`pitloom.id_registry.resolve` for registry resolution.
 """
@@ -68,8 +70,8 @@ __all__ = ["IdRegistry"]
 def _require_graph_list(raw: bytes) -> None:
     """Raise ``ValueError`` when the JSON *raw* has an ``@graph`` that is
     not a list, or holds a non-object (the deserializer would leak a
-    ``TypeError``). Text that is
-    not JSON is left to the deserializer's own error."""
+    ``TypeError``). Text that is not JSON is left to the deserializer's
+    own error."""
     try:
         data = json.loads(raw)
     except ValueError:
@@ -189,7 +191,7 @@ class IdRegistry:
         file at :attr:`path` yet, the registry is left as it is.
 
         Raises:
-            ValueError: the file no longer loads, or (never read) does not.
+            ValueError: the file cannot be loaded.
         """
         base = self._on_disk or {}
         if self.path is None or (

@@ -18,8 +18,9 @@ alternative to D2 below).
 
 ## Why
 
-Registry v3 keys a package by name and version. For a wheel both come from
-`read_wheel()`, so a wrong identity there is a wrong registry key on every
+Registry v3 keys a package by its PEP 503 name (the version is not in the
+key). For a wheel the name comes from `read_wheel()`, as does the version
+of the document, so a wrong identity there is a wrong registry key on every
 surface (`loom wheel`, `generate x.whl`, `wheel --embed`, `embed-wheel`,
 `generate_wheel_sbom()`, `embed_wheel_sbom()`).
 

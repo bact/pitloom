@@ -64,9 +64,8 @@ def test_pasting_setup_cfg_hint_is_usable_by_next_run(
     """End-to-end: generate a registry for a setup.cfg project, paste the
     hint's ``id-registry = ...`` line verbatim under ``[tool:pitloom]``,
     and confirm `loom project .` then finds and uses that registry file
-    (exit 0) -- the bug this regression closes made the pasted line
-    quote-wrapped, so the next run looked for a nonexistent
-    quote-included filename."""
+    (exit 0); a quote-wrapped hint would send the next run looking for a
+    file named with the quotes."""
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "a.py").write_text("x = 1\n", encoding="utf-8")
     (tmp_path / "setup.cfg").write_text(

@@ -7,7 +7,7 @@
 
 See also:
 - :mod:`tests.assemble.test_embed_cli_verify_validate` for `--verify`/
-  `--validate`, split from this module.
+  `--validate`.
 - :mod:`tests.assemble.test_embed_overrides` for overrides and standalone build path.
 - :mod:`tests.assemble.test_embed_core` for core embed logic.
 - :mod:`tests.assemble.test_embed_internals` for low-level ZIP manipulation.

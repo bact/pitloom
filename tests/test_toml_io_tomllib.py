@@ -17,7 +17,7 @@ from in-memory bytes rather than a file path, so it can't use
 carrying its own copy of the shim. Either way, the branch this file
 exercises lives in ``_toml_io`` alone.
 
-See also: :mod:`tests.extract.test_setuptools_integration` for the rest of
+See also: :mod:`tests.extract.project.test_setuptools_integration` for the rest of
 ``read_setuptools()`` parsing, and :mod:`tests.tomllib_fixtures` for the
 shared version-forcing helpers used here.
 """

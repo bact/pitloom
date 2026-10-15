@@ -6,8 +6,8 @@
 """Tests for metadata extraction from setup.py.
 
 See also:
-- :mod:`tests.extract.test_setuptools_cfg` for setup.cfg field-level tests.
-- :mod:`tests.extract.test_setuptools_integration` for merge, license, and
+- :mod:`tests.extract.project.test_setuptools_cfg` for setup.cfg field-level tests.
+- :mod:`tests.extract.project.test_setuptools_integration` for merge, license, and
   fixture tests.
 """
 

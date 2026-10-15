@@ -6,7 +6,7 @@
 """Tests verifying that Hatchling build hook metadata extraction strictly
 isolates source-stage lock files from build-stage wheel metadata.
 
-See also: :mod:`tests.extract.test_hatch_hook_metadata` for general Hatchling
+See also: :mod:`tests.extract.project.test_hatch_hook_metadata` for general Hatchling
 build hook metadata extraction tests.
 """
 

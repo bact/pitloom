@@ -127,7 +127,7 @@ def build_enrichment_fragment(
     ``ai_AIPackage``, ``software_Sbom``, or ``SpdxDocument`` element is
     included: this is a bare ``@graph`` fragment meant for
     ``merge_fragments()``, matching the wrapper-free shape
-    ``working-docs/design/sbom-fragments.md`` documents and
+    ``working-docs/design/sbom-fragments/README.md`` documents and
     :mod:`pitloom.loom` already produces.
 
     ``entity_spdx_id``/``base_doc_identity`` are forwarded to

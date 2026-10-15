@@ -6,8 +6,8 @@
 """Tests for ``_build_dataset_package``: core fields, dataset-profile
 fields, the Croissant ExternalRef, and provenance handoff to the caller.
 
-See also: test_spdx3_dataset_relationships.py -- this module's sibling,
-split from the original test_spdx3_dataset.py.
+See also: test_spdx3_dataset_relationships.py -- the sibling covering
+relationship types and dataset-profile conformance.
 """
 
 # pylint: disable=missing-function-docstring

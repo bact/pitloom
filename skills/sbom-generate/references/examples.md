@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,6 +41,18 @@ loom project /path/to/project -o sbom.spdx3.json
 ```bash
 loom wheel dist/mypackage-1.0.0-py3-none-any.whl -o wheel.spdx3.json
 ```
+
+## Pin ids with a Loom ID registry (only when the user asks)
+
+```bash
+loom id generate src data -o loom-id-registry.json   # files, AI models
+loom id generate src -e my-pkg:software_Package -o loom-id-registry.json
+loom id import sbom.spdx3.json -o loom-id-registry.json   # reuse an SBOM's ids
+loom project . --id-registry loom-id-registry.json -o sbom.spdx3.json
+```
+
+stdout is `PITLOOM_ID_REGISTRY_PATH=<path>`; relay the `INFO:`/`WARNING:`
+lines (see `id-registry.md`).
 
 ## Embed an SBOM into a built wheel (PEP 770)
 

@@ -10,11 +10,10 @@ transitive-only package (``idna``) never named in
 ``[project.dependencies]`` -- present in a generated SBOM only when the
 lock-file cascade actually ran, the clearest signal for whether it did.
 
-Previously hand-copied, with slightly drifting content, across
+Shared by
 ``tests/assemble/test_generate_project_sbom_use_lockfile.py``,
 ``tests/assemble/test_model_generator_doc_identity.py``, and
-``tests/cli/test_cli_project.py`` -- see AGENTS.md's "pattern hand-copied
-across 3+ call sites drifts" recurring-bug-pattern note.
+``tests/cli/test_cli_project.py`` so the copies cannot drift.
 """
 
 from __future__ import annotations

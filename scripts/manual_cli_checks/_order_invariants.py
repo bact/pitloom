@@ -13,7 +13,7 @@ sections), ``id-registry-v3-build-notes.md`` (BN).
   sha256 changed to the bytes now on disk, under a fresh id (D3, D12,
   D13). A key never vanishes, a recorded sha256 is never erased (D12, BN)
   except by an `id import` handing the key another id with one ``content
-  gate dropped`` INFO for it (BN ruling 2026-10-15; ``A/gate-info``: that
+  gate dropped`` INFO for it (BN; ``A/gate-info``: that
   INFO only there, once per key), a gated entry never takes new bytes
   under its old id (D3), and an id never passes to another key except a
   src-layout alias (I4).
@@ -208,9 +208,8 @@ class Checker:
                 continue
             erased = bool(old.sha) and new.sha is None
             if key in imported and imported[key].spdx_id == new.spdx_id:
-                # Section 2: the harvested id wins. BN ruling 2026-10-15:
-                # only an import handing the key another id drops the
-                # sha256, and says so.
+                # Section 2: the harvested id wins. BN: only an import
+                # handing the key another id drops the sha256, and says so.
                 if erased and new.spdx_id != old.spdx_id and key in said:
                     dropped.add(key)
                 elif erased:
@@ -335,8 +334,8 @@ class Checker:
     def _generated(self, cap: Captured, reg: dict[Key, Entry]) -> None:
         """Section 5: `id generate` registers every file with its sha256,
         and (D3) the model stem with the model's sha256. A stem two model
-        files share has no one file to match: its entry is left as is (BN
-        ruling 2026-10-15; A checks it kept its sha256)."""
+        files share has no one file to match: its entry is left as is (BN;
+        A checks it kept its sha256)."""
         disk = self._disk(cap)
         only = "pyproject.toml" if cap.step.op == "gen-min" else None
         for rel, sha in disk.items():

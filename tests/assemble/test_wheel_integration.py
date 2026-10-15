@@ -130,10 +130,10 @@ def test_sbom_multiple_creators_and_tools_in_wheel(built_wheel: Path) -> None:
     creation tools, correctly linked from CreationInfo.
 
     Complements ``test_hook_multiple_creators_appear_in_graph`` in
-    ``test_hatch_hook.py``, which asserts the same logical shape via a
-    direct ``BuildHookInterface.initialize()`` call rather than a real
-    ``python -m build`` / Hatchling wheel build -- this test proves the
-    result also lands correctly inside an actual ``.whl`` zip (PEP 770).
+    :mod:`tests.extract.project.test_hatch_hook_creators`, which asserts the
+    same logical shape via a direct ``BuildHookInterface.initialize()`` call
+    rather than a real ``python -m build`` / Hatchling wheel build -- this
+    test proves the result also lands correctly inside an actual ``.whl`` zip (PEP 770).
 
     ``sampleproject-hatchling/pyproject.toml`` declares two creators
     (a Person "Pitloom CI" and an Organization "Sample Project Org") and

@@ -6,11 +6,11 @@
 """Tests for metadata extraction from setup.cfg.
 
 See also:
-- :mod:`tests.extract.test_setuptools_cfg_backend` for detect_build_backend()
+- :mod:`tests.extract.project.test_setuptools_cfg_backend` for detect_build_backend()
   tests, split out to keep this file under this repo's file-size soft limit.
-- :mod:`tests.extract.test_setuptools_cfg_config` for [tool:pitloom] config
+- :mod:`tests.extract.project.test_setuptools_cfg_config` for [tool:pitloom] config
   in setup.cfg.
-- :mod:`tests.extract.test_setuptools_py` for setup.py and merge/fixture tests.
+- :mod:`tests.extract.project.test_setuptools_py` for setup.py and merge/fixture tests.
 - :mod:`tests.extract.project.test_setuptools_merge` for the setup.py over
   setup.cfg merge.
 """

@@ -192,11 +192,10 @@ def _generate_paths(args: argparse.Namespace, project_dir: Path) -> list[Path]:
 
     A relative PATH resolves against the current directory, like every
     other command, and is made absolute before ``IdRegistry.generate()``
-    sees it, so ``_iter_files()``'s "relative -> under project_root"
-    fallback never applies. The implicit default paths stay under
+    sees it, so the file walk's "relative -> under project_root" rule
+    never applies. The implicit default paths stay under
     ``--project-dir``. Every returned path is rooted at the resolved
-    *project_dir*, so ``generate()``'s ``relative_to(project_root)``
-    always succeeds.
+    *project_dir*.
     """
     if args.paths:
         lexical_project_dir = _normalized_absolute(args.project_dir or Path.cwd())

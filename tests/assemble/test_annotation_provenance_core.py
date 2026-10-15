@@ -8,8 +8,8 @@ parsing, the pluggable encoder registry, and the low-level
 annotation/comment builders.
 
 See also: test_annotation_provenance_emit.py,
-test_annotation_provenance_annotations.py -- this module's siblings, split
-from the original test_annotation_provenance.py.
+test_annotation_provenance_annotations.py -- the siblings covering
+emission and the structured Annotation builders.
 """
 
 # pylint: disable=missing-function-docstring

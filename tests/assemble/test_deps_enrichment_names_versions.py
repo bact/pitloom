@@ -8,7 +8,7 @@ enrichment in SPDX 3 SBOMs.
 
 See also: test_deps_enrichment_originator_license.py,
 test_deps_enrichment_pypi_fallback.py, test_deps_enrichment_prefetch.py --
-this module's siblings, split from the original test_deps_enrichment.py;
+the siblings for the rest of dependency enrichment;
 test_deps_enrichment_purl_license.py, the other cause of "Package
 identifiers missing" (a missing no-version PURL fallback) and a
 silently-discarded license relationship.

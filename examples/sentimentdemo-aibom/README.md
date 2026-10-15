@@ -85,8 +85,9 @@ Or, in one go:
 script maintains it through `pitloom id generate`, and `loom.Run` adds the
 model's entry itself on a fresh run; do not edit it by hand.
 Starting from an empty registry, the first run logs an `untracked file`
-`WARNING:` for the two `data/processed/` files (they do not exist when stage 0
-runs); later runs are silent. Training uses one thread so the model, and so
+`WARNING:` for the two `data/processed/` files (they do not exist when stage 0,
+`id generate`, runs); later runs log no `WARNING:`, only `INFO: ID registry: holds N id(s)`
+lines, and leave the file unchanged. Training uses one thread so the model, and so
 its registry entry, is identical on every run.
 
 The rest of this document walks through what each stage does, what it
@@ -262,7 +263,8 @@ labels, file hash, and so on. Pitloom reads those straight out of the
 binary:
 
 ```bash
-loom model models/sentimentdemo.bin -o fragments/04_model_file.spdx3.json --pretty
+loom model models/sentimentdemo.bin -o fragments/04_model_file.spdx3.json --pretty \
+  --id-registry loom-id-registry.json
 ```
 
 This is **independent of the training script** - you can run it against
@@ -336,7 +338,7 @@ the flag.)
 
 ## What ends up in the composite SBOM
 
-The final SBOM brings together five categories of information from four
+The final SBOM brings together six categories of information from five
 different sources:
 
 | Category | Source | Captured by | Stage |
@@ -371,24 +373,24 @@ PY
 A successful run typically prints something like:
 
 ```text
-Total elements: 72
-  Annotation: 21
+Total elements: 80
+  Annotation: 20
   CreationInfo: 4
-  LifecycleScopedRelationship: 3
-  Person: 3
-  Relationship: 20
+  LifecycleScopedRelationship: 5
+  Person: 4
+  Relationship: 22
   SoftwareAgent: 1
   SpdxDocument: 1
   Tool: 1
   ai_AIPackage: 1
   dataset_DatasetPackage: 4
   simplelicensing_LicenseExpression: 2
-  software_File: 6
+  software_File: 10
   software_Package: 3
   software_Sbom: 2
 ```
 
-The 21 `Annotation` elements and 4 `CreationInfo` elements (vs. 1 apiece
+The 20 `Annotation` elements and 4 `CreationInfo` elements (vs. 1 apiece
 in earlier Pitloom versions) are metadata provenance -- where each field
 came from and, for enrichment runs, what changed and why. Exact counts will drift release to release as more
 fields gain native SPDX 3 constructs or provenance coverage; treat this

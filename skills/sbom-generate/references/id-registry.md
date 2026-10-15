@@ -43,6 +43,7 @@ when the element has content, its SHA-256.
   only from an explicit `pitloom_config=`). A dataset package is looked up
   by the exact string the script passes (`add_dataset("data/train.txt")`),
   with no content check, so a remote or missing name is pinned the same way.
+  A run holds one package per name and content digest.
   A dataset that is one file also has a `software_File` (the package
   `contains` it), keyed by its path from the project root and gated by its
   hash; a dataset directory gets a Merkle root and no file elements.
@@ -98,7 +99,9 @@ Only `loom id generate` and `loom id import` create or index a registry;
 never hand-edit one. Run from the project directory (`PATH` and `-o`
 resolve against the current directory; a `PATH` outside the project, an
 unreadable one, or a `--project-dir` that is not a directory is an `ERROR:`,
-exit 1, nothing written; `-o -` is a usage error, exit 2):
+exit 1, nothing written; a `PATH` that does not exist is only `WARNING: ID
+registry: path not found, skipping: <path>` (exit 0, so a typo indexes
+nothing: check the `holds N id(s)` count); `-o -` is a usage error, exit 2):
 
 ```bash
 loom id generate <PATH...> -o loom-id-registry.json   # index files and AI models
@@ -322,7 +325,8 @@ carries a hash (a loom model declared with `path=`, merged as a fragment).
 - `WARNING: Merge: <Type> '<name>' shares spdxId <id> with a <Type> of a
   different SHA256 hash; keeping both, it gets new id <id>.` -- a merged
   fragment reused an id for other content; both elements stay. For equal
-  content the registry-pinned id survives the merge.
+  content under two ids the one more sources share (the registry-pinned
+  id) survives the merge.
 - `INFO: ID registry: package identity unknown; not looked up or recorded` --
   a wheel with no usable `.dist-info` or `METADATA` name; the registry is not
   touched for its package.

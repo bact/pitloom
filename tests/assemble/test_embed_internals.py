@@ -7,8 +7,8 @@
 prefix discovery, zip timestamp resolution, RECORD line updates, filename
 derivation, and archive-rewriting error paths.
 
-See also: test_embed_core.py, test_embed_cli.py -- this module's siblings,
-split from the original test_embed.py.
+See also: test_embed_core.py, test_embed_cli.py -- the siblings
+covering the core API and the CLI surface.
 """
 
 from __future__ import annotations

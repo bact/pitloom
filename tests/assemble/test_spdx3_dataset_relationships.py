@@ -7,8 +7,8 @@
 integration test that dataset-profile conformance is declared correctly
 during full document assembly.
 
-See also: test_spdx3_dataset_fields.py -- this module's sibling, split
-from the original test_spdx3_dataset.py.
+See also: test_spdx3_dataset_fields.py -- the sibling covering dataset
+package fields.
 """
 
 # pylint: disable=missing-function-docstring

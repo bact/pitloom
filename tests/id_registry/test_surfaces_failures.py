@@ -8,8 +8,7 @@ across *every* ``(surface, mode)`` pair -- not just one representative
 surface per category, as :mod:`tests.id_registry.test_surfaces`'s
 narrower ``test_library_and_loom_declared_bad_registry_raises`` /
 ``test_hook_declared_bad_registry_raises_one_error_no_sbom_files`` do. A
-surface
-offering three declaration modes (``flag``/``own_key``/``config_key``)
+surface offering three declaration modes (``flag``/``own_key``/``config_key``)
 resolves each through a different code path (see
 :mod:`tests.id_registry.test_relative_paths`'s module docstring for the
 per-route base-directory breakdown) -- only sweeping every mode, not just

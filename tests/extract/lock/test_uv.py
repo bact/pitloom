@@ -9,8 +9,7 @@ malformed/missing input handling, dependency-reference resolution, and
 the marker-ambiguity skip policy.
 
 See also: test_uv_transitive.py (the transitive-dependency walk
-over a resolved package's own nested ``dependencies``, split out once
-that cluster alone grew past this repo's per-file line-count guidance),
+over a resolved package's own nested ``dependencies``),
 test_uv_root_package.py (root/workspace-member package selection),
 test_uv_integration.py (``read_project()`` cascade wiring and
 real-world fixtures), test_pylock.py/test_poetry.py for the

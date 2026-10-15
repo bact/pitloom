@@ -103,7 +103,8 @@ and this project adheres to
   registry-pinned id survives ([#305])
 - `id generate`: an unreadable `PATH`, a non-directory `--project-dir` are an
   `ERROR:`; `-o -` is a usage error; a skipped-directory `PATH` warns; a
-  symlinked `PATH` directory is walked ([#305])
+  symlinked `PATH` directory is walked; a name UTF-8 cannot hold is skipped
+  with a `WARNING:`; `@graph` not a list is an `ERROR:` on `id import` ([#305])
 - A wheel with no identity (`unknown`) is not looked up in or recorded into an
   ID registry; a `loom.Run` dataset is one package per name and content ([#305])
 

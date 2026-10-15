@@ -8,7 +8,9 @@
 See also: :mod:`pitloom.id_registry._types` for ``RegistryEntry``, the
 type constants and file traversal, :mod:`pitloom.id_registry._registry`
 for ``IdRegistry`` itself, :mod:`pitloom.id_registry._format` for the
-file format, :mod:`pitloom.id_registry._harvest` for SBOM-element harvest
+file format, :mod:`pitloom.id_registry._counters` for the id counters,
+:mod:`pitloom.id_registry._generate` for indexing a project's files,
+:mod:`pitloom.id_registry._harvest` for SBOM-element harvest
 helpers, :mod:`pitloom.id_registry._ambiguous` for the keys harvest does
 not write, :mod:`pitloom.id_registry._session` for ``IdRegistrySession``,
 :mod:`pitloom.id_registry._persist` for saving a run's additions,

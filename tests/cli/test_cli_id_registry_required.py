@@ -3,15 +3,14 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression tests for the "registry location is required everywhere,
-never assumed" decision: `pitloom id generate`/`pitloom id import` with
-neither ``--id-registry``/``-o`` nor a declared project ``id-registry``
-key must print exactly one ``ERROR:`` line, exit 1, and write nothing --
-no implicit ``loom-id-registry.json`` fallback file.
+"""The registry location is required, never assumed: `pitloom id
+generate`/`pitloom id import` with neither ``--id-registry``/``-o`` nor a
+declared project ``id-registry`` key print exactly one ``ERROR:`` line,
+exit 1, and write nothing -- no implicit ``loom-id-registry.json`` file.
 
 See also: test_cli_id.py (the rest of `pitloom id`'s CLI tests),
 test_cli_id_config_errors.py (broken-config precedence and the
-"add to [tool.pitloom]" hint, both unaffected by this decision).
+"add to [tool.pitloom]" hint).
 """
 
 from __future__ import annotations

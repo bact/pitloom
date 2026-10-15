@@ -2,8 +2,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Order-matrix checks that run generated scripts: they parse, walks replay,
-and a deliberately broken registry lookup in a real run is caught.
+"""Order-matrix checks that run generated scripts: a retrain step writes
+new model bytes, the scripts parse, walks replay, and a deliberately
+broken registry lookup in a real run is caught.
 
 See also: ``test_manual_cli_checks_order.py`` (the invariants); the ``mcc``
 fixture is in ``conftest.py``.

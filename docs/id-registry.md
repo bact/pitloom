@@ -105,8 +105,8 @@ traceback, and takes precedence over that error.
 - Registry keys, and the default `PATH`s (`src`, `data`, `models`), stay
   relative to `--project-dir`; a relative `-o` or `PATH` resolves against the
   current directory.
-- `--project-dir` must be an existing directory, else `ERROR: --project-dir
-  <p> is not a directory` (exit 1). Each `PATH` must resolve inside it, else
+- `--project-dir` must be an existing directory, else `ERROR: --project-dir <p>
+  is not a directory` (exit 1). Each `PATH` must resolve inside it, else
   `ERROR: PATH <p> is outside --project-dir <dir>` (exit 1), whether directly
   or only through a symlink. `..` is collapsed lexically before any symlink
   is followed (`link/..` is the directory above `link` as written). A symlink
@@ -150,7 +150,8 @@ Exceptions:
 
 - A wheel whose name did not come from its `METADATA` (called `unknown`) is
   neither looked up nor recorded; its package gets a per-document id, with
-  one `INFO:` when a registry is declared.
+  one `INFO:` when a registry is declared. Its ids are not unique across
+  wheels: see [Wheel SBOMs](wheel-sbom.md#what-an-sbom-lists).
 - A `src/`-layout project's files are not found by `wheel` or sdist targets
   (their paths differ from the project's).
 - A `loom.Run` dataset's package is looked up by its name exactly as the

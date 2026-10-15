@@ -7,7 +7,9 @@
 
 See also: :mod:`pitloom.id_registry._registry` for ``IdRegistry`` itself,
 :mod:`pitloom.id_registry._format` for the file format,
-:mod:`pitloom.id_registry._harvest` for harvest and claim helpers,
+:mod:`pitloom.id_registry._generate` for the indexing that uses the file
+traversal here, :mod:`pitloom.id_registry._harvest` for harvest helpers,
+:mod:`pitloom.id_registry._session` for claims,
 :mod:`pitloom.id_registry.resolve` for registry resolution.
 """
 
@@ -334,15 +336,14 @@ def _iter_files(
     """Yield every regular file under *paths* in deterministic order,
     except the *exclude* file (the declared registry, matched by identity).
 
-    A missing path is skipped with a warning; one that cannot be
-    ``stat()``-ed or read (a directory: listed) raises, on every Python
-    version (as a ``ValueError`` naming the path), unless *explicit* is
-    false (implicit default roots: a ``FILE=``/``DIR=`` warning instead).
-    A path with an ignored directory name below the project is
-    skipped with a warning. Below a directory path,
-    a file that cannot be ``stat()``-ed (its directory not searchable) is
-    skipped with the shared ``FILE=`` warning, a directory that cannot be
-    listed with the ``DIR=`` one, as ``pitloom project`` does."""
+    A missing path, or one with an ignored directory name below the
+    project, is skipped with a warning. One that cannot be ``stat()``-ed
+    or read (a directory: listed) raises a ``ValueError`` naming it, on
+    every Python version, unless *explicit* is false (an implicit default
+    root: a ``FILE=``/``DIR=`` warning instead). Below a directory path,
+    a file that cannot be ``stat()``-ed is skipped with the shared
+    ``FILE=`` warning, a directory that cannot be listed with the
+    ``DIR=`` one, as ``pitloom project`` does."""
     seen: set[Path] = set()
     excluded = None if exclude is None else SameFile(exclude)
     for raw_path in paths:

@@ -5,6 +5,9 @@
 
 """Build SPDX 3 Core/Annotation elements recording metadata provenance.
 
+Ids such as A1, E1, G2, N3 and P1 in comments are use cases of
+``working-docs/implementation/provenance/use-case-catalog.md``.
+
 See Also:
     :mod:`pitloom.assemble.spdx3._provenance_encoders` for schema encoders
     and value parsing.

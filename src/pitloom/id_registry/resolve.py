@@ -135,14 +135,13 @@ def registry_key_for_path(registry: IdRegistry, path: Path) -> str | None:
     root (another drive included); the root itself is ``"."``.
 
     A relative *path* is taken from the current directory (``None`` when
-    that no longer exists). Tried first
-    lexically (``..`` collapsed, no symlink followed), so an in-project
-    file symlink keys by its own location, as ``id generate`` keys it; then
-    an ancestor of that lexical path that is the root by file identity
-    (reached through a symlinked ancestor: macOS ``/tmp`` is
-    ``/private/tmp``; or spelt in another case), the remainder kept as
-    spelt; last through ``os.path.realpath`` (a symlink from outside into
-    the root), matching an ancestor by spelling or identity (see
+    that is deleted). Tried lexically first (``..`` collapsed, no symlink
+    followed), so an in-project file symlink keys by its own location, as
+    ``id generate`` keys it. An ancestor of that path may be the root by
+    file identity (a symlinked ancestor: macOS ``/tmp`` is
+    ``/private/tmp``; or another case); the remainder is kept as spelt.
+    Last, through ``os.path.realpath`` (a symlink from outside into the
+    root), matching an ancestor by spelling or identity (see
     :func:`~pitloom.core.path_confine.inside_ancestor`). Never raises.
     """
     root = PurePath(registry.root_dir())

@@ -82,7 +82,7 @@ were met. Everything not listed was built as written.
   not recording it for <name>`.
 - **Manual checks are 20 (datasets) and 21 (models)**, as planned; the
   runner's `_checks_loom.py` holds them.
-- **D11 is built in `_fragments_ids.py`** (`rename_type_clash`), called from
+- **D11 is built in `_fragments_ids.py`** (`rename_id_clash`, also used for the digest clash below), called from
   `_MergeIndex.keep_apart` only for an element that is kept: a survivor by id
   (exact class equality, `type(a) is type(b)`, so a subclass never folds into
   its parent), licence, hash or structure is looked for first, so a same-hash
@@ -218,3 +218,54 @@ Decided by the user after the first full review; the code follows them.
 - **New private module `_embed_overlay.py`** (`merge_file_extras`,
   `add_concluded_license`, `adopt_project_authors`), split from
   `_embed_build_sbom.py`.
+
+## Fixes of the last review rounds (PR #305)
+
+- **`id generate` split.** `IdRegistry.generate()` delegates to
+  `id_registry/_generate.py` (`index_files(..., *, explicit)`), which keys
+  a file by its project-relative path computed lexically (`normpath` of file
+  and root), falling back to realpath only for a symlinked root; a file
+  outside the root is `ID registry: <path> is outside the project root
+  <root>`. `_types.py` has `_root_candidates` and `_eligible_files`; the
+  ignored-directory test is the walk's pruning plus `_skipped_name_in` for an
+  explicit PATH (`ID registry: path has a skipped directory name (<name>),
+  skipping: <path>`). A registry is excluded by identity, never by file name.
+- **Explicit versus implicit roots.** `explicit` (`bool(args.paths)` in
+  `cli/id.py`) is threaded to the one walk: an unreadable PATH the user gave
+  is `ERROR: PATH <p>: could not be read: <reason>` (rc 1, nothing written);
+  an unreadable default root (`src`, `data`) is the shared `DIR=`/`FILE=`
+  `WARNING:` and the run goes on.
+- **CLI edges.** `--project-dir` that is not a directory: `ERROR:
+  --project-dir <path> is not a directory`; `-o -` on `id generate` and
+  `id import` is a usage error (exit 2).
+- **Names that cannot be UTF-8 encoded** (a lone surrogate): `register()` and
+  the loader reject them (`unencodable_message`); `id generate` skips the file
+  with the shared `FILE=...` warning; harvest and import skip the element with
+  a `WARNING:` after reserving its id.
+- **Smaller API edges.** `IdRegistry.load()` of a non-path argument is a
+  `TypeError`; `import_sbom` names a non-list `@graph` or a non-object
+  element; `registry_key_for_path` returns `None` when the current directory
+  was deleted; one `PROJECT_FILES` constant in `core/walk_rules.py`;
+  `load_config_file(path, *, source=)`, loom passing `pitloom_config`.
+- **Merge.** Elements with one id and type but disjoint digests of one
+  algorithm are kept apart (`hash_conflict`, `_fragments_hashes.py`): the later
+  gets a new id and one `Merge: ... of a different SHA256 hash; keeping both,
+  it gets new id ...` `WARNING:`, after the content-hash and structural
+  criteria have run. The hash-fold survivor is the id whose namespace more
+  sources share (registry-pinned) over a fragment-local minted id; a tie keeps
+  the earlier. All fragments load before the first merge; property helpers
+  moved to `_fragments_props.py`; `sha256_of` to `export/hashes.py`.
+- **Loom.** One `dataset_DatasetPackage` per (name, content digest) per run;
+  `Run.__exit__` restores the enclosing run in a `finally` (recursive
+  `@loom.run`); a NUL or `ValueError` in a model `path=` is the usual
+  unreadable-model `WARNING:`.
+- **Wheels with no identity.** `DocumentModel.identity_known` is `False` when
+  the package name did not come from `METADATA`: the main package is not
+  looked up, its id joins `registry_non_readers`, and a declared registry gets
+  `INFO: ID registry: package identity unknown; not looked up or recorded`.
+  Not fixed: the document namespace still derives from `unknown`, and the
+  sdist placeholders ([id-registry-followups.md](../design/id-registry-followups.md)).
+- **Size splits.** `_registry.py` is under 500 lines; tests split into
+  `test_registry_generate_models.py`, `test_manual_cli_checks_order_runs.py`
+  and `test_models_wheel_exclude_path_copy.py` (with
+  `_exclude_path_shared.py`).

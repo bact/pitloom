@@ -112,23 +112,28 @@ Security/KPI clusters -- all either need human judgement or aren't
 derivable from repo content alone, matching the checklist's own
 "not automatable" calls.
 
-## Implementation order (mirrors roadmap.md's 1.0 table)
+## Implementation order (numbered as in roadmap.md)
 
-1. **Mechanical wiring** (`DatasetMetadata.license` -> `dataset.py`;
-   reuse the existing model-file hash for `ai_AIPackage.verifiedUsing`)
-   -- smallest, zero design risk, code-verified gaps.
-2. **Fix the stale `minimum-elements.md` claims** -- prevents the
-   agent/Skill from re-asking users about fields core already covers.
-   **Done 2026-09-20.** Re-verified against code and a fresh run: besides
-   the four rows above (now "conditional" -- emitted only when the
-   format/source carries the value), Model properties' architecture,
-   Dataset description/identifier/provenance/sensitivity/statistical
-   rows were also stale (partly wired via Croissant), and two rows
-   over-claimed: Dataset hash (no `verifiedUsing` on
-   `dataset_DatasetPackage`) and the CISA "main package never hashed"
-   note (it carries the Merkle root).
-3. **Model producer + parameter count** (structured sources only) --
-   medium, self-contained, no SDK changes needed.
-4. **`loom` SDK expansion** for dataset provenance + model
-   training-properties -- largest, needs the `loom-sdk-and-notebooks.md`
-   design revisited with this G7 framing before implementing.
+The numbers are the 1.0 table's, the ones `roadmap.md` and the "G7 #N"
+references use: **#3** mechanical wiring, **#4** stale claims (done), **#6**
+model producer and parameter count, **#7** `loom` SDK expansion. (The 1.0
+table's #1, #2 and #5 are not G7 field items.)
+
+- **#3 Mechanical wiring** (`DatasetMetadata.license` -> `dataset.py`;
+  reuse the existing model-file hash for `ai_AIPackage.verifiedUsing`)
+  -- smallest, zero design risk, code-verified gaps.
+- **#4 Fix the stale `minimum-elements.md` claims** -- prevents the
+  agent/Skill from re-asking users about fields core already covers.
+  **Done 2026-09-20.** Re-verified against code and a fresh run: besides
+  the four rows above (now "conditional" -- emitted only when the
+  format/source carries the value), Model properties' architecture,
+  Dataset description/identifier/provenance/sensitivity/statistical
+  rows were also stale (partly wired via Croissant), and two rows
+  over-claimed: Dataset hash (no `verifiedUsing` on
+  `dataset_DatasetPackage`) and the CISA "main package never hashed"
+  note (it carries the Merkle root).
+- **#6 Model producer + parameter count** (structured sources only) --
+  medium, self-contained, no SDK changes needed.
+- **#7 `loom` SDK expansion** for dataset provenance + model
+  training-properties -- largest, needs the `loom-sdk-and-notebooks.md`
+  design revisited with this G7 framing before implementing.

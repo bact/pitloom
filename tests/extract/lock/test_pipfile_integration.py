@@ -8,8 +8,7 @@
 cascade (:mod:`pitloom.extract.lock.cascade`), and real-world
 fixture coverage.
 
-See also: test_pipfile.py (core extraction and validation unit
-tests this module's integration tests were split from).
+See also: test_pipfile.py (core extraction and validation unit tests).
 """
 
 import json

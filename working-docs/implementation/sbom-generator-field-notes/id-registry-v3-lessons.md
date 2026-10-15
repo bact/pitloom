@@ -145,3 +145,52 @@ problems found on the way are in the follow-ups doc, not here.
   [process-lessons.md](process-lessons.md).
   Do: name file ownership in each brief, and run the full suite once, after
   the last agent reports.
+
+## 6. What a fresh reviewer found after 12,452 passing tests (PR #305)
+
+Three independent read-only reviewers ran real repros against the live tree
+and a `git archive HEAD` copy. They found a dozen defects the author and the
+suite had not; each below is a class, with its measured instance.
+
+- **A guard placed before a side effect drops the effect.** An element whose
+  name cannot be encoded as UTF-8 (a lone surrogate from a non-UTF-8 file
+  name, `\udcff`) was skipped before its id was reserved, so the counter
+  passed no number for it and the 7th mint returned the skipped `#File-9`:
+  a retired id reused, the invariant the counters table exists to keep.
+  Do: reserve first, then guard; assert on the next mint.
+- **A name that cannot be encoded freezes the whole registry.** One such key
+  made every save raise `UnicodeEncodeError` inside the RFC 8785 key sort,
+  so the registry stayed unwritable from then on (the file was never
+  corrupted). Do: refuse it at `register()` and at load, skip it in the walk
+  with one warning, and log it escaped (`ascii()`), because logging a lone
+  surrogate on a UTF-8 stream raises too.
+- **A fix scoped to explicit input leaked to implicit input.** "An unreadable
+  PATH is an error" was implemented in the walk root, which the default roots
+  share: an unreadable `data/` turned a warning-and-continue into exit 1.
+  Found only by diffing the CLI against HEAD on a probe corpus. Do: carry an
+  `explicit` flag from the argument parser to the one walk.
+- **A conflict branch must skip itself, not the cascade.** On a sha256
+  conflict between two elements sharing an id, the survivor search returned
+  "none" and never tried the content-hash or structural criteria: the same
+  changed bytes in two fragments became two elements. Do: skip only the
+  by-id fold.
+- **A placeholder must be a flag, not a key.** A wheel with no usable
+  `.dist-info` is named `unknown`; looked up like a real name, two unrelated
+  wheels shared one package id and a junk registry entry. A name test cannot
+  decide it (`unknown` is a real PyPI name). The document namespace is seeded
+  from the same placeholder, so wheels with identical payload digests still
+  share every id (open). Do: set an explicit `identity_known` in the
+  generator.
+- **Prefer the id more fragments share.** With first-seen survivors, the
+  sentimentdemo merged wheel SBOM kept run-minted ids for the two processed
+  data files and lost the registry's `#File-8`/`#File-9`. A minted id's
+  namespace belongs to one fragment; the registry's is shared. Count sources
+  per namespace over all fragments before the first merge, keep the earlier on
+  a tie; reversed order must give the same ids.
+- **`relative_to` keeps `..`.** `generate([Path("../out/o.txt")], root)`
+  registered the key `../out/o.txt`. Do: lexical `normpath`, then
+  `relative_to`; `realpath` only as the fallback.
+- **Count the reviewer, not only the tests.** 12,452 tests and 100% branch
+  coverage passed with all of the above present.
+  Do: have a reader who did not write the code run adversarial repros, and
+  compare against a HEAD archive.

@@ -7,8 +7,8 @@
 (A1), conflict (G2), enrichment (E1/E2), and source-metadata (P1).
 
 See also: test_annotation_provenance_core.py,
-test_annotation_provenance_emit.py -- this module's siblings, split from
-the original test_annotation_provenance.py.
+test_annotation_provenance_emit.py -- the siblings covering value parsing,
+encoders and emission.
 """
 
 # pylint: disable=missing-function-docstring
@@ -189,7 +189,7 @@ def test_build_enrichment_annotation_shape_and_determinism() -> None:
 
 def test_build_enrichment_annotation_reuses_g2_role_vocabulary() -> None:
     """E2 deliberately reuses G2's exact role vocabulary rather than
-    inventing a separate one -- see annotation-provenance.md."""
+    inventing a separate one -- see provenance/annotation-provenance.md."""
     ci = _make_ci()
     changes: list[EnrichedFieldEntry] = [
         {

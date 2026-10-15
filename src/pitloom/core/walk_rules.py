@@ -11,7 +11,7 @@ of it", and of the warning given when that registry sits inside the walked
 tree.
 
 See also: :mod:`pitloom.core._models_wheel` (project file discovery),
-:mod:`pitloom.id_registry._types` (``id generate`` indexing) and
+:mod:`pitloom.id_registry._types` (``id generate`` file traversal) and
 :func:`pitloom.id_registry.resolve.registry_copy` (the root a wheel or sdist
 reader matches members against).
 """

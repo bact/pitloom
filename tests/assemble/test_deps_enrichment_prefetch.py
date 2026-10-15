@@ -9,8 +9,8 @@ handling in ``pitloom.assemble.spdx3.deps``.
 
 See also: test_deps_enrichment_names_versions.py,
 test_deps_enrichment_originator_license.py,
-test_deps_enrichment_pypi_fallback.py -- this module's siblings, split from
-the original test_deps_enrichment.py.
+test_deps_enrichment_pypi_fallback.py -- the siblings for the rest of
+dependency enrichment.
 """
 
 # pylint: disable=protected-access

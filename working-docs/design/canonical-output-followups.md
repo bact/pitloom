@@ -210,7 +210,7 @@ announced under CHANGELOG `### Changed`, not treated as an internal detail.
   keep as written everywhere.
 - **Current behaviour:** kept as written, except where a reader translates
   newlines: installed `METADATA` read through `importlib.metadata` loses the
-  CR a wheel's `METADATA` keeps ([known-bugs.md](known-bugs.md#p3-after-0200)).
+  CR a wheel's `METADATA` keeps ([known-bugs.md](known-bugs-p3.md)).
 - **Recommendation:** see the decision above; the licence-only parts
   (case, inner spacing, trailing `\r` in a name) are C11.
 - **Owner:** roadmap "Canonical output"; C11 for the licence-only parts.
@@ -266,7 +266,7 @@ canonicalisation, and no working doc records how.
 - **Why it matters:** blank-node labels (`_:CreationInfo0`) are serialiser
   output, not content; two fragments that each use `_:CreationInfo0` fail
   `loom fragment validate A B`
-  ([known-bugs.md](known-bugs.md#p3-after-0200)). The SPDX canonical
+  ([known-bugs.md](known-bugs-p3.md)). The SPDX canonical
   serialisation is silent on graph order
   ([spdx-spec#1362](https://github.com/spdx/spdx-spec/issues/1362), open).
 - **Options:** RFC 8785 plus `@graph` order only (reword CLAUDE.md);
@@ -309,7 +309,7 @@ compared. Sources, cascade, conflicts and provenance stay in
 [license-rules.md](license-rules.md#open-questions) (its questions 10, 11,
 16 and 17 moved here). Every value goes through `classify_license()`, and
 each `(kind, value)` it yields is one licence element. "Was" names the
-origin; KB is [known-bugs.md](known-bugs.md#p3-after-0200).
+origin; KB is [known-bugs.md](known-bugs-p3.md).
 
 ### C11. Licence text and name equivalence beyond line endings
 

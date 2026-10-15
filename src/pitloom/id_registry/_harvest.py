@@ -6,6 +6,7 @@
 """SBOM-element harvest helpers for :class:`~pitloom.id_registry.IdRegistry`.
 
 See also: :mod:`pitloom.id_registry._types` for the registry dataclasses,
+:mod:`pitloom.id_registry._ambiguous` for the keys left out,
 :mod:`pitloom.id_registry._registry` for ``IdRegistry`` itself (it imports
 this module, so the reverse import is ``TYPE_CHECKING``-only).
 """

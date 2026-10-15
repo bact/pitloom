@@ -144,8 +144,9 @@ open: a same-type id coincidence with no digest on either side still merges
 (the "Found, not fixed" item in
 [id-registry-autosync.md](../implementation/id-registry-autosync.md#found-not-fixed)),
 and a re-minted id can in theory collide with a *later* fragment that carries
-the same id (all fragments load before the first merge, so a pre-scan is
-possible). Accepted for now.
+the same id (for example `<ns>#DatasetPackage-1` re-declared by a later
+fragment and not in the base; all fragments load before the first merge, so a
+pre-scan is possible). Accepted for now.
 
 ### `pitloom.loom` run namespaces
 
@@ -253,9 +254,6 @@ Loom:
 
 Merge and warnings:
 
-- **A later fragment re-declaring a main-namespace id** (for example
-  `<ns>#DatasetPackage-1`) that is not in the base can collide with an id
-  minted earlier in the same merge. Needs a pre-scan of all fragments.
 - **`loom fragment list` now computes the registry exclusion**, so an invalid
   declared registry reports `SAME_DOCUMENT` unknown instead of an id.
 - ~~**`load_config_file` says "--config file"**~~ Resolved 2026-10-15: the
@@ -363,19 +361,20 @@ Resolved:
   copies are recognised by origin and keep an absolute `physical_path`.
 - ~~**The loom registry-in-dataset warning needed a Merkle root**~~. Resolved:
   it also fires when the directory gets none.
+- ~~`cli/_id_target.py` repeated the project-marker list~~. Resolved: one
+  `PROJECT_FILES` in `core/walk_rules.py`.
+- The remaining fixes of the later rounds (explicit versus implicit unreadable
+  roots, UTF-8-unencodable names, `-o -`, the `_generate.py` split) are in
+  [id-registry-v3-build-notes.md](../implementation/id-registry-v3-build-notes.md).
 
 Open:
 
-- ~~`cli/_id_target.py` repeated the project-marker list~~ Resolved: one
-  `PROJECT_FILES` in `core/walk_rules.py`.
 - `IdRegistry.save()` called directly by a library user is still a plain
   write; only the CLI, harvest and loom use rebase and replay.
 - A retired id above the 10**9 reservation ceiling could in theory be minted
   again after a billion mints.
 - The in-place write for a writable registry in a read-only directory is not
   atomic.
-- Windows `os.replace` while another process holds the registry open has no
-  retry.
 
 ### Design questions for the user
 

@@ -135,7 +135,8 @@ def dependency_package_id(
 
 @dataclass
 class ProjectPackageIds:
-    """Every ``software_Package`` hit :func:`build` pre-resolved."""
+    """Every ``software_Package`` hit pre-resolved before
+    :func:`~pitloom.assemble.spdx3.document.build` reserves its ids."""
 
     main: str | None
     dependencies: DependencyIdHits

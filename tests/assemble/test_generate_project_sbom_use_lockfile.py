@@ -7,7 +7,7 @@
 :func:`pitloom.assemble.generate_project_sbom`: CLI/library flag,
 ``[tool.pitloom] use-lockfile`` config, and their precedence.
 
-See also: :mod:`tests.extract.test_project` for the lower-level
+See also: :mod:`tests.extract.project.test_project` for the lower-level
 ``read_project(include_locked_dependencies=...)`` coverage this builds on.
 """
 

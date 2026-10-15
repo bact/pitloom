@@ -108,7 +108,9 @@ warn and name the package `unknown`; `wheel --embed`, `embed-wheel`,
 its headers only (at most 16 MiB and 10,000 headers); past a cap, one
 `WARNING:` per command and the name is `unknown`. That placeholder is not
 looked up in or recorded into an ID registry: the package gets a per-document
-id and, with a registry declared, one `INFO:` says so.
+id and, with a registry declared, one `INFO:` says so. The document namespace
+still derives from the name `unknown`, so two unidentified wheels with the same
+payload share their file and package ids; do not merge their SBOMs.
 
 **Authors.** A wheel's `METADATA` does not keep `[project].authors` as
 declared. Backends write a name-only author into the free-text `Author`

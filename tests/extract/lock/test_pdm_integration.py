@@ -8,8 +8,8 @@
 cascade (:mod:`pitloom.extract.lock.cascade`), and real-world fixture
 coverage.
 
-See also: test_pdm.py (core extraction unit tests this module was split
-from); test_cascade.py for the cascade mechanism's own tests.
+See also: test_pdm.py (core extraction unit tests); test_cascade.py for the
+cascade mechanism's own tests.
 """
 
 import logging

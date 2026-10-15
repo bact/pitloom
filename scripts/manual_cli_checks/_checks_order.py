@@ -13,7 +13,7 @@ against the invariants of ``_order_invariants.py``.
   order only)`` -- the same keys, ids a type-preserving bijection --,
   ``order-dependent (benign: id import dropped a content gate)`` -- as
   that, the sha256 differing only for keys an `id import` logged
-  ``content gate dropped`` for (BN ruling 2026-10-15) -- or a violation.
+  ``content gate dropped`` for (BN) -- or a violation.
 - ``O2/<fixture>/<n>``: seeded random walks with mutating steps.
 - ``O3/<fixture>``: each reader step three times running (C).
 - ``O4/<fixture>``: injected v2, invalid and read-only registries (H).

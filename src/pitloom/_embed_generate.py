@@ -75,10 +75,10 @@ def _resolve_embed_registry(
     """Resolve (and thereby validate) the registry
     :func:`~pitloom.embed.embed_wheel_sbom` would use, without needing
     ``wheel_metadata`` -- so a declared-but-bad registry can be caught
-    before the wheel is read at all. Mirrors the
-    two branches :func:`_generate_embed_sbom_json` resolves the registry
-    in (standalone vs. project-backed). Raises :class:`ValueError` on a
-    bad registry, same as :func:`~pitloom.id_registry.resolve_registry`.
+    before the wheel is read at all. Mirrors the two branches
+    :func:`_generate_embed_sbom_json` resolves the registry in (standalone
+    vs. project-backed). Raises :class:`ValueError` on a bad registry, as
+    :func:`~pitloom.id_registry.resolve_registry` does.
 
     An explicit *id_registry* always wins, so the project's own config is
     never read for it (skips the peek entirely). Returns the resolved
@@ -307,10 +307,10 @@ def _build_sbom_standalone_wheel(
 
     *cfg* holds only explicit settings (an explicitly named config and the
     per-run overrides); nothing is borrowed from the current directory. The
-    AI models are the ones inside the wheel. A batch (the cache in *batch*) hints at
-    ``--scan-model-usage`` once, from the first wheel that has models, and
-    likewise says once per format that a gated model was listed without
-    metadata.
+    AI models are the ones inside the wheel. A batch (the cache in *batch*)
+    hints at ``--scan-model-usage`` once, from the first wheel that has
+    models, and likewise says once per format that a gated model was listed
+    without metadata.
     """
     file_cache, trust = batch
     files = without_registry_copies(

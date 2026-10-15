@@ -6,7 +6,10 @@
 """Merging of pre-generated SPDX 3 fragment files into an SBOM document.
 
 See also: :mod:`pitloom.assemble.spdx3._fragments_unify` for internal unification
-logic (licences: :mod:`~pitloom.assemble.spdx3._fragments_licenses`),
+logic (property merging: :mod:`~pitloom.assemble.spdx3._fragments_props`;
+digest conflicts: :mod:`~pitloom.assemble.spdx3._fragments_hashes`; ids:
+:mod:`~pitloom.assemble.spdx3._fragments_ids`; licences:
+:mod:`~pitloom.assemble.spdx3._fragments_licenses`),
 :mod:`pitloom.assemble.spdx3._fragments_refs` for the dangling-reference check
 and :mod:`pitloom.assemble.spdx3._fragments_envelope` for ``loom merge``'s
 document envelope.
@@ -450,16 +453,11 @@ def merge_fragments(
         if adopt_fragment_roots:
             main_doc.rootElement = sorted({*roots, *(main_doc.rootElement or [])})
 
-    # Checked unconditionally -- NOT gated by `merged_any`. A required
-    # fragment that's missing is exactly the scenario most likely to leave
-    # merged_any False (nothing else may have merged either), so gating
-    # this on merged_any would silently suppress the one case it exists to
-    # catch. Checked before the dangling-references raise below: a missing
-    # required fragment is usually the *root cause* of any dangling
-    # references the rest of the graph would otherwise show (other
-    # fragments' relationships pointing at elements the missing required
-    # fragment was supposed to supply) -- report the root cause, not the
-    # downstream symptom, when both would otherwise fire in the same run.
+    # Checked even when no fragment loaded (a missing required fragment may
+    # be the only one), and before the dangling-references raise below: a
+    # missing required fragment is usually the root cause of any dangling
+    # references (other fragments pointing at elements it was to supply),
+    # so report it, not the symptom.
     if unmet_required:
         raise FragmentMergeError(
             f"{len(unmet_required)} required fragment(s) could not be "

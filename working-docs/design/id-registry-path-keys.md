@@ -36,7 +36,7 @@ their statements about which name an entry is keyed by change.
 ## 1. Problem: every collision and miss class today
 
 Probes were run on 2026-10-15 against the working tree (registry-v3 branch
-plus the uncommitted v3 fix round) in a scratch src-layout project
+plus the v3 fix round of PR #305) in a scratch src-layout project
 (`src/demo/x.py`, `models/{a,b}/model.npy`, `models/solo.npy`, `data/t.txt`),
 a monorepo copy, and loom scripts. "Probed" marks a reproduced result.
 
@@ -64,7 +64,7 @@ merge/fragment harvest, the GitHub Action (wraps the CLI) and the skills
 | K13 | **Display-escaped retry**: `IdRegistrySession.lookup_id` also tries `escape_display_controls(name)`, because `id import` stores names as the SBOM shows them. A path computed from disk is raw; harvest from the SBOM is escaped: two spellings of one key. | id import, every lookup | `IdRegistrySession.lookup_id` |
 | K14 | **Directory keys**: directories are looked up by distribution directory (`demo`), never by `src/demo`; `id generate` never registers one; a harvest writes them with document-namespace ids (probed). | project, wheel, sdist | `_resolve_directory_hits_for_file` |
 | K15 | **`--allow-build`**: `physical_path` is absolute into a temp directory, so `project_relative_or_fallback` falls back to the distribution path: K1 again. An included file outside the project dir (`force-include ../shared/x`) is absolute too, and indistinguishable from a built one by the path alone. | project `--allow-build`, hook | `_physical_path` (`core/_models_wheel.py`) |
-| K16 | **Same id, two contents in a merge**: being fixed in the working tree (uncommitted `hash_conflict` in `_fragments_unify.py`). Not a key problem; listed so this plan does not redo it. | merge | `_find_survivor` |
+| K16 | **Same id, two contents in a merge**: fixed in PR #305 (`hash_conflict` in `_fragments_hashes.py`, `rename_id_clash` in `_fragments_ids.py`). Not a key problem; listed so this plan does not redo it. | merge | `_find_survivor` |
 | K17 | **Harvest re-keys by `.name`**: a merged loom fragment's model or dataset carries the registry id it got by its loom key; harvest writes it under the element name and `_release_stale_keys_for_id` drops the other key (G7 blocker 2's mechanism). | project, wheel (merged fragments), id import | `_import_sbom_element` |
 
 Not key problems, kept out (section 7): same-type id coincidences in a merge,

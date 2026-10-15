@@ -69,10 +69,12 @@ subsystem -- worth checking for by name in any code that resembles the
 shape described, not just the module where each was first found. Full
 detail (war stories, PR references, exact code shapes) lives in
 [working-docs/implementation/recurring-bug-patterns.md](working-docs/implementation/recurring-bug-patterns.md)
-(data and semantics) and
+(data and semantics),
 [recurring-bug-patterns-platform.md](working-docs/implementation/recurring-bug-patterns-platform.md)
-(platform, concurrency, test harness, CI) -- read them before extending
-or citing any of these one-liners.
+(platform, concurrency, test harness, CI) and
+[recurring-bug-patterns-review-rounds.md](working-docs/implementation/recurring-bug-patterns-review-rounds.md)
+(PR #300 and #305 review rounds) -- read them before extending or citing
+any of these one-liners.
 
 - **`None` vs `[]`/`{}` (empty-but-present) is a distinct signal, not two
   spellings of the same thing.** `None`/absent means "this source doesn't
@@ -161,6 +163,10 @@ or citing any of these one-liners.
   call's arguments (`Mock(wraps=os.chmod)`) instead of asserting `stat()`
   there; keep the real bit-for-bit assertion on POSIX (PR #220,
   [windows-macos-ci.md](working-docs/implementation/windows-macos-ci.md)).
+- **`Path.write_text("x\n")` writes CRLF on Windows**, so a test asserting
+  the digest of the literal `b"x\n"` misses there only (PR #305, one leg).
+  Write a fixture with `write_bytes` whenever a known digest is asserted
+  ([recurring-bug-patterns-platform.md](working-docs/implementation/recurring-bug-patterns-platform.md)).
 - **A third-party library's undocumented breaking API change can be
   survived without an upper version pin** by detecting its actual
   runtime shape (e.g. `len(SomeClass.__parameters__)` for a changed
@@ -280,7 +286,26 @@ or citing any of these one-liners.
 - **Compare a linter's error count against HEAD with the same interpreter.**
   `pyrefly` run from a `git archive` copy with another interpreter gave 71
   errors against 41; with `--python-interpreter` the same 41 (PR #300).
-  Detail: [recurring-bug-patterns.md](working-docs/implementation/recurring-bug-patterns.md).
+  Detail: [recurring-bug-patterns-review-rounds.md](working-docs/implementation/recurring-bug-patterns-review-rounds.md).
+- **A guard added before a side-effecting step drops that side effect.**
+  A skip-on-bad-name `return` ahead of `reserve_id()` let a skipped
+  element's id be minted again (PR #305). Do the reservation first; assert
+  on the next mint, not only on the skip.
+- **A fix scoped to "explicit input" needs an explicit flag.** An
+  unreadable-root `ERROR` meant for a PATH argument also hit the implicit
+  default roots (both are walk roots): a regression found only by diffing
+  CLI output against a `git archive HEAD` copy on a probe corpus (PR #305).
+- **A conflict branch must skip itself, not the cascade.** `_find_survivor`
+  returned `(None, "")` on a hash conflict and never tried the sha256 or
+  structural criteria, leaving identical bytes as two elements (PR #305).
+- **`Path.relative_to` does not collapse `..`.** `normpath` lexically
+  first, `realpath` only as the fallback, or an outside path registers as
+  `../out/f` (PR #305).
+- **Choose a merge survivor from counts over all inputs, never first-seen**:
+  load every input before the first merge, rank with a stable tie-break,
+  and prove reversed input order gives the same ids (PR #305).
+  Detail for these five:
+  [recurring-bug-patterns-review-rounds.md](working-docs/implementation/recurring-bug-patterns-review-rounds.md).
 
 ## CLI output
 
