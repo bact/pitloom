@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from pitloom._embed_build_sbom import _add_concluded_license
+from pitloom._embed_overlay import add_concluded_license
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import _family, detect_license_from_text
 from pitloom.extract.project.sdist import read_sdist
@@ -111,5 +111,5 @@ def test_embed_wheel_concludes_the_stated_licence(tmp_path: Path) -> None:
         (tmp_path / "LICENSE").write_bytes(member.read())
     metadata = ProjectMetadata(name="requests", version="2.34.2")
     metadata.license_name = "Apache-2.0"
-    _add_concluded_license(metadata, tmp_path)
+    add_concluded_license(metadata, tmp_path)
     assert metadata.license_concluded == "Apache-2.0"

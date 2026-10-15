@@ -281,7 +281,11 @@ entry = {spdxId, sha256?}      # sha256 only on software_File / ai_AIPackage, wh
   namespace it reads (stored, or skipped as ambiguous); an id in another
   namespace leaves it alone. `rebase()` merges counters by maximum, so no
   run lowers one, and a run that minted saves its counter even when its
-  entries were replaced or refused. Rejected: deriving the counter from the
+  entries were replaced or refused. A harvest, `id import` or SBOM reserves
+  numbers only up to 10**9 (a larger one cannot be minted past), and an id
+  whose prefix is not a valid IRI segment (`/`, `?`, space, `#`, a
+  lowercase `%xx`) reserves nothing; `register("")` raises. The
+  `id_counters` check also applies on save. Rejected: deriving the counter from the
   held ids alone (that is the bug), and a counter per type rather than per
   prefix (the id text is what collides).
 
@@ -330,8 +334,14 @@ v2 -> v3:
 - `IdRegistrySession.file_id(...)`, `.entity_id(...)` ->
   `.lookup_id(claimant, type, names, *, sha256=None, on_miss=None)`. First
   claimant wins, unchanged.
-- New public helpers: `persist_registry(registry, new_ids, changed)` (the
-  save-and-log tail of `_sync_registry`, shared with loom; 8.4),
+- New public helpers: `save_registry(registry) -> Rebase`, the one routine
+  every write goes through (`id generate`, `id import`, harvest, loom): it
+  calls `rebase()` and saves only when the file differs. `Rebase` is
+  `(refused, pending, added)`; `added` counts the distinct ids a save adds
+  to the file that the table last read did not hold, under keys it did not
+  hold. `persist_registry(registry, new_ids, changed)` (the
+  save-and-log tail of `_sync_registry`, shared with loom; 8.4), now calls
+  it and logs `added` (at most `new_ids`),
   `registry_key_for_path(registry, path)` (D9; 8.3), `type_id_prefix`,
   and the constants `FILE_TYPE`, `PACKAGE_TYPE`, `AI_PACKAGE_TYPE`,
   `DATASET_PACKAGE_TYPE` (replacing the hand-typed literals and

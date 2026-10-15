@@ -19,12 +19,25 @@ from __future__ import annotations
 import re
 
 from pitloom.core.canonical_json import MAX_SAFE_INTEGER
+from pitloom.core.iri import is_iri_segment
 
-__all__ = ["MAX_ID_NUMBER", "Counters", "id_number", "merge_counters"]
+__all__ = [
+    "MAX_ID_NUMBER",
+    "RESERVE_CEILING",
+    "Counters",
+    "id_number",
+    "merge_counters",
+]
 
 #: The largest counter: RFC 8785 writes a larger integer as a string, which
 #: would not load back.
 MAX_ID_NUMBER = MAX_SAFE_INTEGER
+
+#: The largest number an id read from an SBOM or a table reserves. A foreign
+#: source can hand over any number up to :data:`MAX_ID_NUMBER`; reserving it
+#: would leave no number to mint. 10**9 is far above any project's mint
+#: count and leaves almost all of the range to mints.
+RESERVE_CEILING = 10**9
 
 #: Id prefix -> the highest number minted or seen under it.
 Counters = dict[str, int]
@@ -36,14 +49,17 @@ _NUMBER = re.compile(r"[1-9][0-9]{0,15}")
 
 def id_number(namespace: str, spdx_id: str) -> tuple[str, int] | None:
     """``(prefix, n)`` when *spdx_id* is ``<namespace>#<prefix>-<n>``, the
-    shape a mint writes, with *n* from 1 to :data:`MAX_ID_NUMBER`; else
-    ``None`` (another namespace, or a fragment such as
-    ``AIPackage-whisper-tiny`` that ends in no number)."""
+    shape a mint writes: *prefix* an id prefix a counter can be stored
+    under (:func:`~pitloom.core.iri.is_iri_segment`, as a mint encodes it)
+    and *n* from 1 to :data:`MAX_ID_NUMBER`. Else ``None``: another
+    namespace, a fragment such as ``AIPackage-whisper-tiny`` that ends in
+    no number, or a prefix no mint writes (``pkg/requests``), which can
+    never collide with a minted id."""
     head = namespace + "#"
     if not spdx_id.startswith(head):
         return None
     prefix, _, digits = spdx_id[len(head) :].rpartition("-")
-    if not prefix or not _NUMBER.fullmatch(digits):
+    if not is_iri_segment(prefix) or not _NUMBER.fullmatch(digits):
         return None
     number = int(digits)
     return (prefix, number) if number <= MAX_ID_NUMBER else None

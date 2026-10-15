@@ -476,12 +476,18 @@ the SBOMs written, never registry code.
   `WARNING:`/`ERROR:` shapes logged, known findings.
 - **Failures**: a sequence that breaks an invariant keeps its script,
   fixture, logs and outputs in `$TMPDIR/ord-repro-*` (at most five per
-  check; delete them when done). Replay with
+  check). The runner never removes them (a concurrent run may still
+  need its own); the failure prints the cleanup hint
+  `rm -rf <tmp>/ord-repro-*`. Replay with
   `sh <repro>/seq.sh "$(mktemp -d)"`; `PITLOOM_PYTHON` picks the
   interpreter.
 - **Known findings**: `_order_known.py` lists accepted ones, each naming
   its [id-registry-followups.md](../design/id-registry-followups.md)
-  item; a check failing only on those ends `KNOWN`.
+  item; a check failing only on those ends `KNOWN`. A violation is
+  matched against the registry of its own step (else the last one
+  captured). Each check's `report.txt` lists the first four allow-listed
+  violations of each item (`  known: ...`) after its `known xN` counts, to
+  see what the allow-list let through.
 - POSIX only (skipped on Windows); the read-only cases skip as root.
   `tests/scripts/test_manual_cli_checks_order.py` checks that every
   invariant fires on a doctored step, and that a broken registry lookup

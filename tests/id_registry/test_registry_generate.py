@@ -416,9 +416,11 @@ def test_generate_a_stem_becoming_shared_leaves_its_entry_as_is_and_back(
     assert path.read_bytes() == second
     fresh_entry = fresh.get(AI_PACKAGE_TYPE, "m")
     assert fresh_entry is not None and fresh_entry.sha256 is None
-    shared = "ID registry: 2 model files share the name m; its entry is left as is"
+    shared = "ID registry: 2 model files share the name m; "
     shares = [r.getMessage() for r in caplog.records if "share the name" in r.message]
-    assert shares == [shared] * 3  # two runs here, one fresh
+    assert shares == [shared + "its entry is left as is"] * 2 + [
+        shared + "its new entry is not content-gated"  # the fresh registry
+    ]
 
     (tmp_path / "b" / "m.gguf").unlink()
     registry.generate([Path("a"), Path("b")], tmp_path)

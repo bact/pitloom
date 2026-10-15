@@ -51,10 +51,15 @@ class IncludedFile(NamedTuple):
     Hatchling's own ``hatchling.builders.plugin.interface.IncludedFile``
     both expose, so the shared per-file processing loop in
     :mod:`pitloom.core._models_wheel` can consume either uniformly.
+
+    *built*: the file was extracted from a wheel a build just produced
+    (``--allow-build``), not found in the project: a copy wherever the
+    extraction directory lies, ``TMPDIR`` inside the project included.
     """
 
     path: str
     distribution_path: str
+    built: bool = False
 
 
 # pylint: disable-next=too-few-public-methods

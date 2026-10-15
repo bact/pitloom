@@ -66,9 +66,11 @@ class RegistryFileContents(NamedTuple):
 
 
 def registry_dir(path: Path) -> Path:
-    """The realpath of the directory holding the registry file *path*: the
-    base its ``project_root`` is stored relative to."""
-    return Path(os.path.realpath(path.parent))
+    """The directory of the registry file *path*, a symlink resolved first
+    (the file a save replaces): the base its ``project_root`` is stored
+    relative to, so reading it through the link or its target gives one
+    root."""
+    return Path(os.path.realpath(path)).parent
 
 
 def _is_relative_posix(value: str) -> bool:
@@ -83,6 +85,25 @@ def _is_relative_posix(value: str) -> bool:
     )
 
 
+def _read_json(path: Path) -> Any:
+    """The JSON value in the file *path*; a duplicate object key, as every
+    other failure, is the registry file error."""
+    if not os.path.isfile(path):
+        raise registry_file_error(path, "not found or not a file")
+    try:
+        with open(path, "rb") as f:
+            raw = f.read()
+    except OSError as exc:
+        raise registry_file_error(path, f"cannot be read: {exc}") from exc
+    try:
+        # Bytes, not str: json.loads() strips a leading UTF-8 BOM from bytes.
+        return json.loads(raw, object_pairs_hook=_unique_keys)
+    except _DuplicateKeyError as exc:
+        raise registry_file_error(path, str(exc)) from exc
+    except (ValueError, RecursionError) as exc:
+        raise registry_file_error(path, f"not valid JSON: {exc}") from exc
+
+
 def read_registry_file(path: Path) -> RegistryFileContents:
     """Read and validate the registry file at *path*.
 
@@ -91,20 +112,7 @@ def read_registry_file(path: Path) -> RegistryFileContents:
     checked before the key set, so a version 2 file gets the version
     message, not an "unknown key" one.
     """
-    if not os.path.isfile(path):
-        raise registry_file_error(path, "not found or not a file")
-    try:
-        with open(path, "rb") as f:
-            raw = f.read()
-    except OSError as exc:
-        raise registry_file_error(path, f"cannot be read: {exc}") from exc
-
-    try:
-        # Bytes, not str: json.loads() strips a leading UTF-8 BOM from bytes.
-        data: Any = json.loads(raw)
-    except (ValueError, RecursionError) as exc:
-        raise registry_file_error(path, f"not valid JSON: {exc}") from exc
-
+    data = _read_json(path)
     if not isinstance(data, dict):
         raise registry_file_error(path, "not a JSON object")
 
@@ -117,7 +125,7 @@ def read_registry_file(path: Path) -> RegistryFileContents:
         raise registry_file_error(path, f"'namespace': {exc}") from exc
 
     version = data.get("version")
-    if version != _REGISTRY_VERSION:
+    if not isinstance(version, int) or version != _REGISTRY_VERSION:
         raise registry_file_error(
             path,
             f"version {version!r}, expected {_REGISTRY_VERSION} (no "
@@ -142,29 +150,53 @@ def read_registry_file(path: Path) -> RegistryFileContents:
     )
 
 
+class _DuplicateKeyError(ValueError):
+    """A JSON object of the registry file names one key twice."""
+
+
+def _unique_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """``object_pairs_hook``: the object, unless a key appears twice (plain
+    ``json`` keeps the last silently, so a hand edit could lower a counter
+    or drop an entry unseen)."""
+    data: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in data:
+            raise _DuplicateKeyError(f"duplicate key {key!r}")
+        data[key] = value
+    return data
+
+
+def _check_counter(path: Path, prefix: object, number: object) -> None:
+    """Raise the registry file error unless *prefix* is an id prefix a mint
+    can write (:func:`~pitloom.core.iri.is_iri_segment`) and *number* a
+    whole number from 1 to
+    :data:`~pitloom.id_registry._counters.MAX_ID_NUMBER` (a boolean is not
+    one). Checked on read and on write, so no save writes a counter the
+    loader rejects."""
+    if not isinstance(prefix, str) or not is_iri_segment(prefix):
+        raise registry_file_error(
+            path, f"'id_counters' key {prefix!r} is not an id prefix"
+        )
+    if (
+        isinstance(number, bool)
+        or not isinstance(number, int)
+        or not 1 <= number <= MAX_ID_NUMBER
+    ):
+        raise registry_file_error(
+            path,
+            f"'id_counters' {prefix!r}: {number!r} is not a whole number "
+            f"from 1 to {MAX_ID_NUMBER}",
+        )
+
+
 def _parse_counters(path: Path, raw: object) -> Counters:
-    """The ``id_counters`` table: each key an id prefix a mint can write
-    (:func:`~pitloom.core.iri.is_iri_segment`), each value a whole number
-    from 1 to :data:`~pitloom.id_registry._counters.MAX_ID_NUMBER` (a
-    boolean is not one)."""
+    """The ``id_counters`` table, each pair checked by
+    :func:`_check_counter`."""
     if not isinstance(raw, dict):
         raise registry_file_error(path, "'id_counters' is not an object")
     counters: Counters = {}
     for prefix, number in sorted(raw.items()):
-        if not is_iri_segment(prefix):
-            raise registry_file_error(
-                path, f"'id_counters' key {prefix!r} is not an id prefix"
-            )
-        if (
-            isinstance(number, bool)
-            or not isinstance(number, int)
-            or not 1 <= number <= MAX_ID_NUMBER
-        ):
-            raise registry_file_error(
-                path,
-                f"'id_counters' {prefix!r}: {number!r} is not a whole number "
-                f"from 1 to {MAX_ID_NUMBER}",
-            )
+        _check_counter(path, prefix, number)
         counters[prefix] = number
     return counters
 
@@ -254,7 +286,10 @@ def write_registry_file(
     """Write a version 3 registry file to *target*: canonical JSON,
     indented, LF line endings and one trailing newline. Replaced atomically
     (:func:`~pitloom._sbom_io.replace_text_lf`): a run reading it meanwhile
-    sees the old file or the new one, never part."""
+    sees the old file or the new one, never part. A counter the loader
+    would reject raises the registry file error, and nothing is written."""
+    for prefix, number in id_counters.items():
+        _check_counter(target, prefix, number)
     target.parent.mkdir(parents=True, exist_ok=True)
     by_type: dict[str, dict[str, dict[str, str]]] = {}
     for (type_name, name), entry in sorted(elements.items()):

@@ -275,8 +275,10 @@ _DRIVE_PATH = "C:\\data\\t.txt"
         (_DRIVE_PATH, (AI_PACKAGE_TYPE, _DRIVE_PATH)),
         ("m:ai_AIPackage", (AI_PACKAGE_TYPE, "m")),
         ("model:v2", (AI_PACKAGE_TYPE, "model:v2")),
+        ("http://h:8080", (AI_PACKAGE_TYPE, "http://h:8080")),
     ],
-    ids=["url", "url-no-type", "drive", "drive-no-type", "plain", "colon-name"],
+    ids=["url", "url-no-type", "drive", "drive-no-type", "plain", "colon-name"]
+    + ["port"],
 )
 def test_id_generate_entity_spec_splits_at_the_last_known_type(
     tmp_path: Path, spec: str, expected: tuple[str, str]
@@ -303,8 +305,20 @@ def test_id_generate_entity_spec_splits_at_the_last_known_type(
         "m:software_Snippet",
         ":ai_AIPackage",
         "",
+        ":",
+        "m:",
+        "m:ai_AIPackage:",
+        "m: software_File",
+        "m:software_File ",
+        "m:ai_AIPackage\n",
+        "m\tn",
+        " \u00a0:ai_AIPackage",
+        "m:software_Snippet ",
+        "m: Software_File",
     ],
-    ids=["typo", "case-typo", "unsupported", "no-name", "empty"],
+    ids=["typo", "case-typo", "unsupported", "no-name", "empty", "colon"]
+    + ["no-type", "trailing-colon", "space-type", "type-space", "newline"]
+    + ["control", "blank-name", "unknown-type-space", "case-type-space"],
 )
 def test_id_generate_entity_spec_rejects_an_unknown_type(
     spec: str, capsys: pytest.CaptureFixture[str]

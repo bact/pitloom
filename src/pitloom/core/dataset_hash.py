@@ -28,7 +28,7 @@ import hashlib
 import logging
 import os
 import stat
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePath
 from typing import Literal
 
@@ -66,7 +66,8 @@ class DatasetDigest:
         hex_digest: The file's SHA-256 or the directory's Merkle root,
             lowercase hex; ``None`` when not hashed.
         file_count: The files *hex_digest* covers.
-        excluded: The *exclude* file was below the directory and left out.
+        excluded: The walk met the *exclude* file below the directory and
+            left it out, whether or not a root came of it.
     """
 
     kind: Literal["file", "dir"] | None
@@ -172,11 +173,20 @@ def _hash_file(where: str, max_bytes: int) -> DatasetDigest:
     return DatasetDigest("file", digest.hex(), 1)
 
 
-def _members(top: str, exclude: Path | None) -> tuple[list[_Member], bool]:
-    """Every regular file below *top*, sorted by leaf name, and whether the
-    *exclude* file was among them. One ``stat()`` per file gives its type,
-    its identity and its size; one gone before it is skipped, as a
-    dangling symlink is.
+@dataclass
+class _Walk:
+    """What a directory walk found: its members, and whether it met the
+    *exclude* file (kept when the walk fails part way)."""
+
+    members: list[_Member] = field(default_factory=list)
+    excluded: bool = False
+
+
+def _members(top: str, exclude: Path | None, walk: _Walk) -> None:
+    """Every regular file below *top* into *walk*, sorted by leaf name, and
+    whether the *exclude* file was among them. One ``stat()`` per file
+    gives its type, its identity and its size; one gone before it is
+    skipped, as a dangling symlink is.
 
     Raises:
         _Unlistable: a directory could not be listed.
@@ -184,8 +194,7 @@ def _members(top: str, exclude: Path | None) -> tuple[list[_Member], bool]:
             absence.
     """
     excluded_file = None if exclude is None else SameFile(exclude)
-    members: list[_Member] = []
-    excluded = False
+    members = walk.members
     for dirpath, dirnames, filenames in os.walk(top, onerror=_raise_unlistable):
         dirnames[:] = [name for name in dirnames if name not in IGNORED_DIR_NAMES]
         rel_dir = os.path.relpath(dirpath, top)
@@ -196,18 +205,20 @@ def _members(top: str, exclude: Path | None) -> tuple[list[_Member], bool]:
             if member_stat is None or not stat.S_ISREG(member_stat.st_mode):
                 continue
             if excluded_file is not None and excluded_file.matches(member, member_stat):
-                excluded = True
+                walk.excluded = True
                 continue
             members.append((_leaf_name(prefix + name), member, member_stat.st_size))
     members.sort()
-    return members, excluded
 
 
-def _listed(top: str, exclude: Path | None) -> tuple[list[_Member], bool] | None:
-    """:func:`_members`, or ``None`` after the warning for a directory that
-    could not be listed or a file that could not be ``stat()``-ed."""
+def _listed(top: str, exclude: Path | None) -> tuple[list[_Member] | None, bool]:
+    """:func:`_members`, and whether the walk met *exclude*; the members are
+    ``None`` after the warning for a directory that could not be listed or
+    a file that could not be ``stat()``-ed."""
+    walk = _Walk()
     try:
-        return _members(top, exclude)
+        _members(top, exclude, walk)
+        return walk.members, walk.excluded
     except _Unlistable as unlistable:
         error = unlistable.error
         log.warning(
@@ -218,7 +229,7 @@ def _listed(top: str, exclude: Path | None) -> tuple[list[_Member], bool] | None
         )
     except OSError as exc:
         _warn_unreadable(os.fspath(exc.filename or top), exc)
-    return None
+    return None, walk.excluded
 
 
 def _leaves(top: str, members: list[_Member], max_bytes: int) -> list[bytes] | None:
@@ -243,14 +254,14 @@ def _leaves(top: str, members: list[_Member], max_bytes: int) -> list[bytes] | N
 
 def _hash_directory(top: str, max_bytes: int, exclude: Path | None) -> DatasetDigest:
     """The Merkle root of the directory *top*, within *max_bytes* in all."""
-    listed = _listed(top, exclude)
-    if listed is None or not listed[0]:
-        return DatasetDigest("dir")
-    members, excluded = listed
+    members, excluded = _listed(top, exclude)
+    unhashed = DatasetDigest("dir", excluded=excluded)
+    if not members:
+        return unhashed
     if sum(size for _, _, size in members) > max_bytes:
         _warn_over_ceiling("DIR", top, max_bytes)
-        return DatasetDigest("dir")
+        return unhashed
     leaves = _leaves(top, members, max_bytes)
     if leaves is None:
-        return DatasetDigest("dir")
+        return unhashed
     return DatasetDigest("dir", merkle_root(leaves), len(leaves), excluded)

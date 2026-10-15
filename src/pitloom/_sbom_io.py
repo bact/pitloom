@@ -59,6 +59,11 @@ def replace_text_lf(path: Path | str, text: str) -> None:
     temporary name is random, created exclusively and written through that
     one descriptor, so two processes never write one file; on failure it is
     removed and *path* is left as it was.
+
+    A directory that refuses the temporary file (read-only, while the file
+    in it is writable) gets the file written in place instead, as
+    :func:`write_text_lf` does; with no file there, the ``PermissionError``
+    names *path*, never the temporary file.
     """
     target = os.path.realpath(path)
     if os.path.exists(target) and not os.access(target, os.W_OK):
@@ -67,7 +72,14 @@ def replace_text_lf(path: Path | str, text: str) -> None:
     temp = os.path.join(directory, f".{name}.{secrets.token_hex(8)}.tmp")
     # O_BINARY: a Windows descriptor is text mode by default, adding CRs.
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
-    descriptor = os.open(temp, flags, 0o666)
+    try:
+        descriptor = os.open(temp, flags, 0o666)
+    except PermissionError as exc:
+        if not os.path.isfile(target):
+            raise PermissionError(exc.errno, exc.strerror, str(path)) from exc
+        # Not atomic: a reader may see the file truncated or part-written.
+        write_text_lf(target, text)
+        return
     try:
         with open_text_lf(descriptor) as f:
             f.write(text)

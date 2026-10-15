@@ -27,8 +27,9 @@ import hashlib
 import logging
 import operator
 import os
+import stat
 from collections.abc import Callable
-from pathlib import Path, PurePath
+from pathlib import Path
 
 from pitloom.core._models_wheel_dispatch import (
     _discover_included_files,
@@ -44,8 +45,7 @@ from pitloom.core.build_options import BuildOptions
 from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.file_hash import sha256_digest
-from pitloom.core.path_confine import is_inside
-from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, is_regular_file
+from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, stat_if_present
 from pitloom.core.project import ProjectFile, project_relative_or_fallback
 from pitloom.core.walk_rules import RegistryCopy, SameFile, warn_registry_left_out
 
@@ -99,9 +99,13 @@ def _discovery_failure_result() -> tuple[
     return None, [], _noop_cleanup
 
 
-def _physical_path(source: Path, project_dir: Path) -> str:
+def _physical_path(source: Path, project_dir: Path, *, built: bool) -> str:
     """*source*'s ``ProjectFile.physical_path``: project-relative, or
-    absolute when *source* lies outside *project_dir*."""
+    absolute when *source* lies outside *project_dir* or a build extracted
+    it (``IncludedFile.built``: a ``TMPDIR`` inside the project would
+    otherwise name the run's random extraction directory)."""
+    if built:
+        return source.as_posix()
     try:
         return source.relative_to(project_dir).as_posix()
     except ValueError:
@@ -120,7 +124,7 @@ def _build_project_file_entry(
     """Build one *source*'s :class:`ProjectFile` entry (and its digest, if hashed).
 
     *source* must already be known to exist as a regular file (the
-    caller's :func:`~pitloom.core.path_probe.is_regular_file` check).
+    caller's ``stat()`` check).
     When *need_bytes* is ``False``, *source* is still opened and
     immediately closed (no read) -- a genuine access failure
     (permissions, a TOCTOU race) still raises here, same as a full read
@@ -143,7 +147,7 @@ def _build_project_file_entry(
         digest_bytes = hashlib.sha256(raw_bytes).digest()
         digest_sha256 = digest_bytes.hex()
 
-    rel_path = _physical_path(source, project_dir)
+    rel_path = _physical_path(source, project_dir, built=included_file.built)
     extras = _resolve_file_header_extras(
         raw_bytes, source.name, distribution_path, scan_config
     )
@@ -156,54 +160,56 @@ def _build_project_file_entry(
     return project_file, digest_bytes
 
 
-# pylint: disable-next=too-few-public-methods
 class _DeclaredRegistry:
-    """Whether a discovered file is the declared registry: the file itself
-    (:class:`~pitloom.core.walk_rules.SameFile`), or a build-and-read copy
-    of it -- a file outside *project_dir* whose wheel path names the
-    registry (:class:`~pitloom.core.walk_rules.RegistryCopy`) and whose
-    bytes are the registry's (the build just read it)."""
+    """The declared registry among discovered files: the file itself
+    (:class:`~pitloom.core.walk_rules.SameFile`, given the scan's own
+    ``stat()``), or one build-and-read copy of it -- a file a build
+    extracted (``IncludedFile.built``, wherever ``TMPDIR`` put it) whose
+    wheel path names the registry
+    (:meth:`~pitloom.core.walk_rules.RegistryCopy.pick`) and whose bytes
+    are the registry's (the build just read it)."""
 
     def __init__(self, registry: Path, project_dir: Path) -> None:
         self._same = SameFile(registry)
         self._copy = RegistryCopy(registry, project_dir)
-        self._registry = registry
-        self._project_dir = project_dir
-        self._digest: bytes | None = None
+        self.path = registry
+        #: Whether the registry, or its copy, was left out.
+        self.left_out = False
 
-    def __call__(self, included_file: IncludedFile) -> bool:
-        return self._same.matches(included_file.path) or self._is_copy(included_file)
+    def is_registry(self, path: Path, path_stat: os.stat_result) -> bool:
+        """Whether the scanned *path* is the registry file itself."""
+        if self._same.matches(path, path_stat):
+            self.left_out = True
+            return True
+        return False
 
-    def _is_copy(self, included_file: IncludedFile) -> bool:
-        if not self._copy.matches(included_file.distribution_path):
-            return False
-        real = PurePath(os.path.realpath(included_file.path))
-        if is_inside(real, self._project_dir):
-            return False  # a project file: SameFile alone decides
+    def without_copy(self, included_files: list[IncludedFile]) -> list[IncludedFile]:
+        """*included_files* minus the build-and-read copy of the registry."""
+        candidates = {
+            f.distribution_path: f
+            for f in included_files
+            if f.built and self._copy.matches(f.distribution_path)
+        }
+        if not candidates:
+            return included_files
         try:
-            if self._digest is None:
-                self._digest = sha256_digest(self._registry)
-            return sha256_digest(included_file.path) == self._digest
-        except OSError:  # an unreadable copy is warned about by the scan
-            return False
+            digest = sha256_digest(self.path)
+        except OSError:  # the registry was loaded; gone since: no copy
+            return included_files
+        same_bytes = [p for p, f in candidates.items() if _same_bytes(f, digest)]
+        chosen = self._copy.pick(same_bytes)
+        if chosen is None:
+            return included_files
+        self.left_out = True
+        return [f for f in included_files if f is not candidates[chosen]]
 
 
-def _without_excluded(
-    included_files: list[IncludedFile],
-    exclude_path: Path | None,
-    project_dir: Path,
-    on_left_out: Callable[[Path], None],
-) -> list[IncludedFile]:
-    """*included_files* minus the *exclude_path* file (see
-    :class:`_DeclaredRegistry`), calling *on_left_out* once when it was in
-    the list."""
-    if exclude_path is None:
-        return included_files
-    is_registry = _DeclaredRegistry(exclude_path, project_dir)
-    kept = [f for f in included_files if not is_registry(f)]
-    if len(kept) != len(included_files):
-        on_left_out(exclude_path)
-    return kept
+def _same_bytes(included_file: IncludedFile, digest: bytes) -> bool:
+    """Whether *included_file* holds the bytes whose SHA-256 is *digest*."""
+    try:
+        return sha256_digest(included_file.path) == digest
+    except OSError:  # an unreadable copy is warned about by the scan
+        return False
 
 
 # pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
@@ -264,8 +270,9 @@ def get_wheel_files(
     result (and so of the Merkle root) when the walk finds it, with one
     ``WARNING:``: the registry is rewritten after the SBOM is built, so
     counting it would change the root on every run. Matched by file
-    identity, or, for a build-and-read copy outside *project_dir*, by its
-    wheel path and bytes (see :class:`_DeclaredRegistry`). ``None``
+    identity, or, for one build-and-read copy (a file the build extracted,
+    wherever it lies), by its wheel path and bytes (see
+    :class:`_DeclaredRegistry`). ``None``
     excludes nothing. *on_left_out* gives that warning; a caller that warns
     once for a batch passes its own.
 
@@ -346,10 +353,17 @@ def get_wheel_files(
             return _discovery_failure_result()
 
         scanned: tuple[str | None, list[ProjectFile]] | None = None
+        registry = (
+            None
+            if exclude_path is None
+            else _DeclaredRegistry(exclude_path, project_dir)
+        )
         try:
             scanned = _scan_included_files(
-                _without_excluded(
-                    included_files, exclude_path, project_dir, on_left_out
+                (
+                    included_files
+                    if registry is None
+                    else registry.without_copy(included_files)
                 ),
                 project_dir,
                 need_bytes=(
@@ -357,18 +371,22 @@ def get_wheel_files(
                 ),
                 skip_merkle_root=skip_merkle_root,
                 scan_config=scan_config,
+                registry=registry,
             )
         finally:
             # Not handed over -- no readable file, an error, an interrupt
             # (KeyboardInterrupt included) -- so the caller never gets it.
             if scanned is None:
                 cleanup_discovery()
+        if registry is not None and registry.left_out:
+            on_left_out(registry.path)
         if scanned is None:
             return _discovery_failure_result()
         merkle_root, project_files = scanned
         return merkle_root, project_files, cleanup_discovery
 
 
+# pylint: disable-next=too-many-arguments
 def _scan_included_files(
     included_files: list[IncludedFile],
     project_dir: Path,
@@ -376,11 +394,13 @@ def _scan_included_files(
     need_bytes: bool,
     skip_merkle_root: bool,
     scan_config: FileScanConfig,
+    registry: _DeclaredRegistry | None = None,
 ) -> tuple[str | None, list[ProjectFile]] | None:
     """Hash and scan *included_files*: ``(merkle_root, project_files)``,
     or ``None`` when none of them is a readable regular file.
 
-    A missing or non-regular path is skipped silently; a file that exists
+    A missing or non-regular path is skipped silently, and so is the
+    *registry* file, matched by the same ``stat()``; a file that exists
     but cannot be read gets one ``WARNING:`` and is skipped alone. See
     :func:`get_wheel_files` for *need_bytes*/*skip_merkle_root*."""
     project_files: list[ProjectFile] = []
@@ -388,7 +408,10 @@ def _scan_included_files(
     for included_file in included_files:
         source = Path(included_file.path)
         try:
-            if not is_regular_file(source):
+            source_stat = stat_if_present(source)
+            if source_stat is None or not stat.S_ISREG(source_stat.st_mode):
+                continue
+            if registry is not None and registry.is_registry(source, source_stat):
                 continue
             project_file, digest_bytes = _build_project_file_entry(
                 source,
@@ -402,7 +425,7 @@ def _scan_included_files(
             log.warning(
                 UNREADABLE_FILE_WARNING,
                 project_relative_or_fallback(
-                    _physical_path(source, project_dir),
+                    _physical_path(source, project_dir, built=included_file.built),
                     included_file.distribution_path,
                 ),
                 "for file scanning",

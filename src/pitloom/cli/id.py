@@ -12,6 +12,7 @@ import logging
 import os
 import re
 import sys
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +31,7 @@ from pitloom.id_registry import (
     IdRegistry,
     ambiguous_keys_message,
     failed_to_save_message,
+    save_registry,
 )
 
 log = logging.getLogger("pitloom.id_registry")
@@ -89,22 +91,27 @@ def _entity_arg(text: str) -> tuple[str, str]:
 
     Split at the last ``:`` only when what follows is one of
     :data:`_ENTITY_TYPES`, so the ``:`` of a URL or a drive letter stays in
-    NAME. A suffix shaped like a compact type (or a known one in another
-    case) that is not one is a typo, reported the argparse way (exit 2),
-    never silently made part of NAME.
+    NAME. A typo is reported the argparse way (exit 2), never silently made
+    part of NAME: a trailing ``:``, a suffix shaped like a compact type, a
+    known one in another case or with whitespace around it, a control
+    character (a newline) anywhere, and an empty or blank NAME.
     """
+    if any(unicodedata.category(char) == "Cc" for char in text):
+        raise argparse.ArgumentTypeError(f"control character in {text!r}")
     name, _, suffix = text.rpartition(":")
     if suffix in _ENTITY_TYPES:
         type_name = suffix
-    elif _COMPACT_TYPE.fullmatch(suffix) or suffix.lower() in {
-        known.lower() for known in _ENTITY_TYPES
-    }:
+    elif (
+        text.endswith(":")
+        or _COMPACT_TYPE.fullmatch(suffix.strip())
+        or suffix.strip().lower() in {known.lower() for known in _ENTITY_TYPES}
+    ):
         raise argparse.ArgumentTypeError(
             f"unknown TYPE {suffix!r} (one of: {', '.join(_ENTITY_TYPES)})"
         )
     else:
         name, type_name = text, AI_PACKAGE_TYPE
-    if not name:
+    if not name.strip():
         raise argparse.ArgumentTypeError(f"no NAME in {text!r}")
     return type_name, name
 
@@ -162,10 +169,13 @@ def _report_registry_written(registry_path: Path, registry: IdRegistry) -> None:
 
 
 def _save(registry: IdRegistry, registry_path: Path) -> bool:
-    """Save *registry* to *registry_path*; on failure print the one
-    ``ERROR:`` failed-to-save line and return ``False``."""
+    """Save *registry* (loaded from or created for *registry_path*) through
+    the one registry write routine
+    (:func:`~pitloom.id_registry.save_registry`), which keeps what another
+    run saved meanwhile; on failure print the one ``ERROR:`` failed-to-save
+    line and return ``False``."""
     try:
-        registry.save(registry_path)
+        save_registry(registry)
     except (ValueError, OSError) as exc:
         print(f"ERROR: {failed_to_save_message(registry_path, exc)}", file=sys.stderr)
         return False

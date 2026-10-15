@@ -57,7 +57,9 @@ when it is a known registry type (`software_File`, `software_Package`,
 (`prefix_ClassName`) or a known type in another case is a usage error (exit
 2), not part of `NAME`. Anything else is part of `NAME`, so a URL or a
 Windows drive path works, as in
-`-e https://huggingface.co/datasets/imdb:dataset_DatasetPackage`.
+`-e https://huggingface.co/datasets/imdb:dataset_DatasetPackage`. A trailing
+`:`, a `TYPE` with white space around it, a control character (a newline) or a
+blank `NAME` is a usage error too.
 `--namespace IRI` sets a new registry's document namespace (an
 absolute IRI without `#`; default: the project name and a random UUID4); an
 existing registry with another namespace is one `ERROR:`, exit 1. A
@@ -65,7 +67,8 @@ registry whose `namespace` is not a valid namespace IRI, or whose `spdxId`
 is not a non-empty string, does not load. `id import` into an empty
 registry adopts the SBOM document's namespace only when it is a valid
 namespace IRI; otherwise one `WARNING: ID registry: not adopting the
-namespace ...` and the registry keeps its own.
+namespace ...` and the registry keeps its own. It keeps the namespace it
+adopted unless another run changed the file's namespace meanwhile.
 `id import SBOM_FILE` takes only `-o`/`--id-registry FILE`.
 
 A new registry stores its project root (`--project-dir` for `generate`, the
@@ -73,7 +76,13 @@ current directory for `import`) relative to its own directory; an existing one
 keeps it, and `generate` with another `--project-dir` is one `ERROR:`, exit 1.
 The registry also keeps, per id prefix, the highest number it has issued or
 read in its namespace (`id_counters`), so an id that has left the registry
-(a harvest replaced its entry) is never minted again for another file.
+(a harvest replaced its entry) is never minted again for another file. An id
+handed over by an SBOM, a harvest or `id import` reserves numbers only up to
+10**9, and one whose prefix is not a valid IRI segment (it holds `/`, `?`, a
+space, `#` or a lowercase `%xx`) reserves nothing. A file whose `version` is
+not an integer (`3.0`) or that repeats a JSON object key (`duplicate key
+'X'`) does not load. For a symlinked registry, `project_root` is relative to
+the symlink target's directory.
 `generate` records each AI model file's SHA-256 with its entry, so a
 retrained file (other bytes) gets a new id in a `loom.Run` that declares it
 with `path=`. A registry from an earlier release (format version 2) is
@@ -104,9 +113,11 @@ traceback, and takes precedence over that error.
   default `PATH`s are. The files below a symlinked *directory*
   (`data/models -> ../bigdisk/models`) are not indexed, and a `loom.Run`
   that names one of them keys it by its path as written, so it finds no entry.
-- A subdirectory that cannot be listed gets `WARNING: DIR=<dir>: could not
-  list for ID registry indexing`; a partial tree is never indexed silently.
-  A `PATH` that cannot be read is the same `ERROR:` on every Python version.
+- A file or directory below a `PATH` that cannot be read or listed gets the
+  shared `WARNING: FILE=<path>: ...` or `WARNING: DIR=<path>: ...` line (the
+  path project-relative, `/`-separated) and the run continues; a partial tree
+  is never indexed silently. A `PATH` argument itself that cannot be read is
+  an `ERROR:` on every Python version.
 - Build, virtual-environment, VCS and cache directories are not indexed; see
   [Directories that are skipped](#directories-that-are-skipped).
 - After a write that *created* the registry (never one that updated an
@@ -145,19 +156,27 @@ Exceptions:
 - Several model files with one stem (`a/m.gguf`, `b/m.gguf`): `id generate`
   records no hash for the stem, and leaves an existing entry as it is (a
   hash recorded earlier included), with one `INFO: ID registry: N model
-  files share the name <stem>; its entry is left as is` per run. Its id
-  stays stable, but a new registry over the same files has no hash there.
+  files share the name <stem>; its entry is left as is` per run (`its new
+  entry is not content-gated` when the stem had no entry). Its id stays
+  stable, but a new registry over the same files has no hash there.
 - A registry inside the project tree is left out of the SBOM's file set
   (and of a wheel's Merkle root), with one `WARNING: ID registry: <path> is
   inside the project's file set; left out of it` per run when the file set
   actually contains it; `id generate` does not index it either. With
   `--allow-build`, the copy found in the build-and-read extraction is left
-  out too (matched by the wheel path tail and an equal SHA-256). The copy a
-  built wheel or sdist carries is left out by `wheel`, `embed-wheel` and
-  `project <sdist>`, whatever its bytes: matched by its path below
-  `--project-dir`, else below the project root the registry stores (the
-  project `id generate` or `id import` created it for). Keep it outside the
-  package directory (the project root is fine).
+  out too (recognised as a file the build extracted, wherever `TMPDIR` is,
+  with an equal SHA-256). The copy a built wheel or sdist carries is left out
+  by `wheel`, `embed-wheel` and `project <sdist>`, whatever its bytes. A wheel
+  member is the copy only when its path equals the registry's path below the
+  project, or that path less exactly one leading part (a `src/` layout), with
+  a directory and the file left; of several such members only the longest is
+  left out, and a file with a shorter tail (`reg.json`, `data/reg.json`) is
+  kept. An sdist member must match the whole path below `name-version/`. The
+  path is taken below `--project-dir`; without one (`wheel`, standalone
+  `embed-wheel`, `project <sdist>`) below the nearest directory that holds
+  the registry and a `pyproject.toml`, `setup.cfg` or `setup.py`, no higher
+  than the project root the registry stores, else below that root. Keep the
+  registry outside the package directory (the project root is fine).
 - A package name held by two elements of one document that both read the
   registry (two versions of a dependency behind different markers) cannot be
   pinned automatically: runs do not record it, and a pinned id goes to the
@@ -214,11 +233,14 @@ the same model and file share its id; a retrained file gets a new one.
 
 Registry writes go through one routine: it re-reads the file, re-applies only
 the run's own changes and replaces the file atomically, so runs sharing a
-registry keep each other's entries. A `loom.Run` given an `IdRegistry` object that was
+registry keep each other's entries. `id generate`, `id import`, a harvest and
+`loom.Run` all use it, and an unchanged file is not rewritten. A writable
+registry in a read-only directory is written in place, which is not atomic. A `loom.Run` given an `IdRegistry` object that was
 never loaded, for a file that exists, merges into that file and never
 overwrites it. There is no lock, and a read-only
 registry file is never overwritten, on any platform (the save fails with a
-`WARNING: ID registry: failed to save <path>: <reason>`; the run's output is
+`WARNING: ID registry: failed to save <path>: <reason>` (the registry's
+path, never a temporary file's); the run's output is
 already written; `loom id generate` and `loom id import` print the same line
 as their one `ERROR:` and exit 1). Two `loom.Run` blocks that exit at the very same moment against one
 registry can each write the same id for a different model into their

@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""A registry that cannot be saved reads the same on every surface: one
+"""Saving a registry reads the same on every surface. A save keeps what
+another run saved meanwhile. A registry that cannot be saved is one
 ``ID registry: failed to save <path>: <reason>`` line, an ``ERROR:`` (exit
 1) for ``id generate``/``id import``, whose output is the registry, a
 ``WARNING:`` (exit 0) for a run's auto-harvest; the file is left as it was
@@ -24,7 +25,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom import __main__
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import AI_PACKAGE_TYPE, IdRegistry, persist_registry
 from pitloom.id_registry._counters import MAX_ID_NUMBER
 from tests.id_registry.shared import _write_sample_sbom
 
@@ -144,3 +145,40 @@ def test_id_generate_failing_before_the_save_is_not_a_failed_save(
     assert err.startswith("ERROR: ID registry: no File id left to mint")
     assert len(err.splitlines()) == 1
     assert registry.read_bytes() == before
+
+
+#: The registry method each surface calls between its load and its save.
+_MIDDLE = {"generate": "generate", "import": "import_sbom", "project": "harvest"}
+
+
+@pytest.mark.parametrize(("surface", "level", "code"), _SURFACES, ids=_IDS)
+def test_a_run_saving_meanwhile_is_kept_on_every_surface(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    surface: str,
+    level: str,
+    code: int,
+) -> None:
+    """A loom run saves while the command runs: its entry and its counter
+    stay, so its id is never minted again (I8). Every surface re-reads the
+    file before saving."""
+    del level, code
+    registry = _prepare(tmp_path, monkeypatch, surface)
+    method = _MIDDLE[surface]
+    real = getattr(IdRegistry, method)
+    minted: list[str] = []
+
+    def _meanwhile(self: IdRegistry, *args: object, **kwargs: object) -> object:
+        result = real(self, *args, **kwargs)
+        other = IdRegistry.load(registry)
+        minted.append(other.register(AI_PACKAGE_TYPE, "model-a", sha256="1" * 64))
+        persist_registry(other, 1, True)
+        return result
+
+    monkeypatch.setattr(IdRegistry, method, _meanwhile)
+    assert __main__.main() == 0
+    monkeypatch.undo()
+
+    saved = IdRegistry.load(registry)
+    assert saved.lookup(AI_PACKAGE_TYPE, ["model-a"]) == minted[0]
+    assert saved.register(AI_PACKAGE_TYPE, "model-b") != minted[0]

@@ -22,8 +22,9 @@ against the invariants of ``_order_invariants.py``.
 
 A sequence that breaks an invariant keeps its script, fixture, logs and
 outputs in a ``ord-repro-*`` directory under the temp dir; the failure
-names it and the command that replays it. POSIX only (the scripts are
-``sh``): skipped on Windows.
+names it, the command that replays it and the one that removes every kept
+repro (the runner never does: a concurrent run may still need its own).
+POSIX only (the scripts are ``sh``): skipped on Windows.
 
 See also: ``_order_gen.py``, ``_order_ops.py``, ``_order_fixtures.py``,
 ``_order_known.py``, manual-cli-checks.md ("Order matrix").
@@ -34,6 +35,7 @@ from __future__ import annotations
 import functools
 import os
 import re
+import shlex
 import shutil
 import subprocess  # nosec B404
 import sys
@@ -64,6 +66,7 @@ from _order_ops import IMPORTS
 KNOWN_SIGN = "allow-listed order-matrix findings only"
 _WALK_CHUNK = 4
 _MAX_REPROS = 5
+_KNOWN_LINES_PER_ITEM = 4
 
 
 @dataclass
@@ -102,11 +105,17 @@ def _execute(ctx: Context, check_id: str, seq: Sequence, index: int) -> Outcome:
         stderr = proc.stderr.decode("utf-8", errors="replace").strip()
         message = f"exit {proc.returncode}: {stderr[-300:]}"
         found.append(Violation("S/script", len(captured), "-", "", message))
+    registries = {c.step.n: c.registry for c in captured}
+    final = next((r for r in reversed(registries.values()) if r is not None), None)
+    items = [
+        (v, known_item(v, seq.profile.name, registries.get(v.step) or final))
+        for v in found
+    ]
     outcome = Outcome(
         seq,
-        next((c.registry for c in reversed(captured) if c.reg_raw), None),
-        [v for v in found if not known_item(v, seq.profile.name)],
-        [(v, item) for v in found if (item := known_item(v, seq.profile.name))],
+        final,
+        [v for v, item in items if item is None],
+        [(v, item) for v, item in items if item is not None],
         shapes=[s for c in captured for s in warning_shapes(c.stderr)],
         stats=stats,
         gate_dropped=frozenset(
@@ -136,6 +145,13 @@ def _keep(
     lines = [v.line() for v in found]
     (repro / "violations.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return repro
+
+
+def cleanup_hint() -> str:
+    """How to remove every kept repro directory, this run's and older ones:
+    the runner leaves them for inspection."""
+    where = shlex.quote(tempfile.gettempdir())
+    return f"kept repros are not removed; when done: rm -rf {where}/ord-repro-*"
 
 
 def classify(
@@ -212,11 +228,15 @@ def _finish(
     *converge* is O1's convergence line and its violations (G)."""
     verdict, diverging = converge
     profile = outcomes[0].seq.profile.name if outcomes else ""
-    g_unknown = [v for v in diverging if not known_item(v, profile)]
-    known = Counter(item for o in outcomes for _, item in o.known)
-    known.update(item for v in diverging if (item := known_item(v, profile)))
+    finals = [o.final for o in outcomes if o.final is not None]
+    g_items = [(v, _g_known(v, profile, finals)) for v in diverging]
+    g_unknown = [v for v, item in g_items if item is None]
+    seen = [(v, i) for o in outcomes for v, i in o.known]
+    seen += [(v, item) for v, item in g_items if item is not None]
+    known = Counter(item for _, item in seen)
     report = _report(check_id, outcomes, verdict, g_unknown)
     report += [f"known x{n}: {item}" for item, n in sorted(known.items())]
+    report += _known_lines(seen)
     (ctx.work / "report.txt").write_text("\n".join(report) + "\n", encoding="utf-8")
     for line in report:
         ctx.note(line)
@@ -228,10 +248,33 @@ def _finish(
         raise CheckFailed(
             f"{len(failing)} sequence(s) broke invariants; first: {first.seq.label}: "
             f"{first.violations[0].line()}\n  replay: sh {first.repro}/seq.sh "
-            f'"$(mktemp -d)"  (repro: {first.repro})'
+            f'"$(mktemp -d)"  (repro: {first.repro})\n  {cleanup_hint()}'
         )
     if known:
         raise CheckFailed(f"{KNOWN_SIGN}: " + "; ".join(sorted(known)))
+
+
+def _known_lines(seen: list[tuple[Violation, str]]) -> list[str]:
+    """The first few allow-listed violations of each followups item, so a
+    reader can check what the allow-list let through."""
+    shown: Counter[str] = Counter()
+    lines = []
+    for violation, item in seen:
+        shown[item] += 1
+        if shown[item] <= _KNOWN_LINES_PER_ITEM:
+            lines.append(f"  known: {violation.line()}")
+    return lines
+
+
+def _g_known(
+    violation: Violation, profile: str, finals: list[dict[Key, Entry]]
+) -> str | None:
+    """A G violation's followups item: known when one permutation's final
+    registry shows the allow-listed shape for its key."""
+    return next(
+        (item for reg in finals if (item := known_item(violation, profile, reg))),
+        known_item(violation, profile),
+    )
 
 
 def _run_all(ctx: Context, check_id: str, seqs: list[Sequence]) -> list[Outcome]:

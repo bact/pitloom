@@ -27,6 +27,7 @@ from pitloom.core.iri import doc_namespace, iri_segment, require_namespace_iri
 from pitloom.core.walk_rules import same_path
 from pitloom.id_registry._counters import (
     MAX_ID_NUMBER,
+    RESERVE_CEILING,
     Counters,
     id_number,
     merge_counters,
@@ -37,7 +38,12 @@ from pitloom.id_registry._format import (
     write_registry_file,
 )
 from pitloom.id_registry._harvest import _harvest_elements, _sorted_by_spdx_id
-from pitloom.id_registry._persist import Rebase, added_ids, replay_changes
+from pitloom.id_registry._persist import (
+    Rebase,
+    added_ids,
+    new_id_count,
+    replay_changes,
+)
 from pitloom.id_registry._types import (
     AI_PACKAGE_TYPE,
     FILE_TYPE,
@@ -48,6 +54,7 @@ from pitloom.id_registry._types import (
     registry_file_error,
     sha256_file,
     type_id_prefix,
+    warn_unreadable_file,
 )
 
 log = logging.getLogger("pitloom.id_registry")
@@ -87,9 +94,11 @@ class IdRegistry:
         self.project_root: Path | None = (
             Path(os.path.realpath(project_root)) if project_root is not None else None
         )
-        # The table as last read from or written to `path`: what `rebase`
-        # tells this object's own changes apart by. None: neither yet.
+        # The table and namespace as last read from or written to `path`:
+        # what `rebase` tells this object's own changes apart by. None:
+        # neither yet.
         self._on_disk: dict[tuple[str, str], RegistryEntry] | None = None
+        self._on_disk_namespace: str | None = None
         self._reserve_held()
 
     @classmethod
@@ -135,6 +144,7 @@ class IdRegistry:
             id_counters=contents.id_counters,
         )
         registry._on_disk = contents.elements
+        registry._on_disk_namespace = contents.namespace
         return registry
 
     def rebase(self) -> Rebase:
@@ -144,32 +154,41 @@ class IdRegistry:
 
         A change is a key whose entry differs from the table this object
         last read or wrote; for one that has read or written none, every
-        entry is. The namespace and project root become the file's; the id
-        counters merge by maximum, so neither run lowers one. With no file
-        at :attr:`path` yet, the registry is left as it is.
+        entry is. The project root becomes the file's, and so does the
+        namespace, unless this object changed the one it read (``id
+        import`` adopting an SBOM's) and the file still has that one. The
+        id counters merge by maximum, so neither run lowers one. With no
+        file at :attr:`path` yet, the registry is left as it is.
 
         Raises:
             ValueError: the file no longer loads, or (never read) does not.
         """
+        base = self._on_disk or {}
         if self.path is None or (
             self._on_disk is None and not os.path.exists(self.path)
         ):
-            return Rebase(refused=0, pending=True)
+            return Rebase(
+                refused=0, pending=True, added=new_id_count(self.elements, base)
+            )
         contents = read_registry_file(self.path)
-        merged, refused = replay_changes(
-            self._on_disk or {}, self.elements, contents.elements
-        )
+        merged, refused = replay_changes(base, self.elements, contents.elements)
         self.elements.clear()
         self.elements.update(merged)
-        self.namespace = contents.namespace
+        if contents.namespace != self._on_disk_namespace or (
+            self.namespace == self._on_disk_namespace
+        ):
+            self.namespace = contents.namespace
         self.project_root = contents.project_root
         self.id_counters = merge_counters(self.id_counters, contents.id_counters)
         self._reserve_held()
         self._on_disk = contents.elements
+        self._on_disk_namespace = contents.namespace
         return Rebase(
             refused=refused,
             pending=merged != contents.elements
-            or self.id_counters != contents.id_counters,
+            or self.id_counters != contents.id_counters
+            or self.namespace != contents.namespace,
+            added=new_id_count(merged, base, contents.elements),
         )
 
     def get(self, type_name: str, name: str) -> RegistryEntry | None:
@@ -244,9 +263,16 @@ class IdRegistry:
     def reserve_id(self, spdx_id: str) -> None:
         """Never mint *spdx_id*: when it is ``<namespace>#<prefix>-<n>`` in
         this registry's namespace (:func:`~pitloom.id_registry._counters.id_number`),
-        raise the prefix's counter to *n*. Any other id is ignored."""
+        raise the prefix's counter to *n*. Any other id is ignored, and so
+        is an *n* above
+        :data:`~pitloom.id_registry._counters.RESERVE_CEILING`: an SBOM
+        could otherwise use up every number. :meth:`_mint_id` skips such an
+        id while the table holds it."""
         found = id_number(self.namespace, spdx_id)
-        if found is not None and found[1] > self.id_counters.get(found[0], 0):
+        if (
+            found is not None
+            and self.id_counters.get(found[0], 0) < found[1] <= RESERVE_CEILING
+        ):
             self.id_counters[found[0]] = found[1]
 
     def _reserve_held(self) -> None:
@@ -258,15 +284,20 @@ class IdRegistry:
     def _mint_id(self, prefix: str) -> str:
         """Mint the next ``#<prefix>-<n>`` id in this registry's namespace:
         one above the prefix's counter and every held id, never an id issued
-        before (I8). Raises ``ValueError`` past
+        before (I8). Raises ``ValueError`` for an empty *prefix*, and past
         :data:`~pitloom.id_registry._counters.MAX_ID_NUMBER`.
 
-        *prefix* is raw: ``loom id generate -e NAME:TYPE`` derives it from a
-        user-given TYPE, so it passes through :func:`iri_segment` too.
+        *prefix* is raw: the library's :meth:`register` takes any compact
+        type, so it passes through :func:`iri_segment` too.
         """
+        if not prefix:
+            raise ValueError("ID registry: no id prefix for an empty type name")
         prefix = iri_segment(prefix)
         self._reserve_held()
+        held = {entry.spdx_id for entry in self.elements.values()}
         number = self.id_counters.get(prefix, 0) + 1
+        while f"{self.namespace}#{prefix}-{number}" in held:
+            number += 1  # a held id above RESERVE_CEILING
         if number > MAX_ID_NUMBER:
             raise ValueError(
                 f"ID registry: no {prefix} id left to mint in {self.namespace}"
@@ -322,7 +353,7 @@ class IdRegistry:
             try:
                 sha256 = sha256_file(file_path)
             except OSError as exc:
-                log.warning("ID registry: could not read %s: %s", file_path, exc)
+                warn_unreadable_file(file_path, project_root, exc)
                 continue
             rel_path = file_path.relative_to(project_root).as_posix()
             self.register(FILE_TYPE, rel_path, sha256=sha256)
@@ -339,10 +370,12 @@ class IdRegistry:
                 self.register(AI_PACKAGE_TYPE, stem, sha256=hashes[0])
                 continue
             log.info(
-                "ID registry: %d model files share the name %s; "
-                "its entry is left as is",
+                "ID registry: %d model files share the name %s; %s",
                 len(hashes),
                 stem,
+                "its new entry is not content-gated"
+                if self.get(AI_PACKAGE_TYPE, stem) is None
+                else "its entry is left as is",
             )
             self.register(AI_PACKAGE_TYPE, stem)
 
@@ -433,3 +466,4 @@ class IdRegistry:
         self.path = target
         self.project_root = root
         self._on_disk = dict(self.elements)
+        self._on_disk_namespace = self.namespace

@@ -221,6 +221,19 @@ def test_registry_inside_a_directory_dataset_is_left_out_with_one_warning(
     assert len(left_out) == 1
 
 
+def test_registry_alone_in_a_directory_dataset_is_still_said(
+    project: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A directory holding only the registry gets no root; the registry
+    was still found there and left out: one warning."""
+    registry = make_registry(path=project / "sub" / "loom-id-registry.json")
+    with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
+        graph = _run(project / "out.json", registry, lambda _: loom.add_dataset("sub"))
+    assert not _of(graph, "dataset_DatasetPackage")[0].get("verifiedUsing")
+    left_out = [w for w in _warnings(caplog) if "left out of its Merkle root" in w]
+    assert len(left_out) == 1
+
+
 @pytest.mark.parametrize("pinned", [True, False], ids=["pinned", "unpinned"])
 def test_remote_dataset_is_looked_up_by_name(
     project: Path, caplog: pytest.LogCaptureFixture, pinned: bool

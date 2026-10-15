@@ -23,7 +23,11 @@ from pathlib import Path
 from packaging.utils import canonicalize_name
 
 from pitloom.core.file_hash import sha256_digest
-from pitloom.core.path_probe import UNLISTABLE_DIR_WARNING, stat_if_present
+from pitloom.core.path_probe import (
+    UNLISTABLE_DIR_WARNING,
+    UNREADABLE_FILE_WARNING,
+    stat_if_present,
+)
 from pitloom.core.walk_rules import IGNORED_DIR_NAMES, SameFile
 from pitloom.logging_config import loggable, one_line
 
@@ -43,7 +47,12 @@ __all__ = [
     "registry_file_error",
     "sha256_file",
     "type_id_prefix",
+    "warn_unreadable_file",
 ]
+
+#: What an ``id generate`` read or listing is for, in the shared ``FILE=``
+#: and ``DIR=`` warnings.
+_PURPOSE = "for ID registry indexing"
 
 #: The suggested registry file name, which ``id generate`` never indexes
 #: (nor the declared registry, whatever its name). There is no default
@@ -163,21 +172,41 @@ def _is_eligible_file(
     return exclude is None or not exclude.matches(file_path, file_stat)
 
 
-def _warn_unlistable(error: OSError) -> None:
-    """``os.walk``'s *onerror*: a directory left out of the index, said."""
+def _shown(path: str | os.PathLike[str], project_root: Path) -> str:
+    """*path* as the ``FILE=``/``DIR=`` warnings show it: relative to
+    *project_root* in POSIX form, as ``pitloom project`` shows it, else as
+    given (a path outside the project)."""
+    try:
+        return Path(path).relative_to(project_root).as_posix()
+    except ValueError:
+        return os.fspath(path)
+
+
+def warn_unreadable_file(path: Path, project_root: Path, error: OSError) -> None:
+    """Log the shared ``FILE=`` warning for *path*, which ``id generate``
+    could not read and leaves out of the index."""
     log.warning(
-        UNLISTABLE_DIR_WARNING,
-        loggable(os.fspath(error.filename)),
-        "for ID registry indexing",
+        UNREADABLE_FILE_WARNING,
+        loggable(_shown(path, project_root)),
+        _PURPOSE,
         one_line(error),
     )
 
 
-def _walk_files(root: Path) -> list[Path]:
+def _walk_files(root: Path, project_root: Path) -> list[Path]:
     """Every file name below the directory *root*, sorted as ``Path``s; a
     directory named in :data:`~pitloom.core.walk_rules.IGNORED_DIR_NAMES`
     is pruned, a symlink to a directory is not followed, and one that
     cannot be listed gets the shared ``DIR=`` warning."""
+
+    def _warn_unlistable(error: OSError) -> None:
+        log.warning(
+            UNLISTABLE_DIR_WARNING,
+            loggable(_shown(error.filename, project_root)),
+            _PURPOSE,
+            one_line(error),
+        )
+
     found: list[Path] = []
     for dirpath, dirnames, filenames in os.walk(root, onerror=_warn_unlistable):
         dirnames[:] = [name for name in dirnames if name not in IGNORED_DIR_NAMES]
@@ -193,7 +222,10 @@ def _iter_files(
     except the *exclude* file (the declared registry).
 
     A missing path is skipped with a warning; one that cannot be
-    ``stat()``-ed raises, on every Python version."""
+    ``stat()``-ed raises, on every Python version. Below a directory path,
+    a file that cannot be ``stat()``-ed (its directory not searchable) is
+    skipped with the shared ``FILE=`` warning, a directory that cannot be
+    listed with the ``DIR=`` one, as ``pitloom project`` does."""
     seen: set[Path] = set()
     excluded = None if exclude is None else SameFile(exclude)
 
@@ -204,9 +236,17 @@ def _iter_files(
             log.warning("ID registry: path not found, skipping: %s", root)
             continue
 
-        candidates = _walk_files(root) if stat.S_ISDIR(root_stat.st_mode) else [root]
+        if not stat.S_ISDIR(root_stat.st_mode):
+            candidates = [root]
+        else:
+            candidates = _walk_files(root, project_root)
         for file_path in candidates:
             relative_dirs = _relative_parts(file_path, root, project_root)
-            if _is_eligible_file(file_path, seen, relative_dirs, excluded):
+            try:
+                eligible = _is_eligible_file(file_path, seen, relative_dirs, excluded)
+            except OSError as exc:
+                warn_unreadable_file(file_path, project_root, exc)
+                continue
+            if eligible:
                 seen.add(file_path)
                 yield file_path

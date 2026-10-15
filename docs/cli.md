@@ -203,7 +203,10 @@ loom id import existing-sbom.spdx3.json -o loom-id-registry.json
 
 `id generate` also takes `--namespace IRI` (a new registry's document
 namespace) and `-e NAME:dataset_DatasetPackage` (pin a `loom.Run` dataset by
-the string its script passes). The registry file is JSON: `version: 3`,
+the string its script passes; a trailing `:`, a control character or a blank
+`NAME` is a usage error, exit 2). `id generate` and `id import` write only a
+changed registry. A file or directory below a `PATH` that cannot be read is a
+`WARNING: FILE=...`/`DIR=...` and the run continues. The registry file is JSON: `version: 3`,
 `namespace`, `project_root` (relative to the file), `elements`, a table of
 `spdxId`s keyed by element type and name, and `id_counters`, the highest number
 issued per id prefix, so a retired id is never minted again. A version 2 file from an earlier

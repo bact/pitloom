@@ -95,8 +95,10 @@ and this project adheres to
 - A requirement or marker nesting over 64 parentheses warns instead of
   crashing the run ([#300])
 - `id import` keeps a model's hash unless the id changes (`INFO:`); in-tree
-  registries and their wheel/sdist copies settle; `id generate` indexes `build/`,
-  warns on unlistable dirs; one failed-save line; same-id types merge apart ([#305])
+  registries and their wheel/sdist copies settle (a copy is the registry's path,
+  or less one `src/` part); `id generate` indexes `build/`, warns on unreadable
+  files/dirs; one write routine, one failed-save line; same-id types merge apart
+  ([#305])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305

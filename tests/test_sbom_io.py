@@ -122,6 +122,57 @@ def test_replace_text_lf_refuses_a_read_only_file(tmp_path: Path) -> None:
     assert sorted(os.listdir(tmp_path)) == ["ids.json"]
 
 
+#: Whether a read-only directory refuses this process a new file there.
+_POSIX_NON_ROOT = sys.platform != "win32" and os.geteuid() != 0
+
+
+@pytest.mark.parametrize(
+    "how",
+    [
+        "patched",
+        pytest.param(
+            "chmod",
+            marks=pytest.mark.skipif(not _POSIX_NON_ROOT, reason="POSIX, non-root"),
+        ),
+    ],
+)
+@pytest.mark.parametrize("exists", [True, False], ids=["file", "no-file"])
+def test_replace_text_lf_in_a_read_only_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, how: str, exists: bool
+) -> None:
+    """No temporary file can be made beside *path*: a writable file is
+    written in place; with none, the error names *path*, not the
+    temporary file."""
+    directory = tmp_path / "ro"
+    directory.mkdir()
+    path = directory / "ids.json"
+    if exists:
+        path.write_bytes(b"old\n")
+    if how == "patched":
+        real_open = os.open
+
+        def _refuse(name: str, *args: int) -> int:
+            if os.path.basename(name).startswith(".ids.json."):
+                raise PermissionError(13, "Permission denied", name)
+            return real_open(name, *args)
+
+        monkeypatch.setattr("pitloom._sbom_io.os.open", _refuse)
+    if how == "chmod":
+        os.chmod(directory, 0o555)
+    try:
+        if exists:
+            replace_text_lf(path, _TEXT)
+        else:
+            with pytest.raises(PermissionError) as excinfo:
+                replace_text_lf(path, _TEXT)
+            assert excinfo.value.filename == str(path)
+    finally:
+        os.chmod(directory, 0o755)
+
+    assert sorted(os.listdir(directory)) == (["ids.json"] if exists else [])
+    assert not exists or path.read_bytes() == _TEXT.encode("utf-8")
+
+
 def test_replace_text_lf_writes_through_its_exclusive_descriptor(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

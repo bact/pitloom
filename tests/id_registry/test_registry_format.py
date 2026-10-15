@@ -3,10 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The registry file, version 3: round trip, determinism and every
-``load()`` failure.
+"""The registry file, version 3: round trip, determinism, the stored
+project root.
 
-See also: test_registry.py (the in-memory API), test_surfaces_failures.py
+See also: test_registry_format_load.py (every ``load()`` failure),
+test_registry.py (the in-memory API), test_surfaces_failures.py
 (a version 2 file on every surface), test_registry_counters.py (the id
 counters, I8), tests/registry_helpers.py.
 """
@@ -18,7 +19,6 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -34,24 +34,12 @@ from pitloom.id_registry import (
     RegistryEntry,
 )
 from tests._symlink import CAN_SYMLINK
+from tests.id_registry.shared import valid_registry_data
 from tests.json_text_helpers import without_token_whitespace
 from tests.registry_helpers import entries_of, make_registry
 
 _NS = "https://spdx.org/spdxdocs/test-1"
 _SHA = "a" * 64
-
-
-def _valid() -> dict[str, Any]:
-    return {
-        "elements": {
-            FILE_TYPE: {"src/a.py": {"sha256": _SHA, "spdxId": f"{_NS}#File-1"}},
-            PACKAGE_TYPE: {"requests": {"spdxId": f"{_NS}#Package-2"}},
-        },
-        "id_counters": {"File": 1, "Package": 2},
-        "namespace": _NS,
-        "project_root": ".",
-        "version": 3,
-    }
 
 
 def _sample(tmp_path: Path) -> IdRegistry:
@@ -206,12 +194,31 @@ def test_save_stores_the_project_root_realpath(tmp_path: Path) -> None:
     )
 
 
+@pytest.mark.skipif(not CAN_SYMLINK, reason="cannot create a symlink here")
+@pytest.mark.parametrize("root", ["given", "default"])
+def test_a_symlinked_registry_has_one_project_root(tmp_path: Path, root: str) -> None:
+    """Saved and loaded through a symlink or its target, one registry file
+    gives one project root: both resolve the link first."""
+    base = Path(os.path.realpath(tmp_path))
+    (base / "proj").mkdir()
+    (base / "shared").mkdir()
+    link = base / "proj" / "reg.json"
+    link.symlink_to(Path("..") / "shared" / "reg.json")
+    given = base / "proj" if root == "given" else None
+    IdRegistry.new("x", path=link, project_root=given).save()
+
+    via_link = IdRegistry.load(link).root_dir()
+
+    assert via_link == IdRegistry.load(base / "shared" / "reg.json").root_dir()
+    assert via_link == (given or base / "shared")
+
+
 def test_load_resolves_project_root_against_the_registry_directory(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "proj" / "build").mkdir(parents=True)
     path = tmp_path / "proj" / "build" / "reg.json"
-    data = _valid()
+    data = valid_registry_data()
     data["project_root"] = ".."
     path.write_text(json.dumps(data), encoding="utf-8")
 
@@ -223,7 +230,9 @@ def test_load_resolves_project_root_against_the_registry_directory(
 
 def test_load_tolerates_a_leading_bom(tmp_path: Path) -> None:
     path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    path.write_bytes(b"\xef\xbb\xbf" + json.dumps(_valid()).encode("utf-8"))
+    path.write_bytes(
+        b"\xef\xbb\xbf" + json.dumps(valid_registry_data()).encode("utf-8")
+    )
 
     registry = IdRegistry.load(path)
 
@@ -233,7 +242,7 @@ def test_load_tolerates_a_leading_bom(tmp_path: Path) -> None:
 
 
 def test_load_canonicalises_a_package_name(tmp_path: Path) -> None:
-    data = _valid()
+    data = valid_registry_data()
     data["elements"][PACKAGE_TYPE] = {"PyYAML": {"spdxId": "x#Package-2"}}
     path = tmp_path / "reg.json"
     path.write_text(json.dumps(data), encoding="utf-8")
@@ -260,7 +269,7 @@ def test_load_accepts_a_str_path_and_any_namespace_iri(
 
 
 def test_load_accepts_an_empty_elements_table(tmp_path: Path) -> None:
-    data = _valid()
+    data = valid_registry_data()
     data["elements"] = {}
     path = tmp_path / "reg.json"
     path.write_text(json.dumps(data), encoding="utf-8")
@@ -268,199 +277,11 @@ def test_load_accepts_an_empty_elements_table(tmp_path: Path) -> None:
     assert not IdRegistry.load(path).elements
 
 
-# --- every load() failure ----------------------------------------------
-
-
-def _v2(data: dict[str, Any]) -> None:
-    data.clear()
-    data.update(
-        {"version": 2, "namespace": _NS, "files": {}, "entities": {}},
-    )
-
-
-def _set(key: str, value: object) -> Any:
-    def apply(data: dict[str, Any]) -> None:
-        data[key] = value
-
-    return apply
-
-
-def _drop(key: str) -> Any:
-    def apply(data: dict[str, Any]) -> None:
-        del data[key]
-
-    return apply
-
-
-def _entry(**changes: object) -> Any:
-    def apply(data: dict[str, Any]) -> None:
-        record = data["elements"][FILE_TYPE]["src/a.py"]
-        for key, value in changes.items():
-            if value is _DELETE:
-                del record[key]
-            else:
-                record[key] = value
-
-    return apply
-
-
-_DELETE = object()
-
-_FAILURES: dict[str, tuple[Any, str]] = {
-    "v2": (_v2, "version 2, expected 3"),
-    "version-str": (_set("version", "3"), "version '3', expected 3"),
-    "no-namespace": (_drop("namespace"), "missing a valid 'namespace'"),
-    "empty-namespace": (_set("namespace", ""), "missing a valid 'namespace'"),
-    "fragment-namespace": (
-        _set("namespace", f"{_NS}#SPDXRef-DOCUMENT"),
-        "'namespace': namespace 'https://spdx.org/spdxdocs/test-1#SPDXRef-DOCUMENT'",
-    ),
-    "relative-namespace": (_set("namespace", "demo"), "'namespace': namespace 'demo'"),
-    "unknown-top-key": (_set("files", {}), "unknown top-level key(s): 'files'"),
-    "no-elements": (_drop("elements"), "missing 'elements'"),
-    "no-project-root": (_drop("project_root"), "missing 'project_root'"),
-    "no-id-counters": (_drop("id_counters"), "missing 'id_counters'"),
-    "id-counters-list": (_set("id_counters", []), "'id_counters' is not an object"),
-    "elements-list": (_set("elements", []), "malformed entry: 'elements'"),
-    "type-table-list": (
-        _set("elements", {FILE_TYPE: []}),
-        "malformed entry: elements 'software_File'",
-    ),
-    "entry-list": (
-        _set("elements", {FILE_TYPE: {"a": []}}),
-        "malformed entry: software_File 'a' is not an object",
-    ),
-    "unknown-entry-key": (_entry(type="x"), "unknown key(s): 'type'"),
-    "no-spdx-id": (_entry(spdxId=_DELETE), "'spdxId' must be a non-empty string"),
-    "null-spdx-id": (_entry(spdxId=None), "'spdxId' must be a non-empty string"),
-    "list-spdx-id": (_entry(spdxId=["a"]), "'spdxId' must be a non-empty string"),
-    "empty-spdx-id": (_entry(spdxId=""), "'spdxId' must be a non-empty string"),
-    "null-sha256": (_entry(sha256=None), "'sha256' must be a non-empty string"),
-    "empty-sha256": (_entry(sha256=""), "'sha256' must be a non-empty string"),
-    "int-sha256": (_entry(sha256=1), "'sha256' must be a non-empty string"),
-    "duplicate-canonical": (
-        _set(
-            "elements",
-            {PACKAGE_TYPE: {"PyYAML": {"spdxId": "x#1"}, "pyyaml": {"spdxId": "x#2"}}},
-        ),
-        "two software_Package entries for 'pyyaml'",
-    ),
-}
-
-_BAD_ROOTS: dict[str, object] = {
-    "int": 1,
-    "null": None,
-    "list": ["."],
-    "empty": "",
-    "backslash": "a\\b",
-    "absolute": "/x",
-    "drive": "C:/x",
-    "drive-relative": "C:x",
-    "unc": "//server/share",
-    "unc-backslash": "\\\\server\\share",
-    "nul": "a\x00b",
-}
-for _name, _root in _BAD_ROOTS.items():
-    _FAILURES[f"root-{_name}"] = (_set("project_root", _root), "'project_root'")
-
-# 2**53: one above MAX_ID_NUMBER, a number RFC 8785 would write as a string.
-_BAD_COUNTERS: dict[str, tuple[str, object]] = {
-    "bool": ("File", True),
-    "zero": ("File", 0),
-    "negative": ("File", -1),
-    "float": ("File", 1.0),
-    "str": ("File", "1"),
-    "null": ("File", None),
-    "huge": ("File", 2**53),
-    "empty-prefix": ("", 1),
-    "space-prefix": ("Fi le", 1),
-    "hash-prefix": ("File#x", 1),
-    "lower-escape-prefix": ("a%2fb", 1),
-}
-for _name, (_prefix, _number) in _BAD_COUNTERS.items():
-    _FAILURES[f"counter-{_name}"] = (
-        _set("id_counters", {_prefix: _number}),
-        "'id_counters' ",
-    )
-
-
-@pytest.mark.parametrize("case", sorted(_FAILURES))
-def test_load_rejects(tmp_path: Path, case: str) -> None:
-    mutate, reason = _FAILURES[case]
-    data = _valid()
-    mutate(data)
-    path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    path.write_text(json.dumps(data), encoding="utf-8")
-
-    with pytest.raises(ValueError) as excinfo:
-        IdRegistry.load(path)
-
-    message = str(excinfo.value)
-    assert message.startswith(f"ID registry file {path}: ")
-    assert reason in message
-
-
-def test_load_v2_message_is_exact(tmp_path: Path) -> None:
-    path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    path.write_text(
-        json.dumps({"version": 2, "namespace": _NS, "files": {}, "entities": {}}),
-        encoding="utf-8",
-    )
-
-    with pytest.raises(ValueError) as excinfo:
-        IdRegistry.load(path)
-
-    assert str(excinfo.value) == (
-        f"ID registry file {path}: version 2, expected 3 (no migration support "
-        "-- delete it and re-run `pitloom id generate` or `pitloom id import`)"
-    )
-
-
-@pytest.mark.parametrize(
-    ("raw", "reason"),
-    [
-        (b"{not valid json", "not valid JSON"),
-        (b"\xff\xfe\x00\x01not json at all", "not valid JSON"),
-        (b"[" * 200_000 + b"]" * 200_000, "not valid JSON"),
-        (b"[1, 2, 3]", "not a JSON object"),
-    ],
-    ids=["bad-json", "non-utf8", "deep", "array"],
-)
-def test_load_rejects_raw_bytes(tmp_path: Path, raw: bytes, reason: str) -> None:
-    path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    path.write_bytes(raw)
-
-    with pytest.raises(ValueError, match=f"^ID registry file .*: {reason}"):
-        IdRegistry.load(path)
-
-
-@pytest.mark.parametrize("kind", ["missing", "directory"])
-def test_load_not_found_or_not_a_file(tmp_path: Path, kind: str) -> None:
-    path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    if kind == "directory":
-        path.mkdir()
-
-    with pytest.raises(ValueError, match="not found or not a file"):
-        IdRegistry.load(path)
-
-
-def test_load_os_error_on_read_raises_cannot_be_read(tmp_path: Path) -> None:
-    """Mocked rather than a real chmod, since NTFS has no matching bit."""
-    path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    path.write_text("{}")
-
-    with patch(
-        "pitloom.id_registry._format.open", side_effect=OSError("Permission denied")
-    ):
-        with pytest.raises(ValueError, match="cannot be read"):
-            IdRegistry.load(path)
-
-
 def test_load_accepts_a_parent_project_root(tmp_path: Path) -> None:
     """``..`` is allowed (a registry in ``build/``)."""
     path = tmp_path / "build" / "reg.json"
     path.parent.mkdir()
-    data = _valid()
+    data = valid_registry_data()
     data["project_root"] = "../."
     path.write_text(json.dumps(data), encoding="utf-8")
 

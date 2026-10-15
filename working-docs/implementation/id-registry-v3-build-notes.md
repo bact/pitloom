@@ -171,3 +171,50 @@ Decided by the user after the first full review; the code follows them.
   `ID registry: failed to save <path>: <reason>` to `persist_registry` (a
   `WARNING:`) and to `id generate`/`id import` (the one `ERROR:`, exit 1;
   they printed the bare `OSError` before).
+
+## Rulings of the 2026-10-15 review rounds (PR #305)
+
+- **One write routine.** `save_registry` (public) rebases and saves only a
+  changed file; `id generate`, `id import`, harvest and loom all call it
+  through `persist_registry` or directly. `Rebase.added` makes the `INFO:`
+  `added N new id(s)` count only ids new to the file. `id import` keeps the
+  namespace it adopted unless another run changed it meanwhile. Not done:
+  `IdRegistry.save()` called directly is still a plain write.
+- **Counter reservation is bounded.** Ids from an SBOM, harvest or import
+  reserve numbers up to 10**9 only; a prefix that is not a valid IRI segment
+  (`/`, `?`, space, `#`, lowercase `%xx`) reserves nothing; `register("")`
+  raises; the `id_counters` check also runs on save. Raw mint prefixes come
+  from the library `register()` accepting any compact type, not from `-e`.
+- **Strict load.** A non-integer `version` (`3.0`) and any repeated JSON
+  object key (`duplicate key 'X'`) are rejected; `project_root` of a
+  symlinked registry is relative to the target's directory.
+- **Reads and writes degrade by level.** An unreadable file or directory
+  below an `id generate` PATH is the shared `FILE=`/`DIR=` `WARNING:`
+  (project-relative POSIX path); a root PATH stays an `ERROR:`. A writable
+  registry in a read-only directory is written in place (not atomic);
+  failed-save messages name the registry, not the `.tmp` file.
+- **Shared-stem `INFO:` names what happened**: `its entry is left as is`
+  (an entry existed) or `its new entry is not content-gated`.
+- **`-e` is strict.** A trailing `:`, a type with surrounding white space, a
+  control character or a blank NAME is a usage error (exit 2); URLs and
+  `C:\path` names still work.
+- **Final wheel tail rule** (supersedes the earlier "path tail" matching). A
+  wheel member is the registry's copy only if its path equals the registry's
+  project-relative path, or that path less exactly one leading part with a
+  directory and the file left (`src/` layout). One member per archive (the
+  longest) is left out; `reg.json` and `data/reg.json` are kept on every
+  wheel and embed surface. The sdist rule is unchanged (whole path below
+  `name-version/`). Without a project directory the base is the nearest
+  directory holding the registry and a `pyproject.toml`, `setup.cfg` or
+  `setup.py`, no higher than the stored root, else the stored root (monorepo
+  registries now work for sdists). Rejected: matching any suffix, which
+  dropped unrelated files.
+- **`--allow-build` copies are recognised by origin** (a file the build
+  extracted), wherever `TMPDIR` is. A build-and-read file's `physical_path`
+  is always absolute, so the SBOM no longer depends on the random extraction
+  directory.
+- **loom** warns `ID registry ... is inside dataset directory ...` also when
+  the directory gets no Merkle root.
+- **New private module `_embed_overlay.py`** (`merge_file_extras`,
+  `add_concluded_license`, `adopt_project_authors`), split from
+  `_embed_build_sbom.py`.

@@ -27,7 +27,7 @@ from pitloom.id_registry import (
     RegistryEntry,
     persist_registry,
 )
-from pitloom.id_registry._counters import MAX_ID_NUMBER, id_number
+from pitloom.id_registry._counters import MAX_ID_NUMBER, RESERVE_CEILING, id_number
 from tests.id_registry.shared import _write_sample_sbom
 from tests.registry_helpers import make_registry
 
@@ -145,10 +145,18 @@ def test_a_run_that_mints_saves_its_counter_even_when_refused(
         (f"{_NS}#File-x", {}),
         (f"{_NS}#AIPackage-whisper-tiny", {}),
         (f"{_NS}#AIPackage-whisper-tiny-1", {"AIPackage-whisper-tiny": 1}),
-        (f"{_NS}#File-{MAX_ID_NUMBER}", {"File": MAX_ID_NUMBER}),
+        (f"{_NS}#File-{RESERVE_CEILING}", {"File": RESERVE_CEILING}),
+        (f"{_NS}#File-{RESERVE_CEILING + 1}", {}),
+        (f"{_NS}#File-{MAX_ID_NUMBER}", {}),
         (f"{_NS}#File-{MAX_ID_NUMBER + 1}", {}),
         (f"{_NS}#File-1{'0' * 4400}", {}),
         (f"{_NS}#-3", {}),
+        (f"{_NS}#pkg/requests-1", {}),
+        (f"{_NS}#a?b-1", {}),
+        (f"{_NS}#a b-1", {}),
+        (f"{_NS}#a#b-1", {}),
+        (f"{_NS}#pkg%2frequests-1", {}),
+        (f"{_NS}#pkg%2Frequests-1", {"pkg%2Frequests": 1}),
     ],
     ids=[
         "ns",
@@ -158,60 +166,59 @@ def test_a_run_that_mints_saves_its_counter_even_when_refused(
         "no-number",
         "name-suffix",
         "name-then-number",
+        "ceiling",
+        "over-ceiling",
         "max",
         "over-max",
         "long",
         "no-prefix",
+        "slash-prefix",
+        "query-prefix",
+        "space-prefix",
+        "hash-prefix",
+        "lower-escape-prefix",
+        "upper-escape-prefix",
     ],
 )
 def test_harvest_reserves_an_id_of_the_registry_namespace(
-    spdx_id: str, counters: dict[str, int]
+    tmp_path: Path, spdx_id: str, counters: dict[str, int]
 ) -> None:
-    """A stored id in the registry's namespace raises its prefix's counter;
-    any other id (another namespace, not a mint's shape) leaves them."""
+    """A stored id in the registry's namespace raises its prefix's counter
+    up to :data:`RESERVE_CEILING`; any other id (another namespace, not a
+    mint's shape, a prefix no mint writes, a foreign number above the
+    ceiling) leaves them, and the registry saves a file that loads back."""
     registry = IdRegistry(namespace=_NS)
 
     new_ids, changed = registry.harvest(_files(("a.py", spdx_id)))
+    registry.save(tmp_path / "reg.json")
 
     assert (new_ids, changed) == (1, True)
     assert registry.id_counters == counters
+    assert IdRegistry.load(tmp_path / "reg.json").id_counters == counters
 
 
-def test_an_ambiguous_id_is_reserved_but_not_stored() -> None:
-    """Two elements under one key are not harvested (I5), but an id seen
-    in the registry's namespace is still never minted for another key."""
+def test_a_foreign_id_above_the_ceiling_never_disables_minting() -> None:
+    """A held id above :data:`RESERVE_CEILING` reserves nothing, yet a mint
+    reaching it skips it: mints go on, never handing out a held id."""
+    registry = IdRegistry(namespace=_NS)
+    registry.harvest(_files(("a.py", f"{_NS}#File-{MAX_ID_NUMBER}")))
+    assert registry.register(FILE_TYPE, "b.py") == f"{_NS}#File-1"
+
+    registry.harvest(_files(("c.py", f"{_NS}#File-{RESERVE_CEILING + 1}")))
+    registry.id_counters["File"] = RESERVE_CEILING
+
+    assert registry.register(FILE_TYPE, "d.py") == f"{_NS}#File-{RESERVE_CEILING + 2}"
+
+
+def test_register_refuses_a_type_with_no_id_prefix() -> None:
+    """``""`` gives no prefix: an id ``ns#-1`` and a counter the file
+    cannot hold. Refused, with nothing changed."""
     registry = IdRegistry(namespace=_NS)
 
-    new_ids, changed = registry.harvest(
-        _files(("a.py", f"{_NS}#File-4"), ("a.py", f"{_NS}#File-9"))
-    )
+    with pytest.raises(ValueError, match="^ID registry: no id prefix"):
+        registry.register("", "x")
 
-    assert (new_ids, changed, registry.elements) == (0, True, {})
-    assert registry.register(FILE_TYPE, "b.py") == f"{_NS}#File-10"
-
-
-def test_import_into_an_empty_registry_reserves_the_adopted_namespace(
-    tmp_path: Path,
-) -> None:
-    """`id import` adopts the SBOM's namespace, so every named element's
-    id counts (the unnamed ``Sbom-1`` is not read)."""
-    sbom = tmp_path / "sbom.json"
-    namespace = _write_sample_sbom(sbom)["namespace"]
-    registry = IdRegistry.new("x")
-
-    registry.import_sbom(sbom)
-
-    assert (registry.namespace, registry.id_counters) == (
-        namespace,
-        {
-            "AIPackage": 1,
-            "DatasetPackage": 7,
-            "File": 9,
-            "Package": 2,
-            "SoftwareAgent": 1,
-        },
-    )
-    assert registry.register(FILE_TYPE, "b.py") == f"{namespace}#File-10"
+    assert (registry.elements, registry.id_counters) == ({}, {})
 
 
 def _with_counters(path: Path, counters: dict[str, int]) -> None:
@@ -269,3 +276,21 @@ def test_id_number_needs_the_namespace_then_a_hash() -> None:
     """A namespace that is a prefix of another is not that namespace."""
     assert id_number(_NS, f"{_NS}2#File-1") is None
     assert id_number(_NS, f"{_NS}#File-1") == ("File", 1)
+
+
+@pytest.mark.parametrize(
+    "counters",
+    [{"a/b": 1}, {"File": 0}, {"File": MAX_ID_NUMBER + 1}],
+    ids=["prefix", "zero", "over-max"],
+)
+def test_save_refuses_a_counter_the_loader_rejects(
+    tmp_path: Path, counters: dict[str, int]
+) -> None:
+    """A counter set through the library API is checked as ``load()``
+    checks it: no save writes a file that does not load back."""
+    registry = IdRegistry(namespace=_NS, id_counters=counters)
+
+    with pytest.raises(ValueError, match="^ID registry file .*'id_counters' "):
+        registry.save(tmp_path / "reg.json")
+
+    assert not (tmp_path / "reg.json").exists()

@@ -31,7 +31,7 @@ from pitloom.core.models import get_wheel_files as real_get_wheel_files
 from tests.kv_helpers import info_kv, records, sbom_output_path
 
 from .conftest import _make_dummy_wheel, _spdx3_json_with_subject
-from .test_embed_overrides import _make_ctpkg_project_and_wheel
+from .test_embed_cleanup import _make_ctpkg_project_and_wheel
 
 
 def test_cli_embed_wheel_absolute_glob(

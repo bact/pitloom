@@ -99,6 +99,8 @@ API](python-api.md#tracking-decorator) page.
 
 ::: pitloom.id_registry.persist_registry
 
+::: pitloom.id_registry.save_registry
+
 ::: pitloom.id_registry.registry_key_for_path
 
 ::: pitloom.id_registry.type_id_prefix

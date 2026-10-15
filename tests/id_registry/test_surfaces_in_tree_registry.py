@@ -242,15 +242,28 @@ def _rooted_registry(tmp_path: Path, root_is_project: bool = True) -> Path:
     return registry
 
 
-def _archive(directory: Path, copy: bytes | None, sdist: bool = False) -> Path:
+#: Another file, named by a tail of the registry's path: never left out.
+_TAIL_NAMED = {"reg.json": b'{"unrelated": true}\n'}
+
+
+def _archive(
+    directory: Path, copy: bytes | None, sdist: bool = False, tail: bool = True
+) -> Path:
     """A wheel (or an sdist) of the demo project carrying *copy* (``None``:
-    nothing) where a build puts the in-tree registry, ``demo/reg.json``."""
+    nothing) where a build puts the in-tree registry, ``demo/reg.json``,
+    and (*tail*) a top-level ``reg.json`` of its own."""
+    own = _TAIL_NAMED if tail else {}
     if sdist:
         directory.mkdir(exist_ok=True)
-        members = {"demo/reg.json": copy, "demo/__init__.py": b""}
+        members = {"demo/reg.json": copy, "demo/__init__.py": b"", **own}
         return _make_sdist(directory, members=members)
-    extra = {} if copy is None else {"demo/reg.json": copy}
+    extra = {**own, **({} if copy is None else {"demo/reg.json": copy})}
     return _make_dummy_wheel(directory / "dist", "demo", "1.0.0", extra_members=extra)
+
+
+def _file_names(sbom: str) -> set[str]:
+    graph = json.loads(sbom)["@graph"]
+    return {e["name"] for e in graph if e["type"] == "software_File"}
 
 
 #: Runs one route: (archive, registry, output, monkeypatch).
@@ -314,11 +327,13 @@ def test_archive_copy_of_the_registry_is_left_out_once(
     """The copy a build put in the archive is an older registry (other
     bytes): its path below the stored project root says what it is. The
     SBOM is the one of the same archive without it, Merkle root included,
-    from the same registry."""
+    from the same registry; a top-level ``reg.json`` stays. One warning
+    for the copy; none without it, unless a project walk met the registry."""
     run, sdist = _ARCHIVE_ROUTES[route]
     registry = _rooted_registry(tmp_path)
     before = registry.read_bytes()
     sboms: list[str] = []
+    warned: list[list[str]] = []
     for copy in (None, _STALE_COPY):
         registry.write_bytes(before)
         archive = _archive(tmp_path / str(copy is None), copy, sdist)
@@ -327,12 +342,14 @@ def test_archive_copy_of_the_registry_is_left_out_once(
         with caplog.at_level(logging.WARNING):
             assert run(archive, registry, out, monkeypatch) in (None, 0)
         sboms.append(out.read_text(encoding="utf-8"))
+        warned.append([w.split(" is ")[0] for w in _left_out_warnings(caplog)])
 
+    names = _file_names(sboms[0])
     assert "demo/__init__.py" in sboms[0]  # not vacuous
+    assert ("demo-1.0.0/reg.json" if sdist else "reg.json") in names
     assert sboms[1] == sboms[0]
-    assert [w.split(" is ")[0] for w in _left_out_warnings(caplog)] == [
-        f"ID registry: {registry}"
-    ]
+    one = [f"ID registry: {registry}"]
+    assert warned == [one if route.endswith("-project") else [], one]
 
 
 @pytest.mark.parametrize("route", ["cli-wheel", "cli-project-sdist"])
@@ -346,7 +363,7 @@ def test_archive_copy_is_kept_when_the_root_is_the_registry_directory(
     archive's tree starts: nothing is left out, silently."""
     run, sdist = _ARCHIVE_ROUTES[route]
     registry = _rooted_registry(tmp_path, root_is_project=False)
-    archive = _archive(tmp_path, registry.read_bytes(), sdist)
+    archive = _archive(tmp_path, registry.read_bytes(), sdist, tail=False)
     out = tmp_path / "out.json"
 
     with caplog.at_level(logging.WARNING):
@@ -416,7 +433,7 @@ def test_in_tree_registry_settles_across_wheel_surfaces(
 
     first = [sbom for sbom, _, _ in runs[0]]
     assert b"demo/__init__.py" in first[1]  # not vacuous
-    assert all(b"reg.json" not in sbom for sbom in first)
+    assert all(b"demo/reg.json" not in sbom for sbom in first)
     assert runs[1] == runs[2]
     assert {lookup(r) for _, r, _ in runs[2]} == {lookup(runs[1][-1][1])}
     assert [stale for _, _, stale in runs[2][2:]] == [0, 0]

@@ -17,6 +17,7 @@ import hashlib
 import logging
 import os
 from collections.abc import Callable
+from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Literal
@@ -278,6 +279,25 @@ def _denied_read(target: Path) -> Callable[..., tuple[bytes, int]]:
         return real(path, **kwargs)
 
     return _read
+
+
+@pytest.mark.parametrize("case", ["only-registry", "over-cap", "unreadable", "stat"])
+def test_excluded_registry_is_reported_without_a_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
+) -> None:
+    """The *exclude* file met by the walk is reported whether or not a root
+    comes of it: no other file, the cap, a file that cannot be read or
+    ``stat()``-ed after it (below it: ``os.walk`` lists the top first)."""
+    files = {} if case == "only-registry" else {"sub/t.txt": b"12345"}
+    top = _tree(tmp_path, {**files, "ids.json": b"{}"})
+    other = top / "sub" / "t.txt"
+    if case == "unreadable":
+        monkeypatch.setattr(dataset_hash, "sha256_digest_and_size", _denied_read(other))
+    with deny(other, "stat", monkeypatch) if case == "stat" else nullcontext():
+        found = hash_dataset(
+            top, max_bytes=1 if case == "over-cap" else _BIG, exclude=top / "ids.json"
+        )
+    assert found == DatasetDigest("dir", excluded=True)
 
 
 @pytest.mark.parametrize(

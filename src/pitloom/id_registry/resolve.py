@@ -12,10 +12,11 @@ See also: :mod:`pitloom.id_registry._registry` for ``IdRegistry`` itself.
 
 from __future__ import annotations
 
+import itertools
 import os
 from pathlib import Path, PurePath
 
-from pitloom.core.path_confine import inside_ancestor
+from pitloom.core.path_confine import inside_ancestor, is_inside
 from pitloom.core.walk_rules import RegistryCopy
 from pitloom.id_registry._registry import IdRegistry
 
@@ -56,13 +57,39 @@ def registry_file_path(registry: IdRegistry | None) -> Path | None:
     return registry.path if registry is not None else None
 
 
+#: The files that make a directory a Python project's, for
+#: :func:`registry_copy`'s root.
+_PROJECT_FILES = ("pyproject.toml", "setup.cfg", "setup.py")
+
+
+def _project_dir_of(registry: Path, stored_root: Path) -> Path:
+    """The nearest directory holding *registry*, *stored_root* or below it,
+    that is a project's (holds one of :data:`_PROJECT_FILES`); else
+    *stored_root*. A monorepo registry stores the repository as its root,
+    while each archive is built from one project below it."""
+    root = PurePath(stored_root)
+    parents = PurePath(os.path.abspath(registry)).parents
+    inside = itertools.takewhile(lambda parent: is_inside(parent, root), parents)
+    return next(
+        (
+            Path(parent)
+            for parent in inside
+            if any(os.path.isfile(os.path.join(parent, n)) for n in _PROJECT_FILES)
+        ),
+        stored_root,
+    )
+
+
 def registry_copy(
     registry: IdRegistry | None, project_dir: Path | None = None
 ) -> RegistryCopy | None:
     """How a reader of a wheel's or sdist's members recognises a copy of
     *registry* a build put there (D7): its path below *project_dir* when
-    that is a directory, else below the project root the registry file
-    stores. ``None`` -- nothing is left out -- with no registry file, or
+    that is a directory; else below the nearest directory holding the
+    registry, up to the project root the registry file stores, that is a
+    project's (``pyproject.toml``, ``setup.cfg`` or ``setup.py``: a
+    monorepo's registry stores the repository), else below that stored
+    root. ``None`` -- nothing is left out -- with no registry file, or
     with no stored root (a registry not saved yet).
 
     A registry storing its own directory as the root (the default when
@@ -73,10 +100,9 @@ def registry_copy(
     if registry is None or path is None:
         return None
     if project_dir is not None and os.path.isdir(project_dir):
-        root: Path | None = project_dir
-    else:
-        root = registry.project_root
-    return None if root is None else RegistryCopy(path, root)
+        return RegistryCopy(path, project_dir)
+    root = registry.project_root
+    return None if root is None else RegistryCopy(path, _project_dir_of(path, root))
 
 
 def resolve_registry(

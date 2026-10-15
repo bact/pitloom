@@ -37,7 +37,7 @@ from pitloom.embed import ConfigOverrides, EmbedFileCache, embed_wheel_sbom
 from tests.build_and_read_shared import spied_raise_signal
 
 from .conftest import _make_dummy_wheel
-from .test_embed_overrides import _make_ctpkg_project_and_wheel
+from .test_embed_cleanup import _make_ctpkg_project_and_wheel
 
 _GET_WHEEL_FILES = "pitloom._embed_build_sbom.get_wheel_files"
 

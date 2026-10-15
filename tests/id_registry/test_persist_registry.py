@@ -20,10 +20,12 @@ from __future__ import annotations
 import errno
 import logging
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TextIO
 
 import pytest
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom import loom
 from pitloom._sbom_io import open_text_lf
@@ -34,11 +36,16 @@ from pitloom.id_registry import (
     IdRegistrySession,
     RegistryEntry,
     persist_registry,
+    save_registry,
 )
 from pitloom.id_registry._persist import replay_changes
 from tests.registry_helpers import entries_of, make_registry
 
 _NS = "https://spdx.org/spdxdocs/test-1"
+_DOC = "https://spdx.org/spdxdocs/demo-run"
+_CI = spdx3.CreationInfo(
+    specVersion="3.0.1", created=datetime(2026, 1, 1, tzinfo=timezone.utc)
+)
 
 
 def _entry(n: int, sha: str | None = None) -> RegistryEntry:
@@ -83,6 +90,8 @@ def _table(spec: str) -> dict[tuple[str, str], RegistryEntry]:
         ("-", "c2", "a1", "a1 c2", 0),
         # ... unless theirs holds mine's id already, for another key.
         ("-", "c1", "a1", "a1", 1),
+        # A refused key keeps theirs' entry, so its id is held too (I4).
+        ("-", "b2 m1", "b1 c2", "b1 c2", 2),
     ],
     ids=[
         "both-added",
@@ -95,6 +104,7 @@ def _table(spec: str) -> dict[tuple[str, str], RegistryEntry]:
         "both-moved",
         "no-base",
         "no-base-held",
+        "refused-holds",
     ],
 )
 def test_replay_changes(
@@ -113,6 +123,19 @@ def test_replay_changes(
     if refused:
         assert "another run saved" in warnings[0]
         assert repr("c") in warnings[0]
+
+
+def _files(*pairs: tuple[str, int]) -> spdx3.SHACLObjectSet:
+    """``software_File`` elements ``(name, n)``, each ``#File-<n>`` of a
+    document namespace."""
+    object_set = spdx3.SHACLObjectSet()
+    for name, number in pairs:
+        object_set.add(
+            spdx3.software_File(
+                spdxId=f"{_DOC}#File-{number}", name=name, creationInfo=_CI
+            )
+        )
+    return object_set
 
 
 def _registry_file(tmp_path: Path) -> Path:
@@ -168,6 +191,59 @@ def test_an_id_saved_first_by_another_run_is_not_recorded(
     (warning,) = _messages(caplog, logging.WARNING)
     assert "another run saved" in warning
     assert not _messages(caplog, logging.INFO)
+
+
+@pytest.mark.parametrize(
+    ("unread", "new_ids", "message"),
+    [(False, 0, "updated stale entries in"), (True, 1, "added 1 new id(s) to")],
+    ids=["update", "unread"],
+)
+def test_the_added_count_is_at_most_the_caller_s(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    unread: bool,
+    new_ids: int,
+    message: str,
+) -> None:
+    """A re-mint for a key the file holds, counted as an update (a
+    harvest's count), adds no id; a registry made in memory adds to a new
+    file only the ids the caller says it added."""
+    path = tmp_path / "reg.json"
+    entries = {(AI_PACKAGE_TYPE, "m"): (f"{_NS}#AIPackage-1", None)}
+    if unread:
+        registry = make_registry(entries)
+        registry.path = path
+    else:
+        make_registry(entries, path=path)
+        registry = IdRegistry.load(path)
+    registry.register(AI_PACKAGE_TYPE, "n" if unread else "m", sha256="1" * 64)
+
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        persist_registry(registry, new_ids, True)
+
+    assert _messages(caplog, logging.INFO) == [f"ID registry: {message} {path}"]
+
+
+@pytest.mark.parametrize("refused", ["b", "m"], ids=["update", "addition"])
+def test_the_added_count_leaves_out_a_refused_change(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, refused: str
+) -> None:
+    """The run added ``a`` and gave ``b`` (an update) or ``m`` (an
+    addition) an id another run saved first for ``c``: that change is
+    refused, ``a``'s addition counts, ``c``'s (theirs) never does."""
+    path = tmp_path / "reg.json"
+    make_registry({(FILE_TYPE, "b"): (f"{_NS}#File-9", None)}, path=path)
+    mine, theirs = IdRegistry.load(path), IdRegistry.load(path)
+    persist_registry(theirs, *theirs.harvest(_files(("b", 9), ("c", 2))))
+    new_ids, changed = mine.harvest(_files(("a", 1), (refused, 2)))
+
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        persist_registry(mine, new_ids, changed)
+
+    assert _messages(caplog, logging.INFO) == [
+        f"ID registry: added 1 new id(s) to {path}"
+    ]
+    assert len(_messages(caplog, logging.WARNING)) == 1
 
 
 @pytest.mark.parametrize("damage", ["deleted", "corrupted"])
@@ -326,3 +402,30 @@ def test_a_loom_run_with_an_unread_registry_keeps_the_file(
 def test_register_id_needs_a_registry() -> None:
     with pytest.raises(ValueError, match="no ID registry"):
         IdRegistrySession(None).register_id("m", AI_PACKAGE_TYPE, "m", sha256="1")
+
+
+@pytest.mark.parametrize(
+    ("mine", "theirs", "saved"),
+    [
+        ("urn:mine", None, "urn:mine"),
+        ("urn:mine", "urn:x", "urn:x"),
+        (None, "urn:x", "urn:x"),
+    ],
+    ids=["mine", "both", "theirs"],
+)
+def test_a_namespace_change_is_replayed_unless_the_file_changed_it(
+    tmp_path: Path, mine: str | None, theirs: str | None, saved: str
+) -> None:
+    """``id import`` adopting an SBOM's namespace is this run's change: it
+    is saved, unless another run changed the file's namespace meanwhile."""
+    path = _registry_file(tmp_path)
+    registry, other = IdRegistry.load(path), IdRegistry.load(path)
+    if theirs is not None:
+        other.namespace = theirs
+        other.save()
+    if mine is not None:
+        registry.namespace = mine
+
+    save_registry(registry)
+
+    assert IdRegistry.load(path).namespace == saved

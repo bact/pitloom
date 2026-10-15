@@ -32,7 +32,7 @@ when the element has content, its SHA-256.
   `wheel`, `model` and `embed-wheel` look a model up by name alone, so a
   retrained file keeps its id there. A stem several model files share gets
   no hash: a new entry has none, an existing one is left as is (one `INFO:`
-  per run).
+  per run; `its new entry is not content-gated` when it had none).
 - **Per-document entities**: a harvest also writes the creator (`Person`
   or `SoftwareAgent`), `Tool` and licence entries
   (`LicenseExpression`/`SimpleLicensingText`). They carry that document's own
@@ -131,7 +131,14 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   (`prefix_ClassName`) or a known type in another case is a usage error (exit
   2); any other suffix stays part of `NAME`, so a URL or a Windows drive path
   works
-  (`-e https://huggingface.co/datasets/imdb:dataset_DatasetPackage`).
+  (`-e https://huggingface.co/datasets/imdb:dataset_DatasetPackage`). A
+  trailing `:`, white space around the `TYPE`, a control character or a blank
+  `NAME` is also a usage error (exit 2).
+- **Unreadable files**: a file or directory below a `PATH` that cannot be
+  read or listed is a `WARNING: FILE=...`/`DIR=...` (project-relative path)
+  and the run continues; an unreadable `PATH` argument is an `ERROR:`.
+  Neither command rewrites an unchanged registry, and `id import` keeps the
+  namespace it adopted unless another run changed it meanwhile.
 - **Namespace**: a new registry gets one minted from the project name and a
   random UUID4; `--namespace IRI` (an absolute IRI without `#`; `id generate`
   only, `id import` has no such option) sets a reproducible one. An existing
@@ -144,7 +151,8 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
 The file is JSON with `version: 3`, `namespace`, `project_root`, an
 `elements` table and `id_counters` (per id prefix, the highest number
 issued, so a retired id is never minted again; do not lower or drop it by
-hand: a file without it does not load). A **version 2** registry (a committed file from an
+hand: a file without it does not load; neither does one with a non-integer
+`version` or a repeated JSON key). A **version 2** registry (a committed file from an
 earlier release, with `files` and `entities`) is rejected, on every
 command, with one `ERROR:` and nothing written. `id generate`/`id import` print
 it as below; other commands prefix their own (`ERROR: SBOM generation
@@ -237,6 +245,7 @@ carries a hash (a loom model declared with `path=`, merged as a fragment).
   kept.
 - `WARNING: ID registry: failed to save <path>: <reason>` -- a run could
   not write the registry (read-only file, full disk); its SBOM is written.
+  The path is the registry's, never a temporary file's.
   `id generate`/`id import` print the same text as their one `ERROR:`, exit
   1, the file left as it was.
 - `WARNING: ID registry: <id> is registered for both X and Y; Y gets a new

@@ -386,10 +386,44 @@ def test_allow_list_names_its_item_only_for_its_case(
         known(violation("A/churn", 2, "project", "software_Package demo", ""), "flat")
         is None
     )
+    entry = mcc["_order_capture"].Entry
+    pair = {
+        ("software_File", "src/pkg/x.py"): entry(NS + "File-1", SHA_A),
+        ("software_File", "pkg/x.py"): entry(NS + "File-2", SHA_A),
+    }
     alias = violation("F/pinned", 2, "wheel", "software_File pkg/x.py", "")
-    assert known(alias, "src")
-    assert known(alias, "flat") is None
-    assert known(replace(alias, key="software_File src/pkg/x.py"), "src") is None
+    assert known(alias, "src", pair)
+    for code in ("A/churn", "E/disagree", "G/ids-not-a-type-preserving-bijection"):
+        assert known(replace(alias, code=code), "src", pair)
+    src_key = replace(alias, key="software_File src/pkg/x.py")
+    assert known(replace(src_key, code="G/key-sets-differ"), "src", pair)
+    other_sha = {**pair, ("software_File", "pkg/x.py"): entry(NS + "File-2", "c" * 64)}
+    not_known = [
+        (alias, "flat", pair),
+        (alias, "src", None),
+        (alias, "src", other_sha),
+        (alias, "src", {("software_File", "pkg/x.py"): pair[alias_key(alias)]}),
+        (src_key, "src", pair),
+        (replace(alias, key="software_File pkg/y.py"), "src", pair),
+        (replace(alias, key="software_Package pkg/x.py"), "src", pair),
+        *(
+            (replace(alias, code=code), "src", pair)
+            for code in (
+                "G/sha256-values-differ",
+                "A/sha-erased",
+                "A/record",
+                "B/multi-key",
+                "D/error",
+            )
+        ),
+    ]
+    for case, profile, registry in not_known:
+        assert known(case, profile, registry) is None, (case, profile)
+
+
+def alias_key(violation: Any) -> tuple[str, str]:
+    type_name, _, name = violation.key.partition(" ")
+    return type_name, name
 
 
 def test_retrain_script_writes_model_bytes(

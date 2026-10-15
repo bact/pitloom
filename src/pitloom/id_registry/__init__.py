@@ -25,6 +25,7 @@ from pitloom.id_registry._ambiguous import ambiguous_keys_message
 from pitloom.id_registry._persist import (
     failed_to_save_message,
     persist_registry,
+    save_registry,
     warn_no_registry_path,
 )
 from pitloom.id_registry._registry import IdRegistry
@@ -64,6 +65,7 @@ __all__ = [
     "registry_file_path",
     "registry_key_for_path",
     "resolve_registry",
+    "save_registry",
     "sha256_file",
     "type_id_prefix",
     "warn_claim_collision",

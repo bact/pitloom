@@ -23,7 +23,9 @@ from typing import Any
 import pytest
 
 from pitloom.core import file_identity, walk_rules
+from pitloom.core.models import get_wheel_files
 from pitloom.core.walk_rules import SameFile, same_path, warn_registry_left_out
+from tests._unreadable import deny
 
 POSIX_ONLY = pytest.mark.skipif(
     sys.platform == "win32", reason="symlinks need privilege on Windows"
@@ -123,6 +125,79 @@ def test_same_file_resolves_its_target_once(
     assert [matcher.matches(o, o.stat()) for o in others] == [False] * 3
     assert matcher.matches(target, target.stat())
     assert not calls
+
+
+@pytest.mark.parametrize("with_stat", [True, False], ids=["stat", "no-stat"])
+def test_missing_target_is_no_existing_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, with_stat: bool
+) -> None:
+    """A target not created yet (a new registry) cannot be an existing
+    file: no ``realpath`` per candidate. Two missing paths still compare
+    by ``realpath``."""
+    others = [tmp_path / f"f{n}.bin" for n in range(3)]
+    for other in others:
+        other.write_bytes(b"")
+    (tmp_path / "sub").mkdir()
+    matcher = SameFile(tmp_path / "new.json")
+    calls: list[object] = []
+
+    def counting_realpath(path: str | os.PathLike[str]) -> str:
+        calls.append(path)
+        return os.path.realpath(path)
+
+    fake_path = SimpleNamespace(realpath=counting_realpath, basename=os.path.basename)
+    fake_os = SimpleNamespace(path=fake_path, fspath=os.fspath)
+    monkeypatch.setattr(walk_rules, "os", fake_os)
+    found = [matcher.matches(o, o.stat() if with_stat else None) for o in others]
+    assert found == [False] * 3
+    assert not calls
+    assert matcher.matches(tmp_path / "sub" / ".." / "new.json")
+    assert not matcher.matches(tmp_path / "other.json")
+
+
+def test_target_without_identity_compares_by_realpath(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A target ``stat()`` fails on for another reason than its absence
+    has no identity: compared by ``realpath``."""
+    path = tmp_path / "reg.json"
+    path.write_text("{}", encoding="utf-8")
+    other = tmp_path / "other.json"
+    other.write_text("{}", encoding="utf-8")
+    with deny(path, "stat", monkeypatch):
+        matcher = SameFile(path)
+    assert matcher.matches(tmp_path / "sub" / ".." / "reg.json")
+    assert not matcher.matches(other, other.stat())
+
+
+def test_discovery_stats_each_file_once_for_the_registry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Project discovery hands the registry matcher the scan's own
+    ``stat()`` result: no second one per file."""
+    project = tmp_path / "proj"
+    (project / "pkg").mkdir(parents=True)
+    (project / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["hatchling"]\n'
+        'build-backend = "hatchling.build"\n\n'
+        '[project]\nname = "pkg"\nversion = "1.0.0"\n',
+        encoding="utf-8",
+    )
+    (project / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+    registry = project / "pkg" / "reg.json"
+    registry.write_text("{}", encoding="utf-8")
+    looked_up: list[object] = []
+    real_file_id = file_identity.file_id
+
+    def counting_file_id(path: Any) -> Any:
+        looked_up.append(path)
+        return real_file_id(path)
+
+    monkeypatch.setattr(walk_rules, "file_id", counting_file_id)
+    _, files, cleanup = get_wheel_files(project, exclude_path=registry)
+    cleanup()
+    assert [f.distribution_path for f in files] == ["pkg/__init__.py"]
+    assert not looked_up
 
 
 def test_warn_registry_left_out_wording(

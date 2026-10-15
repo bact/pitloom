@@ -124,13 +124,13 @@ class LoomElements:
             exclude=registry_file_path(self._session.registry),
         )
         package = self._package(name, dataset_type, caller_info)
+        if found.excluded:  # said even when no root came of the directory
+            self._warn_registry_in(name)
         if found.hex_digest is None:
             return package
         if found.kind == "dir":
             comment = merkle_root_comment(found.file_count)
             package.verifiedUsing = [sha256_hash(found.hex_digest, comment=comment)]
-            if found.excluded:
-                self._warn_registry_in(name)
             return package
         package.verifiedUsing = [sha256_hash(found.hex_digest)]
         held = self.file(name, Path(name), found.hex_digest)

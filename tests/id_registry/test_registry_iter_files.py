@@ -5,7 +5,9 @@
 
 """Tests for the ``id generate`` walk, :func:`pitloom.id_registry._types._iter_files`:
 a walk root that cannot be ``stat()``-ed fails the same way on every Python
-version, and a subdirectory that cannot be listed is never skipped silently.
+version; a subdirectory that cannot be listed, a file that cannot be
+``stat()``-ed or read, is skipped with the shared warning ``pitloom
+project`` gives, never silently.
 
 See also: tests/id_registry/test_registry_generate.py (what the walk
 indexes), tests/core/test_walk_rules.py (the shared rules).
@@ -13,14 +15,21 @@ indexes), tests/core/test_walk_rules.py (the shared rules).
 
 from __future__ import annotations
 
+import errno
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
 
+from pitloom.id_registry import IdRegistry, sha256_file
 from pitloom.id_registry._types import _iter_files
 from tests._symlink import CAN_SYMLINK
 from tests._unreadable import POSIX_NON_ROOT, STAT_MODES, deny, unlistable
+
+_POSIX = pytest.mark.skipif(not POSIX_NON_ROOT, reason="needs POSIX, non-root")
+_SKIPPED = "could not read for ID registry indexing;"
 
 
 def _project(tmp_path: Path) -> Path:
@@ -52,7 +61,7 @@ def test_walk_root_that_cannot_be_stat_ed_raises_on_every_version(
     assert "path not found" not in caplog.text
 
 
-@pytest.mark.skipif(not POSIX_NON_ROOT, reason="needs POSIX permissions, non-root")
+@_POSIX
 def test_unlistable_subdirectory_warns(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -67,7 +76,70 @@ def test_unlistable_subdirectory_warns(
         files = list(_iter_files([Path("src")], root))
     assert files == [root / "src" / "a.py"]
     (warning,) = [r.getMessage() for r in caplog.records]
-    assert warning.startswith(f"DIR={sub}: could not list for ID registry indexing;")
+    assert warning.startswith("DIR=src/sub: could not list for ID registry indexing;")
+
+
+@pytest.mark.parametrize("inside", [True, False], ids=["in-project", "outside"])
+@pytest.mark.parametrize("mode", STAT_MODES)
+def test_a_file_that_cannot_be_stat_ed_is_skipped_with_the_shared_warning(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    mode: str,
+    inside: bool,
+) -> None:
+    """A file below the walk root that cannot be ``stat()``-ed (its
+    directory readable but not searchable): the shared ``FILE=`` warning
+    ``pitloom project`` gives too, the path project-relative (else as
+    walked), and the walk goes on."""
+    root = _project(tmp_path)
+    denied = root / "src" / "sub" / "b.py"
+    project_root = root if inside else tmp_path / "elsewhere"
+    with caplog.at_level(logging.WARNING):
+        with deny(denied, mode, monkeypatch):
+            files = list(_iter_files([root / "src"], project_root))
+    assert files == [root / "src" / "a.py"]
+    (warning,) = [r.getMessage() for r in caplog.records]
+    shown = "src/sub/b.py" if inside else str(denied)
+    assert warning.startswith(f"FILE={shown}: {_SKIPPED}")
+
+
+@contextmanager
+def _unhashable(
+    path: Path, mode: str, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[None]:
+    """*path* cannot be read for hashing: ``chmod 000``, or patched."""
+    if mode == "chmod-file":
+        with deny(path, mode, monkeypatch):
+            yield
+        return
+
+    def _hash(file_path: Path) -> str:
+        if file_path == path:
+            raise PermissionError(errno.EACCES, "Permission denied", str(path))
+        return sha256_file(file_path)
+
+    with monkeypatch.context() as patch:
+        patch.setattr("pitloom.id_registry._registry.sha256_file", _hash)
+        yield
+
+
+@pytest.mark.parametrize("mode", ["patched", pytest.param("chmod-file", marks=_POSIX)])
+def test_generate_skips_a_file_it_cannot_read_with_the_shared_warning(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    mode: str,
+) -> None:
+    root = _project(tmp_path)
+    registry = IdRegistry.new("x", project_root=root)
+    with caplog.at_level(logging.WARNING):
+        with _unhashable(root / "src" / "a.py", mode, monkeypatch):
+            registry.generate([Path("src")], root)
+
+    assert [name for _, name in registry.elements] == ["src/sub/b.py"]
+    (warning,) = [r.getMessage() for r in caplog.records]
+    assert warning.startswith(f"FILE=src/a.py: {_SKIPPED}")
 
 
 def test_walk_is_sorted_and_prunes_ignored_names(tmp_path: Path) -> None:

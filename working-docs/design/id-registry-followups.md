@@ -335,6 +335,45 @@ matrix").
   every surface; `id generate`/`id import` print it as the one `ERROR:`
   and exit 1, the file untouched.
 
+### Found by the review rounds (PR #305, 2026-10-15)
+
+Resolved:
+
+- ~~**Registry writes took several paths**~~ (`id generate`/`id import`
+  rewrote an unchanged file; `id import` could overwrite a namespace changed
+  meanwhile). Resolved: one `save_registry` (rebase, save only when the file
+  differs); `Rebase.added` counts the ids a save adds, for the `INFO:`.
+- ~~**Hostile or huge ids reserved counter numbers**~~ (and `register("")`,
+  a non-integer `version`, a repeated JSON key, a `project_root` through a
+  symlink). Resolved: reservation stops at 10**9 and skips a prefix that is
+  not an IRI segment; `register("")` raises; `load()` rejects `3.0` and
+  `duplicate key`; the root is relative to the symlink target's directory.
+- ~~**An unreadable file below an `id generate` PATH aborted with
+  `ID registry: could not read <abs>`**~~. Resolved: the shared `FILE=`/
+  `DIR=` `WARNING:`, project-relative; a root PATH stays an `ERROR:`.
+- ~~**A registry copy in a wheel was matched by any tail**~~ (`reg.json`
+  dropped beside `src/demo/data/reg.json`), and a monorepo registry missed
+  an sdist. Resolved: path, or path less one leading part with a directory
+  and the file left; one member (the longest) per archive; no project
+  directory: nearest project directory up to the stored root. Build-and-read
+  copies are recognised by origin and keep an absolute `physical_path`.
+- ~~**The loom registry-in-dataset warning needed a Merkle root**~~. Resolved:
+  it also fires when the directory gets none.
+
+Open:
+
+- `cli/_id_target.py` repeats the three project-marker list of
+  `registry_copy` (`pyproject.toml`, `setup.cfg`, `setup.py`); share one
+  constant.
+- `IdRegistry.save()` called directly by a library user is still a plain
+  write; only the CLI, harvest and loom use rebase and replay.
+- A retired id above the 10**9 reservation ceiling could in theory be minted
+  again after a billion mints.
+- The in-place write for a writable registry in a read-only directory is not
+  atomic.
+- Windows `os.replace` while another process holds the registry open has no
+  retry.
+
 ### Design questions for the user
 
 1. ~~Should a local dataset's package be keyed by its D9 path too?~~ Decided
@@ -353,8 +392,9 @@ matrix").
 - **`core/model_extract_limit.py` no longer fits its name:** it now also holds
   the dataset ceiling validator `require_positive_ceiling`. Rename (for
   example `core/ceilings.py`) in a small PR.
-- **`_embed_build_sbom.py` is 507 lines**, over the soft limit. Split before
-  adding to it.
+- **`_embed_build_sbom.py` and `EmbedFileCache`** are over the soft limit; the
+  split is blocked by 12 test patch targets. `_embed_overlay.py` took the
+  overlay helpers.
 - **Local command traps:** `pytest -p no:xdist` fails because the config
   passes `-n` (use `-n0`); a bare `.venv/bin/mypy` exits 2 here, as no
   targets are configured (use `mypy src tests`); a bare `flake8` crashes on
