@@ -252,6 +252,7 @@ def test_load_config_file_warns_without_a_pitloom_table(
         assert load_config_file(path) == PitloomConfig()
     named = [r for r in caplog.records if "[tool.pitloom]" in r.getMessage()]
     assert len(named) == int(warns)
+    assert all(" --config file has no " in r.getMessage() for r in named)
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges")

@@ -394,3 +394,34 @@ def test_ambiguous_key_skips_both_and_keeps_the_existing_entry(
     assert registry.elements[key] == RegistryEntry(pinned, _SHA_A)
     assert registry.get(FILE_TYPE, "other.py") == RegistryEntry(f"{_NS}#X-3", _SHA_A)
     assert result == (1, True)
+
+
+@pytest.mark.parametrize("field", ["name", "spdxId"])
+def test_harvest_skips_an_element_with_a_lone_surrogate_with_a_warning(
+    caplog: pytest.LogCaptureFixture, field: str
+) -> None:
+    """One unencodable name or id from an SBOM is skipped; the rest of the
+    harvest goes on."""
+    bad = "\udcff"
+    name, spdx_id = (bad, f"{_NS}#X-1") if field == "name" else ("a", f"{_NS}#{bad}")
+    registry = make_registry()
+
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        registry.harvest(
+            _object_set(_file(name, spdx_id), _file("ok.py", f"{_NS}#X-2"))
+        )
+
+    (warning,) = [r.getMessage() for r in caplog.records]
+    assert warning.startswith("ID registry: ") and "lone surrogate" in warning
+    assert bad not in warning
+    assert list(registry.elements) == [(FILE_TYPE, "ok.py")]
+
+
+def test_harvest_reserves_the_id_of_a_skipped_element() -> None:
+    """A skipped (unencodable) name still holds its id: never minted."""
+    registry = make_registry(namespace=_NS)
+
+    registry.harvest(_object_set(_file("a\ud800b.txt", f"{_NS}#File-9")))
+
+    assert not registry.elements
+    assert registry.register(FILE_TYPE, "n") == f"{_NS}#File-10"

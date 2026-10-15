@@ -108,12 +108,17 @@ class Run(contextlib.ContextDecorator):
         self.creation_metadata = creation_metadata or CreationMetadata()
         self.id_registry = id_registry
         self.pitloom_config = pitloom_config
+        #: The run active at the latest ``__enter__``.
         self.previous_run: _ActiveRun | None = None
+        #: One per open ``__enter__``: a recursive ``@loom.run`` function
+        #: re-enters this object before the outer call exits.
+        self._outer_runs: list[_ActiveRun | None] = []
 
     def __enter__(self) -> _ActiveRun:
         # pylint: disable=global-statement
         global _active_run
         self.previous_run = _active_run
+        self._outer_runs.append(_active_run)
         _active_run = _ActiveRun(
             self.output_file,
             pretty=self.pretty,
@@ -131,16 +136,18 @@ class Run(contextlib.ContextDecorator):
     ) -> None:
         # pylint: disable=global-statement
         global _active_run
-        if _active_run is not None:
+        current = _active_run
+        try:
             # Generate the fragment only if the code block executed successfully
-            if exc_type is None:
-                _active_run.finalize()
+            if current is not None and exc_type is None:
+                current.finalize()
+        finally:
             # The doc_uuid is a fresh uuid4 no later run reuses, so nothing
             # else would clear its _ID_COUNTERS entries (unlike a deterministic
-            # doc_uuid's build() call): clear on the success and the
-            # exception path alike.
-            _clear_doc_counters(_active_run.doc_uuid)
-        _active_run = self.previous_run
+            # doc_uuid's build() call): clear on every path.
+            if current is not None:
+                _clear_doc_counters(current.doc_uuid)
+            _active_run = self._outer_runs.pop() if self._outer_runs else None
 
 
 #: Lowercase alias for :class:`Run`

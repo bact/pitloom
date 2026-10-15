@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -99,7 +99,9 @@ names (`matching_dist_infos`), so a foreign `.dist-info` cannot hide a model.
   any `-` splits it into the canonical name and the version
   (`foo-bar-1.0`; `1-2` is `1.post2`). With no or several `.dist-info` and no
   single one to choose, `wheel` and `generate` warn (shared `PROBLEM_*` text)
-  and name the package `unknown`, exit 0; `wheel --embed`, `embed-wheel`,
+  and name the package `unknown` (not looked up in or harvested into an ID
+  registry: `DocumentModel.identity_known` is `False`, the id joins
+  `registry_non_readers`, one `INFO:` when a registry is declared), exit 0; `wheel --embed`, `embed-wheel`,
   `verify-wheel` and `validate-wheel` refuse the wheel with that text. The
   model scan skips the one directory the file name names, and none where
   several do, as `read_wheel` takes none of them. The scan does not skip a

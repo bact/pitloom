@@ -135,7 +135,7 @@ def test_bad_config_fails_before_the_run(
     _write_config(project / "cfg" / "bool.toml", "max-dataset-hash-bytes = true\n")
     if config == "cfg/unreadable.toml":
 
-        def _denied(path: Path) -> PitloomConfig:
+        def _denied(path: Path, source: str) -> PitloomConfig:
             raise PermissionError(errno.EACCES, "Permission denied", str(path))
 
         monkeypatch.setattr("pitloom._loom_active_run.load_config_file", _denied)
@@ -212,3 +212,18 @@ def test_project_config_is_never_read_implicitly(
             assert run.update_id_registry is True  # the default
     assert "verifiedUsing" in _package(output)
     assert not caplog.records
+
+
+def test_config_file_without_a_table_names_pitloom_config(
+    project: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The no-table warning names loom's own argument, not ``--config``."""
+    (project / "cfg" / "empty.toml").write_text("[tool.other]\n", encoding="utf-8")
+    with caplog.at_level(logging.WARNING):
+        with loom.run(project / "out.json", pitloom_config="cfg/empty.toml"):
+            pass
+    (message,) = [
+        r.getMessage() for r in caplog.records if "empty.toml" in r.getMessage()
+    ]
+    assert " pitloom_config file has no [tool.pitloom] table" in message
+    assert "--config" not in message

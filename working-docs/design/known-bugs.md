@@ -67,8 +67,9 @@ Size: S under half a day, M about a day.
   set, with one `WARNING:` per run. (Was: each run hashed the registry as a
   project file, then rewrote it: 4 runs, 4 different SBOMs and registries.)
 - [x] **A project under any `build/` directory indexes nothing.** Fixed
-  by registry v3 (PR #305): `_is_eligible_file` matches ignored directory
-  names against the project-relative path. (Was: the absolute path, so
+  by registry v3 (PR #305): the walk prunes ignored directory names below
+  the scan root and `_skipped_name_in` checks an explicit PATH's
+  project-relative parts. (Was: a check on the absolute path, so
   `loom id generate` wrote 0 files, silently.)
 - [ ] **Same-stem model files share one entity.** `a/model.gguf` and
   `b/model.gguf` get one `ai_AIPackage` key (Q-A: key by project path). v3

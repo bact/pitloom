@@ -22,12 +22,12 @@ from typing import Any
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.export.hashes import sha256_of
 from pitloom.export.spdx3_json import (
     Spdx3JsonExporter,
     _annotate_relationships,
     require_spdx_id,
     sha256_hash,
-    sha256_of,
 )
 
 

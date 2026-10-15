@@ -86,6 +86,14 @@ def _namespace_arg(text: str) -> str:
         raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
+def _registry_file_arg(text: str) -> Path:
+    """``type=`` callable for ``-o``: a file path, never ``-``: a registry is
+    not written to stdout, and ``-`` would name a file called ``-``."""
+    if text == "-":
+        raise argparse.ArgumentTypeError("'-' (stdout) is not supported")
+    return Path(text)
+
+
 def _entity_arg(text: str) -> tuple[str, str]:
     """``type=`` callable for ``-e NAME[:TYPE]``: ``(TYPE, NAME)``.
 
@@ -139,7 +147,8 @@ def _resolve_id_generate_path(
     reached only through a symlink from outside the project. Returns
     ``None`` when neither form lands inside *project_dir*. ``..`` is
     collapsed lexically (:func:`_normalized_absolute`) before any symlink
-    is followed.
+    is followed, in the fallback too: ``link/..`` is the directory above
+    ``link`` as written, not above its target.
     """
     lexical = _normalized_absolute(path)
     for base in (lexical_project_dir, project_dir):
@@ -148,7 +157,7 @@ def _resolve_id_generate_path(
         except ValueError:
             continue
         return project_dir / rel
-    real = Path(os.path.realpath(path))
+    real = Path(os.path.realpath(lexical))
     try:
         rel = real.relative_to(project_dir)
     except ValueError:
@@ -207,41 +216,43 @@ def _generate_paths(args: argparse.Namespace, project_dir: Path) -> list[Path]:
     return paths
 
 
+def _open_generate_registry(
+    args: argparse.Namespace, project_dir: Path, registry_path: Path, is_new: bool
+) -> IdRegistry:
+    """Load or create the registry for `id generate`, checking an existing
+    one against *project_dir* and ``--namespace``; raises ``ValueError``."""
+    registry = _load_or_create_registry(
+        registry_path,
+        project_dir.name,
+        namespace=args.namespace,
+        project_root=project_dir,
+    )
+    if not is_new:
+        registry.require_project_root(project_dir)
+        if args.namespace is not None:
+            registry.require_namespace(args.namespace)
+    return registry
+
+
 def _run_id_generate(args: argparse.Namespace) -> int:
     """Run `pitloom id generate`."""
     project_dir: Path = (args.project_dir or Path.cwd()).resolve()
+    if not os.path.isdir(project_dir):
+        print(
+            f"ERROR: --project-dir {args.project_dir} is not a directory",
+            file=sys.stderr,
+        )
+        return 1
     try:
         registry_path, from_project_key, slot = _resolve_id_registry_target(
             args.id_registry, project_dir
         )
-    except (ValueError, OSError) as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
-    is_new = not os.path.lexists(registry_path)
-
-    try:
-        registry = _load_or_create_registry(
-            registry_path,
-            project_dir.name,
-            namespace=args.namespace,
-            project_root=project_dir,
-        )
-        if not is_new:
-            registry.require_project_root(project_dir)
-            if args.namespace is not None:
-                registry.require_namespace(args.namespace)
-    except ValueError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
-
-    try:
+        is_new = not os.path.lexists(registry_path)
+        registry = _open_generate_registry(args, project_dir, registry_path, is_new)
         paths = _generate_paths(args, project_dir)
-    except ValueError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
-
-    try:
-        registry.generate(paths, project_dir, exclude=registry_path)
+        registry.generate(
+            paths, project_dir, exclude=registry_path, explicit=bool(args.paths)
+        )
         for type_name, name in args.entity or []:
             registry.register(type_name, name)
     except (ValueError, OSError) as exc:
@@ -334,7 +345,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     gen_parser.add_argument(
         "-o",
         "--id-registry",
-        type=Path,
+        type=_registry_file_arg,
         default=None,
         metavar="FILE",
         help=(
@@ -385,7 +396,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
     imp_parser.add_argument(
         "-o",
         "--id-registry",
-        type=Path,
+        type=_registry_file_arg,
         default=None,
         metavar="FILE",
         help=(

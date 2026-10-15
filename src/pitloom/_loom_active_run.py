@@ -66,7 +66,7 @@ def loom_config(pitloom_config: PitloomConfig | str | Path | None) -> PitloomCon
         return pitloom_config
     path = Path(pitloom_config)
     try:
-        return load_config_file(path)
+        return load_config_file(path, source="pitloom_config")
     except FileNotFoundError as exc:
         raise ValueError(str(exc)) from exc
     except OSError as exc:
@@ -74,6 +74,14 @@ def loom_config(pitloom_config: PitloomConfig | str | Path | None) -> PitloomCon
 
 
 # pylint: disable=too-many-instance-attributes
+def _append_once(
+    packages: list[spdx3.dataset_DatasetPackage], package: spdx3.dataset_DatasetPackage
+) -> None:
+    """Append *package* unless it is already in *packages*."""
+    if not any(held is package for held in packages):
+        packages.append(package)
+
+
 class _ActiveRun:
     """Internal state for an active BOM recording run."""
 
@@ -203,15 +211,19 @@ class _ActiveRun:
 
     def add_dataset(self, name: str, dataset_type: str = "text") -> None:
         """Add a dataset used for training in the current run."""
-        self.datasets.append(self._build_dataset_package(name, dataset_type))
+        _append_once(self.datasets, self._build_dataset_package(name, dataset_type))
 
     def add_validation_dataset(self, name: str, dataset_type: str = "text") -> None:
         """Add a dataset used for validation/testing."""
-        self.validation_datasets.append(self._build_dataset_package(name, dataset_type))
+        _append_once(
+            self.validation_datasets, self._build_dataset_package(name, dataset_type)
+        )
 
     def add_input_dataset(self, name: str, dataset_type: str = "text") -> None:
         """Declare a raw/source dataset consumed by a preprocessing step."""
-        self.input_datasets.append(self._build_dataset_package(name, dataset_type))
+        _append_once(
+            self.input_datasets, self._build_dataset_package(name, dataset_type)
+        )
 
     def add_output_dataset(
         self,
@@ -225,7 +237,24 @@ class _ActiveRun:
         if data_preprocessing is not None:
             dataset_pkg.dataset_dataPreprocessing = data_preprocessing
 
-        self.output_datasets.append((dataset_pkg, input_datasets))
+        self._add_output(dataset_pkg, input_datasets)
+
+    def _add_output(
+        self, package: spdx3.dataset_DatasetPackage, sources: list[str] | None
+    ) -> None:
+        """Record *package* as an output. Declared again: its sources are
+        the union, and ``None`` (every input) wins over a list."""
+        for i, (held, held_sources) in enumerate(self.output_datasets):
+            if held is package:
+                if held_sources is not None:
+                    merged = (
+                        None
+                        if sources is None
+                        else list(dict.fromkeys([*held_sources, *sources]))
+                    )
+                    self.output_datasets[i] = (package, merged)
+                return
+        self.output_datasets.append((package, sources))
 
     def _emit_model_dataset_relationships(self) -> None:
         """Emit trainedOn and testedOn relationships for models and datasets."""
@@ -288,9 +317,13 @@ class _ActiveRun:
         all_input_ids = [require_spdx_id(ds) for ds in self.input_datasets]
         input_ids_by_name = {ds.name: require_spdx_id(ds) for ds in self.input_datasets}
         for output_ds, wanted_names in self.output_datasets:
-            input_ids = self._resolve_input_ids_for_output(
-                wanted_names, all_input_ids, input_ids_by_name, output_ds.name
-            )
+            input_ids = [
+                i
+                for i in self._resolve_input_ids_for_output(
+                    wanted_names, all_input_ids, input_ids_by_name, output_ds.name
+                )
+                if i != output_ds.spdxId  # declared as input and output
+            ]
             if not input_ids:
                 continue
             rel = build_relationship(

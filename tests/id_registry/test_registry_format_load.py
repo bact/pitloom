@@ -100,6 +100,15 @@ _FAILURES: dict[str, tuple[Any, str]] = {
     "null-sha256": (_entry(sha256=None), "'sha256' must be a non-empty string"),
     "empty-sha256": (_entry(sha256=""), "'sha256' must be a non-empty string"),
     "int-sha256": (_entry(sha256=1), "'sha256' must be a non-empty string"),
+    "surrogate-name": (
+        _set("elements", {FILE_TYPE: {"\udcff.txt": {"spdxId": "x#1"}}}),
+        "lone surrogate",
+    ),
+    "surrogate-type": (
+        _set("elements", {"\ud800": {"a": {"spdxId": "x#1"}}}),
+        "lone surrogate",
+    ),
+    "surrogate-spdx-id": (_entry(spdxId="x#\udcff"), "lone surrogate"),
     "duplicate-canonical": (
         _set(
             "elements",
@@ -248,3 +257,21 @@ def test_load_os_error_on_read_raises_cannot_be_read(tmp_path: Path) -> None:
     ):
         with pytest.raises(ValueError, match="cannot be read"):
             IdRegistry.load(path)
+
+
+@pytest.mark.parametrize("bad", [None, 5, b"r.json", ["r.json"]], ids=repr)
+def test_load_refuses_an_argument_that_is_not_a_path(bad: Any) -> None:
+    with pytest.raises(TypeError, match="str or os.PathLike"):
+        IdRegistry.load(bad)
+
+
+def test_load_takes_a_str_and_names_a_directory_or_missing_file(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
+    path.write_text(json.dumps(valid_registry_data()), encoding="utf-8")
+
+    assert IdRegistry.load(str(path)).path == path
+    for bad in (tmp_path, tmp_path / "nope.json"):
+        with pytest.raises(ValueError, match="not found or not a file"):
+            IdRegistry.load(bad)

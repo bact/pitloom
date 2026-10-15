@@ -305,3 +305,28 @@ def test_cli_import_of_an_unhashed_model_says_it_drops_the_gate(
         f"imported id {imported} replaces {held}"
     ]
     assert reloaded == RegistryEntry(imported)
+
+
+@pytest.mark.parametrize("graph", [5, "x", {"a": 1}, None, [1]], ids=repr)
+def test_import_sbom_refuses_a_graph_that_is_not_a_list(
+    tmp_path: Path, graph: object
+) -> None:
+    sbom = tmp_path / "s.json"
+    sbom.write_text(json.dumps({"@graph": graph}), encoding="utf-8")
+
+    with pytest.raises(
+        ValueError, match="@graph (is not a list|element is not an object)"
+    ):
+        IdRegistry.new("x").import_sbom(sbom)
+
+
+def test_import_sbom_leaves_text_that_is_not_json_to_the_deserializer(
+    tmp_path: Path,
+) -> None:
+    sbom = tmp_path / "s.json"
+    sbom.write_text("{", encoding="utf-8")
+
+    with pytest.raises(Exception) as excinfo:  # pylint: disable=broad-exception-caught
+        IdRegistry.new("x").import_sbom(sbom)
+
+    assert "@graph" not in str(excinfo.value)

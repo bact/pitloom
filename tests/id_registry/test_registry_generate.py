@@ -14,31 +14,26 @@ See also: test_registry.py, test_registry_import.py, shared.py.
 
 from __future__ import annotations
 
+import io
 import logging
+import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-import pitloom.id_registry._registry as ids_mod
+import pitloom.id_registry._generate as ids_mod
 from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.core.project import ProjectFile
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
     DEFAULT_ID_REGISTRY_FILENAME,
-    FILE_TYPE,
     IdRegistry,
-    RegistryEntry,
 )
 from pitloom.id_registry._types import _iter_files
-from tests.id_registry.shared import _sha256
-from tests.registry_helpers import make_registry
-
-
-def _files(registry: IdRegistry) -> dict[str, RegistryEntry]:
-    """The registry's ``software_File`` entries, name -> entry."""
-    return {name: e for (t, name), e in registry.elements.items() if t == FILE_TYPE}
+from tests._unreadable import POSIX_NON_ROOT
+from tests.id_registry.shared import _files, _sha256
 
 
 def _make_project(tmp_path: Path) -> Path:
@@ -186,7 +181,7 @@ def test_generate_skips_registry_file_itself(tmp_path: Path) -> None:
     registry.save()
 
     reloaded = IdRegistry.load(registry_path)
-    reloaded.generate([Path(".")], root)
+    reloaded.generate([Path(".")], root, exclude=registry_path)
     assert DEFAULT_ID_REGISTRY_FILENAME not in _files(reloaded)
 
 
@@ -226,10 +221,6 @@ def test_iter_files_edge_cases(
     ignored_dir.mkdir(parents=True)
     ignored_file = ignored_dir / "file.txt"
     ignored_file.write_text("a")
-
-    # Also test registry filename ignored
-    registry_file = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    registry_file.write_text("a")
 
     # Duplicate file
     assert list(_iter_files([Path("."), Path(".")], tmp_path)) == [f]
@@ -290,140 +281,144 @@ def test_iter_files_outside_the_project_ignores_names_below_the_walk_root(
     assert list(_iter_files([outside], project)) == [outside / "kept.txt"]
 
 
-def _model_project(tmp_path: Path, data: bytes = _GGUF + b"\0" * 16) -> Path:
-    (tmp_path / "models").mkdir(exist_ok=True)
-    (tmp_path / "models" / "tiny.gguf").write_bytes(data)
-    return tmp_path
+def test_generate_outside_the_project_root_is_a_clean_error(tmp_path: Path) -> None:
+    (tmp_path / "proj").mkdir()
+    root = _make_project(tmp_path / "proj")
+    outside = tmp_path / "other.txt"
+    outside.write_bytes(b"x")
+    registry = IdRegistry.new("proj")
+
+    with pytest.raises(ValueError, match="outside the project root") as excinfo:
+        registry.generate([outside], root)
+
+    assert "other.txt" in str(excinfo.value)
+    assert str(root) in str(excinfo.value)
+    assert not registry.elements
 
 
-@pytest.fixture(autouse=True)
-def _info_level(caplog: pytest.LogCaptureFixture) -> None:
-    caplog.set_level(logging.INFO, logger="pitloom.id_registry")
+@pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privilege")
+@pytest.mark.parametrize("spelling", ["root-link", "paths-link"])
+def test_generate_compares_a_symlinked_project_root_by_realpath(
+    tmp_path: Path, spelling: str
+) -> None:
+    (tmp_path / "real").mkdir()
+    real = _make_project(tmp_path / "real")
+    link = tmp_path / "link"
+    link.symlink_to(real, target_is_directory=True)
+    root, walked = (link, real) if spelling == "root-link" else (real, link)
+    registry = IdRegistry.new("proj")
+
+    registry.generate([walked / "src"], root)
+
+    assert set(_files(registry)) == {"src/a.py"}
 
 
-def _content_changed(caplog: pytest.LogCaptureFixture, name: str) -> list[str]:
-    return [
-        r.getMessage()
-        for r in caplog.records
-        if r.getMessage().startswith(f"ID registry: content changed for {name};")
-    ]
+def test_generate_skips_a_name_that_is_not_utf8_with_one_warning(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A lone surrogate (a non-UTF-8 file name) never reaches the table,
+    and the logged name is escaped, so the log handler cannot crash."""
+    root = _make_project(tmp_path)
+    bad = root / "\udcff.txt"
+    monkeypatch.setattr(
+        ids_mod, "_iter_files", lambda *_a, **_k: iter([bad, root / "src" / "a.py"])
+    )
+    monkeypatch.setattr(ids_mod, "sha256_file", lambda _p: "c" * 64)
+    stream = io.TextIOWrapper(io.BytesIO(), encoding="utf-8")
+    handler = logging.StreamHandler(stream)
+    failures: list[object] = []
+    monkeypatch.setattr(handler, "handleError", failures.append)
+    logger = logging.getLogger("pitloom.id_registry")
+    logger.addHandler(handler)
+    registry = IdRegistry.new("proj")
+
+    try:
+        with caplog.at_level(logging.WARNING, logger="pitloom"):
+            registry.generate([root], root)
+    finally:
+        logger.removeHandler(handler)
+
+    (warning,) = [r.getMessage() for r in caplog.records]
+    assert warning.startswith("FILE=") and "lone surrogate" in warning
+    assert "\\udcff" in warning
+    assert not failures
+    assert set(_files(registry)) == {"src/a.py"}
 
 
-def test_generate_gates_a_model_entry_on_its_hash(
+@pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privilege")
+def test_generate_keys_an_in_project_symlink_to_outside_by_project_path(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "proj").mkdir()
+    root = _make_project(tmp_path / "proj")
+    outside = tmp_path / "bigdisk" / "models"
+    outside.mkdir(parents=True)
+    (outside / "w.bin").write_bytes(b"w")
+    (root / "models").symlink_to(outside, target_is_directory=True)
+    registry = IdRegistry.new("proj")
+
+    registry.generate([root / "models" / "w.bin"], root)
+
+    assert "models/w.bin" in _files(registry)
+
+
+@pytest.mark.parametrize(
+    ("given", "key"),
+    [("d/../d/a.txt", "d/a.txt"), ("../out/o.txt", None)],
+    ids=["dotdot-inside", "dotdot-outside"],
+)
+def test_generate_collapses_dotdot_before_keying(
+    tmp_path: Path, given: str, key: str | None
+) -> None:
+    root = tmp_path / "proj"
+    (root / "d").mkdir(parents=True)
+    (root / "d" / "a.txt").write_bytes(b"a")
+    (tmp_path / "out").mkdir()
+    (tmp_path / "out" / "o.txt").write_bytes(b"o")
+    registry = IdRegistry.new("proj")
+
+    if key is None:
+        with pytest.raises(ValueError, match="outside the project root"):
+            registry.generate([Path(given)], root)
+    else:
+        registry.generate([Path(given)], root)
+        assert set(_files(registry)) == {key}
+
+
+@pytest.mark.skipif(not POSIX_NON_ROOT, reason="needs POSIX, non-root")
+def test_generate_unreadable_root_warns_unless_explicit(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """An ``ai_AIPackage`` entry holding the file's hash is reused; one
-    holding another hash, or none, is a retrained or unknown model: one
-    INFO and a new id that replaces the entry (D3, D12)."""
-    root = _model_project(tmp_path)
-    same = ("urn:x#AIPackage-3", _sha256(_GGUF + b"\0" * 16))
-    other = ("urn:x#AIPackage-3", "c" * 64)
-    no_hash = ("urn:x#AIPackage-3", None)
+    root = _make_project(tmp_path)
+    (root / "data").chmod(0)
+    try:
+        with caplog.at_level(logging.WARNING):
+            registry = IdRegistry.new("proj")
+            registry.generate([root / "data", root / "src"], root, explicit=False)
+        with pytest.raises(ValueError, match="PATH data: could not be read"):
+            IdRegistry.new("proj").generate([root / "data"], root)
+    finally:
+        (root / "data").chmod(0o755)
 
-    for entry, kept in ((same, True), (other, False), (no_hash, False)):
-        caplog.clear()
-        registry = make_registry({(AI_PACKAGE_TYPE, "tiny"): entry}, namespace="urn:x")
-        registry.generate([Path("models")], root)
-
-        got = registry.get(AI_PACKAGE_TYPE, "tiny")
-        assert got is not None
-        assert (got.spdx_id == entry[0]) is kept
-        assert got.sha256 == same[1]
-        assert len(_content_changed(caplog, "tiny")) == (0 if kept else 1)
-        assert "models/tiny.gguf" in _files(registry)  # non-vacuous: it ran
+    assert set(_files(registry)) == {"src/a.py"}
+    (warning,) = [r.getMessage() for r in caplog.records]
+    assert warning.startswith("DIR=data")
 
 
-def test_generate_a_retrained_model_is_a_new_id_and_a_rerun_is_stable(
+@pytest.mark.skipif(not POSIX_NON_ROOT, reason="needs POSIX, non-root")
+def test_generate_unreadable_root_file_warns_unless_explicit(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    root = _model_project(tmp_path)
-    registry_path = root / "reg.json"
-    registry = IdRegistry.new("proj", path=registry_path, project_root=root)
-    registry.generate([Path("models")], root)
-    registry.save()
-    old = registry.get(AI_PACKAGE_TYPE, "tiny")
-    assert old is not None
+    root = _make_project(tmp_path)
+    locked = root / "data" / "x.txt"
+    locked.chmod(0)
+    try:
+        with caplog.at_level(logging.WARNING):
+            IdRegistry.new("proj").generate([locked], root, explicit=False)
+    finally:
+        locked.chmod(0o644)
 
-    # Unchanged bytes: the saved file is byte-identical, nothing is logged.
-    first = registry_path.read_bytes()
-    caplog.clear()
-    again = IdRegistry.load(registry_path)
-    again.generate([Path("models")], root)
-    again.save()
-    assert registry_path.read_bytes() == first
-    assert not _content_changed(caplog, "tiny")
-
-    # Retrained (other bytes): one INFO, a new id, the old key replaced.
-    _model_project(tmp_path, _GGUF + b"\1" * 16)
-    again.generate([Path("models")], root)
-    new = again.get(AI_PACKAGE_TYPE, "tiny")
-    assert new is not None
-    assert new.spdx_id != old.spdx_id
-    assert new.sha256 != old.sha256
-    assert len(_content_changed(caplog, "tiny")) == 1
-    assert sum(1 for (t, _n) in again.elements if t == AI_PACKAGE_TYPE) == 1
-
-
-def test_generate_a_stem_shared_by_model_files_is_name_only_and_stable(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    """No one file stands for a stem two files share, and a hash gate would
-    re-mint on every run: name only, one INFO per run."""
-    for directory, byte in (("a", b"\0"), ("b", b"\1")):
-        (tmp_path / directory).mkdir()
-        (tmp_path / directory / "m.gguf").write_bytes(_GGUF + byte * 16)
-
-    registry = IdRegistry.new("proj", project_root=tmp_path)
-    registry.generate([Path("a"), Path("b")], tmp_path)
-    first = registry.get(AI_PACKAGE_TYPE, "m")
-    assert first is not None
-    assert first.sha256 is None
-    caplog.clear()
-    registry.generate([Path("a"), Path("b")], tmp_path)
-
-    assert registry.get(AI_PACKAGE_TYPE, "m") == first
-    assert [r.getMessage() for r in caplog.records if "share the name" in r.message]
-    assert not _content_changed(caplog, "m")
-
-
-def test_generate_a_stem_becoming_shared_leaves_its_entry_as_is_and_back(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    """1 -> 2 files: the entry keeps its id and its hash (D12: never
-    erased), so it differs from a fresh registry's over the same tree; a
-    third run saves the same bytes. 2 -> 1: the hash still matches, so the
-    entry is reused, with no ``content changed``."""
-    (tmp_path / "a").mkdir()
-    (tmp_path / "a" / "m.gguf").write_bytes(_GGUF + b"\0" * 16)
-    path = tmp_path / "reg.json"
-    registry = IdRegistry.new("proj", path=path, project_root=tmp_path)
-    registry.generate([Path("a")], tmp_path)
-    single = registry.get(AI_PACKAGE_TYPE, "m")
-    assert single is not None and single.sha256 is not None  # non-vacuous
-
-    (tmp_path / "b").mkdir()
-    (tmp_path / "b" / "m.gguf").write_bytes(_GGUF + b"\1" * 16)
-    caplog.clear()
-    registry.generate([Path("a"), Path("b")], tmp_path)
-    registry.save()
-    second = path.read_bytes()
-    registry.generate([Path("a"), Path("b")], tmp_path)
-    registry.save()
-    fresh = IdRegistry.new("proj", project_root=tmp_path)
-    fresh.generate([Path("a"), Path("b")], tmp_path)
-
-    assert registry.get(AI_PACKAGE_TYPE, "m") == single
-    assert path.read_bytes() == second
-    fresh_entry = fresh.get(AI_PACKAGE_TYPE, "m")
-    assert fresh_entry is not None and fresh_entry.sha256 is None
-    shared = "ID registry: 2 model files share the name m; "
-    shares = [r.getMessage() for r in caplog.records if "share the name" in r.message]
-    assert shares == [shared + "its entry is left as is"] * 2 + [
-        shared + "its new entry is not content-gated"  # the fresh registry
-    ]
-
-    (tmp_path / "b" / "m.gguf").unlink()
-    registry.generate([Path("a"), Path("b")], tmp_path)
-
-    assert registry.get(AI_PACKAGE_TYPE, "m") == single
-    assert not _content_changed(caplog, "m")
+    (warning,) = [r.getMessage() for r in caplog.records]
+    assert warning.startswith("FILE=data/x.txt")

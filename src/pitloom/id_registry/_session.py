@@ -19,7 +19,13 @@ from pitloom.id_registry._types import _require_names
 
 log = logging.getLogger("pitloom.id_registry")
 
-__all__ = ["IdRegistrySession", "warn_claim_collision"]
+__all__ = ["IdRegistrySession", "info_identity_unknown", "warn_claim_collision"]
+
+
+def info_identity_unknown() -> None:
+    """Log the one ``INFO:`` for a package whose identity is unknown: it is
+    neither looked up in nor recorded into the declared registry."""
+    log.info("ID registry: package identity unknown; not looked up or recorded")
 
 
 def warn_claim_collision(spdx_id: str, first: str, second: str) -> None:

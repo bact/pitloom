@@ -296,58 +296,6 @@ def test_loom_set_model_called_twice_with_different_content_gets_two_ids(
         assert len(warnings) == 1
 
 
-@pytest.mark.parametrize("second_type", ["text", "image"], ids=["same", "other"])
-def test_loom_same_file_as_two_datasets_gets_two_packages_one_file(
-    caplog: pytest.LogCaptureFixture, second_type: str
-) -> None:
-    """The same file added via ``add_input_dataset()`` then ``add_dataset()``
-    (as raw input and as the training set; a second ``dataset_type`` or
-    not) with a registry: two ``dataset_DatasetPackage`` elements, the
-    second one's id minted with one collision warning; one shared
-    ``software_File`` (the run's cache), so its claim never collides."""
-    namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
-    registry = make_registry(
-        {
-            (FILE_TYPE, _EXISTING_FILE): (
-                f"{namespace}#File-1",
-                _sha256_of(_EXISTING_FILE),
-            ),
-            (DATASET_PACKAGE_TYPE, _EXISTING_FILE): (
-                f"{namespace}#DatasetPackage-1",
-                None,
-            ),
-        },
-        namespace=namespace,
-    )
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        output_file = Path(tmpdir) / "frag.json"
-        with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
-            with loom.run(output_file, id_registry=registry):
-                loom.add_input_dataset(_EXISTING_FILE, dataset_type="text")
-                loom.add_dataset(_EXISTING_FILE, dataset_type=second_type)
-
-        graph = json.loads(output_file.read_text())["@graph"]
-        datasets = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
-        assert len(datasets) == 2
-        assert datasets[0]["spdxId"] != datasets[1]["spdxId"]
-        assert f"{namespace}#DatasetPackage-1" in {d["spdxId"] for d in datasets}
-        (data_file,) = [e for e in graph if e["type"] == "software_File"]
-        assert data_file["spdxId"] == f"{namespace}#File-1"
-        contains = [
-            r for r in _relationships(graph) if r["relationshipType"] == "contains"
-        ]
-        assert sorted(r["from"] for r in contains) == sorted(
-            d["spdxId"] for d in datasets
-        )
-        warnings = [
-            r
-            for r in caplog.records
-            if r.levelname == "WARNING" and "registered for both" in r.message
-        ]
-        assert len(warnings) == 1
-
-
 def test_loom_input_then_output_dataset_after_file_rewrite_gets_two_ids(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

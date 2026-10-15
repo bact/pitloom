@@ -29,7 +29,11 @@ from pitloom.id_registry._persist import (
     warn_no_registry_path,
 )
 from pitloom.id_registry._registry import IdRegistry
-from pitloom.id_registry._session import IdRegistrySession, warn_claim_collision
+from pitloom.id_registry._session import (
+    IdRegistrySession,
+    info_identity_unknown,
+    warn_claim_collision,
+)
 from pitloom.id_registry._types import (
     AI_PACKAGE_TYPE,
     DATASET_PACKAGE_TYPE,
@@ -59,6 +63,7 @@ __all__ = [
     "RegistryEntry",
     "ambiguous_keys_message",
     "failed_to_save_message",
+    "info_identity_unknown",
     "persist_registry",
     "registry_base_dir",
     "registry_copy",

@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 import os
 import stat
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -44,9 +44,12 @@ __all__ = [
     "_element_key",
     "_iter_files",
     "_require_names",
+    "_unstorable_name_error",
+    "is_utf8_text",
     "registry_file_error",
     "sha256_file",
     "type_id_prefix",
+    "unencodable_message",
     "warn_unreadable_file",
 ]
 
@@ -54,9 +57,9 @@ __all__ = [
 #: and ``DIR=`` warnings.
 _PURPOSE = "for ID registry indexing"
 
-#: The suggested registry file name, which ``id generate`` never indexes
-#: (nor the declared registry, whatever its name). There is no default
-#: registry: nothing looks for this file.
+#: The suggested registry file name. There is no default registry: nothing
+#: looks for this file, and ``id generate`` leaves out only the declared
+#: registry (by identity, whatever its name).
 DEFAULT_ID_REGISTRY_FILENAME = "loom-id-registry.json"
 
 #: SPDX 3 compact types the registry keys elements by. A directory is a
@@ -136,35 +139,20 @@ def type_id_prefix(type_name: str) -> str:
     return rest or type_name
 
 
-def _relative_parts(file_path: Path, root: Path, project_root: Path) -> tuple[str, ...]:
-    """*file_path*'s directory parts below *project_root*, else below the
-    walk *root* (a path outside the project).
-
-    Never the absolute parts: a project under ``/x/build/`` must not be
-    skipped because of a directory above it.
-    """
-    try:
-        return file_path.relative_to(project_root).parts[:-1]
-    except ValueError:
-        return file_path.relative_to(root).parts[:-1]
-
-
 def _is_eligible_file(
     file_path: Path,
     seen: set[Path],
-    relative_dirs: tuple[str, ...],
     exclude: SameFile | None,
 ) -> bool:
     """Check if a path is an eligible, unvisited file for registry indexing.
 
-    *relative_dirs* are its parent directory names below the project;
-    *exclude* matches the declared registry file, which is never indexed.
+    Ignored directories never reach it (the walk prunes them and a PATH
+    naming one is skipped up front). *exclude* matches the declared
+    registry file, which is never indexed.
     A ``stat()`` failure other than absence raises (see
     :func:`~pitloom.core.path_probe.stat_if_present`).
     """
-    if any(part in IGNORED_DIR_NAMES for part in relative_dirs):
-        return False
-    if file_path.name == DEFAULT_ID_REGISTRY_FILENAME or file_path in seen:
+    if file_path in seen:
         return False
     file_stat = stat_if_present(file_path)
     if file_stat is None or not stat.S_ISREG(file_stat.st_mode):
@@ -182,9 +170,12 @@ def _shown(path: str | os.PathLike[str], project_root: Path) -> str:
         return os.fspath(path)
 
 
-def warn_unreadable_file(path: Path, project_root: Path, error: OSError) -> None:
+def warn_unreadable_file(
+    path: Path, project_root: Path, error: OSError | ValueError
+) -> None:
     """Log the shared ``FILE=`` warning for *path*, which ``id generate``
-    could not read and leaves out of the index."""
+    could not read (or whose name a registry cannot hold) and leaves out
+    of the index."""
     log.warning(
         UNREADABLE_FILE_WARNING,
         loggable(_shown(path, project_root)),
@@ -193,13 +184,16 @@ def warn_unreadable_file(path: Path, project_root: Path, error: OSError) -> None
     )
 
 
-def _walk_files(root: Path, project_root: Path) -> list[Path]:
+def _walk_files(root: Path, project_root: Path, strict: bool = True) -> list[Path]:
     """Every file name below the directory *root*, sorted as ``Path``s; a
     directory named in :data:`~pitloom.core.walk_rules.IGNORED_DIR_NAMES`
     is pruned, a symlink to a directory is not followed, and one that
-    cannot be listed gets the shared ``DIR=`` warning."""
+    cannot be listed gets the shared ``DIR=`` warning. *root* itself
+    failing to list raises when *strict*, else gets that warning too."""
 
     def _warn_unlistable(error: OSError) -> None:
+        if strict and error.filename == os.fspath(root):
+            raise error
         log.warning(
             UNLISTABLE_DIR_WARNING,
             loggable(_shown(error.filename, project_root)),
@@ -215,38 +209,146 @@ def _walk_files(root: Path, project_root: Path) -> list[Path]:
     return found
 
 
+#: Why a registry cannot hold a name, in every message about one.
+UNENCODABLE_REASON = "cannot be encoded as UTF-8 (lone surrogate)"
+
+
+def is_utf8_text(text: str) -> bool:
+    """Whether *text* encodes as UTF-8: not when it holds a lone surrogate
+    (a non-UTF-8 file name read by ``surrogateescape``, or a JSON ``\\ud800``
+    escape), which the canonical-JSON save cannot write."""
+    try:
+        text.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
+def unencodable_message(what: str, text: str) -> str:
+    """The one wording for *text* the registry cannot hold, shown escaped
+    (a lone surrogate would crash the log handler); *what* names it."""
+    return f"ID registry: {what} {ascii(text)} {UNENCODABLE_REASON}"
+
+
+def _unstorable_name_error(path: Path, project_root: Path) -> ValueError | None:
+    """The error for a *path* whose registry name is not UTF-8 encodable (a
+    surrogate-escaped OS file name), else ``None``: a registry file is
+    UTF-8 JSON and cannot hold it."""
+    if is_utf8_text(_shown(path, project_root)):
+        return None
+    return ValueError(f"name {UNENCODABLE_REASON}")
+
+
+def _skipped_name_in(root: Path, project_root: Path, is_dir: bool) -> str | None:
+    """The first ignored directory name in an explicit PATH *root* below the
+    project (its own name too when a directory), else ``None``; such a path
+    indexes nothing."""
+    try:
+        parts = root.relative_to(project_root).parts
+    except ValueError:
+        return None
+    return next(
+        (part for part in parts[: None if is_dir else -1] if part in IGNORED_DIR_NAMES),
+        None,
+    )
+
+
+def _root_files(root: Path, project_root: Path, strict: bool) -> Iterable[Path]:
+    """The files the PATH *root* names (see :func:`_root_candidates`); a
+    read or listing failure of *root* itself raises."""
+    root_stat = stat_if_present(root)
+    if root_stat is None:
+        log.warning("ID registry: path not found, skipping: %s", root)
+        return ()
+
+    is_dir = stat.S_ISDIR(root_stat.st_mode)
+    skipped = _skipped_name_in(root, project_root, is_dir)
+    if skipped is not None:
+        log.warning(
+            "ID registry: path has a skipped directory name (%s), skipping: %s",
+            skipped,
+            root,
+        )
+        return ()
+    if is_dir:
+        return _walk_files(root, project_root, strict)
+    if stat.S_ISREG(root_stat.st_mode):
+        with open(root, "rb"):  # a read failure raises
+            pass
+    return [root]
+
+
+def _root_candidates(
+    raw_path: Path, project_root: Path, explicit: bool
+) -> Iterable[Path]:
+    """The files a PATH names: itself, or the walk below a directory; empty,
+    with a warning, when it is missing or has an ignored directory name
+    below the project.
+
+    A PATH that cannot be read or listed is a ``ValueError`` naming it
+    when *explicit* (given by the user); an implicit default root gets the
+    shared ``FILE=`` / ``DIR=`` warning and is left out."""
+    root = raw_path if raw_path.is_absolute() else project_root / raw_path
+    try:
+        return _root_files(root, project_root, explicit)
+    except OSError as exc:
+        if explicit:
+            raise ValueError(
+                f"PATH {loggable(_shown(root, project_root))}: could not be "
+                f"read: {one_line(exc.strerror or exc)}"
+            ) from exc
+        warn_unreadable_file(root, project_root, exc)
+        return ()
+
+
+def _eligible_files(
+    candidates: Iterable[Path],
+    project_root: Path,
+    seen: set[Path],
+    excluded: SameFile | None,
+) -> Iterator[Path]:
+    """Yield the *candidates* that are storable, readable, new and not the
+    *excluded* file, warning about each one that is not; record them in *seen*."""
+    for file_path in candidates:
+        name_error = _unstorable_name_error(file_path, project_root)
+        if name_error is not None:
+            warn_unreadable_file(file_path, project_root, name_error)
+            continue
+        try:
+            eligible = _is_eligible_file(file_path, seen, excluded)
+        except OSError as exc:
+            warn_unreadable_file(file_path, project_root, exc)
+            continue
+        if eligible:
+            seen.add(file_path)
+            yield file_path
+
+
 def _iter_files(
-    paths: list[Path], project_root: Path, exclude: Path | None = None
+    paths: list[Path],
+    project_root: Path,
+    exclude: Path | None = None,
+    *,
+    explicit: bool = True,
 ) -> Iterator[Path]:
     """Yield every regular file under *paths* in deterministic order,
-    except the *exclude* file (the declared registry).
+    except the *exclude* file (the declared registry, matched by identity).
 
     A missing path is skipped with a warning; one that cannot be
-    ``stat()``-ed raises, on every Python version. Below a directory path,
+    ``stat()``-ed or read (a directory: listed) raises, on every Python
+    version (as a ``ValueError`` naming the path), unless *explicit* is
+    false (implicit default roots: a ``FILE=``/``DIR=`` warning instead).
+    A path with an ignored directory name below the project is
+    skipped with a warning. Below a directory path,
     a file that cannot be ``stat()``-ed (its directory not searchable) is
     skipped with the shared ``FILE=`` warning, a directory that cannot be
     listed with the ``DIR=`` one, as ``pitloom project`` does."""
     seen: set[Path] = set()
     excluded = None if exclude is None else SameFile(exclude)
-
     for raw_path in paths:
-        root = raw_path if raw_path.is_absolute() else project_root / raw_path
-        root_stat = stat_if_present(root)
-        if root_stat is None:
-            log.warning("ID registry: path not found, skipping: %s", root)
-            continue
-
-        if not stat.S_ISDIR(root_stat.st_mode):
-            candidates = [root]
-        else:
-            candidates = _walk_files(root, project_root)
-        for file_path in candidates:
-            relative_dirs = _relative_parts(file_path, root, project_root)
-            try:
-                eligible = _is_eligible_file(file_path, seen, relative_dirs, excluded)
-            except OSError as exc:
-                warn_unreadable_file(file_path, project_root, exc)
-                continue
-            if eligible:
-                seen.add(file_path)
-                yield file_path
+        yield from _eligible_files(
+            _root_candidates(raw_path, project_root, explicit),
+            project_root,
+            seen,
+            excluded,
+        )

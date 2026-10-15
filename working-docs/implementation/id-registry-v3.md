@@ -35,8 +35,8 @@ The body reads as final. Moved since the first draft: D3 (the model sha256
 is a gate), D12 (`register()` is uniform), D13 (loom resolves models at run
 exit and **writes the registry**), D14 (`loom.Run(pitloom_config=)`), D15
 (hashed AIPackages are auto-harvested). Decided: D10, the ceiling key, the
-directory `Hash.comment` (8.2), and commit 2 fixing `_is_eligible_file`
-(rollout section 12).
+directory `Hash.comment` (8.2), and commit 2 fixing the ignored-name
+check (rollout section 12).
 
 ## 1. Why
 
@@ -244,7 +244,7 @@ entry = {spdxId, sha256?}      # sha256 only on software_File / ai_AIPackage, wh
   an `spdxId` and a compact type other than `"object"` is written under
   its own key. Only `software_File` and `ai_AIPackage` entries (the
   content-gated types) get `sha256_of(obj)` or no hash; every other type
-  never keeps one. `sha256_of()` lives in `export/spdx3_json.py`,
+  never keeps one. `sha256_of()` lives in `export/hashes.py`,
   lowercases, and replaces both extractors (problem 5).
 - **I2, the lookup chooses the gate.** A gated lookup passes `sha256=`
   and hits only when the entry's sha256 is equal (case-insensitive). An

@@ -22,6 +22,20 @@ from typing import Any
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._fragments_ids import mint_extra_id
+from pitloom.assemble.spdx3._fragments_props import (
+    _KEYED_DICT_PROPS,
+    _SKIP_MERGE_PROPS,
+    _class_properties,
+    _is_empty,
+    _merge_comment,
+    _merge_dictionary_entries,
+    _merge_list,
+    _merge_properties,
+    _merge_scalar,
+    _normalize_value,
+    _paths_suffix_match,
+    _signature,
+)
 from pitloom.assemble.spdx3._fragments_refs import (
     _dangling_refs_for_object,
     _declared_external_ids,
@@ -33,26 +47,13 @@ from pitloom.assemble.spdx3._fragments_refs import (
 from pitloom.assemble.spdx3._fragments_unify import (
     _ENVELOPE_TYPES,
     _HASHABLE_TYPES,
-    _KEYED_DICT_PROPS,
-    _SKIP_MERGE_PROPS,
     _STRUCTURAL_TYPES,
     _as_element,
     _canonical_merge_key,
-    _class_properties,
-    _is_empty,
-    _merge_comment,
-    _merge_dictionary_entries,
     _merge_fragment_set,
-    _merge_list,
-    _merge_properties,
-    _merge_scalar,
     _MergeIndex,
-    _normalize_value,
-    _paths_suffix_match,
     _record_unification,
-    _signature,
     _UnificationEvents,
-    _warn_if_same_name_different_hash,
 )
 from pitloom.assemble.spdx3._licensing_profiles import apply_licensing_profiles
 from pitloom.assemble.spdx3.provenance import build_unification_annotation
@@ -102,7 +103,6 @@ __all__ = [
     "_signature",
     "_canonical_merge_key",
     "_update_profile_conformance",
-    "_warn_if_same_name_different_hash",
     "FragmentMergeError",
     "fragment_files",
     "merge_fragments",
@@ -374,6 +374,11 @@ def _declared_profiles(fragment_set: spdx3.SHACLObjectSet) -> set[str]:
     }
 
 
+def _fragment_file(project_dir: Path, frag: FragmentConfig) -> Path:
+    """*frag*'s path on disk."""
+    return Path(frag.base_dir or project_dir) / frag.path
+
+
 def merge_fragments(
     project_dir: Path,
     fragments: list[FragmentConfig],
@@ -407,20 +412,25 @@ def merge_fragments(
     index = _MergeIndex(exporter, main_doc_id)
     events: _UnificationEvents = {}
     fragment_imports: list[spdx3.ExternalMap] = []
-    merged_any = False
     unmet_required: list[str] = []
     roots: list[str] = []
     profiles: set[str] = set()
 
+    loaded_fragments: list[tuple[FragmentConfig, spdx3.SHACLObjectSet, str | None]] = []
     for frag in fragments:
         loaded = _load_fragment(
-            Path(frag.base_dir or project_dir) / frag.path, frag.required, main_doc_id
+            _fragment_file(project_dir, frag), frag.required, main_doc_id
         )
         if loaded is None:
             if frag.required:
                 unmet_required.append(frag.path)
             continue
-        fragment_set, frag_doc_id = loaded
+        # Noted for every fragment before the first merge: which id is
+        # registry-pinned must not depend on the order.
+        index.note_source(str(_fragment_file(project_dir, frag)), loaded[0].objects)
+        loaded_fragments.append((frag, *loaded))
+
+    for frag, fragment_set, frag_doc_id in loaded_fragments:
         if frag_doc_id and frag_doc_id not in {
             m.externalSpdxId for m in fragment_imports
         }:
@@ -429,7 +439,6 @@ def merge_fragments(
             )
         profiles |= _declared_profiles(fragment_set)
         roots.extend(_merge_fragment_set(fragment_set, index, frag.path, events))
-        merged_any = True
 
     _dedupe_relationships(exporter)
 
@@ -458,5 +467,5 @@ def merge_fragments(
             "path(s) under [tool.pitloom.fragment]"
         )
 
-    if merged_any:
+    if loaded_fragments:
         _raise_on_dangling_references(exporter)

@@ -96,8 +96,9 @@ the commands.
 
 Only `loom id generate` and `loom id import` create or index a registry;
 never hand-edit one. Run from the project directory (`PATH` and `-o`
-resolve against the current directory; a `PATH` outside the project is an
-`ERROR:`):
+resolve against the current directory; a `PATH` outside the project, an
+unreadable one, or a `--project-dir` that is not a directory is an `ERROR:`,
+exit 1, nothing written; `-o -` is a usage error, exit 2):
 
 ```bash
 loom id generate <PATH...> -o loom-id-registry.json   # index files and AI models
@@ -137,7 +138,11 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   `NAME` is also a usage error (exit 2).
 - **Unreadable files**: a file or directory below a `PATH` that cannot be
   read or listed is a `WARNING: FILE=...`/`DIR=...` (project-relative path)
-  and the run continues; an unreadable `PATH` argument is an `ERROR:`.
+  and the run continues (so does a file whose name is not UTF-8 encodable); an
+  unreadable `PATH` argument is `ERROR: PATH <path>: could not be read: ...`
+  (an unreadable default directory is only the `DIR=` warning). An explicit `PATH` that is or lies
+  in a skipped directory (`build`, `dist`, ...) indexes nothing and warns
+  `ID registry: path has a skipped directory name (build), skipping: <path>`.
   Neither command rewrites an unchanged registry, and `id import` keeps the
   namespace it adopted unless another run changed it meanwhile.
 - **Namespace**: a new registry gets one minted from the project name and a
@@ -314,6 +319,13 @@ carries a hash (a loom model declared with `path=`, merged as a fragment).
 - `WARNING: loom: model X has no path=; not hashed, looked up by name only`
   (or `... is not a file at exit ...`) -- the model is matched by name and
   gets no hash; add `path=` to the `set_model()`/`use_model()` call.
+- `WARNING: Merge: <Type> '<name>' shares spdxId <id> with a <Type> of a
+  different SHA256 hash; keeping both, it gets new id <id>.` -- a merged
+  fragment reused an id for other content; both elements stay. For equal
+  content the registry-pinned id survives the merge.
+- `INFO: ID registry: package identity unknown; not looked up or recorded` --
+  a wheel with no usable `.dist-info` or `METADATA` name; the registry is not
+  touched for its package.
 - `WARNING: ID registry: not adopting the namespace ...` -- `id import` met
   an SBOM whose document id is not a valid namespace IRI; the registry keeps
   its own namespace.

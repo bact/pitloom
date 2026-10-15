@@ -207,7 +207,11 @@ def resolve_project_package_ids(
     """Claim registry ids for the main package, then its declared and
     lock-resolved (*transitive_only*) dependencies, then its phantom
     dependencies -- that order decides who wins a shared registry id."""
-    main = resolve_package_id(session, MAIN_PACKAGE_LABEL, doc.project.name)
+    main = (
+        resolve_package_id(session, MAIN_PACKAGE_LABEL, doc.project.name)
+        if doc.identity_known
+        else None
+    )
     dependencies = [*doc.project.dependencies, *transitive_only]
     seen: set[str] = {canonicalize_name(doc.project.name)}
     dependency_hits = _resolve_dependency_hits(session, dependencies, seen)

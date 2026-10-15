@@ -12,6 +12,7 @@ See also: tests/core/test_loom_dataset.py (loom's use of it).
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,8 @@ from pitloom.id_registry import FILE_TYPE, registry_key_for_path
 from tests._symlink import CAN_SYMLINK, case_sensitive
 from tests.registry_helpers import make_registry
 
+# Windows refuses to delete the current directory.
+_CAN_DELETE_CWD = sys.platform != "win32"
 _NEEDS_SYMLINK = pytest.mark.skipif(not CAN_SYMLINK, reason="needs symlinks")
 
 
@@ -163,3 +166,23 @@ def test_other_case_spelling_of_the_root_keys_by_identity(
     monkeypatch.chdir(project.parent)
     registry = make_registry(project_root=project)
     assert registry_key_for_path(registry, Path("PROJ/data/t.txt")) == "data/t.txt"
+
+
+@pytest.mark.skipif(not _CAN_DELETE_CWD, reason="Windows keeps the cwd")
+@pytest.mark.parametrize(
+    ("absolute", "key"),
+    [(False, None), (True, "data/t.txt")],
+    ids=["relative", "absolute"],
+)
+def test_deleted_current_directory_never_raises(
+    project: Path, monkeypatch: pytest.MonkeyPatch, absolute: bool, key: str | None
+) -> None:
+    """With the current directory gone, a relative path has no key (``None``,
+    not ``FileNotFoundError``); an absolute one needs no cwd."""
+    gone = project.parent / "gone"
+    gone.mkdir()
+    monkeypatch.chdir(gone)
+    gone.rmdir()
+    registry = make_registry(project_root=project)
+    path = project / "data" / "t.txt" if absolute else Path("data/t.txt")
+    assert registry_key_for_path(registry, path) == key

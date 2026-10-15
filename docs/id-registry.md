@@ -105,21 +105,30 @@ traceback, and takes precedence over that error.
 - Registry keys, and the default `PATH`s (`src`, `data`, `models`), stay
   relative to `--project-dir`; a relative `-o` or `PATH` resolves against the
   current directory.
-- Each `PATH` must resolve inside `--project-dir`, else `ERROR: PATH <p> is
-  outside --project-dir <dir>` (exit 1), whether directly or only through a
-  symlink. `..` is collapsed lexically before any symlink is followed. A
-  symlink that itself lives inside the project is fine even if it points
-  outside: a file symlink is indexed under its in-project location, as the
-  default `PATH`s are. The files below a symlinked *directory*
-  (`data/models -> ../bigdisk/models`) are not indexed, and a `loom.Run`
-  that names one of them keys it by its path as written, so it finds no entry.
+- `--project-dir` must be an existing directory, else `ERROR: --project-dir
+  <p> is not a directory` (exit 1). Each `PATH` must resolve inside it, else
+  `ERROR: PATH <p> is outside --project-dir <dir>` (exit 1), whether directly
+  or only through a symlink. `..` is collapsed lexically before any symlink
+  is followed (`link/..` is the directory above `link` as written). A symlink
+  that itself lives inside the project is fine even if it points outside: it
+  is indexed under its in-project location, as the default `PATH`s are,
+  and a `PATH` naming a symlinked *directory* (`data/models ->
+  ../bigdisk/models`) is walked. A symlink to a directory found *below* a
+  `PATH` is not followed. A `loom.Run` that names a file below a symlinked
+  directory keys it by its path as written, so it finds no entry.
 - A file or directory below a `PATH` that cannot be read or listed gets the
   shared `WARNING: FILE=<path>: ...` or `WARNING: DIR=<path>: ...` line (the
   path project-relative, `/`-separated) and the run continues; a partial tree
-  is never indexed silently. A `PATH` argument itself that cannot be read is
-  an `ERROR:` on every Python version.
+  is never indexed silently. So does a file whose name a registry cannot hold
+  (not UTF-8 encodable). A `PATH` argument itself that cannot be read or
+  listed is `ERROR: PATH <path>: could not be read: <reason>` (exit 1, nothing
+  written) on every Python version; an unreadable default directory (`src`,
+  `data`, `models`) is the `DIR=` warning instead.
 - Build, virtual-environment, VCS and cache directories are not indexed; see
-  [Directories that are skipped](#directories-that-are-skipped).
+  [Directories that are skipped](#directories-that-are-skipped). A `PATH`
+  that is, or lies below, one of them indexes nothing and gets one
+  `WARNING:`.
+- `-o -` is a usage error (exit 2): a registry is never written to stdout.
 - After a write that *created* the registry (never one that updated an
   existing file), and unless the target is already the project's declared
   `id-registry`, both commands log `INFO: ID registry: to use this registry,
@@ -139,6 +148,9 @@ id only. A file's entry holds its SHA-256, and changed content gets a new id.
 
 Exceptions:
 
+- A wheel whose name did not come from its `METADATA` (called `unknown`) is
+  neither looked up nor recorded; its package gets a per-document id, with
+  one `INFO:` when a registry is declared.
 - A `src/`-layout project's files are not found by `wheel` or sdist targets
   (their paths differ from the project's).
 - A `loom.Run` dataset's package is looked up by its name exactly as the
@@ -196,7 +208,10 @@ Exceptions:
 `.hatch` or `fragments`, and everything below it. Only the names of
 directories below the root count: a project that itself lives under a
 directory called `build` is indexed. A dataset directory also leaves out
-symbolic links to directories and the declared registry file. The set is
+symbolic links to directories and the declared registry file. `id generate`
+also leaves out the declared registry, matched by identity and never by name:
+a stray `loom-id-registry.json` that is not the declared file is indexed. The
+set is
 `IGNORED_DIR_NAMES` in `src/pitloom/core/walk_rules.py`.
 
 ## Harvesting new ids
@@ -270,6 +285,15 @@ skipped or replaced. `loom.run` reads no `[tool.pitloom]` unless given one
 as `pitloom_config=`; its own `id_registry=` resolves against the current
 directory, a `pitloom_config=` file's `id-registry` against that file's
 directory.
+
+`IdRegistry.load()` takes a `str` or path-like (else `TypeError`). `register()`
+and the loader reject a name that UTF-8 cannot hold (a lone surrogate) with
+`ValueError`; `generate()` skips such a file with the `FILE=` `WARNING:`, and
+harvest and `id import` skip such an element with a `WARNING:`. `generate()`
+raises `ID registry: <path> is outside the project root <root>` for a path
+outside the root; a symlink inside the project that points outside is keyed
+by its project path. `id import` of an SBOM whose `@graph` is not a list is
+`ERROR: failed to import SBOM <path>: @graph is not a list`.
 
 ## In CI
 

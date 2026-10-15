@@ -97,8 +97,15 @@ and this project adheres to
 - `id import` keeps a model's hash unless the id changes (`INFO:`); in-tree
   registries and their wheel/sdist copies settle (a copy is the registry's path,
   or less one `src/` part); `id generate` indexes `build/`, warns on unreadable
-  files/dirs; one write routine, one failed-save line; same-id types merge apart
-  ([#305])
+  files/dirs; one write routine, one failed-save line ([#305])
+- Merge: an id shared by a different type, or by the same type with a
+  conflicting SHA-256, keeps both (new id, `WARNING:`); for equal content the
+  registry-pinned id survives ([#305])
+- `id generate`: an unreadable `PATH`, a non-directory `--project-dir` are an
+  `ERROR:`; `-o -` is a usage error; a skipped-directory `PATH` warns; a
+  symlinked `PATH` directory is walked ([#305])
+- A wheel with no identity (`unknown`) is not looked up in or recorded into an
+  ID registry; a `loom.Run` dataset is one package per name and content ([#305])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305

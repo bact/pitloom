@@ -40,7 +40,9 @@ from pitloom.id_registry._types import (
     _REGISTRY_VERSION,
     RegistryEntry,
     _element_key,
+    is_utf8_text,
     registry_file_error,
+    unencodable_message,
 )
 
 __all__ = [
@@ -225,6 +227,9 @@ def _parse_elements(path: Path, raw: object) -> dict[tuple[str, str], RegistryEn
                 path, f"malformed entry: elements {type_name!r} is not an object"
             )
         for name, record in sorted(names.items()):
+            for text in (type_name, name):
+                if not is_utf8_text(text):
+                    raise registry_file_error(path, unencodable_message("key", text))
             key = _element_key(type_name=type_name, name=name)
             if key in elements:
                 raise registry_file_error(path, f"two {key[0]} entries for {key[1]!r}")
@@ -246,6 +251,8 @@ def _parse_entry(path: Path, key: tuple[str, str], record: object) -> RegistryEn
     spdx_id = record.get("spdxId")
     if not isinstance(spdx_id, str) or not spdx_id:
         raise registry_file_error(path, f"{where}: 'spdxId' must be a non-empty string")
+    if not is_utf8_text(spdx_id):
+        raise registry_file_error(path, unencodable_message("spdxId", spdx_id))
     if "sha256" not in record:
         return RegistryEntry(spdx_id=spdx_id)
     sha256 = record["sha256"]

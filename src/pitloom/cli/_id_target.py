@@ -17,6 +17,7 @@ import os
 from pathlib import Path
 from typing import NamedTuple
 
+from pitloom.core.walk_rules import PROJECT_FILES
 from pitloom.extract.project import read_project
 
 log = logging.getLogger("pitloom.id_registry")
@@ -55,11 +56,7 @@ def _project_configured_id_registry(project_dir: Path) -> tuple[str | None, str]
     ``pyproject.toml``/``setup.cfg``/``setup.py`` at all -- nothing to
     read, not an error.
     """
-    if not (
-        os.path.isfile(project_dir / "pyproject.toml")
-        or os.path.isfile(project_dir / "setup.cfg")
-        or os.path.isfile(project_dir / "setup.py")
-    ):
+    if not any(os.path.isfile(project_dir / name) for name in PROJECT_FILES):
         return None, _PYPROJECT_TABLE
     _metadata, pitloom_config, config_path = read_project(
         project_dir,

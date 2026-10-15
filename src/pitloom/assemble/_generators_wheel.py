@@ -32,7 +32,7 @@ from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.walk_rules import without_registry_copies
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
-from pitloom.extract.wheel import read_wheel
+from pitloom.extract.wheel import read_wheel, wheel_identity
 from pitloom.id_registry import IdRegistry, registry_copy, resolve_registry
 from pitloom.logging_config import configure_logging
 
@@ -181,6 +181,7 @@ def generate_wheel_sbom_with_metadata(
         creation_metadata=creation_metadata or cfg.creation_metadata,
         ai_models=ai_models,
         phantom_dependencies=phantom_deps,
+        identity_known=wheel_identity(project_metadata)[0] is not None,
     )
     exporter = build(
         doc,

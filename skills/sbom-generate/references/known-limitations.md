@@ -196,7 +196,10 @@ stored under a non-conforming name (`./`, `\`); for no single own `.dist-info`
 a `WARNING: ... -- identity unknown` line comes before the `ERROR:`.
 With no single own `.dist-info`, or a `METADATA` that is missing or over a cap,
 `wheel` and `generate` only warn (`WARNING: ... identity unknown`) and write an
-SBOM that names the wheel `unknown`. The embeds do the same for a `METADATA`
+SBOM that names the wheel `unknown`; an ID registry neither looks up nor
+records that placeholder (one `INFO:` when a registry is declared); ids still
+derive from the name `unknown`, so two unidentified wheels with equal payloads
+share them. The embeds do the same for a `METADATA`
 that is missing or over a cap, but fail with the `ERROR:` above where there is
 no single `.dist-info` to write into. Where the file name names no top-level
 `.dist-info` but one other exists, every one of these commands uses it and logs

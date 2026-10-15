@@ -18,7 +18,8 @@ from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3_bindings
 
-from pitloom.export.spdx3_json import Spdx3JsonExporter, sha256_of
+from pitloom.export.hashes import sha256_of
+from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
     DATASET_PACKAGE_TYPE,

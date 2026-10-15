@@ -124,15 +124,17 @@ tests/`) on its own, so it can be bisected.
 
 0. **Docs only: record the decisions** in these design files. Done
    2026-09-30.
-1. **Share one sha256 extractor.** `sha256_of()` (does not exist yet) in
-   `export/spdx3_json.py` (lowercased; used by `_fragments_unify` and the
+1. **Share one sha256 extractor.** `sha256_of()` in
+   `export/hashes.py` (lowercased; used by `_fragments_unify` and the
    registry). One parametrised test (none, a non-sha256 algorithm, an
    empty value then the next, uppercase). Effect: merge-by-hash now
    unifies an uppercase and a lowercase hash of the same bytes.
-2. **Exclude the declared registry from scans (D7) and fix
-   `_is_eligible_file`** (approved): it matches ignored names against the
-   *absolute* path's parts, so a project under `/x/build/...` is skipped
-   entirely; match the project-relative parts instead. `core/walk_rules.py` (built: `IGNORED_DIR_NAMES`, formerly the
+2. **Exclude the declared registry from scans (D7) and fix the
+   ignored-name check** (approved): it matched ignored names against the
+   *absolute* path's parts, so a project under `/x/build/...` was skipped
+   entirely. Now `_walk_files` prunes ignored names below the scan root and
+   `_skipped_name_in` checks an explicit PATH's project-relative parts;
+   `_is_eligible_file` has no name check. `core/walk_rules.py` (built: `IGNORED_DIR_NAMES`, formerly the
    private `id_registry/_types.py` `_IGNORED_DIR_NAMES`; `same_path` with realpath on
    both sides: the CLI keeps the registry path lexical while the project
    dir is resolved, and macOS `/tmp` is `/private/tmp`). Thread

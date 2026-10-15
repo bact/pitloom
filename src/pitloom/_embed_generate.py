@@ -58,6 +58,7 @@ from pitloom.extract.authors import (
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.project import read_project
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
+from pitloom.extract.wheel import wheel_identity
 from pitloom.id_registry import (
     IdRegistry,
     registry_base_dir,
@@ -338,6 +339,7 @@ def _build_sbom_standalone_wheel(
         creation_metadata=creation_metadata,
         ai_models=ai_models,
         phantom_dependencies=find_phantom_dependencies(files),
+        identity_known=wheel_identity(wheel_metadata)[0] is not None,
     )
     exporter = assemble_spdx3(
         doc,

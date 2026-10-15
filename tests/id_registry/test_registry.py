@@ -297,3 +297,24 @@ def test_root_dir_cascade(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     assert rooted.project_root == real
     rooted.project_root = Path(".")  # an assignment skips __init__'s realpath
     assert rooted.root_dir() == real
+
+
+@pytest.mark.parametrize("which", ["name", "type"])
+def test_register_refuses_a_lone_surrogate_and_stores_nothing(
+    tmp_path: Path, which: str
+) -> None:
+    """A name that is not UTF-8 text could never be saved: refused at the
+    boundary, escaped in the message, the registry left saveable."""
+    registry = IdRegistry.new("x", tmp_path / "s.json", namespace=_NS)
+    bad = "\udcff.txt"
+    args = (FILE_TYPE, bad) if which == "name" else (bad, "a.txt")
+
+    with pytest.raises(ValueError, match="lone surrogate") as excinfo:
+        registry.register(*args)
+
+    assert "\\udcff" in str(excinfo.value)
+    assert f"ID registry: {'name' if which == 'name' else 'type name'} " in str(
+        excinfo.value
+    )
+    assert not registry.elements
+    registry.save()

@@ -80,6 +80,17 @@ def merkle_root_comment(file_count: int) -> str:
     )
 
 
+def _dataset_kind(dataset_type: str) -> str:
+    """The ``dataset_DatasetType`` term for *dataset_type* (``text`` when
+    it names none)."""
+    return cast(
+        str,
+        getattr(
+            spdx3.dataset_DatasetType, dataset_type, spdx3.dataset_DatasetType.text
+        ),
+    )
+
+
 class LoomElements:
     """The dataset and file elements of one loom run, added to its document.
 
@@ -105,6 +116,7 @@ class LoomElements:
         self._doc_uuid = doc_uuid
         self._max_hash_bytes = max_hash_bytes
         self._files: dict[tuple[str, str | None], spdx3.software_File] = {}
+        self._packages: dict[tuple[str, str | None], spdx3.dataset_DatasetPackage] = {}
         self._outside_warned: set[str] = set()
         self._left_out_warned: set[str] = set()
 
@@ -116,16 +128,22 @@ class LoomElements:
         *name* stays as given: ``add_output_dataset(input_datasets=...)``
         matches it. A regular file gets its own ``software_File`` and a
         ``contains`` edge to it, each element with its own ``Hash``; a
-        directory, its Merkle root.
+        directory, its Merkle root. The same name holding the same content
+        is one package per run, whatever declares it: a repeat adds only a
+        new *dataset_type*.
         """
         found = hash_dataset(
             Path(name),
             max_bytes=self._max_hash_bytes,
             exclude=registry_file_path(self._session.registry),
         )
-        package = self._package(name, dataset_type, caller_info)
         if found.excluded:  # said even when no root came of the directory
             self._warn_registry_in(name)
+        held_package = self._packages.get((name, found.hex_digest))
+        if held_package is not None:
+            return self._add_kind(held_package, dataset_type)
+        package = self._package(name, dataset_type, caller_info)
+        self._packages[(name, found.hex_digest)] = package
         if found.hex_digest is None:
             return package
         if found.kind == "dir":
@@ -144,6 +162,16 @@ class LoomElements:
             creation_info=self._creation_info,
         )
         self._exporter.add_relationship(cast(spdx3.Relationship, relationship))
+        return package
+
+    @staticmethod
+    def _add_kind(
+        package: spdx3.dataset_DatasetPackage, dataset_type: str
+    ) -> spdx3.dataset_DatasetPackage:
+        """*package* with *dataset_type* among its kinds, once."""
+        kind = _dataset_kind(dataset_type)
+        if kind not in package.dataset_datasetType:
+            package.dataset_datasetType = [*package.dataset_datasetType, kind]
         return package
 
     def script_file(self, name: str, path: Path) -> spdx3.software_File:
@@ -240,10 +268,7 @@ class LoomElements:
             exporter=self._exporter,
             provenance_config=LOOM_PROVENANCE_CONFIG,
         )
-        kind = getattr(
-            spdx3.dataset_DatasetType, dataset_type, spdx3.dataset_DatasetType.text
-        )
-        package.dataset_datasetType = [kind]
+        package.dataset_datasetType = [_dataset_kind(dataset_type)]
         self._exporter.add_package(package)
         return package
 

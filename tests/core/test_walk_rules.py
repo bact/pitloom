@@ -210,3 +210,16 @@ def test_warn_registry_left_out_wording(
     assert caplog.records[0].getMessage() == (
         f"ID registry: {registry} is inside the project's file set; left out of it"
     )
+
+
+def test_project_files_are_shared_by_both_consumers() -> None:
+    """``registry_copy`` and ``id generate``'s target resolution recognise
+    a project by the same files, imported from one place."""
+    # pylint: disable-next=import-outside-toplevel
+    from pitloom.cli import _id_target
+
+    # pylint: disable-next=import-outside-toplevel
+    from pitloom.id_registry import resolve
+
+    assert vars(_id_target)["PROJECT_FILES"] is walk_rules.PROJECT_FILES
+    assert vars(resolve)["PROJECT_FILES"] is walk_rules.PROJECT_FILES

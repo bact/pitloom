@@ -35,6 +35,7 @@ log = logging.getLogger(__name__)
 
 __all__ = [
     "IGNORED_DIR_NAMES",
+    "PROJECT_FILES",
     "REGISTRY_IN_FILE_SET_WARNING",
     "RegistryCopy",
     "SameFile",
@@ -42,6 +43,9 @@ __all__ = [
     "warn_registry_left_out",
     "without_registry_copies",
 ]
+
+#: The files that make a directory a Python project's.
+PROJECT_FILES = ("pyproject.toml", "setup.cfg", "setup.py")
 
 #: Directory names every walk prunes (``id generate``, a directory
 #: dataset), matched against the path parts below the walk's base only:

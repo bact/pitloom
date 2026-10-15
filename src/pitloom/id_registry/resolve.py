@@ -17,7 +17,7 @@ import os
 from pathlib import Path, PurePath
 
 from pitloom.core.path_confine import inside_ancestor, is_inside
-from pitloom.core.walk_rules import RegistryCopy
+from pitloom.core.walk_rules import PROJECT_FILES, RegistryCopy
 from pitloom.id_registry._registry import IdRegistry
 
 __all__ = [
@@ -50,14 +50,10 @@ def registry_file_path(registry: IdRegistry | None) -> Path | None:
     return registry.path if registry is not None else None
 
 
-#: The files that make a directory a Python project's, for
-#: :func:`registry_copy`'s root.
-_PROJECT_FILES = ("pyproject.toml", "setup.cfg", "setup.py")
-
-
 def _project_dir_of(registry: Path, stored_root: Path) -> Path:
     """The nearest directory holding *registry*, *stored_root* or below it,
-    that is a project's (holds one of :data:`_PROJECT_FILES`); else
+    that is a project's (holds one of
+    :data:`~pitloom.core.walk_rules.PROJECT_FILES`); else
     *stored_root*. A monorepo registry stores the repository as its root,
     while each archive is built from one project below it."""
     root = PurePath(stored_root)
@@ -67,7 +63,7 @@ def _project_dir_of(registry: Path, stored_root: Path) -> Path:
         (
             Path(parent)
             for parent in inside
-            if any(os.path.isfile(os.path.join(parent, n)) for n in _PROJECT_FILES)
+            if any(os.path.isfile(os.path.join(parent, n)) for n in PROJECT_FILES)
         ),
         stored_root,
     )
@@ -138,7 +134,8 @@ def registry_key_for_path(registry: IdRegistry, path: Path) -> str | None:
     whatever the current directory. ``None`` when *path* lies outside the
     root (another drive included); the root itself is ``"."``.
 
-    A relative *path* is taken from the current directory. Tried first
+    A relative *path* is taken from the current directory (``None`` when
+    that no longer exists). Tried first
     lexically (``..`` collapsed, no symlink followed), so an in-project
     file symlink keys by its own location, as ``id generate`` keys it; then
     an ancestor of that lexical path that is the root by file identity
@@ -149,7 +146,11 @@ def registry_key_for_path(registry: IdRegistry, path: Path) -> str | None:
     :func:`~pitloom.core.path_confine.inside_ancestor`). Never raises.
     """
     root = PurePath(registry.root_dir())
-    lexical = PurePath(os.path.normpath(os.path.join(os.getcwd(), path)))
+    try:
+        base = "" if path.is_absolute() else os.getcwd()
+    except OSError:  # the current directory was deleted
+        return None
+    lexical = PurePath(os.path.normpath(os.path.join(base, path)))
     ancestor = inside_ancestor(lexical, root)
     if ancestor is not None:
         return lexical.relative_to(ancestor).as_posix()

@@ -88,6 +88,12 @@ class _Declaration:
     annotations: list[spdx3.Annotation] = field(default_factory=list)
 
 
+def _warn_unreadable(given: str, exc: Exception) -> None:
+    log.warning(
+        UNREADABLE_FILE_WARNING, loggable(given), "for the model hash", one_line(exc)
+    )
+
+
 def _hash_model_file(name: str, path: str, given: str) -> str | None:
     """The SHA-256 of the model file at *path*, or ``None`` and one
     ``WARNING:`` when it is not a regular file at exit (gone included) or
@@ -95,14 +101,12 @@ def _hash_model_file(name: str, path: str, given: str) -> str | None:
     try:
         if is_regular_file(Path(path)):
             return sha256_digest(path).hex()
+    except ValueError as exc:  # a NUL: a name, not a path
+        _warn_unreadable(given, exc)
+        return None
     except OSError as exc:
         if not is_missing_errno(exc):
-            log.warning(
-                UNREADABLE_FILE_WARNING,
-                loggable(given),
-                "for the model hash",
-                one_line(exc),
-            )
+            _warn_unreadable(given, exc)
             return None
     log.warning(NOT_A_FILE_WARNING, name, loggable(given))
     return None

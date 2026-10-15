@@ -253,6 +253,9 @@ retrained file gets a new one. Without `path=` (one `WARNING:` when a registry
 is loaded), or when it is not a file when the run ends (one `WARNING:`), the
 model is matched by name only and gets no hash. In the context-manager form,
 `run.model` is `None` until the block exits.
+A `path=` that cannot be read (a NUL in it included) gets the usual
+unreadable-model `WARNING:`. Leaving a block, by an exception too, restores
+the enclosing run, so a recursive `@loom.run` call is safe.
 
 The run also records *which script produced what*: the calling script
 becomes a `software_File` (with a SHA-256 hash) with `generates`
@@ -267,7 +270,9 @@ Hashing one dataset reads at most `max-dataset-hash-bytes` (4 GiB by
 default); over it, the dataset gets no hash and one `WARNING:`.
 A dataset is hashed when it is declared, an output dataset too: call
 `add_output_dataset()` after the step has written the file, or it carries the
-hash of the file it replaces.
+hash of the file it replaces. One name holding one content is one package per
+run: declaring it again (as input and output, or twice) adds its roles to the
+same package, with no collision warning.
 These `generates` edges are scoped `build` -- they describe a build-time
 step, not something that runs in the shipped artifact. Contrast with the
 `hasDataFile` relationship Pitloom emits when it detects a script *using*

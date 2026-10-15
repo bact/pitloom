@@ -20,13 +20,19 @@ from typing import TYPE_CHECKING, Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.export.spdx3_json import sha256_of
+from pitloom.export.hashes import sha256_of
 from pitloom.id_registry._ambiguous import (
     _ambiguous_keys,
     _element_key_of,
     ambiguous_keys_message,
 )
-from pitloom.id_registry._types import AI_PACKAGE_TYPE, FILE_TYPE, RegistryEntry
+from pitloom.id_registry._types import (
+    AI_PACKAGE_TYPE,
+    FILE_TYPE,
+    RegistryEntry,
+    is_utf8_text,
+    unencodable_message,
+)
 
 if TYPE_CHECKING:
     from pitloom.id_registry._registry import IdRegistry
@@ -220,7 +226,7 @@ def _import_sbom_element(
     type other than ``"object"`` is written under its own key
     (:func:`~pitloom.id_registry._ambiguous._element_key_of`). A
     :data:`_GATED_TYPES` entry gets the element's SHA-256
-    (:func:`~pitloom.export.spdx3_json.sha256_of`), or none; any other type
+    (:func:`~pitloom.export.hashes.sha256_of`), or none; any other type
     never gets one. The element's own ``.name`` is untouched; only the key
     is canonicalised.
 
@@ -248,7 +254,12 @@ def _import_sbom_element(
             log.debug("Import: skipping %r (no SPDX 3 compact type)", obj.name)
         return
     spdx_id = str(obj.spdxId)
+    # Reserved even when the element is skipped: its id is never minted.
     registry.reserve_id(spdx_id)
+    for what, text in (("name", key[1]), ("spdxId", spdx_id)):
+        if not is_utf8_text(text):
+            log.warning("%s; skipped", unencodable_message(what, text))
+            return
     if key in ambiguous_keys:
         return
     gated = key[0] in _GATED_TYPES

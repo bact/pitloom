@@ -474,3 +474,18 @@ def test_a_hashed_model_validates(project: Path) -> None:
         loom.set_model("m", path="m.bin", hyperparameters={"lr": "0.1"})
         loom.add_dataset("m.bin")
     assert_spdx3_validate_ok(project / "out.json")
+
+
+def test_model_path_with_nul_warns_unreadable_and_run_ends(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A NUL in ``path=`` is not a path: the model is not hashed, with the
+    unreadable-file ``WARNING:``, and the fragment is still written."""
+    out = tmp_path / "frag.json"
+    with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
+        with loom.run(out):
+            loom.set_model("m", path="a\x00b")
+    assert out.exists()
+    assert any("for the model hash" in r.message for r in caplog.records)
+    # pylint: disable-next=protected-access
+    assert loom._active_run is None

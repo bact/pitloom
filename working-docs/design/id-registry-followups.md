@@ -21,7 +21,10 @@ D-numbers below refer to it),
 [skills-trigger-coverage.md](../implementation/skills-trigger-coverage.md),
 [diagnostics-logging-followups.md](diagnostics-logging-followups.md),
 [canonical-output-followups.md](canonical-output-followups.md) (name
-comparison and normalisation that registry keys depend on).
+comparison and normalisation that registry keys depend on),
+[id-registry-path-keys.md](id-registry-path-keys.md) (deferred path-key
+redesign),
+[id-registry-followups-v3-review.md](id-registry-followups-v3-review.md).
 
 ## Open
 
@@ -66,9 +69,13 @@ Ids, names and output:
 
 - **sdist member order leaked into `File-N` ids**: fixed by #272
   ([known-bugs.md](../implementation/roadmap-completed.md#bugs-fixed-in-0200)).
-- **The sentinel `unknown` becomes a registry key.** Distinct wheels whose
-  identity is unknown share `unknown-...#Package-1`. Skip the registry lookup
-  and harvest when the name did not come from `METADATA`.
+- ~~**The sentinel `unknown` becomes a registry key.**~~ Resolved
+  2026-10-15 for wheels: `identity_known` is `False`, the package is not looked
+  up or recorded, one `INFO:`. Still open: the document namespace derives from
+  `unknown`, so two unidentified wheels with equal payloads share ids (idea:
+  fold the wheel file name into the uuid seed), and the sdist placeholders
+  (`extract/project/sdist.py` `Name` default `unknown`, `_sdist_pyproject.py`;
+  `_parse_pkg_info` sets `provenance['name']` even when absent) are unfixed.
 - **Default SBOM file name:** switch embed, the Hatchling hook and `loom
   project` default output to PEP 427 escaped `<name>-<version>` together, own
   PR after #266 (user 2026-10-02). Include the Windows-invalid characters
@@ -108,6 +115,10 @@ registry types, or mark agents and tools as non-readers.
 
 ### AIPackage lookups outside loom stay ungated until G7 #3
 
+G7 #3 now waits on the path-key redesign, which bundles it:
+[id-registry-path-keys.md](id-registry-path-keys.md) (open decisions P2, P3,
+P10).
+
 v3 gates loom's model lookup by the `path=` file's sha256 (D13), but the
 project, wheel, `loom model` and embed lookups stay ungated (D16): those
 surfaces do not hash AIPackages before G7 #3. Until then a project SBOM
@@ -117,32 +128,24 @@ every surface agrees.
 
 ### Ignored-name quirks in `id generate` indexing
 
-`_types._is_eligible_file` matches `_IGNORED_DIR_NAMES` against every
-path part, the file name included, so a *file* literally named `build`
-(or `dist`, ...) is never indexed; and an explicit PATH inside an ignored
-directory (`loom id generate build/x`) is skipped silently. v3's commit 2
-fixes only the absolute-path half of this check (it will match
-project-relative parts) and keeps both quirks.
-
 Resolved by registry v3 (checked in `id_registry/_types.py`): the check
-now matches the project-relative parent directories only, so a project
-under an ancestor `build/` is indexed and a *file* named `build` is
-eligible. Still open: an explicit PATH inside an ignored directory
-(`loom id generate build/x`) is skipped without a message.
+matches the project-relative parent directories only, so a project under an
+ancestor `build/` is indexed and a *file* named `build` is eligible. An
+explicit PATH inside an ignored directory (`loom id generate build/x`) indexes
+nothing and warns once (`path has a skipped directory name`; 2026-10-15).
 
 ### Merge by id: same-type coincidences and re-minted ids
 
 v3's D11 stops a fragment element from folding into an element of
-another type. Two gaps remain: a fragment-carried id that coincides with
-an unrelated main-document element *of the same type* still merges (the
-"Found, not fixed" item in
-[id-registry-autosync.md](../implementation/id-registry-autosync.md#found-not-fixed));
-and a re-minted id can in theory collide with a *later* fragment that
-carries the same id. Accepted for now.
-
-Resolved by registry v3: the different-type fold (D11, in
-`assemble/spdx3/_fragments_unify.py`). The same-type and later-fragment
-gaps stay open; see "Registry v3: follow-ups" below.
+another type. Resolved 2026-10-15: the same id and type with a conflicting
+SHA-256 (same algorithm, disjoint digests) also stays apart, the later element
+getting a new id and a `WARNING:` (`assemble/spdx3/_fragments_ids.py`). Still
+open: a same-type id coincidence with no digest on either side still merges
+(the "Found, not fixed" item in
+[id-registry-autosync.md](../implementation/id-registry-autosync.md#found-not-fixed)),
+and a re-minted id can in theory collide with a *later* fragment that carries
+the same id (all fragments load before the first merge, so a pre-scan is
+possible). Accepted for now.
 
 ### `pitloom.loom` run namespaces
 
@@ -153,6 +156,9 @@ random `uuid4` document uuid, so one fragment spans several namespaces and
 differs every run. Found while fixing the IRI encoding (#253); see
 [id-registry-autosync.md](../implementation/id-registry-autosync.md) for
 why reservation is a no-op there.
+
+Items found by the last three reviewers of this round are in
+[id-registry-followups-v3-review.md](id-registry-followups-v3-review.md).
 
 ## Registry v3: follow-ups (2026-10-15)
 
@@ -188,8 +194,9 @@ Dataset hashing and paths:
 - **An output dataset is hashed when declared** (`add_output_dataset`), so
   one declared before the step wrote the file carries the hash of the file it
   replaces. Defer output-dataset hashing to run exit, as models are.
-- **The same dataset declared twice is hashed twice.** Cache the digest per
-  run, keyed on the real path.
+- **The same dataset declared twice is hashed twice.** The package is now one
+  per `(name, digest)` per run (2026-10-15), but `hash_dataset` still runs on
+  every declaration. Cache the digest per run, keyed on the real path.
 - **`id generate` does not index files below a symlinked directory** (a file
   symlink is indexed), so a `loom.Run` keys such a path lexically and finds no
   entry. Documented in `docs/id-registry.md`; decide whether it is a gap.
@@ -200,9 +207,8 @@ Dataset hashing and paths:
 - **Case-insensitive file system.** A path matched by identity (`st_dev`,
   `st_ino`) keeps the caller's casing below the root, so the registry lookup
   misses. Normalise the tail to the on-disk case, or look up by identity.
-- **`registry_key_for_path` is documented as never raising**
-  (`id_registry/resolve.py`) but calls `os.getcwd()`, which raises
-  `FileNotFoundError` when the current directory was deleted. Catch it.
+- ~~**`registry_key_for_path` raised when the current directory was
+  deleted**~~ Resolved 2026-10-15: it returns `None`, as for "outside root".
 
 Registry file I/O:
 
@@ -242,9 +248,8 @@ Loom:
   the hash on first sight for file pins.
 - **Bootstrap from an empty registry** logs two `untracked file` `WARNING:`s,
   for the `data/processed/` files the pipeline creates later.
-- **`IdRegistry.load` type handling:** it takes a `Path`; check that other
-  argument types fail with one clear error (raised in the 2026-10-15 review;
-  details not recorded).
+- ~~**`IdRegistry.load` type handling**~~ Resolved 2026-10-15: a non-`str`,
+  non-path-like argument is a `TypeError`.
 
 Merge and warnings:
 
@@ -253,12 +258,11 @@ Merge and warnings:
   minted earlier in the same merge. Needs a pre-scan of all fragments.
 - **`loom fragment list` now computes the registry exclusion**, so an invalid
   declared registry reports `SAME_DOCUMENT` unknown instead of an id.
-- **`load_config_file` says "--config file"** (`core/config_cascade.py`) even
-  when loom is the caller.
-- **Merge hash-survivor policy.** When two fragments carry the same bytes the
-  survivor is the first indexed, so a minted fragment-local id can beat a
-  registry-pinned one: the sentimentdemo bootstrap loses `#File-8`/`#File-9`
-  in the merged wheel SBOM. Prefer the registry-pinned id as survivor.
+- ~~**`load_config_file` says "--config file"**~~ Resolved 2026-10-15: the
+  no-`[tool.pitloom]` warning names `pitloom_config` when loom is the caller.
+- ~~**Merge hash-survivor policy.**~~ Resolved 2026-10-15: for equal SHA-256
+  the registry-pinned id wins (the namespace more inputs share beats a
+  fragment-local minted one; a tie keeps the earlier); see `docs/fragments.md`.
 - **`id import` of an SBOM whose `ai_AIPackage` name differs from the file
   stem** releases the stem key `id generate` made, and its hash gate (a
   pre-existing behaviour). It matters more now that hashes gate ids: see the
@@ -362,9 +366,8 @@ Resolved:
 
 Open:
 
-- `cli/_id_target.py` repeats the three project-marker list of
-  `registry_copy` (`pyproject.toml`, `setup.cfg`, `setup.py`); share one
-  constant.
+- ~~`cli/_id_target.py` repeated the project-marker list~~ Resolved: one
+  `PROJECT_FILES` in `core/walk_rules.py`.
 - `IdRegistry.save()` called directly by a library user is still a plain
   write; only the CLI, harvest and loom use rebase and replay.
 - A retired id above the 10**9 reservation ceiling could in theory be minted

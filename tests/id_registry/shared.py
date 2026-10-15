@@ -23,7 +23,7 @@ from typing import Any
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.id_registry import FILE_TYPE, PACKAGE_TYPE
+from pitloom.id_registry import FILE_TYPE, PACKAGE_TYPE, IdRegistry, RegistryEntry
 
 #: The namespace of :func:`valid_registry_data`.
 REGISTRY_NS = "https://spdx.org/spdxdocs/test-1"
@@ -161,3 +161,8 @@ def _write_sample_sbom_without_document(path: Path) -> dict[str, str]:
         "namespace": namespace,
         "model_id": f"{namespace}#AIPackage-1",
     }
+
+
+def _files(registry: IdRegistry) -> dict[str, RegistryEntry]:
+    """The registry's ``software_File`` entries, name -> entry."""
+    return {name: e for (t, name), e in registry.elements.items() if t == FILE_TYPE}

@@ -38,9 +38,13 @@ class DocumentModel:
             deterministic output.
         phantom_dependencies: Bundled binary dependencies discovered inside
             distribution archives.
+        identity_known: ``False`` when the project's name is a placeholder
+            (the source did not carry one), so the main package is neither
+            looked up in nor harvested into an ID registry.
     """
 
     project: ProjectMetadata
     creation_metadata: CreationMetadata = field(default_factory=CreationMetadata)
     ai_models: list[AiModelMetadata] = field(default_factory=list)
     phantom_dependencies: list[PhantomDependency] = field(default_factory=list)
+    identity_known: bool = True

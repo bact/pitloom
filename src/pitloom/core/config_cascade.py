@@ -131,7 +131,7 @@ class ConfigOverrides:
     build_options: BuildOptions = BuildOptions()
 
 
-def load_config_file(path: Path) -> PitloomConfig:
+def load_config_file(path: Path, *, source: str = "--config") -> PitloomConfig:
     """Read ``[tool.pitloom]`` from an explicitly named config file.
 
     Unlike a target project's own config, a file the user named is a source
@@ -144,7 +144,8 @@ def load_config_file(path: Path) -> PitloomConfig:
     A file with no ``[tool.pitloom]`` table gives the defaults and one
     ``WARNING:``, since a wrong path would otherwise pass unnoticed. A
     relative ``id-registry`` resolves against the directory *path* names, not
-    that of a symbolic link's target.
+    that of a symbolic link's target. *source* names the caller's option in
+    that warning (``--config``, or ``pitloom_config`` for loom).
 
     Raises:
         FileNotFoundError: *path* is not a regular file (missing, or a
@@ -165,9 +166,10 @@ def load_config_file(path: Path) -> PitloomConfig:
     tool = data.get("tool")
     if not isinstance(tool, dict) or not isinstance(tool.get("pitloom"), dict):
         log.warning(
-            "%s%s: --config file has no [tool.pitloom] table; using the defaults",
+            "%s%s: %s file has no [tool.pitloom] table; using the defaults",
             INERT_LOG_PREFIX,
             path,
+            source,
         )
     # Every relative path in the file means the same thing wherever
     # Pitloom runs: it resolves against the file's own directory.

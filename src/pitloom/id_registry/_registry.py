@@ -14,6 +14,8 @@ traversal, :mod:`pitloom.id_registry._format` for the file format,
 
 from __future__ import annotations
 
+import io
+import json
 import logging
 import os
 from collections.abc import Sequence
@@ -37,7 +39,11 @@ from pitloom.id_registry._format import (
     registry_dir,
     write_registry_file,
 )
-from pitloom.id_registry._harvest import _harvest_elements, _sorted_by_spdx_id
+from pitloom.id_registry._generate import index_files
+from pitloom.id_registry._harvest import (
+    _harvest_elements,
+    _sorted_by_spdx_id,
+)
 from pitloom.id_registry._persist import (
     Rebase,
     added_ids,
@@ -45,21 +51,34 @@ from pitloom.id_registry._persist import (
     replay_changes,
 )
 from pitloom.id_registry._types import (
-    AI_PACKAGE_TYPE,
-    FILE_TYPE,
     RegistryEntry,
     _element_key,
-    _iter_files,
     _require_names,
+    is_utf8_text,
     registry_file_error,
-    sha256_file,
     type_id_prefix,
-    warn_unreadable_file,
+    unencodable_message,
 )
 
 log = logging.getLogger("pitloom.id_registry")
 
 __all__ = ["IdRegistry"]
+
+
+def _require_graph_list(raw: bytes) -> None:
+    """Raise ``ValueError`` when the JSON *raw* has an ``@graph`` that is
+    not a list, or holds a non-object (the deserializer would leak a
+    ``TypeError``). Text that is
+    not JSON is left to the deserializer's own error."""
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return
+    graph = data.get("@graph", []) if isinstance(data, dict) else []
+    if not isinstance(graph, list):
+        raise ValueError("@graph is not a list")
+    if not all(isinstance(element, dict) for element in graph):
+        raise ValueError("@graph element is not an object")
 
 
 class IdRegistry:
@@ -133,7 +152,16 @@ class IdRegistry:
         :func:`~pitloom.id_registry._types.registry_file_error`; it never
         returns ``None``. Whether a registry exists at all is decided
         upstream, by :func:`~pitloom.id_registry.resolve.resolve_registry`.
+
+        Raises:
+            TypeError: *path* is not a ``str`` or ``os.PathLike`` (bytes
+                included): a wrong argument, not a bad file.
         """
+        if not isinstance(path, (str, os.PathLike)):
+            raise TypeError(
+                "ID registry file path must be a str or os.PathLike, "
+                f"not {type(path).__name__}"
+            )
         path = Path(path)
         contents = read_registry_file(path)
         registry = cls(
@@ -313,7 +341,14 @@ class IdRegistry:
         ungated registration never erases a recorded hash. A *sha256* that
         differs from the entry's, or an entry with none: log ``content
         changed``, mint a new id and replace the entry.
+
+        Raises:
+            ValueError: *type_name* or *name* cannot be encoded as UTF-8
+                (the file could never be saved).
         """
+        for label, text in (("type name", type_name), ("name", name)):
+            if not is_utf8_text(text):
+                raise ValueError(unencodable_message(label, text))
         key = _element_key(type_name=type_name, name=name)
         given = sha256.lower() if sha256 is not None else None
         existing = self.elements.get(key)
@@ -330,7 +365,12 @@ class IdRegistry:
         return spdx_id
 
     def generate(
-        self, paths: list[Path], project_root: Path, *, exclude: Path | None = None
+        self,
+        paths: list[Path],
+        project_root: Path,
+        *,
+        exclude: Path | None = None,
+        explicit: bool = True,
     ) -> None:
         """(Re-)index files under *paths* into this registry, except the
         *exclude* file (the declared registry itself).
@@ -343,41 +383,12 @@ class IdRegistry:
         stands for it, and a hash gate would re-mint on every run. Its
         existing entry is left as is, a recorded hash included, so a fresh
         registry and one with history can differ for that stem.
+
+        A path in *paths* that cannot be read or listed is a ``ValueError``
+        naming it; with *explicit* false (default roots the caller chose,
+        not the user) it is a ``WARNING:`` and the path is left out.
         """
-        # pylint: disable=import-outside-toplevel,cyclic-import
-        from pitloom.extract.ai_model import AiModelFormat, detect_ai_model_format
-        from pitloom.extract.scanner import is_model_candidate_name
-
-        models: dict[str, list[str]] = {}
-        for file_path in _iter_files(paths, project_root, exclude):
-            try:
-                sha256 = sha256_file(file_path)
-            except OSError as exc:
-                warn_unreadable_file(file_path, project_root, exc)
-                continue
-            rel_path = file_path.relative_to(project_root).as_posix()
-            self.register(FILE_TYPE, rel_path, sha256=sha256)
-
-            # The scan's rule (suffix filter, then header), so a model is
-            # registered for the files a scan lists as models, and only those.
-            if (
-                is_model_candidate_name(file_path.name)
-                and detect_ai_model_format(file_path) != AiModelFormat.UNKNOWN
-            ):
-                models.setdefault(file_path.stem, []).append(sha256)
-        for stem, hashes in models.items():
-            if len(hashes) == 1:
-                self.register(AI_PACKAGE_TYPE, stem, sha256=hashes[0])
-                continue
-            log.info(
-                "ID registry: %d model files share the name %s; %s",
-                len(hashes),
-                stem,
-                "its new entry is not content-gated"
-                if self.get(AI_PACKAGE_TYPE, stem) is None
-                else "its entry is left as is",
-            )
-            self.register(AI_PACKAGE_TYPE, stem)
+        index_files(self, paths, project_root, exclude, explicit=explicit)
 
     def import_sbom(self, sbom_path: Path) -> frozenset[tuple[str, str]]:
         """Harvest ids from an existing SPDX 3 JSON-LD SBOM into this registry.
@@ -393,7 +404,9 @@ class IdRegistry:
         """
         object_set = spdx3.SHACLObjectSet()
         with open(sbom_path, "rb") as f:
-            spdx3.JSONLDDeserializer().read(f, object_set)
+            raw = f.read()
+        _require_graph_list(raw)
+        spdx3.JSONLDDeserializer().read(io.BytesIO(raw), object_set)
 
         sorted_objects = _sorted_by_spdx_id(object_set)
         self._reserve_held()

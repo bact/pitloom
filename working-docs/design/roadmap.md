@@ -98,6 +98,9 @@ uniform and safer:
 - [x] **Registry v3** (PR #305): built. See
   [id-registry-v3.md](../implementation/id-registry-v3.md); open follow-ups in
   [id-registry-followups.md](id-registry-followups.md).
+- [ ] **Registry path-key redesign** (deferred; bundles G7 #3, so G7 #3 waits
+  on it; no format bump needed, v3 is unreleased). See
+  [id-registry-path-keys.md](id-registry-path-keys.md).
 - [ ] **Git LFS pointers outside AI models**: one shared detector, one
   summary `WARNING:`; registry v3 (built) ships without it. See
   [known-bugs.md](known-bugs.md#p0-in-0210).
@@ -162,7 +165,7 @@ unless the linked doc says so.
   [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md),
   [docs/metadata-provenance.md](../../docs/metadata-provenance.md).
 - [ ] **AI model id stability** beyond what registry v3 built (the other
-  AIPackage lookups gated by sha256 with G7 #3). See
+  AIPackage lookups gated by sha256 with G7 #3, via the path-key redesign). See
   [ai-model-id-stability.md](ai-model-id-stability.md).
 - [ ] **Archive member names**: name-independent `--allow-build`
   extraction, `orig_filename`, tar links in sdists. See

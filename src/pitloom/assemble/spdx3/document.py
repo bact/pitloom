@@ -77,7 +77,7 @@ from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
 from pitloom.extract.authors import dependency_author_splits
 from pitloom.extract.copyright_notices import COPYRIGHT_NOASSERTION
-from pitloom.id_registry import IdRegistry, IdRegistrySession
+from pitloom.id_registry import IdRegistry, IdRegistrySession, info_identity_unknown
 
 __all__ = [
     "_ai_model_identity",
@@ -292,6 +292,10 @@ def build(
     exporter.add_document(spdx_doc)
     exporter.add_sbom(sbom)
     exporter.add_package(main_package)
+    if not doc.identity_known:
+        exporter.registry_non_readers.add(require_spdx_id(main_package))
+        if registry is not None:
+            info_identity_unknown()
     emit_provenance(
         subject=main_package,
         provenance=metadata.provenance,

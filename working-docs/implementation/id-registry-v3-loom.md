@@ -31,11 +31,16 @@ build differs), [id-registry-v3-rollout.md](id-registry-v3-rollout.md).
 
 The `trainedOn`/`testedOn` relationship, and every other relationship
 loom emits today, stays on the DatasetPackage. There is no
-`software_File` fallback key for the DatasetPackage (D2). One file
-content is one element per run: `add_input_dataset("x")` then
-`add_dataset("x")` share one `software_File` (a per-run cache), so a
-second lookup never raises a spurious claim collision. A rewritten file
-(new digest) is a new element.
+`software_File` fallback key for the DatasetPackage (D2). One name
+holding one content is one `DatasetPackage` and one `software_File` per
+run: `add_input_dataset("x")` then `add_dataset("x")` (or `add_output_dataset`,
+or the same call twice) return the same package, cached by `(name, digest)`,
+so a second lookup never raises a spurious claim collision. The roles of
+every declaration attach to it (`trainedOn`, `testedOn`, `hasInput`; a
+package that is both input and output gets no `hasInput` edge to itself);
+a repeated `dataset_type` is added to its kinds, and an output declared
+twice has the union of its `input_datasets` (`None`, every input, wins). A
+rewritten file (new digest) is a new element.
 
 ### 8.2 Directory dataset (D6)
 

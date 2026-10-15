@@ -47,7 +47,7 @@ def test_walk_root_that_cannot_be_stat_ed_raises_on_every_version(
     caplog: pytest.LogCaptureFixture,
     mode: str,
 ) -> None:
-    """Present but not ``stat()``-able: the ``PermissionError`` (the CLI's
+    """Present but not ``stat()``-able: the ``ValueError`` naming the PATH (the CLI's
     ``ERROR:``), never "path not found" -- ``Path.exists()`` says ``False``
     for it on Python 3.14 only."""
     root = _project(tmp_path)
@@ -55,7 +55,7 @@ def test_walk_root_that_cannot_be_stat_ed_raises_on_every_version(
     with (
         caplog.at_level(logging.WARNING),
         deny(walk_root, mode, monkeypatch),
-        pytest.raises(PermissionError),
+        pytest.raises(ValueError, match="PATH .*could not be read"),
     ):
         list(_iter_files([walk_root], root))
     assert "path not found" not in caplog.text
@@ -120,7 +120,7 @@ def _unhashable(
         return sha256_file(file_path)
 
     with monkeypatch.context() as patch:
-        patch.setattr("pitloom.id_registry._registry.sha256_file", _hash)
+        patch.setattr("pitloom.id_registry._generate.sha256_file", _hash)
         yield
 
 
