@@ -11,8 +11,8 @@ SPDX-License-Identifier: CC0-1.0
 See also: [archive-member-names.md](archive-member-names.md) (the member
 names every wheel reader shares),
 [wheel-embedding.md](wheel-embedding.md) (the embed flow),
-[ai-model-scanning.md](ai-model-scanning.md) (the model scan skips the
-wheel's own `.dist-info`),
+[ai-model-scanning-wheels.md](ai-model-scanning-wheels.md) (the model scan
+skips the wheel's own `.dist-info`),
 [id-registry-followups.md](../design/id-registry-followups.md) (the
 alternative to D2 below).
 

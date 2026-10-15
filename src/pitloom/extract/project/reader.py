@@ -66,7 +66,7 @@ def _fallback_to_setuptools(
     ``has_resolvable_pyproject_config()``).
 
     Split out of :func:`read_project` purely to keep that function's own
-    cognitive-complexity ratchet -- no behavior split, just a named step.
+    cognitive-complexity ratchet -- no behaviour split, just a named step.
     """
     if not quiet:
         log.warning(
@@ -92,7 +92,7 @@ def _fallback_to_setuptools(
     # and `locked_dependencies`/`provenance` falling back to secondary's
     # (the pre-swap `metadata`) when primary's own is empty -- the same
     # mechanism already used for the analogous [tool.pitloom]-config
-    # carry-over just below, generalized so a future field needing the
+    # carry-over just below, generalised so a future field needing the
     # same treatment doesn't need a third hand-copied carry-over here.
     pre_setuptools_metadata = metadata
     # Decide first: setup.cfg's [tool:pitloom] is parsed only when it is the
@@ -269,7 +269,7 @@ def _apply_installed_metadata(
 
     Split out of :func:`read_project` purely to keep that function's own
     branch/local count under this repo's complexity ratchet -- no
-    behavior split, just a named step.
+    behaviour split, just a named step.
 
     Uses :func:`~pitloom.extract.project.installed._discover_candidate`
     directly (not the public, tuple-returning
@@ -327,7 +327,7 @@ def resolve_project_with_lockfile(
     the resolution
     logic (and its remaining double-parse tradeoff for the on-cascade,
     non-sdist case -- an accepted cost, see
-    ``working-docs/implementation/lock-file-cascade.md``) exists in one
+    ``working-docs/implementation/lock-file-cascade-opt-out.md``) exists in one
     place, not duplicated per caller. That tradeoff now also covers a
     second cost: the peek's ``include_installed_metadata`` staying on
     means a project with an in-tree ``.egg-info``/``.dist-info`` pays for

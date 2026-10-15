@@ -209,3 +209,46 @@ plans; the lesson holds without the code.
   requirement (declared, locked) or ships the code (bundled); a plain
   `dependsOn` states only what is known.
 
+## 6. A model's producer and size (#306)
+
+Where the AI profile has no slot, and what a file says against what a hub
+says. Measured on the fixtures and on `openai-community/gpt2`; the decisions
+are in
+[g7-model-producer-parameter-count.md](../g7-model-producer-parameter-count.md).
+
+- **SPDX 3.0.1 and 3.1-dev have no model-size or parameter-count
+  property.** `ai_metric` is performance, `software_artifactSize` (3.1 only)
+  is storage bytes, and a published AI-SBOM mapping calls the G7 "number of
+  parameters" a gap with only a broad match to `ai_hyperparameter`. Pitloom
+  writes a `DictionaryEntry` key `parameters` (decimal text) there and adds
+  one constant line to the package `comment` that says it is a stand-in, so a
+  reader does not take it for a hyperparameter.
+  Do: when a field has to ride on a near-miss slot, say so in the element
+  itself, once, in fixed wording, not only in the documentation.
+- **"Parameters" is a sum of stored tensor elements, not of weights.** A
+  derived count sums the elements of every stored tensor, so buffers and tied
+  copies are in it: `gpt2-tiny-decoder.onnx` gives 404256, of which a
+  262144-element `uint8` mask is 65 %; the Hub's `safetensors.total` for
+  `openai-community/gpt2` is 137022720, against about 124 million weights.
+  Packed formats (GPTQ, AWQ, bitsandbytes, ONNX `MatMulNBits`) under-count
+  because several weights share a stored element. The same number computed
+  from different formats of one model differs.
+  Do: name the quantity (`Method: tensor_element_sum`) in the provenance, and
+  state the exclusions where the number is shown.
+- **A file's author and the repository owner are different claims.** The
+  same model gives a producer from the file (ONNX `model_author`, GGUF
+  `general.author`) and one from the hub (the repository owner, which for
+  `openai-community/gpt2` is not OpenAI). Pitloom records both as
+  `originatedBy`, and only the hub owner also as `suppliedBy`, because a
+  file says who made the model and nothing about who ships it. GGUF
+  `general.organization` is often a converter's guess (llama.cpp fills it
+  from the base model's `_name_or_path`), so a fine-tune can name the base's
+  organisation.
+  Do: map "who made it" and "who distributes it" to separate properties and
+  set the second only from a source that has a distribution fact.
+- **Do not decide Person or Organization from a name.** A generic `Agent`
+  with the name only is valid SPDX 3.0.1 and passes the schema and SHACL
+  checks; a later step that reads the model card may add a typed agent
+  beside it, and nothing can retype or remove the generic one. An ONNX
+  `model_author` is a comma-separated list by the format's own text, so
+  `Doe, Jane` becomes two agents, a documented cost of not guessing.

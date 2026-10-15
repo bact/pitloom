@@ -12,7 +12,7 @@ See [docs/hatchling-build-hook.md](../../docs/hatchling-build-hook.md) for
 the user-facing quick start and PEP 770 background -- this file covers
 implementation detail only (build hook internals, data sources, test
 plan). See
-[backend-file-discovery-validation.md](backend-file-discovery-validation.md)
+[backend-file-discovery-validation-hatchling-poetry.md](backend-file-discovery-validation-hatchling-poetry.md)
 for real-world-package validation of Hatchling's wheel-file
 `discover()` (a different code path from the build hook covered here).
 

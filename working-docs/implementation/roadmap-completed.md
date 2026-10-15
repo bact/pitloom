@@ -35,7 +35,7 @@ is not kept in sync with post-ship changes.
   `[tool.poetry]` when `[project]` is absent, merges both when present)
 - [x] **PDM-backend and Flit-core support** -- metadata extraction and
   wheel file discovery for both backends. See
-  [backend-file-discovery-validation.md](backend-file-discovery-validation.md)'s
+  [backend-file-discovery-validation-flit-pdm.md](backend-file-discovery-validation-flit-pdm.md)'s
   Flit-core/PDM-backend round.
 - [x] **Multiple creators / tools per `CreationInfo` record** -- `Creator`/
   `Tool` dataclasses, repeatable `--creator-name`/`--creation-tool`,

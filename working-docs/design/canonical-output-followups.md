@@ -49,13 +49,13 @@ announced under CHANGELOG `### Changed`, not treated as an internal detail.
 - **`@graph` element order** (type tier, then `spdxId`/`@id`, then the
   element's RFC 8785 form): built in `export/spdx3_json._graph_sort_key()`;
   rationale in
-  [architecture-overview.md](architecture-overview.md#json-ld-graph-element-ordering).
+  [architecture-overview-integration.md](architecture-overview-integration.md#json-ld-graph-element-ordering).
 - **Which `sorted()` calls are canonical** (fragment merge survivor,
   annotation statement arrays, file summary):
   [sort-order-canonicalization.md](../implementation/sort-order-canonicalization.md).
   Set elements in annotation values are ordered by their canonical JSON
   form:
-  [annotation-provenance.md](../implementation/provenance/annotation-provenance.md).
+  [annotation-provenance-acceptance.md](../implementation/provenance/annotation-provenance-acceptance.md).
 - **sdist members sorted by `distribution_path` before minting** (#272):
   [sdist-own-config.md](../implementation/sdist-own-config.md).
 - **Names in ids are percent-encoded, losslessly, not NFC-normalised, not

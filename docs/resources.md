@@ -47,10 +47,10 @@ each with a short note on what SBOM metadata it feeds:
   Python Projects: `[build-system]` table read to select the right
   metadata/file-discovery backend.
 - [PEP 621][pep-621] – Storing project metadata in pyproject.toml:
-  primary source of name, version, authors, dependencies, license,
+  primary source of name, version, authors, dependencies, licence,
   urls, etc.
 - [PEP 639][pep-639] – Improving License Clarity with Better Package
-  Metadata: SPDX license expression → the package's declared license.
+  Metadata: SPDX licence expression → the package's declared licence.
   `license-files` are not listed in the SBOM: the build backend copies
   them into the wheel's own `.dist-info/licenses/`, which describes the
   package container, not the project. The wheel keeps them as built.
@@ -140,13 +140,13 @@ each with a short note on what SBOM metadata it feeds:
   - Model: <https://spdx.org/rdf/3.0/spdx-model.ttl>
   - JSON Schema: <https://spdx.org/schema/3.0/spdx-json-schema.json>
   - JSON-LD context: <https://spdx.org/rdf/3.0/spdx-context.jsonld>
-  - JSON-LD serialization annotation: <https://spdx.org/rdf/3.0/spdx-json-serialize-annotations.ttl>
+  - JSON-LD serialisation annotation: <https://spdx.org/rdf/3.0/spdx-json-serialize-annotations.ttl>
 - SPDX 3.1 spec (under development): <https://spdx.github.io/spdx-spec/v3.1-dev/>
   - Terms: <https://spdx.github.io/spdx-spec/v3.1-dev/terms-and-definitions/>
   - Model: <https://spdx.org/rdf/3.1/spdx-model.ttl>
   - JSON Schema: <https://spdx.org/schema/3.1/spdx-json-schema.json>
   - JSON-LD context: <https://spdx.org/rdf/3.1/spdx-context.jsonld>
-  - JSON-LD serialization annotation: <https://spdx.org/rdf/3.1/spdx-json-serialize-annotations.ttl>
+  - JSON-LD serialisation annotation: <https://spdx.org/rdf/3.1/spdx-json-serialize-annotations.ttl>
 - SPDX 3 JSON validation guide: <https://github.com/spdx/spdx-3-model/blob/develop/serialization/jsonld/validation.md>
 - SPDX 3 model Python binding: <https://github.com/spdx/spdx-python-model>
 - SPDX 3 model format and style guide (useful when reading model source files

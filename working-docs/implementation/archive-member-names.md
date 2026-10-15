@@ -9,8 +9,9 @@ SPDX-License-Identifier: CC0-1.0
 # Archive member names: implementation notes
 
 See also: [wheel-embedding.md](wheel-embedding.md) (the embed flow that
-reads the same names), [ai-model-scanning.md](ai-model-scanning.md) (the
-wheel model producer reuses the helper),
+reads the same names),
+[ai-model-scanning-wheels.md](ai-model-scanning-wheels.md) (the wheel model
+producer reuses the helper),
 [archive-member-followups.md](../design/archive-member-followups.md) (what
 was left open).
 

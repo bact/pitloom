@@ -61,7 +61,7 @@ sections 3.3 (archives inside archives) and 3.8 (wheel identity bugs).
   PEP 440 version; a tag may be `v2.31.0`, `stable` or anything. The legacy
   forms are not valid PEP 508 at all (`InvalidRequirement`). Every lock
   format skips path, VCS and URL entries the same way
-  ([lock-file-cascade.md](../lock-file-cascade.md)).
+  ([lock-file-cascade-formats.md](../lock-file-cascade-formats.md)).
   Do: report a direct reference as one, never derive a version from a URL.
 - **An explicit pin beats the generator's own environment.** A version
   pinned by its own source (a lock file, an exact `==`/`===`) is final;

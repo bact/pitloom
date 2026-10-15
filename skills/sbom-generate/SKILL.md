@@ -304,7 +304,7 @@ name names no top-level .dist-info` case: `references/known-limitations.md`
   or Hugging Face target it has no effect and logs a `WARNING:`. See
   "Combine with enrichment or a named standard".
 - `--extract-file-header` / `--no-extract-file-header` -- per-file SPDX
-  header tag scanning (copyright, contributor, license, file type). On by
+  header tag scanning (copyright, contributor, licence, file type). On by
   default; cheap, no need to pass it explicitly.
 - `--scan-model-usage` / `--no-scan-model-usage` -- record which Python
   files reference each discovered AI model file (`hasDataFile`), on a project
@@ -343,7 +343,7 @@ just runs the base generate command.
 | Request | Do |
 | :--- | :--- |
 | Light: "...and enrich it", "with enrichment" | `loom generate <target> --enrich -o sbom.spdx3.json`. Pitloom's own local pass (`enrich/readme.py`): no prose, no network, no separate skill. |
-| Strong: "complete", "full SBOM", "as much detail/information as possible" | Generate with `--enrich` too, then invoke `sbom-enrich` on the result for the agentic pass: README/model-card *prose*, inferred license and dataset relationships. Costs more (agent reasoning, and outside sources such as PyPI/Hugging Face, each consent-gated by `sbom-enrich` step 5). Reasonable for an explicit "as much as possible", not for a bare "generate an SBOM". |
+| Strong: "complete", "full SBOM", "as much detail/information as possible" | Generate with `--enrich` too, then invoke `sbom-enrich` on the result for the agentic pass: README/model-card *prose*, inferred licence and dataset relationships. Costs more (agent reasoning, and outside sources such as PyPI/Hugging Face, each consent-gated by `sbom-enrich` step 5). Reasonable for an explicit "as much as possible", not for a bare "generate an SBOM". |
 | Named standard: "meets NTIA requirements", "with CISA 2026 minimum elements", "AIBOM compliant with G7 SBOM for AI" | Generate with `--enrich` too, then invoke `sbom-enrich`'s "Complete a standard's minimum elements" section on the result. Don't stop at the base `loom generate` call. |
 
 `--enrich` only applies to a project directory or local model file (see
@@ -398,7 +398,7 @@ complete but isn't. Per-case detail: `references/known-limitations.md`.
   the Python side. Say the SBOM covers the Python packaging surface, not
   the whole repo.
 - **Non-PyPI dependencies** (`git+https://...`, local path, private index)
-  get `NOASSERTION` copyright, no supplier/hash/license unless installed
+  get `NOASSERTION` copyright, no supplier/hash/licence unless installed
   (its metadata is read); name it.
 - **AI model formats** are broad, not universal (see the description). An
   unrecognised serialisation is not scanned: say so, don't skip silently.

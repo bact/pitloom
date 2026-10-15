@@ -302,9 +302,9 @@ def _unsorted_keys(node: Any) -> list[str]:
 def test_provenance_envelope_examples_use_canonical_key_order() -> None:
     """A statement envelope (`schema` key) is RFC 8785 text, so its keys are
     sorted at every level; a hand-written example in another order misleads."""
-    path = REPO_ROOT / "docs" / "metadata-provenance.md"
+    paths = sorted((REPO_ROOT / "docs").glob("metadata-provenance*.md"))
     envelopes = 0
-    for block in fenced_blocks(path):
+    for block in (b for path in paths for b in fenced_blocks(path)):
         if block.lang != "json" or '"schema"' not in block.body:
             continue
         envelopes += 1

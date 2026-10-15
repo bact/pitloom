@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -20,7 +20,9 @@ systematic:
 
 | File | Covers |
 | :--- | :----- |
-| [annotation-provenance.md](annotation-provenance.md) | Canonical design rationale and current status: goal, design decisions, statement schema, implementation, tests, acceptance criteria, security hardening. Start here. |
+| [annotation-provenance.md](annotation-provenance.md) | Canonical design rationale and current status (§1-4): goal, current state, settled design decisions, statement schema. Start here. |
+| [annotation-provenance-implementation.md](annotation-provenance-implementation.md) | §5-7 of the same plan: implementation (parser, encoder module, exporter, config, call-site migration), expected output, tests. |
+| [annotation-provenance-acceptance.md](annotation-provenance-acceptance.md) | §8-10 of the same plan: out of scope / follow-ups, acceptance criteria, security/robustness hardening. |
 | [annotation-mechanism.md](annotation-mechanism.md) | When/how to use the `Annotation` mechanism at all: boundary principle, extrinsic-assertion test, high-signal test, config, statement-envelope convention. |
 | [role-vocabulary.md](role-vocabulary.md) | The `role` vocabulary (`declared`/`detected`/`externalReported`/`inferred`/`sbomAuthorSupplied`): definitions, decision rule, source-recording convention, role-to-native mapping. |
 | [use-case-catalog.md](use-case-catalog.md) | Why an Annotation earns its place: the G1-G4/A1-A2/E1-E2/P1 use-case catalog, and the Phase 2 N1-N6 backfill checklist. |

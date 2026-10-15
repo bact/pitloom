@@ -28,7 +28,7 @@ Pitloom ships three Skills:
   convention. Asked to pin ids, it creates or updates a [Loom ID
   registry](id-registry.md) with `loom id generate`/`import`.
 - `sbom-enrich` -- reads a README or model card and contributes inferred
-  detail (a license guess, a `trainedOn` dataset) back into an existing
+  detail (a licence guess, a `trainedOn` dataset) back into an existing
   SBOM as a provenance-marked fragment; in an interactive session it can
   also ask the SBOM author directly for gaps no file answers. It also
   has a standards-driven mode: run a gap analysis against a named
