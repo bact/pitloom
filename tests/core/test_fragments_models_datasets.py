@@ -7,6 +7,24 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
+import pytest
+
+from pitloom import loom
+from pitloom.assemble.spdx3.document import build
+from pitloom.assemble.spdx3.fragments import merge_fragments
+from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.config import FragmentConfig
+from pitloom.core.creation import CreationMetadata
+from pitloom.core.document import DocumentModel
+from pitloom.core.model_parameters import PARAMETER_COUNT_KEY, PARAMETER_COUNT_NOTE
+from pitloom.core.project import ProjectMetadata
+from pitloom.id_registry import IdRegistry
+from tests._license_graph import fragment_graph, write_fragment
+from tests.warning_helpers import logged_warnings
+
 from .conftest import (
     _AI_MODEL_FRAGMENT,
     _DATASET_FRAGMENT,
@@ -213,3 +231,103 @@ class TestTrainingRunFragment:
         }
         assert sizes["tabular-train-dataset"] == 10000
         assert sizes["tabular-test-dataset"] == 2000
+
+
+def test_a_scanned_model_merges_with_a_loom_fragment_of_the_same_model(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A scan's originators and count meet a loom fragment declaring the
+    same model (one registry id) with its own ``parameters``: the scan's
+    entry wins as any keyed entry does, the Agents stay one per name and
+    the comments join with no conflict (pinned as merged today)."""
+    registry = IdRegistry.new("p")
+    model_id = registry.register("ai_AIPackage", "m")
+    model = AiModelMetadata(
+        name="m",
+        originators=["Ann", "Org"],
+        parameter_count=7,
+        format_info=AiModelFormatInfo(
+            file_name="m.gguf", model_format=AiModelFormat.GGUF
+        ),
+    )
+    doc = DocumentModel(
+        project=ProjectMetadata(name="p", version="1"),
+        creation_metadata=CreationMetadata(creation_datetime="2026-01-01T00:00:00Z"),
+        ai_models=[model],
+    )
+    exporter = build(doc, registry=registry, offline=True)
+    with loom.run(tmp_path / "frag.spdx3.json", id_registry=registry):
+        loom.set_model("m", hyperparameters={PARAMETER_COUNT_KEY: "7B", "lr": "0.1"})
+    caplog.clear()
+    merge_fragments(tmp_path, [FragmentConfig(path="frag.spdx3.json")], exporter)
+
+    graph = json.loads(exporter.to_json())["@graph"]
+    (package,) = _by_type(graph, "ai_AIPackage")
+    assert package["spdxId"] == model_id  # the same element, merged
+    hyper = [(e["key"], e["value"]) for e in package["ai_hyperparameter"]]
+    assert hyper == [(PARAMETER_COUNT_KEY, "7"), ("lr", "0.1")]
+    agents = _by_type(graph, "Agent")
+    assert sorted(e["name"] for e in agents) == ["Ann", "Org"]
+    assert package["originatedBy"] == [e["spdxId"] for e in agents]
+    assert "suppliedBy" not in package
+    # The merge derives the note: the first line, not a "; " segment
+    assert package["comment"].startswith(
+        f"{PARAMETER_COUNT_NOTE}\nMetadata provenance: "
+    )
+    assert package["comment"].count(PARAMETER_COUNT_NOTE) == 1
+    assert not logged_warnings(caplog)  # no conflict, "7B" dropped quietly
+
+
+_FRAGMENT_AGENT = "https://spdx.org/spdxdocs/frag#B"
+
+
+@pytest.mark.parametrize(
+    ("fragment_supplier", "conflicts"),
+    [(None, 0), ("base", 0), ("Hub", 0), ("Other", 1)],
+    ids=["absent", "same-id", "same-name", "other"],
+)
+def test_a_hub_supplier_survives_a_fragment_of_the_same_model(
+    tmp_path: Path,
+    fragment_supplier: str | None,
+    conflicts: int,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """``suppliedBy`` is single-valued: a fragment re-declaring the model
+    with none, the same Agent or an Agent of the same name merges quietly;
+    another supplier is a ``Merge: conflicting`` warning and the base's is
+    kept (pinned as merged today)."""
+    registry = IdRegistry.new("p")
+    model_id = registry.register("ai_AIPackage", "m")
+    model = AiModelMetadata(
+        name="m",
+        originators=["Hub"],
+        supplier="Hub",
+        format_info=AiModelFormatInfo(file_name=None),
+    )
+    doc = DocumentModel(
+        project=ProjectMetadata(name="p", version="1"),
+        creation_metadata=CreationMetadata(creation_datetime="2026-01-01T00:00:00Z"),
+        ai_models=[model],
+    )
+    exporter = build(doc, registry=registry, offline=True)
+    (agent,) = _by_type(json.loads(exporter.to_json())["@graph"], "Agent")
+    package = {"type": "ai_AIPackage", "spdxId": model_id, "name": "m"}
+    elements = [package]
+    if fragment_supplier == "base":
+        package["suppliedBy"] = agent["spdxId"]
+    elif fragment_supplier is not None:
+        elements.insert(
+            0, {"type": "Agent", "spdxId": _FRAGMENT_AGENT, "name": fragment_supplier}
+        )
+        package["suppliedBy"] = _FRAGMENT_AGENT
+    write_fragment(tmp_path / "f.spdx3.json", fragment_graph(elements))
+    caplog.clear()
+    merge_fragments(tmp_path, [FragmentConfig(path="f.spdx3.json")], exporter)
+
+    graph = json.loads(exporter.to_json())["@graph"]
+    (merged,) = _by_type(graph, "ai_AIPackage")
+    assert merged["suppliedBy"] == agent["spdxId"]
+    assert merged["originatedBy"] == [agent["spdxId"]]
+    supplier_conflicts = [m for m in logged_warnings(caplog) if "'suppliedBy'" in m]
+    assert len(supplier_conflicts) == conflicts
+    assert len(logged_warnings(caplog)) == conflicts

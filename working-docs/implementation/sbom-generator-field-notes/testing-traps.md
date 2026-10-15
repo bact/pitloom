@@ -189,3 +189,19 @@ Ways a test passes, fails or floods the log for the wrong reason.
   the full one; a guard that was really unreachable (pruned by the walk and
   rejected by a PATH check first) was found only after ruling that out. Do:
   take the coverage figure from the full suite, then decide dead or missing.
+
+- **Coverage that only another OS reaches.** The repository uploads coverage
+  from one CI leg (Linux, Python 3.14). A case-fold branch that fires only
+  where the file system folds case (macOS, Windows) was 100% on every
+  developer machine and missing on the coverage service (one line, one
+  partial branch in a 269-line module, 97.72%). A hard link in another case
+  makes the same code path reachable on a case-sensitive file system; a
+  case-sensitive APFS image (`hdiutil create -fs "Case-sensitive APFS"`)
+  reproduces the Linux view on a Mac, and a whole-suite run on it found no
+  other gap. Do: name the CI leg that reaches each OS- or
+  interpreter-dependent branch, and test that branch there.
+- **A Markdown line that starts with `<p>` hides the rest of the page.** A
+  wrapped code span put `<p>` at the start of a line; the renderer treated it
+  as an HTML block and dropped everything after it (2 of 7 headings
+  rendered). The only symptom was three "missing anchor" notes from the site
+  build. Do: compare source and rendered heading counts for every page.

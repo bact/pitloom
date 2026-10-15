@@ -60,13 +60,14 @@ def _by_type(graph: list[dict[str, Any]], kind: str) -> list[dict[str, Any]]:
     return [e for e in graph if e["type"] == kind]
 
 
-def _hub_sbom(card: dict[str, Any], tags: list[str]) -> str:
-    hub_info = {"author": "o", "sha": "1", "tags": tags}
+def _hub_sbom(card: dict[str, Any], tags: list[str], author: str = "o") -> str:
+    hub_info = {"author": author, "sha": "1", "tags": tags}
     with _patch_hf_calls(card_data=_make_card_data(**card), hub_info=hub_info):
         return generate_model_sbom("o/model")
 
 
-# card fields, Hub tags, the properties the warning names ("": no warning)
+# card fields, Hub tags, the properties the warning names ("": no warning);
+# the "author" card key is the Hub repository owner, not a card field
 _HUB_CASES: dict[str, tuple[dict[str, Any], list[str], str]] = {
     "base-model": (
         {"base_model": f"o/b{_RLO}x"},
@@ -80,6 +81,7 @@ _HUB_CASES: dict[str, tuple[dict[str, Any], list[str], str]] = {
     ),
     # the second reference only: every entry is escaped, not the first
     "arxiv": ({}, ["arxiv:1", f"arxiv:2401.1{_RLO}"], "externalRef"),
+    "originator": ({"author": f"o{_RLO}"}, [], "model originator name"),
     "none": ({"base_model": "o/b", "datasets": ["o/d"]}, ["arxiv:1"], ""),
 }
 
@@ -90,7 +92,9 @@ def test_a_hub_control_is_escaped_with_one_warning(
 ) -> None:
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "0")
     card, tags, labels = _HUB_CASES[case]
-    sbom = _hub_sbom(card, tags)
+    fields = {k: v for k, v in card.items() if k != "author"}
+    author = card.get("author", "o")
+    sbom = _hub_sbom(fields, tags, author)
     graph = json.loads(sbom)["@graph"]
     messages = _escape_warnings(caplog)
     if not labels:
@@ -109,7 +113,7 @@ def test_a_hub_control_is_escaped_with_one_warning(
     for rel in _by_type(graph, "Relationship"):
         assert {rel["from"], *rel["to"]} <= ids
     caplog.clear()
-    assert _hub_sbom(card, tags) == sbom  # deterministic
+    assert _hub_sbom(fields, tags, author) == sbom  # deterministic
 
 
 def test_each_hub_family_is_escaped_where_it_is_written(

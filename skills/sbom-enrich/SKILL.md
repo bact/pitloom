@@ -214,9 +214,9 @@ Steps:
      Any other `...; metadata not read` -- a fixed bound. (`... identity
      unknown` is the wheel's own name/version, not a model: see
      `sbom-generate`.) Fields the file
-     itself would give (hyperparameters, inputs, outputs) are better read
-     than inferred: tell the user the cause before inferring them from
-     prose.
+     itself would give (hyperparameters, inputs, outputs, an author, a
+     parameter count) are better read than inferred: tell the user the
+     cause before inferring them from prose.
    - A name ending `...~<hex>`, a CRFsuite/fastText model with
      `num_labels` but no `labels` or description, or `\uXXXX` in a name or
      description is a Pitloom cap or escape, not a gap to fill from prose:
@@ -264,7 +264,11 @@ Steps:
 
    A `Relationship` must point at real ids: copy the model's `ai_AIPackage`
    `spdxId` from the base SBOM as its `from`, and give every new element
-   its own `spdxId`. `references/examples.md` shows complete elements.
+   its own `spdxId`. To add to a base element's own properties
+   (`originatedBy`, an `ai_hyperparameter` entry), restate it with the
+   base's `spdxId` and `name` exactly: a stale id adds a second
+   `ai_AIPackage`, silently, and it still validates; lists merge as a union,
+   a base value wins. `references/examples.md` shows complete elements.
 
    **The deterministic result wins by default:** if step 2 already set a
    field, do not re-propose a different value in your own fragment (two
@@ -312,7 +316,7 @@ Steps:
 
    Do not use `loom fragment validate` or `spdx3-validate` on a fragment:
    it refers to the base SBOM's ids without an `ExternalMap`, so it fails
-   SHACL on its own (exit 1) even when correct. The merged SBOM is
+   SHACL on its own (exit 1) in most cases, even when correct. The merged SBOM is
    validated at step 10.
 
 8. Register **both** fragments so Pitloom merges them on the next run.

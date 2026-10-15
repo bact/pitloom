@@ -19,6 +19,9 @@ from pathlib import Path
 
 import pytest
 
+from pitloom.assemble.spdx3.document import build_model
+from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.creation import CreationMetadata
 from tests._network import assert_spdx3_validate_ok
 
 _VALID_SBOM = {
@@ -72,3 +75,32 @@ def test_real_spdx3_validate_rejects_invalid_document(
     else:
         with pytest.raises(AssertionError, match="spdx3-validate failed"):
             assert_spdx3_validate_ok(sbom)
+
+
+@pytest.mark.network
+def test_real_spdx3_validate_accepts_a_model_producer_and_count(
+    tmp_path: Path,
+) -> None:
+    """A model's ``originatedBy`` generic Agent, the same Agent as its
+    ``suppliedBy`` (the Hugging Face shape), and its ``parameters``
+    hyperparameter (with the package comment saying so) are schema- and
+    SHACL-valid."""
+    model = AiModelMetadata(
+        name="m",
+        originators=["Alice"],
+        supplier="Alice",
+        parameter_count=7,
+        format_info=AiModelFormatInfo(
+            file_name="m.gguf", model_format=AiModelFormat.GGUF
+        ),
+    )
+    creation = CreationMetadata(creation_datetime="2026-01-01T00:00:00Z")
+    sbom = tmp_path / "sbom.json"
+    sbom.write_text(build_model(model, creation).to_json(), encoding="utf-8")
+    graph = json.loads(sbom.read_text(encoding="utf-8"))["@graph"]
+    assert [e["name"] for e in graph if e["type"] == "Agent"] == ["Alice"]
+    (package,) = [e for e in graph if e["type"] == "ai_AIPackage"]
+    assert package["ai_hyperparameter"][0]["key"] == "parameters"
+    assert package["originatedBy"] == [package["suppliedBy"]]
+    assert "comment" in package
+    assert_spdx3_validate_ok(sbom)

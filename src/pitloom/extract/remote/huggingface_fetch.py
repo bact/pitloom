@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 from pitloom.logging_config import field_loss_suffix, loggable, one_line
@@ -141,6 +142,11 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
       prefix-encoded metadata (``base_model:relation:id``, ``arxiv:*``,
       ``doi:*``, ``dataset:*``) that is not always present in the model card
       YAML ``tags`` field.
+    * ``safetensors_total`` - the Hub's stated parameter count
+      (``safetensors.total``), kept as the Hub sent it; absent when the
+      repository has no Safetensors metadata.
+    * ``gguf_total`` - the same from the GGUF metadata (``gguf.total``),
+      kept only when there is no Safetensors metadata.
     """
     try:
         # pylint: disable=import-outside-toplevel
@@ -161,6 +167,12 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
             result["downloads"] = info.downloads
         if info.tags:
             result["tags"] = list(info.tags)
+        if info.safetensors is not None:
+            result["safetensors_total"] = info.safetensors.total
+        else:
+            gguf = getattr(info, "gguf", None)  # a plain dict, as the Hub sent it
+            if isinstance(gguf, Mapping) and "total" in gguf:
+                result["gguf_total"] = gguf["total"]
         return result
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
@@ -172,6 +184,8 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
             "last_modified",
             "downloads",
             "tags",
+            "safetensors.total",
+            "gguf.total",
         )
         log.warning(msg, loggable(model_id), one_line(exc))
         return {}

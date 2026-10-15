@@ -33,7 +33,10 @@ The "covered"/"conditional"/"gap" calls below were re-checked on 2026-09-20
 against the assembly code (`assemble/spdx3/_ai_package.py`, `ai.py`,
 `dataset.py`, `document.py`) and a fresh `loom project`/`loom model` run -- not
 against a single sample SBOM, which misses fields the sample's model format
-never carried. Re-verify if the assembly code has changed since.
+never carried. The model producer and parameter-count rows were re-checked on
+2026-10-15 against the readers, `assemble/spdx3/_ai_originators.py`, the
+fragment merge (`_fragments_props.py`) and real `loom model`/`loom project` runs
+with a merged fragment. Re-verify if the assembly code has changed since.
 
 ## NTIA 2021 (7 data fields + 6 practices)
 
@@ -42,7 +45,7 @@ rename.
 
 | 2021 element | Pitloom/SPDX 3 field | Status |
 | :--- | :--- | :--- |
-| Supplier Name | dependency: `originatedBy` -> `Agent` via `_apply_originator`/PyPI JSON API (`deps_originator.py`, called from `deps.py`'s `_enrich_from_pypi`); main package: `originatedBy` -> one `Agent` per `[project].authors` entry (covered when authors are declared), and `software_Package.suppliedBy`, only set when `[[tool.pitloom.creator]]` is configured (`document.py`'s `_build_main_package`) | conditional (deps, PyPI-resolvable only); main package: **covered** by `originatedBy` when authors are declared, a **gap** for `suppliedBy` unless `[[tool.pitloom.creator]]` is set -- same config also fixes `Author of SBOM Data` below, see the note there |
+| Supplier Name | dependency: `originatedBy` -> `Agent` via `_apply_originator`/PyPI JSON API (`deps_originator.py`, called from `deps.py`'s `_enrich_from_pypi`); main package: `originatedBy` -> one `Agent` per `[project].authors` entry (covered when authors are declared), and `software_Package.suppliedBy`, only set when `[[tool.pitloom.creator]]` is configured (`document.py`'s `_build_main_package`) | conditional (deps, PyPI-resolvable only); main package: **covered** by `originatedBy` when authors are declared, a **gap** for `suppliedBy` unless `[[tool.pitloom.creator]]` is set -- same config also fixes `Author of SBOM Data` below, see the note there; an AI model: `originatedBy` from structured fields, and `suppliedBy` on the Hugging Face route only (the repository owner), never from a model file (see G7 "Model producer" below) |
 | Component Name | `software_Package.name` / `ai_AIPackage.name` | covered |
 | Version of the Component | `software_packageVersion` (explicit `"unknown"` string when not resolvable -- already matches the 2021/2026 "indicate unknown" guidance) | covered |
 | Other Unique Identifiers | `software_packageUrl` (PURL); main package always, deps only when resolvable | conditional |
@@ -79,7 +82,7 @@ covered), Frequency (deployment/process concern, out of scope).
 
 | Element | Pitloom/SPDX 3 field | Status |
 | :--- | :--- | :--- |
-| Component Producer | dependency: `originatedBy` via `_apply_originator` (`deps_originator.py`) from PyPI JSON API; main package: `originatedBy` from `[project].authors`, and `suppliedBy` only when `[[tool.pitloom.creator]]` is configured | conditional (deps, PyPI-resolvable only); main package **covered** when authors are declared -- see NTIA's "Supplier Name" row above |
+| Component Producer | dependency: `originatedBy` via `_apply_originator` (`deps_originator.py`) from PyPI JSON API; main package: `originatedBy` from `[project].authors`, and `suppliedBy` only when `[[tool.pitloom.creator]]` is configured; an AI model: `originatedBy`, see G7 "Model producer" below | conditional (deps, PyPI-resolvable only); main package **covered** when authors are declared -- see NTIA's "Supplier Name" row above |
 | Component Dependency Relationship | `Relationship`/`LifecycleScopedRelationship` | covered |
 | Component Hash Value / Algorithm | `verifiedUsing` (`{"algorithm": "sha256", "hashValue": ...}`); set on every `software_File` (including dataset and model files), lock-file-resolved dependencies (via SHA-256 digests in supported lock files, taking priority and applied in both online and offline builds), and PyPI-resolved deps (`_extract_release_hash` fallback, `deps_pypi.py`). The main package carries the SHA-256 Merkle root over its files (`document.py`; commented as not a single-artefact hash) on every `project` (directory), wheel and embed SBOM that has payload files (the wheel's own `.dist-info` is excluded); **not** set on sdist SBOMs, on `ai_AIPackage` elements (except a `loom.run` model declared with `path=`, which carries its file's SHA-256), or on `dataset_DatasetPackage` elements outside `loom.run` | conditional -- present on deps only when a definite version resolves; on the main package, check the SBOM rather than assuming (Merkle root, not an artefact hash); the AI/dataset package-level gaps are listed under G7 below |
 | Component Identifiers | `software_packageUrl` (PURL) | conditional, same as NTIA's "Other Unique Identifiers" |
@@ -110,10 +113,10 @@ concern, out of scope), Machine-Processable Data (SPDX 3 JSON-LD -- covered).
 | Model identifier | DOI as `ExternalIdentifier` (type `other`) and the hub page as an `altWebPage` `externalRef`, when the source carries them; no PURL or hub-id identifier | conditional; **gap** when the model has neither a DOI nor a hub page |
 | Model version | `software_packageVersion`, when the format carries one (GGUF, ONNX `model_version`, PT2 `extra/model_version`, Safetensors `modelspec.version`/`version`); never from Hugging Face, whose reader sets no version | conditional -- verify per model type |
 | Model timestamp | `CreationInfo.created` on the AI package's own `CreationInfo` | covered |
-| Model producer | none -- the Hugging Face Hub `author` is captured into `extra_data` only, never emitted as an `Agent` | **gap** |
+| Model producer | `ai_AIPackage.originatedBy` -> one generic `Agent` (name only) per name a structured field states: ONNX `model_author` (a comma-separated list, split on commas), PT2 `extra/author`, GGUF `general.author` then `general.organization`, Safetensors `__metadata__` key `modelspec.author` (one name), the Hugging Face repository owner (`Method: repository_owner`). `suppliedBy` is set only on the Hugging Face route, to that repository owner (the same `Agent` as in `originatedBy`; the Hub repository is the distribution source; single-valued, so one owner); no model file format sets it. A model never inherits the main package's `suppliedBy`. A re-upload, quantisation or fine-tune names its uploader on both: the base model is a `descendantOf` edge, which records lineage only, so the original maker is a question for the card or the user. A GGUF `general.organization` is often guessed by the llama.cpp converter from the base model's `_name_or_path`, so it can name the base model's organisation (read as stated; the Hub route names the owner instead). PyTorch classic, Keras, HDF5, NumPy, fastText and CRFsuite carry none | conditional -- check `originatedBy` first; **gap** when the format has no author field, it is empty, or the model is a stub (`sbom-enrich`, step 3). The `Agent` says nothing of person vs organisation: when the model card states which, or names a producer the file does not, add a `Person`/`Organization` to `originatedBy` by fragment; a merge unions lists, so the generic `Agent` stays beside it and cannot be removed or retyped (recipe and merge behaviour: `examples.md`, "Model producer") |
 | Model description | `ai_AIPackage.description`, when the format/source carries one (GGUF, ONNX, PT2, Safetensors, Hugging Face; distinct from the *main* `software_Package.description`). A CRFsuite model's description is Pitloom's own summary of its labels (`Method: generated_from_labels`), not the producer's | conditional -- verify per model type; a `generated_from_labels` description is a **gap** for a producer-written one; none at all when a label was over 4 KiB (a cap, see `sbom-generate`) |
 | Model hash value / algorithm | none -- `verifiedUsing` is not set on `ai_AIPackage` (`_build_ai_package`; a `loom.run` model declared with `path=` is the exception), even though the shipped model file's own `software_File` carries a SHA-256 and is linked by `contains` | **gap** -- do not recompute; the hash is already in the SBOM on the linked `software_File`, so a fragment can reuse it. A core wiring fix is planned, separate from this skill |
-| Model properties (architecture, parameter count, etc.) | `ai_typeOfModel` (type + architecture) and `ai_hyperparameter` (list of `DictionaryEntry`, incl. quantization) | covered for architecture/type/hyperparameters; parameter count is a **gap** (not promoted to its own field, even where a format's raw metadata exposes it) |
+| Model properties (architecture, parameter count, etc.) | `ai_typeOfModel` (type + architecture) and `ai_hyperparameter` (list of `DictionaryEntry`, incl. quantization). The parameter count is the entry with key `parameters`, a decimal integer as text: SPDX 3.0.1 has no model-size property, so this entry is only the carrier, not a real hyperparameter (the package `comment` says so). Pitloom sums the tensor element counts of GGUF, Safetensors and ONNX files (`Method: tensor_element_sum` in the provenance) and takes the Hub's own sum (`safetensors.total`, else `gguf.total`, same method) for a Hugging Face model. It counts all stored tensors (buffers and tied weights included; packed or quantised weights under-count), so it is not a trainable-parameter figure: <https://bact.github.io/pitloom/ai-model-formats/#what-the-count-counts> | covered for architecture/type/hyperparameters; parameter count covered by convention (SPDX has no parameter-count field; a G7 'GAP' in the bact mapping, which only gives a `broadMatch` to `ai_hyperparameter`) when the `parameters` entry is there, a **gap** for PT2, PyTorch classic, Keras, HDF5, NumPy, fastText, CRFsuite, a GGUF split over files, a stub, a count rejected with a `WARNING:` and a Hub model with no Safetensors or GGUF metadata (a model card's prose may state it: a fragment can add the `parameters` entry, which a base entry always beats, silently; the merge adds the package's count note itself, so never type it: say in the provenance `comment` that the entry is the card's figure, not a sum of tensor elements; `examples.md`, "Model producer") |
 | Model input-output properties | `ai_informationAboutApplication` (JSON string) | covered when the model format's extractor populates it; verify per model type |
 | Model training properties | not distinctly modelled (see `ai_typeOfModel` for the closest overlap) | **gap** -- ask/read for training technique detail (pre-training vs. fine-tuning vs. RLHF, etc.) |
 | Model license | licence relationships (declared/concluded) on the AI package -- a `LicenseExpression` for a valid SPDX id, else a `SimpleLicensingText` -- built by the same `build_license_elements` as the main package; a Hugging Face card `license: unknown` is the `NoAssertionLicense` individual; source is the model file (ONNX `model_license`, PT2 `extra/license`, GGUF `general.license`; Safetensors licence keys are not mapped), the Hugging Face card, or local model-card enrichment (`enrich/readme.py`) | conditional -- **gap** only when none of those carry a license; then `sbom-enrich`'s prose-inference steps (2-6) are the way to fill it, reuse them rather than re-deriving |
@@ -162,10 +165,23 @@ actually in the project.
   `[[tool.pitloom.creator]]` in `pyproject.toml` (note the double brackets --
   it's an array of tables) so future runs don't need to ask -- and it also
   records the main package's supplier (`suppliedBy`) at the same time."
-- **Component/Model Producer**: "Is this dependency/model something your
-  organisation built, or a third-party component? If third-party, do you know
-  the maintaining organisation or project (check the package's PyPI page, GitHub
-  org, or model card)?"
+- **Component/Model Producer**: for a model, first look at the `ai_AIPackage`'s
+  `originatedBy`: a generic `Agent` there already answers it (from the file's
+  author field or the Hub repository owner), and the only open question is
+  whether it is a person or an organisation, which the model card usually
+  says (a fragment adds the `Person`/`Organization` beside the `Agent`). If
+  it is absent, or only the owner of a re-upload: "Is this dependency/model
+  something your organisation built, or a third-party component? If
+  third-party, do you know the maintaining organisation or project (check
+  the package's PyPI page, GitHub org, or model card)?" Non-interactive: add
+  a typed agent only when the local model card states it (`Role: declared`
+  or `inferred`), else report the generic `Agent` as the producer and
+  person-versus-organisation as open.
+- **Model parameter count** (no `parameters` entry): "Does the model card
+  or paper state the parameter count?" Read the local card first. The value
+  is a decimal integer, as Pitloom writes it; a rounded label (`7B`) is not
+  one, so leave the entry out and quote the label in the report.
+  Non-interactive: use a local card only, else report the gap.
 - **SBOM Author Signature**: "This requires a detached digital signature over
   the SBOM using your organisation's own signing infrastructure (see NIST SP
   800-57 Pt. 1 for key-management guidance). Pitloom doesn't generate signatures

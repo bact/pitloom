@@ -32,13 +32,13 @@ The full run takes minutes; pytest already runs a slice of it in CI
 
   | Area | `--only` |
   |---|---|
-  | wheel, embed | `3,4a,16,S2,S3,S7,S8,M/wheel/*,M/embed-wheel/*,M/verify-wheel/*,M/validate-wheel/*` |
+  | wheel, embed | `3,4a,16,22,S2,S3,S7,S8,M/wheel/*,M/embed-wheel/*,M/verify-wheel/*,M/validate-wheel/*` |
   | registry, ids | `9,14,20,21,S4,S5,M/id-*/*`, plus `O*` (order matrix) |
   | `loom.run` (SDK), dataset hashing, loom models | `20,21,O1/*/fresh-loom,O3/*` |
   | fragments, merge | `7,S6,M/merge/*,M/fragment-*/*` |
   | build, `--allow-build`, termination | `B*,10` |
   | config, options, cascade | `5,12,13,15,M/completeness`, plus `M/<cmd>/*` per command whose options changed |
-  | AI model scan | `15,17,19,M/model/*` |
+  | AI model scan, model producer and count | `15,17,19,22,M/model/*` |
   | setuptools metadata | `1,2,18,S1` |
   | network, offline | `8,11` |
   | any metadata source or assembly | add `1,2,S1` and `M/<cmd>/*` for each command that reads it |
@@ -65,7 +65,7 @@ unattended from one stdlib-only runner, on Linux, macOS and Windows:
 
 Use the checkout's own interpreter: the runner tests the `pitloom` that
 interpreter imports, and prints its path first. Besides the numbered
-checks (`1`-`21`, `B1`-`B7`) it runs:
+checks (`1`-`22`, `B1`-`B7`) it runs:
 
 - **The CLI matrix** (`M/<command>/<group>/<variant>`): every subcommand
   x its options x the environment variables that change it
@@ -424,6 +424,20 @@ the next training run (those new bytes) gets a new id with exactly one
 `content changed` INFO. Automated as check 21
 (`scripts/manual_cli_checks/_checks_loom.py::check_loom_model_ids`);
 per-case detail in `tests/core/test_loom_model.py`.
+
+**22. A model's producer and parameter count are the same on every route**: a
+project with a PT2 Archive whose `extra/author` is `Alice` and a one-element
+Safetensors file, built into a wheel. `project`, `wheel`, `embed-wheel`,
+`wheel --embed` and `loom model` of each file give the PT2 package one
+`Agent` named `Alice` in `originatedBy`, the Safetensors package an
+`ai_hyperparameter` `parameters` entry `1` and the comment note saying what it
+is, and neither package a `suppliedBy` (no file format sets one; only the Hub
+route does); the packages are equal across the routes that list both, ids
+aside (check 3 compares the same way, an Agent in `originatedBy` named).
+Skips without the `safetensors` extra.
+Automated as check 22 (`scripts/manual_cli_checks/_checks_model.py::check_model_producer_and_count`);
+per-route detail, the ONNX comma list and Hugging Face in
+`tests/test_model_producer_surfaces.py`.
 
 ## Order matrix (`O1`-`O5`)
 

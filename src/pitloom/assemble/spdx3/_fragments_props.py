@@ -17,6 +17,11 @@ from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.core.model_parameters import (
+    PARAMETER_COUNT_KEY,
+    is_parameter_count_text,
+    with_parameter_count_note,
+)
 from pitloom.export.spdx3_describe import describe_value, property_names
 
 log = logging.getLogger(__name__)
@@ -171,6 +176,9 @@ def _merge_properties(canonical: spdx3.Element, duplicate: spdx3.Element) -> Non
         if pyname in _KEYED_DICT_PROPS:
             _merge_dictionary_entries(canonical, pyname, canonical_val, dup_val)
         elif pyname == "comment":
+            if isinstance(canonical, spdx3.ai_AIPackage):  # note derived below
+                canonical_val = with_parameter_count_note(canonical_val, False)
+                dup_val = with_parameter_count_note(dup_val, False)
             _merge_comment(canonical, canonical_val, dup_val)
         elif isinstance(canonical_val, spdx3.ListProxy) or isinstance(
             dup_val, spdx3.ListProxy
@@ -178,3 +186,21 @@ def _merge_properties(canonical: spdx3.Element, duplicate: spdx3.Element) -> Non
             _merge_list(canonical, pyname, canonical_val, dup_val)
         else:
             _merge_scalar(canonical, pyname, canonical_val, dup_val)
+    if isinstance(canonical, spdx3.ai_AIPackage):
+        _finish_parameter_count_note(canonical)
+
+
+def _finish_parameter_count_note(package: spdx3.ai_AIPackage) -> None:
+    """Derive the count note of a merged *package* from its entries, not
+    from the comments merged: one note, the first line, iff a
+    ``parameters`` entry that reads as a count is left (not ``7B``)."""
+    has_count = any(
+        getattr(entry, "key", None) == PARAMETER_COUNT_KEY
+        and is_parameter_count_text(getattr(entry, "value", None))
+        for entry in package.ai_hyperparameter or []
+    )
+    comment = with_parameter_count_note(package.comment, has_count)
+    if comment is None:
+        del package.comment  # the binding takes no None
+    else:
+        package.comment = comment

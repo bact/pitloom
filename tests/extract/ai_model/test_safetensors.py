@@ -61,6 +61,7 @@ def test_safetensors_basic_extraction(tmp_path: Path) -> None:
     mock_file_ctx.__exit__ = MagicMock(return_value=False)
     mock_file_ctx.metadata.return_value = raw_metadata
     mock_file_ctx.keys.return_value = tensor_keys
+    mock_file_ctx.get_slice.return_value.get_shape.return_value = [1]
 
     mock_safetensors = MagicMock()
     mock_safetensors.safe_open.return_value = mock_file_ctx
@@ -80,6 +81,7 @@ def test_safetensors_basic_extraction(tmp_path: Path) -> None:
     assert meta.inputs[0]["name"] == "model.embed_tokens.weight"
     assert "name" in meta.provenance
     assert "inputs" in meta.provenance
+    assert meta.parameter_count == len(tensor_keys)  # one element per mocked key
 
 
 def test_safetensors_empty_metadata(tmp_path: Path) -> None:
@@ -91,6 +93,7 @@ def test_safetensors_empty_metadata(tmp_path: Path) -> None:
     mock_file_ctx.__exit__ = MagicMock(return_value=False)
     mock_file_ctx.metadata.return_value = {}
     mock_file_ctx.keys.return_value = []
+    mock_file_ctx.get_slice.return_value.get_shape.return_value = [1]
 
     mock_safetensors = MagicMock()
     mock_safetensors.safe_open.return_value = mock_file_ctx
@@ -122,6 +125,7 @@ def test_safetensors_fallback_keys(tmp_path: Path) -> None:
     mock_file_ctx.__exit__ = MagicMock(return_value=False)
     mock_file_ctx.metadata.return_value = raw_metadata
     mock_file_ctx.keys.return_value = []
+    mock_file_ctx.get_slice.return_value.get_shape.return_value = [1]
 
     mock_safetensors = MagicMock()
     mock_safetensors.safe_open.return_value = mock_file_ctx

@@ -24,6 +24,7 @@ nav:
   - Building a project (--allow-build): allow-build.md
   - AI model formats: ai-model-formats.md
   - AI model scan limits: ai-model-scan-limits.md
+  - AI model scan limits, known limitations: ai-model-scan-limits-known-limitations.md
   - Python API:
       - Guide: python-api.md
       - API reference: api.md

@@ -31,6 +31,7 @@ from _harness import (
     CheckFailed,
     CheckSkipped,
     Context,
+    ai_packages_by_name,
     check,
     child_env,
     embedded_sboms,
@@ -144,16 +145,9 @@ def check_embed_parity(ctx: Context) -> None:
         f"file lists differ: {file_names(embedded)} vs {file_names(standalone)}",
     )
     # A flat layout: the model found in the project and the one found inside
-    # the wheel are the same AIPackage (ids aside), and neither has a
-    # hasDataFile by default.
-    models = [
-        [
-            {k: v for k, v in e.items() if k != "spdxId"}
-            for e in graph
-            if e.get("type") == "ai_AIPackage"
-        ]
-        for graph in (embedded, standalone)
-    ]
+    # the wheel are the same AIPackage (ids aside; an Agent in `originatedBy`
+    # is named), and neither has a hasDataFile by default.
+    models = [ai_packages_by_name(graph) for graph in (embedded, standalone)]
     expect(len(models[0]) == 1, f"expected one AIPackage, got {len(models[0])}")
     expect(models[0] == models[1], f"AIPackage differs: {models}")
     expect(

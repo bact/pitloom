@@ -2,8 +2,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Check 17 of manual-cli-checks.md: one outcome per kind of AI model file,
-whichever command reads it.
+"""Checks 17, 19 and 22 of manual-cli-checks.md: one outcome per kind of AI
+model file, whichever command reads it; hostile model text; a model's
+producer and parameter count on every route.
 
 See also: ``_checks_wheel.py`` (the other single-purpose check module),
 ``_harness.py``.
@@ -11,23 +12,31 @@ See also: ``_checks_wheel.py`` (the other single-purpose check module),
 
 from __future__ import annotations
 
+import importlib.util
 import re
+import shutil
 import struct
 import zipfile
 from pathlib import Path
+from typing import Any
 
-from _fixtures import build_wheel, write_project
+from _fixtures import MODEL, build_wheel, write_project
 from _harness import (
     DATETIME,
     REPO_ROOT,
+    CheckSkipped,
     Context,
+    ai_packages_by_name,
     check,
+    embedded_sboms,
     expect,
     expect_tagged,
     load_graph,
     run_loom,
     run_ok,
 )
+
+from pitloom.core.model_parameters import PARAMETER_COUNT_KEY, PARAMETER_COUNT_NOTE
 
 _TRUNCATED = "trunc.safetensors"
 _LFS = "lfs.gguf"
@@ -206,3 +215,74 @@ def check_hostile_model_text(ctx: Context) -> None:
     expect(documents[0] != documents[1], "the version bump kept the document")
     expect(_package_ids(second) == ids, "ids changed across id import")
     ctx.note("bidi, long and surrogate names: escaped, apart, ids kept")
+
+
+_AUTHORED = "authored.pt2"
+#: Package (its file's stem) -> (``originatedBy`` names, ``parameters`` text):
+#: the PT2 Archive's ``extra/author``, and the fixture model's one element.
+_WANT = {"authored": (["Alice"], None), Path(MODEL).stem: ([], "1")}
+
+
+def _producer_view(path: Path | bytes) -> dict[str, tuple[Any, Any]]:
+    """Each ``ai_AIPackage`` of the SBOM at *path*: its originators' names and
+    ``parameters`` text; fails on a ``suppliedBy`` or a comment note that does
+    not go with the count."""
+    view: dict[str, tuple[Any, Any]] = {}
+    for name, package in ai_packages_by_name(load_graph(path)).items():
+        counts = [
+            h["value"]
+            for h in package.get("ai_hyperparameter", [])
+            if h["key"] == PARAMETER_COUNT_KEY
+        ]
+        expect("suppliedBy" not in package, f"{name}: suppliedBy {package}")
+        expect(
+            (PARAMETER_COUNT_NOTE in package.get("comment", "")) == bool(counts),
+            f"{name}: comment {package.get('comment')!r} vs count {counts}",
+        )
+        view[name] = (package.get("originatedBy", []), counts[0] if counts else None)
+    return view
+
+
+def _copy_into(wheel: Path, directory: Path) -> Path:
+    directory.mkdir()
+    return Path(shutil.copy2(wheel, directory / wheel.name))
+
+
+@check("22", "model producer and parameter count: same on every route")
+def check_model_producer_and_count(ctx: Context) -> None:
+    """A project with a PT2 Archive whose ``extra/author`` is ``Alice`` and a
+    one-element Safetensors file, built into a wheel. ``project``, ``wheel``,
+    ``embed-wheel``, ``wheel --embed`` and ``loom model`` of each file give
+    one ``Agent`` named ``Alice`` in the PT2 package's ``originatedBy``, a
+    ``parameters`` entry ``1`` with the comment note for the Safetensors
+    one, and no ``suppliedBy`` (only the Hugging Face route gives one); the
+    originator names and count equal across the routes that list both."""
+    if importlib.util.find_spec("safetensors") is None:
+        raise CheckSkipped("needs 'safetensors' installed (pitloom[safetensors])")
+    project = write_project(ctx.work / "proj")
+    models = project / "demo"
+    with zipfile.ZipFile(models / _AUTHORED, "w") as archive:
+        archive.writestr("mdl/extra/author", "Alice")
+    wheel = build_wheel(project, ctx.work / "dist")
+
+    out = ctx.work / "o.json"
+    run_ok("project", str(project), "-o", str(out), *_COMMON)
+    views = {"project": _producer_view(out)}
+    run_ok("wheel", str(wheel), "-o", str(out), *_COMMON)
+    views["wheel"] = _producer_view(out)
+    embed_wheel = _copy_into(wheel, ctx.work / "embed-wheel")
+    run_ok("embed-wheel", str(embed_wheel), "--project-dir", str(project), *_COMMON)
+    wheel_embed = _copy_into(wheel, ctx.work / "wheel-embed")
+    run_ok("wheel", str(wheel_embed), "--embed", *_COMMON)
+    for label, built in (("embed-wheel", embed_wheel), ("wheel --embed", wheel_embed)):
+        (sbom,) = embedded_sboms(built).values()
+        views[label] = _producer_view(sbom)
+    for label, view in views.items():
+        expect(view == _WANT, f"{label}: {view}, want {_WANT}")
+
+    for file_name in (_AUTHORED, MODEL):
+        run_ok("model", str(models / file_name), "-o", str(out), *_COMMON[:2])
+        view = _producer_view(out)
+        stem = Path(file_name).stem
+        expect(view == {stem: _WANT[stem]}, f"loom model {file_name}: {view}")
+    ctx.note("project, wheel, embed-wheel, wheel --embed, loom model: same producer")

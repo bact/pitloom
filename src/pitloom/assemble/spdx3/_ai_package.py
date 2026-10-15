@@ -34,10 +34,17 @@ from pitloom.core.ai_metadata import (
     value_text,
 )
 from pitloom.core.canonical_json import canonical_json
+from pitloom.core.model_parameters import (
+    PARAMETER_COUNT_KEY,
+    ParameterCountRejected,
+    stated_parameter_count,
+    with_parameter_count_note,
+)
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import project_relative_or_fallback
 from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.extract.ai_model.parameter_count import warn_parameter_count
 from pitloom.logging_config import loggable, warn_over_cap
 
 log = logging.getLogger(__name__)
@@ -213,9 +220,15 @@ def cap_related_name(name: str, label: str, ai_model: AiModelMetadata) -> str:
     (:func:`~pitloom.core.ai_metadata.cap_model_name`), and said so."""
     capped = cap_model_name(name)
     if capped != name:
-        fmt, where = _model_where(ai_model)
-        warn_over_cap(log, model_cap(MODEL_NAME_CAP, fmt), where, f"{label} cut")
+        warn_related_name_cut(label, ai_model)
     return capped
+
+
+def warn_related_name_cut(label: str, ai_model: AiModelMetadata) -> None:
+    """Say that a *label* (e.g. ``"model originator name"``) of *ai_model*
+    was cut to the name cap."""
+    fmt, where = _model_where(ai_model)
+    warn_over_cap(log, model_cap(MODEL_NAME_CAP, fmt), where, f"{label} cut")
 
 
 def _find_or_create_base_pkg(
@@ -298,24 +311,44 @@ def _add_base_model_lineage(
     return created
 
 
+def _checked_parameter_count(ai_model: AiModelMetadata) -> int | None:
+    """*ai_model*'s parameter count, checked as a stated one: a value that is
+    not a count (a hand-built one) gives none, with one ``WARNING:``."""
+    try:
+        return stated_parameter_count(ai_model.parameter_count)
+    except ParameterCountRejected as exc:
+        fmt, where = _model_where(ai_model)
+        warn_parameter_count(log, exc, where, fmt)
+        return None
+
+
 def _populate_ai_pkg_hyperparameters(
     ai_pkg: spdx3.ai_AIPackage, ai_model: AiModelMetadata
-) -> None:
-    """Populate hyperparameters dictionary entries on ai_AIPackage."""
-    hyperparameter_entries: list[spdx3.DictionaryEntry] = []
-    if ai_model.quantization:
-        hyperparameter_entries.append(
-            spdx3.DictionaryEntry(key="quantization", value=ai_model.quantization)
-        )
+) -> bool:
+    """Populate hyperparameters dictionary entries on ai_AIPackage, the
+    parameter count among them; return whether the count was written."""
+    items = [
+        (str(key), value_text(val)) for key, val in ai_model.hyperparameters.items()
+    ]
+    count = _checked_parameter_count(ai_model)
+    if count is not None:
+        kept = [item for item in items if item[0] != PARAMETER_COUNT_KEY]
+        if len(kept) != len(items):
+            log.warning(
+                "FORMAT=%s FILE=%s: hyperparameter %s replaced by the parameter count",
+                *_model_where(ai_model),
+                PARAMETER_COUNT_KEY,
+            )
+        items = [*kept, (PARAMETER_COUNT_KEY, str(int(count)))]
+    quantization = ai_model.quantization
+    entries = [("quantization", quantization)] if quantization else []
     # Sorted by key: the source's own order must not change the output.
-    for key, val in sorted(
-        ai_model.hyperparameters.items(), key=lambda item: str(item[0])
-    ):
-        hyperparameter_entries.append(
-            spdx3.DictionaryEntry(key=str(key), value=value_text(val))
-        )
-    if hyperparameter_entries:
-        ai_pkg.ai_hyperparameter = hyperparameter_entries
+    entries += sorted(items, key=lambda item: item[0])
+    if entries:
+        ai_pkg.ai_hyperparameter = [
+            spdx3.DictionaryEntry(key=key, value=text) for key, text in entries
+        ]
+    return count is not None
 
 
 def _populate_ai_pkg_domains_and_safety(
@@ -433,12 +466,17 @@ def _build_ai_package(
     if type_of_model_values:
         ai_pkg.ai_typeOfModel = type_of_model_values
 
-    _populate_ai_pkg_hyperparameters(ai_pkg, ai_model)
+    has_count = _populate_ai_pkg_hyperparameters(ai_pkg, ai_model)
     _populate_ai_pkg_domains_and_safety(ai_pkg, ai_model)
     _populate_ai_pkg_io_application(ai_pkg, ai_model)
     _add_external_identifiers_and_refs(ai_pkg, ai_model)
 
-    if ai_model.usage.known_biases:
-        ai_pkg.comment = "Known biases: " + "; ".join(ai_model.usage.known_biases)
+    # The count note first, then the biases; provenance appends its own after.
+    biases = ai_model.usage.known_biases
+    comment = with_parameter_count_note(
+        "Known biases: " + "; ".join(biases) if biases else None, has_count
+    )
+    if comment:
+        ai_pkg.comment = comment
 
     return ai_pkg

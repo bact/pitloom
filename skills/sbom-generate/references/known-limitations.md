@@ -88,13 +88,57 @@ model caps"). Beyond that:
 - A file-named entry with other properties was read: NumPy, fastText,
   CRFsuite and classic PyTorch carry no model name, nor does an ONNX file
   whose `graph.name` is an exporter default.
+- Producer and parameter count (`ai_AIPackage`): `originatedBy` holds one
+  generic `Agent` (name only) per name a structured field states (ONNX
+  `model_author`, split on commas, so `Doe, Jane` becomes two; PT2
+  `extra/author`; GGUF `general.author`, `general.organization`; Safetensors
+  `modelspec.author`; the Hub repository owner, `Method: repository_owner`).
+  `suppliedBy` is set only on the Hub route, to the same repository owner
+  (the distribution source); no model file format sets it, and a model never
+  inherits the main package's. A GGUF `general.organization` is
+  often guessed by the llama.cpp converter from the base model's
+  `_name_or_path` (a fine-tune can name the base model's organisation):
+  Pitloom reads it as stated, and the Hub route names the repository owner
+  instead, so one model can show two producers by route. The count is the
+  `ai_hyperparameter` entry `parameters`, a decimal integer, with a `comment`
+  line saying it is not a hyperparameter (SPDX 3.0.1 has no model-size
+  property): the sum of the elements of the tensors
+  (`Method: tensor_element_sum`) for GGUF, Safetensors and ONNX, or the Hub's
+  own sum (`safetensors.total`, else `gguf.total`, same method). It counts
+  all stored tensors, so buffers (attention masks, shape constants) and tied
+  weights stored twice are in it, and packed or quantised weights (GPTQ, AWQ,
+  bitsandbytes, ONNX `MatMulNBits`) under-count: not the "trainable
+  parameters" of a model-size figure, and a Hub total may cover only part of
+  a multi-component repository. No count is normal for PT2, a GGUF split
+  over files (`split.count` above 1) and an empty model (a split GGUF keeps
+  its producer); neither value is read from PyTorch classic, Keras, HDF5,
+  NumPy, fastText and CRFsuite; a Safetensors file
+  with no `modelspec.author` has no producer; a Safetensors shard counts its
+  own file only. In a wheel, a GGUF or ONNX model gets neither without
+  `--trust-wheel-model` (the gate leaves it a stub); PT2 and Safetensors are
+  read. Stderr, one `WARNING: FORMAT=<fmt> FILE=<path>:` line each: a
+  hostile or malformed shape, or a count over 10^15, gives no count
+  (`... parameter count not recorded`); an ONNX `model_author` is cut at
+  1000 distinct names (`larger than the 1000-entry per-field cap; the first
+  1000 kept in originators`) and read to at most 16016 non-empty parts,
+  repeats included (`larger than the 16016-part model-author cap; rest of
+  model_author not read`); a model's own
+  `parameters` hyperparameter gives way to the count (`hyperparameter
+  parameters replaced by the parameter count`). Detail:
+  <https://bact.github.io/pitloom/ai-model-formats/#producer-and-parameter-count>
+  and
+  <https://bact.github.io/pitloom/ai-model-formats/#what-the-count-counts>.
 - A name ending `...~` and 8 hex digits was cut at 1024 characters (code
   points), the digest of the whole name keeping two long names apart: the
   model's own name, or its file name stem, whichever is shown, and its
-  base model, dataset and dataset creator names. The id registry and the
-  `spdxId` use the same cut name. `WARNING: FORMAT=<fmt> FILE=<path>:
-  larger than the 1024-character name cap; model name cut` (or `base model
-  name`, `dataset name`, `dataset creator name`).
+  base model, dataset and dataset creator names, and the model originator
+  names. The id registry and the `spdxId` of a model, base model and dataset
+  use the same cut name; an originator `Agent` has a counter id
+  (`--update-id-registry` records it by name, but nothing looks it up).
+  `WARNING: FORMAT=<fmt> FILE=<path>: larger than the 1024-character name
+  cap; model name cut` (or `base model name`, `dataset name`, `dataset
+  creator name`, `model originator name`, the last one warning once per
+  model however many names are cut).
 - A `\udXXX` in a name or value was a lone surrogate in the file (a JSON
   or YAML `"\ud800"`), which UTF-8 cannot hold: `WARNING: FORMAT=<fmt>
   FILE=<path>: lone surrogates written as \uXXXX`.

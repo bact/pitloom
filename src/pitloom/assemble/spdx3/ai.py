@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._ai_originators import add_model_originators
 from pitloom.assemble.spdx3._ai_package import (
     _SAFETY_RISK_VALUES,
     _add_base_model_lineage,
@@ -223,6 +224,9 @@ def _add_single_ai_model(
     exporter.add_package(ai_pkg)
     ai_pkg_id = require_spdx_id(ai_pkg)
     related = _add_base_model_lineage(ai_pkg, ai_model, lineage_ctx)
+    related += add_model_originators(
+        ai_pkg, ai_model, (creation_info, doc_name, doc_uuid), exporter
+    )
 
     emit_provenance(
         subject=ai_pkg,

@@ -117,8 +117,8 @@ Add `--no-merge` to skip the merged-graph check and validate each
 document only in isolation.
 
 **A Pitloom enrichment fragment is not such a fragment.** It names the
-base SBOM's ids directly, with no `ExternalMap`, so it fails SHACL alone
-and paired with its base (exit 1) even when correct. To check one,
+base SBOM's ids directly, with no `ExternalMap`, so it usually fails SHACL
+alone and paired with its base (exit 1), even when correct. To check one,
 validate the **merged** SBOM: regenerate the project with the fragment
 registered (`sbom-enrich`, steps 8-10) and run `loom fragment validate
 <merged-sbom-file>`.

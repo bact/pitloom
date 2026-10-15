@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -18,12 +19,20 @@ from pitloom.core.ai_metadata import (
     record_scalar_property,
     source_metadata,
 )
+from pitloom.core.model_originators import (
+    COMMA_LIST_METHOD,
+    ORIGINATOR_PARTS_CAP,
+    ORIGINATOR_PARTS_SKIPPED,
+    ORIGINATORS_PROVENANCE_KEY,
+    originator_names_cut,
+)
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
+from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
-from pitloom.logging_config import loggable, one_line
+from pitloom.logging_config import loggable, one_line, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -48,6 +57,7 @@ _SHOWN_KEY_CHARS = 40
 # Standard metadata_props key defined by the ONNX IR spec ("Optional Metadata"):
 # https://onnx.ai/onnx/repo-docs/IR.html#optional-metadata
 _MODEL_LICENSE_KEY = _METADATA_PROPS_PREFIX + "model_license"
+_MODEL_AUTHOR_KEY = _METADATA_PROPS_PREFIX + "model_author"
 
 # model_version packs SemVer as MAJOR (16 bits), MINOR (16), PATCH (32); zero
 # upper 32 bits mark a simple number instead. See "Serializing SemVer version
@@ -228,6 +238,49 @@ def _resolve_onnx_license(
     return license_expr
 
 
+def _resolve_onnx_originators(
+    properties: dict[str, str],
+    source: str,
+    provenance: dict[str, str],
+    where: str,
+) -> list[str]:
+    """The names in the ``model_author`` metadata property, which the IR spec
+    defines as a comma-separated list; ``Method: comma_list`` is recorded
+    only when the text has a comma to split on. One ``WARNING:`` naming
+    *where* (the model) when the parts bound leaves names unread."""
+    text = properties.get(_MODEL_AUTHOR_KEY, "")
+    names, cut = originator_names_cut(text, comma_list=True)
+    if cut:
+        warn_over_cap(log, ORIGINATOR_PARTS_CAP, where, ORIGINATOR_PARTS_SKIPPED)
+    if names:
+        provenance[ORIGINATORS_PROVENANCE_KEY] = (
+            f"{source} | Field: {_MODEL_AUTHOR_KEY}"
+            + (COMMA_LIST_METHOD if "," in text else "")
+        )
+    return names
+
+
+def _initializer_shapes(model: Any, onnx: Any) -> Iterator[list[int]]:
+    """The dimensions of every initializer tensor: dense initializers, sparse
+    initializers (their dense ``dims``) and those of the subgraphs a node
+    attribute holds (``If``, ``Loop``, ``Scan``), however deeply nested.
+    Walked with a stack, never recursion. ``Constant`` node tensors and
+    ``model.functions`` are not counted. External tensors count by ``dims``."""
+    graphs = [model.graph]
+    while graphs:
+        graph = graphs.pop()
+        for tensor in graph.initializer:
+            yield list(tensor.dims)
+        for sparse in graph.sparse_initializer:
+            yield list(sparse.dims)
+        for node in graph.node:
+            for attr in node.attribute:
+                if attr.type == onnx.AttributeProto.GRAPH:
+                    graphs.append(attr.g)
+                elif attr.type == onnx.AttributeProto.GRAPHS:
+                    graphs.extend(attr.graphs)
+
+
 # pylint: disable=too-many-locals
 def read_onnx(model_path: Path) -> AiModelMetadata:
     """Extract metadata from an ONNX model file.
@@ -245,7 +298,10 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
     ``shape`` is given only where the file has one: not for an unknown
     rank or a non-tensor value (a sequence).
     ``properties`` holds ``domain``, ``opset.<domain>`` and every
-    ``metadata_props`` entry as ``metadata_props.<key>``.
+    ``metadata_props`` entry as ``metadata_props.<key>``. ``originators``
+    are the comma-separated names of ``model_author``;
+    ``parameter_count`` is the element sum of the graph initializers
+    (see :func:`_initializer_shapes`), unset when there is none.
 
     Requires the ``onnx`` package (``pip install onnx``).
     """
@@ -311,6 +367,14 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
     if outputs:
         provenance["outputs"] = f"{source} | Field: graph.output"
 
+    parameter_count = derived_parameter_count(
+        _initializer_shapes(model, onnx),
+        "graph.initializer, graph.sparse_initializer",
+        source,
+        provenance,
+        str(model_path),
+    )
+
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
             file_name=model_path.name,
@@ -323,6 +387,10 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
         description=description,
         version=version,
         license=license_expr,
+        originators=_resolve_onnx_originators(
+            properties, source, provenance, str(model_path)
+        ),
+        parameter_count=parameter_count,
         # ONNX has no model-type field. ``domain`` is the owner's reverse-DNS
         # namespace (``org.onnx``), not a type; it stays in ``properties``.
         type_of_model=_onnx_type_of_model(model),

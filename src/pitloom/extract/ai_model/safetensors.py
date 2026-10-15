@@ -11,6 +11,7 @@ import heapq
 import logging
 import struct
 from pathlib import Path
+from typing import Any
 
 from pitloom.core.ai_metadata import (
     MAX_MODEL_ENTRIES,
@@ -19,11 +20,13 @@ from pitloom.core.ai_metadata import (
     AiModelMetadata,
     source_metadata,
 )
+from pitloom.core.model_originators import ORIGINATORS_PROVENANCE_KEY, originator_names
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
+from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
 from pitloom.logging_config import Cap, loggable
 
@@ -73,6 +76,62 @@ def _stable_metadata(raw: dict[str, str]) -> dict[str, str]:
     return dict(heapq.nsmallest(MAX_MODEL_ENTRIES + 1, raw.items()))
 
 
+def _read_header(
+    model_path: Path, safe_open: Any, source: str, provenance: dict[str, str]
+) -> tuple[dict[str, str], list[str], int | None]:
+    """The ``__metadata__`` map, the tensor keys and the parameter count (its
+    provenance set in *provenance*) of *model_path*, read with *safe_open*.
+
+    Raises:
+        ModelLimitExceeded: The declared header is over the cap.
+        ValueError: The file cannot be read as a Safetensors file.
+    """
+    try:
+        _check_header_length(model_path)
+        # Use numpy framework to avoid requiring torch/tf; metadata-only read
+        with safe_open(
+            str(model_path),
+            framework="numpy",
+        ) as f:
+            metadata: dict[str, str] = f.metadata() or {}
+            tensor_keys: list[str] = list(f.keys())
+            # Every tensor, before the entry cap on ``inputs``; the header
+            # alone gives each shape, no tensor data is read.
+            parameter_count = derived_parameter_count(
+                (f.get_slice(k).get_shape() for k in tensor_keys),
+                "tensor shapes (header only)",
+                source,
+                provenance,
+                str(model_path),
+            )
+    except ModelLimitExceeded:
+        raise
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:
+        log.debug(
+            "Failed to read Safetensors file %s: %s",
+            loggable(str(model_path)),
+            loggable(str(exc)),
+        )
+        raise ValueError(
+            f"Failed to read Safetensors file {model_path}: {exc}"
+        ) from exc
+    return metadata, tensor_keys, parameter_count
+
+
+def _originators(
+    metadata: dict[str, str], source: str, provenance: dict[str, str]
+) -> list[str]:
+    """The one originator of ``modelspec.author``: a name may hold a comma,
+    so it is not split."""
+    names = originator_names(metadata.get("modelspec.author"))
+    if names:
+        provenance[ORIGINATORS_PROVENANCE_KEY] = (
+            f"{source} | Field: __metadata__.modelspec.author"
+        )
+    return names
+
+
 def read_safetensors(model_path: Path) -> AiModelMetadata:
     """Extract metadata from a Safetensors model file.
 
@@ -92,6 +151,11 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
     - ``modelspec.title`` or ``name`` -> name
     - ``modelspec.description`` or ``description`` -> description
     - ``modelspec.precision`` -> quantization (e.g. "fp16", "bf16")
+    - ``modelspec.author`` -> one originator (not split on commas)
+
+    ``parameter_count`` is the sum of the elements of every tensor, from the
+    header's shapes. A model sharded over several files gets each file's own
+    count. The format itself has no author key; only ModelSpec's is read.
 
     Args:
         model_path: Path to a ``.safetensors`` file.
@@ -111,30 +175,11 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
     except ImportError as exc:
         raise missing_library(AiModelFormat.SAFETENSORS) from exc
 
-    try:
-        _check_header_length(model_path)
-        # Use numpy framework to avoid requiring torch/tf; metadata-only read
-        with safe_open(
-            str(model_path),
-            framework="numpy",
-        ) as f:  # type: ignore[no-untyped-call]
-            metadata: dict[str, str] = f.metadata() or {}
-            tensor_keys: list[str] = list(f.keys())
-    except ModelLimitExceeded:
-        raise
-    # pylint: disable-next=broad-exception-caught
-    except Exception as exc:
-        log.debug(
-            "Failed to read Safetensors file %s: %s",
-            loggable(str(model_path)),
-            loggable(str(exc)),
-        )
-        raise ValueError(
-            f"Failed to read Safetensors file {model_path}: {exc}"
-        ) from exc
-
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
     provenance: dict[str, str] = {}
+    metadata, tensor_keys, parameter_count = _read_header(
+        model_path, safe_open, source, provenance
+    )
 
     # Some Safetensors files record the originating framework under "format"
     # (e.g. "pt" for PyTorch) or "modelspec.implementation".
@@ -198,6 +243,8 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
         version=version,
         architecture=architecture,
         quantization=quantization,
+        parameter_count=parameter_count,
+        originators=_originators(metadata, source, provenance),
         properties=properties,
         **raw,
         # The keys _stable_metadata cut (every value is a string, so

@@ -24,7 +24,7 @@ item gives the exact format, byte value, version or measured number; the PR
 that found or fixed it; and one "Do:" rule. Items the AI-model notes already
 cover are linked, not repeated. Every claim was checked against the current
 code, a repository fixture, a live interpreter or the cited PR's own record on
-the day it was added (2026-10-02 to 2026-10-10).
+the day it was added (2026-10-02 to 2026-10-15).
 
 ## Files
 
@@ -48,7 +48,7 @@ the day it was added (2026-10-02 to 2026-10-10).
   PyPI-style sources actually contain.
 - [model-file-metadata.md](model-file-metadata.md): what AI model files
   carry and what their fields mean (ONNX `domain`, exporter-default names,
-  packed versions, standard keys).
+  packed versions, standard keys, parameter-count shapes).
 - [messages-and-surfaces.md](messages-and-surfaces.md): absent vs
   failed; one message per event; surfaces that drift apart.
 - [open-research-questions.md](open-research-questions.md): where the

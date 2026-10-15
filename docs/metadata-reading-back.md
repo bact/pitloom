@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-08
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,13 +24,13 @@ Pitloom applies them, and the order a program reading the SBOM undoes them.
    characters `\udXXX` here, with one `WARNING: FORMAT=<fmt> FILE=<path>:
    lone surrogates written as \uXXXX`; the annotation holds that text too.
 2. **Caps.** A name over 1024 characters (a model's, its base model's, a
-   dataset's or a dataset creator's) is cut to its first 1012, `...`, `~`
-   and 8 hex digits of the SHA-256 of the whole name, so two long names
-   stay apart; a label over 4096 bytes means no label is recorded; a list
-   or map keeps its first 1000 entries; `max-source-metadata-bytes` drops
-   whole annotation entries. Each is announced by a `WARNING:` and, in the
-   annotation, by `truncated`, `truncatedKeyCount`, `truncatedKeys`,
-   `maxEntries` or `maxMetadataBytes`
+   dataset's, a dataset creator's, a model originator's or its supplier's)
+   is cut to its first 1012, `...`, `~` and 8 hex digits of the SHA-256 of
+   the whole name, so two long names stay apart; a label over 4096 bytes
+   means no label is recorded; a list or map keeps its first 1000 entries;
+   `max-source-metadata-bytes` drops whole annotation entries. Each is
+   announced by a `WARNING:` and, in the annotation, by `truncated`,
+   `truncatedKeyCount`, `truncatedKeys`, `maxEntries` or `maxMetadataBytes`
    ([size-bounded preservation](metadata-provenance.md#size-bounded-preservation)).
    Caps come before the escape, so an escaped value can be longer than
    its cap: each escaped code point adds five characters.
@@ -65,10 +65,11 @@ Pitloom applies them, and the order a program reading the SBOM undoes them.
    `ai_typeOfModel`, `ai_domain`, `ai_hyperparameter` keys and values,
    the strings in `ai_informationAboutApplication`, `externalRef` and
    `externalIdentifier` text and locators; the same properties of the
-   base-model package, the dataset packages and their creators the model
-   brings in, with a dataset's `dataset_dataCollectionProcess`,
-   `dataset_intendedUse`, `dataset_dataPreprocessing`,
-   `dataset_knownBias` and `dataset_anonymizationMethodUsed`; the
+   base-model package, the dataset packages and their creators and the
+   originator and supplier `Agent`s (`name`) the model brings in, with a
+   dataset's `dataset_dataCollectionProcess`, `dataset_intendedUse`,
+   `dataset_dataPreprocessing`, `dataset_knownBias` and
+   `dataset_anonymizationMethodUsed`; the
    `name`, `simplelicensing_licenseText` and
    `simplelicensing_licenseExpression` of the model's licence element;
    and the comments of their relationships. One `WARNING: FORMAT=<fmt>
@@ -105,7 +106,9 @@ Pitloom applies them, and the order a program reading the SBOM undoes them.
    `ai_informationAboutApplication`). RFC 8785 output is plain JSON.
 3. Type the annotation's scalar texts with its `valueTypes`: a key not in
    it is a string, a collection or a GGUF array summary. Elements inside a
-   collection are text too, and not typed.
+   collection are text too, and not typed. An `ai_hyperparameter` value is
+   always text: the `parameters` entry, a model's parameter count, is a
+   decimal integer in it (`"7241732096"`; read it with `int()`).
 4. Do not undo the display escape. A `\u202e` the file already held as six
    characters looks the same as an escaped U+202E, so the escape cannot be
    reversed with certainty. For the original, read the annotation's

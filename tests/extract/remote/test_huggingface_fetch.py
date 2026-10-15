@@ -23,12 +23,12 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 import pytest
+from huggingface_hub.hf_api import ModelInfo
 
 from pitloom.extract.remote.huggingface_fetch import (
     _detect_license_from_hf_files,
@@ -60,12 +60,14 @@ class _FakeCard:
         self.data = data
 
 
-class _FakeModelInfo:
-    """Minimal stand-in for huggingface_hub.hf_api.ModelInfo -- only the
-    attributes _load_model_info() actually reads."""
+def _model_info(**api_json: Any) -> ModelInfo:
+    """A real ``ModelInfo`` built from the Hub's JSON keys (``id`` filled in).
 
-    def __init__(self, **kwargs: Any) -> None:
-        self.__dict__.update(kwargs)
+    Its ``__init__`` is untyped in some ``huggingface_hub`` versions: call it
+    through ``Any``, which is not an error in the typed ones either."""
+    build: Any = ModelInfo
+    info: ModelInfo = build(**{"id": "org/model", **api_json})
+    return info
 
 
 # ---------------------------------------------------------------------------
@@ -133,13 +135,14 @@ def test_load_model_card_success_falsy_data_and_text() -> None:
 
 
 def test_load_model_info_all_fields_present() -> None:
-    info = _FakeModelInfo(
+    info = _model_info(
         author="mistralai",
         sha="deadbeef",
-        created_at=datetime(2023, 9, 20, 13, 3, 50, tzinfo=timezone.utc),
-        last_modified=datetime(2023, 9, 21, 0, 0, 0, tzinfo=timezone.utc),
+        createdAt="2023-09-20T13:03:50.000Z",
+        lastModified="2023-09-21T00:00:00.000Z",
         downloads=1234,
         tags=["license:apache-2.0", "region:us"],
+        safetensors={"parameters": {"BF16": 5}, "total": 5},
     )
     with patch("huggingface_hub.model_info", return_value=info):
         result = _load_model_info("org/model")
@@ -151,20 +154,14 @@ def test_load_model_info_all_fields_present() -> None:
         "last_modified": "2023-09-21T00:00:00+00:00",
         "downloads": 1234,
         "tags": ["license:apache-2.0", "region:us"],
+        "safetensors_total": 5,
     }
 
 
 def test_load_model_info_falsy_fields_omitted_but_zero_downloads_kept() -> None:
     # author/created_at/last_modified/tags are falsy -> omitted. downloads
     # uses an "is not None" check (not truthiness), so 0 is still recorded.
-    info = _FakeModelInfo(
-        author=None,
-        sha="abc",
-        created_at=None,
-        last_modified=None,
-        downloads=0,
-        tags=[],
-    )
+    info = _model_info(author=None, sha="abc", downloads=0, tags=[])
     with patch("huggingface_hub.model_info", return_value=info):
         result = _load_model_info("org/model")
 
@@ -174,20 +171,56 @@ def test_load_model_info_falsy_fields_omitted_but_zero_downloads_kept() -> None:
 def test_load_model_info_sha_and_downloads_none_omitted() -> None:
     # sha and downloads both falsy/None -> both keys omitted, exercising the
     # false branch of each "if" independently of the other falsy fields.
-    info = _FakeModelInfo(
-        author="someone",
-        sha=None,
-        created_at=None,
-        last_modified=None,
-        downloads=None,
-        tags=[],
-    )
+    info = _model_info(author="someone", sha=None, downloads=None, tags=[])
     with patch("huggingface_hub.model_info", return_value=info):
         result = _load_model_info("org/model")
 
     assert "sha" not in result
     assert "downloads" not in result
     assert result == {"author": "someone"}
+
+
+_ST = {"parameters": {"BF16": 5}, "total": 5}
+
+
+@pytest.mark.parametrize(
+    ("safetensors", "gguf", "expected"),
+    [
+        (None, None, {}),  # neither: silent
+        (_ST, None, {"safetensors_total": 5}),
+        # Kept as the Hub sent it: the producer validates it
+        ({"parameters": {}, "total": "7"}, None, {"safetensors_total": "7"}),
+        ({"parameters": {}, "total": 0}, None, {"safetensors_total": 0}),
+        (None, {"total": 9, "architecture": "llama"}, {"gguf_total": 9}),
+        (None, {"total": "9"}, {"gguf_total": "9"}),
+        (_ST, {"total": 9}, {"safetensors_total": 5}),  # Safetensors wins
+        (None, {"architecture": "llama"}, {}),  # no total: silent
+        (None, ["total"], {}),  # not a mapping: silent
+    ],
+    ids=[
+        "absent",
+        "present",
+        "raw-string",
+        "zero",
+        "gguf",
+        "gguf-raw",
+        "both",
+        "gguf-no-total",
+        "gguf-not-dict",
+    ],
+)
+def test_load_model_info_stated_total_kept_raw(
+    safetensors: dict[str, Any] | None,
+    gguf: Any,
+    expected: dict[str, Any],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    info = _model_info(safetensors=safetensors, gguf=gguf)
+    with patch("huggingface_hub.model_info", return_value=info):
+        result = _load_model_info("org/model")
+
+    assert result == expected
+    assert not caplog.records
 
 
 # ---------------------------------------------------------------------------
@@ -354,6 +387,10 @@ def test_load_model_info_failure_logs_and_returns_empty(
             result = _load_model_info("org/model")
     assert not result
     assert any("org/model" in r.message for r in caplog.records)
+    assert any(
+        "safetensors.total" in r.message and "gguf.total" in r.message
+        for r in caplog.records
+    )
 
 
 _HOSTILE = OSError("404 for o/m\n::error::forged\u202e")

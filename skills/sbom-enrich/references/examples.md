@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -177,6 +177,69 @@ relationship to it):
 Skip this kind of question entirely in a non-interactive run -- there is
 no one to answer it.
 
+### Model producer: a typed agent beside the generic `Agent`
+
+Pitloom records a model's producer as a generic `Agent` (name only) in
+the `ai_AIPackage`'s `originatedBy`, never as a `Person` or `Organization`
+(see `minimum-elements.md`, G7 "Model producer"). When the model card says
+which it is, or names a producer the file does not, add the typed agent
+and restate the package with its base `spdxId` and `name`, copied exactly
+(here `probe-net`):
+
+```json
+{
+  "creationInfo": "_:creationinfo-agent",
+  "comment": "Source: AI agent | Role: inferred -- the model card's \"Model details\" section calls Acme Labs a company.",
+  "name": "Acme Labs",
+  "spdxId": "https://spdx.org/spdxdocs/pitloom-agent/Organization/acme-labs-01",
+  "type": "Organization"
+},
+{
+  "creationInfo": "_:creationinfo-agent",
+  "comment": "Source: AI agent | Role: inferred -- originatedBy added from the model card.",
+  "name": "probe-net",
+  "originatedBy": [
+    "https://spdx.org/spdxdocs/pitloom-agent/Organization/acme-labs-01"
+  ],
+  "spdxId": "<AIPackage-spdxId>",
+  "type": "ai_AIPackage"
+}
+```
+
+What the merge does (checked with `loom project` on a fragment like
+this):
+
+- `originatedBy` is a union: the base's generic `Agent` named `Acme Labs`
+  stays, and the `Organization` follows it. A fragment cannot remove or
+  retype it. Giving the `Organization` the generic `Agent`'s `spdxId`
+  does not replace it either: `WARNING: Merge: Organization 'Acme Labs'
+  shares spdxId <id> with a Agent; keeping both, it gets new id <id>.`
+  Give the typed agent its own id, and say in the final report that both
+  are listed: the `Agent` is the name the file states, the typed one your
+  reading of the card. An ONNX `model_author` such as `Doe, Jane` is two
+  `Agent`s (the format's list is split on commas); add `Jane Doe` as a
+  `Person` the same way and report the split.
+- `suppliedBy` (one value) is taken from the fragment: Pitloom sets none on
+  a model it read from a file, and a Hugging Face base is never merged
+  into. Set it only for a distributor the card or the user names.
+- A `parameters` entry in the package's `ai_hyperparameter` (a count the
+  card states) is added only where the base has none; a base entry wins,
+  silently. The merge adds Pitloom's count note itself: do not type it
+  into the `comment`; say in the package's own provenance `comment` that
+  the entry is the card's figure, not a sum of tensor elements. A
+  `comment` on a restated package is appended to the base's, after a
+  semicolon.
+- A restated `spdxId` the base no longer has (the source changed after the
+  fragment was drafted) adds a second `ai_AIPackage`, with no warning, and
+  the result still validates. Before registering the fragment, list its
+  `ai_AIPackage` ids that the base lacks; an id printed means regenerate
+  the base and redraft (a base may hold two models of one name, so do not
+  compare names):
+
+```bash
+python3 -c "import json,sys; ids=lambda p:{o['spdxId'] for o in json.load(open(p))['@graph'] if o.get('type')=='ai_AIPackage'}; print(*sorted(ids(sys.argv[2])-ids(sys.argv[1])), sep='\n')" sbom.spdx3.json fragments/agent-enrichment.spdx3.json
+```
+
 Notes:
 
 - `comment` on the inferred element carries the required provenance marker
@@ -197,7 +260,7 @@ is installed in; `uvx --from "pitloom>=0.20.2" python` for a `uvx` run) on
 those two files. Exit 0 is a pass.
 
 Do not run `loom fragment validate` on a fragment: it names the base
-SBOM's ids without an `ExternalMap`, so it fails SHACL on its own even
+SBOM's ids without an `ExternalMap`, so it usually fails SHACL on its own, even
 when correct. The merged SBOM is validated in step 6.
 
 ## 4. Register both fragments

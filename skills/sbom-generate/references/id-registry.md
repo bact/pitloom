@@ -33,11 +33,13 @@ when the element has content, its SHA-256.
   retrained file keeps its id there. A stem several model files share gets
   no hash: a new entry has none, an existing one is left as is (one `INFO:`
   per run; `its new entry is not content-gated` when it had none).
-- **Per-document entities**: a harvest also writes the creator (`Person`
-  or `SoftwareAgent`), `Tool` and licence entries
+- **Per-document entities**: a harvest also writes, by name, every agent
+  (the creator, the main package's authors, a model's generic producer
+  `Agent`, a fragment's `Person`/`Organization`), `Tool` and licence entries
   (`LicenseExpression`/`SimpleLicensingText`). They carry that document's own
-  ids, so a run into another document rewrites them; they are not something to
-  pin.
+  ids, so a run into another document rewrites them; nothing looks a model's
+  `Agent` up, so new `Agent` rows in a committed registry are expected; they
+  are not something to pin.
 - **Datasets** (`dataset_DatasetPackage`) only through the Python SDK
   (`pitloom.loom.Run(..., id_registry=...)`, which reads `[tool.pitloom]`
   only from an explicit `pitloom_config=`). A dataset package is looked up

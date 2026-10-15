@@ -24,6 +24,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.assemble import generate_model_sbom
+from pitloom.core.model_parameters import PARAMETER_COUNT_NOTE
 from pitloom.core.provenance import ProvenanceConfig, escape_provenance_comment_part
 from tests._wheel_models import safetensors_bytes
 from tests.extract.ai_model.gguf_builders import STRING, gguf_file, kv, string
@@ -81,7 +82,8 @@ def _comment(sbom: str) -> str:
     graph = json.loads(sbom)["@graph"]
     (package,) = [e for e in graph if e["type"] == "ai_AIPackage"]
     comment: str = package["comment"]
-    return comment
+    # The parameter-count note is a separate line before the provenance.
+    return comment.removeprefix(PARAMETER_COUNT_NOTE + "\n")
 
 
 @pytest.mark.parametrize("fmt", _BUILDERS)

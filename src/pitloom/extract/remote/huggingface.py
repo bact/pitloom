@@ -15,8 +15,9 @@ Sources used (all optional - missing files are silently skipped):
 * ``generation_config.json`` - generation-time hyperparameters
 * Model card (``README.md``) YAML frontmatter - license, language, tags,
   pipeline tag, library name, base model, and linked datasets
-* ``model_info()`` Hub API response - author, sha, dates, and computed tags
+* ``model_info()`` Hub API response - author, sha, dates, computed tags
   (``base_model:relation:id``, ``arxiv:*``, ``doi:*``, ``dataset:*`` prefixes)
+  and the stated parameter count (``safetensors.total``, else ``gguf.total``)
 * License files (``LICENSE``, ``LICENCE``, ``COPYING``, etc.) - used when
   the model card has no license or a vague value such as ``"other"``
 
@@ -24,6 +25,9 @@ Standard fields populated:
 
 * ``name``, ``description``, ``license`` - from model ID, model card, and
   license-file detection via the ``licenseid`` library
+* ``originators``, ``supplier`` - the repository owner (``model_info()``
+  ``author``)
+* ``parameter_count`` - ``safetensors.total``, else ``gguf.total``
 * ``type_of_model``, ``architecture`` - from ``config.json``
 * ``hyperparameters`` - selected numeric/type fields from ``config.json``
   and ``generation_config.json``
@@ -79,6 +83,7 @@ from pitloom.extract.remote.huggingface_field import (
     _parse_config_data,
     _parse_info_tags,
     _resolve_base_model_id,
+    hub_producer_and_count,
 )
 from pitloom.logging_config import loggable
 
@@ -182,6 +187,9 @@ def read_huggingface(source: str) -> AiModelMetadata:
     )
     extra_lists = _build_extra_lists(hf_data, tag_data.arxiv_ids, provenance)
     library_name = _get_library_name(hf_data)
+    producer = hub_producer_and_count(
+        hf_data.get("hub_info") or {}, provenance, loggable(hf_url)
+    )
 
     meta = AiModelMetadata(
         format_info=AiModelFormatInfo(
@@ -192,6 +200,9 @@ def read_huggingface(source: str) -> AiModelMetadata:
         name=model_name,
         description=description,
         license=license_val,
+        originators=producer.originators,
+        supplier=producer.supplier,
+        parameter_count=producer.parameter_count,
         doi=tag_data.doi_val,
         arxiv_ids=tag_data.arxiv_ids,
         url=hf_url,

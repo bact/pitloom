@@ -17,11 +17,28 @@ resolution).
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Mapping
 from typing import Any, NamedTuple
 
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
+from pitloom.core.model_originators import (
+    ORIGINATORS_PROVENANCE_KEY,
+    REPOSITORY_OWNER_METHOD,
+    SUPPLIER_PROVENANCE_KEY,
+    originator_names,
+)
+from pitloom.core.model_parameters import (
+    PARAMETER_COUNT_PROVENANCE_KEY,
+    TENSOR_ELEMENT_SUM_METHOD,
+    ParameterCountRejected,
+    stated_parameter_count,
+)
 from pitloom.extract._extract_utils import record_dict_field_provenance
+from pitloom.extract.ai_model.parameter_count import warn_parameter_count
 from pitloom.extract.remote.huggingface_fetch import _extract_card_description
+
+_log = logging.getLogger(__name__)
 
 # config.json keys that map directly to SPDX AI hyperparameters
 _HYPER_KEYS: tuple[str, ...] = (
@@ -300,6 +317,58 @@ def _get_library_name(hf_data: dict[str, Any]) -> str | None:
     card_data: dict[str, Any] = hf_data.get("card_data") or {}
     lib = card_data.get("library_name")
     return str(lib) if lib else None
+
+
+#: The provenance of the repository owner, as originator and as supplier.
+_OWNER_PROVENANCE = (
+    "Source: Hugging Face Hub | Field: model_info author" + REPOSITORY_OWNER_METHOD
+)
+
+
+class HubProducer(NamedTuple):
+    """A model's producer and parameter count as the Hub states them."""
+
+    originators: list[str]  # the repository owner, or none
+    supplier: str | None  # the same owner: the Hub distributes the model
+    parameter_count: int | None
+
+
+def hub_producer_and_count(
+    hub_info: Mapping[str, Any], provenance: dict[str, str], where: str
+) -> HubProducer:
+    """The model's originator, supplier and parameter count as the Hub
+    states them.
+
+    The repository owner (``author``), one name, is both the originator and
+    the supplier: the repository is where the model is distributed from.
+    The count is ``safetensors.total``, else ``gguf.total``, recorded as
+    stated: a rejected value (not a non-negative integer, or over the cap)
+    leaves no count and logs one ``WARNING:`` naming *where*; ``0`` or
+    absent leaves none, silently. Its ``Method`` is the one of a count summed
+    from a file (the Hub sums the tensors too), so ``minimal`` provenance
+    keeps it. *provenance* is set for each value recorded.
+    """
+    originators = originator_names(hub_info.get("author"))
+    supplier = originators[0] if originators else None
+    if originators:
+        provenance[ORIGINATORS_PROVENANCE_KEY] = _OWNER_PROVENANCE
+        provenance[SUPPLIER_PROVENANCE_KEY] = _OWNER_PROVENANCE
+    key, field = (
+        ("safetensors_total", "safetensors.total")
+        if "safetensors_total" in hub_info
+        else ("gguf_total", "gguf.total")
+    )
+    try:
+        count = stated_parameter_count(hub_info.get(key))
+    except ParameterCountRejected as exc:
+        warn_parameter_count(_log, exc, where, "huggingface")
+        return HubProducer(originators, supplier, None)
+    if count is not None:
+        provenance[PARAMETER_COUNT_PROVENANCE_KEY] = (
+            f"Source: Hugging Face Hub | Field: model_info {field}"
+            + TENSOR_ELEMENT_SUM_METHOD
+        )
+    return HubProducer(originators, supplier, count)
 
 
 def _populate_hub_info(extra_data: dict[str, Any], hub_info: dict[str, Any]) -> None:

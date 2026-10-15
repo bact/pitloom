@@ -185,3 +185,14 @@ ruling, agents did the reading, building and reviewing.
   (397 lines, three options, a surface-by-member matrix, ten decisions) and
   deferred by the maintainer as too big for the PR. The plan file stays; the
   bundled work (G7 #3) is marked as waiting on it.
+
+- **Review the fix round too.** The second review found three defects that the
+  first round's fixes had introduced or left: a skipped element's id not
+  reserved, an error scoped to explicit input also hitting the implicit
+  roots, a conflict branch that skipped the content-hash fold. A third,
+  focused one on the last change (the unknown-wheel work) found a missing call
+  site. Do: review the delta of every fix round with a HEAD copy to diff
+  against, and keep each review to one area.
+- **Say which numbers a claim rests on.** "100% coverage" was true on three
+  of four CI legs and false on the one that is uploaded. Report coverage per
+  leg that is reported, not per machine that ran it.

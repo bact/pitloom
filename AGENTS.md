@@ -304,7 +304,21 @@ any of these one-liners.
 - **Choose a merge survivor from counts over all inputs, never first-seen**:
   load every input before the first merge, rank with a stable tie-break,
   and prove reversed input order gives the same ids (PR #305).
-  Detail for these five:
+- **Codecov counts one leg (Linux, Python 3.14).** A branch only a macOS
+  (case-insensitive) or Windows run reaches shows as missing there while
+  every local run is 100% (`walk_rules.py`, PR #305). Reach each branch
+  portably (a hard link in another case, a patched walk), and prove it on a
+  case-sensitive APFS image (`hdiutil create -fs "Case-sensitive APFS"`,
+  `pytest --basetemp <volume>`).
+- **A field added to a dataclass must be set by every call site that builds
+  it**, from one shared helper: three embed/wheel routes built the same
+  `DocumentModel`, and the `--project-dir` one missed `identity_known`
+  (PR #305, found by the late review).
+- **A Markdown line starting with `<tag>` is an HTML block, even inside a
+  code span that continues from the previous line**: the rest of the page
+  vanished from the site (mkdocs reported only missing anchors). Keep a
+  wrapped code span from starting a line with `<`.
+  Detail for these eight:
   [recurring-bug-patterns-review-rounds.md](working-docs/implementation/recurring-bug-patterns-review-rounds.md).
 
 ## CLI output

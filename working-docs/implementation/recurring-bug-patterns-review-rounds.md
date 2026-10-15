@@ -123,3 +123,42 @@ author or the existing tests.
 - **A tool left at a default is a silent bug:** `sed -i` needs a backup
   suffix argument on macOS (`sed -i ''`); a scripted edit that failed with
   "undefined label" changed nothing: check the edit landed.
+- **Codecov takes one leg; local 100% is not CI 100%.** CI uploads coverage
+  from Linux / Python 3.14 only. `RegistryCopy._at` returned its
+  case-insensitive match (`return cut, True`) only where a differently cased
+  spelling is the registry's own file, i.e. on macOS; Codecov showed
+  `walk_rules.py` at 97.72% (1 line missing, 1 partial) against 100% locally.
+  A test reaches it on any file system by making the other-case spelling a
+  hard link to the registry (skip where the file system folds case, because
+  the folding test covers it). To check without a Linux machine: make a
+  case-sensitive volume (`hdiutil create -size 64m -fs "Case-sensitive APFS"`,
+  `hdiutil attach -mountpoint ...`) and run `pytest --basetemp <volume>/bt
+  --cov-branch`; the line is missing without the test and covered with it, and
+  a whole-suite run there found no other such gap. Do: for every branch that
+  depends on the file system, the OS or the interpreter, name the CI leg that
+  reaches it.
+- **A new dataclass field must be set by every constructor call site.**
+  `DocumentModel.identity_known` / `identity_seed` were set by the standalone
+  wheel and embed routes but not by `_build_sbom_from_project_and_wheel`
+  (`embed-wheel --project-dir`): two wheels with different file names got
+  one namespace and a pinned `unknown` id was reused. Found by a late
+  focused review, not by the 14 tests. Fix: one helper
+  (`wheel_document_identity(metadata, wheel_path)`) returning the fields, used
+  by all three routes. Do: when a field's meaning is a rule, give it one
+  producer; grep every construction of the class when adding it.
+- **A batch hint repeats unless it goes through the batch memo.** The
+  unknown-identity `INFO:` printed once per wheel in an `embed-wheel` batch;
+  other hints use `EmbedFileCache.first_use`. A single-wheel call has no cache
+  and still always logs.
+- **A Markdown line that starts with `<p>` is an HTML block.** In
+  `docs/id-registry.md` a code span wrapped so that a line began with `<p>`
+  (`... --project-dir <p>` newline `is not a directory`): Python-Markdown
+  ended the page there (2 of 7 headings rendered) and mkdocs reported only
+  three "missing anchors". Backticks do not help once the span crosses a line
+  break. Reflow so no line starts with `<`; compare source and rendered
+  heading counts for every page.
+- **A multi-agent round leaves stray files.** An empty `out1.txt` at the
+  repo root (an agent's repro) and 1.8 GB of `pytest-of-<user>` in the
+  temporary directory; `git status` lists the first, nothing lists the
+  second. Check `git status --short | grep -v '^ M'` and clear the
+  temporary directory before handoff.
