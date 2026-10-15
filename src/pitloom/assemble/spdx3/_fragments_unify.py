@@ -322,7 +322,7 @@ class _MergeIndex:
 
     def keep_apart(self, obj: spdx3.SHACLObject, fragment_ids: set[str]) -> None:
         """Rename *obj*, about to be kept, when an element of another type
-        already holds its id (D11): never two elements with one id. The new
+        already holds its id: never two elements with one id. The new
         id is none of the document's or *fragment_ids*, and joins the
         latter."""
         spdx_id = getattr(obj, "spdxId", None)
@@ -370,7 +370,7 @@ def _record_unification(
     dropped_id: str,
     fragment_file: str,
 ) -> None:
-    """Record unification event (A1)."""
+    """Record one unification event under its survivor and criterion."""
     rec = events.setdefault(survivor_id, {}).setdefault(
         criterion, {"unified": set(), "fragments": set()}
     )

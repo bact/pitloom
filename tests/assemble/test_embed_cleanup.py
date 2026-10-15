@@ -6,8 +6,8 @@
 """Tests for when a project-backed embed runs its discovery cleanup: after
 every step that reads the discovered files, even when one raises.
 
-See also: :mod:`tests.assemble.test_embed_overrides` (where these were
-split from), tests/assemble/test_generate_project_sbom_allow_build.py (the
+See also: :mod:`tests.assemble.test_embed_overrides` (the embed overrides),
+tests/assemble/test_generate_project_sbom_allow_build.py (the
 same guard for ``generate_project_sbom()``).
 """
 

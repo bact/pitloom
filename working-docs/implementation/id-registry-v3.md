@@ -17,6 +17,7 @@ this file's numbering),
 [id-registry-followups.md](../design/id-registry-followups.md) (items v3 leaves
 open), [ai-model-id-stability.md](../design/ai-model-id-stability.md),
 [g7-ai-sbom-coverage.md](../design/g7-ai-sbom-coverage.md) (G7 #3 builds on this),
+[id-registry-v3-loom.md](id-registry-v3-loom.md) (section 8),
 [roadmap.md](../design/roadmap.md).
 
 **Status: built (PR #305, 2026-10-15).** The body below is the design as
@@ -71,7 +72,7 @@ Problems:
    hashed AIPackage needs `entities`, a hashed loom dataset needs `files`.
 2. **Ids cross types.** `files` has no type in its key, so loom reuses
    `id generate`'s `#File-N` id for a `dataset_DatasetPackage` (see
-   `tests/id_registry/shared.py:51-58`). One merged document can then
+   `tests/id_registry/shared.py`). One merged document can then
    hold two elements of different types under one id.
 3. **One fact per entry.** An entry is either name-keyed or content-gated,
    so an AIPackage's hash cannot be kept.
@@ -87,7 +88,7 @@ Problems:
    `_loom_caller._hash_and_registry_lookup` returns `(None, None)` when
    `Path(name).is_file()` is false.
 8. **Namespace.** `IdRegistry.new` mints a random UUID4 namespace
-   (`_registry.py:69-72`).
+   (`IdRegistry.new`).
 9. **Fragment merge by id ignores type** (`_MergeIndex.find_by_id`). A loom
    DatasetPackage and a project `software_File` that both hit `files[path]`
    fold together: `dataset_datasetType`/`dataset_dataPreprocessing` are
@@ -417,172 +418,32 @@ As `save()` writes it (keys sorted at every level):
 
 | Caller (v2 anchor) | Type | Candidate names, in order | Gate |
 | --- | --- | --- | --- |
-| Project file (`_document_files.py:319`) | `software_File` | physical path (`project_relative_or_fallback`), then distribution path | sha256 |
-| Directory (`_document_files.py:268`) | `software_File` | directory path | none |
-| Own, dependency, phantom package (`_package_ids.py:73`); deployed package (`_document_deployed.py`) | `software_Package` | canonical name | none |
-| AI model in a project or wheel (`ai.py:144`) | `ai_AIPackage` | name, path, stem (`_ai_package.py:120` `_ai_model_entity_candidates`; a wheel's path is the raw archive name) | none (D16) |
-| `loom model` / `enrich` (`assemble/_model_generator.py:186`, `:281`) | `ai_AIPackage` | stem | none (D16) |
-| loom model (`_loom_active_run.py:124`, `set_model` :99-151, today; 8.4) | `ai_AIPackage` | name, at `finalize()` | sha256 of the `path=` file if it is a regular file, else none |
-| loom script (`_loom_active_run.py:409`) | `software_File` | D9 key (8.3) | sha256 |
+| Project file (`_document_files.py`) | `software_File` | physical path (`project_relative_or_fallback`), then distribution path | sha256 |
+| Directory (`_document_files.py`) | `software_File` | directory path | none |
+| Own, dependency, phantom package (`_package_ids.py`); deployed package (`_document_deployed.py`) | `software_Package` | canonical name | none |
+| AI model in a project or wheel (`ai.py`) | `ai_AIPackage` | name, path, stem (`_ai_package.py` `_ai_model_entity_candidates`; a wheel's path is the raw archive name) | none (D16) |
+| `loom model` / `enrich` (`assemble/_model_generator.py`) | `ai_AIPackage` | stem | none (D16) |
+| loom model (`_loom_active_run.py`, `set_model`; 8.4) | `ai_AIPackage` | name, at `finalize()` | sha256 of the `path=` file if it is a regular file, else none |
+| loom script (`_loom_active_run.py`) | `software_File` | D9 key (8.3) | sha256 |
 | loom dataset package (new) | `dataset_DatasetPackage` | the caller's string | none, every dataset kind |
 | loom dataset file (new, single-file dataset) | `software_File` | D9 key (8.3) | sha256 |
 
 **Who writes the registry.** `id generate`/`id import`; the auto-harvest
-in `_sync_registry` (`assemble/_generators_shared.py:51`, tail :81-101), which excludes unhashed
+in `_sync_registry` (`assemble/_generators_shared.py`), which excludes unhashed
 `ai_AIPackage` and every `dataset_DatasetPackage` (D15); and, new, loom's
 `finalize()`, which writes only `(ai_AIPackage, name, sha256)` on a gated
 miss (D13). Loom never writes dataset, file or script entries.
 
 ## 8. Loom
 
-### 8.1 Single-file dataset (D5)
-
-`loom.add_dataset(path)` on a regular file emits:
-
-- a `software_File`: name = the D9 key (8.3), else the caller's string;
-  `software_fileKind = file`; `verifiedUsing` = its sha256; id = gated
-  lookup of `(software_File, key)`, else minted with prefix `File`;
-- a `dataset_DatasetPackage`: name = the caller's string, unchanged; id =
-  ungated lookup of `(dataset_DatasetPackage, name)`, else minted with
-  prefix `DatasetPackage`; `verifiedUsing` = its own copy of the file's
-  sha256 (a separate `Hash` object, never shared), the rule G7 uses for
-  AIPackage;
-- `DatasetPackage contains File`.
-
-The `trainedOn`/`testedOn` relationship, and every other relationship
-loom emits today, stays on the DatasetPackage. There is no
-`software_File` fallback key for the DatasetPackage (D2). One file
-content is one element per run: `add_input_dataset("x")` then
-`add_dataset("x")` share one `software_File` (a per-run cache), so a
-second lookup never raises a spurious claim collision. A rewritten file
-(new digest) is a new element.
-
-### 8.2 Directory dataset (D6)
-
-- **Output:** only the DatasetPackage, with `verifiedUsing` set to the
-  Merkle root.
-- **Walk:** `os.walk(onerror=...)`, not the `_iter_files`/`rglob` walker
-  the first draft named: `rglob` silently skips a directory it cannot
-  list, which would give a partial root. The walk prunes the shared
-  ignored-name set (`IGNORED_DIR_NAMES`, moved to a new public
-  `core/walk_rules.py`) and excludes the registry file (D7). A FIFO,
-  socket or dangling symlink is skipped through
-  `path_probe.is_regular_file` (a read would block or fail).
-- **Leaf hash:** `sha256(posix_relpath_utf8 + b"\x00" + file_digest)`,
-  where `file_digest` is the raw 32-byte SHA-256, not hex, and `relpath`
-  is relative to the dataset directory. Leaves are sorted by relpath
-  bytes (UTF-8 with `surrogateescape`, so an undecodable POSIX name still
-  hashes).
-  - A one-file directory's root is that single leaf, which differs from
-    the file's own sha256. So a directory dataset never hash-merges with a
-    single-file dataset of the same bytes (the merge hash index is keyed
-    by `(type, sha256)`, and both are `dataset_DatasetPackage`). A test
-    pins this.
-- **Root:** a new public `core.models.merkle_root(leaves)` delegating to
-  the existing `_build_merkle_tree` (its unpaired-node promotion kept: one
-  tree algorithm).
-- **Why the path is in the leaf:** wheel leaves are content-only, so
-  renaming a file would not change a wheel root. That is acceptable for a
-  wheel, but not for a dataset.
-- **`Hash.comment`** (precedent: the wheel root, `document.py:167-171`):
-  `SHA-256 Merkle root over N files (path and content) in dataset
-  directory, not a hash of a single artifact` ("1 file" when N is 1).
-- **Reads:** chunked (1 MiB), one shared reader (`sha256_digest`, which
-  `id_registry.sha256_file` also uses). Nothing is loaded whole.
-- **Ceiling: `max-dataset-hash-bytes`**, default 4 GiB (4294967296),
-  counting the total bytes hashed, for directory and single-file datasets
-  alike. A config key only: no CLI flag, so no `_matrix_plan.py` entry and
-  no INERT row. It reaches loom through `loom.Run(pitloom_config=...)`
-  (D14), is validated at use (a positive `int`; `bool` and `0` rejected)
-  by one validator generalised from `require_max_model_extract_bytes`, and
-  gets a `docs/configuration.md` row. The size is checked from `stat()`
-  first, so nothing over the limit is opened; a file that grows during the
-  read is caught by a byte budget. Over the ceiling: no hash and one
-  `WARNING:` naming the path and the limit.
-- **Empty directory:** no hash, silently. This is absent data, not an
-  error.
-- **Unreadable member or unlistable subdirectory:** the `path_probe`
-  warning (`UNREADABLE_FILE_WARNING` / `UNLISTABLE_DIR_WARNING`) and **no
-  root at all**. A root over part of the directory would be wrong.
-- **Probing:** every loom path check goes through
-  `path_probe.is_regular_file` and `os.path.isdir`, never `Path.is_file()`
-  (problem 10). A missing path gets no hash and no File; its
-  DatasetPackage is still looked up by name (section 3).
-- **Lookup:** `(dataset_DatasetPackage, name)`, ungated. A directory
-  dataset's id is pinned by name only.
-
-### 8.3 Path base for loom keys (D9)
-
-Loom keys a file (dataset file, script) by its path made relative to the
-registry's `root_dir()`, as a POSIX string (`registry_key_for_path`):
-first lexically (`normpath` of the absolute path), then via realpath. The
-lexical attempt matches `id generate`'s keying of an in-project symlink.
-This matches `id generate`'s keys whichever directory the script runs
-from.
-
-- **Outside the root:** the element name is the caller's string, there is
-  no lookup, and one `WARNING:` per path per run.
-- **No registry loaded:** the caller's string, silently (today).
-- `project_root` is stored relative to the registry file's own directory
-  (section 6). `id generate` writes it from `--project-dir`; `id import`
-  from the cwd, the base it already resolves paths against. Both only
-  when creating a registry; an existing one keeps its root. Every reader
-  resolves it against the registry file's directory, so moving the
-  project and its registry together keeps working.
-- Only loom uses it. Project, wheel and hook lookups still key by
-  `physical_path`/`distribution_path`.
-- Rejected: assuming the registry file's directory is the root. That
-  breaks for `-o build/reg.json`.
-
-### 8.4 Loom models: resolved at run exit (D3, D13)
-
-- `set_model(..., *, path=None)` and `use_model(..., *, path=None)` (on
-  `loom` and on `_ActiveRun`; keyword-only, so positional order holds)
-  only record a declaration: name, type, hyperparameters, `generated`,
-  `path` made absolute at declaration time, and the provenance events
-  captured at call time (replayed in order at exit, so annotations are
-  unchanged). `run.model` is `None` until `finalize()`.
-- `finalize()` resolves each declaration in order, then emits the
-  relationships and writes the fragment as today, then saves the registry
-  if it gained entries. A raising block never reaches `finalize()`:
-  nothing is hashed, looked up, recorded or written, so a half-written
-  model file is never hashed. The fragment is written before the
-  registry, so a failed write never leaves an entry pointing at an id no
-  fragment carries.
-- Resolving one declaration:
-  - **`path` is a regular file:** sha256 it (chunked; no ceiling, which is
-    a dataset key). Gated lookup of `(ai_AIPackage, name)`. Hit: reuse.
-    Claim rejected (declared twice in one run): the existing collision
-    WARNING and a fresh id, not recorded. Raw miss: `register(...,
-    sha256=)` when the registry has a file path and `update-id-registry`
-    is not false; otherwise today's miss WARNING (or the `no file path
-    resolved` WARNING) and a fresh id. The AIPackage gets `verifiedUsing`.
-  - **No `path`, or `path` is not a regular file at exit, or unreadable:**
-    one WARNING (only with a registry loaded, for the no-`path` case),
-    then today's ungated name lookup; no `verifiedUsing`, no registry
-    write. A sharded model directory is this fallback.
-- A model's key is its **name**, never the D9 path key; `path` only feeds
-  the hash.
-- `persist_registry` is `_sync_registry`'s tail, moved (not copied) so
-  both writers log the same `ID registry: ...` lines. To survive two loom
-  processes sharing one registry file, it re-loads the file just before
-  saving, replays only this run's new entries, and saves atomically. No
-  file locking. A lost update to the registry costs a re-mint on the next
-  run, but two loom runs that exit at the very same moment can each write
-  the same id for a different model into their fragments: the registry
-  keeps one key per id and the run that saves second logs `another run
-  saved ... first`, yet its fragment is already written. (The first draft
-  said "never a wrong id"; that holds for the registry, not for fragments.
-  Fix idea: claim ids by rebase-and-save before writing the fragment; see
-  [id-registry-followups.md](../design/id-registry-followups.md).)
-- Effect: training (`set_model(path=)`) and evaluation
-  (`use_model(path=)`) fragments share one AIPackage id with no
-  `id generate --entity`; a retrain gets a new id with one INFO.
+Moved to [id-registry-v3-loom.md](id-registry-v3-loom.md), numbering kept:
+8.1 single-file dataset (D5), 8.2 directory dataset (D6), 8.3 path base
+for loom keys (D9), 8.4 loom models resolved at run exit (D3, D13).
 
 ## 9. Registry namespace (D8)
 
 Today `IdRegistry.new` mints `doc_namespace(project, uuid4())`
-(`_registry.py:69-72`), and `id import` into an empty registry adopts the
+(`IdRegistry.new`), and `id import` into an empty registry adopts the
 imported document's namespace (unchanged).
 
 - Keep the UUID4, minted once when the registry is created. The registry

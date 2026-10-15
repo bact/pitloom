@@ -8,7 +8,7 @@ metadata: the rescan's per-file extras, the concluded licence and the
 authors.
 
 See also: :mod:`pitloom._embed_build_sbom` (the Build SBOM that calls
-these, and re-exports them under their former private names).
+these, importing them under private aliases).
 """
 
 from __future__ import annotations

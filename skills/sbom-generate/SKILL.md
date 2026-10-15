@@ -42,13 +42,11 @@ This skill is one of three (`sbom-generate`, `sbom-enrich`,
 `sbom-validate`) meant to be installed together: it hands off to the other
 two.
 
-Triggers automatically on natural-language requests (see the trigger
-phrasings above), or invoke it explicitly with `/sbom-generate [target]`
-(`/pitloom:sbom-generate [target]` when installed via the Claude Code
-plugin; the syntax depends on the client, e.g. `$sbom-generate` in Codex).
-`target` is optional -- a project directory, an sdist/wheel path, a local
-model file, or a Hugging Face model ID; omit it to default to the current
-directory.
+Triggers on natural-language requests (see the description), or explicitly
+with `/sbom-generate [target]` (`/pitloom:sbom-generate` via the Claude Code
+plugin; `$sbom-generate` in Codex). `target` is optional -- a project
+directory, an sdist/wheel path, a local model file, or a Hugging Face model
+ID; default: the current directory.
 
 See `references/examples.md` for copy-paste recipes.
 
@@ -62,11 +60,8 @@ See `references/examples.md` for copy-paste recipes.
   the project's own PEP 517 build backend, i.e. third-party build-time
   code. Mention it as an option; don't decide to use it yourself.
 - **Never create, edit or pass an ID registry the user did not name** in an
-  unasked run. When the user *asks* to pin ids, keep ids stable or create or
-  update a registry, run `loom id generate`/`loom id import` yourself
-  (default file `loom-id-registry.json` in the project root) and report the
-  exact command (see "Pinning element ids"). `sbom-enrich` never does this:
-  it hands the request to this skill.
+  unasked run. Asked to pin ids, create or update one: "Pinning element ids".
+  `sbom-enrich` never does this: it hands the request to this skill.
 - **Scan stderr after every `loom` call** (see "Check stderr").
 
 ## Requirements
@@ -114,7 +109,7 @@ merge or re-run must reproduce a base SBOM's ids), pin the installed
 one: `"pitloom==X.Y.Z"`, `X.Y.Z` being the number `loom --version` prints
 (`Pitloom X.Y.Z`).
 
-`loom` and `pitloom` are two names for the same console-script entry point.
+`loom` and `pitloom` are one console-script entry point.
 
 ## Smart Entrypoint: `loom generate`
 
@@ -163,9 +158,10 @@ default; `--no-use-lockfile` opts out. Formats, priority and effects:
 ## Pinning element ids (the Loom ID registry)
 
 Element ids are content-addressed: rerunning on unchanged source
-reproduces them with no registry. A Loom ID registry pins ids across
-runs whose inputs differ -- e.g. a fragment written today, merged into
-next week's regeneration after the source changed (see `sbom-enrich`).
+reproduces them with no registry. A Loom ID registry (format version 3, a
+JSON file) pins ids across runs whose inputs differ -- e.g. a fragment
+written today, merged into next week's regeneration after the source changed
+(see `sbom-enrich`), or a `loom.run` script's datasets and models.
 
 A registry is used **only when declared**, never searched for:
 `--id-registry FILE` (relative to the current directory), else
@@ -174,40 +170,37 @@ to that file's directory; replaces the project config), or the
 project's own `[tool.pitloom]`/`[tool:pitloom]` (relative to the
 project). Wheel, env and model-file targets, and `enrich`/`embed-wheel`
 without `--project-dir`, read no project config; an sdist's own key is
-ignored. Nothing declared: no registry, silently. Declared but missing
-or invalid: one `ERROR:`, exit 1. Generating runs also add newly minted
-ids to a declared registry; no run ever creates one.
+ignored. Nothing declared: no registry, silently. Declared but missing,
+invalid or an old version 2 file: one `ERROR:`, exit 1. Generating runs also
+add newly minted ids to a declared registry; no run ever creates one.
 
-What it pins (files, packages, AI models, loom datasets), which commands
-write to it and how to stop that, how to create one with `loom id
-generate`/`loom id import`, and what its log lines mean:
-`references/id-registry.md`. Read it before creating a registry or reporting
-a registry line as a problem.
+Commands, what it pins, which runs write to it, the `loom.run` Python SDK
+(`path=`, `pitloom_config=`) and every log line's meaning:
+`references/id-registry.md`. Read it before creating a registry or
+reporting a registry line as a problem.
 
 **When the user asks to pin ids** ("pin the ids", "keep ids stable", "create
 or update an ID registry", "run `loom id generate`/`import`"), run `loom id
-generate`/`loom id import` yourself, without asking again, and report the
-exact command and every `INFO:`/`WARNING:`/`ERROR:` it printed. The file is
-the one the user names, else the config's, else `loom-id-registry.json` in the
-project root. Steps, and what to do with a rejected version 2 file:
-`references/id-registry.md` ("When the user asks to pin ids"). An unasked run
-is different: the rule above stands.
+generate PATH... -o FILE`/`loom id import SBOM -o FILE` yourself, without
+asking again, and report the exact command and every `INFO:`/`WARNING:`/
+`ERROR:` it printed. FILE is the one the user names, else the config's, else
+`loom-id-registry.json` in the project root. A rejected version 2 file: ask
+before deleting it (its pins are lost; non-interactive: stop and report the
+`ERROR:`); steps in the reference ("When the user asks to pin ids"). An
+unasked run never creates, edits or passes a registry the user did not name.
 
-**Choose the registry before generating.** Skip this for a Hugging Face
-model and for `embed-wheel --sbom` (`--id-registry` is ignored there,
-with a `WARNING:`). Otherwise:
+**Choose the registry before generating** (not for a Hugging Face model or
+`embed-wheel --sbom`: `--id-registry` is ignored there, with a `WARNING:`):
 
-1. Always: if the applicable config declares a registry, it is used --
-   tell the user which file, and that a `project`, `wheel`, `env` or
-   `generate` run may add new ids to it (`references/id-registry.md`,
-   "Harvest"); `model`, `enrich`, `embed-wheel` and the hook only read it.
-2. None declared, and ids must stay stable across runs or a fragment
-   will be merged after the source changes:
+1. If the applicable config declares a registry, it is used -- tell the user
+   which file, and that a `project`, `wheel`, `env` or `generate` run may add
+   new ids to it; `model`, `enrich`, `embed-wheel` and the hook only read it.
+2. None declared, and ids must stay stable across runs or a fragment will be
+   merged after the source changes:
    - Interactive: ask "Pin ids with a Loom ID registry? If yes, which
-     file -- an existing one, or create `loom-id-registry.json`?"
-     Yes with a file: pass `--id-registry FILE` (create it first, per the
-     reference, if new; no file named: `loom-id-registry.json` in the
-     project root). No: generate without one.
+     file -- an existing one, or create `loom-id-registry.json`?" Yes: create
+     it first if new (per the reference), then pass `--id-registry FILE`. No:
+     generate without one.
    - Non-interactive: use none, create nothing, and report "No Loom ID
      registry used (none declared). To pin ids, run `loom id generate
      <PATH> -o loom-id-registry.json` in the project directory, then

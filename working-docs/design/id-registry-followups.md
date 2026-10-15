@@ -36,10 +36,10 @@ Left open by the wheel-identity work (#266). Reading limits and refusals:
 - **`RECORD` and an embedded SBOM are read whole** (no size cap, unlike
   `METADATA`); a zip-bomb member there still exhausts memory.
 - **Version parsing past the int-conversion limit.** `extract/lock/_common.py`
-  (about lines 276, 321, 411) parses with `Version()`; a lock-file version with
+   parses with `Version()`; a lock-file version with
   a component of over 4300 digits raises a plain `ValueError`, not
   `InvalidVersion`. The wheel readers catch `ValueError` since #266.
-  `extract/scanner_wheel.py` (about line 286) opens `ZipFile` directly:
+  `extract/scanner_wheel.py`  opens `ZipFile` directly:
   harmless, as `read_wheel` refuses a wheel first.
 
 Selection and naming rules:
@@ -229,7 +229,7 @@ Loom:
   save is refused, `WARNING: another run saved ... first`), but the fragment
   is already written, so the claim "a lost update is never a wrong id" was
   false for it (corrected in
-  [id-registry-v3.md](../implementation/id-registry-v3.md) 8.4; documented in
+  [id-registry-v3-loom.md](../implementation/id-registry-v3-loom.md) 8.4; documented in
   `docs/id-registry.md`). Fix idea: claim ids by rebase-and-save before
   writing the fragment.
 - **Two model files with the same stem** (`a/m.gguf`, `b/m.gguf`) are

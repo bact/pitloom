@@ -92,7 +92,7 @@ def replay_changes(base: Table, mine: Table, theirs: Table) -> tuple[Table, int]
     that keeps *theirs*' entry, and which *mine* does not map to that id
     too (a src-layout alias), is refused with one ``WARNING:``: another run
     saved that id first -- minted from the same table, or a known id moved
-    to another key -- and two keys never share an id (I4). A refused key
+    to another key -- and two keys never share an id. A refused key
     keeps *theirs*' entry, whose id may refuse another changed entry in
     turn, so refusal is repeated until no new key is refused.
 

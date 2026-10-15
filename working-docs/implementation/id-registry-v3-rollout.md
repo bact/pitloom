@@ -55,9 +55,9 @@ directly, so the format change stays inside `id_registry/`.
 | `id import` | - | yes | harvest over one table; `project_root` from cwd; summary line |
 | Library API (`generate_*_sbom`, `embed_wheel_sbom`, `enrich_model`) | same as the CLI | same as the CLI | `IdRegistry.new(namespace=)` |
 | loom SDK (`loom.Run`) | yes: datasets, files, script; the model at `finalize()`, gated by the `path=` sha | **yes, new:** `(ai_AIPackage, name, sha256)` on a gated miss, saved once after the fragment | section 8; `pitloom_config=` (D14); `path=` (D13) |
-| GitHub Action | via CLI | via CLI | none in `action.yml`; `docs/github-action.md:126-234` commits a registry file, so note the format bump |
+| GitHub Action | via CLI | via CLI | none in `action.yml`; `docs/github-action.md` commits a registry file, so note the format bump |
 | Skills | - | - | `sbom-generate/references/id-registry.md`; triggers for id management (commit 9) |
-| `docs/` | - | - | `docs/cli.md:335-416`; `docs/python-api.md`; `docs/configuration.md`; `docs/api.md:84-100` lists `FileEntry`/`EntityEntry` (a public API change) |
+| `docs/` | - | - | `docs/cli.md`; `docs/python-api.md`; `docs/configuration.md`; `docs/api.md` lists `FileEntry`/`EntityEntry` (a public API change) |
 | `examples/sentimentdemo-aibom` | loom + `id generate` (`scripts/run_pipeline.sh`) | commits a v2 `loom-id-registry.json` | regenerate with its own workflow (commit 8) |
 
 Implementers re-derive this table from the code on the base branch, then
@@ -65,9 +65,9 @@ check each row with a test (section 13).
 
 `tests/id_registry/test_surfaces.py` already has completeness guards to
 extend rather than duplicate: every CLI subcommand that takes
-`--id-registry` has a runner (:238); every public callable with an
-`id_registry` parameter has a runner (:262); the inert rows (:291); the
-`action.yml` inputs (:302).
+`--id-registry` has a runner; every public callable with an
+`id_registry` parameter has a runner; the inert rows; the
+`action.yml` inputs.
 
 D10 needs no per-surface code: every surface already turns the load
 `ValueError` into one message (CLI `ERROR:` and exit 1; `id` commands the
@@ -85,7 +85,7 @@ same commit.
   added N new id(s) to <path>` (D4). `updated stale entries in <path>`,
   `no file path resolved; skipping auto-update.` and `failed to save`
   stay.
-- **`id generate` / `id import` output** (`cli/id.py:248`
+- **`id generate` / `id import` output** (`cli/id.py`
   `_report_registry_written()`): stdout `PITLOOM_ID_REGISTRY_PATH=<path>`;
   the count is `INFO: ID registry: holds N file(s) and M entit(y/ies)`,
   becoming `holds N id(s)`, N = `id_count()`. Already printed today; commit
@@ -132,21 +132,20 @@ tests/`) on its own, so it can be bisected.
 2. **Exclude the declared registry from scans (D7) and fix
    `_is_eligible_file`** (approved): it matches ignored names against the
    *absolute* path's parts, so a project under `/x/build/...` is skipped
-   entirely; match the project-relative parts instead. New
-   `core/walk_rules.py` (does not exist yet; `IGNORED_DIR_NAMES`, from the
-   private `id_registry/_types.py:62` `_IGNORED_DIR_NAMES`; `same_path` with realpath on
+   entirely; match the project-relative parts instead. `core/walk_rules.py` (built: `IGNORED_DIR_NAMES`, formerly the
+   private `id_registry/_types.py` `_IGNORED_DIR_NAMES`; `same_path` with realpath on
    both sides: the CLI keeps the registry path lexical while the project
    dir is resolved, and macOS `/tmp` is `/private/tmp`). Thread
    `exclude_path` through every `get_wheel_files` caller that has a
    registry (generator, hook, `_doc_identity_of`, embed, and the embed
    discovery cache key) so the project SBOM and an enrich fragment
    compute the same Merkle root. Also: the Hatchling hook resolves the
-   registry (`plugins/hatch.py` ~:358) AFTER `get_wheel_files` (~:154), so
-   reorder; `_doc_identity_of` (`assemble/_model_generator.py:73`) needs a
+   registry (`plugins/hatch.py`) AFTER `get_wheel_files`, so
+   reorder; `_doc_identity_of` (`assemble/_model_generator.py`) needs a
    registry parameter; `EmbedFileCache.resolve`/`resolved_from`
-   (`_embed_build_sbom.py` ~:288-302) needs a registry slot; `_iter_files`
+   (`_embed_build_sbom.py`) needs a registry slot; `_iter_files`
    uses `Path.is_file()`, switch to `path_probe.is_regular_file`. Wheel
-   Merkle comment precedent: `assemble/spdx3/document.py:170`. Skip the exclusion part if P13 has merged
+   Merkle comment precedent: `assemble/spdx3/document.py`. Skip the exclusion part if P13 has merged
    on its own.
 3. **Registry v3: one typed table.** `_types`, `_registry`, new
    `_format`, `_harvest`, `_ambiguous`, `_session`: section 4 invariants,
@@ -167,7 +166,7 @@ tests/`) on its own, so it can be bisected.
    runs); D2's typed-id invariant on every surface's output; a round trip
    per section 7 row, including the src-layout alias and a hashed
    AIPackage through `id import`; manual check 14 gains a `v2` label.
-   `tests/id_registry/shared.py:51-58` builds a DatasetPackage with a
+   `tests/id_registry/shared.py` builds a DatasetPackage with a
    `#File-7` id; fix it here.
 6. **Merge by id requires the same type (D11).**
    `_fragments_unify._merge_fragment_set`; the new id avoids the base's
@@ -210,11 +209,11 @@ tests/`) on its own, so it can be bisected.
    loads this example, but it ships in this PR.
 9. **Docs, skills, CHANGELOG.**
    - Fix claims already wrong today:
-     `skills/sbom-generate/references/id-registry.md:28-31` (a dataset
+     `skills/sbom-generate/references/id-registry.md` (a dataset
      directory cannot be pinned with `id generate <dir>`; v3 pins it by
      `-e NAME:dataset_DatasetPackage`),
-     `skills/sbom-enrich/references/minimum-elements.md:131` (loom
-     datasets do have a hash), `README.md:415` ("looked up by file path
+     `skills/sbom-enrich/references/minimum-elements.md` (loom
+     datasets do have a hash), `README.md` ("looked up by file path
      and hash").
    - `docs/cli.md` (format, `project_root`, datasets, `--namespace`; the
      file is already long, add little), `docs/python-api.md` (datasets,
@@ -328,7 +327,7 @@ description is 1021/1024 chars, so id triggers need a trim-and-rewrite.
 - Loom fallback ids that change every run (problem 11): G7 #7.
 - Any v2 migration (D10).
 - Found by the scan and fixed in passing: a stale comment in
-  `tests/core/test_models.py:227` calls the distribution path the Merkle
+  `tests/core/test_models.py` calls the distribution path the Merkle
   "tree-combination input" (it is only the sort key); there is no direct
   unit test of `_build_merkle_tree` (commit 7 adds one: empty is the
   caller's job, one leaf, an odd count, determinism).

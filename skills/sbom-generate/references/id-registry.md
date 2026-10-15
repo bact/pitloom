@@ -102,6 +102,7 @@ resolve against the current directory; a `PATH` outside the project is an
 ```bash
 loom id generate <PATH...> -o loom-id-registry.json   # index files and AI models
 loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
+# more: --project-dir DIR  --namespace IRI  -e NAME[:TYPE] (repeatable); import takes none
 ```
 
 - `-o`/`--id-registry` is required unless the project config already
@@ -165,9 +166,11 @@ ERROR: ID registry file <path>: version 2, expected 3 (no migration support -- d
 Pitloom releases before registry format 3 write version 2, so a registry
 committed under one needs this; a version 3 file needs a release that ships
 the format. Relay the `ERROR:`. Deleting the file loses its pins
-(every id is minted again), so delete it and re-run only when the user
-agrees; non-interactive: report the `ERROR:` and both commands, change
-nothing.
+(every id is minted again), so ask first. If the user agrees: delete the file,
+then re-run `loom id generate <PATH> -o <REGISTRY>` (add `-e` as before),
+or `loom id import <SBOM> -o <REGISTRY>` to carry an earlier SBOM's ids
+over (same path as the deleted file). Non-interactive: stop, report the `ERROR:` and both commands, change
+nothing. Never convert the file by hand.
 
 A newly created, undeclared registry prints one of these lines -- relay it
 verbatim (the second when the project already declares a different
@@ -186,10 +189,51 @@ added or changed, pass `--id-registry <file>` on each run.
 Keep the registry file outside any directory the package build includes
 (the project root, not `src/<package>/`). One inside it is left out of the
 SBOM's file set, with one `WARNING: ID registry: <path> is inside the
-project's file set; left out of it` per run (also with `--allow-build`, and
+project's file set; left out of it` per run (`id generate` leaves it out
+silently; also with `--allow-build`, and
 for the copy a built wheel or sdist carries, read by `wheel`, `embed-wheel`
 or `project <sdist>`: matched by its path below `--project-dir`, else below
 the project root the registry stores); the SBOM then does not list it.
+
+## Python SDK (`pitloom.loom`)
+
+A script that records its own run declares the registry and, for the model,
+the file:
+
+```python
+from pitloom import loom
+
+with loom.run("fragments/train.spdx3.json", id_registry="loom-id-registry.json"):
+    loom.add_input_dataset("data/train.txt")
+    loom.set_model("my-model", path="model.bin")   # path= : hashed at exit
+    train()                                        # writes model.bin, out/pred.csv
+    loom.add_output_dataset("out/pred.csv")        # declare AFTER writing
+```
+
+- `id_registry=` takes a path (relative to the current directory) or an
+  `IdRegistry`; without it the registry comes from `pitloom_config=` (a path to
+  a config file or a `PitloomConfig`; its `id-registry`, `update-id-registry`
+  and `max-dataset-hash-bytes` are the only keys loom reads). No
+  `[tool.pitloom]` is read implicitly; a missing `pitloom_config` file is a
+  `ValueError`. With neither, no registry.
+- `set_model()`/`use_model()` take `path=`; the model resolves when the block
+  ends without an exception (nothing is written if it raises). A changed file
+  at `path` is a new model: `INFO: ... content changed ...`, a new id.
+  Without `path=`, one `WARNING: loom: model X has no path=` and a name-only
+  lookup.
+- The `INFO: ID registry: to use this registry` hint is for CLI runs; a script
+  passes `id_registry=` (or `pitloom_config=`) itself.
+- A dataset is hashed when declared, so declare an output dataset after the
+  file is written, or it has no hash and is not found.
+- To pin, run once the files exist, from the project directory:
+  `loom id generate data out/pred.csv script.py -e data/train.txt:dataset_DatasetPackage
+  -o loom-id-registry.json` (files and the script are `software_File`; the
+  dataset package needs its own `-e`, named by the exact string the script
+  passes). Until then each unpinned item logs `WARNING: loom: ... not found in
+  registry; minting a new spdxId`: expected on a first run, not an error.
+- The package pin matches the exact string passed: `../data/t.txt` from a
+  subdirectory misses it, though the file's own entry (keyed by its path from
+  the project root) still hits.
 
 ## Harvest: what writes to a registry
 

@@ -244,7 +244,7 @@ def test_harvest_never_erases_a_recorded_sha_and_import_says_so(
     """A hashed element replaces the entry's hash; an unhashed one with its
     id keeps it. An unhashed one with another id: a run's harvest leaves the
     entry as is, ``id import`` writes it with no hash; each says so in one
-    INFO (user ruling, 2026-10-15)."""
+    INFO."""
     ids = {"old": f"{_NS}#File-1", "new": f"{_NS}#File-2"}
     registry = make_registry({(FILE_TYPE, "a.py"): (ids["old"], _SHA_A)})
     assert registry.get(FILE_TYPE, "a.py") == RegistryEntry(ids["old"], _SHA_A)

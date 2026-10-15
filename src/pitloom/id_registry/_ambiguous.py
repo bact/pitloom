@@ -56,12 +56,13 @@ def _ambiguous_keys(objects: Iterable[Any]) -> frozenset[tuple[str, str]]:
     next run hand it to whichever element claims the name first, which
     is not the one harvested.
 
-    Run auto-harvest (:func:`pitloom.assemble._generators_shared._sync_registry`)
-    first leaves out the elements that never look the registry up (a
-    non-PEP 508 dependency string named like the project, a phantom named
-    like the project or a dependency), so they neither count nor get
-    written, and the one element that looks the name up is written. ``id
-    import`` has no such record and passes every element.
+    A run's auto-harvest
+    (:func:`pitloom.assemble._generators_shared._sync_registry`) first
+    leaves out the elements that never look the registry up (a non-PEP 508
+    dependency string named like the project, a phantom named like the
+    project or a dependency), so they neither count nor get written, and
+    the one element that looks the name up is written. ``id import`` has
+    no such record and passes every element.
     """
     counts = Counter(key for key in map(_element_key_of, objects) if key is not None)
     return frozenset(key for key, count in counts.items() if count > 1)

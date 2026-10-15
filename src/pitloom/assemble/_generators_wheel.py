@@ -64,8 +64,8 @@ def generate_wheel_sbom(
     defaults. The same holds for the registry: *id_registry*, else the explicit
     config's ``id-registry``; no ``loom-id-registry.json`` is searched for.
     The copy of that registry a build put in the wheel is left out, with one
-    ``WARNING:``, when its path below the project root the registry stores
-    is the member's (see :class:`~pitloom.core.walk_rules.RegistryCopy`).
+    ``WARNING:``, when its path below the project directory is the member's
+    (see :func:`~pitloom.id_registry.registry_copy` for the directory).
 
     An explicit *pitloom_config* applies in full, identity included: its
     creators, creation datetime and comment fill in when *creation_metadata*
@@ -162,7 +162,7 @@ def generate_wheel_sbom_with_metadata(
     resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
     project_metadata, project_files = read_wheel(wheel_path_obj)
     # A copy of an in-tree registry the build put in the wheel: neither a
-    # file of the SBOM nor of its Merkle root (D7).
+    # file of the SBOM nor of its Merkle root.
     project_files = without_registry_copies(
         project_files, registry_copy(resolved_registry)
     )

@@ -34,18 +34,11 @@ def registry_base_dir(target: Path) -> Path:
     resolves against, for a *target* that may be either a project
     directory or a single file (e.g. an sdist archive).
 
-    A file target has no directory of its own to resolve a relative
-    registry path against -- :func:`~pitloom.core.project.read_project`
-    resolves an sdist archive's own config keys relative to the archive
-    itself, but a registry path is not read from inside the archive, so
-    that convention doesn't apply here. Falls back to the current
-    directory instead, same as the no-``project_dir`` case.
-
-    Shared by every ``resolve_registry()`` call site that resolves a
-    *target* which might be an sdist (or, in :mod:`pitloom.embed`, any
-    single-file ``project_dir``) -- callers that already know they have a
-    directory (or already know they have none, using ``Path.cwd()``
-    directly) don't need this helper.
+    A file target has no directory to resolve a relative registry path
+    against (a registry path is not read from inside an archive), so the
+    current directory is used, as with no ``project_dir``. For every
+    ``resolve_registry()`` call site whose *target* might be an sdist (or,
+    in :mod:`pitloom.embed`, any single-file ``project_dir``).
     """
     return Path.cwd() if os.path.isfile(target) else target
 
@@ -84,7 +77,7 @@ def registry_copy(
     registry: IdRegistry | None, project_dir: Path | None = None
 ) -> RegistryCopy | None:
     """How a reader of a wheel's or sdist's members recognises a copy of
-    *registry* a build put there (D7): its path below *project_dir* when
+    *registry* a build put there: its path below *project_dir* when
     that is a directory; else below the nearest directory holding the
     registry, up to the project root the registry file stores, that is a
     project's (``pyproject.toml``, ``setup.cfg`` or ``setup.py``: a

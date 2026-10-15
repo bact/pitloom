@@ -206,7 +206,7 @@ def test_import_sbom_returns_an_ambiguous_file_path(tmp_path: Path) -> None:
     assert registry.get(FILE_TYPE, "lib/a.so") is None
 
 
-# --- headline regression: a hashed AIPackage survives `id import` ------
+# --- a hashed AIPackage survives `id import` ----------------------------
 
 
 def _hashed_model(name: str, spdx_id: str, sha256: str) -> spdx3.ai_AIPackage:
@@ -268,7 +268,7 @@ def test_cli_import_then_model_reuses_a_hashed_ai_package_id(
     assert [e["spdxId"] for e in graph if e["type"] == "ai_AIPackage"] == [model_id]
 
 
-# --- `id import` over a content-gated entry (user ruling, 2026-10-15) ---
+# --- `id import` over a content-gated entry -----------------------------
 
 
 @pytest.mark.parametrize("same_id", [False, True], ids=["other-id", "same-id"])

@@ -89,11 +89,11 @@ class SameFile:
     resolved (macOS ``/tmp`` is ``/private/tmp``). Identity also catches
     a case-insensitive file system spelling one file in two cases.
 
-    A candidate is compared by one ``stat()`` result, the caller's own when
-    it has one; only a candidate with no identity, or named as the target
-    is, pays for a ``realpath``. A missing target (a registry not created
-    yet) is no existing file: an existing candidate never matches it, and
-    two missing paths compare by ``realpath``.
+    A candidate is compared by one ``stat()`` result (the caller's own when
+    it has one); ``realpath`` is computed only when identity cannot decide:
+    either side has none, or the two names agree. A missing target (a
+    registry not created yet) is no existing file: an existing candidate
+    never matches it, and two missing paths compare by ``realpath``.
     """
 
     __slots__ = ("_identity", "_missing", "_name", "_real")
@@ -170,9 +170,9 @@ class RegistryCopy:
     spelt as the registry. Its path below *root* is taken as spelt and
     through symlinks, matching either. A part spelt in another case matches
     only where the registry's path spelt that way is the registry file (a
-    case-insensitive file system). No content check: a built archive
-    carries the registry as it was at build time, rewritten since. A
-    registry outside *root* matches nothing.
+    case-insensitive file system). No content check: the archive carries
+    the registry as it was at build time. A registry outside *root*
+    matches nothing.
     """
 
     __slots__ = ("_below", "_same", "path")

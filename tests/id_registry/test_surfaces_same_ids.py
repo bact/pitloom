@@ -12,8 +12,7 @@ Never a whole-SBOM byte comparison across surfaces -- two surfaces
 legitimately produce different documents (different namespaces, extra
 elements a project scan sees that a wheel doesn't, and vice versa); the
 registry is an *input* the generator consults per element, not a
-guarantee of identical output. See :mod:`tests.id_registry.surfaces_shared`
-and the PR A2 spec, section 6, item 3.
+guarantee of identical output. See :mod:`tests.id_registry.surfaces_shared`.
 
 See also: :mod:`tests.id_registry.test_surfaces` (declaration/failure/
 completeness, not id reuse), :mod:`tests.id_registry.test_session`

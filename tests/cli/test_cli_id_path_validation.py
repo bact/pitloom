@@ -9,11 +9,10 @@
   single ``ERROR:`` line and exit 1 -- not a raw ``relative_to()``
   traceback from :meth:`pitloom.id_registry.IdRegistry.generate`.
 * a PATH reached only through a symlink, but whose real location is
-  inside ``--project-dir``, still works (the fix that closed the
-  "`loom id generate` crashes on a symlinked path" roadmap item).
+  inside ``--project-dir``, still works.
 * an unwritable/nonexistent ``-o`` target directory is one ``ERROR:``
   line, not a raw traceback -- ``-o`` keeps its own dangling-symlink
-  handling (no ``os.path.realpath``), unaffected by the PATH-argument fix.
+  handling (no ``os.path.realpath``).
 
 See also: test_cli_id.py (the rest of `pitloom id`'s CLI tests),
 test_cli_id_registry_required.py ("no registry declared" ERROR wording).

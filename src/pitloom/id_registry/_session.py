@@ -61,13 +61,11 @@ class IdRegistrySession:
         return ``None`` (treated as a lookup miss by the caller, so it
         mints its own id instead).
 
-        Two distinct elements both hitting the same registry-supplied id
-        happens when a stale registry entry outlives the element it
-        originally named -- reusing it for both would itself create the
-        exact duplicate-spdxId bug this whole mechanism exists to
-        prevent, so only the first claimant (in whatever order the
-        caller iterates, which must itself be deterministic) gets to
-        reuse it; every later one falls back to a fresh mint.
+        Two elements hitting one registry id happens when a stale entry
+        outlives the element it named; reusing it for both would emit a
+        duplicate spdxId. Only the first claimant (in the caller's
+        iteration order, which must be deterministic) reuses it; each
+        later one mints afresh.
         """
         first_claimant = self._claimed.get(spdx_id)
         if first_claimant is not None:

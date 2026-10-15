@@ -21,16 +21,11 @@ from pitloom.extract.project import read_project
 
 log = logging.getLogger("pitloom.id_registry")
 
-#: Bare ``[tool.pitloom]``-style table name, keyed by the config file
-#: basename :func:`_project_configured_id_registry` reports
-#: (``pitloom.core.project.read_project``'s ``config_path``). Anything
-#: else (no config file at all, or a ``pyproject.toml``) defaults to the
-#: ``pyproject.toml`` table -- the common case, and the only one possible
-#: when there is no config file yet to add the key to. The single source
-#: of the pyproject.toml-vs-setup.cfg selection: every caller that needs
-#: a human-readable hint (:func:`_log_config_hint`'s INFO line, the "no
-#: registry declared" ERROR) builds it from this table name rather than
-#: re-deriving the selection itself.
+#: The config table name and its file. A ``setup.cfg`` project selects
+#: ``[tool:pitloom]``; anything else (a ``pyproject.toml``, or no config
+#: file yet) selects ``[tool.pitloom]``. Every hint
+#: (:func:`_log_config_hint`, the "no registry declared" ERROR) builds from
+#: these names instead of re-deriving the selection.
 _SETUP_CFG_TABLE = "[tool:pitloom]"
 _PYPROJECT_TABLE = "[tool.pitloom]"
 _TABLE_CONFIG_FILE = {
@@ -83,8 +78,8 @@ def _project_configured_id_registry(project_dir: Path) -> tuple[str | None, str]
 def _normalized_absolute(path: Path) -> Path:
     """``path.absolute()``, then ``os.path.normpath()`` to collapse
     lexical ``..``/``.`` segments for display -- never ``.resolve()``,
-    which would also follow a symlink (see the dangling-symlink note at
-    this function's own call sites)."""
+    which would also follow a symlink (see the dangling-symlink note in
+    :func:`_resolve_id_registry_target`)."""
     return Path(os.path.normpath(path.absolute()))
 
 

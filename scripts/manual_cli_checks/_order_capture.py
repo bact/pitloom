@@ -215,7 +215,7 @@ _GATE_DROPPED = re.compile(
 
 def gate_dropped(stderr: str) -> list[Key]:
     """The key of each ``content gate dropped`` INFO line in *stderr*, in
-    order (user ruling, 2026-10-15: `id import` says so once per key)."""
+    order (`id import` says so once per key)."""
     keys = []
     for line in stderr.splitlines():
         match = _GATE_DROPPED.match(line)

@@ -24,13 +24,13 @@ written --
   :func:`pitloom.cli.id._load_or_create_registry`: a missing target is
   created fresh) -- only "malformed" is, and it is covered by a
   dedicated test in this module.
-- "Undeclared" for them means "default to ``<project_dir>/
-  loom-id-registry.json``" (see
-  :func:`pitloom.cli._id_target._resolve_id_registry_target`), which *does* call
-  ``IdRegistry.load`` when that default file happens to exist -- the
-  opposite of "never loaded". :mod:`tests.id_registry.test_surfaces`'s
+- "Undeclared" is an ERROR for them, not "never loaded": there is no
+  implicit default file (see
+  :func:`pitloom.cli._id_target._resolve_id_registry_target` and
+  :mod:`tests.cli.test_cli_id_registry_required`).
+  :mod:`tests.id_registry.test_surfaces`'s
   ``test_id_generate_creates_missing_declared_registry_and_logs_hint``
-  covers their own resolution default.
+  covers the create-if-missing case.
 
 See also: :mod:`tests.id_registry.surfaces_shared` (``SURFACES``,
 ``SUPPORTED_MODES``, ``Declare``), :mod:`tests.id_registry.test_surfaces`

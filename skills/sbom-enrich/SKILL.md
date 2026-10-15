@@ -425,7 +425,10 @@ dangling-reference `WARNING:` plus `ERROR:` above. After an ambiguous-name
 pin (`sbom-generate`'s `references/id-registry.md`, on GitHub:
 <https://github.com/bact/pitloom/blob/main/skills/sbom-generate/references/id-registry.md>),
 a `WARNING: ID registry: ... is registered for both` line on every run is
-expected, not a stale entry.
+expected, not a stale entry. `ERROR: ID registry file ...: version 2, expected 3`
+means the declared registry is an old format: never delete or rewrite it from
+this skill; hand the user to `sbom-generate` ("Pinning element ids"), or when
+non-interactive stop and report the `ERROR:`.
 
 ## See also
 

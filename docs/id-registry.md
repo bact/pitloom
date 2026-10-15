@@ -235,18 +235,21 @@ Registry writes go through one routine: it re-reads the file, re-applies only
 the run's own changes and replaces the file atomically, so runs sharing a
 registry keep each other's entries. `id generate`, `id import`, a harvest and
 `loom.Run` all use it, and an unchanged file is not rewritten. A writable
-registry in a read-only directory is written in place, which is not atomic. A `loom.Run` given an `IdRegistry` object that was
-never loaded, for a file that exists, merges into that file and never
-overwrites it. There is no lock, and a read-only
-registry file is never overwritten, on any platform (the save fails with a
-`WARNING: ID registry: failed to save <path>: <reason>` (the registry's
-path, never a temporary file's); the run's output is
-already written; `loom id generate` and `loom id import` print the same line
-as their one `ERROR:` and exit 1). Two `loom.Run` blocks that exit at the very same moment against one
-registry can each write the same id for a different model into their
-fragments: the registry keeps one key per id, and the run that saves second
-logs `another run saved ... first`, but its fragment is already written.
-Run scripts that share a registry one after another, not at once.
+registry in a read-only directory is written in place, which is not atomic. A
+`loom.Run` given an `IdRegistry` object that was never loaded, for a file that
+exists, merges into that file and never overwrites it. There is no lock.
+
+A read-only registry file is never overwritten, on any platform. A failed save
+logs `WARNING: ID registry: failed to save <path>: <reason>` (the registry's
+path, never a temporary file's) and the run's output is already written;
+`loom id generate` and `loom id import` print the same line as their one
+`ERROR:` and exit 1.
+
+Two `loom.Run` blocks that exit at the very same moment against one registry
+can each write the same id for a different model into their fragments: the
+registry keeps one key per id, and the run that saves second logs `another run
+saved ... first`, but its fragment is already written. Run scripts that share
+a registry one after another, not at once.
 
 ## From Python
 

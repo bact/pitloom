@@ -6,9 +6,8 @@
 """SBOM-element harvest helpers for :class:`~pitloom.id_registry.IdRegistry`.
 
 See also: :mod:`pitloom.id_registry._types` for the registry dataclasses,
-:mod:`pitloom.id_registry._registry` for ``IdRegistry`` itself (imports
-from here -- see the ``TYPE_CHECKING``-only import below for how the
-resulting cycle is avoided).
+:mod:`pitloom.id_registry._registry` for ``IdRegistry`` itself (it imports
+this module, so the reverse import is ``TYPE_CHECKING``-only).
 """
 
 from __future__ import annotations
@@ -55,18 +54,11 @@ def _sorted_by_spdx_id(object_set: spdx3.SHACLObjectSet) -> list[Any]:
     """Return *object_set*'s objects sorted by ``spdxId`` for deterministic
     iteration (``SHACLObjectSet.objects`` is an unordered set).
 
-    Not canonical for SBOM output: this order never feeds hashed or
-    serialized SBOM content -- unlike
-    :func:`pitloom.assemble.spdx3._fragments_unify._canonical_merge_key`,
-    whose order does determine SBOM output content. It is still
-    load-bearing for :class:`~pitloom.id_registry.IdRegistry` bookkeeping,
-    though: when an imported SBOM carries more than one ``SpdxDocument``
-    element, :meth:`~pitloom.id_registry.IdRegistry.import_sbom` takes the
-    first one in this order as ``self.namespace`` (see its loop over
-    ``sorted_objects``), and that namespace is itself persisted by
-    :meth:`~pitloom.id_registry.IdRegistry.save`. Changing this key is
-    safe for the common single-document case, but can change which
-    namespace gets picked -- and persisted -- for a multi-document input.
+    Never feeds SBOM output, but it is load-bearing for the registry: an
+    imported SBOM with several ``SpdxDocument`` elements has the first in
+    this order adopted as the namespace
+    (:meth:`~pitloom.id_registry.IdRegistry.import_sbom`), which is then
+    persisted. Changing the key can change that namespace.
     """
     return sorted(object_set.objects, key=lambda o: getattr(o, "spdxId", None) or "")
 
@@ -90,14 +82,11 @@ def _is_files_path_alias(path_a: str, path_b: str) -> bool:
 @dataclass
 class _SpdxIdIndex:
     """``spdx_id -> keys`` reverse index for a registry's ``elements``
-    table, scoped to one
-    :meth:`~pitloom.id_registry.IdRegistry._harvest_sorted` pass and kept
-    in sync as entries are added/removed during it.
+    table, built per :func:`_harvest_elements` pass and kept in sync as
+    entries are added or removed during it.
 
-    :func:`_release_stale_keys_for_id` uses this to find every OTHER key
-    already sharing a given id in O(keys sharing that id), instead of
-    scanning the whole table (and computing :func:`_is_files_path_alias`
-    against every candidate) on every harvested element.
+    :func:`_release_stale_keys_for_id` uses it to find every OTHER key
+    sharing an id without scanning the whole table per harvested element.
     """
 
     keys: dict[str, set[tuple[str, str]]] = field(default_factory=dict)
@@ -156,21 +145,17 @@ def _release_stale_keys_for_id(
     """Enforce one key per id before *key* claims *spdx_id*: drop every
     OTHER key that already holds this exact id.
 
-    Two keys sharing one id is never legitimate for two *different*
-    elements: a lookup by either would hand back the same spdxId for what
-    the caller treats as two elements, so a later document that looks up
-    both would emit one duplicate-id element instead of two. A stale key
-    holding this id is evidence of an earlier harvest picking one winner
-    among several elements that shared an id; dropping it here stops that
-    duplicate from becoming permanent.
+    Two keys sharing one id would make a later document emit one
+    duplicate-id element for what are two elements; a stale holder is the
+    leftover of an earlier harvest that picked one winner, and dropping it
+    stops that from becoming permanent.
 
     The one exception is the src-layout alias (:func:`_is_alias`): the
     physical and the distribution path of one file, same type and same
     content (see ``pitloom.core.project.project_relative_or_fallback``).
     Same content under unrelated paths (two empty ``__init__.py`` files)
     is not that alias and is dropped. *index* is *registry*'s current
-    reverse index (:class:`_SpdxIdIndex`), so only keys already sharing
-    *spdx_id* are checked.
+    reverse index.
     """
     for other in list(index.keys.get(spdx_id, ())):
         if other == key:
@@ -187,8 +172,8 @@ def _harvest_elements(
     untouched. *imported*: ``id import`` (see :func:`_import_sbom_element`),
     else a run's auto-harvest.
 
-    Returns the skipped (ambiguous) keys, logged in one DEBUG record.
-    Run auto-harvest passes no element that never looked the registry up
+    Returns the skipped (ambiguous) keys, logged in one DEBUG record. A
+    run's auto-harvest passes no element that never looked the registry up
     (see :func:`~pitloom.id_registry._ambiguous._ambiguous_keys`).
     """
     objects = list(sorted_objects)

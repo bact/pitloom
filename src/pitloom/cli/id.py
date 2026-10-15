@@ -64,7 +64,7 @@ def _load_or_create_registry(
     only for a new registry: an existing one keeps its own).
 
     Raises ``ValueError`` (from :meth:`~pitloom.id_registry.IdRegistry.load`)
-    when *registry_path* exists but doesn't load -- never returns ``None``.
+    when *registry_path* exists but doesn't load.
     """
     if not os.path.lexists(registry_path):
         return IdRegistry.new(
@@ -132,19 +132,14 @@ def _resolve_id_generate_path(
     *project_dir* (already ``.resolve()``d by the caller).
 
     Tries the lexical (unresolved) form first, against both
-    *lexical_project_dir* (the ``--project-dir`` value as given, only
-    made absolute -- see :func:`_normalized_absolute`) and *project_dir*
-    itself -- so an in-project symlink that points outside the project
-    (e.g. ``proj/models -> ../bigdisk/models``) still resolves under the
-    project, the same as :func:`_default_id_generate_paths`'s own
-    existence-only check. Falls back to ``os.path.realpath()`` relative
-    to *project_dir* for a PATH reached only through a symlink from
-    *outside* the project (e.g. a symlinked source directory). Returns
-    ``None`` when neither form lands inside *project_dir*.
-
-    ``..`` is collapsed lexically (via :func:`_normalized_absolute`'s
-    ``os.path.normpath()``) before any symlink is followed, for both the
-    lexical and the ``os.path.realpath()`` forms.
+    *lexical_project_dir* (the ``--project-dir`` value as given, only made
+    absolute) and *project_dir*, so an in-project symlink that points
+    outside the project (``proj/models -> ../bigdisk/models``) still keys
+    under the project. Falls back to ``os.path.realpath()`` for a PATH
+    reached only through a symlink from outside the project. Returns
+    ``None`` when neither form lands inside *project_dir*. ``..`` is
+    collapsed lexically (:func:`_normalized_absolute`) before any symlink
+    is followed.
     """
     lexical = _normalized_absolute(path)
     for base in (lexical_project_dir, project_dir):
@@ -186,22 +181,13 @@ def _generate_paths(args: argparse.Namespace, project_dir: Path) -> list[Path]:
     """The `id generate` PATHs, each rooted at *project_dir*; ``ValueError``
     for one outside it, or when there is none to index.
 
-    A relative PATH argument resolves against the current directory,
-    like every other command -- absolutise before generate() ever sees
-    it, so IdRegistry._iter_files()'s own "relative -> under
-    project_root" fallback (meant for a project_dir-relative registry
-    key, not a CLI argument) never applies here. The implicit default
-    paths stay under --project-dir, already absolute.
-
-    _resolve_id_generate_path() tries the lexical (unresolved) path
-    first -- so an in-project symlink stays keyed by its lexical
-    location, matching _default_id_generate_paths()'s own
-    existence-only check -- and only falls back to os.path.realpath()
-    for a PATH reached only through a symlink from outside the
-    project. Either way the stored path is rooted at project_dir
-    (already .resolve()'d), so _registry.py's own
-    `file_path.relative_to(project_root)` sees consistent, comparable
-    trees.
+    A relative PATH resolves against the current directory, like every
+    other command, and is made absolute before ``IdRegistry.generate()``
+    sees it, so ``_iter_files()``'s "relative -> under project_root"
+    fallback never applies. The implicit default paths stay under
+    ``--project-dir``. Every returned path is rooted at the resolved
+    *project_dir*, so ``generate()``'s ``relative_to(project_root)``
+    always succeeds.
     """
     if args.paths:
         lexical_project_dir = _normalized_absolute(args.project_dir or Path.cwd())

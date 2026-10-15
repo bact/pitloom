@@ -201,7 +201,7 @@ def generate_project_sbom(
         if target_path.is_file():
             # Warned above, before metadata resolution -- nothing left to
             # warn about here. An sdist's copy of an in-tree registry is
-            # left out as discovery leaves out the file (D7).
+            # left out as discovery leaves out the file.
             merkle_root = None
             project_files = without_registry_copies(
                 project_metadata.files,

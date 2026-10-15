@@ -368,7 +368,7 @@ def _build_sbom_from_project_and_wheel(
         # extensions, auditwheel-repaired shared libraries) that
         # read_wheel() found in the actual wheel but that a source-tree
         # rescan can't see.
-        # An in-tree registry's copy in the wheel is no file of it (D7).
+        # An in-tree registry's copy in the wheel is no file of it.
         merged_files = _merge_file_extras(
             without_registry_copies(
                 wheel_metadata.files,

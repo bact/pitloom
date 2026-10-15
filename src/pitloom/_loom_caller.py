@@ -34,7 +34,7 @@ log = logging.getLogger("pitloom.loom")
 
 #: loom is a standalone SDK invoked from ad hoc scripts/notebooks, not
 #: through a pyproject.toml-based [tool.pitloom.provenance] config -- so
-#: provenance is always recorded both ways (Annotation + legacy comment)
+#: provenance is always recorded both ways (Annotation + comment)
 #: rather than threading a format setting through the whole SDK surface.
 LOOM_PROVENANCE_CONFIG = ProvenanceConfig(format="both")
 

@@ -15,8 +15,7 @@ against a small demo project. A CLI-backed runner returns the process
 exit code (an ``int``); every other runner returns ``None`` on success
 and lets its natural failure mode (``ValueError``, an ``ERROR:``/log
 record) propagate -- the registry is an *input*, so callers compare
-per-surface behaviour, never whole SBOM bytes across surfaces (see the
-PR A2 spec, section 6).
+per-surface behaviour, never whole SBOM bytes across surfaces.
 
 ``demo/__init__.py`` is written with the exact bytes
 :func:`tests.assemble.conftest._make_dummy_wheel` bakes into its own

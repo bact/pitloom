@@ -13,9 +13,7 @@ directory, an explicit config file's own directory, and cwd itself), so a
 surface resolving a relative path against the *wrong* base is caught
 rather than accidentally passing because two candidate bases coincide.
 
-Base directory per declaration route (verified against the resolving
-code, not just its docstrings -- see ``CLAUDE.md``'s "A docstring or
-comment describing 'how surface X does Y' is a claim, not a fact."):
+Base directory per declaration route:
 
 - ``--id-registry``/``id_registry=`` (a flag/kwarg): the *generic* CLI
   cascade (``pitloom.cli.options_config.run_options``) makes a relative

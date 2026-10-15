@@ -7,8 +7,7 @@
 another run saved meanwhile. A registry that cannot be saved is one
 ``ID registry: failed to save <path>: <reason>`` line, an ``ERROR:`` (exit
 1) for ``id generate``/``id import``, whose output is the registry, a
-``WARNING:`` (exit 0) for a run's auto-harvest; the file is left as it was
-(user ruling, 2026-10-15).
+``WARNING:`` (exit 0) for a run's auto-harvest; the file is left as it was.
 
 See also: tests/id_registry/test_persist_registry.py (the ``WARNING:``
 variant in-process), test_cli_id_namespace_root.py (a root that cannot be

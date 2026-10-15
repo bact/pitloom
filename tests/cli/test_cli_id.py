@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for Pitloom CLI main entry point behaviour."""
+"""Tests for `pitloom id generate`/`id import` through the CLI entry point."""
 
 from __future__ import annotations
 

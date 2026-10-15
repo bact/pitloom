@@ -5,8 +5,8 @@
 
 """Lowest-level shared pieces for :mod:`tests.id_registry.surfaces_shared`
 and :mod:`tests.id_registry.surfaces_cli` -- split into its own module so
-neither of those two needs to import the other (an import cycle: each
-needs names the other module used to define). Nothing here imports either
+neither of those two needs to import the other (each needs names
+the other defines, an import cycle). Nothing here imports either
 of them.
 
 See also: :mod:`tests.id_registry.surfaces_shared` (the combined

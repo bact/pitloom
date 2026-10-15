@@ -130,9 +130,9 @@ class IdRegistry:
         """Load a registry from *path*.
 
         Every failure raises one ``ValueError`` via
-        :func:`~pitloom.id_registry._types.registry_file_error` -- never
-        returns ``None``. "Maybe there's a registry" is resolved upstream,
-        by :func:`~pitloom.id_registry.resolve.resolve_registry`.
+        :func:`~pitloom.id_registry._types.registry_file_error`; it never
+        returns ``None``. Whether a registry exists at all is decided
+        upstream, by :func:`~pitloom.id_registry.resolve.resolve_registry`.
         """
         path = Path(path)
         contents = read_registry_file(path)
@@ -284,7 +284,7 @@ class IdRegistry:
     def _mint_id(self, prefix: str) -> str:
         """Mint the next ``#<prefix>-<n>`` id in this registry's namespace:
         one above the prefix's counter and every held id, never an id issued
-        before (I8). Raises ``ValueError`` for an empty *prefix*, and past
+        before. Raises ``ValueError`` for an empty *prefix*, and past
         :data:`~pitloom.id_registry._counters.MAX_ID_NUMBER`.
 
         *prefix* is raw: the library's :meth:`register` takes any compact
@@ -340,9 +340,9 @@ class IdRegistry:
         an ``ai_AIPackage`` with the file's hash, so a retrained model (other
         bytes) gets a new id. A stem shared by several model files is
         registered with no hash (:meth:`register` given none): no one file
-        stands for it, and a hash gate would re-mint on every run. An
-        existing entry is left as is, a recorded hash included (D12), so a
-        fresh registry and one with history can differ for that stem.
+        stands for it, and a hash gate would re-mint on every run. Its
+        existing entry is left as is, a recorded hash included, so a fresh
+        registry and one with history can differ for that stem.
         """
         # pylint: disable=import-outside-toplevel,cyclic-import
         from pitloom.extract.ai_model import AiModelFormat, detect_ai_model_format
