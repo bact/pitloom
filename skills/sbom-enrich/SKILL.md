@@ -214,9 +214,9 @@ Steps:
      Any other `...; metadata not read` -- a fixed bound. (`... identity
      unknown` is the wheel's own name/version, not a model: see
      `sbom-generate`.) Fields the file
-     itself would give (hyperparameters, inputs, outputs) are better read
-     than inferred: tell the user the cause before inferring them from
-     prose.
+     itself would give (hyperparameters, inputs, outputs, an author, a
+     parameter count) are better read than inferred: tell the user the
+     cause before inferring them from prose.
    - A name ending `...~<hex>`, a CRFsuite/fastText model with
      `num_labels` but no `labels` or description, or `\uXXXX` in a name or
      description is a Pitloom cap or escape, not a gap to fill from prose:

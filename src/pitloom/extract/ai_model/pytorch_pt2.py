@@ -25,6 +25,10 @@ from pitloom.core.ai_metadata import (
     source_element_text,
     source_metadata,
 )
+from pitloom.core.model_originators import (
+    ORIGINATORS_PROVENANCE_KEY,
+    originator_names,
+)
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model.archive_member import (
     open_model_zip,
@@ -474,6 +478,10 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
             raw,
         ) = _read_pt2_zip(zf, source)
 
+    originators = originator_names(properties.get("author"))
+    if originators:
+        provenance[ORIGINATORS_PROVENANCE_KEY] = provenance["properties.author"]
+
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
             file_name=model_path.name,
@@ -487,6 +495,7 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
         license=license_expr,
         properties=properties,
         **raw,
+        originators=originators,
         provenance=provenance,
         inputs=inputs,
         outputs=outputs,

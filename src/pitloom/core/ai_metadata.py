@@ -360,6 +360,11 @@ class AiModelMetadata:
     description: str | None = None
     version: str | None = None
     license: str | None = None  # licence as read: SPDX expression, name or URL
+    # Producer names as read, source order; maps to SPDX 3: originatedBy
+    originators: list[str] = field(default_factory=list)
+    # Who ships the model as read (a hub repository owner); maps to SPDX 3:
+    # suppliedBy. None for every model file format
+    supplier: str | None = None
 
     # External identifiers and references (DOI, arXiv, repository / model-card URL)
     # Maps to SPDX 3: externalIdentifier / externalRef
@@ -385,6 +390,9 @@ class AiModelMetadata:
     # Quantization level (e.g. "Q4_K_M", "int8", "fp16")
     # Maps to SPDX 3: ai_hyperparameter as key="quantization"
     quantization: str | None = None
+    # Total tensor elements, from the file or the hub (None: not known)
+    # Maps to SPDX 3: ai_hyperparameter as key="parameters"
+    parameter_count: int | None = None
 
     # SPDX AI profile: hyperparameter -- model configuration values
     hyperparameters: dict[str, Any] = field(default_factory=dict)

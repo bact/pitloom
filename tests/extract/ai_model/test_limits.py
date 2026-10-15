@@ -23,6 +23,9 @@ from pitloom.core.ai_metadata import (
     AiModelFormatInfo,
     AiModelMetadata,
 )
+from pitloom.core.model_originators import ORIGINATORS_PROVENANCE_KEY as ORIGINATORS_KEY
+from pitloom.core.model_originators import SUPPLIER_PROVENANCE_KEY as SUPPLIER_KEY
+from pitloom.core.model_parameters import PARAMETER_COUNT_PROVENANCE_KEY
 from pitloom.extract.ai_model.formats import Limits
 from pitloom.extract.ai_model.limits import (
     MAX_MODEL_ENTRIES,
@@ -100,6 +103,41 @@ def test_provenance_follows_its_own_field_and_dotted_entry_names() -> None:
         "n",
     )
     assert len(meta.provenance) == MAX_MODEL_ENTRIES + 2
+
+
+def test_originators_are_cut_like_inputs_and_outputs() -> None:
+    meta = AiModelMetadata(
+        originators=[f"o{i}" for i in range(MAX_MODEL_ENTRIES + 5)],
+        inputs=[{}] * (MAX_MODEL_ENTRIES + 1),
+    )
+    assert cap_entries(meta) == ["inputs", "originators"]
+    assert meta.originators == [f"o{i}" for i in range(MAX_MODEL_ENTRIES)]
+    assert cap_entries(meta) == []  # now within the cap
+
+
+def test_count_originator_and_supplier_provenance_survive_every_cut() -> None:
+    """Their keys name no entry of a cut map, so no cut drops them: more
+    hyperparameters and originators than the cap, with a count and a
+    supplier (a scalar, never cut)."""
+    supplier = "s" * (MAX_MODEL_ENTRIES + 5)
+    meta = AiModelMetadata(
+        parameter_count=7,
+        supplier=supplier,
+        originators=[f"o{i}" for i in range(MAX_MODEL_ENTRIES + 1)],
+        hyperparameters={f"k{i}": i for i in range(MAX_MODEL_ENTRIES + 1)},
+    )
+    meta.provenance = {f"hyperparameters.{key}": "p" for key in meta.hyperparameters}
+    meta.provenance |= {
+        PARAMETER_COUNT_PROVENANCE_KEY: "n",
+        ORIGINATORS_KEY: "o",
+        SUPPLIER_KEY: "s",
+    }
+    assert cap_entries(meta) == ["hyperparameters", "originators"]
+    assert meta.supplier == supplier
+    assert meta.provenance[PARAMETER_COUNT_PROVENANCE_KEY] == "n"
+    assert meta.provenance[ORIGINATORS_KEY] == "o"
+    assert meta.provenance[SUPPLIER_KEY] == "s"
+    assert f"hyperparameters.k{MAX_MODEL_ENTRIES}" not in meta.provenance
 
 
 _LABEL_BYTES = Limits().max_label_bytes

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._ai_originators import add_model_originators
 from pitloom.assemble.spdx3._licensing_profiles import apply_licensing_profiles
 from pitloom.assemble.spdx3.ai import (
     _add_base_model_lineage,
@@ -257,6 +258,9 @@ def build_model(
         exporter=exporter,
     )
     related = _add_base_model_lineage(ai_pkg, model, lineage_ctx)
+    related += add_model_originators(
+        ai_pkg, model, (spdx_ci, doc_name, doc_uuid), exporter
+    )
     emit_provenance(
         subject=ai_pkg,
         provenance=model.resolve_name()[1],

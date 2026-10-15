@@ -36,6 +36,8 @@ __all__ = [
     "DATASET_CREATOR",
     "DATASET_RELATIONSHIP",
     "LICENSE",
+    "MODEL_ORIGINATOR",
+    "MODEL_SUPPLIER",
     "escape_element_display_text",
 ]
 
@@ -46,6 +48,8 @@ DATASET = "dataset"
 DATASET_CREATOR = "dataset creator"
 DATASET_RELATIONSHIP = "dataset relationship"
 LICENSE = "license"
+MODEL_ORIGINATOR = "model originator"
+MODEL_SUPPLIER = "model supplier"
 
 _Escape = Callable[[str], str]
 _text = escape_display_controls

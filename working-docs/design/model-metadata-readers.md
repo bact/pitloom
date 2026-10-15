@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -107,6 +107,21 @@ specification. That is why parity against the libraries, the hostile corpus
 and fuzzing (below) are part of each reader, and why HDF5 stays the hard
 case.
 
+## Parameter count
+
+Since [g7-model-producer-parameter-count.md](../implementation/g7-model-producer-parameter-count.md)
+(G7 #6) the library readers feed every tensor's dimensions to
+`tensor_element_sum` (`pitloom.core.model_parameters`): GGUF `tensor_infos`,
+Safetensors header shapes, ONNX `graph.initializer` and
+`graph.sparse_initializer` (and subgraphs).
+A replacement reader must supply the same shapes, so the count is
+unchanged by the switch: the parity test pins it on every fixture
+(GGUF 292800 and 844288, Safetensors 174535 / 80074 / 173968 / 74142 /
+216632, ONNX 4890637 / 404256 / 5417 / 189347 / 1235498) and on the
+hostile shapes (negative, over 10**15, wrapping), and `originators` the same
+way (ONNX `model_author`, GGUF `general.author`/`general.organization`,
+Safetensors `__metadata__` key `modelspec.author`).
+
 ## Per-format plan
 
 In rough order of size (smallest first, so the harness and conventions
@@ -115,7 +130,8 @@ settle on the easy ones):
 1. **Safetensors.** 8-byte little-endian length (already capped at
    16 MiB), then one bounded read and `json.loads` of the header. Emit
    `__metadata__` and the tensor names, the names cut by the entry cap as
-   today.
+   today, and every tensor's `shape` for the parameter count (see "Parameter
+   count" above); the library's offset checks must be re-done.
 2. **PyTorch `.pt`/`.pth`.** Reuse the opcode walker that
    `formats/pickle_walk.py` already provides over the bounded `data.pkl` (or
    the raw legacy pickle); add the `GLOBAL`/`STACK_GLOBAL` argument values
@@ -130,14 +146,15 @@ settle on the easy ones):
    `pickletools.opcodes`, never converts decimal arguments and refuses a
    number over 4300 digits; see
    [ai-model-scan-bounds.md](../implementation/ai-model-scan-bounds.md).
-3. **GGUF.** The `_gguf_bounds.py` walker already parses the header
-   structure; extend it to return key/value values, skip large arrays by
-   seeking once the emitted value is known, and never read tensor infos
-   beyond counting them. This removes `GGUFReader` and most of the
-   combined budget. Parity: an array field is recorded as `<key>.length`
-   only (fixed; it was the array's last element), and the parity test pins
-   that. Later option, out of scope: short string or number arrays as values
-   (`general.tags`, `general.languages`, `clip.vision.image_mean`, per-layer
+3. **GGUF.** The `_gguf_bounds.py` walker already parses the header structure;
+   extend it to return key/value values, skip large arrays by seeking once the
+   emitted value is known, and read the dimensions of every tensor info (the
+   parameter count needs them; see "Parameter count" above) but not their types
+   or offsets. This removes `GGUFReader` and most of the combined budget.
+   Parity: an array field is recorded as `<key>.length` only (fixed; it was the
+   array's last element), and the parity test pins that. Later option, out of
+   scope: short string or number arrays as values (`general.tags`,
+   `general.languages`, `clip.vision.image_mean`, per-layer
    `head_count`/`feed_forward_length`, `rope.dimension_sections`) under an
    element and byte cap, if G7 needs them.
 4. **fastText (`.bin`, `.ftz`).** Magic and version, then the fixed
@@ -150,9 +167,11 @@ settle on the easy ones):
    type: read `ir_version`, `producer_*`, `domain`, `model_version`,
    `doc_string`, `opset_import` and `metadata_props`; inside `graph`,
    read `name`, `input` and `output` (`ValueInfoProto` with its
-   `TypeProto` shape) and skip `node`, `initializer` and every other field
-   by length. Needs a minimal varint/length-delimited decoder, not the
-   protobuf runtime.
+   `TypeProto` shape) and skip `node` and every other field by length,
+   except the `dims` of `initializer`, of `sparse_initializer` and of the
+   graphs nested in a node's attributes (`If`, `Loop`, `Scan`), which the
+   parameter count sums. Needs a minimal varint/length-delimited decoder,
+   not the protobuf runtime.
 6. **HDF5 (optional).** The four root attributes need the superblock, the
    root group's object header and its attribute messages, possibly a
    dense-attribute B-tree/heap. This is the largest reader; see open

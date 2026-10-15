@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-10
-Last-Modified: 2026-10-10
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -87,7 +87,10 @@ steward regime for legal persons), personal data in an SBOM (a `Person` with an
 e-mail) is processed under GDPR where a corporate contact is not, and
 sanction/registry screening needs organisations typed as organisations. A
 commit author at a lab is not the supplier; `originatedBy` vs `suppliedBy`
-must not be collapsed. These are the reasons to prefer `Agent` over a wrong
+must not be collapsed (the one deliberate exception: a Hugging Face model's
+repository owner is both, because the repository is the distribution source;
+see [g7-model-producer-parameter-count.md](../implementation/g7-model-producer-parameter-count.md)).
+These are the reasons to prefer `Agent` over a wrong
 guess. Legal readings need review before they reach user docs.
 
 ## Constraints for any NLP step

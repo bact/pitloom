@@ -427,6 +427,10 @@ complete but isn't. Per-case detail: `references/known-limitations.md`.
   (exit 1) instead.
   Never raise the ceiling or add `--trust-wheel-model` on your own; tell the
   user. Caps: <https://bact.github.io/pitloom/ai-model-scan-limits/>.
+- **Model producer, parameter count:** `originatedBy` (a generic `Agent`;
+  `suppliedBy` too for a Hub model: the repository owner) and an
+  `ai_hyperparameter` `parameters` entry come from some formats only;
+  absence is no failure. `references/known-limitations.md`.
 - **Name ends `...~<hex>`, labels missing, `\u202e` in text:** caps on
   model text, one `WARNING: FORMAT=<fmt> FILE=<path>:` each: `larger than
   the 1024-character name cap; model name cut`; `larger than the 4096-byte

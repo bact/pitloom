@@ -54,6 +54,7 @@ def _safetensors_sbom(tmp_path: Path, metadata: dict[str, str]) -> str:
     ctx.__exit__ = MagicMock(return_value=False)
     ctx.metadata.return_value = metadata
     ctx.keys.return_value = ["w"]
+    ctx.get_slice.return_value.get_shape.return_value = [1]
     module = MagicMock()
     module.safe_open.return_value = ctx
     with patch.dict("sys.modules", {"safetensors": module}):

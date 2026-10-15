@@ -266,6 +266,23 @@ def package(graph: Iterable[dict[str, Any]], name: str) -> dict[str, Any]:
     raise CheckFailed(f"no software_Package named {name!r}")
 
 
+def ai_packages_by_name(graph: Iterable[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """The ``ai_AIPackage`` elements by name, ids aside: ``spdxId`` dropped
+    and each ``originatedBy`` id replaced by its Agent's name (an id carries
+    the document's namespace, which differs by route)."""
+    elements = list(graph)
+    names = {e["spdxId"]: e.get("name") for e in elements if "spdxId" in e}
+    found: dict[str, dict[str, Any]] = {}
+    for element in elements:
+        if element.get("type") != "ai_AIPackage":
+            continue
+        entry = {k: v for k, v in element.items() if k != "spdxId"}
+        if "originatedBy" in entry:
+            entry["originatedBy"] = [names.get(i, i) for i in entry["originatedBy"]]
+        found[element["name"]] = entry
+    return found
+
+
 def file_names(graph: Iterable[dict[str, Any]]) -> list[str]:
     """Sorted ``software_File`` names."""
     return sorted(

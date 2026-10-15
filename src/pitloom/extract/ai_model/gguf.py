@@ -19,12 +19,17 @@ from pitloom.core.ai_metadata import (
     source_metadata,
     value_text,
 )
+from pitloom.core.model_originators import (
+    ORIGINATORS_PROVENANCE_KEY,
+    originator_names,
+)
 from pitloom.core.scalar_text import scalar_text
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
 from pitloom.extract.ai_model._gguf_bounds import check_gguf_header
+from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
 from pitloom.logging_config import loggable
 
@@ -37,6 +42,9 @@ _GGUF_ARCH_KEY = "general.architecture"
 _GGUF_VERSION_KEY = "general.version"
 _GGUF_FILE_TYPE_KEY = "general.file_type"
 _GGUF_LICENSE_KEY = "general.license"
+# Producer names, in the order they are read
+_GGUF_ORIGINATOR_KEYS = ("general.author", "general.organization")
+_GGUF_SPLIT_COUNT_KEY = "split.count"
 # The reader's own pseudo-field for the header version, read in the file's
 # byte order
 _GGUF_FORMAT_VERSION_KEY = "GGUF.version"
@@ -287,6 +295,34 @@ def _read_gguf_license(
     return license_expr
 
 
+def _originators(
+    fields: dict[str, Any], source: str, provenance: dict[str, str]
+) -> list[str]:
+    """The producer names of ``general.author`` then ``general.organization``,
+    each one name (not split); a value that is no string stays in
+    ``properties`` only."""
+    used = [k for k in _GGUF_ORIGINATOR_KEYS if _stated_text(fields.get(k))]
+    names = originator_names(*(fields.get(k) for k in used))
+    if names:
+        provenance[ORIGINATORS_PROVENANCE_KEY] = f"{source} | Field: {', '.join(used)}"
+    return names
+
+
+def _parameter_count(
+    shapes: list[list[int]],
+    fields: dict[str, Any],
+    source: str,
+    provenance: dict[str, str],
+    where: str,
+) -> int | None:
+    """The sum of the tensor elements, ``None`` for a split file: it holds
+    its own shard of the tensors, so its sum would understate the model."""
+    split_count = fields.get(_GGUF_SPLIT_COUNT_KEY)
+    if isinstance(split_count, int) and split_count > 1:
+        return None
+    return derived_parameter_count(shapes, "tensor_infos", source, provenance, where)
+
+
 def _categorize_gguf_fields(
     fields: dict[str, Any],
     source: str,
@@ -324,9 +360,9 @@ def _categorize_gguf_fields(
 
 def _load_fields(
     model_path: Path,
-) -> tuple[dict[str, Any], dict[str, Any], dict[str, str]]:
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, str], list[list[int]]]:
     """:func:`_read_fields` of the file at *model_path*, its header bounded
-    first.
+    first, and the shape of every tensor (already in memory, so no I/O).
 
     Raises:
         ImportError: If ``gguf`` is not installed.
@@ -357,7 +393,8 @@ def _load_fields(
         raise ValueError(f"Failed to read GGUF file {model_path}: {exc}") from exc
 
     try:
-        return _read_fields(reader.fields)
+        fields, raw_metadata, derived = _read_fields(reader.fields)
+        return fields, raw_metadata, derived, [t.shape.tolist() for t in reader.tensors]
     except ValueError as exc:
         raise ValueError(f"Failed to read GGUF file {model_path}: {exc}") from exc
     finally:
@@ -380,7 +417,7 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         pitloom.extract.ai_model.limits.ModelLimitExceeded: The header is over
             a bound (:func:`~pitloom.extract.ai_model._gguf_bounds.check_gguf_header`).
     """
-    fields, raw_metadata, derived = _load_fields(model_path)
+    fields, raw_metadata, derived, shapes = _load_fields(model_path)
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
     provenance: dict[str, str] = {}
     format_version = _stated_text(fields.get(_GGUF_FORMAT_VERSION_KEY), scalar=True)
@@ -412,7 +449,11 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         version=version,
         architecture=architecture,
         quantization=quantization,
+        parameter_count=_parameter_count(
+            shapes, fields, source, provenance, str(model_path)
+        ),
         license=license_expr,
+        originators=_originators(fields, source, provenance),
         hyperparameters=hyperparameters,
         properties=properties,
         **source_metadata(raw_metadata),

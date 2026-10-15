@@ -15,6 +15,10 @@ from __future__ import annotations
 
 import struct
 
+# The data section starts at a multiple of this (``general.alignment``'s
+# default).
+ALIGNMENT = 32
+
 # GGUF value types (``gguf.GGUFValueType``).
 UINT8 = 0
 UINT32 = 4
@@ -66,3 +70,27 @@ def array(
 ) -> bytes:
     """An array pair *key* of *count* elements of type *elem*."""
     return kv(key, ARRAY, struct.pack(endian + "IQ", elem, count) + payload, endian)
+
+
+def tensor_info(
+    name: str, dims: tuple[int, ...], ggml_type: int = 0, offset: int = 0
+) -> bytes:
+    """One tensor info; *ggml_type* 0 is F32, 2 is Q4_0 (blocks of 32)."""
+    data = name.encode("utf-8")
+    return (
+        struct.pack("<Q", len(data))
+        + data
+        + struct.pack("<I", len(dims))
+        + b"".join(struct.pack("<Q", dim) for dim in dims)
+        + struct.pack("<IQ", ggml_type, offset)
+    )
+
+
+def gguf_with_tensors(
+    tensors: list[bytes], n_kv: int = 0, body: bytes = b"", data_bytes: int = 0
+) -> bytes:
+    """A file of the *tensors* infos after the *n_kv* pairs in *body*, padded
+    to :data:`ALIGNMENT`, then *data_bytes* zero bytes of tensor data (the
+    reader maps each tensor, so it must reach the largest)."""
+    head = gguf_file(len(tensors), n_kv, body + b"".join(tensors))
+    return head + b"\0" * (-len(head) % ALIGNMENT) + b"\0" * data_bytes

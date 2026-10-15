@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -146,13 +146,137 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
     `name` or `ss_base_model_version`; description `modelspec.description`
     or `description`; version `modelspec.version` or `version`;
     architecture `modelspec.architecture` or `architecture`; quantisation
-    `modelspec.precision` or `precision`. A licence key is kept only.
+    `modelspec.precision` or `precision`; producer `modelspec.author`. A
+    licence key is kept only.
 23. Tensor names, recorded as inputs, without dtype or shape.
 24. Model card `license`, or a licence file detected when the card has none
     or a vague one. Also from the Hub: DOI, arXiv IDs, page URL, base model,
     datasets, domains (pipeline tag).
 25. Selected values of `config.json` and `generation_config.json`.
 26. The model card's `model-index` evaluation results, as read.
+
+## Producer and parameter count
+
+Two values the G7 SBOM-for-AI minimum elements ask for are read from
+structured fields only. A value that sits in free text (a model card's
+prose) is left to [the `sbom-enrich` Skill](agent-skills.md).
+
+| Format | Producer (`originators`) | Supplier (`supplier`) | Parameter count (`parameter_count`) |
+| :----- | :----------------------- | :-------------------- | :---------------------------------- |
+| GGUF | `general.author`, then `general.organization`: one name each | -- | Sum over the shapes in `tensor_infos`; none when `split.count` is above 1 |
+| ONNX | `model_author` metadata property: a comma-separated list | -- | Sum over `graph.initializer` and `graph.sparse_initializer`, subgraphs included |
+| PT2 / ExecuTorch | `extra/author`: one name | -- | -- |
+| Safetensors | `modelspec.author` in `__metadata__` (ModelSpec): one name | -- | Sum over every tensor shape in the header (header only) |
+| Hugging Face Hub | The repository owner (`author`): one name | The same name | `safetensors.total`, else `gguf.total`, as the Hub states it |
+
+In the provenance the values are keyed by their field names, `originators`,
+`supplier` and `parameter_count`.
+
+Every other format gives neither: PyTorch classic (no shapes without
+unpickling), Keras and HDF5 (the weights are not read), NumPy (a bare array
+is not a model), fastText (its matrix size follows the dictionary stream) and
+CRFsuite.
+
+**Producer and supplier.** Each name becomes a generic SPDX `Agent` (name
+only, no email) in the `ai_AIPackage`'s `originatedBy`, one Agent per
+distinct producer name, shared when two models name the same one (an SBOM
+creator or dataset creator of that name is not merged with it). No model
+file format sets `suppliedBy`: an author written in a file originated the
+model, and the file does not say who ships it. A model read from the Hugging
+Face Hub is the exception: the Hub repository is where the model is shipped
+from, so its owner is also the `suppliedBy`, and the same one `Agent` is
+referenced by both properties. `suppliedBy` holds one agent, so one owner. A
+model never inherits the main package's `suppliedBy` (the SBOM's first
+creator, which says nothing about the model). Whether a name is a person or
+an organisation is not decided here; a [fragment](fragments.md) can add a
+`Person` or `Organization` to `originatedBy` when the model card says which
+(lists merge by union, so the generic `Agent` stays beside it). Things to
+know:
+
+- ONNX defines `model_author` as a comma-separated list, so the text is
+  split on commas, and `Method: comma_list` is recorded when it has one. A
+  name that itself holds a comma (`Doe, Jane`, `Foo, Inc.`) is split wrongly.
+- The Hub's `author` is the account that owns the repository, recorded with
+  `Method: repository_owner` for both `originators` and `supplier`. A
+  re-upload, quantisation or fine-tune names the uploader, not the original
+  maker; the base model a card names is recorded separately as
+  `descendantOf`, which records lineage only.
+- GGUF, PT2 and Safetensors names are not split: `general.author`,
+  `extra/author` and `modelspec.author` hold one name. The raw keys also
+  stay in `properties`.
+- The llama.cpp converter often fills GGUF `general.organization` by
+  guessing from the base model's `_name_or_path`, so a fine-tune's file can
+  name the base model's organisation. Pitloom reads it as stated and cannot
+  tell a stated organisation from a guessed one. The Hub route names the
+  repository owner instead, so the same model can show two producers by
+  route.
+- A name over the length cap is cut; several over-long names in one model
+  give one warning, not one per name (see
+  [scan limits](ai-model-scan-limits.md#size-and-count-caps)).
+
+**Parameter count.** SPDX 3.0.1 has no property for a model's size, so the
+count is an `ai_hyperparameter` entry, key `parameters`, value a decimal
+integer as text (`"7241732096"`). The G7 SBOM for AI mapping to SPDX
+(bact.github.io/bom) names this key for the parameter count. It is not a
+hyperparameter, and the package `comment` says so, in this line, whenever
+the entry is there:
+
+```text
+Parameter count: ai_hyperparameter "parameters" holds the number of elements in the model's stored tensors, as its parameter count, because SPDX 3.0.1 has no model-size property (it is not a hyperparameter).
+```
+
+A [fragment](fragments.md) merge keeps the line in step with the entry: after
+a merge a package with a `parameters` entry has the line first in its
+`comment` and one without has none, whatever a fragment's `comment` says (a
+base `parameters` entry wins over a fragment's).
+
+- A count read from the file is the sum of the **element** counts of its
+  tensors, not bytes: a `[32, 2]` tensor adds 64 whatever its type. It is
+  recorded with `Method: tensor_element_sum`, as is the Hub's: its
+  `safetensors.total` (or `gguf.total` when there is no `safetensors` field;
+  `safetensors` wins when both exist) is the same sum, computed by the Hub.
+  The provenance reads `Source: Hugging Face Hub | Field: model_info
+  safetensors.total | Method: tensor_element_sum`.
+- ONNX counts every tensor in `graph.initializer` and
+  `graph.sparse_initializer` and in subgraphs, a tensor stored in an
+  external data file by its declared dimensions (the file is not read).
+  `Constant` nodes and `model.functions` are not counted.
+- A Safetensors file that is one shard of a model gives that file's count,
+  and the format has no sign that it is a shard. A GGUF file with
+  `split.count` above 1 gives none, since its sum would understate the model.
+- A sum of 0, or a file with no tensor, gives no count (never `"0"`), with
+  no message. A malformed dimension (negative, not an integer) or a count
+  over 10**15 gives none and one `WARNING:` ending `parameter count not
+  recorded`; see [scan limits](ai-model-scan-limits.md#size-and-count-caps).
+- A hyperparameter the model itself declares under the key `parameters` is
+  replaced by the count, with a `WARNING:`.
+
+### What the count counts
+
+It is the number of elements of **all** stored tensors, not the "trainable
+parameters" of a size such as `bom:ai-model-size`. Do not filter by type:
+int8 weights are parameters.
+
+- It includes buffers stored as tensors (attention masks, shape constants)
+  and tied weights stored twice. The ONNX test model `gpt2-tiny-decoder`
+  counts 404256, which includes a 262144-element uint8 causal mask
+  (`transformer.h.0.attn.bias`, `[1, 1, 512, 512]`) and a 32000-element
+  transposed copy of `wte.weight`; about 110112 are weights of their own. A
+  tiny Marian Safetensors model's 174535 includes the 58101-element
+  `final_logits_bias` buffer, and `squeezenet1.1-7`'s 1235498 is 1235496
+  weights plus a 2-element int64 reshape constant. The Hub API gave
+  137022720 for `openai-community/gpt2` (2026-10-15), against about 124.4
+  million weights: attention-mask buffers make up the rest.
+- Packed or quantised weights count differently by format. GGUF shapes are
+  logical (a Q4_0 tensor of shape `[64]` counts 64). GPTQ, AWQ and
+  bitsandbytes Safetensors files store packed integer tensors: a GPTQ-style
+  64 x 64 layer with `qweight` (I32 `[8, 64]`), `scales`, `qzeros` and
+  `g_idx` counts 648 against 4096 real weights. Block-quantised ONNX
+  (`MatMulNBits`) under-counts likewise.
+- The Hub's `safetensors.total` and `gguf.total` have the same property. For
+  a repository of several components, such as the diffusion pipeline
+  `stabilityai/stable-diffusion-xl-base-1.0`, whose `safetensors.total` is
+  the UNet only, the Hub's total may cover only part of the repository.
 
 ## Where each field goes
 
@@ -166,16 +290,19 @@ the Hugging Face Hub, "card" a README or model card read with `--enrich`.
 | `description` | GGUF, ONNX, PT2, Safetensors, CRFsuite, HF | `ai_AIPackage.description` |
 | `version` | GGUF, ONNX, PT2, Safetensors | `ai_AIPackage.software_packageVersion` |
 | `license` | ONNX, PT2, HF, card | licence element plus `hasDeclaredLicense` (the model's own statement) or `hasConcludedLicense` (a third-party source); see [How a license value is recorded](metadata-provenance.md#how-a-license-value-is-recorded) |
+| `originators` | GGUF, ONNX, PT2, Safetensors, HF | `ai_AIPackage.originatedBy`: one generic `Agent` per name; see [Producer and parameter count](#producer-and-parameter-count) |
+| `supplier` | HF | `ai_AIPackage.suppliedBy`: the repository owner's generic `Agent`, the one in `originatedBy` when the name is the same; no file format fills it |
 | `type_of_model` | CRFsuite, fastText, HDF5, Keras, NumPy, ONNX, PyTorch, HF | `ai_typeOfModel`, first entry |
 | `architecture` | GGUF, Safetensors, HF | `ai_typeOfModel`, after `type_of_model` |
 | `quantization` | GGUF, Safetensors | `ai_hyperparameter`, key `quantization`, first |
+| `parameter_count` | GGUF, ONNX, Safetensors, HF | `ai_hyperparameter`, key `parameters`, decimal integer as text, among the entries sorted by key; with it a line in `ai_AIPackage.comment` saying it is not a hyperparameter (SPDX 3.0.1 has no model-size property); what it counts: [What the count counts](#what-the-count-counts) |
 | `hyperparameters` | GGUF, fastText, HDF5, Keras, HF | `ai_hyperparameter`, one `DictionaryEntry` per key, sorted by key, value as text |
 | `domain`, `usage.domains` | fastText, HF | `ai_domain` |
 | `inputs`, `outputs` | see the table above | `ai_informationAboutApplication`, JSON keys `inputs`, `outputs` |
 | `usage.intended_use`, `usage.unintended_use` | none today | `ai_informationAboutApplication`, JSON keys `intended_use`, `unintended_use` |
 | `usage.limitations` | none today | `ai_limitation`, joined with `; ` |
 | `usage.safety_risk_assessment` | none today | `ai_safetyRiskAssessment` (`high`, `medium`, `low`, `serious`) |
-| `usage.known_biases` | none today | `ai_AIPackage.comment`, `Known biases: ...` |
+| `usage.known_biases` | none today | `ai_AIPackage.comment`, `Known biases: ...`, after the parameter-count line when both are there |
 | `doi` | HF | `externalIdentifier`, type `other`, comment `DOI` |
 | `arxiv_ids` | HF | `externalRef`, type `documentation` |
 | `url` | HF | `externalRef`, type `altWebPage` |
@@ -207,9 +334,11 @@ back](metadata-reading-back.md). Long names and labels are capped: see
 No model format fills `ai_metric`, `ai_metricDecisionThreshold`,
 `ai_energyConsumption`, `ai_autonomyType`, `ai_modelDataPreprocessing`,
 `ai_modelExplainability`, `ai_sensitivePersonalInformation`,
-`ai_standardCompliance`, `software_primaryPurpose`, `suppliedBy` or
-`verifiedUsing` on an `ai_AIPackage`; an
-[SBOM fragment](fragments.md) can add them.
+`ai_standardCompliance`, `software_primaryPurpose` or `verifiedUsing` on
+an `ai_AIPackage`; an [SBOM fragment](fragments.md) can add them. Nor
+does any model file format fill `suppliedBy`, on purpose: a producer name is
+an `originatedBy`; only the Hugging Face route sets it, to the repository
+owner (see [Producer and parameter count](#producer-and-parameter-count)).
 
 ## Hugging Face Hub models
 
@@ -253,7 +382,12 @@ output format, so that either grows by one line or one column.
   `pitloom.extract.ai_model.reader_requirements` and a `pyproject.toml`
   extra; a decision on the wheel gate
   (`pitloom.extract.scanner_wheel.WHEEL_GATED_FORMATS`); and fixtures
-  under `tests/fixtures/aimodels/`.
+  under `tests/fixtures/aimodels/`. A reader that knows the producer or the
+  tensor shapes fills `originators` with `originator_names()`
+  (`pitloom.core.model_originators`) and `parameter_count` with
+  `derived_parameter_count()` (`pitloom.extract.ai_model.parameter_count`),
+  which bound the arithmetic and write the provenance; it does not build an
+  `Agent` or an entry itself.
 
 ## See also
 
