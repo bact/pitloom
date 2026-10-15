@@ -8,8 +8,9 @@ its references compare by id with the base's, so a list gains no second
 copy of an element or a ``Hash`` and a scalar shows no false conflict. A
 real conflict names both values by id, never as a Python object repr.
 
-See also: tests/assemble/test_fragments_surfaces.py (a fragment that is the
-document itself) and tests/assemble/test_fragments_unify.py (the helpers).
+See also: tests/core/test_fragments_merge_id_types.py (an id held by
+another type), tests/assemble/test_fragments_surfaces.py (a fragment that is
+the document itself) and tests/assemble/test_fragments_unify.py (the helpers).
 """
 
 from __future__ import annotations

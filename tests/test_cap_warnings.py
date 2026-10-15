@@ -99,7 +99,8 @@ _ALLOWED = {
     "assemble/spdx3/_license_elements.py:_MAX_NAME_LENGTH": _DISPLAY,
     "assemble/spdx3/deps_pypi.py:_PYPI_LICENSE_FIELD_MAX_LEN": _HEURISTIC,
     "assemble/spdx3/deps_pypi.py:_PYPI_MAX_CONCURRENT_FETCHES": _NOT_INPUT,
-    # scanner_wheel.py warns with the configured value's Cap.
+    # scanner_wheel.py and dataset_hash.py warn with the configured value's Cap.
+    "core/_config_types.py:DEFAULT_MAX_DATASET_HASH_BYTES": "a setting's default",
     "core/_config_types.py:DEFAULT_MAX_MODEL_EXTRACT_BYTES": "a setting's default",
     "core/_models_wheel_build_kill.py:_GROUP_POLL_MAX_SECONDS": _NOT_INPUT,
     "core/_models_wheel_build_subprocess.py:_MESSAGE_MAX_CHARS": _DISPLAY,
@@ -118,6 +119,8 @@ _ALLOWED = {
     "extract/_license_classify.py:_MAX_EXPRESSION_LENGTH": _HEURISTIC,
     "extract/ai_model/safetensors.py:SAFETENSORS_FORMAT_MAX_HEADER_BYTES": _HEURISTIC,
     "extract/remote/huggingface_field.py:_TOKENIZER_MAX_LEN_UNLIMITED": _NOT_INPUT,
+    # A larger id number cannot be a mint's, so harvest reserves none for it.
+    "id_registry/_counters.py:MAX_ID_NUMBER": "over it: ERROR",
 }
 
 _CAP_NAME = re.compile(r"^_?(?:[A-Z0-9]+_)*(?:MAX|CAP|LIMIT|BUDGET)(?:_[A-Z0-9]+)*$")

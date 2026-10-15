@@ -5,8 +5,8 @@
 
 """Direct unit tests for pitloom.assemble.spdx3.creation_info.
 
-Complements the full-pipeline graph assertions in test_generator.py etc.
-with tests that call these functions directly and assert on their return
+Complements the full-pipeline graph assertions elsewhere in
+tests/assemble/ with tests that call these functions directly and assert on their return
 values, so a regression here fails in this file instead of surfacing as
 a generic "wrong graph shape" failure somewhere else.
 """

@@ -27,7 +27,7 @@ from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import ProjectFile, project_relative_or_fallback
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
-from pitloom.id_registry import DIRECTORY_ENTITY_TYPE, IdRegistrySession
+from pitloom.id_registry import FILE_TYPE, IdRegistrySession
 
 # SPDX 2.x FileType -> SPDX 3 SoftwarePurpose: only the categories with a
 # clean, identity-shaped equivalent. BINARY/AUDIO/IMAGE/TEXT/VIDEO
@@ -36,7 +36,7 @@ from pitloom.id_registry import DIRECTORY_ENTITY_TYPE, IdRegistrySession
 # SoftwarePurpose is "intrinsic to how the Element is being used rather
 # than the content of the Element", a genuinely different axis from a
 # file's content/media kind. Never derive a mapping from `contentType`
-# for these -- see working-docs/design/file-headers.md.
+# for these -- see working-docs/implementation/file-headers.md.
 _FILE_TYPE_TO_SOFTWARE_PURPOSE: dict[str, str] = {
     "SOURCE": spdx3.software_SoftwarePurpose.source,
     "ARCHIVE": spdx3.software_SoftwarePurpose.archive,
@@ -89,7 +89,7 @@ def _emit_file_header_metadata(
     detection, or ``sbomAuthorSupplied`` when it instead came from a
     matching ``[[tool.pitloom.content-type.override]]`` entry (the config
     author's own assertion, not something Pitloom detected) -- see
-    ``working-docs/implementation/annotation-provenance.md``'s role
+    ``working-docs/implementation/provenance/annotation-provenance.md``'s role
     vocabulary. ``file_type``/``file_contributors`` values with no native
     SPDX 3 slot go into ``package_entry.summary`` instead, as one sorted
     ``"Key: value; Key: value"`` string -- never onto
@@ -141,7 +141,7 @@ def _emit_file_header_metadata(
             # A [[tool.pitloom.content-type.override]] match -- the
             # config author asserted this value directly, Pitloom
             # detected nothing, so role sbomAuthorSupplied rather than the
-            # detected shape below (see working-docs/design/file-headers.md).
+            # detected shape below (see working-docs/implementation/file-headers.md).
             segment = "Role: sbomAuthorSupplied"
         elif package_file.content_type_method == "magika":
             segment = (
@@ -265,9 +265,7 @@ def _resolve_directory_hits_for_file(
         if not directory_path.name or directory_name in seen_dirs:
             continue
         seen_dirs.add(directory_name)
-        claimed_id = session.entity_id(
-            directory_name, [directory_name], DIRECTORY_ENTITY_TYPE
-        )
+        claimed_id = session.lookup_id(directory_name, FILE_TYPE, [directory_name])
         if claimed_id is not None:
             dir_hits[directory_name] = claimed_id
 
@@ -316,8 +314,11 @@ def _resolve_file_and_directory_hits(
             if physical_lookup_key != package_file.distribution_path
             else [physical_lookup_key]
         )
-        claimed_id = session.file_id(
-            package_file.distribution_path, lookup_paths, file_digest
+        claimed_id = session.lookup_id(
+            package_file.distribution_path,
+            FILE_TYPE,
+            lookup_paths,
+            sha256=file_digest,
         )
         if claimed_id is not None:
             file_hits[package_file.distribution_path] = claimed_id

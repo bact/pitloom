@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -97,6 +97,19 @@ drift is silent.
   elements" (enrich), "is it a valid SBOM", "validate wheel SBOM", "check
   if the wheel has an SBOM" (validate). The
   `--allow-build`/`--build-timeout` triggers survive as one clause.
+- **Id-management triggers (2026-10-15, registry v3, PR #305).** User
+  decision: when the user asks to pin ids or to create or update an ID
+  registry, the agent runs `loom id generate`/`loom id import` itself and
+  reports the command; the "never pass a registry the user did not name"
+  rule stays for unasked runs. `sbom-generate`'s description gained "pin
+  ids", "keep ids stable", "create or update an ID registry" and "loom id
+  generate/import" and went from 1021 to 1008 of 1024 characters (YAML
+  parsed): "gen SBOM" stayed, "SBOM of this project", "create PEP 770
+  SBOM", "embed SBOM to python wheel", "wheel is signed / has RECORD.jws"
+  (now "signed wheel / RECORD.jws") and the "owns combined asks, generating
+  first" wording were trimmed or shortened. A v2 registry file now fails
+  with an `ERROR:`; the skill relays it and deletes the file only if the
+  user agrees (non-interactive: change nothing).
 - **Long topics move to `references/`.** `sbom-generate`'s lock-file and ID
   registry detail (what a registry pins, creating one, which log lines are
   expected) moved to `references/lockfile-discovery.md` and
@@ -182,13 +195,12 @@ clients (Codex, Gemini CLI, GitHub Copilot / VS Code, claude.ai). Decisions:
 
 ## Deferred (need design; tracked in the roadmap)
 
-`loom id generate`, `loom id import`, `loom merge`, `loom fragment list`
-have no trigger phrasing (the skills do run the two `id` commands once a
-registry is asked for; only the description triggers are missing). Open
-questions: which skill owns them, and which phrasings separate "pin ids
-before a first run" from "import ids from an SBOM" without colliding with
-plain generate/enrich asks.
+`loom merge` and `loom fragment list` have no trigger phrasing. `loom id
+generate` and `loom id import` gained theirs in `sbom-generate` on
+2026-10-15 (see above). Open questions: which skill owns the rest, and which
+phrasings separate "pin ids before a first run" from "import ids from an
+SBOM" without colliding with plain generate/enrich asks.
 
 Possible drift guard (not built): a test asserting every CLI subcommand
 name appears in some `skills/*/SKILL.md` description, with an explicit
-allowlist for the deferred commands above.
+allowlist for the commands above that still have no trigger.

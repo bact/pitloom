@@ -34,7 +34,7 @@ from typing import Any
 import pytest
 
 from pitloom import __main__
-from pitloom._embed_build_sbom import _adopt_project_authors
+from pitloom._embed_overlay import adopt_project_authors
 from pitloom.assemble import generate_project_sbom, generate_wheel_sbom
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
@@ -296,7 +296,7 @@ def test_adopt_project_authors_with_provenance(
     metadata = ProjectMetadata(
         name="demo", authors=[{"name": "W"}], provenance={"authors": wheel_source}
     )
-    _adopt_project_authors(metadata, project)
+    adopt_project_authors(metadata, project)
     assert [a.get("name", a.get("email")) for a in metadata.authors] == (
         _DECLARED if adopted else ["W"]
     )

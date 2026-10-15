@@ -17,7 +17,7 @@ from collections.abc import Callable
 
 import pytest
 
-from pitloom.core.iri import doc_namespace, iri_segment
+from pitloom.core.iri import doc_namespace, iri_segment, is_iri_segment
 from pitloom.id_registry import IdRegistry
 
 
@@ -55,6 +55,28 @@ def test_iri_segment_encodes_invalid_characters(name: str, expected: str) -> Non
 )
 def test_iri_segment_keeps_valid_names_byte_identical(name: str) -> None:
     assert iri_segment(name) == name
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("File", True),
+        ("a%2Fb%20c", True),
+        ("Модель", True),
+        ("", False),
+        ("a b", False),
+        ("a#b", False),
+        ("a%2fb", False),
+        ("100%", False),
+    ],
+    ids=["ascii", "escapes", "unicode", "empty", "space", "hash", "lower", "bare"],
+)
+def test_is_iri_segment_accepts_only_what_iri_segment_writes(
+    value: str, expected: bool
+) -> None:
+    """``id_counters`` keys are id prefixes, which a mint writes through
+    :func:`iri_segment`."""
+    assert is_iri_segment(value) is expected
 
 
 @pytest.mark.parametrize(

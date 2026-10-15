@@ -29,10 +29,11 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.models import merkle_root_of_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.walk_rules import without_registry_copies
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
-from pitloom.extract.wheel import read_wheel
-from pitloom.id_registry import IdRegistry, resolve_registry
+from pitloom.extract.wheel import read_wheel, wheel_document_identity
+from pitloom.id_registry import IdRegistry, registry_copy, resolve_registry
 from pitloom.logging_config import configure_logging
 
 
@@ -62,6 +63,9 @@ def generate_wheel_sbom(
     *pitloom_config* when the caller names one explicitly, then the built-in
     defaults. The same holds for the registry: *id_registry*, else the explicit
     config's ``id-registry``; no ``loom-id-registry.json`` is searched for.
+    The copy of that registry a build put in the wheel is left out, with one
+    ``WARNING:``, when its path below the project directory is the member's
+    (see :func:`~pitloom.id_registry.registry_copy` for the directory).
 
     An explicit *pitloom_config* applies in full, identity included: its
     creators, creation datetime and comment fill in when *creation_metadata*
@@ -69,14 +73,14 @@ def generate_wheel_sbom(
 
     AI models inside the wheel are found; *scan_model_usage* also records
     which Python files in it reference them. One model file is copied out
-    of the wheel at a time, each up to the config's ``max-model-extract-bytes``
-    (no parameter: it is configuration only) and four times that in all,
-    counting bytes copied and bytes read from archive members; a
-    model beyond either limit is listed without metadata. Models in a format
-    whose reader a hostile file can crash or hang (fastText, GGUF, HDF5,
-    ONNX, PyTorch ``.pt``/``.pth``) are listed without metadata too, with one
-    ``INFO:``, unless *trust_wheel_model*: for a wheel you trust only. It has no config
-    key, so a config cannot opt in.
+    of the wheel at a time, each up to the config's
+    ``max-model-extract-bytes`` (no parameter: configuration only) and four
+    times that in all, counting bytes copied and bytes read from archive
+    members; a model beyond either limit is listed without metadata. Models
+    in a format whose reader a hostile file can crash or hang (fastText,
+    GGUF, HDF5, ONNX, PyTorch ``.pt``/``.pth``) are listed without metadata
+    too, with one ``INFO:``, unless *trust_wheel_model* (for a wheel you
+    trust only; it has no config key, so a config cannot opt in).
 
     ``extract_file_header``/``content_type``/``enrich`` have no parameter
     here: reading a built wheel scans no file headers or content types, and
@@ -157,6 +161,12 @@ def generate_wheel_sbom_with_metadata(
     # fast, never after paying for a full wheel read first.
     resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
     project_metadata, project_files = read_wheel(wheel_path_obj)
+    # A copy of an in-tree registry the build put in the wheel: neither a
+    # file of the SBOM nor of its Merkle root.
+    project_files = without_registry_copies(
+        project_files, registry_copy(resolved_registry)
+    )
+    project_metadata.files = project_files
     ai_models = scan_wheel_for_ai_models(
         wheel_path_obj,
         scan_usage=cfg.scan_model_usage is True,
@@ -171,6 +181,7 @@ def generate_wheel_sbom_with_metadata(
         creation_metadata=creation_metadata or cfg.creation_metadata,
         ai_models=ai_models,
         phantom_dependencies=phantom_deps,
+        **wheel_document_identity(project_metadata, wheel_path_obj),
     )
     exporter = build(
         doc,

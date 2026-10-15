@@ -3,75 +3,79 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for pitloom.id_registry import functionality.
+"""Tests for ``IdRegistry.import_sbom`` and ``pitloom id import``.
 
-See also: test_registry.py, test_registry_generate.py, shared.py.
+See also: test_registry.py, test_registry_harvest.py,
+test_registry_generate.py, shared.py.
 """
 
-# pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring
-# pylint: disable=too-few-public-methods
 
 from __future__ import annotations
 
+import json
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
+import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.id_registry import EntityEntry, FileEntry, IdRegistry
-from pitloom.id_registry._harvest import _import_sbom_element
-from pitloom.id_registry._types import _entity_key
+from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.id_registry import (
+    AI_PACKAGE_TYPE,
+    DATASET_PACKAGE_TYPE,
+    FILE_TYPE,
+    PACKAGE_TYPE,
+    IdRegistry,
+    IdRegistrySession,
+    RegistryEntry,
+)
+from tests.cli.shared import SAFETENSORS_FIXTURE
 from tests.id_registry.shared import (
+    _sha256,
     _write_sample_sbom,
     _write_sample_sbom_without_document,
 )
+from tests.id_registry.surfaces_base import _run_cli
+from tests.registry_helpers import make_registry
+
+_IMPORTED = "https://spdx.org/spdxdocs/imported-1"
+_CI = spdx3.CreationInfo(
+    specVersion="3.0.1",
+    created=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    createdBy=[f"{_IMPORTED}#SoftwareAgent-1"],
+)
 
 
-def test_import_sbom_harvests_files_and_entities(tmp_path: Path) -> None:
+def test_import_sbom_records_every_element_with_its_type(tmp_path: Path) -> None:
+    """Each named element is keyed by its own type, with its hash or none:
+    nothing is filed by shape."""
     sbom_path = tmp_path / "sample.spdx3.json"
     ids = _write_sample_sbom(sbom_path)
 
     registry = IdRegistry.new("proj")
     registry.import_sbom(sbom_path)
 
-    # dataset + script harvested into files, keyed by name, hash preserved
-    assert registry.files["data/processed/train.txt"] == FileEntry(
-        spdx_id=ids["dataset_id"], sha256=ids["dataset_hash"]
+    # No lookup gates a dataset on content: its hash is not recorded.
+    assert registry.get(DATASET_PACKAGE_TYPE, "data/processed/train.txt") == (
+        RegistryEntry(ids["dataset_id"])
     )
-    assert registry.files["src/pkg/train.py"] == FileEntry(
-        spdx_id=ids["script_id"], sha256=ids["script_hash"]
+    assert registry.get(FILE_TYPE, "src/pkg/train.py") == RegistryEntry(
+        ids["script_id"], ids["script_hash"]
     )
-    # AIPackage harvested into entities
-    assert registry.entities[("ai_AIPackage", "sentimentdemo")] == EntityEntry(
-        spdx_id=ids["model_id"]
+    assert registry.get(FILE_TYPE, "src/pkg/nohash.py") == RegistryEntry(
+        ids["hashless_id"]
     )
-
-
-def test_import_sbom_harvests_any_named_element_as_entity(tmp_path: Path) -> None:
-    """Any element with a name and spdxId is importable, typed by its own
-    SPDX 3 compact type. A hash-less File also falls back here instead of
-    being dropped entirely."""
-    sbom_path = tmp_path / "sample.spdx3.json"
-    ids = _write_sample_sbom(sbom_path)
-
-    registry = IdRegistry.new("proj")
-    registry.import_sbom(sbom_path)
-
-    # A software_Package.
-    assert registry.entities[("software_Package", "requests")] == EntityEntry(
-        spdx_id=ids["dep_package_id"]
+    assert registry.get(AI_PACKAGE_TYPE, "sentimentdemo") == RegistryEntry(
+        ids["model_id"]
     )
-    # A hash-less software_File: not dropped, keyed as an entity instead.
-    assert "src/pkg/nohash.py" not in registry.files
-    assert registry.entities[("software_File", "src/pkg/nohash.py")] == EntityEntry(
-        spdx_id=ids["hashless_id"]
+    assert registry.get(PACKAGE_TYPE, "requests") == RegistryEntry(
+        ids["dep_package_id"]
     )
-    # Even a creator Agent, typed by its own compact type.
-    assert registry.entities[("SoftwareAgent", "Pitloom")] == EntityEntry(
-        spdx_id=ids["agent_id"]
-    )
+    assert registry.get("SoftwareAgent", "Pitloom") == RegistryEntry(ids["agent_id"])
+    # The dataset is not reachable as a file: lookups never cross types.
+    assert registry.get(FILE_TYPE, "data/processed/train.txt") is None
 
 
 def test_import_sbom_adopts_namespace_when_registry_empty(tmp_path: Path) -> None:
@@ -86,24 +90,18 @@ def test_import_sbom_adopts_namespace_when_registry_empty(tmp_path: Path) -> Non
 def test_import_sbom_keeps_namespace_when_registry_nonempty(tmp_path: Path) -> None:
     sbom_path = tmp_path / "sample.spdx3.json"
     _write_sample_sbom(sbom_path)
-
-    registry = IdRegistry(
-        namespace="https://spdx.org/spdxdocs/mine-1",
-        files={
-            "kept.txt": FileEntry(
-                spdx_id="https://spdx.org/spdxdocs/mine-1#File-1", sha256="00" * 32
-            )
-        },
+    mine = "https://spdx.org/spdxdocs/mine-1"
+    registry = make_registry(
+        {(FILE_TYPE, "kept.txt"): (f"{mine}#File-1", "00" * 32)}, namespace=mine
     )
+
     registry.import_sbom(sbom_path)
-    assert registry.namespace == "https://spdx.org/spdxdocs/mine-1"
-    assert "kept.txt" in registry.files
+
+    assert registry.namespace == mine
+    assert registry.get(FILE_TYPE, "kept.txt") is not None
 
 
 def test_import_sbom_no_document_keeps_minted_namespace(tmp_path: Path) -> None:
-    """When no SpdxDocument element is present, a fresh registry's own
-    freshly-minted namespace is left untouched (the harvesting loop runs
-    to completion without ever finding a namespace to adopt)."""
     sbom_path = tmp_path / "sample.spdx3.json"
     _write_sample_sbom_without_document(sbom_path)
 
@@ -113,58 +111,106 @@ def test_import_sbom_no_document_keeps_minted_namespace(tmp_path: Path) -> None:
     registry.import_sbom(sbom_path)
 
     assert registry.namespace == original_namespace
-    assert registry.has_entity_named("nodoc-model")
+    assert registry.has_name("nodoc-model")
 
 
-def test_import_sbom_empty_elements() -> None:
-    registry = IdRegistry.new("test")
-
-    # We can fake the deserialized set and call _import_sbom_element
-
-    class DummyElement:
-        name = "test"
-        spdxId = "http://test"
-
-        def get_compact_type(self) -> Any:
-            return "object"
-
-    _import_sbom_element(registry, DummyElement())
-    assert not registry.has_entity_named("test")
-
-    class DummyElement2:
-        name = "test"
-        spdxId = "http://test"
-
-        def get_compact_type(self) -> Any:
-            return None
-
-    _import_sbom_element(registry, DummyElement2())
-    assert ("DummyElement2", "test") in registry.entities
-
-    class DummyElement3:
-        name = "test"
-        # A different id from DummyElement2's -- this test is about
-        # (type, name) keying preventing an *overwrite*, not about the
-        # one-id-per-key invariant (see test_harvest_drops_stale_key_...
-        # in test_registry.py for that), so the two ids here must differ
-        # or the second harvest would legitimately release the first.
-        spdxId = "http://test2"
-        # no get_compact_type, but class name fallback
-
-    _import_sbom_element(registry, DummyElement3())
-    # Different compact type, same name -- both entries survive
-    # independently (the exact overwrite hazard (type, name) keying fixes).
-    assert ("DummyElement2", "test") in registry.entities
-    assert ("DummyElement3", "test") in registry.entities
+def _write_sbom(
+    path: Path,
+    *elements: spdx3.software_Package | spdx3.software_File,
+    document_id: str = _IMPORTED,
+) -> None:
+    namespace = _IMPORTED
+    exporter = Spdx3JsonExporter()
+    exporter.add_creation_info(_CI)
+    exporter.add_agent(
+        spdx3.SoftwareAgent(
+            spdxId=f"{namespace}#SoftwareAgent-1", name="Pitloom", creationInfo=_CI
+        )
+    )
+    for element in elements:
+        if isinstance(element, spdx3.software_File):
+            exporter.add_file(element)
+        else:
+            exporter.add_package(element)
+    exporter.add_document(
+        spdx3.SpdxDocument(
+            spdxId=document_id,
+            creationInfo=_CI,
+            rootElement=[str(elements[0].spdxId)],
+        )
+    )
+    path.write_text(exporter.to_json(), encoding="utf-8")
 
 
-_CI = spdx3.CreationInfo(
-    specVersion="3.0.1", created=datetime(2026, 1, 1, tzinfo=timezone.utc)
+@pytest.mark.parametrize(
+    ("document_id", "adopted"),
+    [
+        (_IMPORTED, True),
+        ("urn:uuid:0b6e4c0e-8a3a-4c39-9d1e-3f1b4c2a7d10", True),
+        (f"{_IMPORTED}#SPDXRef-DOCUMENT", False),
+        ("https://example.org/a b", False),
+    ],
+    ids=["https", "urn", "fragment", "space"],
 )
+def test_import_sbom_adopts_only_a_namespace_iri(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, document_id: str, adopted: bool
+) -> None:
+    """A document id that cannot be a namespace (``...#x`` would make ids
+    ``...#x#File-1``) is not adopted: one ``WARNING:`` naming why."""
+    sbom_path = tmp_path / "doc.spdx3.json"
+    _write_sbom(
+        sbom_path,
+        spdx3.software_Package(
+            spdxId=f"{_IMPORTED}#Package-1", name="p", creationInfo=_CI
+        ),
+        document_id=document_id,
+    )
+    registry = IdRegistry.new("proj")
+    minted = registry.namespace
+
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        registry.import_sbom(sbom_path)
+
+    assert registry.namespace == (document_id if adopted else minted)
+    warnings = [r.getMessage() for r in caplog.records]
+    assert len(warnings) == (0 if adopted else 1)
+    if warnings:
+        assert warnings[0].startswith("ID registry: not adopting the namespace")
+        assert repr(document_id) in warnings[0]
 
 
-def _hashed_file(name: str, spdx_id: str, sha256: str) -> spdx3.software_File:
-    return spdx3.software_File(
+def test_import_sbom_returns_an_ambiguous_file_path(tmp_path: Path) -> None:
+    """I5: two files under one path are skipped, and returned."""
+    ns = _IMPORTED
+    sbom_path = tmp_path / "two.spdx3.json"
+    hashes = ["1" * 64, "2" * 64]
+    _write_sbom(
+        sbom_path,
+        *(
+            spdx3.software_File(
+                spdxId=f"{ns}#File-{n}",
+                name="lib/a.so",
+                creationInfo=_CI,
+                verifiedUsing=[
+                    spdx3.Hash(algorithm=spdx3.HashAlgorithm.sha256, hashValue=sha)
+                ],
+            )
+            for n, sha in enumerate(hashes, 1)
+        ),
+    )
+    registry = IdRegistry.new("r")
+
+    skipped = registry.import_sbom(sbom_path)
+
+    assert skipped == {(FILE_TYPE, "lib/a.so")}
+    assert registry.get(FILE_TYPE, "lib/a.so") is None
+
+
+# --- a hashed AIPackage survives `id import` ----------------------------
+
+
+def _hashed_model(name: str, spdx_id: str, sha256: str) -> spdx3.ai_AIPackage:
+    return spdx3.ai_AIPackage(
         spdxId=spdx_id,
         name=name,
         creationInfo=_CI,
@@ -174,37 +220,113 @@ def _hashed_file(name: str, spdx_id: str, sha256: str) -> spdx3.software_File:
     )
 
 
-def test_harvest_file_repointed_then_old_id_claimed_keeps_both() -> None:
-    """A key moved to a new id no longer holds its old id: a later element
-    claiming the old id must not release the moved key."""
-    registry = IdRegistry.new("p")
-    ns = registry.namespace
-    registry.files["a.py"] = FileEntry(spdx_id=f"{ns}#File-2", sha256="1" * 64)
-    object_set = spdx3.SHACLObjectSet()
-    object_set.add(_hashed_file("a.py", f"{ns}#File-1", "1" * 64))
-    object_set.add(_hashed_file("b.py", f"{ns}#File-2", "2" * 64))
+def test_import_keeps_a_hashed_ai_package_for_a_typed_lookup(tmp_path: Path) -> None:
+    sha = _sha256(SAFETENSORS_FIXTURE.read_bytes())
+    model_id = f"{_IMPORTED}#AIPackage-1"
+    sbom_path = tmp_path / "model.spdx3.json"
+    _write_sbom(sbom_path, _hashed_model(SAFETENSORS_FIXTURE.stem, model_id, sha))
+    path = tmp_path / "registry.json"
+    registry = IdRegistry.new("r")
+    registry.import_sbom(sbom_path)
+    registry.save(path)
 
-    registry.harvest(object_set)
+    reloaded = IdRegistry.load(path)
+    session = IdRegistrySession(reloaded)
 
-    assert registry.files["a.py"].spdx_id == f"{ns}#File-1"
-    assert registry.files["b.py"].spdx_id == f"{ns}#File-2"
-
-
-def test_harvest_entity_repointed_then_old_id_claimed_keeps_both() -> None:
-    registry = IdRegistry.new("p")
-    ns = registry.namespace
-    registry.entities[_entity_key("m", "ai_AIPackage")] = EntityEntry(
-        spdx_id=f"{ns}#AIPackage-2"
+    assert reloaded.get(AI_PACKAGE_TYPE, SAFETENSORS_FIXTURE.stem) == RegistryEntry(
+        model_id, sha
     )
-    object_set = spdx3.SHACLObjectSet()
-    object_set.add(
-        spdx3.ai_AIPackage(spdxId=f"{ns}#AIPackage-1", name="m", creationInfo=_CI)
-    )
-    object_set.add(
-        spdx3.ai_AIPackage(spdxId=f"{ns}#AIPackage-2", name="n", creationInfo=_CI)
+    assert reloaded.lookup(AI_PACKAGE_TYPE, [SAFETENSORS_FIXTURE.stem]) == model_id
+    assert (
+        session.lookup_id(
+            "model", AI_PACKAGE_TYPE, [SAFETENSORS_FIXTURE.stem], sha256=sha.upper()
+        )
+        == model_id
     )
 
-    registry.harvest(object_set)
 
-    assert registry.lookup_entity("m", "ai_AIPackage") == f"{ns}#AIPackage-1"
-    assert registry.lookup_entity("n", "ai_AIPackage") == f"{ns}#AIPackage-2"
+def test_cli_import_then_model_reuses_a_hashed_ai_package_id(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """End to end, through the CLI only: an SBOM whose AIPackage carries a
+    hash is imported, then ``pitloom model`` looks the model up by stem."""
+    sha = _sha256(SAFETENSORS_FIXTURE.read_bytes())
+    model_id = f"{_IMPORTED}#AIPackage-1"
+    sbom_path = tmp_path / "model.spdx3.json"
+    _write_sbom(sbom_path, _hashed_model(SAFETENSORS_FIXTURE.stem, model_id, sha))
+    registry = tmp_path / "registry.json"
+    out = tmp_path / "out.spdx3.json"
+
+    assert (
+        _run_cli(monkeypatch, ["id", "import", str(sbom_path), "-o", str(registry)])
+        == 0
+    )
+    argv = ["model", str(SAFETENSORS_FIXTURE), "-o", str(out)]
+    assert _run_cli(monkeypatch, [*argv, "--id-registry", str(registry)]) == 0
+
+    graph = json.loads(out.read_text(encoding="utf-8"))["@graph"]
+    assert [e["spdxId"] for e in graph if e["type"] == "ai_AIPackage"] == [model_id]
+
+
+# --- `id import` over a content-gated entry -----------------------------
+
+
+@pytest.mark.parametrize("same_id", [False, True], ids=["other-id", "same-id"])
+def test_cli_import_of_an_unhashed_model_says_it_drops_the_gate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    same_id: bool,
+) -> None:
+    """Another id: the imported id wins, the hash goes, one ``INFO:`` says
+    so. The entry's own id: the hash stays, nothing is said."""
+    namespace, sha = "https://example.org/r", "c" * 64
+    held = f"{namespace}#AIPackage-1"
+    registry = tmp_path / "registry.json"
+    entries = {(AI_PACKAGE_TYPE, "tiny"): (held, sha)}
+    make_registry(entries, namespace=namespace, path=registry)
+    imported = held if same_id else f"{_IMPORTED}#AIPackage-tiny-1"
+    sbom_path = tmp_path / "old.spdx3.json"
+    _write_sbom(
+        sbom_path, spdx3.ai_AIPackage(spdxId=imported, name="tiny", creationInfo=_CI)
+    )
+    capsys.readouterr()
+
+    argv = ["id", "import", str(sbom_path), "-o", str(registry)]
+    assert _run_cli(monkeypatch, argv) == 0
+
+    gate = [ln for ln in capsys.readouterr().err.splitlines() if "content gate" in ln]
+    reloaded = IdRegistry.load(registry).get(AI_PACKAGE_TYPE, "tiny")
+    if same_id:
+        assert (gate, reloaded) == ([], RegistryEntry(held, sha))
+        return
+    assert gate == [
+        "INFO: ID registry: content gate dropped for ai_AIPackage 'tiny': "
+        f"imported id {imported} replaces {held}"
+    ]
+    assert reloaded == RegistryEntry(imported)
+
+
+@pytest.mark.parametrize("graph", [5, "x", {"a": 1}, None, [1]], ids=repr)
+def test_import_sbom_refuses_a_graph_that_is_not_a_list(
+    tmp_path: Path, graph: object
+) -> None:
+    sbom = tmp_path / "s.json"
+    sbom.write_text(json.dumps({"@graph": graph}), encoding="utf-8")
+
+    with pytest.raises(
+        ValueError, match="@graph (is not a list|element is not an object)"
+    ):
+        IdRegistry.new("x").import_sbom(sbom)
+
+
+def test_import_sbom_leaves_text_that_is_not_json_to_the_deserializer(
+    tmp_path: Path,
+) -> None:
+    sbom = tmp_path / "s.json"
+    sbom.write_text("{", encoding="utf-8")
+
+    with pytest.raises(Exception) as excinfo:  # pylint: disable=broad-exception-caught
+        IdRegistry.new("x").import_sbom(sbom)
+
+    assert "@graph" not in str(excinfo.value)

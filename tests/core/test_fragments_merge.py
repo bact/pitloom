@@ -120,7 +120,7 @@ def test_duplicate_relationships_deduplicated(
 
     registry = IdRegistry.new("dedup")
     registry.generate([Path("data")], tmp_path)
-    registry.register_entity("m", "ai_AIPackage")
+    registry.register("ai_AIPackage", "m")
     registry.save(tmp_path / DEFAULT_ID_REGISTRY_FILENAME)
 
     registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-14
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -177,3 +177,15 @@ Ways a test passes, fails or floods the log for the wrong reason.
   Pitloom, not the copy, ran; pinning `PYTHONPATH` to the copy's `src` made it
   fail as it should.
 
+
+- **`write_text("x\n")` is CRLF on Windows.** A fixture written that way and
+  checked against `hashlib.sha256(b"x\n")` passed on Linux and macOS and failed
+  on `windows-latest` / Python 3.11 only (PR #305, four cases of one test;
+  the lookup missed and the element got a minted id). Do: `write_bytes` for any
+  digest of known bytes; list "literal bytes hashed against a text-mode write"
+  in every Windows dry-run checklist.
+- **A subset run shows coverage that the full run does not.** Lines of an
+  untouched file read as uncovered in a partial `pytest` run and were 100% in
+  the full one; a guard that was really unreachable (pruned by the walk and
+  rejected by a PATH check first) was found only after ruling that out. Do:
+  take the coverage figure from the full suite, then decide dead or missing.

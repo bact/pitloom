@@ -9,9 +9,8 @@ share it, and an exit that cannot wait for a discovery still releases the
 batch's :class:`~pitloom.core.build_signals.TerminationGuard`, with the
 late discovery cleaning up after itself.
 
-Split from :mod:`tests.assemble.test_embed_build_options` (the rest of
-the cache's single-threaded behaviour and the build-options threading)
-once that file crossed the ~400-500 line soft limit.
+See also: :mod:`tests.assemble.test_embed_build_options` for the cache's
+single-threaded behaviour and the build-options threading.
 """
 
 # pylint: disable=protected-access

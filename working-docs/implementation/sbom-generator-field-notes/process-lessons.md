@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-14
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -165,3 +165,23 @@ ruling, agents did the reading, building and reviewing.
   rest is recorded as numbered open questions. It held; 21 items moved to
   follow-ups.
 
+
+- **Disjoint file ownership per agent, and rerun before blaming.** Six
+  agents fixed one PR in parallel, each owning named files. Intermittent
+  failures (four permission tests, a mypy count, an `E501`) appeared in
+  combined runs while another agent was mid-edit, and vanished when run alone
+  or after the agents stopped. Do: gate once after all agents land; a failure
+  in a file nobody owns is first a concurrency artefact.
+- **A reviewer who ran a repro beats the test suite.** After 12,452 passing
+  tests, 100% branch coverage and a clean linter set, three read-only
+  reviewers found one wrong-output merge bug, a reused-id hole, a regression
+  against HEAD and a placeholder-as-key bug. What they had that the author did
+  not: a `git archive HEAD` copy to diff against, instructions to report only
+  reproduced defects, and no stake in the change. Do: brief each with the
+  intent, the diff command and "run it", and verify a finding yourself before
+  fixing.
+- **Defer a big redesign with its plan intact.** The path-key redesign
+  (below, in the open questions) was drafted by a planning agent in one pass
+  (397 lines, three options, a surface-by-member matrix, ten decisions) and
+  deferred by the maintainer as too big for the PR. The plan file stays; the
+  bundled work (G7 #3) is marked as waiting on it.

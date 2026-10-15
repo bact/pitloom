@@ -26,6 +26,7 @@ from pitloom.core._config_legacy import (
 from pitloom.core._config_parse_scan import (
     _read_content_type_settings,
     _read_extract_file_header,
+    _read_max_dataset_hash_bytes,
     _read_max_model_extract_bytes,
     _read_max_source_metadata_bytes,
     _read_scan_model_usage,
@@ -368,6 +369,7 @@ def parse_pitloom_config(
     extract_file_header = _read_extract_file_header(pitloom_data)
     scan_model_usage = _read_scan_model_usage(pitloom_data)
     max_model_extract_bytes = _read_max_model_extract_bytes(pitloom_data)
+    max_dataset_hash_bytes = _read_max_dataset_hash_bytes(pitloom_data)
     update_id_registry = _read_update_id_registry(pitloom_data)
     (
         content_type_enabled,
@@ -422,6 +424,7 @@ def parse_pitloom_config(
         extract_file_header=extract_file_header,
         scan_model_usage=scan_model_usage,
         max_model_extract_bytes=max_model_extract_bytes,
+        max_dataset_hash_bytes=max_dataset_hash_bytes,
         content_type_enabled=content_type_enabled,
         content_type_method=content_type_method,
         content_type_overrides=content_type_overrides,

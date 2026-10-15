@@ -8,8 +8,7 @@ across *every* ``(surface, mode)`` pair -- not just one representative
 surface per category, as :mod:`tests.id_registry.test_surfaces`'s
 narrower ``test_library_and_loom_declared_bad_registry_raises`` /
 ``test_hook_declared_bad_registry_raises_one_error_no_sbom_files`` do. A
-surface
-offering three declaration modes (``flag``/``own_key``/``config_key``)
+surface offering three declaration modes (``flag``/``own_key``/``config_key``)
 resolves each through a different code path (see
 :mod:`tests.id_registry.test_relative_paths`'s module docstring for the
 per-route base-directory breakdown) -- only sweeping every mode, not just
@@ -24,13 +23,13 @@ written --
   :func:`pitloom.cli.id._load_or_create_registry`: a missing target is
   created fresh) -- only "malformed" is, and it is covered by a
   dedicated test in this module.
-- "Undeclared" for them means "default to ``<project_dir>/
-  loom-id-registry.json``" (see
-  :func:`pitloom.cli.id._resolve_id_registry_target`), which *does* call
-  ``IdRegistry.load`` when that default file happens to exist -- the
-  opposite of "never loaded". :mod:`tests.id_registry.test_surfaces`'s
+- "Undeclared" is an ERROR for them, not "never loaded": there is no
+  implicit default file (see
+  :func:`pitloom.cli._id_target._resolve_id_registry_target` and
+  :mod:`tests.cli.test_cli_id_registry_required`).
+  :mod:`tests.id_registry.test_surfaces`'s
   ``test_id_generate_creates_missing_declared_registry_and_logs_hint``
-  covers their own resolution default.
+  covers the create-if-missing case.
 
 See also: :mod:`tests.id_registry.surfaces_shared` (``SURFACES``,
 ``SUPPORTED_MODES``, ``Declare``), :mod:`tests.id_registry.test_surfaces`
@@ -42,8 +41,10 @@ plus the completeness guards these sweeps rely on to stay exhaustive).
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+import re
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -110,8 +111,24 @@ _CLI_OUTPUT_PATH: dict[str, str] = {
     "cli-enrich-project": "out.enrich.spdx3.json",
 }
 
-_CONTENT_IDS = ["missing", "malformed-json"]
-_CONTENT_VALUES = [None, "{"]
+#: A registry file in the old version 2 format (D10: no migration).
+_V2_FILE = json.dumps(
+    {
+        "version": 2,
+        "namespace": "https://spdx.org/spdxdocs/old-1",
+        "files": {},
+        "entities": {},
+    }
+)
+_CONTENT_IDS = ["missing", "malformed-json", "v2"]
+_CONTENT_VALUES = [None, "{", _V2_FILE]
+
+
+def _reason(content: str | None) -> str:
+    """The regex every surface's message contains for *content*."""
+    if content == _V2_FILE:
+        return r"ID registry file .*: version 2, expected 3 \(no migration support"
+    return r"ID registry file "
 
 
 # --- CLI surfaces: one ERROR: line, exit 1, no separate output file -----
@@ -144,7 +161,7 @@ def test_cli_declared_bad_registry_every_mode(
         line for line in captured.err.splitlines() if line.startswith("ERROR:")
     ]
     assert len(error_lines) == 1, f"{surface}/{mode}: {captured.err}"
-    assert "ID registry file " in error_lines[0]
+    assert re.search(_reason(content), error_lines[0])
     assert registry_path.name in error_lines[0]
 
     output_name = _CLI_OUTPUT_PATH.get(surface)
@@ -180,7 +197,7 @@ def test_raising_surfaces_declared_bad_registry_every_mode(
         # library runner that resolved the registry *after* generating
         # and writing output would still raise here, but too late).
         output_path = tmp_path / "lib-output.spdx3.json"
-        with pytest.raises(ValueError, match=r"^ID registry file "):
+        with pytest.raises(ValueError, match="^" + _reason(content)):
             LIBRARY_RUNNERS_WITH_OUTPUT_PATH[surface](
                 tmp_path, monkeypatch, declare, output_path=output_path
             )
@@ -194,7 +211,7 @@ def test_raising_surfaces_declared_bad_registry_every_mode(
         # registry before it ever reads/rewrites the wheel).
         wheel = demo_wheel(tmp_path)
         before = wheel.read_bytes()
-        with pytest.raises(ValueError, match=r"^ID registry file "):
+        with pytest.raises(ValueError, match="^" + _reason(content)):
             lib_embed_wheel_sbom(tmp_path, monkeypatch, declare, wheel=wheel)
         after = wheel.read_bytes()
         assert before == after, f"{surface}/{mode}: wheel was modified"
@@ -203,29 +220,32 @@ def test_raising_surfaces_declared_bad_registry_every_mode(
     if surface == "hook":
         build_data: dict[str, object] = {}
         with caplog.at_level(logging.ERROR):
-            with pytest.raises(ValueError, match=r"^ID registry file "):
+            with pytest.raises(ValueError, match="^" + _reason(content)):
                 run_hook(tmp_path, monkeypatch, declare, build_data=build_data)
         error_records = [r for r in caplog.records if r.levelname == "ERROR"]
         assert len(error_records) == 1, f"{surface}/{mode}: {caplog.records}"
         assert "sbom_files" not in build_data
         return
 
-    with pytest.raises(ValueError, match=r"^ID registry file "):
+    with pytest.raises(ValueError, match="^" + _reason(content)):
         SURFACES[surface](tmp_path, monkeypatch, declare)
 
 
+@pytest.mark.parametrize("content", _CONTENT_VALUES[1:], ids=_CONTENT_IDS[1:])
 @pytest.mark.parametrize("surface", ["cli-id-generate", "cli-id-import"])
 def test_id_command_malformed_declared_registry_is_one_error(
     surface: str,
+    content: str,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Unlike a *missing* declared file (created fresh -- not a failure,
-    see the module docstring), a *malformed* one still fails: it exists,
-    so ``IdRegistry.load`` is still the code path that runs."""
+    see the module docstring), a *malformed* or version 2 one still
+    fails: it exists, so ``IdRegistry.load`` is still the code path that
+    runs."""
     registry_path = tmp_path / "bad.json"
-    registry_path.write_text("{", encoding="utf-8")
+    registry_path.write_text(content, encoding="utf-8")
     declare = Declare(flag=registry_path)
 
     result = SURFACES[surface](tmp_path, monkeypatch, declare)
@@ -236,7 +256,7 @@ def test_id_command_malformed_declared_registry_is_one_error(
         line for line in captured.err.splitlines() if line.startswith("ERROR:")
     ]
     assert len(error_lines) == 1, captured.err
-    assert "ID registry file " in error_lines[0]
+    assert re.search(_reason(content), error_lines[0])
 
 
 # --- A relative project directory: the ERROR names an absolute path ----

@@ -8,9 +8,10 @@ The scripts are not an importable package (they also run standalone on the
 GitHub Actions runner), so each is loaded by file path.
 """
 
+import importlib
 import importlib.util
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from types import ModuleType
 
@@ -42,3 +43,37 @@ def load_script_fixture() -> Callable[[str], ModuleType]:
         return module
 
     return load
+
+
+@pytest.fixture(name="mcc")
+def mcc_fixture(scripts_dir: Path, tmp_path: Path) -> Iterator[dict[str, ModuleType]]:
+    """The order-matrix modules, loaded as the runner loads them (their
+    directory first on ``sys.path``), with fixtures under *tmp_path*."""
+    checks_dir = scripts_dir / "manual_cli_checks"
+    names = {p.stem for p in checks_dir.glob("_*.py")}
+    previous = {name: sys.modules.pop(name, None) for name in names}
+    sys.path.insert(0, str(checks_dir))
+    try:
+        mods = {
+            name: importlib.import_module(name)
+            for name in (
+                "_fixtures",
+                "_harness",
+                "_order_capture",
+                "_order_fixtures",
+                "_order_gen",
+                "_order_invariants",
+                "_order_known",
+                "_order_ops",
+                "_checks_order",
+            )
+        }
+        mods["_fixtures"].install(mods["_fixtures"].Fixtures(tmp_path / "fx"))
+        yield mods
+    finally:
+        sys.path.remove(str(checks_dir))
+        for name in names:
+            sys.modules.pop(name, None)
+            restore = previous[name]
+            if restore is not None:
+                sys.modules[name] = restore

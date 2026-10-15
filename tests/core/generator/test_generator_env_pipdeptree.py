@@ -147,6 +147,6 @@ def test_registry_runs_never_claim_unknown(
     assert set(_packages(second)) == set(_EXPECTED_VERSIONS)
     reloaded = IdRegistry.load(registry_path)
     registered = {
-        name for (kind, name) in reloaded.entities if kind == "software_Package"
+        name for (kind, name) in reloaded.elements if kind == "software_Package"
     }
     assert registered == {*_EXPECTED_VERSIONS, "deployed-environment"}

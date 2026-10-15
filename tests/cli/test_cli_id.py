@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for Pitloom CLI main entry point behaviour."""
+"""Tests for `pitloom id generate`/`id import` through the CLI entry point."""
 
 from __future__ import annotations
 
@@ -18,7 +18,14 @@ import pytest
 from pitloom import __main__
 from pitloom.cli.id import _load_or_create_registry, _run_id_command
 from pitloom.cli.parser import _build_parser
-from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
+from pitloom.id_registry import (
+    AI_PACKAGE_TYPE,
+    DATASET_PACKAGE_TYPE,
+    DEFAULT_ID_REGISTRY_FILENAME,
+    FILE_TYPE,
+    PACKAGE_TYPE,
+    IdRegistry,
+)
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 SAFETENSORS_FIXTURE = (
@@ -59,7 +66,7 @@ version = "1.0.0"
 
     assert registry_path.exists()
     registry = IdRegistry.load(registry_path)
-    assert registry.has_entity_named("importable-pkg")
+    assert registry.has_name("importable-pkg")
 
 
 def test_id_generate_registry_load_fails(
@@ -248,11 +255,81 @@ def test_id_generate_cli_entity_flag(
     assert exit_code == 0
 
     registry = IdRegistry.load(registry_path)
-    assert registry.entities[("ai_AIPackage", "sentimentdemo")].spdx_id.endswith(
-        "#AIPackage-1"
+    entry = registry.get(AI_PACKAGE_TYPE, "sentimentdemo")
+    assert entry is not None  # non-vacuous
+    assert entry.spdx_id.endswith("#AIPackage-1")
+    assert registry.get(DATASET_PACKAGE_TYPE, "other") is not None
+    assert registry.get(FILE_TYPE, "data/raw.txt") is not None
+
+
+_HF_IMDB = "https://huggingface.co/datasets/imdb"
+_DRIVE_PATH = "C:\\data\\t.txt"
+
+
+@pytest.mark.parametrize(
+    ("spec", "expected"),
+    [
+        (f"{_HF_IMDB}:{DATASET_PACKAGE_TYPE}", (DATASET_PACKAGE_TYPE, _HF_IMDB)),
+        (_HF_IMDB, (AI_PACKAGE_TYPE, _HF_IMDB)),
+        (f"{_DRIVE_PATH}:{DATASET_PACKAGE_TYPE}", (DATASET_PACKAGE_TYPE, _DRIVE_PATH)),
+        (_DRIVE_PATH, (AI_PACKAGE_TYPE, _DRIVE_PATH)),
+        ("m:ai_AIPackage", (AI_PACKAGE_TYPE, "m")),
+        ("model:v2", (AI_PACKAGE_TYPE, "model:v2")),
+        ("http://h:8080", (AI_PACKAGE_TYPE, "http://h:8080")),
+    ],
+    ids=["url", "url-no-type", "drive", "drive-no-type", "plain", "colon-name"]
+    + ["port"],
+)
+def test_id_generate_entity_spec_splits_at_the_last_known_type(
+    tmp_path: Path, spec: str, expected: tuple[str, str]
+) -> None:
+    """``NAME:TYPE`` splits at the last ``:``, and only when what follows is
+    a registry type: a URL's or a drive letter's ``:`` stays in NAME."""
+    registry_path = tmp_path / "reg.json"
+    args = _build_parser().parse_args(
+        ["id", "generate", str(tmp_path), "--project-dir", str(tmp_path)]
+        + ["-o", str(registry_path), "-e", spec]
     )
-    assert ("dataset_DatasetPackage", "other") in registry.entities
-    assert "data/raw.txt" in registry.files
+
+    assert _run_id_command(args) == 0
+
+    loaded = IdRegistry.load(registry_path)
+    assert [key for key in loaded.elements if key[0] != FILE_TYPE] == [expected]
+
+
+@pytest.mark.parametrize(
+    "spec",
+    [
+        "m:dataset_Datasetpackage",
+        "m:AI_AIPackage",
+        "m:software_Snippet",
+        ":ai_AIPackage",
+        "",
+        ":",
+        "m:",
+        "m:ai_AIPackage:",
+        "m: software_File",
+        "m:software_File ",
+        "m:ai_AIPackage\n",
+        "m\tn",
+        " \u00a0:ai_AIPackage",
+        "m:software_Snippet ",
+        "m: Software_File",
+    ],
+    ids=["typo", "case-typo", "unsupported", "no-name", "empty", "colon"]
+    + ["no-type", "trailing-colon", "space-type", "type-space", "newline"]
+    + ["control", "blank-name", "unknown-type-space", "case-type-space"],
+)
+def test_id_generate_entity_spec_rejects_an_unknown_type(
+    spec: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A ``prefix_Name`` suffix that is not a registry type is a typo, not
+    part of NAME: exit 2, the argparse way."""
+    with pytest.raises(SystemExit) as exc_info:
+        _build_parser().parse_args(["id", "generate", "-e", spec])
+
+    assert exc_info.value.code == 2
+    assert "argument -e/--entity" in capsys.readouterr().err
 
 
 def test_id_generate_entity_flag_hits_env_lookup(
@@ -262,7 +339,7 @@ def test_id_generate_entity_flag_hits_env_lookup(
     declared (mixed-case) name; a later ``generate_env_sbom()`` lookup,
     which only has pipdeptree's lowercased ``key`` to query with, must
     still hit it -- ``IdRegistry``'s own PEP 503 canonicalization
-    (:func:`pitloom.id_registry._types._entity_key`) is what makes a raw ``--entity``
+    (:func:`pitloom.id_registry._types._element_key`) is what makes a raw ``--entity``
     registration and a real deployed-dependency lookup agree, not
     anything specific to harvest."""
     # pylint: disable=import-outside-toplevel
@@ -305,9 +382,9 @@ def test_id_generate_entity_flag_hits_env_lookup(
         stdout=json.dumps(tree),
         stderr="",
     )
-    registered_id = (
-        IdRegistry.load(registry_path).entities[("software_Package", "pyyaml")].spdx_id
-    )
+    entry = IdRegistry.load(registry_path).get(PACKAGE_TYPE, "pyyaml")
+    assert entry is not None
+    registered_id = entry.spdx_id
 
     with patch("subprocess.run", return_value=fake_result):
         sbom = generate_env_sbom(

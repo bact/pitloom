@@ -3,34 +3,42 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Core tests for pitloom.id_registry.
+"""Core tests for pitloom.id_registry: the key rule, ``lookup``, ``get``,
+``register``, ``has_name``, ``id_count`` and ``root_dir``.
 
-See also: test_registry_harvest.py (harvest-specific tests, split out of
-this file -- see AGENTS.md's file-size rule), test_registry_generate.py,
-test_registry_import.py, shared.py (fixtures shared by this group).
+See also: test_registry_format.py (load/save), test_registry_harvest.py,
+test_registry_generate.py, test_registry_import.py, test_session.py,
+tests/registry_helpers.py (``make_registry``).
 """
 
-# pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring
-# pylint: disable=too-few-public-methods
 
 from __future__ import annotations
 
-import json
+import os
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
-from pitloom.core.canonical_json import canonical_json
 from pitloom.id_registry import (
+    AI_PACKAGE_TYPE,
+    DATASET_PACKAGE_TYPE,
     DEFAULT_ID_REGISTRY_FILENAME,
-    DIRECTORY_ENTITY_TYPE,
+    FILE_TYPE,
+    PACKAGE_TYPE,
     IdRegistry,
+    IdRegistrySession,
+    RegistryEntry,
     resolve_registry,
+    type_id_prefix,
 )
-from pitloom.id_registry._types import _REGISTRY_VERSION
-from tests.json_text_helpers import without_token_whitespace
+from pitloom.id_registry._types import _element_key
+from tests.registry_helpers import entries_of, make_registry
+
+_NS = "https://spdx.org/spdxdocs/test-1"
+_SHA_A = "a" * 64
+_SHA_B = "b" * 64
+_ABSENT = "absent"
 
 
 def test_resolve_registry_error(tmp_path: Path) -> None:
@@ -46,266 +54,267 @@ def test_resolve_registry_error(tmp_path: Path) -> None:
         resolve_registry(missing_file, None, tmp_path)
 
 
-def test_register_entity_different_type_gets_its_own_id() -> None:
-    """Two different types sharing a name are distinct entries, each with
-    its own id -- (type, name) keying means this is no longer a conflict."""
-    registry = IdRegistry.new("test")
-
-    id1 = registry.register_entity("my-entity", "Software")
-    id2 = registry.register_entity("my-entity", "Dataset")
-
-    assert id1 != id2
-    assert registry.lookup_entity("my-entity", "Software") == id1
-    assert registry.lookup_entity("my-entity", "Dataset") == id2
+# --- the key rule -----------------------------------------------------
 
 
-def test_register_entity_encodes_a_user_given_type_prefix() -> None:
+def test_element_key_canonicalises_only_a_package_name() -> None:
+    """Keyword call, and a swap-killer: a type and a name that differ only
+    by PEP 503 canonicalisation give different keys if swapped."""
+    assert _element_key(type_name=PACKAGE_TYPE, name="Py_YAML") == (
+        PACKAGE_TYPE,
+        "py-yaml",
+    )
+    assert _element_key(type_name=FILE_TYPE, name="Py_YAML") == (FILE_TYPE, "Py_YAML")
+    assert _element_key(type_name="Software_Package", name=PACKAGE_TYPE) == (
+        "Software_Package",
+        PACKAGE_TYPE,
+    )
+
+
+def test_element_key_rejects_a_positional_call() -> None:
+    with pytest.raises(TypeError):
+        # pylint: disable-next=too-many-function-args,missing-kwoa
+        _element_key(PACKAGE_TYPE, "x")  # type: ignore[call-arg]
+
+
+def test_registry_entry_lowercases_and_rejects_an_empty_sha256() -> None:
+    assert RegistryEntry("x", "ABC").sha256 == "abc"
+    assert RegistryEntry("x").sha256 is None
+    with pytest.raises(ValueError, match="sha256"):
+        RegistryEntry("x", "")
+
+
+@pytest.mark.parametrize(
+    ("type_name", "prefix"),
+    [
+        (FILE_TYPE, "File"),
+        (PACKAGE_TYPE, "Package"),
+        (AI_PACKAGE_TYPE, "AIPackage"),
+        (DATASET_PACKAGE_TYPE, "DatasetPackage"),
+        ("Agent", "Agent"),
+    ],
+)
+def test_type_id_prefix(type_name: str, prefix: str) -> None:
+    assert type_id_prefix(type_name) == prefix
+
+
+# --- lookup and get ----------------------------------------------------
+
+
+def test_lookup_is_typed_and_a_file_and_a_dataset_at_one_path_differ() -> None:
+    """A File and a DatasetPackage at one path get two ids (D2), and a
+    lookup of one type never returns the other's."""
+    registry = IdRegistry.new("demo")
+    file_id = registry.register(FILE_TYPE, "data/t.txt", sha256=_SHA_A)
+    dataset_id = registry.register(DATASET_PACKAGE_TYPE, "data/t.txt")
+
+    assert file_id != dataset_id
+    assert file_id.endswith("#File-1")
+    assert dataset_id.endswith("#DatasetPackage-1")
+    assert registry.lookup(FILE_TYPE, ["data/t.txt"]) == file_id
+    assert registry.lookup(DATASET_PACKAGE_TYPE, ["data/t.txt"]) == dataset_id
+    assert registry.lookup(AI_PACKAGE_TYPE, ["data/t.txt"]) is None
+
+
+@pytest.mark.parametrize(
+    ("stored", "given", "hit"),
+    [
+        (_SHA_A, _SHA_A, True),
+        (_SHA_A, _SHA_A.upper(), True),
+        (_SHA_A.upper(), _SHA_A, True),
+        (_SHA_A, _SHA_B, False),
+        (None, _SHA_A, False),  # a sha-less entry never satisfies a gate
+        (None, None, True),
+        (_SHA_A, None, True),  # ungated ignores the entry's hash
+    ],
+    ids=["equal", "given-upper", "stored-upper", "differs", "no-sha", "ungated", "u+s"],
+)
+def test_lookup_gate(stored: str | None, given: str | None, hit: bool) -> None:
+    registry = make_registry({(FILE_TYPE, "a.py"): (f"{_NS}#File-1", stored)})
+
+    found = registry.lookup(FILE_TYPE, ["a.py"], sha256=given)
+
+    assert found == (f"{_NS}#File-1" if hit else None)
+
+
+def test_lookup_first_gated_hit_wins_in_candidate_order() -> None:
+    """I3: the first candidate whose gate passes wins; a candidate whose
+    hash differs is skipped, not a stop."""
+    registry = make_registry(
+        {
+            (FILE_TYPE, "src/p/a.py"): (f"{_NS}#File-1", _SHA_B),
+            (FILE_TYPE, "p/a.py"): (f"{_NS}#File-2", _SHA_A),
+            (FILE_TYPE, "x/a.py"): (f"{_NS}#File-3", _SHA_A),
+        }
+    )
+    names = ["src/p/a.py", "p/a.py", "x/a.py"]
+
+    assert registry.lookup(FILE_TYPE, names, sha256=_SHA_A) == f"{_NS}#File-2"
+    assert registry.lookup(FILE_TYPE, names[::-1], sha256=_SHA_A) == f"{_NS}#File-3"
+    assert registry.lookup(FILE_TYPE, names) == f"{_NS}#File-1"
+
+
+@pytest.mark.parametrize(
+    "registry", [None, IdRegistry.new("x")], ids=["none", "registry"]
+)
+def test_lookup_rejects_a_bare_string(registry: IdRegistry | None) -> None:
+    with pytest.raises(TypeError, match="not one str"):
+        IdRegistrySession(registry).lookup_id("c", FILE_TYPE, "a.py")
+    with pytest.raises(TypeError, match="not one str"):
+        IdRegistry.new("x").lookup(FILE_TYPE, "a.py")
+
+
+def test_get_and_lookup_canonicalise_a_package_name() -> None:
+    registry = IdRegistry.new("x")
+    pinned = registry.register(PACKAGE_TYPE, "PyYAML")
+
+    assert registry.lookup(PACKAGE_TYPE, ["pyyaml"]) == pinned
+    assert registry.get(PACKAGE_TYPE, "PYYAML") == RegistryEntry(pinned)
+    assert registry.get(FILE_TYPE, "PyYAML") is None
+
+
+# --- register (D12), row by row ----------------------------------------
+
+
+#: (entry's sha256 or _ABSENT, given sha256, id number, stored sha256, INFO)
+_REGISTER_ROWS: dict[str, tuple[str | None, str | None, int, str | None, bool]] = {
+    "none-none": (_ABSENT, None, 1, None, False),
+    "none-sha": (_ABSENT, _SHA_A, 1, _SHA_A, False),
+    "nosha-none": (None, None, 7, None, False),
+    "sha-none-kept": (_SHA_A, None, 7, _SHA_A, False),
+    "equal": (_SHA_A, _SHA_A.upper(), 7, _SHA_A, False),
+    "differs": (_SHA_A, _SHA_B, 8, _SHA_B, True),
+    "nosha-gets-sha": (None, _SHA_B, 8, _SHA_B, True),
+}
+
+
+@pytest.mark.parametrize("row", list(_REGISTER_ROWS))
+def test_register_table(row: str, caplog: pytest.LogCaptureFixture) -> None:
+    entry_sha, given, number, stored, info = _REGISTER_ROWS[row]
+    old_id = f"{_NS}#AIPackage-7"
+    entries = (
+        {} if entry_sha == _ABSENT else {(AI_PACKAGE_TYPE, "m"): (old_id, entry_sha)}
+    )
+    registry = make_registry(entries)
+
+    with caplog.at_level("INFO", logger="pitloom.id_registry"):
+        spdx_id = registry.register(AI_PACKAGE_TYPE, "m", sha256=given)
+
+    assert spdx_id == f"{_NS}#AIPackage-{number}"
+    assert registry.get(AI_PACKAGE_TYPE, "m") == RegistryEntry(spdx_id, stored)
+    changed = [
+        r.getMessage()
+        for r in caplog.records
+        if "ID registry: content changed" in r.getMessage()
+    ]
+    assert len(changed) == int(info)
+    assert all(old_id in message for message in changed)
+
+
+def test_register_never_erases_a_sha() -> None:
+    registry = IdRegistry.new("x")
+    first = registry.register(FILE_TYPE, "a.py", sha256=_SHA_A)
+
+    for _ in range(2):
+        assert registry.register(FILE_TYPE, "a.py") == first
+
+    assert registry.get(FILE_TYPE, "a.py") == RegistryEntry(first, _SHA_A)
+
+
+def test_register_encodes_a_user_given_type_prefix() -> None:
     """``loom id generate -e NAME:TYPE`` takes any TYPE; its id prefix is
     encoded, and the next mint for that type still finds the previous one."""
     registry = IdRegistry.new("test")
 
-    first = registry.register_entity("a", "My Type#1")
-    second = registry.register_entity("b", "My Type#1")
+    first = registry.register("My Type#1", "a")
+    second = registry.register("My Type#1", "b")
 
     assert first == f"{registry.namespace}#My%20Type%231-1"
     assert second == f"{registry.namespace}#My%20Type%231-2"
 
 
-def test_register_entity_matching_type_reuses_id_without_warning(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """Re-registering an entity with the *same* type is a silent no-op."""
-    registry = IdRegistry.new("test")
-
-    id1 = registry.register_entity("my-entity", "Software")
-    id2 = registry.register_entity("my-entity", "Software")
-
-    assert id1 == id2
-    assert "already registered as type" not in caplog.text
-
-
-def test_load_missing_namespace_raises(tmp_path: Path) -> None:
-    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    registry_path.write_text(json.dumps({"files": {}, "entities": {}}))
-
-    with pytest.raises(ValueError, match="missing a valid 'namespace'"):
-        IdRegistry.load(registry_path)
-
-
-def test_load_missing_file_raises_not_found(tmp_path: Path) -> None:
-    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-
-    with pytest.raises(ValueError, match="not found or not a file"):
-        IdRegistry.load(registry_path)
-
-
-def test_load_directory_raises_not_found(tmp_path: Path) -> None:
-    """A directory (``lexists`` but ``os.path.isfile`` is false) is the
-    same 'not found or not a file' reason as a missing path."""
-    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    registry_path.mkdir()
-
-    with pytest.raises(ValueError, match="not found or not a file"):
-        IdRegistry.load(registry_path)
-
-
-def test_load_not_a_json_object_raises(tmp_path: Path) -> None:
-    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    registry_path.write_text(json.dumps([1, 2, 3]))
-
-    with pytest.raises(ValueError, match="not a JSON object"):
-        IdRegistry.load(registry_path)
-
-
-def test_load_malformed_json_raises_not_valid_json(tmp_path: Path) -> None:
-    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    registry_path.write_text("{not valid json")
-
-    with pytest.raises(ValueError, match="not valid JSON"):
-        IdRegistry.load(registry_path)
-
-
-def test_load_tolerates_a_leading_bom(tmp_path: Path) -> None:
-    """A UTF-8 BOM-prefixed but otherwise valid registry still loads --
-    reading raw bytes with ``json.loads(bytes)`` strips a leading BOM,
-    unlike ``json.loads(str)`` after a plain ``.decode("utf-8")``."""
-    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    payload = json.dumps(
-        {
-            "version": _REGISTRY_VERSION,
-            "namespace": "https://spdx.org/spdxdocs/bom-1",
-            "files": {},
-            "entities": {},
-        }
-    ).encode("utf-8")
-    registry_path.write_bytes(b"\xef\xbb\xbf" + payload)
-
-    registry = IdRegistry.load(registry_path)
-
-    assert registry.namespace == "https://spdx.org/spdxdocs/bom-1"
-
-
-def test_load_os_error_on_read_raises_cannot_be_read(tmp_path: Path) -> None:
-    """A genuine read failure (e.g. permission denied) is surfaced as the
-    'cannot be read' reason, not left to propagate as a bare OSError --
-    mocked rather than a real chmod, since NTFS has no matching bit
-    (see AGENTS.md's Windows/macOS permission-test guidance)."""
-    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    registry_path.write_text("{}")
-
-    with patch(
-        "pitloom.id_registry._registry.open",
-        side_effect=OSError("Permission denied"),
-    ):
-        with pytest.raises(ValueError, match="cannot be read"):
-            IdRegistry.load(registry_path)
-
-
-def test_load_non_utf8_bytes_raises_not_valid_json(tmp_path: Path) -> None:
-    """A ``UnicodeDecodeError`` from non-UTF-8 bytes must not escape
-    uncaught -- it's surfaced as the same 'not valid JSON' reason."""
-    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    registry_path.write_bytes(b"\xff\xfe\x00\x01not json at all")
-
-    with pytest.raises(ValueError, match="not valid JSON"):
-        IdRegistry.load(registry_path)
-
-
-def test_load_malformed_entry_raises(tmp_path: Path) -> None:
-    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    registry_path.write_text(
-        json.dumps(
-            {
-                "version": _REGISTRY_VERSION,
-                "namespace": "https://spdx.org/spdxdocs/test-1",
-                "files": {"a.py": {"spdxId": "x#File-1"}},  # missing sha256
-                "entities": {},
-            }
-        )
-    )
-
-    with pytest.raises(ValueError, match=r"ID registry file .*: malformed entry"):
-        IdRegistry.load(registry_path)
-
-
-def test_load_null_spdx_id_raises(tmp_path: Path) -> None:
-    """A ``null`` ``spdxId`` must not silently stringify to the literal
-    text ``"None"`` -- it's a malformed entry, not a valid id."""
-    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    registry_path.write_text(
-        json.dumps(
-            {
-                "version": _REGISTRY_VERSION,
-                "namespace": "https://spdx.org/spdxdocs/test-1",
-                "files": {"a.py": {"spdxId": None, "sha256": "a" * 64}},
-                "entities": {},
-            }
-        )
-    )
-
-    with pytest.raises(ValueError, match=r"ID registry file .*: malformed entry"):
-        IdRegistry.load(registry_path)
-
-
-def test_load_list_spdx_id_raises(tmp_path: Path) -> None:
-    """A list-valued ``spdxId`` (wrong JSON type) is a malformed entry,
-    not silently stringified to its Python repr."""
-    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    registry_path.write_text(
-        json.dumps(
-            {
-                "version": _REGISTRY_VERSION,
-                "namespace": "https://spdx.org/spdxdocs/test-1",
-                "files": {"a.py": {"spdxId": ["a", "b"], "sha256": "a" * 64}},
-                "entities": {},
-            }
-        )
-    )
-
-    with pytest.raises(ValueError, match=r"ID registry file .*: malformed entry"):
-        IdRegistry.load(registry_path)
-
-
-def test_load_deeply_nested_json_raises_not_valid_json(tmp_path: Path) -> None:
-    """A ``RecursionError`` from a pathologically deep JSON structure must
-    be caught alongside ``ValueError`` around ``json.loads`` -- surfaced
-    as the same 'not valid JSON' reason, never left to propagate
-    uncaught."""
-    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    depth = 200_000
-    payload = "[" * depth + "]" * depth
-    registry_path.write_text(payload)
-
-    with pytest.raises(ValueError, match="not valid JSON"):
-        IdRegistry.load(registry_path)
-
-
-def test_save_without_path_raises() -> None:
-    registry = IdRegistry.new("test")
-
-    with pytest.raises(ValueError, match="No path given"):
-        registry.save()
-
-
-def test_entities_keyed_by_type_survive_a_shared_name_round_trip(
-    tmp_path: Path,
-) -> None:
-    """A directory and a package sharing one name are distinct registry
-    entries: (type, name) keying means neither is lost, before or after a
-    save/load round trip -- regression for the name-only-keyed overwrite
-    hazard (a harvested directory and a same-named package silently
-    replacing each other)."""
+def test_register_same_name_different_types_gets_two_ids(tmp_path: Path) -> None:
+    """A directory and a package sharing one name are two entries, before
+    and after a save/load round trip."""
     registry = IdRegistry.new("demo-proj")
-    dir_id = registry.register_entity("demo", DIRECTORY_ENTITY_TYPE)
-    pkg_id = registry.register_entity("demo", "software_Package")
+    dir_id = registry.register(FILE_TYPE, "demo")
+    pkg_id = registry.register(PACKAGE_TYPE, "demo")
+
+    path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
+    registry.save(path)
+    reloaded = IdRegistry.load(path)
 
     assert dir_id != pkg_id
-    assert registry.lookup_entity("demo", DIRECTORY_ENTITY_TYPE) == dir_id
-    assert registry.lookup_entity("demo", "software_Package") == pkg_id
-
-    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    registry.save(registry_path)
-    reloaded = IdRegistry.load(registry_path)
-
-    assert reloaded.lookup_entity("demo", DIRECTORY_ENTITY_TYPE) == dir_id
-    assert reloaded.lookup_entity("demo", "software_Package") == pkg_id
-    assert len(reloaded.entities) == 2
+    assert reloaded.lookup(FILE_TYPE, ["demo"]) == dir_id
+    assert reloaded.lookup(PACKAGE_TYPE, ["demo"]) == pkg_id
+    assert entries_of(reloaded) == entries_of(registry)
 
 
-def test_load_rejects_old_registry_version(tmp_path: Path) -> None:
-    """An old-version registry file is rejected outright (no migration) --
-    surfaced by resolve_registry() as the same ValueError load() raises,
-    never a silent None."""
-    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    registry_path.write_text(
-        json.dumps(
-            {
-                "version": _REGISTRY_VERSION - 1,
-                "namespace": "https://spdx.org/spdxdocs/old-1",
-                "files": {},
-                "entities": {"demo": {"type": "software_Package", "spdxId": "x#1"}},
-            }
-        )
+# --- has_name, id_count, root_dir --------------------------------------
+
+
+def test_has_name_matches_any_type_and_a_canonical_package_name() -> None:
+    registry = make_registry(
+        {
+            (PACKAGE_TYPE, "My_Model"): (f"{_NS}#Package-1", None),
+            (FILE_TYPE, "data/t.txt"): (f"{_NS}#File-1", _SHA_A),
+        }
     )
 
-    with pytest.raises(ValueError, match=f"expected {_REGISTRY_VERSION}"):
-        IdRegistry.load(registry_path)
+    assert registry.has_name("My_Model")
+    assert registry.has_name("my-model")
+    assert registry.has_name("data/t.txt")
+    assert not registry.has_name("other")
 
-    with pytest.raises(ValueError, match="ID registry file"):
-        resolve_registry(registry_path, None, tmp_path)
+
+def test_id_count_counts_distinct_ids_not_keys() -> None:
+    registry = make_registry(
+        {
+            (FILE_TYPE, "src/p/a.py"): (f"{_NS}#File-1", _SHA_A),
+            (FILE_TYPE, "p/a.py"): (f"{_NS}#File-1", _SHA_A),
+            (PACKAGE_TYPE, "p"): (f"{_NS}#Package-1", None),
+        }
+    )
+
+    assert len(registry.elements) == 3
+    assert registry.id_count() == 2
+    assert IdRegistry.new("x").id_count() == 0
 
 
-def test_saved_registry_is_canonical_text_with_indentation(tmp_path: Path) -> None:
-    """RFC 8785 key order (U+10000 before U+E000), indentation only added."""
-    registry = IdRegistry(namespace="urn:x")
-    registry.register_file(".py", "0" * 64)
-    registry.register_file("\U00010000.py", "1" * 64)
-    path = tmp_path / "reg.json"
-    registry.save(path)
-    text = path.read_text(encoding="utf-8")
-    assert text.index("\U00010000.py") < text.index(".py")
-    assert text.endswith("}\n")
-    compact = without_token_whitespace(text).rstrip("\n")
-    assert compact == canonical_json(json.loads(text))
-    assert text != compact  # indented, so the check above is not vacuous
-    assert IdRegistry.load(path).files.keys() == registry.files.keys()
+def test_root_dir_cascade(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    project = tmp_path / "proj"
+    (project / "build").mkdir(parents=True)
+    monkeypatch.chdir(project)
+    real = Path(os.path.realpath(project))
+
+    assert IdRegistry.new("x").root_dir() == real
+    in_build = IdRegistry.new("x", path=Path("build") / "reg.json")
+    assert in_build.root_dir() == real / "build"
+    rooted = IdRegistry.new(
+        "x", path=Path("build") / "reg.json", project_root=Path(".")
+    )
+    assert rooted.root_dir() == real
+    assert rooted.project_root == real
+    rooted.project_root = Path(".")  # an assignment skips __init__'s realpath
+    assert rooted.root_dir() == real
+
+
+@pytest.mark.parametrize("which", ["name", "type"])
+def test_register_refuses_a_lone_surrogate_and_stores_nothing(
+    tmp_path: Path, which: str
+) -> None:
+    """A name that is not UTF-8 text could never be saved: refused at the
+    boundary, escaped in the message, the registry left saveable."""
+    registry = IdRegistry.new("x", tmp_path / "s.json", namespace=_NS)
+    bad = "\udcff.txt"
+    args = (FILE_TYPE, bad) if which == "name" else (bad, "a.txt")
+
+    with pytest.raises(ValueError, match="lone surrogate") as excinfo:
+        registry.register(*args)
+
+    assert "\\udcff" in str(excinfo.value)
+    assert f"ID registry: {'name' if which == 'name' else 'type name'} " in str(
+        excinfo.value
+    )
+    assert not registry.elements
+    registry.save()

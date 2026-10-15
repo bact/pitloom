@@ -44,11 +44,20 @@ from hatchling.builders.wheel import WheelBuilder  # noqa: E402
 
 from pitloom import loom  # noqa: E402
 from pitloom.id_registry import (  # noqa: E402
+    DATASET_PACKAGE_TYPE,
     DEFAULT_ID_REGISTRY_FILENAME,
+    FILE_TYPE,
     IdRegistry,
 )
 
 # pylint: enable=wrong-import-position
+
+
+def _id_of(registry: IdRegistry, type_name: str, name: str) -> str:
+    entry = registry.get(type_name, name)
+    assert entry is not None, (type_name, name)
+    return entry.spdx_id
+
 
 _PYPROJECT = """\
 [build-system]
@@ -99,7 +108,9 @@ def sbom_graph(
 
     registry = IdRegistry.new("pipedemo")
     registry.generate([Path("src"), Path("data")], project)
-    registry.register_entity("pipedemo-model", "ai_AIPackage")
+    registry.register("ai_AIPackage", "pipedemo-model")
+    for dataset in ("data/raw.txt", "data/train.txt", "data/test.txt"):
+        registry.register(DATASET_PACKAGE_TYPE, dataset)
     registry.save(project / DEFAULT_ID_REGISTRY_FILENAME)
 
     # loom resolves dataset paths relative to the cwd; the registry is
@@ -173,10 +184,10 @@ def test_connected_pipeline_chain(
     """Package -> contains -> train.py -> generates -> model -> trainedOn ->
     train.txt -> hasInput -> raw.txt, all through registry-stable ids."""
     graph, registry = sbom_graph
-    train_py_id = registry.files["src/pipedemo/train.py"].spdx_id
-    model_id = registry.entities[("ai_AIPackage", "pipedemo-model")].spdx_id
-    train_txt_id = registry.files["data/train.txt"].spdx_id
-    raw_id = registry.files["data/raw.txt"].spdx_id
+    train_py_id = _id_of(registry, FILE_TYPE, "src/pipedemo/train.py")
+    model_id = _id_of(registry, "ai_AIPackage", "pipedemo-model")
+    train_txt_id = _id_of(registry, DATASET_PACKAGE_TYPE, "data/train.txt")
+    raw_id = _id_of(registry, DATASET_PACKAGE_TYPE, "data/raw.txt")
 
     (main_pkg,) = _by_type(graph, "software_Package")
     # Containment is hierarchical (Package contains the package directory,
@@ -213,13 +224,25 @@ def test_preprocess_generates_both_outputs(
     sbom_graph: tuple[list[dict[str, Any]], IdRegistry],
 ) -> None:
     graph, registry = sbom_graph
-    preprocess_id = registry.files["src/pipedemo/preprocess.py"].spdx_id
-    train_txt_id = registry.files["data/train.txt"].spdx_id
-    test_txt_id = registry.files["data/test.txt"].spdx_id
+    preprocess_id = _id_of(registry, FILE_TYPE, "src/pipedemo/preprocess.py")
+    train_txt_id = _id_of(registry, DATASET_PACKAGE_TYPE, "data/train.txt")
+    test_txt_id = _id_of(registry, DATASET_PACKAGE_TYPE, "data/test.txt")
     assert any(
         r["from"] == preprocess_id and set(r["to"]) == {train_txt_id, test_txt_id}
         for r in _rels(graph, "generates")
     )
+
+
+def test_each_dataset_contains_its_registered_file(
+    sbom_graph: tuple[list[dict[str, Any]], IdRegistry],
+) -> None:
+    """Every dataset, declared in either run, is one package that
+    ``contains`` the data file under the file's own registry id."""
+    graph, registry = sbom_graph
+    contains = {(r["from"], tuple(r["to"])) for r in _rels(graph, "contains")}
+    for name in ("data/raw.txt", "data/train.txt", "data/test.txt"):
+        package_id = _id_of(registry, DATASET_PACKAGE_TYPE, name)
+        assert (package_id, (_id_of(registry, FILE_TYPE, name),)) in contains
 
 
 def test_single_model_and_unified_datasets(
@@ -242,7 +265,7 @@ def test_document_envelope_and_profiles(
     sboms = _by_type(graph, "software_Sbom")
     assert len(sboms) == 2
     assert set(doc["rootElement"]) == {s["spdxId"] for s in sboms}
-    model_id = registry.entities[("ai_AIPackage", "pipedemo-model")].spdx_id
+    model_id = _id_of(registry, "ai_AIPackage", "pipedemo-model")
     assert any(s["rootElement"] == [model_id] for s in sboms)
 
 

@@ -25,7 +25,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.assemble import generate_project_sbom, generate_wheel_sbom
-from pitloom.id_registry import PACKAGE_ENTITY_TYPE, EntityEntry, IdRegistry
+from pitloom.id_registry import PACKAGE_TYPE, IdRegistry, RegistryEntry
 from tests.assemble.conftest import _make_sdist
 from tests.id_registry.package_ids_base import (
     MAIN,
@@ -224,8 +224,8 @@ def test_registry_without_package_entries_changes_nothing() -> None:
 
 def test_non_canonical_dependency_name_hits_canonical_key() -> None:
     registry = IdRegistry.new("pins")
-    pinned = registry.register_entity("fake-dep", PACKAGE_ENTITY_TYPE)
-    other = registry.register_entity("OTHER", PACKAGE_ENTITY_TYPE)
+    pinned = registry.register(PACKAGE_TYPE, "fake-dep")
+    other = registry.register(PACKAGE_TYPE, "OTHER")
 
     exporter = build_doc(make_doc(dependencies=["Fake_Dep==1.0", "other>=2"]), registry)
 
@@ -236,7 +236,7 @@ def test_non_canonical_dependency_name_hits_canonical_key() -> None:
 
 def test_locked_transitive_dependency_id_comes_from_registry() -> None:
     registry = IdRegistry.new("pins")
-    pinned = registry.register_entity("locked-lib", PACKAGE_ENTITY_TYPE)
+    pinned = registry.register(PACKAGE_TYPE, "locked-lib")
 
     exporter = build_doc(make_doc(locked=["Locked_Lib==3.0"]), registry)
 
@@ -246,7 +246,7 @@ def test_locked_transitive_dependency_id_comes_from_registry() -> None:
 
 def test_phantom_dependency_id_comes_from_registry() -> None:
     registry = IdRegistry.new("pins")
-    pinned = registry.register_entity("libz", PACKAGE_ENTITY_TYPE)
+    pinned = registry.register(PACKAGE_TYPE, "libz")
 
     exporter = build_doc(make_doc(phantom=[phantom("libz", "1.2")]), registry)
 
@@ -259,7 +259,7 @@ def test_same_package_declared_twice_is_one_element_one_hit(
     """Two spellings of one name and one version collapse into one package
     that takes the hit -- no claim collision."""
     registry = IdRegistry.new("pins")
-    pinned = registry.register_entity("foo", PACKAGE_ENTITY_TYPE)
+    pinned = registry.register(PACKAGE_TYPE, "foo")
 
     with caplog.at_level("WARNING"):
         exporter = build_doc(
@@ -279,7 +279,7 @@ def test_same_name_different_versions_first_claimant_takes_pinned_id(
     the same on every run, and harvest leaves the pin as it is (a
     name held by two elements is never written)."""
     registry = IdRegistry.new("pins")
-    pinned = registry.register_entity("foo", PACKAGE_ENTITY_TYPE)
+    pinned = registry.register(PACKAGE_TYPE, "foo")
     doc = make_doc(dependencies=["foo==1.0", "Foo==2.0"])
 
     with caplog.at_level("WARNING"):
@@ -294,7 +294,7 @@ def test_same_name_different_versions_first_claimant_takes_pinned_id(
         assert foo_ids["1.0"] == pinned
         assert foo_ids["2.0"] != pinned
     assert second.to_json() == first.to_json()
-    assert registry.lookup_entity("foo", PACKAGE_ENTITY_TYPE) == pinned
+    assert registry.lookup(PACKAGE_TYPE, ["foo"]) == pinned
     warnings = claim_warnings(caplog)
     assert len(warnings) == 2  # one per build
     assert pinned in warnings[0]
@@ -309,7 +309,7 @@ def test_dependency_and_phantom_dependency_of_one_name_are_two_elements(
     elements: the declared one takes the hit; the phantom one never looks
     up, so it gets a fresh id with no claim WARNING."""
     registry = IdRegistry.new("pins")
-    pinned = registry.register_entity("lib-foo", PACKAGE_ENTITY_TYPE)
+    pinned = registry.register(PACKAGE_TYPE, "lib-foo")
 
     with caplog.at_level("WARNING"):
         exporter = build_doc(
@@ -327,7 +327,7 @@ def test_two_phantom_dependencies_of_one_name(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     registry = IdRegistry.new("pins")
-    pinned = registry.register_entity("libz", PACKAGE_ENTITY_TYPE)
+    pinned = registry.register(PACKAGE_TYPE, "libz")
 
     with caplog.at_level("WARNING"):
         exporter = build_doc(
@@ -346,7 +346,7 @@ def test_dependency_named_like_the_project_never_looks_up(
     main package owns the registry id and the self-reference adds no
     package, silently -- no claim WARNING."""
     registry = IdRegistry.new("pins")
-    pinned = registry.register_entity(MAIN, PACKAGE_ENTITY_TYPE)
+    pinned = registry.register(PACKAGE_TYPE, MAIN)
 
     with caplog.at_level("WARNING"):
         exporter = build_doc(
@@ -365,7 +365,7 @@ def test_registry_ids_are_reserved_before_anything_is_minted() -> None:
     fresh = build_doc(doc, None)
     alpha_minted = {p.name: p.spdx_id for p in packages(fresh)}["alpha"]
     registry = IdRegistry.new("stale")
-    registry.entities[(PACKAGE_ENTITY_TYPE, "beta")] = EntityEntry(alpha_minted)
+    registry.elements[(PACKAGE_TYPE, "beta")] = RegistryEntry(alpha_minted)
 
     exporter = build_doc(doc, registry)  # asserts no duplicate spdxId
 

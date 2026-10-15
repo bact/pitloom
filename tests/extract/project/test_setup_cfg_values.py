@@ -42,6 +42,7 @@ _FIELD_KEYS: dict[str, tuple[str, str]] = {
     "extract_file_header": ("", "extract-file-header"),
     "scan_model_usage": ("", "scan-model-usage"),
     "max_model_extract_bytes": ("", "max-model-extract-bytes"),
+    "max_dataset_hash_bytes": ("", "max-dataset-hash-bytes"),
     "content_type_enabled": ("content-type", "enabled"),
     "offline": ("", "offline"),
     "use_lockfile": ("", "use-lockfile"),

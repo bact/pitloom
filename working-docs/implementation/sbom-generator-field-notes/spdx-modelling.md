@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-14
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -27,7 +27,7 @@ plans; the lesson holds without the code.
   name plus PEP 440-normalised version, purl-shaped (`pkg:pypi/foo@1.0`),
   with an empty version part for an unpinned or range dependency;
   releases are linked by relationships, not by a shared id
-  ([id-registry-v3.md](../../design/id-registry-v3.md)).
+  ([id-registry-v3.md](../id-registry-v3.md)).
   Do: include the version in any package identity key.
 - **A Merkle root over content digests alone does not bind file names.**
   The wheel `verifiedUsing` hash is a Merkle root over sorted per-file

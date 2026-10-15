@@ -7,8 +7,9 @@
 lifecycle basics, staging, and fragments.
 
 See also:
-- :mod:`tests.extract.test_hatch_hook_creators` for creators and creation metadata.
-- :mod:`tests.extract.test_hatch_hook_hook_integration` for integration tests.
+- :mod:`tests.extract.project.test_hatch_hook_creators`
+  for creators and creation metadata.
+- :mod:`tests.extract.project.test_hatch_hook_hook_integration` for integration tests.
 """
 
 # pylint: disable=protected-access

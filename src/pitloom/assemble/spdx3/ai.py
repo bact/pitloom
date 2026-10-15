@@ -39,7 +39,7 @@ from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.id_registry import IdRegistrySession
+from pitloom.id_registry import AI_PACKAGE_TYPE, IdRegistrySession
 
 __all__ = [
     "_LineageContext",
@@ -123,7 +123,7 @@ def resolve_ai_model_entity_hits(
     starts.
 
     One entry per model (``None`` on a miss) via
-    :meth:`~pitloom.id_registry.IdRegistrySession.entity_id` over
+    :meth:`~pitloom.id_registry.IdRegistrySession.lookup_id` over
     :func:`_ai_model_entity_candidates`. The caller must reserve every
     non-``None`` value (:func:`~pitloom.core.models.reserve_spdx_ids`)
     before minting, then pass this list to :func:`add_ai_models` instead
@@ -141,10 +141,10 @@ def resolve_ai_model_entity_hits(
     """
     hits: list[str | None] = []
     for index, ai_model in enumerate(ai_models):
-        hit = session.entity_id(
+        hit = session.lookup_id(
             _ai_model_label(ai_model, index),
+            AI_PACKAGE_TYPE,
             _ai_model_entity_candidates(ai_model),
-            "ai_AIPackage",
         )
         hits.append(hit)
     return hits

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -95,6 +95,9 @@ pitloom/
 │       │   │   ├── _document_deployed.py    # Deployed-environment assembly
 │       │   │   ├── _document_files.py       # File-element assembly
 │       │   │   ├── _document_model.py       # Single-AI-model assembly
+│       │   │   ├── _fragments_hashes.py     # Hash conflict test, same-name-different-hash warning
+│       │   │   ├── _fragments_ids.py        # rename_id_clash: new id for a type or digest clash
+│       │   │   ├── _fragments_props.py      # Property compare and merge helpers
 │       │   │   ├── _fragments_unify.py      # Fragment entity unification and deduplication
 │       │   │   ├── _package_ids.py          # Registry pre-resolution: main package, dependencies, phantom dependencies
 │       │   │   ├── _provenance_encoders.py  # Provenance encoder and payload builders
@@ -177,6 +180,7 @@ pitloom/
 │       │   ├── base.py             # Enricher protocol + run_enrichers_for_models()
 │       │   └── readme.py           # README.md/MODEL_CARD.md YAML frontmatter enricher
 │       ├── export/                 # Layer 4 -- serialise to physical format
+│       │   ├── hashes.py           # sha256_of: the one SHA-256 extractor
 │       │   └── spdx3_json.py       # SPDX 3 JSON-LD serialiser
 │       ├── extract/                # Layer 1 -- read sources
 │       │   ├── ai_model/           # AI model extractors (fasttext, gguf, hdf5, keras, numpy, onnx, pytorch, pytorch_pt2, safetensors, reader)
@@ -197,10 +201,14 @@ pitloom/
 │       ├── id_registry/             # Loom ID registry (loom-id-registry.json)
 │       │   ├── __init__.py          # Public API re-exports (IdRegistry, IdRegistrySession, resolve_registry)
 │       │   ├── _ambiguous.py        # Names held by several elements of one document (never harvested)
+│       │   ├── _counters.py         # id_counters: retired ids are never minted again (I8)
+│       │   ├── _format.py           # v3 file load/save, strict validation
+│       │   ├── _generate.py         # index_files: `id generate` file and model indexing
 │       │   ├── _harvest.py          # SBOM-element harvest helpers (_import_sbom_element)
-│       │   ├── _registry.py         # IdRegistry class
+│       │   ├── _persist.py          # save_registry, persist_registry, rebase and replay
+│       │   ├── _registry.py         # IdRegistry class (typed table)
 │       │   ├── _session.py          # IdRegistrySession: one document's first-claimant-wins lookups
-│       │   ├── _types.py            # Registry dataclasses, hash helpers, file traversal
+│       │   ├── _types.py            # Registry dataclasses, element keys, file traversal
 │       │   └── resolve.py           # resolve_registry(id_registry, configured, base_dir)
 │       ├── plugins/                # Build-system integrations
 │       │   └── hatch.py            # Hatchling BuildHookInterface (PEP 770)
@@ -212,6 +220,8 @@ pitloom/
 │       ├── _embed_wheel.py         # Low-level ZIP rewriting and RECORD injection
 │       ├── _loom_caller.py         # Caller stack inspection and provenance helpers
 │       ├── _loom_active_run.py     # Active-run state machine
+│       ├── _loom_dataset.py        # Loom datasets: package plus contained file, hash, registry lookup
+│       ├── _loom_model.py          # Loom models: declared, resolved and recorded at run exit
 │       ├── _toml_io.py             # Shared tomllib/tomli compat import + raw TOML-file read
 │       ├── embed.py                # PEP 770 wheel embedding facade
 │       ├── logging_config.py       # Shared INFO:/WARNING:/ERROR: stderr formatting (configure_logging)

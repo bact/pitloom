@@ -272,7 +272,7 @@ def test_enrich_model_registry_pinned_id_matches_base_doc() -> None:
 
         registry_path = tmppath / DEFAULT_ID_REGISTRY_FILENAME
         registry = IdRegistry.new("pinned-demo", path=registry_path)
-        pinned_id = registry.register_entity("model", "ai_AIPackage")
+        pinned_id = registry.register("ai_AIPackage", "model")
         registry.save()
 
         full_doc = json.loads(

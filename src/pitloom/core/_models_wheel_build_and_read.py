@@ -71,8 +71,8 @@ def _extract_wheel_to_included_files(
     wheel_path: Path, extract_dir: Path
 ) -> list[IncludedFile]:
     """Extract *wheel_path*'s real, non-``.dist-info`` entries into
-    *extract_dir*, returning ordinary :class:`IncludedFile` pairs -- the
-    same shape every static discoverer already produces, so the shared
+    *extract_dir*, returning :class:`IncludedFile` entries marked ``built``
+    -- the same shape every static discoverer already produces, so the shared
     per-file loop in :mod:`pitloom.core._models_wheel` (hashing,
     header/content-type scanning) needs no special-casing for this
     mechanism.
@@ -117,9 +117,7 @@ def _extract_wheel_to_included_files(
             target.parent.mkdir(parents=True, exist_ok=True)
             with zf.open(info) as src, target.open("wb") as dst:
                 shutil.copyfileobj(src, dst)
-            files.append(
-                IncludedFile(path=str(target), distribution_path=distribution_path)
-            )
+            files.append(IncludedFile(str(target), distribution_path, built=True))
     return files
 
 

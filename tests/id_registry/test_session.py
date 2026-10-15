@@ -19,7 +19,14 @@ from pathlib import Path
 
 import pytest
 
-from pitloom.id_registry import IdRegistry, IdRegistrySession
+from pitloom.id_registry import (
+    AI_PACKAGE_TYPE,
+    DATASET_PACKAGE_TYPE,
+    FILE_TYPE,
+    IdRegistry,
+    IdRegistrySession,
+)
+from tests.registry_helpers import make_registry
 
 _REPO_SRC = Path(__file__).resolve().parents[2] / "src"
 
@@ -30,84 +37,95 @@ def _registry_with(namespace: str = "urn:test") -> IdRegistry:
     return registry
 
 
-def test_file_id_no_registry_returns_none_without_on_miss() -> None:
+def test_lookup_file_no_registry_returns_none_without_on_miss() -> None:
     calls: list[None] = []
     session = IdRegistrySession(None)
 
-    result = session.file_id(
-        "a", ["a.py"], "deadbeef", on_miss=lambda: calls.append(None)
+    result = session.lookup_id(
+        "a", FILE_TYPE, ["a.py"], sha256="deadbeef", on_miss=lambda: calls.append(None)
     )
 
     assert result is None
     assert not calls
 
 
-def test_entity_id_no_registry_returns_none_without_on_miss() -> None:
+def test_lookup_entity_no_registry_returns_none_without_on_miss() -> None:
     calls: list[None] = []
     session = IdRegistrySession(None)
 
-    result = session.entity_id(
-        "a", ["model"], "ai_AIPackage", on_miss=lambda: calls.append(None)
+    result = session.lookup_id(
+        "a", AI_PACKAGE_TYPE, ["model"], on_miss=lambda: calls.append(None)
     )
 
     assert result is None
     assert not calls
 
 
-def test_file_id_raw_miss_calls_on_miss_once() -> None:
+def test_lookup_file_raw_miss_calls_on_miss_once() -> None:
     registry = _registry_with()
     session = IdRegistrySession(registry)
     calls: list[None] = []
 
-    result = session.file_id(
-        "a", ["a.py", "b.py"], "deadbeef", on_miss=lambda: calls.append(None)
+    result = session.lookup_id(
+        "a",
+        FILE_TYPE,
+        ["a.py", "b.py"],
+        sha256="deadbeef",
+        on_miss=lambda: calls.append(None),
     )
 
     assert result is None
     assert len(calls) == 1
 
 
-def test_entity_id_raw_miss_calls_on_miss_once() -> None:
+def test_lookup_entity_raw_miss_calls_on_miss_once() -> None:
     registry = _registry_with()
     session = IdRegistrySession(registry)
     calls: list[None] = []
 
-    result = session.entity_id(
-        "a", ["model", "model2"], "ai_AIPackage", on_miss=lambda: calls.append(None)
+    result = session.lookup_id(
+        "a",
+        AI_PACKAGE_TYPE,
+        ["model", "model2"],
+        on_miss=lambda: calls.append(None),
     )
 
     assert result is None
     assert len(calls) == 1
 
 
-def test_file_id_tries_paths_in_order_first_hit_wins() -> None:
+def test_lookup_file_tries_paths_in_order_first_hit_wins() -> None:
     registry = _registry_with()
     sha = "a" * 64
-    registered_id = registry.register_file("physical/a.py", sha)
+    registered_id = registry.register(FILE_TYPE, "physical/a.py", sha256=sha)
     session = IdRegistrySession(registry)
 
-    result = session.file_id("a", ["physical/a.py", "dist/a.py"], sha)
+    result = session.lookup_id(
+        "a", FILE_TYPE, ["physical/a.py", "dist/a.py"], sha256=sha
+    )
 
     assert result == registered_id
 
 
-def test_file_id_falls_back_to_second_path() -> None:
+def test_lookup_file_falls_back_to_second_path() -> None:
     registry = _registry_with()
     sha = "b" * 64
-    registered_id = registry.register_file("dist/a.py", sha)
+    registered_id = registry.register(FILE_TYPE, "dist/a.py", sha256=sha)
     session = IdRegistrySession(registry)
 
-    result = session.file_id("a", ["physical/a.py", "dist/a.py"], sha)
+    result = session.lookup_id(
+        "a", FILE_TYPE, ["physical/a.py", "dist/a.py"], sha256=sha
+    )
 
     assert result == registered_id
 
 
-def test_entity_id_hit_is_claimed() -> None:
+def test_lookup_entity_hit_is_claimed() -> None:
     registry = _registry_with()
-    registered_id = registry.register_entity("model", "ai_AIPackage")
+    registered_id = registry.register(AI_PACKAGE_TYPE, "model")
     session = IdRegistrySession(registry)
 
-    result = session.entity_id("claimant", ["model"], "ai_AIPackage")
+    result = session.lookup_id("claimant", AI_PACKAGE_TYPE, ["model"])
 
     assert result == registered_id
     assert session.claimed_ids() == [registered_id]
@@ -120,12 +138,12 @@ def test_second_claimant_on_same_id_is_rejected_with_one_warning(
     miss -- and a rejection is not an on_miss trigger (see the next
     test)."""
     registry = _registry_with()
-    registered_id = registry.register_entity("model", "ai_AIPackage")
+    registered_id = registry.register(AI_PACKAGE_TYPE, "model")
     session = IdRegistrySession(registry)
 
-    first = session.entity_id("first", ["model"], "ai_AIPackage")
+    first = session.lookup_id("first", AI_PACKAGE_TYPE, ["model"])
     with caplog.at_level("WARNING"):
-        second = session.entity_id("second", ["model"], "ai_AIPackage")
+        second = session.lookup_id("second", AI_PACKAGE_TYPE, ["model"])
 
     assert first == registered_id
     assert second is None
@@ -140,13 +158,13 @@ def test_rejected_claim_does_not_call_on_miss() -> None:
     """A claim rejection (the id exists, but something else already
     claimed it) is not a raw miss -- on_miss must not fire for it."""
     registry = _registry_with()
-    registry.register_entity("model", "ai_AIPackage")
+    registry.register(AI_PACKAGE_TYPE, "model")
     session = IdRegistrySession(registry)
-    session.entity_id("first", ["model"], "ai_AIPackage")
+    session.lookup_id("first", AI_PACKAGE_TYPE, ["model"])
 
     calls: list[None] = []
-    result = session.entity_id(
-        "second", ["model"], "ai_AIPackage", on_miss=lambda: calls.append(None)
+    result = session.lookup_id(
+        "second", AI_PACKAGE_TYPE, ["model"], on_miss=lambda: calls.append(None)
     )
 
     assert result is None
@@ -156,12 +174,12 @@ def test_rejected_claim_does_not_call_on_miss() -> None:
 def test_claimed_ids_reflects_claim_order_across_file_and_entity_hits() -> None:
     registry = _registry_with()
     file_sha = "c" * 64
-    file_id = registry.register_file("a.py", file_sha)
-    entity_id = registry.register_entity("model", "ai_AIPackage")
+    file_id = registry.register(FILE_TYPE, "a.py", sha256=file_sha)
+    entity_id = registry.register(AI_PACKAGE_TYPE, "model")
     session = IdRegistrySession(registry)
 
-    session.entity_id("model-claimant", ["model"], "ai_AIPackage")
-    session.file_id("a.py-claimant", ["a.py"], file_sha)
+    session.lookup_id("model-claimant", AI_PACKAGE_TYPE, ["model"])
+    session.lookup_id("a.py-claimant", FILE_TYPE, ["a.py"], sha256=file_sha)
 
     assert session.claimed_ids() == [entity_id, file_id]
 
@@ -178,15 +196,15 @@ def test_registry_property_exposes_underlying_registry() -> None:
 
 
 def test_no_direct_registry_lookup_outside_id_registry_package() -> None:
-    """Guard: every ``IdRegistry.lookup_file``/``lookup_entity`` call in
-    ``src/`` outside ``pitloom.id_registry`` itself must go through
+    """Guard: every ``IdRegistry.lookup`` call in ``src/`` outside
+    ``pitloom.id_registry`` itself must go through
     :class:`IdRegistrySession` instead -- a direct call bypasses the
     first-claimant-wins collision guard this session exists to enforce."""
     result = subprocess.run(
         [
             "grep",
             "-rEn",
-            r"\.lookup_(file|entity)\(",
+            r"\.lookup(_file|_entity)?\(",
             "--include=*.py",
             str(_REPO_SRC),
         ],
@@ -200,3 +218,61 @@ def test_no_direct_registry_lookup_outside_id_registry_package() -> None:
         if "/id_registry/" not in line.replace("\\", "/")
     ]
     assert not offending, "\n".join(offending)
+
+
+# --- lookup_id ------------------------------------------------------------
+
+
+def test_lookup_id_is_typed_and_gated() -> None:
+    """A dataset and a file at one path: each type gets its own id, and a
+    gated lookup never takes a sha-less entry."""
+    ns = "https://spdx.org/spdxdocs/test-1"
+    sha = "d" * 64
+    registry = make_registry(
+        {
+            (FILE_TYPE, "data/t.txt"): (f"{ns}#File-1", sha),
+            (DATASET_PACKAGE_TYPE, "data/t.txt"): (f"{ns}#DatasetPackage-1", None),
+        }
+    )
+    session = IdRegistrySession(registry)
+
+    assert session.lookup_id("f", FILE_TYPE, ["data/t.txt"], sha256=sha.upper()) == (
+        f"{ns}#File-1"
+    )
+    assert session.lookup_id("d", DATASET_PACKAGE_TYPE, ["data/t.txt"]) == (
+        f"{ns}#DatasetPackage-1"
+    )
+    calls: list[None] = []
+    gated = session.lookup_id(
+        "g",
+        DATASET_PACKAGE_TYPE,
+        ["data/t.txt"],
+        sha256=sha,
+        on_miss=lambda: calls.append(None),
+    )
+    assert gated is None
+    assert len(calls) == 1
+
+
+def test_lookup_id_retries_each_name_display_escaped_in_order() -> None:
+    """Each candidate as given, then escaped, before the next candidate: the
+    escaped first name wins over the plain second one."""
+    ns = "https://spdx.org/spdxdocs/test-1"
+    registry = make_registry(
+        {
+            (AI_PACKAGE_TYPE, "evil\\u202etxt"): (f"{ns}#AIPackage-1", None),
+            (AI_PACKAGE_TYPE, "plain"): (f"{ns}#AIPackage-2", None),
+        }
+    )
+
+    found = IdRegistrySession(registry).lookup_id(
+        "m", AI_PACKAGE_TYPE, ["evil\u202etxt", "plain"]
+    )
+
+    assert found == f"{ns}#AIPackage-1"
+    registry.register(AI_PACKAGE_TYPE, "evil\u202etxt")
+    plain_first = IdRegistrySession(registry).lookup_id(
+        "m", AI_PACKAGE_TYPE, ["evil\u202etxt"]
+    )
+    assert plain_first == registry.lookup(AI_PACKAGE_TYPE, ["evil\u202etxt"])
+    assert plain_first != f"{ns}#AIPackage-1"

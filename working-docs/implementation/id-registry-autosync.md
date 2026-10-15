@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -14,14 +14,16 @@ See also: [roadmap-completed.md](roadmap-completed.md), the user guide
 Split out of `roadmap.md` (2026-09-17) once this item's detail grew
 past a summary.
 
-This file records registry v2 as built. The planned registry v3
-([id-registry-v3.md](../design/id-registry-v3.md), not built) supersedes
-parts of it: the two tables (`files`/`entities`) and harvest's
-shape-based choice between them, the format version 2, the
-`ai_AIPackage`/`dataset_DatasetPackage` auto-harvest exclusion (hashed
-AIPackages become harvestable), the `added N new file(s), N new
-entit(y/ies)` wording, and the rule that no run writes a model id (loom
-will record one). Open items: [id-registry-followups.md](../design/id-registry-followups.md).
+This file records registry v2 as built; registry v3 (PR #305) replaced
+parts of it, so read the names below as v2's. What v3 changed: the two
+tables (`files`/`entities`) became one typed table and harvest no longer
+chooses between them by shape, the file format is version 3, a hashed
+`ai_AIPackage` is auto-harvested (`dataset_DatasetPackage` still is not), the
+log line reads `added N new id(s)`, and `loom.Run` records a model id. The
+design is in [id-registry-v3.md](id-registry-v3.md), the rollout and
+surfaces in [id-registry-v3-rollout.md](id-registry-v3-rollout.md), and
+what changed while building in the design file's "What changed during the
+build". Open items: [id-registry-followups.md](../design/id-registry-followups.md).
 
 ## What shipped ([PR #178](https://github.com/bact/pitloom/pull/178))
 

@@ -8,9 +8,8 @@
 
 See also: test_deps_enrichment_names_versions.py,
 test_deps_enrichment_originator_license.py, test_deps_enrichment_prefetch.py --
-this module's siblings, split from the original test_deps_enrichment.py.
-test_deps_license.py holds the deps_license.py unit tests split out of
-this file.
+the siblings for the rest of dependency enrichment.
+test_deps_license.py holds the deps_license.py unit tests.
 
 Covers the PyPI JSON API fallback (used when installed metadata doesn't
 cover a field) and the NOASSERTION policy for whatever neither source can

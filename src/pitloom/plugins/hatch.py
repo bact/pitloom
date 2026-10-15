@@ -37,7 +37,7 @@ from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.project.hatchling import metadata_from_hatchling
 from pitloom.extract.scanner_project import scan_project_for_ai_models
-from pitloom.id_registry import resolve_registry
+from pitloom.id_registry import IdRegistry, registry_file_path, resolve_registry
 from pitloom.logging_config import configure_logging
 
 log = logging.getLogger(__name__)
@@ -126,6 +126,7 @@ def _build_document_model(
     project_dir: Path,
     hatch_metadata: Any,
     pitloom_config: PitloomConfig,
+    registry: IdRegistry | None,
 ) -> tuple[DocumentModel, str | None, list[list[EnrichmentResult]]]:
     """Load project metadata and assemble the format-neutral document.
 
@@ -162,6 +163,7 @@ def _build_document_model(
         # backend-detection get_wheel_files would otherwise do to figure
         # out what this call site already knows.
         assume_backend="hatchling",
+        exclude_path=registry_file_path(registry),
     )
     _cleanup()
     metadata.files = project_files
@@ -361,7 +363,7 @@ class PitloomBuildHook(_PitloomBuildHookBase):
             raise
 
         document, merkle_root, enrichment_results_by_model = _build_document_model(
-            project_dir, self.metadata, pitloom_config
+            project_dir, self.metadata, pitloom_config, registry
         )
 
         exporter = assemble_spdx3(

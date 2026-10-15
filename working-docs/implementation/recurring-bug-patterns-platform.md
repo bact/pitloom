@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -398,3 +398,14 @@ the move.
   coverage shown goes stale (PR #294: three tests, only the 3.14 leg). Use
   `315532800` (1980-01-01) in such a test; production code passes an explicit
   `ZipInfo(date_time=...)`. Five other tests set `"0"` and build no zip today.
+- **`Path.write_text("data\n")` writes `\r\n` on Windows.** A test that
+  wrote a fixture that way and registered `hashlib.sha256(b"data\n")` as its
+  digest failed on `windows-latest` / 3.11 only: the file's real digest
+  differed, the registry lookup missed and the File got a minted id
+  (`tests/core/test_loom_dataset_dedup.py`, PR #305, four parametrised cases,
+  one leg; the Windows dry-run checked paths, symlinks and permissions, not
+  newlines). Write the fixture with `write_bytes(b"data\n")`, or hash the
+  bytes read back (`Path.read_bytes()`), whenever a digest of known bytes is
+  asserted. Same family: `read_text()` on a file that holds CRLF, and
+  `splitlines()` on text-mode output. A dry-run checklist for a new test
+  must list "any literal bytes hashed or compared against a text-mode write".

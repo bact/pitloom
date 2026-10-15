@@ -26,7 +26,7 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import PhantomDependency, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.id_registry import PACKAGE_ENTITY_TYPE, IdRegistry
+from pitloom.id_registry import PACKAGE_TYPE, IdRegistry
 from tests.conftest import _assert_no_duplicate_spdx_ids
 
 MAIN = "demo"
@@ -45,8 +45,8 @@ def package_entries(registry_path: Path) -> dict[str, str]:
     registry = IdRegistry.load(registry_path)
     return {
         name: entry.spdx_id
-        for (type_name, name), entry in sorted(registry.entities.items())
-        if type_name == PACKAGE_ENTITY_TYPE
+        for (type_name, name), entry in sorted(registry.elements.items())
+        if type_name == PACKAGE_TYPE
     }
 
 
@@ -86,7 +86,7 @@ def new_registry(
     """Save a registry (namespace derived from *project_name*) pinning each
     of *pins* as a ``software_Package``."""
     registry = IdRegistry.new(project_name)
-    ids = [registry.register_entity(name, PACKAGE_ENTITY_TYPE) for name in pins]
+    ids = [registry.register(PACKAGE_TYPE, name) for name in pins]
     path = tmp_path / "registry.json"
     registry.save(path)
     return path, ids

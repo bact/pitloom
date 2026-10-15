@@ -7,8 +7,8 @@
 pluggability, and the high-signal filter used at minimal detail.
 
 See also: test_annotation_provenance_core.py,
-test_annotation_provenance_annotations.py -- this module's siblings, split
-from the original test_annotation_provenance.py.
+test_annotation_provenance_annotations.py -- the siblings covering value
+parsing, encoders and the structured Annotation builders.
 """
 
 # pylint: disable=missing-function-docstring
@@ -207,7 +207,7 @@ def test_emit_provenance_appends_to_existing_comment() -> None:
 # ---------------------------------------------------------------------------
 # Pluggability: swapping the encoder changes contentType/statement without
 # touching Annotation wiring (acceptance criterion, see
-# working-docs/implementation/annotation-provenance.md Section 9).
+# working-docs/implementation/provenance/annotation-provenance.md Section 9).
 # ---------------------------------------------------------------------------
 
 

@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 
 from pitloom import __main__
-from pitloom.id_registry import PACKAGE_ENTITY_TYPE, IdRegistry
+from pitloom.id_registry import PACKAGE_TYPE, IdRegistry
 from tests.id_registry.package_ids_base import MAIN, build_doc, make_doc, phantom
 
 _PREFIX = "INFO: ID registry: not imported (name held by several elements): "
@@ -66,10 +66,12 @@ def test_id_import_reports_ambiguous_names_in_one_sorted_info_line(
     lines = [
         line for line in capsys.readouterr().err.splitlines() if "not imported" in line
     ]
-    assert lines == [_PREFIX + ", ".join(sorted(names))]
+    assert lines == [
+        _PREFIX + ", ".join(f"{PACKAGE_TYPE} {n!r}" for n in sorted(names))
+    ]
     registry = IdRegistry.load(registry_path)
-    assert registry.lookup_entity("foo", PACKAGE_ENTITY_TYPE) is None  # non-vacuous
-    assert registry.lookup_entity("bar", PACKAGE_ENTITY_TYPE) is not None
+    assert registry.lookup(PACKAGE_TYPE, ["foo"]) is None  # non-vacuous
+    assert registry.lookup(PACKAGE_TYPE, ["bar"]) is not None
 
 
 def test_id_import_still_skips_a_name_a_non_reader_shares(
@@ -85,10 +87,8 @@ def test_id_import_still_skips_a_name_a_non_reader_shares(
     lines = [
         line for line in capsys.readouterr().err.splitlines() if "not imported" in line
     ]
-    assert lines == [_PREFIX + MAIN]
-    assert (
-        IdRegistry.load(registry_path).lookup_entity(MAIN, PACKAGE_ENTITY_TYPE) is None
-    )
+    assert lines == [f"{_PREFIX}{PACKAGE_TYPE} {MAIN!r}"]
+    assert IdRegistry.load(registry_path).lookup(PACKAGE_TYPE, [MAIN]) is None
 
 
 def test_id_import_without_ambiguous_names_prints_no_such_line(
@@ -117,4 +117,4 @@ def test_auto_harvest_logs_each_ambiguous_name_once_at_debug(
     records = [r for r in caplog.records if "several elements" in r.getMessage()]
     assert [r.levelno for r in records] == [logging.DEBUG]
     assert "Import" not in records[0].getMessage()
-    assert "foo" in records[0].getMessage()
+    assert f"{PACKAGE_TYPE} 'foo'" in records[0].getMessage()

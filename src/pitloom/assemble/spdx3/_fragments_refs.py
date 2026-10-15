@@ -52,9 +52,9 @@ def _find_dangling_references(
     exporter: Spdx3JsonExporter,
 ) -> list[tuple[str, str, str]]:
     """Return ``(referencing element id, property name, missing target id)``
-    for every ``Relationship``/``Annotation`` endpoint and collection
-    ``rootElement`` that doesn't resolve
-    to an object actually present in *exporter*'s merged graph, and isn't
+    for every ``Relationship``/``Annotation`` endpoint, collection
+    ``rootElement`` and in-namespace ``customIdToUri`` value that doesn't
+    resolve to an object present in *exporter*'s merged graph, and isn't
     a legitimate external reference either (an id declared via the main
     document's own ``import_`` -- see
     :func:`pitloom.assemble.spdx3.fragments._add_fragment_imports`) or a

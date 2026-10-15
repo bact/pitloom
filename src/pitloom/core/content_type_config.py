@@ -22,7 +22,7 @@ class ContentTypeOverride:
     but only when ``[tool.pitloom.content-type] enabled`` is already on;
     overrides are a per-file refinement within that gate, not a way to
     bypass it. SPDX role ``sbomAuthorSupplied`` (see
-    ``working-docs/implementation/annotation-provenance.md``'s role
+    ``working-docs/implementation/provenance/annotation-provenance.md``'s role
     vocabulary): the config author is asserting this value directly, not
     something Pitloom detected.
     """

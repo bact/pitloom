@@ -9,11 +9,10 @@
   single ``ERROR:`` line and exit 1 -- not a raw ``relative_to()``
   traceback from :meth:`pitloom.id_registry.IdRegistry.generate`.
 * a PATH reached only through a symlink, but whose real location is
-  inside ``--project-dir``, still works (the fix that closed the
-  "`loom id generate` crashes on a symlinked path" roadmap item).
+  inside ``--project-dir``, still works.
 * an unwritable/nonexistent ``-o`` target directory is one ``ERROR:``
   line, not a raw traceback -- ``-o`` keeps its own dangling-symlink
-  handling (no ``os.path.realpath``), unaffected by the PATH-argument fix.
+  handling (no ``os.path.realpath``).
 
 See also: test_cli_id.py (the rest of `pitloom id`'s CLI tests),
 test_cli_id_registry_required.py ("no registry declared" ERROR wording).
@@ -183,7 +182,7 @@ def test_id_generate_in_project_symlink_to_outside_dir_works(
 
     assert exit_code == 0
     registry_data = json.loads((project / "registry.json").read_text(encoding="utf-8"))
-    files = registry_data.get("files", {})
+    files = registry_data["elements"]["software_File"]
     assert "models/w.bin" in files
 
 
@@ -240,7 +239,9 @@ def test_id_generate_with_symlinked_project_dir_flag(
         ]
     )
     assert exit_code_a == 0
-    files_a = json.loads(registry_a.read_text(encoding="utf-8")).get("files", {})
+    files_a = json.loads(registry_a.read_text(encoding="utf-8"))["elements"][
+        "software_File"
+    ]
     assert "models/w.bin" in files_a
 
     monkeypatch.chdir(project)
@@ -257,5 +258,7 @@ def test_id_generate_with_symlinked_project_dir_flag(
         ]
     )
     assert exit_code_b == 0
-    files_b = json.loads(registry_b.read_text(encoding="utf-8")).get("files", {})
+    files_b = json.loads(registry_b.read_text(encoding="utf-8"))["elements"][
+        "software_File"
+    ]
     assert "models/w.bin" in files_b

@@ -8,10 +8,8 @@
 cascade (:mod:`pitloom.extract.lock.cascade`), and real-world
 fixture coverage.
 
-See also: test_uv.py (extraction correctness this module's tests
-were split from -- see that module's own docstring for the split
-rationale) and test_uv_root_package.py (root/workspace-member
-selection unit tests).
+See also: test_uv.py (extraction correctness) and test_uv_root_package.py
+(root/workspace-member selection unit tests).
 """
 
 import logging

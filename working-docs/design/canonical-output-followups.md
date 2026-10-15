@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -31,7 +31,7 @@ every format and surface through it.
 **Scope.** Not here: how `spdxId`s are minted and kept stable (registry
 keys, namespaces, id length). Those are in
 [id-registry-followups.md](id-registry-followups.md) and
-[id-registry-v3.md](id-registry-v3.md). Where the two meet (name comparison
+[id-registry-v3.md](../implementation/id-registry-v3.md). Where the two meet (name comparison
 for registry keys, a capped name inside an id), each side links the other.
 Reproduced bugs stay in [known-bugs.md](known-bugs.md); see
 [Related bugs](#related-bugs-in-known-bugsmd).
@@ -84,9 +84,9 @@ announced under CHANGELOG `### Changed`, not treated as an internal detail.
 - **Package names compare under PEP 503, versions under PEP 440** ("Recurring
   bug patterns" in CLAUDE.md); the registry key applies PEP 503 to
   `software_Package` only (`_element_key`, see
-  [id-registry-v3.md](id-registry-v3.md)).
+  [id-registry-v3.md](../implementation/id-registry-v3.md)).
 - **SHA-256 hex compared lowercase** (planned, step 1 of
-  [id-registry-v3-rollout.md](id-registry-v3-rollout.md)); `sha256_hash()`
+  [id-registry-v3-rollout.md](../implementation/id-registry-v3-rollout.md)); `sha256_hash()`
   already lowercases what it emits.
 
 ## 1. Identifiers and name comparison
@@ -106,7 +106,7 @@ announced under CHANGELOG `### Changed`, not treated as an internal detail.
   from id encoding (which stays lossless, see
   [iri-name-encoding.md](../implementation/iri-name-encoding.md)).
 - **Owner:** roadmap "Canonical output"; the registry side is
-  `_element_key` in [id-registry-v3.md](id-registry-v3.md).
+  `_element_key` in [id-registry-v3.md](../implementation/id-registry-v3.md).
 
 ### C2. Unicode normalisation of names and labels
 
@@ -210,7 +210,7 @@ announced under CHANGELOG `### Changed`, not treated as an internal detail.
   keep as written everywhere.
 - **Current behaviour:** kept as written, except where a reader translates
   newlines: installed `METADATA` read through `importlib.metadata` loses the
-  CR a wheel's `METADATA` keeps ([known-bugs.md](known-bugs.md#p3-after-0200)).
+  CR a wheel's `METADATA` keeps ([known-bugs.md](known-bugs-p3.md)).
 - **Recommendation:** see the decision above; the licence-only parts
   (case, inner spacing, trailing `\r` in a name) are C11.
 - **Owner:** roadmap "Canonical output"; C11 for the licence-only parts.
@@ -266,7 +266,7 @@ canonicalisation, and no working doc records how.
 - **Why it matters:** blank-node labels (`_:CreationInfo0`) are serialiser
   output, not content; two fragments that each use `_:CreationInfo0` fail
   `loom fragment validate A B`
-  ([known-bugs.md](known-bugs.md#p3-after-0200)). The SPDX canonical
+  ([known-bugs.md](known-bugs-p3.md)). The SPDX canonical
   serialisation is silent on graph order
   ([spdx-spec#1362](https://github.com/spdx/spdx-spec/issues/1362), open).
 - **Options:** RFC 8785 plus `@graph` order only (reword CLAUDE.md);
@@ -309,7 +309,7 @@ compared. Sources, cascade, conflicts and provenance stay in
 [license-rules.md](license-rules.md#open-questions) (its questions 10, 11,
 16 and 17 moved here). Every value goes through `classify_license()`, and
 each `(kind, value)` it yields is one licence element. "Was" names the
-origin; KB is [known-bugs.md](known-bugs.md#p3-after-0200).
+origin; KB is [known-bugs.md](known-bugs-p3.md).
 
 ### C11. Licence text and name equivalence beyond line endings
 

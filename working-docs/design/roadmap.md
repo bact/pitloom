@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-10
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -56,7 +56,7 @@ Safetensors licence keys, a `%` in `setup.cfg`) did not make it; they are in
 
 ### 0.20.2
 
-Release cut 2026-10-09 (bump PR; tag pending). AI model metadata made
+Released 2026-10-09 (tag v0.20.2). AI model metadata made
 uniform and safer:
 
 - [x] **One spelling for scalar text**, built in #294. See
@@ -94,12 +94,15 @@ uniform and safer:
   [extra-lifecycle-scope.md](extra-lifecycle-scope.md).
 - [ ] **Hardening from the #294 reviews** (Hangul fillers, ZWJ in prose,
   fastText label cap, cross-format label counts): see
-  [known-bugs.md](known-bugs.md#p3-after-0200).
-- [ ] **Registry v3**: one typed table, content gate chosen at lookup;
-  closes the P1 registry bugs. See [id-registry-v3.md](id-registry-v3.md),
-  [id-registry-v3-rollout.md](id-registry-v3-rollout.md).
+  [known-bugs.md](known-bugs-p3.md).
+- [x] **Registry v3** (PR #305): built. See
+  [id-registry-v3.md](../implementation/id-registry-v3.md); open follow-ups in
+  [id-registry-followups.md](id-registry-followups.md).
+- [ ] **Registry path-key redesign** (deferred; bundles G7 #3, so G7 #3 waits
+  on it; no format bump needed, v3 is unreleased). See
+  [id-registry-path-keys.md](id-registry-path-keys.md).
 - [ ] **Git LFS pointers outside AI models**: one shared detector, one
-  summary `WARNING:`; lands before registry v3. See
+  summary `WARNING:`; registry v3 (built) ships without it. See
   [known-bugs.md](known-bugs.md#p0-in-0210).
 - [ ] **One default SBOM file name** (PEP 427 escaping) on every surface.
 - [ ] **Unknown SPDX id in an SPDX-only field warns** and **`License-File:`
@@ -115,7 +118,8 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
 [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md).
 
 - [ ] **#3 Mechanical wiring**: dataset licence, `ai_AIPackage.verifiedUsing`
-  copied from its model `software_File`.
+  copied from its model `software_File` (ordering: see the path-key item in
+  0.21.0).
 - [ ] **#6 Model producer and parameter count** from structured sources
   only (Hugging Face Hub fields, per-format metadata).
 - [ ] **#7 `loom` SDK**: dataset provenance and training-properties capture.
@@ -161,7 +165,8 @@ unless the linked doc says so.
   role taxonomy; parked draft). See
   [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md),
   [docs/metadata-provenance.md](../../docs/metadata-provenance.md).
-- [ ] **AI model id stability** beyond what registry v3 decides. See
+- [ ] **AI model id stability** beyond what registry v3 built (the other
+  AIPackage lookups gated by sha256). See
   [ai-model-id-stability.md](ai-model-id-stability.md).
 - [ ] **Archive member names**: name-independent `--allow-build`
   extraction, `orig_filename`, tar links in sdists. See
@@ -217,7 +222,7 @@ Each found more than one bug that a per-site fix would only move.
   (`model`, Hugging Face, `wheel`, `env`, sdist) drop configured fragments
   with no `WARNING:`; the GitHub Action drops any boolean input other than
   exactly `true`/`false` (`allow-build: True` skips the build). See
-  [known-bugs.md](known-bugs.md#p3-after-0200),
+  [known-bugs.md](known-bugs-p3.md),
   [diagnostics-logging-followups.md](diagnostics-logging-followups.md).
 - [ ] **Code health ratchets**: complexity and file-size limits down to the
   AGENTS.md targets. See
@@ -231,7 +236,7 @@ Recorded findings; each is fixable on its own.
 
 - **File discovery**: setuptools gives absolute `physical_path` for a
   project dir named in another letter case (macOS, Windows; #257, in
-  [known-bugs.md](known-bugs.md#p3-after-0200)); four #215 follow-ups. See
+  [known-bugs.md](known-bugs-p3.md)); four #215 follow-ups. See
   [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md#open-follow-up-tech-debt-from-pr-215s---allow-build-review),
   [build-backend-improvements.md](build-backend-improvements.md).
 - **`--allow-build`**: what the #226 reviews left. See
@@ -252,7 +257,7 @@ Recorded findings; each is fixable on its own.
   [open-items.md](sbom-fragments/open-items.md#left-after-the-fragment-merge-fixes).
 - **`loom env`**: an unmet requirement (`installed_version: "?"`) loses its
   `dependsOn` edge silently; two installs sharing one pipdeptree `key`
-  collide (#236 review). See [known-bugs.md](known-bugs.md#p3-after-0200),
+  collide (#236 review). See [known-bugs.md](known-bugs-p3.md),
   [deployed-env-pipdeptree.md](../implementation/deployed-env-pipdeptree.md).
 - **GitHub Action hardening**: hash-pinned transitive dependencies, an
   isolated venv option, lint `scripts/` in CI, `args` edge cases. See

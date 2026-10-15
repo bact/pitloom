@@ -27,7 +27,7 @@ from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMe
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectMetadata
-from pitloom.id_registry import EntityEntry, IdRegistry
+from pitloom.id_registry import IdRegistry, RegistryEntry
 
 
 def _numpy_models() -> list[AiModelMetadata]:
@@ -97,13 +97,13 @@ def test_ai_models_sharing_a_mint_prefix_never_duplicate_ids_after_import(
     registry.import_sbom(sbom_path)
     # Ten elements share the name "numpy", so harvest leaves it unpinned;
     # pin the id the old harvest kept (the last in string order) by hand.
-    assert ("ai_AIPackage", "numpy") not in registry.entities
+    assert ("ai_AIPackage", "numpy") not in registry.elements
     stale_id = max(
         str(obj.spdxId)
         for obj in first_exporter.object_set.objects
         if isinstance(obj, spdx3.ai_AIPackage)
     )
-    registry.entities[("ai_AIPackage", "numpy")] = EntityEntry(stale_id)
+    registry.elements[("ai_AIPackage", "numpy")] = RegistryEntry(stale_id)
 
     doc_run2 = DocumentModel(
         project=project, creation_metadata=creation_metadata, ai_models=ai_models

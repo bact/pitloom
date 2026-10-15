@@ -33,7 +33,8 @@ from pitloom.core.ai_metadata import (
     SourceMetadata,
 )
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.id_registry import EntityEntry, IdRegistry, IdRegistrySession
+from pitloom.id_registry import AI_PACKAGE_TYPE, IdRegistry, IdRegistrySession
+from tests.registry_helpers import make_registry
 
 from ..conftest import fake_build_and_read_path
 from .conftest import _DOC_NAME, _DOC_UUID, _make_ci
@@ -45,8 +46,8 @@ def _lookup_ai_model_entity(
     """Test-only helper matching the removed function's old shape: look
     up *model*'s ``ai_AIPackage`` registry hit via a one-off session over
     :func:`_ai_model_entity_candidates`."""
-    return IdRegistrySession(registry).entity_id(
-        "test", _ai_model_entity_candidates(model), "ai_AIPackage"
+    return IdRegistrySession(registry).lookup_id(
+        "test", AI_PACKAGE_TYPE, _ai_model_entity_candidates(model)
     )
 
 
@@ -176,24 +177,18 @@ def test_lookup_ai_model_entity_not_found_returns_none() -> None:
 
 
 def test_lookup_ai_model_entity_found_by_name() -> None:
-    registry = IdRegistry(
+    registry = make_registry(
+        {("ai_AIPackage", "mymodel"): ("urn:doc#AIPackage-1", None)},
         namespace="urn:doc",
-        entities={
-            ("ai_AIPackage", "mymodel"): EntityEntry(spdx_id="urn:doc#AIPackage-1")
-        },
     )
     model = AiModelMetadata(name="mymodel")
     assert _lookup_ai_model_entity(model, registry) == "urn:doc#AIPackage-1"
 
 
 def test_lookup_ai_model_entity_found_by_physical_path() -> None:
-    registry = IdRegistry(
+    registry = make_registry(
+        {("ai_AIPackage", "src/model.gguf"): ("urn:doc#AIPackage-2", None)},
         namespace="urn:doc",
-        entities={
-            ("ai_AIPackage", "src/model.gguf"): EntityEntry(
-                spdx_id="urn:doc#AIPackage-2"
-            )
-        },
     )
     model = AiModelMetadata(
         format_info=AiModelFormatInfo(physical_path="src/model.gguf")
@@ -202,11 +197,8 @@ def test_lookup_ai_model_entity_found_by_physical_path() -> None:
 
 
 def test_lookup_ai_model_entity_found_by_file_stem() -> None:
-    registry = IdRegistry(
-        namespace="urn:doc",
-        entities={
-            ("ai_AIPackage", "model"): EntityEntry(spdx_id="urn:doc#AIPackage-3")
-        },
+    registry = make_registry(
+        {("ai_AIPackage", "model"): ("urn:doc#AIPackage-3", None)}, namespace="urn:doc"
     )
     model = AiModelMetadata(format_info=AiModelFormatInfo(file_name="model.gguf"))
     assert _lookup_ai_model_entity(model, registry) == "urn:doc#AIPackage-3"
@@ -220,13 +212,9 @@ def test_lookup_ai_model_entity_falls_back_when_physical_path_absolute() -> None
     back to file_path_relative, the same rule _document_files.py's
     determinism fix and enrich's _resolve_model_search_dir already
     apply for this identical hazard."""
-    registry = IdRegistry(
+    registry = make_registry(
+        {("ai_AIPackage", "src/model.gguf"): ("urn:doc#AIPackage-4", None)},
         namespace="urn:doc",
-        entities={
-            ("ai_AIPackage", "src/model.gguf"): EntityEntry(
-                spdx_id="urn:doc#AIPackage-4"
-            )
-        },
     )
     model = AiModelMetadata(
         format_info=AiModelFormatInfo(
@@ -241,11 +229,8 @@ def test_lookup_ai_model_entity_absolute_path_no_fallback_skips_candidate() -> N
     """When physical_path is absolute and file_path_relative is also
     unset, no candidate is added for it at all (not a bare empty-string
     lookup) -- falls through to the next candidate (file stem)."""
-    registry = IdRegistry(
-        namespace="urn:doc",
-        entities={
-            ("ai_AIPackage", "model"): EntityEntry(spdx_id="urn:doc#AIPackage-5")
-        },
+    registry = make_registry(
+        {("ai_AIPackage", "model"): ("urn:doc#AIPackage-5", None)}, namespace="urn:doc"
     )
     model = AiModelMetadata(
         format_info=AiModelFormatInfo(

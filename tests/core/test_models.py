@@ -9,6 +9,7 @@ See also: tests/core/models_wheel/test_models_wheel_files.py for
 get_wheel_files() file-header scanning and content-type detection tests.
 """
 
+import hashlib
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
@@ -16,14 +17,46 @@ import pytest
 from hatchling.builders.wheel import WheelBuilder
 
 from pitloom.core.models import (
+    _build_merkle_tree,
     _clear_doc_counters,
     _normalize_dep,
     build_relationship,
     compute_doc_uuid,
     generate_spdx_id,
     get_wheel_files,
+    merkle_root,
     reserve_spdx_ids,
 )
+
+
+def _pair(left: bytes, right: bytes) -> bytes:
+    return hashlib.sha256(left + right).digest()
+
+
+_A, _B, _C = (hashlib.sha256(s).digest() for s in (b"a", b"b", b"c"))
+
+
+@pytest.mark.parametrize(
+    ("leaves", "expected"),
+    [
+        ([_A], _A),  # one leaf is its own root
+        ([_A, _B], _pair(_A, _B)),
+        ([_A, _B, _C], _pair(_pair(_A, _B), _C)),  # odd: C promoted unchanged
+    ],
+    ids=["one", "pair", "odd"],
+)
+def test_merkle_root_tree_shape(leaves: list[bytes], expected: bytes) -> None:
+    """Pairs hash left then right; an unpaired node is promoted, not
+    duplicated; the result is the same on every call."""
+    assert merkle_root(leaves) == expected.hex()
+    assert merkle_root(tuple(leaves)) == _build_merkle_tree(list(leaves))
+    assert merkle_root([_B, _A]) != merkle_root([_A, _B])  # order is the caller's
+
+
+def test_merkle_root_refuses_no_leaves() -> None:
+    """No leaves, no root: the caller decides what an empty set means."""
+    with pytest.raises(ValueError, match="at least one leaf"):
+        merkle_root([])
 
 
 def test_models_edge_cases() -> None:
@@ -221,8 +254,8 @@ def test_get_wheel_files_normalizes_windows_style_distribution_path(
     requires to be forward-slash-separated regardless of host OS. Left
     un-normalized, the Merkle root (and the ``doc_uuid`` built from it)
     would differ by build platform for byte-identical source content,
-    since both the sort key and the tree-combination input are exactly
-    this string.
+    since this string is the sort key that orders the leaves (a leaf is
+    the file's digest alone).
 
     Uses two files, ``pkg/zoo.py`` and ``pkg0/a.py``, deliberately chosen
     so their relative sort order flips depending on the separator: ``/``

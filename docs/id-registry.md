@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -51,7 +51,43 @@ loom project                                                        # uses the d
 update), `--project-dir DIR` and repeatable `-e`/`--entity NAME[:TYPE]` (an
 explicit entity id ahead of a run; `TYPE` defaults to `ai_AIPackage`).
 `--entity NAME:software_Package` pins a dependency's, or the project's own,
-package id. `id import SBOM_FILE` takes only `-o`/`--id-registry FILE`.
+package id. The string splits on its last colon: the suffix is a `TYPE` only
+when it is a known registry type (`software_File`, `software_Package`,
+`ai_AIPackage`, `dataset_DatasetPackage`). A suffix shaped like a type name
+(`prefix_ClassName`) or a known type in another case is a usage error (exit
+2), not part of `NAME`. Anything else is part of `NAME`, so a URL or a
+Windows drive path works, as in
+`-e https://huggingface.co/datasets/imdb:dataset_DatasetPackage`. A trailing
+`:`, a `TYPE` with white space around it, a control character (a newline) or a
+blank `NAME` is a usage error too.
+`--namespace IRI` sets a new registry's document namespace (an
+absolute IRI without `#`; default: the project name and a random UUID4); an
+existing registry with another namespace is one `ERROR:`, exit 1. A
+registry whose `namespace` is not a valid namespace IRI, or whose `spdxId`
+is not a non-empty string, does not load. `id import` into an empty
+registry adopts the SBOM document's namespace only when it is a valid
+namespace IRI; otherwise one `WARNING: ID registry: not adopting the
+namespace ...` and the registry keeps its own. It keeps the namespace it
+adopted unless another run changed the file's namespace meanwhile.
+`id import SBOM_FILE` takes only `-o`/`--id-registry FILE`.
+
+A new registry stores its project root (`--project-dir` for `generate`, the
+current directory for `import`) relative to its own directory; an existing one
+keeps it, and `generate` with another `--project-dir` is one `ERROR:`, exit 1.
+The registry also keeps, per id prefix, the highest number it has issued or
+read in its namespace (`id_counters`), so an id that has left the registry
+(a harvest replaced its entry) is never minted again for another file. An id
+handed over by an SBOM, a harvest or `id import` reserves numbers only up to
+10**9, and one whose prefix is not a valid IRI segment (it holds `/`, `?`, a
+space, `#` or a lowercase `%xx`) reserves nothing. A file whose `version` is
+not an integer (`3.0`) or that repeats a JSON object key (`duplicate key
+'X'`) does not load. For a symlinked registry, `project_root` is relative to
+the symlink target's directory.
+`generate` records each AI model file's SHA-256 with its entry, so a
+retrained file (other bytes) gets a new id in a `loom.Run` that declares it
+with `path=`. A registry from an earlier release (format version 2) is
+rejected, on every command, with one `ERROR:` and nothing written; delete it
+and re-run `loom id generate` or `loom id import`.
 
 **Target file.** `-o`/`--id-registry` if given, else the config's
 `id-registry` key (`generate`: read from `--project-dir`; `import`: from the
@@ -64,16 +100,35 @@ A broken `pyproject.toml`/`setup.cfg` is one `ERROR:` line, never a
 traceback, and takes precedence over that error.
 
 - A missing target is created. An existing target that cannot be loaded (not
-  JSON, wrong version) is one `ERROR:` and exit 1, never silently replaced.
+  JSON, wrong version, a version 2 file) is one `ERROR:` and exit 1, never
+  silently replaced.
 - Registry keys, and the default `PATH`s (`src`, `data`, `models`), stay
   relative to `--project-dir`; a relative `-o` or `PATH` resolves against the
   current directory.
-- Each `PATH` must resolve inside `--project-dir`, else `ERROR: PATH <p> is
-  outside --project-dir <dir>` (exit 1), whether directly or only through a
-  symlink. `..` is collapsed lexically before any symlink is followed. A
-  symlink that itself lives inside the project is fine even if it points
-  outside (`data/models -> ../bigdisk/models`): it is indexed under its
-  in-project location, as the default `PATH`s are.
+- `--project-dir` must be an existing directory, else `ERROR: --project-dir <p>
+  is not a directory` (exit 1). Each `PATH` must resolve inside it, else
+  `ERROR: PATH <p> is outside --project-dir <dir>` (exit 1), whether directly
+  or only through a symlink. `..` is collapsed lexically before any symlink
+  is followed (`link/..` is the directory above `link` as written). A symlink
+  that itself lives inside the project is fine even if it points outside: it
+  is indexed under its in-project location, as the default `PATH`s are,
+  and a `PATH` naming a symlinked *directory* (`data/models ->
+  ../bigdisk/models`) is walked. A symlink to a directory found *below* a
+  `PATH` is not followed. A `loom.Run` that names a file below a symlinked
+  directory keys it by its path as written, so it finds no entry.
+- A file or directory below a `PATH` that cannot be read or listed gets the
+  shared `WARNING: FILE=<path>: ...` or `WARNING: DIR=<path>: ...` line (the
+  path project-relative, `/`-separated) and the run continues; a partial tree
+  is never indexed silently. So does a file whose name a registry cannot hold
+  (not UTF-8 encodable). A `PATH` argument itself that cannot be read or
+  listed is `ERROR: PATH <path>: could not be read: <reason>` (exit 1, nothing
+  written) on every Python version; an unreadable default directory (`src`,
+  `data`, `models`) is the `DIR=` warning instead.
+- Build, virtual-environment, VCS and cache directories are not indexed; see
+  [Directories that are skipped](#directories-that-are-skipped). A `PATH`
+  that is, or lies below, one of them indexes nothing and gets one
+  `WARNING:`.
+- `-o -` is a usage error (exit 2): a registry is never written to stdout.
 - After a write that *created* the registry (never one that updated an
   existing file), and unless the target is already the project's declared
   `id-registry`, both commands log `INFO: ID registry: to use this registry,
@@ -89,25 +144,76 @@ traceback, and takes precedence over that error.
 Given the same registry, a file, directory, dependency package, the
 project's own package (`project`, `wheel`, `embed-wheel`, the Hatchling hook)
 or an AI model carries the same id everywhere. `env` reuses a dependency's
-id only.
+id only. A file's entry holds its SHA-256, and changed content gets a new id.
 
 Exceptions:
 
+- A wheel whose name did not come from its `METADATA` (called `unknown`) is
+  neither looked up nor recorded; its package gets a per-document id, with
+  one `INFO:` when a registry is declared. Its ids depend on its file name, so
+  a renamed copy gets new ids: see [Wheel SBOMs](wheel-sbom.md#what-an-sbom-lists).
 - A `src/`-layout project's files are not found by `wheel` or sdist targets
   (their paths differ from the project's).
-- A `loom.Run` dataset is looked up by file path and hash. Datasets found at
-  build time and `env`'s root package are not looked up, so a registry entry
-  does not pin them.
+- A `loom.Run` dataset's package is looked up by its name exactly as the
+  script passes it, with no path normalisation: `../data/t.txt` from a
+  subdirectory misses a package pinned as `data/t.txt`. A dataset that is one
+  file also gets a `software_File`, looked up by its path from the registry's
+  project root and its hash, so that one keeps its id from any directory.
+  Datasets found at build time and `env`'s root package are not looked up, so
+  a registry entry does not pin them.
 - Regeneration is stable: an unchanged file keeps its id; changed content
-  gets a fresh one (different bytes are different provenance).
+  gets a fresh one (different bytes are different provenance). A `project`,
+  `wheel` or `model` run looks an AI model up by name alone, so a retrained
+  model file keeps its id there; only a `loom.Run` model declared with
+  `path=` is checked against its recorded hash.
+- Several model files with one stem (`a/m.gguf`, `b/m.gguf`): `id generate`
+  records no hash for the stem, and leaves an existing entry as it is (a
+  hash recorded earlier included), with one `INFO: ID registry: N model
+  files share the name <stem>; its entry is left as is` per run (`its new
+  entry is not content-gated` when the stem had no entry). Its id stays
+  stable, but a new registry over the same files has no hash there.
+- A registry inside the project tree is left out of the SBOM's file set
+  (and of a wheel's Merkle root), with one `WARNING: ID registry: <path> is
+  inside the project's file set; left out of it` per run when the file set
+  actually contains it; `id generate` does not index it either. With
+  `--allow-build`, the copy found in the build-and-read extraction is left
+  out too (recognised as a file the build extracted, wherever `TMPDIR` is,
+  with an equal SHA-256). The copy a built wheel or sdist carries is left out
+  by `wheel`, `embed-wheel` and `project <sdist>`, whatever its bytes. A wheel
+  member is the copy only when its path equals the registry's path below the
+  project, or that path less exactly one leading part (a `src/` layout), with
+  a directory and the file left; of several such members only the longest is
+  left out, and a file with a shorter tail (`reg.json`, `data/reg.json`) is
+  kept. An sdist member must match the whole path below `name-version/`. The
+  path is taken below `--project-dir`; without one (`wheel`, standalone
+  `embed-wheel`, `project <sdist>`) below the nearest directory that holds
+  the registry and a `pyproject.toml`, `setup.cfg` or `setup.py`, no higher
+  than the project root the registry stores, else below that root. Keep the
+  registry outside the package directory (the project root is fine).
 - A package name held by two elements of one document that both read the
   registry (two versions of a dependency behind different markers) cannot be
   pinned automatically: runs do not record it, and a pinned id goes to the
   first of them, with a `WARNING:`. `loom id import` skips every name held by
-  several elements, with one `INFO:` line.
+  several elements, with one `INFO: ID registry: not imported (name held by
+  several elements): <type> '<name>', ...` line.
 - A self-referencing extra, or a bundled library named like the project or a
   dependency, never reads the registry and silently gets its own id; runs
   still record the name for the project or dependency.
+
+## Directories that are skipped
+
+`id generate` (below the project root) and a `loom.Run` dataset directory
+(below the dataset's own directory) skip any directory named `.git`,
+`__pycache__`, `.mypy_cache`, `.pytest_cache`, `.pyrefly_cache`,
+`.ruff_cache`, `.venv`, `venv`, `node_modules`, `dist`, `build`, `.tox`,
+`.hatch` or `fragments`, and everything below it. Only the names of
+directories below the root count: a project that itself lives under a
+directory called `build` is indexed. A dataset directory also leaves out
+symbolic links to directories and the declared registry file. `id generate`
+also leaves out the declared registry, matched by identity and never by name:
+a stray `loom-id-registry.json` that is not the declared file is indexed. The
+set is
+`IGNORED_DIR_NAMES` in `src/pitloom/core/walk_rules.py`.
 
 ## Harvesting new ids
 
@@ -119,10 +225,47 @@ project`, then `loom wheel --id-registry loom-id-registry.json` and `loom env
 `id generate`/`import` between them. A name held by several elements of one
 document is not written.
 
-`ai_AIPackage` and `dataset_DatasetPackage` are the exceptions. Register AI
-models with `loom id generate`: their stable key, the model file's stem,
-cannot safely come from auto-harvest. Datasets found at build time are not
-registry-consulted, so harvesting them would only write dead entries.
+A harvest records a SHA-256 only for `software_File` and `ai_AIPackage`
+entries (the two content-gated types) and never erases one already recorded:
+an element with no hash and another id leaves such an entry as is, with one
+`INFO: ID registry: content gate kept for <type> '<name>': harvested id <id>
+not recorded over <id>`. `loom id import` is the exception: there the
+imported id wins and the hash goes, with one `INFO: ID registry: content gate
+dropped for <type> '<name>': imported id <id> replaces <id>` per entry, so
+importing an older SBOM of a model gives it that SBOM's id back.
+`dataset_DatasetPackage` and unhashed `ai_AIPackage` elements are the
+exceptions. Register a project's AI models with `loom id generate`: their
+stable key, the model file's stem, cannot safely come from auto-harvest. A
+dataset id is pinned deliberately (`-e NAME:dataset_DatasetPackage` or `id
+import`), never from a run's fallback id. A hashed model (one a `loom.Run`
+declared with `path=`, merged as a fragment) is written: its entry only
+matches the same bytes.
+
+`loom.Run` writes one kind of entry itself: a model declared with `path=`
+whose file the registry does not know, saved after the fragment when the
+run ends without an exception (`update-id-registry = false` in
+`pitloom_config` stops it). A training and an evaluation script declaring
+the same model and file share its id; a retrained file gets a new one.
+
+Registry writes go through one routine: it re-reads the file, re-applies only
+the run's own changes and replaces the file atomically, so runs sharing a
+registry keep each other's entries. `id generate`, `id import`, a harvest and
+`loom.Run` all use it, and an unchanged file is not rewritten. A writable
+registry in a read-only directory is written in place, which is not atomic. A
+`loom.Run` given an `IdRegistry` object that was never loaded, for a file that
+exists, merges into that file and never overwrites it. There is no lock.
+
+A read-only registry file is never overwritten, on any platform. A failed save
+logs `WARNING: ID registry: failed to save <path>: <reason>` (the registry's
+path, never a temporary file's) and the run's output is already written;
+`loom id generate` and `loom id import` print the same line as their one
+`ERROR:` and exit 1.
+
+Two `loom.Run` blocks that exit at the very same moment against one registry
+can each write the same id for a different model into their fragments: the
+registry keeps one key per id, and the run that saves second logs `another run
+saved ... first`, but its fragment is already written. Run scripts that share
+a registry one after another, not at once.
 
 ## From Python
 
@@ -139,8 +282,19 @@ current directory for any other target, an sdist included. The CLI makes
 it always means the file under the current directory. A declared
 registry file that's missing, unreadable or invalid raises `ValueError`
 (`"ID registry file <path>: <reason>"`) rather than being silently
-skipped or replaced. `loom.run` never reads a `[tool.pitloom]`, so it takes only
-its own `id_registry=`, resolved against the current directory.
+skipped or replaced. `loom.run` reads no `[tool.pitloom]` unless given one
+as `pitloom_config=`; its own `id_registry=` resolves against the current
+directory, a `pitloom_config=` file's `id-registry` against that file's
+directory.
+
+`IdRegistry.load()` takes a `str` or path-like (else `TypeError`). `register()`
+and the loader reject a name that UTF-8 cannot hold (a lone surrogate) with
+`ValueError`; `generate()` skips such a file with the `FILE=` `WARNING:`, and
+harvest and `id import` skip such an element with a `WARNING:`. `generate()`
+raises `ID registry: <path> is outside the project root <root>` for a path
+outside the root; a symlink inside the project that points outside is keyed
+by its project path. `id import` of an SBOM whose `@graph` is not a list is
+`ERROR: failed to import SBOM <path>: @graph is not a list`.
 
 ## In CI
 
@@ -165,11 +319,19 @@ workflow -- the same shape this repo already uses to commit a generated
 ([`codemeta2cff.yml`](https://github.com/bact/pitloom/blob/main/.github/workflows/codemeta2cff.yml)).
 
 A declared `id-registry` that does not exist yet is an `ERROR:`, not
-silently skipped, so the registry file must exist before the build
-step below runs. Either commit one made by `loom id generate`
-(recommended, so every build reads the same committed file) or keep the
-seed step in the snippet below (it also creates the file on its first
-run, so the very first workflow run still succeeds):
+silently skipped, so the registry file must exist before the build step
+below runs. Either commit one made by `loom id generate` (recommended, so
+every build reads the same committed file) or keep the seed step in the
+snippet below (it also creates the file on its first run, so the very first
+workflow run still succeeds).
+
+A committed registry from an earlier Pitloom release (format version 2) is an
+`ERROR:`: regenerate it with `loom id generate` or `loom id import` and
+commit the result. A registry in format version 3, which that command now
+writes, can be read only by the first release with registry format 3. The
+snippet below pins `pitloom==0.20.2`, which writes and reads version 2: use
+a release with registry format 3 for both pins before committing a version 3
+file.
 
 ```yaml
 name: Update Loom ID registry
@@ -199,17 +361,19 @@ jobs:
         with:
           python-version: "3.x"
       # Same release as the action below, which installs its own pinned version.
+      # Use the first release with registry format 3 (0.20.2 reads version 2).
       - run: pip install pitloom==0.20.2
 
       # Extras-free, stem-keyed -- the only path that keeps ai_AIPackage
       # spdxIds stable regardless of whether "ai" extras are installed
-      # (auto-harvest excludes AI packages -- see below). Creates
+      # (auto-harvest skips unhashed AI packages -- see below). Creates
       # loom-id-registry.json on first run. Only omit this step if a
       # loom-id-registry.json is already committed to the repo -- a
       # declared-but-missing registry now fails the step below.
       - name: Seed/refresh AI model registry entries
         run: loom id generate --id-registry loom-id-registry.json
 
+      # Pin the first release with registry format 3 (v0.20.2 reads version 2).
       - uses: bact/pitloom@v0.20.2
         with:
           project-path: .
@@ -234,8 +398,8 @@ jobs:
 Two things worth calling out about that snippet:
 
 - **AI model id stability doesn't come from `extras: "ai"` or from
-  auto-harvest at all.** `ai_AIPackage` elements are deliberately excluded
-  from auto-harvest, because their correct registry key is the model
+  auto-harvest at all.** A project's `ai_AIPackage` elements carry no hash,
+  so auto-harvest skips them: their correct registry key is the model
   file's stem -- which only ever comes from the extras-free
   `loom id generate` step above. `extras: "ai"` only affects metadata
   richness (architecture, hyperparameters, etc.), not which spdxId a model

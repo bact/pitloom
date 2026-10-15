@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-09-18
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -116,3 +116,11 @@ now used unconditionally and the gap above no longer applies.
   `examples/sentimentdemo-aibom/{README.md,pyproject.toml}`,
   `working-docs/implementation/model-metadata-extraction.md`: the
   `fasttext`/`fasttext-community` split and its documentation.
+
+## Text-mode newlines in fixtures (PR #305)
+
+`Path.write_text("data\n")` writes `\r\n` on Windows. A test that hashed the
+literal `b"data\n"` passed on macOS and Linux and failed on `windows-latest`
+only (loom dataset dedup, four cases). Write digest-bearing fixtures with
+`write_bytes`. Detail:
+[recurring-bug-patterns-platform.md](recurring-bug-patterns-platform.md).

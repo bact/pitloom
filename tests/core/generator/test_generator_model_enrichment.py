@@ -50,7 +50,7 @@ def test_assembler_ai_model_with_license(
     hasDeclaredLicense relationship, and simpleLicensing in profileConformance.
 
     Model/license pairs are taken from real Hugging Face Hub data recorded in
-    the model zoo (test_extract_huggingface.py, 2026-05-08).
+    the model zoo (``tests/extract/remote/test_huggingface_*.py``, 2026-05-08).
     """
     project = ProjectMetadata(name="ai-project", version="0.1.0")
     ai_model = AiModelMetadata(
@@ -86,7 +86,7 @@ def test_build_model_with_license(
     and include simpleLicensing in profileConformance.
 
     Model/license pairs are taken from real Hugging Face Hub data recorded in
-    the model zoo (test_extract_huggingface.py, 2026-05-08).
+    the model zoo (``tests/extract/remote/test_huggingface_*.py``, 2026-05-08).
     """
     model = AiModelMetadata(
         format_info=AiModelFormatInfo(model_format=fmt),

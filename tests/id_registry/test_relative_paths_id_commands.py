@@ -7,7 +7,7 @@
 import`'s own ``-o``/``--id-registry`` and PATH arguments -- split out
 of :mod:`tests.id_registry.test_relative_paths` (this file's own size)
 since these two subcommands share one resolution function
-(:func:`pitloom.cli.id._resolve_id_registry_target`) distinct from every
+(:func:`pitloom.cli._id_target._resolve_id_registry_target`) distinct from every
 other surface's.
 
 See also: :mod:`tests.id_registry.test_relative_paths` (every other
@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import FILE_TYPE, IdRegistry
 from tests.id_registry.surfaces_base import Declare, _run_cli, demo_project
 from tests.id_registry.surfaces_shared import SURFACES
 
@@ -103,8 +103,8 @@ def test_cli_id_generate_relative_path_arg_resolves_against_cwd(
 
     registry_relative = IdRegistry.load(registry_path_relative)
     registry_absolute = IdRegistry.load(registry_path_absolute)
-    assert registry_relative.files.keys() == registry_absolute.files.keys()
-    assert "demo/__init__.py" in registry_relative.files
+    assert registry_relative.elements.keys() == registry_absolute.elements.keys()
+    assert registry_relative.get(FILE_TYPE, "demo/__init__.py") is not None
 
 
 def test_cli_id_generate_then_project_from_same_cwd_reuses_ids(
@@ -130,7 +130,9 @@ def test_cli_id_generate_then_project_from_same_cwd_reuses_ids(
     assert generate_result == 0, f"id generate exited {generate_result}"
     registry_path = tmp_path / "reg.json"
     assert registry_path.is_file()
-    expected_id = IdRegistry.load(registry_path).files["demo/__init__.py"].spdx_id
+    entry = IdRegistry.load(registry_path).get(FILE_TYPE, "demo/__init__.py")
+    assert entry is not None
+    expected_id = entry.spdx_id
 
     output_path = tmp_path / "out.spdx3.json"
     project_result = _run_cli(

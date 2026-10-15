@@ -6,8 +6,8 @@
 """Tests for pitloom.embed: core embed_sbom_in_wheel / embed_wheel_sbom API,
 plus the first batch of CLI (embed-wheel / wheel --embed) tests.
 
-See also: test_embed_internals.py, test_embed_cli.py -- this module's
-siblings, split from the original test_embed.py.
+See also: test_embed_internals.py, test_embed_cli.py -- the siblings
+covering internal helpers and the CLI surface.
 """
 
 from __future__ import annotations

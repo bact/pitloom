@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -18,8 +18,9 @@ alternative to D2 below).
 
 ## Why
 
-Registry v3 keys a package by name and version. For a wheel both come from
-`read_wheel()`, so a wrong identity there is a wrong registry key on every
+Registry v3 keys a package by its PEP 503 name (the version is not in the
+key). For a wheel the name comes from `read_wheel()`, as does the version
+of the document, so a wrong identity there is a wrong registry key on every
 surface (`loom wheel`, `generate x.whl`, `wheel --embed`, `embed-wheel`,
 `generate_wheel_sbom()`, `embed_wheel_sbom()`).
 
@@ -99,7 +100,14 @@ names (`matching_dist_infos`), so a foreign `.dist-info` cannot hide a model.
   any `-` splits it into the canonical name and the version
   (`foo-bar-1.0`; `1-2` is `1.post2`). With no or several `.dist-info` and no
   single one to choose, `wheel` and `generate` warn (shared `PROBLEM_*` text)
-  and name the package `unknown`, exit 0; `wheel --embed`, `embed-wheel`,
+  and name the package `unknown` (not looked up in or harvested into an ID
+  registry: `DocumentModel.identity_known` is `False`, the id joins
+  `registry_non_readers`, one `INFO:` when a registry is declared; the base
+  file name seeds the document uuid, `DocumentModel.identity_seed`, so
+  same-payload wheels of different names do not share ids; no other document
+  type passes a seed; `wheel_document_identity()` is the one helper the wheel
+  generator, `embed-wheel` standalone and `embed-wheel --project-dir` use; the
+  `INFO:` goes once per `embed-wheel` batch, `EmbedFileCache.identity_info_due`), exit 0; `wheel --embed`, `embed-wheel`,
   `verify-wheel` and `validate-wheel` refuse the wheel with that text. The
   model scan skips the one directory the file name names, and none where
   several do, as `read_wheel` takes none of them. The scan does not skip a

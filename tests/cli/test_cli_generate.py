@@ -21,7 +21,7 @@ from pitloom.cli.commands import env as mod_env
 from pitloom.cli.commands import generate as mod_generate
 from pitloom.cli.commands import project as mod_project
 from pitloom.core.creation import CreationMetadata
-from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
+from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, FILE_TYPE, IdRegistry
 from tests.cli.shared import _make_simple_project, effective_setting
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
@@ -260,7 +260,7 @@ def test_id_generate_cli_end_to_end(
 
     assert registry_path.exists()
     registry = IdRegistry.load(registry_path)
-    assert "src/mod.py" in registry.files
+    assert registry.get(FILE_TYPE, "src/mod.py") is not None
 
 
 def test_generate_command_does_not_duplicate_project_warning(

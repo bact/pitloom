@@ -6,8 +6,8 @@
 """Integration and license fallback tests for read_setuptools().
 
 See also:
-- :mod:`tests.extract.test_setuptools_cfg` for setup.cfg metadata tests.
-- :mod:`tests.extract.test_setuptools_py` for setup.py extraction tests.
+- :mod:`tests.extract.project.test_setuptools_cfg` for setup.cfg metadata tests.
+- :mod:`tests.extract.project.test_setuptools_py` for setup.py extraction tests.
 """
 
 from __future__ import annotations

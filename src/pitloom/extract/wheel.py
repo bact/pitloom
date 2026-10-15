@@ -11,8 +11,10 @@ import hashlib
 import logging
 import zipfile
 from pathlib import Path
+from typing import TypedDict
 
 from pitloom._wheel_sbom_location import name_version_from_email_message
+from pitloom.core.models import archive_base_name
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.core.wheel_dist_info import (
     open_wheel_zip,
@@ -151,6 +153,32 @@ def wheel_identity(metadata: ProjectMetadata) -> tuple[str | None, str | None]:
         metadata.name if "name" in metadata.provenance else None,
         metadata.version if "version" in metadata.provenance else None,
     )
+
+
+class WheelDocumentIdentity(TypedDict):
+    """The :class:`~pitloom.core.document.DocumentModel` fields that say
+    whether a wheel's name was read (:func:`wheel_document_identity`)."""
+
+    identity_known: bool
+    identity_seed: str | None
+
+
+def wheel_document_identity(
+    metadata: ProjectMetadata, wheel_path: Path | str
+) -> WheelDocumentIdentity:
+    """``identity_known`` and ``identity_seed`` for a document of the wheel
+    at *wheel_path*, read as *metadata*: every route that builds one passes
+    them on (``DocumentModel(..., **wheel_document_identity(...))``).
+
+    A wheel whose name was not read is not looked up in an ID registry, and
+    its base file name seeds the document UUID (see
+    :func:`~pitloom.core.models.archive_base_name`).
+    """
+    known = wheel_identity(metadata)[0] is not None
+    return {
+        "identity_known": known,
+        "identity_seed": None if known else archive_base_name(wheel_path),
+    }
 
 
 def payload_files(files: list[ProjectFile], wheel_name: str) -> list[ProjectFile]:

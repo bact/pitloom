@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-15
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,15 +10,18 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [roadmap.md](roadmap.md) (Near-term -- "AI model id
 stability", follow-up to [PR #178](https://github.com/bact/pitloom/pull/178)),
-[id-registry-v3.md](id-registry-v3.md) (decides the first question below),
+[id-registry-v3.md](../implementation/id-registry-v3.md) (decides the first question below),
 [id-registry-followups.md](id-registry-followups.md).
 
 ## Deterministic same-model identification for auto-harvest
 
-**Decided in registry v3 (user, 2026-09-30; planned, not built).** The
+**Resolved by registry v3 (user, 2026-09-30; built, PR #305).** The
 content hash is the answer: a model's sha256 is a gate once recorded
 (D3), so a retrained, re-exported or re-quantised model is a new model
 with a new id -- the under-match caveat below is accepted on purpose.
+Resolved: a retrained model is a new model, on the lookups that are gated
+(loom with `path=`); the project, wheel, `loom model` and embed lookups stay
+ungated until G7 #3 (D16).
 Hashed `ai_AIPackage` elements are auto-harvested; unhashed ones stay
 excluded (D15). Loom hashes a model declared with `path=` at run exit
 (D13). The "machine ID" idea is not pursued. The text below is the
@@ -95,7 +98,6 @@ identity. This is the same "what counts as the same model" question the
 rest of this document was open on (see "Deterministic same-model
 identification for auto-harvest" above), extended to also disambiguate
 by containing directory/path, not just a bare filename stem -- not
-addressed here. Registry v3 does not close it either: `id generate` over
-two same-stem files with different bytes replaces the one
-`(ai_AIPackage, stem)` entry (a differing sha mints, D12), and project
-lookups stay ungated until G7 #3 (D16).
+addressed here. Registry v3 does not close it either: as built, `id generate`
+over two same-stem model files registers the stem by name only, with no hash
+and one `INFO:` per run, and project lookups stay ungated until G7 #3 (D16).

@@ -14,37 +14,37 @@ See also:
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3_bindings
 
+from pitloom.export.hashes import sha256_of
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import (
+    AI_PACKAGE_TYPE,
+    DATASET_PACKAGE_TYPE,
+    IdRegistry,
+    persist_registry,
+    warn_no_registry_path,
+)
 
-log = logging.getLogger(__name__)
-
-# ai_AIPackage is deliberately excluded from auto-harvest: its correct
-# registry key is the model file's stem (only ever registered via the
-# extras-free `loom id generate`), not its `.name`, which is
-# extraction-dependent and varies with whether AI-format libraries are
-# installed. Harvesting it by name would write entries that never match
-# future lookups (see `_ai_model_entity_candidates`,
-# pitloom.assemble.spdx3._ai_package) instead of just doing nothing.
-#
-# dataset_DatasetPackage is excluded for a related but simpler reason:
-# `_build_dataset_package` (pitloom.assemble.spdx3.dataset) never consults
-# the registry at all -- every dataset spdxId is freshly minted every run,
-# with no lookup path to match a harvested entry against. Harvesting it
-# would just write a dead, silently-overwritten entry every run.
-_AUTO_HARVEST_EXCLUDED_TYPES = frozenset({"ai_AIPackage", "dataset_DatasetPackage"})
+# dataset_DatasetPackage is never harvested: a dataset id is pinned
+# deliberately, by `loom id generate -e NAME:dataset_DatasetPackage` or
+# `loom id import`, never from a run's fallback id. An ai_AIPackage is
+# harvested only when hashed (see _harvestable).
+_AUTO_HARVEST_EXCLUDED_TYPES = frozenset({DATASET_PACKAGE_TYPE})
 
 
 def _harvestable(obj: Any) -> bool:
-    """Return whether *obj* is safe for auto-harvest (see the comment above
-    ``_AUTO_HARVEST_EXCLUDED_TYPES``)."""
+    """Return whether *obj* is safe for auto-harvest: not a dataset (see
+    ``_AUTO_HARVEST_EXCLUDED_TYPES``), and an ``ai_AIPackage`` only when it
+    carries a SHA-256. A hashed model's entry is content-gated, so its name
+    cannot hand its id to other bytes; an unhashed model's name depends on
+    which AI-format libraries extracted it."""
     get_compact_type = getattr(obj, "get_compact_type", None)
     compact_type = get_compact_type() if get_compact_type is not None else None
+    if compact_type == AI_PACKAGE_TYPE:
+        return sha256_of(obj) is not None
     return compact_type not in _AUTO_HARVEST_EXCLUDED_TYPES
 
 
@@ -61,15 +61,15 @@ def _sync_registry(
     so the one element that does look a name up is written even when a
     non-reader shares its name.
 
-    No-op when no registry was resolved, auto-update was disabled, or the
-    registry has no on-disk path to save to. A save failure is logged as a
-    ``WARNING`` and otherwise ignored -- it must never break SBOM
-    generation itself.
+    No-op when no registry was resolved or auto-update was disabled; a
+    registry with no on-disk path to save to is not harvested into (the
+    no-path ``WARNING:``). Saving and its log lines are
+    :func:`~pitloom.id_registry.persist_registry`'s.
     """
     if registry is None or not update_id_registry:
         return
     if registry.path is None:
-        log.warning("ID registry: no file path resolved; skipping auto-update.")
+        warn_no_registry_path()
         return
 
     filtered = spdx3_bindings.SHACLObjectSet()
@@ -78,24 +78,5 @@ def _sync_registry(
         if _harvestable(obj) and getattr(obj, "spdxId", None) not in non_readers:
             filtered.add(obj)
 
-    new_files, new_entities, changed = registry.harvest(filtered)
-    if not changed:
-        return
-    try:
-        registry.save()
-    except OSError as exc:
-        log.warning("ID registry: failed to save %s: %s", registry.path, exc)
-        return
-    if new_files or new_entities:
-        log.info(
-            "ID registry: added %d new file(s), %d new entit(y/ies) to %s",
-            new_files,
-            new_entities,
-            registry.path,
-        )
-    else:
-        # changed is True but the net counts are zero: a stale key was
-        # released in the same pass a new one claimed its id (see
-        # pitloom.id_registry._harvest._release_stale_keys_for_id) -- real content
-        # changed even though nothing was added or removed net.
-        log.info("ID registry: updated stale entries in %s", registry.path)
+    new_ids, changed = registry.harvest(filtered)
+    persist_registry(registry, new_ids, changed)

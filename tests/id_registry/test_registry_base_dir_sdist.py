@@ -8,7 +8,7 @@
 archive path itself (joining a relative path onto a file, rather than a
 directory, would never find the file). ``pitloom.id_registry.resolve.
 registry_base_dir()`` is the one shared helper every ``resolve_registry()``
-call site now uses for this; this test is the drift guard that
+call site uses for this; this test is the drift guard that
 :func:`pitloom.embed.embed_wheel_sbom` (``project_dir=<sdist>``) and
 :func:`pitloom.assemble.generate_project_sbom` (target=<sdist>) resolve
 to the exact same registry file for one shared fixture.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-14
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -128,9 +128,11 @@ model caps"). Beyond that:
   further line, except one over the ceiling or missing its library, which
   adds its own.
 - The same input gives the same SBOM for the same settings;
-  `--trust-wheel-model`, `max-model-extract-bytes`, `--scan-model-usage` and
-  `--allow-build` each change what is recorded, so do not compare SBOMs made
-  with different ones.
+  `--trust-wheel-model`, `max-model-extract-bytes`, `--scan-model-usage`,
+  `--allow-build` and (for `loom.Run`) `max-dataset-hash-bytes` each change
+  what is recorded, so do not compare SBOMs made with different ones. The
+  last drops a dataset's hash, with a `WARNING:`, when its bytes pass the
+  cap.
 
 Every cap, its value and message (the single source of truth):
 <https://bact.github.io/pitloom/ai-model-scan-limits/#size-and-count-caps>.
@@ -178,6 +180,32 @@ Use when `unzip -l <wheel>` shows `RECORD.jws` or `RECORD.p7s`, or `embed-wheel`
    with WebFetch or `curl` and relay the relevant part; fall back to 1-3.
 5. **Never** add the flag on your own. Non-interactive: report the refusal, the
    explanation and the exact re-run command with the flag.
+
+### Refused wheels and unknown identity
+
+A wheel's name and version come from its own top-level `.dist-info` only.
+`wheel`, `generate`, `wheel --embed` and `embed-wheel` refuse a file that is
+not a ZIP and a wheel with a member they cannot read (damaged, encrypted, a
+name that is not UTF-8), two members of one name or a NUL in a name: one
+`ERROR:`, exit 1, nothing written (in a batch the other wheels run). It reads
+`ERROR: wheel command failed: ARCHIVE=... ENTRY=...: <cause> -- wheel refused`
+from `wheel` and `wheel --embed`, `ERROR: SBOM generation failed: ARCHIVE=...`
+from `generate`, `ERROR: ARCHIVE=...` from `embed-wheel`. The two embeds also
+refuse a wheel with no single own `.dist-info`, or an own `.dist-info` member
+stored under a non-conforming name (`./`, `\`); for no single own `.dist-info`
+a `WARNING: ... -- identity unknown` line comes before the `ERROR:`.
+With no single own `.dist-info`, or a `METADATA` that is missing or over a cap,
+`wheel` and `generate` only warn (`WARNING: ... identity unknown`) and write an
+SBOM that names the wheel `unknown`; an ID registry neither looks up nor
+records that placeholder (one `INFO:` when a registry is declared); its ids
+derive from the wheel's file name and payload, so a renamed copy gets new ids.
+The embeds do the same (one registry `INFO:` per batch) for a `METADATA`
+that is missing or over a cap, but fail with the `ERROR:` above where there is
+no single `.dist-info` to write into. Where the file name names no top-level
+`.dist-info` but one other exists, every one of these commands uses it and logs
+`WARNING: ... the file name names no top-level .dist-info; using ...`: report
+that line, as the name and version then come from a directory the file name
+does not name. It is not a model bound.
 
 ## A licence that looks like a broken expression
 

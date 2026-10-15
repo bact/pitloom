@@ -26,8 +26,9 @@ import pytest
 
 from pitloom.assemble import generate_wheel_sbom
 from pitloom.extract.wheel import read_wheel
-from pitloom.id_registry import FileEntry, IdRegistry
+from pitloom.id_registry import FILE_TYPE
 from tests._raw_archive import METADATA, mimic_windows_infolist, write_raw_zip
+from tests.registry_helpers import make_registry
 
 _DIST_INFO = "demo-1.0.0.dist-info"
 _MEMBERS = {
@@ -192,9 +193,9 @@ def test_registry_keyed_by_raw_name_still_hits(tmp_path: Path, update: bool) -> 
     namespace = "https://example.org/ns"
     registered = f"{namespace}#File-42"
     digest = hashlib.sha256(b"mod = 1\n").hexdigest()
-    registry = IdRegistry(
+    registry = make_registry(
+        {(FILE_TYPE, "demo\\mod.py"): (registered, digest)},
         namespace=namespace,
-        files={"demo\\mod.py": FileEntry(spdx_id=registered, sha256=digest)},
         path=tmp_path / "ids.json",
     )
     sbom = generate_wheel_sbom(
@@ -205,5 +206,9 @@ def test_registry_keyed_by_raw_name_still_hits(tmp_path: Path, update: bool) -> 
     )
     ids = {e["name"]: e["spdxId"] for e in _graph(sbom) if e["type"] == "software_File"}
     assert ids["demo/mod.py"] == registered
-    keys = {k for k, v in registry.files.items() if v.spdx_id == registered}
+    keys = {
+        name
+        for (type_name, name), v in registry.elements.items()
+        if type_name == FILE_TYPE and v.spdx_id == registered
+    }
     assert keys == ({"demo/mod.py"} if update else {"demo\\mod.py"})

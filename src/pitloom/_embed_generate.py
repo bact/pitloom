@@ -49,6 +49,7 @@ from pitloom.core.inert_options import (
 from pitloom.core.models import merkle_root_of_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import require_max_source_metadata_bytes
+from pitloom.core.walk_rules import without_registry_copies
 from pitloom.extract.authors import (
     CORE_METADATA_HINT,
     AuthorSplit,
@@ -57,7 +58,13 @@ from pitloom.extract.authors import (
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.project import read_project
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
-from pitloom.id_registry import IdRegistry, registry_base_dir, resolve_registry
+from pitloom.extract.wheel import wheel_document_identity
+from pitloom.id_registry import (
+    IdRegistry,
+    registry_base_dir,
+    registry_copy,
+    resolve_registry,
+)
 
 
 def _resolve_embed_registry(
@@ -68,10 +75,10 @@ def _resolve_embed_registry(
     """Resolve (and thereby validate) the registry
     :func:`~pitloom.embed.embed_wheel_sbom` would use, without needing
     ``wheel_metadata`` -- so a declared-but-bad registry can be caught
-    before the wheel is read at all. Mirrors the
-    two branches :func:`_generate_embed_sbom_json` resolves the registry
-    in (standalone vs. project-backed). Raises :class:`ValueError` on a
-    bad registry, same as :func:`~pitloom.id_registry.resolve_registry`.
+    before the wheel is read at all. Mirrors the two branches
+    :func:`_generate_embed_sbom_json` resolves the registry in (standalone
+    vs. project-backed). Raises :class:`ValueError` on a bad registry, as
+    :func:`~pitloom.id_registry.resolve_registry` does.
 
     An explicit *id_registry* always wins, so the project's own config is
     never read for it (skips the peek entirely). Returns the resolved
@@ -277,6 +284,7 @@ def _generate_embed_sbom_json(
         cfg,
         resolve_registry(id_registry, cfg.id_registry, registry_base_dir(proj_root)),
         creation_metadata or cfg.creation_metadata,
+        wheel_path=wheel_path,
         build_options=settled_build_options,
         file_cache=file_cache,
         author_splits=author_splits,
@@ -300,12 +308,17 @@ def _build_sbom_standalone_wheel(
 
     *cfg* holds only explicit settings (an explicitly named config and the
     per-run overrides); nothing is borrowed from the current directory. The
-    AI models are the ones inside the wheel. A batch (the cache in *batch*) hints at
-    ``--scan-model-usage`` once, from the first wheel that has models, and
-    likewise says once per format that a gated model was listed without
-    metadata.
+    AI models are the ones inside the wheel. A batch (the cache in *batch*)
+    hints at ``--scan-model-usage`` once, from the first wheel that has
+    models, and likewise says once per format that a gated model was listed
+    without metadata.
     """
     file_cache, trust = batch
+    files = without_registry_copies(
+        wheel_metadata.files,
+        registry_copy(registry),
+        warn=lambda: file_cache is None or file_cache.registry_warning_due(),
+    )
     ai_models = scan_wheel_for_ai_models(
         wheel_path,
         scan_usage=cfg.scan_model_usage is True,
@@ -323,16 +336,20 @@ def _build_sbom_standalone_wheel(
         ),
     )
     doc = DocumentModel(
-        project=wheel_metadata,
+        project=wheel_metadata.replace_with_fresh_containers(files=files),
         creation_metadata=creation_metadata,
         ai_models=ai_models,
-        phantom_dependencies=find_phantom_dependencies(wheel_metadata.files),
+        phantom_dependencies=find_phantom_dependencies(files),
+        **wheel_document_identity(wheel_metadata, wheel_path),
     )
     exporter = assemble_spdx3(
         doc,
-        merkle_root=merkle_root_of_files(wheel_metadata.files),
+        merkle_root=merkle_root_of_files(files),
         sbom_type=spdx3.software_SbomType.analyzed,
         registry=registry,
+        identity_info_due=(
+            file_cache.identity_info_due if file_cache is not None else None
+        ),
         **cfg.assemble_options,
     )
     return exporter.to_json(pretty=False)

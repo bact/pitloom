@@ -8,8 +8,8 @@ Agent/Tool typing on CreationInfo, @graph element ordering and
 determinism, blank-node/named-element deduplication, and provenance
 Annotation compliance.
 
-See also: test_spdx3_compliance_structure.py -- this module's sibling,
-split from the original test_spdx3_compliance.py.
+See also: test_spdx3_compliance_structure.py -- the sibling covering JSON-LD
+structure, profiles and relationships.
 """
 
 import dataclasses

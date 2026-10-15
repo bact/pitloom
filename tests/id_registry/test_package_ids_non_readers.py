@@ -31,7 +31,7 @@ import pytest
 from pitloom.assemble import generate_project_sbom, generate_wheel_sbom
 from pitloom.assemble._generators_shared import _sync_registry
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.id_registry import PACKAGE_ENTITY_TYPE, IdRegistry
+from pitloom.id_registry import PACKAGE_TYPE, IdRegistry
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.extract.conftest import make_hook
 from tests.id_registry.package_ids_base import (
@@ -86,7 +86,7 @@ def test_non_readers_are_exactly_the_packages_that_never_looked_up(
     if pins is not None:
         registry = IdRegistry.new("pins")
         for name in pins:
-            registry.register_entity(name, PACKAGE_ENTITY_TYPE)
+            registry.register(PACKAGE_TYPE, name)
     doc = make_doc(
         dependencies=["libfoo==1.0", _SELF_EXTRA],
         phantom=[phantom("Demo", "1"), phantom("libfoo", "1"), phantom("libz", "1")],
@@ -120,7 +120,7 @@ def test_non_pep_508_dependency_named_like_project_is_a_non_reader(
     (other,) = [p.spdx_id for p in packages(exporter) if p.spdx_id != root]
     assert [p.name for p in packages(exporter)] == [MAIN, MAIN]
     assert exporter.registry_non_readers == {other}
-    assert registry.lookup_entity(MAIN, PACKAGE_ENTITY_TYPE) == root
+    assert registry.lookup(PACKAGE_TYPE, [MAIN]) == root
     assert _root_id(build_doc(doc, registry)) == root
 
 
@@ -133,8 +133,8 @@ def test_two_versions_of_one_dependency_both_look_up(tmp_path: Path) -> None:
 
     assert [p.name.lower() for p in packages(exporter)].count("foo") == 2
     assert not exporter.registry_non_readers
-    assert registry.lookup_entity("foo", PACKAGE_ENTITY_TYPE) is None
-    assert registry.lookup_entity(MAIN, PACKAGE_ENTITY_TYPE) == _root_id(exporter)
+    assert registry.lookup(PACKAGE_TYPE, ["foo"]) is None
+    assert registry.lookup(PACKAGE_TYPE, [MAIN]) == _root_id(exporter)
 
 
 # --- run auto-harvest writes the owner -----------------------------------
@@ -164,8 +164,8 @@ def test_run_harvest_writes_the_owner_and_never_the_non_reader(
     # pylint: disable-next=unbalanced-tuple-unpacking
     (non_reader,) = first.registry_non_readers
     (owner,) = [p.spdx_id for p in holders if p.spdx_id != non_reader]
-    assert registry.lookup_entity(name, PACKAGE_ENTITY_TYPE) == owner
-    written = {entry.spdx_id for entry in registry.entities.values()}
+    assert registry.lookup(PACKAGE_TYPE, [name]) == owner
+    written = {entry.spdx_id for entry in registry.elements.values()}
     assert non_reader not in written
     assert second.to_json() == first.to_json()
     assert third.to_json() == first.to_json()

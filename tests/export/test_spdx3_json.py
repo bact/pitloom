@@ -22,6 +22,7 @@ from typing import Any
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.export.hashes import sha256_of
 from pitloom.export.spdx3_json import (
     Spdx3JsonExporter,
     _annotate_relationships,
@@ -419,3 +420,34 @@ def test_to_file_pretty_matches_to_json_pretty(tmp_path: Path) -> None:
     exporter.to_file(str(out_path), pretty=True)
 
     assert out_path.read_text(encoding="utf-8") == exporter.to_json(pretty=True)
+
+
+def _h(algorithm: str, value: str) -> spdx3.Hash:
+    return spdx3.Hash(algorithm=algorithm, hashValue=value)
+
+
+_SHA1, _SHA256 = spdx3.HashAlgorithm.sha1, spdx3.HashAlgorithm.sha256
+
+
+@pytest.mark.parametrize(
+    ("hashes", "expected"),
+    [
+        pytest.param([], None, id="none-declared"),
+        pytest.param(None, None, id="none-value"),
+        pytest.param([_h(_SHA1, "deadbeef")], None, id="sha1-only"),
+        pytest.param(
+            [_h(_SHA256, ""), _h(_SHA256, "cafebabe")], "cafebabe", id="skips-empty"
+        ),
+        pytest.param([_h(_SHA256, "CAFEBABE")], "cafebabe", id="lowercased"),
+        pytest.param(
+            [_h(_SHA1, "aa"), _h(_SHA256, "bb"), _h(_SHA256, "cc")],
+            "bb",
+            id="first-valid",
+        ),
+    ],
+)
+def test_sha256_of(hashes: list[spdx3.Hash] | None, expected: str | None) -> None:
+    element = spdx3.software_File(name="a.py")
+    if hashes:
+        element.verifiedUsing = hashes
+    assert sha256_of(element) == expected

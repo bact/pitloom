@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -33,14 +33,27 @@ the current time: the same fragments give the same bytes. The Python API is
 `pitloom.assemble.generate_merged_sbom()`.
 
 Equal elements unify, here and in a project build with
-`[tool.pitloom.fragment]`: the same `spdxId`, the same SHA-256 (files and
-packages), the same agent or tool, and the same licence -- an expression
-or a text with the same canonical value, so `mit` and `MIT` are one
-element, while an expression and a text stay two. Elements are never unified
-by name alone. The earlier one is kept (the project's own, then the earlier
-fragment, by file name for `loom merge`), and an `Annotation` records each
-unification. A kept licence keeps its own `name` and `comment`. To make
-independent runs agree on ids in the first place, see [Loom ID registry](id-registry.md).
+`[tool.pitloom.fragment]`: the same `spdxId` and type, the same SHA-256 and
+type (files, packages, datasets), the same agent or tool, and the
+same licence -- an expression or a text with the same canonical value, so
+`mit` and `MIT` are one element, while an expression and a text stay two.
+Elements are never unified by name alone. The earlier one is kept (the
+project's own, then the earlier fragment, by file name for `loom merge`),
+except that for equal SHA-256 the registry-pinned `spdxId` wins: the one whose
+namespace the most inputs (the project and fragments) use, since a minted
+id's namespace belongs to its one fragment. A tie keeps the earlier. An
+`Annotation` records each unification. A kept licence keeps its own `name`
+and `comment`. A fragment element whose `spdxId` an element of another type
+already holds is not unified with it: both are kept, and the fragment's
+element gets a new id in the merged document's namespace, with a `WARNING:`.
+The same holds for the same `spdxId` and type with a different digest of the
+same algorithm (disjoint digest sets: the content differs): the earlier
+element keeps the id, the later gets a new one, and the `WARNING:` says `of a
+different SHA256 hash`. A digest differing only in case, in another algorithm,
+or absent is not a conflict. All fragments are loaded before the first merge,
+so a load warning can precede a merge warning.
+To make independent runs agree on ids in the first place, see [Loom ID
+registry](id-registry.md).
 
 In a project build, fragment envelopes are dropped and duplicate relationships
 removed. The document's `profileConformance` gains `ai`/`dataset` as

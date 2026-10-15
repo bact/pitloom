@@ -19,6 +19,7 @@ re-exported below, so each name is importable from this module.
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Callable
 from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -77,7 +78,7 @@ from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
 from pitloom.extract.authors import dependency_author_splits
 from pitloom.extract.copyright_notices import COPYRIGHT_NOASSERTION
-from pitloom.id_registry import IdRegistry, IdRegistrySession
+from pitloom.id_registry import IdRegistry, IdRegistrySession, info_identity_unknown
 
 __all__ = [
     "_ai_model_identity",
@@ -205,6 +206,7 @@ def build(
     enrichment_results_by_model: list[list[EnrichmentResult]] | None = None,
     offline: bool = False,
     content_type_method: str = "auto",
+    identity_info_due: Callable[[], bool] | None = None,
 ) -> Spdx3JsonExporter:
     """Assemble SPDX 3 elements from a :class:`~pitloom.core.document.DocumentModel`.
 
@@ -231,6 +233,7 @@ def build(
         merkle_root=merkle_root,
         locked_dependencies=metadata.locked_dependencies,
         locked_dependencies_provenance=metadata.provenance.get("locked_dependencies"),
+        identity_seed=doc.identity_seed,
     )
     _clear_doc_counters(doc_uuid)
     # Deduplicated once and shared below: a genuine name/version conflict
@@ -292,6 +295,10 @@ def build(
     exporter.add_document(spdx_doc)
     exporter.add_sbom(sbom)
     exporter.add_package(main_package)
+    if not doc.identity_known:
+        exporter.registry_non_readers.add(require_spdx_id(main_package))
+        if registry is not None and (identity_info_due is None or identity_info_due()):
+            info_identity_unknown()
     emit_provenance(
         subject=main_package,
         provenance=metadata.provenance,

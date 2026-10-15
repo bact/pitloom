@@ -46,8 +46,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import load_config_file
 from pitloom.id_registry import (
     DEFAULT_ID_REGISTRY_FILENAME,
-    EntityEntry,
-    FileEntry,
+    FILE_TYPE,
     IdRegistry,
 )
 
@@ -80,15 +79,11 @@ def _seed_registry(path: Path, wheel: Path) -> None:
     up by name) and a file entry (looked up by path and digest)."""
     registry = IdRegistry(namespace=_IDS_NAMESPACE, path=path)
     for name, kind in ((_TARGET, "software_Package"), ("model", "ai_AIPackage")):
-        registry.entities[(kind, name)] = EntityEntry(
-            spdx_id=f"{_IDS_NAMESPACE}#{kind}-seeded"
-        )
+        registry.register(kind, name)
     member = f"{_TARGET}/__init__.py"
     with zipfile.ZipFile(wheel) as archive:
         digest = hashlib.sha256(archive.read(member)).hexdigest()
-    registry.files[member] = FileEntry(
-        spdx_id=f"{_IDS_NAMESPACE}#File-seeded", sha256=digest
-    )
+    registry.register(FILE_TYPE, member, sha256=digest)
     registry.save()
 
 

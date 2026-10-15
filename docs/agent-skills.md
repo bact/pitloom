@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-09
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -25,7 +25,8 @@ Pitloom ships three Skills:
 - `sbom-generate` -- generates a base SBOM/AIBOM for a project, wheel, or
   AI/ML model file. Also embeds a generated (or pre-existing) SBOM
   directly into a built wheel per PEP 770's `.dist-info/sboms/`
-  convention.
+  convention. Asked to pin ids, it creates or updates a [Loom ID
+  registry](id-registry.md) with `loom id generate`/`import`.
 - `sbom-enrich` -- reads a README or model card and contributes inferred
   detail (a license guess, a `trainedOn` dataset) back into an existing
   SBOM as a provenance-marked fragment; in an interactive session it can

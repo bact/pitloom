@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-14
-Last-Modified: 2026-10-14
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -210,3 +210,19 @@ about something else; a scanner's own fixture was not valid PEP 751
 (`[[package]]` instead of `[[packages]]`); another project had no lock at all.
 Lesson: verify the producer, the file and the version before vendoring.
 *Unverified:* whether a newer uv writes extras markers (only 0.10.4 was run).
+
+## Keying an id registry: name or path?
+
+Name keys collide and miss for one artefact in several ways: two model files
+with one stem (`a/m.gguf`, `b/m.gguf`), a dataset package keyed by the caller's
+raw string (`data/t.txt` and `../data/t.txt` miss each other while their files
+hit), a src-layout file under two spellings (the one case where two keys share
+an id), case and NFC/NFD on case-insensitive file systems, and a registry
+rooted above the project (every file misses on `project`). A path key (the
+artefact's path below the registry root, canonicalised) removes most of these,
+but a wheel member, an sdist member and a `--allow-build` temporary file are
+three spellings of one source path, anything without a file (a PyPI package, a
+Hugging Face model) still needs a name key, and a rename becomes a new
+identity. The measured options and open decisions are in Pitloom's plan
+(`working-docs/design/id-registry-path-keys.md`); no option was built.
+*Unverified:* how often users rename data files after pinning ids.

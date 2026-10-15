@@ -274,7 +274,14 @@ def test_assemble_options_mirror_the_config() -> None:
 
 # build() parameters a caller supplies per call, not from [tool.pitloom].
 _PER_CALL_BUILD_PARAMS = frozenset(
-    {"doc", "merkle_root", "sbom_type", "registry", "enrichment_results_by_model"}
+    {
+        "doc",
+        "merkle_root",
+        "sbom_type",
+        "registry",
+        "enrichment_results_by_model",
+        "identity_info_due",
+    }
 )
 
 

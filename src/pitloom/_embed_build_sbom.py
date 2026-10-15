@@ -9,27 +9,29 @@ cache a multi-wheel batch shares.
 
 Split out of :mod:`pitloom.embed` to keep it under the file-size limit.
 
-See also: :mod:`pitloom._embed_generate` (which calls
-:func:`_build_sbom_from_project_and_wheel`), :mod:`pitloom.embed` (the
-public embed API, which re-exports :class:`EmbedFileCache`) and
-:mod:`pitloom.core.build_signals` (the termination guard keeping a
-build-and-read result from leaking).
+See also: :mod:`pitloom._embed_overlay` (what the SBOM takes from the
+project directory onto the wheel's metadata), :mod:`pitloom._embed_generate`
+(which calls :func:`_build_sbom_from_project_and_wheel`),
+:mod:`pitloom.embed` (the public embed API, which re-exports
+:class:`EmbedFileCache`) and :mod:`pitloom.core.build_signals` (the
+termination guard keeping a build-and-read result from leaking).
 """
 
 from __future__ import annotations
 
 import contextlib
-import dataclasses
-import logging
+import functools
 import threading
 from collections.abc import Callable, Hashable
 from pathlib import Path
 from types import TracebackType
 from typing import TypeVar, cast
 
-from packaging.utils import canonicalize_name
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom._embed_overlay import add_concluded_license as _add_concluded_license
+from pitloom._embed_overlay import adopt_project_authors as _adopt_project_authors
+from pitloom._embed_overlay import merge_file_extras as _merge_file_extras
 from pitloom.assemble.spdx3.document import build as assemble_spdx3
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.build_options import BuildOptions
@@ -39,118 +41,26 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import get_wheel_files, merkle_root_of_files
 from pitloom.core.project import ProjectFile, ProjectMetadata
+from pitloom.core.walk_rules import warn_registry_left_out, without_registry_copies
 from pitloom.enrich import run_enrichers_for_models
-from pitloom.extract._license import resolve_license_concluded
-from pitloom.extract.authors import (
-    CORE_METADATA_HINT,
-    AuthorSplit,
-    warn_author_splits,
-    warn_project_authors_unread,
-)
+from pitloom.extract.authors import CORE_METADATA_HINT, AuthorSplit, warn_author_splits
 from pitloom.extract.binary import find_phantom_dependencies
-from pitloom.extract.project import read_project
 from pitloom.extract.scanner_project import scan_project_for_ai_models
-from pitloom.id_registry import IdRegistry
+from pitloom.extract.wheel import wheel_document_identity
+from pitloom.id_registry import IdRegistry, registry_copy, registry_file_path
 
 _T = TypeVar("_T")
-
-log = logging.getLogger(__name__)
-
-
-def _merge_file_extras(
-    wheel_files: list[ProjectFile], project_files: list[ProjectFile]
-) -> list[ProjectFile]:
-    """Layer re-scanned content-type/header data onto the wheel's own files.
-
-    ``wheel_files`` (from :func:`pitloom.extract.wheel.read_wheel`) is the
-    source of truth for what the already-built wheel actually contains --
-    excluding the wheel's own ``.dist-info`` but including any
-    build-hook-injected files that never existed in ``project_dir`` -- so it
-    is kept intact, including its hashes computed from the wheel's own bytes.
-    ``project_files`` (from :func:`~pitloom.core.models.get_wheel_files`)
-    only supplies the content-type/file-header extras it computed by
-    re-scanning the sources, adopted for files present in both lists.
-    """
-    extras_by_path = {f.distribution_path: f for f in project_files}
-    merged: list[ProjectFile] = []
-    for wheel_file in wheel_files:
-        extra = extras_by_path.get(wheel_file.distribution_path)
-        if extra is None:
-            merged.append(wheel_file)
-            continue
-        merged.append(
-            dataclasses.replace(
-                wheel_file,
-                copyright_text=extra.copyright_text,
-                copyright_source=extra.copyright_source,
-                file_contributors=extra.file_contributors,
-                file_type=extra.file_type,
-                spdx_license_identifier=extra.spdx_license_identifier,
-                content_type=extra.content_type,
-                content_type_method=extra.content_type_method,
-            )
-        )
-    return merged
+#: The batch memo key of the registry left-out warning.
+_REGISTRY_LEFT_OUT = ("registry-left-out",)
+#: The batch memo key of the unknown-identity INFO.
+_IDENTITY_UNKNOWN = ("identity-unknown",)
 
 
-def _add_concluded_license(metadata: ProjectMetadata, project_dir: Path) -> None:
-    """Set *metadata*'s concluded licence from *project_dir*'s own sources.
-
-    Wheel ``METADATA`` carries only the declared licence, so the G2 second
-    opinion comes from the project directory, through the same resolver
-    ``loom project`` uses, gated on the wheel's declared licence. An sdist
-    *project_dir* gets none, though ``loom project`` on that sdist reads
-    its licence files.
-    """
-    if metadata.license_concluded is not None or not project_dir.is_dir():
-        return
-    concluded, provenance = resolve_license_concluded(
-        bool(metadata.license_name), project_dir, stated=metadata.license_name
-    )
-    if concluded is None or provenance is None:
-        return
-    metadata.license_concluded = concluded
-    metadata.provenance["license_concluded"] = provenance
-
-
-def _adopt_project_authors(
-    metadata: ProjectMetadata, project_dir: Path, *, quiet: bool = False
-) -> bool:
-    """Take *metadata*'s authors from *project_dir* when it declares them;
-    whether it did.
-
-    Wheel ``METADATA`` lists the authors with an address before the others
-    (see :func:`~pitloom.extract.authors.author_pairs`)
-    and a poetry-core wheel only the first one; the project's own metadata
-    has every author in declared order, as ``loom project`` reads it. The
-    embed's one used read of the project, so it warns unless *quiet* (a
-    batch's later wheels).
-    """
-    try:
-        project, _, _ = read_project(
-            project_dir,
-            include_locked_dependencies=False,
-            include_installed_metadata=False,
-            quiet=quiet,
-            read_config=False,
-        )
-    except (OSError, ValueError) as exc:
-        warn_project_authors_unread(str(project_dir), exc, "wheel METADATA")
-        return False
-    source = project.provenance.get("authors")
-    if source is None:
-        return False
-    if canonicalize_name(project.name) != canonicalize_name(metadata.name):
-        log.warning(
-            "%s: project %r is not the wheel's %r; authors from the wheel METADATA",
-            project_dir,
-            project.name,
-            metadata.name,
-        )
-        return False
-    metadata.authors = list(project.authors)
-    metadata.provenance["authors"] = source
-    return True
+def _left_out(settled: dict[Hashable, object], registry: Path) -> None:
+    """Discovery's registry warning, marked in the batch memo *settled* (the
+    lock is held: no :meth:`EmbedFileCache.first_use`)."""
+    settled[_REGISTRY_LEFT_OUT] = None
+    warn_registry_left_out(registry)
 
 
 class EmbedFileCache:
@@ -276,13 +186,15 @@ class EmbedFileCache:
         project_dir: Path,
         pitloom_config: PitloomConfig,
         build_options: BuildOptions,
+        exclude_path: Path | None = None,
     ) -> list[ProjectFile]:
-        """Return the cached file list, running discovery on first use.
+        """Return the cached file list (without *exclude_path*, the
+        declared registry), running discovery on first use.
 
         Raises :class:`RuntimeError` outside a ``with`` block, and
         :class:`ValueError` when a later call in the block asks for a
-        different project directory, file-scan settings or build options
-        than the first -- the cached list would silently not match it.
+        different project directory, file-scan settings, build options
+        or excluded file than the first -- the cached list would not match.
         """
         content_type = pitloom_config.content_type
         resolved_from = (
@@ -292,6 +204,7 @@ class EmbedFileCache:
             content_type.method,
             content_type.overrides,
             build_options,
+            exclude_path,
         )
         with self._lock:
             # Inside the lock: the block may have closed while another
@@ -307,6 +220,8 @@ class EmbedFileCache:
                     content_type_overrides=content_type.overrides,
                     skip_merkle_root=True,
                     build_options=build_options,
+                    exclude_path=exclude_path,
+                    on_left_out=functools.partial(_left_out, self._settled),
                 )
                 if self._guard is not block:
                     # The block this discovery was started for closed
@@ -327,7 +242,7 @@ class EmbedFileCache:
             elif resolved_from != self._resolved_from:
                 raise ValueError(
                     "EmbedFileCache: every call in one batch must use the same "
-                    "project directory, file-scan settings and build options"
+                    "project directory, file-scan settings, build options and registry"
                 )
             return self._resolved[0]
 
@@ -386,6 +301,22 @@ class EmbedFileCache:
         self.once(key, lambda: ran.append(True), "first_use")
         return bool(ran)
 
+    def registry_warning_due(self) -> bool:
+        """Whether the in-tree registry ``WARNING:`` is still due in this
+        block: one per batch, discovery's included.
+
+        Raises :class:`RuntimeError` outside a ``with`` block.
+        """
+        return self.first_use(_REGISTRY_LEFT_OUT)
+
+    def identity_info_due(self) -> bool:
+        """Whether the unknown-identity ``INFO:`` is still due in this
+        block: one per batch.
+
+        Raises :class:`RuntimeError` outside a ``with`` block.
+        """
+        return self.first_use(_IDENTITY_UNKNOWN)
+
     def _require_block(self, method: str) -> None:
         if self._guard is None:
             raise RuntimeError(
@@ -394,7 +325,7 @@ class EmbedFileCache:
             )
 
 
-# pylint: disable-next=too-many-arguments
+# pylint: disable-next=too-many-arguments,too-many-locals
 def _build_sbom_from_project_and_wheel(
     project_dir: Path,
     wheel_metadata: ProjectMetadata,
@@ -402,6 +333,7 @@ def _build_sbom_from_project_and_wheel(
     registry: IdRegistry | None,
     creation_metadata: CreationMetadata | None,
     *,
+    wheel_path: Path,
     build_options: BuildOptions = BuildOptions(),
     file_cache: EmbedFileCache | None = None,
     author_splits: list[AuthorSplit] | None = None,
@@ -412,6 +344,9 @@ def _build_sbom_from_project_and_wheel(
     split into several entries (:func:`~pitloom.extract.wheel.read_wheel`),
     warned about only when the project's own authors do not replace the
     wheel's.
+
+    *wheel_path* is the wheel *wheel_metadata* was read from (see
+    :func:`~pitloom.extract.wheel.wheel_document_identity`).
 
     *build_options* is a separate parameter, not read off
     ``pitloom_config``: it deliberately has no ``[tool.pitloom]`` cascade
@@ -439,14 +374,24 @@ def _build_sbom_from_project_and_wheel(
         if file_cache is not None
         else EmbedFileCache()
     ) as cache:
-        project_files = cache.resolve(project_dir, pitloom_config, build_options)
+        project_files = cache.resolve(
+            project_dir, pitloom_config, build_options, registry_file_path(registry)
+        )
         # Layer content-type/file-header extras onto the wheel's own
         # file records rather than replacing them outright: replacing
         # would drop any build-hook-injected files (e.g. compiled
         # extensions, auditwheel-repaired shared libraries) that
         # read_wheel() found in the actual wheel but that a source-tree
         # rescan can't see.
-        merged_files = _merge_file_extras(wheel_metadata.files, project_files)
+        # An in-tree registry's copy in the wheel is no file of it.
+        merged_files = _merge_file_extras(
+            without_registry_copies(
+                wheel_metadata.files,
+                registry_copy(registry, project_dir),
+                warn=cache.registry_warning_due,
+            ),
+            project_files,
+        )
         # replace_with_fresh_containers(), not a bare
         # dataclasses.replace() or an in-place `.files =` assignment:
         # every dict/list field NOT given here (provenance,
@@ -484,6 +429,7 @@ def _build_sbom_from_project_and_wheel(
         creation_metadata=creation_metadata or CreationMetadata(),
         ai_models=ai_models,
         phantom_dependencies=find_phantom_dependencies(merged_files),
+        **wheel_document_identity(wheel_metadata, wheel_path),
     )
     exporter = assemble_spdx3(
         doc,
@@ -491,6 +437,9 @@ def _build_sbom_from_project_and_wheel(
         sbom_type=spdx3.software_SbomType.build,
         registry=registry,
         enrichment_results_by_model=enrichment_results,
+        identity_info_due=(
+            file_cache.identity_info_due if file_cache is not None else None
+        ),
         **pitloom_config.assemble_options,
     )
     # Fragments merge only into a project directory's SBOM, as for

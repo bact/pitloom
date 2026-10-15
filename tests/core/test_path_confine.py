@@ -166,7 +166,7 @@ def test_the_opened_file_must_be_the_one_checked(
             (tree / "root/a.txt").unlink()
         return fd
 
-    monkeypatch.setattr(path_confine, "_open_nonblocking", swapped)
+    monkeypatch.setattr(path_confine, "open_nonblocking", swapped)
     if not identity:
         real_fstat = os.fstat
         monkeypatch.setattr(

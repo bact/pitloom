@@ -39,7 +39,11 @@ from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
+from pitloom.id_registry import (
+    DATASET_PACKAGE_TYPE,
+    DEFAULT_ID_REGISTRY_FILENAME,
+    IdRegistry,
+)
 from tests._license_graph import license_value
 
 _FRAGMENTS_DIR = Path(__file__).parent.parent / "fixtures" / "fragments"
@@ -183,7 +187,9 @@ def _run_unify_pipeline(tmppath: Path) -> None:
     """Simulate the two-stage loom pipeline with a shared ID registry."""
     registry = IdRegistry.new("fragdemo")
     registry.generate([Path("src"), Path("data")], tmppath)
-    registry.register_entity("demo-model", "ai_AIPackage")
+    registry.register("ai_AIPackage", "demo-model")
+    for dataset in ("data/raw.txt", "data/train.txt"):  # `-e NAME:TYPE`
+        registry.register(DATASET_PACKAGE_TYPE, dataset)
     registry_path = tmppath / DEFAULT_ID_REGISTRY_FILENAME
     registry.save(registry_path)
     with patch(

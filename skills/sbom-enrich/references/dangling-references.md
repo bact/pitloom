@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: `../SKILL.md` ("Troubleshooting: dangling references", which
 holds the rule: regenerate the base SBOM, never retry the same merge, never
-create an undeclared ID registry) and `deterministic-pass.md`.
+create or write an ID registry to fix it) and `deterministic-pass.md`.
 
 Why each cause makes the ids miss, in the order to check:
 
@@ -28,12 +28,13 @@ Why each cause makes the ids miss, in the order to check:
 - **A base built with `--allow-build`** (`../SKILL.md`, step 2; why:
   `deterministic-pass.md`).
 - **One dependency name held twice** (a dependency at two versions): a run
-  never writes it to the registry, so its id can move with the source. If
-  the user declared a registry, pin the first holder with `loom id generate
-  <PATH> -e NAME:software_Package -o <declared-registry>`, then write the
-  fragment against that id. Only one holder can be pinned, so every later
-  run prints an expected `WARNING: ID registry: ... registered for both
-  ...` for the other. If no registry is declared, create none and tell the
-  user; see `sbom-generate`'s "Pinning element ids" and its
-  `references/id-registry.md` (sibling skill; on GitHub:
+  never writes it to the registry, so its id can move with the source. Pinning
+  belongs to `sbom-generate`: when the user asks to pin ids (or agrees to),
+  hand off, and it runs `loom id generate <PATH> -e NAME:software_Package -o
+  <registry>` for the first holder; write the fragment against that id after.
+  Only one holder can be pinned, so every later run prints an expected
+  `WARNING: ID registry: ... registered for both ...` for the other. This
+  skill creates no registry (it passes only the one the base run declared);
+  with no one to ask, change nothing and tell the user. See `sbom-generate`'s
+  "Pinning element ids" and its `references/id-registry.md` (sibling skill; on GitHub:
   <https://github.com/bact/pitloom/blob/main/skills/sbom-generate/references/id-registry.md>).

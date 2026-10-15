@@ -44,8 +44,7 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.id_registry import IdRegistry, IdRegistrySession
-from pitloom.id_registry._types import FileEntry
+from pitloom.id_registry import FILE_TYPE, IdRegistry, IdRegistrySession, RegistryEntry
 
 from ...conftest import _assert_no_duplicate_spdx_ids
 
@@ -198,7 +197,7 @@ def test_ai_model_stem_collision_keeps_both_elements_with_one_warning(
     resolve: the first model reuses the entry, the second mints its own
     id and logs exactly one warning, and *both* elements survive."""
     registry = IdRegistry.new("ai-project")
-    registered_id = registry.register_entity("weights", "ai_AIPackage")
+    registered_id = registry.register("ai_AIPackage", "weights")
 
     ai_models = [
         AiModelMetadata(
@@ -247,10 +246,10 @@ def test_resolve_file_hits_default_claimed_dict_collision(
     registry = IdRegistry.new("demo")
     files = _files_for({"a.py": "a\n", "b.py": "b\n"})
     collided_id = f"{registry.namespace}#File-1"
-    registry.files["demo/a.py"] = FileEntry(
+    registry.elements[(FILE_TYPE, "demo/a.py")] = RegistryEntry(
         spdx_id=collided_id, sha256=hashlib.sha256(b"a\n").hexdigest()
     )
-    registry.files["demo/b.py"] = FileEntry(
+    registry.elements[(FILE_TYPE, "demo/b.py")] = RegistryEntry(
         spdx_id=collided_id, sha256=hashlib.sha256(b"b\n").hexdigest()
     )
 
@@ -272,8 +271,8 @@ def test_resolve_deployed_hits_default_claimed_dict_collision(
     dependencies whose registry entries hold the identical id must not
     both claim it."""
     registry = IdRegistry.new("deployed-environment")
-    collided_id = registry.register_entity("aaa", "software_Package")
-    registry.entities[("software_Package", "bbb")] = registry.entities[
+    collided_id = registry.register("software_Package", "aaa")
+    registry.elements[("software_Package", "bbb")] = registry.elements[
         ("software_Package", "aaa")
     ]
     env_tree = [
@@ -294,7 +293,7 @@ def test_resolve_ai_model_hits_default_claimed_dict() -> None:
     """Direct unit coverage of ``resolve_ai_model_entity_hits`` called
     with a fresh, unshared session."""
     registry = IdRegistry.new("ai-project")
-    registered_id = registry.register_entity("model", "ai_AIPackage")
+    registered_id = registry.register("ai_AIPackage", "model")
     ai_models = [
         AiModelMetadata(
             format_info=AiModelFormatInfo(
@@ -316,7 +315,7 @@ def test_resolve_deployed_hits_shared_claimed_dict() -> None:
     symmetry with the other resolvers and must behave the same way when
     a caller does pass one in."""
     registry = IdRegistry.new("deployed-environment")
-    registered_id = registry.register_entity("aaa", "software_Package")
+    registered_id = registry.register("software_Package", "aaa")
     env_tree = [
         {"package": {"key": "aaa", "package_name": "aaa", "installed_version": "1.0"}}
     ]
@@ -341,8 +340,8 @@ def test_resolve_directory_hits_collision(caplog: pytest.LogCaptureFixture) -> N
     """Two distinct directories whose registry entries hold the identical
     id must not both claim it."""
     registry = IdRegistry.new("demo")
-    collided_id = registry.register_entity("dirA", "software_File")
-    registry.entities[("software_File", "dirB")] = registry.entities[
+    collided_id = registry.register("software_File", "dirA")
+    registry.elements[("software_File", "dirB")] = registry.elements[
         ("software_File", "dirA")
     ]
     files = [
@@ -377,8 +376,8 @@ def test_resolve_directory_hits_collision_warns_once_across_many_files(
     was rejected -- not recorded in ``dir_hits`` -- being memoized only
     by ``dir_hits`` membership)."""
     registry = IdRegistry.new("demo")
-    collided_id = registry.register_entity("demo", "software_File")
-    registry.entities[("software_File", "demo/sub")] = registry.entities[
+    collided_id = registry.register("software_File", "demo")
+    registry.elements[("software_File", "demo/sub")] = registry.elements[
         ("software_File", "demo")
     ]
     files = [
@@ -419,14 +418,14 @@ def test_resolve_file_hits_absolute_physical_path_falls_back_to_distribution_pat
     must use :func:`~pitloom.core.project.project_relative_or_fallback` (which
     falls back to ``distribution_path`` for an absolute ``physical_path``)
     for the first lookup, so the file still hits, and must never call
-    ``registry.lookup_file`` with the raw absolute path.
+    ``registry.lookup`` with the raw absolute path.
 
     Builds the absolute path from ``tempfile.gettempdir()`` at test-run
     time rather than a hardcoded POSIX literal, so this exercises the
     genuinely-absolute branch on Windows too."""
     registry = IdRegistry.new("demo")
-    registered_id = registry.register_file(
-        "demo/pkg/mod.py", hashlib.sha256(b"mod\n").hexdigest()
+    registered_id = registry.register(
+        FILE_TYPE, "demo/pkg/mod.py", sha256=hashlib.sha256(b"mod\n").hexdigest()
     )
     absolute_physical = str(
         Path(tempfile.gettempdir()) / "pitloom-build-xyz" / "mod.py"
@@ -440,15 +439,16 @@ def test_resolve_file_hits_absolute_physical_path_falls_back_to_distribution_pat
     ]
 
     with patch.object(
-        IdRegistry, "lookup_file", autospec=True, side_effect=IdRegistry.lookup_file
+        IdRegistry, "lookup", autospec=True, side_effect=IdRegistry.lookup
     ) as spy:
         _dir_hits, file_hits = _resolve_file_and_directory_hits(
             files, IdRegistrySession(registry)
         )
 
     assert file_hits["demo/pkg/mod.py"] == registered_id
+    assert spy.call_args_list
     called_with_absolute = any(
-        call.args[1] == absolute_physical for call in spy.call_args_list
+        absolute_physical in call.args[2] for call in spy.call_args_list
     )
     assert not called_with_absolute
 
@@ -459,7 +459,7 @@ def test_ai_model_collision_warning_names_the_shown_name(
     """The collision warning labels each model by the name its SBOM shows
     (stripped), not the padded name read from the file."""
     registry = IdRegistry.new("ai-project")
-    registry.register_entity("BERT", "ai_AIPackage")
+    registry.register("ai_AIPackage", "BERT")
     ai_models = [
         AiModelMetadata(
             name=" BERT ",

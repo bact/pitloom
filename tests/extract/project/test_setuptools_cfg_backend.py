@@ -6,7 +6,7 @@
 """Tests for detect_build_backend() -- split out of test_setuptools_cfg.py
 to keep that file under this repo's file-size soft limit.
 
-See also: :mod:`tests.extract.test_setuptools_cfg` for setup.cfg field
+See also: :mod:`tests.extract.project.test_setuptools_cfg` for setup.cfg field
 parsing tests.
 """
 

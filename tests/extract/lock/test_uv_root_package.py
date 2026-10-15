@@ -9,10 +9,9 @@ collection and :func:`pitloom.extract.lock.uv._find_root_package`'s
 selection among them) and single-entry pin resolution
 (:func:`pitloom.extract.lock.uv._pinned_dep_for_package`).
 
-See also: test_uv.py (extraction correctness this module's tests
-were split from -- see that module's own docstring for the split
-rationale) and test_uv_integration.py (the workspace-disambiguation
-regression exercised through the full ``read_project()`` cascade).
+See also: test_uv.py (extraction correctness) and test_uv_integration.py
+(the workspace-disambiguation regression exercised through the full
+``read_project()`` cascade).
 """
 
 import logging
@@ -53,8 +52,9 @@ def test_scan_packages_ignores_malformed_entries_when_collecting_root_candidates
     """A malformed top-level `[[package]]` entry (not a table, or
     missing/non-string `name`) is silently excluded from
     `_scan_packages()`'s root-candidate list (the same list
-    `_find_root_package()` then searches) -- see test_lock_common.py for
-    the equivalent `index_packages_by_name()` coverage this shares."""
+    `_find_root_package()` then searches) -- see
+    :mod:`tests.extract.lock.test_common` for the equivalent
+    `index_packages_by_name()` coverage this shares."""
     packages: list[object] = [
         "not-a-dict",
         {"version": "1.0.0"},  # missing name, still not editable/virtual

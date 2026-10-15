@@ -3,19 +3,30 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Loom ID registry resolution for a project or a project-less target.
+"""Loom ID registry resolution for a project or a project-less target,
+a file path's key relative to a registry's project root, and how a wheel
+or sdist reader recognises the registry's copy among the members.
 
 See also: :mod:`pitloom.id_registry._registry` for ``IdRegistry`` itself.
 """
 
 from __future__ import annotations
 
+import itertools
 import os
-from pathlib import Path
+from pathlib import Path, PurePath
 
+from pitloom.core.path_confine import inside_ancestor, is_inside
+from pitloom.core.walk_rules import PROJECT_FILES, RegistryCopy
 from pitloom.id_registry._registry import IdRegistry
 
-__all__ = ["registry_base_dir", "resolve_registry"]
+__all__ = [
+    "registry_base_dir",
+    "registry_copy",
+    "registry_file_path",
+    "registry_key_for_path",
+    "resolve_registry",
+]
 
 
 def registry_base_dir(target: Path) -> Path:
@@ -23,20 +34,64 @@ def registry_base_dir(target: Path) -> Path:
     resolves against, for a *target* that may be either a project
     directory or a single file (e.g. an sdist archive).
 
-    A file target has no directory of its own to resolve a relative
-    registry path against -- :func:`~pitloom.core.project.read_project`
-    resolves an sdist archive's own config keys relative to the archive
-    itself, but a registry path is not read from inside the archive, so
-    that convention doesn't apply here. Falls back to the current
-    directory instead, same as the no-``project_dir`` case.
-
-    Shared by every ``resolve_registry()`` call site that resolves a
-    *target* which might be an sdist (or, in :mod:`pitloom.embed`, any
-    single-file ``project_dir``) -- callers that already know they have a
-    directory (or already know they have none, using ``Path.cwd()``
-    directly) don't need this helper.
+    A file target has no directory to resolve a relative registry path
+    against (a registry path is not read from inside an archive), so the
+    current directory is used, as with no ``project_dir``. For every
+    ``resolve_registry()`` call site whose *target* might be an sdist (or,
+    in :mod:`pitloom.embed`, any single-file ``project_dir``).
     """
     return Path.cwd() if os.path.isfile(target) else target
+
+
+def registry_file_path(registry: IdRegistry | None) -> Path | None:
+    """The file *registry* was loaded from, to leave out of every project
+    file walk (see :func:`~pitloom.core.walk_rules.same_path`); ``None``
+    with no registry or an in-memory one, which excludes nothing."""
+    return registry.path if registry is not None else None
+
+
+def _project_dir_of(registry: Path, stored_root: Path) -> Path:
+    """The nearest directory holding *registry*, *stored_root* or below it,
+    that is a project's (holds one of
+    :data:`~pitloom.core.walk_rules.PROJECT_FILES`); else
+    *stored_root*. A monorepo registry stores the repository as its root,
+    while each archive is built from one project below it."""
+    root = PurePath(stored_root)
+    parents = PurePath(os.path.abspath(registry)).parents
+    inside = itertools.takewhile(lambda parent: is_inside(parent, root), parents)
+    return next(
+        (
+            Path(parent)
+            for parent in inside
+            if any(os.path.isfile(os.path.join(parent, n)) for n in PROJECT_FILES)
+        ),
+        stored_root,
+    )
+
+
+def registry_copy(
+    registry: IdRegistry | None, project_dir: Path | None = None
+) -> RegistryCopy | None:
+    """How a reader of a wheel's or sdist's members recognises a copy of
+    *registry* a build put there: its path below *project_dir* when
+    that is a directory; else below the nearest directory holding the
+    registry, up to the project root the registry file stores, that is a
+    project's (``pyproject.toml``, ``setup.cfg`` or ``setup.py``: a
+    monorepo's registry stores the repository), else below that stored
+    root. ``None`` -- nothing is left out -- with no registry file, or
+    with no stored root (a registry not saved yet).
+
+    A registry storing its own directory as the root (the default when
+    none was given) only recognises a member path below that directory:
+    ``demo/reg.json`` is not a copy of a registry rooted at ``demo/``.
+    """
+    path = registry_file_path(registry)
+    if registry is None or path is None:
+        return None
+    if project_dir is not None and os.path.isdir(project_dir):
+        return RegistryCopy(path, project_dir)
+    root = registry.project_root
+    return None if root is None else RegistryCopy(path, _project_dir_of(path, root))
 
 
 def resolve_registry(
@@ -71,3 +126,36 @@ def resolve_registry(
         return source
     path = Path(source)
     return IdRegistry.load(path if path.is_absolute() else base_dir.resolve() / path)
+
+
+def registry_key_for_path(registry: IdRegistry, path: Path) -> str | None:
+    """*path*'s ``software_File`` key in *registry*: the path relative to
+    :meth:`IdRegistry.root_dir`, ``/``-separated -- ``id generate``'s keying,
+    whatever the current directory. ``None`` when *path* lies outside the
+    root (another drive included); the root itself is ``"."``.
+
+    A relative *path* is taken from the current directory (``None`` when
+    that is deleted). Tried lexically first (``..`` collapsed, no symlink
+    followed), so an in-project file symlink keys by its own location, as
+    ``id generate`` keys it. An ancestor of that path may be the root by
+    file identity (a symlinked ancestor: macOS ``/tmp`` is
+    ``/private/tmp``; or another case); the remainder is kept as spelt.
+    Last, through ``os.path.realpath`` (a symlink from outside into the
+    root), matching an ancestor by spelling or identity (see
+    :func:`~pitloom.core.path_confine.inside_ancestor`). Never raises.
+    """
+    root = PurePath(registry.root_dir())
+    try:
+        base = "" if path.is_absolute() else os.getcwd()
+    except OSError:  # the current directory was deleted
+        return None
+    lexical = PurePath(os.path.normpath(os.path.join(base, path)))
+    ancestor = inside_ancestor(lexical, root)
+    if ancestor is not None:
+        return lexical.relative_to(ancestor).as_posix()
+    try:
+        real = PurePath(os.path.realpath(lexical))
+    except ValueError:  # a NUL: no file to resolve
+        return None
+    ancestor = inside_ancestor(real, root)
+    return None if ancestor is None else real.relative_to(ancestor).as_posix()

@@ -5,20 +5,20 @@
 
 """Shared test helpers for tests/assemble/.
 
-Consolidates fixtures/helpers that were duplicated (or would become
-duplicated by splitting oversized test files) across multiple modules in
-this directory:
+Fixtures and helpers shared by multiple modules in this directory:
 
-- ``_FakeMetadata`` -- from ``test_deps_enrichment.py``.
-- ``_make_dummy_wheel`` / ``_SAMPLE_SPDX3_JSON`` -- from ``test_embed.py``.
-- ``_embed_sbom_entry`` -- previously near-identical ``_embed_sbom``/
-  ``_embed_raw`` helpers in ``test_verify_wheel_cli.py`` and
-  ``test_validate_wheel_cli.py``.
-- ``_DOC_NAME`` / ``_DOC_UUID`` / ``_make_ci`` -- previously byte-for-byte
-  duplicated (bar one comment) between ``test_annotation_provenance.py``
-  and ``test_spdx3_dataset.py``.
-- ``_make_subject`` -- from ``test_annotation_provenance.py``.
-- ``_make_meta`` -- from ``test_spdx3_dataset.py``.
+- ``_FakeMetadata`` -- installed-distribution stand-in for the
+  ``test_deps_enrichment_*`` modules.
+- ``_make_dummy_wheel`` / ``_SAMPLE_SPDX3_JSON`` -- minimal wheel and SBOM
+  for the ``test_embed_*`` modules.
+- ``_embed_sbom_entry`` -- embeds a raw SBOM entry into a wheel for the
+  verify/validate-wheel CLI tests.
+- ``_DOC_NAME`` / ``_DOC_UUID`` / ``_make_ci`` -- document identity and
+  CreationInfo for the ``test_annotation_provenance_*`` and
+  ``test_spdx3_dataset_*`` modules.
+- ``_make_subject`` -- annotation subject for the
+  ``test_annotation_provenance_*`` modules.
+- ``_make_meta`` -- model metadata for the ``test_spdx3_dataset_*`` modules.
 """
 
 from __future__ import annotations

@@ -7,8 +7,8 @@
 G2 license detection (``detect_independent_license``) and its provenance
 tagging; expression normalisation is in ``tests/extract/test_license_classify.py``.
 
-See also: test_license_detection.py -- this module's sibling, split from
-the original test_license.py.
+See also: test_license_detection.py -- the sibling covering detection
+utilities with a mocked database.
 """
 
 import tempfile

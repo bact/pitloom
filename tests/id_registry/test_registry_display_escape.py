@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import AI_PACKAGE_TYPE, IdRegistry
 from tests.extract.ai_model.gguf_builders import STRING, gguf_file, kv, string
 from tests.id_registry.surfaces_base import _run_cli, demo_project
 
@@ -82,7 +82,7 @@ def test_a_model_file_keeps_its_imported_id(
     assert _run_cli(monkeypatch, ["model", str(model), "-o", str(first)]) == 0
     registered = _import(monkeypatch, first, registry)
     # The registry holds the name as the SBOM shows it, escaped.
-    stored = IdRegistry.load(registry).lookup_entity("evil\\u202etxt", "ai_AIPackage")
+    stored = IdRegistry.load(registry).lookup(AI_PACKAGE_TYPE, ["evil\\u202etxt"])
     assert stored == registered
 
     model.write_bytes(_gguf(("general.version", "2")))

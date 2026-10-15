@@ -81,7 +81,10 @@ def test_declared_registry_is_loaded_exactly_once(
     load_spy: list[Path],
 ) -> None:
     registry_path = (tmp_path / "registry.json").resolve()
-    IdRegistry.new("declared", path=registry_path).save()
+    # The root `id generate --project-dir` must match (demo_project's own).
+    IdRegistry.new(
+        "declared", path=registry_path, project_root=tmp_path / "proj"
+    ).save()
     declare = Declare(**{mode: registry_path})
 
     result = SURFACES[surface](tmp_path, monkeypatch, declare)

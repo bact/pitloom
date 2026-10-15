@@ -5,8 +5,8 @@
 
 """Lowest-level shared pieces for :mod:`tests.id_registry.surfaces_shared`
 and :mod:`tests.id_registry.surfaces_cli` -- split into its own module so
-neither of those two needs to import the other (an import cycle: each
-needs names the other module used to define). Nothing here imports either
+neither of those two needs to import the other (each needs names
+the other defines, an import cycle). Nothing here imports either
 of them.
 
 See also: :mod:`tests.id_registry.surfaces_shared` (the combined
@@ -17,6 +17,7 @@ built from this module's pieces).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -28,13 +29,28 @@ import pytest
 
 from pitloom import __main__
 from pitloom.core.config_cascade import load_config_file
+from pitloom.id_registry import (
+    AI_PACKAGE_TYPE,
+    FILE_TYPE,
+    PACKAGE_TYPE,
+    IdRegistry,
+)
+from tests._wheel_models import safetensors_bytes
 from tests.assemble.conftest import _make_dummy_wheel
+from tests.cli.shared import SAFETENSORS_FIXTURE
 
 DEPENDENCY = "fakedep"
 
 #: Same bytes ``_make_dummy_wheel`` bakes into its own ``demo/__init__.py``
 #: -- see :mod:`tests.id_registry.surfaces_shared`'s module docstring.
 DEMO_INIT_CONTENT = b"__version__ = '1.0.0'\n"
+
+#: The model file the model-bearing scenarios add under ``demo/``, the name
+#: and script of ``pitloom.loom`` runs, and the loom script's bytes.
+MODEL_FILE = "tiny.safetensors"
+LOOM_MODEL = "m"
+LOOM_SCRIPT = "script.py"
+LOOM_SCRIPT_BYTES = b"print('hi')\n"
 
 _PYPROJECT = f"""\
 [build-system]
@@ -63,6 +79,30 @@ def demo_wheel(tmp_path: Path) -> Path:
     return _make_dummy_wheel(
         tmp_path / "dist", "demo", "1.0.0", requires_dist=(f"{DEPENDENCY}==1.0",)
     )
+
+
+def seed_registry(tmp_path: Path) -> Path:
+    """Write ``tmp_path/ids.json``: an id for every registry-backed element
+    the demo project, the demo wheel, the model fixture and a loom run can
+    emit (indexed from a separate seed project, so no run reads it)."""
+    root = demo_project(tmp_path / "seed")
+    (root / "demo" / MODEL_FILE).write_bytes(safetensors_bytes())
+    registry = IdRegistry.new("seed")
+    registry.generate([root / "demo"], root)
+    for type_name, name in (
+        (FILE_TYPE, "demo"),
+        (PACKAGE_TYPE, "demo"),
+        (PACKAGE_TYPE, DEPENDENCY),
+        (AI_PACKAGE_TYPE, SAFETENSORS_FIXTURE.stem),
+        (AI_PACKAGE_TYPE, LOOM_MODEL),
+    ):
+        registry.register(type_name, name)
+    registry.register(
+        FILE_TYPE, LOOM_SCRIPT, sha256=hashlib.sha256(LOOM_SCRIPT_BYTES).hexdigest()
+    )
+    path = tmp_path / "ids.json"
+    registry.save(path)
+    return path
 
 
 @dataclass(frozen=True)

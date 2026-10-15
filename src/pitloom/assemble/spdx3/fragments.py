@@ -6,7 +6,10 @@
 """Merging of pre-generated SPDX 3 fragment files into an SBOM document.
 
 See also: :mod:`pitloom.assemble.spdx3._fragments_unify` for internal unification
-logic (licences: :mod:`~pitloom.assemble.spdx3._fragments_licenses`),
+logic (property merging: :mod:`~pitloom.assemble.spdx3._fragments_props`;
+digest conflicts: :mod:`~pitloom.assemble.spdx3._fragments_hashes`; ids:
+:mod:`~pitloom.assemble.spdx3._fragments_ids`; licences:
+:mod:`~pitloom.assemble.spdx3._fragments_licenses`),
 :mod:`pitloom.assemble.spdx3._fragments_refs` for the dangling-reference check
 and :mod:`pitloom.assemble.spdx3._fragments_envelope` for ``loom merge``'s
 document envelope.
@@ -21,6 +24,21 @@ from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._fragments_ids import mint_extra_id
+from pitloom.assemble.spdx3._fragments_props import (
+    _KEYED_DICT_PROPS,
+    _SKIP_MERGE_PROPS,
+    _class_properties,
+    _is_empty,
+    _merge_comment,
+    _merge_dictionary_entries,
+    _merge_list,
+    _merge_properties,
+    _merge_scalar,
+    _normalize_value,
+    _paths_suffix_match,
+    _signature,
+)
 from pitloom.assemble.spdx3._fragments_refs import (
     _dangling_refs_for_object,
     _declared_external_ids,
@@ -32,27 +50,13 @@ from pitloom.assemble.spdx3._fragments_refs import (
 from pitloom.assemble.spdx3._fragments_unify import (
     _ENVELOPE_TYPES,
     _HASHABLE_TYPES,
-    _KEYED_DICT_PROPS,
-    _SKIP_MERGE_PROPS,
     _STRUCTURAL_TYPES,
     _as_element,
     _canonical_merge_key,
-    _class_properties,
-    _is_empty,
-    _merge_comment,
-    _merge_dictionary_entries,
     _merge_fragment_set,
-    _merge_list,
-    _merge_properties,
-    _merge_scalar,
     _MergeIndex,
-    _normalize_value,
-    _paths_suffix_match,
     _record_unification,
-    _sha256_hash,
-    _signature,
     _UnificationEvents,
-    _warn_if_same_name_different_hash,
 )
 from pitloom.assemble.spdx3._licensing_profiles import apply_licensing_profiles
 from pitloom.assemble.spdx3.provenance import build_unification_annotation
@@ -93,18 +97,15 @@ __all__ = [
     "_merge_list",
     "_merge_properties",
     "_merge_scalar",
-    "_mint_extra_id",
     "_missing_fragment_message",
     "_normalize_value",
     "_paths_suffix_match",
     "_raise_on_dangling_references",
     "_same_document_message",
     "_record_unification",
-    "_sha256_hash",
     "_signature",
     "_canonical_merge_key",
     "_update_profile_conformance",
-    "_warn_if_same_name_different_hash",
     "FragmentMergeError",
     "fragment_files",
     "merge_fragments",
@@ -203,16 +204,6 @@ def _update_profile_conformance(
     apply_licensing_profiles(main_doc, exporter.object_set.objects)
 
 
-def _mint_extra_id(namespace: str, prefix: str, existing_ids: set[str]) -> str:
-    """Mint a fresh ``<namespace>#<prefix>-<n>`` id not in existing_ids."""
-    n = 1
-    while True:
-        candidate = f"{namespace}#{prefix}-{n}"
-        if candidate not in existing_ids:
-            return candidate
-        n += 1
-
-
 def _find_fragment_document_id(fragment_set: spdx3.SHACLObjectSet) -> str | None:
     """Return the ``spdxId`` of the ``SpdxDocument`` envelope in *fragment_set*."""
     for obj in fragment_set.objects:
@@ -261,7 +252,7 @@ def _emit_unification_annotations(
     for survivor_id in sorted(events):
         for criterion in sorted(events[survivor_id]):
             rec = events[survivor_id][criterion]
-            ann_id = _mint_extra_id(namespace, "Annotation-unification", existing_ids)
+            ann_id = mint_extra_id(namespace, "Annotation-unification", existing_ids)
             existing_ids.add(ann_id)
             exporter.add_annotation(
                 build_unification_annotation(
@@ -289,7 +280,7 @@ def _add_model_sbom(main_doc: spdx3.SpdxDocument, exporter: Spdx3JsonExporter) -
     if namespace is None:
         return
     existing_ids = set(exporter.object_set.obj_by_id.keys())
-    sbom_id = _mint_extra_id(namespace, "Sbom", existing_ids)
+    sbom_id = mint_extra_id(namespace, "Sbom", existing_ids)
 
     model_sbom = spdx3.software_Sbom(
         spdxId=sbom_id,
@@ -386,6 +377,11 @@ def _declared_profiles(fragment_set: spdx3.SHACLObjectSet) -> set[str]:
     }
 
 
+def _fragment_file(project_dir: Path, frag: FragmentConfig) -> Path:
+    """*frag*'s path on disk."""
+    return Path(frag.base_dir or project_dir) / frag.path
+
+
 def merge_fragments(
     project_dir: Path,
     fragments: list[FragmentConfig],
@@ -414,25 +410,30 @@ def merge_fragments(
     dangling.
     """
     configure_logging()
-    index = _MergeIndex(exporter)
+    main_doc = _find_main_document(exporter.object_set)
+    main_doc_id = str(main_doc.spdxId) if main_doc and main_doc.spdxId else None
+    index = _MergeIndex(exporter, main_doc_id)
     events: _UnificationEvents = {}
     fragment_imports: list[spdx3.ExternalMap] = []
-    merged_any = False
     unmet_required: list[str] = []
     roots: list[str] = []
     profiles: set[str] = set()
-    main_doc = _find_main_document(exporter.object_set)
-    main_doc_id = str(main_doc.spdxId) if main_doc and main_doc.spdxId else None
 
+    loaded_fragments: list[tuple[FragmentConfig, spdx3.SHACLObjectSet, str | None]] = []
     for frag in fragments:
         loaded = _load_fragment(
-            Path(frag.base_dir or project_dir) / frag.path, frag.required, main_doc_id
+            _fragment_file(project_dir, frag), frag.required, main_doc_id
         )
         if loaded is None:
             if frag.required:
                 unmet_required.append(frag.path)
             continue
-        fragment_set, frag_doc_id = loaded
+        # Noted for every fragment before the first merge: which id is
+        # registry-pinned must not depend on the order.
+        index.note_source(str(_fragment_file(project_dir, frag)), loaded[0].objects)
+        loaded_fragments.append((frag, *loaded))
+
+    for frag, fragment_set, frag_doc_id in loaded_fragments:
         if frag_doc_id and frag_doc_id not in {
             m.externalSpdxId for m in fragment_imports
         }:
@@ -441,7 +442,6 @@ def merge_fragments(
             )
         profiles |= _declared_profiles(fragment_set)
         roots.extend(_merge_fragment_set(fragment_set, index, frag.path, events))
-        merged_any = True
 
     _dedupe_relationships(exporter)
 
@@ -453,16 +453,11 @@ def merge_fragments(
         if adopt_fragment_roots:
             main_doc.rootElement = sorted({*roots, *(main_doc.rootElement or [])})
 
-    # Checked unconditionally -- NOT gated by `merged_any`. A required
-    # fragment that's missing is exactly the scenario most likely to leave
-    # merged_any False (nothing else may have merged either), so gating
-    # this on merged_any would silently suppress the one case it exists to
-    # catch. Checked before the dangling-references raise below: a missing
-    # required fragment is usually the *root cause* of any dangling
-    # references the rest of the graph would otherwise show (other
-    # fragments' relationships pointing at elements the missing required
-    # fragment was supposed to supply) -- report the root cause, not the
-    # downstream symptom, when both would otherwise fire in the same run.
+    # Checked even when no fragment loaded (a missing required fragment may
+    # be the only one), and before the dangling-references raise below: a
+    # missing required fragment is usually the root cause of any dangling
+    # references (other fragments pointing at elements it was to supply),
+    # so report it, not the symptom.
     if unmet_required:
         raise FragmentMergeError(
             f"{len(unmet_required)} required fragment(s) could not be "
@@ -470,5 +465,5 @@ def merge_fragments(
             "path(s) under [tool.pitloom.fragment]"
         )
 
-    if merged_any:
+    if loaded_fragments:
         _raise_on_dangling_references(exporter)

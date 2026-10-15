@@ -11,9 +11,13 @@ helper properties, provenance, sbom-basename -- split out of this file,
 see AGENTS.md's file-size rule).
 """
 
+from collections.abc import Callable
+from typing import Any
+
 import pytest
 
 from pitloom.core._config_parse_scan import (
+    _read_max_dataset_hash_bytes,
     _read_max_model_extract_bytes,
     _read_scan_model_usage,
 )
@@ -56,12 +60,39 @@ def test_read_scan_model_usage_keeps_absent_none_and_false_false() -> None:
         _read_scan_model_usage({"scan-model-usage": "yes"})
 
 
-def test_read_max_model_extract_bytes_default_and_value() -> None:
-    assert _read_max_model_extract_bytes({}) == 512 * 1024 * 1024
-    assert _read_max_model_extract_bytes({"max-model-extract-bytes": 64}) == 64
-    assert parse_pitloom_config({}).max_model_extract_bytes == 512 * 1024 * 1024
+#: (reader, key, PitloomConfig field, default) of each byte ceiling.
+_CEILINGS = [
+    (
+        _read_max_model_extract_bytes,
+        "max-model-extract-bytes",
+        "max_model_extract_bytes",
+        512 * 1024 * 1024,
+    ),
+    (
+        _read_max_dataset_hash_bytes,
+        "max-dataset-hash-bytes",
+        "max_dataset_hash_bytes",
+        4 * 1024 * 1024 * 1024,
+    ),
+]
+_CEILING_IDS = ["model-extract", "dataset-hash"]
 
 
+@pytest.mark.parametrize(
+    ("reader", "key", "field", "default"), _CEILINGS, ids=_CEILING_IDS
+)
+def test_read_byte_ceiling_default_and_value(
+    reader: Callable[[dict[str, Any]], int], key: str, field: str, default: int
+) -> None:
+    assert reader({}) == default
+    assert reader({key: 64}) == 64
+    assert getattr(parse_pitloom_config({}), field) == default
+    assert getattr(parse_pitloom_config({"tool": {"pitloom": {key: 1}}}), field) == 1
+
+
+@pytest.mark.parametrize(
+    ("reader", "key", "field", "default"), _CEILINGS, ids=_CEILING_IDS
+)
 @pytest.mark.parametrize(
     ("value", "message"),
     [
@@ -72,12 +103,18 @@ def test_read_max_model_extract_bytes_default_and_value() -> None:
         (1.5, "must be an integer"),
     ],
 )
-def test_read_max_model_extract_bytes_rejects_non_positive_and_non_int(
-    value: object, message: str
+def test_read_byte_ceiling_rejects_non_positive_and_non_int(
+    reader: Callable[[dict[str, Any]], int],
+    key: str,
+    field: str,
+    default: int,
+    value: object,
+    message: str,
 ) -> None:
+    del field, default
     with pytest.raises(ValueError, match=message) as exc:
-        _read_max_model_extract_bytes({"max-model-extract-bytes": value})
-    assert "'max-model-extract-bytes'" in str(exc.value)
+        reader({key: value})
+    assert f"'{key}'" in str(exc.value)
     assert "\n" not in str(exc.value)
 
 

@@ -18,10 +18,31 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.id_registry import FILE_TYPE, PACKAGE_TYPE, IdRegistry, RegistryEntry
+
+#: The namespace of :func:`valid_registry_data`.
+REGISTRY_NS = "https://spdx.org/spdxdocs/test-1"
+
+
+def valid_registry_data() -> dict[str, Any]:
+    """A valid version 3 registry file, as JSON data."""
+    return {
+        "elements": {
+            FILE_TYPE: {
+                "src/a.py": {"sha256": "a" * 64, "spdxId": f"{REGISTRY_NS}#File-1"}
+            },
+            PACKAGE_TYPE: {"requests": {"spdxId": f"{REGISTRY_NS}#Package-2"}},
+        },
+        "id_counters": {"File": 1, "Package": 2},
+        "namespace": REGISTRY_NS,
+        "project_root": ".",
+        "version": 3,
+    }
 
 
 def _make_project(tmp_path: Path) -> Path:
@@ -49,7 +70,7 @@ def _write_sample_sbom(path: Path) -> dict[str, str]:
 
     file_hash = _sha256(b"train data\n")
     dataset = spdx3.dataset_DatasetPackage(
-        spdxId=f"{namespace}#File-7",
+        spdxId=f"{namespace}#DatasetPackage-7",
         name="data/processed/train.txt",
         creationInfo=ci,
         verifiedUsing=[
@@ -100,7 +121,7 @@ def _write_sample_sbom(path: Path) -> dict[str, str]:
 
     return {
         "namespace": namespace,
-        "dataset_id": f"{namespace}#File-7",
+        "dataset_id": f"{namespace}#DatasetPackage-7",
         "dataset_hash": file_hash,
         "script_id": f"{namespace}#File-3",
         "script_hash": script_hash,
@@ -140,3 +161,8 @@ def _write_sample_sbom_without_document(path: Path) -> dict[str, str]:
         "namespace": namespace,
         "model_id": f"{namespace}#AIPackage-1",
     }
+
+
+def _files(registry: IdRegistry) -> dict[str, RegistryEntry]:
+    """The registry's ``software_File`` entries, name -> entry."""
+    return {name: e for (t, name), e in registry.elements.items() if t == FILE_TYPE}

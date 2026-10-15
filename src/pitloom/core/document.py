@@ -38,9 +38,17 @@ class DocumentModel:
             deterministic output.
         phantom_dependencies: Bundled binary dependencies discovered inside
             distribution archives.
+        identity_known: ``False`` when the project's name is a placeholder
+            (the source did not carry one), so the main package is neither
+            looked up in nor harvested into an ID registry.
+        identity_seed: folded into the document UUID (see
+            :func:`~pitloom.core.models.compute_doc_uuid`); for such a wheel,
+            its base file name (:func:`~pitloom.core.models.archive_base_name`).
     """
 
     project: ProjectMetadata
     creation_metadata: CreationMetadata = field(default_factory=CreationMetadata)
     ai_models: list[AiModelMetadata] = field(default_factory=list)
     phantom_dependencies: list[PhantomDependency] = field(default_factory=list)
+    identity_known: bool = True
+    identity_seed: str | None = None

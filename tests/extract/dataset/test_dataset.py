@@ -5,8 +5,8 @@
 
 """Tests for pitloom.extract.dataset -- the public dataset-extraction API.
 
-test_extract_croissant.py tests the Croissant format in depth via the
-internal pitloom.extract.dataset.croissant module directly; this file only
+:mod:`tests.extract.dataset.test_croissant` tests the Croissant format in
+depth via the internal pitloom.extract.dataset.croissant module directly; this file only
 confirms the public re-export in pitloom.extract.dataset itself works,
 since nothing else imports read_croissant through that public path.
 """

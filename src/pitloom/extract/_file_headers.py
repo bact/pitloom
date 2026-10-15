@@ -20,7 +20,7 @@ supply already-read bytes:
   (optional dependency, ``pitloom[content-type]``) when installed, falling
   back to a stdlib ``mimetypes`` filename-extension guess. Independent of
   ``SPDX-FileType`` -- never used to derive ``software_primaryPurpose``
-  (see ``working-docs/design/file-headers.md`` for why the two are kept
+  (see ``working-docs/implementation/file-headers.md`` for why the two are kept
   apart).
 - :func:`resolve_content_type_override` matches a file's distribution
   path against a project-configured

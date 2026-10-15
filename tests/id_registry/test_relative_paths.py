@@ -13,9 +13,7 @@ directory, an explicit config file's own directory, and cwd itself), so a
 surface resolving a relative path against the *wrong* base is caught
 rather than accidentally passing because two candidate bases coincide.
 
-Base directory per declaration route (verified against the resolving
-code, not just its docstrings -- see ``CLAUDE.md``'s "A docstring or
-comment describing 'how surface X does Y' is a claim, not a fact."):
+Base directory per declaration route:
 
 - ``--id-registry``/``id_registry=`` (a flag/kwarg): the *generic* CLI
   cascade (``pitloom.cli.options_config.run_options``) makes a relative
@@ -27,7 +25,7 @@ comment describing 'how surface X does Y' is a claim, not a fact."):
   target -- sdist/wheel/model/env/standalone -- or no project at all).
   ``pitloom id generate``/``pitloom id import`` resolve a relative
   ``-o``/``--id-registry`` the same way -- against cwd -- via their own
-  :func:`pitloom.cli.id._resolve_id_registry_target` (``id import``'s
+  :func:`pitloom.cli._id_target._resolve_id_registry_target` (``id import``'s
   project directory *is* cwd already, so this is only observable for
   ``id generate`` with a ``--project-dir`` different from cwd); a
   relative PATH argument to ``id generate`` resolves against cwd too.

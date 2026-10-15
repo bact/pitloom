@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.assemble import generate_project_sbom
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import AI_PACKAGE_TYPE, IdRegistry
 from tests.id_registry.surfaces_base import _run_cli, demo_project
 
 _MINIMAL = (
@@ -37,7 +37,7 @@ def test_a_crfsuite_model_keeps_the_id_id_generate_registered(
 
     argv = ["id", "generate", str(root / "demo"), "--project-dir", str(root)]
     assert _run_cli(monkeypatch, [*argv, "-o", str(registry_path)]) == 0
-    registered = IdRegistry.load(registry_path).lookup_entity("tagger", "ai_AIPackage")
+    registered = IdRegistry.load(registry_path).lookup(AI_PACKAGE_TYPE, ["tagger"])
     assert registered is not None  # non-vacuous: the model got an entity
 
     out = tmp_path / "out.json"

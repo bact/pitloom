@@ -8,7 +8,7 @@ JSON API extraction helpers used by ``pitloom.assemble.spdx3.deps``.
 
 See also: test_deps_enrichment_names_versions.py,
 test_deps_enrichment_pypi_fallback.py, test_deps_enrichment_prefetch.py --
-this module's siblings, split from the original test_deps_enrichment.py.
+the sibling modules for the rest of dependency enrichment.
 
 Covers a multi-address ``Maintainer-email`` field that a naive parser
 dropped entirely, and the ``License-File`` matching bug where a same-named

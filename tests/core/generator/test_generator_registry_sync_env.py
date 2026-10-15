@@ -89,7 +89,7 @@ def test_generate_env_sbom_grown_environment_never_duplicates_ids(
             id_registry=registry_path, creation_metadata=creation_metadata
         )
     _assert_no_duplicate_spdx_ids(first_json)
-    assert IdRegistry.load(registry_path).entities
+    assert IdRegistry.load(registry_path).elements
 
     with patch(
         "subprocess.run",
@@ -193,7 +193,7 @@ def test_generate_env_sbom_reuses_package_id_despite_name_case_mismatch(
     first_json = _run()
     _assert_no_duplicate_spdx_ids(first_json)
     reloaded = IdRegistry.load(registry_path)
-    assert ("software_Package", "pyyaml") in reloaded.entities
+    assert ("software_Package", "pyyaml") in reloaded.elements
     first_id = json.loads(first_json)["@graph"]
     first_pkg_id = next(
         e["spdxId"]

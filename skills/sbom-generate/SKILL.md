@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-12
+# Last-Modified: 2026-10-15
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -11,18 +11,17 @@ description: >-
   built wheel, installed environment, local AI model file (GGUF, ONNX,
   PyTorch/PT2, Safetensors, Keras, HDF5, NumPy, fastText, CRFsuite) or
   Hugging Face model. Triggers: "generate/create/give me an SBOM/BOM", "gen
-  SBOM of this model", "SBOM of this project", "SPDX 3 document", "software
-  bill of materials", "dependency inventory", "AIBOM", "document this
-  model's provenance". Also owns
-  combined asks, generating first, then handing off to sbom-enrich:
-  "generate SBOM and enrich it", "complete/full SBOM", "SBOM meeting CISA
-  2026/NTIA/G7 minimum elements". Also PEP 770 wheel embedding ("embed the
-  SBOM in this wheel", "embed SBOM to python wheel", "put the SBOM in
-  dist/*.whl", "create PEP 770 SBOM", "embed-wheel", "wheel is signed / has
-  RECORD.jws", "--allow-signed-wheel") and
+  SBOM of this model", "SPDX 3 document", "software bill of materials",
+  "dependency inventory", "AIBOM", "document this model's provenance". Also
+  combined asks (then hand off to sbom-enrich): "generate SBOM and enrich
+  it", "complete/full SBOM", "SBOM meeting CISA 2026/NTIA/G7 minimum
+  elements". Also PEP 770 wheel embedding ("embed the SBOM in this wheel",
+  "put the SBOM in dist/*.whl", "embed-wheel", "signed wheel / RECORD.jws",
+  "--allow-signed-wheel"),
   --allow-build/--build-timeout ("generate with a real build", "the build is
-  taking too long"). Checking an existing SBOM is sbom-validate; enriching
-  one is sbom-enrich.
+  taking too long") and stable ids ("pin ids", "keep ids stable", "create or
+  update an ID registry", "loom id generate/import"). Checking an SBOM is
+  sbom-validate; enriching one is sbom-enrich.
 license: Apache-2.0
 compatibility: >-
   Requires a shell, Python 3.10+ and pitloom >= 0.20.2 (pip, uvx or pipx).
@@ -43,13 +42,11 @@ This skill is one of three (`sbom-generate`, `sbom-enrich`,
 `sbom-validate`) meant to be installed together: it hands off to the other
 two.
 
-Triggers automatically on natural-language requests (see the trigger
-phrasings above), or invoke it explicitly with `/sbom-generate [target]`
-(`/pitloom:sbom-generate [target]` when installed via the Claude Code
-plugin; the syntax depends on the client, e.g. `$sbom-generate` in Codex).
-`target` is optional -- a project directory, an sdist/wheel path, a local
-model file, or a Hugging Face model ID; omit it to default to the current
-directory.
+Triggers on natural-language requests (see the description), or explicitly
+with `/sbom-generate [target]` (`/pitloom:sbom-generate` via the Claude Code
+plugin; `$sbom-generate` in Codex). `target` is optional -- a project
+directory, an sdist/wheel path, a local model file, or a Hugging Face model
+ID; default: the current directory.
 
 See `references/examples.md` for copy-paste recipes.
 
@@ -62,8 +59,9 @@ See `references/examples.md` for copy-paste recipes.
   library API) unless the user asked for it in this conversation. It runs
   the project's own PEP 517 build backend, i.e. third-party build-time
   code. Mention it as an option; don't decide to use it yourself.
-- **Never create, edit or pass an ID registry the user did not name**
-  (see "Pinning element ids").
+- **Never create, edit or pass an ID registry the user did not name** in an
+  unasked run. Asked to pin ids, create or update one: "Pinning element ids".
+  `sbom-enrich` never does this: it hands the request to this skill.
 - **Scan stderr after every `loom` call** (see "Check stderr").
 
 ## Requirements
@@ -111,7 +109,7 @@ merge or re-run must reproduce a base SBOM's ids), pin the installed
 one: `"pitloom==X.Y.Z"`, `X.Y.Z` being the number `loom --version` prints
 (`Pitloom X.Y.Z`).
 
-`loom` and `pitloom` are two names for the same console-script entry point.
+`loom` and `pitloom` are one console-script entry point.
 
 ## Smart Entrypoint: `loom generate`
 
@@ -160,9 +158,10 @@ default; `--no-use-lockfile` opts out. Formats, priority and effects:
 ## Pinning element ids (the Loom ID registry)
 
 Element ids are content-addressed: rerunning on unchanged source
-reproduces them with no registry. A Loom ID registry pins ids across
-runs whose inputs differ -- e.g. a fragment written today, merged into
-next week's regeneration after the source changed (see `sbom-enrich`).
+reproduces them with no registry. A Loom ID registry (format version 3, a
+JSON file) pins ids across runs whose inputs differ -- e.g. a fragment
+written today, merged into next week's regeneration after the source changed
+(see `sbom-enrich`), or a `loom.run` script's datasets and models.
 
 A registry is used **only when declared**, never searched for:
 `--id-registry FILE` (relative to the current directory), else
@@ -171,29 +170,37 @@ to that file's directory; replaces the project config), or the
 project's own `[tool.pitloom]`/`[tool:pitloom]` (relative to the
 project). Wheel, env and model-file targets, and `enrich`/`embed-wheel`
 without `--project-dir`, read no project config; an sdist's own key is
-ignored. Nothing declared: no registry, silently. Declared but missing
-or invalid: one `ERROR:`, exit 1. Generating runs also add newly minted
-ids to a declared registry; no run ever creates one.
+ignored. Nothing declared: no registry, silently. Declared but missing,
+invalid or an old version 2 file: one `ERROR:`, exit 1. Generating runs also
+add newly minted ids to a declared registry; no run ever creates one.
 
-What it pins (files, packages, AI models), which commands write to it and
-how to stop that, how to create one with `loom id generate`/`loom id
-import`, and what its log lines mean: `references/id-registry.md`. Read it
-before creating a registry or reporting a registry line as a problem.
+Commands, what it pins, which runs write to it, the `loom.run` Python SDK
+(`path=`, `pitloom_config=`) and every log line's meaning:
+`references/id-registry.md`. Read it before creating a registry or
+reporting a registry line as a problem.
 
-**Choose the registry before generating.** Skip this for a Hugging Face
-model and for `embed-wheel --sbom` (`--id-registry` is ignored there,
-with a `WARNING:`). Otherwise:
+**When the user asks to pin ids** ("pin the ids", "keep ids stable", "create
+or update an ID registry", "run `loom id generate`/`import`"), run `loom id
+generate PATH... -o FILE`/`loom id import SBOM -o FILE` yourself, without
+asking again, and report the exact command and every `INFO:`/`WARNING:`/
+`ERROR:` it printed. FILE is the one the user names, else the config's, else
+`loom-id-registry.json` in the project root. A rejected version 2 file: ask
+before deleting it (its pins are lost; non-interactive: stop and report the
+`ERROR:`); steps in the reference ("When the user asks to pin ids"). An
+unasked run never creates, edits or passes a registry the user did not name.
 
-1. Always: if the applicable config declares a registry, it is used --
-   tell the user which file, and that a `project`, `wheel`, `env` or
-   `generate` run may add new ids to it (`references/id-registry.md`,
-   "Harvest"); `model`, `enrich`, `embed-wheel` and the hook only read it.
-2. None declared, and ids must stay stable across runs or a fragment
-   will be merged after the source changes:
+**Choose the registry before generating** (not for a Hugging Face model or
+`embed-wheel --sbom`: `--id-registry` is ignored there, with a `WARNING:`):
+
+1. If the applicable config declares a registry, it is used -- tell the user
+   which file, and that a `project`, `wheel`, `env` or `generate` run may add
+   new ids to it; `model`, `enrich`, `embed-wheel` and the hook only read it.
+2. None declared, and ids must stay stable across runs or a fragment will be
+   merged after the source changes:
    - Interactive: ask "Pin ids with a Loom ID registry? If yes, which
-     file -- an existing one, or create `loom-id-registry.json`?"
-     Yes with a file: pass `--id-registry FILE` (create it first, per the
-     reference, if new). No: generate without one.
+     file -- an existing one, or create `loom-id-registry.json`?" Yes: create
+     it first if new (per the reference), then pass `--id-registry FILE`. No:
+     generate without one.
    - Non-interactive: use none, create nothing, and report "No Loom ID
      registry used (none declared). To pin ids, run `loom id generate
      <PATH> -o loom-id-registry.json` in the project directory, then
@@ -265,26 +272,13 @@ loom embed-wheel dist/*.whl --project-dir . --verify --validate
 For checking an already-embedded wheel later, use the `sbom-validate`
 skill ("Validate a wheel's embedded SBOM").
 
-A wheel's name and version come from its own top-level `.dist-info` only.
-`wheel`, `generate`, `wheel --embed` and `embed-wheel` refuse a file that is
-not a ZIP and a wheel with a member they cannot read (damaged, encrypted, a
-name that is not UTF-8), two members of one name or a NUL in a name: one
-`ERROR:`, exit 1, nothing written (in a batch the other wheels run). It reads
-`ERROR: wheel command failed: ARCHIVE=... ENTRY=...: <cause> -- wheel refused`
-from `wheel` and `wheel --embed`, `ERROR: SBOM generation failed: ARCHIVE=...`
-from `generate`, `ERROR: ARCHIVE=...` from `embed-wheel`. The two embeds also
-refuse a wheel with no single own `.dist-info`, or an own `.dist-info` member
-stored under a non-conforming name (`./`, `\`); for no single own `.dist-info`
-a `WARNING: ... -- identity unknown` line comes before the `ERROR:`.
-With no single own `.dist-info`, or a `METADATA` that is missing or over a cap,
-`wheel` and `generate` only warn (`WARNING: ... identity unknown`) and write an
-SBOM that names the wheel `unknown`. The embeds do the same for a `METADATA`
-that is missing or over a cap, but fail with the `ERROR:` above where there is
-no single `.dist-info` to write into. Where the file name names no top-level
-`.dist-info` but one other exists, every one of these commands uses it and logs
-`WARNING: ... the file name names no top-level .dist-info; using ...`: report
-that line, as the name and version then come from a directory the file name
-does not name. It is not a model bound.
+A wheel's name and version come from its own top-level `.dist-info` only. A
+file that is not a ZIP, a wheel with a member Pitloom cannot read, or an embed
+target with no single own `.dist-info` is refused with one `ERROR:` (exit 1,
+nothing written); a missing or over-cap `METADATA` only warns (`identity
+unknown`). Report every such line. Wording, per command, and the `the file
+name names no top-level .dist-info` case: `references/known-limitations.md`
+("Refused wheels and unknown identity").
 
 ## Useful flags
 

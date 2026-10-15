@@ -49,7 +49,8 @@ def test_build_and_read_wheel_extracts_real_non_dist_info_files(
     fake_build: FakeBuildState, tmp_path: Path
 ) -> None:
     """A successful build's non-``.dist-info`` entries come back as
-    ``IncludedFile`` pairs pointing at real, readable, on-disk files."""
+    ``IncludedFile`` entries pointing at real, readable, on-disk files,
+    marked as a build's (the registry rule tells them by origin)."""
     fake_build.entries = {
         "pkg/__init__.py": b"",
         "pkg/sub/mod.py": b"x = 1\n",
@@ -64,6 +65,7 @@ def test_build_and_read_wheel_extracts_real_non_dist_info_files(
     for included_file in files:
         assert Path(included_file.path).is_file()
         assert not is_dist_info_path(included_file.distribution_path)
+        assert included_file.built
     cleanup()
 
 

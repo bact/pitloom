@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,6 +15,16 @@ item), [minimum-elements.md](../../skills/sbom-enrich/references/minimum-element
 
 Split out of `roadmap.md` (2026-09-17) once this item's detail grew
 past a summary.
+
+> **Gating hazard: registry v3 landed (PR #305), so G7 #3 must gate the
+> project, wheel, `loom model` and embed `ai_AIPackage` registry lookups by
+> sha256 in the same change.** v3 auto-harvests a hashed `ai_AIPackage` but
+> leaves those lookups ungated (D16). Once G7 #3 hashes those packages, a
+> retrained model would still get the old id by name, and harvest would then
+> write `(name, new sha)` under the old id, where a later gated `loom` lookup
+> of the new bytes finds it. See the "G7 blockers" in
+> [id-registry-followups.md](id-registry-followups.md) and D15/D16 in
+> [id-registry-v3.md](../implementation/id-registry-v3.md).
 
 ## Scope split (decided 2026-09-17)
 
@@ -50,7 +60,8 @@ Model version, Model description, Model external references
 - **`ai_AIPackage.verifiedUsing`** (model file hash) -- the model file
   is already SHA-256-hashed elsewhere in the same pipeline for its
   `software_File` element; never copied onto the `ai_AIPackage` element
-  itself. Reuse the existing hash, don't recompute it.
+  itself. Reuse the existing hash, don't recompute it. (A `loom.run` model
+  declared with `path=` already carries it, since registry v3.)
 - **Model producer** -- no field on `AiModelMetadata` yet. In scope for
   core *only* via a structured source (Hugging Face Hub API's own
   author/org field, the same "trust the source's own structured data"
@@ -101,23 +112,28 @@ Security/KPI clusters -- all either need human judgement or aren't
 derivable from repo content alone, matching the checklist's own
 "not automatable" calls.
 
-## Implementation order (mirrors roadmap.md's 1.0 table)
+## Implementation order (numbered as in roadmap.md)
 
-1. **Mechanical wiring** (`DatasetMetadata.license` -> `dataset.py`;
-   reuse the existing model-file hash for `ai_AIPackage.verifiedUsing`)
-   -- smallest, zero design risk, code-verified gaps.
-2. **Fix the stale `minimum-elements.md` claims** -- prevents the
-   agent/Skill from re-asking users about fields core already covers.
-   **Done 2026-09-20.** Re-verified against code and a fresh run: besides
-   the four rows above (now "conditional" -- emitted only when the
-   format/source carries the value), Model properties' architecture,
-   Dataset description/identifier/provenance/sensitivity/statistical
-   rows were also stale (partly wired via Croissant), and two rows
-   over-claimed: Dataset hash (no `verifiedUsing` on
-   `dataset_DatasetPackage`) and the CISA "main package never hashed"
-   note (it carries the Merkle root).
-3. **Model producer + parameter count** (structured sources only) --
-   medium, self-contained, no SDK changes needed.
-4. **`loom` SDK expansion** for dataset provenance + model
-   training-properties -- largest, needs the `loom-sdk-and-notebooks.md`
-   design revisited with this G7 framing before implementing.
+The numbers are the 1.0 table's, the ones `roadmap.md` and the "G7 #N"
+references use: **#3** mechanical wiring, **#4** stale claims (done), **#6**
+model producer and parameter count, **#7** `loom` SDK expansion. (The 1.0
+table's #1, #2 and #5 are not G7 field items.)
+
+- **#3 Mechanical wiring** (`DatasetMetadata.license` -> `dataset.py`;
+  reuse the existing model-file hash for `ai_AIPackage.verifiedUsing`)
+  -- smallest, zero design risk, code-verified gaps.
+- **#4 Fix the stale `minimum-elements.md` claims** -- prevents the
+  agent/Skill from re-asking users about fields core already covers.
+  **Done 2026-09-20.** Re-verified against code and a fresh run: besides
+  the four rows above (now "conditional" -- emitted only when the
+  format/source carries the value), Model properties' architecture,
+  Dataset description/identifier/provenance/sensitivity/statistical
+  rows were also stale (partly wired via Croissant), and two rows
+  over-claimed: Dataset hash (no `verifiedUsing` on
+  `dataset_DatasetPackage`) and the CISA "main package never hashed"
+  note (it carries the Merkle root).
+- **#6 Model producer + parameter count** (structured sources only) --
+  medium, self-contained, no SDK changes needed.
+- **#7 `loom` SDK expansion** for dataset provenance + model
+  training-properties -- largest, needs the `loom-sdk-and-notebooks.md`
+  design revisited with this G7 framing before implementing.

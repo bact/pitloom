@@ -7,9 +7,8 @@
 recognition, license-file discovery, CITATION.cff/codemeta.json readers,
 candidate collection, and mocked (DB-absent) detection.
 
-See also: test_license_normalization.py -- this module's sibling, split
-from the original test_license.py; test_license_detection_ties.py (when a
-match is decisive).
+See also: test_license_normalization.py -- the sibling covering real-database
+integration; test_license_detection_ties.py (when a match is decisive).
 """
 
 import functools

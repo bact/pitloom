@@ -8,7 +8,7 @@
 
 See also:
 - :mod:`tests.assemble.test_embed_cli` for the rest of the CLI surface
-  (embed-wheel / wheel --embed) this module was split from.
+  (embed-wheel / wheel --embed).
 - :mod:`tests.assemble.test_embed_overrides` for overrides and standalone build path.
 - :mod:`tests.assemble.test_embed_core` for core embed logic.
 - :mod:`tests.assemble.test_embed_internals` for low-level ZIP manipulation.
