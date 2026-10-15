@@ -11,7 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 See also: `../SKILL.md` ("Known limitations", which holds the rule for
 each case: say so plainly, do not paper over it).
 
-Pitloom's dependency/supplier/license extraction is Python-packaging-native:
+Pitloom's dependency/supplier/licence extraction is Python-packaging-native:
 it reads `pyproject.toml`/`setup.cfg`/`setup.py`, installed
 `importlib.metadata`, and the PyPI JSON API. Outside that world, coverage
 drops.
@@ -32,9 +32,9 @@ placeholder. Look for non-Python ecosystem files beside `pyproject.toml`.
 
 `git+https://...`, a local path requirement or a private-index-only
 package: unless it is installed locally (its installed metadata is read),
-supplier/license/hash enrichment has nothing to look up, so the copyright
+supplier/licence/hash enrichment has nothing to look up, so the copyright
 lands on `NOASSERTION`, supplier and hash stay empty, and the package gets
-no license relationship -- Pitloom never asserts a license it was not told
+no licence relationship -- Pitloom never asserts a licence it was not told
 (a source that itself says `UNKNOWN`/`NOASSERTION` gives the
 `NoAssertionLicense` individual).
 
@@ -70,8 +70,8 @@ no license relationship -- Pitloom never asserts a license it was not told
   first author; `embed-wheel --project-dir` and an sdist with
   `pyproject.toml` keep it.
 - Detail: <https://bact.github.io/pitloom/dependency-sources/#extras-and-the-optional-edge>
-  <https://bact.github.io/pitloom/metadata-provenance/#how-authors-are-read>
-  and <https://bact.github.io/pitloom/metadata-provenance/#how-the-copyright-text-is-found>.
+  <https://bact.github.io/pitloom/metadata-provenance-authors/#how-authors-are-read>
+  and <https://bact.github.io/pitloom/metadata-provenance-licences/#how-the-copyright-text-is-found>.
 
 ## AI model formats
 
@@ -189,7 +189,7 @@ file-level discovery (files, hashes, Merkle root) by default; no
 backend (`uv_build`, or one still without its own toolchain, e.g.
 `maturin`/`scikit-build-core`/`meson-python`) falls back to a
 Hatchling-based heuristic. Project-level metadata (name, version,
-dependencies, license, authors) is read independently and unaffected
+dependencies, licence, authors) is read independently and unaffected
 either way. Full detail: [docs/cli.md's Generate an SBOM
 section](https://bact.github.io/pitloom/cli/#generate-an-sbom).
 

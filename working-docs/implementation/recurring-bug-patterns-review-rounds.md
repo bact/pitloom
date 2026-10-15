@@ -6,7 +6,7 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Recurring bug patterns: review rounds of PR #300 and PR #305
+# Recurring bug patterns: review rounds of PR #300, #305 and #306
 
 See also: [recurring-bug-patterns.md](recurring-bug-patterns.md) (the main
 list; split here for size),
@@ -61,7 +61,6 @@ list; split here for size),
   committed between turns; an agent's base for its fail-on-base proof was a
   commit, not the working tree. Check `git log` and `git status` before and
   after every delegated round.
-
 
 ## From PR #305 (registry v3 review rounds)
 
@@ -162,3 +161,63 @@ author or the existing tests.
   temporary directory; `git status` lists the first, nothing lists the
   second. Check `git status --short | grep -v '^ M'` and clear the
   temporary directory before handoff.
+
+## From PR #306 (model producer and parameter count)
+
+Decisions and the full story:
+[g7-model-producer-parameter-count.md](g7-model-producer-parameter-count.md).
+
+- **A byte-identity test must not let the writer stamp the clock.**
+  `test_a_route_is_byte_identical_when_run_twice[cli-wheel]` built a PT2
+  archive with `zipfile.ZipFile.writestr("mdl/extra/author", ...)`, which
+  stamps the member with `time.localtime(time.time())`. The archive bytes
+  feed the wheel hash and the Merkle root, hence the document UUID, so the
+  two builds differed whenever the second ticked over between them: green
+  locally on every run, red once on CI (Python 3.10, Ubuntu). The diff showed
+  the UUID first; the real cause was one file hash further down. Fix: write
+  the member with `zipfile.ZipInfo(name)` (its default `date_time` is the
+  fixed 1980-01-01), and run the test on a clock that moves on every call
+  (`monkeypatch.setattr(time, "time", ...)` returning `count(..., 7)`), which
+  fails the old shape 3 times in 3. A rerun cannot prove a flake is gone.
+  Do: for any test that compares two builds of anything hashed, grep the
+  fixture builders for `writestr(<str>`, `time`, `mtime`, `uuid4`, and
+  perturb the clock instead of rerunning.
+- **Narrowing a derived field's rule needs an inventory of its writers.**
+  The package `comment` note ("`ai_hyperparameter` `parameters` holds the
+  number of elements...") is derived by the merge from the `parameters`
+  entry. A follow-up changed the rule to "keep or add the note only if an
+  input carried it", to spare a model's own `parameters` key. That left a
+  count added by an `sbom-enrich` fragment (a figure from a model card) with
+  no note, which is the main route for a fragment-added count; the change was
+  reverted the same day and recorded as "tried, then reverted". Do: before
+  restricting a derived field, list every route that writes its source (the
+  builder, the `loom` SDK, a fragment, a hand-built model) and run each
+  through the new rule.
+- **Derive from the value, not only the key.** The same note appeared beside
+  `7B` (a `loom.set_model(hyperparameters={"parameters": "7B"})` value): a
+  note about element counts next to a label. The rule now also requires the
+  value to read as a count (`is_parameter_count_text`: ASCII digits, positive,
+  at most 10**15, guarded by length before `int()`), and a test needs a case
+  where only the key differs (`llama.context_length: "2048"`): deleting the
+  key check survived every other test and was found by mutation testing.
+- **A doc claim about a derived field names the code path that derives it.**
+  "After a merge every package with a `parameters` entry has the note" was
+  true only for packages the fragment merge folds (same `spdxId` in two
+  inputs); a package only one input holds keeps its comment as written.
+  Do: before writing "after X, every Y", find the call site and say which Y
+  it reaches.
+- **A check a skill tells the agent to run needs a legitimate input that trips
+  it.** The `sbom-enrich` recipe ended with a one-liner printing any
+  `ai_AIPackage` name that occurs twice, "regenerate and redraft". Two
+  `model.onnx` files with the same graph name in one project do that with no
+  fragment at all, so the agent would loop. Compare the fragment's ids with
+  the base's, not names.
+- **Fail-fast hides the other legs.** The red 3.10 job cancelled the
+  Windows, macOS and 3.14 test jobs; "CI is red on one leg" is not "the other
+  legs pass". Read which jobs were cancelled before drawing a conclusion.
+- **Agents that edit in parallel need their scope fenced in writing, and a
+  rule reversal must reach the running reviewers.** The docs-sweep and the
+  skills agent were told which tree each owned; a merge-rule change made
+  mid-sweep left one doc stale and was reported by the sweep agent itself;
+  the reviewer in flight was told by message that the rule was reverted, or
+  it would have filed findings against code that was no longer there.

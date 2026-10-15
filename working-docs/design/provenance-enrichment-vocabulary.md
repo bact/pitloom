@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-13
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -123,7 +123,7 @@ it). §1/§2 below and the drafted page content are updated to match.
    config-only precedent. See
    `working-docs/implementation/provenance/annotation-mechanism.md`'s
    "Size-bounded artifact-metadata preservation" section for the shipped
-   design, and `docs/metadata-provenance.md`'s "Size-bounded
+   design, and `docs/metadata-provenance-artifact-metadata.md`'s "Size-bounded
    preservation" section for the user-facing explainer.
 8. **`Method` vs. `Role` as separate keys, flagged 2026-08-14 for
    dedicated human review**: the 2026-08-13 fix (see "Already applied"
@@ -240,7 +240,8 @@ string (convention: `working-docs/implementation/provenance/annotation-mechanism
 (`.../provenance/fields/1`) -- this specific fix is the one already
 applied outside this deferral (see "Already applied" above). The bare
 URL is still visible as stale in
-`working-docs/implementation/provenance/annotation-provenance.md:186,231,349,489,515`
+`working-docs/implementation/provenance/annotation-provenance.md:200,245` and
+`annotation-provenance-implementation.md:109,249,275`
 (all in §1-9, unaffected by the 2026-08-25 §10 split)
 -- out of scope for a user-facing fix but worth a note if that working
 doc gets revisited. (The former `working-docs/design/metadata-provenance.md:59`

@@ -39,7 +39,7 @@ User manual: <https://bact.github.io/pitloom/>
 - [Example](#example)
 - [Learn more](#learn-more)
 - [Pitloom's own SBOM and signatures](#pitlooms-own-sbom-and-signatures)
-- [License](#license)
+- [Licence](#licence)
 - [Citation](#citation)
 - [Name](#name)
 
@@ -269,7 +269,7 @@ gh attestation verify <file> -R bact/pitloom \
   --source-ref refs/tags/v<version>
 ```
 
-## License
+## Licence
 
 - Source code: Apache License 2.0.
 - Documentation: Creative Commons Attribution 4.0 International.

@@ -177,7 +177,6 @@ Ways a test passes, fails or floods the log for the wrong reason.
   Pitloom, not the copy, ran; pinning `PYTHONPATH` to the copy's `src` made it
   fail as it should.
 
-
 - **`write_text("x\n")` is CRLF on Windows.** A fixture written that way and
   checked against `hashlib.sha256(b"x\n")` passed on Linux and macOS and failed
   on `windows-latest` / Python 3.11 only (PR #305, four cases of one test;
@@ -205,3 +204,21 @@ Ways a test passes, fails or floods the log for the wrong reason.
   as an HTML block and dropped everything after it (2 of 7 headings
   rendered). The only symptom was three "missing anchor" notes from the site
   build. Do: compare source and rendered heading counts for every page.
+- **`ZipFile.writestr(name, data)` writes the current time into the
+  archive.** A test that built a PT2 archive that way, then compared two SBOM
+  builds byte for byte, passed locally on every run and failed once on CI
+  (Python 3.10): the archive hash feeds the wheel hash, the Merkle root and the
+  document UUID, and the member time differed when the second ticked over
+  between the builds (#306). `ZipInfo(name)` carries the fixed time
+  1980-01-01. Rerunning proves nothing about a clock race; making the clock
+  move on every call (`time.time` patched to a counter) failed the old shape
+  3 times in 3.
+  Do: perturb the source of non-determinism in the test, and grep fixture
+  builders for `writestr(<str>`.
+- **A second guard in a derived rule needs a case that differs only in it.**
+  The count note is added when an entry has key `parameters` and a count-like
+  value. Deleting the key test left 45 of 45 tests green until a case with
+  another digit-valued key (`llama.context_length: "2048"`) was added; a
+  mutation run found it (#306).
+  Do: for `A and B`, one test where only `A` fails and one where only `B`
+  fails.

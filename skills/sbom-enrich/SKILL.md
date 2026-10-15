@@ -8,7 +8,7 @@
 name: sbom-enrich
 description: >-
   Enrich an existing Pitloom-generated SBOM or AIBOM through a merged
-  fragment: an unstated license, a dependency's purpose, trainedOn/testedOn
+  fragment: an unstated licence, a dependency's purpose, trainedOn/testedOn
   datasets read from README or model-card prose. Triggers: "enrich (this)
   SBOM", "improve this SBOM", "add more detail to the SBOM", "fill in
   missing SBOM information", "infer the dataset used to train this model".
@@ -38,7 +38,7 @@ Two enrichment sources feed the same SBOM. `loom enrich` is Pitloom's own
 **deterministic** enrichment (parses only YAML frontmatter in a README/model
 card -- no reasoning, no network by default); with a local AI model file in
 scope, run it first, as it is fast and free. An agent goes further: it can
-read **prose**, infer a plausible license from ambiguous wording, classify
+read **prose**, infer a plausible licence from ambiguous wording, classify
 a dependency's purpose, or work out `trainedOn`/`testedOn` dataset
 relationships no structured field encodes. Do this only **after** a base
 SBOM exists (use `sbom-generate` first if not), and only when it adds real
@@ -119,7 +119,7 @@ The `Role:` vocabulary an agent uses:
 
 - `inferred` -- your own reasoning from prose.
 - `declared` -- the subject's own claim, read where it states it (a
-  file's own license field).
+  file's own licence field).
 - `externalReported` -- another party's determination, relayed as given
   (a paper's, a hub's).
 - `sbomAuthorSupplied` -- the SBOM author stated the fact themselves.
@@ -255,7 +255,7 @@ Steps:
    "not used -- needs consent".
 6. Draft your own fragment (`*.spdx3.json`) containing only the elements
    or relationships you infer from prose (e.g. a `dataset_DatasetPackage`
-   plus a `trainedOn` relationship, or a `comment` refining a license
+   plus a `trainedOn` relationship, or a `comment` refining a licence
    guess). Mark every inferred value with the provenance string above.
    Write any file path in a field or comment POSIX-style
    (`docs/model-card.md`, not `docs\model-card.md`) on every OS:

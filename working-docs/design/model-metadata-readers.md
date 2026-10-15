@@ -16,7 +16,7 @@ earlier subprocess-isolation plan (kept below as the fallback for HDF5
 only). Summarised in
 [roadmap.md](roadmap.md) as one bullet linking here.
 
-See also: [ai-model-scanning.md](../implementation/ai-model-scanning.md)
+See also: [ai-model-scanning-wheels.md](../implementation/ai-model-scanning-wheels.md)
 (what shipped in #263: the wheel gate, `--trust-wheel-model`, the input
 bounds and the measured worst cases).
 

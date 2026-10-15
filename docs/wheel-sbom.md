@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-10-14
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -131,7 +131,7 @@ split in the project's own free-text `author` or `author_email`,
 `WARNING:` says so and the wheel's authors are kept.
 How `Author` (cut only next to an address) and `Author-email` (split) are
 read and what each author becomes: [How authors are
-read](metadata-provenance.md#how-authors-are-read).
+read](metadata-provenance-authors.md#how-authors-are-read).
 
 **Dependencies.** The wheel's `Requires-Dist` lines, extras included, become
 the same packages and relationships as from a source directory; see [Extras

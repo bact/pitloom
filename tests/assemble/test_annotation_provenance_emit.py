@@ -207,7 +207,8 @@ def test_emit_provenance_appends_to_existing_comment() -> None:
 # ---------------------------------------------------------------------------
 # Pluggability: swapping the encoder changes contentType/statement without
 # touching Annotation wiring (acceptance criterion, see
-# working-docs/implementation/provenance/annotation-provenance.md Section 9).
+# working-docs/implementation/provenance/annotation-provenance-acceptance.md
+# Section 9).
 # ---------------------------------------------------------------------------
 
 

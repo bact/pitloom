@@ -40,6 +40,8 @@ pitloom/
 │   ├── design/
 │   │   ├── adoption-surfaces.md
 │   │   ├── architecture-overview.md
+│   │   ├── architecture-overview-integration.md
+│   │   ├── architecture-overview-references.md
 │   │   ├── archive-member-followups.md # Open archive-name gaps: --allow-build extraction, embed, tar links
 │   │   ├── cli-test-coverage-roadmap.md        # CLI split + test suite modularization roadmap
 │   │   ├── complexity-and-file-size-roadmap.md # Complexity metrics and file limits tracking
@@ -54,7 +56,7 @@ pitloom/
 │   │   ├── sbom-fragments/          # 5 files -- fragment-merge-design.md, etc.
 │   │   └── setuptools-config-followups.md # setup.cfg directive gaps: attr: crash, file: confinement
 │   ├── implementation/
-│   │   ├── provenance/             # 10 files -- annotation-provenance(-mechanism/-full-plan).md, role-vocabulary.md, etc.
+│   │   ├── provenance/             # 12 files -- annotation-provenance(-implementation/-acceptance/-mechanism/-full-plan).md, role-vocabulary.md, etc.
 │   │   ├── adoption-surfaces.md
 │   │   ├── agent-skill.md
 │   │   ├── allow-build-termination.md # Signal handling around a build-and-read and its result

@@ -114,7 +114,7 @@ If instead the README's prose contradicted the frontmatter -- say
 `license: apache-2.0` in frontmatter, but the body text says "note: as of
 v2 this model is actually MIT-licensed, the header above is stale" -- the
 agent's fragment would override, recording both values and why rather than
-silently replacing the deterministic result. A license is a
+silently replacing the deterministic result. A licence is a
 `simplelicensing_LicenseExpression` element linked to the model by a
 `Relationship`, so the override is a pair of `@graph` entries, with `<AIPackage-spdxId>`
 filled in as above:

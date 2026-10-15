@@ -165,7 +165,6 @@ ruling, agents did the reading, building and reviewing.
   rest is recorded as numbered open questions. It held; 21 items moved to
   follow-ups.
 
-
 - **Disjoint file ownership per agent, and rerun before blaming.** Six
   agents fixed one PR in parallel, each owning named files. Intermittent
   failures (four permission tests, a mypy count, an `E501`) appeared in
@@ -196,3 +195,37 @@ ruling, agents did the reading, building and reviewing.
 - **Say which numbers a claim rests on.** "100% coverage" was true on three
   of four CI legs and false on the one that is uploaded. Report coverage per
   leg that is reported, not per machine that ran it.
+
+## Producer and parameter count (#306, 2026-10-15)
+
+One PR: a planned item built by mixed agents (about ten work packages),
+three review rounds before the first commit (61 files), then a CI failure and
+two short delta rounds. 12,958 tests, 100 % branch coverage at the end.
+
+- **A reversed decision is worth writing down as reversed.** A merge rule
+  was changed to spare a rare case, found to remove the note from the main
+  route (a fragment's count from a model card), and put back the same day. The
+  decision doc says "tried, then reverted, because", so the next change does
+  not retry it. Do: list every writer of a derived field before narrowing its
+  rule.
+- **A user's catch beats three reviewers on the principle.** The plan was
+  approved by two agents and one maintainer pass; the maintainer then asked
+  that the package say its `ai_hyperparameter` stands in for a missing field,
+  which none had raised. The constant note came out of that. Do: put the
+  mapping's weakest point to the owner while the plan is still cheap.
+- **Two independent reviews of the same diff, different focus, find
+  different things.** One focused on mapping consistency, one on correctness:
+  the first found a provenance-key convention clash and a Hub count whose
+  provenance vanished in `minimal` mode; the second found a silent bound and
+  a warning flood. Later rounds on narrower areas found one real bug in the
+  last delta (free-text `7B` given the note) and several stale or over-broad
+  statements in docs and skills.
+- **A skill is code nobody tests, so give it a reader who has not seen the
+  change.** The agent that edited the skills checked its own work; an
+  independent fresh-eyes read ran the recipe end to end and found a
+  false-positive check that would loop an agent. Do: run each recipe a skill
+  gives, on an input where it should do nothing.
+- **Keep the gate separate from the editors, and read the CI log.** The
+  failing job was one of four (the rest were cancelled by fail-fast); the log
+  held the diff of two SBOMs, and the differing bytes were one file hash,
+  not the UUID that appeared first.

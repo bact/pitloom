@@ -114,7 +114,7 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
 9. The scalar entries of the model `config`.
 10. The input shape only (Keras v3 `build_config`; v1-v2 the first layer's
     `batch_input_shape`). No outputs.
-11. Optimizer class name, loss and metrics names from `training_config`.
+11. Optimiser class name, loss and metrics names from `training_config`.
 12. `compile_config` is not read.
 13. Shape and dtype; for `.npz`, one entry per array, with its name.
 14. `graph.name`, unless blank or an exporter default (`torch_jit`,
@@ -294,7 +294,7 @@ the Hugging Face Hub, "card" a README or model card read with `--enrich`.
 | `name` | GGUF, ONNX, Keras, HDF5, PT2, Safetensors, HF | `ai_AIPackage.name`; without one, the file name's stem (`Method: file_name_stem`), else the format |
 | `description` | GGUF, ONNX, PT2, Safetensors, CRFsuite, HF | `ai_AIPackage.description` |
 | `version` | GGUF, ONNX, PT2, Safetensors | `ai_AIPackage.software_packageVersion` |
-| `license` | ONNX, PT2, HF, card | licence element plus `hasDeclaredLicense` (the model's own statement) or `hasConcludedLicense` (a third-party source); see [How a license value is recorded](metadata-provenance.md#how-a-license-value-is-recorded) |
+| `license` | ONNX, PT2, HF, card | licence element plus `hasDeclaredLicense` (the model's own statement) or `hasConcludedLicense` (a third-party source); see [How a licence value is recorded](metadata-provenance-licences.md#how-a-licence-value-is-recorded) |
 | `originators` | GGUF, ONNX, PT2, Safetensors, HF | `ai_AIPackage.originatedBy`: one generic `Agent` per name; see [Producer and parameter count](#producer-and-parameter-count) |
 | `supplier` | HF | `ai_AIPackage.suppliedBy`: the repository owner's generic `Agent`, the one in `originatedBy` when the name is the same; no file format fills it |
 | `type_of_model` | CRFsuite, fastText, HDF5, Keras, NumPy, ONNX, PyTorch, HF | `ai_typeOfModel`, first entry |
@@ -325,7 +325,7 @@ the Hugging Face Hub, "card" a README or model card read with `--enrich`.
 The artifact-metadata annotation is written when
 `preserve-source-metadata` says so: by default (`auto`) only for a model
 whose file is not in the SBOM's file list, as with `loom model FILE`; see
-[Preserved artifact metadata](metadata-provenance.md#preserved-artifact-metadata).
+[Preserved artifact metadata](metadata-provenance-artifact-metadata.md#preserved-artifact-metadata).
 In it a collection is a JSON array (or object) and a scalar is text, for
 every format.
 

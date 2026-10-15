@@ -31,7 +31,7 @@ Pitloom applies them, and the order a program reading the SBOM undoes them.
    `max-source-metadata-bytes` drops whole annotation entries. Each is
    announced by a `WARNING:` and, in the annotation, by `truncated`,
    `truncatedKeyCount`, `truncatedKeys`, `maxEntries` or `maxMetadataBytes`
-   ([size-bounded preservation](metadata-provenance.md#size-bounded-preservation)).
+   ([size-bounded preservation](metadata-provenance-artifact-metadata.md#size-bounded-preservation)).
    Caps come before the escape, so an escaped value can be longer than
    its cap: each escaped code point adds five characters.
 3. **Scalar text.** A number or boolean is text with one spelling: `true`,
@@ -41,7 +41,7 @@ Pitloom applies them, and the order a program reading the SBOM undoes them.
    length, also inside an embedded JSON text. In the annotation,
    `valueTypes` names each top-level key whose value was an `integer`,
    `float` or `boolean`, but not such an over-long integer
-   ([preserved artifact metadata](metadata-provenance.md#preserved-artifact-metadata)).
+   ([preserved artifact metadata](metadata-provenance-artifact-metadata.md#preserved-artifact-metadata)).
    A GGUF `FLOAT32` is spelt as the float32's own shortest decimal
    (`0.00001`): read back as a double it gives the double nearest
    0.00001, not the double the float32 widens to; narrow it to float32 for

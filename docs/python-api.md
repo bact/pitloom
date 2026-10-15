@@ -18,7 +18,7 @@ Three entry points:
   a target-specific function) to produce a full SBOM, the same output
   `loom project`/`loom model`/`loom env` produce on the [CLI](cli.md).
 - **[Standalone enrichment](#standalone-enrichment)** -- call
-  `enrich_model()` to fill AI-model metadata gaps (license, datasets) from
+  `enrich_model()` to fill AI-model metadata gaps (licence, datasets) from
   a local README/model-card's YAML frontmatter, writing a mergeable
   fragment -- no code annotation needed, the Python equivalent of `loom
   enrich`.

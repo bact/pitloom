@@ -42,7 +42,7 @@ from the roadmap on 2026-10-05. Each was found in the PR named in it.
   `keras_version` attribute). (3) HDF5 attribute text is unbounded into the
   SBOM (`model_config` is kept to 500 characters only when unparsed; other
   attributes, string arrays included, are not capped), on `main` as well. See
-  [ai-model-scanning.md](../implementation/ai-model-scanning.md).
+  [ai-model-scanning-decisions.md](../implementation/ai-model-scanning-decisions.md).
 - [ ] **Embed takes dependency versions from Pitloom's own environment** --
   `_resolve_version` (`assemble/spdx3/deps_installed.py`) falls back to
   `importlib.metadata.version()` for a dependency with no `==` pin and no lock

@@ -12,7 +12,7 @@ See also: [setuptools-support.md](setuptools-support.md) (the
 wheel-file-discovery section below mirrors its shape) and
 [hatchling-build-hook.md](hatchling-build-hook.md) (Poetry has no
 equivalent build-time hook -- see "Build-time hook: not attempted"
-below); [backend-file-discovery-validation.md](backend-file-discovery-validation.md)
+below); [backend-file-discovery-validation-hatchling-poetry.md](backend-file-discovery-validation-hatchling-poetry.md)
 for the real-world validation results; `working-docs/design/roadmap.md`'s
 "Non-Hatchling file discovery" section for the backend-priority table
 this work closes item #2 of; [lock-files.md](../design/lock-files.md)

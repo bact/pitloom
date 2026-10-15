@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,7 +21,7 @@ source and shape: what moves upstream; its
 list what is still to settle),
 [recurring-bug-patterns.md](recurring-bug-patterns.md) (the
 weak-placeholder lesson) and the user-facing
-`docs/metadata-provenance.md` (provenance keys).
+`docs/metadata-provenance-licences.md` (provenance keys).
 
 ## Scope: shape and source here, licence content upstream
 

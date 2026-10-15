@@ -26,8 +26,8 @@ or superseded, with one exception carried forward:
   `generate_env_sbom`), so an installed package that carries a model file
   gets no `AIPackage`: no file list, no AIPackage path in
   `build_deployed()`. Built wheels scan since PR D (see
-  [ai-model-scanning.md](../implementation/ai-model-scanning.md)); `model`
-  targets are the model. The provenance settings are already wired (see
+  [ai-model-scanning-wheels.md](../implementation/ai-model-scanning-wheels.md));
+  `model` targets are the model. The provenance settings are already wired (see
   `config-sources.md`).
 
 ## Found while doing this, not fixed here

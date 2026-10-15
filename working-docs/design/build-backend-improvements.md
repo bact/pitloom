@@ -81,7 +81,7 @@ file-size guidance -- moved verbatim, no content changed.
   `[tool.pitloom] use-lockfile = false`) disabling automatic lock-file
   discovery across every usage surface; on by default. Also fixed a
   related `loom enrich` doc-identity bug found along the way.
-  See [lock-file-cascade.md](../implementation/lock-file-cascade.md#--no-use-lockfile-opt-out).
+  See [lock-file-cascade.md](../implementation/lock-file-cascade-opt-out.md#--no-use-lockfile-opt-out).
 - [x] **Preserve lock file hashes in `--offline` mode** -- SHA-256 digests
   parsed from `pylock.toml`/`uv.lock`/`poetry.lock`/`pdm.lock`/`Pipfile.lock`
   now populate SPDX 3 `verifiedUsing`, taking priority over a PyPI JSON API
