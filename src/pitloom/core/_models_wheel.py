@@ -28,7 +28,7 @@ import logging
 import operator
 import os
 from collections.abc import Callable
-from pathlib import Path, PurePath, PurePosixPath
+from pathlib import Path, PurePath
 
 from pitloom.core._models_wheel_dispatch import (
     _discover_included_files,
@@ -44,10 +44,10 @@ from pitloom.core.build_options import BuildOptions
 from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.file_hash import sha256_digest
-from pitloom.core.path_confine import inside_ancestor
+from pitloom.core.path_confine import is_inside
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, is_regular_file
 from pitloom.core.project import ProjectFile, project_relative_or_fallback
-from pitloom.core.walk_rules import SameFile, warn_registry_left_out
+from pitloom.core.walk_rules import RegistryCopy, SameFile, warn_registry_left_out
 
 log = logging.getLogger(__name__)
 
@@ -160,25 +160,25 @@ def _build_project_file_entry(
 class _DeclaredRegistry:
     """Whether a discovered file is the declared registry: the file itself
     (:class:`~pitloom.core.walk_rules.SameFile`), or a build-and-read copy
-    of it -- a file outside *project_dir* whose wheel path is the
-    registry's project-relative path or a tail of it (a ``src/`` layout
-    drops the leading parts) and whose bytes are the registry's."""
+    of it -- a file outside *project_dir* whose wheel path names the
+    registry (:class:`~pitloom.core.walk_rules.RegistryCopy`) and whose
+    bytes are the registry's (the build just read it)."""
 
     def __init__(self, registry: Path, project_dir: Path) -> None:
         self._same = SameFile(registry)
+        self._copy = RegistryCopy(registry, project_dir)
         self._registry = registry
         self._project_dir = project_dir
-        self._parts = _parts_below(registry, project_dir)
         self._digest: bytes | None = None
 
     def __call__(self, included_file: IncludedFile) -> bool:
         return self._same.matches(included_file.path) or self._is_copy(included_file)
 
     def _is_copy(self, included_file: IncludedFile) -> bool:
-        parts = PurePosixPath(included_file.distribution_path).parts
-        if not self._parts or not parts or self._parts[-len(parts) :] != parts:
+        if not self._copy.matches(included_file.distribution_path):
             return False
-        if _parts_below(Path(included_file.path), self._project_dir) is not None:
+        real = PurePath(os.path.realpath(included_file.path))
+        if is_inside(real, self._project_dir):
             return False  # a project file: SameFile alone decides
         try:
             if self._digest is None:
@@ -188,26 +188,21 @@ class _DeclaredRegistry:
             return False
 
 
-def _parts_below(path: Path, directory: Path) -> tuple[str, ...] | None:
-    """*path*'s resolved parts below the resolved *directory*, else ``None``
-    (see :func:`~pitloom.core.path_confine.inside_ancestor`)."""
-    real = PurePath(os.path.realpath(path))
-    ancestor = inside_ancestor(real, directory)
-    return None if ancestor is None else real.relative_to(ancestor).parts
-
-
 def _without_excluded(
-    included_files: list[IncludedFile], exclude_path: Path | None, project_dir: Path
+    included_files: list[IncludedFile],
+    exclude_path: Path | None,
+    project_dir: Path,
+    on_left_out: Callable[[Path], None],
 ) -> list[IncludedFile]:
     """*included_files* minus the *exclude_path* file (see
-    :class:`_DeclaredRegistry`), with one ``WARNING:`` when it was in the
-    list."""
+    :class:`_DeclaredRegistry`), calling *on_left_out* once when it was in
+    the list."""
     if exclude_path is None:
         return included_files
     is_registry = _DeclaredRegistry(exclude_path, project_dir)
     kept = [f for f in included_files if not is_registry(f)]
     if len(kept) != len(included_files):
-        warn_registry_left_out(exclude_path)
+        on_left_out(exclude_path)
     return kept
 
 
@@ -223,6 +218,7 @@ def get_wheel_files(
     skip_merkle_root: bool = False,
     build_options: BuildOptions = BuildOptions(),
     exclude_path: Path | None = None,
+    on_left_out: Callable[[Path], None] = warn_registry_left_out,
 ) -> tuple[str | None, list[ProjectFile], Callable[[], None]]:
     """Get all files included in the wheel and compute their SHA-256 Merkle root.
 
@@ -270,7 +266,8 @@ def get_wheel_files(
     counting it would change the root on every run. Matched by file
     identity, or, for a build-and-read copy outside *project_dir*, by its
     wheel path and bytes (see :class:`_DeclaredRegistry`). ``None``
-    excludes nothing.
+    excludes nothing. *on_left_out* gives that warning; a caller that warns
+    once for a batch passes its own.
 
     *skip_merkle_root* skips per-file SHA-256 hashing and the Merkle
     root computation: the returned root is always ``None`` and every
@@ -351,7 +348,9 @@ def get_wheel_files(
         scanned: tuple[str | None, list[ProjectFile]] | None = None
         try:
             scanned = _scan_included_files(
-                _without_excluded(included_files, exclude_path, project_dir),
+                _without_excluded(
+                    included_files, exclude_path, project_dir, on_left_out
+                ),
                 project_dir,
                 need_bytes=(
                     scan_file_headers or detect_content_type or not skip_merkle_root

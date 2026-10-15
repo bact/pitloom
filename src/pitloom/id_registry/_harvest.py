@@ -47,6 +47,7 @@ __all__ = [
     "_is_files_path_alias",
     "_release_stale_keys_for_id",
     "_sorted_by_spdx_id",
+    "content_gate_message",
 ]
 
 
@@ -179,11 +180,12 @@ def _release_stale_keys_for_id(
 
 
 def _harvest_elements(
-    registry: IdRegistry, sorted_objects: Iterable[Any]
+    registry: IdRegistry, sorted_objects: Iterable[Any], *, imported: bool
 ) -> frozenset[tuple[str, str]]:
     """Harvest every element of *sorted_objects* into *registry*, leaving
     each :func:`~pitloom.id_registry._ambiguous._ambiguous_keys` key
-    untouched.
+    untouched. *imported*: ``id import`` (see :func:`_import_sbom_element`),
+    else a run's auto-harvest.
 
     Returns the skipped (ambiguous) keys, logged in one DEBUG record.
     Run auto-harvest passes no element that never looked the registry up
@@ -195,8 +197,28 @@ def _harvest_elements(
         log.debug("%s", ambiguous_keys_message("not harvested", ambiguous))
     index = _SpdxIdIndex.from_registry(registry)
     for obj in objects:
-        _import_sbom_element(registry, obj, index, ambiguous_keys=ambiguous)
+        _import_sbom_element(
+            registry, obj, index, ambiguous_keys=ambiguous, imported=imported
+        )
     return ambiguous
+
+
+def content_gate_message(
+    key: tuple[str, str], spdx_id: str, held: str, *, imported: bool
+) -> str:
+    """The one line for an unhashed element whose id *spdx_id* differs from
+    the hashed entry *held* under the content-gated *key*: ``id import``
+    replaced the entry (*imported*), or a run's harvest left it as is."""
+    subject = f"{key[0]} {key[1]!r}"
+    if imported:
+        return (
+            f"ID registry: content gate dropped for {subject}: "
+            f"imported id {spdx_id} replaces {held}"
+        )
+    return (
+        f"ID registry: content gate kept for {subject}: "
+        f"harvested id {spdx_id} not recorded over {held}"
+    )
 
 
 def _import_sbom_element(
@@ -205,6 +227,7 @@ def _import_sbom_element(
     index: _SpdxIdIndex | None = None,
     *,
     ambiguous_keys: frozenset[tuple[str, str]] = frozenset(),
+    imported: bool = False,
 ) -> None:
     """Harvest a single deserialized SBOM element into *registry*.
 
@@ -218,12 +241,17 @@ def _import_sbom_element(
 
     The harvested id wins: an entry already under the key is replaced,
     and :func:`_release_stale_keys_for_id` first drops any other key that
-    held the new id. A harvest never erases a gated entry's SHA-256: an
-    unhashed element with the same id as the entry keeps the entry's
-    hash; a hashed one replaces it.
+    held the new id. A hashed element replaces a gated entry's SHA-256; an
+    unhashed one with the entry's id keeps it. An unhashed one with
+    another id over a hashed entry: ``id import`` (*imported*) writes it
+    with no SHA-256 and logs one ``INFO:``; a run's harvest never erases a
+    recorded SHA-256, so it leaves the entry as is, also with one ``INFO:``
+    (:func:`content_gate_message`).
 
     A key in *ambiguous_keys* is skipped outright: its existing entry, if
-    any, stays and nothing is released for it.
+    any, stays and nothing is released for it. Its id, as every id read
+    here, is still reserved (:meth:`~pitloom.id_registry.IdRegistry.reserve_id`):
+    an id seen in the registry's namespace is never minted for another key.
 
     *index* is the reverse index :func:`_release_stale_keys_for_id`
     needs; :func:`_harvest_elements` builds one per pass. A direct caller
@@ -234,20 +262,24 @@ def _import_sbom_element(
         if getattr(obj, "name", None) and getattr(obj, "spdxId", None):
             log.debug("Import: skipping %r (no SPDX 3 compact type)", obj.name)
         return
+    spdx_id = str(obj.spdxId)
+    registry.reserve_id(spdx_id)
     if key in ambiguous_keys:
         return
-    if index is None:
-        index = _SpdxIdIndex.from_registry(registry)
-    spdx_id = str(obj.spdxId)
     gated = key[0] in _GATED_TYPES
     sha256 = sha256_of(obj) if gated else None
-    _release_stale_keys_for_id(registry, spdx_id, index, key=key, sha256=sha256)
     existing = registry.elements.get(key)
-    if (
-        gated
-        and sha256 is None
-        and existing is not None
-        and existing.spdx_id == spdx_id
-    ):
-        sha256 = existing.sha256
+    if gated and sha256 is None and existing is not None and existing.sha256:
+        if existing.spdx_id == spdx_id:
+            sha256 = existing.sha256
+        else:
+            log.info(
+                "%s",
+                content_gate_message(key, spdx_id, existing.spdx_id, imported=imported),
+            )
+            if not imported:
+                return
+    if index is None:
+        index = _SpdxIdIndex.from_registry(registry)
+    _release_stale_keys_for_id(registry, spdx_id, index, key=key, sha256=sha256)
     index.set_entry(registry, key, RegistryEntry(spdx_id=spdx_id, sha256=sha256))

@@ -119,6 +119,8 @@ _ALLOWED = {
     "extract/_license_classify.py:_MAX_EXPRESSION_LENGTH": _HEURISTIC,
     "extract/ai_model/safetensors.py:SAFETENSORS_FORMAT_MAX_HEADER_BYTES": _HEURISTIC,
     "extract/remote/huggingface_field.py:_TOKENIZER_MAX_LEN_UNLIMITED": _NOT_INPUT,
+    # A larger id number cannot be a mint's, so harvest reserves none for it.
+    "id_registry/_counters.py:MAX_ID_NUMBER": "over it: ERROR",
 }
 
 _CAP_NAME = re.compile(r"^_?(?:[A-Z0-9]+_)*(?:MAX|CAP|LIMIT|BUDGET)(?:_[A-Z0-9]+)*$")

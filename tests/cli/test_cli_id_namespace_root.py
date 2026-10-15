@@ -253,7 +253,7 @@ def test_generate_reports_a_root_that_cannot_be_stored_as_one_error(
         assert _generate(monkeypatch, project, registry) == 1
 
     (error,) = _errors(capsys)
-    assert error.startswith("ERROR: ID registry file ")
+    assert error.startswith(f"ERROR: ID registry: failed to save {registry}: ")
     assert "no path relative" in error
     assert not registry.exists()
 

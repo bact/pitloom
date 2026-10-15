@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
+import functools
 import logging
 import threading
 from collections.abc import Callable, Hashable
@@ -39,6 +40,7 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import get_wheel_files, merkle_root_of_files
 from pitloom.core.project import ProjectFile, ProjectMetadata
+from pitloom.core.walk_rules import warn_registry_left_out, without_registry_copies
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.extract._license import resolve_license_concluded
 from pitloom.extract.authors import (
@@ -50,9 +52,11 @@ from pitloom.extract.authors import (
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.project import read_project
 from pitloom.extract.scanner_project import scan_project_for_ai_models
-from pitloom.id_registry import IdRegistry, registry_file_path
+from pitloom.id_registry import IdRegistry, registry_copy, registry_file_path
 
 _T = TypeVar("_T")
+#: The batch memo key of the registry left-out warning.
+_REGISTRY_LEFT_OUT = ("registry-left-out",)
 
 log = logging.getLogger(__name__)
 
@@ -151,6 +155,13 @@ def _adopt_project_authors(
     metadata.authors = list(project.authors)
     metadata.provenance["authors"] = source
     return True
+
+
+def _left_out(settled: dict[Hashable, object], registry: Path) -> None:
+    """Discovery's registry warning, marked in the batch memo *settled* (the
+    lock is held: no :meth:`EmbedFileCache.first_use`)."""
+    settled[_REGISTRY_LEFT_OUT] = None
+    warn_registry_left_out(registry)
 
 
 class EmbedFileCache:
@@ -311,6 +322,7 @@ class EmbedFileCache:
                     skip_merkle_root=True,
                     build_options=build_options,
                     exclude_path=exclude_path,
+                    on_left_out=functools.partial(_left_out, self._settled),
                 )
                 if self._guard is not block:
                     # The block this discovery was started for closed
@@ -390,6 +402,14 @@ class EmbedFileCache:
         self.once(key, lambda: ran.append(True), "first_use")
         return bool(ran)
 
+    def registry_warning_due(self) -> bool:
+        """Whether the in-tree registry ``WARNING:`` is still due in this
+        block: one per batch, discovery's included.
+
+        Raises :class:`RuntimeError` outside a ``with`` block.
+        """
+        return self.first_use(_REGISTRY_LEFT_OUT)
+
     def _require_block(self, method: str) -> None:
         if self._guard is None:
             raise RuntimeError(
@@ -452,7 +472,15 @@ def _build_sbom_from_project_and_wheel(
         # extensions, auditwheel-repaired shared libraries) that
         # read_wheel() found in the actual wheel but that a source-tree
         # rescan can't see.
-        merged_files = _merge_file_extras(wheel_metadata.files, project_files)
+        # An in-tree registry's copy in the wheel is no file of it (D7).
+        merged_files = _merge_file_extras(
+            without_registry_copies(
+                wheel_metadata.files,
+                registry_copy(registry, project_dir),
+                warn=cache.registry_warning_due,
+            ),
+            project_files,
+        )
         # replace_with_fresh_containers(), not a bare
         # dataclasses.replace() or an in-place `.files =` assignment:
         # every dict/list field NOT given here (provenance,

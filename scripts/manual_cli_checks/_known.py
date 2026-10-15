@@ -23,6 +23,12 @@ KNOWN: dict[str, tuple[str, str]] = {
         "Re-embedding lists the previous embedded SBOM",
         "re-embedding changed the SBOM",
     ),
+    # Each accepted order-matrix finding names its own followups item in
+    # _order_known.py; a check with only those ends KNOWN, any other FAILs.
+    "O*": (
+        "Loom ID registry follow-ups (entries in _order_known.py)",
+        "allow-listed order-matrix findings only",
+    ),
 }
 
 

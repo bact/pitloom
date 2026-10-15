@@ -23,14 +23,15 @@ were met. Everything not listed was built as written.
   keep a recorded sha when given none; the same now holds for harvest. An
   unhashed element carrying the entry's id keeps the entry's hash; a hashed
   one replaces it (`_import_sbom_element`). Evidence: alternating `project`
-  and `wheel` runs into one registry churned an entry's hash.
+  and `wheel` runs into one registry churned an entry's hash. `id import`
+  is the one exception (order-matrix round, below).
 - **`project_root` defaults to the registry file's directory** when none is
   set (`IdRegistry.save`, `root_dir()`), so a registry created by a harvest
   or the library, not by `id generate`/`id import`, still loads.
 - **Same-stem models** (`a/model.gguf`, `b/model.gguf`) are registered by
-  name only, with no hash, and one `INFO:` per run (`ID registry: N model
-  files share the name X; its entry is not content-gated`): no one file
-  stands for the stem, and a gate would re-mint on every run.
+  name only, with no hash, and one `INFO:` per run: no one file stands for
+  the stem, and a gate would re-mint on every run. An existing entry is left
+  as is, its hash included (ruling of the order-matrix round, below).
 - **Merkle leaf details are final.** A leaf is `sha256(utf8 relpath + b"\x00"
   + raw 32-byte file digest)`, the relpath `/`-separated below the dataset
   directory (an undecodable POSIX name keeps its bytes via
@@ -130,3 +131,43 @@ Decided by the user after the first full review; the code follows them.
 - **Dataset directories prune the names `id generate` skips**, the one set
   `IGNORED_DIR_NAMES` in `core/walk_rules.py`, listed once in
   `docs/id-registry.md`.
+
+## Rulings of the 2026-10-15 order-matrix round
+
+- **A retired id is never minted again for another key** (I8 in the
+  design, found by manual checks `O5/*` and deep `O2/*`). `_mint_id` took
+  one more than the highest number held, so after a harvest replaced the
+  top entry the next `id generate` handed that entry's old id to another
+  file. Built: a required top-level `id_counters` table (format version
+  stays 3: the format is unreleased), in `id_registry/_counters.py`. The
+  key is the id prefix, not the type, and any prefix a mint can write is
+  accepted, because `register()` takes any compact type. A missing key is
+  rejected rather than derived from the held ids: deriving it is the bug,
+  and a file without it was written before the fix. A counter below a held
+  id is read up to it, without a message: held ids are ids seen. Counters
+  stay across a namespace change (`id import` adopting a namespace, a
+  rebase onto a re-created file): at worst a number is skipped. Harvest
+  reserves an id skipped as ambiguous too, since an older SBOM carries it.
+- **`id generate` leaves a shared stem's entry as is** (user ruling; finding
+  2). `_register_ungated` dropped a recorded sha256 so that the result did
+  not depend on the registry's history; that broke D12 and made loom re-mint
+  the model after every `id generate`. Now the stem goes through
+  `register()` with no hash: a new stem gets a sha-less entry, an existing
+  one keeps its id and sha256. INFO: `ID registry: N model files share the
+  name <stem>; its entry is left as is`. Accepted consequence: a fresh
+  registry and one with history can differ for that stem; ids stay stable.
+- **`id import` may drop a content gate, and says so** (user ruling;
+  finding 3). An unhashed gated element (an `ai_AIPackage` from a project
+  SBOM) whose id differs from a hashed entry: the imported id wins and the
+  sha256 goes, with one INFO per key, `ID registry: content gate dropped for
+  <type> '<name>': imported id <new> replaces <old>`. A run's auto-harvest
+  never erases a recorded sha256: the same case leaves the entry as is, with
+  `ID registry: content gate kept for <type> '<name>': harvested id <new> not
+  recorded over <old>` (not met in the order matrix; kept for "no silent
+  deviations"). `_harvest_elements(..., imported=)` is an explicit flag, not
+  call-site discipline; both texts come from `content_gate_message`. Revisit
+  after G7 #3, when the imported element carries its own hash.
+- **One failed-save wording** (finding 5). `failed_to_save_message` gives
+  `ID registry: failed to save <path>: <reason>` to `persist_registry` (a
+  `WARNING:`) and to `id generate`/`id import` (the one `ERROR:`, exit 1;
+  they printed the bare `OSError` before).

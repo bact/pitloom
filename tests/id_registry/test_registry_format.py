@@ -7,7 +7,8 @@
 ``load()`` failure.
 
 See also: test_registry.py (the in-memory API), test_surfaces_failures.py
-(a version 2 file on every surface), tests/registry_helpers.py.
+(a version 2 file on every surface), test_registry_counters.py (the id
+counters, I8), tests/registry_helpers.py.
 """
 
 # pylint: disable=missing-function-docstring
@@ -46,6 +47,7 @@ def _valid() -> dict[str, Any]:
             FILE_TYPE: {"src/a.py": {"sha256": _SHA, "spdxId": f"{_NS}#File-1"}},
             PACKAGE_TYPE: {"requests": {"spdxId": f"{_NS}#Package-2"}},
         },
+        "id_counters": {"File": 1, "Package": 2},
         "namespace": _NS,
         "project_root": ".",
         "version": 3,
@@ -66,7 +68,12 @@ def _sample(tmp_path: Path) -> IdRegistry:
 
 
 def _state(registry: IdRegistry) -> tuple[object, ...]:
-    return (registry.namespace, entries_of(registry), registry.project_root)
+    return (
+        registry.namespace,
+        entries_of(registry),
+        registry.project_root,
+        registry.id_counters,
+    )
 
 
 # --- round trip and determinism (I7) -----------------------------------
@@ -103,8 +110,20 @@ def test_saved_file_shape(tmp_path: Path) -> None:
     raw = path.read_bytes()
     data = json.loads(raw)
 
-    assert sorted(data) == ["elements", "namespace", "project_root", "version"]
+    assert sorted(data) == [
+        "elements",
+        "id_counters",
+        "namespace",
+        "project_root",
+        "version",
+    ]
     assert data["version"] == 3
+    assert data["id_counters"] == {
+        "AIPackage": 4,
+        "DatasetPackage": 5,
+        "File": 2,
+        "Package": 3,
+    }
     assert data["elements"][DATASET_PACKAGE_TYPE] == {
         "data/train": {"spdxId": f"{_NS}#DatasetPackage-5"}
     }
@@ -300,6 +319,8 @@ _FAILURES: dict[str, tuple[Any, str]] = {
     "unknown-top-key": (_set("files", {}), "unknown top-level key(s): 'files'"),
     "no-elements": (_drop("elements"), "missing 'elements'"),
     "no-project-root": (_drop("project_root"), "missing 'project_root'"),
+    "no-id-counters": (_drop("id_counters"), "missing 'id_counters'"),
+    "id-counters-list": (_set("id_counters", []), "'id_counters' is not an object"),
     "elements-list": (_set("elements", []), "malformed entry: 'elements'"),
     "type-table-list": (
         _set("elements", {FILE_TYPE: []}),
@@ -341,6 +362,26 @@ _BAD_ROOTS: dict[str, object] = {
 }
 for _name, _root in _BAD_ROOTS.items():
     _FAILURES[f"root-{_name}"] = (_set("project_root", _root), "'project_root'")
+
+# 2**53: one above MAX_ID_NUMBER, a number RFC 8785 would write as a string.
+_BAD_COUNTERS: dict[str, tuple[str, object]] = {
+    "bool": ("File", True),
+    "zero": ("File", 0),
+    "negative": ("File", -1),
+    "float": ("File", 1.0),
+    "str": ("File", "1"),
+    "null": ("File", None),
+    "huge": ("File", 2**53),
+    "empty-prefix": ("", 1),
+    "space-prefix": ("Fi le", 1),
+    "hash-prefix": ("File#x", 1),
+    "lower-escape-prefix": ("a%2fb", 1),
+}
+for _name, (_prefix, _number) in _BAD_COUNTERS.items():
+    _FAILURES[f"counter-{_name}"] = (
+        _set("id_counters", {_prefix: _number}),
+        "'id_counters' ",
+    )
 
 
 @pytest.mark.parametrize("case", sorted(_FAILURES))

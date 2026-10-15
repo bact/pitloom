@@ -22,7 +22,11 @@ that defines them.
 from __future__ import annotations
 
 from pitloom.id_registry._ambiguous import ambiguous_keys_message
-from pitloom.id_registry._persist import persist_registry, warn_no_registry_path
+from pitloom.id_registry._persist import (
+    failed_to_save_message,
+    persist_registry,
+    warn_no_registry_path,
+)
 from pitloom.id_registry._registry import IdRegistry
 from pitloom.id_registry._session import IdRegistrySession, warn_claim_collision
 from pitloom.id_registry._types import (
@@ -37,6 +41,7 @@ from pitloom.id_registry._types import (
 )
 from pitloom.id_registry.resolve import (
     registry_base_dir,
+    registry_copy,
     registry_file_path,
     registry_key_for_path,
     resolve_registry,
@@ -52,8 +57,10 @@ __all__ = [
     "PACKAGE_TYPE",
     "RegistryEntry",
     "ambiguous_keys_message",
+    "failed_to_save_message",
     "persist_registry",
     "registry_base_dir",
+    "registry_copy",
     "registry_file_path",
     "registry_key_for_path",
     "resolve_registry",

@@ -29,10 +29,11 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.models import merkle_root_of_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.walk_rules import without_registry_copies
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
 from pitloom.extract.wheel import read_wheel
-from pitloom.id_registry import IdRegistry, resolve_registry
+from pitloom.id_registry import IdRegistry, registry_copy, resolve_registry
 from pitloom.logging_config import configure_logging
 
 
@@ -62,6 +63,9 @@ def generate_wheel_sbom(
     *pitloom_config* when the caller names one explicitly, then the built-in
     defaults. The same holds for the registry: *id_registry*, else the explicit
     config's ``id-registry``; no ``loom-id-registry.json`` is searched for.
+    The copy of that registry a build put in the wheel is left out, with one
+    ``WARNING:``, when its path below the project root the registry stores
+    is the member's (see :class:`~pitloom.core.walk_rules.RegistryCopy`).
 
     An explicit *pitloom_config* applies in full, identity included: its
     creators, creation datetime and comment fill in when *creation_metadata*
@@ -157,6 +161,12 @@ def generate_wheel_sbom_with_metadata(
     # fast, never after paying for a full wheel read first.
     resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
     project_metadata, project_files = read_wheel(wheel_path_obj)
+    # A copy of an in-tree registry the build put in the wheel: neither a
+    # file of the SBOM nor of its Merkle root (D7).
+    project_files = without_registry_copies(
+        project_files, registry_copy(resolved_registry)
+    )
+    project_metadata.files = project_files
     ai_models = scan_wheel_for_ai_models(
         wheel_path_obj,
         scan_usage=cfg.scan_model_usage is True,

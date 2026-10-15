@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Loom ID registry resolution for a project or a project-less target,
-and a file path's key relative to a registry's project root.
+a file path's key relative to a registry's project root, and how a wheel
+or sdist reader recognises the registry's copy among the members.
 
 See also: :mod:`pitloom.id_registry._registry` for ``IdRegistry`` itself.
 """
@@ -15,10 +16,12 @@ import os
 from pathlib import Path, PurePath
 
 from pitloom.core.path_confine import inside_ancestor
+from pitloom.core.walk_rules import RegistryCopy
 from pitloom.id_registry._registry import IdRegistry
 
 __all__ = [
     "registry_base_dir",
+    "registry_copy",
     "registry_file_path",
     "registry_key_for_path",
     "resolve_registry",
@@ -51,6 +54,29 @@ def registry_file_path(registry: IdRegistry | None) -> Path | None:
     file walk (see :func:`~pitloom.core.walk_rules.same_path`); ``None``
     with no registry or an in-memory one, which excludes nothing."""
     return registry.path if registry is not None else None
+
+
+def registry_copy(
+    registry: IdRegistry | None, project_dir: Path | None = None
+) -> RegistryCopy | None:
+    """How a reader of a wheel's or sdist's members recognises a copy of
+    *registry* a build put there (D7): its path below *project_dir* when
+    that is a directory, else below the project root the registry file
+    stores. ``None`` -- nothing is left out -- with no registry file, or
+    with no stored root (a registry not saved yet).
+
+    A registry storing its own directory as the root (the default when
+    none was given) only recognises a member path below that directory:
+    ``demo/reg.json`` is not a copy of a registry rooted at ``demo/``.
+    """
+    path = registry_file_path(registry)
+    if registry is None or path is None:
+        return None
+    if project_dir is not None and os.path.isdir(project_dir):
+        root: Path | None = project_dir
+    else:
+        root = registry.project_root
+    return None if root is None else RegistryCopy(path, root)
 
 
 def resolve_registry(

@@ -21,6 +21,7 @@ See also: :mod:`pitloom.id_registry._registry` (``IdRegistry.rebase``,
 from __future__ import annotations
 
 import logging
+import os
 from typing import TYPE_CHECKING, NamedTuple
 
 from pitloom.id_registry._types import RegistryEntry
@@ -33,6 +34,7 @@ log = logging.getLogger("pitloom.id_registry")
 __all__ = [
     "Rebase",
     "added_ids",
+    "failed_to_save_message",
     "persist_registry",
     "replay_changes",
     "warn_no_registry_path",
@@ -111,6 +113,16 @@ def _id_of(entry: RegistryEntry | None) -> str | None:
     return entry.spdx_id if entry is not None else None
 
 
+def failed_to_save_message(
+    path: str | os.PathLike[str] | None, exc: BaseException
+) -> str:
+    """The one line for a registry save that failed: ``ID registry: failed
+    to save <path>: <reason>``. A ``WARNING:`` where the run's output is
+    already written (:func:`persist_registry`), an ``ERROR:`` for ``id
+    generate``/``id import``, whose output is the registry."""
+    return f"ID registry: failed to save {path}: {exc}"
+
+
 def warn_no_registry_path() -> None:
     """Log the one ``WARNING:`` for a registry with no file to save to."""
     log.warning("ID registry: no file path resolved; skipping auto-update.")
@@ -138,7 +150,7 @@ def persist_registry(registry: IdRegistry, new_ids: int, changed: bool) -> None:
             return
         registry.save()
     except (OSError, ValueError) as exc:
-        log.warning("ID registry: failed to save %s: %s", registry.path, exc)
+        log.warning("%s", failed_to_save_message(registry.path, exc))
         return
     if new_ids > rebased.refused:
         log.info(

@@ -36,12 +36,14 @@ from pitloom.core.inert_options import PROJECT, SDIST, settle_inert
 from pitloom.core.models import get_wheel_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.walk_rules import without_registry_copies
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.extract.project import resolve_project_with_lockfile
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.id_registry import (
     IdRegistry,
     registry_base_dir,
+    registry_copy,
     registry_file_path,
     resolve_registry,
 )
@@ -198,9 +200,14 @@ def generate_project_sbom(
     with TerminationGuard():
         if target_path.is_file():
             # Warned above, before metadata resolution -- nothing left to
-            # warn about here.
+            # warn about here. An sdist's copy of an in-tree registry is
+            # left out as discovery leaves out the file (D7).
             merkle_root = None
-            project_files = project_metadata.files
+            project_files = without_registry_copies(
+                project_metadata.files,
+                registry_copy(resolved_registry),
+                in_sdist=True,
+            )
             cleanup_discovery: Callable[[], None] = _noop_cleanup
         else:
             merkle_root, project_files, cleanup_discovery = get_wheel_files(
@@ -224,14 +231,13 @@ def generate_project_sbom(
         # (document assembly only uses distribution_path/physical_path as
         # string keys, never re-opens the file).
         try:
-            if not target_path.is_file():
-                # `project_files` becomes the metadata's authoritative file
-                # list for a directory target. Every other dict/list field
-                # gets its own fresh copy too, so nothing downstream can
-                # mutate the caller's own `project_metadata`.
-                project_metadata = project_metadata.replace_with_fresh_containers(
-                    files=project_files
-                )
+            # `project_files` becomes the metadata's authoritative file
+            # list. Every other dict/list field gets its own fresh copy too,
+            # so nothing downstream can mutate the caller's own
+            # `project_metadata`.
+            project_metadata = project_metadata.replace_with_fresh_containers(
+                files=project_files
+            )
 
             ai_models = (
                 scan_project_for_ai_models(

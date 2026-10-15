@@ -7,6 +7,7 @@
 
 See also: :mod:`pitloom.id_registry._types` for ``RegistryEntry`` and file
 traversal, :mod:`pitloom.id_registry._format` for the file format,
+:mod:`pitloom.id_registry._counters` for the id counters,
 :mod:`pitloom.id_registry._harvest` for SBOM-element harvest helpers,
 :mod:`pitloom.id_registry.resolve` for registry resolution.
 """
@@ -15,7 +16,6 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -25,6 +25,12 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.iri import doc_namespace, iri_segment, require_namespace_iri
 from pitloom.core.walk_rules import same_path
+from pitloom.id_registry._counters import (
+    MAX_ID_NUMBER,
+    Counters,
+    id_number,
+    merge_counters,
+)
 from pitloom.id_registry._format import (
     read_registry_file,
     registry_dir,
@@ -55,7 +61,8 @@ class IdRegistry:
 
     Each entry may carry the element's SHA-256. Harvest records what an
     element has; a lookup decides whether the hash must match
-    (:meth:`lookup`).
+    (:meth:`lookup`). :attr:`id_counters` keeps a retired id from being
+    minted again (:meth:`reserve_id`).
     """
 
     def __init__(
@@ -64,12 +71,17 @@ class IdRegistry:
         elements: dict[tuple[str, str], RegistryEntry] | None = None,
         path: Path | None = None,
         project_root: Path | None = None,
+        *,
+        id_counters: Counters | None = None,
     ) -> None:
         self.namespace = namespace
         #: Keyed by :func:`~pitloom.id_registry._types._element_key`.
         self.elements: dict[tuple[str, str], RegistryEntry] = (
             elements if elements is not None else {}
         )
+        #: Id prefix -> the highest number minted or seen in
+        #: :attr:`namespace`; never lowered, and never below a held id's.
+        self.id_counters: Counters = dict(id_counters or {})
         self.path = path
         #: Absolute and realpath'd; ``None`` until set or saved.
         self.project_root: Path | None = (
@@ -78,6 +90,7 @@ class IdRegistry:
         # The table as last read from or written to `path`: what `rebase`
         # tells this object's own changes apart by. None: neither yet.
         self._on_disk: dict[tuple[str, str], RegistryEntry] | None = None
+        self._reserve_held()
 
     @classmethod
     def new(
@@ -119,6 +132,7 @@ class IdRegistry:
             elements=dict(contents.elements),
             path=path,
             project_root=contents.project_root,
+            id_counters=contents.id_counters,
         )
         registry._on_disk = contents.elements
         return registry
@@ -130,8 +144,9 @@ class IdRegistry:
 
         A change is a key whose entry differs from the table this object
         last read or wrote; for one that has read or written none, every
-        entry is. The namespace and project root become the file's. With no
-        file at :attr:`path` yet, the registry is left as it is.
+        entry is. The namespace and project root become the file's; the id
+        counters merge by maximum, so neither run lowers one. With no file
+        at :attr:`path` yet, the registry is left as it is.
 
         Raises:
             ValueError: the file no longer loads, or (never read) does not.
@@ -148,8 +163,14 @@ class IdRegistry:
         self.elements.update(merged)
         self.namespace = contents.namespace
         self.project_root = contents.project_root
+        self.id_counters = merge_counters(self.id_counters, contents.id_counters)
+        self._reserve_held()
         self._on_disk = contents.elements
-        return Rebase(refused=refused, pending=merged != contents.elements)
+        return Rebase(
+            refused=refused,
+            pending=merged != contents.elements
+            or self.id_counters != contents.id_counters,
+        )
 
     def get(self, type_name: str, name: str) -> RegistryEntry | None:
         """Return the entry for *name* under *type_name*, or ``None``."""
@@ -220,21 +241,38 @@ class IdRegistry:
             return registry_dir(self.path)
         return Path(os.path.realpath(os.getcwd()))
 
+    def reserve_id(self, spdx_id: str) -> None:
+        """Never mint *spdx_id*: when it is ``<namespace>#<prefix>-<n>`` in
+        this registry's namespace (:func:`~pitloom.id_registry._counters.id_number`),
+        raise the prefix's counter to *n*. Any other id is ignored."""
+        found = id_number(self.namespace, spdx_id)
+        if found is not None and found[1] > self.id_counters.get(found[0], 0):
+            self.id_counters[found[0]] = found[1]
+
+    def _reserve_held(self) -> None:
+        """:meth:`reserve_id` every id the table holds, so one that leaves it
+        is never minted again, even when set without a mint."""
+        for entry in self.elements.values():
+            self.reserve_id(entry.spdx_id)
+
     def _mint_id(self, prefix: str) -> str:
-        """Mint the next stable ``#<prefix>-<n>`` id in this registry's namespace.
+        """Mint the next ``#<prefix>-<n>`` id in this registry's namespace:
+        one above the prefix's counter and every held id, never an id issued
+        before (I8). Raises ``ValueError`` past
+        :data:`~pitloom.id_registry._counters.MAX_ID_NUMBER`.
 
         *prefix* is raw: ``loom id generate -e NAME:TYPE`` derives it from a
         user-given TYPE, so it passes through :func:`iri_segment` too.
         """
         prefix = iri_segment(prefix)
-        ns, pfx = re.escape(self.namespace), re.escape(prefix)
-        pattern = re.compile(rf"^{ns}#{pfx}-(\d+)$")
-        max_n = 0
-        for entry in self.elements.values():
-            match = pattern.match(entry.spdx_id)
-            if match:
-                max_n = max(max_n, int(match.group(1)))
-        return f"{self.namespace}#{prefix}-{max_n + 1}"
+        self._reserve_held()
+        number = self.id_counters.get(prefix, 0) + 1
+        if number > MAX_ID_NUMBER:
+            raise ValueError(
+                f"ID registry: no {prefix} id left to mint in {self.namespace}"
+            )
+        self.id_counters[prefix] = number
+        return f"{self.namespace}#{prefix}-{number}"
 
     def register(self, type_name: str, name: str, *, sha256: str | None = None) -> str:
         """Register *name* under *type_name* and return its ``spdxId``.
@@ -270,10 +308,10 @@ class IdRegistry:
         file a project scan lists as an AI model also registers its stem as
         an ``ai_AIPackage`` with the file's hash, so a retrained model (other
         bytes) gets a new id. A stem shared by several model files is
-        registered by name only: no one file stands for it, and a hash
-        gate would re-mint on every run; an entry recorded with a hash when
-        one file had the stem loses it (keeping its id), so the result does
-        not depend on the registry's history.
+        registered with no hash (:meth:`register` given none): no one file
+        stands for it, and a hash gate would re-mint on every run. An
+        existing entry is left as is, a recorded hash included (D12), so a
+        fresh registry and one with history can differ for that stem.
         """
         # pylint: disable=import-outside-toplevel,cyclic-import
         from pitloom.extract.ai_model import AiModelFormat, detect_ai_model_format
@@ -302,22 +340,11 @@ class IdRegistry:
                 continue
             log.info(
                 "ID registry: %d model files share the name %s; "
-                "its entry is not content-gated",
+                "its entry is left as is",
                 len(hashes),
                 stem,
             )
-            self._register_ungated(AI_PACKAGE_TYPE, stem)
-
-    def _register_ungated(self, type_name: str, name: str) -> None:
-        """Register *name* under *type_name* with no hash, dropping a
-        recorded one but keeping the id: unlike :meth:`register`, which never
-        erases a hash."""
-        key = _element_key(type_name=type_name, name=name)
-        existing = self.elements.get(key)
-        if existing is None:
-            self.register(type_name, name)
-        elif existing.sha256 is not None:
-            self.elements[key] = RegistryEntry(spdx_id=existing.spdx_id)
+            self.register(AI_PACKAGE_TYPE, stem)
 
     def import_sbom(self, sbom_path: Path) -> frozenset[tuple[str, str]]:
         """Harvest ids from an existing SPDX 3 JSON-LD SBOM into this registry.
@@ -327,13 +354,16 @@ class IdRegistry:
         :func:`~pitloom.id_registry._ambiguous._ambiguous_keys`). An empty
         registry adopts the SBOM's document id as its namespace when that
         is a namespace IRI (:func:`~pitloom.core.iri.require_namespace_iri`);
-        otherwise it keeps its own, with one ``WARNING:``.
+        otherwise it keeps its own, with one ``WARNING:``. The imported id
+        wins, even over a content-gated entry (``imported=True`` in
+        :func:`~pitloom.id_registry._harvest._import_sbom_element`).
         """
         object_set = spdx3.SHACLObjectSet()
         with open(sbom_path, "rb") as f:
             spdx3.JSONLDDeserializer().read(f, object_set)
 
         sorted_objects = _sorted_by_spdx_id(object_set)
+        self._reserve_held()
 
         if not self.elements:
             document = next(
@@ -343,7 +373,7 @@ class IdRegistry:
             if document is not None and document.spdxId:
                 self._adopt_namespace(str(document.spdxId))
 
-        return _harvest_elements(self, sorted_objects)
+        return _harvest_elements(self, sorted_objects, imported=True)
 
     def _adopt_namespace(self, namespace: str) -> None:
         """Take *namespace* as this registry's, if it can be one."""
@@ -367,18 +397,21 @@ class IdRegistry:
         Returns ``(new_ids, changed)``: *new_ids* counts the distinct
         spdxIds the registry did not hold before, under keys it did not hold
         either (an id replacing a key's entry is an update, not an
-        addition); *changed* says whether anything changed at all, and is
-        what a caller gates a ``save()`` on -- releasing a stale key while
-        another claims its id changes the content without adding an id.
+        addition); *changed* says whether anything changed at all, an id
+        counter included, and is what a caller gates a ``save()`` on --
+        releasing a stale key while another claims its id changes the
+        content without adding an id.
         """
         return self._harvest_sorted(_sorted_by_spdx_id(object_set))
 
     def _harvest_sorted(self, sorted_objects: list[Any]) -> tuple[int, bool]:
         """Harvest *sorted_objects* (see
         :func:`~pitloom.id_registry._harvest._sorted_by_spdx_id`)."""
-        before = dict(self.elements)
-        _harvest_elements(self, sorted_objects)
-        return added_ids(before, self.elements), self.elements != before
+        self._reserve_held()
+        before, counters = dict(self.elements), dict(self.id_counters)
+        _harvest_elements(self, sorted_objects, imported=False)
+        changed = self.elements != before or self.id_counters != counters
+        return added_ids(before, self.elements), changed
 
     def save(self, path: Path | None = None) -> None:
         """Write this registry as JSON to *path* (default: :attr:`path`).
@@ -393,7 +426,10 @@ class IdRegistry:
         root = (
             self.project_root if self.project_root is not None else registry_dir(target)
         )
-        write_registry_file(target, self.namespace, self.elements, root)
+        self._reserve_held()
+        write_registry_file(
+            target, self.namespace, self.elements, root, self.id_counters
+        )
         self.path = target
         self.project_root = root
         self._on_disk = dict(self.elements)

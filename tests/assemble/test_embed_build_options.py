@@ -292,7 +292,13 @@ def test_single_and_batch_embed_scan_the_project_identically(
             )
 
     single, batch = mocked.call_args_list
-    assert single == batch
+    # The registry warning hook is per batch: each cache passes its own.
+    scans = [
+        (call.args, {k: v for k, v in call.kwargs.items() if k != "on_left_out"})
+        for call in (single, batch)
+    ]
+    assert all(callable(call.kwargs["on_left_out"]) for call in (single, batch))
+    assert scans[0] == scans[1]
     # Non-vacuous: the overrides really reached the scan.
     assert single.kwargs["scan_file_headers"] is True
     assert single.kwargs["detect_content_type"] is True

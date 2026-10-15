@@ -5,10 +5,11 @@
 
 """The Loom ID registry file, version 3: read and write.
 
-The file is one JSON object with exactly four keys::
+The file is one JSON object with exactly five keys::
 
     {
       "elements": {"<compact type>": {"<name>": {"sha256": "...", "spdxId": "..."}}},
+      "id_counters": {"<id prefix>": <highest number minted or seen>},
       "namespace": "<IRI>",
       "project_root": "<POSIX path relative to this file's directory>",
       "version": 3
@@ -19,7 +20,8 @@ The file is one JSON object with exactly four keys::
 
 See also: :mod:`pitloom.id_registry._registry` (``IdRegistry.load`` and
 ``IdRegistry.save`` call this module), :mod:`pitloom.id_registry._types`
-(``RegistryEntry`` and the key rule).
+(``RegistryEntry`` and the key rule), :mod:`pitloom.id_registry._counters`
+(``id_counters``).
 """
 
 from __future__ import annotations
@@ -32,7 +34,8 @@ from typing import Any, NamedTuple
 
 from pitloom._sbom_io import replace_text_lf
 from pitloom.core.canonical_json import canonical_json_indented
-from pitloom.core.iri import require_namespace_iri
+from pitloom.core.iri import is_iri_segment, require_namespace_iri
+from pitloom.id_registry._counters import MAX_ID_NUMBER, Counters
 from pitloom.id_registry._types import (
     _REGISTRY_VERSION,
     RegistryEntry,
@@ -47,7 +50,9 @@ __all__ = [
     "write_registry_file",
 ]
 
-_TOP_LEVEL_KEYS = frozenset({"elements", "namespace", "project_root", "version"})
+_TOP_LEVEL_KEYS = frozenset(
+    {"elements", "id_counters", "namespace", "project_root", "version"}
+)
 _ENTRY_KEYS = frozenset({"sha256", "spdxId"})
 
 
@@ -57,6 +62,7 @@ class RegistryFileContents(NamedTuple):
     namespace: str
     elements: dict[tuple[str, str], RegistryEntry]
     project_root: Path
+    id_counters: Counters
 
 
 def registry_dir(path: Path) -> Path:
@@ -124,7 +130,7 @@ def read_registry_file(path: Path) -> RegistryFileContents:
         raise registry_file_error(
             path, f"unknown top-level key(s): {', '.join(map(repr, unknown))}"
         )
-    for required in ("elements", "project_root"):
+    for required in ("elements", "id_counters", "project_root"):
         if required not in data:
             raise registry_file_error(path, f"missing {required!r}")
 
@@ -132,7 +138,35 @@ def read_registry_file(path: Path) -> RegistryFileContents:
         namespace=namespace,
         elements=_parse_elements(path, data["elements"]),
         project_root=_parse_project_root(path, data["project_root"]),
+        id_counters=_parse_counters(path, data["id_counters"]),
     )
+
+
+def _parse_counters(path: Path, raw: object) -> Counters:
+    """The ``id_counters`` table: each key an id prefix a mint can write
+    (:func:`~pitloom.core.iri.is_iri_segment`), each value a whole number
+    from 1 to :data:`~pitloom.id_registry._counters.MAX_ID_NUMBER` (a
+    boolean is not one)."""
+    if not isinstance(raw, dict):
+        raise registry_file_error(path, "'id_counters' is not an object")
+    counters: Counters = {}
+    for prefix, number in sorted(raw.items()):
+        if not is_iri_segment(prefix):
+            raise registry_file_error(
+                path, f"'id_counters' key {prefix!r} is not an id prefix"
+            )
+        if (
+            isinstance(number, bool)
+            or not isinstance(number, int)
+            or not 1 <= number <= MAX_ID_NUMBER
+        ):
+            raise registry_file_error(
+                path,
+                f"'id_counters' {prefix!r}: {number!r} is not a whole number "
+                f"from 1 to {MAX_ID_NUMBER}",
+            )
+        counters[prefix] = number
+    return counters
 
 
 def _parse_project_root(path: Path, value: object) -> Path:
@@ -215,6 +249,7 @@ def write_registry_file(
     namespace: str,
     elements: dict[tuple[str, str], RegistryEntry],
     project_root: Path,
+    id_counters: Counters,
 ) -> None:
     """Write a version 3 registry file to *target*: canonical JSON,
     indented, LF line endings and one trailing newline. Replaced atomically
@@ -229,6 +264,7 @@ def write_registry_file(
         by_type.setdefault(type_name, {})[name] = record
     data = {
         "elements": by_type,
+        "id_counters": dict(sorted(id_counters.items())),
         "namespace": namespace,
         "project_root": _stored_project_root(target, project_root),
         "version": _REGISTRY_VERSION,

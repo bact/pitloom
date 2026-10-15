@@ -63,6 +63,11 @@
       }
     }
   },
+  "id_counters": {
+    "AIPackage": 1,
+    "DatasetPackage": 4,
+    "File": 10
+  },
   "namespace": "https://spdx.org/spdxdocs/sentimentdemo-aibom-02679af2-dd22-459c-8143-0d82396823c7",
   "project_root": ".",
   "version": 3

@@ -4,7 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for ``get_wheel_files(exclude_path=...)``: the declared Loom ID
-registry is left out of the file set and the Merkle root.
+registry is left out of the file set and the Merkle root; and for
+``RegistryCopy``/``registry_copy``, which recognise its copy among a built
+wheel's or sdist's members.
 
 See also: tests/core/test_walk_rules.py, tests/core/models_wheel/
 test_models_wheel_files.py, tests/id_registry/test_surfaces_in_tree_registry.py.
@@ -22,7 +24,15 @@ from pitloom.core._models_wheel_build_and_read import build_and_read_wheel
 from pitloom.core._models_wheel_types import IncludedFile
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.models import get_wheel_files
-from pitloom.core.walk_rules import REGISTRY_IN_FILE_SET_WARNING
+from pitloom.core.walk_rules import (
+    REGISTRY_IN_FILE_SET_WARNING,
+    RegistryCopy,
+    without_registry_copies,
+)
+from pitloom.extract.wheel import read_wheel
+from pitloom.id_registry import IdRegistry, registry_copy
+from tests._symlink import CAN_SYMLINK, case_sensitive
+from tests.assemble.conftest import _make_dummy_wheel
 from tests.build_and_read_shared import BUILD_AND_READ, make_backend_project
 
 
@@ -224,3 +234,130 @@ def test_only_a_readable_copy_outside_the_project_is_the_registry(
         )
     cleanup()
     assert ([f.distribution_path for f in files], len(_warnings(caplog))) == outcome
+
+
+def _rooted(tmp_path: Path, rel: str) -> tuple[Path, Path]:
+    """(project, registry): a registry file at *rel* below the project."""
+    project = tmp_path / "proj"
+    registry = _write(project, rel, _REG)
+    return project, registry
+
+
+@pytest.mark.parametrize(
+    ("rel", "member", "in_sdist", "matches"),
+    [
+        ("demo/reg.json", "demo/reg.json", False, True),
+        ("src/demo/reg.json", "demo/reg.json", False, True),
+        ("demo/reg.json", "x/demo/reg.json", False, False),
+        ("demo/reg.json", "other/reg.json", False, False),
+        ("demo/reg.json", "demo/reg.jsonx", False, False),
+        ("demo/reg.json", "demo-1.0/demo/reg.json", True, True),
+        ("src/demo/reg.json", "demo-1.0/demo/reg.json", True, False),
+        ("demo/reg.json", "demo-1.0/reg.json", True, False),
+        ("demo/reg.json", "PKG-INFO", True, False),
+        ("../reg.json", "reg.json", False, False),
+    ],
+    ids=[
+        "flat",
+        "src-tail",
+        "longer",
+        "other-dir",
+        "other-name",
+        "sdist",
+        "sdist-tail",
+        "sdist-short",
+        "sdist-top-file",
+        "outside",
+    ],
+)
+def test_registry_copy_member_rule(
+    tmp_path: Path, rel: str, member: str, in_sdist: bool, matches: bool
+) -> None:
+    """A member is a copy when its path is the registry's below the root
+    or (a wheel only) a tail of it: never longer, never a sibling."""
+    project, registry = _rooted(tmp_path, rel)
+    assert RegistryCopy(registry, project).matches(member, in_sdist=in_sdist) is matches
+
+
+def test_registry_copy_member_in_another_case(tmp_path: Path) -> None:
+    """``Demo/REG.json`` is the registry where the file system folds case;
+    elsewhere it is another file."""
+    project, registry = _rooted(tmp_path, "demo/reg.json")
+    folds = not case_sensitive(tmp_path)
+    copy = RegistryCopy(registry, project)
+    assert copy.matches("Demo/REG.json") is folds
+    assert copy.matches("Demo/other.json") is False
+
+
+@pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symlink")
+@pytest.mark.parametrize(
+    "link", ["root", "registry"], ids=["linked-root", "linked-registry"]
+)
+def test_registry_copy_through_a_symlink(tmp_path: Path, link: str) -> None:
+    """A root reached through a symlink, or a registry that is a symlink
+    to a file outside the project: its path as spelt still names the
+    member."""
+    project = tmp_path / "proj"
+    (project / "demo").mkdir(parents=True)
+    if link == "root":
+        _write(project, "demo/reg.json", _REG)
+        (tmp_path / "alias").symlink_to(project, target_is_directory=True)
+        registry, root = tmp_path / "alias" / "demo" / "reg.json", project
+    else:
+        target = _write(tmp_path, "elsewhere/reg.json", _REG)
+        registry, root = project / "demo" / "reg.json", project
+        registry.symlink_to(target)
+    assert RegistryCopy(registry, root).matches("demo/reg.json")
+
+
+@pytest.mark.parametrize(
+    ("root", "given", "found"),
+    [
+        ("stored", None, True),
+        ("stored", "sdist-file", True),
+        ("own-dir", None, False),
+        ("own-dir", "project", True),
+        ("unsaved", None, False),
+        ("in-memory", "project", False),
+    ],
+    ids=["stored", "file-dir", "own-dir", "dir-wins", "unsaved", "in-memory"],
+)
+def test_registry_copy_root(
+    tmp_path: Path, root: str, given: str | None, found: bool
+) -> None:
+    """The root is the given project directory, else the one the registry
+    stores; no file or no stored root leaves nothing out."""
+    project, path = _rooted(tmp_path, "demo/reg.json")
+    stored = project if root == "stored" else None
+    registry = IdRegistry.new("demo", project_root=stored)
+    if root in ("stored", "own-dir"):
+        registry.save(path)
+    elif root == "unsaved":
+        registry.path = path
+    project_dir = {
+        None: None,
+        "project": project,
+        "sdist-file": _write(tmp_path, "demo-1.0.tar.gz", b""),
+    }[given]
+    copy = registry_copy(registry, project_dir)
+    assert (copy is not None and copy.matches("demo/reg.json")) is found
+    assert registry_copy(None, project) is None
+
+
+def test_backslash_member_of_a_wheel_is_the_registry(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """``demo\\reg.json`` (a Windows-written raw name) is installed at
+    ``demo/reg.json``: the copy is left out, once, by its install name."""
+    project, registry = _rooted(tmp_path, "demo/reg.json")
+    wheel = _make_dummy_wheel(
+        tmp_path / "dist", "demo", "1.0", extra_members={"demo\\reg.json": b"{}"}
+    )
+    _, files = read_wheel(wheel)
+    assert "demo/reg.json" in [f.distribution_path for f in files]  # not vacuous
+
+    with caplog.at_level(logging.WARNING):
+        kept = without_registry_copies(files, RegistryCopy(registry, project))
+    assert "demo/reg.json" not in [f.distribution_path for f in kept]
+    assert len(kept) == len(files) - 1
+    assert _warnings(caplog) == [REGISTRY_IN_FILE_SET_WARNING % registry]

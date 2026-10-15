@@ -266,3 +266,42 @@ def test_cli_import_then_model_reuses_a_hashed_ai_package_id(
 
     graph = json.loads(out.read_text(encoding="utf-8"))["@graph"]
     assert [e["spdxId"] for e in graph if e["type"] == "ai_AIPackage"] == [model_id]
+
+
+# --- `id import` over a content-gated entry (user ruling, 2026-10-15) ---
+
+
+@pytest.mark.parametrize("same_id", [False, True], ids=["other-id", "same-id"])
+def test_cli_import_of_an_unhashed_model_says_it_drops_the_gate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    same_id: bool,
+) -> None:
+    """Another id: the imported id wins, the hash goes, one ``INFO:`` says
+    so. The entry's own id: the hash stays, nothing is said."""
+    namespace, sha = "https://example.org/r", "c" * 64
+    held = f"{namespace}#AIPackage-1"
+    registry = tmp_path / "registry.json"
+    entries = {(AI_PACKAGE_TYPE, "tiny"): (held, sha)}
+    make_registry(entries, namespace=namespace, path=registry)
+    imported = held if same_id else f"{_IMPORTED}#AIPackage-tiny-1"
+    sbom_path = tmp_path / "old.spdx3.json"
+    _write_sbom(
+        sbom_path, spdx3.ai_AIPackage(spdxId=imported, name="tiny", creationInfo=_CI)
+    )
+    capsys.readouterr()
+
+    argv = ["id", "import", str(sbom_path), "-o", str(registry)]
+    assert _run_cli(monkeypatch, argv) == 0
+
+    gate = [ln for ln in capsys.readouterr().err.splitlines() if "content gate" in ln]
+    reloaded = IdRegistry.load(registry).get(AI_PACKAGE_TYPE, "tiny")
+    if same_id:
+        assert (gate, reloaded) == ([], RegistryEntry(held, sha))
+        return
+    assert gate == [
+        "INFO: ID registry: content gate dropped for ai_AIPackage 'tiny': "
+        f"imported id {imported} replaces {held}"
+    ]
+    assert reloaded == RegistryEntry(imported)

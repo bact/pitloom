@@ -33,8 +33,8 @@ The full run takes minutes; pytest already runs a slice of it in CI
   | Area | `--only` |
   |---|---|
   | wheel, embed | `3,4a,16,S2,S3,S7,S8,M/wheel/*,M/embed-wheel/*,M/verify-wheel/*,M/validate-wheel/*` |
-  | registry, ids | `9,14,20,21,S4,S5,M/id-*/*` |
-  | `loom.run` (SDK), dataset hashing, loom models | `20,21` |
+  | registry, ids | `9,14,20,21,S4,S5,M/id-*/*`, plus `O*` (order matrix) |
+  | `loom.run` (SDK), dataset hashing, loom models | `20,21,O1/*/fresh-loom,O3/*` |
   | fragments, merge | `7,S6,M/merge/*,M/fragment-*/*` |
   | build, `--allow-build`, termination | `B*,10` |
   | config, options, cascade | `5,12,13,15,M/completeness`, plus `M/<cmd>/*` per command whose options changed |
@@ -86,6 +86,9 @@ checks (`1`-`21`, `B1`-`B7`) it runs:
   orders, registry updates, `id import`, a merge into its own input
   directory, verifying before and after embedding, embedding a
   hook-built wheel.
+- **The ID registry order matrix** (`O1`-`O5`): registry operations in
+  many orders on several fixtures, each sequence a replayable shell
+  script; see [Order matrix](#order-matrix-o1-o5) below.
 
 A failing cell already tracked in the roadmap reports `KNOWN` with the
 item's title (`_known.py`) -- only when its failure text is the tracked
@@ -421,3 +424,65 @@ the next training run (those new bytes) gets a new id with exactly one
 `content changed` INFO. Automated as check 21
 (`scripts/manual_cli_checks/_checks_loom.py::check_loom_model_ids`);
 per-case detail in `tests/core/test_loom_model.py`.
+
+## Order matrix (`O1`-`O5`)
+
+Does the order of Pitloom operations change the ids the registry keeps,
+and does every outcome match the design
+([id-registry-v3.md](id-registry-v3.md),
+[build notes](id-registry-v3-build-notes.md))? Each sequence is rendered
+as a POSIX shell script (`set -eu`, one `run NN ...` line per step) and
+checked by running that script, so what is checked is what a user can
+replay. `run` keeps each step's exit status, stdout, stderr and the
+registry as the step left it; the invariants read only those files and
+the SBOMs written, never registry code.
+
+- **Steps** (`_order_ops.py`): `id generate` (plain, with both datasets
+  pinned by `-e`, or `pyproject.toml` alone), `id import` (of the latest
+  SBOM or fragment, or of the setup's SBOM), `project`, `wheel` and
+  `embed-wheel --project-dir` (each on a fresh offline build), `model`,
+  two `loom.run` scripts (`set_model`/`use_model(path=)`, a file and a
+  directory dataset), and the mutating `retrain`, `edit-file` (the
+  newest module the sequence added, else a fixed one), `edit-data`,
+  `rename-file`, `add-file`. Not covered: `enrich`, `env`,
+  `merge`, the Hatchling hook with a registry, setuptools wheels (the
+  build writes `*.egg-info` into the project).
+- **Fixtures** (`_order_fixtures.py`, built per run, copied by each
+  script): `flat` (the demo project plus loom scripts and data),
+  `src` (`sampleproject-hatchling`, `src/` layout), `setuptools`
+  (`sampleproject-setuptools`, no model), `stems` (two model files with
+  one stem), `intree` (the registry declared in `[tool.pitloom]` inside
+  the package).
+- **Sequences** (`_order_gen.py`): `O1/<fixture>/<set>` runs every
+  permutation of three or four non-mutating steps; `O2/<fixture>/<n>`
+  seeded random walks of 4-8 steps with mutations; `O3/<fixture>` each
+  reader step three times running; `O4/<fixture>` a v2, an invalid and
+  a read-only registry injected mid-sequence; `O5/<fixture>` fixed
+  scenarios, the shortest sequences a walk was seen to break, so the
+  default budget always covers them. `PITLOOM_ORDER_DEPTH=deep`
+  runs 96 walks per fixture of up to 12 steps (default 16 of up to 8);
+  `PITLOOM_ORDER_SEED` changes the walks' seed. The default O-group runs
+  in about 1.5 minutes with `-j 8`.
+- **Invariants** (`_order_invariants.py`, each citing its design
+  section): A stability (and harvest records), B typed ids, C
+  idempotence, D clean runs and no duplicate id, E cross-surface
+  agreement, F pinned ids survive, H failures; G, the convergence of the
+  final registries over one permutation set (`order-independent`,
+  `order-dependent (benign: mint order only)`, `order-dependent (benign:
+  id import dropped a content gate)` when only keys an `id import` logged
+  `content gate dropped` for differ in sha256, or a violation), is in
+  `_checks_order.py`. `-v` prints each check's report: the G line, how
+  many comparisons each rule made (a guard against a vacuous pass), the
+  `WARNING:`/`ERROR:` shapes logged, known findings.
+- **Failures**: a sequence that breaks an invariant keeps its script,
+  fixture, logs and outputs in `$TMPDIR/ord-repro-*` (at most five per
+  check; delete them when done). Replay with
+  `sh <repro>/seq.sh "$(mktemp -d)"`; `PITLOOM_PYTHON` picks the
+  interpreter.
+- **Known findings**: `_order_known.py` lists accepted ones, each naming
+  its [id-registry-followups.md](../design/id-registry-followups.md)
+  item; a check failing only on those ends `KNOWN`.
+- POSIX only (skipped on Windows); the read-only cases skip as root.
+  `tests/scripts/test_manual_cli_checks_order.py` checks that every
+  invariant fires on a doctored step, and that a broken registry lookup
+  in a real run is caught.

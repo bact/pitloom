@@ -15,6 +15,7 @@ See also: test_registry.py (the in-memory API), test_registry_import.py
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, TypeVar
@@ -96,9 +97,9 @@ def test_harvest_records_every_element_under_its_own_key() -> None:
 def test_harvested_id_wins_over_an_existing_entry() -> None:
     registry = make_registry({(FILE_TYPE, "a.py"): (f"{_NS}#File-9", _SHA_A)})
 
-    _import_sbom_element(registry, _file("a.py", f"{_NS}#File-1"))
+    _import_sbom_element(registry, _file("a.py", f"{_NS}#File-1", _SHA_B))
 
-    assert registry.get(FILE_TYPE, "a.py") == RegistryEntry(f"{_NS}#File-1")
+    assert registry.get(FILE_TYPE, "a.py") == RegistryEntry(f"{_NS}#File-1", _SHA_B)
 
 
 @pytest.mark.parametrize(
@@ -215,28 +216,62 @@ def test_release_stale_keys_checks_id_before_computing_path_alias() -> None:
     assert registry.lookup(FILE_TYPE, ["colliding_c"]) == collided
 
 
+_DROPPED = "content gate dropped for software_File 'a.py'"
+_KEPT = "content gate kept for software_File 'a.py'"
+
+
 @pytest.mark.parametrize(
-    ("incoming", "same_id", "expected", "changed"),
+    ("incoming", "new_id", "imported", "want", "info"),
     [
-        (None, True, _SHA_A, False),
-        (_SHA_B, True, _SHA_B, True),
-        (_SHA_A, True, _SHA_A, False),
-        (None, False, None, True),
+        (None, False, False, ("old", _SHA_A), None),
+        (_SHA_B, False, False, ("old", _SHA_B), None),
+        (_SHA_A, False, False, ("old", _SHA_A), None),
+        (None, True, False, ("old", _SHA_A), _KEPT),
+        (None, False, True, ("old", _SHA_A), None),
+        (_SHA_B, True, True, ("new", _SHA_B), None),
+        (None, True, True, ("new", None), _DROPPED),
     ],
-    ids=["keep", "replace", "same", "new-id"],
+    ids=["keep", "replace", "same", "new-id", "import-keep", "import-new", "import"],
 )
-def test_harvest_never_erases_a_recorded_sha(
-    incoming: str | None, same_id: bool, expected: str | None, changed: bool
+def test_harvest_never_erases_a_recorded_sha_and_import_says_so(
+    caplog: pytest.LogCaptureFixture,
+    incoming: str | None,
+    new_id: bool,
+    imported: bool,
+    want: tuple[str, str | None],
+    info: str | None,
 ) -> None:
-    old_id, new_id = f"{_NS}#File-1", f"{_NS}#File-2"
-    registry = make_registry({(FILE_TYPE, "a.py"): (old_id, _SHA_A)})
-    assert registry.get(FILE_TYPE, "a.py") == RegistryEntry(old_id, _SHA_A)
-    target = old_id if same_id else new_id
+    """A hashed element replaces the entry's hash; an unhashed one with its
+    id keeps it. An unhashed one with another id: a run's harvest leaves the
+    entry as is, ``id import`` writes it with no hash; each says so in one
+    INFO (user ruling, 2026-10-15)."""
+    ids = {"old": f"{_NS}#File-1", "new": f"{_NS}#File-2"}
+    registry = make_registry({(FILE_TYPE, "a.py"): (ids["old"], _SHA_A)})
+    assert registry.get(FILE_TYPE, "a.py") == RegistryEntry(ids["old"], _SHA_A)
+    element = _file("a.py", ids["new" if new_id else "old"], incoming)
+    caplog.set_level(logging.DEBUG, logger="pitloom.id_registry")
 
-    result = registry.harvest(_object_set(_file("a.py", target, incoming)))
+    # pylint: disable-next=protected-access
+    ids_mod._harvest_elements(registry, [element], imported=imported)
 
-    assert result == (0, changed)  # a replaced key's id is not a new entry
-    assert registry.get(FILE_TYPE, "a.py") == RegistryEntry(target, expected)
+    assert registry.get(FILE_TYPE, "a.py") == RegistryEntry(ids[want[0]], want[1])
+    detail = (
+        f"imported id {ids['new']} replaces {ids['old']}"
+        if imported
+        else f"harvested id {ids['new']} not recorded over {ids['old']}"
+    )
+    gate = [r for r in caplog.records if "content gate" in r.getMessage()]
+    assert [(r.levelno, r.getMessage()) for r in gate] == (
+        [(logging.INFO, f"ID registry: {info}: {detail}")] if info else []
+    )
+
+
+def test_harvest_returns_unchanged_when_it_keeps_a_gated_entry() -> None:
+    """The auto-harvest of an unhashed element under another id changes
+    nothing, so the run saves nothing."""
+    registry = make_registry({(FILE_TYPE, "a.py"): (f"{_NS}#File-1", _SHA_A)})
+
+    assert registry.harvest(_object_set(_file("a.py", f"{_NS}#File-2"))) == (0, False)
 
 
 @pytest.mark.parametrize(

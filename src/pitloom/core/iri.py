@@ -20,7 +20,13 @@ import string
 
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
 
-__all__ = ["SPDX_DOCS_BASE", "doc_namespace", "iri_segment", "require_namespace_iri"]
+__all__ = [
+    "SPDX_DOCS_BASE",
+    "doc_namespace",
+    "iri_segment",
+    "is_iri_segment",
+    "require_namespace_iri",
+]
 
 #: Base IRI of every Pitloom-minted SPDX document namespace.
 SPDX_DOCS_BASE = "https://spdx.org/spdxdocs/"
@@ -28,6 +34,8 @@ SPDX_DOCS_BASE = "https://spdx.org/spdxdocs/"
 # RFC 3987 ipchar in ASCII, minus "%": unreserved, sub-delims, ":" and "@".
 # Valid unencoded in both an ipath segment and an ifragment.
 _SAFE_ASCII = frozenset(string.ascii_letters + string.digits + "-._~!$&'()*+,;=:@")
+# The escape iri_segment() writes.
+_SEGMENT_ESCAPE = re.compile(r"%[0-9A-F]{2}")
 
 # RFC 3987 section 4.1 bans the bidi formatting characters (U+200E, U+200F,
 # U+202A-U+202E) from an IRI; the isolates, zero-width characters and BOM in
@@ -70,6 +78,14 @@ def iri_segment(name: str) -> str:
         if _is_safe(char)
         else "".join(f"%{byte:02X}" for byte in char.encode("utf-8", "surrogatepass"))
         for char in name
+    )
+
+
+def is_iri_segment(value: str) -> bool:
+    """Return whether *value* is a non-empty string :func:`iri_segment` can
+    write: characters it keeps, and ``%`` only in an upper-case ``%XX``."""
+    return bool(value) and all(
+        _is_safe(char) for char in _SEGMENT_ESCAPE.sub("", value)
     )
 
 

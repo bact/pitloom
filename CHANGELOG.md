@@ -58,9 +58,9 @@ and this project adheres to
 - Every input over a cap (model bounds, labels, names, wheel/sdist header
   blocks, config members, a 1 MiB model card) warns `<KEY>=…: larger than the
   N-unit … cap; <outcome>` ([#300])
-- ID registry format v3: one `elements` table keyed by type and name, plus
-  `project_root`; a v2 file is an `ERROR:`, not migrated. `id generate`
-  records a model's SHA-256; harvest writes a hashed `ai_AIPackage` ([#305])
+- ID registry format v3: `elements` by type and name, `project_root` and
+  `id_counters` (a retired id is never minted again); v2 is an `ERROR:`.
+  `id generate` and harvest record a model's SHA-256, never erase it ([#305])
 - `loom.Run` dataset files are a `dataset_DatasetPackage` that `contains` a
   `software_File`; a directory gets a Merkle root; `max-dataset-hash-bytes`
   (4 GiB) caps the read ([#305])
@@ -94,9 +94,9 @@ and this project adheres to
   ([#300])
 - A requirement or marker nesting over 64 parentheses warns instead of
   crashing the run ([#300])
-- `id import` keeps a model's hash; a registry inside the project settles;
-  `id generate` indexes a project under `build/` and warns on an unlistable
-  subdirectory; a merge keeps same-id elements of different types apart ([#305])
+- `id import` keeps a model's hash unless the id changes (`INFO:`); in-tree
+  registries and their wheel/sdist copies settle; `id generate` indexes `build/`,
+  warns on unlistable dirs; one failed-save line; same-id types merge apart ([#305])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305

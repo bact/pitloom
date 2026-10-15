@@ -386,35 +386,42 @@ def test_generate_a_stem_shared_by_model_files_is_name_only_and_stable(
     assert not _content_changed(caplog, "m")
 
 
-def test_generate_a_stem_becoming_shared_drops_its_hash_and_back(
+def test_generate_a_stem_becoming_shared_leaves_its_entry_as_is_and_back(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """1 -> 2 files: the entry keeps its id and loses its hash, as a fresh
-    registry over the same tree has none. 2 -> 1: a sha-less entry given a
-    hash is D12's ``content changed`` row: a new id, once, with the INFO."""
+    """1 -> 2 files: the entry keeps its id and its hash (D12: never
+    erased), so it differs from a fresh registry's over the same tree; a
+    third run saves the same bytes. 2 -> 1: the hash still matches, so the
+    entry is reused, with no ``content changed``."""
     (tmp_path / "a").mkdir()
     (tmp_path / "a" / "m.gguf").write_bytes(_GGUF + b"\0" * 16)
-    registry = IdRegistry.new("proj", project_root=tmp_path)
+    path = tmp_path / "reg.json"
+    registry = IdRegistry.new("proj", path=path, project_root=tmp_path)
     registry.generate([Path("a")], tmp_path)
     single = registry.get(AI_PACKAGE_TYPE, "m")
     assert single is not None and single.sha256 is not None  # non-vacuous
 
     (tmp_path / "b").mkdir()
     (tmp_path / "b" / "m.gguf").write_bytes(_GGUF + b"\1" * 16)
+    caplog.clear()
     registry.generate([Path("a"), Path("b")], tmp_path)
+    registry.save()
+    second = path.read_bytes()
+    registry.generate([Path("a"), Path("b")], tmp_path)
+    registry.save()
     fresh = IdRegistry.new("proj", project_root=tmp_path)
     fresh.generate([Path("a"), Path("b")], tmp_path)
 
+    assert registry.get(AI_PACKAGE_TYPE, "m") == single
+    assert path.read_bytes() == second
     fresh_entry = fresh.get(AI_PACKAGE_TYPE, "m")
     assert fresh_entry is not None and fresh_entry.sha256 is None
-    assert registry.get(AI_PACKAGE_TYPE, "m") == RegistryEntry(single.spdx_id)
-    assert not _content_changed(caplog, "m")
+    shared = "ID registry: 2 model files share the name m; its entry is left as is"
+    shares = [r.getMessage() for r in caplog.records if "share the name" in r.message]
+    assert shares == [shared] * 3  # two runs here, one fresh
 
     (tmp_path / "b" / "m.gguf").unlink()
     registry.generate([Path("a"), Path("b")], tmp_path)
 
-    back = registry.get(AI_PACKAGE_TYPE, "m")
-    assert back is not None
-    assert back.spdx_id != single.spdx_id
-    assert back.sha256 == single.sha256
-    assert len(_content_changed(caplog, "m")) == 1
+    assert registry.get(AI_PACKAGE_TYPE, "m") == single
+    assert not _content_changed(caplog, "m")

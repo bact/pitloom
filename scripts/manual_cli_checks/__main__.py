@@ -5,7 +5,7 @@
 """Run the manual CLI integration checks unattended.
 
 Real ``loom`` processes, fixture projects in a fresh temp dir (never the
-repo tree), stdlib only, Linux/macOS/Windows. Three kinds of check:
+repo tree), stdlib only, Linux/macOS/Windows. Four kinds of check:
 
 - ``1``-``20``, ``B1``-``B7``: the numbered checks of
   ``working-docs/implementation/manual-cli-checks.md`` (check 6, skills
@@ -15,7 +15,10 @@ repo tree), stdlib only, Linux/macOS/Windows. Three kinds of check:
   ``_matrix_plan.py``; ``M/completeness`` fails on any subcommand or
   option the plan does not classify;
 - ``S1``-``S8``: commands run in order, where one's side effect is the
-  next one's input.
+  next one's input;
+- ``O1``-``O5``: the ID registry's order matrix -- operations in many
+  orders on several fixtures, each sequence a replayable shell script
+  (``_checks_order.py``).
 
 Usage::
 
@@ -57,6 +60,7 @@ import _checks_config  # noqa: F401  # pylint: disable=unused-import
 import _checks_core  # noqa: F401  # pylint: disable=unused-import
 import _checks_loom  # noqa: F401  # pylint: disable=unused-import
 import _checks_model  # noqa: F401  # pylint: disable=unused-import
+import _checks_order  # noqa: F401  # pylint: disable=unused-import
 import _checks_setuptools  # noqa: F401  # pylint: disable=unused-import
 import _checks_wheel  # noqa: F401  # pylint: disable=unused-import
 import _fixtures

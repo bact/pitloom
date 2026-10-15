@@ -49,6 +49,7 @@ from pitloom.core.inert_options import (
 from pitloom.core.models import merkle_root_of_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import require_max_source_metadata_bytes
+from pitloom.core.walk_rules import without_registry_copies
 from pitloom.extract.authors import (
     CORE_METADATA_HINT,
     AuthorSplit,
@@ -57,7 +58,12 @@ from pitloom.extract.authors import (
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.project import read_project
 from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
-from pitloom.id_registry import IdRegistry, registry_base_dir, resolve_registry
+from pitloom.id_registry import (
+    IdRegistry,
+    registry_base_dir,
+    registry_copy,
+    resolve_registry,
+)
 
 
 def _resolve_embed_registry(
@@ -306,6 +312,11 @@ def _build_sbom_standalone_wheel(
     metadata.
     """
     file_cache, trust = batch
+    files = without_registry_copies(
+        wheel_metadata.files,
+        registry_copy(registry),
+        warn=lambda: file_cache is None or file_cache.registry_warning_due(),
+    )
     ai_models = scan_wheel_for_ai_models(
         wheel_path,
         scan_usage=cfg.scan_model_usage is True,
@@ -323,14 +334,14 @@ def _build_sbom_standalone_wheel(
         ),
     )
     doc = DocumentModel(
-        project=wheel_metadata,
+        project=wheel_metadata.replace_with_fresh_containers(files=files),
         creation_metadata=creation_metadata,
         ai_models=ai_models,
-        phantom_dependencies=find_phantom_dependencies(wheel_metadata.files),
+        phantom_dependencies=find_phantom_dependencies(files),
     )
     exporter = assemble_spdx3(
         doc,
-        merkle_root=merkle_root_of_files(wheel_metadata.files),
+        merkle_root=merkle_root_of_files(files),
         sbom_type=spdx3.software_SbomType.analyzed,
         registry=registry,
         **cfg.assemble_options,

@@ -86,7 +86,11 @@ distribution-path alias (`demo/x.py`) next to the `src/` entry, so a later
 `wheel` run does reuse the id. The gap applies to a registry seeded by
 `loom id generate` alone, which has no alias, and to an sdist target,
 which finds neither key. v3 keeps the alias rule (I4) and does not close
-this.
+this. The reverse order splits the ids too: `id generate` after a
+`project` or `wheel` harvest mints a new id for the `src/` key beside the
+distribution-path alias, and the next `project` run rewrites the alias
+(found by the order matrix, `O1/src/fresh-cli`; accepted there under this
+item).
 
 ### Harvest rewrites per-document entities; `env` root is never looked up
 
@@ -169,6 +173,9 @@ is easy to lose. D-numbers refer to [id-registry-v3.md](../implementation/id-reg
   because the src-layout alias rule (`_is_alias`) only accepts names that are
   path suffixes of each other. Extend the alias rule, or key the harvest by
   the lookup key, before G7 #3 makes names diverge more often.
+- **Revisit `id import` sha drop after G7 #3** (project SBOMs will carry the
+  AIPackage hash, so the imported element has its own sha). Ruling of
+  2026-10-15, under "Found by the order matrix" below.
 
 ### Security and edge cases
 
@@ -266,6 +273,67 @@ Merge and warnings:
 - **Harvest churn.** Harvest now never erases a recorded sha (ruling
   2026-10-14); a package whose lock sha changes replaces it, so alternating
   runs with and without the lock can still rewrite the registry.
+
+### Found by the order matrix (manual checks `O*`, 2026-10-15)
+
+Each failed its `O*` check until decided; repro scripts are in the
+runner's `ord-repro-*` directories (manual-cli-checks.md, "Order
+matrix").
+
+- ~~**A registry id is minted again for another file** once it has left
+  the registry.~~ `_mint_id` took one more than the highest number the
+  registry held; when a harvest replaced the highest-numbered entry's id
+  (a `project` run after that file changed mints a document id), the
+  next mint reused the number: `id generate`, edit `b.py`, `project`,
+  edit `a.py`, `id generate` gave `a.py` the id `b.py` had in the first
+  run (`O5/flat`, `O5/stems`, deep `O2/*`). Resolved 2026-10-15: the
+  file keeps a per-prefix `id_counters` table, never lowered, and a mint
+  takes one above it (I8 in
+  [id-registry-v3.md](../implementation/id-registry-v3.md); ruling in
+  [id-registry-v3-build-notes.md](../implementation/id-registry-v3-build-notes.md)).
+- ~~**`id generate` erases the sha256 loom recorded for a shared-stem
+  model**~~ (`_register_ungated`, on purpose: "the result does not depend on
+  the registry's history"). D12 says an ungated registration never erases
+  a recorded sha, and the effect is churn: loom's next gated lookup misses
+  and re-mints the model id after every `id generate` (`O2/stems/*`,
+  `O1/stems/fresh-loom`). Resolved 2026-10-15 (user ruling): a shared stem's
+  entry is left as is, its sha256 included (D12); a stem with no entry gets
+  a sha-less one. A fresh registry and one with history can differ for that
+  stem; its id stays stable (D3 in
+  [id-registry-v3.md](../implementation/id-registry-v3.md)).
+- ~~**`loom wheel --id-registry R` lists and harvests the copy of R that a
+  wheel built from an in-tree registry carries.**~~ The D7 exclusion
+  (`_DeclaredRegistry`) ran only in `get_wheel_files`; build-then-`wheel`
+  never settled (`updated stale entries` every run, the wheel's document
+  uuid and its per-document ids changed each time) (`O3/intree`,
+  `O1/intree/surfaces`). Resolved 2026-10-15: every reader of wheel or
+  sdist members (`wheel`, `wheel --embed`, `embed-wheel` with or without
+  `--project-dir`, `project <sdist>`, their library functions) leaves out
+  a member whose path is the registry's path below `--project-dir`, else
+  below the registry's stored `project_root`, or (a wheel only) a tail of
+  it; no hash, as the copy is the registry at build time
+  (`walk_rules.RegistryCopy`, shared with `_DeclaredRegistry`). The copy
+  is out of the Merkle root; one `WARNING:` per run, an `embed-wheel`
+  batch included. A registry rooted at its own directory does not match
+  a copy under a package directory, so that copy stays.
+- ~~**`id import` of an unhashed `ai_AIPackage` whose id differs from a
+  hashed entry drops the entry's sha256**~~ (the harvested id wins). So the
+  order of `id generate` and `id import` decides whether the model entry
+  stays gated, and importing a pre-retrain SBOM reverts the model to its
+  pre-retrain id. The ruling "harvest never erases a recorded sha256"
+  says to keep it, which would bind the imported id to bytes it never
+  described (`O1/flat/fresh-cli`). Decided 2026-10-15 (user ruling): the
+  imported id wins and the sha256 goes, with one `INFO: ID registry: content
+  gate dropped for <type> '<name>': imported id <new> replaces <old>` per
+  key; a run's harvest never erases one (it leaves such an entry as is,
+  `content gate kept`). The order matrix counts the resulting difference
+  as order-dependent, not a violation. Revisit after G7 #3 (below).
+- ~~**A read-only registry on `id generate`/`id import`**~~ gives `ERROR:
+  [Errno 13] Permission denied: '<path>'`, without the `ID registry:
+  failed to save <path>` wording every other surface uses (`O4/*`).
+  Resolved 2026-10-15: one helper (`failed_to_save_message`) words it on
+  every surface; `id generate`/`id import` print it as the one `ERROR:`
+  and exit 1, the file untouched.
 
 ### Design questions for the user
 

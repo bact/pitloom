@@ -30,8 +30,9 @@ when the element has content, its SHA-256.
   `loom.Run` model declared with `path=` is checked against that hash: a
   retrained or re-exported file is a new model with a new id. `project`,
   `wheel`, `model` and `embed-wheel` look a model up by name alone, so a
-  retrained file keeps its id there. Several model files sharing one stem
-  are registered by name only (one `INFO:` per run).
+  retrained file keeps its id there. A stem several model files share gets
+  no hash: a new entry has none, an existing one is left as is (one `INFO:`
+  per run).
 - **Per-document entities**: a harvest also writes the creator (`Person`
   or `SoftwareAgent`), `Tool` and licence entries
   (`LicenseExpression`/`SimpleLicensingText`). They carry that document's own
@@ -113,8 +114,9 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   <https://bact.github.io/pitloom/id-registry/#directories-that-are-skipped>).
 - **Models**: `id generate` registers each AI model file under `PATH` by
   file stem, with its SHA-256, and `id import` registers each `ai_AIPackage`
-  by its model name (with its hash, when the SBOM has one). A project or
-  wheel run never adds an unhashed model id. For one outside `PATH`, add
+  by its model name (with its hash, when the SBOM has one; one without a
+  hash replaces a hashed entry's id and drops its hash, with an `INFO:`). A
+  project or wheel run never adds an unhashed model id. For one outside `PATH`, add
   `--entity <stem>` (no `:TYPE` means `ai_AIPackage`; no hash is recorded).
 - **Packages**: `id generate` registers none. Seed them with one `project`
   run into a declared registry, with `id import <sbom>`, or by hand:
@@ -139,8 +141,10 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   relative to its own file. `id generate` into a registry made for another
   project directory is an `ERROR:`, exit 1: pick one root per registry.
 
-The file is JSON with `version: 3`, `namespace`, `project_root` and an
-`elements` table. A **version 2** registry (a committed file from an
+The file is JSON with `version: 3`, `namespace`, `project_root`, an
+`elements` table and `id_counters` (per id prefix, the highest number
+issued, so a retired id is never minted again; do not lower or drop it by
+hand: a file without it does not load). A **version 2** registry (a committed file from an
 earlier release, with `files` and `entities`) is rejected, on every
 command, with one `ERROR:` and nothing written. `id generate`/`id import` print
 it as below; other commands prefix their own (`ERROR: SBOM generation
@@ -174,8 +178,10 @@ added or changed, pass `--id-registry <file>` on each run.
 Keep the registry file outside any directory the package build includes
 (the project root, not `src/<package>/`). One inside it is left out of the
 SBOM's file set, with one `WARNING: ID registry: <path> is inside the
-project's file set; left out of it` per run (also with `--allow-build`); the
-SBOM then does not list it.
+project's file set; left out of it` per run (also with `--allow-build`, and
+for the copy a built wheel or sdist carries, read by `wheel`, `embed-wheel`
+or `project <sdist>`: matched by its path below `--project-dir`, else below
+the project root the registry stores); the SBOM then does not list it.
 
 ## Harvest: what writes to a registry
 
@@ -219,8 +225,20 @@ carries a hash (a loom model declared with `path=`, merged as a fragment).
   new id (`id generate` re-indexing, or a `loom.Run` model with `path=`);
   normal after an edit or a retrain (a `project` run reports a changed file
   as `updated stale entries` above).
-- `INFO: ID registry: N model files share the name X; its entry is not
-  content-gated` -- `id generate`; expected for same-stem models.
+- `INFO: ID registry: N model files share the name X; its entry is left as
+  is` -- `id generate`; expected for same-stem models (a hash recorded
+  earlier is kept).
+- `INFO: ID registry: content gate dropped for <type> 'X': imported id <id>
+  replaces <id>` -- `id import` only; the SBOM's element has no hash and
+  another id, which wins, so the entry is no longer checked against content
+  (an older SBOM brings its older id back).
+- `INFO: ID registry: content gate kept for <type> 'X': harvested id <id>
+  not recorded over <id>` -- a run met such an element; the hashed entry is
+  kept.
+- `WARNING: ID registry: failed to save <path>: <reason>` -- a run could
+  not write the registry (read-only file, full disk); its SBOM is written.
+  `id generate`/`id import` print the same text as their one `ERROR:`, exit
+  1, the file left as it was.
 - `WARNING: ID registry: <id> is registered for both X and Y; Y gets a new
   id` -- two elements matched entries carrying one id. The first claimant
   keeps the pinned id and the second mints a fresh one; it does not fail the

@@ -123,7 +123,11 @@ Each decision gives its reason; rejected alternatives follow "Rejected".
   name-only entry. Why (user): a retrained model is a new model.
   Rejected: the first draft's "record only, never a gate", which kept the
   id across retrains (the open question in
-  [ai-model-id-stability.md](../design/ai-model-id-stability.md)).
+  [ai-model-id-stability.md](../design/ai-model-id-stability.md)). A stem
+  several model files share has no one file to stand for it: `id generate`
+  registers it with no hash, and an existing entry is left as is, its
+  sha256 included (user ruling, 2026-10-15, per D12). A fresh registry and
+  one with history can then differ for that stem; its id stays stable.
 - **D4: one count in the log line:** `added N new id(s)`, where N counts
   distinct ids (a src-layout alias adds a key, not an id). logfmt quoting
   of `KEY=VALUE` lines is a separate PR (P1).
@@ -161,7 +165,12 @@ Each decision gives its reason; rejected alternatives follow "Rejected".
   INFO; docs tell users to declare `path=` wherever a file exists and not
   to mix the two for one model. Rejected: keep the id and adopt the first
   sha (a special case that silently binds whichever file is present first
-  to a long-standing id).
+  to a long-standing id). Harvest keeps a recorded sha too, with one
+  exception (user ruling, 2026-10-15): `id import` of an unhashed gated
+  element whose id differs from a hashed entry writes the imported id with
+  no sha, with one INFO `content gate dropped`; a run's harvest leaves such
+  an entry as is. To revisit after G7 #3
+  ([build notes](id-registry-v3-build-notes.md)).
 - **D13: loom resolves models at run exit and records them.** See 8.4.
 - **D14: loom takes an explicit config.** `loom.Run(pitloom_config=
   PitloomConfig | str | Path | None)`. A path is loaded like `--config`
@@ -257,8 +266,24 @@ entry = {spdxId, sha256?}      # sha256 only on software_File / ai_AIPackage, wh
   lookup can only return an id stored under the requested type (I3).
 - **I7, determinism.** `save()` sorts every level and writes LF with a
   trailing newline, as today. Two saves of an unchanged registry are
-  bit-for-bit identical, and `load(save(R)) == R`, `project_root`
-  included.
+  bit-for-bit identical, and `load(save(R)) == R`, `project_root` and
+  `id_counters` included.
+- **I8, a retired id is never minted again** (user ruling, 2026-10-15,
+  found by the order matrix). An id leaves the table when a harvest
+  replaces its entry (a changed file's `project` run writes a document
+  id) or a content change re-mints it; the number is still in older SBOMs
+  and fragments, so minting it for another key would give two files one id
+  across versions, and a same-type merge by id would fold them. The file
+  keeps `id_counters`: for each id prefix, the highest number minted or
+  seen in the registry's namespace. A mint takes one more than the
+  counter and than every held id, and raises the counter at once; a
+  harvest or `id import` raises it for every id of the registry's
+  namespace it reads (stored, or skipped as ambiguous); an id in another
+  namespace leaves it alone. `rebase()` merges counters by maximum, so no
+  run lowers one, and a run that minted saves its counter even when its
+  entries were replaced or refused. Rejected: deriving the counter from the
+  held ids alone (that is the bug), and a counter per type rather than per
+  prefix (the id text is what collides).
 
 ## 5. API
 
@@ -293,6 +318,9 @@ v2 -> v3:
 - New `id_count()`: distinct spdxIds, the one count every summary uses.
 - New `root_dir()`: `project_root`, else the registry file's directory,
   else cwd (all realpath'd).
+- New `id_counters: dict[str, int]` (also an `IdRegistry(...,
+  id_counters=)` keyword) and `reserve_id(spdx_id)`, which harvest calls
+  for every id it reads (I8).
 - `harvest() -> (new_files, new_entities, changed)` -> `harvest() ->
   (new_ids, changed)`.
 - `generate(paths, project_root, *, exclude=None)`: `exclude` is D7.
@@ -331,10 +359,11 @@ As `save()` writes it (keys sorted at every level):
     "dataset_DatasetPackage": {"data/train": {"spdxId": "...#DatasetPackage-5"}},
     "software_File": {
       "src/demo": {"spdxId": "...#File-1"},
-      "src/demo/x.py": {"sha256": "...", "spdxId": "...#File-2"}
+      "src/demo/x.py": {"sha256": "...", "spdxId": "...#File-6"}
     },
     "software_Package": {"requests": {"spdxId": "...#Package-3"}}
   },
+  "id_counters": {"AIPackage": 4, "DatasetPackage": 5, "File": 6, "Package": 3},
   "namespace": "https://spdx.org/spdxdocs/demo-<uuid>",
   "project_root": ".",
   "version": 3
@@ -342,8 +371,20 @@ As `save()` writes it (keys sorted at every level):
 ```
 
 - Nested by type, as v2's `entities` was. Top-level keys are exactly
-  `elements`, `namespace`, `project_root`, `version`; any other is
-  rejected.
+  `elements`, `id_counters`, `namespace`, `project_root`, `version`; any
+  other is rejected.
+- `id_counters` (I8) is required, `{}` in a registry that never minted or
+  read an id of its namespace. A key is an id prefix as a mint writes it
+  (`iri_segment` output: `File`, `Package`, ...; any prefix, since the
+  library's `register()` takes any type); a value is a whole number from 1
+  to 2^53 - 1 (the largest integer RFC 8785 writes as a number). A
+  non-object, a key no mint could write, a boolean, zero, a negative, a
+  float, a string or a larger number is rejected. A counter below a held
+  id's number is read as that number, not rejected. In the example above
+  `File-2` to `File-5` were issued once and have left the table. A mint
+  past 2^53 - 1 is a `ValueError`; a harvested id with a larger number, a
+  leading zero or non-ASCII digits is not a mint's shape and reserves
+  nothing.
 - `project_root` (D9) is required: a POSIX path relative to the registry
   file's directory (`..` allowed, e.g. a registry in `build/`). A
   non-string, `""`, a backslash, an absolute POSIX path or a Windows

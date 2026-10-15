@@ -29,6 +29,7 @@ from pitloom.id_registry import (
     PACKAGE_TYPE,
     IdRegistry,
     ambiguous_keys_message,
+    failed_to_save_message,
 )
 
 log = logging.getLogger("pitloom.id_registry")
@@ -160,6 +161,17 @@ def _report_registry_written(registry_path: Path, registry: IdRegistry) -> None:
     log.info("ID registry: holds %d id(s)", registry.id_count())
 
 
+def _save(registry: IdRegistry, registry_path: Path) -> bool:
+    """Save *registry* to *registry_path*; on failure print the one
+    ``ERROR:`` failed-to-save line and return ``False``."""
+    try:
+        registry.save(registry_path)
+    except (ValueError, OSError) as exc:
+        print(f"ERROR: {failed_to_save_message(registry_path, exc)}", file=sys.stderr)
+        return False
+    return True
+
+
 def _generate_paths(args: argparse.Namespace, project_dir: Path) -> list[Path]:
     """The `id generate` PATHs, each rooted at *project_dir*; ``ValueError``
     for one outside it, or when there is none to index.
@@ -236,9 +248,10 @@ def _run_id_generate(args: argparse.Namespace) -> int:
         registry.generate(paths, project_dir, exclude=registry_path)
         for type_name, name in args.entity or []:
             registry.register(type_name, name)
-        registry.save(registry_path)
     except (ValueError, OSError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    if not _save(registry, registry_path):
         return 1
     _report_registry_written(registry_path, registry)
     if is_new and not from_project_key:
@@ -278,10 +291,7 @@ def _run_id_import(args: argparse.Namespace) -> int:
         print(f"ERROR: failed to import SBOM {sbom_path}: {exc}", file=sys.stderr)
         return 1
 
-    try:
-        registry.save(registry_path)
-    except (ValueError, OSError) as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
+    if not _save(registry, registry_path):
         return 1
     _report_registry_written(registry_path, registry)
     if skipped:
