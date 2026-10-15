@@ -37,6 +37,7 @@ and this project adheres to
   instead of a random UUID4 one ([#305])
 - `loom.Run`/`loom.run` take `pitloom_config=` (`id-registry`,
   `update-id-registry`, `max-dataset-hash-bytes`) ([#305])
+- An AI model's producer is `originatedBy` (the Hub owner also `suppliedBy`); its parameter count an `ai_hyperparameter` `parameters` entry ([#306])
 
 ### Changed
 
@@ -110,6 +111,7 @@ and this project adheres to
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
+[#306]: https://github.com/bact/pitloom/pull/306
 
 ## [0.20.2] - 2026-10-09
 

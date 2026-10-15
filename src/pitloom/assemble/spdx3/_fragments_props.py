@@ -19,6 +19,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.model_parameters import (
     PARAMETER_COUNT_KEY,
+    is_parameter_count_text,
     with_parameter_count_note,
 )
 from pitloom.export.spdx3_describe import describe_value, property_names
@@ -192,9 +193,10 @@ def _merge_properties(canonical: spdx3.Element, duplicate: spdx3.Element) -> Non
 def _finish_parameter_count_note(package: spdx3.ai_AIPackage) -> None:
     """Derive the count note of a merged *package* from its entries, not
     from the comments merged: one note, the first line, iff a
-    ``parameters`` entry is left."""
+    ``parameters`` entry that reads as a count is left (not ``7B``)."""
     has_count = any(
         getattr(entry, "key", None) == PARAMETER_COUNT_KEY
+        and is_parameter_count_text(getattr(entry, "value", None))
         for entry in package.ai_hyperparameter or []
     )
     comment = with_parameter_count_note(package.comment, has_count)

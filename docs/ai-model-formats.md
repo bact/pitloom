@@ -138,8 +138,9 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
     `WARNING:` per file.
 19. The class at the top of `data.pkl` (often `OrderedDict` for a state
     dict), found by `fickling` without running the pickle.
-20. The archive member list and count; for PT2 also `extra/author` and
-    `extra/tags`. PT2 name, description, version and licence come from
+20. The archive member list and count; for PT2 also `extra/author` (also
+    the producer; see [Producer and parameter count](#producer-and-parameter-count))
+    and `extra/tags`. PT2 name, description, version and licence come from
     `extra/` (or `METADATA.json` and a root `version` file).
 21. Tensor names from `models/model.json`, no shapes.
 22. Only from conventional `__metadata__` keys: name `modelspec.title`,
@@ -228,7 +229,8 @@ Parameter count: ai_hyperparameter "parameters" holds the number of elements in 
 A [fragment](fragments.md) merge keeps the line in step with the entry: after
 a merge a package with a `parameters` entry has the line first in its
 `comment` and one without has none, whatever a fragment's `comment` says (a
-base `parameters` entry wins over a fragment's).
+base `parameters` entry wins over a fragment's). An entry that is not a
+positive whole number, such as `7B`, gets no line.
 
 - A count read from the file is the sum of the **element** counts of its
   tensors, not bytes: a `[32, 2]` tensor adds 64 whatever its type. It is
@@ -384,9 +386,10 @@ output format, so that either grows by one line or one column.
   (`pitloom.extract.scanner_wheel.WHEEL_GATED_FORMATS`); and fixtures
   under `tests/fixtures/aimodels/`. A reader that knows the producer or the
   tensor shapes fills `originators` with `originator_names()`
-  (`pitloom.core.model_originators`) and `parameter_count` with
-  `derived_parameter_count()` (`pitloom.extract.ai_model.parameter_count`),
-  which bound the arithmetic and write the provenance; it does not build an
+  (`pitloom.core.model_originators`, which bounds the read; the reader
+  records the `originators` provenance) and `parameter_count` with
+  `derived_parameter_count()` (`pitloom.extract.ai_model.parameter_count`,
+  which bounds the sum and records its provenance); it does not build an
   `Agent` or an entry itself.
 
 ## See also

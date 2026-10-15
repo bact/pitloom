@@ -431,10 +431,10 @@ Safetensors file, built into a wheel. `project`, `wheel`, `embed-wheel`,
 `wheel --embed` and `loom model` of each file give the PT2 package one
 `Agent` named `Alice` in `originatedBy`, the Safetensors package an
 `ai_hyperparameter` `parameters` entry `1` and the comment note saying what it
-is, and neither a `suppliedBy` (no file format sets one; only the Hub route
-does); the packages are equal
-across the routes that list both, ids aside (check 3 compares the same way,
-an Agent in `originatedBy` named). Skips without the `safetensors` extra.
+is, and neither package a `suppliedBy` (no file format sets one; only the Hub
+route does); the packages are equal across the routes that list both, ids
+aside (check 3 compares the same way, an Agent in `originatedBy` named).
+Skips without the `safetensors` extra.
 Automated as check 22 (`scripts/manual_cli_checks/_checks_model.py::check_model_producer_and_count`);
 per-route detail, the ONNX comma list and Hugging Face in
 `tests/test_model_producer_surfaces.py`.

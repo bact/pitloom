@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -176,6 +176,65 @@ relationship to it):
 
 Skip this kind of question entirely in a non-interactive run -- there is
 no one to answer it.
+
+### Model producer: a typed agent beside the generic `Agent`
+
+Pitloom records a model's producer as a generic `Agent` (name only) in
+the `ai_AIPackage`'s `originatedBy`, never as a `Person` or `Organization`
+(see `minimum-elements.md`, G7 "Model producer"). When the model card says
+which it is, or names a producer the file does not, add the typed agent
+and restate the package with its base `spdxId` and `name`, copied exactly
+(here `probe-net`):
+
+```json
+{
+  "creationInfo": "_:creationinfo-agent",
+  "comment": "Source: AI agent | Role: inferred -- the model card's \"Model details\" section calls Acme Labs a company.",
+  "name": "Acme Labs",
+  "spdxId": "https://spdx.org/spdxdocs/pitloom-agent/Organization/acme-labs-01",
+  "type": "Organization"
+},
+{
+  "creationInfo": "_:creationinfo-agent",
+  "name": "probe-net",
+  "originatedBy": [
+    "https://spdx.org/spdxdocs/pitloom-agent/Organization/acme-labs-01"
+  ],
+  "spdxId": "<AIPackage-spdxId>",
+  "type": "ai_AIPackage"
+}
+```
+
+What the merge does (checked with `loom project` on a fragment like
+this):
+
+- `originatedBy` is a union: the base's generic `Agent` named `Acme Labs`
+  stays, and the `Organization` follows it. A fragment cannot remove or
+  retype it. Giving the `Organization` the generic `Agent`'s `spdxId`
+  does not replace it either: `WARNING: Merge: Organization 'Acme Labs'
+  shares spdxId <id> with a Agent; keeping both, it gets new id <id>.`
+  Give the typed agent its own id, and say in the final report that both
+  are listed: the `Agent` is the name the file states, the typed one your
+  reading of the card. An ONNX `model_author` such as `Doe, Jane` is two
+  `Agent`s (the format's list is split on commas); add `Jane Doe` as a
+  `Person` the same way and report the split.
+- `suppliedBy` (one value) is taken from the fragment: Pitloom sets none on
+  a model it read from a file, and a Hugging Face base is never merged
+  into. Set it only for a distributor the card or the user names.
+- A `parameters` entry in the package's `ai_hyperparameter` (a count the
+  card states) is added only where the base has none; a base entry wins,
+  silently. The merge adds Pitloom's count note itself: do not type it into the
+  `comment`; say in the package's own provenance `comment` that the
+  entry is the card's parameter count. A `comment` on a restated package is
+  appended to the base's, after a semicolon.
+- A restated `spdxId` the base no longer has (the source changed after the
+  fragment was drafted) adds a second `ai_AIPackage`, with no warning, and
+  the result still validates. After the merge, list any model name held
+  twice; a name printed means regenerate the base and redraft:
+
+```bash
+python3 -c "import json,sys,collections; c=collections.Counter(o.get('name') for o in json.load(open(sys.argv[1]))['@graph'] if o.get('type') == 'ai_AIPackage'); print(*[n for n, k in c.items() if k > 1], sep='\n')" sbom.spdx3.json
+```
 
 Notes:
 

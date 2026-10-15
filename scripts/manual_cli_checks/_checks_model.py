@@ -256,7 +256,7 @@ def check_model_producer_and_count(ctx: Context) -> None:
     one ``Agent`` named ``Alice`` in the PT2 package's ``originatedBy``, a
     ``parameters`` entry ``1`` with the comment note for the Safetensors
     one, and no ``suppliedBy`` (only the Hugging Face route gives one); the
-    packages equal across the routes that list both, ids aside."""
+    originator names and count equal across the routes that list both."""
     if importlib.util.find_spec("safetensors") is None:
         raise CheckSkipped("needs 'safetensors' installed (pitloom[safetensors])")
     project = write_project(ctx.work / "proj")

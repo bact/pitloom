@@ -261,7 +261,7 @@ def _resolve_onnx_originators(
 
 
 def _initializer_shapes(model: Any, onnx: Any) -> Iterator[list[int]]:
-    """The dimensions of every weight tensor: dense initializers, sparse
+    """The dimensions of every initializer tensor: dense initializers, sparse
     initializers (their dense ``dims``) and those of the subgraphs a node
     attribute holds (``If``, ``Loop``, ``Scan``), however deeply nested.
     Walked with a stack, never recursion. ``Constant`` node tensors and

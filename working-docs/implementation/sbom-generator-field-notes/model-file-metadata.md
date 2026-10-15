@@ -15,12 +15,13 @@ metadata), [spdx-modelling.md](spdx-modelling.md),
 (hostile model files).
 
 What AI model files actually carry in their metadata fields, and what those
-fields mean, measured on the ONNX fixtures under `tests/fixtures/aimodels/`
-and the three ONNX models bundled with PyThaiNLP 5.3.9 (`deepcut.onnx`,
-`thai2rom_encoder.onnx`, `thai2rom_decoder.onnx`). Items from #292, and from
-the producer and parameter-count work
-([g7-model-producer-parameter-count.md](../g7-model-producer-parameter-count.md)),
-marked as such.
+fields mean, measured on the fixtures under `tests/fixtures/aimodels/`, the
+three ONNX models bundled with PyThaiNLP 5.3.9 (`deepcut.onnx`,
+`thai2rom_encoder.onnx`, `thai2rom_decoder.onnx`) and the Hugging Face Hub
+API. The first five items are from #292; the rest (from "No GGUF
+key holds a parameter count" on) are from the producer and parameter-count
+work, #306
+([g7-model-producer-parameter-count.md](../g7-model-producer-parameter-count.md)).
 
 - **A field name shared with SPDX can mean something else.** ONNX
   `ModelProto.domain` is "a reverse-DNS name to indicate the model

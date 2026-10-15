@@ -25,8 +25,10 @@ tests/test_author_surfaces.py (the main package's authors).
 from __future__ import annotations
 
 import io
+import itertools
 import json
 import sys
+import time
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
@@ -92,7 +94,9 @@ def _models(author: str) -> dict[str, bytes]:
     """A PT2 Archive by *author* and a Safetensors file of 5 elements."""
     pt2 = io.BytesIO()
     with zipfile.ZipFile(pt2, "w") as archive:
-        archive.writestr("mdl/extra/author", author)
+        # A fixed member time: the archive's bytes, hashed into the SBOM, must
+        # not depend on the clock.
+        archive.writestr(zipfile.ZipInfo("mdl/extra/author"), author)
     return {
         "alice.pt2": pt2.getvalue(),
         "weights.safetensors": safetensors_bytes(extra=4),
@@ -244,6 +248,9 @@ def test_a_route_is_byte_identical_when_run_twice(
 ) -> None:
     pytest.importorskip("safetensors")
     run = _ROUTES[route][0]
+    # time.time() moves on every call: a zip member time taken from it differs
+    ticks = itertools.count(1_700_000_000, 7)
+    monkeypatch.setattr(time, "time", lambda: float(next(ticks)))
     runs = []
     for label in ("first", "second"):
         base = tmp_path / label

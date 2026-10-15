@@ -109,13 +109,14 @@ case.
 
 ## Parameter count
 
-Since [g7-model-producer-parameter-count.md](../implementation/g7-model-producer-parameter-count.md)
-(G7 #6) the library readers feed every tensor's dimensions to
+Since G7 #6 (PR #306,
+[g7-model-producer-parameter-count.md](../implementation/g7-model-producer-parameter-count.md))
+the library readers feed every tensor's dimensions to
 `tensor_element_sum` (`pitloom.core.model_parameters`): GGUF `tensor_infos`,
 Safetensors header shapes, ONNX `graph.initializer` and
 `graph.sparse_initializer` (and subgraphs).
 A replacement reader must supply the same shapes, so the count is
-unchanged by the switch: the parity test pins it on every fixture
+unchanged by the switch: its parity test must pin it on every fixture
 (GGUF 292800 and 844288, Safetensors 174535 / 80074 / 173968 / 74142 /
 216632, ONNX 4890637 / 404256 / 5417 / 189347 / 1235498) and on the
 hostile shapes (negative, over 10**15, wrapping), and `originators` the same

@@ -18,7 +18,11 @@ import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3 import _fragments_props as props
-from pitloom.core.model_parameters import PARAMETER_COUNT_KEY, PARAMETER_COUNT_NOTE
+from pitloom.core.model_parameters import (
+    PARAMETER_COUNT_KEY,
+    PARAMETER_COUNT_NOTE,
+    is_parameter_count_text,
+)
 
 _NOTE = PARAMETER_COUNT_NOTE
 _PROV = "Metadata provenance: name: Source: a | Method: m; version: Source: a"
@@ -59,6 +63,10 @@ def _count(pkg: spdx3.ai_AIPackage) -> list[str]:
         (_pkg(_PROV), _pkg(_NOTE), _PROV, []),
         (_pkg(None), _pkg(f"x; {_NOTE}; y"), "x; y", []),
         (_pkg(None), _pkg(_NOTE), None, []),
+        # A fragment's count with no note gets one; free text (`7B`) never
+        (_pkg(None), _pkg(None, "7"), _NOTE, ["7"]),
+        (_pkg(None), _pkg(None, "7B"), None, ["7B"]),
+        (_pkg(_PROV), _pkg(_NOTE, "7B"), _PROV, ["7B"]),
     ],
     ids=[
         "fragment-adds",
@@ -68,6 +76,9 @@ def _count(pkg: spdx3.ai_AIPackage) -> list[str]:
         "no-entry",
         "no-entry-segment",
         "no-entry-empty",
+        "fragment-count-no-note",
+        "free-text",
+        "free-text-stale-note",
     ],
 )
 def test_the_merged_note(
@@ -79,7 +90,8 @@ def test_the_merged_note(
     props._merge_properties(base, fragment)
     assert base.comment == comment
     assert _count(base) == count
-    assert (base.comment or "").count(_NOTE) == (1 if count else 0)
+    noted = any(is_parameter_count_text(value) for value in count)
+    assert (base.comment or "").count(_NOTE) == (1 if noted else 0)
 
 
 def test_a_re_merge_changes_nothing() -> None:

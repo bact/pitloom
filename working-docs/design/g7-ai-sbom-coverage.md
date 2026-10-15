@@ -124,7 +124,7 @@ model producer and parameter count (done), **#7** `loom` SDK expansion.
   `dataset_DatasetPackage`) and the CISA "main package never hashed"
   note (it carries the Merkle root).
 - **#6 Model producer + parameter count** (structured sources only) --
-  **Done 2026-10-15.** `originatedBy` Agents and the `parameters`
+  **Done 2026-10-15, PR #306.** `originatedBy` Agents and the `parameters`
   `ai_hyperparameter` entry; the #292 `originatedBy`-vs-`suppliedBy`
   question is decided: `originatedBy` for every route, plus `suppliedBy`
   (the repository owner) on the Hugging Face route only. See
@@ -134,3 +134,46 @@ model producer and parameter count (done), **#7** `loom` SDK expansion.
   design revisited with this G7 framing before implementing. Also from #6:
   originators and a parameter count for a `loom.run` model (the structured
   readers of #6 cover only a model file or a Hub model).
+
+## Follow-ups from #6
+
+Left open by the model producer and parameter count work (PR #306; its
+decisions:
+[g7-model-producer-parameter-count.md](../implementation/g7-model-producer-parameter-count.md)).
+
+- `loom` SDK: originators and a count for a `loom.run` model (under #7,
+  above). The Hugging Face identifier and PURL as an `ExternalIdentifier`:
+  the "Model identifier" item above.
+- `loom model` identity is the model's internal name and version, so two
+  files with the same graph name share a document namespace and their counter
+  `Agent-N` ids fold by id across different people on `loom merge` (an
+  originator is re-attributed, with a `Merge: conflicting 'name'` warning).
+  The `ai_AIPackage` collided before #6; belongs with the registry v3 /
+  identity follow-ups.
+- Dataset creators map to `publishedBy`, model producers to `originatedBy`:
+  a divergence that predates #6; decide whether it is intended.
+- GGUF `general.quantized_by` (who produced the quantised file; the G7
+  producer definition names fine-tuning companies) as a candidate
+  originator, and `general.base_model.N.*` (base-model lineage, which the
+  Hub route already gives as `descendantOf`).
+- The bact G7 mapping names `context_length`; Pitloom emits source-native
+  names (`llama.context_length`).
+- A count for the silent formats: PT2 and the PyTorch pickle once a
+  metadata reader can supply shapes
+  ([model-metadata-readers.md](model-metadata-readers.md)); Keras and HDF5
+  if weight shapes are read.
+- `Person` or `Organization` for a model producer: from a Hub organisation
+  or user lookup (one extra request per model), or the Skill's upgrade path
+  (a fragment adds the typed agent; the generic `Agent` stays). See
+  [author-entity-recognition.md](author-entity-recognition.md).
+- Same-name Agents stay apart: a creator of type `agent` keeps its own
+  element, a model's originator is a second, a main-package author `Person`
+  another, and dataset creators use another id prefix. One identity needs a
+  rule for which element wins (pinned by a test today).
+- ONNX: subgraph attributes with no `type` set (very old files) are not
+  walked, `training_info` graphs are not counted, and a `model_author` that
+  is not valid UTF-8 yields no originator, silently, as `model_license`
+  does.
+- `escape_display_controls` is not injective: a name with a control
+  character and one with its literal `\uXXXX` text show alike (documented
+  for users on the reading-back page; predates #6).

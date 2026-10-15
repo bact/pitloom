@@ -17,7 +17,8 @@ plan this item came from), [model-metadata-readers.md](../design/model-metadata-
 [ai-model-scan-limits.md](../../docs/ai-model-scan-limits.md) and
 [metadata-provenance.md](../../docs/metadata-provenance.md).
 
-What was built, and why. An `ai_AIPackage` gets the producer names a
+Status: complete, PR #306. What was built, and why. An `ai_AIPackage`
+gets the producer names a
 structured source states as `originatedBy`, the Hugging Face repository owner
 also as `suppliedBy`, and a model's parameter count as an `ai_hyperparameter`
 entry. Core fills only structured sources; a name that sits in prose, and the
@@ -210,15 +211,15 @@ no count (never a partial sum) and one `WARNING:` ending `parameter count
 not recorded`, `FORMAT=<fmt> FILE=<path>:` prefixed (readers pass the model
 path; the scanner relays the record). The Hub is not scanned and prefixes
 itself. The name list is cut by `cap_entries` at `MAX_MODEL_ENTRIES` (the
-provenance of `parameter_count` survives the cut through a `keep`
-set: the count is not an entry of the cut map, the assembler adds it); each
-name is cut as a model's own name is, and all the cuts of one model give
-one `model originator name cut` `WARNING:`, not one per name
-(`add_model_originators`). ONNX `model_author` is split lazily and examines
-at most `MAX_ORIGINATOR_PARTS` non-empty comma-separated parts (16 x
-(1000 + 1) = 16016; only non-empty pieces count, a whitespace-only one
-does), so a
-value of millions of commas or of one repeated name stays cheap. Names past
+provenance keys `originators`, `supplier` and `parameter_count` name no
+entry of a cut map, so no cut drops them); each name is cut as a model's own
+name is, and all the cuts of one model give one `WARNING:` ending `model
+originator name cut` (with `model supplier name` for a supplier that is not
+also an originator), not one per name (`add_model_originators`). ONNX
+`model_author` is split lazily and examines at most `MAX_ORIGINATOR_PARTS`
+non-empty comma-separated parts (16 x (1000 + 1) = 16016; an empty piece
+between commas does not count, a whitespace-only one does), so a value of
+millions of commas or of one repeated name stays cheap. Names past
 the bound are not read, and the reader says so: one `WARNING:` per read
 through `ORIGINATOR_PARTS_CAP` (`rest of model_author not read`), the
 scanner relaying it with `FORMAT=onnx FILE=`. Decision: silence would have
@@ -238,10 +239,10 @@ hyperparameter; fragments, merged later, lose to the base's entry
 (`_merge_dictionary_entries`: canonical wins).
 
 **Registry.** `--update-id-registry` also writes the generic model Agents
-into the registry file (an `Agent` table and counter), as HEAD already does
-for `Person`, `SoftwareAgent` and `Tool`. Nothing looks the `Agent` type up
-and the output is unaffected, so "registry untouched" means no lookup or key
-change, not no file change: users who commit the registry will see new rows.
+into the registry file (an `Agent` table and counter), as it does for
+`Person`, `SoftwareAgent` and `Tool`. Nothing looks the `Agent` type up and
+the output is unaffected; no lookup or key changes, but users who commit the
+registry will see new rows.
 
 **Formats left silent**, each for a stated reason: PT2 (no weights metadata
 read), PyTorch pickle (no shapes without unpickling), Keras and HDF5
@@ -338,7 +339,9 @@ lineage (`descendantOf`) and the Skill stay. File formats keep
 - Dataset creators map to `publishedBy`, while model producers map to
   `originatedBy`: a divergence that predates this item; a follow-up.
 - The G7 mapping also names `context_length`; Pitloom emits source-native
-  names (`llama.context_length`); see the roadmap.
+  names (`llama.context_length`).
+
+All three are follow-ups (below).
 
 **SPDX 3.1-dev, forward notes.** `Agent` is still concrete;
 `originatedBy` and `ai_hyperparameter` are unchanged; 3.1 has no
@@ -355,39 +358,26 @@ says "SPDX 3.0.1" and must be bumped when output moves to 3.1.
 - A fragment merge appends a merged `parameters` entry unsorted
   (the keyed-merge behaviour that predates this item); a base entry still
   wins.
-- A merge adds the count note whenever a `parameters` entry is present, even
-  one a model declared itself with no Pitloom count (the builder writes no note
-  there). Rare: such a model gets the collision rule's warning at build time.
-  To restrict it to "a note was in an input", change
+- A merge adds the count note whenever a `parameters` entry that reads as a
+  count (positive decimal digits within the cap, `is_parameter_count_text`) is
+  present, even one a model declared itself with no Pitloom count (the builder
+  writes no note there). A free-text value (`7B`, from a `loom` SDK model or a
+  Keras `config` scalar) gets none, so the note never sits beside a value it
+  does not describe. Kept on purpose: the entry a `sbom-enrich` fragment adds
+  from a model card cannot be told from a model's own, and must carry the
+  note. A "note was in an input" rule (tried, then reverted) left that
+  fragment-added count with no note. The rule lives in
   `_finish_parameter_count_note` in `_fragments_props.py`.
 
 ## Follow-ups
 
-- `loom` SDK: originators and a count for a `loom.run` model (G7 #7, noted
-  in [g7-ai-sbom-coverage.md](../design/g7-ai-sbom-coverage.md)).
-- Hugging Face identifier and PURL as an `ExternalIdentifier` (separate from
-  this item; see g7-ai-sbom-coverage.md).
-- Dedup of creator Agents with model originators: a creator of type `agent`
-  keeps its own element (`Agent-1`), a model's originator is a second
-  (`Agent-2`), and a main-package author `Person` of the same name is
-  another element. Dataset creators use another id prefix and are not
-  deduplicated with model originators. One identity would need a rule for
-  which element wins; not decided. Two generic Agents of the same name, a
-  creator and an originator, stay two elements (pinned by a test).
-- `general.quantized_by` (who produced the quantised file: a distinct role
-  from the author; a candidate originator, see Review round 3) and
-  `general.base_model.N.*` (base-model lineage, which Hugging Face already
-  gives as `descendantOf`).
-- A count for the silent formats: PT2 and the PyTorch pickle once a metadata
-  reader can supply shapes; Keras and HDF5 if weight shapes are read.
-- `Person` or `Organization` from a Hub organisation or user lookup, and the
-  generic `Agent` to the Skill's upgrade path (a fragment adds the typed
-  agent; the generic one stays).
-- ONNX subgraph attributes with no `type` set (very old files) are not
-  walked, and `training_info` graphs are not counted.
-- An ONNX `model_author` that is not valid UTF-8 (protobuf gives bytes)
-  yields no originator, silently, as `model_license` does at HEAD.
-- `escape_display_controls` is not injective (pre-existing): a name with a
-  control character and one with its literal `\uXXXX` text show alike.
-- The stdlib readers keep the same shapes
-  ([model-metadata-readers.md](../design/model-metadata-readers.md)).
+Open items live in the design docs, not here:
+[g7-ai-sbom-coverage.md](../design/g7-ai-sbom-coverage.md#follow-ups-from-6)
+lists them (the `loom` SDK under G7 #7, Hub identifier and PURL, the
+`publishedBy` versus `originatedBy` divergence, `general.quantized_by`,
+`context_length`, counts for the silent formats, the `Person` or
+`Organization` upgrade path, same-name creator and originator Agents, ONNX
+subgraph and `training_info` gaps, a non-UTF-8 `model_author`, the display
+escape), and
+[model-metadata-readers.md](../design/model-metadata-readers.md#parameter-count)
+says what the stdlib readers must keep.

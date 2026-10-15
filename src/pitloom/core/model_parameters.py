@@ -143,6 +143,18 @@ def stated_parameter_count(value: object) -> int | None:
     return value or None
 
 
+def is_parameter_count_text(value: object) -> bool:
+    """Whether *value* reads as a parameter count: a ``str`` of ASCII digits
+    that is positive and within :data:`MAX_PARAMETER_COUNT` (``"7B"`` is not)."""
+    return (
+        isinstance(value, str)
+        and value.isascii()
+        and value.isdigit()
+        and len(value) <= len(str(MAX_PARAMETER_COUNT))
+        and 0 < int(value) <= MAX_PARAMETER_COUNT
+    )
+
+
 def with_parameter_count_note(comment: str | None, has_count: bool) -> str | None:
     """*comment* with :data:`PARAMETER_COUNT_NOTE` as its first line iff
     *has_count*, and nowhere else.

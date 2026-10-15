@@ -264,7 +264,11 @@ Steps:
 
    A `Relationship` must point at real ids: copy the model's `ai_AIPackage`
    `spdxId` from the base SBOM as its `from`, and give every new element
-   its own `spdxId`. `references/examples.md` shows complete elements.
+   its own `spdxId`. To add to a base element's own properties
+   (`originatedBy`, an `ai_hyperparameter` entry), restate it with the
+   base's `spdxId` and `name` exactly: a stale id adds a second
+   `ai_AIPackage`, silently, and it still validates; lists merge as a union,
+   a base value wins. `references/examples.md` shows complete elements.
 
    **The deterministic result wins by default:** if step 2 already set a
    field, do not re-propose a different value in your own fragment (two

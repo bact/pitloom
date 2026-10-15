@@ -21,6 +21,7 @@ from pitloom.core.model_parameters import (
     MAX_PARAMETER_COUNT,
     PARAMETER_COUNT_NOTE,
     ParameterCountRejected,
+    is_parameter_count_text,
     stated_parameter_count,
     tensor_element_sum,
     tensor_elements,
@@ -82,6 +83,43 @@ def test_with_parameter_count_note(
     assert with_parameter_count_note(comment, has_count) == expected
     if expected is not None:  # idempotent
         assert with_parameter_count_note(expected, has_count) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("7", True),
+        (str(_MAX), True),
+        (str(_MAX + 1), False),
+        ("9" * 5000, False),  # no int() of a huge digit string
+        ("0", False),
+        ("007", True),
+        ("7B", False),
+        ("", False),
+        ("-7", False),
+        ("1.5", False),
+        ("\u0667", False),  # a non-ASCII digit
+        (7, False),
+        (None, False),
+    ],
+    ids=[
+        "small",
+        "cap",
+        "over-cap",
+        "huge",
+        "zero",
+        "leading-zeros",
+        "label",
+        "empty",
+        "negative",
+        "decimal",
+        "arabic-digit",
+        "int",
+        "none",
+    ],
+)
+def test_is_parameter_count_text(value: object, expected: bool) -> None:
+    assert is_parameter_count_text(value) is expected
 
 
 @pytest.mark.parametrize(

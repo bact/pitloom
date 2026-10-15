@@ -113,8 +113,15 @@ model caps"). Beyond that:
   PyTorch classic, Keras, HDF5, NumPy, fastText and CRFsuite, a GGUF split
   over files (`split.count` above 1) and an empty model; a Safetensors file
   with no `modelspec.author` has no producer; a Safetensors shard counts its
-  own file only. A hostile or malformed shape gives no count and one
-  `WARNING: ... parameter count not recorded`. Detail:
+  own file only. In a wheel, a GGUF or ONNX model gets neither without
+  `--trust-wheel-model` (the gate leaves it a stub); PT2 and Safetensors are
+  read. Stderr, one `WARNING: FORMAT=<fmt> FILE=<path>:` line each: a
+  hostile or malformed shape, or a count over 10^15, gives no count
+  (`... parameter count not recorded`); an ONNX `model_author` of more than
+  16016 comma-separated parts is read up to there (`larger than the
+  16016-part model-author cap; rest of model_author not read`); a model's own
+  `parameters` hyperparameter gives way to the count (`hyperparameter
+  parameters replaced by the parameter count`). Detail:
   <https://bact.github.io/pitloom/ai-model-formats/#producer-and-parameter-count>
   and
   <https://bact.github.io/pitloom/ai-model-formats/#what-the-count-counts>.

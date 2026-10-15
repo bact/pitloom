@@ -119,11 +119,12 @@ def charge_read(size: int) -> None:
 
 
 def cap_entries(meta: AiModelMetadata) -> list[str]:
-    """Keep the first :data:`MAX_MODEL_ENTRIES` entries of each list and map
-    of *meta* (``inputs``, ``outputs`` and ``originators`` too), and drop the
-    provenance and the ``raw_metadata_types`` of the dropped keys; add the
-    number of ``raw_metadata`` keys dropped to ``raw_metadata_dropped``.
-    Returns the sorted names of the fields cut.
+    """Keep the first :data:`MAX_MODEL_ENTRIES` entries of each list
+    (``inputs``, ``outputs``, ``originators``) and map (``hyperparameters``,
+    ``properties``, ``raw_metadata``) of *meta*, and drop the provenance and
+    the ``raw_metadata_types`` of the dropped keys; add the number of
+    ``raw_metadata`` keys dropped to ``raw_metadata_dropped``. Returns the
+    sorted names of the fields cut.
 
     "First" is the order a reader hands over: file order, which is the same
     on every run; a reader whose source has none (Safetensors

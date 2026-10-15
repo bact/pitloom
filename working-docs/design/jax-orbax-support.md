@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-10
-Last-Modified: 2026-09-30
+Last-Modified: 2026-10-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -151,7 +151,7 @@ relies on it, to confirm this is cosmetic and not a real restore attempt.
 
 | Signal | Source | Reliability |
 | :--- | :--- | :--- |
-| Parameter count | Sum of element counts across `item_metadata(step).tree` leaf shapes | Reliable -- always derivable from any valid checkpoint |
+| Parameter count | Sum of element counts across `item_metadata(step).tree` leaf shapes -> `AiModelMetadata.parameter_count`, through `derived_parameter_count()` as the other readers do (PR #306) | Reliable -- always derivable from any valid checkpoint |
 | Per-array shape/dtype | Same, per leaf -> `AiModelMetadata.inputs` | Reliable |
 | Framework | Hardcoded `"jax"` / `"orbax"` | Reliable |
 | Model name / architecture / version | `StepMetadata.custom_metadata`, *iff* the training code populated it via `.save(custom_metadata=...)` | Not guaranteed -- same "open properties bag" situation as GGUF `general.*` / Safetensors `__metadata__`, not a structural guarantee |

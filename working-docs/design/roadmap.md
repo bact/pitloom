@@ -120,8 +120,9 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
 - [ ] **#3 Mechanical wiring**: dataset licence, `ai_AIPackage.verifiedUsing`
   copied from its model `software_File` (ordering: see the path-key item in
   0.21.0).
-- [x] **#6 Model producer and parameter count** from structured sources:
-  `originatedBy` Agents and the `parameters` hyperparameter entry. See
+- [x] **#6 Model producer and parameter count** from structured sources
+  (PR #306): `originatedBy` Agents and the `parameters` hyperparameter
+  entry. See
   [g7-model-producer-parameter-count.md](../implementation/g7-model-producer-parameter-count.md).
 - [ ] **#7 `loom` SDK**: dataset provenance and training-properties capture.
   See [loom-sdk-and-notebooks.md](sbom-fragments/loom-sdk-and-notebooks.md).

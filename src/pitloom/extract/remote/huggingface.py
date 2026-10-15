@@ -15,8 +15,9 @@ Sources used (all optional - missing files are silently skipped):
 * ``generation_config.json`` - generation-time hyperparameters
 * Model card (``README.md``) YAML frontmatter - license, language, tags,
   pipeline tag, library name, base model, and linked datasets
-* ``model_info()`` Hub API response - author, sha, dates, and computed tags
+* ``model_info()`` Hub API response - author, sha, dates, computed tags
   (``base_model:relation:id``, ``arxiv:*``, ``doi:*``, ``dataset:*`` prefixes)
+  and the stated parameter count (``safetensors.total``, else ``gguf.total``)
 * License files (``LICENSE``, ``LICENCE``, ``COPYING``, etc.) - used when
   the model card has no license or a vague value such as ``"other"``
 
@@ -24,6 +25,9 @@ Standard fields populated:
 
 * ``name``, ``description``, ``license`` - from model ID, model card, and
   license-file detection via the ``licenseid`` library
+* ``originators``, ``supplier`` - the repository owner (``model_info()``
+  ``author``)
+* ``parameter_count`` - ``safetensors.total``, else ``gguf.total``
 * ``type_of_model``, ``architecture`` - from ``config.json``
 * ``hyperparameters`` - selected numeric/type fields from ``config.json``
   and ``generation_config.json``

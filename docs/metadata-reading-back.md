@@ -24,10 +24,10 @@ Pitloom applies them, and the order a program reading the SBOM undoes them.
    characters `\udXXX` here, with one `WARNING: FORMAT=<fmt> FILE=<path>:
    lone surrogates written as \uXXXX`; the annotation holds that text too.
 2. **Caps.** A name over 1024 characters (a model's, its base model's, a
-   dataset's, a dataset creator's or a model originator's) is cut to its
-   first 1012, `...`, `~` and 8 hex digits of the SHA-256 of the whole
-   name, so two long names stay apart; a label over 4096 bytes means no
-   label is recorded; a list or map keeps its first 1000 entries;
+   dataset's, a dataset creator's, a model originator's or its supplier's)
+   is cut to its first 1012, `...`, `~` and 8 hex digits of the SHA-256 of
+   the whole name, so two long names stay apart; a label over 4096 bytes
+   means no label is recorded; a list or map keeps its first 1000 entries;
    `max-source-metadata-bytes` drops whole annotation entries. Each is
    announced by a `WARNING:` and, in the annotation, by `truncated`,
    `truncatedKeyCount`, `truncatedKeys`, `maxEntries` or `maxMetadataBytes`
@@ -66,9 +66,10 @@ Pitloom applies them, and the order a program reading the SBOM undoes them.
    the strings in `ai_informationAboutApplication`, `externalRef` and
    `externalIdentifier` text and locators; the same properties of the
    base-model package, the dataset packages and their creators and the
-   originator `Agent`s (`name`) the model brings in, with a dataset's
-   `dataset_dataCollectionProcess`, `dataset_intendedUse`, `dataset_dataPreprocessing`,
-   `dataset_knownBias` and `dataset_anonymizationMethodUsed`; the
+   originator and supplier `Agent`s (`name`) the model brings in, with a
+   dataset's `dataset_dataCollectionProcess`, `dataset_intendedUse`,
+   `dataset_dataPreprocessing`, `dataset_knownBias` and
+   `dataset_anonymizationMethodUsed`; the
    `name`, `simplelicensing_licenseText` and
    `simplelicensing_licenseExpression` of the model's licence element;
    and the comments of their relationships. One `WARNING: FORMAT=<fmt>
