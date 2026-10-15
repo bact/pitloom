@@ -65,7 +65,7 @@ def test_same_dataset_name_twice_is_one_package(
     collision warning, no relationship repeated or from a package to itself.
     """
     monkeypatch.chdir(tmp_path)
-    (tmp_path / "f.txt").write_text("data\n")
+    (tmp_path / "f.txt").write_bytes(b"data\n")
     digest = hashlib.sha256(b"data\n").hexdigest()
     registry = make_registry(
         {
