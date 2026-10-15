@@ -196,6 +196,7 @@ and restate the package with its base `spdxId` and `name`, copied exactly
 },
 {
   "creationInfo": "_:creationinfo-agent",
+  "comment": "Source: AI agent | Role: inferred -- originatedBy added from the model card.",
   "name": "probe-net",
   "originatedBy": [
     "https://spdx.org/spdxdocs/pitloom-agent/Organization/acme-labs-01"
@@ -223,17 +224,20 @@ this):
   into. Set it only for a distributor the card or the user names.
 - A `parameters` entry in the package's `ai_hyperparameter` (a count the
   card states) is added only where the base has none; a base entry wins,
-  silently. The merge adds Pitloom's count note itself: do not type it into the
-  `comment`; say in the package's own provenance `comment` that the
-  entry is the card's parameter count. A `comment` on a restated package is
-  appended to the base's, after a semicolon.
+  silently. The merge adds Pitloom's count note itself: do not type it
+  into the `comment`; say in the package's own provenance `comment` that
+  the entry is the card's figure, not a sum of tensor elements. A
+  `comment` on a restated package is appended to the base's, after a
+  semicolon.
 - A restated `spdxId` the base no longer has (the source changed after the
   fragment was drafted) adds a second `ai_AIPackage`, with no warning, and
-  the result still validates. After the merge, list any model name held
-  twice; a name printed means regenerate the base and redraft:
+  the result still validates. Before registering the fragment, list its
+  `ai_AIPackage` ids that the base lacks; an id printed means regenerate
+  the base and redraft (a base may hold two models of one name, so do not
+  compare names):
 
 ```bash
-python3 -c "import json,sys,collections; c=collections.Counter(o.get('name') for o in json.load(open(sys.argv[1]))['@graph'] if o.get('type') == 'ai_AIPackage'); print(*[n for n, k in c.items() if k > 1], sep='\n')" sbom.spdx3.json
+python3 -c "import json,sys; ids=lambda p:{o['spdxId'] for o in json.load(open(p))['@graph'] if o.get('type')=='ai_AIPackage'}; print(*sorted(ids(sys.argv[2])-ids(sys.argv[1])), sep='\n')" sbom.spdx3.json fragments/agent-enrichment.spdx3.json
 ```
 
 Notes:
@@ -256,7 +260,7 @@ is installed in; `uvx --from "pitloom>=0.20.2" python` for a `uvx` run) on
 those two files. Exit 0 is a pass.
 
 Do not run `loom fragment validate` on a fragment: it names the base
-SBOM's ids without an `ExternalMap`, so it fails SHACL on its own even
+SBOM's ids without an `ExternalMap`, so it usually fails SHACL on its own, even
 when correct. The merged SBOM is validated in step 6.
 
 ## 4. Register both fragments

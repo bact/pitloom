@@ -21,14 +21,17 @@ from pitloom.assemble.spdx3 import _fragments_props as props
 from pitloom.core.model_parameters import (
     PARAMETER_COUNT_KEY,
     PARAMETER_COUNT_NOTE,
-    is_parameter_count_text,
 )
 
 _NOTE = PARAMETER_COUNT_NOTE
 _PROV = "Metadata provenance: name: Source: a | Method: m; version: Source: a"
 
 
-def _pkg(comment: str | None, count: str | None = None) -> spdx3.ai_AIPackage:
+def _pkg(
+    comment: str | None,
+    count: str | None = None,
+    other: tuple[str, str] | None = None,
+) -> spdx3.ai_AIPackage:
     pkg = spdx3.ai_AIPackage(name="m")
     pkg.spdxId = "urn:m"
     if comment is not None:
@@ -37,6 +40,10 @@ def _pkg(comment: str | None, count: str | None = None) -> spdx3.ai_AIPackage:
         pkg.ai_hyperparameter = [
             spdx3.DictionaryEntry(key=PARAMETER_COUNT_KEY, value=count)
         ]
+    if other is not None:
+        pkg.ai_hyperparameter.append(
+            spdx3.DictionaryEntry(key=other[0], value=other[1])
+        )
     return pkg
 
 
@@ -63,6 +70,8 @@ def _count(pkg: spdx3.ai_AIPackage) -> list[str]:
         (_pkg(_PROV), _pkg(_NOTE), _PROV, []),
         (_pkg(None), _pkg(f"x; {_NOTE}; y"), "x; y", []),
         (_pkg(None), _pkg(_NOTE), None, []),
+        # Another digit-valued hyperparameter is no count
+        (_pkg(None), _pkg("x", None, other=("llama.context_length", "2048")), "x", []),
         # A fragment's count with no note gets one; free text (`7B`) never
         (_pkg(None), _pkg(None, "7"), _NOTE, ["7"]),
         (_pkg(None), _pkg(None, "7B"), None, ["7B"]),
@@ -76,6 +85,7 @@ def _count(pkg: spdx3.ai_AIPackage) -> list[str]:
         "no-entry",
         "no-entry-segment",
         "no-entry-empty",
+        "other-numeric-key",
         "fragment-count-no-note",
         "free-text",
         "free-text-stale-note",
@@ -90,7 +100,7 @@ def test_the_merged_note(
     props._merge_properties(base, fragment)
     assert base.comment == comment
     assert _count(base) == count
-    noted = any(is_parameter_count_text(value) for value in count)
+    noted = any(value.isdigit() for value in count)  # `7B` is no count
     assert (base.comment or "").count(_NOTE) == (1 if noted else 0)
 
 

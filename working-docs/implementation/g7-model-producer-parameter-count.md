@@ -46,9 +46,9 @@ Skill (scope split of 2026-09-17).
   lineage, so every surface that builds an `ai_AIPackage` gets it.
 - `_ai_package.py::_populate_ai_pkg_hyperparameters` adds the entry
   `parameters` (decimal text), sorted with the other keys, `quantization`
-  first. The package `comment` is built as an ordered list of lines (the
-  count note, then `Known biases: ...`) and set once, before provenance
-  appends its own. A fragment merge derives the note again (below).
+  first. The package `comment` is built once (the count note, then `Known
+  biases: ...`), before provenance appends its own. A fragment merge
+  derives the note again (below).
 - Bounded arithmetic in `core/model_parameters.py`
   (`tensor_elements`, `tensor_element_sum`, `stated_parameter_count`);
   the name list in `core/model_originators.py` (`originator_names`); the
@@ -151,11 +151,13 @@ hyperparameter).` It is not provenance and does not depend on the
 provenance format. A rejected count adds no note; a colliding valid count
 replaces the model's own `parameters` entry and keeps the note. The comment
 had two writers (known biases overwrote it, provenance appends with a
-newline), hence the single ordered list. The fragment merge derives the note
-instead of trusting a fragment's `comment`: after a merge an `ai_AIPackage`
-with a `parameters` hyperparameter entry carries the note as the first
-comment line and one without has none, so the `sbom-enrich` Skill never types
-it into a fragment (a base `parameters` entry still wins over a fragment's).
+newline), hence the single write. The fragment merge derives the note
+instead of trusting a fragment's `comment`: after a merge into it, an
+`ai_AIPackage` with a `parameters` entry that reads as a count carries the
+note as the first comment line and one without has none (a package no
+fragment merges into keeps its comment as written), so the `sbom-enrich`
+Skill never types it into a fragment (a base `parameters` entry still wins
+over a fragment's).
 
 **What is counted.** The sum of tensor element counts, not bytes (`[32, 2]`
 adds 64 whatever the type), `Method: tensor_element_sum`. The Hub's stated
@@ -239,7 +241,7 @@ hyperparameter; fragments, merged later, lose to the base's entry
 (`_merge_dictionary_entries`: canonical wins).
 
 **Registry.** `--update-id-registry` also writes the generic model Agents
-into the registry file (an `Agent` table and counter), as it does for
+into the registry file (an `Agent` table, no counter), as it does for
 `Person`, `SoftwareAgent` and `Tool`. Nothing looks the `Agent` type up and
 the output is unaffected; no lookup or key changes, but users who commit the
 registry will see new rows.

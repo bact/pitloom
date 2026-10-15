@@ -226,11 +226,14 @@ the entry is there:
 Parameter count: ai_hyperparameter "parameters" holds the number of elements in the model's stored tensors, as its parameter count, because SPDX 3.0.1 has no model-size property (it is not a hyperparameter).
 ```
 
-A [fragment](fragments.md) merge keeps the line in step with the entry: after
-a merge a package with a `parameters` entry has the line first in its
-`comment` and one without has none, whatever a fragment's `comment` says (a
-base `parameters` entry wins over a fragment's). An entry that is not a
-positive whole number, such as `7B`, gets no line.
+A [fragment](fragments.md) merge keeps the line in step with the entry for
+each package it merges into: afterwards the package has the line first in its
+`comment` if it has a `parameters` entry that is a positive decimal integer
+(ASCII digits, up to 10^15) and none otherwise, whatever a fragment's `comment`
+says (a base `parameters` entry wins over a fragment's). A value such as `7B`
+gets no line. A package that no fragment merges into keeps its `comment` as
+written. A merge cannot tell a model's own `parameters` entry from a count, so
+it labels that too.
 
 - A count read from the file is the sum of the **element** counts of its
   tensors, not bytes: a `[32, 2]` tensor adds 64 whatever its type. It is

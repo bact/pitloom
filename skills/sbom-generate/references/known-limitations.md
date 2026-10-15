@@ -109,17 +109,20 @@ model caps"). Beyond that:
   weights stored twice are in it, and packed or quantised weights (GPTQ, AWQ,
   bitsandbytes, ONNX `MatMulNBits`) under-count: not the "trainable
   parameters" of a model-size figure, and a Hub total may cover only part of
-  a multi-component repository. None of either is normal for PT2 (count),
-  PyTorch classic, Keras, HDF5, NumPy, fastText and CRFsuite, a GGUF split
-  over files (`split.count` above 1) and an empty model; a Safetensors file
+  a multi-component repository. No count is normal for PT2, a GGUF split
+  over files (`split.count` above 1) and an empty model (a split GGUF keeps
+  its producer); neither value is read from PyTorch classic, Keras, HDF5,
+  NumPy, fastText and CRFsuite; a Safetensors file
   with no `modelspec.author` has no producer; a Safetensors shard counts its
   own file only. In a wheel, a GGUF or ONNX model gets neither without
   `--trust-wheel-model` (the gate leaves it a stub); PT2 and Safetensors are
   read. Stderr, one `WARNING: FORMAT=<fmt> FILE=<path>:` line each: a
   hostile or malformed shape, or a count over 10^15, gives no count
-  (`... parameter count not recorded`); an ONNX `model_author` of more than
-  16016 comma-separated parts is read up to there (`larger than the
-  16016-part model-author cap; rest of model_author not read`); a model's own
+  (`... parameter count not recorded`); an ONNX `model_author` is cut at
+  1000 distinct names (`larger than the 1000-entry per-field cap; the first
+  1000 kept in originators`) and read to at most 16016 non-empty parts,
+  repeats included (`larger than the 16016-part model-author cap; rest of
+  model_author not read`); a model's own
   `parameters` hyperparameter gives way to the count (`hyperparameter
   parameters replaced by the parameter count`). Detail:
   <https://bact.github.io/pitloom/ai-model-formats/#producer-and-parameter-count>

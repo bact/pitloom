@@ -210,4 +210,3 @@ suite had not; each below is a class, with its measured instance.
   seed only when the name is unknown separates them, leaves every named
   document's bytes unchanged (a pinned uuid proves it) and costs nothing at
   run time. Trade-off stated in the docs: a renamed copy gets new ids.
-

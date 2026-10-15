@@ -316,7 +316,7 @@ Steps:
 
    Do not use `loom fragment validate` or `spdx3-validate` on a fragment:
    it refers to the base SBOM's ids without an `ExternalMap`, so it fails
-   SHACL on its own (exit 1) even when correct. The merged SBOM is
+   SHACL on its own (exit 1) in most cases, even when correct. The merged SBOM is
    validated at step 10.
 
 8. Register **both** fragments so Pitloom merges them on the next run.
