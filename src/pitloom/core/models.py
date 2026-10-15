@@ -26,6 +26,8 @@ from pitloom.core.iri import doc_namespace, iri_segment
 from pitloom.core.requirements import normalize_dependency_specifier
 
 if TYPE_CHECKING:
+    from pathlib import PurePath
+
     from pitloom.core.project import ProjectFile
 
 # Fixed pitloom namespace UUID, stable across all versions.
@@ -53,6 +55,7 @@ __all__ = [
     "_build_merkle_tree",
     "_clear_doc_counters",
     "_resolve_file_header_extras",
+    "archive_base_name",
     "build_pypi_purl",
     "build_relationship",
     "compute_doc_uuid",
@@ -146,6 +149,14 @@ def _normalize_dep(dep: str) -> str:
     return normalized_name + dep[match.end() :]
 
 
+def archive_base_name(path: PurePath | str) -> str:
+    """The last component of *path*, split at ``/`` and ``\\`` on every OS,
+    unchanged otherwise (no case folding): one wheel file name seeds the same
+    ids wherever it was read."""
+    return re.split(r"[\\/]", str(path))[-1]
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def compute_doc_uuid(
     name: str,
     version: str,
@@ -154,8 +165,13 @@ def compute_doc_uuid(
     merkle_root: str | None = None,
     locked_dependencies: list[str] | None = None,
     locked_dependencies_provenance: str | None = None,
+    identity_seed: str | None = None,
 ) -> str:
     """Compute a deterministic UUIDv5 for the SPDX document.
+
+    *identity_seed* is folded in last when given (a wheel of unknown identity:
+    its base file name), so two such wheels with one payload differ. ``None``
+    leaves the seed byte-identical to a call without it.
 
     *locked_dependencies* (e.g. ``poetry.lock``-resolved transitive
     dependencies) is folded into the seed too, whenever either it or
@@ -206,6 +222,8 @@ def compute_doc_uuid(
             seed += "\x00" + locked_dependencies_provenance
     if merkle_root is not None:
         seed += "\x00" + merkle_root
+    if identity_seed is not None:
+        seed += "\x00identity-seed\x00" + identity_seed
     return str(uuid5(PITLOOM_NS, seed))
 
 

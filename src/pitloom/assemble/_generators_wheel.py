@@ -26,7 +26,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides, resolve_standalone_config
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
-from pitloom.core.models import merkle_root_of_files
+from pitloom.core.models import archive_base_name, merkle_root_of_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.walk_rules import without_registry_copies
@@ -176,12 +176,14 @@ def generate_wheel_sbom_with_metadata(
     )
     phantom_deps = find_phantom_dependencies(project_files)
 
+    known = wheel_identity(project_metadata)[0] is not None
     doc = DocumentModel(
         project=project_metadata,
         creation_metadata=creation_metadata or cfg.creation_metadata,
         ai_models=ai_models,
         phantom_dependencies=phantom_deps,
-        identity_known=wheel_identity(project_metadata)[0] is not None,
+        identity_known=known,
+        identity_seed=None if known else archive_base_name(wheel_path_obj),
     )
     exporter = build(
         doc,

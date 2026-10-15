@@ -59,11 +59,9 @@ Size: S under half a day, M about a day.
 
 ## P1: registry v3 in 0.21.0 (some built, some not)
 
-- [ ] **Wheels with no `Name` share one document namespace.** Two
-  unidentified wheels become `unknown`. The registry no longer looks the
-  package up or records it (PR #305, `identity_known`; one `INFO:`), but the
-  namespace still derives from `unknown`, so equal payloads share file ids;
-  sdist placeholders are unchanged. See
+- [ ] **sdist placeholder names.** An sdist with no `Name` is `unknown` and is
+  still looked up and harvested. (Wheels: fixed in PR #305 with
+  `identity_known` and a file-name uuid seed.) See
   [id-registry-followups.md](id-registry-followups.md#wheel-identity-and-archive-readers).
 - [x] **A registry inside the scanned tree never settles.** Fixed by
   registry v3 (PR #305, D7): the declared registry is left out of the file

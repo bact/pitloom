@@ -177,10 +177,10 @@ suite had not; each below is a class, with its measured instance.
 - **A placeholder must be a flag, not a key.** A wheel with no usable
   `.dist-info` is named `unknown`; looked up like a real name, two unrelated
   wheels shared one package id and a junk registry entry. A name test cannot
-  decide it (`unknown` is a real PyPI name). The document namespace is seeded
-  from the same placeholder, so wheels with identical payload digests still
-  share every id (open). Do: set an explicit `identity_known` in the
-  generator.
+  decide it (`unknown` is a real PyPI name). The document namespace was seeded
+  from the same placeholder, so wheels with identical payload digests shared
+  every id; the base file name is now folded into the seed. Do: set an
+  explicit `identity_known` in the generator.
 - **Prefer the id more fragments share.** With first-seen survivors, the
   sentimentdemo merged wheel SBOM kept run-minted ids for the two processed
   data files and lost the registry's `#File-8`/`#File-9`. A minted id's

@@ -231,6 +231,7 @@ def build(
         merkle_root=merkle_root,
         locked_dependencies=metadata.locked_dependencies,
         locked_dependencies_provenance=metadata.provenance.get("locked_dependencies"),
+        identity_seed=doc.identity_seed,
     )
     _clear_doc_counters(doc_uuid)
     # Deduplicated once and shared below: a genuine name/version conflict

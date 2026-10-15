@@ -19,12 +19,13 @@ import json
 import logging
 import sys
 import zipfile
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import pytest
 
 from pitloom import __main__
 from pitloom.assemble import generate_wheel_sbom
+from pitloom.core.models import archive_base_name, compute_doc_uuid
 from pitloom.embed import embed_wheel_sbom
 from pitloom.id_registry import PACKAGE_TYPE
 from tests.registry_helpers import entries_of, make_registry
@@ -106,9 +107,13 @@ def test_placeholder_name_skips_registry(
         for stem in ("a", "b")
     ]
     assert _PINNED not in ids
+    assert ids[0] != ids[1]
     if declared:
         assert _packages(reg) == {"unknown": _PINNED}
         assert caplog.text.count("package identity unknown") == 2
+        assert "updated stale" not in caplog.text
+        files = json.loads(reg.read_text(encoding="utf-8"))["elements"]
+        assert {"a/__init__.py", "b/__init__.py"} <= set(files["software_File"])
     else:
         assert not reg.exists()
         assert "package identity unknown" not in caplog.text
@@ -133,3 +138,48 @@ def test_real_name_still_uses_registry(tmp_path: Path) -> None:
         zf.writestr("a/__init__.py", "")
     assert _main_id(generate_wheel_sbom(path, id_registry=reg)) == _PINNED
     assert entries_of(make_registry(path=None)) == {}
+
+
+def test_archive_base_name_same_on_every_os() -> None:
+    names = [
+        archive_base_name(r"C:\dl\a-1.0-py3-none-any.whl"),
+        archive_base_name("/dl/a-1.0-py3-none-any.whl"),
+        archive_base_name(PureWindowsPath(r"C:\dl\a-1.0-py3-none-any.whl")),
+        archive_base_name("a-1.0-py3-none-any.whl"),
+    ]
+    assert set(names) == {"a-1.0-py3-none-any.whl"}
+    assert archive_base_name("A.whl") != archive_base_name("a.whl")
+
+
+def test_identity_seed_leaves_unseeded_uuid_unchanged() -> None:
+    args = ("demo", "1.0", ["x>=1"])
+    unseeded = compute_doc_uuid(*args, merkle_root="ab")
+    assert unseeded == "1258ab76-d78c-5975-bf37-89ea7aebe540"
+    seeded = compute_doc_uuid(*args, merkle_root="ab", identity_seed="a.whl")
+    assert seeded not in (unseeded, compute_doc_uuid(*args, identity_seed="b.whl"))
+
+
+def test_named_wheel_unaffected_by_file_name(tmp_path: Path) -> None:
+    def wheel(name: str) -> Path:
+        path = tmp_path / name
+        with zipfile.ZipFile(path, "w") as zf:
+            zf.writestr("a-1.0.dist-info/METADATA", "Name: a\nVersion: 1.0\n")
+            zf.writestr("a/__init__.py", "")
+        return path
+
+    assert generate_wheel_sbom(wheel("a-1.0-py3-none-any.whl")) == generate_wheel_sbom(
+        wheel("a-1.0-py3-none-any.whl").rename(tmp_path / "renamed.whl")
+    )
+
+
+def test_unknown_wheel_ids_follow_file_name(tmp_path: Path) -> None:
+    def sbom(directory: str, stem: str) -> str:
+        folder = tmp_path / directory
+        folder.mkdir(exist_ok=True)
+        path = folder / f"{stem}-1.0-py3-none-any.whl"
+        with zipfile.ZipFile(path, "w") as zf:
+            zf.writestr("pkg/__init__.py", "")
+        return generate_wheel_sbom(path)
+
+    assert sbom("x", "a") == sbom("y", "a")
+    assert _main_id(sbom("x", "a")) != _main_id(sbom("x", "b"))

@@ -106,7 +106,7 @@ and this project adheres to
   symlinked `PATH` directory is walked; a name UTF-8 cannot hold is skipped
   with a `WARNING:`; `@graph` not a list is an `ERROR:` on `id import` ([#305])
 - A wheel with no identity (`unknown`) is not looked up in or recorded into an
-  ID registry; a `loom.Run` dataset is one package per name and content ([#305])
+  ID registry, and its ids depend on its file name; a `loom.Run` dataset is one package per name and content ([#305])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305

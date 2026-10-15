@@ -107,9 +107,10 @@ author or the existing tests.
   was looked up and harvested like a real package: two unrelated broken
   wheels shared one id and left a junk entry. `identity_known` is set by the
   generator and skips lookup and harvest. `unknown` is also a valid PyPI
-  name, so a name check would reject a real package. A document namespace
-  seeded from the placeholder still collides on identical payload digests
-  (open).
+  name, so a name check would reject a real package. A document
+  namespace seeded from the placeholder collided on identical payload
+  digests, so the wheel's base file name is folded into the seed
+  (`identity_seed`).
 - **A coverage gap is first a subset-run artefact, then dead code.**
   `_fragments_refs.py` line 137 looked uncovered in a partial run and was 100%
   in the full suite; `_is_eligible_file`'s ignored-directory guard was

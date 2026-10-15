@@ -150,8 +150,8 @@ Exceptions:
 
 - A wheel whose name did not come from its `METADATA` (called `unknown`) is
   neither looked up nor recorded; its package gets a per-document id, with
-  one `INFO:` when a registry is declared. Its ids are not unique across
-  wheels: see [Wheel SBOMs](wheel-sbom.md#what-an-sbom-lists).
+  one `INFO:` when a registry is declared. Its ids depend on its file name, so
+  a renamed copy gets new ids: see [Wheel SBOMs](wheel-sbom.md#what-an-sbom-lists).
 - A `src/`-layout project's files are not found by `wheel` or sdist targets
   (their paths differ from the project's).
 - A `loom.Run` dataset's package is looked up by its name exactly as the

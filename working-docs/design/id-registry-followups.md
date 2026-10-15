@@ -71,9 +71,8 @@ Ids, names and output:
   ([known-bugs.md](../implementation/roadmap-completed.md#bugs-fixed-in-0200)).
 - ~~**The sentinel `unknown` becomes a registry key.**~~ Resolved
   2026-10-15 for wheels: `identity_known` is `False`, the package is not looked
-  up or recorded, one `INFO:`. Still open: the document namespace derives from
-  `unknown`, so two unidentified wheels with equal payloads share ids (idea:
-  fold the wheel file name into the uuid seed), and the sdist placeholders
+  up or recorded, one `INFO:`, and the base file name seeds the document uuid.
+  Still open: the sdist placeholders
   (`extract/project/sdist.py` `Name` default `unknown`, `_sdist_pyproject.py`;
   `_parse_pkg_info` sets `provenance['name']` even when absent) are unfixed.
 - **Default SBOM file name:** switch embed, the Hatchling hook and `loom

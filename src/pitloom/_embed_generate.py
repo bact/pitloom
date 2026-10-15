@@ -46,7 +46,7 @@ from pitloom.core.inert_options import (
     INERT,
     settle_inert,
 )
-from pitloom.core.models import merkle_root_of_files
+from pitloom.core.models import archive_base_name, merkle_root_of_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import require_max_source_metadata_bytes
 from pitloom.core.walk_rules import without_registry_copies
@@ -334,12 +334,14 @@ def _build_sbom_standalone_wheel(
             file_cache is None or file_cache.first_use(("gate-hint", str(fmt)))
         ),
     )
+    known = wheel_identity(wheel_metadata)[0] is not None
     doc = DocumentModel(
         project=wheel_metadata.replace_with_fresh_containers(files=files),
         creation_metadata=creation_metadata,
         ai_models=ai_models,
         phantom_dependencies=find_phantom_dependencies(files),
-        identity_known=wheel_identity(wheel_metadata)[0] is not None,
+        identity_known=known,
+        identity_seed=None if known else archive_base_name(wheel_path),
     )
     exporter = assemble_spdx3(
         doc,

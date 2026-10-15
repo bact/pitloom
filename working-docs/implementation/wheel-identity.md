@@ -102,7 +102,10 @@ names (`matching_dist_infos`), so a foreign `.dist-info` cannot hide a model.
   single one to choose, `wheel` and `generate` warn (shared `PROBLEM_*` text)
   and name the package `unknown` (not looked up in or harvested into an ID
   registry: `DocumentModel.identity_known` is `False`, the id joins
-  `registry_non_readers`, one `INFO:` when a registry is declared), exit 0; `wheel --embed`, `embed-wheel`,
+  `registry_non_readers`, one `INFO:` when a registry is declared; the base
+  file name seeds the document uuid, `DocumentModel.identity_seed`, so
+  same-payload wheels of different names do not share ids; no other document
+  type passes a seed), exit 0; `wheel --embed`, `embed-wheel`,
   `verify-wheel` and `validate-wheel` refuse the wheel with that text. The
   model scan skips the one directory the file name names, and none where
   several do, as `read_wheel` takes none of them. The scan does not skip a

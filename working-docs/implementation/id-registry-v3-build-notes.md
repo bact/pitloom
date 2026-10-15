@@ -263,8 +263,10 @@ Decided by the user after the first full review; the code follows them.
   the package name did not come from `METADATA`: the main package is not
   looked up, its id joins `registry_non_readers`, and a declared registry gets
   `INFO: ID registry: package identity unknown; not looked up or recorded`.
-  Not fixed: the document namespace still derives from `unknown`, and the
-  sdist placeholders ([id-registry-followups.md](../design/id-registry-followups.md)).
+  The wheel's base file name (`archive_base_name`, split at `/` and `\\`) is
+  folded into the document-uuid seed as `identity_seed`, so unidentified
+  wheels with one payload get different namespaces. Not fixed: the sdist
+  placeholders ([id-registry-followups.md](../design/id-registry-followups.md)).
 - **Size splits.** `_registry.py` is under 500 lines; tests split into
   `test_registry_generate_models.py`, `test_manual_cli_checks_order_runs.py`
   and `test_models_wheel_exclude_path_copy.py` (with
