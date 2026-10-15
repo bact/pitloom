@@ -194,3 +194,20 @@ suite had not; each below is a class, with its measured instance.
   coverage passed with all of the above present.
   Do: have a reader who did not write the code run adversarial repros, and
   compare against a HEAD archive.
+- **One rule, one producer.** Whether a wheel's name was read decides three
+  things (registry lookup, harvest, the document uuid seed). The standalone
+  wheel and embed routes set the flag, but the embed route that takes a
+  project directory built the same document by hand and did not: two wheels
+  with different file names got one namespace and a pinned `unknown` id was
+  reused. A focused late review found it; 14 tests and 100% coverage had not.
+  Do: compute the fields in one helper, and grep every construction of the
+  class when adding one.
+- **Seed an unidentified artefact with something specific to it.** The
+  document namespace was seeded from name, version, dependencies and the
+  Merkle root, and the wheel Merkle root covers file digests, not paths, so
+  two broken wheels with one payload (`pkg/__init__.py`, same bytes) shared
+  every id even with no registry. Adding the archive's base file name to the
+  seed only when the name is unknown separates them, leaves every named
+  document's bytes unchanged (a pinned uuid proves it) and costs nothing at
+  run time. Trade-off stated in the docs: a renamed copy gets new ids.
+

@@ -409,3 +409,11 @@ the move.
   asserted. Same family: `read_text()` on a file that holds CRLF, and
   `splitlines()` on text-mode output. A dry-run checklist for a new test
   must list "any literal bytes hashed or compared against a text-mode write".
+- **Coverage is collected on one CI leg (Linux, Python 3.14), so a branch
+  only another OS or interpreter reaches is "missing" there.**
+  `RegistryCopy._at` returned its case-insensitive match only on macOS;
+  Codecov showed 97.72% for `core/walk_rules.py` while 3.10 / macOS / Windows
+  runs showed 100%. A macOS case-sensitive APFS image reproduces the Linux
+  view (`hdiutil create -size 64m -fs "Case-sensitive APFS" ...`; `pytest
+  --basetemp <volume>/bt --cov-branch`). Detail and the fix:
+  [recurring-bug-patterns-review-rounds.md](recurring-bug-patterns-review-rounds.md).
