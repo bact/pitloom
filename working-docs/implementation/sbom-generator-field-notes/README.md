@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -35,6 +35,10 @@ the day it was added (2026-10-02 to 2026-10-15).
   content-gated id registry; Merkle leaves that bind the path; deferring
   work to run exit; harvest churn; what a fresh reviewer found after
   the tests passed.
+- [path-keys-lessons.md](path-keys-lessons.md): path key versus name key for
+  an AI-BOM identity; one helper per cross-cutting choice; a loose alias
+  rule narrowed after review; a gate that meets a pin made before the data
+  exists; an `INFO:` for every deviation.
 - [determinism-and-parsing.md](determinism-and-parsing.md): same input,
   same bytes; parsing traps; lock-file and environment sources.
 - [platform-and-toolchain.md](platform-and-toolchain.md): OS and

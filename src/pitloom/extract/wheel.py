@@ -15,7 +15,7 @@ from typing import TypedDict
 
 from pitloom._wheel_sbom_location import name_version_from_email_message
 from pitloom.core.models import archive_base_name
-from pitloom.core.project import ProjectFile, ProjectMetadata
+from pitloom.core.project import FilesOrigin, ProjectFile, ProjectMetadata
 from pitloom.core.wheel_dist_info import (
     open_wheel_zip,
     read_metadata_headers,
@@ -157,18 +157,26 @@ def wheel_identity(metadata: ProjectMetadata) -> tuple[str | None, str | None]:
 
 class WheelDocumentIdentity(TypedDict):
     """The :class:`~pitloom.core.document.DocumentModel` fields that say
-    whether a wheel's name was read (:func:`wheel_document_identity`)."""
+    whether a wheel's name was read, and that its files are the wheel's
+    members (:func:`wheel_document_identity`)."""
 
     identity_known: bool
     identity_seed: str | None
+    files_origin: FilesOrigin
 
 
 def wheel_document_identity(
-    metadata: ProjectMetadata, wheel_path: Path | str
+    metadata: ProjectMetadata,
+    wheel_path: Path | str,
+    project_dir: Path | str | None = None,
 ) -> WheelDocumentIdentity:
-    """``identity_known`` and ``identity_seed`` for a document of the wheel
-    at *wheel_path*, read as *metadata*: every route that builds one passes
-    them on (``DocumentModel(..., **wheel_document_identity(...))``).
+    """``identity_known``, ``identity_seed`` and ``files_origin`` for a
+    document of the wheel at *wheel_path*, read as *metadata*: every route
+    that builds one passes them on
+    (``DocumentModel(..., **wheel_document_identity(...))``), so each keys
+    the wheel's members alike. An embed's *project_dir* (its files only add
+    header extras) is the origin's, so a member is keyed below the
+    project's prefix in the registry, as a built file is.
 
     A wheel whose name was not read is not looked up in an ID registry, and
     its base file name seeds the document UUID (see
@@ -178,6 +186,10 @@ def wheel_document_identity(
     return {
         "identity_known": known,
         "identity_seed": None if known else archive_base_name(wheel_path),
+        "files_origin": FilesOrigin(
+            project_dir=None if project_dir is None else Path(project_dir),
+            archive=True,
+        ),
     }
 
 

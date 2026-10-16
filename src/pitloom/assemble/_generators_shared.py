@@ -38,9 +38,11 @@ _AUTO_HARVEST_EXCLUDED_TYPES = frozenset({DATASET_PACKAGE_TYPE})
 def _harvestable(obj: Any) -> bool:
     """Return whether *obj* is safe for auto-harvest: not a dataset (see
     ``_AUTO_HARVEST_EXCLUDED_TYPES``), and an ``ai_AIPackage`` only when it
-    carries a SHA-256. A hashed model's entry is content-gated, so its name
-    cannot hand its id to other bytes; an unhashed model's name depends on
-    which AI-format libraries extracted it."""
+    carries a SHA-256. A hashed model's entry is content-gated and keyed by
+    its file (one with no recorded key is left out unless the document
+    holds that file: :func:`pitloom.id_registry._harvest._model_file_keys`);
+    an unhashed model's name depends on which AI-format libraries extracted
+    it."""
     get_compact_type = getattr(obj, "get_compact_type", None)
     compact_type = get_compact_type() if get_compact_type is not None else None
     if compact_type == AI_PACKAGE_TYPE:
@@ -59,7 +61,10 @@ def _sync_registry(
     (:attr:`~pitloom.export.spdx3_json.Spdx3JsonExporter.registry_non_readers`)
     are left out: neither written nor counted as a holder of their name,
     so the one element that does look a name up is written even when a
-    non-reader shares its name.
+    non-reader shares its name. Each element is written under the key its
+    lookup recorded
+    (:attr:`~pitloom.export.spdx3_json.Spdx3JsonExporter.registry_keys`),
+    else under its name.
 
     No-op when no registry was resolved or auto-update was disabled; a
     registry with no on-disk path to save to is not harvested into (the
@@ -78,5 +83,5 @@ def _sync_registry(
         if _harvestable(obj) and getattr(obj, "spdxId", None) not in non_readers:
             filtered.add(obj)
 
-    new_ids, changed = registry.harvest(filtered)
+    new_ids, changed = registry.harvest(filtered, keys=exporter.registry_keys)
     persist_registry(registry, new_ids, changed)

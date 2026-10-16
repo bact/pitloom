@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.creation import CreationMetadata
-from pitloom.core.project import PhantomDependency, ProjectMetadata
+from pitloom.core.project import FilesOrigin, PhantomDependency, ProjectMetadata
 
 
 @dataclass
@@ -44,6 +44,8 @@ class DocumentModel:
         identity_seed: folded into the document UUID (see
             :func:`~pitloom.core.models.compute_doc_uuid`); for such a wheel,
             its base file name (:func:`~pitloom.core.models.archive_base_name`).
+        files_origin: How the file list was produced (see
+            :class:`~pitloom.core.project.FilesOrigin`).
     """
 
     project: ProjectMetadata
@@ -52,3 +54,4 @@ class DocumentModel:
     phantom_dependencies: list[PhantomDependency] = field(default_factory=list)
     identity_known: bool = True
     identity_seed: str | None = None
+    files_origin: FilesOrigin = FilesOrigin()

@@ -81,14 +81,21 @@ Or, in one go:
 ```
 
 `loom-id-registry.json` keeps every dataset, file and the model on the same
-`spdxId` across stages and runs, so the fragments join into one graph. The
-script maintains it through `pitloom id generate`, and `loom.Run` adds the
-model's entry itself on a fresh run; do not edit it by hand.
-Starting from an empty registry, the first run logs an `untracked file`
-`WARNING:` for the two `data/processed/` files (they do not exist when stage 0,
-`id generate`, runs); later runs log no `WARNING:`, only `INFO: ID registry: holds N id(s)`
-lines, and leave the file unchanged. Training uses one thread so the model, and so
-its registry entry, is identical on every run.
+`spdxId` across stages and runs, so the fragments join into one graph. Keys
+are paths from the project root: the model is keyed by its file,
+`models/sentimentdemo.bin`, with the file's SHA-256. The script maintains the
+registry through `pitloom id generate`; do not edit it by hand. Stage 0 pins
+the two raw datasets with their digest, and the two `data/processed/` ones
+before they exist (`INFO: ID registry: dataset ... pinned without SHA-256: not
+found`), so those pins start with no hash and hit any content (`... matched a
+pin without SHA-256; content not checked`). The next run's stage 0 adopts the
+digest of the data the first run wrote (`... pin now gated by its SHA-256`) and
+keeps the ids. The committed file is that steady state: a run from it, on a
+checkout without `data/processed/`, leaves it unchanged. Starting from an empty
+registry, the first run also logs an `untracked file` `WARNING:` for the two
+`data/processed/` files (they do not exist when stage 0, `id generate`, runs);
+later runs log no `WARNING:`, only `INFO:` lines. Training uses one thread so
+the model, and so its registry entry, is identical on every run.
 
 The rest of this document walks through what each stage does, what it
 records, and how the pieces fit together.
@@ -190,7 +197,8 @@ that IRI back to the formal DPV-AI concept - no guessing what
 
 `path=MODEL_PATH` names the model file. It is hashed when the block ends
 (after `save_model()` has written it), and that SHA-256 gates the model's
-registry id: a retrained file is a new model with a new id.
+registry id (the model is keyed by this file's path): a retrained file is a
+new model with a new id.
 
 Run it:
 

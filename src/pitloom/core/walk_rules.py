@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path, PurePath, PurePosixPath
 from typing import TYPE_CHECKING
 
@@ -40,6 +40,7 @@ __all__ = [
     "RegistryCopy",
     "SameFile",
     "same_path",
+    "shortened_by",
     "warn_registry_left_out",
     "without_registry_copies",
 ]
@@ -147,12 +148,33 @@ def warn_registry_left_out(registry_path: Path) -> None:
     log.warning(REGISTRY_IN_FILE_SET_WARNING, registry_path)
 
 
-#: How many leading parts of the registry's path a wheel member may lack:
+#: How many leading parts of a project path its installed path may lack:
 #: the source directory of a ``src/`` layout.
 _DROPPABLE_PARTS = 1
-#: The fewest parts such a shortened member keeps: a package directory and
+#: The fewest parts such a shortened path keeps: a package directory and
 #: the file.
 _MIN_SHORTENED = 2
+
+
+def shortened_by(
+    longer: Sequence[str],
+    shorter: Sequence[str],
+    *,
+    max_cut: int = _DROPPABLE_PARTS,
+) -> int | None:
+    """How many leading parts of *longer* the path parts *shorter* lack,
+    when *shorter* is *longer* less at most *max_cut* leading parts and,
+    lacking any, still holds a directory and a file; else ``None``.
+
+    The one ``src/`` layout rule: a wheel's copy of the registry
+    (:class:`RegistryCopy`) and a registry key's layout alias
+    (:func:`pitloom.id_registry.keys.is_layout_alias`).
+    """
+    cut = len(longer) - len(shorter)
+    if cut < 0 or cut > max_cut or (cut and len(shorter) < _MIN_SHORTENED):
+        return None
+    return cut if tuple(longer[cut:]) == tuple(shorter) else None
+
 
 #: How well a member matches: the parts it lacks, then whether it matched
 #: only in another case. The smaller, the better.
@@ -234,18 +256,21 @@ class RegistryCopy:
         parts: tuple[str, ...],
         whole: bool,
     ) -> _Rank | None:
-        cut = len(own) - len(parts)
-        if cut < 0 or cut > (0 if whole else _DROPPABLE_PARTS):
-            return None
-        if cut and len(parts) < _MIN_SHORTENED:
-            return None
-        if own[cut:] == parts:
+        max_cut = 0 if whole else _DROPPABLE_PARTS
+        cut = shortened_by(own, parts, max_cut=max_cut)
+        if cut is not None:
             return cut, False
-        if [p.casefold() for p in own[cut:]] == [
-            p.casefold() for p in parts
-        ] and self._same.matches(ancestor.joinpath(*own[:cut], *parts)):
+        cut = shortened_by(_folded(own), _folded(parts), max_cut=max_cut)
+        if cut is not None and self._same.matches(
+            ancestor.joinpath(*own[:cut], *parts)
+        ):
             return cut, True
         return None
+
+
+def _folded(parts: tuple[str, ...]) -> tuple[str, ...]:
+    """*parts*, each case-folded."""
+    return tuple(part.casefold() for part in parts)
 
 
 def without_registry_copies(

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,7 +8,8 @@ SPDX-License-Identifier: CC0-1.0
 
 # Loom ID registry
 
-See also: [SBOM fragments](fragments.md) (how fragments merge),
+See also: [Keys and content gates](id-registry-keys.md) (what an entry is
+keyed by), [SBOM fragments](fragments.md) (how fragments merge),
 [Configuration](configuration.md) (`id-registry`, `update-id-registry`) and
 [GitHub Action](github-action.md) (the `id-registry` and
 `update-id-registry` inputs).
@@ -49,7 +50,10 @@ loom project                                                        # uses the d
 
 `id generate [PATH...]` takes `-o`/`--id-registry FILE` (registry to create or
 update), `--project-dir DIR` and repeatable `-e`/`--entity NAME[:TYPE]` (an
-explicit entity id ahead of a run; `TYPE` defaults to `ai_AIPackage`).
+explicit entity id ahead of a run; `TYPE` defaults to `ai_AIPackage`). A
+file, model or dataset `NAME` that exists below the project root is stored
+under its path key with its content hash, other names by name, each with an
+`INFO:` ([`-e` rules](id-registry-keys.md#-e-nametype)).
 `--entity NAME:software_Package` pins a dependency's, or the project's own,
 package id. The string splits on its last colon: the suffix is a `TYPE` only
 when it is a known registry type (`software_File`, `software_Package`,
@@ -79,13 +83,15 @@ read in its namespace (`id_counters`), so an id that has left the registry
 (a harvest replaced its entry) is never minted again for another file. An id
 handed over by an SBOM, a harvest or `id import` reserves numbers only up to
 10**9, and one whose prefix is not a valid IRI segment (it holds `/`, `?`, a
-space, `#` or a lowercase `%xx`) reserves nothing. A file whose `version` is
-not an integer (`3.0`) or that repeats a JSON object key (`duplicate key
-'X'`) does not load. For a symlinked registry, `project_root` is relative to
+space, `#` or a lowercase `%xx`) reserves nothing. A document also skips
+every id the registry holds for a file, package, AI package or dataset package
+when it mints one, so a new id never equals a held one; a model card's dataset
+keeps the id held under its own name. A file whose `version` is not an
+integer (`3.0`) or that repeats a JSON object key (`duplicate key 'X'`) does
+not load. For a symlinked registry, `project_root` is relative to
 the symlink target's directory.
 `generate` records each AI model file's SHA-256 with its entry, so a
-retrained file (other bytes) gets a new id in a `loom.Run` that declares it
-with `path=`. A registry from an earlier release (format version 2) is
+retrained file (other bytes) gets a new id on every surface. A registry from an earlier release (format version 2) is
 rejected, on every command, with one `ERROR:` and nothing written; delete it
 and re-run `loom id generate` or `loom id import`.
 
@@ -141,10 +147,15 @@ traceback, and takes precedence over that error.
 
 ## What a registry pins
 
-Given the same registry, a file, directory, dependency package, the
-project's own package (`project`, `wheel`, `embed-wheel`, the Hatchling hook)
-or an AI model carries the same id everywhere. `env` reuses a dependency's
-id only. A file's entry holds its SHA-256, and changed content gets a new id.
+Given the same registry, a file, dependency package, the project's own
+package (`project`, `wheel`, `embed-wheel`, the Hatchling hook) or an AI model
+carries the same id everywhere. `env` reuses a dependency's id only. A file, a
+model that has a file and a dataset package that exists below the root are
+keyed by their path from the registry's project root, everything else by name;
+a file's or model's entry holds its SHA-256, so changed content gets a new id;
+one model file is one id on every surface. A directory is the exception: it is
+keyed by its distribution path (`demo`, not `src/demo`) and `id generate` does
+not index it. Details: [Keys and content gates](id-registry-keys.md).
 
 Exceptions:
 
@@ -152,26 +163,24 @@ Exceptions:
   neither looked up nor recorded; its package gets a per-document id, with
   one `INFO:` when a registry is declared. Its ids depend on its file name, so
   a renamed copy gets new ids: see [Wheel SBOMs](wheel-sbom.md#what-an-sbom-lists).
-- A `src/`-layout project's files are not found by `wheel` or sdist targets
-  (their paths differ from the project's).
-- A `loom.Run` dataset's package is looked up by its name exactly as the
-  script passes it, with no path normalisation: `../data/t.txt` from a
-  subdirectory misses a package pinned as `data/t.txt`. A dataset that is one
-  file also gets a `software_File`, looked up by its path from the registry's
-  project root and its hash, so that one keeps its id from any directory.
-  Datasets found at build time and `env`'s root package are not looked up, so
-  a registry entry does not pin them.
+- A `src/`- or `lib/`-layout project's files are found by `wheel` and sdist
+  targets through a [layout alias](id-registry-keys.md#layout-alias); other
+  layouts get their own ids from a wheel-only run. With the registry's root
+  above the project, plain `wheel`, `project <sdist>` (it has no
+  `--project-dir`) and `embed-wheel` without `--project-dir` miss it: see
+  [Monorepo](id-registry-keys.md#monorepo).
+- A `loom.Run` dataset package whose path exists below the registry's root is
+  keyed by that path, whatever way the script spells it (`../data/t.txt` from a
+  subdirectory is `data/t.txt`); a remote, missing or outside-the-root dataset
+  by its name. A dataset that is one file also gets a `software_File` under
+  the same path key. Datasets found at build time and `env`'s root package are
+  not looked up, so a registry entry does not pin them.
 - Regeneration is stable: an unchanged file keeps its id; changed content
-  gets a fresh one (different bytes are different provenance). A `project`,
-  `wheel` or `model` run looks an AI model up by name alone, so a retrained
-  model file keeps its id there; only a `loom.Run` model declared with
-  `path=` is checked against its recorded hash.
-- Several model files with one stem (`a/m.gguf`, `b/m.gguf`): `id generate`
-  records no hash for the stem, and leaves an existing entry as it is (a
-  hash recorded earlier included), with one `INFO: ID registry: N model
-  files share the name <stem>; its entry is left as is` per run (`its new
-  entry is not content-gated` when the stem had no entry). Its id stays
-  stable, but a new registry over the same files has no hash there.
+  gets a fresh one (different bytes are different provenance). That holds for
+  an AI model on every surface: the model's file is its key and its SHA-256
+  gates the lookup, so a retrained file is a new id. Two model files with one
+  stem are two models with two ids. A dataset pin with no recorded SHA-256
+  hits any content: see [Content gates](id-registry-keys.md#content-gates).
 - A registry inside the project tree is left out of the SBOM's file set
   (and of a wheel's Merkle root), with one `WARNING: ID registry: <path> is
   inside the project's file set; left out of it` per run when the file set
@@ -228,18 +237,20 @@ document is not written.
 A harvest records a SHA-256 only for `software_File` and `ai_AIPackage`
 entries (the two content-gated types) and never erases one already recorded:
 an element with no hash and another id leaves such an entry as is, with one
-`INFO: ID registry: content gate kept for <type> '<name>': harvested id <id>
+`INFO: ID registry: content gate kept for <type> '<key>': harvested id <id>
 not recorded over <id>`. `loom id import` is the exception: there the
 imported id wins and the hash goes, with one `INFO: ID registry: content gate
-dropped for <type> '<name>': imported id <id> replaces <id>` per entry, so
+dropped for <type> '<key>': imported id <id> replaces <id>` per entry, so
 importing an older SBOM of a model gives it that SBOM's id back.
-`dataset_DatasetPackage` and unhashed `ai_AIPackage` elements are the
-exceptions. Register a project's AI models with `loom id generate`: their
-stable key, the model file's stem, cannot safely come from auto-harvest. A
-dataset id is pinned deliberately (`-e NAME:dataset_DatasetPackage` or `id
-import`), never from a run's fallback id. A hashed model (one a `loom.Run`
-declared with `path=`, merged as a fragment) is written: its entry only
-matches the same bytes.
+`dataset_DatasetPackage` elements are the exception: a dataset id is pinned
+deliberately (`-e NAME:dataset_DatasetPackage` or `id import`), never from a
+run's fallback id. A model is harvested under its file's key with its SHA-256,
+so its entry only matches the same bytes. A harvest writes each element under
+the key its lookup used, not its name, and an element with no recorded key (a
+merged loom fragment, an `id import`) never moves an id held under another key
+of the same type, and a fragment's stale element (an older SHA-256) never rolls
+a newer entry back: see [Merged fragments and
+harvest](id-registry-keys.md#merged-fragments-and-harvest).
 
 `loom.Run` writes one kind of entry itself: a model declared with `path=`
 whose file the registry does not know, saved after the fragment when the
@@ -364,9 +375,8 @@ jobs:
       # Use the first release with registry format 3 (0.20.2 reads version 2).
       - run: pip install pitloom==0.20.2
 
-      # Extras-free, stem-keyed -- the only path that keeps ai_AIPackage
-      # spdxIds stable regardless of whether "ai" extras are installed
-      # (auto-harvest skips unhashed AI packages -- see below). Creates
+      # Extras-free: keys each model by its file path, with the file's
+      # SHA-256, whether or not "ai" extras are installed. Creates
       # loom-id-registry.json on first run. Only omit this step if a
       # loom-id-registry.json is already committed to the repo -- a
       # declared-but-missing registry now fails the step below.
@@ -397,13 +407,11 @@ jobs:
 
 Two things worth calling out about that snippet:
 
-- **AI model id stability doesn't come from `extras: "ai"` or from
-  auto-harvest at all.** A project's `ai_AIPackage` elements carry no hash,
-  so auto-harvest skips them: their correct registry key is the model
-  file's stem -- which only ever comes from the extras-free
-  `loom id generate` step above. `extras: "ai"` only affects metadata
-  richness (architecture, hyperparameters, etc.), not which spdxId a model
-  gets.
+- **AI model id stability doesn't come from `extras: "ai"`.** A model's
+  registry key is its file's path, with the file's SHA-256 as the gate, on
+  every surface: `loom id generate` and a run agree whether or not the extras
+  are installed. `extras: "ai"` only affects metadata richness
+  (architecture, hyperparameters, etc.), not which spdxId a model gets.
 - **Race conditions**: this workflow never competes with the publish
   workflow to push (the publish job doesn't commit, per the guidance
   above). It can race with *itself*, though -- two pushes to `main` close

@@ -34,7 +34,7 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.inert_options import PROJECT, SDIST, settle_inert
 from pitloom.core.models import get_wheel_files
-from pitloom.core.project import ProjectMetadata
+from pitloom.core.project import FilesOrigin, ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.walk_rules import without_registry_copies
 from pitloom.enrich import run_enrichers_for_models
@@ -260,6 +260,11 @@ def generate_project_sbom(
         project=project_metadata,
         creation_metadata=creation_metadata or cfg.creation_metadata,
         ai_models=ai_models,
+        files_origin=(
+            FilesOrigin(archive=True, sdist=True)
+            if target_path.is_file()
+            else FilesOrigin(project_dir=target_path)
+        ),
     )
     exporter = build(
         doc,

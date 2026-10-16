@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-14
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -223,6 +223,8 @@ artefact's path below the registry root, canonicalised) removes most of these,
 but a wheel member, an sdist member and a `--allow-build` temporary file are
 three spellings of one source path, anything without a file (a PyPI package, a
 Hugging Face model) still needs a name key, and a rename becomes a new
-identity. The measured options and open decisions are in Pitloom's plan
-(`working-docs/design/id-registry-path-keys.md`); no option was built.
+identity. Built 2026-10-16 as a two-tier key (path where a file exists, name
+otherwise); the decisions, rejected options and lessons are in
+[id-registry-path-keys.md](../id-registry-path-keys.md) and
+[path-keys-lessons.md](path-keys-lessons.md).
 *Unverified:* how often users rename data files after pinning ids.

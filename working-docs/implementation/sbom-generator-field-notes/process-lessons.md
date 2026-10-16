@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -179,11 +179,12 @@ ruling, agents did the reading, building and reviewing.
   reproduced defects, and no stake in the change. Do: brief each with the
   intent, the diff command and "run it", and verify a finding yourself before
   fixing.
-- **Defer a big redesign with its plan intact.** The path-key redesign
-  (below, in the open questions) was drafted by a planning agent in one pass
-  (397 lines, three options, a surface-by-member matrix, ten decisions) and
-  deferred by the maintainer as too big for the PR. The plan file stays; the
-  bundled work (G7 #3) is marked as waiting on it.
+- **Defer a big redesign with its plan intact, then build it.** The path-key
+  redesign was drafted by a planning agent in one pass (three options, a
+  surface-by-member matrix, ten decisions) and deferred by the maintainer as
+  too big for the PR (2026-10-15); built the next day with the plan as the
+  checklist, then folded into a record of what was built
+  ([path-keys-lessons.md](path-keys-lessons.md)).
 
 - **Review the fix round too.** The second review found three defects that the
   first round's fixes had introduced or left: a skipped element's id not

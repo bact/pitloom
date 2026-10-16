@@ -281,10 +281,8 @@ class AiModelFormatInfo:
     # pitloom.extract.scanner.discover_ai_models from the producer's stable
     # path: project-relative, or file_path_relative when the file has no
     # project-relative path (--allow-build). Never a temporary path. The
-    # assembler looks this exact string up in the id registry -- the same
-    # string a pitloom.loom fragment's run.set_model(model_file_path, ...)
-    # call would have registered it under -- letting the scan-discovered
-    # AIPackage reuse that id instead of minting a new one.
+    # registry key (joined to the project prefix) only when the model's file
+    # is not among its document's files (assemble.spdx3.ai.model_lookup_key).
     physical_path: str | None = None
 
     # Format enum value (e.g. AiModelFormat.GGUF)

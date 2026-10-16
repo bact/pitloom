@@ -230,8 +230,12 @@ def build_model(
     entity_spdx_id: str | None = None,
     provenance: ProvenanceConfig | None = None,
     enrichment_results: list[EnrichmentResult] | None = None,
+    digest: str | None = None,
 ) -> Spdx3JsonExporter:
-    """Assemble a standalone SPDX 3 SBOM for a single AI model file."""
+    """Assemble a standalone SPDX 3 SBOM for a single AI model file.
+
+    *digest*, the model file's SHA-256 when known, is the package's
+    ``verifiedUsing``."""
     prov_cfg = provenance or ProvenanceConfig()
     encoder: ProvenanceEncoder = resolve_encoder(prov_cfg.schema)
 
@@ -247,7 +251,7 @@ def build_model(
     for tool in tools:
         exporter.object_set.add(tool)
 
-    ai_pkg = _build_ai_package(model, spdx_ci, doc_name, doc_uuid)
+    ai_pkg = _build_ai_package(model, spdx_ci, doc_name, doc_uuid, digest=digest)
     if entity_spdx_id is not None:
         ai_pkg.spdxId = entity_spdx_id
     exporter.add_package(ai_pkg)

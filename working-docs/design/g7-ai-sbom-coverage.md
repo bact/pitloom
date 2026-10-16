@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -16,15 +16,12 @@ item), [minimum-elements.md](../../skills/sbom-enrich/references/minimum-element
 Split out of `roadmap.md` (2026-09-17) once this item's detail grew
 past a summary.
 
-> **Gating hazard: registry v3 landed (PR #305), so G7 #3 must gate the
-> project, wheel, `loom model` and embed `ai_AIPackage` registry lookups by
-> sha256 in the same change.** v3 auto-harvests a hashed `ai_AIPackage` but
-> leaves those lookups ungated (D16). Once G7 #3 hashes those packages, a
-> retrained model would still get the old id by name, and harvest would then
-> write `(name, new sha)` under the old id, where a later gated `loom` lookup
-> of the new bytes finds it. See the "G7 blockers" in
-> [id-registry-followups.md](id-registry-followups.md) and D15/D16 in
-> [id-registry-v3.md](../implementation/id-registry-v3.md).
+> **Gating hazard: closed 2026-10-16.** G7 #3 part 1 landed with the registry
+> path keys: `ai_AIPackage.verifiedUsing` carries the model file's SHA-256 and
+> every model lookup (project, wheel, `loom model`, embed) is gated by it, so a
+> retrained model no longer gets the old id (G7 blockers 1 and 2 of
+> [id-registry-followups.md](id-registry-followups.md) are closed). See
+> [id-registry-path-keys.md](../implementation/id-registry-path-keys.md).
 
 ## Scope split (decided 2026-09-17)
 
@@ -57,11 +54,9 @@ Model version, Model description, Model external references
   populated by extractors, never read by `dataset.py`'s assembler. Same
   shape as the AI-package gaps below: the data already exists, nothing
   consumes it.
-- **`ai_AIPackage.verifiedUsing`** (model file hash) -- the model file
-  is already SHA-256-hashed elsewhere in the same pipeline for its
-  `software_File` element; never copied onto the `ai_AIPackage` element
-  itself. Reuse the existing hash, don't recompute it. (A `loom.run` model
-  declared with `path=` already carries it, since registry v3.)
+- ~~**`ai_AIPackage.verifiedUsing`** (model file hash)~~ -- done 2026-10-16
+  (#3 part 1): the model file's SHA-256, in a fresh `Hash`, on every route
+  that hashes the file (an `enrich` fragment has no `AIPackage`).
 - **Model producer** -- done for the structured sources (#6, below):
   `originatedBy` generic `Agent`s (and `suppliedBy`, the repository owner,
   for a Hugging Face model). What remains is the Skill's: a
@@ -110,9 +105,11 @@ references use: **#3** mechanical wiring, **#4** stale claims (done), **#6**
 model producer and parameter count (done), **#7** `loom` SDK expansion.
 (The 1.0 table's #1, #2 and #5 are not G7 field items.)
 
-- **#3 Mechanical wiring** (`DatasetMetadata.license` -> `dataset.py`;
-  reuse the existing model-file hash for `ai_AIPackage.verifiedUsing`)
-  -- smallest, zero design risk, code-verified gaps.
+- **#3 Mechanical wiring**, in two parts. **Part 1 done 2026-10-16**:
+  `ai_AIPackage.verifiedUsing` plus gated lookups (with the registry path
+  keys). **Part 2 open**: `DatasetMetadata.license` -> `dataset.py`, its own
+  PR; open question: a licence URL or an SPDX expression for a dataset the
+  extractor reads as free text.
 - **#4 Fix the stale `minimum-elements.md` claims** -- prevents the
   agent/Skill from re-asking users about fields core already covers.
   **Done 2026-09-20.** Re-verified against code and a fresh run: besides

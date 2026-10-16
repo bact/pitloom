@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -28,10 +28,10 @@ were met. Everything not listed was built as written.
 - **`project_root` defaults to the registry file's directory** when none is
   set (`IdRegistry.save`, `root_dir()`), so a registry created by a harvest
   or the library, not by `id generate`/`id import`, still loads.
-- **Same-stem models** (`a/model.gguf`, `b/model.gguf`) are registered by
-  name only, with no hash, and one `INFO:` per run: no one file stands for
-  the stem, and a gate would re-mint on every run. An existing entry is left
-  as is, its hash included (ruling of the order-matrix round, below).
+- **Same-stem models** (`a/model.gguf`, `b/model.gguf`): superseded
+  2026-10-16, each is keyed by its own file's path and has its own id (no
+  stem entry, no shared-stem `INFO:`; see
+  [id-registry-path-keys.md](id-registry-path-keys.md)).
 - **Merkle leaf details are final.** A leaf is `sha256(utf8 relpath + b"\x00"
   + raw 32-byte file digest)`, the relpath `/`-separated below the dataset
   directory (an undecodable POSIX name keeps its bytes via
@@ -149,13 +149,14 @@ Decided by the user after the first full review; the code follows them.
   rebase onto a re-created file): at worst a number is skipped. Harvest
   reserves an id skipped as ambiguous too, since an older SBOM carries it.
 - **`id generate` leaves a shared stem's entry as is** (user ruling; finding
-  2). `_register_ungated` dropped a recorded sha256 so that the result did
+  2; superseded 2026-10-16: no stem entries exist any more). `_register_ungated` dropped a recorded sha256 so that the result did
   not depend on the registry's history; that broke D12 and made loom re-mint
   the model after every `id generate`. Now the stem goes through
   `register()` with no hash: a new stem gets a sha-less entry, an existing
   one keeps its id and sha256. INFO: `ID registry: N model files share the
   name <stem>; its entry is left as is`. Accepted consequence: a fresh
   registry and one with history can differ for that stem; ids stay stable.
+  (Historical: path keys removed stem entries.)
 - **`id import` may drop a content gate, and says so** (user ruling;
   finding 3). An unhashed gated element (an `ai_AIPackage` from a project
   SBOM) whose id differs from a hashed entry: the imported id wins and the
@@ -208,7 +209,9 @@ Decided by the user after the first full review; the code follows them.
   directory holding the registry and a `pyproject.toml`, `setup.cfg` or
   `setup.py`, no higher than the stored root, else the stored root (monorepo
   registries now work for sdists). Rejected: matching any suffix, which
-  dropped unrelated files.
+  dropped unrelated files. (The registry-copy rule here is the separate
+  `RegistryCopy` rule; the key alias is `keys.is_layout_alias`, `src`/`lib`
+  only.)
 - **`--allow-build` copies are recognised by origin** (a file the build
   extracted), wherever `TMPDIR` is. A build-and-read file's `physical_path`
   is always absolute, so the SBOM no longer depends on the random extraction

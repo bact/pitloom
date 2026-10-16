@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -23,8 +23,9 @@ build differs), [id-registry-v3-rollout.md](id-registry-v3-rollout.md).
   `software_fileKind = file`; `verifiedUsing` = its sha256; id = gated
   lookup of `(software_File, key)`, else minted with prefix `File`;
 - a `dataset_DatasetPackage`: name = the caller's string, unchanged; id =
-  ungated lookup of `(dataset_DatasetPackage, name)`, else minted with
-  prefix `DatasetPackage`; `verifiedUsing` = its own copy of the file's
+  lookup of `(dataset_DatasetPackage, key)` (amended 2026-10-16: the path key
+  when the path exists below the root, else the string; content-gated by the
+  hybrid rule), else minted with prefix `DatasetPackage`; `verifiedUsing` = its own copy of the file's
   sha256 (a separate `Hash` object, never shared), the rule G7 uses for
   AIPackage;
 - `DatasetPackage contains File`.
@@ -93,8 +94,8 @@ rewritten file (new digest) is a new element.
   `path_probe.is_regular_file` and `os.path.isdir`, never `Path.is_file()`
   (problem 10). A missing path gets no hash and no File; its
   DatasetPackage is still looked up by name (section 3).
-- **Lookup:** `(dataset_DatasetPackage, name)`, ungated. A directory
-  dataset's id is pinned by name only.
+- **Lookup** (amended 2026-10-16): `(dataset_DatasetPackage, path key or
+  name)`, gated by the Merkle root; a hash-less pin hits any content.
 
 ### 8.3 Path base for loom keys (D9)
 
@@ -146,8 +147,9 @@ from.
     one WARNING (only with a registry loaded, for the no-`path` case),
     then today's ungated name lookup; no `verifiedUsing`, no registry
     write. A sharded model directory is this fallback.
-- A model's key is its **name**, never the D9 path key; `path` only feeds
-  the hash.
+- A model's key is the **path key of its `path=` file** (amended 2026-10-16;
+  originally its name, with `path` only feeding the hash), else its name when
+  there is no file.
 - `persist_registry` is `_sync_registry`'s tail, moved (not copied) so
   both writers log the same `ID registry: ...` lines. To survive two loom
   processes sharing one registry file, it re-loads the file just before

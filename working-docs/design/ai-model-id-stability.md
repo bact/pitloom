@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -19,9 +19,10 @@ stability", follow-up to [PR #178](https://github.com/bact/pitloom/pull/178)),
 content hash is the answer: a model's sha256 is a gate once recorded
 (D3), so a retrained, re-exported or re-quantised model is a new model
 with a new id -- the under-match caveat below is accepted on purpose.
-Resolved: a retrained model is a new model, on the lookups that are gated
-(loom with `path=`); the project, wheel, `loom model` and embed lookups stay
-ungated until G7 #3 (D16).
+Resolved: a retrained model is a new model on every surface since the path
+keys (2026-10-16): every model lookup is gated by the model file's SHA-256 and
+the model is keyed by its file's path, not its name
+([id-registry-path-keys.md](../implementation/id-registry-path-keys.md)).
 Hashed `ai_AIPackage` elements are auto-harvested; unhashed ones stay
 excluded (D15). Loom hashes a model declared with `path=` at run exit
 (D13). The "machine ID" idea is not pursued. The text below is the
@@ -71,7 +72,11 @@ reliable way to say "this is the same model I saw last time":
 
 (v2 text ends; see the decision at the top of this section.)
 
-## Known gap: two models sharing a file stem
+## Known gap: two models sharing a file stem (closed 2026-10-16)
+
+Closed by path keys: each model file is keyed by its own path, so two models
+with one stem have two keys and two ids; the text below is the v2 problem
+statement and the stem-era behaviour, kept as rationale.
 
 With a `pitloom id generate`-populated registry, `_lookup_ai_model_entity`'s
 filename-stem candidate is the *only* usable key for a model with no
@@ -98,6 +103,4 @@ identity. This is the same "what counts as the same model" question the
 rest of this document was open on (see "Deterministic same-model
 identification for auto-harvest" above), extended to also disambiguate
 by containing directory/path, not just a bare filename stem -- not
-addressed here. Registry v3 does not close it either: as built, `id generate`
-over two same-stem model files registers the stem by name only, with no hash
-and one `INFO:` per run, and project lookups stay ungated until G7 #3 (D16).
+addressed here. Registry v3 did not close it; path keys did (above).

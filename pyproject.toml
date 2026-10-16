@@ -357,7 +357,13 @@ ignored-modules = ["gguf", "magika"]
 project-excludes = ["**/tests/fixtures/"]
 # "src" before ".": a module under src/ must resolve as pitloom.x, never also
 # as src.pitloom.x (two identities for one class -> false bad-argument-type).
-search-path = ["src", ".", "examples/sentimentdemo-aibom/src"]
+# scripts/manual_cli_checks holds bare sibling imports (`import _harness`).
+search-path = [
+    "src",
+    ".",
+    "examples/sentimentdemo-aibom/src",
+    "scripts/manual_cli_checks",
+]
 python-version = "3.10.0"
 
 # spdx-python-model uses SHACL-based dynamic class generation: its enum-like

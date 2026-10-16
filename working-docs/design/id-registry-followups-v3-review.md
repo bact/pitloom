@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,8 +10,8 @@ SPDX-License-Identifier: CC0-1.0
 
 Not fixed in PR #305; each is small. Split from
 [id-registry-followups.md](id-registry-followups.md) (see also there, and
-[id-registry-path-keys.md](id-registry-path-keys.md) for the deferred
-path-key redesign, which several items below fold into).
+[id-registry-path-keys.md](../implementation/id-registry-path-keys.md) for the
+built path-key redesign; items it closed are marked).
 
 ## Registry invariants and file I/O
 
@@ -27,7 +27,8 @@ path-key redesign, which several items below fold into).
   symlink gives a temp-path error text; `IsADirectoryError` names the temp
   file, not the registry.
 - **`resolve_registry` raises a bare `TypeError`** for a non-path argument.
-- **NFC/NFD is not normalised in `RegistryCopy`.**
+- **NFC/NFD is not normalised in `RegistryCopy`** (registry keys are NFC since
+  path keys; the copy match is not).
 
 ## Paths and walks
 
@@ -46,7 +47,9 @@ path-key redesign, which several items below fold into).
 ## Loom and merge
 
 - **Loom datasets register a sha on the dataset package** (see the invariant
-  above); decide with the path-key redesign.
+  above): since path keys a hashed dataset package is content-gated, so the
+  invariant is now "hash on file, model and dataset package"; enforce or
+  document it in `register()`.
 - **`set_model_hyperparameters` keeps stale annotation statements**
   (pre-existing).
 - **Unified `rename_id_clash`**: one helper now words both the different-type

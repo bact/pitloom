@@ -175,7 +175,9 @@ class _MergeIndex:
         self, survivor: spdx3.Element, new_id: str, events: _UnificationEvents
     ) -> str:
         """Give the kept *survivor* the id *new_id* (held by no element) and
-        point every reference and recorded event at it; return the old id."""
+        point every reference, recorded event and registry record at it;
+        return the old id. The old id's recorded registry key moves to
+        *new_id* unless *new_id* has one of its own."""
         old_id = require_spdx_id(survivor)
         survivor.spdxId = new_id
         self.exporter.object_set.create_index()
@@ -188,6 +190,9 @@ class _MergeIndex:
         if old_id in non_readers:
             non_readers.discard(old_id)
             non_readers.add(new_id)
+        keys = self.exporter.registry_keys
+        if old_id in keys:
+            keys.setdefault(new_id, keys.pop(old_id))
         return old_id
 
     def find_by_id(self, spdx_id: str) -> spdx3.SHACLObject | None:

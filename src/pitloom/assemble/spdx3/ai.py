@@ -10,6 +10,12 @@ See also: :mod:`pitloom.assemble.spdx3._ai_package` for AIPackage node construct
 
 from __future__ import annotations
 
+import functools
+import logging
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
+from typing import TypeVar
+
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._ai_originators import add_model_originators
@@ -17,7 +23,6 @@ from pitloom.assemble.spdx3._ai_package import (
     _SAFETY_RISK_VALUES,
     _add_base_model_lineage,
     _add_external_identifiers_and_refs,
-    _ai_model_entity_candidates,
     _build_ai_package,
     _emit_source_metadata,
     _LineageContext,
@@ -37,12 +42,28 @@ from pitloom.assemble.spdx3.provenance import (
 )
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.models import build_relationship, generate_spdx_id
+from pitloom.core.project import ProjectFile
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.enrich.base import EnrichmentResult
+from pitloom.export.hashes import sha256_of
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.id_registry import AI_PACKAGE_TYPE, IdRegistrySession
+from pitloom.id_registry import (
+    AI_PACKAGE_TYPE,
+    IdRegistry,
+    IdRegistrySession,
+    LookupKey,
+    join_key,
+)
+from pitloom.logging_config import loggable
+
+log = logging.getLogger(__name__)
+
+_V = TypeVar("_V")
 
 __all__ = [
+    "MODEL_GATE_MISS_INFO",
+    "ModelHits",
     "_LineageContext",
     "_SAFETY_RISK_VALUES",
     "_add_base_model_lineage",
@@ -55,8 +76,17 @@ __all__ = [
     "add_model_license",
     "finish_ai_package",
     "finish_display_text",
+    "lookup_model_id",
+    "model_lookup_key",
     "resolve_ai_model_entity_hits",
 ]
+
+#: The one ``INFO:`` for a model whose lookup, gated by its file's SHA-256,
+#: missed while an entry under its key exists: it records no SHA-256, or
+#: another. Argument: the model's label.
+MODEL_GATE_MISS_INFO = (
+    "ID registry: model %s: no registry entry records its SHA-256; a new id is used"
+)
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
@@ -114,41 +144,124 @@ def _ai_model_label(ai_model: AiModelMetadata, index: int) -> str:
     )
 
 
+def _info_gate_miss(registry: IdRegistry, claimant: str, key: str) -> None:
+    """:data:`MODEL_GATE_MISS_INFO` for *claimant* when *registry* holds an
+    entry under *key* (or its display-escaped spelling, as a session tries
+    it), whatever its SHA-256. Read only: nothing is claimed."""
+    spellings = (key, escape_display_controls(key))
+    if any(registry.get(AI_PACKAGE_TYPE, name) is not None for name in spellings):
+        log.info(MODEL_GATE_MISS_INFO, loggable(claimant))
+
+
+def lookup_model_id(
+    session: IdRegistrySession,
+    claimant: str,
+    lookup: LookupKey,
+    digest: str | None,
+) -> str | None:
+    """*session*'s ``ai_AIPackage`` hit for *lookup*, claimed and its key
+    recorded (:meth:`~pitloom.id_registry.IdRegistrySession.lookup_key`),
+    gated by *digest*, the model file's SHA-256 (``None``: ungated): an
+    entry recording no SHA-256, or another, never hits a gated lookup. Such
+    a miss gives one :data:`MODEL_GATE_MISS_INFO`; every model lookup of
+    every surface goes through here."""
+    registry = session.registry
+    if registry is None or digest is None:
+        return session.lookup_key(claimant, AI_PACKAGE_TYPE, lookup)
+    on_miss = functools.partial(_info_gate_miss, registry, claimant, lookup.key)
+    return session.lookup_key(
+        claimant, AI_PACKAGE_TYPE, lookup, sha256=digest, on_miss=on_miss
+    )
+
+
+def _of_model_file(ai_model: AiModelMetadata, by_path: Mapping[str, _V]) -> _V | None:
+    """The value in *by_path* (by ``distribution_path``) for *ai_model*'s own
+    file, or ``None`` when it has none there."""
+    path = ai_model.format_info.file_path_relative
+    return by_path.get(path) if path else None
+
+
+def model_lookup_key(
+    ai_model: AiModelMetadata,
+    keys: Mapping[str, LookupKey],
+    prefix: str | None,
+) -> LookupKey:
+    """The key *ai_model*'s ``ai_AIPackage`` is looked up and harvested
+    under: the key of its own file among the document's *keys* (by
+    ``distribution_path``: the one its ``software_File`` has, alias
+    included); else, with a project *prefix*
+    (:func:`~pitloom.id_registry.keys.project_prefix`), its project-relative
+    ``physical_path`` joined to it; else its name as shown
+    (:meth:`~pitloom.core.ai_metadata.AiModelMetadata.resolve_name`)."""
+    own = _of_model_file(ai_model, keys)
+    if own is not None:
+        return own
+    physical = ai_model.format_info.physical_path
+    # join_key refuses an absolute (--allow-build temporary) path.
+    key = None if prefix is None or not physical else join_key(prefix, physical)
+    if key is not None:
+        return LookupKey(key, path=True)
+    return LookupKey(ai_model.resolve_name()[0])
+
+
+@dataclass(frozen=True)
+class ModelHits:
+    """One document's ``ai_AIPackage`` registry hits (*ids*, one per model,
+    ``None`` on a miss), each model's key (*keys*, same order) and the
+    *session* they were claimed in."""
+
+    session: IdRegistrySession
+    ids: list[str | None]
+    keys: list[LookupKey]
+
+    def record(self, model_ids: Sequence[str]) -> None:
+        """Record each model's key for the id it got (*model_ids*, model
+        order), so a minted id is harvested under it; a hit's own recorded
+        key wins (:meth:`~pitloom.id_registry.IdRegistrySession.record_key`)."""
+        for spdx_id, lookup in zip(model_ids, self.keys, strict=True):
+            self.session.record_key(spdx_id, AI_PACKAGE_TYPE, lookup.key)
+
+
 def resolve_ai_model_entity_hits(
     ai_models: list[AiModelMetadata],
     session: IdRegistrySession,
-) -> list[str | None]:
+    files: Iterable[ProjectFile] = (),
+    *,
+    keys: Mapping[str, LookupKey] | None = None,
+    prefix: str | None = None,
+) -> ModelHits:
     """Pre-resolve each of *ai_models*' ``ai_AIPackage`` registry hit, in
     list order (the scanner's order: sorted by distribution path, see
     :func:`pitloom.extract.scanner.discover_ai_models`), before any minting
     starts.
 
-    One entry per model (``None`` on a miss) via
-    :meth:`~pitloom.id_registry.IdRegistrySession.lookup_id` over
-    :func:`_ai_model_entity_candidates`. The caller must reserve every
-    non-``None`` value (:func:`~pitloom.core.models.reserve_spdx_ids`)
-    before minting, then pass this list to :func:`add_ai_models` instead
-    of the registry -- pre-resolution is the single source of truth for
-    what was reserved, so the actual build must never look the registry
-    up a second time.
+    Each model is looked up once, by :func:`model_lookup_key` over the
+    document's file *keys* and project *prefix*, through
+    :func:`lookup_model_id`, gated by the SHA-256 of its own file in
+    *files*; a model with no file there, or one with no SHA-256, is looked
+    up ungated. The caller must reserve every non-``None`` id
+    (:func:`~pitloom.core.models.reserve_spdx_ids`) before minting, pass
+    them to :func:`add_ai_models` instead of the registry (the build never
+    looks the registry up a second time), then :meth:`ModelHits.record`
+    the ids it returns.
 
-    Two models can legitimately hit the same entity -- e.g. two models
-    sharing a file stem, the only lookup candidate left when neither has a
-    name/``physical_path`` -- in which case only the first (in list
-    order, or the first hit across files/directories/AI models together
-    in *session*) reuses it; every later one gets its own fresh id
-    instead of silently losing its element to the first, with one
-    ``WARNING: ID registry: ...`` naming both.
+    A stale registry can give two models one id: only the first (in list
+    order, or the first claimant in *session*) reuses it; a later one gets
+    its own fresh id, with one ``WARNING: ID registry: ...`` naming both.
     """
-    hits: list[str | None] = []
-    for index, ai_model in enumerate(ai_models):
-        hit = session.lookup_id(
+    keys = keys or {}
+    digests = {pf.distribution_path: pf.digest_sha256 for pf in files}
+    lookups = [model_lookup_key(model, keys, prefix) for model in ai_models]
+    ids = [
+        lookup_model_id(
+            session,
             _ai_model_label(ai_model, index),
-            AI_PACKAGE_TYPE,
-            _ai_model_entity_candidates(ai_model),
+            lookup,
+            _of_model_file(ai_model, digests),
         )
-        hits.append(hit)
-    return hits
+        for index, (ai_model, lookup) in enumerate(zip(ai_models, lookups, strict=True))
+    ]
+    return ModelHits(session, ids, lookups)
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -162,11 +275,7 @@ def _add_ai_model_file_relationships(
     exporter: Spdx3JsonExporter,
 ) -> None:
     """Build contains and hasDataFile relationships for model files."""
-    model_file_id = (
-        file_spdx_ids.get(ai_model.format_info.file_path_relative)
-        if ai_model.format_info.file_path_relative
-        else None
-    )
+    model_file_id = _of_model_file(ai_model, file_spdx_ids)
     if not model_file_id:
         return
 
@@ -212,14 +321,26 @@ def _add_single_ai_model(
     config: ProvenanceConfig,
     encoder: ProvenanceEncoder | None,
     lineage_ctx: _LineageContext,
-) -> None:
-    """Assemble elements and relationships for a single AI model.
+) -> str:
+    """Assemble elements and relationships for a single AI model; return
+    its package's spdxId.
 
     *entity_spdx_id* is the pre-resolved registry hit from
     :func:`resolve_ai_model_entity_hits` (or ``None`` on a miss) -- never
-    looked up here."""
+    looked up here. The package's ``verifiedUsing`` is the SHA-256 of the
+    model's own ``software_File`` in the document, when it has one."""
+    file_id = _of_model_file(ai_model, file_spdx_ids)
     ai_pkg = _build_ai_package(
-        ai_model, creation_info, doc_name, doc_uuid, entity_spdx_id=entity_spdx_id
+        ai_model,
+        creation_info,
+        doc_name,
+        doc_uuid,
+        entity_spdx_id=entity_spdx_id,
+        digest=(
+            None
+            if file_id is None
+            else sha256_of(exporter.object_set.find_by_id(file_id))
+        ),
     )
     exporter.add_package(ai_pkg)
     ai_pkg_id = require_spdx_id(ai_pkg)
@@ -310,6 +431,7 @@ def _add_single_ai_model(
         doc_uuid,
         exporter,
     )
+    return ai_pkg_id
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -326,13 +448,14 @@ def add_ai_models(
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
     enrichment_results_by_model: list[list[EnrichmentResult]] | None = None,
-) -> None:
-    """Build ``ai_AIPackage`` and ``contains`` relationship elements for AI models.
+) -> list[str]:
+    """Build ``ai_AIPackage`` and ``contains`` relationship elements for AI
+    models; return each package's spdxId, in *ai_models* order.
 
     *resolved_entity_ids*, when given, is one pre-resolved registry hit
     (or ``None``) per ``ai_models`` element, same order -- see
-    :func:`resolve_ai_model_entity_hits`. Missing/``None`` list entries are
-    treated as a miss, unchanged behaviour when no registry applies.
+    :func:`resolve_ai_model_entity_hits`. A missing or ``None`` entry is a
+    miss: a fresh id is minted.
     """
     config = provenance_config or ProvenanceConfig()
     lineage_ctx = _LineageContext(
@@ -341,6 +464,7 @@ def add_ai_models(
         doc_uuid=doc_uuid,
         exporter=exporter,
     )
+    ids: list[str] = []
     for index, ai_model in enumerate(ai_models):
         model_enrichment_results = (
             enrichment_results_by_model[index]
@@ -352,17 +476,20 @@ def add_ai_models(
             if resolved_entity_ids and index < len(resolved_entity_ids)
             else None
         )
-        _add_single_ai_model(
-            ai_model,
-            model_enrichment_results,
-            main_package_spdx_id,
-            file_spdx_ids,
-            creation_info,
-            doc_name,
-            doc_uuid,
-            exporter,
-            entity_spdx_id,
-            config,
-            encoder,
-            lineage_ctx,
+        ids.append(
+            _add_single_ai_model(
+                ai_model,
+                model_enrichment_results,
+                main_package_spdx_id,
+                file_spdx_ids,
+                creation_info,
+                doc_name,
+                doc_uuid,
+                exporter,
+                entity_spdx_id,
+                config,
+                encoder,
+                lineage_ctx,
+            )
         )
+    return ids

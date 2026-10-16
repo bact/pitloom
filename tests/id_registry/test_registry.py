@@ -15,6 +15,7 @@ tests/registry_helpers.py (``make_registry``).
 
 from __future__ import annotations
 
+import hashlib
 import os
 from pathlib import Path
 
@@ -33,6 +34,7 @@ from pitloom.id_registry import (
     type_id_prefix,
 )
 from pitloom.id_registry._types import _element_key
+from tests.id_registry.surfaces_base import _run_cli
 from tests.registry_helpers import entries_of, make_registry
 
 _NS = "https://spdx.org/spdxdocs/test-1"
@@ -137,6 +139,21 @@ def test_lookup_gate(stored: str | None, given: str | None, hit: bool) -> None:
     assert found == (f"{_NS}#File-1" if hit else None)
 
 
+@pytest.mark.parametrize(
+    ("stored", "hit"), [(None, True), (_SHA_A, False)], ids=["no-sha", "sha"]
+)
+def test_lookup_miss_hashed_skips_an_entry_recording_a_hash(
+    stored: str | None, hit: bool
+) -> None:
+    """Content-less input cannot vouch for a hashed entry; a hash-less one
+    still hits."""
+    registry = make_registry({(AI_PACKAGE_TYPE, "m"): (f"{_NS}#AIPackage-1", stored)})
+
+    found = registry.lookup(AI_PACKAGE_TYPE, ["m"], miss_hashed=True)
+
+    assert found == (f"{_NS}#AIPackage-1" if hit else None)
+
+
 def test_lookup_first_gated_hit_wins_in_candidate_order() -> None:
     """I3: the first candidate whose gate passes wins; a candidate whose
     hash differs is skipped, not a stop."""
@@ -209,6 +226,59 @@ def test_register_table(row: str, caplog: pytest.LogCaptureFixture) -> None:
     ]
     assert len(changed) == int(info)
     assert all(old_id in message for message in changed)
+
+
+@pytest.mark.parametrize(
+    ("entry_sha", "number", "info"),
+    [
+        (None, 7, "dataset d pin now gated by its SHA-256"),
+        (_SHA_A, 8, f"content changed for d; minting a new spdxId (old: {_NS}#"),
+    ],
+    ids=["pin-adopts", "changed"],
+)
+def test_register_gives_a_hashless_dataset_pin_its_digest(
+    caplog: pytest.LogCaptureFixture, entry_sha: str | None, number: int, info: str
+) -> None:
+    """A dataset pin made before its data existed keeps its id when ``-e``
+    first sees the data (gated from then on, one INFO); a pin recording
+    other content is a new id, as for every type."""
+    held = {(DATASET_PACKAGE_TYPE, "d"): (f"{_NS}#DatasetPackage-7", entry_sha)}
+    registry = make_registry(held, namespace=_NS)
+
+    with caplog.at_level("INFO", logger="pitloom.id_registry"):
+        spdx_id = registry.register(DATASET_PACKAGE_TYPE, "d", sha256=_SHA_B)
+
+    assert spdx_id == f"{_NS}#DatasetPackage-{number}"
+    assert registry.get(DATASET_PACKAGE_TYPE, "d") == RegistryEntry(spdx_id, _SHA_B)
+    said = [m for m in caplog.messages if m.startswith("ID registry: ")]
+    assert len(said) == 1 and said[0].startswith(f"ID registry: {info}")
+
+
+def test_id_generate_e_pin_keeps_its_id_once_the_data_exists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The sentimentdemo stage 0, run twice: ``-e`` of a dataset not yet
+    written pins it hash-less; once it exists, the same ``-e`` keeps the
+    id and records the digest."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "a.py").write_bytes(b"")
+    argv = ["id", "generate", "src", "-e", "data/t.txt:dataset_DatasetPackage"]
+    reg = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
+
+    def pinned() -> RegistryEntry | None:
+        assert _run_cli(monkeypatch, [*argv, "-o", str(reg)]) == 0
+        return IdRegistry.load(reg).get(DATASET_PACKAGE_TYPE, "data/t.txt")
+
+    first = pinned()
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "t.txt").write_bytes(b"rows\n")
+    second = pinned()
+
+    assert first is not None and first.sha256 is None
+    assert second is not None and second.spdx_id == first.spdx_id
+    assert second.sha256 == hashlib.sha256(b"rows\n").hexdigest()
+    assert pinned() == second
 
 
 def test_register_never_erases_a_sha() -> None:

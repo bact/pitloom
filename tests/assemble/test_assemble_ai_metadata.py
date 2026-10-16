@@ -20,11 +20,12 @@ import pytest
 import rfc8785
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3._ai_package import _ai_model_entity_candidates
 from pitloom.assemble.spdx3.ai import (
     _emit_source_metadata,
     _should_preserve_metadata,
     _source_metadata_blob,
+    lookup_model_id,
+    model_lookup_key,
 )
 from pitloom.core.ai_metadata import (
     AiModelFormat,
@@ -33,22 +34,12 @@ from pitloom.core.ai_metadata import (
     SourceMetadata,
 )
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.id_registry import AI_PACKAGE_TYPE, IdRegistry, IdRegistrySession
+from pitloom.id_registry import AI_PACKAGE_TYPE, IdRegistrySession, LookupKey
+from pitloom.id_registry.keys import Alias
 from tests.registry_helpers import make_registry
 
 from ..conftest import fake_build_and_read_path
 from .conftest import _DOC_NAME, _DOC_UUID, _make_ci
-
-
-def _lookup_ai_model_entity(
-    model: AiModelMetadata, registry: IdRegistry | None
-) -> str | None:
-    """Test-only helper matching the removed function's old shape: look
-    up *model*'s ``ai_AIPackage`` registry hit via a one-off session over
-    :func:`_ai_model_entity_candidates`."""
-    return IdRegistrySession(registry).lookup_id(
-        "test", AI_PACKAGE_TYPE, _ai_model_entity_candidates(model)
-    )
 
 
 def test_should_preserve_metadata_always() -> None:
@@ -165,103 +156,69 @@ def test_source_metadata_blob_unknown_format_no_extras_stays_unknown() -> None:
     assert fmt == "unknown"
 
 
-def test_lookup_ai_model_entity_no_registry_returns_none() -> None:
-    model = AiModelMetadata(name="mymodel")
-    assert _lookup_ai_model_entity(model, None) is None
-
-
-def test_lookup_ai_model_entity_not_found_returns_none() -> None:
-    registry = IdRegistry(namespace="urn:doc")
-    model = AiModelMetadata(name="unregistered")
-    assert _lookup_ai_model_entity(model, registry) is None
-
-
-def test_lookup_ai_model_entity_found_by_name() -> None:
-    registry = make_registry(
-        {("ai_AIPackage", "mymodel"): ("urn:doc#AIPackage-1", None)},
-        namespace="urn:doc",
-    )
-    model = AiModelMetadata(name="mymodel")
-    assert _lookup_ai_model_entity(model, registry) == "urn:doc#AIPackage-1"
-
-
-def test_lookup_ai_model_entity_found_by_physical_path() -> None:
-    registry = make_registry(
-        {("ai_AIPackage", "src/model.gguf"): ("urn:doc#AIPackage-2", None)},
-        namespace="urn:doc",
-    )
-    model = AiModelMetadata(
-        format_info=AiModelFormatInfo(physical_path="src/model.gguf")
-    )
-    assert _lookup_ai_model_entity(model, registry) == "urn:doc#AIPackage-2"
-
-
-def test_lookup_ai_model_entity_found_by_file_stem() -> None:
-    registry = make_registry(
-        {("ai_AIPackage", "model"): ("urn:doc#AIPackage-3", None)}, namespace="urn:doc"
-    )
-    model = AiModelMetadata(format_info=AiModelFormatInfo(file_name="model.gguf"))
-    assert _lookup_ai_model_entity(model, registry) == "urn:doc#AIPackage-3"
-
-
-def test_lookup_ai_model_entity_falls_back_when_physical_path_absolute() -> None:
-    """Regression: a build-and-read (--allow-build) discovered model has
-    an absolute physical_path (a fresh tempfile.mkdtemp() extraction
-    dir -- see ProjectFile.physical_path's docstring), which never
-    matches a registry entry keyed by a project-relative path. Falls
-    back to file_path_relative, the same rule _document_files.py's
-    determinism fix and enrich's _resolve_model_search_dir already
-    apply for this identical hazard."""
-    registry = make_registry(
-        {("ai_AIPackage", "src/model.gguf"): ("urn:doc#AIPackage-4", None)},
-        namespace="urn:doc",
-    )
-    model = AiModelMetadata(
-        format_info=AiModelFormatInfo(
-            physical_path=fake_build_and_read_path("src", "model.gguf"),
-            file_path_relative="src/model.gguf",
-        )
-    )
-    assert _lookup_ai_model_entity(model, registry) == "urn:doc#AIPackage-4"
-
-
-def test_lookup_ai_model_entity_absolute_path_no_fallback_skips_candidate() -> None:
-    """When physical_path is absolute and file_path_relative is also
-    unset, no candidate is added for it at all (not a bare empty-string
-    lookup) -- falls through to the next candidate (file stem)."""
-    registry = make_registry(
-        {("ai_AIPackage", "model"): ("urn:doc#AIPackage-5", None)}, namespace="urn:doc"
-    )
-    model = AiModelMetadata(
-        format_info=AiModelFormatInfo(
-            physical_path=fake_build_and_read_path("model.gguf"),
-            file_name="model.gguf",
-        )
-    )
-    assert _lookup_ai_model_entity(model, registry) == "urn:doc#AIPackage-5"
+_IN_DOC = LookupKey("src/m/bert.gguf", Alias.CANONICAL, path=True)
 
 
 @pytest.mark.parametrize(
-    ("name", "expected"),
+    ("name", "physical", "keys", "prefix", "expected"),
     [
-        (" BERT ", ["BERT", "m/bert.gguf", "bert"]),
-        ("  ", ["m/bert.gguf", "bert"]),
-        (None, ["m/bert.gguf", "bert"]),
+        ("BERT", "src/m/bert.gguf", {"m/bert.gguf": _IN_DOC}, "", _IN_DOC),
+        ("BERT", "src/m/bert.gguf", {}, "pkgs/p", ("pkgs/p/src/m/bert.gguf", True)),
+        ("BERT", "src/m/bert.gguf", {}, None, ("BERT", False)),
+        (" BERT ", "../bert.gguf", {}, "", ("BERT", False)),
+        ("  ", fake_build_and_read_path("m", "bert.gguf"), {}, "", ("bert", False)),
+        (None, None, {}, "", ("bert", False)),
     ],
+    ids=["own-file", "joined", "no-prefix", "outside", "absolute", "stem"],
 )
-def test_entity_candidates_use_the_shown_name(
-    name: str | None, expected: list[str]
+def test_model_lookup_key(
+    name: str | None,
+    physical: str | None,
+    keys: dict[str, LookupKey],
+    prefix: str | None,
+    expected: LookupKey | tuple[str, bool],
 ) -> None:
-    """The registry is looked up by the name the SBOM shows (stripped; a
-    blank one is no name), so an id imported from that SBOM is found."""
+    """The one model rule: its own file's key in the document (alias
+    included); else its project path joined to the prefix; else the name
+    the SBOM shows (stripped, a blank one is no name: the stem)."""
     model = AiModelMetadata(
         name=name,
         format_info=AiModelFormatInfo(
             file_name="bert.gguf",
-            physical_path="m/bert.gguf",
+            file_path_relative="m/bert.gguf",
+            physical_path=physical,
             model_format=AiModelFormat.GGUF,
         ),
     )
-    assert _ai_model_entity_candidates(model) == expected
-    # the first name candidate is the name the SBOM shows, or its stem
-    assert model.resolve_name()[0] in (expected[0], expected[-1])
+    lookup = model_lookup_key(model, keys, prefix)
+    if isinstance(expected, LookupKey):
+        assert lookup is expected
+    else:
+        assert (lookup.key, lookup.path, lookup.alias) == (*expected, Alias.NONE)
+
+
+@pytest.mark.parametrize(
+    ("held", "digest", "hit"),
+    [
+        (("m", None), None, True),
+        (("m", "a" * 64), "a" * 64, True),
+        (("m", "b" * 64), "a" * 64, False),
+        (("other", None), None, False),
+    ],
+    ids=["ungated", "gated-hit", "gated-miss", "absent"],
+)
+def test_lookup_model_id_records_the_key_of_a_hit(
+    held: tuple[str, str | None], digest: str | None, hit: bool
+) -> None:
+    """A hit is claimed and its key recorded; a gated lookup misses an entry
+    recording another SHA-256."""
+    registry = make_registry(
+        {(AI_PACKAGE_TYPE, held[0]): ("urn:doc#AIPackage-1", held[1])},
+        namespace="urn:doc",
+    )
+    session = IdRegistrySession(registry)
+    got = lookup_model_id(session, "m", LookupKey("m"), digest)
+    assert (got == "urn:doc#AIPackage-1") is hit
+    recorded = {"urn:doc#AIPackage-1": (AI_PACKAGE_TYPE, "m")} if hit else {}
+    assert dict(session.recorded_keys()) == recorded
+    assert lookup_model_id(IdRegistrySession(None), "m", LookupKey("m"), None) is None

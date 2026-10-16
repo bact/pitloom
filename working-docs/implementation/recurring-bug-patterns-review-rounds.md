@@ -1,12 +1,12 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Recurring bug patterns: review rounds of PR #300, #305 and #306
+# Recurring bug patterns: review rounds of PR #300, #305, #306 and path keys
 
 See also: [recurring-bug-patterns.md](recurring-bug-patterns.md) (the main
 list; split here for size),
@@ -221,3 +221,44 @@ Decisions and the full story:
   mid-sweep left one doc stale and was reported by the sweep agent itself;
   the reviewer in flight was told by message that the rule was reverted, or
   it would have filed findings against code that was no longer there.
+
+## From the registry path-key PR (2026-10-16)
+
+Built as [id-registry-path-keys.md](id-registry-path-keys.md).
+
+- **A lookup rule restricted by what exists on disk must test the shorter
+  (stale) key's existence.** The layout alias "`demo/x.py` is the installed
+  path of `src/demo/x.py`" first took any one leading part. With
+  `tests/foo/__init__.py` and `foo/__init__.py` both real and equal in bytes
+  (empty files), a wheel's `foo/__init__.py` hit the id held for the test
+  file. Fix: first part `src`/`lib` only, and the shorter key must not exist
+  as a real file or directory under the registry root, so two real files are
+  never one alias. Do: for every "A is an alias of B" rule, write the test
+  where both exist as real files with equal content.
+- **An O(1) lookup replaced by a full-table scan in a hot path.** The same
+  loose rule found its candidates by scanning every held key per lookup
+  (quadratic in the registry). The built rule constructs the (at most two)
+  candidate keys and asks the dictionary for each. Do: when a rule needs
+  "which held key matches", derive the candidates from the input; a scan is
+  a sign the rule is too loose.
+- **Write what you looked up, not what the element is called.** Harvest keyed
+  an element by its `.name`; a merged loom fragment's model, found under its
+  path key, lost it (K17), and harvesting a model by name released the stem
+  key `id generate` had made. Fix: the session records the key each lookup
+  used and harvest writes that; an element with no recorded key never moves
+  an id held under another key of its type. Do: any "read back, then write"
+  pair shares the key by construction, not by recomputing it.
+- **User-typed path versus derived path: spell once, at the boundary.** A
+  path a user typed takes its on-disk spelling (`DATA/T.TXT` is
+  `data/t.txt` on a case-insensitive file system); a path derived from a
+  scan, an archive or a registry is used as given. Both go through one helper
+  (`pitloom.id_registry.keys`); a call site that spells a key by hand drifts.
+- **Order of work against a gate.** A dataset pin made before the data exists
+  (`-e data/new.txt:dataset_DatasetPackage`) cannot hold a digest; a strict
+  gate would never hit it. The gate became hybrid: a hash-less pin hits any
+  content (with an `INFO:`), a hashed entry is gated. Do: when a gate meets a
+  pin created before the thing it gates exists, decide what an absent hash
+  means.
+- **A fixture is green by construction; a review reads the rule against real
+  trees.** All three failures of the loose alias rule passed the tests that
+  had been written for it; an independent review found them together.

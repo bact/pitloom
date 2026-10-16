@@ -16,6 +16,7 @@ import ast
 import hashlib
 import json
 import re
+import unicodedata
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
@@ -29,8 +30,8 @@ AI, DATASET = "ai_AIPackage", "dataset_DatasetPackage"
 #: The four types a lookup reads (design section 7), with their id
 #: prefixes (D2, I6); every other harvested type is a per-document record.
 PREFIX = {FILE: "File", PACKAGE: "Package", AI: "AIPackage", DATASET: "DatasetPackage"}
-#: The content-gated types (I1, I2).
-GATED = frozenset({FILE, AI})
+#: The content-gated types (I1, I2; a dataset package by its digest).
+GATED = frozenset({FILE, AI, DATASET})
 LOOM_SURFACES = frozenset({"train", "eval"})
 
 Key = tuple[str, str]
@@ -56,10 +57,10 @@ class Element:
 
 def canonical(type_name: str, name: str) -> Key:
     """The registry key of an element (``_element_key``: PEP 503 for a
-    ``software_Package`` name)."""
+    ``software_Package`` name, NFC for every other)."""
     if type_name == PACKAGE:
         return type_name, re.sub(r"[-_.]+", "-", name).lower()
-    return type_name, name
+    return type_name, unicodedata.normalize("NFC", name)
 
 
 def parse_registry(raw: bytes) -> dict[Key, Entry] | None:
@@ -191,7 +192,7 @@ def capture(work: Path, steps: Iterable[Step]) -> list[Captured]:
 
 
 def project_files(fixture: Path, step: Step, exclude: str | None) -> dict[str, str]:
-    """Project-relative path -> sha256 of every file on disk after *step*
+    """Project-relative NFC path -> sha256 of every file on disk after *step*
     (pristine fixture plus the simulated changes), minus *exclude*."""
     files = {
         p.relative_to(fixture).as_posix(): p for p in fixture.rglob("*") if p.is_file()
@@ -202,6 +203,8 @@ def project_files(fixture: Path, step: Step, exclude: str | None) -> dict[str, s
             shas.pop(rel, None)
         else:
             shas[rel] = hashlib.sha256(data).hexdigest()
+    # A registry key is NFC whatever the file system's spelling.
+    shas = {unicodedata.normalize("NFC", rel): sha for rel, sha in shas.items()}
     if exclude:
         shas.pop(exclude, None)
     return shas

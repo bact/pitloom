@@ -36,10 +36,14 @@ _CI = spdx3.CreationInfo(
 )
 
 
-def _exporter(*files: tuple[str, str, str]) -> Spdx3JsonExporter:
-    """An exporter holding one hashed file per ``(name, spdxId, sha256)``."""
+def _exporter(
+    *files: tuple[str, str, str], keys: dict[str, tuple[str, str]] | None = None
+) -> Spdx3JsonExporter:
+    """An exporter holding one hashed file per ``(name, spdxId, sha256)``,
+    with the registry *keys* its lookups recorded."""
     exporter = Spdx3JsonExporter()
     exporter.add_creation_info(_CI)
+    exporter.registry_keys.update(keys or {})
     for name, spdx_id, sha256 in files:
         exporter.add_file(
             spdx3.software_File(
@@ -65,20 +69,26 @@ def _infos(caplog: pytest.LogCaptureFixture) -> list[str]:
 def test_added_counts_distinct_ids(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A src-layout alias pair is two keys and one id."""
+    """A known id promoted to its recorded key adds a key change, not an
+    id."""
     path = tmp_path / "reg.json"
-    registry = IdRegistry.new("x", path=path)
+    registry = make_registry(
+        {(FILE_TYPE, "p/a.py"): (f"{_NS}#File-1", "a" * 64)}, path=path
+    )
     exporter = _exporter(
-        ("src/p/a.py", f"{_NS}#File-1", "a" * 64),
-        ("p/a.py", f"{_NS}#File-1", "a" * 64),
+        ("a.py", f"{_NS}#File-1", "a" * 64),
         ("p/b.py", f"{_NS}#File-2", "b" * 64),
+        keys={f"{_NS}#File-1": (FILE_TYPE, "src/p/a.py")},
     )
 
     with caplog.at_level(logging.INFO, logger="pitloom"):
         _sync_registry(exporter, registry, True)
 
-    assert len(registry.elements) == 3  # non-vacuous: three keys
-    assert _infos(caplog) == [f"ID registry: added 2 new id(s) to {path}"]
+    assert sorted(registry.elements) == [  # non-vacuous: a.py's key moved
+        (FILE_TYPE, "p/b.py"),
+        (FILE_TYPE, "src/p/a.py"),
+    ]
+    assert _infos(caplog) == [f"ID registry: added 1 new id(s) to {path}"]
     assert IdRegistry.load(path).id_count() == 2
 
 
@@ -97,8 +107,10 @@ def test_updated_stale_entries_when_no_entry_is_new(
         {(FILE_TYPE, "old.py"): (f"{_NS}#File-1", "a" * 64)}, path=path
     )
 
+    exporter = _exporter((name, spdx_id, "b" * 64), keys={spdx_id: (FILE_TYPE, name)})
+
     with caplog.at_level(logging.INFO, logger="pitloom"):
-        _sync_registry(_exporter((name, spdx_id, "b" * 64)), registry, True)
+        _sync_registry(exporter, registry, True)
 
     assert registry.get(FILE_TYPE, name) == RegistryEntry(spdx_id, "b" * 64)
     assert registry.id_count() == 1
@@ -143,8 +155,8 @@ def test_id_generate_reports_distinct_ids(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """A project run harvests the src-layout alias (``demo/__init__.py``
-    beside ``src/demo/__init__.py``): one more key than ids."""
+    """A project run keeps the id of ``demo/__init__.py`` under
+    ``src/demo/__init__.py``, the key it hit (R-keep): one key per id."""
     project = tmp_path / "proj"
     (project / "src" / "demo").mkdir(parents=True)
     (project / "pyproject.toml").write_text(_SRC_LAYOUT_TOML, encoding="utf-8")
@@ -160,8 +172,8 @@ def test_id_generate_reports_distinct_ids(
     assert _run_cli(monkeypatch, generate) == 0
 
     loaded = IdRegistry.load(registry)
-    alias = loaded.get(FILE_TYPE, "demo/__init__.py")
-    assert alias == loaded.get(FILE_TYPE, "src/demo/__init__.py")  # one id, two keys
-    assert len(loaded.elements) == loaded.id_count() + 1
+    assert loaded.get(FILE_TYPE, "demo/__init__.py") is None
+    assert loaded.get(FILE_TYPE, "src/demo/__init__.py") is not None
+    assert len(loaded.elements) == loaded.id_count()
     err = capsys.readouterr().err
     assert f"INFO: ID registry: holds {loaded.id_count()} id(s)\n" in err

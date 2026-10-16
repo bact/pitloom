@@ -4,8 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Which elements run auto-harvest writes back (D15): a hashed
-``ai_AIPackage`` yes, an unhashed one no, a ``dataset_DatasetPackage``
-never; a loom fragment's ``software_File`` merged into a project SBOM yes.
+``ai_AIPackage`` yes (under its file's key), an unhashed one no, a
+``dataset_DatasetPackage`` never; a loom fragment's ``software_File``
+merged into a project SBOM yes.
 
 See also: tests/core/generator/test_generator_registry_sync.py (auto-sync
 through every generator), tests/core/test_loom_model.py (loom's own write).
@@ -15,7 +16,7 @@ through every generator), tests/core/test_loom_model.py (loom's own write).
 
 from __future__ import annotations
 
-import hashlib
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,6 +34,7 @@ from pitloom.id_registry import (
     FILE_TYPE,
     IdRegistry,
 )
+from pitloom.id_registry._ambiguous import MODEL_NOT_RECORDED_INFO
 
 from ..conftest import _write_smoke_project
 
@@ -62,10 +64,12 @@ def test_harvestable(element_type: type, hashed: bool, harvested: bool) -> None:
 
 
 def test_a_merged_loom_fragment_is_harvested(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A loom fragment merged into a project SBOM: its hashed model and its
-    dataset's file are written back; the dataset package is not."""
+    """A loom fragment merged into a project SBOM: its dataset's file is
+    written back; the dataset package is not, nor its hashed model, whose
+    file is not in the document (one INFO): a name key would outlive a
+    retrain."""
     _write_smoke_project(tmp_path)
     (tmp_path / "data.txt").write_bytes(b"rows\n")
     (tmp_path / "m.bin").write_bytes(b"weights")
@@ -79,16 +83,16 @@ def test_a_merged_loom_fragment_is_harvested(
     registry = tmp_path / "reg.json"
     IdRegistry.new("smoke-project", path=registry).save()
 
-    generate_project_sbom(
-        tmp_path,
-        id_registry=registry,
-        pitloom_config=PitloomConfig(fragments=[FragmentConfig(path="frag.json")]),
-    )
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        generate_project_sbom(
+            tmp_path,
+            id_registry=registry,
+            pitloom_config=PitloomConfig(fragments=[FragmentConfig(path="frag.json")]),
+        )
 
     saved = IdRegistry.load(registry)
-    model = saved.get(AI_PACKAGE_TYPE, "m")
-    assert model is not None
-    assert model.sha256 == hashlib.sha256(b"weights").hexdigest()
+    assert saved.get(AI_PACKAGE_TYPE, "m") is None
+    assert caplog.messages.count(MODEL_NOT_RECORDED_INFO % "m") == 1
     held = saved.get(FILE_TYPE, "data.txt")
     assert held is not None and held.sha256 is not None
     assert not [key for key in saved.elements if key[0] == DATASET_PACKAGE_TYPE]

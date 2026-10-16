@@ -167,9 +167,10 @@ def set_model(
 
     Resolved when the run ends without an exception: *path*, the model's
     file (relative to the current directory at this call), is then hashed;
-    with a registry, the hash gates the lookup of *name*, and a model the
-    registry does not know is registered. A file rewritten in between is a
-    new model with a new id.
+    with a registry, the hash gates the lookup of the file's path key (of
+    *name* outside the registry's root), and a model the registry does not
+    know is registered. Without a usable *path*, *name* is looked up
+    ungated. A file rewritten in between is a new model with a new id.
     """
     if _active_run is None:
         raise RuntimeError(

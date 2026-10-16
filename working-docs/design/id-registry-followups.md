@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -22,9 +22,10 @@ D-numbers below refer to it),
 [diagnostics-logging-followups.md](diagnostics-logging-followups.md),
 [canonical-output-followups.md](canonical-output-followups.md) (name
 comparison and normalisation that registry keys depend on),
-[id-registry-path-keys.md](id-registry-path-keys.md) (deferred path-key
-redesign),
-[id-registry-followups-v3-review.md](id-registry-followups-v3-review.md).
+[id-registry-path-keys.md](../implementation/id-registry-path-keys.md) (the
+built path-key redesign; K-numbers refer to it),
+[id-registry-followups-v3-review.md](id-registry-followups-v3-review.md),
+[id-registry-followups-path-keys.md](id-registry-followups-path-keys.md).
 
 ## Open
 
@@ -88,18 +89,10 @@ Ids, names and output:
 
 ### Wheel/sdist targets and src-layout registry file ids
 
-`loom id generate` keys files by project path (`src/demo/x.py`), while a
-wheel's distribution path is `demo/x.py` and an sdist's is
-`demo-1.0.0/src/...`. A `loom project` harvest writes a
-distribution-path alias (`demo/x.py`) next to the `src/` entry, so a later
-`wheel` run does reuse the id. The gap applies to a registry seeded by
-`loom id generate` alone, which has no alias, and to an sdist target,
-which finds neither key. v3 keeps the alias rule (I4) and does not close
-this. The reverse order splits the ids too: `id generate` after a
-`project` or `wheel` harvest mints a new id for the `src/` key beside the
-distribution-path alias, and the next `project` run rewrites the alias
-(found by the order matrix, `O1/src/fresh-cli`; accepted there under this
-item).
+Closed by the path-key work (K1-K3, K15): see
+[id-registry-path-keys.md](../implementation/id-registry-path-keys.md).
+Layouts other than `src/` and `lib/` and a plain `wheel` in a monorepo are
+open ([id-registry-followups-path-keys.md](id-registry-followups-path-keys.md)).
 
 ### Harvest rewrites per-document entities; `env` root is never looked up
 
@@ -117,16 +110,8 @@ registry types, or mark agents and tools as non-readers.
 
 ### AIPackage lookups outside loom stay ungated until G7 #3
 
-G7 #3 now waits on the path-key redesign, which bundles it:
-[id-registry-path-keys.md](id-registry-path-keys.md) (open decisions P2, P3,
-P10).
-
-v3 gates loom's model lookup by the `path=` file's sha256 (D13), but the
-project, wheel, `loom model` and embed lookups stay ungated (D16): those
-surfaces do not hash AIPackages before G7 #3. Until then a project SBOM
-reuses a name-matched `ai_AIPackage` id even after the model is
-retrained, while loom mints a new one. Gate them when G7 #3 lands, so
-every surface agrees.
+Closed by the path-key work: every model lookup is gated by the model file's
+SHA-256 and `ai_AIPackage.verifiedUsing` is emitted (G7 #3 part 1).
 
 ### Ignored-name quirks in `id generate` indexing
 
@@ -171,20 +156,10 @@ is easy to lose. D-numbers refer to [id-registry-v3.md](../implementation/id-reg
 
 ### G7 blockers (Day 2)
 
-- **Retrains laundered into old ids (D15 against D16).** Once G7 #3 hashes
-  the AIPackages of the project, wheel and embed surfaces, their ungated name
-  lookups (D16) still return the old id after a retrain. Harvest then writes
-  `(name, new sha)` under the OLD id, and a later gated `loom` lookup of the
-  new bytes hits the old id. G7 #3 must gate those lookups in the same change,
-  or D15 must be limited to elements that did a gated lookup.
-- **Harvest keys a model by its extracted `.name`, `id generate` by the file
-  stem.** When they differ, `_release_stale_keys_for_id` drops the stem key,
-  because the src-layout alias rule (`_is_alias`) only accepts names that are
-  path suffixes of each other. Extend the alias rule, or key the harvest by
-  the lookup key, before G7 #3 makes names diverge more often.
-- **Revisit `id import` sha drop after G7 #3** (project SBOMs will carry the
-  AIPackage hash, so the imported element has its own sha). Ruling of
-  2026-10-15, under "Found by the order matrix" below.
+Closed by the path-key work (blockers 1 and 2, and the `id import` sha-drop
+revisit: an imported model now carries its own hash and takes the key of its
+same-hash `software_File`). See
+[id-registry-path-keys.md](../implementation/id-registry-path-keys.md).
 
 ### Security and edge cases
 
@@ -207,9 +182,8 @@ Dataset hashing and paths:
   `could not read`; a single vanished file is silent. Align the two.
 - **Symlinked subdirectories of a directory dataset are not followed.**
   Documented in `docs/python-api.md`; decide whether it is a gap.
-- **Case-insensitive file system.** A path matched by identity (`st_dev`,
-  `st_ino`) keeps the caller's casing below the root, so the registry lookup
-  misses. Normalise the tail to the on-disk case, or look up by identity.
+- ~~**Case-insensitive file system.**~~ Resolved by path keys: a user-typed
+  path takes its on-disk spelling.
 - ~~**`registry_key_for_path` raised when the current directory was
   deleted**~~ Resolved 2026-10-15: it returns `None`, as for "outside root".
 
@@ -241,11 +215,9 @@ Loom:
   [id-registry-v3-loom.md](../implementation/id-registry-v3-loom.md) 8.4; documented in
   `docs/id-registry.md`). Fix idea: claim ids by rebase-and-save before
   writing the fragment.
-- **Two model files with the same stem** (`a/m.gguf`, `b/m.gguf`) are
-  registered name-only, with one `INFO:` per run.
-- **A local dataset package is keyed by the caller's string**, as passed, by
-  decision (2026-10-15): `../data/t.txt` from a subdirectory misses the
-  package pin while its `software_File` hits. Documented.
+- ~~**Two model files with the same stem**~~ and ~~**a local dataset package
+  keyed by the caller's string**~~: resolved by path keys (a model is keyed
+  by its file, a dataset package by its path when it exists).
 - **A hashless `-e path:software_File` pin, then a regeneration,** logs
   `content changed` and mints a new id (the D12 trade-off). Consider adopting
   the hash on first sight for file pins.
@@ -270,10 +242,8 @@ Merge and warnings:
 - **A loom retrain logs `added 1 new id(s)`** for the replacement id of the
   retrained model, although the key already existed; the count is by ids
   under keys the registry did not hold elsewhere. Align the wording or count.
-- **Two alias rules for one fact.** `_harvest._is_files_path_alias` and the
-  one-direction tail check in `core/_models_wheel.py` (`_DeclaredRegistry`)
-  both decide whether a `src/`-layout path and a distribution path are one
-  file. Unify them in one helper.
+- ~~**Two alias rules for one fact.**~~ Resolved: `keys.is_layout_alias`
+  and `walk_rules.shortened_by`.
 - **Harvest churn.** Harvest now never erases a recorded sha (ruling
   2026-10-14); a package whose lock sha changes replaces it, so alternating
   runs with and without the lock can still rewrite the registry.
@@ -381,12 +351,18 @@ Open:
 ### Design questions for the user
 
 1. ~~Should a local dataset's package be keyed by its D9 path too?~~ Decided
-   2026-10-15: no, the caller's string as passed.
+   2026-10-15: no; reversed 2026-10-16 (user): yes, its path key when the path
+   exists below the root, gated by content (hybrid), see
+   [id-registry-path-keys-decisions.md](../implementation/id-registry-path-keys-decisions.md).
 2. ~~"Harvest never erases a sha" for every type.~~ Decided 2026-10-15:
    harvest records a sha256 only for `software_File` and `ai_AIPackage` (the
    two content-gated types) and never erases a recorded one.
 3. **Default `project_root` when none is set is the registry file's
    directory** (commit 3). Confirm.
+
+### Path keys: follow-ups (2026-10-16)
+
+Split out: [id-registry-followups-path-keys.md](id-registry-followups-path-keys.md).
 
 ### Tooling
 

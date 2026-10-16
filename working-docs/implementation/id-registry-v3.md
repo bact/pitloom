@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -19,6 +19,11 @@ open), [ai-model-id-stability.md](../design/ai-model-id-stability.md),
 [g7-ai-sbom-coverage.md](../design/g7-ai-sbom-coverage.md) (G7 #3 builds on this),
 [id-registry-v3-loom.md](id-registry-v3-loom.md) (section 8),
 [roadmap.md](../design/roadmap.md).
+
+**Amended 2026-10-16 by [id-registry-path-keys.md](id-registry-path-keys.md):**
+keys are path keys for anything with a file below the root (D3, D9, D16, I3,
+I4 and the lookup table of section 7 are amended in place below); the file
+shape is unchanged.
 
 **Status: built (PR #305, 2026-10-15).** The body below is the design as
 agreed (user, 2026-09-30; D10 and the ceiling key confirmed 2026-10-14);
@@ -116,8 +121,10 @@ Each decision gives its reason; rejected alternatives follow "Rejected".
   `DatasetPackage`). The registry never hands an id to another type. A
   drift test covers our namespace only; imported or foreign ids are
   exempt.
-- **D3 (revised): `id generate` records the model file's sha256 on the
-  `(ai_AIPackage, stem)` entry, and the sha is a gate once recorded.** A
+- **D3 (revised; amended by path keys: the entry is keyed by the model
+  file's path key, not the stem, and no stem entry exists): `id generate`
+  records the model file's sha256 on the `ai_AIPackage` entry, and the sha is
+  a gate once recorded.** A
   retrained, re-exported or re-quantised model (different bytes) is a new
   model with a new id. Only a model with no single hashable file
   (sharded directory, remote, declared without `path=`) falls back to a
@@ -126,9 +133,8 @@ Each decision gives its reason; rejected alternatives follow "Rejected".
   id across retrains (the open question in
   [ai-model-id-stability.md](../design/ai-model-id-stability.md)). A stem
   several model files share has no one file to stand for it: `id generate`
-  registers it with no hash, and an existing entry is left as is, its
-  sha256 included (user ruling, 2026-10-15, per D12). A fresh registry and
-  one with history can then differ for that stem; its id stays stable.
+  registered it with no hash (user ruling, 2026-10-15, per D12). Superseded:
+  two models with one stem now have two path keys and two ids.
 - **D4: one count in the log line:** `added N new id(s)`, where N counts
   distinct ids (a src-layout alias adds a key, not an id). logfmt quoting
   of `KEY=VALUE` lines is a separate PR (P1).
@@ -199,11 +205,10 @@ Each decision gives its reason; rejected alternatives follow "Rejected".
   generate -e NAME:dataset_DatasetPackage` or `id import`, never from a
   run's fallback id). Loom `software_File` children in merged fragments
   are harvested.
-- **D16: the other AIPackage lookups stay ungated in this PR** (project,
-  wheel, `loom model`, embed). Why: those surfaces do not hash AIPackages
-  until G7 #3; gate them then, so every surface agrees with loom. Until
-  then a project SBOM reuses a name-matched id even after a retrain
-  ([id-registry-followups.md](../design/id-registry-followups.md)).
+- **D16: the other AIPackage lookups stayed ungated in this PR** (project,
+  wheel, `loom model`, embed). Superseded 2026-10-16: every model lookup is
+  gated by the model file's SHA-256 and `ai_AIPackage.verifiedUsing` is
+  emitted (G7 #3 part 1).
 
 Smaller decisions (user, 2026-09-30):
 
@@ -216,10 +221,12 @@ Smaller decisions (user, 2026-09-30):
 - **`--namespace` on an existing registry with another namespace:** one
   `ERROR:` ("delete it to change the namespace"). The same namespace is a
   no-op. Silently keeping the old one would ignore an explicit flag.
-- **DatasetPackage key and lookup scope:** the key is the caller's string
-  as passed (it is also `.name`, which `input_datasets=` matching relies
-  on), looked up ungated for **every** dataset, missing and remote names
-  included, so `-e imdb:dataset_DatasetPackage` pins a remote dataset.
+- **DatasetPackage key and lookup scope** (amended 2026-10-16): the key is
+  the dataset's path key when it exists below the root, else the caller's
+  string (also its `.name`, which `input_datasets=` matching relies on); a
+  remote or missing name stays a name key, so `-e imdb:dataset_DatasetPackage`
+  pins a remote dataset. The lookup is content-gated by the hybrid rule: a pin
+  with no SHA-256 hits any content, an entry with one is gated.
   With a registry loaded, each unpinned dataset logs one `untracked
   entity` WARNING.
 - **The in-tree registry exclusion is a `WARNING:`**, once per run: it
@@ -250,14 +257,12 @@ entry = {spdxId, sha256?}      # sha256 only on software_File / ai_AIPackage, wh
   and hits only when the entry's sha256 is equal (case-insensitive). An
   entry with no sha256 never satisfies a gated lookup. An ungated lookup
   ignores the entry's sha256.
-- **I3, candidate keys are ordered, and the first gated hit wins**, the
-  same rule as today's `paths`/`names`. A lookup takes one type and a list
-  of names, so mixing types cannot even be written.
-- **I4, one key per id.** `_release_stale_keys_for_id` is kept over the
-  one table. The src-layout alias exception keeps a second key for the
-  same id only when all three hold: the types are equal; the sha256
-  values are equal and not empty; the names are `_is_files_path_alias`
-  suffixes of each other.
+- **I3, candidate keys are ordered, and the first gated hit wins** (amended:
+  one lookup key per element, raw, then display-escaped, then a layout alias).
+  A lookup takes one type, so mixing types cannot even be written.
+- **I4, one key per id** (strict since 2026-10-16: the src-layout alias
+  exception and `_is_files_path_alias` are gone). A run's harvest writes the
+  key its lookup used; promoting a held layout alias replaces it.
 - **I5, ambiguity covers every key**, file paths included (problem 4).
   Both elements are skipped and any existing entry is left unchanged;
   `import_sbom` returns the key in its skipped set. A wheel whose two
@@ -418,14 +423,14 @@ As `save()` writes it (keys sorted at every level):
 
 | Caller (v2 anchor) | Type | Candidate names, in order | Gate |
 | --- | --- | --- | --- |
-| Project file (`_document_files.py`) | `software_File` | physical path (`project_relative_or_fallback`), then distribution path | sha256 |
+| Project file (`_document_files.py`) | `software_File` | `keys.file_lookup_key` (path key, layout alias) | sha256 |
 | Directory (`_document_files.py`) | `software_File` | directory path | none |
 | Own, dependency, phantom package (`_package_ids.py`); deployed package (`_document_deployed.py`) | `software_Package` | canonical name | none |
-| AI model in a project or wheel (`ai.py`) | `ai_AIPackage` | name, path, stem (`_ai_package.py` `_ai_model_entity_candidates`; a wheel's path is the raw archive name) | none (D16) |
-| `loom model` / `enrich` (`assemble/_model_generator.py`) | `ai_AIPackage` | stem | none (D16) |
-| loom model (`_loom_active_run.py`, `set_model`; 8.4) | `ai_AIPackage` | name, at `finalize()` | sha256 of the `path=` file if it is a regular file, else none |
+| AI model in a project or wheel (`ai.py`) | `ai_AIPackage` | its own `software_File`'s key | sha256 |
+| `loom model` / `enrich` (`assemble/_model_generator.py`) | `ai_AIPackage` | `artifact_key(path=, name=stem)` | sha256 |
+| loom model (`_loom_active_run.py`, `set_model`; 8.4) | `ai_AIPackage` | path key of `path=` (else name), at `finalize()` | sha256 of the `path=` file if it is a regular file, else none |
 | loom script (`_loom_active_run.py`) | `software_File` | D9 key (8.3) | sha256 |
-| loom dataset package (new) | `dataset_DatasetPackage` | the caller's string | none, every dataset kind |
+| loom dataset package (new) | `dataset_DatasetPackage` | path key if it exists, else the caller's string | digest (file sha256 / Merkle root); hash-less pin hits any content |
 | loom dataset file (new, single-file dataset) | `software_File` | D9 key (8.3) | sha256 |
 
 **Who writes the registry.** `id generate`/`id import`; the auto-harvest

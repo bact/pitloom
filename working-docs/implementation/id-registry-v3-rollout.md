@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -47,7 +47,7 @@ directly, so the format change stays inside `id_registry/`.
 | Surface | Reads | Writes | v3 changes |
 | --- | --- | --- | --- |
 | `project` (directory and sdist), `wheel`, `env`, `generate` | yes | harvest (not datasets, not unhashed AIPackages) | caller keys; hashed AIPackages harvested (D15); `added N new id(s)`; in-tree registry excluded (D7) |
-| `model` (local) | yes (stem) | no | caller keys |
+| `model` (local) | yes (path key of the file; amended by [path keys](id-registry-path-keys.md)) | no | caller keys |
 | `model` on Hugging Face | ignored (WARNING) | no | none |
 | `enrich`, `embed-wheel`, `wheel --embed`, Hatchling hook | yes | no | caller keys; in-tree exclusion threaded (D7) |
 | `embed-wheel --sbom` (external SBOM) | no | no | none |
@@ -270,7 +270,7 @@ tests/`) on its own, so it can be bisected.
   runs sharing one registry file (both entries survive).
 - **Mutation targets** (in an rsync copy, pytest from inside it, stale
   `.pyc` removed): the gate comparison; the candidate order; each alias
-  conjunct; the ambiguity count including files; `null` versus omission;
+  conjunct (alias rule since replaced by `keys.is_layout_alias`); the ambiguity count including files; `null` versus omission;
   each `register` row; `new_ids` counting keys; the leaf separator and
   the relpath sort; the abort on an unreadable member; the ceiling `>`
   versus `>=`; `onerror` dropped; `exclude` dropped; the per-run file

@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -98,9 +98,16 @@ uniform and safer:
 - [x] **Registry v3** (PR #305): built. See
   [id-registry-v3.md](../implementation/id-registry-v3.md); open follow-ups in
   [id-registry-followups.md](id-registry-followups.md).
-- [ ] **Registry path-key redesign** (deferred; bundles G7 #3, so G7 #3 waits
-  on it; no format bump needed, v3 is unreleased). See
-  [id-registry-path-keys.md](id-registry-path-keys.md).
+- [x] **Registry path keys** (built 2026-10-16): one key helper, a model is
+  keyed by its file, content-gated lookups. See
+  [id-registry-path-keys.md](../implementation/id-registry-path-keys.md);
+  open follow-ups (`wheel --project-dir`, layouts other than `src/`/`lib/`) in
+  [id-registry-followups-path-keys.md](id-registry-followups-path-keys.md).
+- [ ] **`wheel --project-dir`** (P5b): key a plain `wheel`, `project <sdist>`
+  and `embed-wheel` below the project prefix in a monorepo registry. See
+  [id-registry-followups-path-keys.md](id-registry-followups-path-keys.md).
+- [ ] **Registry layouts beyond `src/` and `lib/`** (`python/`, `packages/`):
+  no alias today; add only on demand. Same file.
 - [ ] **Git LFS pointers outside AI models**: one shared detector, one
   summary `WARNING:`; registry v3 (built) ships without it. See
   [known-bugs.md](known-bugs.md#p0-in-0210).
@@ -117,9 +124,20 @@ uniform and safer:
 The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
 [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md).
 
-- [ ] **#3 Mechanical wiring**: dataset licence, `ai_AIPackage.verifiedUsing`
-  copied from its model `software_File` (ordering: see the path-key item in
-  0.21.0).
+- [x] **#3 part 1: `ai_AIPackage.verifiedUsing`** copied from its model
+  file, with gated model lookups (built 2026-10-16 with path keys; see
+  [id-registry-path-keys.md](../implementation/id-registry-path-keys.md)).
+- [ ] **#3 part 2: dataset licence wiring** (`DatasetMetadata.license` read by
+  `dataset.py`): own PR. The 2026 SSSOM mappings fix the shape: a
+  `hasDeclaredLicense` Relationship to an `AnyLicenseInfo`, so a URL and an
+  SPDX expression both fit.
+- [ ] **Identifiers from the minimum-elements mappings** (CISA 2026, NTIA 2021,
+  G7 AI 2026, BSI 2025): `software_packageUrl` (PURL, e.g.
+  `pkg:huggingface/...`, `pkg:generic/...`) on `ai_AIPackage` and dataset
+  packages (today PyPI packages only); optional `contentIdentifier`.
+- [ ] **SHA-512 hash option**: BSI 2025 requires SHA-512 on the deployable
+  component; Pitloom emits SHA-256 only (`software_File`, `verifiedUsing`).
+  Open: opt-in flag vs always add; the registry keeps SHA-256 as its gate.
 - [x] **#6 Model producer and parameter count** from structured sources
   (PR #306): `originatedBy` Agents and the `parameters` hyperparameter
   entry. See

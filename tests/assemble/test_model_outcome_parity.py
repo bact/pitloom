@@ -18,6 +18,7 @@ same surfaces) and :mod:`tests.extract.scanner.test_scanner` (the policy).
 
 from __future__ import annotations
 
+import hashlib
 import importlib
 import io
 import json
@@ -382,7 +383,10 @@ def test_the_candidate_route_adds_nothing_to_a_good_models_bytes(
     path.write_bytes(safetensors_bytes(metadata={"k": "v"}))
     via_candidate = generate_model_sbom(path, creation_metadata=_CREATED)
     via_reader = build_model(
-        read_ai_model(path), _CREATED, entity_spdx_id=_entity_id(via_candidate)
+        read_ai_model(path),
+        _CREATED,
+        entity_spdx_id=_entity_id(via_candidate),
+        digest=hashlib.sha256(path.read_bytes()).hexdigest(),
     ).to_json(pretty=False, describe_relationship=False)
     assert via_candidate == via_reader
 

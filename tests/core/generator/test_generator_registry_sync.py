@@ -144,6 +144,8 @@ def test_sync_registry_logs_updated_when_net_counts_are_zero(
     exporter = Spdx3JsonExporter()
     exporter.add_creation_info(ci)
     exporter.add_file(file_obj)
+    # The key the lookup recorded moves the id; a name alone would not.
+    exporter.registry_keys[shared_id] = (FILE_TYPE, "new.py")
 
     with caplog.at_level("INFO"):
         _sync_registry(exporter, registry, True)
@@ -223,26 +225,6 @@ def test_generate_project_sbom_stable_ids_across_two_runs(tmp_path: Path) -> Non
     # a byte-identical rerun that would pass even without the registry.
     assert "requests" in second_deps
     assert first_id == second_id
-
-
-def test_generate_project_sbom_does_not_auto_harvest_ai_packages(
-    tmp_path: Path,
-) -> None:
-    """A project's ``ai_AIPackage`` elements carry no hash, so they are
-    not harvested: their name depends on extraction, and their registry
-    key (the file's stem) comes from ``pitloom id generate``. (A hashed one
-    is, see test_generator_registry_harvestable.py.)"""
-    _write_smoke_project(tmp_path)
-    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
-    IdRegistry.new("smoke-project", path=registry_path).save()
-
-    graph = json.loads(generate_project_sbom(tmp_path, id_registry=registry_path))[
-        "@graph"
-    ]
-    assert any(e.get("type") == "ai_AIPackage" for e in graph)
-
-    reloaded = IdRegistry.load(registry_path)
-    assert not any(type_name == "ai_AIPackage" for type_name, _ in reloaded.elements)
 
 
 def test_generate_wheel_sbom_auto_updates_registry(
@@ -390,9 +372,10 @@ def test_generate_wheel_sbom_repeated_runs_never_duplicate_ids(
         names: Sequence[str],
         *,
         sha256: str | None = None,
+        **kwargs: bool,
     ) -> str | None:
         nonlocal file_hits, directory_hits
-        result = real_lookup(self, type_name, names, sha256=sha256)
+        result = real_lookup(self, type_name, names, sha256=sha256, **kwargs)
         if result is not None and sha256 is not None:
             file_hits += 1
         elif result is not None:

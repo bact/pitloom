@@ -16,9 +16,9 @@ repo tree), stdlib only, Linux/macOS/Windows. Four kinds of check:
   option the plan does not classify;
 - ``S1``-``S8``: commands run in order, where one's side effect is the
   next one's input;
-- ``O1``-``O5``: the ID registry's order matrix -- operations in many
+- ``O1``-``O6``: the ID registry's order matrix -- operations in many
   orders on several fixtures, each sequence a replayable shell script
-  (``_checks_order.py``).
+  (``_checks_order.py``, ``_checks_order_spelling.py``).
 
 Usage::
 
@@ -61,6 +61,7 @@ import _checks_core  # noqa: F401  # pylint: disable=unused-import
 import _checks_loom  # noqa: F401  # pylint: disable=unused-import
 import _checks_model  # noqa: F401  # pylint: disable=unused-import
 import _checks_order  # noqa: F401  # pylint: disable=unused-import
+import _checks_order_spelling  # noqa: F401  # pylint: disable=unused-import
 import _checks_setuptools  # noqa: F401  # pylint: disable=unused-import
 import _checks_wheel  # noqa: F401  # pylint: disable=unused-import
 import _fixtures

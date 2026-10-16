@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,24 +15,31 @@ file is the detail behind it. Full reference:
 
 ## What a registry pins
 
-One table, keyed by element type and name; each entry holds an `spdxId` and,
-when the element has content, its SHA-256.
+One table, keyed by element type and key; each entry holds an `spdxId` and,
+when the element has content, its SHA-256. A key is a **path key** (the path
+from the registry's project root, `/`-separated, case kept) for anything that
+is a file or directory below the root, else a **name key** (a package's PEP 503
+name, a Hugging Face model id, a URL or missing dataset). One helper computes
+every key, so every command and the Python SDK agree on it.
 
-- **Files and directories** (`software_File`), keyed by path from the
-  registry's project root. A file's entry is content-gated: changed bytes
-  get a new id.
+- **Files and directories** (`software_File`): a file is keyed by path from
+  the registry's project root and its entry is content-gated: changed bytes
+  get a new id. A directory is the exception: it is keyed by its distribution
+  path (`demo`, not `src/demo`), and `id generate` does not index directories.
 - **Packages** (`software_Package`, keyed by PEP 503 name): dependencies,
   and the project's own package for `project`, `wheel`, `embed-wheel` and
   the Hatchling hook. `env` pins dependency packages only; its root
   package is minted on every run.
-- **AI models** (`ai_AIPackage`), keyed by name (a model file's stem for
-  `id generate`, which also records the file's SHA-256). Only a
-  `loom.Run` model declared with `path=` is checked against that hash: a
-  retrained or re-exported file is a new model with a new id. `project`,
-  `wheel`, `model` and `embed-wheel` look a model up by name alone, so a
-  retrained file keeps its id there. A stem several model files share gets
-  no hash: a new entry has none, an existing one is left as is (one `INFO:`
-  per run; `its new entry is not content-gated` when it had none).
+- **AI models** (`ai_AIPackage`): one model file is one id on every surface
+  (`project`, `--allow-build`, `wheel`, `embed-wheel`, the hook, `model`,
+  `enrich`, `loom.Run`, `id generate`, `id import`), keyed by the model
+  file's own path key (the same text as its `software_File`). The entry holds
+  the file's SHA-256 and every lookup is gated by it: retrained or
+  re-exported bytes at the same path get a new id, with `INFO: ... content
+  changed ...` (`id generate`, `loom.Run`) or `INFO: ... no registry entry
+  records its SHA-256 ...` (`project`, `model`, `wheel`); an entry with no
+  hash never hits. Two models with one stem are two keys. A model with no file
+  (a Hugging Face id) is keyed by name.
 - **Per-document entities**: a harvest also writes, by name, every agent
   (the creator, the main package's authors, a model's generic producer
   `Agent`, a fragment's `Person`/`Organization`), `Tool` and licence entries
@@ -42,18 +49,26 @@ when the element has content, its SHA-256.
   are not something to pin.
 - **Datasets** (`dataset_DatasetPackage`) only through the Python SDK
   (`pitloom.loom.Run(..., id_registry=...)`, which reads `[tool.pitloom]`
-  only from an explicit `pitloom_config=`). A dataset package is looked up
-  by the exact string the script passes (`add_dataset("data/train.txt")`),
-  with no content check, so a remote or missing name is pinned the same way.
-  A run holds one package per name and content digest.
-  A dataset that is one file also has a `software_File` (the package
-  `contains` it), keyed by its path from the project root and gated by its
-  hash; a dataset directory gets a Merkle root and no file elements.
-  `loom id generate <dataset-dir>` does **not** pin the dataset package (it
-  indexes the files below it as `software_File`s). Pin the package with
-  `loom id generate -e NAME:dataset_DatasetPackage -o <registry>`, `NAME`
-  being the string the script passes, or by `loom id import` of an SBOM or
-  fragment that has it.
+  only from an explicit `pitloom_config=`). A package whose path exists below
+  the root is keyed by that path (`data/t.txt`, `./data/t.txt` and an absolute
+  path are one package per run), anything else (URL, missing or outside-the-root
+  path) by the exact string, so two spellings of one missing path are two
+  packages. `add_output_dataset(input_datasets=...)` matches the string an input
+  was declared with, not its key: another spelling logs a `WARNING:` and skips
+  the link. An entry **with** a SHA-256 is content-gated (a file's SHA-256, a
+  directory's Merkle root): a refreshed dataset, or a file added to a
+  directory, is a new package id. An entry **without** one (a pin made
+  before the data existed, an old pin) hits any content, with `INFO: ...
+  content not checked`; running the same `-e` again once the data exists
+  adopts the digest and keeps the id (`INFO: ... pin now gated by its
+  SHA-256`), unless the entry already records another digest (new id). A
+  dataset that is one file also has a `software_File` (the package `contains`
+  it); a dataset directory gets a Merkle root and no file elements. Run-time harvest never records a dataset package.
+  `loom id generate <dataset-dir>` does **not** pin the package (it indexes
+  the files below it as `software_File`s). Pin it with `loom id generate -e
+  NAME:dataset_DatasetPackage -o <registry>` (an existing `NAME` is stored as
+  its path key with its digest, so pin after the data exists), or by `loom id
+  import` of an SBOM or loom fragment that has it (records the digest).
 
 A package name held by several registry-reading elements of one document
 (e.g. one dependency at two versions) is never written by a run, and `id
@@ -120,33 +135,46 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   are not indexed (the list:
   <https://bact.github.io/pitloom/id-registry/#directories-that-are-skipped>).
 - **Models**: `id generate` registers each AI model file under `PATH` by
-  file stem, with its SHA-256, and `id import` registers each `ai_AIPackage`
-  by its model name (with its hash, when the SBOM has one; one without a
-  hash replaces a hashed entry's id and drops its hash, with an `INFO:`). A
-  project or wheel run never adds an unhashed model id. For one outside `PATH`, add
-  `--entity <stem>` (no `:TYPE` means `ai_AIPackage`; no hash is recorded).
+  its path key, with its SHA-256. `id import` gives a hashed `ai_AIPackage`
+  the key of the one `software_File` in the same SBOM with the same hash
+  (else its name, with an `INFO:`); one without a hash replaces a hashed
+  entry's id and drops its hash, with an `INFO:`. For a model file outside
+  `PATH`, add `-e <path-to-file>` (no `:TYPE` means `ai_AIPackage`; an
+  existing file is stored as its path key with its SHA-256).
 - **Packages**: `id generate` registers none. Seed them with one `project`
   run into a declared registry, with `id import <sbom>`, or by hand:
   `loom id generate <PATH> -e NAME:software_Package -o <registry>` pins a
   dependency's or the project's own package id (the `:software_Package`
   suffix is required).
-- **Datasets**: `-e NAME:dataset_DatasetPackage`, `NAME` being the string
-  the script passes to `add_dataset()` (see above).
+- **Datasets**: `-e NAME:dataset_DatasetPackage`, `NAME` the path from the
+  project root (`-e` resolves it against `--project-dir`, not the script's
+  directory: a script in `scripts/` declaring `../data/t.txt` is looked up as
+  `data/t.txt`). Only a dataset with no path below the root is matched by the
+  script's exact string (see above).
 - **`-e NAME[:TYPE]`** splits on the last colon: the suffix is a `TYPE` only
   when it is a known registry type (`software_File`, `software_Package`,
   `ai_AIPackage`, `dataset_DatasetPackage`); one shaped like a type name
   (`prefix_ClassName`) or a known type in another case is a usage error (exit
   2); any other suffix stays part of `NAME`, so a URL or a Windows drive path
   works
-  (`-e https://huggingface.co/datasets/imdb:dataset_DatasetPackage`). A
+  (`-e https://huggingface.co/datasets/imdb:dataset_DatasetPackage`).
+  For `dataset_DatasetPackage` (file or directory), `ai_AIPackage` and
+  `software_File` (regular files), a `NAME` that exists below `--project-dir`
+  is stored as its path key plus content digest (`INFO: ID registry: -e NAME
+  stored as KEY` when the key differs from the text); any other
+  `ai_AIPackage` or `software_File` name is stored by name with `INFO: ID
+  registry: -e NAME stored by name: <reason>` (an `ai_AIPackage` name applies
+  only to a model with no file), and a dataset that is missing, outside the
+  root or unhashable by name with no hash and `INFO: ID registry: dataset NAME
+  pinned without SHA-256: <reason>`. `software_Package` is always by name. A
   trailing `:`, white space around the `TYPE`, a control character or a blank
   `NAME` is also a usage error (exit 2).
 - **Unreadable files**: a file or directory below a `PATH` that cannot be
   read or listed is a `WARNING: FILE=...`/`DIR=...` (project-relative path)
   and the run continues (so does a file whose name is not UTF-8 encodable); an
   unreadable `PATH` argument is `ERROR: PATH <path>: could not be read: ...`
-  (an unreadable default directory is only the `DIR=` warning). An explicit `PATH` that is or lies
-  in a skipped directory (`build`, `dist`, ...) indexes nothing and warns
+  (an unreadable default directory is only the `DIR=` warning). An explicit
+  `PATH` that is or lies in a skipped directory (`build`, `dist`, ...) indexes nothing and warns
   `ID registry: path has a skipped directory name (build), skipping: <path>`.
   Neither command rewrites an unchanged registry, and `id import` keeps the
   namespace it adopted unless another run changed it meanwhile.
@@ -230,7 +258,10 @@ with loom.run("fragments/train.spdx3.json", id_registry="loom-id-registry.json")
   ends without an exception (nothing is written if it raises). A changed file
   at `path` is a new model: `INFO: ... content changed ...`, a new id.
   Without `path=`, one `WARNING: loom: model X has no path=` and a name-only
-  lookup.
+  lookup that hits a hash-less entry only: an id recorded with a SHA-256
+  (a model file, `id import` of a model SBOM) is not reused, since no
+  content vouches for it (`WARNING: ... records a SHA-256 but no content was
+  hashed`), so a new id is minted.
 - The `INFO: ID registry: to use this registry` hint is for CLI runs; a script
   passes `id_registry=` (or `pitloom_config=`) itself.
 - A dataset is hashed when declared, so declare an output dataset after the
@@ -238,12 +269,13 @@ with loom.run("fragments/train.spdx3.json", id_registry="loom-id-registry.json")
 - To pin, run once the files exist, from the project directory:
   `loom id generate data out/pred.csv script.py -e data/train.txt:dataset_DatasetPackage
   -o loom-id-registry.json` (files and the script are `software_File`; the
-  dataset package needs its own `-e`, named by the exact string the script
-  passes). Until then each unpinned item logs `WARNING: loom: ... not found in
+  dataset package needs its own `-e`, named by its path from the project
+  root). Until then each unpinned item logs `WARNING: loom: ... not found in
   registry; minting a new spdxId`: expected on a first run, not an error.
-- The package pin matches the exact string passed: `../data/t.txt` from a
-  subdirectory misses it, though the file's own entry (keyed by its path from
-  the project root) still hits.
+- A dataset path that exists below the root is matched by its path key, so
+  `data/t.txt`, `./data/t.txt` and `../data/t.txt` from a subdirectory reach one
+  package. A name pin made before the data existed has no hash and hits any
+  content (see Datasets).
 
 ## Harvest: what writes to a registry
 
@@ -267,8 +299,16 @@ generate`/`id import` (above).
 - **Ignored**: Hugging Face targets ignore `--id-registry` (also a
   `WARNING:` if passed).
 
-`dataset_DatasetPackage` ids are never harvested; an `ai_AIPackage` only when it
-carries a hash (a loom model declared with `path=`, merged as a fragment).
+A run writes each element under the key its lookup used. `dataset_DatasetPackage`
+ids are never harvested; an `ai_AIPackage` only when it carries its file's
+hash. An element with no recorded key (merged fragment, `id import`) never
+moves an id held under another key of the same type, and a stale element (an
+older SHA-256) never rolls a newer entry back.
+
+Pins made by an earlier branch of format 3 (model stem keys, own-name model
+keys, dataset strings that differ from the canonical path such as
+`./data/t.txt`) no longer match: ids renumber once. Re-run `loom id generate`
+(add `-e` pins again) into a fresh file, or `loom id import` an earlier SBOM.
 
 ## Log lines that are not a broken registry
 
@@ -282,21 +322,60 @@ carries a hash (a loom model declared with `path=`, merged as a fragment).
   'NAME', ...` --
   `id import` only; the SBOM holds several elements under that name, so no
   single id can be pinned for it.
-- `INFO: ID registry: content changed for <name>; minting a new spdxId (old:
-  <id>).` -- a file or model whose content differs from its entry gets a
-  new id (`id generate` re-indexing, or a `loom.Run` model with `path=`);
-  normal after an edit or a retrain (a `project` run reports a changed file
-  as `updated stale entries` above).
-- `INFO: ID registry: N model files share the name X; its entry is left as
-  is` -- `id generate`; expected for same-stem models (a hash recorded
-  earlier is kept).
+- `INFO: ID registry: content changed for <key>; minting a new spdxId (old:
+  <id>).` -- a file, model or dataset pin whose content differs from its entry
+  gets a new id (`id generate` re-indexing or `-e`, a `loom.Run` model with
+  `path=`, a model file in a project run); normal after an edit or a retrain (a
+  `project` run reports a changed file as `updated stale entries` above).
+- `INFO: ID registry: model X: no registry entry records its SHA-256; a new
+  id is used` -- `project`, `model`, `wheel` and the like: the model's entry
+  has no hash (an old or imported one) or another; it never hits and the run
+  records the hashed entry.
+- `INFO: ID registry: dataset X matched a pin without SHA-256; content not
+  checked` / `... pinned without SHA-256: <why>` / `... looked up ungated:
+  not hashed` -- a dataset pin made before the data existed (or one that
+  cannot be hashed) hits any content. Re-run `id generate -e` once the data
+  exists: `... pin now gated by its SHA-256` (same id, digest adopted).
+- `INFO: ID registry: N file(s) keyed by their path as read: <why>` -- the
+  document's files could not be keyed from the registry's root (project
+  outside the root, an archive path); they only match a registry made the
+  same way. Plain `wheel`, `project <sdist>` (no `--project-dir` option) and
+  `embed-wheel` without `--project-dir` key by the archive's own paths, so with
+  a registry root **above** the project (a monorepo) they miss, with no `INFO:`
+  and root-level keys harvested: keep the registry root equal to the project
+  root, or use a route that knows the project (`project` on a directory,
+  `--allow-build`, `embed-wheel --project-dir`, the hook), which keys below the
+  project's prefix.
+- `INFO: ID registry: N element(s) matched a registry key through the
+  src/lib layout alias` / `N key(s) promoted from a layout alias` -- a built
+  file or model `demo/x.py` reused the id held for `src/demo/x.py` (only a
+  leading `src/` or `lib/`, equal SHA-256, unique candidate); `id generate`
+  moves such a key to its on-disk path, also over that path's entry for older
+  content (`N key(s) of changed content took their layout alias's id`), and
+  `id import` writes such a file under the alias (`N file(s) imported under
+  their layout alias: their own key holds other content`). Other layouts
+  (`python/`, `packages/`) get no alias: a wheel-only run mints its own ids
+  for them.
+- `INFO: ID registry: -e NAME stored as KEY` / `stored by name: <why>` --
+  `id generate -e` (see above). `INFO: ID registry: dataset|model X keyed by
+  its name: <why>` -- `id import`/`loom` kept a name key because no file
+  below the root matched (`dataset X keyed by its path: KEY` only when `id
+  import` found a path other than the name); `model X imported under its
+  name: no unique file with its SHA-256`, `model X keyed by the registry's
+  file with its SHA-256: KEY` -- `id import` of a model.
+- `INFO: ID registry: <type> 'KEY' not imported: its id is held under 'KEY2'`
+  -- `id import` leaves an id held under another key of its type where it is.
+  `INFO: ID registry: model X not recorded: no unique file with its SHA-256`
+  -- a run's harvest does not record a hashed fragment model with no file of
+  that hash (nothing is rolled back).
 - `INFO: ID registry: content gate dropped for <type> 'X': imported id <id>
   replaces <id>` -- `id import` only; the SBOM's element has no hash and
   another id, which wins, so the entry is no longer checked against content
   (an older SBOM brings its older id back).
-- `INFO: ID registry: content gate kept for <type> 'X': harvested id <id>
-  not recorded over <id>` -- a run met such an element; the hashed entry is
-  kept.
+- `INFO: ID registry: content gate kept for <type> 'KEY': harvested id <id>
+  not recorded over <id>` (or `element id <id> with an older SHA-256 not
+  recorded over <id>`) -- a run met such an element, or a merged fragment's
+  stale one; the entry is kept, never rolled back.
 - `WARNING: ID registry: failed to save <path>: <reason>` -- a run could
   not write the registry (read-only file, full disk); its SBOM is written.
   The path is the registry's, never a temporary file's.
@@ -310,14 +389,15 @@ carries a hash (a loom model declared with `path=`, merged as a fragment).
   -- mention it to the user.
 - `WARNING: loom: ... not found in registry; minting a new spdxId (untracked
   entity|file)` -- a `loom.Run` dataset, file or model with no entry yet:
-  expected on a first run. `... exists but its SHA-256 no longer matches ...`
-  means the file changed since it was pinned. Either way a fresh id is used.
+  expected on a first run. `... registry entry for <model|dataset
+  package|file|entity> 'X' exists but its SHA-256 no longer matches ...` means
+  the file changed since it was pinned. Either way a fresh id is used.
 - `WARNING: loom: file X is outside the ID registry's project root ...;
   minting a new spdxId` -- the script passed a path outside the project;
   its file is not looked up.
 - `WARNING: loom: registry entry for entity 'X' exists but under a different
-  type; minting a new spdxId.` -- a model name that the registry holds only
-  as another type; the model gets a fresh id.
+  type; minting a new spdxId.` -- a key the registry holds only as another
+  type; the element gets a fresh id.
 - `WARNING: loom: ID registry <path> is inside dataset directory 'X'; left
   out of its Merkle root` -- the registry file sits in a dataset directory;
   move it outside (once per directory per run).

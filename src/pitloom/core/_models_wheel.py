@@ -155,6 +155,7 @@ def _build_project_file_entry(
         physical_path=rel_path,
         distribution_path=distribution_path,
         digest_sha256=digest_sha256,
+        built=included_file.built,
         **extras,
     )
     return project_file, digest_bytes

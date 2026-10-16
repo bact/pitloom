@@ -14,7 +14,8 @@ file format, :mod:`pitloom.id_registry._counters` for the id counters,
 helpers, :mod:`pitloom.id_registry._ambiguous` for the keys harvest does
 not write, :mod:`pitloom.id_registry._session` for ``IdRegistrySession``,
 :mod:`pitloom.id_registry._persist` for saving a run's additions,
-:mod:`pitloom.id_registry.resolve` for registry resolution.
+:mod:`pitloom.id_registry.resolve` for registry resolution,
+:mod:`pitloom.id_registry.keys` for registry keys.
 
 Underscore-prefixed names (e.g. ``_element_key``, ``_import_sbom_element``)
 are internal and not re-exported here -- import them from the submodule
@@ -46,6 +47,17 @@ from pitloom.id_registry._types import (
     sha256_file,
     type_id_prefix,
 )
+from pitloom.id_registry.keys import (
+    Alias,
+    LookupKey,
+    alias_candidates,
+    alias_tail,
+    artifact_key,
+    is_layout_alias,
+    join_key,
+    path_key,
+    project_prefix,
+)
 from pitloom.id_registry.resolve import (
     registry_base_dir,
     registry_copy,
@@ -56,17 +68,26 @@ from pitloom.id_registry.resolve import (
 
 __all__ = [
     "AI_PACKAGE_TYPE",
+    "Alias",
     "DATASET_PACKAGE_TYPE",
     "DEFAULT_ID_REGISTRY_FILENAME",
     "FILE_TYPE",
     "IdRegistry",
     "IdRegistrySession",
+    "LookupKey",
     "PACKAGE_TYPE",
     "RegistryEntry",
+    "alias_candidates",
+    "alias_tail",
     "ambiguous_keys_message",
+    "artifact_key",
     "failed_to_save_message",
     "info_identity_unknown",
+    "is_layout_alias",
+    "join_key",
+    "path_key",
     "persist_registry",
+    "project_prefix",
     "registry_base_dir",
     "registry_copy",
     "registry_file_path",

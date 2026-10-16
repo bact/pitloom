@@ -136,18 +136,30 @@ def _root_parts(name: str) -> tuple[str, str] | None:
     return (parts[0], parts[1]) if len(parts) == 2 else None
 
 
+def _top_directory(names: list[str], members: tuple[str, ...]) -> str | None:
+    """The top directory holding the first root-level member of *members*
+    (in that order, archive order within one), else ``None``."""
+    roots = [parts for parts in map(_root_parts, names) if parts is not None]
+    return next((t for m in members for t, base in roots if base == m), None)
+
+
 def _licence_member_names(names: list[str]) -> set[str]:
     """The licence sources (:func:`~pitloom.extract._license_detect.\
 license_source_names`) among the root-level members of the project's top
     directory: the one holding the first root-level ``PKG-INFO``, else
     ``pyproject.toml``, else ``setup.cfg``, in archive order, as
     :func:`_scan` picks those."""
-    roots = [parts for parts in map(_root_parts, names) if parts is not None]
-    top = next(
-        (t for member in ROOT_MEMBERS for t, base in roots if base == member), None
-    )
-    basenames = [base for t, base in roots if t == top]
+    top = _top_directory(names, ROOT_MEMBERS)
+    basenames = [base for t, base in filter(None, map(_root_parts, names)) if t == top]
     return {f"{top}/{base}" for base in license_source_names(basenames)}
+
+
+def _project_path(name: str, raw: str, strip_top: str | None) -> str:
+    """The project-relative path of member *name*: without its top
+    directory *strip_top*; a member outside it keeps its raw name."""
+    if strip_top is not None and name.startswith(f"{strip_top}/"):
+        return name[len(strip_top) + 1 :]
+    return raw
 
 
 def _scan(
@@ -165,9 +177,11 @@ def _scan(
     last, as unpacking leaves it. With *root_only*, open only the root
     members and list no files or licence sources. Files come in archive
     order; :func:`~pitloom.extract.project.sdist.read_sdist` sorts them. A
-    file's ``physical_path`` is its raw archive name, so a registry keyed
-    by it before names were normalised still hits."""
+    file's ``physical_path`` is its project-relative path: its name
+    without the top directory holding the first root-level ``PKG-INFO``
+    (none: no strip); a member outside it keeps its raw archive name."""
     entries_list = list(entries)
+    strip_top = _top_directory([e[0] for e in entries_list], (PKG_INFO,))
     licence_names = (
         set() if root_only else _licence_member_names([e[0] for e in entries_list])
     )
@@ -195,7 +209,9 @@ def _scan(
         if not root_only:
             members.files.append(
                 ProjectFile(
-                    physical_path=raw, distribution_path=name, digest_sha256=digest
+                    physical_path=_project_path(name, raw, strip_top),
+                    distribution_path=name,
+                    digest_sha256=digest,
                 )
             )
     return members

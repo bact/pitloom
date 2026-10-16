@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -249,9 +249,13 @@ to `set_model()` or `use_model()` to give the model a SHA-256
 exception, so write it before the block exits. With a [Loom ID
 registry](id-registry.md), the hash gates the lookup: a training and an
 evaluation script declaring the same model name and file share one id, and a
-retrained file gets a new one. Without `path=` (one `WARNING:` when a registry
-is loaded), or when it is not a file when the run ends (one `WARNING:`), the
-model is matched by name only and gets no hash. In the context-manager form,
+retrained file gets a new one. The model is keyed by that file's path from the
+registry's project root, the same key `loom model` and `id generate` use.
+Without `path=` (one `WARNING:` when a registry is loaded), or when it is not
+a file when the run ends (one `WARNING:`), the model is matched by name only
+and gets no hash. The match hits an id held with no hash (a model with no
+file) and never one recorded with a SHA-256, which no content vouches for: a
+retrained model's id is not reused by a bare name. In the context-manager form,
 `run.model` is `None` until the block exits.
 A `path=` that cannot be read (a NUL in it included) gets the usual
 unreadable-model `WARNING:`. Leaving a block, by an exception too, restores
@@ -299,6 +303,10 @@ with loom.run("fragments/preprocess.json") as run:
 
 Omit `input_datasets` (the default) when a run has exactly one output
 batch -- it then derives from every input the run declared.
+`input_datasets=` matches the string an input was declared with, not its
+resolved path: an input declared as `../data/t.txt` is not found by
+`data/t.txt` (one `WARNING:`, that link skipped), even though a registry keys
+both to one package.
 
 ### Config
 
@@ -324,13 +332,16 @@ both creator and tool). See [Creation metadata](creation-metadata.md).
 Pass `id_registry=` (a path, or an already-loaded `IdRegistry`) to
 consult a Loom ID registry when minting ids for datasets, the model, and
 the generating script -- see [Loom ID registry](id-registry.md). A dataset
-package is looked up by the name exactly as passed, with no path
-normalisation (`../data/t.txt` from a subdirectory misses a package pinned as
-`data/t.txt`); a file (a dataset's, or the script) by its path from the
-registry's project root and its hash, so it keeps its id from any directory
-(a path outside the root gets a new id and a `WARNING:`). A file reached
-through a symlinked directory is keyed by the path as written, which
-`id generate` does not index, so it finds no entry. The one entry loom
+package whose path exists below the registry's project root is looked up by
+that path, as the same package from any directory or spelling
+(`../data/t.txt` from a subdirectory is `data/t.txt`), and by its content
+digest when the entry records one; a remote, missing or outside-the-root
+dataset by its name. A file (a dataset's, or the script) is looked up by its
+path from the registry's project root and its hash, so it keeps its id from
+any directory (a path outside the root gets a new id and a `WARNING:`). A file
+reached through a symlinked directory is keyed by the path as written, which
+`id generate` does not index, so it finds no entry. See [keys and content
+gates](id-registry-keys.md). The one entry loom
 writes is a model declared with `path=` (hashed when the run ends) whose file
 the registry does not know, saved after the fragment;
 `update-id-registry = false` in `pitloom_config` stops it.

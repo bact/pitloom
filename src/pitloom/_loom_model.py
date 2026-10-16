@@ -12,12 +12,19 @@ calls happen; only their subject is bound at exit.
 
 :meth:`LoomModels.resolve` runs in ``finalize()`` only, so a raising ``with``
 block hashes, looks up and records nothing. A ``path=`` that is a regular
-file is hashed, and the model is looked up by its name, gated by that hash.
-A miss is registered when the registry has a file and ``update-id-registry``
-is not false; :meth:`LoomModels.persist` saves it after the fragment is
-written. Without a usable ``path=`` (none, not a file at exit, unreadable),
-the model is looked up by name only and nothing is registered. The key is
-always the name, never the path.
+file is hashed, and the model is looked up gated by that hash. The key is
+the file's path from the registry's project root
+(:func:`~pitloom.id_registry.artifact_key`), so a renamed model or a
+shared file stem keeps or gets its own id; the element's name stays the
+declared one. A ``src/``/``lib/`` path also hits the held key of its
+installed path with that hash (``CANONICAL`` layout alias: a wheel
+minted it); the hit registers nothing. A file outside the root is keyed
+by the name (one ``INFO:``, once per model, :data:`NAME_KEY_INFO`). A miss
+is registered when the registry has a file and ``update-id-registry`` is
+not false; :meth:`LoomModels.persist` saves it after the fragment is written.
+Without a usable ``path=`` (none, not a file at exit, unreadable), the
+model is looked up by name only, an entry recording a SHA-256 is a miss (no
+content vouches for it), and nothing is registered.
 
 See also: :mod:`pitloom._loom_active_run` (the run),
 :mod:`pitloom._loom_dataset` (datasets) and
@@ -30,6 +37,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
@@ -39,6 +47,7 @@ from pitloom._loom_caller import (
     registry_miss_callback,
     warn_registry_miss,
 )
+from pitloom._loom_dataset import name_key_reason
 from pitloom.assemble.spdx3.provenance import emit_provenance
 from pitloom.core.file_hash import sha256_digest
 from pitloom.core.models import generate_spdx_id
@@ -50,8 +59,11 @@ from pitloom.core.path_probe import (
 from pitloom.export.spdx3_json import Spdx3JsonExporter, sha256_hash
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
+    Alias,
     IdRegistry,
     IdRegistrySession,
+    LookupKey,
+    artifact_key,
     persist_registry,
     warn_no_registry_path,
 )
@@ -59,7 +71,7 @@ from pitloom.logging_config import loggable, one_line
 
 log = logging.getLogger("pitloom.loom")
 
-__all__ = ["NOT_A_FILE_WARNING", "NO_PATH_WARNING", "LoomModels"]
+__all__ = ["NAME_KEY_INFO", "NOT_A_FILE_WARNING", "NO_PATH_WARNING", "LoomModels"]
 
 #: ``log.warning()`` format for a model declared without ``path=`` while a
 #: registry is loaded. Argument: the model's name.
@@ -69,6 +81,11 @@ NO_PATH_WARNING = "loom: model %r has no path=; not hashed, looked up by name on
 NOT_A_FILE_WARNING = (
     "loom: model %r: %s is not a file at exit; not hashed, looked up by name only"
 )
+#: ``log.info()`` format for a hashed model keyed by its name, its file
+#: outside the registry's project root (or gone since it was hashed), once
+#: per model per run. Arguments: the model's name, why
+#: (:func:`~pitloom._loom_dataset.name_key_reason`).
+NAME_KEY_INFO = "ID registry: model %s keyed by its name: %s"
 #: The provisional spdxId of a declared model, numbered per run; replaced
 #: at exit, before anything is written.
 _PENDING_ID = "urn:pitloom:loom:pending-model-"
@@ -141,6 +158,8 @@ class LoomModels:
         self._declared: list[_Declaration] = []
         #: Ids registered by this run (``None``: a claim collision).
         self._recorded: list[str | None] = []
+        #: (name, path) of the models said to be keyed by their name.
+        self._name_keyed: set[tuple[str, str]] = set()
 
     # pylint: disable-next=too-many-arguments
     def declare(
@@ -219,7 +238,7 @@ class LoomModels:
             self._refresh()
         for declared, digest in zip(self._declared, digests, strict=True):
             element = declared.element
-            element.spdxId = self._spdx_id(declared.name, digest)
+            element.spdxId = self._spdx_id(declared, digest)
             if digest is not None:
                 element.verifiedUsing = [sha256_hash(digest)]
             for annotation in declared.annotations:
@@ -235,7 +254,7 @@ class LoomModels:
         fragment is written."""
         registry = self._session.registry
         if registry is not None and self._recorded:
-            # A model declared twice with other bytes replaced its own entry.
+            # Two files outside the root sharing a name replace one entry.
             held = {entry.spdx_id for entry in registry.elements.values()}
             persist_registry(registry, len(held.intersection(self._recorded)), True)
 
@@ -263,40 +282,63 @@ class LoomModels:
         except (OSError, ValueError) as exc:
             log.debug("ID registry: not re-read before resolving models: %s", exc)
 
-    def _spdx_id(self, name: str, digest: str | None) -> str:
+    def _spdx_id(self, declared: _Declaration, digest: str | None) -> str:
         """The model's id: from the registry (gated by *digest* when there
         is one), else registered on a gated miss, else minted."""
-        session = self._session
+        session, name = self._session, declared.name
+        registry = session.registry
+        if registry is None or digest is None:
+            lookup = LookupKey(name)
+        else:
+            lookup = artifact_key(
+                registry, path=declared.path, name=name, alias=Alias.CANONICAL
+            )
+            if not lookup.path:
+                self._info_name_key(declared)
         if digest is None:
-            registered = session.lookup_id(
-                name,
-                AI_PACKAGE_TYPE,
-                [name],
-                on_miss=registry_miss_callback(session, AI_PACKAGE_TYPE, name),
+            on_miss = registry_miss_callback(
+                session, AI_PACKAGE_TYPE, name, unhashed=True
+            )
+            registered = session.lookup_key(
+                name, AI_PACKAGE_TYPE, lookup, miss_hashed=True, on_miss=on_miss
             )
         else:
             missed: list[bool] = []
-            registered = session.lookup_id(
+            registered = session.lookup_key(
                 name,
                 AI_PACKAGE_TYPE,
-                [name],
+                lookup,
                 sha256=digest,
                 on_miss=lambda: missed.append(True),
             )
-            registry = session.registry
             if registry is not None and missed:
-                registered = self._record(registry, name, digest)
+                registered = self._record(registry, name, lookup, digest)
         return registered or generate_spdx_id("AIPackage", name, self._doc_uuid)
 
-    def _record(self, registry: IdRegistry, name: str, digest: str) -> str | None:
-        """Register *name* after a gated miss, or say why not and return
-        ``None`` (the caller mints)."""
+    def _info_name_key(self, declared: _Declaration) -> None:
+        """The one ``INFO:`` (:data:`NAME_KEY_INFO`) for a hashed model
+        keyed by its name, once per name and path."""
+        path = cast(str, declared.path)  # hashed: a path= was given
+        if (declared.name, path) not in self._name_keyed:
+            self._name_keyed.add((declared.name, path))
+            log.info(NAME_KEY_INFO, loggable(declared.name), name_key_reason(path))
+
+    def _record(
+        self, registry: IdRegistry, name: str, lookup: LookupKey, digest: str
+    ) -> str | None:
+        """Register *lookup*'s key after a gated miss, or say why not and
+        return ``None`` (the caller mints)."""
         if not self._update:
-            warn_registry_miss(registry, AI_PACKAGE_TYPE, name)
+            warn_registry_miss(
+                registry, AI_PACKAGE_TYPE, lookup.key, by_path=lookup.path
+            )
             return None
         if registry.path is None:
             warn_no_registry_path()
             return None
-        spdx_id = self._session.register_id(name, AI_PACKAGE_TYPE, name, sha256=digest)
+        session = self._session
+        spdx_id = session.register_id(name, AI_PACKAGE_TYPE, lookup.key, sha256=digest)
+        if spdx_id is not None:
+            session.record_key(spdx_id, AI_PACKAGE_TYPE, lookup.key)
         self._recorded.append(spdx_id)
         return spdx_id

@@ -37,7 +37,8 @@ def test_a_crfsuite_model_keeps_the_id_id_generate_registered(
 
     argv = ["id", "generate", str(root / "demo"), "--project-dir", str(root)]
     assert _run_cli(monkeypatch, [*argv, "-o", str(registry_path)]) == 0
-    registered = IdRegistry.load(registry_path).lookup(AI_PACKAGE_TYPE, ["tagger"])
+    key = ["demo/tagger.model"]  # its file's key
+    registered = IdRegistry.load(registry_path).lookup(AI_PACKAGE_TYPE, key)
     assert registered is not None  # non-vacuous: the model got an entity
 
     out = tmp_path / "out.json"

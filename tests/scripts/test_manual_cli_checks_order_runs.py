@@ -61,7 +61,7 @@ def test_scripts_parse_and_walks_replay(
 
 _BROKEN_LOOKUP = """\
 from pitloom.id_registry import _registry
-_registry.IdRegistry.lookup = lambda self, type_name, names, *, sha256=None: None
+_registry.IdRegistry.lookup = lambda self, type_name, names, **kwargs: None
 """
 
 

@@ -71,6 +71,9 @@ and this project adheres to
 - API: `FileEntry`/`EntityEntry` become `RegistryEntry`; new `persist_registry`,
   `registry_key_for_path`, `type_id_prefix`. `loom.Run` messages carry their
   `WARNING:`/`INFO:` tag ([#305])
+- ID registry keys files, models and dataset packages by path (one model file,
+  one id on every surface); models gated by SHA-256; `src/`/`lib/` layout alias;
+  sdist `physical_path` project-relative ([#308])
 
 ### Fixed
 
@@ -113,6 +116,7 @@ and this project adheres to
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
 [#306]: https://github.com/bact/pitloom/pull/306
+[#308]: https://github.com/bact/pitloom/pull/308
 
 ## [0.20.2] - 2026-10-09
 

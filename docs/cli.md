@@ -201,11 +201,14 @@ loom id generate data src --entity model -o loom-id-registry.json
 loom id import existing-sbom.spdx3.json -o loom-id-registry.json
 ```
 
-`id generate` also takes `--namespace IRI` and `-e NAME[:TYPE]`, and both
+`id generate` also takes `--namespace IRI` and `-e NAME[:TYPE]` (a file, model
+or dataset that exists below `--project-dir` is stored by its path with its
+content hash, else by name), and both
 commands write only a changed registry. The file is JSON (`version: 3`); a
 version 2 file from an earlier release is an `ERROR:` (exit 1) on every
 command: delete it and re-run. Format, flags and log lines:
-[Loom ID registry](id-registry.md).
+[Loom ID registry](id-registry.md); keys: [keys and content
+gates](id-registry-keys.md).
 
 Full reference, including the `--id-registry` precedence and automatic harvest
 of new ids (`--update-id-registry`): [Loom ID registry](id-registry.md).

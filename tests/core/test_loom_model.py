@@ -88,16 +88,16 @@ def _logged(caplog: pytest.LogCaptureFixture, level: int) -> list[str]:
 @pytest.mark.parametrize(
     ("entries", "model_id", "infos"),
     [
-        ({(AI_PACKAGE_TYPE, "m"): (f"{_NS}#AIPackage-7", _SHA)}, 7, []),
+        ({(AI_PACKAGE_TYPE, "m.bin"): (f"{_NS}#AIPackage-7", _SHA)}, 7, []),
         ({}, 1, ["added 1"]),
-        ({(FILE_TYPE, "m"): (f"{_NS}#File-1", _SHA)}, 1, ["added 1"]),
+        ({(FILE_TYPE, "m.bin"): (f"{_NS}#File-1", _SHA)}, 1, ["added 1"]),
         (
-            {(AI_PACKAGE_TYPE, "m"): (f"{_NS}#AIPackage-7", _OTHER)},
+            {(AI_PACKAGE_TYPE, "m.bin"): (f"{_NS}#AIPackage-7", _OTHER)},
             8,
             ["content changed", "added 1"],
         ),
         (
-            {(AI_PACKAGE_TYPE, "m"): (f"{_NS}#AIPackage-7", None)},
+            {(AI_PACKAGE_TYPE, "m.bin"): (f"{_NS}#AIPackage-7", None)},
             8,
             ["content changed", "added 1"],
         ),
@@ -112,7 +112,7 @@ def test_model_with_a_file_is_gated_and_recorded(
     infos: list[str],
 ) -> None:
     """A hit reuses the id; any miss (a retrained file, or a pin with no
-    hash, D12) registers a new id under the model's name, never its path."""
+    hash, D12) registers a new id under the model's path key, not its name."""
     path = _registry(project, entries)
     before = path.read_bytes()
 
@@ -132,12 +132,12 @@ def test_model_with_a_file_is_gated_and_recorded(
     assert len(logged) == len(infos)
     assert all(needle in line for needle, line in zip(infos, logged, strict=True))
     saved = IdRegistry.load(path)
-    entry = saved.get(AI_PACKAGE_TYPE, "m")
+    entry = saved.get(AI_PACKAGE_TYPE, "m.bin")
     assert entry is not None and (entry.spdx_id, entry.sha256) == (
         model["spdxId"],
         _SHA,
     )
-    assert saved.get(AI_PACKAGE_TYPE, "m.bin") is None
+    assert saved.get(AI_PACKAGE_TYPE, "m") is None
     assert (path.read_bytes() == before) is (not infos)
 
 
@@ -178,7 +178,7 @@ def test_a_miss_not_recorded_mints_with_one_warning(
 
 @pytest.mark.parametrize(
     ("second", "warns", "infos"),
-    [("m.bin", True, ["added 1"]), ("m2.bin", False, ["content changed", "added 1"])],
+    [("m.bin", True, ["added 1"]), ("m2.bin", False, ["added 2"])],
     ids=["same-file", "other-file"],
 )
 def test_a_model_declared_twice(
@@ -190,7 +190,7 @@ def test_a_model_declared_twice(
 ) -> None:
     """The same file twice: the second hits the id the first registered,
     its claim is rejected (one collision WARNING, a fresh id, not
-    recorded). Another file: the second replaces the entry; one id added."""
+    recorded). Another file: its own path key, so its own entry."""
     (project / "m2.bin").write_bytes(b"weights v2")
     path = _registry(project)
 
@@ -206,7 +206,7 @@ def test_a_model_declared_twice(
     logged = _logged(caplog, logging.INFO)
     assert len(logged) == len(infos)
     assert all(needle in line for needle, line in zip(infos, logged, strict=True))
-    registered = IdRegistry.load(path).get(AI_PACKAGE_TYPE, "m")
+    registered = IdRegistry.load(path).get(AI_PACKAGE_TYPE, "m.bin")
     assert registered is not None
     assert registered.spdx_id in {first["spdxId"], other["spdxId"]}
 
@@ -224,7 +224,7 @@ def test_path_is_absolute_at_the_call_and_hashed_at_exit(
 
     (model,) = _models(project / "out.json")
     assert _sha_of(model) == _SHA
-    entry = IdRegistry.load(path).get(AI_PACKAGE_TYPE, "m")
+    entry = IdRegistry.load(path).get(AI_PACKAGE_TYPE, "late.bin")
     assert entry is not None and entry.sha256 == _SHA
 
 
@@ -248,18 +248,23 @@ _CHMOD_FILE = pytest.param(
     ],
     ids=["none", "missing", "directory", "raced", "stat", "chmod-file"],
 )
+@pytest.mark.parametrize("held_sha", [None, _OTHER], ids=["hashless", "hashed"])
 def test_without_a_usable_file_the_name_is_looked_up_ungated(
     project: Path,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     case: str,
     needle: str,
+    held_sha: str | None,
 ) -> None:
     """No ``path=``, or one that is not a regular file at exit (gone between
     its check and its read included), or cannot be read: one WARNING, then
-    the name lookup ignoring the recorded hash (a sharded model directory
-    included); no hash, no write."""
-    path = _registry(project, {(AI_PACKAGE_TYPE, "m"): (f"{_NS}#AIPackage-7", _OTHER)})
+    a name lookup that hits an entry recording no hash (a sharded model
+    directory included) and misses one recording a hash, which no content
+    vouches for (a second WARNING, a new id); no hash, no write."""
+    path = _registry(
+        project, {(AI_PACKAGE_TYPE, "m"): (f"{_NS}#AIPackage-7", held_sha)}
+    )
     before = path.read_bytes()
     given = {"none": None, "missing": "gone.bin", "directory": "sub"}.get(case, "m.bin")
     if case == "raced":
@@ -280,10 +285,11 @@ def test_without_a_usable_file_the_name_is_looked_up_ungated(
                 loom.set_model("m", path=given)
 
     (model,) = _models(project / "out.json")
-    assert model["spdxId"] == f"{_NS}#AIPackage-7"
+    assert (model["spdxId"] == f"{_NS}#AIPackage-7") is (held_sha is None)
     assert "verifiedUsing" not in model
-    (warning,) = _logged(caplog, logging.WARNING)
+    warning, *miss = _logged(caplog, logging.WARNING)
     assert needle in warning
+    assert [("records a SHA-256" in m) for m in miss] == [True] * (held_sha is not None)
     assert path.read_bytes() == before
 
 
@@ -386,7 +392,7 @@ def test_training_and_evaluation_share_one_id_and_a_retrain_mints_one(
     assert trained["spdxId"] == evaluated["spdxId"] != retrained["spdxId"]
     changed = [m for m in _logged(caplog, logging.INFO) if "content changed" in m]
     assert len(changed) == 1
-    entry = IdRegistry.load(path).get(AI_PACKAGE_TYPE, "m")
+    entry = IdRegistry.load(path).get(AI_PACKAGE_TYPE, "m.bin")
     assert entry is not None and entry.spdx_id == retrained["spdxId"]
 
 
@@ -409,8 +415,8 @@ def test_interleaved_runs_sharing_one_registry_keep_both(project: Path) -> None:
     saved = entries_of(IdRegistry.load(path))
     (m1,), (m2,) = _models(project / "a.json"), _models(project / "b.json")
     assert saved == {
-        (AI_PACKAGE_TYPE, "m1"): (m1["spdxId"], _SHA),
-        (AI_PACKAGE_TYPE, "m2"): (m2["spdxId"], _sha256(b"weights v2")),
+        (AI_PACKAGE_TYPE, "m.bin"): (m1["spdxId"], _SHA),
+        (AI_PACKAGE_TYPE, "m2.bin"): (m2["spdxId"], _sha256(b"weights v2")),
     }
     assert m1["spdxId"] != m2["spdxId"]
 

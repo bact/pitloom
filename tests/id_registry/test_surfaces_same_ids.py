@@ -24,6 +24,7 @@ end to end).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -71,7 +72,9 @@ def _snapshot_path(tmp_path: Path) -> Path:
     registry.register(FILE_TYPE, _DIRECTORY_NAME)
     registry.register(PACKAGE_TYPE, _MAIN_PACKAGE_NAME)
     registry.register(PACKAGE_TYPE, DEPENDENCY)
-    registry.register(AI_PACKAGE_TYPE, _MODEL_STEM)
+    # With its bytes' SHA-256: a model lookup is gated by its file's hash.
+    model_sha = hashlib.sha256(SAFETENSORS_FIXTURE.read_bytes()).hexdigest()
+    registry.register(AI_PACKAGE_TYPE, _MODEL_STEM, sha256=model_sha)
 
     path = tmp_path / "snapshot.json"
     registry.save(path)
@@ -145,8 +148,9 @@ def test_project_surface_reuses_snapshot_ids(
     tmp_path: Path, snapshot_path: Path
 ) -> None:
     expected = _snapshot_ids(snapshot_path)
-    registry_copy = _fresh_copy(snapshot_path, tmp_path / "project-copy.json")
     project = demo_project(tmp_path / "run")
+    # In the project: a saved registry's root is its own directory.
+    registry_copy = _fresh_copy(snapshot_path, project / "project-copy.json")
 
     sbom_json = generate_project_sbom(
         project, creation_metadata=None, id_registry=registry_copy
@@ -170,9 +174,9 @@ def test_hook_surface_reuses_snapshot_ids(tmp_path: Path, snapshot_path: Path) -
     ``[tool.pitloom] id-registry`` (see
     :mod:`tests.id_registry.surfaces_shared`'s ``run_hook``)."""
     expected = _snapshot_ids(snapshot_path)
-    registry_copy = _fresh_copy(snapshot_path, tmp_path / "hook-copy.json")
-    toml = f"\n[tool.pitloom]\nid-registry = {json.dumps(registry_copy.as_posix())}\n"
+    toml = '\n[tool.pitloom]\nid-registry = "hook-copy.json"\n'
     project = demo_project(tmp_path / "run", toml)
+    _fresh_copy(snapshot_path, project / "hook-copy.json")
 
     hook = make_hook(str(project), {})
     build_data: dict[str, Any] = {}

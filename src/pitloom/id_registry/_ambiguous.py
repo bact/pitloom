@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Which harvested elements a ``(type, name)``-keyed registry cannot pin.
+"""The key harvest writes an element under, and the keys it cannot pin.
 
 See also: :mod:`pitloom.id_registry._harvest` (its
 ``_import_sbom_element`` writes the keys this module predicts).
@@ -12,17 +12,68 @@ See also: :mod:`pitloom.id_registry._harvest` (its
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Iterable
-from typing import Any
+from collections.abc import Iterable, Mapping
+from collections.abc import Set as AbstractSet
+from typing import Any, NamedTuple
 
-from pitloom.id_registry._types import _element_key
+from pitloom.export.hashes import sha256_of
+from pitloom.id_registry._types import FILE_TYPE, _element_key
 
 __all__ = [
+    "MODEL_NOT_RECORDED_INFO",
+    "NO_UNIQUE_FILE",
+    "DerivedKeys",
+    "KeptPairs",
+    "RecordedKeys",
+    "WrittenKey",
     "_ambiguous_keys",
     "_compact_type_of",
     "_element_key_of",
+    "_written_key",
     "ambiguous_keys_message",
+    "unique_file_keys",
 ]
+
+#: Why a hashed model is not keyed by its file: no file, or several, hold
+#: its SHA-256. Shared by every model ``INFO:`` that says so.
+NO_UNIQUE_FILE = "no unique file with its SHA-256"
+#: ``log.info()`` format for a hashed model a run's auto-harvest leaves out
+#: (no recorded key, no :func:`unique_file_keys` file). Argument: its name.
+MODEL_NOT_RECORDED_INFO = f"ID registry: model %s not recorded: {NO_UNIQUE_FILE}"
+
+#: spdxId -> (compact type, raw key) a run's lookups recorded for it
+#: (:meth:`~pitloom.id_registry.IdRegistrySession.recorded_keys`).
+RecordedKeys = Mapping[str, tuple[str, str]]
+#: (spdxId, written key) pairs of elements harvest never writes (R-keep).
+KeptPairs = AbstractSet[tuple[str, tuple[str, str]]]
+
+
+class DerivedKeys(dict[str, tuple[str, str]]):
+    """spdxId -> (compact type, raw key) derived, not recorded by a run's
+    lookup (``id import``'s
+    :func:`~pitloom.id_registry.import_keys.import_keys`, a run's
+    fragment model): written like a recorded key, but R-keep and the stale
+    rule apply as to a name. The ids in :attr:`recorded` are the run's
+    recorded keys."""
+
+    def __init__(
+        self,
+        items: Mapping[str, tuple[str, str]] | None = None,
+        *,
+        recorded: Iterable[str] = (),
+    ) -> None:
+        super().__init__(items or {})
+        #: The spdxIds whose key a run's lookup recorded.
+        self.recorded = frozenset(recorded)
+
+
+class WrittenKey(NamedTuple):
+    """The registry *key* an element is written under, and whether it is
+    the run's *recorded* key (else the element's type and name, or a key
+    ``id import`` derived)."""
+
+    key: tuple[str, str]
+    recorded: bool
 
 
 def _compact_type_of(obj: Any) -> str:
@@ -33,9 +84,8 @@ def _compact_type_of(obj: Any) -> str:
 
 
 def _element_key_of(obj: Any) -> tuple[str, str] | None:
-    """The key :func:`~pitloom.id_registry._harvest._import_sbom_element`
-    writes *obj* under, or ``None`` when it writes none (unnamed, no id, or
-    no SPDX 3 compact type)."""
+    """*obj*'s own key, its type and name, or ``None`` when it has none
+    (unnamed, no id, or no SPDX 3 compact type)."""
     name = getattr(obj, "name", None)
     if not name or not getattr(obj, "spdxId", None):
         return None
@@ -45,16 +95,59 @@ def _element_key_of(obj: Any) -> tuple[str, str] | None:
     return _element_key(type_name=compact_type, name=name)
 
 
-def _ambiguous_keys(objects: Iterable[Any]) -> frozenset[tuple[str, str]]:
-    """Every key more than one of *objects* would be written under, file
-    paths included.
+def _written_key(obj: Any, keys: RecordedKeys | None) -> WrittenKey | None:
+    """The key :func:`~pitloom.id_registry._harvest._import_sbom_element`
+    writes *obj* under: the key *keys* holds for its spdxId when that is of
+    *obj*'s own type and not empty (``recorded`` unless *keys* are
+    :class:`DerivedKeys`); else :func:`_element_key_of`. ``None`` when *obj*
+    has no key of its own."""
+    own = _element_key_of(obj)
+    if own is None or not keys:
+        return None if own is None else WrittenKey(own, recorded=False)
+    recorded = keys.get(str(obj.spdxId))
+    if recorded is None or recorded[0] != own[0] or not recorded[1]:
+        return WrittenKey(own, recorded=False)
+    derived = isinstance(keys, DerivedKeys) and str(obj.spdxId) not in keys.recorded
+    return WrittenKey(
+        _element_key(type_name=own[0], name=recorded[1]), recorded=not derived
+    )
 
-    One document holding two elements of one type and one (canonical)
-    name -- two pinned versions of one dependency, two bundled binaries
-    of one name, two wheel members normalised to one path -- cannot be
-    pinned by a name-keyed registry: writing either id would make the
-    next run hand it to whichever element claims the name first, which
-    is not the one harvested.
+
+def unique_file_keys(
+    objects: Iterable[Any], keys: RecordedKeys | None
+) -> dict[str, str]:
+    """SHA-256 -> the :func:`_written_key` (with *keys*) of the one
+    ``software_File`` of *objects* holding it, for each SHA-256 exactly one
+    file holds: the key a model of those bytes is written under."""
+    files = [
+        (sha, _written_key(obj, keys))
+        for obj in objects
+        if _compact_type_of(obj) == FILE_TYPE and (sha := sha256_of(obj)) is not None
+    ]
+    counts = Counter(sha for sha, _ in files)
+    return {
+        sha: key.key[1] for sha, key in files if counts[sha] == 1 and key is not None
+    }
+
+
+def _ambiguous_keys(
+    objects: Iterable[Any],
+    keys: RecordedKeys | None = None,
+    *,
+    kept: KeptPairs = frozenset(),
+) -> frozenset[tuple[str, str]]:
+    """Every key more than one of *objects* would be written under
+    (:func:`_written_key`, with *keys*), file paths included. An element
+    whose (spdxId, written key) is in *kept* is never written (R-keep), so
+    it neither counts nor blocks another.
+
+    One document holding two elements of one type and one written key --
+    two pinned versions of one dependency, two bundled binaries of one
+    name, two wheel members normalised to one path -- cannot be pinned by
+    the registry: writing either id would make the next run hand it to
+    whichever element claims the key first, which is not the one
+    harvested. Two elements of one name but distinct recorded keys are
+    not ambiguous.
 
     A run's auto-harvest
     (:func:`pitloom.assemble._generators_shared._sync_registry`) first
@@ -64,7 +157,11 @@ def _ambiguous_keys(objects: Iterable[Any]) -> frozenset[tuple[str, str]]:
     the one element that looks the name up is written. ``id import`` has
     no such record and passes every element.
     """
-    counts = Counter(key for key in map(_element_key_of, objects) if key is not None)
+    counts: Counter[tuple[str, str]] = Counter()
+    for obj in objects:
+        found = _written_key(obj, keys)
+        if found is not None and (str(obj.spdxId), found.key) not in kept:
+            counts[found.key] += 1
     return frozenset(key for key, count in counts.items() if count > 1)
 
 

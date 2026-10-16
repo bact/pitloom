@@ -429,7 +429,7 @@ def _build_sbom_from_project_and_wheel(
         creation_metadata=creation_metadata or CreationMetadata(),
         ai_models=ai_models,
         phantom_dependencies=find_phantom_dependencies(merged_files),
-        **wheel_document_identity(wheel_metadata, wheel_path),
+        **wheel_document_identity(wheel_metadata, wheel_path, project_dir),
     )
     exporter = assemble_spdx3(
         doc,

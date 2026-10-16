@@ -7,7 +7,8 @@
 a file path's key relative to a registry's project root, and how a wheel
 or sdist reader recognises the registry's copy among the members.
 
-See also: :mod:`pitloom.id_registry._registry` for ``IdRegistry`` itself.
+See also: :mod:`pitloom.id_registry._registry` for ``IdRegistry`` itself,
+:mod:`pitloom.id_registry.keys` for every registry key.
 """
 
 from __future__ import annotations
@@ -16,9 +17,10 @@ import itertools
 import os
 from pathlib import Path, PurePath
 
-from pitloom.core.path_confine import inside_ancestor, is_inside
+from pitloom.core.path_confine import is_inside
 from pitloom.core.walk_rules import PROJECT_FILES, RegistryCopy
 from pitloom.id_registry._registry import IdRegistry
+from pitloom.id_registry.keys import path_key
 
 __all__ = [
     "registry_base_dir",
@@ -129,33 +131,8 @@ def resolve_registry(
 
 
 def registry_key_for_path(registry: IdRegistry, path: Path) -> str | None:
-    """*path*'s ``software_File`` key in *registry*: the path relative to
-    :meth:`IdRegistry.root_dir`, ``/``-separated -- ``id generate``'s keying,
-    whatever the current directory. ``None`` when *path* lies outside the
-    root (another drive included); the root itself is ``"."``.
-
-    A relative *path* is taken from the current directory (``None`` when
-    that is deleted). Tried lexically first (``..`` collapsed, no symlink
-    followed), so an in-project file symlink keys by its own location, as
-    ``id generate`` keys it. An ancestor of that path may be the root by
-    file identity (a symlinked ancestor: macOS ``/tmp`` is
-    ``/private/tmp``; or another case); the remainder is kept as spelt.
-    Last, through ``os.path.realpath`` (a symlink from outside into the
-    root), matching an ancestor by spelling or identity (see
-    :func:`~pitloom.core.path_confine.inside_ancestor`). Never raises.
-    """
-    root = PurePath(registry.root_dir())
-    try:
-        base = "" if path.is_absolute() else os.getcwd()
-    except OSError:  # the current directory was deleted
-        return None
-    lexical = PurePath(os.path.normpath(os.path.join(base, path)))
-    ancestor = inside_ancestor(lexical, root)
-    if ancestor is not None:
-        return lexical.relative_to(ancestor).as_posix()
-    try:
-        real = PurePath(os.path.realpath(lexical))
-    except ValueError:  # a NUL: no file to resolve
-        return None
-    ancestor = inside_ancestor(real, root)
-    return None if ancestor is None else real.relative_to(ancestor).as_posix()
+    """*path*'s ``software_File`` key in *registry*, as spelt:
+    :func:`~pitloom.id_registry.keys.path_key` without the on-disk
+    spelling step. ``None`` outside the root; ``"."`` for the root. Never
+    raises."""
+    return path_key(registry, path)

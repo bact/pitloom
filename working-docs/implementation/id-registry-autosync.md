@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -60,7 +60,8 @@ Several distinct ways that can collide, and the fixes for each, below.
   then has both `b` and `c` hitting `File-5`.
 - **Simultaneously, within one run**: two elements can legitimately hit
   the same registered id at once -- e.g. two AI models sharing a file
-  stem (see [ai-model-id-stability.md](../design/ai-model-id-stability.md)).
+  stem (historical: path keys give each model file its own key; see
+  [ai-model-id-stability.md](../design/ai-model-id-stability.md)).
 
 ### Pre-resolution and hit-only reservation
 
@@ -138,7 +139,8 @@ holds across all three, not just within one resolver.
 `build_deployed()` uses its own separate `claimed` scope (a different
 document).
 
-This is also what makes the AI-model file-stem-collision case (see
+This is also what made the AI-model file-stem-collision case (since removed
+by path keys; see
 [ai-model-id-stability.md](../design/ai-model-id-stability.md))
 recoverable instead of silently dropping the second model: it gets its
 own id and a warning instead of reusing the first model's.
@@ -199,23 +201,14 @@ any *other* key already holding that exact id, so a stale entry left
 behind by an earlier run can't keep re-triggering the same collision
 warning on every later run.
 
-Files-table exception: a key is kept only when BOTH its `sha256`
-matches the new entry's AND its path is a
-`pitloom.id_registry._harvest._is_files_path_alias()` of the new key -- trailing
-`PurePosixPath` parts tail-match, one a strict suffix of the other
-(e.g. `src/pkg/x.py` vs `pkg/x.py`), the intentional
-physical-path/distribution-path dual-keying for one src/-layout file
-(see `_add_package_files()`'s two-path lookup). Entities have no such
-alias case, so any other entities key sharing the id is always
-dropped.
-
-A one-part key (e.g. `x.py`, no directory component) is a suffix-alias
-of the *same filename at any depth* (`_is_files_path_alias("x.py",
-"a/b/x.py")` is true, since `("x.py",)` tail-matches any path ending in
-`x.py`) -- this only matters once two keys already share an id (the
-harvest that would let an unrelated `x.py` steal a genuinely different
-file's key still requires a real content-hash match first), and its
-effect is id churn on the next mismatch, not a duplicate.
+Amended 2026-10-16 (path keys; see
+[id-registry-path-keys.md](id-registry-path-keys.md)): there is no
+files-table exception. A key holds one id and an id one key; promoting a
+held layout alias (`demo/x.py` to `src/demo/x.py`) replaces it, decided by
+`pitloom.id_registry.keys` (`src`/`lib` first part only, equal sha256, unique
+candidate, shorter key absent on disk), not by `_is_files_path_alias` (removed:
+it tail-matched any suffix, so a one-part key aliased the same filename at
+any depth). Harvest writes the key the run's lookup used.
 
 **Rejected: sha256-match alone** (drop a files-table key only on a
 content mismatch). Two *different* files with identical content (e.g.

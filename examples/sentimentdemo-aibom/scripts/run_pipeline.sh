@@ -24,11 +24,14 @@ echo "Stage 0/5  -  Pin stable SPDX ids (pitloom id generate)"
 echo "================================================================"
 # --namespace fixes the registry's document namespace (only the first call
 # needs it; an existing registry keeps its own). -e pins each dataset package
-# under the exact string the scripts pass to loom.add_*(); a single-file
-# dataset package then `contains` its file. The model needs no entry here:
-# train.py and evaluate.py pass path= to loom.set_model()/use_model(), so loom
-# hashes models/sentimentdemo.bin at run exit and records one AI package id
-# that the training and evaluation fragments share.
+# under its path from the project root; the raw files exist, so their pins
+# carry the content digest, while the two data/processed/ pins precede the
+# data and have none until the next run, whose stage 0 adopts the digest (same
+# ids). A single-file dataset package then `contains` its file. The model needs
+# no entry here: train.py and evaluate.py pass path= to
+# loom.set_model()/use_model(), so loom hashes models/sentimentdemo.bin at run
+# exit and records one AI package id, keyed by that file, that the training and
+# evaluation fragments share.
 python -m pitloom id generate data src \
   --namespace "https://spdx.org/spdxdocs/sentimentdemo-aibom-02679af2-dd22-459c-8143-0d82396823c7" \
   -e data/raw/pos.txt:dataset_DatasetPackage \

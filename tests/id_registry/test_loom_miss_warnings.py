@@ -21,7 +21,8 @@ from pathlib import Path
 import pytest
 
 from pitloom import loom
-from pitloom.id_registry import FILE_TYPE, PACKAGE_TYPE
+from pitloom._loom_caller import warn_registry_miss
+from pitloom.id_registry import AI_PACKAGE_TYPE, FILE_TYPE, PACKAGE_TYPE
 from tests.registry_helpers import make_registry
 
 _NS = "https://spdx.org/spdxdocs/test-1"
@@ -57,3 +58,21 @@ def test_model_miss_warning(
     no_path, warning = [w for w in _warnings(caplog) if repr(name) in w]
     assert "has no path=" in no_path
     assert needle in warning
+
+
+@pytest.mark.parametrize(
+    ("type_name", "word"),
+    [(AI_PACKAGE_TYPE, "model"), (PACKAGE_TYPE, "entity")],
+    ids=["model", "other-type"],
+)
+def test_changed_content_warning_names_the_element_type(
+    caplog: pytest.LogCaptureFixture, type_name: str, word: str
+) -> None:
+    registry = make_registry({(type_name, "m"): (f"{_NS}#X-1", "0" * 64)})
+
+    with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
+        warn_registry_miss(registry, type_name, "m")
+
+    (warning,) = _warnings(caplog)
+    assert warning.startswith(f"loom: registry entry for {word} 'm' exists but")
+    assert "no longer matches" in warning

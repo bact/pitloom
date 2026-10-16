@@ -17,10 +17,14 @@ import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.id_registry import AI_PACKAGE_TYPE, IdRegistry
+from pitloom.id_registry.import_keys import LAYOUT_ALIAS_CHANGED_INFO
 from tests.id_registry.shared import _files, _sha256
 from tests.registry_helpers import make_registry
 
 _GGUF = AiModelFormat.GGUF.magic or b""
+
+
+_KEY = "models/tiny.gguf"
 
 
 def _model_project(tmp_path: Path, data: bytes = _GGUF + b"\0" * 16) -> Path:
@@ -55,15 +59,15 @@ def test_generate_gates_a_model_entry_on_its_hash(
 
     for entry, kept in ((same, True), (other, False), (no_hash, False)):
         caplog.clear()
-        registry = make_registry({(AI_PACKAGE_TYPE, "tiny"): entry}, namespace="urn:x")
+        registry = make_registry({(AI_PACKAGE_TYPE, _KEY): entry}, namespace="urn:x")
         registry.generate([Path("models")], root)
 
-        got = registry.get(AI_PACKAGE_TYPE, "tiny")
+        got = registry.get(AI_PACKAGE_TYPE, _KEY)
         assert got is not None
         assert (got.spdx_id == entry[0]) is kept
         assert got.sha256 == same[1]
-        assert len(_content_changed(caplog, "tiny")) == (0 if kept else 1)
-        assert "models/tiny.gguf" in _files(registry)  # non-vacuous: it ran
+        assert len(_content_changed(caplog, _KEY)) == (0 if kept else 1)
+        assert _KEY in _files(registry)  # non-vacuous: it ran
 
 
 def test_generate_a_retrained_model_is_a_new_id_and_a_rerun_is_stable(
@@ -74,7 +78,7 @@ def test_generate_a_retrained_model_is_a_new_id_and_a_rerun_is_stable(
     registry = IdRegistry.new("proj", path=registry_path, project_root=root)
     registry.generate([Path("models")], root)
     registry.save()
-    old = registry.get(AI_PACKAGE_TYPE, "tiny")
+    old = registry.get(AI_PACKAGE_TYPE, _KEY)
     assert old is not None
 
     # Unchanged bytes: the saved file is byte-identical, nothing is logged.
@@ -84,79 +88,84 @@ def test_generate_a_retrained_model_is_a_new_id_and_a_rerun_is_stable(
     again.generate([Path("models")], root)
     again.save()
     assert registry_path.read_bytes() == first
-    assert not _content_changed(caplog, "tiny")
+    assert not _content_changed(caplog, _KEY)
 
     # Retrained (other bytes): one INFO, a new id, the old key replaced.
     _model_project(tmp_path, _GGUF + b"\1" * 16)
     again.generate([Path("models")], root)
-    new = again.get(AI_PACKAGE_TYPE, "tiny")
+    new = again.get(AI_PACKAGE_TYPE, _KEY)
     assert new is not None
     assert new.spdx_id != old.spdx_id
     assert new.sha256 != old.sha256
-    assert len(_content_changed(caplog, "tiny")) == 1
+    assert len(_content_changed(caplog, _KEY)) == 2  # its file, its package
     assert sum(1 for (t, _n) in again.elements if t == AI_PACKAGE_TYPE) == 1
 
 
-def test_generate_a_stem_shared_by_model_files_is_name_only_and_stable(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+@pytest.mark.parametrize("byte", [b"\0", b"\1"], ids=["same-bytes", "other-bytes"])
+def test_generate_two_model_files_sharing_a_stem_get_two_ids(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, byte: bytes
 ) -> None:
-    """No one file stands for a stem two files share, and a hash gate would
-    re-mint on every run: name only, one INFO per run."""
-    for directory, byte in (("a", b"\0"), ("b", b"\1")):
-        (tmp_path / directory).mkdir()
-        (tmp_path / directory / "m.gguf").write_bytes(_GGUF + byte * 16)
+    """K9: each model file's package is keyed by its own path, with its
+    hash, so two files with one stem (equal bytes or not) are two models:
+    no stem entry, no shared-name ``INFO:``, and a rerun changes nothing."""
+    keys = ["a/m.gguf", "b/m.gguf"]
+    for key, data in zip(keys, (b"\0", byte), strict=True):
+        (tmp_path / key).parent.mkdir()
+        (tmp_path / key).write_bytes(_GGUF + data * 16)
 
     registry = IdRegistry.new("proj", project_root=tmp_path)
     registry.generate([Path("a"), Path("b")], tmp_path)
-    first = registry.get(AI_PACKAGE_TYPE, "m")
-    assert first is not None
-    assert first.sha256 is None
+    entries = [registry.get(AI_PACKAGE_TYPE, key) for key in keys]
     caplog.clear()
     registry.generate([Path("a"), Path("b")], tmp_path)
 
-    assert registry.get(AI_PACKAGE_TYPE, "m") == first
-    assert [r.getMessage() for r in caplog.records if "share the name" in r.message]
-    assert not _content_changed(caplog, "m")
-
-
-def test_generate_a_stem_becoming_shared_leaves_its_entry_as_is_and_back(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    """1 -> 2 files: the entry keeps its id and its hash (D12: never
-    erased), so it differs from a fresh registry's over the same tree; a
-    third run saves the same bytes. 2 -> 1: the hash still matches, so the
-    entry is reused, with no ``content changed``."""
-    (tmp_path / "a").mkdir()
-    (tmp_path / "a" / "m.gguf").write_bytes(_GGUF + b"\0" * 16)
-    path = tmp_path / "reg.json"
-    registry = IdRegistry.new("proj", path=path, project_root=tmp_path)
-    registry.generate([Path("a")], tmp_path)
-    single = registry.get(AI_PACKAGE_TYPE, "m")
-    assert single is not None and single.sha256 is not None  # non-vacuous
-
-    (tmp_path / "b").mkdir()
-    (tmp_path / "b" / "m.gguf").write_bytes(_GGUF + b"\1" * 16)
-    caplog.clear()
-    registry.generate([Path("a"), Path("b")], tmp_path)
-    registry.save()
-    second = path.read_bytes()
-    registry.generate([Path("a"), Path("b")], tmp_path)
-    registry.save()
-    fresh = IdRegistry.new("proj", project_root=tmp_path)
-    fresh.generate([Path("a"), Path("b")], tmp_path)
-
-    assert registry.get(AI_PACKAGE_TYPE, "m") == single
-    assert path.read_bytes() == second
-    fresh_entry = fresh.get(AI_PACKAGE_TYPE, "m")
-    assert fresh_entry is not None and fresh_entry.sha256 is None
-    shared = "ID registry: 2 model files share the name m; "
-    shares = [r.getMessage() for r in caplog.records if "share the name" in r.message]
-    assert shares == [shared + "its entry is left as is"] * 2 + [
-        shared + "its new entry is not content-gated"  # the fresh registry
+    assert entries[0] is not None and entries[1] is not None
+    assert entries[0].spdx_id != entries[1].spdx_id
+    assert [e.sha256 for e in entries if e is not None] == [
+        _sha256((tmp_path / key).read_bytes()) for key in keys
     ]
+    assert registry.get(AI_PACKAGE_TYPE, "m") is None
+    assert [registry.get(AI_PACKAGE_TYPE, key) for key in keys] == entries
+    assert not [r for r in caplog.records if "share the name" in r.getMessage()]
 
-    (tmp_path / "b" / "m.gguf").unlink()
-    registry.generate([Path("a"), Path("b")], tmp_path)
 
-    assert registry.get(AI_PACKAGE_TYPE, "m") == single
-    assert not _content_changed(caplog, "m")
+@pytest.mark.parametrize(
+    ("retrained", "said"),
+    [
+        (False, "ID registry: 2 key(s) promoted from a layout alias"),
+        (True, LAYOUT_ALIAS_CHANGED_INFO % 2),
+    ],
+    ids=["new-key", "retrained"],
+)
+def test_generate_promotes_a_models_layout_alias_with_its_file(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, retrained: bool, said: str
+) -> None:
+    """A model a wheel run keyed by its installed path (``demo/m.gguf``)
+    keeps its id when ``id generate`` keys it by ``src/demo/m.gguf``: its
+    package moves with its file, never minting; also over the entries
+    ``src/demo/m.gguf`` held for its bytes before a retrain the wheel run
+    saw first."""
+    data = _GGUF + b"\0" * 16
+    (tmp_path / "src" / "demo").mkdir(parents=True)
+    (tmp_path / "src" / "demo" / "m.gguf").write_bytes(data)
+    types = ((AI_PACKAGE_TYPE, "AIPackage"), ("software_File", "File"))
+    held = {
+        (type_name, "demo/m.gguf"): (f"urn:x#{prefix}-1", _sha256(data))
+        for type_name, prefix in types
+    }
+    if retrained:
+        held.update(
+            ((type_name, "src/demo/m.gguf"), (f"urn:x#{prefix}-2", "c" * 64))
+            for type_name, prefix in types
+        )
+    registry = make_registry(held, namespace="urn:x", project_root=tmp_path)
+    registry.id_counters.update({"AIPackage": 2, "File": 2})
+
+    registry.generate([Path("src")], tmp_path)
+
+    moved = registry.get(AI_PACKAGE_TYPE, "src/demo/m.gguf")
+    assert moved is not None and moved.spdx_id == "urn:x#AIPackage-1"
+    assert registry.get(AI_PACKAGE_TYPE, "demo/m.gguf") is None
+    assert registry.id_counters == {"AIPackage": 2, "File": 2}
+    assert not _content_changed(caplog, "src/demo/m.gguf")
+    assert [m for m in caplog.messages if "layout alias" in m] == [said]

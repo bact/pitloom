@@ -34,7 +34,7 @@ from dataclasses import dataclass
 from _fixtures import SOURCE_DATE_EPOCH
 from _harness import DATETIME
 from _order_fixtures import NAMESPACE, PROFILES, RETRAIN_PY, Profile
-from _order_ops import MUTATING, READERS, Planner, Step, applies
+from _order_ops import MUTATING, READERS, SPELLING, Planner, Step, applies
 
 DEFAULT_SEED = 20261015
 #: (walks per profile, maximum walk length) per depth.
@@ -115,7 +115,7 @@ def walks(profile: Profile, first: int, count: int) -> list[Sequence]:
     (seed, profile, index), so one walk replays alone."""
     _, longest = depth()
     pool = sorted(op for op in MUTATING | READERS if applies(op, profile))
-    pool = [op for op in pool if op not in ("gen-min", "import0")]
+    pool = [op for op in pool if op not in {"gen-min", "import0"} | SPELLING]
     setup = ("gen-ds",) if profile.loom else ("gen",)
     result = []
     for index in range(first, first + count):
@@ -131,7 +131,7 @@ def repeats(profile: Profile) -> list[Sequence]:
     """Each reader step three times running, after a full seed (C)."""
     setup = ("gen-ds",) if profile.loom else ("gen",)
     readers = sorted(op for op in READERS if applies(op, profile))
-    readers = [op for op in readers if op not in ("gen-min", "import0")]
+    readers = [op for op in readers if op not in {"gen-min", "import0"} | SPELLING]
     # `import` needs an SBOM first: one project run more.
     return [
         plan(
@@ -152,9 +152,22 @@ def scenarios(profile: Profile) -> list[Sequence]:
     reuse = ("add-file", "gen", "edit-file", "project", "add-file", "gen")
     found = [plan("reuse", profile, ("gen",), reuse)]
     if profile.shared_stem:
-        # loom records the stem's sha256; `id generate` drops it again.
+        # Two models, one stem: loom and `id generate` each keep to the
+        # model's own file key.
         found.append(plan("stem-sha", profile, ("gen-ds",), ("train", "gen", "train")))
     return found
+
+
+def spellings(profile: Profile, kind: str) -> Sequence:
+    """Spelling scenarios (``O6``): ``nfd`` adds a module named in NFD and
+    reads it back through every surface; ``upper`` runs the model steps
+    with the model path in upper case, between lower-case ones."""
+    if kind == "nfd":
+        ops = ["add-nfd", "gen", "project", "edit-file", "project", "gen"]
+        ops += [op for op in ("wheel", "embed", "sdist") if applies(op, profile)]
+        return plan("nfd", profile, ("gen",), tuple(ops + ["project"]))
+    ops = ["model-upper", "gen", "train-upper", "model", "train", "model-upper"]
+    return plan("upper", profile, ("gen-ds",), tuple(ops))
 
 
 def failures(profile: Profile) -> Sequence:
@@ -163,8 +176,10 @@ def failures(profile: Profile) -> Sequence:
     ops += ["badjson:gen", "readonly:gen", "v2:import"]
     if profile.model is not None:
         ops += ["v2:model"]
-    if profile.wheel:
-        ops += ["v2:wheel", "badjson:embed"]
+    if applies("wheel", profile):
+        ops += ["v2:wheel"]
+    if applies("embed", profile):
+        ops += ["badjson:embed"]
     if profile.loom:
         ops += ["v2:train", "retrain", "readonly:train"]
     ops += ["project"]
@@ -210,12 +225,20 @@ run() {{
   echo "$rc" >"$LOGS/$n.rc"
   if [ -f "$REG" ]; then cp "$REG" "$LOGS/$n.reg"; fi
 }}
-# build N: a fresh wheel of the project in $DIST, its path in $WHEEL
+# build N DIR: a fresh wheel of DIR in $DIST, its path in $WHEEL
 build() {{
   rm -rf "$DIST"
-  "$PY" -m build --wheel --no-isolation --outdir "$DIST" . >"$LOGS/$1.build" 2>&1
+  "$PY" -m build --wheel --no-isolation --outdir "$DIST" "$2" >"$LOGS/$1.build" 2>&1
   for WHEEL in "$DIST"/*.whl; do :; done
 }}
+# build_sdist N DIR: the same for an sdist, its path in $SDIST
+build_sdist() {{
+  rm -rf "$DIST"
+  "$PY" -m build --sdist --no-isolation --outdir "$DIST" "$2" >"$LOGS/$1.build" 2>&1
+  for SDIST in "$DIST"/*.tar.gz; do :; done
+}}
+# in_dir DIR CMD...: CMD run from DIR (a script that names ../ paths)
+in_dir() {{ d=$1; shift; (cd "$d" && "$@"); }}
 retrain() {{ "$PY" -c "$RETRAIN" "$1" "$2"; }}
 append() {{ printf '# edit %s\\n' "$2" >>"$1"; }}
 add() {{ printf 'N = %s\\n' "$2" >"$1"; }}

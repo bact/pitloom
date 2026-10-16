@@ -93,10 +93,17 @@ def seed_registry(tmp_path: Path) -> Path:
         (FILE_TYPE, "demo"),
         (PACKAGE_TYPE, "demo"),
         (PACKAGE_TYPE, DEPENDENCY),
-        (AI_PACKAGE_TYPE, SAFETENSORS_FIXTURE.stem),
         (AI_PACKAGE_TYPE, LOOM_MODEL),
     ):
         registry.register(type_name, name)
+    # The fixture's model, outside the root, is keyed by its stem.
+    model_sha = hashlib.sha256(SAFETENSORS_FIXTURE.read_bytes()).hexdigest()
+    registry.register(AI_PACKAGE_TYPE, SAFETENSORS_FIXTURE.stem, sha256=model_sha)
+    # A project run's model: its file's path from the root (tmp_path), hashed.
+    project_model_sha = hashlib.sha256(safetensors_bytes()).hexdigest()
+    registry.register(
+        AI_PACKAGE_TYPE, f"proj/demo/{MODEL_FILE}", sha256=project_model_sha
+    )
     registry.register(
         FILE_TYPE, LOOM_SCRIPT, sha256=hashlib.sha256(LOOM_SCRIPT_BYTES).hexdigest()
     )

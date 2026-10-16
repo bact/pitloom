@@ -6,12 +6,17 @@
 """A loom dataset as SPDX elements: a ``dataset_DatasetPackage`` and, for a
 single regular file, the ``software_File`` it ``contains``.
 
-A package is looked up under the caller's name, ungated, whatever the dataset
-is (a file, a directory, a remote name). A file is named and looked up by its
-path relative to the registry's project root
-(:func:`~pitloom.id_registry.registry_key_for_path`), gated by its SHA-256. A
-directory gets its Merkle root and no file elements. Loom never writes these
-entries to the registry (only models, :mod:`pitloom._loom_model`).
+A package is keyed by the dataset's path from the registry's project root
+when that path exists below it at declaration
+(:func:`~pitloom.id_registry.artifact_key`: on-disk spelling, NFC), else by
+the caller's name. Its lookup is gated by the package's digest (a file's
+SHA-256, a directory's Merkle root, :func:`dataset_digest`), except that an
+entry recording no hash (an explicit pin) is a hit for any content; with no
+digest (missing, over the ceiling, unreadable), it is ungated. A refreshed
+dataset, a file added to a directory included, is a new package id. A file
+is named and looked up by its path key (on-disk spelling), gated by its
+SHA-256. A directory gets its Merkle root and no file elements. Loom never
+writes these entries to the registry (only models, :mod:`pitloom._loom_model`).
 
 See also: :mod:`pitloom._loom_active_run` (the run) and
 :mod:`pitloom.core.dataset_hash` (hashing).
@@ -28,7 +33,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._loom_caller import LOOM_PROVENANCE_CONFIG, registry_miss_callback
 from pitloom.assemble.spdx3.provenance import emit_provenance
-from pitloom.core.dataset_hash import hash_dataset
+from pitloom.core.dataset_hash import DatasetDigest, hash_dataset
 from pitloom.core.file_hash import sha256_digest
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.path_probe import (
@@ -36,6 +41,7 @@ from pitloom.core.path_probe import (
     is_missing_errno,
     is_regular_file,
 )
+from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.export.spdx3_json import (
     Spdx3JsonExporter,
     require_spdx_id,
@@ -44,19 +50,31 @@ from pitloom.export.spdx3_json import (
 from pitloom.id_registry import (
     DATASET_PACKAGE_TYPE,
     FILE_TYPE,
+    Alias,
+    IdRegistry,
     IdRegistrySession,
+    LookupKey,
+    artifact_key,
+    path_key,
     registry_file_path,
-    registry_key_for_path,
 )
+from pitloom.id_registry.import_keys import DATASET_NAME_KEY_INFO as NAME_KEY_INFO
+from pitloom.id_registry.import_keys import name_key_reason
 from pitloom.logging_config import loggable, one_line
 
 log = logging.getLogger("pitloom.loom")
 
 __all__ = [
+    "HASHLESS_PIN_INFO",
+    "NAME_KEY_INFO",
     "OUTSIDE_ROOT_WARNING",
+    "PIN_WITHOUT_HASH_INFO",
     "REGISTRY_IN_DATASET_WARNING",
+    "UNGATED_INFO",
     "LoomElements",
+    "dataset_digest",
     "merkle_root_comment",
+    "name_key_reason",
 ]
 
 #: ``log.warning()`` format for a file outside the registry's project root.
@@ -70,6 +88,15 @@ REGISTRY_IN_DATASET_WARNING = (
     "loom: ID registry %s is inside dataset directory %r; left out of its Merkle root"
 )
 
+#: ``log.info()`` formats for a dataset package keyed or gated otherwise than
+#: by its path and content, each said once per package per run (loom) or per
+#: pin (``id generate -e``). Arguments: the key, then (where taken) why.
+PIN_WITHOUT_HASH_INFO = "ID registry: dataset %s pinned without SHA-256: %s"
+HASHLESS_PIN_INFO = (
+    "ID registry: dataset %s matched a pin without SHA-256; content not checked"
+)
+UNGATED_INFO = "ID registry: dataset %s looked up ungated: not hashed"
+
 
 def merkle_root_comment(file_count: int) -> str:
     """The ``Hash.comment`` of a directory dataset's Merkle root."""
@@ -78,6 +105,46 @@ def merkle_root_comment(file_count: int) -> str:
         f"SHA-256 Merkle root over {files} (path and content) in dataset "
         "directory, not a hash of a single artifact"
     )
+
+
+def dataset_digest(
+    registry: IdRegistry | None, path: Path, *, max_bytes: int
+) -> DatasetDigest:
+    """The digest a dataset package at *path* carries and is looked up by
+    (:func:`~pitloom.core.dataset_hash.hash_dataset` within *max_bytes*),
+    *registry*'s own file left out of a directory: loom and ``id generate
+    -e`` both hash through here, so they cannot disagree."""
+    return hash_dataset(path, max_bytes=max_bytes, exclude=registry_file_path(registry))
+
+
+def _info_key(
+    registry: IdRegistry,
+    name: str,
+    lookup: LookupKey,
+    digest: str | None,
+    registered: str | None,
+) -> None:
+    """The one ``INFO:`` for a dataset package not keyed by its path or
+    not gated by its content, if any: keyed by its name, looked up ungated,
+    or matched a pin recording no hash."""
+    key = loggable(lookup.key)
+    if not lookup.path:
+        log.info(NAME_KEY_INFO, key, name_key_reason(name))
+    elif digest is None:
+        log.info(UNGATED_INFO, key)
+    elif registered is not None and digest not in _held_hashes(registry, lookup.key):
+        log.info(HASHLESS_PIN_INFO, key)
+
+
+def _held_hashes(registry: IdRegistry, key: str) -> set[str | None]:
+    """The hashes held for the dataset *key*, as given and display-escaped
+    (the spellings a lookup tries)."""
+    spellings = (key, escape_display_controls(key))
+    return {
+        entry.sha256
+        for entry in (registry.get(DATASET_PACKAGE_TYPE, s) for s in spellings)
+        if entry is not None
+    }
 
 
 def _dataset_kind(dataset_type: str) -> str:
@@ -94,10 +161,12 @@ def _dataset_kind(dataset_type: str) -> str:
 class LoomElements:
     """The dataset and file elements of one loom run, added to its document.
 
-    Holds the run's caches: one ``software_File`` per name and content, so a
-    file declared twice (``add_input_dataset`` then ``add_dataset``) is one
-    element and one registry claim; and the paths already warned to be
-    outside the registry's project root.
+    Holds the run's caches: one ``dataset_DatasetPackage`` per key and
+    content and one ``software_File`` per path key and content, so a
+    dataset declared twice (``add_input_dataset`` then ``add_dataset``, or
+    under two spellings of one path) is one element and one registry
+    claim; the names each package was declared under; and the paths
+    already warned to be outside the registry's project root.
     """
 
     # pylint: disable-next=too-many-arguments
@@ -116,7 +185,10 @@ class LoomElements:
         self._doc_uuid = doc_uuid
         self._max_hash_bytes = max_hash_bytes
         self._files: dict[tuple[str, str | None], spdx3.software_File] = {}
-        self._packages: dict[tuple[str, str | None], spdx3.dataset_DatasetPackage] = {}
+        self._packages: dict[
+            tuple[LookupKey, str | None], spdx3.dataset_DatasetPackage
+        ] = {}
+        self._declared: list[tuple[str, spdx3.dataset_DatasetPackage]] = []
         self._outside_warned: set[str] = set()
         self._left_out_warned: set[str] = set()
 
@@ -125,25 +197,25 @@ class LoomElements:
     ) -> spdx3.dataset_DatasetPackage:
         """The ``dataset_DatasetPackage`` for *name*, with what it holds.
 
-        *name* stays as given: ``add_output_dataset(input_datasets=...)``
-        matches it. A regular file gets its own ``software_File`` and a
-        ``contains`` edge to it, each element with its own ``Hash``; a
-        directory, its Merkle root. The same name holding the same content
-        is one package per run, whatever declares it: a repeat adds only a
-        new *dataset_type*.
+        The package is named *name* as first declared. A regular file gets
+        its own ``software_File`` and a ``contains`` edge to it, each
+        element with its own ``Hash``; a directory, its Merkle root. One
+        key (:meth:`_package_key`) holding one content is one package per
+        run, whatever declares it: a repeat adds only a new *dataset_type*.
         """
-        found = hash_dataset(
-            Path(name),
-            max_bytes=self._max_hash_bytes,
-            exclude=registry_file_path(self._session.registry),
-        )
+        registry = self._session.registry
+        found = dataset_digest(registry, Path(name), max_bytes=self._max_hash_bytes)
         if found.excluded:  # said even when no root came of the directory
             self._warn_registry_in(name)
-        held_package = self._packages.get((name, found.hex_digest))
+        lookup = self._package_key(name)
+        held_package = self._packages.get((lookup, found.hex_digest))
         if held_package is not None:
+            self._declared.append((name, held_package))
             return self._add_kind(held_package, dataset_type)
-        package = self._package(name, dataset_type, caller_info)
-        self._packages[(name, found.hex_digest)] = package
+        package = self._package(name, lookup, found.hex_digest, caller_info)
+        package.dataset_datasetType = [_dataset_kind(dataset_type)]
+        self._packages[(lookup, found.hex_digest)] = package
+        self._declared.append((name, package))
         if found.hex_digest is None:
             return package
         if found.kind == "dir":
@@ -163,6 +235,19 @@ class LoomElements:
         )
         self._exporter.add_relationship(cast(spdx3.Relationship, relationship))
         return package
+
+    def names_of(self, package: spdx3.dataset_DatasetPackage) -> list[str]:
+        """Every name *package* was declared under, in order, once each:
+        ``add_output_dataset(input_datasets=...)`` matches any of them."""
+        return list(dict.fromkeys(n for n, held in self._declared if held is package))
+
+    def _package_key(self, name: str) -> LookupKey:
+        """The key of the dataset *name*: its path key when it exists below
+        the registry's root, else *name* (and with no registry)."""
+        registry = self._session.registry
+        if registry is None:
+            return LookupKey(name)
+        return artifact_key(registry, path=name, name=name)
 
     @staticmethod
     def _add_kind(
@@ -198,9 +283,11 @@ class LoomElements:
         """The run's ``software_File`` for the file at *path* holding
         *hex_digest* (``None``: not hashed), added to the document once.
 
-        Named by its registry key when it is inside the registry's project
-        root, and then looked up gated by its SHA-256; else named *name*,
-        as given, and minted.
+        Named by its path key (:func:`~pitloom.id_registry.path_key`,
+        on-disk spelling) when it is inside the registry's project root,
+        and then looked up gated by its SHA-256, its ``CANONICAL`` layout
+        alias included (a ``src/`` file hits a wheel's installed path);
+        else named *name*, as given, and minted.
         """
         element_name, keyed = self._file_name(name, path)
         cached = self._files.get((element_name, hex_digest))
@@ -208,10 +295,10 @@ class LoomElements:
             return cached
         registered = None
         if keyed and hex_digest is not None:
-            registered = self._session.lookup_id(
+            registered = self._session.lookup_key(
                 element_name,
                 FILE_TYPE,
-                [element_name],
+                LookupKey(element_name, Alias.CANONICAL, path=True),
                 sha256=hex_digest,
                 on_miss=registry_miss_callback(self._session, FILE_TYPE, element_name),
             )
@@ -234,7 +321,7 @@ class LoomElements:
         registry = self._session.registry
         if registry is None:
             return name, False
-        key = registry_key_for_path(registry, path)
+        key = path_key(registry, path, on_disk=True)
         if key is not None:
             return key, True
         real = os.path.realpath(path)
@@ -244,15 +331,24 @@ class LoomElements:
         return name, False
 
     def _package(
-        self, name: str, dataset_type: str, caller_info: str
+        self, name: str, lookup: LookupKey, digest: str | None, caller_info: str
     ) -> spdx3.dataset_DatasetPackage:
-        """The ``dataset_DatasetPackage`` named *name*, looked up by name."""
-        registered = self._session.lookup_id(
+        """The ``dataset_DatasetPackage`` named *name*, looked up by
+        *lookup* gated by *digest*, a hash-less pin a hit for any content
+        (ungated with no *digest*)."""
+        session = self._session
+        registered = session.lookup_key(
             name,
             DATASET_PACKAGE_TYPE,
-            [name],
-            on_miss=registry_miss_callback(self._session, DATASET_PACKAGE_TYPE, name),
+            lookup,
+            sha256=digest,
+            pin_without_hash=True,
+            on_miss=registry_miss_callback(
+                session, DATASET_PACKAGE_TYPE, lookup.key, by_path=lookup.path
+            ),
         )
+        if session.registry is not None:
+            _info_key(session.registry, name, lookup, digest, registered)
         package = spdx3.dataset_DatasetPackage(
             spdxId=registered
             or generate_spdx_id("DatasetPackage", name, self._doc_uuid),
@@ -268,7 +364,6 @@ class LoomElements:
             exporter=self._exporter,
             provenance_config=LOOM_PROVENANCE_CONFIG,
         )
-        package.dataset_datasetType = [_dataset_kind(dataset_type)]
         self._exporter.add_package(package)
         return package
 
