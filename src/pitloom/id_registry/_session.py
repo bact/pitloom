@@ -177,6 +177,7 @@ class IdRegistrySession:
             on_miss()
         return None
 
+    # pylint: disable-next=too-many-arguments
     def lookup_key(
         self,
         claimant: str,

@@ -234,22 +234,35 @@ def test_generate_unreadable_root_file_warns_unless_explicit(
     assert warning.startswith("FILE=data/x.txt")
 
 
+def _deleted_cwd(monkeypatch: pytest.MonkeyPatch) -> None:
+    def deleted() -> str:
+        raise FileNotFoundError("cwd is gone")
+
+    monkeypatch.setattr(os, "getcwd", deleted)
+
+
 def test_keys_without_a_root_survive_a_deleted_current_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A registry with no root and no file falls back to the current
-    directory, which is gone: no key, no exception; ``generate`` with the
-    project root given still indexes."""
-
-    def deleted() -> str:
-        raise FileNotFoundError("cwd is gone")
-
+    directory, which is gone: no key, no exception."""
     root = _make_project(tmp_path)
     registry = IdRegistry.new("proj")
-    monkeypatch.setattr(os, "getcwd", deleted)
+    _deleted_cwd(monkeypatch)
 
     assert path_key(registry, root / "src" / "a.py") is None
     assert project_prefix(registry, root) is None
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="ntpath.realpath reads the cwd")
+def test_generate_with_a_root_survives_a_deleted_current_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``generate`` with the project root given still indexes."""
+    root = _make_project(tmp_path)
+    registry = IdRegistry.new("proj")
+    _deleted_cwd(monkeypatch)
+
     registry.generate([root / "src"], root)
 
     assert set(_files(registry)) == {"src/a.py"}
