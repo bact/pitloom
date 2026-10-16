@@ -315,7 +315,11 @@ class _ActiveRun:
         if not (self.output_datasets and self.input_datasets):
             return
         all_input_ids = [require_spdx_id(ds) for ds in self.input_datasets]
-        input_ids_by_name = {ds.name: require_spdx_id(ds) for ds in self.input_datasets}
+        input_ids_by_name: dict[str | None, str] = {
+            name: require_spdx_id(ds)
+            for ds in self.input_datasets
+            for name in self.elements.names_of(ds)
+        }
         for output_ds, wanted_names in self.output_datasets:
             input_ids = [
                 i
@@ -340,7 +344,8 @@ class _ActiveRun:
     def finalize(self) -> None:
         """Resolve the declared models, emit the relationships, write the
         fragment, then save the model ids the registry gained: the fragment
-        first, so a failed write leaves no entry that no fragment carries."""
+        first, so a failed write leaves no entry that no fragment carries.
+        Last, the one ``INFO:`` counting the run's layout-alias hits."""
         self.model, self._model_generated = self.models.resolve()
         self._emit_model_dataset_relationships()
         self._emit_output_input_dataset_relationships()
@@ -351,6 +356,7 @@ class _ActiveRun:
 
         write_text_lf(output_path, self.exporter.to_json(pretty=self.pretty))
         self.models.persist()
+        self.session.info_layout_alias_hits()
 
     def _emit_script_file_and_generates(self) -> None:
         """Emit a ``software_File`` for the calling script and relationships."""

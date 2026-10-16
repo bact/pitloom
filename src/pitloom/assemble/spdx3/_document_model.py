@@ -16,6 +16,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._ai_originators import add_model_originators
 from pitloom.assemble.spdx3._licensing_profiles import apply_licensing_profiles
+from pitloom.assemble.spdx3._reserved_ids import model_dataset_keys, reserve_held_ids
 from pitloom.assemble.spdx3.ai import (
     _add_base_model_lineage,
     _build_ai_package,
@@ -42,6 +43,30 @@ from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.id_registry import AI_PACKAGE_TYPE, IdRegistry, IdRegistrySession
+
+
+def _unlooked_keys(model: AiModelMetadata) -> tuple[tuple[str, str], ...]:
+    """The keys whose held id is *model*'s own document's (never reserved):
+    its model card datasets' and its name, which ``id import`` keys a ``loom
+    model`` SBOM's model by (it has no file of the model's SHA-256) and a
+    model inside the registry root is never looked up by: minted with no
+    lookup, as the deployed main package is."""
+    name = model.resolve_name()[0]
+    return (*model_dataset_keys((model,)), (AI_PACKAGE_TYPE, name))
+
+
+def _start_doc_ids(
+    doc_name: str,
+    doc_uuid: str,
+    registry: IdRegistry | None,
+    unlooked: tuple[tuple[str, str], ...],
+) -> None:
+    """Clear (*doc_name*, *doc_uuid*)'s id counters, then reserve the ids
+    *registry* holds there but under *unlooked*
+    (:func:`~pitloom.assemble.spdx3._reserved_ids.reserve_held_ids`)."""
+    _clear_doc_counters(doc_uuid)
+    reserve_held_ids(doc_name, doc_uuid, IdRegistrySession(registry), unlooked=unlooked)
 
 
 def _ai_model_identity(
@@ -49,6 +74,7 @@ def _ai_model_identity(
     *,
     doc_identity: tuple[str, str] | None = None,
     entity_spdx_id: str | None = None,
+    registry: IdRegistry | None = None,
 ) -> tuple[str, str, str]:
     """Compute ``(doc_name, doc_uuid, ai_package_spdx_id)`` for a model file.
 
@@ -88,7 +114,10 @@ def _ai_model_identity(
     that build a full document (:func:`build_model`) already re-clear
     right after calling this, so this is a safe no-op for them; callers
     that only need the identity tuple (:func:`build_enrichment_fragment`)
-    depend on this clear to get the correct, reproducible id.
+    depend on this clear to get the correct, reproducible id. The mint skips
+    the ids *registry* holds, as the base document's does
+    (:func:`_start_doc_ids`; for a project's *doc_identity*, the project's
+    model keys are not this document's own).
     """
     pkg_name, _ = model.resolve_name()
     if doc_identity is not None:
@@ -103,7 +132,8 @@ def _ai_model_identity(
         )
     if entity_spdx_id is not None:
         return doc_name, doc_uuid, entity_spdx_id
-    _clear_doc_counters(doc_uuid)
+    unlooked = _unlooked_keys(model) if doc_identity is None else ()
+    _start_doc_ids(doc_name, doc_uuid, registry, unlooked)
     ai_package_spdx_id = generate_spdx_id(
         f"AIPackage-{pkg_name}", doc_name=doc_name, doc_uuid=doc_uuid
     )
@@ -118,6 +148,7 @@ def build_enrichment_fragment(
     *,
     entity_spdx_id: str | None = None,
     base_doc_identity: tuple[str, str] | None = None,
+    registry: IdRegistry | None = None,
 ) -> Spdx3JsonExporter:
     """Assemble a standalone enrichment-only SPDX 3 fragment.
 
@@ -131,7 +162,7 @@ def build_enrichment_fragment(
     ``working-docs/design/sbom-fragments/README.md`` documents and
     :mod:`pitloom.loom` already produces.
 
-    ``entity_spdx_id``/``base_doc_identity`` are forwarded to
+    ``entity_spdx_id``/``base_doc_identity``/``registry`` are forwarded to
     :func:`_ai_model_identity` -- see that function's docstring for when
     each applies. Without either, this defaults to the single-model
     identity (correct when the fragment is meant to merge into a
@@ -165,7 +196,10 @@ def build_enrichment_fragment(
     though the ids themselves differ pre-merge.
     """
     doc_name, _base_doc_uuid, ai_package_spdx_id = _ai_model_identity(
-        model, doc_identity=base_doc_identity, entity_spdx_id=entity_spdx_id
+        model,
+        doc_identity=base_doc_identity,
+        entity_spdx_id=entity_spdx_id,
+        registry=registry,
     )
     doc_uuid = compute_doc_uuid(
         name=f"{doc_name}-enrichment",
@@ -222,22 +256,31 @@ def build_enrichment_fragment(
     return exporter
 
 
-# pylint: disable=too-many-locals
+# pylint: disable=too-many-locals,too-many-arguments
 def build_model(
     model: AiModelMetadata,
     creation_metadata: CreationMetadata,
     *,
     entity_spdx_id: str | None = None,
+    registry: IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
     enrichment_results: list[EnrichmentResult] | None = None,
+    digest: str | None = None,
 ) -> Spdx3JsonExporter:
-    """Assemble a standalone SPDX 3 SBOM for a single AI model file."""
+    """Assemble a standalone SPDX 3 SBOM for a single AI model file.
+
+    *entity_spdx_id* is the model's *registry* hit, if any. Every id
+    *registry* holds for a looked-up type is reserved
+    (:func:`~pitloom.assemble.spdx3._reserved_ids.reserve_held_ids`), as
+    for a project, except the document's own (:func:`_unlooked_keys`).
+    *digest*, the model file's SHA-256 when known, is the package's
+    ``verifiedUsing``."""
     prov_cfg = provenance or ProvenanceConfig()
     encoder: ProvenanceEncoder = resolve_encoder(prov_cfg.schema)
 
     exporter = Spdx3JsonExporter()
     doc_name, doc_uuid, _ = _ai_model_identity(model)
-    _clear_doc_counters(doc_uuid)
+    _start_doc_ids(doc_name, doc_uuid, registry, _unlooked_keys(model))
 
     spdx_ci, agents, tools = build_creation_info(creation_metadata, doc_name, doc_uuid)
 
@@ -247,7 +290,7 @@ def build_model(
     for tool in tools:
         exporter.object_set.add(tool)
 
-    ai_pkg = _build_ai_package(model, spdx_ci, doc_name, doc_uuid)
+    ai_pkg = _build_ai_package(model, spdx_ci, doc_name, doc_uuid, digest=digest)
     if entity_spdx_id is not None:
         ai_pkg.spdxId = entity_spdx_id
     exporter.add_package(ai_pkg)

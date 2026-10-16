@@ -27,11 +27,11 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble.spdx3._dep_scope import is_self_reference
 from pitloom.assemble.spdx3._document_conflicts import attach_metadata_field_conflicts
 from pitloom.assemble.spdx3._document_deployed import build_deployed
+from pitloom.assemble.spdx3._document_file_hits import resolve_file_hits
 from pitloom.assemble.spdx3._document_files import (
     _add_package_files,
     _emit_file_header_metadata,
     _magika_version,
-    _resolve_file_and_directory_hits,
 )
 from pitloom.assemble.spdx3._document_locked_deps import (
     _dedup_and_locked_versions,
@@ -49,6 +49,7 @@ from pitloom.assemble.spdx3._document_model import (
 from pitloom.assemble.spdx3._licensing_profiles import apply_licensing_profiles
 from pitloom.assemble.spdx3._main_authors import add_main_package_originators
 from pitloom.assemble.spdx3._package_ids import resolve_project_package_ids
+from pitloom.assemble.spdx3._reserved_ids import model_dataset_keys, reserve_held_ids
 from pitloom.assemble.spdx3.ai import add_ai_models, resolve_ai_model_entity_hits
 from pitloom.assemble.spdx3.creation_info import (
     build_creation_info,
@@ -70,7 +71,6 @@ from pitloom.core.models import (
     build_pypi_purl,
     compute_doc_uuid,
     generate_spdx_id,
-    reserve_spdx_ids,
 )
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.requirements import normalize_dependency_specifier
@@ -194,6 +194,18 @@ def _with_canonical_dependencies(doc: DocumentModel) -> DocumentModel:
     return dataclasses.replace(doc, project=project)
 
 
+def _with_recorded_keys(
+    exporter: Spdx3JsonExporter, session: IdRegistrySession
+) -> Spdx3JsonExporter:
+    """*exporter*, given the registry keys *session*'s lookups recorded
+    (:attr:`~pitloom.export.spdx3_json.Spdx3JsonExporter.registry_keys`),
+    after the one ``INFO:`` counting its layout-alias hits
+    (:meth:`~pitloom.id_registry.IdRegistrySession.info_layout_alias_hits`)."""
+    session.info_layout_alias_hits()
+    exporter.registry_keys.update(session.recorded_keys())
+    return exporter
+
+
 # pylint: disable=too-many-locals
 # pylint: disable-next=too-many-arguments
 def build(
@@ -253,10 +265,18 @@ def build(
     # first below, so two elements never reuse the same stale id -- see
     # IdRegistrySession's docstring. Every lookup precedes the reservation.
     session = IdRegistrySession(registry)
-    dir_hits, file_hits = _resolve_file_and_directory_hits(metadata.files, session)
-    ai_entity_hits = resolve_ai_model_entity_hits(doc.ai_models, session)
+    file_hits = resolve_file_hits(doc, session)
+    model_hits = resolve_ai_model_entity_hits(
+        doc.ai_models,
+        session,
+        doc.project.files,
+        keys=file_hits.keys,
+        prefix=file_hits.prefix,
+    )
     package_ids = resolve_project_package_ids(doc, transitive_only, session)
-    reserve_spdx_ids(metadata.name, doc_uuid, session.claimed_ids())
+    reserve_held_ids(
+        metadata.name, doc_uuid, session, unlooked=model_dataset_keys(doc.ai_models)
+    )
 
     # --- Creation info, creator agents, and creation tools ---
     spdx_ci, agents, tools = _build_creation_bundle(doc, doc_uuid)
@@ -399,7 +419,6 @@ def build(
         spdx_ci,
         doc_uuid,
         exporter,
-        dir_hits,
         file_hits,
         provenance_config=prov_cfg,
         encoder=encoder,
@@ -426,18 +445,21 @@ def build(
         spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.ai)
         if any(m.datasets for m in doc.ai_models):
             spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.dataset)
-        add_ai_models(
-            ai_models=doc.ai_models,
-            main_package_spdx_id=require_spdx_id(main_package),
-            file_spdx_ids=file_spdx_ids,
-            creation_info=spdx_ci,
-            doc_name=metadata.name,
-            doc_uuid=doc_uuid,
-            exporter=exporter,
-            resolved_entity_ids=ai_entity_hits,
-            provenance_config=prov_cfg,
-            encoder=encoder,
-            enrichment_results_by_model=enrichment_results_by_model,
+        # Each model's key recorded for the id it got, as each file's is.
+        model_hits.record(
+            add_ai_models(
+                ai_models=doc.ai_models,
+                main_package_spdx_id=require_spdx_id(main_package),
+                file_spdx_ids=file_spdx_ids,
+                creation_info=spdx_ci,
+                doc_name=metadata.name,
+                doc_uuid=doc_uuid,
+                exporter=exporter,
+                resolved_entity_ids=model_hits.ids,
+                provenance_config=prov_cfg,
+                encoder=encoder,
+                enrichment_results_by_model=enrichment_results_by_model,
+            )
         )
 
     # --- Authors, last: no Agent minted earlier changes id ---
@@ -457,5 +479,5 @@ def build(
     )
 
     apply_licensing_profiles(spdx_doc, exporter.object_set.objects)
-
-    return exporter
+    # Last: after every lookup and record_key of this build.
+    return _with_recorded_keys(exporter, session)

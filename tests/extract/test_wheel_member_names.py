@@ -186,10 +186,13 @@ def test_wheel_sbom_deterministic(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("update", [False, True], ids=["lookup", "harvest"])
-def test_registry_keyed_by_raw_name_still_hits(tmp_path: Path, update: bool) -> None:
-    """A registry harvested before names were normalised holds the raw
-    archive name; the file keeps its registered id under its new name, and
-    a harvest re-keys the entry to that name."""
+def test_registry_keyed_by_raw_name_is_not_looked_up(
+    tmp_path: Path, update: bool
+) -> None:
+    """A wheel member is keyed by its normalised name only: an entry under
+    the raw archive name (a registry harvested before names were
+    normalised) is not reused, and a harvest records the new id under the
+    normalised name, leaving the raw entry as it was."""
     namespace = "https://example.org/ns"
     registered = f"{namespace}#File-42"
     digest = hashlib.sha256(b"mod = 1\n").hexdigest()
@@ -205,10 +208,13 @@ def test_registry_keyed_by_raw_name_still_hits(tmp_path: Path, update: bool) -> 
         update_id_registry=update,
     )
     ids = {e["name"]: e["spdxId"] for e in _graph(sbom) if e["type"] == "software_File"}
-    assert ids["demo/mod.py"] == registered
-    keys = {
-        name
+    assert ids["demo/mod.py"] != registered
+    held = {
+        name: v.spdx_id
         for (type_name, name), v in registry.elements.items()
-        if type_name == FILE_TYPE and v.spdx_id == registered
+        if type_name == FILE_TYPE and name.endswith("mod.py")
     }
-    assert keys == ({"demo/mod.py"} if update else {"demo\\mod.py"})
+    expected = {"demo\\mod.py": registered}
+    assert held == (
+        expected | {"demo/mod.py": ids["demo/mod.py"]} if update else expected
+    )

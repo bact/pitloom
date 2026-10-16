@@ -15,6 +15,7 @@ See also: :mod:`tests.extract.scanner.test_scanner` for the sort itself and
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import shutil
@@ -175,12 +176,17 @@ def test_registry_pin_goes_to_first_model_in_sorted_order(
     caplog: pytest.LogCaptureFixture,
     reverse: bool,
 ) -> None:
+    proj = _project(tmp_path)
+    models = proj / "src" / "twomodels"
+    # Same bytes: the pin's SHA-256 gate lets both models hit it. A stale
+    # registry holds one id under both models' keys.
+    shutil.copy(models / "a" / "w.npy", models / "b" / "w.npy")
+    sha = hashlib.sha256((models / "a" / "w.npy").read_bytes()).hexdigest()
     pin = f"{_NAMESPACE}#AIPackage-pinned-1"
-    registry = make_registry({("ai_AIPackage", "w"): (pin, None)}, namespace=_NAMESPACE)
+    stale = {("ai_AIPackage", f"src/{m}"): (pin, sha) for m in _MODELS[:2]}
+    registry = make_registry(stale, namespace=_NAMESPACE, project_root=proj)
     with caplog.at_level(logging.WARNING, logger="pitloom.id_registry"):
-        sbom, _ = _generate(
-            _project(tmp_path), monkeypatch, reverse=reverse, id_registry=registry
-        )
+        sbom, _ = _generate(proj, monkeypatch, reverse=reverse, id_registry=registry)
     assert _package_files(_graph(sbom))[pin] == "twomodels/a/w.npy"
     assert any(
         "twomodels/b/w.npy gets a new id" in r.getMessage() for r in caplog.records

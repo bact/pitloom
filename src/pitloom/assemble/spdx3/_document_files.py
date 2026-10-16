@@ -6,7 +6,8 @@
 """SPDX 3 file-element assembly for :mod:`pitloom.assemble.spdx3.document`.
 
 See also: :mod:`pitloom.assemble.spdx3.document`, the public entry point
-that re-exports :func:`_add_package_files`.
+that re-exports :func:`_add_package_files`;
+:mod:`pitloom.assemble.spdx3._document_file_hits` (registry hits).
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from typing import cast
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._document_file_hits import FileHits
 from pitloom.assemble.spdx3.deps_license import build_file_declared_license
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.document import DocumentModel
@@ -27,7 +29,6 @@ from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import ProjectFile, project_relative_or_fallback
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
-from pitloom.id_registry import FILE_TYPE, IdRegistrySession
 
 # SPDX 2.x FileType -> SPDX 3 SoftwarePurpose: only the categories with a
 # clean, identity-shaped equivalent. BINARY/AUDIO/IMAGE/TEXT/VIDEO
@@ -239,93 +240,6 @@ class _FileAssemblyContext:
     exporter: Spdx3JsonExporter
 
 
-def _resolve_directory_hits_for_file(
-    dist_path: Path,
-    session: IdRegistrySession,
-    dir_hits: dict[str, str],
-    seen_dirs: set[str],
-) -> None:
-    """Resolve and claim a registry hit for each not-yet-seen ancestor
-    directory of *dist_path* (root-to-leaf), updating *dir_hits* in
-    place.
-
-    *seen_dirs* remembers every directory this pass has already resolved
-    -- hit, rejected by *session*, or lookup miss -- so a directory
-    shared by many files (the common case) is looked up and claimed at
-    most once. Checking membership in *dir_hits* instead would miss the
-    rejected/miss cases (neither adds a *dir_hits* entry), so every
-    later file under that directory would re-look it up and, on a
-    rejection, re-log the same collision ``WARNING:`` once per file
-    instead of once per directory. Split out of
-    :func:`_resolve_file_and_directory_hits` to keep its own cognitive
-    complexity down.
-    """
-    for directory_path in list(dist_path.parents)[::-1]:
-        directory_name = directory_path.as_posix()
-        if not directory_path.name or directory_name in seen_dirs:
-            continue
-        seen_dirs.add(directory_name)
-        claimed_id = session.lookup_id(directory_name, FILE_TYPE, [directory_name])
-        if claimed_id is not None:
-            dir_hits[directory_name] = claimed_id
-
-
-def _resolve_file_and_directory_hits(
-    files: list[ProjectFile],
-    session: IdRegistrySession,
-) -> tuple[dict[str, str], dict[str, str]]:
-    """Pre-resolve every file's and directory's registry hit in one pass
-    over *files*, before any minting starts.
-
-    Returns ``(dir_hits, file_hits)``: *dir_hits* keyed by directory name
-    (as :func:`_ensure_directory_chain` computes it, POSIX-style
-    parent-path segment), *file_hits* keyed by ``distribution_path``. Both
-    empty when *session* has no registry loaded. Callers must reserve
-    every value in both dicts (:func:`~pitloom.core.models.reserve_spdx_ids`)
-    before minting anything, then pass these dicts down instead of the
-    registry itself: pre-resolution is the single source of truth for
-    which ids were reserved, so the actual build must never look the
-    registry up a second time and risk a different answer.
-
-    *files* is walked in its own given order, and each file's directories
-    root-to-leaf, so hit resolution is deterministic; when a directory or
-    file's registry hit is an id something earlier in this same pass (or
-    an earlier file/directory/AI-model hit in the same document, via the
-    shared *session*) already claimed, only the first claimant reuses it
-    -- a later one falls back to a fresh mint instead of duplicating the
-    id, with one ``WARNING: ID registry: ...`` naming both.
-    """
-    dir_hits: dict[str, str] = {}
-    file_hits: dict[str, str] = {}
-    if session.registry is None:
-        return dir_hits, file_hits
-    seen_dirs: set[str] = set()
-
-    for package_file in files:
-        dist_path = Path(package_file.distribution_path)
-        _resolve_directory_hits_for_file(dist_path, session, dir_hits, seen_dirs)
-
-        file_digest = cast(str, package_file.digest_sha256)
-        physical_lookup_key = project_relative_or_fallback(
-            package_file.physical_path, package_file.distribution_path
-        )
-        lookup_paths = (
-            [physical_lookup_key, package_file.distribution_path]
-            if physical_lookup_key != package_file.distribution_path
-            else [physical_lookup_key]
-        )
-        claimed_id = session.lookup_id(
-            package_file.distribution_path,
-            FILE_TYPE,
-            lookup_paths,
-            sha256=file_digest,
-        )
-        if claimed_id is not None:
-            file_hits[package_file.distribution_path] = claimed_id
-
-    return dir_hits, file_hits
-
-
 def _ensure_directory_chain(
     parent_paths: list[Path],
     dir_spdx_ids: dict[str, str],
@@ -337,9 +251,9 @@ def _ensure_directory_chain(
     (root-to-leaf order), updating *dir_spdx_ids* in place.
 
     *dir_hits* is the pre-resolved, already-reserved map from
-    :func:`_resolve_file_and_directory_hits` -- the single source of
-    truth for what was reserved, so a hit here is reused as-is, never
-    looked up again.
+    :func:`~pitloom.assemble.spdx3._document_file_hits.resolve_file_hits`
+    -- the single source of truth for what was reserved, so a hit here is
+    reused as-is, never looked up again.
     """
     for index, directory_path in enumerate(parent_paths):
         directory_name = directory_path.as_posix()
@@ -381,24 +295,24 @@ def _add_package_files(
     spdx_ci: spdx3.CreationInfo,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
-    dir_hits: dict[str, str] | None = None,
-    file_hits: dict[str, str] | None = None,
+    hits: FileHits,
     *,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
 ) -> dict[str, str]:
     """Add package files and directory containment relationships.
 
-    *dir_hits*/*file_hits* are the pre-resolved registry hits from
-    :func:`_resolve_file_and_directory_hits` (already reserved by the
-    caller before the first mint -- see that function's docstring); a hit
+    *hits* are the pre-resolved registry hits from
+    :func:`~pitloom.assemble.spdx3._document_file_hits.resolve_file_hits`
+    (already reserved by the caller before the first mint); a hit
     reuses the registered ``spdxId`` instead of minting a fresh one, so
     this element and the ``software_File`` a ``pitloom.loom`` fragment
     emits for the same script become literally the same element once
     merged (see :func:`pitloom.assemble.spdx3.fragments.merge_fragments`).
     A miss (not in the dict) falls back to the existing deterministic
-    minting -- unchanged behaviour when no registry applies (both
-    ``None``/empty).
+    minting -- unchanged behaviour when no registry applies (both empty).
+    Every file's key is then recorded for the id it got
+    (:meth:`~pitloom.assemble.spdx3._document_file_hits.FileHits.record`).
 
     When a ``package_file`` carries SPDX-header-derived data (see
     :class:`pitloom.core.project.ProjectFile`), it's wired onto the
@@ -407,8 +321,7 @@ def _add_package_files(
     are forwarded there.
     """
     metadata = doc.project
-    dir_hits = dir_hits or {}
-    file_hits = file_hits or {}
+    dir_hits, file_hits = hits.dirs, hits.files
     file_spdx_ids: dict[str, str] = {}
     dir_spdx_ids: dict[str, str] = {}
     ctx = _FileAssemblyContext(main_package, spdx_ci, metadata.name, doc_uuid, exporter)
@@ -419,12 +332,9 @@ def _add_package_files(
 
         _ensure_directory_chain(parent_paths, dir_spdx_ids, dir_hits, ctx)
 
-        # ProjectFile.digest_sha256 is typed Optional to accommodate
-        # get_wheel_files(skip_merkle_root=True) (see embed.py), but
-        # metadata.files here is always either the wheel's own
-        # post-merge files or a get_wheel_files() call with the default
-        # skip_merkle_root=False -- never the skip-hashing path -- so
-        # the digest is always populated in practice.
+        # Optional only for get_wheel_files(skip_merkle_root=True)
+        # (_embed_build_sbom.py's project-file metadata); a document's
+        # files are always hashed.
         file_digest = cast(str, package_file.digest_sha256)
 
         registered_id = file_hits.get(package_file.distribution_path)
@@ -465,4 +375,5 @@ def _add_package_files(
         if rel2:
             exporter.add_relationship(rel2)
 
+    hits.record(file_spdx_ids)
     return file_spdx_ids

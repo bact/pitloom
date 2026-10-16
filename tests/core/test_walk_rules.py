@@ -24,7 +24,12 @@ import pytest
 
 from pitloom.core import file_identity, walk_rules
 from pitloom.core.models import get_wheel_files
-from pitloom.core.walk_rules import SameFile, same_path, warn_registry_left_out
+from pitloom.core.walk_rules import (
+    SameFile,
+    same_path,
+    shortened_by,
+    warn_registry_left_out,
+)
 from tests._unreadable import deny
 
 POSIX_ONLY = pytest.mark.skipif(
@@ -223,3 +228,32 @@ def test_project_files_are_shared_by_both_consumers() -> None:
 
     assert vars(_id_target)["PROJECT_FILES"] is walk_rules.PROJECT_FILES
     assert vars(resolve)["PROJECT_FILES"] is walk_rules.PROJECT_FILES
+
+
+@pytest.mark.parametrize(
+    ("longer", "shorter", "max_cut", "cut"),
+    [
+        ("a/b", "a/b", 0, 0),
+        ("a", "a", 1, 0),
+        ("s/a/b", "a/b", 1, 1),
+        ("s/a/b", "a/b", 0, None),
+        ("t/s/a/b", "a/b", 1, None),
+        ("s/a", "a", 1, None),
+        ("a", "a/b", 1, None),
+        ("s/a/b", "a/c", 1, None),
+    ],
+    ids=[
+        "equal",
+        "one-part",
+        "cut",
+        "no-cut-allowed",
+        "two-cut",
+        "one-remains",
+        "longer",
+        "tail-differs",
+    ],
+)
+def test_shortened_by(longer: str, shorter: str, max_cut: int, cut: int | None) -> None:
+    """At most *max_cut* leading parts dropped; a directory and a file
+    remain when any is; the rest equal."""
+    assert shortened_by(longer.split("/"), shorter.split("/"), max_cut=max_cut) == cut

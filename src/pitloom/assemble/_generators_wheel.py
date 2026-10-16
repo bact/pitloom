@@ -20,7 +20,7 @@ from pathlib import Path
 from spdx_python_model.bindings import v3_0_1 as spdx3_bindings
 
 from pitloom._sbom_io import write_sbom_output
-from pitloom.assemble._generators_shared import _sync_registry
+from pitloom.assemble._generators_shared import _sync_registry, archive_project_dir
 from pitloom.assemble.spdx3.document import build
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides, resolve_standalone_config
@@ -54,6 +54,7 @@ def generate_wheel_sbom(
     scan_model_usage: bool | None = None,
     trust_wheel_model: bool | None = None,
     pitloom_config: PitloomConfig | None = None,
+    project_dir: Path | str | None = None,
 ) -> str:
     """Generate an Analyzed SPDX 3 SBOM for a built Python wheel.
 
@@ -66,6 +67,12 @@ def generate_wheel_sbom(
     The copy of that registry a build put in the wheel is left out, with one
     ``WARNING:``, when its path below the project directory is the member's
     (see :func:`~pitloom.id_registry.registry_copy` for the directory).
+
+    *project_dir* names the project directory the wheel was built from: its
+    members are then keyed below that directory's path from the registry's
+    root (a registry above the project, a monorepo), as ``embed-wheel
+    --project-dir`` keys them. Nothing is read from it; without a registry
+    it has no effect, with one ``WARNING:``.
 
     An explicit *pitloom_config* applies in full, identity included: its
     creators, creation datetime and comment fill in when *creation_metadata*
@@ -93,6 +100,7 @@ def generate_wheel_sbom(
             (:class:`~pitloom.core.wheel_dist_info.WheelRefused`): not a ZIP
             archive, a member cannot be read, two members have one name or
             one holds a NUL.
+        FileNotFoundError: *project_dir* is given and is not a directory.
         OSError: *wheel_path* cannot be opened (missing, permission denied).
     """
     return generate_wheel_sbom_with_metadata(
@@ -110,6 +118,7 @@ def generate_wheel_sbom(
         scan_model_usage=scan_model_usage,
         trust_wheel_model=trust_wheel_model,
         pitloom_config=pitloom_config,
+        project_dir=project_dir,
     )[0]
 
 
@@ -129,6 +138,7 @@ def generate_wheel_sbom_with_metadata(
     scan_model_usage: bool | None = None,
     trust_wheel_model: bool | None = None,
     pitloom_config: PitloomConfig | None = None,
+    project_dir: Path | str | None = None,
 ) -> tuple[str, ProjectMetadata]:
     """:func:`generate_wheel_sbom`, and the :class:`ProjectMetadata` read from
     the wheel, for a caller that goes on to use the wheel's declared identity
@@ -139,6 +149,7 @@ def generate_wheel_sbom_with_metadata(
             (:class:`~pitloom.core.wheel_dist_info.WheelRefused`): not a ZIP
             archive, a member cannot be read, two members have one name or
             one holds a NUL.
+        FileNotFoundError: *project_dir* is given and is not a directory.
         OSError: *wheel_path* cannot be opened (missing, permission denied).
     """
     configure_logging()
@@ -160,11 +171,12 @@ def generate_wheel_sbom_with_metadata(
     # calls below -- a declared-but-missing/malformed registry should fail
     # fast, never after paying for a full wheel read first.
     resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
+    origin_dir = archive_project_dir(project_dir, resolved_registry, wheel_path)
     project_metadata, project_files = read_wheel(wheel_path_obj)
     # A copy of an in-tree registry the build put in the wheel: neither a
     # file of the SBOM nor of its Merkle root.
     project_files = without_registry_copies(
-        project_files, registry_copy(resolved_registry)
+        project_files, registry_copy(resolved_registry, origin_dir)
     )
     project_metadata.files = project_files
     ai_models = scan_wheel_for_ai_models(
@@ -181,7 +193,7 @@ def generate_wheel_sbom_with_metadata(
         creation_metadata=creation_metadata or cfg.creation_metadata,
         ai_models=ai_models,
         phantom_dependencies=phantom_deps,
-        **wheel_document_identity(project_metadata, wheel_path_obj),
+        **wheel_document_identity(project_metadata, wheel_path_obj, origin_dir),
     )
     exporter = build(
         doc,

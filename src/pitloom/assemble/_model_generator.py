@@ -8,15 +8,19 @@
 from __future__ import annotations
 
 import dataclasses
+import functools
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from pitloom._sbom_io import write_sbom_output
+from pitloom.assemble.spdx3.ai import lookup_model_id
 from pitloom.assemble.spdx3.document import build_enrichment_fragment, build_model
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides, resolve_standalone_config
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.file_hash import sha256_digest
 from pitloom.core.inert_options import (
     ENRICH_STANDALONE,
     HF,
@@ -25,6 +29,7 @@ from pitloom.core.inert_options import (
     settle_inert,
 )
 from pitloom.core.models import compute_doc_uuid, generate_spdx_id, get_wheel_files
+from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich import run_enrichers
@@ -37,14 +42,15 @@ from pitloom.extract.remote import is_huggingface_source, read_huggingface
 from pitloom.extract.scanner import read_model_candidate
 from pitloom.extract.scanner_project import local_model_candidate
 from pitloom.id_registry import (
-    AI_PACKAGE_TYPE,
+    Alias,
     IdRegistry,
     IdRegistrySession,
+    artifact_key,
     registry_base_dir,
     registry_file_path,
     resolve_registry,
 )
-from pitloom.logging_config import configure_logging
+from pitloom.logging_config import configure_logging, loggable, one_line
 
 log = logging.getLogger(__name__)
 
@@ -70,6 +76,61 @@ def _read_local_model(model_path: Path) -> AiModelMetadata:
         return read_model_candidate(local_model_candidate(model_path))
     except NotAModel as e:
         raise ValueError(f"{model_path}: {e}") from e
+
+
+#: What :data:`~pitloom.core.path_probe.UNREADABLE_FILE_WARNING` says a model
+#: file could not be read for, and what follows from it.
+_HASH_UNREAD = "for the model hash (no verifiedUsing, registry lookup not gated)"
+
+
+def _model_file_digest(model_path: Path) -> str | None:
+    """The SHA-256 of the model file at *model_path*, read in chunks; ``None``
+    and one ``WARNING:`` when it cannot be read."""
+    try:
+        return sha256_digest(model_path).hex()
+    except OSError as exc:
+        log.warning(
+            UNREADABLE_FILE_WARNING,
+            loggable(str(model_path)),
+            _HASH_UNREAD,
+            one_line(exc),
+        )
+        return None
+
+
+def _model_registry_id(
+    registry: IdRegistry | None,
+    model: AiModelMetadata,
+    model_path: Path,
+    digest: Callable[[], str | None],
+) -> str | None:
+    """The registry id of the model file at *model_path* (as given: a
+    relative one from the current directory). Its key is its path from the
+    registry's root (:func:`~pitloom.id_registry.artifact_key`), looked up
+    gated by *digest()*, its ``CANONICAL`` layout alias included (a wheel's
+    key for a ``src/`` model, said in one ``INFO:``); outside the root, its
+    stem, ungated, with one ``INFO:`` saying why. A message names the model
+    by its own name (*model*), else its stem, as a project's does. ``None``
+    without a *registry*."""
+    if registry is None:
+        return None
+    # Imported here: the loom modules import pitloom.assemble (a cycle).
+    # pylint: disable-next=import-outside-toplevel,cyclic-import
+    from pitloom._loom_dataset import name_key_reason
+
+    # pylint: disable-next=import-outside-toplevel,cyclic-import
+    from pitloom._loom_model import NAME_KEY_INFO
+
+    stem = model_path.stem
+    lookup = artifact_key(registry, path=model_path, name=stem, alias=Alias.CANONICAL)
+    if not lookup.path:
+        log.info(NAME_KEY_INFO, loggable(stem), name_key_reason(model_path))
+    session = IdRegistrySession(registry)
+    spdx_id = lookup_model_id(
+        session, model.own_name or stem, lookup, digest() if lookup.path else None
+    )
+    session.info_layout_alias_hits()
+    return spdx_id
 
 
 def _doc_identity_of(
@@ -180,6 +241,7 @@ def generate_model_sbom(
     )
     enrichment_results: list[EnrichmentResult] = []
 
+    resolved_registry: IdRegistry | None = None
     if is_hf:
         if cfg.offline:
             raise ValueError(
@@ -187,7 +249,7 @@ def generate_model_sbom(
                 f"'{source_str}'"
             )
         model = read_huggingface(source_str)
-        entity_spdx_id = None
+        entity_spdx_id = digest = None
     else:
         model_path = Path(source)
         # Resolved before _read_local_model()/run_enrichers() below -- a
@@ -195,8 +257,9 @@ def generate_model_sbom(
         # after paying for a model read and enrichment first.
         resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
         model = _read_local_model(model_path)
-        entity_spdx_id = IdRegistrySession(resolved_registry).lookup_id(
-            model_path.stem, AI_PACKAGE_TYPE, [model_path.stem]
+        digest = _model_file_digest(model_path)
+        entity_spdx_id = _model_registry_id(
+            resolved_registry, model, model_path, lambda: digest
         )
         enrichment_results = run_enrichers(model, cfg.enrich, model_path.parent)
 
@@ -204,8 +267,10 @@ def generate_model_sbom(
         model,
         creation_metadata or cfg.creation_metadata,
         entity_spdx_id=entity_spdx_id,
+        registry=resolved_registry,
         provenance=cfg.provenance,
         enrichment_results=enrichment_results,
+        digest=digest,
     )
 
     sbom_json = exporter.to_json(
@@ -292,8 +357,14 @@ def enrich_model(
     enrich_config = dataclasses.replace(cfg.enrich, local=enrich is not False)
     results = run_enrichers(model, enrich_config, model_path.parent)
 
-    entity_spdx_id = IdRegistrySession(resolved_registry).lookup_id(
-        model_path.stem, AI_PACKAGE_TYPE, [model_path.stem]
+    # Hashed only to gate the lookup: the fragment has no ai_AIPackage. The
+    # argument is from the current directory, the key from the registry's
+    # root (with --project-dir, the project's registry).
+    entity_spdx_id = _model_registry_id(
+        resolved_registry,
+        model,
+        model_path,
+        functools.partial(_model_file_digest, model_path),
     )
 
     exporter = build_enrichment_fragment(
@@ -302,6 +373,7 @@ def enrich_model(
         creation_metadata or cfg.creation_metadata,
         entity_spdx_id=entity_spdx_id,
         base_doc_identity=base_doc_identity,
+        registry=resolved_registry,
     )
 
     fragment_json = exporter.to_json(pretty=cfg.pretty)

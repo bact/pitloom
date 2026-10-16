@@ -16,6 +16,7 @@ import unicodedata
 from pathlib import Path
 from typing import Any
 
+from pitloom.cli._id_entity import entity_entry
 from pitloom.cli._id_target import (
     _log_config_hint,
     _normalized_absolute,
@@ -253,7 +254,8 @@ def _run_id_generate(args: argparse.Namespace) -> int:
             paths, project_dir, exclude=registry_path, explicit=bool(args.paths)
         )
         for type_name, name in args.entity or []:
-            registry.register(type_name, name)
+            key, sha256 = entity_entry(registry, project_dir, type_name, name)
+            registry.register(type_name, key, sha256=sha256)
     except (ValueError, OSError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
@@ -323,7 +325,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
         help="Manage the Loom ID registry.",
         description=(
             "Manage the Loom ID registry, a typed ID registry (compact type "
-            "and name -> SPDX ID) consulted by 'pitloom.loom', the Hatchling "
+            "and path or name -> SPDX ID) consulted by 'pitloom.loom', the Hatchling "
             "build hook, and the CLI -- only when named explicitly (a flag, "
             "or a config's own id-registry key); never searched for."
         ),
@@ -379,13 +381,21 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
         help=(
             "Register NAME under TYPE (default: ai_AIPackage; also "
             "dataset_DatasetPackage, software_File, software_Package). NAME "
-            "may hold ':' (a URL, a drive letter)."
+            "may hold ':' (a URL, a drive letter). A dataset, model or file "
+            "that exists below --project-dir (a model or file: a regular "
+            "file) is stored by its path, with its content hash: other "
+            "content gets a new id. Else it is stored by name; a model "
+            "name then holds only for a model with no file (a Hugging Face "
+            "id)."
         ),
     )
 
     imp_parser = id_subparsers.add_parser(
         "import",
-        help="Import entries from an external SBOM file.",
+        help=(
+            "Import entries from an external SBOM file (a model or dataset "
+            "under the key a run looks it up by)."
+        ),
     )
     imp_parser.add_argument(
         "sbom",

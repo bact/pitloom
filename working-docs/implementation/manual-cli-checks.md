@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -86,9 +86,9 @@ checks (`1`-`22`, `B1`-`B7`) it runs:
   orders, registry updates, `id import`, a merge into its own input
   directory, verifying before and after embedding, embedding a
   hook-built wheel.
-- **The ID registry order matrix** (`O1`-`O5`): registry operations in
+- **The ID registry order matrix** (`O1`-`O6`): registry operations in
   many orders on several fixtures, each sequence a replayable shell
-  script; see [Order matrix](#order-matrix-o1-o5) below.
+  script; see [Order matrix](#order-matrix-o1-o6) below.
 
 A failing cell already tracked in the roadmap reports `KNOWN` with the
 item's title (`_known.py`) -- only when its failure text is the tracked
@@ -439,7 +439,7 @@ Automated as check 22 (`scripts/manual_cli_checks/_checks_model.py::check_model_
 per-route detail, the ONNX comma list and Hugging Face in
 `tests/test_model_producer_surfaces.py`.
 
-## Order matrix (`O1`-`O5`)
+## Order matrix (`O1`-`O6`)
 
 Does the order of Pitloom operations change the ids the registry keeps,
 and does every outcome match the design
@@ -453,12 +453,18 @@ the SBOMs written, never registry code.
 
 - **Steps** (`_order_ops.py`): `id generate` (plain, with both datasets
   pinned by `-e`, or `pyproject.toml` alone), `id import` (of the latest
-  SBOM or fragment, or of the setup's SBOM), `project`, `wheel` and
+  SBOM or fragment, or of the setup's SBOM), `project`, `sdist`
+  (`project` of a fresh sdist), `wheel` and
   `embed-wheel --project-dir` (each on a fresh offline build), `model`,
   two `loom.run` scripts (`set_model`/`use_model(path=)`, a file and a
-  directory dataset), and the mutating `retrain`, `edit-file` (the
+  directory dataset; run from the profile's `loom_dir`), and the
+  mutating `retrain`, `edit-file` (the
   newest module the sequence added, else a fixed one), `edit-data`,
-  `rename-file`, `add-file`. Not covered: `enrich`, `env`,
+  `rename-file`, `add-file`. Spelling steps, run only by `O6`: `add-nfd`
+  (a module named in NFD), `model-upper` and `train-upper` (`model` and
+  `train` with the model path in upper case). A profile lists the steps
+  that do not apply to its layout (`Profile.unsupported`, with the
+  reason). Not covered: `enrich`, `env`,
   `merge`, the Hatchling hook with a registry, setuptools wheels (the
   build writes `*.egg-info` into the project).
 - **Fixtures** (`_order_fixtures.py`, built per run, copied by each
@@ -466,21 +472,37 @@ the SBOMs written, never registry code.
   `src` (`sampleproject-hatchling`, `src/` layout), `setuptools`
   (`sampleproject-setuptools`, no model), `stems` (two model files with
   one stem), `intree` (the registry declared in `[tool.pitloom]` inside
-  the package).
+  the package), `monorepo` (the registry root above the project:
+  `pkgs/demo/...`, `id generate .` at the root; `wheel`, `sdist` and
+  `embed` pass `--project-dir pkgs/demo`), `subdir` (model, data and the
+  `loom.run` scripts in sibling
+  directories: the scripts run from `scripts/` and name
+  `../models/m.safetensors`, `../data/t.txt`).
 - **Sequences** (`_order_gen.py`): `O1/<fixture>/<set>` runs every
   permutation of three or four non-mutating steps; `O2/<fixture>/<n>`
   seeded random walks of 4-8 steps with mutations; `O3/<fixture>` each
   reader step three times running; `O4/<fixture>` a v2, an invalid and
   a read-only registry injected mid-sequence; `O5/<fixture>` fixed
   scenarios, the shortest sequences a walk was seen to break, so the
-  default budget always covers them. `PITLOOM_ORDER_DEPTH=deep`
+  default budget always covers them; `O6/<fixture>/<kind>` the spelling
+  scenarios (`nfd`, `upper`), skipped with the reason on a file system
+  that normalises an NFD name or is case-sensitive. `PITLOOM_ORDER_DEPTH=deep`
   runs 96 walks per fixture of up to 12 steps (default 16 of up to 8);
   `PITLOOM_ORDER_SEED` changes the walks' seed. The default O-group runs
   in about 1.5 minutes with `-j 8`.
 - **Invariants** (`_order_invariants.py`, each citing its design
   section): A stability (and harvest records), B typed ids, C
   idempotence, D clean runs and no duplicate id, E cross-surface
-  agreement, F pinned ids survive, H failures; G, the convergence of the
+  agreement (per registry entry, a layout alias and its twin being one),
+  F pinned ids survive, H failures; the path-key rules of
+  `_order_paths.py`: `M/stem-key` (a model's registry key is its own
+  file's, never its stem), `M/distinct-ids` (two models, one stem, two
+  ids), `N/nfc` and `N/case` (a key is NFC and spelt as on disk),
+  `S/dotdot` (no `..` or absolute key), `S/dataset-pin` (a loom run
+  carries the id `id generate -e` pinned). B/multi-key and A/reuse
+  accept only `keys.is_layout_alias` pairs, A/reuse only as a promotion
+  (the `src/` key replaces the shorter one); a model is matched to its
+  file by stem, a dataset and a model are gated like a file. G, the convergence of the
   final registries over one permutation set (`order-independent`,
   `order-dependent (benign: mint order only)`, `order-dependent (benign:
   id import dropped a content gate)` when only keys an `id import` logged
@@ -497,7 +519,9 @@ the SBOMs written, never registry code.
   interpreter.
 - **Known findings**: `_order_known.py` lists accepted ones, each naming
   its [id-registry-followups.md](../design/id-registry-followups.md)
-  item; a check failing only on those ends `KNOWN`. A violation is
+  item; a check failing only on those ends `KNOWN`. Only the per-document
+  entities' A/B findings remain: the src-layout and sdist entries went
+  with the path keys. A violation is
   matched against the registry of its own step (else the last one
   captured). Each check's `report.txt` lists the first four allow-listed
   violations of each item (`  known: ...`) after its `known xN` counts, to

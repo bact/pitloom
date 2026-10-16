@@ -86,23 +86,40 @@ class Profile:
     #: Project-relative registry declared in `[tool.pitloom]`, or None for
     #: a registry beside the project passed with `--id-registry`/`-o`.
     in_tree: str | None = None
-    #: Two model files sharing one stem (build notes: name-only entry).
+    #: Two model files sharing one stem: each keeps its own id.
     shared_stem: bool = False
+    #: Every model file of the project (``model`` alone when empty).
+    models: tuple[str, ...] = ()
+    #: The project directory below the registry root (a monorepo) and the
+    #: directory the `loom.run` scripts run from ("" = the registry root).
+    subdir: str = ""
+    loom_dir: str = ""
 
     @property
     def loom(self) -> bool:
         """Whether the `loom.run` scripts apply (they need a model)."""
         return self.model is not None
 
+    @property
+    def model_paths(self) -> tuple[str, ...]:
+        """Every project-relative model file."""
+        return self.models or ((self.model,) if self.model else ())
 
-def _add_loom_files(root: Path) -> None:
+    @property
+    def pyproject(self) -> str:
+        """The project's ``pyproject.toml``, relative to the registry root."""
+        return f"{self.subdir}/pyproject.toml" if self.subdir else "pyproject.toml"
+
+
+def _add_loom_files(root: Path, scripts: str = "") -> None:
     (root / "data").mkdir(exist_ok=True)
     (root / DATASET_FILE).write_bytes(b"one line\n")
     (root / DATASET_DIR / "b").mkdir(parents=True)
     (root / DATASET_DIR / "a.txt").write_bytes(b"a\n")
     (root / DATASET_DIR / "b" / "c.txt").write_bytes(b"c\n")
-    (root / "train.py").write_text(TRAIN_PY, encoding="utf-8")
-    (root / "eval.py").write_text(EVAL_PY, encoding="utf-8")
+    (root / scripts).mkdir(exist_ok=True)
+    (root / scripts / "train.py").write_text(TRAIN_PY, encoding="utf-8")
+    (root / scripts / "eval.py").write_text(EVAL_PY, encoding="utf-8")
 
 
 def _flat(root: Path) -> None:
@@ -142,6 +159,22 @@ def _in_tree(root: Path) -> None:
     _flat(root)
     with (root / "pyproject.toml").open("a", encoding="utf-8") as fh:
         fh.write('\n[tool.pitloom]\nid-registry = "demo/reg.json"\n')
+
+
+def _monorepo(root: Path) -> None:
+    _fixtures.write_project(root / "pkgs" / "demo")
+    (root / "pkgs" / "demo" / "demo" / "tiny.safetensors").write_bytes(model_bytes(0))
+    _add_loom_files(root)
+
+
+def _subdir(root: Path) -> None:
+    """Models, data and the loom scripts in sibling directories."""
+    _fixtures.write_project(root)
+    (root / "demo" / "tiny.safetensors").unlink()
+    (root / "demo" / "load.py").write_text('MODEL = "m.safetensors"\n', "utf-8")
+    (root / "models").mkdir()
+    (root / "models" / "m.safetensors").write_bytes(model_bytes(0))
+    _add_loom_files(root, "scripts")
 
 
 _FLAT_RENAME = ("demo/data.csv", "demo/data_r.csv")
@@ -190,6 +223,7 @@ PROFILES: dict[str, Profile] = {
         "demo",
         wheel=True,
         shared_stem=True,
+        models=("demo/a/m.safetensors", "demo/b/m.safetensors"),
     ),
     "intree": Profile(
         "intree",
@@ -201,6 +235,31 @@ PROFILES: dict[str, Profile] = {
         wheel=True,
         in_tree="demo/reg.json",
     ),
+    # The registry root is above the project (`id generate .` at the root).
+    "monorepo": Profile(
+        "monorepo",
+        "pkgs/demo/demo/tiny.safetensors",
+        "tiny",
+        "pkgs/demo/demo/__init__.py",
+        ("pkgs/demo/demo/data.csv", "pkgs/demo/demo/data_r.csv"),
+        "pkgs/demo/demo",
+        wheel=True,
+        # `sdist`, `wheel` and `embed` name the project (`--project-dir`),
+        # so their members are keyed below its prefix.
+        subdir="pkgs/demo",
+    ),
+    # The model, data and scripts live in sibling directories: the loom
+    # scripts run from scripts/ and name them `../models/m.safetensors`.
+    "subdir": Profile(
+        "subdir",
+        "models/m.safetensors",
+        "m",
+        "demo/__init__.py",
+        _FLAT_RENAME,
+        "demo",
+        wheel=True,
+        loom_dir="scripts",
+    ),
 }
 _BUILDERS = {
     "flat": _flat,
@@ -208,6 +267,8 @@ _BUILDERS = {
     "setuptools": _setuptools,
     "stems": _stems,
     "intree": _in_tree,
+    "monorepo": _monorepo,
+    "subdir": _subdir,
 }
 _LOCK = threading.Lock()
 

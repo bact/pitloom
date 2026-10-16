@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 import os
 import stat
+import unicodedata
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -40,6 +41,7 @@ __all__ = [
     "DATASET_PACKAGE_TYPE",
     "DEFAULT_ID_REGISTRY_FILENAME",
     "FILE_TYPE",
+    "NFC_CLASH_WARNING",
     "PACKAGE_TYPE",
     "RegistryEntry",
     "_REGISTRY_VERSION",
@@ -73,6 +75,13 @@ DATASET_PACKAGE_TYPE = "dataset_DatasetPackage"
 
 _REGISTRY_VERSION = 3
 
+#: ``WARNING:`` for files whose keys are one key once NFC-normalised (two
+#: spellings of a name on a file system that keeps both): none is indexed.
+#: Arguments: the file count, the key.
+NFC_CLASH_WARNING = (
+    "ID registry: %d files have one key once NFC-normalised, none is indexed: %s"
+)
+
 
 @dataclass
 class RegistryEntry:
@@ -96,15 +105,16 @@ class RegistryEntry:
 def _element_key(*, type_name: str, name: str) -> tuple[str, str]:
     """Return the registry key ``(type_name, name)`` for an element.
 
-    The one place a :data:`PACKAGE_TYPE` name is PEP 503 canonicalised
-    (:func:`packaging.utils.canonicalize_name`), so a declared ``"PyYAML"``
-    and a looked-up ``"pyyaml"`` hit one entry. Every other type keeps
-    its name verbatim. Keyword-only: both arguments are ``str``, so a
-    swapped positional call would still type-check.
+    The one place a key is normalised: a :data:`PACKAGE_TYPE` name is PEP 503
+    canonicalised (:func:`packaging.utils.canonicalize_name`), so a declared
+    ``"PyYAML"`` and a looked-up ``"pyyaml"`` hit one entry; then every
+    name is NFC, so a macOS (NFD) spelling and a Linux (NFC) one hit one
+    entry. Nothing is case-folded. Keyword-only: both arguments are ``str``,
+    so a swapped positional call would still type-check.
     """
     if type_name == PACKAGE_TYPE:
-        return (type_name, canonicalize_name(name))
-    return (type_name, name)
+        name = canonicalize_name(name)
+    return (type_name, unicodedata.normalize("NFC", name))
 
 
 def _require_names(names: Sequence[str]) -> None:

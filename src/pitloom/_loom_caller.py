@@ -24,6 +24,7 @@ from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
+    DATASET_PACKAGE_TYPE,
     FILE_TYPE,
     IdRegistry,
     IdRegistrySession,
@@ -140,19 +141,48 @@ def _record_hyperparameter_provenance(
         provenance[f"hyperparameters.{key}"] = f"{caller_info} | Field: {safe_key}"
 
 
-def warn_registry_miss(registry: IdRegistry, type_name: str, name: str) -> None:
+#: What a loom message calls an element of each registry type.
+_TYPE_WORDS = {
+    AI_PACKAGE_TYPE: "model",
+    DATASET_PACKAGE_TYPE: "dataset package",
+    FILE_TYPE: "file",
+}
+
+
+def warn_registry_miss(
+    registry: IdRegistry,
+    type_name: str,
+    name: str,
+    *,
+    by_path: bool = False,
+    unhashed: bool = False,
+) -> None:
     """The one ``WARNING:`` for a loom lookup of *name* under *type_name*
     that missed in *registry*: an entry under that type whose SHA-256 no
     longer matches (content changed); for a model, *name* held only under
     another type; else untracked. A dataset is not told about other types:
-    its own file shares its name under ``software_File``."""
-    if registry.get(type_name, name) is not None:
+    its own file shares its name under ``software_File``. With *by_path*,
+    *name* is a path key, which a model's own ``software_File`` shares:
+    never told about other types either. The changed-content line names
+    the element's type: a dataset's package and file share a name. With
+    *unhashed* (no content was hashed), an entry recording a SHA-256 says
+    so instead: it cannot be vouched for."""
+    entry = registry.get(type_name, name)
+    if entry is not None and unhashed:
         log.warning(
-            "loom: registry entry for %r exists but its SHA-256 no "
-            "longer matches; minting a new spdxId (content changed).",
+            "loom: registry entry for %s %r records a SHA-256 but no content "
+            "was hashed; minting a new spdxId.",
+            _TYPE_WORDS.get(type_name, "entity"),
             name,
         )
-    elif type_name == AI_PACKAGE_TYPE and registry.has_name(name):
+    elif entry is not None:
+        log.warning(
+            "loom: registry entry for %s %r exists but its SHA-256 no "
+            "longer matches; minting a new spdxId (content changed).",
+            _TYPE_WORDS.get(type_name, "entity"),
+            name,
+        )
+    elif type_name == AI_PACKAGE_TYPE and not by_path and registry.has_name(name):
         log.warning(
             "loom: registry entry for entity %r exists but under a "
             "different type; minting a new spdxId.",
@@ -169,7 +199,12 @@ def warn_registry_miss(registry: IdRegistry, type_name: str, name: str) -> None:
 
 
 def registry_miss_callback(
-    session: IdRegistrySession, type_name: str, name: str
+    session: IdRegistrySession,
+    type_name: str,
+    name: str,
+    *,
+    by_path: bool = False,
+    unhashed: bool = False,
 ) -> Callable[[], None] | None:
     """The *on_miss* of a loom lookup: :func:`warn_registry_miss` for
     *session*'s registry, or ``None`` when no registry is loaded (nothing
@@ -177,4 +212,11 @@ def registry_miss_callback(
     registry = session.registry
     if registry is None:
         return None
-    return functools.partial(warn_registry_miss, registry, type_name, name)
+    return functools.partial(
+        warn_registry_miss,
+        registry,
+        type_name,
+        name,
+        by_path=by_path,
+        unhashed=unhashed,
+    )

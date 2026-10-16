@@ -41,9 +41,12 @@ from pitloom.core.model_parameters import (
     with_parameter_count_note,
 )
 from pitloom.core.models import build_relationship, generate_spdx_id
-from pitloom.core.project import project_relative_or_fallback
 from pitloom.core.untrusted_text import escape_display_controls
-from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.export.spdx3_json import (
+    Spdx3JsonExporter,
+    require_spdx_id,
+    sha256_hash,
+)
 from pitloom.extract.ai_model.parameter_count import warn_parameter_count
 from pitloom.logging_config import loggable, warn_over_cap
 
@@ -122,35 +125,6 @@ def _emit_source_metadata(
     )
     if annotation is not None:
         exporter.add_annotation(annotation)
-
-
-def _ai_model_entity_candidates(ai_model: AiModelMetadata) -> list[str]:
-    """Candidate ``ai_AIPackage`` registry lookup names for a
-    scan-discovered model, in preference order.
-
-    Returns the candidate names only -- no registry lookup here; a
-    caller passes this list to
-    :meth:`~pitloom.id_registry.IdRegistrySession.lookup_id`, which tries
-    each in order and claims the first hit.
-    """
-    candidates: list[str] = []
-    if ai_model.own_name:
-        candidates.append(ai_model.own_name)
-    if ai_model.format_info.physical_path:
-        # The scanner already stores a stable path; this guard is
-        # defensive for a hand-built AiModelMetadata whose physical_path is
-        # an absolute (e.g. --allow-build temporary) path that could never
-        # match a project-relative registry key. Fall back to
-        # file_path_relative.
-        resolved = project_relative_or_fallback(
-            ai_model.format_info.physical_path,
-            ai_model.format_info.file_path_relative or "",
-        )
-        if resolved:
-            candidates.append(resolved)
-    if ai_model.file_name_stem:
-        candidates.append(ai_model.file_name_stem)
-    return candidates
 
 
 def _add_external_identifiers_and_refs(
@@ -437,9 +411,12 @@ def _build_ai_package(
     doc_name: str,
     doc_uuid: str,
     entity_spdx_id: str | None = None,
+    *,
+    digest: str | None = None,
 ) -> spdx3.ai_AIPackage:
     """Build an ``ai_AIPackage`` SPDX 3 element from an :class:`AiModelMetadata`.
 
+    *digest*, the model file's SHA-256 when known, is its ``verifiedUsing``.
     Its display text is escaped by :func:`finish_ai_package`, once its
     provenance comment is written too."""
     pkg_name, _ = ai_model.resolve_name()
@@ -452,6 +429,9 @@ def _build_ai_package(
         creationInfo=creation_info,
     )
 
+    if digest is not None:
+        # A Hash of its own: never shared with the model's software_File.
+        ai_pkg.verifiedUsing = [sha256_hash(digest)]
     if ai_model.version:
         ai_pkg.software_packageVersion = ai_model.version
 

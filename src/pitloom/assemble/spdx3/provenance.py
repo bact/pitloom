@@ -66,6 +66,9 @@ CONFLICT_SCHEMA_URL = "https://pitloom.dev/provenance/conflict/1"
 #: Statement-schema URL for an enrichment run's field changes (E1/E2).
 ENRICHMENT_SCHEMA_URL = "https://pitloom.dev/provenance/enrichment/1"
 
+#: How a provenance comment line starts (:func:`build_provenance_comment`).
+PROVENANCE_COMMENT_PREFIX = "Metadata provenance: "
+
 __all__ = [
     "ARTIFACT_METADATA_SCHEMA_URL",
     "CONFLICT_SCHEMA_URL",
@@ -73,6 +76,7 @@ __all__ = [
     "DEPLOYED_PACKAGE_SOURCE",
     "ENRICHMENT_SCHEMA_URL",
     "INSTALLED_DEPENDENCY_SOURCE",
+    "PROVENANCE_COMMENT_PREFIX",
     "TRANSPARENT_SOURCES",
     "UNIFICATION_SCHEMA_URL",
     "VALID_PROVENANCE_DETAIL",
@@ -361,7 +365,7 @@ def build_provenance_comment(provenance: dict[str, str]) -> str | None:
     :func:`~pitloom.core.provenance.escape_provenance_comment_part`."""
     if not provenance:
         return None
-    return "Metadata provenance: " + "; ".join(
+    return PROVENANCE_COMMENT_PREFIX + "; ".join(
         f"{escape_provenance_comment_part(field, field=True)}: "
         f"{escape_provenance_comment_part(source)}"
         for field, source in provenance.items()

@@ -132,9 +132,10 @@ model caps"). Beyond that:
   points), the digest of the whole name keeping two long names apart: the
   model's own name, or its file name stem, whichever is shown, and its
   base model, dataset and dataset creator names, and the model originator
-  names. The id registry and the `spdxId` of a model, base model and dataset
-  use the same cut name; an originator `Agent` has a counter id
-  (`--update-id-registry` records it by name, but nothing looks it up).
+  names. A base model's or dataset's registry key and `spdxId` use the same cut
+  name (a model with a file is keyed by its path instead); an originator
+  `Agent` has a counter id (`--update-id-registry` records it by name, but
+  nothing looks it up).
   `WARNING: FORMAT=<fmt> FILE=<path>: larger than the 1024-character name
   cap; model name cut` (or `base model name`, `dataset name`, `dataset
   creator name`, `model originator name`, the last one warning once per

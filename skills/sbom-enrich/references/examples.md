@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -219,6 +219,10 @@ this):
   reading of the card. An ONNX `model_author` such as `Doe, Jane` is two
   `Agent`s (the format's list is split on commas); add `Jane Doe` as a
   `Person` the same way and report the split.
+- `name` on a restated package: the base's wins with a `WARNING: Merge:
+  conflicting 'name' ...`, except on the project's own model, which takes
+  the fragment's name (`INFO: Merge: 'name' on ...`). Restate the base's
+  name exactly unless renaming the model is the point.
 - `suppliedBy` (one value) is taken from the fragment: Pitloom sets none on
   a model it read from a file, and a Hugging Face base is never merged
   into. Set it only for a distributor the card or the user names.

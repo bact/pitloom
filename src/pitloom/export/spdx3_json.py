@@ -319,6 +319,11 @@ class Spdx3JsonExporter:
         #: :mod:`pitloom.assemble.spdx3._package_ids`). Run auto-harvest
         #: neither counts nor writes them.
         self.registry_non_readers: set[str] = set()
+        #: spdxId -> (compact type, raw key) the document's registry
+        #: lookups recorded (``IdRegistrySession.recorded_keys``): run
+        #: auto-harvest writes each element under its id's key here, else
+        #: under its name. Empty when no registry applies.
+        self.registry_keys: dict[str, tuple[str, str]] = {}
 
     def add_creation_info(self, creation_info: spdx3.CreationInfo) -> None:
         """Add creation info to the document.

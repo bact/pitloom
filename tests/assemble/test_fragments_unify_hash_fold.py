@@ -7,8 +7,9 @@
 
 The same bytes held under another id still unify (SHA-256 criterion); only
 an element with no other match is renamed apart, with one warning. A
-promoted survivor keeps its non-reader status, and two fragments of one
-relative path under different base directories are two sources.
+promoted survivor keeps its non-reader status and recorded registry key,
+and two fragments of one relative path under different base directories
+are two sources.
 
 See also: tests/assemble/test_fragments_unify_hash_conflict.py and
 tests/assemble/test_fragments_unify_pinned_survivor.py.
@@ -108,12 +109,18 @@ def test_same_bytes_under_another_id_fold_instead_of_a_new_element(
     assert not [w for w in warnings if "SHA" in w or "shares spdxId" in w]
 
 
-def test_promoted_survivor_stays_a_registry_non_reader(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+@pytest.mark.parametrize("own", [False, True], ids=["moved", "own-kept"])
+def test_promoted_survivor_keeps_its_registry_records(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, own: bool
 ) -> None:
+    """The promoted survivor stays a non-reader, and the key its old id
+    recorded moves to its new id, unless that id recorded its own."""
     old, pinned = f"{_loc(9)}#File-1", f"{_REG}#File-8"
     exporter = _base([_file(old, "p", "c")])
     exporter.registry_non_readers.add(old)
+    exporter.registry_keys[old] = (_FILE, "src/p")
+    if own:
+        exporter.registry_keys[pinned] = (_FILE, "own")
     fragments = [
         [_file(pinned, "p", "c"), _file(f"{_REG}#Filler", "f", "d")],
         [_file(f"{_REG}#Filler2", "g", "e")],
@@ -121,6 +128,7 @@ def test_promoted_survivor_stays_a_registry_non_reader(
     merged, _ = _run(tmp_path, [], fragments, caplog, exporter)
     assert pinned in merged and old not in merged
     assert exporter.registry_non_readers == {pinned}
+    assert exporter.registry_keys == {pinned: (_FILE, "own" if own else "src/p")}
 
 
 def test_same_relative_path_under_two_base_dirs_is_two_sources(

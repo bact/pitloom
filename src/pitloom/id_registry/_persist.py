@@ -88,13 +88,15 @@ def replay_changes(base: Table, mine: Table, theirs: Table) -> tuple[Table, int]
 
     A changed key is one whose entry differs between *base* and *mine*: it
     takes *mine*'s entry, or is dropped when *mine* dropped it. Every other
-    key keeps *theirs*'. A changed entry whose id *theirs* holds under a key
-    that keeps *theirs*' entry, and which *mine* does not map to that id
-    too (a src-layout alias), is refused with one ``WARNING:``: another run
-    saved that id first -- minted from the same table, or a known id moved
-    to another key -- and two keys never share an id. A refused key
-    keeps *theirs*' entry, whose id may refuse another changed entry in
-    turn, so refusal is repeated until no new key is refused.
+    key keeps *theirs*'. A known id *mine* moved to another key (a
+    promotion: the old key dropped, the new one added) is replayed as such.
+    A changed entry whose id *theirs* holds under a key that keeps
+    *theirs*' entry, and which *mine* does not map to that id too, is
+    refused with one ``WARNING:``: another run saved that id first --
+    minted from the same table, or a known id moved to another key -- and
+    two keys never share an id. A refused key keeps *theirs*' entry, whose
+    id may refuse another changed entry in turn, so refusal is repeated
+    until no new key is refused.
 
     Returns the table and the number of distinct ids not replayed.
     """
@@ -208,7 +210,7 @@ def persist_registry(registry: IdRegistry, new_ids: int, changed: bool) -> None:
         log.info("ID registry: added %d new id(s) to %s", added, registry.path)
     else:
         # Changed, but no new id: a stale key was released in the same pass
-        # another claimed its id (see
+        # another claimed its id, an id was promoted to its lookup key (see
         # pitloom.id_registry._harvest._release_stale_keys_for_id), or an
         # entry's hash changed.
         log.info("ID registry: updated stale entries in %s", registry.path)

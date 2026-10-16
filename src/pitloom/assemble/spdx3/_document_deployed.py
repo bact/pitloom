@@ -18,6 +18,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._licensing_profiles import apply_licensing_profiles
 from pitloom.assemble.spdx3._package_ids import DEPENDENCY_LABEL, resolve_package_id
+from pitloom.assemble.spdx3._reserved_ids import reserve_held_ids
 from pitloom.assemble.spdx3.deps import _finish_dependency_enrichment
 from pitloom.assemble.spdx3.deps_pypi import _prefetch_pypi_release_infos
 from pitloom.assemble.spdx3.provenance import (
@@ -32,13 +33,12 @@ from pitloom.core.models import (
     build_relationship,
     compute_doc_uuid,
     generate_spdx_id,
-    reserve_spdx_ids,
 )
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract.authors import dependency_author_splits
-from pitloom.id_registry import IdRegistry, IdRegistrySession
+from pitloom.id_registry import PACKAGE_TYPE, IdRegistry, IdRegistrySession
 
 
 def _deployed_name(pkg_info: dict[str, Any]) -> str:
@@ -290,7 +290,8 @@ def build_deployed(
     _clear_doc_counters(doc_uuid)
     session = IdRegistrySession(registry)
     resolved_hits = _resolve_deployed_package_hits(env_tree, session)
-    reserve_spdx_ids(metadata.name, doc_uuid, session.claimed_ids())
+    main_key = ((PACKAGE_TYPE, metadata.name),)  # minted below with no lookup
+    reserve_held_ids(metadata.name, doc_uuid, session, unlooked=main_key)
 
     spdx_ci, agents, tools = _build_creation_bundle(doc, doc_uuid)
     exporter.add_creation_info(spdx_ci)
@@ -364,4 +365,6 @@ def build_deployed(
     _build_deployed_document_envelope(
         main_package, metadata.name, doc_uuid, spdx_ci, exporter
     )
+    # Last: after every lookup and record_key of this build.
+    exporter.registry_keys.update(session.recorded_keys())
     return exporter

@@ -9,7 +9,8 @@ project root; a directory gets a Merkle root; a remote name, neither.
 
 See also: tests/core/test_loom_registry.py (registry reuse at large),
 tests/core/test_dataset_hash.py (hashing),
-tests/id_registry/test_registry_key_for_path.py (the file key).
+tests/id_registry/test_registry_key_for_path.py (the file key),
+tests/core/test_loom_dataset_path_keys.py (the package key and its gate).
 """
 
 from __future__ import annotations
@@ -83,8 +84,8 @@ def _contains(graph: Graph) -> list[tuple[str, list[str]]]:
 
 
 @pytest.mark.parametrize(
-    ("cwd", "given", "package_warns"),
-    [(".", "data/t.txt", False), ("sub", "../data/t.txt", True)],
+    ("cwd", "given"),
+    [(".", "data/t.txt"), ("sub", "../data/t.txt")],
     ids=["root", "subdir"],
 )
 def test_file_dataset_contains_its_keyed_file(
@@ -93,11 +94,11 @@ def test_file_dataset_contains_its_keyed_file(
     caplog: pytest.LogCaptureFixture,
     cwd: str,
     given: str,
-    package_warns: bool,
 ) -> None:
-    """The package is named and looked up as given; its file by the path
-    from the project root, so from any directory it keeps its registry id.
-    Package and file each carry their own ``Hash``."""
+    """The package is named as given; it and its file are looked up by the
+    path from the project root, so from any directory both keep their
+    registry ids (the package's pin records no hash). Package and file
+    each carry their own ``Hash``."""
     registry = make_registry(
         {
             (FILE_TYPE, "data/t.txt"): (f"{_NS}#File-7", _SHA),
@@ -120,15 +121,12 @@ def test_file_dataset_contains_its_keyed_file(
     (package,) = _of(graph, "dataset_DatasetPackage")
     (held,) = _of(graph, "software_File")
     assert (held["spdxId"], held["name"]) == (f"{_NS}#File-7", "data/t.txt")
-    assert package["name"] == given
-    assert (package["spdxId"] == f"{_NS}#DatasetPackage-3") is not package_warns
+    assert (package["spdxId"], package["name"]) == (f"{_NS}#DatasetPackage-3", given)
     assert [h["hashValue"] for h in package["verifiedUsing"]] == [_SHA]
     assert [h["hashValue"] for h in held["verifiedUsing"]] == [_SHA]
     assert _contains(graph) == [(package["spdxId"], [held["spdxId"]])]
     assert shared == [False]
-    assert len(_warnings(caplog)) == int(package_warns)
-    if package_warns:
-        assert "untracked entity" in _warnings(caplog)[0]
+    assert not _warnings(caplog)
 
 
 @pytest.mark.parametrize(
@@ -164,6 +162,27 @@ def test_file_miss_warning(
     (warning,) = [w for w in _warnings(caplog) if "entity" not in w]
     assert warning.startswith("loom: ")
     assert needle in warning
+
+
+def test_changed_content_says_which_element_it_is_for(
+    project: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A dataset file and its package share a name: each content-changed
+    ``WARNING:`` names its own element type, so the two lines differ."""
+    entries: Entries = {
+        (FILE_TYPE, "data/t.txt"): (f"{_NS}#File-1", "0" * 64),
+        (DATASET_PACKAGE_TYPE, "data/t.txt"): (f"{_NS}#DatasetPackage-1", "0" * 64),
+    }
+    registry = make_registry(entries, project_root=project)
+
+    with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
+        _run(project / "out.json", registry, lambda _: loom.add_dataset("data/t.txt"))
+
+    changed = [w for w in _warnings(caplog) if "no longer matches" in w]
+    assert [w.split(" exists")[0] for w in changed] == [
+        "loom: registry entry for dataset package 'data/t.txt'",
+        "loom: registry entry for file 'data/t.txt'",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -291,32 +310,6 @@ def test_file_outside_the_root_is_minted_with_one_warning(
     assert all(f["spdxId"] != f"{_NS}#File-5" for f in files)
     outside_warnings = [w for w in _warnings(caplog) if "is outside the ID" in w]
     assert len(outside_warnings) == int(with_registry)
-
-
-def test_one_file_two_spellings_is_one_file(
-    project: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    """Two spellings of one file: two packages (each named as given), one
-    ``software_File`` both contain, one registry claim."""
-    registry = make_registry(
-        {(FILE_TYPE, "data/t.txt"): (f"{_NS}#File-7", _SHA)}, project_root=project
-    )
-
-    def body(_: _ActiveRun) -> None:
-        loom.add_input_dataset("data/t.txt")
-        loom.add_dataset("./sub/../data/t.txt")
-
-    with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
-        graph = _run(project / "out.json", registry, body)
-
-    (held,) = _of(graph, "software_File")
-    assert held["spdxId"] == f"{_NS}#File-7"
-    packages = _of(graph, "dataset_DatasetPackage")
-    assert sorted(p["name"] for p in packages) == ["./sub/../data/t.txt", "data/t.txt"]
-    assert sorted(_contains(graph)) == sorted(
-        (p["spdxId"], [held["spdxId"]]) for p in packages
-    )
-    assert not [w for w in _warnings(caplog) if "registered for both" in w]
 
 
 def test_script_is_keyed_from_the_root_when_run_from_a_subdirectory(

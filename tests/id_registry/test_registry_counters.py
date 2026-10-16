@@ -61,7 +61,10 @@ def test_a_retired_id_is_not_minted_again(tmp_path: Path, saved: bool) -> None:
     registry = IdRegistry.new("x", path=path, namespace=_NS)
     registry.register(FILE_TYPE, "demo/__init__.py", sha256="1" * 64)
     retired = registry.register(FILE_TYPE, "demo/b.py", sha256="2" * 64)
-    registry.harvest(_files(("demo/b.py", f"{_DOC}#File-2"), sha256="4" * 64))
+    project = {f"{_DOC}#File-2": (FILE_TYPE, "demo/b.py")}  # its recorded key
+    registry.harvest(
+        _files(("demo/b.py", f"{_DOC}#File-2"), sha256="4" * 64), keys=project
+    )
     assert registry.id_count() == 2 and retired not in {
         e.spdx_id for e in registry.elements.values()
     }

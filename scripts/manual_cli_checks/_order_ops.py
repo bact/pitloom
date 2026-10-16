@@ -14,12 +14,17 @@ nothing),
 ``import`` (``id import`` of the SBOM or fragment most recently
 produced), ``import0`` (of the SBOM the setup produced: the same input
 in every order), ``project``, ``wheel`` (a fresh offline build, then
-``loom wheel``), ``model``, ``embed`` (a fresh build, then
+``loom wheel``), ``sdist`` (a fresh sdist, then ``loom project SDIST``),
+``model``, ``embed`` (a fresh build, then
 ``embed-wheel --project-dir``), ``train``/``eval`` (``loom.run`` scripts with
-``set_model``/``use_model(path=)``, a file and a directory dataset), and
+``set_model``/``use_model(path=)``, a file and a directory dataset; run from
+the profile's ``loom_dir``), and
 the mutating ``retrain``, ``edit-file`` (the newest added module, else
-the profile's file), ``edit-data``, ``rename-file``, ``add-file``. Not
-covered: ``enrich`` (needs a model card or the network), ``env`` (reads
+the profile's file), ``edit-data``, ``rename-file``, ``add-file``. Spelling
+steps, run only by the ``O6`` checks (a file system may not support them):
+``add-nfd`` (a module whose name is in NFD), ``model-upper`` and
+``train-upper`` (``model`` / ``train`` with the model path in upper case).
+Not covered: ``enrich`` (needs a model card or the network), ``env`` (reads
 the interpreter's environment, not the project), ``merge`` (no
 registry), the Hatchling hook with a registry (``embed`` covers the
 build-stage reader) and setuptools wheels (a build writes ``*.egg-info``
@@ -31,9 +36,11 @@ script around these lines), ``_order_invariants.py``.
 
 from __future__ import annotations
 
+import posixpath
 import shlex
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from pathlib import PurePosixPath
 
 from _order_fixtures import (
     DATASET_DIR,
@@ -44,13 +51,22 @@ from _order_fixtures import (
     model_bytes,
 )
 
-MUTATING = frozenset({"retrain", "edit-file", "edit-data", "rename-file", "add-file"})
+MUTATING = frozenset(
+    {"retrain", "edit-file", "edit-data", "rename-file", "add-file", "add-nfd"}
+)
 #: Steps that run a Pitloom command against the registry.
 READERS = frozenset(
     {"gen", "gen-ds", "gen-min", "import", "import0", "project", "wheel"}
-    | {"model", "embed", "train", "eval"}
+    | {"model", "embed", "train", "eval", "sdist", "model-upper", "train-upper"}
 )
 OPS = tuple(sorted(MUTATING | READERS))
+#: Steps only the ``O6`` spelling checks run: they need a file system that
+#: keeps an NFD name or folds case, so no walk or permutation may pick them.
+SPELLING = frozenset({"add-nfd", "model-upper", "train-upper"})
+#: The surface (the key of an output's graph) of a step that is not its own.
+SURFACE = {"model-upper": "model", "train-upper": "train"}
+#: A file name in NFD: "cafe" and a combining acute accent.
+NFD_STEM = "cafe\u0301"
 #: The `id import` steps: the only ones that may drop a recorded sha256.
 IMPORTS = frozenset({"import", "import0"})
 #: A v2 registry file (design D10: one ERROR, no migration).
@@ -63,13 +79,20 @@ INJECTIONS = ("v2", "badjson", "readonly")
 
 def applies(op: str, profile: Profile) -> bool:
     """Whether *op* can run on *profile*'s project."""
-    if op in ("wheel", "embed"):
+    if op in ("wheel", "embed", "sdist"):
         return profile.wheel
-    if op in ("model", "retrain"):
+    if op in ("model", "retrain", "model-upper"):
         return profile.model is not None
-    if op in ("train", "eval", "gen-ds", "edit-data"):
+    if op in ("train", "eval", "train-upper", "gen-ds", "edit-data"):
         return profile.loom
     return True
+
+
+def upper(path: str) -> str:
+    """*path* with its directories and stem in upper case (the extension
+    stays: a format is recognised by it)."""
+    pure = PurePosixPath(path)
+    return str(pure.parent.as_posix().upper() + "/" + pure.stem.upper() + pure.suffix)
 
 
 @dataclass(frozen=True)
@@ -136,7 +159,7 @@ class Planner:
         if op in MUTATING:
             return [self._mutate(op, tag, n)], [], None
         if op in ("gen", "gen-ds", "gen-min"):
-            target = "pyproject.toml" if op == "gen-min" else "."
+            target = self.profile.pyproject if op == "gen-min" else "."
             cmd = ["loom", "id", "generate", target, "--project-dir", "."]
             cmd += [*self._reg_flag("-o"), "--namespace", '"$NS"']
             if op == "gen-ds":
@@ -150,29 +173,57 @@ class Planner:
             cmd = ["loom", "id", "import", f'"$WORK/{source}"', *self._reg_flag("-o")]
             return [_run(tag, cmd)], [], source
         out = f"out/{tag}-{op}.json"
-        build = [f"build {tag}"] if op in ("wheel", "embed") else []
-        return [*build, _run(tag, self._surface(op, out))], [(op, out)], None
+        build = {"wheel": "build", "embed": "build", "sdist": "build_sdist"}.get(op)
+        pre = [f"{build} {tag} {self.profile.subdir or '.'}"] if build else []
+        return (
+            [*pre, _run(tag, self._surface(op, out))],
+            [(SURFACE.get(op, op), out)],
+            None,
+        )
 
     def _surface(self, op: str, out: str) -> list[str]:
         """The command of a step that writes an SBOM or fragment to *out*."""
         p = self.profile
         target = f'"$WORK/{out}"'
         common = ["-o", target, "--creation-datetime", '"$DT"']
-        loom = ['"$PY"', f"{op}.py", target, '"$REG"', str(p.model), str(p.stem)]
+        model = upper(str(p.model)) if op.endswith("-upper") else str(p.model)
+        # A monorepo's archive names its project, as `embed` always does.
+        project_dir = ["--project-dir", p.subdir] if p.subdir else []
         commands = {
-            "project": ["project", ".", *self._reg_flag("--id-registry")],
-            "wheel": ["wheel", '"$WHEEL"', "--id-registry", '"$REG"'],
-            "embed": ["embed-wheel", '"$WHEEL"', "--project-dir", "."]
+            "project": ["project", p.subdir or ".", *self._reg_flag("--id-registry")],
+            "sdist": ["project", '"$SDIST"', "--id-registry", '"$REG"', *project_dir],
+            "wheel": ["wheel", '"$WHEEL"', "--id-registry", '"$REG"', *project_dir],
+            "embed": ["embed-wheel", '"$WHEEL"', "--project-dir", p.subdir or "."]
             + ["--id-registry", '"$REG"'],
             # A local model file: --offline would only warn it has no effect.
-            "model": ["model", str(p.model), "--id-registry", '"$REG"'],
+            "model": ["model", model, "--id-registry", '"$REG"'],
         }
-        if op == "train":
-            return [*loom, DATASET_FILE, DATASET_DIR]
-        if op == "eval":
-            return [*loom, DATASET_FILE]
-        offline = [] if op == "model" else ["--offline"]
+        commands["model-upper"] = commands["model"]
+        if op in ("train", "eval", "train-upper"):
+            return self._loom_script(op.removesuffix("-upper"), target, model)
+        offline = [] if op.startswith("model") else ["--offline"]
         return ["loom", *commands[op], *common, *offline]
+
+    def _loom_script(self, op: str, target: str, model: str) -> list[str]:
+        """A `loom.run` script run from the profile's ``loom_dir``, naming
+        the model and datasets relative to it."""
+        here = self.profile.loom_dir or "."
+
+        def rel(path: str) -> str:
+            return posixpath.relpath(path, here)
+
+        cmd = [
+            '"$PY"',
+            f"{op}.py",
+            target,
+            '"$REG"',
+            rel(model),
+            str(self.profile.stem),
+        ]
+        cmd += [rel(DATASET_FILE)]
+        if op == "train":
+            cmd += [rel(DATASET_DIR)]
+        return ["in_dir", here, *cmd]
 
     def _mutate(self, op: str, tag: str, n: int) -> str:
         p = self.profile
@@ -184,8 +235,9 @@ class Planner:
             path = (self._added or [p.edit])[-1] if op == "edit-file" else DATASET_FILE
             self._overlay[path] = self.current(path) + f"# edit {n}\n".encode()
             return _run(tag, ["append", path, str(n)])
-        if op == "add-file":
-            path = f"{p.package_dir}/new_{tag}.py"
+        if op in ("add-file", "add-nfd"):
+            stem = NFD_STEM if op == "add-nfd" else "new"
+            path = f"{p.package_dir}/{stem}_{tag}.py"
             self._added.append(path)
             self._overlay[path] = f"N = {n}\n".encode()
             return _run(tag, ["add", path, str(n)])

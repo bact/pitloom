@@ -12,11 +12,20 @@ this predicate.
 
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 
 import pytest
 
-from pitloom.core.project import is_sdist_archive
+from pitloom.core._models_wheel import _build_project_file_entry
+from pitloom.core._models_wheel_types import FileScanConfig, IncludedFile
+from pitloom.core.document import DocumentModel
+from pitloom.core.project import (
+    FilesOrigin,
+    ProjectFile,
+    ProjectMetadata,
+    is_sdist_archive,
+)
 
 
 @pytest.mark.parametrize(
@@ -54,3 +63,31 @@ def test_is_sdist_archive_directory_with_archive_name_is_false(
 def test_is_sdist_archive_missing_path_is_false(tmp_path: Path) -> None:
     target = tmp_path / "demo-1.0.0.tar.gz"
     assert is_sdist_archive(target) is False
+
+
+@pytest.mark.parametrize("built", [True, False], ids=["built", "source"])
+def test_built_threads_from_included_file(tmp_path: Path, built: bool) -> None:
+    """``IncludedFile.built`` reaches the ``ProjectFile``, and survives
+    ``dataclasses.replace``."""
+    source = tmp_path / "x.py"
+    source.write_bytes(b"x = 1\n")
+    config = FileScanConfig(None, None, (), "magika")
+    entry, _ = _build_project_file_entry(
+        source,
+        IncludedFile(str(source), "pkg/x.py", built=built),
+        tmp_path,
+        need_bytes=True,
+        skip_merkle_root=False,
+        scan_config=config,
+    )
+    assert entry.built is built
+    assert dataclasses.replace(entry, copyright_text="c").built is built
+
+
+def test_defaults_built_and_files_origin() -> None:
+    """A fresh ``ProjectFile`` is not built; a fresh ``DocumentModel``
+    names no file origin."""
+    assert not ProjectFile("a", "a").built
+    assert DocumentModel(project=ProjectMetadata(name="n")).files_origin == (
+        FilesOrigin(None, False)
+    )

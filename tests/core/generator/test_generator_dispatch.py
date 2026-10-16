@@ -68,6 +68,8 @@ _SENTINELS: dict[str, Any] = {
     "content_type": True,
     "use_lockfile": False,
     "build_options": BuildOptions(timeout=4321),
+    # Archive-only (wheel, sdist).
+    "project_dir": Path("sentinel-project"),
 }
 
 

@@ -31,6 +31,7 @@ from pitloom.core.creation import CreationMetadata, resolve_source_date_epoch
 from pitloom.core.document import DocumentModel
 from pitloom.core.file_names import sbom_file_name
 from pitloom.core.models import get_wheel_files
+from pitloom.core.project import FilesOrigin
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
@@ -182,6 +183,7 @@ def _build_document_model(
         creation_metadata=creation_metadata,
         ai_models=ai_models,
         phantom_dependencies=phantom_deps,
+        files_origin=FilesOrigin(project_dir=project_dir),
     )
     return document, merkle_root, enrichment_results_by_model
 

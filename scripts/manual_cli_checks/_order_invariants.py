@@ -52,24 +52,32 @@ from _order_capture import (
     FILE,
     GATED,
     LOOM_SURFACES,
-    PACKAGE,
     PREFIX,
     Captured,
     Element,
     Entry,
     Key,
-    duplicate_ids,
     elements,
     gate_dropped,
     project_files,
     unique,
 )
-from _order_failures import injected, read_only
+from _order_failures import clean, injected, read_only
 from _order_fixtures import Profile
+from _order_ops import MUTATING
+from _order_paths import (
+    candidates,
+    dataset_pins,
+    expected_hit,
+    find,
+    model_rules,
+    spelling_rules,
+)
 
-_FORBIDDEN = ("shares spdxId", "another run saved")
-_DETERMINISTIC = frozenset({"project", "wheel", "model", "embed"})
-_HARVESTERS = frozenset({"project", "wheel"})
+from pitloom.id_registry.keys import alias_tail, is_layout_alias
+
+_DETERMINISTIC = frozenset({"project", "wheel", "model", "embed", "sdist"})
+_HARVESTERS = frozenset({"project", "wheel", "sdist"})
 
 
 @dataclass(frozen=True)
@@ -90,8 +98,9 @@ class Violation:
 
 
 def _alias(a: Key, b: Key) -> bool:
-    """I4's name condition: same type, one path a strict suffix of the other."""
-    return a[0] == b[0] and (a[1].endswith("/" + b[1]) or b[1].endswith("/" + a[1]))
+    """I4's name condition: same type, one path the other's layout alias
+    (``src/`` or ``lib/`` dropped: the package's own rule)."""
+    return a[0] == b[0] and is_layout_alias(a[1], b[1])
 
 
 class Checker:
@@ -129,6 +138,7 @@ class Checker:
             reg = cap.registry
             if reg is not None:
                 self._typed(cap, reg)
+                self._paths(cap, reg)
             before = prev.registry if prev is not None else None
             if cap.step.kind == "readonly":
                 for code, message in read_only(cap, prev):
@@ -146,28 +156,17 @@ class Checker:
 
     # D: every step runs cleanly.
     def _clean(self, cap: Captured) -> None:
-        readonly = cap.step.kind == "readonly"
-        if cap.rc != 0 and not readonly:
-            self.fail("D/exit", cap, None, f"exit {cap.rc}: {cap.stderr_lines[-3:]}")
-        if "Traceback (most recent call last)" in cap.stderr:
-            self.fail("D/traceback", cap, None, cap.stderr_lines[-1][:200])
-        tags = ("ERROR: ", "WARNING: ", "INFO: ")
-        untagged = [ln for ln in cap.stderr_lines if not ln.startswith(tags)]
-        if untagged and "Traceback" not in cap.stderr:
-            self.fail("D/untagged", cap, None, repr(untagged[:2]))
-        errors = [ln for ln in cap.stderr_lines if ln.startswith("ERROR: ")]
-        if errors and not readonly:
-            self.fail("D/error", cap, None, errors[0][:200])
-        for needle in _FORBIDDEN:
-            hits = [ln for ln in cap.stderr_lines if needle in ln]
-            if hits:
-                self.fail("D/warning", cap, None, hits[0][:200])
-        for surface, why in cap.broken.items():
-            self.fail("D/output", cap, None, f"{surface}: {why}")
-        for surface, graph in cap.graphs.items():
-            dups = duplicate_ids(graph)
-            if dups:
-                self.fail("D/dup-id", cap, None, f"{surface}: {dups[:3]}")
+        for code, message in clean(cap):
+            self.fail(code, cap, None, message)
+
+    def _paths(self, cap: Captured, reg: dict[Key, Entry]) -> None:
+        """The path-key rules (``_order_paths.py``)."""
+        found = [
+            *model_rules(self.profile, reg),
+            *spelling_rules(reg, self._disk(cap)),
+        ]
+        for code, key, message in found:
+            self.fail(code, cap, key, message)
 
     # B: typed ids, one type and one key per id.
     def _typed(self, cap: Captured, reg: dict[Key, Entry]) -> None:
@@ -186,12 +185,20 @@ class Checker:
                 sha_a, sha_b = reg[keys[0]].sha, reg[other].sha
                 if not (_alias(keys[0], other) and sha_a and sha_a == sha_b):
                     self.fail("B/multi-key", cap, other, f"{spdx_id} also {keys[0]}")
-            for key in keys:
-                owner = self._owner.setdefault(spdx_id, key)
-                if owner != key and not _alias(owner, key):
-                    self.fail(
-                        "A/reuse", cap, key, f"{spdx_id} was {owner[0]} {owner[1]}"
-                    )
+            self._reuse(cap, spdx_id, keys)
+
+    def _reuse(self, cap: Captured, spdx_id: str, keys: list[Key]) -> None:
+        """A/reuse: an id stays with the key that first held it, except a
+        promotion to its layout key or an import handing it to its name."""
+        for key in sorted(keys, key=lambda k: (len(k[1]), k)):
+            owner = self._owner.setdefault(spdx_id, key)
+            if owner == key:
+                continue
+            promoted = _alias(owner, key) and alias_tail(key[1]) == owner[1]
+            if promoted or key in self._imported(cap):  # section 2
+                self._owner[spdx_id] = key
+                continue
+            self.fail("A/reuse", cap, key, f"{spdx_id} was {owner[0]} {owner[1]}")
 
     # A: stability against the previous registry.
     def _stable(
@@ -268,6 +275,14 @@ class Checker:
         source = self._source(cap.step.imported)
         return unique(elements(source)) if source is not None else {}
 
+    def _import_surface(self, cap: Captured) -> str:
+        """The surface of the SBOM *cap*'s `id import` read."""
+        for other in self._captured:
+            for surface, path in other.step.outputs:
+                if path == cap.step.imported:
+                    return surface
+        return ""
+
     def _source(self, rel: str) -> list[dict[str, Any]] | None:
         for cap in self._captured:
             for surface, path in cap.step.outputs:
@@ -281,7 +296,7 @@ class Checker:
     def _current_sha(self, cap: Captured, key: Key, entry: Entry) -> None:
         """A re-minted gated entry records the bytes on disk now."""
         disk = self._disk(cap)
-        path = self.profile.model if key == (AI, self.profile.stem) else key[1]
+        path = key[1]
         if path in disk and entry.sha != disk[path]:
             self.fail("A/stale-sha", cap, key, f"{_short(entry.sha)} not on disk")
 
@@ -292,33 +307,62 @@ class Checker:
             self._generated(cap, reg)
             return
         if op in ("import", "import0"):
-            for key, elem in self._imported(cap).items():
-                self._agrees(cap, reg, key, elem, required=True)
+            self._import_records(cap, reg)
             return
+        disk = self._disk(cap)
         for surface, graph in cap.graphs.items():
             for key, elem in unique(elements(graph)).items():
-                if surface in _HARVESTERS and key[0] != DATASET:
-                    if key[0] != AI or elem.sha:  # D15
-                        # A dependency package may be a non-reader, never
-                        # harvested; every file is a reader.
-                        self._agrees(cap, reg, key, elem, required=key[0] == FILE)
-                if surface in LOOM_SURFACES and key[0] == AI:
-                    self._agrees(cap, reg, key, elem, required=True)  # D13
+                cands = candidates(self.profile, surface, elem, disk)
+                if cands and self._recorded(surface, key, elem):
+                    self._agrees(
+                        cap,
+                        reg,
+                        cands,
+                        elem,
+                        required=key[0] == FILE or surface in LOOM_SURFACES,
+                    )
+
+    @staticmethod
+    def _recorded(surface: str, key: Key, elem: Element) -> bool:
+        """Whether *surface* leaves *elem* in the registry (D13, D15): a
+        harvester every type but a dataset (an unhashed model apart), loom
+        its model."""
+        if surface in LOOM_SURFACES and key[0] == AI:
+            return True
+        # A dependency package may be a non-reader, never harvested.
+        harvested = surface in _HARVESTERS and key[0] != DATASET
+        return harvested and (key[0] != AI or bool(elem.sha))
+
+    def _import_records(self, cap: Captured, reg: dict[Key, Entry]) -> None:
+        disk, surface = self._disk(cap), self._import_surface(cap)
+        for elem in self._imported(cap).values():
+            cands = candidates(self.profile, surface, elem, disk)
+            self._carried(cap, reg, cands, elem)
+
+    def _carried(
+        self, cap: Captured, reg: dict[Key, Entry], cands: list[Key], elem: Element
+    ) -> None:
+        """An imported element's id is in the registry: under its own name,
+        or kept at the key that held it already (R-keep)."""
+        if elem.spdx_id not in {reg[k].spdx_id for k in cands if k in reg}:
+            self.fail("A/record", cap, cands[-1], f"{elem.spdx_id} not recorded")
 
     def _agrees(
         self,
         cap: Captured,
         reg: dict[Key, Entry],
-        key: Key,
+        cands: list[Key],
         elem: Element,
         *,
         required: bool,
     ) -> None:
-        entry = reg.get(key)
-        if entry is None:
+        key = cands[-1]
+        found = find(reg, cands, elem.sha)
+        if found is None:
             if required:
                 self.fail("A/record", cap, key, f"{elem.spdx_id} not recorded")
             return
+        entry = found[1]
         if entry.spdx_id != elem.spdx_id:
             self.fail(
                 "A/record", cap, key, f"output {elem.spdx_id}, registry {entry.spdx_id}"
@@ -332,12 +376,11 @@ class Checker:
             )
 
     def _generated(self, cap: Captured, reg: dict[Key, Entry]) -> None:
-        """Section 5: `id generate` registers every file with its sha256,
-        and (D3) the model stem with the model's sha256. A stem two model
-        files share has no one file to match: its entry is left as is (BN;
-        A checks it kept its sha256)."""
+        """Section 5: `id generate` registers every file with its sha256
+        and each model (D3) under its file's key with the same sha256 (the
+        one model rule: no stem entry)."""
         disk = self._disk(cap)
-        only = "pyproject.toml" if cap.step.op == "gen-min" else None
+        only = self.profile.pyproject if cap.step.op == "gen-min" else None
         for rel, sha in disk.items():
             if only and rel != only:
                 continue
@@ -349,34 +392,32 @@ class Checker:
                     (FILE, rel),
                     f"not registered at {_short(sha)}: {entry}",
                 )
-        stem, model = self.profile.stem, self.profile.model
-        if only or stem is None or model is None:
+        if only:
             return
-        entry = reg.get((AI, stem))
-        if entry is None:
-            self.fail("A/record", cap, (AI, stem), "model stem not registered")
-        elif not self.profile.shared_stem and entry.sha != disk.get(model):
-            self.fail(
-                "A/record",
-                cap,
-                (AI, stem),
-                f"sha {_short(entry.sha)} is not the model's {_short(disk.get(model))}",
-            )
+        for model in self.profile.model_paths:
+            entry = reg.get((AI, model))
+            if entry is None or entry.sha != disk.get(model):
+                self.fail(
+                    "A/record",
+                    cap,
+                    (AI, model),
+                    f"model not registered at {_short(disk.get(model))}: {entry}",
+                )
 
     # F (and E's observations): pinned ids survive, under their gates.
     def _pinned(self, cap: Captured, before: dict[Key, Entry]) -> None:
         disk = self._disk(cap)
         for surface, graph in cap.graphs.items():
             for key, elem in unique(elements(graph)).items():
-                content = (
-                    disk.get(str(self.profile.model)) if key[0] == AI else elem.sha
-                )
-                held = before.get(key)
-                gated = surface in LOOM_SURFACES or key[0] == FILE
-                if held and not (gated and key[0] in GATED and held.sha != content):
-                    observed = self._seen[(key, held, content)]
-                    observed[surface] = (cap.step.n, elem.spdx_id)
-                hit = self._expected(surface, elem, before, disk)
+                cands = candidates(self.profile, surface, elem, disk)
+                if not cands:
+                    continue
+                content = disk.get(cands[0][1]) if key[0] == AI else elem.sha
+                hit = expected_hit(elem, cands, before)
+                if hit is not None:
+                    # The registry's own key: an alias and its twin are one.
+                    seen = self._seen[(hit[0], hit[1], content)]
+                    seen[surface] = (cap.step.n, elem.spdx_id)
                 self.stats["F"] += hit is not None
                 if hit is not None and elem.spdx_id != hit[1].spdx_id:
                     self.fail(
@@ -386,46 +427,10 @@ class Checker:
                         f"{surface} gave {elem.spdx_id}, "
                         f"registry {hit[0][1]} holds {hit[1].spdx_id}",
                     )
-
-    def _expected(
-        self,
-        surface: str,
-        elem: Element,
-        before: dict[Key, Entry],
-        disk: dict[str, str],
-    ) -> tuple[Key, Entry] | None:
-        """The registry entry *elem*'s lookup must hit (section 7)."""
-        type_name, name = elem.key
-        if type_name in (PACKAGE, DATASET) or (type_name == FILE and not elem.sha):
-            entry = before.get(elem.key)  # ungated (a File: a directory)
-            return (elem.key, entry) if entry else None
-        if type_name == FILE:
-            # A project file: its physical path, then its distribution path;
-            # a wheel member or a loom path: its own name. Gated by sha256.
-            names = [name]
-            if surface == "project":
-                names = [p for p in disk if p.endswith("/" + name)] + names
-            for candidate in names:
-                entry = before.get((FILE, candidate))
-                if entry and entry.sha and entry.sha == elem.sha:
-                    return (FILE, candidate), entry
-            return None
-        return self._expected_model(surface, elem, before)
-
-    def _expected_model(
-        self, surface: str, elem: Element, before: dict[Key, Entry]
-    ) -> tuple[Key, Entry] | None:
-        """D16: name, then stem, ungated; loom (D13): its name, gated."""
-        name = elem.key[1]
-        loom = surface in LOOM_SURFACES
-        for candidate in [name] if loom else [name, str(self.profile.stem)]:
-            entry = before.get((AI, candidate))
-            if entry is None:
-                continue
-            if loom and (not entry.sha or entry.sha != elem.sha):
-                return None  # D12: a miss re-mints (checked by A)
-            return (AI, candidate), entry
-        return None
+            for code, pin, message in dataset_pins(
+                cap.step.op, surface, graph, before, disk
+            ):
+                self.fail(code, cap, pin, message)
 
     def _agree(self) -> None:
         """E: one id per (element key, its registry entry, content)."""
@@ -452,8 +457,7 @@ class Checker:
             prev is not None
             and prev.step.op == cap.step.op
             and prev.step.kind == cap.step.kind == "step"
-            and cap.step.op not in ("retrain", "edit-file", "edit-data", "add-file")
-            and cap.step.op != "rename-file"
+            and cap.step.op not in MUTATING
         )
         self._streak = self._streak + 1 if same else 0
         if not same or prev is None:

@@ -30,8 +30,8 @@ import pytest
 from pitloom import __main__
 from pitloom.assemble import generate_model_sbom
 from pitloom.assemble._model_generator import enrich_model
-from pitloom.assemble.spdx3._ai_package import _ai_model_entity_candidates
 from pitloom.assemble.spdx3._document_model import build_model
+from pitloom.assemble.spdx3.ai import model_lookup_key
 from pitloom.core.ai_metadata import (
     MAX_MODEL_NAME_CHARS,
     AiModelFormat,
@@ -166,7 +166,8 @@ def test_the_library_api_cuts_and_warns_once(
 
 
 def test_the_registry_looks_up_the_cut_name(tmp_path: Path) -> None:
-    """Both id paths see one name: the registry candidate is the shown name."""
+    """Both id paths see one name: a model keyed by its name (no file in
+    the document) is keyed by the shown name."""
     (tmp_path / "m.gguf").write_bytes(_gguf(tmp_path))
     # pylint: disable-next=unbalanced-tuple-unpacking
     (model,) = scan_project_for_ai_models(
@@ -176,7 +177,7 @@ def test_the_registry_looks_up_the_cut_name(tmp_path: Path) -> None:
         usage_hint=lambda: False,
     )
     assert model.name == _LONG  # the read value stays as read
-    assert _ai_model_entity_candidates(model)[0] == model.resolve_name()[0] == _CUT
+    assert model_lookup_key(model, {}, None).key == model.resolve_name()[0] == _CUT
 
 
 def test_the_names_a_model_brings_in_are_cut_too(

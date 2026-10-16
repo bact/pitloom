@@ -9,7 +9,8 @@ See also: :mod:`pitloom.assemble.spdx3._fragments_unify` for internal unificatio
 logic (property merging: :mod:`~pitloom.assemble.spdx3._fragments_props`;
 digest conflicts: :mod:`~pitloom.assemble.spdx3._fragments_hashes`; ids:
 :mod:`~pitloom.assemble.spdx3._fragments_ids`; licences:
-:mod:`~pitloom.assemble.spdx3._fragments_licenses`),
+:mod:`~pitloom.assemble.spdx3._fragments_licenses`; a base model's name:
+:mod:`~pitloom.assemble.spdx3._fragments_model_names`),
 :mod:`pitloom.assemble.spdx3._fragments_refs` for the dangling-reference check
 and :mod:`pitloom.assemble.spdx3._fragments_envelope` for ``loom merge``'s
 document envelope.
@@ -399,7 +400,9 @@ def merge_fragments(
 
     A fragment whose ``SpdxDocument`` id is the exporter's own document
     (an earlier SBOM of the same project) is skipped with a ``WARNING:``,
-    as a missing one is.
+    as a missing one is. An ``ai_AIPackage`` of the exporter's takes the
+    name the fragments unifying with it agree on, with one ``INFO:`` (see
+    :mod:`pitloom.assemble.spdx3._fragments_model_names`).
 
     Raises :class:`FragmentMergeError` if any ``required=True`` fragment
     (see :class:`~pitloom.core.config.FragmentConfig`) is missing, couldn't
@@ -443,6 +446,7 @@ def merge_fragments(
         profiles |= _declared_profiles(fragment_set)
         roots.extend(_merge_fragment_set(fragment_set, index, frag.path, events))
 
+    index.model_names.finish()
     _dedupe_relationships(exporter)
 
     if main_doc is not None:

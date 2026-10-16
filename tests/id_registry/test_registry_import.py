@@ -57,9 +57,9 @@ def test_import_sbom_records_every_element_with_its_type(tmp_path: Path) -> None
     registry = IdRegistry.new("proj")
     registry.import_sbom(sbom_path)
 
-    # No lookup gates a dataset on content: its hash is not recorded.
+    # A loom lookup gates a dataset on its digest: recorded on import.
     assert registry.get(DATASET_PACKAGE_TYPE, "data/processed/train.txt") == (
-        RegistryEntry(ids["dataset_id"])
+        RegistryEntry(ids["dataset_id"], ids["dataset_hash"])
     )
     assert registry.get(FILE_TYPE, "src/pkg/train.py") == RegistryEntry(
         ids["script_id"], ids["script_hash"]
@@ -249,7 +249,10 @@ def test_cli_import_then_model_reuses_a_hashed_ai_package_id(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """End to end, through the CLI only: an SBOM whose AIPackage carries a
-    hash is imported, then ``pitloom model`` looks the model up by stem."""
+    hash is imported, then ``pitloom model`` looks the model up by stem: its
+    file is outside the registry's root (the import's current directory),
+    so it is keyed by its name."""
+    monkeypatch.chdir(tmp_path)
     sha = _sha256(SAFETENSORS_FIXTURE.read_bytes())
     model_id = f"{_IMPORTED}#AIPackage-1"
     sbom_path = tmp_path / "model.spdx3.json"
@@ -330,3 +333,41 @@ def test_import_sbom_leaves_text_that_is_not_json_to_the_deserializer(
         IdRegistry.new("x").import_sbom(sbom)
 
     assert "@graph" not in str(excinfo.value)
+
+
+def _file_ids(sbom: Path) -> dict[str, str]:
+    graph = json.loads(sbom.read_bytes())["@graph"]
+    return {e["name"]: e["spdxId"] for e in graph if e["type"] == FILE_TYPE}
+
+
+def test_cli_import_twice_leaves_the_registry_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The fuzz repro: a run with the registry mints ``a.py`` the id a run
+    without it gives ``__init__.py``; one ``id import`` of the latter
+    writes both, so a second one changes no byte."""
+    (tmp_path / "src" / "demo").mkdir(parents=True)
+    (tmp_path / "src" / "demo" / "__init__.py").write_bytes(b"")
+    (tmp_path / "pyproject.toml").write_bytes(
+        b'[build-system]\nrequires = ["hatchling"]\nbuild-backend = "hatchling.build"\n'
+        b'[project]\nname = "demo"\nversion = "1.0.0"\n'
+        b'[tool.hatch.build.targets.wheel]\npackages = ["src/demo"]\n'
+    )
+    monkeypatch.chdir(tmp_path)
+    assert _run_cli(monkeypatch, ["id", "generate", "-o", "reg.json"]) == 0
+    (tmp_path / "src" / "demo" / "a.py").write_bytes(b"a = 1\n")
+    for argv in (["--id-registry", "reg.json", "-o", "p1.json"], ["-o", "p.json"]):
+        assert _run_cli(monkeypatch, ["project", ".", *argv]) == 0
+    imported = []
+    for _ in range(2):
+        assert _run_cli(monkeypatch, ["id", "import", "p.json", "-o", "reg.json"]) == 0
+        imported.append((tmp_path / "reg.json").read_bytes())
+
+    assert imported[0] == imported[1]
+    files, clash = (_file_ids(tmp_path / name) for name in ("p.json", "p1.json"))
+    assert clash["demo/a.py"] == files["demo/__init__.py"]  # the repro holds
+    held = IdRegistry.load(tmp_path / "reg.json")
+    for name in ("src/demo/__init__.py", "src/demo/a.py"):
+        entry = held.get(FILE_TYPE, name)
+        assert entry is not None
+        assert entry.spdx_id == files[name.removeprefix("src/")]

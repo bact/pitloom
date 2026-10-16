@@ -16,6 +16,7 @@ variants.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import tempfile
@@ -272,7 +273,10 @@ def test_enrich_model_registry_pinned_id_matches_base_doc() -> None:
 
         registry_path = tmppath / DEFAULT_ID_REGISTRY_FILENAME
         registry = IdRegistry.new("pinned-demo", path=registry_path)
-        pinned_id = registry.register("ai_AIPackage", "model")
+        # Under its path from the registry's root, with the bytes' SHA-256:
+        # a model lookup is gated by it.
+        sha = hashlib.sha256(model_path.read_bytes()).hexdigest()
+        pinned_id = registry.register("ai_AIPackage", "model.safetensors", sha256=sha)
         registry.save()
 
         full_doc = json.loads(

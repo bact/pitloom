@@ -8,12 +8,14 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import cast
 
+import pytest
+
 from pitloom.assemble.spdx3.document import build
-from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
-from pitloom.core.project import ProjectFile, ProjectMetadata
+from pitloom.core.project import FilesOrigin, ProjectFile, ProjectMetadata
 from pitloom.id_registry import FILE_TYPE
 from tests._license_graph import license_elements, license_value
 from tests.registry_helpers import make_registry
@@ -314,18 +316,19 @@ def test_build_file_no_header_data_emits_nothing_extra() -> None:
     assert not [r for r in relationships if r.get("from") == file_elem["spdxId"]]
 
 
-def test_add_package_files_falls_back_to_distribution_path_lookup() -> None:
-    """A registry entry keyed by distribution_path (the only path an
-    auto-harvested ``software_File`` element can carry -- see
-    `pitloom.id_registry.IdRegistry.harvest`) is still found, even though the
-    live-scan lookup tries physical_path first. Without this fallback, a
-    src/-layout project (physical_path != distribution_path) would never
-    match auto-harvested file entries, silently defeating cross-run id
-    stability for exactly the most common Python project layout."""
+@pytest.mark.parametrize("in_root", [True, False], ids=["in-root", "no-project"])
+def test_add_package_files_finds_held_layout_alias(
+    tmp_path: Path, in_root: bool
+) -> None:
+    """A registry entry keyed by distribution_path (a wheel's harvest) is
+    the layout alias of a src/-layout project file's key: found, by equal
+    content, when the project lies in the registry's root; with no project
+    directory the file is looked up by its physical path alone."""
     registered_id = "https://spdx.org/spdxdocs/pinned-1#File-9"
     registry = make_registry(
         {(FILE_TYPE, "pkg/mod.py"): (registered_id, "a" * 64)},
         namespace="https://spdx.org/spdxdocs/pinned-1",
+        project_root=tmp_path,
     )
     files = [
         ProjectFile(
@@ -335,13 +338,16 @@ def test_add_package_files_falls_back_to_distribution_path_lookup() -> None:
         )
     ]
     project = ProjectMetadata(name="fallback-project", version="1.0.0", files=files)
-    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+    origin = FilesOrigin(project_dir=tmp_path if in_root else None)
+    doc = DocumentModel(project=project, files_origin=origin)
 
     exporter = build(doc, registry=registry)
     graph = json.loads(exporter.to_json())["@graph"]
     file_elem = _find_file_element(graph, "pkg/mod.py")
 
-    assert file_elem["spdxId"] == registered_id
+    assert (file_elem["spdxId"] == registered_id) is in_root
+    key = exporter.registry_keys[str(file_elem["spdxId"])]
+    assert key == (FILE_TYPE, "src/pkg/mod.py")
 
 
 def test_build_file_shared_license_dedupes_to_one_element() -> None:

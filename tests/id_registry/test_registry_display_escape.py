@@ -3,12 +3,15 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""A model whose name holds a bidi control keeps the id ``loom id import``
-took from an earlier SBOM, which holds the name escaped, on every surface.
+"""A model whose name holds a bidi control keeps its id on every surface:
+``loom model``/``loom enrich`` the id ``loom id import`` took from an earlier
+SBOM, which holds the name escaped; a project scan the id its file's raw
+path key was harvested under.
 
-Each test changes the document identity between the import and the re-run
-(the project's or the model's version), so a re-minted id would differ: the
-registry hit is what keeps it.
+Each test changes the document identity between the two runs (the project's
+version, or the surface), so a re-minted id would differ: the registry hit
+is what keeps it. The model's bytes stay: its lookup is gated by their
+SHA-256.
 
 See also: test_registry_crfsuite_ids.py (``id generate`` ids) and
 :mod:`tests.assemble.test_display_text_escape` (the escape).
@@ -47,7 +50,7 @@ def _import(monkeypatch: pytest.MonkeyPatch, sbom: Path, registry: Path) -> str:
 
 
 @pytest.mark.parametrize("named_by", ["own-name", "file-stem"])
-def test_a_project_model_keeps_its_imported_id(
+def test_a_project_model_keeps_its_harvested_id(
     named_by: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     root = demo_project(tmp_path)
@@ -57,16 +60,20 @@ def test_a_project_model_keeps_its_imported_id(
     else:
         model = root / "demo" / f"evil{_RLO}txt.gguf"
         model.write_bytes(_gguf(("general.description", "x")))
-    first, registry = tmp_path / "first.json", tmp_path / "registry.json"
-    assert _run_cli(monkeypatch, ["project", str(root), "-o", str(first)]) == 0
-    registered = _import(monkeypatch, first, registry)
+    registry = tmp_path / "registry.json"
+    IdRegistry.new("demo").save(registry)
+    first, out = tmp_path / "first.json", tmp_path / "out.json"
+    argv = ["project", str(root), "--id-registry", str(registry), "-o"]
+    assert _run_cli(monkeypatch, [*argv, str(first)]) == 0
+    (registered,) = _ids(first)
+    # Held under its file's raw path from the root, never escaped.
+    key = f"proj/demo/{model.name}"
+    assert IdRegistry.load(registry).lookup(AI_PACKAGE_TYPE, [key]) == registered
 
     pyproject = root / "pyproject.toml"
     text = pyproject.read_text(encoding="utf-8")
     pyproject.write_text(text.replace('version = "1.0.0"', 'version = "2.0.0"'))
-    out = tmp_path / "out.json"
-    argv = ["project", str(root), "-o", str(out), "--id-registry", str(registry)]
-    assert _run_cli(monkeypatch, argv) == 0
+    assert _run_cli(monkeypatch, [*argv, str(out)]) == 0
     assert _ids(out, "SpdxDocument") != _ids(first, "SpdxDocument")  # non-vacuous
     assert _ids(out) == [registered]
 
@@ -75,18 +82,24 @@ def test_a_project_model_keeps_its_imported_id(
 def test_a_model_file_keeps_its_imported_id(
     command: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """``loom model`` and ``loom enrich`` look a model up by its file stem."""
-    model = tmp_path / f"evil{_RLO}txt.gguf"
+    """``loom model`` and ``loom enrich`` look a model below the registry's
+    root (the import's current directory) up by its file's key, here the id
+    a project SBOM's model (hashed) was imported with under its file's
+    name."""
+    root = demo_project(tmp_path)
+    model = root / "demo" / f"evil{_RLO}txt.gguf"
     model.write_bytes(_gguf(("general.version", "1")))
+    monkeypatch.chdir(root)  # the import's root
     first, registry = tmp_path / "first.json", tmp_path / "registry.json"
-    assert _run_cli(monkeypatch, ["model", str(model), "-o", str(first)]) == 0
+    argv = ["project", str(root), "-o", str(first)]
+    assert _run_cli(monkeypatch, argv) == 0
     registered = _import(monkeypatch, first, registry)
-    # The registry holds the name as the SBOM shows it, escaped.
-    stored = IdRegistry.load(registry).lookup(AI_PACKAGE_TYPE, ["evil\\u202etxt"])
-    assert stored == registered
+    # Held under its file's raw name, never the model's escaped one.
+    key = f"demo/evil{_RLO}txt.gguf"
+    assert IdRegistry.load(registry).lookup(AI_PACKAGE_TYPE, [key]) == registered
 
-    model.write_bytes(_gguf(("general.version", "2")))
-    (tmp_path / "README.md").write_text("---\nlicense: mit\n---\n", encoding="utf-8")
+    readme = model.parent / "README.md"
+    readme.write_text("---\nlicense: mit\n---\n", encoding="utf-8")
     out = tmp_path / "out.json"
     argv = [command, str(model), "-o", str(out), "--id-registry", str(registry)]
     assert _run_cli(monkeypatch, argv) == 0

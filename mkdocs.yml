@@ -21,6 +21,7 @@ nav:
   - Wheel SBOMs (PEP 770): wheel-sbom.md
   - SBOM fragments: fragments.md
   - Loom ID registry: id-registry.md
+  - Loom ID registry keys: id-registry-keys.md
   - Building a project (--allow-build): allow-build.md
   - AI model formats: ai-model-formats.md
   - AI model scan limits: ai-model-scan-limits.md

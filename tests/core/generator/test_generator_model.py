@@ -16,13 +16,15 @@ tests, id-consistency, and base-model lineage.
 
 from __future__ import annotations
 
+import hashlib
 import json
+from pathlib import Path
 
 from pitloom.assemble.spdx3.document import build, build_deployed
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
-from pitloom.core.project import ProjectFile, ProjectMetadata
+from pitloom.core.project import FilesOrigin, ProjectFile, ProjectMetadata
 from pitloom.id_registry import IdRegistry
 
 
@@ -139,27 +141,38 @@ def test_assembler_usage_file_hasdatafile_is_lifecycle_scoped_runtime() -> None:
     )
 
 
-def test_assembler_ai_model_reuses_registry_entity_by_physical_path() -> None:
-    """A scan-discovered AI model must reuse a registry entity's spdxId when
-    its physical path (project-root-relative, e.g. "src/pkg/model.bin") is
-    registered -- the same string a pitloom.loom fragment's
-    run.set_model(model_file_path, ...) call would have used, so the two
-    become the same element once merged instead of yielding a second,
-    duplicate ai_AIPackage."""
-    project = ProjectMetadata(name="ai-project", version="0.1.0")
+def test_assembler_ai_model_reuses_registry_entity_by_file_key(
+    tmp_path: Path,
+) -> None:
+    """A scan-discovered AI model reuses the registry id held under its
+    own file's key (its path from the registry's root, e.g.
+    "src/sentimentdemo/model.bin", as a loom ``set_model(path=...)`` keys
+    it), so the two become one element once merged."""
+    sha = hashlib.sha256(b"model").hexdigest()
+    model_file = ProjectFile(
+        "src/sentimentdemo/model.bin", "sentimentdemo/model.bin", digest_sha256=sha
+    )
+    project = ProjectMetadata(name="ai-project", version="0.1.0", files=[model_file])
     ai_model = AiModelMetadata(
         format_info=AiModelFormatInfo(
             file_name="model.bin",
+            file_path_relative="sentimentdemo/model.bin",
             physical_path="src/sentimentdemo/model.bin",
             model_format=AiModelFormat.FASTTEXT,
         ),
     )
     doc = DocumentModel(
-        project=project, creation_metadata=CreationMetadata(), ai_models=[ai_model]
+        project=project,
+        creation_metadata=CreationMetadata(),
+        ai_models=[ai_model],
+        files_origin=FilesOrigin(project_dir=tmp_path),
     )
 
-    registry = IdRegistry.new("ai-project")
-    registered_id = registry.register("ai_AIPackage", "src/sentimentdemo/model.bin")
+    registry = IdRegistry.new("ai-project", project_root=tmp_path)
+    registered_id = registry.register(
+        "ai_AIPackage", "src/sentimentdemo/model.bin", sha256=sha
+    )
+    registry.register("ai_AIPackage", "model", sha256=sha)  # a stem: never used
 
     exporter = build(doc, registry=registry)
     data = json.loads(exporter.to_json(pretty=True))
@@ -171,9 +184,9 @@ def test_assembler_ai_model_reuses_registry_entity_by_physical_path() -> None:
 
 
 def test_assembler_ai_model_reuses_registry_entity_by_file_stem() -> None:
-    """Falls back to the model file's stem (mirroring the lookup
-    generate_model_sbom performs for loom model/--id-registry) when no
-    physical_path or name match is registered."""
+    """A model whose file is not among the document's files, in a document
+    with no project directory, is keyed by its name: the file's stem when
+    it names none."""
     project = ProjectMetadata(name="ai-project", version="0.1.0")
     ai_model = AiModelMetadata(
         format_info=AiModelFormatInfo(

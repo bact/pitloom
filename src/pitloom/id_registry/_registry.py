@@ -11,24 +11,23 @@ traversal, :mod:`pitloom.id_registry._format` for the file format,
 :mod:`pitloom.id_registry._generate` for indexing a project's files,
 :mod:`pitloom.id_registry._persist` for rebasing and replaying changes,
 :mod:`pitloom.id_registry._harvest` for SBOM-element harvest helpers,
+:mod:`pitloom.id_registry._sbom_read` for reading an SBOM to import,
 :mod:`pitloom.id_registry.resolve` for registry resolution.
 """
 
 from __future__ import annotations
 
-import io
-import json
 import logging
 import os
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
 from uuid import uuid4
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.iri import doc_namespace, iri_segment, require_namespace_iri
 from pitloom.core.walk_rules import same_path
+from pitloom.id_registry._ambiguous import RecordedKeys
 from pitloom.id_registry._counters import (
     MAX_ID_NUMBER,
     RESERVE_CEILING,
@@ -42,17 +41,16 @@ from pitloom.id_registry._format import (
     write_registry_file,
 )
 from pitloom.id_registry._generate import index_files
-from pitloom.id_registry._harvest import (
-    _harvest_elements,
-    _sorted_by_spdx_id,
-)
+from pitloom.id_registry._harvest import _harvest_elements, _sorted_by_spdx_id
 from pitloom.id_registry._persist import (
     Rebase,
     added_ids,
     new_id_count,
     replay_changes,
 )
+from pitloom.id_registry._sbom_read import document_id, read_sbom_objects
 from pitloom.id_registry._types import (
+    DATASET_PACKAGE_TYPE,
     RegistryEntry,
     _element_key,
     _require_names,
@@ -61,26 +59,16 @@ from pitloom.id_registry._types import (
     type_id_prefix,
     unencodable_message,
 )
+from pitloom.id_registry.import_keys import (
+    DATASET_PIN_GATED_INFO,
+    import_keys,
+    report_imported,
+)
+from pitloom.logging_config import loggable
 
 log = logging.getLogger("pitloom.id_registry")
 
 __all__ = ["IdRegistry"]
-
-
-def _require_graph_list(raw: bytes) -> None:
-    """Raise ``ValueError`` when the JSON *raw* has an ``@graph`` that is
-    not a list, or holds a non-object (the deserializer would leak a
-    ``TypeError``). Text that is not JSON is left to the deserializer's
-    own error."""
-    try:
-        data = json.loads(raw)
-    except ValueError:
-        return
-    graph = data.get("@graph", []) if isinstance(data, dict) else []
-    if not isinstance(graph, list):
-        raise ValueError("@graph is not a list")
-    if not all(isinstance(element, dict) for element in graph):
-        raise ValueError("@graph element is not an object")
 
 
 class IdRegistry:
@@ -226,22 +214,34 @@ class IdRegistry:
         return self.elements.get(_element_key(type_name=type_name, name=name))
 
     def lookup(
-        self, type_name: str, names: Sequence[str], *, sha256: str | None = None
+        self,
+        type_name: str,
+        names: Sequence[str],
+        *,
+        sha256: str | None = None,
+        pin_without_hash: bool = False,
+        miss_hashed: bool = False,
     ) -> str | None:
         """Return the ``spdxId`` of the first of *names* registered under
         *type_name*, or ``None``.
 
-        With *sha256*, only an entry recording the same SHA-256 (any case)
-        is a hit; an entry with no hash never is. Without it, the entry's
-        hash is ignored. *names* are tried in order; the first hit wins.
-        """
+        With *sha256*, an entry recording the same SHA-256 (any case) is a
+        hit; an entry with no hash is one only with *pin_without_hash* (an
+        explicit pin, held for any content), so then only an entry
+        recording another hash misses. Without *sha256*, the entry's hash is
+        ignored (with *miss_hashed*, a hashed entry misses: no content vouches
+        for it), and so is *pin_without_hash*. The first of *names* to hit wins."""
         _require_names(names)
         wanted = sha256.lower() if sha256 is not None else None
         for name in names:
             entry = self.get(type_name, name)
             if entry is None:
                 continue
-            if wanted is None or entry.sha256 == wanted:
+            if wanted is None:
+                if miss_hashed and entry.sha256 is not None:
+                    continue
+                return entry.spdx_id
+            if entry.sha256 == wanted or (pin_without_hash and entry.sha256 is None):
                 return entry.spdx_id
         return None
 
@@ -277,18 +277,31 @@ class IdRegistry:
         )
 
     def id_count(self) -> int:
-        """Return the number of distinct spdxIds (a src-layout alias adds a
-        key, not an id)."""
+        """Return the number of distinct spdxIds."""
         return len({entry.spdx_id for entry in self.elements.values()})
 
     def root_dir(self) -> Path:
         """Return the project root, else the registry file's directory,
-        else the current directory -- realpath'd."""
+        else the current directory -- realpath'd (``OSError`` when that
+        directory was deleted)."""
         if self.project_root is not None:
             return Path(os.path.realpath(self.project_root))
         if self.path is not None:
             return registry_dir(self.path)
         return Path(os.path.realpath(os.getcwd()))
+
+    def promote_alias(self, type_name: str, old_key: str, new_key: str) -> bool:
+        """Re-key the entry of *old_key* under *type_name* as *new_key*, its
+        ``spdxId`` and SHA-256 kept (no mint, no counter); ``False`` and no
+        change when *old_key* is not held, *new_key* is, or is not UTF-8."""
+        old = _element_key(type_name=type_name, name=old_key)
+        new = _element_key(type_name=type_name, name=new_key)
+        if old not in self.elements or new in self.elements:
+            return False
+        if not is_utf8_text(new[1]):
+            return False
+        self.elements[new] = self.elements.pop(old)
+        return True
 
     def reserve_id(self, spdx_id: str) -> None:
         """Never mint *spdx_id*: when it is ``<namespace>#<prefix>-<n>`` in
@@ -340,8 +353,10 @@ class IdRegistry:
 
         No entry: mint (prefix :func:`type_id_prefix`) and store *sha256*.
         An entry and no *sha256*, or an equal one: reuse it unchanged, so an
-        ungated registration never erases a recorded hash. A *sha256* that
-        differs from the entry's, or an entry with none: log ``content
+        ungated registration never erases a recorded hash. A dataset
+        package pin with no hash given one: keep its id, record *sha256*
+        (gated from now on), one ``INFO:``. A *sha256* that differs from
+        the entry's, or (any other type) an entry with none: log ``content
         changed``, mint a new id and replace the entry.
 
         Raises:
@@ -356,6 +371,10 @@ class IdRegistry:
         existing = self.elements.get(key)
         if existing is not None:
             if given is None or existing.sha256 == given:
+                return existing.spdx_id
+            if existing.sha256 is None and type_name == DATASET_PACKAGE_TYPE:
+                log.info(DATASET_PIN_GATED_INFO, loggable(name))
+                self.elements[key] = RegistryEntry(existing.spdx_id, given)
                 return existing.spdx_id
             log.info(
                 "ID registry: content changed for %s; minting a new spdxId (old: %s).",
@@ -377,14 +396,19 @@ class IdRegistry:
         """(Re-)index files under *paths* into this registry, except the
         *exclude* file (the declared registry itself).
 
-        Each file is registered as ``(software_File, rel_path, sha256)``. A
-        file a project scan lists as an AI model also registers its stem as
-        an ``ai_AIPackage`` with the file's hash, so a retrained model (other
-        bytes) gets a new id. A stem shared by several model files is
-        registered with no hash (:meth:`register` given none): no one file
-        stands for it, and a hash gate would re-mint on every run. Its
-        existing entry is left as is, a recorded hash included, so a fresh
-        registry and one with history can differ for that stem.
+        Each file is registered as ``(software_File, path key, sha256)``
+        (:func:`~pitloom.id_registry.keys.join_key` of the project's
+        :func:`~pitloom.id_registry.keys.project_prefix` and the file's path
+        from *project_root*). A file a project scan lists as an AI model
+        also registers an ``ai_AIPackage`` under the same key and hash, so
+        a retrained model (other bytes) gets a new id. A key new or held
+        with other content whose one layout alias
+        (:func:`~pitloom.id_registry.keys.alias_tail`) is a held key of the
+        same type and hash takes over that entry, its id kept
+        (:meth:`promote_alias`). Promotion is one way, from the shorter key
+        to the longer; it is skipped when the shorter key is another walked
+        file's or names a file or directory below the root. Files whose
+        keys are equal once NFC-normalised are all left out, one ``WARNING:``.
 
         A path in *paths* that cannot be read or listed is a ``ValueError``
         naming it; with *explicit* false (default roots the caller chose,
@@ -396,32 +420,27 @@ class IdRegistry:
         """Harvest ids from an existing SPDX 3 JSON-LD SBOM into this registry.
 
         Returns the keys not imported because the SBOM holds several
-        elements under one key (see
-        :func:`~pitloom.id_registry._ambiguous._ambiguous_keys`). An empty
+        elements under one key
+        (:func:`~pitloom.id_registry._ambiguous._ambiguous_keys`). An empty
         registry adopts the SBOM's document id as its namespace when that
-        is a namespace IRI (:func:`~pitloom.core.iri.require_namespace_iri`);
-        otherwise it keeps its own, with one ``WARNING:``. The imported id
-        wins, even over a content-gated entry (``imported=True`` in
-        :func:`~pitloom.id_registry._harvest._import_sbom_element`).
+        is a namespace IRI, else keeps its own, one ``WARNING:``. The
+        imported id wins, even over a content-gated entry. A file, a
+        dataset package and a model are written under the key a run looks
+        them up by (:func:`~pitloom.id_registry.import_keys.import_keys`,
+        whose ``INFO:`` lines are logged for the elements written), any
+        other element under its name; none moves an id another key of its
+        type holds.
         """
-        object_set = spdx3.SHACLObjectSet()
-        with open(sbom_path, "rb") as f:
-            raw = f.read()
-        _require_graph_list(raw)
-        spdx3.JSONLDDeserializer().read(io.BytesIO(raw), object_set)
-
-        sorted_objects = _sorted_by_spdx_id(object_set)
+        sorted_objects = read_sbom_objects(sbom_path)
         self._reserve_held()
-
         if not self.elements:
-            document = next(
-                (o for o in sorted_objects if isinstance(o, spdx3.SpdxDocument)),
-                None,
-            )
-            if document is not None and document.spdxId:
-                self._adopt_namespace(str(document.spdxId))
-
-        return _harvest_elements(self, sorted_objects, imported=True)
+            namespace = document_id(sorted_objects)
+            if namespace is not None:
+                self._adopt_namespace(namespace)
+        plan = import_keys(self, sorted_objects)
+        skipped = _harvest_elements(self, sorted_objects, imported=True, keys=plan.keys)
+        report_imported(self, plan)
+        return skipped
 
     def _adopt_namespace(self, namespace: str) -> None:
         """Take *namespace* as this registry's, if it can be one."""
@@ -435,29 +454,26 @@ class IdRegistry:
                 self.namespace,
             )
 
-    def harvest(self, object_set: spdx3.SHACLObjectSet) -> tuple[int, bool]:
-        """Harvest every named element in *object_set* into this registry.
-
-        Used both by :meth:`import_sbom` and by SBOM generation itself,
-        directly on a :class:`~pitloom.export.spdx3_json.Spdx3JsonExporter`'s
-        in-memory object set.
+    def harvest(
+        self,
+        object_set: spdx3.SHACLObjectSet,
+        keys: RecordedKeys | None = None,
+    ) -> tuple[int, bool]:
+        """A run's auto-harvest: every named element in *object_set*, each
+        under the key *keys* (spdxId -> (compact type, key), what the run's
+        lookups recorded) holds for it when of its type, else its type and
+        name (see :func:`~pitloom.id_registry._harvest._harvest_elements`).
 
         Returns ``(new_ids, changed)``: *new_ids* counts the distinct
-        spdxIds the registry did not hold before, under keys it did not hold
-        either (an id replacing a key's entry is an update, not an
-        addition); *changed* says whether anything changed at all, an id
-        counter included, and is what a caller gates a ``save()`` on --
-        releasing a stale key while another claims its id changes the
-        content without adding an id.
+        spdxIds new to the registry under keys new to it too (a replaced or
+        moved id is an update); *changed* says whether anything changed, an
+        id counter included: what a caller gates a ``save()`` on.
         """
-        return self._harvest_sorted(_sorted_by_spdx_id(object_set))
-
-    def _harvest_sorted(self, sorted_objects: list[Any]) -> tuple[int, bool]:
-        """Harvest *sorted_objects* (see
-        :func:`~pitloom.id_registry._harvest._sorted_by_spdx_id`)."""
         self._reserve_held()
         before, counters = dict(self.elements), dict(self.id_counters)
-        _harvest_elements(self, sorted_objects, imported=False)
+        _harvest_elements(
+            self, _sorted_by_spdx_id(object_set), imported=False, keys=keys
+        )
         changed = self.elements != before or self.id_counters != counters
         return added_ids(before, self.elements), changed
 

@@ -266,7 +266,7 @@ def test_generate_records_the_model_hash_and_a_rerun_is_identical(
     assert _generate(monkeypatch, project, registry) == 0
     first = registry.read_bytes()
 
-    entry = _json(registry)["elements"][AI_PACKAGE_TYPE]["tiny"]
+    entry = _json(registry)["elements"][AI_PACKAGE_TYPE]["models/tiny.gguf"]
     assert entry["sha256"] == _sha256(_GGUF)
     assert _generate(monkeypatch, project, registry) == 0
     assert registry.read_bytes() == first
@@ -277,20 +277,24 @@ def test_entity_pin_then_generate_mints_one_new_model_id_once(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """`-e NAME` pins a name-only entry; the first `generate` that hashes
-    the file replaces it (D12), and the next one leaves it be."""
+    """`-e KEY` of a model file not there yet pins a hash-less entry under
+    its key; the first `generate` that hashes the file replaces it (D12),
+    and the next one leaves it be."""
     caplog.set_level(logging.INFO, logger="pitloom.id_registry")
     project = _project(tmp_path)
     registry = tmp_path / "reg.json"
-    assert _generate(monkeypatch, project, registry, "-e", "tiny", paths=("src",)) == 0
-    pinned = _json(registry)["elements"][AI_PACKAGE_TYPE]["tiny"]
+    key = "models/tiny.gguf"
+    (project / key).unlink()
+    assert _generate(monkeypatch, project, registry, "-e", key, paths=("src",)) == 0
+    pinned = _json(registry)["elements"][AI_PACKAGE_TYPE][key]
     assert "sha256" not in pinned  # name only: non-vacuous
+    (project / key).write_bytes(_GGUF)
 
     caplog.clear()
     assert _generate(monkeypatch, project, registry) == 0
-    changed = [m for m in caplog.messages if "content changed for tiny;" in m]
+    changed = [m for m in caplog.messages if f"content changed for {key};" in m]
     assert len(changed) == 1
-    hashed = _json(registry)["elements"][AI_PACKAGE_TYPE]["tiny"]
+    hashed = _json(registry)["elements"][AI_PACKAGE_TYPE][key]
     assert hashed["sha256"] == _sha256(_GGUF)
     assert hashed["spdxId"] != pinned["spdxId"]
 

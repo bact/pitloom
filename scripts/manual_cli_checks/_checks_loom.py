@@ -223,7 +223,7 @@ def check_loom_model_ids(ctx: Context) -> None:
     expect(registry.read_bytes() == recorded, "a crashed run wrote the registry")
 
     retrained, lines = _model_run(root, ctx.work / "retrain.json", "train")
-    changed = [line for line in lines if "content changed for m;" in line]
+    changed = [line for line in lines if "content changed for model.bin;" in line]
     expect(retrained != trained, f"a retrained model kept id {trained}")
     expect(
         len(changed) == 1 and len(lines) == 2 and lines[0].startswith("INFO: "),

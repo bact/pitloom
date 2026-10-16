@@ -16,6 +16,7 @@ surface looks up), tests/id_registry/surfaces_shared.py (the runners).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 from collections.abc import Callable
@@ -27,7 +28,13 @@ import pytest
 
 from pitloom.assemble import enrich_model, generate_project_sbom, generate_wheel_sbom
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.id_registry import FILE_TYPE, PACKAGE_TYPE, IdRegistry, type_id_prefix
+from pitloom.id_registry import (
+    AI_PACKAGE_TYPE,
+    FILE_TYPE,
+    PACKAGE_TYPE,
+    IdRegistry,
+    type_id_prefix,
+)
 from tests.cli.shared import SAFETENSORS_FIXTURE
 from tests.id_registry.surfaces_base import (
     _run_cli,
@@ -175,6 +182,11 @@ def _enrich(
     model_dir.mkdir()
     model = model_dir / SAFETENSORS_FIXTURE.name
     shutil.copyfile(SAFETENSORS_FIXTURE, model)
+    # Its key: its path from the registry's root (tmp_path), hashed.
+    held = IdRegistry.load(registry)
+    sha = hashlib.sha256(model.read_bytes()).hexdigest()
+    held.register(AI_PACKAGE_TYPE, f"hub/{model.name}", sha256=sha)
+    held.save()
     (model_dir / "README.md").write_text(
         "---\nlicense: mit\ndatasets:\n  - squad\n---\n# M\n", encoding="utf-8"
     )

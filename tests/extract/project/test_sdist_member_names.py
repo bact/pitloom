@@ -156,9 +156,10 @@ def test_trailing_backslash_is_a_directory_in_zip_and_tar(
     ]
 
 
-def test_sdist_physical_path_is_raw_name(tmp_path: Path) -> None:
-    """``physical_path`` keeps the raw archive name (a registry key from
-    before normalisation); ``distribution_path`` is the install location."""
+def test_sdist_physical_path_is_project_relative(tmp_path: Path) -> None:
+    """``physical_path`` is the normalised name without the top directory;
+    ``distribution_path`` keeps it."""
     contents = read_sdist(_zip_sdist(tmp_path), read_config=False)
-    raw = {f.distribution_path: f.physical_path for f in contents.files}
-    assert raw[f"{SDIST_ROOT}/demo/mod.py"] == f"{SDIST_ROOT}\\demo\\mod.py"
+    paths = {f.distribution_path: f.physical_path for f in contents.files}
+    assert paths[f"{SDIST_ROOT}/demo/mod.py"] == "demo/mod.py"
+    assert paths[f"{SDIST_ROOT}/PKG-INFO"] == "PKG-INFO"

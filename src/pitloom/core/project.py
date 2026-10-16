@@ -12,7 +12,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, TypedDict
+from typing import Any, ClassVar, NamedTuple, TypedDict
 
 log = logging.getLogger(__name__)
 
@@ -58,9 +58,12 @@ class ProjectFile:
             ``distribution_path``/``file_path_relative``, since
             ``pathlib``'s own join semantics silently discard the
             left-hand side when the right-hand operand is absolute. For a
-            member read from a wheel or sdist archive it is the raw
-            archive name (never a filesystem path), kept as a registry
-            lookup key; ``distribution_path`` is its normalised name.
+            wheel member it is the raw archive name (never a filesystem
+            path); for an sdist member, its name without the sdist's top
+            directory (a member outside it: the raw name).
+            ``distribution_path`` is the normalised member name. The
+            registry key comes from one or the other per
+            :func:`~pitloom.id_registry.keys.file_lookup_key`.
         distribution_path: Canonical path of the file inside the wheel/package.
         digest_sha256: Hex-encoded SHA-256 digest of the file contents.
             ``None`` when discovered via
@@ -89,6 +92,9 @@ class ProjectFile:
         content_type_method: ``"magika"``, ``"extension_guess"``, or
             ``"config_override"`` -- which tool (or config match)
             resolved ``content_type``.
+        built: Extracted from a just-built wheel (``--allow-build``), so
+            ``physical_path`` is an absolute temp path and there is no
+            project path.
     """
 
     physical_path: str
@@ -101,6 +107,18 @@ class ProjectFile:
     spdx_license_identifier: str | None = None
     content_type: str | None = None
     content_type_method: str | None = None
+    built: bool = False
+
+
+class FilesOrigin(NamedTuple):
+    """How a document's file list was produced: scanned under
+    *project_dir*, or read from an *archive* (a wheel; with *sdist*, an
+    sdist); the defaults name neither (see
+    :func:`~pitloom.id_registry.keys.file_lookup_key`)."""
+
+    project_dir: Path | None = None
+    archive: bool = False
+    sdist: bool = False
 
 
 def project_relative_or_fallback(physical_path: str, fallback: str) -> str:

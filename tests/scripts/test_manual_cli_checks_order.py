@@ -15,7 +15,6 @@ import hashlib
 import json
 import sys
 from collections.abc import Callable
-from dataclasses import replace
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -82,6 +81,7 @@ class _Seq:
         self.kinds = ["setup", "step", "step", "step"]
         self.ops = ["project"] * 4
         self.imported: list[str | None] = [None] * 4
+        self.models: tuple[str, ...] = ()
 
     def check(self) -> set[str]:
         capture_mod, ops = self.mods["_order_capture"], self.mods["_order_ops"]
@@ -110,7 +110,14 @@ class _Seq:
                 )
             )
         profile = self.mods["_order_fixtures"].Profile(
-            "t", None, None, "pkg/a.py", ("x", "y"), "pkg", wheel=False
+            "t",
+            None,
+            None,
+            "pkg/a.py",
+            ("x", "y"),
+            "pkg",
+            wheel=False,
+            models=self.models,
         )
         found, _ = self.mods["_order_invariants"].check_sequence(
             profile, self.fixture, captured
@@ -154,6 +161,59 @@ def _reuse(s: _Seq) -> None:
     s.regs[1:] = [
         _reg({**_CLEAN, _PKG: ("Package-2", None), other: ("Package-1", None)})
     ] * 3
+
+
+def _layout_demoted(s: _Seq) -> None:
+    """The id moves from the src key to the shorter one (not a promotion)."""
+    src = ("software_File", "src/pkg/a.py")
+    s.regs[0] = _reg({**_CLEAN, src: ("File-1", SHA_A)} | {_FILE: ("File-2", SHA_A)})
+    s.regs[1:] = [_reg(_CLEAN)] * 3
+
+
+def _not_a_layout_alias(s: _Seq) -> None:
+    """A longer path ending in the same name is no layout alias."""
+    other = ("software_File", "other/pkg/a.py")
+    s.regs = [_reg({**_CLEAN, other: ("File-1", SHA_A)})] * 4
+
+
+def _stem_key(s: _Seq) -> None:
+    s.models = ("pkg/m.bin",)
+    s.regs = [_reg({**_CLEAN, ("ai_AIPackage", "m"): ("AIPackage-1", None)})] * 4
+
+
+def _one_id_for_two_models(s: _Seq) -> None:
+    s.models = ("pkg/a.bin", "pkg/b.bin")
+    one = ("AIPackage-1", None)
+    s.regs = [
+        _reg(
+            {
+                **_CLEAN,
+                ("ai_AIPackage", "pkg/a.bin"): one,
+                ("ai_AIPackage", "pkg/b.bin"): one,
+            }
+        )
+    ] * 4
+
+
+def _nfd_key(s: _Seq) -> None:
+    s.regs = [
+        _reg({**_CLEAN, ("software_File", "pkg/cafe\u0301.py"): ("File-2", None)})
+    ] * 4
+
+
+def _wrong_case_key(s: _Seq) -> None:
+    s.regs = [_reg({**_CLEAN, ("software_File", "pkg/A.py"): ("File-2", None)})] * 4
+
+
+def _dotdot_key(s: _Seq) -> None:
+    s.regs = [_reg({**_CLEAN, ("software_File", "../a.py"): ("File-2", None)})] * 4
+
+
+def _dataset_unpinned(s: _Seq) -> None:
+    """A loom step whose SBOM lacks the dataset `id generate` pinned."""
+    pinned = ("dataset_DatasetPackage", "data/t.txt")
+    s.regs = [_reg({**_CLEAN, pinned: ("DatasetPackage-1", None)})] * 4
+    s.surfaces[1] = "train"
 
 
 def _registry_bytes(s: _Seq) -> None:
@@ -264,6 +324,14 @@ def _readonly_extra_error(s: _Seq) -> None:
         (_prefix, "B/prefix"),
         (_cross_type, "B/cross-type"),
         (_multi_key, "B/multi-key"),
+        (_not_a_layout_alias, "B/multi-key"),
+        (_layout_demoted, "A/reuse"),
+        (_stem_key, "M/stem-key"),
+        (_one_id_for_two_models, "M/distinct-ids"),
+        (_nfd_key, "N/nfc"),
+        (_wrong_case_key, "N/case"),
+        (_dotdot_key, "S/dotdot"),
+        (_dataset_unpinned, "S/dataset-pin"),
         (_registry_bytes, "C/registry"),
         (_output_bytes, "C/output"),
         (_exit, "D/exit"),
@@ -339,48 +407,23 @@ def test_convergence_classes(mcc: dict[str, ModuleType]) -> None:
 def test_allow_list_names_its_item_only_for_its_case(
     mcc: dict[str, ModuleType],
 ) -> None:
+    """Only a per-document entity's A/B finding is known: a src-layout file
+    pair, once allow-listed, is a finding again."""
     violation = mcc["_order_invariants"].Violation
     known = mcc["_order_known"].known_item
     assert known(violation("A/churn", 2, "project", "Tool Pitloom", ""), "flat")
-    assert (
-        known(violation("A/churn", 2, "project", "software_Package demo", ""), "flat")
-        is None
-    )
-    entry = mcc["_order_capture"].Entry
-    pair = {
-        ("software_File", "src/pkg/x.py"): entry(NS + "File-1", SHA_A),
-        ("software_File", "pkg/x.py"): entry(NS + "File-2", SHA_A),
-    }
-    alias = violation("F/pinned", 2, "wheel", "software_File pkg/x.py", "")
-    assert known(alias, "src", pair)
-    for code in ("A/churn", "E/disagree", "G/ids-not-a-type-preserving-bijection"):
-        assert known(replace(alias, code=code), "src", pair)
-    src_key = replace(alias, key="software_File src/pkg/x.py")
-    assert known(replace(src_key, code="G/key-sets-differ"), "src", pair)
-    other_sha = {**pair, ("software_File", "pkg/x.py"): entry(NS + "File-2", "c" * 64)}
-    not_known = [
-        (alias, "flat", pair),
-        (alias, "src", None),
-        (alias, "src", other_sha),
-        (alias, "src", {("software_File", "pkg/x.py"): pair[alias_key(alias)]}),
-        (src_key, "src", pair),
-        (replace(alias, key="software_File pkg/y.py"), "src", pair),
-        (replace(alias, key="software_Package pkg/x.py"), "src", pair),
-        *(
-            (replace(alias, code=code), "src", pair)
-            for code in (
-                "G/sha256-values-differ",
-                "A/sha-erased",
-                "A/record",
-                "B/multi-key",
-                "D/error",
-            )
-        ),
-    ]
-    for case, profile, registry in not_known:
-        assert known(case, profile, registry) is None, (case, profile)
+    for key in ("software_Package demo", "software_File pkg/x.py"):
+        for code in ("A/churn", "F/pinned", "E/disagree", "G/key-sets-differ"):
+            assert known(violation(code, 2, "wheel", key, ""), "src") is None
 
 
-def alias_key(violation: Any) -> tuple[str, str]:
-    type_name, _, name = violation.key.partition(" ")
-    return type_name, name
+def test_a_promoted_layout_key_is_not_a_reuse(
+    mcc: dict[str, ModuleType], tmp_path: Path
+) -> None:
+    """A/reuse allows only the shorter key becoming the src one."""
+    (tmp_path / "proj" / "pkg").mkdir(parents=True)
+    (tmp_path / "proj" / "pkg" / "a.py").write_bytes(b"a")
+    promoted = _Seq(mcc, tmp_path / "proj")
+    src = ("software_File", "src/pkg/a.py")
+    promoted.regs[1:] = [_reg({_PKG: _CLEAN[_PKG], src: ("File-1", SHA_A)})] * 3
+    assert "A/reuse" not in promoted.check()
