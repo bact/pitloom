@@ -88,6 +88,20 @@ def _file(physical: str, dist: str, *, built: bool = False) -> ProjectFile:
             None,
             ("demo-1.0/x/y.py", "none"),
         ),
+        # An sdist's --project-dir below the registry root: joined to its
+        # prefix, as a wheel member is.
+        (
+            _file("src/demo/x.py", "demo-1.0/src/demo/x.py"),
+            _SDIST,
+            "pkgs/demo",
+            ("pkgs/demo/src/demo/x.py", "canonical", "pkgs/demo"),
+        ),
+        (
+            _file("demo-1.0/x/y.py", "demo-1.0/x/y.py"),
+            _SDIST,
+            "pkgs/demo",
+            ("pkgs/demo/demo-1.0/x/y.py", "none", "pkgs/demo"),
+        ),
         (
             _file(f"{_TEMP}/demo/x.py", "demo/x.py", built=True),
             _PROJECT,
@@ -158,6 +172,8 @@ def _file(physical: str, dist: str, *, built: bool = False) -> ProjectFile:
         "wheel-no-join",
         "sdist",
         "sdist-uncut",
+        "sdist-prefix",
+        "sdist-uncut-prefix",
         "built",
         "built-prefix",
         "built-outside-root",
@@ -200,9 +216,10 @@ def test_project_keys_without_join_have_no_alias(
     assert file_lookup_key(pf, _PROJECT, prefix) == LookupKey(key)
 
 
-def test_sdist_member_that_does_not_join_keeps_its_name() -> None:
-    pf = _file("../x.py", "x.py")
-    assert file_lookup_key(pf, _SDIST, None) == LookupKey("../x.py")
+@pytest.mark.parametrize("prefix", [None, "pkgs/demo"])
+def test_sdist_member_that_does_not_join_keeps_its_name(prefix: str | None) -> None:
+    pf = _file("../../../x.py", "x.py")
+    assert file_lookup_key(pf, _SDIST, prefix) == LookupKey("../../../x.py")
 
 
 def test_default_origin_is_a_project_file() -> None:

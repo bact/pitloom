@@ -42,6 +42,7 @@ pytestmark = pytest.mark.usefixtures("fixed_epoch")
 
 _PROJECT = FilesOrigin()
 _SDIST = FilesOrigin(archive=True, sdist=True)
+_WHEEL = FilesOrigin(archive=True)
 
 _HARVESTING = [name for name, surface in SURFACES.items() if surface.harvests]
 
@@ -113,9 +114,23 @@ def test_two_surfaces_share_ids(
     assert sorted(held_files(registry).values()) == sorted(ids.values())
 
 
-@pytest.mark.parametrize(
-    "surface", ["cli-project", "lib-project", "hook", "allow-build"]
-)
+#: Every surface that names the project directory (embed-wheel's is in
+#: test_surfaces_path_keys_embed.py, with its model).
+_MONOREPO = [
+    "cli-project",
+    "lib-project",
+    "hook",
+    "allow-build",
+    "cli-sdist-project",
+    "lib-sdist-project",
+    "cli-generate-sdist-project",
+    "cli-wheel-project",
+    "lib-wheel-project",
+    "lib-generate-wheel-project",
+]
+
+
+@pytest.mark.parametrize("surface", _MONOREPO)
 def test_monorepo_project_reuses_prefixed_ids(
     surface: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -144,8 +159,25 @@ def test_monorepo_project_reuses_prefixed_ids(
         (".", "<tmp>/shared/x.py", _PROJECT, None),
         ("proj", "src/demo/x.py", _PROJECT, None),
         ("proj", "../x.py", _SDIST, "leads outside the archive's project"),
+        # An archive's --project-dir outside the root: every member.
+        ("elsewhere", "src/demo/x.py", _SDIST, "the project is outside the"),
+        ("elsewhere", "demo/x.py", _WHEEL, "the project is outside the"),
+        ("proj", "demo/x.py", _WHEEL, None),
+        # A project outside the root, its files absolute below it: path keys.
+        ("root", "<tmp>/root/x.py", _PROJECT, None),
     ],
-    ids=["outside-root", "no-join", "absolute-out", "absolute-in", "in-root", "sdist"],
+    ids=[
+        "outside-root",
+        "no-join",
+        "absolute-out",
+        "absolute-in",
+        "in-root",
+        "sdist",
+        "sdist-outside-root",
+        "wheel-outside-root",
+        "wheel-in-root",
+        "project-outside-files-in",
+    ],
 )
 def test_fallback_keys_info_once_per_document(
     registry_dir: str,

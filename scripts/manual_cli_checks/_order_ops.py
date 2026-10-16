@@ -79,8 +79,6 @@ INJECTIONS = ("v2", "badjson", "readonly")
 
 def applies(op: str, profile: Profile) -> bool:
     """Whether *op* can run on *profile*'s project."""
-    if op in dict(profile.unsupported):
-        return False
     if op in ("wheel", "embed", "sdist"):
         return profile.wheel
     if op in ("model", "retrain", "model-upper"):
@@ -189,10 +187,12 @@ class Planner:
         target = f'"$WORK/{out}"'
         common = ["-o", target, "--creation-datetime", '"$DT"']
         model = upper(str(p.model)) if op.endswith("-upper") else str(p.model)
+        # A monorepo's archive names its project, as `embed` always does.
+        project_dir = ["--project-dir", p.subdir] if p.subdir else []
         commands = {
             "project": ["project", p.subdir or ".", *self._reg_flag("--id-registry")],
-            "sdist": ["project", '"$SDIST"', "--id-registry", '"$REG"'],
-            "wheel": ["wheel", '"$WHEEL"', "--id-registry", '"$REG"'],
+            "sdist": ["project", '"$SDIST"', "--id-registry", '"$REG"', *project_dir],
+            "wheel": ["wheel", '"$WHEEL"', "--id-registry", '"$REG"', *project_dir],
             "embed": ["embed-wheel", '"$WHEEL"', "--project-dir", p.subdir or "."]
             + ["--id-registry", '"$REG"'],
             # A local model file: --offline would only warn it has no effect.

@@ -18,14 +18,13 @@ test_surfaces_path_keys.py (the other surfaces), test_keys_files.py
 from __future__ import annotations
 
 import hashlib
-import json
 import zipfile
 from pathlib import Path
 
 import pytest
 
 from pitloom.embed import embed_wheel_sbom
-from pitloom.id_registry import AI_PACKAGE_TYPE, FILE_TYPE, IdRegistry
+from pitloom.id_registry import FILE_TYPE, IdRegistry
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.id_registry._surfaces_path_keys_shared import (
     FILES,
@@ -34,6 +33,8 @@ from tests.id_registry._surfaces_path_keys_shared import (
     SURFACES,
     file_ids,
     held_files,
+    held_models,
+    model_ids,
     src_project,
 )
 
@@ -42,22 +43,6 @@ pytestmark = pytest.mark.usefixtures("fixed_epoch")
 #: A wheel's ``.data`` member: no layout alias, keyed below the prefix too.
 _DATA = "demo-1.0.0.data/scripts/run"
 _DATA_BYTES = b"#!run\n"
-
-
-def _models(sbom: str) -> list[str]:
-    return [
-        node["spdxId"]
-        for node in json.loads(sbom)["@graph"]
-        if node["type"] == "ai_AIPackage"
-    ]
-
-
-def _held_models(registry: Path) -> dict[str, str]:
-    return {
-        name: entry.spdx_id
-        for (type_name, name), entry in IdRegistry.load(registry).elements.items()
-        if type_name == AI_PACKAGE_TYPE
-    }
 
 
 def _generated(
@@ -92,7 +77,7 @@ def test_embed_wheel_project_reuses_the_generated_ids(
     under = f"{prefix}/" if prefix else ""
     held = held_files(registry)
     assert set(held) == {f"{under}{top}{name}" for name in FILES}  # non-vacuous
-    held_model = _held_models(registry)
+    held_model = held_models(registry)
     assert list(held_model) == [f"{under}{top}{MODEL}"]
 
     scratch = tmp_path / "scratch"
@@ -101,9 +86,9 @@ def test_embed_wheel_project_reuses_the_generated_ids(
 
     ids = file_ids(sbom)
     assert {f"{under}{top}{name}": ids[name] for name in FILES} == held
-    assert _models(sbom) == list(held_model.values())
+    assert model_ids(sbom) == list(held_model.values())
     assert held_files(registry) == held
-    assert _held_models(registry) == held_model  # lookup only: nothing written
+    assert held_models(registry) == held_model  # lookup only: nothing written
 
 
 @pytest.mark.parametrize("held_at", ["pkgs/demo/", ""], ids=["prefixed", "bare"])

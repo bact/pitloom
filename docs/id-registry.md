@@ -166,9 +166,8 @@ Exceptions:
 - A `src/`- or `lib/`-layout project's files are found by `wheel` and sdist
   targets through a [layout alias](id-registry-keys.md#layout-alias); other
   layouts get their own ids from a wheel-only run. With the registry's root
-  above the project, plain `wheel`, `project <sdist>` (it has no
-  `--project-dir`) and `embed-wheel` without `--project-dir` miss it: see
-  [Monorepo](id-registry-keys.md#monorepo).
+  above the project, `wheel`, `project <sdist>` and `embed-wheel` need
+  `--project-dir` to find it: see [Monorepo](id-registry-keys.md#monorepo).
 - A `loom.Run` dataset package whose path exists below the registry's root is
   keyed by that path, whatever way the script spells it (`../data/t.txt` from a
   subdirectory is `data/t.txt`); a remote, missing or outside-the-root dataset
@@ -194,8 +193,8 @@ Exceptions:
   a directory and the file left; of several such members only the longest is
   left out, and a file with a shorter tail (`reg.json`, `data/reg.json`) is
   kept. An sdist member must match the whole path below `name-version/`. The
-  path is taken below `--project-dir`; without one (`wheel`, standalone
-  `embed-wheel`, `project <sdist>`) below the nearest directory that holds
+  path is taken below `--project-dir`; without one (`wheel`, `embed-wheel`,
+  `project <sdist>`) below the nearest directory that holds
   the registry and a `pyproject.toml`, `setup.cfg` or `setup.py`, no higher
   than the project root the registry stores, else below that root. Keep the
   registry outside the package directory (the project root is fine).

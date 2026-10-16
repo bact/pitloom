@@ -17,13 +17,6 @@ was built; K-numbers and P-numbers refer to it and to
 
 Left open by the path-key PR (2026-10-16). Working notes, not a promise.
 
-- **`wheel --project-dir` (P5b).** Plain `wheel`, `project <sdist>` and
-  `embed-wheel` without `--project-dir` key by the archive's own paths, so
-  with the registry root above the project they miss. Symptom, documented as a
-  known limit: no `INFO:`, and a harvest writes root-level keys (`demo/x.py`
-  beside `pkgs/demo/src/demo/x.py`). Neither `wheel` nor `project` (an sdist
-  target) has a `--project-dir` option: a new one needs a `_matrix_plan.py`
-  entry and skills text.
 - **Layouts other than `src/` and `lib/`** (`python/`, `packages/`) get no
   alias: a wheel-only run mints its own ids for them. Add a `[tool.pitloom]`
   list only if a user needs it (`keys.LAYOUT_ROOTS`).
@@ -41,10 +34,6 @@ Left open by the path-key PR (2026-10-16). Working notes, not a promise.
   (pre-existing; measured 22 s for 2,000 files).
 - **`id import` of a seed whose minted id equals a held id** moves the id
   silently (pre-existing).
-- **Merge name conflict.** When a loom `name=` differs from the project
-  model's file or own name, the merge keeps the base element's name and logs
-  `Merge: conflicting 'name' on ai_AIPackage` every run. Policy decision
-  pending: which name wins.
 - **`id generate -e`** hashes a dataset with the default ceiling, not
   `max-dataset-hash-bytes`.
 - **NFD to NFC `INFO:`** prints two look-alike strings; show escapes.
@@ -90,11 +79,5 @@ Found in the last review rounds (2026-10-16), open:
   registry-backed one and a lookup-only embed of the same content share one
   namespace but assign different numbers; importing several re-keys an id over
   history (low; no duplicate inside one SBOM).
-- **`loom model --enrich` mints a model-card dataset id the registry holds.**
-  `build_model` reserves no held ids (it gets `entity_spdx_id`, not the
-  registry), so with the registry on the model document's namespace a
-  `-e data/t.txt:dataset_DatasetPackage` pin and a README `datasets: [imdb]`
-  both get `DatasetPackage-1`; the merge then warns on a name conflict.
-  `project`, `wheel`, the hook and `embed-wheel` reserve them (R5 finding 3).
 - **A model-card dataset named like a pinned loom dataset path** shares that
   id; the merge folds the two without a name conflict (low).

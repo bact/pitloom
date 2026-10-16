@@ -57,6 +57,11 @@ _SAME_NAME_OPTIONS = (
     "use_lockfile",
 )
 
+#: The dest of the ``--project-dir`` that names an archive's project
+#: directory (``wheel``, ``project``, ``generate``): its library parameter
+#: is ``project_dir``, a dest ``project``'s positional target already holds.
+ARCHIVE_PROJECT_DIR_DEST = "archive_project_dir"
+
 #: The creator/creation flags' dests: any one given means "creation
 #: metadata was given" for the inert-option check.
 _CREATION_DESTS = (
@@ -83,13 +88,16 @@ def run_options(args: argparse.Namespace, config: PitloomConfig) -> dict[str, An
     Every other value is the raw flag, ``None`` when omitted, except that a
     relative ``--id-registry`` is made absolute against the current
     directory, as a path on the command line is -- the library resolves a
-    relative one against the project directory.
+    relative one against the project directory. ``project_dir`` comes from
+    the dest :data:`ARCHIVE_PROJECT_DIR_DEST`, on a command that has it.
     """
     options: dict[str, Any] = {
         name: getattr(args, name, None) for name in _SAME_NAME_OPTIONS
     }
     if options["id_registry"] is not None:
         options["id_registry"] = Path(options["id_registry"]).absolute()
+    if hasattr(args, ARCHIVE_PROJECT_DIR_DEST):
+        options["project_dir"] = getattr(args, ARCHIVE_PROJECT_DIR_DEST)
     options["creation_metadata"] = _resolve_creation_metadata(
         args, config
     ).to_creation_metadata()
@@ -139,6 +147,27 @@ def warn_verbose_no_effect(
         warn_no_effect(INERT_LOG_PREFIX, subject, ("-v/--verbose",), reason)
 
 
+def add_archive_project_dir_argument(parser: argparse.ArgumentParser) -> None:
+    """Add the shared ``--project-dir DIR`` of a command whose target may
+    be an sdist or a wheel: the project directory it was built from, for
+    its files' ID registry keys only. Not ``embed-wheel``'s
+    ``--project-dir``, which also reads the project."""
+    parser.add_argument(
+        "--project-dir",
+        dest=ARCHIVE_PROJECT_DIR_DEST,
+        type=Path,
+        default=None,
+        metavar="DIR",
+        help=(
+            "For an sdist or wheel target: the project directory it was "
+            "built from. Its files are keyed below DIR's path from the ID "
+            "registry's root (a registry above the project, a monorepo), as "
+            "embed-wheel --project-dir keys them. Nothing is read from DIR; "
+            "no effect without an ID registry."
+        ),
+    )
+
+
 def add_config_argument(parser: argparse.ArgumentParser) -> None:
     """Add the shared ``--config FILE`` option."""
     parser.add_argument(
@@ -157,6 +186,8 @@ def add_config_argument(parser: argparse.ArgumentParser) -> None:
 
 
 __all__ = [
+    "ARCHIVE_PROJECT_DIR_DEST",
+    "add_archive_project_dir_argument",
     "add_config_argument",
     "creation_flags_given",
     "explicit_config_and_options",

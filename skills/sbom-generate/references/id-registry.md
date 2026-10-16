@@ -338,14 +338,17 @@ keys, dataset strings that differ from the canonical path such as
   exists: `... pin now gated by its SHA-256` (same id, digest adopted).
 - `INFO: ID registry: N file(s) keyed by their path as read: <why>` -- the
   document's files could not be keyed from the registry's root (project
-  outside the root, an archive path); they only match a registry made the
-  same way. Plain `wheel`, `project <sdist>` (no `--project-dir` option) and
-  `embed-wheel` without `--project-dir` key by the archive's own paths, so with
-  a registry root **above** the project (a monorepo) they miss, with no `INFO:`
-  and root-level keys harvested: keep the registry root equal to the project
-  root, or use a route that knows the project (`project` on a directory,
-  `--allow-build`, `embed-wheel --project-dir`, the hook), which keys below the
-  project's prefix.
+  outside the root, including a `--project-dir` outside it, or an archive
+  path); they only match a registry made the same way. An archive read
+  without `--project-dir` (`wheel`, `project <sdist>`, `generate` on either,
+  `embed-wheel`) keys by its own paths, so with a registry root **above** the
+  project (a monorepo) it misses, with no `INFO:` and root-level keys
+  harvested. In a monorepo pass `--project-dir <the project's directory>`
+  (`loom wheel dist/x.whl --project-dir pkgs/demo --id-registry
+  loom-id-registry.json`): the archive's files are then keyed below the
+  project's prefix, as `project` on a directory, `--allow-build` and the hook
+  key them. Nothing else is read from that directory; without a registry it
+  only warns that it has no effect.
 - `INFO: ID registry: N element(s) matched a registry key through the
   src/lib layout alias` / `N key(s) promoted from a layout alias` -- a built
   file or model `demo/x.py` reused the id held for `src/demo/x.py` (only a
@@ -409,6 +412,12 @@ keys, dataset strings that differ from the canonical path such as
   fragment reused an id for other content; both elements stay. For equal
   content under two ids the one more sources share (the registry-pinned
   id) survives the merge.
+- `INFO: Merge: 'name' on ai_AIPackage <id>: keeping the fragment's 'X',
+  dropping the project's 'Y'.` -- a project build merged a fragment whose
+  `set_model()`/`use_model()` named the model file otherwise: the model
+  takes the loom name and keeps the file key's id; expected on every run.
+  Two runs naming one file two ways keep the project's name, with a
+  `WARNING: Merge: conflicting 'name' ...` per other name.
 - `INFO: ID registry: package identity unknown; not looked up or recorded` --
   a wheel with no usable `.dist-info` or `METADATA` name; the registry is not
   touched for its package.

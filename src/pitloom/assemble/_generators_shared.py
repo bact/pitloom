@@ -14,10 +14,14 @@ See also:
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
 from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3_bindings
 
+from pitloom.core.inert_options import PARAM_TO_FLAG
+from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
 from pitloom.export.hashes import sha256_of
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.id_registry import (
@@ -33,6 +37,36 @@ from pitloom.id_registry import (
 # `loom id import`, never from a run's fallback id. An ai_AIPackage is
 # harvested only when hashed (see _harvestable).
 _AUTO_HARVEST_EXCLUDED_TYPES = frozenset({DATASET_PACKAGE_TYPE})
+
+
+#: Why an archive's *project_dir* does nothing without a registry.
+_PROJECT_DIR_NO_REGISTRY = (
+    "without an ID registry (it only sets the registry key prefix)"
+)
+
+
+def archive_project_dir(
+    project_dir: Path | str | None, registry: IdRegistry | None, subject: object
+) -> Path | None:
+    """The project directory an sdist or wheel was built from, resolved, for
+    ``FilesOrigin.project_dir``: its members are then keyed below that
+    directory's prefix in *registry*, as ``embed-wheel --project-dir`` keys
+    them. ``None`` when not given, and, with one ``WARNING:``, when there is
+    no *registry* for it to act on.
+
+    Raises:
+        FileNotFoundError: *project_dir* is given and is not a directory.
+    """
+    if project_dir is None:
+        return None
+    path = Path(project_dir).resolve()
+    if not os.path.isdir(path):
+        raise FileNotFoundError(f"project directory not found: {path}")
+    if registry is None:
+        flag = PARAM_TO_FLAG["project_dir"]
+        warn_no_effect(INERT_LOG_PREFIX, subject, (flag,), _PROJECT_DIR_NO_REGISTRY)
+        return None
+    return path
 
 
 def _harvestable(obj: Any) -> bool:

@@ -99,7 +99,8 @@ def candidates(
     file key; a project file's physical path (one that ends in its
     distribution path: ``src/`` or a monorepo's subdirectory), then its
     own name (an sdist's also without its ``<name>-<version>/`` prefix); an
-    embed's member below the profile's project directory.
+    sdist's, an embed's or a wheel's member below the profile's project
+    directory.
     Empty when the model file cannot be told (:func:`registry_key`)."""
     type_name, name = elem.key
     if type_name == AI:
@@ -119,9 +120,14 @@ def candidates(
         if surface == "sdist" and "/" in name:
             names.append(name.partition("/")[2])  # the <name>-<version>/ prefix
         physical = [p for n in names for p in sorted(disk) if p.endswith("/" + n)]
+        # `project <sdist> --project-dir`: a member only the sdist holds
+        # (PKG-INFO) is keyed below the prefix too.
+        if surface == "sdist" and profile.subdir:
+            physical.append(posixpath.join(profile.subdir, names[-1]))
         return [(FILE, p) for p in physical] + [(FILE, n) for n in names]
-    if type_name == FILE and surface == "embed" and profile.subdir:
-        # `embed-wheel --project-dir`: a member is keyed below the prefix.
+    if type_name == FILE and surface in ("embed", "wheel") and profile.subdir:
+        # `--project-dir` of `embed-wheel`, `wheel`: a member is keyed below
+        # the prefix.
         return [(FILE, posixpath.join(profile.subdir, name)), elem.key]
     return [elem.key]
 

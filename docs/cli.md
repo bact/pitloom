@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -245,8 +245,16 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env` (not
   SOURCE=<source> VALUE=<value>` (an sdist's own `pyproject.toml` source is
   its member, e.g. `demo-1.0.0.tar.gz:pyproject.toml`). `wheel`/`env`/`model`/
   `enrich` log `PITLOOM_VERSION`, the target, `OUTPUT_PATH` (`-`: none) and
-  `enrich`'s `PROJECT_DIR`. `generate` on any other target and `embed-wheel`
+  the `PROJECT_DIR` of `enrich` and `wheel`. `generate` on any other target and `embed-wheel`
   warn that `-v` has no effect.
+- `--project-dir DIR` -- on `wheel`, and `project`/`generate` with an sdist or
+  wheel target: the project directory the archive was built from. With a Loom
+  ID registry rooted above the project (a monorepo), the archive's files are
+  keyed below DIR's path from the registry's root, as `embed-wheel
+  --project-dir` keys them, so they reuse the ids `id generate` or `project`
+  recorded. Nothing else is read from DIR. A DIR that is not a directory is an
+  `ERROR:`; without a registry, or for a project directory target, it warns
+  that it has no effect. See [Monorepo](id-registry-keys.md#monorepo).
 - `--id-registry FILE` -- declare a Loom ID registry, taking precedence over the
   target's own `id-registry` key. Nothing is searched for; a declared file
   that is missing, unreadable or invalid is an `ERROR:` and exit 1. See [Loom ID
@@ -298,13 +306,13 @@ header from, and a wheel-embedded SBOM is always canonical JSON regardless of
 
 | Target | Options that warn |
 | --- | --- |
-| project directory | `--trust-wheel-model` |
+| project directory | `--trust-wheel-model`, `--project-dir` |
 | sdist archive | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--use-lockfile` |
 | wheel | `--enrich`, `--extract-file-header`, `--content-type`, `--use-lockfile` |
 | wheel --embed | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--update-id-registry` |
-| installed environment | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--use-lockfile` |
-| local model file | `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--content-type-method`, `--offline`, `--use-lockfile`, `--update-id-registry` |
-| Hugging Face model | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--content-type-method`, `--use-lockfile`, `--id-registry`, `--update-id-registry` |
+| installed environment | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--use-lockfile`, `--project-dir` |
+| local model file | `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--content-type-method`, `--offline`, `--use-lockfile`, `--update-id-registry`, `--project-dir` |
+| Hugging Face model | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--content-type-method`, `--use-lockfile`, `--id-registry`, `--update-id-registry`, `--project-dir` |
 | enrich --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--content-type-method`, `--max-source-metadata-bytes`, `--update-id-registry` |
 | enrich without --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--content-type-method`, `--max-source-metadata-bytes`, `--use-lockfile`, `--update-id-registry` |
 | embed-wheel --project-dir | `--pretty`, `--describe-relationship`, `--trust-wheel-model`, `--update-id-registry` |

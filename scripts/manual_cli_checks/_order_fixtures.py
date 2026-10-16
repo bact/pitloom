@@ -94,8 +94,6 @@ class Profile:
     #: directory the `loom.run` scripts run from ("" = the registry root).
     subdir: str = ""
     loom_dir: str = ""
-    #: (op, why) of the steps that do not apply to this layout.
-    unsupported: tuple[tuple[str, str], ...] = ()
 
     @property
     def loom(self) -> bool:
@@ -246,14 +244,9 @@ PROFILES: dict[str, Profile] = {
         ("pkgs/demo/demo/data.csv", "pkgs/demo/demo/data_r.csv"),
         "pkgs/demo/demo",
         wheel=True,
+        # `sdist`, `wheel` and `embed` name the project (`--project-dir`),
+        # so their members are keyed below its prefix.
         subdir="pkgs/demo",
-        # A wheel or sdist read alone has no project directory to prefix
-        # its paths with: nothing to look up under the root above it.
-        # `embed` names the project, so its members are prefixed.
-        unsupported=tuple(
-            (op, "no project directory to prefix its paths (registry above it)")
-            for op in ("sdist", "wheel")
-        ),
     ),
     # The model, data and scripts live in sibling directories: the loom
     # scripts run from scripts/ and name them `../models/m.safetensors`.

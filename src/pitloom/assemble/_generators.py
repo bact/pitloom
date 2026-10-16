@@ -22,7 +22,7 @@ from pathlib import Path
 from spdx_python_model.bindings import v3_0_1 as spdx3_bindings
 
 from pitloom._sbom_io import write_sbom_output
-from pitloom.assemble._generators_shared import _sync_registry
+from pitloom.assemble._generators_shared import _sync_registry, archive_project_dir
 from pitloom.assemble.spdx3.document import build
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core._models_wheel_dispatch import _noop_cleanup
@@ -97,6 +97,7 @@ def generate_project_sbom(
     use_lockfile: bool | None = None,
     build_options: BuildOptions = BuildOptions(),
     max_source_metadata_bytes: int | None = None,
+    project_dir: Path | str | None = None,
 ) -> str:
     """Generate a Source SPDX 3 SBOM for a Python project or sdist archive.
 
@@ -130,6 +131,17 @@ def generate_project_sbom(
     ``trust_wheel_model`` have no effect, and for a directory
     ``trust_wheel_model`` has none; each warns when given (see
     :data:`pitloom.core.inert_options.INERT`).
+
+    *project_dir* names the project directory an sdist archive was built
+    from: its members are then keyed below that directory's path from the
+    registry's root (a registry above the project, a monorepo), as
+    ``embed-wheel --project-dir`` keys a wheel's. Nothing is read from it;
+    without a registry it has no effect, with one ``WARNING:``, and for a
+    directory target it has none (that directory is the project).
+
+    Raises:
+        FileNotFoundError: *project_dir* is given for an sdist and is not a
+            directory.
     """
     configure_logging()
     target_path = Path(project_target)
@@ -159,10 +171,15 @@ def generate_project_sbom(
                 "update_id_registry": update_id_registry,
                 "creation_metadata": creation_metadata,
                 "use_lockfile": use_lockfile,
+                "project_dir": project_dir,
             },
         )
     else:
-        settle_inert(PROJECT, target_path, {"trust_wheel_model": trust_wheel_model})
+        settle_inert(
+            PROJECT,
+            target_path,
+            {"trust_wheel_model": trust_wheel_model, "project_dir": project_dir},
+        )
 
     if project_metadata is None or pitloom_config is None:
         _warn_if_metadata_without_config(project_metadata, pitloom_config, target_path)
@@ -192,6 +209,11 @@ def generate_project_sbom(
         cfg.id_registry,
         registry_base_dir(target_path),
     )
+    sdist_project_dir = (
+        archive_project_dir(project_dir, resolved_registry, target_path)
+        if target_path.is_file()
+        else None
+    )
 
     # Owns SIGTERM/SIGHUP handling for the whole lifetime of a
     # build-and-read result: once a build ran, a signal until the end of
@@ -205,7 +227,7 @@ def generate_project_sbom(
             merkle_root = None
             project_files = without_registry_copies(
                 project_metadata.files,
-                registry_copy(resolved_registry),
+                registry_copy(resolved_registry, sdist_project_dir),
                 in_sdist=True,
             )
             cleanup_discovery: Callable[[], None] = _noop_cleanup
@@ -261,7 +283,7 @@ def generate_project_sbom(
         creation_metadata=creation_metadata or cfg.creation_metadata,
         ai_models=ai_models,
         files_origin=(
-            FilesOrigin(archive=True, sdist=True)
+            FilesOrigin(project_dir=sdist_project_dir, archive=True, sdist=True)
             if target_path.is_file()
             else FilesOrigin(project_dir=target_path)
         ),

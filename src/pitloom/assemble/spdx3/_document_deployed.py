@@ -18,6 +18,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._licensing_profiles import apply_licensing_profiles
 from pitloom.assemble.spdx3._package_ids import DEPENDENCY_LABEL, resolve_package_id
+from pitloom.assemble.spdx3._reserved_ids import reserve_held_ids
 from pitloom.assemble.spdx3.deps import _finish_dependency_enrichment
 from pitloom.assemble.spdx3.deps_pypi import _prefetch_pypi_release_infos
 from pitloom.assemble.spdx3.provenance import (
@@ -26,70 +27,18 @@ from pitloom.assemble.spdx3.provenance import (
     emit_provenance,
     resolve_encoder,
 )
-from pitloom.core.ai_metadata import cap_model_name
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import (
     _clear_doc_counters,
     build_relationship,
     compute_doc_uuid,
     generate_spdx_id,
-    reserve_spdx_ids,
 )
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract.authors import dependency_author_splits
-from pitloom.id_registry import (
-    AI_PACKAGE_TYPE,
-    DATASET_PACKAGE_TYPE,
-    FILE_TYPE,
-    PACKAGE_TYPE,
-    IdRegistry,
-    IdRegistrySession,
-)
-
-#: The types a document's elements look up: a miss mints in their prefix,
-#: so every id the registry holds under one is reserved. Other types
-#: (agents, tools) are minted the same way every run, their held ids
-#: their own: reserving those would renumber them on the next run. A
-#: dataset package is looked up by a loom fragment, not by the document.
-_LOOKED_UP_TYPES = frozenset(
-    {AI_PACKAGE_TYPE, DATASET_PACKAGE_TYPE, FILE_TYPE, PACKAGE_TYPE}
-)
-
-
-def _model_dataset_keys(doc: DocumentModel) -> tuple[tuple[str, str], ...]:
-    """The (type, name) key of each dataset *doc*'s models bring in (a
-    model card's): minted with no lookup, so the id ``id import`` held
-    under it is its own, as for the deployed main package."""
-    return tuple(
-        (DATASET_PACKAGE_TYPE, cap_model_name(ref.metadata.name))
-        for model in doc.ai_models
-        for ref in model.datasets
-    )
-
-
-def _reserved_ids(
-    session: IdRegistrySession, *, unlooked: tuple[tuple[str, str], ...] = ()
-) -> list[str]:
-    """The ids a document's mints skip
-    (:func:`~pitloom.core.models.reserve_spdx_ids`): every id *session*
-    claimed, and every id its registry holds under a
-    :data:`_LOOKED_UP_TYPES` key, claimed or not, so a miss never mints the
-    id another key holds. Not the ids held under *unlooked* (type, name)
-    keys: elements of the document minted with no lookup (the deployed
-    main package, :func:`_model_dataset_keys`), whose held id is their
-    own. One pass per document."""
-    registry = session.registry
-    if registry is None:
-        return session.claimed_ids()
-    own = {entry.spdx_id for key in unlooked if (entry := registry.get(*key))}
-    held = [
-        entry.spdx_id
-        for key, entry in registry.elements.items()
-        if key[0] in _LOOKED_UP_TYPES and entry.spdx_id not in own
-    ]
-    return [*session.claimed_ids(), *held]
+from pitloom.id_registry import PACKAGE_TYPE, IdRegistry, IdRegistrySession
 
 
 def _deployed_name(pkg_info: dict[str, Any]) -> str:
@@ -342,7 +291,7 @@ def build_deployed(
     session = IdRegistrySession(registry)
     resolved_hits = _resolve_deployed_package_hits(env_tree, session)
     main_key = ((PACKAGE_TYPE, metadata.name),)  # minted below with no lookup
-    reserve_spdx_ids(metadata.name, doc_uuid, _reserved_ids(session, unlooked=main_key))
+    reserve_held_ids(metadata.name, doc_uuid, session, unlooked=main_key)
 
     spdx_ci, agents, tools = _build_creation_bundle(doc, doc_uuid)
     exporter.add_creation_info(spdx_ci)

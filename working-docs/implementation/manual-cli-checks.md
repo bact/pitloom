@@ -473,9 +473,9 @@ the SBOMs written, never registry code.
   (`sampleproject-setuptools`, no model), `stems` (two model files with
   one stem), `intree` (the registry declared in `[tool.pitloom]` inside
   the package), `monorepo` (the registry root above the project:
-  `pkgs/demo/...`, `id generate .` at the root; no `wheel` or `sdist`:
-  read alone they have no project directory to prefix their paths with,
-  while `embed-wheel --project-dir` does), `subdir` (model, data and the `loom.run` scripts in sibling
+  `pkgs/demo/...`, `id generate .` at the root; `wheel`, `sdist` and
+  `embed` pass `--project-dir pkgs/demo`), `subdir` (model, data and the
+  `loom.run` scripts in sibling
   directories: the scripts run from `scripts/` and name
   `../models/m.safetensors`, `../data/t.txt`).
 - **Sequences** (`_order_gen.py`): `O1/<fixture>/<set>` runs every

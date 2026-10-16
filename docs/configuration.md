@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -61,8 +61,8 @@ an archive and are ignored without a warning:
 | Surface | Target's own config | `--config` / `pitloom_config=` | Current directory | Flags |
 | :--- | :--- | :--- | :--- | :--- |
 | `project`/`generate` (project dir) -- `generate_project_sbom()` | Read | Replaces it | Never read | Override |
-| `project`/`generate` (sdist archive) -- `generate_project_sbom()` | Read (root `pyproject.toml`, else `setup.cfg`; not `id-registry`/fragments) | Replaces it | Never read | Override |
-| `wheel`/`generate` (`.whl`) -- `generate_wheel_sbom()` | Never read | Only config source | Never read | Override |
+| `project`/`generate` (sdist archive) -- `generate_project_sbom()` | Read (root `pyproject.toml`, else `setup.cfg`; not `id-registry`/fragments); `--project-dir`'s never | Replaces it | Never read | Override |
+| `wheel`/`generate` (`.whl`) -- `generate_wheel_sbom()` | Never read, nor `--project-dir`'s | Only config source | Never read | Override |
 | `env`/`generate env` -- `generate_env_sbom()` | Never read | Only config source | Never read | Override |
 | `model` (local file)/`generate` -- `generate_model_sbom()` | Never read | Only config source | Never read | Override |
 | `model` (Hugging Face) -- `generate_model_sbom()` | Never read | Only config source | Never read | Override |

@@ -44,7 +44,7 @@ Probed 2026-10-15 in a scratch src-layout project (`src/demo/x.py`,
 | K1 | src-layout split: `id generate` keys `src/demo/x.py`, a wheel looks up `demo/x.py` | Fixed: layout alias (section 3) |
 | K2 | Two keys for one id (the I4 alias exception) | Fixed: strict one key per id; promotion replaces the alias key |
 | K3 | sdist members carry a `name-version/` prefix nothing in the registry has | Fixed: the reader strips the top directory (section 6) |
-| K4 | Registry root above the project (monorepo): project-side keys were project-relative | Fixed for `project` on a directory, the hook, `--allow-build`, `embed-wheel --project-dir`; **not** for plain `wheel`, `project <sdist>` (no `--project-dir` option, `_generators.py` never sets `project_dir` for an sdist), `embed-wheel` without `--project-dir` (follow-up P5b) |
+| K4 | Registry root above the project (monorepo): project-side keys were project-relative | Fixed for `project` on a directory, the hook, `--allow-build`, and `wheel`, `project <sdist>`, `generate`, `embed-wheel` given `--project-dir` (P5b); an archive read without it still keys by its own paths |
 | K5 | Dataset package keyed by the caller's string (`../data/t.txt` missed) | Fixed: path key when the path exists below the root |
 | K6 | One dataset, two spellings, one run: two packages | Fixed: one package per (key, digest) per run |
 | K7 | Case on a case-insensitive file system (`DATA/T.TXT`) | Fixed for user-typed paths: on-disk spelling; never case-folded |
@@ -207,23 +207,36 @@ on-disk existence test, the tie-break.
   by its SHA-256`), another recorded digest mints a new id; each document
   reserves every id held under a `software_File`, `software_Package`,
   `dataset_DatasetPackage` or
-  `ai_AIPackage` key (`_document_deployed._LOOKED_UP_TYPES`), so a miss never
+  `ai_AIPackage` key (`_reserved_ids.LOOKED_UP_TYPES`), so a miss never
   mints a held id. `SoftwareAgent` and `Tool` are not reserved: their held ids
   are their own and reserving them renumbers harvested ids; nor is the id held
-  under a model card dataset's name (`_model_dataset_keys`, minted with no
+  under a model card dataset's name (`_reserved_ids.model_dataset_keys`, minted with no
   lookup: reserving it renumbered an imported model card dataset on every
   `id import`).
 - **NFC.** Every registry key is NFC (a load of an NFD key becomes NFC); two
   on-disk files equal after NFC are both skipped by `id generate` with one
   `WARNING:`.
 - **Monorepo** (registry root above the project): `project` on a directory,
-  the hook, `--allow-build` and `embed-wheel --project-dir` key below the
-  project prefix (`pkgs/demo/...`), the alias taken below that prefix. Limit:
-  plain `wheel`, `project <sdist>` and `embed-wheel` without `--project-dir`
-  key by the archive's own paths, so they miss with no `INFO:` and a harvest
-  writes root-level keys (`demo/x.py` beside `pkgs/demo/src/demo/x.py`, probed
-  2026-10-16); a registry root equal to the project
-  root works everywhere. A force-included file outside the project but inside
+  the hook, `--allow-build` and `--project-dir` of `embed-wheel`, `wheel` and
+  `project <sdist>` key below the project prefix (`pkgs/demo/...`), the alias
+  taken below that prefix. Limit: an archive read without `--project-dir`
+  keys by its own paths, so it misses with no `INFO:` and a harvest writes
+  root-level keys (`demo/x.py` beside `pkgs/demo/src/demo/x.py`, probed
+  2026-10-16); a registry root equal to the project root works everywhere.
+- **`--project-dir` on `wheel`/`project <sdist>`** (P5b, built 2026-10-16):
+  one shared dest (`options_config.ARCHIVE_PROJECT_DIR_DEST`, as `project`'s
+  positional owns `project_dir`) on `wheel`, `project` and `generate`; the
+  library `project_dir=` on `generate_wheel_sbom()`, `generate_project_sbom()`
+  and `generate()`. `_generators_shared.archive_project_dir()` checks it (not a
+  directory: `FileNotFoundError`, `ERROR:` on the CLI; no registry: no-effect
+  `WARNING:`) and sets `FilesOrigin.project_dir`, so `file_lookup_key` joins
+  sdist members to the prefix as it does wheel members, and the registry copy
+  is taken below it. Only keys: no project config is read (`embed-wheel
+  --project-dir` reads it). A directory, env, model or Hugging Face target
+  declares it inert (`INERT`). An archive whose `--project-dir` is outside the
+  root now logs `FALLBACK_KEYS_INFO` (`the project is outside the registry's
+  root`), `embed-wheel` included (it was silent). The order matrix's
+  `monorepo` profile runs `wheel`/`sdist` with it (no longer unsupported). A force-included file outside the project but inside
   the root is keyed from the root; under `--allow-build` built files have no
   source path and cannot match their `id generate` key.
 - **`INFO:` for every deviation** (user rule): every fallback, cap or
@@ -248,6 +261,8 @@ Items moved from [id-registry-followups.md](../design/id-registry-followups.md):
 - Two model files with one stem registered name-only (K9).
 - Two alias rules for one fact (`_is_files_path_alias` and `_DeclaredRegistry`
   now share `keys.is_layout_alias`/`walk_rules.shortened_by`).
+- `wheel --project-dir` (P5b), from
+  [id-registry-followups-path-keys.md](../design/id-registry-followups-path-keys.md).
 
 Final counts: full suite 13461 passed / 63 skipped / 100% branch; manual
 runner 524 pass / 0 fail / 29 known / 23 skip (baseline 504/0/14/23; the 15

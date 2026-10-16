@@ -80,6 +80,13 @@ def _paths_suffix_match(a: Any, b: Any) -> bool:
     return a.endswith("/" + b) or b.endswith("/" + a)
 
 
+def _differs(canonical_val: Any, dup_val: Any) -> bool:
+    """True when *dup_val* is set and is not *canonical_val*."""
+    return not _is_empty(dup_val) and _normalize_value(dup_val) != _normalize_value(
+        canonical_val
+    )
+
+
 def _merge_scalar(
     canonical: spdx3.Element, pyname: str, canonical_val: Any, dup_val: Any
 ) -> None:
@@ -87,9 +94,7 @@ def _merge_scalar(
         if not _is_empty(dup_val):
             setattr(canonical, pyname, dup_val)
         return
-    if not _is_empty(dup_val) and _normalize_value(dup_val) != _normalize_value(
-        canonical_val
-    ):
+    if _differs(canonical_val, dup_val):
         if pyname == "name" and _paths_suffix_match(canonical_val, dup_val):
             log.debug(
                 "Merge: %s known as both %r and %r; keeping %r.",
@@ -165,10 +170,14 @@ def _merge_dictionary_entries(
         setattr(canonical, pyname, merged)
 
 
-def _merge_properties(canonical: spdx3.Element, duplicate: spdx3.Element) -> None:
-    """Fold *duplicate*'s fields into *canonical* in place."""
+def _merge_properties(
+    canonical: spdx3.Element,
+    duplicate: spdx3.Element,
+    skip: frozenset[str] = frozenset(),
+) -> None:
+    """Fold *duplicate*'s fields, less *skip*, into *canonical* in place."""
     for pyname in _class_properties(canonical):
-        if pyname in _SKIP_MERGE_PROPS:
+        if pyname in _SKIP_MERGE_PROPS or pyname in skip:
             continue
         canonical_val = getattr(canonical, pyname, None)
         dup_val = getattr(duplicate, pyname, None)

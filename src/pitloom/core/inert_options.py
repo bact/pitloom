@@ -129,6 +129,13 @@ _EMBED_NO_DESCRIBE = (
 )
 
 _NOT_A_WHEEL = "for this target (it reads AI model files from a built wheel only)"
+_PROJECT_IS_DIR = (
+    "for a project directory target (its files are keyed below that directory)"
+)
+_NOT_AN_ARCHIVE = (
+    "for this target (it keys the files of an sdist or a wheel below their "
+    "project directory only)"
+)
 _EMBED_PROJECT_MODELS = (
     "with --project-dir (AI models are read from the project, not the wheel)"
 )
@@ -161,7 +168,7 @@ _ENRICH_ROW: dict[str, str] = {
 
 #: Target kind -> {parameter: reason it has no effect there}.
 INERT: dict[str, dict[str, str]] = {
-    PROJECT: {"trust_wheel_model": _NOT_A_WHEEL},
+    PROJECT: {"trust_wheel_model": _NOT_A_WHEEL, "project_dir": _PROJECT_IS_DIR},
     SDIST: {
         "trust_wheel_model": _NOT_A_WHEEL,
         **dict.fromkeys(_FILE_SCAN, _SDIST_FILE_SCAN),
@@ -180,17 +187,20 @@ INERT: dict[str, dict[str, str]] = {
         "enrich": _NO_MODELS,
         "scan_model_usage": _ENV_NO_MODEL_SCAN,
         "use_lockfile": _NO_LOCKFILE,
+        "project_dir": _NOT_AN_ARCHIVE,
     },
     MODEL_FILE: {
         **_MODEL_FILE_ROW,
         "offline": _MODEL_NO_NETWORK,
         "use_lockfile": _NO_LOCKFILE,
+        "project_dir": _NOT_AN_ARCHIVE,
     },
     HF: {
         **_MODEL_FILE_ROW,
         "enrich": _HF_NO_LOCAL_ENRICH,
         "id_registry": _HF_NO_REGISTRY,
         "use_lockfile": _NO_LOCKFILE,
+        "project_dir": _NOT_AN_ARCHIVE,
     },
     ENRICH: _ENRICH_ROW,
     ENRICH_STANDALONE: {**_ENRICH_ROW, "use_lockfile": _FRAGMENT_NO_LOCKFILE},

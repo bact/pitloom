@@ -129,7 +129,7 @@ def _loom(declare: Callable[..., None], name: str) -> _Route:
 
 #: Every route that names the model file (an sdist scans no models).
 ROUTES: dict[str, _Route] = {
-    **{name: _surface(name) for name in SURFACES if name != "sdist"},
+    **{name: _surface(name) for name in SURFACES if "sdist" not in name},
     "model": _model_route,
     "enrich": _enrich,
     "enrich-project": _enrich_project,

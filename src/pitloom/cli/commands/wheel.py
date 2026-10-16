@@ -29,7 +29,10 @@ from pitloom.cli.options import (
     add_allow_signed_wheel_argument,
     add_offline_argument,
 )
-from pitloom.cli.options_config import explicit_config_and_options
+from pitloom.cli.options_config import (
+    add_archive_project_dir_argument,
+    explicit_config_and_options,
+)
 from pitloom.core.inert_options import (
     EMBED_STANDALONE,
     EMBEDDED_SBOM_PARAMS,
@@ -93,7 +96,11 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     )
 
     if args.verbose:
-        log_verbose(WHEEL_FILE=wheel_path, OUTPUT_PATH=output_path or "-")
+        given = options["project_dir"]
+        project_dir = {} if given is None else {"PROJECT_DIR": given}
+        log_verbose(
+            WHEEL_FILE=wheel_path, OUTPUT_PATH=output_path or "-", **project_dir
+        )
 
     if embed:
         # As embed-wheel: refuse before generating (that may run a build).
@@ -148,6 +155,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         help="Embed the generated SBOM directly into the wheel archive (PEP 770).",
     )
     add_allow_signed_wheel_argument(wheel_parser)
+    add_archive_project_dir_argument(wheel_parser)
     add_offline_argument(
         wheel_parser,
         " -- skip PyPI lookup, no error (local metadata already covers what it can).",

@@ -124,6 +124,13 @@ Other arguments that mirror a CLI flag or config key:
   config key, so a config cannot opt in. Other targets warn that it has no
   effect.
 - `id_registry=`: `--id-registry`; see [Loom ID registry](id-registry.md#from-python).
+- `project_dir=` (`generate_wheel_sbom()`, `generate_project_sbom()` on an
+  sdist, `generate()` on either): `--project-dir` of `wheel`/`project`, the
+  project directory the archive was built from, so its files are keyed below
+  that directory's path from the registry's root (see
+  [Monorepo](id-registry-keys.md#monorepo)). A path that is not a directory
+  raises `FileNotFoundError`; without a registry, or for any other target, it
+  warns that it has no effect.
 - `build_options=BuildOptions(...)`: `--allow-build` and its companions, with
   no config-file equivalent; see [`--allow-build`](allow-build.md#from-python).
 
@@ -251,6 +258,11 @@ registry](id-registry.md), the hash gates the lookup: a training and an
 evaluation script declaring the same model name and file share one id, and a
 retrained file gets a new one. The model is keyed by that file's path from the
 registry's project root, the same key `loom model` and `id generate` use.
+When a project build merges the run's fragment, the model file's `ai_AIPackage`
+takes the name given to `set_model()`/`use_model()`, with one `INFO: Merge:
+'name' on ...`; its id and registry key do not change. Runs naming one file two
+ways keep the project's name, with a `WARNING:` (see
+[SBOM fragments](fragments.md#merge-fragments)).
 Without `path=` (one `WARNING:` when a registry is loaded), or when it is not
 a file when the run ends (one `WARNING:`), the model is matched by name only
 and gets no hash. The match hits an id held with no hash (a model with no

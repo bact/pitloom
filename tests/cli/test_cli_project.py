@@ -54,7 +54,7 @@ pretty = true
     captured: dict[str, object] = {}
 
     def _fake_generate_project_sbom(
-        project_dir: Path,
+        target: Path,
         output_path: Path | None = None,
         creation_metadata: object | None = None,
         pretty: bool | None = None,
@@ -62,7 +62,7 @@ pretty = true
         pitloom_config: object | None = None,
         **_kwargs: object,
     ) -> str:
-        captured["project_dir"] = project_dir
+        captured["project_dir"] = target
         captured["output_path"] = output_path
         captured["creation_metadata"] = creation_metadata
         captured["pretty"] = effective_setting(pretty, pitloom_config, "pretty")
@@ -281,8 +281,8 @@ def test_project_command_default_file_headers_and_content_type_are_none(
     project_dir = _make_simple_project(tmp_path)
     captured: dict[str, object] = {}
 
-    def _fake_generate_project_sbom(project_dir: Path, **kwargs: object) -> str:
-        _ = project_dir
+    def _fake_generate_project_sbom(target: Path, **kwargs: object) -> str:
+        _ = target
         captured["extract_file_header"] = kwargs.get("extract_file_header")
         captured["content_type"] = kwargs.get("content_type")
         captured["content_type_method"] = kwargs.get("content_type_method")
@@ -322,8 +322,8 @@ def test_project_command_file_headers_content_type_flags_passed_through(
     project_dir = _make_simple_project(tmp_path)
     captured: dict[str, object] = {}
 
-    def _fake_generate_project_sbom(project_dir: Path, **kwargs: object) -> str:
-        _ = project_dir
+    def _fake_generate_project_sbom(target: Path, **kwargs: object) -> str:
+        _ = target
         captured["extract_file_header"] = kwargs.get("extract_file_header")
         captured["content_type"] = kwargs.get("content_type")
         return "{}"
@@ -348,8 +348,8 @@ def test_project_command_content_type_method_flag_passed_through(
     project_dir = _make_simple_project(tmp_path)
     captured: dict[str, object] = {}
 
-    def _fake_generate_project_sbom(project_dir: Path, **kwargs: object) -> str:
-        _ = project_dir
+    def _fake_generate_project_sbom(target: Path, **kwargs: object) -> str:
+        _ = target
         captured["content_type_method"] = kwargs.get("content_type_method")
         return "{}"
 

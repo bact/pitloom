@@ -9,7 +9,8 @@ claimed or not; an agent's or a model card dataset's own held id is not,
 so it never renumbers.
 
 See also: test_generator_registry_sync_claim.py (claimed ids),
-tests/id_registry/test_surfaces_in_tree_registry.py (monorepo surfaces).
+tests/id_registry/test_surfaces_in_tree_registry.py (monorepo surfaces),
+tests/id_registry/test_surfaces_model_held_ids.py (``loom model``/``enrich``).
 """
 
 # pylint: disable=missing-function-docstring
@@ -24,18 +25,43 @@ from pathlib import Path
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3.document import build, build_deployed
+from pitloom.assemble.spdx3.document import (
+    _ai_model_identity,
+    build,
+    build_deployed,
+    build_model,
+)
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.id_registry import DATASET_PACKAGE_TYPE, IdRegistry, RegistryEntry
+from pitloom.id_registry import (
+    AI_PACKAGE_TYPE,
+    DATASET_PACKAGE_TYPE,
+    IdRegistry,
+    RegistryEntry,
+)
 from tests.id_registry.surfaces_base import _run_cli
 
 _CREATED = CreationMetadata(creation_datetime="2026-01-01T00:00:00+00:00")
 _Build = Callable[[IdRegistry | None], Spdx3JsonExporter]
+
+
+def _model_meta(file_path: str | None = None) -> AiModelMetadata:
+    return AiModelMetadata(
+        format_info=AiModelFormatInfo(
+            file_name="m.npy",
+            file_path_relative=file_path,
+            model_format=AiModelFormat.NUMPY,
+        ),
+        datasets=[DatasetReference("trainedOn", DatasetMetadata(name="imdb"))],
+    )
+
+
+def _model(registry: IdRegistry | None) -> Spdx3JsonExporter:
+    return build_model(_model_meta(), _CREATED, registry=registry)
 
 
 def _project(registry: IdRegistry | None) -> Spdx3JsonExporter:
@@ -47,14 +73,7 @@ def _project(registry: IdRegistry | None) -> Spdx3JsonExporter:
         )
         for name in ("a.py", "m.npy")
     ]
-    model = AiModelMetadata(
-        format_info=AiModelFormatInfo(
-            file_name="m.npy",
-            file_path_relative="demo/m.npy",
-            model_format=AiModelFormat.NUMPY,
-        ),
-        datasets=[DatasetReference("trainedOn", DatasetMetadata(name="imdb"))],
-    )
+    model = _model_meta("demo/m.npy")
     project = ProjectMetadata(
         name="demo", version="1.0.0", dependencies=["dep"], files=files
     )
@@ -79,12 +98,13 @@ def _ids(exporter: Spdx3JsonExporter) -> dict[str, set[str]]:
 
 
 _ALL = ("ai_AIPackage", "dataset_DatasetPackage", "software_File", "software_Package")
+_MODEL = ("ai_AIPackage", "dataset_DatasetPackage")
 
 
 @pytest.mark.parametrize(
     ("build_one", "looked_up"),
-    [(_project, _ALL), (_deployed, ("software_Package",))],
-    ids=["project", "env"],
+    [(_project, _ALL), (_deployed, ("software_Package",)), (_model, _MODEL)],
+    ids=["project", "env", "model"],
 )
 def test_a_miss_never_mints_an_id_the_registry_holds(
     build_one: _Build, looked_up: tuple[str, ...]
@@ -109,17 +129,40 @@ def test_a_miss_never_mints_an_id_the_registry_holds(
         assert second[type_name] == first[type_name]
 
 
-def test_model_card_dataset_keeps_its_own_held_id() -> None:
+@pytest.mark.parametrize("build_one", [_project, _model], ids=["project", "model"])
+def test_model_card_dataset_keeps_its_own_held_id(build_one: _Build) -> None:
     """A model card's dataset, minted with no lookup, keeps the id held
     under its name (``id import``), never one held for a loom dataset."""
-    (minted,) = _ids(_project(None))["dataset_DatasetPackage"]
+    (minted,) = _ids(build_one(None))["dataset_DatasetPackage"]
     assert minted.endswith("#DatasetPackage-1")
     own = minted.removesuffix("1") + "2"
     registry = IdRegistry.new("demo")
     registry.elements[(DATASET_PACKAGE_TYPE, "data/t.txt")] = RegistryEntry(minted)
     registry.elements[(DATASET_PACKAGE_TYPE, "imdb")] = RegistryEntry(own)
 
-    assert _ids(_project(registry))["dataset_DatasetPackage"] == {own}
+    assert _ids(build_one(registry))["dataset_DatasetPackage"] == {own}
+
+
+@pytest.mark.parametrize("build_one", [_project, _model], ids=["project", "model"])
+def test_enrichment_subject_is_the_base_documents_model_id(build_one: _Build) -> None:
+    """``enrich``'s subject id (:func:`_ai_model_identity`) is the one its
+    base document mints with the same registry, which holds the first-run
+    id under the model's name: a ``loom model`` document's own (kept), a
+    project's another key's (reserved)."""
+    (first,) = _ids(build_one(None))["ai_AIPackage"]
+    registry = IdRegistry.new("demo")
+    registry.elements[(AI_PACKAGE_TYPE, "m")] = RegistryEntry(first)
+    (base,) = _ids(build_one(registry))["ai_AIPackage"]
+    tail = first.split("#")[0].rsplit("/", 1)[1]  # <doc name>-<doc uuid>
+    project = build_one is _project
+    identity = (tail[:-37], tail[-36:])
+
+    _, _, subject = _ai_model_identity(
+        _model_meta(), doc_identity=identity if project else None, registry=registry
+    )
+
+    assert subject == base
+    assert (base != first) is project
 
 
 def test_imported_sibling_id_is_never_handed_to_a_new_file(

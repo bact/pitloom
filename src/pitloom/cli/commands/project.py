@@ -26,7 +26,7 @@ from pitloom.cli.options import (
     add_use_lockfile_argument,
     build_options_from_args,
 )
-from pitloom.cli.options_config import run_options
+from pitloom.cli.options_config import add_archive_project_dir_argument, run_options
 from pitloom.cli.verbose import log_verbose_options
 from pitloom.core.build_options import BuildOptions
 
@@ -111,6 +111,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         "only (no-op for an sdist archive target: no lock-file concept "
         "applies there)",
     )
+    add_archive_project_dir_argument(proj_parser)
     add_allow_build_argument(proj_parser)
     add_no_build_isolation_argument(proj_parser)
     add_build_timeout_argument(proj_parser)

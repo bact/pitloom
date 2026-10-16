@@ -38,6 +38,8 @@ def _lines(mcc: dict[str, ModuleType], profile: str, *ops: str) -> list[str]:
             ["build 01 pkgs/demo", "embed-wheel", "--project-dir pkgs/demo"],
         ),
         ("monorepo", "gen-min", ["id generate pkgs/demo/pyproject.toml"]),
+        ("monorepo", "sdist", ['"$SDIST" --id-registry', "--project-dir pkgs/demo"]),
+        ("monorepo", "wheel", ['"$WHEEL" --id-registry', "--project-dir pkgs/demo"]),
         (
             "subdir",
             "train",
@@ -65,18 +67,14 @@ def test_add_nfd_names_the_module_in_nfd(mcc: dict[str, ModuleType]) -> None:
     assert "́" in line and "é" not in line
 
 
-def test_the_monorepo_has_no_steps_without_a_project_directory(
-    mcc: dict[str, ModuleType],
-) -> None:
+def test_the_monorepo_runs_every_archive_step(mcc: dict[str, ModuleType]) -> None:
+    """`sdist`, `wheel` and `embed` name the project directory, so each
+    applies; a profile without one renders no `--project-dir`."""
     ops, fixtures = mcc["_order_ops"], mcc["_order_fixtures"]
-    mono, flat = fixtures.PROFILES["monorepo"], fixtures.PROFILES["flat"]
-    off = {op for op in ops.OPS if not ops.applies(op, mono)}
-    # `embed-wheel` names the project directory, so it applies.
-    assert off == {"sdist", "wheel"}
-    assert all(ops.applies(op, flat) for op in off)
-    assert {reason for op, reason in mono.unsupported if reason} >= {
-        mono.unsupported[0][1]
-    }
+    mono = fixtures.PROFILES["monorepo"]
+    assert all(ops.applies(op, mono) for op in ("sdist", "wheel", "embed"))
+    for op in ("sdist", "wheel"):
+        assert "--project-dir" not in " ".join(_lines(mcc, "flat", op))
 
 
 def test_spelling_steps_stay_out_of_walks_and_repeats(
@@ -144,6 +142,20 @@ def _elem(
             ["pkgs/demo/demo/x.py", "demo/x.py"],
         ),
         (
+            "monorepo",
+            "wheel",
+            ("software_File", "demo/x.py"),
+            [],
+            ["pkgs/demo/demo/x.py", "demo/x.py"],
+        ),
+        (
+            "monorepo",
+            "sdist",
+            ("software_File", "demo-0.1/PKG-INFO"),
+            [],
+            ["pkgs/demo/PKG-INFO", "demo-0.1/PKG-INFO", "PKG-INFO"],
+        ),
+        (
             "flat",
             "sdist",
             ("software_File", "demo-0.1/demo/x.py"),
@@ -181,6 +193,8 @@ def _elem(
     ids=[
         "monorepo",
         "monorepo-embed",
+        "monorepo-wheel",
+        "monorepo-sdist-only",
         "sdist",
         "wheel",
         "src-model",

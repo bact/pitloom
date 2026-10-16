@@ -241,6 +241,7 @@ def generate_model_sbom(
     )
     enrichment_results: list[EnrichmentResult] = []
 
+    resolved_registry: IdRegistry | None = None
     if is_hf:
         if cfg.offline:
             raise ValueError(
@@ -266,6 +267,7 @@ def generate_model_sbom(
         model,
         creation_metadata or cfg.creation_metadata,
         entity_spdx_id=entity_spdx_id,
+        registry=resolved_registry,
         provenance=cfg.provenance,
         enrichment_results=enrichment_results,
         digest=digest,
@@ -371,6 +373,7 @@ def enrich_model(
         creation_metadata or cfg.creation_metadata,
         entity_spdx_id=entity_spdx_id,
         base_doc_identity=base_doc_identity,
+        registry=resolved_registry,
     )
 
     fragment_json = exporter.to_json(pretty=cfg.pretty)

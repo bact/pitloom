@@ -25,10 +25,10 @@ from typing import Any, NamedTuple
 
 import pytest
 
-from pitloom.assemble import generate_project_sbom, generate_wheel_sbom
+from pitloom.assemble import generate, generate_project_sbom, generate_wheel_sbom
 from pitloom.core.build_options import BuildOptions
 from pitloom.embed import embed_wheel_sbom
-from pitloom.id_registry import FILE_TYPE, IdRegistry
+from pitloom.id_registry import AI_PACKAGE_TYPE, FILE_TYPE, IdRegistry
 from tests.assemble.conftest import _make_dummy_wheel, _make_sdist
 from tests.build_and_read_shared import install_fake_build
 from tests.extract.ai_model.gguf_builders import STRING, gguf_file, kv, string
@@ -111,15 +111,38 @@ def held_files(registry: Path) -> dict[str, str]:
     }
 
 
+def model_ids(sbom: str) -> list[str]:
+    """The id of each ``ai_AIPackage``."""
+    return [
+        node["spdxId"]
+        for node in json.loads(sbom)["@graph"]
+        if node["type"] == "ai_AIPackage"
+    ]
+
+
+def held_models(registry: Path) -> dict[str, str]:
+    """Each held ``ai_AIPackage`` key -> its id."""
+    return {
+        name: entry.spdx_id
+        for (type_name, name), entry in IdRegistry.load(registry).elements.items()
+        if type_name == AI_PACKAGE_TYPE
+    }
+
+
 def _embedded(wheel: Path) -> str:
     with zipfile.ZipFile(wheel) as zf:
         (name,) = [n for n in zf.namelist() if "/sboms/" in n]
         return zf.read(name).decode("utf-8")
 
 
-def _wheel(directory: Path) -> Path:
+def wheel_of(directory: Path) -> Path:
+    """The demo project's wheel, built in *directory*."""
     extra = {name: data for name, data in FILES.items() if name != "demo/__init__.py"}
     return _make_dummy_wheel(directory / "dist", "demo", "1.0.0", extra_members=extra)
+
+
+#: A runner given *project*, *registry*, scratch dir and monkeypatch.
+Runner = Callable[[Path, Path, Path, pytest.MonkeyPatch], str]
 
 
 class Run(NamedTuple):
@@ -127,7 +150,7 @@ class Run(NamedTuple):
     *name(key)*, the SBOM name of the file keyed *key*; whether it
     *harvests* into the registry."""
 
-    run: Callable[[Path, Path, Path, pytest.MonkeyPatch], str]
+    run: Runner
     name: Callable[[str], str]
     harvests: bool
 
@@ -171,22 +194,43 @@ def _allow_build(project: Path, reg: Path, _tmp: Path, mp: pytest.MonkeyPatch) -
     return allow_build(project, reg, mp)
 
 
-def _sdist(_project: Path, reg: Path, tmp: Path, mp: pytest.MonkeyPatch) -> str:
+def sdist_of(directory: Path) -> Path:
+    """The demo project's sdist, built in *directory*."""
     members: dict[str, bytes | None] = {f"src/{n}": d for n, d in FILES.items()}
-    sdist = _make_sdist(tmp, members=members)
-    out = tmp / "sdist.spdx3.json"
-    argv = ["project", str(sdist), "--id-registry", str(reg), "-o", str(out)]
-    assert _run_cli(mp, argv) == 0
-    return out.read_text(encoding="utf-8")
+    return _make_sdist(directory, members=members)
+
+
+def _cli(command: str, archive: Callable[[Path], Path], with_project: bool) -> Runner:
+    """``loom <command> <archive>``, with ``--project-dir`` when
+    *with_project*."""
+
+    def run(project: Path, reg: Path, tmp: Path, mp: pytest.MonkeyPatch) -> str:
+        out = tmp / f"{command}.spdx3.json"
+        argv = [command, str(archive(tmp)), "--id-registry", str(reg), "-o", str(out)]
+        if with_project:
+            argv += ["--project-dir", str(project)]
+        assert _run_cli(mp, argv) == 0
+        return out.read_text(encoding="utf-8")
+
+    return run
+
+
+def _lib(function: Callable[..., str], archive: Callable[[Path], Path]) -> Runner:
+    """The library *function* on an archive, with ``project_dir=``."""
+
+    def run(project: Path, reg: Path, tmp: Path, _mp: pytest.MonkeyPatch) -> str:
+        return function(archive(tmp), id_registry=reg, project_dir=project)
+
+    return run
 
 
 def _lib_wheel(_project: Path, reg: Path, tmp: Path, _mp: pytest.MonkeyPatch) -> str:
-    return generate_wheel_sbom(_wheel(tmp), id_registry=reg)
+    return generate_wheel_sbom(wheel_of(tmp), id_registry=reg)
 
 
-def _embed(with_project: bool) -> Callable[[Path, Path, Path, pytest.MonkeyPatch], str]:
+def _embed(with_project: bool) -> Runner:
     def run(project: Path, reg: Path, tmp: Path, _mp: pytest.MonkeyPatch) -> str:
-        wheel = _wheel(tmp)
+        wheel = wheel_of(tmp)
         directory = project if with_project else None
         embed_wheel_sbom(wheel, project_dir=directory, id_registry=reg)
         return _embedded(wheel)
@@ -219,8 +263,17 @@ SURFACES: dict[str, Run] = {
     "cli-project": Run(_cli_project, _installed, True),
     "lib-project": Run(_lib_project, _installed, True),
     "allow-build": Run(_allow_build, _installed, True),
-    "sdist": Run(_sdist, _in_sdist, True),
+    "sdist": Run(_cli("project", sdist_of, False), _in_sdist, True),
     "wheel": Run(_lib_wheel, _installed, True),
+    # An archive with --project-dir / project_dir= (P5b).
+    "cli-sdist-project": Run(_cli("project", sdist_of, True), _in_sdist, True),
+    "lib-sdist-project": Run(_lib(generate_project_sbom, sdist_of), _in_sdist, True),
+    "cli-generate-sdist-project": Run(
+        _cli("generate", sdist_of, True), _in_sdist, True
+    ),
+    "cli-wheel-project": Run(_cli("wheel", wheel_of, True), _installed, True),
+    "lib-wheel-project": Run(_lib(generate_wheel_sbom, wheel_of), _installed, True),
+    "lib-generate-wheel-project": Run(_lib(generate, wheel_of), _installed, True),
     "embed-wheel": Run(_embed(False), _installed, False),
     "embed-wheel-project": Run(_embed(True), _installed, False),
     "hook": Run(_hook, _installed, False),

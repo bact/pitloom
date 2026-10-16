@@ -374,16 +374,22 @@ def _distribution_key(distribution_path: str, prefix: str | None) -> LookupKey:
     return LookupKey(_nfc(distribution_path), alias, path=True)
 
 
-def _sdist_key(pf: ProjectFile) -> LookupKey:
+def _sdist_key(pf: ProjectFile, prefix: str | None) -> LookupKey:
     """The key of an sdist member: its project-relative ``physical_path``
-    (the sdist's top directory is the project root). Only a member whose
-    top directory was cut may replace a held layout alias: an uncut name's
-    first part is that top directory, not ``src/``."""
+    (the sdist's top directory is the project root), below the project
+    *prefix* when one is known. Only a member whose top directory was cut
+    may replace a held layout alias: an uncut name's first part is that top
+    directory, not ``src/``."""
+    cut = pf.distribution_path.endswith(f"/{pf.physical_path}")
+    alias = Alias.CANONICAL if cut else Alias.NONE
+    if prefix is not None:
+        key = join_key(prefix, pf.physical_path)
+        if key is not None:
+            return LookupKey(key, alias, path=True, base=prefix)
     key = join_key("", pf.physical_path)
     if key is None:
         return LookupKey(pf.physical_path)
-    cut = pf.distribution_path.endswith(f"/{pf.physical_path}")
-    return LookupKey(key, Alias.CANONICAL if cut else Alias.NONE, path=True)
+    return LookupKey(key, alias, path=True)
 
 
 def _project_key(
@@ -417,10 +423,12 @@ def file_lookup_key(
 
     - a wheel member (*origin* an archive, not an sdist) or a file a build
       extracted (``pf.built``): its ``distribution_path``, joined to
-      *prefix* when there is one (an embed's project directory; none for a
-      wheel read alone), ``LAYOUT`` alias (none for a ``*.data`` member);
+      *prefix* when there is one (the project directory an embed or a
+      ``--project-dir`` names; none for a wheel read alone), ``LAYOUT``
+      alias (none for a ``*.data`` member);
     - an sdist member: its ``physical_path`` (the top directory cut),
-      ``CANONICAL`` alias when the top directory was cut;
+      joined to *prefix* when there is one, ``CANONICAL`` alias when the
+      top directory was cut;
     - a project file: :func:`join_key` of *prefix* and its
       ``physical_path``, ``CANONICAL`` alias; one outside the project
       (an absolute ``physical_path``) below *registry*'s root: its
@@ -429,7 +437,7 @@ def file_lookup_key(
       no alias.
     """
     if origin.sdist:
-        return _sdist_key(pf)
+        return _sdist_key(pf, prefix)
     if origin.archive or pf.built:
         return _distribution_key(pf.distribution_path, prefix)
     return _project_key(pf, prefix, registry)

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -43,7 +43,21 @@ except that for equal SHA-256 the registry-pinned `spdxId` wins: the one whose
 namespace the most inputs (the project and fragments) use, since a minted
 id's namespace belongs to its one fragment. A tie keeps the earlier. An
 `Annotation` records each unification. A kept licence keeps its own `name`
-and `comment`. A fragment element whose `spdxId` an element of another type
+and `comment`. Fields merge into the kept element: lists as a union, a
+`comment` appended after a semicolon, and any other field keeps the kept
+element's value (an empty one takes the fragment's), with a
+`WARNING: Merge: conflicting ...` naming the dropped one.
+
+The `name` of the project's own AI model is the exception: fragments that
+unify with it and agree on another name, as `loom.set_model(name,
+path=...)` declares, rename it. One `INFO: Merge: 'name' on ...` names both
+names, and the project's provenance record of the old name is dropped; the
+`spdxId` and the registry key stay the model file's. Fragments giving it
+two names keep the project's name, with a `WARNING:` per other name,
+whatever their order. `loom merge` has no project document, so there the
+earlier fragment's name is kept.
+
+A fragment element whose `spdxId` an element of another type
 already holds is not unified with it: both are kept, and the fragment's
 element gets a new id in the merged document's namespace, with a `WARNING:`.
 The same holds for the same `spdxId` and type with a different digest of the

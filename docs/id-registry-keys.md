@@ -37,7 +37,9 @@ read from a registry in NFD loads as NFC.
 `wheel`, `embed-wheel`, the Hatchling hook, the library API, `model`,
 `enrich`, `loom.Run` (`set_model`/`use_model`), `id generate` and `id import`.
 Two models with the same file stem are two models with two keys. A model has
-no key of its own beside its file's.
+no key of its own beside its file's: a loom name that differs from the file's
+stem adds none (the merged `ai_AIPackage` takes the loom name and keeps the
+file key's id).
 
 ## Content gates
 
@@ -118,21 +120,24 @@ reuse a wheel-minted id.
 ## Monorepo
 
 When the registry's root is above the project (`pkgs/demo` below it),
-`project` on a directory, the hook, `--allow-build` and `embed-wheel
---project-dir` key below the project's prefix (`pkgs/demo/src/demo/x.py`), and
-the layout alias applies below it.
+`project` on a directory, the hook, `--allow-build`, and `wheel`, `project
+<sdist>` (`generate` on either) and `embed-wheel` given `--project-dir
+pkgs/demo` (`project_dir=`) key below the project's prefix
+(`pkgs/demo/src/demo/x.py`), and the layout alias applies below it. A member
+only the archive holds (`PKG-INFO`, a wheel's `.data` file) is keyed below the
+prefix too.
 
-A plain `wheel`, `project <sdist>` (it has no `--project-dir`) or `embed-wheel`
-without `--project-dir` has no project: it keys by the archive's own paths,
-which miss a registry rooted above the project, with no `INFO:` and root-level
-keys harvested. A registry whose root is the project's root works on every
-surface. A file the build force-includes from outside the project but inside the
-root is keyed from the root. Under `--allow-build`, a built file with no source
-path cannot match its `id generate` key.
+An archive read without `--project-dir` has no project: it keys by the
+archive's own paths, which miss a registry rooted above the project, with no
+`INFO:` and root-level keys harvested. A registry whose root is the project's
+root works on every surface. A file the build force-includes from outside the
+project but inside the root is keyed from the root. Under `--allow-build`, a
+built file with no source path cannot match its `id generate` key.
 
 When a document's files cannot be keyed from the root, they are keyed by the
 path as read, with one `INFO: ID registry: N file(s) keyed by their path as
-read: <reason>`.
+read: <reason>`; a `--project-dir` outside the registry's root is one such
+reason (`the project is outside the registry's root`).
 
 ## `-e NAME[:TYPE]`
 
@@ -220,10 +225,13 @@ no recorded key (a merged loom fragment, `id import`) follows three rules:
   the document; with none, it is not recorded.
 
 `id import` of a loom fragment keys its datasets and models by their same-hash
-file, as above. Each document reserves every id the registry holds for a file,
-package or AI package, whether it looked it up or not, so an id minted on a
-miss is never one another key holds. Agents and tools are not reserved: their
-ids are the same every run.
+file, as above. Each document (`project`, `wheel`, `env`, `model`, `enrich`, the hook and
+`embed-wheel`) reserves every id the registry holds for a file, package, AI
+package or dataset package, whether it looked it up or not, so an id minted on
+a miss is never one another key holds. Not reserved: agents and tools, whose
+ids are the same every run; the id held under a model card dataset's name; and,
+for `model` and `enrich`, the id held under the model's own name (the key `id
+import` writes for a `loom model` SBOM).
 
 ## What changed for an existing registry
 

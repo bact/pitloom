@@ -28,6 +28,7 @@ from pitloom.cli.options import (
     build_options_from_args,
 )
 from pitloom.cli.options_config import (
+    add_archive_project_dir_argument,
     explicit_config_and_options,
     warn_verbose_no_effect,
 )
@@ -127,6 +128,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         "sdist archive / wheel / model file / HF URL / env: no-op (no "
         "lock-file concept applies).",
     )
+    add_archive_project_dir_argument(gen_parser)
     add_allow_build_argument(gen_parser)
     add_no_build_isolation_argument(gen_parser)
     add_build_timeout_argument(gen_parser)

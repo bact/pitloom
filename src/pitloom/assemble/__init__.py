@@ -139,6 +139,7 @@ def generate(
     build_options: BuildOptions = BuildOptions(),
     max_source_metadata_bytes: int | None = None,
     pitloom_config: PitloomConfig | None = None,
+    project_dir: Path | str | None = None,
 ) -> str:
     """Smart unified entrypoint for generating SPDX 3 SBOMs across all target types.
 
@@ -151,6 +152,10 @@ def generate(
     ``generate_project_sbom()`` itself checks), so that dispatch settles/
     warns about ``build_options`` on its own, right before its own
     metadata read -- not repeated here.
+
+    *project_dir* (the project directory an sdist or a wheel was built
+    from, for its registry keys) reaches the sdist and wheel delegates; any
+    other target warns that it has no effect.
     """
     # Before the no-effect warnings below, which precede any delegate's own
     # configure_logging() call.
@@ -186,6 +191,7 @@ def generate(
         "max_source_metadata_bytes": max_source_metadata_bytes,
         "pitloom_config": pitloom_config,
         "use_lockfile": use_lockfile,
+        "project_dir": project_dir,
     }
     # Each delegate gets what it accepts; an option it does not accept is
     # settled here, once, with the target kind's reason.

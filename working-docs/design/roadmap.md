@@ -101,10 +101,7 @@ uniform and safer:
 - [x] **Registry path keys** (built 2026-10-16): one key helper, a model is
   keyed by its file, content-gated lookups. See
   [id-registry-path-keys.md](../implementation/id-registry-path-keys.md);
-  open follow-ups (`wheel --project-dir`, layouts other than `src/`/`lib/`) in
-  [id-registry-followups-path-keys.md](id-registry-followups-path-keys.md).
-- [ ] **`wheel --project-dir`** (P5b): key a plain `wheel`, `project <sdist>`
-  and `embed-wheel` below the project prefix in a monorepo registry. See
+  open follow-ups (layouts other than `src/`/`lib/`) in
   [id-registry-followups-path-keys.md](id-registry-followups-path-keys.md).
 - [ ] **Registry layouts beyond `src/` and `lib/`** (`python/`, `packages/`):
   no alias today; add only on demand. Same file.

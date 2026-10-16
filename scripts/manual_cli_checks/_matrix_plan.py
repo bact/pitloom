@@ -185,6 +185,24 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
     "--embed": "exclude:side effect on the wheel: sequences S2 and S3",
     "--project-dir": f"exclude:{_TARGET}",
     ("fragment list", "--project-dir"): f"exclude:{_TARGET}",
+    # An archive's project directory, for its registry keys only: inert
+    # without a registry (no cell has one) and on a directory target. Any
+    # directory will do: the cell's own.
+    **{
+        (command, "--project-dir"): [
+            Variant(
+                "dir",
+                lambda _fx, c: ["--project-dir", str(c)],
+                "warns:--project-dir",
+            ),
+            *([_v("missing", "exit:1", "--project-dir", "absent")] if missing else []),
+        ]
+        for command, missing in (
+            ("wheel", True),
+            ("project", False),
+            ("generate", False),
+        )
+    },
     ("id generate", "-o"): f"exclude:{_TARGET} (-o is --id-registry here)",
     # embed-wheel's artefact is the embedded SBOM; -o writes a copy.
     ("embed-wheel", "-o"): [_v("-o file", "writes:copy.json", "-o", "copy.json")],

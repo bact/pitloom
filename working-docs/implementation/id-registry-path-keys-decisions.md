@@ -22,7 +22,7 @@ built: problem classes, design, mechanisms),
 | P3 | Dataset package key | Path key when the file or directory exists below the root at declaration (user; reverses the 2026-10-15 "caller's string" ruling), else the caller's string |
 | P3b | Dataset gate | Gated first (user), then **hybrid** (user, after the `-e` pin clash, section 3) |
 | P4 | Case and Unicode | NFC every key; on-disk spelling only for user-typed paths; never case-fold |
-| P5 | Anchor | Keys relative to the registry's stored `project_root`; project prefix computed once per document; `wheel --project-dir` is a follow-up |
+| P5 | Anchor | Keys relative to the registry's stored `project_root`; project prefix computed once per document; `--project-dir` on `wheel`/`project <sdist>` built (P5b) |
 | P6 | Rename keeps the id? | No: a moved file is a new identity; a stored `id alias` parked |
 | P7 | Layout alias | Narrower than planned: `src`/`lib` only, shorter key must not exist on disk, hash equal, unique (see the built doc, section 3) |
 | P8 | Directory keys | Out of scope; distribution-path keys kept |
@@ -144,6 +144,13 @@ Merkle root and re-mints the package id.
   key). The example registry's second pipeline run adds the two
   `data/processed` digests; the committed file is that steady state (checked:
   runs 1, 2 and 3 from the committed registry, ids unchanged).
+- **R5 finding 3 (`loom model`/`enrich`).** `loom model` and `loom enrich`
+  now reserve the registry's held ids in the model document's namespace as
+  `project` does (`_reserved_ids.reserve_held_ids`), except those under its
+  model card datasets' names and the model's own name (the key `id import`
+  gives a `loom model` SBOM's model), so a `-e` dataset pin is never minted
+  again, an `enrich` fragment names the document's model id, and no imported
+  id renumbers.
 - **What unit tests missed.** Every finding came from an independent review or
   an end-to-end probe: surface interactions, run order, on-disk existence.
 - **Mutation targets**: alias tie-break, one-leading-part bound, `.data` guard,
@@ -187,3 +194,26 @@ lookup and the registry read API), and refusing the name entry in `id import`
 `loom model` SBOM of a file outside the root, whose name entry is the
 documented reuse route). Cost: a pathless model no longer reuses a hashed id
 held by its name.
+
+## A loom model name renames the project's model (2026-10-16)
+
+User decision: a `loom.set_model("name", path=...)` name that differs from
+the project model's (its file stem or own name) used to lose the merge, with
+`WARNING: Merge: conflicting 'name'` on every run. Both elements share the
+file key's id and fold; explicit user intent beats a name derived from the
+file. Built in `_fragments_model_names.py`: `_MergeIndex` notes the base
+document's `ai_AIPackage` elements; a fold into one defers `name` and, after
+the last fragment, `ModelNames.finish()` applies the rule. One distinct
+fragment name (not equal, not the same path at another depth) wins with one
+`INFO: Merge: 'name' on ...`, and the base's `name` provenance is dropped
+from its comment (recomputed from the base comment and the fragments' in fold
+order) and from its `fields` Annotations (an Annotation left empty goes), so
+no record claims `file_name_stem` for a loom name. Two distinct fragment
+names keep the base name with today's warning per name, sorted: order
+independent. "Fragment" means any configured fragment, not only a loom run's
+(a fragment carries no reliable loom marker); `loom merge` has no base
+document, so every model is a fragment's and today's earlier-wins merge
+stays. Registry keys come from `registry_keys`, not names: run 2 harvests
+under the file key and is byte-identical (test). Probe (10 scenarios, HEAD
+vs tree): only the renamed cases changed (name, WARNING to INFO); same-name,
+no-path, disagreeing runs and `loom merge` are unchanged.

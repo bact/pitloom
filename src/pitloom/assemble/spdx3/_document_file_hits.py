@@ -79,9 +79,9 @@ def _doc_prefix(doc: DocumentModel, registry: IdRegistry) -> str | None:
 
 def _fallback_reason(doc: DocumentModel, prefix: str | None) -> str:
     """Why some of *doc*'s files got no path key (:data:`FALLBACK_KEYS_INFO`)."""
-    if doc.files_origin.archive:
-        return _NO_JOIN_ARCHIVE
-    return _OUTSIDE_ROOT if prefix is None else _NO_JOIN
+    if doc.files_origin.project_dir is not None and prefix is None:
+        return _OUTSIDE_ROOT
+    return _NO_JOIN_ARCHIVE if doc.files_origin.archive else _NO_JOIN
 
 
 def _file_keys(
@@ -93,7 +93,12 @@ def _file_keys(
         pf.distribution_path: file_lookup_key(pf, origin, prefix, registry)
         for pf in doc.project.files
     }
-    fallbacks = sum(not lookup.path for lookup in keys.values())
+    if origin.archive and origin.project_dir is not None and prefix is None:
+        # An archive whose named project is outside the root: no member is
+        # keyed below it, each by its path in the archive.
+        fallbacks = len(keys)
+    else:
+        fallbacks = sum(not lookup.path for lookup in keys.values())
     if fallbacks and (origin.project_dir is not None or origin.archive):
         log.info(FALLBACK_KEYS_INFO, fallbacks, _fallback_reason(doc, prefix))
     return keys

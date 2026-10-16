@@ -26,11 +26,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._dep_scope import is_self_reference
 from pitloom.assemble.spdx3._document_conflicts import attach_metadata_field_conflicts
-from pitloom.assemble.spdx3._document_deployed import (
-    _model_dataset_keys,
-    _reserved_ids,
-    build_deployed,
-)
+from pitloom.assemble.spdx3._document_deployed import build_deployed
 from pitloom.assemble.spdx3._document_file_hits import resolve_file_hits
 from pitloom.assemble.spdx3._document_files import (
     _add_package_files,
@@ -53,6 +49,7 @@ from pitloom.assemble.spdx3._document_model import (
 from pitloom.assemble.spdx3._licensing_profiles import apply_licensing_profiles
 from pitloom.assemble.spdx3._main_authors import add_main_package_originators
 from pitloom.assemble.spdx3._package_ids import resolve_project_package_ids
+from pitloom.assemble.spdx3._reserved_ids import model_dataset_keys, reserve_held_ids
 from pitloom.assemble.spdx3.ai import add_ai_models, resolve_ai_model_entity_hits
 from pitloom.assemble.spdx3.creation_info import (
     build_creation_info,
@@ -74,7 +71,6 @@ from pitloom.core.models import (
     build_pypi_purl,
     compute_doc_uuid,
     generate_spdx_id,
-    reserve_spdx_ids,
 )
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.requirements import normalize_dependency_specifier
@@ -278,10 +274,8 @@ def build(
         prefix=file_hits.prefix,
     )
     package_ids = resolve_project_package_ids(doc, transitive_only, session)
-    reserve_spdx_ids(
-        metadata.name,
-        doc_uuid,
-        _reserved_ids(session, unlooked=_model_dataset_keys(doc)),
+    reserve_held_ids(
+        metadata.name, doc_uuid, session, unlooked=model_dataset_keys(doc.ai_models)
     )
 
     # --- Creation info, creator agents, and creation tools ---
