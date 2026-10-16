@@ -38,7 +38,7 @@ plans; the lesson holds without the code.
   and the comment says "path and content". Size-plus-mtime hashing was
   rejected: it differs across clones.
   Do: put the relative POSIX path in every Merkle leaf, and say in
-  `Hash.comment` that the value is not a single-artifact hash.
+  `Hash.comment` that the value is not a single-artefact hash.
 - **One dependency declared several times is one node.** numpy declared
   under 2 extras and 2 `python_version` markers gave 4 `software_Package`
   nodes with the same purl and hash. The grouping key is now (PEP 503

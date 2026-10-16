@@ -70,7 +70,7 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
 - [ ] `python -m build --wheel` succeeds locally; the built wheel embeds
       `<name>-<version>.dist-info/sboms/<name>-<version>.spdx3.json` (PEP 770).
 - [ ] Run the `Fuzz` workflow (`workflow_dispatch`, both targets) for a
-      major release; skim the run for crash artifacts before proceeding.
+      major release; skim the run for crash artefacts before proceeding.
       See [fuzzing.md](fuzzing.md) for why this is manual/pre-release
       rather than continuous or RC-tag-triggered.
 
@@ -108,7 +108,7 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
       rebuilds a wheel with a new SBOM `created` time, which PyPI refuses
       and the release assets would no longer match.
 
-## 3. Post-publish verification (the actual published artifact)
+## 3. Post-publish verification (the actual published artefact)
 
 Local build success in step 1 checks Pitloom's own build; it does not
 prove what PyPI actually serves. Verify the **real, externally-hosted**

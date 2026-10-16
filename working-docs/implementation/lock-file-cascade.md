@@ -230,7 +230,7 @@ rather than one call per branch.
   entry ever wins per call), the resulting string gets a trailing
   `| Note: supersedes <name>`, e.g. `"Source: pylock.toml | Method:
   resolved_lockfile | Note: supersedes poetry.lock"` -- per this repo's
-  "no silent deviations" principle applied to the artifact itself, not
+  "no silent deviations" principle applied to the artefact itself, not
   only to the run that produced it. See
   [docs/dependency-sources.md](../../docs/dependency-sources.md#how-to-tell-which-source-was-used)
   for how a user reads this in a generated SBOM.

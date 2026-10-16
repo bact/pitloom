@@ -62,8 +62,8 @@ Skill (scope split of 2026-09-17).
 originator: the file does not say who ships it, so no file format (ONNX, PT2,
 GGUF, Safetensors, `loom`/hand-built models) sets `suppliedBy`. A model read
 from the Hugging Face Hub gets the repository owner (`info.author`) as both:
-the format reason is that the Hub repository is where the artifact is shipped
-from (the distribution source), and the artifact in it is made by that owner.
+the format reason is that the Hub repository is where the artefact is shipped
+from (the distribution source), and the artefact in it is made by that owner.
 Spec: `originatedBy` is "from where or whom the Element originally came",
 `suppliedBy` the actual distribution source. Evidence: the bact G7 mapping
 (`g7ai2026-to-spdx31.sssom.tsv`) maps G7 "model producer" to `originatedBy`

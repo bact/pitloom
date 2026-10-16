@@ -18,7 +18,7 @@ built: problem classes, design, mechanisms),
 | # | Question | Final answer |
 | --- | --- | --- |
 | P1 | Format | No bump (user 2026-10-15): v3 never released; branch-written files regenerated |
-| P2 | Name fallback for an artifact that has a path | Path only. Old `-e STEM:ai_AIPackage` pins are an accepted loss; pathless models keep the name key |
+| P2 | Name fallback for an artefact that has a path | Path only. Old `-e STEM:ai_AIPackage` pins are an accepted loss; pathless models keep the name key |
 | P3 | Dataset package key | Path key when the file or directory exists below the root at declaration (user; reverses the 2026-10-15 "caller's string" ruling), else the caller's string |
 | P3b | Dataset gate | Gated first (user), then **hybrid** (user, after the `-e` pin clash, section 3) |
 | P4 | Case and Unicode | NFC every key; on-disk spelling only for user-typed paths; never case-fold |

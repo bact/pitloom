@@ -68,7 +68,7 @@ one that fits how you work:
 | [Command line](docs/cli.md) (`loom` / `pitloom`) | You want a one-off SBOM from a terminal, a Makefile target or a shell script. |
 | [Hatchling build hook](docs/hatchling-build-hook.md) | You build wheels with Hatchling and want an SBOM embedded automatically. |
 | [Python API](docs/python-api.md) | You call Pitloom from Python code, or want to capture provenance while training or evaluating a model (tracking decorator). |
-| [GitHub Action](docs/github-action.md) | Your project is not Hatchling-based, or you want CI to produce an SBOM artifact. |
+| [GitHub Action](docs/github-action.md) | Your project is not Hatchling-based, or you want CI to produce an SBOM artefact. |
 | [Agent Skills](docs/agent-skills.md) | You want an AI coding agent to generate, enrich or validate an SBOM on request. |
 | [Claude Code plugin](docs/claude-code-plugin.md) | You use Claude Code and want the Skills installed with one command. |
 

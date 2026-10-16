@@ -32,7 +32,7 @@ lifecycles:
   their own SBOM fragment covering training data, hyperparameters, and
   evaluation results.
 - A binary executable or compiled library whose source code is not available
-  to the integrator; only a pre-built artifact and a partner-supplied SBOM.
+  to the integrator; only a pre-built artefact and a partner-supplied SBOM.
 - Datasets that are incrementally curated, filtered, and assembled inside
   interactive notebooks over weeks, with each session adding or refining
   documentation.
@@ -63,7 +63,7 @@ elements may in turn contain or relate to any number of other elements.
 The relevant composition mechanisms in SPDX 3 are:
 
 - **`software_Sbom`** -- a typed collection of SPDX elements describing a
-  specific artifact. Multiple `software_Sbom` objects can exist within
+  specific artefact. Multiple `software_Sbom` objects can exist within
   one `SpdxDocument`.
 - **`SpdxDocument.imports`** -- an `ExternalMap` allowing a document to
   formally declare dependencies on other SPDX documents by their namespace
@@ -102,7 +102,7 @@ map directly to Pitloom's fragment use cases:
 | CISA role | Pitloom mapping |
 | :---- | :---- |
 | **Author** | Team that generates the fragment (e.g., model team, dataset team) |
-| **Distributor** | CI/CD pipeline or artifact registry that passes fragments downstream |
+| **Distributor** | CI/CD pipeline or artefact registry that passes fragments downstream |
 | **Consumer** | The final build (Pitloom's `merge_fragments`) that assembles the product SBOM |
 
 NTIA's **Minimum Elements for SBOM** (2021, updated 2025 by CISA) require

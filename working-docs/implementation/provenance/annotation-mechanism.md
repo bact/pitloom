@@ -79,14 +79,14 @@ pyproject.toml / hatchling build backend / setup.cfg / setup.py / wheel metadata
 / sdist PKG-INFO / Hugging Face Hub) with no extraction `method`. Everything
 else is kept: any recorded `method` (inferred/detected/dynamic/
 caller/directive/inference), a non-manifest source (a pipdeptree scan, a binary
-artifact's internal key, a synthesized phantom package), or the raw PEP 508
+artefact's internal key, a synthesized phantom package), or the raw PEP 508
 `declared_constraint`.
 
 ### Config (`[tool.pitloom.provenance]`)
 
 - `detail = "minimal" | "full"` — default `"minimal"`.
 - `preserve-source-metadata = "auto" | "always" | "never"` — default
-  `"auto"` (preserve an AI model's verbatim metadata only when the artifact is
+  `"auto"` (preserve an AI model's verbatim metadata only when the artefact is
   not shipped in the distribution and can't be re-extracted).
 - `max-source-metadata-bytes = <int>` — default `0` (unlimited). Byte
   budget for the serialized artifact-metadata `Annotation.statement`

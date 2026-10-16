@@ -101,7 +101,7 @@ fixes:
   resolves via the build-and-read mechanism instead, same as Track B.
 - **Track B -- compiled/native backends** (`maturin`,
   `scikit-build-core`, `meson-python`): the wheel's actual contents
-  (compiled `.so`/`.pyd` extensions, platform-specific artifacts,
+  (compiled `.so`/`.pyd` extensions, platform-specific artefacts,
   generated files) do not exist as source files at all until the
   backend's own compiler toolchain runs. **No rescan of `project_dir`
   can ever discover these correctly, even in principle** -- this is

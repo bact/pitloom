@@ -13,7 +13,7 @@ output").
 
 Replaces an earlier `::warning::`/`::error::` GitHub Actions
 workflow-command annotation idea. Emit a SARIF file as a build
-artifact, uploaded via a separate `github/codeql-action/upload-sarif`
+artefact, uploaded via a separate `github/codeql-action/upload-sarif`
 step. Sidesteps the streaming/race problem that stalled the
 workflow-command approach entirely: SARIF is written synchronously
 once `loom` finishes, then uploaded as its own step -- no `tee`/

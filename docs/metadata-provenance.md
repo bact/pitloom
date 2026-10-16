@@ -37,8 +37,8 @@ manifest read.
 
 The provenance reference is split by topic:
 
-- [Preserved artifact metadata](metadata-provenance-artifact-metadata.md)
-  -- an artifact's own metadata kept in one annotation, and its size
+- [Preserved artefact metadata](metadata-provenance-artifact-metadata.md)
+  -- an artefact's own metadata kept in one annotation, and its size
   bound.
 - [Licences and copyright](metadata-provenance-licences.md) -- how a
   licence source is chosen, how a licence value is recorded, and how the

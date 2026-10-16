@@ -18,11 +18,11 @@ section for the backend-priority table this decision feeds.
 
 SPDX 3's lifecycle-scope concept distinguishes an SBOM describing a
 project as it exists *before* any build (source/design-stage) from one
-describing an actual produced artifact (build-stage). Pitloom's two
+describing an actual produced artefact (build-stage). Pitloom's two
 wheel-file-discovery paths map directly onto this:
 
 - **Source-stage**: `loom project`/`loom generate` run against a
-  source-tree directory. No build artifact exists yet; file discovery
+  source-tree directory. No build artefact exists yet; file discovery
   asks each backend's own static/declarative config "what would be
   included," without invoking a build.
 - **Build-stage**: `loom wheel` and `embed-wheel`'s wheel-merge step,
@@ -41,7 +41,7 @@ wheel-file-discovery paths map directly onto this:
 | ...PDM-backend | -- | `Builder.get_files()` (via `WheelBuilder`'s overridden `_collect_files()` for `src/`-layout prefix-stripping) + `_get_wheel_data()` (`src/pitloom/core/_models_wheel_pdm.py`) -- static config only; never calls `initialize()`/`_get_metadata_files()`, both of which write to disk as a pdm-backend side effect | Source |
 | ...Flit-core backend | -- | `flit_core.common.Module.iter_files()` + `walk_data_dir()` (`src/pitloom/core/_models_wheel_flit.py`) -- static config only; a dynamic `version`/`description` is resolved via an AST-only scan (`get_docstring_and_version_via_ast()`), never by importing the target module | Source |
 | ...any other backend (`uv_build`, ... until it lands) | -- | Falls back to the Hatchling heuristic, with a logged warning that the result may be inaccurate for that backend | Source (approximated) |
-| `loom wheel` | built `.whl` file | `read_wheel()` reads the real artifact directly, backend-agnostic | Build |
+| `loom wheel` | built `.whl` file | `read_wheel()` reads the real artefact directly, backend-agnostic | Build |
 | `embed-wheel` (wheel-merge step) | built `.whl` file | Same `read_wheel()` path; `_merge_file_extras` treats it as ground truth, discarding `get_wheel_files()`'s own Merkle root in favor of one computed from the real wheel's hashes | Build |
 
 ## Why the Hatchling and setuptools mechanisms are the same tier

@@ -49,7 +49,7 @@ directory leaks into distribution paths.
 discovery module's manifest-analysis path: `package_data` (explicit
 glob) and `include_package_data` + `MANIFEST.in` together, plus the
 no-disk-mutation guarantee (discovery must never leave an `.egg-info`
-artifact behind). Same transitional `pyproject.toml`/`setup.cfg` split
+artefact behind). Same transitional `pyproject.toml`/`setup.cfg` split
 as `sampleproject-setuptools/`.
 
 `sampleproject-setuptools-zeroconfig/` is a bare PEP 621 project --

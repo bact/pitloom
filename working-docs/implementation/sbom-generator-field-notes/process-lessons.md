@@ -230,3 +230,30 @@ two short delta rounds. 12,958 tests, 100 % branch coverage at the end.
   failing job was one of four (the rest were cancelled by fail-fast); the log
   held the diff of two SBOMs, and the differing bytes were one file hash,
   not the UUID that appeared first.
+
+## Splitting oversize docs and compacting AGENTS.md (#307, 2026-10-15)
+
+Nine docs over the 30 KB limit were split by five parallel agents, one per
+file group; the rules file (46 KB) was compacted by hand.
+
+- **Make a split lossless and prove it with a script.** Each agent kept the
+  original, then checked that every non-heading line appears exactly once in
+  the union of the parts. The only differences were added maps, "See also"
+  blocks and relative-position phrases ("above", "below") turned into links.
+  Do: move text verbatim; fix only anchors and links.
+- **Keep the original path as the entry page.** Most inbound links and
+  published URLs then still resolve; only links to a moved section needed a
+  one-line edit (14 lines in 10 files for the one user-facing page).
+- **A test that reads a page must be taught about its parts.** The
+  provenance-row test now reads every `metadata-provenance*.md` page and
+  asserts that exactly one holds the method table; deleting a row still fails.
+- **Compact a rules file by moving prose, not rules.** Every bullet stayed as
+  a one-liner; explanatory paragraphs went verbatim to a rationale page that
+  the rules file links. Before shortening a bug-pattern bullet, a script
+  checked that its identifiers and PR numbers exist in the detail docs.
+- **Fence what split agents may edit.** They were told not to touch the rules
+  file and to report the lines that referenced moved files (none did).
+- **A style rule restated mid-session needs a sweep, not a reminder.** The
+  British-spelling request produced a pass limited to prose: field names, code
+  spans, quoted standard titles and CLI terms ("Analyzed") stayed; a changed
+  heading means updating every link to its anchor.

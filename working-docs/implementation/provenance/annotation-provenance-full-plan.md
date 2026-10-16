@@ -46,8 +46,8 @@ beyond the native value itself.** Two confirmed decisions:
   captured as design only (the `enrich/` subpackage is unbuilt).
 
 A second Annotation role emerged beyond provenance-of-extraction: **metadata
-preservation** — keeping the original artifact metadata (e.g. an AI model's own header)
-verbatim, config-gated, precisely when the artifact isn't shipped and can't be
+preservation** — keeping the original artefact metadata (e.g. an AI model's own header)
+verbatim, config-gated, precisely when the artefact isn't shipped and can't be
 re-extracted later. This complements native encoding rather than replacing it, so it sits
 squarely inside the boundary principle.
 
@@ -91,7 +91,7 @@ and which half is genuinely Annotation-only.
 | **why two fragments were unified** (criterion: registry-id / sha256 / structural) | **No** (merged-away ids vanish; `imports` can't say *why*) | **A1 — necessary** |
 | **who/when enriched** | **Yes, native, but NOT built** — a second `CreationInfo` per enrichment run | **Phase 2 → N3**; Annotation keeps which-field + before/after |
 | **field overridden A→B by enrichment source Y** | **No** (`CreationInfo` is element-level, no before/after) | **E1/E2 — necessary (design only now)** |
-| **verbatim original artifact metadata blob** (GGUF kv-store, safetensors `__metadata__`, HF `config.json` + model card) | **No** (native mapping is a lossy subset; `ExternalRef` is only a *pointer* that can dangle) | **P1 — useful; necessary when the artifact is not shipped** |
+| **verbatim original artefact metadata blob** (GGUF kv-store, safetensors `__metadata__`, HF `config.json` + model card) | **No** (native mapping is a lossy subset; `ExternalRef` is only a *pointer* that can dangle) | **P1 — useful; necessary when the artefact is not shipped** |
 
 Citations: native inventory — `document.py:60-97,173-281`, `ai.py:124-357`,
 `dataset.py:104-235`, `deps.py:75-347`, `creation_info.py:84-210`. Provenance vocabulary —
@@ -181,17 +181,17 @@ Distinct from the G/A/E provenance-of-*extraction* cases above: this preserves t
 metadata itself**, verbatim, regardless of what Pitloom mapped. Complements native encoding — the
 relevant subset is still emitted as SPDX classes/properties/relationships — rather than replacing it.
 
-- **P1 — Verbatim original artifact metadata blob — USEFUL; NECESSARY when the artifact is not shipped.**
+- **P1 — Verbatim original artefact metadata blob — USEFUL; NECESSARY when the artefact is not shipped.**
   Pitloom's native mapping is deliberately lossy and selective: it lifts a chosen subset of a model's
   GGUF kv-store / safetensors `__metadata__` / ONNX `metadata_props` / HF `config.json` + model-card
   YAML into `ai_typeOfModel`, `ai_hyperparameter`, `ai_domain`, etc. (`ai.py:124-200`), normalizing or
-  dropping everything else. When the artifact does **not** travel with the SBOM — a remote HF model
+  dropping everything else. When the artefact does **not** travel with the SBOM — a remote HF model
   referenced by URL, a large weights file excluded from the wheel, a model pulled at deploy time — the
-  original metadata can never be re-extracted from the artifact, and an SPDX `ExternalRef` (used today
+  original metadata can never be re-extracted from the artefact, and an SPDX `ExternalRef` (used today
   for the Croissant URL, `dataset.py:156`) is only a *pointer* that can dangle. Embedding the original
   metadata as-is (in the model's own encoding) in a config-gated Annotation makes the SBOM a
   self-contained, durable record. No native SPDX construct can hold an arbitrary vendor metadata blob.
-  Config-gated because blobs can be large and are redundant when the artifact is bundled and
+  Config-gated because blobs can be large and are redundant when the artefact is bundled and
   re-extractable. Precedent for the extractors already retaining most of this: `properties` /
   `extra_data` maps in `ai_model/gguf.py`, `ai_model/safetensors.py`, `remote/huggingface.py` — see step below on retaining
   the *complete* raw map.
@@ -233,9 +233,9 @@ Add two keys alongside the existing `format` / `schema`:
   - `minimal`: field Annotations only for G1–G4 signals; process Annotations (A1) always.
   - `full`: also emit the plain per-field source map (current behavior) for exhaustive audit.
 - `preserve_source_metadata = "auto" | "always" | "never"` — default `"auto"` (P1).
-  - `auto`: embed the verbatim artifact-metadata blob **only when the artifact is not shipped**
+  - `auto`: embed the verbatim artifact-metadata blob **only when the artefact is not shipped**
     with the distribution (remote HF model, model referenced by URL, weights excluded from the
-    wheel) — i.e. exactly when it can't be re-extracted later. Skip it when the artifact is
+    wheel) — i.e. exactly when it can't be re-extracted later. Skip it when the artefact is
     bundled (re-extractable, blob would be redundant).
     Decidable from data Pitloom already has: an AI model with `format_info.file_path_relative`
     present in the packaged file set is "shipped"; a HF/URL-sourced model with no local file is not.
@@ -285,7 +285,7 @@ Parsed and validated in `src/pitloom/core/config.py` next to `_read_provenance_s
 minimal)** only when it was read *verbatim* from a transparent, re-readable
 manifest (`_TRANSPARENT_SOURCES`) with **no** extraction `method`. Everything
 else is kept — any recorded `method` (G1 inference/detection/dynamic/caller/
-directive), a non-manifest `source` (pipdeptree scan, a binary artifact's
+directive), a non-manifest `source` (pipdeptree scan, a binary artefact's
 internal key G4, a synthesized/phantom package, an enrichment), and the raw
 `declared_constraint` (G3, parsed as a note with no manifest source). Applied as
 a filter in `emit_provenance` when `detail == "minimal"`. See §10 of the

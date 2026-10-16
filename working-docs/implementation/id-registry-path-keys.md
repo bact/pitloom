@@ -21,11 +21,11 @@ I-numbers refer to it),
 when this was written. The plan this records was a four-file design under
 `design/` (removed); what follows is what the code does and why.
 
-Question that started it (user, 2026-10-15): if an artifact's relative path
+Question that started it (user, 2026-10-15): if an artefact's relative path
 is stable (moving it breaks the app), does keying by that path reduce key
-collisions? Answer, probed and then built: **yes for every artifact that has
+collisions? Answer, probed and then built: **yes for every artefact that has
 a file under the registry root, provided every surface computes the key
-through one helper; no for artifacts with no path** (dependencies, Hugging
+through one helper; no for artefacts with no path** (dependencies, Hugging
 Face models, remote datasets), which keep a name key. It also unblocked G7
 #3 part 1 (gated model lookups, `ai_AIPackage.verifiedUsing`).
 
@@ -51,7 +51,7 @@ Probed 2026-10-15 in a scratch src-layout project (`src/demo/x.py`,
 | K8 | Unicode normalisation (NFD file, NFC script) | Fixed: every key is NFC |
 | K9 | Shared-stem models (`models/a/model.npy`, `models/b/model.npy`) shared one id | Fixed: a model is keyed by its file's path; no stem key |
 | K10 | Five candidate lists for one model (name, stem, path, own name) | Fixed: one model rule (section 2) |
-| K11 | PEP 503 only for packages; a model or dataset `My_Model` vs `my-model` | Fixed for artifacts with a path (the path is the identity); name-keyed ones unchanged |
+| K11 | PEP 503 only for packages; a model or dataset `My_Model` vs `my-model` | Fixed for artefacts with a path (the path is the identity); name-keyed ones unchanged |
 | K12 | Ambiguous-name harvest skip (I5) | Kept for packages and members that normalise alike; ambiguity is now judged on the WRITTEN key |
 | K13 | Display-escaped retry (`id import` stores names as shown) | Kept: raw lookup first, escaped second, aliases after both |
 | K14 | Directory keys (`demo` vs `src/demo`) | Not fixed (P8): a directory `software_File` keeps its distribution-path key (`demo`) and `id generate` does not index directories; the public docs state it as the exception to path keys |

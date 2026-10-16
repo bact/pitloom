@@ -60,17 +60,17 @@ checklist (N1-N6). G2's own implementation depth lives separately in
   fragment path, not yet by in-process code.
 - **Preservation** — P1 verbatim original AI-model metadata
   (`provenance/artifact-metadata/1`), config-gated, complements the lossy
-  native mapping when the artifact isn't shipped. `raw_metadata` captured
+  native mapping when the artefact isn't shipped. `raw_metadata` captured
   verbatim by the safetensors & GGUF extractors; HF/others fall back to the
   retained `properties`/`extra_data`. **Extrinsic-assertion justification**
   (this is the one borderline case per the test in
   [annotation-mechanism.md](annotation-mechanism.md)): the blob payload
   looks intrinsic, but P1's role stays extrinsic — it is Pitloom witnessing
-  and recording "here is what the source artifact's own header said at
+  and recording "here is what the source artefact's own header said at
   generation time," not Pitloom declaring a new native characteristic of
-  the model. It exists precisely because the artifact won't travel with the
+  the model. It exists precisely because the artefact won't travel with the
   SBOM and can't be re-read later to re-derive this; a shipped, re-extractable
-  artifact gets no P1 blob at all (`preserve-source-metadata = "auto"`),
+  artefact gets no P1 blob at all (`preserve-source-metadata = "auto"`),
   which is itself evidence the role is "preserve what would otherwise be
   lost," not "hold a property."
 

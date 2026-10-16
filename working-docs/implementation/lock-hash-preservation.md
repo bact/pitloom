@@ -28,7 +28,7 @@ only ever populated via a PyPI JSON API lookup
 skipped entirely in `--offline` mode. An offline SBOM therefore carried
 no dependency-package hash at all, even though every lock format this
 repo already parses (`pylock.toml`, `uv.lock`, `poetry.lock`, `pdm.lock`,
-`Pipfile.lock`) records the SHA-256 digest of the exact resolved artifact
+`Pipfile.lock`) records the SHA-256 digest of the exact resolved artefact
 right there in the file -- unread by any of the five pin extractors
 before this change.
 
@@ -36,7 +36,7 @@ before this change.
 
 SHA-256 only. No lock format and no PyPI JSON API response carries
 SHA-512 (a BSI TR-03183-2 requirement) -- getting one would mean
-downloading the actual artifact and hashing it, a materially different
+downloading the actual artefact and hashing it, a materially different
 feature (real network I/O even in offline mode, streaming-hash handling)
 tracked separately in `roadmap.md`. SPDX 3's `Element.verifiedUsing` has
 0..* cardinality, so that future work can simply append an additional
@@ -46,23 +46,23 @@ needed here.
 ## Design decisions
 
 - **Lock-file hash always wins over a PyPI-looked-up hash**, even
-  online. The lock file names the exact artifact that was actually
+  online. The lock file names the exact artefact that was actually
   resolved; a PyPI lookup may resolve to a different release build.
   PyPI's hash lookup is the fallback only when no lock hash exists for
   that canonical package name.
 - **Tie-break for multiple hashes on one package**: prefer a wheel
-  artifact over any other (sdist), then sort by filename, then sort by
+  artefact over any other (sdist), then sort by filename, then sort by
   digest -- shared by every format and the PyPI path via
   `pitloom.extract.lock._hash_selection.select_sha256_hash`. A source with no
   filename at all (`Pipfile.lock`'s bare `hashes` list) falls back to
-  sorting the raw digest strings; the artifact this picks is genuinely
+  sorting the raw digest strings; the artefact this picks is genuinely
   arbitrary by construction for that one format, not wheel-preferring.
-  **Important subtlety, fixed after an initial miss:** a URL-only artifact
+  **Important subtlety, fixed after an initial miss:** a URL-only artefact
   (`uv.lock`, `pylock.toml`) must be reduced to its clean basename
   (`pitloom.extract._extract_utils.filename_from_url`, via `urlparse().path`
   + `PureWindowsPath(...).name`) *before* the tie-break sees it -- sorting
   on the raw URL instead sorts by PyPI's content-addressable hash-directory
-  prefix (`/32/34/...`), not the artifact filename, making the selected
+  prefix (`/32/34/...`), not the artefact filename, making the selected
   hash depend on an ordering this repo has no contract with. A pathless
   URL (`https://example.com`) correctly resolves to `None`, not the
   domain name.
@@ -98,12 +98,12 @@ reading -- see the "verify docs against actual code" rule in the root
 `CLAUDE.md`):
 
 - **`pylock.toml`** (PEP 751): `pkg["sdist"]["hashes"]["sha256"]` and
-  each `pkg["wheels"][i]["hashes"]["sha256"]` -- each artifact's
-  `hashes` is independently a multi-algorithm table, so an artifact with
+  each `pkg["wheels"][i]["hashes"]["sha256"]` -- each artefact's
+  `hashes` is independently a multi-algorithm table, so an artefact with
   only e.g. `blake2b` simply contributes no candidate, not an error; a
-  sibling artifact on the same package may still have `sha256`.
+  sibling artefact on the same package may still have `sha256`.
 - **`uv.lock`**: `pkg["sdist"]["hash"]` / `pkg["wheels"][i]["hash"]`, a
-  single `"sha256:<hex>"`-prefixed string per artifact.
+  single `"sha256:<hex>"`-prefixed string per artefact.
 - **`poetry.lock`**: **not uniform across lock versions.** Lock-version
   2.0 and later write a per-package `files` array directly on the
   `[[package]]` entry, but a 1.x lock instead lists hashes in one
@@ -154,7 +154,7 @@ won. `_try_read_poetry()` therefore calls
   is also new, threaded down alongside `locked_hashes`) -- otherwise a
   declared exact pin that overrides a conflicting locked version (see
   lock-file-cascade.md's "explicit pin beats lock" rule) would apply a
-  hash describing a *different* artifact than the one the package claims
+  hash describing a *different* artefact than the one the package claims
   to be. The lock-resolved-transitive-only call passes no
   `locked_versions` and trusts its hash unconditionally, since its own
   dependency strings already carry the lock's version verbatim by

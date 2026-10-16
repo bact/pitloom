@@ -31,7 +31,7 @@ obtaining it also requires a network call to an external service,
 which a build hook shouldn't block on. Sidecar file next to the built
 wheel (e.g. `dist/<wheel>.receipt.cbor`), produced by a separate
 post-build step (`loom scitt submit`) -- mirrors how PEP 740 itself
-keeps attestations outside the artifact, served by the index rather
+keeps attestations outside the artefact, served by the index rather
 than embedded.
 
 ## Pitloom's role is client-only, not log operator

@@ -175,7 +175,7 @@ CLI application (`poetry lock`/`add`/`update` write it, `poetry install`
 reads it) -- confirmed via poetry-core source (`factory.py` has zero
 references to "lock") that poetry-core's build backend (`poetry build`,
 `pip install .`, `python -m build`) never touches it. That makes it a
-**source-stage-only** artifact per
+**source-stage-only** artefact per
 [sbom-lifecycle-stages.md](sbom-lifecycle-stages.md): appropriate for
 `loom project`/`loom generate` (a static file sitting next to
 `pyproject.toml`), wrong for `loom wheel`/`embed-wheel` (the real

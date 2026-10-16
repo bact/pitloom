@@ -309,7 +309,7 @@ real `egg_info` command invocation -- redirected via the command's own
 `egg_base` option to a `tempfile.TemporaryDirectory()` so the project
 directory is never mutated by what is meant to be a read-only
 discovery pass (verified by a regression test asserting no `.egg-info`
-artifact is left behind).
+artefact is left behind).
 
 **No static config at all** -- a `pyproject.toml` with only
 `[build-system]` (no `[project]`, no `[tool.setuptools]`) and no

@@ -223,14 +223,14 @@ output costs more than a repo-level license badge suggests, and another
 data point favoring the synthetic-generation plan above over vendoring any
 of these.
 
-**Code license vs. artifact license -- these are two separate questions,
-not one.** A trained checkpoint is a distinct artifact from the training
+**Code license vs. artefact license -- these are two separate questions,
+not one.** A trained checkpoint is a distinct artefact from the training
 script that produced it; a permissive code license (Apache-2.0/MIT) on the
 script does not automatically extend to, or clear, the weights file. A
 project that publishes weights separately (e.g. on Hugging Face) licenses
 them on their own terms, which need independent checking, same as the code
 was checked above. A project that doesn't publish weights at all (true of
-every repo in this list except Octo) has no artifact to vendor in the first
+every repo in this list except Octo) has no artefact to vendor in the first
 place -- getting one means running their code, which reopens the same
 stability/provenance problem "Fixture plan" above already ruled out (no
 fixed, pinned, versioned source; "whatever running the script today

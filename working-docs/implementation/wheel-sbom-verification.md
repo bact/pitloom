@@ -16,7 +16,7 @@ canonicalization parity, Poetry fallback, PURLs, file hashes -- see
 been checked against local dogfood builds and unit/integration tests
 before this pass. This document records independent checks against
 **actual published releases** on PyPI -- the real, externally-built
-artifacts -- so the result is durable evidence, not just a one-off chat
+artefacts -- so the result is durable evidence, not just a one-off chat
 answer that disappears with the session that produced it.
 
 As of 2026-08-11 this check is part of the standard
@@ -29,7 +29,7 @@ via `loom verify-wheel <whl> --sbom-filename <name>` and `loom
 validate-wheel <whl>` (see [roadmap.md](../design/roadmap.md)'s "PEP 770 /
 embed-wheel" section) -- the manual method documented per-release below
 still applies to a published PyPI wheel specifically (download + run
-against the real artifact), but the same location/schema logic no longer
+against the real artefact), but the same location/schema logic no longer
 needs to be reasoned about by hand.
 
 ## Verification of v0.20.2 (2026-10-09)
@@ -347,7 +347,7 @@ Same as rc1 below, against `https://pypi.org/pypi/pitloom/0.13.3/json`.
 
 The wheel-embedded SBOMs are valid per SPDX 3.0.1 (schema + SHACL), correctly
 located per PEP 770, and every field is present and correct in the actual
-published artifacts -- confirmed against the real files, not just against
+published artefacts -- confirmed against the real files, not just against
 source or local test fixtures. Holds across releases spanning significant
 internal redesigns (v0.9.0 through v0.13.3): the CLI/API rewrite, the
 provenance-as-Annotation system, the native SPDX3 backfill, and the

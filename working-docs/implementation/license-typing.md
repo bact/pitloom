@@ -238,7 +238,7 @@ the package's own installed metadata (the installed-project reader, and a
 `loom env` package, labelled `deployed package metadata`). A third-party
 record is concluded: the PyPI JSON API and a dependency's installed copy in a
 project SBOM (`installed metadata`), whose environment need not hold the
-artifact the SBOM describes. No source at all is concluded.
+artefact the SBOM describes. No source at all is concluded.
 
 Two-candidate mode is unchanged: when the manifest states a licence it
 stays declared, and the directory's detection is the concluded second

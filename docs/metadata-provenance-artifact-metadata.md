@@ -6,7 +6,7 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Metadata provenance: preserved artifact metadata
+# Metadata provenance: preserved artefact metadata
 
 See also: [Metadata provenance](metadata-provenance.md) for the
 provenance annotations and the `method` values, [Reading
@@ -15,9 +15,9 @@ layers, and the other parts: [Licences and
 copyright](metadata-provenance-licences.md),
 [Authors](metadata-provenance-authors.md).
 
-## Preserved artifact metadata
+## Preserved artefact metadata
 
-`preserve-source-metadata` embeds an artifact's own metadata in one
+`preserve-source-metadata` embeds an artefact's own metadata in one
 `Annotation.statement` of kind `artifact-metadata`, keyed as the file
 names it. The rule is the same for every model format:
 
@@ -131,7 +131,7 @@ the first 20 member names, the same ones the property text shows;
 
 ## Size-bounded preservation
 
-`preserve-source-metadata` can embed an artifact's verbatim original
+`preserve-source-metadata` can embed an artefact's verbatim original
 metadata (e.g. a GGUF model's key/value header) into a single
 `Annotation.statement`. For a real model this can be large -- a chat
 template alone can be several KiB. `max-source-metadata-bytes` caps the
@@ -160,7 +160,7 @@ always marked explicitly in the same envelope, never silent:
 ```
 
 If the budget is too small to hold even an empty `metadata: {}` plus the
-marker fields, no Annotation is emitted for that artifact at all (a
+marker fields, no Annotation is emitted for that artefact at all (a
 `WARNING` is logged) -- an Annotation whose own `maxMetadataBytes` field
 claims a budget its own overhead violates would be worse than omitting
 it. A budget that forces every key to be dropped, but still fits the

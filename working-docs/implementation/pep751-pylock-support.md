@@ -159,7 +159,7 @@ cascade is called from `read_project()` rather than
   `_try_read_poetry()` is also called directly by the Hatchling build
   hook's `_poetry_fallback_metadata()`, which must pass
   `include_locked_dependencies=False` to avoid leaking a source-stage
-  artifact into a build-stage SBOM), `read_project()`'s cascade call is
+  artefact into a build-stage SBOM), `read_project()`'s cascade call is
   never reached from the Hatchling build hook at all -- only from the
   CLI/library source-stage path.
 

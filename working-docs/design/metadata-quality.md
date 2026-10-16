@@ -69,7 +69,7 @@ Recorded, not built. Context:
   wheel or installed metadata. Detection on those readers, or none on the
   directory, would align them; a content decision.
 - [ ] **SPDX 3.1: exactly one concluded licence.** 3.1 requires one
-  `hasConcludedLicense` per artifact. Pitloom targets 3.0.1 and emits none
+  `hasConcludedLicense` per artefact. Pitloom targets 3.0.1 and emits none
   when no source concludes one (an absent licence gives no relationship), so
   moving to 3.1 needs a rule for that case.
 - [ ] **`LicenseRef-` case.** Moved to

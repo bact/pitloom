@@ -70,9 +70,9 @@ sections 3.3 (archives inside archives) and 3.8 (wheel identity bugs).
   case only (AGENTS.md design principle).
   Do: never let `importlib.metadata` of the tool's own process override a
   pin.
-- **A lock hash describes one artifact, so check the version first.**
+- **A lock hash describes one artefact, so check the version first.**
   A declared exact pin can override a conflicting locked version; the
-  lock's SHA-256 then describes a different artifact. The direct
+  lock's SHA-256 then describes a different artefact. The direct
   dependency takes the lock hash only when its resolved version
   PEP 440-equals the locked one. A lock hash always beats a PyPI lookup,
   even online: the lock names what was really resolved (#212).
@@ -182,14 +182,14 @@ A per-surface matrix of what each command lists and hashes, measured on one
 built wheel, is in [wheel-embedding.md](../wheel-embedding.md) ("Behaviour
 matrix").
 
-- **An SBOM stored inside the artifact cannot hash everything in it.** The
+- **An SBOM stored inside the artefact cannot hash everything in it.** The
   embed rewrites `RECORD`, and a file cannot hold its own hash. Pitloom 0.19.0
   listed both with hashes taken before the embed: in `licenseid` 0.3.7, 30 of
   32 listed hashes matched the wheel and 2 did not. `spdx3-validate` passed:
   schema and SHACL checks do not recompute hashes, so nothing flagged it. The
   same wheel built by the Hatchling hook (SBOM made before the wheel exists)
   had 26 files and every hash matched.
-  Do: recompute each listed hash from the final artifact in a test; do not
+  Do: recompute each listed hash from the final artefact in a test; do not
   rely on schema validation.
 - **Decide the boundary once: the project, not its container.** After the fix a
   wheel SBOM lists the payload only and nothing under the wheel's own

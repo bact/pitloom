@@ -128,7 +128,7 @@ JSON-serialization paths (`record_dict_field_provenance`, `_sanitize_for_json`)
 found and fixed two real gaps:
 
 - **Provenance-string delimiter injection.** Both a dict key from an
-  untrusted binary artifact (a GGUF kv key, a safetensors `__metadata__`
+  untrusted binary artefact (a GGUF kv key, a safetensors `__metadata__`
   key, ...) *and* the model's filename (`f"Source: {model_path.name}"`,
   built independently in all nine AI-model extractors) flow unescaped into a
   `"Source: X | Field: Y"` provenance string. A crafted value containing

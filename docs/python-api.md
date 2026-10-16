@@ -290,7 +290,7 @@ hash of the file it replaces. One name holding one content is one package per
 run: declaring it again (as input and output, or twice) adds its roles to the
 same package, with no collision warning.
 These `generates` edges are scoped `build` -- they describe a build-time
-step, not something that runs in the shipped artifact. Contrast with the
+step, not something that runs in the shipped artefact. Contrast with the
 `hasDataFile` relationship Pitloom emits when it detects a script *using*
 a model file at runtime -- that one is scoped `runtime`. Static detection of
 such scripts needs `scan_model_usage` (off by default); a `loom.run` that

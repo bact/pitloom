@@ -325,7 +325,7 @@ the Hugging Face Hub, "card" a README or model card read with `--enrich`.
 The artifact-metadata annotation is written when
 `preserve-source-metadata` says so: by default (`auto`) only for a model
 whose file is not in the SBOM's file list, as with `loom model FILE`; see
-[Preserved artifact metadata](metadata-provenance-artifact-metadata.md#preserved-artifact-metadata).
+[Preserved artefact metadata](metadata-provenance-artifact-metadata.md#preserved-artefact-metadata).
 In it a collection is a JSON array (or object) and a scalar is text, for
 every format.
 

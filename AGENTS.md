@@ -32,7 +32,7 @@ Long-form rationale and examples for the rules below (marked "Why:") are in
 - The CLI (`pitloom.__main__`) and `generate_project_sbom()`'s default path resolve metadata via `pitloom.extract.project.read_project()`.
 - Both paths converge on `pitloom.assemble.spdx3.document.build()`.
 - **`physical_path` vs `distribution_path`**: on-disk project-relative path vs in-package/built path; they diverge for any `src/`-layout project. `software_File.name` always uses `distribution_path`. Registry keys come only from `pitloom.id_registry.keys.file_lookup_key`. For an `--allow-build` file, `physical_path` is an *absolute* temporary path: any consumer that joins it onto `project_dir` or bakes it into a determinism-sensitive string must call `pitloom.core.project.project_relative_or_fallback(physical_path, fallback)`, not an inline `is_absolute()` check. Why: [rationale](working-docs/implementation/agents-md-rationale.md#metadata-sources).
-- **Stage-scoped helpers take an explicit stage flag**: a helper shared by a source-stage caller (`read_pyproject()`) and a build-stage caller (the hook's gap-fill) needs a parameter (`include_locked_dependencies=False`-style), not call-site discipline; a source-only artifact (`poetry.lock`) must not leak into the build stage.
+- **Stage-scoped helpers take an explicit stage flag**: a helper shared by a source-stage caller (`read_pyproject()`) and a build-stage caller (the hook's gap-fill) needs a parameter (`include_locked_dependencies=False`-style), not call-site discipline; a source-only artefact (`poetry.lock`) must not leak into the build stage.
 
 ### Usage surfaces
 

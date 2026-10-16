@@ -38,7 +38,7 @@ A stale in-tree `.egg-info` is a byproduct of whenever `pip install -e .`
 last ran -- not necessarily the current commit. Treating it as
 higher-priority than `pyproject.toml`/`setup.cfg`/`setup.py` (as an
 earlier draft of `metadata-sources.md` proposed) would let a stale build
-artifact silently override a project's own current, hand-edited
+artefact silently override a project's own current, hand-edited
 declaration.
 
 The rule instead: the static source (`pyproject.toml`/`setup.cfg`/

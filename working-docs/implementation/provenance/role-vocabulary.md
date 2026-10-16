@@ -64,7 +64,7 @@ method category):
 - `sbomAuthorSupplied` — asserted directly by the human operating Pitloom
   (or an agent on their behalf), through any channel: a CLI flag,
   `[tool.pitloom]` config, or an answer typed in an interactive
-  `sbom-enrich` session. Not `declared` (that's the *artifact's*
+  `sbom-enrich` session. Not `declared` (that's the *artefact's*
   author/vendor, not the SBOM's author); not `inferred` (nothing was
   derived — the value was simply relayed, and Pitloom can no more verify
   it than a `declared` value). Applies only when the human states the

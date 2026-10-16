@@ -180,7 +180,7 @@ Remote ingestion produces richer VCS provenance for the SPDX 3 graph:
 
 ## Open design questions
 
-1. **Persistent artifact caching**: Should Pitloom cache remote repository
+1. **Persistent artefact caching**: Should Pitloom cache remote repository
    archives under `~/.cache/pitloom/remote/<hash>` to speed up repeated runs,
    or remain strictly ephemeral by default?
 2. **Monorepo / Subdirectory targets**: Supporting fragments like

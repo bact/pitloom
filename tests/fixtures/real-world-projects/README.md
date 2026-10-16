@@ -62,7 +62,7 @@ This directory (like the rest of `tests/fixtures/`) is excluded from
 Pitloom's own published sdist and wheel (`pyproject.toml`'s
 `[tool.hatch.build.targets.sdist]`/`[tool.hatch.build.targets.wheel]`),
 to avoid redistributing vendored third-party source in a release
-artifact -- the wheel was already implicitly safe (`packages =
+artefact -- the wheel was already implicitly safe (`packages =
 ["src/pitloom"]` never picks up `tests/`), but the sdist's own
 `exclude` list didn't name this directory until it started actually
 holding multi-megabyte vendored archives; both now list it explicitly.
@@ -77,7 +77,7 @@ fixture-stripped sdist.
 
 For each project: look up its exact PyPI release URL via
 `https://pypi.org/pypi/<pkg>/<version>/json` (no `pip download`/build
-backend invocation needed -- a raw HTTP GET of the published artifact),
+backend invocation needed -- a raw HTTP GET of the published artefact),
 save the sdist, separately fetch the wheel to enumerate its files, then
 discard the wheel. Before vendoring a candidate, confirm its declared
 build backend by checking `[build-system] build-backend` in the

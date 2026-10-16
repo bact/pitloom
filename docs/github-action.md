@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC0-1.0
 # GitHub Action
 
 Use this when your project isn't Hatchling-based, or you just want CI to
-produce an SBOM artifact or embed PEP 770 SBOMs into built wheels, for any
+produce an SBOM artefact or embed PEP 770 SBOMs into built wheels, for any
 Python build backend.
 
 The action can create a standalone SBOM file on the runner, or embed the
@@ -17,7 +17,7 @@ generated SBOM directly into built `.whl` files via `embed-wheel: "dist/*.whl"`.
 
 ## Quick guide
 
-Standalone SBOM artifact:
+Standalone SBOM artefact:
 
 ```yaml
 - uses: actions/setup-python@v7

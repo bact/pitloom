@@ -244,8 +244,8 @@ section 3.6 (determinism of model metadata).
   in one top-level `[metadata.files]` table keyed by package name, while
   lock-versions 2.0 (`cleo-2.1.0`) and 2.1 (`pendulum-3.2.0`,
   `tomlkit-0.15.1`) put a `files` array on each `[[package]]`. `uv.lock`
-  holds one `"sha256:<hex>"` string per artifact; `pylock.toml` a
-  per-artifact table that may hold only `blake2b` (#212).
+  holds one `"sha256:<hex>"` string per artefact; `pylock.toml` a
+  per-artefact table that may hold only `blake2b` (#212).
   Do: verify a format's layout against real files of each version, not
   against the spec alone.
 - **Poetry's constraints are not PEP 440.** `^1.2.3` is `>=1.2.3,<2.0.0`

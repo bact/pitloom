@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: [Metadata provenance](metadata-provenance.md) for the
 provenance annotations and the `method` values, and the other parts:
-[Preserved artifact metadata](metadata-provenance-artifact-metadata.md),
+[Preserved artefact metadata](metadata-provenance-artifact-metadata.md),
 [Licences and copyright](metadata-provenance-licences.md).
 
 ## How authors are read

@@ -41,7 +41,7 @@ Pitloom applies them, and the order a program reading the SBOM undoes them.
    length, also inside an embedded JSON text. In the annotation,
    `valueTypes` names each top-level key whose value was an `integer`,
    `float` or `boolean`, but not such an over-long integer
-   ([preserved artifact metadata](metadata-provenance-artifact-metadata.md#preserved-artifact-metadata)).
+   ([preserved artefact metadata](metadata-provenance-artifact-metadata.md#preserved-artefact-metadata)).
    A GGUF `FLOAT32` is spelt as the float32's own shortest decimal
    (`0.00001`): read back as a double it gives the double nearest
    0.00001, not the double the float32 widens to; narrow it to float32 for

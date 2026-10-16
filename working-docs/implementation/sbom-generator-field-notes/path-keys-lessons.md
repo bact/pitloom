@@ -32,12 +32,12 @@ the evidence and one "Do:" rule. Counts are from the built tree: full suite
   (the declared name, the file stem, the model's own internal name, a
   physical path, a distribution path), so two surfaces could mint two ids and
   two models with one stem (`a/model.npy`, `b/model.npy`) shared one.
-  Do: key an artifact by something every surface can derive without asking
-  the artifact what it calls itself.
+  Do: key an artefact by something every surface can derive without asking
+  the artefact what it calls itself.
 - **What a path key changes.** A rename or move is a new identity (the file is
   a different place in the app; a stored alias table was rejected as state to
   garbage-collect). A retrain at the same path is the same key and, with a
-  content gate, a new id: the path says which artifact, the hash says which
+  content gate, a new id: the path says which artefact, the hash says which
   version. A model with no file (a Hugging Face id) or a dependency keeps its
   name key: two tiers, not one.
   Do: state what a rename and a retrain mean before choosing the key, since

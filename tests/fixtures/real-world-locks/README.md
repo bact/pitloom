@@ -48,7 +48,7 @@ by name. Each pair is a few KB to a couple hundred KB of plain text.
 
 **Important, checked and confirmed, not assumed:** almost none of these
 lock files ship inside the project's own PyPI sdist (lock files are
-dev-time artifacts, routinely excluded from `MANIFEST`/sdist packaging)
+dev-time artefacts, routinely excluded from `MANIFEST`/sdist packaging)
 -- only `flask`'s `uv.lock` was found there. Every other lock file here
 was fetched from the project's GitHub repository at the release tag
 matching the chosen PyPI version instead
@@ -63,7 +63,7 @@ This directory (like the rest of `tests/fixtures/`) is excluded from
 Pitloom's own published sdist and wheel
 (`pyproject.toml`'s `[tool.hatch.build.targets.sdist]`/`[tool.hatch.build.targets.wheel]`),
 to avoid redistributing vendored third-party source in a release
-artifact. `.gitattributes` (`-text`), `.editorconfig` and
+artefact. `.gitattributes` (`-text`), `.editorconfig` and
 `.markdownlintignore` keep the vendored files byte for byte.
 
 ## Notable cases

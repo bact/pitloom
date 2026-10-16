@@ -62,12 +62,12 @@ The measured result on every surface, as a matrix, is in
 - **The package root** depends on all of the above, so a recompute recipe has to
   say how to find the own `.dist-info` and how names are normalised.
 - **Build-added payload** (generated or repaired files, `.data/` content the
-  source walk cannot see) exists only in the artifact. Is it project content?
+  source walk cannot see) exists only in the artefact. Is it project content?
   Today it is, for Analyzed SBOMs.
 
 ## Directions to weigh (none chosen)
 
-- **A per-format adapter** that turns an artifact into a format-neutral pair:
+- **A per-format adapter** that turns an artefact into a format-neutral pair:
   payload files with neutral paths, and container metadata kept aside. Core
   code (SBOM assembly, the root) sees only the neutral side; wheel knowledge
   lives in the wheel adapter, sdist's in another.
@@ -83,7 +83,7 @@ The measured result on every surface, as a matrix, is in
 
 ## Open questions
 
-- Is a file the build adds to the artifact "the project"? Both answers are
+- Is a file the build adds to the artefact "the project"? Both answers are
   defensible (Source vs Analyzed already disagree).
 - Should Source, Build and Analyzed SBOMs of one project share file names and a
   root where their contents agree?

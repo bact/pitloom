@@ -248,7 +248,7 @@ It's never consulted by:
   is more authoritative than a lock file that may be stale relative to
   it.
 - The [Hatchling build hook](hatchling-build-hook.md) -- SBOMs it embeds
-  during `hatch build`/`pip install .` describe the build artifact
+  during `hatch build`/`pip install .` describe the build artefact
   itself, the same "real build, not a lock's prediction" reasoning as
   `loom wheel` above.
 
