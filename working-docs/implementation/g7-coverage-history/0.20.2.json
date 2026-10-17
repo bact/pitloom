@@ -1,6 +1,6 @@
 {
   "header": {
-    "checker": "0.1.dev1112+g9b7017487",
+    "checker": "9b7017487f40938248ba7840c9a8167c86ca85ca",
     "mapping_sha256": "d4dab53ba3e62568b64333d588d394ae2bafc374dc00921d3d3b7f6207a9547e",
     "pitloom": "0.20.2",
     "rules": 81
@@ -282,6 +282,145 @@
           "missing": 22,
           "out-of-scope": 11,
           "present": 17
+        }
+      }
+    },
+    "library": {
+      "outcomes": {
+        "BOM-G7AI2026-DP-001": "present",
+        "BOM-G7AI2026-DP-002": "present",
+        "BOM-G7AI2026-DP-002.1": "present",
+        "BOM-G7AI2026-DP-002.2": "missing",
+        "BOM-G7AI2026-DP-002.3": "missing",
+        "BOM-G7AI2026-DP-003": "present",
+        "BOM-G7AI2026-DP-003.1": "out-of-scope",
+        "BOM-G7AI2026-DP-003.2": "out-of-scope",
+        "BOM-G7AI2026-DP-003.3": "present",
+        "BOM-G7AI2026-DP-004": "missing",
+        "BOM-G7AI2026-DP-005": "missing",
+        "BOM-G7AI2026-DP-006": "missing",
+        "BOM-G7AI2026-DP-006.1": "missing",
+        "BOM-G7AI2026-DP-006.2": "missing",
+        "BOM-G7AI2026-DP-006.3": "missing",
+        "BOM-G7AI2026-DP-006.4": "out-of-scope",
+        "BOM-G7AI2026-DP-007": "present",
+        "BOM-G7AI2026-DP-008": "missing",
+        "BOM-G7AI2026-DP-008.1": "missing",
+        "BOM-G7AI2026-DP-008.2": "out-of-scope",
+        "BOM-G7AI2026-DP-008.3": "out-of-scope",
+        "BOM-G7AI2026-DP-009": "missing",
+        "BOM-G7AI2026-DP-010": "missing",
+        "BOM-G7AI2026-INF-001": "out-of-scope",
+        "BOM-G7AI2026-INF-002": "out-of-scope",
+        "BOM-G7AI2026-KPI-001": "out-of-scope",
+        "BOM-G7AI2026-KPI-002": "out-of-scope",
+        "BOM-G7AI2026-MD-001": "present",
+        "BOM-G7AI2026-MD-002": "out-of-scope",
+        "BOM-G7AI2026-MD-003": "present",
+        "BOM-G7AI2026-MD-004": "present",
+        "BOM-G7AI2026-MD-005": "out-of-scope",
+        "BOM-G7AI2026-MD-006": "present",
+        "BOM-G7AI2026-MD-007": "out-of-scope",
+        "BOM-G7AI2026-MD-008": "present",
+        "BOM-G7AI2026-MD-009": "present",
+        "BOM-G7AI2026-MD-010": "missing",
+        "BOM-G7AI2026-MDL-001": "present",
+        "BOM-G7AI2026-MDL-002": "missing",
+        "BOM-G7AI2026-MDL-003": "present",
+        "BOM-G7AI2026-MDL-004": "missing",
+        "BOM-G7AI2026-MDL-005": "present",
+        "BOM-G7AI2026-MDL-006": "missing",
+        "BOM-G7AI2026-MDL-006.1": "missing",
+        "BOM-G7AI2026-MDL-006.2": "missing",
+        "BOM-G7AI2026-MDL-006.3": "missing",
+        "BOM-G7AI2026-MDL-006.4": "missing",
+        "BOM-G7AI2026-MDL-007": "present",
+        "BOM-G7AI2026-MDL-008": "present",
+        "BOM-G7AI2026-MDL-009": "present",
+        "BOM-G7AI2026-MDL-009.1": "missing",
+        "BOM-G7AI2026-MDL-009.2": "out-of-scope",
+        "BOM-G7AI2026-MDL-009.3": "out-of-scope",
+        "BOM-G7AI2026-MDL-009.4": "present",
+        "BOM-G7AI2026-MDL-010": "missing",
+        "BOM-G7AI2026-MDL-010.1": "out-of-scope",
+        "BOM-G7AI2026-MDL-010.2": "out-of-scope",
+        "BOM-G7AI2026-MDL-010.3": "out-of-scope",
+        "BOM-G7AI2026-MDL-010.4": "missing",
+        "BOM-G7AI2026-MDL-011": "missing",
+        "BOM-G7AI2026-MDL-011.1": "missing",
+        "BOM-G7AI2026-MDL-011.2": "out-of-scope",
+        "BOM-G7AI2026-MDL-012": "present",
+        "BOM-G7AI2026-MDL-012.1": "out-of-scope",
+        "BOM-G7AI2026-MDL-013": "missing",
+        "BOM-G7AI2026-SLP-001": "present",
+        "BOM-G7AI2026-SLP-002": "missing",
+        "BOM-G7AI2026-SLP-003": "present",
+        "BOM-G7AI2026-SLP-004": "present",
+        "BOM-G7AI2026-SLP-005": "missing",
+        "BOM-G7AI2026-SLP-006": "out-of-scope",
+        "BOM-G7AI2026-SLP-007": "missing",
+        "BOM-G7AI2026-SLP-008": "missing",
+        "BOM-G7AI2026-SLP-008.1": "out-of-scope",
+        "BOM-G7AI2026-SLP-008.2": "out-of-scope",
+        "BOM-G7AI2026-SLP-008.3": "missing",
+        "BOM-G7AI2026-SLP-009": "missing",
+        "BOM-G7AI2026-SP-001": "out-of-scope",
+        "BOM-G7AI2026-SP-002": "missing",
+        "BOM-G7AI2026-SP-003": "out-of-scope",
+        "BOM-G7AI2026-SP-004": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "DP": {
+            "coverage_percent": 33.3,
+            "missing": 12,
+            "out-of-scope": 5,
+            "present": 6
+          },
+          "INF": {
+            "coverage_percent": null,
+            "out-of-scope": 2
+          },
+          "KPI": {
+            "coverage_percent": null,
+            "out-of-scope": 2
+          },
+          "MD": {
+            "coverage_percent": 85.7,
+            "missing": 1,
+            "out-of-scope": 3,
+            "present": 6
+          },
+          "MDL": {
+            "coverage_percent": 38.1,
+            "missing": 13,
+            "out-of-scope": 7,
+            "present": 8
+          },
+          "SLP": {
+            "coverage_percent": 33.3,
+            "missing": 6,
+            "out-of-scope": 3,
+            "present": 3
+          },
+          "SP": {
+            "coverage_percent": 0.0,
+            "missing": 1,
+            "out-of-scope": 3
+          }
+        },
+        "coverage_percent": 41.1,
+        "outcomes": {
+          "missing": 33,
+          "out-of-scope": 25,
+          "present": 23
+        },
+        "properties_written": 8,
+        "requirement_coverage_percent": 51.3,
+        "requirements": {
+          "missing": 19,
+          "out-of-scope": 11,
+          "present": 20
         }
       }
     },

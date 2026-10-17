@@ -75,10 +75,52 @@ def test_compare_reports_flips_and_series_breaks(module: ModuleType) -> None:
     after = _make(module, "present", checker="2", props=5)
     lines = module.compare(before, after)
     assert "SERIES BREAK: checker changed; compare with care" in lines
-    assert any("s: coverage +50.0 points" in line for line in lines)
+    assert any(line.startswith("s: coverage +50.0 points") for line in lines)
     assert f"  {P}MDL-001: missing -> present" in lines
     assert "  properties written: +2" in lines
-    assert module.compare(before, before)[-1] == "s: coverage +0.0 points"
+    assert module.compare(before, before) == [
+        "s: coverage +0.0 points, requirements +0.0 points"
+    ]
+
+
+def test_compare_handles_undecided_removed_and_dropped_rules(
+    module: ModuleType,
+) -> None:
+    before = _make(module, "missing")
+    after = _make(module, "missing")
+    after["scenarios"]["s"]["summary"]["coverage_percent"] = None
+    after["scenarios"]["s"]["outcomes"].pop(P + "MDL-002")
+    before["scenarios"]["gone"] = before["scenarios"]["s"]
+    lines = module.compare(before, after)
+    assert "gone: scenario removed" in lines
+    assert lines[1].startswith("s: coverage n/a")
+    assert f"  {P}MDL-002: missing -> None" in lines
+
+
+def test_regressions_lists_only_lost_present_cells(module: ModuleType) -> None:
+    expected = {"r1": {"s": "present", "t": "present"}, "r2": {"s": "missing"}}
+    actual = {"s": {"r1": "present", "r2": "present"}, "t": {"r1": "missing"}}
+    assert module.regressions(expected, actual) == ["r1 [t]: present -> missing"]
+
+
+def test_write_expected_refuses_to_lose_a_present_cell(
+    module: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    table = module.shared.EXPECTED.read_text(encoding="utf-8")
+    # Pretend a rule that is missing today used to be present.
+    doctored = table.replace("\tmissing", "\tpresent", 1)
+    assert doctored != table
+    target = tmp_path / "expected.tsv"
+    target.write_text(doctored, encoding="utf-8")
+    monkeypatch.setattr(module.shared, "EXPECTED", target)
+    assert module.main(["--write-expected"]) == 1
+    assert "refusing to rewrite" in capsys.readouterr().err
+    assert target.read_text(encoding="utf-8") == doctored
+    assert module.main(["--write-expected", "--allow-regression"]) == 0
+    assert target.read_text(encoding="utf-8") == table
 
 
 def test_compare_names_a_new_scenario(module: ModuleType) -> None:
@@ -115,6 +157,7 @@ def test_write_expected_reproduces_the_committed_table(
     module: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     committed = module.shared.EXPECTED.read_bytes()
+    (tmp_path / "expected.tsv").write_text("rule\tprovision\n", encoding="utf-8")
     monkeypatch.setattr(module.shared, "EXPECTED", tmp_path / "expected.tsv")
     assert module.main(["--write-expected"]) == 0
     assert (tmp_path / "expected.tsv").read_bytes() == committed

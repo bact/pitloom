@@ -15,7 +15,7 @@ rules the checker does not check are listed, never counted as missing.
 
 Usage:
   python scripts/g7_coverage_report.py [-o FILE] [--scenario NAME ...]
-  python scripts/g7_coverage_report.py --write-expected
+  python scripts/g7_coverage_report.py --write-expected [--allow-regression]
   python scripts/g7_coverage_report.py --compare PREVIOUS.json CURRENT.json
 """
 
@@ -36,7 +36,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 # pylint: disable=wrong-import-position
 from tests.conformance import g7ai_shared as shared  # noqa: E402
-from tests.conformance.test_g7ai_sssom_gaps import MAPPING  # noqa: E402
 
 Report = dict[str, Any]
 
@@ -75,31 +74,53 @@ def summarise(
     }
 
 
+def _points(now: float | None, before: float | None) -> str:
+    if now is None or before is None:
+        return "n/a"
+    return f"{now - before:+.1f} points"
+
+
 def compare(previous: Report, current: Report) -> list[str]:
     """Describe what changed between two reports, one line each."""
     lines = []
     for key in ("checker", "mapping_sha256", "rules"):
         if previous["header"][key] != current["header"][key]:
             lines.append(f"SERIES BREAK: {key} changed; compare with care")
+    for name in sorted(set(previous["scenarios"]) - set(current["scenarios"])):
+        lines.append(f"{name}: scenario removed")
     for name, now in current["scenarios"].items():
         before = previous["scenarios"].get(name)
         if before is None:
             lines.append(f"{name}: new scenario")
             continue
-        delta = (
-            now["summary"]["coverage_percent"] - before["summary"]["coverage_percent"]
+        a, b = now["summary"], before["summary"]
+        total = _points(a["coverage_percent"], b["coverage_percent"])
+        required = _points(
+            a["requirement_coverage_percent"], b["requirement_coverage_percent"]
         )
-        lines.append(f"{name}: coverage {delta:+.1f} points")
-        for rule, outcome in sorted(now["outcomes"].items()):
-            if before["outcomes"].get(rule) != outcome:
-                lines.append(f"  {rule}: {before['outcomes'].get(rule)} -> {outcome}")
-        gained = (
-            now["summary"]["properties_written"]
-            - before["summary"]["properties_written"]
-        )
+        lines.append(f"{name}: coverage {total}, requirements {required}")
+        for rule in sorted(set(now["outcomes"]) | set(before["outcomes"])):
+            old, new = before["outcomes"].get(rule), now["outcomes"].get(rule)
+            if old != new:
+                lines.append(f"  {rule}: {old} -> {new}")
+        gained = a["properties_written"] - b["properties_written"]
         if gained:
             lines.append(f"  properties written: {gained:+d}")
     return lines
+
+
+def regressions(
+    expected: dict[str, dict[str, str]], actual: dict[str, dict[str, str]]
+) -> list[str]:
+    """List the cells that were ``present`` in *expected* and are not now."""
+    return [
+        f"{rule} [{scenario}]: present -> {actual[scenario][rule]}"
+        for rule, cells in sorted(expected.items())
+        for scenario, outcome in cells.items()
+        if scenario in actual
+        and outcome == "present"
+        and actual[scenario][rule] != "present"
+    ]
 
 
 def build_report(names: Sequence[str]) -> Report:
@@ -125,8 +146,8 @@ def build_report(names: Sequence[str]) -> Report:
     return {
         "header": {
             "pitloom": version("pitloom"),
-            "checker": version("ntia-conformance-checker"),
-            "mapping_sha256": hashlib.sha256(MAPPING.read_bytes()).hexdigest(),
+            "checker": shared.checker_commit(),
+            "mapping_sha256": hashlib.sha256(shared.MAPPING.read_bytes()).hexdigest(),
             "rules": len(kinds),
         },
         "scenarios": scenarios,
@@ -141,6 +162,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("-o", "--output", type=Path, help="write the report here")
     parser.add_argument("--scenario", action="append", choices=list(shared.SCENARIOS))
     parser.add_argument("--write-expected", action="store_true")
+    parser.add_argument(
+        "--allow-regression",
+        action="store_true",
+        help="with --write-expected, accept a rule that is no longer present",
+    )
     parser.add_argument("--compare", nargs=2, type=Path, metavar=("PREV", "CURRENT"))
     args = parser.parse_args(argv)
     if args.compare:
@@ -152,6 +178,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     report = build_report(args.scenario or list(shared.SCENARIOS))
     if args.write_expected:
         actual = {n: s["outcomes"] for n, s in report["scenarios"].items()}
+        lost = regressions(shared.read_expected(), actual)
+        if lost and not args.allow_regression:
+            for line in lost:
+                print(f"ERROR: {line}", file=sys.stderr)
+            print("ERROR: refusing to rewrite; see --allow-regression", file=sys.stderr)
+            return 1
         shared.EXPECTED.write_text(
             shared.render_expected(actual), encoding="utf-8", newline="\n"
         )

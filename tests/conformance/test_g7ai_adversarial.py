@@ -73,10 +73,9 @@ _CASES = [
         _without(relationshipType="hasDeclaredLicense"),
         {"MDL-012": "missing"},
     ),
-    ("hub", _unroot, {"MDL-001": "missing", "SLP-001": "missing"}),
 ]
 _IDS = ["no-hash", "no-producer", "empty-producer", "empty-name", "blank-name",
-        "dataset-unlinked", "no-licence", "no-root"]  # fmt: skip
+        "dataset-unlinked", "no-licence"]  # fmt: skip
 
 
 @pytest.mark.parametrize(("scenario", "edit", "expected"), _CASES, ids=_IDS)
@@ -96,6 +95,17 @@ def test_edit_changes_the_outcome(
     assert {P + r: actual[P + r] for r in expected} == {
         P + r: o for r, o in expected.items()
     }
+
+
+def test_unrooted_sbom_has_no_system(tmp_path: Path) -> None:
+    document = json.loads(SCENARIOS["hub"]())
+    _unroot(document["@graph"])
+    path = tmp_path / "unrooted.spdx3.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    with pytest.raises(AssertionError, match="nothing to evaluate"):
+        check(path)
+    actual = outcomes(path, evaluated=False)
+    assert (actual[P + "MDL-001"], actual[P + "SLP-001"]) == ("missing", "missing")
 
 
 def test_unreadable_sbom_fails_instead_of_reporting_all_missing(tmp_path: Path) -> None:
