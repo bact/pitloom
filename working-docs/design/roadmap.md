@@ -124,8 +124,8 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
 - [x] **#3 part 1: `ai_AIPackage.verifiedUsing`** copied from its model
   file, with gated model lookups (built 2026-10-16 with path keys; see
   [id-registry-path-keys.md](../implementation/id-registry-path-keys.md)).
-- [ ] **#3 part 2: dataset licence wiring** (`DatasetMetadata.license` read by
-  `dataset.py`): own PR. The 2026 SSSOM mappings fix the shape: a
+- [x] **#3 part 2: dataset licence wiring** (`DatasetMetadata.license` read by
+  `dataset.py`; G7 B1). Open: a reader that feeds a licence in. The 2026 SSSOM mappings fix the shape: a
   `hasDeclaredLicense` Relationship to an `AnyLicenseInfo`, so a URL and an
   SPDX expression both fit.
 - [x] **Identifiers from the minimum-elements mappings** (CISA 2026, NTIA 2021,

@@ -114,9 +114,9 @@ model producer and parameter count (done), **#7** `loom` SDK expansion.
 
 - **#3 Mechanical wiring**, in two parts. **Part 1 done 2026-10-16**:
   `ai_AIPackage.verifiedUsing` plus gated lookups (with the registry path
-  keys). **Part 2 open**: `DatasetMetadata.license` -> `dataset.py`, its own
-  PR; open question: a licence URL or an SPDX expression for a dataset the
-  extractor reads as free text.
+  keys). **Part 2 done 2026-10-17** (B1): `DatasetMetadata.license` -> a
+  `hasDeclaredLicense` Relationship; an expression, a URL and free text are
+  kept as the model's are. No reader yet feeds a licence into a model SBOM.
 - **#4 Fix the stale `minimum-elements.md` claims** -- prevents the
   agent/Skill from re-asking users about fields core already covers.
   **Done 2026-09-20.** Re-verified against code and a fresh run: besides

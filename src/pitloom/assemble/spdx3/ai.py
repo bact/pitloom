@@ -34,7 +34,7 @@ from pitloom.assemble.spdx3._ai_package import (
 from pitloom.assemble.spdx3._display_text import LICENSE
 from pitloom.assemble.spdx3.creation_info import build_enrichment_elements
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
-from pitloom.assemble.spdx3.deps_license import build_license_elements
+from pitloom.assemble.spdx3.deps_license import add_license_relationships
 from pitloom.assemble.spdx3.provenance import (
     ProvenanceEncoder,
     build_enrichment_annotation,
@@ -107,29 +107,16 @@ def add_model_license(
     *default_source* is the provenance when the model records none."""
     if not ai_model.license:
         return []
-    creation_info, doc_name, doc_uuid = doc
-    relationships = build_license_elements(
-        license_id=ai_model.license,
-        package_spdx_id=package_spdx_id,
-        license_provenance=ai_model.provenance.get("license", default_source),
-        creation_info=creation_info,
-        doc_name=doc_name,
-        doc_uuid=doc_uuid,
-        exporter=exporter,
-        provenance_config=config,
-        encoder=encoder,
+    licenses = add_license_relationships(
+        ai_model.license,
+        package_spdx_id,
+        ai_model.provenance.get("license", default_source),
+        doc,
+        exporter,
+        config,
+        encoder,
     )
-    licenses: dict[str, spdx3.Element] = {}
-    for rel in relationships:
-        if rel is None:
-            continue
-        exporter.add_relationship(rel)
-        for target in rel.to:
-            target_id = target if isinstance(target, str) else require_spdx_id(target)
-            element = exporter.object_set.find_by_id(target_id)
-            if isinstance(element, spdx3.Element):
-                licenses[target_id] = element
-    return [(LICENSE, licenses[key]) for key in sorted(licenses)]
+    return [(LICENSE, element) for element in licenses]
 
 
 def _ai_model_label(ai_model: AiModelMetadata, index: int) -> str:
