@@ -27,13 +27,27 @@ from tests.conformance.g7ai_shared import SCENARIOS, outcomes
 _PLACEHOLDERS = ("", "NOASSERTION", "UNKNOWN", "N/A")
 
 
-def _properties() -> dict[str, set[str]]:
-    """Rule id -> SPDX property keys its probe reads (``require_property``)."""
+#: Probe ``kind`` -> the SPDX element types it reads.
+_TYPES = {
+    "system": {"ai_AIPackage", "software_Package"},
+    "ai_model": {"ai_AIPackage"},
+    "dataset": {"dataset_DatasetPackage"},
+}
+
+
+def _probes(name: str, field: str) -> dict[str, tuple[str, set[str]]]:
+    """Rule id -> (probe kind, names in the probe's *field*) for probe *name*."""
     spec = get_spec("g7ai")
     return {
-        spec.rule_id(r): set(r.probe.params["properties"])
+        spec.rule_id(r): (r.probe.params["kind"], set(r.probe.params[field]))
         for r in spec.rules
-        if r.probe is not None and r.probe.name == "require_property"
+        if r.probe is not None and r.probe.name == name
+    }
+
+
+def _properties() -> dict[str, set[str]]:
+    return {
+        r: names for r, (_, names) in _probes("require_property", "properties").items()
     }
 
 
@@ -43,16 +57,26 @@ def _values(graph: list[dict[str, object]], key: str) -> list[object]:
 
 @pytest.mark.parametrize("scenario", list(SCENARIOS))
 def test_present_rules_have_a_carrier(sboms: dict[str, Path], scenario: str) -> None:
+    """A ``present`` rule needs its property on an element of the kind it
+    reads, or its relationship type in the graph."""
     graph = json.loads(sboms[scenario].read_text(encoding="utf-8"))["@graph"]
-    keys = {k for e in graph for k in e}
     present = {r for r, o in outcomes(sboms[scenario]).items() if o == "present"}
-    assert present & set(_properties())  # the check below is not vacuous
+    props = _probes("require_property", "properties")
+    rels = _probes("require_relationship", "relationships")
+    assert present & set(props)  # not vacuous
+    types = {r["relationshipType"] for r in graph if "relationshipType" in r}
     bare = {
-        r: sorted(props)
-        for r, props in _properties().items()
-        if r in present and not props & keys
+        rule: sorted(names)
+        for rule, (kind, names) in props.items()
+        if rule in present
+        and not any(names & set(e) for e in graph if e["type"] in _TYPES[kind])
     }
-    assert not bare, f"present with no carrier property in the SBOM: {bare}"
+    bare |= {
+        rule: sorted(names)
+        for rule, (_, names) in rels.items()
+        if rule in present and not names & types
+    }
+    assert not bare, f"present with no carrier in the SBOM: {bare}"
 
 
 @pytest.mark.parametrize("scenario", list(SCENARIOS))

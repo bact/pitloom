@@ -41,5 +41,7 @@ def test_conformance_group_pins_both_packages_by_commit() -> None:
 def test_installed_commit_matches_pin(name: str) -> None:
     raw = distribution(name).read_text("direct_url.json")
     assert raw, f"{name} is not a direct (git) install; reinstall the group"
-    commit = json.loads(raw)["vcs_info"]["commit_id"]
+    vcs = json.loads(raw).get("vcs_info")
+    assert vcs, f"{name} is not a git install; reinstall the group"
+    commit = vcs["commit_id"]
     assert commit == _pins()[name], "reinstall with: pip install --group conformance"

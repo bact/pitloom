@@ -19,11 +19,14 @@ tests turn each G7 field Pitloom adds into a table cell that cannot slip back.
 
 - `tests/conformance/` builds one SBOM per scenario (`gguf`, `safetensors`,
   `onnx` from the fixture models; `hub`, a mocked Hugging Face model with a
-  dataset), validates it offline, and runs the checker in-process.
+  dataset; `library`, a model with a licensed dataset built through the
+  assembler, since no reader feeds a dataset licence into a model SBOM yet), validates it offline, and runs the checker in-process.
 - `tests/fixtures/conformance/g7ai-expected.tsv` holds the expected outcome of
-  all 81 rules per scenario. The test fails on a `present` that is no longer
-  `present` (regression) and on a cell that became `present` (improvement:
-  update the table in the same commit).
+  all 81 rules per scenario. The test fails on any changed cell: a `present` that is no longer
+  `present` is reported as a regression, a cell that became `present` as an
+  improvement (update the table in the same commit). `--write-expected`
+  refuses to rewrite the table when a `present` cell would be lost, unless
+  `--allow-regression` is given.
 - Drift guards: the table lists exactly the checker's rules and provisions; the
   `out-of-scope` rows are the checker's `catalogue-only` rules; every `present`
   rule rests on a property in the SBOM; no property a rule reads holds a
@@ -49,8 +52,10 @@ it).
 
 The `conformance` dependency group pins the checker (not on PyPI with `g7ai`)
 and the `spdx3-validate` build with `model_dir` (PR JPEWdev/spdx3-validate#13)
-by commit. Both report a version already on PyPI, so pip keeps an old install;
-`test_conformance_pins.py` compares the installed commit with the pin.
+by commit. The `spdx3-validate` build still reports 0.0.7, a version on PyPI, so pip
+keeps an old install; `test_conformance_pins.py` compares the installed
+commits with the pins. The checker commit is also pinned in `lumina`
+(`backend/requirements.txt`); keep the two equal.
 
 ## Coverage history
 
@@ -66,6 +71,7 @@ reading of G7", not "G7 compliant"; unchecked rules are not counted as missing.
 | 0.20.2 (baseline) | `9b70174` | safetensors | 18 | 20 | 18 | 25 | 47.4% |
 | 0.20.2 (baseline) | `9b70174` | onnx | 21 | 17 | 18 | 25 | 55.3% |
 | 0.20.2 (baseline) | `9b70174` | hub | 21 | 35 | 0 | 25 | 37.5% |
+| 0.20.2 (baseline) | `9b70174` | library | 23 | 33 | 0 | 25 | 41.1% |
 
 Coverage is present / (present + missing).
 
@@ -73,6 +79,13 @@ Coverage is present / (present + missing).
 
 Add one paragraph per increment: the rules that flipped, what was left to the
 `sbom-enrich` skill and why.
+
+## Database-less builds
+
+`licenseid` canonicalises licence IDs when its database exists (CI builds it)
+and changes the SBOM text. The scenarios build as if it were absent
+(`g7ai_shared._without_licence_database`), so the table is the same on a
+laptop and in CI.
 
 ## Rejected
 

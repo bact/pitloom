@@ -23,16 +23,11 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
-from pathlib import Path
 
 from ntia_conformance_checker import get_spec
 
-from tests.conformance.g7ai_shared import SCENARIOS
+from tests.conformance.g7ai_shared import MAPPING, SCENARIOS
 
-MAPPING = (
-    Path(__file__).resolve().parents[1]
-    / "fixtures/conformance/g7ai2026-to-spdx30.sssom.tsv"
-)
 # sha256 of the snapshot; refresh with the file when the mapping changes.
 MAPPING_SHA256 = "d4dab53ba3e62568b64333d588d394ae2bafc374dc00921d3d3b7f6207a9547e"
 _PROFILES = ("ai_", "dataset_", "software_")
