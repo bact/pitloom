@@ -368,7 +368,10 @@ once for the batch, and repeats each ineffective build flag's
 from pathlib import Path
 from pitloom.embed import EmbedFileCache, embed_wheel_sbom
 
-wheels = [Path("dist/mypackage-1.0.0-py3-none-any.whl"), Path("dist/mypackage-1.0.0-py2-none-any.whl")]
+wheels = [
+    Path("dist/mypackage-1.0.0-py3-none-any.whl"),
+    Path("dist/mypackage-1.0.0-py2-none-any.whl"),
+]
 
 with EmbedFileCache() as cache:
     for wheel in wheels:

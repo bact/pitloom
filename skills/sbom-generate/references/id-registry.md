@@ -243,9 +243,9 @@ from pitloom import loom
 
 with loom.run("fragments/train.spdx3.json", id_registry="loom-id-registry.json"):
     loom.add_input_dataset("data/train.txt")
-    loom.set_model("my-model", path="model.bin")   # path= : hashed at exit
-    train()                                        # writes model.bin, out/pred.csv
-    loom.add_output_dataset("out/pred.csv")        # declare AFTER writing
+    loom.set_model("my-model", path="model.bin")  # path= : hashed at exit
+    train()  # writes model.bin, out/pred.csv
+    loom.add_output_dataset("out/pred.csv")  # declare AFTER writing
 ```
 
 - `id_registry=` takes a path (relative to the current directory) or an
