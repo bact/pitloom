@@ -22,7 +22,7 @@ from tests._license_graph import (
     licensed_package,
     write_fragment,
 )
-from tests._network import assert_spdx3_validate_ok
+from tests._spdx3_validate import assert_spdx3_valid
 from tests.assemble.embed_surfaces_shared import run_cli
 
 
@@ -229,12 +229,11 @@ def test_merge_created_follows_source_date_epoch(
     assert info["created"] == "2026-01-01T00:00:00Z"
 
 
-@pytest.mark.network
 def test_merge_output_passes_spdx3_validate(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _merge(tmp_path, ["a", "b"], monkeypatch)
-    assert_spdx3_validate_ok(tmp_path / "out.spdx3.json")
+    assert_spdx3_valid(tmp_path / "out.spdx3.json")
 
 
 @pytest.mark.parametrize("imported", [False, True], ids=["absent", "imported"])

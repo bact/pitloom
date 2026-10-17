@@ -15,8 +15,10 @@ See also: tests/fixtures/spdx-model/README.md, tests/_network.py.
 
 from __future__ import annotations
 
+import functools
 from pathlib import Path
 
+import pytest
 import spdx3_validate
 
 SPDX_MODEL_DIR = Path(__file__).parent / "fixtures" / "spdx-model"
@@ -34,3 +36,16 @@ def assert_spdx3_valid(*sbom_files: Path) -> None:
     """Assert every SBOM in *sbom_files* passes schema and SHACL validation."""
     errors = spdx3_errors(*sbom_files)
     assert not errors, "spdx3-validate failed:\n" + "\n".join(errors)
+
+
+def use_offline_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make ``spdx3_validate.validate`` read the vendored model snapshot.
+
+    Covers code that calls ``spdx3_validate.validate(...)`` itself (the
+    ``fragment validate`` and ``validate-wheel`` commands).
+    """
+    monkeypatch.setattr(
+        spdx3_validate,
+        "validate",
+        functools.partial(spdx3_validate.validate, model_dir=str(SPDX_MODEL_DIR)),
+    )

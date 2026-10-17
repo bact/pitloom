@@ -26,7 +26,7 @@ import pytest
 
 from pitloom import __main__, loom
 from pitloom.id_registry import IdRegistry
-from tests._network import assert_spdx3_validate_ok
+from tests._spdx3_validate import assert_spdx3_valid
 
 _TITLE = "Stable Diffusion XL #2/β"
 _ENCODED = "Stable%20Diffusion%20XL%20%232%2Fβ"
@@ -144,10 +144,9 @@ def test_registry_round_trips_an_encoded_id(
     assert [el["spdxId"] for el in models] == [model_id]
 
 
-@pytest.mark.network
 @pytest.mark.parametrize("surface", _SURFACES)
 def test_surface_output_passes_spdx3_validate(
     surface: Surface, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    assert_spdx3_validate_ok(surface(tmp_path, monkeypatch))
+    assert_spdx3_valid(surface(tmp_path, monkeypatch))

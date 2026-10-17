@@ -35,7 +35,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.file_hash import sha256_digest
 from pitloom.core.models import _clear_doc_counters
 from pitloom.id_registry import AI_PACKAGE_TYPE, FILE_TYPE, IdRegistry
-from tests._network import assert_spdx3_validate_ok
+from tests._spdx3_validate import assert_spdx3_valid
 from tests._unreadable import POSIX_NON_ROOT, deny
 from tests.registry_helpers import Entries, entries_of, make_registry
 
@@ -473,13 +473,12 @@ def test_a_registry_gone_before_exit_is_one_warning(
     assert not path.exists()
 
 
-@pytest.mark.network
 def test_a_hashed_model_validates(project: Path) -> None:
     path = _registry(project)
     with loom.run(project / "out.json", id_registry=path):
         loom.set_model("m", path="m.bin", hyperparameters={"lr": "0.1"})
         loom.add_dataset("m.bin")
-    assert_spdx3_validate_ok(project / "out.json")
+    assert_spdx3_valid(project / "out.json")
 
 
 def test_model_path_with_nul_warns_unreadable_and_run_ends(

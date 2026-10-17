@@ -10,10 +10,13 @@ See also: tests/_spdx3_validate.py.
 
 from __future__ import annotations
 
+import functools
 import json
 from pathlib import Path
+from typing import cast
 
 import pytest
+import spdx3_validate
 
 from pitloom.assemble import generate_model_sbom
 from tests._spdx3_validate import SPDX_MODEL_DIR, assert_spdx3_valid, spdx3_errors
@@ -47,3 +50,13 @@ def test_invalid_sbom_reports_errors(sbom: Path, tmp_path: Path) -> None:
     assert spdx3_errors(bad)
     with pytest.raises(AssertionError, match="spdx3-validate failed"):
         assert_spdx3_valid(bad)
+
+
+@pytest.mark.usefixtures("offline_spdx3_validate")
+def test_offline_fixture_binds_the_model_dir(sbom: Path) -> None:
+    result = spdx3_validate.validate([str(sbom)])
+    assert result.valid
+    bound = cast("functools.partial[object]", spdx3_validate.validate)
+    assert isinstance(bound, functools.partial)
+    # pylint: disable-next=no-member
+    assert bound.keywords == {"model_dir": str(SPDX_MODEL_DIR)}
