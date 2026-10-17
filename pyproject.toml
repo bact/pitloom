@@ -148,14 +148,21 @@ lint = [
     "pylint>=4.0.8",
     "ruff>=0.16.7",
 ]
+# Git pins: neither build is on PyPI. spdx3-validate needs the `model_dir`
+# (offline) build, which still reports 0.0.7; tests/test_conformance_pins.py
+# checks the installed commits equal these.
+conformance = [
+    "ntia-conformance-checker @ git+https://github.com/bact/ntia-conformance-checker.git@9b7017487f40938248ba7840c9a8167c86ca85ca",
+    "spdx3-validate @ git+https://github.com/bact/spdx3-validate.git@0e2e3562c4843a46d96eb49ed15de8e672d6ebe7",
+]
 test = [
+    { include-group = "conformance" },
     "build>=1.2.2",                # for the uv_build build-and-read integration test
     "check-wheel-contents>=0.6.3",
     "installer>=1.0.1",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pytest-xdist>=3.8.0",
-    "spdx3-validate>=0.0.7",
     "stav>=0.4.1",
 ]
 typecheck = [
@@ -201,6 +208,7 @@ exclude = [
     ".markdownlint.json",
     ".markdownlintignore",
     "AGENTS.md",
+    "tests/fixtures/spdx-model",
     "tests/fixtures/aimodels/crfsuite/*.crfsuite",
     "tests/fixtures/aimodels/crfsuite/*.model",
     "tests/fixtures/aimodels/fasttext/*.bin",
