@@ -238,18 +238,36 @@ def _parse_pt2_tags(tags_raw: str) -> tuple[str, list[object] | None]:
     return tags_raw, None
 
 
+def _spec_tensor_names(specs: object, kind: str) -> list[dict[str, object]]:
+    """The tensor names of the *kind* entries of a signature's *specs* list;
+    an entry that is not a one-key union with a named tensor is skipped."""
+    result: list[dict[str, object]] = []
+    for spec in specs if isinstance(specs, list) else []:
+        entry = spec.get(kind) if isinstance(spec, dict) else None
+        arg = entry.get("arg") if isinstance(entry, dict) else None
+        tensor = arg.get("as_tensor") if isinstance(arg, dict) else None
+        if isinstance(tensor, dict) and tensor.get("name"):
+            result.append({"name": tensor["name"]})
+    return result
+
+
 def _read_pt2_graph_io(
     zf: ZipFile,
     prefix: str,
     source: str,
     provenance: dict[str, str],
 ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
-    """Extract graph inputs and outputs from ``models/model.json``.
+    """Extract the model's inputs and outputs from ``models/model.json``.
 
-    The ExecuTorch ``models/model.json`` file describes the exported
-    ``graph_module.graph`` with ``inputs`` and ``outputs`` lists.  Each
-    entry is a typed union; the most common variant is
-    ``{"as_tensor": {"name": "<tensor_name>"}}``.
+    The exported graph lists every placeholder as an input: parameters,
+    buffers and constants as well as what a caller passes. Its
+    ``signature`` says which is which, so only the ``user_input`` entries of
+    ``input_specs`` are inputs and only the ``user_output`` entries of
+    ``output_specs`` are outputs. A file without a signature gives none:
+    the graph alone does not tell a weight from an input.
+
+    Each entry of the signature is a one-key union of the kind and its
+    ``arg``; the common ``arg`` is ``{"as_tensor": {"name": "<name>"}}``.
 
     Args:
         zf: Open ZipFile handle.
@@ -279,24 +297,18 @@ def _read_pt2_graph_io(
         log.warning(msg, loggable(model_json_path), loggable(str(exc)))
         return [], []
 
-    graph = (data.get("graph_module") or {}).get("graph") or {}
+    signature = (data.get("graph_module") or {}).get("signature") or {}
 
-    def _parse_io(entries: list[object]) -> list[dict[str, object]]:
-        result = []
-        for entry in entries:
-            if not isinstance(entry, dict):
-                continue
-            tensor = entry.get("as_tensor") or {}
-            if isinstance(tensor, dict) and tensor.get("name"):
-                result.append({"name": tensor["name"]})
-        return result
-
-    inputs = _parse_io(graph.get("inputs", []))
-    outputs = _parse_io(graph.get("outputs", []))
+    inputs = _spec_tensor_names(signature.get("input_specs"), "user_input")
+    outputs = _spec_tensor_names(signature.get("output_specs"), "user_output")
     if inputs:
-        provenance["inputs"] = f"{source} | Field: models/model.json graph.inputs"
+        provenance["inputs"] = (
+            f"{source} | Field: models/model.json signature.input_specs user_input"
+        )
     if outputs:
-        provenance["outputs"] = f"{source} | Field: models/model.json graph.outputs"
+        provenance["outputs"] = (
+            f"{source} | Field: models/model.json signature.output_specs user_output"
+        )
     return inputs, outputs
 
 
@@ -437,7 +449,7 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
     - ``extra/author``         -> ``properties["author"]``
     - ``extra/tags``           -> ``properties["tags"]``
     - ``models/model.json``    -> :attr:`~AiModelMetadata.inputs` /
-      :attr:`~AiModelMetadata.outputs` (graph tensor names)
+      :attr:`~AiModelMetadata.outputs` (the signature's user inputs and outputs)
 
     Args:
         model_path: Path to a ``.pt2`` file.

@@ -166,20 +166,16 @@ def test_an_npz_over_the_header_bound_is_one_warning_and_a_stub_in_a_wheel(
     )
 
 
-def test_an_npz_of_many_members_is_cut_to_the_entry_cap_with_one_warning(
+def test_an_npz_of_many_members_is_counted_not_listed(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
+    """The arrays are not model inputs, so there is no list to cut."""
     np = pytest.importorskip("numpy")
     np.savez(tmp_path / "m.npz", **{f"a{i:04d}": np.zeros(1) for i in range(1100)})
     (model,) = _scan_project(tmp_path, "m.npz")
-    assert [i["name"] for i in model.inputs] == [
-        f"a{i:04d}" for i in range(MAX_MODEL_ENTRIES)
-    ]
-    (message,) = logged_warnings(caplog)
-    assert message == (
-        "FORMAT=numpy FILE=m.npz: larger than the 1000-entry per-field cap;"
-        " the first 1000 kept in inputs"
-    )
+    assert model.inputs == []
+    assert model.properties["array_count"] == "1100"
+    assert logged_warnings(caplog) == []
 
 
 # -- per-model entry caps ------------------------------------------------------

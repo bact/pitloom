@@ -486,5 +486,5 @@ def test_an_npz_of_thousands_of_members_stops_reading_early(tmp_path: Path) -> N
         numpy_reader, "_bounded_header", wraps=numpy_reader._bounded_header
     ) as spy:
         meta = numpy_reader.read_numpy(path)
-    assert len(meta.inputs) == 1001  # one over the cap, for the scanner to cut
-    assert spy.call_count == 1001
+    assert meta.properties["array_count"] == "1100"  # every member is counted
+    assert spy.call_count == 1001  # headers are read for one over the cap only

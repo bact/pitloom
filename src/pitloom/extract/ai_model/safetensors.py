@@ -78,9 +78,9 @@ def _stable_metadata(raw: dict[str, str]) -> dict[str, str]:
 
 def _read_header(
     model_path: Path, safe_open: Any, source: str, provenance: dict[str, str]
-) -> tuple[dict[str, str], list[str], int | None]:
-    """The ``__metadata__`` map, the tensor keys and the parameter count (its
-    provenance set in *provenance*) of *model_path*, read with *safe_open*.
+) -> tuple[dict[str, str], int | None]:
+    """The ``__metadata__`` map and the parameter count (its provenance set in
+    *provenance*) of *model_path*, read with *safe_open*.
 
     Raises:
         ModelLimitExceeded: The declared header is over the cap.
@@ -94,11 +94,10 @@ def _read_header(
             framework="numpy",
         ) as f:
             metadata: dict[str, str] = f.metadata() or {}
-            tensor_keys: list[str] = list(f.keys())
-            # Every tensor, before the entry cap on ``inputs``; the header
-            # alone gives each shape, no tensor data is read.
+            # Every tensor; the header alone gives each shape, no tensor data
+            # is read.
             parameter_count = derived_parameter_count(
-                (f.get_slice(k).get_shape() for k in tensor_keys),
+                (f.get_slice(k).get_shape() for k in f.keys()),
                 "tensor shapes (header only)",
                 source,
                 provenance,
@@ -116,7 +115,7 @@ def _read_header(
         raise ValueError(
             f"Failed to read Safetensors file {model_path}: {exc}"
         ) from exc
-    return metadata, tensor_keys, parameter_count
+    return metadata, parameter_count
 
 
 def _originators(
@@ -177,9 +176,7 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
 
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
     provenance: dict[str, str] = {}
-    metadata, tensor_keys, parameter_count = _read_header(
-        model_path, safe_open, source, provenance
-    )
+    metadata, parameter_count = _read_header(model_path, safe_open, source, provenance)
 
     # Some Safetensors files record the originating framework under "format"
     # (e.g. "pt" for PyTorch) or "modelspec.implementation".
@@ -227,10 +224,8 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
         provenance, "properties", properties, source, location_prefix="__metadata__."
     )
 
-    # Tensor key listing as a lightweight inventory (names only, no data loaded)
-    inputs = [{"name": k} for k in tensor_keys]
-    if inputs:
-        provenance["inputs"] = f"{source} | Field: tensor keys (header only)"
+    # No inputs or outputs: a Safetensors file holds weights, not a model
+    # signature, and its tensor keys are not inputs.
 
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
@@ -251,6 +246,5 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
         # source_metadata keeps every key); cap_entries adds the one past
         # the cap.
         raw_metadata_dropped=len(metadata) - len(raw["raw_metadata"]),
-        inputs=inputs,
         provenance=provenance,
     )

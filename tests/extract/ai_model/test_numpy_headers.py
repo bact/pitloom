@@ -85,9 +85,9 @@ def test_read_numpy_npz_skips_non_npy_archive_members() -> None:
 
         meta = read_numpy(npz_path)
         assert meta.format_info.model_format == AiModelFormat.NUMPY
-        # Only the weights array is extracted as input
-        assert len(meta.inputs or []) == 1
-        assert meta.inputs[0]["name"] == "weights"
+        # Only the .npy member is counted, and it is not a model input
+        assert meta.properties["array_count"] == "1"
+        assert not meta.inputs
     finally:
         npz_path.unlink(missing_ok=True)
 
@@ -131,6 +131,6 @@ def test_an_npz_dimension_over_str_limit_keeps_the_sbom(tmp_path: Path) -> None:
             + struct.pack("<H", len(header))
             + header.encode("latin1"),
         )
-    assert read_numpy(path).inputs[0]["shape"] == [16**4000 - 1]
-    sbom = generate_model_sbom(path)
-    assert "<integer of 16000 bits>" in json.dumps(json.loads(sbom))
+    # The dimension is read to check the header and is not recorded.
+    assert read_numpy(path).properties["array_count"] == "1"
+    assert json.loads(generate_model_sbom(path))["@graph"]

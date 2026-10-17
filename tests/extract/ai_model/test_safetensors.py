@@ -77,10 +77,10 @@ def test_safetensors_basic_extraction(tmp_path: Path) -> None:
     assert meta.quantization == "fp16"
     assert "quantization" in meta.provenance
     assert meta.properties["custom_key"] == "custom_value"
-    assert len(meta.inputs) == 2
-    assert meta.inputs[0]["name"] == "model.embed_tokens.weight"
+    # Tensor keys are weights, not model inputs.
+    assert (meta.inputs, meta.outputs) == ([], [])
     assert "name" in meta.provenance
-    assert "inputs" in meta.provenance
+    assert "inputs" not in meta.provenance
     assert meta.parameter_count == len(tensor_keys)  # one element per mocked key
 
 
@@ -195,21 +195,8 @@ def test_marian_format_property(marian_metadata: AiModelMetadata) -> None:
     assert marian_metadata.properties.get("format") == "pt"
 
 
-def test_marian_tensor_count(marian_metadata: AiModelMetadata) -> None:
-    # MarianMT encoder-decoder: embedding, 2 encoder + 2 decoder layers, bias
-    assert len(marian_metadata.inputs) == 86
-
-
-def test_marian_tensor_names(marian_metadata: AiModelMetadata) -> None:
-    names = {t["name"] for t in marian_metadata.inputs}
-    # MarianMT has both encoder and decoder sub-modules plus shared embedding
-    assert any(n.startswith("model.encoder.") for n in names)
-    assert any(n.startswith("model.decoder.") for n in names)
-    assert "model.shared.weight" in names
-
-
 def test_marian_provenance(marian_metadata: AiModelMetadata) -> None:
-    assert "inputs" in marian_metadata.provenance
+    assert "inputs" not in marian_metadata.provenance
     assert any(k.startswith("properties.") for k in marian_metadata.provenance)
 
 
@@ -249,21 +236,8 @@ def test_phi_format_property(phi_metadata: AiModelMetadata) -> None:
     assert phi_metadata.properties.get("format") == "pt"
 
 
-def test_phi_tensor_count(phi_metadata: AiModelMetadata) -> None:
-    # 2-layer Phi model: embeddings + 2 x attention blocks + head
-    assert len(phi_metadata.inputs) == 33
-
-
-def test_phi_tensor_names(phi_metadata: AiModelMetadata) -> None:
-    names = {t["name"] for t in phi_metadata.inputs}
-    # Phi uses standard transformer naming: embed_tokens, layers, lm_head
-    assert "model.embed_tokens.weight" in names
-    assert "lm_head.weight" in names
-    assert any(n.startswith("model.layers.") for n in names)
-
-
 def test_phi_provenance(phi_metadata: AiModelMetadata) -> None:
-    assert "inputs" in phi_metadata.provenance
+    assert "inputs" not in phi_metadata.provenance
     assert any(k.startswith("properties.") for k in phi_metadata.provenance)
 
 
@@ -304,20 +278,8 @@ def test_speech2text_format_property(speech2text_metadata: AiModelMetadata) -> N
     assert speech2text_metadata.properties.get("format") == "pt"
 
 
-def test_speech2text_tensor_count(speech2text_metadata: AiModelMetadata) -> None:
-    # Speech2Text encoder-decoder: conv layers + 2 encoder + 2 decoder layers
-    assert len(speech2text_metadata.inputs) == 93
-
-
-def test_speech2text_tensor_names(speech2text_metadata: AiModelMetadata) -> None:
-    names = {t["name"] for t in speech2text_metadata.inputs}
-    # Speech2Text has both encoder (with conv) and decoder sub-modules
-    assert any(n.startswith("model.encoder.") for n in names)
-    assert any(n.startswith("model.decoder.") for n in names)
-
-
 def test_speech2text_provenance(speech2text_metadata: AiModelMetadata) -> None:
-    assert "inputs" in speech2text_metadata.provenance
+    assert "inputs" not in speech2text_metadata.provenance
     assert any(k.startswith("properties.") for k in speech2text_metadata.provenance)
 
 
@@ -356,21 +318,8 @@ def test_vits_format_property(vits_metadata: AiModelMetadata) -> None:
     assert vits_metadata.properties.get("format") == "pt"
 
 
-def test_vits_tensor_count(vits_metadata: AiModelMetadata) -> None:
-    # VITS has many sub-networks (text encoder, decoder, flow, posterior encoder)
-    assert len(vits_metadata.inputs) == 438
-
-
-def test_vits_tensor_names(vits_metadata: AiModelMetadata) -> None:
-    names = {t["name"] for t in vits_metadata.inputs}
-    # Key sub-modules of a VITS TTS model
-    assert any(n.startswith("decoder.") for n in names)
-    assert any(n.startswith("text_encoder.") for n in names)
-    assert "text_encoder.project.weight" in names
-
-
 def test_vits_provenance(vits_metadata: AiModelMetadata) -> None:
-    assert "inputs" in vits_metadata.provenance
+    assert "inputs" not in vits_metadata.provenance
     assert any(k.startswith("properties.") for k in vits_metadata.provenance)
 
 
@@ -407,19 +356,8 @@ def test_whisper_st_format_property(whisper_st_metadata: AiModelMetadata) -> Non
     assert whisper_st_metadata.properties.get("format") == "pt"
 
 
-def test_whisper_st_tensor_count(whisper_st_metadata: AiModelMetadata) -> None:
-    assert len(whisper_st_metadata.inputs) == 50
-
-
-def test_whisper_st_tensor_names(whisper_st_metadata: AiModelMetadata) -> None:
-    names = {t["name"] for t in whisper_st_metadata.inputs}
-    # Whisper has both encoder and decoder sub-modules
-    assert any(n.startswith("model.encoder.") for n in names)
-    assert any(n.startswith("model.decoder.") for n in names)
-
-
 def test_whisper_st_provenance(whisper_st_metadata: AiModelMetadata) -> None:
-    assert "inputs" in whisper_st_metadata.provenance
+    assert "inputs" not in whisper_st_metadata.provenance
     assert any(k.startswith("properties.") for k in whisper_st_metadata.provenance)
 
 
@@ -469,3 +407,15 @@ def test_an_extensionless_header_over_the_cap_is_still_safetensors(
     match = "larger than the 16777216-byte Safetensors-header cap"
     with pytest.raises(ModelLimitExceeded, match=match):
         read_ai_model(path)
+
+
+@pytest.mark.parametrize(
+    "fixture",
+    sorted(p.name for p in _ST.glob("*.safetensors")),
+)
+def test_a_safetensors_file_has_no_model_inputs_or_outputs(fixture: str) -> None:
+    """Tensor keys are weights, not a model's inputs: nothing is recorded."""
+    pytest.importorskip("safetensors")
+    meta = read_safetensors(_ST / fixture)
+    assert (meta.inputs, meta.outputs) == ([], [])
+    assert not {"inputs", "outputs"} & set(meta.provenance)

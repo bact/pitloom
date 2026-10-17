@@ -67,9 +67,9 @@ def test_read_numpy_npy_shape_and_dtype(tmp_path: Path) -> None:
     mock_np.load.return_value = mock_arr
     with patch.dict("sys.modules", {"numpy": mock_np}):
         meta = read_numpy(model_file)
-    assert len(meta.inputs) == 1
-    assert meta.inputs[0]["shape"] == [3, 4, 5]
-    assert meta.inputs[0]["dtype"] == "float64"
+    assert meta.properties["array_shape"] == "3x4x5"
+    assert meta.properties["array_dtype"] == "float64"
+    assert (meta.inputs, meta.outputs) == ([], [])  # an array is not an input
 
 
 def test_read_numpy_npy_no_name_description_version(tmp_path: Path) -> None:
@@ -221,10 +221,8 @@ def test_read_numpy_npz_multiple_arrays(tmp_path: Path) -> None:
         meta = read_numpy(model_file)
 
     assert meta.format_info.model_format == AiModelFormat.NUMPY
-    assert len(meta.inputs) == 2
-    names = [inp["name"] for inp in meta.inputs]
-    assert "weights" in names
-    assert "biases" in names
+    assert meta.properties["array_count"] == "2"
+    assert (meta.inputs, meta.outputs) == ([], [])  # arrays are not inputs
 
 
 def test_read_numpy_npz_no_format_version(tmp_path: Path) -> None:
@@ -311,11 +309,11 @@ def test_numpy_v1_encoding(fixture_v1: Any) -> None:
 
 
 def test_numpy_v1_shape(fixture_v1: Any) -> None:
-    assert fixture_v1.inputs[0]["shape"] == [2, 2]
+    assert fixture_v1.properties["array_shape"] == "2x2"
 
 
 def test_numpy_v1_dtype(fixture_v1: Any) -> None:
-    assert fixture_v1.inputs[0]["dtype"] == "float32"
+    assert fixture_v1.properties["array_dtype"] == "float32"
 
 
 # --- example-model-v2.npy ---
@@ -334,11 +332,11 @@ def test_numpy_v2_encoding(fixture_v2: Any) -> None:
 
 
 def test_numpy_v2_shape(fixture_v2: Any) -> None:
-    assert fixture_v2.inputs[0]["shape"] == [2, 2]
+    assert fixture_v2.properties["array_shape"] == "2x2"
 
 
 def test_numpy_v2_dtype(fixture_v2: Any) -> None:
-    assert fixture_v2.inputs[0]["dtype"] == "float32"
+    assert fixture_v2.properties["array_dtype"] == "float32"
 
 
 # --- example-model-v3.npy (structured dtype with Unicode field name) ---
@@ -357,11 +355,11 @@ def test_numpy_v3_encoding(fixture_v3: Any) -> None:
 
 
 def test_numpy_v3_shape(fixture_v3: Any) -> None:
-    assert fixture_v3.inputs[0]["shape"] == [2]
+    assert fixture_v3.properties["array_shape"] == "2"
 
 
 def test_numpy_v3_dtype_contains_unicode_field(fixture_v3: Any) -> None:
-    assert "π_weights" in fixture_v3.inputs[0]["dtype"]
+    assert "π_weights" in fixture_v3.properties["array_dtype"]
 
 
 # --- example-model-bundle.npz ---
@@ -372,19 +370,8 @@ def test_numpy_bundle_format(fixture_bundle: Any) -> None:
 
 
 def test_numpy_bundle_array_count(fixture_bundle: Any) -> None:
-    assert len(fixture_bundle.inputs) == 1
-
-
-def test_numpy_bundle_weights_name(fixture_bundle: Any) -> None:
-    assert fixture_bundle.inputs[0]["name"] == "weights"
-
-
-def test_numpy_bundle_weights_shape(fixture_bundle: Any) -> None:
-    assert fixture_bundle.inputs[0]["shape"] == [2, 2]
-
-
-def test_numpy_bundle_weights_dtype(fixture_bundle: Any) -> None:
-    assert fixture_bundle.inputs[0]["dtype"] == "float32"
+    assert fixture_bundle.properties["array_count"] == "1"
+    assert fixture_bundle.inputs == []
 
 
 def test_numpy_bundle_no_format_version(fixture_bundle: Any) -> None:

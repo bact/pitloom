@@ -311,7 +311,13 @@ def test_read_pytorch_pt2_model_json_inputs_outputs(tmp_path: Path) -> None:
             "graph": {
                 "inputs": [{"as_tensor": {"name": "x"}}],
                 "outputs": [{"as_tensor": {"name": "out"}}],
-            }
+            },
+            "signature": {
+                "input_specs": [{"user_input": {"arg": {"as_tensor": {"name": "x"}}}}],
+                "output_specs": [
+                    {"user_output": {"arg": {"as_tensor": {"name": "out"}}}}
+                ],
+            },
         }
     }
     model_file = tmp_path / "model.pt2"
@@ -485,12 +491,22 @@ def test_read_pt2_zip_rich_metadata_combination() -> None:
             "models/model.json": _json.dumps(
                 {
                     "graph_module": {
-                        "graph": {
-                            "inputs": [
+                        "signature": {
+                            "input_specs": [
                                 "not_a_dict",
-                                {"as_tensor": {"name": "tensor_in"}},
+                                {
+                                    "user_input": {
+                                        "arg": {"as_tensor": {"name": "tensor_in"}}
+                                    }
+                                },
                             ],
-                            "outputs": [{"as_tensor": {"name": "tensor_out"}}],
+                            "output_specs": [
+                                {
+                                    "user_output": {
+                                        "arg": {"as_tensor": {"name": "tensor_out"}}
+                                    }
+                                }
+                            ],
                         }
                     }
                 }
