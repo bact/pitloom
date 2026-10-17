@@ -131,7 +131,6 @@ jobs:
         uses: ./.github/actions/install-pitloom
         with:
           groups: --group test
-          extra-packages: spdx3-validate==0.0.7
           package-spec: ".[ai,content-type]"
 
       - name: Run network-dependent tests, failing on any network error
