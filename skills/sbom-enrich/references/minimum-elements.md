@@ -137,7 +137,7 @@ Applies to each `dataset_DatasetPackage`.
 | Dataset statistical properties | `dataset_datasetSize` only | **gap** for anything beyond record count, generally **not automatable** without the user running their own analysis |
 | Dataset sensitivity | `dataset_hasSensitivePersonalInformation`, `dataset_anonymizationMethodUsed`, `dataset_knownBias`, `dataset_intendedUse`, when a Croissant file declares them | conditional -- when the source is silent, ask the user directly (PII/copyright/sensitive-data flags are not derivable from files alone) |
 | Dataset dependency relationship | `Relationship` (`generates`, `hasDataFile`) captures pipeline-derivation edges already | covered for pipeline-derived datasets |
-| Dataset license | none emitted -- `DatasetMetadata.license` is extracted (Croissant) but `dataset.py` never reads it | **gap** in the output; check the dataset's Croissant file/card first, then fill via fragment. A core wiring fix is planned |
+| Dataset license | a `hasDeclaredLicense` Relationship (`hasConcludedLicense` for a third-party record) from the dataset to a licence element, when the dataset metadata states a licence; no reader feeds a licence into a model SBOM yet (Croissant is library-only, Hub dataset references carry none) | conditional; **gap** for most datasets: check the dataset's Croissant file/card, then fill via fragment |
 
 ### System Level Properties, Infrastructure, Security Properties, KPI clusters
 

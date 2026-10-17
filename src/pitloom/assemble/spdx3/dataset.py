@@ -14,7 +14,9 @@ from pitloom.assemble.spdx3._display_text import (
     DATASET,
     DATASET_CREATOR,
     DATASET_RELATIONSHIP,
+    LICENSE,
 )
+from pitloom.assemble.spdx3.deps_license import add_license_relationships
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
@@ -96,6 +98,10 @@ def _populate_dataset_profile_fields(
             comment="Croissant metadata",
         )
         dataset_pkg.externalRef = [ext_ref]
+
+
+#: A dataset's licence provenance when its metadata records none.
+DATASET_LICENSE_SOURCE = "Source: Dataset metadata"
 
 
 def _build_dataset_package(
@@ -256,6 +262,20 @@ def add_datasets_for_model(
                     ),
                 )
             )
+
+        if meta.license:
+            created += [
+                (LICENSE, element)
+                for element in add_license_relationships(
+                    meta.license,
+                    require_spdx_id(dataset_pkg),
+                    meta.provenance.get("license", DATASET_LICENSE_SOURCE),
+                    (element_creation_info, doc_name, doc_uuid),
+                    exporter,
+                    provenance_config,
+                    encoder,
+                )
+            ]
 
         rel = _dataset_relationship(
             ai_package_spdx_id,

@@ -309,7 +309,7 @@
         "BOM-G7AI2026-DP-008.2": "out-of-scope",
         "BOM-G7AI2026-DP-008.3": "out-of-scope",
         "BOM-G7AI2026-DP-009": "missing",
-        "BOM-G7AI2026-DP-010": "missing",
+        "BOM-G7AI2026-DP-010": "present",
         "BOM-G7AI2026-INF-001": "out-of-scope",
         "BOM-G7AI2026-INF-002": "out-of-scope",
         "BOM-G7AI2026-KPI-001": "out-of-scope",
@@ -372,10 +372,10 @@
       "summary": {
         "clusters": {
           "DP": {
-            "coverage_percent": 38.9,
-            "missing": 11,
+            "coverage_percent": 44.4,
+            "missing": 10,
             "out-of-scope": 5,
-            "present": 7
+            "present": 8
           },
           "INF": {
             "coverage_percent": null,
@@ -409,18 +409,18 @@
             "out-of-scope": 3
           }
         },
-        "coverage_percent": 44.6,
+        "coverage_percent": 46.4,
         "outcomes": {
-          "missing": 31,
+          "missing": 30,
           "out-of-scope": 25,
-          "present": 25
+          "present": 26
         },
         "properties_written": 10,
-        "requirement_coverage_percent": 56.4,
+        "requirement_coverage_percent": 59.0,
         "requirements": {
-          "missing": 17,
+          "missing": 16,
           "out-of-scope": 11,
-          "present": 22
+          "present": 23
         }
       }
     },

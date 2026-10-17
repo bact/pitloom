@@ -54,6 +54,18 @@ def _without(**match: str) -> Callable[[Graph], None]:
     return edit
 
 
+def _drop_dataset_licence(graph: Graph) -> None:
+    dataset = next(e for e in graph if e["type"] == "dataset_DatasetPackage")
+    graph[:] = [
+        e
+        for e in graph
+        if not (
+            e.get("relationshipType") == "hasDeclaredLicense"
+            and e["from"] == dataset["spdxId"]
+        )
+    ]
+
+
 def _unroot(graph: Graph) -> None:
     for element in graph:
         if element["type"] in ("SpdxDocument", "software_Sbom"):
@@ -73,9 +85,11 @@ _CASES = [
         _without(relationshipType="hasDeclaredLicense"),
         {"MDL-012": "missing"},
     ),
+    # The model's licence is not the dataset's.
+    ("library", _drop_dataset_licence, {"DP-010": "missing", "MDL-012": "present"}),
 ]
 _IDS = ["no-hash", "no-producer", "empty-producer", "empty-name", "blank-name",
-        "dataset-unlinked", "no-licence"]  # fmt: skip
+        "dataset-unlinked", "no-licence", "no-dataset-licence"]  # fmt: skip
 
 
 @pytest.mark.parametrize(("scenario", "edit", "expected"), _CASES, ids=_IDS)
