@@ -38,8 +38,8 @@ BOM-G7AI2026-MD-009	requirement	present	present	present	present	present
 BOM-G7AI2026-MD-010	requirement	missing	missing	missing	missing	missing
 BOM-G7AI2026-MDL-001	requirement	present	present	present	present	present
 BOM-G7AI2026-MDL-002	requirement	present	present	present	present	present
-BOM-G7AI2026-MDL-003	requirement	missing	missing	missing	missing	present
-BOM-G7AI2026-MDL-004	requirement	missing	missing	missing	missing	missing
+BOM-G7AI2026-MDL-003	requirement	missing	missing	missing	present	present
+BOM-G7AI2026-MDL-004	requirement	missing	missing	missing	present	missing
 BOM-G7AI2026-MDL-005	requirement	missing	missing	missing	present	present
 BOM-G7AI2026-MDL-006	requirement	missing	present	present	missing	missing
 BOM-G7AI2026-MDL-006.1	recommendation	missing	missing	missing	missing	missing
@@ -67,8 +67,8 @@ BOM-G7AI2026-MDL-013	requirement	missing	missing	missing	present	missing
 BOM-G7AI2026-SLP-001	requirement	present	present	present	present	present
 BOM-G7AI2026-SLP-002	requirement	missing	missing	missing	missing	missing
 BOM-G7AI2026-SLP-003	requirement	missing	missing	missing	present	present
-BOM-G7AI2026-SLP-004	requirement	missing	missing	missing	missing	present
-BOM-G7AI2026-SLP-005	requirement	missing	missing	missing	missing	missing
+BOM-G7AI2026-SLP-004	requirement	missing	missing	missing	present	present
+BOM-G7AI2026-SLP-005	requirement	missing	missing	missing	present	missing
 BOM-G7AI2026-SLP-006	requirement	out-of-scope	out-of-scope	out-of-scope	out-of-scope	out-of-scope
 BOM-G7AI2026-SLP-007	requirement	missing	missing	missing	missing	missing
 BOM-G7AI2026-SLP-008	requirement	missing	present	present	missing	missing

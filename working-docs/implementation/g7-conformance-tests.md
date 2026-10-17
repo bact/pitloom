@@ -72,11 +72,11 @@ reading of G7", not "G7 compliant"; unchecked rules are not counted as missing.
 | 0.20.2 (baseline) | `9b70174` | onnx | 21 | 17 | 18 | 25 | 55.3% |
 | 0.20.2 (baseline) | `9b70174` | hub | 21 | 35 | 0 | 25 | 37.5% |
 | 0.20.2 (baseline) | `9b70174` | library | 23 | 33 | 0 | 25 | 41.1% |
-| after B2, B1 | `9b70174` | gguf | 16 | 22 | 18 | 25 | 42.1% |
-| after B2, B1 | `9b70174` | safetensors | 19 | 19 | 18 | 25 | 50.0% |
-| after B2, B1 | `9b70174` | onnx | 22 | 16 | 18 | 25 | 57.9% |
-| after B2, B1 | `9b70174` | hub | 23 | 33 | 0 | 25 | 41.1% |
-| after B2, B1 | `9b70174` | library | 26 | 30 | 0 | 25 | 46.4% |
+| after B2, B1, B3 | `9b70174` | gguf | 16 | 22 | 18 | 25 | 42.1% |
+| after B2, B1, B3 | `9b70174` | safetensors | 19 | 19 | 18 | 25 | 50.0% |
+| after B2, B1, B3 | `9b70174` | onnx | 22 | 16 | 18 | 25 | 57.9% |
+| after B2, B1, B3 | `9b70174` | hub | 27 | 29 | 0 | 25 | 48.2% |
+| after B2, B1, B3 | `9b70174` | library | 26 | 30 | 0 | 25 | 46.4% |
 
 Coverage is present / (present + missing).
 
@@ -97,6 +97,17 @@ dataset without an http(s) URL. A gitoid `contentIdentifier` needs a second
 pass over the file and was not added. The 0.20.2 history file holds the
 before; `0.20.3-dev.json` the after. The CHANGELOG entry waits for a PR number
 (`tests/test_changelog.py` requires one).
+
+**B3, Hub revision (2026-10-17).** `MDL-003`, `MDL-004`, `SLP-004` and
+`SLP-005` are `present` in `hub`. A Hub model's version is its 40-digit commit
+hash and its `releaseTime` the Hub's last-modified time (the commit time of
+that revision), parsed with the SBOM's other times (`parse_iso_datetime`; a
+naive time is UTC, a time that is not ISO 8601 is left out with a warning).
+The hash feeds the document identity, so a new revision of a Hub model is a new
+document namespace. The scenario's mocked `model_info` now carries `sha` and
+`last_modified`, as the real Hub's does. Model files carry no time and stay
+`missing`. Not added: a Hub `created_at` (the repository's creation, not the
+revision's).
 
 **B1, dataset licence (2026-10-17).** `DP-010` is `present` in `library`.
 A dataset's licence goes through the same builder as a model's

@@ -187,8 +187,8 @@
         "BOM-G7AI2026-MD-010": "missing",
         "BOM-G7AI2026-MDL-001": "present",
         "BOM-G7AI2026-MDL-002": "present",
-        "BOM-G7AI2026-MDL-003": "missing",
-        "BOM-G7AI2026-MDL-004": "missing",
+        "BOM-G7AI2026-MDL-003": "present",
+        "BOM-G7AI2026-MDL-004": "present",
         "BOM-G7AI2026-MDL-005": "present",
         "BOM-G7AI2026-MDL-006": "missing",
         "BOM-G7AI2026-MDL-006.1": "missing",
@@ -216,8 +216,8 @@
         "BOM-G7AI2026-SLP-001": "present",
         "BOM-G7AI2026-SLP-002": "missing",
         "BOM-G7AI2026-SLP-003": "present",
-        "BOM-G7AI2026-SLP-004": "missing",
-        "BOM-G7AI2026-SLP-005": "missing",
+        "BOM-G7AI2026-SLP-004": "present",
+        "BOM-G7AI2026-SLP-005": "present",
         "BOM-G7AI2026-SLP-006": "out-of-scope",
         "BOM-G7AI2026-SLP-007": "missing",
         "BOM-G7AI2026-SLP-008": "missing",
@@ -253,16 +253,16 @@
             "present": 6
           },
           "MDL": {
-            "coverage_percent": 47.6,
-            "missing": 11,
+            "coverage_percent": 57.1,
+            "missing": 9,
             "out-of-scope": 7,
-            "present": 10
+            "present": 12
           },
           "SLP": {
-            "coverage_percent": 33.3,
-            "missing": 6,
+            "coverage_percent": 55.6,
+            "missing": 4,
             "out-of-scope": 3,
-            "present": 3
+            "present": 5
           },
           "SP": {
             "coverage_percent": 0.0,
@@ -270,18 +270,18 @@
             "out-of-scope": 3
           }
         },
-        "coverage_percent": 41.1,
+        "coverage_percent": 48.2,
         "outcomes": {
-          "missing": 33,
+          "missing": 29,
           "out-of-scope": 25,
-          "present": 23
+          "present": 27
         },
-        "properties_written": 9,
-        "requirement_coverage_percent": 48.7,
+        "properties_written": 10,
+        "requirement_coverage_percent": 59.0,
         "requirements": {
-          "missing": 20,
+          "missing": 16,
           "out-of-scope": 11,
-          "present": 19
+          "present": 23
         }
       }
     },

@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -21,6 +22,10 @@ from pitloom.assemble.spdx3._display_text import (
     BASE_MODEL,
     BASE_MODEL_RELATIONSHIP,
     escape_element_display_text,
+)
+from pitloom.assemble.spdx3.creation_info import (
+    parse_iso_datetime,
+    to_spdx3_datetime,
 )
 from pitloom.assemble.spdx3.provenance import build_source_metadata_annotation
 from pitloom.core.ai_metadata import (
@@ -406,6 +411,21 @@ def finish_ai_package(
     finish_display_text(ai_model, [("", ai_pkg), *related])
 
 
+def _release_time(ai_model: AiModelMetadata) -> datetime | None:
+    """The model's release time as an SPDX 3 DateTime (UTC, a naive time read
+    as UTC), or ``None`` when it states none or not an ISO 8601 time."""
+    if not ai_model.release_time:
+        return None
+    try:
+        return to_spdx3_datetime(parse_iso_datetime(ai_model.release_time))
+    except ValueError:
+        log.warning(
+            "FORMAT=%s FILE=%s: release time is not ISO 8601; left out",
+            *_model_where(ai_model),
+        )
+        return None
+
+
 def _model_purl(ai_model: AiModelMetadata, digest: str | None) -> str | None:
     """A Hub model's ``pkg:huggingface`` PURL, else the model file's
     ``pkg:generic`` PURL named by its checksum. ``None`` when the source gives
@@ -448,6 +468,9 @@ def _build_ai_package(
         ai_pkg.verifiedUsing = [sha256_hash(digest)]
     if ai_model.version:
         ai_pkg.software_packageVersion = ai_model.version
+    release_time = _release_time(ai_model)
+    if release_time:
+        ai_pkg.releaseTime = release_time
     purl = _model_purl(ai_model, digest)
     if purl:
         ai_pkg.software_packageUrl = purl
