@@ -136,6 +136,10 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
 - [ ] **SHA-512 hash option**: BSI 2025 requires SHA-512 on the deployable
   component; Pitloom emits SHA-256 only (`software_File`, `verifiedUsing`).
   Open: opt-in flag vs always add; the registry keeps SHA-256 as its gate.
+- [ ] **Support tiers and demo scope** (tier 1: Safetensors, ONNX, GGUF, NumPy,
+  fastText; demo: G7 Metadata/System/Model/Dataset, SPDX 3.0, Hatchling,
+  setuptools, Poetry) and the parity ledger. See
+  [support-tiers-and-demo-scope.md](support-tiers-and-demo-scope.md).
 - [ ] **G7 honesty notices**: an `INFO:`/`WARNING:` for information read
   from a source that SPDX 3.0.1 has no property to record. See
   [g7-honesty-and-non-recordable.md](g7-honesty-and-non-recordable.md).
