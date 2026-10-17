@@ -42,3 +42,7 @@ SPDX-License-Identifier: CC0-1.0
     - Unmodified SPDX 3.0.1 context, SHACL model and JSON schema
       (Community-Spec-1.0), for offline `spdx3-validate` runs
     - [Details](./spdx-model/README.md)
+11. Conformance fixtures (`conformance/`)
+    - Expected G7 SBOM for AI rule outcomes per scenario and the G7 -> SPDX
+      mapping snapshot, for `tests/conformance/`
+    - [Details](./conformance/README.md)

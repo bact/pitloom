@@ -135,6 +135,10 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
 - [ ] **SHA-512 hash option**: BSI 2025 requires SHA-512 on the deployable
   component; Pitloom emits SHA-256 only (`software_File`, `verifiedUsing`).
   Open: opt-in flag vs always add; the registry keeps SHA-256 as its gate.
+- [x] **G7 conformance tests**: Pitloom's SBOMs checked with
+  `ntia-conformance-checker` (`g7ai`) against an expected-outcome table, with
+  offline SPDX validation and a coverage report. See
+  [g7-conformance-tests.md](../implementation/g7-conformance-tests.md).
 - [x] **#6 Model producer and parameter count** from structured sources
   (PR #306): `originatedBy` Agents and the `parameters` hyperparameter
   entry. See

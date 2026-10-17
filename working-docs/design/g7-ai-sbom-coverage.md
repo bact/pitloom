@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -22,6 +22,13 @@ past a summary.
 > retrained model no longer gets the old id (G7 blockers 1 and 2 of
 > [id-registry-followups.md](id-registry-followups.md) are closed). See
 > [id-registry-path-keys.md](../implementation/id-registry-path-keys.md).
+
+## Regression tests (2026-10-17)
+
+Each field below is held by a table of expected G7 outcomes that the checker
+produces from Pitloom's own SBOMs; see
+[g7-conformance-tests.md](../implementation/g7-conformance-tests.md). An item
+is done when its cells flip from `missing` to `present` in the same change.
 
 ## Scope split (decided 2026-09-17)
 
