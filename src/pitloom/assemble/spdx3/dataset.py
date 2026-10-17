@@ -20,6 +20,7 @@ from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.purl import build_generic_purl
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 # Mapping from DatasetReference.role strings to SPDX 3.0.1 RelationshipType.
@@ -118,6 +119,10 @@ def _build_dataset_package(
         dataset_pkg.description = meta.description
     if meta.download_url:
         dataset_pkg.software_downloadLocation = meta.download_url
+        if meta.download_url.startswith(("https://", "http://")):
+            dataset_pkg.software_packageUrl = build_generic_purl(
+                meta.name, version=meta.version, download_url=meta.download_url
+            )
 
     dataset_pkg.dataset_datasetType = _resolve_dataset_types(meta.dataset_types)
     _populate_dataset_profile_fields(dataset_pkg, meta)

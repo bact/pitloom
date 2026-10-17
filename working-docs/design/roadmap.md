@@ -128,10 +128,11 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   `dataset.py`): own PR. The 2026 SSSOM mappings fix the shape: a
   `hasDeclaredLicense` Relationship to an `AnyLicenseInfo`, so a URL and an
   SPDX expression both fit.
-- [ ] **Identifiers from the minimum-elements mappings** (CISA 2026, NTIA 2021,
-  G7 AI 2026, BSI 2025): `software_packageUrl` (PURL, e.g.
-  `pkg:huggingface/...`, `pkg:generic/...`) on `ai_AIPackage` and dataset
-  packages (today PyPI packages only); optional `contentIdentifier`.
+- [x] **Identifiers from the minimum-elements mappings** (CISA 2026, NTIA 2021,
+  G7 AI 2026, BSI 2025): `software_packageUrl` on `ai_AIPackage` and dataset
+  packages (G7 B2; see
+  [g7-conformance-tests.md](../implementation/g7-conformance-tests.md)).
+  Open: a `contentIdentifier` (gitoid).
 - [ ] **SHA-512 hash option**: BSI 2025 requires SHA-512 on the deployable
   component; Pitloom emits SHA-256 only (`software_File`, `verifiedUsing`).
   Open: opt-in flag vs always add; the registry keeps SHA-256 as its gate.

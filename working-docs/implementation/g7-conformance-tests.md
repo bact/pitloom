@@ -72,6 +72,11 @@ reading of G7", not "G7 compliant"; unchecked rules are not counted as missing.
 | 0.20.2 (baseline) | `9b70174` | onnx | 21 | 17 | 18 | 25 | 55.3% |
 | 0.20.2 (baseline) | `9b70174` | hub | 21 | 35 | 0 | 25 | 37.5% |
 | 0.20.2 (baseline) | `9b70174` | library | 23 | 33 | 0 | 25 | 41.1% |
+| after B2 | `9b70174` | gguf | 16 | 22 | 18 | 25 | 42.1% |
+| after B2 | `9b70174` | safetensors | 19 | 19 | 18 | 25 | 50.0% |
+| after B2 | `9b70174` | onnx | 22 | 16 | 18 | 25 | 57.9% |
+| after B2 | `9b70174` | hub | 23 | 33 | 0 | 25 | 41.1% |
+| after B2 | `9b70174` | library | 25 | 31 | 0 | 25 | 44.6% |
 
 Coverage is present / (present + missing).
 
@@ -79,6 +84,19 @@ Coverage is present / (present + missing).
 
 Add one paragraph per increment: the rules that flipped, what was left to the
 `sbom-enrich` skill and why.
+
+**B2, identifiers (2026-10-17).** `MDL-002` flipped to `present` in all five
+scenarios and `DP-004` in `hub` and `library`. A Hub model gets
+`pkg:huggingface/<owner>/<name>[@<commit>]` (the commit only when the Hub gave
+a 40-digit hash); a hashed model file gets
+`pkg:generic/<file>?checksum=sha256:<digest>`, derived from the digest already
+computed; a dataset with an http(s) download URL gets
+`pkg:generic/<name>?download_url=<url>` (the `huggingface` type covers models
+only). Left absent, silently: a model with no file name and no hub id, a
+dataset without an http(s) URL. A gitoid `contentIdentifier` needs a second
+pass over the file and was not added. The 0.20.2 history file holds the
+before; `0.20.3-dev.json` the after. The CHANGELOG entry waits for a PR number
+(`tests/test_changelog.py` requires one).
 
 ## Database-less builds
 
