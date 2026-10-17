@@ -11,7 +11,9 @@ SPDX-License-Identifier: CC0-1.0
 See also: [roadmap.md](roadmap.md) (1.0 target -- this is 1.0's headline
 item), [minimum-elements.md](../../skills/sbom-enrich/references/minimum-elements.md)
 (the G7 checklist this file works against), [loom-sdk-and-notebooks.md](sbom-fragments/loom-sdk-and-notebooks.md)
-(the SDK expansion this depends on).
+(the SDK expansion this depends on),
+[g7-honesty-and-non-recordable.md](g7-honesty-and-non-recordable.md) (what
+Pitloom does not claim).
 
 Split out of `roadmap.md` (2026-09-17) once this item's detail grew
 past a summary.
@@ -29,6 +31,14 @@ Each field below is held by a table of expected G7 outcomes that the checker
 produces from Pitloom's own SBOMs; see
 [g7-conformance-tests.md](../implementation/g7-conformance-tests.md). An item
 is done when its cells flip from `missing` to `present` in the same change.
+
+## Honesty (decided 2026-10-17)
+
+Coverage never outranks accuracy: a field stays absent when the source does
+not state it, and a value keeps the strength its source gave it. What Pitloom
+cannot extract or tell apart, the G7 elements SPDX 3.0.1 cannot record, and a
+planned notice for information read but not recordable:
+[g7-honesty-and-non-recordable.md](g7-honesty-and-non-recordable.md).
 
 ## Scope split (decided 2026-09-17)
 

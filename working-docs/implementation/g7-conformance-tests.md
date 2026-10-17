@@ -80,6 +80,16 @@ reading of G7", not "G7 compliant"; unchecked rules are not counted as missing.
 
 Coverage is present / (present + missing).
 
+## Honesty
+
+The table only ever records what the SBOM states. The guards that hold this:
+a `present` rule rests on a real property on the right element; no property a
+rule reads holds a placeholder; an edit that removes a value turns the rule
+`missing`; an unreadable file fails the test rather than reading as all
+`missing`. A flip that rests on a weaker form (a generic Agent, a Hub card's
+claim) is said so in the log entry. What Pitloom cannot extract, tell apart or
+record: [g7-honesty-and-non-recordable.md](../design/g7-honesty-and-non-recordable.md).
+
 ## Increment log
 
 Add one paragraph per increment: the rules that flipped, what was left to the
