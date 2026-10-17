@@ -67,11 +67,20 @@ def _file(relative: str) -> Callable[[], str]:
     return build
 
 
+#: What the Hub's model_info states of a revision.
+_HUB_INFO = {
+    "author": "acme",
+    "sha": "0123456789abcdef0123456789abcdef01234567",
+    "created_at": "2023-09-20T13:03:50+00:00",
+    "last_modified": "2024-01-02T03:04:05+00:00",
+}
+
+
 def _hub() -> str:
     card = _make_card_data(license="apache-2.0", datasets=["c4"])
     with (
         _without_licence_database(),
-        _patch_hf_calls(card_data=card, hub_info={"author": "acme"}),
+        _patch_hf_calls(card_data=card, hub_info=_HUB_INFO),
     ):
         return generate_model_sbom("acme/model", creation_metadata=CREATED)
 

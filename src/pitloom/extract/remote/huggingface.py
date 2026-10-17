@@ -84,6 +84,7 @@ from pitloom.extract.remote.huggingface_field import (
     _parse_info_tags,
     _resolve_base_model_id,
     hub_producer_and_count,
+    hub_revision,
 )
 from pitloom.logging_config import loggable
 
@@ -190,6 +191,7 @@ def read_huggingface(source: str) -> AiModelMetadata:
     producer = hub_producer_and_count(
         hf_data.get("hub_info") or {}, provenance, loggable(hf_url)
     )
+    revision = hub_revision(hf_data.get("hub_info") or {}, provenance)
 
     meta = AiModelMetadata(
         format_info=AiModelFormatInfo(
@@ -198,6 +200,8 @@ def read_huggingface(source: str) -> AiModelMetadata:
             framework=library_name or type_of_model,
         ),
         name=model_name,
+        version=revision.version,
+        release_time=revision.release_time,
         description=description,
         license=license_val,
         originators=producer.originators,

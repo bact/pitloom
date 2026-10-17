@@ -18,9 +18,17 @@ from __future__ import annotations
 import re
 from urllib.parse import quote
 
-__all__ = ["build_generic_purl", "build_huggingface_purl"]
+__all__ = ["build_generic_purl", "build_huggingface_purl", "commit_hash"]
 
 _GIT_SHA = re.compile(r"[0-9a-fA-F]{40}")
+
+
+def commit_hash(revision: object) -> str | None:
+    """Return *revision* lowercased when it is a 40-digit Git commit hash, else
+    ``None``: a branch, a tag or a short hash names no fixed revision."""
+    if isinstance(revision, str) and _GIT_SHA.fullmatch(revision):
+        return revision.lower()
+    return None
 
 
 def _encode(text: str, safe: str = "") -> str:
@@ -37,9 +45,8 @@ def build_huggingface_purl(model_id: str, revision: str | None) -> str | None:
     if len(parts) != 2 or not all(parts):
         return None
     base = f"pkg:huggingface/{_encode(parts[0])}/{_encode(parts[1])}"
-    if revision and _GIT_SHA.fullmatch(revision):
-        return f"{base}@{revision.lower()}"
-    return base
+    commit = commit_hash(revision)
+    return f"{base}@{commit}" if commit else base
 
 
 def build_generic_purl(
