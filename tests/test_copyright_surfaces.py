@@ -38,7 +38,7 @@ from pitloom.embed import embed_wheel_sbom
 from pitloom.extract._license_detect import LICENSE_FILE_MAX_BYTES
 from pitloom.extract.project.reader import read_project
 from tests._author_routes import CREATED, hook_sbom, isolate, write_wheel
-from tests._network import assert_spdx3_validate_ok
+from tests._spdx3_validate import assert_spdx3_valid
 from tests.assemble.conftest import _make_sdist
 
 _PYPROJECT = """\
@@ -275,7 +275,6 @@ def test_real_world_licence_notices(
     assert metadata.copyright_text == text
 
 
-@pytest.mark.network
 @pytest.mark.parametrize("case", ["single", "none"])
 def test_copyright_text_validates(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
@@ -283,4 +282,4 @@ def test_copyright_text_validates(
     files = {n: t.encode("utf-8") for n, t in _CASES[case][0].items()}
     sbom = tmp_path / "sbom.json"
     sbom.write_text(_directory(tmp_path, monkeypatch, files), encoding="utf-8")
-    assert_spdx3_validate_ok(sbom)
+    assert_spdx3_valid(sbom)

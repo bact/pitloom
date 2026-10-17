@@ -26,6 +26,7 @@ from tests._network import (  # noqa: F401
     pytest_make_collect_report,
     pytest_runtest_makereport,
 )
+from tests._spdx3_validate import use_offline_model
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -189,3 +190,9 @@ def _block_network_access(
         lambda name, version: None,
     )
     monkeypatch.setattr(socket, "socket", _blocked_socket)
+
+
+@pytest.fixture
+def offline_spdx3_validate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run ``spdx3_validate.validate`` against the vendored model, no network."""
+    use_offline_model(monkeypatch)

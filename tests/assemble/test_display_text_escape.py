@@ -32,7 +32,7 @@ from pitloom.extract.ai_model.formats import Limits
 from pitloom.extract.ai_model.formats.crfsuite import (
     read_crfsuite as read_crfsuite_header,
 )
-from tests._network import assert_spdx3_validate_ok
+from tests._spdx3_validate import assert_spdx3_valid
 from tests.extract.ai_model.gguf_builders import STRING, gguf_file, kv, string
 from tests.id_registry.surfaces_base import demo_project
 from tests.warning_helpers import logged_warnings
@@ -257,13 +257,12 @@ def test_the_library_project_surface_escapes_too(tmp_path: Path) -> None:
     assert [e["name"] for e in shown["@license"]] == ["l\\u202e"]
 
 
-@pytest.mark.network
 def test_an_escaped_sbom_passes_spdx3_validate(tmp_path: Path) -> None:
     path = tmp_path / "m.gguf"
     path.write_bytes(_gguf(("general.name", f"evil{_RLO}txt.exe")))
     out = tmp_path / "out.json"
     out.write_text(generate_model_sbom(path), encoding="utf-8")
-    assert_spdx3_validate_ok(out)
+    assert_spdx3_valid(out)
 
 
 def test_a_hub_model_is_named_by_its_url(caplog: pytest.LogCaptureFixture) -> None:

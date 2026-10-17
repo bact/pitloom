@@ -28,7 +28,7 @@ from pitloom import loom
 from pitloom._loom_active_run import _ActiveRun
 from pitloom.core.dataset_hash import hash_dataset
 from pitloom.id_registry import DATASET_PACKAGE_TYPE, FILE_TYPE, IdRegistry
-from tests._network import assert_spdx3_validate_ok
+from tests._spdx3_validate import assert_spdx3_valid
 from tests.registry_helpers import Entries, make_registry
 
 from .conftest import _relationships
@@ -334,7 +334,6 @@ def test_script_is_keyed_from_the_root_when_run_from_a_subdirectory(
     )
 
 
-@pytest.mark.network
 def test_dataset_elements_validate(
     project: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -353,4 +352,4 @@ def test_dataset_elements_validate(
         loom.add_validation_dataset("hf://datasets/org/corpus")
 
     _run(output, make_registry(project_root=project), body)
-    assert_spdx3_validate_ok(output)
+    assert_spdx3_valid(output)

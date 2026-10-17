@@ -34,7 +34,7 @@ from tests._license_graph import (
     provenance_fields,
     two_packages,
 )
-from tests._network import assert_spdx3_validate_ok
+from tests._spdx3_validate import assert_spdx3_valid
 from tests.extract.remote.hf_patches._hf_patches_base import (
     _make_card_data,
     _patch_hf_calls,
@@ -63,7 +63,6 @@ def _document(declared: str, concluded: str | None, model: str) -> DocumentModel
     )
 
 
-@pytest.mark.network
 @pytest.mark.parametrize(
     ("declared", "concluded", "model"),
     [
@@ -77,7 +76,7 @@ def test_a_document_using_the_individuals_validates(
 ) -> None:
     sbom = tmp_path / "sbom.json"
     sbom.write_text(build(_document(declared, concluded, model)).to_json())
-    assert_spdx3_validate_ok(sbom)
+    assert_spdx3_valid(sbom)
 
 
 def test_a_built_document_with_individuals_merges_as_a_fragment(

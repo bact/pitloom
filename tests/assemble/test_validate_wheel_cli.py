@@ -22,7 +22,6 @@ import pytest
 
 from pitloom import __main__
 from pitloom.core.wheel_dist_info import PROBLEM_NONE
-from tests._network import skip_if_network_failure
 from tests.kv_helpers import kv_stdout, statuses
 
 from .conftest import _SAMPLE_SPDX3_JSON, _embed_sbom_entry, _make_dummy_wheel
@@ -36,7 +35,7 @@ FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 VALID_FRAGMENT = FIXTURE_DIR / "fragments" / "dataset-fragment.spdx3.json"
 
 
-@pytest.mark.network
+@pytest.mark.usefixtures("offline_spdx3_validate")
 def test_validate_wheel_valid_sbom_ok(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -58,8 +57,6 @@ def test_validate_wheel_valid_sbom_ok(
     monkeypatch.setattr(sys, "argv", ["loom", "validate-wheel", str(wheel_path)])
     result = __main__.main()
     captured = capsys.readouterr()
-    if result != 0:
-        skip_if_network_failure(captured.err)
     assert result == 0
 
     assert statuses(captured.out) == ["valid"]

@@ -39,7 +39,7 @@ from tests._license_graph import (
     license_targets,
     two_packages,
 )
-from tests._network import assert_spdx3_validate_ok
+from tests._spdx3_validate import assert_spdx3_valid
 
 _MIT = "License :: OSI Approved :: MIT License"
 _APACHE = "License :: OSI Approved :: Apache Software License"
@@ -248,9 +248,8 @@ def test_and_against_a_detected_id_is_a_conflict() -> None:
     assert [e for e in graph if "conflict" in e.get("statement", "")]
 
 
-@pytest.mark.network
 def test_a_document_with_the_and_validates(tmp_path: Path) -> None:
     sbom = tmp_path / "sbom.json"
     exporter = _and_document()
     sbom.write_text(exporter.to_json(), encoding="utf-8")
-    assert_spdx3_validate_ok(sbom)
+    assert_spdx3_valid(sbom)
