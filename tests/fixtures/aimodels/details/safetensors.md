@@ -28,8 +28,7 @@ Notable metadata extracted by the Safetensors extractor:
 
 - `name`, `description`, `version`, `type_of_model` are all `None`
 - `properties["format"]` = `"pt"`
-- `inputs` lists 86 tensors covering `model.encoder.*`, `model.decoder.*`,
-  and `model.shared.weight` - confirming the seq2seq encoder-decoder structure
+- 86 tensors, none recorded as `inputs` (weights are not model inputs); their shapes give the parameter count
 
 ---
 
@@ -52,8 +51,7 @@ Notable metadata extracted by the Safetensors extractor:
 
 - `name`, `description`, `version`, `type_of_model` are all `None`
 - `properties["format"]` = `"pt"`
-- `inputs` lists 33 tensors: `model.embed_tokens.weight`, `model.layers.*`,
-  `model.final_layernorm.*`, `lm_head.*`
+- 33 tensors, none recorded as `inputs` (weights are not model inputs); their shapes give the parameter count
 
 ---
 
@@ -76,9 +74,7 @@ Notable metadata extracted by the Safetensors extractor:
 
 - `name`, `description`, `version`, `type_of_model` are all `None`
 - `properties["format"]` = `"pt"`
-- `inputs` lists 93 tensors with `model.encoder.*` (including conv sub-sampler)
-  and `model.decoder.*` - distinguishes the convolutional ASR encoder from the
-  attention-only Whisper encoder in `whisper-tiny-random.safetensors`
+- 93 tensors, none recorded as `inputs` (weights are not model inputs); their shapes give the parameter count
 
 ---
 
@@ -101,9 +97,7 @@ Notable metadata extracted by the Safetensors extractor:
 
 - `name`, `description`, `version`, `type_of_model` are all `None`
 - `properties["format"]` = `"pt"`
-- `inputs` lists 438 tensors - the most in the fixture set - covering
-  sub-modules `decoder.*`, `text_encoder.*`, `flow.*`, and
-  `posterior_encoder.*`
+- 438 tensors, none recorded as `inputs` (weights are not model inputs); their shapes give the parameter count
 
 ---
 
@@ -126,5 +120,4 @@ Notable metadata extracted by the Safetensors extractor:
 
 - `name`, `description`, `version`, `type_of_model` are all `None`
 - `properties["format"]` = `"pt"`
-- `inputs` lists 50 tensors with both `model.encoder.*` and
-  `model.decoder.*` keys - confirms encoder-decoder architecture
+- 50 tensors, none recorded as `inputs` (weights are not model inputs); their shapes give the parameter count

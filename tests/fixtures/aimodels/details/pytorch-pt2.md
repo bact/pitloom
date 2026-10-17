@@ -36,6 +36,6 @@ Notable metadata extracted by the PT2 extractor:
 - `license` = `"CC0-1.0"` (from `extra/license`)
 - `properties["author"]` = `"Pitloom"` (from `extra/author`)
 - `properties["tags"]` = `"regression"` (from `extra/tags`)
-- `inputs` = `[{"name": "x"}]`, `outputs` = `[{"name": "linear"}]` (from `models/model.json`)
+- `inputs` = `[{"name": "x"}]`, `outputs` = `[{"name": "linear"}]` (the `user_input` and `user_output` entries of the signature in `models/model.json`; the graph also lists the parameters `p_line_weight` and `p_line_bias`, which are not inputs)
 - `type_of_model` = `None` - PT2 extractor does not inspect pickle data
 - `name` = `None` - no `extra/name` or `METADATA.json` with name in this fixture

@@ -72,11 +72,11 @@ reading of G7", not "G7 compliant"; unchecked rules are not counted as missing.
 | 0.20.2 (baseline) | `9b70174` | onnx | 21 | 17 | 18 | 25 | 55.3% |
 | 0.20.2 (baseline) | `9b70174` | hub | 21 | 35 | 0 | 25 | 37.5% |
 | 0.20.2 (baseline) | `9b70174` | library | 23 | 33 | 0 | 25 | 41.1% |
-| after B2, B1, B3 | `9b70174` | gguf | 16 | 22 | 18 | 25 | 42.1% |
-| after B2, B1, B3 | `9b70174` | safetensors | 19 | 19 | 18 | 25 | 50.0% |
-| after B2, B1, B3 | `9b70174` | onnx | 22 | 16 | 18 | 25 | 57.9% |
-| after B2, B1, B3 | `9b70174` | hub | 27 | 29 | 0 | 25 | 48.2% |
-| after B2, B1, B3 | `9b70174` | library | 26 | 30 | 0 | 25 | 46.4% |
+| after B2, B1, B3, honesty fix | `9b70174` | gguf | 16 | 22 | 18 | 25 | 42.1% |
+| after B2, B1, B3, honesty fix | `9b70174` | safetensors | 13 | 25 | 18 | 25 | 34.2% |
+| after B2, B1, B3, honesty fix | `9b70174` | onnx | 22 | 16 | 18 | 25 | 57.9% |
+| after B2, B1, B3, honesty fix | `9b70174` | hub | 27 | 29 | 0 | 25 | 48.2% |
+| after B2, B1, B3, honesty fix | `9b70174` | library | 26 | 30 | 0 | 25 | 46.4% |
 
 Coverage is present / (present + missing).
 
@@ -107,6 +107,16 @@ dataset without an http(s) URL. A gitoid `contentIdentifier` needs a second
 pass over the file and was not added. The 0.20.2 history file holds the
 before; `0.20.3-dev.json` the after. The CHANGELOG entry waits for a PR number
 (`tests/test_changelog.py` requires one).
+
+**Honesty fix, model inputs (2026-10-17).** A model's `inputs`/`outputs` are
+now only what its format states as a signature. Safetensors tensor keys, NumPy
+arrays and PT2 parameters, buffers and constants were written as inputs and
+reached `ai_informationAboutApplication`; they no longer are (details and
+the readers' new behaviour: [g7-honesty-and-non-recordable.md](../design/g7-honesty-and-non-recordable.md)).
+`safetensors` lost six `present` cells, MDL-006, MDL-006.4, MDL-010, MDL-010.4,
+SLP-008 and SLP-008.3, so its coverage went down (50.0% to 34.2%): the earlier
+figure was wrong. `onnx` keeps the same cells, which rest on its real signature
+and on the checker's close-match mapping, not on any intended-use statement.
 
 **B3, Hub revision (2026-10-17).** `MDL-003`, `MDL-004`, `SLP-004` and
 `SLP-005` are `present` in `hub`. A Hub model's version is its 40-digit commit

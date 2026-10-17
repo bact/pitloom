@@ -93,7 +93,7 @@ def _read_npy_version(model_path: Path) -> tuple[int, int]:
 
 def _read_npy_metadata(
     model_path: Path, source: str
-) -> tuple[str, dict[str, str], list[dict[str, Any]], dict[str, str]]:
+) -> tuple[str, dict[str, str], dict[str, str]]:
     """Helper to read .npy format metadata."""
     # pylint: disable=import-outside-toplevel
     import numpy as np
@@ -113,18 +113,18 @@ def _read_npy_metadata(
     }
     # mmap_mode='r' reads shape/dtype from header without loading full tensor
     arr = np.load(str(model_path), mmap_mode="r", allow_pickle=False)
-    # inputs is always a single-element literal, so provenance["inputs"] is
-    # always set below -- unlike _read_npz_metadata's genuinely conditional
-    # equivalent, which is built via a loop and can be empty.
-    inputs = [{"shape": list(arr.shape), "dtype": str(arr.dtype)}]
-    provenance["inputs"] = f"{source} | Field: .npy header (shape, dtype)"
+    # The array's shape and dtype are file properties, not model inputs.
+    properties["array_shape"] = "x".join(map(str, arr.shape)) or "scalar"
+    properties["array_dtype"] = str(arr.dtype)
+    for key in ("array_shape", "array_dtype"):
+        provenance[f"properties.{key}"] = f"{source} | Field: .npy header"
     # np.memmap has no close() of its own -- drop the only reference now
     # that shape/dtype are copied out, so the mapped file handle is
     # released deterministically here rather than implicitly whenever the
     # interpreter next collects this function's frame.
     del arr
 
-    return format_version, properties, inputs, provenance
+    return format_version, properties, provenance
 
 
 def _shim_read_array_header(
@@ -165,7 +165,7 @@ def _shim_read_array_header(
 
 def _read_npz_metadata(
     model_path: Path, source: str
-) -> tuple[list[dict[str, Any]], dict[str, str]]:
+) -> tuple[dict[str, str], dict[str, str]]:
     """Helper to read .npz format metadata."""
     # pylint: disable=import-outside-toplevel
     import numpy as np
@@ -173,36 +173,24 @@ def _read_npz_metadata(
     # pylint: disable=import-outside-toplevel
     from numpy.lib.format import read_magic
 
-    inputs: list[dict[str, Any]] = []
-    provenance: dict[str, str] = {}
     # np.load reads the handle that was checked and leaves it open.
     with (
         open_model_binary(model_path) as fh,
         np.load(fh, allow_pickle=False) as npzfile,
     ):
-        for archive_name in npzfile.zip.namelist():
-            if len(inputs) > MAX_MODEL_ENTRIES:
-                # One past the cap, so cap_and_warn sees the list was
-                # longer, cuts it to the cap and warns.
-                break
-            if not archive_name.endswith(".npy"):
-                continue
-            array_name = archive_name[:-4]
+        members = [n for n in npzfile.zip.namelist() if n.endswith(".npy")]
+        # Headers are checked for the first members only, as the entry cap
+        # bounded the work before.
+        for archive_name in members[: MAX_MODEL_ENTRIES + 1]:
             with npzfile.zip.open(archive_name) as f:
                 version = read_magic(f)  # type: ignore[no-untyped-call]
                 header = _bounded_header(f, version[0])
-                shape, _, dtype = _shim_read_array_header(header, version)
-                inputs.append(
-                    {
-                        "name": array_name,
-                        "shape": list(shape),
-                        "dtype": str(dtype),
-                    }
-                )
-    if inputs:
-        provenance["inputs"] = f"{source} | Field: array names, shapes, dtypes"
+                _shim_read_array_header(header, version)  # a bad header raises
+    # The arrays are not model inputs: only their number is recorded.
+    properties = {"array_count": str(len(members))}
+    provenance = {"properties.array_count": f"{source} | Field: .npz archive members"}
 
-    return inputs, provenance
+    return properties, provenance
 
 
 def _detect_numpy_kind(model_path: Path) -> str | None:
@@ -242,9 +230,11 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
     - **Version 3.x** -- 4-byte header-length field, UTF-8-encoded header.
 
     Shape and dtype are extracted via memory-mapping so the full tensor data
-    is never loaded.  For ``.npz`` archives each constituent array's shape
-    and dtype are listed as :attr:`~AiModelMetadata.inputs` entries; per-array
-    NPY version is not surfaced for ``.npz`` files.
+    is never loaded.  An ``.npy`` file's shape and dtype are file
+    ``properties`` (``array_shape``, ``array_dtype``); an ``.npz`` archive's
+    array count is ``array_count``.  Arrays are weights or data, not model
+    inputs, so :attr:`~AiModelMetadata.inputs` stays empty.  Per-array NPY
+    version is not surfaced for ``.npz`` files.
 
     Neither format embeds a model name, description, or training
     configuration, so :attr:`~AiModelMetadata.name`,
@@ -255,8 +245,7 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
         model_path: Path to a ``.npy`` or ``.npz`` file.
 
     Returns:
-        AiModelMetadata with shape/dtype information in
-        :attr:`~AiModelMetadata.inputs`.
+        AiModelMetadata with the array information in ``properties``.
 
     Raises:
         ImportError: If ``numpy`` is not installed.
@@ -269,17 +258,16 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
     format_version: str | None = None
     properties: dict[str, str] = {}
-    inputs: list[dict[str, Any]] = []
     provenance: dict[str, str] = {}
 
     kind = _detect_numpy_kind(model_path)
     try:
         if kind == "npy":
-            format_version, properties, inputs, provenance = _read_npy_metadata(
+            format_version, properties, provenance = _read_npy_metadata(
                 model_path, source
             )
         elif kind == "npz":
-            inputs, provenance = _read_npz_metadata(model_path, source)
+            properties, provenance = _read_npz_metadata(model_path, source)
     except ModelLimitExceeded:
         raise
     # pylint: disable-next=broad-exception-caught
@@ -300,7 +288,6 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
             framework="numpy",
         ),
         type_of_model="numpy array",
-        inputs=inputs,
         properties=properties,
         **source_metadata(properties),
         provenance=provenance,

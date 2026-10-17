@@ -24,7 +24,7 @@ File details for `numpy/`. See also: [AI model fixtures](../README.md)
 
 Notable metadata extracted by the NumPy extractor:
 
-- `inputs` lists 1 array: `{"name": "weights", "shape": [2, 2], "dtype": "float32"}`
+- `properties["array_count"]` = `"1"`; `inputs` is empty (an array is not a model input)
 - `properties` does not contain `npy_format_version` - NPZ archives do not
   expose a per-file NPY version at the archive level
 - `name`, `description`, `version` are all `None`
@@ -49,7 +49,7 @@ Notable metadata extracted by the NumPy extractor:
 
 - `properties["npy_format_version"]` = `"1.0"`
 - `properties["header_encoding"]` = `"latin1"`
-- `inputs[0]` = `{"shape": [2, 2], "dtype": "float32"}`
+- `properties["array_shape"]` = `"2x2"`, `properties["array_dtype"]` = `"float32"`; `inputs` is empty
 - `name`, `description`, `version` are all `None`
 
 ---
@@ -73,7 +73,7 @@ Notable metadata extracted by the NumPy extractor:
 
 - `properties["npy_format_version"]` = `"2.0"`
 - `properties["header_encoding"]` = `"latin1"`
-- `inputs[0]` = `{"shape": [2, 2], "dtype": "float32"}`
+- `properties["array_shape"]` = `"2x2"`, `properties["array_dtype"]` = `"float32"`; `inputs` is empty
 - `name`, `description`, `version` are all `None`
 
 ---
@@ -99,5 +99,5 @@ Notable metadata extracted by the NumPy extractor:
 - `properties["header_encoding"]` = `"utf-8"` - required for the Unicode field
   name `π_weights` (Greek letter π); version 1.x/2.x latin1 encoding would
   reject this header
-- `inputs[0]["dtype"]` contains `"π_weights"` - confirms UTF-8 round-trip
+- `properties["array_dtype"]` contains `"π_weights"` - confirms UTF-8 round-trip
 - `name`, `description`, `version` are all `None`

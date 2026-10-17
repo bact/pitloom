@@ -132,7 +132,7 @@ def test_a_rejected_shape_gives_one_warning_and_no_count(
     assert text in warnings[0].getMessage()
     assert meta.parameter_count is None  # never a partial sum
     assert _KEY not in meta.provenance
-    assert len(meta.inputs) == 2  # the rest of the read is unaffected
+    assert not meta.inputs  # tensor keys are not model inputs
 
 
 def test_a_shape_that_cannot_be_read_fails_the_read(tmp_path: Path) -> None:
@@ -145,7 +145,7 @@ def test_a_shape_that_cannot_be_read_fails_the_read(tmp_path: Path) -> None:
             read_safetensors(model)
 
 
-def test_the_count_covers_every_tensor_not_only_the_entries_kept(
+def test_the_count_covers_every_tensor_however_many(
     tmp_path: Path,
 ) -> None:
     pytest.importorskip("safetensors")
@@ -154,8 +154,7 @@ def test_the_count_covers_every_tensor_not_only_the_entries_kept(
     model = _file(tmp_path / "m.safetensors", names)
 
     meta: AiModelMetadata = read_safetensors(model)
-    assert cap_entries(meta) == ["inputs"]
-    assert len(meta.inputs) == MAX_MODEL_ENTRIES  # cut, the count is not
+    assert cap_entries(meta) == []  # no per-tensor list to cut
     assert meta.parameter_count == tensors
     assert meta.provenance[_KEY] == _PROVENANCE.format("m.safetensors")
 
@@ -167,8 +166,7 @@ def test_the_count_covers_every_tensor_not_only_the_entries_kept(
     (package,) = [e for e in json.loads(sbom)["@graph"] if e["type"] == "ai_AIPackage"]
     entries = {e["key"]: e["value"] for e in package["ai_hyperparameter"]}
     assert entries["parameters"] == str(tensors)
-    kept = json.loads(package["ai_informationAboutApplication"])["inputs"]
-    assert len(kept) == MAX_MODEL_ENTRIES
+    assert "ai_informationAboutApplication" not in package
 
 
 _AUTHOR = "modelspec.author"
