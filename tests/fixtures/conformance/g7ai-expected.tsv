@@ -8,7 +8,7 @@ BOM-G7AI2026-DP-003	requirement	not-applicable	not-applicable	not-applicable	mis
 BOM-G7AI2026-DP-003.1	recommendation	out-of-scope	out-of-scope	out-of-scope	out-of-scope	out-of-scope
 BOM-G7AI2026-DP-003.2	recommendation	out-of-scope	out-of-scope	out-of-scope	out-of-scope	out-of-scope
 BOM-G7AI2026-DP-003.3	recommendation	not-applicable	not-applicable	not-applicable	missing	present
-BOM-G7AI2026-DP-004	requirement	not-applicable	not-applicable	not-applicable	missing	missing
+BOM-G7AI2026-DP-004	requirement	not-applicable	not-applicable	not-applicable	present	present
 BOM-G7AI2026-DP-005	requirement	not-applicable	not-applicable	not-applicable	missing	missing
 BOM-G7AI2026-DP-006	requirement	not-applicable	not-applicable	not-applicable	missing	missing
 BOM-G7AI2026-DP-006.1	recommendation	not-applicable	not-applicable	not-applicable	missing	missing
@@ -37,7 +37,7 @@ BOM-G7AI2026-MD-008	requirement	present	present	present	present	present
 BOM-G7AI2026-MD-009	requirement	present	present	present	present	present
 BOM-G7AI2026-MD-010	requirement	missing	missing	missing	missing	missing
 BOM-G7AI2026-MDL-001	requirement	present	present	present	present	present
-BOM-G7AI2026-MDL-002	requirement	missing	missing	missing	missing	missing
+BOM-G7AI2026-MDL-002	requirement	present	present	present	present	present
 BOM-G7AI2026-MDL-003	requirement	missing	missing	missing	missing	present
 BOM-G7AI2026-MDL-004	requirement	missing	missing	missing	missing	missing
 BOM-G7AI2026-MDL-005	requirement	missing	missing	missing	present	present

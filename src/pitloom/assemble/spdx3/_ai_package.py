@@ -41,6 +41,7 @@ from pitloom.core.model_parameters import (
     with_parameter_count_note,
 )
 from pitloom.core.models import build_relationship, generate_spdx_id
+from pitloom.core.purl import build_generic_purl, build_huggingface_purl
 from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.export.spdx3_json import (
     Spdx3JsonExporter,
@@ -405,6 +406,19 @@ def finish_ai_package(
     finish_display_text(ai_model, [("", ai_pkg), *related])
 
 
+def _model_purl(ai_model: AiModelMetadata, digest: str | None) -> str | None:
+    """A Hub model's ``pkg:huggingface`` PURL, else the model file's
+    ``pkg:generic`` PURL named by its checksum. ``None`` when the source gives
+    neither a repository nor a hashed file."""
+    hub_id = ai_model.extra_data.get("hf.model_id")
+    if isinstance(hub_id, str):
+        return build_huggingface_purl(hub_id, ai_model.extra_data.get("hf.sha"))
+    file_name = ai_model.format_info.file_name
+    if digest and file_name:
+        return build_generic_purl(file_name, checksum=f"sha256:{digest}")
+    return None
+
+
 def _build_ai_package(
     ai_model: AiModelMetadata,
     creation_info: spdx3.CreationInfo,
@@ -434,6 +448,9 @@ def _build_ai_package(
         ai_pkg.verifiedUsing = [sha256_hash(digest)]
     if ai_model.version:
         ai_pkg.software_packageVersion = ai_model.version
+    purl = _model_purl(ai_model, digest)
+    if purl:
+        ai_pkg.software_packageUrl = purl
 
     if ai_model.description:
         ai_pkg.description = ai_model.description
