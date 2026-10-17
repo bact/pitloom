@@ -205,11 +205,12 @@ a side-effect-free tuple read that cannot itself trigger the subscription
 
 ```python
 if TYPE_CHECKING:
+
     class _PitloomBuildHookBase(
         BuildHookInterface[BuilderConfig]  # type: ignore[type-arg, unused-ignore]
-    ):
-        ...
+    ): ...
 else:
+
     def _resolve_build_hook_base() -> type:
         param_count = len(BuildHookInterface.__parameters__)
         if param_count == 1:
@@ -221,8 +222,7 @@ else:
     _PitloomBuildHookBase = _resolve_build_hook_base()
 
 
-class PitloomBuildHook(_PitloomBuildHookBase):
-    ...
+class PitloomBuildHook(_PitloomBuildHookBase): ...
 ```
 
 Hatchling 1.32.4 (released 2026-09-20) reverted the change as a bug:
