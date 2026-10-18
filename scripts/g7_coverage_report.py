@@ -14,7 +14,7 @@ The figure means "meets the checker's reading of G7", not "G7 compliant";
 rules the checker does not check are listed, never counted as missing.
 
 Usage:
-  python scripts/g7_coverage_report.py [--standard g7ai|cisa2026] [-o FILE]
+  python scripts/g7_coverage_report.py [--standard g7ai|cisa2026|fsct3] [-o FILE]
       [--scenario NAME ...]
   python scripts/g7_coverage_report.py --write-expected [--allow-regression]
   python scripts/g7_coverage_report.py --compare PREVIOUS.json CURRENT.json
@@ -170,7 +170,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("-o", "--output", type=Path, help="write the report here")
     parser.add_argument("--scenario", action="append", choices=list(shared.SCENARIOS))
-    parser.add_argument("--standard", default="g7ai", choices=["g7ai", "cisa2026"])
+    parser.add_argument(
+        "--standard", default="g7ai", choices=["g7ai", "cisa2026", "fsct3"]
+    )
     parser.add_argument("--write-expected", action="store_true")
     parser.add_argument(
         "--allow-regression",

@@ -43,7 +43,7 @@ The checker is [`ntia-conformance-checker`](https://github.com/bact/ntia-conform
 with the `g7ai` standard, which is not yet on PyPI:
 
 ```shell
-pip install "ntia-conformance-checker @ git+https://github.com/bact/ntia-conformance-checker.git@bebf5f85376f85c3e23e4f04e2dabd86ebc63d9a"
+pip install "ntia-conformance-checker @ git+https://github.com/bact/ntia-conformance-checker.git@a9b84d1641f62805726e9ecd8dd484817a11da40"
 loom model model.safetensors -o model.spdx3.json      # or an ONNX, GGUF, NumPy or fastText file
 loom model org/name -o model.spdx3.json              # a Hugging Face model
 loom generate path/to/project -o project.spdx3.json  # a project that ships a model
@@ -134,6 +134,22 @@ reading, not a claim of compliance):
 
 Hash value and algorithm are checked as "an integrity method with a value is
 present", not that it is a hash of the component itself.
+
+## FSCT 2024
+
+`-c fsct3` reports on the baseline attributes of the 2024 CISA Framing Software
+Component Transparency (minimum expected level). Of its 13 rules 10 are checked;
+the primary component, the cryptographic hash and the per-component relationship
+are listed, never checked. For Pitloom's test SBOMs, as the checker reads them:
+
+| Element | Result |
+| :------ | :----- |
+| Author name, timestamp, SBOM type, component name, unique identifier | present in every scenario |
+| Dependency relationship | present for projects, not for a single model |
+| Version, supplier name | present for a Hugging Face model and a library-built one (supplier only for the Hugging Face model); missing for a model file, since the file states none |
+| Concluded licence, copyright notice | missing in every scenario: Pitloom records a declared licence, not a concluded one, and states no copyright text |
+
+The same reachability limit applies as for CISA 2026.
 
 ## Parity
 
