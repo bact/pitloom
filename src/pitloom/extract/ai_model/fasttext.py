@@ -202,7 +202,10 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
         provenance["properties.labels"] = f"{source} | Field: labels"
 
     if outputs:
-        provenance["outputs"] = f"{source} | Field: labels (supervised class count)"
+        provenance["outputs"] = (
+            f"{source} | Field: labels (supervised class count)"
+            " | Method: derived_from_format"
+        )
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
             file_name=model_path.name,

@@ -72,25 +72,28 @@ card, an author and a version scores higher.
 | Safetensors file | 86% | 11% | 29% | -- | 34% |
 | ONNX file | 86% | 33% | 62% | -- | 58% |
 | GGUF file | 86% | 11% | 43% | -- | 42% |
-| NumPy file | 86% | 11% | 38% | -- | 40% |
-| fastText file | 86% | 44% | 62% | -- | 60% |
+| NumPy file | 86% | 11% | 38% | -- | 39% |
+| fastText file | 86% | 44% | 62% | -- | 61% |
 | Hugging Face model | 86% | 56% | 57% | 22% | 48% |
 | Model with a licensed dataset (library) | 86% | 33% | 43% | 44% | 46% |
-| Hatchling project with a model | 100% | 22% | 29% | -- | 40% |
-| setuptools project with a model | 100% | 22% | 29% | -- | 40% |
-| Poetry project with a model | 100% | 22% | 29% | -- | 40% |
+| Hatchling project with a model | 100% | 22% | 29% | -- | 39% |
+| setuptools project with a model | 100% | 22% | 29% | -- | 39% |
+| Poetry project with a model | 100% | 22% | 29% | -- | 39% |
 
 The three build backends give the same result for the same project.
 
 ## What Pitloom leaves out and why
 
-- **No version, producer or time for a model file.** A bare file carries none.
-  Pitloom does not copy a project's author onto its model.
+- **No release time for a model file, and a version or producer only where the
+  file states one** (a PT2 file does; most files do not). Pitloom does not copy a
+  project's author onto its model.
 - **No hash for a Hugging Face model.** A repository has many files; hashing them
   needs a request each. A local file always gets its SHA-256.
-- **A model's inputs and outputs are only what its format states.** ONNX, Keras,
-  HDF5 and PT2 state a signature; Safetensors and NumPy hold weights and arrays,
-  which are not inputs, so none is written.
+- **A model's inputs and outputs are only what its format states or implies.**
+  ONNX, Keras, HDF5 and PT2 state a signature. A fastText or CRFsuite model has a
+  fixed kind of output (label probabilities, a label sequence), which Pitloom
+  names itself; its provenance says `derived_from_format`. Safetensors and NumPy
+  hold weights and arrays, which are not inputs, so none is written.
 - **A producer is a generic agent**, not a person or an organisation, because a
   name does not say which. A Hugging Face owner is the repository owner, recorded
   as such.
@@ -104,7 +107,9 @@ The three build backends give the same result for the same project.
 
 ### What SPDX 3.0.1 cannot record
 
-Twenty-five G7 elements have no SPDX 3.0.1 property, or are not yet reviewed. Where
+Twenty-five G7 elements are not checked: SPDX 3.0.1 has no property for them, or
+their mapping is not yet reviewed. Pitloom already writes a mapped property for
+some of them, so the checker cannot see them. Where
 Pitloom reads such a value it records it only openly: the parameter count as an
 `ai_hyperparameter` entry with a comment saying it is not a hyperparameter; known
 biases as text in the package comment; a model's own metadata in an annotation.
@@ -155,21 +160,22 @@ The same reachability limit applies as for CISA 2026.
 
 ## Parity
 
-Every surface gives the same G7 result for the same input: the library, the
-`loom` command line (`model`, `generate`, `project`, `wheel`), the Hatchling hook
-and, since the Action and the skills run those commands, the GitHub Action and
-the skills. The library, the command line and the hook are tested to agree; the Action and
-the skills run the same `loom` commands with their own flags and are not tested
-separately. The one difference is by design: the
-build hook records when the package was built (`builtTime`), because it runs
-during a build.
+Every surface gives the same result for the same input: the library, the `loom`
+command line (`model`, `generate`, `project`, `wheel`) and the Hatchling hook are
+tested to agree on the checker's outcome for every rule, on the elements and
+property names, and on the names, versions, identifiers and hashes. The Action
+and the skills run the same `loom` commands with their own flags and are not
+tested separately. The one difference is by design: the build hook records when
+the package was built (`builtTime`), because it runs during a build.
+
+## Gaps by format and backend
 
 Tiers apply only to AI model file formats and Python build backends. A known gap
-there is listed below with what it needs; a date is set for each.
+there is listed below with what it needs. No target date is set yet.
 
-| Gap | Where | Needs | Target |
+| Gap | Where | Needs | Target date |
 | :-- | :---- | :---- | :----- |
-| No hash for a Hugging Face model | Hub source | A request per file, or a Merkle root | to be set |
-| Dataset licence, provenance and statistics reach no model SBOM | all sources | A reader for dataset cards, then the `loom` SDK | to be set |
-| A notice when a value is read but cannot be recorded | all readers | One shared message helper | to be set |
-| Tier 2 formats | Keras, HDF5, PyTorch, PT2, CRFsuite | Anything beyond keeping them working | to be set |
+| No hash for a Hugging Face model | Hub source | A request per file, or a Merkle root | not set |
+| Dataset licence, provenance and statistics reach no model SBOM | all sources | A reader for dataset cards, then the `loom` SDK | not set |
+| A notice when a value is read but cannot be recorded | all readers | One shared message helper | not set |
+| Tier 2 formats | Keras, HDF5, PyTorch, PT2, CRFsuite | Anything beyond keeping them working | not set |

@@ -191,3 +191,13 @@ def test_sentiment_demo_domain_says_it_is_derived(
     assert sentiment_demo_metadata.provenance["domain"].endswith(
         "| Field: args.model | Method: derived_from_format"
     )
+
+
+def test_output_name_is_the_formats_and_says_so(
+    sentiment_demo_metadata: AiModelMetadata,
+) -> None:
+    """The class count is read; the output's name is Pitloom's, from the format."""
+    assert sentiment_demo_metadata.outputs[0]["name"] == "label_probabilities"
+    assert sentiment_demo_metadata.provenance["outputs"].endswith(
+        "| Method: derived_from_format"
+    )

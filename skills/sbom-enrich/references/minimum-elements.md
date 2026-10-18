@@ -139,12 +139,21 @@ Applies to each `dataset_DatasetPackage`.
 | Dataset dependency relationship | `Relationship` (`generates`, `hasDataFile`) captures pipeline-derivation edges already | covered for pipeline-derived datasets |
 | Dataset license | a `hasDeclaredLicense` Relationship (`hasConcludedLicense` for a third-party record) from the dataset to a licence element, when the dataset metadata states a licence; no reader feeds a licence into a model SBOM yet (Croissant is library-only, Hub dataset references carry none) | conditional; **gap** for most datasets: check the dataset's Croissant file/card, then fill via fragment |
 
-### System Level Properties, Infrastructure, Security Properties, KPI clusters
+### System Level Properties
 
-Not modelled by Pitloom's current `ai_AIPackage` mapping at all -- every element
-in these four clusters (System name/components/producer/version/timestamp/data
-flow/data usage/input-output properties, Intended application area;
-Infrastructure software/hardware; Security controls/compliance/policy
+Partly covered. The checker reads the SBOM's root package as "the system". A
+project that ships one model and no system of its own is judged by that model
+for these rules (the report names it, `systemJudgedByModel`); with two models
+the roots stay the system and most rules are missing. Name, version, producer
+and timestamp come from the model or the root package where stated. Data flow,
+data usage, intended application area and system input-output are mostly
+**gaps** to fill from the user, not from repo content.
+
+### Infrastructure, Security Properties, KPI clusters
+
+Not modelled by Pitloom's current `ai_AIPackage` mapping at all, and not
+checked by the checker -- every element in these three clusters
+(Infrastructure software/hardware; Security controls/compliance/policy
 info/vulnerability referencing; Security metrics, Operational performance KPIs)
 is a **gap**, and several (Security Properties, KPIs) are largely **not
 automatable** from repo content alone -- they describe the deployed system's
@@ -204,11 +213,15 @@ actually in the project.
 
 ## Optional extra check (not a required step)
 
-If the target standard is NTIA/CISA and the user wants an independent
-cross-check, the community `ntia-conformance-checker` tool
-(<https://github.com/spdx/ntia-conformance-checker>) can validate an SPDX
-document against the NTIA baseline. This is a manual, optional step the user can
-run themselves -- it is not wired into this skill, and its absence shouldn't
+If the user wants an independent cross-check, the community
+`ntia-conformance-checker` can check an SPDX 3 document against NTIA 2021
+(`-c ntia`) and, in the build documented on Pitloom's "G7 SBOM for AI" page
+(which gives the install command), against G7 SBOM for AI 2026 (`-c g7ai`), CISA
+2026 (`-c cisa2026`) and FSCT 2024 (`-c fsct3`): `sbomcheck -s spdx3 -c <id> -r
+json -o report.json sbom.json`. A rule is `present`, `missing`,
+`not-applicable` or `out-of-scope` (not checked); `present` means the property
+exists, not that its value is right. This is a manual, optional step the user
+can run themselves -- it is not wired into this skill, and its absence shouldn't
 block anything here. The mandatory validation step remains the `sbom-validate`
 skill
 (<https://github.com/bact/pitloom/blob/main/skills/sbom-validate/SKILL.md>;

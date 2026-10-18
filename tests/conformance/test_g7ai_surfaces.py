@@ -53,6 +53,28 @@ def _shape(
     )
 
 
+#: Values a surface must not change: what the package is called, its version,
+#: identifiers and hashes.
+_VALUE_KEYS = ("name", "software_packageVersion", "software_packageUrl", "hashValue")
+
+
+def _values(sbom: str) -> list[tuple[str, str, str]]:
+    """The ``_VALUE_KEYS`` values of *sbom*'s elements and their hashes, ignoring
+    who made it and the element ids (which differ by surface)."""
+    found: list[tuple[str, str, str]] = []
+    for element in json.loads(sbom)["@graph"]:
+        if element["type"] in _CREATION:
+            continue
+        found += [
+            (str(element["type"]), k, str(element[k]))
+            for k in _VALUE_KEYS
+            if k in element
+        ]
+        for method in element.get("verifiedUsing", []):
+            found.append(("Hash", "hashValue", str(method.get("hashValue"))))
+    return sorted(found)
+
+
 def _model(_tmp: Path) -> Path:
     return AIMODELS / "safetensors/phi-tiny-random.safetensors"
 
@@ -117,12 +139,30 @@ def test_every_surface_gives_the_library_result(
             ), (surface, standard)
         drop = _SURFACE_ONLY.get(surface, set())
         assert _shape(sbom, drop) == _shape(baseline), surface
+        assert _values(sbom) == _values(baseline), surface
 
 
 def _baseline_outcomes(tmp: Path, sbom: str, standard: str) -> dict[str, str]:
     path = tmp / "baseline.spdx3.json"
     path.write_text(sbom, encoding="utf-8")
     return outcomes(path, standard=standard)
+
+
+def test_values_differ_when_a_surface_writes_a_wrong_hash_or_name() -> None:
+    """Guard: the value comparison sees a changed name and a zeroed hash."""
+    sbom = json.dumps(
+        {
+            "@graph": [
+                {
+                    "type": "software_Package",
+                    "name": "m",
+                    "verifiedUsing": [{"hashValue": "ab" * 32}],
+                }
+            ]
+        }
+    )
+    assert _values(sbom.replace('"m"', '"other"')) != _values(sbom)
+    assert _values(sbom.replace("ab" * 32, "00" * 32)) != _values(sbom)
 
 
 def test_the_hook_differs_from_the_source_sbom_only_by_built_time(

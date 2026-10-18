@@ -149,7 +149,10 @@ def read_crfsuite(model_path: Path) -> AiModelMetadata:
     if count:
         # One label per input item: the length is the input's, not the
         # label count (that is properties.num_labels).
-        provenance["outputs"] = f"{source} | Field: header.type (one label per item)"
+        provenance["outputs"] = (
+            f"{source} | Field: header.type (one label per item)"
+            " | Method: derived_from_format"
+        )
         outputs = [{"name": "label_sequence", "shape": ["sequence_length"]}]
 
     return AiModelMetadata(

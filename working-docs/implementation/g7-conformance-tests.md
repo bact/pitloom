@@ -174,3 +174,12 @@ laptop and in CI.
   subprocess bypasses the socket block.
 - Keeping `network` on every validation test: it hid the offline guarantee and
   made the release gate download the schema for each test.
+
+## History files and the checker commit (2026-10-18)
+
+The history JSON files record the checker commit they were made with
+(`b7785f48`, `bebf5f85`). Later pins (`a9b84d16`) changed only docs and tests of
+the checker, and the outcomes were re-generated and found identical, so the old
+headers are kept as the record and `--compare` will flag a series break that is
+not one. A history file named `0.20.3-dev` records `pitloom 0.20.2`, the
+installed version when it was made.
