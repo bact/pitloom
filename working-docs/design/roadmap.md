@@ -125,9 +125,9 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   file, with gated model lookups (built 2026-10-16 with path keys; see
   [id-registry-path-keys.md](../implementation/id-registry-path-keys.md)).
 - [x] **#3 part 2: dataset licence wiring** (`DatasetMetadata.license` read by
-  `dataset.py`; G7 B1). Open: a reader that feeds a licence in. The 2026 SSSOM mappings fix the shape: a
-  `hasDeclaredLicense` Relationship to an `AnyLicenseInfo`, so a URL and an
-  SPDX expression both fit.
+  `dataset.py`; G7 B1). Open: readers that feed a licence in (Croissant via `loom.run`, a
+  local dataset card, the Hub dataset card; about 2.5 days); plan in
+  [dataset-licence-readers.md](dataset-licence-readers.md).
 - [x] **Identifiers from the minimum-elements mappings** (CISA 2026, NTIA 2021,
   G7 AI 2026, BSI 2025): `software_packageUrl` on `ai_AIPackage` and dataset
   packages (G7 B2; see
@@ -136,8 +136,9 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
 - [x] **SHA-512 beside SHA-256** (always, no flag) for every file Pitloom
   reads and describes: model files, project/wheel/sdist file elements, `loom`
   files, bundled libraries (`pitloom.core.file_hash`). The registry gate, a
-  Merkle root and a lock file's dependency hash stay SHA-256. Open: dependency
-  SHA-512 ([build-backend-improvements.md](build-backend-improvements.md)).
+  Merkle root and a lock file's dependency hash stay SHA-256. A dependency's
+  SHA-512 stays unspecified while no source states one (decided 2026-10-18;
+  [build-backend-improvements.md](build-backend-improvements.md)).
 - [x] **Hub revision** (G7 B3): a Hub model's commit hash as its version and
   its last-modified time as `releaseTime`.
 - [x] **Support tiers and demo scope** (tier 1: Safetensors, ONNX, GGUF, NumPy,
@@ -171,10 +172,9 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   [g7-model-producer-parameter-count.md](../implementation/g7-model-producer-parameter-count.md).
 - [ ] **#7 `loom` SDK**: dataset provenance and training-properties capture.
   See [loom-sdk-and-notebooks.md](sbom-fragments/loom-sdk-and-notebooks.md).
-- [ ] The skill's G7 checklist lists `hasDataFile` as covered; static
-  detection is now behind `--scan-model-usage`. Update
-  [minimum-elements.md](../../skills/sbom-enrich/references/minimum-elements.md)
-  with G7.
+- [x] The skill's G7 checklist matches the code (`hasDataFile` only with
+  `--scan-model-usage`; dataset edges; SHA-512): see
+  [minimum-elements.md](../../skills/sbom-enrich/references/minimum-elements.md).
 
 **Scope split (decided 2026-09-17):** deterministic field population
 (file formats, structured API responses, explicit `loom` SDK input) belongs
