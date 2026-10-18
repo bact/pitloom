@@ -289,6 +289,40 @@ A dataset is hashed when it is declared, an output dataset too: call
 hash of the file it replaces. One name holding one content is one package per
 run: declaring it again (as input and output, or twice) adds its roles to the
 same package, with no collision warning.
+
+A dataset can carry what its own metadata states. Pass `croissant=` (a
+local [Croissant](https://docs.mlcommons.org/croissant/) JSON-LD file) to any
+of the four dataset calls: its licence becomes the dataset's
+`hasDeclaredLicense`, and its version, description, download URL, creator
+(`publishedBy`) and dataset-profile fields (size, collection process,
+preprocessing, known bias, sensitive personal information) are written onto
+the package. A dataset that is a directory has its card read too: the YAML
+frontmatter of its `README.md` gives `license`, `version` and `tags` (the tags
+are read but have no SPDX 3.0.1 dataset property to go in). Pass
+`declared_license=` to state the licence yourself:
+
+```python
+with loom.run("fragments/train.json"):
+    loom.add_dataset("data/corpus", croissant="data/corpus.croissant.json")
+    loom.add_dataset("data/extra.txt", declared_license="CC-BY-4.0")
+```
+
+Each field comes from the first source that states it: `declared_license=`,
+then the Croissant file, then the card. The call's own name, `dataset_type`
+and `data_preprocessing=` always win. A licence that is an SPDX expression is
+written as a `LicenseExpression`, any other text as a `SimpleLicensingText`.
+A source's `unknown`, `NOASSERTION`, blank or bare `other` licence is no
+licence, written as nothing and logged as nothing; `other` with a
+`license_name` and/or `license_link` (a Hugging Face card's fields) is written
+as that name followed by the link. Each field a source gave is named in the
+package's provenance (`license: Source: data/corpus/README.md | Field:
+license`). A licence that holds no text (a number, several licences in a
+list), or a card `version` written as a decimal number (YAML reads `1.10` as
+`1.1`), is left out, with one `WARNING:`. A `croissant=` URL, a
+missing file or one that is not Croissant raises `ValueError` at the call:
+loom reads no network source. Hashing and the registry do not change: the
+sources add fields, not identity.
+
 These `generates` edges are scoped `build` -- they describe a build-time
 step, not something that runs in the shipped artefact. Contrast with the
 `hasDataFile` relationship Pitloom emits when it detects a script *using*

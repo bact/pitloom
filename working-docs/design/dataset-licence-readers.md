@@ -13,7 +13,8 @@ See also: [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md) (G7 DP-010),
 [roadmap.md](roadmap.md),
 [g7-conformance-tests.md](../implementation/g7-conformance-tests.md).
 
-Plan, not built. Status 2026-10-18.
+Status 2026-10-18: readers 1 and 2 and the shared mapping built (see
+[Built](#built-readers-1-and-2)); reader 3 not built.
 
 ## Where things stand
 
@@ -99,6 +100,74 @@ A Hub dataset with `license: other` and only a `license_link` becomes a
 `SimpleLicensingText` holding the link (provenance names the card field). With
 a `license_name` as well, the text is the name and the link. `other` with
 neither stays absent.
+
+## Built: readers 1 and 2
+
+The "Where things stand" section above describes the state before this.
+
+**Shared mapping.** `pitloom.extract.dataset.licence.dataset_licence(value,
+source=, name=, link=)` returns the licence text and its provenance, or
+`None`. Text or an SPDX expression is kept as read (stripped); absent,
+blank, `unknown` or `NOASSERTION` (any case, through the existing
+`is_weak_licence`, moved from `extract/project/_field_agreement.py` to
+`extract/_license_classify.py`) is `None`; `other` (any case) gives the
+name, the link, or `"<name> (<link>)"`, with provenance
+`Source: <src> | Field: license, license_name, license_link` naming the
+fields used, and `None` with neither. Accepted shapes: a string, a one-item
+list, a JSON-LD `{"@id": ...}` node. A number, a mapping or a several-item
+list is `None` with one `WARNING:` (`dataset metadata: <src> field <f> is a
+<type>, not text; skipped`): the source stated something not recordable.
+`read_croissant` now uses it (before: `str(value)`, so a list became
+`"['...']"` and `unknown` was a licence).
+
+**Reader 1: `loom.run` with Croissant.** The four dataset calls
+(`add_dataset`, `add_validation_dataset`, `add_input_dataset`,
+`add_output_dataset`, on `loom` and on the run object) take keyword-only
+`croissant=` (a local file) and `declared_license=` (the caller's own
+statement). Local file only: loom has no network switch (it reads no
+`offline` key), so there is no gate to mirror; a URL raises `ValueError`
+at the call, as do a missing, malformed or nameless Croissant file. The
+Croissant path is recorded relative to the current directory when below it.
+Written onto the package (through `set_dataset_fields`,
+`add_dataset_creator_agent` and `add_dataset_license`, factored out of
+`assemble/spdx3/dataset.py` and shared with the model path): version,
+description, download URL and its PURL, creator (`publishedBy` Agent),
+licence, dataset size, collection process, preprocessing, known bias,
+sensitive personal information (the fields `read_croissant` fills). Not
+written: Croissant's name and dataset types (the call's win), keywords (no
+SPDX 3.0.1 dataset property; the model path does not write them either).
+`data_preprocessing=` on the call beats Croissant's. Code:
+`src/pitloom/_loom_dataset_meta.py`; the package's provenance record is now
+written when the run ends (`LoomElements.finish()`), one record holding the
+caller and each source field.
+
+**Reader 2: local dataset card.** `pitloom.extract.dataset.read_dataset_card`
+reads `README.md` (case-insensitive) in a directory through the frontmatter
+reader of `enrich/readme.py`, promoted to public `find_card_file` and
+`read_card_frontmatter` with a `CardKind` (`MODEL_CARD`, `DATASET_CARD`)
+for the warning wording and cap (1 MiB). Mapped: `license` (+
+`license_name`/`license_link`), `pretty_name` -> `name` (else the
+directory's name, no provenance), `version` (text or a whole number; a YAML
+float such as `1.10` warns and is skipped), `tags` -> `keywords` (strings
+only, a single string is one tag). Not read: prose, `description` and any
+other key. `loom.run` reads the card of a dataset that is a directory; no
+project scan walks dataset directories, so no other surface reads it. A
+UTF-8 BOM before the frontmatter is now dropped (model cards too).
+
+**Precedence.** Field by field: `declared_license=`, then Croissant, then
+the card; a placeholder from a source is skipped, so a later source can still
+give the field. An explicit `declared_license="NOASSERTION"` is the caller's
+statement and is written (as the individual).
+
+**Surfaces.** Library only (`loom.run`). The CLI has no dataset path; the
+hook and the Action reach a loom dataset only through its merged fragment,
+which keeps the licence (tested through `merge_fragments`).
+
+**Tests.** `tests/extract/dataset/test_licence.py`, `test_card.py`,
+`test_croissant.py` (licence rules), `tests/core/test_loom_dataset_sources.py`
+(loom run: shapes, weak values, precedence, errors, display controls, byte
+identity, fragment merge). No conformance table cell moved: no conformance
+scenario uses `loom.run` or a Croissant file yet.
 
 ## Open question for the owner
 

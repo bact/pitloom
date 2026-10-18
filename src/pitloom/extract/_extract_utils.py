@@ -202,7 +202,12 @@ def fetch_json(
                         f"{max_bytes} bytes"
                     )
         else:
-            raw = Path(source).read_bytes()
+            with Path(source).open("rb") as fh:
+                raw = fh.read(max_bytes + 1)
+            if len(raw) > max_bytes:
+                raise ValueError(
+                    f"Source {source!r} exceeds maximum limit of {max_bytes} bytes"
+                )
     except (OSError, http.client.HTTPException) as exc:
         close_http_error(exc)
         # http.client.HTTPException (e.g. IncompleteRead on a connection that

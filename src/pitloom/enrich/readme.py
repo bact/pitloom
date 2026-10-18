@@ -26,6 +26,7 @@ design this is one piece of.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -59,19 +60,48 @@ MODEL_CARD_MAX_BYTES = 1024 * 1024
 #: :data:`MODEL_CARD_MAX_BYTES` as :func:`~pitloom.logging_config.warn_over_cap`
 #: names it, once per card and process (each model in a directory reads it).
 MODEL_CARD_CAP = Cap(MODEL_CARD_MAX_BYTES, "byte", "model-card")
-#: What a warning of this module says is lost.
-_FIELDS_SKIPPED = field_loss_suffix("skipped", "license", "datasets")
 
 
-def _find_model_card_file(model_dir: Path) -> Path | None:
-    """Return the first existing model-card file in *model_dir*, or ``None``."""
+@dataclass(frozen=True)
+class CardKind:
+    """A kind of card with YAML frontmatter, as its warnings name it."""
+
+    #: Candidate filenames, in priority order, matched case-insensitively.
+    stems: tuple[str, ...]
+    #: The card's name in a warning (``"model card"``).
+    label: str
+    #: The read cap, named for this kind.
+    cap: Cap
+    #: What a warning says is lost (:func:`field_loss_suffix`).
+    fields_skipped: str
+
+
+#: A model card: ``license`` and ``datasets`` are read.
+MODEL_CARD = CardKind(
+    _MODEL_CARD_STEMS,
+    "model card",
+    MODEL_CARD_CAP,
+    field_loss_suffix("skipped", "license", "datasets"),
+)
+#: A dataset card (Hugging Face convention: the dataset's ``README.md``),
+#: read by :mod:`pitloom.extract.dataset.card`.
+DATASET_CARD = CardKind(
+    ("README.md",),
+    "dataset card",
+    Cap(MODEL_CARD_MAX_BYTES, "byte", "dataset-card"),
+    field_loss_suffix("skipped", "license", "version", "tags", "pretty_name"),
+)
+
+
+def find_card_file(directory: Path, kind: CardKind = MODEL_CARD) -> Path | None:
+    """The first existing *kind* card file in *directory*, or ``None``."""
     try:
         actual: dict[str, Path] = {
-            p.name.lower(): p for p in model_dir.iterdir() if p.is_file()
+            p.name.lower(): p for p in directory.iterdir() if p.is_file()
         }
     except OSError:
         return None
-    for stem in _MODEL_CARD_STEMS:
+    for stem in kind.stems:
         found = actual.get(stem.lower())
         if found is not None:
             return found
@@ -85,7 +115,12 @@ def _frontmatter_block(text: str) -> str | None:
     return parts[1] if len(parts) == 3 else None
 
 
-def _parse_frontmatter(text: str) -> dict[str, Any] | None:
+def _find_model_card_file(model_dir: Path) -> Path | None:
+    """Return the first existing model-card file in *model_dir*, or ``None``."""
+    return find_card_file(model_dir, MODEL_CARD)
+
+
+def _parse_frontmatter(text: str, kind: CardKind = MODEL_CARD) -> dict[str, Any] | None:
     """Return the leading ``---\\n...\\n---`` YAML block as a dict, or
     ``None`` when absent, malformed, or not a mapping at the top level."""
     block = _frontmatter_block(text)
@@ -94,32 +129,46 @@ def _parse_frontmatter(text: str) -> dict[str, Any] | None:
     try:
         data = yaml.safe_load(block)
     except yaml.YAMLError as exc:
-        msg = "Failed to parse model-card frontmatter: %s" + _FIELDS_SKIPPED
+        label = kind.label.replace(" ", "-")
+        msg = f"Failed to parse {label} frontmatter: %s" + kind.fields_skipped
         log.warning(msg, one_line(exc))
         return None
     return data if isinstance(data, dict) else None
 
 
-def _read_card(card_path: Path) -> str | None:
+def _read_card(card_path: Path, kind: CardKind) -> str | None:
     """*card_path*'s text, its first :data:`MODEL_CARD_MAX_BYTES` (one byte
-    past them read, never the rest); ``None``, with a ``WARNING:``, when it
-    cannot be read or is over the cap with a frontmatter not closed within
-    it. A frontmatter closed within the cap is the one the whole card holds,
-    and a card not starting with one holds none, so neither warns."""
+    past them read, never the rest), a UTF-8 BOM dropped; ``None``, with a
+    ``WARNING:``, when it cannot be read or is over the cap with a
+    frontmatter not closed within it. A frontmatter closed within the cap is
+    the one the whole card holds, and a card not starting with one holds
+    none, so neither warns."""
     try:
         with card_path.open("rb") as fh:
             raw = fh.read(MODEL_CARD_MAX_BYTES + 1)
     except OSError as exc:
-        msg = "Failed to read model card %s: %s" + _FIELDS_SKIPPED
+        msg = f"Failed to read {kind.label} %s: %s" + kind.fields_skipped
         log.warning(msg, loggable(str(card_path)), one_line(exc))
         return None
-    text = raw[:MODEL_CARD_MAX_BYTES].decode("utf-8", errors="replace")
+    text = raw[:MODEL_CARD_MAX_BYTES].decode("utf-8-sig", errors="replace")
     over = len(raw) > MODEL_CARD_MAX_BYTES
     if over and text.startswith("---") and _frontmatter_block(text) is None:
-        outcome = "frontmatter not closed within it; skipped" + _FIELDS_SKIPPED
-        warn_over_cap(log, MODEL_CARD_CAP, str(card_path), outcome, once=True)
+        outcome = "frontmatter not closed within it; skipped" + kind.fields_skipped
+        warn_over_cap(log, kind.cap, str(card_path), outcome, once=True)
         return None
     return text
+
+
+def read_card_frontmatter(
+    card_path: Path, kind: CardKind = MODEL_CARD
+) -> dict[str, Any] | None:
+    """The leading YAML frontmatter of the *kind* card at *card_path*, as a
+    mapping; ``None`` when it has none (silently) or it cannot be read or
+    parsed (one ``WARNING:``). Read within :data:`MODEL_CARD_MAX_BYTES`.
+    A caller reads only the keys it uses, and only their plain values: YAML
+    aliases can make the rest an expanded tree of exponential size."""
+    text = _read_card(card_path, kind)
+    return None if text is None else _parse_frontmatter(text, kind)
 
 
 # pylint: disable=too-few-public-methods
@@ -138,8 +187,7 @@ class ReadmeEnricher:
         if card_path is None:
             return EnrichmentResult(source_name=self.name)
 
-        text = _read_card(card_path)
-        frontmatter = None if text is None else _parse_frontmatter(text)
+        frontmatter = read_card_frontmatter(card_path, MODEL_CARD)
         if frontmatter is None:
             return EnrichmentResult(source_name=self.name)
         # Only the two keys read below, and only their strings: YAML aliases
@@ -214,4 +262,11 @@ class ReadmeEnricher:
         return EnrichmentResult(source_name=self.name, fields=changed)
 
 
-__all__ = ["ReadmeEnricher"]
+__all__ = [
+    "DATASET_CARD",
+    "MODEL_CARD",
+    "CardKind",
+    "ReadmeEnricher",
+    "find_card_file",
+    "read_card_frontmatter",
+]

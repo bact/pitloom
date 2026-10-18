@@ -393,3 +393,37 @@ def test_extract_dataset_size_multiple_record_sets_with_missing_and_invalid() ->
 def test_extract_dataset_size_non_container_record_set_returns_none() -> None:
     prov: dict[str, str] = {}
     assert _extract_dataset_size({"recordSet": "not-a-list"}, "ds.json", prov) is None
+
+
+@pytest.mark.parametrize(
+    ("licence", "expected"),
+    [
+        ("CC-BY-4.0", "CC-BY-4.0"),
+        (["https://example.org/terms"], "https://example.org/terms"),
+        ({"@id": "https://example.org/terms"}, "https://example.org/terms"),
+        ("unknown", None),
+        ("NOASSERTION", None),
+        ("other", None),
+        ("  ", None),
+    ],
+    ids=[
+        "expression",
+        "one-item-list",
+        "jsonld-node",
+        "unknown",
+        "na",
+        "other",
+        "blank",
+    ],
+)
+def test_read_croissant_license_rules(
+    tmp_path: Path, licence: object, expected: str | None
+) -> None:
+    """The licence goes through the shared dataset rules: a list or a node
+    reference is not written as its Python ``str``, a placeholder is no
+    licence and records no provenance."""
+    path = tmp_path / "ds.json"
+    path.write_text(json.dumps({"name": "ds", "license": licence}), encoding="utf-8")
+    meta = read_croissant(path)
+    assert meta.license == expected
+    assert ("license" in meta.provenance) is (expected is not None)

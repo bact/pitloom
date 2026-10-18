@@ -155,6 +155,14 @@ class Run(contextlib.ContextDecorator):
 run = Run
 
 
+def _no_active_run(call: str) -> RuntimeError:
+    """The error for *call* outside a ``loom.run()``."""
+    return RuntimeError(
+        f"No active loom.run() found. Please use `loom.{call}()` inside a "
+        "`with pitloom.loom.run():` block or decorated function."
+    )
+
+
 def set_model(
     name: str,
     model_type: str | None = None,
@@ -173,10 +181,7 @@ def set_model(
     ungated. A file rewritten in between is a new model with a new id.
     """
     if _active_run is None:
-        raise RuntimeError(
-            "No active loom.run() found. Please use `loom.set_model()` inside a "
-            "`with pitloom.loom.run():` block or decorated function."
-        )
+        raise _no_active_run("set_model")
     _active_run.set_model(
         name,
         model_type=model_type,
@@ -196,10 +201,7 @@ def use_model(
     """Explicitly declare an AI model consumed by the current run (for
     inference); *path* as for :func:`set_model`."""
     if _active_run is None:
-        raise RuntimeError(
-            "No active loom.run() found. Please use `loom.use_model()` inside a "
-            "`with pitloom.loom.run():` block or decorated function."
-        )
+        raise _no_active_run("use_model")
     _active_run.use_model(
         name,
         model_type=model_type,
@@ -211,61 +213,99 @@ def use_model(
 def set_model_hyperparameters(hyperparameters: dict[str, str]) -> None:
     """Update the active model with hyperparameters captured after training."""
     if _active_run is None:
-        raise RuntimeError(
-            "No active loom.run() found. Please use `loom.set_model_hyperparameters()`"
-            " inside a `with pitloom.loom.run():` block or decorated function."
-        )
+        raise _no_active_run("set_model_hyperparameters")
     _active_run.set_model_hyperparameters(hyperparameters)
 
 
-def add_dataset(name: str, dataset_type: str = "text") -> None:
-    """Add a dataset utilized by the AI model in the current run."""
+def add_dataset(
+    name: str,
+    dataset_type: str = "text",
+    *,
+    croissant: str | os.PathLike[str] | None = None,
+    declared_license: str | None = None,
+) -> None:
+    """Add a dataset utilized by the AI model in the current run.
+
+    Args:
+        name: The dataset: a file, a directory, or a name for one that is
+            not local. A directory's dataset card (the YAML frontmatter of
+            its ``README.md``) is read for its ``license`` (with
+            ``license_name``/``license_link`` for ``other``), ``version``
+            and ``tags``.
+        dataset_type: An SPDX ``dataset_DatasetType`` name.
+        croissant: A local Croissant JSON-LD file describing the dataset;
+            its licence, version, description, creator and other dataset
+            fields are written onto the package, each with its provenance.
+            A URL raises ``ValueError``: loom reads no network source.
+        declared_license: The dataset's licence (an SPDX expression or
+            other text) as the caller declares it. It wins over a Croissant
+            file's, which wins over a dataset card's. A source's
+            ``unknown``, ``NOASSERTION`` or blank licence is no licence.
+
+    Raises:
+        ValueError: *croissant* is a URL, or cannot be read as Croissant.
+    """
     if _active_run is None:
-        raise RuntimeError(
-            "No active loom.run() found. Please use `loom.add_dataset()` inside a "
-            "`with pitloom.loom.run():` block or decorated function."
-        )
-    _active_run.add_dataset(name, dataset_type)
+        raise _no_active_run("add_dataset")
+    _active_run.add_dataset(
+        name, dataset_type, croissant=croissant, declared_license=declared_license
+    )
 
 
-def add_validation_dataset(name: str, dataset_type: str = "text") -> None:
-    """Add a validation/test dataset in the current run."""
+def add_validation_dataset(
+    name: str,
+    dataset_type: str = "text",
+    *,
+    croissant: str | os.PathLike[str] | None = None,
+    declared_license: str | None = None,
+) -> None:
+    """Add a validation/test dataset in the current run; arguments as for
+    :func:`add_dataset`."""
     if _active_run is None:
-        raise RuntimeError(
-            "No active loom.run() found. Please use "
-            "`loom.add_validation_dataset()` inside a "
-            "`with pitloom.loom.run():` block or decorated function."
-        )
-    _active_run.add_validation_dataset(name, dataset_type)
+        raise _no_active_run("add_validation_dataset")
+    _active_run.add_validation_dataset(
+        name, dataset_type, croissant=croissant, declared_license=declared_license
+    )
 
 
-def add_input_dataset(name: str, dataset_type: str = "text") -> None:
-    """Declare a raw/source dataset consumed by a preprocessing step."""
+def add_input_dataset(
+    name: str,
+    dataset_type: str = "text",
+    *,
+    croissant: str | os.PathLike[str] | None = None,
+    declared_license: str | None = None,
+) -> None:
+    """Declare a raw/source dataset consumed by a preprocessing step;
+    arguments as for :func:`add_dataset`."""
     if _active_run is None:
-        raise RuntimeError(
-            "No active loom.run() found. Please use "
-            "`loom.add_input_dataset()` inside a "
-            "`with pitloom.loom.run():` block or decorated function."
-        )
-    _active_run.add_input_dataset(name, dataset_type)
+        raise _no_active_run("add_input_dataset")
+    _active_run.add_input_dataset(
+        name, dataset_type, croissant=croissant, declared_license=declared_license
+    )
 
 
+# pylint: disable-next=too-many-arguments
 def add_output_dataset(
     name: str,
     dataset_type: str = "text",
     data_preprocessing: list[str] | None = None,
     input_datasets: list[str] | None = None,
+    *,
+    croissant: str | os.PathLike[str] | None = None,
+    declared_license: str | None = None,
 ) -> None:
-    """Declare a derived/processed dataset produced by a preprocessing step."""
+    """Declare a derived/processed dataset produced by a preprocessing step.
+
+    *data_preprocessing* wins over a source's; *input_datasets* names the
+    ``add_input_dataset()`` declarations it derives from (``None``: all);
+    the other arguments as for :func:`add_dataset`."""
     if _active_run is None:
-        raise RuntimeError(
-            "No active loom.run() found. Please use "
-            "`loom.add_output_dataset()` inside a "
-            "`with pitloom.loom.run():` block or decorated function."
-        )
+        raise _no_active_run("add_output_dataset")
     _active_run.add_output_dataset(
         name,
         dataset_type,
         data_preprocessing=data_preprocessing,
         input_datasets=input_datasets,
+        croissant=croissant,
+        declared_license=declared_license,
     )

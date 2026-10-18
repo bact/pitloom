@@ -101,6 +101,20 @@ def test_fetch_json_url_exceeds_max_bytes() -> None:
             fetch_json("https://example.com/large.json", max_bytes=10)
 
 
+@pytest.mark.parametrize(("size", "ok"), [(10, True), (11, False)], ids=["at", "over"])
+def test_fetch_json_local_file_cap(tmp_path: Path, size: int, ok: bool) -> None:
+    """A local file is read within *max_bytes* too: never more than one
+    byte past it."""
+    path = tmp_path / "data.json"
+    path.write_bytes(b'{"a": "' + b"x" * (size - 9) + b'"}')
+    assert path.stat().st_size == size
+    if ok:
+        assert fetch_json(path, max_bytes=10) == {"a": "x"}
+    else:
+        with pytest.raises(ValueError, match="exceeds maximum limit"):
+            fetch_json(path, max_bytes=10)
+
+
 def test_fetch_json_invalid_json(tmp_path: Path) -> None:
     path = tmp_path / "bad.json"
     path.write_text("{not valid json", encoding="utf-8")

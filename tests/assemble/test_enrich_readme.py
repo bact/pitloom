@@ -132,6 +132,15 @@ def test_enrich_fills_license_gap() -> None:
     assert result.fields[0].role == "declared"
 
 
+def test_enrich_reads_a_card_with_a_bom(tmp_path: Path) -> None:
+    """A UTF-8 BOM before the frontmatter (a Windows editor's) is dropped,
+    not taken for text before the opening ``---``."""
+    (tmp_path / "README.md").write_bytes(b"\xef\xbb\xbf---\nlicense: mit\n---\n")
+    model = AiModelMetadata()
+    ReadmeEnricher().enrich(model, model_dir=tmp_path)
+    assert model.license == "mit"
+
+
 def test_enrich_never_overwrites_existing_license() -> None:
     """Gap-filling only -- an already-extracted license is never replaced,
     same 'primary wins' discipline as merge_project_metadata()."""

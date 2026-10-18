@@ -45,6 +45,7 @@ from pitloom.extract.dataset.croissant_key import (
     URL_KEYS,
     VERSION_KEYS,
 )
+from pitloom.extract.dataset.licence import dataset_licence
 
 
 def _extract_creator_name(value: Any) -> str | None:
@@ -144,10 +145,10 @@ def _extract_croissant_core_fields(
     if download_url:
         provenance["download_url"] = f"Source: {src_label} | Field: url"
 
-    license_raw = get_first(data, *LICENSE_KEYS)
-    license_val = str(license_raw) if license_raw else None
-    if license_val:
-        provenance["license"] = f"Source: {src_label} | Field: license"
+    licence = dataset_licence(get_first(data, *LICENSE_KEYS), source=src_label)
+    license_val = None if licence is None else licence.text
+    if licence is not None:
+        provenance["license"] = licence.provenance
 
     keywords = to_str_list(get_first(data, *KEYWORDS_KEYS))
     if keywords:

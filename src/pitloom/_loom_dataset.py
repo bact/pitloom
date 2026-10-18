@@ -34,8 +34,15 @@ from typing import cast
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._loom_caller import LOOM_PROVENANCE_CONFIG, registry_miss_callback
+from pitloom._loom_dataset_meta import (
+    DatasetDoc,
+    escape_display_text,
+    merge_metadata,
+    write_metadata,
+)
 from pitloom.assemble.spdx3.provenance import emit_provenance
 from pitloom.core.dataset_hash import DatasetDigest, hash_dataset
+from pitloom.core.dataset_metadata import DatasetMetadata
 from pitloom.core.file_hash import HexDigests, file_digests
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.path_probe import (
@@ -198,9 +205,18 @@ class LoomElements:
         self._declared: list[tuple[str, spdx3.dataset_DatasetPackage]] = []
         self._outside_warned: set[str] = set()
         self._left_out_warned: set[str] = set()
+        # Per package (by identity): it, its caller provenance and the
+        # metadata its sources state, written by finish().
+        self._details: dict[
+            int, tuple[spdx3.dataset_DatasetPackage, str, DatasetMetadata | None]
+        ] = {}
 
     def dataset(
-        self, name: str, dataset_type: str, caller_info: str
+        self,
+        name: str,
+        dataset_type: str,
+        caller_info: str,
+        meta: DatasetMetadata | None = None,
     ) -> spdx3.dataset_DatasetPackage:
         """The ``dataset_DatasetPackage`` for *name*, with what it holds.
 
@@ -208,7 +224,9 @@ class LoomElements:
         its own ``software_File`` and a ``contains`` edge to it, each
         element with its own ``Hash``; a directory, its Merkle root. One
         key (:meth:`_package_key`) holding one content is one package per
-        run, whatever declares it: a repeat adds only a new *dataset_type*.
+        run, whatever declares it: a repeat adds only a new *dataset_type*
+        and the fields of *meta* no earlier declaration stated (written by
+        :meth:`finish`).
         """
         registry = self._session.registry
         found = dataset_digest(
@@ -220,8 +238,10 @@ class LoomElements:
         held_package = self._packages.get((lookup, found.hex_digest))
         if held_package is not None:
             self._declared.append((name, held_package))
+            self._add_meta(held_package, meta)
             return self._add_kind(held_package, dataset_type)
-        package = self._package(name, lookup, found.hex_digest, caller_info)
+        package = self._package(name, lookup, found.hex_digest)
+        self._details[id(package)] = (package, caller_info, meta)
         package.dataset_datasetType = [_dataset_kind(dataset_type)]
         self._packages[(lookup, found.hex_digest)] = package
         self._declared.append((name, package))
@@ -245,6 +265,43 @@ class LoomElements:
         )
         self._exporter.add_relationship(cast(spdx3.Relationship, relationship))
         return package
+
+    def _add_meta(
+        self, package: spdx3.dataset_DatasetPackage, meta: DatasetMetadata | None
+    ) -> None:
+        """Merge *meta* into what *package*'s earlier declarations stated,
+        theirs first."""
+        held, caller_info, held_meta = self._details[id(package)]
+        found = [m for m in (held_meta, meta) if m is not None]
+        self._details[id(package)] = (
+            held,
+            caller_info,
+            merge_metadata(str(package.name), found),
+        )
+
+    def finish(self) -> None:
+        """Write each package's metadata and its one provenance record (the
+        declaring caller, then each field a source stated)."""
+        doc = DatasetDoc(
+            self._exporter, self._creation_info, self._doc_uuid, LOOM_PROVENANCE_CONFIG
+        )
+        for package, caller_info, meta in self._details.values():
+            provenance = {"package": caller_info}
+            written: list[tuple[str, spdx3.Element]] = []
+            if meta is not None:
+                stated, written = write_metadata(package, meta, doc)
+                provenance.update(stated)
+            emit_provenance(
+                subject=package,
+                provenance=provenance,
+                creation_info=self._creation_info,
+                doc_name=str(package.name),
+                doc_uuid=self._doc_uuid,
+                exporter=self._exporter,
+                provenance_config=LOOM_PROVENANCE_CONFIG,
+            )
+            if written:
+                escape_display_text(str(package.name), written)
 
     def names_of(self, package: spdx3.dataset_DatasetPackage) -> list[str]:
         """Every name *package* was declared under, in order, once each:
@@ -342,7 +399,7 @@ class LoomElements:
         return name, False
 
     def _package(
-        self, name: str, lookup: LookupKey, digest: str | None, caller_info: str
+        self, name: str, lookup: LookupKey, digest: str | None
     ) -> spdx3.dataset_DatasetPackage:
         """The ``dataset_DatasetPackage`` named *name*, looked up by
         *lookup* gated by *digest*, a hash-less pin a hit for any content
@@ -365,15 +422,6 @@ class LoomElements:
             or generate_spdx_id("DatasetPackage", name, self._doc_uuid),
             name=name,
             creationInfo=self._creation_info,
-        )
-        emit_provenance(
-            subject=package,
-            provenance={"package": caller_info},
-            creation_info=self._creation_info,
-            doc_name=name,
-            doc_uuid=self._doc_uuid,
-            exporter=self._exporter,
-            provenance_config=LOOM_PROVENANCE_CONFIG,
         )
         self._exporter.add_package(package)
         return package

@@ -71,10 +71,30 @@ def _resolve_dataset_types(dataset_types: list[str]) -> list[str]:
     return type_values if type_values else [spdx3.dataset_DatasetType.noAssertion]
 
 
-def _populate_dataset_profile_fields(
+def _set_package_fields(
     dataset_pkg: spdx3.dataset_DatasetPackage, meta: DatasetMetadata
 ) -> None:
-    """Populate optional dataset profile and privacy fields."""
+    """Set the version, description and download location (with its PURL)
+    *meta* states."""
+    if meta.version:
+        dataset_pkg.software_packageVersion = meta.version
+    if meta.description:
+        dataset_pkg.description = meta.description
+    if meta.download_url:
+        dataset_pkg.software_downloadLocation = meta.download_url
+        if meta.download_url.startswith(("https://", "http://")):
+            dataset_pkg.software_packageUrl = build_generic_purl(
+                meta.name, version=meta.version, download_url=meta.download_url
+            )
+
+
+def set_dataset_fields(
+    dataset_pkg: spdx3.dataset_DatasetPackage, meta: DatasetMetadata
+) -> None:
+    """Set each property of *dataset_pkg* that *meta* states, other than its
+    name, types, creator and licence: version, description, download
+    location (and its PURL), and the dataset profile and privacy fields."""
+    _set_package_fields(dataset_pkg, meta)
     if meta.dataset_size is not None:
         dataset_pkg.dataset_datasetSize = meta.dataset_size
     if meta.data_collection_process:
@@ -118,24 +138,13 @@ def _build_dataset_package(
         name=meta.name,
         creationInfo=creation_info,
     )
-
-    if meta.version:
-        dataset_pkg.software_packageVersion = meta.version
-    if meta.description:
-        dataset_pkg.description = meta.description
-    if meta.download_url:
-        dataset_pkg.software_downloadLocation = meta.download_url
-        if meta.download_url.startswith(("https://", "http://")):
-            dataset_pkg.software_packageUrl = build_generic_purl(
-                meta.name, version=meta.version, download_url=meta.download_url
-            )
-
     dataset_pkg.dataset_datasetType = _resolve_dataset_types(meta.dataset_types)
-    _populate_dataset_profile_fields(dataset_pkg, meta)
+    set_dataset_fields(dataset_pkg, meta)
     return dataset_pkg
 
 
-def _add_dataset_creator_agent(
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def add_dataset_creator_agent(
     dataset_pkg_spdx_id: str,
     creator_name: str,
     creation_info: spdx3.CreationInfo,
@@ -165,6 +174,36 @@ def _add_dataset_creator_agent(
     if rel_creator:
         exporter.add_relationship(rel_creator)
     return creator_agent
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def add_dataset_license(
+    dataset_pkg: spdx3.dataset_DatasetPackage,
+    meta: DatasetMetadata,
+    doc: tuple[spdx3.CreationInfo, str, str],
+    exporter: Spdx3JsonExporter,
+    provenance_config: ProvenanceConfig | None = None,
+    encoder: ProvenanceEncoder | None = None,
+) -> list[tuple[str, spdx3.Element]]:
+    """The ``hasDeclaredLicense`` (``hasConcludedLicense`` for a
+    third-party record) from *dataset_pkg* to the licence *meta* states,
+    with the provenance its reader recorded; the licence elements, labelled
+    for the display-text warning. Nothing when *meta* states no licence.
+    *doc* is the creation info, document name and uuid."""
+    if not meta.license:
+        return []
+    return [
+        (LICENSE, element)
+        for element in add_license_relationships(
+            meta.license,
+            require_spdx_id(dataset_pkg),
+            meta.provenance.get("license", DATASET_LICENSE_SOURCE),
+            doc,
+            exporter,
+            provenance_config,
+            encoder,
+        )
+    ]
 
 
 def _dataset_relationship(
@@ -250,7 +289,7 @@ def add_datasets_for_model(
             created.append(
                 (
                     DATASET_CREATOR,
-                    _add_dataset_creator_agent(
+                    add_dataset_creator_agent(
                         dataset_pkg_spdx_id=require_spdx_id(dataset_pkg),
                         creator_name=cap_related_name(
                             meta.creator, "dataset creator name", ai_model
@@ -263,19 +302,14 @@ def add_datasets_for_model(
                 )
             )
 
-        if meta.license:
-            created += [
-                (LICENSE, element)
-                for element in add_license_relationships(
-                    meta.license,
-                    require_spdx_id(dataset_pkg),
-                    meta.provenance.get("license", DATASET_LICENSE_SOURCE),
-                    (element_creation_info, doc_name, doc_uuid),
-                    exporter,
-                    provenance_config,
-                    encoder,
-                )
-            ]
+        created += add_dataset_license(
+            dataset_pkg,
+            meta,
+            (element_creation_info, doc_name, doc_uuid),
+            exporter,
+            provenance_config,
+            encoder,
+        )
 
         rel = _dataset_relationship(
             ai_package_spdx_id,
