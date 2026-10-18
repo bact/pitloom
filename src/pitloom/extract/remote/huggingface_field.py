@@ -37,6 +37,7 @@ from pitloom.core.model_parameters import (
 from pitloom.core.purl import commit_hash
 from pitloom.extract._extract_utils import record_dict_field_provenance
 from pitloom.extract.ai_model.parameter_count import warn_parameter_count
+from pitloom.extract.dataset.values import stated_texts
 from pitloom.extract.remote.huggingface_fetch import _extract_card_description
 
 _log = logging.getLogger(__name__)
@@ -257,7 +258,17 @@ def _extract_datasets(
     """Return a list of training dataset references."""
     card_data: dict[str, Any] = hf_data.get("card_data") or {}
     datasets: list[DatasetReference] = []
-    card_dataset_ids = [str(ds) for ds in (card_data.get("datasets") or [])]
+    # A card may state one dataset as a bare string; non-text items are left out.
+    card_dataset_ids = list(
+        dict.fromkeys(
+            stated_texts(
+                card_data.get("datasets"),
+                "Hugging Face model card",
+                "datasets",
+                split=False,
+            )
+        )
+    )
 
     if card_dataset_ids:
         for ds_name in card_dataset_ids:
