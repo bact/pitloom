@@ -30,7 +30,7 @@ from tests.conformance.g7ai_surfaces import (
 )
 
 #: Every standard the checker reports on for Pitloom's SBOMs.
-STANDARDS = ("g7ai", "cisa2026", "fsct3")
+STANDARDS = ("g7ai", "cisa2026", "fsct3", "bsi")
 
 #: Elements about who made the SBOM, not about what it describes.
 _CREATION = {"CreationInfo", "Tool", "Person", "Organization", "SoftwareAgent", "Agent"}

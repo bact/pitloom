@@ -224,7 +224,7 @@ def mapping_path(standard: str) -> Path:
     """Return the vendored SSSOM mapping of *standard* to SPDX 3.0."""
     if standard == "g7ai":
         return MAPPING
-    name = {"fsct3": "fsct2024"}.get(standard, standard)
+    name = {"fsct3": "fsct2024", "bsi": "bsi2025"}.get(standard, standard)
     return MAPPING.parent / f"{name}-to-spdx30.sssom.tsv"
 
 

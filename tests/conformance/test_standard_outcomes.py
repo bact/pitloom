@@ -29,7 +29,7 @@ from tests.conformance.g7ai_shared import (
     read_expected,
 )
 
-STANDARDS = ("cisa2026", "fsct3")
+STANDARDS = ("cisa2026", "fsct3", "bsi")
 _SCENARIOS = list(SCENARIOS)
 
 

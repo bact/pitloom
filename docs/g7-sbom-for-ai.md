@@ -43,7 +43,7 @@ The checker is [`ntia-conformance-checker`](https://github.com/bact/ntia-conform
 with the `g7ai` standard, which is not yet on PyPI:
 
 ```shell
-pip install "ntia-conformance-checker @ git+https://github.com/bact/ntia-conformance-checker.git@41438921eb9a1a190e7839ab483bb6e8b404a3bd"
+pip install "ntia-conformance-checker @ git+https://github.com/bact/ntia-conformance-checker.git@34c00ba1c31ac3e3f43d159d1c6a3530eed0ed50"
 loom model model.safetensors -o model.spdx3.json      # or an ONNX, GGUF, NumPy or fastText file
 loom model org/name -o model.spdx3.json              # a Hugging Face model
 loom generate path/to/project -o project.spdx3.json  # a project that ships a model
@@ -165,6 +165,27 @@ are listed, never checked. For Pitloom's test SBOMs, as the checker reads them:
 | Concluded licence, copyright notice | missing in every scenario. Pitloom can write a concluded licence and copyright text when its sources state them, but the test SBOMs carry none: a project's copyright text is `NOASSERTION`, which the checker counts as missing, and a model file carries none |
 
 The same `trainedOn` and `testedOn` reach applies as for CISA 2026.
+
+## BSI TR-03183-2 v2.1
+
+`-c bsi` reports on the SBOM content requirements of the German BSI technical
+guideline TR-03183-2 v2.1, per rule, for SPDX 3.0 only. Of its 20 elements 16
+are checked; the BOM-URI, the executable and archive properties and the source
+hash are listed, never checked (SPDX 3.0.1 cannot show them, or they always
+exist). Elements BSI marks "if it exists" are `not-applicable` for a package
+that does not give them. For Pitloom's test SBOMs:
+
+| Element | Result |
+| :------ | :----- |
+| Timestamp, component name, other unique identifiers | present in every scenario |
+| Hash of the deployable component (SHA-512) | present for model files; missing for a Hugging Face model, the library-built model and every project: a project's hash is a SHA-256 Merkle root, and a dependency has no SHA-512 source |
+| Component version | present for a Hugging Face model and the library-built model only |
+| Original licence (if it exists) | present for a Hugging Face model, the library-built model and projects |
+| Creator of the SBOM and of each component | missing in every scenario: BSI wants a person or organisation with an e-mail address or URL, and Pitloom's creator is a software agent |
+| Filename, dependencies with completeness, distribution licence, structured property, effective licence, security.txt URL | missing in every scenario: Pitloom does not write them |
+
+Where BSI's own tables and the SPDX mapping differ, the checker accepts both
+(see its BSI page). The coverage figures are 29–43% of the checked rules.
 
 ## Parity
 

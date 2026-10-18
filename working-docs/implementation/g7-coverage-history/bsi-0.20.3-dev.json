@@ -1,0 +1,581 @@
+{
+  "header": {
+    "checker": "34c00ba1c31ac3e3f43d159d1c6a3530eed0ed50",
+    "mapping_sha256": "4ddf1c94c966160fe2f9c3198f14e6e3eac50876b3b0dbfb7cf24bd9749a6735",
+    "pitloom": "0.20.2",
+    "rules": 20,
+    "standard": "bsi"
+  },
+  "scenarios": {
+    "fasttext": {
+      "outcomes": {
+        "BOM-BSI2025-COMP-001": "missing",
+        "BOM-BSI2025-COMP-002": "present",
+        "BOM-BSI2025-COMP-003": "missing",
+        "BOM-BSI2025-COMP-004": "missing",
+        "BOM-BSI2025-COMP-005": "missing",
+        "BOM-BSI2025-COMP-006": "missing",
+        "BOM-BSI2025-COMP-007": "present",
+        "BOM-BSI2025-COMP-008": "out-of-scope",
+        "BOM-BSI2025-COMP-009": "out-of-scope",
+        "BOM-BSI2025-COMP-010": "missing",
+        "BOM-BSI2025-COMP-011": "not-applicable",
+        "BOM-BSI2025-COMP-012": "not-applicable",
+        "BOM-BSI2025-COMP-013": "present",
+        "BOM-BSI2025-COMP-014": "not-applicable",
+        "BOM-BSI2025-COMP-015": "missing",
+        "BOM-BSI2025-COMP-016": "out-of-scope",
+        "BOM-BSI2025-COMP-017": "missing",
+        "BOM-BSI2025-DOC-001": "missing",
+        "BOM-BSI2025-DOC-002": "present",
+        "BOM-BSI2025-DOC-003": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 27.3,
+            "missing": 8,
+            "not-applicable": 3,
+            "out-of-scope": 3,
+            "present": 3
+          },
+          "DOC": {
+            "coverage_percent": 50.0,
+            "missing": 1,
+            "out-of-scope": 1,
+            "present": 1
+          }
+        },
+        "coverage_percent": 30.8,
+        "outcomes": {
+          "missing": 9,
+          "not-applicable": 3,
+          "out-of-scope": 4,
+          "present": 4
+        },
+        "properties_written": 6,
+        "requirement_coverage_percent": 36.4,
+        "requirements": {
+          "missing": 7,
+          "not-applicable": 3,
+          "out-of-scope": 3,
+          "present": 4
+        }
+      },
+      "system_judged_by_model": "sentimentdemo"
+    },
+    "gguf": {
+      "outcomes": {
+        "BOM-BSI2025-COMP-001": "missing",
+        "BOM-BSI2025-COMP-002": "present",
+        "BOM-BSI2025-COMP-003": "missing",
+        "BOM-BSI2025-COMP-004": "missing",
+        "BOM-BSI2025-COMP-005": "missing",
+        "BOM-BSI2025-COMP-006": "missing",
+        "BOM-BSI2025-COMP-007": "present",
+        "BOM-BSI2025-COMP-008": "out-of-scope",
+        "BOM-BSI2025-COMP-009": "out-of-scope",
+        "BOM-BSI2025-COMP-010": "missing",
+        "BOM-BSI2025-COMP-011": "not-applicable",
+        "BOM-BSI2025-COMP-012": "not-applicable",
+        "BOM-BSI2025-COMP-013": "present",
+        "BOM-BSI2025-COMP-014": "not-applicable",
+        "BOM-BSI2025-COMP-015": "missing",
+        "BOM-BSI2025-COMP-016": "out-of-scope",
+        "BOM-BSI2025-COMP-017": "missing",
+        "BOM-BSI2025-DOC-001": "missing",
+        "BOM-BSI2025-DOC-002": "present",
+        "BOM-BSI2025-DOC-003": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 27.3,
+            "missing": 8,
+            "not-applicable": 3,
+            "out-of-scope": 3,
+            "present": 3
+          },
+          "DOC": {
+            "coverage_percent": 50.0,
+            "missing": 1,
+            "out-of-scope": 1,
+            "present": 1
+          }
+        },
+        "coverage_percent": 30.8,
+        "outcomes": {
+          "missing": 9,
+          "not-applicable": 3,
+          "out-of-scope": 4,
+          "present": 4
+        },
+        "properties_written": 4,
+        "requirement_coverage_percent": 36.4,
+        "requirements": {
+          "missing": 7,
+          "not-applicable": 3,
+          "out-of-scope": 3,
+          "present": 4
+        }
+      },
+      "system_judged_by_model": "llama"
+    },
+    "hub": {
+      "outcomes": {
+        "BOM-BSI2025-COMP-001": "missing",
+        "BOM-BSI2025-COMP-002": "present",
+        "BOM-BSI2025-COMP-003": "present",
+        "BOM-BSI2025-COMP-004": "missing",
+        "BOM-BSI2025-COMP-005": "missing",
+        "BOM-BSI2025-COMP-006": "missing",
+        "BOM-BSI2025-COMP-007": "missing",
+        "BOM-BSI2025-COMP-008": "out-of-scope",
+        "BOM-BSI2025-COMP-009": "out-of-scope",
+        "BOM-BSI2025-COMP-010": "missing",
+        "BOM-BSI2025-COMP-011": "not-applicable",
+        "BOM-BSI2025-COMP-012": "not-applicable",
+        "BOM-BSI2025-COMP-013": "present",
+        "BOM-BSI2025-COMP-014": "present",
+        "BOM-BSI2025-COMP-015": "missing",
+        "BOM-BSI2025-COMP-016": "out-of-scope",
+        "BOM-BSI2025-COMP-017": "missing",
+        "BOM-BSI2025-DOC-001": "missing",
+        "BOM-BSI2025-DOC-002": "present",
+        "BOM-BSI2025-DOC-003": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 33.3,
+            "missing": 8,
+            "not-applicable": 2,
+            "out-of-scope": 3,
+            "present": 4
+          },
+          "DOC": {
+            "coverage_percent": 50.0,
+            "missing": 1,
+            "out-of-scope": 1,
+            "present": 1
+          }
+        },
+        "coverage_percent": 35.7,
+        "outcomes": {
+          "missing": 9,
+          "not-applicable": 2,
+          "out-of-scope": 4,
+          "present": 5
+        },
+        "properties_written": 10,
+        "requirement_coverage_percent": 41.7,
+        "requirements": {
+          "missing": 7,
+          "not-applicable": 2,
+          "out-of-scope": 3,
+          "present": 5
+        }
+      },
+      "system_judged_by_model": "model"
+    },
+    "library": {
+      "outcomes": {
+        "BOM-BSI2025-COMP-001": "missing",
+        "BOM-BSI2025-COMP-002": "present",
+        "BOM-BSI2025-COMP-003": "present",
+        "BOM-BSI2025-COMP-004": "missing",
+        "BOM-BSI2025-COMP-005": "missing",
+        "BOM-BSI2025-COMP-006": "missing",
+        "BOM-BSI2025-COMP-007": "present",
+        "BOM-BSI2025-COMP-008": "out-of-scope",
+        "BOM-BSI2025-COMP-009": "out-of-scope",
+        "BOM-BSI2025-COMP-010": "missing",
+        "BOM-BSI2025-COMP-011": "not-applicable",
+        "BOM-BSI2025-COMP-012": "not-applicable",
+        "BOM-BSI2025-COMP-013": "present",
+        "BOM-BSI2025-COMP-014": "present",
+        "BOM-BSI2025-COMP-015": "missing",
+        "BOM-BSI2025-COMP-016": "out-of-scope",
+        "BOM-BSI2025-COMP-017": "missing",
+        "BOM-BSI2025-DOC-001": "missing",
+        "BOM-BSI2025-DOC-002": "present",
+        "BOM-BSI2025-DOC-003": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 41.7,
+            "missing": 7,
+            "not-applicable": 2,
+            "out-of-scope": 3,
+            "present": 5
+          },
+          "DOC": {
+            "coverage_percent": 50.0,
+            "missing": 1,
+            "out-of-scope": 1,
+            "present": 1
+          }
+        },
+        "coverage_percent": 42.9,
+        "outcomes": {
+          "missing": 8,
+          "not-applicable": 2,
+          "out-of-scope": 4,
+          "present": 6
+        },
+        "properties_written": 10,
+        "requirement_coverage_percent": 50.0,
+        "requirements": {
+          "missing": 6,
+          "not-applicable": 2,
+          "out-of-scope": 3,
+          "present": 6
+        }
+      },
+      "system_judged_by_model": "m"
+    },
+    "numpy": {
+      "outcomes": {
+        "BOM-BSI2025-COMP-001": "missing",
+        "BOM-BSI2025-COMP-002": "present",
+        "BOM-BSI2025-COMP-003": "missing",
+        "BOM-BSI2025-COMP-004": "missing",
+        "BOM-BSI2025-COMP-005": "missing",
+        "BOM-BSI2025-COMP-006": "missing",
+        "BOM-BSI2025-COMP-007": "present",
+        "BOM-BSI2025-COMP-008": "out-of-scope",
+        "BOM-BSI2025-COMP-009": "out-of-scope",
+        "BOM-BSI2025-COMP-010": "missing",
+        "BOM-BSI2025-COMP-011": "not-applicable",
+        "BOM-BSI2025-COMP-012": "not-applicable",
+        "BOM-BSI2025-COMP-013": "present",
+        "BOM-BSI2025-COMP-014": "not-applicable",
+        "BOM-BSI2025-COMP-015": "missing",
+        "BOM-BSI2025-COMP-016": "out-of-scope",
+        "BOM-BSI2025-COMP-017": "missing",
+        "BOM-BSI2025-DOC-001": "missing",
+        "BOM-BSI2025-DOC-002": "present",
+        "BOM-BSI2025-DOC-003": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 27.3,
+            "missing": 8,
+            "not-applicable": 3,
+            "out-of-scope": 3,
+            "present": 3
+          },
+          "DOC": {
+            "coverage_percent": 50.0,
+            "missing": 1,
+            "out-of-scope": 1,
+            "present": 1
+          }
+        },
+        "coverage_percent": 30.8,
+        "outcomes": {
+          "missing": 9,
+          "not-applicable": 3,
+          "out-of-scope": 4,
+          "present": 4
+        },
+        "properties_written": 3,
+        "requirement_coverage_percent": 36.4,
+        "requirements": {
+          "missing": 7,
+          "not-applicable": 3,
+          "out-of-scope": 3,
+          "present": 4
+        }
+      },
+      "system_judged_by_model": "example-model-v1"
+    },
+    "onnx": {
+      "outcomes": {
+        "BOM-BSI2025-COMP-001": "missing",
+        "BOM-BSI2025-COMP-002": "present",
+        "BOM-BSI2025-COMP-003": "missing",
+        "BOM-BSI2025-COMP-004": "missing",
+        "BOM-BSI2025-COMP-005": "missing",
+        "BOM-BSI2025-COMP-006": "missing",
+        "BOM-BSI2025-COMP-007": "present",
+        "BOM-BSI2025-COMP-008": "out-of-scope",
+        "BOM-BSI2025-COMP-009": "out-of-scope",
+        "BOM-BSI2025-COMP-010": "missing",
+        "BOM-BSI2025-COMP-011": "not-applicable",
+        "BOM-BSI2025-COMP-012": "not-applicable",
+        "BOM-BSI2025-COMP-013": "present",
+        "BOM-BSI2025-COMP-014": "not-applicable",
+        "BOM-BSI2025-COMP-015": "missing",
+        "BOM-BSI2025-COMP-016": "out-of-scope",
+        "BOM-BSI2025-COMP-017": "missing",
+        "BOM-BSI2025-DOC-001": "missing",
+        "BOM-BSI2025-DOC-002": "present",
+        "BOM-BSI2025-DOC-003": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 27.3,
+            "missing": 8,
+            "not-applicable": 3,
+            "out-of-scope": 3,
+            "present": 3
+          },
+          "DOC": {
+            "coverage_percent": 50.0,
+            "missing": 1,
+            "out-of-scope": 1,
+            "present": 1
+          }
+        },
+        "coverage_percent": 30.8,
+        "outcomes": {
+          "missing": 9,
+          "not-applicable": 3,
+          "out-of-scope": 4,
+          "present": 4
+        },
+        "properties_written": 5,
+        "requirement_coverage_percent": 36.4,
+        "requirements": {
+          "missing": 7,
+          "not-applicable": 3,
+          "out-of-scope": 3,
+          "present": 4
+        }
+      },
+      "system_judged_by_model": "gpt2-tiny-decoder"
+    },
+    "proj-hatchling": {
+      "outcomes": {
+        "BOM-BSI2025-COMP-001": "missing",
+        "BOM-BSI2025-COMP-002": "present",
+        "BOM-BSI2025-COMP-003": "missing",
+        "BOM-BSI2025-COMP-004": "missing",
+        "BOM-BSI2025-COMP-005": "missing",
+        "BOM-BSI2025-COMP-006": "missing",
+        "BOM-BSI2025-COMP-007": "missing",
+        "BOM-BSI2025-COMP-008": "out-of-scope",
+        "BOM-BSI2025-COMP-009": "out-of-scope",
+        "BOM-BSI2025-COMP-010": "missing",
+        "BOM-BSI2025-COMP-011": "not-applicable",
+        "BOM-BSI2025-COMP-012": "not-applicable",
+        "BOM-BSI2025-COMP-013": "present",
+        "BOM-BSI2025-COMP-014": "present",
+        "BOM-BSI2025-COMP-015": "missing",
+        "BOM-BSI2025-COMP-016": "out-of-scope",
+        "BOM-BSI2025-COMP-017": "missing",
+        "BOM-BSI2025-DOC-001": "missing",
+        "BOM-BSI2025-DOC-002": "present",
+        "BOM-BSI2025-DOC-003": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 25.0,
+            "missing": 9,
+            "not-applicable": 2,
+            "out-of-scope": 3,
+            "present": 3
+          },
+          "DOC": {
+            "coverage_percent": 50.0,
+            "missing": 1,
+            "out-of-scope": 1,
+            "present": 1
+          }
+        },
+        "coverage_percent": 28.6,
+        "outcomes": {
+          "missing": 10,
+          "not-applicable": 2,
+          "out-of-scope": 4,
+          "present": 4
+        },
+        "properties_written": 9,
+        "requirement_coverage_percent": 33.3,
+        "requirements": {
+          "missing": 8,
+          "not-applicable": 2,
+          "out-of-scope": 3,
+          "present": 4
+        }
+      },
+      "system_judged_by_model": null
+    },
+    "proj-poetry": {
+      "outcomes": {
+        "BOM-BSI2025-COMP-001": "missing",
+        "BOM-BSI2025-COMP-002": "present",
+        "BOM-BSI2025-COMP-003": "missing",
+        "BOM-BSI2025-COMP-004": "missing",
+        "BOM-BSI2025-COMP-005": "missing",
+        "BOM-BSI2025-COMP-006": "missing",
+        "BOM-BSI2025-COMP-007": "missing",
+        "BOM-BSI2025-COMP-008": "out-of-scope",
+        "BOM-BSI2025-COMP-009": "out-of-scope",
+        "BOM-BSI2025-COMP-010": "missing",
+        "BOM-BSI2025-COMP-011": "not-applicable",
+        "BOM-BSI2025-COMP-012": "not-applicable",
+        "BOM-BSI2025-COMP-013": "present",
+        "BOM-BSI2025-COMP-014": "present",
+        "BOM-BSI2025-COMP-015": "missing",
+        "BOM-BSI2025-COMP-016": "out-of-scope",
+        "BOM-BSI2025-COMP-017": "missing",
+        "BOM-BSI2025-DOC-001": "missing",
+        "BOM-BSI2025-DOC-002": "present",
+        "BOM-BSI2025-DOC-003": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 25.0,
+            "missing": 9,
+            "not-applicable": 2,
+            "out-of-scope": 3,
+            "present": 3
+          },
+          "DOC": {
+            "coverage_percent": 50.0,
+            "missing": 1,
+            "out-of-scope": 1,
+            "present": 1
+          }
+        },
+        "coverage_percent": 28.6,
+        "outcomes": {
+          "missing": 10,
+          "not-applicable": 2,
+          "out-of-scope": 4,
+          "present": 4
+        },
+        "properties_written": 9,
+        "requirement_coverage_percent": 33.3,
+        "requirements": {
+          "missing": 8,
+          "not-applicable": 2,
+          "out-of-scope": 3,
+          "present": 4
+        }
+      },
+      "system_judged_by_model": null
+    },
+    "proj-setuptools": {
+      "outcomes": {
+        "BOM-BSI2025-COMP-001": "missing",
+        "BOM-BSI2025-COMP-002": "present",
+        "BOM-BSI2025-COMP-003": "missing",
+        "BOM-BSI2025-COMP-004": "missing",
+        "BOM-BSI2025-COMP-005": "missing",
+        "BOM-BSI2025-COMP-006": "missing",
+        "BOM-BSI2025-COMP-007": "missing",
+        "BOM-BSI2025-COMP-008": "out-of-scope",
+        "BOM-BSI2025-COMP-009": "out-of-scope",
+        "BOM-BSI2025-COMP-010": "missing",
+        "BOM-BSI2025-COMP-011": "not-applicable",
+        "BOM-BSI2025-COMP-012": "not-applicable",
+        "BOM-BSI2025-COMP-013": "present",
+        "BOM-BSI2025-COMP-014": "present",
+        "BOM-BSI2025-COMP-015": "missing",
+        "BOM-BSI2025-COMP-016": "out-of-scope",
+        "BOM-BSI2025-COMP-017": "missing",
+        "BOM-BSI2025-DOC-001": "missing",
+        "BOM-BSI2025-DOC-002": "present",
+        "BOM-BSI2025-DOC-003": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 25.0,
+            "missing": 9,
+            "not-applicable": 2,
+            "out-of-scope": 3,
+            "present": 3
+          },
+          "DOC": {
+            "coverage_percent": 50.0,
+            "missing": 1,
+            "out-of-scope": 1,
+            "present": 1
+          }
+        },
+        "coverage_percent": 28.6,
+        "outcomes": {
+          "missing": 10,
+          "not-applicable": 2,
+          "out-of-scope": 4,
+          "present": 4
+        },
+        "properties_written": 9,
+        "requirement_coverage_percent": 33.3,
+        "requirements": {
+          "missing": 8,
+          "not-applicable": 2,
+          "out-of-scope": 3,
+          "present": 4
+        }
+      },
+      "system_judged_by_model": null
+    },
+    "safetensors": {
+      "outcomes": {
+        "BOM-BSI2025-COMP-001": "missing",
+        "BOM-BSI2025-COMP-002": "present",
+        "BOM-BSI2025-COMP-003": "missing",
+        "BOM-BSI2025-COMP-004": "missing",
+        "BOM-BSI2025-COMP-005": "missing",
+        "BOM-BSI2025-COMP-006": "missing",
+        "BOM-BSI2025-COMP-007": "present",
+        "BOM-BSI2025-COMP-008": "out-of-scope",
+        "BOM-BSI2025-COMP-009": "out-of-scope",
+        "BOM-BSI2025-COMP-010": "missing",
+        "BOM-BSI2025-COMP-011": "not-applicable",
+        "BOM-BSI2025-COMP-012": "not-applicable",
+        "BOM-BSI2025-COMP-013": "present",
+        "BOM-BSI2025-COMP-014": "not-applicable",
+        "BOM-BSI2025-COMP-015": "missing",
+        "BOM-BSI2025-COMP-016": "out-of-scope",
+        "BOM-BSI2025-COMP-017": "missing",
+        "BOM-BSI2025-DOC-001": "missing",
+        "BOM-BSI2025-DOC-002": "present",
+        "BOM-BSI2025-DOC-003": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 27.3,
+            "missing": 8,
+            "not-applicable": 3,
+            "out-of-scope": 3,
+            "present": 3
+          },
+          "DOC": {
+            "coverage_percent": 50.0,
+            "missing": 1,
+            "out-of-scope": 1,
+            "present": 1
+          }
+        },
+        "coverage_percent": 30.8,
+        "outcomes": {
+          "missing": 9,
+          "not-applicable": 3,
+          "out-of-scope": 4,
+          "present": 4
+        },
+        "properties_written": 3,
+        "requirement_coverage_percent": 36.4,
+        "requirements": {
+          "missing": 7,
+          "not-applicable": 3,
+          "out-of-scope": 3,
+          "present": 4
+        }
+      },
+      "system_judged_by_model": "phi-tiny-random"
+    }
+  }
+}
