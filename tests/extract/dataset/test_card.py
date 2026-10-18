@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 
+from pitloom.core.dataset_metadata import FurtherLicences
 from pitloom.enrich.readme import MODEL_CARD_MAX_BYTES
 from pitloom.extract.dataset import read_dataset_card
 
@@ -231,3 +232,35 @@ def test_alias_bomb_is_not_expanded(tmp_path: Path) -> None:
     meta = read_dataset_card(_card(tmp_path / "ds", body.encode()))
     assert meta is not None
     assert (meta.name, meta.license) == ("P", None)
+
+
+@pytest.mark.parametrize(
+    ("licence", "first", "further"),
+    [
+        ("[cc-by-sa-3.0, gfdl]", "cc-by-sa-3.0", ("gfdl",)),
+        ("[MIT, mit]", "MIT", ()),
+        ("[unknown, cc-by-4.0, other]", "cc-by-4.0", ()),
+    ],
+    ids=["two", "case-duplicate", "weak-dropped"],
+)
+def test_card_licence_list(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    licence: str,
+    first: str,
+    further: tuple[str, ...],
+) -> None:
+    """Each licence of a list, in order, once each, silently; one
+    provenance entry for the field."""
+    body = f"---\nlicense: {licence}\n---\n".encode()
+    meta = read_dataset_card(_card(tmp_path / "ds", body))
+    assert meta is not None
+    assert meta.license == first
+    assert meta.further_licenses == (
+        FurtherLicences(further, "dataset card") if further else None
+    )
+    assert (
+        meta.provenance["license"]
+        == "Source: " + (tmp_path / "ds" / "README.md").as_posix() + " | Field: license"
+    )
+    assert not _messages(caplog)

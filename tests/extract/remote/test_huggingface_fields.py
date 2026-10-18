@@ -31,12 +31,12 @@ from pitloom.extract.remote.huggingface_field import (
 
 
 def test_extract_description_empty_result_sets_no_provenance() -> None:
-    # card_text is present, but _extract_card_description() finds no prose
+    # card_text is present, but card_description() finds no prose
     # paragraph (e.g. YAML frontmatter with nothing after it) -> desc is
     # None/falsy, so no "description" provenance entry is recorded.
     hf_data = {"card_text": "---\nlicense: mit\n---\n"}
     with patch(
-        "pitloom.extract.remote.huggingface_field._extract_card_description",
+        "pitloom.extract.remote.huggingface_field.card_description",
         return_value=None,
     ):
         provenance: dict[str, str] = {}

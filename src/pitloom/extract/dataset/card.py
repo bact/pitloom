@@ -27,6 +27,7 @@ from pitloom.extract.dataset.licence import (
     LICENSE_FIELD,
     LICENSE_LINK_FIELD,
     LICENSE_NAME_FIELD,
+    apply_dataset_licence,
     dataset_licence,
 )
 from pitloom.extract.dataset.values import stated_text, stated_texts, stated_version
@@ -73,8 +74,9 @@ def read_dataset_card(
         source=source,
         name=read[LICENSE_NAME_FIELD],
         link=read[LICENSE_LINK_FIELD],
+        lister="dataset card",
     )
-    if licence is not None:
+    if licence is not None:  # set again, in place, by apply_dataset_licence
         provenance["license"] = licence.provenance
     version = stated_version(read["version"], source, numbers=False)
     if version:
@@ -84,10 +86,10 @@ def read_dataset_card(
     meta = DatasetMetadata(
         name=pretty_name or directory.name,
         version=version,
-        license=None if licence is None else licence.text,
         keywords=tags,
         provenance=provenance,
     )
+    apply_dataset_licence(meta, licence)
     # Only what was read is walked, never the rest of the frontmatter.
     if escape_lone_surrogates_in(meta)[1]:
         log.warning(LONE_SURROGATES_WARNING, "", loggable(source))

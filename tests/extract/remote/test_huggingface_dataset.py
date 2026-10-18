@@ -25,7 +25,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from huggingface_hub.errors import RemoteEntryNotFoundError
 
-from pitloom.core.dataset_metadata import DatasetMetadata
+from pitloom.core.dataset_metadata import DatasetMetadata, FurtherLicences
 from pitloom.extract.remote import huggingface_dataset as hub_dataset
 from pitloom.extract.remote import read_huggingface
 from pitloom.extract.remote.huggingface_dataset import (
@@ -269,6 +269,52 @@ def test_a_hub_error_is_logged_on_one_escaped_line(
         assert _load_dataset_info("o/d") is None
     (message,) = _warnings(caplog)
     assert "\n" not in message and "\u202e" not in message
+
+
+@pytest.mark.parametrize(
+    ("licence", "first", "further"),
+    [
+        (["cc-by-sa-3.0", "gfdl"], "cc-by-sa-3.0", ("gfdl",)),
+        (["CC-BY-4.0", "cc-by-4.0"], "CC-BY-4.0", ()),
+        (["mit"], "mit", ()),
+        (["other", "NOASSERTION", "apache-2.0"], "apache-2.0", ()),
+    ],
+    ids=["two", "case-duplicate", "one-item", "weak-dropped"],
+)
+def test_a_licence_list_is_each_licence(
+    licence: list[str],
+    first: str,
+    further: tuple[str, ...],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    card = {"license": licence, "license_name": "Acme"}
+    (meta,) = _read({"o/d": {"card_data": card}})
+    assert meta.license == first
+    assert meta.further_licenses == (
+        FurtherLicences(further, "Hugging Face dataset card") if further else None
+    )
+    assert meta.provenance["license"] == (
+        "Source: Hugging Face Hub | Field: dataset card license"
+    )
+    assert not _warnings(caplog)
+
+
+def test_a_repeat_keeps_the_further_licences() -> None:
+    card = {"license": ["cc-by-sa-3.0", "gfdl"]}
+    first, repeat = _read({"o/d": {"card_data": card}}, listed=["o/d", "O/D"])
+    assert first.further_licenses is not None
+    assert repeat.further_licenses == first.further_licenses
+
+
+def test_a_licence_list_of_no_text_warns_once(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    (meta,) = _read({"o/d": {"card_data": {"license": [1, {"id": "MIT"}]}}})
+    assert (meta.license, meta.further_licenses) == (None, None)
+    assert _warnings(caplog) == [
+        "dataset metadata: Hugging Face dataset o/d field license is of type int, "
+        "not text; skipped"
+    ]
 
 
 def test_a_licence_of_the_wrong_shape_warns_naming_the_dataset(

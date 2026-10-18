@@ -15,7 +15,9 @@ See also: [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md) (G7 DP-010),
 
 Status 2026-10-18: all three readers and the shared mapping built (see
 [Built: readers 1 and 2](#built-readers-1-and-2) and
-[Built: reader 3](#built-reader-3)).
+[Built: reader 3](#built-reader-3)); licence lists and non-prose card
+descriptions ruled on and built (see
+[Built: licence lists and card descriptions](#built-licence-lists-and-card-descriptions)).
 
 ## Where things stand
 
@@ -115,8 +117,9 @@ blank, `unknown` or `NOASSERTION` (any case, through the existing
 name, the link, or `"<name> (<link>)"`, with provenance
 `Source: <src> | Field: license, license_name, license_link` naming the
 fields used, and `None` with neither. Accepted shapes: a string, a one-item
-list, a JSON-LD `{"@id": ...}` node. A number, a mapping or a several-item
-list is `None` with one `WARNING:` (`dataset metadata: <src> field <f> is of
+list, a JSON-LD `{"@id": ...}` node; a several-item list since the owner's
+ruling (see [Built: licence lists and card descriptions](#built-licence-lists-and-card-descriptions)).
+A number or a mapping is `None` with one `WARNING:` (`dataset metadata: <src> field <f> is of
 type <type>, not text; skipped`): the source stated something not recordable.
 `read_croissant` now uses it (before: `str(value)`, so a list became
 `"['...']"` and `unknown` was a licence).
@@ -285,10 +288,10 @@ fatal to the model SBOM.
 **Seen on the live Hub (manual, not a test).** `allenai/c4` and
 `HuggingFaceFW/fineweb` give `odc-by`, owner and commit; `wikipedia` states
 its licence as a two-item list (`cc-by-sa-3.0`, `gfdl`), which the shared
-rule refuses with a `WARNING:` (a list of licences is not one statement); the
-first prose paragraph of many dataset cards is a table of contents, a
-`**Paper:**` line or HTML, read as the description as the model helper reads
-a model card. Both are left for the owner to rule on.
+rule refused with a `WARNING:`; the first prose paragraph of many dataset
+cards is a table of contents, a `**Paper:**` line or HTML, read as the
+description as the model helper reads a model card. Both ruled on and built
+(next section).
 
 **Not done.** No cap on the bytes `hf_hub_download` writes to the cache (the
 read is capped); no request timeout of its own (the model's requests have
@@ -308,6 +311,45 @@ outcomes, every field, unstated fields, tag fallback, plain names and repeats,
 cap, request failures, no card, capped read, escaped error, wrong licence
 shape, id rule), `test_huggingface_dataset_surfaces.py` (library, `loom
 model`, `loom generate`; provenance; byte identity; no request when offline).
+
+## Built: licence lists and card descriptions
+
+Owner rulings 2026-10-18.
+
+**Licence lists.** A `license` that is a list of several texts (Hub
+`wikipedia`, `multi_nli`; a local card; a Croissant file) gives one
+`hasDeclaredLicense` per licence (SPDX 3 allows several), in the order
+stated, once each (letter case ignored), each item by the single-value rules
+(weak items dropped silently; an `other` in a several-item list has no text
+of its own and is dropped: `license_name`/`license_link` apply to a one-item
+list only). Non-text items: dropped with one `WARNING:` for the field
+(`stated_texts`). A one-item list is a single value, as before.
+`DatasetMetadata.license` stays the first licence (every presence check
+unchanged); `further_licenses` (`FurtherLicences`: the rest, and the source
+noun) is set only through `apply_dataset_licence` and taken only together
+with `license` (`FOLLOWER_FIELDS`: the `loom` merge and the Hub repeat
+copy), so `declared_license=` and source precedence move the list whole.
+Provenance stays one entry.
+
+**AND or OR.** A card listing several licences does not say whether they
+combine as AND (all apply) or OR (a choice). Pitloom does not guess: when
+two or more are recorded the dataset package `comment` says "The <dataset
+card | Croissant file | Hugging Face dataset card> lists several licences; it
+does not say whether they combine as AND or OR." One comment per dataset,
+ahead of any provenance comment; none for one licence.
+
+**Card descriptions.** `card_description` (`extract/remote/_card_description.py`,
+model and dataset cards, moved out of `huggingface_fetch.py`) takes the first
+prose paragraph: a fenced code block, a paragraph starting with an HTML tag,
+or one whose every line is a heading, rule, table row, contents title,
+link-only list item, image/badge run, or a bold key whose value is not a
+sentence is passed over; one prose line keeps the paragraph whole; none
+gives no description, silently. Length cap (500) unchanged.
+
+**Not done (deferred until after the demo).** Two licence texts that
+normalise to one element (`MIT`, `MIT License`) give two relationships to it;
+a comma-separated single string is not split; no Setext headings or
+indented code blocks in the description rule.
 
 ## Open question for the owner
 

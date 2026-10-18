@@ -38,7 +38,7 @@ from pitloom.core.purl import commit_hash
 from pitloom.extract._extract_utils import record_dict_field_provenance
 from pitloom.extract.ai_model.parameter_count import warn_parameter_count
 from pitloom.extract.dataset.values import stated_texts
-from pitloom.extract.remote.huggingface_fetch import _extract_card_description
+from pitloom.extract.remote._card_description import card_description
 
 _log = logging.getLogger(__name__)
 
@@ -148,7 +148,7 @@ def _extract_description(
     card_text: str | None = hf_data.get("card_text")
     if not card_text:
         return None
-    desc = _extract_card_description(card_text)
+    desc = card_description(card_text)
     if desc:
         provenance["description"] = "Source: Hugging Face Hub | Field: model card"
     return desc

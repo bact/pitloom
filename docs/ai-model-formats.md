@@ -387,8 +387,8 @@ dataset's own card and repository information, the first 20 datasets only:
 
 | Dataset field | From | Provenance `Field:` |
 | :------------ | :--- | :------------------ |
-| licence | the card's `license`; for `other`, its `license_name` and `license_link` (name first); `unknown` or a bare `other` give none | `dataset card license` |
-| description | the card's first prose paragraph | `dataset card` |
+| licence | the card's `license`; for `other`, its `license_name` and `license_link` (name first); `unknown` or a bare `other` give none; a list of several gives one `hasDeclaredLicense` each, in order, and a package comment that the card does not say whether they combine as AND or OR | `dataset card license` |
+| description | the card's first prose paragraph; a table of contents, key lines (`**Paper:** [...]`), badges, HTML, tables and code blocks are passed over | `dataset card` |
 | keywords (not written: SPDX 3.0.1 has no dataset keyword property) | the card's `tags` | `dataset card tags` |
 | version | the repository's commit hash | `dataset_info sha` |
 | creator (`publishedBy`) | the repository owner | `dataset_info author`, `Method: repository_owner` |

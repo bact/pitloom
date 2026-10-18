@@ -13,6 +13,10 @@ dataset card), so the weak-value list and the wording cannot drift.
   placeholder is not a claim.
 - ``other`` (any case): the source's ``license_name`` and ``license_link``,
   name first, as one text; neither: no licence.
+- A list of several: each text by the rules above, in order, once each
+  (letter case ignored); an ``other`` among them states nothing of its own
+  and is left out. Two or more kept are the first licence and
+  :class:`~pitloom.core.dataset_metadata.FurtherLicences`.
 
 See also: :mod:`pitloom.assemble.spdx3.dataset` (the writer) and
 :func:`~pitloom.extract._license_classify.is_weak_licence` (the weak values).
@@ -22,8 +26,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from pitloom.core.dataset_metadata import DatasetMetadata, FurtherLicences
 from pitloom.extract._license_classify import is_weak_licence
-from pitloom.extract.dataset.values import NOT_TEXT_WARNING, stated_text
+from pitloom.extract.dataset.values import (
+    NOT_TEXT_WARNING,
+    stated_text,
+    stated_texts,
+)
 
 __all__ = [
     "LICENSE_FIELD",
@@ -31,6 +40,7 @@ __all__ = [
     "LICENSE_NAME_FIELD",
     "NOT_TEXT_WARNING",
     "DatasetLicence",
+    "apply_dataset_licence",
     "dataset_licence",
     "stated_text",
 ]
@@ -53,6 +63,20 @@ class DatasetLicence:
     text: str
     #: Its ``provenance["license"]`` entry.
     provenance: str
+    #: The licences the source lists after :attr:`text`, if any.
+    further: FurtherLicences | None = None
+
+
+def apply_dataset_licence(
+    meta: DatasetMetadata, licence: DatasetLicence | None
+) -> None:
+    """Set on *meta* the licence, further licences and provenance
+    *licence* states; nothing when ``None``."""
+    if licence is None:
+        return
+    meta.license = licence.text
+    meta.further_licenses = licence.further
+    meta.provenance[LICENSE_FIELD] = licence.provenance
 
 
 def _named_text(name: object, link: object, where: str) -> tuple[str, list[str]]:
@@ -68,6 +92,23 @@ def _named_text(name: object, link: object, where: str) -> tuple[str, list[str]]
     return (parts[0][1], [parts[0][0]]) if parts else ("", [])
 
 
+def _listed_licences(
+    value: list[object], where: str, lister: str, provenance: str
+) -> DatasetLicence | None:
+    """The licences a list of several *value* states (see the module
+    rules); *lister* names the source in the several-licences comment."""
+    unique: dict[str, str] = {}
+    for text in stated_texts(value, where, LICENSE_FIELD, split=False):
+        if not is_weak_licence(text) and text.lower() != _OTHER:
+            unique.setdefault(text.lower(), text)
+    texts = list(unique.values())
+    if not texts:
+        return None
+    further = FurtherLicences(tuple(texts[1:]), lister) if len(texts) > 1 else None
+    return DatasetLicence(texts[0], f"{provenance}{LICENSE_FIELD}", further)
+
+
+# pylint: disable-next=too-many-arguments
 def dataset_licence(
     value: object,
     *,
@@ -76,13 +117,20 @@ def dataset_licence(
     link: object = None,
     field_prefix: str = "",
     where: str | None = None,
+    lister: str = "source",
 ) -> DatasetLicence | None:
     """The licence a dataset source states in its ``license`` *value*, with
     ``license_name`` *name* and ``license_link`` *link* where the source has
     them; *source* names it in the provenance (``Source: <source> | Field:
-    <field_prefix>license``), *where* (default *source*) in a warning.
-    ``None`` when it states none (see the module rules)."""
+    <field_prefix>license``), *where* (default *source*) in a warning,
+    *lister* in the comment on several licences (``The <lister> lists
+    several licences...``). ``None`` when it states none (see the module
+    rules)."""
     shown = source if where is None else where
+    if isinstance(value, list) and len(value) > 1:
+        return _listed_licences(
+            value, shown, lister, f"Source: {source} | Field: {field_prefix}"
+        )
     text = stated_text(value, shown, LICENSE_FIELD)
     if text is None or is_weak_licence(text):
         return None

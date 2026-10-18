@@ -12,7 +12,8 @@ Read, each 1:1 and only when stated:
 * licence: the card's ``license`` (with ``license_name`` and
   ``license_link`` for ``other``), through
   :func:`~pitloom.extract.dataset.licence.dataset_licence`;
-* description: the card's first prose paragraph, as for a model;
+* description: the card's first prose paragraph, as for a model
+  (:func:`~pitloom.extract.remote._card_description.card_description`);
 * keywords: the card's ``tags``;
 * version: the revision's commit hash (``dataset_info()`` ``sha``), as for
   a model;
@@ -36,7 +37,11 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.ai_metadata import model_cap
-from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
+from pitloom.core.dataset_metadata import (
+    FOLLOWER_FIELDS,
+    DatasetMetadata,
+    DatasetReference,
+)
 from pitloom.core.model_originators import REPOSITORY_OWNER_METHOD, originator_names
 from pitloom.core.purl import commit_hash
 from pitloom.enrich.readme import MODEL_CARD_MAX_BYTES, CardKind, read_card
@@ -45,9 +50,10 @@ from pitloom.extract.dataset.licence import (
     LICENSE_FIELD,
     LICENSE_LINK_FIELD,
     LICENSE_NAME_FIELD,
+    apply_dataset_licence,
     dataset_licence,
 )
-from pitloom.extract.remote.huggingface_fetch import _extract_card_description
+from pitloom.extract.remote._card_description import card_description
 from pitloom.logging_config import (
     Cap,
     field_loss_suffix,
@@ -160,11 +166,10 @@ def _apply_card(
         link=card.get(LICENSE_LINK_FIELD),
         field_prefix=_CARD_FIELD,
         where=where,
+        lister="Hugging Face dataset card",
     )
-    if licence is not None:
-        meta.license = licence.text
-        meta.provenance["license"] = licence.provenance
-    description = _extract_card_description(text) if text else None
+    apply_dataset_licence(meta, licence)
+    description = card_description(text) if text else None
     if description:
         meta.description = description
         meta.provenance["description"] = f"Source: {_SOURCE} | Field: dataset card"
@@ -237,3 +242,6 @@ def _copy_found(found: DatasetMetadata, meta: DatasetMetadata) -> None:
             value = getattr(found, field)
             setattr(meta, field, list(value) if isinstance(value, list) else value)
             meta.provenance[field] = found.provenance[field]
+            follower = FOLLOWER_FIELDS.get(field)
+            if follower:
+                setattr(meta, follower, getattr(found, follower))

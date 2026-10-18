@@ -20,6 +20,7 @@ from unittest.mock import patch
 
 import pytest
 
+from pitloom.core.dataset_metadata import FurtherLicences
 from pitloom.extract._extract_utils import to_str_list as _to_str_list
 from pitloom.extract.dataset.croissant import (
     _collect_data_types,
@@ -431,3 +432,18 @@ def test_read_croissant_license_rules(
     meta = read_croissant(path)
     assert meta.license == expected
     assert ("license" in meta.provenance) is (expected is not None)
+    assert meta.further_licenses is None
+
+
+def test_read_croissant_license_list(tmp_path: Path) -> None:
+    """Each licence of a list, in order and once each, the node's ``@id``
+    too, the weak left out; one provenance entry."""
+    licence = ["CC-BY-4.0", "unknown", {"@id": "https://example.org/t"}, "cc-by-4.0"]
+    path = tmp_path / "ds.json"
+    path.write_text(json.dumps({"name": "ds", "license": licence}), encoding="utf-8")
+    meta = read_croissant(path)
+    assert meta.license == "CC-BY-4.0"
+    assert meta.further_licenses == FurtherLicences(
+        ("https://example.org/t",), "Croissant file"
+    )
+    assert meta.provenance["license"] == f"Source: {path} | Field: license"

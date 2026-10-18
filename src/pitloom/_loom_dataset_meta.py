@@ -43,7 +43,7 @@ from pitloom.assemble.spdx3.dataset import (
     written_provenance,
 )
 from pitloom.core.ai_metadata import MODEL_NAME_CAP, cap_model_name
-from pitloom.core.dataset_metadata import DatasetMetadata
+from pitloom.core.dataset_metadata import FOLLOWER_FIELDS, DatasetMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich.readme import DATASET_CARD
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
@@ -85,6 +85,8 @@ CONTROL_CHARACTERS_WARNING = (
 
 #: Fields the loom call itself sets: never taken from a source.
 _DECLARED_FIELDS = frozenset({"name", "dataset_types", "provenance"})
+#: Fields taken only with the one they follow.
+_FOLLOWERS = frozenset(FOLLOWER_FIELDS.values())
 
 #: An ``http``/``https`` URL in any case, also as ``Path`` collapses its
 #: ``//`` (``https:/host``), or a Windows ``Path`` writes it.
@@ -209,12 +211,15 @@ def merge_metadata(name: str, sources: list[DatasetMetadata]) -> DatasetMetadata
     merged = DatasetMetadata(name)
     stated = False
     for field in dataclasses.fields(DatasetMetadata):
-        if field.name in _DECLARED_FIELDS:
+        if field.name in _DECLARED_FIELDS or field.name in _FOLLOWERS:
             continue
         for source in sources:
             value = getattr(source, field.name)
             if _states(value):
                 setattr(merged, field.name, value)
+                follower = FOLLOWER_FIELDS.get(field.name)
+                if follower:
+                    setattr(merged, follower, getattr(source, follower))
                 if field.name in source.provenance:
                     merged.provenance[field.name] = source.provenance[field.name]
                 stated = True

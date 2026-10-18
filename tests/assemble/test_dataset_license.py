@@ -21,7 +21,11 @@ import pytest
 
 from pitloom.assemble.spdx3.document import build_model
 from pitloom.core.ai_metadata import AiModelMetadata
-from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
+from pitloom.core.dataset_metadata import (
+    DatasetMetadata,
+    DatasetReference,
+    FurtherLicences,
+)
 from tests._author_routes import CREATED
 from tests._spdx3_validate import assert_spdx3_valid
 
@@ -33,9 +37,13 @@ def _graph(
     *,
     model_license: str | None = None,
     provenance: dict[str, str] | None = None,
+    further: FurtherLicences | None = None,
 ) -> Graph:
     dataset = DatasetMetadata(
-        name="corpus", license=dataset_license, provenance=provenance or {}
+        name="corpus",
+        license=dataset_license,
+        further_licenses=further,
+        provenance=provenance or {},
     )
     model = AiModelMetadata(
         name="m",
@@ -122,4 +130,39 @@ def test_the_sbom_with_dataset_licences_is_valid(tmp_path: Path) -> None:
     )
     path = tmp_path / "sbom.json"
     path.write_text(build_model(model, CREATED).to_json(), encoding="utf-8")
+    assert_spdx3_valid(path)
+
+
+_FURTHER = FurtherLicences(("GFDL-1.3-or-later",), "Hugging Face dataset card")
+
+
+def test_several_licences_are_each_declared_with_one_comment() -> None:
+    graph = _graph("CC-BY-SA-3.0", further=_FURTHER)
+    assert _licence_links(graph) == [
+        ("dataset_DatasetPackage", "hasDeclaredLicense", "CC-BY-SA-3.0"),
+        ("dataset_DatasetPackage", "hasDeclaredLicense", "GFDL-1.3-or-later"),
+    ]
+    (package,) = _of(graph, "dataset_DatasetPackage")
+    assert package["comment"].startswith(
+        "The Hugging Face dataset card lists several licences; it does not say "
+        "whether they combine as AND or OR."
+    )
+
+
+def test_one_licence_has_no_several_licences_comment() -> None:
+    (package,) = _of(_graph("CC-BY-SA-3.0"), "dataset_DatasetPackage")
+    assert "several licences" not in package.get("comment", "")
+
+
+def test_several_licences_sbom_is_valid_and_identical(tmp_path: Path) -> None:
+    dataset = DatasetMetadata(
+        name="corpus", license="CC-BY-SA-3.0", further_licenses=_FURTHER
+    )
+    model = AiModelMetadata(
+        name="m", datasets=[DatasetReference(role="trainedOn", metadata=dataset)]
+    )
+    outputs = [build_model(model, CREATED).to_json() for _ in range(2)]
+    assert outputs[0] == outputs[1]
+    path = tmp_path / "sbom.json"
+    path.write_text(outputs[0], encoding="utf-8")
     assert_spdx3_valid(path)

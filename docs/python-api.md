@@ -322,8 +322,11 @@ nothing and logged as nothing, so the next source may state one. A
 `license_name` and/or `license_link` (a Hugging Face card's fields) is written
 as that name followed by the link. Each field a source gave is named in the
 package's provenance (`license: Source: data/corpus/README.md | Field:
-license`). A licence that holds no text (a number, several licences in a
-list), a `version` written as a decimal number (YAML and JSON read `1.10` as
+license`). A list of several licences gives each its own
+`hasDeclaredLicense`, in order and once each (letter case ignored), by the
+rules above (a bare `other` among them gives none), and the package comment
+says the source does not state whether they combine as AND or OR. A licence
+that holds no text (a number, a mapping), a `version` written as a decimal number (YAML and JSON read `1.10` as
 `1.1`), a card `version` that is not quoted text (YAML 1.1 reads `1:1:1` as
 `3661` and `010` as `8`: quote it, `version: "1.0"`), and any other value of
 the wrong shape (a size that is negative, not whole, `true` or over

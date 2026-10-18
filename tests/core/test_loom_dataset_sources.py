@@ -118,6 +118,45 @@ def test_card_licence(
     assert not warnings_of(caplog)
 
 
+_SEVERAL = "lists several licences; it does not say whether they combine as AND or OR."
+
+
+@pytest.mark.parametrize(
+    ("declared_license", "expected", "comment"),
+    [
+        (None, [(TEXT, "Foo"), (EXPRESSION, "MIT")], "The Croissant file " + _SEVERAL),
+        ("GPL-2.0-only", [(EXPRESSION, "GPL-2.0-only")], None),
+    ],
+    ids=["sources", "declared"],
+)
+def test_licence_list_is_taken_whole_from_one_source(
+    project: Path,
+    caplog: pytest.LogCaptureFixture,
+    declared_license: str | None,
+    expected: list[tuple[str, str]],
+    comment: str | None,
+) -> None:
+    """A source's list is the dataset's licences, with one comment, all
+    from that source (Croissant before the card); ``declared_license=``
+    beats it whole."""
+    dir_dataset(project / "corpus", "license: [cc-by-sa-3.0, gfdl]\n")
+    croissant_file(project / "c.json", license=["Foo", "MIT", "foo"])
+    with caplog.at_level(logging.DEBUG, logger="pitloom"):
+        graph = run_graph(
+            project / "out.json",
+            lambda: loom.add_dataset(
+                "corpus", croissant="c.json", declared_license=declared_license
+            ),
+        )
+    assert sorted(declared(graph, "corpus")) == sorted(expected)
+    text = package_of(graph, "corpus")["comment"]
+    assert (_SEVERAL in text) is (comment is not None)
+    if comment:
+        assert text.startswith(comment)
+    assert not warnings_of(caplog)
+    assert_spdx3_valid(project / "out.json")
+
+
 def test_declared_beats_croissant_beats_card(project: Path) -> None:
     """Field by field: ``declared_license=``, then Croissant, then the
     card; a field only a later source states is still taken from it."""
@@ -238,7 +277,7 @@ def test_two_runs_give_identical_bytes(project: Path) -> None:
     """Same sources, same fragment, byte for byte (the run's random
     document uuid and clock held)."""
     croissant_file(project / "c.json", license="MIT", version="1")
-    dir_dataset(project / "corpus", "license: other\nlicense_link: x\n")
+    dir_dataset(project / "corpus", "license: [other, cc-by-4.0, gfdl]\n")
     fixed = uuid.UUID(int=7)
     outputs: list[bytes] = []
     for index in range(2):
@@ -254,6 +293,7 @@ def test_two_runs_give_identical_bytes(project: Path) -> None:
                 loom.add_dataset("corpus")
         outputs.append(output.read_bytes())
     assert b"hasDeclaredLicense" in outputs[0]
+    assert b"lists several licences" in outputs[0]
     assert outputs[0] == outputs[1]
 
 

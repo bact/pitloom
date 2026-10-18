@@ -47,7 +47,11 @@ from pitloom.extract.dataset.croissant_key import (
     URL_KEYS,
     VERSION_KEYS,
 )
-from pitloom.extract.dataset.licence import dataset_licence
+from pitloom.extract.dataset.licence import (
+    DatasetLicence,
+    apply_dataset_licence,
+    dataset_licence,
+)
 from pitloom.extract.dataset.values import (
     stated_count,
     stated_name,
@@ -141,7 +145,7 @@ def _extract_croissant_core_fields(
     str | None,
     str | None,
     str | None,
-    str | None,
+    DatasetLicence | None,
     list[str],
     str | None,
 ]:
@@ -160,9 +164,10 @@ def _extract_croissant_core_fields(
     if download_url:
         provenance["download_url"] = f"Source: {src_label} | Field: url"
 
-    licence = dataset_licence(get_first(data, *LICENSE_KEYS), source=src_label)
-    license_val = None if licence is None else licence.text
-    if licence is not None:
+    licence = dataset_licence(
+        get_first(data, *LICENSE_KEYS), source=src_label, lister="Croissant file"
+    )
+    if licence is not None:  # set again, in place, by apply_dataset_licence
         provenance["license"] = licence.provenance
 
     keywords = stated_texts(get_first(data, *KEYWORDS_KEYS), src_label, "keywords")
@@ -173,7 +178,7 @@ def _extract_croissant_core_fields(
     if creator:
         provenance["creator"] = f"Source: {src_label} | Field: creator"
 
-    return version, description, download_url, license_val, keywords, creator
+    return version, description, download_url, licence, keywords, creator
 
 
 def _extract_croissant_rai_fields(
@@ -317,7 +322,7 @@ def _metadata(
         version,
         description,
         download_url,
-        license_val,
+        licence,
         keywords,
         creator,
     ) = _extract_croissant_core_fields(data, src_label, provenance)
@@ -346,7 +351,6 @@ def _metadata(
         version=version,
         description=description,
         download_url=download_url,
-        license=license_val,
         keywords=keywords,
         creator=creator,
         dataset_types=dataset_types,
@@ -360,6 +364,7 @@ def _metadata(
         croissant_url=croissant_url,
         provenance=provenance,
     )
+    apply_dataset_licence(meta, licence)
     if escape_lone_surrogates_in(meta)[1]:
         log.warning(LONE_SURROGATES_WARNING, "", loggable(src_label))
     return meta

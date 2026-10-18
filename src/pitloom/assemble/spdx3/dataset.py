@@ -75,7 +75,9 @@ def _set_package_fields(
     dataset_pkg: spdx3.dataset_DatasetPackage, meta: DatasetMetadata
 ) -> None:
     """Set the version, description and download location (with its PURL)
-    *meta* states."""
+    *meta* states, and the comment on several licences."""
+    if meta.further_licenses:
+        dataset_pkg.comment = meta.further_licenses.comment
     if meta.version:
         dataset_pkg.software_packageVersion = meta.version
     if meta.description:
@@ -198,16 +200,19 @@ def add_dataset_license(
     encoder: ProvenanceEncoder | None = None,
 ) -> list[tuple[str, spdx3.Element]]:
     """The ``hasDeclaredLicense`` (``hasConcludedLicense`` for a
-    third-party record) from *dataset_pkg* to the licence *meta* states,
-    with the provenance its reader recorded; the licence elements, labelled
-    for the display-text warning. Nothing when *meta* states no licence.
-    *doc* is the creation info, document name and uuid."""
+    third-party record) from *dataset_pkg* to each licence *meta* states,
+    in order, with the provenance its reader recorded; the licence
+    elements, labelled for the display-text warning. Nothing when *meta*
+    states no licence. *doc* is the creation info, document name and
+    uuid."""
     if not meta.license:
         return []
+    further = meta.further_licenses.texts if meta.further_licenses else ()
     return [
         (LICENSE, element)
+        for licence in (meta.license, *further)
         for element in add_license_relationships(
-            meta.license,
+            licence,
             require_spdx_id(dataset_pkg),
             meta.provenance.get("license", DATASET_LICENSE_SOURCE),
             doc,
