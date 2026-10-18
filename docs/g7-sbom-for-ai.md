@@ -113,9 +113,15 @@ told apart.
 
 ## Parity
 
-Features should behave alike on every surface (command line, library, Hatchling
-hook, GitHub Action, skills) and for every file format. A known gap is listed here
-with what it needs; a date is set for each.
+Every surface gives the same G7 result for the same input: the library, the
+`loom` command line (`model`, `generate`, `project`, `wheel`), the Hatchling hook
+and, since the Action and the skills run those commands, the GitHub Action and
+the skills. This is tested, not assumed. The one difference is by design: the
+build hook records when the package was built (`builtTime`), because it runs
+during a build.
+
+Tiers apply only to AI model file formats and Python build backends. A known gap
+there is listed below with what it needs; a date is set for each.
 
 | Gap | Where | Needs | Target |
 | :-- | :---- | :---- | :----- |

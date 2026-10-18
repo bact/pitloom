@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-17
-Last-Modified: 2026-10-17
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -47,11 +47,19 @@ them working.
 
 ## Parity principle
 
-Every feature behaves reasonably alike across the usage surfaces (CLI, library,
-Hatchling hook, GitHub Action, skills) and across file formats. It does not
-have to be at once: a gap is allowed if it is listed with a target date.
+Decided 2026-10-18 (user): surface parity holds from the start. The CLI, the
+library, the Hatchling hook, the GitHub Action and the skills give the same
+result for the same input; a difference is a bug, not a ledger entry. Tiers
+apply only to AI model file formats and Python build backends.
 
-Parity ledger (a gap, where it is, what it needs, target). Targets are to be
+Test: `tests/conformance/test_g7ai_surfaces.py` runs each input through every
+surface that can take it (library, `loom model`, `loom generate`, `loom
+project`, `loom wheel`, the hook) and compares the checker's outcome for every
+G7 rule and the elements and property names. One allowed difference: the hook
+adds `builtTime` (it runs during a build). The Action and the skills run the
+same `loom` commands.
+
+Format and backend ledger (a gap, where it is, what it needs, target). Targets are to be
 set; none is invented here.
 
 | Gap | Surfaces or formats | Needs | Target |

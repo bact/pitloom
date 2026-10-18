@@ -49,7 +49,7 @@ OUTCOMES = ("present", "missing", "not-applicable", "out-of-scope")
 
 
 @contextmanager
-def _without_licence_database() -> Iterator[None]:
+def without_licence_database() -> Iterator[None]:
     """Build as if the ``licenseid`` database were absent.
 
     CI builds it and a laptop may not; with it, licence IDs are canonicalised
@@ -61,7 +61,7 @@ def _without_licence_database() -> Iterator[None]:
 
 def _file(relative: str) -> Callable[[], str]:
     def build() -> str:
-        with _without_licence_database():
+        with without_licence_database():
             return generate_model_sbom(
                 str(AIMODELS / relative), creation_metadata=CREATED
             )
@@ -81,7 +81,7 @@ _HUB_INFO = {
 def _hub() -> str:
     card = _make_card_data(license="apache-2.0", datasets=["c4"])
     with (
-        _without_licence_database(),
+        without_licence_database(),
         _patch_hf_calls(card_data=card, hub_info=_HUB_INFO),
     ):
         return generate_model_sbom("acme/model", creation_metadata=CREATED)
@@ -112,7 +112,7 @@ def _library() -> str:
             file_name="m.gguf", model_format=AiModelFormat.GGUF
         ),
     )
-    with _without_licence_database():
+    with without_licence_database():
         return build_model(model, CREATED, digest="ab" * 32).to_json()
 
 
@@ -141,15 +141,20 @@ BACKENDS = {
 }
 
 
+def write_project(root: Path, pyproject: str) -> None:
+    """Write a project with *pyproject* that holds one Safetensors model."""
+    (root / "demo").mkdir()
+    (root / "demo" / "__init__.py").write_bytes(b"x = 1\n")
+    (root / "demo" / "m.safetensors").write_bytes(safetensors_bytes())
+    (root / "pyproject.toml").write_text(pyproject, encoding="utf-8")
+
+
 def project_sbom(pyproject: str) -> str:
     """The SBOM of a project with *pyproject* that holds one Safetensors model."""
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        (root / "demo").mkdir()
-        (root / "demo" / "__init__.py").write_bytes(b"x = 1\n")
-        (root / "demo" / "m.safetensors").write_bytes(safetensors_bytes())
-        (root / "pyproject.toml").write_text(pyproject, encoding="utf-8")
-        with _without_licence_database():
+        write_project(root, pyproject)
+        with without_licence_database():
             return generate_project_sbom(root, creation_metadata=CREATED, offline=True)
 
 
