@@ -43,8 +43,9 @@ The same scenarios are checked against CISA 2026 (`cisa2026`) and FSCT 2024
 - `test_standard_outcomes.py` holds `cisa2026-expected.tsv`,
   `fsct3-expected.tsv` and `bsi-expected.tsv` the same way: every rule listed
   with its provision, `out-of-scope` only for the `catalogue-only` rules, any
-  changed cell fails. CISA 2026 and FSCT 2024 also judge the datasets and
-  models a component reaches by `trainedOn` and `testedOn`; BSI does not.
+  changed cell fails. Every standard judges the datasets and
+  models a component reaches by `trainedOn` and `testedOn` (since checker
+  `151460c`; before, only CISA 2026, FSCT 2024 and G7).
 - `test_g7ai_surfaces.py` runs one input through the library, `loom model`,
   `loom generate`, `loom project`, `loom wheel` and the Hatchling hook, and
   requires the same outcome for every rule of all four standards, the same
@@ -197,10 +198,13 @@ every package in every scenario carries a package URL.
 
 **BSI TR-03183-2 v2.1 (2026-10-18).** Checked with `bsi` (rule-based, 20
 elements, 16 checked); table `bsi-expected.tsv`, report
-`bsi-0.20.3-dev.json`. BSI follows composition and dependency relationships but
-not `trainedOn`/`testedOn`. The SHA-512 hash is `present` for model files and
-the library-built model, `missing` for a Hugging Face model and every project
-(a SHA-256 Merkle root, no SHA-512 source for dependencies); the creator rules
+`bsi-0.20.3-dev.json`. Checker `a877b4c` did not follow
+`trainedOn`/`testedOn` for BSI; `151460c` follows them for every standard, so
+the `hub` and `library` datasets are judged: version `missing` for `hub`,
+SHA-512 `missing` for `library`, and the dataset's download location makes
+COMP-012 apply and pass. The SHA-512 hash is `present` for model files,
+`missing` for a Hugging Face model, the library-built model and every project
+(a SHA-256 Merkle root; no SHA-512 source for dependencies or datasets); the creator rules
 are `missing` everywhere because Pitloom's creator is a software agent.
 
 **SHA-512 (2026-10-18).** Every file Pitloom reads and describes gets its

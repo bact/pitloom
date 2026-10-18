@@ -43,7 +43,7 @@ The checker is [`ntia-conformance-checker`](https://github.com/bact/ntia-conform
 with the `g7ai` standard, which is not yet on PyPI:
 
 ```shell
-pip install "ntia-conformance-checker @ git+https://github.com/bact/ntia-conformance-checker.git@a877b4c99746618456227c94f59813b0236c3a8a"
+pip install "ntia-conformance-checker @ git+https://github.com/bact/ntia-conformance-checker.git@151460c72bdf3664cecce5b16e61f4b0b379a7d1"
 loom model model.safetensors -o model.spdx3.json      # or an ONNX, GGUF, NumPy or fastText file
 loom model org/name -o model.spdx3.json              # a Hugging Face model
 loom generate path/to/project -o project.spdx3.json  # a project that ships a model
@@ -178,14 +178,14 @@ that does not give them. For Pitloom's test SBOMs:
 | Element | Result |
 | :------ | :----- |
 | Timestamp, component name, other unique identifiers | present in every scenario |
-| Hash of the deployable component (SHA-512) | present for model files and the library-built model; missing for a Hugging Face model and every project: a project's hash is a SHA-256 Merkle root, and a dependency has no SHA-512 source |
-| Component version | present for a Hugging Face model and the library-built model only |
+| Hash of the deployable component (SHA-512) | present for model files; missing for a Hugging Face model, the library-built model and every project: a project's hash is a SHA-256 Merkle root, and a dependency or a dataset has no SHA-512 source |
+| Component version | present for the library-built model only; missing for a Hugging Face model, whose dataset states none |
 | Original licence (if it exists) | present for a Hugging Face model, the library-built model and projects |
 | Creator of the SBOM and of each component | missing in every scenario: BSI wants a person or organisation with an e-mail address or URL, and Pitloom's creator is a software agent |
 | Filename, dependencies with completeness, distribution licence, structured property, effective licence, security.txt URL | missing in every scenario: Pitloom does not write them |
 
 Where BSI's own tables and the SPDX mapping differ, the checker accepts both
-(see its BSI page). The coverage figures are 29–43% of the checked rules.
+(see its BSI page). BSI reaches the datasets linked by `trainedOn` and `testedOn` like the other standards, so a dataset is judged too. The coverage figures are 29–40% of the checked rules.
 
 ## Parity
 
