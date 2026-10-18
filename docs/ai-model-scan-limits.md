@@ -51,7 +51,7 @@ The format-only entry has exactly this: an `ai_AIPackage` whose
 generator | Method: file_name_stem`), no `ai_*` property and no `comment`
 entry `Source: <model file> | Field: ...` (a read model has such entries),
 a `contains` relationship to the model's `software_File`, and that file's
-SHA-256 hash. The hash comes from the file list and does not depend on the
+SHA-256 and SHA-512 hashes. The hash comes from the file list and does not depend on the
 model being read. With `--enrich` (project scans) a stub can also carry a
 `comment` from the README or model card, `Source: README.md | Method:
 yaml_frontmatter`, plus the licence and datasets it names; it is still a

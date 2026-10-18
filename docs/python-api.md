@@ -274,9 +274,9 @@ unreadable-model `WARNING:`. Leaving a block, by an exception too, restores
 the enclosing run, so a recursive `@loom.run` call is safe.
 
 The run also records *which script produced what*: the calling script
-becomes a `software_File` (with a SHA-256 hash) with `generates`
+becomes a `software_File` (with SHA-256 and SHA-512 hashes) with `generates`
 relationships to the model it trained and/or the output datasets it
-wrote. A dataset that is a file gets a SHA-256 hash and a `software_File`
+wrote. A dataset that is a file gets SHA-256 and SHA-512 hashes and a `software_File`
 it `contains`; a directory gets a SHA-256 Merkle root over its files' paths
 and content, its `comment` saying so, and no file elements. Below a dataset
 directory, the [directories `id generate` skips](id-registry.md#directories-that-are-skipped)

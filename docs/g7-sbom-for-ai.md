@@ -89,8 +89,12 @@ The three build backends give the same result for the same project.
 - **No release time for a model file, and a version or producer only where the
   file states one** (a PT2 file does; most files do not). Pitloom does not copy a
   project's author onto its model.
+- **A dependency's hash is only what its lock file states** (a SHA-256), never
+  computed, so a dependency cannot meet a SHA-512 requirement such as BSI's.
+  A project's own hash is a SHA-256 Merkle root over its files, not the hash of
+  a built archive.
 - **No hash for a Hugging Face model.** A repository has many files; hashing them
-  needs a request each. A local file always gets its SHA-256.
+  needs a request each. A local file always gets its SHA-256 and SHA-512.
 - **A model's inputs and outputs are only what its format states or implies.**
   ONNX, Keras, HDF5 and PT2 state a signature. A fastText or CRFsuite model has a
   fixed kind of output (label probabilities, a label sequence), which Pitloom
