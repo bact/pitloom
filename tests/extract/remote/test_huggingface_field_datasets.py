@@ -20,7 +20,7 @@ from pitloom.extract.remote.huggingface_field import _extract_datasets
     [
         (["a/b", "c/d"], ["a/b", "c/d"], False),
         ("imdb", ["imdb"], False),  # not four one-letter datasets
-        (["a/b", "a/b", " c/d "], ["a/b", "c/d"], False),
+        (["a/b", "a/b", " c/d "], ["a/b", "a/b", "c/d"], False),  # repeats kept
         (["a/b", None, {"x": 1}, ["y"]], ["a/b"], True),
         (5, [], True),
         (True, [], True),

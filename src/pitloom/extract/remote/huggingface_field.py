@@ -259,15 +259,8 @@ def _extract_datasets(
     card_data: dict[str, Any] = hf_data.get("card_data") or {}
     datasets: list[DatasetReference] = []
     # A card may state one dataset as a bare string; non-text items are left out.
-    card_dataset_ids = list(
-        dict.fromkeys(
-            stated_texts(
-                card_data.get("datasets"),
-                "Hugging Face model card",
-                "datasets",
-                split=False,
-            )
-        )
+    card_dataset_ids = stated_texts(
+        card_data.get("datasets"), "Hugging Face model card", "datasets", split=False
     )
 
     if card_dataset_ids:
