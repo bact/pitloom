@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-09-28
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -87,7 +87,8 @@ file-size guidance -- moved verbatim, no content changed.
   now populate SPDX 3 `verifiedUsing`, taking priority over a PyPI JSON API
   lookup even online.
   See [lock-hash-preservation.md](../implementation/lock-hash-preservation.md).
-- [ ] **SHA-512 / BSI TR-03183-2 `verifiedUsing`** -- no lock format or the
+- [ ] **SHA-512 / BSI TR-03183-2 `verifiedUsing` for dependencies** (files
+  Pitloom reads itself already carry one) -- no lock format or the
   PyPI JSON API carries a SHA-512 digest; producing one means downloading the
   artefact and hashing it, a heavier feature than the SHA-256 lock-hash
   preservation above. `Element.verifiedUsing`'s 0..* cardinality means this

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-17
-Last-Modified: 2026-10-17
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,23 +38,25 @@ know. Concretely:
 
 ## What Pitloom cannot reliably do, extract or tell apart
 
-Checked against the code unless marked *to verify*.
+Checked against the code.
 
 | Cannot | Why | What Pitloom does |
 |---|---|---|
 | Tell a person from an organisation | A name carries no type | Generic `Agent` for a producer (`originatedBy`, and `suppliedBy` for a Hub owner); a typed Agent comes from a fragment |
 | Know a Hub owner produced the model | `model_info.author` is the repository owner | Recorded as producer with `Method: repository_owner` |
 | Treat a Hub card's datasets as verified | The card lists them | A dataset reference with role `trainedOn` from the card; provenance names the card |
-| Say what a parameter count means | A file gives stored tensor elements; the Hub gives its own total; quantisation may pack values (*to verify* per format) | `ai_hyperparameter` `parameters`, with a package comment that it is a count of elements, not a hyperparameter |
+| Say what a parameter count means | A file gives stored tensor elements; the Hub gives its own total | `ai_hyperparameter` `parameters`, with a package comment that it is a count of elements, not a hyperparameter |
 | Give a model file a version, producer or time | A bare file often carries none | Left out; the checker reports the rule `missing` |
 | Hash a Hub model | Needs a request per file, and a repository has many files | `verifiedUsing` is written only for a local file |
-| Canonicalise a licence without the `licenseid` database | The database is built separately | The licence is kept as read; one warning per run |
-| Separate a system from its model | A model SBOM's root is the AI package | Both rules read the same package |
+| Canonicalise a licence without the `licenseid` database | The database is built separately | The licence is kept as read; one warning per process |
+| Separate a system from its model | A model SBOM's one root is the AI package | The checker reads the System rules from that package (`systemJudgedByModel`); a project's own package is its system |
 
 ## G7 elements SPDX 3.0.1 has no property for
 
-The mapping (`g7ai2026-to-spdx30.sssom.tsv`) marks 25 elements `GAP`, or
-leaves them unreviewed. The checker reports them `out-of-scope`. Where Pitloom
+The checker does not check 25 G7 elements (`catalogue-only`, reported
+`out-of-scope`). For 20 of them the mapping (`g7ai2026-to-spdx30.sssom.tsv`)
+has a row whose comment starts with `GAP` (no native SPDX 3.0.1 field); the
+other five are INF-001, SP-003, SP-004, KPI-001 and KPI-002. Where Pitloom
 reads such information today it records it only as follows:
 
 | G7 element | Read by Pitloom | Recorded as | Honest? |

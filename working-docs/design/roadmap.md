@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -133,12 +133,17 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   packages (G7 B2; see
   [g7-conformance-tests.md](../implementation/g7-conformance-tests.md)).
   Open: a `contentIdentifier` (gitoid).
-- [ ] **SHA-512 hash option**: BSI 2025 requires SHA-512 on the deployable
-  component; Pitloom emits SHA-256 only (`software_File`, `verifiedUsing`).
-  Open: opt-in flag vs always add; the registry keeps SHA-256 as its gate.
-- [ ] **Support tiers and demo scope** (tier 1: Safetensors, ONNX, GGUF, NumPy,
-  fastText; demo: G7 Metadata/System/Model/Dataset, SPDX 3.0, Hatchling,
-  setuptools, Poetry) and the parity ledger. See
+- [x] **SHA-512 beside SHA-256** (always, no flag) for every file Pitloom
+  reads and describes: model files, project/wheel/sdist file elements, `loom`
+  files, bundled libraries (`pitloom.core.file_hash`). The registry gate, a
+  Merkle root and a lock file's dependency hash stay SHA-256. Open: dependency
+  SHA-512 ([build-backend-improvements.md](build-backend-improvements.md)).
+- [x] **Hub revision** (G7 B3): a Hub model's commit hash as its version and
+  its last-modified time as `releaseTime`.
+- [x] **Support tiers and demo scope** (tier 1: Safetensors, ONNX, GGUF, NumPy,
+  fastText, Hugging Face Hub; demo: G7 Metadata/System/Model/Dataset, SPDX 3.0,
+  Hatchling, setuptools, Poetry) and the parity ledger, on the user page
+  `docs/g7-sbom-for-ai.md`. Open: the ledger's gaps (target 2026-10-19). See
   [support-tiers-and-demo-scope.md](support-tiers-and-demo-scope.md).
 - [ ] **G7 honesty notices**: an `INFO:`/`WARNING:` for information read
   from a source that SPDX 3.0.1 has no property to record. See
@@ -151,6 +156,10 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   same table, report and surface-parity tests as G7; coverage in
   `g7-coverage-history/cisa2026-*.json`. Hash value and algorithm are checked as
   "an integrity method is present" only.
+- [x] **FSCT 2024 conformance tests** (`fsct3` in the checker): the same table,
+  report and surface-parity tests; coverage in `g7-coverage-history/fsct3-*.json`.
+- [ ] CHANGELOG entries for the 2026-10 G7/CISA/FSCT/SHA-512 work deferred until
+  PR numbers exist (`tests/test_changelog.py` requires one).
 - [ ] **BSI TR-03183-2 v2.1 as a rule-based standard** (queued, after CISA 2026):
   the checker's hand-written `BSIChecker` stays the verdict source; a
   `bsi2025.yaml` rule set with per-rule outcomes is built beside it and must

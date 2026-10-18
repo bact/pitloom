@@ -25,8 +25,8 @@ Decided 2026-10-17 (user) so that a demo can be finished by the weekend.
 Rules:
 
 - A lower-tier gap is documented where users read it
-  (`docs/ai-model-formats.md`) and listed in the follow-ups below, with what
-  is missing and the format's reader.
+  (`docs/g7-sbom-for-ai.md`, "Gaps by format and backend") and listed in the
+  ledger below, with what is missing and its target date.
 - A fix that makes an SBOM dishonest (a value that is not true) is not a
   completeness gap: it is fixed in any tier. The model-inputs fix of
   2026-10-17 touched PT2 for that reason.
@@ -38,12 +38,13 @@ Rules:
 |---|---|
 | Minimum elements standard | A few clusters of G7 SBOM for AI: Metadata, System, Model, Dataset |
 | SBOM format | SPDX 3.0 (3.0.1) |
-| AI model formats | Safetensors, ONNX, fastText, GGUF (tier 1 also lists NumPy: see open questions) |
+| AI model sources | Tier 1: Safetensors, ONNX, GGUF, NumPy, fastText and the Hugging Face Hub |
 | Python build backends | Hatchling, setuptools, Poetry |
 
 Out of scope for the demo: the Infrastructure, Security and KPI clusters; other
-standards (NTIA, CISA, BSI) and SBOM formats; tier 2 formats beyond keeping
-them working.
+SBOM formats; tier 2 formats beyond keeping them working. CISA 2026 and FSCT
+2024 are checked by the same tests and reported on the user page; NTIA and
+BSI are not.
 
 ## Parity principle
 
@@ -55,9 +56,10 @@ apply only to AI model file formats and Python build backends.
 Test: `tests/conformance/test_g7ai_surfaces.py` runs each input through every
 surface that can take it (library, `loom model`, `loom generate`, `loom
 project`, `loom wheel`, the hook) and compares the checker's outcome for every
-G7 rule and the elements and property names. One allowed difference: the hook
-adds `builtTime` (it runs during a build). The Action and the skills run the
-same `loom` commands.
+G7, CISA 2026 and FSCT 2024 rule, the elements and property names, and the
+names, versions, package URLs and hash values. One allowed difference: the
+hook adds `builtTime` (it runs during a build). The Action and the skills run
+the same `loom` commands and are not tested separately.
 
 Format and backend ledger (a gap, where it is, what it needs, target). Target date for every gap
 (user decision 2026-10-18): 2026-10-19. A gap not closed by then stays listed with the date missed.
@@ -76,25 +78,25 @@ Format and backend ledger (a gap, where it is, what it needs, target). Target da
 
 - Hugging Face and NumPy are tier 1 and in the conformance table (scenarios
   `hub` and `numpy`).
-- A project that ships only an AI model, with no system of its own, is judged
-  by the model for the System-level (SLP) properties: done in the checker,
-  which names the model it judged (`systemJudgedByModel`).
-- The ledger below says, per gap, what is missing and when it will be fixed;
+- Only an SBOM whose one root is a single AI model is judged by that model
+  for the System-level (SLP) properties; the checker names the model it
+  judged (`systemJudgedByModel`). A project that ships a model has a root of
+  its own and is judged by its own package (first decided for such projects
+  too, then narrowed the same day).
+- The ledger above says, per gap, what is missing and when it will be fixed;
   the date for each is 2026-10-19.
 
-## Demo: a proposed definition of done
+## Demo: definition of done
 
-1. Table scenarios for the four demo formats, NumPy and a project per backend,
-   each with expected cells and the honesty guards.
+Each item is done (2026-10-18):
+
+1. Table scenarios for the tier 1 sources and a project per backend, each
+   with expected cells and the honesty guards (`tests/conformance/`).
 2. A coverage report for those scenarios, with the previous iteration's
-   figures.
-3. The tier and parity ledger above published in the user docs, in the user's
-   words (no link into `working-docs/`).
-4. Known honest gaps listed on the demo page: what Pitloom leaves out and why.
+   figures ([g7-conformance-tests.md](../implementation/g7-conformance-tests.md)).
+3. The tier and parity ledger published in the user docs, in the user's words
+   (`docs/g7-sbom-for-ai.md`, no link into `working-docs/`).
+4. Known honest gaps listed on that page: what Pitloom leaves out and why.
 
-## Open questions
-
-- NumPy is tier 1 but not in the demo's format list. Keep it in tier 1 and
-  out of the demo, or add it to the demo?
-- Hugging Face Hub is a source, not a file format. Does it stay in the demo?
-- Parity targets: decided, 2026-10-19 for every gap.
+The open questions (NumPy and the Hugging Face Hub in the demo; parity
+targets) were settled by the decisions of 2026-10-18 above.

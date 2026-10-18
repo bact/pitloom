@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-17
-Last-Modified: 2026-10-17
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -14,6 +14,8 @@ needs and the order of work), [roadmap.md](../design/roadmap.md).
 Pitloom's SBOMs are checked against the G7 SBOM for AI minimum elements by
 `ntia-conformance-checker` (`-c g7ai`, SPDX 3.0 only), in the test suite. The
 tests turn each G7 field Pitloom adds into a table cell that cannot slip back.
+The same scenarios are checked against CISA 2026 (`cisa2026`) and FSCT 2024
+(`fsct3`, the checker's id), each with a table of its own.
 
 ## What runs
 
@@ -38,6 +40,16 @@ tests turn each G7 field Pitloom adds into a table cell that cannot slip back.
 - `test_g7ai_sssom_gaps.py` pins the elements the checker does not check
   although Pitloom writes the property the G7 -> SPDX mapping assigns to them
   (`EMITTED_BUT_UNCHECKED`). Property level only.
+- `test_standard_outcomes.py` holds `cisa2026-expected.tsv` and
+  `fsct3-expected.tsv` the same way: every rule listed with its provision,
+  `out-of-scope` only for the `catalogue-only` rules, any changed cell fails.
+  Both standards also judge the datasets and models a component reaches by
+  `trainedOn` and `testedOn`.
+- `test_g7ai_surfaces.py` runs one input through the library, `loom model`,
+  `loom generate`, `loom project`, `loom wheel` and the Hatchling hook, and
+  requires the same outcome for every rule of all three standards, the same
+  element types and property names, and the same names, versions, package
+  URLs and hash values. The hook may add `builtTime`.
 
 Three project scenarios (`proj-hatchling`, `proj-setuptools`, `proj-poetry`)
 build the same small project, with one Safetensors model, on each build
@@ -73,11 +85,13 @@ commits with the pins. The checker commit is also pinned in `lumina`
 
 ## Coverage history
 
-`python scripts/g7_coverage_report.py` prints the counts per scenario and G7
-cluster, and `--compare PREVIOUS CURRENT` lists the rules that flipped and warns
-when the checker or the mapping changed (a series break). Each increment adds
-`g7-coverage-history/<pitloom version>.json`. The figure is "meets the checker's
-reading of G7", not "G7 compliant"; unchecked rules are not counted as missing.
+`python scripts/g7_coverage_report.py [--standard g7ai|cisa2026|fsct3]` prints
+the counts per scenario and cluster, and `--compare PREVIOUS CURRENT` lists the
+rules that flipped and warns when the standard, the checker, the mapping or the
+rule count changed (a series break). Each increment adds
+`g7-coverage-history/<pitloom version>.json` (G7) or
+`<standard>-<pitloom version>.json`. The figure is "meets the checker's
+reading", not "compliant"; unchecked rules are not counted as missing.
 
 | Pitloom | Checker | Scenario | Present | Missing | Not applicable | Unchecked | Coverage |
 |---|---|---|---|---|---|---|---|
@@ -86,18 +100,23 @@ reading of G7", not "G7 compliant"; unchecked rules are not counted as missing.
 | 0.20.2 (baseline) | `9b70174` | onnx | 21 | 17 | 18 | 25 | 55.3% |
 | 0.20.2 (baseline) | `9b70174` | hub | 21 | 35 | 0 | 25 | 37.5% |
 | 0.20.2 (baseline) | `9b70174` | library | 23 | 33 | 0 | 25 | 41.1% |
-| now | `9b70174` | gguf | 16 | 22 | 18 | 25 | 42.1% |
-| now | `9b70174` | safetensors | 13 | 25 | 18 | 25 | 34.2% |
-| now | `9b70174` | onnx | 22 | 16 | 18 | 25 | 57.9% |
-| now | `9b70174` | numpy | 15 | 23 | 18 | 25 | 39.5% |
-| now | `9b70174` | fasttext | 23 | 15 | 18 | 25 | 60.5% |
-| now | `9b70174` | hub | 27 | 29 | 0 | 25 | 48.2% |
-| now | `9b70174` | library | 26 | 30 | 0 | 25 | 46.4% |
-| now | `9b70174` | proj-hatchling | 15 | 23 | 18 | 25 | 39.5% |
-| now | `9b70174` | proj-setuptools | 15 | 23 | 18 | 25 | 39.5% |
-| now | `9b70174` | proj-poetry | 15 | 23 | 18 | 25 | 39.5% |
+| 0.20.3-dev | `4143892` | gguf | 16 | 22 | 18 | 25 | 42.1% |
+| 0.20.3-dev | `4143892` | safetensors | 13 | 25 | 18 | 25 | 34.2% |
+| 0.20.3-dev | `4143892` | onnx | 22 | 16 | 18 | 25 | 57.9% |
+| 0.20.3-dev | `4143892` | numpy | 15 | 23 | 18 | 25 | 39.5% |
+| 0.20.3-dev | `4143892` | fasttext | 23 | 15 | 18 | 25 | 60.5% |
+| 0.20.3-dev | `4143892` | hub | 27 | 29 | 0 | 25 | 48.2% |
+| 0.20.3-dev | `4143892` | library | 26 | 30 | 0 | 25 | 46.4% |
+| 0.20.3-dev | `4143892` | proj-hatchling | 15 | 23 | 18 | 25 | 39.5% |
+| 0.20.3-dev | `4143892` | proj-setuptools | 15 | 23 | 18 | 25 | 39.5% |
+| 0.20.3-dev | `4143892` | proj-poetry | 15 | 23 | 18 | 25 | 39.5% |
 
 Coverage is present / (present + missing).
+
+CISA 2026 (23 rules, 9 unchecked) at `4143892`: 71.4% for each model file
+scenario and `library`, 57.1% for `hub`, 78.6% for each project. FSCT 2024
+(13 rules, 3 unchecked): 50.0% for each model file scenario and `hub`, 60.0%
+for `library` and each project.
 
 ## Honesty
 
@@ -129,7 +148,7 @@ before; `0.20.3-dev.json` the after. The CHANGELOG entry waits for a PR number
 
 **Demo scenarios (2026-10-18).** `numpy` and `fasttext` (tier 1) and the three
 project scenarios were added; the System cells of the projects are judged by
-the model (checker `b7785f4`). A fastText model's `ai_domain` is derived from
+the model (checker `b7785f4`; narrowed the same day, below). A fastText model's `ai_domain` is derived from
 the format, not stated in the file; its provenance now says so
 (`Method: derived_from_format`).
 
@@ -162,11 +181,31 @@ an SPDX expression, a URL and free text are kept as they are read. `hub` stays
 library-only) feeds one into a model SBOM yet. That reader is the next step
 for `DP-010`, with the `loom` SDK (B7).
 
+**Judge-by-model narrowed (2026-10-18).** Only an SBOM whose one root is a
+single AI model is judged by that model (`systemJudgedByModel`). A project
+that ships a model has its own root, so the projects' System cells are read
+from the project's package and most are `missing` (SLP 22%).
+
+**CISA 2026 and FSCT 2024 (2026-10-18).** The same scenarios are checked with
+`cisa2026` and `fsct3`; tables `cisa2026-expected.tsv` and `fsct3-expected.tsv`,
+reports `cisa2026-0.20.3-dev.json` and `fsct3-0.20.3-dev.json`. The component
+rules of both reach the datasets and models linked by `trainedOn` and
+`testedOn`, so a training dataset with no hash or version is reported. The
+CISA identifier rule needs a real identifier (`software_packageUrl`,
+`externalIdentifier` or `software_contentIdentifier`), not the `spdxId`;
+every package in every scenario carries a package URL.
+
+**SHA-512 (2026-10-18).** Every file Pitloom reads and describes gets its
+SHA-512 beside its SHA-256, from one read (`pitloom.core.file_hash`): model
+files, project, wheel and sdist file elements, `loom` model, dataset and
+script files, and bundled (phantom) libraries. A dependency's hash stays the
+SHA-256 its lock file gives, and a Merkle root stays SHA-256 only.
+
 ## Database-less builds
 
 `licenseid` canonicalises licence IDs when its database exists (CI builds it)
 and changes the SBOM text. The scenarios build as if it were absent
-(`g7ai_shared._without_licence_database`), so the table is the same on a
+(`g7ai_shared.without_licence_database`), so the table is the same on a
 laptop and in CI.
 
 ## Rejected
@@ -176,11 +215,10 @@ laptop and in CI.
 - Keeping `network` on every validation test: it hid the offline guarantee and
   made the release gate download the schema for each test.
 
-## History files and the checker commit (2026-10-18)
+## History files and the checker commit
 
-The history JSON files record the checker commit they were made with
-(`b7785f48`, `bebf5f85`). Later pins (`a9b84d16`) changed only docs and tests of
-the checker, and the outcomes were re-generated and found identical, so the old
-headers are kept as the record and `--compare` will flag a series break that is
-not one. A history file named `0.20.3-dev` records `pitloom 0.20.2`, the
-installed version when it was made.
+Each history file's header names the checker commit it was made with: the
+0.20.2 baseline `9b701748`, the three `0.20.3-dev` files `41438921` (the
+pinned commit). Regenerated with the pinned checker on 2026-10-18, each
+`0.20.3-dev` report equals the committed file. A history file named
+`0.20.3-dev` records `pitloom 0.20.2`, the installed version when it was made.

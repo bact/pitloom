@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -46,7 +46,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
      `dataset/` (datasets), `remote/` (remote registries/hubs), alongside
      top-level modules `wheel.py`, `env.py`, `binary.py`, `scanner.py`
    - `wheel.py` -- reads metadata from built `.whl` files (Analyzed SBOM) and
-     computes file-level SHA-256 hashes
+     computes file-level SHA-256 and SHA-512 hashes
    - `env.py` -- delegates to `pipdeptree --json` to extract a complete
      dependency graph of the active installed environment (Deployed SBOM);
      see [deployed-env-pipdeptree.md](deployed-env-pipdeptree.md)

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -241,11 +241,13 @@ the one list.
   `safety_risk_assessment`, `known_biases`, `intended_use` and
   `unintended_use` are assembled (`_ai_package.py`) but no reader or Hugging
   Face fetch fills them. Wire a source (model card sections) or drop them.
-- [ ] **Safetensors tensor names are recorded as `inputs` (S).** The reader
-  calls it a "lightweight inventory"; `ai_informationAboutApplication`
-  inputs mean model inputs. Check this is intended (the PT2 `model.json`
-  graph names are the same kind of stand-in). Same class: PT2 lists lifted
-  parameters as inputs (below); ONNX initializers were fixed in #294.
+- [x] **Safetensors tensor names are recorded as `inputs` (S).** Fixed
+  2026-10-17 (G7 honesty fix): Safetensors writes no inputs, NumPy keeps its
+  arrays as file `properties`, PT2 reads only the signature's user inputs and
+  outputs; see [g7-honesty-and-non-recordable.md](g7-honesty-and-non-recordable.md).
+  (Original report:) the reader called it a "lightweight inventory";
+  `ai_informationAboutApplication` inputs mean model inputs. ONNX initializers
+  were fixed in #294.
 - [ ] **ONNX loads the whole protobuf into memory (M).** `onnx.load(...,
   load_external_data=False)` still parses every graph node. fastText's full
   load is logged above; both go with the metadata-only readers in
@@ -269,7 +271,8 @@ the one list.
   [canonical-output-followups.md](canonical-output-followups.md#c17-invisible-characters-at-the-edges-of-a-licence-value)
   (C17).
 - [ ] **PT2 lists lifted parameters as inputs; framework `executorch` (S).**
-  `example-model.pt2` (`archive_format` `pt2`: a `torch.export` archive, not
+  Inputs fixed 2026-10-17: only `signature.input_specs` `user_input` entries
+  are read. Open: the framework. (Original report:) `example-model.pt2` (`archive_format` `pt2`: a `torch.export` archive, not
   an ExecuTorch `.pte`) gives inputs `p_line_weight`, `p_line_bias`, `x`;
   `signature.input_specs` marks only `x` as `user_input`. Read user inputs
   only, framework `pytorch` with `torch_version` (`2.11.0`, unread). The
@@ -309,9 +312,10 @@ the one list.
   `model_name` fallback, and drops `dtype` from hyperparameters, unlike
   HDF5. Add a drift-guard test over one model in both formats.
 - [ ] **PT2: a malformed `model.json` drops all PT2 metadata (S).** Found
-  in the #294 review: `models/model.json` as a list, `graph_module` as a
-  list, `"inputs": null` or a non-string tensor name each lose every PT2
-  field (`pytorch_pt2.py:265-278`), not just the bad one.
+  in the #294 review: `models/model.json` or `graph_module` as a list raises
+  `AttributeError` in `_read_pt2_graph_io` and loses every PT2 field, not just
+  the bad one (re-checked 2026-10-18). A non-string tensor name is now kept as
+  read.
 - [ ] **Blank text fields are kept by some readers (S).** Found in the #294
   review: Safetensors and ONNX `doc_string` and GGUF `general.description`
   keep a blank or padded value (`"  "`) with its provenance, while PT2,

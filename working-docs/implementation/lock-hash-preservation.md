@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-12
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,7 +38,10 @@ SHA-256 only. No lock format and no PyPI JSON API response carries
 SHA-512 (a BSI TR-03183-2 requirement) -- getting one would mean
 downloading the actual artefact and hashing it, a materially different
 feature (real network I/O even in offline mode, streaming-hash handling)
-tracked separately in `roadmap.md`. SPDX 3's `Element.verifiedUsing` has
+tracked separately in
+[build-backend-improvements.md](../design/build-backend-improvements.md).
+Files Pitloom reads itself do carry a SHA-512 beside the SHA-256
+(`pitloom.core.file_hash`); a dependency does not. SPDX 3's `Element.verifiedUsing` has
 0..* cardinality, so that future work can simply append an additional
 `Hash` to the list this feature already populates -- no restructuring
 needed here.
