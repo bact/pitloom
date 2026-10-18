@@ -47,7 +47,8 @@ licence. A dataset licence is a statement about the dataset.
   `provenance["license"]` (`Source: ... | Field: license`). Absent field: no
   licence, silently. `unknown`, `other` without a name or link, blank or
   `NOASSERTION`: no relationship (a placeholder is not a claim); if the source
-  states `other` with a licence name or link, that text is the licence.
+  states `other` with a licence name or link, that text is the licence (see
+  Decided).
 - **Shape.** One value goes through `add_license_relationships`, so a valid
   SPDX expression becomes a `LicenseExpression`, any other text a
   `SimpleLicensingText`, exactly as for models. The mapping
@@ -92,8 +93,14 @@ reader 3: request failure, cache hit, gate off.
 Reader 1: 0.5 day. Reader 2: 0.5 day. Reader 3: 1 day. Table, history and
 documentation updates: 0.5 day. About 2.5 days in total, one commit per reader.
 
-## Open questions for the owner
+## Decided (owner, 2026-10-18)
 
-1. Order: build 1 and 2 first (no network), 3 after the Hub gate is reviewed?
-2. Should a Hub dataset's `license: other` with only a `license_link` become a
-   `SimpleLicensingText` holding the link, or stay absent?
+A Hub dataset with `license: other` and only a `license_link` becomes a
+`SimpleLicensingText` holding the link (provenance names the card field). With
+a `license_name` as well, the text is the name and the link. `other` with
+neither stays absent.
+
+## Open question for the owner
+
+Order: build readers 1 and 2 (no network) first, reader 3 after the Hub gate is
+reviewed?
