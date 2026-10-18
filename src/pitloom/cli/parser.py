@@ -172,7 +172,7 @@ def _build_parent_parser() -> argparse.ArgumentParser:
     )
     parent.add_argument(
         "--content-type-method",
-        choices=VALID_CONTENT_TYPE_METHODS,
+        choices=sorted(VALID_CONTENT_TYPE_METHODS),
         default=None,
         help=(
             "Which detector resolves --content-type's contentType values: "
@@ -243,9 +243,9 @@ def _build_parent_parser() -> argparse.ArgumentParser:
         action=_CreatorTypeAction,
         dest="creators",
         default=None,
-        choices=VALID_CREATOR_TYPES,
+        choices=sorted(VALID_CREATOR_TYPES),
         metavar="TYPE",
-        help=f"Type of creator ({', '.join(VALID_CREATOR_TYPES)}).",
+        help=f"Type of creator ({', '.join(sorted(VALID_CREATOR_TYPES))}).",
     )
     creator_group.add_argument(
         "--creator-email",
