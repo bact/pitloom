@@ -43,7 +43,7 @@ The checker is [`ntia-conformance-checker`](https://github.com/bact/ntia-conform
 with the `g7ai` standard, which is not yet on PyPI:
 
 ```shell
-pip install "ntia-conformance-checker @ git+https://github.com/bact/ntia-conformance-checker.git@a9b84d1641f62805726e9ecd8dd484817a11da40"
+pip install "ntia-conformance-checker @ git+https://github.com/bact/ntia-conformance-checker.git@8ea26c819415d5bc94cd2851e9078659e59e7aa8"
 loom model model.safetensors -o model.spdx3.json      # or an ONNX, GGUF, NumPy or fastText file
 loom model org/name -o model.spdx3.json              # a Hugging Face model
 loom generate path/to/project -o project.spdx3.json  # a project that ships a model
