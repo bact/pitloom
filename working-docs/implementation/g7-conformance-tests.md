@@ -44,8 +44,13 @@ build the same small project, with one Safetensors model, on each build
 backend; a test requires the same G7 outcomes from all three. Setuptools ships
 a data file only when `package-data` says so, so its project declares it; a
 test shows that without it the model is not described (nothing is claimed that
-the distribution would not ship). Their System-level cells read the project
-root, not the model: see the judge-by-model rule.
+the distribution would not ship). A project that ships one model has no
+system of its own, so the checker judges its System-level properties (`SLP`)
+by the model (`systemJudgedByModel`, in the report as the model's name); a
+model's own SBOM needs no stand-in. The model of a bare Safetensors file has
+no producer, version or time, so those cells stay `missing` even though the
+project names an author: Pitloom does not copy the project's author onto the
+model, and the checker does not either.
 
 ## Offline validation
 
@@ -120,6 +125,12 @@ dataset without an http(s) URL. A gitoid `contentIdentifier` needs a second
 pass over the file and was not added. The 0.20.2 history file holds the
 before; `0.20.3-dev.json` the after. The CHANGELOG entry waits for a PR number
 (`tests/test_changelog.py` requires one).
+
+**Demo scenarios (2026-10-18).** `numpy` and `fasttext` (tier 1) and the three
+project scenarios were added; the System cells of the projects are judged by
+the model (checker `b7785f4`). A fastText model's `ai_domain` is derived from
+the format, not stated in the file; its provenance now says so
+(`Method: derived_from_format`).
 
 **Honesty fix, model inputs (2026-10-17).** A model's `inputs`/`outputs` are
 now only what its format states as a signature. Safetensors tensor keys, NumPy

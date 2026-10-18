@@ -132,7 +132,9 @@ def build_report(names: Sequence[str]) -> Report:
             text = shared.SCENARIOS[name]()
             path = Path(tmp) / f"{name}.spdx3.json"
             path.write_text(text, encoding="utf-8")
-            actual = shared.outcomes(path)
+            checker = shared.check(path)
+            actual = checker.rule_outcomes()
+            stand_in = checker.system_judged_by_model()
             written = {
                 (e["type"], k)
                 for e in json.loads(text)["@graph"]
@@ -141,6 +143,7 @@ def build_report(names: Sequence[str]) -> Report:
             }
             scenarios[name] = {
                 "outcomes": actual,
+                "system_judged_by_model": stand_in[0] if stand_in else None,
                 "summary": summarise(actual, kinds, len(written)),
             }
     return {

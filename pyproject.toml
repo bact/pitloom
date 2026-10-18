@@ -152,7 +152,7 @@ lint = [
 # (offline) build, which still reports 0.0.7; tests/test_conformance_pins.py
 # checks the installed commits equal these.
 conformance = [
-    "ntia-conformance-checker @ git+https://github.com/bact/ntia-conformance-checker.git@9b7017487f40938248ba7840c9a8167c86ca85ca",
+    "ntia-conformance-checker @ git+https://github.com/bact/ntia-conformance-checker.git@b7785f48362b52a5c6b4e13dfade55ae4754e4d2",
     "spdx3-validate @ git+https://github.com/bact/spdx3-validate.git@0e2e3562c4843a46d96eb49ed15de8e672d6ebe7",
 ]
 test = [

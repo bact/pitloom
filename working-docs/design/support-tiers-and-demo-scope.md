@@ -19,7 +19,7 @@ Decided 2026-10-17 (user) so that a demo can be finished by the weekend.
 
 | Tier | Formats | Policy |
 |---|---|---|
-| 1 | Safetensors, ONNX, GGUF, NumPy, fastText | The most complete support. Every feature and every G7 increment is built and tested here first |
+| 1 | Safetensors, ONNX, GGUF, NumPy, fastText, and the Hugging Face Hub as a source | The most complete support. Every feature and every G7 increment is built and tested here first |
 | 2 | Keras, HDF5, PyTorch classic, PT2 / ExecuTorch, CRFsuite | Kept working. A bug fix may wait; it is written down, with a follow-up, and not silently dropped |
 
 Rules:
@@ -60,11 +60,21 @@ set; none is invented here.
 | Dataset licence, provenance and statistics reach no model SBOM | all (no reader feeds Croissant in) | A reader route, then the `loom` SDK (B7) | to set |
 | `INFO:` notices for information read but not recordable | all readers | The shared helper in the honesty doc | to set |
 | Model files carry no version, producer or time | tier 1 file formats | Nothing to read: stays `missing` | n/a |
-| G7 scenarios only cover `gguf`, `safetensors`, `onnx` | tier 1 NumPy, fastText | Two more scenarios and expected cells | before the demo |
-| G7 scenarios build a model SBOM, not a project one | Hatchling, setuptools, Poetry projects | One project scenario per backend | before the demo |
+| G7 scenarios: model files, a Hub model, a library-built model and a project per backend | done 2026-10-18 | Hatchling, setuptools and Poetry give the same G7 outcomes | done |
+| A setuptools project ships a model only when `package-data` lists it | setuptools | Nothing: the SBOM describes what would ship | n/a |
 | Tier 2 formats | Keras, HDF5, PyTorch, PT2, CRFsuite | Anything beyond keeping them working | to set |
 
-## Weekend demo: a proposed definition of done
+## Demo on 2026-10-19: decisions of 2026-10-18
+
+- Hugging Face and NumPy are tier 1 and in the conformance table (scenarios
+  `hub` and `numpy`).
+- A project that ships only an AI model, with no system of its own, is judged
+  by the model for the System-level (SLP) properties: done in the checker,
+  which names the model it judged (`systemJudgedByModel`).
+- The ledger below says, per gap, what is missing and when it will be fixed;
+  dates are for the user to set.
+
+## Demo: a proposed definition of done
 
 1. Table scenarios for the four demo formats, NumPy and a project per backend,
    each with expected cells and the honesty guards.

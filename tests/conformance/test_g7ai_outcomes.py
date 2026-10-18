@@ -28,6 +28,7 @@ from tests.conformance.g7ai_shared import (
     BACKENDS,
     OUTCOMES,
     SCENARIOS,
+    check,
     outcomes,
     provisions,
     read_expected,
@@ -100,3 +101,15 @@ def test_build_backends_give_the_same_outcomes(sboms: dict[str, Path]) -> None:
 def test_each_backend_finds_the_model(sboms: dict[str, Path], backend: str) -> None:
     graph = json.loads(sboms[f"proj-{backend}"].read_text(encoding="utf-8"))["@graph"]
     assert [e["name"] for e in graph if e["type"] == "ai_AIPackage"] == ["m"]
+
+
+@pytest.mark.parametrize("scenario", _SCENARIOS)
+def test_a_project_is_judged_by_its_model_and_a_model_by_itself(
+    sboms: dict[str, Path], scenario: str
+) -> None:
+    """A project that ships one model has no system of its own: the System
+    rules read the model. A model's own SBOM needs no stand-in."""
+    stand_in = check(sboms[scenario]).system_judged_by_model()
+    assert (stand_in[0] if stand_in else None) == (
+        "m" if scenario.startswith("proj-") else None
+    )
