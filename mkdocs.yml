@@ -23,6 +23,7 @@ nav:
   - Loom ID registry: id-registry.md
   - Loom ID registry keys: id-registry-keys.md
   - Building a project (--allow-build): allow-build.md
+  - G7 SBOM for AI: g7-sbom-for-ai.md
   - AI model formats: ai-model-formats.md
   - AI model scan limits: ai-model-scan-limits.md
   - AI model scan limits, known limitations: ai-model-scan-limits-known-limitations.md
