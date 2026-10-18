@@ -85,13 +85,15 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
 2. One output. CRFsuite: `label_sequence`, shape `["sequence_length"]`, a
    symbolic length as an ONNX `dim_param` (a tagger emits one label per
    input item); the label count is `num_labels`. fastText, supervised
-   models only: `label_probabilities`, shape the label count. Feature
+   models only: `label_probabilities`, shape the label count. The file
+   states neither output: Pitloom names it from the format
+   (`Method: derived_from_format`). Feature
    weights and CRFsuite attribute strings (training-text features) are
    never read. A model over a label cap keeps its counts but no label (see
    [scan limits](ai-model-scan-limits.md#size-and-count-caps)).
 3. `args.model` (`supervised`, `cbow`, `skipgram`). The domain is fixed:
    `natural language processing`, plus `text classification` for a
-   `supervised` model. Labels and outputs are read from a `supervised`
+   `supervised` model (`Method: derived_from_format`). Labels and outputs are read from a `supervised`
    model only: for `cbow` and `skipgram`, fastText's label list is the
    word vocabulary (training text).
 4. 11 of the training `args`: `bucket`, `dim`, `epoch`, `lr`, `maxn`,
@@ -299,7 +301,8 @@ the Hugging Face Hub, "card" a README or model card read with `--enrich`.
 | :---- | :-------- | :----------------- |
 | `name` | GGUF, ONNX, Keras, HDF5, PT2, Safetensors, HF | `ai_AIPackage.name`; without one, the file name's stem (`Method: file_name_stem`), else the format |
 | `description` | GGUF, ONNX, PT2, Safetensors, CRFsuite, HF | `ai_AIPackage.description` |
-| `version` | GGUF, ONNX, PT2, Safetensors | `ai_AIPackage.software_packageVersion` |
+| `version` | GGUF, ONNX, PT2, Safetensors, HF (the revision's 40-digit commit hash) | `ai_AIPackage.software_packageVersion` |
+| `release_time` | HF (the revision's last-modified time) | `ai_AIPackage.releaseTime`, in UTC; a time that is not ISO 8601 is left out with a `WARNING:` |
 | `license` | ONNX, PT2, HF, card | licence element plus `hasDeclaredLicense` (the model's own statement) or `hasConcludedLicense` (a third-party source); see [How a licence value is recorded](metadata-provenance-licences.md#how-a-licence-value-is-recorded) |
 | `originators` | GGUF, ONNX, PT2, Safetensors, HF | `ai_AIPackage.originatedBy`: one generic `Agent` per name; see [Producer and parameter count](#producer-and-parameter-count) |
 | `supplier` | HF | `ai_AIPackage.suppliedBy`: the repository owner's generic `Agent`, the one in `originatedBy` when the name is the same; no file format fills it |
@@ -318,14 +321,14 @@ the Hugging Face Hub, "card" a README or model card read with `--enrich`.
 | `arxiv_ids` | HF | `externalRef`, type `documentation` |
 | `url` | HF | `externalRef`, type `altWebPage` |
 | `base_model`, `base_model_relation` | HF | `Relationship` `descendantOf` to an `ai_AIPackage` for the base model (made if absent); the relation in its `comment` |
-| `datasets` | HF, card | `dataset_DatasetPackage` plus `Relationship` `trainedOn` or `testedOn` |
+| `datasets` | HF, card | `dataset_DatasetPackage` plus `Relationship` `trainedOn` or `testedOn`; a licence the dataset's metadata states becomes a licence element and `hasDeclaredLicense` (or `hasConcludedLicense` for a third-party source), as for the model. A Hub card's dataset list carries no licence |
 | `properties`, `raw_metadata`, `raw_metadata_types` | every format | `Annotation` of kind `artifact-metadata` (schema `https://pitloom.dev/provenance/artifact-metadata/2`): `metadata`, `valueTypes`, `format`; only when preserved, see below |
 | `raw_metadata_dropped` | any format, over the entry cap | that annotation's `truncatedKeyCount` |
 | `extra_data`, `extra_lists` | HF | that annotation, `format` `huggingface` |
 | `provenance` | every format | `ai_AIPackage.comment` (`Metadata provenance: ...`) and/or a provenance `Annotation`, by `[tool.pitloom.provenance] format` |
 | `format_info.model_format` | every format | the artifact-metadata annotation's `format` |
 | `format_info.format_version`, `framework`, `framework_version` | most formats | not written: cited in the provenance only |
-| `format_info.file_path_relative` | project and wheel scans | `Relationship` `contains` from the `ai_AIPackage` to the model's `software_File` (which has the SHA-256) |
+| `format_info.file_path_relative` | project and wheel scans | `Relationship` `contains` from the `ai_AIPackage` to the model's `software_File` (which has the SHA-256 and SHA-512) |
 | `usage_files` | `--scan-model-usage` | `LifecycleScopedRelationship` `hasDataFile`, scope `runtime`, from each `.py` `software_File` to the model's |
 
 The artifact-metadata annotation is written when
@@ -345,11 +348,23 @@ back](metadata-reading-back.md). Long names and labels are capped: see
 No model format fills `ai_metric`, `ai_metricDecisionThreshold`,
 `ai_energyConsumption`, `ai_autonomyType`, `ai_modelDataPreprocessing`,
 `ai_modelExplainability`, `ai_sensitivePersonalInformation`,
-`ai_standardCompliance`, `software_primaryPurpose` or `verifiedUsing` on
-an `ai_AIPackage`; an [SBOM fragment](fragments.md) can add them. Nor
+`ai_standardCompliance` or `software_primaryPurpose` on an `ai_AIPackage`;
+an [SBOM fragment](fragments.md) can add them. Nor
 does any model file format fill `suppliedBy`, on purpose: a producer name is
 an `originatedBy`; only the Hugging Face route sets it, to the repository
 owner (see [Producer and parameter count](#producer-and-parameter-count)).
+
+Two properties come from the file or the repository, not from a format
+field:
+
+- `verifiedUsing`: the model file's SHA-256 and SHA-512, from one read,
+  whenever Pitloom read the file. A Hugging Face model has none.
+- `software_packageUrl`: `pkg:huggingface/<owner>/<name>@<commit>` for a
+  Hugging Face model (the commit only when the Hub gave a 40-digit hash; an
+  ID with no owner, such as `gpt2`, gets none); otherwise
+  `pkg:generic/<file name>?checksum=sha256:<digest>` for a hashed model file.
+  A dataset with an `http://` or `https://` download URL gets
+  `pkg:generic/<name>[@<version>]?download_url=<url>`.
 
 ## Hugging Face Hub models
 

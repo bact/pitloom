@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -251,10 +251,10 @@ def evaluate_model():
 - (B) sets the relationship between the code and the dataset.
 
 Pass `path=` (the model file, relative to the current directory at the call)
-to `set_model()` or `use_model()` to give the model a SHA-256
+to `set_model()` or `use_model()` to give the model a SHA-256 and a SHA-512
 (`verifiedUsing`). The file is hashed when the run ends without an
 exception, so write it before the block exits. With a [Loom ID
-registry](id-registry.md), the hash gates the lookup: a training and an
+registry](id-registry.md), the SHA-256 gates the lookup: a training and an
 evaluation script declaring the same model name and file share one id, and a
 retrained file gets a new one. The model is keyed by that file's path from the
 registry's project root, the same key `loom model` and `id generate` use.

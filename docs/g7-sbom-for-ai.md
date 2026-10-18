@@ -113,9 +113,10 @@ The three build backends give the same result for the same project.
 
 ### What SPDX 3.0.1 cannot record
 
-Twenty-five G7 elements are not checked: SPDX 3.0.1 has no property for them, or
-their mapping is not yet reviewed. Pitloom already writes a mapped property for
-some of them, so the checker cannot see them. Where
+The checker does not check 25 G7 elements (`out-of-scope`). For 20 of them the
+G7 to SPDX 3.0.1 mapping finds no native SPDX property; the other five are in
+the Infrastructure, Security and Key Performance Indicators clusters. Pitloom
+writes the mapped property for some of them, which no rule then reads. Where
 Pitloom reads such a value it records it only openly: the parameter count as an
 `ai_hyperparameter` entry with a comment saying it is not a hyperparameter; known
 biases as text in the package comment; a model's own metadata in an annotation.
