@@ -17,6 +17,7 @@ See also: tests/conformance/g7ai_shared.py, tests/_spdx3_validate.py.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -24,6 +25,7 @@ from ntia_conformance_checker import SbomChecker, get_spec
 
 from tests._spdx3_validate import assert_spdx3_valid
 from tests.conformance.g7ai_shared import (
+    BACKENDS,
     OUTCOMES,
     SCENARIOS,
     outcomes,
@@ -84,3 +86,17 @@ def test_checker_surfaces_agree(sboms: dict[str, Path]) -> None:
     checker = SbomChecker(str(path), compliance="g7ai", sbom_spec="spdx3")
     sarif = checker.output_sarif()
     assert sarif["runs"][0]["properties"]["ruleOutcomes"] == outcomes(path)
+
+
+def test_build_backends_give_the_same_outcomes(sboms: dict[str, Path]) -> None:
+    """The same project on Hatchling, setuptools and Poetry is the same to G7."""
+    results = {b: outcomes(sboms[f"proj-{b}"]) for b in BACKENDS}
+    first = results["hatchling"]
+    assert "present" in first.values()  # not vacuous
+    assert all(result == first for result in results.values()), results
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_each_backend_finds_the_model(sboms: dict[str, Path], backend: str) -> None:
+    graph = json.loads(sboms[f"proj-{backend}"].read_text(encoding="utf-8"))["@graph"]
+    assert [e["name"] for e in graph if e["type"] == "ai_AIPackage"] == ["m"]

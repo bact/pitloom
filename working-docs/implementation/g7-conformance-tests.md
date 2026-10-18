@@ -18,7 +18,7 @@ tests turn each G7 field Pitloom adds into a table cell that cannot slip back.
 ## What runs
 
 - `tests/conformance/` builds one SBOM per scenario (`gguf`, `safetensors`,
-  `onnx` from the fixture models; `hub`, a mocked Hugging Face model with a
+  `onnx`, `numpy`, `fasttext` from the fixture models; `hub`, a mocked Hugging Face model with a
   dataset; `library`, a model with a licensed dataset built through the
   assembler, since no reader feeds a dataset licence into a model SBOM yet), validates it offline, and runs the checker in-process.
 - `tests/fixtures/conformance/g7ai-expected.tsv` holds the expected outcome of
@@ -38,6 +38,14 @@ tests turn each G7 field Pitloom adds into a table cell that cannot slip back.
 - `test_g7ai_sssom_gaps.py` pins the elements the checker does not check
   although Pitloom writes the property the G7 -> SPDX mapping assigns to them
   (`EMITTED_BUT_UNCHECKED`). Property level only.
+
+Three project scenarios (`proj-hatchling`, `proj-setuptools`, `proj-poetry`)
+build the same small project, with one Safetensors model, on each build
+backend; a test requires the same G7 outcomes from all three. Setuptools ships
+a data file only when `package-data` says so, so its project declares it; a
+test shows that without it the model is not described (nothing is claimed that
+the distribution would not ship). Their System-level cells read the project
+root, not the model: see the judge-by-model rule.
 
 ## Offline validation
 
@@ -72,11 +80,16 @@ reading of G7", not "G7 compliant"; unchecked rules are not counted as missing.
 | 0.20.2 (baseline) | `9b70174` | onnx | 21 | 17 | 18 | 25 | 55.3% |
 | 0.20.2 (baseline) | `9b70174` | hub | 21 | 35 | 0 | 25 | 37.5% |
 | 0.20.2 (baseline) | `9b70174` | library | 23 | 33 | 0 | 25 | 41.1% |
-| after B2, B1, B3, honesty fix | `9b70174` | gguf | 16 | 22 | 18 | 25 | 42.1% |
-| after B2, B1, B3, honesty fix | `9b70174` | safetensors | 13 | 25 | 18 | 25 | 34.2% |
-| after B2, B1, B3, honesty fix | `9b70174` | onnx | 22 | 16 | 18 | 25 | 57.9% |
-| after B2, B1, B3, honesty fix | `9b70174` | hub | 27 | 29 | 0 | 25 | 48.2% |
-| after B2, B1, B3, honesty fix | `9b70174` | library | 26 | 30 | 0 | 25 | 46.4% |
+| now | `9b70174` | gguf | 16 | 22 | 18 | 25 | 42.1% |
+| now | `9b70174` | safetensors | 13 | 25 | 18 | 25 | 34.2% |
+| now | `9b70174` | onnx | 22 | 16 | 18 | 25 | 57.9% |
+| now | `9b70174` | numpy | 15 | 23 | 18 | 25 | 39.5% |
+| now | `9b70174` | fasttext | 23 | 15 | 18 | 25 | 60.5% |
+| now | `9b70174` | hub | 27 | 29 | 0 | 25 | 48.2% |
+| now | `9b70174` | library | 26 | 30 | 0 | 25 | 46.4% |
+| now | `9b70174` | proj-hatchling | 15 | 23 | 18 | 25 | 39.5% |
+| now | `9b70174` | proj-setuptools | 15 | 23 | 18 | 25 | 39.5% |
+| now | `9b70174` | proj-poetry | 15 | 23 | 18 | 25 | 39.5% |
 
 Coverage is present / (present + missing).
 

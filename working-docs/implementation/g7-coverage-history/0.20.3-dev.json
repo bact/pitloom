@@ -6,6 +6,146 @@
     "rules": 81
   },
   "scenarios": {
+    "fasttext": {
+      "outcomes": {
+        "BOM-G7AI2026-DP-001": "not-applicable",
+        "BOM-G7AI2026-DP-002": "not-applicable",
+        "BOM-G7AI2026-DP-002.1": "not-applicable",
+        "BOM-G7AI2026-DP-002.2": "not-applicable",
+        "BOM-G7AI2026-DP-002.3": "not-applicable",
+        "BOM-G7AI2026-DP-003": "not-applicable",
+        "BOM-G7AI2026-DP-003.1": "out-of-scope",
+        "BOM-G7AI2026-DP-003.2": "out-of-scope",
+        "BOM-G7AI2026-DP-003.3": "not-applicable",
+        "BOM-G7AI2026-DP-004": "not-applicable",
+        "BOM-G7AI2026-DP-005": "not-applicable",
+        "BOM-G7AI2026-DP-006": "not-applicable",
+        "BOM-G7AI2026-DP-006.1": "not-applicable",
+        "BOM-G7AI2026-DP-006.2": "not-applicable",
+        "BOM-G7AI2026-DP-006.3": "not-applicable",
+        "BOM-G7AI2026-DP-006.4": "out-of-scope",
+        "BOM-G7AI2026-DP-007": "not-applicable",
+        "BOM-G7AI2026-DP-008": "not-applicable",
+        "BOM-G7AI2026-DP-008.1": "not-applicable",
+        "BOM-G7AI2026-DP-008.2": "out-of-scope",
+        "BOM-G7AI2026-DP-008.3": "out-of-scope",
+        "BOM-G7AI2026-DP-009": "not-applicable",
+        "BOM-G7AI2026-DP-010": "not-applicable",
+        "BOM-G7AI2026-INF-001": "out-of-scope",
+        "BOM-G7AI2026-INF-002": "out-of-scope",
+        "BOM-G7AI2026-KPI-001": "out-of-scope",
+        "BOM-G7AI2026-KPI-002": "out-of-scope",
+        "BOM-G7AI2026-MD-001": "present",
+        "BOM-G7AI2026-MD-002": "out-of-scope",
+        "BOM-G7AI2026-MD-003": "present",
+        "BOM-G7AI2026-MD-004": "present",
+        "BOM-G7AI2026-MD-005": "out-of-scope",
+        "BOM-G7AI2026-MD-006": "present",
+        "BOM-G7AI2026-MD-007": "out-of-scope",
+        "BOM-G7AI2026-MD-008": "present",
+        "BOM-G7AI2026-MD-009": "present",
+        "BOM-G7AI2026-MD-010": "missing",
+        "BOM-G7AI2026-MDL-001": "present",
+        "BOM-G7AI2026-MDL-002": "present",
+        "BOM-G7AI2026-MDL-003": "missing",
+        "BOM-G7AI2026-MDL-004": "missing",
+        "BOM-G7AI2026-MDL-005": "missing",
+        "BOM-G7AI2026-MDL-006": "present",
+        "BOM-G7AI2026-MDL-006.1": "missing",
+        "BOM-G7AI2026-MDL-006.2": "missing",
+        "BOM-G7AI2026-MDL-006.3": "missing",
+        "BOM-G7AI2026-MDL-006.4": "present",
+        "BOM-G7AI2026-MDL-007": "present",
+        "BOM-G7AI2026-MDL-008": "present",
+        "BOM-G7AI2026-MDL-009": "present",
+        "BOM-G7AI2026-MDL-009.1": "present",
+        "BOM-G7AI2026-MDL-009.2": "out-of-scope",
+        "BOM-G7AI2026-MDL-009.3": "out-of-scope",
+        "BOM-G7AI2026-MDL-009.4": "present",
+        "BOM-G7AI2026-MDL-010": "present",
+        "BOM-G7AI2026-MDL-010.1": "out-of-scope",
+        "BOM-G7AI2026-MDL-010.2": "out-of-scope",
+        "BOM-G7AI2026-MDL-010.3": "out-of-scope",
+        "BOM-G7AI2026-MDL-010.4": "present",
+        "BOM-G7AI2026-MDL-011": "present",
+        "BOM-G7AI2026-MDL-011.1": "present",
+        "BOM-G7AI2026-MDL-011.2": "out-of-scope",
+        "BOM-G7AI2026-MDL-012": "missing",
+        "BOM-G7AI2026-MDL-012.1": "out-of-scope",
+        "BOM-G7AI2026-MDL-013": "missing",
+        "BOM-G7AI2026-SLP-001": "present",
+        "BOM-G7AI2026-SLP-002": "missing",
+        "BOM-G7AI2026-SLP-003": "missing",
+        "BOM-G7AI2026-SLP-004": "missing",
+        "BOM-G7AI2026-SLP-005": "missing",
+        "BOM-G7AI2026-SLP-006": "out-of-scope",
+        "BOM-G7AI2026-SLP-007": "missing",
+        "BOM-G7AI2026-SLP-008": "present",
+        "BOM-G7AI2026-SLP-008.1": "out-of-scope",
+        "BOM-G7AI2026-SLP-008.2": "out-of-scope",
+        "BOM-G7AI2026-SLP-008.3": "present",
+        "BOM-G7AI2026-SLP-009": "present",
+        "BOM-G7AI2026-SP-001": "out-of-scope",
+        "BOM-G7AI2026-SP-002": "missing",
+        "BOM-G7AI2026-SP-003": "out-of-scope",
+        "BOM-G7AI2026-SP-004": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "DP": {
+            "coverage_percent": null,
+            "not-applicable": 18,
+            "out-of-scope": 5
+          },
+          "INF": {
+            "coverage_percent": null,
+            "out-of-scope": 2
+          },
+          "KPI": {
+            "coverage_percent": null,
+            "out-of-scope": 2
+          },
+          "MD": {
+            "coverage_percent": 85.7,
+            "missing": 1,
+            "out-of-scope": 3,
+            "present": 6
+          },
+          "MDL": {
+            "coverage_percent": 61.9,
+            "missing": 8,
+            "out-of-scope": 7,
+            "present": 13
+          },
+          "SLP": {
+            "coverage_percent": 44.4,
+            "missing": 5,
+            "out-of-scope": 3,
+            "present": 4
+          },
+          "SP": {
+            "coverage_percent": 0.0,
+            "missing": 1,
+            "out-of-scope": 3
+          }
+        },
+        "coverage_percent": 60.5,
+        "outcomes": {
+          "missing": 15,
+          "not-applicable": 18,
+          "out-of-scope": 25,
+          "present": 23
+        },
+        "properties_written": 6,
+        "requirement_coverage_percent": 58.6,
+        "requirements": {
+          "missing": 12,
+          "not-applicable": 10,
+          "out-of-scope": 11,
+          "present": 17
+        }
+      }
+    },
     "gguf": {
       "outcomes": {
         "BOM-G7AI2026-DP-001": "not-applicable",
@@ -424,6 +564,146 @@
         }
       }
     },
+    "numpy": {
+      "outcomes": {
+        "BOM-G7AI2026-DP-001": "not-applicable",
+        "BOM-G7AI2026-DP-002": "not-applicable",
+        "BOM-G7AI2026-DP-002.1": "not-applicable",
+        "BOM-G7AI2026-DP-002.2": "not-applicable",
+        "BOM-G7AI2026-DP-002.3": "not-applicable",
+        "BOM-G7AI2026-DP-003": "not-applicable",
+        "BOM-G7AI2026-DP-003.1": "out-of-scope",
+        "BOM-G7AI2026-DP-003.2": "out-of-scope",
+        "BOM-G7AI2026-DP-003.3": "not-applicable",
+        "BOM-G7AI2026-DP-004": "not-applicable",
+        "BOM-G7AI2026-DP-005": "not-applicable",
+        "BOM-G7AI2026-DP-006": "not-applicable",
+        "BOM-G7AI2026-DP-006.1": "not-applicable",
+        "BOM-G7AI2026-DP-006.2": "not-applicable",
+        "BOM-G7AI2026-DP-006.3": "not-applicable",
+        "BOM-G7AI2026-DP-006.4": "out-of-scope",
+        "BOM-G7AI2026-DP-007": "not-applicable",
+        "BOM-G7AI2026-DP-008": "not-applicable",
+        "BOM-G7AI2026-DP-008.1": "not-applicable",
+        "BOM-G7AI2026-DP-008.2": "out-of-scope",
+        "BOM-G7AI2026-DP-008.3": "out-of-scope",
+        "BOM-G7AI2026-DP-009": "not-applicable",
+        "BOM-G7AI2026-DP-010": "not-applicable",
+        "BOM-G7AI2026-INF-001": "out-of-scope",
+        "BOM-G7AI2026-INF-002": "out-of-scope",
+        "BOM-G7AI2026-KPI-001": "out-of-scope",
+        "BOM-G7AI2026-KPI-002": "out-of-scope",
+        "BOM-G7AI2026-MD-001": "present",
+        "BOM-G7AI2026-MD-002": "out-of-scope",
+        "BOM-G7AI2026-MD-003": "present",
+        "BOM-G7AI2026-MD-004": "present",
+        "BOM-G7AI2026-MD-005": "out-of-scope",
+        "BOM-G7AI2026-MD-006": "present",
+        "BOM-G7AI2026-MD-007": "out-of-scope",
+        "BOM-G7AI2026-MD-008": "present",
+        "BOM-G7AI2026-MD-009": "present",
+        "BOM-G7AI2026-MD-010": "missing",
+        "BOM-G7AI2026-MDL-001": "present",
+        "BOM-G7AI2026-MDL-002": "present",
+        "BOM-G7AI2026-MDL-003": "missing",
+        "BOM-G7AI2026-MDL-004": "missing",
+        "BOM-G7AI2026-MDL-005": "missing",
+        "BOM-G7AI2026-MDL-006": "missing",
+        "BOM-G7AI2026-MDL-006.1": "missing",
+        "BOM-G7AI2026-MDL-006.2": "missing",
+        "BOM-G7AI2026-MDL-006.3": "missing",
+        "BOM-G7AI2026-MDL-006.4": "missing",
+        "BOM-G7AI2026-MDL-007": "present",
+        "BOM-G7AI2026-MDL-008": "present",
+        "BOM-G7AI2026-MDL-009": "present",
+        "BOM-G7AI2026-MDL-009.1": "present",
+        "BOM-G7AI2026-MDL-009.2": "out-of-scope",
+        "BOM-G7AI2026-MDL-009.3": "out-of-scope",
+        "BOM-G7AI2026-MDL-009.4": "missing",
+        "BOM-G7AI2026-MDL-010": "missing",
+        "BOM-G7AI2026-MDL-010.1": "out-of-scope",
+        "BOM-G7AI2026-MDL-010.2": "out-of-scope",
+        "BOM-G7AI2026-MDL-010.3": "out-of-scope",
+        "BOM-G7AI2026-MDL-010.4": "missing",
+        "BOM-G7AI2026-MDL-011": "present",
+        "BOM-G7AI2026-MDL-011.1": "present",
+        "BOM-G7AI2026-MDL-011.2": "out-of-scope",
+        "BOM-G7AI2026-MDL-012": "missing",
+        "BOM-G7AI2026-MDL-012.1": "out-of-scope",
+        "BOM-G7AI2026-MDL-013": "missing",
+        "BOM-G7AI2026-SLP-001": "present",
+        "BOM-G7AI2026-SLP-002": "missing",
+        "BOM-G7AI2026-SLP-003": "missing",
+        "BOM-G7AI2026-SLP-004": "missing",
+        "BOM-G7AI2026-SLP-005": "missing",
+        "BOM-G7AI2026-SLP-006": "out-of-scope",
+        "BOM-G7AI2026-SLP-007": "missing",
+        "BOM-G7AI2026-SLP-008": "missing",
+        "BOM-G7AI2026-SLP-008.1": "out-of-scope",
+        "BOM-G7AI2026-SLP-008.2": "out-of-scope",
+        "BOM-G7AI2026-SLP-008.3": "missing",
+        "BOM-G7AI2026-SLP-009": "missing",
+        "BOM-G7AI2026-SP-001": "out-of-scope",
+        "BOM-G7AI2026-SP-002": "missing",
+        "BOM-G7AI2026-SP-003": "out-of-scope",
+        "BOM-G7AI2026-SP-004": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "DP": {
+            "coverage_percent": null,
+            "not-applicable": 18,
+            "out-of-scope": 5
+          },
+          "INF": {
+            "coverage_percent": null,
+            "out-of-scope": 2
+          },
+          "KPI": {
+            "coverage_percent": null,
+            "out-of-scope": 2
+          },
+          "MD": {
+            "coverage_percent": 85.7,
+            "missing": 1,
+            "out-of-scope": 3,
+            "present": 6
+          },
+          "MDL": {
+            "coverage_percent": 38.1,
+            "missing": 13,
+            "out-of-scope": 7,
+            "present": 8
+          },
+          "SLP": {
+            "coverage_percent": 11.1,
+            "missing": 8,
+            "out-of-scope": 3,
+            "present": 1
+          },
+          "SP": {
+            "coverage_percent": 0.0,
+            "missing": 1,
+            "out-of-scope": 3
+          }
+        },
+        "coverage_percent": 39.5,
+        "outcomes": {
+          "missing": 23,
+          "not-applicable": 18,
+          "out-of-scope": 25,
+          "present": 15
+        },
+        "properties_written": 3,
+        "requirement_coverage_percent": 44.8,
+        "requirements": {
+          "missing": 16,
+          "not-applicable": 10,
+          "out-of-scope": 11,
+          "present": 13
+        }
+      }
+    },
     "onnx": {
       "outcomes": {
         "BOM-G7AI2026-DP-001": "not-applicable",
@@ -561,6 +841,423 @@
           "not-applicable": 10,
           "out-of-scope": 11,
           "present": 16
+        }
+      }
+    },
+    "proj-hatchling": {
+      "outcomes": {
+        "BOM-G7AI2026-DP-001": "not-applicable",
+        "BOM-G7AI2026-DP-002": "not-applicable",
+        "BOM-G7AI2026-DP-002.1": "not-applicable",
+        "BOM-G7AI2026-DP-002.2": "not-applicable",
+        "BOM-G7AI2026-DP-002.3": "not-applicable",
+        "BOM-G7AI2026-DP-003": "not-applicable",
+        "BOM-G7AI2026-DP-003.1": "out-of-scope",
+        "BOM-G7AI2026-DP-003.2": "out-of-scope",
+        "BOM-G7AI2026-DP-003.3": "not-applicable",
+        "BOM-G7AI2026-DP-004": "not-applicable",
+        "BOM-G7AI2026-DP-005": "not-applicable",
+        "BOM-G7AI2026-DP-006": "not-applicable",
+        "BOM-G7AI2026-DP-006.1": "not-applicable",
+        "BOM-G7AI2026-DP-006.2": "not-applicable",
+        "BOM-G7AI2026-DP-006.3": "not-applicable",
+        "BOM-G7AI2026-DP-006.4": "out-of-scope",
+        "BOM-G7AI2026-DP-007": "not-applicable",
+        "BOM-G7AI2026-DP-008": "not-applicable",
+        "BOM-G7AI2026-DP-008.1": "not-applicable",
+        "BOM-G7AI2026-DP-008.2": "out-of-scope",
+        "BOM-G7AI2026-DP-008.3": "out-of-scope",
+        "BOM-G7AI2026-DP-009": "not-applicable",
+        "BOM-G7AI2026-DP-010": "not-applicable",
+        "BOM-G7AI2026-INF-001": "out-of-scope",
+        "BOM-G7AI2026-INF-002": "out-of-scope",
+        "BOM-G7AI2026-KPI-001": "out-of-scope",
+        "BOM-G7AI2026-KPI-002": "out-of-scope",
+        "BOM-G7AI2026-MD-001": "present",
+        "BOM-G7AI2026-MD-002": "out-of-scope",
+        "BOM-G7AI2026-MD-003": "present",
+        "BOM-G7AI2026-MD-004": "present",
+        "BOM-G7AI2026-MD-005": "out-of-scope",
+        "BOM-G7AI2026-MD-006": "present",
+        "BOM-G7AI2026-MD-007": "out-of-scope",
+        "BOM-G7AI2026-MD-008": "present",
+        "BOM-G7AI2026-MD-009": "present",
+        "BOM-G7AI2026-MD-010": "present",
+        "BOM-G7AI2026-MDL-001": "present",
+        "BOM-G7AI2026-MDL-002": "present",
+        "BOM-G7AI2026-MDL-003": "missing",
+        "BOM-G7AI2026-MDL-004": "missing",
+        "BOM-G7AI2026-MDL-005": "missing",
+        "BOM-G7AI2026-MDL-006": "missing",
+        "BOM-G7AI2026-MDL-006.1": "missing",
+        "BOM-G7AI2026-MDL-006.2": "missing",
+        "BOM-G7AI2026-MDL-006.3": "missing",
+        "BOM-G7AI2026-MDL-006.4": "missing",
+        "BOM-G7AI2026-MDL-007": "present",
+        "BOM-G7AI2026-MDL-008": "present",
+        "BOM-G7AI2026-MDL-009": "present",
+        "BOM-G7AI2026-MDL-009.1": "missing",
+        "BOM-G7AI2026-MDL-009.2": "out-of-scope",
+        "BOM-G7AI2026-MDL-009.3": "out-of-scope",
+        "BOM-G7AI2026-MDL-009.4": "present",
+        "BOM-G7AI2026-MDL-010": "missing",
+        "BOM-G7AI2026-MDL-010.1": "out-of-scope",
+        "BOM-G7AI2026-MDL-010.2": "out-of-scope",
+        "BOM-G7AI2026-MDL-010.3": "out-of-scope",
+        "BOM-G7AI2026-MDL-010.4": "missing",
+        "BOM-G7AI2026-MDL-011": "missing",
+        "BOM-G7AI2026-MDL-011.1": "missing",
+        "BOM-G7AI2026-MDL-011.2": "out-of-scope",
+        "BOM-G7AI2026-MDL-012": "missing",
+        "BOM-G7AI2026-MDL-012.1": "out-of-scope",
+        "BOM-G7AI2026-MDL-013": "missing",
+        "BOM-G7AI2026-SLP-001": "present",
+        "BOM-G7AI2026-SLP-002": "present",
+        "BOM-G7AI2026-SLP-003": "missing",
+        "BOM-G7AI2026-SLP-004": "missing",
+        "BOM-G7AI2026-SLP-005": "missing",
+        "BOM-G7AI2026-SLP-006": "out-of-scope",
+        "BOM-G7AI2026-SLP-007": "missing",
+        "BOM-G7AI2026-SLP-008": "missing",
+        "BOM-G7AI2026-SLP-008.1": "out-of-scope",
+        "BOM-G7AI2026-SLP-008.2": "out-of-scope",
+        "BOM-G7AI2026-SLP-008.3": "missing",
+        "BOM-G7AI2026-SLP-009": "missing",
+        "BOM-G7AI2026-SP-001": "out-of-scope",
+        "BOM-G7AI2026-SP-002": "missing",
+        "BOM-G7AI2026-SP-003": "out-of-scope",
+        "BOM-G7AI2026-SP-004": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "DP": {
+            "coverage_percent": null,
+            "not-applicable": 18,
+            "out-of-scope": 5
+          },
+          "INF": {
+            "coverage_percent": null,
+            "out-of-scope": 2
+          },
+          "KPI": {
+            "coverage_percent": null,
+            "out-of-scope": 2
+          },
+          "MD": {
+            "coverage_percent": 100.0,
+            "out-of-scope": 3,
+            "present": 7
+          },
+          "MDL": {
+            "coverage_percent": 28.6,
+            "missing": 15,
+            "out-of-scope": 7,
+            "present": 6
+          },
+          "SLP": {
+            "coverage_percent": 22.2,
+            "missing": 7,
+            "out-of-scope": 3,
+            "present": 2
+          },
+          "SP": {
+            "coverage_percent": 0.0,
+            "missing": 1,
+            "out-of-scope": 3
+          }
+        },
+        "coverage_percent": 39.5,
+        "outcomes": {
+          "missing": 23,
+          "not-applicable": 18,
+          "out-of-scope": 25,
+          "present": 15
+        },
+        "properties_written": 9,
+        "requirement_coverage_percent": 48.3,
+        "requirements": {
+          "missing": 15,
+          "not-applicable": 10,
+          "out-of-scope": 11,
+          "present": 14
+        }
+      }
+    },
+    "proj-poetry": {
+      "outcomes": {
+        "BOM-G7AI2026-DP-001": "not-applicable",
+        "BOM-G7AI2026-DP-002": "not-applicable",
+        "BOM-G7AI2026-DP-002.1": "not-applicable",
+        "BOM-G7AI2026-DP-002.2": "not-applicable",
+        "BOM-G7AI2026-DP-002.3": "not-applicable",
+        "BOM-G7AI2026-DP-003": "not-applicable",
+        "BOM-G7AI2026-DP-003.1": "out-of-scope",
+        "BOM-G7AI2026-DP-003.2": "out-of-scope",
+        "BOM-G7AI2026-DP-003.3": "not-applicable",
+        "BOM-G7AI2026-DP-004": "not-applicable",
+        "BOM-G7AI2026-DP-005": "not-applicable",
+        "BOM-G7AI2026-DP-006": "not-applicable",
+        "BOM-G7AI2026-DP-006.1": "not-applicable",
+        "BOM-G7AI2026-DP-006.2": "not-applicable",
+        "BOM-G7AI2026-DP-006.3": "not-applicable",
+        "BOM-G7AI2026-DP-006.4": "out-of-scope",
+        "BOM-G7AI2026-DP-007": "not-applicable",
+        "BOM-G7AI2026-DP-008": "not-applicable",
+        "BOM-G7AI2026-DP-008.1": "not-applicable",
+        "BOM-G7AI2026-DP-008.2": "out-of-scope",
+        "BOM-G7AI2026-DP-008.3": "out-of-scope",
+        "BOM-G7AI2026-DP-009": "not-applicable",
+        "BOM-G7AI2026-DP-010": "not-applicable",
+        "BOM-G7AI2026-INF-001": "out-of-scope",
+        "BOM-G7AI2026-INF-002": "out-of-scope",
+        "BOM-G7AI2026-KPI-001": "out-of-scope",
+        "BOM-G7AI2026-KPI-002": "out-of-scope",
+        "BOM-G7AI2026-MD-001": "present",
+        "BOM-G7AI2026-MD-002": "out-of-scope",
+        "BOM-G7AI2026-MD-003": "present",
+        "BOM-G7AI2026-MD-004": "present",
+        "BOM-G7AI2026-MD-005": "out-of-scope",
+        "BOM-G7AI2026-MD-006": "present",
+        "BOM-G7AI2026-MD-007": "out-of-scope",
+        "BOM-G7AI2026-MD-008": "present",
+        "BOM-G7AI2026-MD-009": "present",
+        "BOM-G7AI2026-MD-010": "present",
+        "BOM-G7AI2026-MDL-001": "present",
+        "BOM-G7AI2026-MDL-002": "present",
+        "BOM-G7AI2026-MDL-003": "missing",
+        "BOM-G7AI2026-MDL-004": "missing",
+        "BOM-G7AI2026-MDL-005": "missing",
+        "BOM-G7AI2026-MDL-006": "missing",
+        "BOM-G7AI2026-MDL-006.1": "missing",
+        "BOM-G7AI2026-MDL-006.2": "missing",
+        "BOM-G7AI2026-MDL-006.3": "missing",
+        "BOM-G7AI2026-MDL-006.4": "missing",
+        "BOM-G7AI2026-MDL-007": "present",
+        "BOM-G7AI2026-MDL-008": "present",
+        "BOM-G7AI2026-MDL-009": "present",
+        "BOM-G7AI2026-MDL-009.1": "missing",
+        "BOM-G7AI2026-MDL-009.2": "out-of-scope",
+        "BOM-G7AI2026-MDL-009.3": "out-of-scope",
+        "BOM-G7AI2026-MDL-009.4": "present",
+        "BOM-G7AI2026-MDL-010": "missing",
+        "BOM-G7AI2026-MDL-010.1": "out-of-scope",
+        "BOM-G7AI2026-MDL-010.2": "out-of-scope",
+        "BOM-G7AI2026-MDL-010.3": "out-of-scope",
+        "BOM-G7AI2026-MDL-010.4": "missing",
+        "BOM-G7AI2026-MDL-011": "missing",
+        "BOM-G7AI2026-MDL-011.1": "missing",
+        "BOM-G7AI2026-MDL-011.2": "out-of-scope",
+        "BOM-G7AI2026-MDL-012": "missing",
+        "BOM-G7AI2026-MDL-012.1": "out-of-scope",
+        "BOM-G7AI2026-MDL-013": "missing",
+        "BOM-G7AI2026-SLP-001": "present",
+        "BOM-G7AI2026-SLP-002": "present",
+        "BOM-G7AI2026-SLP-003": "missing",
+        "BOM-G7AI2026-SLP-004": "missing",
+        "BOM-G7AI2026-SLP-005": "missing",
+        "BOM-G7AI2026-SLP-006": "out-of-scope",
+        "BOM-G7AI2026-SLP-007": "missing",
+        "BOM-G7AI2026-SLP-008": "missing",
+        "BOM-G7AI2026-SLP-008.1": "out-of-scope",
+        "BOM-G7AI2026-SLP-008.2": "out-of-scope",
+        "BOM-G7AI2026-SLP-008.3": "missing",
+        "BOM-G7AI2026-SLP-009": "missing",
+        "BOM-G7AI2026-SP-001": "out-of-scope",
+        "BOM-G7AI2026-SP-002": "missing",
+        "BOM-G7AI2026-SP-003": "out-of-scope",
+        "BOM-G7AI2026-SP-004": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "DP": {
+            "coverage_percent": null,
+            "not-applicable": 18,
+            "out-of-scope": 5
+          },
+          "INF": {
+            "coverage_percent": null,
+            "out-of-scope": 2
+          },
+          "KPI": {
+            "coverage_percent": null,
+            "out-of-scope": 2
+          },
+          "MD": {
+            "coverage_percent": 100.0,
+            "out-of-scope": 3,
+            "present": 7
+          },
+          "MDL": {
+            "coverage_percent": 28.6,
+            "missing": 15,
+            "out-of-scope": 7,
+            "present": 6
+          },
+          "SLP": {
+            "coverage_percent": 22.2,
+            "missing": 7,
+            "out-of-scope": 3,
+            "present": 2
+          },
+          "SP": {
+            "coverage_percent": 0.0,
+            "missing": 1,
+            "out-of-scope": 3
+          }
+        },
+        "coverage_percent": 39.5,
+        "outcomes": {
+          "missing": 23,
+          "not-applicable": 18,
+          "out-of-scope": 25,
+          "present": 15
+        },
+        "properties_written": 9,
+        "requirement_coverage_percent": 48.3,
+        "requirements": {
+          "missing": 15,
+          "not-applicable": 10,
+          "out-of-scope": 11,
+          "present": 14
+        }
+      }
+    },
+    "proj-setuptools": {
+      "outcomes": {
+        "BOM-G7AI2026-DP-001": "not-applicable",
+        "BOM-G7AI2026-DP-002": "not-applicable",
+        "BOM-G7AI2026-DP-002.1": "not-applicable",
+        "BOM-G7AI2026-DP-002.2": "not-applicable",
+        "BOM-G7AI2026-DP-002.3": "not-applicable",
+        "BOM-G7AI2026-DP-003": "not-applicable",
+        "BOM-G7AI2026-DP-003.1": "out-of-scope",
+        "BOM-G7AI2026-DP-003.2": "out-of-scope",
+        "BOM-G7AI2026-DP-003.3": "not-applicable",
+        "BOM-G7AI2026-DP-004": "not-applicable",
+        "BOM-G7AI2026-DP-005": "not-applicable",
+        "BOM-G7AI2026-DP-006": "not-applicable",
+        "BOM-G7AI2026-DP-006.1": "not-applicable",
+        "BOM-G7AI2026-DP-006.2": "not-applicable",
+        "BOM-G7AI2026-DP-006.3": "not-applicable",
+        "BOM-G7AI2026-DP-006.4": "out-of-scope",
+        "BOM-G7AI2026-DP-007": "not-applicable",
+        "BOM-G7AI2026-DP-008": "not-applicable",
+        "BOM-G7AI2026-DP-008.1": "not-applicable",
+        "BOM-G7AI2026-DP-008.2": "out-of-scope",
+        "BOM-G7AI2026-DP-008.3": "out-of-scope",
+        "BOM-G7AI2026-DP-009": "not-applicable",
+        "BOM-G7AI2026-DP-010": "not-applicable",
+        "BOM-G7AI2026-INF-001": "out-of-scope",
+        "BOM-G7AI2026-INF-002": "out-of-scope",
+        "BOM-G7AI2026-KPI-001": "out-of-scope",
+        "BOM-G7AI2026-KPI-002": "out-of-scope",
+        "BOM-G7AI2026-MD-001": "present",
+        "BOM-G7AI2026-MD-002": "out-of-scope",
+        "BOM-G7AI2026-MD-003": "present",
+        "BOM-G7AI2026-MD-004": "present",
+        "BOM-G7AI2026-MD-005": "out-of-scope",
+        "BOM-G7AI2026-MD-006": "present",
+        "BOM-G7AI2026-MD-007": "out-of-scope",
+        "BOM-G7AI2026-MD-008": "present",
+        "BOM-G7AI2026-MD-009": "present",
+        "BOM-G7AI2026-MD-010": "present",
+        "BOM-G7AI2026-MDL-001": "present",
+        "BOM-G7AI2026-MDL-002": "present",
+        "BOM-G7AI2026-MDL-003": "missing",
+        "BOM-G7AI2026-MDL-004": "missing",
+        "BOM-G7AI2026-MDL-005": "missing",
+        "BOM-G7AI2026-MDL-006": "missing",
+        "BOM-G7AI2026-MDL-006.1": "missing",
+        "BOM-G7AI2026-MDL-006.2": "missing",
+        "BOM-G7AI2026-MDL-006.3": "missing",
+        "BOM-G7AI2026-MDL-006.4": "missing",
+        "BOM-G7AI2026-MDL-007": "present",
+        "BOM-G7AI2026-MDL-008": "present",
+        "BOM-G7AI2026-MDL-009": "present",
+        "BOM-G7AI2026-MDL-009.1": "missing",
+        "BOM-G7AI2026-MDL-009.2": "out-of-scope",
+        "BOM-G7AI2026-MDL-009.3": "out-of-scope",
+        "BOM-G7AI2026-MDL-009.4": "present",
+        "BOM-G7AI2026-MDL-010": "missing",
+        "BOM-G7AI2026-MDL-010.1": "out-of-scope",
+        "BOM-G7AI2026-MDL-010.2": "out-of-scope",
+        "BOM-G7AI2026-MDL-010.3": "out-of-scope",
+        "BOM-G7AI2026-MDL-010.4": "missing",
+        "BOM-G7AI2026-MDL-011": "missing",
+        "BOM-G7AI2026-MDL-011.1": "missing",
+        "BOM-G7AI2026-MDL-011.2": "out-of-scope",
+        "BOM-G7AI2026-MDL-012": "missing",
+        "BOM-G7AI2026-MDL-012.1": "out-of-scope",
+        "BOM-G7AI2026-MDL-013": "missing",
+        "BOM-G7AI2026-SLP-001": "present",
+        "BOM-G7AI2026-SLP-002": "present",
+        "BOM-G7AI2026-SLP-003": "missing",
+        "BOM-G7AI2026-SLP-004": "missing",
+        "BOM-G7AI2026-SLP-005": "missing",
+        "BOM-G7AI2026-SLP-006": "out-of-scope",
+        "BOM-G7AI2026-SLP-007": "missing",
+        "BOM-G7AI2026-SLP-008": "missing",
+        "BOM-G7AI2026-SLP-008.1": "out-of-scope",
+        "BOM-G7AI2026-SLP-008.2": "out-of-scope",
+        "BOM-G7AI2026-SLP-008.3": "missing",
+        "BOM-G7AI2026-SLP-009": "missing",
+        "BOM-G7AI2026-SP-001": "out-of-scope",
+        "BOM-G7AI2026-SP-002": "missing",
+        "BOM-G7AI2026-SP-003": "out-of-scope",
+        "BOM-G7AI2026-SP-004": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "DP": {
+            "coverage_percent": null,
+            "not-applicable": 18,
+            "out-of-scope": 5
+          },
+          "INF": {
+            "coverage_percent": null,
+            "out-of-scope": 2
+          },
+          "KPI": {
+            "coverage_percent": null,
+            "out-of-scope": 2
+          },
+          "MD": {
+            "coverage_percent": 100.0,
+            "out-of-scope": 3,
+            "present": 7
+          },
+          "MDL": {
+            "coverage_percent": 28.6,
+            "missing": 15,
+            "out-of-scope": 7,
+            "present": 6
+          },
+          "SLP": {
+            "coverage_percent": 22.2,
+            "missing": 7,
+            "out-of-scope": 3,
+            "present": 2
+          },
+          "SP": {
+            "coverage_percent": 0.0,
+            "missing": 1,
+            "out-of-scope": 3
+          }
+        },
+        "coverage_percent": 39.5,
+        "outcomes": {
+          "missing": 23,
+          "not-applicable": 18,
+          "out-of-scope": 25,
+          "present": 15
+        },
+        "properties_written": 9,
+        "requirement_coverage_percent": 48.3,
+        "requirements": {
+          "missing": 15,
+          "not-applicable": 10,
+          "out-of-scope": 11,
+          "present": 14
         }
       }
     },

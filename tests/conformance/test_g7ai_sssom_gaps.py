@@ -9,8 +9,8 @@ them.
 
 The set is pinned both ways: a new Pitloom property, or a checker that starts
 checking a rule, changes it and forces a deliberate edit here (and in
-``g7-ai-sbom-coverage.md``). Property level only: a property written is not a
-value that satisfies the element.
+``g7-ai-sbom-coverage.md``). Property level only, on an element of the subject's
+kind: a property written is not a value that satisfies the element.
 
 See also: tests/conformance/test_g7ai_outcomes.py,
 tests/fixtures/conformance/README.md (the mapping snapshot).
@@ -34,7 +34,6 @@ _PROFILES = ("ai_", "dataset_", "software_")
 
 #: Unchecked element -> mapped profile properties Pitloom writes today.
 EMITTED_BUT_UNCHECKED = {
-    "dataset-domain": ["domain"],
     "model-architecture": ["typeOfModel"],
     "model-context-length": ["hyperparameter"],
     "model-input-modality": ["informationAboutApplication", "typeOfModel"],
@@ -46,12 +45,25 @@ EMITTED_BUT_UNCHECKED = {
 }
 
 
-def _emitted_properties() -> set[str]:
-    keys = set()
+#: Subject prefix -> the element types the element is, in the SBOM.
+_ELEMENT_TYPES = {
+    "dataset": {"dataset_DatasetPackage"},
+    "model": {"ai_AIPackage"},
+    "system": {"ai_AIPackage", "software_Package"},
+}
+
+
+def _emitted_properties() -> set[tuple[str, str]]:
+    """(element type, property) pairs Pitloom writes, profile properties only."""
+    pairs = set()
     for build in SCENARIOS.values():
         for element in json.loads(build())["@graph"]:
-            keys |= {k.split("_", 1)[1] for k in element if k.startswith(_PROFILES)}
-    return keys
+            pairs |= {
+                (element["type"], key.split("_", 1)[1])
+                for key in element
+                if key.startswith(_PROFILES)
+            }
+    return pairs
 
 
 def _mapped() -> dict[str, set[str]]:
@@ -74,9 +86,15 @@ def test_emitted_but_unchecked_is_pinned() -> None:
     spec = get_spec("g7ai")
     unchecked = {r.slug[5:-8] for r in spec.rules if r.status == "catalogue-only"}
     emitted = _emitted_properties()
+
+    def written(subject: str) -> set[str]:
+        """The mapped properties written on an element of the subject's kind."""
+        types = _ELEMENT_TYPES.get(subject.split("-", 1)[0], set())
+        return {name for kind, name in emitted if kind in types}
+
     actual = {
-        subject: sorted(names & emitted)
+        subject: sorted(names & written(subject))
         for subject, names in _mapped().items()
-        if subject in unchecked and names & emitted
+        if subject in unchecked and names & written(subject)
     }
     assert actual == EMITTED_BUT_UNCHECKED

@@ -178,3 +178,16 @@ def test_lid_176_extension_detect() -> None:
     if not LID_176_FIXTURE.exists():
         pytest.skip(f"Fixture file not found: {LID_176_FIXTURE}")
     assert detect_ai_model_format(LID_176_FIXTURE) == AiModelFormat.FASTTEXT
+
+
+def test_sentiment_demo_domain_says_it_is_derived(
+    sentiment_demo_metadata: AiModelMetadata,
+) -> None:
+    """The file states no domain: it is the format's, and says so."""
+    assert sentiment_demo_metadata.domain == [
+        "text classification",
+        "natural language processing",
+    ]
+    assert sentiment_demo_metadata.provenance["domain"].endswith(
+        "| Field: args.model | Method: derived_from_format"
+    )

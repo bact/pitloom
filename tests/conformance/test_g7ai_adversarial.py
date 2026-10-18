@@ -22,7 +22,13 @@ from typing import Any
 
 import pytest
 
-from tests.conformance.g7ai_shared import SCENARIOS, check, outcomes
+from tests.conformance.g7ai_shared import (
+    BACKENDS,
+    SCENARIOS,
+    check,
+    outcomes,
+    project_sbom,
+)
 
 P = "BOM-G7AI2026-"
 Graph = list[dict[str, Any]]
@@ -127,3 +133,14 @@ def test_unreadable_sbom_fails_instead_of_reporting_all_missing(tmp_path: Path) 
     path.write_text(SCENARIOS["hub"]()[:200], encoding="utf-8")
     with pytest.raises(AssertionError, match="could not read"):
         check(path)
+
+
+def test_a_model_setuptools_does_not_ship_is_not_claimed() -> None:
+    """Without ``package-data`` setuptools leaves the model out of the
+    distribution, so the SBOM does not describe it."""
+    pyproject = BACKENDS["setuptools"].replace(
+        '[tool.setuptools.package-data]\ndemo = ["*.safetensors"]\n', ""
+    )
+    assert pyproject != BACKENDS["setuptools"]
+    graph = json.loads(project_sbom(pyproject))["@graph"]
+    assert not [e for e in graph if e["type"] == "ai_AIPackage"]

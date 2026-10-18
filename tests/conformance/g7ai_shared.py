@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import csv
 import json
+import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from importlib.metadata import distribution
@@ -25,11 +26,12 @@ from unittest.mock import patch
 
 from ntia_conformance_checker import RuleBasedChecker, get_spec
 
-from pitloom.assemble import generate_model_sbom
+from pitloom.assemble import generate_model_sbom, generate_project_sbom
 from pitloom.assemble.spdx3.document import build_model
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from tests._author_routes import CREATED
+from tests._wheel_models import safetensors_bytes
 from tests.extract.remote.hf_patches._hf_patches_base import (
     _make_card_data,
     _patch_hf_calls,
@@ -114,13 +116,57 @@ def _library() -> str:
         return build_model(model, CREATED, digest="ab" * 32).to_json()
 
 
+_PROJECT = (
+    'name = "demo"\nversion = "1.0.0"\ndescription = "Demo model"\n'
+    'requires-python = ">=3.10"\nauthors = [{name = "Alice"}]\n'
+    'license = "Apache-2.0"\n'
+)
+#: Build-backend name -> the ``pyproject.toml`` of the same project. Setuptools
+#: ships a data file only when told to, so it says so.
+BACKENDS = {
+    "hatchling": (
+        '[build-system]\nrequires = ["hatchling"]\n'
+        'build-backend = "hatchling.build"\n[project]\n' + _PROJECT
+    ),
+    "setuptools": (
+        '[build-system]\nrequires = ["setuptools>=77"]\n'
+        'build-backend = "setuptools.build_meta"\n[project]\n'
+        + _PROJECT
+        + '[tool.setuptools.package-data]\ndemo = ["*.safetensors"]\n'
+    ),
+    "poetry": (
+        '[build-system]\nrequires = ["poetry-core>=2"]\n'
+        'build-backend = "poetry.core.masonry.api"\n[project]\n' + _PROJECT
+    ),
+}
+
+
+def project_sbom(pyproject: str) -> str:
+    """The SBOM of a project with *pyproject* that holds one Safetensors model."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / "demo").mkdir()
+        (root / "demo" / "__init__.py").write_bytes(b"x = 1\n")
+        (root / "demo" / "m.safetensors").write_bytes(safetensors_bytes())
+        (root / "pyproject.toml").write_text(pyproject, encoding="utf-8")
+        with _without_licence_database():
+            return generate_project_sbom(root, creation_metadata=CREATED, offline=True)
+
+
+def _project(backend: str) -> Callable[[], str]:
+    return lambda: project_sbom(BACKENDS[backend])
+
+
 #: Scenario name -> SBOM JSON text. Order is the TSV's column order.
 SCENARIOS: dict[str, Callable[[], str]] = {
     "gguf": _file("gguf/stories260K.gguf"),
     "safetensors": _file("safetensors/phi-tiny-random.safetensors"),
     "onnx": _file("onnx/gpt2-tiny-decoder.onnx"),
+    "numpy": _file("numpy/example-model-v1.npy"),
+    "fasttext": _file("fasttext/sentimentdemo.bin"),
     "hub": _hub,
     "library": _library,
+    **{f"proj-{backend}": _project(backend) for backend in BACKENDS},
 }
 
 
