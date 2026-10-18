@@ -1,6 +1,6 @@
 {
   "header": {
-    "checker": "41438921eb9a1a190e7839ab483bb6e8b404a3bd",
+    "checker": "151460c72bdf3664cecce5b16e61f4b0b379a7d1",
     "mapping_sha256": "8a2f41d6da77acceba437f317a8075782e5e25defcde22f6f4309606544de2d3",
     "pitloom": "0.20.2",
     "rules": 23,
@@ -64,7 +64,7 @@
           "present": 10
         }
       },
-      "system_judged_by_model": "sentimentdemo"
+      "system_judged_by_model": null
     },
     "gguf": {
       "outcomes": {
@@ -123,7 +123,7 @@
           "present": 10
         }
       },
-      "system_judged_by_model": "llama"
+      "system_judged_by_model": null
     },
     "hub": {
       "outcomes": {
@@ -132,9 +132,9 @@
         "BOM-CISA2026-COMP-003": "missing",
         "BOM-CISA2026-COMP-004": "missing",
         "BOM-CISA2026-COMP-005": "present",
-        "BOM-CISA2026-COMP-006": "missing",
+        "BOM-CISA2026-COMP-006": "present",
         "BOM-CISA2026-COMP-007": "present",
-        "BOM-CISA2026-COMP-008": "missing",
+        "BOM-CISA2026-COMP-008": "present",
         "BOM-CISA2026-META-001": "present",
         "BOM-CISA2026-META-002": "out-of-scope",
         "BOM-CISA2026-META-003": "present",
@@ -154,9 +154,9 @@
       "summary": {
         "clusters": {
           "COMP": {
-            "coverage_percent": 25.0,
-            "missing": 6,
-            "present": 2
+            "coverage_percent": 50.0,
+            "missing": 4,
+            "present": 4
           },
           "META": {
             "coverage_percent": 100.0,
@@ -168,21 +168,21 @@
             "out-of-scope": 6
           }
         },
-        "coverage_percent": 57.1,
+        "coverage_percent": 71.4,
         "outcomes": {
-          "missing": 6,
+          "missing": 4,
           "out-of-scope": 9,
-          "present": 8
+          "present": 10
         },
-        "properties_written": 10,
-        "requirement_coverage_percent": 57.1,
+        "properties_written": 11,
+        "requirement_coverage_percent": 71.4,
         "requirements": {
-          "missing": 6,
+          "missing": 4,
           "out-of-scope": 3,
-          "present": 8
+          "present": 10
         }
       },
-      "system_judged_by_model": "model"
+      "system_judged_by_model": null
     },
     "library": {
       "outcomes": {
@@ -241,7 +241,7 @@
           "present": 10
         }
       },
-      "system_judged_by_model": "m"
+      "system_judged_by_model": null
     },
     "numpy": {
       "outcomes": {
@@ -300,7 +300,7 @@
           "present": 10
         }
       },
-      "system_judged_by_model": "example-model-v1"
+      "system_judged_by_model": null
     },
     "onnx": {
       "outcomes": {
@@ -359,7 +359,7 @@
           "present": 10
         }
       },
-      "system_judged_by_model": "gpt2-tiny-decoder"
+      "system_judged_by_model": null
     },
     "proj-hatchling": {
       "outcomes": {
@@ -595,7 +595,7 @@
           "present": 10
         }
       },
-      "system_judged_by_model": "phi-tiny-random"
+      "system_judged_by_model": null
     }
   }
 }

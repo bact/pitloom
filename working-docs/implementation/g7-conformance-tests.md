@@ -101,23 +101,24 @@ reading", not "compliant"; unchecked rules are not counted as missing.
 | 0.20.2 (baseline) | `9b70174` | onnx | 21 | 17 | 18 | 25 | 55.3% |
 | 0.20.2 (baseline) | `9b70174` | hub | 21 | 35 | 0 | 25 | 37.5% |
 | 0.20.2 (baseline) | `9b70174` | library | 23 | 33 | 0 | 25 | 41.1% |
-| 0.20.3-dev | `4143892` | gguf | 16 | 22 | 18 | 25 | 42.1% |
-| 0.20.3-dev | `4143892` | safetensors | 13 | 25 | 18 | 25 | 34.2% |
-| 0.20.3-dev | `4143892` | onnx | 22 | 16 | 18 | 25 | 57.9% |
-| 0.20.3-dev | `4143892` | numpy | 15 | 23 | 18 | 25 | 39.5% |
-| 0.20.3-dev | `4143892` | fasttext | 23 | 15 | 18 | 25 | 60.5% |
-| 0.20.3-dev | `4143892` | hub | 27 | 29 | 0 | 25 | 48.2% |
-| 0.20.3-dev | `4143892` | library | 26 | 30 | 0 | 25 | 46.4% |
-| 0.20.3-dev | `4143892` | proj-hatchling | 15 | 23 | 18 | 25 | 39.5% |
-| 0.20.3-dev | `4143892` | proj-setuptools | 15 | 23 | 18 | 25 | 39.5% |
-| 0.20.3-dev | `4143892` | proj-poetry | 15 | 23 | 18 | 25 | 39.5% |
+| 0.20.3-dev | `151460c` | gguf | 16 | 22 | 18 | 25 | 42.1% |
+| 0.20.3-dev | `151460c` | safetensors | 13 | 25 | 18 | 25 | 34.2% |
+| 0.20.3-dev | `151460c` | onnx | 22 | 16 | 18 | 25 | 57.9% |
+| 0.20.3-dev | `151460c` | numpy | 15 | 23 | 18 | 25 | 39.5% |
+| 0.20.3-dev | `151460c` | fasttext | 23 | 15 | 18 | 25 | 60.5% |
+| 0.20.3-dev | `151460c` | hub | 28 | 28 | 0 | 25 | 50.0% |
+| 0.20.3-dev | `151460c` | library | 26 | 30 | 0 | 25 | 46.4% |
+| 0.20.3-dev | `151460c` | proj-hatchling | 15 | 23 | 18 | 25 | 39.5% |
+| 0.20.3-dev | `151460c` | proj-setuptools | 15 | 23 | 18 | 25 | 39.5% |
+| 0.20.3-dev | `151460c` | proj-poetry | 15 | 23 | 18 | 25 | 39.5% |
 
 Coverage is present / (present + missing).
 
-CISA 2026 (23 rules, 9 unchecked) at `4143892`: 71.4% for each model file
-scenario and `library`, 57.1% for `hub`, 78.6% for each project. FSCT 2024
-(13 rules, 3 unchecked): 50.0% for each model file scenario and `hub`, 60.0%
-for `library` and each project.
+CISA 2026 (23 rules, 9 unchecked) at `151460c`: 71.4% for each model file
+scenario, `hub` and `library`, 78.6% for each project. FSCT 2024 (13 rules,
+3 unchecked): 50.0% for each model file scenario, 60.0% for `hub`, `library`
+and each project. G7 `hub` at `151460c` after reader 3: 28 present, 28
+missing, 50.0%.
 
 ## Honesty
 
@@ -213,6 +214,20 @@ files, project, wheel and sdist file elements, `loom` model, dataset and
 script files, and bundled (phantom) libraries. A dependency's hash stays the
 SHA-256 its lock file gives, and a Merkle root stays SHA-256 only.
 
+**Reader 3, Hub dataset cards (2026-10-18).** Each dataset a Hub model card
+lists is filled from its own Hub repository (licence, description, keywords,
+version, owner; `extract/remote/huggingface_dataset.py`). The `hub` scenario's
+mocked `c4` dataset card states `ODC-By-1.0` and its repository a commit
+hash. Flipped to `present` in `hub`: G7 `DP-010` (dataset licence), CISA 2026
+`COMP-006` (licence: `hasDeclaredLicense`, which this checker accepts) and
+`COMP-008` (version), FSCT `COMP-002` (version), BSI `COMP-003` (version);
+the version is the dataset revision's commit hash, as for a Hub model, a
+weaker form than a release version. Nothing else moved. A second dataset
+without a licence was tried in the scenario: every component rule then stays
+`missing` (each dataset must have the property), so it was left out; the
+tests cover that case. All four history files were regenerated; their headers
+now name checker `151460c`.
+
 ## Database-less builds
 
 `licenseid` canonicalises licence IDs when its database exists (CI builds it)
@@ -230,7 +245,6 @@ laptop and in CI.
 ## History files and the checker commit
 
 Each history file's header names the checker commit it was made with: the
-0.20.2 baseline `9b701748`, the g7ai, cisa2026 and fsct3 `0.20.3-dev` files `41438921`, the bsi file
-`34c00ba`. The pinned commit is now `a877b4c`; its outcomes equal the committed
-files (only the headers name older commits). A history file named
+0.20.2 baseline `9b701748`; the four `0.20.3-dev` files `151460c`, the pinned
+commit, since reader 3. A history file named
 `0.20.3-dev` records `pitloom 0.20.2`, the installed version when it was made.

@@ -80,12 +80,12 @@ def stated_text(value: object, source: str, field: str) -> str | None:
     return found.strip() or None
 
 
-def _named_text(name: object, link: object, source: str) -> tuple[str, list[str]]:
+def _named_text(name: object, link: object, where: str) -> tuple[str, list[str]]:
     """The text of an ``other`` licence, its name then its link, and the
     fields it came from; ``("", [])`` when the source gives neither."""
     parts: list[tuple[str, str]] = []
     for field, value in ((LICENSE_NAME_FIELD, name), (LICENSE_LINK_FIELD, link)):
-        text = stated_text(value, source, field)
+        text = stated_text(value, where, field)
         if text and not is_weak_licence(text):
             parts.append((field, text))
     if len(parts) == 2:
@@ -94,19 +94,29 @@ def _named_text(name: object, link: object, source: str) -> tuple[str, list[str]
 
 
 def dataset_licence(
-    value: object, *, source: str, name: object = None, link: object = None
+    value: object,
+    *,
+    source: str,
+    name: object = None,
+    link: object = None,
+    field_prefix: str = "",
+    where: str | None = None,
 ) -> DatasetLicence | None:
     """The licence a dataset source states in its ``license`` *value*, with
     ``license_name`` *name* and ``license_link`` *link* where the source has
     them; *source* names it in the provenance (``Source: <source> | Field:
-    license``). ``None`` when it states none (see the module rules)."""
-    text = stated_text(value, source, LICENSE_FIELD)
+    <field_prefix>license``), *where* (default *source*) in a warning.
+    ``None`` when it states none (see the module rules)."""
+    shown = source if where is None else where
+    text = stated_text(value, shown, LICENSE_FIELD)
     if text is None or is_weak_licence(text):
         return None
     fields = [LICENSE_FIELD]
     if text.lower() == _OTHER:
-        text, named = _named_text(name, link, source)
+        text, named = _named_text(name, link, shown)
         if not text:
             return None
         fields += named
-    return DatasetLicence(text, f"Source: {source} | Field: {', '.join(fields)}")
+    return DatasetLicence(
+        text, f"Source: {source} | Field: {field_prefix}{', '.join(fields)}"
+    )

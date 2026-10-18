@@ -159,6 +159,17 @@ def _read_card(card_path: Path, kind: CardKind) -> str | None:
     return text
 
 
+def read_card(
+    card_path: Path, kind: CardKind = MODEL_CARD
+) -> tuple[str, dict[str, Any] | None] | None:
+    """The text of the *kind* card at *card_path*, within
+    :data:`MODEL_CARD_MAX_BYTES`, and its frontmatter as
+    :func:`read_card_frontmatter` gives it; ``None`` when the card cannot
+    be read (one ``WARNING:``)."""
+    text = _read_card(card_path, kind)
+    return None if text is None else (text, _parse_frontmatter(text, kind))
+
+
 def read_card_frontmatter(
     card_path: Path, kind: CardKind = MODEL_CARD
 ) -> dict[str, Any] | None:
@@ -167,8 +178,8 @@ def read_card_frontmatter(
     parsed (one ``WARNING:``). Read within :data:`MODEL_CARD_MAX_BYTES`.
     A caller reads only the keys it uses, and only their plain values: YAML
     aliases can make the rest an expanded tree of exponential size."""
-    text = _read_card(card_path, kind)
-    return None if text is None else _parse_frontmatter(text, kind)
+    read = read_card(card_path, kind)
+    return None if read is None else read[1]
 
 
 # pylint: disable=too-few-public-methods
@@ -268,5 +279,6 @@ __all__ = [
     "CardKind",
     "ReadmeEnricher",
     "find_card_file",
+    "read_card",
     "read_card_frontmatter",
 ]

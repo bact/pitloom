@@ -19,6 +19,8 @@ modules import these names directly from the matching topic module.
 
 from __future__ import annotations
 
+from collections.abc import Generator, Mapping
+from contextlib import contextmanager
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -86,7 +88,33 @@ _MISTRAL_CARD_DATA = _make_card_data(
 )
 
 
-# pylint: disable=dangerous-default-value
+#: What the Hub serves for a dataset repository in :func:`_patch_hf_calls`:
+#: ``info`` (``author``, ``sha``), ``card_text`` and ``card_data``.
+HubDataset = Mapping[str, Any]
+
+
+def _patch_hub_datasets(datasets: Mapping[str, HubDataset] | None) -> Any:
+    """Patch the two Hub dataset requests to serve *datasets*, by id; any
+    other dataset is a repository that states nothing."""
+    served = datasets or {}
+
+    def info(dataset_id: str) -> dict[str, Any]:
+        return dict(served.get(dataset_id, {}).get("info", {}))
+
+    def card(dataset_id: str, revision: str | None) -> tuple[str | None, Any]:
+        _ = revision
+        entry = served.get(dataset_id, {})
+        return entry.get("card_text"), dict(entry.get("card_data", {}))
+
+    return patch.multiple(
+        "pitloom.extract.remote.huggingface_dataset",
+        _load_dataset_info=MagicMock(side_effect=info),
+        _load_dataset_card=MagicMock(side_effect=card),
+    )
+
+
+# pylint: disable=dangerous-default-value,too-many-arguments
+@contextmanager
 def _patch_hf_calls(
     config: dict[str, Any] | None = _MISTRAL_CONFIG,
     tokenizer_config: dict[str, Any] | None = _MISTRAL_TOKENIZER_CONFIG,
@@ -94,8 +122,11 @@ def _patch_hf_calls(
     card_text: str | None = "---\nlicense: apache-2.0\n---\n\nA great model.",
     card_data: dict[str, Any] | None = None,
     hub_info: dict[str, Any] | None = None,
-) -> Any:
-    """Return a context manager that patches all HF I/O helpers."""
+    *,
+    datasets: Mapping[str, HubDataset] | None = None,
+) -> Generator[None, None, None]:
+    """Patch all HF I/O helpers; *datasets* is what the Hub serves for each
+    dataset repository (see :func:`_patch_hub_datasets`)."""
 
     def _json_side_effect(
         model_id: str, filename: str, revision: str | None = None
@@ -110,33 +141,39 @@ def _patch_hf_calls(
             return generation_config
         return None
 
-    return patch.multiple(
-        "pitloom.extract.remote.huggingface_fetch",
-        _safe_load_json=MagicMock(side_effect=_json_side_effect),
-        _load_model_card=MagicMock(
-            return_value=(
-                card_text,
-                _MISTRAL_CARD_DATA if card_data is None else card_data,
-            )
+    with (
+        _patch_hub_datasets(datasets),
+        patch.multiple(
+            "pitloom.extract.remote.huggingface_fetch",
+            _safe_load_json=MagicMock(side_effect=_json_side_effect),
+            _load_model_card=MagicMock(
+                return_value=(
+                    card_text,
+                    _MISTRAL_CARD_DATA if card_data is None else card_data,
+                )
+            ),
+            _load_model_info=MagicMock(
+                return_value=hub_info
+                or {
+                    "author": "mistralai",
+                    "sha": "deadbeef",
+                    "created_at": "2023-09-20T13:03:50+00:00",
+                }
+            ),
+            # Prevent real network calls for license file detection in tests.
+            # Override per-test via an extra patch when file detection is under test.
+            _detect_license_from_hf_files=MagicMock(return_value=(None, None)),
         ),
-        _load_model_info=MagicMock(
-            return_value=hub_info
-            or {
-                "author": "mistralai",
-                "sha": "deadbeef",
-                "created_at": "2023-09-20T13:03:50+00:00",
-            }
-        ),
-        # Prevent real network calls for license file detection in tests.
-        # Override per-test via an extra patch when file detection is under test.
-        _detect_license_from_hf_files=MagicMock(return_value=(None, None)),
-    )
+    ):
+        yield
 
 
 __all__ = [
+    "HubDataset",
     "_MISTRAL_CARD_DATA",
     "_MISTRAL_CONFIG",
     "_MISTRAL_TOKENIZER_CONFIG",
     "_make_card_data",
     "_patch_hf_calls",
+    "_patch_hub_datasets",
 ]

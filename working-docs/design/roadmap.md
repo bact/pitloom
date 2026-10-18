@@ -125,8 +125,8 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   file, with gated model lookups (built 2026-10-16 with path keys; see
   [id-registry-path-keys.md](../implementation/id-registry-path-keys.md)).
 - [x] **#3 part 2: dataset licence wiring** (`DatasetMetadata.license` read by
-  `dataset.py`; G7 B1). Open: readers that feed a licence in (Croissant via `loom.run`, a
-  local dataset card, the Hub dataset card; about 2.5 days); plan in
+  `dataset.py`; G7 B1) and its three readers (Croissant via `loom.run`, a local
+  dataset card, the Hub dataset card of a Hub model's datasets): see
   [dataset-licence-readers.md](dataset-licence-readers.md).
 - [x] **Identifiers from the minimum-elements mappings** (CISA 2026, NTIA 2021,
   G7 AI 2026, BSI 2025): `software_packageUrl` on `ai_AIPackage` and dataset

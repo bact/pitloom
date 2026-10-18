@@ -80,11 +80,23 @@ _HUB_INFO = {
 }
 
 
+#: What the Hub states of the model's datasets: ``c4`` has a card with an
+#: SPDX licence, ``acme/notes`` a repository whose card states none.
+_HUB_DATASETS = {
+    "c4": {
+        "info": {"sha": "89abcdef0123456789abcdef0123456789abcdef"},
+        "card_text": "---\nlicense: ODC-By-1.0\n---\n\nA cleaned web crawl.\n",
+        "card_data": {"license": "ODC-By-1.0", "tags": ["web"]},
+    },
+    "acme/notes": {"info": {"author": "acme"}, "card_text": "# Notes\n"},
+}
+
+
 def _hub() -> str:
     card = _make_card_data(license="apache-2.0", datasets=["c4"])
     with (
         without_licence_database(),
-        _patch_hf_calls(card_data=card, hub_info=_HUB_INFO),
+        _patch_hf_calls(card_data=card, hub_info=_HUB_INFO, datasets=_HUB_DATASETS),
     ):
         return generate_model_sbom("acme/model", creation_metadata=CREATED)
 

@@ -13,8 +13,9 @@ See also: [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md) (G7 DP-010),
 [roadmap.md](roadmap.md),
 [g7-conformance-tests.md](../implementation/g7-conformance-tests.md).
 
-Status 2026-10-18: readers 1 and 2 and the shared mapping built (see
-[Built](#built-readers-1-and-2)); reader 3 not built.
+Status 2026-10-18: all three readers and the shared mapping built (see
+[Built: readers 1 and 2](#built-readers-1-and-2) and
+[Built: reader 3](#built-reader-3)).
 
 ## Where things stand
 
@@ -168,6 +169,77 @@ which keeps the licence (tested through `merge_fragments`).
 (loom run: shapes, weak values, precedence, errors, display controls, byte
 identity, fragment merge). No conformance table cell moved: no conformance
 scenario uses `loom.run` or a Croissant file yet.
+
+## Built: reader 3
+
+**Where.** `pitloom.extract.remote.huggingface_dataset.add_hub_dataset_metadata`,
+called by `read_huggingface` right after the model card's datasets (card
+`datasets:`, else the `dataset:*` tags) are listed. It is the only caller, so
+a dataset is looked up exactly when its model is: `--offline` (or
+`offline = true`) refuses the Hub model before any request, and
+`HF_HUB_OFFLINE` makes `dataset_info()` fail, which warns, as the model's
+own requests do. There is no other
+switch to mirror.
+
+**Requests, per dataset.** `dataset_info(id)` (owner, commit hash), then the
+`README.md` at that commit through `hf_hub_download(repo_type="dataset")`
+(the Hub file cache, as `ModelCard.load` uses for the model), read through
+`enrich.readme.read_card` (new public helper: text and frontmatter, 1 MiB
+cap, the cap and parse warnings of reader 2) with a `CardKind` of its own.
+Mocking seam: `_load_dataset_info` / `_load_dataset_card`, patched by the
+tests' `_patch_hf_calls(datasets=...)`.
+
+**Mapped, 1:1.** `license` (+ `license_name`/`license_link` for `other`)
+through `dataset_licence(..., field_prefix="dataset card ", where=...)`
+(two new keyword arguments: the provenance `Field:` prefix, and the name a
+warning gives, here `Hugging Face dataset <id>`); description: the card's
+first prose paragraph (`_extract_card_description`, the model's helper);
+keywords: card `tags` (`card_tags`, promoted from reader 2); version: the
+commit hash (`commit_hash`, as for a model); creator: the owner
+(`originator_names`, provenance `Method: repository_owner`), written as a
+`publishedBy` Agent. Provenance `Source: Hugging Face Hub | Field: dataset
+card <field>` / `dataset_info sha` / `dataset_info author`. Keywords have no
+SPDX 3.0.1 dataset property: their provenance is now dropped by the writer
+for every dataset (`assemble.spdx3.dataset.written_provenance`, shared with
+the `loom` path, which dropped it by hand).
+
+**Not looked up.** A name that is not a Hub repository id (`My corpus`); ids
+past `MAX_HUB_DATASET_LOOKUPS` (20), with one over-cap `WARNING:` naming the
+model and how many were skipped. An id listed twice is requested once.
+
+**Failure.** A failed `dataset_info()` is one `WARNING:` (`Failed to load
+dataset_info() for <id>: ...`), no card request follows, and the dataset keeps
+its name and download URL; a failed card download likewise (`Failed to load
+dataset card for <id>`); a repository with no `README.md`
+(`RemoteEntryNotFoundError`) and a card with no licence are silent. Never
+fatal to the model SBOM.
+
+**Seen on the live Hub (manual, not a test).** `allenai/c4` and
+`HuggingFaceFW/fineweb` give `odc-by`, owner and commit; `wikipedia` states
+its licence as a two-item list (`cc-by-sa-3.0`, `gfdl`), which the shared
+rule refuses with a `WARNING:` (a list of licences is not one statement); the
+first prose paragraph of many dataset cards is a table of contents, a
+`**Paper:**` line or HTML, read as the description as the model helper reads
+a model card. Both are left for the owner to rule on.
+
+**Not done.** No cap on the bytes `hf_hub_download` writes to the cache (the
+read is capped); no request timeout of its own (the model's requests have
+none either). Hub dataset `size_categories`, `task_categories` and similar
+are not read: they do not map 1:1 onto a dataset property.
+
+**Surfaces.** Library (`generate_model_sbom`, `read_huggingface`), `loom
+model` and `loom generate` (tested); the Action runs `loom model`; the
+build hook never reads a Hub model.
+
+**Tables.** `hub`: G7 `DP-010`, CISA `COMP-006`/`COMP-008`, FSCT `COMP-002`,
+BSI `COMP-003` to `present` (see the increment note in
+[g7-conformance-tests.md](../implementation/g7-conformance-tests.md)).
+
+**Tests.** `tests/extract/remote/test_huggingface_dataset.py` (licence
+outcomes, every field, unstated fields, tag fallback, plain names and repeats,
+cap, request failures, no card, capped read, escaped error, wrong licence
+shape, id rule), `test_huggingface_dataset_surfaces.py` (library, `loom
+model`, `loom generate`; provenance; byte identity; no request when offline).
 
 ## Open question for the owner
 

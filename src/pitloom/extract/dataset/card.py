@@ -35,7 +35,7 @@ from pitloom.logging_config import LONE_SURROGATES_WARNING, loggable
 
 log = logging.getLogger(__name__)
 
-__all__ = ["read_dataset_card"]
+__all__ = ["card_tags", "read_dataset_card"]
 
 _TEXT_KEYS = (LICENSE_FIELD, LICENSE_NAME_FIELD, LICENSE_LINK_FIELD, "pretty_name")
 
@@ -67,7 +67,7 @@ def _version(value: Any, source: str) -> str | None:
     return None
 
 
-def _tags(value: Any) -> list[str]:
+def card_tags(value: Any) -> list[str]:
     """A card's ``tags``: its strings, stripped and once each, in order; a
     single string is one tag."""
     items = [value] if isinstance(value, str) else value
@@ -88,7 +88,7 @@ def read_dataset_card(directory: Path) -> DatasetMetadata | None:
         return None
     source = (directory / card.name).as_posix()
     read = {key: frontmatter.get(key) for key in (*_TEXT_KEYS, "version")}
-    read["tags"] = _tags(frontmatter.get("tags"))
+    read["tags"] = card_tags(frontmatter.get("tags"))
     read, lone = _escape_strings(read)
     if lone:
         log.warning(LONE_SURROGATES_WARNING, "", loggable(source))

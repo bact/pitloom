@@ -36,6 +36,7 @@ from pitloom.assemble.spdx3.dataset import (
     add_dataset_creator_agent,
     add_dataset_license,
     set_dataset_fields,
+    written_provenance,
 )
 from pitloom.core.dataset_metadata import DatasetMetadata
 from pitloom.core.provenance import ProvenanceConfig
@@ -157,9 +158,8 @@ def write_metadata(
     ``data_preprocessing`` already on *package* (declared on the call) is
     kept. Keywords are not written: an SPDX 3.0.1 dataset has no such
     property."""
-    meta = dataclasses.replace(meta, provenance=dict(meta.provenance))
+    meta = dataclasses.replace(meta, provenance=written_provenance(meta))
     meta.name = str(package.name)
-    meta.provenance.pop("keywords", None)
     if package.dataset_dataPreprocessing:
         meta.data_preprocessing = []
         meta.provenance.pop("data_preprocessing", None)

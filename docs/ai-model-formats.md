@@ -321,7 +321,7 @@ the Hugging Face Hub, "card" a README or model card read with `--enrich`.
 | `arxiv_ids` | HF | `externalRef`, type `documentation` |
 | `url` | HF | `externalRef`, type `altWebPage` |
 | `base_model`, `base_model_relation` | HF | `Relationship` `descendantOf` to an `ai_AIPackage` for the base model (made if absent); the relation in its `comment` |
-| `datasets` | HF, card | `dataset_DatasetPackage` plus `Relationship` `trainedOn` or `testedOn`; a licence the dataset's metadata states becomes a licence element and `hasDeclaredLicense` (or `hasConcludedLicense` for a third-party source), as for the model. A Hub card's dataset list carries no licence |
+| `datasets` | HF, card | `dataset_DatasetPackage` plus `Relationship` `trainedOn` or `testedOn`; a licence the dataset's metadata states becomes a licence element and `hasDeclaredLicense` (or `hasConcludedLicense` for a third-party source), as for the model. A Hub card's dataset gets the licence, description, revision and owner of its own Hub dataset repository (see [Hugging Face Hub models](#hugging-face-hub-models)) |
 | `properties`, `raw_metadata`, `raw_metadata_types` | every format | `Annotation` of kind `artifact-metadata` (schema `https://pitloom.dev/provenance/artifact-metadata/2`): `metadata`, `valueTypes`, `format`; only when preserved, see below |
 | `raw_metadata_dropped` | any format, over the entry cap | that annotation's `truncatedKeyCount` |
 | `extra_data`, `extra_lists` | HF | that annotation, `format` `huggingface` |
@@ -380,6 +380,23 @@ loom model Qwen/Qwen3-235B-A22B
 This reads the model card, `config.json`, `tokenizer_config.json`,
 `generation_config.json` and the Hub's model information, and produces an
 `ai_AIPackage` as in the tables above.
+
+For each dataset the model card lists (`datasets:`, else the Hub's
+`dataset:*` tags) that is a Hub repository id, Pitloom also reads that
+dataset's own card and repository information, the first 20 datasets only:
+
+| Dataset field | From | Provenance `Field:` |
+| :------------ | :--- | :------------------ |
+| licence | the card's `license`; for `other`, its `license_name` and `license_link` (name first); `unknown` or a bare `other` give none | `dataset card license` |
+| description | the card's first prose paragraph | `dataset card` |
+| keywords (not written: SPDX 3.0.1 has no dataset keyword property) | the card's `tags` | `dataset card tags` |
+| version | the repository's commit hash | `dataset_info sha` |
+| creator (`publishedBy`) | the repository owner | `dataset_info author`, `Method: repository_owner` |
+
+A field the dataset does not state is left out. A failed request (a network
+error, a gated, private or deleted dataset) is one `WARNING:` naming the
+dataset, which keeps its name and download URL. These requests run only when
+the model itself is looked up, so `--offline` stops them too.
 
 ## Not yet supported
 

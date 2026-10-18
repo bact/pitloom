@@ -120,6 +120,18 @@ def set_dataset_fields(
         dataset_pkg.externalRef = [ext_ref]
 
 
+#: :class:`~pitloom.core.dataset_metadata.DatasetMetadata` fields with no
+#: SPDX 3.0.1 dataset property: never written, so their provenance is not.
+UNWRITTEN_DATASET_FIELDS = frozenset({"keywords"})
+
+
+def written_provenance(meta: DatasetMetadata) -> dict[str, str]:
+    """*meta*'s provenance without the fields that are not written."""
+    return {
+        k: v for k, v in meta.provenance.items() if k not in UNWRITTEN_DATASET_FIELDS
+    }
+
+
 #: A dataset's licence provenance when its metadata records none.
 DATASET_LICENSE_SOURCE = "Source: Dataset metadata"
 
@@ -276,7 +288,7 @@ def add_datasets_for_model(
         created.append((DATASET, dataset_pkg))
         emit_provenance(
             subject=dataset_pkg,
-            provenance=meta.provenance,
+            provenance=written_provenance(meta),
             creation_info=element_creation_info,
             doc_name=doc_name,
             doc_uuid=doc_uuid,

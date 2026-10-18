@@ -125,7 +125,7 @@
       "outcomes": {
         "BOM-BSI2025-COMP-001": "missing",
         "BOM-BSI2025-COMP-002": "present",
-        "BOM-BSI2025-COMP-003": "missing",
+        "BOM-BSI2025-COMP-003": "present",
         "BOM-BSI2025-COMP-004": "missing",
         "BOM-BSI2025-COMP-005": "missing",
         "BOM-BSI2025-COMP-006": "missing",
@@ -147,11 +147,11 @@
       "summary": {
         "clusters": {
           "COMP": {
-            "coverage_percent": 30.8,
-            "missing": 9,
+            "coverage_percent": 38.5,
+            "missing": 8,
             "not-applicable": 1,
             "out-of-scope": 3,
-            "present": 4
+            "present": 5
           },
           "DOC": {
             "coverage_percent": 50.0,
@@ -160,20 +160,20 @@
             "present": 1
           }
         },
-        "coverage_percent": 33.3,
+        "coverage_percent": 40.0,
         "outcomes": {
-          "missing": 10,
+          "missing": 9,
           "not-applicable": 1,
           "out-of-scope": 4,
-          "present": 5
+          "present": 6
         },
-        "properties_written": 10,
-        "requirement_coverage_percent": 38.5,
+        "properties_written": 11,
+        "requirement_coverage_percent": 46.2,
         "requirements": {
-          "missing": 8,
+          "missing": 7,
           "not-applicable": 1,
           "out-of-scope": 3,
-          "present": 5
+          "present": 6
         }
       },
       "system_judged_by_model": null

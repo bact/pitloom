@@ -76,7 +76,7 @@ card, an author and a version scores higher.
 | GGUF file | 86% | 11% | 43% | -- | 42% |
 | NumPy file | 86% | 11% | 38% | -- | 39% |
 | fastText file | 86% | 44% | 62% | -- | 61% |
-| Hugging Face model | 86% | 56% | 57% | 22% | 48% |
+| Hugging Face model | 86% | 56% | 57% | 28% | 50% |
 | Model with a licensed dataset (library) | 86% | 33% | 43% | 44% | 46% |
 | Hatchling project with a model | 100% | 22% | 29% | -- | 39% |
 | setuptools project with a model | 100% | 22% | 29% | -- | 39% |
@@ -105,8 +105,12 @@ The three build backends give the same result for the same project.
   as such.
 - **A fastText model's domain is derived from the format**, not stated in the
   file; its provenance says so.
-- **Dataset licence, provenance and statistics reach a model SBOM only through the
-  library.** No reader feeds a dataset card into a model SBOM yet.
+- **A dataset's licence, description, version and owner come only from what
+  its source states.** For a Hugging Face model, Pitloom reads the Hub card and
+  repository of each listed dataset (up to 20), only when it looks the model up.
+  A dataset's provenance and statistics (size, collection, bias) reach a model
+  SBOM only through the library (`loom` with a Croissant file). A dataset
+  named in a local model card gets only its name.
 - **Licence IDs are kept as read** when the `licenseid` database is not built.
 - **A setuptools project ships a model only when `package-data` lists it**, and
   the SBOM describes what would ship.
@@ -144,7 +148,7 @@ reading, not a claim of compliance):
 | Hash value and algorithm | present for model files and projects. Missing for the Hugging Face and library-built models, because their dataset has no hash (a Hugging Face model has none either) |
 | Dependency relationship | present for projects, not for a single model |
 | Producer | missing in every scenario: a model file, a dataset and the model inside a project state none |
-| Version, licence | present for the library-built model only; missing elsewhere, since the file or the dataset states none |
+| Version, licence | present for the Hugging Face model (its dataset's Hub card states a licence and the Hub its revision) and the library-built model; missing for model files and projects, since the file states none |
 
 The hash check accepts any real hash with a value, so a project's Merkle root
 (an aggregate over its files, not the hash of one artefact) passes it.
@@ -161,7 +165,7 @@ are listed, never checked. For Pitloom's test SBOMs, as the checker reads them:
 | Author name, timestamp, SBOM type, component name | present in every scenario |
 | Unique identifier | present in every scenario: a package URL on every package |
 | Dependency relationship | present for projects, through the project's `contains` link to its model, which the check accepts in place of a dependency; not present for a single model |
-| Version | present for the library-built model only; missing for a model file, a Hugging Face model's dataset and the model inside a project, since the file states none |
+| Version | present for the Hugging Face model (its dataset's version is the Hub revision) and the library-built model; missing for a model file and the model inside a project, since the file states none |
 | Supplier name | missing in every scenario |
 | Concluded licence, copyright notice | missing in every scenario. Pitloom can write a concluded licence and copyright text when its sources state them, but the test SBOMs carry none: a project's copyright text is `NOASSERTION`, which the checker counts as missing, and a model file carries none |
 
@@ -180,7 +184,7 @@ that does not give them. For Pitloom's test SBOMs:
 | :------ | :----- |
 | Timestamp, component name, other unique identifiers | present in every scenario |
 | Hash of the deployable component (SHA-512) | present for model files; missing for a Hugging Face model, the library-built model and every project: a project's hash is a SHA-256 Merkle root, and a dependency or a dataset has no SHA-512 source |
-| Component version | present for the library-built model only; missing for a Hugging Face model, whose dataset states none |
+| Component version | present for a Hugging Face model (its dataset's version is the Hub revision) and the library-built model; missing for model files and projects |
 | Original licence (if it exists) | present for a Hugging Face model, the library-built model and projects |
 | Creator of the SBOM and of each component | missing in every scenario: BSI wants a person or organisation with an e-mail address or URL, and Pitloom's creator is a software agent |
 | Filename, dependencies with completeness, distribution licence, structured property, effective licence, security.txt URL | missing in every scenario: Pitloom does not write them |
@@ -207,6 +211,6 @@ its date stays listed with that date missed.
 | Gap | Where | Needs | Target date |
 | :-- | :---- | :---- | :----- |
 | No hash for a Hugging Face model | Hub source | A request per file, or a Merkle root | 2026-10-19 |
-| Dataset licence, provenance and statistics reach no model SBOM | all sources | A reader for dataset cards, then the `loom` SDK | 2026-10-19 |
+| Dataset provenance and statistics reach a model SBOM only through `loom` | Hub source, local model cards | A reader for a Hub dataset's Croissant metadata | 2026-10-19 |
 | A notice when a value is read but cannot be recorded | all readers | One shared message helper | 2026-10-19 |
 | Tier 2 formats | Keras, HDF5, PyTorch, PT2, CRFsuite | Anything beyond keeping them working | 2026-10-19 |

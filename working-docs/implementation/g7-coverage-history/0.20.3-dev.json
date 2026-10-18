@@ -1,6 +1,6 @@
 {
   "header": {
-    "checker": "41438921eb9a1a190e7839ab483bb6e8b404a3bd",
+    "checker": "151460c72bdf3664cecce5b16e61f4b0b379a7d1",
     "mapping_sha256": "d4dab53ba3e62568b64333d588d394ae2bafc374dc00921d3d3b7f6207a9547e",
     "pitloom": "0.20.2",
     "rules": 81,
@@ -313,7 +313,7 @@
         "BOM-G7AI2026-DP-008.2": "out-of-scope",
         "BOM-G7AI2026-DP-008.3": "out-of-scope",
         "BOM-G7AI2026-DP-009": "missing",
-        "BOM-G7AI2026-DP-010": "missing",
+        "BOM-G7AI2026-DP-010": "present",
         "BOM-G7AI2026-INF-001": "out-of-scope",
         "BOM-G7AI2026-INF-002": "out-of-scope",
         "BOM-G7AI2026-KPI-001": "out-of-scope",
@@ -376,10 +376,10 @@
       "summary": {
         "clusters": {
           "DP": {
-            "coverage_percent": 22.2,
-            "missing": 14,
+            "coverage_percent": 27.8,
+            "missing": 13,
             "out-of-scope": 5,
-            "present": 4
+            "present": 5
           },
           "INF": {
             "coverage_percent": null,
@@ -413,18 +413,18 @@
             "out-of-scope": 3
           }
         },
-        "coverage_percent": 48.2,
+        "coverage_percent": 50.0,
         "outcomes": {
-          "missing": 29,
+          "missing": 28,
           "out-of-scope": 25,
-          "present": 27
+          "present": 28
         },
-        "properties_written": 10,
-        "requirement_coverage_percent": 59.0,
+        "properties_written": 11,
+        "requirement_coverage_percent": 61.5,
         "requirements": {
-          "missing": 16,
+          "missing": 15,
           "out-of-scope": 11,
-          "present": 23
+          "present": 24
         }
       },
       "system_judged_by_model": "model"
