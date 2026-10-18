@@ -281,8 +281,9 @@ def test_enrich_ignores_yaml_aliases_in_unread_keys(frontmatter: str) -> None:
         "license: [unterminated\n",
         "license: mit\nlast_updated: 2024-02-30\n",
         "license: mit\nn: " + "1" * 5000 + "\n",
+        "license: mit\nx: " + "[" * 5000 + "]" * 5000 + "\n",
     ],
-    ids=["unterminated", "impossible-date", "huge-int"],
+    ids=["unterminated", "impossible-date", "huge-int", "deep"],
 )
 def test_enrich_malformed_frontmatter_is_noop(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, frontmatter: str

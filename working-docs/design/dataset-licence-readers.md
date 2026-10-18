@@ -160,12 +160,32 @@ licence is (and so how many elements it needs) is known only once every
 declaration is in, so adding a dataset to a script can renumber the licence
 ids of the others. Same script, same ids.
 
+**Hostile input, as one class (round 5).** Three boundaries, so no new
+input shape crashes a run: `_parse_frontmatter` treats any exception of
+the YAML parser as a parse failure (deep nesting raised `RecursionError`);
+`loom` reads a directory dataset's card (a source the caller did not name)
+through `_loom_dataset_meta._optional_card`, which skips it with one
+`WARNING:` on any failure, as `enrich.run_enrichers` does for a model card;
+`read_croissant` (a file the caller named) turns any failure into a
+`ValueError` naming the file. Inside them: the `dataType` walk uses an
+explicit stack (2000 levels raised `RecursionError`); a size or count is at
+most `MAX_SAFE_INTEGER` (2^53 - 1, `core.canonical_json`), the largest
+integer RFC 8785 writes (`2**53` failed the whole fragment in
+`_graph_sort_key` at run end), as one value or as the record sets' sum
+(`stated_total`: one `WARNING:` per field, not per record set); a card
+`version` must be quoted text (YAML 1.1 reads `1:1:1` as 3661, `0x1F` as
+31, `010` as 8, and the source spelling cannot be recovered), while a JSON
+integer version stays accepted; card tags and Croissant data types go
+through `stated_texts` like Croissant keywords. Lone surrogates are escaped
+on the card's resulting metadata, not on its raw values. Checked for the
+same integer limit: no other user-controlled integer reaches the loom writer
+(hyperparameters and the parameter count are text).
+
 **Value checks.** Every field `read_croissant` returns goes through
 `pitloom.extract.dataset.values` (shared with the card readers): text is a
 string, a one-item list or a JSON-LD `@value`/`@id` string, else absent with
 one `WARNING:` (`description: ["a", "b"]` was written as its Python repr); a
-version is text or a whole number (a float such as `1.10` warns, as on a
-card); a size is a whole number of zero or more (`-5`, `true`, `1.9` and
+version is text or, in JSON, a whole number (a float such as `1.10` warns); a size is a whole number of zero or more (`-5`, `true`, `1.9` and
 `1e400` warn; `-5` crashed the writer at run end and `1e400` raised
 `OverflowError`); a creator is text or a node's `name` (blank: none,
 silently). Whole numbers over 64 digits warn (`str()` of a 5000-digit int
@@ -183,9 +203,9 @@ for the warning wording and cap (1 MiB). Of several spellings of a card name
 (`README.md`, `readme.md`), `find_card_file` takes the stem's own spelling,
 else the first by name, whatever order the file system lists them in. Mapped: `license` (+
 `license_name`/`license_link`), `pretty_name` -> `name` (else the
-directory's name, no provenance), `version` (text or a whole number; a YAML
-float such as `1.10` warns and is skipped), `tags` -> `keywords` (strings
-only, a single string is one tag). Not read: prose, `description` and any
+directory's name, no provenance), `version` (quoted text only; any YAML
+number warns and is skipped), `tags` -> `keywords` (texts; other items warn,
+a single string is one tag). Not read: prose, `description` and any
 other key. `loom.run` reads the card of a dataset that is a directory; no
 project scan walks dataset directories, so no other surface reads it. A
 UTF-8 BOM before the frontmatter is now dropped (model cards too).

@@ -45,14 +45,16 @@ from pitloom.assemble.spdx3.dataset import (
 from pitloom.core.ai_metadata import MODEL_NAME_CAP, cap_model_name
 from pitloom.core.dataset_metadata import DatasetMetadata
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.enrich.readme import DATASET_CARD
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract.dataset import read_croissant, read_dataset_card
 from pitloom.extract.dataset.licence import dataset_licence
-from pitloom.logging_config import loggable, warn_over_cap
+from pitloom.logging_config import loggable, one_line, warn_over_cap
 
 log = logging.getLogger("pitloom.loom")
 
 __all__ = [
+    "CARD_SKIPPED_WARNING",
     "CONTROL_CHARACTERS_WARNING",
     "CROISSANT_URL_ERROR",
     "DECLARED_LICENSE_TYPE_ERROR",
@@ -71,6 +73,10 @@ CROISSANT_URL_ERROR = "loom: croissant=%r is a URL; only a local file is read"
 #: Argument: the value's type name.
 DECLARED_LICENSE_TYPE_ERROR = "loom: declared_license must be a str, not %s"
 
+#: ``log.warning()`` format for a dataset card that failed to be read.
+#: Arguments: the dataset's name, the error's type name and text.
+CARD_SKIPPED_WARNING = "loom: dataset %r: dataset card skipped: %s: %s"
+
 #: ``log.warning()`` format for display text escaped in a dataset's
 #: elements. Arguments: the dataset's name, the properties changed.
 CONTROL_CHARACTERS_WARNING = (
@@ -83,10 +89,6 @@ _DECLARED_FIELDS = frozenset({"name", "dataset_types", "provenance"})
 #: An ``http``/``https`` URL in any case, also as ``Path`` collapses its
 #: ``//`` (``https:/host``), or a Windows ``Path`` writes it.
 _URL_RE = re.compile(r"https?:[/\\]", re.IGNORECASE)
-
-#: The name cap, naming the loom dataset (``DATASET=<name>``) whose creator
-#: name it cut.
-_CREATOR_CAP = dataclasses.replace(MODEL_NAME_CAP, subject="DATASET")
 
 #: The licence a caller declares by saying they make no assertion.
 _NOASSERTION = "NOASSERTION"
@@ -169,10 +171,28 @@ def read_sources(
         label = cwd_relative_label(location)
         sources.read.append(read_croissant(location, label=label))
     if os.path.isdir(name):
-        card = read_dataset_card(Path(name), label=cwd_relative_label(name))
+        card = _optional_card(name)
         if card is not None:
             sources.read.append(card)
     return sources
+
+
+def _optional_card(name: str) -> DatasetMetadata | None:
+    """What the card of the directory dataset *name* states. The caller did
+    not name the card: any failure to read it skips it, with one
+    ``WARNING:``, and never fails the declaration."""
+    try:
+        return read_dataset_card(Path(name), label=cwd_relative_label(name))
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:
+        msg = CARD_SKIPPED_WARNING + DATASET_CARD.fields_skipped
+        log.warning(
+            msg,
+            loggable(name),
+            type(exc).__name__,
+            one_line(exc),
+        )
+        return None
 
 
 def _states(value: object) -> bool:
@@ -228,7 +248,9 @@ def write_metadata(
     if meta.creator:
         creator = cap_model_name(meta.creator)
         if creator != meta.creator:
-            warn_over_cap(log, _CREATOR_CAP, meta.name, "dataset creator name cut")
+            # The name cap, naming the dataset whose creator name it cut.
+            cap = dataclasses.replace(MODEL_NAME_CAP, subject="DATASET")
+            warn_over_cap(log, cap, meta.name, "dataset creator name cut")
         agent = add_dataset_creator_agent(
             require_spdx_id(package), creator, *context, doc.exporter
         )

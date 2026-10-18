@@ -53,9 +53,11 @@ from pitloom.extract.dataset.values import (
     stated_name,
     stated_text,
     stated_texts,
+    stated_total,
     stated_version,
+    text_of,
 )
-from pitloom.logging_config import LONE_SURROGATES_WARNING, loggable
+from pitloom.logging_config import LONE_SURROGATES_WARNING, loggable, one_line
 
 log = logging.getLogger(__name__)
 
@@ -74,7 +76,7 @@ def _normalize_sensitivity(value: Any, source: str = "Croissant") -> str | None:
     Returns ``None`` when *value* is ``None`` or blank, and, with one
     ``WARNING:``, when it is of another type.
     """
-    if isinstance(value, bool) or value in (0, 1):
+    if isinstance(value, bool) or (isinstance(value, int) and value in (0, 1)):
         value = str(value)
     s = stated_text(value, source, "rai:personalSensitiveInformation")
     if s is None:
@@ -87,32 +89,42 @@ def _normalize_sensitivity(value: Any, source: str = "Croissant") -> str | None:
     return "noAssertion"
 
 
-def _collect_data_types(obj: Any) -> list[str]:
-    """Recursively collect all ``dataType`` values from a nested structure."""
-    results: list[str] = []
-    if isinstance(obj, dict):
-        for key, val in obj.items():
-            if key in DATA_TYPE_KEYS:
-                if isinstance(val, str):
-                    results.append(val)
-                elif isinstance(val, list):
-                    results.extend(v for v in val if isinstance(v, str))
-            else:
-                results.extend(_collect_data_types(val))
-    elif isinstance(obj, list):
-        for item in obj:
-            results.extend(_collect_data_types(item))
-    return results
+def _data_type_values(obj: Any) -> list[Any]:
+    """Every ``dataType`` value in *obj*, in document order, a list's items
+    one by one. Walked with an explicit stack, so no nesting depth the JSON
+    parser accepts can exhaust Python's recursion limit."""
+    found: list[Any] = []
+    stack: list[Any] = [obj]
+    while stack:
+        node = stack.pop()
+        children: list[Any] = []
+        if isinstance(node, dict):
+            for key, val in node.items():
+                if key in DATA_TYPE_KEYS:
+                    found += val if isinstance(val, list) else [val]
+                else:
+                    children.append(val)
+        elif isinstance(node, list):
+            children = node
+        stack.extend(reversed(children))
+    return found
 
 
-def _infer_dataset_types(data: dict[str, Any]) -> list[str]:
+def _collect_data_types(obj: Any, source: str = "Croissant") -> list[str]:
+    """All ``dataType`` texts in a nested structure (each item read as
+    :func:`~pitloom.extract.dataset.values.stated_texts` reads it: one
+    ``WARNING:`` for those of no text)."""
+    return stated_texts(_data_type_values(obj), source, "dataType", split=False)
+
+
+def _infer_dataset_types(data: dict[str, Any], source: str = "Croissant") -> list[str]:
     """Infer ``dataset_types`` by walking all ``dataType`` values in *data*.
 
     Maps schema.org type references to SPDX ``dataset_DatasetType`` enum name
     strings (e.g. ``"text"``, ``"image"``).  Falls back to ``"other"`` for
     unrecognised types.  Returns a deduplicated list preserving first-seen order.
     """
-    raw_types = _collect_data_types(data)
+    raw_types = _collect_data_types(data, source)
     seen: set[str] = set()
     result: list[str] = []
     for raw in raw_types:
@@ -134,7 +146,7 @@ def _extract_croissant_core_fields(
     str | None,
 ]:
     """Extract version, description, download_url, license, keywords, creator."""
-    version = stated_version(get_first(data, *VERSION_KEYS), src_label)
+    version = stated_version(get_first(data, *VERSION_KEYS), src_label, numbers=True)
     if version:
         provenance["version"] = f"Source: {src_label} | Field: version"
 
@@ -227,31 +239,28 @@ def _extract_dataset_size(
     else:
         record_sets = []
 
-    total = 0
-    found_any = False
-    for rs in record_sets:
-        items = stated_count(
-            get_first(rs, *TOTAL_ITEMS_KEYS), src_label, "cr:recordSet cr:totalItems"
-        )
-        if items is not None:
-            total += items
-            found_any = True
-
-    if found_any:
+    total = stated_total(
+        [get_first(rs, *TOTAL_ITEMS_KEYS) for rs in record_sets],
+        src_label,
+        "cr:recordSet cr:totalItems",
+    )
+    if total is not None:
         provenance["dataset_size"] = (
             f"Source: {src_label} | Field: cr:recordSet, cr:totalItems"
         )
-        return total
-
-    return None
+    return total
 
 
-# pylint: disable=too-many-locals
 def read_croissant(source: str | Path, *, label: str | None = None) -> DatasetMetadata:
     """Extract metadata from a Croissant JSON-LD document, named *label*
     (default: *source* as given) in its provenance. A lone surrogate (a
     JSON ``\\ud800``) in its text is written as ``\\uXXXX``, with one
-    ``WARNING:``."""
+    ``WARNING:``.
+
+    Raises:
+        ValueError: *source* cannot be read, is not a Croissant document,
+            or reading it fails in any other way; the message names it.
+    """
     try:
         data = fetch_json(source)
     except ValueError as exc:
@@ -263,12 +272,45 @@ def read_croissant(source: str | Path, *, label: str | None = None) -> DatasetMe
             if message.startswith(generic):
                 message = own + message[len(generic) :]
         raise ValueError(message) from exc
-
     src_label = str(source) if label is None else label
-    name = stated_text(get_first(data, *NAME_KEYS), src_label, "name")
+    try:
+        return _metadata(data, source, src_label)
+    except ValueError:
+        raise
+    # A hostile document must fail as the documented ValueError, naming it.
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:
+        raise ValueError(
+            f"Croissant source {source!r} cannot be read: "
+            f"{type(exc).__name__}: {one_line(exc)}"
+        ) from exc
+
+
+def _name(data: dict[str, Any], source: str | Path) -> str:
+    """The document's ``name``.
+
+    Raises:
+        ValueError: it has none, or one that is not text.
+    """
+    raw = get_first(data, *NAME_KEYS)
+    name, holds_text = text_of(raw)
+    if not holds_text:
+        raise ValueError(
+            f"Croissant source {source!r} field 'name' is of type "
+            f"{type(raw).__name__}, not text."
+        )
     if name is None:
         raise ValueError(f"Croissant source {source!r} has no 'name' field.")
+    return name
 
+
+# pylint: disable-next=too-many-locals
+def _metadata(
+    data: dict[str, Any], source: str | Path, src_label: str
+) -> DatasetMetadata:
+    """The :class:`DatasetMetadata` the Croissant *data* read from *source*
+    states."""
+    name = _name(data, source)
     provenance: dict[str, str] = {"name": f"Source: {src_label} | Field: name"}
 
     (
@@ -280,7 +322,7 @@ def read_croissant(source: str | Path, *, label: str | None = None) -> DatasetMe
         creator,
     ) = _extract_croissant_core_fields(data, src_label, provenance)
 
-    dataset_types = _infer_dataset_types(data)
+    dataset_types = _infer_dataset_types(data, src_label)
     if dataset_types:
         provenance["dataset_types"] = (
             f"Source: {src_label} | Field: cr:recordSet, sc:dataType"

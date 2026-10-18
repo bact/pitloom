@@ -29,7 +29,7 @@ from pitloom.extract.dataset.licence import (
     LICENSE_NAME_FIELD,
     dataset_licence,
 )
-from pitloom.extract.dataset.values import stated_text, stated_version
+from pitloom.extract.dataset.values import stated_text, stated_texts, stated_version
 from pitloom.logging_config import LONE_SURROGATES_WARNING, loggable
 
 log = logging.getLogger(__name__)
@@ -39,29 +39,12 @@ __all__ = ["card_tags", "read_dataset_card"]
 _TEXT_KEYS = (LICENSE_FIELD, LICENSE_NAME_FIELD, LICENSE_LINK_FIELD, "pretty_name")
 
 
-def _escape_strings(read: dict[str, Any]) -> tuple[dict[str, Any], bool]:
-    """*read* with lone surrogates escaped in each value that is a string
-    or a list of strings, and whether any was; other values are kept as
-    they are and never walked (YAML aliases can make a tree of exponential
-    size)."""
-    plain = {
-        k: v
-        for k, v in read.items()
-        if isinstance(v, str)
-        or (isinstance(v, list) and all(isinstance(i, str) for i in v))
-    }
-    escaped, lone = escape_lone_surrogates_in(plain)
-    return {**read, **escaped}, lone
-
-
-def card_tags(value: Any) -> list[str]:
-    """A card's ``tags``: its strings, stripped and once each, in order; a
-    single string is one tag."""
-    items = [value] if isinstance(value, str) else value
-    if not isinstance(items, list):
-        return []
-    tags = (t.strip() for t in items if isinstance(t, str))
-    return list(dict.fromkeys(t for t in tags if t))
+def card_tags(value: Any, source: str) -> list[str]:
+    """A card's ``tags``: its texts, stripped and once each, in order (a
+    single string is one tag); items of no text are left out, with one
+    ``WARNING:`` naming *source*
+    (:func:`~pitloom.extract.dataset.values.stated_texts`)."""
+    return list(dict.fromkeys(stated_texts(value, source, "tags", split=False)))
 
 
 def read_dataset_card(
@@ -79,10 +62,7 @@ def read_dataset_card(
     base: PurePath = directory if label is None else PurePosixPath(label)
     source = (base / card.name).as_posix()
     read = {key: frontmatter.get(key) for key in (*_TEXT_KEYS, "version")}
-    read["tags"] = card_tags(frontmatter.get("tags"))
-    read, lone = _escape_strings(read)
-    if lone:
-        log.warning(LONE_SURROGATES_WARNING, "", loggable(source))
+    tags = card_tags(frontmatter.get("tags"), source)
 
     provenance: dict[str, str] = {}
     pretty_name = stated_text(read["pretty_name"], source, "pretty_name")
@@ -96,15 +76,19 @@ def read_dataset_card(
     )
     if licence is not None:
         provenance["license"] = licence.provenance
-    version = stated_version(read["version"], source)
+    version = stated_version(read["version"], source, numbers=False)
     if version:
         provenance["version"] = f"Source: {source} | Field: version"
-    if read["tags"]:
+    if tags:
         provenance["keywords"] = f"Source: {source} | Field: tags"
-    return DatasetMetadata(
+    meta = DatasetMetadata(
         name=pretty_name or directory.name,
         version=version,
         license=None if licence is None else licence.text,
-        keywords=read["tags"],
+        keywords=tags,
         provenance=provenance,
     )
+    # Only what was read is walked, never the rest of the frontmatter.
+    if escape_lone_surrogates_in(meta)[1]:
+        log.warning(LONE_SURROGATES_WARNING, "", loggable(source))
+    return meta

@@ -58,6 +58,12 @@ def test_read_croissant_escapes_lone_surrogates_and_names_its_label(
         ({"url": 5}, "download_url", None),
         ({"keywords": ["a", {"x": 1}]}, "keywords", ["a"]),
         ({_RAI_PII: {"x": 1}}, _PII, None),
+        ({_RAI_PII: 1.0}, _PII, None),
+        (
+            {"recordSet": [{"field": [{"dataType": [5, "sc:Text"]}]}]},
+            "dataset_types",
+            ["text"],
+        ),
     ],
     ids=[
         "negative-size",
@@ -70,6 +76,8 @@ def test_read_croissant_escapes_lone_surrogates_and_names_its_label(
         "number-url",
         "node-keyword",
         "node-sensitivity",
+        "float-sensitivity",
+        "number-data-type",
     ],
 )  # fmt: skip
 def test_read_croissant_refuses_a_value_of_the_wrong_shape(
@@ -99,10 +107,16 @@ def test_read_croissant_refuses_a_value_of_the_wrong_shape(
         ({"description": [{"@value": "d"}]}, "description", "d"),
         ({"creator": {"name": "  "}}, "creator", None),
         ({"version": 2}, "version", "2"),
+        (
+            {"recordSet": [{"field": [{"dataType": "sc:ImageObject"}]},
+                           {"field": [{"dataType": "sc:Text"}]}]},
+            "dataset_types",
+            ["image", "text"],
+        ),
         ({_RAI_PII: False}, _PII, "no"),
     ],
     ids=["integral-float", "digits", "literal", "literal-list", "blank-creator",
-         "int-version", "bool-sensitivity"],
+         "int-version", "types-in-order", "bool-sensitivity"],
 )  # fmt: skip
 def test_read_croissant_accepts_each_spelling(
     tmp_path: Path,

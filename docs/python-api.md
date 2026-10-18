@@ -324,16 +324,23 @@ as that name followed by the link. Each field a source gave is named in the
 package's provenance (`license: Source: data/corpus/README.md | Field:
 license`). A licence that holds no text (a number, several licences in a
 list), a `version` written as a decimal number (YAML and JSON read `1.10` as
-`1.1`), and any other value of the wrong shape (a size that is negative, not
-whole or `true`; a description that is a list of several texts; a creator or
-URL that is a number) is left out, with one `WARNING:`. A card whose
-frontmatter cannot be parsed (an impossible date such as `2024-02-30`, a
-number of thousands of digits) is skipped with one `WARNING:`. A `croissant=`
-URL, a missing file, one that is not a regular file (a FIFO) or one that is
-not Croissant raises `ValueError` at the call: loom reads no network source.
-A source file is opened as given and named in provenance by its path from
-the current directory, or by its bare name when it lies outside it. Hashing
-and the registry do not change: the sources add fields, not identity.
+`1.1`), a card `version` that is not quoted text (YAML 1.1 reads `1:1:1` as
+`3661` and `010` as `8`: quote it, `version: "1.0"`), and any other value of
+the wrong shape (a size that is negative, not whole, `true` or over
+9007199254740991, the largest integer canonical JSON can write; a description
+that is a list of several texts; a creator, URL or tag that is a number) is
+left out, with one `WARNING:`. A card that cannot be read at all (front
+matter YAML cannot parse: an impossible date such as `2024-02-30`, a number
+of thousands of digits, nesting thousands of levels deep) is skipped with one
+`WARNING:`, and the declaration goes on with its other sources: the card is
+read because the dataset is a directory, not because you named it. A
+`croissant=` file you name is different: a URL, a missing file, one that is
+not a regular file (a FIFO), one that is not Croissant or one that fails to
+be read in any other way raises `ValueError` naming it, at the call: loom
+reads no network source. A source file is opened as given and named in
+provenance by its path from the current directory, or by its bare name when
+it lies outside it. Hashing and the registry do not change: the sources add
+fields, not identity.
 
 These `generates` edges are scoped `build` -- they describe a build-time
 step, not something that runs in the shipped artefact. Contrast with the

@@ -144,10 +144,12 @@ def _parse_frontmatter(text: str, kind: CardKind = MODEL_CARD) -> dict[str, Any]
         return None
     try:
         data = yaml.safe_load(block)
-    # PyYAML raises a bare ValueError for an impossible date (2024-02-30) or
-    # an integer over Python's digit limit, an OverflowError for some
-    # out-of-range values.
-    except (yaml.YAMLError, ValueError, OverflowError) as exc:
+    # Any failure of the parser on a third party's text is a parse failure:
+    # besides YAMLError, PyYAML raises a bare ValueError for an impossible
+    # date (2024-02-30) or an integer over Python's digit limit, and deep
+    # nesting exhausts the recursion limit.
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:
         label = kind.label.replace(" ", "-")
         msg = f"Failed to parse {label} frontmatter: %s" + kind.fields_skipped
         log.warning(msg, one_line(exc))

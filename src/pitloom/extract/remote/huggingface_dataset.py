@@ -168,7 +168,7 @@ def _apply_card(
     if description:
         meta.description = description
         meta.provenance["description"] = f"Source: {_SOURCE} | Field: dataset card"
-    keywords = card_tags(card.get("tags"))
+    keywords = card_tags(card.get("tags"), where)
     if keywords:
         meta.keywords = keywords
         meta.provenance["keywords"] = f"Source: {_SOURCE} | Field: {_CARD_FIELD}tags"

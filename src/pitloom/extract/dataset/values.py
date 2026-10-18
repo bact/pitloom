@@ -5,13 +5,15 @@
 
 """The one set of checks a dataset source's field values go through before
 they reach :class:`~pitloom.core.dataset_metadata.DatasetMetadata`, for
-every dataset reader (Croissant, a local or Hub dataset card), so a wrong
-type is refused the same way everywhere.
+every dataset reader (Croissant: every field it returns, its data types
+included; a local or Hub dataset card: licence, ``pretty_name``,
+``version`` and tags), so a wrong type is refused the same way everywhere.
 
 Each helper returns ``None`` (or ``[]``) silently when the field is absent
 or blank (nothing was stated), and also when the value has a shape the
 field cannot hold, then with one ``WARNING:`` (the source stated something
-not recordable).
+not recordable). A list is never walked past its own items: a YAML alias
+can make a tree of exponential size, or a cycle.
 
 See also: :mod:`pitloom.extract.dataset.licence` (the licence rules, on
 top of :func:`stated_text`).
@@ -21,25 +23,37 @@ from __future__ import annotations
 
 import logging
 
-from pitloom.logging_config import loggable
+from pitloom.core.canonical_json import MAX_SAFE_INTEGER
+from pitloom.logging_config import Cap, loggable, warn_over_cap
 
 log = logging.getLogger(__name__)
 
 __all__ = [
-    "MAX_NUMBER_DIGITS",
+    "MAX_VERSION_DIGITS",
     "NOT_A_COUNT_WARNING",
     "NOT_TEXT_WARNING",
-    "TOO_MANY_DIGITS_WARNING",
+    "UNQUOTED_VERSION_WARNING",
     "stated_count",
     "stated_name",
     "stated_text",
     "stated_texts",
+    "stated_total",
     "stated_version",
+    "text_of",
+    "warn_not_text",
 ]
 
 #: ``log.warning()`` format for a dataset field holding no text.
 #: Arguments: the source, the field, the value's type name.
 NOT_TEXT_WARNING = "dataset metadata: %s field %s is of type %s, not text; skipped"
+
+#: ``log.warning()`` format for a card ``version`` YAML did not read as text
+#: (``1.10`` reads as ``1.1``, ``1:1:1`` as ``3661``, ``010`` as ``8``).
+#: Arguments: the source, the value's type name.
+UNQUOTED_VERSION_WARNING = (
+    "dataset metadata: %s field version is of type %s, not text; "
+    "quote it to keep it as written; skipped"
+)
 
 #: ``log.warning()`` format for a size or count that is not a whole number
 #: of zero or more. Arguments: the source, the field.
@@ -47,90 +61,20 @@ NOT_A_COUNT_WARNING = (
     "dataset metadata: %s field %s is not a whole number of zero or more; skipped"
 )
 
-#: The most digits a whole number read as text may have: far more than any
-#: version or count, and well under Python's int-to-text limit.
-MAX_NUMBER_DIGITS = 64
+#: A size or count over the largest integer canonical JSON (RFC 8785) can
+#: write: the SBOM could not be serialised with it.
+_COUNT_CAP = Cap(MAX_SAFE_INTEGER, "item", "canonical-JSON-integer", "FIELD")
 
-#: ``log.warning()`` format for a whole number over :data:`MAX_NUMBER_DIGITS`.
-#: Arguments: the source, the field.
-TOO_MANY_DIGITS_WARNING = (
-    f"dataset metadata: %s field %s is a number of over {MAX_NUMBER_DIGITS} "
-    "digits; skipped"
-)
-
-_LIMIT = 10**MAX_NUMBER_DIGITS
+#: The most digits a version written as a number (Croissant JSON) may have:
+#: far more than any version, well under Python's int-to-text limit.
+MAX_VERSION_DIGITS = 64
+_VERSION_CAP = Cap(MAX_VERSION_DIGITS, "digit", "dataset-version", "FIELD")
 
 
-def _not_text(source: str, field: str, value: object) -> None:
+def warn_not_text(source: str, field: str, value: object) -> None:
+    """The one ``WARNING:`` for a *field* of *source* holding *value*, of a
+    type that is not text."""
     log.warning(NOT_TEXT_WARNING, loggable(source), field, type(value).__name__)
-
-
-def stated_text(value: object, source: str, field: str) -> str | None:
-    """*value*, a source's *field*, as stripped text: a string, the one
-    item of a one-item list, or a JSON-LD node's ``@value`` (a literal) or
-    ``@id`` (a reference) string. ``None`` when absent or blank, silently;
-    for any other shape (a number, another mapping, several items) also
-    ``None``, with one ``WARNING:``."""
-    if value is None or value == []:
-        return None
-    found = value
-    if isinstance(found, list) and len(found) == 1:
-        found = found[0]
-    if isinstance(found, dict):
-        for key in ("@value", "@id"):
-            if isinstance(found.get(key), str):
-                found = found[key]
-                break
-    if not isinstance(found, str):
-        _not_text(source, field, value)
-        return None
-    return found.strip() or None
-
-
-def stated_texts(value: object, source: str, field: str) -> list[str]:
-    """*value* as a list of stripped texts: each item of a list read as
-    :func:`stated_text` reads one (an item of no text is left out, with one
-    ``WARNING:`` for the field); a single text is one item, or several when
-    it reads as a comma-separated list (a comma, no semicolon, under 200
-    characters)."""
-    if value is None:
-        return []
-    if not isinstance(value, list):
-        text = stated_text(value, source, field)
-        if text is None:
-            return []
-        if "," in text and ";" not in text and len(text) < 200:
-            return [part.strip() for part in text.split(",") if part.strip()]
-        return [text]
-    found: list[str] = []
-    refused: object = None
-    for item in value:
-        if _is_blank(item):
-            continue
-        text = item.strip() if isinstance(item, str) else None
-        if isinstance(item, dict):
-            text = _node_text(item)
-        if text:
-            found.append(text)
-        elif refused is None:
-            refused = item
-    if refused is not None:
-        _not_text(source, field, refused)
-    return found
-
-
-def _node_text(node: dict[object, object]) -> str | None:
-    """The stripped ``@value`` or ``@id`` string of a JSON-LD *node*."""
-    for key in ("@value", "@id"):
-        found = node.get(key)
-        if isinstance(found, str):
-            return found.strip() or None
-    return None
-
-
-def _is_digits(text: str) -> bool:
-    """Whether *text* is ASCII digits only (``str.isdigit`` takes ``²``)."""
-    return text.isascii() and text.isdigit()
 
 
 def _is_blank(item: object) -> bool:
@@ -138,12 +82,71 @@ def _is_blank(item: object) -> bool:
     return item is None or (isinstance(item, str) and not item.strip())
 
 
+def text_of(value: object) -> tuple[str | None, bool]:
+    """The stripped text *value* states (``None``: none), and whether its
+    shape can hold text: a string, a one-item list of one, or a JSON-LD
+    node's ``@value`` (a literal) or ``@id`` (a reference) string."""
+    if isinstance(value, list):
+        if len(value) > 1:
+            return None, False
+        value = value[0] if value else None
+    if isinstance(value, dict):
+        for key in ("@value", "@id"):
+            if isinstance(value.get(key), str):
+                value = value[key]
+                break
+    if _is_blank(value):
+        return None, True
+    if isinstance(value, str):
+        return value.strip(), True
+    return None, False
+
+
+def stated_text(value: object, source: str, field: str) -> str | None:
+    """*value*, a source's *field*, as stripped text (:func:`text_of`).
+    ``None`` when absent or blank (``[None]`` and ``[""]`` too), silently;
+    for any other shape (a number, another mapping, several items) also
+    ``None``, with one ``WARNING:``."""
+    text, holds_text = text_of(value)
+    if not holds_text:
+        warn_not_text(source, field, value)
+    return text
+
+
+def stated_texts(
+    value: object, source: str, field: str, *, split: bool = True
+) -> list[str]:
+    """*value* as a list of stripped texts: each item of a list that reads
+    as text (a string or a JSON-LD node's string), the others left out with
+    one ``WARNING:`` for the field; a single text is one item, or, with
+    *split*, several when it reads as a comma-separated list (a comma, no
+    semicolon, under 200 characters)."""
+    if not isinstance(value, list):
+        text = stated_text(value, source, field)
+        if text is None:
+            return []
+        if split and "," in text and ";" not in text and len(text) < 200:
+            return [part.strip() for part in text.split(",") if part.strip()]
+        return [text]
+    found: list[str] = []
+    refused: list[object] = []
+    for item in value:
+        text, holds_text = (None, False) if isinstance(item, list) else text_of(item)
+        if text is not None:
+            found.append(text)
+        elif not holds_text:
+            refused.append(item)
+    if refused:
+        warn_not_text(source, field, refused[0])
+    return found
+
+
 def stated_name(value: object, source: str, field: str) -> str | None:
     """The name a *field* such as a creator states: text, or the ``name``
-    of a node (a ``Person`` or ``Organization``); of a list, its first
-    item. A blank name is none, silently."""
+    of a node (a ``Person`` or ``Organization``); of a list, its first item
+    that states something. A blank name is none, silently."""
     if isinstance(value, list):
-        value = value[0] if value else None
+        value = next((item for item in value if not _is_blank(item)), None)
     if isinstance(value, dict):
         for key in ("name", "sc:name", "schema:name"):
             if key in value:
@@ -152,51 +155,86 @@ def stated_name(value: object, source: str, field: str) -> str | None:
     return stated_text(value, source, field)
 
 
-def _whole_number_text(value: int, source: str, field: str) -> str | None:
-    """*value* as text, unless it has over :data:`MAX_NUMBER_DIGITS` digits
-    (one ``WARNING:``)."""
-    if abs(value) >= _LIMIT:
-        log.warning(TOO_MANY_DIGITS_WARNING, loggable(source), field)
-        return None
-    return str(value)
-
-
-def stated_version(value: object, source: str, field: str = "version") -> str | None:
-    """A ``version``: text, or a whole number as written; a float (YAML and
-    JSON read ``1.10`` as ``1.1``), a ``true`` or anything else is no
-    version, with one ``WARNING:``."""
-    if isinstance(value, int) and not isinstance(value, bool):
-        return _whole_number_text(value, source, field)
+def stated_version(
+    value: object, source: str, *, numbers: bool, field: str = "version"
+) -> str | None:
+    """A ``version``: text. With *numbers* (JSON, whose integers are
+    unambiguous decimals), also a whole number as written, up to
+    :data:`MAX_VERSION_DIGITS` digits. Anything else (a float: ``1.10``
+    reads as ``1.1``; a YAML 1.1 integer: ``1:1:1`` reads as ``3661``) is
+    no version, with one ``WARNING:``."""
     if value is None or isinstance(value, (str, list, dict)):
         return stated_text(value, source, field)
-    _not_text(source, field, value)
+    if numbers and isinstance(value, int) and not isinstance(value, bool):
+        if abs(value) >= 10**MAX_VERSION_DIGITS:
+            warn_over_cap(log, _VERSION_CAP, f"{source} {field}")
+            return None
+        return str(value)
+    if numbers:
+        warn_not_text(source, field, value)
+    else:
+        log.warning(UNQUOTED_VERSION_WARNING, loggable(source), type(value).__name__)
     return None
+
+
+def _count_of(value: object) -> tuple[int | None, str | None]:
+    """The count *value* states, or why it states none: ``"count"`` (not a
+    whole number of zero or more) or ``"cap"`` (over :data:`_COUNT_CAP`);
+    ``(None, None)`` when absent."""
+    if value is None:
+        return None, None
+    count: int | None = None
+    if isinstance(value, int) and not isinstance(value, bool):
+        count = value
+    elif isinstance(value, float) and value.is_integer():  # not inf or nan
+        count = int(value)
+    elif isinstance(value, str) and value.strip().isascii():
+        digits = value.strip()
+        if digits.isdigit():
+            if len(digits) > len(str(_COUNT_CAP.limit)):
+                return None, "cap"
+            count = int(digits)
+    if count is None or count < 0:
+        return None, "count"
+    if count > _COUNT_CAP.limit:
+        return None, "cap"
+    return count, None
+
+
+def _warn_count(reason: str, source: str, field: str) -> None:
+    """The one ``WARNING:`` for a *field* of *source* that states no count,
+    for *reason* (:func:`_count_of`)."""
+    if reason == "cap":
+        warn_over_cap(log, _COUNT_CAP, f"{source} {field}")
+    else:
+        log.warning(NOT_A_COUNT_WARNING, loggable(source), field)
 
 
 def stated_count(value: object, source: str, field: str) -> int | None:
     """A size or count: a whole number of zero or more, as a number, an
-    integral float (``3.0``) or digits as text. Anything else (a negative,
-    ``true``, ``1.9``, an infinity, other text) is none, with one
+    integral float (``3.0``) or ASCII digits as text, up to the largest
+    integer canonical JSON can write. Anything else (a negative, ``true``,
+    ``1.9``, an infinity, other text, a larger number) is none, with one
     ``WARNING:``."""
-    if value is None:
-        return None
-    count: int | None = None
-    if isinstance(value, bool):
-        count = None
-    elif isinstance(value, int):
-        count = value
-    elif isinstance(value, float) and value.is_integer():  # not inf or nan
-        count = int(value)
-    elif isinstance(value, str) and _is_digits(value.strip()):
-        digits = value.strip()
-        if len(digits) > MAX_NUMBER_DIGITS:
-            log.warning(TOO_MANY_DIGITS_WARNING, loggable(source), field)
-            return None
-        count = int(digits)
-    if count is None or count < 0:
-        log.warning(NOT_A_COUNT_WARNING, loggable(source), field)
-        return None
-    if count >= _LIMIT:
-        log.warning(TOO_MANY_DIGITS_WARNING, loggable(source), field)
-        return None
+    count, reason = _count_of(value)
+    if reason is not None:
+        _warn_count(reason, source, field)
     return count
+
+
+def stated_total(values: list[object], source: str, field: str) -> int | None:
+    """The sum of the counts *values* state (each read as
+    :func:`stated_count` reads one); ``None`` when none states one. Items
+    stating none, and a sum over the largest integer canonical JSON can
+    write, are one ``WARNING:`` each for the field, not one per item."""
+    read = [_count_of(value) for value in values]
+    reasons = [reason for _, reason in read if reason is not None]
+    if reasons:
+        _warn_count(reasons[0], source, field)
+    counts = [count for count, _ in read if count is not None]
+    if not counts:
+        return None
+    if sum(counts) > _COUNT_CAP.limit:
+        _warn_count("cap", source, field)
+        return None
+    return sum(counts)

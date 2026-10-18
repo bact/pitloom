@@ -182,6 +182,7 @@ def test_a_later_declaration_adds_its_sources(project: Path) -> None:
         ("missing.json", "Cannot read Croissant source 'missing.json'"),
         ("bad.json", "not valid JSON"),
         ("noname.json", "has no 'name' field"),
+        ("listname.json", "field 'name' is of type list, not text"),
         ("latin1.json", "Croissant source 'latin1.json' is not valid JSON"),
         ("adir", "Croissant source 'adir' is not a regular file"),
         ("HTTPS://example.org/c.json", "only a local file is read"),
@@ -192,6 +193,7 @@ def test_a_later_declaration_adds_its_sources(project: Path) -> None:
         "missing",
         "malformed",
         "no-name",
+        "name-not-text",
         "not-utf8",
         "directory",
         "url-upper-case",
@@ -208,6 +210,7 @@ def test_unreadable_croissant_raises(
     (project / "latin1.json").write_bytes(b'{"name": "caf\xe9"}')
     (project / "adir").mkdir()
     (project / "noname.json").write_text('{"license": "MIT"}', "utf-8")
+    (project / "listname.json").write_text('{"name": ["a", "b"]}', "utf-8")
     with patch("urllib.request.urlopen", autospec=True) as urlopen:
         with pytest.raises(ValueError, match=match):
             with loom.run(project / "out.json"):

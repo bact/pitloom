@@ -268,8 +268,19 @@ def test_a_long_creator_name_is_cut(
         ("version: " + "1" * 5000 + "\n", []),
         ("version: 0x" + "f" * 5000 + "\n", [(EXPRESSION, "MIT")]),
         ("version: " + ":".join(["1"] * 3000) + "\n", [(EXPRESSION, "MIT")]),
+        ("version: 1:1:1\n", [(EXPRESSION, "MIT")]),
+        ("x: " + "[" * 5000 + "]" * 5000 + "\n", []),
+        ("x: " + "{a: " * 3000 + "1" + "}" * 3000 + "\n", []),
     ],
-    ids=["impossible-date", "huge-int", "huge-hex", "huge-base-60"],
+    ids=[
+        "impossible-date",
+        "huge-int",
+        "huge-hex",
+        "huge-base-60",
+        "base-60",
+        "deep-list",
+        "deep-mapping",
+    ],
 )
 def test_an_unusable_card_is_one_warning(
     project: Path,
@@ -290,8 +301,15 @@ def test_an_unusable_card_is_one_warning(
 
 @pytest.mark.parametrize(
     "fields",
-    [{"cr:totalItems": -5}, {"cr:totalItems": 1e400}, {"cr:totalItems": True}],
-    ids=["negative", "infinite", "bool"],
+    [
+        {"cr:totalItems": -5},
+        {"cr:totalItems": 1e400},
+        {"cr:totalItems": True},
+        {"cr:totalItems": 2**53},
+        {"cr:totalItems": 10**20},
+        {"recordSet": [{"cr:totalItems": 10**63}] * 20},
+    ],
+    ids=["negative", "infinite", "bool", "2-53", "10-20", "record-sets"],
 )
 def test_an_unusable_croissant_size_is_one_warning(
     project: Path, caplog: pytest.LogCaptureFixture, fields: dict[str, object]
@@ -307,3 +325,60 @@ def test_an_unusable_croissant_size_is_one_warning(
     assert "dataset_datasetSize" not in package_of(graph, "t.txt")
     assert declared(graph, "t.txt") == [(EXPRESSION, "MIT")]
     assert len(warnings_of(caplog)) == 1
+
+
+def test_a_card_that_fails_to_read_is_skipped(
+    project: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The card is a source the caller did not name: whatever reading it
+    raises skips it with one ``WARNING:``, and the other sources stay."""
+    dir_dataset(project / "corpus", "license: mit\n")
+    croissant_file(project / "c.json", license="Apache-2.0", description="d")
+    with (
+        caplog.at_level(logging.WARNING, logger="pitloom"),
+        patch(
+            "pitloom._loom_dataset_meta.read_dataset_card",
+            side_effect=MemoryError("hostile"),
+        ),
+    ):
+        graph = run_graph(
+            project / "out.json",
+            lambda: loom.add_dataset("corpus", croissant="c.json"),
+        )
+    assert declared(graph, "corpus") == [(EXPRESSION, "Apache-2.0")]
+    (message,) = warnings_of(caplog)
+    assert message.startswith("loom: dataset 'corpus': dataset card skipped: ")
+
+
+@pytest.mark.parametrize("depth", [2000, 100000], ids=["deep", "too-deep"])
+def test_a_deep_croissant_is_read_or_refused(project: Path, depth: int) -> None:
+    """A nesting the JSON parser accepts is walked without recursion; one
+    it refuses is the documented ``ValueError`` naming the file."""
+    body = '{"name": "x", "license": "MIT", "recordSet": '
+    (project / "c.json").write_text(body + "[" * depth + "]" * depth + "}")
+
+    def body_() -> None:
+        loom.add_dataset("t.txt", croissant="c.json")
+
+    if depth < 10000:
+        graph = run_graph(project / "out.json", body_)
+        assert declared(graph, "t.txt") == [(EXPRESSION, "MIT")]
+        return
+    with pytest.raises(ValueError, match="^Croissant source 'c.json' is not valid"):
+        run_graph(project / "out.json", body_)
+
+
+def test_any_croissant_failure_is_a_value_error_naming_it(project: Path) -> None:
+    croissant_file(project / "c.json", license="MIT")
+    with patch(
+        "pitloom.extract.dataset.croissant._extract_dataset_size",
+        side_effect=RecursionError("deep"),
+    ):
+        with pytest.raises(
+            ValueError,
+            match="^Croissant source 'c.json' cannot be read: RecursionError: deep",
+        ):
+            run_graph(
+                project / "out.json",
+                lambda: loom.add_dataset("t.txt", croissant="c.json"),
+            )

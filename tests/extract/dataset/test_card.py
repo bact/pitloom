@@ -33,7 +33,8 @@ def _messages(caplog: pytest.LogCaptureFixture) -> list[str]:
 
 def test_full_card(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """Each field the card states, with its provenance naming the card by
-    the directory as given; nothing logged."""
+    the directory as given; a tag of no text is left out with one
+    ``WARNING:``."""
     corpus = _card(
         tmp_path / "corpus",
         b"---\nlicense: cc-by-4.0\npretty_name: My Corpus\nversion: '2.10'\n"
@@ -57,7 +58,9 @@ def test_full_card(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         "version": f"Source: {src} | Field: version",
         "keywords": f"Source: {src} | Field: tags",
     }
-    assert not caplog.records
+    assert _messages(caplog) == [
+        f"dataset metadata: {src} field tags is of type int, not text; skipped"
+    ]
 
 
 @pytest.mark.parametrize(
@@ -65,8 +68,12 @@ def test_full_card(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     [
         (b"---\nlicense: mit\n---\n", "readme.MD", ("mit", None, [])),
         (b"\xef\xbb\xbf---\nlicense: mit\n---\n", "README.md", ("mit", None, [])),
-        (b"---\nlicense: [mit]\ntags: one\n---\n", "README.md", ("mit", None, ["one"])),
-        (b"---\nversion: 2\n---\n", "README.md", (None, "2", [])),
+        (
+            b"---\nlicense: [mit]\ntags: a, b\n---\n",
+            "README.md",
+            ("mit", None, ["a, b"]),
+        ),
+        (b"---\nversion: '2'\n---\n", "README.md", (None, "2", [])),
         (b"---\nlicense: unknown\n---\n", "README.md", (None, None, [])),
         (
             b"---\nlicense: other\nlicense_link: https://x.org/l\n---\n",
@@ -79,7 +86,7 @@ def test_full_card(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         "case-insensitive",
         "bom",
         "one-item-list",
-        "int-version",
+        "quoted-version",
         "weak",
         "other-link",
         "lone-surrogate",
@@ -148,14 +155,13 @@ def test_no_metadata_for_a_missing_directory(tmp_path: Path) -> None:
             b"---\nlicense: [mit\n---\n",
             "license, license_name, license_link, version",
         ),
-        (
-            b"---\nversion: true\n---\n",
-            "field version is of type bool, not text; skipped",
-        ),
-        (
-            b"---\nversion: 1.10\n---\n",
-            "field version is of type float, not text; skipped",
-        ),
+        (b"---\nversion: true\n---\n", "field version is of type bool, not text"),
+        (b"---\nversion: 1.10\n---\n", "version is of type float, not text; quote"),
+        (b"---\nversion: 2\n---\n", "version is of type int, not text; quote"),
+        (b"---\nversion: 1:1:1\n---\n", "version is of type int, not text; quote"),
+        (b"---\nversion: 0x1F\n---\n", "version is of type int, not text; quote"),
+        (b"---\nversion: 010\n---\n", "version is of type int, not text; quote"),
+        (b"---\ntags: [a, [b]]\n---\n", "field tags is of type list, not text"),
         (
             b"---\nlicense: 3\n---\n",
             "field license is of type int, not text; skipped",
@@ -166,6 +172,11 @@ def test_no_metadata_for_a_missing_directory(tmp_path: Path) -> None:
         "malformed-yaml-fields",
         "bool-version",
         "float-version",
+        "int-version",
+        "base-60-version",
+        "hex-version",
+        "octal-version",
+        "nested-tag",
         "number-licence",
     ],
 )
