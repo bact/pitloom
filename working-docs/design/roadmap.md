@@ -166,6 +166,14 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   removed); `bsi-expected.tsv` and the surface-parity tests cover it. Ontology
   and mapping: <https://bact.github.io/bom/req/bsi2025/bsi2025.ttl>,
   <https://bact.github.io/bom/mapping/bsi2025-to-spdx30.sssom.tsv>.
+- [x] **Same reachability for every standard** (checker `151460c`, 2026-10-18):
+  `trainedOn` and `testedOn` are the default `reach_via`, so NTIA, BSI, FSCT,
+  CISA 2026 and G7 judge the datasets a reachable model uses; `bsi-expected.tsv`
+  refreshed. See [g7-conformance-tests.md](../implementation/g7-conformance-tests.md).
+- [x] **CLI option choices in a stable order** (2026-10-18): `--content-type-method`
+  and `--creator-type` listed a `frozenset` in hash order in `--help` and in the
+  invalid-choice error; now sorted, with a hash-seed test
+  (`tests/cli/test_cli_choices_order.py`).
 - [x] **#6 Model producer and parameter count** from structured sources
   (PR #306): `originatedBy` Agents and the `parameters` hyperparameter
   entry. See
