@@ -97,4 +97,4 @@ Format and backend ledger (a gap, where it is, what it needs, target). Target da
 - NumPy is tier 1 but not in the demo's format list. Keep it in tier 1 and
   out of the demo, or add it to the demo?
 - Hugging Face Hub is a source, not a file format. Does it stay in the demo?
-- Parity targets (dates) for the ledger.
+- Parity targets: decided, 2026-10-19 for every gap.
