@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-10-04
+# Last-Modified: 2026-10-18
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -19,8 +19,8 @@ description: >-
   SBOM embedded in wheel". Presence only, runs verify-wheel alone and offers
   a content check: "does this wheel have an SBOM", "check if the wheel has an
   SBOM", "is SBOM in correct location in the wheel", "where is the SBOM in
-  this wheel". A quick @graph check is not a substitute. Not for
-  NTIA/CISA/G7 completeness (sbom-enrich).
+  this wheel". A quick @graph check is not a substitute. Not for NTIA,
+  FSCT, CISA 2026, G7 AI or BSI completeness (sbom-enrich).
 license: Apache-2.0
 compatibility: >-
   Requires a shell, Python 3.10+ and pitloom >= 0.20.2 with the validate
@@ -63,6 +63,11 @@ even though the non-Python dependencies are simply missing, not
 flagged -- see `sbom-generate`'s "Known limitations" section.
 When a user asks "is this SBOM valid?" meaning "is this SBOM complete?",
 answer both questions, not just the one this skill actually checks.
+Completeness against a named standard (NTIA 2021, FSCT 2024, CISA 2026, G7
+SBOM for AI 2026, BSI TR-03183-2 v2.1), with or without the
+`ntia-conformance-checker` (`sbomcheck`), is `sbom-enrich`'s "Complete a
+standard's minimum elements". A schema/SHACL pass here says nothing about
+it.
 
 Triggers automatically on natural-language requests (see the trigger
 phrasings above), or invoke it explicitly with `/sbom-validate
