@@ -125,8 +125,8 @@ class ProjectFile:
 
 class DigestFields(TypedDict):
     """The digest fields of a :class:`ProjectFile`, from one read
-    (:func:`digest_fields`); a :class:`PhantomDependency` copies them from
-    its file."""
+    (:func:`digest_fields`); a :class:`PhantomDependency` takes the two
+    fields from its file one by one."""
 
     digest_sha256: str
     digest_sha512: str

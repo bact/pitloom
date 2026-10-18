@@ -42,9 +42,9 @@ Rules:
 | Python build backends | Hatchling, setuptools, Poetry |
 
 Out of scope for the demo: the Infrastructure, Security and KPI clusters; other
-SBOM formats; tier 2 formats beyond keeping them working. CISA 2026 and FSCT
-2024 are checked by the same tests and reported on the user page; NTIA and
-BSI are not.
+SBOM formats; tier 2 formats beyond keeping them working. CISA 2026, FSCT
+2024 and BSI TR-03183-2 are checked by the same tests and reported on the user
+page; NTIA is not.
 
 ## Parity principle
 
@@ -56,7 +56,7 @@ apply only to AI model file formats and Python build backends.
 Test: `tests/conformance/test_g7ai_surfaces.py` runs each input through every
 surface that can take it (library, `loom model`, `loom generate`, `loom
 project`, `loom wheel`, the hook) and compares the checker's outcome for every
-G7, CISA 2026 and FSCT 2024 rule, the elements and property names, and the
+G7, CISA 2026, FSCT 2024 and BSI rule, the elements and property names, and the
 names, versions, package URLs and hash values. One allowed difference: the
 hook adds `builtTime` (it runs during a build). The Action and the skills run
 the same `loom` commands and are not tested separately.

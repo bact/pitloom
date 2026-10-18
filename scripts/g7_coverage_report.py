@@ -5,8 +5,8 @@
 """Report how much of a minimum-elements standard Pitloom's SBOMs meet.
 
 Builds the conformance scenarios (``tests/conformance/g7ai_shared.py``), runs
-the checker for one standard (G7 SBOM for AI by default, CISA 2026 or FSCT
-2024) and prints a deterministic JSON report: per scenario and per cluster,
+the checker for one standard (G7 SBOM for AI by default, CISA 2026, FSCT
+2024 or BSI) and prints a deterministic JSON report: per scenario and per cluster,
 the rules ``present``, ``missing``, ``not-applicable`` and ``out-of-scope``,
 requirements apart from recommendations, the coverage
 (present / (present + missing)), the model the checker judged the system by

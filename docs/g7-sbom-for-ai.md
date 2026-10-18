@@ -89,7 +89,7 @@ The three build backends give the same result for the same project.
 - **No release time for a model file, and a version or producer only where the
   file states one** (a PT2 file does; most files do not). Pitloom does not copy a
   project's author onto its model.
-- **A dependency's hash is only what its lock file states** (a SHA-256), never
+- **A dependency's hash is only what its lock file or index states** (a SHA-256), never
   computed, so a dependency cannot meet a SHA-512 requirement such as BSI's.
   A project's own hash is a SHA-256 Merkle root over its files, not the hash of
   a built archive.
@@ -146,7 +146,7 @@ reading, not a claim of compliance):
 | Version, licence | present for the library-built model only; missing elsewhere, since the file or the dataset states none |
 
 The hash check accepts any real hash with a value, so a project's Merkle root
-(an aggregate over its files, not the hash of one artifact) passes it.
+(an aggregate over its files, not the hash of one artefact) passes it.
 
 ## FSCT 2024
 
@@ -178,7 +178,7 @@ that does not give them. For Pitloom's test SBOMs:
 | Element | Result |
 | :------ | :----- |
 | Timestamp, component name, other unique identifiers | present in every scenario |
-| Hash of the deployable component (SHA-512) | present for model files; missing for a Hugging Face model, the library-built model and every project: a project's hash is a SHA-256 Merkle root, and a dependency has no SHA-512 source |
+| Hash of the deployable component (SHA-512) | present for model files and the library-built model; missing for a Hugging Face model and every project: a project's hash is a SHA-256 Merkle root, and a dependency has no SHA-512 source |
 | Component version | present for a Hugging Face model and the library-built model only |
 | Original licence (if it exists) | present for a Hugging Face model, the library-built model and projects |
 | Creator of the SBOM and of each component | missing in every scenario: BSI wants a person or organisation with an e-mail address or URL, and Pitloom's creator is a software agent |

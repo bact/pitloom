@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""CISA 2026 and FSCT 2024 coverage of Pitloom's SBOMs, as the checker reads it.
+"""CISA 2026, FSCT 2024 and BSI coverage of Pitloom's SBOMs, as the checker
+reads it.
 
 The expected outcome of every rule, per scenario, is in
 ``tests/fixtures/conformance/<standard>-expected.tsv``; it changes in the same

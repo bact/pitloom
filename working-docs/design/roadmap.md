@@ -160,13 +160,10 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   report and surface-parity tests; coverage in `g7-coverage-history/fsct3-*.json`.
 - [ ] CHANGELOG entries for the 2026-10 G7/CISA/FSCT/SHA-512 work deferred until
   PR numbers exist (`tests/test_changelog.py` requires one).
-- [ ] **BSI TR-03183-2 v2.1 as a rule-based standard** (queued, after CISA 2026):
-  the checker's hand-written `BSIChecker` stays the verdict source; a
-  `bsi2025.yaml` rule set with per-rule outcomes is built beside it and must
-  reproduce its verdicts on the BSI fixtures before any switch. Needs new
-  probes (SHA-512 hash, "required if present", executable/archive/structured,
-  dependency completeness). Ontology and SPDX 3.0 mapping:
-  <https://bact.github.io/bom/req/bsi2025/bsi2025.ttl>,
+- [x] **BSI TR-03183-2 v2.1 as a rule-based standard**: the checker ships
+  `rules/bsi.yaml` with per-rule outcomes (the hand-written `BSIChecker` is
+  removed); `bsi-expected.tsv` and the surface-parity tests cover it. Ontology
+  and mapping: <https://bact.github.io/bom/req/bsi2025/bsi2025.ttl>,
   <https://bact.github.io/bom/mapping/bsi2025-to-spdx30.sssom.tsv>.
 - [x] **#6 Model producer and parameter count** from structured sources
   (PR #306): `originatedBy` Agents and the `parameters` hyperparameter

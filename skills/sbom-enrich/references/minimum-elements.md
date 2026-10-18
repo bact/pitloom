@@ -8,6 +8,10 @@ SPDX-License-Identifier: CC0-1.0
 
 # SBOM minimum elements checklists
 
+See also: [`minimum-elements-bsi.md`](minimum-elements-bsi.md) (BSI),
+[`minimum-elements-questions.md`](minimum-elements-questions.md) (the
+question bank for elements that cannot be derived).
+
 Companion to
 [`../SKILL.md`](https://github.com/bact/pitloom/blob/main/skills/sbom-enrich/SKILL.md)'s
 "Complete a standard's minimum elements" section. Five checklists -- NTIA 2021,
@@ -133,7 +137,7 @@ checked with `loom model`/`loom generate` and `sbomcheck -c fsct3` on
 | :--- | :--- | :--- |
 | Component Producer | dependency: `originatedBy` via `_apply_originator` (`deps_originator.py`) from PyPI JSON API; main package: `originatedBy` from `[project].authors`, and `suppliedBy` only when `[[tool.pitloom.creator]]` is configured; an AI model: `originatedBy`, see G7 "Model producer" below | conditional (deps, PyPI-resolvable only); main package **covered** when authors are declared -- see NTIA's "Supplier Name" row above |
 | Component Dependency Relationship | `Relationship`/`LifecycleScopedRelationship` | covered |
-| Component Hash Value / Algorithm | `verifiedUsing` (`{"algorithm": "sha256", "hashValue": ...}`, plus a `sha512` entry on a file Pitloom reads itself); set on every `software_File` (including dataset and model files), lock-file-resolved dependencies (via SHA-256 digests in supported lock files, taking priority and applied in both online and offline builds), and PyPI-resolved deps (`_extract_release_hash` fallback, `deps_pypi.py`). The main package carries the SHA-256 Merkle root over its files (`document.py`; commented as not a single-artefact hash) on every `project` (directory), wheel and embed SBOM that has payload files (the wheel's own `.dist-info` is excluded); **not** set on sdist SBOMs, on `ai_AIPackage` elements (except a `loom.run` model declared with `path=`, which carries its file's SHA-256), or on `dataset_DatasetPackage` elements outside `loom.run` | conditional -- present on deps only when a definite version resolves; on the main package, check the SBOM rather than assuming (Merkle root, not an artefact hash); the AI/dataset package-level gaps are listed under G7 below |
+| Component Hash Value / Algorithm | `verifiedUsing` (`{"algorithm": "sha256", "hashValue": ...}`, plus a `sha512` entry on a file Pitloom reads itself); set on every `software_File` (including dataset and model files), lock-file-resolved dependencies (via SHA-256 digests in supported lock files, taking priority and applied in both online and offline builds), and PyPI-resolved deps (`_extract_release_hash` fallback, `deps_pypi.py`). The main package carries the SHA-256 Merkle root over its files (`document.py`; commented as not a single-artefact hash) on every `project` (directory), wheel and embed SBOM that has payload files (the wheel's own `.dist-info` is excluded); **not** set on sdist SBOMs, on an `ai_AIPackage` whose model file Pitloom did not read (a Hugging Face model), or on `dataset_DatasetPackage` elements outside `loom.run` | conditional -- present on deps only when a definite version resolves; on the main package, check the SBOM rather than assuming (Merkle root, not an artefact hash); the AI/dataset package-level gaps are listed under G7 below |
 | Component Identifiers | `software_packageUrl` (PURL) | conditional, same as NTIA's "Other Unique Identifiers" |
 | Component License | `simplelicensing_LicenseExpression` (valid SPDX expression) or `simplelicensing_SimpleLicensingText` (other text) + `hasDeclaredLicense`/`hasConcludedLicense` relationship (main package, from `project.license`, then its `License ::` classifiers; a single value is declared when the package states it, including a `loom env` package's own installed metadata, and concluded when it is a third-party record: PyPI, or a project dependency's installed copy; beside a stated licence, the project directory's detection is concluded, as is a library caller's `license_concluded`); deps from installed metadata, then installed classifiers, then the PyPI JSON API (`_extract_pypi_license`). No licence stated = **no relationship**; `NoAssertionLicense`/`NoneLicense` individuals only when a source said `NOASSERTION`/`UNKNOWN`/`NONE` | conditional (deps: installed or PyPI-resolvable only); main package usually covered when `pyproject.toml` declares a licence; a missing relationship is a **gap** |
 | Component Name | `software_Package.name` | covered |
@@ -234,101 +238,8 @@ coverage, and expect most to end up reported as open gaps rather than filled.
 
 ## BSI TR-03183-2 v2.1 (SBOM content, section 5.2; checker `bsi`)
 
-Rule ids are `BOM-BSI2025-<id>`. BSI asks the most of the five: on a default
-run most component rules are missing. "If it exists" rules are
-`not-applicable` for a package that does not give the element; "optional"
-ones never block. Checked as for FSCT above, plus a fragment merged into a
-project base (the fragment rows below were merged, validated and re-checked).
-
-| Id | Element | SPDX 3 field the checker reads | Pitloom | Checked |
-| :--- | :--- | :--- | :--- | :--- |
-| DOC-001 | Creator of the SBOM | a `Person`/`Organization` in `createdBy` with an `email` identifier (or an http(s) `urlScheme`/`other` one) | **user must supply**: the default `Pitloom` software agent never counts; `--creator-name N --creator-type person\|organization --creator-email E` (any target) or `[[tool.pitloom.creator]]` with `email` (project) passes. Pitloom records an e-mail, not a URL | yes |
-| DOC-002 | Timestamp | `created` | fills | yes |
-| DOC-003 | BOM-URI | `spdxId` | always there | no |
-| COMP-001 | Component creator | a `Person`/`Organization` with e-mail or URL in `originatedBy` of every package | the main package when a `[project].authors` entry has an e-mail; a dependency when PyPI gives an author e-mail (online only); never a model (a generic `Agent`) | yes |
-| COMP-002 | Component name | `name` | fills | yes |
-| COMP-003 | Component version | `software_packageVersion` | as FSCT COMP-002 | yes |
-| COMP-004 | Filename | `hasDistributionArtifact` to a named element | **user must supply**: Pitloom writes none; a fragment can add a `software_File` named after the built archive and the relationship | yes |
-| COMP-005 | Dependencies, with completeness | a `dependsOn`/`contains` from every package with `completeness` set | **user must supply**: Pitloom sets no `completeness`; a package with none says so with `dependsOn` to `NoneElement`, `completeness` `complete`; `NoAssertionElement` with `noAssertion` says the list is unknown, which BSI allows. State `complete` only when the user confirms it | yes |
-| COMP-006 | Distribution licence | `hasConcludedLicense` (not `NoAssertionLicense`) | as FSCT COMP-007 | yes |
-| COMP-007 | Hash of the deployable component | a **SHA-512** `Hash` on the package or its distribution artifact | a model file Pitloom read (SHA-256 and SHA-512); **not** a project's main package (a SHA-256 Merkle root over its files, not a deployable archive), **not** a dependency (only the lock file's SHA-256 exists, so it cannot be met), **not** a Hugging Face model (no hash). The user can supply the built archive's SHA-512 on the COMP-004 `software_File` | yes |
-| COMP-008, COMP-009 | Executable, archive property | -- | stated by leaving the purpose out | no |
-| COMP-010 | Structured property | `container` (structured) or `firmware` (unstructured) in `software_primaryPurpose`/`software_additionalPurpose` of the package or its artifact | **user must supply**: Pitloom writes `library`, `model` and the like; a fragment restating the package can add `software_additionalPurpose` (lists merge as a union). It is the user's statement about the component, never the agent's guess | yes |
-| COMP-011 | Source code URI (if it exists) | `externalRef` of type `vcs` | Pitloom writes none (a `[project.urls]` source URL becomes `software_downloadLocation`), so `not-applicable` | yes |
-| COMP-012 | URI of the deployable form (if it exists) | `software_downloadLocation` or an `altDownloadLocation`/`binaryArtifact` ref | the main package when `[project.urls]` gives one | yes |
-| COMP-013 | Other unique identifiers (if they exist) | as FSCT COMP-004 | fills | yes |
-| COMP-014 | Original licences (if they exist) | `hasDeclaredLicense` | the project's stated licence; a model's or dataset's when its source states one | yes |
-| COMP-015 | Effective licence (optional) | `hasConcludedLicense` | as COMP-006 (they pass or fail together) | yes |
-| COMP-016 | Hash of the source code (optional) | -- | SPDX 3.0.1 has no link the mapping names | no |
-| COMP-017 | security.txt URL (optional) | `externalRef` of type `securityPolicy`/`securityOther` | **user must supply** | yes |
-
-## Question bank (educated guesses for hard-to-derive elements)
-
-Use these as a starting point for the "where might this information be" prompt
-the skill gives the user for elements it can't resolve itself -- adapt to what's
-actually in the project.
-
-- **SBOM Author** (when `[[tool.pitloom.creator]]` isn't set): "Pitloom's own
-  `CreationInfo` currently only names Pitloom itself as the generating tool, not
-  the person or organisation that ran it. Who should be recorded as the SBOM
-  author -- you, or an organisation? This can also be set permanently via
-  `[[tool.pitloom.creator]]` in `pyproject.toml` (note the double brackets --
-  it's an array of tables) so future runs don't need to ask -- and it also
-  records the main package's supplier (`suppliedBy`) at the same time."
-- **Component/Model Producer**: for a model, first look at the `ai_AIPackage`'s
-  `originatedBy`: a generic `Agent` there already answers it (from the file's
-  author field or the Hub repository owner), and the only open question is
-  whether it is a person or an organisation, which the model card usually
-  says (a fragment adds the `Person`/`Organization` beside the `Agent`). If
-  it is absent, or only the owner of a re-upload: "Is this dependency/model
-  something your organisation built, or a third-party component? If
-  third-party, do you know the maintaining organisation or project (check
-  the package's PyPI page, GitHub org, or model card)?" Non-interactive: add
-  a typed agent only when the local model card states it (`Role: declared`
-  or `inferred`), else report the generic `Agent` as the producer and
-  person-versus-organisation as open.
-- **Model parameter count** (no `parameters` entry): "Does the model card
-  or paper state the parameter count?" Read the local card first. The value
-  is a decimal integer, as Pitloom writes it; a rounded label (`7B`) is not
-  one, so leave the entry out and quote the label in the report.
-  Non-interactive: use a local card only, else report the gap.
-- **BSI creator contact** (DOC-001, COMP-001): "BSI wants the SBOM's creator,
-  and each component's creator, as a person or organisation with an e-mail
-  address. Who, and which address?" The SBOM creator goes in
-  `[[tool.pitloom.creator]]` (`name`, `type`, `email`) or `--creator-name`,
-  `--creator-type`, `--creator-email`; the main package's creator comes from an
-  e-mail in `[project].authors`. Non-interactive: use what the project already
-  declares, else report the gap; never invent an address.
-- **BSI distribution artifact** (COMP-004, COMP-007): "Which built file is
-  distributed (e.g. `dist/<name>-<version>-py3-none-any.whl`)?" Its SHA-512 is
-  computed from that file (`sha512sum`, or `shasum -a 512` on macOS) only
-  after the user names it; the SBOM then describes that archive, so regenerate
-  when it is rebuilt.
-- **BSI structured property and dependency completeness** (COMP-010,
-  COMP-005): "Is this component structured (a container such as a wheel or
-  archive) or unstructured firmware?" and "Is the dependency list complete?"
-  Both are the user's claims. Non-interactive: leave them out and report them.
-- **security.txt** (BSI COMP-017, optional): "Does the project publish a
-  security policy or `security.txt` URL?"
-- **SBOM Author Signature**: "This requires a detached digital signature over
-  the SBOM using your organisation's own signing infrastructure (see NIST SP
-  800-57 Pt. 1 for key-management guidance). Pitloom doesn't generate signatures
-  -- do you already have a signing process, or is this out of scope for now?"
-- **Model license**: "Does the model have its own licence, separate from the
-  project's? Check the model card / a `LICENSE` file next to the model weights,
-  or the hub page if it came from Hugging Face."
-- **Dataset provenance**: "Where did this dataset come from -- collected
-  in-house, downloaded from a public source, or derived from another dataset in
-  this project? Check the dataset's own README/data card, or a
-  data-collection/labelling pipeline doc if one exists."
-- **Dataset sensitivity**: "Does this dataset contain personal data (PII),
-  copyrighted material, or other sensitive content (financial, medical, national
-  security)? This generally can't be inferred from the data alone -- best
-  answered by whoever curated it."
-- **Model training properties**: "What training approach was used --
-  pre-training from scratch, fine-tuning an existing model, RLHF, or something
-  else? A model card's 'Training' or 'Methodology' section usually states this
-  if one exists."
+Moved to [`minimum-elements-bsi.md`](minimum-elements-bsi.md): element table, what Pitloom
+writes and what the user must supply.
 
 ## Optional extra check (not a required step)
 

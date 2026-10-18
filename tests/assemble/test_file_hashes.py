@@ -117,7 +117,7 @@ def _assert_hashes(case: str, hashed: _Graph, contents: dict[str, bytes]) -> Non
     """Every hashed element of *case*'s SBOM *hashed* is checked: a file
     against its bytes in *contents*, the model and a bundled library
     against theirs, the Merkle root for SHA-256 only."""
-    expected = {
+    expected: dict[tuple[str, str | None], Any] = {
         ("software_File", name): file_hashes_json(data)
         for name, data in contents.items()
         if name != "<model>"

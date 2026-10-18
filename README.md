@@ -233,7 +233,7 @@ per-field metadata provenance. See a more complete example in
 - [Loom ID registry](docs/id-registry.md): an optional registry that keeps `spdxId`s
   stable across fragments and runs.
 - [G7 SBOM for AI](docs/g7-sbom-for-ai.md): how much of the G7 SBOM for AI,
-  CISA 2026 and FSCT 2024 minimum elements Pitloom's SBOMs carry, as
+  CISA 2026, FSCT 2024 and BSI TR-03183-2 minimum elements Pitloom's SBOMs carry, as
   `ntia-conformance-checker` reads them.
 - [Resources](docs/resources.md): SBOM, AIBOM and SPDX reading list.
 - [SPDX 3.0 Specification](https://spdx.dev/wp-content/uploads/sites/31/2024/12/SPDX-3.0.1-1.pdf),

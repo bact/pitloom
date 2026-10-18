@@ -40,14 +40,14 @@ The same scenarios are checked against CISA 2026 (`cisa2026`) and FSCT 2024
 - `test_g7ai_sssom_gaps.py` pins the elements the checker does not check
   although Pitloom writes the property the G7 -> SPDX mapping assigns to them
   (`EMITTED_BUT_UNCHECKED`). Property level only.
-- `test_standard_outcomes.py` holds `cisa2026-expected.tsv` and
-  `fsct3-expected.tsv` the same way: every rule listed with its provision,
-  `out-of-scope` only for the `catalogue-only` rules, any changed cell fails.
-  Both standards also judge the datasets and models a component reaches by
-  `trainedOn` and `testedOn`.
+- `test_standard_outcomes.py` holds `cisa2026-expected.tsv`,
+  `fsct3-expected.tsv` and `bsi-expected.tsv` the same way: every rule listed
+  with its provision, `out-of-scope` only for the `catalogue-only` rules, any
+  changed cell fails. CISA 2026 and FSCT 2024 also judge the datasets and
+  models a component reaches by `trainedOn` and `testedOn`; BSI does not.
 - `test_g7ai_surfaces.py` runs one input through the library, `loom model`,
   `loom generate`, `loom project`, `loom wheel` and the Hatchling hook, and
-  requires the same outcome for every rule of all three standards, the same
+  requires the same outcome for every rule of all four standards, the same
   element types and property names, and the same names, versions, package
   URLs and hash values. The hook may add `builtTime`.
 
@@ -195,6 +195,14 @@ CISA identifier rule needs a real identifier (`software_packageUrl`,
 `externalIdentifier` or `software_contentIdentifier`), not the `spdxId`;
 every package in every scenario carries a package URL.
 
+**BSI TR-03183-2 v2.1 (2026-10-18).** Checked with `bsi` (rule-based, 20
+elements, 16 checked); table `bsi-expected.tsv`, report
+`bsi-0.20.3-dev.json`. BSI follows composition and dependency relationships but
+not `trainedOn`/`testedOn`. The SHA-512 hash is `present` for model files and
+the library-built model, `missing` for a Hugging Face model and every project
+(a SHA-256 Merkle root, no SHA-512 source for dependencies); the creator rules
+are `missing` everywhere because Pitloom's creator is a software agent.
+
 **SHA-512 (2026-10-18).** Every file Pitloom reads and describes gets its
 SHA-512 beside its SHA-256, from one read (`pitloom.core.file_hash`): model
 files, project, wheel and sdist file elements, `loom` model, dataset and
@@ -218,7 +226,7 @@ laptop and in CI.
 ## History files and the checker commit
 
 Each history file's header names the checker commit it was made with: the
-0.20.2 baseline `9b701748`, the three `0.20.3-dev` files `41438921` (the
-pinned commit). Regenerated with the pinned checker on 2026-10-18, each
-`0.20.3-dev` report equals the committed file. A history file named
+0.20.2 baseline `9b701748`, the g7ai, cisa2026 and fsct3 `0.20.3-dev` files `41438921`, the bsi file
+`34c00ba`. The pinned commit is now `a877b4c`; its outcomes equal the committed
+files (only the headers name older commits). A history file named
 `0.20.3-dev` records `pitloom 0.20.2`, the installed version when it was made.

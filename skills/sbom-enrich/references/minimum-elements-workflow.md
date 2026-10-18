@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: `../SKILL.md` ("Complete a standard's minimum elements", steps
 a-g, which hold the rules) and `minimum-elements.md` (the checklists,
-field mappings and question bank).
+field mappings; `minimum-elements-questions.md` has the question bank).
 
 ## Step d: ranking the questions
 

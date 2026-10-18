@@ -416,7 +416,7 @@ c. **Resolve gaps by the precedence of steps 2-5:** deterministic `loom
    enrich`, then local prose, then (interactive only, consent-gated per
    step 5) outside sources. Only what is left reaches step d.
 d. **Interactive only, one field at a time,** using
-   `references/minimum-elements.md`'s question bank and step 4's role rule.
+   `references/minimum-elements-questions.md` and step 4's role rule.
    Ask quick or high-impact answers first. The user can stop at any point:
    go to step f with what was gathered; list the rest as open gaps. Skip
    in a non-interactive run.
@@ -455,7 +455,8 @@ non-interactive stop and report the `ERROR:`.
 
 - `references/examples.md` -- full worked example.
 - `references/minimum-elements.md` -- the NTIA/FSCT/CISA/G7/BSI
-  checklists, field mappings and question bank;
+  checklists and field mappings (BSI: `references/minimum-elements-bsi.md`; the
+  question bank: `references/minimum-elements-questions.md`);
   `references/minimum-elements-workflow.md` -- step detail for "Complete a
   standard's minimum elements" and the optional checker.
 - `references/deterministic-pass.md`, `references/dangling-references.md`
