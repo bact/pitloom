@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for pitloom.export.spdx3_json: require_spdx_id(), sha256_hash(),
+sha512_hash(), file_hashes() (and pitloom.export.hashes reading them back),
 _annotate_relationships(), and Spdx3JsonExporter's license indexing and
 to_json()/to_file() serialization.
 
@@ -15,6 +16,7 @@ Spdx3JsonExporter indirectly through the full assembler pipeline.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -22,13 +24,18 @@ from typing import Any
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.export.hashes import sha256_of
+from pitloom.core.file_hash import HexDigests
+from pitloom.export.hashes import file_digests_of, sha256_of
 from pitloom.export.spdx3_json import (
     Spdx3JsonExporter,
     _annotate_relationships,
+    file_hashes,
     require_spdx_id,
     sha256_hash,
+    sha512_hash,
 )
+
+_S256, _S512 = spdx3.HashAlgorithm.sha256, spdx3.HashAlgorithm.sha512
 
 
 def _creation_info() -> spdx3.CreationInfo:
@@ -60,21 +67,47 @@ def test_require_spdx_id_raises_when_unassigned() -> None:
         require_spdx_id(pkg)
 
 
-# --- sha256_hash ---
+# --- sha256_hash, sha512_hash, file_hashes ---
 
 
-def test_sha256_hash_without_comment() -> None:
-    digest = "a" * 64
-    result = sha256_hash(digest)
-    assert result.algorithm == spdx3.HashAlgorithm.sha256
-    assert result.hashValue == digest
-    assert result.comment is None
+@pytest.mark.parametrize(
+    ("build", "algorithm", "length"),
+    [
+        (sha256_hash, spdx3.HashAlgorithm.sha256, 64),
+        (sha512_hash, spdx3.HashAlgorithm.sha512, 128),
+    ],
+    ids=["sha256", "sha512"],
+)
+@pytest.mark.parametrize("comment", [None, "from wheel RECORD"])
+def test_hash_builders(
+    build: Callable[..., spdx3.Hash], algorithm: str, length: int, comment: str | None
+) -> None:
+    """One convention per algorithm: lowercased value, optional comment."""
+    result = build("AB" * (length // 2), comment=comment)
+    assert result.algorithm == algorithm
+    assert result.hashValue == "ab" * (length // 2)
+    assert result.comment == comment
 
 
-def test_sha256_hash_with_comment() -> None:
-    digest = "b" * 64
-    result = sha256_hash(digest, comment="from wheel RECORD")
-    assert result.comment == "from wheel RECORD"
+@pytest.mark.parametrize(
+    ("digests", "expected"),
+    [
+        (HexDigests("a" * 64, "b" * 128), [(_S256, "a" * 64), (_S512, "b" * 128)]),
+        (HexDigests("a" * 64), [(_S256, "a" * 64)]),
+    ],
+    ids=["both", "sha256-only"],
+)
+def test_file_hashes_is_sha256_then_sha512(
+    digests: HexDigests, expected: list[tuple[str, str]]
+) -> None:
+    """A file's ``verifiedUsing``: SHA-256 first, then SHA-512 when known
+    (none invented); read back unchanged, fresh objects each time."""
+    first, second = file_hashes(digests), file_hashes(digests)
+    assert [(h.algorithm, h.hashValue) for h in first] == expected
+    assert not {id(h) for h in first} & {id(h) for h in second}
+    element = spdx3.software_File(name="a.py")
+    element.verifiedUsing = first
+    assert file_digests_of(element) == digests
 
 
 # --- _annotate_relationships ---
@@ -451,3 +484,6 @@ def test_sha256_of(hashes: list[spdx3.Hash] | None, expected: str | None) -> Non
     if hashes:
         element.verifiedUsing = hashes
     assert sha256_of(element) == expected
+    assert file_digests_of(element) == (
+        None if expected is None else HexDigests(expected)
+    )

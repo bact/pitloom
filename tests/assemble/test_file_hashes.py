@@ -113,6 +113,35 @@ def _is_merkle(element: dict[str, Any]) -> bool:
     return any(_MERKLE in h.get("comment", "") for h in element["verifiedUsing"])
 
 
+def _assert_hashes(case: str, hashed: _Graph, contents: dict[str, bytes]) -> None:
+    """Every hashed element of *case*'s SBOM *hashed* is checked: a file
+    against its bytes in *contents*, the model and a bundled library
+    against theirs, the Merkle root for SHA-256 only."""
+    expected = {
+        ("software_File", name): file_hashes_json(data)
+        for name, data in contents.items()
+        if name != "<model>"
+    }
+    if "<model>" in contents:
+        expected["ai_AIPackage", None] = file_hashes_json(contents["<model>"])
+    if case == "wheel":
+        expected["software_Package", "libz"] = file_hashes_json(
+            contents["demo.libs/libz.so"]
+        )
+    merkle = [e for e in hashed if _is_merkle(e)]
+    found = {
+        (e["type"], None if e["type"] == "ai_AIPackage" else e["name"]): e[
+            "verifiedUsing"
+        ]
+        for e in hashed
+        if e not in merkle
+    }
+    assert found == expected
+    assert [algorithms(e) for e in merkle] == [["sha256"]] * len(merkle)
+    # An sdist's main package states no Merkle root, a model has none.
+    assert len(merkle) == (case in ("project", "wheel"))
+
+
 @pytest.mark.parametrize(
     ("case", "build", "surface", "run"),
     _RUNS,
@@ -134,26 +163,7 @@ def test_every_read_file_has_both_hashes(
     scratch = tmp_path / "out"
     scratch.mkdir()
     sbom = run(source, scratch, monkeypatch)
-    hashed = _graph(sbom)
-    files = {e["name"]: e for e in hashed if e["type"] == "software_File"}
-    models = [e for e in hashed if e["type"] == "ai_AIPackage"]
-    merkle = [e for e in hashed if _is_merkle(e)]
-    for name, element in files.items():
-        assert element["verifiedUsing"] == file_hashes_json(contents[name]), name
-    for model in models:
-        assert model["verifiedUsing"] == file_hashes_json(contents["<model>"])
-    for package in merkle:
-        assert algorithms(package) == ["sha256"]
-    # Not vacuous: what each case holds was found and checked.
-    assert len(models) == ("<model>" in contents)
-    assert set(files) == (set(contents) - {"<model>"})
-    # An sdist's main package states no Merkle root, a model has none.
-    assert len(merkle) == (case in ("project", "wheel"))
-    if case == "wheel":
-        (phantom,) = [e for e in hashed if e.get("name") == "libz"]
-        assert phantom["verifiedUsing"] == file_hashes_json(
-            contents["demo.libs/libz.so"]
-        )
+    _assert_hashes(case, _graph(sbom), contents)
     path = tmp_path / f"{case}-{surface}.spdx3.json"
     path.write_text(sbom, encoding="utf-8")
     assert_spdx3_valid(path)
@@ -218,4 +228,3 @@ def test_loom_hashes_its_model_dataset_and_script_both_ways(
         ("software_File", "train.py"): file_hashes_json(contents["train.py"]),
     }
     assert_spdx3_valid(output)
-

@@ -60,7 +60,8 @@ _VALUE_KEYS = ("name", "software_packageVersion", "software_packageUrl", "hashVa
 
 def _values(sbom: str) -> list[tuple[str, str, str]]:
     """The ``_VALUE_KEYS`` values of *sbom*'s elements and their hashes, ignoring
-    who made it and the element ids (which differ by surface)."""
+    who made it and the element ids (which differ by surface). An element's
+    hashes are one value, each algorithm with its digest, in their order."""
     found: list[tuple[str, str, str]] = []
     for element in json.loads(sbom)["@graph"]:
         if element["type"] in _CREATION:
@@ -70,8 +71,12 @@ def _values(sbom: str) -> list[tuple[str, str, str]]:
             for k in _VALUE_KEYS
             if k in element
         ]
-        for method in element.get("verifiedUsing", []):
-            found.append(("Hash", "hashValue", str(method.get("hashValue"))))
+        hashes = [
+            f"{method.get('algorithm')}:{method.get('hashValue')}"
+            for method in element.get("verifiedUsing", [])
+        ]
+        if hashes:
+            found.append((str(element["type"]), "verifiedUsing", " ".join(hashes)))
     return sorted(found)
 
 
@@ -148,21 +153,41 @@ def _baseline_outcomes(tmp: Path, sbom: str, standard: str) -> dict[str, str]:
     return outcomes(path, standard=standard)
 
 
-def test_values_differ_when_a_surface_writes_a_wrong_hash_or_name() -> None:
-    """Guard: the value comparison sees a changed name and a zeroed hash."""
-    sbom = json.dumps(
-        {
-            "@graph": [
-                {
-                    "type": "software_Package",
-                    "name": "m",
-                    "verifiedUsing": [{"hashValue": "ab" * 32}],
-                }
-            ]
-        }
-    )
-    assert _values(sbom.replace('"m"', '"other"')) != _values(sbom)
-    assert _values(sbom.replace("ab" * 32, "00" * 32)) != _values(sbom)
+def _hashed(*hashes: tuple[str, str]) -> str:
+    """A one-package SBOM whose ``verifiedUsing`` is *hashes*, in order."""
+    verified = [{"algorithm": a, "hashValue": v} for a, v in hashes]
+    graph = [{"type": "software_Package", "name": "m", "verifiedUsing": verified}]
+    return json.dumps({"@graph": graph})
+
+
+_BOTH = (("sha256", "ab" * 32), ("sha512", "cd" * 64))
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        _hashed(*_BOTH).replace('"m"', '"other"'),
+        _hashed(*_BOTH).replace("ab" * 32, "00" * 32),
+        _hashed(*_BOTH).replace("cd" * 64, "00" * 64),
+        _hashed(_BOTH[0]),
+        _hashed(*reversed(_BOTH)),
+        _hashed(("sha512", "ab" * 32), _BOTH[1]),
+    ],
+    ids=[
+        "name",
+        "sha256-value",
+        "sha512-value",
+        "sha512-dropped",
+        "order",
+        "algorithm",
+    ],
+)
+def test_values_differ_when_a_surface_writes_a_wrong_hash_or_name(
+    changed: str,
+) -> None:
+    """Guard: the value comparison sees a changed name, either digest
+    changed or dropped, the hashes reordered and a wrong algorithm."""
+    assert _values(changed) != _values(_hashed(*_BOTH))
 
 
 def test_the_hook_differs_from_the_source_sbom_only_by_built_time(

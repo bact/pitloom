@@ -125,11 +125,10 @@ def test_the_sha256_reader_computes_no_sha512(
     path = tmp_path / "data.bin"
     path.write_bytes(_CONTENT)
 
-    class _Refused(DigestHasher):
-        def __init__(self) -> None:
-            raise RuntimeError("two-digest hasher built")
+    def _refused() -> DigestHasher:
+        raise RuntimeError("two-digest hasher built")
 
-    monkeypatch.setattr(file_hash, "DigestHasher", _Refused)
+    monkeypatch.setattr(file_hash, "DigestHasher", _refused)
     assert sha256_digest_and_size(path)[1] == len(_CONTENT)
     with pytest.raises(RuntimeError, match="two-digest hasher built"):
         file_digests(path)
