@@ -176,6 +176,13 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   and `--creator-type` listed a `frozenset` in hash order in `--help` and in the
   invalid-choice error; now sorted, with a hash-seed test
   (`tests/cli/test_cli_choices_order.py`).
+- [ ] **Edge-case hardening of the dataset readers** (deferred until after the
+  2026-10-19 demo, decided 2026-10-18): fuzz-driven fixes for hostile Croissant
+  files and dataset cards (generated inputs; boundaries are in place:
+  `_parse_frontmatter`, `_optional_card`, `read_croissant`), the Hub id
+  case/dedupe follow-ups, the YAML 1.1 corner cases and the findings of the
+  last fuzz run. See
+  [dataset-licence-readers.md](dataset-licence-readers.md).
 - [x] **#6 Model producer and parameter count** from structured sources
   (PR #306): `originatedBy` Agents and the `parameters` hyperparameter
   entry. See
