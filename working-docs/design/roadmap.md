@@ -181,7 +181,11 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   files and dataset cards (generated inputs; boundaries are in place:
   `_parse_frontmatter`, `_optional_card`, `read_croissant`), the Hub id
   case/dedupe follow-ups, the YAML 1.1 corner cases and the findings of the
-  last fuzz run. See
+  last fuzz run (2026-10-18, 22,000 cases, no crash or hang in the `loom` and
+  Hub-card paths; one fixed since): `license_name`/`license_link` of a bare
+  `other` kept as a licence; `unknown`/`NOASSERTION`/non-URL text kept as a
+  version, download location or creator; the Hub-card read warnings name a
+  local cache path; model-card `datasets:` has no entry cap. See
   [dataset-licence-readers.md](dataset-licence-readers.md).
 - [x] **#6 Model producer and parameter count** from structured sources
   (PR #306): `originatedBy` Agents and the `parameters` hyperparameter
