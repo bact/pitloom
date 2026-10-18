@@ -84,6 +84,10 @@ _DECLARED_FIELDS = frozenset({"name", "dataset_types", "provenance"})
 #: ``//`` (``https:/host``), or a Windows ``Path`` writes it.
 _URL_RE = re.compile(r"https?:[/\\]", re.IGNORECASE)
 
+#: The name cap, naming the loom dataset (``DATASET=<name>``) whose creator
+#: name it cut.
+_CREATOR_CAP = dataclasses.replace(MODEL_NAME_CAP, subject="DATASET")
+
 #: The licence a caller declares by saying they make no assertion.
 _NOASSERTION = "NOASSERTION"
 
@@ -224,7 +228,7 @@ def write_metadata(
     if meta.creator:
         creator = cap_model_name(meta.creator)
         if creator != meta.creator:
-            warn_over_cap(log, MODEL_NAME_CAP, meta.name, "dataset creator name cut")
+            warn_over_cap(log, _CREATOR_CAP, meta.name, "dataset creator name cut")
         agent = add_dataset_creator_agent(
             require_spdx_id(package), creator, *context, doc.exporter
         )

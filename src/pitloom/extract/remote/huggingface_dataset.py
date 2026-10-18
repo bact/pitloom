@@ -115,6 +115,8 @@ def _load_dataset_card(
             repo_type="dataset",
             revision=revision,
         )
+        # A third party's card: whatever reading it raises fails only it.
+        read = read_card(Path(local_path), HUB_DATASET_CARD)
     except RemoteEntryNotFoundError:
         return None, {}
     # pylint: disable-next=broad-exception-caught
@@ -122,7 +124,6 @@ def _load_dataset_card(
         msg = "Failed to load dataset card for %s: %s" + HUB_DATASET_CARD.fields_skipped
         log.warning(msg, loggable(dataset_id), one_line(exc))
         return None, {}
-    read = read_card(Path(local_path), HUB_DATASET_CARD)
     if read is None:
         return None, {}
     return read[0], read[1] or {}
@@ -205,8 +206,9 @@ def add_hub_dataset_metadata(datasets: list[DatasetReference], where: str) -> No
     gives it) from its Hub repository, in card order. A name that is not a
     repository id is not looked up; past :data:`MAX_HUB_DATASET_LOOKUPS`
     ids, the rest are not either, with one ``WARNING:`` naming *where* (the
-    model). A dataset listed twice is looked up once."""
-    ids = list(dict.fromkeys(r.metadata.name for r in datasets))
+    model). A dataset listed twice, in any letter case (Hub ids are
+    case-insensitive), is looked up once, by its first spelling."""
+    ids = list(dict.fromkeys(r.metadata.name.lower() for r in datasets))
     ids = [i for i in ids if _is_dataset_id(i)]
     if len(ids) > MAX_HUB_DATASET_LOOKUPS:
         skipped = len(ids) - MAX_HUB_DATASET_LOOKUPS
@@ -215,17 +217,23 @@ def add_hub_dataset_metadata(datasets: list[DatasetReference], where: str) -> No
     allowed = set(ids[:MAX_HUB_DATASET_LOOKUPS])
     looked_up: dict[str, DatasetMetadata] = {}
     for ref in datasets:
-        name = ref.metadata.name
-        if name in looked_up:
-            _copy_found(looked_up[name], ref.metadata)
-        elif name in allowed:
+        key = ref.metadata.name.lower()
+        if key in looked_up:
+            _copy_found(looked_up[key], ref.metadata)
+        elif key in allowed:
             _look_up(ref.metadata)
-            looked_up[name] = ref.metadata
+            looked_up[key] = ref.metadata
+
+
+#: The fields a Hub lookup fills (:func:`_apply_card`, :func:`_apply_info`).
+_FOUND_FIELDS = ("version", "creator", "license", "description", "keywords")
 
 
 def _copy_found(found: DatasetMetadata, meta: DatasetMetadata) -> None:
-    """Give *meta* what was found for the same dataset as *found*."""
-    meta.version, meta.creator = found.version, found.creator
-    meta.license, meta.description = found.license, found.description
-    meta.keywords = list(found.keywords)
-    meta.provenance = dict(found.provenance)
+    """Give *meta* what the lookup of the same dataset as *found* filled,
+    each field with its provenance; *meta* keeps its own of the rest."""
+    for field in _FOUND_FIELDS:
+        if field in found.provenance:
+            value = getattr(found, field)
+            setattr(meta, field, list(value) if isinstance(value, list) else value)
+            meta.provenance[field] = found.provenance[field]

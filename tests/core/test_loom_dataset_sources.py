@@ -179,7 +179,7 @@ def test_a_later_declaration_adds_its_sources(project: Path) -> None:
     ("croissant", "match"),
     [
         ("https://example.org/c.json", "only a local file is read"),
-        ("missing.json", "Cannot read source 'missing.json'"),
+        ("missing.json", "Cannot read Croissant source 'missing.json'"),
         ("bad.json", "not valid JSON"),
         ("noname.json", "has no 'name' field"),
         ("latin1.json", "Croissant source 'latin1.json' is not valid JSON"),

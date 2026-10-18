@@ -312,3 +312,79 @@ def test_a_licence_of_the_wrong_shape_warns_naming_the_dataset(
 )  # fmt: skip
 def test_only_a_repository_id_is_looked_up(name: str, looked_up: bool) -> None:
     assert _is_dataset_id(name) is looked_up
+
+
+@pytest.mark.parametrize(
+    ("frontmatter", "licence"),
+    [
+        ("last_updated: 2024-02-30\n", None),
+        ("version: " + "1" * 5000 + "\n", None),
+        ("v: 0x" + "f" * 5000 + "\n", "mit"),
+        ("v: " + ":".join(["1"] * 3000) + "\n", "mit"),
+    ],
+    ids=["impossible-date", "huge-int", "huge-hex", "huge-base-60"],
+)
+def test_a_card_yaml_cannot_load_fails_only_its_dataset(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    frontmatter: str,
+    licence: str | None,
+) -> None:
+    """A third party's card is read through the real loader: one that YAML
+    cannot load is one ``WARNING:``, the dataset keeps its name and URL, and
+    the model SBOM is built."""
+    card = tmp_path / "README.md"
+    card.write_text(f"---\nlicense: mit\n{frontmatter}---\n# D\n", "utf-8")
+    model_card = _make_card_data(datasets=["o/d"])
+    with (
+        _patch_hf_calls(card_data=model_card),
+        patch.object(hub_dataset, "_load_dataset_card", _load_dataset_card),
+        patch("huggingface_hub.hf_hub_download", return_value=str(card)),
+    ):
+        (ref,) = read_huggingface("acme/model").datasets
+    assert (ref.metadata.name, ref.metadata.license) == ("o/d", licence)
+    assert ref.metadata.download_url == "https://huggingface.co/datasets/o/d"
+    assert len(_warnings(caplog)) == (1 if licence is None else 0)
+
+
+def test_any_failure_reading_the_card_is_one_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    card = tmp_path / "README.md"
+    card.write_text("---\nlicense: mit\n---\n", "utf-8")
+    with (
+        patch("huggingface_hub.hf_hub_download", return_value=str(card)),
+        patch.object(hub_dataset, "read_card", side_effect=RuntimeError("boom")),
+    ):
+        assert _load_dataset_card("o/d", _SHA) == (None, {})
+    (message,) = _warnings(caplog)
+    assert message.startswith("Failed to load dataset card for o/d: boom")
+
+
+def test_an_id_in_another_case_is_looked_up_once() -> None:
+    """Hub ids are case-insensitive: the first spelling is looked up; a
+    repeat gets the fields found, with their provenance, and keeps its own
+    name and the rest of its provenance."""
+    card = _make_card_data(datasets=["O/D", "o/d"])
+    found = {"license": "MIT"}
+    with (
+        _patch_hf_calls(card_data=card),
+        patch.object(hub_dataset, "_load_dataset_info", return_value={}) as info,
+        patch.object(hub_dataset, "_load_dataset_card", return_value=(None, found)),
+    ):
+        first, second = [r.metadata for r in read_huggingface("acme/model").datasets]
+    assert [c.args for c in info.call_args_list] == [("O/D",)]
+    assert (second.name, second.license) == ("o/d", "MIT")
+    assert second.provenance["license"] == first.provenance["license"]
+    assert set(second.provenance) == {"name", "license"}
+    assert second.version is None and second.description is None
+
+
+def test_a_repeat_keeps_its_own_provenance_of_what_was_not_looked_up() -> None:
+    found = DatasetMetadata(
+        "o/d", license="MIT", provenance={"name": "card", "license": "hub"}
+    )
+    repeat = DatasetMetadata("O/D", provenance={"name": "readme"})
+    hub_dataset._copy_found(found, repeat)  # pylint: disable=protected-access
+    assert (repeat.name, repeat.license) == ("O/D", "MIT")
+    assert repeat.provenance == {"name": "readme", "license": "hub"}

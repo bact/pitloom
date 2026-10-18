@@ -20,13 +20,10 @@ See also: :mod:`pitloom.assemble.spdx3.dataset` (the writer) and
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 
 from pitloom.extract._license_classify import is_weak_licence
-from pitloom.logging_config import loggable
-
-log = logging.getLogger(__name__)
+from pitloom.extract.dataset.values import NOT_TEXT_WARNING, stated_text
 
 __all__ = [
     "LICENSE_FIELD",
@@ -47,10 +44,6 @@ LICENSE_LINK_FIELD = "license_link"
 #: :data:`LICENSE_LINK_FIELD` (Hugging Face card convention).
 _OTHER = "other"
 
-#: ``log.warning()`` format for a dataset field holding no text.
-#: Arguments: the source, the field, the value's type name.
-NOT_TEXT_WARNING = "dataset metadata: %s field %s is of type %s, not text; skipped"
-
 
 @dataclass(frozen=True)
 class DatasetLicence:
@@ -60,24 +53,6 @@ class DatasetLicence:
     text: str
     #: Its ``provenance["license"]`` entry.
     provenance: str
-
-
-def stated_text(value: object, source: str, field: str) -> str | None:
-    """*value*, a source's *field*, as stripped text: a string, the one
-    string of a one-item list, or the ``@id`` of a JSON-LD node reference.
-    ``None`` when absent or blank, silently; for any other shape (a number,
-    a mapping, several items) also ``None``, with one ``WARNING:``."""
-    found = value
-    if isinstance(found, list) and len(found) == 1:
-        found = found[0]
-    if isinstance(found, dict) and isinstance(found.get("@id"), str):
-        found = found["@id"]
-    if value is None or value == []:
-        return None
-    if not isinstance(found, str):
-        log.warning(NOT_TEXT_WARNING, loggable(source), field, type(value).__name__)
-        return None
-    return found.strip() or None
 
 
 def _named_text(name: object, link: object, where: str) -> tuple[str, list[str]]:

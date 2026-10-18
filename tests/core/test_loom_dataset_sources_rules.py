@@ -257,4 +257,53 @@ def test_a_long_creator_name_is_cut(
     (agent,) = [e for e in graph if e["type"] == "Agent" and e["name"][0] == "x"]
     assert len(agent["name"]) == MAX_MODEL_NAME_CHARS
     (message,) = warnings_of(caplog)
-    assert "dataset creator name cut" in message
+    assert message.startswith("DATASET=t.txt: ")
+    assert message.endswith("; dataset creator name cut")
+
+
+@pytest.mark.parametrize(
+    ("frontmatter", "licence"),
+    [
+        ("last_updated: 2024-02-30\n", []),
+        ("version: " + "1" * 5000 + "\n", []),
+        ("version: 0x" + "f" * 5000 + "\n", [(EXPRESSION, "MIT")]),
+        ("version: " + ":".join(["1"] * 3000) + "\n", [(EXPRESSION, "MIT")]),
+    ],
+    ids=["impossible-date", "huge-int", "huge-hex", "huge-base-60"],
+)
+def test_an_unusable_card_is_one_warning(
+    project: Path,
+    caplog: pytest.LogCaptureFixture,
+    frontmatter: str,
+    licence: list[tuple[str, str]],
+) -> None:
+    """A card YAML cannot load is skipped, one with a version too long to
+    write keeps its other fields; either way one ``WARNING:``, and the run
+    completes."""
+    dir_dataset(project / "corpus", "license: mit\n" + frontmatter)
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        graph = run_graph(project / "out.json", lambda: loom.add_dataset("corpus"))
+    assert declared(graph, "corpus") == licence
+    assert "software_packageVersion" not in package_of(graph, "corpus")
+    assert len(warnings_of(caplog)) == 1
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [{"cr:totalItems": -5}, {"cr:totalItems": 1e400}, {"cr:totalItems": True}],
+    ids=["negative", "infinite", "bool"],
+)
+def test_an_unusable_croissant_size_is_one_warning(
+    project: Path, caplog: pytest.LogCaptureFixture, fields: dict[str, object]
+) -> None:
+    """A size the dataset cannot hold is not written (``-5`` failed the run
+    when it ended), with one ``WARNING:``."""
+    croissant_file(project / "c.json", license="MIT", **fields)
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        graph = run_graph(
+            project / "out.json",
+            lambda: loom.add_dataset("t.txt", croissant="c.json"),
+        )
+    assert "dataset_datasetSize" not in package_of(graph, "t.txt")
+    assert declared(graph, "t.txt") == [(EXPRESSION, "MIT")]
+    assert len(warnings_of(caplog)) == 1

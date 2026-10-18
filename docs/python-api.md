@@ -323,13 +323,17 @@ nothing and logged as nothing, so the next source may state one. A
 as that name followed by the link. Each field a source gave is named in the
 package's provenance (`license: Source: data/corpus/README.md | Field:
 license`). A licence that holds no text (a number, several licences in a
-list), or a card `version` written as a decimal number (YAML reads `1.10` as
-`1.1`), is left out, with one `WARNING:`. A `croissant=` URL, a
-missing file, one that is not a regular file (a FIFO) or one that is not
-Croissant raises `ValueError` at the call: loom reads no network source.
+list), a `version` written as a decimal number (YAML and JSON read `1.10` as
+`1.1`), and any other value of the wrong shape (a size that is negative, not
+whole or `true`; a description that is a list of several texts; a creator or
+URL that is a number) is left out, with one `WARNING:`. A card whose
+frontmatter cannot be parsed (an impossible date such as `2024-02-30`, a
+number of thousands of digits) is skipped with one `WARNING:`. A `croissant=`
+URL, a missing file, one that is not a regular file (a FIFO) or one that is
+not Croissant raises `ValueError` at the call: loom reads no network source.
 A source file is opened as given and named in provenance by its path from
-the current directory, or by its bare name when it lies outside it. Hashing and the registry do not change: the
-sources add fields, not identity.
+the current directory, or by its bare name when it lies outside it. Hashing
+and the registry do not change: the sources add fields, not identity.
 
 These `generates` edges are scoped `build` -- they describe a build-time
 step, not something that runs in the shipped artefact. Contrast with the

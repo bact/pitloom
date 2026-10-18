@@ -29,7 +29,7 @@ from typing import Any
 
 from pitloom.core.dataset_metadata import DatasetMetadata
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
-from pitloom.extract._extract_utils import fetch_json, get_first, to_str_list
+from pitloom.extract._extract_utils import fetch_json, get_first
 from pitloom.extract.dataset.croissant_key import (
     CREATOR_KEYS,
     DATA_TYPE_KEYS,
@@ -48,39 +48,38 @@ from pitloom.extract.dataset.croissant_key import (
     VERSION_KEYS,
 )
 from pitloom.extract.dataset.licence import dataset_licence
+from pitloom.extract.dataset.values import (
+    stated_count,
+    stated_name,
+    stated_text,
+    stated_texts,
+    stated_version,
+)
 from pitloom.logging_config import LONE_SURROGATES_WARNING, loggable
 
 log = logging.getLogger(__name__)
 
 
-def _extract_creator_name(value: Any) -> str | None:
-    """Extract a plain name string from a ``schema:creator`` value.
+def _extract_creator_name(value: Any, source: str = "Croissant") -> str | None:
+    """A plain name from a ``schema:creator`` value: a ``Person`` or
+    ``Organization`` node's ``name``, the first of a list, or a string
+    (:func:`~pitloom.extract.dataset.values.stated_name`)."""
+    return stated_name(value, source, "creator")
 
-    The value may be a ``dict`` with a ``name`` key (``Person`` or
-    ``Organization`` node), a list of such dicts (first entry taken), or a
-    plain string.
+
+def _normalize_sensitivity(value: Any, source: str = "Croissant") -> str | None:
+    """Map a RAI sensitivity value (text, a boolean, ``0`` or ``1``) to
+    ``"yes"``, ``"no"``, or ``"noAssertion"`` (other text).
+
+    Returns ``None`` when *value* is ``None`` or blank, and, with one
+    ``WARNING:``, when it is of another type.
     """
-    if value is None:
+    if isinstance(value, bool) or value in (0, 1):
+        value = str(value)
+    s = stated_text(value, source, "rai:personalSensitiveInformation")
+    if s is None:
         return None
-    if isinstance(value, list):
-        value = value[0] if value else None
-    if isinstance(value, dict):
-        name = get_first(value, "name", "sc:name", "schema:name")
-        return str(name) if name else None
-    return str(value) if value else None
-
-
-def _normalize_sensitivity(value: Any) -> str | None:
-    """Map a free-text RAI sensitivity value to
-    ``"yes"``, ``"no"``, or ``"noAssertion"``.
-
-    Returns ``None`` when *value* is ``None`` or empty.
-    """
-    if value is None:
-        return None
-    s = str(value).strip().lower()
-    if not s:
-        return None
+    s = s.lower()
     if s in ("yes", "true", "1"):
         return "yes"
     if s in ("no", "false", "0"):
@@ -135,18 +134,17 @@ def _extract_croissant_core_fields(
     str | None,
 ]:
     """Extract version, description, download_url, license, keywords, creator."""
-    version_raw = get_first(data, *VERSION_KEYS)
-    version = str(version_raw) if version_raw else None
+    version = stated_version(get_first(data, *VERSION_KEYS), src_label)
     if version:
         provenance["version"] = f"Source: {src_label} | Field: version"
 
-    description_raw = get_first(data, *DESCRIPTION_KEYS)
-    description = str(description_raw) if description_raw else None
+    description = stated_text(
+        get_first(data, *DESCRIPTION_KEYS), src_label, "description"
+    )
     if description:
         provenance["description"] = f"Source: {src_label} | Field: description"
 
-    download_url_raw = get_first(data, *URL_KEYS)
-    download_url = str(download_url_raw) if download_url_raw else None
+    download_url = stated_text(get_first(data, *URL_KEYS), src_label, "url")
     if download_url:
         provenance["download_url"] = f"Source: {src_label} | Field: url"
 
@@ -155,11 +153,11 @@ def _extract_croissant_core_fields(
     if licence is not None:
         provenance["license"] = licence.provenance
 
-    keywords = to_str_list(get_first(data, *KEYWORDS_KEYS))
+    keywords = stated_texts(get_first(data, *KEYWORDS_KEYS), src_label, "keywords")
     if keywords:
         provenance["keywords"] = f"Source: {src_label} | Field: keywords"
 
-    creator = _extract_creator_name(get_first(data, *CREATOR_KEYS))
+    creator = _extract_creator_name(get_first(data, *CREATOR_KEYS), src_label)
     if creator:
         provenance["creator"] = f"Source: {src_label} | Field: creator"
 
@@ -170,27 +168,33 @@ def _extract_croissant_rai_fields(
     data: dict[str, Any], src_label: str, provenance: dict[str, str]
 ) -> tuple[str | None, list[str], list[str], str | None]:
     """Extract RAI collection, preprocessing, bias, and sensitivity fields."""
-    collection_raw = get_first(data, *RAI_COLLECTION_KEYS)
-    data_collection_process = str(collection_raw) if collection_raw else None
+    data_collection_process = stated_text(
+        get_first(data, *RAI_COLLECTION_KEYS), src_label, "rai:dataCollection"
+    )
     if data_collection_process:
         provenance["data_collection_process"] = (
             f"Source: {src_label} | Field: rai:dataCollection"
         )
 
-    preprocessing_raw = get_first(data, *RAI_PREPROCESSING_KEYS)
-    data_preprocessing = to_str_list(preprocessing_raw)
+    data_preprocessing = stated_texts(
+        get_first(data, *RAI_PREPROCESSING_KEYS),
+        src_label,
+        "rai:dataPreprocessingProtocol",
+    )
     if data_preprocessing:
         provenance["data_preprocessing"] = (
             f"Source: {src_label} | Field: rai:dataPreprocessingProtocol"
         )
 
-    biases_raw = get_first(data, *RAI_BIASES_KEYS)
-    known_bias = to_str_list(biases_raw)
+    known_bias = stated_texts(
+        get_first(data, *RAI_BIASES_KEYS), src_label, "rai:dataBiases"
+    )
     if known_bias:
         provenance["known_bias"] = f"Source: {src_label} | Field: rai:dataBiases"
 
-    sensitivity_raw = get_first(data, *RAI_SENSITIVITY_KEYS)
-    has_sensitive = _normalize_sensitivity(sensitivity_raw)
+    has_sensitive = _normalize_sensitivity(
+        get_first(data, *RAI_SENSITIVITY_KEYS), src_label
+    )
     if has_sensitive is not None:
         provenance["has_sensitive_personal_information"] = (
             f"Source: {src_label} | Field: rai:personalSensitiveInformation"
@@ -208,14 +212,12 @@ def _extract_dataset_size(
     data: dict[str, Any], src_label: str, provenance: dict[str, str]
 ) -> int | None:
     """Extract total record/item count from Croissant document."""
-    top_total = get_first(data, *TOTAL_ITEMS_KEYS)
+    top_total = stated_count(
+        get_first(data, *TOTAL_ITEMS_KEYS), src_label, "cr:totalItems"
+    )
     if top_total is not None:
-        try:
-            val = int(top_total)
-            provenance["dataset_size"] = f"Source: {src_label} | Field: cr:totalItems"
-            return val
-        except (ValueError, TypeError):
-            pass
+        provenance["dataset_size"] = f"Source: {src_label} | Field: cr:totalItems"
+        return top_total
 
     record_sets_raw = get_first(data, *RECORD_SET_KEYS)
     if isinstance(record_sets_raw, dict):
@@ -228,13 +230,12 @@ def _extract_dataset_size(
     total = 0
     found_any = False
     for rs in record_sets:
-        items = get_first(rs, *TOTAL_ITEMS_KEYS)
+        items = stated_count(
+            get_first(rs, *TOTAL_ITEMS_KEYS), src_label, "cr:recordSet cr:totalItems"
+        )
         if items is not None:
-            try:
-                total += int(items)
-                found_any = True
-            except (ValueError, TypeError):
-                pass
+            total += items
+            found_any = True
 
     if found_any:
         provenance["dataset_size"] = (
@@ -254,13 +255,19 @@ def read_croissant(source: str | Path, *, label: str | None = None) -> DatasetMe
     try:
         data = fetch_json(source)
     except ValueError as exc:
-        raise ValueError(str(exc).replace("Source ", "Croissant source ")) from exc
+        message = str(exc)
+        for generic, own in (
+            ("Source ", "Croissant source "),
+            ("Cannot read source ", "Cannot read Croissant source "),
+        ):
+            if message.startswith(generic):
+                message = own + message[len(generic) :]
+        raise ValueError(message) from exc
 
     src_label = str(source) if label is None else label
-    name_raw = get_first(data, *NAME_KEYS)
-    if not name_raw:
+    name = stated_text(get_first(data, *NAME_KEYS), src_label, "name")
+    if name is None:
         raise ValueError(f"Croissant source {source!r} has no 'name' field.")
-    name = str(name_raw)
 
     provenance: dict[str, str] = {"name": f"Source: {src_label} | Field: name"}
 

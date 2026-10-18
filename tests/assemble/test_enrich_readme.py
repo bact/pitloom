@@ -275,14 +275,28 @@ def test_enrich_ignores_yaml_aliases_in_unread_keys(frontmatter: str) -> None:
     assert model.license == "mit"
 
 
-def test_enrich_malformed_frontmatter_is_noop() -> None:
-    with tempfile.TemporaryDirectory() as d:
-        p = Path(d)
-        (p / "README.md").write_text("---\nlicense: [unterminated\n---\n")
-        model = AiModelMetadata()
-        result = ReadmeEnricher().enrich(model, model_dir=p)
+@pytest.mark.parametrize(
+    "frontmatter",
+    [
+        "license: [unterminated\n",
+        "license: mit\nlast_updated: 2024-02-30\n",
+        "license: mit\nn: " + "1" * 5000 + "\n",
+    ],
+    ids=["unterminated", "impossible-date", "huge-int"],
+)
+def test_enrich_malformed_frontmatter_is_noop(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, frontmatter: str
+) -> None:
+    """Front matter YAML cannot load (PyYAML raises a bare ``ValueError``
+    for an impossible date or a too-long integer) is one ``WARNING:``."""
+    (tmp_path / "README.md").write_text(f"---\n{frontmatter}---\n", "utf-8")
+    model = AiModelMetadata()
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        result = ReadmeEnricher().enrich(model, model_dir=tmp_path)
     assert not result.fields
     assert model.license is None
+    (record,) = caplog.records
+    assert record.getMessage().startswith("Failed to parse model-card frontmatter")
 
 
 def test_enrich_no_frontmatter_prose_only_is_noop() -> None:

@@ -27,10 +27,9 @@ from pitloom.extract.dataset.licence import (
     LICENSE_FIELD,
     LICENSE_LINK_FIELD,
     LICENSE_NAME_FIELD,
-    NOT_TEXT_WARNING,
     dataset_licence,
-    stated_text,
 )
+from pitloom.extract.dataset.values import stated_text, stated_version
 from pitloom.logging_config import LONE_SURROGATES_WARNING, loggable
 
 log = logging.getLogger(__name__)
@@ -53,18 +52,6 @@ def _escape_strings(read: dict[str, Any]) -> tuple[dict[str, Any], bool]:
     }
     escaped, lone = escape_lone_surrogates_in(plain)
     return {**read, **escaped}, lone
-
-
-def _version(value: Any, source: str) -> str | None:
-    """A card's ``version``: text, or a whole number as written; a
-    float (``1.10`` reads as ``1.1``) or anything else is no version, with
-    one ``WARNING:``."""
-    if isinstance(value, int) and not isinstance(value, bool):
-        return str(value)
-    if value is None or isinstance(value, str):
-        return stated_text(value, source, "version")
-    log.warning(NOT_TEXT_WARNING, loggable(source), "version", type(value).__name__)
-    return None
 
 
 def card_tags(value: Any) -> list[str]:
@@ -109,7 +96,7 @@ def read_dataset_card(
     )
     if licence is not None:
         provenance["license"] = licence.provenance
-    version = _version(read["version"], source)
+    version = stated_version(read["version"], source)
     if version:
         provenance["version"] = f"Source: {source} | Field: version"
     if read["tags"]:

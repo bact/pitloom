@@ -223,8 +223,10 @@ def fetch_json(
 
     try:
         data = json.loads(raw)
-    # A UnicodeDecodeError: bytes that are not UTF-8 (or -16/-32).
-    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+    # Any ValueError: a JSONDecodeError, bytes that are not UTF-8 (or
+    # -16/-32), an integer over Python's digit limit; a RecursionError:
+    # nesting too deep to parse.
+    except (ValueError, RecursionError) as exc:
         raise ValueError(f"Source {source!r} is not valid JSON: {exc}") from exc
 
     if not isinstance(data, dict):

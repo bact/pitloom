@@ -455,7 +455,8 @@ non-interactive stop and report the `ERROR:`.
 
 - `references/examples.md` -- full worked example.
 - `references/minimum-elements.md` -- the NTIA/FSCT/CISA/G7/BSI
-  checklists and field mappings (BSI: `references/minimum-elements-bsi.md`; the
+  checklists and field mappings (BSI: `references/minimum-elements-bsi.md`; G7
+  Dataset Properties: `references/minimum-elements-datasets.md`; the
   question bank: `references/minimum-elements-questions.md`);
   `references/minimum-elements-workflow.md` -- step detail for "Complete a
   standard's minimum elements" and the optional checker.

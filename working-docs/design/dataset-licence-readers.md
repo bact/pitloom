@@ -154,7 +154,26 @@ caller and each source field. Its Annotation id is minted when the package
 is (`emit_provenance(annotation_spdx_id=...)`), so a run with no sources
 keeps the ids it had before these readers (writing at the end first
 renumbered them against the model's record); ids are stable within a
-version either way.
+version either way. The licence elements, their relationships and their
+provenance Annotations are still minted at the end: what a package's
+licence is (and so how many elements it needs) is known only once every
+declaration is in, so adding a dataset to a script can renumber the licence
+ids of the others. Same script, same ids.
+
+**Value checks.** Every field `read_croissant` returns goes through
+`pitloom.extract.dataset.values` (shared with the card readers): text is a
+string, a one-item list or a JSON-LD `@value`/`@id` string, else absent with
+one `WARNING:` (`description: ["a", "b"]` was written as its Python repr); a
+version is text or a whole number (a float such as `1.10` warns, as on a
+card); a size is a whole number of zero or more (`-5`, `true`, `1.9` and
+`1e400` warn; `-5` crashed the writer at run end and `1e400` raised
+`OverflowError`); a creator is text or a node's `name` (blank: none,
+silently). Whole numbers over 64 digits warn (`str()` of a 5000-digit int
+raises). A card whose YAML raises a bare `ValueError` (an impossible date
+`2024-02-30`, an integer over Python's 4300-digit limit) or
+`OverflowError` is the existing parse-failure `WARNING:`; on the Hub path
+the whole card read is inside the request's `try`, so one bad third-party
+card fails only that dataset, never the model SBOM.
 
 **Reader 2: local dataset card.** `pitloom.extract.dataset.read_dataset_card`
 reads `README.md` (case-insensitive) in a directory through the frontmatter
@@ -232,7 +251,9 @@ the `loom` path, which dropped it by hand).
 also `o/d-`, `o/d.` and `o/d.git`, which `huggingface_hub` refuses, so a
 lookup only warned); ids
 past `MAX_HUB_DATASET_LOOKUPS` (20), with one over-cap `WARNING:` naming the
-model and how many were skipped. An id listed twice is requested once.
+model and how many were skipped. An id listed twice, in any letter case (Hub ids are case-insensitive), is
+requested once, by its first spelling; a repeat gets only the fields the
+lookup filled, with their provenance.
 
 **Failure.** A failed `dataset_info()` is one `WARNING:` (`Failed to load
 dataset_info() for <id>: ...`), no card request follows, and the dataset keeps

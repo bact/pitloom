@@ -144,7 +144,10 @@ def _parse_frontmatter(text: str, kind: CardKind = MODEL_CARD) -> dict[str, Any]
         return None
     try:
         data = yaml.safe_load(block)
-    except yaml.YAMLError as exc:
+    # PyYAML raises a bare ValueError for an impossible date (2024-02-30) or
+    # an integer over Python's digit limit, an OverflowError for some
+    # out-of-range values.
+    except (yaml.YAMLError, ValueError, OverflowError) as exc:
         label = kind.label.replace(" ", "-")
         msg = f"Failed to parse {label} frontmatter: %s" + kind.fields_skipped
         log.warning(msg, one_line(exc))
