@@ -29,7 +29,7 @@ __all__ = [
 ]
 
 
-def read_croissant(source: str | Path) -> DatasetMetadata:
+def read_croissant(source: str | Path, *, label: str | None = None) -> DatasetMetadata:
     """Extract dataset metadata from a Croissant JSON-LD document.
 
     Accepts a local file path or an HTTP/HTTPS URL.  No third-party packages
@@ -38,6 +38,8 @@ def read_croissant(source: str | Path) -> DatasetMetadata:
     Args:
         source: Path to a local ``.json`` file or an HTTP/HTTPS URL pointing
             to a Croissant-formatted JSON-LD document.
+        label: What its provenance calls *source* (default: *source* as
+            given).
 
     Returns:
         :class:`~pitloom.core.dataset_metadata.DatasetMetadata` with available
@@ -47,7 +49,7 @@ def read_croissant(source: str | Path) -> DatasetMetadata:
         ValueError: If *source* cannot be read, is not valid JSON, or has no
             ``name`` field.
     """
-    return _read_croissant(source)
+    return _read_croissant(source, label=label)
 
 
 read_dataset = read_croissant

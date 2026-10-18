@@ -23,10 +23,12 @@ Generic I/O and string utilities live in :mod:`pitloom.extract._extract_utils`.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
 from pitloom.core.dataset_metadata import DatasetMetadata
+from pitloom.core.untrusted_text import escape_lone_surrogates_in
 from pitloom.extract._extract_utils import fetch_json, get_first, to_str_list
 from pitloom.extract.dataset.croissant_key import (
     CREATOR_KEYS,
@@ -46,6 +48,9 @@ from pitloom.extract.dataset.croissant_key import (
     VERSION_KEYS,
 )
 from pitloom.extract.dataset.licence import dataset_licence
+from pitloom.logging_config import LONE_SURROGATES_WARNING, loggable
+
+log = logging.getLogger(__name__)
 
 
 def _extract_creator_name(value: Any) -> str | None:
@@ -241,14 +246,17 @@ def _extract_dataset_size(
 
 
 # pylint: disable=too-many-locals
-def read_croissant(source: str | Path) -> DatasetMetadata:
-    """Extract metadata from a Croissant JSON-LD document."""
+def read_croissant(source: str | Path, *, label: str | None = None) -> DatasetMetadata:
+    """Extract metadata from a Croissant JSON-LD document, named *label*
+    (default: *source* as given) in its provenance. A lone surrogate (a
+    JSON ``\\ud800``) in its text is written as ``\\uXXXX``, with one
+    ``WARNING:``."""
     try:
         data = fetch_json(source)
     except ValueError as exc:
         raise ValueError(str(exc).replace("Source ", "Croissant source ")) from exc
 
-    src_label = str(source)
+    src_label = str(source) if label is None else label
     name_raw = get_first(data, *NAME_KEYS)
     if not name_raw:
         raise ValueError(f"Croissant source {source!r} has no 'name' field.")
@@ -284,7 +292,7 @@ def read_croissant(source: str | Path) -> DatasetMetadata:
     if isinstance(source, str) and source.startswith(("http://", "https://")):
         croissant_url = source
 
-    return DatasetMetadata(
+    meta = DatasetMetadata(
         name=name,
         version=version,
         description=description,
@@ -303,3 +311,6 @@ def read_croissant(source: str | Path) -> DatasetMetadata:
         croissant_url=croissant_url,
         provenance=provenance,
     )
+    if escape_lone_surrogates_in(meta)[1]:
+        log.warning(LONE_SURROGATES_WARNING, "", loggable(src_label))
+    return meta

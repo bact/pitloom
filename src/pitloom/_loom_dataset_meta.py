@@ -10,7 +10,9 @@ field by field. Written onto the dataset's package when the run ends,
 through the same writer a model's datasets use.
 
 The loom call's own values win: the package keeps the declared name and
-types, and ``data_preprocessing=`` beats a source's. A Croissant URL is not
+types, ``data_preprocessing=`` beats a source's, and a ``declared_license=``
+on any declaration of the dataset beats every Croissant file and card (of
+two declared licences, the first declaration's). A Croissant URL is not
 read: loom has no network switch.
 
 See also: :mod:`pitloom._loom_dataset` (the package),
@@ -23,10 +25,12 @@ from __future__ import annotations
 import dataclasses
 import logging
 import os
+import re
 from pathlib import Path
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom._loom_caller import cwd_relative_label
 from pitloom.assemble.spdx3._display_text import (
     DATASET,
     DATASET_CREATOR,
@@ -38,18 +42,22 @@ from pitloom.assemble.spdx3.dataset import (
     set_dataset_fields,
     written_provenance,
 )
+from pitloom.core.ai_metadata import MODEL_NAME_CAP, cap_model_name
 from pitloom.core.dataset_metadata import DatasetMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract.dataset import read_croissant, read_dataset_card
-from pitloom.logging_config import loggable
+from pitloom.extract.dataset.licence import dataset_licence
+from pitloom.logging_config import loggable, warn_over_cap
 
 log = logging.getLogger("pitloom.loom")
 
 __all__ = [
     "CONTROL_CHARACTERS_WARNING",
     "CROISSANT_URL_ERROR",
+    "DECLARED_LICENSE_TYPE_ERROR",
     "DatasetDoc",
+    "DatasetSources",
     "escape_display_text",
     "merge_metadata",
     "read_sources",
@@ -59,6 +67,10 @@ __all__ = [
 #: ``ValueError`` text for a ``croissant=`` URL. Argument: the URL.
 CROISSANT_URL_ERROR = "loom: croissant=%r is a URL; only a local file is read"
 
+#: ``TypeError`` text for a ``declared_license=`` that is not a string.
+#: Argument: the value's type name.
+DECLARED_LICENSE_TYPE_ERROR = "loom: declared_license must be a str, not %s"
+
 #: ``log.warning()`` format for display text escaped in a dataset's
 #: elements. Arguments: the dataset's name, the properties changed.
 CONTROL_CHARACTERS_WARNING = (
@@ -67,6 +79,13 @@ CONTROL_CHARACTERS_WARNING = (
 
 #: Fields the loom call itself sets: never taken from a source.
 _DECLARED_FIELDS = frozenset({"name", "dataset_types", "provenance"})
+
+#: An ``http``/``https`` URL in any case, also as ``Path`` collapses its
+#: ``//`` (``https:/host``), or a Windows ``Path`` writes it.
+_URL_RE = re.compile(r"https?:[/\\]", re.IGNORECASE)
+
+#: The licence a caller declares by saying they make no assertion.
+_NOASSERTION = "NOASSERTION"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -79,15 +98,42 @@ class DatasetDoc:
     provenance_config: ProvenanceConfig
 
 
-def _cwd_relative(location: str) -> str:
-    """*location* as a POSIX path from the current directory when it is
-    below it (the provenance a source records then does not depend on where
-    the project lies), else as given."""
-    absolute = Path(os.path.normpath(os.path.abspath(location)))
-    try:
-        return absolute.relative_to(Path.cwd()).as_posix()
-    except ValueError:
-        return Path(location).as_posix()
+@dataclasses.dataclass
+class DatasetSources:
+    """What the declarations of one loom dataset state, each list in
+    declaration order: what the caller declared (*declared*) and what the
+    files read state (*read*). A merge takes every declared one first."""
+
+    declared: list[DatasetMetadata] = dataclasses.field(default_factory=list)
+    read: list[DatasetMetadata] = dataclasses.field(default_factory=list)
+
+    def extend(self, later: DatasetSources) -> None:
+        """Add what a *later* declaration of the dataset states, after
+        what this one holds."""
+        self.declared += later.declared
+        self.read += later.read
+
+    def merged(self, name: str) -> DatasetMetadata | None:
+        """The merged metadata (:func:`merge_metadata`) named *name*."""
+        return merge_metadata(name, [*self.declared, *self.read])
+
+
+def _declared_licence(value: object) -> str | None:
+    """The licence the caller's ``declared_license=`` *value* states: their
+    own ``NOASSERTION`` (any case) as given; a placeholder (blank,
+    ``unknown``, a bare ``other``) none, as from any source.
+
+    Raises:
+        TypeError: *value* is not a string.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise TypeError(DECLARED_LICENSE_TYPE_ERROR % type(value).__name__)
+    if value.strip().upper() == _NOASSERTION:
+        return value.strip()
+    licence = dataset_licence(value, source="declared_license")
+    return None if licence is None else licence.text
 
 
 def read_sources(
@@ -96,33 +142,39 @@ def read_sources(
     croissant: str | os.PathLike[str] | None,
     declared_license: str | None,
     caller_info: str,
-) -> DatasetMetadata | None:
-    """The metadata the sources of the loom dataset *name* state, merged
-    (:func:`merge_metadata`); ``None`` when none states anything.
+) -> DatasetSources:
+    """What the sources of the loom dataset *name* state, unmerged. Each
+    file is opened as given; its provenance names it from the current
+    directory (:func:`~pitloom._loom_caller.cwd_relative_label`).
 
     Raises:
+        TypeError: *declared_license* is not a string.
         ValueError: *croissant* is a URL, or cannot be read as Croissant.
     """
-    sources: list[DatasetMetadata] = []
-    if declared_license and declared_license.strip():
+    sources = DatasetSources()
+    licence = _declared_licence(declared_license)
+    if licence is not None:
         provenance = {"license": f"{caller_info} | Field: declared_license"}
-        sources.append(
-            DatasetMetadata(name, license=declared_license, provenance=provenance)
+        sources.declared.append(
+            DatasetMetadata(name, license=licence, provenance=provenance)
         )
     if croissant is not None:
         location = os.fspath(croissant)
-        if location.startswith(("http://", "https://")):
+        if _URL_RE.match(location):
             raise ValueError(CROISSANT_URL_ERROR % location)
-        sources.append(read_croissant(_cwd_relative(location)))
+        label = cwd_relative_label(location)
+        sources.read.append(read_croissant(location, label=label))
     if os.path.isdir(name):
-        card = read_dataset_card(Path(_cwd_relative(name)))
+        card = read_dataset_card(Path(name), label=cwd_relative_label(name))
         if card is not None:
-            sources.append(card)
-    return merge_metadata(name, sources)
+            sources.read.append(card)
+    return sources
 
 
 def _states(value: object) -> bool:
-    """Whether a field's *value* states something (not absent or empty)."""
+    """Whether a field's *value* states something. A reader leaves a field
+    it did not read at its default (``None``, ``[]``), so an empty value
+    is not told from an absent one: neither states anything."""
     return value is not None and value != [] and value != ""
 
 
@@ -150,25 +202,31 @@ def write_metadata(
     package: spdx3.dataset_DatasetPackage,
     meta: DatasetMetadata,
     doc: DatasetDoc,
+    *,
+    preprocessing_declared: bool = False,
 ) -> tuple[dict[str, str], list[tuple[str, spdx3.Element]]]:
     """Write *meta* onto *package* (its fields, a ``publishedBy`` creator,
     a declared licence); return the provenance of what was written, for the
     package's one provenance record, and the elements holding the sources'
-    text, labelled for :func:`escape_display_text`. A
-    ``data_preprocessing`` already on *package* (declared on the call) is
-    kept. Keywords are not written: an SPDX 3.0.1 dataset has no such
-    property."""
+    text, labelled for :func:`escape_display_text`. With
+    *preprocessing_declared* (``data_preprocessing=`` given on the call,
+    even ``[]``), *package*'s own is kept. The creator's name is cut as a
+    model's is (:func:`~pitloom.core.ai_metadata.cap_model_name`). Keywords
+    are not written: an SPDX 3.0.1 dataset has no such property."""
     meta = dataclasses.replace(meta, provenance=written_provenance(meta))
     meta.name = str(package.name)
-    if package.dataset_dataPreprocessing:
+    if preprocessing_declared:
         meta.data_preprocessing = []
         meta.provenance.pop("data_preprocessing", None)
     set_dataset_fields(package, meta)
     elements: list[tuple[str, spdx3.Element]] = [(DATASET, package)]
     context = (doc.creation_info, "loom", doc.doc_uuid)
     if meta.creator:
+        creator = cap_model_name(meta.creator)
+        if creator != meta.creator:
+            warn_over_cap(log, MODEL_NAME_CAP, meta.name, "dataset creator name cut")
         agent = add_dataset_creator_agent(
-            require_spdx_id(package), meta.creator, *context, doc.exporter
+            require_spdx_id(package), creator, *context, doc.exporter
         )
         elements.append((DATASET_CREATOR, agent))
     elements += add_dataset_license(

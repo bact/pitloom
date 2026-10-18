@@ -308,19 +308,27 @@ with loom.run("fragments/train.json"):
 ```
 
 Each field comes from the first source that states it: `declared_license=`,
-then the Croissant file, then the card. The call's own name, `dataset_type`
-and `data_preprocessing=` always win. A licence that is an SPDX expression is
-written as a `LicenseExpression`, any other text as a `SimpleLicensingText`.
-A source's `unknown`, `NOASSERTION`, blank or bare `other` licence is no
-licence, written as nothing and logged as nothing; `other` with a
+then the Croissant file, then the card. A `declared_license=` on any call for
+the dataset wins over every Croissant file and card, whichever call came
+first; of two declared licences, the first call's wins. The call's own name,
+`dataset_type` and `data_preprocessing=` (even `[]`) always win. A licence
+that is an SPDX expression is written as a `LicenseExpression`, any other text
+as a `SimpleLicensingText`. Your own `declared_license="NOASSERTION"` (any
+case) is your statement: written as the `NoAssertionLicense` individual, and
+no source replaces it. Any other placeholder, yours or a source's (`unknown`,
+blank, a bare `other`), and a source's `NOASSERTION`, is no licence, written as
+nothing and logged as nothing, so the next source may state one. A
+`declared_license=` that is not a string raises `TypeError`. `other` with a
 `license_name` and/or `license_link` (a Hugging Face card's fields) is written
 as that name followed by the link. Each field a source gave is named in the
 package's provenance (`license: Source: data/corpus/README.md | Field:
 license`). A licence that holds no text (a number, several licences in a
 list), or a card `version` written as a decimal number (YAML reads `1.10` as
 `1.1`), is left out, with one `WARNING:`. A `croissant=` URL, a
-missing file or one that is not Croissant raises `ValueError` at the call:
-loom reads no network source. Hashing and the registry do not change: the
+missing file, one that is not a regular file (a FIFO) or one that is not
+Croissant raises `ValueError` at the call: loom reads no network source.
+A source file is opened as given and named in provenance by its path from
+the current directory, or by its bare name when it lies outside it. Hashing and the registry do not change: the
 sources add fields, not identity.
 
 These `generates` edges are scoped `build` -- they describe a build-time

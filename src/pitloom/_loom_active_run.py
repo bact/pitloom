@@ -214,13 +214,13 @@ class _ActiveRun:
         :meth:`~pitloom._loom_dataset.LoomElements.dataset`), with what its
         sources state (:func:`~pitloom._loom_dataset_meta.read_sources`)."""
         caller_info = _get_caller_info()
-        meta = read_sources(
+        sources = read_sources(
             name,
             croissant=croissant,
             declared_license=declared_license,
             caller_info=caller_info,
         )
-        return self.elements.dataset(name, dataset_type, caller_info, meta)
+        return self.elements.dataset(name, dataset_type, caller_info, sources)
 
     def add_dataset(
         self,
@@ -287,6 +287,7 @@ class _ActiveRun:
         )
         if data_preprocessing is not None:
             dataset_pkg.dataset_dataPreprocessing = data_preprocessing
+            self.elements.declare_preprocessing(dataset_pkg)
 
         self._add_output(dataset_pkg, input_datasets)
 

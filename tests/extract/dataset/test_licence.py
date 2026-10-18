@@ -129,5 +129,6 @@ def test_dataset_licence_wrong_type_warns(
         assert dataset_licence(value, source=_SRC, name=name) is None
     messages = [r.getMessage() for r in caplog.records]
     assert messages == [
-        f"dataset metadata: {_SRC} field {field} is a {type_name}, not text; skipped"
+        f"dataset metadata: {_SRC} field {field} is of type {type_name}, "
+        "not text; skipped"
     ]

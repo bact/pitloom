@@ -22,10 +22,14 @@ from pitloom.core.enrich_config import EnrichConfig
 from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import Enricher
 from pitloom.enrich.readme import (
+    DATASET_CARD,
+    MODEL_CARD,
     MODEL_CARD_MAX_BYTES,
+    CardKind,
     ReadmeEnricher,
     _find_model_card_file,
     _parse_frontmatter,
+    find_card_file,
 )
 from tests._symlink import CAN_SYMLINK
 
@@ -100,6 +104,36 @@ def test_find_model_card_file_falls_back_to_model_card() -> None:
 def test_find_model_card_file_none_present() -> None:
     with tempfile.TemporaryDirectory() as d:
         assert _find_model_card_file(Path(d)) is None
+
+
+@pytest.mark.parametrize("kind", [MODEL_CARD, DATASET_CARD], ids=["model", "dataset"])
+@pytest.mark.parametrize("reverse", [False, True], ids=["listed", "reversed"])
+@pytest.mark.parametrize(
+    ("names", "expected"),
+    [
+        (("README.md", "readme.md"), "README.md"),
+        (("README.MD", "README.md"), "README.md"),
+        (("readme.md", "Readme.md"), "Readme.md"),
+    ],
+    ids=["exact-spelling", "exact-after-by-name", "first-by-name"],
+)
+def test_find_card_file_is_independent_of_listing_order(
+    tmp_path: Path,
+    kind: CardKind,
+    reverse: bool,
+    names: tuple[str, str],
+    expected: str,
+) -> None:
+    """Of two spellings of one card name, the stem's own, else the first by
+    name, whatever order the file system lists them in."""
+    for name in names:
+        (tmp_path / name).write_bytes(b"---\nlicense: mit\n---\n")
+    listed = sorted(tmp_path.iterdir(), reverse=reverse)
+    if len(listed) < 2:
+        pytest.skip("case-insensitive file system")
+    with patch.object(Path, "iterdir", autospec=True, return_value=iter(listed)):
+        found = find_card_file(tmp_path, kind)
+    assert found is not None and found.name == expected
 
 
 # ---------------------------------------------------------------------------

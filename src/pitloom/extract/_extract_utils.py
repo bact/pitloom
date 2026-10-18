@@ -10,7 +10,9 @@ from __future__ import annotations
 import email.message
 import http.client
 import json
+import os
 import re
+import stat
 import urllib.request
 from collections.abc import Iterable
 from importlib.metadata import PackageMetadata
@@ -202,6 +204,9 @@ def fetch_json(
                         f"{max_bytes} bytes"
                     )
         else:
+            # A FIFO or device would block the open or the read.
+            if not stat.S_ISREG(os.stat(source).st_mode):
+                raise ValueError(f"Source {source!r} is not a regular file")
             with Path(source).open("rb") as fh:
                 raw = fh.read(max_bytes + 1)
             if len(raw) > max_bytes:
@@ -218,7 +223,8 @@ def fetch_json(
 
     try:
         data = json.loads(raw)
-    except json.JSONDecodeError as exc:
+    # A UnicodeDecodeError: bytes that are not UTF-8 (or -16/-32).
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise ValueError(f"Source {source!r} is not valid JSON: {exc}") from exc
 
     if not isinstance(data, dict):

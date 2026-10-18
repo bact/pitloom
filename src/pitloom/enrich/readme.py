@@ -26,6 +26,7 @@ design this is one piece of.
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar
@@ -89,22 +90,37 @@ DATASET_CARD = CardKind(
     ("README.md",),
     "dataset card",
     Cap(MODEL_CARD_MAX_BYTES, "byte", "dataset-card"),
-    field_loss_suffix("skipped", "license", "version", "tags", "pretty_name"),
+    field_loss_suffix(
+        "skipped",
+        "license",
+        "license_name",
+        "license_link",
+        "version",
+        "tags",
+        "pretty_name",
+    ),
 )
 
 
 def find_card_file(directory: Path, kind: CardKind = MODEL_CARD) -> Path | None:
-    """The first existing *kind* card file in *directory*, or ``None``."""
+    """The first existing *kind* card file in *directory*, or ``None``.
+    Of several files spelling one stem in different case (``README.md``,
+    ``readme.md``), the one spelt as the stem, else the first by name: the
+    same on every file system, whatever order it lists them in."""
+    wanted = {stem.lower() for stem in kind.stems}
     try:
-        actual: dict[str, Path] = {
-            p.name.lower(): p for p in directory.iterdir() if p.is_file()
-        }
+        found = sorted(
+            (p for p in directory.iterdir() if p.name.lower() in wanted),
+            key=lambda p: p.name,
+        )
     except OSError:
         return None
+    files = [p for p in found if os.path.isfile(p)]
     for stem in kind.stems:
-        found = actual.get(stem.lower())
-        if found is not None:
-            return found
+        matches = [p for p in files if p.name.lower() == stem.lower()]
+        exact = [p for p in matches if p.name == stem]
+        if exact or matches:
+            return (exact or matches)[0]
     return None
 
 

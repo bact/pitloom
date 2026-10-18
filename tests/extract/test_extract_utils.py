@@ -8,6 +8,8 @@
 from __future__ import annotations
 
 import io
+import os
+import threading
 import urllib.request
 from email.message import Message
 from pathlib import Path
@@ -23,6 +25,9 @@ from pitloom.extract._extract_utils import (
     sanitize_provenance_text,
     sanitize_url_credentials,
 )
+
+#: ``os.mkfifo`` exists on POSIX only.
+_HAS_MKFIFO = hasattr(os, "mkfifo")
 
 
 def test_sanitize_url_credentials_redacts_user_and_password() -> None:
@@ -133,6 +138,52 @@ def test_fetch_json_read_error(tmp_path: Path) -> None:
     path = tmp_path / "nonexistent.json"
     with pytest.raises(ValueError, match="Cannot read source"):
         fetch_json(path)
+
+
+def _local_source(tmp_path: Path, kind: str) -> Path:
+    """A local source of *kind* that :func:`fetch_json` must refuse."""
+    path = tmp_path / "source.json"
+    if kind == "fifo":
+        os.mkfifo(path)  # pylint: disable=no-member
+    elif kind == "directory":
+        path.mkdir()
+    else:
+        path.write_bytes(b'{"name": "\xff"}')
+    return path
+
+
+@pytest.mark.parametrize(
+    ("kind", "match"),
+    [
+        pytest.param(
+            "fifo",
+            "is not a regular file",
+            marks=pytest.mark.skipif(not _HAS_MKFIFO, reason="POSIX only"),
+        ),
+        ("directory", "is not a regular file"),
+        ("not-utf8", "is not valid JSON"),
+    ],
+)
+def test_fetch_json_refuses_a_local_source_naming_it(
+    tmp_path: Path, kind: str, match: str
+) -> None:
+    """A FIFO or directory is refused before the blocking open; bytes that
+    are not UTF-8 are invalid JSON. Each error names the source."""
+    path = _local_source(tmp_path, kind)
+    raised: list[BaseException] = []
+
+    def fetch() -> None:
+        try:
+            fetch_json(path)
+        except ValueError as exc:
+            raised.append(exc)
+
+    worker = threading.Thread(target=fetch, daemon=True)
+    worker.start()
+    worker.join(timeout=10)
+    assert not worker.is_alive(), "fetch_json blocked"
+    assert len(raised) == 1
+    assert match in str(raised[0]) and repr(path) in str(raised[0])
 
 
 def _http_error() -> HTTPError:

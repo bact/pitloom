@@ -17,7 +17,7 @@ model cards) and :mod:`pitloom.extract.dataset.licence` (the licence rules).
 from __future__ import annotations
 
 import logging
-from pathlib import Path
+from pathlib import Path, PurePath, PurePosixPath
 from typing import Any
 
 from pitloom.core.dataset_metadata import DatasetMetadata
@@ -77,16 +77,20 @@ def card_tags(value: Any) -> list[str]:
     return list(dict.fromkeys(t for t in tags if t))
 
 
-def read_dataset_card(directory: Path) -> DatasetMetadata | None:
+def read_dataset_card(
+    directory: Path, *, label: str | None = None
+) -> DatasetMetadata | None:
     """The metadata the dataset card in *directory* states, or ``None``
     when it has no card or no frontmatter. Named by its ``pretty_name``,
     else by *directory*'s name; each field read is recorded in
-    ``provenance`` (``Source: <directory>/README.md | Field: <key>``)."""
+    ``provenance`` (``Source: <label>/README.md | Field: <key>``, *label*
+    by default *directory* as given)."""
     card = find_card_file(directory, DATASET_CARD)
     frontmatter = None if card is None else read_card_frontmatter(card, DATASET_CARD)
     if card is None or frontmatter is None:
         return None
-    source = (directory / card.name).as_posix()
+    base: PurePath = directory if label is None else PurePosixPath(label)
+    source = (base / card.name).as_posix()
     read = {key: frontmatter.get(key) for key in (*_TEXT_KEYS, "version")}
     read["tags"] = card_tags(frontmatter.get("tags"))
     read, lone = _escape_strings(read)

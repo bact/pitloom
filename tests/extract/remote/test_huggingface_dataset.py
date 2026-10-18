@@ -277,7 +277,7 @@ def test_a_licence_of_the_wrong_shape_warns_naming_the_dataset(
     (meta,) = _read({"o/d": {"card_data": {"license": {"id": "MIT"}}}})
     assert meta.license is None
     assert _warnings(caplog) == [
-        "dataset metadata: Hugging Face dataset o/d field license is a dict, "
+        "dataset metadata: Hugging Face dataset o/d field license is of type dict, "
         "not text; skipped"
     ]
 
@@ -293,12 +293,21 @@ def test_a_licence_of_the_wrong_shape_warns_naming_the_dataset(
         ("o/-d", False),
         ("o/d--e", False),
         ("o/d..e", False),
+        ("o/" + "d" * 96, True),
         ("o/" + "d" * 97, False),
         ("", False),
+        ("o/d_", True),
+        ("o/d-", False),
+        ("o/d.", False),
+        ("d.", False),
+        ("o./d", False),
+        ("o/d.git", False),
     ],
     ids=[
         "legacy", "owner", "punctuation", "prose", "three-parts", "leading-dash",
-        "double-dash", "double-dot", "too-long", "empty",
+        "double-dash", "double-dot", "longest", "too-long", "empty",
+        "trailing-underscore", "trailing-dash", "trailing-dot", "legacy-trailing-dot",
+        "owner-trailing-dot", "git-suffix",
     ],
 )  # fmt: skip
 def test_only_a_repository_id_is_looked_up(name: str, looked_up: bool) -> None:

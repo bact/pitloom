@@ -145,15 +145,29 @@ def test_no_metadata_for_a_missing_directory(tmp_path: Path) -> None:
             "Failed to parse dataset-card frontmatter",
         ),
         (
+            b"---\nlicense: [mit\n---\n",
+            "license, license_name, license_link, version",
+        ),
+        (
+            b"---\nversion: true\n---\n",
+            "field version is of type bool, not text; skipped",
+        ),
+        (
             b"---\nversion: 1.10\n---\n",
-            "field version is a float, not text; skipped",
+            "field version is of type float, not text; skipped",
         ),
         (
             b"---\nlicense: 3\n---\n",
-            "field license is a int, not text; skipped",
+            "field license is of type int, not text; skipped",
         ),
     ],
-    ids=["malformed-yaml", "float-version", "number-licence"],
+    ids=[
+        "malformed-yaml",
+        "malformed-yaml-fields",
+        "bool-version",
+        "float-version",
+        "number-licence",
+    ],
 )
 def test_unusable_card_warns(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, body: bytes, expected: str
@@ -164,6 +178,20 @@ def test_unusable_card_warns(
     messages = _messages(caplog)
     assert len(messages) == 1
     assert expected in messages[0]
+
+
+def test_lone_surrogates_are_escaped_with_one_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A lone surrogate in a text field or a tag is written as ``\\uXXXX``,
+    with one ``WARNING:`` naming the card."""
+    body = b'---\nlicense: "x\\ud800"\ntags: ["t\\udc00", ok]\n---\n'
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        meta = read_dataset_card(_card(tmp_path / "ds", body))
+    assert meta is not None
+    assert (meta.license, meta.keywords) == ("x\\ud800", ["t\\udc00", "ok"])
+    (message,) = _messages(caplog)
+    assert "lone surrogates" in message and "README.md" in message
 
 
 def test_card_over_the_cap(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:

@@ -49,7 +49,7 @@ _OTHER = "other"
 
 #: ``log.warning()`` format for a dataset field holding no text.
 #: Arguments: the source, the field, the value's type name.
-NOT_TEXT_WARNING = "dataset metadata: %s field %s is a %s, not text; skipped"
+NOT_TEXT_WARNING = "dataset metadata: %s field %s is of type %s, not text; skipped"
 
 
 @dataclass(frozen=True)

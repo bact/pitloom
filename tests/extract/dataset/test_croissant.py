@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 from pathlib import Path
 from unittest.mock import patch
 
@@ -427,3 +428,20 @@ def test_read_croissant_license_rules(
     meta = read_croissant(path)
     assert meta.license == expected
     assert ("license" in meta.provenance) is (expected is not None)
+
+
+def test_read_croissant_escapes_lone_surrogates_and_names_its_label(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A JSON ``\\ud800`` escape is a lone surrogate no SBOM can hold: it is
+    written as ``\\uXXXX``, with one ``WARNING:``; *label* names the file
+    in provenance and the warning."""
+    path = tmp_path / "ds.json"
+    path.write_bytes(b'{"name": "ds", "description": "d\\udc00", "license": "MIT"}')
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        meta = read_croissant(path, label="data/ds.json")
+    assert (meta.description, meta.license) == ("d\\udc00", "MIT")
+    assert meta.provenance["license"] == "Source: data/ds.json | Field: license"
+    (record,) = caplog.records
+    assert "lone surrogates" in record.getMessage()
+    assert "data/ds.json" in record.getMessage()

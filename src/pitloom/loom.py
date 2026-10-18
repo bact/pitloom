@@ -224,7 +224,7 @@ def add_dataset(
     croissant: str | os.PathLike[str] | None = None,
     declared_license: str | None = None,
 ) -> None:
-    """Add a dataset utilized by the AI model in the current run.
+    """Add a dataset the AI model in the current run uses.
 
     Args:
         name: The dataset: a file, a directory, or a name for one that is
@@ -238,12 +238,17 @@ def add_dataset(
             fields are written onto the package, each with its provenance.
             A URL raises ``ValueError``: loom reads no network source.
         declared_license: The dataset's licence (an SPDX expression or
-            other text) as the caller declares it. It wins over a Croissant
-            file's, which wins over a dataset card's. A source's
-            ``unknown``, ``NOASSERTION`` or blank licence is no licence.
+            other text) as the caller declares it. Declared on any call for
+            the dataset, it wins over every Croissant file's, which wins
+            over a dataset card's; of two declared, the first call's wins.
+            The caller's ``NOASSERTION`` (any case) is written as stated;
+            ``unknown``, blank or a bare ``other`` is no licence, as from
+            any source, and the next source may state one.
 
     Raises:
-        ValueError: *croissant* is a URL, or cannot be read as Croissant.
+        TypeError: *declared_license* is not a string.
+        ValueError: *croissant* is a URL, not a regular file, or cannot be
+            read as Croissant.
     """
     if _active_run is None:
         raise _no_active_run("add_dataset")

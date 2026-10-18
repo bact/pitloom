@@ -129,19 +129,21 @@ def _load_dataset_card(
 
 
 #: A Hub repository id: an optional owner and a name, each 1-96 of
-#: ``[A-Za-z0-9_.-]`` starting with a letter or digit (a legacy dataset such
-#: as ``c4`` has no owner).
-_PART = r"[A-Za-z0-9][A-Za-z0-9_.-]{0,95}"
+#: ``[A-Za-z0-9_.-]`` starting with a letter or digit and ending with a
+#: letter, digit or ``_``, as ``huggingface_hub`` validates them (a legacy
+#: dataset such as ``c4`` has no owner).
+_PART = r"[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,94}[A-Za-z0-9_])?"
 _DATASET_ID_RE = re.compile(rf"(?:{_PART}/)?{_PART}")
 
 
 def _is_dataset_id(name: str) -> bool:
     """Whether *name* is a Hub repository id; a model card's ``datasets:``
-    also holds plain names, which are not looked up."""
+    also holds plain names, which are not looked up (nor warned of)."""
     return (
         _DATASET_ID_RE.fullmatch(name) is not None
         and "--" not in name
         and ".." not in name
+        and not name.endswith(".git")
     )
 
 
