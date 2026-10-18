@@ -39,6 +39,7 @@ from pitloom.assemble.spdx3.provenance import (
 )
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.file_hash import HexDigests
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich.base import EnrichmentResult
@@ -265,7 +266,7 @@ def build_model(
     registry: IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
     enrichment_results: list[EnrichmentResult] | None = None,
-    digest: str | None = None,
+    digest: HexDigests | None = None,
 ) -> Spdx3JsonExporter:
     """Assemble a standalone SPDX 3 SBOM for a single AI model file.
 
@@ -273,8 +274,8 @@ def build_model(
     *registry* holds for a looked-up type is reserved
     (:func:`~pitloom.assemble.spdx3._reserved_ids.reserve_held_ids`), as
     for a project, except the document's own (:func:`_unlooked_keys`).
-    *digest*, the model file's SHA-256 when known, is the package's
-    ``verifiedUsing``."""
+    *digest*, the model file's SHA-256 and SHA-512 when known, is the
+    package's ``verifiedUsing``."""
     prov_cfg = provenance or ProvenanceConfig()
     encoder: ProvenanceEncoder = resolve_encoder(prov_cfg.schema)
 

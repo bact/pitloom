@@ -11,7 +11,6 @@ See also: test_embed_core.py.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import sys
 import zipfile
@@ -22,6 +21,7 @@ import pytest
 from pitloom import __main__
 from pitloom.embed import embed_wheel_sbom
 from tests._raw_archive import METADATA, write_raw_zip
+from tests.hash_helpers import file_hashes_json
 
 from .conftest import _make_dummy_wheel
 
@@ -61,14 +61,13 @@ def test_embedded_sbom_lists_payload_only(
             assert zf.read(licence) == b"MIT\n"
             (sbom,) = [n for n in zf.namelist() if n.startswith(f"{_DI}sboms/")]
             listed = {
-                el["name"]: h["hashValue"]
+                el["name"]: el["verifiedUsing"]
                 for el in json.loads(zf.read(sbom))["@graph"]
-                if el.get("type") == "software_File"
-                for h in el.get("verifiedUsing", [])
+                if el.get("type") == "software_File" and "verifiedUsing" in el
             }
             assert listed.keys() == {"demo_pkg/__init__.py"}
-            for name, digest in listed.items():
-                assert hashlib.sha256(zf.read(name)).hexdigest() == digest
+            for name, hashes in listed.items():
+                assert hashes == file_hashes_json(zf.read(name))
 
 
 @pytest.mark.parametrize("command", _COMMANDS)

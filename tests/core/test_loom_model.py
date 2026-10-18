@@ -32,7 +32,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom import _loom_model, loom
 from pitloom._loom_active_run import _ActiveRun
 from pitloom.core.config import PitloomConfig
-from pitloom.core.file_hash import sha256_digest
+from pitloom.core.file_hash import FileDigests, file_digests
 from pitloom.core.models import _clear_doc_counters
 from pitloom.id_registry import AI_PACKAGE_TYPE, FILE_TYPE, IdRegistry
 from tests._spdx3_validate import assert_spdx3_valid
@@ -269,10 +269,10 @@ def test_without_a_usable_file_the_name_is_looked_up_ungated(
     given = {"none": None, "missing": "gone.bin", "directory": "sub"}.get(case, "m.bin")
     if case == "raced":
 
-        def _gone(file: str) -> bytes:
+        def _gone(file: str) -> FileDigests:
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), file)
 
-        monkeypatch.setattr(_loom_model, "sha256_digest", _gone)
+        monkeypatch.setattr(_loom_model, "file_digests", _gone)
 
     denied = case in ("stat", "chmod-file")
     with caplog.at_level(logging.WARNING, logger="pitloom"):
@@ -315,13 +315,13 @@ def test_a_raising_block_hashes_and_writes_nothing(
     path = _registry(project)
     before = path.read_bytes()
     reads: list[str] = []
-    real = sha256_digest
+    real = file_digests
 
-    def _spy(file: str) -> bytes:
+    def _spy(file: str) -> FileDigests:
         reads.append(file)
         return real(file)
 
-    monkeypatch.setattr(_loom_model, "sha256_digest", _spy)
+    monkeypatch.setattr(_loom_model, "file_digests", _spy)
 
     with pytest.raises(RuntimeError, match="training failed"):
         with loom.run(project / "out.json", id_registry=path):
@@ -422,7 +422,8 @@ def test_interleaved_runs_sharing_one_registry_keep_both(project: Path) -> None:
 
 
 def test_each_model_has_its_own_hash_object(project: Path) -> None:
-    """Two models of one file: equal digests, two ``Hash`` objects."""
+    """Two models of one file: equal digests, a ``Hash`` object of its own
+    per model and algorithm (SHA-256 then SHA-512)."""
     with loom.run(project / "out.json") as run:
         loom.set_model("a", path="m.bin")
         loom.set_model("b", path=os.path.join(str(project), "m.bin"))
@@ -434,9 +435,12 @@ def test_each_model_has_its_own_hash_object(project: Path) -> None:
         for held in obj.verifiedUsing
         if isinstance(held, spdx3.Hash)
     ]
-    assert len(hashes) == 2
-    assert hashes[0] is not hashes[1]
-    assert {h.hashValue for h in hashes} == {_SHA}
+    assert len({id(h) for h in hashes}) == len(hashes) == 4
+    sha512 = hashlib.sha512(_BYTES).hexdigest()
+    assert [(h.algorithm, h.hashValue) for h in hashes] == [
+        (spdx3.HashAlgorithm.sha256, _SHA),
+        (spdx3.HashAlgorithm.sha512, sha512),
+    ] * 2
 
 
 def test_annotations_name_the_resolved_model(project: Path) -> None:

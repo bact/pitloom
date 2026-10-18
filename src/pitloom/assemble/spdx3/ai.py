@@ -46,7 +46,7 @@ from pitloom.core.project import ProjectFile
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.enrich.base import EnrichmentResult
-from pitloom.export.hashes import sha256_of
+from pitloom.export.hashes import file_digests_of
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
@@ -314,8 +314,9 @@ def _add_single_ai_model(
 
     *entity_spdx_id* is the pre-resolved registry hit from
     :func:`resolve_ai_model_entity_hits` (or ``None`` on a miss) -- never
-    looked up here. The package's ``verifiedUsing`` is the SHA-256 of the
-    model's own ``software_File`` in the document, when it has one."""
+    looked up here. The package's ``verifiedUsing`` is the SHA-256 and
+    SHA-512 of the model's own ``software_File`` in the document, when it
+    has one (new ``Hash`` elements, never shared with the file's)."""
     file_id = _of_model_file(ai_model, file_spdx_ids)
     ai_pkg = _build_ai_package(
         ai_model,
@@ -326,7 +327,7 @@ def _add_single_ai_model(
         digest=(
             None
             if file_id is None
-            else sha256_of(exporter.object_set.find_by_id(file_id))
+            else file_digests_of(exporter.object_set.find_by_id(file_id))
         ),
     )
     exporter.add_package(ai_pkg)

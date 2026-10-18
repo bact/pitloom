@@ -15,7 +15,9 @@ entry recording no hash (an explicit pin) is a hit for any content; with no
 digest (missing, over the ceiling, unreadable), it is ungated. A refreshed
 dataset, a file added to a directory included, is a new package id. A file
 is named and looked up by its path key (on-disk spelling), gated by its
-SHA-256. A directory gets its Merkle root and no file elements. Loom never
+SHA-256. A single file's package and ``software_File`` (and the script's
+file) state its SHA-256 and SHA-512, from one read; a directory gets its
+Merkle root (SHA-256 only) and no file elements. Loom never
 writes these entries to the registry (only models, :mod:`pitloom._loom_model`).
 
 See also: :mod:`pitloom._loom_active_run` (the run) and
@@ -34,7 +36,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom._loom_caller import LOOM_PROVENANCE_CONFIG, registry_miss_callback
 from pitloom.assemble.spdx3.provenance import emit_provenance
 from pitloom.core.dataset_hash import DatasetDigest, hash_dataset
-from pitloom.core.file_hash import sha256_digest
+from pitloom.core.file_hash import HexDigests, file_digests
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.path_probe import (
     UNREADABLE_FILE_WARNING,
@@ -44,6 +46,7 @@ from pitloom.core.path_probe import (
 from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.export.spdx3_json import (
     Spdx3JsonExporter,
+    file_hashes,
     require_spdx_id,
     sha256_hash,
 )
@@ -108,13 +111,17 @@ def merkle_root_comment(file_count: int) -> str:
 
 
 def dataset_digest(
-    registry: IdRegistry | None, path: Path, *, max_bytes: int
+    registry: IdRegistry | None, path: Path, *, max_bytes: int, sha512: bool = False
 ) -> DatasetDigest:
     """The digest a dataset package at *path* carries and is looked up by
     (:func:`~pitloom.core.dataset_hash.hash_dataset` within *max_bytes*),
     *registry*'s own file left out of a directory: loom and ``id generate
-    -e`` both hash through here, so they cannot disagree."""
-    return hash_dataset(path, max_bytes=max_bytes, exclude=registry_file_path(registry))
+    -e`` both hash through here, so they cannot disagree. *sha512* (loom,
+    whose SBOM describes the file) adds a file's SHA-512 from the same read;
+    the lookup key is the SHA-256 either way."""
+    return hash_dataset(
+        path, max_bytes=max_bytes, exclude=registry_file_path(registry), sha512=sha512
+    )
 
 
 def _info_key(
@@ -204,7 +211,9 @@ class LoomElements:
         run, whatever declares it: a repeat adds only a new *dataset_type*.
         """
         registry = self._session.registry
-        found = dataset_digest(registry, Path(name), max_bytes=self._max_hash_bytes)
+        found = dataset_digest(
+            registry, Path(name), max_bytes=self._max_hash_bytes, sha512=True
+        )
         if found.excluded:  # said even when no root came of the directory
             self._warn_registry_in(name)
         lookup = self._package_key(name)
@@ -222,8 +231,9 @@ class LoomElements:
             comment = merkle_root_comment(found.file_count)
             package.verifiedUsing = [sha256_hash(found.hex_digest, comment=comment)]
             return package
-        package.verifiedUsing = [sha256_hash(found.hex_digest)]
-        held = self.file(name, Path(name), found.hex_digest)
+        digests = HexDigests(found.hex_digest, found.hex_sha512)
+        package.verifiedUsing = file_hashes(digests)
+        held = self.file(name, Path(name), digests)
         # build_relationship() gives None only for a None from_id.
         relationship = build_relationship(
             from_id=require_spdx_id(package),
@@ -263,10 +273,10 @@ class LoomElements:
         """The ``software_File`` of the run's script: *name* as captured,
         *path* absolute (the current directory may have changed since).
         Hashed in full: the dataset ceiling does not apply."""
-        hex_digest: str | None = None
+        digests: HexDigests | None = None
         try:
             if is_regular_file(path):
-                hex_digest = sha256_digest(path).hex()
+                digests = file_digests(path).hex()
         except OSError as exc:
             if not is_missing_errno(exc):
                 log.warning(
@@ -275,13 +285,13 @@ class LoomElements:
                     "for the script hash",
                     one_line(exc),
                 )
-        return self.file(name, path, hex_digest)
+        return self.file(name, path, digests)
 
     def file(
-        self, name: str, path: Path, hex_digest: str | None
+        self, name: str, path: Path, digests: HexDigests | None
     ) -> spdx3.software_File:
         """The run's ``software_File`` for the file at *path* holding
-        *hex_digest* (``None``: not hashed), added to the document once.
+        *digests* (``None``: not hashed), added to the document once.
 
         Named by its path key (:func:`~pitloom.id_registry.path_key`,
         on-disk spelling) when it is inside the registry's project root,
@@ -290,6 +300,7 @@ class LoomElements:
         else named *name*, as given, and minted.
         """
         element_name, keyed = self._file_name(name, path)
+        hex_digest = None if digests is None else digests.sha256
         cached = self._files.get((element_name, hex_digest))
         if cached is not None:
             return cached
@@ -308,8 +319,8 @@ class LoomElements:
             creationInfo=self._creation_info,
         )
         file_element.software_fileKind = spdx3.software_FileKindType.file
-        if hex_digest is not None:
-            file_element.verifiedUsing = [sha256_hash(hex_digest)]
+        if digests is not None:
+            file_element.verifiedUsing = file_hashes(digests)
         self._exporter.add_file(file_element)
         self._files[(element_name, hex_digest)] = file_element
         return file_element

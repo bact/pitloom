@@ -14,7 +14,6 @@ See also: :mod:`pitloom.extract.project.sdist` (the reader) and
 from __future__ import annotations
 
 import functools
-import hashlib
 import logging
 import tarfile
 import zipfile
@@ -23,7 +22,8 @@ from pathlib import Path
 from typing import IO, NamedTuple
 
 from pitloom.core.archive_member_names import file_members, zip_file_members
-from pitloom.core.project import ProjectFile
+from pitloom.core.file_hash import DigestHasher, FileDigests
+from pitloom.core.project import ProjectFile, digest_fields
 from pitloom.core.wheel_dist_info import HeaderBlockOverCap, read_header_block
 from pitloom.extract._license_detect import (
     LICENSE_FILE_CAP,
@@ -67,7 +67,7 @@ class _HashingReader:
 
     def __init__(self, stream: IO[bytes]) -> None:
         self._stream = stream
-        self._hasher = hashlib.sha256()
+        self._hasher = DigestHasher()
 
     def read(self, size: int, /) -> bytes:
         """Up to *size* bytes of the stream, hashed."""
@@ -75,9 +75,9 @@ class _HashingReader:
         self._hasher.update(chunk)
         return chunk
 
-    def hexdigest(self) -> str:
-        """The SHA-256 of what has been read."""
-        return self._hasher.hexdigest()
+    def digests(self) -> FileDigests:
+        """The digests of what has been read."""
+        return self._hasher.digests()
 
 
 def _read_capped(reader: _HashingReader, cap: Cap) -> bytes | Cap:
@@ -114,7 +114,7 @@ def _keep_for(basename: str) -> _Keep:
 
 def _read_member(
     stream: IO[bytes], keep: _Keep | None
-) -> tuple[bytes | Cap | None, str]:
+) -> tuple[bytes | Cap | None, FileDigests]:
     """Hash *stream* in chunks; with *keep*, return what it reads too."""
     reader = _HashingReader(stream)
     kept: bytes | Cap | None = None
@@ -123,7 +123,7 @@ def _read_member(
             kept = keep(reader)
         while reader.read(_CHUNK_BYTES):
             pass
-    return kept, reader.hexdigest()
+    return kept, reader.digests()
 
 
 #: One archive file: (install-location name, raw archive name, opener).
@@ -211,7 +211,7 @@ def _scan(
                 ProjectFile(
                     physical_path=_project_path(name, raw, strip_top),
                     distribution_path=name,
-                    digest_sha256=digest,
+                    **digest_fields(digest),
                 )
             )
     return members

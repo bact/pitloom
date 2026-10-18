@@ -171,11 +171,12 @@ the package was built (`builtTime`), because it runs during a build.
 ## Gaps by format and backend
 
 Tiers apply only to AI model file formats and Python build backends. A known gap
-there is listed below with what it needs. No target date is set yet.
+there is listed below with what it needs and a target date. A gap not closed by
+its date stays listed with that date missed.
 
 | Gap | Where | Needs | Target date |
 | :-- | :---- | :---- | :----- |
-| No hash for a Hugging Face model | Hub source | A request per file, or a Merkle root | not set |
-| Dataset licence, provenance and statistics reach no model SBOM | all sources | A reader for dataset cards, then the `loom` SDK | not set |
-| A notice when a value is read but cannot be recorded | all readers | One shared message helper | not set |
-| Tier 2 formats | Keras, HDF5, PyTorch, PT2, CRFsuite | Anything beyond keeping them working | not set |
+| No hash for a Hugging Face model | Hub source | A request per file, or a Merkle root | 2026-10-19 |
+| Dataset licence, provenance and statistics reach no model SBOM | all sources | A reader for dataset cards, then the `loom` SDK | 2026-10-19 |
+| A notice when a value is read but cannot be recorded | all readers | One shared message helper | 2026-10-19 |
+| Tier 2 formats | Keras, HDF5, PyTorch, PT2, CRFsuite | Anything beyond keeping them working | 2026-10-19 |

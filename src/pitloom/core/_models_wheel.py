@@ -23,7 +23,7 @@ build-and-read result from leaking.
 
 from __future__ import annotations
 
-import hashlib
+import dataclasses
 import logging
 import operator
 import os
@@ -44,9 +44,13 @@ from pitloom.core._models_wheel_unlistable import warn_unlistable_dirs
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.content_type_config import ContentTypeOverride
-from pitloom.core.file_hash import sha256_digest
+from pitloom.core.file_hash import DigestHasher, sha256_digest
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, stat_if_present
-from pitloom.core.project import ProjectFile, project_relative_or_fallback
+from pitloom.core.project import (
+    ProjectFile,
+    digest_fields,
+    project_relative_or_fallback,
+)
 from pitloom.core.walk_rules import RegistryCopy, SameFile, warn_registry_left_out
 
 log = logging.getLogger(__name__)
@@ -130,8 +134,10 @@ def _build_project_file_entry(
     (permissions, a TOCTOU race) still raises here, same as a full read
     would, instead of silently producing an entry for an unreadable file.
 
-    Returns the built :class:`ProjectFile` and the raw SHA-256 digest
-    bytes (or ``None`` when *skip_merkle_root* left it uncomputed).
+    Returns the built :class:`ProjectFile` (its SHA-256 and SHA-512 set
+    from one pass over the bytes) and the raw SHA-256 digest bytes (or
+    ``None``, both digests unset, when *skip_merkle_root* left them
+    uncomputed).
     """
     distribution_path = included_file.distribution_path
     if need_bytes:
@@ -142,11 +148,6 @@ def _build_project_file_entry(
         raw_bytes = b""
 
     digest_bytes: bytes | None = None
-    digest_sha256: str | None = None
-    if not skip_merkle_root:
-        digest_bytes = hashlib.sha256(raw_bytes).digest()
-        digest_sha256 = digest_bytes.hex()
-
     rel_path = _physical_path(source, project_dir, built=included_file.built)
     extras = _resolve_file_header_extras(
         raw_bytes, source.name, distribution_path, scan_config
@@ -154,10 +155,15 @@ def _build_project_file_entry(
     project_file = ProjectFile(
         physical_path=rel_path,
         distribution_path=distribution_path,
-        digest_sha256=digest_sha256,
         built=included_file.built,
         **extras,
     )
+    if not skip_merkle_root:
+        hasher = DigestHasher()
+        hasher.update(raw_bytes)
+        digests = hasher.digests()
+        digest_bytes = digests.sha256
+        project_file = dataclasses.replace(project_file, **digest_fields(digests))
     return project_file, digest_bytes
 
 

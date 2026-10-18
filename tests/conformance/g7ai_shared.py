@@ -31,6 +31,7 @@ from pitloom.assemble import generate_model_sbom, generate_project_sbom
 from pitloom.assemble.spdx3.document import build_model
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
+from pitloom.core.file_hash import HexDigests
 from tests._author_routes import CREATED
 from tests._wheel_models import safetensors_bytes
 from tests.extract.remote.hf_patches._hf_patches_base import (
@@ -114,7 +115,9 @@ def _library() -> str:
         ),
     )
     with without_licence_database():
-        return build_model(model, CREATED, digest="ab" * 32).to_json()
+        return build_model(
+            model, CREATED, digest=HexDigests("ab" * 32, "cd" * 64)
+        ).to_json()
 
 
 _PROJECT = (

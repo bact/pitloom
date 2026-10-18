@@ -59,18 +59,18 @@ G7 rule and the elements and property names. One allowed difference: the hook
 adds `builtTime` (it runs during a build). The Action and the skills run the
 same `loom` commands.
 
-Format and backend ledger (a gap, where it is, what it needs, target). Targets are to be
-set; none is invented here.
+Format and backend ledger (a gap, where it is, what it needs, target). Target date for every gap
+(user decision 2026-10-18): 2026-10-19. A gap not closed by then stays listed with the date missed.
 
 | Gap | Surfaces or formats | Needs | Target |
 |---|---|---|---|
-| Hub model has no file hash (MDL-007/008) | Hugging Face source | A per-file hash request or a Merkle root over file hashes | to set |
-| Dataset licence, provenance and statistics reach no model SBOM | all (no reader feeds Croissant in) | A reader route, then the `loom` SDK (B7) | to set |
-| `INFO:` notices for information read but not recordable | all readers | The shared helper in the honesty doc | to set |
+| Hub model has no file hash (MDL-007/008) | Hugging Face source | A per-file hash request or a Merkle root over file hashes | 2026-10-19 |
+| Dataset licence, provenance and statistics reach no model SBOM | all (no reader feeds Croissant in) | A reader route, then the `loom` SDK (B7) | 2026-10-19 |
+| `INFO:` notices for information read but not recordable | all readers | The shared helper in the honesty doc | 2026-10-19 |
 | Model files carry no version, producer or time | tier 1 file formats | Nothing to read: stays `missing` | n/a |
 | G7 scenarios: model files, a Hub model, a library-built model and a project per backend | done 2026-10-18 | Hatchling, setuptools and Poetry give the same G7 outcomes | done |
 | A setuptools project ships a model only when `package-data` lists it | setuptools | Nothing: the SBOM describes what would ship | n/a |
-| Tier 2 formats | Keras, HDF5, PyTorch, PT2, CRFsuite | Anything beyond keeping them working | to set |
+| Tier 2 formats | Keras, HDF5, PyTorch, PT2, CRFsuite | Anything beyond keeping them working | 2026-10-19 |
 
 ## Demo on 2026-10-19: decisions of 2026-10-18
 
@@ -80,7 +80,7 @@ set; none is invented here.
   by the model for the System-level (SLP) properties: done in the checker,
   which names the model it judged (`systemJudgedByModel`).
 - The ledger below says, per gap, what is missing and when it will be fixed;
-  dates are for the user to set.
+  the date for each is 2026-10-19.
 
 ## Demo: a proposed definition of done
 

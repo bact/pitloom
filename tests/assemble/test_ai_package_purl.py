@@ -34,6 +34,7 @@ from pitloom.assemble import (
 from pitloom.assemble.spdx3.document import build_model
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
+from pitloom.core.file_hash import HexDigests
 from tests._author_routes import CREATED
 from tests._wheel_models import safetensors_bytes, write_model_wheel
 from tests.extract.remote.hf_patches._hf_patches_base import _patch_hf_calls
@@ -141,7 +142,9 @@ def test_dataset_purl(
 
 def test_model_without_a_file_or_hub_id_has_no_purl() -> None:
     model = AiModelMetadata(name="m")
-    sbom = build_model(model, CREATED, digest="ab" * 32).to_json()
+    sbom = build_model(
+        model, CREATED, digest=HexDigests("ab" * 32, "cd" * 64)
+    ).to_json()
     assert _purls(sbom, "ai_AIPackage") == [None]
 
 

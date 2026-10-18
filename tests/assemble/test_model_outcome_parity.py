@@ -18,7 +18,6 @@ same surfaces) and :mod:`tests.extract.scanner.test_scanner` (the policy).
 
 from __future__ import annotations
 
-import hashlib
 import importlib
 import io
 import json
@@ -36,6 +35,7 @@ from pitloom.assemble._model_generator import enrich_model
 from pitloom.assemble.spdx3.document import build_model
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.file_hash import file_digests
 from pitloom.core.project import ProjectFile
 from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.scanner_project import scan_project_for_ai_models
@@ -386,7 +386,7 @@ def test_the_candidate_route_adds_nothing_to_a_good_models_bytes(
         read_ai_model(path),
         _CREATED,
         entity_spdx_id=_entity_id(via_candidate),
-        digest=hashlib.sha256(path.read_bytes()).hexdigest(),
+        digest=file_digests(path).hex(),
     ).to_json(pretty=False, describe_relationship=False)
     assert via_candidate == via_reader
 

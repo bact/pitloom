@@ -25,6 +25,7 @@ from pathlib import Path
 import pytest
 
 from pitloom import loom
+from pitloom.core.file_hash import FileDigests
 
 from .conftest import _relationships
 
@@ -102,10 +103,10 @@ def test_script_file_without_a_hash_when_it_cannot_be_read(
         error = PermissionError if failure == "unreadable" else FileNotFoundError
         code = errno.EACCES if failure == "unreadable" else errno.ENOENT
 
-        def _fails(path: Path) -> bytes:
+        def _fails(path: Path) -> FileDigests:
             raise error(code, os.strerror(code), str(path))
 
-        monkeypatch.setattr("pitloom._loom_dataset.sha256_digest", _fails)
+        monkeypatch.setattr("pitloom._loom_dataset.file_digests", _fails)
 
     output_file = tmp_path / "frag_no_script_hash.json"
     with caplog.at_level(logging.WARNING, logger="pitloom.loom"):

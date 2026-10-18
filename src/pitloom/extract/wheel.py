@@ -7,15 +7,20 @@
 from __future__ import annotations
 
 import email.message
-import hashlib
 import logging
 import zipfile
 from pathlib import Path
 from typing import TypedDict
 
 from pitloom._wheel_sbom_location import name_version_from_email_message
+from pitloom.core.file_hash import DigestHasher
 from pitloom.core.models import archive_base_name
-from pitloom.core.project import FilesOrigin, ProjectFile, ProjectMetadata
+from pitloom.core.project import (
+    FilesOrigin,
+    ProjectFile,
+    ProjectMetadata,
+    digest_fields,
+)
 from pitloom.core.wheel_dist_info import (
     open_wheel_zip,
     read_metadata_headers,
@@ -43,7 +48,7 @@ log = logging.getLogger(__name__)
 def _hash_wheel_entry(
     zf: zipfile.ZipFile, info: zipfile.ZipInfo, name: str, archive: str
 ) -> ProjectFile:
-    """Compute SHA-256 hash for a wheel entry in streaming chunks.
+    """Compute the SHA-256 and SHA-512 of a wheel entry in streaming chunks.
 
     *name* is the entry's install-location name (see
     :func:`pitloom.core.archive_member_names.zip_file_members`), the
@@ -54,14 +59,14 @@ def _hash_wheel_entry(
         ValueError: The member cannot be read (damaged, encrypted,
             unsupported, badly named): the wheel is refused as a whole.
     """
-    hasher = hashlib.sha256()
+    hasher = DigestHasher()
     with refuse_unreadable(archive, info.orig_filename), zf.open(info) as f:
         while chunk := f.read(8192):
             hasher.update(chunk)
     return ProjectFile(
         physical_path=info.orig_filename,
         distribution_path=name,
-        digest_sha256=hasher.hexdigest(),
+        **digest_fields(hasher.digests()),
     )
 
 

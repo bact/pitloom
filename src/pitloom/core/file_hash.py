@@ -3,12 +3,22 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The one chunked SHA-256 reader for a whole file, optionally within a
-byte budget.
+"""The one chunked reader for a whole file's digests, optionally within a
+byte budget, and the one hasher for bytes read some other way (an archive
+member, a buffer).
 
 Every whole-file hash Pitloom takes outside a project scan goes through it
-(Loom ID registry entries, loom datasets and scripts, fragment envelopes), so
-none loads a file whole and all refuse a FIFO alike.
+(Loom ID registry entries, loom models, datasets and scripts, fragment
+envelopes), so none loads a file whole and all refuse a FIFO alike.
+
+A file Pitloom reads and then describes in an SBOM gets both its SHA-256
+and its SHA-512 from the one pass (:func:`file_digests`,
+:class:`DigestHasher`); a hash used only to key or gate something (the
+registry, a dataset's budget check) stays SHA-256 only
+(:func:`sha256_digest_and_size`). Neither invents a digest of bytes it did
+not read: a dependency's hash copied from a lock file or an index stays
+whatever that source gave (SHA-256), so such a dependency carries no
+SHA-512, and an aggregate (a Merkle root) is not a file digest at all.
 
 See also: :mod:`pitloom.core.dataset_hash` (the dataset ceiling) and
 :func:`pitloom.id_registry.sha256_file` (the hex form).
@@ -19,12 +29,19 @@ from __future__ import annotations
 import hashlib
 import os
 import stat
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import NamedTuple
 
 from pitloom.core.path_confine import NotRegularFileError, open_nonblocking
 
 __all__ = [
     "CHUNK_BYTES",
+    "DigestHasher",
+    "FileDigests",
+    "HexDigests",
     "ReadBudgetExceeded",
+    "file_digests",
     "sha256_digest",
     "sha256_digest_and_size",
 ]
@@ -43,11 +60,90 @@ class ReadBudgetExceeded(Exception):
         self.budget = budget
 
 
+class HexDigests(NamedTuple):
+    """A file's digests as an SBOM states them: lowercase hex.
+
+    ``sha512`` is ``None`` when only a SHA-256 is known (a ``software_File``
+    another producer wrote with one hash only).
+    """
+
+    sha256: str
+    sha512: str | None = None
+
+
+@dataclass(frozen=True)
+class FileDigests:
+    """The raw digests of one read of a file's content, and its size."""
+
+    #: The raw 32-byte SHA-256 digest.
+    sha256: bytes
+    #: The raw 64-byte SHA-512 digest.
+    sha512: bytes
+    #: The bytes read.
+    size: int
+
+    def hex(self) -> HexDigests:
+        """Both digests as lowercase hex."""
+        return HexDigests(self.sha256.hex(), self.sha512.hex())
+
+
+class DigestHasher:
+    """SHA-256 and SHA-512 of a byte stream fed chunk by chunk."""
+
+    def __init__(self) -> None:
+        self._sha256 = hashlib.sha256()
+        self._sha512 = hashlib.sha512()
+        self._size = 0
+
+    def update(self, chunk: bytes) -> None:
+        """Add *chunk* to both digests."""
+        self._sha256.update(chunk)
+        self._sha512.update(chunk)
+        self._size += len(chunk)
+
+    def digests(self) -> FileDigests:
+        """The digests of everything fed so far."""
+        return FileDigests(self._sha256.digest(), self._sha512.digest(), self._size)
+
+
+def _read_chunks(
+    path: str | os.PathLike[str],
+    max_bytes: int | None,
+    update: Callable[[bytes], object],
+) -> int:
+    """Feed *path*'s content to *update* in :data:`CHUNK_BYTES` chunks;
+    return the bytes read. Raises as :func:`sha256_digest_and_size`."""
+    read = 0
+    with open(path, "rb", opener=open_nonblocking) as handle:
+        if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+            raise NotRegularFileError
+        while chunk := handle.read(CHUNK_BYTES):
+            read += len(chunk)
+            if max_bytes is not None and read > max_bytes:
+                raise ReadBudgetExceeded(max_bytes)
+            update(chunk)
+    return read
+
+
+def file_digests(
+    path: str | os.PathLike[str], *, max_bytes: int | None = None
+) -> FileDigests:
+    """The SHA-256 and SHA-512 of *path*'s content and its size, from one
+    chunked read: for a file an SBOM describes (its ``verifiedUsing``).
+
+    Raises as :func:`sha256_digest_and_size`.
+    """
+    hasher = DigestHasher()
+    _read_chunks(path, max_bytes, hasher.update)
+    return hasher.digests()
+
+
 def sha256_digest_and_size(
     path: str | os.PathLike[str], *, max_bytes: int | None = None
 ) -> tuple[bytes, int]:
     """The raw 32-byte SHA-256 digest of *path*'s content and the number of
-    bytes read, in :data:`CHUNK_BYTES` chunks.
+    bytes read, in :data:`CHUNK_BYTES` chunks: for a hash that only keys or
+    gates something (no SHA-512 is computed).
 
     Opened without waiting and checked to be a regular file once open, so a
     FIFO put in place after the caller's own check fails instead of hanging.
@@ -59,15 +155,7 @@ def sha256_digest_and_size(
         OSError: *path* cannot be opened or read.
     """
     digest = hashlib.sha256()
-    read = 0
-    with open(path, "rb", opener=open_nonblocking) as handle:
-        if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
-            raise NotRegularFileError
-        while chunk := handle.read(CHUNK_BYTES):
-            read += len(chunk)
-            if max_bytes is not None and read > max_bytes:
-                raise ReadBudgetExceeded(max_bytes)
-            digest.update(chunk)
+    read = _read_chunks(path, max_bytes, digest.update)
     return digest.digest(), read
 
 

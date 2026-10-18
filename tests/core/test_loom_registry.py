@@ -27,6 +27,7 @@ from tests.core._loom_registry_shared import (
     _EXISTING_FILE,
     _sha256_of,
 )
+from tests.hash_helpers import file_hashes_json
 from tests.registry_helpers import make_registry
 
 from .conftest import _relationships
@@ -43,9 +44,9 @@ def test_loom_dataset_gets_verified_using_hash_when_file_exists() -> None:
         graph = json.loads(output_file.read_text())["@graph"]
         datasets = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
         (ds,) = [d for d in datasets if d["name"] == _EXISTING_FILE]
-        (hash_obj,) = ds["verifiedUsing"]
-        assert hash_obj["algorithm"] == "sha256"
-        assert hash_obj["hashValue"] == _sha256_of(_EXISTING_FILE)
+        assert ds["verifiedUsing"] == file_hashes_json(
+            Path(_EXISTING_FILE).read_bytes()
+        )
 
 
 def test_loom_dataset_without_existing_file_has_no_hash() -> None:

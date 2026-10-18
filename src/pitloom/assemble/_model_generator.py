@@ -20,7 +20,7 @@ from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides, resolve_standalone_config
 from pitloom.core.creation import CreationMetadata
-from pitloom.core.file_hash import sha256_digest
+from pitloom.core.file_hash import HexDigests, file_digests, sha256_digest
 from pitloom.core.inert_options import (
     ENRICH_STANDALONE,
     HF,
@@ -83,18 +83,30 @@ def _read_local_model(model_path: Path) -> AiModelMetadata:
 _HASH_UNREAD = "for the model hash (no verifiedUsing, registry lookup not gated)"
 
 
-def _model_file_digest(model_path: Path) -> str | None:
-    """The SHA-256 of the model file at *model_path*, read in chunks; ``None``
-    and one ``WARNING:`` when it cannot be read."""
+def _warn_hash_unread(model_path: Path, exc: OSError) -> None:
+    log.warning(
+        UNREADABLE_FILE_WARNING, loggable(str(model_path)), _HASH_UNREAD, one_line(exc)
+    )
+
+
+def _model_file_digests(model_path: Path) -> HexDigests | None:
+    """The SHA-256 and SHA-512 of the model file at *model_path* (its
+    ``verifiedUsing``), from one chunked read; ``None`` and one ``WARNING:``
+    when it cannot be read."""
+    try:
+        return file_digests(model_path).hex()
+    except OSError as exc:
+        _warn_hash_unread(model_path, exc)
+        return None
+
+
+def _model_file_sha256(model_path: Path) -> str | None:
+    """The SHA-256 alone of the model file at *model_path*, to gate a
+    registry lookup; ``None`` as :func:`_model_file_digests`."""
     try:
         return sha256_digest(model_path).hex()
     except OSError as exc:
-        log.warning(
-            UNREADABLE_FILE_WARNING,
-            loggable(str(model_path)),
-            _HASH_UNREAD,
-            one_line(exc),
-        )
+        _warn_hash_unread(model_path, exc)
         return None
 
 
@@ -257,9 +269,12 @@ def generate_model_sbom(
         # after paying for a model read and enrichment first.
         resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
         model = _read_local_model(model_path)
-        digest = _model_file_digest(model_path)
+        digest = _model_file_digests(model_path)
         entity_spdx_id = _model_registry_id(
-            resolved_registry, model, model_path, lambda: digest
+            resolved_registry,
+            model,
+            model_path,
+            lambda: None if digest is None else digest.sha256,
         )
         enrichment_results = run_enrichers(model, cfg.enrich, model_path.parent)
 
@@ -364,7 +379,7 @@ def enrich_model(
         resolved_registry,
         model,
         model_path,
-        functools.partial(_model_file_digest, model_path),
+        functools.partial(_model_file_sha256, model_path),
     )
 
     exporter = build_enrichment_fragment(

@@ -27,8 +27,10 @@ import pytest
 from pitloom import loom
 from pitloom._loom_active_run import _ActiveRun
 from pitloom.core.dataset_hash import hash_dataset
+from pitloom.core.file_hash import HexDigests
 from pitloom.id_registry import DATASET_PACKAGE_TYPE, FILE_TYPE, IdRegistry
 from tests._spdx3_validate import assert_spdx3_valid
+from tests.hash_helpers import file_hashes_json
 from tests.registry_helpers import Entries, make_registry
 
 from .conftest import _relationships
@@ -112,7 +114,8 @@ def test_file_dataset_contains_its_keyed_file(
     def body(run: _ActiveRun) -> None:
         loom.add_dataset(given)
         package = run.datasets[0]
-        held = run.elements.file(given, Path(given), _SHA)  # the cached one
+        # the cached one
+        held = run.elements.file(given, Path(given), HexDigests(_SHA))
         shared.append(package.verifiedUsing[0] is held.verifiedUsing[0])
 
     with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
@@ -122,8 +125,8 @@ def test_file_dataset_contains_its_keyed_file(
     (held,) = _of(graph, "software_File")
     assert (held["spdxId"], held["name"]) == (f"{_NS}#File-7", "data/t.txt")
     assert (package["spdxId"], package["name"]) == (f"{_NS}#DatasetPackage-3", given)
-    assert [h["hashValue"] for h in package["verifiedUsing"]] == [_SHA]
-    assert [h["hashValue"] for h in held["verifiedUsing"]] == [_SHA]
+    assert package["verifiedUsing"] == held["verifiedUsing"]
+    assert held["verifiedUsing"] == file_hashes_json(_CONTENT)
     assert _contains(graph) == [(package["spdxId"], [held["spdxId"]])]
     assert shared == [False]
     assert not _warnings(caplog)

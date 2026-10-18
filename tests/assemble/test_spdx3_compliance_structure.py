@@ -277,10 +277,11 @@ packages = ["src/hash_test_package"]
         for file_elem in files:
             verified = file_elem.get("verifiedUsing")
             assert verified, f"{file_elem['name']} is missing verifiedUsing"
-            (hash_obj,) = verified
-            assert hash_obj["type"] == "Hash"
-            assert hash_obj["algorithm"] == "sha256"
-            assert _HEX_SHA256_RE.match(hash_obj["hashValue"])
+            sha256, sha512 = verified
+            assert (sha256["type"], sha512["type"]) == ("Hash", "Hash")
+            assert (sha256["algorithm"], sha512["algorithm"]) == ("sha256", "sha512")
+            assert _HEX_SHA256_RE.match(sha256["hashValue"])
+            assert re.fullmatch("[0-9a-f]{128}", sha512["hashValue"])
 
 
 def test_spdx3_main_package_has_pypi_purl() -> None:

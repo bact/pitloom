@@ -32,6 +32,7 @@ from hatchling.builders.wheel import WheelBuilder  # noqa: E402
 
 from pitloom.embed import embed_wheel_sbom  # noqa: E402
 from tests._spdx3_validate import assert_spdx3_valid  # noqa: E402
+from tests.hash_helpers import algorithms  # noqa: E402
 
 # pylint: enable=wrong-import-position
 
@@ -191,8 +192,7 @@ def test_sbom_graph_contains_file_hashes(built_wheel: Path) -> None:
     assert all(e.get("verifiedUsing") for e in files), (
         "Every packaged file must carry a verifiedUsing hash"
     )
-    (hash_obj,) = files[0]["verifiedUsing"]
-    assert hash_obj["algorithm"] == "sha256"
+    assert {tuple(algorithms(e)) for e in files} == {("sha256", "sha512")}
 
 
 def test_sbom_graph_contains_main_package_purl(built_wheel: Path) -> None:
