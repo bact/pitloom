@@ -144,10 +144,12 @@ are listed, never checked. For Pitloom's test SBOMs, as the checker reads them:
 
 | Element | Result |
 | :------ | :----- |
-| Author name, timestamp, SBOM type, component name, unique identifier | present in every scenario |
-| Dependency relationship | present for projects, not for a single model |
-| Version, supplier name | present for a Hugging Face model and a library-built one (supplier only for the Hugging Face model); missing for a model file, since the file states none |
-| Concluded licence, copyright notice | missing in every scenario: Pitloom records a declared licence, not a concluded one, and states no copyright text |
+| Author name, timestamp, SBOM type, component name | present in every scenario |
+| Unique identifier | present in every scenario, but on SPDX 3 the check accepts the `spdxId` every element has, so it cannot fail |
+| Dependency relationship | present for projects, through the project's `contains` link to its model, which the check accepts in place of a dependency; not present for a single model |
+| Version | present for a Hugging Face model and a library-built one; missing for a model file and for the model inside a project, since the file states none |
+| Supplier name | present for a Hugging Face model only |
+| Concluded licence, copyright notice | missing in every scenario. Pitloom can write a concluded licence and copyright text when its sources state them, but the test SBOMs carry none: a project's copyright text is `NOASSERTION`, which the checker counts as missing, and a model file carries none |
 
 The same reachability limit applies as for CISA 2026.
 
