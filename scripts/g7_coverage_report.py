@@ -14,7 +14,8 @@ The figure means "meets the checker's reading of G7", not "G7 compliant";
 rules the checker does not check are listed, never counted as missing.
 
 Usage:
-  python scripts/g7_coverage_report.py [-o FILE] [--scenario NAME ...]
+  python scripts/g7_coverage_report.py [--standard g7ai|cisa2026] [-o FILE]
+      [--scenario NAME ...]
   python scripts/g7_coverage_report.py --write-expected [--allow-regression]
   python scripts/g7_coverage_report.py --compare PREVIOUS.json CURRENT.json
 """
@@ -83,8 +84,10 @@ def _points(now: float | None, before: float | None) -> str:
 def compare(previous: Report, current: Report) -> list[str]:
     """Describe what changed between two reports, one line each."""
     lines = []
-    for key in ("checker", "mapping_sha256", "rules"):
-        if previous["header"][key] != current["header"][key]:
+    for key in ("standard", "checker", "mapping_sha256", "rules"):
+        # A report made before "standard" was recorded is a G7 report.
+        default = "g7ai" if key == "standard" else None
+        if previous["header"].get(key, default) != current["header"].get(key, default):
             lines.append(f"SERIES BREAK: {key} changed; compare with care")
     for name in sorted(set(previous["scenarios"]) - set(current["scenarios"])):
         lines.append(f"{name}: scenario removed")
@@ -123,16 +126,16 @@ def regressions(
     ]
 
 
-def build_report(names: Sequence[str]) -> Report:
+def build_report(names: Sequence[str], standard: str = "g7ai") -> Report:
     """Generate the scenarios *names*, check them and return the report."""
-    kinds = shared.provisions()
+    kinds = shared.provisions(standard)
     scenarios: dict[str, Any] = {}
     with tempfile.TemporaryDirectory() as tmp:
         for name in names:
             text = shared.SCENARIOS[name]()
             path = Path(tmp) / f"{name}.spdx3.json"
             path.write_text(text, encoding="utf-8")
-            checker = shared.check(path)
+            checker = shared.check(path, standard=standard)
             actual = checker.rule_outcomes()
             stand_in = checker.system_judged_by_model()
             written = {
@@ -150,7 +153,10 @@ def build_report(names: Sequence[str]) -> Report:
         "header": {
             "pitloom": version("pitloom"),
             "checker": shared.checker_commit(),
-            "mapping_sha256": hashlib.sha256(shared.MAPPING.read_bytes()).hexdigest(),
+            "standard": standard,
+            "mapping_sha256": hashlib.sha256(
+                shared.mapping_path(standard).read_bytes()
+            ).hexdigest(),
             "rules": len(kinds),
         },
         "scenarios": scenarios,
@@ -164,6 +170,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("-o", "--output", type=Path, help="write the report here")
     parser.add_argument("--scenario", action="append", choices=list(shared.SCENARIOS))
+    parser.add_argument("--standard", default="g7ai", choices=["g7ai", "cisa2026"])
     parser.add_argument("--write-expected", action="store_true")
     parser.add_argument(
         "--allow-regression",
@@ -178,17 +185,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.write_expected and args.scenario:
         parser.error("--write-expected needs every scenario")
-    report = build_report(args.scenario or list(shared.SCENARIOS))
+    report = build_report(args.scenario or list(shared.SCENARIOS), args.standard)
     if args.write_expected:
         actual = {n: s["outcomes"] for n, s in report["scenarios"].items()}
-        lost = regressions(shared.read_expected(), actual)
+        table = shared.expected_path(args.standard)
+        previous = shared.read_expected(args.standard) if table.exists() else {}
+        lost = regressions(previous, actual)
         if lost and not args.allow_regression:
             for line in lost:
                 print(f"ERROR: {line}", file=sys.stderr)
             print("ERROR: refusing to rewrite; see --allow-regression", file=sys.stderr)
             return 1
-        shared.EXPECTED.write_text(
-            shared.render_expected(actual), encoding="utf-8", newline="\n"
+        shared.expected_path(args.standard).write_text(
+            shared.render_expected(actual, args.standard),
+            encoding="utf-8",
+            newline="\n",
         )
         return 0
     text = json.dumps(report, indent=2, sort_keys=True) + "\n"

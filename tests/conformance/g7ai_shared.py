@@ -175,14 +175,16 @@ SCENARIOS: dict[str, Callable[[], str]] = {
 }
 
 
-def check(sbom: Path, *, evaluated: bool = True) -> RuleBasedChecker:
+def check(
+    sbom: Path, *, evaluated: bool = True, standard: str = "g7ai"
+) -> RuleBasedChecker:
     """Run the G7 checker on *sbom*; fail loudly when it could not read it.
 
     The checker only logs a parse failure, then reports every rule missing,
     which would read as a pitloom regression. With *evaluated*, also require
     that it found components to evaluate.
     """
-    checker = RuleBasedChecker(str(sbom), compliance="g7ai", sbom_spec="spdx3")
+    checker = RuleBasedChecker(str(sbom), compliance=standard, sbom_spec="spdx3")
     assert checker.doc is not None, f"checker could not read {sbom}"
     assert not checker.parsing_errors, checker.parsing_errors
     if evaluated:
@@ -190,9 +192,11 @@ def check(sbom: Path, *, evaluated: bool = True) -> RuleBasedChecker:
     return checker
 
 
-def outcomes(sbom: Path, *, evaluated: bool = True) -> dict[str, str]:
-    """Return the outcome of every G7 rule for *sbom*, by rule id."""
-    return check(sbom, evaluated=evaluated).rule_outcomes()
+def outcomes(
+    sbom: Path, *, evaluated: bool = True, standard: str = "g7ai"
+) -> dict[str, str]:
+    """Return the outcome of every rule of *standard* for *sbom*, by rule id."""
+    return check(sbom, evaluated=evaluated, standard=standard).rule_outcomes()
 
 
 def checker_commit() -> str:
@@ -206,22 +210,36 @@ def checker_commit() -> str:
     return distribution("ntia-conformance-checker").version
 
 
-def provisions() -> dict[str, str]:
-    """Return each G7 rule's provision (requirement, recommendation, ...)."""
-    spec = get_spec("g7ai")
+def provisions(standard: str = "g7ai") -> dict[str, str]:
+    """Return each rule's provision (requirement, recommendation, ...)."""
+    spec = get_spec(standard)
     return {spec.rule_id(r): r.provision for r in spec.rules}
 
 
-def read_expected() -> dict[str, dict[str, str]]:
+def mapping_path(standard: str) -> Path:
+    """Return the vendored SSSOM mapping of *standard* to SPDX 3.0."""
+    if standard == "g7ai":
+        return MAPPING
+    return MAPPING.parent / f"{standard}-to-spdx30.sssom.tsv"
+
+
+def expected_path(standard: str) -> Path:
+    """Return the expected-outcome table of *standard*."""
+    if standard == "g7ai":
+        return EXPECTED
+    return EXPECTED.parent / f"{standard}-expected.tsv"
+
+
+def read_expected(standard: str = "g7ai") -> dict[str, dict[str, str]]:
     """Read the expected table: rule id -> scenario -> outcome."""
-    with EXPECTED.open(encoding="utf-8", newline="") as f:
+    with expected_path(standard).open(encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f, delimiter="\t"))
     return {r["rule"]: {s: r[s] for s in SCENARIOS if s in r} for r in rows}
 
 
-def render_expected(actual: dict[str, dict[str, str]]) -> str:
+def render_expected(actual: dict[str, dict[str, str]], standard: str = "g7ai") -> str:
     """Render *actual* (scenario -> rule -> outcome) as the TSV text."""
-    kinds = provisions()
+    kinds = provisions(standard)
     lines = ["\t".join(["rule", "provision", *SCENARIOS])]
     for rule in sorted(kinds):
         cells = [actual[s][rule] for s in SCENARIOS]

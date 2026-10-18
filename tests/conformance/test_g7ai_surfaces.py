@@ -28,6 +28,9 @@ from tests.conformance.g7ai_surfaces import (
     hook_surface,
 )
 
+#: Every standard the checker reports on for Pitloom's SBOMs.
+STANDARDS = ("g7ai", "cisa2026")
+
 #: Elements about who made the SBOM, not about what it describes.
 _CREATION = {"CreationInfo", "Tool", "Person", "Organization", "SoftwareAgent", "Agent"}
 
@@ -108,15 +111,18 @@ def test_every_surface_gives_the_library_result(
     for surface, sbom in results.items():
         path = tmp_path / f"{surface}.spdx3.json"
         path.write_text(sbom, encoding="utf-8")
-        assert outcomes(path) == _baseline_outcomes(tmp_path, baseline), surface
+        for standard in STANDARDS:
+            assert outcomes(path, standard=standard) == _baseline_outcomes(
+                tmp_path, baseline, standard
+            ), (surface, standard)
         drop = _SURFACE_ONLY.get(surface, set())
         assert _shape(sbom, drop) == _shape(baseline), surface
 
 
-def _baseline_outcomes(tmp: Path, sbom: str) -> dict[str, str]:
+def _baseline_outcomes(tmp: Path, sbom: str, standard: str) -> dict[str, str]:
     path = tmp / "baseline.spdx3.json"
     path.write_text(sbom, encoding="utf-8")
-    return outcomes(path)
+    return outcomes(path, standard=standard)
 
 
 def test_the_hook_differs_from_the_source_sbom_only_by_built_time(

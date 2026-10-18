@@ -166,3 +166,31 @@ def test_write_expected_reproduces_the_committed_table(
 def test_write_expected_needs_every_scenario(module: ModuleType) -> None:
     with pytest.raises(SystemExit):
         module.main(["--write-expected", "--scenario", "gguf"])
+
+
+def test_report_for_cisa2026_names_the_standard_and_its_rules(
+    module: ModuleType,
+) -> None:
+    report = module.build_report(["gguf"], "cisa2026")
+    assert report["header"]["standard"] == "cisa2026"
+    assert report["header"]["rules"] == 23
+    assert set(report["scenarios"]["gguf"]["outcomes"]) == set(
+        module.shared.read_expected("cisa2026")
+    )
+
+
+def test_cisa2026_table_is_written_when_none_exists_and_matches_the_committed(
+    module: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    committed = module.shared.expected_path("cisa2026").read_bytes()
+    monkeypatch.setattr(module.shared, "EXPECTED", tmp_path / "g7ai-expected.tsv")
+    assert module.main(["--standard", "cisa2026", "--write-expected"]) == 0
+    assert (tmp_path / "cisa2026-expected.tsv").read_bytes() == committed
+
+
+def test_a_report_without_a_standard_is_compared_as_g7(module: ModuleType) -> None:
+    before, after = _make(module, "missing"), _make(module, "missing")
+    after["header"]["standard"] = "cisa2026"
+    assert "SERIES BREAK: standard changed; compare with care" in module.compare(
+        before, after
+    )
