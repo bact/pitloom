@@ -307,7 +307,7 @@ the Hugging Face Hub, "card" a README or model card read with `--enrich`.
 | `originators` | GGUF, ONNX, PT2, Safetensors, HF | `ai_AIPackage.originatedBy`: one generic `Agent` per name; see [Producer and parameter count](#producer-and-parameter-count) |
 | `supplier` | HF | `ai_AIPackage.suppliedBy`: the repository owner's generic `Agent`, the one in `originatedBy` when the name is the same; no file format fills it |
 | `type_of_model` | CRFsuite, fastText, HDF5, Keras, NumPy, ONNX, PyTorch, HF | `ai_typeOfModel`, first entry |
-| `architecture` | GGUF, Safetensors, HF | `ai_typeOfModel`, after `type_of_model` |
+| `architecture` | GGUF, Safetensors, HF | `ai_typeOfModel`, after `type_of_model`; one `INFO:` line per model says it has no property of its own |
 | `quantization` | GGUF, Safetensors | `ai_hyperparameter`, key `quantization`, first |
 | `parameter_count` | GGUF, ONNX, Safetensors, HF | `ai_hyperparameter`, key `parameters`, decimal integer as text, among the entries sorted by key; with it a line in `ai_AIPackage.comment` saying it is not a hyperparameter (SPDX 3.0.1 has no model-size property); what it counts: [What the count counts](#what-the-count-counts) |
 | `hyperparameters` | GGUF, fastText, HDF5, Keras, HF | `ai_hyperparameter`, one `DictionaryEntry` per key, sorted by key, value as text |

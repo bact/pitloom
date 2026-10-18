@@ -65,7 +65,7 @@ reads such information today it records it only as follows:
 | Model architecture (MDL-009.2) | Yes | Appended to `ai_typeOfModel` after the model type | Weak: one list holds two meanings; a reader cannot tell them apart |
 | Context length (MDL-010.3) | GGUF/others, in the source's own key | `ai_hyperparameter`, e.g. `llama.context_length` | Yes, under the source's key; not a G7 key |
 | Input and output modality (MDL-010.1/.2) | ONNX, Keras, HDF5 and PT2 signatures | JSON inside `ai_informationAboutApplication` | Weak: a signature is not a modality; Pitloom does not infer one |
-| Known biases | Yes (cards) | Text in the package `comment` | Yes: no property exists |
+| Known biases | No extractor sets it (a fragment can) | Text in the package `comment` | Yes: no property exists |
 | Model's whole file metadata | Yes | A source-metadata `Annotation` | Yes: preserved, not interpreted |
 | SBOM version, tool version, signature (MD-002/-005/-007) | Tool name only | Nothing | Left out |
 | Post-training technique, openness category, data flow, dataset domain/format/synthetic method/copyright status/sensitive category | Not extracted | Nothing | Left out |
@@ -110,34 +110,65 @@ Found while checking the table against the code, not by the checker.
 
 ## Extractable but not recordable: a notice
 
-Proposed, not built. When a reader finds a value that belongs to a G7 element
-with no SPDX 3.0.1 property and Pitloom has no honest way to record it, say so
-once, so a reader of the log knows the SBOM is silent on purpose and not
+Built 2026-10-18. When a source holds a value for a G7 element that SPDX
+3.0.1 has no property for, Pitloom says so in one line per source, so a
+reader of the log knows the SBOM is silent or approximate on purpose and not
 because the source lacked it.
 
-- **Level.** `INFO:` when the value is simply not written. `WARNING:` when it
-  is written through a stretched property (architecture in `ai_typeOfModel`, a
-  modality inferred from a shape), because the SBOM could mislead.
-- **Shape.** One line per source, not per field, in the shared literal prefix
-  style: `FORMAT=gguf FILE=m.gguf: not recorded, no SPDX 3.0.1 property:
-  context_length, post_training_technique`. `KEY=VALUE` pairs, a value that may
-  hold a space last.
-- **Not for absence.** A field the source does not carry stays silent
-  (`CLAUDE.md`: absent source data is not an error). The notice is only for a
-  value that was read and dropped.
-- **One helper.** One function builds the line, as the `FORMAT=%s FILE=%s`
-  warnings do, so the wording cannot drift across readers.
-- **Tests.** Per reader: a source with the value logs the notice once; a source
-  without it logs nothing; the SBOM bytes do not change; the names listed are
-  the G7 element names, so a new SPDX property that makes one recordable
-  removes it from the list (a drift guard against `EMITTED_BUT_UNCHECKED` and
-  the mapping snapshot).
-- **Surfaces.** CLI, library, hook and Action all go through the readers, so
-  one place covers them; `--quiet` behaviour follows the existing logging.
+- **Shape.** `FORMAT=<fmt> FILE=<where>: no SPDX 3.0.1 property: <elements>`,
+  each element its SSSOM subject slug, sorted, with `(not recorded)` or
+  `(written in <property>)`. Example:
+  `INFO: FORMAT=gguf FILE=m.gguf: no SPDX 3.0.1 property: model-architecture
+  (written in ai_typeOfModel)`. A Hub model reads `FORMAT=huggingface
+  FILE=<model URL>`.
+- **Level.** `INFO:` for both kinds, one constant (`NOTICE_LEVEL`). Writing
+  the architecture in `ai_typeOfModel` follows the mapping, which names
+  `typeOfModel` as the place for it, so it deviates from no instruction, and
+  ordinary input must not log a `WARNING:`.
+- **Not for absence.** A value the source does not carry (an empty
+  architecture included) names nothing.
+- **One helper, one call site.** `pitloom.extract.ai_model.unrecordable`
+  holds the table (`UNRECORDABLE`: element, the broader property or none, a
+  check on the model as read) and builds the line.
+  `limits.settle_read_text` calls it; that function already runs once per
+  model on every surface (`cap_and_warn` for a model file: project and wheel
+  scans, `loom model`, `loom enrich`, the hook; `read_huggingface` for the
+  Hub). A reader-side call was rejected: the scanner relays a reader's
+  warning with its own `FORMAT=` prefix and an `INFO:` record with none.
+- **Always on, stderr only** (the open question). It never touches the SBOM,
+  so a flag would only hide it. Pitloom has no `--quiet`; a caller that
+  raises the `pitloom` logger above `INFO` hides it, as any `INFO:` line.
+- **Tests.** `tests/extract/ai_model/test_unrecordable.py` (the line; each
+  tier-1 reader with and without the value; SBOM bytes equal with the notice
+  silenced; `loom model` prints it once on stderr),
+  `tests/extract/remote/test_huggingface_unrecordable.py` (the Hub) and
+  `tests/conformance/test_g7ai_unrecordable.py` (each named element is a
+  `catalogue-only` rule whose mapping rows are all `GAP`, and its broader
+  property is mapped to it and pinned in `EMITTED_BUT_UNCHECKED`).
 
-Open: whether the notice defaults on or sits behind a flag (it is stderr only
-and does not touch the SBOM); and the exact list of names per reader, from a
-sweep of what each reader reads and drops.
+### Sweep: what each reader reads for an element without a property
+
+From the code, 2026-10-18. Only `architecture` is read and written in a
+broader property: the assembler appends it to `ai_typeOfModel` after the
+model type. No tier-1 reader or the Hub reads such a value and drops it.
+
+| Reader | G7 element | Read? | Recorded as | Notice |
+|---|---|---|---|---|
+| GGUF | model-architecture | `general.architecture` | appended to `ai_typeOfModel` | INFO |
+| GGUF | model-context-length | `<arch>.context_length` | `ai_hyperparameter` under the file's key (the mapping's container) | none |
+| GGUF | model-parameter-count | sum of tensor elements | `parameters` + comment (stated workaround) | none |
+| GGUF | model-post-training-technique | `general.file_type`; other `general.*` keys | `quantization` hyperparameter; the rest in the source-metadata annotation, preserved | none |
+| Safetensors | model-architecture | `modelspec.architecture`, `architecture` | appended to `ai_typeOfModel` | INFO |
+| Safetensors | model-parameter-count | header shapes | `parameters` + comment | none |
+| ONNX | model input/output, modalities | graph signature | labelled JSON in `ai_informationAboutApplication`; no modality inferred | none |
+| ONNX | model-architecture | not read (`neural network` is a type) | nothing | none |
+| NumPy | none | shape, dtype or array count | file properties only | none |
+| fastText | model output | supervised label count | `outputs` JSON; no modality inferred | none |
+| Hub | model-architecture | `config.json` `architectures[0]` | appended to `ai_typeOfModel` | INFO |
+| Hub | model-context-length | `max_position_embeddings`, `seq_length`, `sliding_window` | hyperparameters under the source's keys | none |
+| Hub | model-parameter-count | `safetensors.total`, else `gguf.total` | `parameters` + comment | none |
+| Hub | model-post-training-technique | `base_model:<relation>:` tag | `comment` `base_model_relation:<relation>` on the `descendantOf` relationship | none |
+| any | known biases | not read by any extractor | package `comment` from a fragment | none |
 
 ## Rules for each coverage increment
 

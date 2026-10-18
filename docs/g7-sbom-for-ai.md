@@ -121,7 +121,8 @@ Pitloom reads such a value it records it only openly: the parameter count as an
 `ai_hyperparameter` entry with a comment saying it is not a hyperparameter; known
 biases as text in the package comment; a model's own metadata in an annotation.
 The architecture shares `ai_typeOfModel` with the model type, so the two cannot be
-told apart.
+told apart; Pitloom says so once per model with an `INFO:` line
+(`no SPDX 3.0.1 property: model-architecture (written in ai_typeOfModel)`).
 
 ## CISA 2026 Minimum Elements
 

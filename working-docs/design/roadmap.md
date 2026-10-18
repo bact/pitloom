@@ -146,8 +146,10 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   Hatchling, setuptools, Poetry) and the parity ledger, on the user page
   `docs/g7-sbom-for-ai.md`. Open: the ledger's gaps (target 2026-10-19). See
   [support-tiers-and-demo-scope.md](support-tiers-and-demo-scope.md).
-- [ ] **G7 honesty notices**: an `INFO:`/`WARNING:` for information read
-  from a source that SPDX 3.0.1 has no property to record. See
+- [x] **G7 honesty notices** (2026-10-18): one `INFO:` per model naming a G7
+  element read from a source that SPDX 3.0.1 has no property for. Today only
+  the architecture, written in `ai_typeOfModel`; no reader drops a value.
+  Always on, stderr only (`extract/ai_model/unrecordable.py`). See
   [g7-honesty-and-non-recordable.md](g7-honesty-and-non-recordable.md).
 - [x] **G7 conformance tests**: Pitloom's SBOMs checked with
   `ntia-conformance-checker` (`g7ai`) against an expected-outcome table, with

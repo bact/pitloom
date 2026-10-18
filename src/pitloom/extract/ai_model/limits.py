@@ -34,6 +34,7 @@ from pitloom.core.ai_metadata import (
 )
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
 from pitloom.extract.ai_model.formats import Limits
+from pitloom.extract.ai_model.unrecordable import notice_unrecordable
 from pitloom.logging_config import LONE_SURROGATES_WARNING, Cap, warn_over_cap
 
 __all__ = [
@@ -203,12 +204,15 @@ def settle_read_text(meta: AiModelMetadata, fmt: str, where: str) -> None:
     """The text rules for a model as read, each said once naming *where*:
     every lone surrogate, which no UTF-8 output can hold, written as text
     (:func:`~pitloom.core.untrusted_text.escape_lone_surrogates_in`), then
-    :func:`warn_name_cut`. Called once per model, before anything is
-    derived from its text (an id, a name): by :func:`cap_and_warn` for a
-    model file, by ``read_huggingface`` for a Hugging Face model."""
+    :func:`warn_name_cut`, then the G7 honesty notice
+    (:func:`~pitloom.extract.ai_model.unrecordable.notice_unrecordable`).
+    Called once per model, before anything is derived from its text (an
+    id, a name): by :func:`cap_and_warn` for a model file, by
+    ``read_huggingface`` for a Hugging Face model."""
     if escape_lone_surrogates_in(meta)[1]:
         log.warning(LONE_SURROGATES_WARNING, f"FORMAT={fmt} ", where)
     warn_name_cut(meta, fmt, where)
+    notice_unrecordable(meta, fmt, where)
 
 
 def warn_name_cut(meta: AiModelMetadata, fmt: str, where: str) -> None:
