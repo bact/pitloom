@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Every Pitloom surface that builds an SBOM from one input, for the G7 tests.
+"""Every Pitloom surface that builds an SBOM from one input, for the
+conformance parity tests.
 
 Each runner takes the input and a scratch directory and returns the SBOM text:
 the library, the ``loom`` subcommands (through ``__main__.main()``, the

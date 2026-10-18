@@ -2,21 +2,24 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Report how much of the G7 SBOM for AI minimum elements Pitloom's SBOMs meet.
+"""Report how much of a minimum-elements standard Pitloom's SBOMs meet.
 
 Builds the conformance scenarios (``tests/conformance/g7ai_shared.py``), runs
-the G7 checker and prints a deterministic JSON report: per scenario and per
-G7 cluster, the rules ``present``, ``missing``, ``not-applicable`` and
-``out-of-scope``, requirements apart from recommendations, the coverage
-(present / (present + missing)) and the SPDX properties written.
+the checker for one standard (G7 SBOM for AI by default, CISA 2026 or FSCT
+2024) and prints a deterministic JSON report: per scenario and per cluster,
+the rules ``present``, ``missing``, ``not-applicable`` and ``out-of-scope``,
+requirements apart from recommendations, the coverage
+(present / (present + missing)), the model the checker judged the system by
+and the number of SPDX properties written.
 
-The figure means "meets the checker's reading of G7", not "G7 compliant";
-rules the checker does not check are listed, never counted as missing.
+The figure means "meets the checker's reading", not "compliant"; rules the
+checker does not check are listed, never counted as missing.
 
 Usage:
   python scripts/g7_coverage_report.py [--standard g7ai|cisa2026|fsct3] [-o FILE]
       [--scenario NAME ...]
-  python scripts/g7_coverage_report.py --write-expected [--allow-regression]
+  python scripts/g7_coverage_report.py [--standard ...] --write-expected
+      [--allow-regression]
   python scripts/g7_coverage_report.py --compare PREVIOUS.json CURRENT.json
 """
 
@@ -42,7 +45,7 @@ Report = dict[str, Any]
 
 
 def cluster(rule_id: str) -> str:
-    """Return the G7 cluster code of *rule_id* (``MDL`` in ``BOM-G7AI2026-MDL-001``)."""
+    """Return the cluster code of *rule_id* (``MDL`` in ``BOM-G7AI2026-MDL-001``)."""
     return rule_id.split("-")[2]
 
 

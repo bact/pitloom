@@ -43,6 +43,7 @@ SPDX-License-Identifier: CC0-1.0
       (Community-Spec-1.0), for offline `spdx3-validate` runs
     - [Details](./spdx-model/README.md)
 11. Conformance fixtures (`conformance/`)
-    - Expected G7 SBOM for AI rule outcomes per scenario and the G7 -> SPDX
-      mapping snapshot, for `tests/conformance/`
+    - Expected G7 SBOM for AI, CISA 2026 and FSCT 2024 rule outcomes per
+      scenario and snapshots of their SPDX 3.0 mappings, for
+      `tests/conformance/`
     - [Details](./conformance/README.md)

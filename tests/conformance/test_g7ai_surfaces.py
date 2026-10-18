@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""The same input gives the same G7 result on every surface."""
+"""The same input gives the same checker result (G7, CISA 2026, FSCT 2024)
+and the same names, versions, identifiers and hashes on every surface."""
 
 from __future__ import annotations
 

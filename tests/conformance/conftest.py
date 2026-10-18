@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Fixtures for the G7 conformance tests: each scenario SBOM built once."""
+"""Fixtures for the conformance tests (G7, CISA 2026, FSCT 2024): each
+scenario SBOM built once."""
 
 from __future__ import annotations
 

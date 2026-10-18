@@ -411,7 +411,8 @@ def _read_pt2_zip(
     if extra_license:
         license_expr = extra_license
 
-    # Graph inputs / outputs from models/model.json (updates provenance in-place).
+    # Signature inputs / outputs from models/model.json (updates provenance
+    # in place).
     inputs, outputs = _read_pt2_graph_io(zf, prefix, source, provenance)
 
     return (
