@@ -118,25 +118,31 @@ The same checker reports on the 2026 CISA Minimum Elements, for SPDX 3.0 only:
 23 rules 14 are checked; the author signature, tool version, SBOM version and
 the six Practices and Processes elements are listed, never checked.
 
+The component rules judge the packages reachable from the SBOM root by
+composition. A dataset linked only as `trainedOn` is not evaluated, so its
+missing values (it often has no producer, hash or version) are not reported.
+
 For Pitloom's test SBOMs the checked rules are met as follows (the checker's
 reading, not a claim of compliance):
 
 | Element | Result |
 | :------ | :----- |
 | Author, format name and version, generation context, timestamp, tool name, identifiers, name | present in every scenario |
-| Hash value and algorithm | present, except for a Hugging Face model (no file hash) |
+| Hash value and algorithm | present, except for a Hugging Face model (no file hash). A project's own hash is an aggregate over its files, which the check also accepts |
 | Dependency relationship | present for projects, not for a single model |
-| Producer, version, licence | present for a Hugging Face model and a library-built one; missing for a model file or a project, since the file states none |
+| Producer, version, licence | present for a Hugging Face model and a library-built one; missing for a model file, and for the model inside a project, since the file states none |
 
-Hash value and algorithm are checked as "an integrity method is present", not
-that it is a hash with a value.
+Hash value and algorithm are checked as "an integrity method with a value is
+present", not that it is a hash of the component itself.
 
 ## Parity
 
 Every surface gives the same G7 result for the same input: the library, the
 `loom` command line (`model`, `generate`, `project`, `wheel`), the Hatchling hook
 and, since the Action and the skills run those commands, the GitHub Action and
-the skills. This is tested, not assumed. The one difference is by design: the
+the skills. The library, the command line and the hook are tested to agree; the Action and
+the skills run the same `loom` commands with their own flags and are not tested
+separately. The one difference is by design: the
 build hook records when the package was built (`builtTime`), because it runs
 during a build.
 

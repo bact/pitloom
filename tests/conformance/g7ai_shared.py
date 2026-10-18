@@ -3,11 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Scenario SBOMs and G7 checker outcomes shared by the conformance tests
+"""Scenario SBOMs and checker outcomes shared by the conformance tests
 and ``scripts/g7_coverage_report.py``.
 
 Each scenario builds one SBOM from a fixture model; ``outcomes()`` runs the
-G7 checker (``g7ai``, SPDX 3) on it. ``tests/fixtures/conformance/
+checker (``g7ai`` or ``cisa2026``, SPDX 3) on it. ``tests/fixtures/conformance/
 g7ai-expected.tsv`` holds the expected outcome of every rule per scenario.
 
 See also: tests/conformance/README.md.
@@ -178,7 +178,7 @@ SCENARIOS: dict[str, Callable[[], str]] = {
 def check(
     sbom: Path, *, evaluated: bool = True, standard: str = "g7ai"
 ) -> RuleBasedChecker:
-    """Run the G7 checker on *sbom*; fail loudly when it could not read it.
+    """Run the checker for *standard* on *sbom*; fail loudly when it could not read it.
 
     The checker only logs a parse failure, then reports every rule missing,
     which would read as a pitloom regression. With *evaluated*, also require

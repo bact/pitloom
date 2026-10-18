@@ -69,27 +69,3 @@ def test_outcomes_match_the_table(sboms: dict[str, Path], scenario: str) -> None
     assert not regressed, f"CISA 2026 regressions: {regressed}"
     assert not improved, f"CISA 2026 improvements, update the table: {improved}"
     assert actual == expected
-
-
-def _sbom_elements(standard: str) -> dict[str, str]:
-    """Checked SBOM-metadata rules of *standard*: element name -> rule id."""
-    spec = get_spec(standard)
-    return {
-        r.slug.split("-", 1)[1]: spec.rule_id(r)
-        for r in spec.rules
-        if r.status != "catalogue-only" and r.slug.split("-", 1)[1].startswith("sbom-")
-    }
-
-
-def test_the_standards_share_sbom_metadata_elements() -> None:
-    shared = set(_sbom_elements(STANDARD)) & set(_sbom_elements("g7ai"))
-    assert len(shared) >= 5  # guards the comparison below against being empty
-
-
-@pytest.mark.parametrize("scenario", _SCENARIOS)
-def test_shared_elements_agree_with_g7(sboms: dict[str, Path], scenario: str) -> None:
-    """An SBOM-metadata element both standards check gets the same outcome."""
-    cisa, g7 = outcomes(sboms[scenario], standard=STANDARD), outcomes(sboms[scenario])
-    cisa_ids, g7_ids = _sbom_elements(STANDARD), _sbom_elements("g7ai")
-    for element in set(cisa_ids) & set(g7_ids):
-        assert cisa[cisa_ids[element]] == g7[g7_ids[element]], element

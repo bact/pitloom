@@ -98,7 +98,7 @@ def test_every_surface_gives_the_library_result(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Same G7 outcome for every rule, and the same elements and properties."""
+    """Same outcome for every rule of every standard, and the same elements."""
     source = build(tmp_path)
     results: dict[str, str] = {}
     for surface, run in surfaces.items():
