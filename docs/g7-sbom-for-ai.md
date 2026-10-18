@@ -185,7 +185,7 @@ that does not give them. For Pitloom's test SBOMs:
 | Filename, dependencies with completeness, distribution licence, structured property, effective licence, security.txt URL | missing in every scenario: Pitloom does not write them |
 
 Where BSI's own tables and the SPDX mapping differ, the checker accepts both
-(see its BSI page). BSI reaches the datasets linked by `trainedOn` and `testedOn` like the other standards, so a dataset is judged too. The coverage figures are 29–40% of the checked rules.
+(see its BSI page). Like the other standards, BSI also judges the datasets linked by `trainedOn` and `testedOn`. The coverage figures are 29–40% of the checked rules.
 
 ## Parity
 

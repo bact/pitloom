@@ -34,12 +34,10 @@ element, on top of whichever general checklist applies.
 `minimum-elements-workflow.md`): `ntia`, `fsct3`, `cisa2026`, `g7ai`, `bsi`.
 The checker's `present` means the property it looks for exists, not that its
 value is right or that the standard's intent is met (NTIA's and CISA's author
-rules accept Pitloom's own software-agent creator, for example). The FSCT 2024
-and CISA 2026 component rules judge every package reachable from the SBOM root
-through composition and dependency relationships, plus datasets and models
-linked by `trainedOn`/`testedOn`; BSI follows composition and dependency
-relationships only (a dataset linked only by `trainedOn` is not judged, and the
-checker logs it as a floating element).
+rules accept Pitloom's own software-agent creator, for example). The component rules of every
+standard judge each package reachable from the SBOM root through composition
+and dependency relationships, plus datasets and models linked by
+`trainedOn`/`testedOn`; a dataset linked in no way is not judged.
 
 Status legend: **covered** -- Pitloom emits this deterministically, nothing to
 do. **conditional** -- emitted only when a dependency resolves against
