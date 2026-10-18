@@ -141,10 +141,11 @@ Applies to each `dataset_DatasetPackage`.
 
 ### System Level Properties
 
-Partly covered. The checker reads the SBOM's root package as "the system". A
-project that ships one model and no system of its own is judged by that model
-for these rules (the report names it, `systemJudgedByModel`); with two models
-the roots stay the system and most rules are missing. Name, version, producer
+Partly covered. The checker reads the SBOM's root package as "the system". When
+the SBOM's one root is a single AI model and nothing else, these rules read that
+model (the report names it, `systemJudgedByModel`). A project that ships a model
+has a root of its own and is not judged by the model it contains: most of these
+rules are missing for it until the user supplies the system's details. Name, version, producer
 and timestamp come from the model or the root package where stated. Data flow,
 data usage, intended application area and system input-output are mostly
 **gaps** to fill from the user, not from repo content.

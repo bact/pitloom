@@ -43,7 +43,7 @@ The checker is [`ntia-conformance-checker`](https://github.com/bact/ntia-conform
 with the `g7ai` standard, which is not yet on PyPI:
 
 ```shell
-pip install "ntia-conformance-checker @ git+https://github.com/bact/ntia-conformance-checker.git@8ea26c819415d5bc94cd2851e9078659e59e7aa8"
+pip install "ntia-conformance-checker @ git+https://github.com/bact/ntia-conformance-checker.git@41438921eb9a1a190e7839ab483bb6e8b404a3bd"
 loom model model.safetensors -o model.spdx3.json      # or an ONNX, GGUF, NumPy or fastText file
 loom model org/name -o model.spdx3.json              # a Hugging Face model
 loom generate path/to/project -o project.spdx3.json  # a project that ships a model
@@ -56,9 +56,11 @@ nothing of that kind, such as no dataset) or `out-of-scope` (the checker does no
 check it). The result is "the SBOM has the property the checker looks for", not a
 claim of G7 compliance. A check of a property does not judge its value.
 
-A project that ships one model and no system of its own is judged by the model
-for the System-level properties; the report names the model
-(`systemJudgedByModel`). With two models, or none, the project stays the system.
+When an SBOM's one root is a single AI model and nothing else, the System-level
+properties are read from that model, and the report names it
+(`systemJudgedByModel`). A project that ships a model has a root of its own, so
+it is not judged by the model it contains: its System-level properties are read
+from the project's package, and most of them are missing.
 
 ## How much the checker finds
 
@@ -123,9 +125,9 @@ The same checker reports on the 2026 CISA Minimum Elements, for SPDX 3.0 only:
 23 rules 14 are checked; the author signature, tool version, SBOM version and
 the six Practices and Processes elements are listed, never checked.
 
-The component rules judge the packages reachable from the SBOM root by
-composition. A dataset linked only as `trainedOn` is not evaluated, so its
-missing values (it often has no producer, hash or version) are not reported.
+The component rules judge every package linked from the SBOM root, and also the
+datasets and models linked by `trainedOn` and `testedOn`, so a training dataset
+with no producer, hash or version is reported.
 
 For Pitloom's test SBOMs the checked rules are met as follows (the checker's
 reading, not a claim of compliance):
@@ -133,12 +135,13 @@ reading, not a claim of compliance):
 | Element | Result |
 | :------ | :----- |
 | Author, format name and version, generation context, timestamp, tool name, identifiers, name | present in every scenario |
-| Hash value and algorithm | present, except for a Hugging Face model (no file hash). A project's own hash is an aggregate over its files, which the check also accepts |
+| Hash value and algorithm | present for model files and projects. Missing for the Hugging Face and library-built models, because their dataset has no hash (a Hugging Face model has none either) |
 | Dependency relationship | present for projects, not for a single model |
-| Producer, version, licence | present for a Hugging Face model and a library-built one; missing for a model file, and for the model inside a project, since the file states none |
+| Producer | missing in every scenario: a model file, a dataset and the model inside a project state none |
+| Version, licence | present for the library-built model only; missing elsewhere, since the file or the dataset states none |
 
-Hash value and algorithm are checked as "an integrity method with a value is
-present", not that it is a hash of the component itself.
+The hash check accepts any real hash with a value, so a project's Merkle root
+(an aggregate over its files, not the hash of one artifact) passes it.
 
 ## FSCT 2024
 
@@ -150,13 +153,13 @@ are listed, never checked. For Pitloom's test SBOMs, as the checker reads them:
 | Element | Result |
 | :------ | :----- |
 | Author name, timestamp, SBOM type, component name | present in every scenario |
-| Unique identifier | present in every scenario, but on SPDX 3 the check accepts the `spdxId` every element has, so it cannot fail |
+| Unique identifier | present in every scenario: a package URL on every package |
 | Dependency relationship | present for projects, through the project's `contains` link to its model, which the check accepts in place of a dependency; not present for a single model |
-| Version | present for a Hugging Face model and a library-built one; missing for a model file and for the model inside a project, since the file states none |
-| Supplier name | present for a Hugging Face model only |
+| Version | present for the library-built model only; missing for a model file, a Hugging Face model's dataset and the model inside a project, since the file states none |
+| Supplier name | missing in every scenario |
 | Concluded licence, copyright notice | missing in every scenario. Pitloom can write a concluded licence and copyright text when its sources state them, but the test SBOMs carry none: a project's copyright text is `NOASSERTION`, which the checker counts as missing, and a model file carries none |
 
-The same reachability limit applies as for CISA 2026.
+The same `trainedOn` and `testedOn` reach applies as for CISA 2026.
 
 ## Parity
 

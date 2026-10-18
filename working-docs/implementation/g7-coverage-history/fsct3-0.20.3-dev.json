@@ -1,6 +1,6 @@
 {
   "header": {
-    "checker": "a9b84d1641f62805726e9ecd8dd484817a11da40",
+    "checker": "41438921eb9a1a190e7839ab483bb6e8b404a3bd",
     "mapping_sha256": "1eebb4f198087073b25ef95b80fca37c7cf8a6dd58942b374cbfa0a14188c22d",
     "pitloom": "0.20.2",
     "rules": 13,
@@ -52,7 +52,7 @@
           "present": 5
         }
       },
-      "system_judged_by_model": null
+      "system_judged_by_model": "sentimentdemo"
     },
     "gguf": {
       "outcomes": {
@@ -99,13 +99,13 @@
           "present": 5
         }
       },
-      "system_judged_by_model": null
+      "system_judged_by_model": "llama"
     },
     "hub": {
       "outcomes": {
         "BOM-FSCT2024-COMP-001": "present",
-        "BOM-FSCT2024-COMP-002": "present",
-        "BOM-FSCT2024-COMP-003": "present",
+        "BOM-FSCT2024-COMP-002": "missing",
+        "BOM-FSCT2024-COMP-003": "missing",
         "BOM-FSCT2024-COMP-004": "present",
         "BOM-FSCT2024-COMP-005": "out-of-scope",
         "BOM-FSCT2024-COMP-006": "out-of-scope",
@@ -120,10 +120,10 @@
       "summary": {
         "clusters": {
           "COMP": {
-            "coverage_percent": 66.7,
-            "missing": 2,
+            "coverage_percent": 33.3,
+            "missing": 4,
             "out-of-scope": 2,
-            "present": 4
+            "present": 2
           },
           "META": {
             "coverage_percent": 75.0,
@@ -132,21 +132,21 @@
             "present": 3
           }
         },
-        "coverage_percent": 70.0,
+        "coverage_percent": 50.0,
         "outcomes": {
-          "missing": 3,
+          "missing": 5,
           "out-of-scope": 3,
-          "present": 7
+          "present": 5
         },
         "properties_written": 10,
-        "requirement_coverage_percent": 70.0,
+        "requirement_coverage_percent": 50.0,
         "requirements": {
-          "missing": 3,
+          "missing": 5,
           "out-of-scope": 3,
-          "present": 7
+          "present": 5
         }
       },
-      "system_judged_by_model": null
+      "system_judged_by_model": "model"
     },
     "library": {
       "outcomes": {
@@ -193,7 +193,7 @@
           "present": 6
         }
       },
-      "system_judged_by_model": null
+      "system_judged_by_model": "m"
     },
     "numpy": {
       "outcomes": {
@@ -240,7 +240,7 @@
           "present": 5
         }
       },
-      "system_judged_by_model": null
+      "system_judged_by_model": "example-model-v1"
     },
     "onnx": {
       "outcomes": {
@@ -287,7 +287,7 @@
           "present": 5
         }
       },
-      "system_judged_by_model": null
+      "system_judged_by_model": "gpt2-tiny-decoder"
     },
     "proj-hatchling": {
       "outcomes": {
@@ -333,7 +333,7 @@
           "present": 6
         }
       },
-      "system_judged_by_model": "m"
+      "system_judged_by_model": null
     },
     "proj-poetry": {
       "outcomes": {
@@ -379,7 +379,7 @@
           "present": 6
         }
       },
-      "system_judged_by_model": "m"
+      "system_judged_by_model": null
     },
     "proj-setuptools": {
       "outcomes": {
@@ -425,7 +425,7 @@
           "present": 6
         }
       },
-      "system_judged_by_model": "m"
+      "system_judged_by_model": null
     },
     "safetensors": {
       "outcomes": {
@@ -472,7 +472,7 @@
           "present": 5
         }
       },
-      "system_judged_by_model": null
+      "system_judged_by_model": "phi-tiny-random"
     }
   }
 }

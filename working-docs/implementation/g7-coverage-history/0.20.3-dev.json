@@ -1,9 +1,10 @@
 {
   "header": {
-    "checker": "b7785f48362b52a5c6b4e13dfade55ae4754e4d2",
+    "checker": "41438921eb9a1a190e7839ab483bb6e8b404a3bd",
     "mapping_sha256": "d4dab53ba3e62568b64333d588d394ae2bafc374dc00921d3d3b7f6207a9547e",
     "pitloom": "0.20.2",
-    "rules": 81
+    "rules": 81,
+    "standard": "g7ai"
   },
   "scenarios": {
     "fasttext": {
@@ -145,7 +146,7 @@
           "present": 17
         }
       },
-      "system_judged_by_model": null
+      "system_judged_by_model": "sentimentdemo"
     },
     "gguf": {
       "outcomes": {
@@ -286,7 +287,7 @@
           "present": 13
         }
       },
-      "system_judged_by_model": null
+      "system_judged_by_model": "llama"
     },
     "hub": {
       "outcomes": {
@@ -426,7 +427,7 @@
           "present": 23
         }
       },
-      "system_judged_by_model": null
+      "system_judged_by_model": "model"
     },
     "library": {
       "outcomes": {
@@ -566,7 +567,7 @@
           "present": 23
         }
       },
-      "system_judged_by_model": null
+      "system_judged_by_model": "m"
     },
     "numpy": {
       "outcomes": {
@@ -707,7 +708,7 @@
           "present": 13
         }
       },
-      "system_judged_by_model": null
+      "system_judged_by_model": "example-model-v1"
     },
     "onnx": {
       "outcomes": {
@@ -848,7 +849,7 @@
           "present": 16
         }
       },
-      "system_judged_by_model": null
+      "system_judged_by_model": "gpt2-tiny-decoder"
     },
     "proj-hatchling": {
       "outcomes": {
@@ -988,7 +989,7 @@
           "present": 14
         }
       },
-      "system_judged_by_model": "m"
+      "system_judged_by_model": null
     },
     "proj-poetry": {
       "outcomes": {
@@ -1128,7 +1129,7 @@
           "present": 14
         }
       },
-      "system_judged_by_model": "m"
+      "system_judged_by_model": null
     },
     "proj-setuptools": {
       "outcomes": {
@@ -1268,7 +1269,7 @@
           "present": 14
         }
       },
-      "system_judged_by_model": "m"
+      "system_judged_by_model": null
     },
     "safetensors": {
       "outcomes": {
@@ -1409,7 +1410,7 @@
           "present": 12
         }
       },
-      "system_judged_by_model": null
+      "system_judged_by_model": "phi-tiny-random"
     }
   }
 }

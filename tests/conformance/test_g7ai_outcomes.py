@@ -104,12 +104,16 @@ def test_each_backend_finds_the_model(sboms: dict[str, Path], backend: str) -> N
 
 
 @pytest.mark.parametrize("scenario", _SCENARIOS)
-def test_a_project_is_judged_by_its_model_and_a_model_by_itself(
+def test_only_a_sbom_whose_one_root_is_a_model_is_judged_by_it(
     sboms: dict[str, Path], scenario: str
 ) -> None:
-    """A project that ships one model has no system of its own: the System
-    rules read the model. A model's own SBOM needs no stand-in."""
+    """The System rules read the model only when the model is the SBOM's one
+    root. A project that ships a model has a root of its own: it is not
+    replaced by the model it contains."""
+    graph = json.loads(sboms[scenario].read_text(encoding="utf-8"))["@graph"]
+    models = [e["name"] for e in graph if e["type"] == "ai_AIPackage"]
     stand_in = check(sboms[scenario]).system_judged_by_model()
-    assert (stand_in[0] if stand_in else None) == (
-        "m" if scenario.startswith("proj-") else None
-    )
+    expected = None if scenario.startswith("proj-") else models[0]
+    assert (stand_in[0] if stand_in else None) == expected
+    if expected is not None:
+        assert len(models) == 1

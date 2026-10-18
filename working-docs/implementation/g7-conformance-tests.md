@@ -44,10 +44,11 @@ build the same small project, with one Safetensors model, on each build
 backend; a test requires the same G7 outcomes from all three. Setuptools ships
 a data file only when `package-data` says so, so its project declares it; a
 test shows that without it the model is not described (nothing is claimed that
-the distribution would not ship). A project that ships one model has no
-system of its own, so the checker judges its System-level properties (`SLP`)
-by the model (`systemJudgedByModel`, in the report as the model's name); a
-model's own SBOM needs no stand-in. The model of a bare Safetensors file has
+the distribution would not ship). A project that ships a model has
+a root of its own, so the checker reads its System-level properties (`SLP`)
+from that root: only an SBOM whose one root is a single model is judged by the
+model (`systemJudgedByModel`, in the report as the model's name; narrowed on
+2026-10-18, after first judging a project by the model it ships). The model of a bare Safetensors file has
 no producer, version or time, so those cells stay `missing` even though the
 project names an author: Pitloom does not copy the project's author onto the
 model, and the checker does not either.
