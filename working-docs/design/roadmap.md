@@ -147,6 +147,18 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   `ntia-conformance-checker` (`g7ai`) against an expected-outcome table, with
   offline SPDX validation and a coverage report. See
   [g7-conformance-tests.md](../implementation/g7-conformance-tests.md).
+- [x] **CISA 2026 conformance tests** (`cisa2026` in the checker, SPDX 3.0): the
+  same table, report and surface-parity tests as G7; coverage in
+  `g7-coverage-history/cisa2026-*.json`. Hash value and algorithm are checked as
+  "an integrity method is present" only.
+- [ ] **BSI TR-03183-2 v2.1 as a rule-based standard** (queued, after CISA 2026):
+  the checker's hand-written `BSIChecker` stays the verdict source; a
+  `bsi2025.yaml` rule set with per-rule outcomes is built beside it and must
+  reproduce its verdicts on the BSI fixtures before any switch. Needs new
+  probes (SHA-512 hash, "required if present", executable/archive/structured,
+  dependency completeness). Ontology and SPDX 3.0 mapping:
+  <https://bact.github.io/bom/req/bsi2025/bsi2025.ttl>,
+  <https://bact.github.io/bom/mapping/bsi2025-to-spdx30.sssom.tsv>.
 - [x] **#6 Model producer and parameter count** from structured sources
   (PR #306): `originatedBy` Agents and the `parameters` hyperparameter
   entry. See

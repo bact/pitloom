@@ -111,6 +111,26 @@ biases as text in the package comment; a model's own metadata in an annotation.
 The architecture shares `ai_typeOfModel` with the model type, so the two cannot be
 told apart.
 
+## CISA 2026 Minimum Elements
+
+The same checker reports on the 2026 CISA Minimum Elements, for SPDX 3.0 only:
+`sbomcheck -s spdx3 -c cisa2026 -r json -o report.json model.spdx3.json`. Of its
+23 rules 14 are checked; the author signature, tool version, SBOM version and
+the six Practices and Processes elements are listed, never checked.
+
+For Pitloom's test SBOMs the checked rules are met as follows (the checker's
+reading, not a claim of compliance):
+
+| Element | Result |
+| :------ | :----- |
+| Author, format name and version, generation context, timestamp, tool name, identifiers, name | present in every scenario |
+| Hash value and algorithm | present, except for a Hugging Face model (no file hash) |
+| Dependency relationship | present for projects, not for a single model |
+| Producer, version, licence | present for a Hugging Face model and a library-built one; missing for a model file or a project, since the file states none |
+
+Hash value and algorithm are checked as "an integrity method is present", not
+that it is a hash with a value.
+
 ## Parity
 
 Every surface gives the same G7 result for the same input: the library, the

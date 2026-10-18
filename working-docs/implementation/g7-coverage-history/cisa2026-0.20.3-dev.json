@@ -1,0 +1,601 @@
+{
+  "header": {
+    "checker": "bebf5f85376f85c3e23e4f04e2dabd86ebc63d9a",
+    "mapping_sha256": "8a2f41d6da77acceba437f317a8075782e5e25defcde22f6f4309606544de2d3",
+    "pitloom": "0.20.2",
+    "rules": 23,
+    "standard": "cisa2026"
+  },
+  "scenarios": {
+    "fasttext": {
+      "outcomes": {
+        "BOM-CISA2026-COMP-001": "missing",
+        "BOM-CISA2026-COMP-002": "missing",
+        "BOM-CISA2026-COMP-003": "present",
+        "BOM-CISA2026-COMP-004": "present",
+        "BOM-CISA2026-COMP-005": "present",
+        "BOM-CISA2026-COMP-006": "missing",
+        "BOM-CISA2026-COMP-007": "present",
+        "BOM-CISA2026-COMP-008": "missing",
+        "BOM-CISA2026-META-001": "present",
+        "BOM-CISA2026-META-002": "out-of-scope",
+        "BOM-CISA2026-META-003": "present",
+        "BOM-CISA2026-META-004": "present",
+        "BOM-CISA2026-META-005": "present",
+        "BOM-CISA2026-META-006": "present",
+        "BOM-CISA2026-META-007": "present",
+        "BOM-CISA2026-META-008": "out-of-scope",
+        "BOM-CISA2026-META-009": "out-of-scope",
+        "BOM-CISA2026-PP-001": "out-of-scope",
+        "BOM-CISA2026-PP-002": "out-of-scope",
+        "BOM-CISA2026-PP-003": "out-of-scope",
+        "BOM-CISA2026-PP-004": "out-of-scope",
+        "BOM-CISA2026-PP-005": "out-of-scope",
+        "BOM-CISA2026-PP-006": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 50.0,
+            "missing": 4,
+            "present": 4
+          },
+          "META": {
+            "coverage_percent": 100.0,
+            "out-of-scope": 3,
+            "present": 6
+          },
+          "PP": {
+            "coverage_percent": null,
+            "out-of-scope": 6
+          }
+        },
+        "coverage_percent": 71.4,
+        "outcomes": {
+          "missing": 4,
+          "out-of-scope": 9,
+          "present": 10
+        },
+        "properties_written": 6,
+        "requirement_coverage_percent": 71.4,
+        "requirements": {
+          "missing": 4,
+          "out-of-scope": 3,
+          "present": 10
+        }
+      },
+      "system_judged_by_model": null
+    },
+    "gguf": {
+      "outcomes": {
+        "BOM-CISA2026-COMP-001": "missing",
+        "BOM-CISA2026-COMP-002": "missing",
+        "BOM-CISA2026-COMP-003": "present",
+        "BOM-CISA2026-COMP-004": "present",
+        "BOM-CISA2026-COMP-005": "present",
+        "BOM-CISA2026-COMP-006": "missing",
+        "BOM-CISA2026-COMP-007": "present",
+        "BOM-CISA2026-COMP-008": "missing",
+        "BOM-CISA2026-META-001": "present",
+        "BOM-CISA2026-META-002": "out-of-scope",
+        "BOM-CISA2026-META-003": "present",
+        "BOM-CISA2026-META-004": "present",
+        "BOM-CISA2026-META-005": "present",
+        "BOM-CISA2026-META-006": "present",
+        "BOM-CISA2026-META-007": "present",
+        "BOM-CISA2026-META-008": "out-of-scope",
+        "BOM-CISA2026-META-009": "out-of-scope",
+        "BOM-CISA2026-PP-001": "out-of-scope",
+        "BOM-CISA2026-PP-002": "out-of-scope",
+        "BOM-CISA2026-PP-003": "out-of-scope",
+        "BOM-CISA2026-PP-004": "out-of-scope",
+        "BOM-CISA2026-PP-005": "out-of-scope",
+        "BOM-CISA2026-PP-006": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 50.0,
+            "missing": 4,
+            "present": 4
+          },
+          "META": {
+            "coverage_percent": 100.0,
+            "out-of-scope": 3,
+            "present": 6
+          },
+          "PP": {
+            "coverage_percent": null,
+            "out-of-scope": 6
+          }
+        },
+        "coverage_percent": 71.4,
+        "outcomes": {
+          "missing": 4,
+          "out-of-scope": 9,
+          "present": 10
+        },
+        "properties_written": 4,
+        "requirement_coverage_percent": 71.4,
+        "requirements": {
+          "missing": 4,
+          "out-of-scope": 3,
+          "present": 10
+        }
+      },
+      "system_judged_by_model": null
+    },
+    "hub": {
+      "outcomes": {
+        "BOM-CISA2026-COMP-001": "present",
+        "BOM-CISA2026-COMP-002": "missing",
+        "BOM-CISA2026-COMP-003": "missing",
+        "BOM-CISA2026-COMP-004": "missing",
+        "BOM-CISA2026-COMP-005": "present",
+        "BOM-CISA2026-COMP-006": "present",
+        "BOM-CISA2026-COMP-007": "present",
+        "BOM-CISA2026-COMP-008": "present",
+        "BOM-CISA2026-META-001": "present",
+        "BOM-CISA2026-META-002": "out-of-scope",
+        "BOM-CISA2026-META-003": "present",
+        "BOM-CISA2026-META-004": "present",
+        "BOM-CISA2026-META-005": "present",
+        "BOM-CISA2026-META-006": "present",
+        "BOM-CISA2026-META-007": "present",
+        "BOM-CISA2026-META-008": "out-of-scope",
+        "BOM-CISA2026-META-009": "out-of-scope",
+        "BOM-CISA2026-PP-001": "out-of-scope",
+        "BOM-CISA2026-PP-002": "out-of-scope",
+        "BOM-CISA2026-PP-003": "out-of-scope",
+        "BOM-CISA2026-PP-004": "out-of-scope",
+        "BOM-CISA2026-PP-005": "out-of-scope",
+        "BOM-CISA2026-PP-006": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 62.5,
+            "missing": 3,
+            "present": 5
+          },
+          "META": {
+            "coverage_percent": 100.0,
+            "out-of-scope": 3,
+            "present": 6
+          },
+          "PP": {
+            "coverage_percent": null,
+            "out-of-scope": 6
+          }
+        },
+        "coverage_percent": 78.6,
+        "outcomes": {
+          "missing": 3,
+          "out-of-scope": 9,
+          "present": 11
+        },
+        "properties_written": 10,
+        "requirement_coverage_percent": 78.6,
+        "requirements": {
+          "missing": 3,
+          "out-of-scope": 3,
+          "present": 11
+        }
+      },
+      "system_judged_by_model": null
+    },
+    "library": {
+      "outcomes": {
+        "BOM-CISA2026-COMP-001": "present",
+        "BOM-CISA2026-COMP-002": "missing",
+        "BOM-CISA2026-COMP-003": "present",
+        "BOM-CISA2026-COMP-004": "present",
+        "BOM-CISA2026-COMP-005": "present",
+        "BOM-CISA2026-COMP-006": "present",
+        "BOM-CISA2026-COMP-007": "present",
+        "BOM-CISA2026-COMP-008": "present",
+        "BOM-CISA2026-META-001": "present",
+        "BOM-CISA2026-META-002": "out-of-scope",
+        "BOM-CISA2026-META-003": "present",
+        "BOM-CISA2026-META-004": "present",
+        "BOM-CISA2026-META-005": "present",
+        "BOM-CISA2026-META-006": "present",
+        "BOM-CISA2026-META-007": "present",
+        "BOM-CISA2026-META-008": "out-of-scope",
+        "BOM-CISA2026-META-009": "out-of-scope",
+        "BOM-CISA2026-PP-001": "out-of-scope",
+        "BOM-CISA2026-PP-002": "out-of-scope",
+        "BOM-CISA2026-PP-003": "out-of-scope",
+        "BOM-CISA2026-PP-004": "out-of-scope",
+        "BOM-CISA2026-PP-005": "out-of-scope",
+        "BOM-CISA2026-PP-006": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 87.5,
+            "missing": 1,
+            "present": 7
+          },
+          "META": {
+            "coverage_percent": 100.0,
+            "out-of-scope": 3,
+            "present": 6
+          },
+          "PP": {
+            "coverage_percent": null,
+            "out-of-scope": 6
+          }
+        },
+        "coverage_percent": 92.9,
+        "outcomes": {
+          "missing": 1,
+          "out-of-scope": 9,
+          "present": 13
+        },
+        "properties_written": 10,
+        "requirement_coverage_percent": 92.9,
+        "requirements": {
+          "missing": 1,
+          "out-of-scope": 3,
+          "present": 13
+        }
+      },
+      "system_judged_by_model": null
+    },
+    "numpy": {
+      "outcomes": {
+        "BOM-CISA2026-COMP-001": "missing",
+        "BOM-CISA2026-COMP-002": "missing",
+        "BOM-CISA2026-COMP-003": "present",
+        "BOM-CISA2026-COMP-004": "present",
+        "BOM-CISA2026-COMP-005": "present",
+        "BOM-CISA2026-COMP-006": "missing",
+        "BOM-CISA2026-COMP-007": "present",
+        "BOM-CISA2026-COMP-008": "missing",
+        "BOM-CISA2026-META-001": "present",
+        "BOM-CISA2026-META-002": "out-of-scope",
+        "BOM-CISA2026-META-003": "present",
+        "BOM-CISA2026-META-004": "present",
+        "BOM-CISA2026-META-005": "present",
+        "BOM-CISA2026-META-006": "present",
+        "BOM-CISA2026-META-007": "present",
+        "BOM-CISA2026-META-008": "out-of-scope",
+        "BOM-CISA2026-META-009": "out-of-scope",
+        "BOM-CISA2026-PP-001": "out-of-scope",
+        "BOM-CISA2026-PP-002": "out-of-scope",
+        "BOM-CISA2026-PP-003": "out-of-scope",
+        "BOM-CISA2026-PP-004": "out-of-scope",
+        "BOM-CISA2026-PP-005": "out-of-scope",
+        "BOM-CISA2026-PP-006": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 50.0,
+            "missing": 4,
+            "present": 4
+          },
+          "META": {
+            "coverage_percent": 100.0,
+            "out-of-scope": 3,
+            "present": 6
+          },
+          "PP": {
+            "coverage_percent": null,
+            "out-of-scope": 6
+          }
+        },
+        "coverage_percent": 71.4,
+        "outcomes": {
+          "missing": 4,
+          "out-of-scope": 9,
+          "present": 10
+        },
+        "properties_written": 3,
+        "requirement_coverage_percent": 71.4,
+        "requirements": {
+          "missing": 4,
+          "out-of-scope": 3,
+          "present": 10
+        }
+      },
+      "system_judged_by_model": null
+    },
+    "onnx": {
+      "outcomes": {
+        "BOM-CISA2026-COMP-001": "missing",
+        "BOM-CISA2026-COMP-002": "missing",
+        "BOM-CISA2026-COMP-003": "present",
+        "BOM-CISA2026-COMP-004": "present",
+        "BOM-CISA2026-COMP-005": "present",
+        "BOM-CISA2026-COMP-006": "missing",
+        "BOM-CISA2026-COMP-007": "present",
+        "BOM-CISA2026-COMP-008": "missing",
+        "BOM-CISA2026-META-001": "present",
+        "BOM-CISA2026-META-002": "out-of-scope",
+        "BOM-CISA2026-META-003": "present",
+        "BOM-CISA2026-META-004": "present",
+        "BOM-CISA2026-META-005": "present",
+        "BOM-CISA2026-META-006": "present",
+        "BOM-CISA2026-META-007": "present",
+        "BOM-CISA2026-META-008": "out-of-scope",
+        "BOM-CISA2026-META-009": "out-of-scope",
+        "BOM-CISA2026-PP-001": "out-of-scope",
+        "BOM-CISA2026-PP-002": "out-of-scope",
+        "BOM-CISA2026-PP-003": "out-of-scope",
+        "BOM-CISA2026-PP-004": "out-of-scope",
+        "BOM-CISA2026-PP-005": "out-of-scope",
+        "BOM-CISA2026-PP-006": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 50.0,
+            "missing": 4,
+            "present": 4
+          },
+          "META": {
+            "coverage_percent": 100.0,
+            "out-of-scope": 3,
+            "present": 6
+          },
+          "PP": {
+            "coverage_percent": null,
+            "out-of-scope": 6
+          }
+        },
+        "coverage_percent": 71.4,
+        "outcomes": {
+          "missing": 4,
+          "out-of-scope": 9,
+          "present": 10
+        },
+        "properties_written": 5,
+        "requirement_coverage_percent": 71.4,
+        "requirements": {
+          "missing": 4,
+          "out-of-scope": 3,
+          "present": 10
+        }
+      },
+      "system_judged_by_model": null
+    },
+    "proj-hatchling": {
+      "outcomes": {
+        "BOM-CISA2026-COMP-001": "missing",
+        "BOM-CISA2026-COMP-002": "present",
+        "BOM-CISA2026-COMP-003": "present",
+        "BOM-CISA2026-COMP-004": "present",
+        "BOM-CISA2026-COMP-005": "present",
+        "BOM-CISA2026-COMP-006": "missing",
+        "BOM-CISA2026-COMP-007": "present",
+        "BOM-CISA2026-COMP-008": "missing",
+        "BOM-CISA2026-META-001": "present",
+        "BOM-CISA2026-META-002": "out-of-scope",
+        "BOM-CISA2026-META-003": "present",
+        "BOM-CISA2026-META-004": "present",
+        "BOM-CISA2026-META-005": "present",
+        "BOM-CISA2026-META-006": "present",
+        "BOM-CISA2026-META-007": "present",
+        "BOM-CISA2026-META-008": "out-of-scope",
+        "BOM-CISA2026-META-009": "out-of-scope",
+        "BOM-CISA2026-PP-001": "out-of-scope",
+        "BOM-CISA2026-PP-002": "out-of-scope",
+        "BOM-CISA2026-PP-003": "out-of-scope",
+        "BOM-CISA2026-PP-004": "out-of-scope",
+        "BOM-CISA2026-PP-005": "out-of-scope",
+        "BOM-CISA2026-PP-006": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 62.5,
+            "missing": 3,
+            "present": 5
+          },
+          "META": {
+            "coverage_percent": 100.0,
+            "out-of-scope": 3,
+            "present": 6
+          },
+          "PP": {
+            "coverage_percent": null,
+            "out-of-scope": 6
+          }
+        },
+        "coverage_percent": 78.6,
+        "outcomes": {
+          "missing": 3,
+          "out-of-scope": 9,
+          "present": 11
+        },
+        "properties_written": 9,
+        "requirement_coverage_percent": 78.6,
+        "requirements": {
+          "missing": 3,
+          "out-of-scope": 3,
+          "present": 11
+        }
+      },
+      "system_judged_by_model": "m"
+    },
+    "proj-poetry": {
+      "outcomes": {
+        "BOM-CISA2026-COMP-001": "missing",
+        "BOM-CISA2026-COMP-002": "present",
+        "BOM-CISA2026-COMP-003": "present",
+        "BOM-CISA2026-COMP-004": "present",
+        "BOM-CISA2026-COMP-005": "present",
+        "BOM-CISA2026-COMP-006": "missing",
+        "BOM-CISA2026-COMP-007": "present",
+        "BOM-CISA2026-COMP-008": "missing",
+        "BOM-CISA2026-META-001": "present",
+        "BOM-CISA2026-META-002": "out-of-scope",
+        "BOM-CISA2026-META-003": "present",
+        "BOM-CISA2026-META-004": "present",
+        "BOM-CISA2026-META-005": "present",
+        "BOM-CISA2026-META-006": "present",
+        "BOM-CISA2026-META-007": "present",
+        "BOM-CISA2026-META-008": "out-of-scope",
+        "BOM-CISA2026-META-009": "out-of-scope",
+        "BOM-CISA2026-PP-001": "out-of-scope",
+        "BOM-CISA2026-PP-002": "out-of-scope",
+        "BOM-CISA2026-PP-003": "out-of-scope",
+        "BOM-CISA2026-PP-004": "out-of-scope",
+        "BOM-CISA2026-PP-005": "out-of-scope",
+        "BOM-CISA2026-PP-006": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 62.5,
+            "missing": 3,
+            "present": 5
+          },
+          "META": {
+            "coverage_percent": 100.0,
+            "out-of-scope": 3,
+            "present": 6
+          },
+          "PP": {
+            "coverage_percent": null,
+            "out-of-scope": 6
+          }
+        },
+        "coverage_percent": 78.6,
+        "outcomes": {
+          "missing": 3,
+          "out-of-scope": 9,
+          "present": 11
+        },
+        "properties_written": 9,
+        "requirement_coverage_percent": 78.6,
+        "requirements": {
+          "missing": 3,
+          "out-of-scope": 3,
+          "present": 11
+        }
+      },
+      "system_judged_by_model": "m"
+    },
+    "proj-setuptools": {
+      "outcomes": {
+        "BOM-CISA2026-COMP-001": "missing",
+        "BOM-CISA2026-COMP-002": "present",
+        "BOM-CISA2026-COMP-003": "present",
+        "BOM-CISA2026-COMP-004": "present",
+        "BOM-CISA2026-COMP-005": "present",
+        "BOM-CISA2026-COMP-006": "missing",
+        "BOM-CISA2026-COMP-007": "present",
+        "BOM-CISA2026-COMP-008": "missing",
+        "BOM-CISA2026-META-001": "present",
+        "BOM-CISA2026-META-002": "out-of-scope",
+        "BOM-CISA2026-META-003": "present",
+        "BOM-CISA2026-META-004": "present",
+        "BOM-CISA2026-META-005": "present",
+        "BOM-CISA2026-META-006": "present",
+        "BOM-CISA2026-META-007": "present",
+        "BOM-CISA2026-META-008": "out-of-scope",
+        "BOM-CISA2026-META-009": "out-of-scope",
+        "BOM-CISA2026-PP-001": "out-of-scope",
+        "BOM-CISA2026-PP-002": "out-of-scope",
+        "BOM-CISA2026-PP-003": "out-of-scope",
+        "BOM-CISA2026-PP-004": "out-of-scope",
+        "BOM-CISA2026-PP-005": "out-of-scope",
+        "BOM-CISA2026-PP-006": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 62.5,
+            "missing": 3,
+            "present": 5
+          },
+          "META": {
+            "coverage_percent": 100.0,
+            "out-of-scope": 3,
+            "present": 6
+          },
+          "PP": {
+            "coverage_percent": null,
+            "out-of-scope": 6
+          }
+        },
+        "coverage_percent": 78.6,
+        "outcomes": {
+          "missing": 3,
+          "out-of-scope": 9,
+          "present": 11
+        },
+        "properties_written": 9,
+        "requirement_coverage_percent": 78.6,
+        "requirements": {
+          "missing": 3,
+          "out-of-scope": 3,
+          "present": 11
+        }
+      },
+      "system_judged_by_model": "m"
+    },
+    "safetensors": {
+      "outcomes": {
+        "BOM-CISA2026-COMP-001": "missing",
+        "BOM-CISA2026-COMP-002": "missing",
+        "BOM-CISA2026-COMP-003": "present",
+        "BOM-CISA2026-COMP-004": "present",
+        "BOM-CISA2026-COMP-005": "present",
+        "BOM-CISA2026-COMP-006": "missing",
+        "BOM-CISA2026-COMP-007": "present",
+        "BOM-CISA2026-COMP-008": "missing",
+        "BOM-CISA2026-META-001": "present",
+        "BOM-CISA2026-META-002": "out-of-scope",
+        "BOM-CISA2026-META-003": "present",
+        "BOM-CISA2026-META-004": "present",
+        "BOM-CISA2026-META-005": "present",
+        "BOM-CISA2026-META-006": "present",
+        "BOM-CISA2026-META-007": "present",
+        "BOM-CISA2026-META-008": "out-of-scope",
+        "BOM-CISA2026-META-009": "out-of-scope",
+        "BOM-CISA2026-PP-001": "out-of-scope",
+        "BOM-CISA2026-PP-002": "out-of-scope",
+        "BOM-CISA2026-PP-003": "out-of-scope",
+        "BOM-CISA2026-PP-004": "out-of-scope",
+        "BOM-CISA2026-PP-005": "out-of-scope",
+        "BOM-CISA2026-PP-006": "out-of-scope"
+      },
+      "summary": {
+        "clusters": {
+          "COMP": {
+            "coverage_percent": 50.0,
+            "missing": 4,
+            "present": 4
+          },
+          "META": {
+            "coverage_percent": 100.0,
+            "out-of-scope": 3,
+            "present": 6
+          },
+          "PP": {
+            "coverage_percent": null,
+            "out-of-scope": 6
+          }
+        },
+        "coverage_percent": 71.4,
+        "outcomes": {
+          "missing": 4,
+          "out-of-scope": 9,
+          "present": 10
+        },
+        "properties_written": 3,
+        "requirement_coverage_percent": 71.4,
+        "requirements": {
+          "missing": 4,
+          "out-of-scope": 3,
+          "present": 10
+        }
+      },
+      "system_judged_by_model": null
+    }
+  }
+}
