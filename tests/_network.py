@@ -12,7 +12,7 @@ tests validate offline instead, see ``tests/_spdx3_validate.py``).
 ``tests/conftest.py``'s socket block does not cover a subprocess, and a live
 host can fail for reasons unrelated to Pitloom (TLS handshake, DNS, timeout).
 These helpers skip on such a failure and let any other failure through, so a
-flaky network neither turns CI red nor hides a real regression.
+flaky network neither turns CI red nor hides a real failure.
 
 Setting ``PITLOOM_REQUIRE_NETWORK`` to a true value makes the same network
 failure a test *failure* naming the cause instead, and turns any skipped

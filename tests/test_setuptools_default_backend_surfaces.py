@@ -203,11 +203,10 @@ _TAGS = ("ERROR: ", "WARNING: ", "INFO: ", "DEBUG: ")
     ids=["no-backend", "setuptools-backend"],
 )
 def test_setuptools_banners_are_debug_lines(tmp_path: Path, build_system: str) -> None:
-    """Regression: setuptools' multi-line ``SetuptoolsDeprecationWarning``
-    banners for a ``project.license`` table and a ``License ::`` classifier
-    reached stderr untagged. A real ``loom --debug project`` process (no
-    pytest warning filter): every stderr line is tagged, the banners one
-    ``DEBUG:`` line each."""
+    """Setuptools' multi-line ``SetuptoolsDeprecationWarning`` banners (a
+    ``project.license`` table, a ``License ::`` classifier) never reach stderr
+    untagged. A real ``loom --debug project`` process (no pytest warning
+    filter): every stderr line is tagged, each banner one ``DEBUG:`` line."""
     project = tmp_path / "proj"
     (project / "demo").mkdir(parents=True)
     (project / "demo" / "__init__.py").write_text("", encoding="utf-8")

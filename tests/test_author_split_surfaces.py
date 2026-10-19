@@ -333,10 +333,8 @@ def test_one_name_field_one_author_on_every_surface(
 def test_folded_name_one_spaced_on_every_surface(
     tmp_path: Path, surface: str, name: str
 ) -> None:
-    """Regression: a folded ``Author`` kept its newline and indent in the
-    wheel's name (``Ann\\n        Lee``) while ``setup.cfg`` gave
-    ``Ann\\nLee``; every route reads one name, each run of white space one
-    space."""
+    """A folded ``Author`` (``Ann\\n        Lee``) reads as one name on every
+    route, each run of white space one space."""
     assert _NAME_ONLY_SURFACES[surface](tmp_path, name, None) == [{"name": "Ann Lee"}]
 
 

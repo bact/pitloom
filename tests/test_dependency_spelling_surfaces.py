@@ -141,10 +141,10 @@ _EXPECTED = [
 def test_dependency_spelling_is_one_on_every_route(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, route: str
 ) -> None:
-    """Regression: a setuptools-built wheel or sdist, and ``setup.cfg``,
-    named the package ``Foo_Bar`` (two spellings of one package, ``Foo_Bar``
-    and ``foo-bar``, kept the first) where a ``[project]`` read named it
-    ``foo-bar``; the declared constraint kept each route's spelling."""
+    """Two spellings of one package (``Foo_Bar``, ``foo-bar``) give one
+    canonical name (``foo-bar``) on every route (setuptools wheel/sdist,
+    ``setup.cfg``, ``[project]``); the declared constraint keeps each
+    route's spelling."""
     isolate(tmp_path, monkeypatch)
 
     sbom = _ROUTES[route](tmp_path)
@@ -163,9 +163,9 @@ _INSTALLED = {"Foo_Bar": "foo-bar", "foo.bar2": "foo-bar2", "FOO_baz": "foo-baz"
 def test_installed_distribution_shows_the_canonical_name(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression: ``loom env`` named a package as its ``.dist-info``
-    spells it (``Foo_Bar``) where every other route shows ``foo-bar``; the
-    installed metadata is still found by the canonical name."""
+    """``loom env`` shows the canonical name (``foo-bar``), not the
+    ``.dist-info`` spelling (``Foo_Bar``); the installed metadata is still
+    found by the canonical name."""
     isolate(tmp_path, monkeypatch)
     site = tmp_path / "site"
     tree = []
