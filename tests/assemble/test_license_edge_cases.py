@@ -129,7 +129,7 @@ def test_module_level_version_lookup_missing_packages() -> None:
         raise PackageNotFoundError(_name)
 
     # Restore each namespace, not reload it again: a reload makes new classes
-    # (``ClassifiedLicense``), which no longer equal instances other tests'
+    # (``ClassifiedLicense``), which do not equal instances other tests'
     # already-imported functions create.
     saved = [(m, dict(vars(m))) for m in (_classify_module, _license_module)]
     try:

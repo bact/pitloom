@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression (#269): an embedded SBOM lists payload only, and an embed
+"""An embedded SBOM lists payload only, and an embed
 refuses a signed wheel unless told to remove the signature.
 
 See also: test_embed_core.py.

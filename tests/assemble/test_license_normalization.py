@@ -66,15 +66,11 @@ def test_detect_license_from_text_returns_spdx_id() -> None:
 
 
 def test_detect_license_from_text_rejects_short_label() -> None:
-    """Regression: a short license *label* (not a real license body) must
-    not be fuzzy-matched at all -- found via real-world validation
-    against pipenv 2026.8.0, whose ``[project.license].text = "MIT
-    License (MIT)"`` (18 characters) previously scored a false-positive
-    match against an unrelated SPDX ID ("AML") purely by coincidental
-    short-string similarity. Real SPDX license texts are always much
-    longer than this, so the length guard in
-    ``detect_license_from_text()`` only ever excludes non-license-body
-    input like this."""
+    """A short license *label* (not a licence body) is not fuzzy-matched:
+    ``"MIT License (MIT)"`` (18 characters) would otherwise match an unrelated
+    SPDX ID ("AML") by short-string similarity. Real licence texts are far
+    longer, so the length guard in ``detect_license_from_text()`` only
+    excludes non-body input."""
     assert detect_license_from_text("MIT License (MIT)") is None
 
 
@@ -216,8 +212,7 @@ def test_tag_license_normalization_noop_when_unchanged() -> None:
 def test_tag_license_normalization_flags_casing_change() -> None:
     """A casing-only rewrite ("mit" -> "MIT") is flagged with the raw value
     and, when the library is installed, the py-spdx-license version that
-    did the rewrite -- wiring the previously-dead _PY_SPDX_LICENSE_VERSION
-    into actual output."""
+    did the rewrite (_PY_SPDX_LICENSE_VERSION)."""
     prov = "Source: pyproject.toml | Field: project.license"
     tagged = tag_license_normalization(prov, "mit", "MIT")
     assert tagged.startswith(prov)

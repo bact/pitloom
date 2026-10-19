@@ -95,8 +95,8 @@ def test_embed_wheel_content_type_reaches_sbom_files(tmp_path: Path) -> None:
 
     ``_build_sbom_from_project_and_wheel`` merges ``get_wheel_files()``'s
     content-type/file-header data onto ``wheel_metadata``'s file records
-    (see ``_merge_file_extras``); this guards against a regression where
-    that data is computed but never reaches the assembled SBOM.
+    (see ``_merge_file_extras``); guards against that data being computed but
+    never reaching the assembled SBOM.
     """
     (tmp_path / "pyproject.toml").write_text(
         """
@@ -196,17 +196,13 @@ def test_embed_wheel_merkle_root_reflects_wheel_not_rescan(
     """The document's Merkle root must be computed from the wheel's own
     (post-merge) file hashes, not a fresh rescan of ``project_dir``.
 
-    Regression test: ``_build_sbom_from_project_and_wheel`` used to pass
-    through ``get_wheel_files()``'s own ``merkle_root`` -- computed by
-    hashing ``project_dir``'s on-disk bytes -- straight into the exported
-    document, even though ``_merge_file_extras`` had already fixed the
-    *per-file* hashes to prefer the wheel's own truth. Whenever
-    ``project_dir`` diverges from the already-built wheel (as it
-    deliberately does here, mirroring
-    ``test_embed_wheel_preserves_wheel_truth_and_merges_content_type``),
-    that left the package's ``verifiedUsing`` Merkle root -- and every
-    SPDX ID derived from it via ``compute_doc_uuid`` -- describing a
-    different file set than the one actually reported.
+    ``get_wheel_files()``'s own ``merkle_root`` hashes ``project_dir``'s
+    on-disk bytes, while ``_merge_file_extras`` fixes the *per-file* hashes
+    to the wheel's own. When ``project_dir`` diverges from the built wheel
+    (deliberately so here, as in
+    ``test_embed_wheel_preserves_wheel_truth_and_merges_content_type``), the
+    package's ``verifiedUsing`` Merkle root, and every SPDX ID derived from
+    it via ``compute_doc_uuid``, must describe the file set reported.
     """
     (tmp_path / "pyproject.toml").write_text(
         """

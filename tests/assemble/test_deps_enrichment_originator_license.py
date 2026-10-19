@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression tests for dependency originator/license resolution and the PyPI
+"""Dependency originator/license resolution and the PyPI
 JSON API extraction helpers used by ``pitloom.assemble.spdx3.deps``.
 
 See also: test_deps_enrichment_names_versions.py,
@@ -75,12 +75,10 @@ def test_resolve_author_or_maintainer_falls_back_to_maintainer() -> None:
 
 
 def test_resolve_author_or_maintainer_handles_multiple_maintainer_addresses() -> None:
-    """Regression: a comma-separated multi-maintainer ``Maintainer-email``
-    (common in real PyPI metadata, e.g. pipdeptree's three maintainers)
-    made ``email.utils.parseaddr`` -- which expects a single address --
-    return ``('', '')`` for the whole field, silently dropping a real,
-    usable supplier. ``email.utils.getaddresses`` parses the list
-    correctly; only the first entry is used.
+    """A comma-separated multi-maintainer ``Maintainer-email`` (common in
+    PyPI metadata) yields a supplier: ``email.utils.getaddresses`` parses the
+    list (``parseaddr`` expects one address and returns ``('', '')``); only
+    the first entry is used.
     """
     meta = _FakeMetadata(
         {
@@ -451,10 +449,8 @@ def test_extract_release_hash_falls_back_to_sdist() -> None:
 
 
 def test_extract_release_hash_prefers_sdist_over_legacy_binary() -> None:
-    """Regression: with no wheel present, sdist must still outrank a
-    legacy binary format (e.g. bdist_egg) -- both used to collapse into
-    one undifferentiated "other" tier, tie-broken by filename sort, which
-    could silently pick the egg's hash over the sdist's."""
+    """With no wheel present, sdist outranks a legacy binary format (e.g.
+    bdist_egg) rather than sharing one "other" tier tie-broken by filename."""
     sdist_hash = "a" * 64
     egg_hash = "c" * 64
     release_info = {

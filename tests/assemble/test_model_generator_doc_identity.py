@@ -52,10 +52,8 @@ def test_enrich_identity_matches_build_doc_uuid_with_locked_dependencies(
     match what :func:`~pitloom.assemble.spdx3.document.build` computes for
     the same project -- both derive from the same
     :class:`~pitloom.core.project.ProjectMetadata` and ``merkle_root``.
-    Regression test: this identity used to omit
-    ``locked_dependencies`` (and later, ``locked_dependencies``'
-    provenance) from its ``compute_doc_uuid`` call, diverging from
-    ``build()``'s doc_uuid for any project with a lock file."""
+    The seed includes ``locked_dependencies`` and their provenance, so a
+    project with a lock file gets ``build()``'s doc_uuid."""
     project_metadata, _config, _config_path = read_project(POETRY_FIXTURE)
     assert project_metadata.locked_dependencies  # guard: fixture must exercise this
 

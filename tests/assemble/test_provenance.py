@@ -217,7 +217,7 @@ authors = [
 
 def test_provenance_emitted_as_annotation_in_sbom_output() -> None:
     """The default provenance_format ("both") records high-signal provenance as
-    a Core Annotation in addition to the legacy comment (see
+    a Core Annotation in addition to the comment (see
     test_annotation_provenance_emit.py and the implementation design doc)."""
     pyproject_content = """
 [project]
@@ -259,5 +259,5 @@ authors = [{name = "Jane Doe"}]
             statement["fields"]["copyright_text"]["method"] == "copyright_notice_lines"
         )
 
-        # "both" (the default) still writes the legacy comment too.
+        # "both" (the default) writes the comment too.
         assert "Metadata provenance:" in main_package["comment"]
