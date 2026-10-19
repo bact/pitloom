@@ -185,7 +185,9 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   Hub-card paths; one fixed since): `license_name`/`license_link` of a bare
   `other` kept as a licence; `unknown`/`NOASSERTION`/non-URL text kept as a
   version, download location or creator; the Hub-card read warnings name a
-  local cache path; model-card `datasets:` has no entry cap. See
+  local cache path; model-card `datasets:` has no entry cap; re-enable the
+  skipped deep-Croissant test (`test_a_deep_croissant_is_read_or_refused`) once
+  the JSON depth limit across Python releases is handled. See
   [dataset-licence-readers.md](dataset-licence-readers.md).
 - [x] **#6 Model producer and parameter count** from structured sources
   (PR #306): `originatedBy` Agents and the `parameters` hyperparameter
