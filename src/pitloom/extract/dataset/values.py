@@ -184,7 +184,9 @@ def _count_of(value: object) -> tuple[int | None, str | None]:
     if value is None:
         return None, None
     count: int | None = None
-    if isinstance(value, int) and not isinstance(value, bool):
+    if isinstance(value, bool):
+        return None, "count"
+    if isinstance(value, int):
         count = value
     elif isinstance(value, float) and value.is_integer():  # not inf or nan
         count = int(value)
