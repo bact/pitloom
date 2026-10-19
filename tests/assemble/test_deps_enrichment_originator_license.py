@@ -10,9 +10,9 @@ See also: test_deps_enrichment_names_versions.py,
 test_deps_enrichment_pypi_fallback.py, test_deps_enrichment_prefetch.py --
 the sibling modules for the rest of dependency enrichment.
 
-Covers a multi-address ``Maintainer-email`` field that a naive parser
-dropped entirely, and the ``License-File`` matching bug where a same-named
-file outside ``.dist-info`` could be misattributed.
+Covers a multi-address ``Maintainer-email`` field (a naive parser drops it
+entirely) and ``License-File`` matching, where a same-named file outside
+``.dist-info`` must not be misattributed.
 """
 
 # pylint: disable=protected-access

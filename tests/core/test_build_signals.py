@@ -8,7 +8,7 @@
 
 A signal is simulated by calling the installed handler directly, as the
 interpreter would between two bytecodes, so no test depends on timing and
-a regression never kills the test process: ``signal.raise_signal`` is
+a failing guard never kills the test process: ``signal.raise_signal`` is
 always a spy here. Returning, it behaves as for PID 1 in a container, so
 the guard ends in its ``SystemExit(128 + signum)`` fallback.
 

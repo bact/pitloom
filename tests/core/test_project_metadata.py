@@ -125,7 +125,7 @@ def test_merge_project_metadata_explicit_empty_container_preserved() -> None:
 
 
 def test_merge_project_metadata_explicit_empty_license_name_preserved() -> None:
-    """Regression: every ``license_name`` producer
+    """Every ``license_name`` producer
     (``project.pyproject``/``project.setuptools_py``/``project.setuptools_cfg``)
     records its provenance under the literal key ``"license"``, not
     ``"license_name"`` -- the field/provenance-key name mismatch the
@@ -153,12 +153,9 @@ def test_merge_project_metadata_explicit_empty_license_name_preserved() -> None:
 
 
 def test_merge_project_metadata_license_concluded_preserved() -> None:
-    """Regression for the specific bug this function was introduced to fix:
-    a newly added field (license_concluded, for G2) must merge with the
-    same default rule as every other field automatically -- no call site
-    needs updating when the schema grows. Before this generic merge
-    replaced the two hand-listed implementations, license_concluded was
-    missing from one of them and silently dropped."""
+    """A newly added field (license_concluded) merges with the same default
+    rule as every other field automatically; no call site needs updating
+    when the schema grows."""
     primary = ProjectMetadata(name="pkg", license_name="MIT", license_concluded=None)
     secondary = ProjectMetadata(
         name="pkg", license_name="MIT", license_concluded="Apache-2.0"
@@ -209,9 +206,8 @@ def test_merge_project_metadata_does_not_mutate_inputs() -> None:
 
 
 def test_merge_project_metadata_does_not_alias_field_conflicts() -> None:
-    """Regression for the dataclasses.replace() aliasing bug: replace()
-    shares container-field objects with *primary* verbatim unless a field
-    is explicitly overridden. field_conflicts must get the same fresh-copy
+    """``dataclasses.replace()`` shares container-field objects with
+    *primary* verbatim unless a field is explicitly overridden. field_conflicts must get the same fresh-copy
     treatment as provenance -- a write into merged.field_conflicts (by any
     later caller, e.g. reconcile_installed_metadata) must never leak back
     into primary's or secondary's own field_conflicts dict."""

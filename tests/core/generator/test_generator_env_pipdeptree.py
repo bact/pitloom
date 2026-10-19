@@ -133,7 +133,7 @@ def test_registry_runs_never_claim_unknown(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """Registry runs over real ``--json`` output claim no ``unknown`` name
-    (the old bug's symptom; the argv and live tests catch its cause)."""
+    (the argv and live tests catch the cause)."""
     registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("env-sync", path=registry_path).save()
 

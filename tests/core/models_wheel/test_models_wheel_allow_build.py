@@ -111,17 +111,12 @@ def test_allow_build_failure_falls_back_to_hatchling_with_warning(
 def test_allow_build_failure_hint_does_not_suggest_allow_build_again(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: when build-and-read was already tried (allow_build=
-    True) and failed, the fallback WARNING:'s sharpened
-    [tool.uv.build-backend]-overrides hint must NOT tell the user to
-    "pass --allow-build" -- they already did, and it just failed. Before
-    the fix, ``_unhandled_backend_hint()`` ignored ``allow_build``
-    entirely and always appended that suggestion whenever the project
-    declared a file-filtering ``[tool.uv.build-backend]`` key, producing
-    a self-contradictory message. Compare against the sibling
+    """When build-and-read was already tried (allow_build=True) and failed,
+    the fallback WARNING:'s sharpened [tool.uv.build-backend]-overrides hint
+    must NOT tell the user to "pass --allow-build". Compare the sibling
     ``allow_build=False`` case in test_models_wheel_dispatch.py's
     ``test_get_wheel_files_uv_build_fallback_warns_about_wheel_exclude``,
-    where the same hint text IS expected (no build was attempted there)."""
+    where the hint IS expected (no build was attempted)."""
     make_backend_project(tmp_path, "uv_build")
     with (tmp_path / "pyproject.toml").open("a", encoding="utf-8") as f:
         f.write('\n[tool.uv.build-backend]\nwheel-exclude = ["pkg/vendored/**"]\n')
@@ -264,7 +259,7 @@ def test_allow_build_never_reachable_for_none_or_hatchling_backend(
 def test_allow_build_cleanup_called_even_on_per_file_read_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression: the cleanup callback from a build-and-read result
+    """The cleanup callback from a build-and-read result
     must still run even when a per-file read inside get_wheel_files()'s
     shared loop raises -- otherwise a temp directory leaks silently on
     every partial failure."""

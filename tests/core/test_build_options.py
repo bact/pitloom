@@ -317,7 +317,7 @@ def test_settle_target_unreadable_directory_does_not_raise(
     caplog: pytest.LogCaptureFixture, tmp_path: Path
 ) -> None:
     """Below Python 3.14 ``Path.is_file()`` propagates ``PermissionError``
-    for a path under an unsearchable directory (PR #217's bug class);
+    for a path under an unsearchable directory;
     settling must not, on any version."""
     parent = tmp_path / "locked"
     parent.mkdir()

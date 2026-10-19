@@ -380,9 +380,9 @@ def test_cli_embed_wheel_multi_cleanup_runs_once_even_if_a_wheel_fails(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """The batch's shared ``EmbedFileCache`` cleanup runs exactly once when a later wheel in the batch fails (a
-    corrupt second wheel here): not zero times (a leak), not once per
-    wheel."""
+    """The batch's shared ``EmbedFileCache`` cleanup runs exactly once when a
+    later wheel in the batch fails (a corrupt second wheel here): not zero
+    times (a leak), not once per wheel."""
     project_dir = tmp_path
     wheel1 = _make_ctpkg_project_and_wheel(project_dir)
     bad_wheel = project_dir / "corrupt.whl"

@@ -257,7 +257,7 @@ packages = ["ctpkg"]
     # Sanity check that this fixture actually exercises divergence: a root
     # over the *rescanned* project_dir bytes (which differ only in
     # ctpkg/__init__.py) must NOT equal the wheel-derived root above, or
-    # this test would pass even with the old, buggy code.
+    # this test would pass even if the rescanned root were used.
     rescan_contents = dict(wheel_contents)
     rescan_contents["ctpkg/__init__.py"] = b"x = 1\n"
     rescan_root = _build_merkle_tree(

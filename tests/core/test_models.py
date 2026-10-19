@@ -132,9 +132,8 @@ def test_clear_doc_counters_resets_sequence() -> None:
 
 def test_reserve_spdx_ids_skips_reserved_numbers() -> None:
     """A reserved number is skipped by generate_spdx_id(), whatever order
-    it's minted in -- regression for the wheel/directory id mint-collision
-    (a registry-supplied id and a freshly-minted one landing on the exact
-    same number in the same document namespace)."""
+    it's minted in, so a registry-supplied id and a freshly minted one never
+    land on the same number in one document namespace."""
     doc_uuid = compute_doc_uuid("reservepkg", "1.0", [])
     _clear_doc_counters(doc_uuid)
     namespace = f"https://spdx.org/spdxdocs/reservepkg-{doc_uuid}"
@@ -248,14 +247,12 @@ class _FakeIncludedFile:
 def test_get_wheel_files_normalizes_windows_style_distribution_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression: Hatchling builds ``distribution_path`` with
-    ``os.path.join``, which uses backslashes on Windows -- unlike a
-    wheel's actual internal zip-entry paths, which the ZIP format itself
-    requires to be forward-slash-separated regardless of host OS. Left
-    un-normalized, the Merkle root (and the ``doc_uuid`` built from it)
-    would differ by build platform for byte-identical source content,
-    since this string is the sort key that orders the leaves (a leaf is
-    the file's digest alone).
+    """Hatchling builds ``distribution_path`` with ``os.path.join``, which
+    uses backslashes on Windows, unlike a wheel's zip-entry paths (always
+    forward-slash-separated). Un-normalised, the Merkle root (and the
+    ``doc_uuid`` built from it) would differ by build platform for
+    byte-identical content, since this string is the sort key that orders
+    the leaves (a leaf is the file's digest alone).
 
     Uses two files, ``pkg/zoo.py`` and ``pkg0/a.py``, deliberately chosen
     so their relative sort order flips depending on the separator: ``/``

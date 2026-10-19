@@ -234,7 +234,7 @@ def test_add_dependencies_dedupes_separator_canonicalization() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _enrich_from_installed -- the discarded-concluded-license-relationship bug
+# _enrich_from_installed -- the concluded license relationship is kept
 # ---------------------------------------------------------------------------
 
 
