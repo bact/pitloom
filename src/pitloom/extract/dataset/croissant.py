@@ -61,9 +61,21 @@ from pitloom.extract.dataset.values import (
     stated_version,
     text_of,
 )
-from pitloom.logging_config import LONE_SURROGATES_WARNING, loggable, one_line
+from pitloom.logging_config import (
+    LONE_SURROGATES_WARNING,
+    Cap,
+    loggable,
+    one_line,
+)
 
 log = logging.getLogger(__name__)
+
+#: Most levels of arrays and objects a Croissant file may nest: real files
+#: nest about ten. Checked before parsing, so a file is read or refused the
+#: same on every Python version.
+CROISSANT_MAX_NESTING = 64
+
+CROISSANT_NESTING_CAP = Cap(CROISSANT_MAX_NESTING, "level", "Croissant-nesting")
 
 
 def _extract_creator_name(value: Any, source: str = "Croissant") -> str | None:
@@ -264,10 +276,11 @@ def read_croissant(source: str | Path, *, label: str | None = None) -> DatasetMe
 
     Raises:
         ValueError: *source* cannot be read, is not a Croissant document,
+            nests over :data:`CROISSANT_MAX_NESTING` levels,
             or reading it fails in any other way; the message names it.
     """
     try:
-        data = fetch_json(source)
+        data = fetch_json(source, max_nesting=CROISSANT_NESTING_CAP)
     except ValueError as exc:
         message = str(exc)
         for generic, own in (

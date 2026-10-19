@@ -22,9 +22,11 @@ from pitloom.extract._extract_utils import (
     close_http_error,
     fetch_json,
     filename_from_url,
+    json_nests_over,
     sanitize_provenance_text,
     sanitize_url_credentials,
 )
+from pitloom.logging_config import Cap
 
 #: ``os.mkfifo`` exists on POSIX only.
 _HAS_MKFIFO = hasattr(os, "mkfifo")
@@ -212,3 +214,39 @@ def test_fetch_json_url_http_error_is_closed() -> None:
         with pytest.raises(ValueError, match="Cannot read source"):
             fetch_json("https://example.com/missing.json")
     assert exc.fp.closed
+
+
+@pytest.mark.parametrize(
+    ("text", "limit", "over"),
+    [
+        ('{"a": [[1]]}', 3, False),
+        ('{"a": [[1]]}', 2, True),
+        ('{"a": "[[[[{{{{"}', 1, False),  # brackets in a string
+        ('{"a": "\\"[[[[", "b": 1}', 1, False),  # an escaped quote
+        ("[" * 5 + "]" * 5 + "[" * 5, 5, False),  # closed, then reopened
+        ("[" * 6, 5, True),  # unbalanced
+        ("]]]][[", 2, False),  # closers never go negative
+        ('{"a": "\ud800"}[[[', 2, True),  # a lone surrogate is no stop
+    ],
+    ids=["at", "over", "in-string", "escaped", "reopened", "unbalanced",
+         "closers", "surrogate"],
+)  # fmt: skip
+@pytest.mark.parametrize("encoding", ["utf-8", "utf-8-sig", "utf-16", "utf-32-be"])
+def test_json_nests_over(text: str, limit: int, over: bool, encoding: str) -> None:
+    """Counted on the decoded text, so every encoding the JSON parser
+    accepts gives one answer."""
+    assert json_nests_over(text.encode(encoding, "surrogatepass"), limit) is over
+
+
+def test_json_nests_over_leaves_undecodable_bytes_to_the_parser() -> None:
+    assert json_nests_over(b"[[[[\xff", 1) is False
+
+
+def test_fetch_json_over_nesting_cap(tmp_path: Path) -> None:
+    path = tmp_path / "deep.json"
+    path.write_text('{"a": [[]]}', encoding="utf-8")
+    cap = Cap(3, "level", "test-nesting")
+    assert fetch_json(path, max_nesting=cap) == {"a": [[]]}
+    with pytest.raises(ValueError, match="is larger than the 2-level test-nesting"):
+        fetch_json(path, max_nesting=Cap(2, "level", "test-nesting"))
+    assert fetch_json(path) == {"a": [[]]}  # no cap by default
