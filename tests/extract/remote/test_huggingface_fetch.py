@@ -29,8 +29,10 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from huggingface_hub import ModelCard
 from huggingface_hub.hf_api import ModelInfo
 
+from pitloom.extract.remote._card_description import card_description
 from pitloom.extract.remote.huggingface_fetch import (
     _detect_license_from_hf_files,
     _list_license_files_in_repo,
@@ -57,6 +59,7 @@ class _FakeCard:
 
     def __init__(self, text: str | None, data: _FakeCardData | None) -> None:
         self.text = text
+        self.content = text  # the whole card, as ``ModelCard.content`` is
         self.data = data
 
 
@@ -118,6 +121,17 @@ def test_load_model_card_success_with_data() -> None:
         text, data = _load_model_card("org/model")
     assert text == "Model card body."
     assert data == {"license": "mit"}
+
+
+def test_load_model_card_returns_the_whole_card_so_a_description_is_found() -> None:
+    """Regression: the card body alone (``ModelCard.text``) has no front
+    matter, and the description helper then found no description at all."""
+    real = ModelCard("---\nlicense: mit\n---\n\n# Title\n\nA small test model.\n")
+    with patch("huggingface_hub.ModelCard.load", return_value=real):
+        text, data = _load_model_card("org/model")
+    assert text is not None and text.startswith("---")
+    assert data == {"license": "mit"}
+    assert card_description(text) == "A small test model."
 
 
 def test_load_model_card_success_falsy_data_and_text() -> None:
