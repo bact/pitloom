@@ -225,7 +225,8 @@ unless the linked doc says so.
   See [generic-multi-candidate-fields.md](generic-multi-candidate-fields.md),
   [metadata-quality.md](metadata-quality.md).
 - [ ] **Provenance and enrichment vocabulary** (Method vs Role, source and
-  role taxonomy; parked draft). See
+  role taxonomy; parked draft; includes renaming the fragment `role` and
+  `DatasetReference.role`, whose names are provisional). See
   [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md),
   [docs/metadata-provenance.md](../../docs/metadata-provenance.md).
 - [ ] **AI model id stability** beyond what registry v3 built (the other

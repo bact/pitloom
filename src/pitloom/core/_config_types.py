@@ -109,14 +109,11 @@ class FragmentConfig:
             ``"data_cleaning_script"``, ``"post_processing_script"``,
             ``"guardrail_safety_function"``.
 
-            Distinct from the unrelated ``role`` concept in
-            ``pitloom.core.provenance``/``core.dataset_metadata
-            .DatasetReference.role`` (an SPDX-``RelationshipType``-mapped
-            tag like ``"trainedOn"`` -- a different taxonomy; don't
-            conflate the two). NOTE: ``DatasetReference.role`` is itself
-            expected to be renamed in a future, separate change -- if
-            that's landed by the time you're reading this, update this
-            cross-reference to whatever it's renamed to.
+            Not the ``role`` of ``core.dataset_metadata.DatasetReference``,
+            an SPDX ``RelationshipType`` tag such as ``"trainedOn"``: a
+            different taxonomy. Both names are provisional and are revised
+            with the provenance taxonomy (roadmap: "Provenance and
+            enrichment vocabulary").
         description: Human-readable description of what the fragment covers.
         required: If True, a missing or unreadable fragment raises
             ``FragmentMergeError`` instead of the default warn-and-skip.
