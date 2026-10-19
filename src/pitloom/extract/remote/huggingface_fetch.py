@@ -107,7 +107,8 @@ def _safe_load_json(
 def _load_model_card(
     model_id: str,
 ) -> tuple[str | None, dict[str, Any]]:
-    """Load model card text and YAML frontmatter as a dict."""
+    """Load the whole model card (front matter included, as the description
+    helper expects) and its YAML frontmatter as a dict."""
     try:
         # pylint: disable=import-outside-toplevel
 
@@ -115,7 +116,7 @@ def _load_model_card(
 
         card = ModelCard.load(model_id)
         card_data: dict[str, Any] = card.data.to_dict() if card.data else {}
-        return card.text or None, card_data
+        return card.content or None, card_data
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         msg = "Failed to load model card for %s: %s" + field_loss_suffix(
