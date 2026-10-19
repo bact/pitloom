@@ -9,10 +9,11 @@ provenance, for every dataset reader (Croissant, a local dataset card, a Hub
 dataset card), so the weak-value list and the wording cannot drift.
 
 - An SPDX expression or any other text is kept as read (stripped).
-- Absent, blank, ``unknown`` or ``NOASSERTION`` (any case): no licence; a
-  placeholder is not a claim.
+- Absent, blank, ``unknown``, ``NOASSERTION`` or ``N/A`` (any case): no
+  licence; a placeholder is not a claim.
 - ``other`` (any case): the source's ``license_name`` and ``license_link``,
-  name first, as one text; neither: no licence.
+  name first, as one text, each left out when it is a placeholder (a name
+  of ``other`` too); none left: no licence.
 - A list of several: each text by the rules above, in order, once each
   (letter case ignored); an ``other`` among them states nothing of its own
   and is left out. Two or more kept are the first licence and
@@ -30,6 +31,7 @@ from pitloom.core.dataset_metadata import DatasetMetadata, FurtherLicences
 from pitloom.extract._license_classify import is_weak_licence
 from pitloom.extract.dataset.values import (
     NOT_TEXT_WARNING,
+    is_placeholder,
     stated_text,
     stated_texts,
 )
@@ -67,6 +69,11 @@ class DatasetLicence:
     further: FurtherLicences | None = None
 
 
+def _is_weak(text: str) -> bool:
+    """Whether *text* is a placeholder, not a licence claim."""
+    return is_weak_licence(text) or is_placeholder(text)
+
+
 def apply_dataset_licence(
     meta: DatasetMetadata, licence: DatasetLicence | None
 ) -> None:
@@ -85,7 +92,7 @@ def _named_text(name: object, link: object, where: str) -> tuple[str, list[str]]
     parts: list[tuple[str, str]] = []
     for field, value in ((LICENSE_NAME_FIELD, name), (LICENSE_LINK_FIELD, link)):
         text = stated_text(value, where, field)
-        if text and not is_weak_licence(text):
+        if text and not _is_weak(text) and text.lower() != _OTHER:
             parts.append((field, text))
     if len(parts) == 2:
         return f"{parts[0][1]} ({parts[1][1]})", [f for f, _ in parts]
@@ -99,7 +106,7 @@ def _listed_licences(
     rules); *lister* names the source in the several-licences comment."""
     unique: dict[str, str] = {}
     for text in stated_texts(value, where, LICENSE_FIELD, split=False):
-        if not is_weak_licence(text) and text.lower() != _OTHER:
+        if not _is_weak(text) and text.lower() != _OTHER:
             unique.setdefault(text.lower(), text)
     texts = list(unique.values())
     if not texts:
@@ -132,7 +139,7 @@ def dataset_licence(
             value, shown, lister, f"Source: {source} | Field: {field_prefix}"
         )
     text = stated_text(value, shown, LICENSE_FIELD)
-    if text is None or is_weak_licence(text):
+    if text is None or _is_weak(text):
         return None
     fields = [LICENSE_FIELD]
     if text.lower() == _OTHER:

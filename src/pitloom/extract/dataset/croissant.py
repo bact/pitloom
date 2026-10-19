@@ -58,6 +58,7 @@ from pitloom.extract.dataset.values import (
     stated_text,
     stated_texts,
     stated_total,
+    stated_url,
     stated_version,
     text_of,
 )
@@ -172,7 +173,7 @@ def _extract_croissant_core_fields(
     if description:
         provenance["description"] = f"Source: {src_label} | Field: description"
 
-    download_url = stated_text(get_first(data, *URL_KEYS), src_label, "url")
+    download_url = stated_url(get_first(data, *URL_KEYS), src_label, "url")
     if download_url:
         provenance["download_url"] = f"Source: {src_label} | Field: url"
 
