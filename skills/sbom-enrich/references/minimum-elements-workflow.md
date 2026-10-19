@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -63,6 +63,9 @@ sbomcheck -s spdx3 -c cisa2026 -r json -o cisa2026.json sbom.spdx3.json  # CISA 
 sbomcheck -s spdx3 -c g7ai     -r json -o g7ai.json     sbom.spdx3.json  # G7 SBOM for AI 2026
 sbomcheck -s spdx3 -c bsi      -r json -o bsi.json      sbom.spdx3.json  # BSI TR-03183-2 v2.1
 ```
+
+[Lumina](https://github.com/bact/lumina), a web UI, shows the same results from
+an SBOM file or a SARIF log (`-r sarif`).
 
 `-s spdx3` is required (the default is SPDX 2). `-r` also takes `sarif`,
 `html` and `print` (the default: a text table on stdout; it and `html`
