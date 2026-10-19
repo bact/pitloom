@@ -6,7 +6,8 @@
 """Dataset metadata extraction public API.
 
 Provides format-dispatched access to dataset metadata extractors.
-Currently supports the Croissant JSON-LD format.
+Reads the Croissant JSON-LD format; a dataset card is read by
+:mod:`pitloom.extract.dataset.card`.
 
 Usage::
 
