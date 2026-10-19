@@ -100,10 +100,9 @@ def test_read_project_pep440_equivalent_no_warning(
 
 
 def test_read_project_installed_marker_read_exactly_once() -> None:
-    """Regression: the winning candidate's marker file must be read from
-    disk exactly once per read_project() call -- discovery's own parse
-    (kept in memory on the winning _Candidate) must be reused for
-    reconciliation, not re-read/re-parsed a second time."""
+    """The winning candidate's marker file is read from disk once per
+    read_project() call: discovery's parse (kept on the winning _Candidate)
+    is reused for reconciliation."""
     fixture = _FIXTURES / "installed-metadata-conflict"
     marker_path = next(fixture.glob("*.egg-info/PKG-INFO"))
     original_read_bytes = Path.read_bytes
@@ -153,13 +152,10 @@ def test_read_project_include_installed_metadata_false_prevents_leakage(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Case 14, flag mechanism only: with include_installed_metadata=False,
-    an in-tree conflicting egg-info is never even looked at by
-    read_project() itself. This is a unit-level check of the flag, not a
-    regression test of embed-wheel's real call sites -- see
+    read_project() never looks at an in-tree conflicting egg-info. A
+    unit-level check of the flag; the end-to-end embed-wheel check is
     tests/assemble/test_embed_core.py::
-    test_embed_wheel_sbom_ignores_conflicting_in_tree_egg_info for the
-    actual end-to-end embed-wheel regression (the class CLAUDE.md's "Usage
-    surfaces" section calls out for poetry.lock)."""
+    test_embed_wheel_sbom_ignores_conflicting_in_tree_egg_info."""
     fixture = _FIXTURES / "installed-metadata-conflict"
 
     with caplog.at_level(logging.WARNING):

@@ -9,7 +9,7 @@
 See also: test_installed_reconcile.py for reconcile_installed_metadata()
 tests, and test_installed_integration.py for read_project()/
 resolve_project_with_lockfile() end-to-end integration cases (fixture-dir
-based, embed-wheel regression, peek/reread dedup, determinism).
+based, embed-wheel case, peek/reread dedup, determinism).
 """
 
 from __future__ import annotations
@@ -282,11 +282,9 @@ def test_find_installed_metadata_candidate_name_canonicalization() -> None:
 def test_find_installed_metadata_candidate_src_layout_real_setuptools_shape(
     tmp_path: Path,
 ) -> None:
-    """Regression: the empirically-verified real shape -- setuptools'
-    egg_info command writes `<name>.egg-info` directly under `src/` for a
-    `package_dir={"": "src"}` project (one path segment, confirmed via a
-    real `python setup.py egg_info` run), not nested inside an extra
-    package-name directory."""
+    """setuptools' egg_info command writes `<name>.egg-info` directly under
+    `src/` for a `package_dir={"": "src"}` project (one path segment), not
+    nested inside an extra package-name directory."""
     egg_info = tmp_path / "src" / "pkg.egg-info"
     egg_info.mkdir(parents=True)
     (egg_info / "PKG-INFO").write_text("Name: pkg\nVersion: 1.0.0\n", encoding="utf-8")
@@ -497,10 +495,9 @@ def test_parse_installed_metadata_project_url_entry_without_comma_skipped() -> N
 
 
 def test_parse_installed_metadata_version_declared_empty_becomes_none() -> None:
-    """Regression: an explicit but empty `Version:` header must collapse
-    to `version=None`, matching every static producer's convention
-    (`str(x) if x else None`), not stay as the raw empty string --
-    provenance still records it as declared either way."""
+    """An explicit but empty `Version:` header collapses to `version=None`, as
+    every static producer does (`str(x) if x else None`); provenance still
+    records it as declared."""
     msg = _msg("Name: pkg\nVersion: \n")
     metadata = _parse_installed_metadata(msg, "Source: pkg.egg-info")
     assert metadata.version is None
@@ -508,11 +505,9 @@ def test_parse_installed_metadata_version_declared_empty_becomes_none() -> None:
 
 
 def test_parse_installed_metadata_requires_python_empty_becomes_none() -> None:
-    """Regression: an explicit but empty `Requires-Python:` header must
-    collapse to `requires_python=None`, matching every static producer's
-    "no constraint" convention (`str(x) if x else None`), not stay as the
-    raw empty string -- provenance still records it as declared either
-    way."""
+    """An explicit but empty `Requires-Python:` header collapses to
+    `requires_python=None`, as every static producer does; provenance still
+    records it as declared."""
     msg = _msg("Name: pkg\nVersion: 1.0.0\nRequires-Python: \n")
     metadata = _parse_installed_metadata(msg, "Source: pkg.egg-info")
     assert metadata.requires_python is None
