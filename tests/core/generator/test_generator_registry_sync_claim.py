@@ -177,8 +177,9 @@ def test_ai_model_stem_collision_keeps_both_elements_with_one_warning(
     candidate left when neither has a name/physical_path) both hit the
     *same* pre-registered ``ai_AIPackage`` entity in one run -- unlike
     the stale-entry cases above, this is a genuine simultaneous collision
-    the first-claimant-wins rule must resolve: the first model reuses the entry, the second mints its own
-    id and logs exactly one warning, and *both* elements survive."""
+    the first-claimant-wins rule must resolve: the first model reuses the
+    entry, the second mints its own id and logs exactly one warning, and
+    *both* elements survive."""
     registry = IdRegistry.new("ai-project")
     registered_id = registry.register("ai_AIPackage", "weights")
 

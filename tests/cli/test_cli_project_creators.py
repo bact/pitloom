@@ -238,7 +238,7 @@ def test_enrich_command_project_dir_flag_passed_through(
 ) -> None:
     """--project-dir must reach enrich_model()'s project_target parameter
     so the fragment references the project-level ai_AIPackage id, not the
-    single-model one -- the fix for the project-level merge bug."""
+    single-model one."""
     captured: dict[str, object] = {}
     project_dir = tmp_path / "some-project"
 

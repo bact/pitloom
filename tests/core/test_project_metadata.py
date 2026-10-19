@@ -207,8 +207,8 @@ def test_merge_project_metadata_does_not_mutate_inputs() -> None:
 
 def test_merge_project_metadata_does_not_alias_field_conflicts() -> None:
     """``dataclasses.replace()`` shares container-field objects with
-    *primary* verbatim unless a field is explicitly overridden. field_conflicts must get the same fresh-copy
-    treatment as provenance -- a write into merged.field_conflicts (by any
+    *primary* verbatim unless a field is explicitly overridden.
+    field_conflicts must get the same fresh-copy treatment as provenance -- a write into merged.field_conflicts (by any
     later caller, e.g. reconcile_installed_metadata) must never leak back
     into primary's or secondary's own field_conflicts dict."""
     primary = ProjectMetadata(name="pkg", version="1.0.0")
