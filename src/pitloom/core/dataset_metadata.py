@@ -125,7 +125,9 @@ class DatasetMetadata:
 class DatasetReference:
     """A dataset linked to an AI model with a typed role.
 
-    The ``role`` string maps to an SPDX 3 ``RelationshipType`` where supported.
+    ``role`` is a provisional name, revised with the provenance taxonomy
+    (roadmap: "Provenance and enrichment vocabulary"). It maps to an SPDX 3
+    ``RelationshipType`` where supported.
     ``"trainedOn"`` and ``"testedOn"`` map directly to the corresponding
     SPDX 3.0.1 relationship types.  Other roles (``"finetunedOn"``,
     ``"validatedOn"``, ``"pretrainedOn"``) fall back to
