@@ -60,7 +60,7 @@ def test_decode_h5_attr_numpy_like_tobytes() -> None:
     ids=["float64", "float32", "int64", "bool"],
 )
 def test_decode_h5_attr_number_is_its_scalar_text(make: Any, expected: str) -> None:
-    """Regression: a numeric attribute was its raw bytes decoded as UTF-8."""
+    """A numeric attribute is not its raw bytes decoded as UTF-8."""
     numpy = pytest.importorskip("numpy")
     assert _decode_h5_attr(make(numpy)) == expected
 
@@ -169,7 +169,7 @@ def test_parse_model_config_no_name_skips_name_provenance() -> None:
 def test_parse_model_config_name_provenance_cites_its_field(
     config: dict[str, str], field: str
 ) -> None:
-    """Regression: a name from ``model_name`` was cited as ``config.name``."""
+    """A name from ``model_name`` is not cited as ``config.name``."""
     provenance: dict[str, str] = {}
     raw = _json.dumps({"class_name": "Sequential", "config": config})
     _, name, _ = parse_model_config(raw, "Source: m.h5", {}, [], {}, provenance)

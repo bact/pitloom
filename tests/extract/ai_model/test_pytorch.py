@@ -126,7 +126,7 @@ def test_read_pytorch_no_name_version(tmp_path: Path) -> None:
 
 # ---------------------------------------------------------------------------
 # Malformed input -- exceptions are caught, logged at debug level, and
-# degrade gracefully (behaviour unchanged; only visibility was added).
+# degrade gracefully.
 # ---------------------------------------------------------------------------
 
 

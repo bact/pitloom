@@ -155,10 +155,8 @@ def test_gguf_load_failure(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> 
 def test_gguf_resolve_quantization_unknown_value_logs_and_falls_back(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """An out-of-range file_type value can't be resolved to a
-    GGMLQuantizationType member; the failure is logged and the raw integer
-    string is returned as a fallback (behaviour unchanged from before the
-    logging was added)."""
+    """An out-of-range file_type cannot be resolved to a GGMLQuantizationType
+    member; the failure is logged and the raw integer string is returned."""
     pytest.importorskip("gguf")
 
     with caplog.at_level(logging.DEBUG, logger="pitloom.extract.ai_model.gguf"):

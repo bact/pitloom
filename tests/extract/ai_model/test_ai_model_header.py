@@ -165,8 +165,7 @@ def _st_header(size: int, brace: bytes = b"{") -> bytes:
 
 
 _LFS = b"version https://git-lfs.github.com/spec/v1\noid sha256:00\n"
-# The spec URLs git-lfs's pointer decoder accepts (current, then the two
-# earlier versions).
+# The spec URLs git-lfs's pointer decoder accepts (current, then two older).
 _LFS_URLS = (
     "https://git-lfs.github.com/spec/v1",
     "https://hawser.github.com/spec/v1",
@@ -389,8 +388,8 @@ def test_a_git_lfs_pointer_of_every_spec_version_is_no_model(
 def test_a_git_lfs_version_line_must_be_complete(
     tmp_path: Path, url: str, tail: bytes, is_pointer: bool
 ) -> None:
-    """Regression: a prefix match took ``/spec/v1x`` for a pointer. The sniff
-    reaches the end of the longest line, CRLF included."""
+    """A prefix match is not a pointer (``/spec/v1x``). The sniff reaches the end
+    of the longest line, CRLF included."""
     f = tmp_path / "x.onnx"
     f.write_bytes(f"version {url}".encode() + tail + b"oid sha256:00\n")
     assert is_git_lfs_pointer(read_ai_model_header(f)) is is_pointer
@@ -449,9 +448,8 @@ def test_read_ai_model_says_why_a_file_is_not_a_model(
 def test_a_refused_file_has_the_same_reason_on_every_surface(
     tmp_path: Path, name: str, content: bytes
 ) -> None:
-    """Regression: an empty ``x.gguf`` was ``file is empty`` to
-    ``read_ai_model()`` and ``not an AI model file`` to ``generate_model_sbom``;
-    the reader's reason is the single-file command's, when there is one."""
+    """An empty ``x.gguf`` gets the same reason from ``read_ai_model()`` and
+    ``generate_model_sbom``; the reader's reason is the single-file command's."""
     f = tmp_path / name
     f.write_bytes(content)
     with pytest.raises(ValueError) as lib:
@@ -471,7 +469,7 @@ def test_a_refused_file_has_the_same_reason_on_every_surface(
 def test_a_directory_is_refused_as_the_single_file_commands_do(
     tmp_path: Path, name: str
 ) -> None:
-    """Regression: a directory named ``d.onnx`` ran the ONNX reader."""
+    """A directory named ``d.onnx`` does not run the ONNX reader."""
     (tmp_path / name).mkdir()
     for fmt in (None, AiModelFormat.ONNX):
         with pytest.raises(ValueError, match=_NOT_A_MODEL):
