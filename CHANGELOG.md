@@ -120,12 +120,15 @@ and this project adheres to
   with a `WARNING:`; `@graph` not a list is an `ERROR:` on `id import` ([#305])
 - A wheel with no identity (`unknown`) is not looked up in or recorded into an
   ID registry, and its ids depend on its file name; a `loom.Run` dataset is one package per name and content ([#305])
+- A Hugging Face model's description is found again: the whole model card,
+  front matter included, goes to the description helper ([#310])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
 [#306]: https://github.com/bact/pitloom/pull/306
 [#308]: https://github.com/bact/pitloom/pull/308
 [#309]: https://github.com/bact/pitloom/pull/309
+[#310]: https://github.com/bact/pitloom/pull/310
 
 ## [0.20.2] - 2026-10-09
 
