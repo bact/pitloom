@@ -307,7 +307,7 @@ def test_parse_training_config_optimizer_without_class_name() -> None:
 
 # ---------------------------------------------------------------------------
 # Emission order -- the provenance comment lists fields in insertion order, so
-# a valid model's SBOM stays byte-identical to what it always was
+# a valid model's SBOM stays byte-identical
 # ---------------------------------------------------------------------------
 
 _KERAS_MODEL = _json.dumps(

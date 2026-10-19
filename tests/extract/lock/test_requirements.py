@@ -234,8 +234,7 @@ def test_hash_annotated_continuation_still_disqualifies_whole_file(
 ) -> None:
     """Joining a continuation doesn't make ``--hash=...`` tokens valid
     PEP 508 syntax -- a pip-compile ``--generate-hashes`` file stays
-    unsupported, now failing for the right reason instead of on the raw
-    backslash."""
+    unsupported, failing on the ``--hash`` token, not the raw backslash."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         _write_requirements(

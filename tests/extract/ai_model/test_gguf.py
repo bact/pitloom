@@ -148,7 +148,7 @@ def test_gguf_load_failure(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> 
             with pytest.raises(ValueError, match="Failed to read GGUF"):
                 read_gguf(model_file)
 
-    # Open failure is now logged at debug level before being re-raised.
+    # Open failure is logged at debug level before being re-raised.
     assert any("model.gguf" in r.message for r in caplog.records)
 
 

@@ -181,7 +181,7 @@ def test_public_discovery_and_read_match_internal_discovery_and_parse() -> None:
     same ProjectMetadata as reader.py's internal, message-reusing path
     for the same fixture. The two are separate implementations of "find
     then parse"; this test is the mechanical tie that catches one being
-    fixed/changed without the other."""
+    changed without the other."""
     fixture = _FIXTURES / "installed-metadata-conflict"
 
     found = find_installed_metadata_candidate(
@@ -310,8 +310,8 @@ def test_find_installed_metadata_candidate_src_layout_nested_pkg_dir(
 def test_find_installed_metadata_candidate_src_layout_too_deep_not_matched(
     tmp_path: Path,
 ) -> None:
-    """Adversarial: the bounded-glob promise still holds after adding the
-    one-segment src/*.egg-info pattern -- a marker three segments deep
+    """Adversarial: the bounded-glob promise holds with the one-segment
+    src/*.egg-info pattern -- a marker three segments deep
     under src/ is not discovered, silently (the normal "nothing found"
     case)."""
     egg_info = tmp_path / "src" / "sub" / "deeper" / "pkg.egg-info"

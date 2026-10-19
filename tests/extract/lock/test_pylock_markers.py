@@ -86,7 +86,7 @@ def test_marker_operator_precedence_and_binds_tighter_than_or() -> None:
 
 
 def test_marker_operator_precedence_still_excludes_when_no_or_clause_is_true() -> None:
-    """The precedence fix must not become "always include": when every
+    """Precedence handling is not "always include": when every
     `or`-separated group provably evaluates `False` from the known
     group/extras clauses alone (no unknown clause anywhere), the package
     is still excluded."""

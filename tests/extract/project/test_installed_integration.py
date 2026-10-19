@@ -243,8 +243,8 @@ def test_generate_project_sbom_field_conflict_byte_identical_across_runs() -> No
 
 def test_generate_project_sbom_no_conflict_no_annotation() -> None:
     """No installed-metadata source at all -- no conflict Annotation, no
-    field_conflicts entries (guards against a vacuous "always emits an
-    Annotation" bug)."""
+    field_conflicts entries (guards against an "always emits an
+    Annotation" implementation)."""
     fixture = _FIXTURES / "installed-metadata-agree"
 
     sbom_json = generate_project_sbom(fixture)

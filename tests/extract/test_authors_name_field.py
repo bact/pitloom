@@ -78,7 +78,7 @@ _CUT = "; a name field is never cut between names -- HINT"
         ),
         ("Jane, Bob", [{"name": "Jane, Bob"}], 0, [], False),
         ("Ann, , Bob", [{"name": "Ann, , Bob"}], 0, [], False),
-        # a part still no mailbox warns as before
+        # a part that is no mailbox warns
         ("Ann <a@x.org, Bob <b@x.org>", [], 0, ["Ann <a@x.org, Bob <b@x.org>"], False),
         ("Ann>, Bob", [], 0, ["Ann>, Bob"], False),
         # before a bare address, which carries no display name
@@ -153,7 +153,7 @@ def test_name_field_cut_only_after_a_mailbox(
     ``Author-email`` reads the same text (*same*); a cut, only next to an
     address, gets one ``WARNING:`` naming the field and the count; a comma
     after a name is never a cut unless a bare address follows; a part that
-    is still no mailbox warns as before."""
+    is no mailbox warns."""
     with caplog.at_level(logging.WARNING):
         assert read_author_fields(author, None, hint=" -- HINT") == expected
     lines = [f"AUTHOR={e!r}: not an email address; not recorded" for e in unread]

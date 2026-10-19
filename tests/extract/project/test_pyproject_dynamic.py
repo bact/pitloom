@@ -151,8 +151,8 @@ def test_extract_dynamic_version_no_hatch_no_candidates() -> None:
 
 
 def test_extract_dynamic_version_finds_about_file() -> None:
-    """Sanity check the successful candidate-scan path still works
-    alongside the new failure-path coverage above."""
+    """The successful candidate-scan path resolves the version from
+    ``__about__``."""
     pyproject_data = {"project": {"name": "pkg"}}
     with tempfile.TemporaryDirectory() as d:
         tmp_path = Path(d)

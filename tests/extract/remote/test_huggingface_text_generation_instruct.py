@@ -105,7 +105,7 @@ def test_bloomz_7b1_type_of_model() -> None:
 
 
 def test_bloomz_7b1_seq_length_captured() -> None:
-    # seq_length added to _HYPER_KEYS -> BLOOM context length now captured
+    # seq_length is in _HYPER_KEYS -> BLOOM context length is captured
     with _patch_bloomz_7b1():
         meta = read_huggingface("bigscience/bloomz-7b1")
     assert meta.hyperparameters.get("seq_length") == 2048

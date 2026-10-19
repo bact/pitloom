@@ -78,7 +78,7 @@ def test_read_hdf5_open_failure_logs_and_raises(
             with pytest.raises(ValueError, match="Failed to read HDF5 file"):
                 read_hdf5(model_file)
 
-    # Open failure is now logged at debug level before being re-raised.
+    # Open failure is logged at debug level before being re-raised.
     assert any("model.h5" in r.message for r in caplog.records)
 
 

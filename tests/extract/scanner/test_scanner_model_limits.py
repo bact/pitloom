@@ -96,7 +96,7 @@ def test_a_long_decimal_pickle_gives_the_same_sbom_whatever_the_digit_limit(
     for limit_off in (False, True):
         if limit_off:
             setter(0)  # the autouse conftest fixture restores it
-            # Non-vacuous: genops really converts past 4300 digits now.
+            # Non-vacuous: genops converts past 4300 digits.
             assert len(list(pickletools.genops(b"I" + b"9" * 5000 + b"\n."))) == 2
         caplog.clear()
         runs.append(
