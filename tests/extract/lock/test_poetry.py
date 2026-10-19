@@ -52,15 +52,10 @@ def test_valid_lock_with_no_packages_returns_empty_list_not_none() -> None:
 def test_missing_metadata_table_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: a syntactically valid but empty/truncated file with no
-    `[metadata]` table at all is ambiguous -- it could be a genuine
-    zero-dependency poetry.lock, or it could be some unrelated TOML
-    document (hand-edited, from a different tool, truncated by a bad
-    write) that merely happens to be found as `poetry.lock`. Without
-    this check, the latter would be silently treated as an authoritative
-    empty lock and block a genuinely usable lower-priority source (e.g.
-    `pdm.lock`) in the cascade -- must return `None` instead, so a lower-
-    priority source can still be tried."""
+    """A syntactically valid but empty/truncated file with no `[metadata]` table
+    is ambiguous (a zero-dependency poetry.lock, or unrelated TOML found
+    under that name): it returns `None`, so a lower-priority source (e.g.
+    `pdm.lock`) can still be tried."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "poetry.lock").write_text("", encoding="utf-8")
@@ -140,13 +135,11 @@ def test_dev_only_group_package_excluded() -> None:
 def test_dev_only_group_non_registry_sourced_package_is_silent(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A package that is both dev-only-group and non-registry-sourced
-    must be dropped with no warning at all -- it's excluded either way,
-    and warning about a source type that's being discarded regardless
-    is noise. Regression for the exact filter-ordering bug class found
-    and fixed in `pylock.py`'s equivalent
-    (`test_marker_excluded_non_registry_sourced_package_is_silent`),
-    checked here for `_main_group_package_or_none`'s own ordering."""
+    """A package that is both dev-only-group and non-registry-sourced is
+    dropped with no warning: it is excluded either way, so warning about its
+    source type is noise. Mirrors `pylock.py`'s
+    `test_marker_excluded_non_registry_sourced_package_is_silent`, for
+    `_main_group_package_or_none`'s own ordering."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_lock(
@@ -227,9 +220,8 @@ def test_legacy_poetry_category_main_and_dev() -> None:
 def test_legacy_poetry_malformed_category_skipped_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A non-string 'category' (corrupted/hand-edited legacy lock) must be
-    skipped with a WARNING:, the same as a malformed 'groups' field is --
-    not silently excluded with no diagnostic."""
+    """A non-string 'category' (corrupted/hand-edited lock) is skipped with a
+    WARNING:, as a malformed 'groups' field is."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_lock(
@@ -314,11 +306,9 @@ def test_malformed_package_entry_skipped() -> None:
 
 
 def test_malformed_package_entry_warns(caplog: pytest.LogCaptureFixture) -> None:
-    """Regression: a malformed ``[[package]]`` entry (missing ``version``)
-    used to be dropped with zero logging, violating "no silent
-    deviations" -- it must now emit a ``WARNING:``, matching the same
-    ``missing or non-string 'version'`` wording every sibling format's
-    own version check uses
+    """A malformed ``[[package]]`` entry (missing ``version``) emits a
+    ``WARNING:`` with the ``missing or non-string 'version'`` wording of every
+    sibling format
     (:func:`pitloom.extract.lock._common.warn_missing_version`)."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
@@ -349,10 +339,9 @@ def test_missing_name_skipped_and_warns(caplog: pytest.LogCaptureFixture) -> Non
 
 
 def test_malformed_package_entry_empty_version_skipped() -> None:
-    """Regression: an entry with ``version = ""`` (a string, but empty)
-    used to pass the ``isinstance(version, str)`` check and produce an
-    invalid ``name==`` pin -- parity with ``pylock.py``/``uv.py``/
-    ``pdm.py``, which all also reject an empty-string version."""
+    """An entry with ``version = ""`` (a string, but empty) is rejected, not
+    emitted as an invalid ``name==`` pin; ``pylock.py``/``uv.py``/``pdm.py``
+    reject it too."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_lock(
@@ -365,8 +354,8 @@ def test_malformed_package_entry_empty_version_skipped() -> None:
 
 
 def test_package_table_not_a_list_warns(caplog: pytest.LogCaptureFixture) -> None:
-    """Regression: a malformed top-level ``package`` key (not a list) used
-    to degrade to an empty list with zero logging."""
+    """A malformed top-level ``package`` key (not a list) degrades to an empty
+    list with a ``WARNING:``."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_lock(tmp_path, 'package = "not-a-list"\n')
@@ -382,9 +371,8 @@ def test_package_table_not_a_list_warns(caplog: pytest.LogCaptureFixture) -> Non
 def test_non_pep508_sourced_package_excluded(
     source_type: str, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: a poetry.lock entry resolved from a local path or VCS
-    has no meaningful PyPI version pin -- it must be excluded, not emitted
-    as a misleading ``name==version`` PyPI pin."""
+    """A poetry.lock entry resolved from a local path or VCS has no meaningful
+    PyPI version pin: it is excluded, not emitted as ``name==version``."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_lock(

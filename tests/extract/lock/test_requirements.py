@@ -305,11 +305,9 @@ def test_prefix_match_specifier_disqualifies_whole_file(
 def test_url_requirement_disqualifies_whole_file_even_when_tag_shaped(
     url_line: str, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression for the explicit design question: a URL requirement
-    that merely *looks* like it points at a tagged release must not be
-    treated as an exact version pin -- PEP 508 direct references carry
-    no normalized version at all, and nothing guarantees a tag/filename
-    round-trips to a real PEP 440 version. See the module docstring."""
+    """A URL requirement that merely *looks* like a tagged release is not an
+    exact version pin: PEP 508 direct references carry no normalised version.
+    See the module docstring."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         _write_requirements(tmp_path, f"idna==3.7\n{url_line}\n")
@@ -461,9 +459,8 @@ def test_unreadable_file_returns_none_and_warns(
 
 
 def test_read_project_populates_locked_dependencies_from_setup_py_only() -> None:
-    """Regression: pinned requirements.txt, like Pipfile.lock, predates
-    PEP 621 almost entirely -- the cascade must reach it via
-    read_project()'s setup.py-only dispatch path too."""
+    """Pinned requirements.txt, like Pipfile.lock, pairs with a bare setup.py:
+    the cascade reaches it via read_project()'s setup.py-only dispatch path."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "setup.py").write_text(

@@ -57,12 +57,9 @@ def test_read_project_populates_locked_dependencies() -> None:
 def test_read_project_pdm_lock_never_overrides_poetry_lock(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: `pdm.lock` ranks *below* `poetry.lock` in the shared
-    priority order -- when both are present (an unusual but possible
-    project layout), `poetry.lock`'s already-applied result must win,
-    and `pdm.lock` must never silently override it. This is the exact
-    class of bug a naive "first entry with data wins" cascade would
-    introduce once a lower-than-`poetry.lock`-ranked format is added."""
+    """`pdm.lock` ranks *below* `poetry.lock` in the shared priority order: when
+    both are present, `poetry.lock`'s already-applied result wins and
+    `pdm.lock` never silently overrides it."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "pyproject.toml").write_text(

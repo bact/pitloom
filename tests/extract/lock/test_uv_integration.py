@@ -115,11 +115,9 @@ def test_read_project_pylock_takes_priority_over_uv_lock() -> None:
 
 
 def test_read_project_uv_workspace_picks_matching_member_by_name() -> None:
-    """Regression: a shared uv.lock listing more than one local
-    workspace member must resolve the *scanned* project's own
-    dependencies, identified by matching `pyproject.toml`'s declared
-    name -- not whichever editable entry happens to be listed first in
-    the lock file."""
+    """A shared uv.lock listing several local workspace members resolves the
+    *scanned* project's dependencies, matched by `pyproject.toml`'s declared
+    name, not the first editable entry."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "pyproject.toml").write_text(
