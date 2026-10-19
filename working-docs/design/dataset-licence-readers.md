@@ -49,8 +49,8 @@ licence. A dataset licence is a statement about the dataset.
 
 - **Honesty.** The value is the source's claim, recorded as such in
   `provenance["license"]` (`Source: ... | Field: license`). Absent field: no
-  licence, silently. `unknown`, `other` without a name or link, blank or
-  `NOASSERTION`: no relationship (a placeholder is not a claim); if the source
+  licence, silently. `unknown`, `N/A`, `other` without a real name or link,
+  blank or `NOASSERTION`: no relationship (a placeholder is not a claim); if the source
   states `other` with a licence name or link, that text is the licence (see
   Decided).
 - **Shape.** One value goes through `add_license_relationships`, so a valid
@@ -274,9 +274,9 @@ the `loom` path, which dropped it by hand).
 also `o/d-`, `o/d.` and `o/d.git`, which `huggingface_hub` refuses, so a
 lookup only warned); ids
 past `MAX_HUB_DATASET_LOOKUPS` (20), with one over-cap `WARNING:` naming the
-model and how many were skipped. An id listed twice, in any letter case (Hub ids are case-insensitive), is
-requested once, by its first spelling; a repeat gets only the fields the
-lookup filled, with their provenance.
+model and how many were skipped. A dataset listed twice (any letter case or whitespace) is one
+reference, so it is requested once (see
+[Built: edge-case hardening](#built-edge-case-hardening-2026-10-19)).
 
 **Failure.** A failed `dataset_info()` is one `WARNING:` (`Failed to load
 dataset_info() for <id>: ...`), no card request follows, and the dataset keeps
@@ -346,10 +346,74 @@ link-only list item, image/badge run, or a bold key whose value is not a
 sentence is passed over; one prose line keeps the paragraph whole; none
 gives no description, silently. Length cap (500) unchanged.
 
-**Not done (deferred until after the demo).** Two licence texts that
+**Not done.** Two licence texts that
 normalise to one element (`MIT`, `MIT License`) give two relationships to it;
 a comma-separated single string is not split; no Setext headings or
 indented code blocks in the description rule.
+
+## Built: edge-case hardening (2026-10-19)
+
+Rulings follow the rules in CLAUDE.md: a source that never had a value is
+quiet; one that stated something unrecordable warns.
+
+**Nesting cap.** A Croissant file nests at most `CROISSANT_MAX_NESTING` (64)
+levels of arrays and objects (real files: about ten). `fetch_json(max_nesting=)`
+counts the levels on the decoded text before `json.loads`
+(`json_nests_over`, a regex over strings and brackets, every encoding the
+parser accepts), so a file is read or refused the same on every Python:
+`json`'s own depth limit differs by release (3.11 fails at 2000 levels, 3.14
+parses 100000), and the old test, which accepted either outcome, was skipped.
+Over the cap is `ValueError: Croissant source 'f' is larger than the 64-level
+Croissant-nesting cap` (a file the caller named is refused, not warned of).
+`_data_type_values` stays an explicit stack. Tested at the cap, over it and
+far over it (`tests/core/test_loom_dataset_sources_rules.py`), on 3.11 and
+3.14 as well.
+
+**Placeholders (`values.is_placeholder`).** `unknown`, `NOASSERTION` and `N/A`
+(any case, stripped) state nothing, silently: a dataset version, creator
+(also a creator node's `name`), licence (value, `license_name`,
+`license_link`, list items) and download location. A name of `other` for an
+`other` licence says nothing either; a real name or link is kept as the card
+says (owner ruling above). `NONE` stays a statement. Not widened to other
+spellings (`n.a.`, `tbd`, `-`): no list can be complete, and a text that is
+not a placeholder is the source's claim. The download location (`url`) must
+also be a URL (a scheme and a host, no whitespace: `https://`, `s3://`,
+`hf://`); other text is dropped with one `WARNING:` (`field url is not a
+URL`), since the source did state it. `license_link` is not URL-checked: it
+is kept as text, as the Hub does. Description, `pretty_name` and keywords are
+not screened for placeholders.
+
+**Hub card warnings.** `read_card(name=)`: a downloaded card is named by its
+dataset id, and an `OSError` is given by its reason, not the cache path it
+quotes (`Failed to read Hugging Face dataset card o/d: Permission denied`);
+`_load_dataset_card` does the same for a failed download. The model's own
+Hub requests (`huggingface_fetch.py`) were not touched.
+
+**Dataset names and the `datasets:` cap (`core/dataset_names.py`).** One
+reference per dataset: names are stripped, whitespace runs compare as one
+space, and a Hub repository id also compares without letter case; the first
+spelling is kept, in card order (the Hub lookup's own repeat-copying is
+gone: there are no repeats). A card lists at most `MAX_CARD_DATASETS` (1000,
+as the per-field cap of the model readers) distinct datasets, with one
+over-cap `WARNING:` (`FORMAT=huggingface FILE=<model URL>: larger than the
+1000-dataset model-card-datasets cap; the first 1000 kept`; a local model card:
+`FILE=<card path>`). Applies to the Hub model card and its `dataset:*` tag
+fallback, and to the local model card's enrichment (which also skips a name
+the model already has, by the same key). Not done: names from several sources
+(model's own extraction vs a card) are matched, but plain names are not
+case-folded (`My corpus` and `my corpus` are two).
+
+**YAML 1.1 corner cases** are tabled in `tests/extract/dataset/test_card_yaml.py`
+(booleans, octal-looking, dates, `null`, duplicate keys (last wins), merge
+keys, tabs, alias fan-out); no code change was needed.
+
+**Generated input.** `tests/extract/dataset/test_reader_fuzz.py`: four seeds
+of 25 inputs for each of `read_croissant`, `read_dataset_card`, the Hub card
+reader and the local model card (`random.Random(seed)`: odd types, NaN and
+huge numbers, BOM, NUL, lone surrogates, truncation, deep nesting, aliases,
+merge keys, tabs); each returns a valid, UTF-8-writable result or the
+documented `ValueError`. A one-off run of 20,000 inputs found nothing. No
+change to `fuzz/` (its harnesses are coverage-guided byte parsers).
 
 ## Order (settled)
 
