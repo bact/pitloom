@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-10
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,7 +10,8 @@ SPDX-License-Identifier: CC0-1.0
 
 See also: `../SKILL.md` ("Complete a standard's minimum elements", steps
 a-g, which hold the rules) and `minimum-elements.md` (the checklists,
-field mappings and question bank).
+field mappings; `minimum-elements-datasets.md` has the G7 Dataset Properties
+cluster, `minimum-elements-questions.md` the question bank).
 
 ## Step d: ranking the questions
 
@@ -42,8 +43,59 @@ licence element is created, and never a `SimpleLicensingText` reading
 "NOASSERTION". Pitloom itself writes no licence relationship for a licence
 nobody stated.
 
-## Optional cross-check
+## Cross-check with the checker
 
-`minimum-elements.md` also lists a manual cross-check
-(`ntia-conformance-checker`) for NTIA/CISA targets -- not a required step,
-and not wired into this skill.
+Optional, never a replacement for the mandatory `sbom-validate` pass (shape
+and SHACL validity), and not run unless the user asks for it or agrees: it
+installs a package that is not on PyPI (non-interactive: install nothing;
+run it only if `sbomcheck` is already on `PATH`, else list the commands
+below in the report). The community `ntia-conformance-checker`
+(`sbomcheck`) checks SPDX 3 against all five standards. Install the build
+Pitloom pins, with the `pip install` line on Pitloom's "G7 SBOM for AI"
+page, "Check an SBOM"
+(<https://bact.github.io/pitloom/g7-sbom-for-ai/#check-an-sbom>; it names
+the commit). Then, per standard:
+
+```bash
+sbomcheck -s spdx3 -c ntia     -r json -o ntia.json     sbom.spdx3.json  # NTIA 2021
+sbomcheck -s spdx3 -c fsct3    -r json -o fsct3.json    sbom.spdx3.json  # FSCT 2024
+sbomcheck -s spdx3 -c cisa2026 -r json -o cisa2026.json sbom.spdx3.json  # CISA 2026
+sbomcheck -s spdx3 -c g7ai     -r json -o g7ai.json     sbom.spdx3.json  # G7 SBOM for AI 2026
+sbomcheck -s spdx3 -c bsi      -r json -o bsi.json      sbom.spdx3.json  # BSI TR-03183-2 v2.1
+```
+
+`-s spdx3` is required (the default is SPDX 2). `-r` also takes `sarif`,
+`html` and `print` (the default: a text table on stdout; it and `html`
+leave out the `out-of-scope` rules). Exit status 0 means conformant, 1 not;
+read the report either way. List the rules that need work:
+
+```bash
+python3 -c "import json,sys; [print(r['id'], r['provision'], *[f['name'] for f in r['findings']]) for r in json.load(open(sys.argv[1]))['ruleResults'] if r['outcome'] == 'missing']" bsi.json
+```
+
+Each line is a rule id, its provision and the names of the packages that miss
+it (`BOM-BSI2025-COMP-004 requirement main`, from a `loom model` SBOM of an
+ONNX file named `main`); a document-level rule names no package. No output
+means nothing is missing.
+
+Outcomes: `present` (the property exists; its value is not judged),
+`missing`, `not-applicable` (nothing of that kind, e.g. no dataset, or a
+BSI "if it exists" element the package does not give) and `out-of-scope` (the
+checker does not check it: report it from `minimum-elements.md` instead, never
+as passed). A `permission` rule (BSI COMP-015 to -017) is optional.
+
+Per `missing` rule, look the element up in `minimum-elements.md` and do the
+first that fits:
+
+1. **Pitloom can fill it from the project**: say which setting or input
+   (`[[tool.pitloom.creator]]`, an e-mail in `[project].authors`, a `LICENSE`
+   copyright line, a run without `--offline` for PyPI data, with the user's
+   consent) and regenerate.
+2. **A fragment can carry it** (project-directory base only): draft it from a
+   local source or the user's answer (steps 6-10, step d's question bank),
+   e.g. a `hasConcludedLicense`, a `dependsOn` with `completeness`, a
+   distribution `software_File` with its SHA-512. Then re-run the checker.
+3. **Otherwise report it as an open gap**, saying why: the user declined or
+   could not answer; the base cannot merge a fragment (`loom model`, a wheel);
+   no source exists (a dependency's SHA-512); SPDX 3.0.1 cannot record it
+   (`out-of-scope` rules). Never write a placeholder to turn a rule `present`.

@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-15
+# Last-Modified: 2026-10-18
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -14,8 +14,8 @@ description: >-
   SBOM of this model", "SPDX 3 document", "software bill of materials",
   "dependency inventory", "AIBOM", "document this model's provenance". Also
   combined asks (then hand off to sbom-enrich): "generate SBOM and enrich
-  it", "complete/full SBOM", "SBOM meeting CISA 2026/NTIA/G7 minimum
-  elements". Also PEP 770 wheel embedding ("embed the SBOM in this wheel",
+  it", "complete/full SBOM", "SBOM meeting NTIA/FSCT/CISA 2026/G7/BSI
+  minimum elements". Also PEP 770 wheel embedding ("embed the SBOM in this wheel",
   "put the SBOM in dist/*.whl", "embed-wheel", "signed wheel / RECORD.jws",
   "--allow-signed-wheel"),
   --allow-build/--build-timeout ("generate with a real build", "the build is
@@ -108,8 +108,6 @@ spec, not the user's installed `loom`. Where the version matters (a
 merge or re-run must reproduce a base SBOM's ids), pin the installed
 one: `"pitloom==X.Y.Z"`, `X.Y.Z` being the number `loom --version` prints
 (`Pitloom X.Y.Z`).
-
-`loom` and `pitloom` are one console-script entry point.
 
 ## Smart Entrypoint: `loom generate`
 
@@ -297,7 +295,8 @@ name names no top-level .dist-info` case: `references/known-limitations.md`
 - `-v` / `--verbose` -- log effective options as `INFO:` lines (sources
   only for `project`/`generate` on a project or sdist; a no-effect
   `WARNING:` on `embed-wheel` and `generate` elsewhere).
-- `--creator-name NAME`, `--creator-email EMAIL` -- name who created the SBOM.
+- `--creator-name NAME`, `--creator-type TYPE`, `--creator-email EMAIL` --
+  who created the SBOM (BSI: a person or organisation with an e-mail).
 - `--enrich` / `--no-enrich` -- Pitloom's own deterministic, local,
   frontmatter-only enrichment pass, in the same generate call. Add it only
   for a project directory or a local model file: on a wheel, env, sdist
@@ -344,7 +343,7 @@ just runs the base generate command.
 | :--- | :--- |
 | Light: "...and enrich it", "with enrichment" | `loom generate <target> --enrich -o sbom.spdx3.json`. Pitloom's own local pass (`enrich/readme.py`): no prose, no network, no separate skill. |
 | Strong: "complete", "full SBOM", "as much detail/information as possible" | Generate with `--enrich` too, then invoke `sbom-enrich` on the result for the agentic pass: README/model-card *prose*, inferred licence and dataset relationships. Costs more (agent reasoning, and outside sources such as PyPI/Hugging Face, each consent-gated by `sbom-enrich` step 5). Reasonable for an explicit "as much as possible", not for a bare "generate an SBOM". |
-| Named standard: "meets NTIA requirements", "with CISA 2026 minimum elements", "AIBOM compliant with G7 SBOM for AI" | Generate with `--enrich` too, then invoke `sbom-enrich`'s "Complete a standard's minimum elements" section on the result. Don't stop at the base `loom generate` call. |
+| Named standard (NTIA 2021, FSCT 2024, CISA 2026, G7 SBOM for AI 2026, BSI TR-03183-2): "meets NTIA requirements", "with CISA 2026 minimum elements", "FSCT/BSI/G7 compliant" | Generate with `--enrich` too, then run `sbom-enrich`'s "Complete a standard's minimum elements" on the result, not just `loom generate`. |
 
 `--enrich` only applies to a project directory or local model file (see
 "Useful flags"); for any other target, skip it and go straight to the
@@ -479,7 +478,8 @@ skills point here for the same rule.
   `--build-timeout` value.
   <https://github.com/bact/pitloom/blob/main/skills/sbom-generate/references/build-timeout.md>
 - The sibling `sbom-enrich` skill -- the agentic enrichment pass and the
-  NTIA/CISA/G7 "Complete a standard's minimum elements" section.
+  "Complete a standard's minimum elements" section (NTIA, FSCT, CISA,
+  G7, BSI).
   <https://github.com/bact/pitloom/blob/main/skills/sbom-enrich/SKILL.md>
 - The sibling `sbom-validate` skill -- schema/SHACL conformance check for
   any SBOM this skill produces.

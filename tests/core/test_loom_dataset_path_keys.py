@@ -33,6 +33,7 @@ from pitloom.cli.parser import _build_parser
 from pitloom.core.config import PitloomConfig
 from pitloom.core.dataset_hash import hash_dataset
 from pitloom.id_registry import DATASET_PACKAGE_TYPE, FILE_TYPE, IdRegistry, keys
+from tests.hash_helpers import algorithms, file_hashes_json
 from tests.registry_helpers import Entries, make_registry
 
 from .conftest import _relationships
@@ -327,7 +328,12 @@ def test_id_generate_pin_hits_the_loom_package(project: Path, name: str) -> None
 
     (package,) = _of(graph, "dataset_DatasetPackage")
     assert package["spdxId"] == pin.spdx_id
-    assert [h["hashValue"] for h in package["verifiedUsing"]] == [pin.sha256]
+    assert package["verifiedUsing"][0]["hashValue"] == pin.sha256
+    # A file adds the SHA-512 of the same read; a Merkle root has none.
+    if name == "corpus":
+        assert algorithms(package) == ["sha256"]
+    else:
+        assert package["verifiedUsing"] == file_hashes_json(_CONTENT)
 
 
 def test_dataset_file_found_through_the_layout_alias_says_so_once(

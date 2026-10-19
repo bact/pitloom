@@ -22,12 +22,11 @@ from pathlib import Path
 
 from pitloom.core.project import ConflictCandidate, ProjectMetadata, provenance_key_for
 from pitloom.extract._extract_utils import field_declared
-from pitloom.extract._license import classify_license
+from pitloom.extract._license import classify_license, is_weak_licence
 from pitloom.extract.project._field_agreement import (
     CONFLICT_CHECKED_FIELDS,
     GAP_FILL_ONLY_FIELDS,
     add_conflict,
-    is_weak_licence,
     values_agree,
 )
 

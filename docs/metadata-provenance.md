@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -108,6 +108,7 @@ value, not just where it read it from. Values in use today:
 | `array_length` | A GGUF array field: only its element count is recorded (property `<key>.length`); the elements are not recorded. |
 | `crfsuite_model_type` | A CRFsuite model's type of model, `conditional random field`, derived from the header's model type (`FOMC`, a first-order Markov CRF, the only type CRFsuite writes). |
 | `generated_from_labels` | A CRFsuite model's description, written by Pitloom from the model's labels (the file has no description): the label count and the first 20 labels, each cut to 64 characters. |
+| `derived_from_format` | A value the file does not state but its format fixes: a fastText model's domain (from `args.model`) and output (`label_probabilities`, supervised models), and a CRFsuite model's output (`label_sequence`, one label per input item). |
 | `resolved_lockfile` | A dependency version pinned by a lock file (`pylock.toml`, `uv.lock`, `poetry.lock` and similar), not by the project's own requirement specifier. |
 | `pinned_requirements` | A dependency version pinned with `==` or `===` in a `requirements.txt`; weaker evidence than a real lock file, so tagged separately. |
 | `pdm_dynamic_version` | A PDM dynamic `version`, resolved from `[tool.pdm.version]` with PDM's own resolver; the tag ends with the declared source in parentheses, e.g. `pdm_dynamic_version(file)`. |

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-16
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -44,9 +44,9 @@ file key's id).
 ## Content gates
 
 A **model** lookup is gated by content. The `ai_AIPackage` carries the model
-file's SHA-256 as `verifiedUsing` (every route that reads the file;
+file's SHA-256 (and its SHA-512) as `verifiedUsing` (every route that reads the file;
 `enrich`, which makes no `ai_AIPackage`, uses only the gate), and the registry
-entry records it. Retrained bytes at the same path get a new id. `project`, `wheel`, `model` and
+entry records the SHA-256. Retrained bytes at the same path get a new id. `project`, `wheel`, `model` and
 the other generating routes say `INFO: ID registry: model <name>: no registry
 entry records its SHA-256; a new id is used` when an entry exists under the key
 but records no, or another, hash; `id generate` and `loom.Run` say `content

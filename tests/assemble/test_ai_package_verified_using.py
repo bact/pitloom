@@ -242,8 +242,10 @@ def test_an_unreadable_model_file_is_neither_hashed_nor_gated(
     make_registry(
         {(AI_PACKAGE_TYPE, _KEYS[route]): (_PIN, None)}, path=tmp_path / "ids.json"
     )
+    # The SBOM route reads both digests at once, the gate-only route SHA-256.
+    reader = "file_digests" if route == "model" else "sha256_digest"
     with patch(
-        "pitloom.assemble._model_generator.sha256_digest",
+        f"pitloom.assemble._model_generator.{reader}",
         autospec=True,
         side_effect=PermissionError(13, "Permission denied"),
     ):
@@ -258,8 +260,14 @@ def test_an_unreadable_model_file_is_neither_hashed_nor_gated(
 
 def test_enrich_without_a_registry_hashes_nothing(tmp_path: Path) -> None:
     """The fragment has no package to verify: the hash only gates a lookup."""
-    with patch(
-        "pitloom.assemble._model_generator.sha256_digest", autospec=True
-    ) as digest:
+    with (
+        patch(
+            "pitloom.assemble._model_generator.sha256_digest", autospec=True
+        ) as digest,
+        patch(
+            "pitloom.assemble._model_generator.file_digests", autospec=True
+        ) as digests,
+    ):
         enrich_model(_model_file(tmp_path, _OLD))
     digest.assert_not_called()
+    digests.assert_not_called()

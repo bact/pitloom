@@ -19,7 +19,6 @@ import pytest
 
 from pitloom import __main__
 from pitloom.cli.commands.fragment import _run_fragment_command
-from tests._network import skip_if_network_failure
 from tests.kv_helpers import info_lines, kv_stdout
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
@@ -27,23 +26,17 @@ VALID_FRAGMENT = FIXTURE_DIR / "fragments" / "dataset-fragment.spdx3.json"
 CONFLICTING_FRAGMENT = FIXTURE_DIR / "fragments" / "training-run-fragment.spdx3.json"
 
 
-@pytest.mark.network
+@pytest.mark.usefixtures("offline_spdx3_validate")
 def test_fragment_validate_command_success(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """A valid SPDX 3 document exits 0 and reports success on stdout.
-
-    Needs a live socket: spdx3-validate fetches its JSON Schema from
-    schema_url rather than shipping it bundled.
-    """
+    """A valid SPDX 3 document exits 0 and reports success on stdout."""
     monkeypatch.setattr(
         "sys.argv", ["loom", "fragment", "validate", str(VALID_FRAGMENT)]
     )
     result = __main__.main()
     captured = capsys.readouterr()
-    if result != 0:
-        skip_if_network_failure(captured.err)
     assert result == 0
 
     assert kv_stdout(captured.out) == [{"FILE": str(VALID_FRAGMENT), "STATUS": "valid"}]
@@ -69,7 +62,7 @@ def test_fragment_validate_command_invalid_document(
         assert line.startswith("ERROR: ")
 
 
-@pytest.mark.network
+@pytest.mark.usefixtures("offline_spdx3_validate")
 def test_fragment_validate_command_multiline_shacl_error_every_line_tagged(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -77,9 +70,6 @@ def test_fragment_validate_command_multiline_shacl_error_every_line_tagged(
     """A SHACL violation's message embeds newlines (Severity/Source
     Shape/Focus Node breakdown); every resulting stderr line must carry
     its own ERROR: tag, not just the finding's first line.
-
-    Needs a live socket: spdx3-validate fetches its JSON Schema from
-    schema_url rather than shipping it bundled.
     """
     monkeypatch.setattr(
         "sys.argv",
@@ -93,7 +83,6 @@ def test_fragment_validate_command_multiline_shacl_error_every_line_tagged(
     )
     result = __main__.main()
     captured = capsys.readouterr()
-    skip_if_network_failure(captured.err)
     assert result == 1
 
     lines = captured.err.splitlines()
@@ -184,24 +173,18 @@ def test_fragment_validate_command_missing_dependency_and_bad_path(
     assert f"ERROR: file not found: {missing_path}" in captured.err
 
 
-@pytest.mark.network
+@pytest.mark.usefixtures("offline_spdx3_validate")
 def test_fragment_validate_command_no_merge_flag(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """--no-merge is passed through as check_merged=False.
-
-    Needs a live socket: spdx3-validate fetches its JSON Schema from
-    schema_url rather than shipping it bundled.
-    """
+    """--no-merge is passed through as check_merged=False."""
     monkeypatch.setattr(
         "sys.argv",
         ["loom", "fragment", "validate", str(VALID_FRAGMENT), "--no-merge"],
     )
     result = __main__.main()
     captured = capsys.readouterr()
-    if result != 0:
-        skip_if_network_failure(captured.err)
     assert result == 0
 
     assert kv_stdout(captured.out) == [{"FILE": str(VALID_FRAGMENT), "STATUS": "valid"}]

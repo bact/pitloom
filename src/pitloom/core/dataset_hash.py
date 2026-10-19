@@ -32,7 +32,11 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePath
 from typing import Literal
 
-from pitloom.core.file_hash import ReadBudgetExceeded, sha256_digest_and_size
+from pitloom.core.file_hash import (
+    ReadBudgetExceeded,
+    file_digests,
+    sha256_digest_and_size,
+)
 from pitloom.core.model_extract_limit import MAX_DATASET_HASH_BYTES_KEY
 from pitloom.core.models import merkle_root
 from pitloom.core.path_probe import (
@@ -68,12 +72,16 @@ class DatasetDigest:
         file_count: The files *hex_digest* covers.
         excluded: The walk met the *exclude* file below the directory and
             left it out, whether or not a root came of it.
+        hex_sha512: The file's SHA-512 from the same read, lowercase hex,
+            when :func:`hash_dataset` was asked for it (*sha512*); never
+            for a directory (a Merkle root is SHA-256 only).
     """
 
     kind: Literal["file", "dir"] | None
     hex_digest: str | None = None
     file_count: int = 0
     excluded: bool = False
+    hex_sha512: str | None = None
 
 
 class _Unlistable(Exception):
@@ -118,12 +126,13 @@ def _warn_unreadable(where: str, exc: OSError) -> None:
 
 
 def hash_dataset(
-    path: Path, *, max_bytes: int, exclude: Path | None = None
+    path: Path, *, max_bytes: int, exclude: Path | None = None, sha512: bool = False
 ) -> DatasetDigest:
     """Hash the dataset at *path* (absolute, or relative to the current
     directory).
 
-    - A regular file: its SHA-256.
+    - A regular file: its SHA-256, and with *sha512* its SHA-512 from the
+      same read (for a file an SBOM describes; a lookup key needs none).
     - A directory: the Merkle root over the regular files below it. Below
       *path*, a directory named in
       :data:`~pitloom.core.walk_rules.IGNORED_DIR_NAMES` is pruned and a
@@ -144,7 +153,7 @@ def hash_dataset(
     where = os.fspath(path)
     try:
         if is_regular_file(path):
-            return _hash_file(where, max_bytes)
+            return _hash_file(where, max_bytes, sha512=sha512)
     except ValueError:  # a NUL: a name, not a path
         return DatasetDigest(None)
     except OSError as exc:  # present, but stat() fails
@@ -155,13 +164,19 @@ def hash_dataset(
     return DatasetDigest(None)
 
 
-def _hash_file(where: str, max_bytes: int) -> DatasetDigest:
-    """The SHA-256 of the regular file *where*, within *max_bytes*."""
+def _hash_file(where: str, max_bytes: int, *, sha512: bool) -> DatasetDigest:
+    """The SHA-256 (with *sha512*, the SHA-512 too) of the regular file
+    *where*, within *max_bytes*."""
     try:
         if _file_size(where) > max_bytes:
             _warn_over_ceiling("FILE", where, max_bytes)
             return DatasetDigest("file")
-        digest, _read = sha256_digest_and_size(where, max_bytes=max_bytes)
+        if sha512:
+            digests = file_digests(where, max_bytes=max_bytes).hex()
+            hex_digest, hex_sha512 = digests.sha256, digests.sha512
+        else:
+            hex_digest = sha256_digest_and_size(where, max_bytes=max_bytes)[0].hex()
+            hex_sha512 = None
     except ReadBudgetExceeded:
         _warn_over_ceiling("FILE", where, max_bytes)
         return DatasetDigest("file")
@@ -170,7 +185,7 @@ def _hash_file(where: str, max_bytes: int) -> DatasetDigest:
             return DatasetDigest(None)
         _warn_unreadable(where, exc)
         return DatasetDigest("file")
-    return DatasetDigest("file", digest.hex(), 1)
+    return DatasetDigest("file", hex_digest, 1, hex_sha512=hex_sha512)
 
 
 @dataclass

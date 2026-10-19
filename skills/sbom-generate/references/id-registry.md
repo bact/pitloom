@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -63,7 +63,8 @@ every key, so every command and the Python SDK agree on it.
   adopts the digest and keeps the id (`INFO: ... pin now gated by its
   SHA-256`), unless the entry already records another digest (new id). A
   dataset that is one file also has a `software_File` (the package `contains`
-  it); a dataset directory gets a Merkle root and no file elements. Run-time harvest never records a dataset package.
+  it); a dataset directory gets a Merkle root and no file elements. Run-time
+  harvest never records a dataset package.
   `loom id generate <dataset-dir>` does **not** pin the package (it indexes
   the files below it as `software_File`s). Pin it with `loom id generate -e
   NAME:dataset_DatasetPackage -o <registry>` (an existing `NAME` is stored as
@@ -174,7 +175,8 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   and the run continues (so does a file whose name is not UTF-8 encodable); an
   unreadable `PATH` argument is `ERROR: PATH <path>: could not be read: ...`
   (an unreadable default directory is only the `DIR=` warning). An explicit
-  `PATH` that is or lies in a skipped directory (`build`, `dist`, ...) indexes nothing and warns
+  `PATH` that is or lies in a skipped directory (`build`, `dist`, ...) indexes
+  nothing and warns
   `ID registry: path has a skipped directory name (build), skipping: <path>`.
   Neither command rewrites an unchanged registry, and `id import` keeps the
   namespace it adopted unless another run changed it meanwhile.
@@ -191,8 +193,8 @@ The file is JSON with `version: 3`, `namespace`, `project_root`, an
 `elements` table and `id_counters` (per id prefix, the highest number
 issued, so a retired id is never minted again; do not lower or drop it by
 hand: a file without it does not load; neither does one with a non-integer
-`version` or a repeated JSON key). A **version 2** registry (a committed file from an
-earlier release, with `files` and `entities`) is rejected, on every
+`version` or a repeated JSON key). A **version 2** registry (a committed file
+from an earlier release, with `files` and `entities`) is rejected, on every
 command, with one `ERROR:` and nothing written. `id generate`/`id import` print
 it as below; other commands prefix their own (`ERROR: SBOM generation
 failed: ...`):
@@ -207,8 +209,8 @@ the format. Relay the `ERROR:`. Deleting the file loses its pins
 (every id is minted again), so ask first. If the user agrees: delete the file,
 then re-run `loom id generate <PATH> -o <REGISTRY>` (add `-e` as before),
 or `loom id import <SBOM> -o <REGISTRY>` to carry an earlier SBOM's ids
-over (same path as the deleted file). Non-interactive: stop, report the `ERROR:` and both commands, change
-nothing. Never convert the file by hand.
+over (same path as the deleted file). Non-interactive: stop, report the
+`ERROR:` and both commands, change nothing. Never convert the file by hand.
 
 A newly created, undeclared registry prints one of these lines -- relay it
 verbatim (the second when the project already declares a different
@@ -243,9 +245,9 @@ from pitloom import loom
 
 with loom.run("fragments/train.spdx3.json", id_registry="loom-id-registry.json"):
     loom.add_input_dataset("data/train.txt")
-    loom.set_model("my-model", path="model.bin")   # path= : hashed at exit
-    train()                                        # writes model.bin, out/pred.csv
-    loom.add_output_dataset("out/pred.csv")        # declare AFTER writing
+    loom.set_model("my-model", path="model.bin")  # path= : hashed at exit
+    train()  # writes model.bin, out/pred.csv
+    loom.add_output_dataset("out/pred.csv")  # declare AFTER writing
 ```
 
 - `id_registry=` takes a path (relative to the current directory) or an

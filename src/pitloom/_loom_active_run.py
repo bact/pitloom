@@ -27,6 +27,7 @@ from pitloom._loom_caller import (
     _record_hyperparameter_provenance,
 )
 from pitloom._loom_dataset import LoomElements
+from pitloom._loom_dataset_meta import read_sources
 from pitloom._loom_model import LoomModels
 from pitloom._sbom_io import write_text_lf
 from pitloom.assemble.spdx3.creation_info import build_creation_info
@@ -203,39 +204,90 @@ class _ActiveRun:
         self.models.set_hyperparameters(hyperparameters, _get_caller_info())
 
     def _build_dataset_package(
-        self, name: str, dataset_type: str
+        self,
+        name: str,
+        dataset_type: str,
+        croissant: str | os.PathLike[str] | None,
+        declared_license: str | None,
     ) -> spdx3.dataset_DatasetPackage:
         """Build a ``dataset_DatasetPackage`` for *name* (see
-        :meth:`~pitloom._loom_dataset.LoomElements.dataset`)."""
-        return self.elements.dataset(name, dataset_type, _get_caller_info())
+        :meth:`~pitloom._loom_dataset.LoomElements.dataset`), with what its
+        sources state (:func:`~pitloom._loom_dataset_meta.read_sources`)."""
+        caller_info = _get_caller_info()
+        sources = read_sources(
+            name,
+            croissant=croissant,
+            declared_license=declared_license,
+            caller_info=caller_info,
+        )
+        return self.elements.dataset(name, dataset_type, caller_info, sources)
 
-    def add_dataset(self, name: str, dataset_type: str = "text") -> None:
+    def add_dataset(
+        self,
+        name: str,
+        dataset_type: str = "text",
+        *,
+        croissant: str | os.PathLike[str] | None = None,
+        declared_license: str | None = None,
+    ) -> None:
         """Add a dataset used for training in the current run."""
-        _append_once(self.datasets, self._build_dataset_package(name, dataset_type))
+        _append_once(
+            self.datasets,
+            self._build_dataset_package(
+                name, dataset_type, croissant, declared_license
+            ),
+        )
 
-    def add_validation_dataset(self, name: str, dataset_type: str = "text") -> None:
+    def add_validation_dataset(
+        self,
+        name: str,
+        dataset_type: str = "text",
+        *,
+        croissant: str | os.PathLike[str] | None = None,
+        declared_license: str | None = None,
+    ) -> None:
         """Add a dataset used for validation/testing."""
         _append_once(
-            self.validation_datasets, self._build_dataset_package(name, dataset_type)
+            self.validation_datasets,
+            self._build_dataset_package(
+                name, dataset_type, croissant, declared_license
+            ),
         )
 
-    def add_input_dataset(self, name: str, dataset_type: str = "text") -> None:
+    def add_input_dataset(
+        self,
+        name: str,
+        dataset_type: str = "text",
+        *,
+        croissant: str | os.PathLike[str] | None = None,
+        declared_license: str | None = None,
+    ) -> None:
         """Declare a raw/source dataset consumed by a preprocessing step."""
         _append_once(
-            self.input_datasets, self._build_dataset_package(name, dataset_type)
+            self.input_datasets,
+            self._build_dataset_package(
+                name, dataset_type, croissant, declared_license
+            ),
         )
 
+    # pylint: disable-next=too-many-arguments
     def add_output_dataset(
         self,
         name: str,
         dataset_type: str = "text",
         data_preprocessing: list[str] | None = None,
         input_datasets: list[str] | None = None,
+        *,
+        croissant: str | os.PathLike[str] | None = None,
+        declared_license: str | None = None,
     ) -> None:
         """Declare a derived/processed dataset produced by a preprocessing step."""
-        dataset_pkg = self._build_dataset_package(name, dataset_type)
+        dataset_pkg = self._build_dataset_package(
+            name, dataset_type, croissant, declared_license
+        )
         if data_preprocessing is not None:
             dataset_pkg.dataset_dataPreprocessing = data_preprocessing
+            self.elements.declare_preprocessing(dataset_pkg)
 
         self._add_output(dataset_pkg, input_datasets)
 
@@ -350,6 +402,7 @@ class _ActiveRun:
         self._emit_model_dataset_relationships()
         self._emit_output_input_dataset_relationships()
         self._emit_script_file_and_generates()
+        self.elements.finish()
 
         output_path = Path(self.output_file)
         output_path.parent.mkdir(parents=True, exist_ok=True)

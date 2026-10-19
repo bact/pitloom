@@ -38,3 +38,12 @@ SPDX-License-Identifier: CC0-1.0
     - Real `pyproject.toml` files of published packages that declare
       extras, one or more per build backend, for extras-reader testing
     - [Details](./real-world-extras/README.md)
+10. SPDX model snapshot (`spdx-model/`)
+    - Unmodified SPDX 3.0.1 context, SHACL model and JSON schema
+      (Community-Spec-1.0), for offline `spdx3-validate` runs
+    - [Details](./spdx-model/README.md)
+11. Conformance fixtures (`conformance/`)
+    - Expected G7 SBOM for AI, CISA 2026, FSCT 2024 and BSI rule outcomes per
+      scenario and snapshots of their SPDX 3.0 mappings, for
+      `tests/conformance/`
+    - [Details](./conformance/README.md)

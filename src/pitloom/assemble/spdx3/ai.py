@@ -34,7 +34,7 @@ from pitloom.assemble.spdx3._ai_package import (
 from pitloom.assemble.spdx3._display_text import LICENSE
 from pitloom.assemble.spdx3.creation_info import build_enrichment_elements
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
-from pitloom.assemble.spdx3.deps_license import build_license_elements
+from pitloom.assemble.spdx3.deps_license import add_license_relationships
 from pitloom.assemble.spdx3.provenance import (
     ProvenanceEncoder,
     build_enrichment_annotation,
@@ -46,7 +46,7 @@ from pitloom.core.project import ProjectFile
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.enrich.base import EnrichmentResult
-from pitloom.export.hashes import sha256_of
+from pitloom.export.hashes import file_digests_of
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
@@ -107,29 +107,16 @@ def add_model_license(
     *default_source* is the provenance when the model records none."""
     if not ai_model.license:
         return []
-    creation_info, doc_name, doc_uuid = doc
-    relationships = build_license_elements(
-        license_id=ai_model.license,
-        package_spdx_id=package_spdx_id,
-        license_provenance=ai_model.provenance.get("license", default_source),
-        creation_info=creation_info,
-        doc_name=doc_name,
-        doc_uuid=doc_uuid,
-        exporter=exporter,
-        provenance_config=config,
-        encoder=encoder,
+    licenses = add_license_relationships(
+        ai_model.license,
+        package_spdx_id,
+        ai_model.provenance.get("license", default_source),
+        doc,
+        exporter,
+        config,
+        encoder,
     )
-    licenses: dict[str, spdx3.Element] = {}
-    for rel in relationships:
-        if rel is None:
-            continue
-        exporter.add_relationship(rel)
-        for target in rel.to:
-            target_id = target if isinstance(target, str) else require_spdx_id(target)
-            element = exporter.object_set.find_by_id(target_id)
-            if isinstance(element, spdx3.Element):
-                licenses[target_id] = element
-    return [(LICENSE, licenses[key]) for key in sorted(licenses)]
+    return [(LICENSE, element) for element in licenses]
 
 
 def _ai_model_label(ai_model: AiModelMetadata, index: int) -> str:
@@ -327,8 +314,9 @@ def _add_single_ai_model(
 
     *entity_spdx_id* is the pre-resolved registry hit from
     :func:`resolve_ai_model_entity_hits` (or ``None`` on a miss) -- never
-    looked up here. The package's ``verifiedUsing`` is the SHA-256 of the
-    model's own ``software_File`` in the document, when it has one."""
+    looked up here. The package's ``verifiedUsing`` is the SHA-256 and
+    SHA-512 of the model's own ``software_File`` in the document, when it
+    has one (new ``Hash`` elements, never shared with the file's)."""
     file_id = _of_model_file(ai_model, file_spdx_ids)
     ai_pkg = _build_ai_package(
         ai_model,
@@ -339,7 +327,7 @@ def _add_single_ai_model(
         digest=(
             None
             if file_id is None
-            else sha256_of(exporter.object_set.find_by_id(file_id))
+            else file_digests_of(exporter.object_set.find_by_id(file_id))
         ),
     )
     exporter.add_package(ai_pkg)

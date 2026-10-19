@@ -114,7 +114,10 @@ def test_provenance_cites_where_each_value_came_from(
         "format_version": f"{src} | Field: version",
         "type_of_model": f"{src} | Field: header.type | Method: crfsuite_model_type",
         "description": f"{src} | Field: labels CQDB | Method: generated_from_labels",
-        "outputs": f"{src} | Field: header.type (one label per item)",
+        "outputs": (
+            f"{src} | Field: header.type (one label per item)"
+            " | Method: derived_from_format"
+        ),
         "properties.labels": f"{src} | Field: labels CQDB",
         "properties.model_type": f"{src} | Field: header.type",
         "properties.num_attributes": f"{src} | Field: header.num_attrs",

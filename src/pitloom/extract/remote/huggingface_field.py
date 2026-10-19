@@ -34,9 +34,11 @@ from pitloom.core.model_parameters import (
     ParameterCountRejected,
     stated_parameter_count,
 )
+from pitloom.core.purl import commit_hash
 from pitloom.extract._extract_utils import record_dict_field_provenance
 from pitloom.extract.ai_model.parameter_count import warn_parameter_count
-from pitloom.extract.remote.huggingface_fetch import _extract_card_description
+from pitloom.extract.dataset.values import stated_texts
+from pitloom.extract.remote._card_description import card_description
 
 _log = logging.getLogger(__name__)
 
@@ -146,7 +148,7 @@ def _extract_description(
     card_text: str | None = hf_data.get("card_text")
     if not card_text:
         return None
-    desc = _extract_card_description(card_text)
+    desc = card_description(card_text)
     if desc:
         provenance["description"] = "Source: Hugging Face Hub | Field: model card"
     return desc
@@ -256,7 +258,10 @@ def _extract_datasets(
     """Return a list of training dataset references."""
     card_data: dict[str, Any] = hf_data.get("card_data") or {}
     datasets: list[DatasetReference] = []
-    card_dataset_ids = [str(ds) for ds in (card_data.get("datasets") or [])]
+    # A card may state one dataset as a bare string; non-text items are left out.
+    card_dataset_ids = stated_texts(
+        card_data.get("datasets"), "Hugging Face model card", "datasets", split=False
+    )
 
     if card_dataset_ids:
         for ds_name in card_dataset_ids:
@@ -369,6 +374,31 @@ def hub_producer_and_count(
             + TENSOR_ELEMENT_SUM_METHOD
         )
     return HubProducer(originators, supplier, count)
+
+
+class HubRevision(NamedTuple):
+    """What the Hub states of the model revision it served."""
+
+    version: str | None  # the commit hash, when it is one
+    release_time: str | None  # the revision's commit time, ISO 8601 as stated
+
+
+def hub_revision(hub_info: dict[str, Any], provenance: dict[str, str]) -> HubRevision:
+    """Read the revision's commit hash and time from *hub_info*, recording
+    their provenance. Either is ``None``, silently, when the Hub gave none (the
+    time is parsed where it is written, with the other SBOM times)."""
+    version = commit_hash(hub_info.get("sha"))
+    if version:
+        provenance["version"] = "Source: Hugging Face Hub | Field: model_info sha"
+    stated = hub_info.get("last_modified")
+    release_time = (
+        stated.strip() if isinstance(stated, str) and stated.strip() else None
+    )
+    if release_time:
+        provenance["release_time"] = (
+            "Source: Hugging Face Hub | Field: model_info last_modified"
+        )
+    return HubRevision(version, release_time)
 
 
 def _populate_hub_info(extra_data: dict[str, Any], hub_info: dict[str, Any]) -> None:

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-09-28
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -87,11 +87,12 @@ file-size guidance -- moved verbatim, no content changed.
   now populate SPDX 3 `verifiedUsing`, taking priority over a PyPI JSON API
   lookup even online.
   See [lock-hash-preservation.md](../implementation/lock-hash-preservation.md).
-- [ ] **SHA-512 / BSI TR-03183-2 `verifiedUsing`** -- no lock format or the
-  PyPI JSON API carries a SHA-512 digest; producing one means downloading the
-  artefact and hashing it, a heavier feature than the SHA-256 lock-hash
-  preservation above. `Element.verifiedUsing`'s 0..* cardinality means this
-  can append to the same list without restructuring it.
+- [x] **SHA-512 / BSI TR-03183-2 `verifiedUsing` for dependencies**: decided
+  2026-10-18 to leave it unspecified. No lock format or the PyPI JSON API
+  carries a SHA-512 digest, and Pitloom does not download artefacts to compute
+  one; a dependency has the hash its source states (SHA-256) and BSI reports
+  the SHA-512 requirement `missing` for it. Files Pitloom reads itself carry
+  both. Revisit only if a lock format or index starts to state a SHA-512.
   See [lock-hash-preservation.md](../implementation/lock-hash-preservation.md#scope).
 - [ ] **Transitive dependency resolution and lock-hash support in Hatchling build hook** --
   gather transitive dependencies down the n-level dependency tree during build-stage

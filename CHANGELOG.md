@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -39,6 +39,12 @@ and this project adheres to
   `update-id-registry`, `max-dataset-hash-bytes`) ([#305])
 - An AI model's producer is `originatedBy` (the Hub owner also `suppliedBy`);
   its parameter count an `ai_hyperparameter` `parameters` entry ([#306])
+- SHA-512 beside SHA-256 for every file Pitloom reads itself ([#309])
+- Dataset licence and metadata from Croissant (`loom.run`), local cards and Hub
+  dataset cards; several licences are several declared licences ([#309])
+- G7, CISA 2026, FSCT 2024 and BSI conformance tests and expected tables
+  ([#309])
+- One `INFO:` per model whose architecture goes into `ai_typeOfModel` ([#309])
 
 ### Changed
 
@@ -74,6 +80,8 @@ and this project adheres to
 - ID registry keys files, models and datasets by path (one id on every
   surface), gated by SHA-256; `src/`/`lib/` alias; a `set_model()` name wins
   a merge; `wheel`/`project <sdist>` take `--project-dir` ([#308])
+- `--content-type-method` and `--creator-type` list their choices sorted; a card
+  description skips tables of contents, HTML and badges ([#309])
 
 ### Fixed
 
@@ -117,6 +125,7 @@ and this project adheres to
 [#305]: https://github.com/bact/pitloom/pull/305
 [#306]: https://github.com/bact/pitloom/pull/306
 [#308]: https://github.com/bact/pitloom/pull/308
+[#309]: https://github.com/bact/pitloom/pull/309
 
 ## [0.20.2] - 2026-10-09
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -110,6 +110,54 @@ drift is silent.
   first" wording were trimmed or shortened. A v2 registry file now fails
   with an `ERROR:`; the skill relays it and deletes the file only if the
   user agrees (non-interactive: change nothing).
+- **Five standards (2026-10-18).** User decision: the skills name every
+  standard the pinned `ntia-conformance-checker` checks on SPDX 3: NTIA 2021
+  (`ntia`), FSCT 2024 (`fsct3`), CISA 2026 (`cisa2026`), G7 SBOM for AI 2026
+  (`g7ai`) and BSI TR-03183-2 v2.1 (`bsi`). New trigger phrasings:
+
+  | Skill | Phrasing added | Covers |
+  | :--- | :--- | :--- |
+  | enrich | standard list "NTIA 2021, FSCT 2024, CISA 2026, G7 SBOM for AI 2026, BSI TR-03183-2" | all five by name |
+  | enrich | "is this SBOM CISA 2026/FSCT compliant" | FSCT, CISA 2026 |
+  | enrich | "does it meet BSI TR-03183" | BSI |
+  | enrich | "check this SBOM against NTIA/CISA/G7 AI" | NTIA, CISA, G7 |
+  | enrich | "make this SBOM meet NTIA minimum elements" | NTIA |
+  | generate | "SBOM meeting NTIA/FSCT/CISA 2026/G7/BSI minimum elements" | combined ask, all five |
+  | validate | "Not for NTIA, FSCT, CISA 2026, G7 AI or BSI completeness (sbom-enrich)" | routing away from validate |
+
+  Lengths (YAML parsed, of 1024): enrich 987 to 1005, generate 1008 to
+  1017, validate 976 to 999. Phrasings no longer literally present in
+  enrich: "make this SBOM meet NTIA standard" (now "...NTIA minimum
+  elements"), "what's missing for CISA/NTIA compliance" (now "what's
+  missing for compliance"), "check this SBOM against NTIA/CISA minimum
+  elements" (now "...NTIA/CISA/G7 AI"); "complete the minimum elements" and
+  "help filling minimum elements" are kept as "complete/help filling the
+  minimum elements". The `sbom-generate` hand-off table row names all five;
+  its body is 24,554 of the 24 KiB ratchet (the duplicate "`loom` and
+  `pitloom` are one console-script entry point" line was dropped to fit), so
+  its next addition must move text to `references/` first. Verify (structural)
+  vs validate (schema/SHACL) stays in `sbom-validate`'s description; its body
+  now says a named-standard completeness ask is `sbom-enrich`'s. No CLI
+  subcommand changed (`add_parser(` list as before). Each element's SPDX 3
+  field, what Pitloom fills and whether the checker checks it:
+  `skills/sbom-enrich/references/minimum-elements.md`; the checker recipe
+  (install pointer to the user page "G7 SBOM for AI", so the pinned commit
+  lives in `pyproject.toml` and that page only; `sbomcheck -c <id>`; reading
+  `ruleResults`; what to do per `missing` rule; a non-interactive fallback
+  that installs nothing) is in `minimum-elements-workflow.md`. Every recipe
+  was run on 2026-10-18 (Pitloom 0.20.2, checker `34c00ba`): `loom model` on
+  the ONNX, Safetensors and GGUF fixtures and `loom generate` on a small
+  Hatchling project and the `uv/flask-3.1.3` lock fixture, each through all
+  five `-c` ids; the `missing`-rule one-liner prints nothing on a report with
+  no missing rule. Findings recorded there: the checker has no `table`
+  report (`-r print` is the text table); exit 0 is conformant, 1 not; BSI
+  declares no `reach_via`, so a dataset linked only by `trainedOn` is not
+  judged by `bsi` (FSCT and CISA judge it); a fragment adding
+  `hasConcludedLicense`, a `dependsOn` to `NoneElement` with `completeness`,
+  a distribution `software_File` with SHA-512 and `hasDistributionArtifact`,
+  and `software_additionalPurpose` `container` took the test project to
+  conformant under `fsct3` and `bsi` (validated with `loom fragment
+  validate`).
 - **Long topics move to `references/`.** `sbom-generate`'s lock-file and ID
   registry detail (what a registry pins, creating one, which log lines are
   expected) moved to `references/lockfile-discovery.md` and

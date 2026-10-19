@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -170,19 +170,21 @@ pitloom/
 │       │   ├── dataset_metadata.py # DatasetMetadata
 │       │   ├── document.py         # DocumentModel (assembled, pre-serialization)
 │       │   ├── enrich_config.py    # [tool.pitloom.enrich] / EnrichConfig
+│       │   ├── file_hash.py        # One chunked reader: SHA-256 and SHA-512 of a file, from one pass
 │       │   ├── file_names.py       # is_plain_file_name(), escape_file_name_part(): an SBOM file name is a name, not a path
 │       │   ├── inert_options.py    # INERT: options a target kind can't act on; forward_options()
 │       │   ├── models.py           # Deterministic UUIDs, Merkle root, SPDX ID generation facade
 │       │   ├── no_effect.py        # warn_no_effect(): the one "has no effect" WARNING: shape
 │       │   ├── project.py          # ProjectMetadata, ProjectFile
 │       │   ├── provenance.py       # ProvenanceConfig ([tool.pitloom.provenance])
+│       │   ├── purl.py             # pkg:huggingface and pkg:generic package URLs
 │       │   ├── temp_dirs.py        # registered_temp_dir(): temp dirs removed via TerminationGuard
 │       │   └── wheel_dist_info.py  # resolve_own_dist_info(), wheel_members(), open_wheel_zip(), WheelRefused: a wheel's own .dist-info; header-only METADATA read
 │       ├── enrich/                 # Local README/model-card frontmatter enrichment
 │       │   ├── base.py             # Enricher protocol + run_enrichers_for_models()
 │       │   └── readme.py           # README.md/MODEL_CARD.md YAML frontmatter enricher
 │       ├── export/                 # Layer 4 -- serialise to physical format
-│       │   ├── hashes.py           # sha256_of: the one SHA-256 extractor
+│       │   ├── hashes.py           # sha256_of, file_digests_of: read an element's SHA-256/SHA-512
 │       │   └── spdx3_json.py       # SPDX 3 JSON-LD serialiser
 │       ├── extract/                # Layer 1 -- read sources
 │       │   ├── ai_model/           # AI model extractors (fasttext, gguf, hdf5, keras, numpy, onnx, pytorch, pytorch_pt2, safetensors, reader)
@@ -232,6 +234,7 @@ pitloom/
 ├── tests/                          # Mirrors src/pitloom/<package>/ (AGENTS.md Testing section)
 │   ├── assemble/                   # 75 files -- assemble/, embed*.py, enrich/ coverage + conftest.py
 │   ├── cli/                        # 22 files -- one per src/pitloom/cli/ module, + shared.py
+│   ├── conformance/                # G7, CISA 2026, FSCT 2024 checker outcomes vs tests/fixtures/conformance/*-expected.tsv
 │   ├── core/                       # 33 files -- core/, loom.py, generator orchestration
 │   │   └── models_wheel/           # Wheel file discovery: backends, build-and-read, build timeout/kill
 │   ├── extract/                    # 47 files, one per extractor
@@ -243,13 +246,16 @@ pitloom/
 │   ├── _raw_archive.py             # Write zip/tar members under exact raw names on every OS
 │   ├── _wheel_damage.py            # Wheels with one damaged member (bad CRC, encrypted, ...) for the refusal tests
 │   ├── build_and_read_shared.py    # Shared fake build, temp-dir and simulated-signal helpers
+│   ├── _spdx3_validate.py          # Offline schema/SHACL validation against fixtures/spdx-model/
 │   ├── conftest.py                 # Cross-cutting fixtures (each subfolder has its own too)
 │   └── warning_helpers.py          # Shared WARNING:/caplog assertion helpers
 ├── scripts/
 │   ├── action/                     # GitHub Action helpers (install, Python probe/resolver)
 │   ├── check_version_consistency.py  # CI version check; --print-version also used by the action
 │   ├── compare_allow_build.py      # Manual --allow-build parity check
-│   └── manual_cli_checks/          # Unattended manual CLI checks: _checks_*.py (core, config, wheel, build), CLI matrix, sequences
+│   ├── g7_coverage_report.py       # Checker coverage report and expected tables (--standard g7ai|cisa2026|fsct3)
+│   ├── manual_cli_checks/          # Unattended manual CLI checks: _checks_*.py (core, config, wheel, build), CLI matrix, sequences
+│   └── refresh_spdx_model_snapshot.py # Refresh tests/fixtures/spdx-model/ from spdx.org
 ├── .gitattributes                  # LF for *.sh and action.yml
 ├── AGENTS.md                       # CLAUDE.md is a symlink to this
 ├── CHANGELOG.md                    # 0.19.0 and newer; add new entries here

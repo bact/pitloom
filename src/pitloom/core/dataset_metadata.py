@@ -14,6 +14,33 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+#: Package comment for a dataset whose source lists several licences.
+#: Argument: the source (``dataset card``, ``Croissant file``, ...).
+SEVERAL_LICENCES_COMMENT = (
+    "The %s lists several licences; it does not say whether they combine as AND or OR."
+)
+
+
+#: A field set and copied only together with the one it follows, from the
+#: same source: :class:`DatasetMetadata` field -> its follower.
+FOLLOWER_FIELDS: dict[str, str] = {"license": "further_licenses"}
+
+
+@dataclass(frozen=True)
+class FurtherLicences:
+    """The licences a source lists after the first, in its order."""
+
+    #: Each licence text, none repeating the first or another.
+    texts: tuple[str, ...]
+    #: The source that lists them, as :data:`SEVERAL_LICENCES_COMMENT`
+    #: names it.
+    lister: str
+
+    @property
+    def comment(self) -> str:
+        """The note that the source does not say how the licences combine."""
+        return SEVERAL_LICENCES_COMMENT % self.lister
+
 
 @dataclass
 # pylint: disable=too-many-instance-attributes
@@ -32,7 +59,10 @@ class DatasetMetadata:
         description: Human-readable description.
         download_url: URL where the dataset can be obtained.
             Maps to SPDX 3: ``software_downloadLocation``.
-        license: SPDX license expression or license URL.
+        license: SPDX license expression or license URL; of a source
+            listing several, the first.
+        further_licenses: The licences the same source lists after
+            :attr:`license`; set and copied only together with it.
         keywords: Topic keywords.
         creator: Name of the individual or organisation that created the dataset.
         dataset_types: Dataset modality/type strings matching SPDX
@@ -68,6 +98,7 @@ class DatasetMetadata:
     description: str | None = None
     download_url: str | None = None
     license: str | None = None
+    further_licenses: FurtherLicences | None = None
     keywords: list[str] = field(default_factory=list)
     creator: str | None = None
 
@@ -111,4 +142,10 @@ class DatasetReference:
     metadata: DatasetMetadata
 
 
-__all__ = ["DatasetMetadata", "DatasetReference"]
+__all__ = [
+    "FOLLOWER_FIELDS",
+    "SEVERAL_LICENCES_COMMENT",
+    "DatasetMetadata",
+    "DatasetReference",
+    "FurtherLicences",
+]

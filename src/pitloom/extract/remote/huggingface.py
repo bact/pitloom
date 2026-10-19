@@ -34,7 +34,9 @@ Standard fields populated:
 * ``usage.domains`` - pipeline tag and broad category tags (-> SPDX ``ai_domain``)
 * ``datasets`` - from model card ``datasets:`` list; falls back to
   ``dataset:*`` prefix tags in ``model_info()`` when no card datasets exist
-  (-> SPDX ``trainedOn``)
+  (-> SPDX ``trainedOn``); each one's licence, description, keywords,
+  version and owner from its own Hub dataset repository
+  (:mod:`pitloom.extract.remote.huggingface_dataset`)
 
 Extension slots populated:
 
@@ -69,6 +71,7 @@ from pitloom.core.ai_metadata import (
     AiModelUsage,
 )
 from pitloom.extract.ai_model.limits import settle_read_text
+from pitloom.extract.remote.huggingface_dataset import add_hub_dataset_metadata
 from pitloom.extract.remote.huggingface_fetch import (
     _fetch_all_hf_data,
     _resolve_license,
@@ -84,6 +87,7 @@ from pitloom.extract.remote.huggingface_field import (
     _parse_info_tags,
     _resolve_base_model_id,
     hub_producer_and_count,
+    hub_revision,
 )
 from pitloom.logging_config import loggable
 
@@ -175,6 +179,7 @@ def read_huggingface(source: str) -> AiModelMetadata:
     )
     usage_domains = _extract_domains(hf_data, provenance)
     datasets = _extract_datasets(hf_data, tag_data.info_dataset_ids, provenance)
+    add_hub_dataset_metadata(datasets, hf_url)
     base_model_id = _resolve_base_model_id(hf_data)
     extra_data = _build_extra_data(
         model_id,
@@ -190,6 +195,7 @@ def read_huggingface(source: str) -> AiModelMetadata:
     producer = hub_producer_and_count(
         hf_data.get("hub_info") or {}, provenance, loggable(hf_url)
     )
+    revision = hub_revision(hf_data.get("hub_info") or {}, provenance)
 
     meta = AiModelMetadata(
         format_info=AiModelFormatInfo(
@@ -198,6 +204,8 @@ def read_huggingface(source: str) -> AiModelMetadata:
             framework=library_name or type_of_model,
         ),
         name=model_name,
+        version=revision.version,
+        release_time=revision.release_time,
         description=description,
         license=license_val,
         originators=producer.originators,

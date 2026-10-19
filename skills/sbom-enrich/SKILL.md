@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-15
+# Last-Modified: 2026-10-18
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -12,15 +12,16 @@ description: >-
   datasets read from README or model-card prose. Triggers: "enrich (this)
   SBOM", "improve this SBOM", "add more detail to the SBOM", "fill in
   missing SBOM information", "infer the dataset used to train this model".
-  Also completing or checking minimum elements for NTIA 2021, CISA 2026 or
-  G7 SBOM for AI 2026: "make this SBOM meet NTIA standard", "is this SBOM
-  CISA 2026 compliant", "what's missing for CISA/NTIA compliance",
-  "complete the minimum elements", "help filling minimum elements", "check
-  this SBOM against NTIA/CISA minimum elements". That is a completeness
-  question, not schema validity (sbom-validate). If no SBOM exists yet, or
-  generation plus enrichment or a standard is asked in one breath
-  ("generate SBOM and enrich it", "give me a complete SBOM", "SBOM with CISA
-  2026 minimum elements"), sbom-generate triggers and hands off here.
+  Also completing or checking a standard's elements (NTIA 2021, FSCT 2024,
+  CISA 2026, G7 SBOM for AI 2026, BSI TR-03183-2): "make this SBOM meet
+  NTIA minimum elements", "is this SBOM CISA 2026/FSCT compliant", "does
+  it meet BSI TR-03183", "check this SBOM against NTIA/CISA/G7 AI",
+  "what's missing for compliance", "complete/help filling the minimum
+  elements". That is completeness, not schema validity (sbom-validate). If
+  no SBOM exists yet, or generation plus enrichment or a standard is asked
+  in one breath ("generate SBOM and enrich it", "give me a complete SBOM",
+  "SBOM with CISA 2026 minimum elements"), sbom-generate triggers and hands
+  off here.
 license: Apache-2.0
 compatibility: >-
   Requires a shell, Python 3.10+ and pitloom >= 0.20.2 (pip, uvx or pipx);
@@ -383,12 +384,15 @@ fragment, hand it over unmerged and say so.
 Steps below are lettered (a-g) to keep them visually distinct from the
 numbered steps 1-11 above, which they reference by number.
 
-a. **Identify the standard(s):** NTIA 2021, CISA 2026 (current baseline;
-   supersedes NTIA 2021), G7 SBOM for AI 2026 (additive; only with an
-   `ai_AIPackage`). Unnamed: interactive, ask; non-interactive, use CISA
-   2026 (plus G7 AI if applicable) and say so in the report.
-   `references/minimum-elements.md` has the checklists, each element
-   mapped to the SPDX 3 field that carries it.
+a. **Identify the standard(s):** NTIA 2021; FSCT 2024 (CISA's Framing
+   Software Component Transparency); CISA 2026 (current baseline;
+   supersedes NTIA 2021); G7 SBOM for AI 2026 (additive; only with an
+   `ai_AIPackage`); BSI TR-03183-2 v2.1. Unnamed: interactive, ask;
+   non-interactive, use CISA 2026, plus G7 SBOM for AI 2026 when the SBOM
+   has an `ai_AIPackage`, and say in the report that these were the
+   default. `references/minimum-elements.md` has the checklists: each
+   element's SPDX 3 field, what Pitloom fills, and whether the checker
+   checks it.
 b. **Gap analysis:** per element, check the mapped field in the base SBOM
    and report present / missing / `NOASSERTION`-or-empty (a licence with no
    relationship is missing). Don't trust the
@@ -396,11 +400,23 @@ b. **Gap analysis:** per element, check the mapped field in the base SBOM
    one real SBOM.
    A stub `ai_AIPackage` (step 3) has only a name from its file: count every
    G7 model element as missing for it and report its stderr cause first.
+   Optional cross-check, when the user asks or agrees (non-interactive: only
+   if `sbomcheck` is already installed, else report the command), with
+   `-c` one of `ntia`, `fsct3`, `cisa2026`, `g7ai`, `bsi`:
+
+   ```bash
+   sbomcheck -s spdx3 -c cisa2026 -r json -o report.json sbom.spdx3.json
+   ```
+
+   Its `present` means the property exists, not that its value is right.
+   Install, outcomes and what to do per `missing` rule:
+   `references/minimum-elements-workflow.md` ("Cross-check with the
+   checker").
 c. **Resolve gaps by the precedence of steps 2-5:** deterministic `loom
    enrich`, then local prose, then (interactive only, consent-gated per
    step 5) outside sources. Only what is left reaches step d.
 d. **Interactive only, one field at a time,** using
-   `references/minimum-elements.md`'s question bank and step 4's role rule.
+   `references/minimum-elements-questions.md` and step 4's role rule.
    Ask quick or high-impact answers first. The user can stop at any point:
    go to step f with what was gathered; list the rest as open gaps. Skip
    in a non-interactive run.
@@ -415,10 +431,11 @@ g. **Final report:** elements now satisfied; those unknown by the user's
    choice (write `NOASSERTION`, don't omit the field; the licence recipe is
    in `references/minimum-elements-workflow.md`); those with no
    automatable path (SBOM Author Signature, most G7 AI Security/KPI
-   elements, dataset statistical properties), which need something outside
-   this workflow.
+   elements, dataset statistical properties, BSI's SHA-512 for a
+   dependency), which need something outside this workflow. Name the
+   standards applied.
 
-Detail for steps d and g: `references/minimum-elements-workflow.md`.
+Detail for steps b, d and g: `references/minimum-elements-workflow.md`.
 
 ## Check stderr for INFO:/WARNING:/ERROR: lines
 
@@ -437,9 +454,12 @@ non-interactive stop and report the `ERROR:`.
 ## See also
 
 - `references/examples.md` -- full worked example.
-- `references/minimum-elements.md` -- the NTIA/CISA/G7 checklists, field
-  mappings and question bank; `references/minimum-elements-workflow.md`
-  -- step detail for "Complete a standard's minimum elements".
+- `references/minimum-elements.md` -- the NTIA/FSCT/CISA/G7/BSI
+  checklists and field mappings (BSI: `references/minimum-elements-bsi.md`; G7
+  Dataset Properties: `references/minimum-elements-datasets.md`; the
+  question bank: `references/minimum-elements-questions.md`);
+  `references/minimum-elements-workflow.md` -- step detail for "Complete a
+  standard's minimum elements" and the optional checker.
 - `references/deterministic-pass.md`, `references/dangling-references.md`
   -- `loom enrich` detail and merge-failure causes.
 - All of these are on GitHub:

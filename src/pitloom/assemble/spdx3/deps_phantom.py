@@ -17,10 +17,15 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._dep_scope import REQUIRED_EDGE
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
+from pitloom.core.file_hash import HexDigests
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import PhantomDependency
 from pitloom.core.provenance import ProvenanceConfig
-from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
+from pitloom.export.spdx3_json import (
+    Spdx3JsonExporter,
+    file_hashes,
+    require_spdx_id,
+)
 from pitloom.extract.copyright_notices import COPYRIGHT_NOASSERTION
 
 __all__ = ["add_phantom_dependencies"]
@@ -74,7 +79,10 @@ def add_phantom_dependencies(
         dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
         dep_package.software_copyrightText = COPYRIGHT_NOASSERTION
         if dep.digest_sha256:
-            dep_package.verifiedUsing = [sha256_hash(dep.digest_sha256)]
+            # The bundled file's own bytes, read from the wheel: both hashes.
+            dep_package.verifiedUsing = file_hashes(
+                HexDigests(dep.digest_sha256, dep.digest_sha512)
+            )
 
         exporter.add_package(dep_package)
         emit_provenance(

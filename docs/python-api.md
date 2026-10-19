@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -251,10 +251,10 @@ def evaluate_model():
 - (B) sets the relationship between the code and the dataset.
 
 Pass `path=` (the model file, relative to the current directory at the call)
-to `set_model()` or `use_model()` to give the model a SHA-256
+to `set_model()` or `use_model()` to give the model a SHA-256 and a SHA-512
 (`verifiedUsing`). The file is hashed when the run ends without an
 exception, so write it before the block exits. With a [Loom ID
-registry](id-registry.md), the hash gates the lookup: a training and an
+registry](id-registry.md), the SHA-256 gates the lookup: a training and an
 evaluation script declaring the same model name and file share one id, and a
 retrained file gets a new one. The model is keyed by that file's path from the
 registry's project root, the same key `loom model` and `id generate` use.
@@ -274,9 +274,9 @@ unreadable-model `WARNING:`. Leaving a block, by an exception too, restores
 the enclosing run, so a recursive `@loom.run` call is safe.
 
 The run also records *which script produced what*: the calling script
-becomes a `software_File` (with a SHA-256 hash) with `generates`
+becomes a `software_File` (with SHA-256 and SHA-512 hashes) with `generates`
 relationships to the model it trained and/or the output datasets it
-wrote. A dataset that is a file gets a SHA-256 hash and a `software_File`
+wrote. A dataset that is a file gets SHA-256 and SHA-512 hashes and a `software_File`
 it `contains`; a directory gets a SHA-256 Merkle root over its files' paths
 and content, its `comment` saying so, and no file elements. Below a dataset
 directory, the [directories `id generate` skips](id-registry.md#directories-that-are-skipped)
@@ -289,6 +289,62 @@ A dataset is hashed when it is declared, an output dataset too: call
 hash of the file it replaces. One name holding one content is one package per
 run: declaring it again (as input and output, or twice) adds its roles to the
 same package, with no collision warning.
+
+A dataset can carry what its own metadata states. Pass `croissant=` (a
+local [Croissant](https://docs.mlcommons.org/croissant/) JSON-LD file) to any
+of the four dataset calls: its licence becomes the dataset's
+`hasDeclaredLicense`, and its version, description, download URL, creator
+(`publishedBy`) and dataset-profile fields (size, collection process,
+preprocessing, known bias, sensitive personal information) are written onto
+the package. A dataset that is a directory has its card read too: the YAML
+frontmatter of its `README.md` gives `license`, `version` and `tags` (the tags
+are read but have no SPDX 3.0.1 dataset property to go in). Pass
+`declared_license=` to state the licence yourself:
+
+```python
+with loom.run("fragments/train.json"):
+    loom.add_dataset("data/corpus", croissant="data/corpus.croissant.json")
+    loom.add_dataset("data/extra.txt", declared_license="CC-BY-4.0")
+```
+
+Each field comes from the first source that states it: `declared_license=`,
+then the Croissant file, then the card. A `declared_license=` on any call for
+the dataset wins over every Croissant file and card, whichever call came
+first; of two declared licences, the first call's wins. The call's own name,
+`dataset_type` and `data_preprocessing=` (even `[]`) always win. A licence
+that is an SPDX expression is written as a `LicenseExpression`, any other text
+as a `SimpleLicensingText`. Your own `declared_license="NOASSERTION"` (any
+case) is your statement: written as the `NoAssertionLicense` individual, and
+no source replaces it. Any other placeholder, yours or a source's (`unknown`,
+blank, a bare `other`), and a source's `NOASSERTION`, is no licence, written as
+nothing and logged as nothing, so the next source may state one. A
+`declared_license=` that is not a string raises `TypeError`. `other` with a
+`license_name` and/or `license_link` (a Hugging Face card's fields) is written
+as that name followed by the link. Each field a source gave is named in the
+package's provenance (`license: Source: data/corpus/README.md | Field:
+license`). A list of several licences gives each its own
+`hasDeclaredLicense`, in order and once each (letter case ignored), by the
+rules above (a bare `other` among them gives none), and the package comment
+says the source does not state whether they combine as AND or OR. A licence
+that holds no text (a number, a mapping), a `version` written as a decimal number (YAML and JSON read `1.10` as
+`1.1`), a card `version` that is not quoted text (YAML 1.1 reads `1:1:1` as
+`3661` and `010` as `8`: quote it, `version: "1.0"`), and any other value of
+the wrong shape (a size that is negative, not whole, `true` or over
+9007199254740991, the largest integer canonical JSON can write; a description
+that is a list of several texts; a creator, URL or tag that is a number) is
+left out, with one `WARNING:`. A card that cannot be read at all (front
+matter YAML cannot parse: an impossible date such as `2024-02-30`, a number
+of thousands of digits, nesting thousands of levels deep) is skipped with one
+`WARNING:`, and the declaration goes on with its other sources: the card is
+read because the dataset is a directory, not because you named it. A
+`croissant=` file you name is different: a URL, a missing file, one that is
+not a regular file (a FIFO), one that is not Croissant or one that fails to
+be read in any other way raises `ValueError` naming it, at the call: loom
+reads no network source. A source file is opened as given and named in
+provenance by its path from the current directory, or by its bare name when
+it lies outside it. Hashing and the registry do not change: the sources add
+fields, not identity.
+
 These `generates` edges are scoped `build` -- they describe a build-time
 step, not something that runs in the shipped artefact. Contrast with the
 `hasDataFile` relationship Pitloom emits when it detects a script *using*

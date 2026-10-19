@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -21,6 +22,10 @@ from pitloom.assemble.spdx3._display_text import (
     BASE_MODEL,
     BASE_MODEL_RELATIONSHIP,
     escape_element_display_text,
+)
+from pitloom.assemble.spdx3.creation_info import (
+    parse_iso_datetime,
+    to_spdx3_datetime,
 )
 from pitloom.assemble.spdx3.provenance import build_source_metadata_annotation
 from pitloom.core.ai_metadata import (
@@ -34,6 +39,7 @@ from pitloom.core.ai_metadata import (
     value_text,
 )
 from pitloom.core.canonical_json import canonical_json
+from pitloom.core.file_hash import HexDigests
 from pitloom.core.model_parameters import (
     PARAMETER_COUNT_KEY,
     ParameterCountRejected,
@@ -41,11 +47,12 @@ from pitloom.core.model_parameters import (
     with_parameter_count_note,
 )
 from pitloom.core.models import build_relationship, generate_spdx_id
+from pitloom.core.purl import build_generic_purl, build_huggingface_purl
 from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.export.spdx3_json import (
     Spdx3JsonExporter,
+    file_hashes,
     require_spdx_id,
-    sha256_hash,
 )
 from pitloom.extract.ai_model.parameter_count import warn_parameter_count
 from pitloom.logging_config import loggable, warn_over_cap
@@ -405,6 +412,34 @@ def finish_ai_package(
     finish_display_text(ai_model, [("", ai_pkg), *related])
 
 
+def _release_time(ai_model: AiModelMetadata) -> datetime | None:
+    """The model's release time as an SPDX 3 DateTime (UTC, a naive time read
+    as UTC), or ``None`` when it states none or not an ISO 8601 time."""
+    if not ai_model.release_time:
+        return None
+    try:
+        return to_spdx3_datetime(parse_iso_datetime(ai_model.release_time))
+    except ValueError:
+        log.warning(
+            "FORMAT=%s FILE=%s: release time is not ISO 8601; left out",
+            *_model_where(ai_model),
+        )
+        return None
+
+
+def _model_purl(ai_model: AiModelMetadata, digest: HexDigests | None) -> str | None:
+    """A Hub model's ``pkg:huggingface`` PURL, else the model file's
+    ``pkg:generic`` PURL named by its checksum. ``None`` when the source gives
+    neither a repository nor a hashed file."""
+    hub_id = ai_model.extra_data.get("hf.model_id")
+    if isinstance(hub_id, str):
+        return build_huggingface_purl(hub_id, ai_model.extra_data.get("hf.sha"))
+    file_name = ai_model.format_info.file_name
+    if digest and file_name:
+        return build_generic_purl(file_name, checksum=f"sha256:{digest.sha256}")
+    return None
+
+
 def _build_ai_package(
     ai_model: AiModelMetadata,
     creation_info: spdx3.CreationInfo,
@@ -412,11 +447,12 @@ def _build_ai_package(
     doc_uuid: str,
     entity_spdx_id: str | None = None,
     *,
-    digest: str | None = None,
+    digest: HexDigests | None = None,
 ) -> spdx3.ai_AIPackage:
     """Build an ``ai_AIPackage`` SPDX 3 element from an :class:`AiModelMetadata`.
 
-    *digest*, the model file's SHA-256 when known, is its ``verifiedUsing``.
+    *digest*, the model file's SHA-256 and SHA-512 when known, is its
+    ``verifiedUsing`` (:func:`~pitloom.export.spdx3_json.file_hashes`).
     Its display text is escaped by :func:`finish_ai_package`, once its
     provenance comment is written too."""
     pkg_name, _ = ai_model.resolve_name()
@@ -431,9 +467,15 @@ def _build_ai_package(
 
     if digest is not None:
         # A Hash of its own: never shared with the model's software_File.
-        ai_pkg.verifiedUsing = [sha256_hash(digest)]
+        ai_pkg.verifiedUsing = file_hashes(digest)
     if ai_model.version:
         ai_pkg.software_packageVersion = ai_model.version
+    release_time = _release_time(ai_model)
+    if release_time:
+        ai_pkg.releaseTime = release_time
+    purl = _model_purl(ai_model, digest)
+    if purl:
+        ai_pkg.software_packageUrl = purl
 
     if ai_model.description:
         ai_pkg.description = ai_model.description

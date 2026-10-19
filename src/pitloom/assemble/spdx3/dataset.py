@@ -14,12 +14,15 @@ from pitloom.assemble.spdx3._display_text import (
     DATASET,
     DATASET_CREATOR,
     DATASET_RELATIONSHIP,
+    LICENSE,
 )
+from pitloom.assemble.spdx3.deps_license import add_license_relationships
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.purl import build_generic_purl
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 # Mapping from DatasetReference.role strings to SPDX 3.0.1 RelationshipType.
@@ -68,10 +71,32 @@ def _resolve_dataset_types(dataset_types: list[str]) -> list[str]:
     return type_values if type_values else [spdx3.dataset_DatasetType.noAssertion]
 
 
-def _populate_dataset_profile_fields(
+def _set_package_fields(
     dataset_pkg: spdx3.dataset_DatasetPackage, meta: DatasetMetadata
 ) -> None:
-    """Populate optional dataset profile and privacy fields."""
+    """Set the version, description and download location (with its PURL)
+    *meta* states, and the comment on several licences."""
+    if meta.further_licenses:
+        dataset_pkg.comment = meta.further_licenses.comment
+    if meta.version:
+        dataset_pkg.software_packageVersion = meta.version
+    if meta.description:
+        dataset_pkg.description = meta.description
+    if meta.download_url:
+        dataset_pkg.software_downloadLocation = meta.download_url
+        if meta.download_url.startswith(("https://", "http://")):
+            dataset_pkg.software_packageUrl = build_generic_purl(
+                meta.name, version=meta.version, download_url=meta.download_url
+            )
+
+
+def set_dataset_fields(
+    dataset_pkg: spdx3.dataset_DatasetPackage, meta: DatasetMetadata
+) -> None:
+    """Set each property of *dataset_pkg* that *meta* states, other than its
+    name, types, creator and licence: version, description, download
+    location (and its PURL), and the dataset profile and privacy fields."""
+    _set_package_fields(dataset_pkg, meta)
     if meta.dataset_size is not None:
         dataset_pkg.dataset_datasetSize = meta.dataset_size
     if meta.data_collection_process:
@@ -97,6 +122,22 @@ def _populate_dataset_profile_fields(
         dataset_pkg.externalRef = [ext_ref]
 
 
+#: :class:`~pitloom.core.dataset_metadata.DatasetMetadata` fields with no
+#: SPDX 3.0.1 dataset property: never written, so their provenance is not.
+UNWRITTEN_DATASET_FIELDS = frozenset({"keywords"})
+
+
+def written_provenance(meta: DatasetMetadata) -> dict[str, str]:
+    """*meta*'s provenance without the fields that are not written."""
+    return {
+        k: v for k, v in meta.provenance.items() if k not in UNWRITTEN_DATASET_FIELDS
+    }
+
+
+#: A dataset's licence provenance when its metadata records none.
+DATASET_LICENSE_SOURCE = "Source: Dataset metadata"
+
+
 def _build_dataset_package(
     meta: DatasetMetadata,
     creation_info: spdx3.CreationInfo,
@@ -111,20 +152,13 @@ def _build_dataset_package(
         name=meta.name,
         creationInfo=creation_info,
     )
-
-    if meta.version:
-        dataset_pkg.software_packageVersion = meta.version
-    if meta.description:
-        dataset_pkg.description = meta.description
-    if meta.download_url:
-        dataset_pkg.software_downloadLocation = meta.download_url
-
     dataset_pkg.dataset_datasetType = _resolve_dataset_types(meta.dataset_types)
-    _populate_dataset_profile_fields(dataset_pkg, meta)
+    set_dataset_fields(dataset_pkg, meta)
     return dataset_pkg
 
 
-def _add_dataset_creator_agent(
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def add_dataset_creator_agent(
     dataset_pkg_spdx_id: str,
     creator_name: str,
     creation_info: spdx3.CreationInfo,
@@ -154,6 +188,39 @@ def _add_dataset_creator_agent(
     if rel_creator:
         exporter.add_relationship(rel_creator)
     return creator_agent
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def add_dataset_license(
+    dataset_pkg: spdx3.dataset_DatasetPackage,
+    meta: DatasetMetadata,
+    doc: tuple[spdx3.CreationInfo, str, str],
+    exporter: Spdx3JsonExporter,
+    provenance_config: ProvenanceConfig | None = None,
+    encoder: ProvenanceEncoder | None = None,
+) -> list[tuple[str, spdx3.Element]]:
+    """The ``hasDeclaredLicense`` (``hasConcludedLicense`` for a
+    third-party record) from *dataset_pkg* to each licence *meta* states,
+    in order, with the provenance its reader recorded; the licence
+    elements, labelled for the display-text warning. Nothing when *meta*
+    states no licence. *doc* is the creation info, document name and
+    uuid."""
+    if not meta.license:
+        return []
+    further = meta.further_licenses.texts if meta.further_licenses else ()
+    return [
+        (LICENSE, element)
+        for licence in (meta.license, *further)
+        for element in add_license_relationships(
+            licence,
+            require_spdx_id(dataset_pkg),
+            meta.provenance.get("license", DATASET_LICENSE_SOURCE),
+            doc,
+            exporter,
+            provenance_config,
+            encoder,
+        )
+    ]
 
 
 def _dataset_relationship(
@@ -226,7 +293,7 @@ def add_datasets_for_model(
         created.append((DATASET, dataset_pkg))
         emit_provenance(
             subject=dataset_pkg,
-            provenance=meta.provenance,
+            provenance=written_provenance(meta),
             creation_info=element_creation_info,
             doc_name=doc_name,
             doc_uuid=doc_uuid,
@@ -239,7 +306,7 @@ def add_datasets_for_model(
             created.append(
                 (
                     DATASET_CREATOR,
-                    _add_dataset_creator_agent(
+                    add_dataset_creator_agent(
                         dataset_pkg_spdx_id=require_spdx_id(dataset_pkg),
                         creator_name=cap_related_name(
                             meta.creator, "dataset creator name", ai_model
@@ -251,6 +318,15 @@ def add_datasets_for_model(
                     ),
                 )
             )
+
+        created += add_dataset_license(
+            dataset_pkg,
+            meta,
+            (element_creation_info, doc_name, doc_uuid),
+            exporter,
+            provenance_config,
+            encoder,
+        )
 
         rel = _dataset_relationship(
             ai_package_spdx_id,

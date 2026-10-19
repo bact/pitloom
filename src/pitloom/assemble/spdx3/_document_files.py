@@ -25,10 +25,15 @@ from pitloom.assemble.spdx3._document_file_hits import FileHits
 from pitloom.assemble.spdx3.deps_license import build_file_declared_license
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.document import DocumentModel
+from pitloom.core.file_hash import HexDigests
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import ProjectFile, project_relative_or_fallback
 from pitloom.core.provenance import ProvenanceConfig
-from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
+from pitloom.export.spdx3_json import (
+    Spdx3JsonExporter,
+    file_hashes,
+    require_spdx_id,
+)
 
 # SPDX 2.x FileType -> SPDX 3 SoftwarePurpose: only the categories with a
 # clean, identity-shaped equivalent. BINARY/AUDIO/IMAGE/TEXT/VIDEO
@@ -335,7 +340,7 @@ def _add_package_files(
         # Optional only for get_wheel_files(skip_merkle_root=True)
         # (_embed_build_sbom.py's project-file metadata); a document's
         # files are always hashed.
-        file_digest = cast(str, package_file.digest_sha256)
+        file_digests = cast(HexDigests, package_file.hex_digests())
 
         registered_id = file_hits.get(package_file.distribution_path)
         package_entry = spdx3.software_File(
@@ -345,7 +350,7 @@ def _add_package_files(
             creationInfo=spdx_ci,
         )
         package_entry.software_fileKind = spdx3.software_FileKindType.file
-        package_entry.verifiedUsing = [sha256_hash(file_digest)]
+        package_entry.verifiedUsing = file_hashes(file_digests)
         exporter.add_file(package_entry)
         _emit_file_header_metadata(
             package_entry,

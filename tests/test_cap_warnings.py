@@ -93,9 +93,11 @@ _DISPLAY = "cuts only what a message or an element name shows"
 _SHOWN = "representation: the output text says what was left out"
 _NOT_INPUT = "not a cap on input"
 _HEURISTIC = "classification: a longer value is not that kind of value"
+_SUMMARY = "a summary: the description is a card's opening paragraph, cut short"
 
 #: ``module:constant`` -> why it does not warn through warn_over_cap.
 _ALLOWED = {
+    "extract/remote/_card_description.py:MAX_DESCRIPTION_CHARS": _SUMMARY,
     "assemble/spdx3/_license_elements.py:_MAX_NAME_LENGTH": _DISPLAY,
     "assemble/spdx3/deps_pypi.py:_PYPI_LICENSE_FIELD_MAX_LEN": _HEURISTIC,
     "assemble/spdx3/deps_pypi.py:_PYPI_MAX_CONCURRENT_FETCHES": _NOT_INPUT,

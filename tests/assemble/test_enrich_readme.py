@@ -22,10 +22,14 @@ from pitloom.core.enrich_config import EnrichConfig
 from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import Enricher
 from pitloom.enrich.readme import (
+    DATASET_CARD,
+    MODEL_CARD,
     MODEL_CARD_MAX_BYTES,
+    CardKind,
     ReadmeEnricher,
     _find_model_card_file,
     _parse_frontmatter,
+    find_card_file,
 )
 from tests._symlink import CAN_SYMLINK
 
@@ -102,6 +106,36 @@ def test_find_model_card_file_none_present() -> None:
         assert _find_model_card_file(Path(d)) is None
 
 
+@pytest.mark.parametrize("kind", [MODEL_CARD, DATASET_CARD], ids=["model", "dataset"])
+@pytest.mark.parametrize("reverse", [False, True], ids=["listed", "reversed"])
+@pytest.mark.parametrize(
+    ("names", "expected"),
+    [
+        (("README.md", "readme.md"), "README.md"),
+        (("README.MD", "README.md"), "README.md"),
+        (("readme.md", "Readme.md"), "Readme.md"),
+    ],
+    ids=["exact-spelling", "exact-after-by-name", "first-by-name"],
+)
+def test_find_card_file_is_independent_of_listing_order(
+    tmp_path: Path,
+    kind: CardKind,
+    reverse: bool,
+    names: tuple[str, str],
+    expected: str,
+) -> None:
+    """Of two spellings of one card name, the stem's own, else the first by
+    name, whatever order the file system lists them in."""
+    for name in names:
+        (tmp_path / name).write_bytes(b"---\nlicense: mit\n---\n")
+    listed = sorted(tmp_path.iterdir(), reverse=reverse)
+    if len(listed) < 2:
+        pytest.skip("case-insensitive file system")
+    with patch.object(Path, "iterdir", autospec=True, return_value=iter(listed)):
+        found = find_card_file(tmp_path, kind)
+    assert found is not None and found.name == expected
+
+
 # ---------------------------------------------------------------------------
 # ReadmeEnricher.enrich
 # ---------------------------------------------------------------------------
@@ -130,6 +164,15 @@ def test_enrich_fills_license_gap() -> None:
     assert result.fields[0].before is None
     assert result.fields[0].after == "mit"
     assert result.fields[0].role == "declared"
+
+
+def test_enrich_reads_a_card_with_a_bom(tmp_path: Path) -> None:
+    """A UTF-8 BOM before the frontmatter (a Windows editor's) is dropped,
+    not taken for text before the opening ``---``."""
+    (tmp_path / "README.md").write_bytes(b"\xef\xbb\xbf---\nlicense: mit\n---\n")
+    model = AiModelMetadata()
+    ReadmeEnricher().enrich(model, model_dir=tmp_path)
+    assert model.license == "mit"
 
 
 def test_enrich_never_overwrites_existing_license() -> None:
@@ -232,14 +275,29 @@ def test_enrich_ignores_yaml_aliases_in_unread_keys(frontmatter: str) -> None:
     assert model.license == "mit"
 
 
-def test_enrich_malformed_frontmatter_is_noop() -> None:
-    with tempfile.TemporaryDirectory() as d:
-        p = Path(d)
-        (p / "README.md").write_text("---\nlicense: [unterminated\n---\n")
-        model = AiModelMetadata()
-        result = ReadmeEnricher().enrich(model, model_dir=p)
+@pytest.mark.parametrize(
+    "frontmatter",
+    [
+        "license: [unterminated\n",
+        "license: mit\nlast_updated: 2024-02-30\n",
+        "license: mit\nn: " + "1" * 5000 + "\n",
+        "license: mit\nx: " + "[" * 5000 + "]" * 5000 + "\n",
+    ],
+    ids=["unterminated", "impossible-date", "huge-int", "deep"],
+)
+def test_enrich_malformed_frontmatter_is_noop(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, frontmatter: str
+) -> None:
+    """Front matter YAML cannot load (PyYAML raises a bare ``ValueError``
+    for an impossible date or a too-long integer) is one ``WARNING:``."""
+    (tmp_path / "README.md").write_text(f"---\n{frontmatter}---\n", "utf-8")
+    model = AiModelMetadata()
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        result = ReadmeEnricher().enrich(model, model_dir=tmp_path)
     assert not result.fields
     assert model.license is None
+    (record,) = caplog.records
+    assert record.getMessage().startswith("Failed to parse model-card frontmatter")
 
 
 def test_enrich_no_frontmatter_prose_only_is_noop() -> None:

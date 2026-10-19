@@ -21,7 +21,7 @@ from packaging.specifiers import SpecifierSet
 from packaging.utils import canonicalize_name
 
 from pitloom.core.project import ConflictCandidate, ProjectMetadata
-from pitloom.extract._license import classify_license, same_licence
+from pitloom.extract._license import classify_license, is_weak_licence, same_licence
 from pitloom.extract.lock._common import is_same_version
 
 #: Fields checked for a genuine disagreement between two sources: a real
@@ -43,13 +43,6 @@ def _requires_python_equal(a: str, b: str) -> bool:
         return SpecifierSet(a) == SpecifierSet(b)
     except ValueError:
         return a.strip() == b.strip()
-
-
-def is_weak_licence(value: str | None) -> bool:
-    """Whether *value* is a placeholder (``NOASSERTION``/``UNKNOWN``), not a
-    claim. ``NONE`` is a statement, not weak."""
-    classified = classify_license(value, warn=False)
-    return classified is not None and classified.kind == "noassertion"
 
 
 def _license_equal(a: str, b: str) -> bool:

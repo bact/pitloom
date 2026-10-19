@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-25
-Last-Modified: 2026-09-21
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -205,11 +205,12 @@ a side-effect-free tuple read that cannot itself trigger the subscription
 
 ```python
 if TYPE_CHECKING:
+
     class _PitloomBuildHookBase(
         BuildHookInterface[BuilderConfig]  # type: ignore[type-arg, unused-ignore]
-    ):
-        ...
+    ): ...
 else:
+
     def _resolve_build_hook_base() -> type:
         param_count = len(BuildHookInterface.__parameters__)
         if param_count == 1:
@@ -221,8 +222,7 @@ else:
     _PitloomBuildHookBase = _resolve_build_hook_base()
 
 
-class PitloomBuildHook(_PitloomBuildHookBase):
-    ...
+class PitloomBuildHook(_PitloomBuildHookBase): ...
 ```
 
 Hatchling 1.32.4 (released 2026-09-20) reverted the change as a bug:
@@ -264,10 +264,10 @@ Because the hook shares the `pitloom.assemble.spdx3.document.build()`
 assembly layer with the CLI, every SBOM Pitloom produces -- embedded or
 standalone -- includes:
 
-- A `software_File` element per packaged file, each carrying a SHA-256
-  `verifiedUsing` hash (`spdx3.Hash(algorithm=spdx3.HashAlgorithm.sha256,
-  hashValue=<digest>)`) computed from the same file content used for the
-  document's Merkle-root UUID seed. Directory nodes carry no hash.
+- A `software_File` element per packaged file, each carrying a SHA-256 and
+  a SHA-512 `verifiedUsing` hash (`pitloom.export.spdx3_json.file_hashes()`),
+  both from the one read whose SHA-256 also feeds the document's Merkle-root
+  UUID seed. Directory nodes carry no hash.
 - A `pkg:pypi/<name>@<version>` PURL (`software_packageUrl`) on the main
   project package, mirroring the PURL already generated for dependencies,
   whenever a real (non-`"unknown"`) version is known. Both PURLs are built

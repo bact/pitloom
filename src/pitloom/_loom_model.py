@@ -49,14 +49,14 @@ from pitloom._loom_caller import (
 )
 from pitloom._loom_dataset import name_key_reason
 from pitloom.assemble.spdx3.provenance import emit_provenance
-from pitloom.core.file_hash import sha256_digest
+from pitloom.core.file_hash import HexDigests, file_digests
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.path_probe import (
     UNREADABLE_FILE_WARNING,
     is_missing_errno,
     is_regular_file,
 )
-from pitloom.export.spdx3_json import Spdx3JsonExporter, sha256_hash
+from pitloom.export.spdx3_json import Spdx3JsonExporter, file_hashes
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
     Alias,
@@ -111,13 +111,14 @@ def _warn_unreadable(given: str, exc: Exception) -> None:
     )
 
 
-def _hash_model_file(name: str, path: str, given: str) -> str | None:
-    """The SHA-256 of the model file at *path*, or ``None`` and one
-    ``WARNING:`` when it is not a regular file at exit (gone included) or
-    cannot be read. Read whole in chunks: no ceiling applies to a model."""
+def _hash_model_file(name: str, path: str, given: str) -> HexDigests | None:
+    """The SHA-256 and SHA-512 of the model file at *path* (one read), or
+    ``None`` and one ``WARNING:`` when it is not a regular file at exit
+    (gone included) or cannot be read. Read whole in chunks: no ceiling
+    applies to a model."""
     try:
         if is_regular_file(Path(path)):
-            return sha256_digest(path).hex()
+            return file_digests(path).hex()
     except ValueError as exc:  # a NUL: a name, not a path
         _warn_unreadable(given, exc)
         return None
@@ -232,15 +233,17 @@ class LoomModels:
         not minted again. Returns the last declaration's element and
         ``generated`` flag (the run's model), or ``(None, None)``.
         """
-        found: dict[str, str] = {}
+        found: dict[str, HexDigests] = {}
         digests = [self._digest(declared, found) for declared in self._declared]
         if found:
             self._refresh()
         for declared, digest in zip(self._declared, digests, strict=True):
             element = declared.element
-            element.spdxId = self._spdx_id(declared, digest)
+            element.spdxId = self._spdx_id(
+                declared, None if digest is None else digest.sha256
+            )
             if digest is not None:
-                element.verifiedUsing = [sha256_hash(digest)]
+                element.verifiedUsing = file_hashes(digest)
             for annotation in declared.annotations:
                 annotation.subject = element.spdxId
             self._exporter.add_package(element)
@@ -258,8 +261,10 @@ class LoomModels:
             held = {entry.spdx_id for entry in registry.elements.values()}
             persist_registry(registry, len(held.intersection(self._recorded)), True)
 
-    def _digest(self, declared: _Declaration, found: dict[str, str]) -> str | None:
-        """*declared*'s ``path=`` SHA-256, each path read once (*found*)."""
+    def _digest(
+        self, declared: _Declaration, found: dict[str, HexDigests]
+    ) -> HexDigests | None:
+        """*declared*'s ``path=`` digests, each path read once (*found*)."""
         if declared.path is None:
             if self._session.registry is not None:
                 log.warning(NO_PATH_WARNING, declared.name)

@@ -91,6 +91,46 @@ def _build_license_relationship(
     return rel
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def add_license_relationships(
+    license_id: str,
+    package_spdx_id: str,
+    license_provenance: str,
+    doc: tuple[spdx3.CreationInfo, str, str],
+    exporter: Spdx3JsonExporter,
+    config: ProvenanceConfig | None,
+    encoder: ProvenanceEncoder | None,
+) -> list[spdx3.Element]:
+    """Build the licence element for *license_id* and its declared or
+    concluded relationship from *package_spdx_id* (single-candidate mode of
+    :func:`build_license_elements`), add the relationship to *exporter* and
+    return the licence elements, sorted by id. *doc* is the creation info,
+    document name and uuid."""
+    creation_info, doc_name, doc_uuid = doc
+    relationships = build_license_elements(
+        license_id=license_id,
+        package_spdx_id=package_spdx_id,
+        license_provenance=license_provenance,
+        creation_info=creation_info,
+        doc_name=doc_name,
+        doc_uuid=doc_uuid,
+        exporter=exporter,
+        provenance_config=config,
+        encoder=encoder,
+    )
+    licenses: dict[str, spdx3.Element] = {}
+    for rel in relationships:
+        if rel is None:
+            continue
+        exporter.add_relationship(rel)
+        for target in rel.to:
+            target_id = target if isinstance(target, str) else require_spdx_id(target)
+            element = exporter.object_set.find_by_id(target_id)
+            if isinstance(element, spdx3.Element):
+                licenses[target_id] = element
+    return [licenses[key] for key in sorted(licenses)]
+
+
 # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
 def build_license_elements(
     license_id: str,

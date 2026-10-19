@@ -316,6 +316,13 @@ def classify_license(raw: str | None, *, warn: bool = True) -> ClassifiedLicense
     return ClassifiedLicense("text", stripped, raw or "")
 
 
+def is_weak_licence(value: str | None) -> bool:
+    """Whether *value* is a placeholder (``NOASSERTION``/``UNKNOWN``, any
+    case), not a claim. ``NONE`` is a statement, not weak."""
+    classified = classify_license(value, warn=False)
+    return classified is not None and classified.kind == "noassertion"
+
+
 def is_listed_name(name: str, license_id: str) -> bool:
     """Whether *name* is the SPDX License List name of the listed id
     *license_id* (``MIT License`` for ``MIT``): the same licence spelled by

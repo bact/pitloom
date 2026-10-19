@@ -16,6 +16,7 @@ import contextlib
 import functools
 import inspect
 import logging
+import os
 from collections.abc import Callable
 from pathlib import Path
 
@@ -52,17 +53,30 @@ _SKIPPED_LOOM_FILENAMES = frozenset(
 )
 
 
+def cwd_relative_label(location: str | os.PathLike[str]) -> str:
+    """*location* as provenance names it: a POSIX path from the current
+    directory when it lies below it, else its bare name, so no machine path
+    is recorded and the label does not depend on where the project lies. A
+    ``..`` is resolved as the OS opens the path (through symlinks), any
+    other path lexically. A label only: open *location* as given."""
+    text = os.fspath(location)
+    if ".." in Path(text).parts:
+        absolute, base = os.path.realpath(text), os.path.realpath(os.getcwd())
+    else:
+        absolute, base = os.path.abspath(text), os.getcwd()
+    try:
+        return Path(absolute).relative_to(base).as_posix()
+    except ValueError:
+        return Path(absolute).name
+
+
 def _get_caller_info() -> str:
     """Find the first caller frame outside of the pitloom.loom module."""
     try:
         for frame_info in inspect.stack():
             frame_path = Path(frame_info.filename)
             if frame_path.name not in _SKIPPED_LOOM_FILENAMES:
-                p = frame_path.absolute()
-                try:
-                    filename = p.relative_to(Path.cwd()).as_posix()
-                except ValueError:
-                    filename = p.name
+                filename = cwd_relative_label(frame_info.filename)
 
                 func_name = frame_info.function
                 if func_name == "<module>":

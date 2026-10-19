@@ -15,7 +15,9 @@ entry recording no hash (an explicit pin) is a hit for any content; with no
 digest (missing, over the ceiling, unreadable), it is ungated. A refreshed
 dataset, a file added to a directory included, is a new package id. A file
 is named and looked up by its path key (on-disk spelling), gated by its
-SHA-256. A directory gets its Merkle root and no file elements. Loom never
+SHA-256. A single file's package and ``software_File`` (and the script's
+file) state its SHA-256 and SHA-512, from one read; a directory gets its
+Merkle root (SHA-256 only) and no file elements. Loom never
 writes these entries to the registry (only models, :mod:`pitloom._loom_model`).
 
 See also: :mod:`pitloom._loom_active_run` (the run) and
@@ -32,9 +34,15 @@ from typing import cast
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._loom_caller import LOOM_PROVENANCE_CONFIG, registry_miss_callback
+from pitloom._loom_dataset_meta import (
+    DatasetDoc,
+    DatasetSources,
+    escape_display_text,
+    write_metadata,
+)
 from pitloom.assemble.spdx3.provenance import emit_provenance
 from pitloom.core.dataset_hash import DatasetDigest, hash_dataset
-from pitloom.core.file_hash import sha256_digest
+from pitloom.core.file_hash import HexDigests, file_digests
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.path_probe import (
     UNREADABLE_FILE_WARNING,
@@ -44,6 +52,7 @@ from pitloom.core.path_probe import (
 from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.export.spdx3_json import (
     Spdx3JsonExporter,
+    file_hashes,
     require_spdx_id,
     sha256_hash,
 )
@@ -108,13 +117,17 @@ def merkle_root_comment(file_count: int) -> str:
 
 
 def dataset_digest(
-    registry: IdRegistry | None, path: Path, *, max_bytes: int
+    registry: IdRegistry | None, path: Path, *, max_bytes: int, sha512: bool = False
 ) -> DatasetDigest:
     """The digest a dataset package at *path* carries and is looked up by
     (:func:`~pitloom.core.dataset_hash.hash_dataset` within *max_bytes*),
     *registry*'s own file left out of a directory: loom and ``id generate
-    -e`` both hash through here, so they cannot disagree."""
-    return hash_dataset(path, max_bytes=max_bytes, exclude=registry_file_path(registry))
+    -e`` both hash through here, so they cannot disagree. *sha512* (loom,
+    whose SBOM describes the file) adds a file's SHA-512 from the same read;
+    the lookup key is the SHA-256 either way."""
+    return hash_dataset(
+        path, max_bytes=max_bytes, exclude=registry_file_path(registry), sha512=sha512
+    )
 
 
 def _info_key(
@@ -191,9 +204,22 @@ class LoomElements:
         self._declared: list[tuple[str, spdx3.dataset_DatasetPackage]] = []
         self._outside_warned: set[str] = set()
         self._left_out_warned: set[str] = set()
+        # Per package (by identity), written by finish(): it, its caller
+        # provenance, the id of its provenance Annotation (minted with the
+        # package, so the ids do not depend on what the run declares
+        # later), and what its sources state.
+        self._details: dict[
+            int, tuple[spdx3.dataset_DatasetPackage, str, str, DatasetSources]
+        ] = {}
+        # The packages whose data_preprocessing a call declared.
+        self._preprocessing_declared: set[int] = set()
 
     def dataset(
-        self, name: str, dataset_type: str, caller_info: str
+        self,
+        name: str,
+        dataset_type: str,
+        caller_info: str,
+        sources: DatasetSources | None = None,
     ) -> spdx3.dataset_DatasetPackage:
         """The ``dataset_DatasetPackage`` for *name*, with what it holds.
 
@@ -201,18 +227,31 @@ class LoomElements:
         its own ``software_File`` and a ``contains`` edge to it, each
         element with its own ``Hash``; a directory, its Merkle root. One
         key (:meth:`_package_key`) holding one content is one package per
-        run, whatever declares it: a repeat adds only a new *dataset_type*.
+        run, whatever declares it: a repeat adds only a new *dataset_type*
+        and its *sources*, after the earlier declarations' (merged by
+        :meth:`finish`).
         """
         registry = self._session.registry
-        found = dataset_digest(registry, Path(name), max_bytes=self._max_hash_bytes)
+        found = dataset_digest(
+            registry, Path(name), max_bytes=self._max_hash_bytes, sha512=True
+        )
         if found.excluded:  # said even when no root came of the directory
             self._warn_registry_in(name)
         lookup = self._package_key(name)
         held_package = self._packages.get((lookup, found.hex_digest))
         if held_package is not None:
             self._declared.append((name, held_package))
+            if sources is not None:
+                self._details[id(held_package)][3].extend(sources)
             return self._add_kind(held_package, dataset_type)
-        package = self._package(name, lookup, found.hex_digest, caller_info)
+        package = self._package(name, lookup, found.hex_digest)
+        annotation_id = generate_spdx_id("Annotation", name, self._doc_uuid)
+        self._details[id(package)] = (
+            package,
+            caller_info,
+            annotation_id,
+            sources or DatasetSources(),
+        )
         package.dataset_datasetType = [_dataset_kind(dataset_type)]
         self._packages[(lookup, found.hex_digest)] = package
         self._declared.append((name, package))
@@ -222,8 +261,9 @@ class LoomElements:
             comment = merkle_root_comment(found.file_count)
             package.verifiedUsing = [sha256_hash(found.hex_digest, comment=comment)]
             return package
-        package.verifiedUsing = [sha256_hash(found.hex_digest)]
-        held = self.file(name, Path(name), found.hex_digest)
+        digests = HexDigests(found.hex_digest, found.hex_sha512)
+        package.verifiedUsing = file_hashes(digests)
+        held = self.file(name, Path(name), digests)
         # build_relationship() gives None only for a None from_id.
         relationship = build_relationship(
             from_id=require_spdx_id(package),
@@ -235,6 +275,42 @@ class LoomElements:
         )
         self._exporter.add_relationship(cast(spdx3.Relationship, relationship))
         return package
+
+    def declare_preprocessing(self, package: spdx3.dataset_DatasetPackage) -> None:
+        """Record that a call declared *package*'s ``data_preprocessing``
+        (even ``[]``): no source's replaces it."""
+        self._preprocessing_declared.add(id(package))
+
+    def finish(self) -> None:
+        """Write each package's metadata and its one provenance record (the
+        declaring caller, then each field a source stated)."""
+        doc = DatasetDoc(
+            self._exporter, self._creation_info, self._doc_uuid, LOOM_PROVENANCE_CONFIG
+        )
+        for package, caller_info, annotation_id, sources in self._details.values():
+            provenance = {"package": caller_info}
+            written: list[tuple[str, spdx3.Element]] = []
+            meta = sources.merged(str(package.name))
+            if meta is not None:
+                stated, written = write_metadata(
+                    package,
+                    meta,
+                    doc,
+                    preprocessing_declared=id(package) in self._preprocessing_declared,
+                )
+                provenance.update(stated)
+            emit_provenance(
+                subject=package,
+                provenance=provenance,
+                creation_info=self._creation_info,
+                doc_name=str(package.name),
+                doc_uuid=self._doc_uuid,
+                exporter=self._exporter,
+                provenance_config=LOOM_PROVENANCE_CONFIG,
+                annotation_spdx_id=annotation_id,
+            )
+            if written:
+                escape_display_text(str(package.name), written)
 
     def names_of(self, package: spdx3.dataset_DatasetPackage) -> list[str]:
         """Every name *package* was declared under, in order, once each:
@@ -263,10 +339,10 @@ class LoomElements:
         """The ``software_File`` of the run's script: *name* as captured,
         *path* absolute (the current directory may have changed since).
         Hashed in full: the dataset ceiling does not apply."""
-        hex_digest: str | None = None
+        digests: HexDigests | None = None
         try:
             if is_regular_file(path):
-                hex_digest = sha256_digest(path).hex()
+                digests = file_digests(path).hex()
         except OSError as exc:
             if not is_missing_errno(exc):
                 log.warning(
@@ -275,13 +351,13 @@ class LoomElements:
                     "for the script hash",
                     one_line(exc),
                 )
-        return self.file(name, path, hex_digest)
+        return self.file(name, path, digests)
 
     def file(
-        self, name: str, path: Path, hex_digest: str | None
+        self, name: str, path: Path, digests: HexDigests | None
     ) -> spdx3.software_File:
         """The run's ``software_File`` for the file at *path* holding
-        *hex_digest* (``None``: not hashed), added to the document once.
+        *digests* (``None``: not hashed), added to the document once.
 
         Named by its path key (:func:`~pitloom.id_registry.path_key`,
         on-disk spelling) when it is inside the registry's project root,
@@ -290,6 +366,7 @@ class LoomElements:
         else named *name*, as given, and minted.
         """
         element_name, keyed = self._file_name(name, path)
+        hex_digest = None if digests is None else digests.sha256
         cached = self._files.get((element_name, hex_digest))
         if cached is not None:
             return cached
@@ -308,8 +385,8 @@ class LoomElements:
             creationInfo=self._creation_info,
         )
         file_element.software_fileKind = spdx3.software_FileKindType.file
-        if hex_digest is not None:
-            file_element.verifiedUsing = [sha256_hash(hex_digest)]
+        if digests is not None:
+            file_element.verifiedUsing = file_hashes(digests)
         self._exporter.add_file(file_element)
         self._files[(element_name, hex_digest)] = file_element
         return file_element
@@ -331,7 +408,7 @@ class LoomElements:
         return name, False
 
     def _package(
-        self, name: str, lookup: LookupKey, digest: str | None, caller_info: str
+        self, name: str, lookup: LookupKey, digest: str | None
     ) -> spdx3.dataset_DatasetPackage:
         """The ``dataset_DatasetPackage`` named *name*, looked up by
         *lookup* gated by *digest*, a hash-less pin a hit for any content
@@ -354,15 +431,6 @@ class LoomElements:
             or generate_spdx_id("DatasetPackage", name, self._doc_uuid),
             name=name,
             creationInfo=self._creation_info,
-        )
-        emit_provenance(
-            subject=package,
-            provenance={"package": caller_info},
-            creation_info=self._creation_info,
-            doc_name=name,
-            doc_uuid=self._doc_uuid,
-            exporter=self._exporter,
-            provenance_config=LOOM_PROVENANCE_CONFIG,
         )
         self._exporter.add_package(package)
         return package

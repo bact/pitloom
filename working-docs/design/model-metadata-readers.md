@@ -34,7 +34,7 @@ parses (and in fastText's case loads) far more than Pitloom emits:
 | ONNX | `onnx.load(load_external_data=False)` | parses the whole protobuf, every graph node | opsets, `metadata_props`, producer, graph name, input/output specs |
 | GGUF | `gguf.GGUFReader` | one numpy view per tensor info, key/value pair and array element | every key/value field (`general.*` identity, hyperparameters, the rest as properties) |
 | PyTorch `.pt` | fickling `Pickled.load` | one Python AST node per opcode (~200x) | top-level class name |
-| Safetensors | `safe_open` | parses the whole JSON header | `__metadata__`, tensor names (as inputs) |
+| Safetensors | `safe_open` | parses the whole JSON header | `__metadata__`; tensor shapes for the parameter count (tensor names are weights, not inputs: not recorded) |
 | HDF5 / legacy Keras `.h5` | `h5py.File` | native libhdf5 | four root attributes |
 | NumPy, Keras zip, PT2 | header / `config.json` only | already metadata-only | -- |
 

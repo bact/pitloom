@@ -34,6 +34,7 @@ from pitloom.embed import (
     embed_wheel_sbom,
 )
 from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, FILE_TYPE, IdRegistry
+from tests.hash_helpers import file_hashes_json
 
 from .conftest import _make_dummy_wheel
 
@@ -180,9 +181,7 @@ packages = ["ctpkg"]
     assert not [n for n in files_by_name if ".dist-info/" in n]  # not payload
 
     init_file = files_by_name["ctpkg/__init__.py"]
-    (hash_obj,) = init_file["verifiedUsing"]
-    expected_digest = hashlib.sha256(b"__version__ = '1.0.0'\n").hexdigest()
-    assert hash_obj["hashValue"] == expected_digest
+    assert init_file["verifiedUsing"] == file_hashes_json(b"__version__ = '1.0.0'\n")
     assert init_file.get("contentType")
 
 

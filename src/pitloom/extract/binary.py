@@ -66,6 +66,7 @@ def find_phantom_dependencies(files: list[ProjectFile]) -> list[PhantomDependenc
                     name=name,
                     file_path=file.distribution_path,
                     digest_sha256=file.digest_sha256,
+                    digest_sha512=file.digest_sha512,
                     version=None,
                 )
             )

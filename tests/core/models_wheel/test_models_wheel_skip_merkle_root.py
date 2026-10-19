@@ -41,6 +41,7 @@ def test_skip_merkle_root_returns_none_root_and_none_digests(
     assert root is None
     assert len(files) == 2
     assert all(f.digest_sha256 is None for f in files)
+    assert all(f.digest_sha512 is None and f.hex_digests() is None for f in files)
 
 
 def test_skip_merkle_root_does_not_change_discovered_file_set(
@@ -74,6 +75,7 @@ def test_skip_merkle_root_true_is_not_the_default(
 
     assert root is not None
     assert all(f.digest_sha256 is not None for f in files)
+    assert all(f.digest_sha512 is not None for f in files)
 
 
 # ---------------------------------------------------------------------------

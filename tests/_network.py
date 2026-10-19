@@ -6,8 +6,9 @@
 """Turn a network-caused test failure into a skip that names the cause.
 
 Tests marked ``@pytest.mark.network`` reach a real remote host -- directly
-(``urllib``) or through a subprocess or library (``spdx3-validate`` downloads
-the SPDX JSON Schema and SHACL model on every run, with no offline mode).
+(``urllib``) or through a subprocess or library (``spdx3-validate`` run
+without ``model_dir`` downloads the SPDX JSON Schema and SHACL model; most
+tests validate offline instead, see ``tests/_spdx3_validate.py``).
 ``tests/conftest.py``'s socket block does not cover a subprocess, and a live
 host can fail for reasons unrelated to Pitloom (TLS handshake, DNS, timeout).
 These helpers skip on such a failure and let any other failure through, so a
@@ -123,7 +124,10 @@ _VALIDATE_ARGV = (
 
 
 def assert_spdx3_validate_ok(sbom_file: Path) -> None:
-    """Run spdx3-validate on *sbom_file*; assert it passes.
+    """Run spdx3-validate on *sbom_file* with no ``model_dir``; assert it passes.
+
+    This is the default path, which downloads the schema; the offline path
+    is ``tests._spdx3_validate.assert_spdx3_valid``.
 
     Runs the console script's entry point, not ``-m spdx3_validate``:
     spdx3-validate 0.0.7's ``__main__`` drops ``main()``'s return code, so

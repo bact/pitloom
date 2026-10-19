@@ -275,41 +275,6 @@ def _detect_license_from_hf_files(
     return None, None
 
 
-def _strip_card_yaml_frontmatter(lines: list[str]) -> list[str]:
-    """Strip YAML frontmatter delimited by '---' markers from lines."""
-    in_yaml = False
-    for i, line in enumerate(lines):
-        if line.strip() == "---":
-            if in_yaml:
-                return lines[i + 1 :]
-            in_yaml = True
-    return []
-
-
-def _extract_card_description(card_text: str) -> str | None:
-    """Return the first non-empty prose paragraph from a model card."""
-    lines = _strip_card_yaml_frontmatter(card_text.splitlines())
-    collected: list[str] = []
-
-    for line in lines:
-        stripped = line.strip()
-        # Skip headings and blank lines before the first paragraph
-        if not collected and (not stripped or stripped.startswith("#")):
-            continue
-        if not stripped:
-            # Reaching here with an empty `collected` is impossible: the
-            # guard above already `continue`s past every leading blank/
-            # heading line while `collected` is empty, so a blank line
-            # seen here always means the first paragraph just ended.
-            break
-        collected.append(stripped)
-        if len(" ".join(collected)) > 500:
-            break
-
-    text = " ".join(collected).strip()
-    return text[:500] if text else None
-
-
 def _fetch_all_hf_data(model_id: str) -> dict[str, Any]:
     """Fetch all remote HF data sources and return them as a single dict."""
     card_text, card_data = _load_model_card(model_id)

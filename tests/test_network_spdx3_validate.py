@@ -22,6 +22,7 @@ import pytest
 from pitloom.assemble.spdx3.document import build_model
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.file_hash import HexDigests
 from tests._network import assert_spdx3_validate_ok
 
 _VALID_SBOM = {
@@ -84,7 +85,7 @@ def test_real_spdx3_validate_accepts_a_model_producer_and_count(
     """A model's ``originatedBy`` generic Agent, the same Agent as its
     ``suppliedBy`` (the Hugging Face shape), its ``parameters``
     hyperparameter (with the package comment saying so) and its file's
-    SHA-256 as ``verifiedUsing`` are schema- and SHACL-valid."""
+    SHA-256 and SHA-512 as ``verifiedUsing`` are schema- and SHACL-valid."""
     model = AiModelMetadata(
         name="m",
         originators=["Alice"],
@@ -96,7 +97,7 @@ def test_real_spdx3_validate_accepts_a_model_producer_and_count(
     )
     creation = CreationMetadata(creation_datetime="2026-01-01T00:00:00Z")
     sbom = tmp_path / "sbom.json"
-    exporter = build_model(model, creation, digest="AB" * 32)
+    exporter = build_model(model, creation, digest=HexDigests("AB" * 32, "CD" * 64))
     sbom.write_text(exporter.to_json(), encoding="utf-8")
     graph = json.loads(sbom.read_text(encoding="utf-8"))["@graph"]
     assert [e["name"] for e in graph if e["type"] == "Agent"] == ["Alice"]
@@ -105,6 +106,7 @@ def test_real_spdx3_validate_accepts_a_model_producer_and_count(
     assert package["originatedBy"] == [package["suppliedBy"]]
     assert "comment" in package
     assert package["verifiedUsing"] == [
-        {"type": "Hash", "algorithm": "sha256", "hashValue": "ab" * 32}
+        {"type": "Hash", "algorithm": "sha256", "hashValue": "ab" * 32},
+        {"type": "Hash", "algorithm": "sha512", "hashValue": "cd" * 64},
     ]
     assert_spdx3_validate_ok(sbom)

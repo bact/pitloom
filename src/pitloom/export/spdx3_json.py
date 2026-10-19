@@ -17,6 +17,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._sbom_io import write_text_lf
 from pitloom.core.canonical_json import canonical_json_indented
+from pitloom.core.file_hash import HexDigests
 from pitloom.core.license_individuals import INDIVIDUAL_BY_COMPACT_NAME
 from pitloom.export.spdx3_describe import describe_graph_element, describe_value
 
@@ -66,9 +67,28 @@ def sha256_hash(hex_digest: str, *, comment: str | None = None) -> spdx3.Hash:
     packages, and the main package's own Merkle-root hash), so the convention
     only needs fixing in one place.
     """
-    hash_element = spdx3.Hash(
-        algorithm=spdx3.HashAlgorithm.sha256, hashValue=hex_digest.lower()
-    )
+    return _hash(spdx3.HashAlgorithm.sha256, hex_digest, comment)
+
+
+def sha512_hash(hex_digest: str, *, comment: str | None = None) -> spdx3.Hash:
+    """Build a ``verifiedUsing`` SHA-512 ``Hash`` element for *hex_digest*:
+    the :func:`sha256_hash` convention, ``algorithm=sha512``."""
+    return _hash(spdx3.HashAlgorithm.sha512, hex_digest, comment)
+
+
+def file_hashes(digests: HexDigests) -> list[spdx3.Hash]:
+    """The ``verifiedUsing`` of a file whose bytes Pitloom read (or of the
+    package standing for it): its SHA-256, then its SHA-512 when known, in
+    that order. A dependency's copied hash or a Merkle root is not a file's
+    digest: build those with :func:`sha256_hash` alone."""
+    hashes = [sha256_hash(digests.sha256)]
+    if digests.sha512 is not None:
+        hashes.append(sha512_hash(digests.sha512))
+    return hashes
+
+
+def _hash(algorithm: str, hex_digest: str, comment: str | None) -> spdx3.Hash:
+    hash_element = spdx3.Hash(algorithm=algorithm, hashValue=hex_digest.lower())
     if comment:
         hash_element.comment = comment
     return hash_element

@@ -58,11 +58,36 @@ def _warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
     return [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
 
 
-def test_regular_file_is_its_own_sha256(tmp_path: Path) -> None:
+@pytest.mark.parametrize("sha512", [False, True], ids=["sha256", "both"])
+def test_regular_file_is_its_own_sha256(tmp_path: Path, sha512: bool) -> None:
+    """Asked for it (the SBOM describes the file), the SHA-512 of the same
+    read too; the lookup key, the SHA-256, is the same either way."""
     path = _tree(tmp_path, {"t.txt": b"hello\n"}) / "t.txt"
-    assert hash_dataset(path, max_bytes=_BIG) == DatasetDigest(
-        "file", hashlib.sha256(b"hello\n").hexdigest(), 1
+    assert hash_dataset(path, max_bytes=_BIG, sha512=sha512) == DatasetDigest(
+        "file",
+        hashlib.sha256(b"hello\n").hexdigest(),
+        1,
+        hex_sha512=hashlib.sha512(b"hello\n").hexdigest() if sha512 else None,
     )
+
+
+@pytest.mark.parametrize(
+    ("files", "max_bytes"),
+    [({"t.txt": b"hello\n"}, _BIG), ({}, 1)],
+    ids=["directory", "over-ceiling"],
+)
+def test_no_sha512_without_a_file_digest(
+    tmp_path: Path, files: dict[str, bytes], max_bytes: int
+) -> None:
+    """A Merkle root is SHA-256 only, and a file over the ceiling has no
+    digest at all: asking for a SHA-512 invents none."""
+    target = _tree(tmp_path, files) if files else tmp_path / "big.bin"
+    if not files:
+        target.write_bytes(b"too big")
+    found = hash_dataset(target, max_bytes=max_bytes, sha512=True)
+    assert found.kind == ("dir" if files else "file")
+    assert (found.hex_digest is None) is (not files)
+    assert found.hex_sha512 is None
 
 
 @pytest.mark.parametrize(

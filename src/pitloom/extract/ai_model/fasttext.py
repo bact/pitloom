@@ -191,6 +191,8 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
     )
     if type_of_model:
         provenance["type_of_model"] = f"{source} | Field: args.model"
+    # Not stated in the file: derived from the format and the model kind.
+    provenance["domain"] = f"{source} | Field: args.model | Method: derived_from_format"
 
     # Per-property exact provenance (distinct origins: args.loss vs the model's
     # own label list), rather than one shared note.
@@ -200,7 +202,10 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
         provenance["properties.labels"] = f"{source} | Field: labels"
 
     if outputs:
-        provenance["outputs"] = f"{source} | Field: labels (supervised class count)"
+        provenance["outputs"] = (
+            f"{source} | Field: labels (supervised class count)"
+            " | Method: derived_from_format"
+        )
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
             file_name=model_path.name,

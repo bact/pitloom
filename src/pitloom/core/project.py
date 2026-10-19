@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar, NamedTuple, TypedDict
 
+from pitloom.core.file_hash import FileDigests, HexDigests
+
 log = logging.getLogger(__name__)
 
 # The archive extensions an sdist is distributed as.
@@ -69,6 +71,9 @@ class ProjectFile:
             ``None`` when discovered via
             ``pitloom.core._models_wheel.get_wheel_files(skip_merkle_root=True)``,
             which skips per-file hashing entirely.
+        digest_sha512: Hex-encoded SHA-512 digest of the same read;
+            ``None`` exactly when ``digest_sha256`` is (see
+            :func:`digest_fields`).
         copyright_text: The file's own declared copyright text, from an
             ``SPDX-FileCopyrightText:`` tag or a bare ``Copyright (c) ...``
             fallback line in its header. ``None`` when neither is present
@@ -100,6 +105,7 @@ class ProjectFile:
     physical_path: str
     distribution_path: str
     digest_sha256: str | None = None
+    digest_sha512: str | None = None
     copyright_text: str | None = None
     copyright_source: str | None = None
     file_contributors: list[str] = field(default_factory=list)
@@ -108,6 +114,30 @@ class ProjectFile:
     content_type: str | None = None
     content_type_method: str | None = None
     built: bool = False
+
+    def hex_digests(self) -> HexDigests | None:
+        """This file's digests as its ``verifiedUsing`` states them;
+        ``None`` when it was not hashed."""
+        if self.digest_sha256 is None:
+            return None
+        return HexDigests(self.digest_sha256, self.digest_sha512)
+
+
+class DigestFields(TypedDict):
+    """The digest fields of a :class:`ProjectFile`, from one read
+    (:func:`digest_fields`); a :class:`PhantomDependency` takes the two
+    fields from its file one by one."""
+
+    digest_sha256: str
+    digest_sha512: str
+
+
+def digest_fields(digests: FileDigests) -> DigestFields:
+    """*digests* as the keyword arguments of a :class:`ProjectFile`: every
+    constructor that hashed the file's bytes sets both through here."""
+    return DigestFields(
+        digest_sha256=digests.sha256.hex(), digest_sha512=digests.sha512.hex()
+    )
 
 
 class FilesOrigin(NamedTuple):
@@ -169,12 +199,14 @@ class PhantomDependency:
         name: Name of the binary dependency (e.g., 'libz', 'openssl').
         file_path: Canonical path to the binary inside the distribution/wheel.
         digest_sha256: Hex-encoded SHA-256 digest of the binary file contents.
+        digest_sha512: Hex-encoded SHA-512 digest of the same contents.
         version: Inferred version of the binary, if any.
     """
 
     name: str
     file_path: str
     digest_sha256: str | None = None
+    digest_sha512: str | None = None
     version: str | None = None
 
 

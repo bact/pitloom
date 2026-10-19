@@ -3,3 +3,5 @@ action.yml text eol=lf
 tests/fixtures/license-texts/*-LICENSE -text
 tests/fixtures/real-world-extras/** -text
 tests/fixtures/real-world-locks/** -text
+tests/fixtures/spdx-model/** -text
+tests/fixtures/conformance/** -text

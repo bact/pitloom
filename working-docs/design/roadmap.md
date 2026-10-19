@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -124,27 +124,80 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
 - [x] **#3 part 1: `ai_AIPackage.verifiedUsing`** copied from its model
   file, with gated model lookups (built 2026-10-16 with path keys; see
   [id-registry-path-keys.md](../implementation/id-registry-path-keys.md)).
-- [ ] **#3 part 2: dataset licence wiring** (`DatasetMetadata.license` read by
-  `dataset.py`): own PR. The 2026 SSSOM mappings fix the shape: a
-  `hasDeclaredLicense` Relationship to an `AnyLicenseInfo`, so a URL and an
-  SPDX expression both fit.
-- [ ] **Identifiers from the minimum-elements mappings** (CISA 2026, NTIA 2021,
-  G7 AI 2026, BSI 2025): `software_packageUrl` (PURL, e.g.
-  `pkg:huggingface/...`, `pkg:generic/...`) on `ai_AIPackage` and dataset
-  packages (today PyPI packages only); optional `contentIdentifier`.
-- [ ] **SHA-512 hash option**: BSI 2025 requires SHA-512 on the deployable
-  component; Pitloom emits SHA-256 only (`software_File`, `verifiedUsing`).
-  Open: opt-in flag vs always add; the registry keeps SHA-256 as its gate.
+- [x] **#3 part 2: dataset licence wiring** (`DatasetMetadata.license` read by
+  `dataset.py`; G7 B1) and its three readers (Croissant via `loom.run`, a local
+  dataset card, the Hub dataset card of a Hub model's datasets): see
+  [dataset-licence-readers.md](dataset-licence-readers.md).
+- [x] **Identifiers from the minimum-elements mappings** (CISA 2026, NTIA 2021,
+  G7 AI 2026, BSI 2025): `software_packageUrl` on `ai_AIPackage` and dataset
+  packages (G7 B2; see
+  [g7-conformance-tests.md](../implementation/g7-conformance-tests.md)).
+  Open: a `contentIdentifier` (gitoid).
+- [x] **SHA-512 beside SHA-256** (always, no flag) for every file Pitloom
+  reads and describes: model files, project/wheel/sdist file elements, `loom`
+  files, bundled libraries (`pitloom.core.file_hash`). The registry gate, a
+  Merkle root and a lock file's dependency hash stay SHA-256. A dependency's
+  SHA-512 stays unspecified while no source states one (decided 2026-10-18;
+  [build-backend-improvements.md](build-backend-improvements.md)).
+- [x] **Hub revision** (G7 B3): a Hub model's commit hash as its version and
+  its last-modified time as `releaseTime`.
+- [x] **Support tiers and demo scope** (tier 1: Safetensors, ONNX, GGUF, NumPy,
+  fastText, Hugging Face Hub; demo: G7 Metadata/System/Model/Dataset, SPDX 3.0,
+  Hatchling, setuptools, Poetry) and the parity ledger, on the user page
+  `docs/g7-sbom-for-ai.md`. Open: the ledger's gaps (target 2026-10-19). See
+  [support-tiers-and-demo-scope.md](support-tiers-and-demo-scope.md).
+- [x] **G7 honesty notices** (2026-10-18): one `INFO:` per model naming a G7
+  element read from a source that SPDX 3.0.1 has no property for. Today only
+  the architecture, written in `ai_typeOfModel`; no reader drops a value.
+  Always on, stderr only (`extract/ai_model/unrecordable.py`). See
+  [g7-honesty-and-non-recordable.md](g7-honesty-and-non-recordable.md).
+- [x] **G7 conformance tests**: Pitloom's SBOMs checked with
+  `ntia-conformance-checker` (`g7ai`) against an expected-outcome table, with
+  offline SPDX validation and a coverage report. See
+  [g7-conformance-tests.md](../implementation/g7-conformance-tests.md).
+- [x] **CISA 2026 conformance tests** (`cisa2026` in the checker, SPDX 3.0): the
+  same table, report and surface-parity tests as G7; coverage in
+  `g7-coverage-history/cisa2026-*.json`. Hash value and algorithm are checked as
+  "an integrity method is present" only.
+- [x] **FSCT 2024 conformance tests** (`fsct3` in the checker): the same table,
+  report and surface-parity tests; coverage in `g7-coverage-history/fsct3-*.json`.
+- [ ] CHANGELOG entries for the 2026-10 G7/CISA/FSCT/SHA-512 work deferred until
+  PR numbers exist (`tests/test_changelog.py` requires one).
+- [x] **BSI TR-03183-2 v2.1 as a rule-based standard**: the checker ships
+  `rules/bsi.yaml` with per-rule outcomes (the hand-written `BSIChecker` is
+  removed); `bsi-expected.tsv` and the surface-parity tests cover it. Ontology
+  and mapping: <https://bact.github.io/bom/req/bsi2025/bsi2025.ttl>,
+  <https://bact.github.io/bom/mapping/bsi2025-to-spdx30.sssom.tsv>.
+- [x] **Same reachability for every standard** (checker `151460c`, 2026-10-18):
+  `trainedOn` and `testedOn` are the default `reach_via`, so NTIA, BSI, FSCT,
+  CISA 2026 and G7 judge the datasets a reachable model uses; `bsi-expected.tsv`
+  refreshed. See [g7-conformance-tests.md](../implementation/g7-conformance-tests.md).
+- [x] **CLI option choices in a stable order** (2026-10-18): `--content-type-method`
+  and `--creator-type` listed a `frozenset` in hash order in `--help` and in the
+  invalid-choice error; now sorted, with a hash-seed test
+  (`tests/cli/test_cli_choices_order.py`).
+- [ ] **Edge-case hardening of the dataset readers** (deferred until after the
+  2026-10-19 demo, decided 2026-10-18): fuzz-driven fixes for hostile Croissant
+  files and dataset cards (generated inputs; boundaries are in place:
+  `_parse_frontmatter`, `_optional_card`, `read_croissant`), the Hub id
+  case/dedupe follow-ups, the YAML 1.1 corner cases and the findings of the
+  last fuzz run (2026-10-18, 22,000 cases, no crash or hang in the `loom` and
+  Hub-card paths; one fixed since): `license_name`/`license_link` of a bare
+  `other` kept as a licence; `unknown`/`NOASSERTION`/non-URL text kept as a
+  version, download location or creator; the Hub-card read warnings name a
+  local cache path; model-card `datasets:` has no entry cap; re-enable the
+  skipped deep-Croissant test (`test_a_deep_croissant_is_read_or_refused`) once
+  the JSON depth limit across Python releases is handled. See
+  [dataset-licence-readers.md](dataset-licence-readers.md).
 - [x] **#6 Model producer and parameter count** from structured sources
   (PR #306): `originatedBy` Agents and the `parameters` hyperparameter
   entry. See
   [g7-model-producer-parameter-count.md](../implementation/g7-model-producer-parameter-count.md).
 - [ ] **#7 `loom` SDK**: dataset provenance and training-properties capture.
   See [loom-sdk-and-notebooks.md](sbom-fragments/loom-sdk-and-notebooks.md).
-- [ ] The skill's G7 checklist lists `hasDataFile` as covered; static
-  detection is now behind `--scan-model-usage`. Update
-  [minimum-elements.md](../../skills/sbom-enrich/references/minimum-elements.md)
-  with G7.
+- [x] The skill's G7 checklist matches the code (`hasDataFile` only with
+  `--scan-model-usage`; dataset edges; SHA-512): see
+  [minimum-elements.md](../../skills/sbom-enrich/references/minimum-elements.md).
 
 **Scope split (decided 2026-09-17):** deterministic field population
 (file formats, structured API responses, explicit `loom` SDK input) belongs

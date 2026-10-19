@@ -363,6 +363,9 @@ class AiModelMetadata:
     # Who ships the model as read (a hub repository owner); maps to SPDX 3:
     # suppliedBy. None for every model file format
     supplier: str | None = None
+    # When the model revision was published, ISO 8601 as read (a hub revision's
+    # commit time); maps to SPDX 3: releaseTime. None for every model file format
+    release_time: str | None = None
 
     # External identifiers and references (DOI, arXiv, repository / model-card URL)
     # Maps to SPDX 3: externalIdentifier / externalRef

@@ -4,15 +4,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Direct unit tests for the low-level pitloom.extract.remote.huggingface_fetch
-helpers -- the raw HF Hub I/O functions and ``_extract_card_description``.
+helpers -- the raw HF Hub I/O functions.
 
 These bypass the full ``read_huggingface()`` pipeline (exercised by the
 sibling ``test_huggingface_*.py`` modules) to reach branches that the
 higher-level facade never exercises: a pinned revision short-circuiting the
-"no pinned revision" warning, the success paths of the raw fetch helpers,
-and the paragraph-collection edge cases in ``_extract_card_description``.
+"no pinned revision" warning and the success paths of the raw fetch
+helpers.
 
-See also: the topic-grouped hf_patches/_hf_patches_*.py submodules for the
+See also: tests/extract/remote/test_card_description.py (the card
+description), the topic-grouped hf_patches/_hf_patches_*.py submodules for the
 shared mock-HF-API helpers used by the higher-level tests.
 """
 
@@ -32,7 +33,6 @@ from huggingface_hub.hf_api import ModelInfo
 
 from pitloom.extract.remote.huggingface_fetch import (
     _detect_license_from_hf_files,
-    _extract_card_description,
     _list_license_files_in_repo,
     _load_model_card,
     _load_model_info,
@@ -294,60 +294,6 @@ def test_detect_license_from_hf_files_undetected_continues_to_next_file(
 
     assert detected_id is None
     assert provenance is None
-
-
-# ---------------------------------------------------------------------------
-# _extract_card_description
-# ---------------------------------------------------------------------------
-
-
-def test_extract_card_description_typical_card() -> None:
-    card_text = "---\nlicense: mit\n---\n\nA great model for text generation."
-    assert _extract_card_description(card_text) == "A great model for text generation."
-
-
-def test_extract_card_description_no_frontmatter_returns_none() -> None:
-    # Without any "---" delimiter, yaml_done never becomes True, so every
-    # line is skipped by the "not yaml_done" guard and nothing is collected.
-    card_text = "Just plain prose with no YAML frontmatter at all."
-    assert _extract_card_description(card_text) is None
-
-
-def test_extract_card_description_stops_at_blank_line_after_paragraph() -> None:
-    # A blank line before any content is swallowed (continue); a blank line
-    # once a paragraph has started ends collection (break) -- later
-    # paragraphs are never reached.
-    card_text = (
-        "---\nlicense: mit\n---\n\n"
-        "First paragraph line one.\n\n"
-        "Second paragraph that must be ignored."
-    )
-    result = _extract_card_description(card_text)
-    assert result == "First paragraph line one."
-    assert "Second paragraph" not in (result or "")
-
-
-def test_extract_card_description_horizontal_rule_mid_paragraph() -> None:
-    # A "---" appearing in the body (after frontmatter already closed) is
-    # not treated as a new frontmatter delimiter -- it falls straight
-    # through to line 254 and gets appended as literal paragraph text.
-    card_text = (
-        "---\nlicense: mit\n---\n\nFirst line of para.\n---\nSecond continued line."
-    )
-    result = _extract_card_description(card_text)
-    assert result == "First line of para. --- Second continued line."
-
-
-def test_extract_card_description_truncates_at_500_chars() -> None:
-    # A single overlong line (no blank-line break) trips the 500-char
-    # length guard and breaks out of collection immediately.
-    long_line = "word " * 200  # 1000 chars, single line, no blank line follows
-    card_text = f"---\nlicense: mit\n---\n\n{long_line}"
-
-    result = _extract_card_description(card_text)
-
-    assert result is not None
-    assert len(result) == 500
 
 
 def test_safe_load_json_download_failure_logs_and_returns_none(

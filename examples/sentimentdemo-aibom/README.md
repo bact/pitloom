@@ -155,8 +155,8 @@ python -m sentimentdemo.preprocess
 - Two `dataset_DatasetPackage` elements for the raw inputs.
 - Two `dataset_DatasetPackage` elements for the processed outputs,
   each carrying a `dataset_dataPreprocessing` array of STAV IRIs.
-- A SHA-256 on every dataset package, and a `software_File` for it that the
-  package `contains` (a `contains` `Relationship`).
+- A SHA-256 and a SHA-512 on every dataset package, and a `software_File` for
+  it (with the same two hashes) that the package `contains` (a `contains` `Relationship`).
 - One SPDX `Relationship` (`hasInput`) per output dataset, linking it
   back to both raw inputs. This is the **data lineage**.
 
@@ -208,11 +208,11 @@ python -m sentimentdemo.train
 
 **What the fragment contains:**
 
-- One `ai_AIPackage` element for the model, with its file's SHA-256,
+- One `ai_AIPackage` element for the model, with its file's SHA-256 and SHA-512,
   `ai_typeOfModel` and every hyperparameter as a `DictionaryEntry` under
   `ai_hyperparameter`.
 - One `dataset_DatasetPackage` element for the training set, with its SHA-256
-  and a `contains` edge to the `software_File` of that file.
+  and SHA-512 and a `contains` edge to the `software_File` of that file.
 - A `trainedOn` SPDX `Relationship` from the model to that dataset.
 
 ---
@@ -254,7 +254,7 @@ python -m sentimentdemo.evaluate
 - The same model element (re-declared so the fragment is standalone), with
   the same file SHA-256, so it keeps the id that training registered.
 - One `dataset_DatasetPackage` element for the test set, with its SHA-256 and
-  a `contains` edge to its `software_File`.
+  SHA-512 and a `contains` edge to its `software_File`.
 - A `testedOn` SPDX `Relationship` from the model to the test set.
 
 ---

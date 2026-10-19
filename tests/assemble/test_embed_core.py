@@ -34,7 +34,7 @@ from pitloom.embed import (
     embed_sbom_in_wheel,
     embed_wheel_sbom,
 )
-from tests._network import assert_spdx3_validate_ok
+from tests._spdx3_validate import assert_spdx3_valid
 from tests.kv_helpers import records
 
 from .conftest import _SAMPLE_SPDX3_JSON, _make_dummy_wheel
@@ -205,7 +205,6 @@ def test_embed_wheel_sbom_missing_metadata_name_does_not_false_mismatch(
         assert any(n.endswith(".spdx3.json") and "/sboms/" in n for n in zf.namelist())
 
 
-@pytest.mark.network
 def test_embed_wheel_sbom_with_project_fixture(tmp_path: Path) -> None:
     """Test embed_wheel_sbom using a project fixture directory."""
     fixture_dir = (
@@ -236,7 +235,7 @@ def test_embed_wheel_sbom_with_project_fixture(tmp_path: Path) -> None:
     # 4. spdx3-validate validation
     sbom_file = tmp_path / "fixture_sbom.spdx3.json"
     sbom_file.write_text(sbom_json, encoding="utf-8")
-    assert_spdx3_validate_ok(sbom_file)
+    assert_spdx3_valid(sbom_file)
 
 
 def test_embed_wheel_sbom_ignores_conflicting_in_tree_egg_info(

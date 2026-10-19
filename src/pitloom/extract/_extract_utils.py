@@ -10,7 +10,9 @@ from __future__ import annotations
 import email.message
 import http.client
 import json
+import os
 import re
+import stat
 import urllib.request
 from collections.abc import Iterable
 from importlib.metadata import PackageMetadata
@@ -202,7 +204,15 @@ def fetch_json(
                         f"{max_bytes} bytes"
                     )
         else:
-            raw = Path(source).read_bytes()
+            # A FIFO or device would block the open or the read.
+            if not stat.S_ISREG(os.stat(source).st_mode):
+                raise ValueError(f"Source {source!r} is not a regular file")
+            with Path(source).open("rb") as fh:
+                raw = fh.read(max_bytes + 1)
+            if len(raw) > max_bytes:
+                raise ValueError(
+                    f"Source {source!r} exceeds maximum limit of {max_bytes} bytes"
+                )
     except (OSError, http.client.HTTPException) as exc:
         close_http_error(exc)
         # http.client.HTTPException (e.g. IncompleteRead on a connection that
@@ -213,7 +223,10 @@ def fetch_json(
 
     try:
         data = json.loads(raw)
-    except json.JSONDecodeError as exc:
+    # Any ValueError: a JSONDecodeError, bytes that are not UTF-8 (or
+    # -16/-32), an integer over Python's digit limit; a RecursionError:
+    # nesting too deep to parse.
+    except (ValueError, RecursionError) as exc:
         raise ValueError(f"Source {source!r} is not valid JSON: {exc}") from exc
 
     if not isinstance(data, dict):

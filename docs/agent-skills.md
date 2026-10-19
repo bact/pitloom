@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -32,8 +32,8 @@ Pitloom ships three Skills:
   SBOM as a provenance-marked fragment; in an interactive session it can
   also ask the SBOM author directly for gaps no file answers. It also
   has a standards-driven mode: run a gap analysis against a named
-  standard's minimum elements (NTIA 2021, CISA 2026, or G7 SBOM for AI
-  2026) and only ask about what's actually missing. Requires a base SBOM
+  standard's minimum elements (NTIA 2021, FSCT 2024, CISA 2026, G7 SBOM
+  for AI 2026 or BSI TR-03183-2) and only ask about what's actually missing. Requires a base SBOM
   to already exist; run `sbom-generate` first.
 - `sbom-validate` -- checks an SPDX 3 JSON document for schema and SHACL
   conformance (`loom fragment validate`, built on the third-party
@@ -185,9 +185,10 @@ steps.
 
 [sbom-enrich-examples]: https://github.com/bact/pitloom/blob/main/skills/sbom-enrich/references/examples.md
 
-Ask instead for a named standard (NTIA 2021, CISA 2026 or G7 SBOM for AI
-2026) -- "make this SBOM meet NTIA standard", "is this SBOM CISA 2026
-compliant", "complete the minimum elements" -- and the same Skill runs a
+Ask instead for a named standard (NTIA 2021, FSCT 2024, CISA 2026, G7 SBOM
+for AI 2026 or BSI TR-03183-2) -- "make this SBOM meet NTIA minimum
+elements", "is this SBOM CISA 2026 compliant", "does it meet BSI
+TR-03183", "complete the minimum elements" -- and the same Skill runs a
 gap analysis against that standard's checklist first, resolving what it
 can itself before asking you about the rest one field at a time (you can
 stop at any point and it completes with whatever's gathered so far). See

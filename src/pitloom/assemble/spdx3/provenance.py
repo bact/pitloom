@@ -372,6 +372,7 @@ def build_provenance_comment(provenance: dict[str, str]) -> str | None:
     )
 
 
+# pylint: disable-next=too-many-arguments
 def build_provenance_annotation(
     subject_spdx_id: str,
     provenance: dict[str, str],
@@ -379,8 +380,11 @@ def build_provenance_annotation(
     doc_name: str,
     doc_uuid: str,
     encoder: ProvenanceEncoder | None = None,
+    *,
+    annotation_spdx_id: str | None = None,
 ) -> spdx3.Annotation | None:
-    """Return an Annotation recording where each metadata field came from."""
+    """Return an Annotation recording where each metadata field came from,
+    with *annotation_spdx_id* (default: minted now)."""
     if not provenance:
         return None
 
@@ -388,7 +392,8 @@ def build_provenance_annotation(
 
     try:
         return spdx3.Annotation(
-            spdxId=generate_spdx_id("Annotation", doc_name=doc_name, doc_uuid=doc_uuid),
+            spdxId=annotation_spdx_id
+            or generate_spdx_id("Annotation", doc_name=doc_name, doc_uuid=doc_uuid),
             creationInfo=creation_info,
             annotationType=spdx3.AnnotationType.other,
             contentType=enc.content_type,
@@ -413,9 +418,11 @@ def emit_provenance(
     *,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
+    annotation_spdx_id: str | None = None,
 ) -> spdx3.Annotation | None:
     """Write provenance for *subject* as an Annotation, a ``.comment``, or
-    both; return the Annotation added, if any."""
+    both; return the Annotation added, if any. *annotation_spdx_id* is an
+    id minted earlier for it (default: minted now)."""
     config = provenance_config or ProvenanceConfig()
     provenance_format = config.format
     provenance_detail = config.detail
@@ -451,6 +458,7 @@ def emit_provenance(
             doc_name=doc_name,
             doc_uuid=doc_uuid,
             encoder=encoder,
+            annotation_spdx_id=annotation_spdx_id,
         )
         if annotation is not None:
             exporter.add_annotation(annotation)

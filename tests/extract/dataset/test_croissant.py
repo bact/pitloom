@@ -3,7 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for the Croissant JSON-LD dataset metadata extractor."""
+"""Tests for the Croissant JSON-LD dataset metadata extractor.
+
+See also: tests/extract/dataset/test_croissant_values.py (value shapes,
+lone surrogates, unreadable files).
+"""
 
 # pylint: disable=missing-function-docstring
 
@@ -16,6 +20,7 @@ from unittest.mock import patch
 
 import pytest
 
+from pitloom.core.dataset_metadata import FurtherLicences
 from pitloom.extract._extract_utils import to_str_list as _to_str_list
 from pitloom.extract.dataset.croissant import (
     _collect_data_types,
@@ -393,3 +398,52 @@ def test_extract_dataset_size_multiple_record_sets_with_missing_and_invalid() ->
 def test_extract_dataset_size_non_container_record_set_returns_none() -> None:
     prov: dict[str, str] = {}
     assert _extract_dataset_size({"recordSet": "not-a-list"}, "ds.json", prov) is None
+
+
+@pytest.mark.parametrize(
+    ("licence", "expected"),
+    [
+        ("CC-BY-4.0", "CC-BY-4.0"),
+        (["https://example.org/terms"], "https://example.org/terms"),
+        ({"@id": "https://example.org/terms"}, "https://example.org/terms"),
+        ("unknown", None),
+        ("NOASSERTION", None),
+        ("other", None),
+        ("  ", None),
+    ],
+    ids=[
+        "expression",
+        "one-item-list",
+        "jsonld-node",
+        "unknown",
+        "na",
+        "other",
+        "blank",
+    ],
+)
+def test_read_croissant_license_rules(
+    tmp_path: Path, licence: object, expected: str | None
+) -> None:
+    """The licence goes through the shared dataset rules: a list or a node
+    reference is not written as its Python ``str``, a placeholder is no
+    licence and records no provenance."""
+    path = tmp_path / "ds.json"
+    path.write_text(json.dumps({"name": "ds", "license": licence}), encoding="utf-8")
+    meta = read_croissant(path)
+    assert meta.license == expected
+    assert ("license" in meta.provenance) is (expected is not None)
+    assert meta.further_licenses is None
+
+
+def test_read_croissant_license_list(tmp_path: Path) -> None:
+    """Each licence of a list, in order and once each, the node's ``@id``
+    too, the weak left out; one provenance entry."""
+    licence = ["CC-BY-4.0", "unknown", {"@id": "https://example.org/t"}, "cc-by-4.0"]
+    path = tmp_path / "ds.json"
+    path.write_text(json.dumps({"name": "ds", "license": licence}), encoding="utf-8")
+    meta = read_croissant(path)
+    assert meta.license == "CC-BY-4.0"
+    assert meta.further_licenses == FurtherLicences(
+        ("https://example.org/t",), "Croissant file"
+    )
+    assert meta.provenance["license"] == f"Source: {path} | Field: license"

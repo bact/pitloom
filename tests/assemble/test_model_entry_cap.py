@@ -36,14 +36,6 @@ _OVER = MAX_MODEL_ENTRIES + 500
 _Built = tuple[Path, Callable[[AiModelMetadata], list[str]], list[str]]
 
 
-def _npz(directory: Path) -> _Built:
-    np = pytest.importorskip("numpy")
-    path = directory / "m.npz"
-    np.savez(path, **{f"a{i:04d}": np.zeros(1) for i in range(_OVER)})
-    expected = [f"a{i:04d}" for i in range(MAX_MODEL_ENTRIES)]  # file order
-    return path, lambda m: [str(i["name"]) for i in m.inputs], expected
-
-
 def _safetensors(directory: Path) -> _Built:
     pytest.importorskip("safetensors")
     keys = [f"k{i:04d}" for i in range(_OVER)]
@@ -53,7 +45,7 @@ def _safetensors(directory: Path) -> _Built:
     return path, lambda m: list(m.properties), keys[:MAX_MODEL_ENTRIES]
 
 
-_BUILDERS = [_npz, _safetensors]
+_BUILDERS = [_safetensors]
 _SURFACES: dict[str, Callable[..., object]] = {
     "generate_model_sbom": generate_model_sbom,
     "enrich_model": enrich_model,

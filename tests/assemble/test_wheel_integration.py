@@ -31,7 +31,8 @@ pytest.importorskip(
 from hatchling.builders.wheel import WheelBuilder  # noqa: E402
 
 from pitloom.embed import embed_wheel_sbom  # noqa: E402
-from tests._network import assert_spdx3_validate_ok  # noqa: E402
+from tests._spdx3_validate import assert_spdx3_valid  # noqa: E402
+from tests.hash_helpers import algorithms  # noqa: E402
 
 # pylint: enable=wrong-import-position
 
@@ -191,8 +192,7 @@ def test_sbom_graph_contains_file_hashes(built_wheel: Path) -> None:
     assert all(e.get("verifiedUsing") for e in files), (
         "Every packaged file must carry a verifiedUsing hash"
     )
-    (hash_obj,) = files[0]["verifiedUsing"]
-    assert hash_obj["algorithm"] == "sha256"
+    assert {tuple(algorithms(e)) for e in files} == {("sha256", "sha512")}
 
 
 def test_sbom_graph_contains_main_package_purl(built_wheel: Path) -> None:
@@ -252,7 +252,6 @@ def test_wheel_passes_pip_install_dry_run(built_wheel: Path, tmp_path: Path) -> 
     assert res.returncode == 0, f"pip install --dry-run failed: {res.stderr}"
 
 
-@pytest.mark.network
 def test_wheel_sbom_passes_spdx3_validate(built_wheel: Path, tmp_path: Path) -> None:
     """Embedded SBOM in wheel conforms to SPDX 3.0.1 per spdx3-validate."""
     with zipfile.ZipFile(built_wheel) as zf:
@@ -262,7 +261,7 @@ def test_wheel_sbom_passes_spdx3_validate(built_wheel: Path, tmp_path: Path) -> 
     sbom_file = tmp_path / "embedded.spdx3.json"
     sbom_file.write_bytes(sbom_data)
 
-    assert_spdx3_validate_ok(sbom_file)
+    assert_spdx3_valid(sbom_file)
 
 
 def _build_plain_fixture_wheel(tmp_path: Path) -> tuple[Path, Path]:
@@ -281,7 +280,6 @@ def _build_plain_fixture_wheel(tmp_path: Path) -> tuple[Path, Path]:
     return proj_dir, Path(wheel_filename)
 
 
-@pytest.mark.network
 def test_post_build_wheel_embedding_integration(tmp_path: Path) -> None:
     """Test post-build wheel embedding (non-Hatchling / post-processing path)."""
     proj_dir, wheel_path = _build_plain_fixture_wheel(tmp_path)
@@ -331,4 +329,4 @@ def test_post_build_wheel_embedding_integration(tmp_path: Path) -> None:
 
     sbom_file = tmp_path / "post_embedded.spdx3.json"
     sbom_file.write_text(sbom_json, encoding="utf-8")
-    assert_spdx3_validate_ok(sbom_file)
+    assert_spdx3_valid(sbom_file)
