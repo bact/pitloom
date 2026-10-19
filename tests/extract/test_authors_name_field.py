@@ -190,10 +190,10 @@ def test_name_field_mailboxes_beside_an_address_field() -> None:
 def test_one_author_info_only_when_recorded_as_one(
     caplog: pytest.LogCaptureFixture, author: str, info: bool
 ) -> None:
-    """Regression: the ``INFO:`` that a name field read as one author may
-    list several came beside the ``WARNING:`` that it was not recorded, and
-    for two mailboxes joined by ``and``. Only an entry recorded as one
-    author gets it."""
+    """The ``INFO:`` that a name field read as one author may list several is
+    not emitted beside the ``WARNING:`` that it was not recorded, nor for two
+    mailboxes joined by ``and``. Only an entry recorded as one author gets
+    it."""
     with caplog.at_level(logging.INFO):
         read_author_fields(author, None)
     assert bool(one_author_lines(caplog)) is info

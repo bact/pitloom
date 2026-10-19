@@ -78,8 +78,8 @@ def test_a_pickle_over_the_opcode_bound_is_one_warning_and_a_stub(
 def test_a_long_decimal_pickle_gives_the_same_sbom_whatever_the_digit_limit(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression: with the default limit the number was a malformed pickle
-    (a fickling warning), with the limit off it was read."""
+    """With the default limit the number is a malformed pickle (a fickling
+    warning); with the limit off it is read."""
     setter = getattr(sys, "set_int_max_str_digits", None)
     if setter is None:
         pytest.skip("this CPython has no int digit limit to turn off")
@@ -309,7 +309,7 @@ def test_one_line_composes_loggable(value: object, expected: str) -> None:
 def test_one_line_cuts_before_it_escapes(
     value: object, limit: int | None, expected: str
 ) -> None:
-    """Regression: cutting the escaped text lost its closing quote."""
+    """Cutting the escaped text keeps its closing quote."""
     assert one_line(value, limit) == expected
 
 
