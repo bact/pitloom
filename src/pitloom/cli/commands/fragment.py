@@ -214,18 +214,11 @@ def _report_fragment(
     merged together isn't caught here -- see
     ``_raise_on_dangling_references`` in ``assemble.spdx3.fragments``)."""
     fragment_path = project_dir / frag.path
-    # A single stat() up front, reused for both `exists` and `modified` --
-    # avoids both a second syscall and a TOCTOU gap where a later
-    # separate stat() could raise on a file removed in between (the read
-    # below has its own OSError handling, but stat() previously didn't).
-    # `exists` matches merge_fragments()'s own missing-fragment check
-    # (both now classify a stat()/exists() failure via the shared
-    # is_missing_errno()) -- True for any path present, regardless of
-    # type; a stat() failure only means "missing" for the same errno/
-    # winerror set Path.exists()/is_file() treat that way; anything else
-    # (e.g. a permission error) is a real, present-but-inaccessible path,
-    # and the read attempt below reports that accurately instead of this
-    # function mislabeling it "not found".
+    # One stat() serves both `exists` and `modified`, avoiding a TOCTOU gap.
+    # `exists` matches merge_fragments()'s missing-fragment check: both use
+    # is_missing_errno(), so only a missing-path errno means "missing". Any
+    # other failure (e.g. a permission error) is a present but inaccessible
+    # path, which the read below reports.
     try:
         stat_result = fragment_path.stat()
     except OSError as exc:

@@ -109,10 +109,10 @@ def discover(
     ``Builder``'s ``get_files()`` unconditionally globs ``build_dir`` for
     extra files via ``_collect_build_files()``, so pointing it at the
     project's own ``.pdm-build/`` would leak any *stale* content left
-    over from a real ``pdm build`` the user ran previously (that
+    over from a real ``pdm build`` the user ran earlier (that
     directory is normally only gitignored, not cleaned up) straight into
     the returned file list -- a static rescan must reflect the source
-    tree, not whatever a past build happened to leave on disk.
+    tree, not leftovers of a past build.
 
     Returns ``None`` on any discovery failure (e.g. not a PDM project,
     malformed config) -- the caller falls back accordingly.
