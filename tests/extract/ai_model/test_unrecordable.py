@@ -158,8 +158,10 @@ def test_each_reader_logs_the_notice_once_or_not_at_all(
 
 
 def test_the_sbom_is_the_same_with_and_without_the_notice(
-    caplog: pytest.LogCaptureFixture,
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # The writer stamps the clock: pin it so two runs cannot straddle a second.
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
     caplog.set_level(logging.DEBUG, logger=_LOGGER)
     with_notice = generate_model_sbom(_GGUF)
     assert len(_notices(caplog)) == 1
