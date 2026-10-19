@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-18
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -13,7 +13,7 @@ See also: [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md) (G7 DP-010),
 [roadmap.md](roadmap.md),
 [g7-conformance-tests.md](../implementation/g7-conformance-tests.md).
 
-Status 2026-10-18: all three readers and the shared mapping built (see
+Status 2026-10-19: all three readers and the shared mapping built (see
 [Built: readers 1 and 2](#built-readers-1-and-2) and
 [Built: reader 3](#built-reader-3)); licence lists and non-prose card
 descriptions ruled on and built (see
@@ -351,7 +351,6 @@ normalise to one element (`MIT`, `MIT License`) give two relationships to it;
 a comma-separated single string is not split; no Setext headings or
 indented code blocks in the description rule.
 
-## Open question for the owner
+## Order (settled)
 
-Order: build readers 1 and 2 (no network) first, reader 3 after the Hub gate is
-reviewed?
+Readers 1 and 2 (no network) were built first, reader 3 after the Hub gate.

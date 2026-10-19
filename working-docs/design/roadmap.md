@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -144,7 +144,8 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
 - [x] **Support tiers and demo scope** (tier 1: Safetensors, ONNX, GGUF, NumPy,
   fastText, Hugging Face Hub; demo: G7 Metadata/System/Model/Dataset, SPDX 3.0,
   Hatchling, setuptools, Poetry) and the parity ledger, on the user page
-  `docs/g7-sbom-for-ai.md`. Open: the ledger's gaps (target 2026-10-19). See
+  `docs/g7-sbom-for-ai.md`. Open, target 2026-10-19: a Hub model's file hash,
+  dataset provenance and statistics, tier 2 beyond keeping them working. See
   [support-tiers-and-demo-scope.md](support-tiers-and-demo-scope.md).
 - [x] **G7 honesty notices** (2026-10-18): one `INFO:` per model naming a G7
   element read from a source that SPDX 3.0.1 has no property for. Today only
@@ -161,8 +162,8 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   "an integrity method is present" only.
 - [x] **FSCT 2024 conformance tests** (`fsct3` in the checker): the same table,
   report and surface-parity tests; coverage in `g7-coverage-history/fsct3-*.json`.
-- [ ] CHANGELOG entries for the 2026-10 G7/CISA/FSCT/SHA-512 work deferred until
-  PR numbers exist (`tests/test_changelog.py` requires one).
+- [x] CHANGELOG entries for the 2026-10 G7/CISA/FSCT/SHA-512 work (#309) and
+  the Hub model description fix (#310).
 - [x] **BSI TR-03183-2 v2.1 as a rule-based standard**: the checker ships
   `rules/bsi.yaml` with per-rule outcomes (the hand-written `BSIChecker` is
   removed); `bsi-expected.tsv` and the surface-parity tests cover it. Ontology
