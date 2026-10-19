@@ -84,10 +84,14 @@ def _croissant(rng: random.Random) -> bytes:
         doc[key] = _value(rng)
     if rng.random() < 0.15:
         doc["name"] = _value(rng)  # the one field a document must have
-    if rng.random() < 0.1:
-        deep = rng.choice([10, 64, 65, 1500])
-        doc[rng.choice(RECORD_SET_KEYS)] = json.loads("[" * deep + "]" * deep)
+    nested = rng.random() < 0.1
+    if nested:  # spliced as text: building it would hit the parser's own limit
+        doc[rng.choice(RECORD_SET_KEYS)] = "NESTED"
     raw = json.dumps(doc, ensure_ascii=rng.random() < 0.5).encode("utf-8", "replace")
+    if nested:
+        levels = rng.choice([10, 63, 64, 1500])
+        deep = b"[" * levels + b"]" * levels
+        raw = raw.replace(b'"NESTED"', deep, 1)
     roll = rng.random()
     if roll < 0.1:
         raw = b"\xef\xbb\xbf" + raw
