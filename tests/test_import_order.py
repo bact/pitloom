@@ -115,7 +115,7 @@ def _describe(failures: dict[str, str]) -> str:
 
 
 def test_every_module_imports_first(tmp_path: Path) -> None:
-    """Each module, imported first, succeeds (import-cycle regression)."""
+    """Each module, imported first, succeeds (no import cycle)."""
     names = _all_module_names()
     workers = max(1, min(4, (os.cpu_count() or 1) - 1))
     jobs = [("root", names)] + [("bare", names[i::workers]) for i in range(workers)]

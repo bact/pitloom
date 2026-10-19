@@ -111,7 +111,7 @@ def test_directory_adapter_matches_the_bytes_core(tmp_path: Path) -> None:
 def test_a_codemeta_json_that_is_not_an_object_states_nothing(
     tmp_path: Path, codemeta: bytes
 ) -> None:
-    """Regression: a JSON array crashed detection (``list.get``)."""
+    """A JSON array does not crash detection (``list.get``)."""
     files = {"codemeta.json": codemeta, "LICENSE": b"MIT\n"}
     for name, raw in files.items():
         (tmp_path / name).write_bytes(raw)

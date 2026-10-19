@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression tests for the PyPI JSON API fallback path in
+"""The PyPI JSON API fallback path in
 ``pitloom.assemble.spdx3.deps.add_dependencies``.
 
 See also: test_deps_enrichment_names_versions.py,
@@ -51,12 +51,9 @@ def test_resolve_metadata_url_prefers_core_field() -> None:
 
 
 def test_resolve_metadata_url_falls_back_to_first_matching_label_in_order() -> None:
-    """Regression: labels used to be a frozenset, so which of several
-    matching Project-URL labels won was dependent on Python's per-process
-    string-hash randomization (PYTHONHASHSEED) rather than a fixed
-    priority -- breaking build-to-build SBOM reproducibility. Verified
-    empirically that a frozenset of these exact three strings iterates in
-    different orders across different hash seeds; a tuple does not."""
+    """Of several matching Project-URL labels, the first in a fixed priority
+    order wins (labels are a tuple: a frozenset's order varies with
+    PYTHONHASHSEED and would break SBOM reproducibility)."""
     project_urls = {"home": "https://a.example", "homepage": "https://b.example"}
     assert (
         _resolve_metadata_url("", project_urls, ("homepage", "home page", "home"))
@@ -413,7 +410,7 @@ def test_add_dependencies_lock_hash_wins_over_pypi_hash_online(
 def test_add_dependencies_lock_hash_skipped_on_declared_pin_version_conflict(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Regression: a declared exact pin conflicting with the lock's
+    """A declared exact pin conflicting with the lock's
     resolved version must win the version (per "explicit pin beats lock"),
     and the lock's hash -- which describes the *locked* version's
     artifact, not the declared one -- must not be attached to a package
@@ -459,7 +456,7 @@ def test_add_dependencies_lock_hash_skipped_on_declared_pin_version_conflict(
 def test_add_dependencies_lock_hash_skipped_when_name_absent_from_locked_versions(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Regression: `locked_hashes` covering a name that `locked_versions`
+    """`locked_hashes` covering a name that `locked_versions`
     doesn't (e.g. excluded upstream as a genuine locked-version conflict,
     or never lock-resolved at all) must not attach that hash -- there is
     no verified version match to trust it against."""

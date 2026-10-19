@@ -15,7 +15,7 @@ See also:
 - :mod:`tests.assemble.test_embed_overrides` for every other
   ``ConfigOverrides``/``embed_wheel_sbom`` test.
 - :mod:`tests.assemble.test_embed_cli` for the real
-  ``loom embed-wheel <wheel1> <wheel2>`` multi-wheel CLI regression.
+  ``loom embed-wheel <wheel1> <wheel2>`` multi-wheel CLI test.
 - :mod:`tests.test_build_flag_warnings` for the "build flag has no
   effect" warnings on every embed path, including the multi-wheel case.
 """
@@ -82,11 +82,9 @@ def test_embed_wheel_defaults_to_no_build_options(tmp_path: Path) -> None:
 def test_embed_file_cache_resolves_get_wheel_files_at_most_once(
     tmp_path: Path,
 ) -> None:
-    """Regression for the multi-wheel embed batch: two wheels from the
-    same project directory, sharing one ``EmbedFileCache``, must
-    resolve ``get_wheel_files()`` (and, with ``--allow-build``, run its
-    one real PEP 517 build) exactly once between them, not once per
-    wheel -- see ``EmbedFileCache``'s own docstring."""
+    """Two wheels from one project directory sharing one ``EmbedFileCache``
+    resolve ``get_wheel_files()`` (and, with ``--allow-build``, run its one
+    PEP 517 build) exactly once between them; see ``EmbedFileCache``."""
     wheel1 = _make_ctpkg_project_and_wheel(tmp_path)
     wheel2 = _make_dummy_wheel(tmp_path / "dist2", "ctpkg", "1.0.0")
     cleanup = mock.Mock()
@@ -131,11 +129,9 @@ def test_embed_file_cache_cleans_up_once_when_the_batch_fails(
 def test_embed_wheel_without_file_cache_resolves_and_cleans_up_every_call(
     tmp_path: Path,
 ) -> None:
-    """Regression: with no ``file_cache`` (every caller before this
-    change, and every caller today except the multi-wheel CLI batch),
-    each ``embed_wheel_sbom()`` call must keep resolving and cleaning up
-    its own ``get_wheel_files()`` result independently -- the per-wheel
-    behaviour this change must not alter."""
+    """With no ``file_cache`` (every caller except the multi-wheel CLI
+    batch), each ``embed_wheel_sbom()`` call resolves and cleans up its own
+    ``get_wheel_files()`` result independently."""
     wheel1 = _make_ctpkg_project_and_wheel(tmp_path)
     wheel2 = _make_dummy_wheel(tmp_path / "dist2", "ctpkg", "1.0.0")
     cleanup_calls: list[int] = []
@@ -360,9 +356,9 @@ def test_embed_file_cache_defers_cleanup_when_a_later_step_fails(
 def test_interrupted_cleanup_still_runs_the_guard_fallback(
     tmp_path: Path, batch: bool
 ) -> None:
-    """Regression: a Ctrl-C inside the discovery cleanup (e.g. mid-rmtree)
-    must reach the guard as a failure, so its fallback removal still runs
-    -- a clean exit would drop it and leak the extraction directory."""
+    """A Ctrl-C inside the discovery cleanup (e.g. mid-rmtree) reaches the
+    guard as a failure, so its fallback removal still runs; a clean exit
+    would drop it and leak the extraction directory."""
     wheel_path = _make_ctpkg_project_and_wheel(tmp_path)
     fallback: list[str] = []
 

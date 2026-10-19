@@ -35,11 +35,10 @@ from ..conftest import (
 
 
 def test_metadata_from_hatchling_matches_read_pyproject_for_uuid() -> None:
-    """Hook and CLI paths must yield the same doc UUID for a static project.
+    """Hook and CLI paths yield the same doc UUID for a static project.
 
-    Regression guard: switching the hook to Hatchling's resolved metadata
-    must not change the document identity of a project whose metadata is
-    fully static (as Pitloom's own is).
+    Hatchling's resolved metadata does not change the document identity of a
+    project whose metadata is fully static (as Pitloom's own is).
     """
     root = Path(__file__).resolve().parent.parent.parent.parent
     cli_meta, _ = read_pyproject(root / "pyproject.toml")
@@ -55,17 +54,13 @@ def test_metadata_from_hatchling_matches_read_pyproject_for_uuid() -> None:
 
 
 def test_metadata_from_hatchling_matches_read_pyproject_for_noncanonical_name() -> None:
-    """CLI and hook paths must agree even when the name/deps are non-canonical.
+    """CLI and hook paths agree even when the name/deps are non-canonical.
 
-    Regression guard for the gap the earlier, name-only ``raw_name`` fix and
-    the marker-only ``_normalize_dependencies`` helper both missed: a project
-    name with an uppercase letter, underscore, and dot (``My_Package.Extra``)
-    and dependency names with an underscore (``typing_extensions``) and a dot
-    (``zope.interface``). Before this fix, Hatchling's own PEP 503
-    normalisation made the hook report ``name == "my-package-extra"`` and
-    canonicalised dependency names, while the CLI path left both untouched,
-    giving the same project two different deterministic document UUIDs
-    depending on which path generated the SBOM.
+    A project name with an uppercase letter, underscore and dot
+    (``My_Package.Extra``) and dependency names with an underscore
+    (``typing_extensions``) and a dot (``zope.interface``) must not give the
+    same project two document UUIDs, whichever path generated the SBOM
+    (Hatchling's own PEP 503 normalisation must not leak into one path).
     """
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
@@ -93,17 +88,13 @@ def test_metadata_from_hatchling_matches_read_pyproject_for_noncanonical_name() 
 
 
 def test_metadata_from_hatchling_matches_read_pyproject_for_license_conflict() -> None:
-    """CLI and hook paths must agree on G2 when the declared license and an
+    """CLI and hook paths agree on G2 when the declared license and an
     independently-detected LICENSE file disagree.
 
-    Regression guard for the systemic gap ``resolve_license_concluded()``
-    exists to close: the Hatchling build-hook path
-    (:func:`~pitloom.extract.hatchling.metadata_from_hatchling`) originally
-    called :func:`~pitloom.extract._license.detect_license_for_project`
-    directly and never ran the independent directory scan at all, so G2
-    only ever fired via the CLI's
-    :func:`~pitloom.extract.project.pyproject.read_pyproject`. Both paths must now
-    resolve the same ``license_concluded`` value for the same project.
+    Both paths resolve the same ``license_concluded`` value:
+    :func:`~pitloom.extract.hatchling.metadata_from_hatchling` runs the
+    independent directory scan that
+    :func:`~pitloom.extract.project.pyproject.read_pyproject` runs.
     """
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)

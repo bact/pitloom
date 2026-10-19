@@ -214,7 +214,7 @@ def test_strict_one_key_per_id(case: str, recorded: bool) -> None:
 
 
 def test_harvest_file_repointed_then_old_id_claimed_keeps_both() -> None:
-    """A key moved to a new id no longer holds its old id: a later element
+    """A key moved to a new id does not hold its old id: a later element
     claiming the old id must not release the moved key."""
     registry = make_registry(
         {(FILE_TYPE, "a.py"): (f"{_NS}#File-2", _SHA_A)}, namespace=_NS

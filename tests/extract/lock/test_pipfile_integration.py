@@ -36,10 +36,8 @@ def _write_lock(
 
 
 def test_read_project_populates_locked_dependencies_from_setup_py_only() -> None:
-    """Regression: Pipfile.lock predates PEP 621 almost entirely --
-    every real project pairs it with a bare setup.py, never
-    pyproject.toml. The cascade must reach it via read_project()'s
-    setup.py-only dispatch path, not only the pyproject.toml one."""
+    """`Pipfile.lock` is paired with a bare setup.py in real projects: the
+    cascade reaches it via read_project()'s setup.py-only dispatch path."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "setup.py").write_text(

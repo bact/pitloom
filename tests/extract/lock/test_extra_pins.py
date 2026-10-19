@@ -11,7 +11,7 @@ One lock per format resolves the same project: required ``req`` and
 again, ``amb`` (two versions), ``gone`` (not locked), ``devpin`` (locked for
 a development group only), ``vcs`` (``uv.lock``: a git source) and the
 project itself; the lock's extra ``y`` lists ``undeclared``, which the
-project no longer declares, and ``opt`` again.
+project does not declare, and ``opt`` again.
 
 See also: test_uv_integration.py (the real ``flask`` and ``fastapi-cli``
 locks) and tests/assemble/test_deps_extras_edges.py (the edge kinds).
@@ -372,9 +372,9 @@ def test_uv_root_without_usable_extras(tmp_path: Path, root_extra: str) -> None:
 def test_extra_pins_ask_only_what_the_edges_call_optional(
     tmp_path: Path, declared: str, wanted: set[str]
 ) -> None:
-    """Regression: a marker naming ``extra`` anywhere counted as gated, so a
-    dependency recorded as required (its gate does not isolate) was still
-    asked for an extra's pin. One rule decides both
+    """A marker naming ``extra`` anywhere is not enough to gate: a dependency
+    recorded as required (its gate does not isolate) is not asked for an
+    extra's pin. One rule decides both
     (:func:`pitloom.core.extra_gate.is_extra_gated`)."""
     asked: list[frozenset[str]] = []
 
@@ -455,9 +455,9 @@ _GIT_LOCKS = {
 def test_required_and_extra_git_dependency_warned_once(
     tmp_path: Path, lock_name: str, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: a name both required and in an extra was asked for again
-    after the runtime closure's pass, so its lock warning (here: git-sourced)
-    printed twice. Only names an extra alone gates are asked for."""
+    """A name both required and in an extra is not asked for again after the
+    runtime closure's pass, so its lock warning (here: git-sourced) prints
+    once. Only names an extra alone gates are asked for."""
     (tmp_path / "pyproject.toml").write_text(
         '[project]\nname = "demo"\ndependencies = ["vcs"]\n'
         '[project.optional-dependencies]\nx = ["vcs"]\n',

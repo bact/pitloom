@@ -50,11 +50,9 @@ def test_read_pyproject_populates_locked_dependencies() -> None:
 
 
 def test_read_pyproject_populates_locked_dependency_hashes() -> None:
-    """Regression: `_try_read_poetry()` applies `poetry.lock`-resolved
-    dependencies directly, bypassing the `cascade.py`
-    cascade entirely -- a hash-extraction call placed only in the
-    cascade would never run for this, the common poetry case. See
-    lock-hash-preservation.md."""
+    """`_try_read_poetry()` applies `poetry.lock`-resolved dependencies directly,
+    bypassing `cascade.py`, so hash extraction runs on this common poetry
+    path too. See lock-hash-preservation.md."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "pyproject.toml").write_text(
@@ -76,11 +74,9 @@ def test_read_pyproject_populates_locked_dependency_hashes() -> None:
 def test_read_pyproject_pep621_project_with_minimal_poetry_still_reads_lock(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: a PEP 621 ``[project]``-primary layout whose
-    ``[tool.poetry]`` section is present only for non-metadata settings
-    (no ``name`` -- a legitimate, encouraged modern style) used to raise
-    inside ``extract_poetry_metadata()``, which silently suppressed
-    ``poetry.lock`` reading entirely even though the two are unrelated."""
+    """A PEP 621 ``[project]``-primary layout whose ``[tool.poetry]`` section
+    holds only non-metadata settings (no ``name``) does not raise in
+    ``extract_poetry_metadata()``; ``poetry.lock`` is still read."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "pyproject.toml").write_text(

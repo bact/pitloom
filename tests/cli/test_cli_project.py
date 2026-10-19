@@ -90,7 +90,7 @@ def test_main_uses_legacy_creation_datetime_from_pyproject(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Legacy flat key ``[tool.pitloom] creation-datetime`` must be respected."""
+    """The flat key ``[tool.pitloom] creation-datetime`` is respected."""
     project_dir = tmp_path / "proj"
     project_dir.mkdir()
     pyproject_path = project_dir / "pyproject.toml"

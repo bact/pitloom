@@ -157,11 +157,10 @@ _LINEAR_BOUND = 10.0  # seconds; linear takes ~0.2 s here
 def test_the_splitter_runs_in_linear_time(
     unit: str, named: bool, extra: int | None
 ) -> None:
-    """Regression: the lookahead split rescanned the rest of the text at
-    each separator (``'a,' * 80000`` took 46 s). ~160,000 characters,
-    split at once in a child process, finish within a bound ~50 times what
-    linear time needs and far below quadratic, into one piece per unit and
-    *extra* (``None``: not split)."""
+    """The split does not rescan the rest of the text at each separator
+    (``'a,' * 80000``): ~160,000 characters, split in a child process, finish
+    within a bound ~50 times what linear time needs and far below quadratic,
+    into one piece per unit and *extra* (``None``: not split)."""
     huge = unit * (160000 // len(unit))  # one cut per unit
     parts = run_bounded_in_child(
         f"{__name__}:outside_entries", huge, named, seconds=_LINEAR_BOUND

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression tests for dependency name/version parsing and PURL/installed
+"""Dependency name/version parsing and PURL/installed
 enrichment in SPDX 3 SBOMs.
 
 See also: test_deps_enrichment_originator_license.py,
@@ -40,11 +40,9 @@ def test_parse_dep_name_strips_environment_marker() -> None:
     """A marker's own ``==`` comparison must not be mistaken for the
     specifier's version operator.
 
-    Regression for the real ``auditwheel>=6.7.0; sys_platform == 'linux'``
-    dependency in Pitloom's own ``pyproject.toml``: the old naive split
-    checked ``==`` (present in the marker) before ``>=`` in a fixed
-    priority order, producing the garbled name
-    ``"auditwheel>=6.7.0; sys_platform"``.
+    Real case: ``auditwheel>=6.7.0; sys_platform == 'linux'`` (a dependency
+    in Pitloom's own ``pyproject.toml``) must give ``auditwheel``, not the
+    garbled ``"auditwheel>=6.7.0; sys_platform"``.
     """
     assert _parse_dep_name("auditwheel>=6.7.0; sys_platform == 'linux'") == "auditwheel"
 
@@ -56,11 +54,9 @@ def test_parse_dep_name_strips_python_version_marker() -> None:
 def test_parse_dep_name_handles_multi_clause_specifier() -> None:
     """A later clause's operator must not be matched ahead of an earlier one.
 
-    Regression for the real ``py-spdx-license>=0.0.1,<1`` dependency: after
-    ``packaging.Requirement`` normalizes/reorders the specifier set, the old
-    fixed-priority substring search matched ``>=`` (checked before ``<``)
-    wherever it appeared in the string -- even after the actual first
-    operator -- producing the garbled name ``"py-spdx-license<1,"``.
+    Real case: ``py-spdx-license>=0.0.1,<1`` must give ``py-spdx-license``,
+    not ``"py-spdx-license<1,"``, after ``packaging.Requirement`` reorders
+    the specifier set.
     """
     assert _parse_dep_name("py-spdx-license>=0.0.1,<1") == "py-spdx-license"
     assert _parse_dep_name("pyyaml>=6.0.3,<7") == "pyyaml"
@@ -78,9 +74,8 @@ def test_parse_dep_name_plain_specifier_still_works() -> None:
 
 
 def test_resolve_version_ignores_marker_equality() -> None:
-    """Regression: the old ``"==" in dep`` check matched the marker's
-    ``sys_platform == 'linux'`` comparison, returning ``"'linux'"`` as the
-    "pinned version" for an uninstalled, unpinned dependency."""
+    """A marker's ``sys_platform == 'linux'`` comparison is not a pin: an
+    uninstalled, unpinned dependency resolves to ``"unknown"``."""
     version, note = _resolve_version(
         "not-installed-xyz", "not-installed-xyz>=1.0; sys_platform == 'linux'"
     )
@@ -100,22 +95,17 @@ def test_resolve_version_multi_clause_no_pin_is_unknown() -> None:
 
 
 def test_resolve_version_extracts_arbitrary_equality_pin() -> None:
-    """Regression: the pin-extraction filter only matched operator '==',
-    silently excluding PEP 440 arbitrary-equality '===' pins -- a valid,
-    parseable specifier that used to resolve to 'unknown' instead of the
-    real version."""
+    """PEP 440 arbitrary-equality '===' pins resolve to their version, like
+    '==' pins."""
     version, note = _resolve_version("not-installed-xyz", "not-installed-xyz===1.0")
     assert version == "1.0"
     assert note is None
 
 
 def test_resolve_version_falls_back_to_naive_split_for_unparseable_dep() -> None:
-    """Regression: a dependency string packaging.Requirement can't parse at
-    all used to still recover a best-effort pinned version via a naive
-    '==' substring split (pre-Requirement-based parsing); that fallback
-    must survive for the genuinely-unparseable case, distinct from the
-    marker-false-positive case the Requirement-based path already
-    handles correctly on its own."""
+    """A dependency string packaging.Requirement can't parse at all still
+    recovers a best-effort pinned version via a naive '==' substring split,
+    distinct from the marker case the Requirement-based path handles."""
     # A stray space makes this invalid PEP 508, but packaging.Requirement
     # not being able to parse it doesn't mean a version can't be recovered.
     version, note = _resolve_version("not installed", "not installed==2.0")
@@ -132,7 +122,7 @@ def test_resolve_version_falls_back_to_naive_split_for_unparseable_dep() -> None
 def test_resolve_version_exact_pin_wins_over_mismatched_installed_version(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Regression: an exact ``==`` pin (e.g. a resolved ``poetry.lock``
+    """An exact ``==`` pin (e.g. a resolved ``poetry.lock``
     entry) is authoritative even when a *different* version of the same
     package happens to be installed in Pitloom's own execution
     environment -- that environment has no relationship to the target

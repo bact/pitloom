@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression tests for the id-mint-collision fixes ([#234]), calling
+"""Id-mint collisions, calling
 ``build()``/``build_deployed()`` directly (rather than the
 ``generate_*_sbom()`` string-returning wrappers) so every assertion runs
 against the exporter's own ``object_set`` -- never the serialized JSON,
@@ -15,7 +15,7 @@ Covers: a stale registry entry from a file/dependency absent in one run
 colliding with a later run's fresh mint (the harvest-time one-key-per-id
 invariant, ``pitloom.id_registry._harvest._release_stale_keys_for_id``,
 and the session's claim), and two elements in the *same* run legitimately
-hitting one registered id (fixed by
+hitting one registered id (resolved by
 ``pitloom.id_registry.IdRegistrySession``'s first-claimant-wins).
 
 See also: :mod:`tests.core.generator.test_generator_registry_sync` and
@@ -176,10 +176,10 @@ def test_ai_model_stem_collision_keeps_both_elements_with_one_warning(
     """Two models legitimately sharing a file stem (the only lookup
     candidate left when neither has a name/physical_path) both hit the
     *same* pre-registered ``ai_AIPackage`` entity in one run -- unlike
-    the stale-entry cases above, this is not a bug to clean up, it's a
-    genuine simultaneous collision the first-claimant-wins rule must
-    resolve: the first model reuses the entry, the second mints its own
-    id and logs exactly one warning, and *both* elements survive."""
+    the stale-entry cases above, this is a genuine simultaneous collision
+    the first-claimant-wins rule must resolve: the first model reuses the
+    entry, the second mints its own id and logs exactly one warning, and
+    *both* elements survive."""
     registry = IdRegistry.new("ai-project")
     registered_id = registry.register("ai_AIPackage", "weights")
 

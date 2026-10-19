@@ -41,10 +41,10 @@ from ..conftest import (
 def test_hook_initialize_honors_pitloom_debug_env_var(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Regression: initialize() calls bare configure_logging() before
-    its own work, same as the CLI's `project` subcommand (see
-    test_cli_parser.py's test_debug_flag_survives_a_generator_reconfiguring_logging).
-    The hook has no --debug flag; PITLOOM_DEBUG is its only lever."""
+    """initialize() calls bare configure_logging() before its own work, as the
+    CLI's `project` subcommand does (see test_cli_parser.py's
+    test_debug_flag_survives_a_generator_reconfiguring_logging). The hook has
+    no --debug flag; PITLOOM_DEBUG is its only lever."""
     # setenv, not delenv: avoids leaking PITLOOM_DEBUG=1 into later tests
     # (see tests/test_logging_config.py for the mechanism).
     monkeypatch.setenv("PITLOOM_DEBUG", "1")

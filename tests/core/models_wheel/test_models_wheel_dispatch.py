@@ -63,11 +63,10 @@ def test_get_wheel_files_dispatches_setuptools_backend_to_its_module(
 def test_get_wheel_files_sorts_files_regardless_of_discovery_order(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression: the returned file list must be sorted by
-    distribution_path even when the backend discoverer returns files in
-    a different (e.g. filesystem-enumeration-dependent, unsorted) order
-    -- both runs of "the same project" must produce a bit-for-bit
-    identical SBOM regardless of discovery order."""
+    """The returned file list is sorted by distribution_path even when the
+    backend discoverer returns files in a different (e.g.
+    filesystem-enumeration-dependent) order, so two runs of one project give
+    a bit-for-bit identical SBOM."""
     make_backend_project(tmp_path, "setuptools.build_meta")
     (tmp_path / "z.py").write_text("z = 1\n", encoding="utf-8")
     (tmp_path / "a.py").write_text("a = 1\n", encoding="utf-8")
@@ -101,7 +100,7 @@ def test_get_wheel_files_setuptools_no_static_config_falls_back_with_warning(
 ) -> None:
     """When the setuptools module can't resolve static config (``None``),
     the facade falls back to the Hatchling heuristic and logs a
-    warning -- not a silent, unexplained accuracy regression."""
+    warning -- not a silent, unexplained accuracy loss."""
     make_backend_project(tmp_path, "setuptools.build_meta")
     monkeypatch.setattr(
         "pitloom.core._models_wheel_setuptools.discover",
@@ -145,12 +144,10 @@ def test_get_wheel_files_setuptools_build_system_only_skips_doomed_hatchling_att
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: a pyproject.toml with only [build-system] (metadata
-    and packages both declared imperatively in setup.py -- e.g. real-world
-    certifi) is *also* guaranteed to fail Hatchling's own discovery (it
-    requires a [project] table), same as no pyproject.toml at all --
-    the file-existence-only check previously missed this case, producing
-    a redundant, confusing "Hatchling"-branded error on top of the
+    """A pyproject.toml with only [build-system] (metadata and packages both
+    declared in setup.py, e.g. real-world certifi) is guaranteed to fail
+    Hatchling's own discovery (it requires a [project] table), as with no
+    pyproject.toml at all; no redundant "Hatchling"-branded error follows the
     setuptools warning."""
     (tmp_path / "pyproject.toml").write_text(
         '[build-system]\nrequires = ["setuptools"]\n'
@@ -176,17 +173,13 @@ def test_get_wheel_files_unhandled_backend_no_pyproject_skips_doomed_hatchling(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: the no-static-module dispatch path (uv_build today,
-    or any future/unrecognized backend) must apply the same "skip a
-    doomed Hatchling attempt" guard its registered-backend sibling
-    already has (see
+    """The no-static-module dispatch path (uv_build today, or any
+    unrecognised backend) applies the same "skip a doomed Hatchling attempt"
+    guard as its registered-backend sibling (see
     test_get_wheel_files_setuptools_no_pyproject_skips_doomed_hatchling_attempt
-    above) -- Hatchling's WheelBuilder requires a [project] table, so
-    with none present the fallback is guaranteed to fail too. Before
-    this fix, this case fell through unconditionally and logged a
-    second, confusing "Hatchling file discovery failed" error on top of
-    the already-clear "not yet backend-aware" one, for a project that
-    has nothing to do with Hatchling."""
+    above): Hatchling's WheelBuilder requires a [project] table, so with none
+    the fallback is guaranteed to fail, and no second "Hatchling file
+    discovery failed" error follows the "not yet backend-aware" one."""
     (tmp_path / "pyproject.toml").write_text(
         '[build-system]\nrequires = ["uv_build"]\nbuild-backend = "uv_build"\n',
         encoding="utf-8",
@@ -229,12 +222,11 @@ def test_get_wheel_files_unhandled_backend_falls_back_with_warning(
 def test_get_wheel_files_uv_build_fallback_warns_about_wheel_exclude(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: a uv_build project whose pyproject.toml declares
-    [tool.uv.build-backend] wheel-exclude gets a sharpened WARNING:
-    naming the concrete divergence risk and pointing at --allow-build --
-    confirmed empirically (allow-build-validation.md's
-    2026-09-15 round) to be exactly the case where the Hatchling
-    heuristic's file list diverges from a real build's."""
+    """A uv_build project whose pyproject.toml declares
+    [tool.uv.build-backend] wheel-exclude gets a sharpened WARNING: naming
+    the concrete divergence risk and pointing at --allow-build: the case
+    where the Hatchling heuristic's file list diverges from a real build's
+    (see allow-build-validation.md)."""
     make_backend_project(tmp_path, "uv_build")
     with (tmp_path / "pyproject.toml").open("a", encoding="utf-8") as f:
         f.write('\n[tool.uv.build-backend]\nwheel-exclude = ["pkg/vendored/**"]\n')
@@ -251,9 +243,9 @@ def test_get_wheel_files_uv_build_fallback_no_hint_without_file_filter_keys(
 ) -> None:
     """A uv_build project with a [tool.uv.build-backend] table present
     but declaring only non-file-filtering keys (e.g. module-root) must
-    not get the sharpened hint -- confirmed empirically (the langfuse
+    not get the sharpened hint (the langfuse
     fixture declares module-root and still matches the heuristic
-    exactly), so warning there would be a false alarm."""
+    exactly), so warning there would be a false alarm)."""
     make_backend_project(tmp_path, "uv_build")
     with (tmp_path / "pyproject.toml").open("a", encoding="utf-8") as f:
         f.write('\n[tool.uv.build-backend]\nmodule-root = ""\n')
@@ -299,10 +291,10 @@ def test_get_wheel_files_dispatches_flit_backend_to_its_module(
 def test_get_wheel_files_flit_discover_accepts_pyproject_data_kwarg(
     tmp_path: Path,
 ) -> None:
-    """Interface-uniformity regression: the Flit discoverer must share
+    """Interface uniformity: the Flit discoverer shares
     :class:`~pitloom.core._models_wheel_types.BackendDiscoverer`'s call
-    signature so the dispatch registry never needs a per-backend special
-    case. Raises ``TypeError`` if the signature ever drops the keyword."""
+    signature, so the dispatch registry needs no per-backend special case.
+    Raises ``TypeError`` if the signature drops the keyword."""
     # pylint: disable-next=import-outside-toplevel
     from pitloom.core._models_wheel_flit import discover as discover_flit
 
@@ -343,10 +335,10 @@ def test_get_wheel_files_dispatches_pdm_backend_to_its_module(
 def test_get_wheel_files_pdm_discover_accepts_pyproject_data_kwarg(
     tmp_path: Path,
 ) -> None:
-    """Interface-uniformity regression: the PDM discoverer must share
+    """Interface uniformity: the PDM discoverer shares
     :class:`~pitloom.core._models_wheel_types.BackendDiscoverer`'s call
-    signature so the dispatch registry never needs a per-backend special
-    case. Raises ``TypeError`` if the signature ever drops the keyword."""
+    signature, so the dispatch registry needs no per-backend special case.
+    Raises ``TypeError`` if the signature drops the keyword."""
     # pylint: disable-next=import-outside-toplevel
     from pitloom.core._models_wheel_pdm import discover as discover_pdm
 
@@ -387,10 +379,10 @@ def test_get_wheel_files_dispatches_poetry_backend_to_its_module(
 def test_get_wheel_files_poetry_discover_accepts_pyproject_data_kwarg(
     tmp_path: Path,
 ) -> None:
-    """Interface-uniformity regression: the Poetry discoverer must share
+    """Interface uniformity: the Poetry discoverer shares
     :class:`~pitloom.core._models_wheel_types.BackendDiscoverer`'s call
-    signature so the dispatch registry never needs a per-backend special
-    case. Raises ``TypeError`` if the signature ever drops the keyword."""
+    signature, so the dispatch registry needs no per-backend special case.
+    Raises ``TypeError`` if the signature drops the keyword."""
     # pylint: disable-next=import-outside-toplevel
     from pitloom.core._models_wheel_poetry import discover as discover_poetry
 
@@ -402,12 +394,11 @@ def test_get_wheel_files_setuptools_config_present_but_introspection_failed(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: a project with a real ``[tool.setuptools]`` table (no
-    ``[project]``) is statically resolvable -- if setuptools' own
-    discover() still returns ``None`` (a genuine introspection failure,
-    not "nothing declared"), the warning must say so, not claim
-    "packages only resolvable via an imperative setup.py build" (false
-    here: static config *was* present, something else went wrong)."""
+    """A project with a real ``[tool.setuptools]`` table (no ``[project]``)
+    is statically resolvable: if setuptools' own discover() still returns
+    ``None`` (a genuine introspection failure, not "nothing declared"), the
+    warning says so rather than claiming "packages only resolvable via an
+    imperative setup.py build" (static config *was* present)."""
     (tmp_path / "pyproject.toml").write_text(
         '[build-system]\nrequires = ["setuptools"]\n'
         'build-backend = "setuptools.build_meta"\n\n'
@@ -433,25 +424,23 @@ def test_get_wheel_files_setuptools_config_present_but_introspection_failed(
 def test_get_wheel_files_hatchling_discover_accepts_pyproject_data_kwarg(
     tmp_path: Path,
 ) -> None:
-    """Interface-uniformity regression: every backend's ``discover()``
-    must share :class:`~pitloom.core._models_wheel_types.BackendDiscoverer`'s
-    call signature so the dispatch registry never needs a per-backend
-    special case -- including Hatchling, which is the implicit
-    (non-registry) fallback and doesn't use the argument itself."""
-    # Raises TypeError if the signature ever drops the keyword again.
+    """Every backend's ``discover()`` shares
+    :class:`~pitloom.core._models_wheel_types.BackendDiscoverer`'s call
+    signature, so the dispatch registry needs no per-backend special case;
+    Hatchling, the implicit (non-registry) fallback, does not use the
+    argument itself."""
+    # Raises TypeError if the signature drops the keyword.
     discover_hatchling(tmp_path, pyproject_data={"project": {"name": "pkg"}})
 
 
 def test_get_wheel_files_relative_project_dir_keeps_physical_path_relative(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression: a relative *project_dir* (as the public library API
-    accepts -- ``generate_project_sbom("myproj")`` never resolves it)
-    must not leak an absolute, machine-local path into
-    ``ProjectFile.physical_path``. Before the fix, ``Path(source)
-    .relative_to(project_dir)`` always raises for an absolute *source*
-    against a relative *project_dir*, silently falling back to the
-    absolute form."""
+    """A relative *project_dir* (as the public library API accepts:
+    ``generate_project_sbom("myproj")`` never resolves it) does not leak an
+    absolute, machine-local path into ``ProjectFile.physical_path``;
+    ``Path(source).relative_to(project_dir)`` always raises for an absolute
+    *source* against a relative *project_dir*."""
     make_backend_project(tmp_path, "setuptools.build_meta")
     (tmp_path / "a.py").write_text("a = 1\n", encoding="utf-8")
 
@@ -483,12 +472,9 @@ def test_get_wheel_files_relative_project_dir_keeps_physical_path_relative(
 def test_get_wheel_files_assume_backend_skips_detection(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression: a caller that already knows the backend by
-    construction (e.g. the Hatchling build hook, which is always
-    Hatchling) can pass ``assume_backend`` to skip the
-    ``pyproject.toml`` parse and ``detect_build_backend()`` call
-    entirely, instead of paying for a redundant re-detection of
-    something already known."""
+    """A caller that knows the backend by construction (e.g. the Hatchling
+    build hook) can pass ``assume_backend`` to skip the ``pyproject.toml``
+    parse and ``detect_build_backend()`` call instead of re-detecting."""
     detect_calls: list[Path] = []
     read_calls: list[Path] = []
 

@@ -153,7 +153,7 @@ def _hash_table_ref(field: int, value: int) -> bytes:
     return _patched(_COMPLETE, lab + 24 + 8 * table + 4 * field, "<I", value)
 
 
-# Reader bug found in step 3: the reader ignores the labels CQDB's 256
+# The reader ignores the labels CQDB's 256
 # hash-table refs, but CRFsuite sizes its backward array from them (the sum
 # of each table's count / 2, cqdb.c cqdb_reader()) and reads each table's
 # buckets at its offset. python-crfsuite 0.9.12 crashes on all three cases

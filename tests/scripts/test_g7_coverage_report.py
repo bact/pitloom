@@ -110,7 +110,7 @@ def test_write_expected_refuses_to_lose_a_present_cell(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     table = module.shared.EXPECTED.read_text(encoding="utf-8")
-    # Pretend a rule that is missing today used to be present.
+    # Pretend a rule that is missing today is present in the baseline.
     doctored = table.replace("\tmissing", "\tpresent", 1)
     assert doctored != table
     target = tmp_path / "expected.tsv"

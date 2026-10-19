@@ -124,9 +124,9 @@ def test_setup_cfg_file_directive(
     prov: str,
     warning: str | None,
 ) -> None:
-    """Regression: ``file: r.txt`` was a dependency named ``file: r.txt``.
-    Each row: the dependencies read as setuptools reads them, the
-    provenance and the one ``WARNING:`` (or none)."""
+    """``file: r.txt`` is not a dependency named ``file: r.txt``. Each row: the
+    dependencies read as setuptools reads them, the provenance and the one
+    ``WARNING:`` (or none)."""
     (tmp_path / "out.txt").write_bytes(b"leak\n")
     project = _project(tmp_path, {"setup.cfg": cfg, **files})
 
@@ -184,8 +184,8 @@ def test_one_reader_for_the_whole_file(
 
 
 def test_requirements_file_is_not_also_a_lock(tmp_path: Path) -> None:
-    """Regression: ``file: requirements.txt`` was not read, so the same
-    pinned file was also taken as the project's lock."""
+    """``file: requirements.txt`` is read, so the same pinned file is not also
+    taken as the project's lock."""
     project = _project(
         tmp_path,
         {

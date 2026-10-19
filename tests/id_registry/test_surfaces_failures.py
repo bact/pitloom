@@ -12,7 +12,7 @@ surface offering three declaration modes (``flag``/``own_key``/``config_key``)
 resolves each through a different code path (see
 :mod:`tests.id_registry.test_relative_paths`'s module docstring for the
 per-route base-directory breakdown) -- only sweeping every mode, not just
-``flag``, catches a route-specific regression.
+``flag``, catches a route-specific failure.
 
 ``pitloom id generate``/``pitloom id import`` are excluded from both
 sweeps below: they are registry-*producing* commands, not

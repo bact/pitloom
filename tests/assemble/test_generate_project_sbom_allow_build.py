@@ -98,8 +98,8 @@ def test_generate_project_sbom_allow_build_model_scan_is_stable(
     """Two allow-build runs with different extract dirs give identical
     SBOM bytes and warnings that never name an extract dir.
 
-    The byte and output assertions already hold before the scanner fix
-    (guards); the ``FILE=`` assertion is the regression."""
+    The byte and output assertions are guards; the ``FILE=`` assertion is the
+    scanner-path check."""
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
     extract_a, out_a, files_a = _stable_scan_run(tmp_path, "a", caplog)
     extract_b, out_b, files_b = _stable_scan_run(tmp_path, "b", caplog)
@@ -118,18 +118,13 @@ def test_generate_project_sbom_allow_build_model_scan_is_stable(
 def test_generate_project_sbom_defers_cleanup_past_ai_model_scan(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: ``get_wheel_files()``'s cleanup callback (a real
-    filesystem removal only for a build-and-read result, see
-    ``_models_wheel_build_and_read.py``) must not run before
-    ``scan_project_for_ai_models()`` re-reads each returned
-    ``ProjectFile``'s bytes from ``physical_path`` -- calling it too
-    early turns every ``.py`` file into a spurious "could not read for
-    usage scanning" WARNING instead of a clean scan. Caught by manually
-    running ``--allow-build`` against a real vendored ``uv_build``
-    fixture, where every one of its ~90 Python files logged this
-    warning. Simulates a build-and-read-sourced file here (a real file
-    physically outside *project_dir*, deleted by ``cleanup``) without
-    needing a real PEP 517 build."""
+    """``get_wheel_files()``'s cleanup callback (a real removal only for a
+    build-and-read result, see ``_models_wheel_build_and_read.py``) must not
+    run before ``scan_project_for_ai_models()`` re-reads each returned
+    ``ProjectFile``'s bytes from ``physical_path``; otherwise every ``.py``
+    file logs a spurious "could not read for usage scanning" WARNING.
+    Simulates a build-and-read-sourced file (a real file outside
+    *project_dir*, deleted by ``cleanup``) without a real PEP 517 build."""
     project_dir = _make_simple_project(tmp_path)
     fake_extract_dir = tmp_path / "fake-extract"
     fake_extract_dir.mkdir()
@@ -179,16 +174,12 @@ def test_generate_project_sbom_defers_cleanup_past_ai_model_scan(
 def test_generate_project_sbom_cleanup_runs_even_if_step_raises(
     tmp_path: Path, target: str
 ) -> None:
-    """Regression, one case per step inside the try/finally block that
-    guards ``cleanup_discovery()`` (see ``_generators.py``'s own comment
-    on that block): a build-and-read temp directory must not leak
-    regardless of WHICH of the three steps between ``get_wheel_files()``
-    returning and the function moving on (the fresh-containers copy,
-    AI-model scanning, enrichment) raises --
-    every one of them used to run *outside* the ``try/finally`` before
-    this was fixed, and a future refactor that moves any single one of
-    them back outside it must fail exactly this one parametrize case,
-    not silently pass the other two."""
+    """One case per step inside the try/finally block that guards
+    ``cleanup_discovery()`` (see ``_generators.py``): a build-and-read temp
+    directory must not leak whichever of the three steps between
+    ``get_wheel_files()`` returning and the function moving on (the
+    fresh-containers copy, AI-model scanning, enrichment) raises. Moving any
+    one of them outside the ``try/finally`` fails exactly its own case."""
     project_dir = _make_simple_project(tmp_path)
     cleanup_calls: list[str] = []
 
@@ -211,19 +202,13 @@ def test_generate_project_sbom_cleanup_runs_even_if_step_raises(
 def test_generate_project_sbom_cleanup_runs_strictly_last_in_order(
     tmp_path: Path,
 ) -> None:
-    """Order-sensitivity guard, stronger than the parametrized
-    exception-based test above: that test only proves cleanup is called
-    at all when a step raises, which does NOT catch a step being moved
-    to run *after* cleanup instead of before it -- cleanup would still
-    end up called exactly once either way, so a call-count assertion
-    passes even for a real ordering regression (confirmed: temporarily
-    moving ``run_enrichers_for_models()`` to run after
-    ``cleanup_discovery()`` left every case of that parametrized test
-    green). This test instead records every step's own name into one
-    shared list and asserts the exact order, so a future refactor that
-    reorders or hoists any single step across the try/finally boundary
-    is caught precisely, regardless of whether that step happens to
-    raise."""
+    """Cleanup runs strictly after every step, in order.
+
+    The parametrized test above only proves cleanup is called when a step
+    raises; a step moved to run *after* cleanup still calls it once. This test
+    records each step's name in one list and asserts the exact order, so
+    reordering or hoisting any step across the try/finally boundary is caught
+    whether or not that step raises."""
     project_dir = _make_simple_project(tmp_path)
     call_order: list[str] = []
 

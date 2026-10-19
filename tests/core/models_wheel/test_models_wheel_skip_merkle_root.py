@@ -66,7 +66,7 @@ def test_skip_merkle_root_does_not_change_discovered_file_set(
 def test_skip_merkle_root_true_is_not_the_default(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression guard: the default must stay False, i.e. every existing
+    """The default must stay False, i.e. every existing
     caller that doesn't pass the flag keeps getting real digests/roots."""
     tagged_file, plain_file = _make_header_project(tmp_path)
     _patch_recurse(monkeypatch, tagged_file, plain_file)
@@ -79,10 +79,8 @@ def test_skip_merkle_root_true_is_not_the_default(
 
 
 # ---------------------------------------------------------------------------
-# Regression for the "empty file_entries wrongly empties project_files"
-# bug caught during plan review: the emptiness check must key off
-# project_files (populated regardless of skip_merkle_root), not the
-# now-conditionally-populated file_entries/hash list.
+# The emptiness check keys off project_files (populated regardless of
+# skip_merkle_root), not the conditionally populated file_entries/hash list.
 # ---------------------------------------------------------------------------
 
 
@@ -119,10 +117,8 @@ def test_skip_merkle_root_genuinely_empty_file_set_still_returns_none(
 
 
 # ---------------------------------------------------------------------------
-# Regression for the "silent read-failure downgrade" bug caught during
-# plan review: an unreadable file must still be detected and skipped with
-# a warning, matching the skip_merkle_root=False contract, instead of
-# silently appearing with digest_sha256=None.
+# An unreadable file is still detected and skipped with a warning, matching
+# the skip_merkle_root=False contract, not listed with digest_sha256=None.
 # ---------------------------------------------------------------------------
 
 

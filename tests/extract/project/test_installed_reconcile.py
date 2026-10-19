@@ -107,13 +107,11 @@ def test_reconcile_requires_python_equivalent_reformatted(tmp_path: Path) -> Non
 def test_reconcile_requires_python_declared_empty_vs_installed_conflict(
     tmp_path: Path,
 ) -> None:
-    """Regression: `requires-python = ""` (PEP 621's explicit "no
-    constraint" convention) collapses to `requires_python=None` in every
-    static producer, but provenance still records it as declared. Must
-    not crash (SpecifierSet(None) raises TypeError, not the
-    InvalidSpecifier _requires_python_equal already catches) -- and must
-    be treated as a real disagreement against installed's concrete
-    constraint, static's None still winning."""
+    """`requires-python = ""` (PEP 621's explicit "no constraint") collapses to
+    `requires_python=None` in every static producer, but provenance still
+    records it as declared. It does not crash (SpecifierSet(None) raises
+    TypeError, which _requires_python_equal does not catch) and is a real
+    disagreement against installed's concrete constraint; static's None wins."""
     static = static_metadata(requires_python=None)
     static.provenance["requires_python"] = "Source: pyproject.toml"
     installed = ProjectMetadata(name="pkg", version="1.0.0", requires_python=">=3.9")
@@ -148,12 +146,11 @@ def test_reconcile_requires_python_declared_empty_both_sides_not_a_conflict(
 def test_reconcile_requires_python_installed_declared_empty_vs_static_conflict(
     tmp_path: Path,
 ) -> None:
-    """Regression, mirror of the declared-empty-static case above: when
-    *installed*'s own declared-but-empty Requires-Python has already been
-    collapsed to None by the parser (the fix for the None-vs-empty-string
-    convention bug), the comparator call must not crash (SpecifierSet(None)
-    raises) and the disagreement must still be recorded, with the
-    installed candidate's ``value`` normalized to ``""``, never ``None``."""
+    """Mirror of the declared-empty-static case above: when *installed*'s
+    declared-but-empty Requires-Python is already None from the parser, the
+    comparator does not crash (SpecifierSet(None) raises) and the
+    disagreement is recorded, with the installed candidate's ``value``
+    normalised to ``""``, never ``None``."""
     static = static_metadata(requires_python=">=3.9")
     static.provenance["requires_python"] = "Source: pyproject.toml"
     installed = ProjectMetadata(name="pkg", version="1.0.0", requires_python=None)
@@ -170,11 +167,10 @@ def test_reconcile_requires_python_installed_declared_empty_vs_static_conflict(
 def test_reconcile_requires_python_gap_fill_from_installed_declared_empty_is_none(
     tmp_path: Path,
 ) -> None:
-    """Regression: gap-filling requires_python from an installed source
-    whose own value was already collapsed to None by the parser (declared
-    empty, PEP 621's "no constraint" convention) must leave
-    merged.requires_python as None, not the raw empty string, matching
-    every static producer's own convention for the same field."""
+    """Gap-filling requires_python from an installed source whose value is
+    already None from the parser (declared empty) leaves
+    merged.requires_python as None, not the raw empty string, as every static
+    producer does."""
     static = ProjectMetadata(name="pkg", version="1.0.0")  # requires_python undeclared
     installed = ProjectMetadata(name="pkg", version="1.0.0", requires_python=None)
     installed.provenance["requires_python"] = "Source: pkg.egg-info"
@@ -189,10 +185,9 @@ def test_reconcile_requires_python_gap_fill_from_installed_declared_empty_is_non
 def test_reconcile_version_gap_fill_from_installed_declared_empty_is_none(
     tmp_path: Path,
 ) -> None:
-    """Regression: gap-filling version from an installed source whose own
-    value was already collapsed to None by the parser (declared empty)
-    must leave merged.version as None, not the raw empty string, matching
-    every static producer's own convention for the same field."""
+    """Gap-filling version from an installed source whose value is already None
+    from the parser (declared empty) leaves merged.version as None, not the
+    raw empty string, as every static producer does."""
     static = ProjectMetadata(name="pkg")  # version undeclared
     installed = ProjectMetadata(name="pkg", version=None)
     installed.provenance["version"] = "Source: pkg.egg-info"
@@ -223,9 +218,8 @@ def test_reconcile_quiet_suppresses_warning_but_still_records_conflict(
 def test_reconcile_static_never_transiently_holds_installed_value(
     tmp_path: Path,
 ) -> None:
-    """Regression guard: the merged result's static-wins field must equal
-    static's own value throughout -- never briefly set to installed's
-    value and "fixed back"."""
+    """The merged result's static-wins field equals static's own value
+    throughout, never briefly set to installed's value."""
     static = static_metadata()
     installed = ProjectMetadata(name="pkg", version="9.9.9")
     installed.provenance["version"] = "Source: pkg.egg-info"
@@ -344,11 +338,9 @@ def test_reconcile_field_conflicts_order_is_deterministic(tmp_path: Path) -> Non
 
 
 def test_reconcile_does_not_mutate_static_provenance(tmp_path: Path) -> None:
-    """Regression for the dataclasses.replace() aliasing bug: replace()
-    shares container-field objects with *static* verbatim unless a field
-    is explicitly overridden, so a gap-fill write into merged.provenance
-    must not silently leak back into static.provenance (the caller's own
-    object) via a shared dict reference."""
+    """dataclasses.replace() shares container-field objects with *static*
+    unless a field is overridden, so a gap-fill write into merged.provenance
+    must not leak back into static.provenance (the caller's own object)."""
     static = ProjectMetadata(name="pkg")  # requires_python left undeclared
     installed = ProjectMetadata(name="pkg", requires_python=">=3.9")
     installed.provenance["requires_python"] = "Source: pkg.egg-info"
@@ -362,12 +354,10 @@ def test_reconcile_does_not_mutate_static_provenance(tmp_path: Path) -> None:
 
 
 def test_reconcile_gap_fill_does_not_alias_installed_container(tmp_path: Path) -> None:
-    """Regression: gap-filling a container-valued field (keywords/urls)
-    must copy installed's dict/list, never alias merged's field to
-    installed's own object -- the same dataclasses.replace()-style
-    aliasing hazard replace_with_fresh_containers() exists to close
-    elsewhere. A later mutation of merged's container must not leak back
-    into installed's."""
+    """Gap-filling a container-valued field (keywords/urls) copies installed's
+    dict/list, never aliasing merged's field to installed's object (the
+    hazard replace_with_fresh_containers() closes elsewhere). A later
+    mutation of merged's container does not leak into installed's."""
     static = ProjectMetadata(name="pkg", version="1.0.0")  # keywords undeclared
     installed = ProjectMetadata(
         name="pkg", version="1.0.0", keywords=["from-installed"]
@@ -385,7 +375,7 @@ def test_reconcile_gap_fill_does_not_alias_installed_container(tmp_path: Path) -
 def test_reconcile_gap_fill_urls_does_not_alias_installed_container(
     tmp_path: Path,
 ) -> None:
-    """Same aliasing regression as above, for the urls dict field."""
+    """Same aliasing guard as above, for the urls dict field."""
     static = ProjectMetadata(name="pkg", version="1.0.0")  # urls undeclared
     installed = ProjectMetadata(
         name="pkg", version="1.0.0", urls={"Homepage": "https://example.com"}
@@ -401,9 +391,8 @@ def test_reconcile_gap_fill_urls_does_not_alias_installed_container(
 
 
 def test_reconcile_does_not_mutate_static_field_conflicts(tmp_path: Path) -> None:
-    """Same aliasing regression as above, for field_conflicts: a recorded
-    conflict must land only on the returned merged object, never on the
-    caller's own static input."""
+    """Same aliasing guard as above, for field_conflicts: a recorded conflict
+    lands only on the returned merged object, never on the caller's static."""
     static = static_metadata()
     installed = ProjectMetadata(name="pkg", version="1.0.1")
     installed.provenance["version"] = "Source: pkg.egg-info"

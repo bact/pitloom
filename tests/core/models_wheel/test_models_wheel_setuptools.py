@@ -36,12 +36,9 @@ MERGED_FIXTURE = FIXTURES / "sampleproject-setuptools-merged"
 
 
 def test_discover_packages_find_where_regression() -> None:
-    """Regression for the documented bug: a ``[options.packages.find]
-    where = src`` layout must resolve distribution paths without the
-    ``src/``/``where=`` prefix leaking in -- previously (via the
-    always-Hatchling-heuristic code path) this was reported as
-    ``src/sampleproject_setuptools/__init__.py`` instead of the correct
-    ``sampleproject_setuptools/__init__.py``."""
+    """A ``[options.packages.find] where = src`` layout resolves distribution
+    paths without the ``src/``/``where=`` prefix (``sampleproject_setuptools/
+    __init__.py``, not ``src/sampleproject_setuptools/__init__.py``)."""
     result = discover(PACKAGES_FIND_FIXTURE)
 
     assert result is not None
@@ -92,7 +89,7 @@ def test_discover_package_data_leaves_no_egg_info_behind() -> None:
 
 
 def test_discover_zero_config_pep621_auto_discovery() -> None:
-    """Regression: a bare PEP 621 project (``[project]`` only, no
+    """A bare PEP 621 project (``[project]`` only, no
     ``[tool.setuptools]`` at all) must resolve via setuptools' own
     zero-config auto-discovery (``Distribution.set_defaults()``), not
     resolve to an empty file list. ``apply_configuration()`` alone
@@ -107,7 +104,7 @@ def test_discover_zero_config_pep621_auto_discovery() -> None:
 
 
 def test_discover_succeeds_on_legacy_table_form_license(tmp_path: Path) -> None:
-    """Regression: a project using PEP 621's original ``project.license``
+    """A project using PEP 621's original ``project.license``
     TOML-table form (``{text = "..."}``), a ``tool.setuptools.license-files``
     key, and a legacy ``License ::`` trove classifier -- all superseded by
     PEP 639 but still common in real, unmigrated projects (e.g. requests
@@ -143,7 +140,7 @@ def test_discover_succeeds_on_legacy_table_form_license(tmp_path: Path) -> None:
 
 
 def test_discover_merges_setup_cfg_and_pyproject_toml() -> None:
-    """Regression: ``packages``/``package_dir`` from ``setup.cfg`` and
+    """``packages``/``package_dir`` from ``setup.cfg`` and
     ``package-data`` from ``pyproject.toml``'s ``[tool.setuptools]`` are
     both applied to the same ``Distribution`` -- neither file alone
     would resolve this fixture's full file list."""
@@ -158,14 +155,14 @@ def test_discover_merges_setup_cfg_and_pyproject_toml() -> None:
 
 
 def test_distribution_path_top_level_module_has_no_leading_slash() -> None:
-    """Regression: a top-level ``py_modules``/``package_data`` entry
+    """A top-level ``py_modules``/``package_data`` entry
     (empty ``package``) must not produce a leading-slash distribution
     path -- ``f"{''}/{filename}"`` would naively yield ``"/filename"``."""
     assert _distribution_path("", "foo.py") == "foo.py"
 
 
 def test_distribution_path_normalizes_backslashes() -> None:
-    """Regression: a backslash reaching *package* (a malformed
+    """A backslash reaching *package* (a malformed
     ``packages``/``package_dir`` entry, not necessarily only a Windows
     artifact) is normalized to a forward slash, not left as-is."""
     assert _distribution_path("foo\\bar", "x.py") == "foo/bar/x.py"
@@ -174,7 +171,7 @@ def test_distribution_path_normalizes_backslashes() -> None:
 def test_dedupe_by_distribution_path_drops_later_duplicate(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: a ``package_data`` glob overlapping a ``.py`` module
+    """A ``package_data`` glob overlapping a ``.py`` module
     already found by module discovery must not produce two
     ``IncludedFile`` entries for the same ``distribution_path`` -- that
     would corrupt the Merkle root (each leaf hash counted twice). Both
@@ -216,12 +213,10 @@ def test_dedupe_by_distribution_path_warns_on_genuine_collision(
 def test_setup_py_packaging_kwargs_detects_only_relevant_names(
     tmp_path: Path,
 ) -> None:
-    """Regression, found real-world validating against boto3 and cffi:
-    setup.py passing ``package_data``/``packages`` imperatively (even as
-    a non-literal ``find_packages()`` call, which the metadata
-    extractor's own AST helper can't resolve to a value) must still be
-    detected by name -- while an unrelated kwarg like ``install_requires``
-    is not."""
+    """setup.py passing ``package_data``/``packages`` imperatively (even as a
+    non-literal ``find_packages()`` call, which the metadata extractor's AST
+    helper can't resolve to a value, as in boto3 and cffi) is detected by
+    name, while an unrelated kwarg like ``install_requires`` is not."""
     setup_py = tmp_path / "setup.py"
     setup_py.write_text(
         "from setuptools import find_packages, setup\n"
@@ -251,7 +246,7 @@ def test_setup_py_packaging_kwargs_no_setup_call_returns_none(
 def test_setup_py_packaging_kwargs_no_false_positive_on_metadata_only(
     tmp_path: Path,
 ) -> None:
-    """Regression: a ``setup()`` call passing only ordinary metadata
+    """A ``setup()`` call passing only ordinary metadata
     kwargs (``name=``/``version=``, present in nearly every real-world
     ``setup.py``) must not be flagged -- proves the detector isn't
     matching on kwarg presence in general, only on the specific
@@ -268,7 +263,7 @@ def test_setup_py_packaging_kwargs_no_false_positive_on_metadata_only(
 def test_setup_py_packaging_kwargs_inspects_call_past_an_unrelated_match(
     tmp_path: Path,
 ) -> None:
-    """Regression: an unrelated ``.setup()``-named call earlier in the
+    """An unrelated ``.setup()``-named call earlier in the
     file (e.g. a logger/app configured before the real ``setup()`` call)
     must not stop the scan -- every matching call is inspected, not just
     the first one found by ``ast.walk``."""
@@ -287,7 +282,7 @@ def test_setup_py_packaging_kwargs_inspects_call_past_an_unrelated_match(
 def test_setup_py_packaging_kwargs_flags_kwargs_unpacking(
     tmp_path: Path,
 ) -> None:
-    """Regression: ``setup(**config)`` can hide a packaging-relevant
+    """``setup(**config)`` can hide a packaging-relevant
     argument the static scan has no way to inspect -- the unpack itself
     must be reported (as ``"**kwargs"``) rather than silently treated as
     "no packaging kwargs present"."""
@@ -302,7 +297,7 @@ def test_setup_py_packaging_kwargs_flags_kwargs_unpacking(
 def test_discover_warns_when_setup_py_overrides_packaging_imperatively(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: a project with resolvable static config (here,
+    """A project with resolvable static config (here,
     zero-config auto-discovery) *and* a setup.py that also passes
     ``package_data`` imperatively must still return the statically
     resolved file list (it's the best available, and often still
@@ -380,7 +375,7 @@ def test_discover_returns_none_and_logs_on_introspection_failure(
 def test_discover_returns_none_and_logs_on_ambiguous_flat_layout(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: a zero-config PEP 621 project with two top-level
+    """A zero-config PEP 621 project with two top-level
     package-looking directories and no explicit ``packages``/
     ``py_modules`` is ambiguous to setuptools' own auto-discovery, which
     raises ``PackageDiscoveryError`` from ``set_defaults()`` -- this
@@ -464,8 +459,8 @@ def test_isolated_sys_modules_removes_only_newly_imported_modules(
     directory, but leaves a name that was already present before it
     started alone -- using fake module entries (not a real import) to
     keep this deterministic regardless of what else the process has
-    already imported. Regression: a module file spelling the project in
-    another letter case (a case-insensitive file system) was outside."""
+    already imported. A module file spelling the project in another letter
+    case (a case-insensitive file system) counts as beneath it."""
     project = tmp_path / "p"
     project.mkdir()
     if case == "other" and case_sensitive(tmp_path):
@@ -491,7 +486,7 @@ def test_isolated_sys_modules_removes_only_newly_imported_modules(
 def test_isolated_sys_modules_leaves_modules_outside_project_dir_alone(
     tmp_path: Path,
 ) -> None:
-    """Regression: a module newly imported during discovery but loaded
+    """A module newly imported during discovery but loaded
     from *outside* the target project directory (e.g. a third-party
     dependency pulled in transitively by ``attr:`` resolution) must not
     be evicted from ``sys.modules`` -- only the target project's own
@@ -518,7 +513,7 @@ def test_isolated_sys_modules_leaves_modules_outside_project_dir_alone(
 def test_isolated_sys_modules_treats_unresolvable_module_file_as_outside(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression: if a newly-imported module's ``__file__`` can't be
+    """If a newly-imported module's ``__file__`` can't be
     resolved (a broken symlink loop, or another ``OSError``/
     ``RuntimeError``/``ValueError`` from ``Path.resolve()``), the module
     is treated as outside *project_dir* (left alone) rather than

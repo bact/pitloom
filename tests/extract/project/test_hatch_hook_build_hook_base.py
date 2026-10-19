@@ -6,11 +6,11 @@
 """Tests for pitloom.plugins.hatch's Hatchling-version-agnostic
 ``BuildHookInterface`` base-class resolution (``_resolve_build_hook_base``).
 
-Regression coverage for Hatchling 1.32.3's undocumented change of
-``BuildHookInterface`` from ``Generic[BuilderConfigBound]`` (one type
-param) to ``Generic[BuilderConfigBound, PluginManagerBound]`` (two),
-reverted in 1.32.4. A wrong-arity subscription crashes
-``PitloomBuildHook``'s class definition at import time.
+Hatchling changed ``BuildHookInterface`` from ``Generic[BuilderConfigBound]``
+(one type param) to ``Generic[BuilderConfigBound, PluginManagerBound]`` (two)
+in some releases. A wrong-arity subscription crashes ``PitloomBuildHook``'s
+class definition at import time, so the base is resolved from the installed
+Hatchling's shape.
 
 See also:
 - :mod:`tests.extract.project.test_hatch_hook_hook_basic` for hook

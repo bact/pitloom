@@ -69,10 +69,8 @@ def test_resolve_flit_dynamic_metadata_warns_on_missing_module(
 def test_resolve_flit_dynamic_metadata_quiet_suppresses_warning(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: quiet=True must suppress this resolver's own WARNING: --
-    for a caller re-reading the same file a second time (e.g.
-    resolve_project_with_lockfile()'s peek-then-reread, see
-    tests/extract/project/test_project.py's matching duplicate-warning coverage)."""
+    """quiet=True suppresses this resolver's own WARNING: for a caller re-reading
+    the same file (e.g. resolve_project_with_lockfile()'s peek-then-reread)."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
         '[build-system]\nrequires = ["flit_core>=3.9"]\n'
@@ -91,14 +89,11 @@ def test_resolve_flit_dynamic_metadata_quiet_suppresses_warning(
 def test_resolve_flit_dynamic_metadata_never_executes_project_code(
     tmp_path: Path,
 ) -> None:
-    """Regression: a ``dynamic = ["version"]`` whose ``__version__`` is a
-    function call (not an AST-resolvable literal) must never be resolved
-    by importing -- executing -- the target module. flit-core's own
-    ``make_metadata()``/``get_info_from_module()`` falls back to import
-    in exactly this case; this resolver must stop at the AST-only scan
-    and leave ``version`` unresolved instead, matching the identical
-    fix already applied to the sibling
-    ``pitloom.core._models_wheel_flit`` discovery module."""
+    """A ``dynamic = ["version"]`` whose ``__version__`` is a function call (not
+    an AST-resolvable literal) is never resolved by importing the target
+    module. flit-core falls back to import here; this resolver stops at the
+    AST-only scan and leaves ``version`` unresolved, as
+    ``pitloom.core._models_wheel_flit`` does."""
     pkg_dir = tmp_path / "evilpkg"
     pkg_dir.mkdir()
     (tmp_path / "pyproject.toml").write_text(
@@ -147,9 +142,9 @@ def test_read_pyproject_resolves_flit_dynamic_fields() -> None:
 
 
 def test_resolve_flit_dynamic_metadata_reads_a_pep_263_module(tmp_path: Path) -> None:
-    """Regression: the confinement check decoded the module as UTF-8, so a
-    ``latin-1`` one (PEP 263) lost its version and description; flit-core
-    reads the bytes and honours the declaration, and so does the check."""
+    """The confinement check reads the module as bytes and honours a PEP 263
+    declaration (``latin-1``), as flit-core does, keeping its version and
+    description."""
     (tmp_path / "pyproject.toml").write_text(
         '[build-system]\nbuild-backend = "flit_core.buildapi"\n'
         '[project]\nname = "m"\ndynamic = ["version", "description"]\n',
