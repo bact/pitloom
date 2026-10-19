@@ -41,8 +41,8 @@ def test_debug_flag_raises_logger_to_debug_level(
     tmp_path: Path,
 ) -> None:
     """--debug (parsed on the top-level parser, before the subcommand)
-    reaches configure_logging() so DEBUG: records are no longer
-    suppressed, for any subcommand."""
+    reaches configure_logging() so DEBUG: records are emitted, for any
+    subcommand."""
     # setenv, not delenv: delenv on an already-absent name records no
     # teardown-restore, leaking PITLOOM_DEBUG=1 into later tests (see
     # tests/test_logging_config.py for the mechanism).
@@ -71,13 +71,11 @@ def test_debug_flag_survives_a_generator_reconfiguring_logging(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Regression: `project` dispatches into generate_project_sbom(),
-    which calls bare configure_logging() (debug=None) before its own
-    work -- without routing --debug through PITLOOM_DEBUG, that second
-    call silently reverted the logger to INFO. Every subcommand that
-    calls a generator this way (project/generate/wheel/embed-wheel/
-    model/enrich/env/merge) shares this risk; only `project` is
-    exercised here."""
+    """`project` dispatches into generate_project_sbom(), which calls bare
+    configure_logging() (debug=None); --debug routed through PITLOOM_DEBUG
+    keeps the logger at DEBUG. Every subcommand that calls a generator this
+    way (project/generate/wheel/embed-wheel/model/enrich/env/merge) shares
+    the hazard; only `project` is exercised here."""
     monkeypatch.setenv("PITLOOM_DEBUG", "0")  # see setenv-not-delenv note above
     project_dir = _make_simple_project(tmp_path)
     monkeypatch.setattr(

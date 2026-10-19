@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""CLI-level regression for the id-registry mint collision: ``loom project``
+"""CLI-level id-registry mint collision: ``loom project``
 run repeatedly with an auto-harvested registry must never mint a duplicate
 ``spdxId``.
 

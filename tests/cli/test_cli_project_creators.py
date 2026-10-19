@@ -149,11 +149,9 @@ def test_project_command_three_creators_type_and_email_bind_to_most_recent(
     tmp_path: Path,
 ) -> None:
     """With three creators, each --creator-type/--creator-email must bind to
-    the creator most recently named, not the first or a stale index -- a
-    regression check for the switch from in-place mutation
-    (``creators[-1].type = values``) to reconstructing the last ``Creator``
-    (``creators[-1] = Creator(...)``) in ``_CreatorTypeAction``/
-    ``_CreatorEmailAction``."""
+    the creator most recently named, not the first or a stale index.
+    ``_CreatorTypeAction``/``_CreatorEmailAction`` rebuild the last
+    ``Creator`` (``creators[-1] = Creator(...)``) rather than mutating it."""
     project_dir = tmp_path / "proj"
     project_dir.mkdir()
     (project_dir / "pyproject.toml").write_text(
