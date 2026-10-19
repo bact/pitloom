@@ -352,20 +352,23 @@ def test_a_card_that_fails_to_read_is_skipped(
 
 @pytest.mark.parametrize("depth", [2000, 100000], ids=["deep", "too-deep"])
 def test_a_deep_croissant_is_read_or_refused(project: Path, depth: int) -> None:
-    """A nesting the JSON parser accepts is walked without recursion; one
-    it refuses is the documented ``ValueError`` naming the file."""
+    """A nesting is walked without recursion, or refused as the documented
+    ``ValueError`` naming the file. Whether the JSON parser itself accepts a
+    nesting of 100000 depends on the Python version (3.14 does), so both
+    outcomes are valid there; no other exception is."""
     body = '{"name": "x", "license": "MIT", "recordSet": '
     (project / "c.json").write_text(body + "[" * depth + "]" * depth + "}")
 
     def body_() -> None:
         loom.add_dataset("t.txt", croissant="c.json")
 
-    if depth < 10000:
+    try:
         graph = run_graph(project / "out.json", body_)
-        assert declared(graph, "t.txt") == [(EXPRESSION, "MIT")]
+    except ValueError as exc:
+        assert depth >= 10000, "a nesting this shallow must be read"
+        assert str(exc).startswith("Croissant source 'c.json' is not valid")
         return
-    with pytest.raises(ValueError, match="^Croissant source 'c.json' is not valid"):
-        run_graph(project / "out.json", body_)
+    assert declared(graph, "t.txt") == [(EXPRESSION, "MIT")]
 
 
 def test_any_croissant_failure_is_a_value_error_naming_it(project: Path) -> None:
