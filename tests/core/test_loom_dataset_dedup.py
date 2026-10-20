@@ -22,6 +22,9 @@ from typing import Any
 import pytest
 
 from pitloom import loom
+from pitloom.core.dataset_merge import merge_dataset_references
+from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
+from pitloom.core.dataset_names import CARD_DATASETS_CAP, distinct_dataset_names
 from pitloom.id_registry import DATASET_PACKAGE_TYPE, FILE_TYPE
 from tests.registry_helpers import make_registry
 
@@ -181,3 +184,104 @@ def test_recursive_decorated_run_leaves_no_active_run(tmp_path: Path) -> None:
 
     train(2)
     _no_active_run_raises()
+
+
+_SPELLINGS = [
+    pytest.param(["Org/Data", "org/data"], 1, id="hub-id-case"),
+    pytest.param(["ds  one", "ds one"], 1, id="whitespace"),
+    pytest.param(["Org/Data", " org/data "], 1, id="hub-id-case-and-edge-space"),
+    pytest.param(["Not An Id", "not an id"], 2, id="other-name-case-kept"),
+    pytest.param(["org/data", "org/other"], 2, id="different-ids"),
+    pytest.param(["Data.txt", "data.txt"], 2, id="file-never-folded"),
+]
+
+
+@pytest.mark.parametrize(("names", "count"), _SPELLINGS)
+def test_spellings_of_one_dataset_are_one_package(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, names: list[str], count: int
+) -> None:
+    """The SDK names one dataset as a model card's ``datasets:`` does
+    (:func:`~pitloom.core.dataset_names.dataset_key`): the package is named
+    as first declared, and each declaring call keeps its relationship. A name
+    that is an existing file is never folded."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "Data.txt").write_bytes(b"data\n")
+    out = tmp_path / "frag.json"
+    with loom.run(out):
+        loom.set_model("m")
+        loom.add_dataset(names[0])
+        loom.add_validation_dataset(names[1])
+    graph: list[dict[str, Any]] = json.loads(out.read_text())["@graph"]
+    packages = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
+    assert len(packages) == count
+    assert packages[0]["name"] == names[0]
+    roles = sorted(
+        r["relationshipType"]
+        for r in _relationships(graph)
+        if r["relationshipType"] in {"trainedOn", "testedOn"}
+    )
+    assert roles == ["testedOn", "trainedOn"]
+    if "Data.txt" not in names:  # a file is the one place the SDK folds less
+        card = distinct_dataset_names(names, CARD_DATASETS_CAP, "test")
+        assert count == len(card)
+
+
+def test_spellings_share_one_registered_id(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Both spellings resolve to the package registered under the first."""
+    monkeypatch.chdir(tmp_path)
+    registry = make_registry(
+        {(DATASET_PACKAGE_TYPE, "Org/Data"): (f"{_NS}#DatasetPackage-3", None)},
+        namespace=_NS,
+    )
+    out = tmp_path / "frag.json"
+    with loom.run(out, id_registry=registry):
+        loom.set_model("m")
+        loom.add_dataset("Org/Data")
+        loom.add_validation_dataset("org/data")
+    graph = json.loads(out.read_text())["@graph"]
+    (package,) = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
+    assert package["spdxId"] == f"{_NS}#DatasetPackage-3"
+
+
+def _said(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [r.getMessage() for r in caplog.records if "name one dataset" in r.message]
+
+
+def test_a_folded_spelling_is_said_once_by_every_route(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The SDK, a card's ``datasets:`` and two merged references say the
+    same ``INFO:`` for ``Org/Data``/``org/data``, the SDK once however often
+    the pair is declared; an identical spelling says nothing."""
+    monkeypatch.chdir(tmp_path)
+    expected = (
+        "dataset Org/Data and org/data name one dataset; the first spelling is kept"
+    )
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        with loom.run(tmp_path / "frag.json"):
+            loom.set_model("m")
+            for name in ("Org/Data", "org/data", "org/data", "Org/Data"):
+                loom.add_dataset(name)
+        sdk = _said(caplog)
+        caplog.clear()
+        distinct_dataset_names(
+            ["Org/Data", "org/data", "Org/Data"], CARD_DATASETS_CAP, "t"
+        )
+        card = _said(caplog)
+        caplog.clear()
+        merge_dataset_references(
+            [
+                DatasetReference(r, DatasetMetadata(name=n))
+                for r, n in (
+                    ("trainedOn", "Org/Data"),
+                    ("testedOn", "org/data"),
+                    ("trainedOn", "Org/Data"),
+                )
+            ]
+        )
+        merged = _said(caplog)
+    assert sdk == card == merged == [expected]

@@ -42,6 +42,7 @@ from pitloom._loom_dataset_meta import (
 )
 from pitloom.assemble.spdx3.provenance import emit_provenance
 from pitloom.core.dataset_hash import DatasetDigest, hash_dataset
+from pitloom.core.dataset_names import dataset_key, log_one_dataset
 from pitloom.core.file_hash import HexDigests, file_digests
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.path_probe import (
@@ -176,10 +177,11 @@ class LoomElements:
 
     Holds the run's caches: one ``dataset_DatasetPackage`` per key and
     content and one ``software_File`` per path key and content, so a
-    dataset declared twice (``add_input_dataset`` then ``add_dataset``, or
-    under two spellings of one path) is one element and one registry
-    claim; the names each package was declared under; and the paths
-    already warned to be outside the registry's project root.
+    dataset declared twice (``add_input_dataset`` then ``add_dataset``, under
+    two spellings of one path, or of one non-file name, see
+    :meth:`_identity`) is one element and one registry claim; the names each
+    package was declared under; and the paths already warned to be outside
+    the registry's project root.
     """
 
     # pylint: disable-next=too-many-arguments
@@ -203,6 +205,7 @@ class LoomElements:
         ] = {}
         self._declared: list[tuple[str, spdx3.dataset_DatasetPackage]] = []
         self._outside_warned: set[str] = set()
+        self._spellings_said: set[tuple[str, str]] = set()
         self._left_out_warned: set[str] = set()
         # Per package (by identity), written by finish(): it, its caller
         # provenance, the id of its provenance Annotation (minted with the
@@ -238,8 +241,10 @@ class LoomElements:
         if found.excluded:  # said even when no root came of the directory
             self._warn_registry_in(name)
         lookup = self._package_key(name)
-        held_package = self._packages.get((lookup, found.hex_digest))
+        package_key = (self._identity(lookup, found), found.hex_digest)
+        held_package = self._packages.get(package_key)
         if held_package is not None:
+            self._note_spelling(held_package, name)
             self._declared.append((name, held_package))
             if sources is not None:
                 self._details[id(held_package)][3].extend(sources)
@@ -253,7 +258,7 @@ class LoomElements:
             sources or DatasetSources(),
         )
         package.dataset_datasetType = [_dataset_kind(dataset_type)]
-        self._packages[(lookup, found.hex_digest)] = package
+        self._packages[package_key] = package
         self._declared.append((name, package))
         if found.hex_digest is None:
             return package
@@ -324,6 +329,24 @@ class LoomElements:
         if registry is None:
             return LookupKey(name)
         return artifact_key(registry, path=name, name=name)
+
+    def _note_spelling(self, package: spdx3.dataset_DatasetPackage, name: str) -> None:
+        """Say once, through :func:`~pitloom.core.dataset_names.log_one_dataset`,
+        that *name* is another spelling of the dataset *package* is named for."""
+        kept = str(package.name)
+        if name != kept and (kept, name) not in self._spellings_said:
+            self._spellings_said.add((kept, name))
+            log_one_dataset(kept, name)
+
+    @staticmethod
+    def _identity(lookup: LookupKey, found: DatasetDigest) -> LookupKey:
+        """What names one dataset in this run: *lookup* as is for a file or
+        directory, else by :func:`~pitloom.core.dataset_names.dataset_key`,
+        as for a model card's datasets (``Org/Data`` is ``org/data``; a
+        file's name is never folded, as two files may differ only in case)."""
+        if lookup.path or found.hex_digest is not None:
+            return lookup
+        return lookup._replace(key=dataset_key(lookup.key))
 
     @staticmethod
     def _add_kind(

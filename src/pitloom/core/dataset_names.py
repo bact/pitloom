@@ -21,7 +21,7 @@ import logging
 import re
 from collections.abc import Iterable
 
-from pitloom.logging_config import Cap, warn_over_cap
+from pitloom.logging_config import Cap, loggable, warn_over_cap
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +31,7 @@ __all__ = [
     "dataset_key",
     "distinct_dataset_names",
     "is_hub_dataset_id",
+    "log_one_dataset",
 ]
 
 #: The most datasets one model card may list: a dataset is a package and
@@ -64,6 +65,17 @@ def dataset_key(name: str) -> str:
     return collapsed.lower() if is_hub_dataset_id(collapsed) else collapsed
 
 
+def log_one_dataset(kept: str, spelling: str) -> None:
+    """One ``INFO:`` that *spelling* was read as the dataset *kept*, which
+    names it (the first spelling wins). Every route that folds two spellings
+    says it through here, so none does it silently."""
+    log.info(
+        "dataset %s and %s name one dataset; the first spelling is kept",
+        loggable(kept),
+        loggable(spelling),
+    )
+
+
 def distinct_dataset_names(names: Iterable[str], cap: Cap, where: str) -> list[str]:
     """Each dataset of *names* once, by its first spelling, in order (names
     stripped, a blank one none), the first ``cap.limit`` of them; one
@@ -73,7 +85,11 @@ def distinct_dataset_names(names: Iterable[str], cap: Cap, where: str) -> list[s
     for listed in names:
         name = listed.strip()
         key = dataset_key(name)
-        if not key or key in seen:
+        if key and key in seen:
+            if name != seen[key]:
+                log_one_dataset(seen[key], name)
+            continue
+        if not key:
             continue
         if len(seen) >= cap.limit:
             cut = True

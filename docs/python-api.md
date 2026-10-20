@@ -288,7 +288,10 @@ A dataset is hashed when it is declared, an output dataset too: call
 `add_output_dataset()` after the step has written the file, or it carries the
 hash of the file it replaces. One name holding one content is one package per
 run: declaring it again (as input and output, or twice) adds its roles to the
-same package, with no collision warning.
+same package, with no collision warning. A name that is no file is compared as
+a model card's `datasets:` entry is: whitespace runs count as one space and a
+Hugging Face repository id is case-insensitive (`Org/Data` is `org/data`), the
+package keeping the first spelling.
 
 A dataset can carry what its own metadata states. Pass `croissant=` (a
 local [Croissant](https://docs.mlcommons.org/croissant/) JSON-LD file) to any

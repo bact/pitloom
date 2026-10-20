@@ -33,6 +33,14 @@ Wired in from `assemble/spdx3/ai.py` and `_document_model.py`.
 builds one package, creator and licence elements per dataset and one
 relationship per role.
 
+The Python SDK (`loom.Run`) builds its packages itself
+(`_loom_dataset.LoomElements`) and applies the same name rule: a name that is no
+file is keyed by `dataset_key`, so `Org/Data` and `org/data` are one package
+named as first declared. A name that is an existing file or directory is never
+folded (two files may differ only in case). A drift-guard test compares the SDK
+with `distinct_dataset_names`. `add_output_dataset(input_datasets=...)` still
+matches the strings an input was declared with.
+
 - The first reference's values win. A later one fills a field the first leaves
   unset (`None`, empty text or list, or a placeholder: `noAssertion`, `unknown`,
   `N/A`, any case; a stated `0` is a value), with that field's provenance, and
