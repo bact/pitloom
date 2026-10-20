@@ -128,12 +128,22 @@ def _build_main_package(
         creationInfo=spdx_ci,
     )
     main_package.software_packageVersion = metadata.version or "unknown"
-    # suppliedBy names who supplied the package, so only assert it for a real
-    # named creator -- not for the default SoftwareAgent "Pitloom", which is
-    # the SBOM tool, not the package's supplier.  suppliedBy is single-valued
-    # in SPDX 3, so when multiple creators are named, the *first* one is used.
-    if creation_metadata.creators:
-        main_package.suppliedBy = agents[0].spdxId
+    # suppliedBy names who supplied the package, so only assert it for a named
+    # person, organisation or generic agent -- not for a software agent (the
+    # default "Pitloom", or a service that ran Pitloom), which made the SBOM and
+    # did not supply the package.  suppliedBy is single-valued in SPDX 3, so
+    # when several are named, the *first* of those is used.  With no creator
+    # named, *agents* holds only the default "Pitloom" and the zip is empty.
+    supplier = next(
+        (
+            agent
+            for creator, agent in zip(creation_metadata.creators, agents, strict=False)
+            if creator.type != "software-agent"
+        ),
+        None,
+    )
+    if supplier is not None:
+        main_package.suppliedBy = supplier.spdxId
     if metadata.description:
         main_package.description = metadata.description
     if download_location:

@@ -73,8 +73,10 @@ human did the work.
   most recently named creator). The software-agent/agent types are for
   naming an automated creator that isn't Pitloom itself -- e.g. a CI bot
   that invoked Pitloom on someone's behalf. `suppliedBy` on the main package
-  -- single-valued in SPDX 3 -- is set to the *first* named creator when two
-  or more are given.
+  -- single-valued in SPDX 3 -- is set to the *first* named creator that is
+  not a software agent (a program that made the SBOM did not supply the
+  package); with only software-agent creators the main package has no
+  supplier.
 - **You name no creator** (zero-config): rather than invent a fake person,
   Pitloom records itself as the creator too, but as a software agent, not a
   person or organisation -- honestly "an unattended Pitloom run made this" --

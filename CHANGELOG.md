@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-19
+Last-Modified: 2026-10-20
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -127,6 +127,8 @@ and this project adheres to
 - Dataset readers: a model card lists at most 1000 datasets, Croissant JSON
   nests at most 64 levels, a placeholder (`unknown`, `N/A`, `NOASSERTION`) is
   no name, licence or URL, and Hub card warnings name no cache path ([#311])
+- The main package's `suppliedBy` is never a `software-agent` creator: the next
+  creator is taken, or none is set ([#312])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
@@ -135,6 +137,7 @@ and this project adheres to
 [#309]: https://github.com/bact/pitloom/pull/309
 [#310]: https://github.com/bact/pitloom/pull/310
 [#311]: https://github.com/bact/pitloom/pull/311
+[#312]: https://github.com/bact/pitloom/pull/312
 
 ## [0.20.2] - 2026-10-09
 
