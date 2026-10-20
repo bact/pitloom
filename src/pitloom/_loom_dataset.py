@@ -211,9 +211,9 @@ class LoomElements:
             tuple[LookupKey, str | None], spdx3.dataset_DatasetPackage
         ] = {}
         self._declared: list[tuple[str, spdx3.dataset_DatasetPackage]] = []
-        self._outside_warned: set[str] = set()
-        self._spellings_said: set[tuple[str, str]] = set()
-        self._left_out_warned: set[str] = set()
+        # What a message was already said of, as (message, subject), so each
+        # is said once per run.
+        self._said: set[tuple[str, str]] = set()
         # Per package (by identity), written by finish(): it, its caller
         # provenance, the id of its provenance Annotation (minted with the
         # package, so the ids do not depend on what the run declares
@@ -337,13 +337,21 @@ class LoomElements:
             return LookupKey(name)
         return artifact_key(registry, path=name, name=name)
 
+    def _first_time(self, message: str, subject: str) -> bool:
+        """Whether *message* has not yet been said of *subject* in this run;
+        marks it said."""
+        key = (message, subject)
+        if key in self._said:
+            return False
+        self._said.add(key)
+        return True
+
     def _note_spelling(self, package: spdx3.dataset_DatasetPackage, name: str) -> None:
         """Say once, through :func:`~pitloom.core.dataset_names.log_one_dataset`,
         that *name* is another spelling of the dataset *package* is named for."""
         kept = str(package.name)
-        if name == kept or (kept, name) in self._spellings_said:
+        if name == kept or not self._first_time("spelling", f"{kept}\n{name}"):
             return
-        self._spellings_said.add((kept, name))
         log_one_dataset(kept, name)
         registry = self._session.registry
         other = (
@@ -443,8 +451,7 @@ class LoomElements:
         if key is not None:
             return key, True
         real = os.path.realpath(path)
-        if real not in self._outside_warned:
-            self._outside_warned.add(real)
+        if self._first_time("outside", real):
             log.warning(OUTSIDE_ROOT_WARNING, name, loggable(str(registry.root_dir())))
         return name, False
 
@@ -480,8 +487,7 @@ class LoomElements:
         """Warn, once per directory per run, that the declared registry was
         left out of the directory dataset *name*."""
         real = os.path.realpath(name)
-        if real not in self._left_out_warned:
-            self._left_out_warned.add(real)
+        if self._first_time("left-out", real):
             log.warning(
                 REGISTRY_IN_DATASET_WARNING,
                 loggable(str(registry_file_path(self._session.registry))),

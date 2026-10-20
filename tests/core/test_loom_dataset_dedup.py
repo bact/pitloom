@@ -234,6 +234,9 @@ def test_an_existing_path_is_never_folded_even_when_not_hashed(
     """An empty directory and a file over ``max-dataset-hash-bytes`` have no
     digest but are paths: ``Org/Data`` and ``org/data`` stay two packages."""
     monkeypatch.chdir(tmp_path)
+    (tmp_path / "Probe").mkdir()
+    if (tmp_path / "probe").exists():
+        pytest.skip("case-insensitive file system")  # pragma: no cover
     for name in ("Org/Data", "org/data"):
         path = Path(name)
         if kind == "empty-dir":
@@ -241,11 +244,6 @@ def test_an_existing_path_is_never_folded_even_when_not_hashed(
         else:
             path.parent.mkdir(parents=True)
             path.write_bytes(b"x" * 64)
-    if (
-        not (Path("Org").is_dir() and Path("org").is_dir())
-        or len({p.name for p in tmp_path.iterdir()}) < 2
-    ):
-        pytest.skip("case-insensitive file system")  # pragma: no cover
     out = tmp_path / "frag.json"
     config = PitloomConfig(max_dataset_hash_bytes=8)
     with loom.run(out, pitloom_config=config):
