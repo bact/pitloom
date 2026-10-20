@@ -111,8 +111,7 @@ def test_conflict_warns_once_per_field_and_keeps_the_first(
     )
     assert merged.metadata.version == "1"
     assert [r.getMessage() for r in caplog.records] == [
-        "DATASET=o/d FIELD=version: references to the same dataset differ; "
-        "the first is kept"
+        "FIELD=version: references to dataset o/d differ; the first is kept"
     ]
 
 
@@ -131,3 +130,25 @@ def test_inputs_are_not_changed() -> None:
     merged = merge_dataset_references([first, second])[0]
     merged.metadata.keywords.append("x")
     assert second.metadata.keywords == ["k"]
+
+
+@pytest.mark.parametrize(
+    ("first", "second", "kept"),
+    [
+        ("noAssertion", "no", "no"),  # not a claim: a later statement replaces it
+        ("no", "noAssertion", "no"),  # and never replaces a statement
+        ("noAssertion", None, "noAssertion"),
+    ],
+)
+def test_no_assertion_is_not_a_claim(
+    first: str, second: str | None, kept: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING)
+    (merged,) = merge_dataset_references(
+        [
+            _ref("trainedOn", has_sensitive_personal_information=first),
+            _ref("testedOn", has_sensitive_personal_information=second),
+        ]
+    )
+    assert merged.metadata.has_sensitive_personal_information == kept
+    assert not caplog.records

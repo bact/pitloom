@@ -50,8 +50,9 @@ class MergedDataset:
 
 def _is_unset(value: Any) -> bool:
     """Whether a source stated nothing for *value*: ``None``, an empty text
-    or an empty list."""
-    return value is None or value == "" or value == []
+    or list, or ``"noAssertion"``, which is not a claim and so does not
+    block a later reference that states the field."""
+    return value is None or value in ("", [], "noAssertion")
 
 
 def _fill(target: DatasetMetadata, other: DatasetMetadata, field_name: str) -> None:
@@ -76,10 +77,9 @@ def _merge_into(target: DatasetMetadata, other: DatasetMetadata) -> None:
             _fill(target, other, item.name)
         elif mine != theirs:
             log.warning(
-                "DATASET=%s FIELD=%s: references to the same dataset differ; "
-                "the first is kept",
-                target.name,
+                "FIELD=%s: references to dataset %s differ; the first is kept",
                 item.name,
+                target.name,
             )
 
 
