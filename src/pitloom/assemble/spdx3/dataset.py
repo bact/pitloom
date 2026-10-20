@@ -279,7 +279,7 @@ def add_datasets_for_model(
             rather than the model's own extraction (N3) -- see
             ``creation_info.build_enrichment_creation_info()``. A name not
             in the map (or when the map itself is ``None``) falls back to
-            the shared *creation_info* param, unchanged behavior for every
+            the shared *creation_info* param, unchanged behaviour for every
             existing call site.
     """
     created: list[tuple[str, spdx3.Element]] = []

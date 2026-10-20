@@ -79,7 +79,7 @@ def _fragment_read_status(
     - ``raw_bytes`` is the file's contents, or ``None`` only if the file
       itself couldn't be read (not on a JSON-parse failure) -- so a
       fragment with broken JSON can still have its hash verified by
-      :func:`_fragment_sha256_status`, matching pre-existing behavior.
+      :func:`_fragment_sha256_status`, matching pre-existing behaviour.
     - ``read_ok`` is False on a read/JSON-parse failure, or when the JSON
       doesn't parse as a valid SPDX3 JSON-LD document -- the same two
       conditions that make ``merge_fragments()`` treat a ``required=True``
@@ -146,7 +146,7 @@ def _fragment_sha256_status(
     (configured but the file couldn't be read), or ``match``/``mismatch``.
     Logs a WARNING on mismatch. *raw* is checked independently of JSON
     validity -- a fragment with broken JSON can still have its hash
-    verified, matching pre-existing behavior."""
+    verified, matching pre-existing behaviour."""
     if expected_sha256 is None:
         return "-"
     if raw is None:

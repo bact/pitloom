@@ -27,6 +27,7 @@ from pitloom.extract._extract_utils import (
     sanitize_url_credentials,
 )
 from pitloom.logging_config import Cap
+from tests._bounded import run_bounded_in_child
 
 #: ``os.mkfifo`` exists on POSIX only.
 _HAS_MKFIFO = hasattr(os, "mkfifo")
@@ -227,15 +228,26 @@ def test_fetch_json_url_http_error_is_closed() -> None:
         ("[" * 6, 5, True),  # unbalanced
         ("]]]][[", 2, False),  # closers never go negative
         ('{"a": "\ud800"}[[[', 2, True),  # a lone surrogate is no stop
+        ('"[[[[', 1, False),  # a string never closed runs to the end
     ],
     ids=["at", "over", "in-string", "escaped", "reopened", "unbalanced",
-         "closers", "surrogate"],
+         "closers", "surrogate", "unterminated"],
 )  # fmt: skip
 @pytest.mark.parametrize("encoding", ["utf-8", "utf-8-sig", "utf-16", "utf-32-be"])
 def test_json_nests_over(text: str, limit: int, over: bool, encoding: str) -> None:
     """Counted on the decoded text, so every encoding the JSON parser
     accepts gives one answer."""
     assert json_nests_over(text.encode(encoding, "surrogatepass"), limit) is over
+
+
+def test_json_nests_over_an_unterminated_string_takes_linear_time() -> None:
+    """One quote then many escaped ones: a scan restarting at each later
+    quote is quadratic (80 KB took 33 s)."""
+    raw = b'"' + b'\\"' * 40_000 + b"[" * 65
+    assert (
+        run_bounded_in_child("pitloom.extract._extract_utils:json_nests_over", raw, 64)
+        is False
+    )
 
 
 def test_json_nests_over_leaves_undecodable_bytes_to_the_parser() -> None:

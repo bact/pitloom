@@ -21,6 +21,17 @@ SEVERAL_LICENCES_COMMENT = (
 )
 
 
+#: Text that fills a field without stating anything (compared in lower
+#: case). ``NONE`` is not one: for a licence it is a statement.
+_PLACEHOLDERS = frozenset({"unknown", "noassertion", "n/a"})
+
+
+def is_placeholder(text: str) -> bool:
+    """Whether *text* is ``unknown``, ``NOASSERTION`` or ``N/A`` (any case),
+    a value that is not a claim."""
+    return text.strip().casefold() in _PLACEHOLDERS
+
+
 #: A field set and copied only together with the one it follows, from the
 #: same source: :class:`DatasetMetadata` field -> its follower.
 FOLLOWER_FIELDS: dict[str, str] = {"license": "further_licenses"}
@@ -150,4 +161,5 @@ __all__ = [
     "DatasetMetadata",
     "DatasetReference",
     "FurtherLicences",
+    "is_placeholder",
 ]

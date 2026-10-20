@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from pitloom.core.dataset_merge import merge_dataset_references
+from pitloom.core.dataset_merge import MergedDataset, merge_dataset_references
 from pitloom.core.dataset_metadata import (
     DatasetMetadata,
     DatasetReference,
@@ -24,6 +24,13 @@ from pitloom.core.dataset_metadata import (
 
 def _ref(role: str, name: str = "o/d", **fields: Any) -> DatasetReference:
     return DatasetReference(role, DatasetMetadata(name=name, **fields))
+
+
+def _one(references: list[DatasetReference]) -> MergedDataset:
+    """The one dataset *references* merge into."""
+    merged = merge_dataset_references(references)
+    assert len(merged) == 1
+    return merged[0]
 
 
 @pytest.mark.parametrize(
@@ -69,7 +76,7 @@ def test_gaps_are_filled_with_provenance_and_nothing_is_overwritten() -> None:
         dataset_size=0,
         provenance={"version": "other", "creator": "croissant"},
     )
-    (merged,) = merge_dataset_references([first, second])
+    merged = _one([first, second])
     meta = merged.metadata
     assert (meta.version, meta.creator, meta.keywords) == ("1", "C", ["k"])
     assert meta.dataset_size == 0  # a stated zero is a value, not a gap
@@ -78,7 +85,7 @@ def test_gaps_are_filled_with_provenance_and_nothing_is_overwritten() -> None:
 
 def test_licence_is_copied_with_its_further_licences() -> None:
     further = FurtherLicences(("MIT",), "dataset card")
-    (merged,) = merge_dataset_references(
+    merged = _one(
         [
             _ref("trainedOn"),
             _ref("testedOn", license="GPL-3.0", further_licenses=further),
@@ -89,7 +96,7 @@ def test_licence_is_copied_with_its_further_licences() -> None:
 
 
 def test_a_set_licence_keeps_its_own_further_licences() -> None:
-    (merged,) = merge_dataset_references(
+    merged = _one(
         [
             _ref("trainedOn", license="MIT"),
             _ref(
@@ -106,9 +113,7 @@ def test_conflict_warns_once_per_field_and_keeps_the_first(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     caplog.set_level(logging.WARNING)
-    (merged,) = merge_dataset_references(
-        [_ref("trainedOn", version="1"), _ref("testedOn", version="2")]
-    )
+    merged = _one([_ref("trainedOn", version="1"), _ref("testedOn", version="2")])
     assert merged.metadata.version == "1"
     assert [r.getMessage() for r in caplog.records] == [
         "FIELD=version: references to dataset o/d differ; the first is kept"
@@ -126,7 +131,7 @@ def test_equal_values_do_not_warn(caplog: pytest.LogCaptureFixture) -> None:
 def test_inputs_are_not_changed() -> None:
     first, second = _ref("trainedOn"), _ref("testedOn", creator="C", keywords=["k"])
     merge_dataset_references([first, second])
-    assert first.metadata.creator is None and first.metadata.keywords == []
+    assert first.metadata.creator is None and not first.metadata.keywords
     merged = merge_dataset_references([first, second])[0]
     merged.metadata.keywords.append("x")
     assert second.metadata.keywords == ["k"]
@@ -144,7 +149,7 @@ def test_no_assertion_is_not_a_claim(
     first: str, second: str | None, kept: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     caplog.set_level(logging.WARNING)
-    (merged,) = merge_dataset_references(
+    merged = _one(
         [
             _ref("trainedOn", has_sensitive_personal_information=first),
             _ref("testedOn", has_sensitive_personal_information=second),
@@ -152,3 +157,74 @@ def test_no_assertion_is_not_a_claim(
     )
     assert merged.metadata.has_sensitive_personal_information == kept
     assert not caplog.records
+
+
+def test_a_filled_field_does_not_keep_the_provenance_of_what_it_replaced() -> None:
+    merged = _one(
+        [
+            _ref(
+                "trainedOn",
+                has_sensitive_personal_information="noAssertion",
+                provenance={"has_sensitive_personal_information": "Source: A"},
+            ),
+            _ref("testedOn", has_sensitive_personal_information="yes"),
+        ]
+    )
+    assert merged.metadata.has_sensitive_personal_information == "yes"
+    assert merged.metadata.provenance == {}
+
+
+def test_a_conflict_warns_once_however_many_references_repeat_it(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.WARNING)
+    merge_dataset_references(
+        [_ref("trainedOn", version=v) for v in ("1", "2", "2", "3")]
+    )
+    assert len(caplog.records) == 1
+
+
+def test_a_name_cannot_forge_a_log_line(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.WARNING)
+    name = "o/d\nINFO: forged"
+    merge_dataset_references(
+        [_ref("trainedOn", name, version="1"), _ref("testedOn", name, version="2")]
+    )
+    assert "\n" not in caplog.records[0].getMessage()
+
+
+@pytest.mark.parametrize(
+    ("first", "second", "warns"),
+    [
+        (
+            "https://huggingface.co/datasets/O/D",
+            "https://huggingface.co/datasets/o/d",
+            False,
+        ),
+        ("https://a.example/d", "https://b.example/d", True),
+    ],
+    ids=["hub-id-case", "other-url"],
+)
+def test_download_url_conflict(
+    first: str, second: str, warns: bool, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING)
+    merge_dataset_references(
+        [_ref("trainedOn", download_url=first), _ref("testedOn", download_url=second)]
+    )
+    assert bool(caplog.records) is warns
+
+
+@pytest.mark.parametrize("placeholder", ["NOASSERTION", "unknown", " N/A ", ""])
+def test_any_placeholder_spelling_is_unset(placeholder: str) -> None:
+    merged = _one(
+        [_ref("trainedOn", license=placeholder), _ref("testedOn", license="MIT")]
+    )
+    assert merged.metadata.license == "MIT"
+
+
+def test_an_empty_list_is_a_gap_as_the_metadata_cannot_tell_it_from_absent() -> None:
+    merged = _one(
+        [_ref("trainedOn", known_bias=[]), _ref("testedOn", known_bias=["b"])]
+    )
+    assert merged.metadata.known_bias == ["b"]

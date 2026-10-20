@@ -80,13 +80,13 @@ def parse_project_urls(
     own query string can legally contain commas) plus optionally legacy
     ``Home-page``/``Download-URL``. ``Project-URL`` always wins on a key
     collision with ``Home-page``, matching every existing call site's net
-    behavior.
+    behaviour.
 
     The flags let each call site keep its own behaviour; none changes
     silently.
 
     A malformed ``Project-URL`` entry (no comma) is silently dropped --
-    matches every existing call site's behavior, not a deviation worth a
+    matches every existing call site's behaviour, not a deviation worth a
     ``WARNING:``.
     """
     urls: dict[str, str] = {}

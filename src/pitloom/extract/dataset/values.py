@@ -26,6 +26,7 @@ import re
 from urllib.parse import urlsplit
 
 from pitloom.core.canonical_json import MAX_SAFE_INTEGER
+from pitloom.core.dataset_metadata import is_placeholder
 from pitloom.logging_config import Cap, loggable, warn_over_cap
 
 log = logging.getLogger(__name__)
@@ -70,9 +71,6 @@ NOT_A_COUNT_WARNING = (
 #: Arguments: the source, the field.
 NOT_A_URL_WARNING = "dataset metadata: %s field %s is not a URL; skipped"
 
-#: Text that fills a field without stating anything (compared in lower
-#: case). ``NONE`` is not one: for a licence it is a statement.
-_PLACEHOLDERS = frozenset({"unknown", "noassertion", "n/a"})
 
 #: A URL a download can name: a scheme, then a host (``https://``, ``s3://``,
 #: ``hf://``), and no whitespace or control character.
@@ -86,12 +84,6 @@ _COUNT_CAP = Cap(MAX_SAFE_INTEGER, "item", "canonical-JSON-integer", "FIELD")
 #: far more than any version, well under Python's int-to-text limit.
 MAX_VERSION_DIGITS = 64
 _VERSION_CAP = Cap(MAX_VERSION_DIGITS, "digit", "dataset-version", "FIELD")
-
-
-def is_placeholder(text: str) -> bool:
-    """Whether *text* is ``unknown``, ``NOASSERTION`` or ``N/A`` (any case),
-    a value that is not a claim."""
-    return text.strip().casefold() in _PLACEHOLDERS
 
 
 def warn_not_text(source: str, field: str, value: object) -> None:
@@ -170,7 +162,15 @@ def stated_name(value: object, source: str, field: str) -> str | None:
     that states something. A blank name or a placeholder
     (:func:`is_placeholder`) is none, silently."""
     if isinstance(value, list):
-        value = next((item for item in value if not _is_blank(item)), None)
+        value = next(
+            (
+                item
+                for item in value
+                if not _is_blank(item)
+                and not (isinstance(item, str) and is_placeholder(item))
+            ),
+            None,
+        )
     if isinstance(value, dict):
         for key in ("name", "sc:name", "schema:name"):
             if key in value:

@@ -34,10 +34,14 @@ builds one package, creator and licence elements per dataset and one
 relationship per role.
 
 - The first reference's values win. A later one fills a field the first leaves
-  unset (`None`, empty text or list; a stated `0` is a value), with that
-  field's provenance; `license` and `further_licenses` move together.
+  unset (`None`, empty text or list, or a placeholder: `noAssertion`, `unknown`,
+  `N/A`, any case; a stated `0` is a value), with that field's provenance, and
+  drops the provenance of the placeholder it replaced. An empty list counts as
+  unset because `DatasetMetadata` cannot tell it from an absent one. `license`
+  and `further_licenses` move together.
 - Two references that both set a field to different values keep the first and
-  log one `WARNING: DATASET=<name> FIELD=<field>: ...` per field.
+  log one `WARNING: FIELD=<field>: references to dataset <name> differ; ...` per
+  field and dataset. Download locations differing only in case do not count.
 - Enrichment's creation info is looked up under every merged spelling.
 - Not merged: a dataset's parts (train, test). See
   [dataset-splits.md](../design/dataset-splits.md).
