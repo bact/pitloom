@@ -203,6 +203,16 @@ def json_nests_over(raw: bytes, limit: int) -> bool:
     return False
 
 
+def quote_source(source: str | Path) -> str:
+    """*source* in quotes, written as the OS writes it.
+
+    ``repr()`` of a :class:`~pathlib.Path` shows ``WindowsPath('D:/a/b')``
+    (forward slashes) and of a ``str`` doubles each backslash; neither matches
+    ``str(path)``, which a reader of the message looks for.
+    """
+    return f"'{source}'"
+
+
 def fetch_json(
     source: str | Path,
     timeout: float = 30.0,
@@ -228,24 +238,25 @@ def fetch_json(
             over *max_nesting*, or if the top-level value is not a JSON
             object.
     """
+    where = quote_source(source)
     try:
         if isinstance(source, str) and source.startswith(("http://", "https://")):
             with urllib.request.urlopen(source, timeout=timeout) as resp:  # nosec B310
                 raw = resp.read(max_bytes + 1)
                 if len(raw) > max_bytes:
                     raise ValueError(
-                        f"Source {source!r} response exceeds maximum limit of "
+                        f"Source {where} response exceeds maximum limit of "
                         f"{max_bytes} bytes"
                     )
         else:
             # A FIFO or device would block the open or the read.
             if not stat.S_ISREG(os.stat(source).st_mode):
-                raise ValueError(f"Source {source!r} is not a regular file")
+                raise ValueError(f"Source {where} is not a regular file")
             with Path(source).open("rb") as fh:
                 raw = fh.read(max_bytes + 1)
             if len(raw) > max_bytes:
                 raise ValueError(
-                    f"Source {source!r} exceeds maximum limit of {max_bytes} bytes"
+                    f"Source {where} exceeds maximum limit of {max_bytes} bytes"
                 )
     except (OSError, http.client.HTTPException) as exc:
         close_http_error(exc)
@@ -253,10 +264,10 @@ def fetch_json(
         # closes mid-response) is not an OSError subclass, so it needs its
         # own arm here -- without it, a transient network glitch would raise
         # out of what every caller treats as a "fetch failed" ValueError path.
-        raise ValueError(f"Cannot read source {source!r}: {exc}") from exc
+        raise ValueError(f"Cannot read source {where}: {exc}") from exc
 
     if max_nesting is not None and json_nests_over(raw, max_nesting.limit):
-        raise ValueError(f"Source {source!r} is {max_nesting.reason}")
+        raise ValueError(f"Source {where} is {max_nesting.reason}")
 
     try:
         data = json.loads(raw)
@@ -264,11 +275,11 @@ def fetch_json(
     # -16/-32), an integer over Python's digit limit; a RecursionError:
     # nesting too deep to parse.
     except (ValueError, RecursionError) as exc:
-        raise ValueError(f"Source {source!r} is not valid JSON: {exc}") from exc
+        raise ValueError(f"Source {where} is not valid JSON: {exc}") from exc
 
     if not isinstance(data, dict):
         raise ValueError(
-            f"Source {source!r}: expected a JSON object, got {type(data).__name__}"
+            f"Source {where}: expected a JSON object, got {type(data).__name__}"
         )
     return data
 

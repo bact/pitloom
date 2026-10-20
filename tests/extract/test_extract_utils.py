@@ -186,7 +186,7 @@ def test_fetch_json_refuses_a_local_source_naming_it(
     worker.join(timeout=10)
     assert not worker.is_alive(), "fetch_json blocked"
     assert len(raised) == 1
-    assert match in str(raised[0]) and repr(path) in str(raised[0])
+    assert match in str(raised[0]) and f"'{path}'" in str(raised[0])
 
 
 def _http_error() -> HTTPError:
@@ -262,3 +262,15 @@ def test_fetch_json_over_nesting_cap(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="is larger than the 2-level test-nesting"):
         fetch_json(path, max_nesting=Cap(2, "level", "test-nesting"))
     assert fetch_json(path) == {"a": [[]]}  # no cap by default
+
+
+@pytest.mark.parametrize("name", ["plain.json", "back\\slash.json"])
+def test_fetch_json_error_names_the_source_as_the_os_writes_it(
+    tmp_path: Path, name: str
+) -> None:
+    """The message holds ``str(source)`` once, quoted: ``repr`` would double a
+    backslash (a ``str``) or turn it into ``/`` (a Windows ``Path``)."""
+    source = str(tmp_path / name)
+    with pytest.raises(ValueError, match="Cannot read source") as excinfo:
+        fetch_json(source)
+    assert f"'{source}'" in str(excinfo.value)

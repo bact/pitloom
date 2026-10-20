@@ -29,7 +29,7 @@ from typing import Any
 
 from pitloom.core.dataset_metadata import DatasetMetadata
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
-from pitloom.extract._extract_utils import fetch_json, get_first
+from pitloom.extract._extract_utils import fetch_json, get_first, quote_source
 from pitloom.extract.dataset.croissant_key import (
     CREATOR_KEYS,
     DATA_TYPE_KEYS,
@@ -300,7 +300,7 @@ def read_croissant(source: str | Path, *, label: str | None = None) -> DatasetMe
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         raise ValueError(
-            f"Croissant source {source!r} cannot be read: "
+            f"Croissant source {quote_source(source)} cannot be read: "
             f"{type(exc).__name__}: {one_line(exc)}"
         ) from exc
 
@@ -315,11 +315,13 @@ def _name(data: dict[str, Any], source: str | Path) -> str:
     name, holds_text = text_of(raw)
     if not holds_text:
         raise ValueError(
-            f"Croissant source {source!r} field 'name' is of type "
+            f"Croissant source {quote_source(source)} field 'name' is of type "
             f"{type(raw).__name__}, not text."
         )
     if name is None:
-        raise ValueError(f"Croissant source {source!r} has no 'name' field.")
+        raise ValueError(
+            f"Croissant source {quote_source(source)} has no 'name' field."
+        )
     return name
 
 
