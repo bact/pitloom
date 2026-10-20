@@ -374,13 +374,10 @@ def test_read_zip_sdist_pyproject_only_fallback(tmp_path: Path) -> None:
 def test_read_zip_sdist_pyproject_malformed_falls_back_to_unknown(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """No ``PKG-INFO`` and an unparsable ``pyproject.toml`` in the zip:
-    degrades to the ``name="unknown"`` default rather than raising (with the config not
-    read; read, it raises as for a directory) -- and
-    logs the failure at ``WARNING`` level (regression test: the zip path
-    used to duplicate ``_parse_pyproject_bytes()``'s logic inline with no
-    logging at all, unlike the tar path, which already called the shared,
-    now-logging helper)."""
+    """No ``PKG-INFO`` and an unparsable ``pyproject.toml`` in the zip: degrades
+    to the ``name="unknown"`` default rather than raising (with the config not
+    read; read, it raises as for a directory) and logs the failure at
+    ``WARNING`` level, as the tar path does."""
     sdist_path = tmp_path / "badpkg-1.0.zip"
     with zipfile.ZipFile(sdist_path, "w") as zf:
         zf.writestr("badpkg-1.0/pyproject.toml", "not [[[ valid toml")

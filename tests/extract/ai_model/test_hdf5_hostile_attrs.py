@@ -149,8 +149,8 @@ def test_a_model_config_part_of_the_wrong_type_warns_once_naming_what_is_lost(
 def test_the_raw_config_is_kept_and_the_fields_after_the_problem_are_lost(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: the kept-raw line named the raw text as the one field
-    affected, not the ones the problem stopped from being read."""
+    """The kept-raw line names the fields the problem stopped from being read,
+    not the raw text."""
     config = json.dumps({"class_name": "", "config": {"layers": {}}})
     meta, messages = _read(tmp_path, caplog, model_config=config)
     (message,) = messages
@@ -254,8 +254,8 @@ def test_a_whole_attribute_of_json_null_counts_as_absent(
 def test_json_nested_too_deeply_loses_only_its_own_attribute(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, name: str
 ) -> None:
-    """Regression: a ``RecursionError`` from ``json.loads`` escaped the
-    reader and failed the whole file (a stub, nothing of it read)."""
+    """A ``RecursionError`` from ``json.loads`` is caught by the reader and the
+    rest of the file is still read."""
     other = "training_config" if name == "model_config" else "model_config"
     good = (
         json.dumps({"loss": "mse"})
@@ -297,8 +297,7 @@ def test_json_nested_too_deeply_loses_only_its_own_attribute(
 def test_a_string_array_attribute_is_decoded_per_element(
     make: Any, expected: str
 ) -> None:
-    """Regression: ``tobytes()`` of an object array is its pointers, so the
-    decoded text differed from run to run."""
+    """An object array decodes to the same text on every run (not its pointers)."""
     numpy = pytest.importorskip("numpy")
     value = make(numpy)
     assert _decode_h5_attr(value) == expected
@@ -308,8 +307,7 @@ def test_a_string_array_attribute_is_decoded_per_element(
 
 
 def test_a_large_fixed_length_string_array_is_decoded_in_bounded_memory() -> None:
-    """Regression: decoding each element into its own Python object cost
-    ~160 bytes per element: 1 M distinct short strings reached 120 MB."""
+    """Decoding 1 M distinct short strings stays within a small memory bound."""
     numpy = pytest.importorskip("numpy")
     count = 1_000_000
     value = numpy.arange(count).astype("S7")  # distinct, so none interned
@@ -327,8 +325,7 @@ _COMPOUND = [("a", "O"), ("b", "i4")]  # a string field, as h5py reads vlen text
 
 
 def test_a_compound_attribute_with_a_string_field_is_unsupported() -> None:
-    """Regression: its ``tobytes()`` held the string's pointer, so the text
-    differed from run to run."""
+    """A string decodes to the same text on every run (not its pointer)."""
     numpy = pytest.importorskip("numpy")
     with pytest.raises(ValueError, match="compound"):
         _decode_h5_attr(numpy.array([("x", 1)], dtype=_COMPOUND))
@@ -355,8 +352,7 @@ class _RaisingBackend(dict[str, Any]):
 def test_an_attribute_h5py_cannot_convert_loses_only_itself(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, error: Exception
 ) -> None:
-    """Regression: the error escaped ``read_hdf5`` and the whole file read
-    as failed."""
+    """The error is caught inside ``read_hdf5``; the file does not read as failed."""
     attrs = _RaisingBackend(error, keras_version="2.15.0")
     meta, messages = _read_attrs(tmp_path, caplog, attrs)
     (message,) = messages
@@ -421,8 +417,8 @@ def test_a_real_file_with_string_array_attributes_reads_the_same_twice(
 def test_the_sbom_builds_for_a_file_with_non_string_names(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, config: dict[str, Any]
 ) -> None:
-    """Regression: a ``class_name`` or ``name`` that is not a string reached
-    the SBOM builder, which raised."""
+    """A ``class_name`` or ``name`` that is not a string does not reach the SBOM
+    builder."""
     h5py = pytest.importorskip("h5py")
     path = tmp_path / "m.h5"
     with h5py.File(path, "w") as hf:
@@ -437,9 +433,8 @@ def test_the_sbom_builds_for_a_file_with_non_string_names(
 def test_an_attribute_with_an_empty_dataspace_is_absent_not_a_failure(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, dtype: str
 ) -> None:
-    """Regression: ``h5py.Empty`` has a dtype and no data (no ``reshape``), so
-    reading it raised ``AttributeError``, outside what an attribute read
-    catches, and the whole read became a stub."""
+    """``h5py.Empty`` has a dtype and no data (no ``reshape``): reading it is
+    handled as an attribute-read failure, not a stub for the whole file."""
     h5py = pytest.importorskip("h5py")
     path = tmp_path / "m.h5"
     empty = h5py.Empty(h5py.string_dtype() if dtype == "string" else dtype)

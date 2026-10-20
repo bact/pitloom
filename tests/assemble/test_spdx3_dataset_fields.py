@@ -249,7 +249,7 @@ def test_build_dataset_package_leaves_provenance_to_caller() -> None:
 
 def test_add_datasets_provenance_annotation_and_comment() -> None:
     """``add_datasets_for_model`` records the dataset's provenance as both a
-    Core Annotation and (default ``"both"`` format) the legacy comment."""
+    Core Annotation and (default ``"both"`` format) a comment."""
     _clear_doc_counters(_DOC_UUID)
     exporter = _make_exporter()
     ci = _make_ci()

@@ -21,6 +21,17 @@ SEVERAL_LICENCES_COMMENT = (
 )
 
 
+#: Text that fills a field without stating anything (compared in lower
+#: case). ``NONE`` is not one: for a licence it is a statement.
+_PLACEHOLDERS = frozenset({"unknown", "noassertion", "n/a"})
+
+
+def is_placeholder(text: str) -> bool:
+    """Whether *text* is ``unknown``, ``NOASSERTION`` or ``N/A`` (any case),
+    a value that is not a claim."""
+    return text.strip().casefold() in _PLACEHOLDERS
+
+
 #: A field set and copied only together with the one it follows, from the
 #: same source: :class:`DatasetMetadata` field -> its follower.
 FOLLOWER_FIELDS: dict[str, str] = {"license": "further_licenses"}
@@ -125,7 +136,9 @@ class DatasetMetadata:
 class DatasetReference:
     """A dataset linked to an AI model with a typed role.
 
-    The ``role`` string maps to an SPDX 3 ``RelationshipType`` where supported.
+    ``role`` is a provisional name, revised with the provenance taxonomy
+    (roadmap: "Provenance and enrichment vocabulary"). It maps to an SPDX 3
+    ``RelationshipType`` where supported.
     ``"trainedOn"`` and ``"testedOn"`` map directly to the corresponding
     SPDX 3.0.1 relationship types.  Other roles (``"finetunedOn"``,
     ``"validatedOn"``, ``"pretrainedOn"``) fall back to
@@ -148,4 +161,5 @@ __all__ = [
     "DatasetMetadata",
     "DatasetReference",
     "FurtherLicences",
+    "is_placeholder",
 ]

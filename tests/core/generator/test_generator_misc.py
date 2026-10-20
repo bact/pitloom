@@ -215,7 +215,7 @@ def test_generate_smart_entrypoint(
 def test_generate_use_lockfile_warns_for_non_project_target(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: an explicit use_lockfile has no effect for a non-project
+    """An explicit use_lockfile has no effect for a non-project
     target (env/wheel/model-file/Hugging-Face) -- generate() never forwards
     it to generate_env_sbom()/generate_wheel_sbom()/generate_model_sbom(),
     so passing it must log a WARNING: (matching the analogous sdist-archive
@@ -277,9 +277,8 @@ def test_generate_dispatches_local_ai_model_file_by_extension(
     """A local file whose extension matches a known AI-model format
     dispatches to generate_model_sbom(), even though it is a real file
     on disk (unlike the Hugging Face source string case above). ``.pt2``
-    is a regression case: it was missing from generate()'s extension
-    tuple, so a PyTorch PT2/ExecuTorch file silently fell through to
-    project-SBOM generation instead."""
+    is covered: a PyTorch PT2/ExecuTorch file must not fall through to
+    project-SBOM generation."""
     model_path = tmp_path / f"weights{suffix}"
     model_path.write_bytes(b"\x00")
 
@@ -321,7 +320,7 @@ def test_generate_model_sbom_huggingface_ignores_cwd_offline_config(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The current directory's ``offline = true`` belongs to whatever project
-    that is, not to this model: it no longer blocks the fetch. The fetch is
+    that is, not to this model: it does not block the fetch. The fetch is
     stubbed, so reaching it is the proof."""
     (tmp_path / "pyproject.toml").write_text(
         "[tool.pitloom]\noffline = true\n", encoding="utf-8"

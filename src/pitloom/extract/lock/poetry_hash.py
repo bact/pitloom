@@ -137,9 +137,9 @@ def _filename_matches_version(
     lower_normalized = normalize_distribution_version(lower_expected)
     lower_fn = filename.lower()
     if canon_name is not None:
-        # PEP 427/625 filenames use the normalized (underscored) name,
-        # but legacy pre-PEP 625 sdists commonly used the canonical name
-        # with hyphens (e.g. pytest-cov-2.8.1.tar.gz) or dots.
+        # PEP 427/625 filenames use the normalized (underscored) name;
+        # pre-PEP 625 sdists often use the canonical name with hyphens
+        # (e.g. pytest-cov-2.8.1.tar.gz) or dots.
         norm_name = normalize_distribution_name(canon_name)
         prefixes = (f"{norm_name}-", f"{canon_name.lower()}-")
         matched_prefix = next((p for p in prefixes if lower_fn.startswith(p)), None)

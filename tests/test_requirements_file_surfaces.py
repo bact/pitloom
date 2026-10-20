@@ -71,9 +71,9 @@ _EXPECTED = [
 def test_setup_cfg_requirements_files_on_every_route(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str
 ) -> None:
-    """Regression: the directory listed a dependency named ``file:
-    req.txt`` (``setup.cfg`` alone) or none (``[project]`` with
-    ``dynamic``), where the sdist and the wheel list the files'."""
+    """Every route lists the requirements files' dependencies, never a
+    dependency named ``file: req.txt`` (``setup.cfg`` alone) or none
+    (``[project]`` with ``dynamic``)."""
     isolate(tmp_path, monkeypatch)
     project = tmp_path / "p"
     for rel, text in {**_PROJECTS[name], **_FILES}.items():

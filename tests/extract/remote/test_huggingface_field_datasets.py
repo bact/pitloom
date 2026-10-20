@@ -20,7 +20,7 @@ from pitloom.extract.remote.huggingface_field import _extract_datasets
     [
         (["a/b", "c/d"], ["a/b", "c/d"], False),
         ("imdb", ["imdb"], False),  # not four one-letter datasets
-        (["a/b", "a/b", " c/d "], ["a/b", "a/b", "c/d"], False),  # repeats kept
+        (["a/b", "A/B", " c/d "], ["a/b", "c/d"], False),  # one dataset
         (["a/b", None, {"x": 1}, ["y"]], ["a/b"], True),
         (5, [], True),
         (True, [], True),
@@ -35,6 +35,6 @@ def test_card_datasets_read_as_text(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with caplog.at_level(logging.WARNING):
-        refs = _extract_datasets({"card_data": {"datasets": value}}, [], {})
+        refs = _extract_datasets({"card_data": {"datasets": value}}, [], {}, "m")
     assert [r.metadata.name for r in refs] == names
     assert bool(caplog.records) is warned

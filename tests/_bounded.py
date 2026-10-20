@@ -3,9 +3,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Run a call with a time bound, for regression tests of input whose cost
-once grew without bound: a regression fails the test instead of hanging
-CI. The bound is generous; only an unbounded cost misses it.
+"""Run a call with a time bound, for tests of input whose cost could grow
+without bound: a slow call fails the test instead of hanging CI. The bound
+is generous; only an unbounded cost misses it.
 
 Which to use:
 

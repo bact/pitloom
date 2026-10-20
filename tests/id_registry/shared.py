@@ -135,7 +135,7 @@ def _write_sample_sbom(path: Path) -> dict[str, str]:
 def _write_sample_sbom_without_document(path: Path) -> dict[str, str]:
     """Write a small SPDX 3 SBOM with no ``SpdxDocument`` element.
 
-    Used to exercise the "no SpdxDocument found while harvesting a fresh
+    Exercises the "no SpdxDocument found while harvesting a fresh
     registry's namespace" fall-through in
     :meth:`pitloom.id_registry.IdRegistry.import_sbom`.
     """

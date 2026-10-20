@@ -251,16 +251,12 @@ def test_same_name_equivalent_versions_not_conflicted() -> None:
 def test_same_name_conflicting_versions_skipped_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: this extractor only evaluates `extras`/
-    `dependency_groups` markers -- every other PEP 508 marker variable
-    (`python_version`, `sys_platform`, ...) is deliberately left
-    unevaluated, so a `pylock.toml` built from a multi-platform/
-    multi-Python-version resolve can legitimately contain the same
-    package name twice at different versions, distinguished only by an
-    unevaluated marker. Both entries must not silently pass through as
-    two conflicting `name==version` lines -- skip and warn instead, the
-    same "don't guess" policy `pdm.lock`/`requirements.txt` already
-    apply to their own duplicate-name case."""
+    """Only `extras`/`dependency_groups` markers are evaluated; other PEP 508
+    variables (`python_version`, `sys_platform`, ...) stay unevaluated, so a
+    multi-platform `pylock.toml` can list one name twice at different
+    versions. Both are skipped with a warning, not emitted as two
+    conflicting `name==version` lines (the `pdm.lock`/`requirements.txt`
+    "don't guess" policy)."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         _write_lock(
@@ -473,9 +469,8 @@ def test_read_project_no_lock_file_leaves_locked_dependencies_empty() -> None:
 def test_read_project_pylock_takes_priority_over_poetry_lock(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: when both a `poetry.lock` and a `pylock.toml` are
-    present, PEP 751's `pylock.toml` wins -- and the override is never
-    silent: it's both logged and recorded in the provenance string."""
+    """With both a `poetry.lock` and a `pylock.toml`, PEP 751's `pylock.toml`
+    wins, and the override is logged and recorded in the provenance string."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "pyproject.toml").write_text(

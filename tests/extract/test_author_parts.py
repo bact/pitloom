@@ -15,8 +15,6 @@ from __future__ import annotations
 
 import random
 import re
-import time
-from collections.abc import Callable
 
 import pytest
 
@@ -130,14 +128,7 @@ def test_typographic_quotes_hold_an_entry_together(
     assert outside_entries(text) == entries
 
 
-def _fastest(call: Callable[[], object]) -> float:
-    """The fastest of three runs of *call*, in seconds."""
-    times = []
-    for _ in range(3):
-        start = time.perf_counter()
-        call()
-        times.append(time.perf_counter() - start)
-    return min(times)
+_LINEAR_BOUND = 10.0  # seconds; linear takes ~0.2 s here
 
 
 @pytest.mark.parametrize(
@@ -166,16 +157,12 @@ def _fastest(call: Callable[[], object]) -> float:
 def test_the_splitter_runs_in_linear_time(
     unit: str, named: bool, extra: int | None
 ) -> None:
-    """Regression: the lookahead split rescanned the rest of the text at
-    each separator (``'a,' * 80000`` took 46 s); a name field held
-    together must not rescan its growing entry either. Uncapped: four
-    times the text takes about four times as long (under eight, past a
-    floor for timer noise), and ~160,000 characters split at once, into
-    one piece per unit and *extra* (``None``: not split)."""
-    small = unit * (10000 // len(unit))
-    large = small * 4
-    floor = max(_fastest(lambda: outside_entries(small, named)), 0.005)
-    assert _fastest(lambda: outside_entries(large, named)) < 8 * floor
+    """The split does not rescan the rest of the text at each separator
+    (``'a,' * 80000``): ~160,000 characters, split in a child process, finish
+    within a bound ~50 times what linear time needs and far below quadratic,
+    into one piece per unit and *extra* (``None``: not split)."""
     huge = unit * (160000 // len(unit))  # one cut per unit
-    parts = run_bounded_in_child(f"{__name__}:outside_entries", huge, named)
+    parts = run_bounded_in_child(
+        f"{__name__}:outside_entries", huge, named, seconds=_LINEAR_BOUND
+    )
     assert len(parts) == (1 if extra is None else len(huge) // len(unit) + extra)

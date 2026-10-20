@@ -255,14 +255,14 @@ def _alias_bomb(levels: int) -> str:
     ids=["alias-bomb", "alias-cycle"],
 )
 def test_enrich_ignores_yaml_aliases_in_unread_keys(frontmatter: str) -> None:
-    """Regression: a lone-surrogate walk over the whole frontmatter took
-    10x longer per alias level, and raised RecursionError on a cycle, losing
-    the licence. Only the keys the enricher reads are walked."""
+    """Only the keys the enricher reads are walked: a lone-surrogate walk over
+    the whole frontmatter would take 10x longer per alias level and raise
+    RecursionError on a cycle, losing the licence."""
     with tempfile.TemporaryDirectory() as d:
         p = Path(d)
         (p / "README.md").write_text(frontmatter)
         model = AiModelMetadata()
-        # A daemon thread, so a regression fails here instead of hanging CI.
+        # A daemon thread, so a slow or looping walk fails here instead of hanging CI.
         worker = threading.Thread(
             target=ReadmeEnricher().enrich,
             args=(model,),
@@ -412,9 +412,9 @@ class _CountingReader:
 def test_a_huge_card_is_read_bounded(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: the whole card was read into memory. A card four times
-    the cap, with no frontmatter, is read one byte past the cap and holds
-    none, as read whole: no ``WARNING:``."""
+    """The card is not read whole into memory: a card four times the cap,
+    with no frontmatter, is read one byte past the cap, and gives no
+    ``WARNING:``."""
     (tmp_path / "README.md").write_bytes(b"x" * (4 * _CAP))
     opened: list[_CountingReader] = []
     real_open = Path.open

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression tests: `embed-wheel` resolves its declared ``id_registry``
+"""`embed-wheel` resolves its declared ``id_registry``
 exactly once for the whole batch, not once per wheel -- both when
 resolution fails (a missing declared registry must be a single
 ``ERROR:`` line, not one per wheel) and when it succeeds (``IdRegistry.load``

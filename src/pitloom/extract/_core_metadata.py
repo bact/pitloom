@@ -30,15 +30,10 @@ from pitloom.logging_config import warn_once
 
 if TYPE_CHECKING:
     #: The two RFC 822 Core-Metadata carriers callers pass to
-    #: :func:`parse_project_urls`. A structural ``Protocol`` was tried
-    #: first and rejected: mypy's protocol-conformance check does not
-    #: reliably match a single, non-overloaded ``Protocol`` method against
-    #: these two types' real ``@overload``-ed ``get_all()`` (verified
-    #: interactively -- a minimal repro still fails even with matching
-    #: parameter names/kinds), so a plain union of the two concrete types
-    #: is used instead. Guarded by ``TYPE_CHECKING`` since
-    #: ``email.message.Message[str, str]`` is only subscriptable for a
-    #: type checker, not at runtime.
+    #: :func:`parse_project_urls`. A plain union, not a ``Protocol``: mypy
+    #: cannot match one non-overloaded method against their ``@overload``-ed
+    #: ``get_all()``. ``TYPE_CHECKING``-only since
+    #: ``email.message.Message[str, str]`` is not subscriptable at runtime.
     _MessageLike = email.message.Message[str, str] | PackageMetadata
 
 
@@ -85,15 +80,13 @@ def parse_project_urls(
     own query string can legally contain commas) plus optionally legacy
     ``Home-page``/``Download-URL``. ``Project-URL`` always wins on a key
     collision with ``Home-page``, matching every existing call site's net
-    behavior regardless of which order they used to achieve it.
+    behaviour.
 
-    Parameters preserve each existing call site's own tested behavior --
-    see each call site for which flags it needs; this function
-    intentionally stays parametrized rather than one-size-fits-all so no
-    site's behavior changes silently.
+    The flags let each call site keep its own behaviour; none changes
+    silently.
 
     A malformed ``Project-URL`` entry (no comma) is silently dropped --
-    matches every existing call site's behavior, not a deviation worth a
+    matches every existing call site's behaviour, not a deviation worth a
     ``WARNING:``.
     """
     urls: dict[str, str] = {}

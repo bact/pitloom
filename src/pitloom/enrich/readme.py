@@ -35,6 +35,11 @@ import yaml
 
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
+from pitloom.core.dataset_names import (
+    CARD_DATASETS_CAP,
+    dataset_key,
+    distinct_dataset_names,
+)
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
 from pitloom.enrich.base import EnrichedField, EnrichmentResult
 from pitloom.logging_config import (
@@ -157,37 +162,41 @@ def _parse_frontmatter(text: str, kind: CardKind = MODEL_CARD) -> dict[str, Any]
     return data if isinstance(data, dict) else None
 
 
-def _read_card(card_path: Path, kind: CardKind) -> str | None:
+def _read_card(card_path: Path, kind: CardKind, name: str | None) -> str | None:
     """*card_path*'s text, its first :data:`MODEL_CARD_MAX_BYTES` (one byte
     past them read, never the rest), a UTF-8 BOM dropped; ``None``, with a
     ``WARNING:``, when it cannot be read or is over the cap with a
     frontmatter not closed within it. A frontmatter closed within the cap is
     the one the whole card holds, and a card not starting with one holds
     none, so neither warns."""
+    shown = str(card_path) if name is None else name
     try:
         with card_path.open("rb") as fh:
             raw = fh.read(MODEL_CARD_MAX_BYTES + 1)
     except OSError as exc:
         msg = f"Failed to read {kind.label} %s: %s" + kind.fields_skipped
-        log.warning(msg, loggable(str(card_path)), one_line(exc))
+        reason = exc if name is None else exc.strerror or type(exc).__name__
+        log.warning(msg, loggable(shown), one_line(reason))
         return None
     text = raw[:MODEL_CARD_MAX_BYTES].decode("utf-8-sig", errors="replace")
     over = len(raw) > MODEL_CARD_MAX_BYTES
     if over and text.startswith("---") and _frontmatter_block(text) is None:
         outcome = "frontmatter not closed within it; skipped" + kind.fields_skipped
-        warn_over_cap(log, kind.cap, str(card_path), outcome, once=True)
+        warn_over_cap(log, kind.cap, shown, outcome, once=True)
         return None
     return text
 
 
 def read_card(
-    card_path: Path, kind: CardKind = MODEL_CARD
+    card_path: Path, kind: CardKind = MODEL_CARD, *, name: str | None = None
 ) -> tuple[str, dict[str, Any] | None] | None:
     """The text of the *kind* card at *card_path*, within
     :data:`MODEL_CARD_MAX_BYTES`, and its frontmatter as
     :func:`read_card_frontmatter` gives it; ``None`` when the card cannot
-    be read (one ``WARNING:``)."""
-    text = _read_card(card_path, kind)
+    be read (one ``WARNING:``). A warning names the card by *name* when
+    given (a downloaded card's local path is no name for it), else by
+    *card_path*, and then gives the failure without a path in it."""
+    text = _read_card(card_path, kind, name)
     return None if text is None else (text, _parse_frontmatter(text, kind))
 
 
@@ -262,16 +271,13 @@ class ReadmeEnricher:
             model.provenance["license"] = source
 
         if isinstance(datasets_value, list):
-            existing_names = {
-                ref.metadata.name for ref in model.datasets if ref.metadata.name
-            }
-            for entry in datasets_value:
-                if not entry.strip():  # non-strings were dropped above
+            existing = {dataset_key(ref.metadata.name) for ref in model.datasets}
+            listed = distinct_dataset_names(
+                datasets_value, CARD_DATASETS_CAP, str(card_path)
+            )
+            for dataset_name in listed:
+                if dataset_key(dataset_name) in existing:
                     continue
-                dataset_name = entry.strip()
-                if dataset_name in existing_names:
-                    continue
-                existing_names.add(dataset_name)
                 changed.append(
                     EnrichedField(
                         field=f"datasets:{dataset_name}",

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -36,8 +36,8 @@ is done when its cells flip from `missing` to `present` in the same change.
 
 Coverage never outranks accuracy: a field stays absent when the source does
 not state it, and a value keeps the strength its source gave it. What Pitloom
-cannot extract or tell apart, the G7 elements SPDX 3.0.1 cannot record, and a
-planned notice for information read but not recordable:
+cannot extract or tell apart, the G7 elements SPDX 3.0.1 cannot record, and the
+notice for information read but not recordable:
 [g7-honesty-and-non-recordable.md](g7-honesty-and-non-recordable.md).
 
 ## Scope split (decided 2026-09-17)
@@ -68,8 +68,10 @@ Model version, Model description, Model external references
 **Genuinely absent -- and mostly pure wiring, not new extraction:**
 
 - ~~**`DatasetMetadata.license`**~~ -- done 2026-10-17 (#3 part 2, B1):
-  `dataset.py` writes it as `hasDeclaredLicense` (or concluded). No reader
-  yet feeds a dataset licence into a model SBOM.
+  `dataset.py` writes it as `hasDeclaredLicense` (or concluded). Fed by
+  three readers since 2026-10-18 (Croissant via `loom.run`, a local dataset
+  card, the Hub dataset card of a Hub model's datasets); see
+  [dataset-licence-readers.md](dataset-licence-readers.md).
 - ~~**`ai_AIPackage.verifiedUsing`** (model file hash)~~ -- done 2026-10-16
   (#3 part 1): the model file's SHA-256 (and, since 2026-10-18, its
   SHA-512), in fresh `Hash` elements, on every route that hashes the file
@@ -129,7 +131,8 @@ model producer and parameter count (done), **#7** `loom` SDK expansion.
   `ai_AIPackage.verifiedUsing` plus gated lookups (with the registry path
   keys). **Part 2 done 2026-10-17** (B1): `DatasetMetadata.license` -> a
   `hasDeclaredLicense` Relationship; an expression, a URL and free text are
-  kept as the model's are. No reader yet feeds a licence into a model SBOM.
+  kept as the model's are. The three readers of
+  [dataset-licence-readers.md](dataset-licence-readers.md) feed it.
 - **#4 Fix the stale `minimum-elements.md` claims** -- prevents the
   agent/Skill from re-asking users about fields core already covers.
   **Done 2026-09-20.** Re-verified against code and a fresh run: besides

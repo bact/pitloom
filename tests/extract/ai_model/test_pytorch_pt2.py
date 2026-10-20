@@ -263,11 +263,9 @@ def test_read_pt2_extra_files_read_failure_logs_and_returns_none(
 def test_read_pt2_extra_files_model_version_read_failure_logs_once(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A ZIP member listed as extra/model_version that fails to read is
-    logged exactly once, not twice -- regression test for a bug where
-    version resolution re-read extra/model_version a second time (to pick
-    the provenance key), re-triggering the same read failure and its
-    WARNING a second time for one underlying failure."""
+    """A ZIP member listed as extra/model_version that fails to read is logged
+    exactly once: version resolution does not re-read it to pick the
+    provenance key."""
     mock_zf = MagicMock()
     mock_zf.namelist.return_value = ["extra/model_version"]
     mock_zf.open.side_effect = RuntimeError("bad CRC-32")

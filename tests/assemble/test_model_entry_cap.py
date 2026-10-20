@@ -60,8 +60,8 @@ def test_a_model_file_is_capped_like_a_scan_with_one_warning(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: only the scans cut and announced; ``loom model`` kept
-    1001 entries of the same file, silently."""
+    """``loom model`` cuts and announces the entry cap as the scans do,
+    instead of silently keeping 1001 entries of the same file."""
     path, kept, expected = build(tmp_path)
     # pylint: disable-next=unbalanced-tuple-unpacking
     (scanned,) = scan_project_for_ai_models(
@@ -96,8 +96,8 @@ def test_the_cli_names_the_model_as_it_was_given(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: ``loom model``/``enrich`` resolved the path first, so its
-    ``FILE=`` was absolute where a scan's is the one the user wrote."""
+    """``loom model``/``enrich`` report ``FILE=`` as the user wrote the path,
+    as a scan does, not resolved to an absolute path."""
     (tmp_path / "models").mkdir()
     path, _, _ = _safetensors(tmp_path / "models")
     monkeypatch.chdir(tmp_path)

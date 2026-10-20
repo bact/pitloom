@@ -200,7 +200,7 @@ def test_compare_name_version_version_mismatch() -> None:
 
 def test_compare_name_version_missing_wheel_name_warns() -> None:
     """A missing wheel-side name must warn exactly like a missing
-    SBOM-side name -- the asymmetric-elif regression guard."""
+    SBOM-side name (guards an asymmetric ``elif``)."""
     _, warnings = compare_name_version(None, "1.0.0", "pkg", "1.0.0")
     assert any("wheel METADATA has no name" in w for w in warnings)
 

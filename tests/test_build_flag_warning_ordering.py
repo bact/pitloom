@@ -3,15 +3,14 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression: a build-flag "has no effect" ``WARNING:`` must precede any
-project-metadata/lock-file ``WARNING:`` on a surface that reads metadata
-before generation -- ``loom project``'s CLI handler and
-``generate_project_sbom()`` both resolve a project's metadata (and its
-lock/pin-file cascade) as one of their first steps, so without
-:meth:`~pitloom.core.build_options.BuildOptions.settle` running first, a
-user who passed e.g. ``--build-timeout`` but forgot ``--allow-build``
-would see the build-flag warning only after unrelated metadata warnings,
-easy to miss in a long run.
+"""A build-flag "has no effect" ``WARNING:`` precedes any project-metadata or
+lock-file ``WARNING:`` on a surface that reads metadata before generation.
+
+``loom project``'s CLI handler and ``generate_project_sbom()`` resolve
+metadata first, so
+:meth:`~pitloom.core.build_options.BuildOptions.settle` must run before it;
+otherwise a stray ``--build-timeout`` (no ``--allow-build``) warns only after
+unrelated warnings.
 
 See also: :mod:`tests.test_build_flag_warnings` for the cross-surface
 exact-count/reason matrix this change leaves unchanged; and
@@ -135,8 +134,7 @@ def test_cli_project_build_flag_warning_precedes_metadata_warning(
     warning (no ``--allow-build`` given) must reach stderr before the
     ``requirements.txt`` conflict warning that
     ``_resolve_project_generation_settings()`` triggers while resolving
-    metadata -- previously the reverse, since that resolution ran before
-    ``generate_project_sbom()`` ever saw the build options.
+    metadata.
     """
     project = _make_conflicting_pins_project(tmp_path)
     output = tmp_path / "out.spdx3.json"
@@ -163,9 +161,8 @@ def test_cli_project_build_flag_warning_precedes_metadata_warning(
 def test_library_generate_project_sbom_build_flag_warning_precedes_metadata_warning(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Same regression, library API: ``generate_project_sbom()`` must
-    settle/warn about a stray ``--build-timeout`` before its own
-    ``resolve_project_with_lockfile()`` call, not after."""
+    """Library API: ``generate_project_sbom()`` settles/warns about a stray
+    ``--build-timeout`` before its own ``resolve_project_with_lockfile()``."""
     project = _make_conflicting_pins_project(tmp_path)
 
     with caplog.at_level(logging.WARNING, logger="pitloom"):

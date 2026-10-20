@@ -21,7 +21,9 @@ import logging
 from collections.abc import Mapping
 from typing import Any, NamedTuple
 
+from pitloom.core.ai_metadata import model_cap
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
+from pitloom.core.dataset_names import CARD_DATASETS_CAP, distinct_dataset_names
 from pitloom.core.model_originators import (
     ORIGINATORS_PROVENANCE_KEY,
     REPOSITORY_OWNER_METHOD,
@@ -254,56 +256,37 @@ def _extract_datasets(
     hf_data: dict[str, Any],
     info_dataset_ids: list[str],
     provenance: dict[str, str],
+    where: str,
 ) -> list[DatasetReference]:
-    """Return a list of training dataset references."""
+    """Return a list of training dataset references: each dataset once
+    (:func:`~pitloom.core.dataset_names.distinct_dataset_names`), at most
+    :data:`~pitloom.core.dataset_names.MAX_CARD_DATASETS` of them, with one
+    ``WARNING:`` naming *where* (the model) when more are listed."""
     card_data: dict[str, Any] = hf_data.get("card_data") or {}
-    datasets: list[DatasetReference] = []
     # A card may state one dataset as a bare string; non-text items are left out.
     card_dataset_ids = stated_texts(
         card_data.get("datasets"), "Hugging Face model card", "datasets", split=False
     )
-
     if card_dataset_ids:
-        for ds_name in card_dataset_ids:
-            datasets.append(
-                DatasetReference(
-                    role="trainedOn",
-                    metadata=DatasetMetadata(
-                        name=ds_name,
-                        download_url=f"https://huggingface.co/datasets/{ds_name}",
-                        provenance={
-                            "name": (
-                                "Source: Hugging Face Hub"
-                                " | Field: model card YAML (datasets)"
-                            )
-                        },
-                    ),
-                )
-            )
-        provenance["datasets"] = (
-            "Source: Hugging Face Hub | Field: model card YAML (datasets)"
-        )
+        names, field = card_dataset_ids, "model card YAML (datasets)"
     elif info_dataset_ids:
-        for ds_name in info_dataset_ids:
-            datasets.append(
-                DatasetReference(
-                    role="trainedOn",
-                    metadata=DatasetMetadata(
-                        name=ds_name,
-                        download_url=f"https://huggingface.co/datasets/{ds_name}",
-                        provenance={
-                            "name": (
-                                "Source: Hugging Face Hub"
-                                " | Field: model_info tags (dataset:*)"
-                            )
-                        },
-                    ),
-                )
-            )
-        provenance["datasets"] = (
-            "Source: Hugging Face Hub | Field: model_info tags (dataset:*)"
+        names, field = info_dataset_ids, "model_info tags (dataset:*)"
+    else:
+        return []
+    cap = model_cap(CARD_DATASETS_CAP, "huggingface")
+    source = f"Source: Hugging Face Hub | Field: {field}"
+    provenance["datasets"] = source
+    return [
+        DatasetReference(
+            role="trainedOn",
+            metadata=DatasetMetadata(
+                name=name,
+                download_url=f"https://huggingface.co/datasets/{name}",
+                provenance={"name": source},
+            ),
         )
-    return datasets
+        for name in distinct_dataset_names(names, cap, where)
+    ]
 
 
 def _resolve_base_model_id(hf_data: dict[str, Any]) -> str | None:

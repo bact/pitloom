@@ -35,13 +35,10 @@ from tests._symlink import CAN_SYMLINK
 
 
 def test_extract_dynamic_version_setuptools_dynamic_attr(tmp_path: Path) -> None:
-    """Regression: ``[tool.setuptools.dynamic] version = {attr =
-    "pkg.__version__"}`` -- setuptools' own dynamic-version directive --
-    must resolve even when a ``[project]`` table is present (found via
-    real-world fixture netcal 1.4.0, which uses exactly this pattern;
-    `StandardMetadata`'s backend-agnostic parsing has no concept of this
-    setuptools-specific table, so nothing else on this path resolved it
-    before this fix)."""
+    """``[tool.setuptools.dynamic] version = {attr = "pkg.__version__"}`` (the
+    setuptools dynamic-version directive) resolves even when a ``[project]``
+    table is present (real-world fixture netcal 1.4.0); `StandardMetadata`'s
+    backend-agnostic parsing does not know this setuptools-specific table."""
     pyproject_data = {
         "project": {"name": "pkg", "dynamic": ["version"]},
         "tool": {"setuptools": {"dynamic": {"version": {"attr": "pkg.__version__"}}}},
@@ -154,8 +151,8 @@ def test_extract_dynamic_version_no_hatch_no_candidates() -> None:
 
 
 def test_extract_dynamic_version_finds_about_file() -> None:
-    """Sanity check the successful candidate-scan path still works
-    alongside the new failure-path coverage above."""
+    """The successful candidate-scan path resolves the version from
+    ``__about__``."""
     pyproject_data = {"project": {"name": "pkg"}}
     with tempfile.TemporaryDirectory() as d:
         tmp_path = Path(d)

@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression tests for a dependency's PURL without a resolved version and
+"""A dependency's PURL without a resolved version and
 its concluded licence from installed metadata in SPDX 3 SBOMs.
 
 See also: tests/assemble/test_deps_enrichment_names_versions.py (name and version
@@ -93,14 +93,11 @@ def test_add_dependencies_sets_name_only_purl_for_unresolved_version(
 
 
 def test_add_dependencies_dedupes_same_resolved_name_and_version() -> None:
-    """Regression: a package declared under more than one
-    ``pyproject.toml`` extra, each split by a ``python_version`` marker
-    (e.g. Pitloom's own ``numpy`` under both the ``ai`` and ``numpy``
-    extras), used to produce one ``software_Package`` node per raw
-    declared string even though they all resolve to the same pinned
-    ``(name, version)`` -- duplicate nodes in the emitted SBOM. Declared
-    strings that resolve to the same ``(name, version)`` must collapse
-    into a single node, with every raw string preserved in its
+    """A package declared under more than one ``pyproject.toml`` extra, each
+    split by a ``python_version`` marker (e.g. Pitloom's own ``numpy`` under
+    both the ``ai`` and ``numpy`` extras), resolves to one pinned
+    ``(name, version)``; declared strings that resolve to the same pair
+    collapse into a single node, with every raw string preserved in its
     provenance comment."""
     doc_uuid = compute_doc_uuid("deduptest", "1.0", [])
     _clear_doc_counters(doc_uuid)
@@ -237,21 +234,19 @@ def test_add_dependencies_dedupes_separator_canonicalization() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _enrich_from_installed -- the discarded-concluded-license-relationship bug
+# _enrich_from_installed -- the concluded license relationship is kept
 # ---------------------------------------------------------------------------
 
 
 def test_enrich_from_installed_adds_concluded_license_relationship(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Regression: ``build_license_elements`` in single-candidate mode
-    returns exactly one of (declared, concluded) depending on whether the
-    source is "transparent" -- "installed metadata" isn't, so it always
-    returns the *concluded* slot. The caller used to do
-    ``rel_declared, _ = build_license_elements(...)``, silently discarding
-    that concluded relationship every time -- so no dependency enriched
-    from installed metadata ever got a license relationship at all, even
-    when ``License-Expression`` was present.
+    """``build_license_elements`` in single-candidate mode returns one of
+    (declared, concluded) depending on whether the source is "transparent";
+    "installed metadata" is not, so it returns the *concluded* slot, and the
+    caller must keep that relationship: a dependency enriched from installed
+    metadata gets a license relationship when ``License-Expression`` is
+    present.
     """
     monkeypatch.setattr(
         deps_mod,

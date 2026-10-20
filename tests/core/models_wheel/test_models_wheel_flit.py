@@ -24,10 +24,9 @@ SRC_LAYOUT_FIXTURE = (FIXTURES / "sampleproject-flit").resolve()
 
 
 def test_discover_src_layout_regression() -> None:
-    """Regression: flit-core's own ``src/<name>`` search path must resolve
-    the distribution path without the ``src/`` prefix leaking in -- the
-    same ``physical_path``/``distribution_path`` divergence setuptools'
-    ``where=`` case guards against."""
+    """flit-core's own ``src/<name>`` search path resolves the distribution
+    path without the ``src/`` prefix: the ``physical_path``/
+    ``distribution_path`` divergence setuptools' ``where=`` case also has."""
     result = discover(SRC_LAYOUT_FIXTURE)
 
     assert result is not None
@@ -78,11 +77,9 @@ def test_discover_includes_external_data_with_static_version(tmp_path: Path) -> 
 
 
 def test_discover_accepts_pyproject_data_kwarg() -> None:
-    """Interface-uniformity regression: matches
-    :class:`~pitloom.core._models_wheel_types.BackendDiscoverer`'s shared
-    call signature -- flit-core's ``read_flit_config()`` reads
-    ``pyproject.toml`` itself, so the argument is accepted and ignored,
-    not required."""
+    """Matches :class:`~pitloom.core._models_wheel_types.BackendDiscoverer`'s
+    shared call signature: flit-core's ``read_flit_config()`` reads
+    ``pyproject.toml`` itself, so the argument is accepted and ignored."""
     result = discover(SRC_LAYOUT_FIXTURE, pyproject_data={"tool": {"flit": {}}})
 
     assert result is not None
@@ -91,13 +88,12 @@ def test_discover_accepts_pyproject_data_kwarg() -> None:
 def test_discover_external_data_never_executes_project_code(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: ``[tool.flit.external-data]`` combined with a
-    ``dynamic = ["version"]`` whose ``__version__`` is a function call
-    (not an AST-resolvable literal) must never be resolved by importing
-    -- executing -- the target module. flit-core's own
-    ``make_metadata()``/``get_info_from_module()`` falls back to import
-    in exactly this case; ``discover()`` must stop at the AST-only scan
-    and exclude the external-data files with a ``WARNING:`` instead."""
+    """``[tool.flit.external-data]`` with a ``dynamic = ["version"]`` whose
+    ``__version__`` is a function call (not an AST-resolvable literal) never
+    resolves by importing, i.e. executing, the target module. flit-core's
+    ``make_metadata()``/``get_info_from_module()`` imports in this case;
+    ``discover()`` stops at the AST-only scan and excludes the external-data
+    files with a ``WARNING:``."""
     pkg_dir = tmp_path / "evilpkg"
     pkg_dir.mkdir()
     data_dir = tmp_path / "data"

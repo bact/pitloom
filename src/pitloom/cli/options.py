@@ -17,12 +17,8 @@ from __future__ import annotations
 
 import argparse
 
-# Re-exports (mypy's explicit-reexport check under strict=true needs
-# either "import X as X" or __all__ membership for a name to count as
-# part of this module's own public surface; __all__ below satisfies
-# both mypy and pyflakes -- "as X" self-aliasing satisfies mypy but
-# pyflakes still flags it as an unused import) -- see the module
-# docstring.
+# Re-exports, listed in ``__all__`` below (satisfies both mypy's
+# explicit-reexport check and pyflakes); see the module docstring.
 from pitloom.cli.options_resolve import (
     _load_pitloom_tool_section,
     _quote_optional,

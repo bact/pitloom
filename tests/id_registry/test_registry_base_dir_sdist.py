@@ -3,12 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression: a declared, relative ``id_registry`` resolves against the
-*current directory* for an sdist-archive target -- not against the
-archive path itself (joining a relative path onto a file, rather than a
-directory, would never find the file). ``pitloom.id_registry.resolve.
-registry_base_dir()`` is the one shared helper every ``resolve_registry()``
-call site uses for this; this test is the drift guard that
+"""A declared, relative ``id_registry`` resolves against the *current
+directory* for an sdist-archive target, not against the archive path itself
+(a relative path joined onto a file never finds it).
+``pitloom.id_registry.resolve.registry_base_dir()`` is the one shared helper
+every ``resolve_registry()`` call site uses; this test is the drift guard that
 :func:`pitloom.embed.embed_wheel_sbom` (``project_dir=<sdist>``) and
 :func:`pitloom.assemble.generate_project_sbom` (target=<sdist>) resolve
 to the exact same registry file for one shared fixture.

@@ -28,12 +28,10 @@ from tests.build_and_read_shared import BUILD_AND_READ, make_backend_project
 
 
 def test_discovery_lock_write_rejects_reentrant_write_by_same_thread() -> None:
-    """Regression: a writer backend's discover() (or third-party code
-    it runs, e.g. importing a target project's setup.py) that calls
-    back into file discovery on the same thread while already holding
-    the write lock must fail loudly with RuntimeError, not deadlock
-    waiting on itself -- there is no other thread able to release the
-    lock."""
+    """A writer backend's discover() (or third-party code it runs, e.g.
+    importing a target project's setup.py) that calls back into file
+    discovery on the same thread while holding the write lock fails with
+    RuntimeError instead of deadlocking on itself."""
     lock = _DiscoveryLock()
     with lock.write():
         with pytest.raises(RuntimeError, match="re-entrantly"):
@@ -42,14 +40,10 @@ def test_discovery_lock_write_rejects_reentrant_write_by_same_thread() -> None:
 
 
 def test_discovery_lock_write_rejects_reentrant_read_by_same_thread() -> None:
-    """Regression: the write-then-read half of the same reentrancy
-    hazard -- a thread holding the write lock that calls back into
-    discovery through a *reader* backend (Hatchling/Poetry/Flit, more
-    common than another writer) must also fail loudly, not deadlock.
-    The initial fix only guarded write()->write(); this guards the
-    write()->read() path, which deadlocked identically (only the
-    thread already holding the write lock could ever release it) but
-    was left unguarded."""
+    """The write-then-read half of the reentrancy hazard: a thread holding
+    the write lock that calls back into discovery through a *reader* backend
+    (Hatchling/Poetry/Flit) also fails with RuntimeError instead of
+    deadlocking (only that thread could release the lock)."""
     lock = _DiscoveryLock()
     with lock.write():
         with pytest.raises(RuntimeError, match="re-entrantly"):
@@ -71,11 +65,10 @@ def test_discovery_lock_write_still_works_after_release() -> None:
 def test_get_wheel_files_backend_discovery_is_serialized(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression: two concurrent ``get_wheel_files()`` calls (e.g. a
-    setuptools discovery, which process-wide ``os.chdir()``s for its
-    duration, racing a Hatchling discovery in another thread) must never
-    overlap -- both backend discoverers funnel through one shared lock
-    in the facade, so at most one is ever mid-flight at a time."""
+    """Two concurrent ``get_wheel_files()`` calls (e.g. a setuptools
+    discovery, which process-wide ``os.chdir()``s for its duration, racing a
+    Hatchling discovery in another thread) never overlap: both backend
+    discoverers funnel through one shared lock in the facade."""
     make_backend_project(tmp_path, "setuptools.build_meta")
 
     concurrent_calls = 0
@@ -113,10 +106,10 @@ def test_get_wheel_files_backend_discovery_is_serialized(
 def test_get_wheel_files_hatchling_discovery_is_not_serialized(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression: concurrent ``get_wheel_files()`` calls that both
-    resolve to Hatchling (no chdir involved) must NOT serialize against
-    each other -- only a concurrent setuptools (write-mode) call needs
-    exclusive access. Guards the discovery lock's read/write split."""
+    """Concurrent ``get_wheel_files()`` calls that both resolve to Hatchling
+    (no chdir involved) do NOT serialise against each other; only a
+    concurrent setuptools (write-mode) call needs exclusive access. Guards
+    the discovery lock's read/write split."""
     concurrent_calls = 0
     max_concurrent = 0
     lock = threading.Lock()
@@ -148,12 +141,11 @@ def test_get_wheel_files_hatchling_discovery_is_not_serialized(
 def test_get_wheel_files_poetry_discovery_is_not_serialized(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression: Poetry's discoverer never touches cwd (poetry-core's
-    ``find_files_to_add()`` doesn't chdir), so it's a "reader" like
-    Hatchling's -- concurrent ``get_wheel_files()`` calls that both
-    resolve to Poetry must NOT serialize against each other. Guards
-    against the discovery lock's dispatch defaulting every non-setuptools
-    backend to the same exclusive write mode setuptools needs."""
+    """Poetry's discoverer never touches cwd (poetry-core's
+    ``find_files_to_add()`` doesn't chdir), so it is a "reader" like
+    Hatchling's: concurrent ``get_wheel_files()`` calls that both resolve to
+    Poetry do NOT serialise. Guards against the lock defaulting every
+    non-setuptools backend to setuptools' exclusive write mode."""
     make_backend_project(tmp_path, "poetry.core.masonry.api")
 
     concurrent_calls = 0
@@ -189,16 +181,13 @@ def test_get_wheel_files_poetry_discovery_is_not_serialized(
 def test_get_wheel_files_build_and_read_does_not_block_or_get_blocked(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression, locks in the deliberate design decision documented in
-    ``_DiscoveryLock``'s own docstring: a slow, mocked build-and-read
-    call (``--allow-build``) must NOT be serialized against a concurrent
-    setuptools (write-mode) discovery call in either direction --
-    build-and-read touches no process-wide mutable state (the real build
-    runs in a subprocess with its own explicit cwd), so it deliberately
-    does not go through ``_DISCOVERY_LOCK`` at all. If a future refactor
-    routed it through the lock "for consistency," this test would start
-    failing by observing the two calls serialize (max_concurrent drops
-    back to 1)."""
+    """A slow, mocked build-and-read call (``--allow-build``) is NOT
+    serialised against a concurrent setuptools (write-mode) discovery call in
+    either direction, as ``_DiscoveryLock``'s docstring documents:
+    build-and-read touches no process-wide mutable state (the real build runs
+    in a subprocess with its own cwd), so it does not go through
+    ``_DISCOVERY_LOCK``. Routing it through the lock would show
+    max_concurrent dropping back to 1."""
     uv_build_dir = tmp_path / "uv_build_proj"
     uv_build_dir.mkdir()
     (uv_build_dir / "pyproject.toml").write_text(
@@ -214,20 +203,18 @@ def test_get_wheel_files_build_and_read_does_not_block_or_get_blocked(
     # race: each side signals "I've entered" and then waits (bounded)
     # for the *other* side to have entered too before proceeding, so the
     # test proves real concurrency regardless of OS thread-scheduling
-    # latency. A sleep-overlap version of this test previously flaked on
-    # a loaded/throttled CI runner (thread start latency exceeding the
-    # sleep window made max_concurrent read back as 1, not 2, even
-    # though nothing was actually serialized) -- see the sibling
-    # starvation test below for the same Event-based reasoning.
+    # latency (a sleep-overlap version would read max_concurrent as 1 when
+    # thread start latency exceeds the sleep window). The sibling starvation
+    # test below uses the same Event-based reasoning.
     #
     # The two "_saw_" events (not a bare assert inside the thread target)
     # are what actually let this test fail correctly: an AssertionError
     # raised inside a threading.Thread's target is swallowed by the
     # thread machinery and never propagates to t.join() in the main
-    # thread, so asserting in here would silently no-op a real
-    # regression instead of failing it. Recording success into an Event
-    # and asserting on it after every thread has joined (below) is the
-    # pattern this file's own starvation test already uses.
+    # thread, so asserting in here would silently no-op a real failure.
+    # Recording success into an Event and asserting on it after every
+    # thread has joined (below) is the pattern this file's starvation test
+    # also uses.
     build_and_read_entered = threading.Event()
     writer_entered = threading.Event()
     build_and_read_saw_writer = threading.Event()
@@ -282,17 +269,14 @@ def test_get_wheel_files_build_and_read_does_not_block_or_get_blocked(
 def test_get_wheel_files_writer_not_starved_by_continuous_readers(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression: the discovery lock is writer-priority -- once a
-    setuptools (write-mode) call announces itself, new Hatchling
-    (read-mode) calls stop being admitted ahead of it, so it only waits
-    for readers already in flight when it arrived, never for a
-    continuous stream of freshly-arriving ones. Under a plain
-    reader-preference lock (readers count never sustained above zero by
-    a single caller, but easily sustained by a *pool* of overlapping
-    concurrent readers -- confirmed: a single sequential spammer isn't
-    enough, since it always has a gap between calls where the reader
-    count can transiently hit zero and let the writer slip in by luck),
-    that pool alone would starve the writer forever."""
+    """The discovery lock is writer-priority: once a setuptools (write-mode)
+    call announces itself, new Hatchling (read-mode) calls stop being
+    admitted ahead of it, so it waits only for readers already in flight,
+    never for a continuous stream of new ones. Under a plain
+    reader-preference lock a *pool* of overlapping readers keeps the reader
+    count above zero and would starve the writer forever (a single
+    sequential caller is not enough: it leaves gaps where the count hits
+    zero)."""
     make_backend_project(tmp_path, "setuptools.build_meta")
     hatchling_dir = tmp_path.parent / "hatchling_proj_starvation"
     hatchling_dir.mkdir()
@@ -338,8 +322,8 @@ def test_get_wheel_files_writer_not_starved_by_continuous_readers(
     # A *pool* of overlapping spammers, not just one -- with only one
     # sequential caller, the reader count has a gap between each of its
     # own calls where it can transiently hit zero, giving the writer a
-    # lucky chance to slip in even under the buggy reader-preference
-    # design this test guards against.
+    # lucky chance to slip in even under a reader-preference lock, which
+    # this test guards against.
     spammers = [threading.Thread(target=_spam) for _ in range(16)]
     for t in spammers:
         t.start()

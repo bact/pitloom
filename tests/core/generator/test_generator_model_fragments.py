@@ -79,7 +79,7 @@ def test_enrich_model_writes_bare_graph_fragment() -> None:
 def test_enrich_model_use_lockfile_warns_without_project_target(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: an explicit use_lockfile has no effect without
+    """An explicit use_lockfile has no effect without
     --project-dir (no base document identity is ever computed), so passing
     it must log a WARNING: instead of silently discarding the caller's
     explicit instruction -- matching the sibling no-op cases (sdist
@@ -164,8 +164,7 @@ def test_enrich_model_project_target_matches_project_level_ai_package_id() -> No
     project-level and single-model identity schemes differ (project name/
     version/dependencies/Merkle root vs. the model's own name/version), so
     without project_target the fragment would reference a nonexistent id
-    once merged into a project-level base document (the bug this test
-    guards against)."""
+    once merged into a project-level base document."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
         model_path = _write_smoke_project(tmppath)
@@ -212,7 +211,7 @@ def test_enrich_model_without_project_target_mismatches_project_level_id() -> No
 
 
 def test_enrich_model_project_target_merges_correctly_end_to_end() -> None:
-    """The actual regression test for the bug: a fragment generated with
+    """End to end: a fragment generated with
     project_target, registered under [tool.pitloom.fragment], and merged
     via a real generate_project_sbom() re-run must produce a
     dataset_DatasetPackage and enrichment Annotation genuinely attached to
@@ -259,8 +258,8 @@ def test_enrich_model_project_target_merges_correctly_end_to_end() -> None:
 def test_enrich_model_registry_pinned_id_matches_base_doc() -> None:
     """A registry-pinned ai_AIPackage id must be referenced by the
     fragment too, not the freshly computed one -- otherwise a project
-    using a stable registry (--id-registry) gets the same dangling-reference
-    bug as the project_target case, even for a single-model base doc."""
+    using a stable registry (--id-registry) gets the same dangling reference
+    as in the project_target case, even for a single-model base doc."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
         model_path = tmppath / "model.safetensors"

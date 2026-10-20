@@ -407,7 +407,7 @@ def test_rewrite_wheel_archive_exception_when_temp_already_gone(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Test the except-block's cleanup guard when temp_path no longer exists
+    """Test the except-block's cleanup guard when temp_path does not exist
     by the time an exception is raised mid-write."""
     wheel_path = _make_dummy_wheel(tmp_path, "vanishtemp", "1.0.0")
 

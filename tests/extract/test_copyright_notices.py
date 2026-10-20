@@ -273,9 +273,8 @@ def test_a_gnu_licence_document_s_own_notice_is_not_reported(
 
 @pytest.mark.parametrize("files", [1, 16], ids=["one-line", "sixteen-files"])
 def test_a_crafted_notice_line_is_read_in_linear_time(files: int) -> None:
-    """Regression: two unbounded runs in the placeholder pattern
-    backtracked (one 250 KB line took 40 s); every licence-file name at the
-    size cap still reads at once."""
+    """The placeholder pattern does not backtrack on a long line (250 KB); every
+    licence-file name at the size cap reads at once."""
     line = ("Copyright 2020 [" + "name " * 50000).encode()
     names = pick_license_names(
         f"{stem}{suffix}"

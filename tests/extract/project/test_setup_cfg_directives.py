@@ -319,10 +319,9 @@ def test_a_version_file_is_read_only_inside_the_project_and_under_the_cap(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: the ``file`` version directive read any path, ``..``,
-    absolute or through a symlink, and any size. Now as the dynamic
-    requirements reader: outside the project or over the cap, no version
-    and one ``WARNING:`` naming the file as written."""
+    """The ``file`` version directive follows the dynamic requirements reader's
+    limits: outside the project (``..``, absolute, symlink) or over the cap,
+    no version and one ``WARNING:`` naming the file as written."""
     monkeypatch.setattr(_setup_cfg_directives, "MAX_LISTED_FILE_BYTES", 3)
     project = tmp_path / "p"
     (project / "s").mkdir(parents=True)
@@ -364,11 +363,11 @@ _NINE = ("9", "Source: m.py | Method: attr_directive")
     ids=["attributes", "unary-minus", "not", "joined-lines", "brackets"],
 )
 def test_attr_directive_survives_a_deep_assignment(tmp_path: Path, value: str) -> None:
-    """Regression: the whole module was parsed, so one under the file cap
-    crashed the run (a C stack overflow on 3.10, ``RecursionError`` or
-    ``MemoryError`` later). Only a logical line assigning the attribute is
-    parsed, one over the line cap (its physical lines joined) skipped; run
-    in a child, so a crash fails the test and not the session."""
+    """Only a logical line assigning the attribute is parsed, not the whole
+    module (a file under the cap could crash the run: a C stack overflow on
+    3.10, ``RecursionError`` or ``MemoryError`` later); one over the line cap
+    (its physical lines joined) is skipped. Runs in a child, so a crash fails
+    the test and not the session."""
     module = f"__version__ = {value}\n__version__ = '9'\n"
     (tmp_path / "m.py").write_text(module, encoding="utf-8")
     assert run_bounded_in_child(_ATTR, "m.__version__", tmp_path, "t") == _NINE
@@ -424,10 +423,9 @@ def test_attr_line_over_the_cap_is_skipped(
     ],
 )
 def test_attr_directive_reads_each_assignment_form(tmp_path: Path, module: str) -> None:
-    """Regression: only a one-line ``name = 'x'`` was read, so a
-    parenthesised or ``;``-joined assignment gave no version. Every form
-    setuptools reads statically: a logical line, an annotated or a chained
-    target, after a ``;``."""
+    """Every form setuptools reads statically gives a version: a parenthesised
+    or ``;``-joined logical line, an annotated or a chained target, after a
+    ``;``."""
     (tmp_path / "m.py").write_text(module, encoding="utf-8")
     found = _resolve_cfg_attr_directive("m.__version__", tmp_path, "t")
     assert found == ("1.0", _NINE[1])

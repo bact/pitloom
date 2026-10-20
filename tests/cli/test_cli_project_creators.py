@@ -149,11 +149,9 @@ def test_project_command_three_creators_type_and_email_bind_to_most_recent(
     tmp_path: Path,
 ) -> None:
     """With three creators, each --creator-type/--creator-email must bind to
-    the creator most recently named, not the first or a stale index -- a
-    regression check for the switch from in-place mutation
-    (``creators[-1].type = values``) to reconstructing the last ``Creator``
-    (``creators[-1] = Creator(...)``) in ``_CreatorTypeAction``/
-    ``_CreatorEmailAction``."""
+    the creator most recently named, not the first or a stale index.
+    ``_CreatorTypeAction``/``_CreatorEmailAction`` rebuild the last
+    ``Creator`` (``creators[-1] = Creator(...)``) rather than mutating it."""
     project_dir = tmp_path / "proj"
     project_dir.mkdir()
     (project_dir / "pyproject.toml").write_text(
@@ -240,7 +238,7 @@ def test_enrich_command_project_dir_flag_passed_through(
 ) -> None:
     """--project-dir must reach enrich_model()'s project_target parameter
     so the fragment references the project-level ai_AIPackage id, not the
-    single-model one -- the fix for the project-level merge bug."""
+    single-model one."""
     captured: dict[str, object] = {}
     project_dir = tmp_path / "some-project"
 
