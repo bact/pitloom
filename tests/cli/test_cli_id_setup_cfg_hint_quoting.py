@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression test for the ``id-registry`` config hint's quoting: a
+"""The ``id-registry`` config hint's quoting: a
 ``setup.cfg``-configured project's hint must be unquoted, since
 ``setup.cfg``'s ``[tool:pitloom]`` values are read with ``str.strip()``
 only (see
@@ -14,7 +14,7 @@ into the value itself, so the next run looks for a file literally named
 ``"loom-id-registry.json"`` (quotes included) and fails with "not found".
 
 See also: test_cli_id_config_errors.py (the rest of the setup.cfg-config
-regression tests), test_cli_id.py.
+tests), test_cli_id.py.
 """
 
 from __future__ import annotations

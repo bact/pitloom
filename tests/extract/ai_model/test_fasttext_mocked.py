@@ -131,7 +131,7 @@ def test_fasttext_load_failure(
             with pytest.raises(ValueError, match="Failed to load fastText"):
                 read_fasttext(model_file)
 
-    # Load failure is now logged at debug level before being re-raised.
+    # Load failure is logged at debug level before being re-raised.
     assert any("model.bin" in r.message for r in caplog.records)
 
 

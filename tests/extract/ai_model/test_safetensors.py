@@ -155,7 +155,7 @@ def test_safetensors_read_failure(
             with pytest.raises(ValueError, match="Failed to read Safetensors"):
                 read_safetensors(model_file)
 
-    # Read failure is now logged at debug level before being re-raised.
+    # Read failure is logged at debug level before being re-raised.
     assert any("model.safetensors" in r.message for r in caplog.records)
 
 

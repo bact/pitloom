@@ -45,6 +45,8 @@ and this project adheres to
 - G7, CISA 2026, FSCT 2024 and BSI conformance tests and expected tables
   ([#309])
 - One `INFO:` per model whose architecture goes into `ai_typeOfModel` ([#309])
+- References to one dataset (a Hub id in any case) give one dataset package with a
+  relationship per role; a later reference fills only unset fields ([#311])
 
 ### Changed
 
@@ -120,12 +122,19 @@ and this project adheres to
   with a `WARNING:`; `@graph` not a list is an `ERROR:` on `id import` ([#305])
 - A wheel with no identity (`unknown`) is not looked up in or recorded into an
   ID registry, and its ids depend on its file name; a `loom.Run` dataset is one package per name and content ([#305])
+- A Hugging Face model's description is found again: the whole model card,
+  front matter included, goes to the description helper ([#310])
+- Dataset readers: a model card lists at most 1000 datasets, Croissant JSON
+  nests at most 64 levels, a placeholder (`unknown`, `N/A`, `NOASSERTION`) is
+  no name, licence or URL, and Hub card warnings name no cache path ([#311])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
 [#306]: https://github.com/bact/pitloom/pull/306
 [#308]: https://github.com/bact/pitloom/pull/308
 [#309]: https://github.com/bact/pitloom/pull/309
+[#310]: https://github.com/bact/pitloom/pull/310
+[#311]: https://github.com/bact/pitloom/pull/311
 
 ## [0.20.2] - 2026-10-09
 

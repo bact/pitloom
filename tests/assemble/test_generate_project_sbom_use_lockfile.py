@@ -107,7 +107,7 @@ def test_generate_project_sbom_use_lockfile_noop_when_metadata_presupplied(
 def test_generate_project_sbom_partial_presupply_warns_and_discards(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: supplying project_metadata without pitloom_config (an
+    """Supplying project_metadata without pitloom_config (an
     unsupported combination) must not silently re-resolve and discard the
     caller's supplied value -- a WARNING: has to explain the deviation, per
     AGENTS.md's "no silent deviations" rule. (pitloom_config alone is

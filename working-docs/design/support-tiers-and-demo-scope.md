@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-17
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -67,8 +67,9 @@ Format and backend ledger (a gap, where it is, what it needs, target). Target da
 | Gap | Surfaces or formats | Needs | Target |
 |---|---|---|---|
 | Hub model has no file hash (MDL-007/008) | Hugging Face source | A per-file hash request or a Merkle root over file hashes | 2026-10-19 |
-| Dataset licence, provenance and statistics reach no model SBOM | all (no reader feeds Croissant in) | A reader route, then the `loom` SDK (B7) | 2026-10-19 |
-| `INFO:` notices for information read but not recordable | all readers | The shared helper in the honesty doc | 2026-10-19 |
+| Dataset licence reaches a model SBOM | Croissant via `loom.run`, a local dataset card, the Hub dataset cards of a Hub model | Three readers (#309) | done 2026-10-18 |
+| Dataset provenance and statistics (collection, size, bias) reach a model SBOM only through the library | Hub source, local model cards | A reader for a Hub dataset's Croissant metadata, then the `loom` SDK (B7) | 2026-10-19 |
+| `INFO:` notices for information read but not recordable | all readers | The shared helper in the honesty doc (`extract/ai_model/unrecordable.py`, #309) | done 2026-10-18 |
 | Model files carry no version, producer or time | tier 1 file formats | Nothing to read: stays `missing` | n/a |
 | G7 scenarios: model files, a Hub model, a library-built model and a project per backend | done 2026-10-18 | Hatchling, setuptools and Poetry give the same G7 outcomes | done |
 | A setuptools project ships a model only when `package-data` lists it | setuptools | Nothing: the SBOM describes what would ship | n/a |
@@ -85,6 +86,13 @@ Format and backend ledger (a gap, where it is, what it needs, target). Target da
   too, then narrowed the same day).
 - The ledger above says, per gap, what is missing and when it will be fixed;
   the date for each is 2026-10-19.
+
+## Ledger on the demo day (2026-10-19)
+
+Open, each with target 2026-10-19 and not closed: the Hub model file hash,
+dataset provenance and statistics, and the tier 2 formats beyond keeping them
+working. They stay listed with the date missed, on the user page too.
+Closed since 2026-10-18: the dataset licence readers and the `INFO:` notice.
 
 ## Demo: definition of done
 

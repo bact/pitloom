@@ -88,8 +88,8 @@ def test_declared_authors(
 
 
 def test_poetry_sdist_keeps_every_declared_author(tmp_path: Path) -> None:
-    """Regression: poetry-core writes only the first author to
-    ``PKG-INFO``; the archive's ``[tool.poetry].authors`` has them all."""
+    """poetry-core writes only the first author to ``PKG-INFO``; the archive's
+    ``[tool.poetry].authors`` has them all."""
     pyproject = (
         b'[tool.poetry]\nname = "demo"\nversion = "1.0.0"\n'
         b'authors = ["Doe, Jane <j@x.org>", "Lee, Ann <a@x.org>"]\n'
@@ -197,9 +197,9 @@ def test_sdist_warns_only_when_pkg_info_authors_are_used(
     pyproject: bytes | None,
     warnings: int,
 ) -> None:
-    """Regression: the archive's declared authors replace ``PKG-INFO``'s,
-    so neither a split nor a cap is warned about for the discarded read;
-    used, ``PKG-INFO``'s ``Author-email`` warns once."""
+    """The archive's declared authors replace ``PKG-INFO``'s, so neither a split
+    nor a cap is warned about for the discarded read; used, ``PKG-INFO``'s
+    ``Author-email`` warns once."""
     head = "Metadata-Version: 2.4\nName: demo\nVersion: 1.0\n"
     pkg_info = f"{head}Author-email: {author}\n"
     sdist = _make_sdist(

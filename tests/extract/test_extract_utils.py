@@ -22,9 +22,13 @@ from pitloom.extract._extract_utils import (
     close_http_error,
     fetch_json,
     filename_from_url,
+    json_nests_over,
+    quote_source,
     sanitize_provenance_text,
     sanitize_url_credentials,
 )
+from pitloom.logging_config import Cap
+from tests._bounded import run_bounded_in_child
 
 #: ``os.mkfifo`` exists on POSIX only.
 _HAS_MKFIFO = hasattr(os, "mkfifo")
@@ -183,7 +187,7 @@ def test_fetch_json_refuses_a_local_source_naming_it(
     worker.join(timeout=10)
     assert not worker.is_alive(), "fetch_json blocked"
     assert len(raised) == 1
-    assert match in str(raised[0]) and repr(path) in str(raised[0])
+    assert match in str(raised[0]) and f"'{path}'" in str(raised[0])
 
 
 def _http_error() -> HTTPError:
@@ -212,3 +216,78 @@ def test_fetch_json_url_http_error_is_closed() -> None:
         with pytest.raises(ValueError, match="Cannot read source"):
             fetch_json("https://example.com/missing.json")
     assert exc.fp.closed
+
+
+@pytest.mark.parametrize(
+    ("text", "limit", "over"),
+    [
+        ('{"a": [[1]]}', 3, False),
+        ('{"a": [[1]]}', 2, True),
+        ('{"a": "[[[[{{{{"}', 1, False),  # brackets in a string
+        ('{"a": "\\"[[[[", "b": 1}', 1, False),  # an escaped quote
+        ("[" * 5 + "]" * 5 + "[" * 5, 5, False),  # closed, then reopened
+        ("[" * 6, 5, True),  # unbalanced
+        ("]]]][[", 2, False),  # closers never go negative
+        ('{"a": "\ud800"}[[[', 2, True),  # a lone surrogate is no stop
+        ('"[[[[', 1, False),  # a string never closed runs to the end
+    ],
+    ids=["at", "over", "in-string", "escaped", "reopened", "unbalanced",
+         "closers", "surrogate", "unterminated"],
+)  # fmt: skip
+@pytest.mark.parametrize("encoding", ["utf-8", "utf-8-sig", "utf-16", "utf-32-be"])
+def test_json_nests_over(text: str, limit: int, over: bool, encoding: str) -> None:
+    """Counted on the decoded text, so every encoding the JSON parser
+    accepts gives one answer."""
+    assert json_nests_over(text.encode(encoding, "surrogatepass"), limit) is over
+
+
+def test_json_nests_over_an_unterminated_string_takes_linear_time() -> None:
+    """One quote then many escaped ones: a scan restarting at each later
+    quote is quadratic (80 KB took 33 s)."""
+    raw = b'"' + b'\\"' * 40_000 + b"[" * 65
+    assert (
+        run_bounded_in_child("pitloom.extract._extract_utils:json_nests_over", raw, 64)
+        is False
+    )
+
+
+def test_json_nests_over_leaves_undecodable_bytes_to_the_parser() -> None:
+    assert json_nests_over(b"[[[[\xff", 1) is False
+
+
+def test_fetch_json_over_nesting_cap(tmp_path: Path) -> None:
+    path = tmp_path / "deep.json"
+    path.write_text('{"a": [[]]}', encoding="utf-8")
+    cap = Cap(3, "level", "test-nesting")
+    assert fetch_json(path, max_nesting=cap) == {"a": [[]]}
+    with pytest.raises(ValueError, match="is larger than the 2-level test-nesting"):
+        fetch_json(path, max_nesting=Cap(2, "level", "test-nesting"))
+    assert fetch_json(path) == {"a": [[]]}  # no cap by default
+
+
+@pytest.mark.parametrize("name", ["plain.json", "back\\slash.json"])
+def test_fetch_json_error_names_the_source_as_the_os_writes_it(
+    tmp_path: Path, name: str
+) -> None:
+    """The message holds ``str(source)`` once, quoted: ``repr`` would double a
+    backslash (a ``str``) or turn it into ``/`` (a Windows ``Path``)."""
+    source = str(tmp_path / name)
+    with pytest.raises(ValueError, match="Cannot read source") as excinfo:
+        fetch_json(source)
+    assert f"'{source}'" in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("a\nb.json", r"'a\nb.json'"),
+        ("a\x1b[31m.json", r"'a\x1b[31m.json'"),
+        ("a\udc80.json", r"'a\udc80.json'"),
+        ("é.json", "'é.json'"),
+    ],
+)
+def test_quote_source_escapes_only_what_would_break_a_line(
+    source: str, expected: str
+) -> None:
+    """Control characters and lone surrogates are escaped; text is not."""
+    assert quote_source(source) == expected

@@ -27,12 +27,10 @@ from pitloom.extract.project.sdist import read_sdist
 def test_resolve_project_with_lockfile_default_does_not_duplicate_warning(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: with no explicit flag (use_lockfile=None) and the
-    cascade on by default, resolve_project_with_lockfile() peeks the
-    config and then re-reads for real -- both reads parse the same
-    pyproject.toml, so a WARNING: its content triggers (here, the PEP 639
-    transitional license/classifier conflict) must be emitted exactly
-    once, not once per internal read."""
+    """With no explicit flag (use_lockfile=None) and the cascade on by default,
+    resolve_project_with_lockfile() peeks the config and re-reads for real;
+    a WARNING: the content triggers (here, the PEP 639 transitional
+    license/classifier conflict) is emitted once, not once per read."""
     (tmp_path / "pyproject.toml").write_text(
         '[project]\nname = "pkg"\nversion = "1.0.0"\n'
         'license = "MIT"\n'
@@ -70,11 +68,10 @@ def test_resolve_project_with_lockfile_explicit_flag_reads_once(
 def test_resolve_project_with_lockfile_sdist_reads_archive_once(
     tmp_path: Path,
 ) -> None:
-    """Regression: an sdist target must not be peeked-then-reread -- unlike
-    a directory target, read_project() ignores include_locked_dependencies
-    entirely for sdist archives (always returns a default PitloomConfig()),
-    so a peek can never see the cascade as "off" and a second read would
-    always run, re-extracting the archive for an identical result."""
+    """An sdist target is not peeked-then-reread: read_project() ignores
+    include_locked_dependencies for sdist archives (always a default
+    PitloomConfig()), so a peek never sees the cascade "off" and a second
+    read would re-extract the archive for an identical result."""
     sdist_path = tmp_path / "demo-1.0.0.tar.gz"
     pkg_info = b"Metadata-Version: 2.1\nName: demo\nVersion: 1.0.0\n"
     with tarfile.open(sdist_path, "w:gz") as tf:
@@ -96,10 +93,9 @@ def test_resolve_project_with_lockfile_sdist_reads_archive_once(
 def test_sdist_explicit_use_lockfile_warns_once_and_is_ignored(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: an explicit use_lockfile passed for an sdist archive has
-    no effect (no lock/pin cascade support for archives yet) -- silently
-    discarding it instead of warning would hide the no-op from the user.
-    The generator settles it once; the resolver itself stays silent."""
+    """An explicit use_lockfile for an sdist archive has no effect (no lock/pin
+    cascade support for archives yet); it is warned about, not silently
+    discarded. The generator settles it once; the resolver stays silent."""
     sdist_path = tmp_path / "demo-1.0.0.tar.gz"
     pkg_info = b"Metadata-Version: 2.1\nName: demo\nVersion: 1.0.0\n"
     with tarfile.open(sdist_path, "w:gz") as tf:
@@ -122,11 +118,10 @@ def test_sdist_explicit_use_lockfile_warns_once_and_is_ignored(
 def test_resolve_project_with_lockfile_does_not_duplicate_poetry_warning(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: the peek-then-reread's `quiet` flag must reach every
-    warning reachable during [tool.poetry] gap-fill metadata parsing, not
-    just the PEP 621/pyproject-metadata path -- a path-sourced Poetry
-    dependency logs its own WARNING: from a different module, reached via
-    a different call chain than the PEP 639 case above."""
+    """The peek-then-reread's `quiet` flag reaches every warning reachable during
+    [tool.poetry] gap-fill metadata parsing, not just the PEP 621 path: a
+    path-sourced Poetry dependency logs its own WARNING: from a different
+    module than the PEP 639 case above."""
     (tmp_path / "pyproject.toml").write_text(
         '[tool.poetry]\nname = "pkg"\nversion = "1.0.0"\n'
         "[tool.poetry.dependencies]\n"
@@ -147,16 +142,13 @@ def test_resolve_project_with_lockfile_does_not_duplicate_poetry_warning(
 def test_resolve_project_with_lockfile_poetry_parse_failure_warning_not_lost(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: a malformed [tool.poetry] section (missing name) logs its
-    own "metadata could not be parsed... still applying poetry.lock's
-    resolved dependencies" WARNING: from _try_read_poetry() -- reachable only
-    when locked_dependencies is not None (include_locked_dependencies=True).
-    resolve_project_with_lockfile()'s peek always calls with
-    include_locked_dependencies=False, so the peek itself can never reach
-    this branch; the warning must therefore NOT be gated by `quiet` (unlike
-    this function's other, genuinely peek-reachable warnings) -- gating it
-    would silently drop it for the default/no-flag path, where the only
-    real (include_locked_dependencies=True) call is the quiet=True reread."""
+    """A malformed [tool.poetry] section (missing name) logs its own "metadata
+    could not be parsed... still applying poetry.lock's resolved dependencies"
+    WARNING: from _try_read_poetry(), reachable only when
+    locked_dependencies is not None. The peek always calls with
+    include_locked_dependencies=False and never reaches it, so the warning is
+    not gated by `quiet` (that would drop it on the default path, where the
+    only real call is the quiet=True reread)."""
     (tmp_path / "pyproject.toml").write_text(
         '[tool.poetry]\nversion = "1.0.0"\n', encoding="utf-8"
     )
@@ -178,11 +170,10 @@ def test_resolve_project_with_lockfile_poetry_parse_failure_warning_not_lost(
 def test_resolve_project_with_lockfile_does_not_duplicate_setuptools_warning(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: same dedup requirement for the setup.py extraction path
-    -- an unresolvable kwarg value (e.g. `version=get_version()`) logs its
-    own WARNING: from pitloom.extract.project.setuptools_py, reached only when
-    there's no pyproject.toml at all (a third, independent call chain from
-    the two above)."""
+    """Same dedup for the setup.py extraction path: an unresolvable kwarg value
+    (e.g. `version=get_version()`) logs its own WARNING: from
+    pitloom.extract.project.setuptools_py, reached only with no
+    pyproject.toml at all."""
     (tmp_path / "setup.py").write_text(
         "from setuptools import setup\n"
         "def get_version(): return '1.0.0'\n"
@@ -202,12 +193,10 @@ def test_resolve_project_with_lockfile_does_not_duplicate_setuptools_warning(
 def test_resolve_project_with_lockfile_does_not_duplicate_fallback_warning(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: the "no usable [project] table -- falling back to
-    setup.cfg/setup.py" WARNING: (read_project()'s own, distinct from the
-    pyproject-parsing and poetry/setuptools cases above) is reached via a
-    third code path inside read_project() itself, gated on its own `quiet`
-    check -- must dedup exactly like the others when the peek-then-reread
-    goes through this specific fallback branch."""
+    """The "no usable [project] table -- falling back to setup.cfg/setup.py"
+    WARNING: (read_project()'s own, gated on its own `quiet` check) is
+    emitted once when the peek-then-reread goes through this fallback
+    branch."""
     (tmp_path / "pyproject.toml").write_text(
         '[build-system]\nrequires = ["setuptools"]\n'
         'build-backend = "custom_pep517_wrapper"\n',
@@ -229,14 +218,11 @@ def test_resolve_project_with_lockfile_does_not_duplicate_fallback_warning(
 def test_resolve_project_with_lockfile_does_not_duplicate_flit_dynamic_warning(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: prepare_dynamic_version() (called unconditionally by
-    read_pyproject(), regardless of include_locked_dependencies) didn't
-    forward `quiet` to resolve_flit_dynamic_metadata() -- a Flit-backend
-    project with an unresolvable `dynamic = ["version"]` would log its
-    "Flit dynamic metadata resolution failed" WARNING: twice on the
-    peek-then-reread, the fifth independent call chain (after PEP 639,
-    Poetry, setup.py, and the pyproject-fallback cases above) reaching a
-    warning-emitting parse path."""
+    """prepare_dynamic_version() (called unconditionally by read_pyproject())
+    forwards `quiet` to resolve_flit_dynamic_metadata(): a Flit-backend
+    project with an unresolvable `dynamic = ["version"]` logs its "Flit
+    dynamic metadata resolution failed" WARNING: once on the
+    peek-then-reread."""
     (tmp_path / "pyproject.toml").write_text(
         '[build-system]\nrequires = ["flit_core>=3.9"]\n'
         'build-backend = "flit_core.buildapi"\n\n'

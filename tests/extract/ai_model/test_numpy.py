@@ -254,7 +254,7 @@ def test_read_numpy_invalid_file(
             with pytest.raises(ValueError, match="Failed to read NumPy"):
                 read_numpy(model_file)
 
-    # Read failure is now logged at debug level before being re-raised.
+    # Read failure is logged at debug level before being re-raised.
     assert any("bad.npy" in r.message for r in caplog.records)
 
 

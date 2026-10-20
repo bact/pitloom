@@ -158,10 +158,10 @@ _JOINED = {
 def test_entry_requiring_extras_together_is_optional(
     marker: str, comment: str, warned: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: ``foo; extra == 'x'`` declared in extra ``dev`` (``extra
-    == "x" and extra == "dev"``) was recorded as required, though never
-    installed without an extra. It is optional for any of them, with one
-    ``WARNING:`` that the inner condition is ignored; an extra repeated
+    """``foo; extra == 'x'`` declared in extra ``dev`` (``extra
+    == "x" and extra == "dev"``) is optional, never required, since it is
+    not installed without an extra. One
+    ``WARNING:`` says the inner condition is ignored; an extra repeated
     is no inner condition."""
     dep = f"foo; {marker}"
     with caplog.at_level("WARNING"):
@@ -301,9 +301,8 @@ def test_project_name_compared_canonically() -> None:
 
 
 def test_self_reference_closure_is_bounded() -> None:
-    """Regression: every dependency walked every self-reference again,
-    cubic in a chain's length (7 s for 800, a minute for 1600). Each
-    extra's closure is worked out once."""
+    """Each extra's closure is worked out once, not per dependency (cubic in
+    a chain's length)."""
     length = 1600
     declared = [f'demo[e{i}]; extra == "e{i + 1}"' for i in range(length)]
     declared += [f'p{i}; extra == "e0"' for i in range(length)]

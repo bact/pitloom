@@ -354,7 +354,7 @@ def test_onnx_load_failure(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> 
             with pytest.raises(ValueError, match="Failed to load ONNX model"):
                 read_onnx(model_file)
 
-    # Load failure is now logged at debug level before being re-raised.
+    # Load failure is logged at debug level before being re-raised.
     assert any("model.onnx" in r.message for r in caplog.records)
 
 

@@ -10,7 +10,7 @@ selection among them) and single-entry pin resolution
 (:func:`pitloom.extract.lock.uv._pinned_dep_for_package`).
 
 See also: test_uv.py (extraction correctness) and test_uv_integration.py
-(the workspace-disambiguation regression exercised through the full
+(the workspace-disambiguation case exercised through the full
 ``read_project()`` cascade).
 """
 
@@ -93,11 +93,9 @@ def test_find_root_package_prefers_name_match_among_multiple_candidates() -> Non
 def test_find_root_package_multiple_candidates_no_name_match_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A shared uv workspace lock listing more than one local member,
-    where none matches the project actually being scanned, must not
-    silently attribute the wrong member's dependencies -- this is the
-    regression case: picking `packages[0]` unconditionally here would
-    misattribute `pkg-a`'s (or `pkg-b`'s) dependencies to `pkg-c`."""
+    """A shared uv workspace lock listing several local members, none matching
+    the scanned project, does not attribute a member's dependencies to it
+    (``packages[0]`` is not picked unconditionally)."""
     packages: list[dict[str, Any]] = [
         {"name": "pkg-a", "source": {"editable": "."}},
         {"name": "pkg-b", "source": {"editable": "."}},

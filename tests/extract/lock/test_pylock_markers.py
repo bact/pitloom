@@ -30,13 +30,10 @@ def _write_lock(tmp_dir: Path, packages: str = "") -> None:
 
 
 def test_non_default_group_package_excluded() -> None:
-    """Regression: a package needed only for a non-default
-    dependency-group (e.g. `dev`), tagged via PEP 751's `marker` field
-    referencing the `dependency_groups` pseudo-environment variable, must
-    not leak into `locked_dependencies` as an ordinary runtime pin --
-    the same "main"/"default"-group-only policy `poetry.lock`/`pdm.lock`
-    already apply, here expressed as a marker instead of a per-package
-    field."""
+    """A package needed only for a non-default dependency-group (e.g. `dev`),
+    tagged via PEP 751's `marker` referencing `dependency_groups`, does not
+    leak into `locked_dependencies` as a runtime pin (the `poetry.lock`/
+    `pdm.lock` "main"-group-only policy, expressed as a marker)."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         _write_lock(
@@ -69,19 +66,12 @@ def test_default_group_package_included_alongside_excluded_dev_group() -> None:
 
 
 def test_marker_operator_precedence_and_binds_tighter_than_or() -> None:
-    """Regression: PEP 508 gives `and` higher precedence than `or`, but
-    `Marker()._markers` doesn't nest same-precedence terms to reflect
-    that -- an unparenthesized `A or B and C` is one flat list, not
-    `[A, "or", [B, "and", C]]`. A naive left-to-right fold over that flat
-    list would compute `(A or B) and C` instead of the correct
-    `A or (B and C)`. Here `A` is an unevaluated (unknown) environment
-    condition, `B` is a *true* group-membership clause (the group IS
-    active), and `C` is a *false* ordinary condition -- correct PEP 508
-    semantics (`A or (B and C)`) is `unknown or (True and False)` =
-    `unknown or False` = unknown, so the package must still be included
-    (unknown means "can't prove excluded"). The buggy left-fold instead
-    computes `(unknown or True) and False` = `True and False` = False,
-    wrongly excluding it."""
+    """PEP 508 gives `and` higher precedence than `or`, but `Marker()._markers`
+    keeps an unparenthesised `A or B and C` as one flat list. `A` is an
+    unevaluated environment condition, `B` a true group-membership clause,
+    `C` a false ordinary condition: `A or (B and C)` is unknown, so the
+    package is included (unknown means "cannot prove excluded"); a
+    left-to-right fold would give `(unknown or True) and False` = False."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         _write_lock(
@@ -96,7 +86,7 @@ def test_marker_operator_precedence_and_binds_tighter_than_or() -> None:
 
 
 def test_marker_operator_precedence_still_excludes_when_no_or_clause_is_true() -> None:
-    """The precedence fix must not become "always include": when every
+    """Precedence handling is not "always include": when every
     `or`-separated group provably evaluates `False` from the known
     group/extras clauses alone (no unknown clause anywhere), the package
     is still excluded."""

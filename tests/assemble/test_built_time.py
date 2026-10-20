@@ -6,10 +6,9 @@
 """The main package's ``builtTime`` is an SPDX 3 DateTime: UTC, whole
 seconds, written with ``Z`` -- whatever form the pinned datetime took.
 
-It used to be parsed with a bare ``datetime.fromisoformat()``: a ``Z`` value
-(the form the docs show) failed the whole Hatchling build on Python 3.10,
-and an offset such as ``+07:00`` or fractional seconds reached the output
-unconverted.
+A bare ``datetime.fromisoformat()`` would fail a ``Z`` value (the form the
+docs show) on Python 3.10 and pass an offset such as ``+07:00`` or
+fractional seconds through unconverted.
 
 See also: :mod:`tests.test_wall_clock_sources` (raw parsing is confined to
 :func:`pitloom.assemble.spdx3.creation_info.parse_iso_datetime`).

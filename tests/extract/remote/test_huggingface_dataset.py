@@ -26,11 +26,11 @@ import pytest
 from huggingface_hub.errors import RemoteEntryNotFoundError
 
 from pitloom.core.dataset_metadata import DatasetMetadata, FurtherLicences
+from pitloom.core.dataset_names import is_hub_dataset_id
 from pitloom.extract.remote import huggingface_dataset as hub_dataset
 from pitloom.extract.remote import read_huggingface
 from pitloom.extract.remote.huggingface_dataset import (
     MAX_HUB_DATASET_LOOKUPS,
-    _is_dataset_id,
     _load_dataset_card,
     _load_dataset_info,
 )
@@ -159,7 +159,7 @@ def test_the_tag_fallback_datasets_are_looked_up() -> None:
     assert ref.metadata.license == "MIT"
 
 
-def test_a_plain_name_is_not_looked_up_and_a_repeat_once() -> None:
+def test_a_plain_name_is_not_looked_up_and_a_repeat_is_one_dataset() -> None:
     card = _make_card_data(datasets=["o/d", "My web corpus", "o/d"])
     with (
         _patch_hf_calls(card_data=card),
@@ -170,7 +170,10 @@ def test_a_plain_name_is_not_looked_up_and_a_repeat_once() -> None:
     ):
         found = [r.metadata for r in read_huggingface("acme/model").datasets]
     assert [c.args for c in info.call_args_list] == [("o/d",)]
-    assert [m.license for m in found] == ["MIT", None, "MIT"]
+    assert [(m.name, m.license) for m in found] == [
+        ("o/d", "MIT"),
+        ("My web corpus", None),
+    ]
 
 
 def test_the_lookups_are_capped_in_card_order(
@@ -299,13 +302,6 @@ def test_a_licence_list_is_each_licence(
     assert not _warnings(caplog)
 
 
-def test_a_repeat_keeps_the_further_licences() -> None:
-    card = {"license": ["cc-by-sa-3.0", "gfdl"]}
-    first, repeat = _read({"o/d": {"card_data": card}}, listed=["o/d", "O/D"])
-    assert first.further_licenses is not None
-    assert repeat.further_licenses == first.further_licenses
-
-
 def test_a_licence_list_of_no_text_warns_once(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -357,7 +353,7 @@ def test_a_licence_of_the_wrong_shape_warns_naming_the_dataset(
     ],
 )  # fmt: skip
 def test_only_a_repository_id_is_looked_up(name: str, looked_up: bool) -> None:
-    assert _is_dataset_id(name) is looked_up
+    assert is_hub_dataset_id(name) is looked_up
 
 
 @pytest.mark.parametrize(
@@ -405,32 +401,3 @@ def test_any_failure_reading_the_card_is_one_warning(
         assert _load_dataset_card("o/d", _SHA) == (None, {})
     (message,) = _warnings(caplog)
     assert message.startswith("Failed to load dataset card for o/d: boom")
-
-
-def test_an_id_in_another_case_is_looked_up_once() -> None:
-    """Hub ids are case-insensitive: the first spelling is looked up; a
-    repeat gets the fields found, with their provenance, and keeps its own
-    name and the rest of its provenance."""
-    card = _make_card_data(datasets=["O/D", "o/d"])
-    found = {"license": "MIT"}
-    with (
-        _patch_hf_calls(card_data=card),
-        patch.object(hub_dataset, "_load_dataset_info", return_value={}) as info,
-        patch.object(hub_dataset, "_load_dataset_card", return_value=(None, found)),
-    ):
-        first, second = [r.metadata for r in read_huggingface("acme/model").datasets]
-    assert [c.args for c in info.call_args_list] == [("O/D",)]
-    assert (second.name, second.license) == ("o/d", "MIT")
-    assert second.provenance["license"] == first.provenance["license"]
-    assert set(second.provenance) == {"name", "license"}
-    assert second.version is None and second.description is None
-
-
-def test_a_repeat_keeps_its_own_provenance_of_what_was_not_looked_up() -> None:
-    found = DatasetMetadata(
-        "o/d", license="MIT", provenance={"name": "card", "license": "hub"}
-    )
-    repeat = DatasetMetadata("O/D", provenance={"name": "readme"})
-    hub_dataset._copy_found(found, repeat)  # pylint: disable=protected-access
-    assert (repeat.name, repeat.license) == ("O/D", "MIT")
-    assert repeat.provenance == {"name": "readme", "license": "hub"}

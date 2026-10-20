@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression tests for the concurrent PyPI release-info prefetch, a live
+"""The concurrent PyPI release-info prefetch, a live
 PyPI JSON API sanity check, and supplier/originator/remote-authors
 handling in ``pitloom.assemble.spdx3.deps``.
 
@@ -58,9 +58,9 @@ def _uninstalled(*_args: object, **_kwargs: object) -> None:
 def test_prefetch_pypi_release_infos_runs_concurrently(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Regression: add_dependencies used to fetch each dependency from
-    PyPI sequentially -- N dependencies cost N blocking round-trips (each
-    up to _PYPI_TIMEOUT_SECONDS on failure) instead of roughly one."""
+    """add_dependencies fetches dependencies from PyPI concurrently: N
+    dependencies cost roughly one round-trip, not N blocking ones (each up
+    to _PYPI_TIMEOUT_SECONDS on failure)."""
 
     def _slow_fetch(_name: str, _version: str | None) -> None:
         time.sleep(0.2)
@@ -285,7 +285,7 @@ def test_resolve_remote_authors_file_offline_and_errors() -> None:
     regardless of scheme) and always builds an ``https://`` raw-content URL
     for recognized hosts, so a non-http(s) *repo_url* still reaches the real
     fetch path. This test therefore mocks the fetch instead of relying on a
-    real (and previously unmocked) network call.
+    real network call.
     """
     # Test offline returns immediately without trying to fetch
     locator, ctype, content = deps_originator._resolve_remote_authors_file(

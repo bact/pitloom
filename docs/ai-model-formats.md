@@ -321,7 +321,7 @@ the Hugging Face Hub, "card" a README or model card read with `--enrich`.
 | `arxiv_ids` | HF | `externalRef`, type `documentation` |
 | `url` | HF | `externalRef`, type `altWebPage` |
 | `base_model`, `base_model_relation` | HF | `Relationship` `descendantOf` to an `ai_AIPackage` for the base model (made if absent); the relation in its `comment` |
-| `datasets` | HF, card | `dataset_DatasetPackage` plus `Relationship` `trainedOn` or `testedOn`; a licence the dataset's metadata states becomes a licence element and `hasDeclaredLicense` (or `hasConcludedLicense` for a third-party source), as for the model. A Hub card's dataset gets the licence, description, revision and owner of its own Hub dataset repository (see [Hugging Face Hub models](#hugging-face-hub-models)) |
+| `datasets` | HF, card | `dataset_DatasetPackage` plus `Relationship` `trainedOn` or `testedOn`; references to one dataset (a Hub id in any letter case, or one name with different spacing) give one package with one relationship per role, a later reference only filling what the first leaves unset; a licence the dataset's metadata states becomes a licence element and `hasDeclaredLicense` (or `hasConcludedLicense` for a third-party source), as for the model. A Hub card's dataset gets the licence, description, revision and owner of its own Hub dataset repository (see [Hugging Face Hub models](#hugging-face-hub-models)) |
 | `properties`, `raw_metadata`, `raw_metadata_types` | every format | `Annotation` of kind `artifact-metadata` (schema `https://pitloom.dev/provenance/artifact-metadata/2`): `metadata`, `valueTypes`, `format`; only when preserved, see below |
 | `raw_metadata_dropped` | any format, over the entry cap | that annotation's `truncatedKeyCount` |
 | `extra_data`, `extra_lists` | HF | that annotation, `format` `huggingface` |
@@ -383,19 +383,21 @@ This reads the model card, `config.json`, `tokenizer_config.json`,
 
 For each dataset the model card lists (`datasets:`, else the Hub's
 `dataset:*` tags) that is a Hub repository id, Pitloom also reads that
-dataset's own card and repository information, the first 20 datasets only:
+dataset's own card and repository information, the first 20 datasets only. A dataset listed twice (a Hub id is
+case-insensitive, so `O/D` is `o/d`) is one dataset, and a card lists at most
+1000, with one `WARNING:` when it lists more:
 
 | Dataset field | From | Provenance `Field:` |
 | :------------ | :--- | :------------------ |
-| licence | the card's `license`; for `other`, its `license_name` and `license_link` (name first); `unknown` or a bare `other` give none; a list of several gives one `hasDeclaredLicense` each, in order, and a package comment that the card does not say whether they combine as AND or OR | `dataset card license` |
+| licence | the card's `license`; for `other`, its `license_name` and `license_link` (name first); `unknown`, `N/A`, `NOASSERTION` or an `other` with no real name or link give none; a list of several gives one `hasDeclaredLicense` each, in order, and a package comment that the card does not say whether they combine as AND or OR | `dataset card license` |
 | description | the card's first prose paragraph; a table of contents, key lines (`**Paper:** [...]`), badges, HTML, tables and code blocks are passed over | `dataset card` |
 | keywords (not written: SPDX 3.0.1 has no dataset keyword property) | the card's `tags` | `dataset card tags` |
 | version | the repository's commit hash | `dataset_info sha` |
 | creator (`publishedBy`) | the repository owner | `dataset_info author`, `Method: repository_owner` |
 
 A field the dataset does not state is left out. A failed request (a network
-error, a gated, private or deleted dataset) is one `WARNING:` naming the
-dataset, which keeps its name and download URL. These requests run only when
+error, a gated, private or deleted dataset) or a card that cannot be read is
+one `WARNING:` naming the dataset (never a path in the local cache), which keeps its name and download URL. These requests run only when
 the model itself is looked up, so `--offline` stops them too.
 
 ## Not yet supported

@@ -124,8 +124,8 @@ def test_load_model_card_success_with_data() -> None:
 
 
 def test_load_model_card_returns_the_whole_card_so_a_description_is_found() -> None:
-    """Regression: the card body alone (``ModelCard.text``) has no front
-    matter, and the description helper then found no description at all."""
+    """The card body alone (``ModelCard.text``) has no front matter; the
+    description helper still finds a description."""
     real = ModelCard("---\nlicense: mit\n---\n\n# Title\n\nA small test model.\n")
     with patch("huggingface_hub.ModelCard.load", return_value=real):
         text, data = _load_model_card("org/model")

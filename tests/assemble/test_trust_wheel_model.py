@@ -152,8 +152,8 @@ def test_a_batch_says_so_once_and_gates_every_wheel(
 def test_a_batch_names_each_gated_format_once_across_its_wheels(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: one slot per batch named only the first wheel's gated
-    formats; a later wheel's different format got no notice."""
+    """Each wheel's gated formats are announced, not only the first
+    wheel's."""
     caplog.set_level(logging.INFO)
     models = {
         "a": "gguf/stories260K.gguf",

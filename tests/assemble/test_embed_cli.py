@@ -334,17 +334,16 @@ def test_cli_embed_wheel_multi_resolves_project_files_once(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Regression: ``loom embed-wheel <wheel1> <wheel2> --project-dir
-    <dir>`` must resolve the project's file list (``get_wheel_files()``)
-    exactly once for the whole batch, not once per wheel -- before this
-    fix, every stray/ineffective build-flag ``WARNING:`` repeated once
-    per wheel and a real ``--allow-build`` PEP 517 build ran once per
-    wheel. See :class:`pitloom.embed.EmbedFileCache`.
+    """``loom embed-wheel <wheel1> <wheel2> --project-dir <dir>`` resolves
+    the project's file list (``get_wheel_files()``) once for the whole batch,
+    not once per wheel: a stray build-flag ``WARNING:`` appears once and a
+    real ``--allow-build`` PEP 517 build runs once. See
+    :class:`pitloom.embed.EmbedFileCache`.
 
     Also checks the two wheels' embedded SBOMs are byte-identical (same
     project, same name/version, pinned creation time) --
-    the fix must not change per-wheel output, only how many times the
-    shared discovery work runs."""
+    per-wheel output is unaffected; only the number of discovery runs
+    changes."""
     # Pin `created`: each wheel resolves it separately, so an unpinned
     # wall clock can tick over between the two embeds.
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
@@ -381,10 +380,9 @@ def test_cli_embed_wheel_multi_cleanup_runs_once_even_if_a_wheel_fails(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Regression: the batch's shared ``EmbedFileCache`` cleanup must
-    still run exactly once when a later wheel in the batch fails (a
-    corrupt second wheel here) -- not zero times (a leak) and not once
-    per wheel."""
+    """The batch's shared ``EmbedFileCache`` cleanup runs exactly once when a
+    later wheel in the batch fails (a corrupt second wheel here): not zero
+    times (a leak), not once per wheel."""
     project_dir = tmp_path
     wheel1 = _make_ctpkg_project_and_wheel(project_dir)
     bad_wheel = project_dir / "corrupt.whl"

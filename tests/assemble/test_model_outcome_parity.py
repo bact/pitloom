@@ -322,9 +322,9 @@ def test_a_missing_file_is_still_not_found(tmp_path: Path) -> None:
 def test_the_entry_set_does_not_depend_on_the_wheel_budget(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: a model failing to parse was dropped while the budget
-    lasted and listed once it was spent, so the entry set depended on where
-    the file stood in the wheel."""
+    """A model failing to parse is treated alike whether or not the budget
+    is spent, so the entry set does not depend on the file's position in the
+    wheel."""
     pytest.importorskip("safetensors")
     names = [f"demo/big{i}.safetensors" for i in range(8)]
     wheel = write_model_wheel(tmp_path, dict.fromkeys(names, _TRUNCATED))
@@ -354,8 +354,8 @@ def test_the_set_of_listed_files_does_not_depend_on_an_installed_library(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: a file failing to parse was dropped, one the missing
-    library kept unread was listed."""
+    """A file failing to parse and one the missing library left unread give
+    the same outcome (both listed, or both dropped)."""
     pytest.importorskip("safetensors")
     case = _KINDS[kind]
     read = _scan_project(tmp_path, case)

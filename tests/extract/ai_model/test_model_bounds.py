@@ -87,8 +87,8 @@ def test_too_many_opcodes_never_reach_fickling(
 def test_a_raw_pickle_is_bounded_but_trailing_data_is_not_its_size(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A legacy ``.pt`` is one small pickle followed by the tensors' bytes:
-    the cap applies to the pickle, not the file."""
+    """A ``.pt`` in the legacy format is one small pickle followed by the tensors'
+    bytes: the cap applies to the pickle, not the file."""
     monkeypatch.setattr(archive_member, "MAX_ARCHIVE_MEMBER_BYTES", 1000)
     legacy = tmp_path / "legacy.pt"
     legacy.write_bytes(pickle.dumps({"k": 1}, protocol=2) + b"\x00" * 50_000)
@@ -133,8 +133,7 @@ def test_fickling_stderr_becomes_one_bounded_escaped_warning(
     capsys: pytest.CaptureFixture[str],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: the escaped literal was cut after escaping, losing its
-    closing quote."""
+    """An escaped literal is cut before escaping, keeping its closing quote."""
     from fickling.fickle import Pickled  # pylint: disable=import-outside-toplevel
 
     def noisy(_stream: io.BytesIO) -> object:

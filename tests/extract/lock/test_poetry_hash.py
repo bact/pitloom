@@ -76,10 +76,9 @@ def test_real_world_pastel_appdirs_wheel_hash_legacy_metadata_files() -> None:
 
 
 def test_real_world_pastel_colorama_wheel_hash_matches_resolved_version() -> None:
-    """Regression: when `[metadata.files]` contains files for multiple
-    versions of the same package (e.g. across marker branches), hash
-    extraction must only pick files matching the resolved version, not
-    arbitrarily pick an older version's wheel."""
+    """When `[metadata.files]` holds files for several versions of one package
+    (e.g. across marker branches), hash extraction picks only files matching
+    the resolved version."""
     project_dir = REAL_WORLD_LOCKS / "pastel-0.2.1"
     colorama_043_hash = (
         "7d73d2a99753107a36ac6b455ee49046802e59d9d076ef8e47b61499fa29afff"

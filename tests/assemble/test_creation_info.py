@@ -5,10 +5,9 @@
 
 """Direct unit tests for pitloom.assemble.spdx3.creation_info.
 
-Complements the full-pipeline graph assertions elsewhere in
-tests/assemble/ with tests that call these functions directly and assert on their return
-values, so a regression here fails in this file instead of surfacing as
-a generic "wrong graph shape" failure somewhere else.
+Complements the full-pipeline graph assertions elsewhere in tests/assemble/
+by calling these functions directly and asserting on their return values, so
+a fault fails here rather than as a generic "wrong graph shape" elsewhere.
 """
 
 # pylint: disable=missing-function-docstring

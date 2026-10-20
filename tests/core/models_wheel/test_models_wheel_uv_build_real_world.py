@@ -147,8 +147,7 @@ def test_default_discovery_fails_loudly_for_module_name_mismatch(
     .discover()`` genuinely returns ``None`` here, but
     ``_discover_with_no_static_module()``'s own Hatchling-fallback call
     site (``_models_wheel_dispatch.py``) coerces it via ``... or []``
-    before ``_discover_included_files`` ever returns -- a pre-existing
-    pattern, not something this test changes -- so ``included == []``
+    before ``_discover_included_files`` ever returns, so ``included == []``
     below is an authoritative-looking empty list, and this test's only
     real signal that discovery genuinely failed is the pair of
     ``WARNING:`` lines asserted below, not the return value's shape."""

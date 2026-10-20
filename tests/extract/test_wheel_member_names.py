@@ -79,9 +79,9 @@ def _file_names(sbom: str) -> dict[str, str]:
 
 
 def test_read_wheel_normalises_member_names(tmp_path: Path) -> None:
-    """Regression: ``demo\\mod.py`` was recorded verbatim on POSIX (and as
-    ``demo/mod.py`` on Windows). Every name is now the install location;
-    unsafe members are skipped; siblings keep their real hashes."""
+    """``demo\\mod.py`` is recorded as ``demo/mod.py`` on every platform. Every
+    name is the install location; unsafe members are skipped; siblings keep
+    their real hashes."""
     _, files = read_wheel(_wheel(tmp_path))
 
     by_name = {f.distribution_path: f for f in files}

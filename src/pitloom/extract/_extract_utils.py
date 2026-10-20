@@ -22,6 +22,7 @@ from urllib.error import HTTPError
 from urllib.parse import urlparse
 
 from pitloom.core.untrusted_text import escape_display_controls
+from pitloom.logging_config import Cap
 
 if TYPE_CHECKING:
     #: An installed or archived package's Core Metadata: parsed from its raw
@@ -173,10 +174,56 @@ def close_http_error(exc: BaseException) -> None:
         exc.close()
 
 
+# A JSON string (skipped whole, escapes included; one never closed runs to the
+# end, so it is scanned once) or a bracket.
+_JSON_TOKEN = re.compile(r'"(?:[^"\\]|\\.)*"?|[\[\]{}]', re.DOTALL)
+
+
+def json_nests_over(raw: bytes, limit: int) -> bool:
+    """Whether the JSON text *raw* nests arrays and objects deeper than
+    *limit*, counted without parsing it (so on every Python version the
+    parser's own depth limit is out of the answer). Text that does not
+    decode is not over: the parser reports it."""
+    try:
+        text = raw.decode(json.detect_encoding(raw), "surrogatepass")
+    except UnicodeDecodeError:
+        return False
+    # Every nesting level is an opening bracket: fewer cannot be over.
+    if text.count("[") + text.count("{") <= limit:
+        return False
+    depth = 0
+    for token in _JSON_TOKEN.finditer(text):
+        char = token.group()
+        if char in "[{":
+            depth += 1
+            if depth > limit:
+                return True
+        elif char in "]}":
+            depth = max(depth - 1, 0)
+    return False
+
+
+_UNPRINTABLE = re.compile("[\x00-\x1f\x7f-\x9f\ud800-\udfff]")
+
+
+def quote_source(source: str | Path) -> str:
+    """*source* in quotes, written as the OS writes it, on one line.
+
+    ``repr()`` of a :class:`~pathlib.Path` shows ``WindowsPath('D:/a/b')``
+    (forward slashes) and of a ``str`` doubles each backslash; neither matches
+    ``str(path)``, which a reader of the message looks for. Only control
+    characters and lone surrogates are escaped (``\\n``-style), so a name with
+    a newline cannot split the message over two lines.
+    """
+    text = _UNPRINTABLE.sub(lambda match: ascii(match.group())[1:-1], str(source))
+    return f"'{text}'"
+
+
 def fetch_json(
     source: str | Path,
     timeout: float = 30.0,
     max_bytes: int = 50 * 1024 * 1024,
+    max_nesting: Cap | None = None,
 ) -> dict[str, Any]:
     """Fetch and parse JSON from a local file path or an HTTP/HTTPS URL.
 
@@ -186,32 +233,36 @@ def fetch_json(
         timeout: Socket timeout in seconds for a URL *source* (ignored for a
             local file). Default matches the historical hardcoded value.
         max_bytes: Maximum allowed byte size for the response or file.
+        max_nesting: The most levels of arrays and objects the document may
+            nest (:func:`json_nests_over`); none by default.
 
     Returns:
         Parsed JSON as a ``dict``.
 
     Raises:
-        ValueError: If the data cannot be fetched or is not valid JSON, or if
-            the top-level value is not a JSON object.
+        ValueError: If the data cannot be fetched, is not valid JSON or is
+            over *max_nesting*, or if the top-level value is not a JSON
+            object.
     """
+    where = quote_source(source)
     try:
         if isinstance(source, str) and source.startswith(("http://", "https://")):
             with urllib.request.urlopen(source, timeout=timeout) as resp:  # nosec B310
                 raw = resp.read(max_bytes + 1)
                 if len(raw) > max_bytes:
                     raise ValueError(
-                        f"Source {source!r} response exceeds maximum limit of "
+                        f"Source {where} response exceeds maximum limit of "
                         f"{max_bytes} bytes"
                     )
         else:
             # A FIFO or device would block the open or the read.
             if not stat.S_ISREG(os.stat(source).st_mode):
-                raise ValueError(f"Source {source!r} is not a regular file")
+                raise ValueError(f"Source {where} is not a regular file")
             with Path(source).open("rb") as fh:
                 raw = fh.read(max_bytes + 1)
             if len(raw) > max_bytes:
                 raise ValueError(
-                    f"Source {source!r} exceeds maximum limit of {max_bytes} bytes"
+                    f"Source {where} exceeds maximum limit of {max_bytes} bytes"
                 )
     except (OSError, http.client.HTTPException) as exc:
         close_http_error(exc)
@@ -219,7 +270,10 @@ def fetch_json(
         # closes mid-response) is not an OSError subclass, so it needs its
         # own arm here -- without it, a transient network glitch would raise
         # out of what every caller treats as a "fetch failed" ValueError path.
-        raise ValueError(f"Cannot read source {source!r}: {exc}") from exc
+        raise ValueError(f"Cannot read source {where}: {exc}") from exc
+
+    if max_nesting is not None and json_nests_over(raw, max_nesting.limit):
+        raise ValueError(f"Source {where} is {max_nesting.reason}")
 
     try:
         data = json.loads(raw)
@@ -227,11 +281,11 @@ def fetch_json(
     # -16/-32), an integer over Python's digit limit; a RecursionError:
     # nesting too deep to parse.
     except (ValueError, RecursionError) as exc:
-        raise ValueError(f"Source {source!r} is not valid JSON: {exc}") from exc
+        raise ValueError(f"Source {where} is not valid JSON: {exc}") from exc
 
     if not isinstance(data, dict):
         raise ValueError(
-            f"Source {source!r}: expected a JSON object, got {type(data).__name__}"
+            f"Source {where}: expected a JSON object, got {type(data).__name__}"
         )
     return data
 

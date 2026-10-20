@@ -29,7 +29,7 @@ from typing import Any
 
 from pitloom.core.dataset_metadata import DatasetMetadata
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
-from pitloom.extract._extract_utils import fetch_json, get_first
+from pitloom.extract._extract_utils import fetch_json, get_first, quote_source
 from pitloom.extract.dataset.croissant_key import (
     CREATOR_KEYS,
     DATA_TYPE_KEYS,
@@ -58,12 +58,25 @@ from pitloom.extract.dataset.values import (
     stated_text,
     stated_texts,
     stated_total,
+    stated_url,
     stated_version,
     text_of,
 )
-from pitloom.logging_config import LONE_SURROGATES_WARNING, loggable, one_line
+from pitloom.logging_config import (
+    LONE_SURROGATES_WARNING,
+    Cap,
+    loggable,
+    one_line,
+)
 
 log = logging.getLogger(__name__)
+
+#: Most levels of arrays and objects a Croissant file may nest: real files
+#: nest about ten. Checked before parsing, so a file is read or refused the
+#: same on every Python version.
+CROISSANT_MAX_NESTING = 64
+
+CROISSANT_NESTING_CAP = Cap(CROISSANT_MAX_NESTING, "level", "Croissant-nesting")
 
 
 def _extract_creator_name(value: Any, source: str = "Croissant") -> str | None:
@@ -160,7 +173,7 @@ def _extract_croissant_core_fields(
     if description:
         provenance["description"] = f"Source: {src_label} | Field: description"
 
-    download_url = stated_text(get_first(data, *URL_KEYS), src_label, "url")
+    download_url = stated_url(get_first(data, *URL_KEYS), src_label, "url")
     if download_url:
         provenance["download_url"] = f"Source: {src_label} | Field: url"
 
@@ -264,10 +277,11 @@ def read_croissant(source: str | Path, *, label: str | None = None) -> DatasetMe
 
     Raises:
         ValueError: *source* cannot be read, is not a Croissant document,
+            nests over :data:`CROISSANT_MAX_NESTING` levels,
             or reading it fails in any other way; the message names it.
     """
     try:
-        data = fetch_json(source)
+        data = fetch_json(source, max_nesting=CROISSANT_NESTING_CAP)
     except ValueError as exc:
         message = str(exc)
         for generic, own in (
@@ -286,7 +300,7 @@ def read_croissant(source: str | Path, *, label: str | None = None) -> DatasetMe
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         raise ValueError(
-            f"Croissant source {source!r} cannot be read: "
+            f"Croissant source {quote_source(source)} cannot be read: "
             f"{type(exc).__name__}: {one_line(exc)}"
         ) from exc
 
@@ -301,11 +315,13 @@ def _name(data: dict[str, Any], source: str | Path) -> str:
     name, holds_text = text_of(raw)
     if not holds_text:
         raise ValueError(
-            f"Croissant source {source!r} field 'name' is of type "
+            f"Croissant source {quote_source(source)} field 'name' is of type "
             f"{type(raw).__name__}, not text."
         )
     if name is None:
-        raise ValueError(f"Croissant source {source!r} has no 'name' field.")
+        raise ValueError(
+            f"Croissant source {quote_source(source)} has no 'name' field."
+        )
     return name
 
 

@@ -65,13 +65,11 @@ def test_resolve_pdm_dynamic_version_source_unresolvable_without_path() -> None:
 def test_resolve_pdm_dynamic_version_write_to_stripping_scoped_to_scm(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: the ``write_to``/``write_template`` stripping added
-    for ``source = "scm"`` must not also apply to ``source = "file"`` --
-    ``resolve_version_from_file()`` doesn't accept those keywords at
-    all, so a misconfigured ``write_to`` under ``source = "file"``
-    should surface as a normal resolution failure (a ``WARNING:``, not
-    a crash), the same way a real PDM build would reject it -- not be
-    silently stripped and hidden."""
+    """The ``write_to``/``write_template`` stripping for ``source = "scm"`` does
+    not apply to ``source = "file"``: ``resolve_version_from_file()`` does not
+    accept those keywords, so a misconfigured ``write_to`` surfaces as a
+    normal resolution failure (a ``WARNING:``, not a crash), as a real PDM
+    build rejects it, not silently stripped."""
     data = {
         "tool": {
             "pdm": {
@@ -107,14 +105,11 @@ def test_resolve_pdm_dynamic_version_no_config() -> None:
 
 
 def test_resolve_pdm_dynamic_version_scm_with_write_to(tmp_path: Path) -> None:
-    """Regression: ``source = "scm"`` combined with ``write_to`` (a
-    common, documented PDM idiom for auto-embedding a ``_version.py``)
-    must still resolve the version correctly -- previously failed with
-    ``AttributeError: 'Builder' object has no attribute 'target'``
-    because the plain ``Builder`` base class never sets ``target``,
-    which ``resolve_version_from_scm()``'s write path reads. Also
-    verifies no file is written to disk: this is a metadata *read*, so
-    ``write_to`` must never actually create the file it names."""
+    """``source = "scm"`` combined with ``write_to`` (a documented PDM idiom for
+    embedding a ``_version.py``) still resolves the version: the plain
+    ``Builder`` base class sets no ``target``, which
+    ``resolve_version_from_scm()``'s write path reads. No file is written to
+    disk: this is a metadata *read*."""
     project_dir = tmp_path / "proj"
     project_dir.mkdir()
     (project_dir / "pyproject.toml").write_text(

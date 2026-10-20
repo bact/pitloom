@@ -78,9 +78,9 @@ def test_locked_dependency_not_a_single_exact_pin_skipped() -> None:
 
 
 def test_pep440_version_equivalence_collects_all_branch_candidates() -> None:
-    """Regression: branches specifying PEP 440 equivalent versions (e.g.
-    1.0 and 1.0.0) must group together so all candidates across branches
-    are considered (e.g. preferring a wheel on 1.0.0 over an sdist on 1.0)."""
+    """Branches specifying PEP 440 equivalent versions (e.g. 1.0 and 1.0.0)
+    group together so all candidates are considered (a wheel on 1.0.0 is
+    preferred over an sdist on 1.0)."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         wheel_hash = "b" * 64

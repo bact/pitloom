@@ -65,18 +65,12 @@ def test_build_file_native_copyright_and_declared_license() -> None:
 def test_build_file_absolute_physical_path_uses_distribution_path_in_provenance() -> (
     None
 ):
-    """Regression: a build-and-read-discovered file's ``physical_path``
-    is an absolute path into a ``tempfile.mkdtemp()`` directory that
-    differs every run (see ``ProjectFile.physical_path``'s docstring and
-    ``_models_wheel_build_and_read.py``) -- emitting it verbatim into a
-    "Source: ..." provenance string breaks CLAUDE.md's "SBOM output"
-    determinism invariant, since two runs of an unchanged project would
-    then never be bit-for-bit identical. Confirmed live via a real
-    ``--allow-build`` run against a synthetic uv_build project before
-    this fix: two runs' emitted ``comment``/Annotation ``source`` fields
-    differed only in the temp directory's random suffix. The fix uses
-    ``distribution_path`` (always deterministic) instead of
-    ``physical_path`` whenever the latter is absolute."""
+    """A build-and-read-discovered file's ``physical_path`` is an absolute
+    path into a ``tempfile.mkdtemp()`` directory that differs every run (see
+    ``ProjectFile.physical_path`` and ``_models_wheel_build_and_read.py``).
+    Emitting it verbatim into a "Source: ..." provenance string would break
+    the SBOM determinism invariant, so ``distribution_path`` is used
+    whenever ``physical_path`` is absolute."""
     files = [
         ProjectFile(
             physical_path=fake_build_and_read_path("abc123", "pkg", "tagged.py"),
@@ -113,9 +107,7 @@ def test_build_file_absolute_physical_path_is_deterministic_across_runs() -> Non
     ``physical_path`` -- as two separate ``--allow-build`` runs of the
     same unchanged project would produce, since ``tempfile.mkdtemp()``
     picks a fresh random directory name each time. The two runs' graphs
-    must be identical, guarding against the exact non-determinism bug
-    fixed alongside this test (see the sibling test above for the full
-    failure mode)."""
+    must be identical (see the sibling test above for the failure mode)."""
     common_kwargs = {
         "distribution_path": "pkg/tagged.py",
         "digest_sha256": "a" * 64,
@@ -229,7 +221,7 @@ def test_build_file_unmapped_file_type_goes_to_summary_not_content_type() -> Non
 
 
 def test_build_file_primary_purpose_never_inferred_from_content_type() -> None:
-    """Regression guard: a resolved content_type must never backfill
+    """A resolved content_type must never backfill
     primaryPurpose, even when file_type is absent entirely -- SoftwarePurpose
     is about usage, not content, per the SPDX 3 spec."""
     files = [

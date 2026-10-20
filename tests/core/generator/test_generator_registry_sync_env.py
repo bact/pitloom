@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression tests for ``generate_env_sbom``'s id-mint-collision fix:
+"""``generate_env_sbom`` id-mint collision:
 a deployed dependency's hit-based pre-resolution
 (:func:`pitloom.assemble.spdx3._document_deployed._resolve_deployed_package_hits`)
 must never duplicate a spdxId across repeated runs with a harvested
@@ -11,7 +11,7 @@ registry, including when the installed environment's dependency set
 changes between runs.
 
 See also: :mod:`tests.core.generator.test_generator_registry_sync` for the
-wheel/directory mint-collision regressions this mirrors, and
+wheel/directory mint-collision tests this mirrors, and
 :mod:`tests.core.generator.test_generator_model` for ``build_deployed()``'s
 basic (single-call) registry-reuse behaviour.
 """

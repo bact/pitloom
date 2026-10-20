@@ -54,8 +54,8 @@ def test_resolve_quantization_unknown_integer() -> None:
     [(0, "F32"), (1, "F16"), (7, "Q8_0"), (15, "Q4_K_M"), (4, "4")],
 )
 def test_file_type_is_a_llama_file_type(file_type: int, name: str) -> None:
-    """Regression: 7 was read as ``GGMLQuantizationType`` (``Q5_1``); 4 is a
-    retired ``LlamaFileType`` value, kept as its number."""
+    """7 reads as ``GGMLQuantizationType`` (``Q5_1``); 4 is a retired
+    ``LlamaFileType`` value, kept as its number."""
     pytest.importorskip("gguf")
     assert _resolve_quantization(file_type) == name
 
@@ -64,7 +64,7 @@ def test_file_type_is_a_llama_file_type(file_type: int, name: str) -> None:
 def test_format_version_is_read_in_the_files_byte_order(
     tmp_path: Path, endian: str
 ) -> None:
-    """Regression: a big-endian version 3 was read as ``<I``, 50331648."""
+    """A big-endian version 3 is not read as ``<I`` (50331648)."""
     pytest.importorskip("gguf")
     path = tmp_path / "m.gguf"
     path.write_bytes(gguf_file(0, 0, endian=endian))

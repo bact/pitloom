@@ -126,8 +126,7 @@ def _reset_license_matcher_cache() -> None:
 @pytest.fixture(autouse=True)
 def _reset_warn_once_state() -> None:
     """Clear ``warn_once()``'s per-process dedup state before each test, so
-    one test's WARNING->DEBUG downgrade can't leak into the next and hide a
-    real warn_once regression."""
+    one test's WARNING->DEBUG downgrade can't leak into the next."""
     _WARNED_ONCE.clear()
 
 
@@ -177,8 +176,7 @@ def _block_network_access(
     Several code paths (PyPI JSON API dependency enrichment, remote
     ``AUTHORS`` file fetches) make real network requests unless the caller
     threads ``offline=True`` all the way through -- which not every test
-    does, since some of that plumbing didn't exist when the tests were
-    written. Without this guard, a forgotten mock silently turns into a
+    does. Without this guard, a forgotten mock silently turns into a
     live network call: slow, flaky, and broken in offline/CI-sandboxed
     runs. Tests that genuinely need a live socket opt out via the
     ``network`` marker.

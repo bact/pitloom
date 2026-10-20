@@ -155,9 +155,9 @@ def build_license_elements(
     *license_provenance*): the package's own statement is declared, a
     third-party record concluded.
 
-    Two-candidate mode (G2, *concluded_license_id* given -- currently only the
-    main project package path supplies this, since it's the only one with a
-    local directory to independently detect a second opinion from): *license_id*
+    Two-candidate mode (G2, *concluded_license_id* given -- only the main project
+    package path supplies this, since it's the only one with a local
+    directory to independently detect a second opinion from): *license_id*
     is always the declared value, *concluded_license_id* the independently
     detected one. Both relationships are built unconditionally, whether or not
     the two agree -- when they *do* agree, both point at the same deduped

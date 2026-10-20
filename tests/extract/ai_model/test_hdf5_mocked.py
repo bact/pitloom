@@ -78,7 +78,7 @@ def test_read_hdf5_open_failure_logs_and_raises(
             with pytest.raises(ValueError, match="Failed to read HDF5 file"):
                 read_hdf5(model_file)
 
-    # Open failure is now logged at debug level before being re-raised.
+    # Open failure is logged at debug level before being re-raised.
     assert any("model.h5" in r.message for r in caplog.records)
 
 
@@ -331,8 +331,8 @@ def test_read_hdf5_warns_once_for_a_model_config_it_cannot_read_whole(
     raw_kept: bool,
     cut: bool,
 ) -> None:
-    """Regression: a ``model_config`` that was not JSON was kept raw with
-    no line at all (only a cut raw config of over 500 characters warned)."""
+    """A ``model_config`` that is not JSON is kept raw and logged (not only a cut
+    raw config of over 500 characters)."""
     meta, messages = _read_with(tmp_path, caplog, model_config=config)
     assert len(messages) == (problem is not None or cut)
     assert ("model_config_raw" in meta.properties) is raw_kept

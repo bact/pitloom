@@ -189,11 +189,10 @@ def _dependency_split(names: str | None, addresses: str | None) -> None:
 def test_one_bounded_line_per_field(
     caplog: pytest.LogCaptureFixture, call: Callable[[], object], lines: list[str]
 ) -> None:
-    """Regression: one line per entry holding no address (1000 for one
-    crafted field), an excerpt cut without ``...``, ``1 dependencies``. Now
-    one line per field, at most three entries shown, ``...`` where cut,
-    the count in the right number; a dependency's ``Author`` is one author,
-    no split line."""
+    """One line per field (not per entry holding no address), at most three
+    entries shown, ``...`` where cut, the count in the right number
+    (``1 dependency``); a dependency's ``Author`` is one author, no split
+    line."""
     with caplog.at_level(logging.WARNING):
         call()
     assert len(caplog.messages) == len(lines)
@@ -361,10 +360,9 @@ def test_dependency_maintainer_only_for_an_absent_author(
     expected: list[tuple[str | None, str | None]],
     line: str,
 ) -> None:
-    """Regression: an ``Author`` stated but read as no one fell back to the
-    ``Maintainer``, crediting the package to Zed; a maintainer field's
-    warning named ``AUTHOR_EMAIL``. Only an absent author pair (missing,
-    blank, ``UNKNOWN``) falls back, and a warning names the field read."""
+    """Only an absent author pair (missing, blank, ``UNKNOWN``) falls back to the
+    ``Maintainer``; an ``Author`` stated but read as no one does not, and a
+    warning names the field read (not ``AUTHOR_EMAIL`` for a maintainer)."""
     with caplog.at_level(logging.WARNING):
         assert _DEPENDENCY_ROUTES[route](fields) == expected
     assert [m[: len(line)] for m in caplog.messages] == ([line] if line else [])

@@ -227,7 +227,7 @@ def test_cli_embed_wheel_verify_validate_share_one_format_detection(
 
     # embed_wheel.py/verify_wheel.py/validate_wheel.py all locate+detect via
     # the single shared `_locate_and_detect()` in cli/commands/utils.py, so
-    # patching its one `detect_sbom_format` binding catches a regression
+    # patching its one `detect_sbom_format` binding catches a miscount
     # anywhere in that shared path, not just embed_wheel.py's own call.
     monkeypatch.setattr(
         "pitloom.cli.commands.utils.detect_sbom_format", _counting_detect_sbom_format

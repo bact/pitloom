@@ -203,10 +203,7 @@ def test_generate_command_requires_output_flag(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Without ``-o``, ``loom generate`` must fail loudly and write
-    nothing -- no default filename is guessed (regression: an earlier
-    version silently wrote a hardcoded ``sbom.spdx3.json`` to whatever
-    the process cwd happened to be, overwriting anything already
-    there)."""
+    nothing: no default filename is guessed in the cwd."""
     project_dir = _make_simple_project(tmp_path)
     other_dir = tmp_path / "workdir"
     other_dir.mkdir()
@@ -266,7 +263,7 @@ def test_id_generate_cli_end_to_end(
 def test_generate_command_does_not_duplicate_project_warning(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: for a plain project-directory target, `loom generate`
+    """For a plain project-directory target, `loom generate`
     shares `loom project`'s single-read path (one
     `resolve_project_with_lockfile()` read, pre-supplied to
     `generate_project_sbom()`), so a metadata WARNING: (e.g. the PEP 639
@@ -296,7 +293,7 @@ def test_generate_command_does_not_duplicate_project_warning(
 def test_generate_command_sdist_target_ignores_sibling_pyproject(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: an sdist archive's config is its own. A pyproject.toml
+    """An sdist archive's config is its own. A pyproject.toml
     beside the archive may belong to anything, so ``loom generate`` reads
     it no more than ``loom project`` does -- its PEP 639 warning (which a
     read would emit) must not appear."""

@@ -78,8 +78,8 @@ def test_stdout_is_only_the_sbom(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Regression: a ``PITLOOM_SBOM_OUTPUT_PATH=-`` line (or any other data
-    line) after the SBOM made stdout invalid JSON."""
+    """No ``PITLOOM_SBOM_OUTPUT_PATH=-`` line (or other data line) follows
+    the SBOM, so stdout stays valid JSON."""
     monkeypatch.chdir(tmp_path)
     targets = {"project": "", "wheel": "", "fragments": ""}
     argv = list(_CASES[case])

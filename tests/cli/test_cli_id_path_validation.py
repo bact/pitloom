@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression tests for `pitloom id generate` PATH-argument handling:
+"""`pitloom id generate` PATH-argument handling:
 
 * a PATH outside ``--project-dir`` (relative or absolute) is a clean,
   single ``ERROR:`` line and exit 1 -- not a raw ``relative_to()``

@@ -91,6 +91,8 @@ def test_stated_texts(
         ({"sc:name": "A"}, "A", False),
         ("A", "A", False),
         ([None, " ", "Alice"], "Alice", False),
+        (["unknown", "N/A", "Real"], "Real", False),  # a placeholder states nothing
+        (["unknown"], None, False),
         (7, None, True),
         ({"name": 7}, None, True),
     ],

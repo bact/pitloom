@@ -25,7 +25,7 @@ SRC_LAYOUT_FIXTURE = (FIXTURES / "sampleproject-pdm").resolve()
 
 
 def test_discover_src_layout_regression() -> None:
-    """Regression: ``[tool.pdm.build] package-dir = "src"`` must resolve
+    """``[tool.pdm.build] package-dir = "src"`` must resolve
     the distribution path without the ``src/`` prefix leaking in --
     ``WheelBuilder._collect_files()``'s own prefix-stripping override,
     not the plain ``Builder`` base class."""
@@ -58,12 +58,11 @@ def test_discover_excludes_dist_info_metadata() -> None:
 
 
 def test_discover_never_writes_to_disk(tmp_path: Path) -> None:
-    """Regression: calling ``WheelBuilder.get_files()`` directly would
-    write ``METADATA``/``WHEEL``/``.gitignore`` into ``.pdm-build/`` as a
-    build-time side effect (``_get_metadata_files()`` ->
-    ``context.ensure_build_dir()``) -- ``discover()`` must stay a pure
-    read, matching the "static-config read, never a build" contract
-    every backend's discoverer follows."""
+    """``WheelBuilder.get_files()`` called directly writes ``METADATA``/
+    ``WHEEL``/``.gitignore`` into ``.pdm-build/`` as a side effect
+    (``_get_metadata_files()`` -> ``context.ensure_build_dir()``);
+    ``discover()`` stays a pure read, per the "static-config read, never a
+    build" contract every backend's discoverer follows."""
     project_dir = tmp_path / "proj"
     project_dir.mkdir()
     (project_dir / "pyproject.toml").write_text(
@@ -82,13 +81,11 @@ def test_discover_never_writes_to_disk(tmp_path: Path) -> None:
 
 
 def test_discover_ignores_stale_pdm_build_directory(tmp_path: Path) -> None:
-    """Regression: the base ``Builder.get_files()`` unconditionally globs
-    ``context.build_dir`` for extra files via ``_collect_build_files()``.
-    If that pointed at *project_dir* / ``.pdm-build`` (left behind,
-    typically only gitignored not cleaned up, by a real ``pdm build`` the
-    user ran previously), stale content from that earlier build would
-    leak into the returned file list -- a static rescan must reflect only
-    the source tree, not a past build's output."""
+    """The base ``Builder.get_files()`` globs ``context.build_dir`` for extra
+    files via ``_collect_build_files()``. A ``.pdm-build`` left in
+    *project_dir* by an earlier ``pdm build`` (typically gitignored, not
+    cleaned up) must not leak stale content into the file list: a static
+    rescan reflects only the source tree."""
     project_dir = tmp_path / "proj"
     project_dir.mkdir()
     (project_dir / "pyproject.toml").write_text(
@@ -112,7 +109,7 @@ def test_discover_ignores_stale_pdm_build_directory(tmp_path: Path) -> None:
 
 
 def test_discover_never_writes_scm_version_to_disk(tmp_path: Path) -> None:
-    """Regression: ``[tool.pdm.version] source = "scm"`` combined with a
+    """``[tool.pdm.version] source = "scm"`` combined with a
     ``write_to`` option makes pdm-backend's own
     ``DynamicVersionBuildHook.pdm_build_initialize()`` write the resolved
     version string to a real file under ``.pdm-build/`` as a side effect
@@ -155,7 +152,7 @@ def test_discover_never_writes_scm_version_to_disk(tmp_path: Path) -> None:
 
 
 def test_discover_restores_cwd_when_discovery_fails(tmp_path: Path) -> None:
-    """Regression: ``_chdir``'s ``os.chdir()`` back to the original
+    """``_chdir``'s ``os.chdir()`` back to the original
     directory must happen even when ``discover()`` fails *inside* the
     ``with _chdir(...)`` block (here: a project with no ``[project]``
     table, failing during ``WheelBuilder(project_dir)``/
@@ -173,11 +170,9 @@ def test_discover_restores_cwd_when_discovery_fails(tmp_path: Path) -> None:
 
 
 def test_discover_accepts_pyproject_data_kwarg() -> None:
-    """Interface-uniformity regression: matches
-    :class:`~pitloom.core._models_wheel_types.BackendDiscoverer`'s shared
-    call signature -- pdm-backend's own ``Config.from_pyproject()`` reads
-    ``pyproject.toml`` itself, so the argument is accepted and ignored,
-    not required."""
+    """Matches :class:`~pitloom.core._models_wheel_types.BackendDiscoverer`'s
+    shared call signature: pdm-backend's ``Config.from_pyproject()`` reads
+    ``pyproject.toml`` itself, so the argument is accepted and ignored."""
     result = discover(SRC_LAYOUT_FIXTURE, pyproject_data={"tool": {"pdm": {}}})
 
     assert result is not None

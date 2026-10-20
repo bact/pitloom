@@ -102,8 +102,9 @@ def _hub() -> str:
 
 
 def _library() -> str:
-    """A model and a licensed, described dataset, built through the assembler
-    (no reader yet feeds a dataset licence into a model SBOM)."""
+    """A model and a licensed, described dataset with a type and a size, built
+    through the assembler (a dataset's statistics reach a model SBOM only
+    through the library)."""
     dataset = DatasetMetadata(
         name="corpus",
         version="1.0",

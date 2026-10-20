@@ -88,12 +88,10 @@ def test_detect_backend_malformed_pyproject_logs_and_returns_none(
 
 
 def test_detect_backend_explicit_none_pyproject_data_skips_reread() -> None:
-    """Regression: a caller that already parsed ``pyproject.toml`` itself
-    and got ``None`` (missing/unparseable) should be able to pass that
-    ``None`` straight through -- ``detect_build_backend`` must not
-    re-open and re-parse the same file a second time for the same
-    answer, distinguishing this from simply omitting the argument
-    (which does mean "please read it for me")."""
+    """A caller that already parsed ``pyproject.toml`` and got ``None``
+    (missing/unparseable) can pass it through: ``detect_build_backend`` does
+    not re-parse the file, unlike an omitted argument (which means "read it
+    for me")."""
     content = "[build-system\nbroken toml"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "pyproject.toml").write_text(content)
@@ -138,10 +136,9 @@ def test_detect_build_backend_empty_string() -> None:
 
 
 def test_detect_build_backend_unparseable_pyproject_falls_back_to_setuptools() -> None:
-    """Regression: a ``pyproject.toml`` that exists but is unparseable
-    (malformed TOML) must fall back to the same setup.cfg/setup.py check
-    as the file-absent and no-build-backend-key branches -- not return
-    ``None`` outright just because the file happens to exist."""
+    """A ``pyproject.toml`` that exists but is unparseable (malformed TOML)
+    falls back to the same setup.cfg/setup.py check as the file-absent and
+    no-build-backend-key branches, not ``None``."""
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "pyproject.toml").write_text("this is not [valid toml\n")
         (Path(d) / "setup.cfg").write_text("[metadata]\nname = pkg\n")
@@ -157,11 +154,10 @@ def test_detect_build_backend_unparseable_pyproject_no_fallback_is_none() -> Non
 
 
 def test_detect_build_backend_non_dict_build_system_falls_back() -> None:
-    """Regression: a ``build-system`` key that isn't a table (e.g. a
-    stray top-level ``build-system = "..."`` scalar instead of a
-    ``[build-system]`` section -- valid TOML, just the wrong shape) must
-    not crash ``.get()`` on it -- treated the same as no build-backend
-    resolvable, falling back to the setup.cfg/setup.py check."""
+    """A ``build-system`` key that is not a table (e.g. a top-level
+    ``build-system = "..."`` scalar; valid TOML, wrong shape) does not crash
+    ``.get()``: it is treated as no build-backend, falling back to the
+    setup.cfg/setup.py check."""
     content = 'build-system = "not-a-table"\n'
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "pyproject.toml").write_text(content)
@@ -170,10 +166,9 @@ def test_detect_build_backend_non_dict_build_system_falls_back() -> None:
 
 
 def test_detect_build_backend_non_string_build_backend_falls_back() -> None:
-    """Regression: a ``build-backend`` value that isn't a string (e.g. a
-    stray integer -- valid TOML, just the wrong type) must not crash on
-    string operations -- treated the same as no build-backend
-    resolvable, falling back to the setup.cfg/setup.py check."""
+    """A ``build-backend`` value that is not a string (e.g. an integer; valid
+    TOML, wrong type) does not crash string operations: it is treated as no
+    build-backend, falling back to the setup.cfg/setup.py check."""
     content = '[build-system]\nrequires = ["setuptools"]\nbuild-backend = 123\n'
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "pyproject.toml").write_text(content)
@@ -182,10 +177,8 @@ def test_detect_build_backend_non_string_build_backend_falls_back() -> None:
 
 
 def test_detect_build_backend_rejects_substring_lookalike() -> None:
-    """Regression: a build-backend whose top-level module merely
-    *contains* "setuptools" as a substring (but isn't setuptools) must
-    not be misdetected -- matching is on the top-level module name, not
-    substring containment."""
+    """A build-backend whose top-level module merely *contains* "setuptools" as
+    a substring is not setuptools: matching is on the top-level module name."""
     content = (
         "[build-system]\n"
         'requires = ["my-setuptools-shim"]\n'

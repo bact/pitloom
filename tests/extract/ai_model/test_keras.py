@@ -187,8 +187,7 @@ def test_read_keras_malformed_metadata_json_logs_and_raises(
 ) -> None:
     """A valid ZIP whose metadata.json is not valid JSON hits the generic
     except (distinct from the zipfile.BadZipFile branch above): the failure
-    is logged, and the same ValueError is raised as before logging was
-    added."""
+    is logged and a ValueError is raised."""
     f = tmp_path / "model.keras"
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:

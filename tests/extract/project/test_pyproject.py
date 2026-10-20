@@ -82,10 +82,9 @@ def test_read_pyproject_explicit_empty_requires_python_gets_provenance() -> None
 def test_read_pyproject_explicit_empty_requires_python_survives_poetry_gap_fill() -> (
     None
 ):
-    """The [project] table's explicit `requires-python = ""` must win over
+    """The [project] table's explicit `requires-python = ""` wins over
     [tool.poetry]'s real constraint through the actual read_pyproject()
-    merge -- the concrete, reachable regression this presence check
-    exists to prevent, not just a synthetic unit-level scenario."""
+    merge, not only a synthetic unit-level scenario."""
     with tempfile.TemporaryDirectory() as d:
         tmp_path = Path(d)
         (tmp_path / "pyproject.toml").write_text(
@@ -340,9 +339,9 @@ def test_a_readme_outside_the_project_is_not_read(
     read: bool,
     field: str | None,
 ) -> None:
-    """Regression: ``pyproject-metadata`` read ``project.readme`` wherever it
-    pointed. Now the field is dropped with one ``WARNING:``, worded as for a
-    licence file; a shape it reads no file for is left to it."""
+    """``pyproject-metadata`` reads ``project.readme`` wherever it points; the
+    field is dropped with one ``WARNING:``, worded as for a licence file; a
+    shape it reads no file for is left to it."""
     project = tmp_path / "p"
     (project / "s").mkdir(parents=True)
     (project / "R.md").write_text("Inside", encoding="utf-8")

@@ -226,7 +226,7 @@ def test_a_self_reference_cycle_warns_once(
     warnings: list[str],
     quiet: bool,
 ) -> None:
-    """Regression: a cycle was dropped silently. One ``WARNING:`` per
+    """A cycle is reported, not dropped silently: one ``WARNING:`` per
     cycle, in the shared skipping wording, naming the reference back to
     its first extra and every extra on it; *quiet* silences it."""
     with caplog.at_level(logging.WARNING):
@@ -266,9 +266,9 @@ def _chain(length: int, *references: str) -> dict[str, list[str]]:
 def test_self_reference_expansion_is_bounded(
     caplog: pytest.LogCaptureFixture, optional: Any, count: int
 ) -> None:
-    """Regression: every path was expanded again, exponential in the depth
-    of doubled references, and recursively. Each extra is expanded once,
-    iteratively, the whole result kept, no cap hit."""
+    """Each extra is expanded once, iteratively (not per path, which is
+    exponential in the depth of doubled references); the whole result is
+    kept, no cap hit."""
     with caplog.at_level(logging.WARNING):
         flat = run_bounded(
             lambda: flatten_optional_dependencies([], optional, "demo", source=_SRC)

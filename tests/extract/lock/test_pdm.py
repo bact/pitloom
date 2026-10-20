@@ -10,9 +10,9 @@ See also: test_pdm_integration.py (its overlay onto
 ``ProjectMetadata.locked_dependencies`` via ``read_project()``, and the
 real-world fixtures); test_poetry.py/test_uv.py for the sibling lock
 extractors this module's tests mirror in shape;
-test_cascade.py for the cascade mechanism's own tests,
-including the priority-order-consistency regression this format's
-below-``poetry.lock`` rank exercises.
+test_cascade.py for the cascade mechanism's own tests, including the
+priority-order consistency that this format's below-``poetry.lock`` rank
+exercises.
 """
 
 import logging
@@ -153,13 +153,11 @@ def test_non_default_group_package_excluded() -> None:
 def test_non_default_group_non_registry_sourced_package_is_silent(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A package that is both non-default-group and non-registry-sourced
-    must be dropped with no warning at all -- it's excluded either way,
-    and warning about a source type that's being discarded regardless is
-    noise. Regression for the exact filter-ordering bug class found and
-    fixed in `pylock.py`'s equivalent
-    (`test_marker_excluded_non_registry_sourced_package_is_silent`),
-    checked here for `_default_group_package_or_none`'s own ordering."""
+    """A package that is both non-default-group and non-registry-sourced is
+    dropped with no warning: it is excluded either way, so warning about its
+    source type is noise. Mirrors `pylock.py`'s
+    `test_marker_excluded_non_registry_sourced_package_is_silent`, for
+    `_default_group_package_or_none`'s own ordering."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         _write_lock(

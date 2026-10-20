@@ -57,9 +57,8 @@ def discover(
     ``pyproject.toml``: poetry-core's ``Factory.create_poetry()`` is the
     only public entry point into ``[tool.poetry]`` resolution and it always
     re-reads the file from *project_dir* itself, with no variant that
-    accepts a pre-parsed mapping. A known, currently-unavoidable extra
-    disk read+parse per call given poetry-core's public API -- not a
-    missed optimization to fix locally.
+    accepts a pre-parsed mapping, so the extra read and parse per call is
+    unavoidable.
     """
     # pylint: disable=import-outside-toplevel,cyclic-import
     from poetry.core.factory import Factory

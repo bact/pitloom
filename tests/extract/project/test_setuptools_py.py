@@ -271,10 +271,9 @@ def test_read_setup_py_long_description_and_tuples() -> None:
 
 
 def test_ast_literal_distinguishes_none_element_from_unresolvable() -> None:
-    """A literal `None` list element must resolve to the list `[None]`,
-    not be treated the same as an unresolvable element (a Name/Call node)
-    -- both used to collapse to the same `None` return, silently
-    invalidating a list that happens to contain a real `None`."""
+    """A literal `None` list element resolves to the list `[None]`, not treated
+    like an unresolvable element (a Name/Call node), so a list containing a
+    real `None` stays valid."""
     literal_none_list = ast.parse("[None]", mode="eval").body
     assert _ast_literal(literal_none_list) == [None]
 

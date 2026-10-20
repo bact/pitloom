@@ -73,10 +73,10 @@ def test_one_file_is_read_once_however_it_is_reached(
     deps: list[str],
     warning: str | None,
 ) -> None:
-    """Regression: a file reached by two spellings that resolve apart (a
-    symlink spelling the project in another letter case) was read, and its
-    bytes counted, twice. A hard link is the same file too; with no file
-    identity, each spelling is its own file. A read failure warns."""
+    """A file reached by two spellings that resolve apart (a symlink spelling the
+    project in another letter case) is read, and its bytes counted, once. A
+    hard link is the same file too; with no file identity, each spelling is
+    its own file. A read failure warns."""
     project = tmp_path / "p"
     project.mkdir()
     (project / "a.txt").write_bytes(b"six\n")

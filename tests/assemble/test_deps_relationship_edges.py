@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression tests for the defensive ``if <relationship>:`` guards in
+"""The defensive ``if <relationship>:`` guards in
 ``pitloom.assemble.spdx3.deps.add_dependencies`` and
 ``pitloom.assemble.spdx3.deps_phantom.add_phantom_dependencies``.
 

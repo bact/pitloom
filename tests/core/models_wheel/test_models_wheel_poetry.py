@@ -25,7 +25,7 @@ INCLUDE_EXCLUDE_FIXTURE = FIXTURES / "sampleproject-poetry-include-exclude"
 
 
 def test_discover_src_layout_regression() -> None:
-    """Regression: a ``packages = [{include = ..., from = "src"}]`` layout
+    """A ``packages = [{include = ..., from = "src"}]`` layout
     must resolve the distribution path without the ``src/`` prefix leaking
     in -- the same ``physical_path``/``distribution_path`` divergence
     setuptools' ``where=`` case guards against."""
@@ -65,10 +65,9 @@ def test_discover_honors_include_and_exclude() -> None:
 
 
 def test_discover_accepts_pyproject_data_kwarg() -> None:
-    """Interface-uniformity regression: matches
-    :class:`~pitloom.core._models_wheel_types.BackendDiscoverer`'s shared
-    call signature -- poetry-core's ``Factory`` reads ``pyproject.toml``
-    itself, so the argument is accepted and ignored, not required."""
+    """Matches :class:`~pitloom.core._models_wheel_types.BackendDiscoverer`'s
+    shared call signature: poetry-core's ``Factory`` reads ``pyproject.toml``
+    itself, so the argument is accepted and ignored."""
     result = discover(
         SRC_LAYOUT_FIXTURE, pyproject_data={"tool": {"poetry": {"name": "pkg"}}}
     )

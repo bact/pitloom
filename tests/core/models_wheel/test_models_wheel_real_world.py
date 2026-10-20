@@ -3,15 +3,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression tests: every backend's ``discover()`` against the vendored
+"""Every backend's ``discover()`` against the vendored
 real-world fixtures (``tests/fixtures/real-world-projects/``), diffed
 against each fixture's real published wheel's file list.
 
-Persists what earlier real-world-validation rounds
-(``working-docs/implementation/backend-file-discovery-validation.md``)
-only ever checked once, ad hoc, then discarded -- these fixtures stay in
-the repo so every future change to any backend's ``discover()`` gets
-checked against real packages on every test run, offline (the sdist
+The fixtures stay in the repo so every change to any backend's ``discover()``
+is checked against real packages on every test run, offline (the sdist
 archives are vendored; extraction is local, no network access).
 
 See also: tests/fixtures/real_world.py (the shared extraction/manifest

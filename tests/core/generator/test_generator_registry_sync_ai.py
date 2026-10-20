@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression test for the AI-model id-mint-collision fix:
+"""AI-model id-mint collision:
 :func:`pitloom.assemble.spdx3.ai.resolve_ai_model_entity_hits` must be
 reserved before the first mint, or a registry hit claimed via
 :class:`~pitloom.id_registry.IdRegistrySession` under a model's key
@@ -75,10 +75,9 @@ def test_ai_models_sharing_a_mint_prefix_never_duplicate_ids_after_import(
     """Run 1 builds 10 same-prefix AI models with no registry. Its own
     SBOM is imported into a fresh registry (``pitloom id import``'s
     mechanism) and a stale ``numpy`` entry is pinned, then run 2 rebuilds
-    against that registry -- the earlier
-    (buggy) behaviour let a lookup hit for one model's file stem go
-    unreserved, so a sibling model's later fresh mint could land on the
-    exact same number: ``AIPackage-numpy-9`` twice, since
+    against that registry. A lookup hit for one model's file stem must be
+    reserved, or a sibling model's later fresh mint could land on the exact
+    same number (``AIPackage-numpy-9`` twice), since
     ``_sorted_by_spdx_id``'s string sort makes harvest keep the entity
     from the ``-9`` element, not the highest-numbered ``-10`` one."""
     project = ProjectMetadata(name="ai-collision-project", version="0.1.0")

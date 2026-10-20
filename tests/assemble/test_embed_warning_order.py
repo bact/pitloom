@@ -3,15 +3,14 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression: ``embed_wheel_sbom(project_dir=...)`` with no
+"""``embed_wheel_sbom(project_dir=...)`` with no
 ``pitloom_config`` reads the project's config twice -- once in
 ``_resolve_embed_registry`` (an early peek used only to validate a
 declared ``id_registry`` before the wheel is read) and once for real in
 ``_generate_embed_sbom_json``. The peek read must be quiet: only the
 real read's ``WARNING:`` lines should reach the log, exactly once, and
 the ``Build: ... has no effect`` warning (settled before the real
-project-config read) must still come first -- same order as on HEAD
-before the peek read existed.
+project-config read) must still come first.
 
 See also: :mod:`tests.assemble.test_embed_wheel_registry_once` (the
 sibling "resolved once, not once per wheel" invariant this shares a

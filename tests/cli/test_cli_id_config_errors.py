@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression tests for `pitloom id generate`/`pitloom id import`'s own
+"""`pitloom id generate`/`pitloom id import`'s own
 project-config resolution: a broken/invalid config must be one ``ERROR:``
 line and exit 1 (never a traceback), a ``setup.cfg``-only project's
 ``[tool:pitloom] id-registry`` must be honoured the same way a

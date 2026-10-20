@@ -124,9 +124,9 @@ def test_model_paths_are_the_file_records_of_read_wheel(tmp_path: Path) -> None:
 def test_only_the_dist_info_the_wheel_name_names_is_not_scanned(
     tmp_path: Path,
 ) -> None:
-    """Regression: any top-level ``*.dist-info`` holding a ``METADATA`` or
-    a ``WHEEL`` was skipped, so a hostile wheel hid a model by adding a fake
-    one. The wheel's own is the one its file name names."""
+    """A top-level ``*.dist-info`` holding a ``METADATA`` or a ``WHEEL`` is not
+    skipped wholesale (a hostile wheel could hide a model behind a fake one).
+    The wheel's own is the one its file name names."""
     model = safetensors_bytes()
     members = {
         "demo/kept.safetensors": model,
@@ -234,9 +234,9 @@ def test_a_model_is_not_copied_when_its_reader_library_is_missing(
     caplog: pytest.LogCaptureFixture,
     copies: list[Path],
 ) -> None:
-    """Regression: up to the whole budget was copied out of the wheel just to
-    report that the reader's library is not installed. Same stub, same
-    message as the reader's own."""
+    """Not up to the whole budget is copied out of the wheel just to report
+    that the reader's library is not installed. Same stub, same message as the
+    reader's own."""
     path = tmp_path / member
     payload = _confirming(fmt, member)
     path.write_bytes(payload)
