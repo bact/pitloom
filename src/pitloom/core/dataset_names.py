@@ -81,12 +81,14 @@ def distinct_dataset_names(names: Iterable[str], cap: Cap, where: str) -> list[s
     stripped, a blank one none), the first ``cap.limit`` of them; one
     ``WARNING:`` naming *where* when more were listed."""
     seen: dict[str, str] = {}
+    said: set[str] = set()
     cut = False
     for listed in names:
         name = listed.strip()
         key = dataset_key(name)
         if key and key in seen:
-            if name != seen[key]:
+            if name != seen[key] and name not in said:
+                said.add(name)
                 log_one_dataset(seen[key], name)
             continue
         if not key:

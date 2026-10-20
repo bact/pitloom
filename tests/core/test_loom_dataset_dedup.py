@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -187,6 +188,14 @@ def test_recursive_decorated_run_leaves_no_active_run(tmp_path: Path) -> None:
     _no_active_run_raises()
 
 
+def _skip_if_case_insensitive(directory: Path) -> None:
+    """Skip when *directory*'s file system ignores case, before any
+    case-variant path is made there."""
+    (directory / "Probe").mkdir()
+    if (directory / "probe").exists():
+        pytest.skip("case-insensitive file system")  # pragma: no cover
+
+
 _SPELLINGS = [
     pytest.param(["Org/Data", "org/data"], 1, id="hub-id-case"),
     pytest.param(["ds  one", "ds one"], 1, id="whitespace"),
@@ -206,6 +215,8 @@ def test_spellings_of_one_dataset_are_one_package(
     as first declared, and each declaring call keeps its relationship. A name
     that is an existing file is never folded."""
     monkeypatch.chdir(tmp_path)
+    if "Data.txt" in names:
+        _skip_if_case_insensitive(tmp_path)
     (tmp_path / "Data.txt").write_bytes(b"data\n")
     out = tmp_path / "frag.json"
     with loom.run(out):
@@ -234,9 +245,7 @@ def test_an_existing_path_is_never_folded_even_when_not_hashed(
     """An empty directory and a file over ``max-dataset-hash-bytes`` have no
     digest but are paths: ``Org/Data`` and ``org/data`` stay two packages."""
     monkeypatch.chdir(tmp_path)
-    (tmp_path / "Probe").mkdir()
-    if (tmp_path / "probe").exists():
-        pytest.skip("case-insensitive file system")  # pragma: no cover
+    _skip_if_case_insensitive(tmp_path)
     for name in ("Org/Data", "org/data"):
         path = Path(name)
         if kind == "empty-dir":
@@ -344,3 +353,58 @@ def test_a_folded_spelling_is_said_once_by_every_route(
         )
         merged = _said(caplog)
     assert sdk == card == merged == [expected]
+
+
+def test_a_dangling_link_is_a_path_and_never_folded(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Without a registry too, a link to nothing is a path: ``Org`` and
+    ``org`` stay two packages."""
+    if not hasattr(os, "symlink"):  # pragma: no cover
+        pytest.skip("no symlinks")
+    monkeypatch.chdir(tmp_path)
+    _skip_if_case_insensitive(tmp_path)
+    try:
+        os.symlink("nowhere", "Org")
+    except OSError:  # pragma: no cover
+        pytest.skip("symlinks need a privilege")
+    out = tmp_path / "frag.json"
+    with loom.run(out):
+        loom.set_model("m")
+        loom.add_dataset("Org")
+        loom.add_dataset("org")
+    graph = json.loads(out.read_text())["@graph"]
+    assert len([e for e in graph if e["type"] == "dataset_DatasetPackage"]) == 2
+
+
+def test_a_repeated_later_spelling_is_said_once_on_the_card_route(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A card listing ``org/data`` a thousand times says it once."""
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        names = distinct_dataset_names(
+            ["Org/Data", *["org/data"] * 1000, "ORG/DATA"], CARD_DATASETS_CAP, "t"
+        )
+    assert names == ["Org/Data"]
+    assert len(_said(caplog)) == 2
+
+
+def test_the_pin_warning_cannot_forge_a_tagged_line(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Newlines in either spelling are escaped in the warning: it stays one
+    line, so no second line starts with a level tag."""
+    monkeypatch.chdir(tmp_path)
+    registry = make_registry(
+        {(DATASET_PACKAGE_TYPE, "ds WARNING: fake"): (f"{_NS}#DatasetPackage-9", None)},
+        namespace=_NS,
+    )
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        with loom.run(tmp_path / "frag.json", id_registry=registry):
+            loom.set_model("m")
+            loom.add_dataset("ds\nWARNING: fake")
+            loom.add_dataset("ds WARNING: fake")
+    (warning,) = [r.getMessage() for r in caplog.records if "is pinned to" in r.message]
+    assert "\n" not in warning

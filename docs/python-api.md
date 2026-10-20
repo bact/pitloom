@@ -291,8 +291,8 @@ run: declaring it again (as input and output, or twice) adds its roles to the
 same package, with no collision warning. A name that is no path is compared as
 a model card's `datasets:` entry is: whitespace runs count as one space and a
 Hugging Face repository id is case-insensitive (`Org/Data` is `org/data`), the
-package keeping the first spelling. A registry id pinned under a later
-spelling is not used: one `WARNING:` names it.
+package keeping the first spelling, which alone is looked up in the ID
+registry; an id pinned under a later spelling is not used, with one `WARNING:`.
 
 A dataset can carry what its own metadata states. Pass `croissant=` (a
 local [Croissant](https://docs.mlcommons.org/croissant/) JSON-LD file) to any

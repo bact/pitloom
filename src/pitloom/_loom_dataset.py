@@ -248,7 +248,7 @@ class LoomElements:
         if found.excluded:  # said even when no root came of the directory
             self._warn_registry_in(name)
         lookup = self._package_key(name)
-        package_key = (self._identity(lookup, found), found.hex_digest)
+        package_key = (self._identity(name, lookup, found), found.hex_digest)
         held_package = self._packages.get(package_key)
         if held_package is not None:
             self._note_spelling(held_package, name)
@@ -360,17 +360,22 @@ class LoomElements:
             else registry.get(DATASET_PACKAGE_TYPE, self._package_key(name).key)
         )
         if other is not None and other.spdx_id != package.spdxId:
-            log.warning(SPELLING_PIN_WARNING, loggable(name), other.spdx_id, kept)
+            log.warning(
+                SPELLING_PIN_WARNING,
+                loggable(name),
+                loggable(other.spdx_id),
+                loggable(kept),
+            )
 
     @staticmethod
-    def _identity(lookup: LookupKey, found: DatasetDigest) -> LookupKey:
+    def _identity(name: str, lookup: LookupKey, found: DatasetDigest) -> LookupKey:
         """What names one dataset in this run: *lookup* as is for a file or
         directory, else by :func:`~pitloom.core.dataset_names.dataset_key`,
         as for a model card's datasets (``Org/Data`` is ``org/data``; a
         file's name is never folded, as two files may differ only in case, and
         a path that exists but is not hashed (empty, over the ceiling,
-        unreadable) is still a path)."""
-        if lookup.path or found.kind is not None:
+        unreadable, a dangling link) is still a path)."""
+        if lookup.path or found.kind is not None or os.path.lexists(name):
             return lookup
         return lookup._replace(key=dataset_key(lookup.key))
 
