@@ -98,6 +98,13 @@ REGISTRY_IN_DATASET_WARNING = (
     "loom: ID registry %s is inside dataset directory %r; left out of its Merkle root"
 )
 
+#: ``log.warning()`` format for a later spelling of a dataset whose registry id
+#: differs from the first spelling's. Arguments: the later spelling, its pinned
+#: id, the first spelling.
+SPELLING_PIN_WARNING = (
+    "ID registry: dataset %s is pinned to %s, but it is read as %s, whose id is used"
+)
+
 #: ``log.info()`` formats for a dataset package keyed or gated otherwise than
 #: by its path and content, each said once per package per run (loom) or per
 #: pin (``id generate -e``). Arguments: the key, then (where taken) why.
@@ -334,17 +341,28 @@ class LoomElements:
         """Say once, through :func:`~pitloom.core.dataset_names.log_one_dataset`,
         that *name* is another spelling of the dataset *package* is named for."""
         kept = str(package.name)
-        if name != kept and (kept, name) not in self._spellings_said:
-            self._spellings_said.add((kept, name))
-            log_one_dataset(kept, name)
+        if name == kept or (kept, name) in self._spellings_said:
+            return
+        self._spellings_said.add((kept, name))
+        log_one_dataset(kept, name)
+        registry = self._session.registry
+        other = (
+            None
+            if registry is None
+            else registry.get(DATASET_PACKAGE_TYPE, self._package_key(name).key)
+        )
+        if other is not None and other.spdx_id != package.spdxId:
+            log.warning(SPELLING_PIN_WARNING, loggable(name), other.spdx_id, kept)
 
     @staticmethod
     def _identity(lookup: LookupKey, found: DatasetDigest) -> LookupKey:
         """What names one dataset in this run: *lookup* as is for a file or
         directory, else by :func:`~pitloom.core.dataset_names.dataset_key`,
         as for a model card's datasets (``Org/Data`` is ``org/data``; a
-        file's name is never folded, as two files may differ only in case)."""
-        if lookup.path or found.hex_digest is not None:
+        file's name is never folded, as two files may differ only in case, and
+        a path that exists but is not hashed (empty, over the ceiling,
+        unreadable) is still a path)."""
+        if lookup.path or found.kind is not None:
             return lookup
         return lookup._replace(key=dataset_key(lookup.key))
 

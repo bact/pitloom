@@ -55,8 +55,8 @@ every key, so every command and the Python SDK agree on it.
   path) by its name with each whitespace run one space and a Hugging Face
   repository id in lower case (`Org/Data` and `org/data` are one package, as
   for a model card's datasets), so two spellings of one missing path (`./a`,
-  `a`) are two packages. `add_output_dataset(input_datasets=...)` matches the string an input
-  was declared with, not its key: another spelling logs a `WARNING:` and skips
+  `a`) are two packages. `add_output_dataset(input_datasets=...)` matches the
+  string an input was declared with, not its key: another spelling logs a `WARNING:` and skips
   the link. An entry **with** a SHA-256 is content-gated (a file's SHA-256, a
   directory's Merkle root): a refreshed dataset, or a file added to a
   directory, is a new package id. An entry **without** one (a pin made

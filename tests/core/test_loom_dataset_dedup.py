@@ -22,6 +22,7 @@ from typing import Any
 import pytest
 
 from pitloom import loom
+from pitloom.core.config import PitloomConfig
 from pitloom.core.dataset_merge import merge_dataset_references
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.dataset_names import CARD_DATASETS_CAP, distinct_dataset_names
@@ -224,6 +225,66 @@ def test_spellings_of_one_dataset_are_one_package(
     if "Data.txt" not in names:  # a file is the one place the SDK folds less
         card = distinct_dataset_names(names, CARD_DATASETS_CAP, "test")
         assert count == len(card)
+
+
+@pytest.mark.parametrize("kind", ["empty-dir", "over-ceiling"])
+def test_an_existing_path_is_never_folded_even_when_not_hashed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, kind: str
+) -> None:
+    """An empty directory and a file over ``max-dataset-hash-bytes`` have no
+    digest but are paths: ``Org/Data`` and ``org/data`` stay two packages."""
+    monkeypatch.chdir(tmp_path)
+    for name in ("Org/Data", "org/data"):
+        path = Path(name)
+        if kind == "empty-dir":
+            path.mkdir(parents=True)
+        else:
+            path.parent.mkdir(parents=True)
+            path.write_bytes(b"x" * 64)
+    if (
+        not (Path("Org").is_dir() and Path("org").is_dir())
+        or len({p.name for p in tmp_path.iterdir()}) < 2
+    ):
+        pytest.skip("case-insensitive file system")  # pragma: no cover
+    out = tmp_path / "frag.json"
+    config = PitloomConfig(max_dataset_hash_bytes=8)
+    with loom.run(out, pitloom_config=config):
+        loom.set_model("m")
+        loom.add_dataset("Org/Data")
+        loom.add_dataset("org/data")
+    graph = json.loads(out.read_text())["@graph"]
+    assert len([e for e in graph if e["type"] == "dataset_DatasetPackage"]) == 2
+
+
+@pytest.mark.parametrize("order", [("Org/Data", "org/data"), ("org/data", "Org/Data")])
+def test_a_pin_under_the_later_spelling_is_warned_not_silent(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    order: tuple[str, str],
+) -> None:
+    """The first spelling's id is used whichever it is; a different id pinned
+    under the later one is named in a ``WARNING:``."""
+    monkeypatch.chdir(tmp_path)
+    ids = {"Org/Data": f"{_NS}#DatasetPackage-1", "org/data": f"{_NS}#DatasetPackage-2"}
+    registry = make_registry(
+        {
+            (DATASET_PACKAGE_TYPE, name): (spdx_id, None)
+            for name, spdx_id in ids.items()
+        },
+        namespace=_NS,
+    )
+    out = tmp_path / "frag.json"
+    with caplog.at_level(logging.WARNING, logger="pitloom"):
+        with loom.run(out, id_registry=registry):
+            loom.set_model("m")
+            for name in order:
+                loom.add_dataset(name)
+    graph = json.loads(out.read_text())["@graph"]
+    (package,) = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
+    assert (package["name"], package["spdxId"]) == (order[0], ids[order[0]])
+    (warning,) = [r.getMessage() for r in caplog.records if "is pinned to" in r.message]
+    assert ids[order[1]] in warning and order[0] in warning
 
 
 def test_spellings_share_one_registered_id(
