@@ -105,7 +105,8 @@ class CreationMetadata:
             ``SoftwareAgent`` ``"Pitloom"`` in ``createdBy`` instead.  When
             multiple creators are supplied, each becomes its own Agent; the
             SPDX 3 ``suppliedBy`` of the main package (single-valued) is set
-            to the *first* named creator.
+            to the *first* named creator that is not a ``"software-agent"``
+            (a program that made the SBOM did not supply the package).
         tools: Creation tools, in order.  ``None`` (default) means the
             default single ``Tool`` ``"Pitloom"``.  An empty list suppresses
             ``createdUsing`` entirely (matches ``--no-creation-tool``).  A

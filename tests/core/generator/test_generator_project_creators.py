@@ -392,3 +392,43 @@ version = "0.1.0"
         assert [t["name"] for t in tools] == ["Pitloom", "MyWrapper"]
         assert tools[0]["summary"] == f"Pitloom {__version__}"
         assert "summary" not in tools[1]
+
+
+@pytest.mark.parametrize(
+    ("creators", "supplier"),
+    [
+        ([Creator(name="Lumina", type="software-agent")], None),
+        ([Creator(name="Lumina", type="software-agent"), Creator(name="Ada")], "Ada"),
+        ([Creator(name="Ada"), Creator(name="Lumina", type="software-agent")], "Ada"),
+        ([Creator(name="Acme", type="organization")], "Acme"),
+        ([Creator(name="Someone", type="agent")], "Someone"),
+    ],
+    ids=[
+        "software-agent-only",
+        "software-agent-first",
+        "person-first",
+        "organisation",
+        "generic-agent",
+    ],
+)
+def test_main_package_supplier_is_never_a_software_agent(
+    creators: list[Creator], supplier: str | None, tmp_path: Path
+) -> None:
+    """A creator that is a program (a service running Pitloom) made the SBOM; it
+    did not supply the scanned package."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "supplier-app"\nversion = "0.1.0"\n', encoding="utf-8"
+    )
+    graph = json.loads(
+        generate_project_sbom(
+            tmp_path, creation_metadata=CreationMetadata(creators=creators)
+        )
+    )["@graph"]
+    names = {e["spdxId"]: e["name"] for e in graph if "name" in e}
+    package = next(
+        e
+        for e in graph
+        if e["type"] == "software_Package" and e["name"] == "supplier-app"
+    )
+    assert names.get(package.get("suppliedBy")) == supplier
+    assert "suppliedBy" in package or supplier is None
