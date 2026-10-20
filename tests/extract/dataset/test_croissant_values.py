@@ -146,16 +146,19 @@ def test_read_croissant_an_infinite_size_is_absent(
 
 
 @pytest.mark.parametrize(
-    "body",
-    [b'{"name": "ds", "version": ' + b"1" * 5000 + b"}", b"[" * 100000],
+    ("body", "reason"),
+    [
+        (b'{"name": "ds", "version": ' + b"1" * 5000 + b"}", "is not valid JSON"),
+        (b"[" * 100000, "is larger than the 64-level Croissant-nesting cap"),
+    ],
     ids=["huge-int", "too-deep"],
 )
-def test_read_croissant_unparsable_json_names_the_file(
-    tmp_path: Path, body: bytes
+def test_read_croissant_unreadable_json_names_the_file(
+    tmp_path: Path, body: bytes, reason: str
 ) -> None:
     path = tmp_path / "ds.json"
     path.write_bytes(body)
-    with pytest.raises(ValueError, match="Croissant source .* is not valid JSON"):
+    with pytest.raises(ValueError, match=f"^Croissant source .*ds.json.* {reason}"):
         read_croissant(path)
 
 

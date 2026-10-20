@@ -129,8 +129,8 @@ _ROWS: list[Any] = [
         if _POSIX else None,
         id="dotdot-missing-dir",
     ),
-    # Regression: read-once was keyed by resolved path, so the extra was
-    # served `a.txt`'s text although `missing/..` cannot be opened.
+    # `missing/..` cannot be opened, so the extra is not served `a.txt`'s text
+    # from the read-once cache.
     pytest.param(
         f"{_D}, {_O}",
         'dependencies = {file = "a.txt"}\n'
@@ -335,10 +335,9 @@ def test_a_symlink_is_read_only_inside_the_project(
 def test_a_file_over_its_cap_warns_once(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression: a file over the size cap warned once per directive
-    listing it, without naming one. Now once per resolved file and run
-    (here listed by two directives, spelt two ways, the project read
-    twice after a quiet read), naming the first directive."""
+    """A file over the size cap warns once per resolved file and run, naming the
+    first directive (here listed by two directives, spelt two ways, the
+    project read twice after a quiet read)."""
     monkeypatch.setattr(_requirements_files, "MAX_REQUIREMENTS_FILE_BYTES", 3)
     project = _project(
         tmp_path,
@@ -384,11 +383,11 @@ def test_total_cap_stops_reading(
     read: list[str],
     skipped: int,
 ) -> None:
-    """Regression: only each file was capped, so a table listing one file
-    600 times held it 600 times (4.8 GB). The files of the table (4, 6 and
-    2 bytes, then the first again for the extra, counted again) are read
-    while the total is within the cap: one over it stops the reading, with
-    one ``WARNING:`` counting the files not read; *c* would still fit."""
+    """The total of all files is capped: a table listing one file 600 times
+    does not hold it 600 times (4.8 GB). The files of the table (4, 6 and 2
+    bytes, then the first again for the extra, counted again) are read while
+    the total is within the cap: one over it stops the reading, with one
+    ``WARNING:`` counting the files not read; *c* would still fit."""
     monkeypatch.setattr(_requirements_files, "MAX_REQUIREMENTS_TOTAL_BYTES", total)
     project = _project(
         tmp_path,
@@ -430,8 +429,8 @@ def test_extra_name_is_escaped_in_warnings(
     files: dict[str, bytes],
     about: str,
 ) -> None:
-    """Regression: an extra's name went into the ``WARNING:`` as written,
-    so a newline in it forged a second line (``::error::`` a CI annotation)."""
+    """An extra's name is sanitised in the ``WARNING:``: a newline in it cannot
+    forge a second line (``::error::`` is a CI annotation)."""
     table = f'optional-dependencies."x\\n::error::\\u001b[31m" = {directive}\n'
     project = _project(tmp_path, _O, table, files)
 

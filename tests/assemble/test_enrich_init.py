@@ -32,14 +32,11 @@ def test_resolve_model_search_dir_relative_physical_path(tmp_path: Path) -> None
 def test_resolve_model_search_dir_falls_back_when_physical_path_absolute(
     tmp_path: Path,
 ) -> None:
-    """Regression: an absolute physical_path (a build-and-read-sourced
-    file -- see ProjectFile.physical_path's docstring) must not be
-    joined directly onto project_dir via pathlib's `/` operator, which
-    silently discards project_dir and returns the tempdir path verbatim
-    (confirmed: `Path("/x") / Path("/tmp/y/z.gguf").parent ==
-    Path("/tmp/y")`, never touching "/x"). Falls back to
-    file_path_relative (the wheel-distribution path, always
-    project-relative) instead, staying inside project_dir."""
+    """An absolute physical_path (a build-and-read-sourced file, see
+    ProjectFile.physical_path) is not joined onto project_dir with pathlib's
+    `/`, which discards project_dir and returns the tempdir path verbatim.
+    Falls back to file_path_relative (the wheel-distribution path, always
+    project-relative), staying inside project_dir."""
     fake_tempdir = fake_build_and_read_path("pkg", "models", "foo.gguf")
     format_info = AiModelFormatInfo(
         physical_path=fake_tempdir,

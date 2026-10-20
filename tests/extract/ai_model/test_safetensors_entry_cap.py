@@ -41,9 +41,8 @@ print(json.dumps([raw_before, cut, list(meta.properties), list(meta.raw_metadata
 def test_the_entries_kept_over_the_cap_are_the_same_in_every_process(
     tmp_path: Path,
 ) -> None:
-    """Regression: ``safetensors`` returns ``__metadata__`` in an order that
-    changes per process, and the cap kept "the first" of it, so one file gave
-    different SBOMs run to run."""
+    """The entry cap keeps the same ``__metadata__`` keys on every run, whatever
+    order ``safetensors`` returns them in."""
     pytest.importorskip("safetensors")
     keys = [f"key.{i:04d}" for i in range(MAX_MODEL_ENTRIES + 500)]
     model_file = tmp_path / "m.safetensors"
@@ -81,9 +80,9 @@ def test_a_map_is_cut_to_its_smallest_keys_only_over_the_cap(
 
 
 def test_well_known_keys_sorting_after_the_cap_are_still_read(tmp_path: Path) -> None:
-    """Regression: the cut to the smallest keys came before the lookup of
-    ``modelspec.title`` and the like, so a model with many ``a...`` keys lost
-    its name, version, architecture, precision and framework."""
+    """``modelspec.title`` and the like are looked up before the cut to the
+    smallest keys, so many ``a...`` keys do not lose the name, version,
+    architecture, precision and framework."""
     pytest.importorskip("safetensors")
     well_known = {
         "modelspec.title": "RealName",

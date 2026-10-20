@@ -195,9 +195,8 @@ def test_generate_project_sbom_license_conflict_flags_declared_normalization() -
     conflicting detected Apache-2.0: the conflict Annotation's declared
     candidate ``source`` is flagged with the raw value classify_license()
     rewrote it from, plus the py-spdx-license version that did
-    it -- wiring the previously-dead _PY_SPDX_LICENSE_VERSION into actual
-    output (not just the case-only-agreement path, which never reaches the
-    conflict branch at all)."""
+    it (_PY_SPDX_LICENSE_VERSION); the case-only-agreement path never
+    reaches the conflict branch."""
     pyproject_content = """
 [project]
 name = "test-package"
@@ -271,12 +270,10 @@ license = "MIT"
 
 
 def test_generate_project_sbom_license_case_only_difference_not_a_conflict() -> None:
-    """Regression: a declared `license = "mit"` (valid but non-canonically
-    cased -- kept verbatim since Pitloom never rewrites a bare SPDX id) and
-    an independently-detected canonical "MIT" from the LICENSE file must be
-    recognized as the *same* license, not flagged as G2 conflict. Before the
-    canonicalization fix, this produced a spurious conflict Annotation and
-    two separate license elements for what is one license."""
+    """A declared `license = "mit"` (valid but non-canonically cased, kept
+    verbatim since Pitloom never rewrites a bare SPDX id) and a detected
+    canonical "MIT" from the LICENSE file are the *same* license: no G2
+    conflict Annotation and one license element."""
     pyproject_content = """
 [project]
 name = "test-package"
@@ -328,7 +325,7 @@ license = "mit"
 
 def test_generate_project_sbom_license_declared_only_no_license_file() -> None:
     """Declared license, no LICENSE file in the project: unchanged
-    single-relationship behavior (regression check against pre-G2 output)."""
+    single-relationship behaviour."""
     pyproject_content = """
 [project]
 name = "test-package"

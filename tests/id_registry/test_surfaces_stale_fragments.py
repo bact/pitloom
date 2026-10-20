@@ -85,9 +85,9 @@ def _settle(monkeypatch: pytest.MonkeyPatch, project: Path) -> tuple[bytes, byte
 def test_stale_fragment_file_never_rolls_back_a_newer_entry(
     project: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The R4 repro: data appended after the run; ``id generate`` mints its
-    new content an id, and the merged fragment's old file (no recorded
-    key) no longer writes its old id and SHA-256 back over it."""
+    """Data appended after the run: ``id generate`` mints its new content an
+    id, and the merged fragment's old file (no recorded key) does not write
+    its old id and SHA-256 back over it."""
     with loom.run(project / "frag.json", id_registry=IdRegistry.load("reg.json")):
         loom.add_dataset("data/t.txt")
     with open(project / "data" / "t.txt", "ab") as f:

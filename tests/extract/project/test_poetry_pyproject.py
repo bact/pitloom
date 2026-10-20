@@ -135,12 +135,10 @@ keywords = ["from-poetry"]
 
 
 def test_read_pyproject_explicit_empty_keywords_not_filled_from_poetry() -> None:
-    """Regression: `[project] keywords = []` is an explicit declaration of
-    zero keywords, not an omission -- `[tool.poetry] keywords` must not
-    silently fill it back in via `merge_project_metadata()`'s
-    empty-container gap-fill (see `_pyproject_fields.FIELD_PROVENANCE`'s
-    `"keywords"` entry, which records this explicit-declaration
-    provenance)."""
+    """`[project] keywords = []` is an explicit declaration of zero keywords:
+    `[tool.poetry] keywords` does not fill it back in via
+    `merge_project_metadata()`'s empty-container gap-fill (see
+    `_pyproject_fields.FIELD_PROVENANCE`'s `"keywords"` entry)."""
     content = """
 [project]
 name = "project-name"
@@ -330,12 +328,10 @@ def test_extract_poetry_metadata_license_conflict() -> None:
 
 def test_read_pyproject_fallback_license_conflict_end_to_end() -> None:
     """``read_pyproject()``'s fallback-to-``[tool.poetry]`` branch (no
-    ``[project]`` section) resolves G2 correctly end-to-end from a real
-    file -- not just via a direct :func:`extract_poetry_metadata` call
-    with a pre-parsed dict, which is what the other G2 tests in this
-    file exercise. Regression guard for the same "different extractor
-    path, same bug class" gap ``resolve_license_concluded()``'s
-    docstring warns about, applied to the poetry-fallback path."""
+    ``[project]`` section) resolves G2 end-to-end from a real file, not just
+    via a direct :func:`extract_poetry_metadata` call with a pre-parsed dict
+    (as the other G2 tests here do); see ``resolve_license_concluded()``'s
+    docstring."""
     content = """
 [tool.poetry]
 name = "poetry-pkg"

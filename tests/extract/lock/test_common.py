@@ -75,10 +75,9 @@ def test_load_lock_toml_valid_file_returns_data() -> None:
 def test_load_lock_toml_invalid_utf8_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: tomllib/tomli's decode step raises a bare
-    ``UnicodeDecodeError`` (not its own ``TOMLDecodeError``) for invalid
-    UTF-8 bytes -- must still degrade to ``None`` with a ``WARNING:``,
-    not propagate out and abort the whole cascade."""
+    """tomllib/tomli raise a bare ``UnicodeDecodeError`` (not
+    ``TOMLDecodeError``) for invalid UTF-8: the result degrades to ``None``
+    with a ``WARNING:`` and the cascade continues."""
     with tempfile.TemporaryDirectory() as tmp:
         lock_path = Path(tmp) / "some.lock"
         lock_path.write_bytes(b'name = "\xff\xfebad"\n')
@@ -105,9 +104,8 @@ def test_load_lock_toml_second_read_of_same_file_is_cached() -> None:
 def test_load_lock_toml_no_cache_key_skips_caching(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Regression: when the file's identity can't be determined (e.g. a
-    stat() race), the parse must still succeed and simply not be cached,
-    not raise or return a stale value."""
+    """When the file's identity cannot be determined (e.g. a stat() race), the
+    parse succeeds and is not cached."""
     monkeypatch.setattr(lock_common, "_lock_file_cache_key", lambda _path: None)
     cache_size_before = len(lock_common._LOCK_FILE_CACHE)
     with tempfile.TemporaryDirectory() as tmp:
@@ -146,10 +144,9 @@ def test_load_lock_json_no_cache_key_skips_caching(
 def test_load_lock_json_invalid_utf8_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: reading invalid UTF-8 bytes in text mode raises a
-    bare ``UnicodeDecodeError`` (not ``json.JSONDecodeError``) -- must
-    still degrade to ``None`` with a ``WARNING:``, not propagate out and
-    abort the whole cascade."""
+    """Invalid UTF-8 in text mode raises a bare ``UnicodeDecodeError`` (not
+    ``json.JSONDecodeError``): the result degrades to ``None`` with a
+    ``WARNING:`` and the cascade continues."""
     with tempfile.TemporaryDirectory() as tmp:
         lock_path = Path(tmp) / "some.json"
         lock_path.write_bytes(b'{"name": "\xff\xfebad"}')
@@ -397,10 +394,8 @@ def test_has_required_top_level_table_missing_key_returns_false() -> None:
 
 
 def test_has_required_top_level_table_wrong_value_type_returns_false() -> None:
-    """Regression: a present key with the wrong-shaped value (e.g. an
-    int where the format's own identifying field is always a string)
-    must be rejected exactly like the key being absent -- not treated
-    as a looser pass than outright absence."""
+    """A present key with a wrong-shaped value (e.g. an int where the format's
+    identifying field is a string) is rejected like an absent key."""
     assert not has_required_top_level_table(
         {"metadata": {"lock-version": 2}}, "metadata", "lock-version", str
     )

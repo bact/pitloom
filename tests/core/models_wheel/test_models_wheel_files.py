@@ -412,7 +412,7 @@ def test_get_wheel_files_empty_and_external_path(
 def test_get_wheel_files_returns_none_on_unexpected_discovery_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Regression: any unexpected failure while discovering/hashing files
+    """Any unexpected failure while discovering/hashing files
     (a backend discoverer bug, a file that errors mid-read, etc.) must
     not propagate out of get_wheel_files() -- it returns ``(None, [])``
     rather than crashing the whole SBOM generation."""

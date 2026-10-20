@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-17
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,8 +21,10 @@ The same scenarios are checked against CISA 2026 (`cisa2026`) and FSCT 2024
 
 - `tests/conformance/` builds one SBOM per scenario (`gguf`, `safetensors`,
   `onnx`, `numpy`, `fasttext` from the fixture models; `hub`, a mocked Hugging Face model with a
-  dataset; `library`, a model with a licensed dataset built through the
-  assembler, since no reader feeds a dataset licence into a model SBOM yet), validates it offline, and runs the checker in-process.
+  dataset; `library`, a model with a licensed dataset that has a type and a size,
+  built through the assembler, since a dataset's statistics reach a model SBOM
+  only through the library), validates it offline, and runs the checker
+  in-process.
 - `tests/fixtures/conformance/g7ai-expected.tsv` holds the expected outcome of
   all 81 rules per scenario. The test fails on any changed cell: a `present` that is no longer
   `present` is reported as a regression, a cell that became `present` as an
@@ -86,7 +88,7 @@ commits with the pins. The checker commit is also pinned in `lumina`
 
 ## Coverage history
 
-`python scripts/g7_coverage_report.py [--standard g7ai|cisa2026|fsct3]` prints
+`python scripts/g7_coverage_report.py [--standard g7ai|cisa2026|fsct3|bsi]` prints
 the counts per scenario and cluster, and `--compare PREVIOUS CURRENT` lists the
 rules that flipped and warns when the standard, the checker, the mapping or the
 rule count changed (a series break). Each increment adds
@@ -178,10 +180,9 @@ revision's).
 **B1, dataset licence (2026-10-17).** `DP-010` is `present` in `library`.
 A dataset's licence goes through the same builder as a model's
 (`add_license_relationships`): declared, or concluded for a third-party record;
-an SPDX expression, a URL and free text are kept as they are read. `hub` stays
-`missing`: Hub dataset references carry no licence, and no reader (Croissant is
-library-only) feeds one into a model SBOM yet. That reader is the next step
-for `DP-010`, with the `loom` SDK (B7).
+an SPDX expression, a URL and free text are kept as they are read. `hub` stayed
+`missing` then: Hub dataset references carried no licence and no reader fed one
+into a model SBOM. Reader 3 (below) flipped it.
 
 **Judge-by-model narrowed (2026-10-18).** Only an SBOM whose one root is a
 single AI model is judged by that model (`systemJudgedByModel`). A project
@@ -245,6 +246,8 @@ laptop and in CI.
 ## History files and the checker commit
 
 Each history file's header names the checker commit it was made with: the
-0.20.2 baseline `9b701748`; the four `0.20.3-dev` files `151460c`, the pinned
-commit, since reader 3. A history file named
+0.20.2 baseline `9b701748`; the four `0.20.3-dev` files `151460c`. The pin is
+now `82a63b9` (the same checker, re-authored): regenerating all four reports
+on 2026-10-19 gives `scenarios` equal to the files', so only the header's
+`checker` differs, and the files are kept as made. A history file named
 `0.20.3-dev` records `pitloom 0.20.2`, the installed version when it was made.

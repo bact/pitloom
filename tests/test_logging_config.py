@@ -34,12 +34,9 @@ def test_configure_logging_prefixes_warning(capsys: pytest.CaptureFixture[str]) 
 
 
 def test_configure_logging_prefixes_info(capsys: pytest.CaptureFixture[str]) -> None:
-    """Regression: before this fix, INFO records never reached any handler
-    (the ``pitloom`` logger's effective level defaulted to ``WARNING``,
-    inherited from the root logger), so status messages like the
-    Hatchling build hook's "staged SBOM" line were silently invisible --
-    a real "no silent deviations" violation despite superficially being
-    logged."""
+    """INFO records reach a handler (the ``pitloom`` logger's level does not
+    default to the root's ``WARNING``), so status messages such as the
+    Hatchling hook's "staged SBOM" line are visible."""
     configure_logging()
     _LOG.info("staged SBOM for wheel injection")
 
@@ -155,14 +152,10 @@ def test_apply_debug_override_survives_a_second_bare_configure_logging(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Regression for the exact bug this exists to fix: a CLI-level
-    debug=True passed straight to configure_logging() (instead of routed
-    through PITLOOM_DEBUG first) was silently discarded by a second,
-    argument-less configure_logging() call downstream -- exactly what
-    every generate_*_sbom() function does. Simulates that call sequence
-    directly rather than only via the CLI-level test in
-    tests/cli/test_cli_parser.py, to pin the mechanism, not just the
-    end-to-end outcome."""
+    """A debug override routed through PITLOOM_DEBUG survives a second,
+    argument-less configure_logging() call (what every generate_*_sbom()
+    does); a bare ``debug=True`` would be discarded. Pins the mechanism
+    directly, beside the CLI-level test in tests/cli/test_cli_parser.py."""
     # setenv, not delenv -- see test_apply_debug_override_true_sets_env_var.
     monkeypatch.setenv(PITLOOM_DEBUG_ENV_VAR, "0")
 
@@ -179,9 +172,9 @@ def test_apply_debug_override_survives_a_second_bare_configure_logging(
 def test_configure_logging_reentrant_no_duplicate_output(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Regression: calling configure_logging() more than once in the same
-    process (e.g. a build tool invoking the Hatchling hook repeatedly)
-    must not stack handlers and duplicate every subsequent message."""
+    """Calling configure_logging() repeatedly in one process (e.g. a build
+    tool invoking the Hatchling hook) must not stack handlers or duplicate
+    messages."""
     configure_logging()
     configure_logging()
     _LOG.warning("only once")
@@ -193,10 +186,9 @@ def test_configure_logging_reentrant_no_duplicate_output(
 def test_configure_logging_concurrent_calls_never_stack_handlers(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Regression: configure_logging() called from multiple threads at
-    once (e.g. a library consumer starting several public generator
-    functions concurrently) must never leave more than one handler
-    attached -- the clear-then-add swap is serialized by a lock."""
+    """configure_logging() called from several threads at once must never
+    leave more than one handler attached: the clear-then-add swap is
+    serialised by a lock."""
     threads = [threading.Thread(target=configure_logging) for _ in range(16)]
     for t in threads:
         t.start()
@@ -214,13 +206,10 @@ def test_configure_logging_concurrent_calls_never_stack_handlers(
 def test_configure_logging_concurrent_reconfigure_never_drops_a_record(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Regression: a log record emitted on one thread while another
-    thread is mid-reconfigure must never be silently dropped. The old
-    ``handlers.clear()`` then ``addHandler()`` sequence had a window
-    where the handler list was briefly empty; a record logged in that
-    window vanished with no trace. The fix builds the new handler first
-    and swaps ``logger.handlers`` in one assignment, so a concurrent
-    record always sees either the fully-old or fully-new list."""
+    """A record emitted while another thread reconfigures is never dropped:
+    the new handler is built first and ``logger.handlers`` swapped in one
+    assignment, so a concurrent record sees the old or the new list, never
+    an empty one."""
     stop = threading.Event()
 
     def _reconfigure_loop() -> None:

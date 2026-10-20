@@ -114,7 +114,7 @@ def sbom_graph(
     registry.save(project / DEFAULT_ID_REGISTRY_FILENAME)
 
     # loom resolves dataset paths relative to the cwd; the registry is
-    # named explicitly (no longer searched for).
+    # named explicitly (not searched for).
     registry_path = project / DEFAULT_ID_REGISTRY_FILENAME
     old_cwd = os.getcwd()
     os.chdir(project)

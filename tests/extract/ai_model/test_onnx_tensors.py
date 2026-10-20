@@ -73,8 +73,8 @@ def _value_info(name: str, elem_type: int = TensorProto.FLOAT) -> Any:
 
 
 def test_every_element_type_is_a_name_never_its_number(tmp_path: Path) -> None:
-    """Regression: dtype was the raw TensorProto enum (1, 7). Each name is
-    NumPy's where NumPy has the type, else ONNX's own, lowercased."""
+    """dtype is NumPy's name where NumPy has the type, else ONNX's own,
+    lowercased (not the raw TensorProto enum)."""
     values = [v for _, v in TensorProto.DataType.items() if v]
     inputs = [_value_info(f"x{v}", v) for v in values]
     meta = read_onnx(_save(tmp_path / "m.onnx", inputs))
@@ -103,8 +103,8 @@ def test_every_element_type_is_a_name_never_its_number(tmp_path: Path) -> None:
 def test_initializers_listed_as_inputs_are_inputs_from_ir4(
     tmp_path: Path, ir_version: int, names: list[str]
 ) -> None:
-    """Regression: an IR version 3 graph lists its weights in graph.input;
-    from IR 4 on, a name in both is an input its initializer defaults."""
+    """An IR version 3 graph lists its weights in graph.input; from IR 4 on, a
+    name in both is an input its initializer defaults."""
     inputs = [_value_info("x"), _value_info("w"), _value_info("s")]
     path = _save(tmp_path / "m.onnx", inputs, initializers=("w",), sparse=("s",))
     model = onnx.load(str(path))
@@ -131,8 +131,8 @@ def test_initializers_listed_as_inputs_are_inputs_from_ir4(
 def test_a_shape_is_given_only_when_the_file_has_one(
     tmp_path: Path, value_info: Any, expected: dict[str, Any]
 ) -> None:
-    """Regression: ``if shape`` on a protobuf message is always true, so an
-    unknown rank and a sequence both read as a scalar's ``[]``."""
+    """An unknown rank and a sequence are not read as a scalar's ``[]`` (``if
+    shape`` on a protobuf message is always true)."""
     meta = read_onnx(_save(tmp_path / "m.onnx", [_value_info("x"), value_info]))
     spec = meta.inputs[1]
     assert {k: v for k, v in spec.items() if k == "shape"} == expected

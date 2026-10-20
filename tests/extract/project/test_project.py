@@ -46,10 +46,8 @@ def test_read_project_resolves_uv_build_backend_via_generic_pep621(
 ) -> None:
     """``uv_build`` declares ``build-backend = "uv_build"`` but needs no
     dedicated extractor: ``read_project()`` never branches on build-backend
-    for metadata -- only :mod:`pitloom.core._models_wheel`'s file-discovery
-    dispatch does (see ``uv_build``'s ``--allow-build`` support in
-    ``non-hatchling-file-discovery.md``). Regression for that architectural
-    claim."""
+    for metadata, only :mod:`pitloom.core._models_wheel`'s file-discovery
+    dispatch does (see ``non-hatchling-file-discovery.md``)."""
     pyproject_path = tmp_path / "pyproject.toml"
     pyproject_path.write_text(
         "[build-system]\n"
@@ -77,15 +75,13 @@ def test_read_project_resolves_uv_build_backend_via_generic_pep621(
 def test_read_project_falls_back_past_build_system_only_pyproject(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: a ``pyproject.toml`` declaring only ``[build-system]``
-    (a custom/legacy build backend, e.g. real-world PyYAML 6.0.3's
-    ``_pyyaml_pep517`` wrapper) has no ``[project]`` table and no
-    ``[tool.poetry]`` fallback -- ``read_pyproject()`` alone resolves to
-    an empty, nameless stub. When ``setup.cfg``/``setup.py`` hold the
-    project's real metadata, ``read_project()`` must fall back to
-    :func:`~pitloom.extract.project.setuptools.read_setuptools` instead of
-    silently returning that empty stub -- logging a ``WARNING:``, not
-    deviating silently."""
+    """A ``pyproject.toml`` declaring only ``[build-system]`` (a custom build
+    backend, e.g. PyYAML 6.0.3's ``_pyyaml_pep517``) has no ``[project]`` table
+    and no ``[tool.poetry]`` fallback, so ``read_pyproject()`` alone gives an
+    empty, nameless stub. When ``setup.cfg``/``setup.py`` hold the real
+    metadata, ``read_project()`` falls back to
+    :func:`~pitloom.extract.project.setuptools.read_setuptools` with a
+    ``WARNING:``."""
     pyproject_path = tmp_path / "pyproject.toml"
     pyproject_path.write_text(
         '[build-system]\nrequires = ["setuptools"]\n'
@@ -109,11 +105,9 @@ def test_read_project_falls_back_past_build_system_only_pyproject(
 def test_read_project_fallback_preserves_pyproject_pitloom_config(
     tmp_path: Path,
 ) -> None:
-    """Regression: falling back to ``read_setuptools()`` for metadata
-    (previous test) must not also discard a real ``[tool.pitloom]``
-    section already resolved from ``pyproject.toml`` -- ``[tool.pitloom]``
-    always lives there, never in ``setup.cfg``/``setup.py``, regardless
-    of which source supplies the project metadata itself."""
+    """Falling back to ``read_setuptools()`` for metadata (previous test) keeps
+    the ``[tool.pitloom]`` section resolved from ``pyproject.toml``, where it
+    always lives."""
     pyproject_path = tmp_path / "pyproject.toml"
     pyproject_path.write_text(
         '[build-system]\nrequires = ["setuptools"]\n'
@@ -134,13 +128,10 @@ def test_read_project_fallback_preserves_pyproject_pitloom_config(
 
 
 def test_read_project_fallback_still_applies_lock_cascade(tmp_path: Path) -> None:
-    """Regression: the pyproject.toml-with-no-usable-metadata ->
-    setup.cfg/setup.py fallback branch (previous two tests) must still
-    get `apply_locked_dependencies()`'s cascade applied to the
-    setuptools-resolved metadata, not skip it or apply it to a stale
-    pre-fallback object -- this is the one of `read_project()`'s three
-    directory-based resolution paths that had no dedicated coverage for
-    the lock cascade."""
+    """The pyproject.toml-with-no-usable-metadata -> setup.cfg/setup.py fallback
+    branch (previous two tests) applies `apply_locked_dependencies()`'s
+    cascade to the setuptools-resolved metadata: the lock-cascade coverage of
+    `read_project()`'s third directory-based resolution path."""
     pyproject_path = tmp_path / "pyproject.toml"
     pyproject_path.write_text(
         '[build-system]\nrequires = ["setuptools"]\n'
@@ -168,16 +159,12 @@ def test_read_project_fallback_still_applies_lock_cascade(tmp_path: Path) -> Non
 def test_read_project_fallback_preserves_already_resolved_poetry_lock(
     tmp_path: Path,
 ) -> None:
-    """Regression: `_try_read_poetry()` can resolve `poetry.lock`'s data
-    onto a name-less `ProjectMetadata` when `[tool.poetry]` itself fails
-    to parse (its own "skipping Poetry gap-fill, but still applying
-    poetry.lock's resolved dependencies" path). That empty name then
-    triggers this same setup.cfg/setup.py fallback branch, which used to
-    replace `metadata` wholesale via `read_setuptools()` -- silently
-    discarding poetry.lock's already-resolved `locked_dependencies` and
-    letting a lower-priority format (here `pdm.lock`) win the cascade in
-    its place with no "supersedes" note. The prior result must survive
-    the metadata swap."""
+    """`_try_read_poetry()` can resolve `poetry.lock`'s data onto a name-less
+    `ProjectMetadata` when `[tool.poetry]` fails to parse ("skipping Poetry
+    gap-fill, but still applying poetry.lock's resolved dependencies"). The
+    empty name triggers the setup.cfg/setup.py fallback, which keeps
+    poetry.lock's `locked_dependencies` across the metadata swap (a
+    lower-priority `pdm.lock` does not win)."""
     (tmp_path / "pyproject.toml").write_text(
         '[tool.poetry]\nversion = "1.0.0"\n', encoding="utf-8"
     )
@@ -307,11 +294,8 @@ def test_read_project_include_locked_dependencies_false_skips_cascade(
 def test_read_project_include_locked_dependencies_false_also_skips_poetry_lock(
     tmp_path: Path,
 ) -> None:
-    """Regression: `include_locked_dependencies=False` used to only gate
-    the pylock.toml/uv.lock/pdm.lock cascade -- `poetry.lock` was still
-    read and attached to `locked_dependencies` regardless, since
-    `read_pyproject()` never forwarded the flag to `_try_read_poetry()`.
-    One flag must gate every lock source, `poetry.lock` included."""
+    """`include_locked_dependencies=False` gates every lock source, `poetry.lock`
+    included (`read_pyproject()` forwards the flag to `_try_read_poetry()`)."""
     (tmp_path / "pyproject.toml").write_text(
         '[tool.poetry]\nname = "pkg"\nversion = "1.0.0"\n', encoding="utf-8"
     )

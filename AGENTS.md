@@ -22,8 +22,8 @@ Long-form rationale and examples for the rules below (marked "Why:") are in
 
 ### SBOM output
 
-- Deterministic: bit-for-bit identical across builds when input/environment unchanged.
-- Idempotent: no non-deterministic data (timestamps, random UUIDs).
+- Deterministic: bit-for-bit identical across builds when input/environment unchanged. A timestamp is allowed (SPDX requires `created`) but must come from a pinned source: `--creation-datetime`, else `SOURCE_DATE_EPOCH`, else the clock. A reproducible build or a test pins one of the first two.
+- Idempotent: no other non-deterministic data (random UUIDs, set/dict order, absolute temp paths).
 - Schema compliance: validate every SBOM against the primary spec (SPDX) and serialisation format before finalisation.
 
 ### Metadata sources

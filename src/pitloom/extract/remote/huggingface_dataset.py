@@ -32,16 +32,15 @@ Hub requests) and :mod:`pitloom.extract.dataset.card` (a local dataset card).
 from __future__ import annotations
 
 import logging
-import re
 from pathlib import Path
 from typing import Any
 
 from pitloom.core.ai_metadata import model_cap
 from pitloom.core.dataset_metadata import (
-    FOLLOWER_FIELDS,
     DatasetMetadata,
     DatasetReference,
 )
+from pitloom.core.dataset_names import dataset_key, is_hub_dataset_id
 from pitloom.core.model_originators import REPOSITORY_OWNER_METHOD, originator_names
 from pitloom.core.purl import commit_hash
 from pitloom.enrich.readme import MODEL_CARD_MAX_BYTES, CardKind, read_card
@@ -122,36 +121,22 @@ def _load_dataset_card(
             revision=revision,
         )
         # A third party's card: whatever reading it raises fails only it.
-        read = read_card(Path(local_path), HUB_DATASET_CARD)
+        read = read_card(Path(local_path), HUB_DATASET_CARD, name=dataset_id)
     except RemoteEntryNotFoundError:
         return None, {}
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         msg = "Failed to load dataset card for %s: %s" + HUB_DATASET_CARD.fields_skipped
-        log.warning(msg, loggable(dataset_id), one_line(exc))
+        # An OSError on a file quotes the local cache path: its reason only.
+        reason: object = exc
+        if isinstance(exc, OSError):
+            if exc.filename:
+                reason = exc.strerror or type(exc).__name__
+        log.warning(msg, loggable(dataset_id), one_line(reason))
         return None, {}
     if read is None:
         return None, {}
     return read[0], read[1] or {}
-
-
-#: A Hub repository id: an optional owner and a name, each 1-96 of
-#: ``[A-Za-z0-9_.-]`` starting with a letter or digit and ending with a
-#: letter, digit or ``_``, as ``huggingface_hub`` validates them (a legacy
-#: dataset such as ``c4`` has no owner).
-_PART = r"[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,94}[A-Za-z0-9_])?"
-_DATASET_ID_RE = re.compile(rf"(?:{_PART}/)?{_PART}")
-
-
-def _is_dataset_id(name: str) -> bool:
-    """Whether *name* is a Hub repository id; a model card's ``datasets:``
-    also holds plain names, which are not looked up (nor warned of)."""
-    return (
-        _DATASET_ID_RE.fullmatch(name) is not None
-        and "--" not in name
-        and ".." not in name
-        and not name.endswith(".git")
-    )
 
 
 def _apply_card(
@@ -211,37 +196,16 @@ def add_hub_dataset_metadata(datasets: list[DatasetReference], where: str) -> No
     gives it) from its Hub repository, in card order. A name that is not a
     repository id is not looked up; past :data:`MAX_HUB_DATASET_LOOKUPS`
     ids, the rest are not either, with one ``WARNING:`` naming *where* (the
-    model). A dataset listed twice, in any letter case (Hub ids are
-    case-insensitive), is looked up once, by its first spelling."""
-    ids = list(dict.fromkeys(r.metadata.name.lower() for r in datasets))
-    ids = [i for i in ids if _is_dataset_id(i)]
+    model). A repeat of a dataset (:func:`~pitloom.core.dataset_names.dataset_key`)
+    is not looked up again: the caller lists each dataset once
+    (:func:`~pitloom.core.dataset_names.distinct_dataset_names`)."""
+    ids = list(dict.fromkeys(dataset_key(r.metadata.name) for r in datasets))
+    ids = [i for i in ids if is_hub_dataset_id(i)]
     if len(ids) > MAX_HUB_DATASET_LOOKUPS:
         skipped = len(ids) - MAX_HUB_DATASET_LOOKUPS
         outcome = f"the first {MAX_HUB_DATASET_LOOKUPS} looked up, {skipped} not"
         warn_over_cap(log, model_cap(_LOOKUP_CAP, "huggingface"), where, outcome)
     allowed = set(ids[:MAX_HUB_DATASET_LOOKUPS])
-    looked_up: dict[str, DatasetMetadata] = {}
     for ref in datasets:
-        key = ref.metadata.name.lower()
-        if key in looked_up:
-            _copy_found(looked_up[key], ref.metadata)
-        elif key in allowed:
+        if dataset_key(ref.metadata.name) in allowed:
             _look_up(ref.metadata)
-            looked_up[key] = ref.metadata
-
-
-#: The fields a Hub lookup fills (:func:`_apply_card`, :func:`_apply_info`).
-_FOUND_FIELDS = ("version", "creator", "license", "description", "keywords")
-
-
-def _copy_found(found: DatasetMetadata, meta: DatasetMetadata) -> None:
-    """Give *meta* what the lookup of the same dataset as *found* filled,
-    each field with its provenance; *meta* keeps its own of the rest."""
-    for field in _FOUND_FIELDS:
-        if field in found.provenance:
-            value = getattr(found, field)
-            setattr(meta, field, list(value) if isinstance(value, list) else value)
-            meta.provenance[field] = found.provenance[field]
-            follower = FOLLOWER_FIELDS.get(field)
-            if follower:
-                setattr(meta, follower, getattr(found, follower))

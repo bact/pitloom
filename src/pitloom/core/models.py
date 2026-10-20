@@ -32,8 +32,7 @@ if TYPE_CHECKING:
 
 # Fixed pitloom namespace UUID, stable across all versions.
 # Derived from: uuid5(NAMESPACE_URL, "https://github.com/bact/pitloom")
-# DO NOT CHANGE: Modifying this constant will break the deterministic
-# nature of all previously generated SBOM document UUIDs.
+# DO NOT CHANGE: it determines every generated SBOM document UUID.
 PITLOOM_NS = UUID("aecb050b-c1a4-5c3f-aaa7-d8e12dee7e5b")
 
 # Counters keyed by (doc_uuid, element_type) so each type has its own sequence.

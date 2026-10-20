@@ -52,13 +52,12 @@ def test_embed_wheel_defers_cleanup_past_ai_model_scan(
     caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Regression: ``embed.py``'s ``_build_sbom_from_project_and_wheel``
-    has the same cleanup-timing hazard as ``generate_project_sbom()``
-    (see ``tests/assemble/test_generate_project_sbom_allow_build.py``'s
-    sibling test) -- ``scan_project_for_ai_models()`` runs after
-    ``get_wheel_files()`` here too, and must still see a build-and-read-
-    sourced file's bytes before ``get_wheel_files()``'s cleanup callback
-    removes them."""
+    """``embed.py``'s ``_build_sbom_from_project_and_wheel`` has the same
+    cleanup-timing hazard as ``generate_project_sbom()`` (see the sibling
+    test in ``test_generate_project_sbom_allow_build.py``):
+    ``scan_project_for_ai_models()`` runs after ``get_wheel_files()`` and
+    must still see a build-and-read-sourced file's bytes before the cleanup
+    callback removes them."""
     wheel_path = _make_ctpkg_project_and_wheel(tmp_path)
 
     fake_extract_dir = tmp_path / "fake-extract"
@@ -110,7 +109,7 @@ def test_embed_wheel_defers_cleanup_past_ai_model_scan(
 def test_embed_wheel_cleanup_runs_even_if_step_raises(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, target: str
 ) -> None:
-    """Regression, one case per step inside the ``EmbedFileCache`` block
+    """One case per step inside the ``EmbedFileCache`` block
     of ``_build_sbom_from_project_and_wheel()`` (``_embed_build_sbom.py``),
     whose exit runs the discovery cleanup: a build-and-read temp
     directory must not leak whichever of the five steps after
@@ -143,18 +142,13 @@ def test_embed_wheel_cleanup_runs_even_if_step_raises(
 def test_embed_wheel_cleanup_runs_strictly_last_in_order(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Order-sensitivity guard, stronger than the parametrized
-    exception-based test above: that test only proves cleanup is called
-    at all when a step raises, which does NOT catch a step being moved
-    to run *after* cleanup instead of before it -- cleanup would still
-    end up called exactly once either way (confirmed via the sibling
-    check in test_generate_project_sbom_allow_build.py: the same class
-    of regression there left every parametrized exception case green).
-    This test instead records every step's own name into one shared
-    list and asserts the exact order, so a future refactor that
-    reorders or hoists any single step out of the ``EmbedFileCache``
-    block is caught precisely, regardless of whether that step happens
-    to raise."""
+    """Cleanup runs strictly after every step, in order.
+
+    The parametrized test above only proves cleanup is called when a step
+    raises; a step moved to run *after* cleanup still calls it once. This test
+    records each step's name in one list and asserts the exact order, so
+    reordering or hoisting any step out of the ``EmbedFileCache`` block is
+    caught whether or not that step raises."""
     wheel_path = _make_ctpkg_project_and_wheel(tmp_path)
 
     call_order: list[str] = []

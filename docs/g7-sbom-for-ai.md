@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-18
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -51,7 +51,13 @@ sbomcheck -s spdx3 -c g7ai -r json  -o report.json  model.spdx3.json
 sbomcheck -s spdx3 -c g7ai -r sarif -o report.sarif model.spdx3.json
 ```
 
-Each of the 81 G7 rules is `present`, `missing`, `not-applicable` (the SBOM has
+`-c` also takes `ntia` (NTIA 2021), `cisa2026`, `fsct3` and `bsi`. The sections
+below report the last three; Pitloom's tests pin no NTIA outcomes. Every
+standard judges the datasets and models a component reaches by `trainedOn` and
+`testedOn`. [Lumina](https://github.com/bact/lumina), a web UI, shows the same
+checker results rule by rule.
+
+Each rule (81 for G7) is `present`, `missing`, `not-applicable` (the SBOM has
 nothing of that kind, such as no dataset) or `out-of-scope` (the checker does not
 check it). The result is "the SBOM has the property the checker looks for", not a
 claim of G7 compliance. A check of a property does not judge its value.
@@ -212,5 +218,4 @@ its date stays listed with that date missed.
 | :-- | :---- | :---- | :----- |
 | No hash for a Hugging Face model | Hub source | A request per file, or a Merkle root | 2026-10-19 |
 | Dataset provenance and statistics reach a model SBOM only through `loom` | Hub source, local model cards | A reader for a Hub dataset's Croissant metadata | 2026-10-19 |
-| A notice when a value is read but cannot be recorded | all readers | One shared message helper | 2026-10-19 |
 | Tier 2 formats | Keras, HDF5, PyTorch, PT2, CRFsuite | Anything beyond keeping them working | 2026-10-19 |

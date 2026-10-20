@@ -67,9 +67,8 @@ def test_add_dependencies_completeness_kwarg_sets_relationship_field() -> None:
 
 
 def test_add_dependencies_omitted_completeness_leaves_field_unset() -> None:
-    """Omitting ``completeness`` (the default, and every pre-existing call
-    site's behavior) leaves the relationship's ``completeness`` unset --
-    regression guard against changing direct-dependency output."""
+    """Omitting ``completeness`` (the default) leaves the relationship's
+    ``completeness`` unset, so direct-dependency output is unchanged."""
     doc_uuid = compute_doc_uuid("completeness-unset", "1.0", [])
     _clear_doc_counters(doc_uuid)
     exporter = Spdx3JsonExporter()
@@ -134,13 +133,11 @@ def test_locked_dependencies_add_transitive_only_edges() -> None:
 
 
 def test_pinned_requirements_transitive_edges_leave_completeness_unset() -> None:
-    """Regression: pinned `requirements.txt` is just a list of exact-pin
-    lines a human or `pip freeze` wrote, with no resolver guarantee that
-    every real transitive dependency is present -- unlike a real
+    """Pinned `requirements.txt` is a list of exact pins with no resolver
+    guarantee that every transitive dependency is present. Unlike a
     resolver lock (`poetry.lock`, `pylock.toml`, `uv.lock`, `pdm.lock`,
-    `Pipfile.lock`), its locked-only `dependsOn` edges must NOT be
-    tagged `complete`, which would overstate what the file actually
-    proves."""
+    `Pipfile.lock`), its locked-only `dependsOn` edges must NOT be tagged
+    `complete`."""
     project = ProjectMetadata(
         name="main-project",
         version="1.0.0",
@@ -209,9 +206,8 @@ def test_locked_dependencies_dedup_is_case_and_separator_insensitive() -> None:
     """A direct dependency declared with the author's own casing (e.g.
     ``Django``) must still dedup against a lock-resolved entry that PEP
     503-normalizes it (``django``) -- and dash/underscore variants must
-    dedup the same way. Regression test: comparing raw, unnormalized names
-    let a package declared both directly and in the lock double-emit as
-    two separate nodes/edges."""
+    dedup the same way: names are compared normalised, so a package
+    declared both directly and in the lock emits one node/edge."""
     project = ProjectMetadata(
         name="main-project",
         version="1.0.0",
@@ -338,15 +334,12 @@ def test_locked_dependencies_omitted_matches_empty_list() -> None:
 def test_valid_empty_lock_does_not_collide_with_no_lock_or_a_different_empty_lock() -> (
     None
 ):
-    """Regression: a real, successfully-resolved lock file that legitimately
-    has zero runtime dependencies still carries its own distinct
-    ``provenance["locked_dependencies"]`` string -- gating the UUID seed's
-    locked-dependencies contribution on `locked_dependencies` being
-    *non-empty* (rather than on either it or the provenance string being
-    given) would silently collide such a document with both (a) a document
-    with no lock present at all, and (b) a different lock source that also
-    happened to resolve to zero dependencies -- three genuinely different
-    provenance outcomes must not share one UUID."""
+    """A resolved lock file with zero runtime dependencies still carries its
+    own ``provenance["locked_dependencies"]`` string. Gating the UUID seed on
+    ``locked_dependencies`` being non-empty would collide such a document with
+    (a) one with no lock at all and (b) a different lock source that also
+    resolved to zero dependencies; three different provenance outcomes must
+    not share one UUID."""
     no_lock_at_all = compute_doc_uuid("pkg", "1.0.0", ["requests>=2.0"])
     empty_from_pylock = compute_doc_uuid(
         "pkg",

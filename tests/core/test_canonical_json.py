@@ -158,7 +158,7 @@ def test_deep_nesting_takes_one_frame_per_level() -> None:
 )
 def test_indented_canonical_json(value: object, expected: str) -> None:
     assert canonical_json_indented(value) == expected
-    # only whitespace between tokens was added
+    # only whitespace between tokens differs
     assert without_token_whitespace(canonical_json_indented(value)) == (
         canonical_json(value)
     )

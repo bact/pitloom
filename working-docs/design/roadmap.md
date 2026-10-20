@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -144,7 +144,8 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
 - [x] **Support tiers and demo scope** (tier 1: Safetensors, ONNX, GGUF, NumPy,
   fastText, Hugging Face Hub; demo: G7 Metadata/System/Model/Dataset, SPDX 3.0,
   Hatchling, setuptools, Poetry) and the parity ledger, on the user page
-  `docs/g7-sbom-for-ai.md`. Open: the ledger's gaps (target 2026-10-19). See
+  `docs/g7-sbom-for-ai.md`. Open, target 2026-10-19: a Hub model's file hash,
+  dataset provenance and statistics, tier 2 beyond keeping them working. See
   [support-tiers-and-demo-scope.md](support-tiers-and-demo-scope.md).
 - [x] **G7 honesty notices** (2026-10-18): one `INFO:` per model naming a G7
   element read from a source that SPDX 3.0.1 has no property for. Today only
@@ -161,8 +162,8 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   "an integrity method is present" only.
 - [x] **FSCT 2024 conformance tests** (`fsct3` in the checker): the same table,
   report and surface-parity tests; coverage in `g7-coverage-history/fsct3-*.json`.
-- [ ] CHANGELOG entries for the 2026-10 G7/CISA/FSCT/SHA-512 work deferred until
-  PR numbers exist (`tests/test_changelog.py` requires one).
+- [x] CHANGELOG entries for the 2026-10 G7/CISA/FSCT/SHA-512 work (#309) and
+  the Hub model description fix (#310).
 - [x] **BSI TR-03183-2 v2.1 as a rule-based standard**: the checker ships
   `rules/bsi.yaml` with per-rule outcomes (the hand-written `BSIChecker` is
   removed); `bsi-expected.tsv` and the surface-parity tests cover it. Ontology
@@ -176,18 +177,10 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   and `--creator-type` listed a `frozenset` in hash order in `--help` and in the
   invalid-choice error; now sorted, with a hash-seed test
   (`tests/cli/test_cli_choices_order.py`).
-- [ ] **Edge-case hardening of the dataset readers** (deferred until after the
-  2026-10-19 demo, decided 2026-10-18): fuzz-driven fixes for hostile Croissant
-  files and dataset cards (generated inputs; boundaries are in place:
-  `_parse_frontmatter`, `_optional_card`, `read_croissant`), the Hub id
-  case/dedupe follow-ups, the YAML 1.1 corner cases and the findings of the
-  last fuzz run (2026-10-18, 22,000 cases, no crash or hang in the `loom` and
-  Hub-card paths; one fixed since): `license_name`/`license_link` of a bare
-  `other` kept as a licence; `unknown`/`NOASSERTION`/non-URL text kept as a
-  version, download location or creator; the Hub-card read warnings name a
-  local cache path; model-card `datasets:` has no entry cap; re-enable the
-  skipped deep-Croissant test (`test_a_deep_croissant_is_read_or_refused`) once
-  the JSON depth limit across Python releases is handled. See
+- [x] **Edge-case hardening of the dataset readers** (2026-10-19): Croissant
+  nesting cap, placeholder and non-URL values, Hub-card warnings without a
+  cache path, one reference per dataset and a `datasets:` cap, YAML 1.1 and
+  generated-input tests. See
   [dataset-licence-readers.md](dataset-licence-readers.md).
 - [x] **#6 Model producer and parameter count** from structured sources
   (PR #306): `originatedBy` Agents and the `parameters` hyperparameter
@@ -232,9 +225,14 @@ unless the linked doc says so.
   See [generic-multi-candidate-fields.md](generic-multi-candidate-fields.md),
   [metadata-quality.md](metadata-quality.md).
 - [ ] **Provenance and enrichment vocabulary** (Method vs Role, source and
-  role taxonomy; parked draft). See
+  role taxonomy; parked draft; includes renaming the fragment `role` and
+  `DatasetReference.role`, whose names are provisional). See
   [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md),
   [docs/metadata-provenance.md](../../docs/metadata-provenance.md).
+- [ ] **Dataset splits**: read Croissant `cr:Split` record sets; record each
+  stated split as a `DatasetPackage` under the whole one (`contains`); then
+  raise a part-and-intended-use question with SPDX. Never link a model to a
+  split no source states. See [dataset-splits.md](dataset-splits.md).
 - [ ] **AI model id stability** beyond what registry v3 built (the other
   AIPackage lookups gated by sha256). See
   [ai-model-id-stability.md](ai-model-id-stability.md).

@@ -293,8 +293,7 @@ def test_extract_provenance_capitalized_python_key_records_requires_python() -> 
     """A capitalized `Python` key (unusual, but _parse_poetry_deps()
     matches it case-insensitively for the *value*) must get the same
     provenance treatment -- a case-sensitive presence check would
-    silently miss it, reopening a narrower version of the misattribution
-    bug the presence-based check exists to close."""
+    silently miss it (the misattribution the presence-based check prevents)."""
     data = {
         "tool": {
             "poetry": {

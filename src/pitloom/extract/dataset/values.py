@@ -22,8 +22,11 @@ top of :func:`stated_text`).
 from __future__ import annotations
 
 import logging
+import re
+from urllib.parse import urlsplit
 
 from pitloom.core.canonical_json import MAX_SAFE_INTEGER
+from pitloom.core.dataset_metadata import is_placeholder
 from pitloom.logging_config import Cap, loggable, warn_over_cap
 
 log = logging.getLogger(__name__)
@@ -31,13 +34,16 @@ log = logging.getLogger(__name__)
 __all__ = [
     "MAX_VERSION_DIGITS",
     "NOT_A_COUNT_WARNING",
+    "NOT_A_URL_WARNING",
     "NOT_TEXT_WARNING",
     "UNQUOTED_VERSION_WARNING",
+    "is_placeholder",
     "stated_count",
     "stated_name",
     "stated_text",
     "stated_texts",
     "stated_total",
+    "stated_url",
     "stated_version",
     "text_of",
     "warn_not_text",
@@ -60,6 +66,15 @@ UNQUOTED_VERSION_WARNING = (
 NOT_A_COUNT_WARNING = (
     "dataset metadata: %s field %s is not a whole number of zero or more; skipped"
 )
+
+#: ``log.warning()`` format for a URL field holding text that is not a URL.
+#: Arguments: the source, the field.
+NOT_A_URL_WARNING = "dataset metadata: %s field %s is not a URL; skipped"
+
+
+#: A URL a download can name: a scheme, then a host (``https://``, ``s3://``,
+#: ``hf://``), and no whitespace or control character.
+_URL_SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*")
 
 #: A size or count over the largest integer canonical JSON (RFC 8785) can
 #: write: the SBOM could not be serialised with it.
@@ -144,15 +159,50 @@ def stated_texts(
 def stated_name(value: object, source: str, field: str) -> str | None:
     """The name a *field* such as a creator states: text, or the ``name``
     of a node (a ``Person`` or ``Organization``); of a list, its first item
-    that states something. A blank name is none, silently."""
+    that states something. A blank name or a placeholder
+    (:func:`is_placeholder`) is none, silently."""
     if isinstance(value, list):
-        value = next((item for item in value if not _is_blank(item)), None)
+        value = next(
+            (
+                item
+                for item in value
+                if not _is_blank(item)
+                and not (isinstance(item, str) and is_placeholder(item))
+            ),
+            None,
+        )
     if isinstance(value, dict):
         for key in ("name", "sc:name", "schema:name"):
             if key in value:
-                return stated_text(value[key], source, f"{field} name")
+                value, field = value[key], f"{field} name"
+                break
+        else:
+            return None
+    return _not_placeholder(stated_text(value, source, field))
+
+
+def _not_placeholder(text: str | None) -> str | None:
+    """*text*, or ``None`` when it is a placeholder."""
+    return None if text is not None and is_placeholder(text) else text
+
+
+def stated_url(value: object, source: str, field: str) -> str | None:
+    """A URL a *field* such as a download location states: text with a
+    scheme and a host, no whitespace. ``None`` when absent, blank or a
+    placeholder (:func:`is_placeholder`), silently; for any other text, or
+    another shape, with one ``WARNING:``."""
+    text = _not_placeholder(stated_text(value, source, field))
+    if text is None:
         return None
-    return stated_text(value, source, field)
+    try:
+        parts = urlsplit(text)
+        valid = bool(parts.netloc) and _URL_SCHEME.fullmatch(parts.scheme) is not None
+    except ValueError:
+        valid = False
+    if not valid or any(c.isspace() or not c.isprintable() for c in text):
+        log.warning(NOT_A_URL_WARNING, loggable(source), field)
+        return None
+    return text
 
 
 def stated_version(
@@ -160,11 +210,12 @@ def stated_version(
 ) -> str | None:
     """A ``version``: text. With *numbers* (JSON, whose integers are
     unambiguous decimals), also a whole number as written, up to
-    :data:`MAX_VERSION_DIGITS` digits. Anything else (a float: ``1.10``
-    reads as ``1.1``; a YAML 1.1 integer: ``1:1:1`` reads as ``3661``) is
-    no version, with one ``WARNING:``."""
+    :data:`MAX_VERSION_DIGITS` digits. A placeholder
+    (:func:`is_placeholder`) is none, silently. Anything else (a float:
+    ``1.10`` reads as ``1.1``; a YAML 1.1 integer: ``1:1:1`` reads as
+    ``3661``) is no version, with one ``WARNING:``."""
     if value is None or isinstance(value, (str, list, dict)):
-        return stated_text(value, source, field)
+        return _not_placeholder(stated_text(value, source, field))
     if numbers and isinstance(value, int) and not isinstance(value, bool):
         if abs(value) >= 10**MAX_VERSION_DIGITS:
             warn_over_cap(log, _VERSION_CAP, f"{source} {field}")

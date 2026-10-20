@@ -3,11 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression tests for the resolve_*() collision paths of the id-mint-collision
-fixes ([#234]), called directly on the claimed dicts.
+"""The resolve_*() collision paths of the id-mint collisions,
+called directly on the claimed dicts.
 
 See also: test_generator_registry_sync_claim.py (the multi-run collision
-regressions), _generator_registry_sync_claim_shared.py (shared helper).
+tests), _generator_registry_sync_claim_shared.py (shared helper).
 """
 
 from __future__ import annotations
@@ -171,9 +171,8 @@ def test_resolve_directory_hits_collision_warns_once_across_many_files(
     """A stale registry with ``demo`` and ``demo/sub`` sharing one id,
     with several files under ``demo/sub``: the collision on ``demo/sub``
     is resolved once, on the first file, not re-looked-up and re-warned
-    for every later file under it (regression for a directory whose hit
-    was rejected -- not recorded in ``dir_hits`` -- being memoized only
-    by ``dir_hits`` membership)."""
+    for every later file under it (a directory whose hit was rejected is not
+    recorded in ``dir_hits``, so it is memoised separately)."""
     registry = IdRegistry.new("demo")
     collided_id = registry.register("software_File", "demo")
     registry.elements[("software_File", "demo/sub")] = registry.elements[

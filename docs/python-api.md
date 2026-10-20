@@ -308,7 +308,9 @@ with loom.run("fragments/train.json"):
 ```
 
 Each field comes from the first source that states it: `declared_license=`,
-then the Croissant file, then the card. A `declared_license=` on any call for
+then the Croissant file, then the card. A source's `unknown`, `N/A` or
+`NOASSERTION` states nothing (a version, creator or licence of that text is
+left out), and its download URL must be a URL. A `declared_license=` on any call for
 the dataset wins over every Croissant file and card, whichever call came
 first; of two declared licences, the first call's wins. The call's own name,
 `dataset_type` and `data_preprocessing=` (even `[]`) always win. A licence
@@ -338,7 +340,8 @@ of thousands of digits, nesting thousands of levels deep) is skipped with one
 `WARNING:`, and the declaration goes on with its other sources: the card is
 read because the dataset is a directory, not because you named it. A
 `croissant=` file you name is different: a URL, a missing file, one that is
-not a regular file (a FIFO), one that is not Croissant or one that fails to
+not a regular file (a FIFO), one that is not Croissant, one that nests more
+than 64 levels of arrays and objects or one that fails to
 be read in any other way raises `ValueError` naming it, at the call: loom
 reads no network source. A source file is opened as given and named in
 provenance by its path from the current directory, or by its bare name when

@@ -3,18 +3,13 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression: every public library-API entry point (``pitloom.assemble``'s
+"""Every public library-API entry point (``pitloom.assemble``'s
 ``__all__`` -- ``generate_*`` (``generate_merged_sbom`` too)/``enrich_model``/
-``embed_wheel_sbom``/``embed_sbom_in_wheel``/``merge_fragments``) must call
+``embed_wheel_sbom``/``embed_sbom_in_wheel``/``merge_fragments``) calls
 :func:`pitloom.logging_config.configure_logging` before doing anything else,
-so ``log.warning(...)`` output gets the same ``WARNING: `` prefix regardless
-of whether Pitloom is invoked via the CLI, the Hatchling build hook, or as a
-plain library import -- ``__main__.py`` and ``plugins/hatch.py`` already did
-this; ``embed_wheel_sbom()``/``embed_sbom_in_wheel()``/``merge_fragments()``
-were three entry points still missing it (found by an audit of "does every
-public entry point pair a resource-opening call with the setup CLAUDE.md
-requires", not by a diff -- these three have no test coverage from the
-original set of "generate_*"-only tests above).
+so ``log.warning(...)`` output gets the same ``WARNING: `` prefix whether
+Pitloom is invoked via the CLI, the Hatchling build hook (``__main__.py`` and
+``plugins/hatch.py`` do this too) or as a plain library import.
 """
 
 from __future__ import annotations

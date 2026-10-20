@@ -27,6 +27,7 @@ import pytest
 from pitloom import loom
 from pitloom.core.ai_metadata import MAX_MODEL_NAME_CHARS
 from pitloom.core.creation import CreationMetadata
+from pitloom.extract.dataset.croissant import CROISSANT_MAX_NESTING
 from tests._symlink import CAN_SYMLINK
 from tests.core._loom_dataset_sources_shared import (
     EXPRESSION,
@@ -350,29 +351,38 @@ def test_a_card_that_fails_to_read_is_skipped(
     assert message.startswith("loom: dataset 'corpus': dataset card skipped: ")
 
 
-@pytest.mark.skip(
-    reason="the JSON parser's depth limit varies by Python patch release; "
-    "deferred until after the 2026-10-19 demo (roadmap: edge-case hardening)"
+@pytest.mark.parametrize(
+    ("depth", "read"),
+    [
+        (CROISSANT_MAX_NESTING, True),
+        (CROISSANT_MAX_NESTING + 1, False),
+        (100000, False),
+    ],
+    ids=["at-cap", "over-cap", "far-over"],
 )
-@pytest.mark.parametrize("depth", [2000, 100000], ids=["deep", "too-deep"])
-def test_a_deep_croissant_is_read_or_refused(project: Path, depth: int) -> None:
-    """A nesting is walked without recursion, or refused as the documented
-    ``ValueError`` naming the file. Whether the JSON parser itself accepts a
-    nesting of 100000 depends on the Python version (3.14 does), so both
-    outcomes are valid there; no other exception is."""
+def test_a_deep_croissant_is_read_or_refused_by_its_cap(
+    project: Path, depth: int, read: bool
+) -> None:
+    """The nesting cap alone decides, whatever the Python version's JSON
+    depth limit: a file at it is read, one over it refused as the
+    documented ``ValueError`` naming the file and the cap."""
+    levels = depth - 1  # the document's own object is the first level
     body = '{"name": "x", "license": "MIT", "recordSet": '
-    (project / "c.json").write_text(body + "[" * depth + "]" * depth + "}")
+    (project / "c.json").write_text(body + "[" * levels + "]" * levels + "}")
 
     def body_() -> None:
         loom.add_dataset("t.txt", croissant="c.json")
 
-    try:
+    if read:
         graph = run_graph(project / "out.json", body_)
-    except ValueError as exc:
-        assert depth >= 10000, "a nesting this shallow must be read"
-        assert str(exc).startswith("Croissant source 'c.json' is not valid")
+        assert declared(graph, "t.txt") == [(EXPRESSION, "MIT")]
         return
-    assert declared(graph, "t.txt") == [(EXPRESSION, "MIT")]
+    with pytest.raises(ValueError) as caught:
+        run_graph(project / "out.json", body_)
+    assert str(caught.value) == (
+        "Croissant source 'c.json' is larger than the "
+        f"{CROISSANT_MAX_NESTING}-level Croissant-nesting cap"
+    )
 
 
 def test_any_croissant_failure_is_a_value_error_naming_it(project: Path) -> None:

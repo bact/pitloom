@@ -186,13 +186,10 @@ def test_same_name_different_casing_same_version_deduped() -> None:
 def test_same_name_different_casing_conflicting_versions_skipped_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: `Pipfile.lock`'s `"default"` section is a JSON object
-    keyed directly by literal name -- unlike every sibling format, this
-    extractor previously had no PEP 503 canonicalization step, so a
-    `Pipfile.lock` with both a `"Flask"` and a `"flask"` key (schema-legal
-    JSON) would silently emit two conflicting dependency lines instead of
-    being flagged like every other lock format's own duplicate-name
-    case."""
+    """`Pipfile.lock`'s `"default"` section is keyed by literal name, so names
+    are PEP 503-canonicalised: a `"Flask"` and a `"flask"` key (schema-legal
+    JSON) are flagged as a duplicate like every other lock format's, not
+    emitted as two conflicting lines."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         _write_lock(
@@ -300,11 +297,10 @@ def test_editable_false_not_treated_as_non_registry_source() -> None:
 
 
 def test_git_false_still_treated_as_non_registry_source() -> None:
-    """Regression: the falsy-value exemption above is `editable`-specific,
-    not blanket. Every other non-registry key (`git`/`hg`/`bzr`/`svn`/
-    `path`/`file`) is a string when it means anything at all -- a
-    malformed `"git": false` must still disqualify the entry, not be
-    read as "no git source" the way `"editable": false` correctly is."""
+    """The falsy-value exemption above is `editable`-specific. Every other
+    non-registry key (`git`/`hg`/`bzr`/`svn`/`path`/`file`) is a string when
+    meaningful: a malformed `"git": false` disqualifies the entry, unlike
+    `"editable": false`."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         _write_lock(
@@ -340,10 +336,8 @@ def test_invalid_specifier_skipped_and_warns(
 def test_prefix_match_specifier_skipped_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: `packaging.specifiers.Specifier("==2.31.*").operator`
-    is also `"=="`, so a naive `operator == "=="` check would wrongly
-    accept a prefix-match specifier (pinning a *range* of versions) as
-    if it were a single exact pin."""
+    """`Specifier("==2.31.*").operator` is also `"=="`: a prefix-match specifier
+    (a *range* of versions) is not accepted as a single exact pin."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         _write_lock(
@@ -366,10 +360,9 @@ def test_prefix_match_specifier_skipped_and_warns(
 def test_non_dict_json_top_level_returns_empty_list_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Regression: unlike TOML (whose grammar guarantees a table at the
-    document root), a `Pipfile.lock` containing valid but non-object
-    JSON (e.g. a bare array) used to crash extraction with
-    `AttributeError` on `data.get(...)` instead of degrading gracefully."""
+    """A `Pipfile.lock` holding valid but non-object JSON (e.g. a bare array)
+    degrades gracefully instead of raising `AttributeError` (TOML guarantees
+    a root table, JSON does not)."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "Pipfile.lock").write_text("[]", encoding="utf-8")

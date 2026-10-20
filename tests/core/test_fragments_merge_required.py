@@ -72,9 +72,8 @@ def test_required_fragment_missing_raises_even_when_nothing_merged(
     tmp_path: Path,
 ) -> None:
     """A required fragment missing when it's the *only* configured fragment
-    (so merged_any stays False) must still raise -- regression test for
-    gating the required-check on merged_any, which would silently swallow
-    exactly this scenario."""
+    (so merged_any stays False) must still raise; gating the required-check
+    on merged_any would swallow exactly this scenario."""
     exporter = Spdx3JsonExporter()
     frag = FragmentConfig(path="only-and-missing.spdx3.json", required=True)
 

@@ -198,10 +198,9 @@ def test_loom_run_clears_id_counters_on_success() -> None:
     """A ``loom.Run``'s ``doc_uuid`` is a fresh ``uuid4`` per run (unlike
     the deterministic doc_uuids other document builders use), so nothing
     will ever revisit it to clear stale ``_ID_COUNTERS`` entries the way
-    those builders' "clear right before reuse" pattern does. Regression
-    test: ``Run.__exit__`` must explicitly clear its run's counters, or
-    every run leaks its ``_ID_COUNTERS`` entries for the rest of the
-    process."""
+    those builders' "clear right before reuse" pattern does.
+    ``Run.__exit__`` must explicitly clear its run's counters, or every run
+    leaks its ``_ID_COUNTERS`` entries for the rest of the process."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "test_fragment_counters.json"
 

@@ -170,13 +170,10 @@ def test_apply_locked_dependencies_unrecognized_previous_source_warns(
 def test_apply_locked_dependencies_valid_empty_source_wins_over_lower_priority() -> (
     None
 ):
-    """Regression: a valid, higher-priority lock that resolves to zero
-    runtime dependencies must still win outright over a lower-priority
-    source that *does* have dependencies -- an empty result is a real,
-    authoritative answer ("this lock says there are none"), not the same
-    as "this source doesn't apply here". Without distinguishing the two,
-    the lower-priority ``uv.lock`` here would incorrectly add dependencies
-    the winning ``pylock.toml`` says don't exist."""
+    """A valid, higher-priority lock that resolves to zero runtime dependencies
+    wins over a lower-priority source that has some: an empty result is
+    authoritative ("this lock says there are none"), not "this source does
+    not apply". ``uv.lock`` adds nothing the winning ``pylock.toml`` omits."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "pylock.toml").write_text(
@@ -240,13 +237,9 @@ def test_apply_locked_dependencies_truncated_pylock_falls_back_to_lower_priority
 
 
 def test_read_project_applies_cascade_for_setup_py_only_project() -> None:
-    """Regression: a project with no `pyproject.toml` at all -- just a
-    bare `setup.py`, the realistic pairing for `Pipfile.lock`/pinned
-    `requirements.txt` in real projects -- still gets
-    `locked_dependencies` populated via `read_project()`'s cascade. This
-    is exactly the gap the cascade's `read_project()`-level call site
-    (rather than being wired only inside `read_pyproject()`) exists to
-    close."""
+    """A project with no `pyproject.toml`, just a bare `setup.py` (the usual
+    pairing for `Pipfile.lock`/pinned `requirements.txt`), still gets
+    `locked_dependencies` via `read_project()`'s cascade."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "setup.py").write_text(

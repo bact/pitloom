@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -151,13 +151,33 @@ drift is silent.
   five `-c` ids; the `missing`-rule one-liner prints nothing on a report with
   no missing rule. Findings recorded there: the checker has no `table`
   report (`-r print` is the text table); exit 0 is conformant, 1 not; BSI
-  declares no `reach_via`, so a dataset linked only by `trainedOn` is not
-  judged by `bsi` (FSCT and CISA judge it); a fragment adding
+  declared no `reach_via` at checker `34c00ba`, so `bsi` did not judge a
+  dataset linked only by `trainedOn` (superseded: every standard follows
+  `trainedOn`/`testedOn` by default since `151460c`); a fragment adding
   `hasConcludedLicense`, a `dependsOn` to `NoneElement` with `completeness`,
   a distribution `software_File` with SHA-512 and `hasDistributionArtifact`,
   and `software_additionalPurpose` `container` took the test project to
   conformant under `fsct3` and `bsi` (validated with `loom fragment
   validate`).
+- **Sweep (2026-10-19, after #309 and #310).** No subcommand changed
+  (`add_parser(` lists `generate`, `project`, `wheel`, `embed-wheel`,
+  `verify-wheel`, `validate-wheel`, `model`, `enrich`, `env`, `merge`,
+  `fragment` (`validate`, `list`) and `id` (`generate`, `import`); each has
+  trigger phrasing). Run on a small Hatchling project, a built wheel and the
+  `gpt2-tiny-decoder.onnx` fixture, Pitloom 0.20.2, checker `82a63b9`: `loom
+  generate`/`project`/`model`/`env`, `loom generate --enrich`, `loom
+  generate FILE` without `-o` (an `ERROR:`), `verify-wheel` before and after
+  `embed-wheel --verify --validate`, `validate-wheel`, `loom fragment
+  validate` on a valid and on a broken document (`ERROR:` lines on stderr), the
+  standalone `spdx3-validate --json` (report on stdout, only the header line
+  `ERROR:`-tagged), `sbomcheck -s spdx3 -c` each of `ntia`, `fsct3`,
+  `cisa2026`, `g7ai`, `bsi` with `-r json` (exit 1 not conformant) and `g7ai`
+  also with `sarif`, `html` and `print` (the last two list no `out-of-scope`
+  rule), and the
+  `missing`-rule one-liner (it lists the rules of each report and prints
+  nothing on a report edited to have none). The checker pin is the same in
+  `pyproject.toml` and `docs/g7-sbom-for-ai.md`; the skills name none. The cross-check recipe
+  now points at Lumina (a web UI for the same results).
 - **Long topics move to `references/`.** `sbom-generate`'s lock-file and ID
   registry detail (what a registry pins, creating one, which log lines are
   expected) moved to `references/lockfile-discovery.md` and
@@ -180,7 +200,9 @@ clients (Codex, Gemini CLI, GitHub Copilot / VS Code, claude.ai). Decisions:
   each needs (`ai`, `validate`, `build`, `content-type`), network, and "not
   usable where packages cannot be installed" (e.g. Claude API code
   execution).
-- **Version floor: 0.20.0.** The skills use `--id-registry`,
+- **Version floor: 0.20.0** (raised to 0.20.2 since; every `compatibility`,
+  Requirements section and example under `skills/` and `docs/` reads
+  `>=0.20.2`, checked 2026-10-19). The skills use `--id-registry`,
   `--update-id-registry`, `loom id ...` and `--build-timeout`, absent from
   0.19.0 (PR #235 ships in 0.20.0). The floor appears in each
   `compatibility`, each Requirements section, `docs/agent-skills.md` and

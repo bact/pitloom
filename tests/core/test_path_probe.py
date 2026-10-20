@@ -50,10 +50,9 @@ class TestIsMissingErrno:
         """A real Windows FileNotFoundError carries BOTH errno=ENOENT and a
         winerror (typically 2/3, ERROR_FILE_NOT_FOUND/ERROR_PATH_NOT_FOUND)
         -- neither of which is in STAT_MISSING_WINERRORS (21/123/1921,
-        the codes errno alone doesn't already cover). Regression test for
-        short-circuiting on "winerror is not None" and never falling back
-        to the errno check once winerror happens to be set -- that would
-        misclassify this, the single most common not-found case on
+        the codes errno alone doesn't already cover). The errno check must
+        still run once winerror is set; short-circuiting on "winerror is not
+        None" would misclassify this, the most common not-found case on
         Windows, as "not missing"."""
         exc = FileNotFoundError(errno.ENOENT, "The system cannot find the file")
         exc.winerror = 2  # type: ignore[attr-defined]

@@ -38,9 +38,9 @@ _PROJECT = '[project]\nname = "demo"\n'
 def test_dynamic_fields_warn_without_pkg_info(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, tail: str, fields: str | None
 ) -> None:
-    """Regression: a ``dynamic`` field the fallback reads was left unset
-    silently (a real sdist's ``PKG-INFO`` carries it, built). One
-    ``WARNING:`` names each."""
+    """A ``dynamic`` field the fallback reads is reported, not left unset
+    silently (a real sdist's ``PKG-INFO`` carries it, built). One ``WARNING:``
+    names each."""
     sdist = _make_sdist(
         tmp_path,
         members={"PKG-INFO": None, "pyproject.toml": (_PROJECT + tail).encode()},

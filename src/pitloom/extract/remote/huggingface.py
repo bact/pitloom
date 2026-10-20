@@ -178,7 +178,7 @@ def read_huggingface(source: str) -> AiModelMetadata:
         [str(t) for t in (hf_data.get("hub_info") or {}).get("tags", [])]
     )
     usage_domains = _extract_domains(hf_data, provenance)
-    datasets = _extract_datasets(hf_data, tag_data.info_dataset_ids, provenance)
+    datasets = _extract_datasets(hf_data, tag_data.info_dataset_ids, provenance, hf_url)
     add_hub_dataset_metadata(datasets, hf_url)
     base_model_id = _resolve_base_model_id(hf_data)
     extra_data = _build_extra_data(

@@ -78,7 +78,7 @@ _CUT = "; a name field is never cut between names -- HINT"
         ),
         ("Jane, Bob", [{"name": "Jane, Bob"}], 0, [], False),
         ("Ann, , Bob", [{"name": "Ann, , Bob"}], 0, [], False),
-        # a part still no mailbox warns as before
+        # a part that is no mailbox warns
         ("Ann <a@x.org, Bob <b@x.org>", [], 0, ["Ann <a@x.org, Bob <b@x.org>"], False),
         ("Ann>, Bob", [], 0, ["Ann>, Bob"], False),
         # before a bare address, which carries no display name
@@ -153,7 +153,7 @@ def test_name_field_cut_only_after_a_mailbox(
     ``Author-email`` reads the same text (*same*); a cut, only next to an
     address, gets one ``WARNING:`` naming the field and the count; a comma
     after a name is never a cut unless a bare address follows; a part that
-    is still no mailbox warns as before."""
+    is no mailbox warns."""
     with caplog.at_level(logging.WARNING):
         assert read_author_fields(author, None, hint=" -- HINT") == expected
     lines = [f"AUTHOR={e!r}: not an email address; not recorded" for e in unread]
@@ -190,10 +190,10 @@ def test_name_field_mailboxes_beside_an_address_field() -> None:
 def test_one_author_info_only_when_recorded_as_one(
     caplog: pytest.LogCaptureFixture, author: str, info: bool
 ) -> None:
-    """Regression: the ``INFO:`` that a name field read as one author may
-    list several came beside the ``WARNING:`` that it was not recorded, and
-    for two mailboxes joined by ``and``. Only an entry recorded as one
-    author gets it."""
+    """The ``INFO:`` that a name field read as one author may list several is
+    not emitted beside the ``WARNING:`` that it was not recorded, nor for two
+    mailboxes joined by ``and``. Only an entry recorded as one author gets
+    it."""
     with caplog.at_level(logging.INFO):
         read_author_fields(author, None)
     assert bool(one_author_lines(caplog)) is info

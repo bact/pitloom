@@ -223,7 +223,7 @@ def test_hatchling_hook_unknown_key_warns_once(
 def test_setup_cfg_creation_tool_reaches_the_sbom(
     kind: str, tool_line: str, tmp_path: Path
 ) -> None:
-    """It was dropped on reading, silently, on every surface."""
+    """The ``[tool:pitloom]`` creation tool is read on every surface."""
     cfg = f"{_CFG_HEAD}[tool:pitloom]\n{tool_line}\n"
     if kind == "directory":
         target = _project(tmp_path, "p", cfg)

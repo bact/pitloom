@@ -9,11 +9,9 @@
 Each fixture directory holds a project's real, published sdist archive
 (vendored once, offline -- no network access at test time) plus an
 ``expected.json`` sidecar recording its declared build backend, license,
-and the real published wheel's file list (captured once when the fixture
-was added, the wheel itself never committed). One shared extraction
-helper here, rather than duplicating "open the sdist archive, find the
-one top-level directory inside it" per test file -- every backend's
-discovery test needs the exact same two lines.
+and the real published wheel's file list (the wheel itself is not
+committed). One shared extraction helper serves every backend's discovery
+test: open the sdist archive, find its one top-level directory.
 
 See also: ``tests/fixtures/real-world-projects/README.md`` for the
 per-project table and provenance; ``working-docs/implementation/
@@ -78,8 +76,8 @@ def extract_sdist(project_dir: Path, dest: Path) -> Path:
     (typically a test's ``tmp_path``), returning the extracted project
     root -- the single top-level directory every sdist archive contains.
 
-    Pure local extraction, no network access: the archive itself was
-    already vendored into the repo when the fixture was added.
+    Pure local extraction, no network access: the archive is vendored in
+    the repo.
     """
     manifest = load_expected(project_dir)
     sdist_path = project_dir / manifest["sdist_filename"]

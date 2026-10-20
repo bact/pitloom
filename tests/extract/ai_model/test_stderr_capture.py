@@ -142,7 +142,7 @@ def test_without_a_stderr_attribute_access_is_answered_by_a_null_stream() -> Non
 
 def test_without_a_stderr_other_threads_write_nothing_and_do_not_fail() -> None:
     """``sys.stderr`` is ``None`` under ``pythonw``: a thread that is not
-    capturing used to get an ``AttributeError`` while another captured."""
+    capturing does not fail while another captures."""
     errors: list[BaseException] = []
 
     def other() -> None:
@@ -187,8 +187,8 @@ def test_two_overlapping_threads_leave_stderr_as_found(
     caplog: pytest.LogCaptureFixture,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Regression: with ``redirect_stderr``, thread A leaving before thread B
-    left the process with A's sink as ``sys.stderr`` for good."""
+    """With ``redirect_stderr``, thread A leaving before thread B restores the
+    original ``sys.stderr``."""
     gate = {f"{k}-{n}": threading.Event() for k in ("in", "go") for n in "AB"}
     _fake_fickling(monkeypatch, gate)
     before = sys.stderr
