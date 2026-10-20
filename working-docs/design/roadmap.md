@@ -229,8 +229,10 @@ unless the linked doc says so.
   `DatasetReference.role`, whose names are provisional). See
   [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md),
   [docs/metadata-provenance.md](../../docs/metadata-provenance.md).
-- [ ] **Dataset splits** (a dataset's parts, train/test, under the whole).
-  See [dataset-splits.md](dataset-splits.md).
+- [ ] **Dataset splits**: read Croissant `cr:Split` record sets; record each
+  stated split as a `DatasetPackage` under the whole one (`contains`); then
+  raise a part-and-intended-use question with SPDX. Never link a model to a
+  split no source states. See [dataset-splits.md](dataset-splits.md).
 - [ ] **AI model id stability** beyond what registry v3 built (the other
   AIPackage lookups gated by sha256). See
   [ai-model-id-stability.md](ai-model-id-stability.md).

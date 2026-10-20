@@ -49,23 +49,43 @@ different data from each. Two levels:
   3.0.1 model file (`tests/fixtures/spdx-model/v3.0.1/spdx-model.ttl`), not from
   the rendered pages: only `datasetType` has a minimum of 1 there.
 
-## Proposal (not decided)
+## Options (SPDX 3.0.1 terms)
 
-One whole-dataset package; one small element per part, linked by `contains`;
-the model points `trainedOn` / `testedOn` at the part. Since a Hub split is a
-set of files, the part may be a `software_File` group rather than a second
-`DatasetPackage`; to decide against Croissant's split record sets. Because the role sits on
-the relationship, no "split type" is needed, only a standard way to say which
-part. Raise with the SPDX AI/Dataset profile group only if `contains` plus a
-naming convention proves insufficient: a controlled name for a part's role, and
-whether a part inherits the whole's licence and creator.
+1. Nothing: one package for the whole; `trainedOn` / `testedOn` point at it.
+   Today's behaviour; no per-part information.
+2. **Chosen direction.** One `DatasetPackage` per split, named as the source
+   names it (Croissant `splits/name`), under the whole by `contains`; the model's
+   `trainedOn` / `testedOn` point at the split. Facts that belong to the whole
+   (licence, creator, version) stay on the whole; a split carries only what
+   differs (size, files). The role stays on the relationship, so no split type
+   is needed.
+3. A `software_File` group per split (fits the Hub, where a split is files;
+   fits a Croissant record partition less well).
+4. Describe the splits in the dataset's `comment` (no machine reading).
+
+## Rules for option 2
+
+- Only a split the source states is recorded; never invented.
+- Pitloom links a model to a split only when a source says which split was
+  used. Croissant lists a dataset's splits, not which one a model used; else
+  the model links to the whole.
+- Use the `splits/name` value as written; Croissant's `cr:TrainingSplit` (spec
+  example) and `croissant:TrainSplit` (ontology) disagree.
+- A split is a record set of type `cr:Split`, a field of any name referencing
+  it. The reader needs one stated rule for that.
+- Checkers judge each `DatasetPackage`: a split must not look incomplete for
+  lacking the whole's creator or licence.
+
+## SPDX proposal (after option 2 has been tried)
+
+`contains` says a part is inside the whole; nothing standard says what the part
+is for. Raise with the SPDX AI/Dataset profile group: a way to state a part's
+intended use, and whether a part inherits the whole's licence and creator. Bring
+concrete gaps found while building option 2, not a design in advance.
 
 ## Risks
 
-- Checkers judge each part: a missing producer counts for the whole and each
-  part. Parts should carry only what differs.
-- Reachability: parts need the `trainedOn`/`testedOn` edge, the whole needs
-  `contains`.
-- Sources rarely state parts. A part is never invented; absent stays absent.
-- `trainedOn` the whole and `trainedOn` a part both read as valid and differ:
-  one stated rule for which Pitloom emits.
+- `trainedOn` the whole and `trainedOn` a split are both valid and differ: one
+  stated rule for which Pitloom emits.
+- Reachability: the checkers follow `contains` and `trainedOn` / `testedOn`, so
+  a split reached only through `contains` is judged as a dataset.
