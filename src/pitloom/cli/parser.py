@@ -245,7 +245,10 @@ def _build_parent_parser() -> argparse.ArgumentParser:
         default=None,
         choices=sorted(VALID_CREATOR_TYPES),
         metavar="TYPE",
-        help=f"Type of creator ({', '.join(sorted(VALID_CREATOR_TYPES))}).",
+        help=(
+            f"Type of creator ({', '.join(sorted(VALID_CREATOR_TYPES))}). "
+            "A software-agent is the SBOM's author, never the package's supplier."
+        ),
     )
     creator_group.add_argument(
         "--creator-email",

@@ -390,8 +390,13 @@ creator. `--creation-tool` records *what* produced the SBOM (default
 loom project . --creator-name "Alice" --creator-email "alice@example.com"
 loom project . --creator-name "Acme Corp" --creator-type organization
 loom project . --creator-name "Acme Corp" --creator-type organization --creator-name Alice
+loom project . --creator-name "My CI service" --creator-type software-agent
 loom project . --creation-datetime "2026-01-15T10:00:00Z" --creation-comment "CI run #123"
 ```
+
+A `software-agent` creator (a service that runs Pitloom) is the SBOM's author;
+it is never the main package's supplier, which stays the first person,
+organisation or generic-agent creator, or none.
 
 The same fields can be set in `pyproject.toml`. CLI flags take precedence,
 replacing the whole list rather than merging:
