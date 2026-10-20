@@ -229,6 +229,8 @@ unless the linked doc says so.
   `DatasetReference.role`, whose names are provisional). See
   [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md),
   [docs/metadata-provenance.md](../../docs/metadata-provenance.md).
+- [ ] **Dataset splits** (a dataset's parts, train/test, under the whole).
+  See [dataset-splits.md](dataset-splits.md).
 - [ ] **AI model id stability** beyond what registry v3 built (the other
   AIPackage lookups gated by sha256). See
   [ai-model-id-stability.md](ai-model-id-stability.md).

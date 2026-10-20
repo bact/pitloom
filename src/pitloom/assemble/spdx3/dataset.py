@@ -19,6 +19,7 @@ from pitloom.assemble.spdx3._display_text import (
 from pitloom.assemble.spdx3.deps_license import add_license_relationships
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.ai_metadata import AiModelMetadata
+from pitloom.core.dataset_merge import merge_dataset_references
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
@@ -260,9 +261,13 @@ def add_datasets_for_model(
     encoder: ProvenanceEncoder | None = None,
     dataset_creation_info: dict[str, spdx3.CreationInfo] | None = None,
 ) -> list[tuple[str, spdx3.Element]]:
-    """Build ``dataset_DatasetPackage`` and relationship elements for each
-    dataset reference; return the elements holding display text, labelled
-    for :func:`~pitloom.assemble.spdx3._ai_package.finish_ai_package`.
+    """Build a ``dataset_DatasetPackage`` for each dataset and one
+    relationship per role the model has to it; return the elements holding
+    display text, labelled for
+    :func:`~pitloom.assemble.spdx3._ai_package.finish_ai_package`.
+
+    References to one dataset (:mod:`pitloom.core.dataset_merge`) give one
+    package, its elements built once.
 
     Each dataset's name and creator name is cut as *ai_model*'s own name
     is, with the warning naming *ai_model*
@@ -278,12 +283,15 @@ def add_datasets_for_model(
             existing call site.
     """
     created: list[tuple[str, spdx3.Element]] = []
-    for dataset_ref in datasets:
-        meta = dataset_ref.metadata
-        element_creation_info = (
-            dataset_creation_info.get(meta.name, creation_info)
-            if dataset_creation_info
-            else creation_info
+    for dataset in merge_dataset_references(datasets):
+        meta = dataset.metadata
+        element_creation_info = next(
+            (
+                dataset_creation_info[name]
+                for name in dataset.names
+                if dataset_creation_info and name in dataset_creation_info
+            ),
+            creation_info,
         )
         dataset_pkg = _build_dataset_package(
             meta, element_creation_info, doc_name, doc_uuid
@@ -328,14 +336,15 @@ def add_datasets_for_model(
             encoder,
         )
 
-        rel = _dataset_relationship(
-            ai_package_spdx_id,
-            dataset_pkg,
-            dataset_ref.role,
-            element_creation_info,
-            (doc_name, doc_uuid),
-        )
-        if rel:
-            exporter.add_relationship(rel)
-            created.append((DATASET_RELATIONSHIP, rel))
+        for role in dataset.roles:
+            rel = _dataset_relationship(
+                ai_package_spdx_id,
+                dataset_pkg,
+                role,
+                element_creation_info,
+                (doc_name, doc_uuid),
+            )
+            if rel:
+                exporter.add_relationship(rel)
+                created.append((DATASET_RELATIONSHIP, rel))
     return created

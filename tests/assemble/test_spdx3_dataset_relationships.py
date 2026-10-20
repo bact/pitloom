@@ -222,3 +222,51 @@ def test_document_no_dataset_profile_when_no_datasets() -> None:
     spdx_doc = next(e for e in graph if e.get("type") == "SpdxDocument")
     conformance = spdx_doc.get("profileConformance", [])
     assert not any("dataset" in str(c) for c in conformance)
+
+
+# ---------------------------------------------------------------------------
+# add_datasets_for_model -- one dataset, several roles
+# ---------------------------------------------------------------------------
+
+
+def _graph(datasets: list[DatasetReference]) -> list[dict[str, object]]:
+    _clear_doc_counters(_DOC_UUID)
+    exporter = _make_exporter()
+    ai_spdx_id = generate_spdx_id("AIPackage", doc_name=_DOC_NAME, doc_uuid=_DOC_UUID)
+    _add(ai_spdx_id, datasets, _make_ci(), exporter)
+    graph: list[dict[str, object]] = json.loads(exporter.to_json())["@graph"]
+    return graph
+
+
+def test_same_dataset_in_two_roles_is_one_package_with_two_relationships() -> None:
+    meta = DatasetMetadata(name="o/d", creator="Org", license="MIT")
+    graph = _graph(
+        [
+            DatasetReference("trainedOn", meta),
+            DatasetReference("testedOn", DatasetMetadata(name="O/D", version="2")),
+        ]
+    )
+    packages = [e for e in graph if e.get("type") == "dataset_DatasetPackage"]
+    rels = [e for e in graph if e.get("type") == "Relationship"]
+    assert [p["name"] for p in packages] == ["o/d"]
+    assert packages[0]["software_packageVersion"] == "2"  # filled from the second
+    kinds = [str(r["relationshipType"]) for r in rels]
+    assert kinds.count("trainedOn") == 1 and kinds.count("testedOn") == 1
+    targets = {
+        t
+        for r in rels
+        if str(r["relationshipType"]) in ("trainedOn", "testedOn")
+        for t in r["to"]  # type: ignore[attr-defined]
+    }
+    assert targets == {packages[0]["spdxId"]}
+    assert len([e for e in graph if e.get("type") == "Agent"]) == 1
+
+
+def test_the_same_role_twice_gives_one_relationship() -> None:
+    graph = _graph(
+        [
+            DatasetReference("trainedOn", DatasetMetadata(name="a")),
+            DatasetReference("trainedOn", DatasetMetadata(name="a")),
+        ]
+    )
+    assert len([e for e in graph if e.get("type") == "Relationship"]) == 1
