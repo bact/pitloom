@@ -203,14 +203,20 @@ def json_nests_over(raw: bytes, limit: int) -> bool:
     return False
 
 
+_UNPRINTABLE = re.compile("[\x00-\x1f\x7f-\x9f\ud800-\udfff]")
+
+
 def quote_source(source: str | Path) -> str:
-    """*source* in quotes, written as the OS writes it.
+    """*source* in quotes, written as the OS writes it, on one line.
 
     ``repr()`` of a :class:`~pathlib.Path` shows ``WindowsPath('D:/a/b')``
     (forward slashes) and of a ``str`` doubles each backslash; neither matches
-    ``str(path)``, which a reader of the message looks for.
+    ``str(path)``, which a reader of the message looks for. Only control
+    characters and lone surrogates are escaped (``\\n``-style), so a name with
+    a newline cannot split the message over two lines.
     """
-    return f"'{source}'"
+    text = _UNPRINTABLE.sub(lambda match: ascii(match.group())[1:-1], str(source))
+    return f"'{text}'"
 
 
 def fetch_json(

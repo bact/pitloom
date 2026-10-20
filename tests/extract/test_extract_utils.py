@@ -23,6 +23,7 @@ from pitloom.extract._extract_utils import (
     fetch_json,
     filename_from_url,
     json_nests_over,
+    quote_source,
     sanitize_provenance_text,
     sanitize_url_credentials,
 )
@@ -274,3 +275,19 @@ def test_fetch_json_error_names_the_source_as_the_os_writes_it(
     with pytest.raises(ValueError, match="Cannot read source") as excinfo:
         fetch_json(source)
     assert f"'{source}'" in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("a\nb.json", r"'a\nb.json'"),
+        ("a\x1b[31m.json", r"'a\x1b[31m.json'"),
+        ("a\udc80.json", r"'a\udc80.json'"),
+        ("é.json", "'é.json'"),
+    ],
+)
+def test_quote_source_escapes_only_what_would_break_a_line(
+    source: str, expected: str
+) -> None:
+    """Control characters and lone surrogates are escaped; text is not."""
+    assert quote_source(source) == expected
