@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-20
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -251,6 +251,10 @@ unless the linked doc says so.
   [docs/fragments.md](../../docs/fragments.md).
 - [ ] **Remote repository and forge ingestion** (`loom project <url>`). See
   [remote-source-ingestion.md](remote-source-ingestion.md).
+- [ ] **PyPI package ingestion** (`loom pypi <name>[==version]`): resolve a release
+  through the JSON API, take its sdist or wheel, verify the digest, build the
+  SBOM; first consumer Lumina. See
+  [remote-source-ingestion.md](remote-source-ingestion.md#pypi-package-ingestion-loom-pypi-nameversion).
 - [ ] **VEX output format** (CSAF v2.0 vs OpenVEX), after the OSV lookup.
   See [osv-vulnerability-lookup.md](osv-vulnerability-lookup.md#relationship-to-csafvex).
 - [ ] **Author strings: NLP / named-entity recognition** (candidate): span
