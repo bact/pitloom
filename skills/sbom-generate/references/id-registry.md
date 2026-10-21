@@ -52,9 +52,13 @@ every key, so every command and the Python SDK agree on it.
   only from an explicit `pitloom_config=`). A package whose path exists below
   the root is keyed by that path (`data/t.txt`, `./data/t.txt` and an absolute
   path are one package per run), anything else (URL, missing or outside-the-root
-  path) by the exact string, so two spellings of one missing path are two
-  packages. `add_output_dataset(input_datasets=...)` matches the string an input
-  was declared with, not its key: another spelling logs a `WARNING:` and skips
+  path) by the name as first declared. In one run, names that differ only by
+  whitespace runs or, for a Hugging Face repository id, case (`Org/Data`,
+  `org/data`) are one package, as for a model card's datasets; the registry
+  is asked for the first spelling only (an id pinned under a later one is not
+  used, with a `WARNING:`). Two spellings of one missing path (`./a`, `a`)
+  are two packages. `add_output_dataset(input_datasets=...)`
+  matches the string an input was declared with, not its key: another spelling logs a `WARNING:` and skips
   the link. An entry **with** a SHA-256 is content-gated (a file's SHA-256, a
   directory's Merkle root): a refreshed dataset, or a file added to a
   directory, is a new package id. An entry **without** one (a pin made

@@ -29,7 +29,7 @@ from pitloom.core.dataset_metadata import (
     DatasetReference,
     is_placeholder,
 )
-from pitloom.core.dataset_names import dataset_key
+from pitloom.core.dataset_names import dataset_key, log_one_dataset
 from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
@@ -126,6 +126,7 @@ def merge_dataset_references(
         if reference.role not in known.roles:
             known.roles.append(reference.role)
         if reference.metadata.name not in known.names:
+            log_one_dataset(known.names[0], reference.metadata.name)
             known.names.append(reference.metadata.name)
         _merge_into(known.metadata, reference.metadata, warned[key])
     return list(merged.values())

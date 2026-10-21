@@ -144,8 +144,9 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
 - [x] **Support tiers and demo scope** (tier 1: Safetensors, ONNX, GGUF, NumPy,
   fastText, Hugging Face Hub; demo: G7 Metadata/System/Model/Dataset, SPDX 3.0,
   Hatchling, setuptools, Poetry) and the parity ledger, on the user page
-  `docs/g7-sbom-for-ai.md`. Open, target 2026-10-19: a Hub model's file hash,
-  dataset provenance and statistics, tier 2 beyond keeping them working. See
+  `docs/g7-sbom-for-ai.md`. Open, target 2026-10-19 (missed; still open on
+  2026-10-20): a Hub model's file hash, dataset provenance and statistics,
+  tier 2 beyond keeping them working. See
   [support-tiers-and-demo-scope.md](support-tiers-and-demo-scope.md).
 - [x] **G7 honesty notices** (2026-10-18): one `INFO:` per model naming a G7
   element read from a source that SPDX 3.0.1 has no property for. Today only
@@ -162,8 +163,9 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   "an integrity method is present" only.
 - [x] **FSCT 2024 conformance tests** (`fsct3` in the checker): the same table,
   report and surface-parity tests; coverage in `g7-coverage-history/fsct3-*.json`.
-- [x] CHANGELOG entries for the 2026-10 G7/CISA/FSCT/SHA-512 work (#309) and
-  the Hub model description fix (#310).
+- [x] CHANGELOG entries for the 2026-10 G7/CISA/FSCT/SHA-512 work (#309), the
+  Hub model description fix (#310) and the dataset and creator fixes (#311,
+  #312, #314).
 - [x] **BSI TR-03183-2 v2.1 as a rule-based standard**: the checker ships
   `rules/bsi.yaml` with per-rule outcomes (the hand-written `BSIChecker` is
   removed); `bsi-expected.tsv` and the surface-parity tests cover it. Ontology
@@ -182,6 +184,18 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   cache path, one reference per dataset and a `datasets:` cap, YAML 1.1 and
   generated-input tests. See
   [dataset-licence-readers.md](dataset-licence-readers.md).
+- [x] **One dataset, one package, one relationship per role** (PR #311): a
+  dataset a model card, a Croissant file and a Hub card all name is one
+  `DatasetPackage`; the first reference's values win, later ones fill only
+  unset fields, a conflict warns once per field. `loom.Run` folds spellings the
+  same way (PR #314: `Org/Data` is `org/data`, an existing path never folded),
+  one `INFO:` for a folded spelling and a `WARNING:` for a registry id pinned
+  under a later one. See
+  [ai-dataset-linking.md](../implementation/ai-dataset-linking.md).
+- [x] **A software-agent creator is the author, not the supplier** (PR #312):
+  the main package's `suppliedBy` takes the first creator that is not a
+  `software-agent`, else none. Lumina reports itself as the author and Pitloom
+  as the tool.
 - [x] **#6 Model producer and parameter count** from structured sources
   (PR #306): `originatedBy` Agents and the `parameters` hyperparameter
   entry. See

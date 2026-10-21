@@ -129,6 +129,8 @@ and this project adheres to
   no name, licence or URL, and Hub card warnings name no cache path ([#311])
 - The main package's `suppliedBy` is never a `software-agent` creator: the next
   creator is taken, or none is set ([#312])
+- `loom.Run` names a dataset as a model card does (`Org/Data` is `org/data`, a file
+  never folded); a folded spelling is said once by an `INFO:` ([#314])
 - The NumPy reader type-checks on numpy 2.3 and 2.5 alike: no `type: ignore` that
   one of the two calls unused ([#315])
 
@@ -140,6 +142,7 @@ and this project adheres to
 [#310]: https://github.com/bact/pitloom/pull/310
 [#311]: https://github.com/bact/pitloom/pull/311
 [#312]: https://github.com/bact/pitloom/pull/312
+[#314]: https://github.com/bact/pitloom/pull/314
 [#315]: https://github.com/bact/pitloom/pull/315
 
 ## [0.20.2] - 2026-10-09
