@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -55,6 +55,10 @@ the day it was added (2026-10-02 to 2026-10-15).
   packed versions, standard keys, parameter-count shapes).
 - [messages-and-surfaces.md](messages-and-surfaces.md): absent vs
   failed; one message per event; surfaces that drift apart.
+- [datasets-and-reproducible-results.md](datasets-and-reproducible-results.md):
+  one dataset under several names and capture routes; who made the SBOM versus
+  who supplies the component; conformance counts that depend on the machine;
+  what a CI matrix found; review rounds of PR #311 to #315.
 - [open-research-questions.md](open-research-questions.md): where the
   formats cannot say what a generator needs (a string that may be one value
   or a list, author kinds, extras and scope, backend disagreements,
