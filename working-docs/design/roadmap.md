@@ -397,6 +397,10 @@ Recorded findings; each is fixable on its own.
 - [ ] **SARIF output** for CI findings. See [sarif-output.md](sarif-output.md).
 - [ ] **Docker container action** (`using: docker`) for hermetic or
   self-hosted runners. See [adoption-surfaces.md](adoption-surfaces.md).
+- [ ] **SBOM format gaps ledger**: every mismatch or gap that makes a fact
+  impossible to record precisely is noted in
+  [sbom-format-gaps.md](sbom-format-gaps.md), for change proposals to SPDX (and
+  CycloneDX once written).
 - [ ] **External work to review**: Red Hat AI system card, OASIS Data
   Provenance Standard (provenance taxonomy redesign), ETSI TR 104 180 data
   quality metrics. See [external-references-to-review.md](external-references-to-review.md).
