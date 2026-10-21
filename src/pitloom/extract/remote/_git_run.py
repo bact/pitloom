@@ -12,11 +12,13 @@ import logging
 import os
 import shlex
 import shutil
+import signal
 import subprocess
 import tempfile
 import threading
 import time
 from dataclasses import dataclass, field
+from typing import IO, cast
 
 from pitloom.extract._extract_utils import sanitize_url_credentials
 from pitloom.extract.remote.errors import RemoteSourceError
@@ -92,6 +94,17 @@ class GitRunner:
         return out
 
 
+def _kill(proc: subprocess.Popen[bytes]) -> None:
+    """Kill *proc* and, where it has its own process group, what it started."""
+    if os.name == "posix":
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:  # already gone
+            pass
+    else:  # pragma: no cover
+        proc.kill()
+
+
 def _capture(command: list[str], seconds: float) -> tuple[int | None, str | None, str]:
     """Run *command* for at most *seconds*: its exit status (``None`` when
     killed for time), its standard output (``None`` when over
@@ -103,28 +116,31 @@ def _capture(command: list[str], seconds: float) -> tuple[int | None, str | None
             stdout=subprocess.PIPE,
             stderr=err_file,
             env=env,
+            # Its own process group, so a kill reaches what git started
+            # (git-remote-https holds the pipe open).
+            start_new_session=os.name == "posix",
         ) as proc:
             timed_out = threading.Event()
 
             def expire() -> None:
                 timed_out.set()
-                proc.kill()
+                _kill(proc)
 
             timer = threading.Timer(seconds, expire)
             timer.start()
             chunks: list[bytes] = []
             size = 0
             too_large = False
-            stdout = proc.stdout
+            stdout = cast(IO[bytes], proc.stdout)  # a pipe: set by PIPE
             try:
-                while stdout is not None:
+                while True:
                     block = stdout.read(_READ_CHUNK)
                     if not block:
                         break
                     size += len(block)
                     if size > MAX_OUTPUT_BYTES:
                         too_large = True
-                        proc.kill()
+                        _kill(proc)
                         break
                     chunks.append(block)
             finally:

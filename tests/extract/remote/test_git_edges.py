@@ -1,0 +1,243 @@
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+"""The edges of Git fetching: a ``git`` that hangs, floods or fails, hostile
+ref listings, the monorepo hint's limits, and what a URL's text may be.
+
+A stand-in ``git`` program (a script first on ``PATH``) plays the server's
+side, so no network and no real repository is involved.
+"""
+
+from __future__ import annotations
+
+import logging
+import stat
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+from pitloom.extract.remote import RemoteSourceError, git, git_url
+from pitloom.extract.remote._git_folder import subproject_hint
+from pitloom.extract.remote._git_run import GitRunner, _kill
+from pitloom.extract.remote.git import GitCheckout, _resolve, _target
+from pitloom.extract.remote.git_url import (
+    GitPage,
+    is_unsupported_remote_url,
+    parse_git_page,
+    scheme_allowed,
+)
+
+posix_only = pytest.mark.skipif(
+    sys.platform == "win32", reason="a shell script stands in for git"
+)
+
+
+def _fake_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, body: str) -> None:
+    """Put a ``git`` that runs the shell *body* first on ``PATH``."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    script = bin_dir / "git"
+    script.write_text(f"#!/bin/sh\n{body}\n", encoding="utf-8")
+    script.chmod(script.stat().st_mode | stat.S_IEXEC)
+    monkeypatch.setenv("PATH", f"{bin_dir}:/usr/bin:/bin")
+
+
+@posix_only
+def test_a_git_that_outlives_the_deadline_is_killed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``git.timeout``, and the call returns when the deadline does."""
+    _fake_git(tmp_path, monkeypatch, "sleep 30")
+    with pytest.raises(RemoteSourceError) as excinfo:
+        GitRunner(seconds=0.5).run(["ls-remote"], "ls-remote")
+    assert excinfo.value.code == "git.timeout"
+
+
+@posix_only
+def test_a_git_that_floods_its_output_is_killed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """More output than the cap: ``git.output-too-large``."""
+    _fake_git(tmp_path, monkeypatch, "yes | head -c 20000000")
+    with pytest.raises(RemoteSourceError) as excinfo:
+        GitRunner().run(["ls-remote"], "ls-remote")
+    assert excinfo.value.code == "git.output-too-large"
+
+
+@posix_only
+def test_a_failing_git_reports_its_message_without_credentials(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``git.clone-failed`` carries git's own stderr; a password in it is
+    masked; an empty stderr says the exit status."""
+    _fake_git(
+        tmp_path,
+        monkeypatch,
+        "echo 'fatal: unable to access https://u:secret@h/r' >&2; exit 128",
+    )
+    with pytest.raises(RemoteSourceError) as excinfo:
+        GitRunner().run(["clone"], "clone", echo=False)
+    assert "secret" not in str(excinfo.value) and "***:***@h/r" in str(excinfo.value)
+    _fake_git(tmp_path / "again", monkeypatch, "exit 3") if (
+        tmp_path / "again"
+    ).mkdir() is None else None
+    with pytest.raises(RemoteSourceError, match="git exited 3"):
+        GitRunner().run(["clone"], "clone")
+
+
+@posix_only
+def test_the_command_is_echoed_in_an_info_without_credentials(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Each call is one ``INFO:``; a ``user:password@`` is masked; a call made
+    quietly says nothing."""
+    _fake_git(tmp_path, monkeypatch, "exit 0")
+    with caplog.at_level(logging.INFO):
+        GitRunner().run(["ls-remote", "--", "https://u:pw@h/r"], "ls-remote")
+        GitRunner().run(["rev-parse"], "rev-parse", echo=False)
+    lines = [r.getMessage() for r in caplog.records]
+    assert len(lines) == 1 and "***:***@h/r" in lines[0] and "pw@" not in lines[0]
+
+
+class _Listing:
+    """A stand-in runner answering ``ls-remote`` with fixed text."""
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+    def run(self, _args: list[str], _what: str, *, echo: bool = True) -> str:
+        """Return the listing."""
+        assert echo
+        return self.text
+
+
+def test_a_hostile_ref_listing_cannot_make_a_ref_or_folder_up() -> None:
+    """Lines that are no ``branch`` or ``tag`` ref (no tab, other namespaces,
+    blank, odd names) add nothing; the longest real ref still wins."""
+    lines = [
+        "",
+        "no-tab-here",
+        "abc\trefs/pull/1/head",
+        "abc\trefs/heads/",
+        "abc\trefs/heads/main",
+        "abc\trefs/heads/main/x",
+        "abc\trefs/tags/v1",
+        "abc\trefs/heads/dup",
+        "abc\trefs/tags/dup",
+    ]
+    listing = "\n".join(lines)
+    page = GitPage("https://h/o/r", ("main", "x", "dir"), kind=None)
+    target = _target(_Listing(listing), "https://h/o/r", page)  # type: ignore[arg-type]
+    assert (target.ref, target.subdir) == ("main/x", "dir")
+
+
+def test_a_page_that_is_not_a_repository_with_the_same_url_is_not_retried(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When the whole URL is the repository already (nothing to fall back to),
+    or the failure is not "not a repository", the error stands."""
+
+    class Failing:
+        """A runner whose ``ls-remote`` fails with a chosen code."""
+
+        def __init__(self, code: str) -> None:
+            self.code = code
+
+        def run(self, *_args: object, **_kwargs: object) -> str:
+            """Raise."""
+            raise RemoteSourceError(self.code, "boom")
+
+    monkeypatch.setattr(git, "resolve_git_url", lambda url, _check: url)
+    same = GitPage("https://h/o/r", ("main",), plain_url="https://h/o/r")
+    with pytest.raises(RemoteSourceError, match="boom"):
+        _resolve(Failing("git.clone-failed"), same, None)  # type: ignore[arg-type]
+    other = GitPage("https://h/o", ("main",), plain_url="https://h/o/src/r")
+    with pytest.raises(RemoteSourceError) as excinfo:
+        _resolve(Failing("git.timeout"), other, None)  # type: ignore[arg-type]
+    assert excinfo.value.code == "git.timeout"
+
+
+def test_a_failure_of_the_project_is_explained_only_when_there_is_a_hint(
+    tmp_path: Path,
+) -> None:
+    """A folder with no project but projects below it turns a failure into
+    ``git.no-project``; a failure that is already a ``RemoteSourceError`` or
+    has no hint passes untouched."""
+    plain = GitCheckout(str(tmp_path), "u", None, "c", "", True)
+    with pytest.raises(ValueError, match="plain"), plain.explaining_failures():
+        raise ValueError("plain")
+    with pytest.raises(RemoteSourceError) as excinfo, plain.explaining_failures():
+        raise RemoteSourceError("git.clone-failed", "kept")
+    assert excinfo.value.code == "git.clone-failed"
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "setup.py").write_text("", encoding="utf-8")
+    with pytest.raises(RemoteSourceError) as excinfo, plain.explaining_failures():
+        raise ValueError("no project")
+    assert excinfo.value.code == "git.no-project"
+    assert "no project" in str(excinfo.value) and "sub" in str(excinfo.value)
+
+
+def test_the_hint_looks_a_few_folders_deep_only(tmp_path: Path) -> None:
+    """A project five folders down is not listed; a checkout with no project
+    anywhere has no hint."""
+    deep = tmp_path / "a" / "b" / "c" / "d" / "e"
+    deep.mkdir(parents=True)
+    (deep / "setup.py").write_text("", encoding="utf-8")
+    assert subproject_hint(str(tmp_path), True) == ""
+    (tmp_path / "a" / "b" / "c" / "setup.py").write_text("", encoding="utf-8")
+    assert "a/b/c" in subproject_hint(str(tmp_path), True)
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("ssh://git@host/o/r.git", True),
+        ("git://host/o/r.git", True),
+        ("file:///tmp/r", True),
+        ("ftp://h/x", True),
+        ("git@github.com:o/r.git", True),
+        ("user@host:path/r", True),
+        (" ssh://h/r ", True),
+        ("https://github.com/o/r", False),
+        ("https://huggingface.co/o/m", False),
+        ("C:\\\\work\\\\proj", False),
+        ("C:/work/proj", False),
+        ("./proj", False),
+        ("a@b:/abs", False),
+        ("plain", False),
+        ("", False),
+    ],
+)
+def test_which_addresses_are_remote_but_not_fetched(
+    source: str, expected: bool
+) -> None:
+    """An ssh, git, file or scp-style address is told apart from a path, a
+    Windows drive and a supported URL."""
+    assert is_unsupported_remote_url(source) is expected
+
+
+def test_a_broken_url_is_not_an_allowed_scheme() -> None:
+    """``urlsplit`` raising (a bracket without its pair) is a refusal."""
+    assert not scheme_allowed("http://[::1")
+    assert parse_git_page("https://").repo_name == ""
+
+
+def test_the_allowed_schemes_can_be_widened_for_a_test_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The set is read when asked, so a test can allow ``file:``."""
+    monkeypatch.setattr(git_url, "ALLOWED_SCHEMES", frozenset({"file"}))
+    assert scheme_allowed("file:///x") and not scheme_allowed("https://h/x")
+
+
+@posix_only
+def test_killing_a_process_that_is_already_gone_is_harmless() -> None:
+    """A deadline that fires as git exits finds no process group: no error."""
+    proc = subprocess.Popen(  # nosec B603: fixed argv
+        [sys.executable, "-c", "pass"], start_new_session=True
+    )
+    proc.wait()
+    _kill(proc)

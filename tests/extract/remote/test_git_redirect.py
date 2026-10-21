@@ -25,7 +25,10 @@ import pytest
 from pitloom.extract.remote import _git_redirect
 from pitloom.extract.remote._git_redirect import (
     MAX_REDIRECTS,
+    PROBE_FAILED_INFO,
     REDIRECT_INFO,
+    REDIRECT_REFUSED_WARNING,
+    _probe_url,
     resolve_git_url,
 )
 from pitloom.extract.remote.errors import RemoteSourceError
@@ -264,3 +267,103 @@ def test_a_bad_port_is_an_invalid_url() -> None:
     with pytest.raises(RemoteSourceError) as excinfo:
         resolve_git_url("http://host:notaport/g/p")
     assert excinfo.value.code == "git.url-invalid"
+
+
+@pytest.mark.parametrize(
+    ("location", "why"),
+    [
+        ("file:///etc/info/refs", "only http and https are followed"),
+        ("ssh://example.org/x/info/refs", "only http and https are followed"),
+        ("/users/sign_in", "it does not lead to a repository (a sign-in page?)"),
+    ],
+    ids=["file", "ssh", "sign-in"],
+)
+def test_a_redirect_that_is_not_followed_is_said_in_a_warning(
+    location: str, why: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Not following is never silent: one ``WARNING:`` names the URL asked,
+    the target and why; the URL is then left to git."""
+    with _server({"/g/p/info/refs": lambda _p: location}) as base:
+        with caplog.at_level(logging.WARNING):
+            assert resolve_git_url(base + "/g/p") == base + "/g/p"
+    target = location if "://" in location else base + location
+    assert [r.getMessage() for r in caplog.records] == [
+        REDIRECT_REFUSED_WARNING % (base + "/g/p", target, why)
+    ]
+
+
+@pytest.mark.parametrize(
+    ("routes", "why"),
+    [
+        ({"/g/p/info/refs": lambda _p: None}, None),
+        ({}, None),
+    ],
+    ids=["answers-200", "not-routed-200"],
+)
+def test_a_server_that_does_not_redirect_says_nothing(
+    routes: Routes, why: str | None, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A plain 200 is the normal answer: no ``INFO:`` or ``WARNING:``."""
+    with _server(routes) as base, caplog.at_level(logging.INFO):
+        resolve_git_url(base + "/g/p")
+    assert caplog.records == []
+
+
+def test_a_probe_that_cannot_be_made_is_said_in_an_info(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Unreachable server or an HTTP error: one ``INFO:`` with the reason; the
+    URL goes to git, whose message the user sees."""
+    with caplog.at_level(logging.INFO):
+        down = "http://127.0.0.1:9/g/p"
+        assert resolve_git_url(down) == down
+    assert [r.getMessage() for r in caplog.records] == [
+        PROBE_FAILED_INFO % (down, "ConnectionRefusedError")
+    ]
+
+
+def test_an_http_error_status_is_said_in_an_info(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A 404 (a private or missing repository) is named, not swallowed."""
+
+    class NotFound(http.server.BaseHTTPRequestHandler):
+        """Answer every request with 404."""
+
+        def do_GET(self) -> None:  # pylint: disable=invalid-name
+            """Answer 404."""
+            self.send_response(404)
+            self.end_headers()
+
+        def log_message(self, *_args: object) -> None:
+            """Keep the test output quiet."""
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), NotFound)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{server.server_port}/g/p"
+    try:
+        with caplog.at_level(logging.INFO):
+            assert resolve_git_url(url) == url
+    finally:
+        server.shutdown()
+        server.server_close()
+    assert [r.getMessage() for r in caplog.records] == [
+        PROBE_FAILED_INFO % (url, "HTTP 404")
+    ]
+
+
+@pytest.mark.parametrize(
+    ("url", "probe"),
+    [
+        (
+            "http://[::1]:8080/g/p",
+            "http://[::1]:8080/g/p/info/refs?service=git-upload-pack",
+        ),
+        ("https://h/g/p/?x=1#f", "https://h/g/p/info/refs?service=git-upload-pack"),
+        ("http://u:p@h:81/g/p", "http://h:81/g/p/info/refs?service=git-upload-pack"),
+    ],
+    ids=["ipv6", "query-and-fragment", "userinfo-and-port"],
+)
+def test_the_probe_url_is_the_path_of_the_repository(url: str, probe: str) -> None:
+    """Scheme, host (IPv6 in brackets) and port, the path, ``/info/refs``."""
+    assert _probe_url(url) == probe

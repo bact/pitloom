@@ -171,7 +171,8 @@ def resolve_git_url(url: str, check_url: Callable[[str], None] | None = None) ->
     """
     current = url
     deadline = time.monotonic() + PROBE_BUDGET_SECONDS
-    for hop in range(MAX_REDIRECTS + 1):
+    hop = 0
+    while True:
         probe = _probe_url(current)
         found = _probe_within(probe, deadline - time.monotonic())
         if found.location is None:
@@ -189,7 +190,10 @@ def resolve_git_url(url: str, check_url: Callable[[str], None] | None = None) ->
             )
             return current
         if hop == MAX_REDIRECTS:
-            break
+            raise RemoteSourceError(
+                "git.too-many-redirects",
+                f"{_shown(url)} redirects more than {MAX_REDIRECTS} times.",
+            )
         base = urlunsplit(
             (target.scheme, target.netloc, target.path.removesuffix(_INFO_REFS), "", "")
         )
@@ -197,10 +201,7 @@ def resolve_git_url(url: str, check_url: Callable[[str], None] | None = None) ->
             check_url(base)
         log.info(REDIRECT_INFO, _shown(current), _shown(base))
         current = base
-    raise RemoteSourceError(
-        "git.too-many-redirects",
-        f"{_shown(url)} redirects more than {MAX_REDIRECTS} times.",
-    )
+        hop += 1
 
 
 def _not_followed(target: SplitResult) -> str | None:
