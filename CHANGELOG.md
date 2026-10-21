@@ -144,6 +144,7 @@ and this project adheres to
 [#312]: https://github.com/bact/pitloom/pull/312
 [#314]: https://github.com/bact/pitloom/pull/314
 [#315]: https://github.com/bact/pitloom/pull/315
+[#317]: https://github.com/bact/pitloom/pull/317
 
 ## [0.20.2] - 2026-10-09
 
@@ -248,6 +249,9 @@ and this project adheres to
 - A `License ::` classifier is a licence source after the licence field
   (manifests, hook, wheel, sdist, dependencies); `License :: OSI Approved` is
   a category, never a licence ([#276])
+- `loom project`/`loom generate` take a Git repository or page URL (GitHub, GitLab,
+  Gitea/Forgejo, Bitbucket, SourceHut); GitLab redirects followed, INFO names
+  both URLs, `check_url=` guards each hop ([#317])
 
 ### Changed
 

@@ -41,6 +41,7 @@ _SECTION = "### Options with no effect"
 #: docs/cli.md row label -> target kind.
 _ROW_KINDS = {
     "project directory": inert_options.PROJECT,
+    "remote Git repository": inert_options.GIT,
     "sdist archive": inert_options.SDIST,
     "wheel": inert_options.WHEEL,
     "installed environment": inert_options.ENV,
@@ -264,8 +265,9 @@ _PAIRINGS = [
     (inert_options.HF, "generate_model_sbom"),
     (inert_options.MODEL_FILE, "generate_model_sbom"),
     (inert_options.ENRICH, "enrich_model"),
+    (inert_options.GIT, "generate_git_project_sbom"),
 ]
-_NOT_OPTIONS = {"target", "project_target", "build_options"}
+_NOT_OPTIONS = {"target", "project_target", "build_options", "check_url"}
 
 
 def _generate_options() -> list[str]:
@@ -313,7 +315,11 @@ def _cli_options(argv: list[str]) -> list[str]:
 #: Each real caller of ``forward_options()``: the options it can give, with
 #: the kind and delegate it settles them against.
 _CALLERS = [
-    *(("generate()", kind, callee) for kind, callee in _PAIRINGS[:4]),
+    *(
+        ("generate()", kind, callee)
+        for kind, callee in _PAIRINGS
+        if kind != inert_options.ENRICH
+    ),
     ("loom wheel", inert_options.WHEEL, "generate_wheel_sbom"),
     ("loom env", inert_options.ENV, "generate_env_sbom"),
     ("loom model", inert_options.MODEL_FILE, "generate_model_sbom"),

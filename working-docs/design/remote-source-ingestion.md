@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-13
-Last-Modified: 2026-10-20
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -13,6 +13,12 @@ SPDX-License-Identifier: CC0-1.0
 > - [metadata-sources.md](metadata-sources.md) -- metadata extraction precedence and cataloger design
 > - [lock-files.md](lock-files.md) -- lock-file parsing and dependency cascade
 > - [architecture-overview.md](architecture-overview.md) -- overarching SBOM architecture and SPDX 3 model
+
+> **Status (2026-10-21):** `loom project <git-url>` and `loom generate <git-url>`
+> are built for `http`/`https` Git URLs, by shallow `git` clone on every host
+> and not the forge API tarball described below. Not built: tokens, ssh, SBOM
+> provenance (`downloadLocation`, VCS references), tarballs, a cache. See
+> [remote-git-ingestion.md](../implementation/remote-git-ingestion.md).
 
 ## Motivation and vision
 

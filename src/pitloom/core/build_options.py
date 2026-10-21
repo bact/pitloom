@@ -50,6 +50,9 @@ NON_PROJECT_TARGET_REASON = (
     "for this target (no build-backend file discovery applies to "
     "env/wheel/model-file/Hugging-Face targets)"
 )
+REMOTE_REPOSITORY_REASON = (
+    "for a remote repository (it is untrusted: its build backend is never run)"
+)
 EXTERNAL_SBOM_REASON = (
     "for an externally-supplied --sbom (embedded verbatim, never rescanned)"
 )
@@ -196,6 +199,7 @@ __all__ = [
     "EXTERNAL_SBOM_REASON",
     "NO_PROJECT_DIR_REASON",
     "NON_PROJECT_TARGET_REASON",
+    "REMOTE_REPOSITORY_REASON",
     "BuildOptions",
     "SDIST_TARGET_REASON",
 ]

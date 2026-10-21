@@ -219,7 +219,7 @@ def _resolve_bool_cascade(cli_value: bool | None, config_value: bool | None) -> 
 
 
 def _resolve_project_generation_settings(
-    args: argparse.Namespace, project_dir: Path
+    args: argparse.Namespace, project_dir: Path, *, ignore_project_config: bool = False
 ) -> tuple[ProjectMetadata, PitloomConfig, Path | None, _ResolvedCreationMetadata]:
     """Resolve *project_dir*'s metadata, the config that applies to it and
     its creation metadata in one call -- the sequence every
@@ -229,14 +229,19 @@ def _resolve_project_generation_settings(
     ``--config FILE`` replaces the project's own ``[tool.pitloom]``, and the
     returned config path is then that file, so ``--verbose`` names the
     config that actually applied. Its ``use-lockfile`` decides the lock-file
-    cascade when ``--use-lockfile`` is not given.
+    cascade when ``--use-lockfile`` is not given. With *ignore_project_config*
+    (a project fetched from a remote repository, which is untrusted) the
+    project's own ``[tool.pitloom]`` never applies: only ``--config`` does,
+    else the defaults.
     """
     explicit = load_explicit_config(args)
+    if explicit is None and ignore_project_config:
+        explicit = PitloomConfig()
     project_metadata, pitloom_config, config_path = resolve_project_with_lockfile(
         project_dir, args.use_lockfile, explicit
     )
     if explicit is not None:
-        config_path = args.config
+        config_path = getattr(args, "config", None)
     creation = _resolve_creation_metadata(
         args, pitloom_config, config_source_label(config_path)
     )

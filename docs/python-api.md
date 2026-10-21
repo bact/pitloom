@@ -75,6 +75,30 @@ generate_project_sbom(
 )
 ```
 
+A project in a Git repository is read through its URL, with `generate()` or
+`generate_git_project_sbom()`:
+
+```python
+from pitloom.assemble import generate_git_project_sbom
+
+generate_git_project_sbom(
+    "https://gitlab.com/group/project/-/tree/main/services/api",
+    output_path=Path("sbom.spdx3.json"),
+    check_url=my_address_check,  # called with each redirect target before it is asked
+)
+```
+
+The repository is fetched shallowly into a temporary directory that is removed
+on return. It is untrusted: its own `[tool.pitloom]` is ignored unless you pass
+`pitloom_config=`, and its build backend never runs. A failure is a
+`pitloom.extract.remote.RemoteSourceError` whose `code` names it
+(`git.clone-failed`, `git.timeout`, `git.ref-not-found`, `git.path-not-found`,
+`git.no-project`, `git.url-invalid`, `git.offline`, `git.too-many-redirects`,
+`git.not-found`, `git.output-too-large`); *check_url* may raise any exception to
+refuse an address, and it reaches you unchanged. To read the fetched project
+yourself, use `pitloom.extract.remote.fetch_git_project(url)`, a context
+manager yielding the folder. See [SBOM from a Git URL](git-urls.md).
+
 When a supported lock file (`pylock.toml`, `uv.lock`, `poetry.lock`,
 `pdm.lock`, `Pipfile.lock`, or pinned `requirements.txt`) is present
 next to `pyproject.toml`, project generation automatically resolves and

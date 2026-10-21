@@ -16,11 +16,13 @@ See also:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from pitloom.assemble._generators import generate_project_sbom
 from pitloom.assemble._generators_env import generate_env_sbom
+from pitloom.assemble._generators_git import generate_git_project_sbom
 from pitloom.assemble._generators_merge import generate_merged_sbom
 from pitloom.assemble._generators_wheel import (
     generate_wheel_sbom,
@@ -37,7 +39,7 @@ from pitloom.core.build_options import NON_PROJECT_TARGET_REASON, BuildOptions
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.creation import CreationMetadata
-from pitloom.core.inert_options import ENV, HF, MODEL_FILE, WHEEL, forward_options
+from pitloom.core.inert_options import ENV, GIT, HF, MODEL_FILE, WHEEL, forward_options
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.core.wheel_dist_info import looks_like_wheel_path
 from pitloom.embed import (
@@ -49,7 +51,11 @@ from pitloom.embed import (
     embed_wheel_sbom,
     find_embedded_sbom,
 )
-from pitloom.extract.remote import is_huggingface_source
+from pitloom.extract.remote import (
+    is_git_url,
+    is_huggingface_source,
+    is_unsupported_remote_url,
+)
 from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
 
@@ -68,6 +74,7 @@ __all__ = [
     "find_embedded_sbom",
     "generate",
     "generate_env_sbom",
+    "generate_git_project_sbom",
     "generate_merged_sbom",
     "generate_model_sbom",
     "generate_project_sbom",
@@ -75,6 +82,7 @@ __all__ = [
     "generate_wheel_sbom_with_metadata",
     "merge_fragments",
     "project_document_id",
+    "target_is_git_url",
     "target_resolves_to_project",
 ]
 
@@ -82,8 +90,9 @@ _MODEL_FILE_EXTENSIONS = tuple(sorted(model_file_suffixes()))
 
 
 def _classify_target(target: Path | str) -> str:
-    """Classify *target* into ``"env"``, ``"wheel"``, ``"hf"``,
-    ``"model_file"``, or ``"project"`` (plain directory or sdist archive).
+    """Classify *target* into ``"env"``, ``"wheel"``, ``"hf"``, ``"git"`` (a
+    remote Git repository URL), ``"model_file"``, or ``"project"`` (plain
+    directory or sdist archive).
 
     Single source of truth for :func:`generate`'s own dispatch and for
     :func:`target_resolves_to_project` -- one shared check instead of two
@@ -96,12 +105,24 @@ def _classify_target(target: Path | str) -> str:
         return "wheel"
     if is_huggingface_source(target_str):
         return "hf"
+    if is_git_url(target_str) or (
+        is_unsupported_remote_url(target_str) and not Path(target_str).exists()
+    ):
+        return "git"
     target_path = Path(target_str)
     if target_path.is_file() and target_path.name.lower().endswith(
         _MODEL_FILE_EXTENSIONS
     ):
         return "model_file"
     return "project"
+
+
+def target_is_git_url(target: Path | str) -> bool:
+    """Return whether :func:`generate` reads *target* as the URL of a remote
+    Git repository (or of one of its web pages), which
+    ``pitloom.cli.commands.generate._run_generate_command`` routes to the
+    same code path as ``loom project <url>``."""
+    return _classify_target(target) == "git"
 
 
 def target_resolves_to_project(target: Path | str) -> bool:
@@ -140,6 +161,7 @@ def generate(
     max_source_metadata_bytes: int | None = None,
     pitloom_config: PitloomConfig | None = None,
     project_dir: Path | str | None = None,
+    check_url: Callable[[str], None] | None = None,
 ) -> str:
     """Smart unified entrypoint for generating SPDX 3 SBOMs across all target types.
 
@@ -156,6 +178,12 @@ def generate(
     *project_dir* (the project directory an sdist or a wheel was built
     from, for its registry keys) reaches the sdist and wheel delegates; any
     other target warns that it has no effect.
+
+    A target that is the ``http`` or ``https`` URL of a Git repository (or of
+    one of its web pages) is fetched and read as a project
+    (:func:`generate_git_project_sbom`); *check_url* is its address policy,
+    called with every redirect target before it is requested, and no other
+    target uses it.
     """
     # Before the no-effect warnings below, which precede any delegate's own
     # configure_logging() call.
@@ -163,7 +191,7 @@ def generate(
     target_str = str(target).strip()
     classification = _classify_target(target_str)
 
-    if classification != "project":
+    if classification not in ("project", "git"):
         # Reset to defaults too (not just warn): nothing below reuses
         # build_options for a non-project classification, but this keeps
         # the same "warn once, reset to defaults" contract every other
@@ -213,6 +241,13 @@ def generate(
         return generate_model_sbom(
             Path(target_str),
             **forward_options(MODEL_FILE, target_str, generate_model_sbom, options),
+        )
+    if classification == "git":
+        return generate_git_project_sbom(
+            target_str,
+            **forward_options(GIT, target_str, generate_git_project_sbom, options),
+            build_options=build_options,
+            check_url=check_url,
         )
     return generate_project_sbom(
         Path(target_str),

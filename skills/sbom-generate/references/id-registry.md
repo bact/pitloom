@@ -438,3 +438,23 @@ keys, dataset strings that differ from the canonical path such as
 
 A declared registry that is missing or invalid (a version 2 file included)
 is different: one `ERROR:`, exit 1, nothing written.
+
+## Choosing the registry before generating
+
+**Choose the registry before generating** (not for a Hugging Face model or
+`embed-wheel --sbom`: `--id-registry` is ignored there, with a `WARNING:`):
+
+1. If the applicable config declares a registry, it is used -- tell the user
+   which file, and that a `project`, `wheel`, `env` or `generate` run may add
+   new ids to it; `model`, `enrich`, `embed-wheel` and the hook only read it.
+2. None declared, and ids must stay stable across runs or a fragment will be
+   merged after the source changes:
+   - Interactive: ask "Pin ids with a Loom ID registry? If yes, which
+     file -- an existing one, or create `loom-id-registry.json`?" Yes: create
+     it first if new (per the reference), then pass `--id-registry FILE`. No:
+     generate without one.
+   - Non-interactive: use none, create nothing, and report "No Loom ID
+     registry used (none declared). To pin ids, run `loom id generate
+     <PATH> -o loom-id-registry.json` in the project directory, then
+     declare it as the INFO line says (project target) or pass
+     `--id-registry loom-id-registry.json` on each run (other targets)."

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,7 +12,8 @@ Use this when you want a one-off SBOM from a terminal, a Makefile target, or
 any shell script. The console script is installed as `loom` and `pitloom`;
 they run the same tool.
 
-See also: [Wheel SBOMs and PEP 770 embedding](wheel-sbom.md),
+See also: [SBOM from a Git URL](git-urls.md) for `loom project <url>`,
+[Wheel SBOMs and PEP 770 embedding](wheel-sbom.md),
 [SBOM fragments](fragments.md) and [Loom ID registry](id-registry.md), which hold the
 `embed-wheel`, `verify-wheel`, `validate-wheel`, `merge`, `fragment` and `id`
 subcommands.
@@ -45,7 +46,18 @@ directory):
 ```bash
 loom project .
 loom project /path/to/project -o sbom.spdx3.json
+loom project https://gitlab.com/group/project   # a Git URL: see below
 ```
+
+A target that is the `http` or `https` URL of a Git repository, or of one of its
+web pages (a branch, tag or commit and a folder may be named), is fetched
+shallowly into a temporary directory and read as a project; `loom generate` takes
+the same URL. The repository is untrusted: its own `[tool.pitloom]` is ignored
+(`--config FILE` applies) and its build backend is never run. `--offline` is an
+error for it. Every redirect or change of the URL is an `INFO:` naming both URLs,
+and a URL that is refused or not followed is a `WARNING:` or `ERROR:`. See
+[SBOM from a Git URL](git-urls.md) for the URL forms, the platforms checked and
+the messages.
 
 > **Limitation:** the per-file inventory (file list and hashes) is
 > backend-aware and accurate for Flit-core, PDM-backend, Poetry, Hatchling,
@@ -307,6 +319,7 @@ header from, and a wheel-embedded SBOM is always canonical JSON regardless of
 | Target | Options that warn |
 | --- | --- |
 | project directory | `--trust-wheel-model`, `--project-dir` |
+| remote Git repository | `--trust-wheel-model`, `--project-dir` |
 | sdist archive | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--use-lockfile` |
 | wheel | `--enrich`, `--extract-file-header`, `--content-type`, `--use-lockfile` |
 | wheel --embed | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--update-id-registry` |

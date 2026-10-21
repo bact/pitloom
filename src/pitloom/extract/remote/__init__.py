@@ -11,6 +11,13 @@ modules; callers should use the facade functions exported below.
 
 from __future__ import annotations
 
+from pitloom.extract.remote.errors import RemoteSourceError
+from pitloom.extract.remote.git import GitCheckout, fetch_git_project
+from pitloom.extract.remote.git_url import (
+    is_git_url,
+    is_unsupported_remote_url,
+    parse_git_page,
+)
 from pitloom.extract.remote.huggingface import (
     is_huggingface_source,
     parse_hf_model_id,
@@ -18,7 +25,13 @@ from pitloom.extract.remote.huggingface import (
 )
 
 __all__ = [
+    "GitCheckout",
+    "RemoteSourceError",
+    "fetch_git_project",
+    "is_git_url",
     "is_huggingface_source",
+    "is_unsupported_remote_url",
+    "parse_git_page",
     "parse_hf_model_id",
     "read_huggingface",
 ]
