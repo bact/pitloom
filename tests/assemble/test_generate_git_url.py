@@ -12,6 +12,7 @@ The fetch is stood in for by a prepared directory; see
 from __future__ import annotations
 
 import logging
+import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -77,6 +78,9 @@ def test_a_url_is_classified_as_a_git_project(
     assert target_resolves_to_project(target) is is_project
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="a colon is not valid in a Windows file name"
+)
 def test_an_existing_path_is_never_a_git_target(tmp_path: Path) -> None:
     """A directory that looks like ``user@host:path`` is a path."""
     path = tmp_path / "a@b:c"

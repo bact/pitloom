@@ -231,6 +231,9 @@ def test_a_remote_address_that_is_not_fetched_is_refused_aloud(
     assert "only http and https URLs are fetched" in err
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="a colon is not valid in a Windows file name"
+)
 def test_a_local_path_that_looks_like_an_address_is_still_a_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

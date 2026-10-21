@@ -357,6 +357,7 @@ def test_a_link_to_a_host_file_is_dropped_with_an_info(
 
 
 @needs_git
+@posix_only
 @pytest.mark.usefixtures("local")
 def test_an_empty_repository_is_said_to_be_empty(tmp_path: Path) -> None:
     """Not git's ``ambiguous argument 'HEAD'``."""
