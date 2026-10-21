@@ -77,11 +77,11 @@ def _license_members(
     wheel: Path,
 ) -> dict[str, bytes]:
     """The licence files of the own ``.dist-info`` *prefix*, basename to
-    bytes: the names :func:`~pitloom.extract._license_detect.\
-pick_license_names` picks among the files right in its ``licenses/``
-    (PEP 639), then right in it (an older wheel), a name in ``licenses/``
-    winning. One over the size cap is warned about, as *wheel*:name, and
-    left out."""
+    bytes: the names
+    :func:`~pitloom.extract._license_detect.pick_license_names` picks among the
+    files right in its ``licenses/`` (PEP 639), then right in it (an older
+    wheel), a name in ``licenses/`` winning. One over the size cap is warned
+    about, as *wheel*:name, and left out."""
     found: dict[str, bytes] = {}
     for folder in (f"{prefix}licenses/", prefix):
         # A nested name ("vendor/LICENSE") is no licence-file name.

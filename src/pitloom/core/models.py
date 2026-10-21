@@ -170,49 +170,23 @@ def compute_doc_uuid(
 
     *identity_seed* is folded in last when given (a wheel of unknown identity:
     its base file name), so two such wheels with one payload differ. ``None``
-    leaves the seed byte-identical to a call without it.
+    leaves the seed unchanged.
 
     *locked_dependencies* (e.g. ``poetry.lock``-resolved transitive
-    dependencies) is folded into the seed too, whenever either it or
-    *locked_dependencies_provenance* is given -- otherwise two documents
-    with identical direct dependencies but different lock-resolved
-    graphs would collide on the same UUID despite describing different
-    dependency content. Both omitted leave the seed byte-identical to a
-    document with no locked dependencies at all, so every non-Poetry
-    (and lock-less Poetry) document is unaffected.
-
-    *locked_dependencies_provenance* (the resolved
+    dependencies) and *locked_dependencies_provenance* (the resolved
     ``ProjectMetadata.provenance["locked_dependencies"]`` string, e.g.
-    ``"Source: pylock.toml | Method: resolved_lockfile"``) is folded in
-    too, alongside *locked_dependencies* itself: as more lock/pin formats
-    land in ``pitloom.extract.lock.cascade``'s cascade, two
-    different formats can plausibly resolve to the identical dependency
-    set for a small
-    project -- e.g. a ``poetry.lock``-only run and a ``pylock.toml``-only
-    run of the same project landing on the same pins. Seeding on
-    dependency content alone would collide those two documents' UUIDs
-    despite their generated ``provenance["locked_dependencies"]`` fields
-    (and any override note) differing -- a real content difference the
-    seed is supposed to guard against.
-
-    Deliberately keyed on *either* argument being given, not just
-    *locked_dependencies* being non-empty: a real, successfully-resolved
-    lock file that legitimately has zero runtime dependencies still
-    carries its own distinct provenance string, which must still
-    distinguish that document from one with no lock present at all, or
-    from a different lock source that also happened to resolve to zero
-    dependencies -- gating on non-empty *locked_dependencies* alone would
-    silently collide all three onto the same UUID.
+    ``"Source: pylock.toml | Method: resolved_lockfile"``) are folded in when
+    either is given, so documents with equal direct dependencies but different
+    lock-resolved graphs, or different lock sources, get different UUIDs. The
+    gate is "either given", not "*locked_dependencies* non-empty": a real
+    lock that resolves to zero dependencies still differs, by its provenance,
+    from no lock. With both omitted the seed is that of a document without
+    locked dependencies.
     """
     normalized_deps = sorted(_normalize_dep(dep) for dep in dependencies)
     seed = "\x00".join([name, version, "\x00".join(normalized_deps)])
     if locked_dependencies or locked_dependencies_provenance:
-        # A real, valid lock resolving to zero dependencies still has a
-        # *provenance* string that differs from "no lock at all" (and
-        # from a different lock source that also resolved to empty) --
-        # gating this whole block on `locked_dependencies` being
-        # non-empty would fold in neither, silently colliding an
-        # empty-but-real lock's UUID with a lockless document's.
+        # Either argument: a lock with no dependencies still has a provenance.
         normalized_locked = sorted(
             _normalize_dep(dep) for dep in (locked_dependencies or [])
         )

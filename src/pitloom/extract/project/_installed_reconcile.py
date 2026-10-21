@@ -55,11 +55,9 @@ def _reconcile_conflict_checked_field(
 ) -> None:
     """Reconcile one of ``CONFLICT_CHECKED_FIELDS`` in place on *merged*.
 
-    *warn_subject* is the pre-formatted ``"<project_dir>: installed
-    metadata (<label>)"`` prefix for the disagreement ``WARNING:`` --
-    precomputed once by :func:`reconcile_installed_metadata` rather than
-    passed as two separate parameters, to stay within this repo's
-    max-args ratchet.
+    *warn_subject* is the ``"<project_dir>: installed metadata (<label>)"``
+    prefix of the disagreement ``WARNING:``, built once by
+    :func:`reconcile_installed_metadata`.
     """
     provenance_key = provenance_key_for(field_name)
     installed_declared = field_declared(installed.provenance, provenance_key)
@@ -128,14 +126,8 @@ def _reconcile_gap_fill_field(
     if not field_declared(installed.provenance, provenance_key):
         return
     value = getattr(installed, field_name)
-    # keywords/urls are container-valued (list/dict) -- copy before handing
-    # to merged, never alias *installed*'s own object directly. installed
-    # is a throwaway ProjectMetadata discarded right after this call today,
-    # so this is dormant, not a live bug -- but it's the same aliasing
-    # hazard replace_with_fresh_containers() exists to close everywhere
-    # else, and a future caller that retains *installed* (e.g. to log or
-    # compare it afterwards) must not have merged's later mutations leak
-    # back into it.
+    # keywords/urls are container-valued (list/dict): copy before handing
+    # to merged, so merged's later mutations never reach *installed*.
     if isinstance(value, (dict, list)):
         value = value.copy()
     setattr(merged, field_name, value)
@@ -157,26 +149,17 @@ def reconcile_installed_metadata(
     result's ``field_conflicts`` and logged as a ``WARNING:``, never
     silently substituted.
 
-    *project_dir* identifies the project in the ``WARNING:`` line (it is
-    not part of the reconciliation logic itself) -- it is not literally
-    part of the plan's own reconciliation pseudocode, but the plan's
-    specified wording (``WARNING: %s: installed metadata ...``) needs a
-    project label to fill that first ``%s``, so this signature adds it as
-    an explicit parameter rather than reaching for a global.
+    *project_dir* only names the project in the ``WARNING:`` line.
 
     Only ``CONFLICT_CHECKED_FIELDS`` and ``GAP_FILL_ONLY_FIELDS``
     (:mod:`pitloom.extract.project._field_agreement`)
-    participate -- iterated in :func:`dataclasses.fields`'s stable
-    declaration order (never a ``set``'s iteration order, which is not
-    guaranteed stable across processes) so the result -- including
-    ``field_conflicts`` insertion order -- is deterministic. Every other
-    field (``name``, ``provenance``, ``files``, ``locked_dependencies``,
-    ``locked_dependency_hashes``, ``authors``, ``dependencies``,
-    ``readme``) is left untouched, and ``field_conflicts`` is only added to
-    (:func:`~pitloom.extract.project._field_agreement.add_conflict`): a
-    newly-added :class:`ProjectMetadata` field must not silently start
-    participating here with no comparator/provenance thought through
-    for it.
+    participate, iterated in :func:`dataclasses.fields`'s declaration order
+    (never a ``set``'s), so the result, ``field_conflicts`` insertion order
+    included, is deterministic. Every other field (``name``, ``provenance``,
+    ``files``, ``locked_dependencies``, ``locked_dependency_hashes``,
+    ``authors``, ``dependencies``, ``readme``) is left untouched, and
+    ``field_conflicts`` is only added to
+    (:func:`~pitloom.extract.project._field_agreement.add_conflict`).
     """
     # replace_with_fresh_containers() (never a bare dataclasses.replace(),
     # which would alias every container field -- including provenance and

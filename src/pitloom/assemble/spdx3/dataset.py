@@ -273,14 +273,11 @@ def add_datasets_for_model(
     is, with the warning naming *ai_model*
     (:func:`~pitloom.assemble.spdx3._ai_package.cap_related_name`).
 
-    Args:
-        dataset_creation_info: Optional override map, dataset name ->
-            ``CreationInfo``, for datasets that came from an enrichment run
-            rather than the model's own extraction (N3) -- see
-            ``creation_info.build_enrichment_creation_info()``. A name not
-            in the map (or when the map itself is ``None``) falls back to
-            the shared *creation_info* param, unchanged behaviour for every
-            existing call site.
+    *ai_package_spdx_id* is the model package every relationship starts
+    from. *dataset_creation_info* maps a dataset name to the ``CreationInfo``
+    of the enrichment run that produced it (see
+    ``creation_info.build_enrichment_creation_info()``); a dataset with no
+    entry, or any dataset when it is ``None``, takes *creation_info*.
     """
     created: list[tuple[str, spdx3.Element]] = []
     for dataset in merge_dataset_references(datasets):

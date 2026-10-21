@@ -3,11 +3,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Configuration dataclass for metadata provenance Annotations.
+"""Provenance settings (:class:`ProvenanceConfig`) and the provenance-string
+helpers :func:`parse_provenance_value` and
+:func:`escape_provenance_comment_part`.
 
-Also holds :func:`parse_provenance_value`, which both ``extract`` and
-``assemble`` read provenance strings with; it lives here, below both, so
-neither package has to import the other for it.
+``extract`` and ``assemble`` both read provenance strings, so the parser sits
+below both and neither imports the other for it.
 """
 
 from __future__ import annotations

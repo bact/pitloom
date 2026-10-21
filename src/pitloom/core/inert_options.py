@@ -248,9 +248,9 @@ def settle_inert(
     return their names so the caller drops them.
 
     A value of ``None`` means "not given" and is skipped; ``False`` and
-    ``0`` are explicit choices and count (AGENTS.md's ``None`` vs empty
-    rule). Within one call, warnings follow :data:`PARAM_TO_FLAG` order, so
-    the output does not depend on the caller's mapping order; options
+    ``0`` are explicit choices and count (AGENTS.md's ``None``/absent vs
+    ``[]``/``{}`` rule). Within one call, warnings follow :data:`PARAM_TO_FLAG`
+    order, so the output does not depend on the caller's mapping order; options
     settled by different layers (see :func:`forward_options`) warn in
     layer order.
 

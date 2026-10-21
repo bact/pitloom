@@ -53,9 +53,11 @@ See `references/examples.md` for copy-paste recipes.
 
 ## Hard rules
 
-- **`loom generate` needs `-o FILE`.** It dispatches across target types
-  with no single natural default filename, so it exits 1 without one.
-  `project`/`wheel`/`model`/`env` each have a default filename.
+- **`loom generate` needs `-o FILE`** (exit 1 without one). The other
+  commands default to the current directory: `sbom.spdx3.json` (`project`),
+  `<file name>.spdx3.json` (`wheel`, `model`), `deployed-environment.spdx3.json`
+  (`env`). `-o -` writes the SBOM to stdout. Stdout otherwise holds only
+  `PITLOOM_SBOM_OUTPUT_PATH=<path>`.
 - **Never add `--allow-build`** (or `BuildOptions(allow=True)` via the
   library API) unless the user asked for it in this conversation. It runs
   the project's own PEP 517 build backend, i.e. third-party build-time
@@ -287,15 +289,20 @@ name names no top-level .dist-info` case: `references/known-limitations.md`
   project target it replaces the project's own config outright, not merges
   with it.
 - `--pretty` -- indent the JSON for human reading (default: compact).
-- `--offline` -- forbid network access (`project`, `wheel`, `env`,
-  `embed-wheel`; `generate` follows its target). On a local model file it
-  has no effect (a `WARNING:` if passed); on a Hugging Face model it is an
-  error, as nothing can be fetched.
-- `-v` / `--verbose` -- log effective options as `INFO:` lines (sources
-  only for `project`/`generate` on a project or sdist; a no-effect
-  `WARNING:` on `embed-wheel` and `generate` elsewhere).
-- `--creator-name NAME`, `--creator-type TYPE`, `--creator-email EMAIL` --
-  who created the SBOM (BSI: a person or organisation with an e-mail).
+- `--offline` -- forbid network access (`project`, `wheel`, `env`, `model`,
+  `embed-wheel`; `generate` follows its target; `enrich` has none). On a
+  local model file it has no effect (a `WARNING:`); on a Hugging Face model
+  or a Git URL it is an `ERROR:`, as nothing can be fetched.
+- `-v` / `--verbose` -- `INFO:` lines: every effective option and its source
+  for `project`/`generate` on a project or sdist; the version, target and
+  output path for `wheel`/`env`/`model`/`enrich`; a no-effect `WARNING:` on
+  `embed-wheel` and `generate` for other targets.
+- `--creator-name NAME` (repeatable), `--creator-type TYPE`, `--creator-email
+  EMAIL` -- who created the SBOM (BSI: a person or organisation with an
+  e-mail); the first creator that is not a `software-agent` is also the main
+  package's supplier, never a dependency's or a model's. `--creation-datetime`,
+  `--creation-comment`, `--creation-tool`/`--no-creation-tool` set the rest of
+  the creation info.
 - `--enrich` / `--no-enrich` -- Pitloom's own deterministic, local,
   frontmatter-only enrichment pass, in the same generate call. Add it only
   for a project directory or a local model file: on a wheel, env, sdist
@@ -400,31 +407,19 @@ complete but isn't. Per-case detail: `references/known-limitations.md`.
   (its metadata is read); name it.
 - **AI model formats** are broad, not universal (see the description). An
   unrecognised serialisation is not scanned: say so, don't skip silently.
-- **AI model caps:** an `ai_AIPackage` is a stub (its metadata was not
-  read) when it has no `ai_*` property and no `comment` entry `Source:
-  <model file> | Field: ...`; a read model has such entries. With
-  `--enrich` a stub can still carry a README `comment` (`Method:
-  yaml_frontmatter`). Name the reason from stderr: the wheel gate (`INFO:`,
-  see `--trust-wheel-model`); `required library not installed` (install
-  `pitloom[ai]`); `failed to extract metadata` (the file has a model's header
-  but could not be parsed: truncated or corrupt, so check the file); `...
-  max-model-extract-bytes cap; metadata not read`, the ceiling (512 MiB,
-  config key only, wheel scans); the per-wheel budget (4x the ceiling, one
-  `WARNING: ... model-scan budget cap; ...`); any other
-  `WARNING: ... metadata not read`, a fixed bound. Lists past 1000 entries are
-  cut with one `WARNING:`. A model whose read fails (a bound, a missing
-  library, a parse failure) is a stub, never dropped, with the same
-  `WARNING:` from a scan and from `loom model FILE` (exit 0); a file whose
-  header contradicts its model suffix is no model and gets no `ai_AIPackage`:
-  `header is not <fmt>; not listed as an AI model`, or `header is a Git LFS
-  pointer; not listed as an AI model` under any candidate suffix, `.bin`
-  included (an unfetched Git LFS file: tell the user to run `git lfs pull`,
-  then regenerate). `loom model FILE` and `loom enrich` (any suffix) and
-  `loom generate FILE` (model suffixes only; a `.zip` goes to the sdist
-  route) refuse such a file with `ERROR: ... failed: <path>: <reason>`
-  (exit 1) instead.
-  Never raise the ceiling or add `--trust-wheel-model` on your own; tell the
-  user. Caps: <https://bact.github.io/pitloom/ai-model-scan-limits/>.
+- **AI model caps:** an `ai_AIPackage` is a stub (metadata not read) when it
+  has no `ai_*` property and no `comment` entry `Source: <model file> | Field:
+  ...`; `--enrich` can still add a README `comment` (`Method:
+  yaml_frontmatter`). Name the cause from stderr and tell the user: the wheel
+  gate (`INFO:`, `--trust-wheel-model`), a missing library (install
+  `pitloom[ai]`), a parse failure (truncated or corrupt file), a size cap or
+  the per-wheel budget, or a Git LFS pointer (`git lfs pull`, regenerate).
+  Never raise a ceiling or add `--trust-wheel-model` on your own. A failed
+  read leaves a stub with a `WARNING:` (exit 0); a file whose header
+  contradicts its suffix is no model (no `ai_AIPackage`), and `loom model
+  FILE`/`loom enrich` refuse it (`ERROR:`, exit 1). Wording and bounds:
+  `references/known-limitations.md`,
+  <https://bact.github.io/pitloom/ai-model-scan-limits/>.
 - **Model producer, parameter count:** a generic `Agent` in `originatedBy`
   (and `suppliedBy` for a Hub model: the owner) and an `ai_hyperparameter`
   `parameters` entry, from some formats only; absence is no failure.

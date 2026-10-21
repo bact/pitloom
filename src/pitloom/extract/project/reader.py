@@ -5,13 +5,11 @@
 
 """Entry points for resolving a project's metadata and Pitloom config.
 
-:func:`read_project` tries ``pyproject.toml`` first, then
-``setup.cfg``/``setup.py``, or reads an sdist archive (.tar.gz, .zip), so
-both the CLI (:mod:`pitloom.__main__`) and the library entry point
-(:func:`pitloom.assemble.generate_project_sbom`) resolve project metadata
-the same way. :func:`resolve_project_with_lockfile` additionally decides
-the lock/pin cascade from a tri-state (CLI-flag-shaped) setting -- see its
-own docstring.
+:func:`read_project` reads a project directory (``pyproject.toml``, else
+``setup.cfg``/``setup.py``) or an sdist archive (.tar.gz, .zip), so the CLI
+and the library resolve project metadata the same way.
+:func:`resolve_project_with_lockfile` also decides the lock/pin cascade from
+a ``use_lockfile`` setting that may be unset.
 """
 
 from __future__ import annotations
@@ -64,9 +62,6 @@ def _fallback_to_setuptools(
     returns; the same shape ``_models_wheel.py``'s file-discovery dispatch
     already treats as "no static pyproject.toml config" (see
     ``has_resolvable_pyproject_config()``).
-
-    Split out of :func:`read_project` purely to keep that function's own
-    cognitive-complexity ratchet -- no behaviour split, just a named step.
     """
     if not quiet:
         log.warning(
@@ -75,25 +70,11 @@ def _fallback_to_setuptools(
             "instead of an empty pyproject.toml-only result",
             pyproject_path,
         )
-    # read_pyproject() may have already resolved locked_dependencies from
-    # poetry.lock -- via _try_read_poetry()'s own "[tool.poetry] couldn't
-    # be parsed, but still apply poetry.lock's resolved dependencies"
-    # path, the exact case that leads here (an empty name with real
-    # poetry.lock data already attached). Never silently drop a real
-    # result just because metadata itself had to come from
-    # setup.cfg/setup.py instead: without this, a lower-priority lock/pin
-    # format could also silently win the cascade below in poetry.lock's
-    # place, since apply_locked_dependencies() would see no prior result
-    # at all on the replaced metadata.
-    #
-    # merge_project_metadata() (not a hand-rolled per-field carry-over)
-    # does this generically for every ProjectMetadata field, `name`
-    # always primary's (read_setuptools()'s -- the real resolved name)
-    # and `locked_dependencies`/`provenance` falling back to secondary's
-    # (the pre-swap `metadata`) when primary's own is empty -- the same
-    # mechanism already used for the analogous [tool.pitloom]-config
-    # carry-over just below, generalised so a future field needing the
-    # same treatment doesn't need a third hand-copied carry-over here.
+    # read_pyproject() may already have resolved locked_dependencies from
+    # poetry.lock (the unparseable-[tool.poetry] path that leads here).
+    # merge_project_metadata() carries that result over to the setuptools
+    # metadata (``name`` stays read_setuptools()'s) so a lower-priority
+    # lock/pin format cannot win the cascade in poetry.lock's place.
     pre_setuptools_metadata = metadata
     # Decide first: setup.cfg's [tool:pitloom] is parsed only when it is the
     # one that applies, as for an sdist -- an unused one cannot fail the run.
@@ -135,47 +116,27 @@ def read_project(
     Otherwise, treats *project_path* as a directory and tries
     ``pyproject.toml`` first, then ``setup.cfg``/``setup.py``.
 
-    For every directory-based resolution (not the sdist-archive case),
-    also overlays a sibling lock/pin file's resolved dependencies onto
-    the result via a single, shared call to
-    :func:`pitloom.extract.lock.cascade.apply_locked_dependencies`
-    -- applied uniformly regardless of which metadata source won, since
-    some lock formats (``Pipfile.lock``, pinned ``requirements.txt``)
-    pair with a bare ``setup.py`` in real projects, never ``pyproject.toml``.
-
-    ``include_locked_dependencies`` lets a build-stage or config-only
-    caller (e.g. ``embed-wheel``, or a shared CLI helper that only wants
-    ``[tool.pitloom]`` settings and discards the metadata) explicitly opt
-    out of *every* lock/pin source -- source-stage lock/pin data must
-    never leak into a build-stage SBOM, and skipping this also skips its
-    file I/O for a caller that would discard the result anyway. It's
-    forwarded to :func:`pitloom.extract.project.pyproject.read_pyproject` (which
-    forwards it again to
-    :func:`pitloom.extract.project.pyproject._try_read_poetry` for
-    ``poetry.lock``, gated by that function's own identically-named
-    parameter) *and* used directly here to gate
-    :func:`pitloom.extract.lock.cascade.apply_locked_dependencies`
-    for every other format -- one flag controls both, not two
-    independently-set ones that happen to share a name.
+    For a directory (not an sdist), the resolved dependencies of a sibling
+    lock/pin file are overlaid onto the result by
+    :func:`pitloom.extract.lock.cascade.apply_locked_dependencies`, whichever
+    metadata source won: some lock formats (``Pipfile.lock``, pinned
+    ``requirements.txt``) pair with a bare ``setup.py``.
 
     Args:
         project_path: Project root directory or sdist archive path.
         include_locked_dependencies: Whether to read any lock/pin file's
-            resolved dependencies at all -- ``poetry.lock`` included
-            (default ``True``). Pass ``False`` from any build-stage or
-            metadata-discarding caller.
+            resolved dependencies at all, ``poetry.lock`` included (default
+            ``True``). Pass ``False`` from a build-stage caller (source-stage
+            lock data must not reach a build-stage SBOM) or one that discards
+            the metadata (``embed-wheel``, a config-only read). It gates both
+            :func:`~pitloom.extract.project.pyproject.read_pyproject`'s
+            ``poetry.lock`` read and the cascade for every other format.
         include_installed_metadata: Whether to search *project_path* for an
-            in-tree ``.egg-info``/``.dist-info`` (a build backend's
-            editable-install byproduct -- see
+            in-tree ``.egg-info``/``.dist-info`` (see
             :mod:`pitloom.extract.project.installed`) and reconcile it into
-            the result (default ``True``). Pass ``False`` from any
-            build-stage or metadata-discarding caller, purely to skip the
-            new filesystem globbing -- same rationale as
-            ``include_locked_dependencies``, but a separate flag: the two
-            gate genuinely different sources (a lock/pin file vs. an
-            in-tree installed-metadata directory) that happen to share the
-            same "skip for a caller that discards the result" rationale,
-            not one another's setting.
+            the result (default ``True``). Independent of
+            *include_locked_dependencies*; pass ``False`` from a caller that
+            discards the metadata, to skip the filesystem search.
         quiet: Suppress this read's own ``WARNING:`` lines (default
             ``False``). For a caller whose result is discarded or whose
             warnings another read of the same *project_path* emits (a
@@ -267,16 +228,11 @@ def _apply_installed_metadata(
     *metadata*, if found. Returns *metadata* unchanged when nothing is
     found.
 
-    Split out of :func:`read_project` purely to keep that function's own
-    branch/local count under this repo's complexity ratchet -- no
-    behaviour split, just a named step.
-
-    Uses :func:`~pitloom.extract.project.installed._discover_candidate`
-    directly (not the public, tuple-returning
-    :func:`~pitloom.extract.project.installed.find_installed_metadata_candidate`)
-    so the winning candidate's already-parsed
-    :class:`email.message.Message` is reused for parsing here, instead of
-    re-reading and re-parsing the exact same marker file a second time.
+    Uses :func:`~pitloom.extract.project.installed._discover_candidate`, not
+    the tuple-returning
+    :func:`~pitloom.extract.project.installed.find_installed_metadata_candidate`,
+    so the winning candidate's already-parsed :class:`email.message.Message`
+    is reused rather than parsed again.
     """
     candidate = _discover_candidate(project_path, metadata.name, quiet=quiet)
     if candidate is None:
@@ -299,42 +255,26 @@ def resolve_project_with_lockfile(
     use-lockfile``.
 
     *explicit_config* (``--config``, ``pitloom_config=``) replaces the
-    project's own ``[tool.pitloom]``, which is then not parsed at all, and
-    is returned as the config; the returned path is still the project's
-    own. This function never warns:
-    a given *use_lockfile* that has no effect (an sdist) is settled by the
-    caller's inert-option check.
+    project's own ``[tool.pitloom]``, which is then not parsed, and is
+    returned as the config; the returned path is still the project's own.
+    A given *use_lockfile* that has no effect (an sdist) is settled by the
+    caller's inert-option check, not here.
 
-    The cascade decision has to be known before the real metadata read
-    runs, but ``[tool.pitloom] use-lockfile`` only becomes known *from* a
-    :func:`read_project` call -- so when *use_lockfile* is ``None``, this
-    "peeks" the config first via a
-    ``include_locked_dependencies=False`` read (skips lock-file I/O only
-    -- ``include_installed_metadata`` deliberately stays at its default,
-    see the comment below), then only re-reads for real when that config
-    says the cascade should run. That re-read is passed ``quiet=True``: it
-    parses the same file the peek just did, so any ``WARNING:`` its
-    content triggers was already emitted once by the peek -- re-emitting
-    it would violate this repo's "one grep-able line per event"
-    CLI-output contract. An sdist archive target skips the peek/reread
-    dance entirely: :func:`read_project` ignores
-    *include_locked_dependencies* for sdist targets (no lock/pin cascade
-    support for archives yet), so peeking would always see the cascade as
-    "on" and re-read (and re-extract the archive) for an identical result.
+    ``[tool.pitloom] use-lockfile`` is known only after a read, so with
+    *use_lockfile* ``None`` this first reads with
+    ``include_locked_dependencies=False`` (the "peek": no lock-file I/O) and
+    reads again only when that config turns the cascade on. The second read
+    is ``quiet=True``: the peek already logged the warnings of the same
+    file, and each event gets one line. An sdist skips the peek, since
+    :func:`read_project` ignores *include_locked_dependencies* for an
+    archive. In the on-cascade directory case the project is parsed twice,
+    and one with an in-tree ``.egg-info``/``.dist-info`` also searches it
+    twice (see
+    ``working-docs/implementation/lock-file-cascade-opt-out.md``).
+
     Shared by :func:`pitloom.assemble.generate_project_sbom`,
     :func:`pitloom.assemble.enrich_model` and
-    ``pitloom.cli.options_resolve._resolve_project_generation_settings`` so
-    the resolution
-    logic (and its remaining double-parse tradeoff for the on-cascade,
-    non-sdist case -- an accepted cost, see
-    ``working-docs/implementation/lock-file-cascade-opt-out.md``) exists in one
-    place, not duplicated per caller. That tradeoff now also covers a
-    second cost: the peek's ``include_installed_metadata`` staying on
-    means a project with an in-tree ``.egg-info``/``.dist-info`` pays for
-    :mod:`pitloom.extract.project.installed`'s bounded glob and marker-file
-    read twice (once per ``read_project`` call below), not once -- the
-    same accepted-cost umbrella as the static-metadata double-parse, not a
-    separate tradeoff of its own.
+    ``pitloom.cli.options_resolve._resolve_project_generation_settings``.
     """
     # An explicit config replaces the project's own, which is then not
     # parsed: a fault in it cannot fail a run that does not use it.
@@ -356,15 +296,10 @@ def resolve_project_with_lockfile(
             explicit_config,
         )
 
-    # Deliberately leaves include_installed_metadata at its default (True)
-    # on both calls below -- do NOT copy include_locked_dependencies=False
-    # onto this peek. use_lockfile only decides the lock/pin cascade; when
-    # peeked_config.use_lockfile is False, `peeked_metadata` below becomes
-    # the actual returned metadata (no re-read happens), so disabling
-    # installed-metadata resolution on the peek would make an unrelated
-    # `[tool.pitloom] use-lockfile` setting silently also suppress
-    # installed-metadata reconciliation -- a "no silent deviations"
-    # violation (see working-docs/design/installed-dist-info-source.md).
+    # include_installed_metadata stays True on the peek: with
+    # use-lockfile false, peeked_metadata is the returned metadata, so
+    # disabling it would suppress installed-metadata reconciliation too
+    # (see working-docs/design/installed-dist-info-source.md).
     peeked_metadata, peeked_config, peeked_path = read_project(
         project_path, include_locked_dependencies=False
     )

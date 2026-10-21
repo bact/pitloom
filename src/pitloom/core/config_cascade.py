@@ -24,8 +24,8 @@ either may belong to an unrelated project. Adding a setting means one
 :class:`~pitloom.core.config.PitloomConfig` field, one
 :class:`ConfigOverrides` field and one line in :func:`apply_overrides`.
 
-:mod:`pitloom.plugins.hatch` still reads and splats its project's config by
-its own route (``PitloomConfig.assemble_options``); it has no per-run
+:mod:`pitloom.plugins.hatch` reads its project's config itself and passes
+``PitloomConfig.assemble_options`` to the assembler; it has no per-run
 overrides to layer.
 
 No leading underscore: imported from outside ``pitloom.core`` (see AGENTS.md
@@ -94,26 +94,15 @@ class ConfigOverrides:
             not opt in) and :func:`apply_overrides` never touches it; only a
             standalone wheel embed reads it, and any other embed warns.
         build_options: ``--allow-build`` and its companion flags (see
-            :class:`~pitloom.core.build_options.BuildOptions`). Unlike
-            every other field here, deliberately has no
-            ``[tool.pitloom]`` cascade to defer to, and is read by
-            ``embed-wheel`` alone -- :func:`apply_overrides` never touches
-            it, and ``generate_project_sbom()`` takes its own separate
-            ``build_options`` parameter rather than reading this one.
-            Threaded into
-            ``_build_sbom_from_project_and_wheel()``'s own project-dir
-            rescan, whose only use for the resulting file list is
-            layering content-type/file-header extras onto the wheel's
-            already-known files (see that function's own comment on
-            discarding the rescan's ``merkle_root``/digests) -- so on a
-            project whose backend has no static discovery module (or
-            whose static discovery fails), enabling this runs a full,
-            real, potentially slow PEP 517 build *purely* to compute
-            those extras more accurately, not to learn the file list
-            itself (the wheel's own ``read_wheel()`` result already has
-            that). Deliberate: this is the only way ``embed-wheel``
-            avoids silently staying stuck on the Hatchling-heuristic
-            rescan for such a project's content-type/header extras.
+            :class:`~pitloom.core.build_options.BuildOptions`). No
+            ``[tool.pitloom]`` cascade, and read by ``embed-wheel`` alone:
+            :func:`apply_overrides` never touches it, and
+            ``generate_project_sbom()`` takes its own ``build_options``
+            parameter. It reaches the project-directory rescan of
+            ``_build_sbom_from_project_and_wheel()``, which only layers
+            content-type and file-header extras onto the wheel's own file
+            list, so enabling it on a project without a static discovery
+            module runs a real PEP 517 build for those extras alone.
     """
 
     provenance: ProvenanceConfig | None = None
@@ -190,8 +179,8 @@ def apply_overrides(cfg: PitloomConfig, overrides: ConfigOverrides) -> PitloomCo
 
     A field left ``None`` defers to *cfg*; anything else wins, including a
     value that happens to equal the built-in default (``0``/``False`` are
-    explicit choices, not absences -- see AGENTS.md's ``None`` vs empty
-    tri-state rule).
+    explicit choices, not absences -- see AGENTS.md's ``None``/absent vs
+    ``[]``/``{}`` rule).
 
     Raises:
         ValueError: if the *resulting* content-type method is not one of

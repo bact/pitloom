@@ -13,6 +13,16 @@ adapted with minimal edits. Snippets are POSIX shell; on Windows use
 `python` or `py` for `python3`, save a multi-line `python -c '...'` to a
 `.py` file, and use PowerShell equivalents.
 
+## Where the output goes
+
+Without `-o`, `project` writes `sbom.spdx3.json`, `wheel` and `model` write
+`<file name>.spdx3.json` (e.g. `model.onnx.spdx3.json`) and `env` writes
+`deployed-environment.spdx3.json`, all in the current directory; `generate`
+exits 1 without `-o`. Stdout is one line, `PITLOOM_SBOM_OUTPUT_PATH=<path>`;
+`-o -` writes the SBOM there instead. `embed-wheel` prints one
+`WHEEL=<name> SBOM=<path inside the wheel>` line per wheel (default `<name>-<version>.spdx3.json` under `.dist-info/sboms/`;
+`--sbom-basename` or the config key `sbom-basename` changes it).
+
 ## Project SBOM (directory or sdist), ephemeral run
 
 ```bash

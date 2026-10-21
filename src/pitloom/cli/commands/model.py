@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Command-line interface for Pitloom's SBOM generator."""
+"""The ``model`` subcommand: an AI model SBOM from a local file or a Hugging Face
+repository."""
 
 from __future__ import annotations
 

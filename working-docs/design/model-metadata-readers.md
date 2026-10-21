@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,8 +8,9 @@ SPDX-License-Identifier: CC0-1.0
 
 # Metadata-only AI model readers (pre-1.0)
 
-Status: planned; only the library skeleton and its first module (the
-pickle opcode walker, `formats/pickle_walk.py`) are built. The readers
+Status: planned; only the library skeleton, the pickle opcode walker
+(`formats/pickle_walk.py`) and the CRFsuite reader (`formats/crfsuite.py`) are
+built. The readers
 land after 0.20.0, which ships with #263's gates and bounds and serves
 as the stable baseline the new readers are tested against. Replaces the
 earlier subprocess-isolation plan (kept below as the fallback for HDF5

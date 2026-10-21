@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -14,12 +14,15 @@ adapted with minimal edits. Snippets are POSIX shell; on Windows use
 
 The scenario: Pitloom's static extraction produced `sbom.spdx3.json` for a
 project whose `model.safetensors` has an adjacent `README.md` with YAML
-frontmatter (`license: apache-2.0`) plus prose stating the model was also
-evaluated on "imagenet-val" -- a relationship only the prose states, not
-the frontmatter. Two enrichment passes run in sequence: the deterministic
-`loom enrich` command picks up the frontmatter `license`, then an agent
+frontmatter (`license: apache-2.0`, `datasets: [imagenet-1k]`) plus prose
+stating the model was also evaluated on "imagenet-val" -- a relationship only
+the prose states, not the frontmatter. Two enrichment passes run in sequence:
+the deterministic `loom enrich` command picks up the frontmatter, then an agent
 reads the prose for the `imagenet-val` relationship the frontmatter never
-mentioned.
+mentioned. The base SBOM came from `loom project . -o sbom.spdx3.json`, without
+`--enrich`. With `--enrich` the SBOM already holds the frontmatter's dataset and
+licence, so step 1 is skipped: merging its fragment too would duplicate each
+dataset and `trainedOn`.
 
 ## 1. Run the deterministic pass
 
@@ -37,11 +40,14 @@ exit). A `loom model` base cannot be merged into at all (`loom model`
 ignores registered fragments, silently): draft, then hand the fragment over
 unmerged. Pass the same `--config`, `--id-registry` and `--use-lockfile` as
 the base run if it used them. `-o` is always explicit: without it the
-fragment lands in the current directory under the model's own file name.
+fragment lands in the current directory as `<model file name>.enrich.spdx3.json`.
 
-This parses only `README.md`'s YAML frontmatter (`license: apache-2.0`)
-and writes a standalone fragment -- no prose reading, no reasoning, no
-network. Read it to see what it filled, so step 2 below doesn't
+This parses only `README.md`'s YAML frontmatter and writes a standalone
+fragment -- no prose reading, no reasoning, no network. The fragment holds the
+`imagenet-1k` `dataset_DatasetPackage` with its `trainedOn` relationship, and an
+`Annotation` logging every change, the `license` included (the fragment writes
+no licence element: for the licence, regenerate the base with `--enrich`
+instead of this step). Read it to see what it filled, so step 2 below doesn't
 re-propose the same field:
 
 ```bash
@@ -52,7 +58,7 @@ python3 -c "import json; print(json.load(open('model.enrich.spdx3.json'))['@grap
 
 ## 2. Draft a fragment for what prose adds
 
-The frontmatter enrichment already covered `license`; it never runs on
+The frontmatter enrichment already covered `license` and `datasets:`; it never runs on
 prose, so the "evaluated on imagenet-val" relationship stated in the
 README body is still an agent-only finding. A `Relationship` must start
 from the model's real id, so first read it from the base SBOM:
@@ -111,7 +117,7 @@ Put the printed id where `<AIPackage-spdxId>` appears below.
 ### Override example
 
 If instead the README's prose contradicted the frontmatter -- say
-`license: apache-2.0` in frontmatter, but the body text says "note: as of
+`license: apache-2.0` in frontmatter (the SBOM states it because the base run used `--enrich`), but the body text says "note: as of
 v2 this model is actually MIT-licensed, the header above is stale" -- the
 agent's fragment would override, recording both values and why rather than
 silently replacing the deterministic result. A licence is a
@@ -288,14 +294,15 @@ Re-run the exact command that produced the base SBOM (same target, `-o`
 and flags):
 
 ```bash
-loom project . -o sbom.spdx3.json --pretty
+loom project . -o sbom.spdx3.json
 ```
 
-The merged output now contains both the deterministic `license` fill and
-the `dataset_DatasetPackage` element and `testedOn` relationship the
-agent inferred, alongside everything Pitloom extracted directly -- each
-with its own provenance clearly marked (the deterministic one via its N3
-CreationInfo, the agent-inferred one via its `comment`).
+The merged output now contains the `imagenet-1k` dataset and `trainedOn`
+relationship from `loom enrich`, and the `imagenet-val` `dataset_DatasetPackage`
+element and `testedOn` relationship the agent inferred, alongside everything
+Pitloom extracted directly. Each carries its provenance: the deterministic ones
+a `pitloom.enrich.readme` tool and an enrichment `Annotation`, the agent-inferred
+ones their `comment`.
 
 ## 6. Post-merge check (mandatory)
 
@@ -307,8 +314,8 @@ relationship type) that plain JSON-syntax validity would miss. Minimal fallback:
 
 ## 7. Report back to the user
 
-Summarise what came from which pass (e.g. "`loom enrich` filled `license`
-from the README's frontmatter; separately, I added an `imagenet-val`
+Summarise what came from which pass (e.g. "`loom enrich` added the
+`imagenet-1k` training dataset from the README's frontmatter; separately, I added an `imagenet-val`
 dataset reference based on the README's prose 'Evaluation' section --
 please review before treating this as authoritative"). If any value was
 overridden (see the override example above), name it explicitly. Never

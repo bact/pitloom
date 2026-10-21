@@ -107,9 +107,11 @@ def _build_creation_metadata(pitloom_config: PitloomConfig) -> CreationMetadata:
     """Build creation metadata from ``[[tool.pitloom.creator]]`` /
     ``[[tool.pitloom.creation-tool]]`` / ``[tool.pitloom.creation]``.
 
-    Unset fields fall through to :class:`CreationMetadata`'s own defaults --
+    Unset fields take :class:`CreationMetadata`'s defaults, as the CLI does:
     no named creators (the assembler emits the ``SoftwareAgent`` "Pitloom")
-    and ``tools`` -> ``[Pitloom]`` -- matching the CLI.
+    and ``tools`` of ``[Pitloom]``. ``creation-comment`` defaults to a note
+    naming the build hook, and ``builtTime`` is
+    :func:`_resolve_build_datetime`.
     """
     comment = pitloom_config.creation_comment
     return dataclasses.replace(
@@ -138,31 +140,24 @@ def _build_document_model(
     correctly reflected in the SBOM.
 
     Also runs enrichment for each discovered AI model, gated by the
-    project's own ``[tool.pitloom] enrich`` (no separate hook-level key,
-    same "one config surface" rule ``_validate_config`` already enforces
-    for creator/tool/fragment settings) -- uses the same
-    ``run_enrichers_for_models()`` helper ``generate_project_sbom()``
-    (:mod:`pitloom.assemble._generators`) does, so the build hook
-    produces the same N3/E1/E2 artifacts ``loom project`` would for the
-    same project.
+    project's own ``[tool.pitloom] enrich`` (the hook has no key of its own,
+    see :func:`_validate_config`), through the same
+    ``run_enrichers_for_models()`` call as
+    :func:`~pitloom.assemble.generate_project_sbom`, so the hook and
+    ``loom project`` enrich a project alike.
     """
     metadata = metadata_from_hatchling(hatch_metadata, project_dir)
     creation_metadata = _build_creation_metadata(pitloom_config)
-    # build_options stays at its default (--allow-build not given): this
-    # is the Hatchling build hook, so the backend is Hatchling by
-    # construction -- never a build-and-read candidate -- so the
-    # returned cleanup is always a no-op; call it immediately rather
-    # than threading it further.
+    # No build_options: the backend is Hatchling, never a build-and-read
+    # candidate, so the returned cleanup is a no-op.
     merkle_root, project_files, _cleanup = get_wheel_files(
         project_dir,
         scan_file_headers=pitloom_config.extract_file_header,
         detect_content_type=pitloom_config.content_type.enabled,
         content_type_method=pitloom_config.content_type.method,
         content_type_overrides=pitloom_config.content_type.overrides,
-        # This *is* the Hatchling build hook -- the backend is Hatchling
-        # by construction, so skip the pyproject.toml re-parse and
-        # backend-detection get_wheel_files would otherwise do to figure
-        # out what this call site already knows.
+        # Skips get_wheel_files()'s pyproject.toml re-parse and backend
+        # detection.
         assume_backend="hatchling",
         exclude_path=registry_file_path(registry),
     )
@@ -309,8 +304,8 @@ class PitloomBuildHook(_PitloomBuildHookBase):
                 is appended to on success.
 
         Raises:
-            ValueError: If a hook configuration value has an invalid type
-                or is otherwise invalid.
+            ValueError: If a hook configuration value is invalid, or the
+                ID registry cannot be loaded.
             FragmentMergeError: If a ``required = true`` SBOM fragment
                 (``[tool.pitloom.fragment]``) is missing or unreadable --
                 a `ValueError` subclass, propagated uncaught like the
@@ -322,10 +317,8 @@ class PitloomBuildHook(_PitloomBuildHookBase):
                 determined, or predates 1.29.0 and can't embed the SBOM
                 (see :func:`_check_hatchling_sbom_support`).
         """
-        # This process's Python logging config is otherwise whatever
-        # pip/hatchling itself set up (or didn't) -- without this, a
-        # future log.warning() call here would print with no "WARNING: "
-        # prefix, unlike every other Pitloom entry point.
+        # Without this, this process logs with whatever logging config
+        # pip/hatchling set up, and lines lack the "WARNING: " prefix.
         configure_logging()
         log.debug("Pitloom build hook: build variant %r", version)
 

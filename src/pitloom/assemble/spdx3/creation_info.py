@@ -269,8 +269,8 @@ def build_enrichment_creation_info(
     ``SOURCE_DATE_EPOCH``, so the output stays reproducible.
 
     SPDX 3.0.1 has no native ``Tool.version`` (added in 3.1-dev); version
-    info goes in ``Tool.summary`` instead, same workaround
-    :func:`_tool_summary` uses for the main "Pitloom" tool -- set directly
+    info goes in ``Tool.summary`` instead, as
+    :func:`_tool_summary` does for the main "Pitloom" tool -- set directly
     here rather than widening that helper's tool-name-scoped contract. The
     Pitloom PURL is also attached as ``externalIdentifier`` -- see
     :data:`_PITLOOM_PURL`.

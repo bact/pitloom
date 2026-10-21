@@ -3,14 +3,13 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Command-line interface for Pitloom's SBOM generator.
+"""Shared ``add_*_argument()`` flag definitions and the helpers that turn the
+parsed flags into library values (:func:`build_options_from_args`,
+:func:`byte_budget`).
 
-Shared ``add_*_argument()`` flag-definition helpers and their
-``warn_*()`` companions. Config-cascade *resolution* logic (turning
-parsed ``args`` plus ``[tool.pitloom]`` into effective settings) lives
-in :mod:`pitloom.cli.options_resolve`, split out once this file crossed
-the ~400-500 line soft limit -- re-exported below so every existing
-``from pitloom.cli.options import ...`` call site needed no changes.
+Config-cascade resolution (parsed ``args`` plus ``[tool.pitloom]`` into
+effective settings) is in :mod:`pitloom.cli.options_resolve`, re-exported
+here.
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-04
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -31,7 +31,7 @@ build-backend = "hatchling.build"
 # This can be empty
 ```
 
-That's all -- `hatch build` and `python -m build` now embed the SBOM.
+That's all -- `hatch build` and `python -m build` embed the SBOM.
 
 ## Installation
 
@@ -54,7 +54,7 @@ dependency automatically, the same way it installs Hatchling itself.
 
 ## Usage details
 
-Every `hatch build`/`python -m build` invocation now:
+Every `hatch build`/`python -m build` invocation:
 
 1. Generates a Build SBOM (`software_SbomType.build`) for the project being built.
 2. Merges in any fragments registered under `[tool.pitloom.fragment]`

@@ -119,7 +119,7 @@ def test_apply_debug_override_true_sets_env_var(
     # only records one when the name is already present) -- otherwise
     # apply_debug_override(True)'s direct os.environ[...] = "1" write
     # below would leak PITLOOM_DEBUG=1 into every later test in this
-    # process, exactly the class of bug this function exists to fix.
+    # process.
     monkeypatch.setenv(PITLOOM_DEBUG_ENV_VAR, "0")
     apply_debug_override(True)
     assert os.environ[PITLOOM_DEBUG_ENV_VAR] == "1"

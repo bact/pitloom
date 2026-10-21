@@ -120,8 +120,8 @@ class CreationMetadata:
             (reproducible-builds.org) if set, else the current UTC time --
             see :func:`resolve_source_date_epoch`.
         creation_comment: Optional comment to include on the SPDX
-            ``CreationInfo`` element.  Callers (CLI, Hatchling build hook)
-            set this to a static description of the invocation channel,
+            ``CreationInfo`` element.  Callers (CLI, Hatchling build hook,
+            loom SDK) set this to a description of the invocation channel,
             e.g. ``"Generated via Pitloom CLI"``.
         build_datetime: ISO 8601 string for when the artifact was built
             (e.g. the moment the Hatchling hook fires).  When set, the

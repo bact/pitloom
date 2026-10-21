@@ -114,7 +114,7 @@ def metadata_from_pyproject(
     return metadata
 
 
-#: The ``[project]`` fields :func:`_metadata_from_pyproject` reads.
+#: The ``[project]`` fields :func:`metadata_from_pyproject` reads.
 _FALLBACK_FIELDS = (
     "version",
     "description",
@@ -126,7 +126,7 @@ _FALLBACK_FIELDS = (
 
 
 def _warn_dynamic_unresolved(proj: dict[str, Any], where: str) -> None:
-    """One ``WARNING:`` naming each field :func:`_metadata_from_pyproject`
+    """One ``WARNING:`` naming each field :func:`metadata_from_pyproject`
     reads that ``dynamic`` lists: the build computes it, and without
     ``PKG-INFO`` (which a real sdist carries, built) the archive holds
     no value for it."""

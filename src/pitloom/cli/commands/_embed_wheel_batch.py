@@ -58,12 +58,9 @@ def report_embed_result(
     plus one ``INFO:`` line per notable side effect. For ``-o -`` the
     record is an ``INFO:`` line instead: stdout is then the SBOM alone.
 
-    Shared by ``wheel --embed`` and ``embed-wheel`` so both report results
-    identically -- see ``pitloom.cli.commands.wheel._run_wheel_command``/
-    :func:`try_embed_one_wheel`. Lives here (not in
-    ``pitloom.cli.commands.embed_wheel``) so :func:`try_embed_one_wheel`
-    can call it directly instead of taking it as a callback parameter --
-    a plain function-to-function call, not an ``Any``-typed indirection.
+    Shared by ``wheel --embed``
+    (``pitloom.cli.commands.wheel._run_wheel_command``) and ``embed-wheel``
+    (:func:`try_embed_one_wheel`), so both report alike.
     """
     report = log_kv if is_stdout(output_path) else print_kv
     report(WHEEL=wheel_name, SBOM=arcname)
@@ -94,27 +91,20 @@ def resolve_project_dir_and_config(
     project_dir: Path | None, *, read_config: bool = True
 ) -> tuple[Path | None, PitloomConfig | None] | None:
     """Resolve ``--project-dir`` into ``(project_dir, its PitloomConfig)``,
-    or ``(None, None)`` when it was not given.
+    or ``(None, None)`` when it was not given: the current directory is never
+    assumed to be the wheel's project, since it may be an unrelated one.
+    Returns ``None``, after printing one ``ERROR:``, when the directory does
+    not exist or holds no ``pyproject.toml``/``setup.cfg``/``setup.py``.
 
-    Without ``--project-dir`` there is no project: the current directory is
-    never assumed to be the wheel's project, since it may be an unrelated
-    one. Returns ``None`` (already printed an ``ERROR:``) if the given
-    directory doesn't exist or has no ``pyproject.toml``/``setup.cfg``.
+    Only ``[tool.pitloom]`` is used: the read skips the lock/pin cascade and
+    the in-tree installed metadata (``embed-wheel`` is build-stage, and
+    source-stage dependencies must not reach a wheel-embedded SBOM) and is
+    quiet, since the metadata is discarded and its warnings come from the
+    embed's own read of the authors.
 
-    Only ``[tool.pitloom]`` config is used here; ``read_project()``'s
-    lock/pin cascade is skipped (``include_locked_dependencies=False``)
-    -- ``embed-wheel`` is build-stage, and a source-stage lock file's
-    resolved dependencies must never leak into a wheel-embedded SBOM. Its
-    in-tree installed-metadata resolution is skipped too
-    (``include_installed_metadata=False``) for the same build-stage
-    rationale, and purely to skip that I/O since this caller discards the
-    metadata anyway. The read is quiet for the same reason: the project's
-    metadata warnings come from the embed's read that adopts its authors.
-
-    Without *read_config* (a ``--config`` replaces it) the
-    project's own config is not read at all, as
-    :func:`~pitloom.embed.embed_wheel_sbom` does not read it when given a
-    config, so an unrelated fault in it cannot fail the embed.
+    Without *read_config* (a ``--config`` replaces it) the project's own
+    config is not read, and the config returned is ``None``, so a fault in it
+    cannot fail the embed.
     """
     if project_dir is None:
         return None, None
@@ -217,9 +207,8 @@ def resolve_batch_id_registry(
 
 @dataclasses.dataclass(frozen=True)
 class EmbedBatchContext:
-    """The per-run values every wheel in a batch embeds with -- resolved
-    once in ``_run_embed_wheel_command``, not per-wheel, and bundled here
-    so :func:`try_embed_one_wheel` stays under the arg-count limit.
+    """The per-run values every wheel in a batch embeds with, resolved once
+    in ``_run_embed_wheel_command`` and passed to :func:`try_embed_one_wheel`.
 
     ``file_cache`` is a mutable :class:`~pitloom.embed.EmbedFileCache`,
     not a value like the other fields: it memoizes ``project_dir``'s

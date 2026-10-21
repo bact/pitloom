@@ -274,7 +274,7 @@ def _build_poetry_provenance(
             fields += ", tool.poetry.extras"
         prov["dependencies"] = f"Source: pyproject.toml | Field: {fields}"
     # Presence-gated like the container fields above, not truthy-gated --
-    # see AGENTS.md's "provenance dict's tri-state signal" bullet.
+    # see AGENTS.md's "``None``/absent vs ``[]``/``{}``" rule.
     if python_declared:
         prov["requires_python"] = (
             "Source: pyproject.toml | Field: tool.poetry.dependencies.python"

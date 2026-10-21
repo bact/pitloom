@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Command-line interface for Pitloom's SBOM generator."""
+"""The ``verify-wheel`` subcommand: structural check of a wheel's embedded SBOM."""
 
 from __future__ import annotations
 
@@ -31,22 +31,14 @@ def _check_location(
     location: EmbeddedSbomLocation,
     sbom_format: str | None,
 ) -> bool:
-    """Verify an *already disk-read* embedded SBOM's extension. Always
-    succeeds (location/format problems are WARNING:, not a failure) --
-    returns ``bool`` only for symmetry with :func:`_check_one_wheel`.
+    """Check that the embedded SBOM's extension is the one recommended for its
+    format; a mismatch or an unrecognised format is a ``WARNING:``. Returns
+    ``True`` always.
 
-    *location* must come from a real `_locate_embedded_sbom_or_report`
-    call against the wheel on disk -- never construct one from in-memory,
-    pre-write data to skip that read (see `embed_wheel.py`'s
-    `_run_post_embed_checks`: this split exists so `--verify --validate`
-    together share ONE disk read, not to avoid the read).
-
-    *sbom_format* is `detect_sbom_format(location.data)`'s result,
-    computed by the caller -- required, not optional-with-a-lazy-fallback,
-    because `None` is itself a valid detection result (unrecognized
-    format): a `sbom_format is None` fallback couldn't tell "caller didn't
-    detect it yet" from "caller detected it as unrecognized" and would
-    silently re-detect on every unrecognized-format wheel.
+    *location* and *sbom_format* (``None`` for an unrecognised format) come
+    from :func:`~pitloom.cli.commands.utils._locate_and_detect`, run once
+    against the wheel on disk, so ``--verify`` and ``--validate`` share one
+    read.
     """
     recommended = RECOMMENDED_EXTENSIONS.get(sbom_format) if sbom_format else None
     if recommended is None:

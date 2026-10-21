@@ -110,93 +110,42 @@ def debug_enabled() -> bool:
 
 
 def apply_debug_override(debug: bool | None) -> None:
-    """Normalize an explicit debug choice (the CLI's ``--debug``/
-    ``--no-debug``) into the ``PITLOOM_DEBUG`` environment variable, so
-    it stays the effective choice for the rest of the process.
+    """Set the CLI's explicit ``--debug``/``--no-debug`` choice in the
+    ``PITLOOM_DEBUG`` environment variable, so every later bare
+    :func:`configure_logging` call (each public generator and the build hook
+    makes one) resolves the same level instead of reverting to ``INFO``.
 
-    Every public generator (``generate_project_sbom()`` and friends, the
-    Hatchling build hook, ``merge_fragments()``) calls bare
-    ``configure_logging()`` internally -- ``debug=None`` -- to (re)apply
-    the shared ``INFO:``/``WARNING:``/``ERROR:`` formatting before doing
-    its own work. Each of those calls independently falls back to
-    ``PITLOOM_DEBUG`` (see :func:`_debug_requested`); without this
-    function, a CLI-only ``debug=True`` passed to the *first*
-    ``configure_logging()`` call (in ``__main__.main()``) would be
-    silently discarded by the *next* one, reverting to ``INFO`` unless
-    ``PITLOOM_DEBUG`` also happened to be set -- ``loom --debug
-    project .`` would look like it worked (the top-level logger briefly
-    goes to ``DEBUG``) but produce no ``DEBUG:`` output once
-    ``generate_project_sbom()`` reconfigures it. Routing the CLI's
-    choice through the same environment variable every call site already
-    consults makes every subsequent bare ``configure_logging()`` agree,
-    with no signature changes needed at any of those call sites.
-    ``debug=None`` (``--debug`` omitted) leaves ``PITLOOM_DEBUG`` as the
-    caller found it -- an ambient environment setting is respected, not
-    overwritten with an implicit "off". ``debug=False`` (``--no-debug``)
-    sets the variable to ``"0"`` rather than unsetting it, so it stays
-    distinguishable from "never configured" for anything downstream (a
-    subprocess pitloom shells out to, another `PITLOOM_DEBUG` reader) that
-    treats the two states differently.
+    ``debug=None`` (flag omitted) leaves the variable as found, so an ambient
+    ``PITLOOM_DEBUG`` is respected. ``debug=False`` sets it to ``"0"``, not
+    unset, so "off by choice" stays distinct from "never configured".
 
-    This mutates ``os.environ`` for the remaining lifetime of the current
-    process -- correct for the CLI, which runs once per process and exits.
-    A caller that invokes :func:`pitloom.__main__.main` or a public
-    generator more than once in one long-lived process (a wrapper script,
-    a test harness) and wants one invocation's ``--debug``/``--no-debug``
-    choice to not leak into the next must save
-    ``os.environ.get(PITLOOM_DEBUG_ENV_VAR)`` before calling this and
-    restore it (or delete the key if it was absent) afterward.
-    ``apply_debug_override(False)`` does **not** do this for you -- it
-    sets an explicit, equally permanent ``"0"``, it does not restore
-    whatever ambient value was there before."""
+    The change lasts for the rest of the process. A caller running
+    :func:`pitloom.__main__.main` or a generator repeatedly in one process
+    saves ``os.environ.get(PITLOOM_DEBUG_ENV_VAR)`` before and restores it
+    after; ``apply_debug_override(False)`` does not restore it.
+    """
     if debug is None:
         return
     os.environ[PITLOOM_DEBUG_ENV_VAR] = "1" if debug else "0"
 
 
 def configure_logging(*, debug: bool | None = None) -> None:
-    """Prefix internal ``log.info(...)``/``log.warning(...)`` output with
-    ``INFO: ``/``WARNING: ``.
+    """Prefix ``pitloom`` log records with their level, on stderr.
 
-    Without this, Python's last-resort handler either drops ``INFO``
-    records entirely (the root logger's default effective level is
-    ``WARNING``) or, for ``WARNING``, prints them to stderr with no
-    prefix at all -- both break the shared grep-able ``LEVEL:
-    <description>`` convention (see ``ERROR:``, used by the CLI's own
-    ``print()`` calls) documented in ``CLAUDE.md``'s "CLI output"
-    section. ``DEBUG`` stays suppressed unless opted into: pass
-    ``debug=True``/``debug=False`` for an explicit choice made by the
-    caller itself, or leave ``debug`` at its default ``None`` to fall
-    back to the ``PITLOOM_DEBUG`` environment variable
-    (``1``/``true``/``yes``/``on``, case-insensitive). The CLI itself
-    always calls this with no arguments; see :func:`apply_debug_override`'s
-    docstring for how ``--debug``/``--no-debug`` reach it (and every other
-    bare ``configure_logging()`` call downstream) via ``PITLOOM_DEBUG``
-    instead of a direct ``debug=`` argument. When enabled,
-    ``log.debug(...)`` records get the same ``%(levelname)s: `` prefix as
-    ``INFO``/``WARNING``, i.e. ``DEBUG: <message>`` -- still a developer
-    diagnostic, not one of ``CLAUDE.md``'s three normal-invocation
-    levels, but consistently formatted when a caller asks to see it.
-    Reconfigures on every call rather than guarding with a "configured
-    once" flag, so repeated calls in the same process (e.g. across
-    tests, or a build tool invoking the Hatchling hook more than once)
-    don't stack duplicate handlers. The new handler is built first and
-    ``logger.handlers`` is replaced with a whole new list in one
-    assignment (never cleared-then-appended in place), so a concurrent
-    ``log.warning(...)``/``log.info(...)`` call on another thread always
-    sees either the fully-old or fully-new handler list -- never an
-    empty one mid-swap -- without needing to lock log emission itself.
-    A module-level lock still serializes the reconfiguration itself, so
-    two threads each calling this at once can't race on ``setLevel()``
-    or leave the logger in a state neither call intended. Propagation to
-    the root logger is left untouched, so ``pytest``'s ``caplog``
-    fixture still captures these records; a host application that
-    already configures its own root logging may then see pitloom's
-    ``INFO:``/``WARNING:`` lines twice (once via this handler, once via
-    its own root handler) -- disabling propagation would fix that but
-    silently break every test in this suite that captures pitloom's log
-    output via bare ``caplog.at_level(...)`` (implicitly root-scoped),
-    so it stays as a documented tradeoff rather than a silent one.
+    ``log.info(...)`` and ``log.warning(...)`` records become ``INFO: ...``
+    and ``WARNING: ...``, the grep-able ``LEVEL: <description>`` convention of
+    CLAUDE.md's "CLI output" section (without a handler, ``INFO`` is dropped
+    and ``WARNING`` has no prefix). ``DEBUG`` is suppressed unless *debug* is
+    ``True``, or *debug* is ``None`` and ``PITLOOM_DEBUG`` is one of
+    ``1``/``true``/``yes``/``on`` (case-insensitive); the CLI passes no
+    argument and sets ``PITLOOM_DEBUG`` through :func:`apply_debug_override`.
+    Enabled ``DEBUG`` records are prefixed ``DEBUG: ``.
+
+    Each call replaces the logger's handlers with a new list, so repeated
+    calls do not stack handlers and a concurrent log call sees a complete
+    list; a lock serialises the reconfiguration. Propagation to the root
+    logger stays on (``caplog`` captures the records), so a host that
+    configures root logging itself may see each line twice.
     """
     level = logging.DEBUG if _debug_requested(debug) else logging.INFO
     logger = logging.getLogger("pitloom")
@@ -216,24 +165,15 @@ def warn_once(
     extra: Mapping[str, object] | None = None,
 ) -> None:
     """Log *msg* at WARNING the first time *key* fires on *log* in this
-    process, DEBUG on every later occurrence.
+    process, at DEBUG on every later occurrence.
 
-    Protects a caller that runs the same fallible check on every
-    iteration of a loop (e.g. once per :mod:`pitloom.loom` call in a
-    training run) from flooding stderr when the underlying condition is
-    persistent rather than one-off. Every occurrence after the first is
-    a real, separate instance of the same problem -- demoting it to
-    ``DEBUG`` (silent in a normal invocation, per ``CLAUDE.md``'s "CLI
-    output" section) trades "no silent deviations" for "no unbounded
-    spam" on purpose: a user who wants to know it is *still* failing on
-    call #10,000 can rerun with ``--debug``, but a default run isn't
-    flooded by a condition that, once known, adds nothing by repeating.
-    A documented tradeoff, not a silent one.
+    For a check run in a loop (e.g. once per :mod:`pitloom.loom` call) whose
+    failure persists: the first occurrence is reported, the rest are visible
+    with ``--debug`` only.
 
-    *key* is scoped by ``log.name`` internally, so two unrelated call
-    sites picking the same short key string (e.g. ``"version"``) can't
-    silently suppress each other's first occurrence. *extra* is set on
-    the record, as :meth:`logging.Logger.log` sets it.
+    *key* is scoped by ``log.name``, so call sites on different loggers may
+    reuse a key. *extra* is set on the record, as :meth:`logging.Logger.log`
+    sets it.
     """
     dedup_key = (log.name, key)
     with _CONFIG_LOCK:

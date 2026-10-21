@@ -18,9 +18,9 @@ Three entry points:
   a target-specific function) to produce a full SBOM, the same output
   `loom project`/`loom model`/`loom env` produce on the [CLI](cli.md).
 - **[Standalone enrichment](#standalone-enrichment)** -- call
-  `enrich_model()` to fill AI-model metadata gaps (licence, datasets) from
-  a local README/model-card's YAML frontmatter, writing a mergeable
-  fragment -- no code annotation needed, the Python equivalent of `loom
+  `enrich_model()` to read a local README/model-card's YAML frontmatter
+  (licence, datasets) into a mergeable fragment: datasets and their
+  `trainedOn` link, with the licence recorded in its enrichment annotation -- no code annotation needed, the Python equivalent of `loom
   enrich`.
 - **[Tracking decorator](#tracking-decorator)** -- annotate a training or
   evaluation script with `@loom.run(...)` to emit a small SPDX fragment

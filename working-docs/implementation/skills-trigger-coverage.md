@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-10-19
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -163,7 +163,7 @@ drift is silent.
   (`add_parser(` lists `generate`, `project`, `wheel`, `embed-wheel`,
   `verify-wheel`, `validate-wheel`, `model`, `enrich`, `env`, `merge`,
   `fragment` (`validate`, `list`) and `id` (`generate`, `import`); each has
-  trigger phrasing). Run on a small Hatchling project, a built wheel and the
+  trigger phrasing except `merge` and `fragment list`, see "Deferred"). Run on a small Hatchling project, a built wheel and the
   `gpt2-tiny-decoder.onnx` fixture, Pitloom 0.20.2, checker `82a63b9`: `loom
   generate`/`project`/`model`/`env`, `loom generate --enrich`, `loom
   generate FILE` without `-o` (an `ERROR:`), `verify-wheel` before and after

@@ -241,6 +241,16 @@ def build(
     best-effort PyPI JSON API lookup before the licence is left unstated and
     the copyright is ``NOASSERTION`` -- see
     :func:`~pitloom.assemble.spdx3.deps.add_dependencies`.
+
+    *merkle_root* is the package's SHA-256 Merkle root over its files, folded
+    into the document id and recorded as the main package's hash. *sbom_type*
+    is the ``software_SbomType`` of the ``software_Sbom`` element. *registry*
+    supplies stable ids; *provenance* defaults to
+    :class:`~pitloom.core.provenance.ProvenanceConfig`'s defaults.
+    *content_type_method* reaches each dependency's originator enrichment.
+    *identity_info_due* is called before the unknown-identity ``INFO:``
+    (given with a *registry*) and returns whether to log it, so a batch logs
+    it once.
     """
     doc = _with_canonical_dependencies(doc)
     metadata = doc.project

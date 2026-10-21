@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -47,9 +47,12 @@ standards, and the roadmap for new integrations.
 | Pre-generated fragments | `pitloom.assemble.spdx3.fragments` | SBOM elements from external teams, binary vendors, or earlier builds |
 | Build backend (Hatchling) | `pitloom.plugins.hatch` | Wheel file set, Merkle root, build timestamp |
 
-### Planned integrations
+### Integrations
 
-#### 1. Hatchling build hook (`pitloom.plugins.hatch`)
+The Hatchling hook, PEP 770 embedding and fragment merging are built; the
+extractors from 3 on are planned.
+
+#### 1. Hatchling build hook (`pitloom.plugins.hatch`) [built]
 
 A Hatchling `BuildHookInterface` plugin that generates the SBOM automatically
 during `hatch build` or `python -m build` and embeds it in the wheel's
@@ -57,7 +60,7 @@ during `hatch build` or `python -m build` and embeds it in the wheel's
 `pitloom` to `build-system.requires` and enabling `[tool.hatch.build.hooks.pitloom]`.
 See `working-docs/implementation/hatchling-build-hook.md`.
 
-#### 2. PEP 770 wheel embedding
+#### 2. PEP 770 wheel embedding [built]
 
 The SBOM is placed at `{name}-{version}.dist-info/sboms/{name}-{version}.spdx3.json`
 inside the wheel archive (default basename; overridable via `sbom-basename`). Downstream tools (Trivy, Grype, pip-audit) can
@@ -96,15 +99,16 @@ and DVC remote URLs map to `software_downloadLocation`.
 This provides strong, git-anchored provenance for projects that
 use DVC for data versioning.
 
-#### 6. SBOM fragment system (`pitloom.assemble.spdx3.fragments`) [partially implemented]
+#### 6. SBOM fragment system (`pitloom.assemble.spdx3.fragments`) [built, with open items]
 
 Merges pre-generated SPDX 3 fragment files from external teams, binary
 vendors, or earlier build stages into the composite SBOM.
-Current implementation performs basic element merge.
-Planned improvements: structured fragment declaration in `pyproject.toml`
-(with role, sha256, link-to-main relationship), pre-merge validation,
-duplicate-ID detection, and `SpdxDocument.imports` population for
-cross-document traceability.
+Built: structured fragment declaration in `[tool.pitloom.fragment]`
+(`FragmentConfig`: role, description, required, sha256, link-to-main),
+duplicate-ID and dangling-reference checks, unification of equal elements, and
+`SpdxDocument.imports` population. Open (not built): `loom fragment sign` and
+SHA-256 verification before a merge; see
+[sbom-fragments/open-items.md](sbom-fragments/open-items.md).
 See `working-docs/design/sbom-fragments/fragment-merge-design.md`.
 
 ### Data flow: extraction -> document model -> assembly
@@ -133,12 +137,12 @@ DocumentModel(
     project=ProjectMetadata,
     creation_metadata=CreationMetadata,
     ai_models=[AiModelMetadata, ...],
-    fragments=[FragmentConfig, ...],    # structured fragment metadata [planned]
+    fragments=[FragmentConfig, ...],    # structured fragment metadata
 )
 
 Serialization and merge
 ───────────────────────
-compute_wheel_merkle_root(project_dir)          -> merkle_root (or None)
+merkle_root_of_files(files)                     -> merkle_root (or None)
 build(doc: DocumentModel, merkle_root)          -> Spdx3JsonExporter -> JSON-LD
 merge_fragments(fragments, exporter, ...)       -> elements inlined; imports recorded
 exporter.to_json(pretty=...)                    -> composite SBOM string / file
@@ -150,11 +154,12 @@ The `@graph` array in JSON-LD output contains one object per SPDX element.
 Its order has direct implications for two concerns:
 
 **Reproducibility.** `SHACLObjectSet` stores objects in a Python `set`, which
-is unordered. `SHACLObjectSet.encode()` accepts a `key=` parameter and sorts
-before serializing, but `JSONLDSerializer` does not pass one, so the emitted
-order varies across runs. This makes byte-for-byte reproducibility impossible
-and destabilizes text diffs and hash calculations (e.g., Merkle root, integrity
-checksums embedded in the wheel).
+is unordered, and `JSONLDSerializer` passes no sort `key=`, so the library's
+emitted order varies across runs. Without a fixed order, byte-for-byte
+reproducibility is impossible and text diffs and hash calculations (e.g.,
+Merkle root, integrity checksums embedded in the wheel) are unstable. Built:
+`Spdx3JsonExporter.to_json()` sorts `@graph` itself (see
+[sort-order-canonicalization.md](../implementation/sort-order-canonicalization.md#graph-element-order)).
 
 **Stream-processing performance.** Consumers that parse the document
 incrementally (validators, SCA scanners) must buffer the entire `@graph` before
@@ -165,16 +170,9 @@ context without reading the full document. The highest-priority nodes are:
 (document envelope and `profileConformance`), and `software_Sbom`
 (root element pointer and `sbomType`).
 
-**Approach.** Because `to_json()` already round-trips through `json.loads()`,
-a deterministic sort can be applied to `data["@graph"]` before the final
-`json.dumps()` call with no changes to `spdx-python-model`. A two-level key
-suffices:
-
-1. **Type-priority tier** -- promote `CreationInfo`, `SpdxDocument`,
-   `software_Sbom` to the front (in that order), then root `software_Package`,
-   then all other elements.
-2. **`@id` lexicographic order** -- within each tier, sort by the element's
-   `@id` (or `_:ClassName` for blank nodes) so output is fully deterministic.
+**Approach (built).** `to_json()` sorts `data["@graph"]` after the
+`json.loads()` round trip, with no changes to `spdx-python-model`; the key
+and its tiers are in the implementation doc above.
 
 **Relationship to JSON canonicalization standards.**
 RFC 8259 §4 ([datatracker.ietf.org/doc/rfc8259](https://datatracker.ietf.org/doc/rfc8259/))
@@ -220,7 +218,7 @@ Build time (zero extra commands)
 hatch build  /  python -m build
   └── PitloomBuildHook.initialize()
         ├── read_pyproject()         (reads pyproject.toml)
-        ├── compute_wheel_merkle_root() (WheelBuilder file set -> deterministic UUID)
+        ├── merkle_root_of_files()   (WheelBuilder file set -> deterministic UUID)
         ├── DocumentModel -> build(merkle_root) -> Spdx3JsonExporter
         ├── merge fragments/run.spdx3.json    (AI provenance)
         └── -> .dist-info/sboms/mypackage-1.0.spdx3.json  <- PEP 770

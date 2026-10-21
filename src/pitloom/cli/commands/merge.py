@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Command-line interface for Pitloom's SBOM generator."""
+"""The ``merge`` subcommand: one SBOM from a directory of SPDX 3 fragments."""
 
 from __future__ import annotations
 

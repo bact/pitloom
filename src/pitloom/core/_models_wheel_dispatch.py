@@ -57,16 +57,9 @@ class _RegisteredBackend(NamedTuple):
 def _has_project_table(pyproject_data: dict[str, object] | None) -> bool:
     """Whether *pyproject_data* declares a ``[project]`` table.
 
-    The single source of truth for this check -- both
-    :func:`_skip_hatchling_fallback` (a registered backend's own
-    discoverer gave up) and :func:`_discover_with_no_static_module` (no
-    discoverer registered at all) need it to decide whether Hatchling's
-    ``WheelBuilder`` (which requires a ``[project]`` table) is even worth
-    attempting, and a hand-copied second predicate is exactly the
-    "pattern hand-copied across call sites drifts" bug class this
-    repo's own CLAUDE.md warns about -- a future change to what counts
-    as resolvable (e.g. PEP 639 ``dynamic`` handling) must only need
-    updating here.
+    :func:`_skip_hatchling_fallback` and :func:`_discover_with_no_static_module`
+    both use it to decide whether Hatchling's ``WheelBuilder``, which requires
+    a ``[project]`` table, is worth attempting.
     """
     return pyproject_data is not None and "project" in pyproject_data
 
@@ -208,11 +201,10 @@ def _discover_with_no_static_module(
     *,
     build: BuildSettings | None,
 ) -> tuple[list[IncludedFile], Callable[[], None]] | None:
-    """No static module for this backend at all -- uv_build today, any
-    future/unrecognized backend, or a Track B backend (maturin,
-    scikit-build-core, meson-python) once its own toolchain happens to
-    be available. No backend-specific code needed for any of these to
-    start working the moment ``build`` is given (``--allow-build``).
+    """No static module for this backend at all: ``uv_build``, an
+    unrecognised backend, or a Track B backend (maturin, scikit-build-core,
+    meson-python). With *build* given (``--allow-build``) the generic
+    build-and-read mechanism handles any of them.
 
     Returns a result to return immediately, or ``None`` to fall through
     to the Hatchling heuristic (the "not backend-aware" ``WARNING:`` is

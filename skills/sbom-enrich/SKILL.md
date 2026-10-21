@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-18
+# Last-Modified: 2026-10-21
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -155,9 +155,13 @@ Steps:
 2. **Run the deterministic pass first**, when a local AI model file is in
    scope; skip it otherwise (a plain Python project, a Hugging Face model, or
    a file that is not a model, for which `loom enrich` fails with an
-   `ERROR:`). It parses only YAML frontmatter and writes a standalone
-   fragment -- fast, free, safe. Read the fragment to see which fields
-   (`license`, `datasets:...`) it filled:
+   `ERROR:`) and when the base run used `--enrich` (same pass: merging both
+   duplicates each dataset and `trainedOn`). It parses only YAML frontmatter and writes a standalone
+   fragment -- fast, free, safe. Each `datasets:` entry becomes a
+   `dataset_DatasetPackage` with a `trainedOn` relationship; a frontmatter
+   `license` is only logged in the fragment's enrichment `Annotation`, with no
+   licence element: a base regenerated with `--enrich` states it (or a step 6
+   fragment does). Read the fragment's `@graph` to see what it filled:
 
    ```bash
    loom enrich <model-file> --project-dir <dir> -o <dir>/model.enrich.spdx3.json

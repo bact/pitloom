@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-24
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -338,28 +338,29 @@ into the distribution path); now correctly reports `mypkg/__init__.py`.
 
 Multiple metadata sources may coexist in a single project (common during
 migration to pyproject.toml).  Resolution happens in `read_project()` in
-`src/pitloom/extract/project.py`, the single entry point used by both the
+`src/pitloom/extract/project/reader.py`, the single entry point used by both the
 CLI and `generate_project_sbom()`'s default parsing path:
 
-1. If `pyproject.toml` exists at all (existence check only -- regardless of
-   whether it has a `[project]` section), it is the sole metadata source,
-   via `read_pyproject()`. `setup.cfg`/`setup.py` are not consulted, even if
-   present -- there is no cross-source field merge at this level.
+1. If `pyproject.toml` exists, `read_pyproject()` reads it. `setup.cfg`/
+   `setup.py` are not consulted, unless the result has no `name` (no usable
+   `[project]` table and no `[tool.poetry]` fallback, e.g. a `[build-system]`-only
+   file) and `setup.cfg` or `setup.py` exists: then `read_setuptools()`'s
+   metadata is primary, with a `WARNING:` naming the fallback. The
+   pyproject-side `locked_dependencies` and provenance carry over when the
+   setuptools side has none (`merge_project_metadata()`).
 2. Otherwise, if `setup.cfg` and/or `setup.py` exist, `read_setuptools()` is
    used as the sole source (the merge of [Precedence](#precedence) applies
-   only between `setup.cfg` and `setup.py`, not `pyproject.toml`).
+   only between `setup.cfg` and `setup.py`).
 3. If none of the three files exist, `FileNotFoundError` is raised.
 
 **Why pyproject.toml wins:** PEP 517 and PEP 621 designate `[project]` in
 `pyproject.toml` as the canonical metadata location.  Setuptools itself gives
 `pyproject.toml` precedence over `setup.cfg` when both are present.
 
-**Known limitation:** a transitional project with `[build-system]`-only
-`pyproject.toml` plus real metadata in `setup.cfg` (see the fixture project
-below) does not currently get its `setup.cfg` metadata merged in -- step 1
-above takes `pyproject.toml`'s (mostly empty) metadata as-is. Field-level
-merging across `pyproject.toml` and `setup.cfg` is a possible future
-enhancement, not yet implemented.
+**Known limitation:** a `pyproject.toml` that has a `name` but leaves other
+fields to `setup.cfg` does not get those fields merged in. Field-level merging
+across `pyproject.toml` and `setup.cfg` is not implemented; the fallback above
+applies only when `pyproject.toml` gives no name.
 
 ## Provenance tracking
 

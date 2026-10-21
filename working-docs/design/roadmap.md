@@ -71,10 +71,9 @@ uniform and safer:
 
 ### 0.21.0
 
-- [ ] **Same AI model, same id on every surface** (first item after #294):
-  `loom model`, `loom enrich` and `loom id generate` use the project
-  scan's name lookup, so enrichment cannot hit the wrong model. See
-  [known-bugs.md](known-bugs.md#p0-in-0210).
+- [x] **Same AI model, same id on every surface**: built with the registry
+  path keys. See
+  [id-registry-path-keys.md](../implementation/id-registry-path-keys.md).
 - [ ] **Fragment value beats an extracted one** (own PR): a fragment or
   catalogue value must win over a value read from or generated for the
   model (e.g. a CRFsuite description). See
@@ -105,6 +104,19 @@ uniform and safer:
   [id-registry-followups-path-keys.md](id-registry-followups-path-keys.md).
 - [ ] **Registry layouts beyond `src/` and `lib/`** (`python/`, `packages/`):
   no alias today; add only on demand. Same file.
+- [x] **Git URL ingestion** (PR #317): `loom project <url>` and `loom generate
+  <url>` read repository and page URLs of GitLab, GitHub, Gitea/Forgejo,
+  Bitbucket and SourceHut; redirects followed hop by hop with a caller check;
+  Lumina uses it. See
+  [remote-git-ingestion.md](../implementation/remote-git-ingestion.md),
+  [docs/git-urls.md](../../docs/git-urls.md).
+- [ ] **Git URL ingestion, open follow-ups**: a size cap for a clone (the 10-MB
+  blob filter is a request to the server); DNS rebinding between the caller's
+  address check and git's own lookup; a Python-project reader for imperative
+  `setup.py` (a monorepo such as `labs.etsi.org/rep/ocf/capif` fails with a
+  hint naming its sub-projects); a Bitbucket and a SourceHut fetch verified on
+  a real repository; record the commit and URL in the SBOM. See
+  [remote-git-ingestion.md](../implementation/remote-git-ingestion.md#not-built).
 - [ ] **Git LFS pointers outside AI models**: one shared detector, one
   summary `WARNING:`; registry v3 (built) ships without it. See
   [known-bugs.md](known-bugs.md#p0-in-0210).
@@ -261,10 +273,9 @@ unless the linked doc says so.
   [open-items.md](sbom-fragments/open-items.md),
   [sbom-fragments/README.md](sbom-fragments/README.md),
   [docs/fragments.md](../../docs/fragments.md).
-- [ ] **Remote repository and forge ingestion**. Git URLs (`loom project <url>`,
-  `loom generate <url>`) are built: see
-  [remote-git-ingestion.md](../implementation/remote-git-ingestion.md). Other
-  forge APIs: [remote-source-ingestion.md](remote-source-ingestion.md).
+- [ ] **Forge APIs and private repositories** (tokens, `ssh://`, forge archive
+  tarballs, forge licence and VCS provenance). Git URLs are built (0.21.0). See
+  [remote-source-ingestion.md](remote-source-ingestion.md).
 - [ ] **PyPI package ingestion** (`loom pypi <name>[==version]`): resolve a release
   through the JSON API, take its sdist or wheel, verify the digest, build the
   SBOM; first consumer Lumina. See
@@ -322,6 +333,11 @@ Each found more than one bug that a per-site fix would only move.
 
 Recorded findings; each is fixable on its own.
 
+- **G7 dataset creator**: Pitloom writes a dataset's creator as `publishedBy`;
+  the checker's `DP-006.1` reads `originatedBy`, so the rule stays missing.
+  Decide whether a Hub dataset owner is an originator (never guessed), and
+  whether the checker should also accept `publishedBy`. See
+  [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md).
 - **File discovery**: setuptools gives absolute `physical_path` for a
   project dir named in another letter case (macOS, Windows; #257, in
   [known-bugs.md](known-bugs-p3.md)); four #215 follow-ups. See
@@ -381,6 +397,9 @@ Recorded findings; each is fixable on its own.
 - [ ] **SARIF output** for CI findings. See [sarif-output.md](sarif-output.md).
 - [ ] **Docker container action** (`using: docker`) for hermetic or
   self-hosted runners. See [adoption-surfaces.md](adoption-surfaces.md).
+- [ ] **External work to review**: Red Hat AI system card, OASIS Data
+  Provenance Standard (provenance taxonomy redesign), ETSI TR 104 180 data
+  quality metrics. See [external-references-to-review.md](external-references-to-review.md).
 - Background research: [metadata-sources.md](metadata-sources.md) (how other
   tools read Python metadata), [sbom-enrichment.md](sbom-enrichment.md),
   [architecture-overview.md](architecture-overview.md).

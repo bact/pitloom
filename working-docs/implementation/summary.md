@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -67,8 +67,8 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
      for source code (Source SBOM)
    - `generate_wheel_sbom()` and `generate_model_sbom()` orchestrate the
      pipeline for built wheels and AI models
-     (Analyzed SBOM), utilizing `wheel.py`, `ai.py`, and `binary.py`
-     to identify phantom dependencies
+     (Analyzed SBOM), utilizing `extract/wheel.py`, `extract/ai_model/`
+     and `extract/binary.py` to identify phantom dependencies
    - `generate_env_sbom()` orchestrates the pipeline for active
      environments (Deployed SBOM), mapping the tree using `env.py`
    - Builds `DocumentModel` from extracted metadata
@@ -102,15 +102,17 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
      [cli-test-coverage-roadmap.md](../design/cli-test-coverage-roadmap.md)
      for the per-module breakdown
    - User-friendly argparse-based CLI with input-centric subcommands
-     (`project`, `wheel`, `model`, `env`, `merge`, `embed-wheel`, `id`)
+     (`project`, `wheel`, `model`, `env`, `merge`, `enrich`, `fragment`,
+     `embed-wheel`, `verify-wheel`, `validate-wheel`, `id`)
      and a smart entrypoint `loom generate [TARGET]` (requires `-o`,
      unlike the input-centric subcommands, which each have an obvious
      target-derived default filename)
    - Emitted SBOM data model strictly complies with CISA 6 SBOM Types
      (Source, Build, Analyzed, Deployed, Runtime per CISA April 2023 guide)
      and SPDX 3.0.1
-   - `loom project` scans unbuilt source directories or `.tar.gz`/`.zip` sdist
-     archives (Source SBOM)
+   - `loom project` scans unbuilt source directories, `.tar.gz`/`.zip` sdist
+     archives or Git repository URLs (Source SBOM; see
+     [remote-git-ingestion.md](remote-git-ingestion.md))
    - `loom wheel` scans built `.whl` archives (Analyzed SBOM)
    - `loom model` scans local model files or Hugging Face repositories with
      explicit `--offline` support (Analyzed AIBOM)
@@ -118,7 +120,8 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
    - `loom merge` stitches dynamic execution fragments (Runtime SBOM)
    - Python API harmonized 1:1 (`pitloom.generate()`,
      `generate_project_sbom()`, `generate_wheel_sbom()`,
-     `generate_model_sbom()`, `generate_env_sbom()`)
+     `generate_model_sbom()`, `generate_env_sbom()`,
+     `generate_merged_sbom()`, `enrich_model()`)
    - See [working-docs/implementation/cli-ux.md](cli-ux.md)
    - Default output filename derived from project metadata
      (`{name}-{version}.spdx3.json`)
@@ -177,10 +180,10 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
 1. **README.md**: Complete usage guide with examples
 2. **working-docs/implementation/demo.md**:
    Prototype capabilities and validation
-3. **working-docs/implementation/demo-provenance.md**: Provenance tracking demo
+3. **working-docs/implementation/provenance/demo-provenance.md**: Provenance tracking demo
 4. **working-docs/design/format-neutral-representation.md**:
    Multi-format support plan
-5. **working-docs/design/metadata-provenance.md**:
+5. **working-docs/implementation/provenance/metadata-provenance.md**:
    Provenance tracking specification
 6. **working-docs/design/metadata-sources.md**:
    Metadata sources research and integration plan
@@ -192,7 +195,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
 
 > **Historical snapshot, early prototype.** The invocation and element
 > counts below predate the input-centric CLI subcommands
-> (`project`/`wheel`/`model`/`env`/`generate`/`id`) and
+> (`project`/`wheel`/`model`/`env`/`generate`/`id`, among others) and
 > provenance-as-Annotation (see
 > [annotation-provenance.md](provenance/annotation-provenance.md)) -- a current run
 > uses `loom project <path>` (or `loom generate <path>`), not the bare

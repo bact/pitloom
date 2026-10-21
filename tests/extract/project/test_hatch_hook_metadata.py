@@ -75,8 +75,8 @@ def test_metadata_from_hatchling_declared_empty_authors_no_copyright_text() -> N
 def test_metadata_from_hatchling_empty_declared_dependencies_gets_provenance() -> None:
     """An explicitly declared but empty ``[project.dependencies]`` must
     still record provenance -- merge_project_metadata() relies on that
-    presence to treat the empty list as authoritative, not absent. Guards
-    _hatchling_field_declared() against regressing to a truthiness check
+    presence to treat the empty list as authoritative, not absent. Rules out
+    a truthiness check in _hatchling_field_declared()
     (``if dependencies:``) on the resolved list."""
     hatch_meta = _fake_hatch_metadata(core={"dependencies": []})
     metadata = metadata_from_hatchling(hatch_meta, Path("."))

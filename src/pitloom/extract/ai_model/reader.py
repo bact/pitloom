@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Extractor for model metadata from AI model files.
+"""Format detection and reader dispatch for AI model files.
 
 Supports CRFsuite, fastText, GGUF, HDF5, Keras, NumPy, ONNX, PyTorch,
 PyTorch PT2, and Safetensors formats.
@@ -73,7 +73,7 @@ class FormatInfo:
     Attributes:
         format: The :class:`~pitloom.core.ai_metadata.AiModelFormat` value.
         reader: Callable that extracts :class:`AiModelMetadata` from a file
-            of this format, or ``None`` if no reader is registered yet.
+            of this format, or ``None`` if no reader is registered.
     """
 
     format: AiModelFormat

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -82,8 +82,32 @@ Formats, suffixes and header checks:
 path-configuration `.pth`, are silently not models (other tools use those
 suffixes).
 
-How to tell a stub, its causes and their stderr lines: `../SKILL.md` ("AI
-model caps"). Beyond that:
+A **stub** is an `ai_AIPackage` with no `ai_*` property and no `comment`
+entry `Source: <model file> | Field: ...`; its `name` is the file's stem
+(`Method: file_name_stem`). A `comment` citing the README (`--enrich`,
+`Method: yaml_frontmatter`) does not make it read. The stderr line says why:
+
+- `INFO: AI models in a wheel in these formats are listed without metadata
+  ...: onnx. Pass --trust-wheel-model ...` -- the wheel gate (fastText, GGUF,
+  HDF5, ONNX, PyTorch `.pt`/`.pth`); tell the user, never add the flag.
+- `WARNING: FORMAT=<fmt> FILE=<path>: required library not installed; ...` --
+  install `pitloom[ai]` and regenerate.
+- `... failed to extract metadata; ...` -- the file has a model's header but
+  could not be parsed (truncated or corrupt): check the file.
+- `... max-model-extract-bytes cap; metadata not read` -- the ceiling (512
+  MiB, config key only, wheel scans); `WARNING: ... model-scan budget cap; ...`
+  -- the per-wheel budget (4x the ceiling, one line); any other `...; metadata
+  not read` is a fixed bound. Lists past 1000 entries are cut with one
+  `WARNING:`. Never raise a ceiling on your own.
+- `... header is not <fmt>; not listed as an AI model`, `... header is a Git
+  LFS pointer; not listed as an AI model` (any candidate suffix, `.bin`
+  included) -- no model, no `ai_AIPackage`; for a pointer run `git lfs pull`
+  and regenerate. `loom model FILE` and `loom enrich` (any suffix) and `loom
+  generate FILE` (model suffixes only; a `.zip` goes to the sdist route)
+  refuse such a file with `ERROR: ... failed: <path>: <reason>` (exit 1).
+
+A model whose read fails is a stub, never dropped, with the same `WARNING:`
+from a scan and from `loom model FILE` (exit 0). Beyond that:
 
 - A file-named entry with other properties was read: NumPy, fastText,
   CRFsuite and classic PyTorch carry no model name, nor does an ONNX file
@@ -251,6 +275,14 @@ no single `.dist-info` to write into. Where the file name names no top-level
 `WARNING: ... the file name names no top-level .dist-info; using ...`: report
 that line, as the name and version then come from a directory the file name
 does not name. It is not a model bound.
+
+## Licence detection unavailable
+
+`WARNING: licenseid database cannot be used: <reason> -- license text detection
+and license ID canonicalization skipped` (once per run): the `licenseid` SPDX
+database is missing or empty (`licenseid update` builds it). Licences are then
+taken as written: no `LICENSE` text is matched to an id and no id is
+normalised. Report the line.
 
 ## A licence that looks like a broken expression
 

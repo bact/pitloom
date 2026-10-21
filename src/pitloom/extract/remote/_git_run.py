@@ -66,11 +66,10 @@ _ERROR_LINE = re.compile(r"(fatal|error|remote): ")
 class GitRunner:
     """Runs ``git`` calls that share one deadline.
 
-    Every call runs with ``http.followRedirects=false`` (the URL was checked,
-    and redirects were followed by hand with each hop checked), with git-lfs
-    off (it would fetch from an address the repository names), without a
-    credential prompt (a private repository must fail fast) and with only
-    the http(s) transports allowed.
+    Every call runs with ``http.followRedirects=false`` (redirects are followed
+    by hand, each hop checked), git-lfs off (it fetches from an address the
+    repository names), no credential prompt (a private repository fails fast)
+    and only the allowed transports.
     """
 
     seconds: float = field(default_factory=lambda: GIT_TIMEOUT_SECONDS)

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-15
-Last-Modified: 2026-09-28
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -31,3 +31,20 @@ and are now commented as such at each site.
 No behavior changed; `_sorted_by_spdx_id` vs `_canonical_merge_key`
 intentionally stay separate helpers -- they sort different things for
 different reasons and share no key strategy worth unifying.
+
+## `@graph` element order
+
+`Spdx3JsonExporter.to_json()` (`src/pitloom/export/spdx3_json.py`) sorts the
+JSON-LD `@graph` after deduplicating CreationInfo blank nodes and named
+elements, because `SHACLObjectSet` is unordered and RFC 8785 does not reorder
+arrays. The key, `_graph_sort_key()`, has three levels:
+
+1. A type tier (`_GRAPH_TYPE_PRIORITY`): `CreationInfo`, `SpdxDocument`, `Bom`,
+   `software_Sbom`, then every other type.
+2. The element's `spdxId` (or `@id`), lexicographically.
+3. The element's RFC 8785 form, only to order conflicting duplicates that share
+   a tier and an id.
+
+The compact output is RFC 8785 canonical; `--pretty` writes the same order with
+sorted keys and indentation. The standards analysis behind the choice is in
+[architecture-overview-integration.md](../design/architecture-overview-integration.md).

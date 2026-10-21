@@ -106,9 +106,8 @@ def _is_license_classifier_conflict(exc: ConfigurationError) -> bool:
     SPDX-string error) -- ``.key`` alone can't tell them apart, so this
     also matches the full distinguishing phrase from the classifier-
     conflict message specifically. pyproject-metadata exposes no more
-    stable discriminator than message text for this; if a future release
-    rewords the message, this check starts under-matching (silently
-    stops recovering the transitional state) and needs updating."""
+    stable discriminator than message text for this, so a reworded message
+    stops matching."""
     return (
         exc.key == "project.license"
         and "not compatible with 'License ::' classifiers" in str(exc)
@@ -195,14 +194,10 @@ def _parse_standard_metadata_with_retry(
         placeholder_dropped = (
             _drop_placeholder_license(data) if states_licence else None
         )
-        # PEP 639 transitional state: a project declares both a modern
-        # SPDX `license` expression and legacy `License ::` trove
-        # classifiers -- pyproject-metadata treats the combination as a
-        # hard error. Real-world projects mid-migration commonly leave
-        # the old classifiers in place rather than deleting them the
-        # same release they add the SPDX field. Retry once with the
-        # redundant classifiers dropped, keeping the SPDX expression --
-        # the newer, more specific PEP 639 source -- as authoritative.
+        # PEP 639: an SPDX `license` expression together with `License ::`
+        # trove classifiers is a hard error in pyproject-metadata, yet
+        # projects mid-migration declare both. Retry once without the
+        # classifiers; the SPDX expression stays authoritative.
         if placeholder_dropped is not None:
             data = placeholder_dropped
         else:
@@ -248,19 +243,20 @@ def read_pyproject(
     Parses the ``[project]`` section via ``pyproject-metadata``, resolves
     dynamic versions, and reads Pitloom-specific settings from ``[tool.pitloom]``.
 
-    ``include_locked_dependencies`` is forwarded to :func:`_try_read_poetry`
-    -- see its own docstring for why a build-stage caller must pass
-    ``False``. Defaults to ``True`` so every existing call site (the
-    source-stage path via :func:`pitloom.extract.project.read_project`)
-    keeps its current behaviour unless it explicitly opts out.
+    ``include_locked_dependencies`` (default ``True``) is forwarded to
+    :func:`_try_read_poetry`: ``poetry.lock`` is read only when it is true,
+    and a build-stage caller passes ``False``.
 
-    ``quiet`` suppresses this read's own ``WARNING:`` lines (forwarded to
-    :func:`_parse_standard_metadata_with_retry`) -- for a caller re-reading
-    the same file a second time and only interested in a setting unrelated
-    to the warning's cause, not because the file's content changed.
+    ``quiet`` suppresses this read's own ``WARNING:`` lines, for a second read
+    of a file whose warnings the first already logged.
 
     Without ``read_config``, ``[tool.pitloom]`` is not parsed and the
     defaults are returned: an explicit config replaces it.
+
+    Raises:
+        FileNotFoundError: *pyproject_path* does not exist.
+        ValueError: the file is not valid TOML, or its metadata or
+            ``[tool.pitloom]`` settings are invalid.
     """
     if not pyproject_path.exists():
         raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
@@ -307,8 +303,8 @@ def read_pyproject(
     provenance = build_provenance(
         project_data, version_source, license_prov, description_source
     )
-    # Presence-gated, not truthy-gated -- see AGENTS.md's "tri-state
-    # signal" bullet: `requires-python = ""` resolves to an empty (falsy)
+    # Presence-gated, not truthy-gated -- see AGENTS.md's "``None``/absent
+    # vs ``[]``/``{}``" rule: `requires-python = ""` resolves to an empty (falsy)
     # SpecifierSet, PEP 621's equivalent of Poetry's `python = "*"`.
     if field_declared(project_data, "requires-python"):
         provenance["requires_python"] = (
@@ -408,10 +404,9 @@ def _try_read_poetry(
     Without *read_fields*, ``[tool.poetry]``'s own fields are not read:
     only ``poetry.lock`` (``None`` when it is not read either).
 
-    When *include_locked_dependencies* is true (the default, used by every
-    ``read_pyproject()`` caller), also reads a sibling ``poetry.lock`` for
-    the resolved transitive-dependency graph -- source-stage-only
-    enrichment; see :mod:`pitloom.extract.lock.poetry`'s module docstring.
+    When *include_locked_dependencies* is true, also reads a sibling
+    ``poetry.lock`` for the resolved transitive-dependency graph
+    (source-stage only; see :mod:`pitloom.extract.lock.poetry`).
     The Hatchling build hook's metadata gap-fill path
     (:func:`pitloom.extract.project.hatchling._poetry_fallback_metadata`) passes
     ``include_locked_dependencies=False``: that path runs at build/embed

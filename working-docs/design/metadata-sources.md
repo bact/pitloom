@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -86,9 +86,9 @@ Syft's cataloger split maps cleanly onto pitloom's two paths:
 
 | Pitloom path | Syft analogue | Primary metadata source |
 | :--- | :--- | :--- |
-| Hatchling / setuptools build hook | installed-package cataloger | `.dist-info/METADATA` (inside wheel) |
+| Hatchling build hook | installed-package cataloger | `.dist-info/METADATA` (inside wheel) |
 | CLI (`loom <project_dir>`) | source-file cataloger | `pyproject.toml` -> `setup.cfg` -> `setup.py` |
-| Remote CLI (`loom project <url>`) | remote repository cataloger | Remote forge archive (`pitloom.extract.remote`) -> `read_project()` (see [remote-source-ingestion.md](remote-source-ingestion.md)) |
+| Git URL (`loom project <url>`) | remote repository cataloger | Shallow `git` checkout (`pitloom.extract.remote.git`) -> `read_project()` (see [remote-git-ingestion.md](../implementation/remote-git-ingestion.md)) |
 
 The CLI should additionally consider checking for an existing `.dist-info` or
 `.egg-info` directory (from an editable install) as a high-fidelity supplement
@@ -249,8 +249,9 @@ Priority order for project metadata resolution:
 ```
 
 Tiers 3-5 are implemented as a single existence-based priority (not a
-field-level merge across tiers) in
-`pitloom.extract.project.read_project()`, used by both the CLI and
+field-level merge across tiers; a `pyproject.toml` that yields no name falls
+back to `setup.cfg`/`setup.py`) in
+`pitloom.extract.project.reader.read_project()`, used by both the CLI and
 `generate_project_sbom()`'s default parsing path. Tier 1 and the deferred
 site-packages tier 2 remain future work -- see
 `working-docs/implementation/setuptools-support.md` for the current

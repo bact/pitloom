@@ -151,8 +151,8 @@ def generate_project_sbom(
     build_options = build_options.settle_target(target_path)
 
     if target_path.is_file():
-        # Every option, not only today's inert ones, so a new INERT[SDIST]
-        # row entry needs no change here.
+        # Every option is passed, so an INERT[SDIST] entry needs no change
+        # here.
         settle_inert(
             SDIST,
             target_path,

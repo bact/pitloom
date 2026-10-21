@@ -168,10 +168,8 @@ def _doc_identity_of(
     The file walk leaves out *registry*'s own file, as in the project's
     SBOM, so both compute the same Merkle root.
     """
-    # build_options intentionally omitted (no --allow-build): the only
-    # production caller, enrich_model() (`loom enrich --project-dir`), has
-    # no --allow-build flag to read. The returned cleanup is therefore
-    # always a no-op; call it immediately.
+    # No build_options (no --allow-build) for either caller, enrich_model()
+    # and project_document_id(), so the returned cleanup is a no-op.
     merkle_root: str | None = None
     if not project_dir.is_file():  # an sdist has no file walk, as in its SBOM
         merkle_root, project_files, _cleanup = get_wheel_files(
@@ -364,11 +362,8 @@ def enrich_model(
         )
 
     model = _read_local_model(model_path)
-    # Unlike generate_model_sbom()/generate_project_sbom(), the config's
-    # enrich setting is NOT an "off by default" gate here: calling
-    # enrich_model() at all is itself the opt-in (see
-    # test_enrich_model_writes_bare_graph_fragment's docstring). Only an
-    # explicit enrich=False turns it back off.
+    # Calling enrich_model() is itself the opt-in, so the config's enrich
+    # setting is no gate here; only an explicit enrich=False turns it off.
     enrich_config = dataclasses.replace(cfg.enrich, local=enrich is not False)
     results = run_enrichers(model, enrich_config, model_path.parent)
 

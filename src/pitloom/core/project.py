@@ -43,28 +43,18 @@ class ProjectFile:
     Attributes:
         physical_path: Project-root-relative path to the physical file on
             disk (see CLAUDE.md's ``physical_path``/``distribution_path``
-            contract) -- except for a file sourced via the generic
-            ``--allow-build`` build-and-read mechanism
-            (``pitloom.core._models_wheel_build_and_read``), where it is
-            instead an absolute path into a temporary extraction
-            directory: that mechanism's real files never live under the
-            project's own root, so no project-relative path exists for
-            them (``_build_project_file_entry()``'s
-            ``source.relative_to(project_dir)`` falls back to
-            ``source.as_posix()`` when it raises ``ValueError``). Not
-            project-relative in that one case -- do not assume this field
-            is always a relative path without checking; any consumer
-            that joins it onto ``project_dir`` (e.g.
-            ``pitloom.enrich._resolve_model_search_dir``) must check
-            ``Path(physical_path).is_absolute()`` first and fall back to
-            ``distribution_path``/``file_path_relative``, since
-            ``pathlib``'s own join semantics silently discard the
-            left-hand side when the right-hand operand is absolute. For a
-            wheel member it is the raw archive name (never a filesystem
-            path); for an sdist member, its name without the sdist's top
-            directory (a member outside it: the raw name).
-            ``distribution_path`` is the normalised member name. The
-            registry key comes from one or the other per
+            contract). A file sourced by the ``--allow-build`` build-and-read
+            mechanism (``pitloom.core._models_wheel_build_and_read``) has an
+            absolute path into a temporary extraction directory instead
+            (``built`` is then true). A consumer that joins it onto
+            ``project_dir`` or bakes it into a determinism-sensitive string
+            goes through :func:`project_relative_or_fallback`, since
+            ``pathlib`` discards the left operand of a join with an absolute
+            right operand. For a wheel member it is the raw archive name
+            (never a filesystem path); for an sdist member, its name without
+            the sdist's top directory (a member outside it: the raw name).
+            ``distribution_path`` is the normalised member name. The registry
+            key comes from one or the other per
             :func:`~pitloom.id_registry.keys.file_lookup_key`.
         distribution_path: Canonical path of the file inside the wheel/package.
         digest_sha256: Hex-encoded SHA-256 digest of the file contents.
@@ -178,11 +168,9 @@ class _ConflictCandidateRequired(TypedDict):
 class ConflictCandidate(_ConflictCandidateRequired, total=False):
     """One source's reported value for a field under dispute.
 
-    Relocated here (rather than defined in
-    :mod:`pitloom.assemble.spdx3.provenance`, which re-exports it) so both
-    :mod:`pitloom.extract` and :mod:`pitloom.assemble` can use it without
-    :mod:`pitloom.extract` importing from the :mod:`pitloom.assemble`
-    layer -- see :attr:`ProjectMetadata.field_conflicts`.
+    Defined here so :mod:`pitloom.extract` and :mod:`pitloom.assemble` both
+    use it; :mod:`pitloom.assemble.spdx3.provenance` re-exports it. See
+    :attr:`ProjectMetadata.field_conflicts`.
     """
 
     ref: str
@@ -263,14 +251,9 @@ class ProjectMetadata:
     files: list[ProjectFile] = field(default_factory=list)
     field_conflicts: dict[str, list[ConflictCandidate]] = field(default_factory=dict)
 
-    #: Every dict/list-valued field name on this dataclass -- the set
-    #: :meth:`replace_with_fresh_containers` gives a fresh shallow copy to,
-    #: since :func:`dataclasses.replace` shares each of them with *self* by
-    #: reference otherwise. Kept in sync by hand (not derived from
-    #: :func:`dataclasses.fields` at class-definition time, to avoid a
-    #: metaclass/decorator-ordering dependency for a fixed, rarely-changed
-    #: list) -- a newly added dict/list field must be added here too, or it
-    #: silently loses the same protection every other container field has.
+    #: Every dict/list-valued field name on this dataclass: the fields
+    #: :meth:`replace_with_fresh_containers` copies. Listed by hand; a new
+    #: dict/list field must be added here.
     _CONTAINER_FIELD_NAMES: ClassVar[tuple[str, ...]] = (
         "keywords",
         "authors",
@@ -289,21 +272,12 @@ class ProjectMetadata:
         valued field not explicitly given in *changes* gets a fresh
         shallow copy first.
 
-        :func:`dataclasses.replace` shares every un-overridden field's
-        object with *self* by reference -- for a container field, that
-        means the result and *self* start out as the exact same dict/list
-        object. A caller that goes on to mutate the result in place (add
-        a key to ``.provenance``, append to ``.field_conflicts``, ...)
-        would silently corrupt *self* too unless every such caller
-        remembers to defensively copy first -- a hazard this repo has
-        already hit twice independently (:func:`merge_project_metadata`
-        and ``reconcile_installed_metadata()`` in
-        ``pitloom.extract.project._installed_reconcile`` each patched it
-        separately for ``provenance``/``field_conflicts`` before this
-        method existed). Prefer this over a bare
-        ``dataclasses.replace()`` call whenever the result will be
-        mutated in place afterward, for any container field -- not just
-        the two fields that happened to trigger a bug report first.
+        :func:`dataclasses.replace` shares every field not in *changes* with
+        *self* by reference, so a caller that then mutates a container of the
+        result in place (a key of ``.provenance``, an item of
+        ``.field_conflicts``) would change *self* too. Use this method rather
+        than a bare ``dataclasses.replace()`` whenever the result is mutated
+        in place.
         """
         fresh_containers = {
             name: getattr(self, name).copy()
@@ -349,35 +323,23 @@ def merge_project_metadata(
     """Merge two :class:`ProjectMetadata` instances, *primary* winning
     field-by-field; *secondary* fills gaps where *primary*'s value is absent.
 
-    Iterates :func:`dataclasses.fields` instead of hand-listing every field,
-    so a newly added :class:`ProjectMetadata` field (like ``license_concluded``)
-    is merged automatically with the same default rule -- no call site needs
-    updating when the schema grows.
+    Iterates :func:`dataclasses.fields`, so a new :class:`ProjectMetadata`
+    field is merged with the same rule without a change here.
 
-    Two fields are special-cased rather than "primary when present else
-    secondary":
+    Two fields are special-cased:
 
-    - ``name`` -- always *primary*'s, even if empty (a project's own name is
-      never meaningfully "filled in" from a secondary/fallback source).
+    - ``name`` -- always *primary*'s, even if empty.
     - ``provenance`` -- dict-merged, *primary*'s entries winning on key
       conflict, rather than replaced wholesale.
 
-    Every other field: *primary*'s value when present, else *secondary*'s.
-    This rule is uniform across scalar and container fields, with no
-    field-type-specific case: a falsy value -- an empty container
-    (``dependencies``, ``keywords``, ``urls``, etc.) or a scalar's
-    ``None`` (e.g. ``requires_python`` left unset by an explicit
-    ``python = "*"``) -- with provenance confirming it was explicitly
-    declared in *primary* is authoritative and preserved, exactly like a
-    truthy value would be. A falsy value absent from *primary*'s
-    provenance is treated as not-yet-resolved and filled from
-    *secondary*. A non-empty *primary* list replaces
-    *secondary*'s wholesale, it is never unioned with it. If a future
-    ``locked_dependencies`` source needs union-not-replace semantics (e.g.
-    combining two lock-derived dependency sets), that is a deliberate
-    deviation from every sibling list field here and belongs in a dedicated
-    merge step at the call site, not a silent special case in this
-    otherwise-uniform field-by-field loop.
+    Every other field takes *primary*'s value when present, else
+    *secondary*'s, for scalar and container fields alike. A falsy *primary*
+    value (an empty container, or a scalar ``None`` such as
+    ``requires_python`` left unset by an explicit ``python = "*"``) whose
+    provenance confirms it was declared is authoritative and kept. A falsy
+    value absent from *primary*'s provenance is unresolved and filled from
+    *secondary*. A non-empty *primary* list replaces *secondary*'s, never
+    unions with it.
 
     The "explicitly declared" check looks up *provenance* by the field's own
     name (e.g. ``provenance["keywords"]``) -- except ``license_name``, whose
@@ -386,27 +348,17 @@ def merge_project_metadata(
     ``"license_name"``; :data:`_PROVENANCE_KEY_ALIASES`
     maps that known mismatch so the same presence check finds it.
 
-    ``field_conflicts`` is dict-merged the same way as ``provenance``
-    (*primary*'s entries winning on key conflict) rather than left to the
-    generic per-field loop below: both are seeded via
-    :meth:`ProjectMetadata.replace_with_fresh_containers` (never a bare
-    ``dataclasses.replace()``, which would alias every un-overridden
-    container field to *primary*'s own object) and then explicitly
-    overridden with the merged dict computed here. At most one side has
-    conflicts at every current call site (``setup.py`` vs ``setup.cfg`` ones
-    from ``read_setuptools()``; this merge runs before the installed
-    reconciliation), but a future caller or ordering change must not
-    silently corrupt either input's own dict via this function's output.
+    ``field_conflicts`` is dict-merged like ``provenance``, *primary*'s
+    entries winning on key conflict, with one ``WARNING:`` naming a field
+    both sides hold; the merged result holds fresh containers, so neither
+    input is modified.
     """
     merged = primary.replace_with_fresh_containers()
     merged.provenance = {**secondary.provenance, **primary.provenance}
     colliding_fields = set(secondary.field_conflicts) & set(primary.field_conflicts)
     if colliding_fields:
-        # Not reachable at any current call site (see the docstring above),
-        # but if it ever is: primary wins outright below, same as every
-        # other field -- log it rather than silently drop secondary's
-        # whole ConflictCandidate list with no signal at all, per this
-        # repo's "no silent deviations" principle.
+        # Primary wins below, as for every other field; secondary's
+        # ConflictCandidate list is dropped with this WARNING:, not silently.
         log.warning(
             "merge_project_metadata: both sides have a field_conflicts "
             "entry for %s -- keeping only primary's, secondary's conflict "

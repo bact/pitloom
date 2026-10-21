@@ -231,8 +231,9 @@ def fetch_json(
         source: A URL string (``http://`` or ``https://``) or a
             :class:`~pathlib.Path` to a local file.
         timeout: Socket timeout in seconds for a URL *source* (ignored for a
-            local file). Default matches the historical hardcoded value.
-        max_bytes: Maximum allowed byte size for the response or file.
+            local file); default 30.
+        max_bytes: Maximum allowed byte size for the response or file;
+            default 50 MiB.
         max_nesting: The most levels of arrays and objects the document may
             nest (:func:`json_nests_over`); none by default.
 

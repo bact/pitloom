@@ -410,6 +410,12 @@ def embed_sbom_in_wheel(
     already read them from its ``METADATA``: the default file name is made
     from it, and ``METADATA`` is not read, or warned about, again.
 
+    Returns:
+        ``(wheel path, SBOM arcname in the wheel, arcnames removed, floored)``:
+        the removed names are stale SBOMs and signature files; *floored* is
+        true when the ZIP entry timestamp was raised to 1980-01-01, the
+        earliest a ZIP can hold.
+
     Raises:
         FileNotFoundError: *wheel_path* doesn't exist.
         ValueError: *sbom_content* is empty, or the wheel's content is bad

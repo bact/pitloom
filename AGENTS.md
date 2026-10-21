@@ -28,7 +28,7 @@ Long-form rationale and examples for the rules below (marked "Why:") are in
 
 ### Metadata sources
 
-- The Hatchling build hook (`pitloom.plugins.hatch`) reads project metadata from `self.metadata` via `pitloom.extract.hatchling.metadata_from_hatchling()`.
+- The Hatchling build hook (`pitloom.plugins.hatch`) reads project metadata from `self.metadata` via `pitloom.extract.project.hatchling.metadata_from_hatchling()`.
 - The CLI (`pitloom.__main__`) and `generate_project_sbom()`'s default path resolve metadata via `pitloom.extract.project.read_project()`.
 - Both paths converge on `pitloom.assemble.spdx3.document.build()`.
 - **`physical_path` vs `distribution_path`**: on-disk project-relative path vs in-package/built path; they diverge for any `src/`-layout project. `software_File.name` always uses `distribution_path`. Registry keys come only from `pitloom.id_registry.keys.file_lookup_key`. For an `--allow-build` file, `physical_path` is an *absolute* temporary path: any consumer that joins it onto `project_dir` or bakes it into a determinism-sensitive string must call `pitloom.core.project.project_relative_or_fallback(physical_path, fallback)`, not an inline `is_absolute()` check. Why: [rationale](working-docs/implementation/agents-md-rationale.md#metadata-sources).
@@ -189,7 +189,7 @@ flake8
 
 - pylint needs `tests/*/` too (it does not descend into subfolders without `__init__.py`); pass directories, not single files (a file loses its dotted name: false E0402).
 - Avoid ambiguous variable names (E741). Max line length 88 (prefer 80). Remove unused imports and trailing whitespace. Non-ASCII only in human-language messages and diagrams.
-- Complexity targets: Returns<=6, Args<=5, Locals<=15, Nesting<=5, Branches<=20, Statements<=80, McCabe<=10, Cognitive<=15. Enforced ceilings in `pyproject.toml`/`.flake8` are interim ratchets (`max-args=6`, `max-locals=18`, McCabe=35, Cognitive=60); backlog: `working-docs/design/complexity-and-file-size-roadmap.md`.
+- Complexity targets: Returns<=6, Args<=5, Locals<=15, Nesting<=5, Branches<=20, Statements<=80, McCabe<=10, Cognitive<=15. Enforced ceilings in `pyproject.toml`/`.flake8` are interim ratchets (`max-args=6`, `max-locals=17`, McCabe=14, Cognitive=20); backlog: `working-docs/design/complexity-and-file-size-roadmap.md`.
 - Pylint suppressions go on the preceding line as `# pylint: disable-next=<msg>` (a bare `# pylint: disable=` before an `except` stopped working in pylint 4.1).
 
 ## File headers

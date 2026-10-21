@@ -23,7 +23,7 @@ Provenance is recorded per field.
   file scanning via AST parsing of the referenced module file.
 - Build-time metadata obtained via PEP 517
   ``prepare_metadata_for_build_wheel`` may differ from statically extracted
-  values.  PEP 517 integration is planned as a future enhancement.
+  values; Pitloom does not call it.
 
 See Also:
     https://setuptools.pypa.io/en/latest/userguide/declarative_config.html

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,24 +38,13 @@ Size: S under half a day, M about a day.
   (`Method: generated_from_labels`); check the merge order treats
   extracted and generated values as weak, for every field, not only this
   one.
-- [ ] **Same AI model gets different ids per surface; enrichment can hit
-  the wrong model (S-M).** Found in the #292 review: `loom model` looks an
-  AI model up in the registry by file stem only. `_model_generator.py`
-  (single-model SBOM and `enrich_model()`) passes `model_path.stem`, while project scans
-  try name, then path, then stem (`_ai_model_entity_candidates`), so an id
-  imported from a model SBOM whose package carries its own name never
-  hits for `loom model`. Reuse the candidates helper. Related: `loom id
-  generate` derives the stem itself (`id_registry/_generate.py`, `Path.stem`)
-  rather than through `AiModelMetadata.file_name_stem`; add a drift-guard
-  test or share it. Reproduced end to end (#292 black-box round, same on
-  `main`): `dup_named.onnx` (graph name `dup_stem`) and `dup_stem.onnx`
-  (no name) in one project; `id generate` keys both by stem, the project
-  scan gives `dup_named.onnx` the id of `dup_stem`, `dup_stem.onnx` gets a
-  fresh id each run (never written back, so the collision warning repeats),
-  and `loom enrich dup_stem.onnx` targets the package the project SBOM gave
-  `dup_named.onnx` -- a merged fragment enriches the wrong model. The
-  warning also labels `dup_named.onnx` by its own name `dup_stem`, so it
-  reads as a file colliding with itself; name the file too.
+- [x] **Same AI model gets different ids per surface; enrichment can hit
+  the wrong model (S-M).** Found in the #292 review (`loom model` looked a
+  model up by file stem only, a project scan by name, path, then stem). Fixed
+  by the path-key redesign on registry v3 (PR #305; K9, K10, K17 in
+  [id-registry-path-keys.md](../implementation/id-registry-path-keys.md)): one
+  model rule on every surface, a model keyed by its file's path and gated by
+  its SHA-256.
 
 ## P1: registry v3 in 0.21.0 (some built, some not)
 
@@ -73,10 +62,11 @@ Size: S under half a day, M about a day.
   the scan root and `_skipped_name_in` checks an explicit PATH's
   project-relative parts. (Was: a check on the absolute path, so
   `loom id generate` wrote 0 files, silently.)
-- [ ] **Same-stem model files share one entity.** `a/model.gguf` and
-  `b/model.gguf` get one `ai_AIPackage` key (Q-A: key by project path). v3
-  registers such a stem by name only, with one `INFO:` per run; the key is
-  not by path.
+- [x] **Same-stem model files share one entity.** `a/model.gguf` and
+  `b/model.gguf` got one `ai_AIPackage` key (Q-A: key by project path). Fixed
+  by the path-key redesign (PR #305; K9 in
+  [id-registry-path-keys.md](../implementation/id-registry-path-keys.md)): a
+  model is keyed by its file's path, two models with one stem have two ids.
 - [ ] **A package key without a version gives every release one id**
   (Q-D: PEP 503 name plus PEP 440 version). Not built in v3.
 - [x] **`normcase` does not fold case on macOS**, so a `same_path`
