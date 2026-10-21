@@ -11,6 +11,7 @@ The servers are local ones, so the tests opt out of the socket block.
 
 from __future__ import annotations
 
+import gc
 import http.server
 import logging
 import socket
@@ -391,3 +392,17 @@ def test_a_redirect_that_names_no_place_is_said_not_ignored(
         with caplog.at_level(logging.INFO):
             assert resolve_git_url(base + "/g/p") == base + "/g/p"
     assert "HTTP 301 without a Location" in caplog.text
+
+
+def test_the_probe_leaves_no_open_response_to_the_garbage_collector(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An HTTP error holds its response body; Python 3.14 reports a temporary
+    file closed by the collector as an unraisable error, which this suite
+    turns into a failure. Collect while the warnings are errors."""
+    with _server(
+        {"/g/p/info/refs": lambda port: f"http://127.0.0.1:{port}/o/r/info/refs"}
+    ) as base:
+        with caplog.at_level(logging.INFO):
+            resolve_git_url(base + "/g/p")
+    gc.collect()

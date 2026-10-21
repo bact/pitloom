@@ -114,6 +114,17 @@ class _Probe:
     failure: str | None = None
 
 
+def _probe_of_status(exc: urllib.error.HTTPError) -> _Probe:
+    """What the HTTP status *exc* says: a redirect's ``Location``, a failure
+    (4xx, 5xx), or nothing."""
+    if exc.code in _REDIRECT_CODES:
+        location = exc.headers.get("Location")
+        if location is None:
+            return _Probe(failure=f"HTTP {exc.code} without a Location")
+        return _Probe(location=location)
+    return _Probe(failure=f"HTTP {exc.code}") if exc.code >= 400 else _Probe()
+
+
 def _probe_once(probe_url: str) -> _Probe:
     """Ask *probe_url* once: its redirect, or why it cannot be asked (git then
     reports the problem itself)."""
@@ -125,12 +136,10 @@ def _probe_once(probe_url: str) -> _Probe:
         with opener.open(request, timeout=PROBE_TIMEOUT_SECONDS):
             return _Probe()
     except urllib.error.HTTPError as exc:
-        if exc.code in _REDIRECT_CODES:
-            location = exc.headers.get("Location")
-            if location is None:
-                return _Probe(failure=f"HTTP {exc.code} without a Location")
-            return _Probe(location=location)
-        return _Probe(failure=f"HTTP {exc.code}") if exc.code >= 400 else _Probe()
+        # The error holds the response body: closed here, not left to the
+        # garbage collector (Python 3.14 reports its temporary file then).
+        with exc:
+            return _probe_of_status(exc)
     except (
         urllib.error.URLError,
         http.client.HTTPException,
