@@ -145,6 +145,7 @@ and this project adheres to
 [#314]: https://github.com/bact/pitloom/pull/314
 [#315]: https://github.com/bact/pitloom/pull/315
 [#317]: https://github.com/bact/pitloom/pull/317
+[#318]: https://github.com/bact/pitloom/pull/318
 
 ## [0.20.2] - 2026-10-09
 
@@ -535,6 +536,9 @@ and this project adheres to
 - GitHub Action installs the Pitloom version of its pinned ref
   (`pitloom-version` overrides), uses the workflow's Python unless
   `python-version` is set, and no longer runs `pip --upgrade pip` ([#224])
+- Skills, docs and code comments match the code: skills' minimum-elements tables
+  follow the checker's rules, `loom enrich` licence behaviour is stated
+  correctly ([#318])
 
 ### Fixed
 
