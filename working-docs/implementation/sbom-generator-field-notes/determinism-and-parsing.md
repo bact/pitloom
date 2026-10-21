@@ -294,7 +294,7 @@ section 3.6 (determinism of model metadata).
   `Version("1" * 5000)` raises `ValueError: Exceeds the limit (4300) for
   integer string conversion`, which is not an `InvalidVersion`. A
   `METADATA` `Version:` of 5,000 digits turned `verify-wheel`'s "cannot
-  compare" warning into a fatal `ERROR:`. `extract/lock/_common.py` still
+  compare" warning into a fatal `ERROR:`. `extract/lock/common.py` still
   has the narrow catch (follow-up) (#266).
   Do: catch `ValueError`, the base of `InvalidVersion`, around every
   version parse of untrusted text.

@@ -22,7 +22,7 @@ from packaging.utils import canonicalize_name
 
 from pitloom.core.project import ConflictCandidate, ProjectMetadata
 from pitloom.extract._license import classify_license, is_weak_licence, same_licence
-from pitloom.extract.lock._common import is_same_version
+from pitloom.extract.lock.common import is_same_version
 
 #: Fields checked for a genuine disagreement between two sources: a real
 #: conflict is recorded (never silently substituted).

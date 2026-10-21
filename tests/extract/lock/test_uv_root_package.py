@@ -52,9 +52,7 @@ def test_scan_packages_ignores_malformed_entries_when_collecting_root_candidates
     """A malformed top-level `[[package]]` entry (not a table, or
     missing/non-string `name`) is silently excluded from
     `_scan_packages()`'s root-candidate list (the same list
-    `_find_root_package()` then searches) -- see
-    :mod:`tests.extract.lock.test_common` for the equivalent
-    `index_packages_by_name()` coverage this shares."""
+    `_find_root_package()` then searches)."""
     packages: list[object] = [
         "not-a-dict",
         {"version": "1.0.0"},  # missing name, still not editable/virtual
@@ -66,18 +64,23 @@ def test_scan_packages_ignores_malformed_entries_when_collecting_root_candidates
     assert _find_root_package(root_candidates, None) is None
 
 
-def test_find_root_package_single_candidate_used_even_without_name_match() -> None:
-    """With exactly one editable/virtual candidate, it's used even when
-    it doesn't match `expected_name` (or `expected_name` is unavailable)
-    -- there's no ambiguity about *which* entry, only whether the name
-    happens to match, so guessing wrong here isn't the workspace-mixup
-    risk multiple candidates pose."""
+def test_find_root_package_sole_candidate_needs_its_name_unless_unknown(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The sole candidate is the project's own when the expected name is
+    unknown or equal (PEP 503); another name is a different workspace
+    member, whose dependencies are not this project's."""
     packages: list[dict[str, Any]] = [
         {"name": "actual-name", "source": {"editable": "."}},
     ]
 
-    assert _find_root_package(packages, "different-name") == packages[0]
     assert _find_root_package(packages, None) == packages[0]
+    assert _find_root_package(packages, "Actual_Name") == packages[0]
+    assert not caplog.messages
+    with caplog.at_level(logging.WARNING):
+        assert _find_root_package(packages, "different-name") is None
+    assert "1 candidate" in caplog.text
+    assert "different-name" in caplog.text
 
 
 def test_find_root_package_prefers_name_match_among_multiple_candidates() -> None:

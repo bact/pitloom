@@ -18,7 +18,7 @@ from typing import Any
 
 from packaging.utils import canonicalize_name
 
-from pitloom.extract.lock._common import version_key
+from pitloom.extract.lock.common import version_key
 from pitloom.extract.lock.pipfile import extract_pipfile_lock_dependencies
 from pitloom.extract.lock.pipfile_hash import (
     _entry_pinned_version,

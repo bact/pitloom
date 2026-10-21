@@ -34,13 +34,13 @@ from typing import Any
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.utils import canonicalize_name
 
-from pitloom.extract.lock._common import (
+from pitloom.extract.lock._hash import resolve_locked_hashes
+from pitloom.extract.lock.common import (
     has_required_top_level_table,
     load_lock_json,
     single_exact_pin,
     version_key,
 )
-from pitloom.extract.lock._hash import resolve_locked_hashes
 
 __all__ = ["extract_pipfile_lock_hashes"]
 

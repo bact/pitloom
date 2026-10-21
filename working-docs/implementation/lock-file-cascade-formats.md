@@ -63,14 +63,14 @@ one entry" shape, but for a different, harmless reason: PDM records a
 separate `[[package]]` entry per requested extra variant of a package
 (e.g. a bare `httpx` entry alongside one with `extras = ["socks"]`),
 always agreeing on `version` -- unlike `uv.lock`'s genuinely conflicting
-duplicates. It uses `group_versions_by_canonical_name()` (see "Sharing
+duplicates. It uses `resolve_pinned_dependencies()` (see "Sharing
 code across formats" below) to group its `(name, version)` pairs by
 PEP 503-canonicalized name, then only treats a name as ambiguous (skip,
 `WARNING:`) when its entries actually *disagree* on `version`; entries
 that agree are collapsed to one `name==version`, not two.
 
 `pipfile.py` is the one format in the cascade that's **JSON, not
-TOML** -- `pitloom.extract.lock._common.load_lock_json()` is its
+TOML** -- `pitloom.extract.lock.common.load_lock_json()` is its
 counterpart to `load_lock_toml()`, same absent/malformed-file contract.
 Its `version` field is also shaped differently from every sibling
 format: a full PEP 440 specifier string (typically `"==2.31.0"`, since
@@ -98,7 +98,7 @@ tagged `"pinned_requirements"` rather than `"resolved_lockfile"` (see
 there's no `[[package]]`-style
 table to group by name -- so the extractor collects every line's
 `(name, version)` pair first, then feeds them to the same
-`group_versions_by_canonical_name()` helper `pdm.py` uses, once
+`resolve_pinned_dependencies()` helper `pdm.py` uses, once
 all lines have parsed: a name repeating with agreeing versions
 collapses to one entry, a genuine conflict rejects the whole file. The
 grouping compares PEP 503-canonicalized names, not the literal spelling
@@ -138,14 +138,14 @@ pip also accepts aren't valid PEP 508 at all, so `Requirement()` itself
 raises `InvalidRequirement` for them -- caught the same way as any other
 malformed line, still disqualifying, just via a different message.
 
-## Sharing code across formats (`_common.py`)
+## Sharing code across formats (`common.py`)
 
 Two steps turned out to be identical across every extractor, not just
 similar in spirit:
 
 - **Loading the lock file.** "Try to read/parse it; absent -> empty
   result, silently; malformed -> empty result, with a `WARNING:`" was
-  factored into `pitloom.extract.lock._common.load_lock_toml()`, which every
+  factored into `pitloom.extract.lock.common.load_lock_toml()`, which every
   TOML-based format extractor uses (`poetry.py`, `pylock.py`,
   `uv.py`, `pdm.py`). `pipfile.py` (JSON, not TOML)
   needed the same contract but couldn't reuse a TOML-specific parser, so
@@ -154,25 +154,19 @@ similar in spirit:
   `WARNING:`, the one shape TOML's grammar rules out for
   `load_lock_toml()` but JSON doesn't), different underlying
   `json`/`tomllib` call.
-- **Grouping a flat package list by name.** `uv.py`'s ambiguity
-  check groups full `[[package]]` table entries by their raw `name`
-  field -- `pitloom.extract.lock._common.index_packages_by_name()`.
-  Every format whose conflict check only needs a `(name, version)`
-  pair grouped by *canonicalized* name (`Flask`/`flask` must count as
-  the same package) uses
-  `pitloom.extract.lock._common.group_versions_by_canonical_name()`
-  instead: `poetry.py`, `pdm.py`, and `pylock.py`.
-  `pipfile.py` and `requirements.py` need the pin's operator
-  (`==` vs `===`) to survive grouping too, since their `version` field
-  is a full specifier rather than a bare version number (see below) --
-  they use the `(name, operator, version)` sibling,
-  `pitloom.extract.lock._common.group_pin_triples_by_canonical_name()`.
+- **Grouping pins by name.** Every format hands its `(name, version)`
+  pairs, or `(name, operator, version)` triples where the specifier can
+  carry `==` or `===` (`pipfile.py`, `requirements.py`), to
+  `pitloom.extract.lock.common.resolve_pinned_dependencies()`, which
+  groups them by *canonicalized* name (`Flask`/`flask` count as the same
+  package) with `group_by_canonical_name()`.
   Every one of these groupings compares versions with
-  `pitloom.extract.lock._common.is_same_version()` (PEP 440 equality,
-  e.g. `"1.0"` == `"1.0.0"`), not raw string equality, so two spellings
+  `pitloom.extract.lock.common.is_same_version()` (PEP 440 equality,
+  e.g. `"1.0"` == `"1.0.0"`; two `===` pins compare by exact string), not raw
+  string equality, so two spellings
   of the same release never trigger a false-positive conflict warning.
 - **Validating a `version` field is a usable PEP 440 version.**
-  `pitloom.extract.lock._common.is_usable_version()` checks a field is a
+  `pitloom.extract.lock.common.is_usable_version()` checks a field is a
   non-empty string *and* parses as a valid `packaging.version.Version`
   -- rejecting not just non-strings but a syntactically-string-yet-not-a-
   version value too (a wildcard like `"*"`, whitespace, arbitrary text),
@@ -189,7 +183,7 @@ similar in spirit:
   PEP 508 specifier"` is shared across all five extractors that have
   this concept (every format except `requirements.txt`, whose URL check
   is shaped differently -- see above) via
-  `pitloom.extract.lock._common.warn_non_registry_source(lock_file,
+  `pitloom.extract.lock.common.warn_non_registry_source(lock_file,
   name, source_key)`. Each extractor still does its own lookup of
   *which* key triggered it (see below) and only calls this once it has
   the answer.
@@ -198,7 +192,7 @@ similar in spirit:
   Pipfile.lock's `version` field and a `requirements.txt` line's
   specifier are both full PEP 440 specifier strings, not bare version
   numbers the way every TOML-based format's `version` field is. Lives
-  as `pitloom.extract.lock._common.single_exact_pin(specifier_set)`,
+  as `pitloom.extract.lock.common.single_exact_pin(specifier_set)`,
   taking an already-built `SpecifierSet` rather than a raw string --
   each caller parses the raw string itself (`SpecifierSet(...)` for
   Pipfile.lock, `Requirement(...).specifier` for `requirements.txt`)

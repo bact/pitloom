@@ -24,7 +24,7 @@ source-stage-only.
 
 Split into three files: this page (the cascade, its wiring and provenance),
 [lock-file-cascade-formats.md](lock-file-cascade-formats.md) (per-format
-extraction notes and the shared `_common.py` code) and
+extraction notes and the shared `common.py` code) and
 [lock-file-cascade-opt-out.md](lock-file-cascade-opt-out.md) (the
 `--no-use-lockfile` opt-out).
 
@@ -261,13 +261,12 @@ unaffected -- purely additive.
    absent/unusable (as opposed to a valid-but-empty `[]` -- see the
    "`None` and `[]` mean different things" note above), `WARNING:`
    (never a silent drop) for anything
-   malformed or non-registry-sourced. Use `_common.load_lock_toml()`
-   to load the file (or `_common.load_lock_json()` for a JSON-format
+   malformed or non-registry-sourced. Use `common.load_lock_toml()`
+   to load the file (or `common.load_lock_json()` for a JSON-format
    lock file -- `pipfile.py` is the precedent), and (if the format
    can resolve the same name more than once, the way `uv.lock`/`pdm.lock`/
-   `requirements.txt` can) `_common.index_packages_by_name()` (full
-   `[[package]]`-style entries) or `_common.group_versions_by_canonical_name()`
-   (bare `(name, version)` pairs) to group entries before deciding
+   `requirements.txt` can) `common.resolve_pinned_dependencies()` to group
+   `(name, version)` pairs before deciding
    whether that's ambiguous. Only add a second parameter to the
    extractor itself if it genuinely needs `expected_name` for
    disambiguation the way `uv.lock` does (see the cascade code block

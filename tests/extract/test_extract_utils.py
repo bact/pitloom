@@ -77,6 +77,38 @@ def test_filename_from_url_windows_path() -> None:
     assert filename_from_url("https://example.com/dir\\") is None
 
 
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("https://u:p@ss@h/x", "https://***:***@h/x"),
+        ("https://u:p@ss@h", "https://***:***@h"),
+        ("https://:pw@h/x", "https://***:***@h/x"),
+        (
+            "see https://u:a@b@h/p and mail me@x.org",
+            "see https://***:***@h/p and mail me@x.org",
+        ),
+        ("https://h/p@q?x=a@b#f@g", "https://h/p@q?x=a@b#f@g"),
+        ("https://h:8080/x", "https://h:8080/x"),
+        ("https://u:p?ss@h/", "https://***:***@h/"),
+        ("https://u:p#ss@h/", "https://***:***@h/"),
+    ],
+    ids=[
+        "at-in-password",
+        "no-path",
+        "empty-user",
+        "text-around",
+        "at-after-path",
+        "port",
+        "question-mark-in-password",
+        "hash-in-password",
+    ],
+)
+def test_sanitize_url_credentials_masks_up_to_the_last_at_of_the_authority(
+    text: str, expected: str
+) -> None:
+    assert sanitize_url_credentials(text) == expected
+
+
 def test_sanitize_provenance_text() -> None:
     assert sanitize_provenance_text("foo|bar|baz") == "foo/bar/baz"
     assert sanitize_provenance_text("clean text") == "clean text"

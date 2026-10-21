@@ -10,7 +10,7 @@ warning is worded identically by routing through one of these instead of
 hand-rolling a similarly-worded message per format -- see AGENTS.md's
 "Recurring bug patterns" for why wording drift across siblings is worth
 avoiding. Every name here is re-exported from
-:mod:`pitloom.extract.lock._common`.
+:mod:`pitloom.extract.lock.common`.
 """
 
 from __future__ import annotations
@@ -18,6 +18,9 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 from pathlib import Path
+
+from pitloom.extract._extract_utils import quote_source
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +44,7 @@ def warn_conflicting_versions(
         "Skipping %s entry %r: pinned to conflicting versions (%s)",
         lock_file,
         name,
-        ", ".join(sorted(conflicting_versions)),
+        loggable(", ".join(sorted(conflicting_versions))),
     )
 
 
@@ -57,7 +60,7 @@ def warn_not_genuine_lock_file(
     log.warning(
         "%s: no top-level %r %s with a %r key -- "
         "doesn't look like a genuine %s, ignoring",
-        lock_path,
+        quote_source(lock_path),
         table_key,
         container_type,
         required_key,
@@ -95,7 +98,7 @@ def warn_top_level_key_wrong_type(
     """
     log.warning(
         "%s: top-level '%s' key is %s, expected %s -- ignoring %s",
-        lock_path,
+        quote_source(lock_path),
         key,
         type(value).__name__,
         expected,
@@ -107,7 +110,7 @@ def warn_missing_version(lock_file: str, name: str) -> None:
     """Log the shared ``"Skipping <lock file> entry '<name>': missing or
     non-string 'version'"`` warning -- identical across every format
     that validates its ``version`` field via
-    :func:`pitloom.extract.lock._common.is_usable_version`."""
+    :func:`pitloom.extract.lock.common.is_usable_version`."""
     log.warning(
         "Skipping %s entry %r: missing or non-string 'version'",
         lock_file,
@@ -132,8 +135,10 @@ def warn_malformed_entry_not_table(
 
 def warn_missing_name(context: str, name: object) -> None:
     """Log the shared ``"<context>: missing or non-string 'name'
-    (name=<name>)"`` warning tail -- *context* supplies each call site's
-    own lead-in (which format, which kind of entry) since that part
-    genuinely differs per site, while the recurring "missing or
-    non-string 'name'" wording itself doesn't."""
-    log.warning("%s: missing or non-string 'name' (name=%r)", context, name)
+    (name=<name>)"`` warning tail -- or, for a non-empty string that is no
+    PEP 508 name, ``"invalid 'name'"`` -- *context* supplies each call
+    site's own lead-in (which format, which kind of entry) since that part
+    genuinely differs per site, while the recurring wording itself
+    doesn't. *name* is untrusted: shown escaped."""
+    problem = "invalid" if isinstance(name, str) and name else "missing or non-string"
+    log.warning("%s: %s 'name' (name=%s)", context, problem, loggable(repr(name)))

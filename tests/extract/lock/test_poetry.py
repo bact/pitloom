@@ -309,7 +309,7 @@ def test_malformed_package_entry_warns(caplog: pytest.LogCaptureFixture) -> None
     """A malformed ``[[package]]`` entry (missing ``version``) emits a
     ``WARNING:`` with the ``missing or non-string 'version'`` wording of every
     sibling format
-    (:func:`pitloom.extract.lock._common.warn_missing_version`)."""
+    (:func:`pitloom.extract.lock.common.warn_missing_version`)."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_lock(tmp_path, '[[package]]\nname = "incomplete"\n')
@@ -325,7 +325,7 @@ def test_missing_name_skipped_and_warns(caplog: pytest.LogCaptureFixture) -> Non
     """A ``[[package]]`` entry missing ``name`` is validated and warned
     about separately from a missing ``version`` -- matching every
     sibling format's own split name-then-version check ordering
-    (:func:`pitloom.extract.lock._common.warn_missing_name`, tried
+    (:func:`pitloom.extract.lock.common.warn_missing_name`, tried
     before ``version`` is ever read)."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)

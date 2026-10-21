@@ -16,7 +16,7 @@ internal to this module -- ``document.py`` imports the former for its own
 use in :func:`build` but omits it from ``__all__``, and never imports the
 latter at all.
 
-See also: :mod:`pitloom.extract.lock._common` for the shared
+See also: :mod:`pitloom.extract.lock.common` for the shared
 canonical-name-grouping and version-equality helpers this module builds on.
 """
 
@@ -30,7 +30,7 @@ from pitloom.assemble.spdx3.deps import _parse_dep_name, _resolve_version
 from pitloom.assemble.spdx3.deps_installed import _extract_exact_pin
 from pitloom.assemble.spdx3.deps_pypi import _prefetch_pypi_release_infos
 from pitloom.core.project import ProjectMetadata
-from pitloom.extract.lock._common import (
+from pitloom.extract.lock.common import (
     group_by_canonical_name,
     is_same_version,
     warn_conflicting_versions,

@@ -3,35 +3,29 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for :mod:`pitloom.extract.lock._common` -- the helpers shared
+"""Tests for :mod:`pitloom.extract.lock.common` -- the helpers shared
 across every lock/pin extractor (:mod:`pitloom.extract.lock.poetry`,
 :mod:`pitloom.extract.lock.pylock`, :mod:`pitloom.extract.lock.uv`,
 :mod:`pitloom.extract.lock.pdm`)."""
 
-# pylint: disable=protected-access
-
 import logging
-import tempfile
 from pathlib import Path
+from typing import Literal
 
 import pytest
 from packaging.specifiers import SpecifierSet
 
-import pitloom.extract.lock._common as lock_common
-from pitloom.extract.lock._common import (
+from pitloom.extract._extract_utils import quote_source
+from pitloom.extract.lock.common import (
     canonical_name_and_pinned_version,
     default_group_included,
     find_first_present_key,
-    group_pin_triples_by_canonical_name,
-    group_versions_by_canonical_name,
+    group_by_canonical_name,
     has_required_top_level_table,
-    index_packages_by_name,
+    is_format_version_number,
     is_same_version,
+    is_usable_name,
     is_usable_version,
-    load_lock_json,
-    load_lock_toml,
-    normalize_distribution_name,
-    normalize_distribution_version,
     parse_exact_pin_requirement,
     resolve_pinned_dependencies,
     shape_validated_package,
@@ -43,167 +37,6 @@ from pitloom.extract.lock._common import (
     warn_non_registry_source,
     warn_top_level_key_wrong_type,
 )
-
-
-def test_load_lock_toml_missing_file_returns_none() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        assert load_lock_toml(Path(tmp) / "does-not-exist.lock") is None
-
-
-def test_load_lock_toml_malformed_returns_none_and_warns(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        lock_path = Path(tmp) / "some.lock"
-        lock_path.write_text("this is not [ valid toml", encoding="utf-8")
-
-        with caplog.at_level(logging.WARNING):
-            result = load_lock_toml(lock_path)
-
-        assert result is None
-        assert "Failed to parse" in caplog.text
-
-
-def test_load_lock_toml_valid_file_returns_data() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        lock_path = Path(tmp) / "some.lock"
-        lock_path.write_text('key = "value"\n', encoding="utf-8")
-
-        assert load_lock_toml(lock_path) == {"key": "value"}
-
-
-def test_load_lock_toml_invalid_utf8_returns_none_and_warns(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """tomllib/tomli raise a bare ``UnicodeDecodeError`` (not
-    ``TOMLDecodeError``) for invalid UTF-8: the result degrades to ``None``
-    with a ``WARNING:`` and the cascade continues."""
-    with tempfile.TemporaryDirectory() as tmp:
-        lock_path = Path(tmp) / "some.lock"
-        lock_path.write_bytes(b'name = "\xff\xfebad"\n')
-
-        with caplog.at_level(logging.WARNING):
-            result = load_lock_toml(lock_path)
-
-        assert result is None
-        assert "Failed to parse" in caplog.text
-
-
-def test_load_lock_toml_second_read_of_same_file_is_cached() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        lock_path = Path(tmp) / "some.lock"
-        lock_path.write_text('key = "value"\n', encoding="utf-8")
-
-        first = load_lock_toml(lock_path)
-        second = load_lock_toml(lock_path)
-
-        assert first == {"key": "value"}
-        assert second is first  # the cached dict, not a freshly-parsed one
-
-
-def test_load_lock_toml_no_cache_key_skips_caching(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """When the file's identity cannot be determined (e.g. a stat() race), the
-    parse succeeds and is not cached."""
-    monkeypatch.setattr(lock_common, "_lock_file_cache_key", lambda _path: None)
-    cache_size_before = len(lock_common._LOCK_FILE_CACHE)
-    with tempfile.TemporaryDirectory() as tmp:
-        lock_path = Path(tmp) / "some.lock"
-        lock_path.write_text('key = "value"\n', encoding="utf-8")
-
-        assert load_lock_toml(lock_path) == {"key": "value"}
-        assert len(lock_common._LOCK_FILE_CACHE) == cache_size_before
-
-
-def test_load_lock_json_second_read_of_same_file_is_cached() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        lock_path = Path(tmp) / "some.json"
-        lock_path.write_text('{"key": "value"}', encoding="utf-8")
-
-        first = load_lock_json(lock_path)
-        second = load_lock_json(lock_path)
-
-        assert first == {"key": "value"}
-        assert second is first
-
-
-def test_load_lock_json_no_cache_key_skips_caching(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(lock_common, "_lock_file_cache_key", lambda _path: None)
-    cache_size_before = len(lock_common._LOCK_FILE_CACHE)
-    with tempfile.TemporaryDirectory() as tmp:
-        lock_path = Path(tmp) / "some.json"
-        lock_path.write_text('{"key": "value"}', encoding="utf-8")
-
-        assert load_lock_json(lock_path) == {"key": "value"}
-        assert len(lock_common._LOCK_FILE_CACHE) == cache_size_before
-
-
-def test_load_lock_json_invalid_utf8_returns_none_and_warns(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """Invalid UTF-8 in text mode raises a bare ``UnicodeDecodeError`` (not
-    ``json.JSONDecodeError``): the result degrades to ``None`` with a
-    ``WARNING:`` and the cascade continues."""
-    with tempfile.TemporaryDirectory() as tmp:
-        lock_path = Path(tmp) / "some.json"
-        lock_path.write_bytes(b'{"name": "\xff\xfebad"}')
-
-        with caplog.at_level(logging.WARNING):
-            result = load_lock_json(lock_path)
-
-        assert result is None
-        assert "Failed to parse" in caplog.text
-
-
-def test_index_packages_by_name_groups_by_name_preserving_order() -> None:
-    packages = [
-        {"name": "a", "version": "1.0.0"},
-        {"name": "b", "version": "2.0.0"},
-        {"name": "a", "version": "1.0.1", "extras": ["x"]},
-    ]
-
-    result = index_packages_by_name(packages)
-
-    assert list(result.keys()) == ["a", "b"]
-    assert result["a"] == [
-        {"name": "a", "version": "1.0.0"},
-        {"name": "a", "version": "1.0.1", "extras": ["x"]},
-    ]
-    assert result["b"] == [{"name": "b", "version": "2.0.0"}]
-
-
-def test_index_packages_by_name_ignores_non_dict_entries() -> None:
-    packages: list[object] = ["not-a-dict", ["still", "not", "a", "dict"]]
-
-    assert not index_packages_by_name(packages)
-
-
-def test_index_packages_by_name_ignores_entries_with_missing_or_bad_name() -> None:
-    packages: list[object] = [
-        {"version": "1.0.0"},  # missing name
-        {"name": None, "version": "1.0.0"},  # non-string name
-        {"name": "", "version": "1.0.0"},  # empty name
-    ]
-
-    assert not index_packages_by_name(packages)
-
-
-def test_index_packages_by_name_empty_list_returns_empty_dict() -> None:
-    assert not index_packages_by_name([])
-
-
-def test_normalize_distribution_name() -> None:
-    assert normalize_distribution_name("foo.bar_baz-qux") == "foo_bar_baz_qux"
-    assert normalize_distribution_name("Flask") == "flask"
-    assert normalize_distribution_name("zope.interface") == "zope_interface"
-
-
-def test_normalize_distribution_version() -> None:
-    assert normalize_distribution_version("1.0.0") == "1.0.0"
-    assert normalize_distribution_version("2.0.0+cpu") == "2.0.0_cpu"
 
 
 def test_parse_exact_pin_requirement() -> None:
@@ -243,6 +76,34 @@ def test_resolve_pinned_dependencies_pep440_equivalence_collapsed() -> None:
     assert resolve_pinned_dependencies(pairs, "test.lock") == ["foo==1.0"]
 
 
+def test_resolve_pinned_dependencies_arbitrary_equality_compares_strings() -> None:
+    """Two ``===`` pins agree only on the exact string (``===1.0`` is not
+    ``===1.0.0``); an ``==`` pin is still compared as PEP 440."""
+    arbitrary = [("foo", "===", "1.0"), ("foo", "===", "1.0.0"), ("bar", "==", "1.0")]
+    assert resolve_pinned_dependencies(arbitrary, "test.lock") == ["bar==1.0"]
+    same = [("foo", "===", "1.0"), ("foo", "===", "1.0")]
+    assert resolve_pinned_dependencies(same, "test.lock") == ["foo===1.0"]
+    # ``===`` on either side compares strings, whatever the order.
+    mixed = [("foo", "===", "1.0"), ("foo", "==", "1.0.0")]
+    assert resolve_pinned_dependencies(mixed, "test.lock") == []
+    assert resolve_pinned_dependencies(mixed[::-1], "test.lock") == []
+    assert resolve_pinned_dependencies(
+        [("foo", "===", "1.0"), ("foo", "==", "1.0")], "test.lock"
+    ) == ["foo===1.0"]
+
+
+@pytest.mark.parametrize("on_conflict", ["skip", "abort"])
+def test_resolve_pinned_dependencies_conflict_shows_versions_escaped(
+    caplog: pytest.LogCaptureFixture, on_conflict: Literal["skip", "abort"]
+) -> None:
+    pins = [("a", "===", "x\x1b[31m"), ("A", "===", "y\nWARNING: forged")]
+    with caplog.at_level(logging.WARNING):
+        resolve_pinned_dependencies(pins, "test.lock", on_conflict=on_conflict)
+    (message,) = caplog.messages
+    assert "WARNING: forged" in message
+    assert message.isprintable()
+
+
 def test_resolve_pinned_dependencies_skip_policy(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -266,7 +127,7 @@ def test_resolve_pinned_dependencies_abort_policy(
     # str(lock_file), not a hardcoded POSIX literal: the warning logs the
     # Path object's native str() form, which renders with "\" on Windows.
     assert (
-        f"{lock_file}: 'foo' pinned to conflicting versions (1.0, 2.0)"
+        f"{quote_source(lock_file)}: 'foo' pinned to conflicting versions (1.0, 2.0)"
         " -- ignoring requirements.txt" in caplog.text
     )
 
@@ -284,53 +145,22 @@ def test_version_key_falls_back_to_raw_string_for_non_pep440() -> None:
     assert version_key("2021.01.01-legacy") != version_key("2021.01.02-legacy")
 
 
-def test_group_versions_by_canonical_name_groups_case_and_separator_variants() -> None:
+def test_group_by_canonical_name_folds_case_and_separator_runs() -> None:
     """PEP 503 canonicalization folds case AND ``-``/``_``/``.`` runs --
-    both must land in the same group, not just a case-insensitive match."""
-    pairs = [
-        ("Flask", "2.0"),
-        ("flask", "2.0"),
-        ("python_dateutil", "2.9.0"),
-        ("python-dateutil", "2.9.0"),
-        ("idna", "3.7"),
-    ]
-
-    result = group_versions_by_canonical_name(pairs)
-
-    assert list(result.keys()) == ["flask", "python-dateutil", "idna"]
-    assert result["flask"] == [("Flask", "2.0"), ("flask", "2.0")]
-    assert result["python-dateutil"] == [
-        ("python_dateutil", "2.9.0"),
-        ("python-dateutil", "2.9.0"),
-    ]
-    assert result["idna"] == [("idna", "3.7")]
-
-
-def test_group_versions_by_canonical_name_empty_input_returns_empty_dict() -> None:
-    assert not group_versions_by_canonical_name([])
-
-
-def test_group_pin_triples_by_canonical_name_groups_case_and_separator_variants() -> (
-    None
-):
-    """The ``(name, operator, version)`` sibling of
-    ``group_versions_by_canonical_name`` must canonicalize the same way,
-    and preserve each triple's operator (``==``/``===``) through grouping."""
+    both must land in the same group, preserving each tuple through grouping."""
     triples = [
         ("Flask", "==", "2.0"),
         ("flask", "===", "2.0-legacy"),
-        ("idna", "==", "3.7"),
+        ("python_dateutil", "==", "2.9.0"),
+        ("python-dateutil", "==", "2.9.0"),
     ]
 
-    result = group_pin_triples_by_canonical_name(triples)
+    result = group_by_canonical_name(triples)
 
-    assert list(result.keys()) == ["flask", "idna"]
-    assert result["flask"] == [("Flask", "==", "2.0"), ("flask", "===", "2.0-legacy")]
-    assert result["idna"] == [("idna", "==", "3.7")]
-
-
-def test_group_pin_triples_by_canonical_name_empty_input_returns_empty_dict() -> None:
-    assert not group_pin_triples_by_canonical_name([])
+    assert list(result) == ["flask", "python-dateutil"]
+    assert result["flask"] == triples[:2]
+    assert result["python-dateutil"] == triples[2:]
+    assert not group_by_canonical_name([])
 
 
 def test_find_first_present_key_returns_first_match_in_key_order() -> None:
@@ -360,7 +190,8 @@ def test_is_usable_version_accepts_valid_pep440_versions(version: str) -> None:
 
 @pytest.mark.parametrize(
     "version",
-    [None, 1, 2.0, [], {}, "", "*", "not a version", "  ", "2.31.*", "latest"],
+    [None, 1, 2.0, [], {}, "", "*", "not a version", "  ", "2.31.*", "latest"]
+    + [" 1.0\n", "1.0 ", "\t2.0"],
 )
 def test_is_usable_version_rejects_non_pep440_values(version: object) -> None:
     """A value that's the wrong type, empty, or a syntactically-string
@@ -369,6 +200,49 @@ def test_is_usable_version_rejects_non_pep440_values(version: object) -> None:
     produce an invalid ``name==<garbage>`` dependency/PURL instead of
     being warned and skipped."""
     assert not is_usable_version(version)
+
+
+@pytest.mark.parametrize(
+    ("name", "usable"),
+    [
+        ("requests", True),
+        ("a", True),
+        ("Foo_bar.baz-1", True),
+        ("bar baz\x1b[31m", False),
+        ("a; python_version<'3'", False),
+        ("b\nWARNING: x", False),
+        ("foo\n", False),
+        ("a @ http://evil/x", False),
+        (" foo", False),
+        ("-foo", False),
+        ("foo-", False),
+        ("foo[extra]", False),
+        ("", False),
+        (None, False),
+        (5, False),
+    ],
+)
+def test_is_usable_name_is_a_pep_508_name(name: object, usable: bool) -> None:
+    assert is_usable_name(name) is usable
+
+
+def test_is_format_version_number_excludes_booleans() -> None:
+    assert [is_format_version_number(v) for v in (1, True, "1", None)] == [
+        True,
+        False,
+        False,
+        False,
+    ]
+
+
+def test_has_required_top_level_table_rejects_a_boolean_for_an_int() -> None:
+    """``True`` is an ``int`` to ``isinstance``, never a format version."""
+    assert not has_required_top_level_table(
+        {"_meta": {"pipfile-spec": True}}, "_meta", "pipfile-spec", int
+    )
+    assert has_required_top_level_table(
+        {"_meta": {"pipfile-spec": 6}}, "_meta", "pipfile-spec", int
+    )
 
 
 def test_has_required_top_level_table_valid_type_returns_true() -> None:
@@ -424,6 +298,22 @@ def test_shape_validated_package_missing_name_returns_none_and_warns(
 
     assert result is None
     assert "missing or non-string 'name'" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "name", ["bar baz\x1b[31m", "a; python_version<'3'", "b\nWARNING: x"]
+)
+def test_shape_validated_package_invalid_name_is_one_escaped_warning(
+    caplog: pytest.LogCaptureFixture, name: str
+) -> None:
+    """A name that is no PEP 508 name is skipped, shown escaped on one line."""
+    with caplog.at_level(logging.WARNING):
+        result = shape_validated_package({"name": name, "version": "1.0"}, "x.lock")
+
+    assert result is None
+    (message,) = caplog.messages
+    assert "invalid 'name'" in message
+    assert message.isprintable()  # no raw ESC or newline
 
 
 def test_shape_validated_package_missing_version_returns_none_and_warns(

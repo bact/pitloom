@@ -113,6 +113,7 @@ _ALLOWED = {
     "core/canonical_json.py:MAX_SAFE_INTEGER": _NOT_INPUT,
     "core/scalar_text.py:MAX_INTEGER_DIGITS": _SHOWN,
     "core/wheel_dist_info.py:MAX_NAME_CHARS": _HEURISTIC,
+    "extract/_extract_utils.py:FETCH_MAX_BYTES": "over it: the reader's own warning",
     "extract/_file_headers.py:_HEADER_SCAN_MAX_BYTES": "headers lead a file",
     "extract/_file_headers.py:_HEADER_SCAN_MAX_LINES": "headers lead a file",
     "extract/_interrupt_hold.py:HOLD_LIMIT": _NOT_INPUT,

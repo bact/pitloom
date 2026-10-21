@@ -20,15 +20,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pitloom.extract.lock._common import (
-    has_required_top_level_table,
-    load_lock_toml,
-    version_key,
-)
 from pitloom.extract.lock._hash import (
     index_packages_by_name_and_version,
     resolve_locked_hashes,
     sha256_file_entry_candidates,
+)
+from pitloom.extract.lock.common import (
+    has_required_top_level_table,
+    load_lock_toml,
+    version_key,
 )
 
 __all__ = ["extract_pdm_lock_hashes"]

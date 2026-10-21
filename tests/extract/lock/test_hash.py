@@ -10,13 +10,13 @@
 
 from __future__ import annotations
 
-from pitloom.extract.lock._common import version_key
 from pitloom.extract.lock._hash import (
     index_packages_by_name_and_version,
     package_artifacts,
     resolve_locked_hashes,
     sha256_file_entry_candidates,
 )
+from pitloom.extract.lock.common import version_key
 
 
 def test_index_packages_by_name_and_version_skips_malformed_entries() -> None:

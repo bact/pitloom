@@ -57,9 +57,12 @@ from typing import Any
 
 from packaging.utils import canonicalize_name
 
-from pitloom.extract.lock._common import (
+from pitloom.extract._extract_utils import quote_source
+from pitloom.extract.lock.common import (
     find_first_present_key,
+    is_format_version_number,
     is_same_version,
+    is_usable_name,
     is_usable_version,
     load_lock_toml,
     warn_malformed_entry_not_table,
@@ -68,6 +71,7 @@ from pitloom.extract.lock._common import (
     warn_non_registry_source,
     warn_top_level_key_wrong_type,
 )
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -88,7 +92,7 @@ _ROOT_SOURCE_KEYS = ("editable", "virtual")
 
 
 def _scan_packages(
-    packages: Iterable[object],
+    packages: Iterable[object], *, warn: bool = True
 ) -> tuple[dict[str, list[dict[str, Any]]], list[dict[str, Any]]]:
     """Single pass over the top-level ``[[package]]`` list, returning
     the canonical-name index :func:`_collect_transitive_dependencies`
@@ -98,8 +102,8 @@ def _scan_packages(
     look at each entry once.
 
     Warns (the same way every sibling lock format's own package-list
-    loop does) on a non-table entry or a table with a
-    missing/non-string/empty ``name``, then excludes it from both
+    loop does, unless *warn* is false) on a non-table entry or a table
+    with a missing or invalid ``name``, then excludes it from both
     results -- it can never be the target of a real dependency reference
     by name, nor a real root-package candidate.
     """
@@ -107,11 +111,13 @@ def _scan_packages(
     root_candidates: list[dict[str, Any]] = []
     for pkg in packages:
         if not isinstance(pkg, dict):
-            warn_malformed_entry_not_table("uv.lock", "[[package]]", pkg)
+            if warn:
+                warn_malformed_entry_not_table("uv.lock", "[[package]]", pkg)
             continue
         name = pkg.get("name")
-        if not isinstance(name, str) or not name:
-            warn_missing_name("Skipping malformed uv.lock [[package]] entry", name)
+        if not is_usable_name(name):
+            if warn:
+                warn_missing_name("Skipping malformed uv.lock [[package]] entry", name)
             continue
         # uv itself normalizes every ``name`` field it writes, but a
         # dependency *reference* and the package's own top-level entry
@@ -145,34 +151,34 @@ def _find_root_package(
     calling project's own declared name, from its ``pyproject.toml``) is
     given, it's used to pick the matching entry among candidates rather
     than blindly taking the first one, which would silently attribute a
-    *different* workspace member's dependencies to this project. Falls
-    back to the sole candidate when there's exactly one and none named
-    *expected_name* matched (e.g. the name is unreadable, or differs
-    only in normalization); with more than one candidate and no match,
-    returns ``None`` rather than guess.
+    *different* workspace member's dependencies to this project. The sole
+    candidate is taken as it is only when *expected_name* is unknown; one
+    named otherwise is another project's, so with a known name and no
+    match, or with more than one candidate and none known, returns
+    ``None`` (after a ``WARNING:``) rather than guess.
     """
     if not candidates:
         return None
 
-    if expected_name is not None:
+    if expected_name:
         expected = canonicalize_name(expected_name)
         for pkg in candidates:
             name = pkg.get("name")
             if isinstance(name, str) and canonicalize_name(name) == expected:
                 return pkg
+    elif len(candidates) == 1:
+        return candidates[0]
 
-    if len(candidates) > 1:
-        prefix = f"{lock_path}: " if lock_path is not None else ""
-        log.warning(
-            "%s%d candidate local/workspace package entries found in "
-            "uv.lock but none named %r -- can't determine which is this "
-            "project's own; ignoring uv.lock",
-            prefix,
-            len(candidates),
-            expected_name,
-        )
-        return None
-    return candidates[0]
+    prefix = f"{quote_source(lock_path)}: " if lock_path is not None else ""
+    log.warning(
+        "%s%d candidate local/workspace package entries found in "
+        "uv.lock but none named %s -- can't determine which is this "
+        "project's own; ignoring uv.lock",
+        prefix,
+        len(candidates),
+        loggable(repr(expected_name)),
+    )
+    return None
 
 
 def _resolved_package_for_dependency(
@@ -184,7 +190,7 @@ def _resolved_package_for_dependency(
     the transitive walk in :func:`_collect_transitive_dependencies` --
     or ``None`` when it can't be resolved that way."""
     name = dep_ref.get("name")
-    if not isinstance(name, str) or not name:
+    if not is_usable_name(name):
         warn_missing_name("Skipping malformed uv.lock dependency reference", name)
         return None
     if "version" in dep_ref:
@@ -304,6 +310,12 @@ def _enqueue_requested_extras(
         requested_extras = [extra_val]
     elif isinstance(extra_val, list):
         requested_extras = [e for e in extra_val if isinstance(e, str)]
+        if len(requested_extras) != len(extra_val):
+            log.warning(
+                "Skipping uv.lock entry %r requested 'extra'/'extras' "
+                "entries that are not strings",
+                pkg.get("name", canonical_name),
+            )
     else:
         log.warning(
             "Skipping uv.lock entry %r requested 'extra'/'extras': "
@@ -314,6 +326,12 @@ def _enqueue_requested_extras(
         return
     opt_deps_map = pkg.get("optional-dependencies", {})
     if not isinstance(opt_deps_map, dict):
+        log.warning(
+            "Skipping uv.lock entry %r 'optional-dependencies': "
+            "expected a table, got %s",
+            pkg.get("name", canonical_name),
+            type(opt_deps_map).__name__,
+        )
         return
 
     for extra_name in requested_extras:
@@ -348,6 +366,14 @@ def _enqueue_requested_extras(
             continue
         if isinstance(extra_deps, list):
             queue.extend(extra_deps)
+        else:
+            log.warning(
+                "Skipping uv.lock entry %r optional-dependencies %r: "
+                "expected a list, got %s",
+                pkg.get("name", canonical_name),
+                extra_name,
+                type(extra_deps).__name__,
+            )
 
 
 def _pinned_dep_for_package(pkg: dict[str, Any]) -> str | None:
@@ -384,12 +410,14 @@ def _expected_project_name(project_dir: Path) -> str | None:
 
 
 def _read_root_package(
-    project_dir: Path, expected_name: str | None
+    project_dir: Path, expected_name: str | None, *, warn_entries: bool = True
 ) -> tuple[dict[str, Any], dict[str, list[dict[str, Any]]]] | None:
     """Return the project's own ``[[package]]`` entry in *project_dir*'s
     ``uv.lock`` and the lock's canonical-name package index, or ``None``
     (after a ``WARNING:`` for anything but an absent file) when the lock or
-    its root entry is unusable -- see :func:`extract_uv_lock_dependencies`."""
+    its root entry is unusable -- see :func:`extract_uv_lock_dependencies`.
+    *warn_entries* false: a malformed package entry is skipped silently
+    (a second read of a lock whose first read warned of it)."""
     lock_path = project_dir / "uv.lock"
     data = load_lock_toml(lock_path)
     if data is None:
@@ -400,11 +428,11 @@ def _read_root_package(
     # those two siblings, adapted to this format's actual shape, so an
     # unrelated/hand-edited TOML file can't silently win the cascade via
     # a spurious authoritative-empty `[[package]]` list.
-    if not isinstance(data.get("version"), int):
+    if not is_format_version_number(data.get("version")):
         log.warning(
             "%s: no top-level 'version' key (int) -- doesn't look like a "
             "genuine uv.lock, ignoring",
-            lock_path,
+            quote_source(lock_path),
         )
         return None
 
@@ -414,7 +442,7 @@ def _read_root_package(
             lock_path, "package", packages, "a list", "uv.lock"
         )
         return None
-    by_name, root_candidates = _scan_packages(packages)
+    by_name, root_candidates = _scan_packages(packages, warn=warn_entries)
 
     if not expected_name:
         # `ProjectMetadata.name` is typed `str`, never `None` -- a
@@ -426,15 +454,16 @@ def _read_root_package(
         # have done for an explicit `None` -- an empty name could never
         # usefully match a real workspace member's name anyway.
         expected_name = _expected_project_name(project_dir)
-    root = _find_root_package(root_candidates, expected_name, lock_path=lock_path)
-    if root is None:
+    if not root_candidates:
         log.warning(
             "%s: no project package found (no 'editable'/'virtual' "
             "source entry) -- ignoring uv.lock",
-            lock_path,
+            quote_source(lock_path),
         )
         return None
-    return root, by_name
+    # No match among candidates: _find_root_package has warned.
+    root = _find_root_package(root_candidates, expected_name, lock_path=lock_path)
+    return None if root is None else (root, by_name)
 
 
 def extract_uv_lock_dependencies(
@@ -487,8 +516,13 @@ def extract_uv_lock_extra_pins(
     A reference resolves as in the runtime walk: an ambiguous or
     non-registry one is skipped with its ``WARNING:``.
     """
-    # Read after the runtime pass accepted this same file.
-    root, by_name = _read_root_package(project_dir, expected_name) or ({}, {})
+    if not wanted:
+        return []
+    # Read after the runtime pass accepted this same file and warned of its
+    # malformed entries.
+    root, by_name = _read_root_package(
+        project_dir, expected_name, warn_entries=False
+    ) or ({}, {})
     optional = root.get("optional-dependencies")
     if not isinstance(optional, dict):
         return []

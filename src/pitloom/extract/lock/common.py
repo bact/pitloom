@@ -23,18 +23,20 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import stat
 from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import Any, Literal, TypeGuard, TypeVar
 
 from packaging.requirements import InvalidRequirement
 from packaging.specifiers import SpecifierSet
-from packaging.utils import canonicalize_name
+from packaging.utils import InvalidName, canonicalize_name
 from packaging.version import InvalidVersion, Version
 
-from pitloom._toml_io import TOMLDecodeError, load_toml_file
+from pitloom._toml_io import load_toml_bytes
 from pitloom.core.pep508 import parse_requirement
-from pitloom.extract._json_io import load_json_bytes
+from pitloom.extract._extract_utils import FETCH_MAX_BYTES, quote_source
 from pitloom.extract.lock._common_warnings import (
     warn_conflicting_versions,
     warn_malformed_entry_not_table,
@@ -44,6 +46,7 @@ from pitloom.extract.lock._common_warnings import (
     warn_not_genuine_lock_file,
     warn_top_level_key_wrong_type,
 )
+from pitloom.logging_config import loggable, one_line
 
 log = logging.getLogger(__name__)
 
@@ -53,17 +56,15 @@ __all__ = [
     "default_group_included",
     "find_first_present_key",
     "group_by_canonical_name",
-    "group_pin_triples_by_canonical_name",
-    "group_versions_by_canonical_name",
     "has_required_top_level_table",
-    "index_packages_by_name",
+    "is_format_version_number",
     "is_same_version",
+    "is_usable_name",
     "is_usable_version",
     "load_lock_json",
     "load_lock_toml",
-    "normalize_distribution_name",
-    "normalize_distribution_version",
     "parse_exact_pin_requirement",
+    "read_lock_bytes",
     "resolve_pinned_dependencies",
     "shape_validated_package",
     "single_exact_pin",
@@ -75,6 +76,7 @@ __all__ = [
     "warn_non_registry_source",
     "warn_not_genuine_lock_file",
     "warn_top_level_key_wrong_type",
+    "warn_unreadable_lock_file",
 ]
 
 #: The literal ``Source:`` name written into
@@ -102,9 +104,12 @@ POETRY_LOCK_SOURCE_NAME = "poetry.lock"
 #: last read (a different mtime/size, or a failed ``stat()``) is never
 #: served stale: its cache key simply won't match, so it falls through to
 #: a real re-read. Safe because every caller only reads the returned
-#: dict, never mutates it.
+#: dict, never mutates it. Holds only the :data:`_LOCK_FILE_CACHE_SIZE` most
+#: recently used files (the pin pass, then the hash pass), so a long-lived
+#: process does not accumulate every lock file it ever read.
 _LockFileCacheKey = tuple[Path, int, int]
 _LOCK_FILE_CACHE: dict[_LockFileCacheKey, dict[str, Any]] = {}
+_LOCK_FILE_CACHE_SIZE = 2
 
 
 def _lock_file_cache_key(lock_path: Path) -> _LockFileCacheKey | None:
@@ -122,81 +127,110 @@ def _lock_file_cache_key(lock_path: Path) -> _LockFileCacheKey | None:
     return (lock_path, stat_result.st_mtime_ns, stat_result.st_size)
 
 
+def read_lock_bytes(lock_path: Path) -> bytes:
+    """*lock_path*'s bytes, read through at most :data:`FETCH_MAX_BYTES` + 1.
+
+    The type is checked on the open descriptor, which is opened without
+    blocking, so a FIFO swapped in for the file cannot hang the read and
+    ``st_size`` is never trusted. Raises ``FileNotFoundError``, any other
+    ``OSError``, or ``ValueError`` for a file that is not a regular file or
+    is over the cap; every lock/pin reader logs its own ``WARNING:``."""
+    flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0)
+    descriptor = os.open(lock_path, flags)
+    try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise ValueError("not a regular file")
+        handle = os.fdopen(descriptor, "rb")
+    except BaseException:
+        os.close(descriptor)
+        raise
+    with handle:
+        raw = handle.read(FETCH_MAX_BYTES + 1)
+    if len(raw) > FETCH_MAX_BYTES:
+        raise ValueError(f"over {FETCH_MAX_BYTES} bytes")
+    return raw
+
+
+def warn_unreadable_lock_file(lock_path: Path, exc: BaseException) -> None:
+    """The one ``WARNING:`` for a lock/pin file that can't be read or
+    parsed (*exc*: why)."""
+    log.warning("Failed to parse %s: %s", quote_source(lock_path), one_line(exc))
+
+
+def _load_lock(
+    lock_path: Path, parse: Callable[[bytes], Any], kind: str
+) -> dict[str, Any] | None:
+    """Parse *lock_path*'s bytes with *parse* (a *kind* -- ``"TOML"`` or
+    ``"JSON"`` -- reader), through :data:`_LOCK_FILE_CACHE`, returning
+    ``None`` after one ``WARNING:`` for a file that is not a regular file,
+    is over the size cap, can't be read or parsed (invalid UTF-8, nesting
+    too deep for the parser, too large to hold) or whose top level isn't a
+    table/object, and silently for an absent file."""
+    cache_key = _lock_file_cache_key(lock_path)
+    if cache_key is not None and cache_key in _LOCK_FILE_CACHE:
+        data = _LOCK_FILE_CACHE.pop(cache_key)
+        _LOCK_FILE_CACHE[cache_key] = data  # most recent last
+        return data
+    try:
+        data = parse(read_lock_bytes(lock_path))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError, RecursionError, MemoryError) as exc:
+        # ValueError: the format's own decode error, a bare
+        # UnicodeDecodeError for invalid UTF-8 and the reader's own
+        # refusals alike -- a bad file, not a reason to abort the whole
+        # cascade.
+        warn_unreadable_lock_file(lock_path, exc)
+        return None
+    if not isinstance(data, dict):
+        log.warning(
+            "%s: top-level %s value is %s, expected an object",
+            quote_source(lock_path),
+            kind,
+            type(data).__name__,
+        )
+        return None
+    if cache_key is not None:
+        if len(_LOCK_FILE_CACHE) >= _LOCK_FILE_CACHE_SIZE:
+            del _LOCK_FILE_CACHE[next(iter(_LOCK_FILE_CACHE))]
+        _LOCK_FILE_CACHE[cache_key] = data
+    return data
+
+
 def load_lock_toml(lock_path: Path) -> dict[str, Any] | None:
     """Load *lock_path* as TOML, returning ``None`` (after a
-    ``WARNING:`` for a parse/read failure, silently for a simply-absent
-    file) instead of raising -- every lock format is optional
+    ``WARNING:`` for an oversized or unparseable file, silently for a
+    simply-absent one) instead of raising -- every lock format is optional
     enrichment, never a requirement, so a caller's usual next step is
     ``if data is None: return []``.
 
     See :data:`_LOCK_FILE_CACHE` for the memoization this and
     :func:`load_lock_json` share.
     """
-    cache_key = _lock_file_cache_key(lock_path)
-    if cache_key is not None:
-        cached = _LOCK_FILE_CACHE.get(cache_key)
-        if cached is not None:
-            return cached
-    try:
-        data = load_toml_file(lock_path)
-    except FileNotFoundError:
-        return None
-    except (OSError, TOMLDecodeError, UnicodeDecodeError) as exc:
-        # tomllib/tomli's underlying decode step raises a bare
-        # UnicodeDecodeError (not its own TOMLDecodeError) for invalid
-        # UTF-8 bytes -- still just a malformed/unparseable file, not a
-        # reason to abort the whole cascade.
-        log.warning("Failed to parse %s: %s", lock_path, exc)
-        return None
-    if cache_key is not None:
-        _LOCK_FILE_CACHE[cache_key] = data
-    return data
+    return _load_lock(lock_path, load_toml_bytes, "TOML")
 
 
 def load_lock_json(lock_path: Path) -> dict[str, Any] | None:
     """Read and parse *lock_path* as JSON, returning ``None`` (after a
-    ``WARNING:`` for a parse/read or shape failure, silently for a
-    simply-absent file) instead of raising -- the JSON-format
-    counterpart of :func:`load_lock_toml`, for ``Pipfile.lock`` (JSON,
-    unlike every other lock/pin format this module serves, which are
-    TOML).
+    ``WARNING:`` for an oversized, unparseable or wrong-shaped file,
+    silently for a simply-absent one) instead of raising -- the
+    JSON-format counterpart of :func:`load_lock_toml`, for
+    ``Pipfile.lock`` (JSON, unlike every other lock/pin format this
+    module serves, which are TOML).
 
-    Unlike TOML (whose grammar guarantees a table at the document root,
-    so this can't happen to :func:`load_lock_toml`), JSON's top level
-    can legally be an array, string, number, or ``null`` -- rejected
-    here with a ``WARNING:`` so every caller can rely on this function's
-    declared ``dict[str, Any] | None`` return type without its own
-    defensive `isinstance` check.
-
-    See :data:`_LOCK_FILE_CACHE` for the memoization this and
-    :func:`load_lock_toml` share.
+    JSON's top level can legally be an array, string, number, or
+    ``null`` (TOML's grammar guarantees a table), so a non-object is
+    rejected with a ``WARNING:`` and every caller can rely on this
+    function's declared ``dict[str, Any] | None`` return type without
+    its own defensive `isinstance` check.
     """
-    cache_key = _lock_file_cache_key(lock_path)
-    if cache_key is not None:
-        cached = _LOCK_FILE_CACHE.get(cache_key)
-        if cached is not None:
-            return cached
-    try:
-        _raw, data = load_json_bytes(lock_path)
-    except FileNotFoundError:
-        return None
-    except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
-        # Invalid UTF-8 bytes raise a bare UnicodeDecodeError from the
-        # text-mode read itself, not json.JSONDecodeError -- still just
-        # a malformed/unparseable file, not a reason to abort the whole
-        # cascade.
-        log.warning("Failed to parse %s: %s", lock_path, exc)
-        return None
-    if not isinstance(data, dict):
-        log.warning(
-            "%s: top-level JSON value is %s, expected an object",
-            lock_path,
-            type(data).__name__,
-        )
-        return None
-    if cache_key is not None:
-        _LOCK_FILE_CACHE[cache_key] = data
-    return data
+    return _load_lock(lock_path, json.loads, "JSON")
+
+
+def is_format_version_number(value: object) -> bool:
+    """Return whether *value* is an integer format version -- ``int`` but
+    not ``bool``, which ``isinstance`` also accepts (``version = true``)."""
+    return isinstance(value, int) and not isinstance(value, bool)
 
 
 def has_required_top_level_table(
@@ -232,41 +266,11 @@ def has_required_top_level_table(
     absence).
     """
     table = data.get(table_key)
-    return isinstance(table, dict) and isinstance(table.get(required_key), value_type)
-
-
-def index_packages_by_name(
-    packages: Iterable[object],
-    key: Callable[[str], str] = str,
-) -> dict[str, list[dict[str, Any]]]:
-    """Group every well-formed entry of *packages* (a lock format's flat
-    ``[[package]]``-style list) by its ``name`` field (passed through
-    *key*, e.g. :func:`packaging.utils.canonicalize_name` when a caller
-    needs PEP 503-canonicalized grouping instead of the literal name),
-    preserving file order both across and within names.
-
-    A non-table entry, or a table with a missing/non-string/empty
-    ``name``, is silently excluded -- it can never be the target of a
-    real dependency reference by name, so it's inert here; the caller
-    validating that same list for other purposes (e.g. resolving a
-    specific referenced name) is where a malformed entry actually
-    matters and gets its own ``WARNING:``.
-
-    Used to detect a name that resolves to more than one distinct
-    version within one lock file -- ambiguous without evaluating
-    markers/extras against a real environment, which no extractor using
-    this helper does; the caller decides whether to skip such a name
-    or (when every entry agrees on the same version, e.g. PDM's
-    per-extra duplicate records) treat it as unambiguous after all.
-    """
-    by_name: dict[str, list[dict[str, Any]]] = {}
-    for pkg in packages:
-        if not isinstance(pkg, dict):
-            continue
-        name = pkg.get("name")
-        if isinstance(name, str) and name:
-            by_name.setdefault(key(name), []).append(pkg)
-    return by_name
+    if not isinstance(table, dict):
+        return False
+    value = table.get(required_key)
+    # A boolean is never a format marker, whatever *value_type*.
+    return isinstance(value, value_type) and not isinstance(value, bool)
 
 
 def version_key(version: str) -> Version | str:
@@ -279,21 +283,20 @@ def version_key(version: str) -> Version | str:
         return version
 
 
-def normalize_distribution_name(name: str) -> str:
-    """Normalize a package distribution name per PEP 427 / PEP 625:
-    canonicalize per PEP 503 (lowercasing, runs of ``[-_.]+`` replaced with
-    a single hyphen), then replace all hyphens with underscores.
-
-    Shared across wheel/sdist artifact matching, ``.dist-info`` discovery,
-    and build backends.
-    """
-    return canonicalize_name(name).replace("-", "_")
-
-
-def normalize_distribution_version(version: str) -> str:
-    """Normalize a version string for artifact filenames per PEP 427 / PEP 625:
-    replace local version ``+`` with ``_``."""
-    return version.replace("+", "_")
+def is_usable_name(name: object) -> TypeGuard[str]:
+    """Return whether *name* is a valid PEP 508 distribution name -- the
+    check every lock/pin extractor applies to an entry's ``name`` before it
+    reaches a PURL, a ``name==version`` dependency string or a log line
+    (``a @ url``, ``a[x]``, ``a; marker``, a name with a newline or control
+    character all fail). Each call site still logs its own ``WARNING:``
+    when this returns ``False`` (:func:`warn_missing_name`)."""
+    if not isinstance(name, str):
+        return False
+    try:
+        canonicalize_name(name, validate=True)
+    except InvalidName:
+        return False
+    return True
 
 
 def is_usable_version(version: object) -> TypeGuard[str]:
@@ -302,7 +305,8 @@ def is_usable_version(version: object) -> TypeGuard[str]:
     ``name==version`` pin" check every lock/pin extractor applies to a
     ``[[package]]`` entry's ``version`` field before using it. Rejects
     not just non-strings but a syntactically-string-yet-not-a-version
-    value too (whitespace, ``"*"``, ``"not a version"``) -- without this,
+    value too (whitespace, a version padded with whitespace, ``"*"``,
+    ``"not a version"``) -- without this,
     a malformed lock entry would silently produce an invalid
     ``name==<garbage>`` dependency/PURL instead of being warned and
     skipped like every other malformed-field case. Each call site still
@@ -316,7 +320,7 @@ def is_usable_version(version: object) -> TypeGuard[str]:
     of needing its own redundant ``isinstance`` check before passing
     *version* to something that requires ``str``.
     """
-    if not isinstance(version, str) or not version:
+    if not isinstance(version, str) or not version or version != version.strip():
         return False
     try:
         Version(version)
@@ -340,56 +344,22 @@ def group_by_canonical_name(
     resolve to more than one version" must group them together or the
     check silently never fires for a mixed-case duplicate.
 
-    Generic over tuple arity so :func:`group_versions_by_canonical_name`'s
-    ``(name, version)`` pairs, :func:`group_pin_triples_by_canonical_name`'s
-    ``(name, operator, version)`` triples, and any other caller's own
-    ``(name, ...)`` tuple shape share one implementation instead of a
-    per-caller copy of the same loop -- public (no leading underscore)
-    since :mod:`pitloom.assemble.spdx3._document_locked_deps` groups a
-    third, differently-shaped ``(name, dep, pinned)`` triple that fits
-    neither typed wrapper below.
+    Generic over tuple arity so :func:`resolve_pinned_dependencies`'s
+    ``(name, version)`` pairs and ``(name, operator, version)`` triples
+    and :mod:`pitloom.assemble.spdx3._document_locked_deps`'s
+    ``(name, dep, pinned)`` triples share one implementation instead of a
+    per-caller copy of the same loop.
+
+    A caller decides what a multi-entry group means for its own format:
+    :mod:`pitloom.extract.lock.pdm` collapses a group to one entry when
+    every version agrees (its per-extra duplicate records always do) and
+    skips just that name otherwise; ``requirements.txt`` treats any
+    conflicting group as disqualifying its whole file.
     """
     by_canonical: dict[str, list[_CanonicalGroupT]] = {}
     for item in items:
         by_canonical.setdefault(canonicalize_name(item[0]), []).append(item)
     return by_canonical
-
-
-def group_versions_by_canonical_name(
-    pairs: Iterable[tuple[str, str]],
-) -> dict[str, list[tuple[str, str]]]:
-    """Group ``(name, version)`` pairs by PEP 503-canonicalized *name* --
-    see :func:`group_by_canonical_name`.
-
-    A caller decides what a multi-entry group means for its own format:
-    :mod:`pitloom.extract.lock.pdm` collapses a group to one entry when
-    every version agrees (its per-extra duplicate records always do) and
-    skips just that name otherwise. See :func:`group_pin_triples_by_canonical_name`
-    for the sibling used where the pin's operator (``==`` vs ``===``) also
-    needs to survive grouping.
-    """
-    return group_by_canonical_name(pairs)
-
-
-def group_pin_triples_by_canonical_name(
-    triples: Iterable[tuple[str, str, str]],
-) -> dict[str, list[tuple[str, str, str]]]:
-    """Group ``(name, operator, version)`` pins by PEP 503-canonicalized
-    *name* -- see :func:`group_by_canonical_name`. The ``===``-aware
-    sibling of :func:`group_versions_by_canonical_name`, for
-    :mod:`pitloom.extract.lock.pipfile` and
-    :mod:`pitloom.extract.lock.requirements`, whose ``version`` field is
-    already a PEP 440 specifier that can carry either exact-pin operator
-    and must keep it through to the formatted ``name<op>version`` output.
-
-    A caller decides what a multi-entry group means for its own format:
-    :mod:`pitloom.extract.lock.pipfile` skips just the conflicting name
-    and keeps the rest; :mod:`pitloom.extract.lock.requirements` treats
-    any group with more than one distinct version as disqualifying its
-    whole file, since it has no per-format definition of "expected
-    duplication" the way an extra-variant lock entry does.
-    """
-    return group_by_canonical_name(triples)
 
 
 #: PEP 440 operators that pin to exactly one release: ``==`` (the
@@ -484,6 +454,22 @@ def canonical_name_and_pinned_version(dep: str) -> tuple[str, str] | None:
     return canonicalize_name(name), version
 
 
+def _pin_operator(pin: tuple[str, str] | tuple[str, str, str]) -> str:
+    """*pin*'s operator, ``"=="`` for a ``(name, version)`` pair."""
+    return pin[1] if len(pin) == 3 else "=="
+
+
+def _same_pin(
+    pin: tuple[str, str] | tuple[str, str, str], op: str, version: str
+) -> bool:
+    """Whether *pin* names the release ``(op, version)`` does: PEP 440
+    equality, except that a ``===`` (arbitrary equality) on either side
+    compares the exact string (``===1.0`` is not ``1.0.0``)."""
+    if "===" in (op, _pin_operator(pin)):
+        return pin[-1] == version
+    return is_same_version(pin[-1], version)
+
+
 def resolve_pinned_dependencies(
     pins: Iterable[tuple[str, str] | tuple[str, str, str]],
     lock_file: str | Path,
@@ -512,9 +498,9 @@ def resolve_pinned_dependencies(
         first = group[0]
         name = first[0]
         version = first[-1]
-        op = first[1] if len(first) == 3 else "=="
+        op = _pin_operator(first)
         conflicting_versions = {
-            item[-1] for item in group if not is_same_version(item[-1], version)
+            item[-1] for item in group if not _same_pin(item, op, version)
         }
         all_versions = {item[-1] for item in group}
 
@@ -522,9 +508,9 @@ def resolve_pinned_dependencies(
             if on_conflict == "abort":
                 log.warning(
                     "%s: %r pinned to conflicting versions (%s) -- ignoring %s",
-                    lock_file,
+                    quote_source(lock_file),
                     name,
-                    ", ".join(sorted(all_versions)),
+                    loggable(", ".join(sorted(all_versions))),
                     file_label,
                 )
                 return None
@@ -561,7 +547,7 @@ def shape_validated_package(
 ) -> dict[str, Any] | None:
     """Return *pkg* itself when it's a well-formed, versioned
     list-of-tables entry -- ``None`` (with a ``WARNING:``) for a
-    non-table entry, or one with a missing/non-string ``name`` or
+    non-table entry, or one with a missing/invalid ``name`` or
     missing/unparseable ``version``.
 
     Shared by every lock format whose per-package entries are a flat
@@ -575,7 +561,7 @@ def shape_validated_package(
         warn_malformed_entry_not_table(lock_file, entry_label, pkg)
         return None
     name = pkg.get("name")
-    if not isinstance(name, str) or not name:
+    if not is_usable_name(name):
         warn_missing_name(f"Skipping malformed {lock_file} {entry_label} entry", name)
         return None
     version = pkg.get("version")

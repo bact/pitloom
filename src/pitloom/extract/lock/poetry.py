@@ -27,7 +27,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pitloom.extract.lock._common import (
+from pitloom.extract.lock._extra_pins import packages_named, requirement_names
+from pitloom.extract.lock.common import (
     default_group_included,
     has_required_top_level_table,
     is_usable_version,
@@ -38,7 +39,6 @@ from pitloom.extract.lock._common import (
     warn_not_genuine_lock_file,
     warn_top_level_key_wrong_type,
 )
-from pitloom.extract.lock._extra_pins import packages_named, requirement_names
 
 log = logging.getLogger(__name__)
 

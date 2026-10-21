@@ -22,8 +22,8 @@ introspection of what's actually installed is strictly more
 authoritative than a lock that may be stale relative to it).
 
 Unlike every other lock format this repo parses, ``Pipfile.lock`` is
-**JSON**, not TOML (:func:`pitloom.extract.lock._common.load_lock_json`,
-not :func:`pitloom.extract.lock._common.load_lock_toml`). Its top level
+**JSON**, not TOML (:func:`pitloom.extract.lock.common.load_lock_json`,
+not :func:`pitloom.extract.lock.common.load_lock_toml`). Its top level
 has two package-name-keyed objects, ``"default"`` (main/runtime
 dependencies) and ``"develop"`` (dev dependencies) -- only ``"default"``
 is included here, mirroring ``poetry.lock``'s ``main``-group-only
@@ -32,7 +32,7 @@ specifier string (typically ``"==x.y.z"``, since ``pipenv lock``
 resolves to an exact pin) rather than a bare version number the way
 every other format's ``version`` field is -- this extractor validates
 it's a single exact ``==``/``===`` specifier with no wildcard before
-using it (see :func:`pitloom.extract.lock._common.single_exact_pin`),
+using it (see :func:`pitloom.extract.lock.common.single_exact_pin`),
 not a range, a prefix-match specifier like ``"==x.y.*"``, or a
 malformed string coerced into looking like one.
 """
@@ -44,9 +44,10 @@ from pathlib import Path
 
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 
-from pitloom.extract.lock._common import (
+from pitloom.extract.lock.common import (
     find_first_present_key,
     has_required_top_level_table,
+    is_usable_name,
     load_lock_json,
     resolve_pinned_dependencies,
     single_exact_pin,
@@ -118,7 +119,7 @@ def _pinned_pair_for_package(
 
     Returning the raw pair (not the formatted ``name==version`` string)
     lets the caller group same-canonical-name entries via
-    :func:`pitloom.extract.lock._common.group_pin_triples_by_canonical_name`
+    :func:`pitloom.extract.lock.common.resolve_pinned_dependencies`
     and skip a name that resolves to more than one distinct version --
     unlike every sibling format, this extractor's input is a JSON object
     keyed directly by literal (not canonicalized) name, so a hand-edited
@@ -126,7 +127,7 @@ def _pinned_pair_for_package(
     carry both a ``"Flask"`` and a ``"flask"`` key and silently emit two
     conflicting dependency lines for the same real package.
     """
-    if not isinstance(name, str) or not name:
+    if not is_usable_name(name):
         warn_missing_name("Skipping malformed Pipfile.lock entry", name)
         return None
     if not isinstance(entry, dict):
