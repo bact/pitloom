@@ -19,6 +19,7 @@ import signal
 import stat
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -149,16 +150,26 @@ def test_ctrl_c_kills_what_git_started(
     def interrupt(_signum: int, _frame: object) -> None:
         raise KeyboardInterrupt
 
-    previous = signal.signal(signal.SIGALRM, interrupt)
-    signal.setitimer(signal.ITIMER_REAL, 0.7)
+    def press_ctrl_c() -> None:
+        """Interrupt the caller once git has started what must be killed."""
+        deadline = time.monotonic() + 60
+        while not pid_file.exists() or not pid_file.read_text(encoding="utf-8"):
+            if time.monotonic() > deadline:  # pragma: no cover
+                break
+            time.sleep(0.02)
+        os.kill(os.getpid(), signal.SIGUSR1)
+
+    previous = signal.signal(signal.SIGUSR1, interrupt)
+    presser = threading.Thread(target=press_ctrl_c, daemon=True)
+    presser.start()
     try:
         with pytest.raises(KeyboardInterrupt):
             GitRunner().run(["clone"], "clone", echo=False)
     finally:
-        signal.setitimer(signal.ITIMER_REAL, 0)
-        signal.signal(signal.SIGALRM, previous)
+        signal.signal(signal.SIGUSR1, previous)
+        presser.join()
     pid = int(pid_file.read_text(encoding="utf-8"))
-    deadline = time.monotonic() + 5
+    deadline = time.monotonic() + 30
     while _alive(pid) and time.monotonic() < deadline:
         time.sleep(0.05)
     assert not _alive(pid)

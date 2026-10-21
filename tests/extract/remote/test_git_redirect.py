@@ -226,7 +226,10 @@ def test_exactly_the_limit_of_redirects_resolves(hops: int, resolves: bool) -> N
 def test_an_unreachable_server_is_left_to_git() -> None:
     """The probe's own failure is not an error: git reports it with its
     message."""
-    url = "http://127.0.0.1:9/g/p"
+    with socket.socket() as closed:  # a port nothing listens on
+        closed.bind(("127.0.0.1", 0))
+        port = closed.getsockname()[1]
+    url = f"http://127.0.0.1:{port}/g/p"
     assert resolve_git_url(url) == url
 
 
