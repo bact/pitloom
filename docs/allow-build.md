@@ -13,7 +13,9 @@ this page covers `--allow-build`/`--no-build-isolation`/`--build-timeout`
 only, split out because of its own size.
 
 Available on `project`/`generate`/`embed-wheel` only (not `wheel`/`enrich`/
-`env`/`model`, which never rescan a project directory).
+`env`/`model`, which never rescan a project directory), and not for a project
+fetched from a Git URL: a downloaded repository is untrusted, so its build
+backend is never run and the flag is reported as having no effect.
 
 By default, Pitloom's file discovery is a **static read** of a project's
 build-backend config (Hatchling, setuptools, Poetry, PDM, Flit) -- it

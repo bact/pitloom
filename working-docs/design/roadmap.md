@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-20
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -261,8 +261,10 @@ unless the linked doc says so.
   [open-items.md](sbom-fragments/open-items.md),
   [sbom-fragments/README.md](sbom-fragments/README.md),
   [docs/fragments.md](../../docs/fragments.md).
-- [ ] **Remote repository and forge ingestion** (`loom project <url>`). See
-  [remote-source-ingestion.md](remote-source-ingestion.md).
+- [ ] **Remote repository and forge ingestion**. Git URLs (`loom project <url>`,
+  `loom generate <url>`) are built: see
+  [remote-git-ingestion.md](../implementation/remote-git-ingestion.md). Other
+  forge APIs: [remote-source-ingestion.md](remote-source-ingestion.md).
 - [ ] **PyPI package ingestion** (`loom pypi <name>[==version]`): resolve a release
   through the JSON API, take its sdist or wheel, verify the digest, build the
   SBOM; first consumer Lumina. See

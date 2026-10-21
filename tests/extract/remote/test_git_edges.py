@@ -38,7 +38,7 @@ posix_only = pytest.mark.skipif(
 def _fake_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, body: str) -> None:
     """Put a ``git`` that runs the shell *body* first on ``PATH``."""
     bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
+    bin_dir.mkdir(parents=True, exist_ok=True)
     script = bin_dir / "git"
     script.write_text(f"#!/bin/sh\n{body}\n", encoding="utf-8")
     script.chmod(script.stat().st_mode | stat.S_IEXEC)
@@ -81,9 +81,7 @@ def test_a_failing_git_reports_its_message_without_credentials(
     with pytest.raises(RemoteSourceError) as excinfo:
         GitRunner().run(["clone"], "clone", echo=False)
     assert "secret" not in str(excinfo.value) and "***:***@h/r" in str(excinfo.value)
-    _fake_git(tmp_path / "again", monkeypatch, "exit 3") if (
-        tmp_path / "again"
-    ).mkdir() is None else None
+    _fake_git(tmp_path / "again", monkeypatch, "exit 3")
     with pytest.raises(RemoteSourceError, match="git exited 3"):
         GitRunner().run(["clone"], "clone")
 
@@ -102,6 +100,7 @@ def test_the_command_is_echoed_in_an_info_without_credentials(
     assert len(lines) == 1 and "***:***@h/r" in lines[0] and "pw@" not in lines[0]
 
 
+# pylint: disable-next=too-few-public-methods
 class _Listing:
     """A stand-in runner answering ``ls-remote`` with fixed text."""
 
@@ -140,6 +139,7 @@ def test_a_page_that_is_not_a_repository_with_the_same_url_is_not_retried(
     """When the whole URL is the repository already (nothing to fall back to),
     or the failure is not "not a repository", the error stands."""
 
+    # pylint: disable-next=too-few-public-methods
     class Failing:
         """A runner whose ``ls-remote`` fails with a chosen code."""
 
@@ -236,8 +236,8 @@ def test_the_allowed_schemes_can_be_widened_for_a_test_only(
 @posix_only
 def test_killing_a_process_that_is_already_gone_is_harmless() -> None:
     """A deadline that fires as git exits finds no process group: no error."""
-    proc = subprocess.Popen(  # nosec B603: fixed argv
+    with subprocess.Popen(  # nosec B603: fixed argv
         [sys.executable, "-c", "pass"], start_new_session=True
-    )
-    proc.wait()
-    _kill(proc)
+    ) as proc:
+        proc.wait()
+        _kill(proc)

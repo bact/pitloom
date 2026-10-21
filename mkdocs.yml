@@ -18,6 +18,7 @@ watch:
 nav:
   - Home: index.md
   - Command line: cli.md
+  - SBOM from a Git URL: git-urls.md
   - Wheel SBOMs (PEP 770): wheel-sbom.md
   - SBOM fragments: fragments.md
   - Loom ID registry: id-registry.md

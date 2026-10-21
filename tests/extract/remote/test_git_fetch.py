@@ -225,9 +225,8 @@ def test_a_group_called_like_a_marker_falls_back_to_the_whole_url(
     tried = [
         r.getMessage() for r in caplog.records if "is not a repository" in r.message
     ]
-    assert tried == [
-        f"Git source: file://{proj.parent.parent} is not a repository; trying file://{proj}"
-    ]
+    parent = f"file://{proj.parent.parent}"
+    assert tried == [f"Git source: {parent} is not a repository; trying file://{proj}"]
 
 
 def test_a_resolved_url_is_one_info_naming_source_and_target(
@@ -272,10 +271,11 @@ def test_only_http_and_https_are_fetched(
 
 
 def test_a_missing_git_is_a_clear_error(
-    repo: tuple[Path, str], monkeypatch: pytest.MonkeyPatch
+    repo: tuple[Path, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """No ``git`` on the path: ``git.not-found``."""
-    monkeypatch.setattr(_git_run.shutil, "which", lambda _name: None)
+    (tmp_path / "empty").mkdir()
+    monkeypatch.setenv("PATH", str(tmp_path / "empty"))
     with pytest.raises(RemoteSourceError) as excinfo:
         with fetch_git_project(_url(repo[0])):
             pass  # pragma: no cover

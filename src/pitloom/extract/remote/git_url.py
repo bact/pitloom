@@ -16,7 +16,7 @@ its path, and the repository is the part before the page marker.
 A branch name may hold ``/``, so the split between branch and folder cannot be
 read from the URL; :func:`split_ref` takes it from the server's own refs.
 
-No Pitloom imports but :mod:`pitloom.extract.remote.errors`.
+Messages quote a URL without its credentials.
 """
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from urllib.parse import unquote, urlsplit, urlunsplit
 
+from pitloom.extract._extract_utils import sanitize_url_credentials
 from pitloom.extract.remote.errors import RemoteSourceError
 
 __all__ = [
@@ -64,7 +65,7 @@ _COMMIT = re.compile(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}")
 _SOURCEHUT_ITEM = "item"
 
 #: Hosts whose URLs are models, not Git repositories.
-_HF_HOST = re.compile(r"huggingface\.co", re.IGNORECASE)
+_HF_HOST = re.compile(r"(www\.)?(huggingface|hf)\.co", re.IGNORECASE)
 
 
 def is_git_url(source: str) -> bool:
@@ -169,27 +170,46 @@ def parse_git_page(url: str) -> GitPage:
     plain = urlunsplit((parts.scheme, parts.netloc, parts.path.rstrip("/"), "", ""))
     if raw and raw[-1].endswith(".git"):
         return GitPage(plain, cut=cut, plain_url=plain)
-    for index in range(2, len(raw)):
-        for marker, kind, is_file in _MARKERS:
-            size = len(marker)
-            if tuple(raw[index : index + size]) != marker or index + size >= len(raw):
-                continue
-            rest = tuple(unquote(s) for s in raw[index + size :])
-            _check_segments(rest, url)
-            if raw[0].startswith("~") and len(rest) > 1 and rest[1] == _SOURCEHUT_ITEM:
-                rest = (rest[0], *rest[2:])
-            repo = urlunsplit(
-                (parts.scheme, parts.netloc, "/" + "/".join(raw[:index]), "", "")
-            )
-            return GitPage(repo, rest, is_file, cut, kind, plain)
+    # GitLab's ``-`` is unambiguous (a group may be called ``src`` or
+    # ``tree``): its markers are looked for first, the others by position.
+    gitlab = tuple(m for m in _MARKERS if m[0][0] == "-")
+    for markers in (gitlab, _MARKERS):
+        found = _find_marker(raw, markers)
+        if found is None:
+            continue
+        index, (marker, kind, is_file) = found
+        rest = tuple(unquote(s) for s in raw[index + len(marker) :])
+        _check_segments(rest, url)
+        if raw[0].startswith("~") and len(rest) > 1 and rest[1] == _SOURCEHUT_ITEM:
+            rest = (rest[0], *rest[2:])
+        repo = urlunsplit(
+            (parts.scheme, parts.netloc, "/" + "/".join(raw[:index]), "", "")
+        )
+        return GitPage(repo, rest, is_file, cut, kind, plain)
     return GitPage(plain, cut=cut, plain_url=plain)
+
+
+def _find_marker(
+    raw: list[str], markers: tuple[tuple[tuple[str, ...], str | None, bool], ...]
+) -> tuple[int, tuple[tuple[str, ...], str | None, bool]] | None:
+    """The first page marker of *markers* in the path segments *raw*, from
+    index 2 (an owner and a repository come first), with its index."""
+    for index in range(2, len(raw)):
+        for entry in markers:
+            size = len(entry[0])
+            if tuple(raw[index : index + size]) == entry[0] and index + size < len(raw):
+                return index, entry
+    return None
 
 
 def _check_segments(rest: tuple[str, ...], url: str) -> None:
     """Refuse a segment that would walk out of the checkout."""
     for segment in rest:
         if segment in {".", ".."} or "\0" in segment or "\\" in segment:
-            raise RemoteSourceError("git.url-invalid", f"Invalid path in URL: {url!r}")
+            raise RemoteSourceError(
+                "git.url-invalid",
+                f"Invalid path in URL: {sanitize_url_credentials(url)!r}",
+            )
 
 
 def split_ref(page: GitPage, refs: Mapping[str, frozenset[str]]) -> GitTarget:
@@ -224,7 +244,7 @@ def split_ref(page: GitPage, refs: Mapping[str, frozenset[str]]) -> GitTarget:
         return GitTarget(commit=first, subdir=folder, file=file)
     raise RemoteSourceError(
         "git.ref-not-found",
-        f"No branch or tag {first!r} in {page.repo_url} "
+        f"No branch or tag {first!r} in {sanitize_url_credentials(page.repo_url)} "
         "(a commit needs its full 40 or 64 hex digits).",
     )
 

@@ -11,7 +11,8 @@ branch, tag or commit and a folder (:func:`~pitloom.extract.remote.git_url.
 parse_git_page`). The Git server's own redirect (GitLab's ``project`` to
 ``project.git``) is followed first, each hop passed to the caller's URL check
 (:func:`~pitloom.extract.remote._git_redirect.resolve_git_url`); the clone is
-shallow, skips blobs over 10 MB and never follows a redirect itself. Where the
+shallow, asks the server to leave out blobs over 10 MB (a server that does
+not honour it sends them) and never follows a redirect itself; git-lfs is off. Where the
 URL given is not the URL cloned, one ``INFO:`` names both.
 
 Needs the ``git`` program. Every failure is a :class:`~pitloom.extract.remote.
@@ -119,52 +120,62 @@ def fetch_git_project(
             folder, ``git`` is missing, or *offline* is set (``git.offline``).
         Exception: whatever *check_url* raises, unchanged.
     """
+    runner = GitRunner()
+    with tempfile.TemporaryDirectory(prefix="pitloom-git-") as work_dir:
+        try:
+            checkout = _prepare(url, work_dir, runner, check_url, offline)
+        except Exception as exc:
+            # A refusal is said here, so a caller that only logs shows it.
+            log.warning("Git source: %s", loggable(sanitize_url_credentials(str(exc))))
+            raise
+        yield checkout
+
+
+def _prepare(
+    url: str,
+    work_dir: str,
+    runner: GitRunner,
+    check_url: Callable[[str], None] | None,
+    offline: bool | None,
+) -> GitCheckout:
+    """Fetch what *url* names into *work_dir* and describe it."""
     shown = loggable(sanitize_url_credentials(url))
     if offline:
         raise RemoteSourceError(
             "git.offline", f"Cannot fetch {shown}: network access is forbidden."
         )
     page = _read_url(url, shown)
-    runner = GitRunner()
-    with tempfile.TemporaryDirectory(prefix="pitloom-git-") as work_dir:
-        clone_url, page, target = _resolve(runner, page, check_url)
-        _log_resolution(url, clone_url, target, page)
-        _checkout(runner, clone_url, work_dir, target)
-        folder = _folder(work_dir, target)
-        commit = runner.run(
-            ["-C", work_dir, "rev-parse", "HEAD"], "rev-parse", echo=False
-        ).strip()
-        yield GitCheckout(
-            folder=folder,
-            repo_url=clone_url,
-            ref=target.ref,
-            commit=commit,
-            subdir=os.path.relpath(folder, work_dir).replace(os.sep, "/")
-            if folder != work_dir
-            else "",
-            whole_repository=folder == work_dir,
-        )
+    clone_url, page, target = _resolve(runner, page, check_url)
+    _log_resolution(url, clone_url, target, page)
+    _checkout(runner, clone_url, work_dir, target)
+    _drop_outside_links(work_dir)
+    folder = _folder(work_dir, target)
+    commit = _head(runner, work_dir, shown)
+    subdir = os.path.relpath(os.path.realpath(folder), os.path.realpath(work_dir))
+    return GitCheckout(
+        folder=folder,
+        repo_url=clone_url,
+        ref=target.ref,
+        commit=commit,
+        subdir="" if subdir == "." else subdir.replace(os.sep, "/"),
+        whole_repository=subdir == ".",
+    )
 
 
 def _read_url(url: str, shown: str) -> GitPage:
-    """The page *url* names. A URL that is refused is said in a ``WARNING:``
-    as well as raised, so a caller that only logs still shows it.
+    """The page *url* names.
 
     Raises:
         RemoteSourceError: ``git.url-invalid``, a scheme other than http(s) or
             a path that leaves the checkout.
     """
-    try:
-        if not scheme_allowed(url.strip()):
-            raise RemoteSourceError(
-                "git.url-invalid",
-                f"Cannot fetch {shown}: only http and https URLs are fetched "
-                "(not ssh, git, file or scp-style addresses).",
-            )
-        return parse_git_page(url)
-    except RemoteSourceError as exc:
-        log.warning("Git source: %s", loggable(str(exc)))
-        raise
+    if not scheme_allowed(url.strip()):
+        raise RemoteSourceError(
+            "git.url-invalid",
+            f"Cannot fetch {shown}: only http and https URLs are fetched "
+            "(not ssh, git, file or scp-style addresses).",
+        )
+    return parse_git_page(url)
 
 
 def _resolve(
@@ -181,7 +192,7 @@ def _resolve(
     try:
         return clone_url, page, _target(runner, clone_url, page)
     except RemoteSourceError as exc:
-        if exc.code != "git.clone-failed" or page.plain_url == page.repo_url:
+        if page.plain_url == page.repo_url or not _not_a_repository(exc):
             raise
         log.info(
             "Git source: %s is not a repository; trying %s",
@@ -190,6 +201,15 @@ def _resolve(
         )
     plain = GitPage(page.plain_url, cut=page.cut, plain_url=page.plain_url)
     return resolve_git_url(plain.repo_url, check_url), plain, GitTarget()
+
+
+def _not_a_repository(exc: RemoteSourceError) -> bool:
+    """Whether *exc* says the URL is no repository (a 404), not that it could
+    not be reached (TLS, DNS, sign-in): only the first is worth another try."""
+    text = str(exc).lower()
+    return exc.code == "git.clone-failed" and (
+        "not found" in text or "does not appear to be a git repository" in text
+    )
 
 
 def _target(runner: GitRunner, repo_url: str, page: GitPage) -> GitTarget:
@@ -262,6 +282,45 @@ def _checkout(
     runner.run(
         ["clone", "--depth", "1", blobs, *branch, "--", clone_url, work_dir], "clone"
     )
+
+
+def _head(runner: GitRunner, work_dir: str, shown: str) -> str:
+    """The commit checked out; an empty repository has none."""
+    try:
+        return runner.run(
+            ["-C", work_dir, "rev-parse", "--verify", "HEAD"], "rev-parse", echo=False
+        ).strip()
+    except RemoteSourceError as exc:
+        if exc.code != "git.clone-failed":
+            raise
+        raise RemoteSourceError(
+            "git.clone-failed", f"{shown} is an empty repository (no commits)."
+        ) from exc
+
+
+def _drop_outside_links(work_dir: str) -> None:
+    """Remove a symbolic link of the checkout that leads out of it: the
+    repository is untrusted, and a link to a host file would have Pitloom
+    read, and hash, that file. One ``INFO:`` says how many."""
+    root = os.path.realpath(work_dir)
+    dropped = 0
+    for here, folders, files in os.walk(work_dir):
+        if here == work_dir and ".git" in folders:
+            folders.remove(".git")
+        for name in files + folders:
+            path = os.path.join(here, name)
+            if not os.path.islink(path):
+                continue
+            target = os.path.realpath(path)
+            if target != root and not target.startswith(root + os.sep):
+                os.unlink(path)
+                dropped += 1
+    if dropped:
+        log.info(
+            "Git source: %d symbolic link(s) leading out of the repository "
+            "were not followed",
+            dropped,
+        )
 
 
 def _folder(work_dir: str, target: GitTarget) -> str:

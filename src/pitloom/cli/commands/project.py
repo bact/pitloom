@@ -31,6 +31,7 @@ from pitloom.cli.options_config import add_archive_project_dir_argument, run_opt
 from pitloom.cli.options_resolve import load_explicit_config
 from pitloom.cli.verbose import log_verbose_options
 from pitloom.core.build_options import REMOTE_REPOSITORY_REASON, BuildOptions
+from pitloom.core.inert_options import GIT, settle_inert
 from pitloom.extract.remote import (
     fetch_git_project,
     is_git_url,
@@ -46,7 +47,7 @@ def generate_project_from_args(
     project_dir: Path,
     build_options: BuildOptions,
     *,
-    ignore_project_config: bool = False,
+    remote_url: str | None = None,
 ) -> Path:
     """Generate the SBOM for a project directory or sdist *project_dir* from
     parsed arguments; return the output path it was written to.
@@ -54,12 +55,13 @@ def generate_project_from_args(
     Shared by ``loom project`` and ``loom generate`` on a project target, so
     the two resolve config, output name, ``--verbose`` and every option the
     same way. *build_options* must already be settled for *project_dir*.
-    *ignore_project_config* is set for a project fetched from a remote
-    repository: its own ``[tool.pitloom]`` does not apply.
+    *remote_url* is set for a project fetched from that remote repository:
+    its own ``[tool.pitloom]`` does not apply, and the options that have no
+    effect on it are settled against the URL, not the temporary checkout.
     """
     project_metadata, pitloom_config, config_path, creation = (
         _resolve_project_generation_settings(
-            args, project_dir, ignore_project_config=ignore_project_config
+            args, project_dir, ignore_project_config=remote_url is not None
         )
     )
     output_path = _resolve_output_path(args.output, project_metadata, pitloom_config)
@@ -69,6 +71,9 @@ def generate_project_from_args(
         )
     options = run_options(args, pitloom_config)
     options["creation_metadata"] = creation.to_creation_metadata()
+    if remote_url is not None:
+        settled = settle_inert(GIT, remote_url, options)
+        options = {k: v for k, v in options.items() if k not in settled}
     generate_project_sbom(
         project_dir,
         output_path=output_path,
@@ -105,7 +110,7 @@ def run_remote_project(args: argparse.Namespace, url: str) -> int:
                 args,
                 Path(checkout.folder),
                 build_options,
-                ignore_project_config=True,
+                remote_url=url,
             )
     _print_sbom_output_path(output)
     return 0

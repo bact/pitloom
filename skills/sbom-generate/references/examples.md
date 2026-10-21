@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -19,6 +19,17 @@ adapted with minimal edits. Snippets are POSIX shell; on Windows use
 uvx --from "pitloom>=0.20.2" loom project . -o sbom.spdx3.json --pretty
 # or sdist archive
 uvx --from "pitloom>=0.20.2" loom project dist/mypackage-1.0.0.tar.gz -o sbom.spdx3.json
+```
+
+## Project SBOM from a Git URL
+
+```bash
+# A repository (a GitLab URL without .git works: Pitloom follows the redirect)
+loom project https://gitlab.com/group/project -o sbom.spdx3.json
+# A folder of a monorepo, from the page you were looking at
+loom project https://github.com/owner/repo/tree/main/services/api -o api.spdx3.json
+loom project https://codeberg.org/owner/repo/src/branch/main/svc -o svc.spdx3.json
+# Read stderr: every redirect and every branch/folder used is an INFO: line
 ```
 
 ## Project SBOM with lock file (resolved transitive dependencies)

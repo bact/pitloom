@@ -77,7 +77,7 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
     """Report a redirect as an error instead of following it."""
 
     # pylint: disable-next=too-many-arguments,too-many-positional-arguments
-    def redirect_request(  # type: ignore[override]
+    def redirect_request(
         self,
         req: urllib.request.Request,
         fp: object,
@@ -126,7 +126,10 @@ def _probe_once(probe_url: str) -> _Probe:
             return _Probe()
     except urllib.error.HTTPError as exc:
         if exc.code in _REDIRECT_CODES:
-            return _Probe(location=exc.headers.get("Location"))
+            location = exc.headers.get("Location")
+            if location is None:
+                return _Probe(failure=f"HTTP {exc.code} without a Location")
+            return _Probe(location=location)
         return _Probe(failure=f"HTTP {exc.code}") if exc.code >= 400 else _Probe()
     except (
         urllib.error.URLError,

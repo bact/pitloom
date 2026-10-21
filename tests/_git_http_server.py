@@ -121,6 +121,20 @@ def _cgi_env(
     return env
 
 
+def _cgi_response(output: bytes) -> tuple[int, list[tuple[str, str]], bytes]:
+    """The status, headers and body of the CGI output of ``git http-backend``."""
+    head, _, payload = output.partition(b"\r\n\r\n")
+    status = 200
+    headers: list[tuple[str, str]] = []
+    for line in head.decode("latin-1").split("\r\n"):
+        name, _, value = line.partition(":")
+        if name.lower() == "status":
+            status = int(value.split()[0])
+        elif name:
+            headers.append((name, value.strip()))
+    return status, headers, payload
+
+
 @contextmanager
 def serve_git(root: Path, *, gitlab_style: bool = False) -> Iterator[str]:
     """Serve the bare repositories under *root* at ``http://127.0.0.1:<port>``.
@@ -156,15 +170,7 @@ def serve_git(root: Path, *, gitlab_style: bool = False) -> Iterator[str]:
             done = subprocess.run(
                 [backend], input=body, capture_output=True, env=env, check=False
             )
-            head, _, payload = done.stdout.partition(b"\r\n\r\n")
-            status = 200
-            headers: list[tuple[str, str]] = []
-            for line in head.decode("latin-1").split("\r\n"):
-                name, _, value = line.partition(":")
-                if name.lower() == "status":
-                    status = int(value.split()[0])
-                elif name:
-                    headers.append((name, value.strip()))
+            status, headers, payload = _cgi_response(done.stdout)
             self.send_response(status)
             for name, value in headers:
                 self.send_header(name, value)
@@ -174,7 +180,8 @@ def serve_git(root: Path, *, gitlab_style: bool = False) -> Iterator[str]:
         do_GET = _serve  # noqa: N815
         do_POST = _serve  # noqa: N815
 
-        def log_message(self, *_args: object) -> None:
+        # pylint: disable-next=redefined-builtin
+        def log_message(self, format: str, *args: object) -> None:  # noqa: A002
             """Keep the test output quiet."""
 
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)

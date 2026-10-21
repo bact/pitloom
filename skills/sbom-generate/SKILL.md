@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-18
+# Last-Modified: 2026-10-21
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -8,16 +8,16 @@
 name: sbom-generate
 description: >-
   Generate an SPDX 3 SBOM or AIBOM with Pitloom for a Python project, sdist,
-  built wheel, installed environment, local AI model file (GGUF, ONNX,
-  PyTorch/PT2, Safetensors, Keras, HDF5, NumPy, fastText, CRFsuite) or
-  Hugging Face model. Triggers: "generate/create/give me an SBOM/BOM", "gen
-  SBOM of this model", "SPDX 3 document", "software bill of materials",
-  "dependency inventory", "AIBOM", "document this model's provenance". Also
-  combined asks (then hand off to sbom-enrich): "generate SBOM and enrich
-  it", "complete/full SBOM", "SBOM meeting NTIA/FSCT/CISA 2026/G7/BSI
-  minimum elements". Also PEP 770 wheel embedding ("embed the SBOM in this wheel",
-  "put the SBOM in dist/*.whl", "embed-wheel", "signed wheel / RECORD.jws",
-  "--allow-signed-wheel"),
+  wheel, installed environment, local AI model file (GGUF, ONNX,
+  PyTorch/PT2, Safetensors, Keras, HDF5, NumPy, fastText, CRFsuite), Hugging
+  Face model or Git URL (repo or branch/folder page). Triggers:
+  "generate/create/give me an SBOM/BOM", "SPDX 3 document", "software bill of
+  materials", "dependency inventory", "AIBOM", "document this model's
+  provenance". Also combined asks (then hand off to
+  sbom-enrich): "generate SBOM and enrich it", "complete/full SBOM", "SBOM
+  meeting NTIA/FSCT/CISA 2026/G7/BSI minimum elements". PEP 770 wheel
+  embedding ("embed the SBOM in this wheel", "put the SBOM in dist/*.whl",
+  "embed-wheel", "signed wheel / RECORD.jws", "--allow-signed-wheel"),
   --allow-build/--build-timeout ("generate with a real build", "the build is
   taking too long") and stable ids ("pin ids", "keep ids stable", "create or
   update an ID registry", "loom id generate/import"). Checking an SBOM is
@@ -45,8 +45,9 @@ two.
 Triggers on natural-language requests (see the description), or explicitly
 with `/sbom-generate [target]` (`/pitloom:sbom-generate` via the Claude Code
 plugin; `$sbom-generate` in Codex). `target` is optional -- a project
-directory, an sdist/wheel path, a local model file, or a Hugging Face model
-ID; default: the current directory.
+directory, an sdist/wheel path, a local model file, a Hugging Face model ID,
+or an `http(s)` Git URL (a repository, or a page naming a branch/tag/commit
+and a folder); default: the current directory.
 
 See `references/examples.md` for copy-paste recipes.
 
@@ -120,7 +121,18 @@ loom generate dist/pkg-1.0-py3-none-any.whl -o sbom.spdx3.json  # wheel package 
 loom generate models/model.gguf -o sbom.spdx3.json              # local model file  -> AI Model SBOM
 loom generate mistralai/Mistral-7B-v0.1 -o sbom.spdx3.json      # Hugging Face model ID -> AI Model SBOM
 loom generate env -o sbom.spdx3.json                            # installed venv    -> Deployed SBOM
+loom generate https://gitlab.com/group/project -o sbom.spdx3.json  # Git URL        -> Source SBOM
 ```
+
+### A Git URL
+
+`loom project <url>` / `loom generate <url> -o FILE` take an `http(s)` Git URL (a
+repository, or a page naming a branch/tag/commit and a folder). The repository is
+untrusted (its `[tool.pitloom]` is ignored, **`--allow-build` has no effect**),
+`ssh://`/`git@host:path`/`file://` are refused, and read the `INFO:` lines for
+each redirect and the branch and folder used. A monorepo with no project at the
+root fails naming the projects below it: ask which one (non-interactively,
+report the list). Rules and messages: `references/git-url.md`.
 
 ## Explicit Target Subcommands
 
@@ -187,23 +199,10 @@ before deleting it (its pins are lost; non-interactive: stop and report the
 `ERROR:`); steps in the reference ("When the user asks to pin ids"). An
 unasked run never creates, edits or passes a registry the user did not name.
 
-**Choose the registry before generating** (not for a Hugging Face model or
-`embed-wheel --sbom`: `--id-registry` is ignored there, with a `WARNING:`):
-
-1. If the applicable config declares a registry, it is used -- tell the user
-   which file, and that a `project`, `wheel`, `env` or `generate` run may add
-   new ids to it; `model`, `enrich`, `embed-wheel` and the hook only read it.
-2. None declared, and ids must stay stable across runs or a fragment will be
-   merged after the source changes:
-   - Interactive: ask "Pin ids with a Loom ID registry? If yes, which
-     file -- an existing one, or create `loom-id-registry.json`?" Yes: create
-     it first if new (per the reference), then pass `--id-registry FILE`. No:
-     generate without one.
-   - Non-interactive: use none, create nothing, and report "No Loom ID
-     registry used (none declared). To pin ids, run `loom id generate
-     <PATH> -o loom-id-registry.json` in the project directory, then
-     declare it as the INFO line says (project target) or pass
-     `--id-registry loom-id-registry.json` on each run (other targets)."
+**Choose the registry before generating** (a declared registry is used, and
+told to the user; none declared and ids must stay stable: ask, or, non-interactively,
+use none and report how to pin): steps in `references/id-registry.md`
+("Choosing the registry before generating").
 
 ## Embed an SBOM into a wheel (PEP 770)
 

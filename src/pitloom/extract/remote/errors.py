@@ -19,7 +19,8 @@ class RemoteSourceError(Exception):
     ``code`` names the failure for a caller that maps it to its own
     vocabulary (``git.clone-failed``, ``git.timeout``, ``git.not-found``,
     ``git.offline``, ``git.url-invalid``, ``git.ref-not-found``,
-    ``git.path-not-found``, ``git.too-many-redirects``, and any code a caller's
+    ``git.path-not-found``, ``git.too-many-redirects``,
+    ``git.output-too-large``, ``git.no-project``, and any code a caller's
     own URL check raises through :class:`RemoteSourceError`); the message is
     for the user.
     """

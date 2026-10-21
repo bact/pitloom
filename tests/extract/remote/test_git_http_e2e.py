@@ -240,13 +240,13 @@ def test_every_surface_writes_the_same_sbom(base: str, tmp_path: Path) -> None:
 def test_the_loom_program_refuses_what_it_does_not_fetch(
     base: str, tmp_path: Path, args: list[str], needle: str
 ) -> None:
-    """A refusal is a non-zero exit, an ``ERROR:`` line saying why, and for a
-    refused URL a ``WARNING:`` too; nothing is written."""
+    """A refusal is a non-zero exit, an ``ERROR:`` line saying why and a
+    ``WARNING:`` too; nothing is written."""
     target = "ssh://git@host/o/r.git" if not args else base + "/g/p"
     done = _loom("project", target, "-o", str(tmp_path / "x.json"), *args, cwd=tmp_path)
     assert done.returncode == 1
-    assert f"ERROR: SBOM generation failed: " in done.stderr and needle in done.stderr
-    assert (not args) == ("WARNING: Git source:" in done.stderr)
+    assert "ERROR: SBOM generation failed: " in done.stderr and needle in done.stderr
+    assert "WARNING: Git source:" in done.stderr  # logged as well as shown
     assert not (tmp_path / "x.json").exists()
 
 
@@ -265,3 +265,24 @@ def test_a_build_flag_has_no_effect_on_a_remote_repository(
     )
     assert done.returncode == 0, done.stderr
     assert done.stderr.count("--allow-build has no effect for a remote repository") == 1
+
+
+def test_an_option_a_remote_repository_cannot_use_is_said_as_the_library_says_it(
+    base: str, tmp_path: Path
+) -> None:
+    """The CLI names the URL, not the temporary checkout, as the library does."""
+    done = _loom(
+        "project",
+        base + "/g/p",
+        "--trust-wheel-model",
+        "--project-dir",
+        str(tmp_path),
+        "-o",
+        str(tmp_path / "o.json"),
+        cwd=tmp_path,
+    )
+    assert done.returncode == 0, done.stderr
+    warnings = [ln for ln in done.stderr.splitlines() if ln.startswith("WARNING:")]
+    assert warnings and not any("pitloom-git-" in ln for ln in warnings)
+    assert f"Options: {base}/g/p: --trust-wheel-model has no effect" in done.stderr
+    assert "--project-dir has no effect for a remote repository" in done.stderr

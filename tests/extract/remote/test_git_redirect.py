@@ -15,7 +15,6 @@ import http.server
 import logging
 import socket
 import threading
-import time
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from typing import cast
@@ -46,7 +45,8 @@ def _no_redirect(_port: int) -> str | None:
 @contextmanager
 def _server(routes: Routes, seen: list[str] | None = None) -> Iterator[str]:
     """A local server: a route maps a path to a function of the server port
-    returning the ``Location`` to redirect to, or ``None`` for a 200. Every
+    returning the ``Location`` to redirect to (``""``: none given), or ``None``
+    for a 200. Every
     probed path is appended to *seen*."""
 
     class Handler(http.server.BaseHTTPRequestHandler):
@@ -64,10 +64,12 @@ def _server(routes: Routes, seen: list[str] | None = None) -> Iterator[str]:
                 self.end_headers()
             else:
                 self.send_response(301)
-                self.send_header("Location", where)
+                if where:  # "" is a redirect that names no place
+                    self.send_header("Location", where)
                 self.end_headers()
 
-        def log_message(self, *_args: object) -> None:
+        # pylint: disable-next=redefined-builtin
+        def log_message(self, format: str, *args: object) -> None:  # noqa: A002
             """Keep the test output quiet."""
 
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
@@ -192,7 +194,7 @@ def test_a_redirect_that_is_not_an_http_repository_is_not_followed_or_requested(
     if location.startswith(("//", "http://127.0.0.1/a")):
         assert len(checked) == 1 and checked[0].startswith("http://")
     else:
-        assert checked == [] and result == base + "/g/p"
+        assert not checked and result == base + "/g/p"
 
 
 def test_a_redirect_loop_is_refused() -> None:
@@ -249,17 +251,24 @@ def test_a_server_that_sends_garbage_is_left_to_git() -> None:
         listener.close()
 
 
-def test_a_slow_server_cannot_hold_the_walk(monkeypatch: pytest.MonkeyPatch) -> None:
-    """All probes of a URL together take at most the budget."""
+def test_a_slow_server_cannot_hold_the_walk(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """All probes of a URL together take at most the budget: the walk gives
+    up on a server that is still silent, and says so, without a wall clock."""
     monkeypatch.setattr(_git_redirect, "PROBE_BUDGET_SECONDS", 0.3)
+    release = threading.Event()
 
-    def slow(_port: int) -> None:
-        time.sleep(3)
+    def silent(_port: int) -> None:
+        release.wait(10)
 
-    started = time.monotonic()
-    with _server({"/g/p/info/refs": slow}) as base:
-        assert resolve_git_url(base + "/g/p") == base + "/g/p"
-    assert time.monotonic() - started < 2
+    try:
+        with _server({"/g/p/info/refs": silent}) as base:
+            with caplog.at_level(logging.INFO):
+                assert resolve_git_url(base + "/g/p") == base + "/g/p"
+    finally:
+        release.set()
+    assert "no answer in time" in caplog.text
 
 
 def test_a_bad_port_is_an_invalid_url() -> None:
@@ -293,7 +302,7 @@ def test_a_redirect_that_is_not_followed_is_said_in_a_warning(
 
 
 @pytest.mark.parametrize(
-    ("routes", "why"),
+    ("routes", "_why"),
     [
         ({"/g/p/info/refs": lambda _p: None}, None),
         ({}, None),
@@ -301,7 +310,7 @@ def test_a_redirect_that_is_not_followed_is_said_in_a_warning(
     ids=["answers-200", "not-routed-200"],
 )
 def test_a_server_that_does_not_redirect_says_nothing(
-    routes: Routes, why: str | None, caplog: pytest.LogCaptureFixture
+    routes: Routes, _why: str | None, caplog: pytest.LogCaptureFixture
 ) -> None:
     """A plain 200 is the normal answer: no ``INFO:`` or ``WARNING:``."""
     with _server(routes) as base, caplog.at_level(logging.INFO):
@@ -335,7 +344,8 @@ def test_an_http_error_status_is_said_in_an_info(
             self.send_response(404)
             self.end_headers()
 
-        def log_message(self, *_args: object) -> None:
+        # pylint: disable-next=redefined-builtin
+        def log_message(self, format: str, *args: object) -> None:  # noqa: A002
             """Keep the test output quiet."""
 
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), NotFound)
@@ -367,3 +377,14 @@ def test_an_http_error_status_is_said_in_an_info(
 def test_the_probe_url_is_the_path_of_the_repository(url: str, probe: str) -> None:
     """Scheme, host (IPv6 in brackets) and port, the path, ``/info/refs``."""
     assert _probe_url(url) == probe
+
+
+def test_a_redirect_that_names_no_place_is_said_not_ignored(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The server answered 301 without a ``Location``: git is asked directly,
+    and the ``INFO:`` says why."""
+    with _server({"/g/p/info/refs": lambda _port: ""}) as base:
+        with caplog.at_level(logging.INFO):
+            assert resolve_git_url(base + "/g/p") == base + "/g/p"
+    assert "HTTP 301 without a Location" in caplog.text

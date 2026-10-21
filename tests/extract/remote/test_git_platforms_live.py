@@ -36,7 +36,8 @@ _PLATFORMS = [
     ),
     (
         "gitlab-com-page",
-        "https://gitlab.com/freedesktop-sdk/mirrors/github/pypa/pyproject-hooks/-/tree/main/src",
+        "https://gitlab.com/freedesktop-sdk/mirrors/github/pypa/"
+        "pyproject-hooks/-/tree/main/src",
         "main",
         "src",
         "pyproject_hooks",
@@ -51,7 +52,8 @@ _PLATFORMS = [
     ),
     (
         "gitlab-european-commission",
-        "https://code.europa.eu/simpl/simpl-open/administration/observability/logging/common-logging/common-logging-python-utils",
+        "https://code.europa.eu/simpl/simpl-open/administration/"
+        "observability/logging/common-logging/common-logging-python-utils",
         None,
         "",
         "pyproject.toml",
@@ -108,7 +110,8 @@ _PLATFORMS = [
     ),
     (
         "forgejo-dutch-government-page",
-        "https://code.overheid.nl/Logius/nldoc-lib-python-nldocspec/src/branch/main/nldocspec",
+        "https://code.overheid.nl/Logius/nldoc-lib-python-nldocspec/"
+        "src/branch/main/nldocspec",
         "main",
         "nldocspec",
         "__init__.py",
@@ -138,7 +141,8 @@ _PLATFORMS = [
     ),
     (
         "github-file-page",
-        "https://github.com/pypa/pyproject-hooks/blob/main/src/pyproject_hooks/__init__.py",
+        "https://github.com/pypa/pyproject-hooks/blob/main/src/"
+        "pyproject_hooks/__init__.py",
         "main",
         "src/pyproject_hooks",
         "__init__.py",

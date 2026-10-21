@@ -138,6 +138,7 @@ def test_an_explicit_config_applies_to_a_fetched_project(
     ],
     ids=["flag", "config", "flag-beats-config"],
 )
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def test_offline_forbids_the_fetch(
     flags: list[str],
     config: str | None,

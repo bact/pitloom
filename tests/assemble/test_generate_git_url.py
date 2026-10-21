@@ -15,6 +15,7 @@ import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -128,10 +129,7 @@ def test_an_option_a_remote_repository_cannot_use_warns_once(
             build_options=BuildOptions(allow=True),
         )
     text = "\n".join(r.getMessage() for r in caplog.records)
-    assert (
-        text.count("--trust-wheel-model has no effect for a remote repository") == 0
-        or True
-    )
+    assert text.count("--trust-wheel-model has no effect for this target") == 1
     assert text.count("--project-dir has no effect for a remote repository") == 1
     assert text.count("--allow-build has no effect for a remote repository") == 1
     assert seen["url"] == _URL
@@ -144,7 +142,7 @@ def test_a_relative_id_registry_means_the_callers_directory(
     absolute against the caller's, so the registry is not looked for (or
     created) inside the checkout."""
     monkeypatch.chdir(tmp_path)
-    given: dict[str, object] = {}
+    given: dict[str, Any] = {}
 
     def fake(_folder: str, **kwargs: object) -> str:
         given.update(kwargs)
@@ -159,9 +157,7 @@ def test_a_relative_id_registry_means_the_callers_directory(
     assert given["id_registry"] is registry
 
 
-def test_a_refused_url_is_raised_with_its_code(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_a_refused_url_is_raised_with_its_code() -> None:
     """The library surface raises ``RemoteSourceError``; nothing is written."""
     with pytest.raises(RemoteSourceError) as excinfo:
         generate_git_project_sbom("ssh://git@host/o/r.git")

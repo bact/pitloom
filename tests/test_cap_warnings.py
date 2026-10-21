@@ -120,6 +120,10 @@ _ALLOWED = {
     "extract/_license.py:_SCORE_CAP": _NOT_INPUT,
     "extract/_license_classify.py:_MAX_EXPRESSION_LENGTH": _HEURISTIC,
     "extract/ai_model/safetensors.py:SAFETENSORS_FORMAT_MAX_HEADER_BYTES": _HEURISTIC,
+    "extract/remote/_git_folder.py:_HINT_LIMIT": _DISPLAY,
+    "extract/remote/_git_redirect.py:MAX_REDIRECTS": "over it: ERROR",
+    "extract/remote/_git_redirect.py:PROBE_BUDGET_SECONDS": _NOT_INPUT,
+    "extract/remote/_git_run.py:MAX_OUTPUT_BYTES": "over it: ERROR",
     "extract/remote/huggingface_field.py:_TOKENIZER_MAX_LEN_UNLIMITED": _NOT_INPUT,
     # A larger id number cannot be a mint's, so harvest reserves none for it.
     "id_registry/_counters.py:MAX_ID_NUMBER": "over it: ERROR",
