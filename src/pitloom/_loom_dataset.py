@@ -42,6 +42,7 @@ from pitloom._loom_dataset_meta import (
 )
 from pitloom.assemble.spdx3.provenance import emit_provenance
 from pitloom.core.dataset_hash import DatasetDigest, hash_dataset
+from pitloom.core.dataset_names import dataset_key, log_one_dataset
 from pitloom.core.file_hash import HexDigests, file_digests
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.path_probe import (
@@ -95,6 +96,13 @@ OUTSIDE_ROOT_WARNING = (
 #: dataset. Arguments: the registry path, the dataset's name.
 REGISTRY_IN_DATASET_WARNING = (
     "loom: ID registry %s is inside dataset directory %r; left out of its Merkle root"
+)
+
+#: ``log.warning()`` format for a later spelling of a dataset whose registry id
+#: differs from the first spelling's. Arguments: the later spelling, its pinned
+#: id, the first spelling.
+SPELLING_PIN_WARNING = (
+    "ID registry: dataset %s is pinned to %s, but it is read as %s, whose id is used"
 )
 
 #: ``log.info()`` formats for a dataset package keyed or gated otherwise than
@@ -176,10 +184,11 @@ class LoomElements:
 
     Holds the run's caches: one ``dataset_DatasetPackage`` per key and
     content and one ``software_File`` per path key and content, so a
-    dataset declared twice (``add_input_dataset`` then ``add_dataset``, or
-    under two spellings of one path) is one element and one registry
-    claim; the names each package was declared under; and the paths
-    already warned to be outside the registry's project root.
+    dataset declared twice (``add_input_dataset`` then ``add_dataset``, under
+    two spellings of one path, or of one non-file name, see
+    :meth:`_identity`) is one element and one registry claim; the names each
+    package was declared under; and the paths already warned to be outside
+    the registry's project root.
     """
 
     # pylint: disable-next=too-many-arguments
@@ -202,8 +211,9 @@ class LoomElements:
             tuple[LookupKey, str | None], spdx3.dataset_DatasetPackage
         ] = {}
         self._declared: list[tuple[str, spdx3.dataset_DatasetPackage]] = []
-        self._outside_warned: set[str] = set()
-        self._left_out_warned: set[str] = set()
+        # What a message was already said of, as (message, subject), so each
+        # is said once per run.
+        self._said: set[tuple[str, str]] = set()
         # Per package (by identity), written by finish(): it, its caller
         # provenance, the id of its provenance Annotation (minted with the
         # package, so the ids do not depend on what the run declares
@@ -238,8 +248,10 @@ class LoomElements:
         if found.excluded:  # said even when no root came of the directory
             self._warn_registry_in(name)
         lookup = self._package_key(name)
-        held_package = self._packages.get((lookup, found.hex_digest))
+        package_key = (self._identity(name, lookup, found), found.hex_digest)
+        held_package = self._packages.get(package_key)
         if held_package is not None:
+            self._note_spelling(held_package, name)
             self._declared.append((name, held_package))
             if sources is not None:
                 self._details[id(held_package)][3].extend(sources)
@@ -253,7 +265,7 @@ class LoomElements:
             sources or DatasetSources(),
         )
         package.dataset_datasetType = [_dataset_kind(dataset_type)]
-        self._packages[(lookup, found.hex_digest)] = package
+        self._packages[package_key] = package
         self._declared.append((name, package))
         if found.hex_digest is None:
             return package
@@ -324,6 +336,48 @@ class LoomElements:
         if registry is None:
             return LookupKey(name)
         return artifact_key(registry, path=name, name=name)
+
+    def _first_time(self, message: str, subject: str) -> bool:
+        """Whether *message* has not yet been said of *subject* in this run;
+        marks it said."""
+        key = (message, subject)
+        if key in self._said:
+            return False
+        self._said.add(key)
+        return True
+
+    def _note_spelling(self, package: spdx3.dataset_DatasetPackage, name: str) -> None:
+        """Say once, through :func:`~pitloom.core.dataset_names.log_one_dataset`,
+        that *name* is another spelling of the dataset *package* is named for."""
+        kept = str(package.name)
+        if name == kept or not self._first_time("spelling", f"{kept}\n{name}"):
+            return
+        log_one_dataset(kept, name)
+        registry = self._session.registry
+        other = (
+            None
+            if registry is None
+            else registry.get(DATASET_PACKAGE_TYPE, self._package_key(name).key)
+        )
+        if other is not None and other.spdx_id != package.spdxId:
+            log.warning(
+                SPELLING_PIN_WARNING,
+                loggable(name),
+                loggable(other.spdx_id),
+                loggable(kept),
+            )
+
+    @staticmethod
+    def _identity(name: str, lookup: LookupKey, found: DatasetDigest) -> LookupKey:
+        """What names one dataset in this run: *lookup* as is for a file or
+        directory, else by :func:`~pitloom.core.dataset_names.dataset_key`,
+        as for a model card's datasets (``Org/Data`` is ``org/data``; a
+        file's name is never folded, as two files may differ only in case, and
+        a path that exists but is not hashed (empty, over the ceiling,
+        unreadable, a dangling link) is still a path)."""
+        if lookup.path or found.kind is not None or os.path.lexists(name):
+            return lookup
+        return lookup._replace(key=dataset_key(lookup.key))
 
     @staticmethod
     def _add_kind(
@@ -402,8 +456,7 @@ class LoomElements:
         if key is not None:
             return key, True
         real = os.path.realpath(path)
-        if real not in self._outside_warned:
-            self._outside_warned.add(real)
+        if self._first_time("outside", real):
             log.warning(OUTSIDE_ROOT_WARNING, name, loggable(str(registry.root_dir())))
         return name, False
 
@@ -439,8 +492,7 @@ class LoomElements:
         """Warn, once per directory per run, that the declared registry was
         left out of the directory dataset *name*."""
         real = os.path.realpath(name)
-        if real not in self._left_out_warned:
-            self._left_out_warned.add(real)
+        if self._first_time("left-out", real):
             log.warning(
                 REGISTRY_IN_DATASET_WARNING,
                 loggable(str(registry_file_path(self._session.registry))),
