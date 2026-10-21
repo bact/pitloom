@@ -11,19 +11,28 @@ from typing import Any
 
 import pytest
 
-from pitloom.plugins.hatch import (
-    _validate_config,
-)
+from pitloom.plugins._hatch_config import validate_config
 
 
 def test_validate_config_defaults_pass() -> None:
     """Empty config (all defaults) must not raise."""
-    _validate_config({})
+    validate_config({})
 
 
-def test_validate_config_valid_values_pass() -> None:
-    """The only supported key, 'enabled', must not raise."""
-    _validate_config({"enabled": True})
+@pytest.mark.parametrize(
+    "key",
+    [
+        "enabled",
+        "enable-by-default",
+        "dependencies",
+        "require-runtime-dependencies",
+        "require-runtime-features",
+    ],
+)
+def test_validate_config_valid_values_pass(key: str) -> None:
+    """'enabled' and the keys Hatchling itself reads from a hook's table must
+    not raise."""
+    validate_config({key: True})
 
 
 @pytest.mark.parametrize(
@@ -36,7 +45,7 @@ def test_validate_config_valid_values_pass() -> None:
 def test_validate_config_invalid_raises(field: str, bad_value: Any, match: str) -> None:
     """Invalid field type or value must raise ``ValueError`` with a clear message."""
     with pytest.raises(ValueError, match=match):
-        _validate_config({field: bad_value})
+        validate_config({field: bad_value})
 
 
 @pytest.mark.parametrize(
@@ -54,10 +63,10 @@ def test_validate_config_moved_key_raises(key: str, new_location: str) -> None:
     """A key that moved to [tool.pitloom]/[tool.pitloom.creation] must raise,
     pointing at its new location, rather than being silently ignored."""
     with pytest.raises(ValueError, match=new_location):
-        _validate_config({key: "whatever"})
+        validate_config({key: "whatever"})
 
 
 def test_validate_config_unknown_key_raises() -> None:
     """An unrecognised key must raise rather than being silently ignored."""
     with pytest.raises(ValueError, match="unknown key"):
-        _validate_config({"typo-field": "x"})
+        validate_config({"typo-field": "x"})

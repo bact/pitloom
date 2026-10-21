@@ -40,6 +40,7 @@ from pitloom.core.dataset_names import (
     dataset_key,
     distinct_dataset_names,
 )
+from pitloom.core.frontmatter import opens_frontmatter, split_frontmatter
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
 from pitloom.enrich.base import EnrichedField, EnrichmentResult
 from pitloom.logging_config import (
@@ -130,10 +131,10 @@ def find_card_file(directory: Path, kind: CardKind = MODEL_CARD) -> Path | None:
 
 
 def _frontmatter_block(text: str) -> str | None:
-    """The text between *text*'s leading ``---`` and the next ``---``, or
+    """The text between *text*'s leading ``---`` line and the next one, or
     ``None`` when it does not start with one or it is not closed."""
-    parts = text.split("---", 2) if text.startswith("---") else []
-    return parts[1] if len(parts) == 3 else None
+    split = split_frontmatter(text)
+    return None if split is None else split[0]
 
 
 def _find_model_card_file(model_dir: Path) -> Path | None:
@@ -180,7 +181,7 @@ def _read_card(card_path: Path, kind: CardKind, name: str | None) -> str | None:
         return None
     text = raw[:MODEL_CARD_MAX_BYTES].decode("utf-8-sig", errors="replace")
     over = len(raw) > MODEL_CARD_MAX_BYTES
-    if over and text.startswith("---") and _frontmatter_block(text) is None:
+    if over and opens_frontmatter(text) and _frontmatter_block(text) is None:
         outcome = "frontmatter not closed within it; skipped" + kind.fields_skipped
         warn_over_cap(log, kind.cap, shown, outcome, once=True)
         return None

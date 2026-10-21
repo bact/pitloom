@@ -416,6 +416,7 @@ def parse_pitloom_config(
         creation_comment=creation_comment,
         id_registry=id_registry,
         update_id_registry=update_id_registry,
+        table_keys=frozenset(pitloom_data),
         provenance_format=provenance_format,
         provenance_schema=provenance_schema,
         provenance_detail=provenance_detail,

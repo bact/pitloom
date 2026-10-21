@@ -52,6 +52,7 @@ _ROW_KINDS = {
     "embed-wheel --project-dir": inert_options.EMBED_PROJECT,
     "embed-wheel without --project-dir": inert_options.EMBED_STANDALONE,
     "embed-wheel --sbom": inert_options.EMBED_SBOM,
+    "Hatchling build hook": inert_options.HOOK,
     # The same embedded SBOM, and warnings, as embed-wheel without a project.
     "wheel --embed": inert_options.EMBED_STANDALONE,
 }

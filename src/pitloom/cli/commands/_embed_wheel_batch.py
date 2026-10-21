@@ -37,6 +37,7 @@ from pitloom.core.inert_options import (
     EMBED_SBOM,
     EMBED_STANDALONE,
     INERT,
+    overridden_by_flags,
     settle_inert,
 )
 from pitloom.embed import RECORD_SIGNATURES, EmbedFileCache
@@ -135,12 +136,12 @@ def settle_batch_options(
     args: argparse.Namespace,
     project_dir: Path | None,
     options: dict[str, Any],
-) -> None:
+) -> frozenset[str]:
     """Warn once for the whole batch about every option this embed cannot
     use, and clear every option it cannot use in place -- given or not --
     so no per-wheel call warns again. Creation metadata counts as given
     only when a creator/creation flag was, since *options* always carries
-    a resolved value."""
+    a resolved value. Returns the names of the options that were given."""
     if args.sbom is not None:
         kind, subject = EMBED_SBOM, args.sbom
     elif project_dir is not None:
@@ -151,9 +152,10 @@ def settle_batch_options(
     given = dict(options)
     if not creation_flags_given(args):
         given["creation_metadata"] = None
-    settle_inert(kind, subject, given)
+    settled = settle_inert(kind, subject, given)
     for name in INERT[kind]:
         options[name] = None
+    return settled
 
 
 def batch_options(
@@ -178,8 +180,12 @@ def batch_options(
     explicit_config = load_explicit_config(args)
     options = run_options(args, explicit_config or project_config or PitloomConfig())
     options["pitloom_config"] = explicit_config
-    settle_batch_options(args, project_dir, options)
-    return options, explicit_config or project_config
+    settled = settle_batch_options(args, project_dir, options)
+    config = explicit_config or project_config
+    if config is not None:
+        # A flag that was warned about wins over the file's key: no INFO too.
+        config = overridden_by_flags(config, settled)
+    return options, config
 
 
 def resolve_batch_id_registry(

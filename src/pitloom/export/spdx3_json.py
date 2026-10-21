@@ -139,42 +139,46 @@ def _deduplicate_creation_infos(
     content fingerprint eliminates redundancy and is a prerequisite for
     reproducibility.
 
-    Returns a new graph list with duplicates removed and all intra-document
-    references to removed nodes redirected to the surviving canonical node.
+    Returns a new graph list with duplicates and any CreationInfo without
+    an ``@id`` removed, and every element's ``creationInfo`` reference to a
+    removed node redirected to the surviving canonical node.
     """
     # First pass: elect one canonical @id per unique fingerprint; record
     # every other @id that carries the same content as a redirect target.
+    # A CreationInfo without an @id (nothing refers to it) is dropped: it
+    # has no identity to elect or redirect.
     canonical: dict[tuple[str, ...], str] = {}  # fingerprint -> kept @id
     redirect: dict[str, str] = {}  # dropped @id -> canonical @id
 
     for element in graph:
-        if element.get("type") != "CreationInfo":
+        blank_id = element.get("@id")
+        if element.get("type") != "CreationInfo" or not blank_id:
             continue
-        blank_id: str = element.get("@id", "")
         fp = _creation_info_fingerprint(element)
         if fp in canonical:
             redirect[blank_id] = canonical[fp]
         else:
             canonical[fp] = blank_id
 
-    if not redirect:
+    orphans = [e for e in graph if e.get("type") == "CreationInfo" and not e.get("@id")]
+    if not redirect and not orphans:
         return graph
 
-    # Second pass: drop duplicate nodes and rewrite string references.
-    def _remap(value: Any) -> Any:
-        return redirect.get(value, value) if isinstance(value, str) else value
+    # Second pass: drop duplicate and orphan nodes and rewrite the
+    # references to a dropped one (an element's ``creationInfo`` only: any
+    # other string equal to a blank-node id is plain text).
+    def _remap(element: dict[str, Any]) -> dict[str, Any]:
+        reference = element.get("creationInfo")
+        if not isinstance(reference, str) or reference not in redirect:
+            return element
+        return {**element, "creationInfo": redirect[reference]}
 
-    result = []
-    for element in graph:
-        if element.get("type") == "CreationInfo" and element.get("@id") in redirect:
-            continue  # discard this duplicate
-        result.append(
-            {
-                k: ([_remap(v) for v in val] if isinstance(val, list) else _remap(val))
-                for k, val in element.items()
-            }
-        )
-    return result
+    return [
+        _remap(element)
+        for element in graph
+        if element.get("type") != "CreationInfo"
+        or (element.get("@id") and element["@id"] not in redirect)
+    ]
 
 
 def _deduplicate_named_elements(
@@ -272,7 +276,10 @@ def _build_id_to_name_map(graph: list[dict[str, Any]]) -> dict[str, str]:
 def _annotate_single_relationship(
     node: dict[str, Any], id_to_name: dict[str, str]
 ) -> None:
-    """Format and set description on a relationship node."""
+    """Format and set description on a relationship node, unless it already
+    has one (an empty one included)."""
+    if "description" in node:
+        return
     rel_type = node.get("relationshipType")
     from_id = node.get("from")
     to_ids = node.get("to")
