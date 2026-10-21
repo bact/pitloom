@@ -97,6 +97,30 @@ def make_repo(
     return bare
 
 
+def _cgi_env(
+    request: http.server.BaseHTTPRequestHandler,
+    root: Path,
+    path: str,
+    query: str,
+    body: bytes,
+) -> dict[str, str]:
+    """The CGI environment ``git http-backend`` reads for *request*."""
+    env = {
+        **os.environ,
+        "GIT_HTTP_EXPORT_ALL": "1",
+        "GIT_PROJECT_ROOT": str(root),
+        "PATH_INFO": path,
+        "QUERY_STRING": query,
+        "REQUEST_METHOD": request.command,
+        "CONTENT_TYPE": request.headers.get("Content-Type", ""),
+        "CONTENT_LENGTH": str(len(body)),
+        "REMOTE_ADDR": "127.0.0.1",
+    }
+    for key, value in request.headers.items():
+        env["HTTP_" + key.upper().replace("-", "_")] = value
+    return env
+
+
 @contextmanager
 def serve_git(root: Path, *, gitlab_style: bool = False) -> Iterator[str]:
     """Serve the bare repositories under *root* at ``http://127.0.0.1:<port>``.
@@ -104,9 +128,10 @@ def serve_git(root: Path, *, gitlab_style: bool = False) -> Iterator[str]:
     With *gitlab_style*, ``/<path>/info/refs`` of a path not ending in
     ``.git`` is answered with a 301 to ``/<path>.git/info/refs``.
     """
-    backend = _backend()
-    if backend is None:  # pragma: no cover
+    found = _backend()
+    if found is None:  # pragma: no cover
         raise RuntimeError("git http-backend is not installed")
+    backend: str = found
 
     class Handler(http.server.BaseHTTPRequestHandler):
         """Run ``git http-backend`` for each request."""
@@ -127,19 +152,7 @@ def serve_git(root: Path, *, gitlab_style: bool = False) -> Iterator[str]:
                     return
             length = int(self.headers.get("Content-Length") or 0)
             body = self.rfile.read(length) if length else b""
-            env = {
-                **os.environ,
-                "GIT_HTTP_EXPORT_ALL": "1",
-                "GIT_PROJECT_ROOT": str(root),
-                "PATH_INFO": path,
-                "QUERY_STRING": query,
-                "REQUEST_METHOD": self.command,
-                "CONTENT_TYPE": self.headers.get("Content-Type", ""),
-                "CONTENT_LENGTH": str(len(body)),
-                "REMOTE_ADDR": "127.0.0.1",
-            }
-            for key, value in self.headers.items():
-                env["HTTP_" + key.upper().replace("-", "_")] = value
+            env = _cgi_env(self, root, path, query, body)
             done = subprocess.run(
                 [backend], input=body, capture_output=True, env=env, check=False
             )
