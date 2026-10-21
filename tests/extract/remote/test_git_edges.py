@@ -12,6 +12,7 @@ side, so no network and no real repository is involved.
 from __future__ import annotations
 
 import logging
+import os
 import stat
 import subprocess
 import sys
@@ -240,4 +241,22 @@ def test_killing_a_process_that_is_already_gone_is_harmless() -> None:
         [sys.executable, "-c", "pass"], start_new_session=True
     ) as proc:
         proc.wait()
+        _kill(proc)
+
+
+@posix_only
+@pytest.mark.parametrize("error", [ProcessLookupError, PermissionError])
+def test_a_process_group_that_cannot_be_signalled_is_gone(
+    error: type[OSError], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Killing the group of a process that has just exited is no failure
+    (macOS says EPERM, Linux ESRCH)."""
+
+    def refuse(_pid: int, _signal: int) -> None:
+        raise error
+
+    monkeypatch.setattr(os, "killpg", refuse)
+    with subprocess.Popen(  # nosec B603: fixed argv
+        [sys.executable, "-c", "pass"]
+    ) as proc:
         _kill(proc)

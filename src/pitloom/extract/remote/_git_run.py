@@ -157,7 +157,9 @@ def _kill(proc: subprocess.Popen[bytes]) -> None:
     if os.name == "posix":
         try:
             os.killpg(proc.pid, signal.SIGKILL)
-        except ProcessLookupError:  # already gone
+        except (ProcessLookupError, PermissionError):
+            # Already gone: macOS answers EPERM for the group of a process that
+            # has exited and is not yet reaped.
             pass
     else:  # pragma: no cover
         proc.kill()
