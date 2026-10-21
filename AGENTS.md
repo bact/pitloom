@@ -66,7 +66,7 @@ Failure modes that recurred across subsystems; check for them by name.
 Detail (war stories, PRs, code shapes) is in
 [recurring-bug-patterns.md](working-docs/implementation/recurring-bug-patterns.md) (data and semantics),
 [recurring-bug-patterns-platform.md](working-docs/implementation/recurring-bug-patterns-platform.md) (platform, concurrency, test harness, CI) and
-[recurring-bug-patterns-review-rounds.md](working-docs/implementation/recurring-bug-patterns-review-rounds.md) (PR #300, #305, #306 and path-key rounds): read them before extending or citing a one-liner.
+[recurring-bug-patterns-review-rounds.md](working-docs/implementation/recurring-bug-patterns-review-rounds.md) (PR #300, #305, #306, #311 to #315 and path-key rounds): read them before extending or citing a one-liner.
 
 Data and semantics:
 
@@ -81,6 +81,8 @@ Data and semantics:
 - **Picking one candidate from an unordered collection needs an explicit stable tie-break**; choose a merge survivor from counts over all inputs (load all, rank, prove reversed input order gives the same ids).
 - **A dedup/conflict-exclusion fix must cover every path that can produce the same identity**; a conflict branch must skip itself, not the whole cascade.
 - **A guard before a side-effecting step drops that effect** (a skip `return` before `reserve_id()` re-minted the id): do the effect first.
+- **"No digest" is not "not a file"**: an empty directory, an over-ceiling or unreadable file also hash to `None`, and a dangling link is a path; ask existence with `kind`/`lexists`. Two helpers answering "is it a path" get a test on the cases they can disagree on.
+- **Every route that builds one entity shares its identity rule** (the SDK keyed datasets by raw string while the card routes folded by `dataset_key`): one function, plus a test comparing the routes' counts. A fold that keeps the first says so (`INFO:`) and warns on a dropped keyed fact (a registry pin under the later spelling).
 - **A fix scoped to "explicit input" needs an explicit flag** (an unreadable-root `ERROR` also hit the implicit default roots).
 - **A field added to a dataclass must be set by every constructor call site**, from one shared helper.
 - **An opt-out flag that skips filling an accumulator breaks emptiness/exit checks keyed on it**: re-derive from a still-populated proxy.
@@ -98,6 +100,7 @@ Data and semantics:
 Code shape:
 
 - **Warning/error/log wording drifts across sibling modules**: one shared helper; check siblings when adding a check.
+- **A path in a message goes through one helper** (`quote_source`: `str()`, quoted, control characters escaped): `repr(Path)` writes `/` on Windows and `repr(str)` doubles backslashes. `loggable()` every interpolated value (the kept name, a registry id), test with a newline, and test each emitter with a repeated input (said once).
 - **A log message in a multi-exit function describes what that branch did**, not the typical path.
 - **Reusing a helper outside its contract narrows behaviour silently**: read its docstring preconditions, not only the return type. A shared helper's return type should fit every caller.
 - **A private third-party API (`obj._attr`) has no structural guarantee**: verify its shape interactively, prefer the public algorithm. Do not reach into another module's `_name`: promote a public accessor.
@@ -107,6 +110,8 @@ Code shape:
 - **A version floor asserted in many places drifts and no script checks it**: keep it at the verified minimum; on change grep every spelling (requirement/example move; history stays).
 - **An undocumented third-party breaking change can be survived without an upper pin**: detect its runtime shape (`len(Cls.__parameters__)`) plus a `TYPE_CHECKING` branch.
 - **Compare a linter's error count to HEAD with the same interpreter** (`pyrefly --python-interpreter`).
+- **`# type: ignore` against a library that changed its types** is unused on one version and needed on another (numpy 2.3 vs 2.5): an `Any` view plus `cast`; check the lowest supported version in a second environment (`mypy --python-executable`).
+- **Read a linter's messages and exit code, not its score** (pylint printed `10.00/10` beside an R0902); run CI's exact command. In a degraded sandbox (no licence database: 73 tests fail on `main`) compare failing test-id sets against a stashed baseline, not counts.
 
 Tests, platform and CI:
 
@@ -121,6 +126,7 @@ Tests, platform and CI:
 - **A long `parametrize` value becomes the test id** (Windows `PYTEST_CURRENT_TEST` cap 32,767 chars): short `ids=`; conftest fails ids over 1,000.
 - **A `skipif` condition runs at import time on every platform** (`os.geteuid()` fails collection on Windows): use one short-circuited module constant; same for POSIX-only names in decorators and `parametrize`.
 - **A hardcoded POSIX path in a test skips the "absolute" branch on Windows**: build it from `tempfile.gettempdir()`.
+- **A test making case-variant paths (`Org/`, `org/`) probes the file system first** (`mkdir Probe`, test `probe`, skip, then create): macOS raised `FileExistsError` before a later skip ran.
 - **A bit-for-bit POSIX permission assertion is unwinnable on Windows**: spy `os.chmod` arguments; keep the real assertion on POSIX.
 - **`Path.write_text("x\n")` writes CRLF on Windows**: `write_bytes` when a digest is asserted.
 - **`Path.exists()`/`is_file()` swallow only some errnos** (`PermissionError` propagates on 3.10-3.13, `False` on 3.14): use `os.path.isfile`/`isdir` for "never raises"; gate a test by version, plus a version-independent probe.

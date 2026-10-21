@@ -1,12 +1,12 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Recurring bug patterns: review rounds of PR #300, #305, #306 and path keys
+# Recurring bug patterns: review rounds of PR #300, #305, #306, #311 to #315 and path keys
 
 See also: [recurring-bug-patterns.md](recurring-bug-patterns.md) (the main
 list; split here for size),
@@ -262,3 +262,60 @@ Built as [id-registry-path-keys.md](id-registry-path-keys.md).
 - **A fixture is green by construction; a review reads the rule against real
   trees.** All three failures of the loose alias rule passed the tests that
   had been written for it; an independent review found them together.
+
+## From PR #311 to #315 (dataset folding, supplier, NumPy typing)
+
+Field-note version, with the measured context:
+[datasets-and-reproducible-results.md](sbom-generator-field-notes/datasets-and-reproducible-results.md).
+
+- **`repr(path)` is not `str(path)`.** `repr(WindowsPath)` writes `/`, and
+  `repr(str)` doubles each backslash; a message built with `{source!r}` never
+  held the path as the OS writes it, and a test asserting `str(path) in
+  message` passed everywhere but Windows (#311, four fuzz tests). One helper
+  now quotes a source (`extract/_extract_utils.quote_source`) and escapes
+  control characters and lone surrogates, so a name with a newline cannot
+  split a message over two lines.
+  Do: put a path into a message with one helper that writes `str()`, quoted
+  and escaped; assert on the same spelling.
+- **"No digest" is not "not a file".** The first #314 rule folded a dataset
+  name when `found.hex_digest is None`; an empty directory, a file over
+  `max-dataset-hash-bytes` and an unreadable file also return `None`. A
+  dangling symlink was a path to `artifact_key` (`lexists`) and not to the
+  hasher. Fix: `found.kind is not None or os.path.lexists(name)`.
+  Do: ask existence with the call that asks it; when two helpers answer "is
+  it a path", test the cases they can disagree on (empty dir, over the
+  ceiling, unreadable, dangling).
+- **A fold keeps the first and forgets the rest.** Two spellings of one
+  dataset, the registry pinned under the later one: the pin was ignored with
+  no message, and the id depended on declaration order. Fix: one `WARNING:`
+  naming the ignored pin; the first spelling is the one looked up and named.
+  Do: a first-wins merge that drops a keyed fact says so.
+- **Every value in a new message is untrusted.** The pin warning escaped the
+  later spelling but not the kept one or the registry id; a name `ds\nWARNING:
+  fake` forged a tagged second line. Do: `loggable()` every interpolated
+  value, and test with a newline in each.
+- **Say a fold once per pair, on every route.** The SDK and the merge route
+  deduplicated the `INFO:`; the card route logged each repeat (a thousand
+  lines for a card repeating one name). Do: when one message has several
+  emitters, test each with a repeated input.
+- **Review the fix of a review.** Two of five findings in the third #314
+  round were in code the second round added.
+- **Count slots against the limit before adding a field.** Adding a
+  said-once set to `LoomElements` made 13 instance attributes against a limit
+  of 12 (pylint R0902). Three "said once" sets became one set and one helper
+  (`_first_time`) rather than a `disable`. Local pylint showed "10.00/10"
+  with the message present: read the messages and the exit code.
+- **A test that creates case-variant paths probes the file system first.**
+  `mkdir("Org/Data")` then `mkdir("org/data")` raised `FileExistsError` on
+  macOS before the skip ran. Do: create a `Probe` directory, test `probe`,
+  skip, and only then make the pair.
+- **`# type: ignore` against a library that changes its types.** numpy's
+  `lib.format` was untyped to 2.3 and typed from 2.5, so the ignore was unused
+  on one version and needed on the other (#315). Use an `Any` view plus a
+  `cast`; check the lowest supported version in a second environment
+  (`mypy --python-executable`).
+- **Compare failure sets in a degraded environment.** The sandbox cannot
+  build the licence database (a GitHub download is blocked), so 73 tests fail
+  on `main` too. Stash the change, run, and compare the sorted ids: zero
+  new ids is the evidence, not "73".
+
