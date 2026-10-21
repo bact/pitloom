@@ -12,8 +12,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from pitloom.assemble import generate, target_resolves_to_project
-from pitloom.cli.commands.project import generate_project_from_args
+from pitloom.assemble import generate, target_is_git_url, target_resolves_to_project
+from pitloom.cli.commands.project import generate_project_from_args, run_remote_project
 from pitloom.cli.commands.utils import (
     _print_sbom_output_path,
     cli_error_handler,
@@ -60,6 +60,11 @@ def _run_generate_command(args: argparse.Namespace) -> int:
 
     if looks_like_wheel_path(args.target) and refuse_non_wheel(Path(args.target)):
         return 1
+
+    if target_is_git_url(args.target):
+        # A Git URL: exactly what `loom project <url>` does.
+        run_remote_project(args, str(args.target).strip())
+        return 0
 
     if target_resolves_to_project(args.target):
         # A project directory or sdist archive: exactly what `loom project`
@@ -110,12 +115,14 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         type=str,
         nargs="?",
         default=".",
-        help="Target path, sdist archive, .whl, model file, HF URL, or 'env'.",
+        help="Target path, sdist archive, .whl, model file, HF URL, Git "
+        "repository URL, or 'env'.",
     )
     add_offline_argument(
         gen_parser,
         "; effect depends on the resolved target -- "
-        "HF URL/ID: error, no fetch attempted (no local fallback exists). "
+        "HF URL/ID or Git URL: error, no fetch attempted (no local fallback "
+        "exists). "
         "project dir / .whl: skip PyPI lookup, no error (local metadata "
         "already covers what it can). "
         "local model file: no-op (no network path exists).",

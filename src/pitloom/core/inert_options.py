@@ -40,6 +40,7 @@ PROJECT = "project"
 SDIST = "sdist"
 WHEEL = "wheel"
 ENV = "env"
+GIT = "git"
 MODEL_FILE = "model_file"
 HF = "hf"
 ENRICH = "enrich"
@@ -132,6 +133,7 @@ _NOT_A_WHEEL = "for this target (it reads AI model files from a built wheel only
 _PROJECT_IS_DIR = (
     "for a project directory target (its files are keyed below that directory)"
 )
+_GIT_PROJECT_DIR = "for a remote repository (its checkout is the project directory)"
 _NOT_AN_ARCHIVE = (
     "for this target (it keys the files of an sdist or a wheel below their "
     "project directory only)"
@@ -169,6 +171,7 @@ _ENRICH_ROW: dict[str, str] = {
 #: Target kind -> {parameter: reason it has no effect there}.
 INERT: dict[str, dict[str, str]] = {
     PROJECT: {"trust_wheel_model": _NOT_A_WHEEL, "project_dir": _PROJECT_IS_DIR},
+    GIT: {"trust_wheel_model": _NOT_A_WHEEL, "project_dir": _GIT_PROJECT_DIR},
     SDIST: {
         "trust_wheel_model": _NOT_A_WHEEL,
         **dict.fromkeys(_FILE_SCAN, _SDIST_FILE_SCAN),
@@ -314,6 +317,7 @@ __all__ = [
     "ENRICH",
     "ENRICH_STANDALONE",
     "ENV",
+    "GIT",
     "HF",
     "INERT",
     "MODEL_FILE",

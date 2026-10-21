@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -27,12 +28,25 @@ from pitloom.cli.options import (
     build_options_from_args,
 )
 from pitloom.cli.options_config import add_archive_project_dir_argument, run_options
+from pitloom.cli.options_resolve import load_explicit_config
 from pitloom.cli.verbose import log_verbose_options
-from pitloom.core.build_options import BuildOptions
+from pitloom.core.build_options import REMOTE_REPOSITORY_REASON, BuildOptions
+from pitloom.extract.remote import (
+    fetch_git_project,
+    is_git_url,
+    is_unsupported_remote_url,
+)
+from pitloom.extract.remote.git import CONFIG_IGNORED_INFO
+
+log = logging.getLogger(__name__)
 
 
 def generate_project_from_args(
-    args: argparse.Namespace, project_dir: Path, build_options: BuildOptions
+    args: argparse.Namespace,
+    project_dir: Path,
+    build_options: BuildOptions,
+    *,
+    ignore_project_config: bool = False,
 ) -> Path:
     """Generate the SBOM for a project directory or sdist *project_dir* from
     parsed arguments; return the output path it was written to.
@@ -40,9 +54,13 @@ def generate_project_from_args(
     Shared by ``loom project`` and ``loom generate`` on a project target, so
     the two resolve config, output name, ``--verbose`` and every option the
     same way. *build_options* must already be settled for *project_dir*.
+    *ignore_project_config* is set for a project fetched from a remote
+    repository: its own ``[tool.pitloom]`` does not apply.
     """
     project_metadata, pitloom_config, config_path, creation = (
-        _resolve_project_generation_settings(args, project_dir)
+        _resolve_project_generation_settings(
+            args, project_dir, ignore_project_config=ignore_project_config
+        )
     )
     output_path = _resolve_output_path(args.output, project_metadata, pitloom_config)
     if args.verbose:
@@ -62,9 +80,54 @@ def generate_project_from_args(
     return output_path
 
 
+def run_remote_project(args: argparse.Namespace, url: str) -> int:
+    """Generate a Source SBOM for the project at the Git URL *url*: fetch the
+    repository (or the folder of it the URL names), then read it as
+    ``loom project`` reads a directory.
+
+    Shared by ``loom project <url>`` and ``loom generate <url>``. The
+    repository is untrusted: its own ``[tool.pitloom]`` is ignored (only
+    ``--config`` applies) and its build backend never runs. ``--offline``
+    (or ``offline`` in ``--config``) forbids the fetch.
+    """
+    explicit = load_explicit_config(args)
+    offline = args.offline
+    if offline is None and explicit is not None:
+        offline = explicit.offline
+    build_options = build_options_from_args(args).settle_not_applicable(
+        url, REMOTE_REPOSITORY_REASON
+    )
+    with fetch_git_project(url, offline=offline) as checkout:
+        if explicit is None:
+            log.info(CONFIG_IGNORED_INFO)
+        with checkout.explaining_failures():
+            output = generate_project_from_args(
+                args,
+                Path(checkout.folder),
+                build_options,
+                ignore_project_config=True,
+            )
+    _print_sbom_output_path(output)
+    return 0
+
+
+def _project_target(text: str) -> Path | str:
+    """A ``project`` target: the text itself for a Git URL (a ``Path`` would
+    collapse its ``//``) or any other remote address (refused with a message
+    naming what is fetched), else a path."""
+    if is_git_url(text) or (
+        is_unsupported_remote_url(text) and not Path(text).exists()
+    ):
+        return text.strip()
+    return Path(text)
+
+
 @cli_error_handler("SBOM generation failed")
 def _run_project_command(args: argparse.Namespace) -> int:
-    """Generate a Source SBOM from a project directory or sdist archive."""
+    """Generate a Source SBOM from a project directory, sdist archive or Git
+    URL."""
+    if isinstance(args.project_dir, str):
+        return run_remote_project(args, args.project_dir)
     # Settle before the path check and the metadata/lock-file read below,
     # so the build-flag WARNING: is the first thing the run logs -- and is
     # logged at all for a directory the check then rejects, as `generate`,
@@ -96,14 +159,19 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     )
     proj_parser.add_argument(
         "project_dir",
-        type=Path,
+        type=_project_target,
         nargs="?",
         default=Path.cwd(),
-        help="Path to project directory or sdist archive (.tar.gz, .zip).",
+        help="Path to project directory or sdist archive (.tar.gz, .zip), or "
+        "the http(s) URL of a Git repository or of one of its web pages (a "
+        "branch, tag or commit and a folder may be named). A repository is "
+        "fetched shallowly; its own [tool.pitloom] is ignored (--config "
+        "applies) and its build backend never runs.",
     )
     add_offline_argument(
         proj_parser,
-        " -- skip PyPI lookup, no error (local metadata already covers what it can).",
+        " -- skip PyPI lookup, no error (local metadata already covers what it "
+        "can). A Git URL: error, nothing is fetched.",
     )
     add_use_lockfile_argument(
         proj_parser,
