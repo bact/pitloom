@@ -6,7 +6,7 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Recurring bug patterns: review rounds of PR #300, #305, #306, #311 to #315 and path keys
+# Recurring bug patterns: review rounds of PR #300, #305, #306, #311 to #315, #317 and path keys
 
 See also: [recurring-bug-patterns.md](recurring-bug-patterns.md) (the main
 list; split here for size),
@@ -318,4 +318,39 @@ Field-note version, with the measured context:
   build the licence database (a GitHub download is blocked), so 73 tests fail
   on `main` too. Stash the change, run, and compare the sorted ids: zero
   new ids is the evidence, not "73".
+
+## From PR #317 (Git URL ingestion; a fresh review after two rounds)
+
+- **A check on the URL does not cover every client the tool starts.** The
+  address check and `http.followRedirects=false` bound git's HTTP; git-lfs, run
+  by the checkout's smudge filter from the repository's own `.lfsconfig`, was
+  a second client past both. List every program the fetch starts and what each
+  reads from untrusted data; switch off what is not needed.
+- **Text from a server or a subprocess needs the same escaping as a file name.**
+  Git's stderr, built into an `ERROR:` message, carried a forged tagged line,
+  a `::error::` workflow command and an escape sequence. The escaping helper
+  existed and was applied to the echoed command and to refs, not to this path.
+  Grep for every f-string that interpolates `err`, `stderr`, `exc` or a URL.
+- **A masking helper applied at one site is a bug at the other sites.**
+  Credentials were masked in the command echo and not in two messages built from
+  the raw URL. Test every message with a URL holding `user:SECRET@`.
+- **A new kind of target adds rows to registries no type checker sees.** The
+  inert-options table and its docs row, the cap-warning list and the skill's
+  size limits each had a guard test; none was run before the first push.
+  Run the whole suite, not the touched area, before a PR (full suite on the
+  fresh branch: 10 guard failures that the area tests never showed).
+- **A fallback needs the condition it is for.** "Retry with the whole URL" on any
+  clone failure hid TLS and sign-in errors behind a message about a URL the user
+  never meant.
+- **Process groups, both directions.** Killing the process left
+  `git-remote-https` holding the pipe (a 30 s hang); a timeout was handled and
+  Ctrl-C was not. Kill the group on `BaseException` too, and drain stderr
+  with a cap.
+- **"Rejected, so say it" needs a central place.** Seven refusals logged nothing
+  because each raised from a different helper. One wrapper around everything
+  before the hand-over logs them; the caller's own `with` body is outside it.
+- **Two surfaces, two wordings.** The CLI settled "option has no effect" against
+  the random checkout path, the library against the URL. A parity test
+  across library, `generate()` and both CLI commands found it only because it
+  compared warnings as well as the SBOM.
 

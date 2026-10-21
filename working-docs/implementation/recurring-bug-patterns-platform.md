@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -417,3 +417,22 @@ the move.
   view (`hdiutil create -size 64m -fs "Case-sensitive APFS" ...`; `pytest
   --basetemp <volume>/bt --cov-branch`). Detail and the fix:
   [recurring-bug-patterns-review-rounds.md](recurring-bug-patterns-review-rounds.md).
+- **Python 3.14 reports a temporary file closed by the garbage collector as an
+  unraisable error; `urllib.error.HTTPError` holds one.** The redirect probe
+  read `exc.code` and `exc.headers` and let the error go: 47 tests failed on
+  Ubuntu / 3.14 only (PR #317; `filterwarnings = error` turns it into a failure
+  of whichever test the collector happens to run in). Close the error
+  (`with exc:`), and call `gc.collect()` inside the regression test so the
+  finaliser runs there.
+- **`os.killpg` on the group of a process that has exited but is not reaped is
+  `ESRCH` on Linux and `EPERM` on macOS.** A kill that races the exit
+  (output cap, deadline) failed with `PermissionError` on macOS / 3.13 only
+  (#317). Catch both; test with a patched `killpg` raising each.
+- **A fixed sleep before an interrupt, a wall-clock bound and "a port nothing
+  listens on" are flakes.** Wait for the condition (a pid file, an event),
+  assert the message rather than the duration, bind and close a socket for a
+  free port (#317).
+- **A POSIX-only fixture name or URL fails on one Windows leg.** `a@b:c` is not a
+  file name there, and `file://D:\x` is not a URL (#317): skip with the reason,
+  keep the behaviour covered on POSIX.
+

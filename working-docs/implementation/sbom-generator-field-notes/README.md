@@ -59,6 +59,10 @@ the day it was added (2026-10-02 to 2026-10-15).
   one dataset under several names and capture routes; who made the SBOM versus
   who supplies the component; conformance counts that depend on the machine;
   what a CI matrix found; review rounds of PR #311 to #315.
+- [remote-git-sources.md](remote-git-sources.md): a Git URL on any forge:
+  GitLab's 301, page-URL syntax per platform, ref versus folder, measured
+  platforms; git-lfs, forged log lines and symlinks from an untrusted
+  repository; where the logic should live; rejections said once; test traps.
 - [open-research-questions.md](open-research-questions.md): where the
   formats cannot say what a generator needs (a string that may be one value
   or a list, author kinds, extras and scope, backend disagreements,

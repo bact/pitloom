@@ -47,7 +47,7 @@ Pitloom runs from several surfaces: CLI (10+ subcommands), the Hatchling hook, t
 ## Design principles
 
 - **Honour user intent over silent fallbacks**: no implicit fallback that contradicts the user's explicit instruction.
-- **No silent deviations**: emit a clear `WARNING:` log or stderr message saying what was decided and why when deviating from an instruction.
+- **No silent deviations**: emit a clear `WARNING:` log or stderr message saying what was decided and why when deviating from an instruction. A rejected input (URL, scheme, ref) is logged as well as raised.
 - **Respect the configuration cascade**: CLI flags > `pyproject.toml` > hardcoded defaults.
 - **Resource efficiency**: cache and route to limit network access; stream large structures; never load whole files (ML models, archives) into memory: chunked reads (`read(8192)`), memory mapping or native lazy header extraction (`np.lib.format`, stream loading for fickling/pickle).
 - **Explicit pin beats local environment**: a version pinned by its own data source (lock file, exact `==`/`===`) is authoritative and never overridden by introspecting Pitloom's own environment; introspection is a fallback for the unpinned case only.
@@ -104,6 +104,7 @@ Code shape:
 - **A log message in a multi-exit function describes what that branch did**, not the typical path.
 - **Reusing a helper outside its contract narrows behaviour silently**: read its docstring preconditions, not only the return type. A shared helper's return type should fit every caller.
 - **A private third-party API (`obj._attr`) has no structural guarantee**: verify its shape interactively, prefer the public algorithm. Do not reach into another module's `_name`: promote a public accessor.
+- **A check on the URL does not cover every client a fetch starts** (git-lfs reads the repository's `.lfsconfig`): list each program run, switch off what is not needed. Server and subprocess text is attacker text: `loggable()`, one line, credentials masked where the message is built (test with `user:SECRET@`). A fallback names the condition it is for. Detail: [rationale](working-docs/implementation/recurring-bug-patterns-review-rounds.md).
 - **A circular-import claim needs a live interpreter test** (both import orders).
 - **A guard for one direction of a symmetric hazard leaves the mirror open** (write-write vs write-read deadlock): enumerate both; reproduce a concurrency claim with a timeout-bounded run, never reason it through.
 - **A context manager whose `__exit__` can be interrupted resets shared state in `__enter__`** (fresh container, identity check, no lock).
@@ -132,6 +133,8 @@ Tests, platform and CI:
 - **`Path.exists()`/`is_file()` swallow only some errnos** (`PermissionError` propagates on 3.10-3.13, `False` on 3.14): use `os.path.isfile`/`isdir` for "never raises"; gate a test by version, plus a version-independent probe.
 - **A textual "under the project" check misses on a case-insensitive file system**: fall back to a `(st_dev, st_ino)` ancestor match (`st_ino == 0` = no identity).
 - **Coverage counts one leg (Linux, Python 3.14)**: a branch only macOS/Windows/another Python reaches (NUL in source: `ValueError` <=3.11, `SyntaxError` 3.12+) shows as missing there; cover each `except` portably.
+- **Python 3.14 reports a temp file closed by `__del__` (`urllib.error.HTTPError`) as unraisable**: `with exc:`, and `gc.collect()` in the test. **`os.killpg` on an exited, unreaped group is `ESRCH` on Linux, `EPERM` on macOS**: catch both. Wait for a condition, never a fixed sleep.
+- **Run the whole suite before a PR**: a new target kind adds rows to registries area tests never touch (inert options, cap warnings, skill size limits).
 - **Fail-fast CI hides other legs**: read which jobs were cancelled before concluding.
 - **GitHub Actions substitutes `${{ }}` even in `run:` shell comments**: put such examples above `env:`, not inside `run: |`.
 - **pip's `--no-build-isolation` is invocation-global**: do not mix a self-referential local install with unrelated packages in one `pip install`.
