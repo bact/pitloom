@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-20
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -129,6 +129,8 @@ and this project adheres to
   no name, licence or URL, and Hub card warnings name no cache path ([#311])
 - The main package's `suppliedBy` is never a `software-agent` creator: the next
   creator is taken, or none is set ([#312])
+- The NumPy reader type-checks on numpy 2.3 and 2.5 alike: no `type: ignore` that
+  one of the two calls unused ([#315])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
@@ -138,6 +140,7 @@ and this project adheres to
 [#310]: https://github.com/bact/pitloom/pull/310
 [#311]: https://github.com/bact/pitloom/pull/311
 [#312]: https://github.com/bact/pitloom/pull/312
+[#315]: https://github.com/bact/pitloom/pull/315
 
 ## [0.20.2] - 2026-10-09
 
