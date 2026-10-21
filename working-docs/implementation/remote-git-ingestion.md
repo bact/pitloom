@@ -127,6 +127,12 @@ the 10-minute deadline (the 10 MB blob filter is only a request to the server).
   external reference, forge licence): the commit is logged, not recorded.
 - Forge API tarballs; a persistent cache of fetches.
 - Subdirectory URLs of Azure DevOps (the folder is in a query string).
+- A size cap for a clone: the blob filter is a request, so only the 10-minute
+  deadline bounds it.
+- A reader for a project that declares its metadata only in an imperative
+  `setup.py`; the error names the sub-projects it can read.
+- DNS-rebinding protection between the caller's address check and git's own
+  lookup.
 - The GitHub Action takes a checkout in the workflow, not a URL.
 
 ## Verification

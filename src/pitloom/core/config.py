@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Pitloom tool configuration read from ``[tool.pitloom]`` in ``pyproject.toml``.
+"""Pitloom tool configuration: ``[tool.pitloom]`` of ``pyproject.toml`` (or
+``[tool:pitloom]`` of ``setup.cfg``, or a file named by ``--config``).
 
 See Also:
     :mod:`pitloom.core._config_types` for the ``PitloomConfig`` class definition.

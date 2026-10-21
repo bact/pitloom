@@ -3,10 +3,13 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""SBOM assemblers for different output specifications.
+"""Public SBOM-generation entry points: :func:`generate` and the per-target
+generators it dispatches to.
 
 See also:
 - :mod:`pitloom.assemble._generators` for the project/sdist generator.
+- :mod:`pitloom.assemble._generators_git` for the remote Git repository
+  generator.
 - :mod:`pitloom.assemble._generators_wheel` /
   :mod:`pitloom.assemble._generators_env` for the wheel and environment
   generators, and :mod:`pitloom.assemble._generators_shared` for what they share.
@@ -94,9 +97,8 @@ def _classify_target(target: Path | str) -> str:
     remote Git repository URL), ``"model_file"``, or ``"project"`` (plain
     directory or sdist archive).
 
-    Single source of truth for :func:`generate`'s own dispatch and for
-    :func:`target_resolves_to_project` -- one shared check instead of two
-    independently-maintained classifications drifting apart.
+    The one classification behind :func:`generate`'s dispatch,
+    :func:`target_is_git_url` and :func:`target_resolves_to_project`.
     """
     target_str = str(target).strip()
     if target_str.lower() in ("env", "environment", "--env"):
@@ -166,14 +168,10 @@ def generate(
     """Smart unified entrypoint for generating SPDX 3 SBOMs across all target types.
 
     ``build_options`` (see :class:`~pitloom.core.build_options.BuildOptions`)
-    only takes effect for a project directory target (the
-    ``generate_project_sbom()`` dispatch below); any other target logs
-    one ``WARNING:`` per given build flag here, immediately, before
-    dispatching. A "project" classification covers both a project
-    directory and an sdist archive (the two aren't told apart until
-    ``generate_project_sbom()`` itself checks), so that dispatch settles/
-    warns about ``build_options`` on its own, right before its own
-    metadata read -- not repeated here.
+    takes effect for a project directory target only. Env, wheel, model and
+    Hugging Face targets log one ``WARNING:`` per given build flag here,
+    before dispatching; a Git URL and an sdist archive are settled by
+    :func:`generate_git_project_sbom` and :func:`generate_project_sbom`.
 
     *project_dir* (the project directory an sdist or a wheel was built
     from, for its registry keys) reaches the sdist and wheel delegates; any
@@ -192,11 +190,8 @@ def generate(
     classification = _classify_target(target_str)
 
     if classification not in ("project", "git"):
-        # Reset to defaults too (not just warn): nothing below reuses
-        # build_options for a non-project classification, but this keeps
-        # the same "warn once, reset to defaults" contract every other
-        # settle_not_applicable() call site follows, so a future caller
-        # added here can't accidentally double-warn.
+        # Warns once and resets to defaults, as every
+        # settle_not_applicable() call does.
         build_options = build_options.settle_not_applicable(
             target_str, NON_PROJECT_TARGET_REASON
         )

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-10-08
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,7 +24,7 @@ action's callers run under), [wheel-sbom-verification.md](wheel-sbom-verificatio
   version pin, extra packages, dependency groups, the local package
   itself, editable or not, working around Pitloom's self-referential
   `[build-system] requires = [..., "pitloom"]`). Used by 10 of Pitloom's
-  16 `.github/workflows/*.yml` files -- see the roadmap's "CI workflow
+  17 `.github/workflows/*.yml` files -- see the roadmap's "CI workflow
   step duplication" item.
 - `loom verify-wheel`/`loom validate-wheel` calls added or consolidated
   in `build.yml`, `hatch-integration.yml`, and `pypi-publish.yml`,

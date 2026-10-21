@@ -4,12 +4,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """In-tree ``.egg-info``/``.dist-info`` as a supplementary project-metadata
-source (V1: in-tree only -- a build backend's editable-install byproduct
-left next to ``pyproject.toml``, not the real installed record in a venv's
-``site-packages``; see ``working-docs/design/installed-dist-info-source.md``
-for the full design, including the deferred site-packages-aware phase).
+source (in-tree only: a build backend's editable-install byproduct left next
+to ``pyproject.toml``, not the installed record in a venv's
+``site-packages``; see ``working-docs/design/installed-dist-info-source.md``).
 
-Three concerns, kept in this order to match the plan they came from:
+Three concerns:
 
 - Discovery (:func:`find_installed_metadata_candidate`): bounded-glob
   search for an in-tree candidate whose declared ``Name`` matches the
@@ -17,14 +16,9 @@ Three concerns, kept in this order to match the plan they came from:
   ``setup.cfg``/``setup.py``).
 - Parsing (:func:`_parse_installed_metadata`): RFC 822 Core Metadata
   fields into a :class:`~pitloom.core.project.ProjectMetadata`.
-- Reconciliation: fold the parsed installed metadata into the static
-  metadata -- moved to :mod:`pitloom.extract.project._installed_reconcile`
-  (:func:`~pitloom.extract.project._installed_reconcile.reconcile_installed_metadata`)
-  to keep this file under this repo's file-size soft limit; see that
-  module's docstring for the reconciliation contract.
-
-Written so a future site-packages-aware discovery function can reuse
-parsing and reconciliation unchanged, swapping only discovery.
+- Reconciliation: folding the parsed installed metadata into the static
+  metadata, in :mod:`pitloom.extract.project._installed_reconcile`
+  (:func:`~pitloom.extract.project._installed_reconcile.reconcile_installed_metadata`).
 """
 
 from __future__ import annotations
@@ -52,15 +46,10 @@ log = logging.getLogger(__name__)
 #: ``node_modules``/``vendor/`` tree sitting inside the project directory).
 #:
 #: ``src/*.egg-info``/``src/*.dist-info`` (one path segment under ``src/``)
-#: is the empirically-verified real case: setuptools' own ``egg_info``
-#: command writes ``<name>.egg-info`` directly under ``src/`` for a
-#: ``package_dir={"": "src"}`` project (verified via a real
-#: ``python setup.py egg_info`` run against a ``src/``-layout project --
-#: it does **not** nest it inside an extra package-name directory).
-#: ``src/*/*.egg-info``/``src/*/*.dist-info`` (two segments) is kept
-#: alongside it defensively for a layout/backend this project hasn't
-#: independently verified writes there, since the bounded, shallow glob
-#: costs little to keep broad.
+#: is where setuptools' ``egg_info`` command writes ``<name>.egg-info`` for a
+#: ``package_dir={"": "src"}`` project (not inside a package-name directory).
+#: ``src/*/*.egg-info``/``src/*/*.dist-info`` (two segments) covers a
+#: layout or backend that nests it.
 _CANDIDATE_GLOBS = (
     "*.egg-info",
     "*.dist-info",
@@ -78,7 +67,7 @@ def _marker_filename(candidate_dir: Path) -> str:
 
 def _read_marker_text(marker_path: Path) -> str | None:
     """Read *marker_path* leniently, decoding with ``errors="replace"``
-    (mirrors :mod:`pitloom.extract.wheel`'s existing decode pattern) so a
+    (as :mod:`pitloom.extract.wheel` decodes) so a
     malformed/binary marker file never raises. Returns ``None`` on a
     genuine access failure (``OSError``)."""
     try:
@@ -115,9 +104,6 @@ def _evaluate_candidate_dir(
     appropriate ``WARNING:`` unless *quiet*) for anything that doesn't
     survive to become a genuine candidate.
 
-    Split out of :func:`find_installed_metadata_candidate` purely to keep
-    that function's own cognitive-complexity ratchet -- no behavior
-    split, just a named per-candidate step.
     """
     label = candidate_dir.name
     marker_name = _marker_filename(candidate_dir)
@@ -166,9 +152,9 @@ def _discover_candidate(
     directory whose declared ``Name`` canonically matches *resolved_name*,
     returning the winning :class:`_Candidate` -- marker path, human label,
     and its already-parsed :class:`email.message.Message` -- so a caller
-    that needs the parsed metadata (:func:`reconcile_installed_metadata`'s
-    caller in ``reader.py``) never has to re-read and re-parse the exact
-    bytes this function already read. :func:`find_installed_metadata_candidate`
+    that needs the parsed metadata (``reader.py``'s
+    ``_apply_installed_metadata``) does not read and parse the same bytes
+    again. :func:`find_installed_metadata_candidate`
     is the public, tuple-returning wrapper for callers that only need the
     path/label.
 
@@ -237,11 +223,10 @@ def _parse_installed_urls(msg: email.message.Message) -> dict[str, str]:
     plus legacy ``Home-page`` mapped to key ``"Homepage"`` only if no
     ``Project-URL`` already used that key.
 
-    Splits each ``Project-URL`` value on the first comma only (matching
-    :mod:`pitloom.extract.wheel`'s existing convention) -- a URL's own
-    query string can legally contain commas. Delegates to the shared
-    :func:`pitloom.extract._core_metadata.parse_project_urls` helper;
-    this wrapper is kept as other code may import it directly.
+    Splits each ``Project-URL`` value on the first comma only (as
+    :mod:`pitloom.extract.wheel` does), since a URL's query string can hold
+    commas. Delegates to
+    :func:`pitloom.extract._core_metadata.parse_project_urls`.
     """
     return parse_project_urls(msg)
 

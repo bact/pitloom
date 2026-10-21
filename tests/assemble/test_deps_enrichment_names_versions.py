@@ -13,7 +13,7 @@ test_deps_enrichment_purl_license.py, the other cause of "Package
 identifiers missing" (a missing no-version PURL fallback) and a
 silently-discarded license relationship.
 
-Covers one cause of "Package identifiers missing": a name-parsing bug.
+Covers one cause of "Package identifiers missing": name parsing.
 """
 
 # pylint: disable=protected-access

@@ -43,8 +43,8 @@ _MOVED_TOP_LEVEL_TABLES: dict[str, str] = {
     "file_headers": _FILE_HEADERS_MOVED_TO,
 }
 
-#: Old flat ``[tool.pitloom]`` keys renamed to their current spelling
-#: (PR A2's ``ids``/``registry`` -> ``id``/``id-registry`` rename).
+#: Old flat ``[tool.pitloom]`` keys and their current spelling
+#: (``ids-file`` -> ``id-registry``).
 _MOVED_FLAT_KEYS: dict[str, str] = {
     "ids-file": "id-registry",
     "ids_file": "id-registry",

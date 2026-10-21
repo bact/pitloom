@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Command-line interface for Pitloom's SBOM generator."""
+"""The ``project`` subcommand: a Source SBOM from a project directory, an sdist
+archive or a Git URL."""
 
 from __future__ import annotations
 

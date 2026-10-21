@@ -82,6 +82,7 @@ loom wheel dist/pkg-1.0-py3-none-any.whl       # Analyzed SBOM of a built wheel
 loom env -o env.spdx3.json                     # Deployed SBOM of the installed environment
 loom model path/to/model.safetensors           # Analyzed SBOM of one AI model file
 loom model Qwen/Qwen3-235B-A22B                # ... or a Hugging Face Hub model (needs pitloom[huggingface_hub])
+loom project https://gitlab.com/group/project  # a Git repository or page URL (needs git)
 loom generate . -o sbom.spdx3.json             # detect the target type (-o is required)
 ```
 
@@ -104,6 +105,7 @@ loom enrich path/to/model.safetensors -o model.enrich.spdx3.json
 ```
 
 See [Command line](docs/cli.md) for per-command detail,
+[SBOM from a Git URL](docs/git-urls.md) for repository URLs,
 [Wheel SBOMs](docs/wheel-sbom.md) for `embed-wheel`, `verify-wheel` and
 `validate-wheel`, and [SBOM fragments](docs/fragments.md) for merging.
 

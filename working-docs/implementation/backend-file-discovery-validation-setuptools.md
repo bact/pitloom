@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -143,7 +143,7 @@ handling needed either way, just a regression test
   found while vendoring this fixture -- not just the already-documented
   file-discovery/backend-detection "correctly out of scope" case from
   the original setuptools round.
-  - Bug: `read_project()` (`src/pitloom/extract/project.py`) dispatched
+  - Bug: `read_project()` (`src/pitloom/extract/project/reader.py`) dispatched
     on `pyproject.toml`'s mere *existence*, never checking whether it
     actually had a usable `[project]` table before committing to
     `read_pyproject()`'s path.

@@ -3,18 +3,17 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Where a Git URL really lives, with every redirect checked first.
+"""Where a Git URL lives: follow the server's redirects, checking each hop.
 
 A Git server may answer ``<url>/info/refs`` with a redirect: GitLab sends
 ``https://host/group/project`` to ``https://host/group/project.git``, and a
-renamed GitHub repository goes to its new name. ``git clone`` runs with
-``http.followRedirects=false`` (a redirect to an internal host would skip an
-address check the caller made on the URL it was given), so such a URL failed
-with ``error: 301``.
+renamed GitHub repository goes to its new name. ``git`` runs with
+``http.followRedirects=false``, since a redirect to an internal host would
+bypass the caller's address check, so git alone fails with ``error: 301``.
 
 :func:`resolve_git_url` follows the redirects itself, one hop at a time, and
-hands each target to the caller's URL check before the next request; the clone
-then runs against the final URL, still with redirects off.
+passes each target to the caller's URL check before requesting it. The clone
+then uses the final URL, with redirects still off.
 """
 
 from __future__ import annotations

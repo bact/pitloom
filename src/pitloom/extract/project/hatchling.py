@@ -9,9 +9,8 @@ Unlike :func:`~pitloom.extract.project.pyproject.read_pyproject`, which re-parse
 ``pyproject.toml`` from scratch, this module maps the metadata that
 Hatchling has *already resolved* -- including dynamic ``version``,
 ``dependencies``, and metadata-hook-populated fields -- into Pitloom's
-format-neutral :class:`~pitloom.core.project.ProjectMetadata`.  It is used
-exclusively by the Hatchling build hook
-(:mod:`pitloom.plugins.hatch`); the CLI continues to use
+format-neutral :class:`~pitloom.core.project.ProjectMetadata`.  Only the
+Hatchling build hook (:mod:`pitloom.plugins.hatch`) uses it; the CLI uses
 :func:`~pitloom.extract.project.pyproject.read_pyproject`.
 """
 
@@ -154,8 +153,8 @@ def metadata_from_hatchling(
         provenance["readme"] = _field_provenance("readme")
 
     requires_python = core.requires_python or None
-    # Presence-gated, not truthy-gated -- see AGENTS.md's "tri-state
-    # signal" bullet: an explicit `requires-python = ""` is PEP 621's
+    # Presence-gated, not truthy-gated -- see AGENTS.md's "``None``/absent
+    # vs ``[]``/``{}``" rule: an explicit `requires-python = ""` is PEP 621's
     # equivalent of Poetry's `python = "*"`.
     if _hatchling_field_declared(core, "requires-python"):
         provenance["requires_python"] = _field_provenance("requires-python")

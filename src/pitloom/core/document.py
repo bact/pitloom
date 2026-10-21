@@ -31,7 +31,7 @@ class DocumentModel:
     pick the fields they understand and ignore the rest.
 
     Attributes:
-        project: Python project metadata from ``pyproject.toml``.
+        project: Project metadata, from whichever source resolved it.
         creation_metadata: Creator and timestamp metadata for the SBOM document.
         ai_models: AI model metadata, one entry per model file processed.
             Assembly keeps this order; pass the scanner's (sorted) list for
@@ -41,9 +41,10 @@ class DocumentModel:
         identity_known: ``False`` when the project's name is a placeholder
             (the source did not carry one), so the main package is neither
             looked up in nor harvested into an ID registry.
-        identity_seed: folded into the document UUID (see
-            :func:`~pitloom.core.models.compute_doc_uuid`); for such a wheel,
-            its base file name (:func:`~pitloom.core.models.archive_base_name`).
+        identity_seed: ``None``, or a string folded into the document UUID
+            (:func:`~pitloom.core.models.compute_doc_uuid`): for a wheel of
+            unknown identity, its base file name
+            (:func:`~pitloom.core.models.archive_base_name`).
         files_origin: How the file list was produced (see
             :class:`~pitloom.core.project.FilesOrigin`).
     """

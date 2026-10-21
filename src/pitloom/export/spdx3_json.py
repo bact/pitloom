@@ -485,6 +485,9 @@ class Spdx3JsonExporter:
                     compact, no extra whitespace, keys lexicographically sorted --
                     suitable for machine consumption, hashing, and PEP 770
                     wheel embedding.
+            describe_relationship: If True, add a ``description`` of the form
+                ``<from name> <relationship type>: <to names>`` to every
+                ``Relationship``.
 
         Returns:
             str: JSON-LD representation

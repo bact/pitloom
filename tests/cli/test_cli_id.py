@@ -440,8 +440,7 @@ def test_module_entrypoint_exits_with_main_return_code(
     runs, ``pitloom.__main__`` is already in ``sys.modules`` (imported
     above for ``__main__.main()``), and ``run_module`` documents +
     raises a ``RuntimeWarning`` for exactly that "already imported"
-    case -- a real Python footgun, not a Pitloom bug, but one this test
-    can simply avoid by executing the file directly instead.
+    case; the test executes the file directly instead.
     """
     monkeypatch.setattr(sys, "argv", ["pitloom", "id", "generate", "--help"])
     with pytest.raises(SystemExit) as exc_info:

@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Parsing helpers for ``[tool.pitloom]`` configuration in ``pyproject.toml``.
+"""Parsing helpers for ``[tool.pitloom]`` configuration data (from
+``pyproject.toml``, ``setup.cfg`` or a ``--config`` file).
 
 See also: :mod:`pitloom.core._config_read`,
 :mod:`pitloom.core._config_parse_scan`, :mod:`pitloom.core._config_types` and
@@ -434,7 +435,12 @@ def parse_pitloom_config(
 
 
 def read_pitloom_config(pyproject_path: Path) -> PitloomConfig:
-    """Read ``[tool.pitloom]`` settings directly from a ``pyproject.toml`` file."""
+    """Read ``[tool.pitloom]`` settings directly from a ``pyproject.toml`` file.
+
+    Raises:
+        FileNotFoundError: *pyproject_path* does not exist.
+        ValueError: the file is not valid TOML or its settings are invalid.
+    """
     if not pyproject_path.exists():
         raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
 

@@ -7,12 +7,12 @@
 extension, and cross-checking an SBOM's declared subject name/version
 against a wheel's own METADATA.
 
-Independent of PEP 770/wheel-embedding mechanics -- see also
-:mod:`pitloom._embed_wheel`, which locates an *embedded* SBOM's bytes but
-delegates format detection here; `verify-wheel` (post-hoc, on an
-already-built wheel) and `embed-wheel` (pre-embed, on an externally
-supplied ``--sbom``) both use :func:`check_spdx3_name_version` so the two
-call sites can't drift on what counts as a mismatch vs. a skip.
+Independent of PEP 770/wheel-embedding mechanics; see
+:mod:`pitloom._wheel_sbom_location` for locating an *embedded* SBOM's bytes.
+`verify-wheel` (on an already-built wheel) and `embed-wheel` (on an
+externally supplied ``--sbom``, before embedding) both use
+:func:`check_spdx3_name_version`, so they agree on what counts as a mismatch
+and what a skip.
 """
 
 from __future__ import annotations
@@ -47,13 +47,11 @@ def _looks_like_spdx3_jsonld(data: bytes) -> bool:
     )
 
 
-#: Recommended file extension per detected SBOM format. Only one exporter
-#: (SPDX3 JSON-LD) exists today -- kept as a small dict, not a plugin
-#: registry, so a future format just adds an entry rather than needing new
-#: infrastructure.
+#: Recommended file extension per detected SBOM format; only SPDX 3 JSON-LD
+#: is detected.
 #:
-#: Reference for the full convention (artifact `foo-1.0.0.tar.gz` ->
-#: SBOM `foo-1.0.0.tar.gz.<ext>`), for when a new format/detector lands:
+#: The full convention (artifact `foo-1.0.0.tar.gz` ->
+#: SBOM `foo-1.0.0.tar.gz.<ext>`):
 #:   CycloneDX JSON    .cdx.json
 #:   CycloneDX XML     .cdx.xml
 #:   SPDX tag:value    .spdx
@@ -66,12 +64,9 @@ def _looks_like_spdx3_jsonld(data: bytes) -> bool:
 RECOMMENDED_EXTENSIONS: dict[str, str] = {"spdx3-jsonld": SPDX3_JSONLD_EXTENSION}
 
 #: Formats `validate-wheel` has a registered schema/SHACL validator for.
-#: Deliberately its OWN literal, NOT derived from `RECOMMENDED_EXTENSIONS`
-#: above -- a future format can get an extension-convention entry long
-#: before this project has a validator for it, so deriving one from the
-#: other would silently mark that format "validated" the moment its
-#: extension entry is added. Add a format here only when
-#: `validate_wheel.py` actually has a validator wired up for it.
+#: Its own literal, not derived from `RECOMMENDED_EXTENSIONS`: a format can
+#: have a recommended extension without a validator. Add a format here only
+#: when `validate_wheel.py` has a validator wired up for it.
 VALIDATED_FORMATS: frozenset[str] = frozenset({"spdx3-jsonld"})
 
 

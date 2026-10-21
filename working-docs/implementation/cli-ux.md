@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-11
-Last-Modified: 2026-09-28
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -73,6 +73,7 @@ The key resolution is to separate the **User Interface (UX)** from the **Emitted
 | Subcommand | Input Target | Network | CISA SBOM Type | SPDX 3 `software_sbomType` |
 | :--- | :--- | :--- | :--- | :--- |
 | `loom project` | Directory or `.tar.gz`/`.zip` sdist | Offline | **Source** | `[source]` |
+| `loom project` | `http(s)` Git repository URL | Online (an error with `--offline`) | **Source** | `[source]` |
 | `loom wheel` | Built `.whl` archive | Offline | **Analyzed** | `[analyzed]` |
 | `loom model` | Local `.gguf`/`.safetensors`/`.onnx` file | Offline | **Analyzed** | `[analyzed]` |
 | `loom model` | Hugging Face URL / Model ID | Online (unless `--offline`) | **Analyzed** | `[analyzed]` |

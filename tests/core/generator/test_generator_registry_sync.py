@@ -315,7 +315,7 @@ def test_generate_env_sbom_respects_no_update_id_registry(
 
 def _make_nested_wheel(tmp_path: Path, name: str, version: str) -> Path:
     """A minimal wheel whose package directory holds both a file and a
-    nested subdirectory -- reproduces the id mint collision: on a
+    nested subdirectory: on a
     second run (registry auto-harvested from the first, same doc_uuid
     since ``generate_wheel_sbom`` never folds file content into it), a
     file's registry hit doesn't advance the ``File`` counter, so an

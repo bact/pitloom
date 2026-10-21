@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Command-line interface for Pitloom's SBOM generator."""
+"""The ``enrich`` subcommand: an enrichment fragment for a local AI model file."""
 
 from __future__ import annotations
 

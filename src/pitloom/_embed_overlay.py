@@ -68,7 +68,7 @@ def merge_file_extras(
 def add_concluded_license(metadata: ProjectMetadata, project_dir: Path) -> None:
     """Set *metadata*'s concluded licence from *project_dir*'s own sources.
 
-    Wheel ``METADATA`` carries only the declared licence, so the G2 second
+    Wheel ``METADATA`` carries only the declared licence, so the second
     opinion comes from the project directory, through the same resolver
     ``loom project`` uses, gated on the wheel's declared licence. An sdist
     *project_dir* gets none, though ``loom project`` on that sdist reads

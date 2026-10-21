@@ -94,9 +94,9 @@ __all__ = [
 
 def embed_filename(sbom_basename: str | None) -> str | None:
     """The file name an SBOM is embedded under for *sbom_basename*
-    (``--sbom-basename``/``[tool.pitloom] sbom-basename``), or ``None`` for
-    the default name. Shared by ``embed-wheel`` and ``wheel --embed``.
-    (:func:`pitloom.core.file_names.sbom_file_name`)."""
+    (``--sbom-basename``/``[tool.pitloom] sbom-basename``, checked by
+    :func:`pitloom.core.file_names.sbom_file_name`), or ``None`` for the
+    default name. Shared by ``embed-wheel`` and ``wheel --embed``."""
     if not sbom_basename:
         return None
     return sbom_file_name(sbom_basename)
@@ -174,8 +174,17 @@ def embed_wheel_sbom(
     ``ValueError`` unless *allow_mismatch*. A signed wheel (``RECORD.jws``/
     ``RECORD.p7s``) raises ``ValueError`` unless *allow_signed_wheel*, which
     removes the signature the embed would invalidate. A Pitloom-generated SBOM
-    (*sbom_path* unset) is never checked -- it's built from this same
-    *wheel_metadata*, so it can't diverge.
+    (*sbom_path* unset) is never checked: it is built from the wheel's own
+    metadata.
+
+    With *project_dir* (the project the wheel was built from) the SBOM is a
+    Build SBOM from that directory's rescan and the wheel's own files;
+    without it, an Analyzed SBOM of the wheel alone. *pitloom_config*
+    replaces the project's own ``[tool.pitloom]``; *overrides* are the
+    per-run settings (:class:`~pitloom.core.config_cascade.ConfigOverrides`);
+    *sbom_basename*, *creation_metadata* and *id_registry* are as for
+    :func:`~pitloom.assemble.generate`. *output_path* also receives a copy of
+    the SBOM JSON.
 
     *file_cache*: advanced/batch use only -- share one
     :class:`EmbedFileCache` across several calls that target the same
@@ -189,6 +198,11 @@ def embed_wheel_sbom(
     call does NOT clean up -- make every call of the batch inside one
     ``with EmbedFileCache() as file_cache:`` block, whose exit does; a
     cache used outside its block raises :class:`RuntimeError`.
+
+    Returns:
+        ``(wheel path, SBOM arcname in the wheel, SBOM JSON, arcnames removed,
+        floored)``, as :func:`~pitloom._embed_wheel.embed_sbom_in_wheel`
+        returns them, with the SBOM JSON third.
 
     Raises:
         ValueError: The wheel is refused as a whole
@@ -209,17 +223,10 @@ def embed_wheel_sbom(
     wheel_obj = Path(wheel_path).absolute()
     eff_overrides = overrides if overrides is not None else ConfigOverrides()
     if sbom_path is None:
-        # Fail on a declared-but-bad registry before the wheel is ever
-        # read -- a real ``read_wheel()`` opens/parses the archive, work
-        # worth skipping when this run cannot proceed anyway. Only when
-        # *sbom_path* is unset: with an external SBOM,
-        # ``_generate_embed_sbom_json``'s own early-return branch never
-        # touches the registry at all, so there is nothing to resolve here.
-        # The resolved ``IdRegistry`` (or ``None``) is fed back in as *this
-        # call's own* ``id_registry`` below, so
-        # ``_generate_embed_sbom_json``'s own ``resolve_registry()`` call
-        # short-circuits on the already-resolved instance rather than
-        # loading the file again.
+        # Fails on a declared-but-bad registry before the wheel is read. An
+        # external SBOM never touches the registry, so only without
+        # *sbom_path*. The resolved registry replaces *id_registry*, so
+        # _generate_embed_sbom_json() does not load the file again.
         id_registry = _resolve_embed_registry(project_dir, pitloom_config, id_registry)
     # Before the SBOM is generated: that may run a build.
     refuse_unembeddable_wheel(wheel_obj, allow_signed_wheel)

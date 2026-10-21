@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-19
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -67,10 +67,15 @@ sbomcheck -s spdx3 -c bsi      -r json -o bsi.json      sbom.spdx3.json  # BSI T
 [Lumina](https://github.com/bact/lumina), a web UI, shows the same results from
 an SBOM file or a SARIF log (`-r sarif`).
 
-`-s spdx3` is required (the default is SPDX 2). `-r` also takes `sarif`,
-`html` and `print` (the default: a text table on stdout; it and `html`
-leave out the `out-of-scope` rules). Exit status 0 means conformant, 1 not;
-read the report either way. List the rules that need work:
+`-s spdx3` is required (the default is SPDX 2). `fsct3-min` still works for
+`fsct3`, with a `WARNING:` that it is deprecated. `-r` also takes `sarif`
+(each result has the `ruleId`, a message and the package's logical location; the
+run's `properties.ruleOutcomes` maps every rule id to its outcome),
+`sarif-sbom` (the same with the SBOM embedded), `html`, `none` and `print` (the
+default). `print` and `html` are requirement-level tables with no rule ids and
+no `out-of-scope` rules; `json` and `sarif` carry the ids. Without `-o` the
+report goes to stdout. Exit status 0 means conformant, 1 not (also with `-r
+none`); read the report either way. List the rules that need work:
 
 ```bash
 python3 -c "import json,sys; [print(r['id'], r['provision'], *[f['name'] for f in r['findings']]) for r in json.load(open(sys.argv[1]))['ruleResults'] if r['outcome'] == 'missing']" bsi.json
@@ -81,11 +86,12 @@ it (`BOM-BSI2025-COMP-004 requirement main`, from a `loom model` SBOM of an
 ONNX file named `main`); a document-level rule names no package. No output
 means nothing is missing.
 
-Outcomes: `present` (the property exists; its value is not judged),
+Outcomes: `present` (the property exists; its value is not judged; a rule with
+sub-rules, like G7's `MDL-006`, is `present` when any sub-rule is),
 `missing`, `not-applicable` (nothing of that kind, e.g. no dataset, or a
 BSI "if it exists" element the package does not give) and `out-of-scope` (the
 checker does not check it: report it from `minimum-elements.md` instead, never
-as passed). A `permission` rule (BSI COMP-015 to -017) is optional.
+as passed). A `permission` rule (BSI COMP-015 and -017; COMP-016 is not checked) is optional.
 
 Per `missing` rule, look the element up in `minimum-elements.md` and do the
 first that fits:

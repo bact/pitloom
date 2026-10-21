@@ -8,8 +8,9 @@ options as one value, shared by every usage surface.
 
 Every surface (CLI ``project``/``generate``/``embed-wheel``,
 :func:`pitloom.assemble.generate`, :func:`pitloom.assemble.generate_project_sbom`,
-:class:`pitloom.embed.ConfigOverrides`, :func:`pitloom.core.models.get_wheel_files`)
-takes one :class:`BuildOptions`, validated at construction. Each calls
+:class:`pitloom.core.config_cascade.ConfigOverrides`,
+:func:`pitloom.core.models.get_wheel_files`) takes one
+:class:`BuildOptions`, validated at construction. Each calls
 :meth:`BuildOptions.settle` or :meth:`BuildOptions.settle_not_applicable`
 as soon as it knows whether the target reaches file discovery, before any
 metadata read, so the "has no effect" ``WARNING:`` comes first. Both

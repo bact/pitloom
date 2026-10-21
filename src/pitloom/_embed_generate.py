@@ -249,11 +249,9 @@ def _generate_embed_sbom_json(
     proj_root = Path(project_dir).resolve()
     # This is the one branch that reaches file discovery, so settle a
     # stray no_isolation/timeout (and warn about it) before the
-    # project-config read below -- a direct embed_wheel_sbom() caller
-    # that didn't already settle upstream still gets the warning first,
-    # ahead of any config-parse WARNING: that read can produce. (An
-    # earlier, quiet=True peek in _resolve_embed_registry never warns,
-    # but still raises there on a malformed config, before this settling.)
+    # project-config read below, so a direct embed_wheel_sbom() caller
+    # gets that warning ahead of any config-parse WARNING:. The quiet
+    # peek in _resolve_embed_registry never warns.
     settled_build_options = _settle_project_build_options(
         overrides.build_options, file_cache, proj_root
     )

@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-10-18
+# Last-Modified: 2026-10-21
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -105,10 +105,13 @@ Despite the `fragment` grouping (shared with `loom merge`), the
 underlying `spdx3-validate` check has no dependency on Pitloom's own
 output.
 
-Exit code `0` means valid; a non-zero exit code means at least one
-schema or SHACL error, printed to stderr with every line `ERROR:`-tagged
-(a SHACL violation's Severity/Source Shape/Focus Node breakdown spans
-several `ERROR:` lines, not just one).
+Exit code `0` means valid: stdout has one `FILE=<path> STATUS=valid` line
+per document and stderr `INFO: fragment validate: N document(s) valid`. A
+non-zero exit code means at least one schema or SHACL error (no stdout line),
+printed to stderr with every line `ERROR:`-tagged (a SHACL violation's
+Severity/Source Shape/Focus Node breakdown spans several `ERROR:` lines, and
+a merged-graph failure is labelled `(merged)`); a missing file or invalid
+JSON is one `ERROR:`.
 
 To validate several related documents (e.g. a base SBOM plus a fragment
 that declares an `ExternalMap` for the base ids it uses) and additionally

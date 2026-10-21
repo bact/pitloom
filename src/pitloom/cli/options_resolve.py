@@ -7,15 +7,11 @@
 
 Resolves effective settings (creation metadata, ``pretty``/
 ``describe_relationship``, output paths, project paths) from the
-CLI-flag > ``[tool.pitloom]`` > default precedence cascade. Split out
-of :mod:`pitloom.cli.options` once that file crossed the ~400-500 line
-soft limit -- that module keeps the ``add_*_argument()``/``warn_*()``
-flag-definition helpers; this one owns the "what value actually wins"
-logic that runs after argparse has already produced *args*.
+CLI-flag > ``[tool.pitloom]`` > default precedence, after argparse has
+produced *args*.
 
-See also: :mod:`pitloom.cli.options`, re-exported from there for every
-existing call site (``from pitloom.cli.options import ...``) so this
-split needed no import-site changes.
+See also: :mod:`pitloom.cli.options`, which defines the flags and re-exports
+this module's helpers.
 """
 
 from __future__ import annotations
@@ -203,17 +199,10 @@ def load_explicit_config(args: argparse.Namespace) -> PitloomConfig | None:
 
 
 def _resolve_bool_cascade(cli_value: bool | None, config_value: bool | None) -> bool:
-    """The one CLI-flag > ``[tool.pitloom]`` > default precedence rule
-    for a boolean option, factored out so every caller that needs it
-    (the plain value-only cascade below, and the ``--verbose``
-    source-reporting resolvers further down) shares the exact same
-    expression -- see AGENTS.md's "pattern hand-copied across 3+ call
-    sites drifts" rule: a change to the precedence rule applied to only
-    some callers would make ``--verbose`` silently report the wrong
-    source for the value the SBOM actually used. Returns ``bool``, not
-    ``bool | None`` (``config_value`` can itself be ``None`` for an
-    unset ``describe_relationship``) -- callers should never have to
-    remember their own ``bool(...)`` wrap to get a strict boolean.
+    """The CLI-flag > ``[tool.pitloom]`` > default rule for a boolean option,
+    shared by the value-only cascade and the ``--verbose`` source reporting
+    so both pick the same value. Returns ``bool``: *config_value* may be
+    ``None`` (an unset ``describe_relationship``), which counts as ``False``.
     """
     return bool(config_value if cli_value is None else cli_value)
 

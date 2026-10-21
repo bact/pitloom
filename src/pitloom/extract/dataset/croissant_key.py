@@ -14,10 +14,8 @@ The alias tuples below enumerate the variants for each semantic field,
 ordered most-common first.  The :func:`~pitloom.extract._extract_utils.get_first`
 helper picks the first matching key found in a given document dict.
 
-At this point, we deliberately do not resolve ``@context`` prefix declarations
--- alias-based lookup covers the overwhelming majority of real-world files
-without requiring a JSON-LD processor.
-A future version could optionally support JSON-LD expansion for edge cases.
+``@context`` prefix declarations are not resolved: alias-based lookup covers
+the overwhelming majority of real-world files without a JSON-LD processor.
 """
 
 from __future__ import annotations

@@ -3,20 +3,20 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Fetch a Git repository (or a folder of one) by its URL into a temporary
-directory, for Pitloom to read like a local project.
+"""Fetch a Git repository, or a folder of one, by URL into a temporary
+directory that Pitloom reads like a local project.
 
-The URL may be a clone URL or the address of a repository web page naming a
-branch, tag or commit and a folder (:func:`~pitloom.extract.remote.git_url.
-parse_git_page`). The Git server's own redirect (GitLab's ``project`` to
+The URL is a clone URL or the address of a repository page naming a branch,
+tag or commit and a folder (:func:`~pitloom.extract.remote.git_url.
+parse_git_page`). The server's redirect (GitLab's ``project`` to
 ``project.git``) is followed first, each hop passed to the caller's URL check
-(:func:`~pitloom.extract.remote._git_redirect.resolve_git_url`); the clone is
-shallow, asks the server to leave out blobs over 10 MB (a server that does
-not honour it sends them) and never follows a redirect itself; git-lfs is off. Where the
-URL given is not the URL cloned, one ``INFO:`` names both.
+(:func:`~pitloom.extract.remote._git_redirect.resolve_git_url`). The clone is
+shallow, asks the server to omit blobs over 10 MB (a server without partial
+clone sends them), follows no redirect itself and runs with git-lfs off.
+One ``INFO:`` names the URL given and the URL cloned when they differ.
 
 Needs the ``git`` program. Every failure is a :class:`~pitloom.extract.remote.
-errors.RemoteSourceError` with a code.
+errors.RemoteSourceError` with a code; a refusal is also a ``WARNING:``.
 """
 
 from __future__ import annotations

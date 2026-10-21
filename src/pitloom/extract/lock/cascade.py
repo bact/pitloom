@@ -72,13 +72,9 @@ def _ignore_expected_name(
     """Adapt a single-argument extractor to :data:`_LockExtractor`'s
     uniform ``(project_dir, expected_name)`` shape.
 
-    Only ``uv.lock``'s extractor actually needs *expected_name* (to
-    disambiguate a shared workspace lock's multiple local package
-    entries -- see :func:`pitloom.extract.lock.uv.extract_uv_lock_dependencies`).
-    Rather than widen every extractor's own signature with a parameter
-    only one format uses, this adapter localizes the cascade's uniform-
-    call requirement to this one module, keeping each format's own
-    extractor signature as simple as its actual needs.
+    Only ``uv.lock``'s extractor needs *expected_name* (to pick the project
+    among a workspace lock's local packages, see
+    :func:`pitloom.extract.lock.uv.extract_uv_lock_dependencies`).
     """
     return lambda project_dir, _expected_name: extractor(project_dir)
 
@@ -192,43 +188,27 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
     """Overlay the highest-priority available lock/pin source's resolved
     dependencies onto *metadata*, in place.
 
-    Tries each extractor-bearing entry of :data:`_LOCK_SOURCES` in
-    priority order; the first one that yields a result at all (a
-    ``list[str]``, even an empty one -- see the "no silent deviations"
-    paragraph below) wins. Crucially, this respects *every* source's
-    rank, not just the ones
-    this cascade itself tries: once the already-applied source (e.g.
-    ``poetry.lock``, applied earlier by ``_try_read_poetry()``) outranks
-    every remaining untried entry, the loop stops -- a lower-priority
-    format (``pdm.lock`` ranks below ``poetry.lock``) must never
-    silently clobber a higher-priority result just because it happens
-    to run later in this function's own loop.
+    Tries each extractor-bearing entry of :data:`_LOCK_SOURCES` in priority
+    order; the first to yield a result wins. A result is a ``list[str]``,
+    even an empty one: a lock that resolves to zero runtime dependencies is
+    an authoritative answer, so it wins outright. An extractor returns
+    ``None`` when its source is absent, unparseable or unusable, and the next
+    source is tried. The loop respects the rank of a source applied earlier
+    (``poetry.lock``, by ``_try_read_poetry()``): once it outranks every
+    untried entry the loop stops, so a lower-priority format (``pdm.lock``)
+    never replaces a higher-priority result.
 
-    Every extractor is called uniformly as ``extractor(project_dir,
-    metadata.name)`` -- ``metadata.name`` is already fully resolved by
-    the time this runs (see :func:`pitloom.extract.project.read_project`),
-    so passing it lets an extractor that needs it (currently only
-    ``uv.lock``'s workspace-root disambiguation) skip re-reading and
-    re-parsing ``pyproject.toml`` a second time just for that. Extractors
-    that don't need it (``pylock.toml``, ``pdm.lock``) keep their
-    simpler single-``project_dir`` signature and are wrapped with
-    :func:`_ignore_expected_name` in :data:`_LOCK_SOURCES` above instead.
+    Every extractor is called as ``extractor(project_dir, metadata.name)``,
+    the name being resolved already, so ``uv.lock``'s workspace-root
+    disambiguation need not parse ``pyproject.toml`` again. Extractors that
+    ignore the name are wrapped by :func:`_ignore_expected_name` in
+    :data:`_LOCK_SOURCES`.
 
     If *metadata* already carries a ``locked_dependencies`` result and a
-    higher-priority source here wins, that source replaces it and a
-    ``WARNING:`` names the override -- and, per this repo's "no
-    silent deviations" principle, the fact that a source was superseded
-    is also recorded in the resulting ``provenance["locked_dependencies"]``
-    string itself (as a trailing ``| Note: supersedes <name>``), not only
-    logged, so a reader of the generated SBOM can see it too.
-
-    Each extractor returns ``None`` (not applicable here: absent,
-    unparseable, or otherwise unusable -- try the next source) or a
-    ``list[str]`` (this source *does* apply, even when that list is
-    empty: a real lock resolving to zero runtime dependencies is a
-    genuine, authoritative answer, and must win outright rather than
-    being conflated with "no lock here" and letting a lower-priority
-    source add dependencies the winning lock says don't exist).
+    higher-priority source wins, that source replaces it, a ``WARNING:``
+    names the override, and the resulting
+    ``provenance["locked_dependencies"]`` ends in ``| Note: supersedes
+    <name>``.
 
     A source the project reads its dependencies from
     (``[tool.setuptools.dynamic]`` naming ``requirements.txt``) is not a

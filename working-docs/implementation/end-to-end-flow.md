@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-08
-Last-Modified: 2026-09-08
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -101,10 +101,12 @@ flowchart LR
 - **Two real entry points converge on the same seam**: the CLI
   (`pitloom.__main__`) and the public library API
   (`generate_project_sbom()`, etc.) both resolve metadata via
-  `pitloom.extract.project.read_project()` and both call
+  `pitloom.extract.project.read_project()` (a Git URL target runs it on a
+  temporary shallow checkout, see
+  [remote-git-ingestion.md](remote-git-ingestion.md)) and both call
   `pitloom.assemble.spdx3.document.build()`; the Hatchling build hook
   (`pitloom.plugins.hatch`) resolves metadata via
-  `pitloom.extract.hatchling.metadata_from_hatchling()` instead (a
+  `pitloom.extract.project.hatchling.metadata_from_hatchling()` instead (a
   build-stage source, never a lock file -- see
   [sbom-lifecycle-stages.md](sbom-lifecycle-stages.md)) but converges
   on the same `build()` call. All three end up in the same box in this

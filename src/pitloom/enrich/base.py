@@ -6,7 +6,7 @@
 """Shared types every enrichment source implements.
 
 An :class:`Enricher` mutates an :class:`~pitloom.core.ai_metadata.AiModelMetadata`
-in place -- the same convention every extractor already follows -- and
+in place, as every extractor does, and
 returns an :class:`EnrichmentResult` describing exactly what it changed.
 That return value, not a post-hoc diff of the whole object, is what the
 assemble layer uses to build a per-enrichment ``CreationInfo`` (N3) and

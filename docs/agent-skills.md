@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -22,8 +22,8 @@ page -- it installs the exact same three `SKILL.md` files described here.
 
 Pitloom ships three Skills:
 
-- `sbom-generate` -- generates a base SBOM/AIBOM for a project, wheel, or
-  AI/ML model file. Also embeds a generated (or pre-existing) SBOM
+- `sbom-generate` -- generates a base SBOM/AIBOM for a project (a directory
+  or a Git URL), wheel, or AI/ML model file. Also embeds a generated (or pre-existing) SBOM
   directly into a built wheel per PEP 770's `.dist-info/sboms/`
   convention. Asked to pin ids, it creates or updates a [Loom ID
   registry](id-registry.md) with `loom id generate`/`import`.
@@ -135,6 +135,7 @@ Skills trigger two ways:
 /sbom-generate .                                 # project directory, current dir
 /sbom-generate models/my-model.safetensors       # local AI/ML model file
 /sbom-generate mistralai/Mistral-7B-v0.1         # Hugging Face Hub model ID
+/sbom-generate https://gitlab.com/group/project  # Git repository or page URL
 ```
 
 Under the hood this runs `loom generate <target>` (or the more specific

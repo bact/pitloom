@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Command-line interface for Pitloom's SBOM generator.
+"""The ``embed-wheel`` subcommand: embed an SBOM into built wheels (PEP 770).
 
 See also: ``pitloom.cli.commands._embed_wheel_batch``, which holds the
 per-batch resolution helpers (``--project-dir``, settled options, the
@@ -58,36 +58,14 @@ log = logging.getLogger(__name__)
 def _run_post_embed_checks(
     args: argparse.Namespace, embedded_wheel_path: Path, arcname: str
 ) -> bool:
-    """Run --verify/--validate against the wheel embed_wheel_sbom() just
-    modified. Same checks verify-wheel/validate-wheel use standalone,
-    chained here like `wheel --embed` chains into the same embed function.
+    """Run ``--verify``/``--validate`` against the wheel just written; return
+    whether they passed (``True`` when neither was given).
 
-    Deliberately re-reads *embedded_wheel_path* from disk rather than
-    checking the pre-write `sbom_json` string generation produced: the
-    whole point of `--verify`/`--validate` is confirming what actually
-    landed in the wheel, not what Pitloom intended to write -- an
-    in-memory shortcut would silently narrow that guarantee for exactly
-    the command whose job is to catch that kind of drift.
-
-    Locates the SBOM from disk and detects its format exactly ONCE (via
-    `_locate_and_detect`, shared with `_check_one_wheel`/`_validate_one_wheel`)
-    and passes both to `_check_location`/`_validate_location` when the
-    relevant flags are given, rather than each check re-locating/
-    re-detecting independently -- one genuine disk read for the SBOM
-    entry itself, not duplicated. `--verify`'s name/version half
-    (`_warn_on_name_version_mismatch` below) is a SEPARATE disk read of
-    its own -- it needs `.dist-info/METADATA`, not the SBOM entry, so it
-    isn't covered by the SBOM-specific dedup above; not worth threading a
-    third return value through `_locate_and_detect` to avoid one small
-    extra read on what's normally a small archive.
-
-    `--verify`'s name/version half is always non-fatal here (`WARNING:`
-    only, no `--fail-on-mismatch` equivalent on `embed-wheel` itself) --
-    for a `--sbom`-supplied embed, `embed_wheel_sbom()` already refused
-    (or was told `allow_mismatch=True`) *before* this ever runs, so a
-    mismatch surviving to here is either an intentionally-forced one or a
-    generated SBOM, neither of which `embed-wheel` should fail on by
-    itself; run standalone `verify-wheel --fail-on-mismatch` for that.
+    The SBOM is located and its format detected once, from the wheel on
+    disk (:func:`~pitloom.cli.commands.utils._locate_and_detect`), then
+    passed to both checks, so they judge what landed in the wheel, not the
+    string that was generated. ``--verify``'s name/version check reads
+    ``METADATA`` separately and only warns (:func:`_warn_on_name_version_mismatch`).
     """
     if not args.verify and not args.validate:
         return True
@@ -98,11 +76,8 @@ def _run_post_embed_checks(
         return False
     location, sbom_format = located
 
-    # `is not False` (not plain truthiness), even though _check_location
-    # only ever returns bool: _validate_location returns None for "no
-    # validator registered" (a skip, not a failure), and matching idioms
-    # here keeps the checks symmetric so a future one copy-pasted from
-    # either line stays correct by default.
+    # `is not False`: _validate_location returns None when no validator is
+    # registered (a skip, not a failure).
     verify_ok = not args.verify or (
         _check_location(embedded_wheel_path, location, sbom_format) is not False
     )
@@ -119,15 +94,9 @@ def _warn_on_name_version_mismatch(
     location: EmbeddedSbomLocation,
     sbom_format: str | None,
 ) -> None:
-    """Run `_check_name_version` as part of `--verify`, always non-fatal
-    here (no `--fail-on-mismatch` equivalent on `embed-wheel` itself --
-    use standalone `verify-wheel --fail-on-mismatch` for that). For a
-    `--sbom`-supplied embed, `embed_wheel_sbom()` already refused (or was
-    told `allow_mismatch=True`) *before* this ever ran, so a mismatch
-    surviving to here is either an intentionally-forced one or a
-    generated SBOM -- `embed-wheel` shouldn't fail its own exit code on
-    either.
-    """
+    """``--verify``'s name/version check on the embedded wheel; it logs a
+    ``WARNING:`` on a mismatch and never fails the command (only
+    ``verify-wheel --fail-on-mismatch`` does)."""
     wheel_name, wheel_version = read_wheel_name_version_from_path(embedded_wheel_path)
     _check_name_version(
         embedded_wheel_path,
