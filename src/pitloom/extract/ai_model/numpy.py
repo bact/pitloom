@@ -17,8 +17,9 @@ from __future__ import annotations
 import io
 import logging
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import IO, Any
+from typing import IO, Any, cast
 
 from pitloom.core.ai_metadata import (
     MAX_MODEL_ENTRIES,
@@ -34,6 +35,9 @@ from pitloom.extract.ai_model.reader_requirements import require_library
 from pitloom.logging_config import Cap, loggable
 
 log = logging.getLogger(__name__)
+
+#: What numpy's header readers return: shape, Fortran order, dtype.
+_ArrayHeader = tuple[tuple[int, ...], bool, Any]
 
 # Maps NPY format major version -> header encoding.
 #   Version 1.x: 2-byte LE uint16 header-length field, latin1 encoding.
@@ -127,19 +131,20 @@ def _read_npy_metadata(
     return format_version, properties, provenance
 
 
-def _shim_read_array_header(
-    fp: Any, version: tuple[int, int]
-) -> tuple[tuple[int, ...], bool, Any]:
+def _shim_read_array_header(fp: Any, version: tuple[int, int]) -> _ArrayHeader:
     """Shim for reading numpy array headers across numpy 1.x and 2.x."""
     # pylint: disable=import-outside-toplevel
-    import numpy.lib.format as fmt
+    import numpy.lib.format as numpy_format
 
+    # Untyped before numpy 2.5 and typed after: an ``Any`` view needs no
+    # ``type: ignore`` that one of the two would call unused.
+    fmt: Any = numpy_format
     if hasattr(fmt, "_read_array_header"):
-        return fmt._read_array_header(fp, version)  # type: ignore
+        return cast(_ArrayHeader, fmt._read_array_header(fp, version))
     if version == (1, 0):
-        return fmt.read_array_header_1_0(fp)  # type: ignore
+        return cast(_ArrayHeader, fmt.read_array_header_1_0(fp))
     if version == (2, 0):
-        return fmt.read_array_header_2_0(fp)  # type: ignore
+        return cast(_ArrayHeader, fmt.read_array_header_2_0(fp))
 
     # Fallback for version (3, 0) on numpy >= 2.0 where _read_array_header is removed
     # and read_array_header_3_0 is not exposed.
@@ -154,13 +159,9 @@ def _shim_read_array_header(
 
     hlength_str = fp.read(4)
     header_length = struct.unpack("<I", hlength_str)[0]
-    header = fp.read(header_length).decode("utf-8")
-    d = ast.literal_eval(header)
-    return (
-        d["shape"],
-        d["fortran_order"],
-        fmt.descr_to_dtype(d["descr"]),  # type: ignore[no-untyped-call]
-    )
+    text = fp.read(header_length).decode("utf-8")
+    d = ast.literal_eval(text)
+    return (d["shape"], d["fortran_order"], fmt.descr_to_dtype(d["descr"]))
 
 
 def _read_npz_metadata(
@@ -171,7 +172,9 @@ def _read_npz_metadata(
     import numpy as np
 
     # pylint: disable=import-outside-toplevel
-    from numpy.lib.format import read_magic
+    from numpy.lib.format import read_magic as numpy_read_magic
+
+    read_magic: Callable[..., Any] = numpy_read_magic  # untyped before numpy 2.5
 
     # np.load reads the handle that was checked and leaves it open.
     with (
@@ -183,7 +186,7 @@ def _read_npz_metadata(
         # bounded the work before.
         for archive_name in members[: MAX_MODEL_ENTRIES + 1]:
             with npzfile.zip.open(archive_name) as f:
-                version = read_magic(f)  # type: ignore[no-untyped-call]
+                version = read_magic(f)
                 header = _bounded_header(f, version[0])
                 _shim_read_array_header(header, version)  # a bad header raises
     # The arrays are not model inputs: only their number is recorded.
