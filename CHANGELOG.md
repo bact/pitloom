@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-20
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -131,6 +131,8 @@ and this project adheres to
   creator is taken, or none is set ([#312])
 - `loom.Run` names a dataset as a model card does (`Org/Data` is `org/data`, a file
   never folded); a folded spelling is said once by an `INFO:` ([#314])
+- The NumPy reader type-checks on numpy 2.3 and 2.5 alike: no `type: ignore` that
+  one of the two calls unused ([#315])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
@@ -141,6 +143,7 @@ and this project adheres to
 [#311]: https://github.com/bact/pitloom/pull/311
 [#312]: https://github.com/bact/pitloom/pull/312
 [#314]: https://github.com/bact/pitloom/pull/314
+[#315]: https://github.com/bact/pitloom/pull/315
 
 ## [0.20.2] - 2026-10-09
 
