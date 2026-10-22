@@ -45,8 +45,8 @@ and this project adheres to
 - G7, CISA 2026, FSCT 2024 and BSI conformance tests and expected tables
   ([#309])
 - One `INFO:` per model whose architecture goes into `ai_typeOfModel` ([#309])
-- References to one dataset (a Hub id in any case) give one dataset package with a
-  relationship per role; a later reference fills only unset fields ([#311])
+- References to one dataset (a Hub id in any case) give one dataset package with
+  a relationship per role; a later reference fills only unset fields ([#311])
 - `loom project`/`loom generate` take a Git repository or page URL; GitLab
   redirects are followed and `check_url=` guards each hop ([#317])
 
