@@ -47,6 +47,9 @@ and this project adheres to
 - One `INFO:` per model whose architecture goes into `ai_typeOfModel` ([#309])
 - References to one dataset (a Hub id in any case) give one dataset package with a
   relationship per role; a later reference fills only unset fields ([#311])
+- `loom project`/`loom generate` take a Git repository or page URL (GitHub, GitLab,
+  Gitea/Forgejo, Bitbucket, SourceHut); GitLab redirects followed, INFO names
+  both URLs, `check_url=` guards each hop ([#317])
 
 ### Changed
 
@@ -84,6 +87,21 @@ and this project adheres to
   a merge; `wheel`/`project <sdist>` take `--project-dir` ([#308])
 - `--content-type-method` and `--creator-type` list their choices sorted; a card
   description skips tables of contents, HTML and badges ([#309])
+- Skills, docs and code comments match the code: skills' minimum-elements tables
+  follow the checker's rules, `loom enrich` licence behaviour is stated
+  correctly ([#318])
+- `SOURCE_DATE_EPOCH` that is malformed or out of range is an `ERROR:` on every
+  command, pinned `--creation-datetime` or not (it was a warning); the hook
+  fails the build ([#322])
+- Hatchling hook: one `ERROR:` per failed build, Hatchling's own keys accepted,
+  editable builds skipped, a name clash with `sbom-files` named, `INFO:` for the
+  clock and for ignored `[tool.pitloom]` keys set to `true` ([#322])
+- `embed-wheel --sbom` embeds the file's exact bytes (a BOM is dropped with a
+  warning); re-embedding replaces only a Pitloom build SBOM of the same name
+  and version ([#322])
+- A fragment that cannot be canonicalised (integer past 2^53, `1e999`) is skipped
+  with a `WARNING:`; an existing Relationship description is kept; frontmatter
+  delimiters are whole lines ([#322])
 
 ### Fixed
 
@@ -146,6 +164,7 @@ and this project adheres to
 [#315]: https://github.com/bact/pitloom/pull/315
 [#317]: https://github.com/bact/pitloom/pull/317
 [#318]: https://github.com/bact/pitloom/pull/318
+[#322]: https://github.com/bact/pitloom/pull/322
 
 ## [0.20.2] - 2026-10-09
 
@@ -250,9 +269,6 @@ and this project adheres to
 - A `License ::` classifier is a licence source after the licence field
   (manifests, hook, wheel, sdist, dependencies); `License :: OSI Approved` is
   a category, never a licence ([#276])
-- `loom project`/`loom generate` take a Git repository or page URL (GitHub, GitLab,
-  Gitea/Forgejo, Bitbucket, SourceHut); GitLab redirects followed, INFO names
-  both URLs, `check_url=` guards each hop ([#317])
 
 ### Changed
 
@@ -536,9 +552,6 @@ and this project adheres to
 - GitHub Action installs the Pitloom version of its pinned ref
   (`pitloom-version` overrides), uses the workflow's Python unless
   `python-version` is set, and no longer runs `pip --upgrade pip` ([#224])
-- Skills, docs and code comments match the code: skills' minimum-elements tables
-  follow the checker's rules, `loom enrich` licence behaviour is stated
-  correctly ([#318])
 
 ### Fixed
 
