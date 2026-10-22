@@ -50,7 +50,7 @@ remote/
 
 1. **`pitloom.extract.remote` is the sole network ingestion boundary**: HTTP and
    Git communication, the `--offline` policy and credential sanitisation
-   (`sanitize_url_credentials()` in `extract/_extract_utils.py`) are built;
+   (`sanitize_url_credentials()` in `logging_config.py`) are built;
    rate limiting, token authentication and a transient cache are not.
 2. **Delegation to format extractors**: `remote/` does *not* parse
    `pyproject.toml`, build configuration or lock files itself; it hands the

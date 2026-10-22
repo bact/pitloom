@@ -130,7 +130,7 @@ def extract_uv_lock_dependencies(
         log.warning(
             "%s: project package's 'dependencies' key is %s, expected a "
             "list -- ignoring uv.lock",
-            project_dir / "uv.lock",
+            quote_source(project_dir / "uv.lock"),
             type(root_dependencies).__name__,
         )
         return None

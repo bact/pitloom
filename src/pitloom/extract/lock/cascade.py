@@ -33,6 +33,7 @@ from typing import NamedTuple
 from pitloom.core.file_identity import file_id
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import parse_provenance_value
+from pitloom.extract._extract_utils import quote_source
 from pitloom.extract.lock._extra_pins import ExtraPinExtractor, apply_extra_pins
 from pitloom.extract.lock.common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract.lock.pdm import (
@@ -237,7 +238,7 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
             "%s: previously-resolved locked_dependencies source %r doesn't "
             "match any known lock source -- can't rank it, so any "
             "cascade-tried format may override it",
-            project_dir,
+            quote_source(project_dir),
             previous_source,
         )
 
@@ -257,7 +258,7 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
             log.warning(
                 "%s: both %s and %s resolved-dependency data are present -- "
                 "%s takes priority",
-                project_dir,
+                quote_source(project_dir),
                 superseded,
                 source.name,
                 source.name,

@@ -296,23 +296,6 @@ def fetch_json(
     return data
 
 
-#: ``://`` and a userinfo (non-empty, up to the last ``@`` before a ``/`` or
-#: whitespace: a password holding ``?`` or ``#`` is masked whole).
-_URL_USERINFO_RE = re.compile(r"://[^/\s@][^/\s]*@")
-
-
-def sanitize_url_credentials(text: str) -> str:
-    """Redact username and password from URLs in *text* (e.g.
-    ``https://user:pass@host/`` -> ``https://***:***@host/``).
-
-    Used across extractors, build backends, and error loggers to prevent
-    sensitive auth tokens from leaking into error messages or SBOM output.
-    The userinfo ends at the last ``@`` before the first ``/`` or whitespace,
-    so a password holding ``@``, ``?`` or ``#`` is redacted whole.
-    """
-    return _URL_USERINFO_RE.sub("://***:***@", text)
-
-
 def filename_from_url(url: str) -> str | None:
     """Extract a clean basename from a URL, stripping any query string
     and fragment (e.g. ``https://host/pkg-1.0.whl?sig=...#sha256=...`` ->

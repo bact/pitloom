@@ -306,3 +306,20 @@ def test_import_never_moves_a_model_id_off_its_path_key(tmp_path: Path) -> None:
         **held,
         (FILE_TYPE, "demo/m.bin"): (str(file.spdxId), _SHA_A),
     }
+
+
+def test_a_key_with_a_newline_stays_on_one_log_line(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The INFO naming the registry file entry a model is keyed under
+    escapes the key, so it cannot start a second line."""
+    model = _element(spdx3.ai_AIPackage, "m", 1, _SHA_A)
+    held = {(FILE_TYPE, "src/a\nINFO: forged.bin"): ("urn:file", _SHA_A)}
+    registry = make_registry(held, project_root=tmp_path)
+    caplog.set_level(logging.INFO, logger="pitloom")
+
+    registry.import_sbom(_write(tmp_path / "s.json", model))
+
+    said = _messages(caplog, "ID registry: model ")
+    assert said and all("\n" not in m for m in said)
+    assert any("a\\nINFO: forged.bin" in m for m in said)

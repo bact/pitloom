@@ -58,14 +58,14 @@ from pathlib import Path
 from packaging.requirements import InvalidRequirement
 
 from pitloom.core.pep508 import parse_requirement
-from pitloom.extract._extract_utils import quote_source, sanitize_url_credentials
+from pitloom.extract._extract_utils import quote_source
 from pitloom.extract.lock.common import (
     read_lock_bytes,
     resolve_pinned_dependencies,
     single_exact_pin,
     warn_unreadable_lock_file,
 )
-from pitloom.logging_config import loggable
+from pitloom.logging_config import loggable, sanitize_url_credentials
 
 log = logging.getLogger(__name__)
 
