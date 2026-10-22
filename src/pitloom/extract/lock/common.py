@@ -98,16 +98,13 @@ def has_required_top_level_table(
     value_type: type | tuple[type, ...] = object,
 ) -> bool:
     """Whether *data* has a top-level table *table_key* with *required_key*
-    holding a *value_type* value: the "is this really a file of this format"
-    check before an empty package list may count as an authoritative "no
-    dependencies".
-
-    Without it, a valid but unrelated or truncated document would win the
-    cascade over a usable lower-priority lock. Each caller passes its
-    format's marker type (``poetry.lock`` ``metadata.lock-version`` is a
-    string, ``Pipfile.lock`` ``_meta.pipfile-spec`` an int); a wrong-typed
-    marker counts as absent.
+    holding a *value_type* value: the "is this a file of this format" check.
+    A wrong-typed marker counts as absent.
     """
+    # Callers use it before an empty package list may count as an
+    # authoritative "no dependencies": otherwise a valid but unrelated or
+    # truncated document would win the cascade over a usable lower-priority
+    # lock.
     table = data.get(table_key)
     if not isinstance(table, dict):
         return False
@@ -140,10 +137,8 @@ def is_usable_name(name: object) -> TypeGuard[str]:
 
 def is_usable_version(version: object) -> TypeGuard[str]:
     """Whether *version* is a non-empty string that parses as PEP 440 and
-    is not padded with white space (``"*"`` and ``"not a version"`` fail),
-    so a malformed entry cannot yield a ``name==<garbage>`` pin. The call
-    site logs its own format-specific ``WARNING:``. A ``TypeGuard``, so
-    callers' early returns narrow *version* to ``str``.
+    is not padded with white space (``"*"`` and ``"not a version"`` fail).
+    The call site logs its own ``WARNING:``. A ``TypeGuard`` for ``str``.
     """
     if not isinstance(version, str) or not version or version != version.strip():
         return False

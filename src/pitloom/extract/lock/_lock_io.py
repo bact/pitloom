@@ -36,9 +36,8 @@ _LOCK_FILE_CACHE_SIZE = 2
 
 
 def _lock_file_cache_key(lock_path: Path) -> _LockFileCacheKey | None:
-    """*lock_path*'s ``(path, mtime_ns, size)`` identity for the cache, or
-    ``None`` when it cannot be ``stat()``-ed (the caller then skips the
-    cache; its own read handles the error)."""
+    """*lock_path*'s ``(path, mtime_ns, size)`` cache key, or ``None`` when it
+    cannot be ``stat()``-ed."""
     try:
         stat_result = lock_path.stat()
     except OSError:
@@ -54,15 +53,16 @@ class LockFileRefusedError(ValueError):
 def read_lock_bytes(lock_path: Path) -> bytes:
     """*lock_path*'s bytes, reading at most ``FETCH_MAX_BYTES`` + 1.
 
-    The type is checked before the open (Windows cannot open a directory)
-    and on the open descriptor, which is binary and non-blocking: a FIFO
-    swapped in cannot hang the read, and ``st_size`` is never trusted.
+    The type is checked before the open and again on the open descriptor,
+    which is binary and non-blocking; ``st_size`` is not trusted.
 
     Raises:
         LockFileRefusedError: Not a regular file, or over the cap.
         OSError: Any other failure (``FileNotFoundError`` included); the
             caller logs its own ``WARNING:``.
     """
+    # Pre-stat: Windows cannot open a directory. Non-blocking open plus the
+    # fstat below: a FIFO swapped in after the stat cannot hang the read.
     if not stat.S_ISREG(os.stat(lock_path).st_mode):
         raise LockFileRefusedError("not a regular file")
     flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
@@ -128,13 +128,11 @@ def _load_lock(
 
 def load_lock_toml(lock_path: Path) -> dict[str, Any] | None:
     """Load *lock_path* as TOML; ``None`` (silently if absent, else after
-    a ``WARNING:``) instead of raising, as a lock file is optional
-    enrichment."""
+    a ``WARNING:``) instead of raising."""
     return _load_lock(lock_path, load_toml_bytes, "TOML")
 
 
 def load_lock_json(lock_path: Path) -> dict[str, Any] | None:
-    """:func:`load_lock_toml` for JSON (``Pipfile.lock``). A top level that
-    is not an object is rejected with a ``WARNING:``, so callers need no
-    ``isinstance`` check."""
+    """:func:`load_lock_toml` for JSON (``Pipfile.lock``); a top level that
+    is not an object is rejected with a ``WARNING:``."""
     return _load_lock(lock_path, json.loads, "JSON")

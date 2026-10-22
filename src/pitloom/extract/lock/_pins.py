@@ -36,15 +36,11 @@ def group_by_canonical_name(
     items: Iterable[_CanonicalGroupT],
 ) -> dict[str, list[_CanonicalGroupT]]:
     """Group tuples by their PEP 503-canonical first element (the name),
-    keeping file order across and within groups.
-
-    ``Flask==1.0`` and ``flask==2.0`` name one package, so a "more than one
-    version" check must group on the canonical name. Generic over tuple
-    arity: the ``(name, version)``, ``(name, operator, version)`` and
-    ``(name, dep, pinned)`` callers share it. What a multi-entry group
-    means is the caller's decision (``pdm`` collapses agreeing duplicates,
-    ``requirements.txt`` rejects its whole file on a conflict).
+    keeping file order across and within groups. Generic over tuple arity.
+    What a multi-entry group means is the caller's decision.
     """
+    # ``Flask==1.0`` and ``flask==2.0`` name one package: a "more than one
+    # version" check must group on the canonical name.
     by_canonical: dict[str, list[_CanonicalGroupT]] = {}
     for item in items:
         by_canonical.setdefault(canonicalize_name(item[0]), []).append(item)
@@ -68,11 +64,8 @@ def is_same_version(v1: str, v2: str) -> bool:
 
 def single_exact_pin(specifier_set: SpecifierSet) -> tuple[str, str] | None:
     """``(operator, version)`` when *specifier_set* is exactly one ``==`` or
-    ``===`` specifier, else ``None`` (a range, several specifiers, or a
-    ``==2.31.*`` prefix match, which pins a range, not a release).
-
-    Building the ``SpecifierSet`` (and catching ``InvalidSpecifier``) is the
-    caller's job: each wants its own ``WARNING:`` wording.
+    ``===`` specifier, else ``None`` (a range, several specifiers or a
+    ``==2.31.*`` prefix match). The caller builds the ``SpecifierSet``.
     """
     specifiers = list(specifier_set)
     if (
@@ -103,11 +96,8 @@ def parse_exact_pin_requirement(req_str: str) -> tuple[str, str, str] | None:
 
 def canonical_name_and_pinned_version(dep: str) -> tuple[str, str] | None:
     """``(canonical name, version)`` of an exact-pin string such as the
-    ``name==version`` the pin extractors emit, else ``None``.
-
-    The hash companions (:mod:`pitloom.extract.lock.pylock_hash` and its
-    siblings) use it to find the pin extractor's winning entry in the raw
-    lock data, so they never re-apply its filtering.
+    ``name==version`` the pin extractors emit, else ``None``. Used by the
+    hash companions (:mod:`pitloom.extract.lock.pylock_hash` and siblings).
     """
     parsed = parse_exact_pin_requirement(dep)
     if parsed is None:
