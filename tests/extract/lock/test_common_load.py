@@ -156,41 +156,45 @@ _LOADERS = pytest.mark.parametrize(
     ],
     ids=["toml-array", "toml-inline-table", "json-array", "json-object"],
 )
-def test_deeply_nested_lock_file_warns_once_instead_of_aborting(
+def test_deeply_nested_lock_file_never_aborts(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
     loader: Callable[[Path], object],
     make: Callable[[int], bytes],
 ) -> None:
-    """Nesting past the interpreter's recursion limit (the C JSON scanner's
-    own limit is higher on newer Pythons) is a bad file like any other,
-    whatever the parser raises for it."""
+    """Whatever the interpreter does with nesting past its recursion limit
+    (the C JSON scanner's limit differs by Python version), the loader
+    returns: ``None`` after at most one warning, or the parsed object. The
+    ``RecursionError`` path itself is pinned by the next test."""
     lock_path = tmp_path / "some.lock"
     lock_path.write_bytes(make(max(2 * sys.getrecursionlimit(), 100_000)))
     with caplog.at_level(logging.WARNING):
-        assert loader(lock_path) is None
-    (message,) = caplog.messages
-    assert message.startswith(f"Failed to parse {quote_source(lock_path)}: ")
+        result = loader(lock_path)
+    assert len(caplog.messages) == (result is None)
 
 
 @_LOADERS
-def test_memory_error_is_a_bad_file(
+@pytest.mark.parametrize("error", [MemoryError, RecursionError])
+def test_a_parser_resource_error_is_a_bad_file(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
     loader: Callable[[Path], object],
+    error: type[BaseException],
 ) -> None:
-    def _no_memory(_raw: bytes) -> object:
-        raise MemoryError
+    """Raised by the parser itself (so the same on every Python version)."""
 
-    monkeypatch.setattr(lock_common, "load_toml_bytes", _no_memory)
-    monkeypatch.setattr(lock_common, "json", SimpleNamespace(loads=_no_memory))
+    def _fails(_raw: bytes) -> object:
+        raise error
+
+    monkeypatch.setattr(lock_common, "load_toml_bytes", _fails)
+    monkeypatch.setattr(lock_common, "json", SimpleNamespace(loads=_fails))
     lock_path = tmp_path / "some.lock"
     lock_path.write_text("{}", encoding="utf-8")
     with caplog.at_level(logging.WARNING):
         assert loader(lock_path) is None
     assert caplog.messages == [
-        f"Failed to parse {quote_source(lock_path)}: MemoryError"
+        f"Failed to parse {quote_source(lock_path)}: {error.__name__}"
     ]
 
 
