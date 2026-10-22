@@ -48,7 +48,7 @@ def test_read_croissant_escapes_lone_surrogates_and_names_its_label(
         (
             {"recordSet": [{"cr:totalItems": -5}, {"cr:totalItems": 2}]},
             "dataset_size",
-            2,
+            None,
         ),
         ({"cr:totalItems": True}, "dataset_size", None),
         ({"cr:totalItems": 1.9}, "dataset_size", None),

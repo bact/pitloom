@@ -78,6 +78,9 @@ __all__ = ["extract_pinned_requirements_dependencies"]
 #: disqualifying downstream regardless of how the comment strip lands).
 _COMMENT_RE = re.compile(r"(?:^|\s)#.*$")
 
+#: A line that is only a comment: pip never continues it with the next line.
+_COMMENT_LINE_RE = re.compile(r"\s*#")
+
 #: A line beginning with any of these is a pip option (``-r``/``-e``/
 #: ``--hash``/``--index-url``/etc.), not a plain dependency line -- an
 #: option like ``-e``/``-r`` means this file isn't a simple, fully
@@ -129,33 +132,35 @@ def extract_pinned_requirements_dependencies(project_dir: Path) -> list[str] | N
 def _join_continuation_lines(raw_text: str) -> list[tuple[int, str]]:
     """Join pip's backslash line-continuation syntax (a trailing ``\\``
     at end of physical line) into logical lines, each paired with the
-    1-based line number of its *first* physical line -- so a long
-    requirement or marker expression split across lines parses the same
-    as if it were written on one line, instead of the trailing ``\\``
-    disqualifying the whole file as a malformed line.
+    1-based line number of its *first* physical line, as pip's own
+    ``join_lines`` does: pieces join with nothing between them, and a
+    comment line (``#`` first on the line) never continues, but ends an
+    open continuation.
 
     Doesn't make a ``pip-compile --generate-hashes``-style file usable:
-    joining a continuation still leaves any ``--hash=...`` token on it,
-    which isn't part of PEP 508 grammar and correctly disqualifies the
-    whole file the same as any other malformed line -- hash-annotated
-    files stay unsupported, just for the right documented reason
-    instead of failing on the raw backslash first.
+    a ``--hash=...`` token on a joined line is not PEP 508 and disqualifies
+    the whole file like any other malformed line.
     """
     logical_lines: list[tuple[int, str]] = []
     buffer: list[str] = []
     first_lineno = 1
     for lineno, raw_line in enumerate(raw_text.splitlines(), start=1):
-        if not buffer:
-            first_lineno = lineno
         trimmed = raw_line.rstrip()
-        if trimmed.endswith("\\"):
+        is_comment = _COMMENT_LINE_RE.match(trimmed) is not None
+        if trimmed.endswith("\\") and not is_comment:
+            if not buffer:
+                first_lineno = lineno
             buffer.append(trimmed[:-1])
             continue
-        buffer.append(raw_line)
-        logical_lines.append((first_lineno, " ".join(buffer)))
-        buffer = []
+        if buffer:
+            # pip keeps a comment apart from the text before it.
+            buffer.append(f" {raw_line}" if is_comment else raw_line)
+            logical_lines.append((first_lineno, "".join(buffer)))
+            buffer = []
+        else:
+            logical_lines.append((lineno, raw_line))
     if buffer:
-        logical_lines.append((first_lineno, " ".join(buffer)))
+        logical_lines.append((first_lineno, "".join(buffer)))
     return logical_lines
 
 

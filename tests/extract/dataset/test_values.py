@@ -185,13 +185,24 @@ def test_stated_count(
     ("values", "expected", "warnings"),
     [
         ([], None, 0),
-        ([None, 2, 3], 5, 0),
-        ([-5, "x", 2], 2, 1),
+        ([2, 3], 5, 0),
+        ([10, None, None], None, 0),
+        ([10, "abc"], None, 1),
+        ([-5, "x", 2], None, 1),
         ([10**63] * 20, None, 1),
         ([MAX_SAFE_INTEGER, 1], None, 1),
-        ([-5, MAX_SAFE_INTEGER, 1], None, 2),
+        ([-5, MAX_SAFE_INTEGER, 1], None, 1),
     ],
-    ids=["none", "sum", "refused-items", "items-over-cap", "sum-over-cap", "both"],
+    ids=[
+        "none",
+        "sum",
+        "partly-absent",
+        "partly-bad",
+        "refused-items",
+        "items-over-cap",
+        "sum-over-cap",
+        "bad-and-over-cap",
+    ],
 )
 def test_stated_total(
     caplog: pytest.LogCaptureFixture,
@@ -199,7 +210,8 @@ def test_stated_total(
     expected: int | None,
     warnings: int,
 ) -> None:
-    """One ``WARNING:`` for the items stating no count, however many, and
-    one for a sum canonical JSON cannot write."""
+    """A total only when every item states a count: one ``WARNING:`` for
+    the items stating a bad one, however many, one for a sum canonical JSON
+    cannot write, and none for an item stating nothing."""
     assert stated_total(values, _SRC, "size") == expected
     assert len(_warned(caplog)) == warnings
