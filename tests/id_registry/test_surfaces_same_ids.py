@@ -41,7 +41,7 @@ from pitloom.assemble import (
 )
 from pitloom.id_registry import AI_PACKAGE_TYPE, FILE_TYPE, PACKAGE_TYPE, IdRegistry
 from tests.cli.shared import SAFETENSORS_FIXTURE
-from tests.extract.conftest import make_hook
+from tests.extract.conftest import make_hook, staged_sbom
 from tests.id_registry.surfaces_shared import (
     DEPENDENCY,
     demo_project,
@@ -181,10 +181,9 @@ def test_hook_surface_reuses_snapshot_ids(tmp_path: Path, snapshot_path: Path) -
     hook = make_hook(str(project), {})
     build_data: dict[str, Any] = {}
     hook.initialize("standard", build_data)
-    assert hook._sbom_staging_path is not None  # pylint: disable=protected-access
-    sbom_json = hook._sbom_staging_path.read_text(  # pylint: disable=protected-access
-        encoding="utf-8"
-    )
+    staged = staged_sbom(build_data)
+    assert staged is not None
+    sbom_json = staged.read_text(encoding="utf-8")
     hook.finalize("standard", build_data, "")
 
     _assert_project_like_reuse(_elements(sbom_json), expected)

@@ -33,7 +33,7 @@ from pitloom.assemble._generators_shared import _sync_registry
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.id_registry import PACKAGE_TYPE, IdRegistry
 from tests.assemble.conftest import _make_dummy_wheel
-from tests.extract.conftest import make_hook
+from tests.extract.conftest import make_hook, staged_sbom
 from tests.id_registry.package_ids_base import (
     MAIN,
     build_doc,
@@ -225,7 +225,7 @@ def test_hook_pins_the_root_a_project_run_harvested_beside_a_self_reference(
     hook = make_hook(str(project), {})
     build_data: dict[str, Any] = {}
     hook.initialize("standard", build_data)
-    staging = hook._sbom_staging_path  # pylint: disable=protected-access
+    staging = staged_sbom(build_data)
     assert staging is not None
     sbom_json = staging.read_text(encoding="utf-8")
     hook.finalize("standard", build_data, "")
