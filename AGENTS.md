@@ -246,6 +246,7 @@ A new CLI option or subcommand needs an entry in `scripts/manual_cli_checks/_mat
 ## SPDX / Output Specifics
 
 - SPDX 3 JSON: canonical serialisation and RFC 8785. JSON-LD: RDF canonicalization. Dates: ISO 8601, UTC+0.
+- **Format gaps go in a ledger**: when an SBOM format or a mapping cannot record a fact precisely (no property, a stretched or two-meaning property, a mapping that reads another property), add an entry to `working-docs/design/sbom-format-gaps.md` in the same change, for later proposals to SPDX (and CycloneDX). Never work around a gap silently.
 - **`spdx3` vocabulary terms are plain `str`**: `spdx3.RelationshipType`/`RelationshipCompleteness` members are `str`-valued NamedIndividual IRIs, not enum instances. Type a parameter as `str`, never as the class (`spdx3.RelationshipCompleteness | None` fails mypy).
 
 ## Writing style

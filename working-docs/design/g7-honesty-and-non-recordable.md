@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-17
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,7 +9,8 @@ SPDX-License-Identifier: CC0-1.0
 # G7 honesty rules and information SPDX 3.0.1 cannot record
 
 See also: [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md) (what G7 needs, in
-what order), [roadmap.md](roadmap.md),
+what order), [sbom-format-gaps.md](sbom-format-gaps.md) (the ledger of format
+gaps), [roadmap.md](roadmap.md),
 [g7-conformance-tests.md](../implementation/g7-conformance-tests.md) (the
 tests that hold these rules).
 
