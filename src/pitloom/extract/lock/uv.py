@@ -5,50 +5,25 @@
 
 """Extractor for resolved dependencies from a ``uv.lock``.
 
-See also: :mod:`pitloom.extract.lock.poetry` and
-:mod:`pitloom.extract.lock.pylock` (the sibling lock extractors this module
-mirrors in shape -- same source-stage-only scoping, same
-``name==version`` output, same "no silent deviations" warning policy)
-and :mod:`pitloom.extract.lock.cascade` (the cascade module that
-calls this extractor and overlays its output onto
-``ProjectMetadata.locked_dependencies``, in priority order against every
-other lock format).
+Source-stage only, like ``poetry.lock`` and ``pylock.toml``: for
+``loom project``/``loom generate``, never ``loom wheel``/``embed-wheel``
+(the wheel's own metadata is ground truth) or ``loom env`` (the live
+environment is more authoritative than a possibly stale lock).
 
-``uv.lock`` is source-stage-only, the same class as ``poetry.lock`` and
-``pylock.toml``: appropriate for ``loom project``/``loom generate``,
-never for ``loom wheel``/``embed-wheel`` (the real wheel's own metadata
-is ground truth and never consults a lock) or ``loom env`` (live
-introspection of what's actually installed is strictly more
-authoritative than a lock that may be stale relative to it).
+One ``uv.lock`` resolves every Python version and platform, so a name can
+appear at several versions. Without a real environment to evaluate markers
+against, nothing is guessed: the project's own entry (``source.editable`` or
+``source.virtual``) supplies the main ``dependencies``, each resolved only
+when exactly one candidate exists; an ambiguous or marker-conditional name
+is skipped with a ``WARNING:``. The project's own extras and dev groups are
+excluded, but an extra a dependency itself requests (``uvicorn[standard]``)
+is walked. The project's own extras are pinned separately, direct
+references only: :func:`extract_uv_lock_extra_pins`.
 
-Unlike ``poetry.lock`` and ``pylock.toml``, a ``uv.lock`` resolves
-*every* Python version/platform combination its ``resolution-markers``
-cover in one file: the top-level ``[[package]]`` table is a flat union
-across all of them, so the same package name can legitimately appear
-more than once at different versions (e.g. one entry pinned for
-``python_full_version < '3.10'``, another for ``>= '3.10'``). Picking
-one of those without evaluating markers against a real environment
-would misrepresent the resolved set, so this extractor doesn't guess:
-it reads the *project's own* ``[[package]]`` entry (identified by
-``source.editable``/``source.virtual``, uv's markers for "this is a
-local project, not a PyPI download") and only its ``dependencies`` list
-(main/runtime only -- the project's *own* ``optional-dependencies``/
-``dev-dependencies`` groups are extras and dev groups a user would have
-to opt into, excluded the same way ``poetry.lock``'s non-``main`` groups
-are), then resolves each referenced name against the flat table *only*
-when exactly one candidate exists for that name. An ambiguous
-(multiple-version) or marker-conditional (inline ``version`` on the
-dependency reference itself) name is skipped with a ``WARNING:``, not
-guessed. A dependency reference that names a specific extra on the
-package it points at (e.g. ``uvicorn[standard]``) still walks *that
-package's own* ``optional-dependencies[extra]`` list, since an extra a
-real dependency requests is part of what actually gets installed -- see
-:func:`pitloom.extract.lock._uv_graph._enqueue_requested_extras`. The
-project's own extras are pinned separately, direct references only:
-:func:`extract_uv_lock_extra_pins`.
-
-See also: :mod:`pitloom.extract.lock._uv_graph` for the package-table
-walk.
+See also: :mod:`pitloom.extract.lock._uv_graph` (the package-table walk),
+:mod:`pitloom.extract.lock.poetry` and :mod:`pitloom.extract.lock.pylock`
+(siblings of the same shape) and :mod:`pitloom.extract.lock.cascade`
+(which calls this and ranks it against the other formats).
 """
 
 from __future__ import annotations
@@ -80,11 +55,8 @@ __all__ = ["extract_uv_lock_dependencies", "extract_uv_lock_extra_pins"]
 
 
 def _expected_project_name(project_dir: Path) -> str | None:
-    """Read the bare ``[project].name`` from *project_dir*'s
-    ``pyproject.toml``, or ``None`` if it's absent/unreadable -- used
-    only to disambiguate a shared uv workspace lock's multiple local
-    package entries, not as a metadata-resolution path in its own right
-    (that's :func:`pitloom.extract.project.pyproject.read_pyproject`'s job)."""
+    """The bare ``[project].name`` from *project_dir*'s ``pyproject.toml``,
+    else ``None``; only disambiguates a workspace lock's local entries."""
     data = load_lock_toml(project_dir / "pyproject.toml")
     if data is None:
         return None
@@ -108,12 +80,7 @@ def _read_root_package(
     data = load_lock_toml(lock_path)
     if data is None:
         return None
-    # uv.lock's own format marker is a flat top-level `version` (int),
-    # not nested in a sub-table like poetry.lock's `metadata.lock-version`
-    # or pdm.lock's `metadata.lock_version` -- same genuineness check as
-    # those two siblings, adapted to this format's actual shape, so an
-    # unrelated/hand-edited TOML file can't silently win the cascade via
-    # a spurious authoritative-empty `[[package]]` list.
+    # The format marker is a flat top-level int ``version``.
     if not is_format_version_number(data.get("version")):
         log.warning(
             "%s: no top-level 'version' key (int) -- doesn't look like a "
@@ -131,14 +98,7 @@ def _read_root_package(
     by_name, root_candidates = scan_packages(packages, warn=warn_entries)
 
     if not expected_name:
-        # `ProjectMetadata.name` is typed `str`, never `None` -- a
-        # cascade caller whose own name resolution failed (e.g. a
-        # `setup.py`-only project with a dynamic, AST-unresolvable
-        # `name=`) passes `""`, not `None`. Falling back here on any
-        # falsy value (not just `None`) keeps that case from silently
-        # skipping the same re-read `_expected_project_name()` would
-        # have done for an explicit `None` -- an empty name could never
-        # usefully match a real workspace member's name anyway.
+        # An unresolved name arrives as ``""``, not ``None``: both fall back.
         expected_name = _expected_project_name(project_dir)
     if not root_candidates:
         log.warning(
@@ -155,24 +115,13 @@ def _read_root_package(
 def extract_uv_lock_dependencies(
     project_dir: Path, expected_name: str | None = None
 ) -> list[str] | None:
-    """Read ``uv.lock`` next to ``pyproject.toml`` and return the
-    project's own transitive main/runtime dependencies (the root
-    package's own ``dependencies``, plus everything *they* in turn
-    depend on) as exact-pin PEP 508 strings.
+    """The project's transitive main/runtime dependencies from the
+    ``uv.lock`` beside ``pyproject.toml``, as exact-pin strings.
 
-    *expected_name* disambiguates a shared uv workspace lock's multiple
-    local package entries (see :func:`find_root_package`) -- pass the
-    caller's already-resolved :attr:`~pitloom.core.project.ProjectMetadata.name`
-    (``apply_locked_dependencies()`` always does) to avoid re-parsing
-    ``pyproject.toml`` a second time just for this. When omitted (e.g. a
-    caller invoking this extractor directly, outside the cascade), falls
-    back to reading it via :func:`_expected_project_name`.
-
-    Returns ``None`` when no ``uv.lock`` is present, it can't be parsed,
-    or the project's own package entry can't be identified -- this is
-    optional enrichment, never a requirement. ``None`` (as opposed to a
-    valid-but-empty ``[]``) distinguishes an absent/unusable lock from a
-    real one whose root package simply has zero runtime dependencies.
+    *expected_name* disambiguates a workspace lock's local entries (see
+    :func:`~pitloom.extract.lock._uv_graph.find_root_package`); omitted, it
+    is read from ``pyproject.toml``. ``None`` means no usable lock or root
+    entry; ``[]`` is a real lock whose root has no runtime dependencies.
     """
     loaded = _read_root_package(project_dir, expected_name)
     if loaded is None:

@@ -37,35 +37,23 @@ from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
-#: uv.lock ``source`` keys that mark a package as not resolvable to a
-#: meaningful PyPI version pin -- mirrors ``poetry.lock``'s
-#: ``directory``/``file``/``git``/``url`` skip and ``pylock.toml``'s
-#: ``vcs``/``directory``/``archive`` skip. ``url`` is uv's direct
-#: remote-wheel/sdist source (per uv's docs: source types are
-#: Index/Git/URL/Path/Directory/Editable/Virtual) -- without it, a
-#: url-sourced package would be emitted as an ordinary registry pin.
+#: ``source`` keys of a package with no registry version to pin (``url`` is a
+#: direct wheel/sdist source).
 _NON_REGISTRY_SOURCE_KEYS = ("git", "url", "path", "directory", "editable", "virtual")
 
-#: ``source`` keys identifying the project's own package entry (a local
-#: root/workspace member, not a PyPI download).
+#: ``source`` keys of the project's own entry (a local or workspace member).
 _ROOT_SOURCE_KEYS = ("editable", "virtual")
 
 
 def scan_packages(
     packages: Iterable[object], *, warn: bool = True
 ) -> tuple[dict[str, list[dict[str, Any]]], list[dict[str, Any]]]:
-    """Single pass over the top-level ``[[package]]`` list, returning
-    the canonical-name index :func:`collect_transitive_dependencies`
-    needs and the local/workspace-root candidates :func:`find_root_package`
-    needs -- folded into one scan instead of three independent ones,
-    since building the index and finding root candidates only need to
-    look at each entry once.
+    """One pass over the ``[[package]]`` list: the canonical-name index for
+    :func:`collect_transitive_dependencies` and the root candidates for
+    :func:`find_root_package`.
 
-    Warns (the same way every sibling lock format's own package-list
-    loop does, unless *warn* is false) on a non-table entry or a table
-    with a missing or invalid ``name``, then excludes it from both
-    results -- it can never be the target of a real dependency reference
-    by name, nor a real root-package candidate.
+    A non-table entry or one with a missing or invalid ``name`` is skipped,
+    with a ``WARNING:`` unless *warn* is false.
     """
     by_name: dict[str, list[dict[str, Any]]] = {}
     root_candidates: list[dict[str, Any]] = []
@@ -79,14 +67,8 @@ def scan_packages(
             if warn:
                 warn_missing_name("Skipping malformed uv.lock [[package]] entry", name)
             continue
-        # uv itself normalizes every ``name`` field it writes, but a
-        # dependency *reference* and the package's own top-level entry
-        # are two separately literal strings in the file -- grouping by
-        # canonical name (as ``collect_transitive_dependencies``'s
-        # ``visited`` set already does) keeps lookup consistent with a
-        # name that differs only in case/``-``/``_``/``.`` folding,
-        # instead of a literal-string mismatch silently causing a
-        # resolvable dependency to be reported as "not found".
+        # Canonical names: a reference and an entry may differ in
+        # case/separators only.
         by_name.setdefault(canonicalize_name(name), []).append(pkg)
         source = pkg.get("source")
         if (
@@ -102,20 +84,14 @@ def find_root_package(
     expected_name: str | None,
     lock_path: Path | None = None,
 ) -> dict[str, Any] | None:
-    """Return the entry in *candidates* (every ``editable``/``virtual``-
-    sourced ``[[package]]`` entry, from :func:`scan_packages`) that is
-    the project's own, or ``None`` if none is found.
+    """The project's own entry among *candidates* (the ``editable``/
+    ``virtual`` entries from :func:`scan_packages`), else ``None``.
 
-    A shared ``uv.lock`` (a uv workspace) can list more than one such
-    entry -- one per local workspace member. When *expected_name* (the
-    calling project's own declared name, from its ``pyproject.toml``) is
-    given, it's used to pick the matching entry among candidates rather
-    than blindly taking the first one, which would silently attribute a
-    *different* workspace member's dependencies to this project. The sole
-    candidate is taken as it is only when *expected_name* is unknown; one
-    named otherwise is another project's, so with a known name and no
-    match, or with more than one candidate and none known, returns
-    ``None`` (after a ``WARNING:``) rather than guess.
+    A uv workspace lists one per member, so *expected_name* picks the match
+    rather than the first (which would attribute another member's
+    dependencies to this project). Without a name only a sole candidate is
+    taken; with no match, or several candidates and no name, ``None`` after
+    a ``WARNING:``.
     """
     if not candidates:
         return None
@@ -144,20 +120,16 @@ def find_root_package(
 def resolved_package_for_dependency(
     dep_ref: dict[str, Any], by_name: dict[str, list[dict[str, Any]]]
 ) -> dict[str, Any] | None:
-    """Return the single, unambiguous ``[[package]]`` entry that one
-    ``dependencies``-list reference resolves to -- the root package's
-    own, or one already-visited package's own nested reference during
-    the transitive walk in :func:`collect_transitive_dependencies` --
-    or ``None`` when it can't be resolved that way."""
+    """The one ``[[package]]`` entry a dependency reference resolves to, else
+    ``None`` after a ``WARNING:``: malformed, carrying an inline
+    (marker-conditional) ``version``, not in the table, or present at
+    several versions. Markers are never evaluated."""
     name = dep_ref.get("name")
     if not is_usable_name(name):
         warn_missing_name("Skipping malformed uv.lock dependency reference", name)
         return None
     if "version" in dep_ref:
-        # An inline version on the reference itself means this
-        # dependency resolves to a different version per environment
-        # marker -- ambiguous without evaluating markers against a real
-        # environment, which this extractor deliberately doesn't do.
+        # An inline version means a different version per marker.
         log.warning(
             "Skipping uv.lock dependency %r: marker-conditional version "
             "on its own dependency reference (no marker evaluation)",
@@ -189,11 +161,8 @@ def resolved_package_for_dependency(
                 len(candidates),
             )
             return None
-        # Every candidate agrees on version (PEP 440) -- the marker
-        # branches they come from don't change the resolved output, so
-        # there's nothing ambiguous to guess about; same "agreeing
-        # duplicates collapse" rule every sibling lock format already
-        # applies (see e.g. `poetry.py`'s `is_same_version` check).
+        # All candidates agree (PEP 440): duplicates collapse, as in the
+        # sibling formats.
 
     return candidates[0]
 
@@ -201,22 +170,13 @@ def resolved_package_for_dependency(
 def collect_transitive_dependencies(
     root_dependencies: list[object], by_name: dict[str, list[dict[str, Any]]]
 ) -> list[str]:
-    """Breadth-first walk of the resolved dependency graph starting from
-    the project root package's own ``dependencies`` list, returning
-    every reachable package (not just the root's immediate dependencies)
-    as exact-pin PEP 508 strings.
+    """Every package reachable from the root's ``dependencies``, as exact
+    pins (breadth-first).
 
-    A ``uv.lock``'s flat ``[[package]]`` table records each package's
-    *own* ``dependencies`` list once, keyed by name -- the actual
-    installed set is the closure of that graph, not just its first
-    layer (e.g. a CLI tool's own root dependency on a framework that
-    itself pulls in several more packages). PEP 503-canonicalized names
-    guard against revisiting the same package twice (a diamond
-    dependency shared by two branches) or looping on a cycle; a name
-    that fails to resolve unambiguously (see
-    :func:`resolved_package_for_dependency`) is skipped and not walked
-    into further, the same "don't guess" policy the root-level case
-    already applied.
+    The installed set is the closure of the graph, not its first layer.
+    Canonical names guard against diamonds and cycles; a reference that does
+    not resolve (:func:`resolved_package_for_dependency`) is skipped and not
+    walked into.
     """
     dependencies: dict[str, str] = {}
     visited: set[str] = set()
@@ -311,11 +271,7 @@ def _enqueue_requested_extras(
                 None,
             )
         if extra_deps is None:
-            # Requested but not declared by the package's own
-            # `optional-dependencies` table (stale/hand-edited lock, or
-            # an extra renamed/removed since resolution) -- a deviation
-            # worth a WARNING, same as every other unresolvable
-            # reference in this module, not a silent no-op.
+            # Stale or hand-edited lock: warn, do not skip silently.
             log.warning(
                 "uv.lock: %r requested extra %r not found in %r's "
                 "optional-dependencies -- skipping",
@@ -337,8 +293,9 @@ def _enqueue_requested_extras(
 
 
 def pinned_dep_for_package(pkg: dict[str, Any]) -> str | None:
-    """Return ``name==version`` for one top-level ``[[package]]`` entry,
-    or ``None`` when it's non-registry-sourced or missing a version."""
+    """``name==version`` for one ``[[package]]`` entry; ``None`` when it is
+    non-registry-sourced or lacks a usable version (each with a
+    ``WARNING:``)."""
     name = pkg["name"]
     source = pkg.get("source")
     if isinstance(source, dict):
