@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import sys
 import threading
 from collections.abc import Mapping
@@ -57,6 +58,23 @@ LONE_SURROGATES_WARNING = "%sFILE=%s: lone surrogates written as \\uXXXX"
 #: Keyed by ``(logger.name, key)`` so two independent call sites can't
 #: collide by picking the same short key string.
 _WARNED_ONCE: set[tuple[str, str]] = set()
+
+
+#: ``://`` and a userinfo (non-empty, up to the last ``@`` before a ``/`` or
+#: whitespace: a password holding ``?`` or ``#`` is masked whole).
+_URL_USERINFO_RE = re.compile(r"://[^/\s@][^/\s]*@")
+
+
+def sanitize_url_credentials(text: str) -> str:
+    """Redact username and password from URLs in *text* (e.g.
+    ``https://user:pass@host/`` -> ``https://***:***@host/``).
+
+    Used across extractors, build backends, and error loggers to prevent
+    sensitive auth tokens from leaking into error messages or SBOM output.
+    The userinfo ends at the last ``@`` before the first ``/`` or whitespace,
+    so a password holding ``@``, ``?`` or ``#`` is redacted whole.
+    """
+    return _URL_USERINFO_RE.sub("://***:***@", text)
 
 
 def loggable(text: str) -> str:

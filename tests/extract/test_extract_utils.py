@@ -25,9 +25,8 @@ from pitloom.extract._extract_utils import (
     json_nests_over,
     quote_source,
     sanitize_provenance_text,
-    sanitize_url_credentials,
 )
-from pitloom.logging_config import Cap
+from pitloom.logging_config import Cap, sanitize_url_credentials
 from tests._bounded import run_bounded_in_child
 
 #: ``os.mkfifo`` exists on POSIX only.

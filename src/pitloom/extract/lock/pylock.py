@@ -137,7 +137,7 @@ def _extract_validated_packages(
         log.warning(
             "%s: missing or malformed top-level 'created-by' key "
             "(expected a non-empty string) -- ignoring pylock.toml",
-            lock_path,
+            quote_source(lock_path),
         )
         return None
 
@@ -145,7 +145,7 @@ def _extract_validated_packages(
         log.warning(
             "%s: missing top-level 'packages' key (expected a list) -- "
             "ignoring pylock.toml",
-            lock_path,
+            quote_source(lock_path),
         )
         return None
 

@@ -29,7 +29,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from pitloom.extract._extract_utils import sanitize_url_credentials
 from pitloom.extract.remote._git_folder import checkout_folder, subproject_hint
 from pitloom.extract.remote._git_redirect import resolve_git_url
 from pitloom.extract.remote._git_run import GitRunner
@@ -41,7 +40,7 @@ from pitloom.extract.remote.git_url import (
     scheme_allowed,
     split_ref,
 )
-from pitloom.logging_config import loggable
+from pitloom.logging_config import loggable, sanitize_url_credentials
 
 log = logging.getLogger(__name__)
 

@@ -24,6 +24,8 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 
+from pitloom.logging_config import loggable, sanitize_url_credentials
+
 log = logging.getLogger(__name__)
 
 INERT_LOG_PREFIX = "Options: "
@@ -45,9 +47,13 @@ def warn_no_effect(
 
     *reason* follows "has no effect" with no trailing punctuation, e.g.
     ``"without --allow-build"``.
+
+    *subject* may be a user-given URL or path: credentials are masked and
+    control characters escaped.
     """
+    shown = loggable(sanitize_url_credentials(str(subject)))
     for flag in flags:
-        log.log(level, "%s%s: %s has no effect %s", prefix, subject, flag, reason)
+        log.log(level, "%s%s: %s has no effect %s", prefix, shown, flag, reason)
 
 
 __all__ = ["INERT_LOG_PREFIX", "warn_no_effect"]
