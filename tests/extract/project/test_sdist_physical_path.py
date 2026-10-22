@@ -80,8 +80,9 @@ def test_physical_path_drops_top_directory(
             ["'f0.py', 'f1.py', 'f2.py', 'f3.py', 'f4.py', ..."],
         ),
         ({"a-1/PKG-INFO": _INFO, "a-1/x.py": b"x", "y.py": b"s"}, []),
+        ({"a-1/PKG-INFO": _INFO, "a-1/x.py": b"x", "./x.py": b"s"}, ["'x.py'"]),
     ],
-    ids=["one-clash", "many-clashes-cut", "stray-without-clash"],
+    ids=["one-clash", "many-clashes-cut", "stray-without-clash", "dot-prefixed-stray"],
 )
 def test_members_sharing_a_project_path_are_warned_of_once(
     tmp_path: Path,
@@ -96,4 +97,6 @@ def test_members_sharing_a_project_path_are_warned_of_once(
         read_sdist(sdist, read_config=False)
     said = [m for m in caplog.messages if "share a project path" in m]
     assert len(said) == len(shown)
-    assert not shown or f"({shown[0]})" in said[0]
+    assert not shown or said[0].startswith(
+        f"ARCHIVE='a-1.tar.gz': members share a project path ({shown[0]}"
+    )

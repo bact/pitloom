@@ -97,10 +97,8 @@ def _resolve_id_registry_target(
     """Resolve the registry path `pitloom id generate`/`import` writes to.
 
     Precedence: *flag* (``--id-registry``/``-o``; a relative *flag*
-    resolves against the current directory, like every other command --
-    ``id import``'s own *project_dir* already *is* the current directory,
-    so this is only observable for ``id generate`` with a ``--project-dir``
-    different from cwd), else the project's own configured ``id-registry``
+    resolves against the current directory, like every other command,
+    whatever ``--project-dir`` is), else the project's own configured ``id-registry``
     (see :func:`_project_configured_id_registry`; relative to
     *project_dir*). Raises :func:`_no_id_registry_declared_error` when
     neither is declared -- there is no implicit default file.

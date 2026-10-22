@@ -176,8 +176,8 @@ The script's own string matters only for a dataset with no path below the root.
   it gets its digest. When the key differs from the name, one `INFO: ID
   registry: dataset <name> keyed by its path: <key>` says so. A name found
   nowhere stays a name key: `dataset <name> keyed by its name: not found: declare paths
-  relative to the registry root or run id import from the directory the script
-  ran in`.
+  relative to the registry root (id import --project-dir) or run id import from
+  the directory the script ran in`.
 - A file whose key is not held with its SHA-256, but whose layout alias is
   (one held key with its SHA-256), is imported under that held key, counted in
   the layout-alias `INFO:`. When its own key holds other content, that key

@@ -127,8 +127,8 @@ def _read_member(
     return kept, reader.digests()
 
 
-#: One archive file: (install-location name, raw archive name, opener).
-_Entry = tuple[str, str, Callable[[], IO[bytes] | None]]
+#: One archive file: (install-location name, opener).
+_Entry = tuple[str, Callable[[], IO[bytes] | None]]
 
 
 def _root_parts(name: str) -> tuple[str, str] | None:
@@ -155,12 +155,12 @@ license_source_names`) among the root-level members of the project's top
     return {f"{top}/{base}" for base in license_source_names(basenames)}
 
 
-def _project_path(name: str, raw: str, strip_top: str | None) -> str:
+def _project_path(name: str, strip_top: str | None) -> str:
     """The project-relative path of member *name*: without its top
-    directory *strip_top*; a member outside it keeps its raw name."""
+    directory *strip_top*; a member outside it keeps its name."""
     if strip_top is not None and name.startswith(f"{strip_top}/"):
         return name[len(strip_top) + 1 :]
-    return raw
+    return name
 
 
 _SHARED_PATHS_SHOWN = 5
@@ -179,9 +179,9 @@ def _warn_shared_paths(files: list[ProjectFile], archive: str) -> None:
     if shared:
         names = ", ".join(map(quote_source, list(shared)[:_SHARED_PATHS_SHOWN]))
         log.warning(
-            "%s: members share a project path (%s%s); an ID registry keeps no "
-            "id for them",
-            quote_source(archive),
+            "ARCHIVE=%r: members share a project path (%s%s); they would share "
+            "one ID registry key",
+            Path(archive).name,
             names,
             ", ..." if len(shared) > _SHARED_PATHS_SHOWN else "",
         )
@@ -190,8 +190,8 @@ def _warn_shared_paths(files: list[ProjectFile], archive: str) -> None:
 def _scan(
     entries: Iterator[_Entry],
     *,
+    archive: str,
     root_only: bool = False,
-    archive: str = "",
 ) -> ArchiveMembers:
     """Hash every member; keep the first root-level member of each
     :data:`ROOT_MEMBERS` basename, archive order deciding a tie between
@@ -204,14 +204,14 @@ def _scan(
     order; :func:`~pitloom.extract.project.sdist.read_sdist` sorts them. A
     file's ``physical_path`` is its project-relative path: its name
     without the top directory holding the first root-level ``PKG-INFO``
-    (none: no strip); a member outside it keeps its raw archive name."""
+    (none: no strip); a member outside it keeps its name."""
     entries_list = list(entries)
     strip_top = _top_directory([e[0] for e in entries_list], (PKG_INFO,))
     licence_names = (
         set() if root_only else _licence_member_names([e[0] for e in entries_list])
     )
     members = ArchiveMembers({}, [], {})
-    for name, raw, open_member in entries_list:
+    for name, open_member in entries_list:
         basename = name.rsplit("/", 1)[-1]
         wanted = (
             _root_parts(name) is not None
@@ -234,7 +234,7 @@ def _scan(
         if not root_only:
             members.files.append(
                 ProjectFile(
-                    physical_path=_project_path(name, raw, strip_top),
+                    physical_path=_project_path(name, strip_top),
                     distribution_path=name,
                     **digest_fields(digest),
                 )
@@ -249,14 +249,14 @@ def _tar_entries(
 ) -> Iterator[_Entry]:
     files = ((m.name, m.size, m) for m in tf.getmembers() if m.isfile())
     for name, member in file_members(files, archive_name, logger, dot_prefix_ok=True):
-        yield name, member.name, functools.partial(tf.extractfile, member)
+        yield name, functools.partial(tf.extractfile, member)
 
 
 def _zip_entries(
     zf: zipfile.ZipFile, logger: logging.Logger | None, archive_name: str
 ) -> Iterator[_Entry]:
     for name, info in zip_file_members(zf, archive_name, logger):
-        yield name, info.orig_filename, functools.partial(zf.open, info)
+        yield name, functools.partial(zf.open, info)
 
 
 def scan_archive(sdist_path: Path, *, root_only: bool = False) -> ArchiveMembers:

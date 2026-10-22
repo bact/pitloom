@@ -185,6 +185,12 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
     "--embed": "exclude:side effect on the wheel: sequences S2 and S3",
     "--project-dir": f"exclude:{_TARGET}",
     ("fragment list", "--project-dir"): f"exclude:{_TARGET}",
+    # id import roots a new registry at it (any directory will do: the
+    # cell's own); a directory that is not one is an ERROR.
+    ("id import", "--project-dir"): [
+        Variant("dir", lambda _fx, c: ["--project-dir", str(c)], "any"),
+        _v("missing", "exit:1", "--project-dir", "absent"),
+    ],
     # An archive's project directory, for its registry keys only: inert
     # without a registry (no cell has one) and on a directory target. Any
     # directory will do: the cell's own.

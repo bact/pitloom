@@ -189,9 +189,10 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   only, `id import` has no such option) sets a reproducible one. An existing
   registry with another namespace is an `ERROR:`, exit 1.
 - **Project root**: a new registry stores the project directory
-  (`--project-dir` for `generate`, the current directory for `import`)
-  relative to its own file. `id generate` into a registry made for another
-  project directory is an `ERROR:`, exit 1: pick one root per registry.
+  (`--project-dir`, default the current directory, for both `generate` and
+  `import`) relative to its own file. `id generate`, or `id import` with an
+  explicit `--project-dir`, into a registry made for another project directory
+  is an `ERROR:`, exit 1: pick one root per registry.
 
 The file is JSON with `version: 3`, `namespace`, `project_root`, an
 `elements` table and `id_counters` (per id prefix, the highest number

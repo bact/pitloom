@@ -86,3 +86,19 @@ def test_a_project_dir_other_than_the_registry_root_is_refused(
     assert _run(monkeypatch, *base, "--project-dir", "proj") == 0
     assert _run(monkeypatch, *base, "--project-dir", ".") == 1
     assert "project root" in capsys.readouterr().err
+
+
+def test_a_registry_declared_in_the_project_config_is_found_there(
+    monkeypatch: pytest.MonkeyPatch, above: Path
+) -> None:
+    """Without `-o`, the registry the project's `[tool.pitloom]` declares is
+    the one of `--project-dir`, written below it, and a run keeps the ids."""
+    pyproject = above / "proj" / "pyproject.toml"
+    pyproject.write_text(
+        _PYPROJECT.format("0.1") + '[tool.pitloom]\nid-registry = "ids.json"\n'
+    )
+    assert _run(monkeypatch, "id", "import", "first.json", "--project-dir", "proj") == 0
+    assert (above / "proj" / "ids.json").is_file()
+    assert not (above / "ids.json").exists()
+    assert _run(monkeypatch, "project", "proj", "-o", "second.json") == 0
+    assert _file_ids(above / "first.json") == _file_ids(above / "second.json")

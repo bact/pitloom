@@ -93,7 +93,8 @@ DATASET_PIN_GATED_INFO = "ID registry: dataset %s pin now gated by its SHA-256"
 #: its own directory.
 IMPORT_NOT_FOUND = (
     "not found: declare paths relative to the registry root "
-    "or run id import from the directory the script ran in"
+    "(id import --project-dir) or run id import from the directory the "
+    "script ran in"
 )
 
 
