@@ -157,6 +157,8 @@ and this project adheres to
   URL passwords are masked whole ([#323])
 - A lock file never read says `Cannot read`, not `Failed to parse`;
   Hatchling hook: an `sbom-files` name clash is refused ignoring case ([#326])
+- A Hub model URL as `www.huggingface.co`, `hf.co`, `http://` or any case
+  is read like the canonical one, with an `INFO:` line ([#332])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
@@ -174,6 +176,7 @@ and this project adheres to
 [#323]: https://github.com/bact/pitloom/pull/323
 [#325]: https://github.com/bact/pitloom/pull/325
 [#326]: https://github.com/bact/pitloom/pull/326
+[#332]: https://github.com/bact/pitloom/pull/332
 
 ## [0.20.2] - 2026-10-09
 
