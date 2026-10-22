@@ -28,6 +28,7 @@ from pitloom.core.ai_metadata import (
     AiModelMetadata,
     source_metadata,
 )
+from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model.archive_member import open_model_binary
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
@@ -91,7 +92,7 @@ def _read_npy_version(model_path: Path) -> tuple[int, int]:
     with model_path.open("rb") as fh:
         header = fh.read(8)
     if len(header) < 8 or header[:6] != b"\x93NUMPY":
-        raise ValueError(f"Not a valid .npy file: {model_path}")
+        raise ValueError(f"Not a valid .npy file: {quote_source(model_path)}")
     return header[6], header[7]
 
 
@@ -280,7 +281,9 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
             loggable(str(model_path)),
             loggable(str(exc)),
         )
-        raise ValueError(f"Failed to read NumPy file {model_path}: {exc}") from exc
+        raise ValueError(
+            f"Failed to read NumPy file {quote_source(model_path)}: {exc}"
+        ) from exc
 
     provenance["type_of_model"] = f"{source} | Field: format type"
     return AiModelMetadata(

@@ -263,7 +263,7 @@ def read_setuptools(
     metadata = build_setuptools_metadata(cfg_options, py_options, quiet=quiet)
     if not metadata.name:
         raise FileNotFoundError(
-            f"No usable project metadata found in {project_dir}. "
+            f"No usable project metadata found in {quote_source(project_dir)}. "
             "Expected setup.cfg [metadata] name or a literal setup.py "
             f"setup(name=...).{py_error}"
         )

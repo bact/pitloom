@@ -205,7 +205,8 @@ def find_embedded_sbom(
             return None
         if len(candidates) > 1:
             raise ValueError(
-                f"Multiple SBOMs found under {sboms_prefix} in {wheel_path.name} "
+                f"Multiple SBOMs found under {sboms_prefix} in "
+                f"{quote_source(wheel_path.name)} "
                 f"({sorted(candidates)}) -- pass --sbom-filename to disambiguate"
             )
         arcname = candidates[0]

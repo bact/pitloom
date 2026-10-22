@@ -20,6 +20,11 @@ import ast
 import re
 from pathlib import Path
 
+import pytest
+
+from pitloom.core.quote_source import quote_source
+from pitloom.extract.ai_model.reader import read_ai_model
+
 _SRC = Path(__file__).parent.parent / "src" / "pitloom"
 
 #: Variables and attributes that hold a user-given path or file name.
@@ -53,6 +58,10 @@ _QUOTING_CALLS = frozenset(
         "_fragment_read_failure_message",
         "_same_document_message",
         "failed_to_save_message",
+        "registry_file_error",
+        "refusal",
+        "unreadable_member_error",
+        "_unsupported_message",
         "name_key_reason",
         "detail",
         "detect_ai_model_format_from_name",
@@ -68,6 +77,16 @@ _NOT_PATHS: frozenset[tuple[str, str]] = frozenset(
         ("core/_config_keys.py", "path"),
         ("extract/_license_detect.py", "path"),
         ("extract/project/_pyproject_fields.py", "project_dir"),
+        # A TOML table path, a config value and a regex, shown with repr().
+        ("core/_config_read.py", "table_path"),
+        ("core/model_extract_limit.py", "table_path"),
+        ("core/_config_parse.py", "path"),
+        ("core/_config_parse_scan.py", "pattern"),
+        # A URL shown with repr(), and an OSError filename argument.
+        ("_loom_dataset_meta.py", "location"),
+        ("_sbom_io.py", "path"),
+        # The name of a type, not of a file.
+        ("id_registry/_registry.py", "path"),
     }
 )
 
@@ -146,6 +165,14 @@ def _offenders(relative: str, tree: ast.AST) -> list[str]:
         messages: list[ast.expr] = []
         if isinstance(node, ast.Call) and _is_message_call(node):
             messages = _arguments(node)
+        elif (
+            isinstance(node, ast.Raise)
+            and isinstance(node.exc, ast.Call)
+            and _called_name(node.exc) not in _QUOTING_CALLS
+        ):
+            # The text of an exception reaches stderr, a log line or a
+            # notification somewhere else: it names a path as the log does.
+            messages = _arguments(node.exc)
         elif isinstance(node, ast.FunctionDef) and node.name.endswith("_message"):
             # A builder returns the text another module logs or raises.
             messages = [
@@ -193,3 +220,17 @@ def test_the_guard_sees_a_bare_path() -> None:
     )
     found = {line.split(":")[1] for line in _offenders("x.py", ast.parse(source))}
     assert found == {"1", "3", "5", "6", "7", "8", "10"}
+
+
+@pytest.mark.parametrize("name", ["a\nERROR: forged", "it's"])
+def test_a_raised_path_is_quoted(tmp_path: Path, name: str) -> None:
+    """A path in an exception message is escaped and delimited."""
+    missing = tmp_path / name
+    try:
+        read_ai_model(missing)
+    except FileNotFoundError as exc:
+        message = str(exc)
+    else:  # pragma: no cover
+        pytest.fail("no error raised")
+    assert "\n" not in message
+    assert quote_source(missing) in message

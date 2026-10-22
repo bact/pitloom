@@ -127,7 +127,7 @@ def _require_names(names: Sequence[str]) -> None:
 
 def registry_file_error(path: Path, reason: str) -> ValueError:
     """Build the one ``ValueError`` shape every registry file failure
-    raises: ``ID registry file {path}: {reason}``.
+    raises: ``ID registry file '{path}': {reason}``.
 
     A single helper so every failure reason (not found, unreadable, bad
     JSON, wrong shape, wrong version, malformed entry, duplicate, a
@@ -135,7 +135,7 @@ def registry_file_error(path: Path, reason: str) -> ValueError:
     its *reason* -- the CLI, the library API and the Hatchling hook all
     surface this message verbatim.
     """
-    return ValueError(f"ID registry file {path}: {reason}")
+    return ValueError(f"ID registry file {quote_source(path)}: {reason}")
 
 
 def sha256_file(path: Path) -> str:

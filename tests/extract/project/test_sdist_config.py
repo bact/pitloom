@@ -318,7 +318,7 @@ def test_oversize_first_member_still_wins_over_a_later_one(
         },
         fmt=fmt,
     )
-    match = f"{sdist.name}:pyproject.toml: larger than the 1048576-byte config-member"
+    match = f"{sdist.name}:pyproject.toml': larger than the 1048576-byte config-member"
     with pytest.raises(ValueError, match=match + " cap; not read"):
         read_sdist(sdist)
 
@@ -462,7 +462,7 @@ def test_error_names_the_archive_path_as_given(tmp_path: Path) -> None:
     sdist = _make_sdist(nested, "[tool.pitloom]\npretty = 'yes'\n")
     with pytest.raises(ValueError) as info:
         read_sdist(sdist)
-    assert f"config file {sdist}:pyproject.toml:" in str(info.value)
+    assert f"config file '{sdist}:pyproject.toml':" in str(info.value)
 
 
 @_FMT
