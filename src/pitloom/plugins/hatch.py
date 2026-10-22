@@ -444,8 +444,10 @@ class PitloomBuildHook(_PitloomBuildHookBase):
         self, sbom_filename: str, build_data: dict[str, Any]
     ) -> None:
         """Raise unless no SBOM Hatchling will place under ``.dist-info/sboms/``
-        is already named *sbom_filename* (the entries of ``sbom-files`` and
-        of other hooks): two would be one archive name twice.
+        is already named *sbom_filename*, ignoring case (the entries of
+        ``sbom-files`` and of other hooks): two would be one archive name
+        twice, and a case-insensitive extraction (Windows, macOS) writes one
+        over the other.
 
         Raises:
             ValueError: One is, typically a ``loom project`` output of the
@@ -455,12 +457,16 @@ class PitloomBuildHook(_PitloomBuildHookBase):
             *cast(WheelBuilderConfig, self.build_config).sbom_files,
             *build_data.get("sbom_files", []),
         ]
-        clash = next((p for p in placed if os.path.basename(p) == sbom_filename), None)
+        wanted = sbom_filename.casefold()
+        clash = next(
+            (p for p in placed if os.path.basename(p).casefold() == wanted), None
+        )
         if clash is not None:
             raise ValueError(
-                f"SBOM file name {loggable(sbom_filename)} is also the name of "
-                f"sbom-files entry {loggable(str(clash))}; set [tool.pitloom] "
-                "sbom-basename to another name or drop the entry."
+                f"SBOM file name {loggable(sbom_filename)} is also, ignoring "
+                f"case, the name of sbom-files entry {loggable(str(clash))}; "
+                "set [tool.pitloom] sbom-basename to another name or drop "
+                "the entry."
             )
 
     def finalize(

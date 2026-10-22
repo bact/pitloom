@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -91,9 +91,9 @@ the `editable` variant of a wheel: an editable wheel holds a `.pth` file, not
 the project's files, so an SBOM would list files that are not in it.
 
 A `[tool.hatch.build.targets.wheel]` `sbom-files` entry with the same file
-name as the hook's SBOM (typically `loom project`'s default
-`<name>-<version>.spdx3.json`) is an `ERROR:`, as the wheel would hold the name
-twice: set `[tool.pitloom] sbom-basename` to another name, or drop the entry.
+name as the hook's SBOM, ignoring case (typically `loom project`'s default
+`<name>-<version>.spdx3.json`), is an `ERROR:`, as the wheel would hold the
+name twice, or two names that Windows and macOS extract onto one file: set `[tool.pitloom] sbom-basename` to another name, or drop the entry.
 
 ## Reproducible builds
 
