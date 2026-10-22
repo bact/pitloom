@@ -112,7 +112,7 @@ Code shape:
 - **An undocumented third-party breaking change can be survived without an upper pin**: detect its runtime shape (`len(Cls.__parameters__)`) plus a `TYPE_CHECKING` branch.
 - **Compare a linter's error count to HEAD with the same interpreter** (`pyrefly --python-interpreter`).
 - **`# type: ignore` against a library that changed its types** is unused on one version and needed on another (numpy 2.3 vs 2.5): an `Any` view plus `cast`; check the lowest supported version in a second environment (`mypy --python-executable`).
-- **Read a linter's messages and exit code, not its score** (pylint printed `10.00/10` beside an R0902); run CI's exact command. In a degraded sandbox (no licence database: 73 tests fail on `main`) compare failing test-id sets against a stashed baseline, not counts.
+- **Read a linter's messages and exit code, not its score** (pylint printed `10.00/10` beside an R0902); run CI's exact command. Build the licence database first (`licenseid update`, `licenseid` 0.4.3 from `main` or later: it no longer needs the GitHub tarball); without it 73 tests fail on `main`. In any other degraded sandbox compare failing test-id sets against a stashed baseline, not counts.
 
 Tests, platform and CI:
 
