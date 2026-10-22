@@ -9,15 +9,17 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import os
 import tempfile
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from hatchling.builders.config import BuilderConfig
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
+from hatchling.builders.wheel import WheelBuilderConfig
 from hatchling.plugin import hookimpl
 from packaging.version import Version
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -30,6 +32,7 @@ from pitloom.core.config import PitloomConfig, read_pitloom_config
 from pitloom.core.creation import CreationMetadata, resolve_source_date_epoch
 from pitloom.core.document import DocumentModel
 from pitloom.core.file_names import sbom_file_name
+from pitloom.core.inert_options import HOOK, configured_options, settle_inert
 from pitloom.core.models import get_wheel_files
 from pitloom.core.project import FilesOrigin
 from pitloom.enrich import run_enrichers_for_models
@@ -39,7 +42,8 @@ from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.project.hatchling import metadata_from_hatchling
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.id_registry import IdRegistry, registry_file_path, resolve_registry
-from pitloom.logging_config import configure_logging
+from pitloom.logging_config import configure_logging, loggable, one_line
+from pitloom.plugins._hatch_config import validate_config
 
 log = logging.getLogger(__name__)
 
@@ -91,15 +95,25 @@ def _resolve_build_datetime(pitloom_config: PitloomConfig) -> str:
     Priority: a pinned ``[tool.pitloom.creation]`` ``creation-datetime``
     (a deliberate, explicit pin -- more specific than an ambient env var,
     so it wins), then the standard reproducible-builds ``SOURCE_DATE_EPOCH``
-    environment variable, then the current UTC time.  With either of the
-    first two, repeated builds of unchanged sources produce byte-identical
-    SBOMs (and therefore byte-identical wheels).
+    environment variable, then the current UTC time (with one ``INFO:``
+    saying so).  With either of the first two, repeated builds of unchanged
+    sources produce byte-identical SBOMs (and therefore byte-identical
+    wheels).
+
+    Raises:
+        ValueError: ``SOURCE_DATE_EPOCH`` is set and not a valid timestamp
+            (see :func:`~pitloom.core.creation.resolve_source_date_epoch`).
     """
+    # Read first, so a malformed value fails whether or not a date is pinned.
+    epoch_dt = resolve_source_date_epoch()
     if pitloom_config.creation_datetime:
         return pitloom_config.creation_datetime
-    epoch_dt = resolve_source_date_epoch()
     if epoch_dt is not None:
         return to_spdx3_datetime(epoch_dt).isoformat()
+    log.info(
+        "Pitloom build hook: created and builtTime come from the clock; "
+        "set SOURCE_DATE_EPOCH or creation-datetime to pin them."
+    )
     return to_spdx3_datetime(datetime.now(timezone.utc)).isoformat()
 
 
@@ -141,7 +155,7 @@ def _build_document_model(
 
     Also runs enrichment for each discovered AI model, gated by the
     project's own ``[tool.pitloom] enrich`` (the hook has no key of its own,
-    see :func:`_validate_config`), through the same
+    see :func:`~pitloom.plugins._hatch_config.validate_config`), through the same
     ``run_enrichers_for_models()`` call as
     :func:`~pitloom.assemble.generate_project_sbom`, so the hook and
     ``loom project`` enrich a project alike.
@@ -285,7 +299,6 @@ class PitloomBuildHook(_PitloomBuildHookBase):
         super().__init__(*args, **kwargs)
         self._staging_dir: tempfile.TemporaryDirectory[str] | None = None
         self._sbom_staging_path: Path | None = None
-        self._sbom_filename: str = f"sbom{SPDX3_JSONLD_EXTENSION}"
 
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
         """Generate the SBOM and register it for injection into the wheel.
@@ -294,7 +307,9 @@ class PitloomBuildHook(_PitloomBuildHookBase):
         appended to ``build_data["sbom_files"]``, which Hatchling 1.29.0+
         places at ``.dist-info/sboms/<basename>`` inside the wheel
         (PEP 770).  The temporary staging directory is cleaned up in
-        :meth:`finalize`.
+        :meth:`finalize`.  Any failure is reported once as ``ERROR: SBOM
+        generation failed: <reason>`` and then raised, failing the build.
+        The ``editable`` variant is skipped with an ``INFO:``.
 
         Args:
             version: The build *variant* (e.g. ``"standard"``/``"editable"``),
@@ -304,8 +319,10 @@ class PitloomBuildHook(_PitloomBuildHookBase):
                 is appended to on success.
 
         Raises:
-            ValueError: If a hook configuration value is invalid, or the
-                ID registry cannot be loaded.
+            ValueError: If a hook configuration value is invalid, the
+                ID registry cannot be loaded, ``SOURCE_DATE_EPOCH`` is not a
+                valid timestamp, or a project ``sbom-files`` entry has the
+                staged SBOM's name.
             FragmentMergeError: If a ``required = true`` SBOM fragment
                 (``[tool.pitloom.fragment]``) is missing or unreadable --
                 a `ValueError` subclass, propagated uncaught like the
@@ -320,10 +337,21 @@ class PitloomBuildHook(_PitloomBuildHookBase):
         # Without this, this process logs with whatever logging config
         # pip/hatchling set up, and lines lack the "WARNING: " prefix.
         configure_logging()
+        try:
+            self._generate(version, build_data)
+        # pylint: disable-next=broad-exception-caught
+        except Exception as exc:
+            # The one place a failure is reported, as the CLI's handler does;
+            # the re-raise fails the build, with Hatchling's own traceback.
+            log.error("SBOM generation failed: %s", one_line(exc))
+            raise
+
+    def _generate(self, version: str, build_data: dict[str, Any]) -> None:
+        """:meth:`initialize` without its error report."""
         log.debug("Pitloom build hook: build variant %r", version)
 
         config = dict(self.config)
-        _validate_config(config)
+        validate_config(config)
 
         if not config.get("enabled", True):
             log.info("Pitloom build hook: disabled; skipping SBOM generation.")
@@ -339,23 +367,35 @@ class PitloomBuildHook(_PitloomBuildHookBase):
             )
             return
 
+        if version == "editable":
+            # An editable wheel holds a .pth file, not the project's files:
+            # the SBOM would list files that are not in it.
+            log.info(
+                "Pitloom build hook: build variant 'editable' skipped; its "
+                "wheel does not hold the project's files."
+            )
+            return
+
         _check_hatchling_sbom_support()
 
         project_dir = Path(self.root)
         pitloom_config: PitloomConfig = read_pitloom_config(
             project_dir / "pyproject.toml"
         )
+        settle_inert(
+            HOOK,
+            project_dir,
+            configured_options(pitloom_config),
+            level=logging.INFO,
+        )
         sbom_filename: str = (
             sbom_file_name(pitloom_config.sbom_basename)
             if pitloom_config.sbom_basename
             else f"{_default_sbom_basename(self.metadata)}{SPDX3_JSONLD_EXTENSION}"
         )
+        self._check_name_is_free(sbom_filename, build_data)
 
-        try:
-            registry = resolve_registry(None, pitloom_config.id_registry, project_dir)
-        except ValueError as exc:
-            log.error("%s", exc)
-            raise
+        registry = resolve_registry(None, pitloom_config.id_registry, project_dir)
 
         document, merkle_root, enrichment_results_by_model = _build_document_model(
             project_dir, self.metadata, pitloom_config, registry
@@ -369,7 +409,7 @@ class PitloomBuildHook(_PitloomBuildHookBase):
             enrichment_results_by_model=enrichment_results_by_model,
             **pitloom_config.assemble_options,
         )
-        merge_fragments(project_dir, pitloom_config.fragments, exporter)
+        merged = merge_fragments(project_dir, pitloom_config.fragments, exporter)
 
         # Wheels (and sdists) must always contain a compact, RFC 8785 (JCS)
         # canonical SBOM regardless of the project's [tool.pitloom] pretty
@@ -387,7 +427,7 @@ class PitloomBuildHook(_PitloomBuildHookBase):
                 "Pitloom: staged SBOM %s (%d fragment(s)); "
                 "Hatchling will inject it into .dist-info/sboms/ in the wheel.",
                 sbom_filename,
-                len(pitloom_config.fragments),
+                merged,
             )
         except Exception:
             # self._staging_dir is assigned only once every step below has
@@ -399,9 +439,31 @@ class PitloomBuildHook(_PitloomBuildHookBase):
             staging_dir.cleanup()
             raise
 
-        self._sbom_filename = sbom_filename
         self._staging_dir = staging_dir
         self._sbom_staging_path = sbom_staging_path
+
+    def _check_name_is_free(
+        self, sbom_filename: str, build_data: dict[str, Any]
+    ) -> None:
+        """Raise unless no SBOM Hatchling will place under ``.dist-info/sboms/``
+        is already named *sbom_filename* (the entries of ``sbom-files`` and
+        of other hooks): two would be one archive name twice.
+
+        Raises:
+            ValueError: One is, typically a ``loom project`` output of the
+                same default name shipped through ``sbom-files``.
+        """
+        placed = [
+            *cast(WheelBuilderConfig, self.build_config).sbom_files,
+            *build_data.get("sbom_files", []),
+        ]
+        clash = next((p for p in placed if os.path.basename(p) == sbom_filename), None)
+        if clash is not None:
+            raise ValueError(
+                f"SBOM file name {loggable(sbom_filename)} is also the name of "
+                f"sbom-files entry {loggable(str(clash))}; set [tool.pitloom] "
+                "sbom-basename to another name or drop the entry."
+            )
 
     def finalize(
         self,
@@ -414,53 +476,6 @@ class PitloomBuildHook(_PitloomBuildHookBase):
             self._staging_dir.cleanup()
             self._staging_dir = None
             self._sbom_staging_path = None
-
-
-#: Keys that moved to [tool.pitloom] / [tool.pitloom.creation] -- one source
-#: of truth shared with the CLI -- mapped to their new location.
-_MOVED_KEYS = {
-    "sbom-basename": "[tool.pitloom] sbom-basename",
-    "fragments": "[tool.pitloom.fragment] files",
-    "creator-name": "[[tool.pitloom.creator]] (key: name)",
-    "creator-email": "[[tool.pitloom.creator]] (key: email)",
-    "creator-type": "[[tool.pitloom.creator]] (key: type)",
-    "creation-tool": "[[tool.pitloom.creation-tool]] (key: name)",
-}
-
-
-def _validate_config(config: dict[str, Any]) -> None:
-    """Validate ``[tool.hatch.build.hooks.pitloom]`` configuration values.
-
-    This section controls only whether the hook runs (``enabled``); all
-    other settings live in ``[tool.pitloom]`` / ``[tool.pitloom.creation]``.
-
-    Raises:
-        ValueError: If ``enabled`` has an unexpected type, a moved key is
-            still present here, or an unknown key is present.
-    """
-    section = "[tool.hatch.build.hooks.pitloom]"
-
-    enabled = config.get("enabled", True)
-    if not isinstance(enabled, bool):
-        raise ValueError(
-            f"{section} 'enabled' must be a boolean (true/false), "
-            f"got {type(enabled).__name__!r}."
-        )
-
-    for key, new_location in _MOVED_KEYS.items():
-        if key in config:
-            raise ValueError(
-                f"{section} {key!r} is no longer supported here; "
-                f"set it under {new_location} instead."
-            )
-
-    unknown = set(config) - {"enabled", *_MOVED_KEYS}
-    if unknown:
-        raise ValueError(
-            f"{section} unknown key(s): {sorted(unknown)!r}. "
-            "Only 'enabled' is supported; all other SBOM settings live in "
-            "[tool.pitloom] / [tool.pitloom.creation]."
-        )
 
 
 @hookimpl

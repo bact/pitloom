@@ -40,6 +40,7 @@ from pitloom.assemble.spdx3._fragments_props import (
     _paths_suffix_match,
     _signature,
 )
+from pitloom.assemble.spdx3._fragments_read import read_fragment_set
 from pitloom.assemble.spdx3._fragments_refs import (
     _dangling_refs_for_object,
     _declared_external_ids,
@@ -344,15 +345,14 @@ def _load_fragment(
     fragment_path: Path, required: bool, main_doc_id: str | None
 ) -> tuple[spdx3.SHACLObjectSet, str | None] | None:
     """The fragment's objects and its ``SpdxDocument`` id; ``None``, after
-    one ``WARNING:``, when it is missing, unreadable or the document it
+    one ``WARNING:``, when it is missing, unreadable (not RFC 8785
+    serialisable included, see :func:`read_fragment_set`) or the document it
     would merge into."""
     if _fragment_is_missing(fragment_path):
         log.warning(_missing_fragment_message(fragment_path, required=required))
         return None
     try:
-        with open(fragment_path, "rb") as f:
-            fragment_set = spdx3.SHACLObjectSet()
-            spdx3.JSONLDDeserializer().read(f, fragment_set)
+        fragment_set = read_fragment_set(fragment_path)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         log.warning(
@@ -389,8 +389,9 @@ def merge_fragments(
     exporter: Spdx3JsonExporter,
     *,
     adopt_fragment_roots: bool = False,
-) -> None:
-    """Load SPDX 3 JSON-LD fragment files and merge them into the exporter.
+) -> int:
+    """Load SPDX 3 JSON-LD fragment files and merge them into the exporter;
+    return how many were merged (a missing or unreadable one is not).
 
     The main document's ``profileConformance`` gains what the merged
     fragments' envelopes declared. With *adopt_fragment_roots*
@@ -471,3 +472,4 @@ def merge_fragments(
 
     if loaded_fragments:
         _raise_on_dangling_references(exporter)
+    return len(loaded_fragments)

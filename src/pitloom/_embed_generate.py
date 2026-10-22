@@ -15,7 +15,9 @@ and :mod:`pitloom._embed_build_sbom` (the project-backed Build SBOM and
 
 from __future__ import annotations
 
+import codecs
 import dataclasses
+import logging
 from pathlib import Path
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -44,6 +46,7 @@ from pitloom.core.inert_options import (
     EMBED_SBOM,
     EMBED_STANDALONE,
     INERT,
+    configured_options,
     settle_inert,
 )
 from pitloom.core.models import merkle_root_of_files
@@ -65,6 +68,33 @@ from pitloom.id_registry import (
     registry_copy,
     resolve_registry,
 )
+from pitloom.logging_config import loggable
+
+log = logging.getLogger(__name__)
+
+
+def _read_external_sbom(sbom_path: Path | str) -> str:
+    """The SBOM at *sbom_path* as written: its bytes decoded as UTF-8 and
+    nothing else (no newline translation), so what is embedded, and what
+    ``-o`` copies, is the file. A UTF-8 byte order mark is dropped, with one
+    ``WARNING:`` (RFC 8259 section 8.1: JSON text must not carry one).
+
+    Raises:
+        ValueError: The file is not valid UTF-8.
+    """
+    raw = Path(sbom_path).read_bytes()
+    if raw.startswith(codecs.BOM_UTF8):
+        log.warning(
+            "SBOM %s: byte order mark dropped (JSON text must not have one)",
+            loggable(str(sbom_path)),
+        )
+        raw = raw[len(codecs.BOM_UTF8) :]
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError(
+            f"SBOM {loggable(str(sbom_path))} is not valid UTF-8 (byte {exc.start})"
+        ) from exc
 
 
 def _resolve_embed_registry(
@@ -165,6 +195,31 @@ def _settle_embed_options(
     return dataclasses.replace(overrides, max_source_metadata_bytes=cap)
 
 
+def _note_inert_config(
+    proj_root: Path,
+    cfg: PitloomConfig,
+    given: dict[str, object],
+    file_cache: EmbedFileCache | None,
+) -> None:
+    """One ``INFO:`` per ``[tool.pitloom]`` key of the project set to
+    ``true`` that an embed cannot act on, unless the same option is *given*
+    (that one has its own ``WARNING:``), once per batch through *file_cache*
+    when given."""
+    configured = {
+        name: value
+        for name, value in configured_options(cfg).items()
+        if given.get(name) is None
+    }
+
+    def note() -> None:
+        settle_inert(EMBED_PROJECT, proj_root, configured, level=logging.INFO)
+
+    if file_cache is None:
+        note()
+    else:
+        file_cache.once(("inert-config", proj_root, frozenset(configured)), note)
+
+
 def _settle_project_build_options(
     build_options: BuildOptions, file_cache: EmbedFileCache | None, proj_root: Path
 ) -> BuildOptions:
@@ -222,7 +277,7 @@ def _generate_embed_sbom_json(
         _settle_embed_options(
             EMBED_SBOM, wheel_metadata.name, given, overrides, file_cache
         )
-        return Path(sbom_path).read_text(encoding="utf-8"), sbom_basename
+        return _read_external_sbom(sbom_path), sbom_basename
 
     if project_dir is None:
         _settle_build_options(
@@ -275,6 +330,7 @@ def _generate_embed_sbom_json(
     overrides = _settle_embed_options(
         EMBED_PROJECT, proj_root, given, overrides, file_cache
     )
+    _note_inert_config(proj_root, cfg, given, file_cache)
     cfg = apply_overrides(cfg, overrides)
     sbom_json = _build_sbom_from_project_and_wheel(
         proj_root,

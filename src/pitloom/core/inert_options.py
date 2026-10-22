@@ -28,12 +28,17 @@ See also: :mod:`pitloom.core.no_effect` (the message shape) and
 
 from __future__ import annotations
 
+import dataclasses
 import inspect
-from collections.abc import Callable, Mapping
-from typing import Any
+import logging
+from collections.abc import Callable, Iterable, Mapping
+from typing import TYPE_CHECKING, Any
 
 from pitloom.core.build_options import EXTERNAL_SBOM_REASON, NO_PROJECT_DIR_REASON
 from pitloom.core.no_effect import INERT_LOG_PREFIX, warn_no_effect
+
+if TYPE_CHECKING:
+    from pitloom.core.config import PitloomConfig
 
 # Target kinds. One kind per distinct set of options a target can act on.
 PROJECT = "project"
@@ -48,6 +53,7 @@ ENRICH_STANDALONE = "enrich_standalone"
 EMBED_PROJECT = "embed_project"
 EMBED_STANDALONE = "embed_standalone"
 EMBED_SBOM = "embed_sbom"
+HOOK = "hook"
 
 #: Library parameter name -> the CLI spelling a warning names. A
 #: ``BooleanOptionalAction`` flag names both spellings, since either one
@@ -129,6 +135,13 @@ _EMBED_NO_DESCRIBE = (
     "for a wheel-embedded SBOM (relationship descriptions are not embedded)"
 )
 
+_HOOK_NO_DESCRIBE = (
+    "for the Hatchling build hook (relationship descriptions are not written)"
+)
+_HOOK_NO_HARVEST = (
+    "for the Hatchling build hook (a build never writes ids back to the source tree)"
+)
+
 _NOT_A_WHEEL = "for this target (it reads AI model files from a built wheel only)"
 _PROJECT_IS_DIR = (
     "for a project directory target (its files are keyed below that directory)"
@@ -207,6 +220,10 @@ INERT: dict[str, dict[str, str]] = {
     },
     ENRICH: _ENRICH_ROW,
     ENRICH_STANDALONE: {**_ENRICH_ROW, "use_lockfile": _FRAGMENT_NO_LOCKFILE},
+    HOOK: {
+        "describe_relationship": _HOOK_NO_DESCRIBE,
+        "update_id_registry": _HOOK_NO_HARVEST,
+    },
     EMBED_PROJECT: {**_EMBED_COMMON, "trust_wheel_model": _EMBED_PROJECT_MODELS},
     EMBED_STANDALONE: {
         **_EMBED_COMMON,
@@ -242,10 +259,15 @@ EMBEDDED_SBOM_PARAMS = tuple(_EMBED_COMMON)
 
 
 def settle_inert(
-    kind: str, subject: object, given: Mapping[str, object]
+    kind: str,
+    subject: object,
+    given: Mapping[str, object],
+    *,
+    level: int = logging.WARNING,
 ) -> frozenset[str]:
     """Warn once per parameter in *given* that *kind* cannot act on, and
-    return their names so the caller drops them.
+    return their names so the caller drops them. *level* is ``logging.INFO``
+    for config keys (:func:`configured_options`), not command-line flags.
 
     A value of ``None`` means "not given" and is skipped; ``False`` and
     ``0`` are explicit choices and count (AGENTS.md's ``None``/absent vs
@@ -264,8 +286,49 @@ def settle_inert(
         if param in row and given.get(param) is not None
     ]
     for param in inert:
-        warn_no_effect(INERT_LOG_PREFIX, subject, (PARAM_TO_FLAG[param],), row[param])
+        warn_no_effect(
+            INERT_LOG_PREFIX,
+            subject,
+            (PARAM_TO_FLAG[param],),
+            row[param],
+            level=level,
+        )
     return frozenset(inert)
+
+
+def configured_options(config: PitloomConfig) -> dict[str, object]:
+    """The options *config* (``[tool.pitloom]``) sets to ``true`` that a
+    surface cannot act on, for :func:`settle_inert` at ``logging.INFO``.
+    Only a value the surface contradicts counts: ``false`` agrees with what
+    it does, and an unset key (or the ``update-id-registry`` default) was
+    never a choice."""
+    explicit: dict[str, object] = {
+        "describe_relationship": config.describe_relationship,
+        "update_id_registry": (
+            config.update_id_registry
+            if "update-id-registry" in config.table_keys
+            else None
+        ),
+    }
+    return {name: True for name, value in explicit.items() if value is True}
+
+
+def overridden_by_flags(config: PitloomConfig, names: Iterable[str]) -> PitloomConfig:
+    """*config* without the :func:`configured_options` keys in *names*: a
+    command-line flag that wins over the file, and that the caller already
+    warned about, so the file's key is not noted again."""
+    flagged = set(names)
+    return dataclasses.replace(
+        config,
+        describe_relationship=(
+            None if "describe_relationship" in flagged else config.describe_relationship
+        ),
+        table_keys=(
+            config.table_keys - {"update-id-registry"}
+            if "update_id_registry" in flagged
+            else config.table_keys
+        ),
+    )
 
 
 def forward_options(
@@ -319,12 +382,15 @@ __all__ = [
     "ENV",
     "GIT",
     "HF",
+    "HOOK",
     "INERT",
     "MODEL_FILE",
     "PARAM_TO_FLAG",
     "PROJECT",
     "SDIST",
     "WHEEL",
+    "configured_options",
     "forward_options",
+    "overridden_by_flags",
     "settle_inert",
 ]

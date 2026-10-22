@@ -32,7 +32,7 @@ section 3.6 (determinism of model metadata).
 - **`SOURCE_DATE_EPOCH` is the middle of a cascade, not the top.**
   Pitloom resolves `created` as explicit `--creation-datetime` (or its
   config key) > `SOURCE_DATE_EPOCH` > current UTC. An unparseable value is
-  ignored with `WARNING: Ignoring invalid SOURCE_DATE_EPOCH: ...`. The
+  an `ERROR:` on every surface (the specification says a build should fail). The
   enrichment fragment's `created` used the wall clock until #231 (#148, #231).
   Do: route every timestamp through one resolver; give the explicit value
   the last word.

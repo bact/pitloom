@@ -21,11 +21,11 @@ from typing import Any
 import pytest
 from installer.sources import WheelFile
 
+from pitloom._embed_stale import looks_like_pitloom_sbom
 from pitloom.core.wheel_dist_info import PROBLEM_NONE, PROBLEM_SEVERAL_NONE_MATCH
 from pitloom.embed import (
     _derive_wheel_sbom_filename,
     _find_dist_info_prefix,
-    _looks_like_pitloom_sbom,
     _resolve_zip_timestamp,
     _rewrite_wheel_archive,
     _update_record_lines,
@@ -34,7 +34,7 @@ from pitloom.embed import (
 )
 from pitloom.plugins.hatch import _default_sbom_basename
 
-from .conftest import _SAMPLE_SPDX3_JSON, _make_dummy_wheel
+from .conftest import _SAMPLE_SPDX3_JSON, _make_dummy_wheel, _spdx3_json_with_subject
 
 
 def test_find_dist_info_prefix_edge_cases(tmp_path: Path) -> None:
@@ -66,20 +66,12 @@ def test_find_dist_info_prefix_edge_cases(tmp_path: Path) -> None:
 
 
 def test_resolve_zip_timestamp_branches(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test _resolve_zip_timestamp under various invalid/fallback conditions."""
-    # Invalid string in SOURCE_DATE_EPOCH
-    monkeypatch.setenv("SOURCE_DATE_EPOCH", "not-a-number")
-    ts, floored = _resolve_zip_timestamp(fallback=(1990, 5, 1, 12, 0, 0))
-    assert ts == (1990, 5, 1, 12, 0, 0)
-    assert floored is False
-
-    # Overflow in SOURCE_DATE_EPOCH
-    monkeypatch.setenv("SOURCE_DATE_EPOCH", "99999999999999999999999999999999999")
-    ts_overflow, floored_overflow = _resolve_zip_timestamp(
-        fallback=(1995, 1, 1, 0, 0, 0)
-    )
-    assert ts_overflow == (1995, 1, 1, 0, 0, 0)
-    assert floored_overflow is False
+    """Test _resolve_zip_timestamp under invalid and fallback conditions."""
+    # An invalid SOURCE_DATE_EPOCH fails, whatever the fallback
+    for invalid in ("not-a-number", "99999999999999999999999999999999999"):
+        monkeypatch.setenv("SOURCE_DATE_EPOCH", invalid)
+        with pytest.raises(ValueError, match="SOURCE_DATE_EPOCH"):
+            _resolve_zip_timestamp(fallback=(1990, 5, 1, 12, 0, 0))
 
     # Fallback with year < 1980 clamped to 1980
     monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
@@ -340,22 +332,15 @@ def test_embed_sbom_in_wheel_chmod_oserror(
 def test_embed_sbom_drops_stale_sboms_from_archive(tmp_path: Path) -> None:
     """Test re-embedding drops prior SBOM from archive & RECORD."""
     wheel_path = _make_dummy_wheel(tmp_path, "stalepkg", "1.0.0")
+    sbom = _spdx3_json_with_subject("stalepkg", "1.0.0", pitloom_sbom_types=["build"])
 
     # 1. Embed initial SBOM under custom name 'first.spdx3.json'
-    embed_sbom_in_wheel(
-        wheel_path,
-        _SAMPLE_SPDX3_JSON,
-        sbom_filename="first.spdx3.json",
-    )
+    embed_sbom_in_wheel(wheel_path, sbom, sbom_filename="first.spdx3.json")
     with zipfile.ZipFile(wheel_path, "r") as zf:
         assert "stalepkg-1.0.0.dist-info/sboms/first.spdx3.json" in zf.namelist()
 
     # 2. Embed second SBOM under custom name 'second.spdx3.json'
-    embed_sbom_in_wheel(
-        wheel_path,
-        _SAMPLE_SPDX3_JSON,
-        sbom_filename="second.spdx3.json",
-    )
+    embed_sbom_in_wheel(wheel_path, sbom, sbom_filename="second.spdx3.json")
     with zipfile.ZipFile(wheel_path, "r") as zf:
         namelist = zf.namelist()
         assert "stalepkg-1.0.0.dist-info/sboms/second.spdx3.json" in namelist
@@ -375,7 +360,7 @@ def test_embed_sbom_drops_stale_sboms_from_archive(tmp_path: Path) -> None:
     ids=["invalid-json", "graph-not-a-list", "no-graph"],
 )
 def test_looks_like_pitloom_sbom_rejects(content: bytes) -> None:
-    assert _looks_like_pitloom_sbom(content) is False
+    assert looks_like_pitloom_sbom(content) is False
 
 
 def test_embed_sbom_orig_mode_none_skips_chmod(

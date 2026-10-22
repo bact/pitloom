@@ -20,7 +20,7 @@ import csv
 import dataclasses
 import hashlib
 import io
-import json
+import logging
 import os
 import shutil
 import tempfile
@@ -28,6 +28,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from pitloom._embed_stale import stale_sboms
 from pitloom._wheel_sbom_location import (
     _find_dist_info_prefix,
     read_wheel_member,
@@ -46,7 +47,9 @@ from pitloom.core.wheel_dist_info import (
     wheel_members,
 )
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
-from pitloom.logging_config import configure_logging
+from pitloom.logging_config import configure_logging, loggable, one_line
+
+log = logging.getLogger(__name__)
 
 _DEFAULT_FILE_ATTR = 0o644 << 16
 _ZIP_EPOCH_FLOOR = datetime(1980, 1, 1, tzinfo=timezone.utc)
@@ -82,23 +85,6 @@ def _calculate_record_hash(content: bytes) -> str:
     """Compute base64url SHA-256 digest without trailing padding (PEP 376)."""
     digest = hashlib.sha256(content).digest()
     return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
-
-
-def _looks_like_pitloom_sbom(content: bytes) -> bool:
-    """Check whether an SPDX 3 JSON-LD payload was created by Pitloom."""
-    try:
-        doc = json.loads(content)
-    except (ValueError, UnicodeDecodeError):
-        return False
-    graph = doc.get("@graph") if isinstance(doc, dict) else None
-    if not isinstance(graph, list):
-        return False
-    return any(
-        isinstance(node, dict)
-        and node.get("type") in ("Tool", "SoftwareAgent")
-        and node.get("name") == "Pitloom"
-        for node in graph
-    )
 
 
 def _update_record_lines(
@@ -296,13 +282,8 @@ def _plan_embed(
     _validate_sbom_filename(target_name)
     sbom_arcname = f"{dist_info}sboms/{target_name}"
     record_arcname = f"{dist_info}RECORD"
-    stale_arcnames = frozenset(
-        name
-        for name, info in members_by_name.items()
-        if name.startswith(f"{dist_info}sboms/")
-        and name.endswith(SPDX3_JSONLD_EXTENSION)
-        and name != sbom_arcname
-        and _looks_like_pitloom_sbom(read_wheel_member(original_zf, info))
+    stale_arcnames = stale_sboms(
+        original_zf, members_by_name, dist_info, sbom_arcname, identity
     ) | {
         f"{dist_info}{signature}"
         for signature in RECORD_SIGNATURES
@@ -472,8 +453,12 @@ def embed_sbom_in_wheel(
         if orig_mode is not None:
             try:
                 os.chmod(wheel_obj, orig_mode)
-            except OSError:
-                pass
+            except OSError as exc:
+                log.warning(
+                    "%s: file mode not restored: %s",
+                    loggable(wheel_obj.name),
+                    one_line(exc),
+                )
     finally:
         if temp_path.exists():
             temp_path.unlink()

@@ -160,6 +160,11 @@ class PitloomConfig:
     creation_comment: str | None = None
     id_registry: str | None = None
     update_id_registry: bool = True
+    #: The keys the ``[tool.pitloom]`` table itself holds, as written, and
+    #: not part of a config's equality: what tells a choice from a default
+    #: (``update_id_registry`` is ``True`` either way), for a surface that
+    #: ignores a key (:func:`pitloom.core.inert_options.configured_options`).
+    table_keys: frozenset[str] = field(default=frozenset(), compare=False, repr=False)
     provenance_format: str = "both"
     provenance_schema: str = _DEFAULT_PROVENANCE_SCHEMA
     provenance_detail: str = "minimal"

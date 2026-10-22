@@ -74,12 +74,39 @@ The table's `enabled` key defaults to `true`, so an empty
 inside it to skip generation for a particular build without removing
 the table.
 
+Besides `enabled`, the table takes the keys Hatchling itself reads from any
+hook (`enable-by-default`, `dependencies`, `require-runtime-dependencies`,
+`require-runtime-features`); any other key is an error.
+
 Status/skip/deviation messages the hook logs during a build follow the
 same grep-able `INFO:`/`WARNING:`/`ERROR:` stderr convention as the
 `loom` CLI (see [Command line](cli.md)) -- e.g. a merge failure (see
 [Merge fragments](fragments.md#merge-fragments)) fails the build outright
-with an `ERROR:` line, and "generation skipped: hook disabled" is an
-`INFO:`.
+with an `ERROR: SBOM generation failed: <reason>` line (once, whatever the
+cause: an invalid setting, a missing `required = true` fragment, a malformed
+`SOURCE_DATE_EPOCH`), and "generation skipped: hook disabled" is an `INFO:`.
+
+The hook skips, with one `INFO:`, a build that is not a wheel (an sdist) and
+the `editable` variant of a wheel: an editable wheel holds a `.pth` file, not
+the project's files, so an SBOM would list files that are not in it.
+
+A `[tool.hatch.build.targets.wheel]` `sbom-files` entry with the same file
+name as the hook's SBOM (typically `loom project`'s default
+`<name>-<version>.spdx3.json`) is an `ERROR:`, as the wheel would hold the name
+twice: set `[tool.pitloom] sbom-basename` to another name, or drop the entry.
+
+## Reproducible builds
+
+With `SOURCE_DATE_EPOCH` set (or `creation-datetime` in
+`[tool.pitloom.creation]`), repeated builds of unchanged sources give the same
+wheel bytes. Without either, the SBOM's `created` and its package's `builtTime`
+come from the clock, so the wheel differs between builds even though Hatchling
+itself is reproducible; the hook says so with one `INFO:`. A
+`SOURCE_DATE_EPOCH` that is not an integer number of seconds (or is out of
+range) is an `ERROR:` that fails the build, as the
+[specification][source-date-epoch] asks, even with `creation-datetime` set.
+
+[source-date-epoch]: https://reproducible-builds.org/specs/source-date-epoch/
 
 ## Configuration
 
@@ -93,6 +120,13 @@ sbom-basename = "custom-bom"       # -> "custom-bom.spdx3.json" (default: "<name
 [tool.pitloom.fragment]
 files = ["fragments/model.json"]   # merge externally tracked fragments
 ```
+
+The hook does not act on `describe-relationship` or `update-id-registry`: a
+build backend does not write to the source tree (an ID registry is read, never
+updated, as with `embed-wheel`), and relationship descriptions are not written.
+Each of them set to `true` in `[tool.pitloom]` gets one
+`INFO: Options: ... has no effect` line (`false` agrees with the hook, so is
+silent); harvest ids with `loom project` instead.
 
 Creator/tool metadata uses the same `[[tool.pitloom.creator]]` /
 `[[tool.pitloom.creation-tool]]` / `[tool.pitloom.creation]` tables the

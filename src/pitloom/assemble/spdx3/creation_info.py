@@ -221,12 +221,13 @@ def build_creation_info(
     set, else *default_comment*. The creator Agents go in ``createdBy`` and
     the Tools (when present) in ``createdUsing``.
     """
+    # Read first, so a malformed value fails whether or not a date is pinned.
+    epoch_dt = resolve_source_date_epoch()
     if creation_metadata.creation_datetime:
         created = to_spdx3_datetime(
             parse_iso_datetime(creation_metadata.creation_datetime)
         )
     else:
-        epoch_dt = resolve_source_date_epoch()
         created = (
             to_spdx3_datetime(epoch_dt) if epoch_dt is not None else spdx3_utc_now()
         )

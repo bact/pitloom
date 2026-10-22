@@ -22,6 +22,8 @@ import socket
 import ssl
 import urllib.error
 
+from pitloom.extract.remote.errors import RemoteSourceError
+
 #: POSIX errnos of a network-level failure (plain ``OSError`` carries these).
 _NETWORK_ERRNOS = frozenset(
     {
@@ -50,6 +52,18 @@ _NETWORK_TEXT = re.compile(
     r"RemoteDisconnected|IncompleteRead|HTTP Error (?:429|5\d\d)|"
     r"WinError (?:1005[0-4]|10060|10061|10065|1100[1-4])|"
     r"Could not find a version that satisfies|No matching distribution",
+    re.IGNORECASE,
+)
+
+# How ``git`` (libcurl) words a network failure in a ``RemoteSourceError``.
+_GIT_NETWORK_TEXT = re.compile(
+    r"Failed to connect to|Could not connect to server|Could not resolve host|"
+    r"Connection (?:timed out|refused|reset)|Operation timed out|"
+    r"SSL connection timeout|Recv failure|GnuTLS recv error|"
+    r"Empty reply from server|returned error: (?:429|5\d\d)|"
+    r"schannel: .*(?:handshake|SSL/TLS connection failed)|"
+    r"SSL_ERROR_SYSCALL|RPC failed; curl|early EOF|"
+    r"HTTP/2 stream \d+ was not closed cleanly",
     re.IGNORECASE,
 )
 
@@ -113,9 +127,13 @@ def _is_network_exception(exc: BaseException) -> bool:
         return not str(reason).startswith(_URL_ERROR_LOCAL_REASONS)
     if isinstance(exc, http.client.InvalidURL):
         return False
-    if isinstance(exc, _NETWORK_EXCEPTIONS):
-        return True
-    return isinstance(exc, OSError) and _is_network_oserror(exc)
+    if isinstance(exc, RemoteSourceError):
+        # git's deadline (``git.timeout``) is a slow server; its own failures
+        # carry curl's wording.
+        return exc.code == "git.timeout" or bool(_GIT_NETWORK_TEXT.search(str(exc)))
+    return isinstance(exc, _NETWORK_EXCEPTIONS) or (
+        isinstance(exc, OSError) and _is_network_oserror(exc)
+    )
 
 
 def network_cause_of(exc: BaseException) -> str | None:

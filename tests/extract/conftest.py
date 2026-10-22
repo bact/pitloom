@@ -63,9 +63,9 @@ def make_hook(
     ``project_metadata``, and ``target_name`` under mangled names and exposes them as
     read-only properties, so we set the mangled attributes directly via
     ``object.__setattr__``.  A bare ``SimpleNamespace`` satisfies
-    ``build_config`` -- ``initialize()`` does not access it (file discovery
-    uses ``WheelBuilder`` directly), but the slot must exist to prevent
-    ``AttributeError`` from base-class property access.
+    ``build_config``: ``initialize()`` reads only its ``sbom_files`` (the project's
+    own SBOM files, none here), and file discovery uses ``WheelBuilder``
+    directly.
 
     ``project_metadata`` is a real ``hatchling.metadata.core.ProjectMetadata`` bound
     to *root*, matching what Hatchling itself passes to a build hook; its
@@ -76,7 +76,9 @@ def make_hook(
     object.__setattr__(hook, "_BuildHookInterface__root", root)
     object.__setattr__(hook, "_BuildHookInterface__config", config)
     object.__setattr__(
-        hook, "_BuildHookInterface__build_config", types.SimpleNamespace()
+        hook,
+        "_BuildHookInterface__build_config",
+        types.SimpleNamespace(sbom_files=[]),
     )
     object.__setattr__(
         hook,
@@ -86,7 +88,6 @@ def make_hook(
     object.__setattr__(hook, "_BuildHookInterface__target_name", target_name)
     hook._staging_dir = None
     hook._sbom_staging_path = None
-    hook._sbom_filename = "sbom.spdx3.json"
     return hook
 
 

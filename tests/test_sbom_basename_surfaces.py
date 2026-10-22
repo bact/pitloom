@@ -284,7 +284,7 @@ def test_hatchling_hook_strips_the_extension(
         hook = make_hook(tmp, {})
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
-        assert hook._sbom_filename == "x.spdx3.json"  # pylint: disable=protected-access
+        assert [Path(p).name for p in build_data["sbom_files"]] == ["x.spdx3.json"]
         hook.finalize("standard", build_data, "")
     assert len(logged_warnings(caplog)) == 1
 

@@ -7,12 +7,9 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-
-log = logging.getLogger(__name__)
 
 #: Valid ``Creator.type`` values -- the SPDX 3 Agent subclass a creator maps
 #: onto is selected by one of these names.  ``"agent"`` is the generic base
@@ -150,17 +147,30 @@ def resolve_source_date_epoch() -> datetime | None:
     one place.
 
     Returns:
-        The resolved UTC datetime, or ``None`` when unset or invalid
-        (logged as a warning) -- callers fall back to their own default.
+        The resolved UTC datetime, or ``None`` when unset or empty --
+        callers fall back to their own default.
+
+    Raises:
+        ValueError: It is set and not an integer number of seconds, or out
+            of range for a date: the specification says a build should fail
+            on a malformed value, as Hatchling does. Every SBOM entry point
+            reads it, whether or not a creation date is pinned, so each
+            reports the one exception, once.
     """
     raw = os.environ.get("SOURCE_DATE_EPOCH")
     if not raw:
         return None
     try:
-        return datetime.fromtimestamp(int(raw), tz=timezone.utc)
+        seconds = int(raw)
+    except ValueError as exc:
+        raise ValueError(
+            f"SOURCE_DATE_EPOCH={raw!r} is not an integer number of seconds "
+            "since the Unix epoch"
+        ) from exc
+    try:
+        return datetime.fromtimestamp(seconds, tz=timezone.utc)
     except (ValueError, OverflowError, OSError) as exc:
-        log.warning("Ignoring invalid SOURCE_DATE_EPOCH: %s", exc)
-        return None
+        raise ValueError(f"SOURCE_DATE_EPOCH={raw!r} is out of range") from exc
 
 
 __all__ = [

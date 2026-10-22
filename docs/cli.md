@@ -332,10 +332,18 @@ header from, and a wheel-embedded SBOM is always canonical JSON regardless of
 | enrich without --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--content-type-method`, `--max-source-metadata-bytes`, `--use-lockfile`, `--update-id-registry` |
 | embed-wheel --project-dir | `--pretty`, `--describe-relationship`, `--trust-wheel-model`, `--update-id-registry` |
 | embed-wheel without --project-dir | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--update-id-registry` |
+| Hatchling build hook | `--describe-relationship`, `--update-id-registry` |
 | embed-wheel --sbom | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--content-type-method`, `--max-source-metadata-bytes`, `--offline`, `--id-registry`, `--update-id-registry`, `--creator-*`, `--config`, `--project-dir` |
 
 Each `--flag` also covers its `--no-flag` form where one exists (e.g.
 `--no-enrich`); the warning names both, e.g. `--enrich/--no-enrich`.
+
+The `Hatchling build hook` row is not a command: the hook reads
+`[tool.pitloom]`, not flags, so a key set to `true` there is noted with one
+`INFO:` (same wording, the flag's spelling) rather than a warning. `false`
+agrees with what the hook does and is not noted. `embed-wheel --project-dir`
+does the same for a key in the project's `[tool.pitloom]`, except one whose
+flag was also given (that flag has its own warning).
 
 The `--describe-relationship` warning on `embed-wheel`/`enrich` is a current
 decision, not a permanent one. `--use-lockfile` is offered only by `project`,

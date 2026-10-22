@@ -162,7 +162,11 @@ _SAMPLE_SPDX3_JSON = json.dumps(
 
 
 def _spdx3_json_with_subject(
-    name: str | None, version: str | None, *, subject_type: str = "software_Package"
+    name: str | None,
+    version: str | None,
+    *,
+    subject_type: str = "software_Package",
+    pitloom_sbom_types: list[str] | None = None,
 ) -> str:
     """Render a minimal valid SPDX3 JSON-LD ``SpdxDocument`` ->
     ``software_Sbom`` -> subject-package id-chain, with a controllable
@@ -172,7 +176,9 @@ def _spdx3_json_with_subject(
 
     *name*/*version* of ``None`` omit that field from the subject node
     entirely (e.g. to model an `ai_AIPackage`-shaped subject with no
-    `software_packageVersion`).
+    `software_packageVersion`). *pitloom_sbom_types* makes it a Pitloom SBOM
+    of those ``software_sbomType`` values (a Pitloom ``SoftwareAgent`` and
+    the types on the ``software_Sbom``).
     """
     subject: dict[str, Any] = {
         "type": subject_type,
@@ -182,23 +188,25 @@ def _spdx3_json_with_subject(
         subject["name"] = name
     if version is not None:
         subject["software_packageVersion"] = version
-    return json.dumps(
+    sbom: dict[str, Any] = {
+        "type": "software_Sbom",
+        "spdxId": "https://spdx.org/spdxdocs/sample-doc-123/sbom",
+        "rootElement": [subject["spdxId"]],
+    }
+    graph: list[dict[str, Any]] = [
         {
-            "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
-            "@graph": [
-                {
-                    "type": "SpdxDocument",
-                    "spdxId": "https://spdx.org/spdxdocs/sample-doc-123",
-                    "rootElement": ["https://spdx.org/spdxdocs/sample-doc-123/sbom"],
-                },
-                {
-                    "type": "software_Sbom",
-                    "spdxId": "https://spdx.org/spdxdocs/sample-doc-123/sbom",
-                    "rootElement": [subject["spdxId"]],
-                },
-                subject,
-            ],
-        }
+            "type": "SpdxDocument",
+            "spdxId": "https://spdx.org/spdxdocs/sample-doc-123",
+            "rootElement": ["https://spdx.org/spdxdocs/sample-doc-123/sbom"],
+        },
+        sbom,
+        subject,
+    ]
+    if pitloom_sbom_types is not None:
+        sbom["software_sbomType"] = pitloom_sbom_types
+        graph.append({"type": "SoftwareAgent", "spdxId": "urn:a", "name": "Pitloom"})
+    return json.dumps(
+        {"@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld", "@graph": graph}
     )
 
 

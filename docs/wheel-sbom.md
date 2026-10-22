@@ -56,8 +56,16 @@ against the wheel's own `.dist-info/METADATA` *before* anything is written. A
 mismatch is an `ERROR:` that aborts the embed (exit 1, nothing written);
 `--allow-mismatch` downgrades it to a `WARNING:` and embeds anyway (for
 best-effort CI). A Pitloom-generated SBOM (no `--sbom`) is never checked: it
-is built from the same metadata. An external SBOM is embedded verbatim and may
-list `.dist-info` files.
+is built from the same metadata. An external SBOM is embedded verbatim, byte
+for byte (line endings included; `-o` writes the same bytes), and may list
+`.dist-info` files. It must be UTF-8: other bytes are an `ERROR:`, and a
+UTF-8 byte order mark is dropped with a `WARNING:` (RFC 8259 section 8.1).
+
+Embedding again replaces an earlier SBOM only when Pitloom made it, it is a
+build or analyzed SBOM (`software_sbomType`), and it is of the same name and
+version as the wheel. Any other `.dist-info/sboms/*.spdx3.json` made by Pitloom
+stays, with one `WARNING:` naming it. This includes the build SBOM the
+Hatchling hook embedded: embedding an external `--sbom` replaces it.
 
 Or use `--embed` on `loom wheel`:
 

@@ -24,9 +24,11 @@ from installer.sources import WheelFile
 
 from pitloom import __main__
 
-from .conftest import _SAMPLE_SPDX3_JSON, _make_dummy_wheel
+from .conftest import _make_dummy_wheel, _spdx3_json_with_subject
 
 _STALE = "demo_pkg-1.0.0.dist-info/sboms/stale.spdx3.json"
+#: A Pitloom build SBOM of the wheel: what a re-embed replaces.
+_PRIOR = _spdx3_json_with_subject("demo_pkg", "1.0.0", pitloom_sbom_types=["build"])
 
 
 def _run(monkeypatch: pytest.MonkeyPatch, *argv: str | Path) -> int:
@@ -41,7 +43,7 @@ def test_reembed_lists_no_prior_sbom(
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
     wheel = _make_dummy_wheel(
         tmp_path / "dist",
-        extra_members={_STALE: _SAMPLE_SPDX3_JSON.encode("utf-8")},
+        extra_members={_STALE: _PRIOR.encode("utf-8")},
     )
     (tmp_path / "pyproject.toml").write_text(
         '[project]\nname = "demo_pkg"\nversion = "1.0.0"\n', encoding="utf-8"
