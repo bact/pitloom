@@ -23,6 +23,7 @@ from pathlib import Path
 
 import pytest
 
+from pitloom.extract.remote.errors import RemoteSourceError
 from tests._network import (
     REQUIRE_NETWORK_ENV,
     assert_spdx3_validate_ok,
@@ -483,3 +484,40 @@ def test_declares_network_spellings(
     path = tmp_path / "test_x.py"
     path.write_text(source, encoding="utf-8")
     assert declares_network(path) is expected
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        RemoteSourceError(
+            "git.clone-failed",
+            "fatal: unable to access 'https://h/r/': Failed to connect to h port "
+            "443 after 21443 ms: Could not connect to server",
+        ),
+        RemoteSourceError("git.clone-failed", "fatal: Could not resolve host: h"),
+        RemoteSourceError(
+            "git.clone-failed", "fatal: ... The requested URL returned error: 503"
+        ),
+        RemoteSourceError("git.timeout", "git clone exceeded 600s"),
+    ],
+    ids=["connect", "dns", "http-503", "deadline"],
+)
+def test_a_git_network_failure_skips(exc: Exception) -> None:
+    assert network_cause_of(exc) is not None
+    with pytest.raises(pytest.skip.Exception, match="network unavailable"):
+        with skip_on_network_error():
+            raise exc
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        RemoteSourceError("git.clone-failed", "fatal: repository 'h' not found"),
+        RemoteSourceError("git.clone-failed", "fatal: Authentication failed"),
+        RemoteSourceError("git.ref-not-found", "No branch or tag 'x'"),
+        RemoteSourceError("git.clone-failed", "returned error: 404"),
+    ],
+    ids=["not-found", "auth", "ref", "http-404"],
+)
+def test_a_git_failure_that_is_not_the_network_propagates(exc: Exception) -> None:
+    assert network_cause_of(exc) is None

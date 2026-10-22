@@ -26,7 +26,6 @@ import shutil
 import tempfile
 import zipfile
 from datetime import datetime, timezone
-from os import chmod
 from pathlib import Path
 
 from pitloom._embed_stale import stale_sboms
@@ -453,7 +452,7 @@ def embed_sbom_in_wheel(
         os.replace(temp_path, wheel_obj)
         if orig_mode is not None:
             try:
-                chmod(wheel_obj, orig_mode)
+                os.chmod(wheel_obj, orig_mode)
             except OSError as exc:
                 log.warning(
                     "%s: file mode not restored: %s",
