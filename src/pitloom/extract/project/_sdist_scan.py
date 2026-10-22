@@ -25,6 +25,7 @@ from pitloom.core.archive_member_names import file_members, zip_file_members
 from pitloom.core.file_hash import DigestHasher, FileDigests
 from pitloom.core.project import ProjectFile, digest_fields
 from pitloom.core.wheel_dist_info import HeaderBlockOverCap, read_header_block
+from pitloom.extract._extract_utils import quote_source
 from pitloom.extract._license_detect import (
     LICENSE_FILE_CAP,
     license_source_names,
@@ -162,6 +163,30 @@ def _project_path(name: str, raw: str, strip_top: str | None) -> str:
     return raw
 
 
+_SHARED_PATHS_SHOWN = 5
+
+
+def _warn_shared_paths(files: list[ProjectFile], archive: str) -> None:
+    """One ``WARNING:`` when members of *archive* share a project path (a
+    member outside the top directory next to one inside it, as in a
+    malformed sdist), naming up to :data:`_SHARED_PATHS_SHOWN` of them."""
+    seen: set[str] = set()
+    shared: dict[str, None] = {}
+    for file in files:
+        if file.physical_path in seen:
+            shared[file.physical_path] = None
+        seen.add(file.physical_path)
+    if shared:
+        names = ", ".join(map(quote_source, list(shared)[:_SHARED_PATHS_SHOWN]))
+        log.warning(
+            "%s: members share a project path (%s%s); an ID registry keeps no "
+            "id for them",
+            quote_source(archive),
+            names,
+            ", ..." if len(shared) > _SHARED_PATHS_SHOWN else "",
+        )
+
+
 def _scan(
     entries: Iterator[_Entry],
     *,
@@ -214,6 +239,8 @@ def _scan(
                     **digest_fields(digest),
                 )
             )
+    if not root_only:
+        _warn_shared_paths(members.files, archive)
     return members
 
 

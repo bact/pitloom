@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -128,7 +128,7 @@ nothing: check the `holds N id(s)` count); `-o -` is a usage error, exit 2):
 ```bash
 loom id generate <PATH...> -o loom-id-registry.json   # index files and AI models
 loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
-# more: --project-dir DIR  --namespace IRI  -e NAME[:TYPE] (repeatable); import takes none
+# more: --project-dir DIR (both; import from above the project needs it)  --namespace IRI  -e NAME[:TYPE] (repeatable, generate only)
 ```
 
 - `-o`/`--id-registry` is required unless the project config already
