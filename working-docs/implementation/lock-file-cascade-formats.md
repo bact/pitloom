@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -145,7 +145,8 @@ similar in spirit:
 
 - **Loading the lock file.** "Try to read/parse it; absent -> empty
   result, silently; malformed -> empty result, with a `WARNING:`" was
-  factored into `pitloom.extract.lock.common.load_lock_toml()`, which every
+  factored into `load_lock_toml()` (`extract/lock/_lock_io.py`, re-exported by
+  `common`), which every
   TOML-based format extractor uses (`poetry.py`, `pylock.py`,
   `uv.py`, `pdm.py`). `pipfile.py` (JSON, not TOML)
   needed the same contract but couldn't reuse a TOML-specific parser, so

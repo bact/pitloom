@@ -22,6 +22,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import pitloom.extract.lock._lock_io as lock_io
 import pitloom.extract.lock.common as lock_common
 from pitloom.extract._extract_utils import FETCH_MAX_BYTES, quote_source
 from pitloom.extract.lock.common import load_lock_json, load_lock_toml
@@ -89,14 +90,14 @@ def test_load_lock_toml_no_cache_key_skips_caching(
 ) -> None:
     """When the file's identity cannot be determined (e.g. a stat() race), the
     parse succeeds and is not cached."""
-    monkeypatch.setattr(lock_common, "_lock_file_cache_key", lambda _path: None)
-    cache_size_before = len(lock_common._LOCK_FILE_CACHE)
+    monkeypatch.setattr(lock_io, "_lock_file_cache_key", lambda _path: None)
+    cache_size_before = len(lock_io._LOCK_FILE_CACHE)
     with tempfile.TemporaryDirectory() as tmp:
         lock_path = Path(tmp) / "some.lock"
         lock_path.write_text('key = "value"\n', encoding="utf-8")
 
         assert load_lock_toml(lock_path) == {"key": "value"}
-        assert len(lock_common._LOCK_FILE_CACHE) == cache_size_before
+        assert len(lock_io._LOCK_FILE_CACHE) == cache_size_before
 
 
 def test_load_lock_json_second_read_of_same_file_is_cached() -> None:
@@ -114,14 +115,14 @@ def test_load_lock_json_second_read_of_same_file_is_cached() -> None:
 def test_load_lock_json_no_cache_key_skips_caching(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(lock_common, "_lock_file_cache_key", lambda _path: None)
-    cache_size_before = len(lock_common._LOCK_FILE_CACHE)
+    monkeypatch.setattr(lock_io, "_lock_file_cache_key", lambda _path: None)
+    cache_size_before = len(lock_io._LOCK_FILE_CACHE)
     with tempfile.TemporaryDirectory() as tmp:
         lock_path = Path(tmp) / "some.json"
         lock_path.write_text('{"key": "value"}', encoding="utf-8")
 
         assert load_lock_json(lock_path) == {"key": "value"}
-        assert len(lock_common._LOCK_FILE_CACHE) == cache_size_before
+        assert len(lock_io._LOCK_FILE_CACHE) == cache_size_before
 
 
 def test_load_lock_json_invalid_utf8_returns_none_and_warns(
@@ -187,8 +188,8 @@ def test_a_parser_resource_error_is_a_bad_file(
     def _fails(_raw: bytes) -> object:
         raise error
 
-    monkeypatch.setattr(lock_common, "load_toml_bytes", _fails)
-    monkeypatch.setattr(lock_common, "json", SimpleNamespace(loads=_fails))
+    monkeypatch.setattr(lock_io, "load_toml_bytes", _fails)
+    monkeypatch.setattr(lock_io, "json", SimpleNamespace(loads=_fails))
     lock_path = tmp_path / "some.lock"
     lock_path.write_text("{}", encoding="utf-8")
     with caplog.at_level(logging.WARNING):
@@ -241,7 +242,7 @@ def test_fifo_is_refused_without_blocking(
 def test_lock_file_cache_keeps_the_two_most_recent_files(tmp_path: Path) -> None:
     """The memo is bounded (the pin pass, then the hash pass): the least
     recently used file is dropped first."""
-    lock_common._LOCK_FILE_CACHE.clear()
+    lock_io._LOCK_FILE_CACHE.clear()
     paths = [tmp_path / f"{i}.toml" for i in range(3)]
     for path in paths:
         path.write_text("a = 1\n", encoding="utf-8")
@@ -250,8 +251,8 @@ def test_lock_file_cache_keeps_the_two_most_recent_files(tmp_path: Path) -> None
     load_lock_toml(second)
     load_lock_toml(first)  # first is now the most recent
     load_lock_toml(third)
-    assert [key[0] for key in lock_common._LOCK_FILE_CACHE] == [first, third]
-    lock_common._LOCK_FILE_CACHE.clear()
+    assert [key[0] for key in lock_io._LOCK_FILE_CACHE] == [first, third]
+    lock_io._LOCK_FILE_CACHE.clear()
 
 
 @_LOADERS

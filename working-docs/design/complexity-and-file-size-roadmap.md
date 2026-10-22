@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-22
 SPDX-FileCopyrightText: 2026 Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,8 +38,9 @@ Snapshot of 2026-10-21 (`wc -l`). Organic growth keeps crossing the soft limit,
 none of it individually large enough to trip review attention:
 
 - **`src/`** (soft limit 400-500, hard cap 800): 42 files exceed 400 lines and
-  11 exceed 500. Worst: `extract/lock/common.py` (611),
-  `assemble/spdx3/deps_license.py` (520), `extract/lock/uv.py` (518),
+  10 exceed 500 (`extract/lock/common.py` was split into `_lock_io.py` and
+  `_pins.py`). Worst: `assemble/spdx3/deps_license.py` (520),
+  `extract/lock/uv.py` (518),
   `extract/ai_model/pytorch_pt2.py` and `export/spdx3_json.py` (515 each),
   `extract/remote/huggingface_field.py` and `core/ai_metadata.py` (508 each),
   `extract/_license.py` (507), `extract/ai_model/hdf5_config.py` (505),
