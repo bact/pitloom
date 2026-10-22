@@ -102,6 +102,8 @@ and this project adheres to
 - A fragment that cannot be canonicalised (integer past 2^53, `1e999`) is skipped
   with a `WARNING:`; an existing Relationship description is kept; frontmatter
   delimiters are whole lines ([#322])
+- The Hatchling hook no longer keeps the private `_sbom_staging_path`; its tests read
+  the staged SBOM from `build_data["sbom_files"]` ([#325])
 
 ### Fixed
 
@@ -172,6 +174,7 @@ and this project adheres to
 [#318]: https://github.com/bact/pitloom/pull/318
 [#322]: https://github.com/bact/pitloom/pull/322
 [#323]: https://github.com/bact/pitloom/pull/323
+[#325]: https://github.com/bact/pitloom/pull/325
 
 ## [0.20.2] - 2026-10-09
 
