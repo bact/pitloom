@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -157,6 +157,8 @@ and this project adheres to
   non-regular file, an invalid name or a padded version;
   a uv member of another name supplies no dependencies;
   URL passwords are masked whole ([#323])
+- A lock file never read says `Cannot read`, not `Failed to parse`;
+  Hatchling hook: an `sbom-files` name clash is refused ignoring case ([#326])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
@@ -172,6 +174,7 @@ and this project adheres to
 [#318]: https://github.com/bact/pitloom/pull/318
 [#322]: https://github.com/bact/pitloom/pull/322
 [#323]: https://github.com/bact/pitloom/pull/323
+[#326]: https://github.com/bact/pitloom/pull/326
 
 ## [0.20.2] - 2026-10-09
 
