@@ -168,7 +168,10 @@ def _dataset_key(
         if found.path:
             if found.key == name:
                 return name, None
-            return found.key, (DATASET_PATH_KEY_INFO, (loggable(name), found.key))
+            return found.key, (
+                DATASET_PATH_KEY_INFO,
+                (loggable(name), loggable(found.key)),
+            )
     outside = any(os.path.lexists(path) for path in paths)
     reason = name_key_reason(paths[0]) if outside else IMPORT_NOT_FOUND
     return name, (DATASET_NAME_KEY_INFO, (loggable(name), reason))
@@ -230,7 +233,9 @@ class _Planner:
         held = self.held.get(sha or "", [])
         if len(held) == 1:
             written = self.key(obj, AI_PACKAGE_TYPE, held[0])
-            self.note(obj, written, (MODEL_FILE_ENTRY_KEY_INFO, (name, held[0])))
+            self.note(
+                obj, written, (MODEL_FILE_ENTRY_KEY_INFO, (name, loggable(held[0])))
+            )
             return
         self.note(obj, own, (MODEL_NAME_KEY_INFO, (name,)))
 

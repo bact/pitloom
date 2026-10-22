@@ -20,10 +20,9 @@ import time
 from dataclasses import dataclass, field
 from typing import IO, cast
 
-from pitloom.extract._extract_utils import sanitize_url_credentials
 from pitloom.extract.remote import git_url
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.logging_config import loggable
+from pitloom.logging_config import loggable, sanitize_url_credentials
 
 log = logging.getLogger(__name__)
 

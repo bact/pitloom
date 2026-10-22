@@ -28,10 +28,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
-from pitloom.extract._extract_utils import sanitize_url_credentials
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.git_url import scheme_allowed
-from pitloom.logging_config import loggable
+from pitloom.logging_config import loggable, sanitize_url_credentials
 
 log = logging.getLogger(__name__)
 

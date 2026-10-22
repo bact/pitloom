@@ -26,8 +26,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from urllib.parse import unquote, urlsplit, urlunsplit
 
-from pitloom.extract._extract_utils import sanitize_url_credentials
 from pitloom.extract.remote.errors import RemoteSourceError
+from pitloom.logging_config import sanitize_url_credentials
 
 __all__ = [
     "ALLOWED_SCHEMES",
