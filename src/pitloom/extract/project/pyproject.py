@@ -37,7 +37,7 @@ from pitloom.extract._license import (
     classify_license,
 )
 from pitloom.extract._license_detect import read_license_members
-from pitloom.extract.lock._common import POETRY_LOCK_SOURCE_NAME
+from pitloom.extract.lock.common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract.lock.poetry import extract_poetry_lock_dependencies
 from pitloom.extract.lock.poetry_hash import extract_poetry_lock_hashes
 from pitloom.extract.project._poetry_extras import (

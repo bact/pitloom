@@ -41,7 +41,7 @@ from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract._core_metadata import core_metadata_license_with_source
 from pitloom.extract._extract_utils import pkg_meta_get
-from pitloom.extract.lock._common import is_same_version, single_exact_pin
+from pitloom.extract.lock.common import is_same_version, single_exact_pin
 
 _VERSION_OPERATORS = ("===", "~=", "!=", "==", ">=", "<=", ">", "<")
 _HOMEPAGE_LABELS = ("homepage", "home page", "home")
@@ -114,7 +114,7 @@ def _extract_exact_pin(dep: str) -> tuple[Requirement | None, str | None]:
     """Parse *dep* into a Requirement and extract an exact pin (== or ===),
     if any of its (possibly several) specifier clauses is one.
 
-    Unlike :func:`pitloom.extract.lock._common.single_exact_pin` (which
+    Unlike :func:`pitloom.extract.lock.common.single_exact_pin` (which
     requires the *entire* specifier set to be one exact pin -- correct for
     a lock file's own ``version`` field, always a single specifier), a
     general PEP 508 dependency string can legitimately combine an exact

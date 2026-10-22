@@ -22,11 +22,11 @@ from typing import Any
 from packaging.utils import canonicalize_name
 from packaging.version import Version
 
-from pitloom.extract.lock._common import (
+from pitloom.extract.lock._hash_selection import select_sha256_hash
+from pitloom.extract.lock.common import (
     canonical_name_and_pinned_version,
     version_key,
 )
-from pitloom.extract.lock._hash_selection import select_sha256_hash
 
 __all__ = [
     "index_packages_by_name_and_version",
@@ -45,10 +45,10 @@ def index_packages_by_name_and_version(
     share the same resolved name and version, each contributing its own
     artifact set.
 
-    Using :func:`~pitloom.extract.lock._common.version_key` ensures PEP 440
+    Using :func:`~pitloom.extract.lock.common.version_key` ensures PEP 440
     equivalences (e.g. ``"1.0"`` and ``"1.0.0"`` across branches) index
     together into the same bucket, matching the pin extractor's own
-    :func:`~pitloom.extract.lock._common.is_same_version` agreement.
+    :func:`~pitloom.extract.lock.common.is_same_version` agreement.
     """
     index: dict[tuple[str, Version | str], list[dict[str, Any]]] = {}
     for pkg in packages:

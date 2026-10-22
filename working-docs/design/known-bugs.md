@@ -156,7 +156,7 @@ Size: S under half a day, M about a day.
 - [ ] **A very long version number crashes lock-file reading (S).**
   `packaging.Version("1." + "9" * 5000)` raises a plain `ValueError`
   (int digit limit), not `InvalidVersion`; `version_key`,
-  `is_usable_version` and `is_same_version` in `extract/lock/_common.py`
+  `is_usable_version` and `is_same_version` in `extract/lock/common.py`
   catch only the latter. #266 fixed the same class in `verify-wheel`.
   #287 adds a caller: the setuptools `version` conflict check
   (`_field_agreement.values_agree`) crashes the directory read on

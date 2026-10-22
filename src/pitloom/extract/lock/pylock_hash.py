@@ -22,14 +22,14 @@ from pathlib import Path, PureWindowsPath
 from typing import Any
 
 from pitloom.extract._extract_utils import filename_from_url
-from pitloom.extract.lock._common import (
-    load_lock_toml,
-    version_key,
-)
 from pitloom.extract.lock._hash import (
     index_packages_by_name_and_version,
     package_artifacts,
     resolve_locked_hashes,
+)
+from pitloom.extract.lock.common import (
+    load_lock_toml,
+    version_key,
 )
 
 __all__ = ["extract_pylock_hashes"]

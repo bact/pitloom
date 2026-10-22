@@ -35,8 +35,10 @@ from packaging.markers import InvalidMarker
 from packaging.utils import canonicalize_name
 
 from pitloom.core.pep508 import parse_marker
-from pitloom.extract.lock._common import (
+from pitloom.extract._extract_utils import quote_source
+from pitloom.extract.lock.common import (
     find_first_present_key,
+    is_usable_name,
     is_usable_version,
     load_lock_toml,
     resolve_pinned_dependencies,
@@ -46,6 +48,7 @@ from pitloom.extract.lock._common import (
     warn_non_registry_source,
     warn_top_level_key_wrong_type,
 )
+from pitloom.logging_config import one_line
 
 log = logging.getLogger(__name__)
 
@@ -101,7 +104,7 @@ def _extract_validated_packages(
         log.warning(
             "%s: missing or malformed top-level 'lock-version' key "
             "(%r, expected a 'major.minor' string) -- ignoring pylock.toml",
-            lock_path,
+            quote_source(lock_path),
             raw_lock_version,
         )
         return None
@@ -112,7 +115,7 @@ def _extract_validated_packages(
             "%s: 'lock-version' %r is major version %d, but this Pitloom "
             "release only understands major version %d -- ignoring "
             "pylock.toml",
-            lock_path,
+            quote_source(lock_path),
             raw_lock_version,
             major,
             supported_major,
@@ -123,7 +126,7 @@ def _extract_validated_packages(
             "%s: 'lock-version' %r is newer than the %d.%d schema this "
             "Pitloom release knows -- reading it anyway (PEP 751 minor "
             "versions are additive), but newer fields may be ignored",
-            lock_path,
+            quote_source(lock_path),
             raw_lock_version,
             supported_major,
             supported_minor,
@@ -213,7 +216,7 @@ def _default_group_environment(
         log.warning(
             "%s: top-level 'default-groups' key is %r, expected a list of "
             "strings -- treating as empty (no default dependency-group)",
-            lock_path,
+            quote_source(lock_path),
             default_groups,
         )
         default_groups = []
@@ -349,7 +352,7 @@ def _group_marker_excludes(
             "as an unconstrained (included) marker",
             name,
             marker_str,
-            exc,
+            one_line(exc),
         )
         return False
 
@@ -387,7 +390,7 @@ def _pinned_pair_for_package(
 
     Returning the raw pair (not the formatted ``name==version`` string)
     lets the caller group same-name entries via
-    :func:`pitloom.extract.lock._common.group_versions_by_canonical_name`
+    :func:`pitloom.extract.lock.common.resolve_pinned_dependencies`
     and skip a name that resolves to more than one distinct version --
     reachable here specifically because this extractor's marker handling
     only evaluates ``extras``/``dependency_groups`` clauses (see
@@ -413,7 +416,7 @@ def _pinned_pair_for_package(
         warn_malformed_entry_not_table("pylock.toml", "[[packages]]", pkg)
         return None
     name = pkg.get("name")
-    if not isinstance(name, str) or not name.strip():
+    if not is_usable_name(name):
         warn_missing_name("Skipping malformed pylock.toml [[packages]] entry", name)
         return None
     marker = pkg.get("marker")

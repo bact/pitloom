@@ -219,10 +219,15 @@ def quote_source(source: str | Path) -> str:
     return f"'{text}'"
 
 
+#: Largest file or response read whole for parsing (JSON sources, lock/pin
+#: files); a caller over it fails with its own ``WARNING:``/error.
+FETCH_MAX_BYTES = 50 * 1024 * 1024
+
+
 def fetch_json(
     source: str | Path,
     timeout: float = 30.0,
-    max_bytes: int = 50 * 1024 * 1024,
+    max_bytes: int = FETCH_MAX_BYTES,
     max_nesting: Cap | None = None,
 ) -> dict[str, Any]:
     """Fetch and parse JSON from a local file path or an HTTP/HTTPS URL.
@@ -291,14 +296,21 @@ def fetch_json(
     return data
 
 
+#: ``://`` and a userinfo (non-empty, up to the last ``@`` before a ``/`` or
+#: whitespace: a password holding ``?`` or ``#`` is masked whole).
+_URL_USERINFO_RE = re.compile(r"://[^/\s@][^/\s]*@")
+
+
 def sanitize_url_credentials(text: str) -> str:
     """Redact username and password from URLs in *text* (e.g.
     ``https://user:pass@host/`` -> ``https://***:***@host/``).
 
     Used across extractors, build backends, and error loggers to prevent
     sensitive auth tokens from leaking into error messages or SBOM output.
+    The userinfo ends at the last ``@`` before the first ``/`` or whitespace,
+    so a password holding ``@``, ``?`` or ``#`` is redacted whole.
     """
-    return re.sub(r"://([^:@/\s]+)(?::[^@/\s]*)?@", r"://***:***@", text)
+    return _URL_USERINFO_RE.sub("://***:***@", text)
 
 
 def filename_from_url(url: str) -> str | None:

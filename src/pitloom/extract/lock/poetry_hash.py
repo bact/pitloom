@@ -40,20 +40,36 @@ from packaging.utils import (
 )
 from packaging.version import InvalidVersion, Version
 
-from pitloom.extract.lock._common import (
-    has_required_top_level_table,
-    load_lock_toml,
-    normalize_distribution_name,
-    normalize_distribution_version,
-    version_key,
-)
 from pitloom.extract.lock._hash import (
     index_packages_by_name_and_version,
     resolve_locked_hashes,
     sha256_file_entry_candidates,
 )
+from pitloom.extract.lock.common import (
+    has_required_top_level_table,
+    load_lock_toml,
+    version_key,
+)
 
-__all__ = ["extract_poetry_lock_hashes"]
+__all__ = [
+    "extract_poetry_lock_hashes",
+    "normalize_distribution_name",
+    "normalize_distribution_version",
+]
+
+
+def normalize_distribution_name(name: str) -> str:
+    """Normalize a package distribution name per PEP 427 / PEP 625:
+    canonicalize per PEP 503 (lowercasing, runs of ``[-_.]+`` replaced with
+    a single hyphen), then replace all hyphens with underscores -- the form
+    a wheel or sdist filename carries."""
+    return canonicalize_name(name).replace("-", "_")
+
+
+def normalize_distribution_version(version: str) -> str:
+    """Normalize a version string for artifact filenames per PEP 427 / PEP 625:
+    replace local version ``+`` with ``_``."""
+    return version.replace("+", "_")
 
 
 def _parse_wheel(filename: str) -> Version | None:

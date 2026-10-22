@@ -7,7 +7,7 @@
 
 See also: :mod:`pitloom.extract.lock.pipfile` (the sibling extractor
 this module mirrors its PEP 440 exact-pin validation from --
-:func:`pitloom.extract.lock._common.single_exact_pin`) and
+:func:`pitloom.extract.lock.common.single_exact_pin`) and
 :mod:`pitloom.extract.lock.cascade` (the cascade module that
 calls this extractor and overlays its output onto
 ``ProjectMetadata.locked_dependencies``, ranked lowest of every source
@@ -25,13 +25,13 @@ metadata (often hashes); a plain ``requirements.txt`` is just a list of
 lines a human or ``pip freeze`` wrote, with no such guarantee. Pitloom
 only trusts it as a resolved-dependency source when it can prove, line
 by line, that *every* real dependency line is already a single exact
-``==``/``===`` pin (see :func:`pitloom.extract.lock._common.single_exact_pin`)
+``==``/``===`` pin (see :func:`pitloom.extract.lock.common.single_exact_pin`)
 -- if even one line isn't, the **entire file** is ignored with one
 ``WARNING:`` naming the first disqualifying line, never partially
 included. The same whole-file rejection applies if one name (compared
 PEP 503-canonicalized, so ``Flask`` and ``flask`` count as the same
 name) repeats with two versions that don't compare equal under PEP 440
-(see :func:`pitloom.extract.lock._common.is_same_version`, e.g.
+(see :func:`pitloom.extract.lock.common.is_same_version`, e.g.
 ``"1.0"``/``"1.0.0"`` don't conflict but ``"1.0"``/``"1.0.1"`` do); a
 repeat with the same PEP 440 version is silently collapsed to one
 entry. Its provenance ``Method`` tag is ``"pinned_requirements"``,
@@ -58,11 +58,14 @@ from pathlib import Path
 from packaging.requirements import InvalidRequirement
 
 from pitloom.core.pep508 import parse_requirement
-from pitloom.extract._extract_utils import sanitize_url_credentials
-from pitloom.extract.lock._common import (
+from pitloom.extract._extract_utils import quote_source, sanitize_url_credentials
+from pitloom.extract.lock.common import (
+    read_lock_bytes,
     resolve_pinned_dependencies,
     single_exact_pin,
+    warn_unreadable_lock_file,
 )
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -103,12 +106,12 @@ def extract_pinned_requirements_dependencies(project_dir: Path) -> list[str] | N
     malformed.
     """
     lock_path = project_dir / "requirements.txt"
-    if not lock_path.exists():
-        return None
     try:
-        raw_text = lock_path.read_text(encoding="utf-8-sig")
-    except (OSError, UnicodeDecodeError) as exc:
-        log.warning("Failed to parse %s: %s", lock_path, exc)
+        raw_text = read_lock_bytes(lock_path).decode("utf-8-sig")
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as exc:
+        warn_unreadable_lock_file(lock_path, exc)
         return None
 
     pins: list[tuple[str, str, str]] = []
@@ -167,7 +170,7 @@ def _pinned_name_version_for_line(
         log.warning(
             "%s:%d: option %r means this file isn't fully pinned -- "
             "ignoring requirements.txt",
-            lock_path,
+            quote_source(lock_path),
             lineno,
             option,
         )
@@ -175,10 +178,12 @@ def _pinned_name_version_for_line(
     try:
         requirement = parse_requirement(line)
     except InvalidRequirement as exc:
-        exc_msg = sanitize_url_credentials(str(exc))
+        # The message quotes the source line and a caret line: its first
+        # line says what is wrong.
+        exc_msg = loggable(sanitize_url_credentials(str(exc).split("\n", 1)[0]))
         log.warning(
             "%s:%d: malformed requirement line: %s -- ignoring requirements.txt",
-            lock_path,
+            quote_source(lock_path),
             lineno,
             exc_msg,
         )
@@ -187,7 +192,7 @@ def _pinned_name_version_for_line(
         log.warning(
             "%s:%d: %r is a direct URL reference, not a version pin -- "
             "ignoring requirements.txt",
-            lock_path,
+            quote_source(lock_path),
             lineno,
             requirement.name,
         )
@@ -197,7 +202,7 @@ def _pinned_name_version_for_line(
         log.warning(
             "%s:%d: %r isn't pinned to a single exact version -- "
             "ignoring requirements.txt",
-            lock_path,
+            quote_source(lock_path),
             lineno,
             requirement.name,
         )

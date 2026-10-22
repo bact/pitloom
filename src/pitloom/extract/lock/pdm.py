@@ -29,11 +29,11 @@ different versions" case. The same package name *can* still appear more
 than once, but only to record separate per-extra variants (e.g. a bare
 ``httpx`` entry alongside an ``httpx`` entry with ``extras = ["socks"]``)
 that always agree on ``version`` -- collapsed here via
-:func:`pitloom.extract.lock._common.group_versions_by_canonical_name`,
+:func:`pitloom.extract.lock.common.resolve_pinned_dependencies`,
 also shared with :mod:`pitloom.extract.lock.poetry` and
 :mod:`pitloom.extract.lock.pylock`. Only a name whose entries actually
 *disagree* on version (compared via
-:func:`pitloom.extract.lock._common.is_same_version`'s PEP 440
+:func:`pitloom.extract.lock.common.is_same_version`'s PEP 440
 equality, not raw string equality) is treated as ambiguous and skipped,
 matching ``uv.lock``'s "don't guess" policy for that case.
 """
@@ -46,7 +46,8 @@ from typing import Any
 
 from packaging.utils import canonicalize_name
 
-from pitloom.extract.lock._common import (
+from pitloom.extract.lock._extra_pins import packages_named
+from pitloom.extract.lock.common import (
     default_group_included,
     find_first_present_key,
     has_required_top_level_table,
@@ -58,7 +59,6 @@ from pitloom.extract.lock._common import (
     warn_not_genuine_lock_file,
     warn_top_level_key_wrong_type,
 )
-from pitloom.extract.lock._extra_pins import packages_named
 
 log = logging.getLogger(__name__)
 

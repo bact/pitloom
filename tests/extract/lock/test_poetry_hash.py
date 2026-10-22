@@ -23,7 +23,17 @@ from pitloom.extract.lock.poetry_hash import (
     _legacy_metadata_files_by_canonical_name,
     _parse_artifact_version,
     extract_poetry_lock_hashes,
+    normalize_distribution_name,
+    normalize_distribution_version,
 )
+
+
+def test_normalize_distribution_name_and_version() -> None:
+    assert normalize_distribution_name("foo.bar_baz-qux") == "foo_bar_baz_qux"
+    assert normalize_distribution_name("Flask") == "flask"
+    assert normalize_distribution_version("1.0.0") == "1.0.0"
+    assert normalize_distribution_version("2.0.0+cpu") == "2.0.0_cpu"
+
 
 REAL_WORLD_LOCKS = (
     Path(__file__).parent.parent.parent / "fixtures" / "real-world-locks" / "poetry"

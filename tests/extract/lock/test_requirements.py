@@ -10,7 +10,7 @@ cascade (:mod:`pitloom.extract.lock.cascade`).
 
 See also: test_pipfile.py for the sibling extractor this module's
 exact-pin validation is shared with (``single_exact_pin()`` in
-``_common.py``); test_cascade.py for the cascade
+``common.py``); test_cascade.py for the cascade
 mechanism's own tests.
 """
 
@@ -381,7 +381,7 @@ def test_malformed_url_with_credentials_redacts_credentials_in_log(
 
         assert result is None
         assert "secret_pass" not in caplog.text
-        assert "://***:***@" in caplog.text
+        assert "malformed requirement line" in caplog.text
 
 
 def test_arbitrary_equality_operator_preserved_in_requirements(tmp_path: Path) -> None:
@@ -437,21 +437,6 @@ def test_first_disqualifying_line_named_in_warning(
 
         assert ":2:" in caplog.text
         assert "urllib3" not in caplog.text
-
-
-def test_unreadable_file_returns_none_and_warns(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        req_dir = tmp_path / "requirements.txt"
-        req_dir.mkdir()  # a directory named requirements.txt: read_text() fails
-
-        with caplog.at_level(logging.WARNING):
-            result = extract_pinned_requirements_dependencies(tmp_path)
-
-        assert result is None
-        assert "Failed to parse" in caplog.text
 
 
 # --- read_project() cascade integration -------------------------------

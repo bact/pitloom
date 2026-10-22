@@ -39,7 +39,7 @@ Left open by the wheel-identity work (#266). Reading limits and refusals:
   Merkle root to say what it covers; revisit with v3.
 - **`RECORD` and an embedded SBOM are read whole** (no size cap, unlike
   `METADATA`); a zip-bomb member there still exhausts memory.
-- **Version parsing past the int-conversion limit.** `extract/lock/_common.py`
+- **Version parsing past the int-conversion limit.** `extract/lock/common.py`
    parses with `Version()`; a lock-file version with
   a component of over 4300 digits raises a plain `ValueError`, not
   `InvalidVersion`. The wheel readers catch `ValueError` since #266.

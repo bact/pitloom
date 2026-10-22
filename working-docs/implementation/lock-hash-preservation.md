@@ -87,7 +87,7 @@ file-size discipline): `pylock_hash.py`, `uv_hash.py`, `poetry_hash.py`,
 Every one of them takes the pin extractor's own **already-resolved**
 winning `locked_dependencies` list as input, re-parses each
 `name==version` (or `name<op>version`) string via the shared
-`pitloom.extract.lock._common.canonical_name_and_pinned_version`, and
+`pitloom.extract.lock.common.canonical_name_and_pinned_version`, and
 looks that `(canonical_name, version)` pair back up in a fresh index of
 the raw lock data. This deliberately never re-derives which packages
 qualify (group membership, marker evaluation, non-registry-source
