@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-10
-Last-Modified: 2026-10-14
+Last-Modified: 2026-10-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -293,9 +293,8 @@ Reader gaps:
 
 Structure and tests:
 
-8. `extract/lock/uv.py` is over the soft limit (518); splitting the extras
-   pins needs a public accessor for three private helpers. At the limit:
-   `deps.py` (500), `_embed_build_sbom.py` (500), `authors.py` (498).
+8. At the soft limit: `deps.py` (500), `_embed_build_sbom.py` (500),
+   `authors.py` (498). `extract/lock/uv.py` was split into `_uv_graph.py`.
 9. A dependency's unusable `Author-email` entry is dropped without a trace
     (a per-document summary like the split one is the option).
 10. `NOTICE*`, `license-files` and `license.file` are not read for the notice;
