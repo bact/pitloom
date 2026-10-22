@@ -204,7 +204,7 @@ it as below; other commands prefix their own (`ERROR: SBOM generation
 failed: ...`):
 
 ```text
-ERROR: ID registry file <path>: version 2, expected 3 (no migration support -- delete it and re-run `pitloom id generate` or `pitloom id import`)
+ERROR: ID registry file '<path>': version 2, expected 3 (no migration support -- delete it and re-run `pitloom id generate` or `pitloom id import`)
 ```
 
 Pitloom releases before registry format 3 write version 2, so a registry

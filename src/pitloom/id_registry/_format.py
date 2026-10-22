@@ -35,6 +35,7 @@ from typing import Any, NamedTuple
 from pitloom._sbom_io import replace_text_lf
 from pitloom.core.canonical_json import canonical_json_indented
 from pitloom.core.iri import is_iri_segment, require_namespace_iri
+from pitloom.core.quote_source import quote_source
 from pitloom.id_registry._counters import MAX_ID_NUMBER, Counters
 from pitloom.id_registry._types import (
     _REGISTRY_VERSION,
@@ -274,11 +275,14 @@ def _stored_project_root(target: Path, project_root: Path) -> str:
         text = Path(relpath(root, base)).as_posix()
     except ValueError as exc:
         raise registry_file_error(
-            target, f"project root {root} has no path relative to {base}: {exc}"
+            target,
+            f"project root {quote_source(root)} has no path relative to "
+            f"{quote_source(base)}: {exc}",
         ) from exc
     if not _is_relative_posix(text):
         raise registry_file_error(
-            target, f"project root {root} cannot be stored as {text!r}"
+            target,
+            f"project root {quote_source(root)} cannot be stored as {text!r}",
         )
     return text
 

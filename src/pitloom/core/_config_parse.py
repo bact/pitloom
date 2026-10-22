@@ -233,11 +233,11 @@ def _read_fragment_entry(entry: dict[str, Any]) -> FragmentConfig:
     config errors are never silently coerced or defaulted around, only
     genuinely-absent optional fields get a default.
     """
-    path = entry.get("path")
-    if not isinstance(path, str) or not path:
+    declared = entry.get("path")
+    if not isinstance(declared, str) or not declared:
         raise ValueError(
             "[tool.pitloom.fragment] 'files' table entry is missing a "
-            f"valid 'path' (got {path!r})"
+            f"valid 'path' (got {declared!r})"
         )
     role = entry.get("role")
     if role is not None and not isinstance(role, str):
@@ -267,7 +267,7 @@ def _read_fragment_entry(entry: dict[str, Any]) -> FragmentConfig:
             f"a string, got {type(link_to_main).__name__}: {link_to_main!r}"
         )
     return FragmentConfig(
-        path=path,
+        path=declared,
         role=role,
         description=description,
         required=required,

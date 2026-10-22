@@ -416,7 +416,7 @@ def embed_sbom_in_wheel(
     require_wheel_path(wheel_path)
     wheel_obj = Path(wheel_path).resolve()
     if not wheel_obj.exists():
-        raise FileNotFoundError(f"Wheel file not found: {wheel_obj}")
+        raise FileNotFoundError(f"Wheel file not found: {quote_source(wheel_obj)}")
 
     sbom_bytes = (
         sbom_content.encode("utf-8") if isinstance(sbom_content, str) else sbom_content

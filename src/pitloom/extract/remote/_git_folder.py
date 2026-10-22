@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import loggable
 
@@ -52,7 +53,7 @@ def checkout_folder(work_dir: str, subdir: str) -> str:
     if not folder.startswith(root + os.sep) or not os.path.isdir(folder):
         raise RemoteSourceError(
             "git.path-not-found",
-            f"No folder {loggable(subdir)!r} in the repository at that branch.",
+            f"No folder {quote_source(subdir)} in the repository at that branch.",
         )
     return folder
 

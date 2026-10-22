@@ -307,7 +307,7 @@ def _root_candidates(
     except OSError as exc:
         if explicit:
             raise ValueError(
-                f"PATH {loggable(_shown(root, project_root))}: could not be "
+                f"PATH {quote_source(_shown(root, project_root))}: could not be "
                 f"read: {one_line(exc.strerror or exc)}"
             ) from exc
         warn_unreadable_file(root, project_root, exc)

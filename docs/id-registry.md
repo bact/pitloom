@@ -113,7 +113,7 @@ traceback, and takes precedence over that error.
   current directory.
 - `--project-dir` must be an existing directory, else `ERROR: --project-dir <p>
   is not a directory` (exit 1). Each `PATH` must resolve inside it, else
-  `ERROR: PATH <p> is outside --project-dir <dir>` (exit 1), whether directly
+  `ERROR: PATH '<p>' is outside --project-dir '<dir>'` (exit 1), whether directly
   or only through a symlink. `..` is collapsed lexically before any symlink
   is followed (`link/..` is the directory above `link` as written). A symlink
   that itself lives inside the project is fine even if it points outside: it
@@ -291,7 +291,7 @@ current directory for any other target, an sdist included. The CLI makes
 `--id-registry` absolute against the current directory first, so there
 it always means the file under the current directory. A declared
 registry file that's missing, unreadable or invalid raises `ValueError`
-(`"ID registry file <path>: <reason>"`) rather than being silently
+(`"ID registry file '<path>': <reason>"`) rather than being silently
 skipped or replaced. `loom.run` reads no `[tool.pitloom]` unless given one
 as `pitloom_config=`; its own `id_registry=` resolves against the current
 directory, a `pitloom_config=` file's `id-registry` against that file's
