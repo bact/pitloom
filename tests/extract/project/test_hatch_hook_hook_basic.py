@@ -33,6 +33,7 @@ from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 from ..conftest import (
     make_hook,
+    staged_sbom,
     write_pyproject,
     write_pyproject_with_pitloom_config,
 )
@@ -71,9 +72,11 @@ def test_hook_initialize_stages_sbom() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        assert hook._sbom_staging_path is not None
-        assert hook._sbom_staging_path.exists()
-        assert hook._sbom_staging_path.stat().st_size > 0
+        staged = staged_sbom(build_data)
+
+        assert staged is not None
+        assert staged.exists()
+        assert staged.stat().st_size > 0
 
         hook.finalize("standard", build_data, "")
 
@@ -88,8 +91,10 @@ def test_hook_sbom_is_valid_json() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        assert hook._sbom_staging_path is not None
-        data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
+        staged = staged_sbom(build_data)
+
+        assert staged is not None
+        data = json.loads(staged.read_text(encoding="utf-8"))
         assert "@context" in data
         assert "@graph" in data
 
@@ -107,7 +112,8 @@ def test_hook_leaves_signal_handling_alone(monkeypatch: pytest.MonkeyPatch) -> N
         hook = make_hook(tmp, {})
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
-        assert hook._sbom_staging_path is not None
+        staged = staged_sbom(build_data)
+        assert staged is not None
         hook.finalize("standard", build_data, "")
     spy.assert_not_called()
 
@@ -124,8 +130,10 @@ def test_hook_custom_basename_stored() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        assert hook._sbom_staging_path is not None
-        assert hook._sbom_staging_path.name == "custom.spdx3.json"
+        staged = staged_sbom(build_data)
+
+        assert staged is not None
+        assert staged.name == "custom.spdx3.json"
 
         hook.finalize("standard", build_data, "")
 
@@ -140,7 +148,7 @@ def test_hook_disabled_skips_generation() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        assert hook._sbom_staging_path is None
+        assert staged_sbom(build_data) is None
         assert hook._staging_dir is None
 
 
@@ -154,14 +162,13 @@ def test_hook_finalize_cleans_up() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        staged = hook._sbom_staging_path
+        staged = staged_sbom(build_data)
         assert staged is not None and staged.exists()
 
         hook.finalize("standard", build_data, "")
 
         assert not staged.exists()
         assert hook._staging_dir is None
-        assert hook._sbom_staging_path is None
 
 
 def test_hook_initialize_cleans_up_staging_dir_on_late_failure(
@@ -200,7 +207,8 @@ def test_hook_initialize_cleans_up_staging_dir_on_late_failure(
         assert len(cleanup_calls) == 1
         assert not Path(cleanup_calls[0]).exists()
         assert hook._staging_dir is None
-        assert hook._sbom_staging_path is None
+        staged = staged_sbom(build_data)
+        assert staged is not None and not staged.exists()
 
 
 def test_hook_finalize_idempotent() -> None:
@@ -303,8 +311,10 @@ def test_hook_with_pitloom_fragments() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        assert hook._sbom_staging_path is not None
-        data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
+        staged = staged_sbom(build_data)
+
+        assert staged is not None
+        data = json.loads(staged.read_text(encoding="utf-8"))
         names = [e.get("name") for e in data["@graph"]]
         assert "fragment-lib" in names
 
@@ -328,7 +338,8 @@ def test_hook_missing_fragment_logs_warning(
             hook.initialize("standard", build_data)
 
         assert any("does_not_exist.json" in msg for msg in caplog.messages)
-        assert hook._sbom_staging_path is not None
+        staged = staged_sbom(build_data)
+        assert staged is not None
         # The count is of the fragments merged, not of those configured.
         assert [m for m in caplog.messages if "(0 fragment(s))" in m]
 
@@ -345,7 +356,7 @@ def test_hook_editable_variant_is_skipped_with_one_info(
         build_data: dict[str, Any] = {}
         with caplog.at_level(logging.INFO):
             hook.initialize("editable", build_data)
-        assert hook._sbom_staging_path is None
+        assert staged_sbom(build_data) is None
         assert "sbom_files" not in build_data
         assert [m for m in caplog.messages if "'editable' skipped" in m] != []
         assert len(caplog.messages) == 1
@@ -378,7 +389,7 @@ def test_hook_refuses_an_sbom_name_already_placed(
         with caplog.at_level(logging.ERROR):
             with pytest.raises(ValueError, match="sbom-basename"):
                 hook.initialize("standard", build_data)
-        assert hook._sbom_staging_path is None
+        assert build_data.get("sbom_files", []) == ([configured] if from_hook else [])
         errors = [r for r in caplog.records if r.levelno == logging.ERROR]
         assert len(errors) == 1
         assert errors[0].getMessage().startswith("SBOM generation failed: ")

@@ -87,8 +87,14 @@ def make_hook(
     )
     object.__setattr__(hook, "_BuildHookInterface__target_name", target_name)
     hook._staging_dir = None
-    hook._sbom_staging_path = None
     return hook
+
+
+def staged_sbom(build_data: dict[str, Any]) -> Path | None:
+    """The SBOM file the hook registered with Hatchling in *build_data*
+    (``build_data["sbom_files"]``), or ``None`` when it registered none."""
+    files = build_data.get("sbom_files") or []
+    return Path(files[-1]) if files else None
 
 
 def write_pyproject(directory: Path, content: str = MINIMAL_PYPROJECT) -> None:

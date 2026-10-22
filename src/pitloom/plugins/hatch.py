@@ -298,7 +298,6 @@ class PitloomBuildHook(_PitloomBuildHookBase):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._staging_dir: tempfile.TemporaryDirectory[str] | None = None
-        self._sbom_staging_path: Path | None = None
 
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
         """Generate the SBOM and register it for injection into the wheel.
@@ -440,7 +439,6 @@ class PitloomBuildHook(_PitloomBuildHookBase):
             raise
 
         self._staging_dir = staging_dir
-        self._sbom_staging_path = sbom_staging_path
 
     def _check_name_is_free(
         self, sbom_filename: str, build_data: dict[str, Any]
@@ -481,7 +479,6 @@ class PitloomBuildHook(_PitloomBuildHookBase):
         if self._staging_dir is not None:
             self._staging_dir.cleanup()
             self._staging_dir = None
-            self._sbom_staging_path = None
 
 
 @hookimpl

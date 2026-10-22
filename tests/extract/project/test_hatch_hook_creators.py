@@ -26,6 +26,7 @@ from pitloom.__about__ import __version__
 
 from ..conftest import (
     make_hook,
+    staged_sbom,
     write_pyproject,
     write_pyproject_with_pitloom_config,
 )
@@ -44,8 +45,10 @@ def test_hook_creator_name_propagated() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        assert hook._sbom_staging_path is not None
-        data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
+        staged = staged_sbom(build_data)
+
+        assert staged is not None
+        data = json.loads(staged.read_text(encoding="utf-8"))
         graph = data["@graph"]
         names = [e.get("name") for e in graph if e.get("type") == "Person"]
         assert "Test Creator" in names
@@ -66,10 +69,10 @@ def test_hook_organization_creator_from_config() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        assert hook._sbom_staging_path is not None
-        graph = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))[
-            "@graph"
-        ]
+        staged = staged_sbom(build_data)
+
+        assert staged is not None
+        graph = json.loads(staged.read_text(encoding="utf-8"))["@graph"]
         orgs = [e.get("name") for e in graph if e.get("type") == "Organization"]
         assert orgs == ["Acme Corp"]
         assert not [e for e in graph if e.get("type") == "Person"]
@@ -96,10 +99,10 @@ def test_hook_multiple_creators_appear_in_graph() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        assert hook._sbom_staging_path is not None
-        graph = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))[
-            "@graph"
-        ]
+        staged = staged_sbom(build_data)
+
+        assert staged is not None
+        graph = json.loads(staged.read_text(encoding="utf-8"))["@graph"]
         orgs = [e.get("name") for e in graph if e.get("type") == "Organization"]
         persons = [e.get("name") for e in graph if e.get("type") == "Person"]
         assert orgs == ["Acme Corp"]
@@ -134,10 +137,10 @@ def test_hook_software_agent_and_generic_agent_creator_from_config(
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        assert hook._sbom_staging_path is not None
-        graph = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))[
-            "@graph"
-        ]
+        staged = staged_sbom(build_data)
+
+        assert staged is not None
+        graph = json.loads(staged.read_text(encoding="utf-8"))["@graph"]
         matches = [
             e.get("name") for e in graph if e.get("type") == expected_element_type
         ]
@@ -156,10 +159,10 @@ def test_hook_default_creator_is_software_agent() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        assert hook._sbom_staging_path is not None
-        graph = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))[
-            "@graph"
-        ]
+        staged = staged_sbom(build_data)
+
+        assert staged is not None
+        graph = json.loads(staged.read_text(encoding="utf-8"))["@graph"]
         agents = [e for e in graph if e.get("type") == "SoftwareAgent"]
         assert [a["name"] for a in agents] == ["Pitloom"]
         assert not [e for e in graph if e.get("type") == "Person"]
@@ -177,8 +180,10 @@ def test_hook_creation_comment_and_tool_summary() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        assert hook._sbom_staging_path is not None
-        data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
+        staged = staged_sbom(build_data)
+
+        assert staged is not None
+        data = json.loads(staged.read_text(encoding="utf-8"))
         graph = data["@graph"]
 
         creation_infos = [e for e in graph if e["type"] == "CreationInfo"]

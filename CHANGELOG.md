@@ -45,11 +45,11 @@ and this project adheres to
 - G7, CISA 2026, FSCT 2024 and BSI conformance tests and expected tables
   ([#309])
 - One `INFO:` per model whose architecture goes into `ai_typeOfModel` ([#309])
-- References to one dataset (a Hub id in any case) give one dataset package with a
-  relationship per role; a later reference fills only unset fields ([#311])
-- `loom project`/`loom generate` take a Git repository or page URL (GitHub, GitLab,
-  Gitea/Forgejo, Bitbucket, SourceHut); GitLab redirects followed, INFO names
-  both URLs, `check_url=` guards each hop ([#317])
+- References to one dataset (a Hub id in any case) give one dataset package
+  with a relationship per role; a later reference fills only unset fields
+  ([#311])
+- `loom project`/`loom generate` take a Git repository or page URL;
+  GitLab redirects are followed and `check_url=` guards each hop ([#317])
 
 ### Changed
 
@@ -87,21 +87,20 @@ and this project adheres to
   a merge; `wheel`/`project <sdist>` take `--project-dir` ([#308])
 - `--content-type-method` and `--creator-type` list their choices sorted; a card
   description skips tables of contents, HTML and badges ([#309])
-- Skills, docs and code comments match the code: skills' minimum-elements tables
-  follow the checker's rules, `loom enrich` licence behaviour is stated
-  correctly ([#318])
-- `SOURCE_DATE_EPOCH` that is malformed or out of range is an `ERROR:` on every
-  command, pinned `--creation-datetime` or not (it was a warning); the hook
-  fails the build ([#322])
-- Hatchling hook: one `ERROR:` per failed build, Hatchling's own keys accepted,
-  editable builds skipped, a name clash with `sbom-files` named, `INFO:` for the
-  clock and for ignored `[tool.pitloom]` keys set to `true` ([#322])
-- `embed-wheel --sbom` embeds the file's exact bytes (a BOM is dropped with a
-  warning); re-embedding replaces only a Pitloom build SBOM of the same name
-  and version ([#322])
-- A fragment that cannot be canonicalised (integer past 2^53, `1e999`) is skipped
-  with a `WARNING:`; an existing Relationship description is kept; frontmatter
-  delimiters are whole lines ([#322])
+- Skills' minimum-elements tables follow the checker; `loom enrich` licence
+  behaviour stated correctly ([#318])
+- A malformed or out-of-range `SOURCE_DATE_EPOCH` is an `ERROR:` on every
+  command, pinned datetime or not;
+  the hook fails the build ([#322])
+- Hook: one `ERROR:` per failed build; Hatchling's own keys accepted;
+  editable builds skipped; `sbom-files` name clash refused ([#322])
+- `embed-wheel --sbom` embeds exact bytes;
+  re-embedding replaces only a Pitloom build SBOM of the same name and version
+  ([#322])
+- Fragments that cannot be canonicalised are skipped with a `WARNING:`;
+  existing relationship descriptions are kept ([#322])
+- Hatchling hook: tests read the staged SBOM from `build_data`, not a private
+  attribute ([#325])
 
 ### Fixed
 
@@ -153,9 +152,8 @@ and this project adheres to
   ([#314])
 - The NumPy reader type-checks on numpy 2.3 and 2.5 alike:
   no `type: ignore` that one of the two calls unused ([#315])
-- Lock-file readers warn and move on for a deeply nested, oversized or
-  non-regular file, an invalid name or a padded version;
-  a uv member of another name supplies no dependencies;
+- Lock readers warn and move on for nested, oversized or non-regular files,
+  invalid names and padded versions;
   URL passwords are masked whole ([#323])
 - A lock file never read says `Cannot read`, not `Failed to parse`;
   Hatchling hook: an `sbom-files` name clash is refused ignoring case ([#326])
@@ -174,6 +172,7 @@ and this project adheres to
 [#318]: https://github.com/bact/pitloom/pull/318
 [#322]: https://github.com/bact/pitloom/pull/322
 [#323]: https://github.com/bact/pitloom/pull/323
+[#325]: https://github.com/bact/pitloom/pull/325
 [#326]: https://github.com/bact/pitloom/pull/326
 
 ## [0.20.2] - 2026-10-09

@@ -28,6 +28,7 @@ import rfc8785
 from ..conftest import (
     PYPROJECT_WITH_PRETTY,
     make_hook,
+    staged_sbom,
     write_pyproject,
     write_pyproject_with_pitloom_config,
 )
@@ -48,8 +49,10 @@ def test_hook_with_sampleproject_fixture() -> None:
     build_data: dict[str, Any] = {}
     hook.initialize("standard", build_data)
 
-    assert hook._sbom_staging_path is not None
-    data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
+    staged = staged_sbom(build_data)
+
+    assert staged is not None
+    data = json.loads(staged.read_text(encoding="utf-8"))
     graph = data["@graph"]
     pkg_names = [e.get("name") for e in graph if e.get("type") == "software_Package"]
     # metadata_from_hatchling() uses core.raw_name (the un-normalized name),
@@ -87,8 +90,10 @@ def test_hook_bundled_binary_produces_phantom_dependency() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        assert hook._sbom_staging_path is not None
-        data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
+        staged = staged_sbom(build_data)
+
+        assert staged is not None
+        data = json.loads(staged.read_text(encoding="utf-8"))
         graph = data["@graph"]
 
         packages = [e for e in graph if e.get("type") == "software_Package"]
@@ -148,8 +153,10 @@ def test_hook_enrichment_produces_dataset_and_annotation() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        assert hook._sbom_staging_path is not None
-        data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
+        staged = staged_sbom(build_data)
+
+        assert staged is not None
+        data = json.loads(staged.read_text(encoding="utf-8"))
         graph = data["@graph"]
 
         ds_pkgs = [e for e in graph if e.get("type") == "dataset_DatasetPackage"]
@@ -196,8 +203,10 @@ def test_hook_no_enrichment_by_default() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        assert hook._sbom_staging_path is not None
-        data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
+        staged = staged_sbom(build_data)
+
+        assert staged is not None
+        data = json.loads(staged.read_text(encoding="utf-8"))
         graph = data["@graph"]
 
         assert not [e for e in graph if e.get("type") == "dataset_DatasetPackage"]
@@ -238,8 +247,10 @@ format = "annotation"
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        assert hook._sbom_staging_path is not None
-        data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
+        staged = staged_sbom(build_data)
+
+        assert staged is not None
+        data = json.loads(staged.read_text(encoding="utf-8"))
         graph = data["@graph"]
 
         main_package = next(
@@ -285,8 +296,10 @@ def test_hook_uses_hatchling_resolved_dynamic_version() -> None:
     build_data: dict[str, Any] = {}
     hook.initialize("standard", build_data)
 
-    assert hook._sbom_staging_path is not None
-    data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
+    staged = staged_sbom(build_data)
+
+    assert staged is not None
+    data = json.loads(staged.read_text(encoding="utf-8"))
     graph = data["@graph"]
     packages = [e for e in graph if e.get("type") == "software_Package"]
     # metadata_from_hatchling() uses core.raw_name, so the package name is
@@ -314,7 +327,7 @@ def test_hook_skips_non_wheel_target() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        assert hook._sbom_staging_path is None
+        assert staged_sbom(build_data) is None
         assert hook._staging_dir is None
         assert "sbom_files" not in build_data
 
@@ -333,7 +346,7 @@ def test_hook_initialize_raises_for_old_hatchling() -> None:
         ):
             hook.initialize("standard", build_data)
 
-        assert hook._sbom_staging_path is None
+        assert staged_sbom(build_data) is None
         assert hook._staging_dir is None
 
 
@@ -349,7 +362,7 @@ def test_hook_skips_hatchling_check_for_non_wheel_target() -> None:
         with patch("pitloom.plugins.hatch._pkg_version", return_value="1.27.0"):
             hook.initialize("standard", build_data)  # must not raise
 
-        assert hook._sbom_staging_path is None
+        assert staged_sbom(build_data) is None
 
 
 def test_hook_invalid_config_raises_before_io() -> None:
@@ -362,7 +375,7 @@ def test_hook_invalid_config_raises_before_io() -> None:
             hook.initialize("standard", build_data)
 
         assert hook._staging_dir is None
-        assert hook._sbom_staging_path is None
+        assert staged_sbom(build_data) is None
 
 
 def test_hook_sbom_is_compact_despite_pretty_config() -> None:
@@ -380,8 +393,10 @@ def test_hook_sbom_is_compact_despite_pretty_config() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        assert hook._sbom_staging_path is not None
-        raw = hook._sbom_staging_path.read_bytes()
+        staged = staged_sbom(build_data)
+
+        assert staged is not None
+        raw = staged.read_bytes()
 
         # Must be byte-for-byte identical to RFC 8785 canonical form.
         data = json.loads(raw)

@@ -32,7 +32,7 @@ from pitloom.id_registry import AI_PACKAGE_TYPE, FILE_TYPE, IdRegistry
 from tests.assemble.conftest import _make_dummy_wheel, _make_sdist
 from tests.build_and_read_shared import install_fake_build
 from tests.extract.ai_model.gguf_builders import STRING, gguf_file, kv, string
-from tests.extract.conftest import make_hook
+from tests.extract.conftest import make_hook, staged_sbom
 from tests.id_registry.surfaces_base import DEMO_INIT_CONTENT, _run_cli
 
 REGISTRY = "loom-id-registry.json"
@@ -244,7 +244,7 @@ def _hook(project: Path, _reg: Path, _tmp: Path, _mp: pytest.MonkeyPatch) -> str
     hook = make_hook(str(project), {})
     data: dict[str, Any] = {}
     hook.initialize("standard", data)
-    staged = hook._sbom_staging_path  # pylint: disable=protected-access
+    staged = staged_sbom(data)
     assert staged is not None
     sbom = staged.read_text(encoding="utf-8")
     hook.finalize("standard", data, "")
