@@ -62,6 +62,7 @@ and resolving the license lives in
 
 from __future__ import annotations
 
+import logging
 import re
 
 from pitloom.core.ai_metadata import (
@@ -71,6 +72,7 @@ from pitloom.core.ai_metadata import (
     AiModelUsage,
 )
 from pitloom.extract.ai_model.limits import settle_read_text
+from pitloom.extract.remote.git_url import HUB_HOST_PATTERN
 from pitloom.extract.remote.huggingface_dataset import add_hub_dataset_metadata
 from pitloom.extract.remote.huggingface_fetch import (
     _fetch_all_hf_data,
@@ -91,10 +93,16 @@ from pitloom.extract.remote.huggingface_field import (
 )
 from pitloom.logging_config import loggable
 
+log = logging.getLogger(__name__)
+
 __all__ = ["is_huggingface_source", "parse_hf_model_id", "read_huggingface"]
 
-# Match full HF URLs: https://huggingface.co/owner/name[/anything]
-_HF_URL_RE = re.compile(r"https?://huggingface\.co/([^/]+/[^/]+?)(?:/.*)?$")
+# Match full HF URLs: https://huggingface.co/owner/name[/anything], also as
+# http, www.huggingface.co or hf.co, in any case of the scheme and host.
+_HF_URL_RE = re.compile(
+    rf"https?://{HUB_HOST_PATTERN}/([^/]+/[^/]+?)(?:/.*)?$", re.IGNORECASE
+)
+_CANONICAL_PREFIX = "https://huggingface.co/"
 
 # Loose model-ID pattern: two segments separated by exactly one slash,
 # each segment matching HF naming conventions.
@@ -164,7 +172,9 @@ def read_huggingface(source: str) -> AiModelMetadata:
     if model_id is None:
         raise ValueError(f"Not a valid Hugging Face URL or model ID: {source!r}")
 
-    hf_url = f"https://huggingface.co/{model_id}"
+    hf_url = f"{_CANONICAL_PREFIX}{model_id}"
+    if _HF_URL_RE.match(source) and not source.startswith(_CANONICAL_PREFIX):
+        log.info("Hugging Face URL %s is read as %s", loggable(source), hf_url)
     model_name = model_id.split("/")[-1]
     provenance: dict[str, str] = {"name": "Source: Hugging Face Hub | Field: model_id"}
 

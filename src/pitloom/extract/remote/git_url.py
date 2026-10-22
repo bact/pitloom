@@ -33,6 +33,7 @@ __all__ = [
     "ALLOWED_SCHEMES",
     "GitPage",
     "GitTarget",
+    "HUB_HOST_PATTERN",
     "is_git_url",
     "is_unsupported_remote_url",
     "parse_git_page",
@@ -64,8 +65,10 @@ _COMMIT = re.compile(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}")
 #: SourceHut (owners are ``~name``) puts ``item`` between the ref and the path.
 _SOURCEHUT_ITEM = "item"
 
-#: Hosts whose URLs are models, not Git repositories.
-_HF_HOST = re.compile(r"(www\.)?(huggingface|hf)\.co", re.IGNORECASE)
+#: Hosts whose URLs are models, not Git repositories (``huggingface.co``, its
+#: ``www.`` form and the ``hf.co`` short name), any case.
+HUB_HOST_PATTERN = r"(?:www\.)?(?:huggingface|hf)\.co"
+_HF_HOST = re.compile(HUB_HOST_PATTERN, re.IGNORECASE)
 
 
 def is_git_url(source: str) -> bool:
