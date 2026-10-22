@@ -306,7 +306,8 @@ def _check_sbom_basename(value: str | None) -> str | None:
         return None
     if not is_plain_file_name(value):
         raise ValueError(
-            f"[tool.pitloom] 'sbom-basename' must be a file name, not a path: {value!r}"
+            "[tool.pitloom] 'sbom-basename' must be a file name, not a path: "
+            f"{quote_source(value)}"
         )
     return sbom_base_name(value, CONFIG_BASENAME_LABEL)
 

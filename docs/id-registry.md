@@ -111,7 +111,7 @@ traceback, and takes precedence over that error.
 - Registry keys, and the default `PATH`s (`src`, `data`, `models`), stay
   relative to `--project-dir`; a relative `-o` or `PATH` resolves against the
   current directory.
-- `--project-dir` must be an existing directory, else `ERROR: --project-dir <p>
+- `--project-dir` must be an existing directory, else `ERROR: --project-dir '<p>'
   is not a directory` (exit 1). Each `PATH` must resolve inside it, else
   `ERROR: PATH '<p>' is outside --project-dir '<dir>'` (exit 1), whether directly
   or only through a symlink. `..` is collapsed lexically before any symlink
@@ -301,10 +301,10 @@ directory.
 and the loader reject a name that UTF-8 cannot hold (a lone surrogate) with
 `ValueError`; `generate()` skips such a file with the `FILE=` `WARNING:`, and
 harvest and `id import` skip such an element with a `WARNING:`. `generate()`
-raises `ID registry: <path> is outside the project root <root>` for a path
+raises `ID registry: '<path>' is outside the project root '<root>'` for a path
 outside the root; a symlink inside the project that points outside is keyed
 by its project path. `id import` of an SBOM whose `@graph` is not a list is
-`ERROR: failed to import SBOM <path>: @graph is not a list`.
+`ERROR: failed to import SBOM '<path>': @graph is not a list`.
 
 ## In CI
 

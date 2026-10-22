@@ -40,12 +40,8 @@ _SAFE_CALLS = frozenset(
         "quote_source",
         "loggable",
         "one_line",
-        "escape_controls",
-        "ascii",
         "type",
         "excerpt",
-        "hide_temp_dir",
-        "sanitize_url_credentials",
     }
 )
 _LEVELS = frozenset({"debug", "info", "warning", "error", "critical", "exception"})
@@ -122,7 +118,7 @@ _OS_ERRORS = frozenset({"PermissionError", "FileNotFoundError", "OSError"})
 
 def _arguments(call: ast.Call) -> list[ast.expr]:
     found: list[ast.expr] = []
-    for argument in call.args:
+    for argument in [*call.args, *(k.value for k in call.keywords)]:
         if isinstance(argument, ast.Starred):
             argument = argument.value
         if isinstance(argument, ast.JoinedStr):
@@ -170,11 +166,12 @@ def _offenders(relative: str, tree: ast.AST) -> list[str]:
             isinstance(node, ast.Raise)
             and isinstance(node.exc, ast.Call)
             and _called_name(node.exc) not in _QUOTING_CALLS
-            and not (_called_name(node.exc) in _OS_ERRORS and len(node.exc.args) == 3)
         ):
             # The text of an exception reaches stderr, a log line or a
             # notification somewhere else: it names a path as the log does.
             messages = _arguments(node.exc)
+            if _called_name(node.exc) in _OS_ERRORS and len(node.exc.args) == 3:
+                messages = messages[:2]
             if _called_name(node.exc) in _QUOTING_FIRST:
                 messages = messages[_QUOTING_FIRST[_called_name(node.exc)] :]
         elif isinstance(node, ast.FunctionDef) and node.name.endswith("_message"):
@@ -222,13 +219,17 @@ def test_the_guard_sees_a_bare_path() -> None:
         "raise registry_file_error(path, f'x {root}')\n"
         "raise registry_file_error(path, f'x {quote_source(root)}')\n"
         "raise PermissionError(1, 'x', str(path))\n"
+        "raise PermissionError(1, f'x {path}', str(path))\n"
+        "raise RemoteError(code='c', message=f'x {path}')\n"
+        "raise refusal(a, e, f'x {root}')\n"
+        "raise refusal(a, e, f'x {quote_source(root)}')\n"
         "def failed_message(path):\n"
         "    return f'failed {path}'\n"
         "def other(path):\n"
         "    return f'failed {path}'\n"
     )
     found = {line.split(":")[1] for line in _offenders("x.py", ast.parse(source))}
-    assert found == {"1", "3", "5", "6", "7", "8", "9", "11", "15"}
+    assert found == {"1", "3", "5", "6", "7", "8", "9", "11", "14", "15", "16", "19"}
 
 
 @pytest.mark.parametrize("name", ["a\nERROR: forged", "it's", "a\\b"])
