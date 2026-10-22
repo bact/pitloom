@@ -356,8 +356,10 @@ def test_hook_editable_variant_is_skipped_with_one_info(
     [
         ("sub/testpkg-0.1.0.spdx3.json", False),
         ("/tmp/x/testpkg-0.1.0.spdx3.json", True),
+        ("sub/TestPkg-0.1.0.SPDX3.json", False),
+        ("/tmp/x/TESTPKG-0.1.0.spdx3.json", True),
     ],
-    ids=["project-sbom-files", "other-hook"],
+    ids=["project-sbom-files", "other-hook", "case-only-project", "case-only-hook"],
 )
 def test_hook_refuses_an_sbom_name_already_placed(
     caplog: pytest.LogCaptureFixture, configured: str, from_hook: bool

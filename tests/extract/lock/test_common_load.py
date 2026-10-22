@@ -209,7 +209,7 @@ def test_lock_file_over_the_size_cap_is_not_parsed(
     with caplog.at_level(logging.WARNING):
         assert loader(lock_path) is None
     assert caplog.messages == [
-        f"Failed to parse {quote_source(lock_path)}: over {FETCH_MAX_BYTES} bytes"
+        f"Cannot read {quote_source(lock_path)}: over {FETCH_MAX_BYTES} bytes"
     ]
 
 
@@ -220,7 +220,7 @@ def test_directory_is_not_a_lock_file(
     with caplog.at_level(logging.WARNING):
         assert loader(tmp_path) is None
     assert caplog.messages == [
-        f"Failed to parse {quote_source(tmp_path)}: not a regular file"
+        f"Cannot read {quote_source(tmp_path)}: not a regular file"
     ]
 
 
@@ -271,7 +271,7 @@ def test_a_directory_is_refused_before_it_is_opened(
     with caplog.at_level(logging.WARNING):
         assert loader(tmp_path) is None
     assert caplog.messages == [
-        f"Failed to parse {quote_source(tmp_path)}: not a regular file"
+        f"Cannot read {quote_source(tmp_path)}: not a regular file"
     ]
 
 

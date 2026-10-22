@@ -51,6 +51,7 @@ from pitloom.logging_config import loggable, one_line
 log = logging.getLogger(__name__)
 
 __all__ = [
+    "LockFileRefusedError",
     "POETRY_LOCK_SOURCE_NAME",
     "canonical_name_and_pinned_version",
     "default_group_included",
@@ -127,6 +128,11 @@ def _lock_file_cache_key(lock_path: Path) -> _LockFileCacheKey | None:
     return (lock_path, stat_result.st_mtime_ns, stat_result.st_size)
 
 
+class LockFileRefusedError(ValueError):
+    """A lock/pin file that is not read at all: not a regular file, or over
+    :data:`~pitloom.extract._extract_utils.FETCH_MAX_BYTES`."""
+
+
 def read_lock_bytes(lock_path: Path) -> bytes:
     """*lock_path*'s bytes, read through at most :data:`FETCH_MAX_BYTES` + 1.
 
@@ -134,15 +140,16 @@ def read_lock_bytes(lock_path: Path) -> bytes:
     again on the open descriptor, which is binary and non-blocking, so a FIFO
     swapped in for the file cannot hang the read and ``st_size`` is never
     trusted. Raises ``FileNotFoundError``, any other ``OSError``, or
-    ``ValueError`` for a file that is not a regular file or is over the cap;
+    :class:`LockFileRefusedError` for a file that is not a regular file or is
+    over the cap;
     every lock/pin reader logs its own ``WARNING:``."""
     if not stat.S_ISREG(os.stat(lock_path).st_mode):
-        raise ValueError("not a regular file")
+        raise LockFileRefusedError("not a regular file")
     flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
     descriptor = os.open(lock_path, flags)
     try:
         if not stat.S_ISREG(os.fstat(descriptor).st_mode):
-            raise ValueError("not a regular file")
+            raise LockFileRefusedError("not a regular file")
         handle = os.fdopen(descriptor, "rb")
     except BaseException:
         os.close(descriptor)
@@ -150,14 +157,16 @@ def read_lock_bytes(lock_path: Path) -> bytes:
     with handle:
         raw = handle.read(FETCH_MAX_BYTES + 1)
     if len(raw) > FETCH_MAX_BYTES:
-        raise ValueError(f"over {FETCH_MAX_BYTES} bytes")
+        raise LockFileRefusedError(f"over {FETCH_MAX_BYTES} bytes")
     return raw
 
 
 def warn_unreadable_lock_file(lock_path: Path, exc: BaseException) -> None:
     """The one ``WARNING:`` for a lock/pin file that can't be read or
-    parsed (*exc*: why)."""
-    log.warning("Failed to parse %s: %s", quote_source(lock_path), one_line(exc))
+    parsed (*exc*: why): ``Cannot read`` for a file refused before parsing,
+    ``Failed to parse`` otherwise."""
+    verb = "Cannot read" if isinstance(exc, LockFileRefusedError) else "Failed to parse"
+    log.warning("%s %s: %s", verb, quote_source(lock_path), one_line(exc))
 
 
 def _load_lock(
