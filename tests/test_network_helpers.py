@@ -499,8 +499,27 @@ def test_declares_network_spellings(
             "git.clone-failed", "fatal: ... The requested URL returned error: 503"
         ),
         RemoteSourceError("git.timeout", "git clone exceeded 600s"),
+        RemoteSourceError(
+            "git.clone-failed",
+            "fatal: unable to access 'https://h/r/': schannel: failed to receive "
+            "handshake, SSL/TLS connection failed",
+        ),
+        RemoteSourceError(
+            "git.clone-failed", "fatal: SSL_ERROR_SYSCALL in connection to h:443"
+        ),
+        RemoteSourceError(
+            "git.clone-failed", "error: RPC failed; curl 56 recv failure\nearly EOF"
+        ),
     ],
-    ids=["connect", "dns", "http-503", "deadline"],
+    ids=[
+        "connect",
+        "dns",
+        "http-503",
+        "deadline",
+        "schannel",
+        "secure-transport",
+        "rpc-failed",
+    ],
 )
 def test_a_git_network_failure_skips(exc: Exception) -> None:
     assert network_cause_of(exc) is not None

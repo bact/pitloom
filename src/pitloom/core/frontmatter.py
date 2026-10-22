@@ -22,7 +22,7 @@ import re
 
 __all__ = ["opens_frontmatter", "split_frontmatter"]
 
-_LEAD = r"﻿?(?:[ \t]*\r?\n)*"
+_LEAD = r"\ufeff?(?:[ \t]*\r?\n)*"
 _OPEN = re.compile(_LEAD + r"[ \t]*---[ \t]*\r?\n")
 _FRONTMATTER = re.compile(
     _LEAD

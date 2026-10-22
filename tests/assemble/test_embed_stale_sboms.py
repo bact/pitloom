@@ -18,7 +18,6 @@ from pathlib import Path
 import pytest
 from installer.sources import WheelFile
 
-from pitloom import _embed_wheel
 from pitloom._embed_wheel import embed_sbom_in_wheel
 
 from .conftest import _SAMPLE_SPDX3_JSON, _make_dummy_wheel, _spdx3_json_with_subject
@@ -109,7 +108,7 @@ def test_a_failed_chmod_is_one_warning(
     def refuse(*_args: object, **_kwargs: object) -> None:
         raise PermissionError("denied")
 
-    monkeypatch.setattr(_embed_wheel, "chmod", refuse)
+    monkeypatch.setattr("pitloom._embed_wheel.os.chmod", refuse)
     with caplog.at_level(logging.WARNING):
         embed_sbom_in_wheel(wheel, _NEW)
     assert caplog.messages == [f"{wheel.name}: file mode not restored: denied"]

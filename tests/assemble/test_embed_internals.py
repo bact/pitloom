@@ -383,7 +383,7 @@ def test_embed_sbom_orig_mode_none_skips_chmod(
         raise AssertionError("os.chmod should not be called when orig_mode is None")
 
     monkeypatch.setattr(Path, "exists", fake_exists)
-    monkeypatch.setattr("pitloom._embed_wheel.chmod", _chmod_should_not_be_called)
+    monkeypatch.setattr("pitloom._embed_wheel.os.chmod", _chmod_should_not_be_called)
 
     embed_sbom_in_wheel(wheel_path, _SAMPLE_SPDX3_JSON)
 
