@@ -26,6 +26,7 @@ import logging
 import os
 from typing import TYPE_CHECKING, NamedTuple
 
+from pitloom.core.quote_source import quote_source
 from pitloom.id_registry._types import RegistryEntry
 
 if TYPE_CHECKING:
@@ -207,10 +208,14 @@ def persist_registry(registry: IdRegistry, new_ids: int, changed: bool) -> None:
         return
     added = min(new_ids, rebased.added)
     if added:
-        log.info("ID registry: added %d new id(s) to %s", added, registry.path)
+        log.info(
+            "ID registry: added %d new id(s) to %s", added, quote_source(registry.path)
+        )
     else:
         # Changed, but no new id: a stale key was released in the same pass
         # another claimed its id, an id was promoted to its lookup key (see
         # pitloom.id_registry._harvest._release_stale_keys_for_id), or an
         # entry's hash changed.
-        log.info("ID registry: updated stale entries in %s", registry.path)
+        log.info(
+            "ID registry: updated stale entries in %s", quote_source(registry.path)
+        )

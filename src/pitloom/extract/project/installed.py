@@ -36,7 +36,8 @@ from pitloom.extract._core_metadata import (
     core_metadata_license_with_source,
     parse_project_urls,
 )
-from pitloom.extract._extract_utils import field_declared, to_str_list
+from pitloom.extract._extract_utils import field_declared, quote_source, to_str_list
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -112,9 +113,9 @@ def _evaluate_candidate_dir(
         if not quiet:
             log.warning(
                 "%s: %s exists but has no %s -- ignoring it",
-                project_dir,
+                quote_source(project_dir),
                 label,
-                marker_name,
+                quote_source(marker_name),
             )
         return None
     text = _read_marker_text(marker_path)
@@ -122,9 +123,9 @@ def _evaluate_candidate_dir(
         if not quiet:
             log.warning(
                 "%s: %s exists but %s could not be read -- ignoring it",
-                project_dir,
+                quote_source(project_dir),
                 label,
-                marker_name,
+                quote_source(marker_name),
             )
         return None
     msg = email.message_from_string(text)
@@ -136,9 +137,9 @@ def _evaluate_candidate_dir(
             log.warning(
                 "%s: %s declares name %r, which does not match the "
                 "resolved project name %r -- ignoring it entirely",
-                project_dir,
+                quote_source(project_dir),
                 label,
-                candidate_name,
+                loggable(str(candidate_name)),
                 resolved_name,
             )
         return None
@@ -194,7 +195,7 @@ def _discover_candidate(
         found_labels = ", ".join(c.label for c in survivors)
         log.warning(
             "%s: multiple installed-metadata candidates found (%s) -- using %s",
-            project_dir,
+            quote_source(project_dir),
             found_labels,
             winner.label,
         )

@@ -20,6 +20,7 @@ from pathlib import Path
 from packaging.utils import canonicalize_name
 
 from pitloom.core.project import ProjectFile, ProjectMetadata
+from pitloom.core.quote_source import quote_source
 from pitloom.extract._license import resolve_license_concluded
 from pitloom.extract.authors import warn_project_authors_unread
 from pitloom.extract.project import read_project
@@ -115,7 +116,7 @@ def adopt_project_authors(
     if canonicalize_name(project.name) != canonicalize_name(metadata.name):
         log.warning(
             "%s: project %r is not the wheel's %r; authors from the wheel METADATA",
-            project_dir,
+            quote_source(project_dir),
             project.name,
             metadata.name,
         )

@@ -222,7 +222,7 @@ def test_find_installed_metadata_candidate_marker_missing_warns(
     with caplog.at_level(logging.WARNING):
         result = find_installed_metadata_candidate(tmp_path, "pkg")
     assert result is None
-    assert "exists but has no PKG-INFO" in caplog.text
+    assert "exists but has no 'PKG-INFO'" in caplog.text
 
 
 def test_find_installed_metadata_candidate_unreadable_warns(
@@ -380,7 +380,7 @@ def test_find_installed_metadata_candidate_missing_marker_dir(
             "sampleproject-installed-nomarker",
         )
     assert result is None
-    assert "exists but has no PKG-INFO" in caplog.text
+    assert "exists but has no 'PKG-INFO'" in caplog.text
 
 
 def test_find_installed_metadata_candidate_bounded_glob_ignores_deep_decoy() -> None:

@@ -24,6 +24,7 @@ from pitloom.cli._id_target import (
 )
 from pitloom.cli.kv_output import print_kv
 from pitloom.core.iri import require_namespace_iri
+from pitloom.core.quote_source import quote_source
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
     DATASET_PACKAGE_TYPE,
@@ -239,7 +240,7 @@ def _run_id_generate(args: argparse.Namespace) -> int:
     project_dir: Path = (args.project_dir or Path.cwd()).resolve()
     if not os.path.isdir(project_dir):
         print(
-            f"ERROR: --project-dir {args.project_dir} is not a directory",
+            f"ERROR: --project-dir {quote_source(args.project_dir)} is not a directory",
             file=sys.stderr,
         )
         return 1
@@ -271,7 +272,7 @@ def _run_id_import(args: argparse.Namespace) -> int:
     """Run `pitloom id import`."""
     sbom_path: Path = args.sbom.resolve()
     if not os.path.isfile(sbom_path):
-        print(f"ERROR: SBOM file not found: {sbom_path}", file=sys.stderr)
+        print(f"ERROR: SBOM file not found: {quote_source(sbom_path)}", file=sys.stderr)
         return 1
 
     project_dir = Path.cwd()
@@ -296,7 +297,10 @@ def _run_id_import(args: argparse.Namespace) -> int:
         skipped = registry.import_sbom(sbom_path)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        print(f"ERROR: failed to import SBOM {sbom_path}: {exc}", file=sys.stderr)
+        print(
+            f"ERROR: failed to import SBOM {quote_source(sbom_path)}: {exc}",
+            file=sys.stderr,
+        )
         return 1
 
     if not _save(registry, registry_path):

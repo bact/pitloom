@@ -66,7 +66,7 @@ def test_in_tree_registry_is_left_out_of_files_and_root(
     assert "pkg/reg.json" not in names
     assert "pkg/__init__.py" in names
     assert len(warnings_of(caplog)) == 1
-    assert warnings_of(caplog)[0].startswith(f"ID registry: {registry} is inside")
+    assert warnings_of(caplog)[0].startswith(f"ID registry: '{registry}' is inside")
 
 
 def test_exclusion_is_the_same_root_as_a_tree_without_the_registry(

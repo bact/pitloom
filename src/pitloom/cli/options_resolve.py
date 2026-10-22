@@ -38,6 +38,7 @@ from pitloom.core.creation import (
 )
 from pitloom.core.file_names import sbom_file_name
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
+from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.project import (
     resolve_project_with_lockfile,
@@ -92,7 +93,10 @@ def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path 
     """Resolve and validate project directory or sdist archive path."""
     project_dir = args.project_dir.resolve()
     if not project_dir.exists():
-        print(f"ERROR: project directory not found: {project_dir}", file=sys.stderr)
+        print(
+            f"ERROR: project directory not found: {quote_source(project_dir)}",
+            file=sys.stderr,
+        )
         return None, None
 
     if project_dir.is_file():
@@ -104,7 +108,7 @@ def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path 
             return project_dir, config_path
 
     print(
-        f"ERROR: no project configuration found in {project_dir}. "
+        f"ERROR: no project configuration found in {quote_source(project_dir)}. "
         "Expected pyproject.toml, setup.cfg, or setup.py.",
         file=sys.stderr,
     )

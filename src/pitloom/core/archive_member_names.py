@@ -23,6 +23,7 @@ from collections.abc import Callable, Iterable
 from typing import Literal, NamedTuple, TypeVar
 
 from pitloom.core._models_wheel_types import to_posix_distribution_path
+from pitloom.core.quote_source import quote_source
 
 MemberNameStatus = Literal["ok", "normalized", "unsafe"]
 
@@ -30,7 +31,7 @@ T = TypeVar("T")
 
 _DRIVE_PREFIX = re.compile(r"^[A-Za-z]:")
 
-_MSG = "%sARCHIVE=%r ENTRY=%r: "
+_MSG = "%sARCHIVE=%s ENTRY=%r: "
 _UNSAFE = _MSG + "no safe install location -- skipped"
 _OVERWRITTEN = _MSG + "overwritten by later entry %r -- skipped"
 _SHADOWED = _MSG + "also a directory of other entries -- skipped"
@@ -154,7 +155,7 @@ def archive_members(
                 continue
             args = (_NORMALIZED, raw, member.name)
         if logger is not None:
-            logger.warning(args[0], log_prefix, archive_name, *args[1:])
+            logger.warning(args[0], log_prefix, quote_source(archive_name), *args[1:])
     return members
 
 
@@ -187,7 +188,7 @@ def file_members(
         if not is_directory_name(raw):
             files.append((raw, payload))
         elif size and logger is not None:
-            logger.warning(_DIRECTORY_DATA, log_prefix, archive_name, raw)
+            logger.warning(_DIRECTORY_DATA, log_prefix, quote_source(archive_name), raw)
     return archive_members(
         files,
         archive_name,

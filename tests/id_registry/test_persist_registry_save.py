@@ -149,7 +149,7 @@ def test_an_unread_registry_keeps_the_file_it_would_replace(
     assert saved.namespace == _NS
     assert entries_of(saved) == {**before, **entries_of(registry)}
     assert _messages(caplog, logging.INFO) == [
-        f"ID registry: added 1 new id(s) to {path}"
+        f"ID registry: added 1 new id(s) to '{path}'"
     ]
 
 

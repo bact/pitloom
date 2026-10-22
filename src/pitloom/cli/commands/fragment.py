@@ -35,6 +35,7 @@ from pitloom.cli.commands.utils import (
 from pitloom.cli.kv_output import print_kv
 from pitloom.core.config import FragmentConfig, read_pitloom_config
 from pitloom.core.path_probe import is_missing_errno
+from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
@@ -156,7 +157,7 @@ def _fragment_sha256_status(
         return "match"
     log.warning(
         "SBOM fragment %s SHA-256 mismatch: configured %s, actual %s",
-        fragment_path,
+        quote_source(fragment_path),
         expected_sha256,
         actual,
     )

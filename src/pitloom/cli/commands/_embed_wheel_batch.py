@@ -40,6 +40,7 @@ from pitloom.core.inert_options import (
     overridden_by_flags,
     settle_inert,
 )
+from pitloom.core.quote_source import quote_source
 from pitloom.embed import RECORD_SIGNATURES, EmbedFileCache
 from pitloom.extract.project import read_project
 from pitloom.id_registry import IdRegistry, registry_base_dir, resolve_registry
@@ -84,7 +85,7 @@ def report_embed_result(
             "%s's embedded SBOM entry timestamp was before 1980 and was "
             "floored to 1980-01-01 (ZIP format limitation); the SBOM's own "
             "'created' field keeps the true value",
-            wheel_name,
+            loggable(wheel_name),
         )
 
 
@@ -112,7 +113,10 @@ def resolve_project_dir_and_config(
 
     proj_path = Path(project_dir).resolve()
     if not proj_path.exists():
-        print(f"ERROR: project directory not found: {proj_path}", file=sys.stderr)
+        print(
+            f"ERROR: project directory not found: {quote_source(proj_path)}",
+            file=sys.stderr,
+        )
         return None
     if not read_config:
         return proj_path, None

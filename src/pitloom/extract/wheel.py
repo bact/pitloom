@@ -33,6 +33,7 @@ from pitloom.extract._core_metadata import (
     parse_core_metadata_authors,
     parse_project_urls,
 )
+from pitloom.extract._extract_utils import quote_source
 from pitloom.extract._license_detect import (
     LICENSE_FILE_CAP,
     LICENSE_FILE_MAX_BYTES,
@@ -256,8 +257,8 @@ def read_wheel(
         choice = resolve_own_dist_info(archive, [name for name, _ in members])
         if choice.problem:
             log.warning(
-                "ARCHIVE=%r: %s%s",
-                archive,
+                "ARCHIVE=%s: %s%s",
+                quote_source(archive),
                 choice.problem,
                 "" if choice.prefix else " -- identity unknown",
             )

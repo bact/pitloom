@@ -31,7 +31,7 @@ from pitloom.core.config import PitloomConfig, parse_pitloom_config
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
 from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.extract._core_metadata import license_from_classifiers
-from pitloom.extract._extract_utils import field_declared
+from pitloom.extract._extract_utils import field_declared, quote_source
 from pitloom.extract._license import (
     apply_in_package_license_files,
     classify_license,
@@ -207,7 +207,7 @@ def _parse_standard_metadata_with_retry(
                     "`License ::` classifiers -- dropping the redundant "
                     "classifiers and keeping the SPDX expression (PEP 639 "
                     "transitional state)",
-                    pyproject_path,
+                    quote_source(pyproject_path),
                 )
             data = _drop_redundant_license_classifiers(data)
         try:
@@ -447,7 +447,7 @@ def _try_read_poetry(
                 "%s: [tool.poetry] metadata could not be parsed (%s) -- "
                 "skipping Poetry gap-fill, but still applying poetry.lock's "
                 "resolved dependencies",
-                project_dir,
+                quote_source(project_dir),
                 exc,
             )
             metadata = ProjectMetadata(name="")

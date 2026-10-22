@@ -213,7 +213,7 @@ def test_warn_registry_left_out_wording(
         warn_registry_left_out(registry)
     assert [r.levelname for r in caplog.records] == ["WARNING"]
     assert caplog.records[0].getMessage() == (
-        f"ID registry: {registry} is inside the project's file set; left out of it"
+        f"ID registry: '{registry}' is inside the project's file set; left out of it"
     )
 
 

@@ -20,6 +20,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from pitloom.extract._extract_utils import quote_source
+
 log = logging.getLogger(__name__)
 
 
@@ -102,7 +104,7 @@ def warn_wrong_type(
     if not quiet:
         log.warning(
             "%s: %s is %s, expected %s -- ignoring it",
-            pyproject_path,
+            quote_source(pyproject_path),
             where,
             got,
             expected,

@@ -40,6 +40,7 @@ from pathlib import Path
 from pitloom._toml_io import TOMLDecodeError, load_toml_file
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract._extract_utils import quote_source
 from pitloom.extract._license import (
     apply_in_package_license_files,
 )
@@ -114,7 +115,7 @@ def read_pyproject_toml(project_dir: Path) -> dict[str, object] | None:
     try:
         return load_toml_file(pyproject_path)
     except (OSError, TOMLDecodeError) as exc:
-        log.debug("Failed to parse %s: %s", pyproject_path, exc)
+        log.debug("Failed to parse %s: %s", quote_source(pyproject_path), exc)
         return None
 
 

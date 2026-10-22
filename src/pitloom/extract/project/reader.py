@@ -29,6 +29,7 @@ from pitloom.core.project import (
     is_sdist_archive,
     merge_project_metadata,
 )
+from pitloom.extract._extract_utils import quote_source
 from pitloom.extract.lock import apply_locked_dependencies
 from pitloom.extract.project._installed_reconcile import reconcile_installed_metadata
 from pitloom.extract.project.installed import (
@@ -68,7 +69,7 @@ def _fallback_to_setuptools(
             "%s has no usable [project] table and no [tool.poetry] "
             "fallback -- falling back to setup.cfg/setup.py metadata "
             "instead of an empty pyproject.toml-only result",
-            pyproject_path,
+            quote_source(pyproject_path),
         )
     # read_pyproject() may already have resolved locked_dependencies from
     # poetry.lock (the unparseable-[tool.poetry] path that leads here).

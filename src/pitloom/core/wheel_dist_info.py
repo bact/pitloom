@@ -38,6 +38,7 @@ from packaging.utils import NormalizedName, canonicalize_name
 from packaging.version import Version
 
 from pitloom.core.archive_member_names import zip_file_members
+from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import Cap, loggable, warn_over_cap
 
 log = logging.getLogger(__name__)
@@ -473,7 +474,9 @@ def read_metadata_headers(
     info = next((i for name, i in members if name == target), None)
     if info is None:
         if report:
-            log.warning("ARCHIVE=%r: no %s -- identity unknown", archive, target)
+            log.warning(
+                "ARCHIVE=%s: no %s -- identity unknown", quote_source(archive), target
+            )
         return None
     try:
         with refuse_unreadable(archive, info.orig_filename), zf.open(info) as member:

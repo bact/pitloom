@@ -29,6 +29,7 @@ from pitloom.cli.options import (
 )
 from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.inert_options import HF, MODEL_FILE, forward_options
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.remote import is_huggingface_source, parse_hf_model_id
 
 
@@ -56,7 +57,10 @@ def _run_model_command(args: argparse.Namespace) -> int:
         model_path: Path = given_path.resolve()
         opened_path = existing_model_path(given_path)
         if opened_path is None:
-            print(f"ERROR: model file not found: {model_path}", file=sys.stderr)
+            print(
+                f"ERROR: model file not found: {quote_source(model_path)}",
+                file=sys.stderr,
+            )
             return 1
         output_path = _resolve_model_output_path(args.output, model_path)
         if args.verbose:

@@ -88,7 +88,7 @@ def test_added_counts_distinct_ids(
         (FILE_TYPE, "p/b.py"),
         (FILE_TYPE, "src/p/a.py"),
     ]
-    assert _infos(caplog) == [f"ID registry: added 1 new id(s) to {path}"]
+    assert _infos(caplog) == [f"ID registry: added 1 new id(s) to '{path}'"]
     assert IdRegistry.load(path).id_count() == 2
 
 
@@ -114,7 +114,7 @@ def test_updated_stale_entries_when_no_entry_is_new(
 
     assert registry.get(FILE_TYPE, name) == RegistryEntry(spdx_id, "b" * 64)
     assert registry.id_count() == 1
-    assert _infos(caplog) == [f"ID registry: updated stale entries in {path}"]
+    assert _infos(caplog) == [f"ID registry: updated stale entries in '{path}'"]
 
 
 @pytest.mark.parametrize("error", [OSError("disk full"), ValueError("drives")])

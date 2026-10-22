@@ -31,6 +31,7 @@ from pitloom.core.path_probe import (
     UNREADABLE_FILE_WARNING,
     stat_if_present,
 )
+from pitloom.core.quote_source import quote_source
 from pitloom.core.walk_rules import IGNORED_DIR_NAMES, SameFile
 from pitloom.logging_config import loggable, one_line
 
@@ -270,7 +271,7 @@ def _root_files(root: Path, project_root: Path, strict: bool) -> Iterable[Path]:
     read or listing failure of *root* itself raises."""
     root_stat = stat_if_present(root)
     if root_stat is None:
-        log.warning("ID registry: path not found, skipping: %s", root)
+        log.warning("ID registry: path not found, skipping: %s", quote_source(root))
         return ()
 
     is_dir = stat.S_ISDIR(root_stat.st_mode)
@@ -279,7 +280,7 @@ def _root_files(root: Path, project_root: Path, strict: bool) -> Iterable[Path]:
         log.warning(
             "ID registry: path has a skipped directory name (%s), skipping: %s",
             skipped,
-            root,
+            quote_source(root),
         )
         return ()
     if is_dir:

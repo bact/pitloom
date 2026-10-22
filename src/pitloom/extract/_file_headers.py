@@ -46,6 +46,7 @@ from functools import lru_cache
 from typing import Any
 
 from pitloom.core.content_type_config import ContentTypeOverride
+from pitloom.extract._extract_utils import quote_source
 
 log = logging.getLogger(__name__)
 
@@ -264,7 +265,9 @@ def guess_content_type(
             # pylint: disable-next=broad-exception-caught
             except Exception as exc:
                 log.debug(
-                    "magika content-type detection failed for %s: %s", filename, exc
+                    "magika content-type detection failed for %s: %s",
+                    quote_source(filename),
+                    exc,
                 )
 
     guessed_mime_type, _encoding = mimetypes.guess_type(filename)

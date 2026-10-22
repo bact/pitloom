@@ -81,7 +81,7 @@ def test_project_dir_not_a_directory_is_one_error(
 
     assert code == 1
     err = [line for line in capsys.readouterr().err.splitlines() if line]
-    assert err == [f"ERROR: --project-dir {bad} is not a directory"]
+    assert err == [f"ERROR: --project-dir '{bad}' is not a directory"]
     assert not out.exists()
 
 
