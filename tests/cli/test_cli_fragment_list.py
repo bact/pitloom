@@ -214,7 +214,7 @@ def test_fragment_list_unparseable_file(
     assert result == 0
     assert "ELEMENTS=-" in capsys.readouterr().out
     assert any(
-        r.message.startswith(f"Failed to read SBOM fragment {frag_path}: ")
+        r.message.startswith(f"Failed to read SBOM fragment '{frag_path}': ")
         for r in caplog.records
     )
 
@@ -366,7 +366,7 @@ def test_fragment_read_status_os_error_on_read(
     assert read_ok is False
     assert elements is None
     assert any(
-        r.message.startswith(f"Failed to read SBOM fragment {frag_path}: ")
+        r.message.startswith(f"Failed to read SBOM fragment '{frag_path}': ")
         for r in caplog.records
     )
 

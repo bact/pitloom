@@ -32,6 +32,7 @@ from pitloom.core.models import compute_doc_uuid, generate_spdx_id, get_wheel_fi
 from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.quote_source import quote_source
 from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.extract.ai_model import NotAModel
@@ -71,11 +72,11 @@ def _read_local_model(model_path: Path) -> AiModelMetadata:
         OSError: The header cannot be read.
     """
     if not model_path.exists():
-        raise FileNotFoundError(f"Model file not found: {model_path}")
+        raise FileNotFoundError(f"Model file not found: {quote_source(model_path)}")
     try:
         return read_model_candidate(local_model_candidate(model_path))
     except NotAModel as e:
-        raise ValueError(f"{model_path}: {e}") from e
+        raise ValueError(f"{quote_source(model_path)}: {e}") from e
 
 
 #: What :data:`~pitloom.core.path_probe.UNREADABLE_FILE_WARNING` says a model

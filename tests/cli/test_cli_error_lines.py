@@ -35,6 +35,8 @@ _HOSTILE = "a\nWARNING: forged"
         ["id", "generate", "--id-registry", _HOSTILE + ".json"],
         ["id", "import", _HOSTILE],
         ["id", "generate", "--project-dir", _HOSTILE],
+        ["env", "--python", _HOSTILE, "-o", "o.json"],
+        ["generate", _HOSTILE, "-o", "o.json", "-v"],
     ],
     ids=lambda argv: " ".join(argv[:2]),
 )
@@ -46,8 +48,16 @@ def test_a_hostile_path_cannot_forge_a_line(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, "argv", ["loom", *argv])
-    assert main() != 0
+    try:
+        code = main()
+    except SystemExit as exit_:  # argparse refuses an argument
+        code = exit_.code
+    assert code != 0
     lines = capsys.readouterr().err.splitlines()
     assert lines, "no error was reported"
-    assert all(line.startswith(("ERROR: ", "WARNING: ", "INFO: ")) for line in lines)
     assert not any(line.startswith("WARNING: forged") for line in lines)
+    # Every line is tagged, a usage line, or part of an indented traceback.
+    assert all(
+        line.startswith(("ERROR: ", "WARNING: ", "INFO: ", "usage: ", " "))
+        for line in lines
+    )

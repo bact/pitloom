@@ -123,7 +123,7 @@ def require_wheel_path(path: Path | str) -> None:
     The one rule every surface that takes a wheel applies, with one message.
     """
     if not is_wheel_path(path):
-        raise WheelRefused(f"not a {WHEEL_SUFFIX} file: {path}")
+        raise WheelRefused(f"not a {WHEEL_SUFFIX} file: {quote_source(path)}")
 
 
 def refusal(archive: str, entry: str | None, reason: str) -> WheelRefused:

@@ -20,6 +20,7 @@ import os
 import re
 import sys
 import threading
+import traceback
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 
@@ -101,6 +102,14 @@ class _OneLineFormatter(logging.Formatter):
     def formatMessage(self, record: logging.LogRecord) -> str:
         record.message = escape_controls(record.message)
         return super().formatMessage(record)
+
+
+def print_traceback() -> None:
+    """Print the traceback of the exception being handled to stderr, each
+    line indented and escaped by :func:`escape_controls`: a line of an
+    exception message that reads ``WARNING: forged`` is not a tagged line."""
+    for line in traceback.format_exc().splitlines():
+        print(f"  {escape_controls(line)}", file=sys.stderr)
 
 
 def print_error(message: str) -> None:

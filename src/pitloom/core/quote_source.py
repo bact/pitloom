@@ -6,28 +6,28 @@
 """Quote a path or file name for a log or stderr message.
 
 Lives in ``core`` so core modules can use it without importing the
-``pitloom.extract`` package (which imports ``core`` back);
-``pitloom.extract._extract_utils`` re-exports it.
+``pitloom.extract`` package (which imports ``core`` back).
 """
 
 from __future__ import annotations
 
-import re
-from pathlib import Path
+import os
+
+from pitloom.logging_config import escape_controls
 
 __all__ = ["quote_source"]
 
-_UNPRINTABLE = re.compile("[\x00-\x1f\x7f-\x9f\ud800-\udfff]")
 
-
-def quote_source(source: str | Path) -> str:
+def quote_source(source: str | bytes | os.PathLike[str] | os.PathLike[bytes]) -> str:
     """*source* in quotes, written as the OS writes it, on one line.
 
     ``repr()`` of a :class:`~pathlib.Path` shows ``WindowsPath('D:/a/b')``
     (forward slashes) and of a ``str`` doubles each backslash; neither matches
-    ``str(path)``, which a reader of the message looks for. Only control
-    characters and lone surrogates are escaped (``\\n``-style), so a name with
-    a newline cannot split the message over two lines.
+    ``str(path)``, which a reader of the message looks for. What
+    :func:`~pitloom.logging_config.escape_controls` escapes (control
+    characters, line separators, display controls, lone surrogates) is
+    written as an escape, so a name cannot split the message over two lines
+    or reorder it; the rest stays as written. A real newline and a literal
+    backslash and ``n`` both show as ``\\n``, as a path is shown, not parsed.
     """
-    text = _UNPRINTABLE.sub(lambda match: ascii(match.group())[1:-1], str(source))
-    return f"'{text}'"
+    return f"'{escape_controls(os.fsdecode(source))}'"

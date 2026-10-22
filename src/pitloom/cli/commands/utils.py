@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import glob
-import traceback
 from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
@@ -29,7 +28,7 @@ from pitloom.core.wheel_dist_info import (
     looks_like_wheel_path,
     require_wheel_path,
 )
-from pitloom.logging_config import print_error
+from pitloom.logging_config import print_error, print_traceback
 
 
 def cli_error_handler(
@@ -46,7 +45,7 @@ def cli_error_handler(
             except Exception as e:
                 print_error(f"{error_msg}: {e}")
                 if getattr(args, "verbose", False):
-                    traceback.print_exc()
+                    print_traceback()
                 return 1
 
         return wrapper

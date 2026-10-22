@@ -165,7 +165,7 @@ def read_project(
         ValueError: If config is malformed.
     """
     if not project_path.exists():
-        raise FileNotFoundError(f"Project path not found: {project_path}")
+        raise FileNotFoundError(f"Project path not found: {quote_source(project_path)}")
 
     if is_sdist_archive(project_path):
         contents = read_sdist(project_path, read_config=read_config)
@@ -209,7 +209,8 @@ def read_project(
         config_path = setup_cfg if setup_cfg.exists() else setup_py
     else:
         raise FileNotFoundError(
-            f"No pyproject.toml, setup.cfg, or setup.py found in {project_path}"
+            "No pyproject.toml, setup.cfg, or setup.py found in "
+            f"{quote_source(project_path)}"
         )
 
     if include_locked_dependencies:

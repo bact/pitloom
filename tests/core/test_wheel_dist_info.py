@@ -520,7 +520,7 @@ def test_open_wheel_zip_judges_the_given_name_not_the_path(tmp_path: Path) -> No
     blob = raw_wheel(tmp_path / "blob", [("demo-1.0.dist-info/METADATA", "x")])
     with open_wheel_zip(blob, name="x.whl"):
         pass
-    with pytest.raises(WheelRefused, match=r"not a \.whl file: x\.WHL"):
+    with pytest.raises(WheelRefused, match=r"not a \.whl file: 'x\.WHL'"):
         open_wheel_zip(blob, name="x.WHL")
     junk = tmp_path / "junk"
     junk.write_bytes(b"not a zip")

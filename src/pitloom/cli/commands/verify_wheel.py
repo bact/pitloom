@@ -23,6 +23,7 @@ from pitloom.cli.commands.utils import (
 )
 from pitloom.cli.kv_output import print_kv
 from pitloom.core.quote_source import quote_source
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -47,13 +48,13 @@ def _check_location(
             "%s: unrecognized SBOM format for %s; cannot check the "
             "recommended extension",
             quote_source(wheel_path.name),
-            location.arcname,
+            loggable(location.arcname),
         )
     elif not location.arcname.endswith(recommended):
         log.warning(
             "%s: %s doesn't use the recommended %r extension for its format",
             quote_source(wheel_path.name),
-            location.arcname,
+            loggable(location.arcname),
             recommended,
         )
     return True

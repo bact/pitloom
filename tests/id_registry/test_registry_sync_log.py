@@ -134,7 +134,7 @@ def test_a_failed_save_is_one_warning(
 
     warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
     assert len(warnings) == 1
-    assert warnings[0].startswith(f"ID registry: failed to save {path}")
+    assert warnings[0].startswith(f"ID registry: failed to save '{path}'")
     assert not _infos(caplog)
 
 

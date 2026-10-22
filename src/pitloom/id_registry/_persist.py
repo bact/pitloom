@@ -160,7 +160,7 @@ def failed_to_save_message(
     to save <path>: <reason>``. A ``WARNING:`` where the run's output is
     already written (:func:`persist_registry`), an ``ERROR:`` for ``id
     generate``/``id import``, whose output is the registry."""
-    return f"ID registry: failed to save {path}: {exc}"
+    return f"ID registry: failed to save {quote_source(path)}: {exc}"
 
 
 def warn_no_registry_path() -> None:

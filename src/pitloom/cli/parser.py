@@ -9,8 +9,9 @@ the subcommand registry."""
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 from pitloom.__about__ import __version__
 from pitloom.cli.commands.embed_wheel import add_parser as add_embed_wheel
@@ -32,6 +33,7 @@ from pitloom.core.creation import (
     VALID_CREATOR_TYPES,
     Creator,
 )
+from pitloom.logging_config import print_error
 
 
 class _CreatorNameAction(argparse.Action):
@@ -89,6 +91,18 @@ class _CreatorEmailAction(argparse.Action):
             type=creators[-1].type,
             email=values,
         )
+
+
+class _LoomParser(argparse.ArgumentParser):
+    """``argparse`` with its error as one ``ERROR:`` line: the message may
+    quote a command-line value, so it is escaped, and the tag lets the
+    Action and every other reader find the reason. Sub-parsers are of this
+    class too (``add_subparsers`` uses its parent's)."""
+
+    def error(self, message: str) -> NoReturn:
+        self.print_usage(sys.stderr)
+        print_error(f"{self.prog}: {message}")
+        self.exit(2)
 
 
 def _build_parent_parser() -> argparse.ArgumentParser:
@@ -291,7 +305,7 @@ def _build_parser() -> argparse.ArgumentParser:
     """Build the main CLI ArgumentParser."""
     parent_parser = _build_parent_parser()
 
-    parser = argparse.ArgumentParser(
+    parser = _LoomParser(
         prog="loom",
         description="Pitloom - Generate SPDX 3 SBOMs for Python projects and AI models",
         formatter_class=argparse.RawDescriptionHelpFormatter,

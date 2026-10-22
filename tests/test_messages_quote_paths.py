@@ -44,7 +44,22 @@ _SAFE_CALLS = frozenset(
 _LEVELS = frozenset({"debug", "info", "warning", "error", "critical", "exception"})
 _LOGGERS = frozenset({"log", "logger", "logging", "_log", "_logger"})
 #: Calls that log through a helper: the message is the first argument.
-_LOG_HELPERS = frozenset({"warn_once"})
+_LOG_HELPERS = frozenset({"warn_once", "print_error", "report_error_line"})
+
+#: Calls that take a path and quote it inside, or only count paths.
+_QUOTING_CALLS = frozenset(
+    {
+        "_missing_fragment_message",
+        "_fragment_read_failure_message",
+        "_same_document_message",
+        "failed_to_save_message",
+        "name_key_reason",
+        "detail",
+        "detect_ai_model_format_from_name",
+        "_once_key",
+        "len",
+    }
+)
 
 #: (file relative to src/pitloom, variable) pairs that are not paths here.
 _NOT_PATHS: frozenset[tuple[str, str]] = frozenset(
@@ -52,6 +67,7 @@ _NOT_PATHS: frozenset[tuple[str, str]] = frozenset(
         # A TOML key path and a de-duplication key, not file names.
         ("core/_config_keys.py", "path"),
         ("extract/_license_detect.py", "path"),
+        ("extract/project/_pyproject_fields.py", "project_dir"),
     }
 )
 
@@ -87,6 +103,8 @@ def _is_message_call(node: ast.Call) -> bool:
 def _arguments(call: ast.Call) -> list[ast.expr]:
     found: list[ast.expr] = []
     for argument in call.args:
+        if isinstance(argument, ast.Starred):
+            argument = argument.value
         if isinstance(argument, ast.JoinedStr):
             found += [
                 v.value for v in argument.values if isinstance(v, ast.FormattedValue)
@@ -96,17 +114,58 @@ def _arguments(call: ast.Call) -> list[ast.expr]:
     return found
 
 
+def _called_name(call: ast.Call) -> str:
+    func = call.func
+    return func.id if isinstance(func, ast.Name) else getattr(func, "attr", "")
+
+
+def _bare(node: ast.AST) -> list[ast.expr]:
+    """The path-like parts of *node* shown as they are: not inside a call that
+    quotes, not the test of a conditional expression."""
+    if isinstance(node, ast.Call) and _called_name(node) in (
+        _SAFE_CALLS | _QUOTING_CALLS
+    ):
+        return []
+    if isinstance(node, ast.IfExp):
+        return _bare(node.body) + _bare(node.orelse)
+    if isinstance(node, ast.expr) and _is_pathy(node):
+        return [node]
+    if isinstance(node, ast.JoinedStr):
+        return [
+            bare
+            for value in node.values
+            if isinstance(value, ast.FormattedValue)
+            for bare in _bare(value.value)
+        ]
+    return [bare for child in ast.iter_child_nodes(node) for bare in _bare(child)]
+
+
+def _offenders(relative: str, tree: ast.AST) -> list[str]:
+    found = []
+    for node in ast.walk(tree):
+        messages: list[ast.expr] = []
+        if isinstance(node, ast.Call) and _is_message_call(node):
+            messages = _arguments(node)
+        elif isinstance(node, ast.FunctionDef) and node.name.endswith("_message"):
+            # A builder returns the text another module logs or raises.
+            messages = [
+                n.value
+                for n in ast.walk(node)
+                if isinstance(n, ast.Return) and n.value is not None
+            ]
+        for message in messages:
+            for bare in _bare(message):
+                shown = ast.unparse(bare)
+                if (relative, shown) not in _NOT_PATHS:
+                    found.append(f"{relative}:{bare.lineno}: {shown}")
+    return found
+
+
 def _bare_paths() -> list[str]:
     offenders = []
     for path in sorted(_SRC.rglob("*.py")):
         relative = path.relative_to(_SRC).as_posix()
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call) and _is_message_call(node):
-                for argument in _arguments(node):
-                    shown = ast.unparse(argument)
-                    if _is_pathy(argument) and (relative, shown) not in _NOT_PATHS:
-                        offenders.append(f"{relative}:{node.lineno}: {shown}")
+        offenders += _offenders(relative, ast.parse(path.read_text(encoding="utf-8")))
     return offenders
 
 
@@ -115,18 +174,22 @@ def test_no_message_names_a_path_bare() -> None:
     assert not offenders, "wrap in quote_source()/loggable():\n" + "\n".join(offenders)
 
 
-def test_the_guard_sees_a_bare_path(tmp_path: Path) -> None:
-    """The scan is not vacuous: it flags a bare path and not a quoted one."""
+def test_the_guard_sees_a_bare_path() -> None:
+    """The scan is not vacuous: it flags a bare path wherever it hides and not a
+    quoted one."""
     source = (
         "log.warning('x %s', project_dir)\n"
         "log.warning('x %s', quote_source(project_dir))\n"
         "print(f'ERROR: {sbom_path}', file=sys.stderr)\n"
         "print(f'ERROR: {loggable(str(sbom_path))}', file=sys.stderr)\n"
+        "print_error(f'bad {str(sbom_path)}')\n"
+        "print_error('in ' + wheel_path.name)\n"
+        "print_error(f'in {wheel_path.name} ' + ('x' if sbom_filename else ''))\n"
+        "log.warning(*args, wheel_path)\n"
+        "def failed_message(path):\n"
+        "    return f'failed {path}'\n"
+        "def other(path):\n"
+        "    return f'failed {path}'\n"
     )
-    calls = [n for n in ast.walk(ast.parse(source)) if isinstance(n, ast.Call)]
-    flagged = [
-        c.lineno
-        for c in calls
-        if _is_message_call(c) and any(_is_pathy(a) for a in _arguments(c))
-    ]
-    assert flagged == [1, 3]
+    found = {line.split(":")[1] for line in _offenders("x.py", ast.parse(source))}
+    assert found == {"1", "3", "5", "6", "7", "8", "10"}

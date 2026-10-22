@@ -58,7 +58,7 @@ def test_a_file_that_no_longer_loads_is_one_warning(
         persist_registry(registry, 1, True)
 
     (warning,) = _messages(caplog, logging.WARNING)
-    assert warning.startswith(f"ID registry: failed to save {path}")
+    assert warning.startswith(f"ID registry: failed to save '{path}'")
     assert not _messages(caplog, logging.INFO)
     assert path.exists() is (damage == "corrupted")
 
@@ -166,7 +166,7 @@ def test_an_unread_registry_never_replaces_a_file_that_does_not_load(
 
     assert path.read_bytes() == b"{"
     (warning,) = _messages(caplog, logging.WARNING)
-    assert warning.startswith(f"ID registry: failed to save {path}")
+    assert warning.startswith(f"ID registry: failed to save '{path}'")
 
 
 def test_a_loom_run_with_an_unread_registry_keeps_the_file(
