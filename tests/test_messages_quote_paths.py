@@ -156,24 +156,28 @@ def _bare(node: ast.AST) -> list[ast.expr]:
     return [bare for child in ast.iter_child_nodes(node) for bare in _bare(child)]
 
 
+def _raise_messages(exc: ast.Call) -> list[ast.expr]:
+    """The parts of ``raise <exc>`` that carry text: not what a quoting helper
+    quotes itself, nor the filename argument ``OSError`` shows."""
+    name = _called_name(exc)
+    if name in _QUOTING_CALLS:
+        return []
+    messages = _arguments(exc)
+    if name in _OS_ERRORS and len(exc.args) == 3:
+        return messages[:2]
+    return messages[_QUOTING_FIRST.get(name, 0) :]
+
+
 def _offenders(relative: str, tree: ast.AST) -> list[str]:
     found = []
     for node in ast.walk(tree):
         messages: list[ast.expr] = []
         if isinstance(node, ast.Call) and _is_message_call(node):
             messages = _arguments(node)
-        elif (
-            isinstance(node, ast.Raise)
-            and isinstance(node.exc, ast.Call)
-            and _called_name(node.exc) not in _QUOTING_CALLS
-        ):
+        elif isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call):
             # The text of an exception reaches stderr, a log line or a
             # notification somewhere else: it names a path as the log does.
-            messages = _arguments(node.exc)
-            if _called_name(node.exc) in _OS_ERRORS and len(node.exc.args) == 3:
-                messages = messages[:2]
-            if _called_name(node.exc) in _QUOTING_FIRST:
-                messages = messages[_QUOTING_FIRST[_called_name(node.exc)] :]
+            messages = _raise_messages(node.exc)
         elif isinstance(node, ast.FunctionDef) and node.name.endswith("_message"):
             # A builder returns the text another module logs or raises.
             messages = [
@@ -236,11 +240,8 @@ def test_the_guard_sees_a_bare_path() -> None:
 def test_a_raised_path_is_quoted(tmp_path: Path, name: str) -> None:
     """A path in an exception message is escaped and delimited."""
     missing = tmp_path / name
-    try:
+    with pytest.raises(FileNotFoundError) as info:
         read_ai_model(missing)
-    except FileNotFoundError as exc:
-        message = str(exc)
-    else:  # pragma: no cover
-        pytest.fail("no error raised")
+    message = str(info.value)
     assert "\n" not in message
     assert quote_source(missing) in message

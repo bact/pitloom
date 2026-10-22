@@ -127,7 +127,7 @@ traceback, and takes precedence over that error.
   path project-relative, `/`-separated) and the run continues; a partial tree
   is never indexed silently. So does a file whose name a registry cannot hold
   (not UTF-8 encodable). A `PATH` argument itself that cannot be read or
-  listed is `ERROR: PATH <path>: could not be read: <reason>` (exit 1, nothing
+  listed is `ERROR: PATH '<path>': could not be read: <reason>` (exit 1, nothing
   written) on every Python version; an unreadable default directory (`src`,
   `data`, `models`) is the `DIR=` warning instead.
 - Build, virtual-environment, VCS and cache directories are not indexed; see

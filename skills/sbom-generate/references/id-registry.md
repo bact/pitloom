@@ -177,7 +177,7 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
 - **Unreadable files**: a file or directory below a `PATH` that cannot be
   read or listed is a `WARNING: FILE=...`/`DIR=...` (project-relative path)
   and the run continues (so does a file whose name is not UTF-8 encodable); an
-  unreadable `PATH` argument is `ERROR: PATH <path>: could not be read: ...`
+  unreadable `PATH` argument is `ERROR: PATH '<path>': could not be read: ...`
   (an unreadable default directory is only the `DIR=` warning). An explicit
   `PATH` that is or lies in a skipped directory (`build`, `dist`, ...) indexes
   nothing and warns
