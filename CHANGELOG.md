@@ -45,10 +45,11 @@ and this project adheres to
 - G7, CISA 2026, FSCT 2024 and BSI conformance tests and expected tables
   ([#309])
 - One `INFO:` per model whose architecture goes into `ai_typeOfModel` ([#309])
-- References to one dataset (a Hub id in any case) give one dataset package with
-  a relationship per role; a later reference fills only unset fields ([#311])
-- `loom project`/`loom generate` take a Git repository or page URL; GitLab
-  redirects are followed and `check_url=` guards each hop ([#317])
+- References to one dataset (a Hub id in any case) give one dataset package
+  with a relationship per role; a later reference fills only unset fields
+  ([#311])
+- `loom project`/`loom generate` take a Git repository or page URL;
+  GitLab redirects are followed and `check_url=` guards each hop ([#317])
 
 ### Changed
 
@@ -89,13 +90,15 @@ and this project adheres to
 - Skills' minimum-elements tables follow the checker; `loom enrich` licence
   behaviour stated correctly ([#318])
 - A malformed or out-of-range `SOURCE_DATE_EPOCH` is an `ERROR:` on every
-  command, pinned datetime or not; the hook fails the build ([#322])
-- Hook: one `ERROR:` per failed build; Hatchling's own keys accepted; editable
-  builds skipped; `sbom-files` name clash refused ([#322])
-- `embed-wheel --sbom` embeds exact bytes; re-embedding replaces only a Pitloom
-  build SBOM of the same name and version ([#322])
-- Fragments that cannot be canonicalised are skipped with a `WARNING:`; existing
-  relationship descriptions are kept ([#322])
+  command, pinned datetime or not;
+  the hook fails the build ([#322])
+- Hook: one `ERROR:` per failed build; Hatchling's own keys accepted;
+  editable builds skipped; `sbom-files` name clash refused ([#322])
+- `embed-wheel --sbom` embeds exact bytes;
+  re-embedding replaces only a Pitloom build SBOM of the same name and version
+  ([#322])
+- Fragments that cannot be canonicalised are skipped with a `WARNING:`;
+  existing relationship descriptions are kept ([#322])
 - Hatchling hook: tests read the staged SBOM from `build_data`, not a private
   attribute ([#325])
 
@@ -150,7 +153,8 @@ and this project adheres to
 - The NumPy reader type-checks on numpy 2.3 and 2.5 alike:
   no `type: ignore` that one of the two calls unused ([#315])
 - Lock readers warn and move on for nested, oversized or non-regular files,
-  invalid names and padded versions; URL passwords are masked whole ([#323])
+  invalid names and padded versions;
+  URL passwords are masked whole ([#323])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
