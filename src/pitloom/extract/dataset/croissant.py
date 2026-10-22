@@ -251,14 +251,18 @@ def _extract_dataset_size(
 
     record_sets_raw = get_first(data, *RECORD_SET_KEYS)
     if isinstance(record_sets_raw, dict):
-        record_sets = [record_sets_raw]
+        record_sets: list[Any] = [record_sets_raw]
     elif isinstance(record_sets_raw, list):
-        record_sets = [rs for rs in record_sets_raw if isinstance(rs, dict)]
+        record_sets = record_sets_raw
     else:
         record_sets = []
 
+    # A record set that is not a table states no count, so no total.
     total = stated_total(
-        [get_first(rs, *TOTAL_ITEMS_KEYS) for rs in record_sets],
+        [
+            get_first(rs, *TOTAL_ITEMS_KEYS) if isinstance(rs, dict) else None
+            for rs in record_sets
+        ],
         src_label,
         "cr:recordSet cr:totalItems",
     )

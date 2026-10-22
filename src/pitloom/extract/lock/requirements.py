@@ -105,7 +105,8 @@ def extract_pinned_requirements_dependencies(project_dir: Path) -> list[str] | N
     real, fully-pinned one that simply lists zero dependencies (e.g. all
     comments/blank lines). A leading UTF-8 BOM (common from Windows
     editors) and pip's backslash line-continuation syntax are both
-    handled the same as pip itself handles them, not treated as
+    handled as pip handles them (see :func:`_join_continuation_lines` for the
+    one difference), not treated as
     malformed.
     """
     lock_path = project_dir / "requirements.txt"
@@ -135,7 +136,8 @@ def _join_continuation_lines(raw_text: str) -> list[tuple[int, str]]:
     1-based line number of its *first* physical line, as pip's own
     ``join_lines`` does: pieces join with nothing between them, and a
     comment line (``#`` first on the line) never continues, but ends an
-    open continuation.
+    open continuation. Unlike pip, trailing white space after the ``\\``
+    is ignored (pip does not continue such a line).
 
     Doesn't make a ``pip-compile --generate-hashes``-style file usable:
     a ``--hash=...`` token on a joined line is not PEP 508 and disqualifies

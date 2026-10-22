@@ -384,8 +384,10 @@ def test_extract_dataset_size_invalid_top_level_falls_to_dict_record_set() -> No
         ([{"totalItems": 100}, {"totalItems": 20}], 120),
         ([{"name": "no_total"}, {"totalItems": 100}], None),
         ([{"totalItems": 100}, {"totalItems": "bad"}], None),
+        ([{"totalItems": 100}, "#other"], None),
+        ([{"totalItems": 0}, {"totalItems": 0}], 0),
     ],
-    ids=["all-state", "one-states-nothing", "one-is-bad"],
+    ids=["all-state", "one-states-nothing", "one-is-bad", "one-not-a-table", "zero"],
 )
 def test_extract_dataset_size_sums_only_when_every_record_set_states_one(
     record_sets: list[dict[str, object]], size: int | None
@@ -394,7 +396,9 @@ def test_extract_dataset_size_sums_only_when_every_record_set_states_one(
     prov: dict[str, str] = {}
     assert _extract_dataset_size({"recordSet": record_sets}, "ds.json", prov) == size
     assert prov.get("dataset_size") == (
-        "Source: ds.json | Field: cr:recordSet, cr:totalItems" if size else None
+        "Source: ds.json | Field: cr:recordSet, cr:totalItems"
+        if size is not None
+        else None
     )
 
 
