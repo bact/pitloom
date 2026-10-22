@@ -294,3 +294,38 @@ def test_the_lock_file_is_opened_binary_and_without_blocking(
     lock_path.write_bytes(b"a = 1\r\n")
     assert lock_common.read_lock_bytes(lock_path) == b"a = 1\r\n"
     assert seen and seen[0] & 0x8000 and seen[0] & 0x800
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows cannot open a directory")
+def test_a_file_swapped_for_a_directory_after_the_check_is_refused_and_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The descriptor's own type is checked after the open (the path may have
+    changed since the first ``stat``); a refusal closes the descriptor."""
+    regular = tmp_path / "a.toml"
+    regular.write_text("a = 1\n", encoding="utf-8")
+    swapped = tmp_path / "swapped"
+    swapped.mkdir()
+    real_stat, real_open, real_close = os.stat, os.open, os.close
+    opened: list[int] = []
+    closed: list[int] = []
+
+    def _stat(path: object, *args: object, **kwargs: object) -> os.stat_result:
+        target = regular if path == swapped else path
+        return real_stat(target, *args, **kwargs)  # type: ignore[arg-type]
+
+    def _open(path: object, flags: int, *args: object) -> int:
+        descriptor = real_open(path, flags, *args)  # type: ignore[arg-type]
+        opened.append(descriptor)
+        return descriptor
+
+    def _close(descriptor: int) -> None:
+        closed.append(descriptor)
+        real_close(descriptor)
+
+    monkeypatch.setattr(os, "stat", _stat)
+    monkeypatch.setattr(os, "open", _open)
+    monkeypatch.setattr(os, "close", _close)
+    with pytest.raises(ValueError, match="not a regular file"):
+        lock_common.read_lock_bytes(swapped)
+    assert opened and closed == opened
