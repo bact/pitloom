@@ -255,7 +255,7 @@ def test_malformed_top_level_package_entry_warns(
 def test_non_table_top_level_package_entry_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The other half of `_scan_packages()`'s malformed-entry check: a
+    """The other half of `scan_packages()`'s malformed-entry check: a
     top-level `package` array entry that isn't a table at all (not just
     one missing `name`), e.g. a bare string slipped in alongside genuine
     `[[package]]` tables -- must also warn, matching every sibling
@@ -421,7 +421,7 @@ def test_non_registry_sourced_dependency_excluded(
         # source_key cases: without it, "local-dep" (also
         # editable/virtual-sourced by this test's own parametrization)
         # would be a second candidate root package indistinguishable
-        # from "demo", and _find_root_package() would correctly refuse
+        # from "demo", and find_root_package() would correctly refuse
         # to guess between them -- unrelated to what this test checks
         # (that a non-registry-sourced *dependency* is excluded).
         (tmp_path / "pyproject.toml").write_text(
