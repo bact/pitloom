@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for the lock-file loaders of :mod:`pitloom.extract.lock.common`
+"""Tests for the lock-file loaders of :mod:`pitloom.extract.lock._lock_io`
 (``load_lock_toml``/``load_lock_json``): parse failures, the size cap and
 the memo.
 
