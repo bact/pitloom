@@ -22,7 +22,7 @@ import logging
 from collections.abc import Mapping
 from typing import Any
 
-from pitloom.extract._extract_utils import quote_source
+from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import field_loss_suffix, loggable, one_line
 
 log = logging.getLogger(__name__)

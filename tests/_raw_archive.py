@@ -42,9 +42,9 @@ SDIST_FILES = {
 }
 #: ``%r`` of each SDIST_MEMBERS name that warns.
 SDIST_WARNED = (
-    f"'{SDIST_ROOT}\\\\PKG-INFO'",
+    f"'{SDIST_ROOT}\\PKG-INFO'",
     f"'././{SDIST_ROOT}/pyproject.toml'",
-    f"'{SDIST_ROOT}\\\\demo\\\\mod.py'",
+    f"'{SDIST_ROOT}\\demo\\mod.py'",
     f"'{SDIST_ROOT}/../evil.py'",
 )
 

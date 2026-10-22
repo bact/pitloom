@@ -15,7 +15,7 @@ from typing import Literal
 import pytest
 from packaging.specifiers import SpecifierSet
 
-from pitloom.extract._extract_utils import quote_source
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock.common import (
     canonical_name_and_pinned_version,
     default_group_included,

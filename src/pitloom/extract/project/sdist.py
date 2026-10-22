@@ -32,12 +32,12 @@ from pitloom.core.config import (
     select_project_config,
 )
 from pitloom.core.project import ProjectFile, ProjectMetadata
+from pitloom.core.quote_source import quote_source
 from pitloom.extract._core_metadata import (
     core_metadata_license_with_source,
     parse_core_metadata_authors,
     parse_project_urls,
 )
-from pitloom.extract._extract_utils import quote_source
 from pitloom.extract._license import apply_in_package_license_files
 from pitloom.extract.authors import collapse_whitespace, warn_project_authors_unread
 from pitloom.extract.project._sdist_pyproject import metadata_from_pyproject

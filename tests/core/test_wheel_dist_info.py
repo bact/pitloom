@@ -401,7 +401,7 @@ def test_a_wheel_holding_one_name_twice_is_refused(
         )
     message = str(refused.value)
     assert f"ARCHIVE={WHEEL!r}" in message
-    assert f"ENTRY={entries[0][0]!r}: duplicate member name -- wheel refused" in (
+    assert f"ENTRY='{entries[0][0]}': duplicate member name -- wheel refused" in (
         message
     )
 

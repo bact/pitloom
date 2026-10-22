@@ -20,6 +20,7 @@ from pitloom.logging_config import (
     escape_controls,
     excerpt,
     one_line,
+    print_error,
 )
 
 _LOG = logging.getLogger("pitloom.test_logging_config")
@@ -305,3 +306,11 @@ def test_a_traceback_is_still_appended_whole(
     err = capsys.readouterr().err
     assert err.startswith("ERROR: failed\nTraceback")
     assert "ValueError: boom" in err
+
+
+def test_print_error_is_one_error_line(capsys: pytest.CaptureFixture[str]) -> None:
+    """The CLI's one way to write an error: tagged, on stderr, on one line."""
+    print_error("bad 'a\nWARNING: forged'\x1b[0m")
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "ERROR: bad 'a\\nWARNING: forged'\\x1b[0m\n"

@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.error import HTTPError
 from urllib.parse import urlparse
 
-from pitloom.core.quote_source import quote_source as quote_source
+from pitloom.core.quote_source import quote_source
 from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.logging_config import Cap
 

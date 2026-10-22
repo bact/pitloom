@@ -24,6 +24,7 @@ import os
 import zipfile
 from pathlib import Path
 
+from pitloom.core.quote_source import quote_source
 from pitloom.core.wheel_dist_info import (
     PROBLEM_NONE,
     open_wheel_zip,
@@ -66,7 +67,7 @@ def _find_dist_info_prefix(
     choice = resolve_own_dist_info(wheel_path.name, [name for name, _ in members])
     if choice.prefix is not None:
         if report and choice.problem:
-            log.warning("ARCHIVE=%r: %s", wheel_path.name, choice.problem)
+            log.warning("ARCHIVE=%s: %s", quote_source(wheel_path.name), choice.problem)
         return choice.prefix
     raise refusal(wheel_path.name, None, choice.problem or PROBLEM_NONE)
 

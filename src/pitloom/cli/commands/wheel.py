@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +45,7 @@ from pitloom.core.quote_source import quote_source
 from pitloom.embed import embed_filename, refuse_unembeddable_wheel
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.wheel import wheel_identity
+from pitloom.logging_config import print_error
 
 
 @cli_error_handler("wheel command failed")
@@ -66,9 +66,7 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     # Absolute, not resolved: the file name is judged as given.
     wheel_path: Path = Path(target).absolute()
     if not wheel_path.exists():
-        print(
-            f"ERROR: wheel file not found: {quote_source(wheel_path)}", file=sys.stderr
-        )
+        print_error(f"wheel file not found: {quote_source(wheel_path)}")
         return 1
 
     pitloom_config, options = explicit_config_and_options(args)

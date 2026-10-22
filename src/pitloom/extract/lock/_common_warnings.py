@@ -19,7 +19,7 @@ import logging
 from collections.abc import Iterable
 from pathlib import Path
 
-from pitloom.extract._extract_utils import quote_source
+from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)

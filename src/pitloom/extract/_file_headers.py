@@ -46,7 +46,7 @@ from functools import lru_cache
 from typing import Any
 
 from pitloom.core.content_type_config import ContentTypeOverride
-from pitloom.extract._extract_utils import quote_source
+from pitloom.core.quote_source import quote_source
 
 log = logging.getLogger(__name__)
 

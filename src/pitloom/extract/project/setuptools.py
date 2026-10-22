@@ -40,7 +40,7 @@ from pathlib import Path
 from pitloom._toml_io import TOMLDecodeError, load_toml_file
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
-from pitloom.extract._extract_utils import quote_source
+from pitloom.core.quote_source import quote_source
 from pitloom.extract._license import (
     apply_in_package_license_files,
 )

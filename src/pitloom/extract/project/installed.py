@@ -32,12 +32,13 @@ from pathlib import Path
 from packaging.utils import canonicalize_name
 
 from pitloom.core.project import ProjectMetadata
+from pitloom.core.quote_source import quote_source
 from pitloom.extract._core_metadata import (
     core_metadata_license_with_source,
     parse_project_urls,
 )
-from pitloom.extract._extract_utils import field_declared, quote_source, to_str_list
-from pitloom.logging_config import loggable
+from pitloom.extract._extract_utils import field_declared, to_str_list
+from pitloom.logging_config import excerpt
 
 log = logging.getLogger(__name__)
 
@@ -135,11 +136,11 @@ def _evaluate_candidate_dir(
     ):
         if not quiet:
             log.warning(
-                "%s: %s declares name %r, which does not match the "
+                "%s: %s declares name %s, which does not match the "
                 "resolved project name %r -- ignoring it entirely",
                 quote_source(project_dir),
                 label,
-                loggable(str(candidate_name)),
+                excerpt(candidate_name),
                 resolved_name,
             )
         return None
@@ -316,8 +317,8 @@ def read_installed_metadata(
         if not quiet:
             log.warning(
                 "%s: %s could not be re-read -- skipping installed metadata",
-                marker_path.parent,
-                marker_path.name,
+                quote_source(marker_path.parent),
+                quote_source(marker_path.name),
             )
         return None
     msg = email.message_from_string(text)

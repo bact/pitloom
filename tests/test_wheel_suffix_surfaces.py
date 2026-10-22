@@ -299,7 +299,7 @@ def test_wheel_name_helpers(name: str, strict: bool, routed: bool) -> None:
     [
         (["{up}"], "ERROR: not a .whl file: {up}\n"),
         (["{lo}", "{up}"], "ERROR: not a .whl file: {up}\n"),  # nothing runs
-        (["{txt}"], "ERROR: no wheel files matched: dist/*\n"),
+        (["{txt}"], "ERROR: no wheel files matched: 'dist/*'\n"),
     ],
 )
 def test_cli_glob_hit_that_only_differs_in_case_fails_the_batch(

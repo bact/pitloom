@@ -29,9 +29,10 @@ from pyproject_metadata import ConfigurationError, StandardMetadata
 from pitloom._toml_io import load_toml_file
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
+from pitloom.core.quote_source import quote_source
 from pitloom.core.requirements import normalize_dependency_specifier
 from pitloom.extract._core_metadata import license_from_classifiers
-from pitloom.extract._extract_utils import field_declared, quote_source
+from pitloom.extract._extract_utils import field_declared
 from pitloom.extract._license import (
     apply_in_package_license_files,
     classify_license,

@@ -103,6 +103,13 @@ class _OneLineFormatter(logging.Formatter):
         return super().formatMessage(record)
 
 
+def print_error(message: str) -> None:
+    """Print one ``ERROR: <message>`` line to stderr, the message escaped by
+    :func:`escape_controls`: the one way the CLI writes an error, so a newline
+    in a path or an exception text cannot start a second, forged line."""
+    print(f"ERROR: {escape_controls(message)}", file=sys.stderr)
+
+
 def loggable(text: str) -> str:
     """*text* as is when printable, else its ASCII-escaped literal, so
     untrusted text (an archive member name, an exception message quoting

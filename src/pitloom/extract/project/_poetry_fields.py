@@ -20,7 +20,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from pitloom.extract._extract_utils import quote_source
+from pitloom.core.quote_source import quote_source
 
 log = logging.getLogger(__name__)
 

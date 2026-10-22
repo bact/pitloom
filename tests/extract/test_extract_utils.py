@@ -18,12 +18,12 @@ from urllib.error import HTTPError, URLError
 
 import pytest
 
+from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import (
     close_http_error,
     fetch_json,
     filename_from_url,
     json_nests_over,
-    quote_source,
     sanitize_provenance_text,
 )
 from pitloom.logging_config import Cap, sanitize_url_credentials

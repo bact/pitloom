@@ -35,7 +35,7 @@ from packaging.markers import InvalidMarker
 from packaging.utils import canonicalize_name
 
 from pitloom.core.pep508 import parse_marker
-from pitloom.extract._extract_utils import quote_source
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock.common import (
     find_first_present_key,
     is_usable_name,

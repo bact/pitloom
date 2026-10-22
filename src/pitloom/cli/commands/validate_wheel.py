@@ -23,6 +23,7 @@ from pitloom.cli.commands.utils import (
     cli_error_handler,
 )
 from pitloom.cli.kv_output import print_kv
+from pitloom.core.quote_source import quote_source
 
 log = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ def _validate_location(
         log.warning(
             "%s: no validator registered for %s's format (%s); "
             "skipping content validation",
-            wheel_path.name,
+            quote_source(wheel_path.name),
             location.arcname,
             sbom_format or "unrecognized",
         )

@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import glob
-import sys
 import traceback
 from collections.abc import Callable
 from functools import wraps
@@ -23,13 +22,14 @@ from pitloom.assemble import (
 )
 from pitloom.cli.kv_output import print_kv
 from pitloom.core.file_identity import FileId, file_id
+from pitloom.core.quote_source import quote_source
 from pitloom.core.wheel_dist_info import (
     WheelRefused,
     is_wheel_path,
     looks_like_wheel_path,
     require_wheel_path,
 )
-from pitloom.logging_config import escape_controls
+from pitloom.logging_config import print_error
 
 
 def cli_error_handler(
@@ -44,7 +44,7 @@ def cli_error_handler(
                 return func(args, *pargs, **kwargs)
             # pylint: disable-next=broad-exception-caught
             except Exception as e:
-                print(f"ERROR: {error_msg}: {escape_controls(str(e))}", file=sys.stderr)
+                print_error(f"{error_msg}: {e}")
                 if getattr(args, "verbose", False):
                     traceback.print_exc()
                 return 1
@@ -100,7 +100,7 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
                 had_error = True
                 continue
             if not matched:
-                print(f"ERROR: no wheel files matched: {pattern}", file=sys.stderr)
+                print_error(f"no wheel files matched: {quote_source(pattern)}")
                 had_error = True
                 continue
             wheel_paths.extend(matched)
@@ -110,7 +110,7 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
                 continue
             p = _given(pattern)
             if not p.exists():
-                print(f"ERROR: wheel file not found: {p}", file=sys.stderr)
+                print_error(f"wheel file not found: {quote_source(p)}")
                 had_error = True
                 continue
             wheel_paths.append(p)
@@ -135,7 +135,7 @@ def report_error_line(exc: Exception) -> None:
     """Print one ``ERROR: <message>`` line to stderr -- the same shape for
     every per-wheel check, so one bad wheel of a batch never aborts the
     others."""
-    print(f"ERROR: {exc}", file=sys.stderr)
+    print_error(str(exc))
 
 
 def refuse_non_wheel(path: Path) -> bool:
@@ -180,10 +180,9 @@ def _locate_embedded_sbom_or_report(
         return None
 
     if location is None:
-        print(
-            f"ERROR: no SBOM found under .dist-info/sboms/ in {wheel_path.name}"
-            + (f" matching {sbom_filename!r}" if sbom_filename else ""),
-            file=sys.stderr,
+        print_error(
+            f"no SBOM found under .dist-info/sboms/ in {quote_source(wheel_path.name)}"
+            + (f" matching {quote_source(sbom_filename)}" if sbom_filename else "")
         )
     return location
 
@@ -215,10 +214,9 @@ def _import_spdx3_validate() -> Any | None:
         # pylint: disable=import-outside-toplevel
         import spdx3_validate
     except ImportError:
-        print(
-            "ERROR: the 'spdx3-validate' package is required for SPDX 3 "
-            'validation. Install it with: pip install "pitloom[validate]"',
-            file=sys.stderr,
+        print_error(
+            "the 'spdx3-validate' package is required for SPDX 3 "
+            'validation. Install it with: pip install "pitloom[validate]"'
         )
         return None
     return spdx3_validate
@@ -245,7 +243,7 @@ def _validate_spdx3_documents(paths: list[str], *, check_merged: bool) -> int:
         # ValidationResult carrying schema/SHACL findings below, but still
         # a validation failure the caller should report cleanly, not an
         # unhandled exception.
-        print(f"ERROR: {exc}", file=sys.stderr)
+        print_error(str(exc))
         return 1
 
     if not result:
@@ -255,6 +253,6 @@ def _validate_spdx3_documents(paths: list[str], *, check_merged: bool) -> int:
             # with ERROR: so no continuation line is left ungrep-able.
             header = f"{err.source}: [{err.kind}] {err.message}"
             for line in header.splitlines():
-                print(f"ERROR: {line}", file=sys.stderr)
+                print_error(line)
         return 1
     return 0

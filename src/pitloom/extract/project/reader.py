@@ -29,7 +29,7 @@ from pitloom.core.project import (
     is_sdist_archive,
     merge_project_metadata,
 )
-from pitloom.extract._extract_utils import quote_source
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock import apply_locked_dependencies
 from pitloom.extract.project._installed_reconcile import reconcile_installed_metadata
 from pitloom.extract.project.installed import (

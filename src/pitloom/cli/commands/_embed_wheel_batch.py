@@ -16,7 +16,6 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import logging
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -44,7 +43,7 @@ from pitloom.core.quote_source import quote_source
 from pitloom.embed import RECORD_SIGNATURES, EmbedFileCache
 from pitloom.extract.project import read_project
 from pitloom.id_registry import IdRegistry, registry_base_dir, resolve_registry
-from pitloom.logging_config import loggable
+from pitloom.logging_config import loggable, print_error
 
 log = logging.getLogger(__name__)
 
@@ -113,10 +112,7 @@ def resolve_project_dir_and_config(
 
     proj_path = Path(project_dir).resolve()
     if not proj_path.exists():
-        print(
-            f"ERROR: project directory not found: {quote_source(proj_path)}",
-            file=sys.stderr,
-        )
+        print_error(f"project directory not found: {quote_source(proj_path)}")
         return None
     if not read_config:
         return proj_path, None

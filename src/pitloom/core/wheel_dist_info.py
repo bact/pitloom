@@ -131,9 +131,12 @@ def refusal(archive: str, entry: str | None, reason: str) -> WheelRefused:
     ``ARCHIVE='a.whl' ENTRY='m': <reason> -- wheel refused`` (no ``ENTRY=``
     where no member is to blame).
 
-    Archive and member are ``repr``, so a hostile name cannot forge a line.
+    Archive and member go through :func:`quote_source`, so a hostile name
+    cannot forge a line.
     """
-    where = f"ARCHIVE={archive!r}" + (f" ENTRY={entry!r}" if entry is not None else "")
+    where = f"ARCHIVE={quote_source(archive)}" + (
+        f" ENTRY={quote_source(entry)}" if entry is not None else ""
+    )
     return WheelRefused(f"{where}: {reason} -- wheel refused")
 
 

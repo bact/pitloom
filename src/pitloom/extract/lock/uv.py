@@ -32,7 +32,7 @@ from typing import Any
 
 from packaging.utils import canonicalize_name
 
-from pitloom.extract._extract_utils import quote_source
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock._uv_graph import (
     collect_transitive_dependencies,
     find_root_package,

@@ -26,8 +26,9 @@ _SRC = Path(__file__).parent.parent / "src" / "pitloom"
 _PATHY = re.compile(
     r"(^|_)(path|paths|dir|directory|filename|root|folder|member)$"
     r"|^(archive|archive_name|wheel_name|sdist_name|marker_name|candidate_name"
-    r"|lock_file|location|orig_filename)$"
+    r"|lock_file|location|orig_filename|p|pattern)$"
 )
+_PART_ATTRIBUTES = frozenset({"name", "parent", "stem", "suffix"})
 _SAFE_CALLS = frozenset(
     {
         "quote_source",
@@ -41,16 +42,27 @@ _SAFE_CALLS = frozenset(
     }
 )
 _LEVELS = frozenset({"debug", "info", "warning", "error", "critical", "exception"})
-_LOGGERS = frozenset({"log", "logger", "logging"})
+_LOGGERS = frozenset({"log", "logger", "logging", "_log", "_logger"})
+#: Calls that log through a helper: the message is the first argument.
+_LOG_HELPERS = frozenset({"warn_once"})
 
 #: (file relative to src/pitloom, variable) pairs that are not paths here.
-_NOT_PATHS: frozenset[tuple[str, str]] = frozenset()
+_NOT_PATHS: frozenset[tuple[str, str]] = frozenset(
+    {
+        # A TOML key path and a de-duplication key, not file names.
+        ("core/_config_keys.py", "path"),
+        ("extract/_license_detect.py", "path"),
+    }
+)
 
 
 def _is_pathy(node: ast.expr) -> bool:
     if isinstance(node, ast.Name):
         return _PATHY.search(node.id) is not None
     if isinstance(node, ast.Attribute):
+        # ``wheel_path.name``/``.parent``/``.stem`` are as user-given as the path.
+        if node.attr in _PART_ATTRIBUTES and _is_pathy(node.value):
+            return True
         return _PATHY.search(node.attr) is not None
     return False
 
@@ -63,6 +75,8 @@ def _is_message_call(node: ast.Call) -> bool:
             owner.id if isinstance(owner, ast.Name) else getattr(owner, "attr", "")
         )
         return owner_name in _LOGGERS
+    if isinstance(func, ast.Name) and func.id in _LOG_HELPERS:
+        return True
     return (
         isinstance(func, ast.Name)
         and func.id == "print"

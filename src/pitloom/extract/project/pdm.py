@@ -48,7 +48,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from pitloom.extract._extract_utils import quote_source
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.project._setup_cfg_directives import listed_file_readable
 
 log = logging.getLogger(__name__)

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +26,7 @@ from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.inert_options import ENRICH, forward_options
 from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
+from pitloom.logging_config import print_error
 
 log = logging.getLogger(__name__)
 
@@ -41,9 +41,7 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
     model_path: Path = given_path.resolve()
     opened_path = existing_model_path(given_path)
     if opened_path is None:
-        print(
-            f"ERROR: model file not found: {quote_source(model_path)}", file=sys.stderr
-        )
+        print_error(f"model file not found: {quote_source(model_path)}")
         return 1
 
     # Only an explicitly named config applies: a pyproject.toml near the
