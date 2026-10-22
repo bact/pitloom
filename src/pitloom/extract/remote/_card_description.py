@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import re
 
+from pitloom.core.frontmatter import split_frontmatter
+
 __all__ = ["MAX_DESCRIPTION_CHARS", "card_description"]
 
 #: The longest description kept; a longer paragraph is cut.
@@ -45,18 +47,6 @@ _NOT_PROSE_LINE = re.compile(
 _BOLD_KEY = re.compile(r"(?:[-*+]\s+)?\*\*(?:[^*]+:\*\*|[^*]+\*\*\s*:)\s*(.*)")
 #: A value that is a sentence: three words or more, closed by ``.!?``.
 _SENTENCE = re.compile(r"\w+(?:\W+\w+){2,}.*[.!?]")
-
-
-def _strip_front_matter(lines: list[str]) -> list[str]:
-    """*lines* after the YAML front matter between ``---`` markers; none
-    when the card has no front matter."""
-    in_yaml = False
-    for i, line in enumerate(lines):
-        if line.strip() == "---":
-            if in_yaml:
-                return lines[i + 1 :]
-            in_yaml = True
-    return []
 
 
 def _paragraphs(lines: list[str]) -> list[list[str]]:
@@ -102,7 +92,8 @@ def card_description(card_text: str) -> str | None:
     """The first prose paragraph of *card_text* (a whole card, front
     matter included), its lines joined by a space and cut to
     :data:`MAX_DESCRIPTION_CHARS`; ``None`` when there is none."""
-    lines = _strip_front_matter(card_text.splitlines())
+    split = split_frontmatter(card_text)
+    lines = [] if split is None else split[1].splitlines()
     for paragraph in _paragraphs(lines):
         if _is_prose(paragraph):
             return " ".join(paragraph)[:MAX_DESCRIPTION_CHARS]

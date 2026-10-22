@@ -90,6 +90,18 @@ and this project adheres to
 - Skills, docs and code comments match the code: skills' minimum-elements tables
   follow the checker's rules, `loom enrich` licence behaviour is stated
   correctly ([#318])
+- `SOURCE_DATE_EPOCH` that is malformed or out of range is an `ERROR:` on every
+  command, pinned `--creation-datetime` or not (it was a warning); the hook
+  fails the build ([#322])
+- Hatchling hook: one `ERROR:` per failed build, Hatchling's own keys accepted,
+  editable builds skipped, a name clash with `sbom-files` named, `INFO:` for the
+  clock and for ignored `[tool.pitloom]` keys set to `true` ([#322])
+- `embed-wheel --sbom` embeds the file's exact bytes (a BOM is dropped with a
+  warning); re-embedding replaces only a Pitloom build SBOM of the same name
+  and version ([#322])
+- A fragment that cannot be canonicalised (integer past 2^53, `1e999`) is skipped
+  with a `WARNING:`; an existing Relationship description is kept; frontmatter
+  delimiters are whole lines ([#322])
 
 ### Fixed
 
@@ -127,21 +139,24 @@ and this project adheres to
   symlinked `PATH` directory is walked; a name UTF-8 cannot hold is skipped
   with a `WARNING:`; `@graph` not a list is an `ERROR:` on `id import` ([#305])
 - A wheel with no identity (`unknown`) is not looked up in or recorded into an
-  ID registry, and its ids depend on its file name; a `loom.Run` dataset is one package per name and content ([#305])
+  ID registry, and its ids depend on its file name;
+  a `loom.Run` dataset is one package per name and content ([#305])
 - A Hugging Face model's description is found again: the whole model card,
   front matter included, goes to the description helper ([#310])
 - Dataset readers: a model card lists at most 1000 datasets, Croissant JSON
   nests at most 64 levels, a placeholder (`unknown`, `N/A`, `NOASSERTION`) is
   no name, licence or URL, and Hub card warnings name no cache path ([#311])
-- The main package's `suppliedBy` is never a `software-agent` creator: the next
-  creator is taken, or none is set ([#312])
-- `loom.Run` names a dataset as a model card does (`Org/Data` is `org/data`, a file
-  never folded); a folded spelling is said once by an `INFO:` ([#314])
-- The NumPy reader type-checks on numpy 2.3 and 2.5 alike: no `type: ignore` that
-  one of the two calls unused ([#315])
-- Lock-file readers warn and move on for a deeply nested, oversized or non-regular
-  file, an invalid name or a padded version; a uv member of another name supplies
-  no dependencies; URL passwords are masked whole ([#323])
+- The main package's `suppliedBy` is never a `software-agent` creator:
+  the next creator is taken, or none is set ([#312])
+- `loom.Run` names a dataset as a model card does (`Org/Data` is `org/data`,
+  a file never folded); a folded spelling is said once by an `INFO:`
+  ([#314])
+- The NumPy reader type-checks on numpy 2.3 and 2.5 alike:
+  no `type: ignore` that one of the two calls unused ([#315])
+- Lock-file readers warn and move on for a deeply nested, oversized or
+  non-regular file, an invalid name or a padded version;
+  a uv member of another name supplies no dependencies;
+  URL passwords are masked whole ([#323])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
@@ -155,6 +170,7 @@ and this project adheres to
 [#315]: https://github.com/bact/pitloom/pull/315
 [#317]: https://github.com/bact/pitloom/pull/317
 [#318]: https://github.com/bact/pitloom/pull/318
+[#322]: https://github.com/bact/pitloom/pull/322
 [#323]: https://github.com/bact/pitloom/pull/323
 
 ## [0.20.2] - 2026-10-09

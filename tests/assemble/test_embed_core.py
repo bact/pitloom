@@ -411,14 +411,11 @@ def test_embed_sbom_preserves_file_permissions(
     target_mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH  # 0o644
     os.chmod(wheel_path, target_mode)
 
-    if sys.platform == "win32":
-        expected_orig_mode = wheel_path.resolve().stat().st_mode
-        chmod_spy = Mock(wraps=os.chmod)
-        monkeypatch.setattr("pitloom._embed_wheel.os.chmod", chmod_spy)
+    expected_orig_mode = wheel_path.resolve().stat().st_mode
+    chmod_spy = Mock(wraps=os.chmod)
+    monkeypatch.setattr("pitloom._embed_wheel.os.chmod", chmod_spy)
 
     embed_sbom_in_wheel(wheel_path, _SAMPLE_SPDX3_JSON)
-    current_mode = stat.S_IMODE(wheel_path.stat().st_mode)
-    if sys.platform == "win32":
-        chmod_spy.assert_called_once_with(wheel_path.resolve(), expected_orig_mode)
-    else:
-        assert current_mode == target_mode
+    chmod_spy.assert_called_once_with(wheel_path.resolve(), expected_orig_mode)
+    if sys.platform != "win32":
+        assert stat.S_IMODE(wheel_path.stat().st_mode) == target_mode

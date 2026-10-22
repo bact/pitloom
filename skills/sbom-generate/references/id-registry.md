@@ -301,7 +301,9 @@ generate`/`id import` (above).
   handlers each run).
 - **Reads, never writes**: `model`, `enrich`, `embed-wheel`, `wheel
   --embed` and the Hatchling build hook. `--update-id-registry` on a CLI
-  command among them logs a `WARNING: Options: ...`.
+  command among them logs a `WARNING: Options: ...`; an `update-id-registry`
+  key in the project's `[tool.pitloom]` gets one `INFO: Options: ...` from the
+  build hook and `embed-wheel --project-dir`.
 - **Ignored**: Hugging Face targets ignore `--id-registry` (also a
   `WARNING:` if passed).
 

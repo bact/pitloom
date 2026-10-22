@@ -32,15 +32,22 @@ of :data:`pitloom.core._models_wheel_types.BUILD_LOG_PREFIX`."""
 
 
 def warn_no_effect(
-    prefix: str, subject: object, flags: Iterable[str], reason: str
+    prefix: str,
+    subject: object,
+    flags: Iterable[str],
+    reason: str,
+    *,
+    level: int = logging.WARNING,
 ) -> None:
-    """Log one ``WARNING:`` per flag in *flags*, in the given order.
+    """Log one ``WARNING:`` per flag in *flags*, in the given order; with
+    *level* ``logging.INFO``, an ``INFO:`` (a config key the surface never
+    acts on, as opposed to a flag the user gave on its command line).
 
     *reason* follows "has no effect" with no trailing punctuation, e.g.
     ``"without --allow-build"``.
     """
     for flag in flags:
-        log.warning("%s%s: %s has no effect %s", prefix, subject, flag, reason)
+        log.log(level, "%s%s: %s has no effect %s", prefix, subject, flag, reason)
 
 
 __all__ = ["INERT_LOG_PREFIX", "warn_no_effect"]

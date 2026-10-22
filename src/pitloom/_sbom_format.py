@@ -30,7 +30,7 @@ from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 def _looks_like_spdx3_jsonld(data: bytes) -> bool:
     """Sniff whether *data* is an SPDX 3 JSON-LD document.
 
-    Unlike :func:`pitloom._embed_wheel._looks_like_pitloom_sbom`, this
+    Unlike :func:`pitloom._embed_stale.looks_like_pitloom_sbom`, this
     doesn't check for a Pitloom-authored ``Tool``/``SoftwareAgent`` -- it
     only checks the generic JSON-LD shape (``@context`` + ``@graph``) so a
     third-party (non-Pitloom) SPDX3 SBOM embedded via ``--sbom`` is also

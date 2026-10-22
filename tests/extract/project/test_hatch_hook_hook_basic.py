@@ -22,7 +22,7 @@ import signal
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from unittest import mock
 
 import pytest
@@ -124,7 +124,6 @@ def test_hook_custom_basename_stored() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        assert hook._sbom_filename == "custom.spdx3.json"
         assert hook._sbom_staging_path is not None
         assert hook._sbom_staging_path.name == "custom.spdx3.json"
 
@@ -188,10 +187,12 @@ def test_hook_initialize_cleans_up_staging_dir_on_late_failure(
             original_cleanup(self)
 
         monkeypatch.setattr(tempfile.TemporaryDirectory, "cleanup", _tracking_cleanup)
-        monkeypatch.setattr(
-            "pitloom.plugins.hatch.log.info",
-            lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")),
-        )
+
+        def _raise_when_staged(msg: str, *_args: Any, **_kwargs: Any) -> None:
+            if msg.startswith("Pitloom: staged"):
+                raise RuntimeError("boom")
+
+        monkeypatch.setattr("pitloom.plugins.hatch.log.info", _raise_when_staged)
 
         with pytest.raises(RuntimeError, match="boom"):
             hook.initialize("standard", build_data)
@@ -323,10 +324,60 @@ def test_hook_missing_fragment_logs_warning(
         hook = make_hook(tmp, {})
         build_data: dict[str, Any] = {}
 
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.INFO):
             hook.initialize("standard", build_data)
 
         assert any("does_not_exist.json" in msg for msg in caplog.messages)
         assert hook._sbom_staging_path is not None
+        # The count is of the fragments merged, not of those configured.
+        assert [m for m in caplog.messages if "(0 fragment(s))" in m]
 
         hook.finalize("standard", build_data, "")
+
+
+def test_hook_editable_variant_is_skipped_with_one_info(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An editable wheel holds a .pth file, not the project's files: no SBOM."""
+    with tempfile.TemporaryDirectory() as tmp:
+        write_pyproject(Path(tmp))
+        hook = make_hook(tmp, {})
+        build_data: dict[str, Any] = {}
+        with caplog.at_level(logging.INFO):
+            hook.initialize("editable", build_data)
+        assert hook._sbom_staging_path is None
+        assert "sbom_files" not in build_data
+        assert [m for m in caplog.messages if "'editable' skipped" in m] != []
+        assert len(caplog.messages) == 1
+
+
+@pytest.mark.parametrize(
+    ("configured", "from_hook"),
+    [
+        ("sub/testpkg-0.1.0.spdx3.json", False),
+        ("/tmp/x/testpkg-0.1.0.spdx3.json", True),
+    ],
+    ids=["project-sbom-files", "other-hook"],
+)
+def test_hook_refuses_an_sbom_name_already_placed(
+    caplog: pytest.LogCaptureFixture, configured: str, from_hook: bool
+) -> None:
+    """Whatever Hatchling already puts under .dist-info/sboms/ under the
+    staged name (``sbom-files``, or another hook's ``build_data`` entry) is
+    one ERROR, naming ``sbom-basename``, and nothing is staged."""
+    with tempfile.TemporaryDirectory() as tmp:
+        write_pyproject(Path(tmp))
+        hook = make_hook(tmp, {})
+        build_data: dict[str, Any] = {}
+        if from_hook:
+            build_data["sbom_files"] = [configured]
+        else:
+            cast(Any, hook.build_config).sbom_files.append(configured)
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(ValueError, match="sbom-basename"):
+                hook.initialize("standard", build_data)
+        assert hook._sbom_staging_path is None
+        errors = [r for r in caplog.records if r.levelno == logging.ERROR]
+        assert len(errors) == 1
+        assert errors[0].getMessage().startswith("SBOM generation failed: ")
+        assert configured in errors[0].getMessage()
