@@ -77,6 +77,32 @@ def sanitize_url_credentials(text: str) -> str:
     return _URL_USERINFO_RE.sub("://***:***@", text)
 
 
+def escape_controls(text: str) -> str:
+    """*text* with each character that is not printable, and each code point
+    of :data:`~pitloom.core.untrusted_text.DISPLAY_CONTROLS`, written as its
+    ASCII escape (``\\n``, ``\\x1b``, ``\\u202e``); anything else, non-ASCII
+    letters included, is kept. Unlike :func:`loggable` it never quotes, so a
+    message already built stays readable."""
+    if text.isprintable() and DISPLAY_CONTROLS.isdisjoint(text):
+        return text
+    return "".join(
+        ascii(char)[1:-1]
+        if not char.isprintable() or char in DISPLAY_CONTROLS
+        else char
+        for char in text
+    )
+
+
+class _OneLineFormatter(logging.Formatter):
+    """``LEVEL: message`` with the message escaped by :func:`escape_controls`:
+    whatever a call site interpolated, one record is one tagged line on
+    stderr. A traceback (``exc_info``) is appended as it is."""
+
+    def formatMessage(self, record: logging.LogRecord) -> str:
+        record.message = escape_controls(record.message)
+        return super().formatMessage(record)
+
+
 def loggable(text: str) -> str:
     """*text* as is when printable, else its ASCII-escaped literal, so
     untrusted text (an archive member name, an exception message quoting
@@ -169,7 +195,7 @@ def configure_logging(*, debug: bool | None = None) -> None:
     logger = logging.getLogger("pitloom")
     handler = logging.StreamHandler(sys.stderr)
     handler.setLevel(level)
-    handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+    handler.setFormatter(_OneLineFormatter("%(levelname)s: %(message)s"))
     with _CONFIG_LOCK:
         logger.setLevel(level)
         logger.handlers = [handler]

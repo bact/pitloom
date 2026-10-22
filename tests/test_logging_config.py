@@ -17,6 +17,7 @@ from pitloom.logging_config import (
     PITLOOM_DEBUG_ENV_VAR,
     apply_debug_override,
     configure_logging,
+    escape_controls,
     excerpt,
     one_line,
 )
@@ -260,3 +261,47 @@ def test_one_line(value: object, expected: str) -> None:
 def test_excerpt(value: object, expected: str) -> None:
     """One literal, escaped once, cut after :data:`EXCERPT_CHARS`."""
     assert excerpt(value) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "escaped"),
+    [
+        ("plain caf\u00e9 / path", "plain caf\u00e9 / path"),
+        ("a\nWARNING: forged", "a\\nWARNING: forged"),
+        ("a\r\nb", "a\\r\\nb"),
+        ("x\x1b[31m", "x\\x1b[31m"),
+        ("a\u202eb", "a\\u202eb"),
+        ("tab\there", "tab\\there"),
+    ],
+)
+def test_escape_controls_keeps_text_and_escapes_controls(
+    text: str, escaped: str
+) -> None:
+    """Only what is not printable, or a display control, is written as an
+    escape; no quotes are added and non-ASCII letters stay."""
+    assert escape_controls(text) == escaped
+
+
+@pytest.mark.parametrize("method", ["warning", "info", "error"])
+def test_a_record_is_one_tagged_line_whatever_it_holds(
+    capsys: pytest.CaptureFixture[str], method: str
+) -> None:
+    """The handler's formatter backstops every call site: a newline in an
+    interpolated path cannot start a second line or forge a tag."""
+    configure_logging()
+    getattr(_LOG, method)("bad dir %s: failed", "x\nERROR: forged\x1b[0m")
+    lines = capsys.readouterr().err.splitlines()
+    assert lines == [f"{method.upper()}: bad dir x\\nERROR: forged\\x1b[0m: failed"]
+
+
+def test_a_traceback_is_still_appended_whole(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    configure_logging()
+    try:
+        raise ValueError("boom")
+    except ValueError:
+        _LOG.exception("failed")
+    err = capsys.readouterr().err
+    assert err.startswith("ERROR: failed\nTraceback")
+    assert "ValueError: boom" in err

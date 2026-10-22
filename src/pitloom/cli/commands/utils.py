@@ -29,6 +29,7 @@ from pitloom.core.wheel_dist_info import (
     looks_like_wheel_path,
     require_wheel_path,
 )
+from pitloom.logging_config import escape_controls
 
 
 def cli_error_handler(
@@ -43,7 +44,7 @@ def cli_error_handler(
                 return func(args, *pargs, **kwargs)
             # pylint: disable-next=broad-exception-caught
             except Exception as e:
-                print(f"ERROR: {error_msg}: {e}", file=sys.stderr)
+                print(f"ERROR: {error_msg}: {escape_controls(str(e))}", file=sys.stderr)
                 if getattr(args, "verbose", False):
                     traceback.print_exc()
                 return 1
