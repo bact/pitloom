@@ -47,6 +47,9 @@ and this project adheres to
 - One `INFO:` per model whose architecture goes into `ai_typeOfModel` ([#309])
 - References to one dataset (a Hub id in any case) give one dataset package with a
   relationship per role; a later reference fills only unset fields ([#311])
+- `loom project`/`loom generate` take a Git repository or page URL (GitHub, GitLab,
+  Gitea/Forgejo, Bitbucket, SourceHut); GitLab redirects followed, INFO names
+  both URLs, `check_url=` guards each hop ([#317])
 
 ### Changed
 
@@ -84,6 +87,9 @@ and this project adheres to
   a merge; `wheel`/`project <sdist>` take `--project-dir` ([#308])
 - `--content-type-method` and `--creator-type` list their choices sorted; a card
   description skips tables of contents, HTML and badges ([#309])
+- Skills, docs and code comments match the code: skills' minimum-elements tables
+  follow the checker's rules, `loom enrich` licence behaviour is stated
+  correctly ([#318])
 
 ### Fixed
 
@@ -133,6 +139,9 @@ and this project adheres to
   never folded); a folded spelling is said once by an `INFO:` ([#314])
 - The NumPy reader type-checks on numpy 2.3 and 2.5 alike: no `type: ignore` that
   one of the two calls unused ([#315])
+- Lock-file readers warn and move on for a deeply nested, oversized or non-regular
+  file, an invalid name or a padded version; a uv member of another name supplies
+  no dependencies; URL passwords are masked whole ([#323])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
@@ -146,6 +155,7 @@ and this project adheres to
 [#315]: https://github.com/bact/pitloom/pull/315
 [#317]: https://github.com/bact/pitloom/pull/317
 [#318]: https://github.com/bact/pitloom/pull/318
+[#323]: https://github.com/bact/pitloom/pull/323
 
 ## [0.20.2] - 2026-10-09
 
@@ -250,9 +260,6 @@ and this project adheres to
 - A `License ::` classifier is a licence source after the licence field
   (manifests, hook, wheel, sdist, dependencies); `License :: OSI Approved` is
   a category, never a licence ([#276])
-- `loom project`/`loom generate` take a Git repository or page URL (GitHub, GitLab,
-  Gitea/Forgejo, Bitbucket, SourceHut); GitLab redirects followed, INFO names
-  both URLs, `check_url=` guards each hop ([#317])
 
 ### Changed
 
@@ -536,9 +543,6 @@ and this project adheres to
 - GitHub Action installs the Pitloom version of its pinned ref
   (`pitloom-version` overrides), uses the workflow's Python unless
   `python-version` is set, and no longer runs `pip --upgrade pip` ([#224])
-- Skills, docs and code comments match the code: skills' minimum-elements tables
-  follow the checker's rules, `loom enrich` licence behaviour is stated
-  correctly ([#318])
 
 ### Fixed
 
