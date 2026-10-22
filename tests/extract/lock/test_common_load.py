@@ -252,3 +252,45 @@ def test_lock_file_cache_keeps_the_two_most_recent_files(tmp_path: Path) -> None
     load_lock_toml(third)
     assert [key[0] for key in lock_common._LOCK_FILE_CACHE] == [first, third]
     lock_common._LOCK_FILE_CACHE.clear()
+
+
+@_LOADERS
+def test_a_directory_is_refused_before_it_is_opened(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    loader: Callable[[Path], object],
+) -> None:
+    """Windows cannot ``os.open`` a directory (``EACCES``): the type is
+    checked first, so the message is the same everywhere."""
+
+    def _cannot_open(*_args: object, **_kwargs: object) -> int:
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(os, "open", _cannot_open)
+    with caplog.at_level(logging.WARNING):
+        assert loader(tmp_path) is None
+    assert caplog.messages == [
+        f"Failed to parse {quote_source(tmp_path)}: not a regular file"
+    ]
+
+
+def test_the_lock_file_is_opened_binary_and_without_blocking(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``O_BINARY`` (Windows: no CRLF or Ctrl-Z handling) and ``O_NONBLOCK``
+    are in the open flags where the platform has them."""
+    monkeypatch.setattr(os, "O_BINARY", 0x8000, raising=False)
+    monkeypatch.setattr(os, "O_NONBLOCK", 0x800, raising=False)
+    seen: list[int] = []
+    real_open = os.open
+
+    def _spy(path: object, flags: int, *args: object) -> int:
+        seen.append(flags)
+        return real_open(path, flags & ~0x8000, *args)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(os, "open", _spy)
+    lock_path = tmp_path / "a.toml"
+    lock_path.write_bytes(b"a = 1\r\n")
+    assert lock_common.read_lock_bytes(lock_path) == b"a = 1\r\n"
+    assert seen and seen[0] & 0x8000 and seen[0] & 0x800

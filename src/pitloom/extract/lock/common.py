@@ -130,12 +130,15 @@ def _lock_file_cache_key(lock_path: Path) -> _LockFileCacheKey | None:
 def read_lock_bytes(lock_path: Path) -> bytes:
     """*lock_path*'s bytes, read through at most :data:`FETCH_MAX_BYTES` + 1.
 
-    The type is checked on the open descriptor, which is opened without
-    blocking, so a FIFO swapped in for the file cannot hang the read and
-    ``st_size`` is never trusted. Raises ``FileNotFoundError``, any other
-    ``OSError``, or ``ValueError`` for a file that is not a regular file or
-    is over the cap; every lock/pin reader logs its own ``WARNING:``."""
-    flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0)
+    The type is checked before the open (Windows cannot open a directory) and
+    again on the open descriptor, which is binary and non-blocking, so a FIFO
+    swapped in for the file cannot hang the read and ``st_size`` is never
+    trusted. Raises ``FileNotFoundError``, any other ``OSError``, or
+    ``ValueError`` for a file that is not a regular file or is over the cap;
+    every lock/pin reader logs its own ``WARNING:``."""
+    if not stat.S_ISREG(os.stat(lock_path).st_mode):
+        raise ValueError("not a regular file")
+    flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
     descriptor = os.open(lock_path, flags)
     try:
         if not stat.S_ISREG(os.fstat(descriptor).st_mode):
