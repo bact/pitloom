@@ -29,5 +29,13 @@ def quote_source(source: str | bytes | os.PathLike[str] | os.PathLike[bytes]) ->
     written as an escape, so a name cannot split the message over two lines
     or reorder it; the rest stays as written. A real newline and a literal
     backslash and ``n`` both show as ``\\n``, as a path is shown, not parsed.
+    A name holding a single quote is shown in double quotes (as ``repr``
+    does), or with the quote escaped when it holds both, so it cannot close
+    the quotes early and add text that reads as another field.
     """
-    return f"'{escape_controls(os.fsdecode(source))}'"
+    text = escape_controls(os.fsdecode(source))
+    if "'" in text:
+        if '"' not in text:
+            return f'"{text}"'
+        text = text.replace("'", "\\'")
+    return f"'{text}'"

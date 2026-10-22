@@ -31,6 +31,9 @@ from pitloom.core.quote_source import quote_source
         (Path("a/b"), "'" + str(Path("a/b")) + "'"),
         (PureWindowsPath("C:/a/b"), "'C:\\a\\b'"),
         (b"bytes\xff", "'bytes\\udcff'"),
+        ("it's", '"it\'s"'),
+        ("a' REASON=ok x='b", "\"a' REASON=ok x='b\""),
+        ("a'\"b", "'a\\'\"b'"),
     ],
     ids=lambda v: repr(v)[:30],
 )
@@ -42,7 +45,10 @@ def test_quote_source(source: object, expected: str) -> None:
 
 
 def test_a_path_like_that_is_not_a_path_is_its_text() -> None:
+    # pylint: disable-next=too-few-public-methods
     class Like:
+        """A path-like object that is not a ``Path``."""
+
         def __fspath__(self) -> str:
             return "x/y"
 

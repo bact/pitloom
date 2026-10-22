@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-07
+Last-Modified: 2026-10-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -53,11 +53,12 @@ say).
   Do: keep each message shape in one constant and grep its consumers
   before rewording.
 - **Make every message line parseable.** Archive warnings read
-  `ARCHIVE='x.whl' ENTRY='pkg\\mod.py': <what> -- <action>`, both values
-  quoted with `%r`, so a name with a space keeps the line `KEY=VALUE`
-  parseable. A refusal names the exception type, never its text
+  `ARCHIVE='x.whl' ENTRY='pkg\mod.py': <what> -- <action>`, both values
+  quoted with `quote_source` (control and display characters escaped, a
+  single quote shown in double quotes), so a name with a space keeps the
+  line `KEY=VALUE` parseable. A refusal names the exception type, never its text
   (`could not read (zlib.error) -- wheel refused`) (#251, #266).
-  Do: quote untrusted values with an escaping repr; name exception types,
+  Do: quote untrusted values with one escaping helper (`quote_source`); name exception types,
   not messages.
 - **A message must describe its own branch.** A discovery function logged
   "using Hatchling-based heuristic, file list may be inaccurate" before

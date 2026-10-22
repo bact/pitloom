@@ -51,7 +51,7 @@ def test_a_hostile_path_cannot_forge_a_line(
     try:
         code = main()
     except SystemExit as exit_:  # argparse refuses an argument
-        code = exit_.code
+        code = exit_.code if isinstance(exit_.code, int) else 1
     assert code != 0
     lines = capsys.readouterr().err.splitlines()
     assert lines, "no error was reported"
