@@ -87,12 +87,12 @@ def find_root_package(
     """The project's own entry among *candidates* (the ``editable``/
     ``virtual`` entries from :func:`scan_packages`), else ``None``.
 
-    A uv workspace lists one per member, so *expected_name* picks the match
-    rather than the first (which would attribute another member's
-    dependencies to this project). Without a name only a sole candidate is
-    taken; with no match, or several candidates and no name, ``None`` after
-    a ``WARNING:``.
+    *expected_name* picks the match among a workspace's members. Without a
+    name only a sole candidate is taken; with no match, or several
+    candidates and no name, ``None`` after a ``WARNING:``.
     """
+    # Never take the first of several: it could be another member's entry,
+    # attributing its dependencies to this project.
     if not candidates:
         return None
 
@@ -173,11 +173,11 @@ def collect_transitive_dependencies(
     """Every package reachable from the root's ``dependencies``, as exact
     pins (breadth-first).
 
-    The installed set is the closure of the graph, not its first layer.
-    Canonical names guard against diamonds and cycles; a reference that does
-    not resolve (:func:`resolved_package_for_dependency`) is skipped and not
-    walked into.
+    A reference that does not resolve
+    (:func:`resolved_package_for_dependency`) is skipped and not walked into.
     """
+    # The installed set is the closure of the graph, not its first layer;
+    # canonical names guard against diamonds and cycles.
     dependencies: dict[str, str] = {}
     visited: set[str] = set()
     visited_extras: set[tuple[str, str]] = set()

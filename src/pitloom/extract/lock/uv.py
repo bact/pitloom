@@ -5,20 +5,17 @@
 
 """Extractor for resolved dependencies from a ``uv.lock``.
 
-Source-stage only, like ``poetry.lock`` and ``pylock.toml``: for
-``loom project``/``loom generate``, never ``loom wheel``/``embed-wheel``
-(the wheel's own metadata is ground truth) or ``loom env`` (the live
-environment is more authoritative than a possibly stale lock).
+Source-stage only, like ``poetry.lock`` and ``pylock.toml``: used by
+``loom project``/``loom generate``, never by ``loom wheel``/``embed-wheel``
+or ``loom env``.
 
-One ``uv.lock`` resolves every Python version and platform, so a name can
-appear at several versions. Without a real environment to evaluate markers
-against, nothing is guessed: the project's own entry (``source.editable`` or
-``source.virtual``) supplies the main ``dependencies``, each resolved only
-when exactly one candidate exists; an ambiguous or marker-conditional name
-is skipped with a ``WARNING:``. The project's own extras and dev groups are
-excluded, but an extra a dependency itself requests (``uvicorn[standard]``)
-is walked. The project's own extras are pinned separately, direct
-references only: :func:`extract_uv_lock_extra_pins`.
+The project's own entry (``source.editable`` or ``source.virtual``)
+supplies the main ``dependencies``, each resolved only when exactly one
+candidate exists; an ambiguous or marker-conditional name is skipped with a
+``WARNING:``. The project's own extras and dev groups are excluded, but an
+extra a dependency itself requests (``uvicorn[standard]``) is walked. The
+project's own extras are pinned separately, direct references only:
+:func:`extract_uv_lock_extra_pins`.
 
 See also: :mod:`pitloom.extract.lock._uv_graph` (the package-table walk),
 :mod:`pitloom.extract.lock.poetry` and :mod:`pitloom.extract.lock.pylock`
