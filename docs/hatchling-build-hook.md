@@ -16,7 +16,8 @@ SBOM embedded automatically -- no separate CLI step to remember.
 Pitloom embeds the SBOM at
 `.dist-info/sboms/<name>-<version>.spdx3.json` (e.g.
 `.dist-info/sboms/mypackage-1.0.0.spdx3.json`), per [PEP 770] (wheels
-only), as compact canonical JSON.
+only), as compact canonical JSON. The name and version are escaped as for
+`loom project`, so no project metadata can make the file name a path.
 
 [PEP 770]: https://peps.python.org/pep-0770/
 

@@ -14,7 +14,12 @@ from __future__ import annotations
 
 import pytest
 
-from pitloom.core.file_names import sbom_base_name, sbom_file_name
+from pitloom.core.file_names import (
+    default_sbom_basename,
+    is_plain_file_name,
+    sbom_base_name,
+    sbom_file_name,
+)
 from tests.warning_helpers import logged_warnings
 
 _LABEL = "sbom-basename"
@@ -72,3 +77,68 @@ def test_sbom_base_name_refuses_only_the_extension(
 )
 def test_sbom_file_name_adds_the_extension_once(value: str, expected: str) -> None:
     assert sbom_file_name(value, _LABEL) == expected
+
+
+@pytest.mark.parametrize(
+    ("name", "plain"),
+    [
+        ("x", True),
+        ("x.json", True),
+        (" x ", True),
+        ("com10", True),
+        ("", False),
+        ("..", False),
+        ("a/b", False),
+        ("a\\b", False),
+        ("a:b", False),
+        ("a\x00b", False),
+        ("a\tb", False),
+        ("a\nb", False),
+        ("a\u202eb", False),
+        ("x.", False),
+        ("CON", False),
+        ("nul.spdx3.json", False),
+        ("Com1.txt", False),
+        ("lpt9 .x", False),
+    ],
+)
+def test_is_plain_file_name(name: str, plain: bool) -> None:
+    """A name that stays a file name on Windows too: no separator, control
+    character, trailing dot or device name."""
+    assert is_plain_file_name(name) is plain
+
+
+@pytest.mark.parametrize(
+    ("name", "version", "expected"),
+    [
+        ("demo", "1.0", "demo-1.0"),
+        ("demo", None, "demo"),
+        ("demo", "", "demo"),
+        (None, "1.0", "sbom-1.0"),
+        (None, None, "sbom"),
+        ("../../escaped", "1.0", ".._.._escaped-1.0"),
+        ("a/b\\c:d", "1\n2", "a_b_c_d-1_2"),
+        ("con", None, "sbom"),
+        ("Nul", "", "sbom"),
+        ("con", "1.0", "con-1.0"),
+    ],
+)
+def test_default_sbom_basename(
+    name: str | None, version: str | None, expected: str
+) -> None:
+    """Parts are escaped, so a project cannot choose a directory; a name that
+    Windows would open as a device falls back to ``sbom``."""
+    base = default_sbom_basename(name, version)
+    assert base == expected
+    assert is_plain_file_name(f"{base}.spdx3.json")
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(" x", "x"), ("x ", "x"), ("\tx\t", "x")],
+)
+def test_sbom_base_name_trims_white_space_and_says_so(
+    caplog: pytest.LogCaptureFixture, value: str, expected: str
+) -> None:
+    assert sbom_base_name(value, _LABEL) == expected
+    assert len(logged_warnings(caplog)) == 1

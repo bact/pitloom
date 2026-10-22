@@ -22,6 +22,9 @@ import pytest
 from installer.sources import WheelFile
 
 from pitloom._embed_stale import looks_like_pitloom_sbom
+from pitloom.cli.options_resolve import _resolve_output_path
+from pitloom.core.config import PitloomConfig
+from pitloom.core.project import ProjectMetadata
 from pitloom.core.wheel_dist_info import PROBLEM_NONE, PROBLEM_SEVERAL_NONE_MATCH
 from pitloom.embed import (
     _derive_wheel_sbom_filename,
@@ -432,3 +435,24 @@ def test_rewrite_wheel_archive_orig_mode_none(tmp_path: Path) -> None:
         )
     assert temp_path.exists()
     temp_path.unlink()
+
+
+@pytest.mark.parametrize(
+    ("name", "version"),
+    [("my-pkg", "1.0+local"), ("../../x", "1\n2"), ("con", None), ("a:b", "c/d")],
+)
+def test_every_surface_derives_one_default_sbom_name(
+    tmp_path: Path, name: str, version: str | None
+) -> None:
+    """Drift guard: the embed, the hook and the CLI name an SBOM alike."""
+    hatch = SimpleNamespace(core=SimpleNamespace(raw_name=name), version=version)
+    config = PitloomConfig()
+    cli = _resolve_output_path(
+        None, ProjectMetadata(name=name, version=version), config
+    )
+    assert cli.name == f"{_default_sbom_basename(hatch)}.spdx3.json"
+    assert cli.name == Path(cli.name).name  # never a path
+    if version:
+        wheel = _make_dummy_wheel(tmp_path, "pkg", "1.0")
+        arcname = embed_sbom_in_wheel(wheel, b"{}", identity=(name, version))[1]
+        assert arcname.rsplit("/", 1)[1] == cli.name
