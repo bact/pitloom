@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -376,6 +376,9 @@ no download required for the SBOM itself (needs
 loom model https://huggingface.co/mistralai/Mistral-7B-v0.1
 loom model Qwen/Qwen3-235B-A22B
 ```
+
+The `www.huggingface.co` and `hf.co` forms, `http://` and any case of the host
+are read as `https://huggingface.co/...`, with an `INFO:` line saying so.
 
 This reads the model card, `config.json`, `tokenizer_config.json`,
 `generation_config.json` and the Hub's model information, and produces an
