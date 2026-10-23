@@ -272,6 +272,66 @@ def test_a_stray_part_and_another_models_annotation_are_ignored(
     )
 
 
+@pytest.mark.parametrize("form", ["comment", "annotation", "both"])
+def test_a_renamed_model_loses_its_generated_provenance_too(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, form: str
+) -> None:
+    """A fragment that renames the model and gives a description: the rename
+    rebuilds the model's comment, and must not bring the dropped entry back."""
+    base = _base(
+        {"description": "generated_from_labels", "name": "file_name_stem"},
+        comment=form != "annotation",
+        annotation=form != "comment",
+    )
+    model, records, annotations = _merge(
+        tmp_path, caplog, base, [{"name": "renamed", "description": "curated"}]
+    )
+    assert (model["name"], model["description"]) == ("renamed", "curated")
+    assert _levels(records) == [logging.INFO, logging.INFO]
+    assert not _provenance_fields(model, annotations) & {"description", "name"}
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"ai_domain": ["b", "a"]},
+        {"ai_informationAboutApplication": '{ "inputs": [1], "outputs": ["x"] }'},
+    ],
+    ids=["list-order", "json-spelling"],
+)
+def test_the_same_value_in_another_spelling_replaces_nothing(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    fields: dict[str, Any],
+) -> None:
+    base = _base({"domain": "derived_from_format", "outputs": "derived_from_format"})
+    model = next(
+        o for o in base.object_set.objects if isinstance(o, spdx3.ai_AIPackage)
+    )
+    model.ai_domain = ["a", "b"]
+    model.ai_informationAboutApplication = '{"outputs":["x"],"inputs":[1]}'
+    merged, records, annotations = _merge(tmp_path, caplog, base, [fields])
+    # No replacement; the plain field merge says what it always did.
+    assert logging.INFO not in _levels(records)
+    assert merged["ai_domain"] == ["a", "b"]
+    assert merged["ai_informationAboutApplication"] == '{"outputs":["x"],"inputs":[1]}'
+    assert _provenance_fields(merged, annotations) >= {"domain", "outputs"}
+
+
+def test_an_empty_generated_value_is_filled_without_a_replacement_notice(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Nothing was generated for an empty value: the fragment's is taken like
+    any fragment value for an empty field, and the mark of it goes."""
+    base = _base({"description": "generated_from_labels"}, description="")
+    model, records, annotations = _merge(
+        tmp_path, caplog, base, [{"description": "curated"}]
+    )
+    assert model["description"] == "curated"
+    assert records == []
+    assert "description" not in _provenance_fields(model, annotations)
+
+
 def test_a_second_fragment_conflicts_with_the_first(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:

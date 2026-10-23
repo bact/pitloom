@@ -33,7 +33,7 @@ from pitloom.assemble.spdx3._fragments_model_names import (
     drop_annotation_provenance,
     drop_comment_provenance,
 )
-from pitloom.assemble.spdx3._fragments_props import _differs
+from pitloom.assemble.spdx3._fragments_props import _differs, _is_empty
 from pitloom.assemble.spdx3._fragments_refs import _endpoint_id
 from pitloom.assemble.spdx3._provenance_encoders import PitloomV1Encoder
 from pitloom.assemble.spdx3.provenance import PROVENANCE_COMMENT_PREFIX
@@ -86,6 +86,23 @@ def _annotation_methods(annotation: spdx3.Annotation) -> dict[str, str | None]:
     }
 
 
+def _equivalent(old: object, new: object) -> bool:
+    """Whether *new* says what *old* does: the same list in another order, or
+    the same JSON text in another spelling."""
+    if not _differs(old, new):
+        return True
+    if isinstance(old, (spdx3.ListProxy, list)) and isinstance(
+        new, (spdx3.ListProxy, list)
+    ):
+        return set(old) == set(new)
+    if isinstance(old, str) and isinstance(new, str):
+        try:
+            return bool(json.loads(old) == json.loads(new))
+        except ValueError:
+            return False
+    return False
+
+
 def generated_properties(methods: dict[str, str | None]) -> frozenset[str]:
     """The properties of a model whose provenance *methods* (field -> method)
     are all generated, from :data:`PROVENANCE_PROPERTY_FIELDS`."""
@@ -97,7 +114,6 @@ def generated_properties(methods: dict[str, str | None]) -> frozenset[str]:
     return frozenset(generated)
 
 
-# pylint: disable-next=too-few-public-methods
 class GeneratedValues:
     """The base models of a merge and the properties Pitloom generated."""
 
@@ -105,6 +121,8 @@ class GeneratedValues:
         self, exporter: Spdx3JsonExporter, base: Iterable[spdx3.SHACLObject]
     ) -> None:
         self._exporter = exporter
+        #: The (model, field) provenance entries to drop once names are settled.
+        self._dropped: list[tuple[spdx3.ai_AIPackage, str]] = []
         objects = list(base)
         annotations = [o for o in objects if isinstance(o, spdx3.Annotation)]
         self._generated: dict[int, set[str]] = {}
@@ -130,29 +148,33 @@ class GeneratedValues:
         for pyname in sorted(properties):
             new = getattr(duplicate, pyname, None)
             old = getattr(canonical, pyname, None)
-            if not _differs(old, new):  # an empty value does not differ
+            if _is_empty(new) or _equivalent(old, new):
                 continue
             if isinstance(new, (spdx3.ListProxy, list, tuple)):
                 new = list(new)
             setattr(canonical, pyname, new)
             properties.discard(pyname)
-            log.info(
-                GENERATED_VALUE_REPLACED_INFO,
-                pyname,
-                describe_element(
-                    type(canonical).__name__, require_spdx_id(canonical), None
-                ),
-                describe_value(new),
-                describe_value(old),
-            )
+            if not _is_empty(old):  # nothing was generated for an empty value
+                log.info(
+                    GENERATED_VALUE_REPLACED_INFO,
+                    pyname,
+                    describe_element(
+                        type(canonical).__name__, require_spdx_id(canonical), None
+                    ),
+                    describe_value(new),
+                    describe_value(old),
+                )
             for name in sorted(PROVENANCE_PROPERTY_FIELDS[pyname]):
-                self._drop_provenance(canonical, name)
+                self._dropped.append((canonical, name))
 
-    def _drop_provenance(self, package: spdx3.ai_AIPackage, name: str) -> None:
-        """Drop the provenance of the field *name* of *package*."""
-        comment = drop_comment_provenance(package.comment, name)
-        if comment is None:
-            del package.comment  # the binding takes no None
-        elif comment != package.comment:
-            package.comment = comment
-        drop_annotation_provenance(self._exporter, require_spdx_id(package), name)
+    def finish(self) -> None:
+        """Drop the provenance of every replaced value, after the names are
+        settled (a rename rebuilds the comment of its model)."""
+        for package, name in self._dropped:
+            comment = drop_comment_provenance(package.comment, name)
+            if comment is None:
+                del package.comment  # the binding takes no None
+            elif comment != package.comment:
+                package.comment = comment
+            drop_annotation_provenance(self._exporter, require_spdx_id(package), name)
+        self._dropped.clear()

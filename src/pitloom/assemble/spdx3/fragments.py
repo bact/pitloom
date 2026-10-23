@@ -454,6 +454,7 @@ def merge_fragments(
         roots.extend(_merge_fragment_set(fragment_set, index, frag.path, events))
 
     index.model_names.finish()
+    index.generated.finish()
     _dedupe_relationships(exporter)
 
     if main_doc is not None:

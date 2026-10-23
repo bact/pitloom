@@ -236,7 +236,12 @@ goes from the comment and the Annotation (as for a renamed model). The first
 fragment that gives a value wins; a later one conflicts with it. Replacing,
 not merging: a generated domain is not unioned with a curated one, and the
 text of `ai_informationAboutApplication` is replaced whole. An empty fragment
-value does not replace. Probe (HEAD vs tree, the committed `sentimentdemo`
+value, and the same value in another spelling (a list in another order, JSON
+with other spacing), do not replace; an empty base value is filled without a
+notice. The provenance entries are dropped after the names are settled
+(`GeneratedValues.finish()`): a rename rebuilds the model's comment and had
+brought a dropped entry back (round 1 review). `loom merge` keeps its
+earlier-wins rule: a generated model in an earlier fragment is not a base. Probe (HEAD vs tree, the committed `sentimentdemo`
 project): the SBOM is byte-identical; with a curated fragment the three
 properties are replaced and the output is stable across runs. Rejected: a
 generic rule that every extracted value is weak (a value read from a model
