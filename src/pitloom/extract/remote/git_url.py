@@ -125,6 +125,9 @@ class GitPage:
     then the folder or file), already percent-decoded; it is empty for a
     plain repository URL. ``plain_url`` is the whole URL as a repository, for
     when the marker proves to be part of the repository's own path.
+    ``sourcehut`` marks a SourceHut ``tree`` page, whose ``rest`` puts an
+    ``item`` segment between the ref and the path; a ``~owner`` ``tree`` page
+    with no such segment is read like any other host's.
     """
 
     repo_url: str
@@ -135,6 +138,7 @@ class GitPage:
     #: ``"branch"``, ``"tag"`` or ``"commit"`` when the page says which.
     kind: str | None = None
     plain_url: str = ""
+    sourcehut: bool = False
 
     @property
     def repo_name(self) -> str:
@@ -184,12 +188,15 @@ def parse_git_page(url: str) -> GitPage:
         index, (marker, kind, is_file) = found
         rest = tuple(unquote(s) for s in raw[index + len(marker) :])
         _check_segments(rest, url)
-        if raw[0].startswith("~") and len(rest) > 1 and rest[1] == _SOURCEHUT_ITEM:
-            rest = (rest[0], *rest[2:])
+        sourcehut = (
+            raw[0].startswith("~")
+            and marker == ("tree",)
+            and _SOURCEHUT_ITEM in rest[1:]
+        )
         repo = urlunsplit(
             (parts.scheme, parts.netloc, "/" + "/".join(raw[:index]), "", "")
         )
-        return GitPage(repo, rest, is_file, cut, kind, plain)
+        return GitPage(repo, rest, is_file, cut, kind, plain, sourcehut)
     return GitPage(plain, cut=cut, plain_url=plain)
 
 
@@ -222,7 +229,9 @@ def split_ref(page: GitPage, refs: Mapping[str, frozenset[str]]) -> GitTarget:
     (``"branch"``, ``"tag"``): the longest leading run of segments that is a
     ref wins. A name that is both a branch and a tag is the kind the page
     names (a ``src/tag`` page: the tag), else the branch. A file page names
-    the folder holding the file, and that file as ``file``.
+    the folder holding the file, and that file as ``file``. On a SourceHut
+    page a ref is followed by ``item`` or by nothing, and that ``item`` is
+    not part of the folder.
 
     Raises:
         RemoteSourceError: ``git.ref-not-found``, the leading segments are no
@@ -234,8 +243,9 @@ def split_ref(page: GitPage, refs: Mapping[str, frozenset[str]]) -> GitTarget:
     for size in range(len(rest), 0, -1):
         name = "/".join(rest[:size])
         kinds = refs.get(name)
-        if kinds:
-            folder, file = _folder(rest[size:], page.is_file)
+        path = _after_ref(page, rest, size)
+        if kinds and path is not None:
+            folder, file = _folder(path, page.is_file)
             return GitTarget(
                 ref=name,
                 subdir=folder,
@@ -243,15 +253,29 @@ def split_ref(page: GitPage, refs: Mapping[str, frozenset[str]]) -> GitTarget:
                 file=file,
             )
     first = rest[0]
-    if _COMMIT.fullmatch(first):
-        folder, file = _folder(rest[1:], page.is_file)
+    path = _after_ref(page, rest, 1)
+    if _COMMIT.fullmatch(first) and path is not None:
+        folder, file = _folder(path, page.is_file)
         return GitTarget(commit=first, subdir=folder, file=file)
+    if page.sourcehut:
+        end = rest.index(_SOURCEHUT_ITEM) if _SOURCEHUT_ITEM in rest else len(rest)
+        first = "/".join(rest[: max(end, 1)])
     raise RemoteSourceError(
         "git.ref-not-found",
         f"No branch or tag {quote_source(first)} in "
         f"{quote_source(sanitize_url_credentials(page.repo_url))} "
         "(a commit needs its full 40 or 64 hex digits).",
     )
+
+
+def _after_ref(page: GitPage, rest: list[str], size: int) -> list[str] | None:
+    """The path segments after a ref of *size* segments of *rest*; on a
+    SourceHut page without the ``item`` that follows the ref, and ``None``
+    when another segment follows it instead."""
+    path = rest[size:]
+    if not page.sourcehut or not path:
+        return path
+    return path[1:] if path[0] == _SOURCEHUT_ITEM else None
 
 
 def _folder(path: list[str], is_file: bool) -> tuple[str, str]:
