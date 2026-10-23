@@ -73,11 +73,12 @@ registry adopts the SBOM document's namespace only when it is a valid
 namespace IRI; otherwise one `WARNING: ID registry: not adopting the
 namespace ...` and the registry keeps its own. It keeps the namespace it
 adopted unless another run changed the file's namespace meanwhile.
-`id import SBOM_FILE` takes only `-o`/`--id-registry FILE`.
+`id import SBOM_FILE` takes `-o`/`--id-registry FILE` and `--project-dir DIR`.
 
-A new registry stores its project root (`--project-dir` for `generate`, the
-current directory for `import`) relative to its own directory; an existing one
-keeps it, and `generate` with another `--project-dir` is one `ERROR:`, exit 1.
+A new registry stores its project root (`--project-dir`, default the current
+directory, for both commands) relative to its own directory; an existing one
+keeps it, and `generate`, or `import` with an explicit `--project-dir`, naming
+another root is one `ERROR:`, exit 1.
 The registry also keeps, per id prefix, the highest number it has issued or
 read in its namespace (`id_counters`), so an id that has left the registry
 (a harvest replaced its entry) is never minted again for another file. An id
@@ -96,7 +97,7 @@ rejected, on every command, with one `ERROR:` and nothing written; delete it
 and re-run `loom id generate` or `loom id import`.
 
 **Target file.** `-o`/`--id-registry` if given, else the config's
-`id-registry` key (`generate`: read from `--project-dir`; `import`: from the
+`id-registry` key (both commands: read from `--project-dir`, default the
 current directory; `pyproject.toml`'s `[tool.pitloom]` or `setup.cfg`'s
 `[tool:pitloom]`). The location is required, never assumed: with neither,
 both commands print `ERROR: no ID registry declared: pass --id-registry FILE

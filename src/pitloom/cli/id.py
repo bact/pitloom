@@ -425,8 +425,9 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
         default=None,
         help=(
             "Project directory root: a new registry's root, which the SBOM's "
-            "file names are relative to (an existing registry keeps its "
-            "own). Default: the current directory."
+            "file names are relative to. An existing registry must have this "
+            "root. Default: the current directory (not checked against an "
+            "existing registry)."
         ),
     )
 
