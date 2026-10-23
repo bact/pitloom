@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,13 +24,13 @@ bullet stays one or two lines plus a link; detail lives in the linked doc.
 ## Done
 
 [roadmap-completed.md](../implementation/roadmap-completed.md), including
-everything shipped in 0.20.0 (#226-#286, released 2026-10-05); 0.20.1 and 0.20.2 are listed under Next. User-facing documentation is in
+everything shipped in 0.20.0 (#226-#286, released 2026-10-05); 0.20.1, 0.20.2 and 0.21.0 are listed under Next. User-facing documentation is in
 `docs/` ([index](../../docs/index.md)).
 
 ## Next: release plan
 
 Order (2026-10-09): 0.20.0 -> 0.20.1 -> 0.20.2 -> 0.21.0 -> 0.22.0 -> 1.0. No date for
-1.0 until 0.21.0 lands.
+1.0 until 0.22.0 lands.
 
 ### 0.20.0
 
@@ -71,9 +71,41 @@ uniform and safer:
 
 ### 0.21.0
 
+Prepared 2026-10-23 for tag v0.21.0 (PR #346). What was built:
+
 - [x] **Same AI model, same id on every surface**: built with the registry
   path keys. See
   [id-registry-path-keys.md](../implementation/id-registry-path-keys.md).
+- [x] **Extras, edge kind and authors on every route** (#300): built; open
+  follow-ups in [extras-parity.md](../implementation/extras-parity.md#open-questions).
+- [x] **Registry v3** (PR #305): built. See
+  [id-registry-v3.md](../implementation/id-registry-v3.md); open follow-ups in
+  [id-registry-followups.md](id-registry-followups.md).
+- [x] **Registry path keys** (built 2026-10-16): one key helper, a model is
+  keyed by its file, content-gated lookups. See
+  [id-registry-path-keys.md](../implementation/id-registry-path-keys.md);
+  open follow-ups (layouts other than `src/`/`lib/`) in
+  [id-registry-followups-path-keys.md](id-registry-followups-path-keys.md).
+- [x] **Git URL ingestion** (PR #317): `loom project <url>` and `loom generate
+  <url>` read repository and page URLs of GitLab, GitHub, Gitea/Forgejo,
+  Bitbucket and SourceHut; redirects followed hop by hop with a caller check;
+  Lumina uses it. See
+  [remote-git-ingestion.md](../implementation/remote-git-ingestion.md),
+  [docs/git-urls.md](../../docs/git-urls.md).
+- [x] **One default SBOM file name** (#334): `default_sbom_basename` is the
+  one helper of the CLI, the Hatchling hook and `embed-wheel`; a name that is
+  not a plain file name falls back to `sbom`. It keeps `-`, `+` and `.` and
+  replaces only unsafe characters, not PEP 427's `_` escaping (open question:
+  whether that rule should change).
+- [x] **Git URL ingestion hardening** (#339, #342-#344): a clone is stopped
+  past a disk cap (`git.too-large`); a redirect carries URL credentials only to
+  the same scheme, host and port; SourceHut tree URLs with a slash in the branch
+  name are read; a timed-out `git` is killed with its process tree on Windows.
+
+### Open after 0.21.0
+
+Planned for 0.21.0 and not built; carried over (decided 2026-10-23):
+
 - [ ] **Fragment value beats an extracted one** (own PR): a fragment or
   catalogue value must win over a value read from or generated for the
   model (e.g. a CRFsuite description). See
@@ -82,8 +114,6 @@ uniform and safer:
   `CreationInfo` IRIs. See
   [canonical-output-followups.md](canonical-output-followups.md),
   [creation-info-iri.md](creation-info-iri.md).
-- [x] **Extras, edge kind and authors on every route** (#300): built; open
-  follow-ups in [extras-parity.md](../implementation/extras-parity.md#open-questions).
 - [ ] **Per-lock "reaching path"**: tell a lock-only package reached only
   through an extra from a required one (today `runtime`). Only `uv.lock` has
   a root walk; build with `pylock.toml`. See
@@ -94,33 +124,17 @@ uniform and safer:
 - [ ] **Hardening from the #294 reviews** (Hangul fillers, ZWJ in prose,
   fastText label cap, cross-format label counts): see
   [known-bugs.md](known-bugs-p3.md).
-- [x] **Registry v3** (PR #305): built. See
-  [id-registry-v3.md](../implementation/id-registry-v3.md); open follow-ups in
-  [id-registry-followups.md](id-registry-followups.md).
-- [x] **Registry path keys** (built 2026-10-16): one key helper, a model is
-  keyed by its file, content-gated lookups. See
-  [id-registry-path-keys.md](../implementation/id-registry-path-keys.md);
-  open follow-ups (layouts other than `src/`/`lib/`) in
-  [id-registry-followups-path-keys.md](id-registry-followups-path-keys.md).
 - [ ] **Registry layouts beyond `src/` and `lib/`** (`python/`, `packages/`):
   no alias today; add only on demand. Same file.
-- [x] **Git URL ingestion** (PR #317): `loom project <url>` and `loom generate
-  <url>` read repository and page URLs of GitLab, GitHub, Gitea/Forgejo,
-  Bitbucket and SourceHut; redirects followed hop by hop with a caller check;
-  Lumina uses it. See
-  [remote-git-ingestion.md](../implementation/remote-git-ingestion.md),
-  [docs/git-urls.md](../../docs/git-urls.md).
-- [ ] **Git URL ingestion, open follow-ups**: a size cap for a clone (the 10-MB
-  blob filter is a request to the server); DNS rebinding between the caller's
-  address check and git's own lookup; a Python-project reader for imperative
-  `setup.py` (a monorepo such as `labs.etsi.org/rep/ocf/capif` fails with a
-  hint naming its sub-projects); a Bitbucket and a SourceHut fetch verified on
-  a real repository; record the commit and URL in the SBOM. See
+- [ ] **Git URL ingestion, open follow-ups**: DNS rebinding between the
+  caller's address check and git's own lookup; a Python-project reader for
+  imperative `setup.py` (a monorepo such as `labs.etsi.org/rep/ocf/capif` fails
+  with a hint naming its sub-projects); a Bitbucket and a SourceHut fetch
+  verified on a real repository; record the commit and URL in the SBOM. See
   [remote-git-ingestion.md](../implementation/remote-git-ingestion.md#not-built).
 - [ ] **Git LFS pointers outside AI models**: one shared detector, one
   summary `WARNING:`; registry v3 (built) ships without it. See
   [known-bugs.md](known-bugs.md#p0-in-0210).
-- [ ] **One default SBOM file name** (PEP 427 escaping) on every surface.
 - [ ] **Unknown SPDX id in an SPDX-only field warns** and **`License-File:`
   selection** for wheels. See
   [license-pr276-followups.md](license-pr276-followups.md#a-to-fix).

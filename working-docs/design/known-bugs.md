@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -23,7 +23,9 @@ Size: S under half a day, M about a day.
 
 ## P0: in 0.21.0
 
-- [ ] **One default SBOM file name on every surface (S-M).** `loom
+- [x] **One default SBOM file name on every surface (S-M), built in #334** with
+  one helper; the character rule differs from the PEP 427 escaping decided here.
+  Original entry: `loom
   project` writes `Foo.Bar-Baz-1.0+local.spdx3.json` unescaped; the
   Hatchling hook uses the raw name; embed's escaper skips `*?"<>|`.
   Decided: PEP 427 escaping everywhere, its own PR.
