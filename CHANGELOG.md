@@ -55,6 +55,8 @@ and this project adheres to
 - `max_bytes=` of `fetch_git_project` and `max_clone_bytes=` of
   `generate_git_project_sbom` stop a clone past a disk cap (`git.too-large`)
   ([#339])
+- Git URLs: Gitiles, cgit and Azure DevOps page URLs are read; a clone whose
+  blob filter the server rejects (HTTP 400) is retried without it ([#347])
 
 ### Changed
 
@@ -185,6 +187,8 @@ and this project adheres to
   ([#343])
 - A timed-out git clone is killed with its child processes on Windows
   ([#344])
+- A Bitbucket `/branch/` or `/commits/` page no longer clones the default
+  branch; a folder page that names a file reads its folder ([#347])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
@@ -216,6 +220,7 @@ and this project adheres to
 [#342]: https://github.com/bact/pitloom/pull/342
 [#343]: https://github.com/bact/pitloom/pull/343
 [#344]: https://github.com/bact/pitloom/pull/344
+[#347]: https://github.com/bact/pitloom/pull/347
 
 ## [0.20.2] - 2026-10-09
 
