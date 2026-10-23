@@ -26,9 +26,9 @@ exits 1 without `-o`. Stdout is one line, `PITLOOM_SBOM_OUTPUT_PATH=<path>`;
 ## Project SBOM (directory or sdist), ephemeral run
 
 ```bash
-uvx --from "pitloom>=0.20.2" loom project . -o sbom.spdx3.json --pretty
+uvx --from "pitloom>=0.21.0" loom project . -o sbom.spdx3.json --pretty
 # or sdist archive
-uvx --from "pitloom>=0.20.2" loom project dist/mypackage-1.0.0.tar.gz -o sbom.spdx3.json
+uvx --from "pitloom>=0.21.0" loom project dist/mypackage-1.0.0.tar.gz -o sbom.spdx3.json
 ```
 
 ## Project SBOM from a Git URL
@@ -53,7 +53,7 @@ loom project . -o sbom.spdx3.json --pretty
 ## Project SBOM, already-installed Pitloom
 
 ```bash
-pip install "pitloom>=0.20.2"
+pip install "pitloom>=0.21.0"
 loom project /path/to/project -o sbom.spdx3.json
 ```
 
@@ -98,13 +98,13 @@ with zipfile.ZipFile(sys.argv[1]) as zf:
 ## AI model SBOM, local file
 
 ```bash
-uvx --from 'pitloom[ai]>=0.20.2' loom model model.safetensors -o model.spdx3.json
+uvx --from 'pitloom[ai]>=0.21.0' loom model model.safetensors -o model.spdx3.json
 ```
 
 ## AI model SBOM, Hugging Face Hub model
 
 ```bash
-uvx --from 'pitloom[huggingface_hub]>=0.20.2' loom model mistralai/Mistral-7B-v0.1 \
+uvx --from 'pitloom[huggingface_hub]>=0.21.0' loom model mistralai/Mistral-7B-v0.1 \
   -o mistral.spdx3.json --pretty
 ```
 
@@ -151,7 +151,7 @@ print("@graph present:", len(d["@graph"]), "nodes (not validated)")
 - `../SKILL.md` -- operating instructions for this skill.
   <https://github.com/bact/pitloom/blob/main/skills/sbom-generate/SKILL.md>
 - The sibling `sbom-validate` skill -- schema/SHACL conformance check
-  (minimal: `pip install "pitloom[validate]>=0.20.2"` then
+  (minimal: `pip install "pitloom[validate]>=0.21.0"` then
   `loom fragment validate sbom.spdx3.json`).
   <https://github.com/bact/pitloom/blob/main/skills/sbom-validate/SKILL.md>
 - `docs/resources.md` -- SPDX 3 spec, ontology, and JSON Schema links.

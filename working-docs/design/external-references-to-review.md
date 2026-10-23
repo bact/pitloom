@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -31,8 +31,23 @@ design doc named in its "Feeds" line, not here.
 ## Data Provenance Standard (OASIS TC)
 
 - Technical committee: <https://www.oasis-open.org/tc-dps/>
+- Draft: Data Provenance Metadata v1.0, Committee Specification Draft 01
+  (2026-05-07):
+  <https://docs.oasis-open.org/dps/prov-meta/v1.0/csd01/prov-meta-v1.0-csd01.html>
 - Look at: its provenance vocabulary and taxonomy as input to redesigning
   Pitloom's provenance taxonomy.
+- Idea, not designed: use it for data provenance *annotation* of datasets, in
+  addition to the SBOM. As read from the draft, a `DataProvenance` JSON record
+  describes one dataset (`source`, `provenance` with links to source datasets
+  for lineage, `use` with licence, consent and AI use) and does not mention
+  SBOMs. How the two fit is open: a record beside the SBOM, one per dataset
+  package, or an external reference from the dataset element to the record.
+  Questions: which SPDX 3 element or relationship points at a record; which
+  record fields Pitloom could fill from sources without guessing (`license`,
+  `AIUse`, source links from Croissant or a Hub card), leaving the rest
+  absent; whether the draft's JSON Schema is stable enough to emit (only JSON
+  has content; JADN, YAML and XML are placeholders). Check whether the record
+  should be an output of `loom` or only of the `loom.run` SDK.
 - Feeds: [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md).
 
 ## ETSI data quality metrics (Data Solutions, DATA)

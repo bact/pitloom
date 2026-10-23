@@ -46,7 +46,7 @@ Pitloom ships three Skills:
 
 The three Skills refer to each other, so install all three together.
 
-**Requirements.** A shell, Python 3.10 or later and `pitloom` 0.20.2 or
+**Requirements.** A shell, Python 3.10 or later and `pitloom` 0.21.0 or
 later (pip, `uvx` or `pipx`; earlier releases lack `--id-registry`,
 `loom id` and `--build-timeout`, which the Skills use); network access to
 install it and, for PyPI and Hugging Face lookups, at run time. AI model

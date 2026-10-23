@@ -1,8 +1,8 @@
 {
   "header": {
-    "checker": "151460c72bdf3664cecce5b16e61f4b0b379a7d1",
+    "checker": "82a63b9ec872e2273315cfe7d4627456e4d07cc1",
     "mapping_sha256": "1eebb4f198087073b25ef95b80fca37c7cf8a6dd58942b374cbfa0a14188c22d",
-    "pitloom": "0.20.2",
+    "pitloom": "0.21.0",
     "rules": 13,
     "standard": "fsct3"
   },

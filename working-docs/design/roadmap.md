@@ -402,7 +402,8 @@ Recorded findings; each is fixable on its own.
   [sbom-format-gaps.md](sbom-format-gaps.md), for change proposals to SPDX (and
   CycloneDX once written).
 - [ ] **External work to review**: Red Hat AI system card, OASIS Data
-  Provenance Standard (provenance taxonomy redesign), ETSI TR 104 180 data
+  Provenance Standard (provenance taxonomy redesign; also data provenance
+  annotation beside the SBOM), ETSI TR 104 180 data
   quality metrics. See [external-references-to-review.md](external-references-to-review.md).
 - Background research: [metadata-sources.md](metadata-sources.md) (how other
   tools read Python metadata), [sbom-enrichment.md](sbom-enrichment.md),

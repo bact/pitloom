@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-17
-Last-Modified: 2026-10-19
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -103,16 +103,16 @@ reading", not "compliant"; unchecked rules are not counted as missing.
 | 0.20.2 (baseline) | `9b70174` | onnx | 21 | 17 | 18 | 25 | 55.3% |
 | 0.20.2 (baseline) | `9b70174` | hub | 21 | 35 | 0 | 25 | 37.5% |
 | 0.20.2 (baseline) | `9b70174` | library | 23 | 33 | 0 | 25 | 41.1% |
-| 0.20.3-dev | `151460c` | gguf | 16 | 22 | 18 | 25 | 42.1% |
-| 0.20.3-dev | `151460c` | safetensors | 13 | 25 | 18 | 25 | 34.2% |
-| 0.20.3-dev | `151460c` | onnx | 22 | 16 | 18 | 25 | 57.9% |
-| 0.20.3-dev | `151460c` | numpy | 15 | 23 | 18 | 25 | 39.5% |
-| 0.20.3-dev | `151460c` | fasttext | 23 | 15 | 18 | 25 | 60.5% |
-| 0.20.3-dev | `151460c` | hub | 28 | 28 | 0 | 25 | 50.0% |
-| 0.20.3-dev | `151460c` | library | 26 | 30 | 0 | 25 | 46.4% |
-| 0.20.3-dev | `151460c` | proj-hatchling | 15 | 23 | 18 | 25 | 39.5% |
-| 0.20.3-dev | `151460c` | proj-setuptools | 15 | 23 | 18 | 25 | 39.5% |
-| 0.20.3-dev | `151460c` | proj-poetry | 15 | 23 | 18 | 25 | 39.5% |
+| 0.21.0 | `82a63b9` | gguf | 16 | 22 | 18 | 25 | 42.1% |
+| 0.21.0 | `82a63b9` | safetensors | 13 | 25 | 18 | 25 | 34.2% |
+| 0.21.0 | `82a63b9` | onnx | 22 | 16 | 18 | 25 | 57.9% |
+| 0.21.0 | `82a63b9` | numpy | 15 | 23 | 18 | 25 | 39.5% |
+| 0.21.0 | `82a63b9` | fasttext | 23 | 15 | 18 | 25 | 60.5% |
+| 0.21.0 | `82a63b9` | hub | 28 | 28 | 0 | 25 | 50.0% |
+| 0.21.0 | `82a63b9` | library | 26 | 30 | 0 | 25 | 46.4% |
+| 0.21.0 | `82a63b9` | proj-hatchling | 15 | 23 | 18 | 25 | 39.5% |
+| 0.21.0 | `82a63b9` | proj-setuptools | 15 | 23 | 18 | 25 | 39.5% |
+| 0.21.0 | `82a63b9` | proj-poetry | 15 | 23 | 18 | 25 | 39.5% |
 
 Coverage is present / (present + missing).
 
@@ -147,7 +147,7 @@ computed; a dataset with an http(s) download URL gets
 only). Left absent, silently: a model with no file name and no hub id, a
 dataset without an http(s) URL. A gitoid `contentIdentifier` needs a second
 pass over the file and was not added. The 0.20.2 history file holds the
-before; `0.20.3-dev.json` the after. The CHANGELOG entry waits for a PR number
+before; `0.21.0.json` the after. The CHANGELOG entry waits for a PR number
 (`tests/test_changelog.py` requires one).
 
 **Demo scenarios (2026-10-18).** `numpy` and `fasttext` (tier 1) and the three
@@ -191,7 +191,7 @@ from the project's package and most are `missing` (SLP 22%).
 
 **CISA 2026 and FSCT 2024 (2026-10-18).** The same scenarios are checked with
 `cisa2026` and `fsct3`; tables `cisa2026-expected.tsv` and `fsct3-expected.tsv`,
-reports `cisa2026-0.20.3-dev.json` and `fsct3-0.20.3-dev.json`. The component
+reports `cisa2026-0.21.0.json` and `fsct3-0.21.0.json`. The component
 rules of both reach the datasets and models linked by `trainedOn` and
 `testedOn`, so a training dataset with no hash or version is reported. The
 CISA identifier rule needs a real identifier (`software_packageUrl`,
@@ -200,7 +200,7 @@ every package in every scenario carries a package URL.
 
 **BSI TR-03183-2 v2.1 (2026-10-18).** Checked with `bsi` (rule-based, 20
 elements, 16 checked); table `bsi-expected.tsv`, report
-`bsi-0.20.3-dev.json`. Checker `a877b4c` did not follow
+`bsi-0.21.0.json`. Checker `a877b4c` did not follow
 `trainedOn`/`testedOn` for BSI; `151460c` follows them for every standard, so
 the `hub` and `library` datasets are judged: version `missing` for `hub`,
 SHA-512 `missing` for `library`, and the dataset's download location makes
@@ -246,8 +246,9 @@ laptop and in CI.
 ## History files and the checker commit
 
 Each history file's header names the checker commit it was made with: the
-0.20.2 baseline `9b701748`; the four `0.20.3-dev` files `151460c`. The pin is
-now `82a63b9` (the same checker, re-authored): regenerating all four reports
-on 2026-10-19 gives `scenarios` equal to the files', so only the header's
-`checker` differs, and the files are kept as made. A history file named
-`0.20.3-dev` records `pitloom 0.20.2`, the installed version when it was made.
+0.20.2 baseline `9b701748`; the four `0.21.0` files `82a63b9`, the pin. The
+four reports were made on 2026-10-23 for the 0.21.0 release. Against the
+earlier `0.20.3-dev` files (checker `151460c`, the same checker re-authored as
+`82a63b9`) the `scenarios` were equal and only the header's `checker` differed,
+so the `0.21.0` files replace them. The `pitloom` header is the installed
+version, so make a report with the release's version installed.
