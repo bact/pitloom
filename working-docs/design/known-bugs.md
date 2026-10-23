@@ -29,7 +29,8 @@ Size: S under half a day, M about a day.
   project` writes `Foo.Bar-Baz-1.0+local.spdx3.json` unescaped; the
   Hatchling hook uses the raw name; embed's escaper skips `*?"<>|`.
   Decided: PEP 427 escaping everywhere, its own PR.
-- [ ] **Git LFS pointers outside AI models (M, decided).** A dataset or
+- [ ] **Git LFS pointers outside AI models (M, decided; known limitation of
+  0.21.0, planned for 0.22.0).** A dataset or
   any other file that is an unfetched pointer is listed with the
   pointer's SHA-256 and no warning. Decided: one shared detector, one
   summary `WARNING:` per run, one line per file at `--debug`. Registry v3

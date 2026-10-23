@@ -132,9 +132,6 @@ Planned for 0.21.0 and not built; carried over (decided 2026-10-23):
   with a hint naming its sub-projects); a Bitbucket and a SourceHut fetch
   verified on a real repository; record the commit and URL in the SBOM. See
   [remote-git-ingestion.md](../implementation/remote-git-ingestion.md#not-built).
-- [ ] **Git LFS pointers outside AI models**: one shared detector, one
-  summary `WARNING:`; registry v3 (built) ships without it. See
-  [known-bugs.md](known-bugs.md#p0-in-0210).
 - [ ] **Unknown SPDX id in an SPDX-only field warns** and **`License-File:`
   selection** for wheels. See
   [license-pr276-followups.md](license-pr276-followups.md#a-to-fix).
@@ -146,6 +143,16 @@ Planned for 0.21.0 and not built; carried over (decided 2026-10-23):
 
 The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
 [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md).
+
+- [ ] **Git LFS pointers** (a known limitation of 0.21.0, to fix in 0.22.0): a
+  file kept in Git LFS is a pointer file after Pitloom's clone (LFS is switched
+  off), so an AI model, dataset or other file in LFS is not read, and a file
+  element carries the SHA-256 of the pointer text with no warning. One shared
+  detector for every route; one summary `WARNING:` per run; the pointer's
+  `oid sha256` and `size` recorded as the file's hash and size with their own
+  provenance (`Method: lfs_pointer`), saying the content was not read. See
+  [known-bugs.md](known-bugs.md#p0-in-0210) and
+  [hugging-face-spaces-support.md](hugging-face-spaces-support.md).
 
 - [x] **#3 part 1: `ai_AIPackage.verifiedUsing`** copied from its model
   file, with gated model lookups (built 2026-10-16 with path keys; see
