@@ -212,6 +212,10 @@ The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
   (PR #306): `originatedBy` Agents and the `parameters` hyperparameter
   entry. See
   [g7-model-producer-parameter-count.md](../implementation/g7-model-producer-parameter-count.md).
+- [ ] **Record a Git URL target's commit as a `pkg:git` identifier** (decided
+  2026-10-23) and **one target resolver with Package-URL targets** (`pkg:git`,
+  `github`, `bitbucket`, `huggingface`, `pypi`; later `conda`, `mlflow`): see
+  [target-resolution-and-purl.md](target-resolution-and-purl.md).
 - [ ] **#7 `loom` SDK**: dataset provenance and training-properties capture.
   See [loom-sdk-and-notebooks.md](sbom-fragments/loom-sdk-and-notebooks.md).
 - [x] The skill's G7 checklist matches the code (`hasDataFile` only with
