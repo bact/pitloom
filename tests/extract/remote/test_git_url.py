@@ -411,6 +411,12 @@ def test_the_whole_url_is_kept_for_a_page_whose_marker_is_part_of_the_path() -> 
         ("HTTPS://Codeberg.org/o/r", True),
         ("https://huggingface.co/o/m", False),
         ("https://HuggingFace.co/o/m/tree/main", False),
+        # A Space or a dataset is a Git repository, a model is not.
+        ("https://huggingface.co/spaces/o/app", True),
+        ("https://hf.co/datasets/o/data/tree/main", True),
+        ("https://www.huggingface.co/Spaces/o/app", True),
+        ("https://huggingface.co/spacesx/o", False),
+        ("https://huggingface.co/", False),
         ("git@github.com:o/r.git", False),
         ("ssh://git@host/o/r", False),
         ("file:///tmp/r", False),
@@ -421,7 +427,7 @@ def test_the_whole_url_is_kept_for_a_page_whose_marker_is_part_of_the_path() -> 
     ],
 )
 def test_which_sources_are_git_urls(source: str, expected: bool) -> None:
-    """Only an http(s) URL that is not a Hugging Face one."""
+    """Only an http(s) URL that is not a Hugging Face model one."""
     assert is_git_url(source) is expected
 
 
@@ -618,3 +624,32 @@ def test_a_queried_ref_that_is_no_ref_is_refused() -> None:
             split_ref(parse_git_page(f"https://h/o/r/tree/?h={ref}"), _REFS)
         assert excinfo.value.code == "git.ref-not-found"
         assert ref in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    ("url", "repo", "rest"),
+    [
+        (
+            "https://huggingface.co/spaces/o/app/tree/main/src",
+            "https://huggingface.co/spaces/o/app",
+            ("main", "src"),
+        ),
+        (
+            "https://huggingface.co/datasets/o/data/blob/main/f.csv",
+            "https://huggingface.co/datasets/o/data",
+            ("main", "f.csv"),
+        ),
+        (
+            "https://huggingface.co/spaces/o/app",
+            "https://huggingface.co/spaces/o/app",
+            (),
+        ),
+    ],
+    ids=["space-folder", "dataset-file", "space"],
+)
+def test_a_hugging_face_space_or_dataset_page_is_read_like_a_git_page(
+    url: str, repo: str, rest: tuple[str, ...]
+) -> None:
+    """The repository is ``spaces/<owner>/<name>``, three segments."""
+    page = parse_git_page(url)
+    assert (page.repo_url, page.rest) == (repo, rest)

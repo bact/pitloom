@@ -37,6 +37,7 @@ __all__ = [
     "ALLOWED_SCHEMES",
     "GitPage",
     "GitTarget",
+    "HUB_GIT_AREAS",
     "HUB_HOST_PATTERN",
     "is_git_url",
     "is_unsupported_remote_url",
@@ -79,22 +80,35 @@ _SOURCEHUT_ITEM = "item"
 HUB_HOST_PATTERN = r"(?:www\.)?(?:huggingface|hf)\.co"
 _HF_HOST = re.compile(HUB_HOST_PATTERN, re.IGNORECASE)
 
+#: The first path segment of a Hugging Face URL that is a Git repository, not a
+#: model: a Space, or a dataset.
+HUB_GIT_AREAS = frozenset({"spaces", "datasets"})
+
 
 def is_git_url(source: str) -> bool:
     """Whether *source* is an ``http`` or ``https`` URL of a Git repository or
-    of one of its web pages: any such URL that is not a Hugging Face one.
+    of one of its web pages: any such URL that is not a Hugging Face model
+    one. A Hugging Face Space or dataset (``/spaces/...``, ``/datasets/...``)
+    is a Git repository, a model is read by :func:`read_huggingface`.
 
-    Only the scheme and host are read; the server decides whether it is a
-    repository. A local path is never one, nor is a bare ``owner/name``.
+    Only the scheme, host and, for Hugging Face, the first path segment are
+    read; the server decides whether it is a repository. A local path is
+    never one, nor is a bare ``owner/name``.
     """
     text = source.strip()
     if not text.lower().startswith(("http://", "https://")):
         return False
     try:
-        host = urlsplit(text).hostname or ""
+        parts = urlsplit(text)
+        host = parts.hostname or ""
     except ValueError:
         return False
-    return bool(host) and _HF_HOST.fullmatch(host) is None
+    if not host:
+        return False
+    if _HF_HOST.fullmatch(host) is None:
+        return True
+    area = parts.path.lstrip("/").split("/", 1)[0].lower()
+    return area in HUB_GIT_AREAS
 
 
 def scheme_allowed(url: str) -> bool:

@@ -362,6 +362,25 @@ def test_model_command_invalid_hf_target(
     assert "ERROR: not a valid Hugging Face URL or model ID" in err
 
 
+@pytest.mark.parametrize(
+    "url",
+    ["https://huggingface.co/spaces/o/app", "https://gitlab.com/g/p/-/tree/main/svc"],
+)
+def test_model_command_given_a_git_url_names_loom_project(
+    url: str,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A Git repository (a Hugging Face Space too) is no model file: one
+    ``ERROR:`` line says to use ``loom project``."""
+    monkeypatch.setattr(sys, "argv", ["loom", "model", url])
+    assert __main__.main() == 1
+    lines = capsys.readouterr().err.strip().splitlines()
+    assert len(lines) == 1
+    assert lines[0].startswith("ERROR: ")
+    assert "is a Git repository, not a model: use 'loom project'" in lines[0]
+
+
 def test_env_command_verbose(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],

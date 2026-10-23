@@ -183,6 +183,23 @@ _PLATFORMS = [
         "pw_cli",
         "py",
     ),
+    # A Hugging Face Space is a Git repository (the host is not a model).
+    (
+        "hugging-face-space",
+        "https://huggingface.co/spaces/Chuanming/"
+        "facebook-fasttext-language-identification",
+        None,
+        "",
+        "app.py",
+    ),
+    (
+        "hugging-face-space-page",
+        "https://huggingface.co/spaces/Chuanming/"
+        "facebook-fasttext-language-identification/tree/main",
+        "main",
+        "",
+        "app.py",
+    ),
     # cgit puts the ref in the query.
     (
         "cgit-kernel-org",

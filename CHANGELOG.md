@@ -189,6 +189,9 @@ and this project adheres to
   ([#344])
 - A Bitbucket `/branch/` or `/commits/` page no longer clones the default
   branch; a folder page that names a file reads its folder ([#347])
+- A Hugging Face Space or dataset URL is fetched as a Git repository, not read
+  as a model; `loom project` of a model URL and `loom model` of a Git URL name
+  the other command ([#347])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305

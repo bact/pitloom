@@ -45,6 +45,7 @@ from the server's own branches and tags, longest match first.
 | Gitiles (Gerrit's code browser, `*.googlesource.com`) | `…/+/refs/heads/<ref>/<folder>`, `…/+/refs/tags/<ref>/<folder>`, `…/+/<ref>/<folder>` | branch, tag; folder |
 | cgit (kernel.org, Launchpad) | `…/tree/<folder>?h=<ref>`, `…/log/?h=<ref>`, `…/commit/?id=<sha>` | branch, tag, commit; folder |
 | Azure DevOps | `…/_git/<repo>?path=/<folder>&version=GB<branch>` (`GT` tag, `GC` commit) | branch, tag, commit; folder |
+| Hugging Face Space or dataset | `huggingface.co/spaces/<org>/<name>`, `…/datasets/<org>/<name>`, with `…/tree/<ref>/<folder>` or `…/blob/<ref>/<file>` | branch, tag, commit; folder |
 
 - A page URL naming a **file** reads the folder that holds it. A file page whose
   path is a folder reads that folder, and a folder page whose path is a file
@@ -63,8 +64,13 @@ from the server's own branches and tags, longest match first.
   for a group or project called `src`, `tree` or `blob` after the second path
   segment, Pitloom tries the page reading first and then, when the server says
   the repository is not found, the whole URL as the repository.
-- Hugging Face addresses (`huggingface.co`, `hf.co`, `www.` forms) are models,
-  not Git repositories: `loom model` reads them.
+- A Hugging Face **model** address (`huggingface.co/<org>/<name>`, also `hf.co`
+  and `www.` forms) is not a Git repository for Pitloom: `loom model` reads it,
+  and `loom project` refuses it with a message naming `loom model`. A **Space**
+  or **dataset** (`huggingface.co/spaces/...`, `.../datasets/...`) is a Git
+  repository and is fetched like any other (Git LFS files stay pointers: Pitloom
+  switches LFS off). A Space with no `pyproject.toml`, `setup.cfg` or `setup.py`
+  has no Python project to read, and says so.
 - Not read: hosts that need a login, `ssh://`, `git://`, `file://` and scp-style `user@host:path`
   addresses. These are refused with a message (see below).
 
@@ -92,6 +98,7 @@ network access):
 | cgit | `git.launchpad.net` (Launchpad) | bare URL, `/tree/<folder>?h=<branch>` page |
 | GNU Savannah | `git.savannah.gnu.org` | the `/git/<project>.git` clone URL |
 | Azure DevOps | `dev.azure.com` | bare URL, `?path=<folder>&version=GB<branch>` page |
+| Hugging Face Space | `huggingface.co/spaces/...` | bare URL, `/tree/<branch>` page |
 | Gitea | `gitea.com` | `/src/branch/<branch>/<folder>`, `/src/tag/<tag>/<folder>` pages |
 | GitHub | `github.com` | bare URL, `/tree/` page, `/blob/` page |
 

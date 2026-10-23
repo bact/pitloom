@@ -33,12 +33,15 @@ from pitloom.cli.options_resolve import load_explicit_config
 from pitloom.cli.verbose import log_verbose_options
 from pitloom.core.build_options import REMOTE_REPOSITORY_REASON, BuildOptions
 from pitloom.core.inert_options import GIT, settle_inert
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.remote import (
     fetch_git_project,
     is_git_url,
+    is_huggingface_source,
     is_unsupported_remote_url,
 )
 from pitloom.extract.remote.git import CONFIG_IGNORED_INFO
+from pitloom.logging_config import print_error
 
 log = logging.getLogger(__name__)
 
@@ -119,13 +122,23 @@ def run_remote_project(args: argparse.Namespace, url: str) -> int:
 
 def _project_target(text: str) -> Path | str:
     """A ``project`` target: the text itself for a Git URL (a ``Path`` would
-    collapse its ``//``) or any other remote address (refused with a message
+    collapse its ``//``), a Hugging Face model URL (refused with a message
+    naming ``loom model``) or any other remote address (refused with a message
     naming what is fetched), else a path."""
-    if is_git_url(text) or (
-        is_unsupported_remote_url(text) and not Path(text).exists()
+    if (
+        is_git_url(text)
+        or _is_hub_model_url(text)
+        or (is_unsupported_remote_url(text) and not Path(text).exists())
     ):
         return text.strip()
     return Path(text)
+
+
+def _is_hub_model_url(text: str) -> bool:
+    """Whether *text* is the URL of a Hugging Face model."""
+    return text.strip().lower().startswith(("http://", "https://")) and (
+        is_huggingface_source(text.strip())
+    )
 
 
 @cli_error_handler("SBOM generation failed")
@@ -133,6 +146,12 @@ def _run_project_command(args: argparse.Namespace) -> int:
     """Generate a Source SBOM from a project directory, sdist archive or Git
     URL."""
     if isinstance(args.project_dir, str):
+        if _is_hub_model_url(args.project_dir):
+            print_error(
+                f"{quote_source(args.project_dir)} is a Hugging Face model, "
+                "not a project: use 'loom model'."
+            )
+            return 1
         return run_remote_project(args, args.project_dir)
     # Settle before the path check and the metadata/lock-file read below,
     # so the build-flag WARNING: is the first thing the run logs -- and is

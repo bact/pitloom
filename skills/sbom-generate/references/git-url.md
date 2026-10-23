@@ -24,7 +24,8 @@ misread, a page URL is read by the host's conventions. Rules to state to the use
 - Only `http`/`https` URLs are fetched. `ssh://`, `git://`, `file://` and
   `git@host:path` get `WARNING: Git source: Cannot fetch <url>: only http and
   https URLs are fetched ...`, then `ERROR: SBOM generation failed: ...`
-  (exit 1). A Hugging Face address is a model, not a repository: use `loom model`.
+  (exit 1). A Hugging Face model address is a model, not a repository: use
+  `loom model`; a Space or dataset (`huggingface.co/spaces/...`) is a repository.
 - The repository is untrusted: its own `[tool.pitloom]` is ignored (an `INFO:`
   says so; `--config FILE` applies) and its build backend never runs:
   `--allow-build` gets `WARNING: Build: <url>: --allow-build has no effect for

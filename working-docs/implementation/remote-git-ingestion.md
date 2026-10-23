@@ -163,6 +163,12 @@ Run against real servers (see `docs/git-urls.md`). Findings:
   the folder in the path after the page name. The ref is exact, not split from
   the folder. Gitiles uses `/+/` with `refs/heads/` or `refs/tags/` in front of
   the ref; both are read like a path marker.
+- A Hugging Face Space or dataset (`/spaces/...`, `/datasets/...`) is a Git
+  repository, not a model: `is_git_url` accepts it, `parse_hf_model_id` refuses
+  it, so `_classify_target` says `git` (before, `spaces/<org>` was read as a
+  model id and `loom model` warned of 401s for a repository that does not
+  exist). `loom project <model url>` and `loom model <git url>` each say to use
+  the other command, in one `ERROR:` line, instead of a missing path.
 - A folder page whose path is a file (Forgejo, Bitbucket, SourceHut, Gitiles
   write both alike) reads the folder holding the file.
 - Not read, by choice: a cgit page with no `h=` or `id=` (it names the default
