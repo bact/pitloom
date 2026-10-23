@@ -105,6 +105,7 @@ def fetch_git_project(
     *,
     check_url: Callable[[str], None] | None = None,
     offline: bool | None = None,
+    max_bytes: int | None = None,
 ) -> Iterator[GitCheckout]:
     """Fetch the repository *url* names into a temporary directory, removed
     on exit.
@@ -112,14 +113,20 @@ def fetch_git_project(
     *check_url* is called with the URL of every redirect target before it is
     requested and raises for one that must not be fetched; Pitloom does not
     check the URL it is given (the caller does, as it knows its own policy).
-    With *offline* true nothing is fetched.
+    With *offline* true nothing is fetched. With *max_bytes* the fetch is
+    stopped once the checkout (the ``.git`` directory included) takes more
+    disk than that (``git.too-large``); ``None`` sets no limit.
 
     Raises:
+        ValueError: *max_bytes* is not a positive integer.
         RemoteSourceError: the URL names no fetchable repository, ref or
-            folder, ``git`` is missing, or *offline* is set (``git.offline``).
+            folder, ``git`` is missing, *offline* is set (``git.offline``),
+            or the repository is larger than *max_bytes*.
         Exception: whatever *check_url* raises, unchanged.
     """
-    runner = GitRunner()
+    if max_bytes is not None and max_bytes <= 0:
+        raise ValueError(f"max_bytes must be a positive integer, got {max_bytes}")
+    runner = GitRunner(max_bytes=max_bytes)
     with tempfile.TemporaryDirectory(prefix="pitloom-git-") as work_dir:
         try:
             checkout = _prepare(url, work_dir, runner, check_url, offline)
@@ -264,6 +271,7 @@ def _checkout(
         runner.run(
             ["-C", work_dir, "fetch", "--depth", "1", blobs, "origin", wanted],
             "fetch",
+            watch=work_dir,
         )
         runner.run(
             [
@@ -275,11 +283,14 @@ def _checkout(
                 "FETCH_HEAD",
             ],
             "checkout",
+            watch=work_dir,
         )
         return
     branch = ["--branch", target.ref] if target.ref else []
     runner.run(
-        ["clone", "--depth", "1", blobs, *branch, "--", clone_url, work_dir], "clone"
+        ["clone", "--depth", "1", blobs, *branch, "--", clone_url, work_dir],
+        "clone",
+        watch=work_dir,
     )
 
 

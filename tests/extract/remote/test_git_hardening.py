@@ -408,3 +408,78 @@ def test_a_timeout_reading_the_commit_is_not_an_empty_repository() -> None:
     with pytest.raises(RemoteSourceError) as excinfo:
         _head(Late(), "w", "u")  # type: ignore[arg-type]
     assert excinfo.value.code == "git.timeout"
+
+
+@posix_only
+@pytest.mark.parametrize(
+    ("body", "stopped"),
+    [
+        # Writes past the cap, then would run for a minute.
+        ('head -c 200000 /dev/zero > "$PITLOOM_TEST_DIR/pack"; sleep 60', True),
+        # Past the cap before the first look, and gone.
+        ('head -c 200000 /dev/zero > "$PITLOOM_TEST_DIR/pack"', True),
+        ('head -c 100 /dev/zero > "$PITLOOM_TEST_DIR/pack"', False),
+    ],
+    ids=["running", "finished", "under"],
+)
+def test_a_call_that_writes_more_than_the_cap_is_stopped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, body: str, stopped: bool
+) -> None:
+    """``git.too-large``, quickly and not after the sleep; a call under the
+    cap is untouched."""
+    watched = tmp_path / "checkout"
+    watched.mkdir()
+    monkeypatch.setenv("PITLOOM_TEST_DIR", str(watched))
+    _fake_git(tmp_path, monkeypatch, body)
+    started = time.monotonic()
+    runner = GitRunner(max_bytes=100_000)
+    if stopped:
+        with pytest.raises(
+            RemoteSourceError, match="larger than 100000 bytes"
+        ) as excinfo:
+            runner.run(["clone"], "clone", echo=False, watch=str(watched))
+        assert excinfo.value.code == "git.too-large"
+        assert time.monotonic() - started < 30
+    else:
+        assert runner.run(["clone"], "clone", echo=False, watch=str(watched)) == ""
+
+
+@posix_only
+def test_nothing_is_watched_without_a_directory_or_a_cap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    watched = tmp_path / "checkout"
+    watched.mkdir()
+    monkeypatch.setenv("PITLOOM_TEST_DIR", str(watched))
+    _fake_git(tmp_path, monkeypatch, 'head -c 200000 /dev/zero > "$PITLOOM_TEST_DIR/p"')
+    GitRunner(max_bytes=100).run(["clone"], "clone", echo=False)
+    GitRunner().run(["clone"], "clone", echo=False, watch=str(watched))
+
+
+@pytest.mark.parametrize("limit", [0, -1])
+def test_a_cap_that_is_not_positive_is_refused(limit: int) -> None:
+    with pytest.raises(ValueError, match="positive integer"):
+        with fetch_git_project("https://h/o/r", max_bytes=limit):
+            pytest.fail("not fetched")
+
+
+@needs_git
+@posix_only
+@pytest.mark.usefixtures("local")
+@pytest.mark.parametrize("limit", [10_000, 10_000_000], ids=["over", "under"])
+def test_a_repository_over_the_cap_is_not_read(tmp_path: Path, limit: int) -> None:
+    """The real clone of a repository holding a 300 KB file."""
+    root = tmp_path / "origin"
+    root.mkdir()
+    _run(root, "init", "-q", "-b", "main")
+    (root / "big.bin").write_bytes(os.urandom(300_000))
+    _run(root, "add", ".")
+    _run(root, "commit", "-q", "-m", "one")
+    if limit < 300_000:
+        with pytest.raises(RemoteSourceError) as excinfo:
+            with fetch_git_project(f"file://{root}", max_bytes=limit):
+                pytest.fail("too large")
+        assert excinfo.value.code == "git.too-large"
+    else:
+        with fetch_git_project(f"file://{root}", max_bytes=limit) as checkout:
+            assert (Path(checkout.folder) / "big.bin").is_file()
