@@ -34,6 +34,11 @@ from pitloom.assemble.spdx3._fragments_generated import (
 from pitloom.assemble.spdx3._fragments_model_names import ModelNames
 from pitloom.assemble.spdx3._provenance_encoders import PitloomV1Encoder
 from pitloom.assemble.spdx3.fragments import merge_fragments
+from pitloom.assemble.spdx3.provenance import (
+    build_provenance_comment,
+    provenance_comment_line,
+    provenance_comment_parts,
+)
 from pitloom.core.config import FragmentConfig
 from pitloom.core.provenance import (
     GENERATED_METHODS,
@@ -876,3 +881,16 @@ def test_a_provenance_entry_of_an_unexpected_shape_is_read_with_care(
     assert (merged["description"], _levels(records)) == (
         ("curated", [logging.INFO]) if replaced else ("generated", [logging.WARNING])
     )
+
+
+def test_the_comment_reader_and_writer_agree_on_the_format() -> None:
+    """The line :func:`build_provenance_comment` writes is read back part by
+    part, and another line is no provenance (one reader, one writer)."""
+    line = build_provenance_comment(
+        {"description": "Source: m | Method: x", "we;ird": "a; b"}
+    )
+    assert line is not None
+    parts = provenance_comment_parts(line)
+    assert parts is not None and len(parts) >= 2
+    assert provenance_comment_line(parts) == line
+    assert provenance_comment_parts("Other: description: x") is None

@@ -26,7 +26,6 @@ See also: :mod:`pitloom.assemble.spdx3._fragments_unify` (the caller),
 
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -42,8 +41,11 @@ from pitloom.assemble.spdx3._fragments_props import (
     _paths_suffix_match,
 )
 from pitloom.assemble.spdx3._fragments_refs import _endpoint_id
-from pitloom.assemble.spdx3._provenance_encoders import PitloomV1Encoder
-from pitloom.assemble.spdx3.provenance import PROVENANCE_COMMENT_PREFIX
+from pitloom.assemble.spdx3.provenance import (
+    annotation_fields_statement,
+    provenance_comment_line,
+    provenance_comment_parts,
+)
 from pitloom.core.canonical_json import canonical_json
 from pitloom.core.model_parameters import with_parameter_count_note
 from pitloom.core.provenance import escape_provenance_comment_part
@@ -86,12 +88,12 @@ def drop_comment_provenance(comment: str | None, field_name: str) -> str | None:
     entry = escape_provenance_comment_part(field_name, field=True) + ": "
     lines: list[str] = []
     for line in (comment or "").split("\n"):
-        if line.startswith(PROVENANCE_COMMENT_PREFIX):
-            body = line[len(PROVENANCE_COMMENT_PREFIX) :].split("; ")
+        body = provenance_comment_parts(line)
+        if body is not None:
             kept = [part for part in body if not part.startswith(entry)]
             if not kept:
                 continue
-            line = PROVENANCE_COMMENT_PREFIX + "; ".join(kept)
+            line = provenance_comment_line(kept)
         lines.append(line)
     return "\n".join(lines) or None
 
@@ -101,17 +103,10 @@ def _drop_annotation_field(
 ) -> spdx3.Annotation | None:
     """*annotation* less *field_name* when it is a ``fields`` provenance
     statement naming it; ``None`` when nothing is left of it."""
-    try:
-        statement = json.loads(annotation.statement or "")
-    except (ValueError, RecursionError):  # not JSON, or nested too deeply to read
+    parsed = annotation_fields_statement(annotation)
+    if parsed is None or field_name not in parsed[1]:
         return annotation
-    fields = statement.get("fields") if isinstance(statement, dict) else None
-    if (
-        not isinstance(fields, dict)
-        or field_name not in fields
-        or statement.get("schema") != PitloomV1Encoder.schema_url
-    ):
-        return annotation
+    statement, fields = parsed
     del fields[field_name]
     if not fields:
         return None

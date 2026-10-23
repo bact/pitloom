@@ -32,8 +32,10 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble.spdx3._fragments_model_names import ModelNames
 from pitloom.assemble.spdx3._fragments_props import _differs, _is_empty
 from pitloom.assemble.spdx3._fragments_refs import _endpoint_id
-from pitloom.assemble.spdx3._provenance_encoders import PitloomV1Encoder
-from pitloom.assemble.spdx3.provenance import PROVENANCE_COMMENT_PREFIX
+from pitloom.assemble.spdx3.provenance import (
+    annotation_fields_statement,
+    provenance_comment_parts,
+)
 from pitloom.core.provenance import (
     GENERATED_METHODS,
     PROVENANCE_PROPERTY_FIELDS,
@@ -57,9 +59,7 @@ def _comment_methods(comment: str | None) -> dict[str, str | None]:
     """The ``Method`` of each field of the provenance lines in *comment*."""
     methods: dict[str, str | None] = {}
     for line in (comment or "").split("\n"):
-        if not line.startswith(PROVENANCE_COMMENT_PREFIX):
-            continue
-        for part in line[len(PROVENANCE_COMMENT_PREFIX) :].split("; "):
+        for part in provenance_comment_parts(line) or ():
             name, sep, source = part.partition(": ")
             if sep:
                 methods[name] = parse_provenance_value(source).get("method")
@@ -69,15 +69,10 @@ def _comment_methods(comment: str | None) -> dict[str, str | None]:
 def _annotation_methods(annotation: spdx3.Annotation) -> dict[str, str | None]:
     """The ``Method`` of each field a Pitloom ``fields`` provenance
     statement of *annotation* names; empty for any other annotation."""
-    try:
-        statement = json.loads(annotation.statement or "")
-    except (ValueError, RecursionError):  # not JSON, or nested too deeply to read
+    parsed = annotation_fields_statement(annotation)
+    if parsed is None:
         return {}
-    fields = statement.get("fields") if isinstance(statement, dict) else None
-    if not isinstance(fields, dict) or (
-        statement.get("schema") != PitloomV1Encoder.schema_url
-    ):
-        return {}
+    _statement, fields = parsed
     return {
         name: entry["method"] if isinstance(entry.get("method"), str) else None
         for name, entry in fields.items()
