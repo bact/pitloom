@@ -41,6 +41,7 @@ from pitloom.core.provenance import (
 )
 from pitloom.export.spdx3_describe import describe_element, describe_value
 from pitloom.export.spdx3_json import require_spdx_id
+from pitloom.extract._extract_utils import json_nests_over
 
 log = logging.getLogger(__name__)
 
@@ -78,7 +79,7 @@ def _annotation_methods(annotation: spdx3.Annotation) -> dict[str, str | None]:
     ):
         return {}
     return {
-        name: entry.get("method")
+        name: entry["method"] if isinstance(entry.get("method"), str) else None
         for name, entry in fields.items()
         if isinstance(entry, dict)  # anything else says nothing
     }
@@ -117,38 +118,15 @@ def _same(old: object, new: object) -> bool:
 MAX_JSON_DEPTH = 64
 
 
-def _nests_over(text: str, limit: int) -> bool:
-    """Whether the brackets of the JSON *text* nest deeper than *limit*;
-    brackets inside a string do not count."""
-    if text.count("[") + text.count("{") <= limit:
-        return False
-    depth = 0
-    in_string = escaped = False
-    for char in text:
-        if in_string:
-            if escaped:
-                escaped = False
-            elif char == "\\":
-                escaped = True
-            elif char == '"':
-                in_string = False
-        elif char == '"':
-            in_string = True
-        elif char in "[{":
-            depth += 1
-            if depth > limit:
-                return True
-        elif char in "]}":
-            depth -= 1
-    return False
-
-
 def _same_json(old: str, new: str) -> bool:
     """Whether the JSON texts *old* and *new* say the same, in any spelling of
     the whitespace and the order of an object's keys. Text that is no JSON, has
     a repeated key or nests too deeply to read (a fragment is untrusted) is not
     the same as anything but itself."""
-    if _nests_over(old, MAX_JSON_DEPTH) or _nests_over(new, MAX_JSON_DEPTH):
+    if any(
+        json_nests_over(text.encode("utf-8", "surrogatepass"), MAX_JSON_DEPTH)
+        for text in (old, new)
+    ):
         return False
     try:
         return _same(

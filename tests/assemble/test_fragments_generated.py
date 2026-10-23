@@ -648,6 +648,9 @@ def test_the_generated_methods_are_the_ones_the_readers_write() -> None:
         ('{"n":1}', '{"n":1.0}', False),  # another number is another value
         ('{"n":1}', '{"n":true}', False),  # and a boolean is no number
         ('{"a":1,"b":[1,2]}', '{"b":[1,2],"a":1}', True),  # key order
+        ("[[]," + "[" * 63 + "1" + "]" * 64, "[[], " + "[" * 63 + "1" + "]" * 64, True),
+        ("[" + "{}," * 70 + "1]", "[" + "{}, " * 70 + "1]", True),  # wide, not deep
+        ('{"a":' * 65 + "1" + "}" * 65, '{"a": ' * 65 + "1" + "}" * 65, False),
         ('{"a":1}', '{"a":1,"b":2}', False),  # a key more ...
         ('{"a":1,"b":2}', '{"a":1}', False),  # ... or less
         ("[" * 64 + "1" + "]" * 64, "[" * 64 + " 1" + "]" * 64, True),  # at the cap
@@ -673,6 +676,9 @@ def test_the_generated_methods_are_the_ones_the_readers_write() -> None:
         "float",
         "boolean",
         "key-order",
+        "depth-64-by-count-65",
+        "wide-objects",
+        "objects-over-cap",
         "key-more",
         "key-less",
         "depth-at-cap",
@@ -802,26 +808,45 @@ def test_another_base_models_provenance_neither_counts_nor_goes(
 
 
 @pytest.mark.parametrize(
-    ("annotation", "comment"),
+    ("annotation", "comment", "replaced"),
     [
         # An entry that is no object says nothing: the generated comment stands
         # (read as a method, "other" would make the field not generated).
         (
             '{"description": "other"}',
             "description: Source: m | Method: generated_from_labels",
+            True,
         ),
-        (None, "description: Source: m | Method: generated_from_labels; description"),
+        (
+            None,
+            "description: Source: m | Method: generated_from_labels; description",
+            True,
+        ),
+        # An object whose method is no text is a method nobody knows: not
+        # generated, kept; it must not crash the merge (a list is unhashable).
+        (
+            '{"description": {"method": ["x"]}}',
+            "description: Source: m | Method: generated_from_labels",
+            False,
+        ),
+        (
+            '{"description": {"method": {"a": 1}}}',
+            "description: Source: m | Method: generated_from_labels",
+            False,
+        ),
     ],
-    ids=["entry-not-an-object", "stray-part-named-like-a-field"],
+    ids=["entry-not-an-object", "stray-part-named-like-a-field", "list", "object"],
 )
-def test_a_provenance_entry_of_an_unexpected_shape_says_nothing(
+def test_a_provenance_entry_of_an_unexpected_shape_is_read_with_care(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
     annotation: str | None,
     comment: str,
+    replaced: bool,
 ) -> None:
-    """A malformed entry is skipped, not read as a method or as a vote against
-    the value being generated: the value stays generated, and is replaced."""
+    """An entry that is no object, or a part with no source, says nothing and
+    the value stays generated; a method that is no text counts as not
+    generated, whatever its type."""
     base = _base({}, annotation=False)
     model = next(
         o for o in base.object_set.objects if isinstance(o, spdx3.ai_AIPackage)
@@ -844,4 +869,6 @@ def test_a_provenance_entry_of_an_unexpected_shape_says_nothing(
             )
         )
     merged, records, _ = _merge(tmp_path, caplog, base, [{"description": "curated"}])
-    assert (merged["description"], _levels(records)) == ("curated", [logging.INFO])
+    assert (merged["description"], _levels(records)) == (
+        ("curated", [logging.INFO]) if replaced else ("generated", [logging.WARNING])
+    )
