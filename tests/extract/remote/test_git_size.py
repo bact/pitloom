@@ -12,12 +12,12 @@ See also: test_git_hardening.py (the cap on a running ``git``).
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from types import TracebackType
 
 import pytest
 
-from pitloom.extract.remote import _git_size
 from pitloom.extract.remote._git_size import readable_bytes, tree_bytes
 from tests._symlink import CAN_SYMLINK
 
@@ -88,5 +88,5 @@ class _Listing:
 def test_tree_bytes_skips_an_entry_it_cannot_read(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(_git_size.os, "scandir", lambda _path: _Listing())
+    monkeypatch.setattr(os, "scandir", lambda _path: _Listing())
     assert tree_bytes(str(tmp_path)) == 0

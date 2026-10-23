@@ -123,11 +123,12 @@ def test_generate_passes_the_address_check_and_offline_to_the_fetch(
     assert seen["check_url"] is check and seen["offline"] is False
 
 
-def test_the_clone_size_cap_reaches_the_fetch(seen: dict[str, object]) -> None:
-    generate_git_project_sbom(_URL, max_clone_bytes=1234)
-    assert seen["max_bytes"] == 1234
-    generate_git_project_sbom(_URL)
-    assert seen["max_bytes"] is None
+@pytest.mark.parametrize("given", [1234, None])
+def test_the_clone_size_cap_reaches_the_fetch(
+    seen: dict[str, object], given: int | None
+) -> None:
+    generate_git_project_sbom(_URL, max_clone_bytes=given)
+    assert seen["max_bytes"] == given
 
 
 def test_an_option_a_remote_repository_cannot_use_warns_once(
