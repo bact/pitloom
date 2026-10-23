@@ -36,7 +36,7 @@ from pitloom.core.creation import (
     Creator,
     Tool,
 )
-from pitloom.core.file_names import sbom_file_name
+from pitloom.core.file_names import default_sbom_basename, sbom_file_name
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.project import (
@@ -341,10 +341,8 @@ def _resolve_output_path(
         return explicit
     if pitloom_config.sbom_basename:
         return Path(sbom_file_name(pitloom_config.sbom_basename))
-    parts = [metadata.name] if metadata.name else ["sbom"]
-    if metadata.version:
-        parts.append(metadata.version)
-    return Path("-".join(parts) + SPDX3_JSONLD_EXTENSION)
+    base = default_sbom_basename(metadata.name, metadata.version)
+    return Path(base + SPDX3_JSONLD_EXTENSION)
 
 
 def _resolve_model_output_path(explicit: Path | None, model_path: Path) -> Path:
