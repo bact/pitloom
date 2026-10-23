@@ -183,6 +183,7 @@ def test_a_redirect_keeps_the_user_only_on_the_same_host(
         ("http://u:t@host.example/g/p", "https://host.example/x", ""),
         ("https://host.example/g/p", "https://host.example/x", ""),
         ("https://u:t@host.example:bad/g/p", "https://host.example/x", ""),
+        ("https://u:t@host.example/g/p", "https://host.example:0/x", ""),
     ],
     ids=[
         "host-case",
@@ -193,6 +194,7 @@ def test_a_redirect_keeps_the_user_only_on_the_same_host(
         "upgrade",
         "no-user",
         "bad-port",
+        "port-zero",
     ],
 )
 def test_the_user_is_carried_only_to_the_same_origin(

@@ -235,7 +235,11 @@ def _origin(parts: SplitResult) -> tuple[str, str, int | None] | None:
     except ValueError:
         return None
     default = {"http": 80, "https": 443}.get(parts.scheme.lower())
-    return parts.scheme.lower(), (parts.hostname or ""), port or default
+    return (
+        parts.scheme.lower(),
+        (parts.hostname or ""),
+        default if port is None else port,
+    )
 
 
 def _carried_userinfo(source: str, target: SplitResult) -> str:
