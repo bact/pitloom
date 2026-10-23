@@ -114,7 +114,7 @@ _PAGES = [
         "sourcehut",
         "https://git.sr.ht/~sircmpwn/scdoc/tree/master/item/src",
         "https://git.sr.ht/~sircmpwn/scdoc",
-        ("master", "src"),
+        ("master", "item", "src"),
         False,
     ),
     (
@@ -233,6 +233,92 @@ def test_an_unknown_ref_is_an_error_naming_it(first: str) -> None:
         split_ref(GitPage("https://h/o/r", (first, "x")), _REFS)
     assert excinfo.value.code == "git.ref-not-found"
     assert first in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    ("url", "sourcehut"),
+    [
+        ("https://git.sr.ht/~o/r/tree/main/item/src", True),
+        ("https://git.sr.ht/~o/r/tree/main", True),
+        ("https://git.sr.ht/~o/r/blob/main/a.md", False),
+        ("https://git.sr.ht/o/r/tree/main/item/src", False),
+        ("https://github.com/o/r/tree/main/item/x", False),
+    ],
+    ids=["sourcehut-tree", "sourcehut-root", "blob", "no-tilde", "github"],
+)
+def test_only_a_sourcehut_tree_page_is_marked_sourcehut(
+    url: str, sourcehut: bool
+) -> None:
+    """An owner ``~name`` and the ``tree`` marker make a SourceHut page."""
+    assert parse_git_page(url).sourcehut is sourcehut
+
+
+_SR = "https://git.sr.ht/~o/r/tree/"
+_SR_REFS = {**_REFS, "item": frozenset({"branch"}), "v1.0/item": frozenset({"tag"})}
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("main/item/src", GitTarget(ref="main", subdir="src")),
+        ("main", GitTarget(ref="main")),
+        ("main/item", GitTarget(ref="main")),
+        ("feature/x/item/dir", GitTarget(ref="feature/x", subdir="dir")),
+        ("feature/x/y/item/d/e", GitTarget(ref="feature/x/y", subdir="d/e")),
+        ("v1.0/item/docs", GitTarget(ref="v1.0", subdir="docs", tag=True)),
+        (f"{_SHA}/item/src", GitTarget(commit=_SHA, subdir="src")),
+        # Only the ``item`` right after the ref is dropped.
+        ("main/item/a/item/b", GitTarget(ref="main", subdir="a/item/b")),
+        ("main/item/item", GitTarget(ref="main", subdir="item")),
+        # A ref named ``item``; a ``v1.0/item`` ref needs its own ``item``.
+        ("item/item/dir", GitTarget(ref="item", subdir="dir")),
+        ("v1.0/item/x", GitTarget(ref="v1.0", subdir="x", tag=True)),
+        ("v1.0/item/item/x", GitTarget(ref="v1.0/item", subdir="x", tag=True)),
+    ],
+    ids=lambda v: v if isinstance(v, str) else None,
+)
+def test_sourcehut_item_after_a_ref_of_any_length_is_no_folder(
+    path: str, expected: GitTarget
+) -> None:
+    """SourceHut's ``item`` separates the ref, of any number of segments,
+    from the path, and is not part of the folder."""
+    assert split_ref(parse_git_page(_SR + path), _SR_REFS) == expected
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        (
+            "https://git.sr.ht/~o/r/blob/feature/x/item/a.md",
+            GitTarget(ref="feature/x", subdir="item", file="a.md"),
+        ),
+        (
+            "https://github.com/o/r/tree/feature/x/item/d",
+            GitTarget(ref="feature/x", subdir="item/d"),
+        ),
+    ],
+    ids=["sourcehut-blob", "github-tree"],
+)
+def test_item_is_a_folder_outside_a_sourcehut_tree_page(
+    url: str, expected: GitTarget
+) -> None:
+    """A SourceHut ``blob`` page or another host's page has no ``item``
+    separator: a folder ``item`` stays."""
+    assert split_ref(parse_git_page(url), _REFS) == expected
+
+
+@pytest.mark.parametrize(
+    ("path", "named"),
+    [("main/dir", "main/dir"), ("nope/x/item/d", "nope/x"), ("item", "item")],
+)
+def test_a_sourcehut_ref_not_followed_by_item_is_not_found(
+    path: str, named: str
+) -> None:
+    """SourceHut spells the whole ref before ``item``: the error names it."""
+    with pytest.raises(RemoteSourceError) as excinfo:
+        split_ref(parse_git_page(_SR + path), _REFS)
+    assert excinfo.value.code == "git.ref-not-found"
+    assert named in str(excinfo.value)
 
 
 @pytest.mark.parametrize(
