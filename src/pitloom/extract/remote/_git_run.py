@@ -186,16 +186,14 @@ def _drain(stream: IO[bytes], keep: list[bytes]) -> None:
 
 
 def _taskkill() -> str | None:
-    """The path of Windows' ``taskkill``, or ``None`` when there is none."""
-    found = shutil.which("taskkill")
-    if found is not None:
-        return found
+    """The path of Windows' ``taskkill`` (``%SystemRoot%\\System32`` first, so
+    a copy in the current folder is not run), or ``None`` when there is none."""
     root = os.environ.get("SystemRoot")
     if root:
         candidate = os.path.join(root, "System32", "taskkill.exe")
         if os.path.isfile(candidate):
             return candidate
-    return None
+    return shutil.which("taskkill")
 
 
 def _kill(proc: subprocess.Popen[bytes]) -> None:

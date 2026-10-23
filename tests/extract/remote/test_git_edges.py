@@ -312,10 +312,10 @@ def test_off_posix_the_process_tree_is_killed_then_the_process(
     assert calls == (tree if taskkill else []) + ["kill"]
 
 
-def test_taskkill_is_found_on_path_or_below_the_system_root(
+def test_taskkill_is_found_below_the_system_root_or_on_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """``PATH`` first, then ``%SystemRoot%\\System32``; ``None`` without
+    """``%SystemRoot%\\System32`` first, then ``PATH``; ``None`` without
     either."""
     name = "taskkill.exe" if sys.platform == "win32" else "taskkill"
     on_path, root = tmp_path / "bin", tmp_path / "root"
@@ -325,12 +325,12 @@ def test_taskkill_is_found_on_path_or_below_the_system_root(
     monkeypatch.setenv("PATH", str(on_path))
     monkeypatch.delenv("SystemRoot", raising=False)
     assert _taskkill() is None
-    monkeypatch.setenv("SystemRoot", str(root))
-    assert _taskkill() is None
-    below_root = root / "System32" / "taskkill.exe"
-    below_root.write_bytes(b"")
-    assert _taskkill() == str(below_root)
     found = on_path / name
     found.write_bytes(b"")
     found.chmod(found.stat().st_mode | stat.S_IEXEC)
     assert Path(_taskkill() or "") == found
+    monkeypatch.setenv("SystemRoot", str(root))
+    assert Path(_taskkill() or "") == found
+    below_root = root / "System32" / "taskkill.exe"
+    below_root.write_bytes(b"")
+    assert _taskkill() == str(below_root)
