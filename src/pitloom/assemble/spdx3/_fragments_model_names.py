@@ -69,6 +69,9 @@ class _BaseModel:
     names: dict[str, None] = field(default_factory=dict)
     #: Every fragment comment (count note dropped), in fold order.
     comments: list[str | None] = field(default_factory=list)
+    #: Provenance fields of the base to drop (a fragment's value replaces
+    #: what they say), in the order given.
+    dropped: dict[str, None] = field(default_factory=dict)
 
 
 def drop_comment_provenance(comment: str | None, field_name: str) -> str | None:
@@ -112,19 +115,22 @@ def _drop_annotation_field(
 
 
 def drop_annotation_provenance(
-    exporter: Spdx3JsonExporter, spdx_id: str, field_name: str
+    exporter: Spdx3JsonExporter,
+    annotations: Iterable[spdx3.Annotation],
+    spdx_id: str,
+    field_name: str,
 ) -> None:
-    """Drop *field_name*'s provenance from the ``fields`` provenance
-    Annotations of *spdx_id*; an Annotation left with no field goes."""
-    object_set = exporter.object_set
+    """Drop *field_name*'s provenance from those of *annotations* that are
+    ``fields`` provenance Annotations of *spdx_id*; an Annotation left with
+    no field goes."""
     emptied = [
         annotation
-        for annotation in object_set.objects
-        if isinstance(annotation, spdx3.Annotation)
-        and _endpoint_id(annotation.subject) == spdx_id
+        for annotation in annotations
+        if _endpoint_id(annotation.subject) == spdx_id
         and _drop_annotation_field(annotation, field_name) is None
     ]
     if emptied:
+        object_set = exporter.object_set
         object_set.objects.difference_update(emptied)
         object_set.create_index()
 
@@ -159,28 +165,48 @@ class ModelNames:
         model.comments.append(with_parameter_count_note(duplicate.comment, False))
         return _SKIP_NAME
 
+    def drop_provenance(self, package: spdx3.SHACLObject, field_name: str) -> None:
+        """Have :meth:`finish` drop the base's provenance of *field_name* from
+        *package* when it is a base model; a fragment's own comment and
+        Annotations are never touched."""
+        model = self._models.get(id(package))
+        if model is not None:
+            model.dropped.setdefault(field_name)
+
     def finish(self) -> None:
-        """Settle every base model's name, after the last fragment."""
-        models = (m for m in self._models.values() if m.names)
+        """Settle every base model's name and provenance, after the last
+        fragment."""
+        models = (m for m in self._models.values() if m.names or m.dropped)
         for model in sorted(models, key=lambda m: require_spdx_id(m.package)):
+            fields = list(model.dropped)
             names = list(model.names)
             if len(names) == 1 and _renames(model.name, names[0]):
                 self._rename(model, names[0])
-                continue
-            for name in sorted(names):  # today's field merge, in a fixed order
-                _merge_scalar(model.package, _NAME, model.package.name, name)
+                fields.append(_NAME)
+            else:
+                for name in sorted(names):  # today's field merge, in a fixed order
+                    _merge_scalar(model.package, _NAME, model.package.name, name)
+            if fields:
+                self._drop_provenance(model, fields)
 
     def _rename(self, model: _BaseModel, name: str) -> None:
         package = model.package
-        spdx_id = require_spdx_id(package)
         log.info(
             MODEL_NAME_KEPT_INFO,
-            describe_element(type(package).__name__, spdx_id, None),
+            describe_element(type(package).__name__, require_spdx_id(package), None),
             describe_value(name),
             describe_value(model.name),
         )
         package.name = name
-        comment = drop_comment_provenance(model.comment, _NAME)
+
+    def _drop_provenance(self, model: _BaseModel, fields: list[str]) -> None:
+        """Rebuild the comment of *model* from the base comment without the
+        provenance of *fields* and from the fragments' comments in fold order,
+        and drop *fields* from the base's Annotations."""
+        package = model.package
+        comment = model.comment
+        for field_name in fields:
+            comment = drop_comment_provenance(comment, field_name)
         if comment is None:
             del package.comment  # the binding takes no None
         else:
@@ -188,7 +214,13 @@ class ModelNames:
         for fragment_comment in model.comments:
             _merge_comment(package, package.comment, fragment_comment)
         _finish_parameter_count_note(package)
-        drop_annotation_provenance(self._exporter, spdx_id, _NAME)
+        for field_name in fields:
+            drop_annotation_provenance(
+                self._exporter,
+                self._annotations,
+                require_spdx_id(package),
+                field_name,
+            )
 
 
 def _renames(base_name: str, fragment_name: str) -> bool:

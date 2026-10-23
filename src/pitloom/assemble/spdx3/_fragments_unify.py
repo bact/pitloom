@@ -142,7 +142,7 @@ class _MergeIndex:
         #: The base's models; :meth:`ModelNames.finish` settles their names.
         self.model_names = ModelNames(exporter, exporter.object_set.objects)
         #: The properties of those models that Pitloom generated.
-        self.generated = GeneratedValues(exporter, exporter.object_set.objects)
+        self.generated = GeneratedValues(self.model_names, exporter.object_set.objects)
         for obj in sorted(exporter.object_set.objects, key=_canonical_merge_key):
             self._index(obj)
 

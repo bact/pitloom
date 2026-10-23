@@ -238,9 +238,13 @@ not merging: a generated domain is not unioned with a curated one, and the
 text of `ai_informationAboutApplication` is replaced whole. An empty fragment
 value, and the same value in another spelling (a list in another order, JSON
 with other spacing), do not replace; an empty base value is filled without a
-notice. The provenance entries are dropped after the names are settled
-(`GeneratedValues.finish()`): a rename rebuilds the model's comment and had
-brought a dropped entry back (round 1 review). `loom merge` keeps its
+notice. The base's provenance entries are dropped by `ModelNames.finish()`
+after the last fragment, with the rename: it rebuilds the model's comment from
+the base comment and the fragments' comments in fold order (so a fragment's
+own text, glued onto the provenance line, is never taken for an entry), and
+drops the fields from the base's Annotations only (a fragment's own provenance
+stands). Dropping per replace had brought an entry back after a rename and
+deleted fragment text (reviews, rounds 1 and 2). `loom merge` keeps its
 earlier-wins rule: a generated model in an earlier fragment is not a base. Probe (HEAD vs tree, the committed `sentimentdemo`
 project): the SBOM is byte-identical; with a curated fragment the three
 properties are replaced and the output is stable across runs. Rejected: a

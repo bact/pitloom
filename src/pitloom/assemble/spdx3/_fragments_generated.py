@@ -29,10 +29,7 @@ from collections.abc import Iterable
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3._fragments_model_names import (
-    drop_annotation_provenance,
-    drop_comment_provenance,
-)
+from pitloom.assemble.spdx3._fragments_model_names import ModelNames
 from pitloom.assemble.spdx3._fragments_props import _differs, _is_empty
 from pitloom.assemble.spdx3._fragments_refs import _endpoint_id
 from pitloom.assemble.spdx3._provenance_encoders import PitloomV1Encoder
@@ -43,7 +40,7 @@ from pitloom.core.provenance import (
     parse_provenance_value,
 )
 from pitloom.export.spdx3_describe import describe_element, describe_value
-from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.export.spdx3_json import require_spdx_id
 
 log = logging.getLogger(__name__)
 
@@ -114,15 +111,14 @@ def generated_properties(methods: dict[str, str | None]) -> frozenset[str]:
     return frozenset(generated)
 
 
+# pylint: disable-next=too-few-public-methods
 class GeneratedValues:
     """The base models of a merge and the properties Pitloom generated."""
 
     def __init__(
-        self, exporter: Spdx3JsonExporter, base: Iterable[spdx3.SHACLObject]
+        self, model_names: ModelNames, base: Iterable[spdx3.SHACLObject]
     ) -> None:
-        self._exporter = exporter
-        #: The (model, field) provenance entries to drop once names are settled.
-        self._dropped: list[tuple[spdx3.ai_AIPackage, str]] = []
+        self._model_names = model_names
         objects = list(base)
         annotations = [o for o in objects if isinstance(o, spdx3.Annotation)]
         self._generated: dict[int, set[str]] = {}
@@ -165,16 +161,4 @@ class GeneratedValues:
                     describe_value(old),
                 )
             for name in sorted(PROVENANCE_PROPERTY_FIELDS[pyname]):
-                self._dropped.append((canonical, name))
-
-    def finish(self) -> None:
-        """Drop the provenance of every replaced value, after the names are
-        settled (a rename rebuilds the comment of its model)."""
-        for package, name in self._dropped:
-            comment = drop_comment_provenance(package.comment, name)
-            if comment is None:
-                del package.comment  # the binding takes no None
-            elif comment != package.comment:
-                package.comment = comment
-            drop_annotation_provenance(self._exporter, require_spdx_id(package), name)
-        self._dropped.clear()
+                self._model_names.drop_provenance(canonical, name)

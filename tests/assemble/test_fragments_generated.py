@@ -120,9 +120,23 @@ def _merge(
     model, the ``Merge:`` records (level, message) and the Annotations."""
     configs = []
     for n, fields in enumerate(fragments):
+        fields = dict(fields)
+        provenance = fields.pop("_provenance", None)
         element = {"type": "ai_AIPackage", "spdxId": _MODEL, "name": "m", **fields}
+        elements = [element]
+        if provenance is not None:  # the fragment's own provenance Annotation
+            elements.append(
+                {
+                    "type": "Annotation",
+                    "spdxId": f"{_NS}#FA-{n}",
+                    "annotationType": "other",
+                    "contentType": "application/json",
+                    "subject": _MODEL,
+                    "statement": _statement(provenance),
+                }
+            )
         path = f"f{n}.spdx3.json"
-        write_fragment(tmp_path / path, fragment_graph([element]))
+        write_fragment(tmp_path / path, fragment_graph(elements))
         configs.append(FragmentConfig(path=path))
     caplog.clear()
     with caplog.at_level(logging.INFO):
@@ -330,6 +344,63 @@ def test_an_empty_generated_value_is_filled_without_a_replacement_notice(
     assert model["description"] == "curated"
     assert records == []
     assert "description" not in _provenance_fields(model, annotations)
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [{}, {"name": "renamed"}],
+    ids=["no-rename", "rename"],
+)
+@pytest.mark.parametrize("form", ["comment", "both"])
+def test_the_fragments_own_comment_text_is_never_taken_for_provenance(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, form: str, extra: dict[str, str]
+) -> None:
+    """A fragment comment is glued onto the base's provenance line; a part of
+    it that reads ``domain: ...`` is the fragment's text, not an entry to drop."""
+    base = _base(
+        {"domain": "derived_from_format", "framework": None},
+        annotation=form == "both",
+    )
+    fragment = {"ai_domain": ["curated"], "comment": "domain: sports; note", **extra}
+    model, records, annotations = _merge(tmp_path, caplog, base, [fragment])
+    assert model["ai_domain"] == ["curated"]
+    assert "derived_from_format" not in model["comment"]
+    assert "domain: sports; note" in model["comment"]
+    assert "framework: " in model["comment"]
+    assert _provenance_fields(model, annotations) >= {"framework"}
+    assert "domain" not in {
+        f for a in annotations for f in json.loads(a["statement"]).get("fields", {})
+    }
+    assert logging.INFO in _levels(records)
+
+
+@pytest.mark.parametrize(
+    ("fragment", "provenance"),
+    [
+        ({"name": "renamed"}, {"name": None}),
+        ({"description": "curated"}, {"description": "generated_from_labels"}),
+        (
+            {"name": "renamed", "description": "curated"},
+            {"description": None, "name": None},
+        ),
+    ],
+    ids=["rename-only", "replace-only", "both"],
+)
+def test_a_fragments_own_provenance_annotation_is_kept(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    fragment: dict[str, Any],
+    provenance: dict[str, str | None],
+) -> None:
+    """Only the base's provenance of a replaced or renamed field goes: the
+    fragment says where its own value came from, and that stands."""
+    base = _base({"description": "generated_from_labels", "name": "file_name_stem"})
+    _, _, annotations = _merge(
+        tmp_path, caplog, base, [{**fragment, "_provenance": provenance}]
+    )
+    own = [a for a in annotations if a["spdxId"].startswith(f"{_NS}#FA-")]
+    assert len(own) == 1
+    assert sorted(json.loads(own[0]["statement"])["fields"]) == sorted(provenance)
 
 
 def test_a_second_fragment_conflicts_with_the_first(
