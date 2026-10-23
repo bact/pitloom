@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-24
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -417,9 +417,7 @@ in `setup.cfg`.
 | Limitation | Notes |
 | :--- | :--- |
 | Dynamic `setup.py` values | Variables, function calls, `f`-strings are skipped with a `WARNING:`; `setup.cfg`'s value, else `None`. |
-| `attr:` with complex paths | Only `module.ATTR` (two-part) is resolved; deeper paths (e.g., `pkg.sub.module.ATTR`) fall back to `None`. |
-| Multiple authors in `setup.cfg` | `author` / `author_email` yield at most one entry; setuptools supports comma-separated lists but pitloom does not yet parse them. |
-| Optional / extras dependencies | `[options.extras_require]` is not extracted. |
+| Multiple authors in `setup.cfg` | `author_email` is cut on `,`/`;` (one author per address); `author` (names) is cut only next to an address, so `author = Ann, Bob` is one author with an `INFO:`. See [extras-parity.md](extras-parity.md). |
 | Wheel file discovery, no static config | A setuptools project with no `[project]`/`[tool.setuptools]` in `pyproject.toml` and no `setup.cfg` (packages only resolvable via imperative `setup.py`) returns an empty file list -- the facade skips the Hatchling-based heuristic entirely for this case (logged warning), since it's guaranteed to fail Hatchling's own discovery too; same static-only boundary as metadata extraction. |
 | Build-time dynamic metadata | `version` set via Git tags, `importlib.metadata`, or other runtime mechanisms is not resolved statically.  See [working-docs/design/metadata-sources.md](../design/metadata-sources.md) for the planned PEP 517 approach. |
 | Wheel file discovery, `setup.py` overrides packaging imperatively | A project can look statically resolvable (a `setup.cfg`/zero-config auto-discovery finds *something*) while its real `setup.py` also passes `packages`/`package_data`/etc. imperatively -- silently dropping files (real-world boto3) or including spurious ones (real-world cffi's implicit-namespace-package guess for a non-package `src/c/` dir). Neither is fixable without executing `setup.py` (out of scope), so `discover()` AST-scans `setup.py` for these argument names and logs a `WARNING:` when present, rather than staying silent. See [backend-file-discovery-validation-setuptools.md](backend-file-discovery-validation-setuptools.md#findings). |
@@ -434,9 +432,10 @@ current 10-package results, and findings now live in
 
 ## Planned enhancements
 
-- **`attr:` with deep module paths** (e.g., `pkg.sub.module.ATTR`).
-- **Multiple authors** from comma-separated `setup.cfg` `author` fields.
-- **`[options.extras_require]`** extraction.
 - **PEP 517 `prepare_metadata_for_build_wheel`** as an opt-in higher-priority
-  source for dynamic metadata.  See
+  source for dynamic metadata (not built).  See
   [working-docs/design/metadata-sources.md](../design/metadata-sources.md).
+
+`attr:` with deep module paths (`pkg.sub.module.ATTR`) and
+`[options.extras_require]` are built (`_setup_cfg_directives.py`,
+`_setuptools_options.py`).

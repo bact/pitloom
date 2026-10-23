@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -50,8 +50,9 @@ Lessons:
   version the library accepts would skip the check. Fail closed on a
   version the library reads but the check does not know.
 - **The real fix is not reading the structure at all**: header-only,
-  stdlib-only readers that seek past what they do not emit. Planned after
-  the 0.20.0 release, tested for parity against the libraries.
+  stdlib-only readers that seek past what they do not emit. Planned (only the
+  pickle walker and CRFsuite are built in 0.21.0), tested for parity against the
+  libraries.
 
 ## 3.2 Native code in-process
 

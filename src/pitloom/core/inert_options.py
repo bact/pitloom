@@ -107,9 +107,7 @@ _NO_LOCKFILE = (
     "for this target (no lock-file concept applies to env/wheel/"
     "model-file/Hugging-Face targets)"
 )
-_SDIST_NO_LOCKFILE = (
-    "for an sdist archive target (no lock/pin cascade support for archives yet)"
-)
+_SDIST_NO_LOCKFILE = "for an sdist archive target (an archive has no lock/pin cascade)"
 _FRAGMENT_NO_LOCKFILE = "without --project-dir (no base document identity is computed)"
 _NO_HARVEST = "for this target (it never writes ids back to a registry)"
 _MODEL_NO_DEPENDENCIES = (

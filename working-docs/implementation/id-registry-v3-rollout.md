@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -58,7 +58,7 @@ directly, so the format change stays inside `id_registry/`.
 | GitHub Action | via CLI | via CLI | none in `action.yml`; `docs/github-action.md` commits a registry file, so note the format bump |
 | Skills | - | - | `sbom-generate/references/id-registry.md`; triggers for id management (commit 9) |
 | `docs/` | - | - | `docs/cli.md`; `docs/python-api.md`; `docs/configuration.md`; `docs/api.md` lists `FileEntry`/`EntityEntry` (a public API change) |
-| `examples/sentimentdemo-aibom` | loom + `id generate` (`scripts/run_pipeline.sh`) | commits a v2 `loom-id-registry.json` | regenerate with its own workflow (commit 8) |
+| `examples/sentimentdemo-aibom` | loom + `id generate` (`examples/sentimentdemo-aibom/scripts/run_pipeline.sh`) | commits a v2 `loom-id-registry.json` | regenerate with its own workflow (commit 8) |
 
 Implementers re-derive this table from the code on the base branch, then
 check each row with a test (section 13).
@@ -196,7 +196,7 @@ tests/`) on its own, so it can be bisected.
    land before commit 8, which uses `path=`.
 8. **The example to registry v3.** Regenerate
    `examples/sentimentdemo-aibom/loom-id-registry.json` only through
-   `scripts/run_pipeline.sh`, in a scratch copy (delete the v2 file first,
+   `examples/sentimentdemo-aibom/scripts/run_pipeline.sh`, in a scratch copy (delete the v2 file first,
    per D10; never hand-edit). In the script: `--namespace` with the
    current namespace (smaller diff), `-e <path>:dataset_DatasetPackage`
    for the four datasets, and drop `--entity sentimentdemo`: `train.py`

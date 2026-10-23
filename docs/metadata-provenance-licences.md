@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -190,8 +190,8 @@ template's placeholder (`Copyright [yyyy] [name of copyright owner]`),
 nor the Free Software Foundation's own notice heading a GNU licence
 document (between its title line -- `GNU ... GENERAL PUBLIC LICENSE` or
 `GNU Free Documentation License`, any case, alone on its line, a Markdown
-heading or an underlined reStructuredText title -- and `Version N,
-<date>` lines and its `Everyone is permitted to copy and distribute
+heading or an underlined reStructuredText title -- and `Version
+N, <date>` lines and its `Everyone is permitted to copy and distribute
 verbatim copies` line): a project notice before or after the licence text,
 or under such a title written inside a sentence, is kept. Several notices
 are joined by a line break in file order, a repeat left out; the

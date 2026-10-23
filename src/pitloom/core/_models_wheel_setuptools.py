@@ -263,7 +263,7 @@ def _discover_data_files(build_py_cmd: BuildPyCommand) -> list[IncludedFile]:
     """Resolve ``package_data``/``include_package_data`` (MANIFEST.in-driven)
     files. ``include_package_data`` requires setuptools' own manifest
     analysis, which invokes the real ``egg_info`` command -- redirected
-    to a temp directory via ``egg_base`` so *project_dir* is never
+    to a temp directory via ``egg_base`` so the project directory is never
     mutated by this read-only discovery pass."""
     with tempfile.TemporaryDirectory() as egg_base:
         egg_info_cmd = build_py_cmd.distribution.get_command_obj("egg_info")

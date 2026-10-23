@@ -93,9 +93,9 @@ def test_resolve_project_with_lockfile_sdist_reads_archive_once(
 def test_sdist_explicit_use_lockfile_warns_once_and_is_ignored(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """An explicit use_lockfile for an sdist archive has no effect (no lock/pin
-    cascade support for archives yet); it is warned about, not silently
-    discarded. The generator settles it once; the resolver stays silent."""
+    """An explicit use_lockfile for an sdist archive has no effect (an archive
+    has no lock/pin cascade); it is warned about, not silently discarded. The
+    generator settles it once; the resolver stays silent."""
     sdist_path = tmp_path / "demo-1.0.0.tar.gz"
     pkg_info = b"Metadata-Version: 2.1\nName: demo\nVersion: 1.0.0\n"
     with tarfile.open(sdist_path, "w:gz") as tf:

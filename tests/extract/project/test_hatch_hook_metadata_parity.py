@@ -92,7 +92,7 @@ def test_metadata_from_hatchling_matches_read_pyproject_for_license_conflict() -
     independently-detected LICENSE file disagree.
 
     Both paths resolve the same ``license_concluded`` value:
-    :func:`~pitloom.extract.hatchling.metadata_from_hatchling` runs the
+    :func:`~pitloom.extract.project.hatchling.metadata_from_hatchling` runs the
     independent directory scan that
     :func:`~pitloom.extract.project.pyproject.read_pyproject` runs.
     """

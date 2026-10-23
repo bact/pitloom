@@ -15,8 +15,15 @@ Follow-ups from the extras and authors work (#300): see
 [extras-parity.md](../implementation/extras-parity.md#open-questions),
 the one list.
 
+- [ ] **One person, two `Agent` elements (S, found in the 2026-10-23 release
+  review).** When a model's `originatedBy` and a dataset's `publishedBy` name the
+  same person ("Alice" in the `library` conformance scenario), the SBOM holds two
+  `Agent` elements with different ids (`Agent-1` from the model producer,
+  `Agent-Alice-1` from `add_dataset_creator_agent`, `assemble/spdx3/dataset.py`).
+  Valid, but two identities for one name; one shared agent builder keyed by name
+  would fold them (and keep ids stable in the registry).
 - [ ] **Deep metadata text depends on call-stack depth (S).**
-  `core/ai_metadata.py:162` `_collection_text` falls back to
+  `core/ai_metadata.py` `_collection_text` falls back to
   `<nested over 32 levels>` on `RecursionError`, so the CLI and the
   Hatchling hook (deeper stack) can write different bytes for a 500-950
   deep PT2 `extra/tags`. Decide from an explicit depth count.
@@ -24,7 +31,7 @@ the one list.
   and `"a\\u202e"` in one `ai_informationAboutApplication` object spell
   the same after `escape_display_controls_in_json`; one entry is dropped.
 - [ ] **PT2 tags spelt as Python repr (S, cross-format).**
-  `pytorch_pt2.py:233` uses `source_element_text()` (scalars only) for
+  `pytorch_pt2.py` uses `source_element_text()` (scalars only) for
   non-scalar tags: `a, {'k': [1, True]}, null`. Use canonical JSON, as
   HDF5 `metrics` and `labels` do.
 - [ ] **Label count recorded differently (S, cross-format).** CRFsuite
@@ -64,9 +71,9 @@ the one list.
   `write_sbom_output` gives every generator and `embed_wheel_sbom()` that
   meaning; neither the docstrings nor `docs/python-api.md` state it, and no
   library-level test pins it (#288 review).
-- [ ] **`--help` choice order changes per run (S).** `choices=` takes a
-  frozenset (`VALID_CONTENT_TYPE_METHODS`, `VALID_CREATOR_TYPES`), so
-  `{auto,extension,magika}` prints in hash order. Pass a sorted tuple.
+- [x] **`--help` choice order changes per run (S).** Fixed (06d7cc45): `cli/parser.py`
+  passes `choices=sorted(VALID_CONTENT_TYPE_METHODS)` and
+  `sorted(VALID_CREATOR_TYPES)`. (Was: a frozenset in hash order.)
 - [ ] **Installed-dependency `METADATA` is read unlike a wheel's (S).**
   `deps_installed.get_pkg_metadata` reads text through `importlib.metadata`
   (newlines translated, strict UTF-8): a CRLF `METADATA` gives a licence
@@ -212,12 +219,11 @@ the one list.
   longer in the capped `properties`. Harmless (the field name is a pointer
   into the file, not the SBOM); decide whether the cap keeps keys that
   other fields cite.
-- [ ] **`Source: Pitloom generator | Method: ...` is hand-written at 7
-  sites (S).** Found in the #292 review: `core/ai_metadata.py`,
-  `extract/env.py` and four `inferred_from_authors` sites (pyproject,
-  poetry, setuptools options, hatchling). Add one helper in
+- [ ] **`Source: Pitloom generator | Method: ...` is hand-written at 3
+  sites (S).** Found in the #292 review (then 7 sites): `core/ai_metadata.py`
+  (`FILE_NAME_STEM_PROVENANCE`) and two in `extract/env.py`. Add one helper in
   `core/provenance.py` (e.g. `generator_provenance(method)`) and use it at
-  each.
+  each; `generator_provenance` does not exist yet.
 - [ ] **File licence and README licence disagree silently (S).** Found in
   the #292 review: with `--enrich`, the README enricher only fills a
   missing licence (`enrich/readme.py`), so an ONNX file declaring

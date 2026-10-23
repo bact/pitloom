@@ -39,15 +39,22 @@ date for 1.0 until 0.22.0 lands.
 
 ### 0.21.0
 
-Prepared 2026-10-23 for tag v0.21.0 (PR #346).
+**Progress (2026-10-23):** every code PR of the release is merged (#305-#350;
+the last were #347 more Git hosts, #349 fragment value replaces generated, #350
+the Spaces note). PR #346 holds the version bump, CHANGELOG, coverage snapshots
+and the release review (CHANGELOG against the code, user docs and skills,
+working-docs and comments). Before the tag: merge #346, tag v0.21.0, publish to
+PyPI. After it: Lumina pins `pitloom==0.21.0` and `licenseid==0.5.0`, then adds
+its non-GitHub examples. See [release-checklist.md](../implementation/release-checklist.md).
 
-Planned for 0.21.0 and not built; carried over (decided 2026-10-23):
+Not built in 0.21.0; carried over (decided 2026-10-23):
 
-- [ ] **Fragment value beats an extracted one** (own PR): a fragment or
-  catalogue value must win over a value read from or generated for the model
-  (e.g. a CRFsuite description). Generated values: PR #349 (open); a value read
-  from the file still wins there. See [known-bugs.md](known-bugs.md#p0-in-0210).
-  Merge precedence: [#150](https://github.com/bact/pitloom/issues/150).
+- [ ] **A fragment value beats a value read from the file** (the generated case
+  is built, #349 below): a catalogue or fragment value must win over a value read
+  from the model, not only over one Pitloom generated. Today the earlier element
+  wins. Merge precedence: [#150](https://github.com/bact/pitloom/issues/150);
+  a losing fragment's `generated` claim and a respelt copy of a curated value
+  are in [known-bugs.md](known-bugs.md#p0-in-0210).
 - [ ] **Canonical output, next steps**: LF in text values (plan first), stable
   `CreationInfo` IRIs. See
   [canonical-output-followups.md](canonical-output-followups.md),
@@ -68,9 +75,8 @@ Planned for 0.21.0 and not built; carried over (decided 2026-10-23):
 - [ ] **Git URL ingestion, open follow-ups**: DNS rebinding between the
   caller's address check and git's own lookup; a reader for imperative
   `setup.py` (a monorepo such as `labs.etsi.org/rep/ocf/capif` fails with a
-  hint naming its sub-projects); a Bitbucket and a SourceHut fetch verified on
-  a real repository; a clone size cap on the CLI (the library's is built,
-  #339); record the commit and URL in the SBOM (see 0.22.0). See
+  hint naming its sub-projects); a clone size cap on the CLI (the library's is
+  built, #339); Git LFS pointers (see 0.22.0); record the commit and URL in the SBOM (see 0.22.0). See
   [remote-git-ingestion.md](../implementation/remote-git-ingestion.md#not-built).
 - [ ] **Unknown SPDX id in an SPDX-only field warns** and **`License-File:`
   selection** for wheels. See
@@ -94,6 +100,17 @@ What was built:
   SourceHut; redirects followed hop by hop with a caller check; Lumina uses
   it. See [remote-git-ingestion.md](../implementation/remote-git-ingestion.md),
   [docs/git-urls.md](../../docs/git-urls.md).
+- [x] **More Git hosts** (#347): Bitbucket `branch`/`commits` pages (the ref
+  was dropped silently), SourceHut `log`, Gitiles `/+/`, cgit `?h=`, Azure
+  DevOps `?version=`; a folder page naming a file reads its folder; a clone
+  rejected with HTTP 400 on the blob filter is retried without it; a Hugging
+  Face Space or dataset is a Git repository, not a model. Live checks on 12
+  hosts. See [docs/git-urls.md](../../docs/git-urls.md).
+- [x] **A fragment value replaces one Pitloom generated** (#349): the
+  `description`, `ai_domain` and input/output text a reader made from the file's
+  format (`generated_from_labels`, `derived_from_format`), with one `INFO:` and
+  the property's provenance dropped, in any order of fragments. See
+  [docs/fragments.md](../../docs/fragments.md).
 - [x] **Git URL hardening** (#339, #342-#344): `max_bytes=` clone cap in the
   library (`git.too-large`), credentials only on same-origin redirects,
   SourceHut slash branches, the process tree killed on Windows.
@@ -102,42 +119,8 @@ What was built:
   escaping as [known-bugs.md](known-bugs.md#p0-in-0210) decided; whether to
   change the rule is open.
 
-### 0.22.0: G7 SBOM for AI field coverage
-
-The 1.0 headline ([#77](https://github.com/bact/pitloom/issues/77)). Full
-breakdown and the core-vs-Skill scope split:
-[g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md). **Scope split (decided
-2026-09-17):** deterministic field population (file formats, structured API
-responses, explicit `loom` SDK input) belongs in core; fuzzy mapping (a
-free-text "producer" to an SPDX `Person`/`Organization`) stays with the
-`sbom-enrich` Skill.
-
-Open:
-
-- [ ] **#7 `loom` SDK**: dataset provenance and training-properties capture.
-  See the [`loom` SDK](#loom-sdk-code-model-dataset-annotation) section and
-  [loom-sdk-expansion.md](loom-sdk-expansion.md).
-- [ ] **Git LFS pointers** (a known limitation of 0.21.0, to fix in 0.22.0): a
-  file kept in Git LFS is a pointer file after Pitloom's clone (LFS is switched
-  off), so an AI model, dataset or other file in LFS is not read, and a file
-  element carries the SHA-256 of the pointer text with no warning. One shared
-  detector for every route; one summary `WARNING:` per run; the pointer's
-  `oid sha256` and `size` recorded as the file's hash and size with their own
-  provenance (`Method: lfs_pointer`), saying the content was not read. See
-  [known-bugs.md](known-bugs.md#p0-in-0210) and
-  [hugging-face-spaces-support.md](hugging-face-spaces-support.md).
-- [ ] **Record a Git URL target's commit as a `pkg:git` identifier** (decided
-  2026-10-23) and **one target resolver with Package-URL targets** (`pkg:git`,
-  `github`, `bitbucket`, `huggingface`, `pypi`; later `conda`, `mlflow`): see
-  [target-resolution-and-purl.md](target-resolution-and-purl.md).
-- [ ] **Support-tier gaps past their target** (2026-10-19, missed): a Hub
-  model's file hash, dataset provenance and statistics from the Hub, tier 2
-  beyond keeping it working. See
-  [support-tiers-and-demo-scope.md](support-tiers-and-demo-scope.md).
-- [ ] **A `contentIdentifier` (gitoid)** beside the PURLs of the identifiers
-  item below.
-
-Built, not yet released:
+Also built for 0.21.0 (the G7 and conformance work; full breakdown in
+[g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md)):
 
 - [x] **#3 part 1: `ai_AIPackage.verifiedUsing`** from its model file, with
   gated lookups (2026-10-16; see
@@ -205,6 +188,41 @@ Built, not yet released:
 - [x] The skill's G7 checklist matches the code (`hasDataFile` only with
   `--scan-model-usage`; dataset edges; SHA-512): see
   [minimum-elements.md](../../skills/sbom-enrich/references/minimum-elements.md).
+
+### 0.22.0: G7 SBOM for AI field coverage
+
+The 1.0 headline ([#77](https://github.com/bact/pitloom/issues/77)). Full
+breakdown and the core-vs-Skill scope split:
+[g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md). **Scope split (decided
+2026-09-17):** deterministic field population (file formats, structured API
+responses, explicit `loom` SDK input) belongs in core; fuzzy mapping (a
+free-text "producer" to an SPDX `Person`/`Organization`) stays with the
+`sbom-enrich` Skill.
+
+Open:
+
+- [ ] **#7 `loom` SDK**: dataset provenance and training-properties capture.
+  See the [`loom` SDK](#loom-sdk-code-model-dataset-annotation) section and
+  [loom-sdk-expansion.md](loom-sdk-expansion.md).
+- [ ] **Git LFS pointers** (a known limitation of 0.21.0, to fix in 0.22.0): a
+  file kept in Git LFS is a pointer file after Pitloom's clone (LFS is switched
+  off), so an AI model, dataset or other file in LFS is not read, and a file
+  element carries the SHA-256 of the pointer text with no warning. One shared
+  detector for every route; one summary `WARNING:` per run; the pointer's
+  `oid sha256` and `size` recorded as the file's hash and size with their own
+  provenance (`Method: lfs_pointer`), saying the content was not read. See
+  [known-bugs.md](known-bugs.md#p0-in-0210) and
+  [hugging-face-spaces-support.md](hugging-face-spaces-support.md).
+- [ ] **Record a Git URL target's commit as a `pkg:git` identifier** (decided
+  2026-10-23) and **one target resolver with Package-URL targets** (`pkg:git`,
+  `github`, `bitbucket`, `huggingface`, `pypi`; later `conda`, `mlflow`): see
+  [target-resolution-and-purl.md](target-resolution-and-purl.md).
+- [ ] **Support-tier gaps past their target** (2026-10-19, missed): a Hub
+  model's file hash, dataset provenance and statistics from the Hub, tier 2
+  beyond keeping it working. See
+  [support-tiers-and-demo-scope.md](support-tiers-and-demo-scope.md).
+- [ ] **A `contentIdentifier` (gitoid)** beside the PURLs of the identifiers
+  item below.
 
 ### 1.0
 
@@ -302,6 +320,13 @@ Highest priority first.
 Questions that need a decision before code. Nothing below is decided
 unless the linked doc says so.
 
+- [ ] **Generation gaps, sorted into extraction and recording gaps**: can we
+  extract (or resolve a conflict about) a minimum element, and can we record it
+  in the format? The second needs a way to record it that the format does not
+  provide (a stated workaround, a Pitloom `Annotation` taxonomy, an SPDX
+  extension, a proposal). Tried: none beyond the workaround. See
+  [generation-gaps-extraction-and-recording.md](generation-gaps-extraction-and-recording.md),
+  issue [#110](https://github.com/bact/pitloom/issues/110).
 - [ ] **Hugging Face Spaces**: a Space is an application with no
   `pyproject.toml`, so `loom project` fetches it and finds no project; read the
   README front matter, `requirements.txt` and the Hub's `models` list instead,

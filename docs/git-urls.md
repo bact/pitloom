@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -112,14 +112,15 @@ Also checked, with a narrower scope:
   bare URL, `/src/<branch>/<folder>`, a file page, `/branch/<ref>` and
   `/commits/tag/<ref>` are fetched. A repository that does not exist answers
   like one that needs a sign-in. Bitbucket serves a path below the repository
-  as the default branch, so a page URL it was not told about (`/branch/x`,
-  `/commits/<sha>`) used to fetch the default branch without a word.
+  as the default branch, so Pitloom reads these page forms itself (`/branch/x`,
+  `/commits/<sha>`) rather than let a URL it did not recognise fetch the
+  default branch without a word.
 - **SourceHut** (`git.sr.ht`, 2026-10-23, `~sircmpwn/scm.sr.ht`): the bare URL,
   `/tree/<ref>/item/<folder>`, a file page and `/log/<ref>` are fetched.
 - **Azure DevOps** (2026-10-23, `mseng/PipelineTools`): the server answers
   `--filter=blob:limit` with HTTP 400. Pitloom asks again without the filter
-  (an `INFO:` says so), also for a tag or commit page; the size cap still bounds
-  the transfer.
+  (an `INFO:` says so), also for a tag or commit page; a size cap, where one is
+  set (see below), still bounds the transfer.
 - **GNU Savannah**: the web pages (`/cgit/…`, `/gitweb/…`) redirect to hosts
   that answered 502 when tried; only the clone URL was fetched.
 - **Gogs**: not tried live (the public demo, `try.gogs.io`, holds no
@@ -158,6 +159,11 @@ HTTP (`git http-backend`) that answers like GitLab does.
   (a dataset, an image) is listed with the SHA-256 of the pointer text, not of
   the file, and no warning says so. Most model repositories on Hugging Face, and
   many on GitLab and Codeberg, keep their weights in LFS.
+- **No size limit by default.** The command line sets none, so a very large
+  repository is fetched in full (blobs over 10 MB excepted, on a server that
+  supports partial clone). The library API can stop a fetch once the checkout
+  takes more disk than a limit you give (`max_clone_bytes=`, error code
+  `git.too-large`): [Python API](python-api.md).
 - A symbolic link in the checkout that leads out of it is removed before the
   project is read (an `INFO:` counts them), so a host file is never read or
   hashed.
@@ -178,6 +184,8 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `INFO:` | `Git source: <url> names repository <url>, branch <ref>, folder <path>` | the URL named more than a repository (or was cleaned) |
 | `INFO:` | `Git source: <url> is not a repository; trying <url>` | a group called `src`/`tree`/`blob`: the whole URL is tried |
 | `INFO:` | `Git source: <path> is a folder, not a file; reading it` | a file page whose path is a folder |
+| `INFO:` | `Git source: <path> is a file, not a folder; reading the folder holding it` | a folder page whose path is a file |
+| `INFO:` | `Git source: the server rejected the blob filter; fetching without it` | the server cannot leave out large blobs (Azure DevOps) |
 | `INFO:` | `Git source: could not check <url> for a redirect (<reason>); asking git directly` | the redirect probe failed |
 | `INFO:` | `Git source: $ git …` | each `git` call, credentials masked |
 | `WARNING:` | `Git source: <url> redirected to <url>, which is not followed: <why>` | a redirect to another scheme, or to a page that is not a repository |

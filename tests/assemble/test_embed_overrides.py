@@ -95,8 +95,8 @@ def test_embed_wheel_content_type_reaches_sbom_files(tmp_path: Path) -> None:
 
     ``_build_sbom_from_project_and_wheel`` merges ``get_wheel_files()``'s
     content-type/file-header data onto ``wheel_metadata``'s file records
-    (see ``_merge_file_extras``); guards against that data being computed but
-    never reaching the assembled SBOM.
+    (see ``pitloom._embed_overlay.merge_file_extras``); guards against that
+    data being computed but never reaching the assembled SBOM.
     """
     (tmp_path / "pyproject.toml").write_text(
         """
@@ -149,7 +149,8 @@ def test_embed_wheel_preserves_wheel_truth_and_merges_content_type(
     report hashes of the *current* source tree instead of the wheel's own
     already-built bytes. This checks the wheel's bytes are kept (and its
     own ``.dist-info``, not payload, is not listed) while content-type
-    still reaches the matching file (see ``_merge_file_extras``).
+    still reaches the matching file (see
+    ``pitloom._embed_overlay.merge_file_extras``).
     """
     (tmp_path / "pyproject.toml").write_text(
         """
@@ -197,9 +198,9 @@ def test_embed_wheel_merkle_root_reflects_wheel_not_rescan(
     (post-merge) file hashes, not a fresh rescan of ``project_dir``.
 
     ``get_wheel_files()``'s own ``merkle_root`` hashes ``project_dir``'s
-    on-disk bytes, while ``_merge_file_extras`` fixes the *per-file* hashes
-    to the wheel's own. When ``project_dir`` diverges from the built wheel
-    (deliberately so here, as in
+    on-disk bytes, while ``pitloom._embed_overlay.merge_file_extras`` fixes the
+    *per-file* hashes to the wheel's own. When ``project_dir`` diverges from the
+    built wheel (deliberately so here, as in
     ``test_embed_wheel_preserves_wheel_truth_and_merges_content_type``), the
     package's ``verifiedUsing`` Merkle root, and every SPDX ID derived from
     it via ``compute_doc_uuid``, must describe the file set reported.

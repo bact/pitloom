@@ -263,9 +263,9 @@ def test_read_croissant_full_data_preprocessing() -> None:
     assert "Tokenization and lowercasing applied." in meta.data_preprocessing
 
 
-# def test_read_croissant_full_known_bias() -> None:
-#     meta = read_croissant(FIXTURES / "full.json")
-#     assert any("xxx" in bias for bias in meta.known_bias)
+def test_read_croissant_full_known_bias() -> None:
+    meta = read_croissant(FIXTURES / "full.json")
+    assert any("Selection bias" in bias for bias in meta.known_bias)
 
 
 def test_read_croissant_full_sensitivity_no() -> None:
@@ -277,7 +277,7 @@ def test_read_croissant_full_provenance_populated() -> None:
     meta = read_croissant(FIXTURES / "full.json")
     assert "name" in meta.provenance
     assert "dataset_types" in meta.provenance
-    # assert "dataset_size" in meta.provenance
+    assert "dataset_size" in meta.provenance
 
 
 def test_read_croissant_full_no_croissant_url_for_local_file() -> None:

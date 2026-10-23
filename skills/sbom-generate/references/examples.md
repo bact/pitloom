@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,10 +15,10 @@ adapted with minimal edits. Snippets are POSIX shell; on Windows use
 
 ## Where the output goes
 
-Without `-o`, `project` writes `sbom.spdx3.json`, `wheel` and `model` write
-`<file name>.spdx3.json` (e.g. `model.onnx.spdx3.json`) and `env` writes
-`deployed-environment.spdx3.json`, all in the current directory; `generate`
-exits 1 without `-o`. Stdout is one line, `PITLOOM_SBOM_OUTPUT_PATH=<path>`;
+Without `-o`, `project` writes `<name>-<version>.spdx3.json` (`sbom.spdx3.json`
+for a project with no name), `wheel` and `model` write `<file name>.spdx3.json`
+(e.g. `model.onnx.spdx3.json`) and `env` writes `deployed-environment.spdx3.json`,
+all in the current directory; `generate` exits 1 without `-o`. Stdout is one line, `PITLOOM_SBOM_OUTPUT_PATH=<path>`;
 `-o -` writes the SBOM there instead. `embed-wheel` prints one
 `WHEEL=<name> SBOM=<path inside the wheel>` line per wheel (default `<name>-<version>.spdx3.json` under `.dist-info/sboms/`;
 `--sbom-basename` or the config key `sbom-basename` changes it).

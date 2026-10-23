@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-22
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -117,6 +117,10 @@ install pitloom[huggingface_hub]`):
 loom model https://huggingface.co/mistralai/Mistral-7B-v0.1
 loom model Qwen/Qwen3-235B-A22B   # bare model ID also works
 ```
+
+A Hugging Face **Space** or **dataset** is a Git repository, not a model: give
+its URL to `loom project` ([SBOM from a Git URL](git-urls.md)); `loom model`
+refuses it and names `loom project`.
 
 Or let `generate` detect the target type:
 
@@ -318,8 +322,8 @@ list](allow-build.md), an off-by-default, security-relevant opt-in with no
 A subcommand's parent parser offers every shared flag to every target, but not
 every target can act on every one: a wheel has no source files to scan a
 header from, and a wheel-embedded SBOM is always canonical JSON regardless of
-`--pretty`. A flag that does not apply prints one `WARNING: Options: <target>:
-<flag> has no effect <reason>` and is dropped, never silently ignored:
+`--pretty`. A flag that does not apply prints one `WARNING:
+Options: <target>: <flag> has no effect <reason>` and is dropped, never silently ignored:
 
 | Target | Options that warn |
 | --- | --- |
@@ -367,6 +371,20 @@ line, and the embed record is an `INFO:` line. Others: `verify-`/
 validate` `FILE=<f> STATUS=valid`; `id` `PITLOOM_ID_REGISTRY_PATH=<path>`. A
 value with a non-printable character (tab, NBSP, ZWJ) prints quoted,
 ASCII-escaped.
+
+### Default output file names
+
+Without `-o`, an SBOM is written to the current directory:
+
+| Command | File name |
+| --- | --- |
+| `project` (also a Git URL) | `<name>-<version>.spdx3.json`; `<name>.spdx3.json` when the project has no version; `sbom.spdx3.json` when it has no name or the name is not a safe file name (`con`). A character no file name may hold (a path separator, `:`, a control character, whitespace) becomes `_`. `[tool.pitloom] sbom-basename` replaces the base name. |
+| `wheel` | `<wheel file name>.spdx3.json`, e.g. `demo-1.0-py3-none-any.whl.spdx3.json`; with `--embed`, no file unless `-o` is given |
+| `model` | `<model file name>.spdx3.json`; for a Hugging Face model, the last segment of its ID plus `.spdx3.json` |
+| `enrich` | `<model file name>.enrich.spdx3.json` |
+| `env` | `deployed-environment.spdx3.json` |
+| `merge` | `merged.spdx3.json` |
+| `generate` | none: `-o` is required |
 
 ## Debugging
 

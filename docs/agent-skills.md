@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -47,8 +47,8 @@ Pitloom ships three Skills:
 The three Skills refer to each other, so install all three together.
 
 **Requirements.** A shell, Python 3.10 or later and `pitloom` 0.21.0 or
-later (pip, `uvx` or `pipx`; earlier releases lack `--id-registry`,
-`loom id` and `--build-timeout`, which the Skills use); network access to
+later (pip, `uvx` or `pipx`; the Skills describe 0.21.0's commands and messages, and
+earlier releases cannot read the ID registry format 3 they use); network access to
 install it and, for PyPI and Hugging Face lookups, at run time. AI model
 files need `pitloom[ai]`; `sbom-enrich`'s post-merge check and
 `sbom-validate` need `pitloom[validate]`; `--allow-build` needs
@@ -223,8 +223,8 @@ natural-language auto-trigger matching) and a `compatibility` note (what
 the Skill needs to run, above). It has no `argument-hint`: that key is
 outside the Agent Skills specification, and claude.ai and the Skills API
 reject it. Each Skill's body says what argument it takes instead --
-`sbom-generate` accepts a project directory, sdist, wheel, model file or
-Hugging Face model ID, while the other two need an existing SBOM file
+`sbom-generate` accepts a project directory, sdist, wheel, model file,
+Hugging Face model ID or Git URL, while the other two need an existing SBOM file
 path. Nothing else needs configuring to use the Skills as-is.
 
 ## See also

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-05
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -51,20 +51,36 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
       hand across `pyproject.toml`, README, `docs/`, examples, CI matrix,
       comments and test literals (see [recurring-bug-patterns.md](recurring-bug-patterns.md)).
 - [ ] Skills' minimum Pitloom version (`pitloom>=X.Y.Z` in each
-      `skills/*/SKILL.md` `compatibility`, their install recipes and
-      `docs/agent-skills.md`): not above the version being released, and
-      raised whenever this release breaks a CLI flag or subcommand the
-      skills use. 0.20.0 is the first release the current floor
-      (`>=0.20.0`, set in PR #235) is satisfiable by; until it ships,
-      the pinned `uvx`/`pipx` examples fail by design.
-      `scripts/check_version_consistency.py` does not check this yet.
+      `skills/*/SKILL.md` `compatibility`, their install recipes,
+      `references/examples.md` and `docs/agent-skills.md`): not above the
+      version being released, and raised whenever this release breaks a CLI
+      flag or subcommand the skills use. Until the release is on PyPI the
+      `uvx`/`pipx` examples that name it fail by design.
+      `scripts/check_version_consistency.py` does not check this:
+      `grep -rn "pitloom.*>=" skills/ docs/agent-skills.md`.
+- [ ] Pinned older releases in prose are deliberate, not missed bumps
+      (`docs/id-registry.md`'s workflow pins, `docs/github-action.md`'s
+      "`@v0.20.2` reads version 2"): when a doc says "the first release
+      with X", it names the release that introduced X, so re-read each
+      such pin against the new version.
+- [ ] Coverage snapshots: `working-docs/implementation/g7-coverage-history/`
+      holds `<version>.json` (G7) and `<standard>-<version>.json` (CISA 2026,
+      FSCT 2024, BSI), written by `scripts/g7_coverage_report.py --standard
+      g7ai|cisa2026|fsct3|bsi -o FILE` (see
+      [g7-conformance-tests.md](g7-conformance-tests.md)). Regenerate each into
+      a scratch file and `diff` it against the committed one: only
+      `header.pitloom` may differ (it reads the *installed* package metadata,
+      so run it from an environment whose `pitloom` is the version being
+      released, or accept that line).
 - [ ] `CHANGELOG.md`: every merged PR since the last tag either has an
       entry, or is a routine dependabot/CI-only/docs-only/test-only
       change that doesn't need one (cross-check `git log --oneline
       <last-tag>..HEAD | grep "Merge pull request"` against the
-      `[#305]:` link refs at the bottom of the file; merge the `[Unreleased]` entries under
-      the new version heading, keeping PR order, and leave the archive alone). Include the
-      version-bump PR itself when it carries more than version strings
+      `[#N]:` link refs at the bottom of the file, and check every `[#N]`
+      used in the new section is defined and every one defined is used;
+      move the `[Unreleased]` entries under the new version heading, sorted
+      per section by lowest PR number, add the `[X.Y.Z]:` compare link, and
+      leave the archive alone). Include the version-bump PR itself when it carries more than version strings
       (0.18.1's bump PR also lowered a dependency floor and changed the
       skills, and had no entry until this check caught it).
 - [ ] `python -m build --wheel` succeeds locally; the built wheel embeds

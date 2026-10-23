@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-18
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -22,8 +22,10 @@ actually in the project.
   the person or organisation that ran it. Who should be recorded as the SBOM
   author -- you, or an organisation? This can also be set permanently via
   `[[tool.pitloom.creator]]` in `pyproject.toml` (note the double brackets --
-  it's an array of tables) so future runs don't need to ask -- and it also
-  records the main package's supplier (`suppliedBy`) at the same time."
+  it's an array of tables) so future runs don't need to ask -- and, for a
+  person or organisation, it also records the main package's supplier
+  (`suppliedBy`) at the same time." (A `software-agent` creator, such as a CI
+  service, is recorded as an author but never as the supplier.)
 - **Component/Model Producer**: for a model, first look at the `ai_AIPackage`'s
   `originatedBy`: a generic `Agent` there already answers it (from the file's
   author field or the Hub repository owner), and the only open question is

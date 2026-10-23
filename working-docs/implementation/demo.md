@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-08-08
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -13,6 +13,11 @@ SPDX-License-Identifier: CC0-1.0
 This document demonstrates the successful implementation of a working SBOM
 generator prototype for Python projects using Hatchling.
 
+> **Snapshot.** The element counts and dependency versions below are from the
+> February 2026 prototype run and are not regenerated. Files, licence
+> expressions, AI models, datasets, lock files and the other build backends have
+> been built since; see [summary.md](summary.md) for the current state.
+
 ## What was built
 
 A complete, runnable SBOM generator that:
@@ -21,7 +26,7 @@ A complete, runnable SBOM generator that:
 2. ✅ Generates SPDX 3.0 compliant SBOMs in JSON-LD format
 3. ✅ Tracks project dependencies with version information
 4. ✅ Provides a command-line interface
-5. ✅ Includes comprehensive tests (177 tests, all passing)
+5. ✅ Includes comprehensive tests (the prototype had 177; the suite now has over 15,000)
 6. ✅ Follows Python best practices (Ruff linting passes)
 
 ## Test run with sentimentdemo
@@ -29,9 +34,7 @@ A complete, runnable SBOM generator that:
 Successfully generated SBOM for the reference project:
 
 ```bash
-$ loom /tmp/sentimentdemo -o sbom.spdx3.json
-Generating SBOM for project in: /tmp/sentimentdemo
-SBOM written to: sbom.spdx3.json
+$ loom project /tmp/sentimentdemo -o sbom.spdx3.json
 ```
 
 ### Generated SBOM structure
@@ -78,9 +81,9 @@ The reference SBOM at
 - ✅ **Basic package info**: Name, version, description captured
 - ✅ **Dependencies**: All dependencies tracked with versions
 - ✅ **Relationships**: dependsOn and trainedOn relationships established
-- ⚠️ **File-level details**: Reference uses individual files (roadmap item)
+- ✅ **File-level details**: individual `software_File` elements (built after this prototype)
 - ✅ **AI/Dataset profiles**: `ai_AIPackage` & `dataset_DatasetPackage` supported
-- ⚠️ **License details**: Basic license info captured, not full expressions yet
+- ✅ **License details**: SPDX licence expressions and licence texts (built after this prototype; see [license-pipeline.md](license-pipeline.md))
 
 ## Key achievements
 
@@ -137,7 +140,7 @@ def run():
 
 ### 7. Comprehensive testing
 
-177 tests covering:
+The prototype's 177 tests covered:
 
 - SPDX model serialization via official models
 - Metadata extraction

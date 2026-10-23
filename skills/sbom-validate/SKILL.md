@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-10-21
+# Last-Modified: 2026-10-23
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -81,11 +81,11 @@ See `references/examples.md` for copy-paste recipes.
 
 ## Requirements
 
-Python >= 3.10 and **pitloom >= 0.21.0** (earlier releases lack
-`--id-registry`, `loom id` and `--build-timeout`, which the sibling skills
-use), the `loom`/`pitloom` entry point or standalone `spdx3-validate` CLI;
-`loom fragment validate` needs the `validate` extra (`pip install
-"pitloom[validate]>=0.21.0"`).
+Python >= 3.10 and **pitloom >= 0.21.0** (the commands, output lines and
+messages below are those of 0.21.0; the sibling skills write ID registry
+format 3, which earlier releases cannot read), the `loom`/`pitloom` entry
+point or standalone `spdx3-validate` CLI; `loom fragment validate` needs the
+`validate` extra (`pip install "pitloom[validate]>=0.21.0"`).
 
 ## Run the validator
 
@@ -128,8 +128,8 @@ document only in isolation.
 base SBOM's ids directly, with no `ExternalMap`, so it usually fails SHACL
 alone and paired with its base (exit 1), even when correct. To check one,
 validate the **merged** SBOM: regenerate the project with the fragment
-registered (`sbom-enrich`, steps 8-10) and run `loom fragment validate
-<merged-sbom-file>`.
+registered (`sbom-enrich`, steps 8-10) and run `loom fragment
+validate <merged-sbom-file>`.
 
 (The standalone `spdx3-validate --json <file>` CLI checks the same rules
 and uses the same exit code convention, if `pitloom[validate]` isn't the

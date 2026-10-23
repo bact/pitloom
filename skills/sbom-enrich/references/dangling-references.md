@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -30,8 +30,8 @@ Why each cause makes the ids miss, in the order to check:
 - **One dependency name held twice** (a dependency at two versions): a run
   never writes it to the registry, so its id can move with the source. Pinning
   belongs to `sbom-generate`: when the user asks to pin ids (or agrees to),
-  hand off, and it runs `loom id generate <PATH> -e NAME:software_Package -o
-  <registry>` for the first holder; write the fragment against that id after.
+  hand off, and it runs `loom id generate <PATH> -e NAME:software_Package
+  -o <registry>` for the first holder; write the fragment against that id after.
   Only one holder can be pinned, so every later run prints an expected
   `WARNING: ID registry: ... registered for both ...` for the other. This
   skill creates no registry (it passes only the one the base run declared);

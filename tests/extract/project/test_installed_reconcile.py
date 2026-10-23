@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for pitloom.extract.project.installed.reconcile_installed_metadata.
+"""Tests for pitloom.extract.project._installed_reconcile.reconcile_installed_metadata.
 
 Split out of test_installed.py (which covers discovery/parsing) purely to
 stay under this repo's file-size soft limit -- see that module's docstring

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -86,8 +86,9 @@ Other flags:
   control character, whitespace, `/`, `\` or `:` becoming `_`; with no name or
   version in `METADATA`, or a name over 255 characters, the wheel's
   `.dist-info` directory name (escaped the same way) is used.
-- `-o`/`--output` names the modified wheel and is an `ERROR:` with more than
-  one wheel (ambiguous). Omit it to modify each wheel in place.
+- `-o`/`--output FILE` also writes a copy of the embedded SBOM to *FILE* and
+  prints `PITLOOM_SBOM_OUTPUT_PATH=<FILE>`; it is an `ERROR:` with more than one
+  wheel (ambiguous). Each wheel is always modified in place.
 - `--verify`/`--validate` run the checks below on the wheel just embedded. A
   failure is reported and sets the exit code, but the embed is not rolled
   back.

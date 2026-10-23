@@ -138,7 +138,7 @@ def _fake_hatch_metadata(
     ``_fake_hatch_metadata(core={"license_expression": "MIT"})``.
 
     The fake ``core.config`` (the raw, unprocessed ``[project]`` table --
-    see :func:`pitloom.extract.hatchling._hatchling_field_declared`) gets
+    see :func:`pitloom.extract.project.hatchling._hatchling_field_declared`) gets
     the corresponding ``[project]`` key exactly for whichever fields
     *core* explicitly overrides, mirroring how a real declared field
     would show up in both places at once -- every field

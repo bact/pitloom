@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-10
-Last-Modified: 2026-10-22
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,7 +12,7 @@ See also: [extra-lifecycle-scope.md](../design/extra-lifecycle-scope.md)
 (optional scope setting, not built),
 [author-entity-recognition.md](../design/author-entity-recognition.md)
 (NLP / NER candidate),
-[roadmap-completed.md](roadmap-completed.md#bugs-fixed-in-0210-unreleased),
+[roadmap-completed.md](roadmap-completed.md#bugs-fixed-in-0210),
 field notes [spdx-modelling.md](sbom-generator-field-notes/spdx-modelling.md)
 sections 4 and 5.
 
@@ -49,11 +49,17 @@ every `Requires-Dist` (152 of 154 carry `extra ==`); the directory route read
   renumbers; copyright holders follow the `originatedBy` identity, with the
   email only where two identities share a name (`_main_authors.py`).
 - **One author reading by field kind, not by surface**
-  (`extract/authors.py`): a free-text field (core-metadata `Author`,
-  `setup.cfg` `author`, `setup.py` `author=`, a dependency's record) splits
-  on `,` and `and` with one `WARNING:` per document; a structured entry
+  (`extract/authors.py`, `_author_parts.py`): an address field
+  (`Author-email`, `author_email`) splits on `,` and `;` outside quotes and
+  `<...>`, never on `and`, with one `WARNING:` per document when a cut follows
+  a name; a name field (core-metadata `Author`, `setup.cfg` `author`,
+  `setup.py` `author=`, a dependency's record) is cut only next to an address,
+  so `Doe, Jane` and `Ann and Bob` are one author each and a project's own
+  name field holding `,`, `;` or `and` gets one `INFO:`; a structured entry
   (`[project].authors`, a Poetry `authors` string, a quoted `Author-email`
-  display name) never splits. No heuristic: see
+  display name) never splits. The rule as users see it is in
+  [metadata-provenance-authors.md](../../docs/metadata-provenance-authors.md).
+  No heuristic: see
   [author-entity-recognition.md](../design/author-entity-recognition.md).
   Dependencies are read as a package's own wheel is (`Author` names beside
   `Author-email`); their splits give one summary line per document; an
@@ -73,7 +79,8 @@ every `Requires-Dist` (152 of 154 carry `extra ==`); the directory route read
 - `METADATA` splits `Author:` (names) from `Author-email:`, so declared
   author order is unrecoverable from a bare wheel; a name-only plus an
   email-only author is indistinguishable from a legacy `author`/
-  `author_email` pair; `Doe, Jane` becomes two authors.
+  `author_email` pair; `Doe, Jane` stays one author (a name field is cut only
+  next to an address).
 - pdm-backend and pyproject-metadata write `Unknown <a@x>` for an
   email-only author; Pitloom reads `Unknown` there as no name.
 
@@ -136,11 +143,12 @@ A required dependency that an extra also lists keeps its plain required edge
 the edge already states the full fact, the extras stay in `declared_constraint`
 provenance, and a wheel's `Requires-Dist` cannot reproduce the comment.
 
-Free-text author fields read per comma-separated part: a part that is a
-contributor group ("Ann and others", "J. et al.") stays whole as an
-Organization; Hatchling's `Doe, Jane, Ann and others` gives Person Doe, Person
-Jane and Organization "Ann and others" with one split warning (decided
-2026-10-11).
+A contributor group ("Ann and others", "J. et al.") stays whole as an
+Organization. Decided 2026-10-11 and since narrowed: Hatchling's joined
+`Doe, Jane, Ann and others` was read per comma-separated part (Person Doe,
+Person Jane, Organization "Ann and others"); a name field is now cut only next
+to an address, so that string is one `Organization`
+([metadata-provenance-authors.md](../../docs/metadata-provenance-authors.md)).
 
 Edge scope by source (decided 2026-10-11): declared required, locked
 transitive and phantom dependencies are `dependsOn` + `runtime` (a declared

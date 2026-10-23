@@ -277,7 +277,7 @@ gh attestation verify <file> -R bact/pitloom \
 ## Licence
 
 - Source code: Apache License 2.0.
-- Documentation: Creative Commons Attribution 4.0 International.
+- Documentation: Creative Commons Zero 1.0 Universal (CC0-1.0).
 - Test fixture AI models: individually licensed (Apache-2.0, CC0-1.0, or
   MIT); see [tests/fixtures/README.md](tests/fixtures/README.md). Source
   repository only -- not included in distribution packages.

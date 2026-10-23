@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-16
-Last-Modified: 2026-10-22
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -120,8 +120,8 @@ reuse a wheel-minted id.
 ## Monorepo
 
 When the registry's root is above the project (`pkgs/demo` below it),
-`project` on a directory, the hook, `--allow-build`, and `wheel`, `project
-<sdist>` (`generate` on either) and `embed-wheel` given `--project-dir
+`project` on a directory, the hook, `--allow-build`, and `wheel`,
+`project <sdist>` (`generate` on either) and `embed-wheel` given `--project-dir
 pkgs/demo` (`project_dir=`) key below the project's prefix
 (`pkgs/demo/src/demo/x.py`), and the layout alias applies below it. A member
 only the archive holds (`PKG-INFO`, a wheel's `.data` file) is keyed below the

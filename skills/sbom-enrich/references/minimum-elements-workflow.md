@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -82,9 +82,11 @@ python3 -c "import json,sys; [print(r['id'], r['provision'], *[f['name'] for f i
 ```
 
 Each line is a rule id, its provision and the names of the packages that miss
-it (`BOM-BSI2025-COMP-004 requirement main`, from a `loom model` SBOM of an
-ONNX file named `main`); a document-level rule names no package. No output
-means nothing is missing.
+it (`BOM-BSI2025-COMP-004 requirement gpt2-tiny-decoder`, from a `loom model`
+SBOM of Pitloom's test file `gpt2-tiny-decoder.onnx`, checked on Pitloom 0.21.0
+with checker `82a63b9`, 2026-10-23); a document-level rule
+(`BOM-BSI2025-DOC-001 requirement`) names no package. No output means nothing
+is missing.
 
 Outcomes: `present` (the property exists; its value is not judged; a rule with
 sub-rules, like G7's `MDL-006`, is `present` when any sub-rule is),
