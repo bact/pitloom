@@ -35,7 +35,11 @@ from pitloom._wheel_sbom_location import (
     read_wheel_name_version,
 )
 from pitloom.core.creation import resolve_source_date_epoch
-from pitloom.core.file_names import escape_file_name_part, is_plain_file_name
+from pitloom.core.file_names import (
+    default_sbom_basename,
+    escape_file_name_part,
+    is_plain_file_name,
+)
 from pitloom.core.wheel_dist_info import (
     MAX_NAME_CHARS,
     RefusingReader,
@@ -166,9 +170,9 @@ def _derive_wheel_sbom_filename(
         else read_wheel_name_version(zf, dist_info, members=members)
     )
     if meta_name and meta_version:
-        name = escape_file_name_part(meta_name)
-        version = escape_file_name_part(meta_version)
-        derived = f"{name}-{version}{SPDX3_JSONLD_EXTENSION}"
+        derived = (
+            f"{default_sbom_basename(meta_name, meta_version)}{SPDX3_JSONLD_EXTENSION}"
+        )
         if len(derived) <= MAX_NAME_CHARS:
             return derived
     prefix = escape_file_name_part(dist_info.rstrip("/").removesuffix(".dist-info"))
