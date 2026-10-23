@@ -66,16 +66,37 @@ _WARNED_ONCE: set[tuple[str, str]] = set()
 _URL_USERINFO_RE = re.compile(r"://[^/\s@][^/\s]*@")
 
 
+#: A query parameter whose name says it holds a secret, up to the next ``&``,
+#: ``;``, ``#`` or whitespace.
+_QUERY_SECRET_RE = re.compile(
+    r"(?i)([?&;][\w.-]*(?:token|secret|passw|pwd|key|auth|signature|sig|credential)"
+    r"[\w.-]*=)[^&;#\s]*"
+)
+
+#: ``://`` and a userinfo of a text that is one URL: up to the last ``@``
+#: before the first ``/``, whatever characters (a newline, a space) it holds.
+_WHOLE_URL_USERINFO_RE = re.compile(r"://[^/@][^/]*@")
+
+
 def sanitize_url_credentials(text: str) -> str:
     """Redact username and password from URLs in *text* (e.g.
-    ``https://user:pass@host/`` -> ``https://***:***@host/``).
+    ``https://user:pass@host/`` -> ``https://***:***@host/``), and the value of
+    a query parameter named like a secret (``?private_token=***``).
 
     Used across extractors, build backends, and error loggers to prevent
     sensitive auth tokens from leaking into error messages or SBOM output.
     The userinfo ends at the last ``@`` before the first ``/`` or whitespace,
-    so a password holding ``@``, ``?`` or ``#`` is redacted whole.
+    so a password holding ``@``, ``?`` or ``#`` is redacted whole. For a text
+    that is one URL, use :func:`sanitize_url`.
     """
-    return _URL_USERINFO_RE.sub("://***:***@", text)
+    text = _URL_USERINFO_RE.sub("://***:***@", text)
+    return _QUERY_SECRET_RE.sub(r"\1***", text)
+
+
+def sanitize_url(url: str) -> str:
+    """:func:`sanitize_url_credentials` for a text that is one URL: the
+    userinfo is redacted whole even when it holds a newline or a space."""
+    return sanitize_url_credentials(_WHOLE_URL_USERINFO_RE.sub("://***:***@", url))
 
 
 def escape_controls(text: str) -> str:

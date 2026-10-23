@@ -31,7 +31,7 @@ from urllib.parse import SplitResult, parse_qs, unquote, urlsplit, urlunsplit
 
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.logging_config import sanitize_url_credentials
+from pitloom.logging_config import sanitize_url
 
 __all__ = [
     "ALLOWED_SCHEMES",
@@ -167,6 +167,9 @@ class GitPage:
     #: the default branch.
     query_style: bool = False
     ref: str = ""
+    #: Whether an Azure DevOps ``version`` named no branch, tag or commit
+    #: (``GB``, ``GT`` or ``GC`` prefix) and the default branch is read.
+    version_ignored: bool = False
 
     @property
     def repo_name(self) -> str:
@@ -263,7 +266,7 @@ def _query_page(
             plain_url=plain,
             query_style=True,
             ref=version[2:] if kind else "",
-            cut=bool(version) and kind is None,
+            version_ignored=bool(version) and kind is None,
         )
     ref = (query.get("h") or query.get("id") or [""])[0]
     if not ref:
@@ -334,7 +337,7 @@ def _check_segments(rest: tuple[str, ...], url: str) -> None:
         if segment in {".", ".."} or "\0" in segment or "\\" in segment:
             raise RemoteSourceError(
                 "git.url-invalid",
-                f"Invalid path in URL: {quote_source(sanitize_url_credentials(url))}",
+                f"Invalid path in URL: {quote_source(sanitize_url(url))}",
             )
 
 
@@ -380,7 +383,7 @@ def split_ref(page: GitPage, refs: Mapping[str, frozenset[str]]) -> GitTarget:
     raise RemoteSourceError(
         "git.ref-not-found",
         f"No branch or tag {quote_source(first)} in "
-        f"{quote_source(sanitize_url_credentials(page.repo_url))} "
+        f"{quote_source(sanitize_url(page.repo_url))} "
         "(a commit needs its full 40 or 64 hex digits).",
     )
 
@@ -400,7 +403,7 @@ def _queried_target(page: GitPage, refs: Mapping[str, frozenset[str]]) -> GitTar
     raise RemoteSourceError(
         "git.ref-not-found",
         f"No branch or tag {quote_source(page.ref)} in "
-        f"{quote_source(sanitize_url_credentials(page.repo_url))} "
+        f"{quote_source(sanitize_url(page.repo_url))} "
         "(a commit needs its full 40 or 64 hex digits).",
     )
 

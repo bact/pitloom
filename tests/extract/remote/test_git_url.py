@@ -687,9 +687,9 @@ def test_a_gitlab_commits_page_names_its_repository() -> None:
 
 def test_an_azure_version_of_an_unknown_kind_is_reported_as_ignored() -> None:
     """``version=gbmain`` names no branch, tag or commit: the default branch is
-    read, and the INFO that the query was ignored is not skipped."""
+    read, and the INFO says so."""
     page = parse_git_page("https://dev.azure.com/o/p/_git/r?path=/d&version=gbmain")
-    assert (page.ref, page.cut) == ("", True)
+    assert (page.ref, page.cut, page.version_ignored) == ("", False, True)
 
 
 def test_a_queried_ref_that_is_no_ref_is_refused() -> None:

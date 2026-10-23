@@ -26,11 +26,39 @@ from pitloom.extract._extract_utils import (
     json_nests_over,
     sanitize_provenance_text,
 )
-from pitloom.logging_config import Cap, sanitize_url_credentials
+from pitloom.logging_config import Cap, sanitize_url, sanitize_url_credentials
 from tests._bounded import run_bounded_in_child
 
 #: ``os.mkfifo`` exists on POSIX only.
 _HAS_MKFIFO = hasattr(os, "mkfifo")
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (
+            "https://h/r?private_token=SECRET&h=main",
+            "https://h/r?private_token=***&h=main",
+        ),
+        ("https://h/r?a=1&Access_Token=SECRET#f", "https://h/r?a=1&Access_Token=***#f"),
+        ("https://h/r?id=abc&path=/key", "https://h/r?id=abc&path=/key"),  # not secrets
+    ],
+    ids=["private-token", "mixed-case-fragment", "plain-query-kept"],
+)
+def test_a_secret_named_query_value_is_redacted(text: str, expected: str) -> None:
+    assert sanitize_url_credentials(text) == expected
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["https://u:SEC\nRET@h/r", "https://u:SEC RET@h/r", "https://u:S\tE@h/r?x=1"],
+    ids=["newline", "space", "tab"],
+)
+def test_sanitize_url_redacts_a_userinfo_holding_whitespace(url: str) -> None:
+    """For a text that is one URL, the whole userinfo goes; the line-by-line
+    helper stops at whitespace and would show part of the password."""
+    assert sanitize_url(url).startswith("https://***:***@h/r")
+    assert "RET" not in sanitize_url(url) and "SEC" not in sanitize_url(url)
 
 
 def test_sanitize_url_credentials_redacts_user_and_password() -> None:

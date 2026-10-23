@@ -44,7 +44,7 @@ from pitloom.extract.remote.git_url import (
     scheme_allowed,
     split_ref,
 )
-from pitloom.logging_config import loggable, sanitize_url_credentials
+from pitloom.logging_config import loggable, sanitize_url, sanitize_url_credentials
 
 log = logging.getLogger(__name__)
 
@@ -150,7 +150,7 @@ def _prepare(
     offline: bool | None,
 ) -> GitCheckout:
     """Fetch what *url* names into *work_dir* and describe it."""
-    shown = loggable(sanitize_url_credentials(url))
+    shown = loggable(sanitize_url(url))
     if offline:
         raise RemoteSourceError(
             "git.offline", f"Cannot fetch {shown}: network access is forbidden."
@@ -207,8 +207,8 @@ def _resolve(
             raise
         log.info(
             "Git source: %s is not a repository; trying %s",
-            loggable(sanitize_url_credentials(page.repo_url)),
-            loggable(sanitize_url_credentials(page.plain_url)),
+            loggable(sanitize_url(page.repo_url)),
+            loggable(sanitize_url(page.plain_url)),
         )
     plain = GitPage(page.plain_url, cut=page.cut, plain_url=page.plain_url)
     return resolve_git_url(plain.repo_url, check_url), plain, GitTarget()
@@ -251,12 +251,14 @@ def _log_resolution(url: str, clone_url: str, target: GitTarget, page: GitPage) 
         named += f", folder {loggable(target.subdir)}"
     if page.cut:
         named += " (query and fragment ignored)"
-    given = sanitize_url_credentials(url.strip())
-    if named or given.rstrip("/") != sanitize_url_credentials(page.repo_url):
+    if page.version_ignored:
+        named += " (version names no branch, tag or commit: default branch read)"
+    given = sanitize_url(url.strip())
+    if named or given.rstrip("/") != sanitize_url(page.repo_url):
         log.info(
             RESOLVED_INFO,
             loggable(given),
-            loggable(sanitize_url_credentials(clone_url)),
+            loggable(sanitize_url(clone_url)),
             named,
         )
 

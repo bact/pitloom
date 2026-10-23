@@ -30,7 +30,7 @@ from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.inert_options import HF, MODEL_FILE, forward_options
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.remote import is_git_url, is_huggingface_source, parse_hf_model_id
-from pitloom.logging_config import print_error, sanitize_url_credentials
+from pitloom.logging_config import print_error, sanitize_url
 
 
 @cli_error_handler("model command failed")
@@ -40,7 +40,7 @@ def _run_model_command(args: argparse.Namespace) -> int:
     model_target: Path | str
     if is_git_url(target) and not Path(target).exists():
         print_error(
-            f"{quote_source(sanitize_url_credentials(target))} is a URL, not a "
+            f"{quote_source(sanitize_url(target))} is a URL, not a "
             "model file or Hugging Face model: for a Git repository, use "
             "'loom project'."
         )
@@ -50,7 +50,7 @@ def _run_model_command(args: argparse.Namespace) -> int:
         if model_id is None:
             print_error(
                 "not a valid Hugging Face URL or model ID: "
-                f"{quote_source(sanitize_url_credentials(target))}"
+                f"{quote_source(sanitize_url(target))}"
             )
             return 1
         output_path = _resolve_hf_output_path(args.output, model_id)
@@ -66,7 +66,7 @@ def _run_model_command(args: argparse.Namespace) -> int:
         if opened_path is None:
             # A URL that is no source we read (user information in a Hugging
             # Face one) is named as given, cleaned, not as a path under the cwd.
-            shown = sanitize_url_credentials(target) if "://" in target else model_path
+            shown = sanitize_url(target) if "://" in target else model_path
             print_error(f"model file not found: {quote_source(shown)}")
             return 1
         output_path = _resolve_model_output_path(args.output, model_path)

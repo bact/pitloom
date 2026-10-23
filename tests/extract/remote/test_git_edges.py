@@ -30,6 +30,7 @@ from pitloom.extract.remote.git import (
     GitCheckout,
     _checkout,
     _folder,
+    _log_resolution,
     _resolve,
     _target,
 )
@@ -463,3 +464,16 @@ def test_any_other_clone_failure_is_not_retried(message: str) -> None:
     with pytest.raises(RemoteSourceError, match="fatal"):
         _checkout(cast(GitRunner, runner), "https://h/o/r", "/work", GitTarget())
     assert len(runner.calls) == 1
+
+
+def test_an_azure_version_that_names_no_kind_is_logged_as_ignored(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """``path=`` is read, so the INFO must not say the query was ignored; it
+    says the version named nothing and the default branch is read."""
+    url = "https://dev.azure.com/o/p/_git/r?path=/d&version=gbmain"
+    page = parse_git_page(url)
+    with caplog.at_level(logging.INFO):
+        _log_resolution(url, "https://dev.azure.com/o/p/_git/r", GitTarget(), page)
+    assert "default branch read" in caplog.text
+    assert "query and fragment ignored" not in caplog.text
