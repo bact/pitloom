@@ -13,7 +13,8 @@ bypass the caller's address check, so git alone fails with ``error: 301``.
 
 :func:`resolve_git_url` follows the redirects itself, one hop at a time, and
 passes each target to the caller's URL check before requesting it. The clone
-then uses the final URL, with redirects still off.
+then uses the final URL, with redirects still off. The user information of the
+URL given is carried to a target on the same scheme, host and port only.
 """
 
 from __future__ import annotations
@@ -168,7 +169,12 @@ def _shown(url: str) -> str:
 def resolve_git_url(url: str, check_url: Callable[[str], None] | None = None) -> str:
     """The URL to clone for *url*: *url* itself, or where the Git server
     redirects its ``/info/refs`` to. Each hop is passed to *check_url*, which
-    raises for an address that must not be fetched, before it is requested.
+    raises for an address that must not be fetched, before it is requested;
+    *check_url* sees the hop without user information.
+
+    The user information of the URL redirected from is kept on a target with
+    the same scheme, host and port that has none of its own, and dropped on
+    any other.
 
     A redirect that does not lead to another repository's ``/info/refs`` (a
     sign-in page) is not followed. All probes together take at most
@@ -204,14 +210,44 @@ def resolve_git_url(url: str, check_url: Callable[[str], None] | None = None) ->
                 "git.too-many-redirects",
                 f"{_shown(url)} redirects more than {MAX_REDIRECTS} times.",
             )
-        base = urlunsplit(
-            (target.scheme, target.netloc, target.path.removesuffix(_INFO_REFS), "", "")
-        )
+        userinfo, _at, host_port = target.netloc.rpartition("@")
+        path = target.path.removesuffix(_INFO_REFS)
+        base = urlunsplit((target.scheme, host_port, path, "", ""))
         if check_url is not None:
             check_url(base)
-        log.info(REDIRECT_INFO, _shown(current), _shown(base))
-        current = base
+        if not userinfo:
+            userinfo = _carried_userinfo(current, target)
+        following = base
+        if userinfo:
+            following = urlunsplit(
+                (target.scheme, f"{userinfo}@{host_port}", path, "", "")
+            )
+        log.info(REDIRECT_INFO, _shown(current), _shown(following))
+        current = following
         hop += 1
+
+
+def _origin(parts: SplitResult) -> tuple[str, str, int | None] | None:
+    """The scheme, host (lower case) and port (the scheme's default when none
+    is written) of *parts*, or ``None`` for a port that is no number."""
+    try:
+        port = parts.port
+    except ValueError:
+        return None
+    default = {"http": 80, "https": 443}.get(parts.scheme.lower())
+    return parts.scheme.lower(), (parts.hostname or ""), port or default
+
+
+def _carried_userinfo(source: str, target: SplitResult) -> str:
+    """The user information of *source* when *target* has the same origin,
+    else ``""``."""
+    # Credentials go only back to the server they were given for: never to
+    # another host or port, and never from https down to http.
+    parts = urlsplit(source)
+    origin = _origin(parts)
+    if origin is None or origin != _origin(target):
+        return ""
+    return parts.netloc.rpartition("@")[0]
 
 
 def _not_followed(target: SplitResult) -> str | None:
