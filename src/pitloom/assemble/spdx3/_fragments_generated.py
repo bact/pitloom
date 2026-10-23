@@ -83,14 +83,51 @@ def _annotation_methods(annotation: spdx3.Annotation) -> dict[str, str | None]:
     }
 
 
-def _json_text(text: str) -> str:
-    """*text* as JSON in one spelling; ``1``, ``1.0`` and ``true`` stay three
-    values (Python's ``==`` would equate them).
+class _Float(str):
+    """A JSON number with a fraction or an exponent, kept as its text: two
+    spellings of it are two values (a float would equate ``1e400`` with
+    ``2e999``, or ``0.1`` with ``0.10000000000000000001``)."""
 
-    Raises:
-        ValueError: *text* is not JSON.
-    """
-    return json.dumps(json.loads(text), sort_keys=True)
+
+def _no_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    keys = [key for key, _ in pairs]
+    if len(set(keys)) != len(keys):
+        raise ValueError("duplicate key")
+    return dict(pairs)
+
+
+def _same(old: object, new: object) -> bool:
+    """Whether two parsed JSON values are the same, a number and a boolean
+    never (``1`` and ``true``) and a float only as the same text."""
+    if type(old) is not type(new):
+        return False
+    if isinstance(old, dict) and isinstance(new, dict):
+        return old.keys() == new.keys() and all(_same(old[k], new[k]) for k in old)
+    if isinstance(old, list) and isinstance(new, list):
+        return len(old) == len(new) and all(
+            _same(o, n) for o, n in zip(old, new, strict=True)
+        )
+    return bool(old == new)
+
+
+def _same_json(old: str, new: str) -> bool:
+    """Whether the JSON texts *old* and *new* say the same, in any spelling of
+    the whitespace and the order of an object's keys. Text that is no JSON, has
+    a repeated key or nests too deeply to read (a fragment is untrusted) is not
+    the same as anything but itself."""
+    try:
+        return _same(
+            *(
+                json.loads(
+                    text,
+                    parse_float=_Float,
+                    object_pairs_hook=_no_duplicate_keys,
+                )
+                for text in (old, new)
+            )
+        )
+    except (ValueError, RecursionError):
+        return False
 
 
 def _equivalent(old: object, new: object) -> bool:
@@ -103,10 +140,7 @@ def _equivalent(old: object, new: object) -> bool:
     ):
         return set(old) == set(new)
     if isinstance(old, str) and isinstance(new, str):
-        try:
-            return _json_text(old) == _json_text(new)
-        except ValueError:
-            return False
+        return _same_json(old, new)
     return False
 
 

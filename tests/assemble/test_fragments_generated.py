@@ -645,6 +645,11 @@ def test_the_generated_methods_are_the_ones_the_readers_write() -> None:
         (1, 2, False),  # neither a list nor text
         ('{"n":1}', '{"n":1.0}', False),  # another number is another value
         ('{"n":1}', '{"n":true}', False),  # and a boolean is no number
+        ('{"a":1,"b":[1,2]}', '{"b":[1,2],"a":1}', True),  # key order
+        ("[1e400]", "[2e999]", False),  # both overflow a float, to the same inf
+        ("[0.1]", "[0.10000000000000000001]", False),  # float precision
+        ('{"a":1}', '{"a":2,"a":1}', False),  # a repeated key: the last wins
+        ("[" * 200_000 + "]" * 200_000, "[" * 200_000 + "] " + "]" * 199_999, False),
         ("x", "x", True),
     ],
     ids=[
@@ -656,6 +661,11 @@ def test_the_generated_methods_are_the_ones_the_readers_write() -> None:
         "number",
         "float",
         "boolean",
+        "key-order",
+        "float-overflow",
+        "float-precision",
+        "repeated-key",
+        "too-deep",
         "same",
     ],
 )
@@ -734,3 +744,91 @@ def test_a_fragment_restating_a_generated_value_changes_nothing_in_any_order(
     model, records, _ = _merge(tmp_path, caplog, base, [fragments[c] for c in order])
     assert model[key] == curated
     assert _levels(records) == [logging.INFO]
+
+
+def _second_model(base: Spdx3JsonExporter, statement: dict[str, str | None]) -> str:
+    """Add a base model ``M2`` with its own provenance Annotation; return its id."""
+    ci = _creation_info()
+    m2 = f"{_NS}#M2"
+    base.add_package(spdx3.ai_AIPackage(spdxId=m2, creationInfo=ci, name="m2"))
+    base.add_annotation(
+        spdx3.Annotation(
+            spdxId=f"{_NS}#Annotation-M2",
+            creationInfo=ci,
+            annotationType=spdx3.AnnotationType.other,
+            contentType="application/json",
+            subject=m2,
+            statement=_statement(statement),
+        )
+    )
+    return m2
+
+
+@pytest.mark.parametrize(
+    "other", [None, "generated_from_labels"], ids=["read", "generated"]
+)
+def test_another_base_models_provenance_neither_counts_nor_goes(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, other: str | None
+) -> None:
+    """Only the Annotations whose subject is the model count towards its
+    value being generated, and only those lose the replaced field: a second
+    model with its own provenance is judged and kept by that."""
+    base = _base({"description": "generated_from_labels"})
+    m2 = _second_model(base, {"description": other})
+    model, records, annotations = _merge(
+        tmp_path, caplog, base, [{"description": "curated"}]
+    )
+    assert (model["description"], _levels(records)) == ("curated", [logging.INFO])
+    own = [a for a in annotations if a["subject"] == m2]
+    assert [list(json.loads(a["statement"])["fields"]) for a in own] == [
+        ["description"]
+    ]
+
+
+@pytest.mark.parametrize(
+    ("annotation", "comment"),
+    [
+        # An entry that is no object says nothing: the comment decides.
+        (
+            '{"description": "derived_from_format"}',
+            "description: Source: m | Method: other",
+        ),
+        (None, "description: Source: m | Method: generated_from_labels; description"),
+    ],
+    ids=["entry-not-an-object", "stray-part-named-like-a-field"],
+)
+def test_a_provenance_entry_of_an_unexpected_shape_says_nothing(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    annotation: str | None,
+    comment: str,
+) -> None:
+    """A malformed entry is skipped, not read as a generated or an unknown
+    method: the first case stays not generated (the comment's own method is
+    another), the second stays generated."""
+    base = _base({}, annotation=False)
+    model = next(
+        o for o in base.object_set.objects if isinstance(o, spdx3.ai_AIPackage)
+    )
+    model.comment = "Metadata provenance: " + comment
+    if annotation is not None:
+        statement = {
+            "schema": PitloomV1Encoder.schema_url,
+            "kind": "fields",
+            "fields": json.loads(annotation),
+        }
+        base.add_annotation(
+            spdx3.Annotation(
+                spdxId=f"{_NS}#Annotation-X",
+                creationInfo=_creation_info(),
+                annotationType=spdx3.AnnotationType.other,
+                contentType="application/json",
+                subject=_MODEL,
+                statement=json.dumps(statement),
+            )
+        )
+    merged, records, _ = _merge(tmp_path, caplog, base, [{"description": "curated"}])
+    replaced = annotation is None
+    assert (merged["description"], _levels(records)) == (
+        ("curated", [logging.INFO]) if replaced else ("generated", [logging.WARNING])
+    )
