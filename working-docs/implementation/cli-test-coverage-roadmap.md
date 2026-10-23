@@ -29,7 +29,7 @@ this doc -- they will have moved on.
 
 Nothing from this doc's original scope remains open. File-size drift
 that has resumed since the test-suite split is tracked in the sibling
-doc instead: [complexity-and-file-size-roadmap.md](complexity-and-file-size-roadmap.md).
+doc instead: [complexity-and-file-size-roadmap.md](../design/complexity-and-file-size-roadmap.md).
 
 ### Pickup prompt for a new session
 

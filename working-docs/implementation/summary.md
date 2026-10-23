@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,9 +12,9 @@ See also: [file-map.md](file-map.md) for the full project directory tree.
 
 ## Project overview
 
-Successfully implemented a complete, production-ready prototype of an SBOM
-(Software Bill of Materials) generator for Python projects.  Supports
-Hatchling, Poetry, and setuptools build backends.  The generator produces
+An SBOM (Software Bill of Materials) generator for Python projects and AI
+models.  Supports the Hatchling, Poetry, setuptools, Flit and PDM build
+backends (`src/pitloom/extract/project/`).  The generator produces
 SPDX 3.0 compliant SBOMs in JSON-LD format.
 
 ## What was delivered
@@ -99,7 +99,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
      (`cli/id.py`), and each subcommand's own `_run_<verb>_command()` +
      `add_parser()` (`cli/commands/*.py`, one module per subcommand) all
      live under `cli/` -- see
-     [cli-test-coverage-roadmap.md](../design/cli-test-coverage-roadmap.md)
+     [cli-test-coverage-roadmap.md](cli-test-coverage-roadmap.md)
      for the per-module breakdown
    - User-friendly argparse-based CLI with input-centric subcommands
      (`project`, `wheel`, `model`, `env`, `merge`, `enrich`, `fragment`,
@@ -274,9 +274,9 @@ package for the CLI surface and a `tests/` tree that mirrors
 | Package Metadata | ✅ | ✅ | ✅ Complete |
 | Dependencies | ✅ | ✅ | ✅ Complete |
 | Relationships | ✅ | ✅ | ✅ Complete |
-| File-level Details | ✅ | ⚠️ | 🔄 Roadmap |
+| File-level Details | ✅ | ✅ | ✅ Complete |
 | AI/Dataset Profiles | ✅ | ✅ | ✅ Complete |
-| License Expressions | ✅ | ⚠️ | 🔄 Roadmap |
+| License Expressions | ✅ | ✅ | ✅ Complete |
 
 **Legend:**
 

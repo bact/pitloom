@@ -91,7 +91,7 @@ def _extract_wheel_to_included_files(
     :class:`~pathlib.Path`'s own ``/`` operator, never string concatenation.
 
     Zip-slip guard: unlike every static discoverer (which only ever
-    walks real files already inside *project_dir*), this one writes
+    walks real files already inside the project directory), this one writes
     bytes to disk from a zip archive a real, external build process
     just produced. ``zip_file_members`` already skips ``../``-containing
     and absolute entry names; the ``resolve()`` check below is defence in

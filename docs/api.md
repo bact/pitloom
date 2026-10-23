@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -19,13 +19,23 @@ exact call signature.
 
 ::: pitloom.assemble.generate_project_sbom
 
+::: pitloom.assemble.generate_git_project_sbom
+
 ::: pitloom.assemble.generate_wheel_sbom
+
+::: pitloom.assemble.generate_wheel_sbom_with_metadata
 
 ::: pitloom.assemble.generate_model_sbom
 
 ::: pitloom.assemble.generate_env_sbom
 
 ::: pitloom.assemble.enrich_model
+
+## Git repositories
+
+::: pitloom.extract.remote.fetch_git_project
+
+::: pitloom.extract.remote.RemoteSourceError
 
 ## Wheel embedding
 

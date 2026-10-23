@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -70,7 +70,8 @@ missing directory.
 - **`RemoteSourceError` carries a code** (`git.clone-failed`, `git.timeout`,
   `git.ref-not-found`, `git.path-not-found`, `git.no-project`, ...), so a caller
   (Lumina) maps it to its own vocabulary without parsing text.
-- **A size cap is the caller's.** `fetch_git_project(max_bytes=)` polls the
+- **A size cap is the caller's.** `fetch_git_project(max_bytes=)`
+  (`generate_git_project_sbom(max_clone_bytes=)`) polls the
   checkout's size while `git` runs (every 0.25 s) and kills it past the cap
   (`git.too-large`), and checks once more when the call ends; bandwidth is
   spent before it stops, but disk and memory are not. The CLI sets none, as
@@ -131,7 +132,9 @@ the 10-minute deadline (the 10 MB blob filter is only a request to the server).
 - Provenance in the SBOM (`downloadLocation` with the commit, a `vcs`
   external reference, forge licence): the commit is logged, not recorded.
 - Forge API tarballs; a persistent cache of fetches.
-- Subdirectory URLs of Azure DevOps (the folder is in a query string).
+- A size cap for a CLI clone: only a library caller sets `max_bytes=` (#339);
+  on the CLI the blob filter is a request, so only the 10-minute deadline
+  bounds it.
 - A reader for a project that declares its metadata only in an imperative
   `setup.py`; the error names the sub-projects it can read.
 - DNS-rebinding protection between the caller's address check and git's own

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-10
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -39,12 +39,13 @@ verb-less strings, which general NER models are weak at.
 
 ## What is built (no heuristic; decided 2026-10-10)
 
-A free-text author field splits on `,` and `and` with one `WARNING:` per
-document; a structured entry never splits; every project author is a
-`Person`. The rule and its surfaces are in
+An address field (`Author-email`) splits on `,` and `;`, never on `and`, with
+one `WARNING:` per document; a name field (`Author`) is cut only next to an
+address (`Doe, Jane` and `Ann and Bob` are one author each, with one `INFO:`
+for a project's own); a structured entry never splits; every project author is
+a `Person`. The rule and its surfaces are in
 [extras-parity.md](../implementation/extras-parity.md#what-was-decided-and-built),
-the limits (`Doe, Jane` becomes two authors on a bare wheel) in its
-"Measured limits".
+the limits in its "Measured limits".
 
 An earlier plan was a simple heuristic (split only between multi-word names,
 keep `Inc.`/`LLC` suffixes, drop `and others`). Rejected: it would be right

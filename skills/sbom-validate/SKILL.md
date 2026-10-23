@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-10-21
+# Last-Modified: 2026-10-23
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -23,7 +23,7 @@ description: >-
   FSCT, CISA 2026, G7 AI or BSI completeness (sbom-enrich).
 license: Apache-2.0
 compatibility: >-
-  Requires a shell, Python 3.10+ and pitloom >= 0.20.2 with the validate
+  Requires a shell, Python 3.10+ and pitloom >= 0.21.0 with the validate
   extra (pitloom[validate], which brings spdx3-validate) via pip, uvx or
   pipx, or spdx3-validate alone. Needs network access to install them. Not
   usable where packages cannot be installed, e.g. Claude API code execution.
@@ -81,11 +81,11 @@ See `references/examples.md` for copy-paste recipes.
 
 ## Requirements
 
-Python >= 3.10 and **pitloom >= 0.20.2** (earlier releases lack
-`--id-registry`, `loom id` and `--build-timeout`, which the sibling skills
-use), the `loom`/`pitloom` entry point or standalone `spdx3-validate` CLI;
-`loom fragment validate` needs the `validate` extra (`pip install
-"pitloom[validate]>=0.20.2"`).
+Python >= 3.10 and **pitloom >= 0.21.0** (the commands, output lines and
+messages below are those of 0.21.0; the sibling skills write ID registry
+format 3, which earlier releases cannot read), the `loom`/`pitloom` entry
+point or standalone `spdx3-validate` CLI; `loom fragment validate` needs the
+`validate` extra (`pip install "pitloom[validate]>=0.21.0"`).
 
 ## Run the validator
 
@@ -94,11 +94,11 @@ and PowerShell equivalents (PowerShell 5.1 has no `&&`: run the commands
 one per line).
 
 ```bash
-pip install "pitloom[validate]>=0.20.2"  # if not already installed
+pip install "pitloom[validate]>=0.21.0"  # if not already installed
 loom fragment validate <sbom-file>
 ```
 
-Without a persistent install: `uvx --from "pitloom[validate]>=0.20.2"
+Without a persistent install: `uvx --from "pitloom[validate]>=0.21.0"
 loom fragment validate <sbom-file>`.
 
 Despite the `fragment` grouping (shared with `loom merge`), the
@@ -128,8 +128,8 @@ document only in isolation.
 base SBOM's ids directly, with no `ExternalMap`, so it usually fails SHACL
 alone and paired with its base (exit 1), even when correct. To check one,
 validate the **merged** SBOM: regenerate the project with the fragment
-registered (`sbom-enrich`, steps 8-10) and run `loom fragment validate
-<merged-sbom-file>`.
+registered (`sbom-enrich`, steps 8-10) and run `loom fragment
+validate <merged-sbom-file>`.
 
 (The standalone `spdx3-validate --json <file>` CLI checks the same rules
 and uses the same exit code convention, if `pitloom[validate]` isn't the

@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-21
+# Last-Modified: 2026-10-23
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -24,7 +24,7 @@ description: >-
   sbom-validate; enriching one is sbom-enrich.
 license: Apache-2.0
 compatibility: >-
-  Requires a shell, Python 3.10+ and pitloom >= 0.20.2 (pip, uvx or pipx).
+  Requires a shell, Python 3.10+ and pitloom >= 0.21.0 (pip, uvx or pipx).
   AI model targets need pitloom[ai] (or a format extra such as
   pitloom[gguf]); --allow-build needs pitloom[build]; --content-type needs
   pitloom[content-type]. Needs network access to install pitloom and for
@@ -54,7 +54,8 @@ See `references/examples.md` for copy-paste recipes.
 ## Hard rules
 
 - **`loom generate` needs `-o FILE`** (exit 1 without one). The other
-  commands default to the current directory: `sbom.spdx3.json` (`project`),
+  commands default to the current directory: `<name>-<version>.spdx3.json`
+  (`project`; `sbom.spdx3.json` for a project with no name),
   `<file name>.spdx3.json` (`wheel`, `model`), `deployed-environment.spdx3.json`
   (`env`). `-o -` writes the SBOM to stdout. Stdout otherwise holds only
   `PITLOOM_SBOM_OUTPUT_PATH=<path>`.
@@ -69,11 +70,11 @@ See `references/examples.md` for copy-paste recipes.
 
 ## Requirements
 
-- Python >= 3.10 and **pitloom >= 0.20.2** (earlier releases lack
-  `--id-registry`, `loom id` and `--build-timeout`), the `loom`/`pitloom`
-  entry point -- `pip install "pitloom>=0.20.2"`, or run ephemeral via
+- Python >= 3.10 and **pitloom >= 0.21.0** (earlier releases lack
+  ID registry format 3 and Git URL targets), the `loom`/`pitloom`
+  entry point -- `pip install "pitloom>=0.21.0"`, or run ephemeral via
   `uvx`/`pipx`. Extras take the floor after the extra:
-  `"pitloom[ai]>=0.20.2"`.
+  `"pitloom[ai]>=0.21.0"`.
 - AI model targets, and any project or wheel that ships model files,
   need the `ai` extra (`pitloom[ai]`) or a
   format-specific one (`pitloom[huggingface_hub]`, `pitloom[gguf]`,
@@ -90,19 +91,19 @@ and PowerShell equivalents (PowerShell 5.1 has no `&&`: run the commands
 one per line):
 
 ```bash
-uvx --from "pitloom>=0.20.2" loom generate <target> -o sbom.spdx3.json
+uvx --from "pitloom>=0.21.0" loom generate <target> -o sbom.spdx3.json
 ```
 
 or
 
 ```bash
-pipx run --spec "pitloom>=0.20.2" loom generate <target> -o sbom.spdx3.json
+pipx run --spec "pitloom>=0.21.0" loom generate <target> -o sbom.spdx3.json
 ```
 
 Fall back to a normal install only if neither `uv` nor `pipx` is available:
 
 ```bash
-pip install "pitloom>=0.20.2"
+pip install "pitloom>=0.21.0"
 loom generate <target> -o sbom.spdx3.json
 ```
 
@@ -254,7 +255,8 @@ dropped with a `WARNING:`):
 
 **Signed wheels.** A `RECORD.jws`/`RECORD.p7s` signature would stop verifying
 once `RECORD` is rewritten, so Pitloom refuses the wheel (`ERROR:`, exit 1,
-untouched). Check first: `unzip -l <wheel> | grep 'RECORD\.'`. If found,
+untouched). Check first: `unzip -l <wheel> | grep 'RECORD\.'` (no output and exit 1
+means no signature). If found,
 **before** embedding read `references/known-limitations.md` ("Signed wheels:
 what to tell the user"), explain it to the user in terms of their wheel, and
 ask before adding `--allow-signed-wheel` (never unasked; non-interactive: don't
@@ -414,7 +416,9 @@ complete but isn't. Per-case detail: `references/known-limitations.md`.
   yaml_frontmatter`). Name the cause from stderr and tell the user: the wheel
   gate (`INFO:`, `--trust-wheel-model`), a missing library (install
   `pitloom[ai]`), a parse failure (truncated or corrupt file), a size cap or
-  the per-wheel budget, or a Git LFS pointer (`git lfs pull`, regenerate).
+  the per-wheel budget, or a Git LFS pointer (`git lfs pull`, regenerate; for
+  a Git URL target there is no checkout to pull into: clone with `git lfs`, then
+  run on the directory).
   Never raise a ceiling or add `--trust-wheel-model` on your own. A failed
   read leaves a stub with a `WARNING:` (exit 0); a file whose header
   contradicts its suffix is no model (no `ai_AIPackage`), and `loom model

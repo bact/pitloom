@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -138,8 +138,8 @@ call. An sdist's own config is read as its unpacked directory's is.
 
 Other arguments that mirror a CLI flag or config key:
 
-- `max_source_metadata_bytes=` (`generate()`, `generate_wheel_sbom()`,
-  `generate_env_sbom()`, `generate_model_sbom()`): `--max-source-metadata-bytes`;
+- `max_source_metadata_bytes=` (`generate()`, `generate_project_sbom()`,
+  `generate_wheel_sbom()`, `generate_env_sbom()`, `generate_model_sbom()`): `--max-source-metadata-bytes`;
   see [Metadata provenance](metadata-provenance.md).
 - `scan_model_usage=` (`generate()`, `generate_project_sbom()`,
   `generate_wheel_sbom()`; `ConfigOverrides.scan_model_usage` for

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -150,7 +150,8 @@ The findings, by class, are in three parts:
   one handle and walks the real directory; every round-5c repro is refused at
   43-65 MB (was 797-844 MB), on 3.10 and 3.14, and the hostile wheel scan
   dropped from 831 MB to 44 MB.
-- Header-only readers planned after the 0.20.0 release: they remove the
+- Header-only readers, planned (only the pickle walker and CRFsuite are built in
+  0.21.0): they remove the
   library-amplification and native-code classes (3.1, 3.2, most of 3.4's
   stderr work) but not the archive, determinism and transparency classes;
   see [model-metadata-readers.md](../design/model-metadata-readers.md),

@@ -8,7 +8,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # Complexity and file-size roadmap
 
-See also: [cli-test-coverage-roadmap.md](cli-test-coverage-roadmap.md) for
+See also: [cli-test-coverage-roadmap.md](../implementation/cli-test-coverage-roadmap.md) for
 the sibling test-suite health effort this doc's structure follows.
 
 **Status:**

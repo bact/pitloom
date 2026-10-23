@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,10 +15,10 @@ adapted with minimal edits. Snippets are POSIX shell; on Windows use
 
 ## Where the output goes
 
-Without `-o`, `project` writes `sbom.spdx3.json`, `wheel` and `model` write
-`<file name>.spdx3.json` (e.g. `model.onnx.spdx3.json`) and `env` writes
-`deployed-environment.spdx3.json`, all in the current directory; `generate`
-exits 1 without `-o`. Stdout is one line, `PITLOOM_SBOM_OUTPUT_PATH=<path>`;
+Without `-o`, `project` writes `<name>-<version>.spdx3.json` (`sbom.spdx3.json`
+for a project with no name), `wheel` and `model` write `<file name>.spdx3.json`
+(e.g. `model.onnx.spdx3.json`) and `env` writes `deployed-environment.spdx3.json`,
+all in the current directory; `generate` exits 1 without `-o`. Stdout is one line, `PITLOOM_SBOM_OUTPUT_PATH=<path>`;
 `-o -` writes the SBOM there instead. `embed-wheel` prints one
 `WHEEL=<name> SBOM=<path inside the wheel>` line per wheel (default `<name>-<version>.spdx3.json` under `.dist-info/sboms/`;
 `--sbom-basename` or the config key `sbom-basename` changes it).
@@ -26,9 +26,9 @@ exits 1 without `-o`. Stdout is one line, `PITLOOM_SBOM_OUTPUT_PATH=<path>`;
 ## Project SBOM (directory or sdist), ephemeral run
 
 ```bash
-uvx --from "pitloom>=0.20.2" loom project . -o sbom.spdx3.json --pretty
+uvx --from "pitloom>=0.21.0" loom project . -o sbom.spdx3.json --pretty
 # or sdist archive
-uvx --from "pitloom>=0.20.2" loom project dist/mypackage-1.0.0.tar.gz -o sbom.spdx3.json
+uvx --from "pitloom>=0.21.0" loom project dist/mypackage-1.0.0.tar.gz -o sbom.spdx3.json
 ```
 
 ## Project SBOM from a Git URL
@@ -53,7 +53,7 @@ loom project . -o sbom.spdx3.json --pretty
 ## Project SBOM, already-installed Pitloom
 
 ```bash
-pip install "pitloom>=0.20.2"
+pip install "pitloom>=0.21.0"
 loom project /path/to/project -o sbom.spdx3.json
 ```
 
@@ -98,13 +98,13 @@ with zipfile.ZipFile(sys.argv[1]) as zf:
 ## AI model SBOM, local file
 
 ```bash
-uvx --from 'pitloom[ai]>=0.20.2' loom model model.safetensors -o model.spdx3.json
+uvx --from 'pitloom[ai]>=0.21.0' loom model model.safetensors -o model.spdx3.json
 ```
 
 ## AI model SBOM, Hugging Face Hub model
 
 ```bash
-uvx --from 'pitloom[huggingface_hub]>=0.20.2' loom model mistralai/Mistral-7B-v0.1 \
+uvx --from 'pitloom[huggingface_hub]>=0.21.0' loom model mistralai/Mistral-7B-v0.1 \
   -o mistral.spdx3.json --pretty
 ```
 
@@ -151,7 +151,7 @@ print("@graph present:", len(d["@graph"]), "nodes (not validated)")
 - `../SKILL.md` -- operating instructions for this skill.
   <https://github.com/bact/pitloom/blob/main/skills/sbom-generate/SKILL.md>
 - The sibling `sbom-validate` skill -- schema/SHACL conformance check
-  (minimal: `pip install "pitloom[validate]>=0.20.2"` then
+  (minimal: `pip install "pitloom[validate]>=0.21.0"` then
   `loom fragment validate sbom.spdx3.json`).
   <https://github.com/bact/pitloom/blob/main/skills/sbom-validate/SKILL.md>
 - `docs/resources.md` -- SPDX 3 spec, ontology, and JSON Schema links.

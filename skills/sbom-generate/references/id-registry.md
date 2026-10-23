@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-22
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -78,8 +78,8 @@ every key, so every command and the Python SDK agree on it.
 A package name held by several registry-reading elements of one document
 (e.g. one dependency at two versions) is never written by a run, and `id
 import` skips it. A name-keyed registry holds one id per name, so it can pin
-only one holder: `loom id generate <PATH> -e NAME:software_Package -o
-<registry>` pins the first claimant (order: main package, dependencies,
+only one holder: `loom id generate <PATH> -e NAME:software_Package
+-o <registry>` pins the first claimant (order: main package, dependencies,
 phantom dependencies). Every later run then logs the `registered for both`
 `WARNING:` below for the other holder -- expected here, not a stale entry.
 The pin goes into the **declared** registry; if none is declared and the
@@ -322,8 +322,8 @@ keys, dataset strings that differ from the canonical path such as
 ## Log lines that are not a broken registry
 
 - `INFO: ID registry: added N new id(s) to <path>` (N counts ids under keys
-  the registry did not hold) or `INFO: ID registry: updated stale entries in
-  <path>` (keys moved or ids were replaced) -- a run wrote into the declared
+  the registry did not hold) or `INFO: ID registry: updated stale entries
+  in <path>` (keys moved or ids were replaced) -- a run wrote into the declared
   registry.
 - `INFO: ID registry: holds N id(s)` -- `id generate`/`id import` finished;
   the data line `PITLOOM_ID_REGISTRY_PATH=<path>` is on stdout.
@@ -331,8 +331,8 @@ keys, dataset strings that differ from the canonical path such as
   'NAME', ...` --
   `id import` only; the SBOM holds several elements under that name, so no
   single id can be pinned for it.
-- `INFO: ID registry: content changed for <key>; minting a new spdxId (old:
-  <id>).` -- a file, model or dataset pin whose content differs from its entry
+- `INFO: ID registry: content changed for <key>; minting a new spdxId
+  (old: <id>).` -- a file, model or dataset pin whose content differs from its entry
   gets a new id (`id generate` re-indexing or `-e`, a `loom.Run` model with
   `path=`, a model file in a project run); normal after an edit or a retrain (a
   `project` run reports a changed file as `updated stale entries` above).
@@ -457,7 +457,7 @@ is different: one `ERROR:`, exit 1, nothing written.
      it first if new (per the reference), then pass `--id-registry FILE`. No:
      generate without one.
    - Non-interactive: use none, create nothing, and report "No Loom ID
-     registry used (none declared). To pin ids, run `loom id generate
-     <PATH> -o loom-id-registry.json` in the project directory, then
+     registry used (none declared). To pin ids, run `loom id
+     generate <PATH> -o loom-id-registry.json` in the project directory, then
      declare it as the INFO line says (project target) or pass
      `--id-registry loom-id-registry.json` on each run (other targets)."

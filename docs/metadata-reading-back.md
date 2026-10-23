@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-08
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -73,8 +73,8 @@ Pitloom applies them, and the order a program reading the SBOM undoes them.
    `name`, `simplelicensing_licenseText` and
    `simplelicensing_licenseExpression` of the model's licence element;
    and the comments of their relationships. One `WARNING: FORMAT=<fmt>
-   FILE=<path>: invisible or bidi control characters written as \uXXXX in
-   <properties>` per model names them. Provenance text quoting a file or
+   FILE=<path>: invisible or bidi control characters written as \uXXXX
+   in <properties>` per model names them. Provenance text quoting a file or
    key name (`Source:`, `Field:`) is escaped the same way, but not yet a
    key name in a provenance annotation's `fields` object, nor an
    enrichment annotation's `changes` (`field`, `after`), which keep the

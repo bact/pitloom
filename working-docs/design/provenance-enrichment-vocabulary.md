@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-13
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -35,7 +35,7 @@ drafted page content for whenever the fuller change gets picked back up.
 
 `docs/metadata-provenance.md`'s example `Annotation` `statement` showed
 `"schema":"https://pitloom.dev/provenance/1"`. The shipped encoder
-(`PitloomV1Encoder.schema_url`, `src/pitloom/assemble/spdx3/provenance.py:159`)
+(`PitloomV1Encoder.schema_url`, `src/pitloom/assemble/spdx3/_provenance_encoders.py`)
 actually emits `"https://pitloom.dev/provenance/fields/1"`. This one-line
 factual correction was kept (it's a bug fix independent of whether the
 new vocabulary page ships) -- see the diff already in the working tree /
@@ -44,11 +44,11 @@ current PR.
 **2026-08-13: the `sbomAuthorSupplied` method/role overload (Open
 question 3 below) is fixed, not just documented-around.** `role` is now
 a first-class key in the per-field provenance string format:
-`_KEY_MAP` in `src/pitloom/assemble/spdx3/provenance.py` gained
-`"role": "role"`; `_document_files.py:132`'s content-type-override case now
+`_KEY_MAP` in `src/pitloom/core/provenance.py` gained
+`"role": "role"`; `_document_files.py`'s content-type-override case now
 emits `Role: sbomAuthorSupplied` instead of `Method: sbomAuthorSupplied`
 (the encoder already passed through arbitrary parsed keys generically,
-so no other code changed). `tests/test_generator.py`'s
+so no other code changed). `tests/core/generator/test_generator_file.py`'s
 `test_build_file_content_type_config_override_is_sbom_author_supplied`
 updated to match. While fixing this, found the **same pattern** in the
 `sbom-enrich` Skill's own conventions -- `Method: inference` /
@@ -147,7 +147,13 @@ All are the literal string that follows `Method:` in a
 keyed `method` in the JSON statement).
 
 Paths below reflect the subpackage layout under `src/pitloom/extract/`
-(`project/`, `remote/`, `lock/`, `ai_model/`, `dataset/`). Line numbers are approximate.
+(`project/`, `remote/`, `lock/`, `ai_model/`, `dataset/`). Line numbers are approximate
+and have drifted: grep for the value. This table is a 2026-08 snapshot. It lacks the
+values `derived_from_format`, `generated_from_labels`, `flit_dynamic_metadata`,
+`pdm_dynamic_version`, `comma_list`, `tensor_element_sum`, `semver_bit_packed`,
+`repository_owner`, `member_count`, `file_name_stem`, `crfsuite_model_type` and
+`array_length`, which `src/` emits as `Method:` today (re-inventory with
+`grep -rn "Method: " src`). `inferred_from_authors` is no longer emitted anywhere in `src/`.
 
 | `method` value | Meaning | Emission site(s) |
 | --- | --- | --- |
@@ -182,7 +188,7 @@ open, not yet applied to that file):**
 - Three real, code-emitted values are missing from the doc's table:
   `extension_guess`, `magika_content_detection`, `yaml_frontmatter`.
 - `Method: spdx-license-detector` appears once, only as an arbitrary
-  example string in `tests/test_provenance_integration.py:67` -- not
+  example string in `tests/assemble/test_provenance_integration.py` -- not
   part of the controlled vocabulary, just test-fixture prose.
 - `resolved_lockfile`/`pinned_requirements` (PR #208's lock/pin cascade,
   landed after this doc was drafted) are also missing from the doc's

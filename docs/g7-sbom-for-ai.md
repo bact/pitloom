@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-18
-Last-Modified: 2026-10-19
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -19,6 +19,18 @@ those SBOMs cover, how to check it, and what Pitloom leaves out and why.
 An incomplete, honest SBOM is better than one that looks complete and is not.
 Pitloom leaves a field out when its source does not state it, and never writes
 a placeholder to satisfy a rule.
+
+A G7 element can be missing for two different reasons, and this page keeps them
+apart:
+
+- **Pitloom cannot extract it**, or cannot decide between sources that
+  disagree ([What Pitloom leaves out](#what-pitloom-leaves-out-and-why)). A
+  fragment or the `sbom-enrich` skill can supply what a file does not state.
+- **Pitloom has the value, but SPDX 3.0.1 has no place for it**
+  ([What SPDX 3.0.1 cannot record](#what-spdx-301-cannot-record)). Pitloom then
+  records it in a stated workaround or not at all, and says so. A fragment or
+  the skill cannot add a place the format lacks: they fill only what it can
+  hold.
 
 ## What is covered
 
@@ -64,14 +76,16 @@ claim of G7 compliance. A check of a property does not judge its value.
 
 When an SBOM's one root is a single AI model and nothing else, the System-level
 properties are read from that model, and the report names it
-(`systemJudgedByModel`). A project that ships a model has a root of its own, so
-it is not judged by the model it contains: its System-level properties are read
-from the project's package, and most of them are missing.
+(`systemJudgedByModel`). A project that ships a model has two roots, its package
+and, in a second SBOM element, the model. The checker reads the System-level
+properties from both, so each rule has to hold for the package and for the
+model, and most of them are missing.
 
 ## How much the checker finds
 
-Share of the checked rules that are `present`, per cluster, for the test
-models of 2026-10-18 (`--`: nothing of that kind to check). A tiny test model
+Share of the checked rules that are `present`, per cluster, for Pitloom's test
+models (figures of 2026-10-18, unchanged in 0.21.0; `--`: nothing of that kind
+to check). A tiny test model
 carries little metadata, so these figures are low by nature; a model with a
 card, an author and a version scores higher.
 
@@ -110,7 +124,9 @@ The three build backends give the same result for the same project.
   name does not say which. A Hugging Face owner is the repository owner, recorded
   as such.
 - **A fastText model's domain is derived from the format**, not stated in the
-  file; its provenance says so.
+  file; its provenance says so. A fragment's domain (or description, or
+  input/output text) replaces a value Pitloom only generated, with one `INFO:`
+  line ([SBOM fragments](fragments.md)).
 - **A dataset's licence, description, version and owner come only from what
   its source states.** For a Hugging Face model, Pitloom reads the Hub card and
   repository of each listed dataset (up to 20), only when it looks the model up.
@@ -126,13 +142,22 @@ The three build backends give the same result for the same project.
 The checker does not check 25 G7 elements (`out-of-scope`). For 20 of them the
 G7 to SPDX 3.0.1 mapping finds no native SPDX property; the other five are in
 the Infrastructure, Security and Key Performance Indicators clusters. Pitloom
-writes the mapped property for some of them, which no rule then reads. Where
-Pitloom reads such a value it records it only openly: the parameter count as an
-`ai_hyperparameter` entry with a comment saying it is not a hyperparameter; known
-biases as text in the package comment; a model's own metadata in an annotation.
-The architecture shares `ai_typeOfModel` with the model type, so the two cannot be
-told apart; Pitloom says so once per model with an `INFO:` line
-(`no SPDX 3.0.1 property: model-architecture (written in ai_typeOfModel)`).
+writes the mapped property for some of them, which no rule then reads.
+
+Where Pitloom reads such a value it records it only openly, and the SBOM says
+when a place is a workaround:
+
+| Element | Recorded as |
+| :------ | :---------- |
+| Parameter count | An `ai_hyperparameter` entry `parameters`, with a comment saying it is a count of elements, not a hyperparameter |
+| Context length | An `ai_hyperparameter` entry under the source's own key (such as `llama.context_length`) |
+| Architecture | Appended to `ai_typeOfModel` after the model type, so the two cannot be told apart; Pitloom says so once per model with an `INFO:` line (`no SPDX 3.0.1 property: model-architecture (written in ai_typeOfModel)`) |
+| Input and output | A labelled JSON text in `ai_informationAboutApplication`; the checker counts the property as present, which is not a statement of intended use |
+| A model's known biases | Text in the package comment |
+| A model's own file metadata | An annotation, preserved and not interpreted |
+
+A value that has no honest place at all is left out, and the same `INFO:` line
+names it. SPDX 3.1 adds some of what is missing, such as a tool version.
 
 ## CISA 2026 Minimum Elements
 
@@ -212,9 +237,10 @@ the package was built (`builtTime`), because it runs during a build.
 
 Tiers apply only to AI model file formats and Python build backends. A known gap
 there is listed below with what it needs and a target date. A gap not closed by
-its date stays listed with that date missed.
+its date stays listed with that date missed. As of 0.21.0 (2026-10-23) all three
+dates below are missed and the gaps are open.
 
-| Gap | Where | Needs | Target date |
+| Gap | Where | Needs | Target date (missed) |
 | :-- | :---- | :---- | :----- |
 | No hash for a Hugging Face model | Hub source | A request per file, or a Merkle root | 2026-10-19 |
 | Dataset provenance and statistics reach a model SBOM only through `loom` | Hub source, local model cards | A reader for a Hub dataset's Croissant metadata | 2026-10-19 |

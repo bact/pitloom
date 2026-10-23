@@ -18,9 +18,11 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.20.2...HEAD>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.21.0...HEAD>
 
 ## [Unreleased]
+
+## [0.21.0] - 2026-10-23
 
 ### Added
 
@@ -135,17 +137,16 @@ and this project adheres to
   ([#300])
 - A requirement or marker nesting over 64 parentheses warns instead of
   crashing the run ([#300])
-- `id import` keeps a model's hash unless the id changes (`INFO:`); in-tree
-  registries and their wheel/sdist copies settle (a copy is the registry's path,
-  or less one `src/` part); `id generate` indexes `build/`, warns on unreadable
-  files/dirs; one write routine, one failed-save line ([#305])
+- `id import` keeps a model's hash unless its id changes (`INFO:`); in-tree
+  registries and their wheel/sdist copies settle; `id generate` indexes `build/`
+  and warns on unreadable files or directories ([#305])
 - Merge: an id shared by a different type, or by the same type with a
   conflicting SHA-256, keeps both (new id, `WARNING:`); for equal content the
   registry-pinned id survives ([#305])
-- `id generate`: an unreadable `PATH`, a non-directory `--project-dir` are an
-  `ERROR:`; `-o -` is a usage error; a skipped-directory `PATH` warns; a
-  symlinked `PATH` directory is walked; a name UTF-8 cannot hold is skipped
-  with a `WARNING:`; `@graph` not a list is an `ERROR:` on `id import` ([#305])
+- `id generate`: an unreadable `PATH` or non-directory `--project-dir` is an
+  `ERROR:`, `-o -` a usage error; a skipped-directory `PATH` warns; a symlinked
+  `PATH` directory is walked; a name UTF-8 cannot hold is skipped, warned. `id import`: `@graph` not a list is an
+  `ERROR:` ([#305])
 - A wheel with no identity (`unknown`) is not looked up in or recorded into an
   ID registry, and its ids depend on its file name;
   a `loom.Run` dataset is one package per name and content ([#305])
@@ -627,6 +628,7 @@ and this project adheres to
 
 ---
 
+[0.21.0]: https://github.com/bact/pitloom/compare/v0.20.2...v0.21.0
 [0.20.2]: https://github.com/bact/pitloom/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/bact/pitloom/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/bact/pitloom/compare/v0.19.0...v0.20.0

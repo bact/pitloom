@@ -116,7 +116,7 @@ wheel built ([PEP 770], compact canonical JSON). Needs Hatchling **1.29.0+**:
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.29.0", "pitloom>=0.20.2"]
+requires = ["hatchling>=1.29.0", "pitloom>=0.21.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]
@@ -185,7 +185,7 @@ SBOM generation in CI, for any Python build backend:
 - uses: actions/setup-python@v7
   with:
     python-version: "3.x"
-- uses: bact/pitloom@v0.20.2
+- uses: bact/pitloom@v0.21.0
 ```
 
 Add `embed-wheel: "dist/*.whl"` to embed the SBOM into built wheels. See
@@ -277,7 +277,7 @@ gh attestation verify <file> -R bact/pitloom \
 ## Licence
 
 - Source code: Apache License 2.0.
-- Documentation: Creative Commons Attribution 4.0 International.
+- Documentation: Creative Commons Zero 1.0 Universal (CC0-1.0).
 - Test fixture AI models: individually licensed (Apache-2.0, CC0-1.0, or
   MIT); see [tests/fixtures/README.md](tests/fixtures/README.md). Source
   repository only -- not included in distribution packages.
@@ -286,7 +286,7 @@ gh attestation verify <file> -R bact/pitloom \
 
 If you use this software, please cite it as follows:
 
-> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.20.2) [Computer software]. <https://doi.org/10.5281/zenodo.19246283>
+> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.21.0) [Computer software]. <https://doi.org/10.5281/zenodo.19246283>
 
 BibTeX:
 
@@ -297,7 +297,7 @@ BibTeX:
     month = oct,
     title = {{Pitloom - SBOM generator for AI models and Python projects}},
     url = {https://github.com/bact/pitloom},
-    version = {0.20.2},
+    version = {0.21.0},
     year = {2026}
 }
 ```

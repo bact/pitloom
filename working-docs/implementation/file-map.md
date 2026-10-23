@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC0-1.0
 # Pitloom - project file map
 
 See also: [summary.md](summary.md) (implementation summary) and
-[cli-test-coverage-roadmap.md](../design/cli-test-coverage-roadmap.md)
+[cli-test-coverage-roadmap.md](cli-test-coverage-roadmap.md)
 (the CLI, test-suite, and source modularization this tree reflects).
 
 This tree is the canonical reference for the repository's file/directory
@@ -202,15 +202,15 @@ pitloom/
 │       │   └── readme.py           # README.md/MODEL_CARD.md YAML frontmatter enricher
 │       ├── export/                 # Layer 4 -- serialise to physical format
 │       │   ├── hashes.py           # sha256_of, file_digests_of: read an element's SHA-256/SHA-512
-│       │   └── spdx3_describe.py  # One way to name an SPDX 3 element or value in a message
+│       │   ├── spdx3_describe.py  # One way to name an SPDX 3 element or value in a message
 │       │   └── spdx3_json.py       # SPDX 3 JSON-LD serialiser
 │       ├── extract/                # Layer 1 -- read sources
 │       │   ├── ai_model/           # AI model extractors (crfsuite, fasttext, gguf, hdf5, keras, numpy, onnx, pytorch, pytorch_pt2, safetensors, reader)
-│       │   │   └── formats/        # Metadata-only format readers, stdlib only, no Pitloom import (pickle_walk)
+│       │   │   └── formats/        # Metadata-only format readers, stdlib only, no Pitloom import (pickle_walk, crfsuite)
 │       │   ├── dataset/            # Dataset extractors (card, croissant, croissant_key, licence, reader)
 │       │   ├── lock/               # Lockfile extractors (cascade, poetry, pdm, uv, pylock, pipfile, requirements, _common, _hash, etc.)
 │       │   ├── project/            # Build backend & project metadata extractors (pyproject, poetry, pdm, flit, setuptools, sdist, hatchling, reader)
-│       │   ├── remote/             # Remote sources (git, git_url, huggingface, huggingface_dataset, huggingface_fetch, huggingface_field)
+│       │   ├── remote/             # Remote sources (git, git_url, _git_* helpers, errors, huggingface, huggingface_dataset, huggingface_fetch, huggingface_field)
 │       │   ├── _author_parts.py  # Where a free-text author field is cut into entries
 │       │   ├── _author_warnings.py  # WARNING: lines of the free-text author reading
 │       │   ├── _core_metadata.py  # Shared RFC 822 Core-Metadata parsing helpers

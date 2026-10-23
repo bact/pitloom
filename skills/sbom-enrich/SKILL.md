@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-21
+# Last-Modified: 2026-10-23
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -24,7 +24,7 @@ description: >-
   off here.
 license: Apache-2.0
 compatibility: >-
-  Requires a shell, Python 3.10+ and pitloom >= 0.20.2 (pip, uvx or pipx);
+  Requires a shell, Python 3.10+ and pitloom >= 0.21.0 (pip, uvx or pipx);
   a local AI model file needs pitloom[ai] and the post-merge check needs
   pitloom[validate]. Needs an existing Pitloom SBOM (sbom-generate) and file
   write access to the project. Needs network access to install pitloom;
@@ -72,11 +72,11 @@ See `references/examples.md` for a full worked example.
 
 ## Requirements
 
-Python >= 3.10 and **pitloom >= 0.20.2** (earlier releases lack
-`--id-registry`, `loom id` and `--build-timeout`), the `loom`/`pitloom`
-entry point: `pip install "pitloom>=0.20.2"`; an AI model file needs
-`pip install "pitloom[ai]>=0.20.2"`; the mandatory post-merge check needs
-`pip install "pitloom[validate]>=0.20.2"`. Ephemeral runs and the pin
+Python >= 3.10 and **pitloom >= 0.21.0** (earlier releases cannot read ID
+registry format 3), the `loom`/`pitloom`
+entry point: `pip install "pitloom>=0.21.0"`; an AI model file needs
+`pip install "pitloom[ai]>=0.21.0"`; the mandatory post-merge check needs
+`pip install "pitloom[validate]>=0.21.0"`. Ephemeral runs and the pin
 spelling: `sbom-generate`'s "Run without installing anything persistent".
 
 Snippets are POSIX shell. On Windows use `python` or `py` for `python3`,
@@ -308,8 +308,8 @@ Steps:
    ```
 
    With no persistent install, replace `python3` by `uvx --from
-   "pitloom>=0.20.2" python` (or, with pipx, `pipx run --spec
-   "pitloom>=0.20.2" python`; its "already on your PATH" notice is
+   "pitloom>=0.21.0" python` (or, with pipx, `pipx run --spec
+   "pitloom>=0.21.0" python`; its "already on your PATH" notice is
    harmless). With `pipx install`, use the venv's
    interpreter (`$(pipx environment --value PIPX_LOCAL_VENVS)/pitloom/bin/python`;
    `Scripts\python.exe` on Windows); on Windows otherwise use `py` or
@@ -344,8 +344,8 @@ Steps:
     `<merged-sbom-file>` -- a syntactically valid fragment can still miss
     a required property or use the wrong relationship type, which only
     shape/SHACL validation catches. Minimal fallback: `pip install
-    "pitloom[validate]>=0.20.2"` then `loom fragment validate
-    <merged-sbom-file>`.
+    "pitloom[validate]>=0.21.0"` then `loom fragment
+    validate <merged-sbom-file>`.
 11. Tell the user what was found deterministically (step 2), what was
     inferred from prose (step 6), and what the SBOM author supplied
     directly (step 4) -- and call out any override from step 6 explicitly
@@ -419,6 +419,10 @@ b. **Gap analysis:** per element, check the mapped field in the base SBOM
 c. **Resolve gaps by the precedence of steps 2-5:** deterministic `loom
    enrich`, then local prose, then (interactive only, consent-gated per
    step 5) outside sources. Only what is left reaches step d.
+   This fills *extraction* gaps (a value the file lacks, or sources that
+   disagree), not *recording* gaps: an element whose mapped SPDX 3.0.1 field
+   does not exist. Do not stretch a neighbouring property; write only where
+   Pitloom itself records it, else list it in step g as not recordable.
 d. **Interactive only, one field at a time,** using
    `references/minimum-elements-questions.md` and step 4's role rule.
    Ask quick or high-impact answers first. The user can stop at any point:

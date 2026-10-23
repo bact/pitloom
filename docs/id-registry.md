@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -339,10 +339,9 @@ workflow run still succeeds).
 A committed registry from an earlier Pitloom release (format version 2) is an
 `ERROR:`: regenerate it with `loom id generate` or `loom id import` and
 commit the result. A registry in format version 3, which that command
-writes, can be read only by the first release with registry format 3. The
-snippet below pins `pitloom==0.20.2`, which writes and reads version 2: use
-a release with registry format 3 for both pins before committing a version 3
-file.
+writes, can be read only by Pitloom 0.21.0 or later (0.20.2 and earlier read
+version 2 only), so the snippet below pins 0.21.0 for both the CLI and the
+action.
 
 ```yaml
 name: Update Loom ID registry
@@ -372,8 +371,8 @@ jobs:
         with:
           python-version: "3.x"
       # Same release as the action below, which installs its own pinned version.
-      # Use the first release with registry format 3 (0.20.2 reads version 2).
-      - run: pip install pitloom==0.20.2
+      # 0.21.0 is the first release with registry format 3.
+      - run: pip install pitloom==0.21.0
 
       # Extras-free: keys each model by its file path, with the file's
       # SHA-256, whether or not "ai" extras are installed. Creates
@@ -384,7 +383,7 @@ jobs:
         run: loom id generate --id-registry loom-id-registry.json
 
       # Pin the first release with registry format 3 (v0.20.2 reads version 2).
-      - uses: bact/pitloom@v0.20.2
+      - uses: bact/pitloom@v0.21.0
         with:
           project-path: .
           # Required: nothing auto-discovers a registry -- declare it.

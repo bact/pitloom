@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-05
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -22,8 +22,9 @@ without executing model code.
 | :----- | :------- | :------------------ | :-------------------- |
 | JAX (Orbax) | Higher | `orbax-checkpoint` for pytree structure inspection without full restoration. See [jax-orbax-support.md](jax-orbax-support.md) for the verified on-disk format, detection marker, and field mapping | jax, orbax-checkpoint. Stores checkpoints as directories, one subdirectory per step |
 | CRFsuite | Built in #294 | Pure-Python header and label reader in `formats/`: magic `lCRF`, label strings, attribute/feature counts; no weights. See [crfsuite-support.md](../implementation/crfsuite-support.md) | none at runtime; python-crfsuite only to generate test fixtures |
-| TensorFlow SavedModel | Planned | Parse `saved_model.pb` via Protocol Buffers; inspect `MetaGraphDef` for signature defs | tensorflow, tflite-support (or `tensorflow.core.protobuf.saved_model_pb2` for protobuf-only parsing) |
-| TensorFlow Lite | Planned | Parse FlatBuffer binary without loading the TF runtime | flatbuffers -- no GPU/runtime required |
+| Flax msgpack | Higher, with JAX | Walk the msgpack tree, read each array's shape and dtype, skip its bytes. See [jax-orbax-support.md](jax-orbax-support.md#flax-msgpack-files-flax_modelmsgpack) | open: a bounded stdlib walker or the `msgpack` package; `flax` only to generate fixtures |
+| TensorFlow Lite | Higher | Parse the FlatBuffer (`TFL3` identifier at offset 4) without the TF runtime. See [tensorflow-lite-savedmodel-support.md](tensorflow-lite-savedmodel-support.md) | stdlib-only walker, or the `tflite` bindings (flatbuffers, numpy) |
+| TensorFlow SavedModel | Planned | Parse `saved_model.pb` via Protocol Buffers; inspect `MetaGraphDef` for signature defs; a directory target, like Orbax. Same file | tensorflow (or `tensorflow.core.protobuf.saved_model_pb2` for protobuf-only parsing) |
 | Scikit-learn | Planned, complex | Pickle/joblib serialisation -- no single standard format; `fickling` for safe AST inspection to extract estimator class and `get_params()` values | scikit-learn, fickling (already an optional dependency). Common extensions: `.pkl`, `.joblib`. The challenge is that the serialized type varies widely (`Pipeline`, `GridSearchCV`, etc.) |
 | MLflow model flavors | Planned | `MLmodel` YAML file in the artifact directory records `flavors`, `run_id`, and artifact paths | Not built. A `loom.from_mlflow_run()` helper is planned (see [mlflow-extractor.md](mlflow-extractor.md)); direct model flavor parsing is a separate step |
 

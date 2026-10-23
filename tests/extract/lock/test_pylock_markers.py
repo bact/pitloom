@@ -166,7 +166,7 @@ def test_default_groups_not_a_list_warns_and_treated_as_empty(
 
 def test_or_combined_group_clauses_evaluated() -> None:
     """The `or` branch of the 3-valued combiner
-    (`_combine_group_results`) is exercised alongside the `and` branch
+    (`_evaluate_group_node`) is exercised alongside the `and` branch
     tested above -- a package needed for *either* of two non-default
     groups is still excluded when neither is active."""
     with tempfile.TemporaryDirectory() as tmp:

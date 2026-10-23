@@ -7,7 +7,7 @@
 ``pitloom._toml_io``.
 
 ``pitloom.extract.project.setuptools``, ``pitloom.extract.lock.poetry``,
-``pitloom.extract.hatchling``, ``pitloom.extract.project.pyproject``,
+``pitloom.extract.project.hatchling``, ``pitloom.extract.project.pyproject``,
 ``pitloom.core._config_parse``, and ``pitloom.cli.options`` all build on
 :func:`~pitloom._toml_io.load_toml_file` instead of each carrying
 their own version-gated import; ``pitloom.extract.project.sdist`` parses TOML

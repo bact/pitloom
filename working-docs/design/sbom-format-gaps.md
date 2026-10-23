@@ -9,6 +9,8 @@ SPDX-License-Identifier: CC0-1.0
 # SBOM format gaps: what a standard cannot record precisely
 
 See also: [roadmap.md](roadmap.md),
+[generation-gaps-extraction-and-recording.md](generation-gaps-extraction-and-recording.md)
+(this ledger holds the recording gaps; the ladder of ways to record one),
 [g7-honesty-and-non-recordable.md](g7-honesty-and-non-recordable.md) (the G7
 view and the honesty rules),
 [external-references-to-review.md](external-references-to-review.md),

@@ -30,8 +30,8 @@ misread, a page URL is read by the host's conventions. Rules to state to the use
   says so; `--config FILE` applies) and its build backend never runs:
   `--allow-build` gets `WARNING: Build: <url>: --allow-build has no effect for
   a remote repository`.
-- `--offline` is an error, not a fallback (`WARNING: Git source: Cannot fetch
-  <url>: network access is forbidden.`, then the `ERROR:`).
+- `--offline` is an error, not a fallback (`WARNING: Git source: Cannot
+  fetch <url>: network access is forbidden.`, then the `ERROR:`).
 - A page URL naming a file reads the folder that holds it; a commit needs its
   full 40 (or 64) hex digits; a `#fragment` is ignored, and so is a query that
   names no ref (cgit's `?h=` and Azure's `?version=` are read).
@@ -40,5 +40,13 @@ misread, a page URL is read by the host's conventions. Rules to state to the use
   the list) and rerun with that folder's page URL.
 - Read the `INFO:` lines: each redirect followed (`Git source: <url>
   redirected to <url>`), and the repository, branch and folder used.
+- **Git LFS is a limitation of this release.** LFS is switched off, so a file
+  kept in LFS is a pointer in the checkout: a pointer named like a model
+  (`.onnx`, `.gguf`, ...) is not read as a model (no `ai_AIPackage` for it), and
+  any other LFS file (a dataset, an image) is hashed as its pointer text, with no
+  warning. Most Hugging Face model repositories keep weights in LFS. Tell the user;
+  `git lfs pull` does not help here (there is no local checkout): for the real
+  files, clone with `git lfs` installed and run `loom project` on the directory.
 - A relative `--id-registry` is relative to where `loom` runs, not to the
-  checkout. The output file is named as for a local project (`sbom.spdx3.json`).
+  checkout. The output file is named as for a local project
+  (`<name>-<version>.spdx3.json`).
