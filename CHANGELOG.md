@@ -101,6 +101,8 @@ and this project adheres to
   existing relationship descriptions are kept ([#322])
 - Hatchling hook: tests read the staged SBOM from `build_data`, not a private
   attribute ([#325])
+- `licenseid>=0.5.0` is required: its database is built from a host the
+  Claude Code sandbox allows ([#333])
 
 ### Fixed
 
@@ -180,6 +182,7 @@ and this project adheres to
 [#326]: https://github.com/bact/pitloom/pull/326
 [#331]: https://github.com/bact/pitloom/pull/331
 [#332]: https://github.com/bact/pitloom/pull/332
+[#333]: https://github.com/bact/pitloom/pull/333
 
 ## [0.20.2] - 2026-10-09
 

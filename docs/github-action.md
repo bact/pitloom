@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -86,7 +86,9 @@ By default the action scans the checkout root as a Python project and
 writes `<name>-<version>.spdx3.json` (falling back to `<name>.spdx3.json`,
 then `sbom.spdx3.json` as a last resort, unless the project's
 `[tool.pitloom] sbom-basename` overrides it, a trailing `.spdx3.json` dropped with a `WARNING:` -- the same default-naming
-logic `loom project` uses directly). Point it at an AI model instead of a
+logic `loom project` uses directly; a control character, whitespace, `/`, `\` or
+`:` in the name or version becomes `_`, and a name Windows opens as a device,
+such as `con`, gives `sbom`). Point it at an AI model instead of a
 project directory with `model:`:
 
 ```yaml
