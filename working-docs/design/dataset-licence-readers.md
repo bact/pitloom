@@ -175,7 +175,8 @@ explicit stack (2000 levels raised `RecursionError`); a size or count is at
 most `MAX_SAFE_INTEGER` (2^53 - 1, `core.canonical_json`), the largest
 integer RFC 8785 writes (`2**53` failed the whole fragment in
 `_graph_sort_key` at run end), as one value or as the record sets' sum
-(`stated_total`: one `WARNING:` per field, not per record set); a card
+(`stated_total`: only when every record set states one; one `WARNING:` per
+field, not per record set); a card
 `version` must be quoted text (YAML 1.1 reads `1:1:1` as 3661, `0x1F` as
 31, `010` as 8, and the source spelling cannot be recovered), while a JSON
 integer version stays accepted; card tags and Croissant data types go

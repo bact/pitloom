@@ -14,13 +14,19 @@ exact-pin validation is shared with (``single_exact_pin()`` in
 mechanism's own tests.
 """
 
+import json
 import logging
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
 import pytest
 
-from pitloom.extract.lock.requirements import extract_pinned_requirements_dependencies
+from pitloom.extract.lock.requirements import (
+    _join_continuation_lines,
+    extract_pinned_requirements_dependencies,
+)
 from pitloom.extract.project import read_project
 
 REAL_WORLD_LOCKS = (
@@ -502,3 +508,72 @@ def test_real_world_home_assistant_core_rejects_partially_pinned_file(
     assert metadata.locked_dependencies == []
     assert "locked_dependencies" not in metadata.provenance
     assert "option '-c' means this file isn't fully pinned" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("text", "pins"),
+    [
+        ("# note \\\nrequests==2.0\nidna==3.0\n", ["requests==2.0", "idna==3.0"]),
+        ("  # indented \\\nrequests==2.0\n", ["requests==2.0"]),
+        ("foo==1.\\\n0\n", ["foo==1.0"]),
+        ("foo\\\n==\\\n1.0\nidna==3.0\n", ["foo==1.0", "idna==3.0"]),
+        ("foo==1.0 \\  \n; python_version>'3'\n", ["foo==1.0"]),
+        ("fo\\\no==1.0\n", ["foo==1.0"]),
+        ("foo==1.0 \\\n# comment\nidna==3.0\n", ["foo==1.0", "idna==3.0"]),
+        ("foo==1.0 # trailing \\\nidna==3.0\n", ["foo==1.0"]),
+    ],
+    ids=[
+        "comment-ending-in-backslash",
+        "indented-comment",
+        "no-space-join",
+        "three-line-chain",
+        "space-after-backslash",
+        "name-split",
+        "comment-ends-continuation",
+        "trailing-comment-still-continues",
+    ],
+)
+def test_continuation_follows_pip(text: str, pins: list[str]) -> None:
+    """pip joins pieces with nothing between them and never continues a
+    comment line, so a comment ending in a backslash does not swallow the
+    pin after it. (A trailing comment on a requirement still continues, so
+    the next line is part of the comment, as in pip.)"""
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_requirements(Path(tmp), text)
+        assert extract_pinned_requirements_dependencies(Path(tmp)) == pins
+
+
+_PIP_JOIN_LINES = """
+import json, sys
+try:
+    from pip._internal.req.req_file import join_lines
+except ImportError:
+    sys.exit(3)
+text = sys.stdin.read()
+joined = join_lines(enumerate(text.splitlines(), start=1))
+print(json.dumps([t.strip() for _, t in joined]))
+"""
+
+
+def test_continuation_matches_pips_own_join_lines() -> None:
+    """Drift guard: the logical lines are pip's (its ``join_lines`` is a
+    private helper, so the test skips if it moves)."""
+    text = (
+        "# note \\\nrequests==2.0\nfoo==1.\\\n0\nfo\\\no==1.0\n"
+        "a==1 \\\n# c\nb==2\n  # indented \\\nidna==3.0\nlast==1 \\"
+    )
+    # A subprocess: importing pip makes setuptools' distutils shim replace
+    # distutils, which breaks setuptools for later tests in this process.
+    run = subprocess.run(
+        [sys.executable, "-W", "ignore", "-c", _PIP_JOIN_LINES],
+        input=text,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if run.returncode == 3:  # pragma: no cover
+        pytest.skip("pip's join_lines is not importable")
+    assert run.returncode == 0, run.stderr
+    # pylint: disable-next=protected-access
+    ours = [t.strip() for _, t in _join_continuation_lines(text)]
+    assert ours == json.loads(run.stdout)
