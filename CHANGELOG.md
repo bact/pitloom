@@ -192,6 +192,9 @@ and this project adheres to
 - A Hugging Face Space or dataset URL is fetched as a Git repository, not read
   as a model; `loom project` of a model URL and `loom model` of a Git URL name
   the other command ([#347])
+- URL messages mask a query value named like a secret and a userinfo holding
+  whitespace; a Hugging Face URL with credentials no longer leaks in
+  `loom model` ([#347])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305

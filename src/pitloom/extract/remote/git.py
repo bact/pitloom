@@ -269,7 +269,9 @@ def _checkout(
     """Check out *target* of *clone_url* into *work_dir*, shallowly, without
     blobs over :data:`BLOB_LIMIT`. A server that answers the filter with an
     error (Azure DevOps: HTTP 400) is asked again without it; the size cap
-    still bounds the transfer."""
+    still bounds the transfer. ``init`` and ``remote add`` run once, and the
+    tag and commit retry says ``--no-filter``: the failed fetch saved the
+    filter in the repository config."""
     pinned = bool(target.commit or target.tag)
     if pinned:
         runner.run(["init", "--quiet", "--", work_dir], "init")

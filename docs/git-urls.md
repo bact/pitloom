@@ -52,8 +52,11 @@ from the server's own branches and tags, longest match first.
   (Bitbucket, SourceHut, Forgejo and Gitiles write both alike) reads the folder
   holding the file.
 - Where the ref is in the query (cgit, Azure DevOps) it is exact: it is not
-  split from the folder. A query that names no ref (`?ref_type=heads`) is
-  ignored, as before.
+  split from the folder, and a `?h=` or `?id=` after a cgit page name is the ref
+  whatever the folder is called (`src`, `tree`). A query that names no ref
+  (`?ref_type=heads`) is ignored, as before. An Azure DevOps `version` that does
+  not start with `GB`, `GT` or `GC` names no ref: the default branch is read and
+  an `INFO:` says so.
 - A **commit** must be given with its full 40 (or 64) hex digits; a server cannot
   be asked for an abbreviated id.
 - A query or fragment (`?ref_type=heads`, `#readme`) is ignored.
@@ -114,7 +117,8 @@ Also checked, with a narrower scope:
   `/tree/<ref>/item/<folder>`, a file page and `/log/<ref>` are fetched.
 - **Azure DevOps** (2026-10-23, `mseng/PipelineTools`): the server answers
   `--filter=blob:limit` with HTTP 400. Pitloom asks again without the filter
-  (an `INFO:` says so); the size cap still bounds the transfer.
+  (an `INFO:` says so), also for a tag or commit page; the size cap still bounds
+  the transfer.
 - **GNU Savannah**: the web pages (`/cgit/…`, `/gitweb/…`) redirect to hosts
   that answered 502 when tried; only the clone URL was fetched.
 - **Gogs**: not tried live (the public demo, `try.gogs.io`, holds no
@@ -181,8 +185,10 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `WARNING:` | `Build: <url>: --allow-build has no effect for a remote repository …` | a build flag |
 | `ERROR:` | `SBOM generation failed: …` | the run could not finish |
 
-A URL or ref in a message is shown without credentials (`https://***:***@host`)
-and with control characters escaped. What a server or `git` says is reduced to
+A URL or ref in a message is shown without credentials (`https://***:***@host`,
+and a query value named like a secret, such as `?private_token=***`) and with
+control characters escaped. A secret in a parameter with another name is not
+recognised. What a server or `git` says is reduced to
 one line (its `fatal:`, `error:` and `remote:` lines), so it cannot add a
 tagged line of its own.
 

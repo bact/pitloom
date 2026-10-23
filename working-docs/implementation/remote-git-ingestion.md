@@ -158,6 +158,13 @@ Run against real servers (see `docs/git-urls.md`). Findings:
   serves a plain shallow clone (and `blob:none`). `_checkout` retries once
   without the filter when the first attempt fails with `HTTP 400`; one `INFO:`
   says so. The retry is for that answer only, any other failure stands.
+  `init` and `remote add` run once, before the first attempt (a second run
+  fails with "remote origin already exists" and hid the server's answer). A
+  failed filtered `fetch` still saves `remote.origin.partialclonefilter` in the
+  repository config, which a plain `fetch` would send again, so the tag and
+  commit route retries with `--no-filter`; the clone route has no such config.
+  A fake runner that only looks at argv passed both mistakes: the test runner
+  keeps the saved filter and refuses a second `init`/`remote add`, as git does.
 - Azure DevOps and cgit carry the ref in the query (`GitPage.query_style`):
   `version=GB|GT|GC<ref>` and `path=` for Azure, `h=` or `id=` for cgit, with
   the folder in the path after the page name. The ref is exact, not split from
@@ -173,6 +180,19 @@ Run against real servers (see `docs/git-urls.md`). Findings:
   write both alike) reads the folder holding the file.
 - Not read, by choice: a cgit page with no `h=` or `id=` (it names the default
   branch, and its path cannot be told from a GitHub path).
+- Tried, reverted: reading `?h=` as cgit's only when the path holds no GitHub
+  style marker. A cgit folder called `src` or `tree` (`mesa/tree/src/gallium`)
+  holds one, so it lost its ref. The query wins now; no forge puts `?h=` on its
+  own page URLs.
+- Path segments of query-style and Gitiles pages go through the same
+  `..`/`.`/`\`/NUL check as every other page form, at parse time, before a clone
+  (a NUL byte reached `os.path.realpath` after the clone and raised
+  `ValueError`).
+- Credentials: `sanitize_url_credentials` (free text, stops at whitespace) also
+  masks a query value named like a secret; `sanitize_url` is for a text that is
+  one URL and masks a userinfo holding a newline or a space. Every URL echoed by
+  the Git source and by `loom model` goes through `sanitize_url`. A secret in a
+  parameter with another name is not recognised.
 
 ## Verification
 
