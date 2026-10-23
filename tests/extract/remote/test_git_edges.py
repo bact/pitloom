@@ -18,7 +18,7 @@ import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from unittest import mock
 
 import pytest
@@ -407,7 +407,7 @@ class _FilterRejectingRunner:
         self.message = message
         self.calls: list[list[str]] = []
 
-    def run(self, args: list[str], what: str, **_kwargs: Any) -> str:
+    def run(self, args: list[str], _what: str, **_kwargs: Any) -> str:
         self.calls.append(args)
         if any(a.startswith("--filter") for a in args):
             raise RemoteSourceError("git.clone-failed", self.message)
@@ -429,7 +429,7 @@ def test_a_server_that_rejects_the_blob_filter_is_asked_again_without_it(
     plain shallow fetch."""
     runner = _FilterRejectingRunner(_REJECTED)
     with caplog.at_level(logging.INFO):
-        _checkout(runner, "https://h/o/r", "/work", target)  # type: ignore[arg-type]
+        _checkout(cast(GitRunner, runner), "https://h/o/r", "/work", target)
     wanted = "fetch" if target.tag or target.commit else "clone"
     shallow = [c for c in runner.calls if wanted in c and "--depth" in c]
     assert len(shallow) == 2
@@ -447,5 +447,5 @@ def test_any_other_clone_failure_is_not_retried(message: str) -> None:
     """Only the answer a filter earns is retried: any other error stands."""
     runner = _FilterRejectingRunner(message)
     with pytest.raises(RemoteSourceError, match="fatal"):
-        _checkout(runner, "https://h/o/r", "/work", GitTarget())  # type: ignore[arg-type]
+        _checkout(cast(GitRunner, runner), "https://h/o/r", "/work", GitTarget())
     assert len(runner.calls) == 1
