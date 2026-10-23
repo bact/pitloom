@@ -71,6 +71,12 @@ from the server's own branches and tags, longest match first.
   repository and is fetched like any other (Git LFS files stay pointers: Pitloom
   switches LFS off). A Space with no `pyproject.toml`, `setup.cfg` or `setup.py`
   has no Python project to read, and says so.
+- **Git LFS (a limitation, planned to be fixed in 0.22.0).** Pitloom switches LFS
+  off for a fetch, so a file kept in LFS is a small pointer file in the checkout.
+  An AI model, a dataset or any other file stored that way is not read, and its
+  entry in the SBOM carries the SHA-256 of the pointer text, not of the file,
+  without a warning. Most model repositories on Hugging Face and many on GitLab
+  and Codeberg use LFS for their weights.
 - Not read: hosts that need a login, `ssh://`, `git://`, `file://` and scp-style `user@host:path`
   addresses. These are refused with a message (see below).
 
