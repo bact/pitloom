@@ -18,6 +18,7 @@ from pitloom.core.ai_metadata import (
     source_metadata,
 )
 from pitloom.core.canonical_json import canonical_json
+from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
@@ -70,7 +71,7 @@ def _load_fasttext_model(model_path: Path) -> Any:
             loggable(str(exc)),
         )
         raise ValueError(
-            f"Failed to load fastText model from {model_path}: {exc}"
+            f"Failed to load fastText model from {quote_source(model_path)}: {exc}"
         ) from exc
 
 

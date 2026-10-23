@@ -52,6 +52,7 @@ from pitloom.core.inert_options import (
 from pitloom.core.models import merkle_root_of_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import require_max_source_metadata_bytes
+from pitloom.core.quote_source import quote_source
 from pitloom.core.walk_rules import without_registry_copies
 from pitloom.extract.authors import (
     CORE_METADATA_HINT,
@@ -93,7 +94,7 @@ def _read_external_sbom(sbom_path: Path | str) -> str:
         return raw.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise ValueError(
-            f"SBOM {loggable(str(sbom_path))} is not valid UTF-8 (byte {exc.start})"
+            f"SBOM {quote_source(sbom_path)} is not valid UTF-8 (byte {exc.start})"
         ) from exc
 
 

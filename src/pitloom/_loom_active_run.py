@@ -36,6 +36,7 @@ from pitloom.core.config_cascade import load_config_file
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.model_extract_limit import require_max_dataset_hash_bytes
 from pitloom.core.models import build_relationship
+from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.id_registry import IdRegistry, IdRegistrySession, resolve_registry
 from pitloom.logging_config import configure_logging, one_line
@@ -71,7 +72,7 @@ def loom_config(pitloom_config: PitloomConfig | str | Path | None) -> PitloomCon
     except FileNotFoundError as exc:
         raise ValueError(str(exc)) from exc
     except OSError as exc:
-        raise ValueError(f"config file {path}: {one_line(exc)}") from exc
+        raise ValueError(f"config file {quote_source(path)}: {one_line(exc)}") from exc
 
 
 def _append_once(

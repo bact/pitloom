@@ -24,6 +24,7 @@ from typing import Any
 from packaging.utils import canonicalize_name
 from packaging.version import Version
 
+from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 
 
@@ -285,7 +286,7 @@ def format_name_version_mismatch(subject: str, mismatches: list[str]) -> str:
     (`embed.py`'s pre-embed enforcement) log/raise, so a wording tweak
     can't silently diverge between the two.
     """
-    return f"{subject}: SBOM/wheel " + "; ".join(mismatches)
+    return f"{quote_source(subject)}: SBOM/wheel " + "; ".join(mismatches)
 
 
 def check_spdx3_name_version(

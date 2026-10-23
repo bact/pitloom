@@ -111,9 +111,9 @@ traceback, and takes precedence over that error.
 - Registry keys, and the default `PATH`s (`src`, `data`, `models`), stay
   relative to `--project-dir`; a relative `-o` or `PATH` resolves against the
   current directory.
-- `--project-dir` must be an existing directory, else `ERROR: --project-dir <p>
+- `--project-dir` must be an existing directory, else `ERROR: --project-dir '<p>'
   is not a directory` (exit 1). Each `PATH` must resolve inside it, else
-  `ERROR: PATH <p> is outside --project-dir <dir>` (exit 1), whether directly
+  `ERROR: PATH '<p>' is outside --project-dir '<dir>'` (exit 1), whether directly
   or only through a symlink. `..` is collapsed lexically before any symlink
   is followed (`link/..` is the directory above `link` as written). A symlink
   that itself lives inside the project is fine even if it points outside: it
@@ -127,7 +127,7 @@ traceback, and takes precedence over that error.
   path project-relative, `/`-separated) and the run continues; a partial tree
   is never indexed silently. So does a file whose name a registry cannot hold
   (not UTF-8 encodable). A `PATH` argument itself that cannot be read or
-  listed is `ERROR: PATH <path>: could not be read: <reason>` (exit 1, nothing
+  listed is `ERROR: PATH '<path>': could not be read: <reason>` (exit 1, nothing
   written) on every Python version; an unreadable default directory (`src`,
   `data`, `models`) is the `DIR=` warning instead.
 - Build, virtual-environment, VCS and cache directories are not indexed; see
@@ -291,7 +291,7 @@ current directory for any other target, an sdist included. The CLI makes
 `--id-registry` absolute against the current directory first, so there
 it always means the file under the current directory. A declared
 registry file that's missing, unreadable or invalid raises `ValueError`
-(`"ID registry file <path>: <reason>"`) rather than being silently
+(`"ID registry file '<path>': <reason>"`) rather than being silently
 skipped or replaced. `loom.run` reads no `[tool.pitloom]` unless given one
 as `pitloom_config=`; its own `id_registry=` resolves against the current
 directory, a `pitloom_config=` file's `id-registry` against that file's
@@ -301,10 +301,10 @@ directory.
 and the loader reject a name that UTF-8 cannot hold (a lone surrogate) with
 `ValueError`; `generate()` skips such a file with the `FILE=` `WARNING:`, and
 harvest and `id import` skip such an element with a `WARNING:`. `generate()`
-raises `ID registry: <path> is outside the project root <root>` for a path
+raises `ID registry: '<path>' is outside the project root '<root>'` for a path
 outside the root; a symlink inside the project that points outside is keyed
 by its project path. `id import` of an SBOM whose `@graph` is not a list is
-`ERROR: failed to import SBOM <path>: @graph is not a list`.
+`ERROR: failed to import SBOM '<path>': @graph is not a list`.
 
 ## In CI
 

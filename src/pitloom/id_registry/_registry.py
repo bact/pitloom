@@ -26,6 +26,7 @@ from uuid import uuid4
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.iri import doc_namespace, iri_segment, require_namespace_iri
+from pitloom.core.quote_source import quote_source
 from pitloom.core.walk_rules import same_path
 from pitloom.id_registry._ambiguous import RecordedKeys
 from pitloom.id_registry._counters import (
@@ -264,7 +265,8 @@ class IdRegistry:
         if not same_path(root, project_root):
             raise registry_file_error(
                 self.path or Path(""),
-                f"project root {root} is not {project_root}; "
+                f"project root {quote_source(root)} is not "
+                f"{quote_source(project_root)}; "
                 "delete it to change the project root",
             )
 

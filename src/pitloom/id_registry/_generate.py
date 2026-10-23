@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
 from pitloom.core.file_identity import file_id
+from pitloom.core.quote_source import quote_source
 from pitloom.id_registry._types import (
     AI_PACKAGE_TYPE,
     FILE_TYPE,
@@ -64,8 +65,8 @@ def _file_key(
     key = None if rel is None else join_key(prefix, rel)
     if key is None:
         raise ValueError(
-            f"ID registry: {loggable(str(file_path))} is outside the "
-            f"project root {loggable(str(project_root))}"
+            f"ID registry: {quote_source(file_path)} is outside the "
+            f"project root {quote_source(project_root)}"
         )
     return key
 

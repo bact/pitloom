@@ -205,13 +205,16 @@ def _generate_paths(args: argparse.Namespace, project_dir: Path) -> list[Path]:
         for path in args.paths:
             resolved = _resolve_id_generate_path(path, project_dir, lexical_project_dir)
             if resolved is None:
-                raise ValueError(f"PATH {path} is outside --project-dir {project_dir}")
+                raise ValueError(
+                    f"PATH {quote_source(path)} is outside "
+                    f"--project-dir {quote_source(project_dir)}"
+                )
             paths.append(resolved)
     else:
         paths = _default_id_generate_paths(project_dir)
     if not paths:
         raise ValueError(
-            f"no source/data directories found under {project_dir}; "
+            f"no source/data directories found under {quote_source(project_dir)}; "
             "pass explicit PATH argument(s)."
         )
     return paths

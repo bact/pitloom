@@ -40,6 +40,7 @@ from pitloom.core.file_names import (
     escape_file_name_part,
     is_plain_file_name,
 )
+from pitloom.core.quote_source import quote_source
 from pitloom.core.wheel_dist_info import (
     MAX_NAME_CHARS,
     RefusingReader,
@@ -148,7 +149,7 @@ class _EmbedPlan:
 def _validate_sbom_filename(filename: str) -> None:
     """Guard against path traversal in an embedded SBOM filename (CWE-22)."""
     if not is_plain_file_name(filename):
-        raise ValueError(f"Invalid SBOM filename: {filename!r}")
+        raise ValueError(f"Invalid SBOM filename: {quote_source(filename)}")
 
 
 def _derive_wheel_sbom_filename(
@@ -419,7 +420,7 @@ def embed_sbom_in_wheel(
     require_wheel_path(wheel_path)
     wheel_obj = Path(wheel_path).resolve()
     if not wheel_obj.exists():
-        raise FileNotFoundError(f"Wheel file not found: {wheel_obj}")
+        raise FileNotFoundError(f"Wheel file not found: {quote_source(wheel_obj)}")
 
     sbom_bytes = (
         sbom_content.encode("utf-8") if isinstance(sbom_content, str) else sbom_content

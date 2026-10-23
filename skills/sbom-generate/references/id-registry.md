@@ -177,7 +177,7 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
 - **Unreadable files**: a file or directory below a `PATH` that cannot be
   read or listed is a `WARNING: FILE=...`/`DIR=...` (project-relative path)
   and the run continues (so does a file whose name is not UTF-8 encodable); an
-  unreadable `PATH` argument is `ERROR: PATH <path>: could not be read: ...`
+  unreadable `PATH` argument is `ERROR: PATH '<path>': could not be read: ...`
   (an unreadable default directory is only the `DIR=` warning). An explicit
   `PATH` that is or lies in a skipped directory (`build`, `dist`, ...) indexes
   nothing and warns
@@ -204,7 +204,7 @@ it as below; other commands prefix their own (`ERROR: SBOM generation
 failed: ...`):
 
 ```text
-ERROR: ID registry file <path>: version 2, expected 3 (no migration support -- delete it and re-run `pitloom id generate` or `pitloom id import`)
+ERROR: ID registry file '<path>': version 2, expected 3 (no migration support -- delete it and re-run `pitloom id generate` or `pitloom id import`)
 ```
 
 Pitloom releases before registry format 3 write version 2, so a registry

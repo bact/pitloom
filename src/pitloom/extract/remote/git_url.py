@@ -26,6 +26,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from urllib.parse import unquote, urlsplit, urlunsplit
 
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import sanitize_url_credentials
 
@@ -211,7 +212,7 @@ def _check_segments(rest: tuple[str, ...], url: str) -> None:
         if segment in {".", ".."} or "\0" in segment or "\\" in segment:
             raise RemoteSourceError(
                 "git.url-invalid",
-                f"Invalid path in URL: {sanitize_url_credentials(url)!r}",
+                f"Invalid path in URL: {quote_source(sanitize_url_credentials(url))}",
             )
 
 
@@ -247,7 +248,8 @@ def split_ref(page: GitPage, refs: Mapping[str, frozenset[str]]) -> GitTarget:
         return GitTarget(commit=first, subdir=folder, file=file)
     raise RemoteSourceError(
         "git.ref-not-found",
-        f"No branch or tag {first!r} in {sanitize_url_credentials(page.repo_url)} "
+        f"No branch or tag {quote_source(first)} in "
+        f"{quote_source(sanitize_url_credentials(page.repo_url))} "
         "(a commit needs its full 40 or 64 hex digits).",
     )
 

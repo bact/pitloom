@@ -395,9 +395,9 @@ def read_ai_model(
             a bound.
     """
     if not model_path.exists():
-        raise FileNotFoundError(f"Model file not found: {model_path}")
+        raise FileNotFoundError(f"Model file not found: {quote_source(model_path)}")
     if not os.path.isfile(model_path):
-        raise ValueError(f"{model_path}: {NOT_A_MODEL_MESSAGE}")
+        raise ValueError(f"{quote_source(model_path)}: {NOT_A_MODEL_MESSAGE}")
 
     if model_format is None:
         model_format = detect_ai_model_format(model_path)
