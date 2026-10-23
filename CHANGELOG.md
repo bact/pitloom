@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-22
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -163,6 +163,10 @@ and this project adheres to
   messages escape the paths they name ([#331])
 - A Hub model URL as `www.huggingface.co`, `hf.co`, `http://` or any case
   is read like the canonical one, with an `INFO:` line ([#332])
+- Paths in error messages raised by readers, sdist, registry and wheel code
+  are quoted and escaped like those in log lines ([#336])
+- Requirements continuation lines are joined as pip does; a Croissant record
+  count is reported only when every record set states one ([#337])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
@@ -183,6 +187,8 @@ and this project adheres to
 [#331]: https://github.com/bact/pitloom/pull/331
 [#332]: https://github.com/bact/pitloom/pull/332
 [#333]: https://github.com/bact/pitloom/pull/333
+[#336]: https://github.com/bact/pitloom/pull/336
+[#337]: https://github.com/bact/pitloom/pull/337
 
 ## [0.20.2] - 2026-10-09
 
