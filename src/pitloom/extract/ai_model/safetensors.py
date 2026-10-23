@@ -21,6 +21,7 @@ from pitloom.core.ai_metadata import (
     source_metadata,
 )
 from pitloom.core.model_originators import ORIGINATORS_PROVENANCE_KEY, originator_names
+from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
@@ -113,7 +114,7 @@ def _read_header(
             loggable(str(exc)),
         )
         raise ValueError(
-            f"Failed to read Safetensors file {model_path}: {exc}"
+            f"Failed to read Safetensors file {quote_source(model_path)}: {exc}"
         ) from exc
     return metadata, parameter_count
 

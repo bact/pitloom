@@ -26,6 +26,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.core.config import PitloomConfig, pyproject_config_applies
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.project import read_project, sdist_config_source
 from pitloom.extract.project._sdist_scan import CONFIG_MEMBER_MAX_BYTES
 from pitloom.extract.project.sdist import read_sdist
@@ -318,7 +319,7 @@ def test_oversize_first_member_still_wins_over_a_later_one(
         },
         fmt=fmt,
     )
-    match = f"{sdist.name}:pyproject.toml: larger than the 1048576-byte config-member"
+    match = f"{sdist.name}:pyproject.toml': larger than the 1048576-byte config-member"
     with pytest.raises(ValueError, match=match + " cap; not read"):
         read_sdist(sdist)
 
@@ -462,7 +463,7 @@ def test_error_names_the_archive_path_as_given(tmp_path: Path) -> None:
     sdist = _make_sdist(nested, "[tool.pitloom]\npretty = 'yes'\n")
     with pytest.raises(ValueError) as info:
         read_sdist(sdist)
-    assert f"config file {sdist}:pyproject.toml:" in str(info.value)
+    assert f"config file {quote_source(f'{sdist}:pyproject.toml')}:" in str(info.value)
 
 
 @_FMT

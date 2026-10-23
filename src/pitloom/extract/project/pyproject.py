@@ -260,7 +260,9 @@ def read_pyproject(
             ``[tool.pitloom]`` settings are invalid.
     """
     if not pyproject_path.exists():
-        raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
+        raise FileNotFoundError(
+            f"pyproject.toml not found at {quote_source(pyproject_path)}"
+        )
 
     data: dict[str, Any] = load_toml_file(pyproject_path)
 

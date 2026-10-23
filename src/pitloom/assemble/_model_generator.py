@@ -257,7 +257,7 @@ def generate_model_sbom(
         if cfg.offline:
             raise ValueError(
                 "Offline mode enabled: cannot fetch remote Hugging Face source "
-                f"'{source_str}'"
+                f"{quote_source(source_str)}"
             )
         model = read_huggingface(source_str)
         entity_spdx_id = digest = None
@@ -323,7 +323,7 @@ def enrich_model(
     source_str = str(source)
     if is_huggingface_source(source_str):
         raise ValueError(
-            f"'{source_str}' is a Hugging Face source; local enrichment "
+            f"{quote_source(source_str)} is a Hugging Face source; local enrichment "
             "does not apply there -- Hugging Face model cards are already "
             "parsed natively when generating the SBOM."
         )

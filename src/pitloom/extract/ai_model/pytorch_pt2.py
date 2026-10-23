@@ -29,6 +29,7 @@ from pitloom.core.model_originators import (
     ORIGINATORS_PROVENANCE_KEY,
     originator_names,
 )
+from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model.archive_member import (
     open_model_zip,
@@ -472,10 +473,14 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
     try:
         is_zip = zipfile.is_zipfile(str(model_path))
     except OSError as exc:
-        raise ValueError(f"Failed to open PT2 Archive: {model_path}") from exc
+        raise ValueError(
+            f"Failed to open PT2 Archive: {quote_source(model_path)}"
+        ) from exc
 
     if not is_zip:
-        raise ValueError(f"PT2 Archive must be a ZIP file, got: {model_path}")
+        raise ValueError(
+            f"PT2 Archive must be a ZIP file, got: {quote_source(model_path)}"
+        )
 
     with open_model_zip(model_path) as zf:
         (

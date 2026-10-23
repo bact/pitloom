@@ -207,7 +207,7 @@ def test_generate_unreadable_root_warns_unless_explicit(
         with caplog.at_level(logging.WARNING):
             registry = IdRegistry.new("proj")
             registry.generate([root / "data", root / "src"], root, explicit=False)
-        with pytest.raises(ValueError, match="PATH data: could not be read"):
+        with pytest.raises(ValueError, match="PATH 'data': could not be read"):
             IdRegistry.new("proj").generate([root / "data"], root)
     finally:
         (root / "data").chmod(0o755)

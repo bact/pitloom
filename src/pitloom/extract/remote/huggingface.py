@@ -71,6 +71,7 @@ from pitloom.core.ai_metadata import (
     AiModelMetadata,
     AiModelUsage,
 )
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model.limits import settle_read_text
 from pitloom.extract.remote.git_url import HUB_HOST_PATTERN
 from pitloom.extract.remote.huggingface_dataset import add_hub_dataset_metadata
@@ -170,7 +171,9 @@ def read_huggingface(source: str) -> AiModelMetadata:
 
     model_id = parse_hf_model_id(source)
     if model_id is None:
-        raise ValueError(f"Not a valid Hugging Face URL or model ID: {source!r}")
+        raise ValueError(
+            f"Not a valid Hugging Face URL or model ID: {quote_source(source)}"
+        )
 
     hf_url = f"{_CANONICAL_PREFIX}{model_id}"
     if _HF_URL_RE.match(source) and not source.startswith(_CANONICAL_PREFIX):

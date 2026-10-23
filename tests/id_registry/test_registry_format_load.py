@@ -20,6 +20,7 @@ from unittest.mock import patch
 
 import pytest
 
+from pitloom.core.quote_source import quote_source
 from pitloom.id_registry import (
     DEFAULT_ID_REGISTRY_FILENAME,
     FILE_TYPE,
@@ -167,7 +168,7 @@ def test_load_rejects(tmp_path: Path, case: str) -> None:
         IdRegistry.load(path)
 
     message = str(excinfo.value)
-    assert message.startswith(f"ID registry file {path}: ")
+    assert message.startswith(f"ID registry file {quote_source(path)}: ")
     assert reason in message
 
 
@@ -182,7 +183,8 @@ def test_load_v2_message_is_exact(tmp_path: Path) -> None:
         IdRegistry.load(path)
 
     assert str(excinfo.value) == (
-        f"ID registry file {path}: version 2, expected 3 (no migration support "
+        f"ID registry file {quote_source(path)}: version 2, expected 3 "
+        "(no migration support "
         "-- delete it and re-run `pitloom id generate` or `pitloom id import`)"
     )
 

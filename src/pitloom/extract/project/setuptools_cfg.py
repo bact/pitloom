@@ -26,6 +26,7 @@ from pitloom.core.config import (
     parse_pitloom_config,
 )
 from pitloom.core.project import ProjectMetadata
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.project._requirements_files import (
     ListedFiles,
     setup_cfg_file_names,
@@ -238,7 +239,9 @@ def read_setup_cfg_options(
     """
     setup_cfg_path = project_dir / "setup.cfg"
     if not os.path.isfile(setup_cfg_path):
-        raise FileNotFoundError(f"setup.cfg not found at {setup_cfg_path}")
+        raise FileNotFoundError(
+            f"setup.cfg not found at {quote_source(setup_cfg_path)}"
+        )
     cfg = configparser.ConfigParser()
     try:
         # opened here, not read(): read() skips a file it cannot open.

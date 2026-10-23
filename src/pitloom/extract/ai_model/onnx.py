@@ -26,6 +26,7 @@ from pitloom.core.model_originators import (
     ORIGINATORS_PROVENANCE_KEY,
     originator_names_cut,
 )
+from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
@@ -321,7 +322,9 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
             loggable(str(model_path)),
             loggable(str(exc)),
         )
-        raise ValueError(f"Failed to load ONNX model from {model_path}: {exc}") from exc
+        raise ValueError(
+            f"Failed to load ONNX model from {quote_source(model_path)}: {exc}"
+        ) from exc
 
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
     provenance: dict[str, str] = {}

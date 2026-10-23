@@ -23,6 +23,7 @@ from pitloom.assemble.spdx3._fragments_envelope import (
 )
 from pitloom.assemble.spdx3.fragments import fragment_files, merge_fragments
 from pitloom.core.config import FragmentConfig
+from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import configure_logging
 
 
@@ -49,10 +50,14 @@ def generate_merged_sbom(
     configure_logging()
     fragments_dir = Path(fragments_dir)
     if not fragments_dir.exists():
-        raise FileNotFoundError(f"fragments directory not found: {fragments_dir}")
+        raise FileNotFoundError(
+            f"fragments directory not found: {quote_source(fragments_dir)}"
+        )
     files = fragment_files(fragments_dir)
     if not files:
-        raise ValueError(f"no JSON fragment files found in {fragments_dir}")
+        raise ValueError(
+            f"no JSON fragment files found in {quote_source(fragments_dir)}"
+        )
     exporter = new_merge_document(fragments_dir, files)
     merge_fragments(
         fragments_dir,

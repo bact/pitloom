@@ -23,6 +23,7 @@ from pitloom.core.model_originators import (
     ORIGINATORS_PROVENANCE_KEY,
     originator_names,
 )
+from pitloom.core.quote_source import quote_source
 from pitloom.core.scalar_text import scalar_text
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
@@ -379,7 +380,9 @@ def _load_fields(
     try:
         check_gguf_header(model_path)
     except OSError as exc:
-        raise ValueError(f"Failed to read GGUF file {model_path}: {exc}") from exc
+        raise ValueError(
+            f"Failed to read GGUF file {quote_source(model_path)}: {exc}"
+        ) from exc
 
     try:
         reader = GGUFReader(str(model_path), mode="r")
@@ -390,13 +393,17 @@ def _load_fields(
             loggable(str(model_path)),
             loggable(str(exc)),
         )
-        raise ValueError(f"Failed to read GGUF file {model_path}: {exc}") from exc
+        raise ValueError(
+            f"Failed to read GGUF file {quote_source(model_path)}: {exc}"
+        ) from exc
 
     try:
         fields, raw_metadata, derived = _read_fields(reader.fields)
         return fields, raw_metadata, derived, [t.shape.tolist() for t in reader.tensors]
     except ValueError as exc:
-        raise ValueError(f"Failed to read GGUF file {model_path}: {exc}") from exc
+        raise ValueError(
+            f"Failed to read GGUF file {quote_source(model_path)}: {exc}"
+        ) from exc
     finally:
         # GGUFReader (the gguf package) memory-maps the whole file and
         # exposes no close()/context-manager protocol of its own -- drop the

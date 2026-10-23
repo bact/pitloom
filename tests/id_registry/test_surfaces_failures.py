@@ -53,6 +53,7 @@ import pytest
 
 from pitloom import __main__
 from pitloom.assemble import enrich_model, generate_project_sbom
+from pitloom.core.quote_source import quote_source
 from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
 from tests.cli.shared import SAFETENSORS_FIXTURE
 from tests.id_registry.surfaces_shared import (
@@ -309,7 +310,7 @@ def test_cli_relative_project_dir_error_names_the_absolute_registry_path(
     (error_line,) = [
         line for line in capsys.readouterr().err.splitlines() if "ERROR:" in line
     ]
-    assert f"ID registry file {expected}: " in error_line
+    assert f"ID registry file {quote_source(expected)}: " in error_line
 
 
 @pytest.mark.parametrize("surface", ["generate_project_sbom", "enrich_model"])
@@ -325,7 +326,7 @@ def test_library_relative_project_target_error_names_the_absolute_registry_path(
         else:
             generate_project_sbom(relative, creation_metadata=None)
 
-    assert f"ID registry file {expected}: " in str(excinfo.value)
+    assert f"ID registry file {quote_source(expected)}: " in str(excinfo.value)
 
 
 # --- Undeclared: IdRegistry.load is never called, on any surface -------
