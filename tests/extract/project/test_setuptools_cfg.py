@@ -155,6 +155,35 @@ def test_read_setup_cfg_version_file_directive() -> None:
     assert "file_directive" in (metadata.provenance.get("version") or "")
 
 
+@pytest.mark.parametrize(
+    ("directive", "source"),
+    [
+        ("VERSION", "VERSION"),
+        ("./pkg/../VERSION", "VERSION"),
+        ("<project>/VERSION", "VERSION"),
+        ("pkg/VERSION", "pkg/VERSION"),
+    ],
+    ids=["plain", "dot-and-dotdot", "absolute", "below"],
+)
+def test_version_file_directive_provenance_names_the_file_as_the_project_does(
+    tmp_path: Path, directive: str, source: str
+) -> None:
+    """The ``Source`` is project-relative and normalised, never an absolute
+    path of this machine."""
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "VERSION").write_text("3.4.5\n")
+    (tmp_path / "pkg" / "VERSION").write_text("3.4.5\n")
+    text = directive.replace("<project>", tmp_path.as_posix())
+    (tmp_path / "setup.cfg").write_text(
+        f"[metadata]\nname = pkg\nversion = file: {text}\n"
+    )
+    metadata, _ = read_setup_cfg(tmp_path)
+    assert metadata.version == "3.4.5"
+    assert metadata.provenance.get("version") == (
+        f"Source: {source} | Method: file_directive"
+    )
+
+
 def test_read_setup_cfg_version_file_directive_missing_file() -> None:
     """Returns None version when the referenced VERSION file is absent."""
     content = "[metadata]\nname = pkg\nversion = file: VERSION\n"

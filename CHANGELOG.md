@@ -52,9 +52,9 @@ and this project adheres to
   GitLab redirects are followed and `check_url=` guards each hop ([#317])
 - `loom id import --project-dir` roots a new registry at the project directory
   ([#338])
-- `fetch_git_project(max_bytes=)` and `generate_git_project_sbom()`'s
-  `max_clone_bytes=` stop a fetch once the checkout takes more disk than that
-  (`git.too-large`) ([#339])
+- `max_bytes=` of `fetch_git_project` and `max_clone_bytes=` of
+  `generate_git_project_sbom` stop a clone past a disk cap (`git.too-large`)
+  ([#339])
 
 ### Changed
 
@@ -168,15 +168,17 @@ and this project adheres to
   messages escape the paths they name ([#331])
 - A Hub model URL as `www.huggingface.co`, `hf.co`, `http://` or any case
   is read like the canonical one, with an `INFO:` line ([#332])
-- A default SBOM name from the project name or version cannot leave the output
-  directory or name a Windows device; CLI, hook and wheel embed share one
-  helper ([#334])
+- A default SBOM name cannot leave the output directory or name a Windows
+  device; the CLI, hook and wheel embed share one helper ([#334])
 - Paths in log, print, argparse and raised messages are quoted and escaped, one
   `ERROR:` line each; a hostile name cannot forge a line ([#335], [#336])
 - Requirements continuation lines are joined as pip does; a Croissant record
   count is reported only when every record set states one ([#337])
 - An sdist with members that share one path key warns instead of clashing
   silently ([#338])
+- Symlinked projects get one ID registry prefix; Merkle leaves are NFC; loom
+  opens `path=` as the OS does and names an outside script by file name
+  ([#340], [#341])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
@@ -203,6 +205,8 @@ and this project adheres to
 [#337]: https://github.com/bact/pitloom/pull/337
 [#338]: https://github.com/bact/pitloom/pull/338
 [#339]: https://github.com/bact/pitloom/pull/339
+[#340]: https://github.com/bact/pitloom/pull/340
+[#341]: https://github.com/bact/pitloom/pull/341
 
 ## [0.20.2] - 2026-10-09
 
