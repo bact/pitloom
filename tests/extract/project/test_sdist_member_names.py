@@ -151,7 +151,7 @@ def test_trailing_backslash_is_a_directory_in_zip_and_tar(
         contents = read_sdist(sdist, read_config=False)
     assert [f.distribution_path for f in contents.files] == [f"{SDIST_ROOT}/pkg/a.py"]
     assert [r.getMessage() for r in caplog.records] == [
-        f"ARCHIVE={filename!r} ENTRY='{SDIST_ROOT}/pkg\\\\': directory entry"
+        f"ARCHIVE={filename!r} ENTRY='{SDIST_ROOT}/pkg\\': directory entry"
         " carries data -- skipped"
     ]
 

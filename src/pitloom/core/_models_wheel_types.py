@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, Protocol, TypedDict
 
 from pitloom.core.content_type_config import ContentTypeOverride
+from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import one_line
 
 if TYPE_CHECKING:
@@ -40,7 +41,10 @@ def warn_discovery_failed(
     discovery raised, just before it returns ``None`` (the caller then
     falls back). *backend* is the display name, e.g. ``"Hatchling"``."""
     log.warning(
-        "%s file discovery failed for %s: %s", backend, project_dir, one_line(exc)
+        "%s file discovery failed for %s: %s",
+        backend,
+        quote_source(project_dir),
+        one_line(exc),
     )
 
 

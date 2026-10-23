@@ -27,6 +27,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble._generators_shared import _sync_registry
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.id_registry import FILE_TYPE, IdRegistry, RegistryEntry
+from pitloom.id_registry._persist import failed_to_save_message
 from tests.id_registry.surfaces_base import _run_cli
 from tests.registry_helpers import make_registry
 
@@ -88,7 +89,7 @@ def test_added_counts_distinct_ids(
         (FILE_TYPE, "p/b.py"),
         (FILE_TYPE, "src/p/a.py"),
     ]
-    assert _infos(caplog) == [f"ID registry: added 1 new id(s) to {path}"]
+    assert _infos(caplog) == [f"ID registry: added 1 new id(s) to '{path}'"]
     assert IdRegistry.load(path).id_count() == 2
 
 
@@ -114,7 +115,7 @@ def test_updated_stale_entries_when_no_entry_is_new(
 
     assert registry.get(FILE_TYPE, name) == RegistryEntry(spdx_id, "b" * 64)
     assert registry.id_count() == 1
-    assert _infos(caplog) == [f"ID registry: updated stale entries in {path}"]
+    assert _infos(caplog) == [f"ID registry: updated stale entries in '{path}'"]
 
 
 @pytest.mark.parametrize("error", [OSError("disk full"), ValueError("drives")])
@@ -134,7 +135,7 @@ def test_a_failed_save_is_one_warning(
 
     warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
     assert len(warnings) == 1
-    assert warnings[0].startswith(f"ID registry: failed to save {path}")
+    assert warnings[0].startswith(f"ID registry: failed to save '{path}'")
     assert not _infos(caplog)
 
 
@@ -177,3 +178,10 @@ def test_id_generate_reports_distinct_ids(
     assert len(loaded.elements) == loaded.id_count()
     err = capsys.readouterr().err
     assert f"INFO: ID registry: holds {loaded.id_count()} id(s)\n" in err
+
+
+def test_a_save_message_without_a_file_says_so() -> None:
+    """A registry that has no file names none, instead of ``None``."""
+    assert failed_to_save_message(None, OSError("x")) == (
+        "ID registry: failed to save (no file): x"
+    )

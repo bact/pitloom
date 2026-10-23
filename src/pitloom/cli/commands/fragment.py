@@ -12,7 +12,6 @@ import functools
 import hashlib
 import json
 import logging
-import sys
 from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,7 +34,8 @@ from pitloom.cli.commands.utils import (
 from pitloom.cli.kv_output import print_kv
 from pitloom.core.config import FragmentConfig, read_pitloom_config
 from pitloom.core.path_probe import is_missing_errno
-from pitloom.logging_config import loggable
+from pitloom.core.quote_source import quote_source
+from pitloom.logging_config import loggable, print_error
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ def _run_fragment_validate(args: argparse.Namespace) -> int:
     not_files = [p for p in paths if not p.is_file()]
     for p in not_files:
         kind = "directory" if p.is_dir() else "file not found"
-        print(f"ERROR: {kind}: {p}", file=sys.stderr)
+        print_error(f"{kind}: {quote_source(p)}")
 
     if not dependency_ok or not_files:
         return 1
@@ -156,7 +156,7 @@ def _fragment_sha256_status(
         return "match"
     log.warning(
         "SBOM fragment %s SHA-256 mismatch: configured %s, actual %s",
-        fragment_path,
+        quote_source(fragment_path),
         expected_sha256,
         actual,
     )

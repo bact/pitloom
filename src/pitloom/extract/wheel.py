@@ -21,6 +21,7 @@ from pitloom.core.project import (
     ProjectMetadata,
     digest_fields,
 )
+from pitloom.core.quote_source import quote_source
 from pitloom.core.wheel_dist_info import (
     open_wheel_zip,
     read_metadata_headers,
@@ -256,8 +257,8 @@ def read_wheel(
         choice = resolve_own_dist_info(archive, [name for name, _ in members])
         if choice.problem:
             log.warning(
-                "ARCHIVE=%r: %s%s",
-                archive,
+                "ARCHIVE=%s: %s%s",
+                quote_source(archive),
                 choice.problem,
                 "" if choice.prefix else " -- identity unknown",
             )

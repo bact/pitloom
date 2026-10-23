@@ -23,6 +23,7 @@ from collections.abc import Callable, Iterable
 from typing import Literal, NamedTuple, TypeVar
 
 from pitloom.core._models_wheel_types import to_posix_distribution_path
+from pitloom.core.quote_source import quote_source
 
 MemberNameStatus = Literal["ok", "normalized", "unsafe"]
 
@@ -30,11 +31,11 @@ T = TypeVar("T")
 
 _DRIVE_PREFIX = re.compile(r"^[A-Za-z]:")
 
-_MSG = "%sARCHIVE=%r ENTRY=%r: "
+_MSG = "%sARCHIVE=%s ENTRY=%s: "
 _UNSAFE = _MSG + "no safe install location -- skipped"
-_OVERWRITTEN = _MSG + "overwritten by later entry %r -- skipped"
+_OVERWRITTEN = _MSG + "overwritten by later entry %s -- skipped"
 _SHADOWED = _MSG + "also a directory of other entries -- skipped"
-_NORMALIZED = _MSG + "non-conforming name -- recorded as %r"
+_NORMALIZED = _MSG + "non-conforming name -- recorded as %s"
 _DIRECTORY_DATA = _MSG + "directory entry carries data -- skipped"
 
 
@@ -143,18 +144,22 @@ def archive_members(
     members: list[tuple[str, T]] = []
     for index, (raw, member, payload) in enumerate(classified):
         if member.status == "unsafe":
-            args: tuple[object, ...] = (_UNSAFE, raw)
+            args: tuple[object, ...] = (_UNSAFE, quote_source(raw))
         elif last[member.name] != index:
-            args = (_OVERWRITTEN, raw, classified[last[member.name]][0])
+            args = (
+                _OVERWRITTEN,
+                quote_source(raw),
+                quote_source(classified[last[member.name]][0]),
+            )
         elif member.name in directories:
-            args = (_SHADOWED, raw)
+            args = (_SHADOWED, quote_source(raw))
         else:
             members.append((member.name, payload))
             if member.status == "ok":
                 continue
-            args = (_NORMALIZED, raw, member.name)
+            args = (_NORMALIZED, quote_source(raw), quote_source(member.name))
         if logger is not None:
-            logger.warning(args[0], log_prefix, archive_name, *args[1:])
+            logger.warning(args[0], log_prefix, quote_source(archive_name), *args[1:])
     return members
 
 
@@ -187,7 +192,12 @@ def file_members(
         if not is_directory_name(raw):
             files.append((raw, payload))
         elif size and logger is not None:
-            logger.warning(_DIRECTORY_DATA, log_prefix, archive_name, raw)
+            logger.warning(
+                _DIRECTORY_DATA,
+                log_prefix,
+                quote_source(archive_name),
+                quote_source(raw),
+            )
     return archive_members(
         files,
         archive_name,

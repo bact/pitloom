@@ -24,8 +24,8 @@ from typing import IO, NamedTuple
 from pitloom.core.archive_member_names import file_members, zip_file_members
 from pitloom.core.file_hash import DigestHasher, FileDigests
 from pitloom.core.project import ProjectFile, digest_fields
+from pitloom.core.quote_source import quote_source
 from pitloom.core.wheel_dist_info import HeaderBlockOverCap, read_header_block
-from pitloom.extract._extract_utils import quote_source
 from pitloom.extract._license_detect import (
     LICENSE_FILE_CAP,
     license_source_names,
@@ -179,9 +179,9 @@ def _warn_shared_paths(files: list[ProjectFile], archive: str) -> None:
     if shared:
         names = ", ".join(map(quote_source, list(shared)[:_SHARED_PATHS_SHOWN]))
         log.warning(
-            "ARCHIVE=%r: members share a project path (%s%s); they would share "
+            "ARCHIVE=%s: members share a project path (%s%s); they would share "
             "one ID registry key",
-            Path(archive).name,
+            quote_source(Path(archive).name),
             names,
             ", ..." if len(shared) > _SHARED_PATHS_SHOWN else "",
         )

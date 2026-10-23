@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -79,9 +79,9 @@ distribution paths for every reader:
   `--allow-build` extraction fail the whole discovery.
 - **One `WARNING:` per affected member**, quoting the raw name, in the
   `KEY=VALUE` shape of the per-file `FORMAT=%s FILE=%s:` warnings:
-  - `<prefix>ARCHIVE=<name> ENTRY=<raw!r>: non-conforming name -- recorded as <name!r>`
+  - `<prefix>ARCHIVE=<name> ENTRY=<quote_source(raw)>: non-conforming name -- recorded as <quote_source(name)>`
   - `... no safe install location -- skipped`
-  - `... overwritten by later entry <raw!r> -- skipped`
+  - `... overwritten by later entry <quote_source(raw)> -- skipped`
   - `... also a directory of other entries -- skipped`
   - `... directory entry carries data -- skipped`
 

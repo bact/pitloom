@@ -9,7 +9,6 @@ repository."""
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -29,7 +28,9 @@ from pitloom.cli.options import (
 )
 from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.inert_options import HF, MODEL_FILE, forward_options
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.remote import is_huggingface_source, parse_hf_model_id
+from pitloom.logging_config import print_error
 
 
 @cli_error_handler("model command failed")
@@ -40,9 +41,8 @@ def _run_model_command(args: argparse.Namespace) -> int:
     if is_huggingface_source(target):
         model_id = parse_hf_model_id(target)
         if model_id is None:
-            print(
-                f"ERROR: not a valid Hugging Face URL or model ID: {target!r}",
-                file=sys.stderr,
+            print_error(
+                f"not a valid Hugging Face URL or model ID: {quote_source(target)}"
             )
             return 1
         output_path = _resolve_hf_output_path(args.output, model_id)
@@ -56,7 +56,7 @@ def _run_model_command(args: argparse.Namespace) -> int:
         model_path: Path = given_path.resolve()
         opened_path = existing_model_path(given_path)
         if opened_path is None:
-            print(f"ERROR: model file not found: {model_path}", file=sys.stderr)
+            print_error(f"model file not found: {quote_source(model_path)}")
             return 1
         output_path = _resolve_model_output_path(args.output, model_path)
         if args.verbose:

@@ -76,7 +76,7 @@ def test_a_project_dir_that_is_not_a_directory_is_refused(
 ) -> None:
     argv = ["id", "import", "first.json", "-o", "r.json", "--project-dir", "absent"]
     assert _run(monkeypatch, *argv) == 1
-    assert "ERROR: --project-dir absent is not a directory" in capsys.readouterr().err
+    assert "ERROR: --project-dir 'absent' is not a directory" in capsys.readouterr().err
 
 
 @pytest.mark.usefixtures("above")

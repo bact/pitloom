@@ -23,7 +23,7 @@ from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion, Version
 
 from pitloom.core.pep508 import parse_requirement
-from pitloom.extract._extract_utils import quote_source
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock._common_warnings import warn_conflicting_versions
 from pitloom.logging_config import loggable
 

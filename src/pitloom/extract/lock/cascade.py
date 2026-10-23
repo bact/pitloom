@@ -33,7 +33,7 @@ from typing import NamedTuple
 from pitloom.core.file_identity import file_id
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import parse_provenance_value
-from pitloom.extract._extract_utils import quote_source
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock._extra_pins import ExtraPinExtractor, apply_extra_pins
 from pitloom.extract.lock.common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract.lock.pdm import (

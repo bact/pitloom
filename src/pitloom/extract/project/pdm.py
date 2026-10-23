@@ -48,6 +48,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.project._setup_cfg_directives import listed_file_readable
 
 log = logging.getLogger(__name__)
@@ -109,7 +110,7 @@ def resolve_pdm_dynamic_version(
                 "PDM dynamic version source %r for %s is not resolvable "
                 "without executing project code -- version left unresolved",
                 source,
-                project_dir,
+                quote_source(project_dir),
             )
         return None, None
 
@@ -170,7 +171,9 @@ def resolve_pdm_dynamic_version(
     except Exception as exc:
         if not quiet:
             log.warning(
-                "PDM dynamic version resolution failed for %s: %s", project_dir, exc
+                "PDM dynamic version resolution failed for %s: %s",
+                quote_source(project_dir),
+                exc,
             )
         return None, None
 

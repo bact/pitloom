@@ -96,7 +96,7 @@ def test_is_directory_name(raw: str, is_dir: bool) -> None:
         (
             ["pkg\\mod.py"],
             ["pkg/mod.py"],
-            [_P + "'pkg\\\\mod.py': non-conforming name -- recorded as 'pkg/mod.py'"],
+            [_P + "'pkg\\mod.py': non-conforming name -- recorded as 'pkg/mod.py'"],
         ),
         (
             ["../evil.py", "pkg/a"],
@@ -107,9 +107,9 @@ def test_is_directory_name(raw: str, is_dir: bool) -> None:
             ["pkg/a", "./pkg/a", "pkg\\a"],
             ["pkg/a"],
             [
-                _P + "'pkg/a': overwritten by later entry 'pkg\\\\a' -- skipped",
-                _P + "'./pkg/a': overwritten by later entry 'pkg\\\\a' -- skipped",
-                _P + "'pkg\\\\a': non-conforming name -- recorded as 'pkg/a'",
+                _P + "'pkg/a': overwritten by later entry 'pkg\\a' -- skipped",
+                _P + "'./pkg/a': overwritten by later entry 'pkg\\a' -- skipped",
+                _P + "'pkg\\a': non-conforming name -- recorded as 'pkg/a'",
             ],
         ),
         (
@@ -246,7 +246,7 @@ def test_zip_file_members_directory_entries(
     with zipfile.ZipFile(path) as zf, caplog.at_level(logging.WARNING):
         members = zip_file_members(zf, "a.zip", logger, "P: ")
     assert [name for name, _ in members] == ["pkg/a"]
-    expected = [_P + "'pkg\\\\': directory entry carries data -- skipped"]
+    expected = [_P + "'pkg\\': directory entry carries data -- skipped"]
     assert [r.getMessage() for r in caplog.records] == (expected if warned else [])
 
 

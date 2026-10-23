@@ -32,6 +32,7 @@ from pitloom.core.config import (
     select_project_config,
 )
 from pitloom.core.project import ProjectFile, ProjectMetadata
+from pitloom.core.quote_source import quote_source
 from pitloom.extract._core_metadata import (
     core_metadata_license_with_source,
     parse_core_metadata_authors,
@@ -150,7 +151,7 @@ def _metadata_pyproject(raw: bytes | Cap, sdist_name: str) -> Any:
     except ValueError as exc:  # TOMLDecodeError, UnicodeDecodeError
         log.warning(
             "Failed to parse pyproject.toml from sdist member: %s%s",
-            f"{sdist_name}: {exc}",
+            f"{quote_source(sdist_name)}: {exc}",
             skipped,
         )
         return None

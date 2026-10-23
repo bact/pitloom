@@ -58,10 +58,10 @@ _EXPECTED = {
     "demo/m.safetensors",
 }
 _RAW_WARNED = (
-    "'demo\\\\mod.py'",
+    "'demo\\mod.py'",
     "'./demo/b.py'",
     "'../evil.py'",
-    "'demo\\\\m.safetensors'",
+    "'demo\\m.safetensors'",
 )
 
 

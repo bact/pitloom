@@ -19,7 +19,7 @@ import logging
 from collections.abc import Iterable
 from pathlib import Path
 
-from pitloom.extract._extract_utils import quote_source
+from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
@@ -42,7 +42,7 @@ def warn_conflicting_versions(
     on version in a lock file."""
     log.warning(
         "Skipping %s entry %r: pinned to conflicting versions (%s)",
-        lock_file,
+        loggable(lock_file),
         name,
         loggable(", ".join(sorted(conflicting_versions))),
     )
@@ -64,7 +64,7 @@ def warn_not_genuine_lock_file(
         table_key,
         container_type,
         required_key,
-        lock_file,
+        loggable(lock_file),
     )
 
 
@@ -80,7 +80,7 @@ def warn_non_registry_source(lock_file: str, name: str, source_key: str) -> None
     log.warning(
         "Skipping %s entry %r: %s-sourced dependencies cannot be "
         "represented as a PEP 508 specifier",
-        lock_file,
+        loggable(lock_file),
         name,
         source_key,
     )
@@ -102,7 +102,7 @@ def warn_top_level_key_wrong_type(
         key,
         type(value).__name__,
         expected,
-        lock_file,
+        loggable(lock_file),
     )
 
 
@@ -113,7 +113,7 @@ def warn_missing_version(lock_file: str, name: str) -> None:
     :func:`pitloom.extract.lock.common.is_usable_version`."""
     log.warning(
         "Skipping %s entry %r: missing or non-string 'version'",
-        lock_file,
+        loggable(lock_file),
         name,
     )
 
@@ -127,7 +127,7 @@ def warn_malformed_entry_not_table(
     shared across every format with this malformed-entry shape."""
     log.warning(
         "Skipping malformed %s %s entry: expected a table, got %s",
-        lock_file,
+        loggable(lock_file),
         entry_label,
         type(value).__name__,
     )

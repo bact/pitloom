@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -91,7 +91,7 @@ sections 3.3 (archives inside archives) and 3.8 (wheel identity bugs).
   installs `pkg\x` as one file named `pkg\x`; Windows sees a directory.
   Pitloom chose the Windows reading (`\` is a separator) so one archive
   gives one SBOM on every OS, and warns once per member:
-  `ARCHIVE='x.whl' ENTRY='pkg\\mod.py': non-conforming name -- recorded
+  `ARCHIVE='x.whl' ENTRY='pkg\mod.py': non-conforming name -- recorded
   as 'pkg/mod.py'` (#251).
   Do: make member-name normalisation one shared helper used by every
   reader.

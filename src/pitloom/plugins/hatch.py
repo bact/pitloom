@@ -31,10 +31,11 @@ from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.config import PitloomConfig, read_pitloom_config
 from pitloom.core.creation import CreationMetadata, resolve_source_date_epoch
 from pitloom.core.document import DocumentModel
-from pitloom.core.file_names import sbom_file_name
+from pitloom.core.file_names import default_sbom_basename, sbom_file_name
 from pitloom.core.inert_options import HOOK, configured_options, settle_inert
 from pitloom.core.models import get_wheel_files
 from pitloom.core.project import FilesOrigin
+from pitloom.core.quote_source import quote_source
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
@@ -207,7 +208,7 @@ def _default_sbom_basename(hatch_metadata: Any) -> str:
     """
     name = hatch_metadata.core.raw_name
     version = str(hatch_metadata.version) if hatch_metadata.version else None
-    return f"{name}-{version}" if version else name
+    return default_sbom_basename(name, version)
 
 
 def _stage_sbom_file(
@@ -425,7 +426,7 @@ class PitloomBuildHook(_PitloomBuildHookBase):
             log.info(
                 "Pitloom: staged SBOM %s (%d fragment(s)); "
                 "Hatchling will inject it into .dist-info/sboms/ in the wheel.",
-                sbom_filename,
+                quote_source(sbom_filename),
                 merged,
             )
         except Exception:

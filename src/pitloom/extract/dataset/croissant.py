@@ -28,8 +28,9 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.dataset_metadata import DatasetMetadata
+from pitloom.core.quote_source import quote_source
 from pitloom.core.untrusted_text import escape_lone_surrogates_in
-from pitloom.extract._extract_utils import fetch_json, get_first, quote_source
+from pitloom.extract._extract_utils import fetch_json, get_first
 from pitloom.extract.dataset.croissant_key import (
     CREATOR_KEYS,
     DATA_TYPE_KEYS,

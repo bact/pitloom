@@ -114,7 +114,7 @@ def test_fragment_validate_command_directory_path(
     assert result == 1
 
     captured = capsys.readouterr()
-    assert f"ERROR: directory: {directory}" in captured.err
+    assert f"ERROR: directory: '{directory}'" in captured.err
 
 
 def test_fragment_validate_command_file_not_found(
@@ -130,7 +130,7 @@ def test_fragment_validate_command_file_not_found(
     assert result == 1
 
     captured = capsys.readouterr()
-    assert f"ERROR: file not found: {missing_path}" in captured.err
+    assert f"ERROR: file not found: '{missing_path}'" in captured.err
 
 
 def test_fragment_validate_command_missing_dependency(
@@ -170,7 +170,7 @@ def test_fragment_validate_command_missing_dependency_and_bad_path(
 
     captured = capsys.readouterr()
     assert "ERROR: the 'spdx3-validate' package is required" in captured.err
-    assert f"ERROR: file not found: {missing_path}" in captured.err
+    assert f"ERROR: file not found: '{missing_path}'" in captured.err
 
 
 @pytest.mark.usefixtures("offline_spdx3_validate")

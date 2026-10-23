@@ -56,6 +56,7 @@ from pitloom.core._models_wheel_types import (
 )
 from pitloom.core.archive_member_names import zip_file_members
 from pitloom.core.build_signals import BUILD_ACTIVITY, TerminationGuard
+from pitloom.core.quote_source import quote_source
 from pitloom.core.temp_dirs import (
     one_shot,
     registered_temp_dir,
@@ -107,11 +108,11 @@ def _extract_wheel_to_included_files(
             target = extract_dir / distribution_path
             if not target.resolve().is_relative_to(resolved_extract_dir):
                 log.warning(
-                    "%sARCHIVE=%r ENTRY=%r: resolves outside "
+                    "%sARCHIVE=%s ENTRY=%s: resolves outside "
                     "the extraction directory -- skipped, not written to disk",
                     BUILD_LOG_PREFIX,
-                    wheel_path.name,
-                    info.orig_filename,
+                    quote_source(wheel_path.name),
+                    quote_source(info.orig_filename),
                 )
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -175,11 +176,11 @@ def _build_and_read_wheel(
         files = _extract_wheel_to_included_files(wheel_path, extract_dir)
         if not files:
             log.warning(
-                "%s%s's real build produced a wheel with "
+                "%sthe real build of %s produced a wheel with "
                 "no non-.dist-info files -- treating as a discovery "
                 "failure, not an authoritative empty result",
                 BUILD_LOG_PREFIX,
-                project_dir,
+                quote_source(project_dir),
             )
             return None
         handed_over = True
@@ -188,7 +189,7 @@ def _build_and_read_wheel(
         log.warning(
             "%sbuild-and-read for %s timed out after %ds (--build-timeout) -- %s",
             BUILD_LOG_PREFIX,
-            project_dir,
+            quote_source(project_dir),
             exc.timeout,
             "build process tree terminated"
             if exc.tree_terminated
@@ -199,7 +200,7 @@ def _build_and_read_wheel(
         log.warning(
             "%sbuild-and-read discovery failed for %s: %s",
             BUILD_LOG_PREFIX,
-            project_dir,
+            quote_source(project_dir),
             one_line(exc),
         )
         return None

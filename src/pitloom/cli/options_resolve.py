@@ -17,7 +17,6 @@ this module's helpers.
 from __future__ import annotations
 
 import argparse
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -36,13 +35,15 @@ from pitloom.core.creation import (
     Creator,
     Tool,
 )
-from pitloom.core.file_names import sbom_file_name
+from pitloom.core.file_names import default_sbom_basename, sbom_file_name
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
+from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.project import (
     resolve_project_with_lockfile,
     sdist_config_source,
 )
+from pitloom.logging_config import print_error
 
 
 @dataclass(frozen=True)
@@ -92,7 +93,7 @@ def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path 
     """Resolve and validate project directory or sdist archive path."""
     project_dir = args.project_dir.resolve()
     if not project_dir.exists():
-        print(f"ERROR: project directory not found: {project_dir}", file=sys.stderr)
+        print_error(f"project directory not found: {quote_source(project_dir)}")
         return None, None
 
     if project_dir.is_file():
@@ -103,10 +104,9 @@ def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path 
         if config_path.exists():
             return project_dir, config_path
 
-    print(
-        f"ERROR: no project configuration found in {project_dir}. "
-        "Expected pyproject.toml, setup.cfg, or setup.py.",
-        file=sys.stderr,
+    print_error(
+        f"no project configuration found in {quote_source(project_dir)}. "
+        "Expected pyproject.toml, setup.cfg, or setup.py."
     )
     return None, None
 
@@ -341,10 +341,8 @@ def _resolve_output_path(
         return explicit
     if pitloom_config.sbom_basename:
         return Path(sbom_file_name(pitloom_config.sbom_basename))
-    parts = [metadata.name] if metadata.name else ["sbom"]
-    if metadata.version:
-        parts.append(metadata.version)
-    return Path("-".join(parts) + SPDX3_JSONLD_EXTENSION)
+    base = default_sbom_basename(metadata.name, metadata.version)
+    return Path(base + SPDX3_JSONLD_EXTENSION)
 
 
 def _resolve_model_output_path(explicit: Path | None, model_path: Path) -> Path:

@@ -41,6 +41,7 @@ from pitloom.core._models_wheel_types import (
     warn_discovery_failed,
 )
 from pitloom.core.path_confine import is_inside
+from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import one_line
 
 if TYPE_CHECKING:
@@ -305,12 +306,12 @@ def _dedupe_by_distribution_path(
             log.warning(
                 "%s: both %s and %s resolve to the same wheel path %s -- "
                 "keeping %s, dropping %s",
-                project_dir,
-                existing.path,
-                included_file.path,
-                included_file.distribution_path,
-                existing.path,
-                included_file.path,
+                quote_source(project_dir),
+                quote_source(existing.path),
+                quote_source(included_file.path),
+                quote_source(included_file.distribution_path),
+                quote_source(existing.path),
+                quote_source(included_file.path),
             )
     return list(seen.values())
 
@@ -380,10 +381,10 @@ def _warn_if_setup_py_overrides_packaging(project_dir: Path) -> None:
     imperative_kwargs = _setup_py_packaging_kwargs(setup_py_path)
     if imperative_kwargs:
         log.warning(
-            "%s's setup.py passes %s imperatively -- the file list "
+            "setup.py in %s passes %s imperatively -- the file list "
             "resolved statically from pyproject.toml/setup.cfg alone "
             "may be incomplete or inaccurate for this project",
-            project_dir,
+            quote_source(project_dir),
             ", ".join(imperative_kwargs),
         )
 
@@ -441,7 +442,7 @@ def discover(
             "(%s) -- specify `packages`/`py_modules` explicitly in "
             "pyproject.toml or setup.cfg; falling back to Hatchling-based "
             "heuristic",
-            project_dir,
+            quote_source(project_dir),
             one_line(exc),
         )
         return None

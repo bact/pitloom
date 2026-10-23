@@ -20,6 +20,7 @@ import os
 import re
 import sys
 import threading
+import traceback
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 
@@ -75,6 +76,47 @@ def sanitize_url_credentials(text: str) -> str:
     so a password holding ``@``, ``?`` or ``#`` is redacted whole.
     """
     return _URL_USERINFO_RE.sub("://***:***@", text)
+
+
+def escape_controls(text: str) -> str:
+    """*text* with each character that is not printable, and each code point
+    of :data:`~pitloom.core.untrusted_text.DISPLAY_CONTROLS`, written as its
+    ASCII escape (``\\n``, ``\\x1b``, ``\\u202e``); anything else, non-ASCII
+    letters included, is kept. Unlike :func:`loggable` it never quotes, so a
+    message already built stays readable."""
+    if text.isprintable() and DISPLAY_CONTROLS.isdisjoint(text):
+        return text
+    return "".join(
+        ascii(char)[1:-1]
+        if not char.isprintable() or char in DISPLAY_CONTROLS
+        else char
+        for char in text
+    )
+
+
+class _OneLineFormatter(logging.Formatter):
+    """``LEVEL: message`` with the message escaped by :func:`escape_controls`:
+    whatever a call site interpolated, one record is one tagged line on
+    stderr. A traceback (``exc_info``) is appended as it is."""
+
+    def formatMessage(self, record: logging.LogRecord) -> str:
+        record.message = escape_controls(record.message)
+        return super().formatMessage(record)
+
+
+def print_traceback() -> None:
+    """Print the traceback of the exception being handled to stderr, each
+    line indented and escaped by :func:`escape_controls`: a line of an
+    exception message that reads ``WARNING: forged`` is not a tagged line."""
+    for line in traceback.format_exc().splitlines():
+        print(f"  {escape_controls(line)}", file=sys.stderr)
+
+
+def print_error(message: str) -> None:
+    """Print one ``ERROR: <message>`` line to stderr, the message escaped by
+    :func:`escape_controls`: the one way the CLI writes an error, so a newline
+    in a path or an exception text cannot start a second, forged line."""
+    print(f"ERROR: {escape_controls(message)}", file=sys.stderr)
 
 
 def loggable(text: str) -> str:
@@ -169,7 +211,7 @@ def configure_logging(*, debug: bool | None = None) -> None:
     logger = logging.getLogger("pitloom")
     handler = logging.StreamHandler(sys.stderr)
     handler.setLevel(level)
-    handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+    handler.setFormatter(_OneLineFormatter("%(levelname)s: %(message)s"))
     with _CONFIG_LOCK:
         logger.setLevel(level)
         logger.handlers = [handler]

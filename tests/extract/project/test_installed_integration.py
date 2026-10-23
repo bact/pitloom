@@ -145,7 +145,7 @@ def test_read_project_missing_marker_warns_and_is_skipped(
 
     assert metadata.version == "1.0.0"
     assert metadata.field_conflicts == {}
-    assert "exists but has no PKG-INFO" in caplog.text
+    assert "exists but has no 'PKG-INFO'" in caplog.text
 
 
 def test_read_project_include_installed_metadata_false_prevents_leakage(

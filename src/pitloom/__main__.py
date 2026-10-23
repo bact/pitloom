@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import sys
-import traceback
 import typing
 from types import TracebackType
 
@@ -17,6 +16,8 @@ from pitloom.logging_config import (
     apply_debug_override,
     configure_logging,
     debug_enabled,
+    print_error,
+    print_traceback,
 )
 
 # 128 + SIGINT, the status a shell reports for a command ended by Ctrl-C.
@@ -60,9 +61,9 @@ def console_main() -> int:
 def _report_interrupt() -> None:
     """Print the one ``ERROR:`` line for Ctrl-C, and under debug the
     traceback of the ``KeyboardInterrupt`` being handled."""
-    print("ERROR: interrupted", file=sys.stderr)
+    print_error("interrupted")
     if debug_enabled():
-        traceback.print_exc()
+        print_traceback()
 
 
 def _ignore_exception(

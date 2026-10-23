@@ -17,7 +17,6 @@ from __future__ import annotations
 import argparse
 import logging
 import os
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +50,7 @@ from pitloom.cli.options import (
 from pitloom.cli.options_config import overrides_from_options
 from pitloom.core.build_options import EXTERNAL_SBOM_REASON, NO_PROJECT_DIR_REASON
 from pitloom.embed import EmbedFileCache
+from pitloom.logging_config import print_error
 
 log = logging.getLogger(__name__)
 
@@ -123,10 +123,7 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
         return 1
 
     if len(unique_wheels) > 1 and args.output is not None:
-        print(
-            "ERROR: --output cannot be used when embedding multiple wheels",
-            file=sys.stderr,
-        )
+        print_error("--output cannot be used when embedding multiple wheels")
         return 1
 
     # Settle the build flags up front, so an ineffective flag's warning

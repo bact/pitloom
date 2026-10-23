@@ -22,7 +22,7 @@ from typing import Any
 
 from packaging.utils import canonicalize_name
 
-from pitloom.extract._extract_utils import quote_source
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock.common import (
     find_first_present_key,
     is_same_version,

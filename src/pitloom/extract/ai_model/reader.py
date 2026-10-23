@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.ai_model.crfsuite import read_crfsuite
 from pitloom.extract.ai_model.fasttext import read_fasttext
 from pitloom.extract.ai_model.gguf import read_gguf
@@ -415,8 +416,8 @@ def _unsupported_message(model_path: Path) -> str:
         header = b""
     reason = refusal_reason(header, model_path.name, is_file=True)
     if reason is not None:
-        return f"{model_path}: {reason}"
+        return f"{quote_source(model_path)}: {reason}"
     return (
-        f"Unsupported model format for file: {model_path}. "
+        f"Unsupported model format for file: {quote_source(model_path)}. "
         f"Supported extensions: {', '.join(_EXTENSION_TO_FORMAT)}"
     )

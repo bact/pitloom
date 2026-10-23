@@ -21,7 +21,8 @@ from pathlib import Path
 from typing import Any
 
 from pitloom._toml_io import load_toml_bytes
-from pitloom.extract._extract_utils import FETCH_MAX_BYTES, quote_source
+from pitloom.core.quote_source import quote_source
+from pitloom.extract._extract_utils import FETCH_MAX_BYTES
 from pitloom.logging_config import one_line
 
 log = logging.getLogger(__name__)

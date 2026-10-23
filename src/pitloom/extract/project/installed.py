@@ -32,11 +32,13 @@ from pathlib import Path
 from packaging.utils import canonicalize_name
 
 from pitloom.core.project import ProjectMetadata
+from pitloom.core.quote_source import quote_source
 from pitloom.extract._core_metadata import (
     core_metadata_license_with_source,
     parse_project_urls,
 )
 from pitloom.extract._extract_utils import field_declared, to_str_list
+from pitloom.logging_config import excerpt
 
 log = logging.getLogger(__name__)
 
@@ -112,9 +114,9 @@ def _evaluate_candidate_dir(
         if not quiet:
             log.warning(
                 "%s: %s exists but has no %s -- ignoring it",
-                project_dir,
+                quote_source(project_dir),
                 label,
-                marker_name,
+                quote_source(marker_name),
             )
         return None
     text = _read_marker_text(marker_path)
@@ -122,9 +124,9 @@ def _evaluate_candidate_dir(
         if not quiet:
             log.warning(
                 "%s: %s exists but %s could not be read -- ignoring it",
-                project_dir,
+                quote_source(project_dir),
                 label,
-                marker_name,
+                quote_source(marker_name),
             )
         return None
     msg = email.message_from_string(text)
@@ -134,11 +136,11 @@ def _evaluate_candidate_dir(
     ):
         if not quiet:
             log.warning(
-                "%s: %s declares name %r, which does not match the "
+                "%s: %s declares name %s, which does not match the "
                 "resolved project name %r -- ignoring it entirely",
-                project_dir,
+                quote_source(project_dir),
                 label,
-                candidate_name,
+                excerpt(candidate_name),
                 resolved_name,
             )
         return None
@@ -194,7 +196,7 @@ def _discover_candidate(
         found_labels = ", ".join(c.label for c in survivors)
         log.warning(
             "%s: multiple installed-metadata candidates found (%s) -- using %s",
-            project_dir,
+            quote_source(project_dir),
             found_labels,
             winner.label,
         )
@@ -315,8 +317,8 @@ def read_installed_metadata(
         if not quiet:
             log.warning(
                 "%s: %s could not be re-read -- skipping installed metadata",
-                marker_path.parent,
-                marker_path.name,
+                quote_source(marker_path.parent),
+                quote_source(marker_path.name),
             )
         return None
     msg = email.message_from_string(text)

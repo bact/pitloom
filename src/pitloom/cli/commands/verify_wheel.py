@@ -22,6 +22,8 @@ from pitloom.cli.commands.utils import (
     report_error_line,
 )
 from pitloom.cli.kv_output import print_kv
+from pitloom.core.quote_source import quote_source
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -45,14 +47,14 @@ def _check_location(
         log.warning(
             "%s: unrecognized SBOM format for %s; cannot check the "
             "recommended extension",
-            wheel_path.name,
-            location.arcname,
+            quote_source(wheel_path.name),
+            loggable(location.arcname),
         )
     elif not location.arcname.endswith(recommended):
         log.warning(
             "%s: %s doesn't use the recommended %r extension for its format",
-            wheel_path.name,
-            location.arcname,
+            quote_source(wheel_path.name),
+            loggable(location.arcname),
             recommended,
         )
     return True
@@ -91,7 +93,7 @@ def _check_name_version(
         wheel_name, wheel_version, location.data, sbom_format
     )
     for warning in warnings:
-        log.warning("%s: %s", wheel_path.name, warning)
+        log.warning("%s: %s", quote_source(wheel_path.name), warning)
 
     if not mismatches:
         return True

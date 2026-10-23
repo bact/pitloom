@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 from pitloom.core.file_identity import file_id, stat_id
 from pitloom.core.path_confine import inside_ancestor
 from pitloom.core.path_probe import is_missing_errno
+from pitloom.core.quote_source import quote_source
 
 if TYPE_CHECKING:
     from pitloom.core.project import ProjectFile
@@ -145,7 +146,7 @@ def same_path(first: Path, second: Path) -> bool:
 def warn_registry_left_out(registry_path: Path) -> None:
     """Warn that the declared registry was inside the walked file set and
     is left out of it."""
-    log.warning(REGISTRY_IN_FILE_SET_WARNING, registry_path)
+    log.warning(REGISTRY_IN_FILE_SET_WARNING, quote_source(registry_path))
 
 
 #: How many leading parts of a project path its installed path may lack:
