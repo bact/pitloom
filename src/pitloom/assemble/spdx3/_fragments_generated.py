@@ -83,6 +83,16 @@ def _annotation_methods(annotation: spdx3.Annotation) -> dict[str, str | None]:
     }
 
 
+def _json_text(text: str) -> str:
+    """*text* as JSON in one spelling; ``1``, ``1.0`` and ``true`` stay three
+    values (Python's ``==`` would equate them).
+
+    Raises:
+        ValueError: *text* is not JSON.
+    """
+    return json.dumps(json.loads(text), sort_keys=True)
+
+
 def _equivalent(old: object, new: object) -> bool:
     """Whether *new* says what *old* does: the same list in another order, or
     the same JSON text in another spelling."""
@@ -94,7 +104,7 @@ def _equivalent(old: object, new: object) -> bool:
         return set(old) == set(new)
     if isinstance(old, str) and isinstance(new, str):
         try:
-            return bool(json.loads(old) == json.loads(new))
+            return _json_text(old) == _json_text(new)
         except ValueError:
             return False
     return False
@@ -138,6 +148,9 @@ class GeneratedValues:
         objects = list(base)
         annotations = [o for o in objects if isinstance(o, spdx3.Annotation)]
         self._generated: dict[int, set[str]] = {}
+        #: The generated value each replaced property had, by model: a later
+        #: fragment that says the same is no new value.
+        self._replaced: dict[int, dict[str, object]] = {}
         for obj in objects:
             if not isinstance(obj, spdx3.ai_AIPackage) or not obj.spdxId:
                 continue
@@ -156,8 +169,11 @@ class GeneratedValues:
     ) -> None:
         """Give *canonical*, when it is a base model with generated values,
         the value *duplicate* has for each of them that differs."""
+        if not isinstance(canonical, spdx3.ai_AIPackage):
+            return
+        self._restate(canonical, duplicate)
         properties = self._generated.get(id(canonical))
-        if not properties or not isinstance(canonical, spdx3.ai_AIPackage):
+        if not properties:
             return
         for pyname in sorted(properties):
             new = getattr(duplicate, pyname, None)
@@ -166,6 +182,9 @@ class GeneratedValues:
                 continue
             if isinstance(new, (spdx3.ListProxy, list, tuple)):
                 new = list(new)
+            self._replaced.setdefault(id(canonical), {})[pyname] = (
+                list(old) if isinstance(old, (spdx3.ListProxy, list)) else old
+            )
             setattr(canonical, pyname, new)
             properties.discard(pyname)
             if not _is_empty(old):  # nothing was generated for an empty value
@@ -180,3 +199,19 @@ class GeneratedValues:
                 )
             for name in sorted(PROVENANCE_PROPERTY_FIELDS[pyname]):
                 self._model_names.drop_provenance(canonical, name)
+
+    def _restate(
+        self, canonical: spdx3.ai_AIPackage, duplicate: spdx3.SHACLObject
+    ) -> None:
+        """Give *duplicate* the value *canonical* now has for a property it
+        replaced, where *duplicate* says what was replaced: the plain merge
+        that follows then finds nothing to union or to warn about, in any
+        order of fragments."""
+        for pyname, old in self._replaced.get(id(canonical), {}).items():
+            new = getattr(duplicate, pyname, None)
+            if _is_empty(new) or not _equivalent(old, new):
+                continue
+            current = getattr(canonical, pyname)
+            if isinstance(current, (spdx3.ListProxy, list)):
+                current = list(current)
+            setattr(duplicate, pyname, current)

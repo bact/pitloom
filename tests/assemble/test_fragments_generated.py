@@ -241,8 +241,24 @@ def test_only_a_differing_value_for_a_generated_one_replaces_it(
 
 @pytest.mark.parametrize(
     "statement",
-    ["not json", "[1, 2]", '{"fields": [1], "schema": "x"}', '{"fields": {}}'],
-    ids=["malformed", "not-an-object", "fields-not-an-object", "no-schema"],
+    [
+        "not json",
+        "[1, 2]",
+        '{"fields": [1], "schema": "x"}',
+        '{"fields": {}}',
+        # A disagreeing method that would end "generated" if the schema
+        # (Pitloom's own) were not required.
+        '{"fields": {"description": {"method": "other"}}}',
+        '{"fields": {"description": {"method": "other"}}, "schema": "x"}',
+    ],
+    ids=[
+        "malformed",
+        "not-an-object",
+        "fields-not-an-object",
+        "no-schema",
+        "no-schema-with-fields",
+        "foreign-schema",
+    ],
 )
 def test_an_annotation_that_is_no_provenance_is_ignored(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, statement: str
@@ -417,9 +433,13 @@ def test_a_base_model_with_no_name_loses_its_generated_provenance_too(
     before, and the generated value is replaced like any other."""
     base = _base({"description": "generated_from_labels"}, name=None)
     model, records, annotations = _merge(
-        tmp_path, caplog, base, [{"name": "n", "description": "curated"}]
+        tmp_path,
+        caplog,
+        base,
+        [{"name": "n", "description": "curated", "comment": "FRAGMENT NOTE"}],
     )
     assert (model["name"], model["description"]) == ("n", "curated")
+    assert "FRAGMENT NOTE" in model["comment"]  # the fragment's text survives
     assert _levels(records) == [logging.INFO]
     assert "description" not in _provenance_fields(model, annotations)
 
@@ -623,6 +643,8 @@ def test_the_generated_methods_are_the_ones_the_readers_write() -> None:
         (["a", "b"], ["b", "a"], True),
         (["a"], ["a", "b"], False),
         (1, 2, False),  # neither a list nor text
+        ('{"n":1}', '{"n":1.0}', False),  # another number is another value
+        ('{"n":1}', '{"n":true}', False),  # and a boolean is no number
         ("x", "x", True),
     ],
     ids=[
@@ -632,6 +654,8 @@ def test_the_generated_methods_are_the_ones_the_readers_write() -> None:
         "reordered",
         "subset",
         "number",
+        "float",
+        "boolean",
         "same",
     ],
 )
@@ -668,3 +692,23 @@ def test_provenance_of_a_model_the_base_lacks_is_not_dropped() -> None:
     names.drop_provenance(stranger, "domain")
     names.finish()  # nothing registered, nothing to settle
     assert stranger.name == "s" and not stranger.comment
+
+
+@pytest.mark.parametrize("restate_first", [True, False], ids=["restate-first", "last"])
+def test_a_fragment_restating_a_replaced_value_changes_nothing_in_any_order(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, restate_first: bool
+) -> None:
+    """A fragment that says again what Pitloom generated (a ``loom model``
+    fragment of the same file) neither brings the replaced domain back into
+    the union nor earns a ``conflicting`` warning, before or after the
+    fragment that replaced it."""
+    base = _base(
+        {"domain": "derived_from_format", "description": "generated_from_labels"}
+    )
+    restate = {"description": "generated", "ai_domain": ["d0"]}
+    curated = {"description": "curated", "ai_domain": ["curated"]}
+    fragments = [restate, curated] if restate_first else [curated, restate]
+    model, records, _ = _merge(tmp_path, caplog, base, fragments)
+    assert model["ai_domain"] == ["curated"] and model["description"] == "curated"
+    assert _levels(records) == [logging.INFO, logging.INFO]  # one per property
+    assert logging.WARNING not in _levels(records)
