@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-16
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -159,6 +159,12 @@ The script's own string matters only for a dataset with no path below the root.
 
 ## `id import`
 
+- The registry's root is `--project-dir` (default: the current directory), as
+  for `id generate`, and the SBOM's file names are keys below it. An SBOM does
+  not record its project's directory, so import from above the project without
+  `--project-dir` gives keys that a run of the project does not look up. An
+  existing registry keeps its root: `--project-dir` naming another one is an
+  `ERROR:`.
 - A model takes the key of the unique `software_File` in the same SBOM with
   the same SHA-256; else the key of the one registry file entry recording that
   SHA-256 (`INFO: ID registry: model <name> keyed by the registry's file with
@@ -170,8 +176,8 @@ The script's own string matters only for a dataset with no path below the root.
   it gets its digest. When the key differs from the name, one `INFO: ID
   registry: dataset <name> keyed by its path: <key>` says so. A name found
   nowhere stays a name key: `dataset <name> keyed by its name: not found: declare paths
-  relative to the registry root or run id import from the directory the script
-  ran in`.
+  relative to the registry root (id import --project-dir) or run id import from
+  the directory the script ran in`.
 - A file whose key is not held with its SHA-256, but whose layout alias is
   (one held key with its SHA-256), is imported under that held key, counted in
   the layout-alias `INFO:`. When its own key holds other content, that key

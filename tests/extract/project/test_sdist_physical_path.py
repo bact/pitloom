@@ -11,6 +11,7 @@ See also: tests/extract/project/test_sdist_member_names.py.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import pytest
@@ -64,3 +65,52 @@ def test_physical_path_drops_top_directory(
         sdist = write_raw_tar(tmp_path / "a-1.tar.gz", members)
     contents = read_sdist(sdist, read_config=False)
     assert {f.distribution_path: f.physical_path for f in contents.files} == expected
+
+
+@pytest.mark.parametrize(
+    ("members", "shown"),
+    [
+        ({"a-1/PKG-INFO": _INFO, "a-1/x.py": b"x", "x.py": b"s"}, ["'x.py'"]),
+        (
+            {
+                "a-1/PKG-INFO": _INFO,
+                **{f"a-1/f{n}.py": b"x" for n in range(7)},
+                **{f"f{n}.py": b"s" for n in range(7)},
+            },
+            ["'f0.py', 'f1.py', 'f2.py', 'f3.py', 'f4.py', ..."],
+        ),
+        (
+            {
+                "a-1/PKG-INFO": _INFO,
+                **{f"a-1/f{n}.py": b"x" for n in range(5)},
+                **{f"f{n}.py": b"s" for n in range(5)},
+            },
+            ["'f0.py', 'f1.py', 'f2.py', 'f3.py', 'f4.py')"],
+        ),
+        ({"a-1/PKG-INFO": _INFO, "a-1/x.py": b"x", "y.py": b"s"}, []),
+        ({"a-1/PKG-INFO": _INFO, "a-1/x.py": b"x", "./x.py": b"s"}, ["'x.py'"]),
+    ],
+    ids=[
+        "one-clash",
+        "many-clashes-cut",
+        "five-clashes-whole",
+        "stray-without-clash",
+        "dot-prefixed-stray",
+    ],
+)
+def test_members_sharing_a_project_path_are_warned_of_once(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    members: dict[str, bytes],
+    shown: list[str],
+) -> None:
+    """A stray root file whose name equals a project file's gets one WARNING:
+    both would be looked up under one registry key, so neither keeps an id."""
+    sdist = write_raw_tar(tmp_path / "a-1.tar.gz", members)
+    with caplog.at_level(logging.WARNING):
+        read_sdist(sdist, read_config=False)
+    said = [m for m in caplog.messages if "share a project path" in m]
+    assert len(said) == len(shown)
+    assert not shown or said[0].startswith(
+        f"ARCHIVE='a-1.tar.gz': members share a project path ({shown[0]}"
+    )

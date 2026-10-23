@@ -193,7 +193,7 @@ reporting a registry line as a problem.
 
 **When the user asks to pin ids** ("pin the ids", "keep ids stable", "create
 or update an ID registry", "run `loom id generate`/`import`"), run `loom id
-generate PATH... -o FILE`/`loom id import SBOM -o FILE` yourself, without
+generate PATH... -o FILE`/`loom id import SBOM -o FILE --project-dir PROJECT` yourself, without
 asking again, and report the exact command and every `INFO:`/`WARNING:`/
 `ERROR:` it printed. FILE is the one the user names, else the config's, else
 `loom-id-registry.json` in the project root. A rejected version 2 file: ask

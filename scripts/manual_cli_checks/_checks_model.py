@@ -194,7 +194,9 @@ def check_hostile_model_text(ctx: Context) -> None:
         len(long_names) == 2 and {len(n) for n in long_names} == {1024},
         f"long names: {[len(n) for n in long_names]}",
     )
-    run_ok("id", "import", str(first), "-o", str(registry))
+    run_ok(
+        "id", "import", str(first), "-o", str(registry), "--project-dir", str(project)
+    )
     pyproject = project / "pyproject.toml"
     text = pyproject.read_text(encoding="utf-8")
     pyproject.write_text(text.replace('version = "0.1"', 'version = "0.2"'))

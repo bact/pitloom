@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -215,7 +215,10 @@ loom id generate data src --entity model -o loom-id-registry.json
 loom id import existing-sbom.spdx3.json -o loom-id-registry.json
 ```
 
-`id generate` also takes `--namespace IRI` and `-e NAME[:TYPE]` (a file, model
+`id import` roots a new registry at `--project-dir` (default: the current
+directory), the directory the SBOM's file names are relative to; run from above
+the project without it, a later run of the project finds no file ids. `id
+generate` also takes `--namespace IRI` and `-e NAME[:TYPE]` (a file, model
 or dataset that exists below `--project-dir` is stored by its path with its
 content hash, else by name), and both
 commands write only a changed registry. The file is JSON (`version: 3`); a

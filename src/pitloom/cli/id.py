@@ -277,21 +277,23 @@ def _run_id_import(args: argparse.Namespace) -> int:
         print_error(f"SBOM file not found: {quote_source(sbom_path)}")
         return 1
 
-    project_dir = Path.cwd()
+    project_dir: Path = (args.project_dir or Path.cwd()).resolve()
+    if not os.path.isdir(project_dir):
+        print_error(
+            f"--project-dir {quote_source(args.project_dir)} is not a directory"
+        )
+        return 1
     try:
         registry_path, from_project_key, slot = _resolve_id_registry_target(
             args.id_registry, project_dir
         )
-    except (ValueError, OSError) as exc:
-        print_error(str(exc))
-        return 1
-    is_new = not os.path.lexists(registry_path)
-
-    try:
+        is_new = not os.path.lexists(registry_path)
         registry = _load_or_create_registry(
             registry_path, sbom_path.stem, project_root=project_dir
         )
-    except ValueError as exc:
+        if not is_new and args.project_dir is not None:
+            registry.require_project_root(project_dir)
+    except (ValueError, OSError) as exc:
         print_error(str(exc))
         return 1
 
@@ -415,6 +417,17 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
             "Registry file to update. Required unless the project config "
             "declares id-registry (pyproject.toml [tool.pitloom] or "
             "setup.cfg [tool:pitloom])."
+        ),
+    )
+    imp_parser.add_argument(
+        "--project-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Project directory root: a new registry's root, which the SBOM's "
+            "file names are relative to. An existing registry must have this "
+            "root. Default: the current directory (not checked against an "
+            "existing registry)."
         ),
     )
 
