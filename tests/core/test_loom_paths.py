@@ -16,7 +16,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -24,14 +26,26 @@ from pitloom import loom
 from tests._symlink import CAN_SYMLINK
 
 
-def _graph(output: Path) -> list[dict[str, str]]:
-    graph: list[dict[str, str]] = json.loads(output.read_text(encoding="utf-8"))[
+def _graph(output: Path) -> list[dict[str, Any]]:
+    graph: list[dict[str, Any]] = json.loads(output.read_text(encoding="utf-8"))[
         "@graph"
     ]
     return graph
 
 
-@pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symlink")
+def _has_sha256(element: dict[str, Any], data: bytes) -> bool:
+    wanted = hashlib.sha256(data).hexdigest()
+    return any(h["hashValue"] == wanted for h in element["verifiedUsing"])
+
+
+#: Win32 collapses ``..`` in a path before it opens it, whatever a link says.
+_DOTDOT_FOLLOWS_LINKS = sys.platform != "win32"
+
+
+@pytest.mark.skipif(
+    not (CAN_SYMLINK and _DOTDOT_FOLLOWS_LINKS),
+    reason="needs a symlink and a .. that follows it (not Win32)",
+)
 def test_a_model_path_with_dotdot_is_opened_as_the_os_opens_it(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -52,8 +66,7 @@ def test_a_model_path_with_dotdot_is_opened_as_the_os_opens_it(
         loom.set_model("m", path="link/../m.bin")
 
     (model,) = [e for e in _graph(tmp_path / "out.json") if e["type"] == "ai_AIPackage"]
-    sha256 = hashlib.sha256(b"the real weights").hexdigest()
-    assert any(h["hashValue"] == sha256 for h in model["verifiedUsing"])  # type: ignore[attr-defined]
+    assert _has_sha256(model, b"the real weights")
 
 
 def test_a_script_outside_the_current_directory_is_named_by_its_file_name(
@@ -79,5 +92,4 @@ def test_a_script_outside_the_current_directory_is_named_by_its_file_name(
         for e in _graph(tmp_path / "out.json")
         if e["type"] == "software_File" and e["name"] == "train.py"
     ]
-    sha256 = hashlib.sha256(b"the script\n").hexdigest()
-    assert any(h["hashValue"] == sha256 for h in found["verifiedUsing"])  # type: ignore[attr-defined]
+    assert _has_sha256(found, b"the script\n")
