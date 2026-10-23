@@ -27,8 +27,10 @@ loom generate https://labs.etsi.org/rep/ocf/capif/-/tree/staging/services/regist
 
 ## Which URLs
 
-Paste what you have: the clone URL, or the address of the page you were
-looking at. The repository is the part of the path before the page marker, so a
+Prefer the repository's **clone URL** (the one the host's Clone button
+shows): it names the default branch and is never misread. To read one branch,
+tag, commit or folder, paste the address of that page instead; the `INFO:` lines
+say what was read. The repository is the part of the path before the page marker, so a
 URL prefix (`/rep` on ETSI's GitLab) and GitLab subgroups work. A branch name
 may contain `/` (`feature/x`): the split between branch and folder is taken
 from the server's own branches and tags, longest match first.
