@@ -12,6 +12,7 @@ Lives in ``core`` so core modules can use it without importing the
 from __future__ import annotations
 
 import os
+import sys
 
 from pitloom.logging_config import escape_controls
 
@@ -33,7 +34,12 @@ def quote_source(source: str | bytes | os.PathLike[str] | os.PathLike[bytes]) ->
     does), or with the quote escaped when it holds both, so it cannot close
     the quotes early and add text that reads as another field.
     """
-    text = escape_controls(os.fsdecode(source))
+    raw = os.fspath(source)
+    if isinstance(raw, bytes):
+        # Not os.fsdecode(): on Windows it is strict and raises on a byte
+        # the file system encoding cannot decode.
+        raw = raw.decode(sys.getfilesystemencoding(), "surrogateescape")
+    text = escape_controls(raw)
     if "'" in text:
         if '"' not in text:
             return f'"{text}"'
