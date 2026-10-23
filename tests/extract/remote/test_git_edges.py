@@ -26,7 +26,13 @@ import pytest
 from pitloom.extract.remote import RemoteSourceError, _git_run, git, git_url
 from pitloom.extract.remote._git_folder import subproject_hint
 from pitloom.extract.remote._git_run import GitRunner, _kill, _taskkill
-from pitloom.extract.remote.git import GitCheckout, _folder, _resolve, _target
+from pitloom.extract.remote.git import (
+    GitCheckout,
+    _checkout,
+    _folder,
+    _resolve,
+    _target,
+)
 from pitloom.extract.remote.git_url import (
     GitPage,
     GitTarget,
@@ -391,3 +397,55 @@ def test_a_file_reached_through_a_link_out_of_the_checkout_is_refused(
         pytest.skip("symbolic links are not available")
     with pytest.raises(RemoteSourceError):
         _folder(str(work), GitTarget(ref="main", subdir="link.toml"))
+
+
+# pylint: disable-next=too-few-public-methods
+class _FilterRejectingRunner:
+    """A runner whose calls with a ``--filter`` option fail with *message*."""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        self.calls: list[list[str]] = []
+
+    def run(self, args: list[str], what: str, **_kwargs: Any) -> str:
+        self.calls.append(args)
+        if any(a.startswith("--filter") for a in args):
+            raise RemoteSourceError("git.clone-failed", self.message)
+        return ""
+
+
+_REJECTED = "error: RPC failed; HTTP 400 curl 22 The requested URL returned error: 400"
+
+
+@pytest.mark.parametrize(
+    "target",
+    [GitTarget(), GitTarget(ref="v1", tag=True), GitTarget(commit="a" * 40)],
+    ids=["clone", "tag", "commit"],
+)
+def test_a_server_that_rejects_the_blob_filter_is_asked_again_without_it(
+    caplog: pytest.LogCaptureFixture, target: GitTarget
+) -> None:
+    """Azure DevOps answers ``--filter=blob:limit`` with HTTP 400 but serves a
+    plain shallow fetch."""
+    runner = _FilterRejectingRunner(_REJECTED)
+    with caplog.at_level(logging.INFO):
+        _checkout(runner, "https://h/o/r", "/work", target)  # type: ignore[arg-type]
+    wanted = "fetch" if target.tag or target.commit else "clone"
+    shallow = [c for c in runner.calls if wanted in c and "--depth" in c]
+    assert len(shallow) == 2
+    assert any(a.startswith("--filter") for a in shallow[0])
+    assert not any(a.startswith("--filter") for a in shallow[1])
+    assert "rejected the blob filter" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["fatal: repository not found", "fatal: unable to access: HTTP 500"],
+    ids=["not-found", "server-error"],
+)
+def test_any_other_clone_failure_is_not_retried(message: str) -> None:
+    """Only the answer a filter earns is retried: any other error stands."""
+    runner = _FilterRejectingRunner(message)
+    with pytest.raises(RemoteSourceError, match="fatal"):
+        _checkout(runner, "https://h/o/r", "/work", GitTarget())  # type: ignore[arg-type]
+    assert len(runner.calls) == 1

@@ -459,3 +459,162 @@ def test_a_bitbucket_branch_or_commits_page_names_its_ref(
     page = parse_git_page("https://bitbucket.org/o/r/" + path)
     assert (page.repo_url, page.kind) == ("https://bitbucket.org/o/r", kind)
     assert page.rest and page.rest[-1] == path.rsplit("/", 1)[-1]
+
+
+@pytest.mark.parametrize(
+    ("url", "repo", "rest", "ref", "kind", "queried"),
+    [
+        (
+            "https://dev.azure.com/o/p/_git/r?path=/dir/sub&version=GBfeature/x",
+            "https://dev.azure.com/o/p/_git/r",
+            ("dir", "sub"),
+            "feature/x",
+            "branch",
+            True,
+        ),
+        (
+            "https://dev.azure.com/o/p/_git/r?version=GTv1",
+            "https://dev.azure.com/o/p/_git/r",
+            (),
+            "v1",
+            "tag",
+            True,
+        ),
+        (
+            f"https://dev.azure.com/o/p/_git/r?version=GC{_SHA}",
+            "https://dev.azure.com/o/p/_git/r",
+            (),
+            _SHA,
+            "commit",
+            True,
+        ),
+        (
+            "https://o.visualstudio.com/p/_git/r?path=%2Fdir",
+            "https://o.visualstudio.com/p/_git/r",
+            ("dir",),
+            "",
+            None,
+            True,
+        ),
+        (
+            "https://dev.azure.com/o/p/_git/r?_a=contents",
+            "https://dev.azure.com/o/p/_git/r",
+            (),
+            "",
+            None,
+            False,
+        ),
+        (
+            "https://git.kernel.org/pub/scm/utils/b4/b4.git/tree/src/b4?h=master",
+            "https://git.kernel.org/pub/scm/utils/b4/b4.git",
+            ("src", "b4"),
+            "master",
+            None,
+            True,
+        ),
+        (
+            f"https://git.launchpad.net/lp/commit/?id={_SHA}",
+            "https://git.launchpad.net/lp",
+            (),
+            _SHA,
+            None,
+            True,
+        ),
+        (
+            "https://x.googlesource.com/r/+/refs/heads/main/a/b",
+            "https://x.googlesource.com/r",
+            ("main", "a", "b"),
+            "",
+            "branch",
+            False,
+        ),
+        (
+            "https://x.googlesource.com/o/r/+/refs/tags/v1/a",
+            "https://x.googlesource.com/o/r",
+            ("v1", "a"),
+            "",
+            "tag",
+            False,
+        ),
+        (
+            "https://x.googlesource.com/r/+/main/a",
+            "https://x.googlesource.com/r",
+            ("main", "a"),
+            "",
+            None,
+            False,
+        ),
+        # Nothing after ``refs/heads``: the plus is part of the repository path.
+        (
+            "https://x.googlesource.com/r/+/refs/heads",
+            "https://x.googlesource.com/r/+/refs/heads",
+            (),
+            "",
+            None,
+            False,
+        ),
+        # ``h`` with no cgit page name before it: a plain repository.
+        ("https://h/o/r?h=x", "https://h/o/r", (), "", None, False),
+        # No ``h`` or ``id``: a cgit-looking path is not read as a page.
+        ("https://h/o/r/log/x", "https://h/o/r", ("x",), "", None, False),
+    ],
+    ids=[
+        "azure-branch-folder",
+        "azure-tag",
+        "azure-commit",
+        "azure-visualstudio-path-only",
+        "azure-unrelated-query",
+        "cgit-tree",
+        "cgit-commit-id",
+        "gitiles-branch",
+        "gitiles-tag",
+        "gitiles-short-ref",
+        "gitiles-no-ref",
+        "query-without-page",
+        "log-without-query",
+    ],
+)
+def test_a_host_that_puts_the_ref_in_the_query_or_after_a_plus(
+    url: str,
+    repo: str,
+    rest: tuple[str, ...],
+    ref: str,
+    kind: str | None,
+    queried: bool,
+) -> None:
+    """Azure DevOps and cgit name the ref in the query, Gitiles after ``+``."""
+    page = parse_git_page(url)
+    assert (page.repo_url, page.rest, page.ref, page.kind) == (repo, rest, ref, kind)
+    assert page.query_style is queried
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        (
+            "https://dev.azure.com/o/p/_git/r?path=/d/e&version=GBfeature/x",
+            GitTarget(ref="feature/x", subdir="d/e"),
+        ),
+        ("https://dev.azure.com/o/p/_git/r?path=/d", GitTarget(subdir="d")),
+        (
+            "https://dev.azure.com/o/p/_git/r?version=GTv1",
+            GitTarget(ref="v1", tag=True),
+        ),
+        (f"https://h/o/r/tree/?id={_SHA}", GitTarget(commit=_SHA)),
+        ("https://h/o/r.git/tree/a/b?h=main", GitTarget(ref="main", subdir="a/b")),
+    ],
+    ids=["branch-folder", "default-branch", "tag", "commit", "cgit"],
+)
+def test_a_queried_page_is_read_against_the_refs(url: str, expected: GitTarget) -> None:
+    """The ref the query names is not split from the folder: it is exact."""
+    refs = {**_REFS, "v1": frozenset({"tag"})}
+    assert split_ref(parse_git_page(url), refs) == expected
+
+
+def test_a_queried_ref_that_is_no_ref_is_refused() -> None:
+    """A branch the server does not have, or a short commit id, is refused."""
+    for ref in ("nosuch", "abc1234"):
+        with pytest.raises(RemoteSourceError) as excinfo:
+            split_ref(parse_git_page(f"https://h/o/r/tree/?h={ref}"), _REFS)
+        assert excinfo.value.code == "git.ref-not-found"
+        assert ref in str(excinfo.value)

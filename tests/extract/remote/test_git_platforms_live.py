@@ -130,6 +130,107 @@ _PLATFORMS = [
         "cmd",
         "actions.go",
     ),
+    # Forgejo writes a file page like a folder page.
+    (
+        "forgejo-codeberg-file-page",
+        "https://codeberg.org/kfdm/pyproject-add-url/src/branch/main/pyproject.toml",
+        "main",
+        "",
+        "pyproject.toml",
+    ),
+    (
+        "forgejo-codeberg-tag-page",
+        "https://codeberg.org/kfdm/pyproject-add-url/src/tag/v0.1.0",
+        "v0.1.0",
+        "",
+        "pyproject.toml",
+    ),
+    (
+        "forgejo-dutch-government-file-page",
+        "https://code.overheid.nl/Logius/nldoc-lib-python-nldocspec/"
+        "src/branch/main/pyproject.toml",
+        "main",
+        "",
+        "pyproject.toml",
+    ),
+    # Gerrit (the bare URL), and the Gitea that mirrors it.
+    (
+        "gerrit-opendev",
+        "https://review.opendev.org/openstack/pbr",
+        None,
+        "",
+        "setup.py",
+    ),
+    (
+        "gitea-opendev-page",
+        "https://opendev.org/openstack/pbr/src/branch/master/pbr",
+        "master",
+        "pbr",
+        "__init__.py",
+    ),
+    # Gitiles, Gerrit's code browser: ``+`` and the ref in full.
+    (
+        "gitiles-googlesource",
+        "https://gerrit.googlesource.com/plugins/codemirror-editor",
+        None,
+        "",
+        "BUILD",
+    ),
+    (
+        "gitiles-googlesource-page",
+        "https://pigweed.googlesource.com/pigweed/pigweed/+/refs/heads/main/pw_cli",
+        "main",
+        "pw_cli",
+        "py",
+    ),
+    # cgit puts the ref in the query.
+    (
+        "cgit-kernel-org",
+        "https://git.kernel.org/pub/scm/utils/b4/b4.git",
+        None,
+        "",
+        "COPYING",
+    ),
+    (
+        "cgit-kernel-org-page",
+        "https://git.kernel.org/pub/scm/utils/b4/b4.git/tree/src/b4?h=master",
+        "master",
+        "src/b4",
+        "__init__.py",
+    ),
+    (
+        "cgit-kernel-org-tag-page",
+        "https://git.kernel.org/pub/scm/utils/b4/b4.git/tree/?h=v0.12.0",
+        "v0.12.0",
+        "",
+        "COPYING",
+    ),
+    ("launchpad", "https://git.launchpad.net/launchpadlib", None, "", "setup.py"),
+    (
+        "launchpad-page",
+        "https://git.launchpad.net/launchpadlib/tree/src?h=main",
+        "main",
+        "src",
+        "launchpadlib",
+    ),
+    # GNU Savannah: the clone address (its web pages answer from another host).
+    ("savannah", "https://git.savannah.gnu.org/git/hello.git", None, "", "COPYING"),
+    # Azure DevOps rejects the blob filter, and puts the ref in the query.
+    (
+        "azure-devops",
+        "https://dev.azure.com/mseng/PipelineTools/_git/PipelineTools",
+        None,
+        "",
+        "readme.md",
+    ),
+    (
+        "azure-devops-page",
+        "https://dev.azure.com/mseng/PipelineTools/_git/PipelineTools"
+        "?path=/templates&version=GBmaster",
+        "master",
+        "templates",
+        "cluster-control-job.yml",
+    ),
     # Bitbucket Cloud. A file page is written like a folder page.
     (
         "bitbucket",

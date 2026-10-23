@@ -9,8 +9,11 @@ People paste the address of the page they were looking at, not a clone URL:
 ``.../-/tree/main/services/x`` (GitLab, including the instances run by public
 bodies), ``.../tree/main/src`` (GitHub), ``.../src/branch/main/cmd`` (Gitea,
 Forgejo, Codeberg), ``.../src/main/dir`` (Bitbucket Cloud) and
-``.../tree/main/item/dir`` (SourceHut). The page syntax is the same on every
-host that runs the same software, so no host list is kept: a URL is read by
+``.../tree/main/item/dir`` (SourceHut), ``.../+/refs/heads/main/dir``
+(Gitiles, Gerrit's code browser). Azure DevOps
+(``.../_git/repo?path=/dir&version=GBmain``) and cgit (``.../tree/dir?h=main``;
+Launchpad, kernel.org) put the branch in the query. The page syntax is the same
+on every host that runs the same software, so no host list is kept: a URL is read by
 its path, and the repository is the part before the page marker.
 
 A branch name may hold ``/``, so the split between branch and folder cannot be
@@ -24,7 +27,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from urllib.parse import unquote, urlsplit, urlunsplit
+from urllib.parse import SplitResult, parse_qs, unquote, urlsplit, urlunsplit
 
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.remote.errors import RemoteSourceError
@@ -144,6 +147,11 @@ class GitPage:
     kind: str | None = None
     plain_url: str = ""
     sourcehut: bool = False
+    #: Whether the ref is in the query (Azure DevOps, cgit): then ``rest`` is
+    #: the folder alone, and ``ref`` is the branch, tag or commit, empty for
+    #: the default branch.
+    query_style: bool = False
+    ref: str = ""
 
     @property
     def repo_name(self) -> str:
@@ -183,6 +191,9 @@ def parse_git_page(url: str) -> GitPage:
     plain = urlunsplit((parts.scheme, parts.netloc, parts.path.rstrip("/"), "", ""))
     if raw and raw[-1].endswith(".git"):
         return GitPage(plain, cut=cut, plain_url=plain)
+    queried = _query_page(parts, raw, plain) or _gitiles_page(parts, raw, plain)
+    if queried is not None:
+        return queried
     # GitLab's ``-`` is unambiguous (a group may be called ``src`` or
     # ``tree``): its markers are looked for first, the others by position.
     gitlab = tuple(m for m in _MARKERS if m[0][0] == "-")
@@ -203,6 +214,79 @@ def parse_git_page(url: str) -> GitPage:
         )
         return GitPage(repo, rest, is_file, cut, kind, plain, sourcehut)
     return GitPage(plain, cut=cut, plain_url=plain)
+
+
+#: cgit's page names, which put the ref in the query (``h`` or ``id``).
+_CGIT_PAGES = frozenset({"tree", "plain", "log", "commit", "diff", "about"})
+
+#: Azure DevOps' ``version`` prefixes: branch, tag, commit.
+_AZURE_VERSIONS = {"GB": "branch", "GT": "tag", "GC": "commit"}
+
+
+def _query_page(parts: SplitResult, raw: list[str], plain: str) -> GitPage | None:
+    """The page of a host that puts the ref in the query string, or ``None``
+    for any other URL: Azure DevOps (``_git/<repo>?path=…&version=GB<ref>``)
+    and cgit (``<repo>/tree/<folder>?h=<ref>``, ``?id=<ref>``)."""
+    query = parse_qs(parts.query)
+    if "_git" in raw[1:-1]:
+        index = raw.index("_git", 1)
+        version = (query.get("version") or [""])[0]
+        kind = _AZURE_VERSIONS.get(version[:2])
+        path = (query.get("path") or [""])[0]
+        if not (path or kind):
+            return None
+        return GitPage(
+            _with_path(parts, raw[: index + 2]),
+            _segments(path.split("/")),
+            kind=kind,
+            plain_url=plain,
+            query_style=True,
+            ref=version[2:] if kind else "",
+        )
+    ref = (query.get("h") or query.get("id") or [""])[0]
+    if not ref:
+        return None
+    for index in range(1, len(raw)):
+        if raw[index] in _CGIT_PAGES:
+            return GitPage(
+                _with_path(parts, raw[:index]),
+                _segments(raw[index + 1 :]),
+                plain_url=plain,
+                query_style=True,
+                ref=ref,
+            )
+    return None
+
+
+def _gitiles_page(parts: SplitResult, raw: list[str], plain: str) -> GitPage | None:
+    """The page of a Gitiles server (``<repo>/+/<ref>/<path>``, the ref in full
+    as ``refs/heads/<branch>`` or ``refs/tags/<tag>``, or short), or ``None``."""
+    if "+" not in raw[1:-1]:
+        return None
+    index = raw.index("+", 1)
+    rest = _segments(raw[index + 1 :])
+    kind = None
+    if rest[:2] in {("refs", "heads"), ("refs", "tags")}:
+        kind = "branch" if rest[1] == "heads" else "tag"
+        rest = rest[2:]
+    if not rest:
+        return None
+    return GitPage(
+        _with_path(parts, raw[:index]),
+        rest,
+        kind=kind,
+        plain_url=plain,
+    )
+
+
+def _with_path(parts: SplitResult, segments: list[str]) -> str:
+    """The URL of *parts* with the path *segments* and no query."""
+    return urlunsplit((parts.scheme, parts.netloc, "/" + "/".join(segments), "", ""))
+
+
+def _segments(raw: list[str]) -> tuple[str, ...]:
+    """The non-empty path segments of *raw*, percent-decoded."""
+    return tuple(unquote(s) for s in raw if s)
 
 
 def _find_marker(
@@ -242,6 +326,8 @@ def split_ref(page: GitPage, refs: Mapping[str, frozenset[str]]) -> GitTarget:
         RemoteSourceError: ``git.ref-not-found``, the leading segments are no
             ref and not a full commit id.
     """
+    if page.query_style:
+        return _queried_target(page, refs)
     rest = list(page.rest)
     if not rest:
         return GitTarget()
@@ -268,6 +354,26 @@ def split_ref(page: GitPage, refs: Mapping[str, frozenset[str]]) -> GitTarget:
     raise RemoteSourceError(
         "git.ref-not-found",
         f"No branch or tag {quote_source(first)} in "
+        f"{quote_source(sanitize_url_credentials(page.repo_url))} "
+        "(a commit needs its full 40 or 64 hex digits).",
+    )
+
+
+def _queried_target(page: GitPage, refs: Mapping[str, frozenset[str]]) -> GitTarget:
+    """The target of a page whose ref is in the query: the folder is all of
+    ``rest``; no ref is the default branch."""
+    folder, file = _folder(list(page.rest), page.is_file)
+    if not page.ref:
+        return GitTarget(subdir=folder, file=file)
+    kinds = refs.get(page.ref)
+    if kinds:
+        tag = "tag" in kinds and (page.kind == "tag" or "branch" not in kinds)
+        return GitTarget(ref=page.ref, subdir=folder, tag=tag, file=file)
+    if _COMMIT.fullmatch(page.ref):
+        return GitTarget(commit=page.ref, subdir=folder, file=file)
+    raise RemoteSourceError(
+        "git.ref-not-found",
+        f"No branch or tag {quote_source(page.ref)} in "
         f"{quote_source(sanitize_url_credentials(page.repo_url))} "
         "(a commit needs its full 40 or 64 hex digits).",
     )

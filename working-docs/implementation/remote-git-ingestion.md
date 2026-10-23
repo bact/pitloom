@@ -150,6 +150,24 @@ dropped without a message. They are page markers now, as is SourceHut's
 `/log/<ref>`. A short commit id in a Bitbucket URL is still refused (a server
 cannot be asked for it).
 
+## Other hosts (2026-10-23)
+
+Run against real servers (see `docs/git-urls.md`). Findings:
+
+- Azure DevOps answers a clone with `--filter=blob:limit=10m` with HTTP 400 but
+  serves a plain shallow clone (and `blob:none`). `_checkout` retries once
+  without the filter when the first attempt fails with `HTTP 400`; one `INFO:`
+  says so. The retry is for that answer only, any other failure stands.
+- Azure DevOps and cgit carry the ref in the query (`GitPage.query_style`):
+  `version=GB|GT|GC<ref>` and `path=` for Azure, `h=` or `id=` for cgit, with
+  the folder in the path after the page name. The ref is exact, not split from
+  the folder. Gitiles uses `/+/` with `refs/heads/` or `refs/tags/` in front of
+  the ref; both are read like a path marker.
+- A folder page whose path is a file (Forgejo, Bitbucket, SourceHut, Gitiles
+  write both alike) reads the folder holding the file.
+- Not read, by choice: a cgit page with no `h=` or `id=` (it names the default
+  branch, and its path cannot be told from a GitHub path).
+
 ## Verification
 
 - Unit and edge tests (`tests/extract/remote/test_git_*.py`), with a stand-in

@@ -40,10 +40,17 @@ from the server's own branches and tags, longest match first.
 | Gitea, Forgejo, Codeberg | `…/src/branch/<ref>/…`, `…/src/tag/<ref>/…`, `…/src/commit/<sha>/…` | branch, tag, commit; folder |
 | Bitbucket Cloud | `…/src/<ref>/<folder>`, `…/branch/<ref>`, `…/commits/branch/<ref>`, `…/commits/tag/<ref>`, `…/commits/<sha>` | branch, tag, commit; folder |
 | SourceHut | `…/tree/<ref>/item/<folder>`, `…/log/<ref>` | branch, tag; folder |
+| Gitiles (Gerrit's code browser, `*.googlesource.com`) | `…/+/refs/heads/<ref>/<folder>`, `…/+/refs/tags/<ref>/<folder>`, `…/+/<ref>/<folder>` | branch, tag; folder |
+| cgit (kernel.org, Launchpad) | `…/tree/<folder>?h=<ref>`, `…/log/?h=<ref>`, `…/commit/?id=<sha>` | branch, tag, commit; folder |
+| Azure DevOps | `…/_git/<repo>?path=/<folder>&version=GB<branch>` (`GT` tag, `GC` commit) | branch, tag, commit; folder |
 
 - A page URL naming a **file** reads the folder that holds it. A file page whose
   path is a folder reads that folder, and a folder page whose path is a file
-  (Bitbucket and SourceHut write both alike) reads the folder holding the file.
+  (Bitbucket, SourceHut, Forgejo and Gitiles write both alike) reads the folder
+  holding the file.
+- Where the ref is in the query (cgit, Azure DevOps) it is exact: it is not
+  split from the folder. A query that names no ref (`?ref_type=heads`) is
+  ignored, as before.
 - A **commit** must be given with its full 40 (or 64) hex digits; a server cannot
   be asked for an abbreviated id.
 - A query or fragment (`?ref_type=heads`, `#readme`) is ignored.
@@ -56,13 +63,12 @@ from the server's own branches and tags, longest match first.
   the repository is not found, the whole URL as the repository.
 - Hugging Face addresses (`huggingface.co`, `hf.co`, `www.` forms) are models,
   not Git repositories: `loom model` reads them.
-- Not read: Azure DevOps page URLs (the folder is in a query string), hosts that
-  need a login, `ssh://`, `git://`, `file://` and scp-style `user@host:path`
+- Not read: hosts that need a login, `ssh://`, `git://`, `file://` and scp-style `user@host:path`
   addresses. These are refused with a message (see below).
 
 ## Verified platforms
 
-Fetched with `loom` from a real server, on 2026-10-21 (the live tests in
+Fetched with `loom` from a real server, on 2026-10-21 and 2026-10-23 (the live tests in
 `tests/extract/remote/test_git_platforms_live.py` repeat these when run with
 network access):
 
@@ -75,8 +81,15 @@ network access):
 | GitLab | `forge.apps.education.fr` (French education) | bare URL |
 | GitLab | `framagit.org` | bare URL |
 | GitLab | `gitlab.cern.ch` (CERN) | bare URL |
-| Forgejo | `codeberg.org` | bare URL, `/src/branch/` page |
-| Forgejo | `code.overheid.nl` (Dutch government) | bare URL, `/src/branch/<branch>/<folder>` page |
+| Forgejo | `codeberg.org` | bare URL, `/src/branch/` page, file page, `/src/tag/` page |
+| Forgejo | `code.overheid.nl` (Dutch government) | bare URL, `/src/branch/<branch>/<folder>` page, file page |
+| Gerrit | `review.opendev.org` | bare URL |
+| Gitea | `opendev.org` | `/src/branch/<branch>/<folder>` page |
+| Gitiles | `gerrit.googlesource.com`, `pigweed.googlesource.com` | bare URL, `/+/refs/heads/<branch>/<folder>` page |
+| cgit | `git.kernel.org` | bare URL, `/tree/<folder>?h=<branch>` and `?h=<tag>` pages |
+| cgit | `git.launchpad.net` (Launchpad) | bare URL, `/tree/<folder>?h=<branch>` page |
+| GNU Savannah | `git.savannah.gnu.org` | the `/git/<project>.git` clone URL |
+| Azure DevOps | `dev.azure.com` | bare URL, `?path=<folder>&version=GB<branch>` page |
 | Gitea | `gitea.com` | `/src/branch/<branch>/<folder>`, `/src/tag/<tag>/<folder>` pages |
 | GitHub | `github.com` | bare URL, `/tree/` page, `/blob/` page |
 
@@ -90,9 +103,17 @@ Also checked, with a narrower scope:
   `/commits/<sha>`) used to fetch the default branch without a word.
 - **SourceHut** (`git.sr.ht`, 2026-10-23, `~sircmpwn/scm.sr.ht`): the bare URL,
   `/tree/<ref>/item/<folder>`, a file page and `/log/<ref>` are fetched.
-- **cgit and GNU Savannah**: the redirect to another host is followed only
-  when it leads to a repository; the one tried led to a host that does not
-  resolve.
+- **Azure DevOps** (2026-10-23, `mseng/PipelineTools`): the server answers
+  `--filter=blob:limit` with HTTP 400. Pitloom asks again without the filter
+  (an `INFO:` says so); the size cap still bounds the transfer.
+- **GNU Savannah**: the web pages (`/cgit/…`, `/gitweb/…`) redirect to hosts
+  that answered 502 when tried; only the clone URL was fetched.
+- **Gogs**: not tried live (the public demo, `try.gogs.io`, holds no
+  repository with commits). Its page form, `…/src/<ref>/<folder>`, is the one
+  Bitbucket uses and is parsed.
+- **Self-hosted GitLab with a URL prefix** is the ETSI row above. A Gitea under
+  a prefix was not found to try; the repository is the path before the marker,
+  so a prefix does not matter to the parser.
 
 What a platform answers differs: every GitLab sends a redirect from
 `group/project` to `group/project.git`, which Pitloom follows; Forgejo, Gitea,
