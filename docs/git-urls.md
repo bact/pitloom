@@ -71,12 +71,6 @@ from the server's own branches and tags, longest match first.
   repository and is fetched like any other (Git LFS files stay pointers: Pitloom
   switches LFS off). A Space with no `pyproject.toml`, `setup.cfg` or `setup.py`
   has no Python project to read, and says so.
-- **Git LFS (a limitation, planned to be fixed in 0.22.0).** Pitloom switches LFS
-  off for a fetch, so a file kept in LFS is a small pointer file in the checkout.
-  An AI model, a dataset or any other file stored that way is not read, and its
-  entry in the SBOM carries the SHA-256 of the pointer text, not of the file,
-  without a warning. Most model repositories on Hugging Face and many on GitLab
-  and Codeberg use LFS for their weights.
 - Not read: hosts that need a login, `ssh://`, `git://`, `file://` and scp-style `user@host:path`
   addresses. These are refused with a message (see below).
 
@@ -152,6 +146,13 @@ HTTP (`git http-backend`) that answers like GitLab does.
   with only the http(s) transports, git-lfs off (a repository's LFS settings
   could name another host; LFS files are not downloaded) and without
   `GIT_DIR`-style variables of the calling environment.
+- **Git LFS is a limitation, planned to be fixed in 0.22.0.** A file kept in LFS
+  is a small pointer file in the checkout, because LFS is off. A pointer named
+  like an AI model (`.onnx`, `.gguf`, ...) is recognised as a pointer and not
+  read as a model, so the SBOM has no AI package for it. Any other file in LFS
+  (a dataset, an image) is listed with the SHA-256 of the pointer text, not of
+  the file, and no warning says so. Most model repositories on Hugging Face, and
+  many on GitLab and Codeberg, keep their weights in LFS.
 - A symbolic link in the checkout that leads out of it is removed before the
   project is read (an `INFO:` counts them), so a host file is never read or
   hashed.
