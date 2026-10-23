@@ -176,8 +176,9 @@ def close_http_error(exc: BaseException) -> None:
 
 
 # A JSON string (skipped whole, escapes included; one never closed runs to the
-# end, so it is scanned once) or a bracket.
-_JSON_TOKEN = re.compile(r'"(?:[^"\\]|\\.)*"?|[\[\]{}]', re.DOTALL)
+# end, so it is scanned once; unrolled, so a long string is not matched one
+# character at a time) or a bracket.
+_JSON_TOKEN = re.compile(r'"[^"\\]*(?:\\.[^"\\]*)*"?|[\[\]{}]', re.DOTALL)
 
 
 def json_nests_over(raw: bytes, limit: int) -> bool:

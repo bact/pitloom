@@ -243,6 +243,7 @@ def test_only_a_differing_value_for_a_generated_one_replaces_it(
     "statement",
     [
         "not json",
+        "[" * 200_000,  # nested too deeply to read: no crash
         "[1, 2]",
         '{"fields": [1], "schema": "x"}',
         '{"fields": {}}',
@@ -253,6 +254,7 @@ def test_only_a_differing_value_for_a_generated_one_replaces_it(
     ],
     ids=[
         "malformed",
+        "too-deep",
         "not-an-object",
         "fields-not-an-object",
         "no-schema",
@@ -660,6 +662,7 @@ def test_the_generated_methods_are_the_ones_the_readers_write() -> None:
             '["\\"' + "[" * 80 + '" ]',
             True,
         ),  # brackets after an escaped quote are still in the string
+        ('["\\ud800"]', '[ "\\ud800"]', True),  # a lone surrogate is text too
         ("[1e400]", "[2e999]", False),  # both overflow a float, to the same inf
         ("[0.1]", "[0.10000000000000000001]", False),  # float precision
         ('{"a":1}', '{"a":2,"a":1}', False),  # a repeated key: the last wins
@@ -679,6 +682,7 @@ def test_the_generated_methods_are_the_ones_the_readers_write() -> None:
         "depth-64-by-count-65",
         "wide-objects",
         "objects-over-cap",
+        "lone-surrogate",
         "key-more",
         "key-less",
         "depth-at-cap",

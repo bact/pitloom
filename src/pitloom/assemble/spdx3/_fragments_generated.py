@@ -71,7 +71,7 @@ def _annotation_methods(annotation: spdx3.Annotation) -> dict[str, str | None]:
     statement of *annotation* names; empty for any other annotation."""
     try:
         statement = json.loads(annotation.statement or "")
-    except ValueError:
+    except (ValueError, RecursionError):  # not JSON, or nested too deeply to read
         return {}
     fields = statement.get("fields") if isinstance(statement, dict) else None
     if not isinstance(fields, dict) or (

@@ -103,7 +103,7 @@ def _drop_annotation_field(
     statement naming it; ``None`` when nothing is left of it."""
     try:
         statement = json.loads(annotation.statement or "")
-    except ValueError:
+    except (ValueError, RecursionError):  # not JSON, or nested too deeply to read
         return annotation
     fields = statement.get("fields") if isinstance(statement, dict) else None
     if (
