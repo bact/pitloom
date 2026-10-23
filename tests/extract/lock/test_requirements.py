@@ -16,6 +16,7 @@ mechanism's own tests.
 
 import logging
 import tempfile
+import warnings
 from pathlib import Path
 
 import pytest
@@ -543,11 +544,15 @@ def test_continuation_follows_pip(text: str, pins: list[str]) -> None:
 def test_continuation_matches_pips_own_join_lines() -> None:
     """Drift guard: the logical lines are pip's (its ``join_lines`` is a
     private helper, so the test skips if it moves)."""
-    try:
-        # pylint: disable-next=import-outside-toplevel
-        from pip._internal.req.req_file import join_lines
-    except ImportError:  # pragma: no cover
-        pytest.skip("pip's join_lines is not importable")
+    # Importing pip makes setuptools' distutils shim warn on Python 3.10 and
+    # 3.11 (an error here); the warning is about the environment, not the test.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        try:
+            # pylint: disable-next=import-outside-toplevel
+            from pip._internal.req.req_file import join_lines
+        except ImportError:  # pragma: no cover
+            pytest.skip("pip's join_lines is not importable")
     text = (
         "# note \\\nrequests==2.0\nfoo==1.\\\n0\nfo\\\no==1.0\n"
         "a==1 \\\n# c\nb==2\n  # indented \\\nidna==3.0\nlast==1 \\"
