@@ -50,6 +50,8 @@ and this project adheres to
   ([#311])
 - `loom project`/`loom generate` take a Git repository or page URL;
   GitLab redirects are followed and `check_url=` guards each hop ([#317])
+- `loom id import --project-dir` roots a new registry at the project directory
+  ([#338])
 
 ### Changed
 
@@ -170,6 +172,8 @@ and this project adheres to
   `ERROR:` line each; a hostile name cannot forge a line ([#335], [#336])
 - Requirements continuation lines are joined as pip does; a Croissant record
   count is reported only when every record set states one ([#337])
+- An sdist with members that share one path key warns instead of clashing
+  silently ([#338])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
@@ -194,6 +198,7 @@ and this project adheres to
 [#335]: https://github.com/bact/pitloom/pull/335
 [#336]: https://github.com/bact/pitloom/pull/336
 [#337]: https://github.com/bact/pitloom/pull/337
+[#338]: https://github.com/bact/pitloom/pull/338
 
 ## [0.20.2] - 2026-10-09
 

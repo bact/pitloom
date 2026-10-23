@@ -14,9 +14,11 @@ exact-pin validation is shared with (``single_exact_pin()`` in
 mechanism's own tests.
 """
 
+import json
 import logging
+import subprocess
+import sys
 import tempfile
-import warnings
 from pathlib import Path
 
 import pytest
@@ -541,23 +543,37 @@ def test_continuation_follows_pip(text: str, pins: list[str]) -> None:
         assert extract_pinned_requirements_dependencies(Path(tmp)) == pins
 
 
+_PIP_JOIN_LINES = """
+import json, sys
+try:
+    from pip._internal.req.req_file import join_lines
+except ImportError:
+    sys.exit(3)
+text = sys.stdin.read()
+joined = join_lines(enumerate(text.splitlines(), start=1))
+print(json.dumps([t.strip() for _, t in joined]))
+"""
+
+
 def test_continuation_matches_pips_own_join_lines() -> None:
     """Drift guard: the logical lines are pip's (its ``join_lines`` is a
     private helper, so the test skips if it moves)."""
-    # Importing pip makes setuptools' distutils shim warn on Python 3.10 and
-    # 3.11 (an error here); the warning is about the environment, not the test.
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", UserWarning)
-        try:
-            # pylint: disable-next=import-outside-toplevel
-            from pip._internal.req.req_file import join_lines
-        except ImportError:  # pragma: no cover
-            pytest.skip("pip's join_lines is not importable")
     text = (
         "# note \\\nrequests==2.0\nfoo==1.\\\n0\nfo\\\no==1.0\n"
         "a==1 \\\n# c\nb==2\n  # indented \\\nidna==3.0\nlast==1 \\"
     )
+    # A subprocess: importing pip makes setuptools' distutils shim replace
+    # distutils, which breaks setuptools for later tests in this process.
+    run = subprocess.run(
+        [sys.executable, "-W", "ignore", "-c", _PIP_JOIN_LINES],
+        input=text,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if run.returncode == 3:  # pragma: no cover
+        pytest.skip("pip's join_lines is not importable")
+    assert run.returncode == 0, run.stderr
     # pylint: disable-next=protected-access
     ours = [t.strip() for _, t in _join_continuation_lines(text)]
-    theirs = [t.strip() for _, t in join_lines(enumerate(text.splitlines(), start=1))]
-    assert ours == theirs
+    assert ours == json.loads(run.stdout)
