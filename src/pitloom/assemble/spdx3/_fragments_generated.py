@@ -100,6 +100,22 @@ def _equivalent(old: object, new: object) -> bool:
     return False
 
 
+def _agreed(sources: list[dict[str, str | None]]) -> dict[str, str | None]:
+    """The method of each field when every source that names it agrees that
+    it is generated, else ``None`` for it: the sources come from a set, and a
+    field they disagree on is read as not generated, in any order."""
+    methods: dict[str, str | None] = {}
+    for source in sources:
+        for name, method in source.items():
+            if name not in methods:
+                methods[name] = method
+            elif method not in GENERATED_METHODS or methods[name] not in (
+                GENERATED_METHODS
+            ):
+                methods[name] = None
+    return methods
+
+
 def generated_properties(methods: dict[str, str | None]) -> frozenset[str]:
     """The properties of a model whose provenance *methods* (field -> method)
     are all generated, from :data:`PROVENANCE_PROPERTY_FIELDS`."""
@@ -125,11 +141,13 @@ class GeneratedValues:
         for obj in objects:
             if not isinstance(obj, spdx3.ai_AIPackage) or not obj.spdxId:
                 continue
-            methods = _comment_methods(obj.comment)
-            for annotation in annotations:
-                if _endpoint_id(annotation.subject) == str(obj.spdxId):
-                    methods.update(_annotation_methods(annotation))
-            properties = generated_properties(methods)
+            sources = [_comment_methods(obj.comment)]
+            sources += [
+                _annotation_methods(annotation)
+                for annotation in annotations
+                if _endpoint_id(annotation.subject) == str(obj.spdxId)
+            ]
+            properties = generated_properties(_agreed(sources))
             if properties:
                 self._generated[id(obj)] = set(properties)
 

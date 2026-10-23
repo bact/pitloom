@@ -147,9 +147,11 @@ class ModelNames:
         for obj in base:
             if isinstance(obj, spdx3.Annotation):
                 self._annotations.append(obj)
-            elif isinstance(obj, spdx3.ai_AIPackage) and not _is_empty(obj.name):
+            elif isinstance(obj, spdx3.ai_AIPackage) and obj.spdxId:
                 self._models[id(obj)] = _BaseModel(
-                    obj, str(obj.name), with_parameter_count_note(obj.comment, False)
+                    obj,
+                    "" if _is_empty(obj.name) else str(obj.name),
+                    with_parameter_count_note(obj.comment, False),
                 )
 
     def record(
@@ -160,9 +162,11 @@ class ModelNames:
         model = self._models.get(id(canonical))
         if model is None or not isinstance(duplicate, spdx3.ai_AIPackage):
             return frozenset()
+        model.comments.append(with_parameter_count_note(duplicate.comment, False))
+        if not model.name:  # a base model with no name takes the fragment's
+            return frozenset()
         if not _is_empty(duplicate.name):
             model.names.setdefault(str(duplicate.name))
-        model.comments.append(with_parameter_count_note(duplicate.comment, False))
         return _SKIP_NAME
 
     def drop_provenance(self, package: spdx3.SHACLObject, field_name: str) -> None:

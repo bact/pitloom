@@ -26,7 +26,7 @@ from typing import Any
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3._fragments_generated import generated_properties
+from pitloom.assemble.spdx3._fragments_generated import _agreed, generated_properties
 from pitloom.assemble.spdx3._provenance_encoders import PitloomV1Encoder
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.config import FragmentConfig
@@ -70,6 +70,7 @@ def _base(
     comment: bool = True,
     annotation: bool = True,
     description: str = "generated",
+    name: str | None = "m",
 ) -> Spdx3JsonExporter:
     """A base document with model ``M``: *description*, domain ``d0``, an
     ``outputs`` text, and provenance of the fields in *methods* in its comment
@@ -80,12 +81,13 @@ def _base(
     exporter.add_agent(spdx3.Agent(spdxId=f"{_NS}#A", name="A", creationInfo=ci))
     model = spdx3.ai_AIPackage(
         spdxId=_MODEL,
-        name="m",
         creationInfo=ci,
         description=description,
         ai_domain=["d0"],
         ai_informationAboutApplication='{"outputs":["x"]}',
     )
+    if name is not None:
+        model.name = name
     if comment:
         parts = [
             f"{name}: {_provenance(name, method)}" for name, method in methods.items()
@@ -401,6 +403,63 @@ def test_a_fragments_own_provenance_annotation_is_kept(
     own = [a for a in annotations if a["spdxId"].startswith(f"{_NS}#FA-")]
     assert len(own) == 1
     assert sorted(json.loads(own[0]["statement"])["fields"]) == sorted(provenance)
+
+
+def test_a_base_model_with_no_name_loses_its_generated_provenance_too(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The name is no condition: the fragment's name fills the empty one, as
+    before, and the generated value is replaced like any other."""
+    base = _base({"description": "generated_from_labels"}, name=None)
+    model, records, annotations = _merge(
+        tmp_path, caplog, base, [{"name": "n", "description": "curated"}]
+    )
+    assert (model["name"], model["description"]) == ("n", "curated")
+    assert _levels(records) == [logging.INFO]
+    assert "description" not in _provenance_fields(model, annotations)
+
+
+@pytest.mark.parametrize(
+    ("sources", "agreed"),
+    [
+        ([{"a": "generated_from_labels"}, {"a": "derived_from_format"}], True),
+        ([{"a": "generated_from_labels"}, {"a": None}], False),
+        ([{"a": None}, {"a": "generated_from_labels"}], False),
+        ([{"a": "generated_from_labels"}, {"b": None}], True),
+        ([{"a": "other"}, {"a": "generated_from_labels"}], False),
+    ],
+    ids=["both-generated", "read-after", "read-before", "other-field", "other-method"],
+)
+def test_sources_that_disagree_read_a_field_as_not_generated_in_any_order(
+    sources: list[dict[str, str | None]], agreed: bool
+) -> None:
+    """The Annotations come from a set: a field they disagree on must not
+    depend on which is read last."""
+    for order in (sources, sources[::-1]):
+        assert (_agreed(order).get("a") in GENERATED_METHODS) is agreed
+
+
+def test_two_annotations_that_disagree_give_the_same_result_every_time(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    results = set()
+    for n in range(12):
+        base = _base({"description": "generated_from_labels"})
+        base.add_annotation(
+            spdx3.Annotation(
+                spdxId=f"{_NS}#Annotation-x{n}",
+                creationInfo=_creation_info(),
+                annotationType=spdx3.AnnotationType.other,
+                contentType="application/json",
+                subject=_MODEL,
+                statement=_statement({"description": None}),
+            )
+        )
+        model, records, _ = _merge(
+            tmp_path / str(n), caplog, base, [{"description": "curated"}]
+        )
+        results.add((model["description"], tuple(_levels(records))))
+    assert results == {("generated", (logging.WARNING,))}
 
 
 def test_a_second_fragment_conflicts_with_the_first(
