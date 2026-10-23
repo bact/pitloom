@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from types import TracebackType
+from unittest import mock
 
 import pytest
 
@@ -61,32 +61,13 @@ def test_tree_bytes_does_not_follow_a_link(tmp_path: Path) -> None:
     assert tree_bytes(str(inside)) < 1000
 
 
-class _Unreadable:
-    """A directory entry whose type cannot be read."""
-
-    path = "unreadable"
-
-    def is_dir(self, *, follow_symlinks: bool) -> bool:
-        raise PermissionError(follow_symlinks)
-
-
-class _Listing:
-    """What ``os.scandir`` gives: one such entry."""
-
-    def __enter__(self) -> list[_Unreadable]:
-        return [_Unreadable()]
-
-    def __exit__(
-        self,
-        _kind: type[BaseException] | None,
-        _error: BaseException | None,
-        _trace: TracebackType | None,
-    ) -> None:
-        return None
-
-
 def test_tree_bytes_skips_an_entry_it_cannot_read(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(os, "scandir", lambda _path: _Listing())
+    entry = mock.Mock(path="unreadable")
+    entry.is_dir.side_effect = PermissionError
+    listing = mock.MagicMock()
+    listing.__enter__.return_value = [entry]
+    listing.__exit__.return_value = False
+    monkeypatch.setattr(os, "scandir", lambda _path: listing)
     assert tree_bytes(str(tmp_path)) == 0
