@@ -466,6 +466,17 @@ def test_any_other_clone_failure_is_not_retried(message: str) -> None:
     assert len(runner.calls) == 1
 
 
+def test_the_echoed_git_command_masks_a_userinfo_holding_a_space(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The ``$ git`` INFO names each argument: a URL argument is masked whole."""
+    runner = GitRunner(seconds=30)
+    with caplog.at_level(logging.INFO), pytest.raises(RemoteSourceError):
+        runner.run(["ls-remote", "http://u:SEC RET@127.0.0.1:9/o/r"], "ls-remote")
+    assert "$ " in caplog.text
+    assert "SEC" not in caplog.text and "RET@" not in caplog.text
+
+
 def test_an_azure_version_that_names_no_kind_is_logged_as_ignored(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

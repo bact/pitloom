@@ -502,3 +502,26 @@ def test_model_command_masks_credentials_of_an_unread_url(
     lines = capsys.readouterr().err.strip().splitlines()
     assert len(lines) == 1 and lines[0].startswith("ERROR: ")
     assert "SECRET" not in lines[0]
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["model", "https://huggingface.co/o/m?private_token=SECRET", "--offline"],
+        ["project", "https://huggingface.co/o/m?private_token=SECRET"],
+        ["project", "https://user:SECRET@huggingface.co/o/m"],
+    ],
+    ids=["model-query", "project-query", "project-userinfo"],
+)
+def test_no_secret_of_a_hugging_face_url_reaches_stderr(
+    argv: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    """Whichever command reads it and whichever way it is refused, a token in
+    the query or user information is masked in every line."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["loom", *argv])
+    assert __main__.main() != 0
+    assert "SECRET" not in capsys.readouterr().err

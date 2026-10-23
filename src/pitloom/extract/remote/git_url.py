@@ -249,8 +249,8 @@ def _query_page(
     """The page of a host that puts the ref in the query string, or ``None``
     for any other URL: Azure DevOps (``_git/<repo>?path=…&version=GB<ref>``)
     and cgit (``<repo>/tree/<folder>?h=<ref>``, ``?id=<ref>``). The query
-    wins: a cgit folder may be called ``src`` or ``tree``, and no forge puts
-    ``?h=`` on its own page URLs."""
+    wins: a cgit folder may be called ``src`` or ``tree``. A GitLab or Gitea
+    marker in the path means the query is stray."""
     query = parse_qs(parts.query)
     if "_git" in raw[1:-1]:
         index = raw.index("_git", 1)
@@ -269,7 +269,7 @@ def _query_page(
             version_ignored=bool(version) and kind is None,
         )
     ref = (query.get("h") or query.get("id") or [""])[0]
-    if not ref:
+    if not ref or _is_forge_path(raw):
         return None
     for index in range(1, len(raw)):
         if raw[index] in _CGIT_PAGES:
@@ -281,6 +281,18 @@ def _query_page(
                 ref=ref,
             )
     return None
+
+
+def _is_forge_path(raw: list[str]) -> bool:
+    """Whether the path carries a forge's own unambiguous page marker (GitLab's
+    ``-``, Gitea's ``src/branch|tag|commit``), so a ``?h=`` or ``?id=`` after it
+    is a stray query, not cgit's."""
+    return any(
+        entry[0][0] in {"-", "src"}
+        and len(entry[0]) == 2
+        and _find_marker(raw, (entry,)) is not None
+        for entry in _MARKERS
+    )
 
 
 def _gitiles_page(

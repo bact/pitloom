@@ -679,6 +679,26 @@ def test_a_cgit_folder_called_like_a_page_marker_keeps_its_query_ref(
     assert (page.rest, page.query_style, page.ref != "") == (rest, True, True)
 
 
+@pytest.mark.parametrize(
+    ("url", "repo"),
+    [
+        ("https://gitlab.com/o/r/-/tree/main?h=x", "https://gitlab.com/o/r"),
+        (
+            "https://codeberg.org/o/r/src/commit/" + "a" * 40 + "/d?id=1",
+            "https://codeberg.org/o/r",
+        ),
+    ],
+    ids=["gitlab", "gitea"],
+)
+def test_a_stray_cgit_style_query_after_a_forge_marker_is_ignored(
+    url: str, repo: str
+) -> None:
+    """GitLab's ``-`` and Gitea's ``src/commit`` mark a forge page whose query
+    is not cgit's: the repository is the one before the marker."""
+    page = parse_git_page(url)
+    assert (page.repo_url, page.query_style) == (repo, False)
+
+
 def test_a_gitlab_commits_page_names_its_repository() -> None:
     """``-/commits/<ref>`` is GitLab's: the ``-`` is not part of the repository."""
     page = parse_git_page("https://gitlab.com/g/s/p/-/commits/main/d")

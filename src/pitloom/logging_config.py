@@ -23,6 +23,7 @@ import threading
 import traceback
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
+from urllib.parse import unquote
 
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
 
@@ -66,16 +67,56 @@ _WARNED_ONCE: set[tuple[str, str]] = set()
 _URL_USERINFO_RE = re.compile(r"://[^/\s@][^/\s]*@")
 
 
-#: A query parameter whose name says it holds a secret, up to the next ``&``,
-#: ``;``, ``#`` or whitespace.
-_QUERY_SECRET_RE = re.compile(
-    r"(?i)([?&;][\w.-]*(?:token|secret|passw|pwd|key|auth|signature|sig|credential)"
-    r"[\w.-]*=)[^&;#\s]*"
+#: A URL in a text, to its end at whitespace.
+_URL_RE = re.compile(r"://\S+")
+
+#: A query or fragment parameter (name at most 64 characters, so matching is
+#: linear), as ``(delimiter, name, value)``.
+_PARAM_RE = re.compile(r"([?&;#])([\w.%-]{1,64})=([^&;#\s]*)")
+
+#: Names (lower case) of a parameter that holds a secret, and the endings of
+#: such a name (``access_token``, ``db-password``).
+_SECRET_NAMES = frozenset(
+    {
+        "token",
+        "key",
+        "apikey",
+        "secret",
+        "password",
+        "passwd",
+        "pass",
+        "pwd",
+        "pw",
+        "sig",
+        "signature",
+        "jwt",
+        "credential",
+        "credentials",
+    }
+)
+_SECRET_ENDINGS = ("_token", "-token", "_secret", "-secret", "_key", "-key") + (
+    "_password",
+    "-password",
+    "_signature",
+    "-signature",
 )
 
 #: ``://`` and a userinfo of a text that is one URL: up to the last ``@``
 #: before the first ``/``, whatever characters (a newline, a space) it holds.
-_WHOLE_URL_USERINFO_RE = re.compile(r"://[^/@][^/]*@")
+#: ``:/`` too, for a URL a path normalisation collapsed.
+_WHOLE_URL_USERINFO_RE = re.compile(r":/{1,2}[^/@][^/]*@")
+
+
+def _mask_param(match: re.Match[str]) -> str:
+    delimiter, name, value = match.groups()
+    plain = unquote(name).lower()
+    if plain in _SECRET_NAMES or plain.endswith(_SECRET_ENDINGS):
+        value = "***"
+    return f"{delimiter}{name}={value}"
+
+
+def _mask_url_secrets(match: re.Match[str]) -> str:
+    return _PARAM_RE.sub(_mask_param, match.group(0))
 
 
 def sanitize_url_credentials(text: str) -> str:
@@ -89,8 +130,7 @@ def sanitize_url_credentials(text: str) -> str:
     so a password holding ``@``, ``?`` or ``#`` is redacted whole. For a text
     that is one URL, use :func:`sanitize_url`.
     """
-    text = _URL_USERINFO_RE.sub("://***:***@", text)
-    return _QUERY_SECRET_RE.sub(r"\1***", text)
+    return _URL_RE.sub(_mask_url_secrets, _URL_USERINFO_RE.sub("://***:***@", text))
 
 
 def sanitize_url(url: str) -> str:

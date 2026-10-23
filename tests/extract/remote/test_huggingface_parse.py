@@ -170,3 +170,17 @@ def test_a_url_read_in_another_spelling_is_said_once(
         if said
         else []
     )
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://huggingface.co/o/m?private_token=SECRET",
+        "https://huggingface.co/o/m#frag",
+        "https://huggingface.co/o/m/tree/main?x=1",
+    ],
+)
+def test_a_query_or_fragment_is_no_part_of_the_model_id(url: str) -> None:
+    """A model id holds no ``?`` or ``#``: a token in the query must not end up
+    in the id, and so in a message or a request."""
+    assert parse_hf_model_id(url) == "o/m"

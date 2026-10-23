@@ -41,7 +41,7 @@ from pitloom.extract.remote import (
     is_unsupported_remote_url,
 )
 from pitloom.extract.remote.git import CONFIG_IGNORED_INFO
-from pitloom.logging_config import print_error
+from pitloom.logging_config import print_error, sanitize_url
 
 log = logging.getLogger(__name__)
 
@@ -147,9 +147,9 @@ def _run_project_command(args: argparse.Namespace) -> int:
     URL."""
     if isinstance(args.project_dir, str):
         if _is_hub_model_url(args.project_dir):
+            shown = quote_source(sanitize_url(args.project_dir))
             print_error(
-                f"{quote_source(args.project_dir)} is a Hugging Face model, "
-                "not a project: use 'loom model'."
+                f"{shown} is a Hugging Face model, not a project: use 'loom model'."
             )
             return 1
         return run_remote_project(args, args.project_dir)

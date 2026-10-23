@@ -10,6 +10,7 @@ from __future__ import annotations
 import io
 import os
 import threading
+import time
 import urllib.request
 from email.message import Message
 from pathlib import Path
@@ -26,7 +27,7 @@ from pitloom.extract._extract_utils import (
     json_nests_over,
     sanitize_provenance_text,
 )
-from pitloom.logging_config import Cap, sanitize_url, sanitize_url_credentials
+from pitloom.logging_config import Cap, sanitize_url_credentials
 from tests._bounded import run_bounded_in_child
 
 #: ``os.mkfifo`` exists on POSIX only.
@@ -36,29 +37,42 @@ _HAS_MKFIFO = hasattr(os, "mkfifo")
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
+        ("https://h/r?private_token=S&h=main", "https://h/r?private_token=***&h=main"),
+        ("https://h/r?a=1&Access_Token=S#f", "https://h/r?a=1&Access_Token=***#f"),
+        ("https://h/r#access_token=S", "https://h/r#access_token=***"),
         (
-            "https://h/r?private_token=SECRET&h=main",
-            "https://h/r?private_token=***&h=main",
+            "https://h/r?to%6Ben=S&db-password=P",
+            "https://h/r?to%6Ben=***&db-password=***",
         ),
-        ("https://h/r?a=1&Access_Token=SECRET#f", "https://h/r?a=1&Access_Token=***#f"),
-        ("https://h/r?id=abc&path=/key", "https://h/r?id=abc&path=/key"),  # not secrets
+        # Names that only contain a secret word, and text that is no URL.
+        ("https://h/r?author=1&monkey=2&design=3&tokenizer=4", None),
+        ("https://h/r?id=abc&path=/key", None),
+        ("pkg &key=value ;keyboard=1", None),
     ],
-    ids=["private-token", "mixed-case-fragment", "plain-query-kept"],
+    ids=[
+        "private",
+        "mixed-case",
+        "fragment",
+        "encoded-name",
+        "lookalikes",
+        "plain",
+        "no-url",
+    ],
 )
-def test_a_secret_named_query_value_is_redacted(text: str, expected: str) -> None:
-    assert sanitize_url_credentials(text) == expected
+def test_a_secret_named_query_value_is_redacted(
+    text: str, expected: str | None
+) -> None:
+    """The name is matched whole (or by its ending), not as a substring, and
+    only inside a URL."""
+    assert sanitize_url_credentials(text) == (expected or text)
 
 
-@pytest.mark.parametrize(
-    "url",
-    ["https://u:SEC\nRET@h/r", "https://u:SEC RET@h/r", "https://u:S\tE@h/r?x=1"],
-    ids=["newline", "space", "tab"],
-)
-def test_sanitize_url_redacts_a_userinfo_holding_whitespace(url: str) -> None:
-    """For a text that is one URL, the whole userinfo goes; the line-by-line
-    helper stops at whitespace and would show part of the password."""
-    assert sanitize_url(url).startswith("https://***:***@h/r")
-    assert "RET" not in sanitize_url(url) and "SEC" not in sanitize_url(url)
+def test_the_query_secret_match_is_linear() -> None:
+    """A server's stderr is sanitised after git exits, so its time is not
+    bounded by the git timeout: a 400 KB name must not take quadratic time."""
+    start = time.monotonic()
+    sanitize_url_credentials("https://h/?" + "token" * 80_000)
+    assert time.monotonic() - start < 5
 
 
 def test_sanitize_url_credentials_redacts_user_and_password() -> None:

@@ -43,7 +43,7 @@ from pitloom.extract.project import (
     resolve_project_with_lockfile,
     sdist_config_source,
 )
-from pitloom.logging_config import print_error
+from pitloom.logging_config import print_error, sanitize_url
 
 
 @dataclass(frozen=True)
@@ -93,7 +93,11 @@ def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path 
     """Resolve and validate project directory or sdist archive path."""
     project_dir = args.project_dir.resolve()
     if not project_dir.exists():
-        print_error(f"project directory not found: {quote_source(project_dir)}")
+        # A URL Pitloom does not read (user information in a Hugging Face
+        # one) reaches here as a path under the current directory.
+        text = str(project_dir)
+        shown = sanitize_url(text) if "http" in text.lower() and ":/" in text else text
+        print_error(f"project directory not found: {quote_source(shown)}")
         return None, None
 
     if project_dir.is_file():

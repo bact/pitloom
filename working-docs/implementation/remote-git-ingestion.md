@@ -189,10 +189,19 @@ Run against real servers (see `docs/git-urls.md`). Findings:
   (a NUL byte reached `os.path.realpath` after the clone and raised
   `ValueError`).
 - Credentials: `sanitize_url_credentials` (free text, stops at whitespace) also
-  masks a query value named like a secret; `sanitize_url` is for a text that is
-  one URL and masks a userinfo holding a newline or a space. Every URL echoed by
-  the Git source and by `loom model` goes through `sanitize_url`. A secret in a
-  parameter with another name is not recognised.
+  masks, inside a URL only, a query or fragment parameter whose whole name (or
+  ending: `_token`, `_key`, `_secret`, `_password`) says it is a secret, by name
+  list and not by substring (`author`, `design`, `monkey` are kept); the name is
+  capped at 64 characters, as a substring pattern was quadratic on a server's
+  8 MiB stderr. `sanitize_url` is for a text that is one URL and masks a
+  userinfo holding a newline or a space, also in the collapsed `https:/` form of
+  a path. Every URL echoed by the Git source (the `$ git` line per argument,
+  the build warnings) and by `loom model` and `loom project` goes through it. A
+  secret in a parameter with another name is not recognised.
+- A Hugging Face model id ends at `?` and `#`: a query token was part of the id
+  and reached messages.
+- A `?h=`/`?id=` after a GitLab `-` or Gitea `src/commit` marker is a stray
+  query, not cgit's.
 
 ## Verification
 

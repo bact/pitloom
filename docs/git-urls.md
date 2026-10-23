@@ -53,7 +53,8 @@ from the server's own branches and tags, longest match first.
   holding the file.
 - Where the ref is in the query (cgit, Azure DevOps) it is exact: it is not
   split from the folder, and a `?h=` or `?id=` after a cgit page name is the ref
-  whatever the folder is called (`src`, `tree`). A query that names no ref
+  whatever the folder is called (`src`, `tree`), unless the path holds a GitLab
+  (`-`) or Gitea (`src/commit|branch|tag`) marker, which makes the query stray. A query that names no ref
   (`?ref_type=heads`) is ignored, as before. An Azure DevOps `version` that does
   not start with `GB`, `GT` or `GC` names no ref: the default branch is read and
   an `INFO:` says so.
@@ -186,8 +187,10 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `ERROR:` | `SBOM generation failed: …` | the run could not finish |
 
 A URL or ref in a message is shown without credentials (`https://***:***@host`,
-and a query value named like a secret, such as `?private_token=***`) and with
-control characters escaped. A secret in a parameter with another name is not
+and, in a URL, the value of a query or fragment parameter named `token`, `key`,
+`secret`, `password`, `sig`, `signature` and the like, or ending in `_token`,
+`_secret`, `_key` or `_password`: `?private_token=***`) and with control
+characters escaped. A secret in a parameter with another name is not
 recognised. What a server or `git` says is reduced to
 one line (its `fatal:`, `error:` and `remote:` lines), so it cannot add a
 tagged line of its own.

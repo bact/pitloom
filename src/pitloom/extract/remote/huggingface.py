@@ -103,7 +103,8 @@ __all__ = ["is_huggingface_source", "parse_hf_model_id", "read_huggingface"]
 # Space or a dataset (``/spaces/...``, ``/datasets/...``) is a Git repository,
 # not a model.
 _HF_URL_RE = re.compile(
-    rf"https?://{HUB_HOST_PATTERN}/(?!(?:spaces|datasets)/)([^/]+/[^/]+?)(?:/.*)?$",
+    rf"https?://{HUB_HOST_PATTERN}/(?!(?:spaces|datasets)/)"
+    r"([^/?#]+/[^/?#]+?)(?:[/?#].*)?$",
     re.IGNORECASE,
 )
 _CANONICAL_PREFIX = "https://huggingface.co/"
