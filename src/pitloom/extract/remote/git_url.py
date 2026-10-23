@@ -55,6 +55,7 @@ ALLOWED_SCHEMES = frozenset({"http", "https"})
 _MARKERS: tuple[tuple[tuple[str, ...], str | None, bool], ...] = (
     (("-", "tree"), None, False),  # GitLab
     (("-", "blob"), None, True),
+    (("-", "commits"), None, False),
     (("src", "branch"), "branch", False),  # Gitea, Forgejo, Codeberg
     (("src", "tag"), "tag", False),
     (("src", "commit"), "commit", False),
@@ -205,7 +206,9 @@ def parse_git_page(url: str) -> GitPage:
     plain = urlunsplit((parts.scheme, parts.netloc, parts.path.rstrip("/"), "", ""))
     if raw and raw[-1].endswith(".git"):
         return GitPage(plain, cut=cut, plain_url=plain)
-    queried = _query_page(parts, raw, plain) or _gitiles_page(parts, raw, plain)
+    queried = _query_page(parts, raw, plain, url) or _gitiles_page(
+        parts, raw, plain, url
+    )
     if queried is not None:
         return queried
     # GitLab's ``-`` is unambiguous (a group may be called ``src`` or
@@ -237,10 +240,14 @@ _CGIT_PAGES = frozenset({"tree", "plain", "log", "commit", "diff", "about"})
 _AZURE_VERSIONS = {"GB": "branch", "GT": "tag", "GC": "commit"}
 
 
-def _query_page(parts: SplitResult, raw: list[str], plain: str) -> GitPage | None:
+def _query_page(
+    parts: SplitResult, raw: list[str], plain: str, url: str
+) -> GitPage | None:
     """The page of a host that puts the ref in the query string, or ``None``
     for any other URL: Azure DevOps (``_git/<repo>?path=…&version=GB<ref>``)
-    and cgit (``<repo>/tree/<folder>?h=<ref>``, ``?id=<ref>``)."""
+    and cgit (``<repo>.git/tree/<folder>?h=<ref>``, ``?id=<ref>``). A path
+    that already names its ref (``o/r/tree/main/d?h=x``) is read the usual
+    way unless a ``….git`` segment marks a cgit repository."""
     query = parse_qs(parts.query)
     if "_git" in raw[1:-1]:
         index = raw.index("_git", 1)
@@ -251,20 +258,23 @@ def _query_page(parts: SplitResult, raw: list[str], plain: str) -> GitPage | Non
             return None
         return GitPage(
             _with_path(parts, raw[: index + 2]),
-            _segments(path.split("/")),
+            _segments(path.split("/"), url),
             kind=kind,
             plain_url=plain,
             query_style=True,
             ref=version[2:] if kind else "",
+            cut=bool(version) and kind is None,
         )
     ref = (query.get("h") or query.get("id") or [""])[0]
     if not ref:
         return None
     for index in range(1, len(raw)):
-        if raw[index] in _CGIT_PAGES:
+        if raw[index] in _CGIT_PAGES and (
+            raw[index - 1].endswith(".git") or _find_marker(raw, _MARKERS) is None
+        ):
             return GitPage(
                 _with_path(parts, raw[:index]),
-                _segments(raw[index + 1 :]),
+                _segments(raw[index + 1 :], url),
                 plain_url=plain,
                 query_style=True,
                 ref=ref,
@@ -272,13 +282,15 @@ def _query_page(parts: SplitResult, raw: list[str], plain: str) -> GitPage | Non
     return None
 
 
-def _gitiles_page(parts: SplitResult, raw: list[str], plain: str) -> GitPage | None:
+def _gitiles_page(
+    parts: SplitResult, raw: list[str], plain: str, url: str
+) -> GitPage | None:
     """The page of a Gitiles server (``<repo>/+/<ref>/<path>``, the ref in full
     as ``refs/heads/<branch>`` or ``refs/tags/<tag>``, or short), or ``None``."""
     if "+" not in raw[1:-1]:
         return None
     index = raw.index("+", 1)
-    rest = _segments(raw[index + 1 :])
+    rest = _segments(raw[index + 1 :], url)
     kind = None
     if rest[:2] in {("refs", "heads"), ("refs", "tags")}:
         kind = "branch" if rest[1] == "heads" else "tag"
@@ -298,9 +310,11 @@ def _with_path(parts: SplitResult, segments: list[str]) -> str:
     return urlunsplit((parts.scheme, parts.netloc, "/" + "/".join(segments), "", ""))
 
 
-def _segments(raw: list[str]) -> tuple[str, ...]:
-    """The non-empty path segments of *raw*, percent-decoded."""
-    return tuple(unquote(s) for s in raw if s)
+def _segments(raw: list[str], url: str) -> tuple[str, ...]:
+    """The non-empty path segments of *raw*, percent-decoded and checked."""
+    rest = tuple(unquote(s) for s in raw if s)
+    _check_segments(rest, url)
+    return rest
 
 
 def _find_marker(

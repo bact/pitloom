@@ -268,37 +268,22 @@ def _checkout(
     blobs over :data:`BLOB_LIMIT`. A server that answers the filter with an
     error (Azure DevOps: HTTP 400) is asked again without it; the size cap
     still bounds the transfer."""
+    pinned = bool(target.commit or target.tag)
+    if pinned:
+        runner.run(["init", "--quiet", "--", work_dir], "init")
+        runner.run(
+            ["-C", work_dir, "remote", "add", "origin", "--", clone_url], "remote"
+        )
     try:
-        _checkout_filtered(
+        _fetch(
             runner, clone_url, work_dir, target, [f"--filter=blob:limit={BLOB_LIMIT}"]
         )
     except RemoteSourceError as exc:
         if exc.code != "git.clone-failed" or "HTTP 400" not in str(exc):
             raise
         log.info("Git source: the server rejected the blob filter; fetching without it")
-        _checkout_filtered(runner, clone_url, work_dir, target, [])
-
-
-def _checkout_filtered(
-    runner: GitRunner,
-    clone_url: str,
-    work_dir: str,
-    target: GitTarget,
-    blobs: list[str],
-) -> None:
-    """Check out *target* of *clone_url* with the clone options *blobs*."""
-    if target.commit or target.tag:
-        # A refspec begins with ``refs/``: it cannot be read as an option.
-        wanted = f"refs/tags/{target.ref}" if target.tag else str(target.commit)
-        runner.run(["init", "--quiet", "--", work_dir], "init")
-        runner.run(
-            ["-C", work_dir, "remote", "add", "origin", "--", clone_url], "remote"
-        )
-        runner.run(
-            ["-C", work_dir, "fetch", "--depth", "1", *blobs, "origin", wanted],
-            "fetch",
-            watch=work_dir,
-        )
+        _fetch(runner, clone_url, work_dir, target, [])
+    if pinned:
         runner.run(
             [
                 "-C",
@@ -309,6 +294,25 @@ def _checkout_filtered(
                 "FETCH_HEAD",
             ],
             "checkout",
+            watch=work_dir,
+        )
+
+
+def _fetch(
+    runner: GitRunner,
+    clone_url: str,
+    work_dir: str,
+    target: GitTarget,
+    blobs: list[str],
+) -> None:
+    """Fetch *target* of *clone_url* with the clone options *blobs*: into the
+    repository ``init`` made for a tag or commit, else by a shallow clone."""
+    if target.commit or target.tag:
+        # A refspec begins with ``refs/``: it cannot be read as an option.
+        wanted = f"refs/tags/{target.ref}" if target.tag else str(target.commit)
+        runner.run(
+            ["-C", work_dir, "fetch", "--depth", "1", *blobs, "origin", wanted],
+            "fetch",
             watch=work_dir,
         )
         return

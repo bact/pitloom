@@ -30,7 +30,7 @@ from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.inert_options import HF, MODEL_FILE, forward_options
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.remote import is_git_url, is_huggingface_source, parse_hf_model_id
-from pitloom.logging_config import print_error
+from pitloom.logging_config import print_error, sanitize_url_credentials
 
 
 @cli_error_handler("model command failed")
@@ -40,8 +40,9 @@ def _run_model_command(args: argparse.Namespace) -> int:
     model_target: Path | str
     if is_git_url(target) and not Path(target).exists():
         print_error(
-            f"{quote_source(target)} is a Git repository, not a model: "
-            "use 'loom project'."
+            f"{quote_source(sanitize_url_credentials(target))} is a URL, not a "
+            "model file or Hugging Face model: for a Git repository, use "
+            "'loom project'."
         )
         return 1
     if is_huggingface_source(target):

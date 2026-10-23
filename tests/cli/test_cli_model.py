@@ -364,7 +364,11 @@ def test_model_command_invalid_hf_target(
 
 @pytest.mark.parametrize(
     "url",
-    ["https://huggingface.co/spaces/o/app", "https://gitlab.com/g/p/-/tree/main/svc"],
+    [
+        "https://huggingface.co/spaces/o/app",
+        "https://gitlab.com/g/p/-/tree/main/svc",
+        "https://user:SECRET@github.com/o/r",
+    ],
 )
 def test_model_command_given_a_git_url_names_loom_project(
     url: str,
@@ -378,7 +382,8 @@ def test_model_command_given_a_git_url_names_loom_project(
     lines = capsys.readouterr().err.strip().splitlines()
     assert len(lines) == 1
     assert lines[0].startswith("ERROR: ")
-    assert "is a Git repository, not a model: use 'loom project'" in lines[0]
+    assert "is a URL, not a model file or Hugging Face model" in lines[0]
+    assert "SECRET" not in lines[0]
 
 
 def test_env_command_verbose(

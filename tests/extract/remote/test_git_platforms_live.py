@@ -327,6 +327,11 @@ _PLATFORMS = [
 ]
 
 
+#: A bound for a live fetch (the largest, SQLAlchemy on Bitbucket, is about
+#: 150 MB) so a server that ignores the blob filter cannot fill a CI disk.
+_LIVE_CAP = 400 * 1024 * 1024
+
+
 @pytest.mark.parametrize(
     ("url", "ref", "folder", "expected"),
     [pytest.param(u, r, f, e, id=i) for i, u, r, f, e in _PLATFORMS],
@@ -336,7 +341,10 @@ def test_a_platforms_url_is_fetched(
 ) -> None:
     """The branch and folder the URL names are checked out, with a redirect
     followed where the platform sends one."""
-    with skip_on_network_error(), fetch_git_project(url) as checkout:
+    with (
+        skip_on_network_error(),
+        fetch_git_project(url, max_bytes=_LIVE_CAP) as checkout,
+    ):
         assert checkout.ref == ref and checkout.subdir == folder
         assert (Path(checkout.folder) / expected).exists()
         assert len(checkout.commit) in {40, 64}

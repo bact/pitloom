@@ -617,6 +617,66 @@ def test_a_queried_page_is_read_against_the_refs(url: str, expected: GitTarget) 
     assert split_ref(parse_git_page(url), refs) == expected
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://dev.azure.com/o/p/_git/r?path=/../..&version=GBmain",
+        "https://dev.azure.com/o/p/_git/r?path=%2F..%2F..",
+        "https://dev.azure.com/o/p/_git/r?path=\\a",
+        "https://dev.azure.com/o/p/_git/r?path=/a%00b",
+        "https://h/pub/r.git/tree/%2e%2e/x?h=main",
+        "https://h/pub/r.git/tree/a%00?h=main",
+        "https://h/r/+/refs/heads/main/a%00b",
+        "https://h/r/+/refs/heads/main/%2e%2e",
+    ],
+    ids=[
+        "azure-dotdot",
+        "azure-encoded-dotdot",
+        "azure-backslash",
+        "azure-nul",
+        "cgit-dotdot",
+        "cgit-nul",
+        "gitiles-nul",
+        "gitiles-dotdot",
+    ],
+)
+def test_a_query_or_gitiles_path_that_leaves_the_checkout_is_refused(
+    url: str,
+) -> None:
+    """The check every other page form has holds for these too, before any
+    clone, and a credential in the URL stays out of the message."""
+    with pytest.raises(RemoteSourceError) as excinfo:
+        parse_git_page(url.replace("//", "//user:SECRET@", 1))
+    assert excinfo.value.code == "git.url-invalid"
+    assert "SECRET" not in str(excinfo.value)
+
+
+def test_a_cgit_query_does_not_override_the_ref_a_path_names() -> None:
+    """``?h=`` on a GitHub-style page is ignored; a ``….git`` repository is
+    cgit's, whose ref is in the query."""
+    page = parse_git_page("https://github.com/o/r/tree/main/d?h=x")
+    assert (page.repo_url, page.rest, page.query_style) == (
+        "https://github.com/o/r",
+        ("main", "d"),
+        False,
+    )
+    page = parse_git_page("https://h/pub/r.git/tree/d?h=x")
+    assert (page.rest, page.ref, page.query_style) == (("d",), "x", True)
+
+
+def test_a_gitlab_commits_page_names_its_repository() -> None:
+    """``-/commits/<ref>`` is GitLab's: the ``-`` is not part of the repository."""
+    page = parse_git_page("https://gitlab.com/g/s/p/-/commits/main/d")
+    assert (page.repo_url, page.rest) == ("https://gitlab.com/g/s/p", ("main", "d"))
+
+
+def test_an_azure_version_of_an_unknown_kind_is_reported_as_ignored() -> None:
+    """``version=gbmain`` names no branch, tag or commit: the default branch is
+    read, and the INFO that the query was ignored is not skipped."""
+    page = parse_git_page("https://dev.azure.com/o/p/_git/r?path=/d&version=gbmain")
+    assert (page.ref, page.cut) == ("", True)
+
+
 def test_a_queried_ref_that_is_no_ref_is_refused() -> None:
     """A branch the server does not have, or a short commit id, is refused."""
     for ref in ("nosuch", "abc1234"):

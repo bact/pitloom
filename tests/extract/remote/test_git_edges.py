@@ -401,13 +401,20 @@ def test_a_file_reached_through_a_link_out_of_the_checkout_is_refused(
 
 # pylint: disable-next=too-few-public-methods
 class _FilterRejectingRunner:
-    """A runner whose calls with a ``--filter`` option fail with *message*."""
+    """A runner whose calls with a ``--filter`` option fail with *message*, and
+    which, like git, refuses a second ``init`` or ``remote add`` in one work
+    folder."""
 
     def __init__(self, message: str) -> None:
         self.message = message
         self.calls: list[list[str]] = []
 
     def run(self, args: list[str], _what: str, **_kwargs: Any) -> str:
+        if args[0] == "init" or "remote" in args:
+            assert not any(
+                c[0] == args[0] and ("remote" in c) == ("remote" in args)
+                for c in self.calls
+            ), "second init or remote add in one work folder"
         self.calls.append(args)
         if any(a.startswith("--filter") for a in args):
             raise RemoteSourceError("git.clone-failed", self.message)
