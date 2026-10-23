@@ -26,7 +26,12 @@ from typing import Any
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3._fragments_generated import _agreed, generated_properties
+from pitloom.assemble.spdx3._fragments_generated import (
+    _agreed,
+    _equivalent,
+    generated_properties,
+)
+from pitloom.assemble.spdx3._fragments_model_names import ModelNames
 from pitloom.assemble.spdx3._provenance_encoders import PitloomV1Encoder
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.config import FragmentConfig
@@ -607,3 +612,59 @@ def test_the_generated_methods_are_the_ones_the_readers_write() -> None:
     }
     says_generated = {m for m in written if "generated" in m or "derived" in m}
     assert says_generated == GENERATED_METHODS
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "same"),
+    [
+        ('{"a":1,"b":2}', '{"b": 2, "a": 1}', True),  # JSON, another spelling
+        ("{not json", "{other", False),  # neither parses: text differs
+        ('{"a":1}', "{other", False),  # only one parses
+        (["a", "b"], ["b", "a"], True),
+        (["a"], ["a", "b"], False),
+        (1, 2, False),  # neither a list nor text
+        ("x", "x", True),
+    ],
+    ids=[
+        "json",
+        "both-invalid",
+        "one-invalid",
+        "reordered",
+        "subset",
+        "number",
+        "same",
+    ],
+)
+def test_equivalent_values_say_the_same_thing(
+    old: object, new: object, same: bool
+) -> None:
+    """Only a reordered list or the same JSON in another spelling is the same;
+    text that is not JSON, or another type, is compared as different."""
+    assert _equivalent(old, new) is same
+
+
+@pytest.mark.parametrize("fragment_name", ["m.onnx", ""], ids=["depth", "empty"])
+def test_a_fragment_name_that_renames_nothing_loses_nothing(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, fragment_name: str
+) -> None:
+    """The same file path at another depth, or an empty name, is no rename:
+    with no generated provenance to drop, the base name stays and nothing is
+    lost."""
+    base = _base({}, comment=False, annotation=False, name="models/m.onnx")
+    merged, records, annotations = _merge(
+        tmp_path, caplog, base, [{"name": fragment_name}]
+    )
+    assert merged["name"] == "models/m.onnx"
+    assert logging.WARNING not in _levels(records)
+    assert not annotations
+
+
+def test_provenance_of_a_model_the_base_lacks_is_not_dropped() -> None:
+    """Only a base model has base provenance to drop: a model a fragment
+    introduced is left alone, and nothing is queued for it."""
+    ci = _creation_info()
+    stranger = spdx3.ai_AIPackage(spdxId=f"{_NS}#Stranger", creationInfo=ci, name="s")
+    names = ModelNames(Spdx3JsonExporter(), [])
+    names.drop_provenance(stranger, "domain")
+    names.finish()  # nothing registered, nothing to settle
+    assert stranger.name == "s" and not stranger.comment
