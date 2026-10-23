@@ -28,6 +28,7 @@ import hashlib
 import logging
 import os
 import stat
+import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path, PurePath
 from typing import Literal
@@ -103,13 +104,15 @@ def _file_size(path: str | os.PathLike[str]) -> int:
 
 
 def _leaf_name(relpath: str) -> bytes:
-    """*relpath* as leaf bytes: UTF-8, the raw bytes of an undecodable POSIX
-    name restored (``surrogateescape``), a Windows lone surrogate kept
+    """*relpath* as leaf bytes: NFC, UTF-8, the raw bytes of an undecodable
+    POSIX name restored (``surrogateescape``), a Windows lone surrogate kept
     (``surrogatepass``)."""
+    # NFC, as a registry key is: macOS lists a name decomposed.
+    name = unicodedata.normalize("NFC", relpath)
     try:
-        return relpath.encode("utf-8", "surrogateescape")
+        return name.encode("utf-8", "surrogateescape")
     except UnicodeEncodeError:
-        return relpath.encode("utf-8", "surrogatepass")
+        return name.encode("utf-8", "surrogatepass")
 
 
 def _warn_over_ceiling(subject: str, where: str, max_bytes: int) -> None:

@@ -298,6 +298,29 @@ def test_project_prefix(
     assert project_prefix(registry, given) == prefix
 
 
+@pytest.mark.skipif(not CAN_SYMLINK, reason="needs symlinks")
+@pytest.mark.parametrize(
+    ("link", "prefix"),
+    [("in-root", "sub"), ("out-of-root", "out-of-root")],
+    ids=["to-a-place-in-the-root", "to-a-place-outside-it"],
+)
+def test_project_prefix_is_the_key_of_where_a_symlink_leads(
+    project: Path, tmp_path: Path, link: str, prefix: str
+) -> None:
+    """One prefix for a project, however it is spelt; a link to a place
+    outside the root keeps the key of its own location."""
+    target = project / "sub" if link == "in-root" else tmp_path / "elsewhere"
+    target.mkdir(exist_ok=True)
+    (project / link).symlink_to(target, target_is_directory=True)
+    registry = make_registry(project_root=project)
+    assert project_prefix(registry, project / link) == prefix
+
+
+def test_project_prefix_of_a_nul_name_is_none(project: Path) -> None:
+    registry = make_registry(project_root=project)
+    assert project_prefix(registry, "sub\0") is None
+
+
 @pytest.mark.parametrize(
     ("given", "spelt"),
     [

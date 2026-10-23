@@ -377,11 +377,25 @@ def test_real_unreadable_member_and_unlistable_subdirectory(
     ("relpath", "expected"),
     [
         ("a/é.txt", "a/é.txt".encode()),
+        ("a/e\u0301.txt", "a/\u00e9.txt".encode()),  # NFD, as macOS lists it
         ("\udcff.txt", b"\xff.txt"),  # an undecodable POSIX name's own byte
         ("\ud800.txt", b"\xed\xa0\x80.txt"),  # a Windows lone surrogate
     ],
-    ids=["utf-8", "posix-undecodable", "windows-lone-surrogate"],
+    ids=["utf-8", "nfd-is-nfc", "posix-undecodable", "windows-lone-surrogate"],
 )
 def test_leaf_name_bytes(relpath: str, expected: bytes) -> None:
     # pylint: disable-next=protected-access
     assert dataset_hash._leaf_name(relpath) == expected
+
+
+def test_a_decomposed_name_has_the_root_of_the_composed_one(tmp_path: Path) -> None:
+    """The same dataset copied between macOS (decomposed names) and Linux
+    keeps its root."""
+    roots = []
+    for index, name in enumerate(["café.txt", "café.txt"]):
+        top = tmp_path / f"d{index}"
+        top.mkdir()
+        (top / name).write_bytes(b"x")
+        roots.append(hash_dataset(top, max_bytes=_BIG))
+    assert roots[0].hex_digest is not None
+    assert roots[0] == roots[1]

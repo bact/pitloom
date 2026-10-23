@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import os
+import unicodedata
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path, PurePath, PurePosixPath
 from typing import TYPE_CHECKING
@@ -269,9 +270,15 @@ class RegistryCopy:
         return None
 
 
+def fold_name(name: str) -> str:
+    """*name* as a case-insensitive file system may compare it (NFC, case
+    folded): only to choose the names worth an identity check, never a key."""
+    return unicodedata.normalize("NFC", name).casefold()
+
+
 def _folded(parts: tuple[str, ...]) -> tuple[str, ...]:
-    """*parts*, each case-folded."""
-    return tuple(part.casefold() for part in parts)
+    """*parts*, each :func:`fold_name`-folded."""
+    return tuple(fold_name(part) for part in parts)
 
 
 def without_registry_copies(

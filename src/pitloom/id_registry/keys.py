@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, NamedTuple
 from pitloom.core.file_identity import file_id
 from pitloom.core.path_confine import inside_ancestor
 from pitloom.core.project import project_relative_or_fallback
-from pitloom.core.walk_rules import shortened_by
+from pitloom.core.walk_rules import fold_name, shortened_by
 
 if TYPE_CHECKING:
     from pitloom.core.project import FilesOrigin, ProjectFile
@@ -130,12 +130,6 @@ def _below_root(
     return _below(real, root)
 
 
-def _fold(name: str) -> str:
-    """*name* as a case-insensitive file system may compare it: only to
-    choose the names worth an identity check, never a key."""
-    return _nfc(name).casefold()
-
-
 def _on_disk_name(directory: str, name: str) -> str:
     """*name* in *directory* as the directory lists it: as given when
     listed so; else the first in sort order of the listed names that fold
@@ -150,11 +144,11 @@ def _on_disk_name(directory: str, name: str) -> str:
     wanted = file_id(os.path.join(directory, name))
     if wanted is None:
         return name
-    folded = _fold(name)
+    folded = fold_name(name)
     same = sorted(
         listed
         for listed in names
-        if _fold(listed) == folded
+        if fold_name(listed) == folded
         and file_id(os.path.join(directory, listed)) == wanted
     )
     return same[0] if same else name
@@ -217,8 +211,19 @@ def project_prefix(
 ) -> str | None:
     """*project_dir*'s key in *registry* (:func:`path_key`, on-disk
     spelling) as a :func:`join_key` prefix: ``""`` for the root itself;
-    ``None`` outside the root."""
-    key = path_key(registry, project_dir, on_disk=True)
+    ``None`` outside the root.
+
+    The key is of where *project_dir* is (``os.path.realpath``), so a
+    project reached through a symlink has one prefix, whichever way it is
+    spelt; a symlink to a place outside the root keeps the key of its own
+    location."""
+    try:
+        real: str | None = os.path.realpath(project_dir)
+    except ValueError:  # a NUL: no file to resolve
+        real = None
+    key = None if real is None else path_key(registry, real, on_disk=True)
+    if key is None:
+        key = path_key(registry, project_dir, on_disk=True)
     return None if key is None else ("" if key == "." else key)
 
 
