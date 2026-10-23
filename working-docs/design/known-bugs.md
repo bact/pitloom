@@ -188,3 +188,24 @@ Seen in past sessions, not reproduced on current `main`:
 - Windows: `METADATA.` and `METADATA::$DATA` map onto `METADATA`; case
   variants of `.dist-info` names overwrite each other on macOS and
   Windows.
+
+## Found 2026-10-23
+
+- [ ] **A fragment value loses to a generated one (S-M, confirmed).** Probe: a
+  Hatchling project holding a CRFsuite model, with a fragment giving the model
+  package another `description`. The merged SBOM keeps the description
+  generated from the labels (`Method: generated_from_labels`) and logs
+  `WARNING: Merge: conflicting 'description'… dropping 'CURATED DESCRIPTION'`.
+  The merge keeps the project's value on a conflict by design; a value
+  generated from the file must be weak. Fix the merge order for every field
+  that has a generated value, with one test per field. This is the P0 entry
+  "A fragment value may lose to an extracted one", now confirmed.
+- [ ] **Untagged setuptools lines on stderr (S, not checked locally).** Cloning
+  `zzzeek/sqlalchemy` with `loom project <url>` prints
+  `warning: no files found matching '*.js' under directory 'doc'` and
+  `no previously-included files found matching …`. They come from setuptools's
+  manifest step and carry no `ERROR:`/`WARNING:`/`INFO:` tag (CLI output rule).
+  #300 made setuptools's deprecation banners `DEBUG:` lines; these are a
+  different source. Check a local checkout too, then route them the same way.
+- See [target-resolution-and-purl.md](target-resolution-and-purl.md) for the
+  Bitbucket and SourceHut findings of the same day.
