@@ -217,3 +217,29 @@ stays. Registry keys come from `registry_keys`, not names: run 2 harvests
 under the file key and is byte-identical (test). Probe (10 scenarios, HEAD
 vs tree): only the renamed cases changed (name, WARNING to INFO); same-name,
 no-path, disagreeing runs and `loom merge` are unchanged.
+
+## A fragment value replaces a generated one (2026-10-23)
+
+A curated fragment `description` lost to the one Pitloom generated from a
+CRFsuite model's labels, with a `Merge: conflicting` warning on every run: a
+fold keeps the base's value. Found by a probe, and confirmed on the fastText
+model of `bact/sentimentdemo`. A value Pitloom made from the file's format,
+not read from it, says so in its provenance (`Method: generated_from_labels`,
+`derived_from_format`), so `_fragments_generated.py` reads that, from the base
+model's comment lines and from its `fields` Annotations, and a fragment's
+differing value replaces the property: `description` (field `description`),
+`ai_domain` (`domain`) and `ai_informationAboutApplication` (`inputs`,
+`outputs`). A property is generated when every provenance field that writes
+it is, so a value read from the file, or one with no provenance, keeps the
+old rule. One `INFO: Merge: ...` per property, and that property's provenance
+goes from the comment and the Annotation (as for a renamed model). The first
+fragment that gives a value wins; a later one conflicts with it. Replacing,
+not merging: a generated domain is not unioned with a curated one, and the
+text of `ai_informationAboutApplication` is replaced whole. An empty fragment
+value does not replace. Probe (HEAD vs tree, the committed `sentimentdemo`
+project): the SBOM is byte-identical; with a curated fragment the three
+properties are replaced and the output is stable across runs. Rejected: a
+generic rule that every extracted value is weak (a value read from a model
+card or file header is the model's own statement), and a per-reader list of
+fields (the provenance already says it; a drift test ties the method names to
+the readers).

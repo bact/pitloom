@@ -6,7 +6,7 @@
 """A fragment's value for a property Pitloom generated from the model file
 (``Method: generated_from_labels``, ``Method: derived_from_format``) replaces
 it, with one ``INFO:`` and the property's provenance dropped; a value read from
-the file, and every other conflict, keeps the base's with today's
+the file, and every other conflict, keeps the base's with plain field merge's
 ``Merge: conflicting`` warning.
 
 See also: tests/assemble/test_fragments_model_names.py (the same for a name).
@@ -26,11 +26,17 @@ from typing import Any
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._fragments_generated import generated_properties
 from pitloom.assemble.spdx3._provenance_encoders import PitloomV1Encoder
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.config import FragmentConfig
-from pitloom.core.provenance import GENERATED_METHODS
+from pitloom.core.provenance import (
+    GENERATED_METHODS,
+    PROVENANCE_PROPERTY_FIELDS,
+    parse_provenance_value,
+)
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.extract.ai_model import read_ai_model
 from tests._license_graph import fragment_graph, write_fragment
 
 _NS = "https://spdx.org/spdxdocs/base"
@@ -131,6 +137,23 @@ def _merge(
     return model, records, [e for e in graph if e["type"] == "Annotation"]
 
 
+def _provenance_fields(
+    model: dict[str, Any], annotations: list[dict[str, Any]]
+) -> set[str]:
+    """The fields the model's comment and ``fields`` Annotations give
+    provenance for."""
+    comment = model.get("comment", "")
+    found = {
+        part.split(": ", 1)[0]
+        for line in comment.split("\n")
+        for part in line.removeprefix("Metadata provenance: ").split("; ")
+        if ": " in part
+    }
+    for annotation in annotations:
+        found |= set(json.loads(annotation["statement"]).get("fields", {}))
+    return found
+
+
 def _levels(records: list[tuple[int, str]]) -> list[int]:
     return [level for level, _ in records]
 
@@ -145,7 +168,7 @@ def test_a_fragment_description_replaces_a_generated_one(
     assert model["description"] == "curated"
     assert _levels(records) == [logging.INFO]
     assert "replacing the value generated from the model file" in records[0][1]
-    assert "'description'" in records[0][1] and "'generated'" in records[0][1]
+    assert "'description'" in records[0][1]
     # The generated value's provenance goes; the other field's stays.
     assert "description:" not in model["comment"]
     assert "framework:" in model["comment"]
@@ -153,21 +176,14 @@ def test_a_fragment_description_replaces_a_generated_one(
     assert sorted(fields) == ["framework"]
 
 
-@pytest.mark.parametrize(
-    ("comment", "annotation"),
-    [(True, False), (False, True)],
-    ids=["comment-only", "annotation-only"],
-)
+@pytest.mark.parametrize("form", ["comment", "annotation"])
 def test_either_provenance_form_says_the_value_is_generated(
-    tmp_path: Path,
-    caplog: pytest.LogCaptureFixture,
-    comment: bool,
-    annotation: bool,
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, form: str
 ) -> None:
     base = _base(
         {"description": "generated_from_labels"},
-        comment=comment,
-        annotation=annotation,
+        comment=form == "comment",
+        annotation=form == "annotation",
     )
     model, records, _ = _merge(tmp_path, caplog, base, [{"description": "curated"}])
     assert (model["description"], _levels(records)) == ("curated", [logging.INFO])
@@ -272,11 +288,13 @@ def test_a_second_fragment_conflicts_with_the_first(
 def test_a_generated_domain_is_replaced_not_unioned(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    base = _base({"domain": "derived_from_format"})
-    model, records, _ = _merge(tmp_path, caplog, base, [{"ai_domain": ["curated"]}])
+    base = _base({"domain": "derived_from_format", "framework": None})
+    model, records, annotations = _merge(
+        tmp_path, caplog, base, [{"ai_domain": ["curated"]}]
+    )
     assert model["ai_domain"] == ["curated"]
     assert _levels(records) == [logging.INFO]
-    assert "domain:" not in model.get("comment", "")
+    assert "domain" not in _provenance_fields(model, annotations)
 
 
 def test_a_read_domain_is_unioned_as_before(
@@ -292,10 +310,11 @@ def test_a_read_domain_is_unioned_as_before(
     ("methods", "replaced"),
     [
         ({"outputs": "derived_from_format"}, True),
+        ({"outputs": "derived_from_format", "inputs": "derived_from_format"}, True),
         ({"outputs": "derived_from_format", "inputs": None}, False),
         ({"outputs": None, "inputs": "derived_from_format"}, False),
     ],
-    ids=["outputs-generated", "inputs-read", "outputs-read"],
+    ids=["outputs-generated", "both-generated", "inputs-read", "outputs-read"],
 )
 def test_a_property_two_fields_write_is_generated_only_when_both_are(
     tmp_path: Path,
@@ -303,8 +322,8 @@ def test_a_property_two_fields_write_is_generated_only_when_both_are(
     methods: dict[str, str | None],
     replaced: bool,
 ) -> None:
-    base = _base(methods)
-    model, records, _ = _merge(
+    base = _base({**methods, "framework": None})
+    model, records, annotations = _merge(
         tmp_path,
         caplog,
         base,
@@ -312,6 +331,79 @@ def test_a_property_two_fields_write_is_generated_only_when_both_are(
     )
     assert (model["ai_informationAboutApplication"] == '{"outputs":["y"]}') is replaced
     assert _levels(records) == ([logging.INFO] if replaced else [logging.WARNING])
+    # Replaced, every field that wrote it loses its provenance, in both forms.
+    gone = set() if not replaced else set(methods)
+    assert _provenance_fields(model, annotations) == (
+        {"framework"} | (set(methods) - gone)
+    )
+
+
+@pytest.mark.parametrize(
+    ("fields", "levels"),
+    [
+        ({"description": ""}, []),
+        ({"ai_domain": []}, []),
+        ({"description": "", "ai_domain": ["curated"]}, [logging.INFO]),
+    ],
+    ids=["empty-text", "empty-list", "empty-and-real"],
+)
+def test_an_empty_fragment_value_replaces_nothing(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    fields: dict[str, Any],
+    levels: list[int],
+) -> None:
+    base = _base(
+        {"description": "generated_from_labels", "domain": "derived_from_format"}
+    )
+    model, records, _ = _merge(tmp_path, caplog, base, [fields])
+    assert model["description"] == "generated"
+    assert model["ai_domain"] == (["curated"] if levels else ["d0"])
+    assert _levels(records) == levels
+
+
+def test_two_properties_in_one_fold_give_one_info_each_in_a_fixed_order(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    base = _base(
+        {"description": "generated_from_labels", "domain": "derived_from_format"}
+    )
+    model, records, annotations = _merge(
+        tmp_path, caplog, base, [{"description": "c", "ai_domain": ["c"]}]
+    )
+    assert (model["description"], model["ai_domain"]) == ("c", ["c"])
+    assert _levels(records) == [logging.INFO, logging.INFO]
+    assert "'ai_domain'" in records[0][1] and "'description'" in records[1][1]
+    assert not _provenance_fields(model, annotations) & {"description", "domain"}
+
+
+@pytest.mark.parametrize(
+    ("model_file", "expected"),
+    [
+        ("fasttext/sentimentdemo.bin", {"ai_domain", "ai_informationAboutApplication"}),
+        (
+            "crfsuite/complete.crfsuite",
+            {"description", "ai_informationAboutApplication"},
+        ),
+    ],
+    ids=["fasttext", "crfsuite"],
+)
+def test_the_readers_provenance_marks_the_properties_the_assembler_writes(
+    model_file: str, expected: set[str]
+) -> None:
+    """What each reader writes as generated maps to the SPDX properties
+    :data:`PROVENANCE_PROPERTY_FIELDS` names; a new generated field of a reader
+    that is not in the map fails here (``type_of_model`` is read from the
+    header, with its own method, and is not generated)."""
+    path = Path(__file__).resolve().parents[1] / "fixtures" / "aimodels" / model_file
+    provenance = read_ai_model(path).provenance
+    methods = {
+        k: parse_provenance_value(v).get("method") for k, v in provenance.items()
+    }
+    written = {name for name, method in methods.items() if method in GENERATED_METHODS}
+    mapped = set().union(*PROVENANCE_PROPERTY_FIELDS.values())
+    assert written <= mapped
+    assert generated_properties(methods) == expected
 
 
 def test_the_generated_methods_are_the_ones_the_readers_write() -> None:

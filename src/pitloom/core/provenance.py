@@ -34,8 +34,9 @@ _KEY_MAP = {
 #: fragment's value for the same property replaces it.
 GENERATED_METHODS = frozenset({"generated_from_labels", "derived_from_format"})
 
-#: SPDX property of an ``ai_AIPackage`` -> the provenance fields that write it.
-#: A property is generated when every one of these fields present is.
+#: SPDX property of an ``ai_AIPackage`` -> the provenance fields that write it,
+#: as ``pitloom.assemble.spdx3._ai_package`` assigns them. A property is
+#: generated when every one of these fields present is.
 PROVENANCE_PROPERTY_FIELDS = {
     "description": frozenset({"description"}),
     "ai_domain": frozenset({"domain"}),

@@ -10,11 +10,11 @@ or ``embed-wheel --project-dir`` merges into) may carry a value Pitloom made
 from the model file's own format, not read from it: the description of a
 CRFsuite model built from its labels, the domain of a fastText model derived
 from its type. Its provenance says so (``Method: generated_from_labels``,
-``Method: derived_from_format``). A fragment is the project's own statement, so
-its value for that property replaces the generated one, with one ``INFO:``,
-and the property's provenance is dropped. Any other conflict is the plain field
-merge: the base's value is kept and the fragment's dropped with a
-``Merge: conflicting`` warning.
+``Method: derived_from_format``). A fragment's different value for that
+property replaces it, with one ``INFO:`` per property, and the property's
+provenance is dropped. Any other conflict is the plain field merge: the base's
+value is kept and the fragment's dropped with a ``Merge: conflicting``
+warning.
 
 See also: :mod:`pitloom.assemble.spdx3._fragments_unify` (the caller),
 :mod:`pitloom.assemble.spdx3._fragments_model_names` (the same for a name) and
@@ -33,7 +33,7 @@ from pitloom.assemble.spdx3._fragments_model_names import (
     drop_annotation_provenance,
     drop_comment_provenance,
 )
-from pitloom.assemble.spdx3._fragments_props import _differs, _is_empty
+from pitloom.assemble.spdx3._fragments_props import _differs
 from pitloom.assemble.spdx3._fragments_refs import _endpoint_id
 from pitloom.assemble.spdx3._provenance_encoders import PitloomV1Encoder
 from pitloom.assemble.spdx3.provenance import PROVENANCE_COMMENT_PREFIX
@@ -130,7 +130,7 @@ class GeneratedValues:
         for pyname in sorted(properties):
             new = getattr(duplicate, pyname, None)
             old = getattr(canonical, pyname, None)
-            if _is_empty(new) or not _differs(old, new):
+            if not _differs(old, new):  # an empty value does not differ
                 continue
             if isinstance(new, (spdx3.ListProxy, list, tuple)):
                 new = list(new)

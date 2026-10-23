@@ -9,9 +9,10 @@ See also: :mod:`pitloom.assemble.spdx3.fragments` (facade and merge
 orchestration), :mod:`pitloom.assemble.spdx3._fragments_props` (property
 merging), :mod:`pitloom.assemble.spdx3._fragments_hashes` (digest conflicts),
 :mod:`pitloom.assemble.spdx3._fragments_licenses` (licence unification),
-:mod:`pitloom.assemble.spdx3._fragments_ids` (ids minted during a merge) and
+:mod:`pitloom.assemble.spdx3._fragments_ids` (ids minted during a merge),
 :mod:`pitloom.assemble.spdx3._fragments_model_names` (a base model's name) and
-:mod:`pitloom.assemble.spdx3._fragments_generated` (its generated values).
+:mod:`pitloom.assemble.spdx3._fragments_generated` (the values Pitloom
+generated for it).
 """
 
 from __future__ import annotations

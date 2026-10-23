@@ -56,7 +56,10 @@ fixes (their provenance says `Method: generated_from_labels` or
 it, with one `INFO: Merge: ...`, and the property's provenance is dropped. The
 first fragment that gives one wins; a later fragment's value conflicts with it
 as above. Either provenance form (`annotation`, `comment`, `both`) says a value
-was generated.
+was generated. The value is replaced, not merged: a generated `domain` is not
+unioned with the fragment's, and the text of the input/output description is
+replaced whole, the model's inputs with its outputs. An empty fragment value
+replaces nothing.
 
 The `name` of the project's own AI model is the exception: fragments that
 unify with it and agree on another name, as `loom.set_model(name,
