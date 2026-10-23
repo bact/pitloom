@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-19
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -151,7 +151,8 @@ model producer and parameter count (done), **#7** `loom` SDK expansion.
   [g7-model-producer-parameter-count.md](../implementation/g7-model-producer-parameter-count.md).
 - **#7 `loom` SDK expansion** for dataset provenance + model
   training-properties -- largest, needs the `loom-sdk-and-notebooks.md`
-  design revisited with this G7 framing before implementing. Also from #6:
+  design revisited with this G7 framing before implementing; that revision
+  is [loom-sdk-expansion.md](loom-sdk-expansion.md) (unbuilt). Also from #6:
   originators and a parameter count for a `loom.run` model (the structured
   readers of #6 cover only a model file or a Hub model).
 

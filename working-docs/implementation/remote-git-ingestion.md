@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -132,8 +132,9 @@ the 10-minute deadline (the 10 MB blob filter is only a request to the server).
   external reference, forge licence): the commit is logged, not recorded.
 - Forge API tarballs; a persistent cache of fetches.
 - Subdirectory URLs of Azure DevOps (the folder is in a query string).
-- A size cap for a clone: the blob filter is a request, so only the 10-minute
-  deadline bounds it.
+- A size cap for a CLI clone: only a library caller sets `max_bytes=` (#339);
+  on the CLI the blob filter is a request, so only the 10-minute deadline
+  bounds it.
 - A reader for a project that declares its metadata only in an imperative
   `setup.py`; the error names the sub-projects it can read.
 - DNS-rebinding protection between the caller's address check and git's own

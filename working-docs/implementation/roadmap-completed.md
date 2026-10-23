@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-10
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -253,6 +253,47 @@ Moved from [known-bugs.md](../design/known-bugs.md).
   `merge_project_metadata` keeps any non-blank first value, where
   `first_license` would skip the weak one
   ([license-rules.md](../design/license-rules.md#open-questions), question 2).
+
+## Release plan items, 0.20.0 to 0.20.2
+
+Moved from [roadmap.md](../design/roadmap.md) on 2026-10-23, as they stood
+there. The one item left open (CI workflow hardening) stays in the roadmap
+under "Open follow-ups by area".
+
+### 0.20.0 (released 2026-10-05)
+
+- [x] Embed fix ([#269](https://github.com/bact/pitloom/issues/269)), licence
+  element typing (#276), sdist licence detection (#283), fragment-merge
+  fixes (#284), sdist member order (#272), `sbom-basename` extension (#273).
+- [x] Docs PR (#285): licence rules, known bugs, test tiers, field notes.
+- [x] Release PR (#286): licence detection on real licence files (notice,
+  near-tie), raw installed `METADATA`. See
+  [license-rules.md](../design/license-rules.md#4-declared-or-concluded).
+- [x] Released 2026-10-05; published artefacts verified, see
+  [wheel-sbom-verification.md](wheel-sbom-verification.md). Fuzz run after
+  the release passed (2026-10-05).
+
+### 0.20.1 (released 2026-10-07)
+
+Shipped #287, #289, #291: setuptools precedence, licence detection on
+Windows. Three planned fixes (a very long lock-file version, Safetensors
+licence keys, a `%` in `setup.cfg`) did not make it; they are in
+[known-bugs.md](../design/known-bugs.md#p2-in-0210).
+
+### 0.20.2 (released 2026-10-09, tag v0.20.2)
+
+AI model metadata made uniform and safer:
+
+- [x] **One spelling for scalar text**, built in #294. See
+  [scalar-text-spelling.md](scalar-text-spelling.md).
+- [x] **CRFsuite models** (#294): `lCRF` magic, stdlib-only bounded reader.
+  See [crfsuite-support.md](crfsuite-support.md).
+- [x] **ONNX names, licence and version** (#292); **name, label and entry
+  caps, display escape of bidi/invisible text, RFC 8785 embedded JSON,
+  GGUF `general.license`** (#294).
+- Known issue at release: a generated CRFsuite description can override a
+  fragment description (roadmap 0.21.0, "Fragment value beats an extracted
+  one").
 
 ## Bugs fixed in 0.21.0 (unreleased)
 

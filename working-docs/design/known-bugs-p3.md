@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -36,8 +36,9 @@ the one list.
   like a real 4-character label.
 - [ ] **fastText `getArgs()` failure drops `domain` silently (low).**
   The warning does not name `domain`.
-- [ ] **`_loom_active_run.py:185` names the document `self.model.name or
-  "model"` (low).** Not in this diff; check it against the name cascade.
+- [ ] **`_loom_model.py` names the provenance document `declared.name or
+  "model"` (low; was `_loom_active_run.py:185`).** Not in this diff; check it
+  against the name cascade.
 
 - [ ] **Escape/cap hardening from the Opus review of #294 (S each).**
   (a) Hangul fillers U+115F, U+1160, U+3164, U+FFA0 render blank but are

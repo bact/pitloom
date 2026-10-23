@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-08-25
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,7 +12,10 @@ See also [README.md](README.md) (index),
 [fragment-merge-design.md](fragment-merge-design.md) (start here for the
 core fragment mechanism),
 [extractor-integrations.md](extractor-integrations.md),
-[roadmap-and-resources.md](roadmap-and-resources.md).
+[roadmap-and-resources.md](roadmap-and-resources.md),
+[loom-sdk-expansion.md](../loom-sdk-expansion.md) (what the SDK records
+today, checked against the code, and the G7-driven expansion list; read it
+first: the API description below predates it).
 
 Split from this directory's former single `sbom-fragments.md`
 (2026-08-25) -- the `pitloom.loom` tracking SDK redesign (MLflow-style
@@ -22,8 +25,10 @@ All content here is unbuilt design, corresponding to roadmap Phase 2 in
 
 ### 3. `loom.py` SDK: sparse API surface
 
-The current `Run` context manager supports only `set_model` and
-`add_dataset`. This is far less expressive than ML tracking SDKs that
+When this was written (2026-08-25) the `Run` context manager supported only
+`set_model` and `add_dataset`; the API has grown since (see
+[loom-sdk-expansion.md](../loom-sdk-expansion.md#a-what-exists-today)). It is
+still far less expressive than ML tracking SDKs that
 practitioners already use daily. Key missing capabilities:
 
 - No equivalent of `log_param` / `log_metric` / `log_tag` / `log_artifact`.

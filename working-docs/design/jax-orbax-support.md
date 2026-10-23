@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-10
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-23
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -13,7 +13,9 @@ full planned-format table this splits out of, and
 [implementation/model-metadata-extraction.md](../implementation/model-metadata-extraction.md)
 for the shipped-extractor pattern this format follows
 (`read_<format>(model_path: Path) -> AiModelMetadata`, registered in
-`pitloom.extract.ai_model.REGISTRY`).
+`pitloom.extract.ai_model.REGISTRY`), and
+[tensorflow-lite-savedmodel-support.md](tensorflow-lite-savedmodel-support.md)
+for the TensorFlow formats (SavedModel shares the directory-target gap).
 
 ## Why this needs its own file
 
@@ -239,6 +241,30 @@ itself, calling `jax`/`orbax-checkpoint` directly rather than reusing any
 of these repos' code, sidesteps both questions at once -- same footing as
 the project's existing CC0-1.0 "Generated for testing purposes" fixtures.
 
+## Flax msgpack files (`flax_model.msgpack`)
+
+A second JAX artefact, separate from Orbax: a single file written by
+`flax.serialization.to_bytes()`, the form Hugging Face repositories ship as
+`flax_model.msgpack` (for example `google-bert/bert-base-uncased`, 438 MB).
+Not built; `.msgpack` is not a model-candidate suffix and `AiModelFormat`
+has no member for it.
+
+Verified 2026-10-23 on the first 64 bytes of that file (a ranged request,
+not the whole file): a msgpack map nested by module name
+(`bert` -> `embeddings` -> `word_embeddings` -> `embedding`), with each array
+stored as a msgpack extension (`ext 32`, type code 1) whose payload starts
+with an array of shape (`[30522, 768]`) and dtype name (`float32`) before the
+raw bytes. The ext header gives the payload length, so a reader can walk the
+tree and read shapes and dtypes while skipping every tensor's bytes, as the
+Safetensors and NumPy readers do. That is enough for a parameter count; the
+bytes seen state no name, licence or version (in a Hub repository those are
+in the card and other files).
+
+Not verified: other extension codes (scalars, complex values), files saved by
+other Flax versions, and sharded files with an index JSON. Detection would be
+by content (a top-level msgpack map whose leaves are type-1 extensions), not
+by suffix alone, since `.msgpack` is a general data format.
+
 ## Open questions before implementation
 
 Not platform-blocked -- answerable on any machine with careful test code:
@@ -286,7 +312,7 @@ Not platform-blocked -- answerable on any machine with careful test code:
 Blocked on this Intel Mac, open pending an Apple Silicon (or Linux) machine
 with a current jaxlib wheel:
 
-5. Whether the v1-API docs page's claims (`orbax.checkpoint` marker file,
+6. Whether the v1-API docs page's claims (`orbax.checkpoint` marker file,
    `commit_success.txt`, `ocp.metadata()`, the `_CHECKPOINT_METADATA` key
    set it lists) hold up under the same install-and-verify treatment the v0
    claims got here. Matters even though this design targets v0: if v1
