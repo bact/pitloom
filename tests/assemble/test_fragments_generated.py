@@ -694,21 +694,43 @@ def test_provenance_of_a_model_the_base_lacks_is_not_dropped() -> None:
     assert stranger.name == "s" and not stranger.comment
 
 
-@pytest.mark.parametrize("restate_first", [True, False], ids=["restate-first", "last"])
-def test_a_fragment_restating_a_replaced_value_changes_nothing_in_any_order(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture, restate_first: bool
+@pytest.mark.parametrize("order", ["RC", "CR"])
+@pytest.mark.parametrize(
+    ("restated", "curated", "key"),
+    [
+        ("generated", "curated", "description"),
+        (["d1", "d0"], ["curated"], "ai_domain"),
+        (["d0", "d1"], ["curated"], "ai_domain"),  # the same list, another order
+        ('{"outputs": ["x"]}', '{"outputs":["y"]}', "ai_informationAboutApplication"),
+    ],
+    ids=["text", "list", "list-reordered", "json-respelt"],
+)
+def test_a_fragment_restating_a_generated_value_changes_nothing_in_any_order(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    order: str,
+    restated: Any,
+    curated: Any,
+    key: str,
 ) -> None:
     """A fragment that says again what Pitloom generated (a ``loom model``
-    fragment of the same file) neither brings the replaced domain back into
-    the union nor earns a ``conflicting`` warning, before or after the
-    fragment that replaced it."""
+    fragment of the same file), in the same spelling or another, neither
+    brings the replaced items back into a union nor earns a ``conflicting``
+    warning, before or after the fragment that replaced it."""
     base = _base(
-        {"domain": "derived_from_format", "description": "generated_from_labels"}
+        {
+            "domain": "derived_from_format",
+            "description": "generated_from_labels",
+            "outputs": "derived_from_format",
+        }
     )
-    restate = {"description": "generated", "ai_domain": ["d0"]}
-    curated = {"description": "curated", "ai_domain": ["curated"]}
-    fragments = [restate, curated] if restate_first else [curated, restate]
-    model, records, _ = _merge(tmp_path, caplog, base, fragments)
-    assert model["ai_domain"] == ["curated"] and model["description"] == "curated"
-    assert _levels(records) == [logging.INFO, logging.INFO]  # one per property
-    assert logging.WARNING not in _levels(records)
+    base_model = next(
+        o for o in base.object_set.objects if isinstance(o, spdx3.ai_AIPackage)
+    )
+    base_model.ai_domain = ["d1", "d0"]
+    if key == "ai_informationAboutApplication":
+        base_model.ai_informationAboutApplication = '{"outputs":["x"]}'
+    fragments = {"R": {key: restated}, "C": {key: curated}}
+    model, records, _ = _merge(tmp_path, caplog, base, [fragments[c] for c in order])
+    assert model[key] == curated
+    assert _levels(records) == [logging.INFO]

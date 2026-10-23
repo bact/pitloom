@@ -110,6 +110,17 @@ def _equivalent(old: object, new: object) -> bool:
     return False
 
 
+def _align(
+    canonical: spdx3.SHACLObject, duplicate: spdx3.SHACLObject, pyname: str
+) -> None:
+    """Give *duplicate* the value of *pyname* that *canonical* has, so the
+    plain field merge that follows finds nothing to union or to warn about."""
+    current = getattr(canonical, pyname)
+    if isinstance(current, (spdx3.ListProxy, list)):
+        current = list(current)
+    setattr(duplicate, pyname, current)
+
+
 def _agreed(sources: list[dict[str, str | None]]) -> dict[str, str | None]:
     """The method of each field when every source that names it agrees that
     it is generated, else ``None`` for it: the sources come from a set, and a
@@ -178,7 +189,10 @@ class GeneratedValues:
         for pyname in sorted(properties):
             new = getattr(duplicate, pyname, None)
             old = getattr(canonical, pyname, None)
-            if _is_empty(new) or _equivalent(old, new):
+            if _is_empty(new):
+                continue
+            if _equivalent(old, new):  # a respelling: the plain merge sees none
+                _align(canonical, duplicate, pyname)
                 continue
             if isinstance(new, (spdx3.ListProxy, list, tuple)):
                 new = list(new)
@@ -211,7 +225,4 @@ class GeneratedValues:
             new = getattr(duplicate, pyname, None)
             if _is_empty(new) or not _equivalent(old, new):
                 continue
-            current = getattr(canonical, pyname)
-            if isinstance(current, (spdx3.ListProxy, list)):
-                current = list(current)
-            setattr(duplicate, pyname, current)
+            _align(canonical, duplicate, pyname)

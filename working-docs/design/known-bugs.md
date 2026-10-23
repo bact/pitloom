@@ -44,7 +44,7 @@ Size: S under half a day, M about a day.
   in the 2026-10-23 review of #349).** Fragment A restates the generated
   `description` and carries its own Annotation `Method: generated_from_labels`;
   fragment B gives "curated" and wins. The output holds "curated" with A's
-  Annotation saying it was generated. A fragment's own provenance was never
+  Annotation (or its comment line) saying it was generated. A fragment's own provenance was never
   dropped when its value lost, but here the claim is false. A fix has to tell
   a fragment's winning entry from a losing one (a fragment whose generated
   value wins keeps its claim, which is true).
