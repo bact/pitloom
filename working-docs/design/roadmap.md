@@ -268,6 +268,11 @@ generic multi-candidate fields, JAX/Orbax.
 Questions that need a decision before code. Nothing below is decided
 unless the linked doc says so.
 
+- [ ] **Hugging Face Spaces**: a Space is an application with no
+  `pyproject.toml`, so `loom project` fetches it and finds no project; read the
+  README front matter, `requirements.txt` and the Hub's `models` list instead,
+  and the LFS pointer's SHA-256 for model files. See
+  [hugging-face-spaces-support.md](hugging-face-spaces-support.md).
 - [ ] **What an SBOM counts as inside the package**, and package-format
   independence (payload vs container metadata, `.data/` naming). See
   [sbom-package-boundary.md](sbom-package-boundary.md).
