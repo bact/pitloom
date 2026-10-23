@@ -52,6 +52,8 @@ and this project adheres to
   GitLab redirects are followed and `check_url=` guards each hop ([#317])
 - `loom id import --project-dir` roots a new registry at the project directory
   ([#338])
+- `fetch_git_project(max_bytes=)` stops a fetch once the checkout takes more
+  disk than that (`git.too-large`) ([#339])
 
 ### Changed
 
@@ -199,6 +201,7 @@ and this project adheres to
 [#336]: https://github.com/bact/pitloom/pull/336
 [#337]: https://github.com/bact/pitloom/pull/337
 [#338]: https://github.com/bact/pitloom/pull/338
+[#339]: https://github.com/bact/pitloom/pull/339
 
 ## [0.20.2] - 2026-10-09
 
