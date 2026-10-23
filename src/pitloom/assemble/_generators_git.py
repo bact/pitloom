@@ -48,6 +48,7 @@ def generate_git_project_sbom(
     content_type: bool | None = None,
     content_type_method: str | None = None,
     offline: bool | None = None,
+    max_clone_bytes: int | None = None,
     update_id_registry: bool | None = None,
     use_lockfile: bool | None = None,
     build_options: BuildOptions = BuildOptions(),
@@ -69,7 +70,9 @@ def generate_git_project_sbom(
     repository must not name host paths such as fragments or an ID registry)
     unless the caller passes *pitloom_config*, and its build backend is never
     run (a build flag in *build_options* warns once and has no effect). With
-    *offline* true nothing is fetched (``git.offline``). When the folder
+    *offline* true nothing is fetched (``git.offline``). With *max_clone_bytes* the
+    fetch is stopped once the checkout takes more disk than that
+    (``git.too-large``). When the folder
     holds no Python project but folders below it do, the failure names them
     (``git.no-project``).
 
@@ -82,7 +85,9 @@ def generate_git_project_sbom(
     if isinstance(id_registry, (str, Path)):
         # A relative path means the caller's directory, not the checkout's.
         id_registry = Path(id_registry).absolute()
-    with fetch_git_project(url, check_url=check_url, offline=offline) as checkout:
+    with fetch_git_project(
+        url, check_url=check_url, offline=offline, max_bytes=max_clone_bytes
+    ) as checkout:
         if pitloom_config is None:
             log.info(CONFIG_IGNORED_INFO)
         with checkout.explaining_failures():

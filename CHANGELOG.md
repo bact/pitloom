@@ -52,8 +52,9 @@ and this project adheres to
   GitLab redirects are followed and `check_url=` guards each hop ([#317])
 - `loom id import --project-dir` roots a new registry at the project directory
   ([#338])
-- `fetch_git_project(max_bytes=)` stops a fetch once the checkout takes more
-  disk than that (`git.too-large`) ([#339])
+- `fetch_git_project(max_bytes=)` and `generate_git_project_sbom()`'s
+  `max_clone_bytes=` stop a fetch once the checkout takes more disk than that
+  (`git.too-large`) ([#339])
 
 ### Changed
 

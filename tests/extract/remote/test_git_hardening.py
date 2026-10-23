@@ -418,7 +418,8 @@ def test_a_timeout_reading_the_commit_is_not_an_empty_repository() -> None:
         ('head -c 200000 /dev/zero > "$PITLOOM_TEST_DIR/pack"; sleep 60', True),
         # Past the cap before the first look, and gone.
         ('head -c 200000 /dev/zero > "$PITLOOM_TEST_DIR/pack"', True),
-        ('head -c 100 /dev/zero > "$PITLOOM_TEST_DIR/pack"', False),
+        # Under the cap through several looks at the size.
+        ('head -c 100 /dev/zero > "$PITLOOM_TEST_DIR/pack"; sleep 1', False),
     ],
     ids=["running", "finished", "under"],
 )
@@ -429,6 +430,7 @@ def test_a_call_that_writes_more_than_the_cap_is_stopped(
     cap is untouched."""
     watched = tmp_path / "checkout"
     watched.mkdir()
+    monkeypatch.setattr(_git_run, "_SIZE_POLL_SECONDS", 0.1)
     monkeypatch.setenv("PITLOOM_TEST_DIR", str(watched))
     _fake_git(tmp_path, monkeypatch, body)
     started = time.monotonic()

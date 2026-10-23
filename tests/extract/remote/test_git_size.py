@@ -13,9 +13,11 @@ See also: test_git_hardening.py (the cap on a running ``git``).
 from __future__ import annotations
 
 from pathlib import Path
+from types import TracebackType
 
 import pytest
 
+from pitloom.extract.remote import _git_size
 from pitloom.extract.remote._git_size import readable_bytes, tree_bytes
 from tests._symlink import CAN_SYMLINK
 
@@ -57,3 +59,34 @@ def test_tree_bytes_does_not_follow_a_link(tmp_path: Path) -> None:
     (inside / "dir").symlink_to(outside, target_is_directory=True)
     (inside / "file").symlink_to(outside / "big")
     assert tree_bytes(str(inside)) < 1000
+
+
+class _Unreadable:
+    """A directory entry whose type cannot be read."""
+
+    path = "unreadable"
+
+    def is_dir(self, *, follow_symlinks: bool) -> bool:
+        raise PermissionError(follow_symlinks)
+
+
+class _Listing:
+    """What ``os.scandir`` gives: one such entry."""
+
+    def __enter__(self) -> list[_Unreadable]:
+        return [_Unreadable()]
+
+    def __exit__(
+        self,
+        _kind: type[BaseException] | None,
+        _error: BaseException | None,
+        _trace: TracebackType | None,
+    ) -> None:
+        return None
+
+
+def test_tree_bytes_skips_an_entry_it_cannot_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(_git_size.os, "scandir", lambda _path: _Listing())
+    assert tree_bytes(str(tmp_path)) == 0

@@ -97,7 +97,8 @@ on return. It is untrusted: its own `[tool.pitloom]` is ignored unless you pass
 `git.not-found`, `git.output-too-large`, `git.too-large`); *check_url* may raise
 any exception to refuse an address, and it reaches you unchanged. To read the
 fetched project yourself, use `pitloom.extract.remote.fetch_git_project(url)`,
-a context manager yielding the folder; its *max_bytes* stops the fetch, with
+a context manager yielding the folder. Its *max_bytes*, and
+`generate_git_project_sbom(max_clone_bytes=)`, stop the fetch, with
 `git.too-large`, once the checkout takes more disk than that (no limit by
 default, and the CLI sets none). See [SBOM from a Git URL](git-urls.md).
 

@@ -8,6 +8,7 @@ prompt, no LFS download, a time and an output limit."""
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import re
@@ -17,6 +18,7 @@ import signal
 import subprocess  # nosec B404
 import threading
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import IO, cast
 
@@ -200,6 +202,23 @@ def _watch_size(
             return
 
 
+@contextlib.contextmanager
+def _size_watch(proc: subprocess.Popen[bytes], cap: SizeCap | None) -> Iterator[None]:
+    """Watch the size of *cap*'s directory while *proc* runs (nothing when
+    *cap* is ``None``)."""
+    if cap is None:
+        yield
+        return
+    done = threading.Event()
+    watcher = threading.Thread(target=_watch_size, args=(proc, cap, done), daemon=True)
+    watcher.start()
+    try:
+        yield
+    finally:
+        done.set()
+        watcher.join()
+
+
 def _capture(
     command: list[str], seconds: float, cap: SizeCap | None = None
 ) -> tuple[int | None, str | None, str]:
@@ -224,16 +243,6 @@ def _capture(
 
         timer = threading.Timer(seconds, expire)
         timer.start()
-        done = threading.Event()
-        watcher = (
-            None
-            if cap is None
-            else threading.Thread(
-                target=_watch_size, args=(proc, cap, done), daemon=True
-            )
-        )
-        if watcher is not None:
-            watcher.start()
         err_chunks: list[bytes] = []
         drain = threading.Thread(
             target=_drain, args=(cast(IO[bytes], proc.stderr), err_chunks), daemon=True
@@ -244,23 +253,21 @@ def _capture(
         too_large = False
         stdout = cast(IO[bytes], proc.stdout)  # a pipe: set by PIPE
         try:
-            while block := stdout.read(_READ_CHUNK):
-                size += len(block)
-                if size > MAX_OUTPUT_BYTES:
-                    too_large = True
-                    _kill(proc)
-                    break
-                chunks.append(block)
+            with _size_watch(proc, cap):
+                while block := stdout.read(_READ_CHUNK):
+                    size += len(block)
+                    if size > MAX_OUTPUT_BYTES:
+                        too_large = True
+                        _kill(proc)
+                        break
+                    chunks.append(block)
         except BaseException:  # Ctrl-C must not leave git running
             _kill(proc)
             raise
         finally:
             timer.cancel()
-            done.set()
         status = proc.wait()
         drain.join()
-        if watcher is not None:
-            watcher.join()
     err = b"".join(err_chunks).decode("utf-8", "replace")
     if timed_out.is_set():
         return None, None, err
