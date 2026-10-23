@@ -163,8 +163,11 @@ and this project adheres to
   messages escape the paths they name ([#331])
 - A Hub model URL as `www.huggingface.co`, `hf.co`, `http://` or any case
   is read like the canonical one, with an `INFO:` line ([#332])
-- Paths in error messages raised by readers, sdist, registry and wheel code
-  are quoted and escaped like those in log lines ([#336])
+- A default SBOM name from the project name or version cannot leave the output
+  directory or name a Windows device; CLI, hook and wheel embed share one
+  helper ([#334])
+- Paths in log, print, argparse and raised messages are quoted and escaped, one
+  `ERROR:` line each; a hostile name cannot forge a line ([#335], [#336])
 - Requirements continuation lines are joined as pip does; a Croissant record
   count is reported only when every record set states one ([#337])
 
@@ -187,6 +190,8 @@ and this project adheres to
 [#331]: https://github.com/bact/pitloom/pull/331
 [#332]: https://github.com/bact/pitloom/pull/332
 [#333]: https://github.com/bact/pitloom/pull/333
+[#334]: https://github.com/bact/pitloom/pull/334
+[#335]: https://github.com/bact/pitloom/pull/335
 [#336]: https://github.com/bact/pitloom/pull/336
 [#337]: https://github.com/bact/pitloom/pull/337
 
