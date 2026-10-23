@@ -111,6 +111,24 @@ def _drop_annotation_field(
     return annotation
 
 
+def drop_annotation_provenance(
+    exporter: Spdx3JsonExporter, spdx_id: str, field_name: str
+) -> None:
+    """Drop *field_name*'s provenance from the ``fields`` provenance
+    Annotations of *spdx_id*; an Annotation left with no field goes."""
+    object_set = exporter.object_set
+    emptied = [
+        annotation
+        for annotation in object_set.objects
+        if isinstance(annotation, spdx3.Annotation)
+        and _endpoint_id(annotation.subject) == spdx_id
+        and _drop_annotation_field(annotation, field_name) is None
+    ]
+    if emptied:
+        object_set.objects.difference_update(emptied)
+        object_set.create_index()
+
+
 class ModelNames:
     """The base models of a merge and the names fragments give them."""
 
@@ -170,20 +188,7 @@ class ModelNames:
         for fragment_comment in model.comments:
             _merge_comment(package, package.comment, fragment_comment)
         _finish_parameter_count_note(package)
-        self._drop_name_provenance(spdx_id)
-
-    def _drop_name_provenance(self, spdx_id: str) -> None:
-        """Drop the base's provenance for the name of *spdx_id*."""
-        object_set = self._exporter.object_set
-        emptied = [
-            annotation
-            for annotation in self._annotations
-            if _endpoint_id(annotation.subject) == spdx_id
-            and _drop_annotation_field(annotation, _NAME) is None
-        ]
-        if emptied:
-            object_set.objects.difference_update(emptied)
-            object_set.create_index()
+        drop_annotation_provenance(self._exporter, spdx_id, _NAME)
 
 
 def _renames(base_name: str, fragment_name: str) -> bool:

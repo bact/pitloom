@@ -48,6 +48,16 @@ and `comment`. Fields merge into the kept element: lists as a union, a
 element's value (an empty one takes the fragment's), with a
 `WARNING: Merge: conflicting ...` naming the dropped one.
 
+A value Pitloom generated for the project's own AI model from its file's format,
+not read from it, is the other exception: the `description` of a CRFsuite model
+built from its labels, the `domain` of a fastText model, the outputs a format
+fixes (their provenance says `Method: generated_from_labels` or
+`derived_from_format`). A fragment's different value for that property replaces
+it, with one `INFO: Merge: ...`, and the property's provenance is dropped. The
+first fragment that gives one wins; a later fragment's value conflicts with it
+as above. Either provenance form (`annotation`, `comment`, `both`) says a value
+was generated.
+
 The `name` of the project's own AI model is the exception: fragments that
 unify with it and agree on another name, as `loom.set_model(name,
 path=...)` declares, rename it. One `INFO: Merge: 'name' on ...` names both
