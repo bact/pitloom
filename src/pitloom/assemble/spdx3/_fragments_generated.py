@@ -78,8 +78,9 @@ def _annotation_methods(annotation: spdx3.Annotation) -> dict[str, str | None]:
     ):
         return {}
     return {
-        name: entry.get("method") if isinstance(entry, dict) else None
+        name: entry.get("method")
         for name, entry in fields.items()
+        if isinstance(entry, dict)  # anything else says nothing
     }
 
 
@@ -110,11 +111,45 @@ def _same(old: object, new: object) -> bool:
     return bool(old == new)
 
 
+#: The deepest nesting of fragment JSON text that is compared. Reading deeper
+#: text fails at a depth that depends on the Python version and the call stack
+#: (about 1000 on 3.10 and 3.11, more later), so the line is drawn here.
+MAX_JSON_DEPTH = 64
+
+
+def _nests_over(text: str, limit: int) -> bool:
+    """Whether the brackets of the JSON *text* nest deeper than *limit*;
+    brackets inside a string do not count."""
+    if text.count("[") + text.count("{") <= limit:
+        return False
+    depth = 0
+    in_string = escaped = False
+    for char in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            in_string = True
+        elif char in "[{":
+            depth += 1
+            if depth > limit:
+                return True
+        elif char in "]}":
+            depth -= 1
+    return False
+
+
 def _same_json(old: str, new: str) -> bool:
     """Whether the JSON texts *old* and *new* say the same, in any spelling of
     the whitespace and the order of an object's keys. Text that is no JSON, has
     a repeated key or nests too deeply to read (a fragment is untrusted) is not
     the same as anything but itself."""
+    if _nests_over(old, MAX_JSON_DEPTH) or _nests_over(new, MAX_JSON_DEPTH):
+        return False
     try:
         return _same(
             *(

@@ -610,6 +610,8 @@ def test_the_readers_provenance_marks_the_properties_the_assembler_writes(
     :data:`PROVENANCE_PROPERTY_FIELDS` names; a new generated field of a reader
     that is not in the map fails here (``type_of_model`` is read from the
     header, with its own method, and is not generated)."""
+    if model_file.startswith("fasttext"):
+        pytest.importorskip("fasttext")  # the optional ``fasttext`` extra
     path = Path(__file__).resolve().parents[1] / "fixtures" / "aimodels" / model_file
     provenance = read_ai_model(path).provenance
     methods = {
@@ -646,6 +648,15 @@ def test_the_generated_methods_are_the_ones_the_readers_write() -> None:
         ('{"n":1}', '{"n":1.0}', False),  # another number is another value
         ('{"n":1}', '{"n":true}', False),  # and a boolean is no number
         ('{"a":1,"b":[1,2]}', '{"b":[1,2],"a":1}', True),  # key order
+        ('{"a":1}', '{"a":1,"b":2}', False),  # a key more ...
+        ('{"a":1,"b":2}', '{"a":1}', False),  # ... or less
+        ("[" * 64 + "1" + "]" * 64, "[" * 64 + " 1" + "]" * 64, True),  # at the cap
+        ("[" * 65 + "1" + "]" * 65, "[" * 65 + " 1" + "]" * 65, False),  # over it
+        (
+            '["\\"' + "[" * 80 + '"]',
+            '["\\"' + "[" * 80 + '" ]',
+            True,
+        ),  # brackets after an escaped quote are still in the string
         ("[1e400]", "[2e999]", False),  # both overflow a float, to the same inf
         ("[0.1]", "[0.10000000000000000001]", False),  # float precision
         ('{"a":1}', '{"a":2,"a":1}', False),  # a repeated key: the last wins
@@ -662,6 +673,11 @@ def test_the_generated_methods_are_the_ones_the_readers_write() -> None:
         "float",
         "boolean",
         "key-order",
+        "key-more",
+        "key-less",
+        "depth-at-cap",
+        "depth-over-cap",
+        "brackets-in-string",
         "float-overflow",
         "float-precision",
         "repeated-key",
@@ -788,10 +804,11 @@ def test_another_base_models_provenance_neither_counts_nor_goes(
 @pytest.mark.parametrize(
     ("annotation", "comment"),
     [
-        # An entry that is no object says nothing: the comment decides.
+        # An entry that is no object says nothing: the generated comment stands
+        # (read as a method, "other" would make the field not generated).
         (
-            '{"description": "derived_from_format"}',
-            "description: Source: m | Method: other",
+            '{"description": "other"}',
+            "description: Source: m | Method: generated_from_labels",
         ),
         (None, "description: Source: m | Method: generated_from_labels; description"),
     ],
@@ -803,9 +820,8 @@ def test_a_provenance_entry_of_an_unexpected_shape_says_nothing(
     annotation: str | None,
     comment: str,
 ) -> None:
-    """A malformed entry is skipped, not read as a generated or an unknown
-    method: the first case stays not generated (the comment's own method is
-    another), the second stays generated."""
+    """A malformed entry is skipped, not read as a method or as a vote against
+    the value being generated: the value stays generated, and is replaced."""
     base = _base({}, annotation=False)
     model = next(
         o for o in base.object_set.objects if isinstance(o, spdx3.ai_AIPackage)
@@ -828,7 +844,4 @@ def test_a_provenance_entry_of_an_unexpected_shape_says_nothing(
             )
         )
     merged, records, _ = _merge(tmp_path, caplog, base, [{"description": "curated"}])
-    replaced = annotation is None
-    assert (merged["description"], _levels(records)) == (
-        ("curated", [logging.INFO]) if replaced else ("generated", [logging.WARNING])
-    )
+    assert (merged["description"], _levels(records)) == ("curated", [logging.INFO])

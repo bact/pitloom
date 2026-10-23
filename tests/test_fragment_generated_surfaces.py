@@ -169,6 +169,8 @@ def test_the_curated_value_wins_on_every_route(
     sbom = _ROUTES[route](tmp_path, monkeypatch, project, member)
     models = [e for e in json.loads(sbom)["@graph"] if e["type"] == "ai_AIPackage"]
     assert len(models) == 1
+    if case.startswith("fasttext"):
+        pytest.importorskip("fasttext")  # the optional ``fasttext`` extra
     _, _, fields, replaced = _CASES[case]
     assert {name: models[0].get(name) for name in fields} == fields
     err = capsys.readouterr().err
