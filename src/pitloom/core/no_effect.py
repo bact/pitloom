@@ -24,7 +24,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 
-from pitloom.logging_config import loggable, sanitize_url_credentials
+from pitloom.logging_config import loggable, sanitize_url, sanitize_url_credentials
 
 log = logging.getLogger(__name__)
 
@@ -51,7 +51,10 @@ def warn_no_effect(
     *subject* may be a user-given URL or path: credentials are masked and
     control characters escaped.
     """
-    shown = loggable(sanitize_url_credentials(str(subject)))
+    text = str(subject)
+    shown = loggable(
+        sanitize_url(text) if "://" in text else sanitize_url_credentials(text)
+    )
     for flag in flags:
         log.log(level, "%s%s: %s has no effect %s", prefix, shown, flag, reason)
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 import io
 import os
 import threading
+import time
 import urllib.request
 from email.message import Message
 from pathlib import Path
@@ -26,11 +27,52 @@ from pitloom.extract._extract_utils import (
     json_nests_over,
     sanitize_provenance_text,
 )
-from pitloom.logging_config import Cap, sanitize_url_credentials
+from pitloom.logging_config import Cap, sanitize_url, sanitize_url_credentials
 from tests._bounded import run_bounded_in_child
 
 #: ``os.mkfifo`` exists on POSIX only.
 _HAS_MKFIFO = hasattr(os, "mkfifo")
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("https://h/r?private_token=S&h=main", "https://h/r?private_token=***&h=main"),
+        ("https://h/r?a=1&Access_Token=S#f", "https://h/r?a=1&Access_Token=***#f"),
+        ("https://h/r#access_token=S", "https://h/r#access_token=***"),
+        (
+            "https://h/r?to%6Ben=S&db-password=P",
+            "https://h/r?to%6Ben=***&db-password=***",
+        ),
+        # Names that only contain a secret word, and text that is no URL.
+        ("https://h/r?author=1&monkey=2&design=3&tokenizer=4", None),
+        ("https://h/r?id=abc&path=/key", None),
+        ("pkg &key=value ;keyboard=1", None),
+    ],
+    ids=[
+        "private",
+        "mixed-case",
+        "fragment",
+        "encoded-name",
+        "lookalikes",
+        "plain",
+        "no-url",
+    ],
+)
+def test_a_secret_named_query_value_is_redacted(
+    text: str, expected: str | None
+) -> None:
+    """The name is matched whole (or by its ending), not as a substring, and
+    only inside a URL."""
+    assert sanitize_url_credentials(text) == (expected or text)
+
+
+def test_the_query_secret_match_is_linear() -> None:
+    """A server's stderr is sanitised after git exits, so its time is not
+    bounded by the git timeout: a 400 KB name must not take quadratic time."""
+    start = time.monotonic()
+    sanitize_url_credentials("https://h/?" + "token" * 80_000)
+    assert time.monotonic() - start < 5
 
 
 def test_sanitize_url_credentials_redacts_user_and_password() -> None:
@@ -322,3 +364,14 @@ def test_quote_source_escapes_only_what_would_break_a_line(
 ) -> None:
     """Control characters and lone surrogates are escaped; text is not."""
     assert quote_source(source) == expected
+
+
+@pytest.mark.parametrize(
+    "path",
+    [r"D:\a\https:\user:SECRET@huggingface.co\o\m", "/cwd/https:/user:SECRET@h/o/m"],
+    ids=["windows", "posix"],
+)
+def test_sanitize_url_redacts_a_url_a_path_normalisation_collapsed(path: str) -> None:
+    """``https://u:p@h`` becomes ``https:/u:p@h`` (POSIX) or ``https:\\u:p@h``
+    (Windows) when it is read as a path."""
+    assert "SECRET" not in sanitize_url(path)

@@ -26,7 +26,7 @@ from typing import IO, cast
 from pitloom.extract.remote import git_url
 from pitloom.extract.remote._git_size import SizeCap, readable_bytes, tree_bytes
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.logging_config import loggable, sanitize_url_credentials
+from pitloom.logging_config import loggable, sanitize_url, sanitize_url_credentials
 
 log = logging.getLogger(__name__)
 
@@ -125,7 +125,9 @@ class GitRunner:
         if echo:
             log.info(
                 "Git source: $ %s",
-                loggable(sanitize_url_credentials(shlex.join(command))),
+                loggable(
+                    sanitize_url_credentials(shlex.join(map(sanitize_url, command)))
+                ),
             )
         left = self.remaining()
         if left <= 0:

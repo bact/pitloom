@@ -58,6 +58,14 @@ def checkout_folder(work_dir: str, subdir: str) -> str:
     return folder
 
 
+def checkout_has_file(work_dir: str, path: str) -> bool:
+    """Whether *path* is a regular file of the checkout *work_dir*, not
+    reached through a link that leads out of it."""
+    root = os.path.realpath(work_dir)
+    target = os.path.realpath(os.path.join(root, path))
+    return target.startswith(root + os.sep) and os.path.isfile(target)
+
+
 def subproject_hint(folder: str, whole_repository: bool) -> str:
     """When *folder* has no Python project but folders below it do, say where
     (the text to add to the failure, starting with ``". "``); ``""`` when it

@@ -21,6 +21,7 @@ from typing import Any
 import pytest
 
 from pitloom.assemble import (
+    _classify_target,
     _generators_git,
     generate,
     generate_git_project_sbom,
@@ -70,6 +71,8 @@ def _seen(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
         ("ssh://git@host/o/r.git", True, False),
         ("git@host:o/r.git", True, False),
         ("https://huggingface.co/o/m", False, False),
+        ("https://huggingface.co/spaces/o/app", True, False),
+        ("https://huggingface.co/datasets/o/data/tree/main", True, False),
         (".", False, True),
     ],
 )
@@ -178,3 +181,24 @@ def test_a_refused_url_is_raised_with_its_code() -> None:
     with pytest.raises(RemoteSourceError) as excinfo:
         generate_git_project_sbom("ssh://git@host/o/r.git")
     assert excinfo.value.code == "git.url-invalid"
+
+
+@pytest.mark.parametrize(
+    ("target", "kind"),
+    [
+        ("env", "env"),
+        ("pkg-1.0-py3-none-any.whl", "wheel"),
+        ("https://huggingface.co/o/m", "hf"),
+        ("https://hf.co/o/m/tree/main", "hf"),
+        ("o/no-such-local-dir", "hf"),
+        ("https://huggingface.co/spaces/o/app", "git"),
+        ("https://hf.co/datasets/o/data", "git"),
+        ("https://gitlab.com/g/p", "git"),
+        ("ssh://git@host/o/r.git", "git"),
+        (".", "project"),
+    ],
+)
+def test_every_target_is_one_kind(target: str, kind: str) -> None:
+    """The one classification behind ``generate()``: a Hugging Face Space or
+    dataset is a Git repository, a Hugging Face model is a model."""
+    assert _classify_target(target) == kind

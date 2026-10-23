@@ -130,6 +130,183 @@ _PLATFORMS = [
         "cmd",
         "actions.go",
     ),
+    # Forgejo writes a file page like a folder page.
+    (
+        "forgejo-codeberg-file-page",
+        "https://codeberg.org/kfdm/pyproject-add-url/src/branch/main/pyproject.toml",
+        "main",
+        "",
+        "pyproject.toml",
+    ),
+    (
+        "forgejo-codeberg-tag-page",
+        "https://codeberg.org/kfdm/pyproject-add-url/src/tag/v0.1.0",
+        "v0.1.0",
+        "",
+        "pyproject.toml",
+    ),
+    (
+        "forgejo-dutch-government-file-page",
+        "https://code.overheid.nl/Logius/nldoc-lib-python-nldocspec/"
+        "src/branch/main/pyproject.toml",
+        "main",
+        "",
+        "pyproject.toml",
+    ),
+    # Gerrit (the bare URL), and the Gitea that mirrors it.
+    (
+        "gerrit-opendev",
+        "https://review.opendev.org/openstack/pbr",
+        None,
+        "",
+        "setup.py",
+    ),
+    (
+        "gitea-opendev-page",
+        "https://opendev.org/openstack/pbr/src/branch/master/pbr",
+        "master",
+        "pbr",
+        "__init__.py",
+    ),
+    # Gitiles, Gerrit's code browser: ``+`` and the ref in full.
+    (
+        "gitiles-googlesource",
+        "https://gerrit.googlesource.com/plugins/codemirror-editor",
+        None,
+        "",
+        "BUILD",
+    ),
+    (
+        "gitiles-googlesource-page",
+        "https://pigweed.googlesource.com/pigweed/pigweed/+/refs/heads/main/pw_cli",
+        "main",
+        "pw_cli",
+        "py",
+    ),
+    # A Hugging Face Space is a Git repository (the host is not a model).
+    (
+        "hugging-face-space",
+        "https://huggingface.co/spaces/Chuanming/"
+        "facebook-fasttext-language-identification",
+        None,
+        "",
+        "app.py",
+    ),
+    (
+        "hugging-face-space-page",
+        "https://huggingface.co/spaces/Chuanming/"
+        "facebook-fasttext-language-identification/tree/main",
+        "main",
+        "",
+        "app.py",
+    ),
+    # cgit puts the ref in the query.
+    (
+        "cgit-kernel-org",
+        "https://git.kernel.org/pub/scm/utils/b4/b4.git",
+        None,
+        "",
+        "COPYING",
+    ),
+    (
+        "cgit-kernel-org-page",
+        "https://git.kernel.org/pub/scm/utils/b4/b4.git/tree/src/b4?h=master",
+        "master",
+        "src/b4",
+        "__init__.py",
+    ),
+    (
+        "cgit-kernel-org-tag-page",
+        "https://git.kernel.org/pub/scm/utils/b4/b4.git/tree/?h=v0.12.0",
+        "v0.12.0",
+        "",
+        "COPYING",
+    ),
+    ("launchpad", "https://git.launchpad.net/launchpadlib", None, "", "setup.py"),
+    (
+        "launchpad-page",
+        "https://git.launchpad.net/launchpadlib/tree/src?h=main",
+        "main",
+        "src",
+        "launchpadlib",
+    ),
+    # GNU Savannah: the clone address (its web pages answer from another host).
+    ("savannah", "https://git.savannah.gnu.org/git/hello.git", None, "", "COPYING"),
+    # Azure DevOps rejects the blob filter, and puts the ref in the query.
+    (
+        "azure-devops",
+        "https://dev.azure.com/mseng/PipelineTools/_git/PipelineTools",
+        None,
+        "",
+        "readme.md",
+    ),
+    (
+        "azure-devops-page",
+        "https://dev.azure.com/mseng/PipelineTools/_git/PipelineTools"
+        "?path=/templates&version=GBmaster",
+        "master",
+        "templates",
+        "cluster-control-job.yml",
+    ),
+    # Bitbucket Cloud. A file page is written like a folder page.
+    (
+        "bitbucket",
+        "https://bitbucket.org/zzzeek/sqlalchemy",
+        None,
+        "",
+        "pyproject.toml",
+    ),
+    (
+        "bitbucket-src-page",
+        "https://bitbucket.org/zzzeek/sqlalchemy/src/main/lib/sqlalchemy",
+        "main",
+        "lib/sqlalchemy",
+        "__init__.py",
+    ),
+    (
+        "bitbucket-file-page",
+        "https://bitbucket.org/zzzeek/sqlalchemy/src/main/pyproject.toml",
+        "main",
+        "",
+        "pyproject.toml",
+    ),
+    (
+        "bitbucket-branch-page",
+        "https://bitbucket.org/zzzeek/sqlalchemy/branch/rel_0_4",
+        "rel_0_4",
+        "",
+        "setup.py",
+    ),
+    (
+        "bitbucket-commits-tag-page",
+        "https://bitbucket.org/zzzeek/sqlalchemy/commits/tag/rel_2_0_9",
+        "rel_2_0_9",
+        "",
+        "pyproject.toml",
+    ),
+    # SourceHut. ``item`` stands for a folder and a file alike.
+    ("sourcehut", "https://git.sr.ht/~sircmpwn/scm.sr.ht", None, "", "setup.py"),
+    (
+        "sourcehut-tree-page",
+        "https://git.sr.ht/~sircmpwn/scm.sr.ht/tree/master/item/scmsrht",
+        "master",
+        "scmsrht",
+        "__init__.py",
+    ),
+    (
+        "sourcehut-file-page",
+        "https://git.sr.ht/~sircmpwn/scm.sr.ht/tree/master/item/setup.py",
+        "master",
+        "",
+        "setup.py",
+    ),
+    (
+        "sourcehut-log-page",
+        "https://git.sr.ht/~sircmpwn/scm.sr.ht/log/master",
+        "master",
+        "",
+        "setup.py",
+    ),
     # GitHub.
     ("github", "https://github.com/pypa/pyproject-hooks", None, "", "pyproject.toml"),
     (
@@ -150,6 +327,11 @@ _PLATFORMS = [
 ]
 
 
+#: A bound for a live fetch (the largest, SQLAlchemy on Bitbucket, is about
+#: 150 MB) so a server that ignores the blob filter cannot fill a CI disk.
+_LIVE_CAP = 400 * 1024 * 1024
+
+
 @pytest.mark.parametrize(
     ("url", "ref", "folder", "expected"),
     [pytest.param(u, r, f, e, id=i) for i, u, r, f, e in _PLATFORMS],
@@ -159,7 +341,10 @@ def test_a_platforms_url_is_fetched(
 ) -> None:
     """The branch and folder the URL names are checked out, with a redirect
     followed where the platform sends one."""
-    with skip_on_network_error(), fetch_git_project(url) as checkout:
+    with (
+        skip_on_network_error(),
+        fetch_git_project(url, max_bytes=_LIVE_CAP) as checkout,
+    ):
         assert checkout.ref == ref and checkout.subdir == folder
         assert (Path(checkout.folder) / expected).exists()
         assert len(checkout.commit) in {40, 64}

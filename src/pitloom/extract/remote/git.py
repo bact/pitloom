@@ -29,7 +29,11 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from pitloom.extract.remote._git_folder import checkout_folder, subproject_hint
+from pitloom.extract.remote._git_folder import (
+    checkout_folder,
+    checkout_has_file,
+    subproject_hint,
+)
 from pitloom.extract.remote._git_redirect import resolve_git_url
 from pitloom.extract.remote._git_run import GitRunner
 from pitloom.extract.remote.errors import RemoteSourceError
@@ -40,7 +44,7 @@ from pitloom.extract.remote.git_url import (
     scheme_allowed,
     split_ref,
 )
-from pitloom.logging_config import loggable, sanitize_url_credentials
+from pitloom.logging_config import loggable, sanitize_url, sanitize_url_credentials
 
 log = logging.getLogger(__name__)
 
@@ -146,7 +150,7 @@ def _prepare(
     offline: bool | None,
 ) -> GitCheckout:
     """Fetch what *url* names into *work_dir* and describe it."""
-    shown = loggable(sanitize_url_credentials(url))
+    shown = loggable(sanitize_url(url))
     if offline:
         raise RemoteSourceError(
             "git.offline", f"Cannot fetch {shown}: network access is forbidden."
@@ -194,7 +198,7 @@ def _resolve(
     ``src`` or ``tree``) is tried again with the whole URL as the repository.
     """
     clone_url = resolve_git_url(page.repo_url, check_url)
-    if not page.rest:
+    if not page.rest and not page.query_style:
         return clone_url, page, GitTarget()
     try:
         return clone_url, page, _target(runner, clone_url, page)
@@ -203,8 +207,8 @@ def _resolve(
             raise
         log.info(
             "Git source: %s is not a repository; trying %s",
-            loggable(sanitize_url_credentials(page.repo_url)),
-            loggable(sanitize_url_credentials(page.plain_url)),
+            loggable(sanitize_url(page.repo_url)),
+            loggable(sanitize_url(page.plain_url)),
         )
     plain = GitPage(page.plain_url, cut=page.cut, plain_url=page.plain_url)
     return resolve_git_url(plain.repo_url, check_url), plain, GitTarget()
@@ -247,12 +251,14 @@ def _log_resolution(url: str, clone_url: str, target: GitTarget, page: GitPage) 
         named += f", folder {loggable(target.subdir)}"
     if page.cut:
         named += " (query and fragment ignored)"
-    given = sanitize_url_credentials(url.strip())
-    if named or given.rstrip("/") != sanitize_url_credentials(page.repo_url):
+    if page.version_ignored:
+        named += " (version names no branch, tag or commit: default branch read)"
+    given = sanitize_url(url.strip())
+    if named or given.rstrip("/") != sanitize_url(page.repo_url):
         log.info(
             RESOLVED_INFO,
             loggable(given),
-            loggable(sanitize_url_credentials(clone_url)),
+            loggable(sanitize_url(clone_url)),
             named,
         )
 
@@ -260,20 +266,30 @@ def _log_resolution(url: str, clone_url: str, target: GitTarget, page: GitPage) 
 def _checkout(
     runner: GitRunner, clone_url: str, work_dir: str, target: GitTarget
 ) -> None:
-    """Check out *target* of *clone_url* into *work_dir*, shallowly."""
-    blobs = f"--filter=blob:limit={BLOB_LIMIT}"
-    if target.commit or target.tag:
-        # A refspec begins with ``refs/``: it cannot be read as an option.
-        wanted = f"refs/tags/{target.ref}" if target.tag else str(target.commit)
+    """Check out *target* of *clone_url* into *work_dir*, shallowly, without
+    blobs over :data:`BLOB_LIMIT`. A server that answers the filter with an
+    error (Azure DevOps: HTTP 400) is asked again without it; the size cap
+    still bounds the transfer. ``init`` and ``remote add`` run once, and the
+    tag and commit retry says ``--no-filter``: the failed fetch saved the
+    filter in the repository config."""
+    pinned = bool(target.commit or target.tag)
+    if pinned:
         runner.run(["init", "--quiet", "--", work_dir], "init")
         runner.run(
             ["-C", work_dir, "remote", "add", "origin", "--", clone_url], "remote"
         )
-        runner.run(
-            ["-C", work_dir, "fetch", "--depth", "1", blobs, "origin", wanted],
-            "fetch",
-            watch=work_dir,
+    try:
+        _fetch(
+            runner, clone_url, work_dir, target, [f"--filter=blob:limit={BLOB_LIMIT}"]
         )
+    except RemoteSourceError as exc:
+        if exc.code != "git.clone-failed" or "HTTP 400" not in str(exc):
+            raise
+        log.info("Git source: the server rejected the blob filter; fetching without it")
+        # A failed filtered fetch leaves the filter in the repository's
+        # config, which a plain fetch would send again.
+        _fetch(runner, clone_url, work_dir, target, ["--no-filter"] if pinned else [])
+    if pinned:
         runner.run(
             [
                 "-C",
@@ -286,10 +302,29 @@ def _checkout(
             "checkout",
             watch=work_dir,
         )
+
+
+def _fetch(
+    runner: GitRunner,
+    clone_url: str,
+    work_dir: str,
+    target: GitTarget,
+    blobs: list[str],
+) -> None:
+    """Fetch *target* of *clone_url* with the clone options *blobs*: into the
+    repository ``init`` made for a tag or commit, else by a shallow clone."""
+    if target.commit or target.tag:
+        # A refspec begins with ``refs/``: it cannot be read as an option.
+        wanted = f"refs/tags/{target.ref}" if target.tag else str(target.commit)
+        runner.run(
+            ["-C", work_dir, "fetch", "--depth", "1", *blobs, "origin", wanted],
+            "fetch",
+            watch=work_dir,
+        )
         return
     branch = ["--branch", target.ref] if target.ref else []
     runner.run(
-        ["clone", "--depth", "1", blobs, *branch, "--", clone_url, work_dir],
+        ["clone", "--depth", "1", *blobs, *branch, "--", clone_url, work_dir],
         "clone",
         watch=work_dir,
     )
@@ -336,8 +371,19 @@ def _drop_outside_links(work_dir: str) -> None:
 
 def _folder(work_dir: str, target: GitTarget) -> str:
     """The folder of the checkout to read. A file page that names a folder
-    reads that folder, and says so."""
-    folder = checkout_folder(work_dir, target.subdir)
+    reads that folder, and a folder page that names a file (Bitbucket and
+    SourceHut write both alike) reads the folder holding it; each says so."""
+    try:
+        folder = checkout_folder(work_dir, target.subdir)
+    except RemoteSourceError:
+        parent = target.subdir.rpartition("/")[0]
+        if target.file or not checkout_has_file(work_dir, target.subdir):
+            raise
+        log.info(
+            "Git source: %s is a file, not a folder; reading the folder holding it",
+            loggable(target.subdir),
+        )
+        return checkout_folder(work_dir, parent)
     if target.file and Path(folder, target.file).is_dir():
         log.info(
             "Git source: %s is a folder, not a file; reading it",
