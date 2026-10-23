@@ -111,6 +111,41 @@ _PAGES = [
         False,
     ),
     (
+        "bitbucket-branch-page",
+        "https://bitbucket.org/atlassian/aui/branch/feature%2Fx",
+        "https://bitbucket.org/atlassian/aui",
+        ("feature/x",),
+        False,
+    ),
+    (
+        "bitbucket-commits-tag",
+        "https://bitbucket.org/atlassian/aui/commits/tag/v1.0",
+        "https://bitbucket.org/atlassian/aui",
+        ("v1.0",),
+        False,
+    ),
+    (
+        "bitbucket-commits-branch",
+        "https://bitbucket.org/atlassian/aui/commits/branch/main",
+        "https://bitbucket.org/atlassian/aui",
+        ("main",),
+        False,
+    ),
+    (
+        "bitbucket-commits-hash",
+        "https://bitbucket.org/atlassian/aui/commits/" + "a" * 40,
+        "https://bitbucket.org/atlassian/aui",
+        ("a" * 40,),
+        False,
+    ),
+    (
+        "sourcehut-log",
+        "https://git.sr.ht/~sircmpwn/scdoc/log/master",
+        "https://git.sr.ht/~sircmpwn/scdoc",
+        ("master",),
+        False,
+    ),
+    (
         "sourcehut",
         "https://git.sr.ht/~sircmpwn/scdoc/tree/master/item/src",
         "https://git.sr.ht/~sircmpwn/scdoc",
@@ -376,6 +411,12 @@ def test_the_whole_url_is_kept_for_a_page_whose_marker_is_part_of_the_path() -> 
         ("HTTPS://Codeberg.org/o/r", True),
         ("https://huggingface.co/o/m", False),
         ("https://HuggingFace.co/o/m/tree/main", False),
+        # A Space or a dataset is a Git repository, a model is not.
+        ("https://huggingface.co/spaces/o/app", True),
+        ("https://hf.co/datasets/o/data/tree/main", True),
+        ("https://www.huggingface.co/Spaces/o/app", True),
+        ("https://huggingface.co/spacesx/o", False),
+        ("https://huggingface.co/", False),
         ("git@github.com:o/r.git", False),
         ("ssh://git@host/o/r", False),
         ("file:///tmp/r", False),
@@ -386,7 +427,7 @@ def test_the_whole_url_is_kept_for_a_page_whose_marker_is_part_of_the_path() -> 
     ],
 )
 def test_which_sources_are_git_urls(source: str, expected: bool) -> None:
-    """Only an http(s) URL that is not a Hugging Face one."""
+    """Only an http(s) URL that is not a Hugging Face model one."""
     assert is_git_url(source) is expected
 
 
@@ -404,3 +445,306 @@ def test_a_repository_is_fetched_over_http_or_https_only(
 ) -> None:
     """``file:`` and ``ssh:`` are never followed or fetched."""
     assert scheme_allowed(url) is expected
+
+
+@pytest.mark.parametrize(
+    ("path", "kind"),
+    [
+        ("branch/main", "branch"),
+        ("commits/branch/main", "branch"),
+        ("commits/tag/v1", "tag"),
+        ("commits/" + "b" * 40, None),
+    ],
+    ids=["branch", "commits-branch", "commits-tag", "commits-hash"],
+)
+def test_a_bitbucket_branch_or_commits_page_names_its_ref(
+    path: str, kind: str | None
+) -> None:
+    """A page that is not a repository is not cloned as one: Bitbucket serves
+    the default branch for ``<repository>/branch/x``, whatever ``x`` is."""
+    page = parse_git_page("https://bitbucket.org/o/r/" + path)
+    assert (page.repo_url, page.kind) == ("https://bitbucket.org/o/r", kind)
+    assert page.rest and page.rest[-1] == path.rsplit("/", 1)[-1]
+
+
+@pytest.mark.parametrize(
+    ("url", "repo", "rest", "ref", "kind", "queried"),
+    [
+        (
+            "https://dev.azure.com/o/p/_git/r?path=/dir/sub&version=GBfeature/x",
+            "https://dev.azure.com/o/p/_git/r",
+            ("dir", "sub"),
+            "feature/x",
+            "branch",
+            True,
+        ),
+        (
+            "https://dev.azure.com/o/p/_git/r?version=GTv1",
+            "https://dev.azure.com/o/p/_git/r",
+            (),
+            "v1",
+            "tag",
+            True,
+        ),
+        (
+            f"https://dev.azure.com/o/p/_git/r?version=GC{_SHA}",
+            "https://dev.azure.com/o/p/_git/r",
+            (),
+            _SHA,
+            "commit",
+            True,
+        ),
+        (
+            "https://o.visualstudio.com/p/_git/r?path=%2Fdir",
+            "https://o.visualstudio.com/p/_git/r",
+            ("dir",),
+            "",
+            None,
+            True,
+        ),
+        (
+            "https://dev.azure.com/o/p/_git/r?_a=contents",
+            "https://dev.azure.com/o/p/_git/r",
+            (),
+            "",
+            None,
+            False,
+        ),
+        (
+            "https://git.kernel.org/pub/scm/utils/b4/b4.git/tree/src/b4?h=master",
+            "https://git.kernel.org/pub/scm/utils/b4/b4.git",
+            ("src", "b4"),
+            "master",
+            None,
+            True,
+        ),
+        (
+            f"https://git.launchpad.net/lp/commit/?id={_SHA}",
+            "https://git.launchpad.net/lp",
+            (),
+            _SHA,
+            None,
+            True,
+        ),
+        (
+            "https://x.googlesource.com/r/+/refs/heads/main/a/b",
+            "https://x.googlesource.com/r",
+            ("main", "a", "b"),
+            "",
+            "branch",
+            False,
+        ),
+        (
+            "https://x.googlesource.com/o/r/+/refs/tags/v1/a",
+            "https://x.googlesource.com/o/r",
+            ("v1", "a"),
+            "",
+            "tag",
+            False,
+        ),
+        (
+            "https://x.googlesource.com/r/+/main/a",
+            "https://x.googlesource.com/r",
+            ("main", "a"),
+            "",
+            None,
+            False,
+        ),
+        # Nothing after ``refs/heads``: the plus is part of the repository path.
+        (
+            "https://x.googlesource.com/r/+/refs/heads",
+            "https://x.googlesource.com/r/+/refs/heads",
+            (),
+            "",
+            None,
+            False,
+        ),
+        # ``h`` with no cgit page name before it: a plain repository.
+        ("https://h/o/r?h=x", "https://h/o/r", (), "", None, False),
+        # No ``h`` or ``id``: a cgit-looking path is not read as a page.
+        ("https://h/o/r/log/x", "https://h/o/r", ("x",), "", None, False),
+    ],
+    ids=[
+        "azure-branch-folder",
+        "azure-tag",
+        "azure-commit",
+        "azure-visualstudio-path-only",
+        "azure-unrelated-query",
+        "cgit-tree",
+        "cgit-commit-id",
+        "gitiles-branch",
+        "gitiles-tag",
+        "gitiles-short-ref",
+        "gitiles-no-ref",
+        "query-without-page",
+        "log-without-query",
+    ],
+)
+def test_a_host_that_puts_the_ref_in_the_query_or_after_a_plus(
+    url: str,
+    repo: str,
+    rest: tuple[str, ...],
+    ref: str,
+    kind: str | None,
+    queried: bool,
+) -> None:
+    """Azure DevOps and cgit name the ref in the query, Gitiles after ``+``."""
+    page = parse_git_page(url)
+    assert (page.repo_url, page.rest, page.ref, page.kind) == (repo, rest, ref, kind)
+    assert page.query_style is queried
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        (
+            "https://dev.azure.com/o/p/_git/r?path=/d/e&version=GBfeature/x",
+            GitTarget(ref="feature/x", subdir="d/e"),
+        ),
+        ("https://dev.azure.com/o/p/_git/r?path=/d", GitTarget(subdir="d")),
+        (
+            "https://dev.azure.com/o/p/_git/r?version=GTv1",
+            GitTarget(ref="v1", tag=True),
+        ),
+        (f"https://h/o/r/tree/?id={_SHA}", GitTarget(commit=_SHA)),
+        ("https://h/o/r.git/tree/a/b?h=main", GitTarget(ref="main", subdir="a/b")),
+    ],
+    ids=["branch-folder", "default-branch", "tag", "commit", "cgit"],
+)
+def test_a_queried_page_is_read_against_the_refs(url: str, expected: GitTarget) -> None:
+    """The ref the query names is not split from the folder: it is exact."""
+    refs = {**_REFS, "v1": frozenset({"tag"})}
+    assert split_ref(parse_git_page(url), refs) == expected
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://dev.azure.com/o/p/_git/r?path=/../..&version=GBmain",
+        "https://dev.azure.com/o/p/_git/r?path=%2F..%2F..",
+        "https://dev.azure.com/o/p/_git/r?path=\\a",
+        "https://dev.azure.com/o/p/_git/r?path=/a%00b",
+        "https://h/pub/r.git/tree/%2e%2e/x?h=main",
+        "https://h/pub/r.git/tree/a%00?h=main",
+        "https://h/r/+/refs/heads/main/a%00b",
+        "https://h/r/+/refs/heads/main/%2e%2e",
+    ],
+    ids=[
+        "azure-dotdot",
+        "azure-encoded-dotdot",
+        "azure-backslash",
+        "azure-nul",
+        "cgit-dotdot",
+        "cgit-nul",
+        "gitiles-nul",
+        "gitiles-dotdot",
+    ],
+)
+def test_a_query_or_gitiles_path_that_leaves_the_checkout_is_refused(
+    url: str,
+) -> None:
+    """The check every other page form has holds for these too, before any
+    clone, and a credential in the URL stays out of the message."""
+    with pytest.raises(RemoteSourceError) as excinfo:
+        parse_git_page(url.replace("//", "//user:SECRET@", 1))
+    assert excinfo.value.code == "git.url-invalid"
+    assert "SECRET" not in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    ("url", "repo", "rest"),
+    [
+        (
+            "https://cgit.freedesktop.org/mesa/mesa/tree/src/gallium?h=main",
+            "mesa/mesa",
+            ("src", "gallium"),
+        ),
+        ("https://git.zx2c4.com/wg/tree/src/uapi?h=v1", "wg", ("src", "uapi")),
+        ("https://git.zx2c4.com/wg/plain/src/wg.c?h=v1", "wg", ("src", "wg.c")),
+        (
+            "https://git.savannah.gnu.org/cgit/emacs/tree/src?h=emacs-29",
+            "cgit/emacs",
+            ("src",),
+        ),
+    ],
+    ids=["mesa", "tree-src", "plain-src", "savannah"],
+)
+def test_a_cgit_folder_called_like_a_page_marker_keeps_its_query_ref(
+    url: str, repo: str, rest: tuple[str, ...]
+) -> None:
+    """The ref is the query's, and the folder is what follows the cgit page,
+    whatever the folder is called (``src``, ``tree``)."""
+    page = parse_git_page(url)
+    assert page.repo_url.endswith(f"/{repo}")
+    assert (page.rest, page.query_style, page.ref != "") == (rest, True, True)
+
+
+@pytest.mark.parametrize(
+    ("url", "repo"),
+    [
+        ("https://gitlab.com/o/r/-/tree/main?h=x", "https://gitlab.com/o/r"),
+        (
+            "https://codeberg.org/o/r/src/commit/" + "a" * 40 + "/d?id=1",
+            "https://codeberg.org/o/r",
+        ),
+    ],
+    ids=["gitlab", "gitea"],
+)
+def test_a_stray_cgit_style_query_after_a_forge_marker_is_ignored(
+    url: str, repo: str
+) -> None:
+    """GitLab's ``-`` and Gitea's ``src/commit`` mark a forge page whose query
+    is not cgit's: the repository is the one before the marker."""
+    page = parse_git_page(url)
+    assert (page.repo_url, page.query_style) == (repo, False)
+
+
+def test_a_gitlab_commits_page_names_its_repository() -> None:
+    """``-/commits/<ref>`` is GitLab's: the ``-`` is not part of the repository."""
+    page = parse_git_page("https://gitlab.com/g/s/p/-/commits/main/d")
+    assert (page.repo_url, page.rest) == ("https://gitlab.com/g/s/p", ("main", "d"))
+
+
+def test_an_azure_version_of_an_unknown_kind_is_reported_as_ignored() -> None:
+    """``version=gbmain`` names no branch, tag or commit: the default branch is
+    read, and the INFO says so."""
+    page = parse_git_page("https://dev.azure.com/o/p/_git/r?path=/d&version=gbmain")
+    assert (page.ref, page.cut, page.version_ignored) == ("", False, True)
+
+
+def test_a_queried_ref_that_is_no_ref_is_refused() -> None:
+    """A branch the server does not have, or a short commit id, is refused."""
+    for ref in ("nosuch", "abc1234"):
+        with pytest.raises(RemoteSourceError) as excinfo:
+            split_ref(parse_git_page(f"https://h/o/r/tree/?h={ref}"), _REFS)
+        assert excinfo.value.code == "git.ref-not-found"
+        assert ref in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    ("url", "repo", "rest"),
+    [
+        (
+            "https://huggingface.co/spaces/o/app/tree/main/src",
+            "https://huggingface.co/spaces/o/app",
+            ("main", "src"),
+        ),
+        (
+            "https://huggingface.co/datasets/o/data/blob/main/f.csv",
+            "https://huggingface.co/datasets/o/data",
+            ("main", "f.csv"),
+        ),
+        (
+            "https://huggingface.co/spaces/o/app",
+            "https://huggingface.co/spaces/o/app",
+            (),
+        ),
+    ],
+    ids=["space-folder", "dataset-file", "space"],
+)
+def test_a_hugging_face_space_or_dataset_page_is_read_like_a_git_page(
+    url: str, repo: str, rest: tuple[str, ...]
+) -> None:
+    """The repository is ``spaces/<owner>/<name>``, three segments."""
+    page = parse_git_page(url)
+    assert (page.repo_url, page.rest) == (repo, rest)

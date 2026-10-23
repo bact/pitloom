@@ -128,8 +128,9 @@ loom generate https://gitlab.com/group/project -o sbom.spdx3.json  # Git URL    
 
 ### A Git URL
 
-`loom project <url>` / `loom generate <url> -o FILE` take an `http(s)` Git URL (a
-repository, or a page naming a branch/tag/commit and a folder). The repository is
+`loom project <url>` / `loom generate <url> -o FILE` take an `http(s)` Git URL: the
+repository's clone URL (recommend this one), or a page naming a branch/tag/commit
+and a folder when only that is wanted. The repository is
 untrusted (its `[tool.pitloom]` is ignored, **`--allow-build` has no effect**),
 `ssh://`/`git@host:path`/`file://` are refused, and read the `INFO:` lines for
 each redirect and the branch and folder used. A monorepo with no project at the

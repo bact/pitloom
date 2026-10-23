@@ -253,3 +253,46 @@ def test_a_local_path_that_looks_like_an_address_is_still_a_path(
         == 0
     )
     assert "Git source" not in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("command", ["project", "generate"])
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://huggingface.co/spaces/o/app",
+        "https://huggingface.co/spaces/o/app/tree/main/src",
+        "https://huggingface.co/datasets/o/data",
+    ],
+)
+def test_a_hugging_face_space_or_dataset_is_fetched_as_a_git_repository(
+    command: str,
+    url: str,
+    fetched: dict[str, object],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert (
+        _run(monkeypatch, tmp_path, command, url, "-o", str(tmp_path / "o.json")) == 0
+    )
+    assert fetched["url"] == url
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["https://huggingface.co/o/m", "https://hf.co/o/m/tree/main"],
+)
+def test_a_hugging_face_model_is_no_project(
+    url: str,
+    fetched: dict[str, object],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """One ``ERROR:`` line naming ``loom model``, not a missing directory; the
+    address is not fetched as a repository."""
+    assert _run(monkeypatch, tmp_path, "project", url) == 1
+    lines = capsys.readouterr().err.strip().splitlines()
+    assert len(lines) == 1
+    assert lines[0].startswith("ERROR: ")
+    assert "is a Hugging Face model, not a project: use 'loom model'" in lines[0]
+    assert "url" not in fetched

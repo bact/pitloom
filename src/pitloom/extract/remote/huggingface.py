@@ -98,10 +98,14 @@ log = logging.getLogger(__name__)
 
 __all__ = ["is_huggingface_source", "parse_hf_model_id", "read_huggingface"]
 
-# Match full HF URLs: https://huggingface.co/owner/name[/anything], also as
-# http, www.huggingface.co or hf.co, in any case of the scheme and host.
+# Match full HF model URLs: https://huggingface.co/owner/name[/anything], also
+# as http, www.huggingface.co or hf.co, in any case of the scheme and host. A
+# Space or a dataset (``/spaces/...``, ``/datasets/...``) is a Git repository,
+# not a model.
 _HF_URL_RE = re.compile(
-    rf"https?://{HUB_HOST_PATTERN}/([^/]+/[^/]+?)(?:/.*)?$", re.IGNORECASE
+    rf"https?://{HUB_HOST_PATTERN}/(?!(?:spaces|datasets)/)"
+    r"([^/?#]+/[^/?#]+?)(?:[/?#].*)?$",
+    re.IGNORECASE,
 )
 _CANONICAL_PREFIX = "https://huggingface.co/"
 

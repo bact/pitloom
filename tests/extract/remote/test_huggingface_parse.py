@@ -80,9 +80,20 @@ def test_parse_hf_model_id_valid(source: str, expected_id: str) -> None:
     assert parse_hf_model_id(source) == expected_id
 
 
+#: A Space or a dataset is a Git repository, not a model.
+_GIT_AREAS = [
+    "https://huggingface.co/spaces/org/app",
+    "https://huggingface.co/datasets/org/data",
+    "https://hf.co/spaces/org/app/tree/main/src",
+    "https://www.HuggingFace.co/Datasets/org/data",
+    "http://huggingface.co/SPACES/org/app/blob/main/app.py",
+]
+
+
 @pytest.mark.parametrize(
     "source",
     [
+        *_GIT_AREAS,
         "/path/to/model.safetensors",
         "./models/my_model.gguf",
         "just-a-filename.onnx",
@@ -124,7 +135,9 @@ def test_is_huggingface_source_plain_filename() -> None:
     assert not is_huggingface_source("model.safetensors")
 
 
-@pytest.mark.parametrize("url", [*_SPELLINGS, "https://github.com/org/hf.co"])
+@pytest.mark.parametrize(
+    "url", [*_SPELLINGS, *_GIT_AREAS, "https://github.com/org/hf.co"]
+)
 def test_a_url_is_a_model_or_a_git_repository_never_both_or_neither(url: str) -> None:
     """Drift guard: the Git route and the Hub route decide on one host list."""
     assert (parse_hf_model_id(url) is not None) != is_git_url(url)
@@ -157,3 +170,17 @@ def test_a_url_read_in_another_spelling_is_said_once(
         if said
         else []
     )
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://huggingface.co/o/m?private_token=SECRET",
+        "https://huggingface.co/o/m#frag",
+        "https://huggingface.co/o/m/tree/main?x=1",
+    ],
+)
+def test_a_query_or_fragment_is_no_part_of_the_model_id(url: str) -> None:
+    """A model id holds no ``?`` or ``#``: a token in the query must not end up
+    in the id, and so in a message or a request."""
+    assert parse_hf_model_id(url) == "o/m"
