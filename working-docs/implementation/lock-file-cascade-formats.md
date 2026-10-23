@@ -110,7 +110,9 @@ Two pip file-format quirks are handled before per-line parsing, both
 matching pip's own preprocessing: a leading UTF-8 BOM (`encoding=
 "utf-8-sig"` instead of `"utf-8"`) and backslash line-continuation
 (`_join_continuation_lines()` merges a physical line ending in `\` with
-the next before splitting on `#`). Continuation-joining doesn't extend
+the next, with nothing between them, before splitting on `#`; a line that is
+only a comment never continues; trailing white space after the `\` is
+tolerated, which pip does not). Continuation-joining doesn't extend
 to `pip-compile --generate-hashes` output specifically -- a joined line
 still carries `--hash=...` tokens, which aren't valid PEP 508 syntax
 and correctly disqualify the file the same as any other malformed
