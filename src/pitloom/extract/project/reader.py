@@ -29,6 +29,7 @@ from pitloom.core.project import (
     is_sdist_archive,
     merge_project_metadata,
 )
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock import apply_locked_dependencies
 from pitloom.extract.project._installed_reconcile import reconcile_installed_metadata
 from pitloom.extract.project.installed import (
@@ -68,7 +69,7 @@ def _fallback_to_setuptools(
             "%s has no usable [project] table and no [tool.poetry] "
             "fallback -- falling back to setup.cfg/setup.py metadata "
             "instead of an empty pyproject.toml-only result",
-            pyproject_path,
+            quote_source(pyproject_path),
         )
     # read_pyproject() may already have resolved locked_dependencies from
     # poetry.lock (the unparseable-[tool.poetry] path that leads here).
@@ -164,7 +165,7 @@ def read_project(
         ValueError: If config is malformed.
     """
     if not project_path.exists():
-        raise FileNotFoundError(f"Project path not found: {project_path}")
+        raise FileNotFoundError(f"Project path not found: {quote_source(project_path)}")
 
     if is_sdist_archive(project_path):
         contents = read_sdist(project_path, read_config=read_config)
@@ -208,7 +209,8 @@ def read_project(
         config_path = setup_cfg if setup_cfg.exists() else setup_py
     else:
         raise FileNotFoundError(
-            f"No pyproject.toml, setup.cfg, or setup.py found in {project_path}"
+            "No pyproject.toml, setup.cfg, or setup.py found in "
+            f"{quote_source(project_path)}"
         )
 
     if include_locked_dependencies:

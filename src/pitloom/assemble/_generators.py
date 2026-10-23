@@ -36,6 +36,7 @@ from pitloom.core.inert_options import PROJECT, SDIST, settle_inert
 from pitloom.core.models import get_wheel_files
 from pitloom.core.project import FilesOrigin, ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.quote_source import quote_source
 from pitloom.core.walk_rules import without_registry_copies
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.extract.project import resolve_project_with_lockfile
@@ -70,7 +71,7 @@ def _warn_if_metadata_without_config(
         "generate_project_sbom(): project_metadata needs pitloom_config "
         "supplied with it -- the project_metadata you passed alone is "
         "being discarded and re-read from %s",
-        target_path,
+        quote_source(target_path),
     )
 
 

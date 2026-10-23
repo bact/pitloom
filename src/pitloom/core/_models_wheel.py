@@ -52,6 +52,7 @@ from pitloom.core.project import (
     project_relative_or_fallback,
 )
 from pitloom.core.walk_rules import RegistryCopy, SameFile, warn_registry_left_out
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -431,9 +432,11 @@ def _scan_included_files(
         except OSError as exc:
             log.warning(
                 UNREADABLE_FILE_WARNING,
-                project_relative_or_fallback(
-                    _physical_path(source, project_dir, built=included_file.built),
-                    included_file.distribution_path,
+                loggable(
+                    project_relative_or_fallback(
+                        _physical_path(source, project_dir, built=included_file.built),
+                        included_file.distribution_path,
+                    )
                 ),
                 "for file scanning",
                 exc,

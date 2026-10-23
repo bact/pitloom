@@ -22,6 +22,7 @@ import logging
 from collections.abc import Mapping
 from typing import Any
 
+from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import field_loss_suffix, loggable, one_line
 
 log = logging.getLogger(__name__)
@@ -80,7 +81,7 @@ def _safe_load_json(
         log.warning(
             "Downloading %s for %s without a pinned revision; "
             "supply hub_info['sha'] to ensure reproducibility.",
-            filename,
+            quote_source(filename),
             model_id,
         )
     try:
@@ -100,7 +101,12 @@ def _safe_load_json(
         # File may legitimately not exist (e.g. non-generative models lack
         # generation_config.json) -- hf_hub_download raises for that same
         # as for a genuine failure, so this can't be promoted to WARNING.
-        log.debug("Failed to load %s for %s: %s", filename, model_id, one_line(exc))
+        log.debug(
+            "Failed to load %s for %s: %s",
+            quote_source(filename),
+            model_id,
+            one_line(exc),
+        )
         return None
 
 

@@ -22,6 +22,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from pitloom.core.build_signals import TerminationGuard
+from pitloom.core.quote_source import quote_source
 
 log = logging.getLogger(__name__)
 
@@ -75,7 +76,7 @@ def rmtree_quietly(path: Path, log_prefix: str) -> None:
     try:
         shutil.rmtree(path, ignore_errors=True)
     except Exception as exc:  # pylint: disable=broad-exception-caught
-        log.debug("%sremoving %s failed: %r", log_prefix, path.name, exc)
+        log.debug("%sremoving %s failed: %r", log_prefix, quote_source(path.name), exc)
 
 
 def warn_if_left_behind(path: Path, log_prefix: str) -> None:
@@ -91,5 +92,5 @@ def warn_if_left_behind(path: Path, log_prefix: str) -> None:
             "%scould not fully remove temporary directory %s "
             "(in the system temp directory)",
             log_prefix,
-            path.name,
+            quote_source(path.name),
         )

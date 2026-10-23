@@ -58,7 +58,7 @@ from pathlib import Path
 from packaging.requirements import InvalidRequirement
 
 from pitloom.core.pep508 import parse_requirement
-from pitloom.extract._extract_utils import quote_source
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock.common import (
     read_lock_bytes,
     resolve_pinned_dependencies,

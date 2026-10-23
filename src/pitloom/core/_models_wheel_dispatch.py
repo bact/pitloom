@@ -35,6 +35,7 @@ from pitloom.core._models_wheel_types import (
     has_resolvable_pyproject_config,
     has_uv_build_backend_overrides,
 )
+from pitloom.core.quote_source import quote_source
 
 log = logging.getLogger(__name__)
 
@@ -90,7 +91,7 @@ def _skip_hatchling_fallback(
             "inaccurate",
             BUILD_LOG_PREFIX,
             backend,
-            project_dir,
+            quote_source(project_dir),
         )
         return False
 
@@ -104,7 +105,7 @@ def _skip_hatchling_fallback(
             "table, so that fallback would fail too)",
             BUILD_LOG_PREFIX,
             backend,
-            project_dir,
+            quote_source(project_dir),
         )
     else:
         log.warning(
@@ -114,7 +115,7 @@ def _skip_hatchling_fallback(
             "imperative setup.py build)",
             BUILD_LOG_PREFIX,
             backend,
-            project_dir,
+            quote_source(project_dir),
         )
     return True
 
@@ -181,7 +182,7 @@ def _try_build_and_read(
         "for %s (backend=%r, %s) to discover its file list -- this "
         "executes third-party build-time code%s, timeout %ds",
         BUILD_LOG_PREFIX,
-        project_dir,
+        quote_source(project_dir),
         backend,
         reason,
         ", without build isolation (--no-build-isolation)"

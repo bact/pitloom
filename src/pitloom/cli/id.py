@@ -11,7 +11,6 @@ import argparse
 import logging
 import os
 import re
-import sys
 import unicodedata
 from pathlib import Path
 from typing import Any
@@ -24,6 +23,7 @@ from pitloom.cli._id_target import (
 )
 from pitloom.cli.kv_output import print_kv
 from pitloom.core.iri import require_namespace_iri
+from pitloom.core.quote_source import quote_source
 from pitloom.id_registry import (
     AI_PACKAGE_TYPE,
     DATASET_PACKAGE_TYPE,
@@ -34,6 +34,7 @@ from pitloom.id_registry import (
     failed_to_save_message,
     save_registry,
 )
+from pitloom.logging_config import print_error
 
 log = logging.getLogger("pitloom.id_registry")
 
@@ -182,7 +183,7 @@ def _save(registry: IdRegistry, registry_path: Path) -> bool:
     try:
         save_registry(registry)
     except (ValueError, OSError) as exc:
-        print(f"ERROR: {failed_to_save_message(registry_path, exc)}", file=sys.stderr)
+        print_error(failed_to_save_message(registry_path, exc))
         return False
     return True
 
@@ -238,9 +239,8 @@ def _run_id_generate(args: argparse.Namespace) -> int:
     """Run `pitloom id generate`."""
     project_dir: Path = (args.project_dir or Path.cwd()).resolve()
     if not os.path.isdir(project_dir):
-        print(
-            f"ERROR: --project-dir {args.project_dir} is not a directory",
-            file=sys.stderr,
+        print_error(
+            f"--project-dir {quote_source(args.project_dir)} is not a directory"
         )
         return 1
     try:
@@ -257,7 +257,7 @@ def _run_id_generate(args: argparse.Namespace) -> int:
             key, sha256 = entity_entry(registry, project_dir, type_name, name)
             registry.register(type_name, key, sha256=sha256)
     except (ValueError, OSError) as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
+        print_error(str(exc))
         return 1
     if not _save(registry, registry_path):
         return 1
@@ -271,7 +271,7 @@ def _run_id_import(args: argparse.Namespace) -> int:
     """Run `pitloom id import`."""
     sbom_path: Path = args.sbom.resolve()
     if not os.path.isfile(sbom_path):
-        print(f"ERROR: SBOM file not found: {sbom_path}", file=sys.stderr)
+        print_error(f"SBOM file not found: {quote_source(sbom_path)}")
         return 1
 
     project_dir = Path.cwd()
@@ -280,7 +280,7 @@ def _run_id_import(args: argparse.Namespace) -> int:
             args.id_registry, project_dir
         )
     except (ValueError, OSError) as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
+        print_error(str(exc))
         return 1
     is_new = not os.path.lexists(registry_path)
 
@@ -289,14 +289,14 @@ def _run_id_import(args: argparse.Namespace) -> int:
             registry_path, sbom_path.stem, project_root=project_dir
         )
     except ValueError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
+        print_error(str(exc))
         return 1
 
     try:
         skipped = registry.import_sbom(sbom_path)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        print(f"ERROR: failed to import SBOM {sbom_path}: {exc}", file=sys.stderr)
+        print_error(f"failed to import SBOM {quote_source(sbom_path)}: {exc}")
         return 1
 
     if not _save(registry, registry_path):

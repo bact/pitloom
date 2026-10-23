@@ -25,6 +25,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from pitloom.core.quote_source import quote_source
 from pitloom.extract.project._setup_cfg_directives import listed_file_readable
 
 log = logging.getLogger(__name__)
@@ -99,7 +100,7 @@ def resolve_flit_dynamic_metadata(
         if not quiet:
             log.warning(
                 "Flit dynamic metadata resolution failed for %s: %s",
-                pyproject_path,
+                quote_source(pyproject_path),
                 exc,
             )
         return {}

@@ -51,6 +51,7 @@ from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
 from pitloom.core.no_effect import INERT_LOG_PREFIX
 from pitloom.core.provenance import ProvenanceConfig, require_max_source_metadata_bytes
+from pitloom.core.quote_source import quote_source
 
 log = logging.getLogger(__name__)
 
@@ -157,7 +158,7 @@ def load_config_file(path: Path, *, source: str = "--config") -> PitloomConfig:
         log.warning(
             "%s%s: %s file has no [tool.pitloom] table; using the defaults",
             INERT_LOG_PREFIX,
-            path,
+            quote_source(path),
             source,
         )
     # Every relative path in the file means the same thing wherever

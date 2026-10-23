@@ -64,6 +64,7 @@ from pitloom.assemble.spdx3._licensing_profiles import apply_licensing_profiles
 from pitloom.assemble.spdx3.provenance import build_unification_annotation
 from pitloom.core.config import FragmentConfig
 from pitloom.core.path_probe import is_missing_errno
+from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.logging_config import configure_logging
 
@@ -313,8 +314,11 @@ def _missing_fragment_message(fragment_path: Path, *, required: bool) -> str:
     shared by the real merge and ``pitloom fragment list``'s diagnostic
     pass, so the same condition reads identically on both surfaces."""
     if required:
-        return f"Required SBOM fragment {fragment_path} not found -- merge will fail."
-    return f"Configured SBOM fragment {fragment_path} not found."
+        return (
+            f"Required SBOM fragment {quote_source(fragment_path)} not found -- "
+            "merge will fail."
+        )
+    return f"Configured SBOM fragment {quote_source(fragment_path)} not found."
 
 
 def _fragment_read_failure_message(
@@ -327,7 +331,7 @@ def _fragment_read_failure_message(
     plain JSON parse for an element count) -- the file's problem is the
     same regardless of which caller noticed it."""
     suffix = " -- merge will fail." if required else ""
-    return f"Failed to read SBOM fragment {fragment_path}: {exc}{suffix}"
+    return f"Failed to read SBOM fragment {quote_source(fragment_path)}: {exc}{suffix}"
 
 
 def _same_document_message(fragment_path: Path, doc_id: str, *, required: bool) -> str:
@@ -336,7 +340,8 @@ def _same_document_message(fragment_path: Path, doc_id: str, *, required: bool) 
     one is."""
     suffix = " -- merge will fail." if required else ""
     return (
-        f"SBOM fragment {fragment_path} is the document being merged into "
+        f"SBOM fragment {quote_source(fragment_path)} is the document being "
+        "merged into "
         f"({doc_id}); skipped{suffix}"
     )
 

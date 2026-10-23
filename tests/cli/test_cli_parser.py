@@ -7,7 +7,6 @@
 
 from __future__ import annotations
 
-import argparse
 import logging
 import sys
 from pathlib import Path
@@ -15,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from pitloom import __main__
-from pitloom.cli.parser import _build_parser
+from pitloom.cli.parser import _build_parser, _LoomParser
 from tests.cli.shared import _make_simple_project
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
@@ -183,7 +182,7 @@ def test_creator_type_action_returns_after_parser_error(
     standard technique for testing custom argparse ``Action`` internals)
     to confirm parsing returns cleanly instead of raising, without
     touching the action's own unreachable-return code."""
-    monkeypatch.setattr(argparse.ArgumentParser, "error", lambda self, msg: None)
+    monkeypatch.setattr(_LoomParser, "error", lambda self, msg: None)
     parser = _build_parser()
     namespace = parser.parse_args(["project", ".", "--creator-type", "person"])
     assert namespace.creators is None
@@ -193,7 +192,7 @@ def test_creator_email_action_returns_after_parser_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Same as above for ``_CreatorEmailAction.__call__``."""
-    monkeypatch.setattr(argparse.ArgumentParser, "error", lambda self, msg: None)
+    monkeypatch.setattr(_LoomParser, "error", lambda self, msg: None)
     parser = _build_parser()
     namespace = parser.parse_args(["project", ".", "--creator-email", "a@example.com"])
     assert namespace.creators is None

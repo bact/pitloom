@@ -157,7 +157,7 @@ def test_archive_copy_of_the_registry_is_left_out_once(
     assert "demo/__init__.py" in sboms[0]  # not vacuous
     assert ("demo-1.0.0/reg.json" if sdist else "reg.json") in names
     assert sboms[1] == sboms[0]
-    one = [f"ID registry: {registry}"]
+    one = [f"ID registry: '{registry}'"]
     assert warned == [one if route.endswith("-project") else [], one]
 
 

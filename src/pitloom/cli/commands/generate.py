@@ -9,7 +9,6 @@ the target."""
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +34,7 @@ from pitloom.cli.options_config import (
 )
 from pitloom.core.build_options import NON_PROJECT_TARGET_REASON
 from pitloom.core.wheel_dist_info import looks_like_wheel_path
+from pitloom.logging_config import print_error
 
 
 @cli_error_handler("SBOM generation failed")
@@ -49,13 +49,12 @@ def _run_generate_command(args: argparse.Namespace) -> int:
     more transparent than picking a name the user didn't ask for.
     """
     if args.output is None:
-        print(
-            "ERROR: -o/--output is required for 'loom generate' "
+        print_error(
+            "-o/--output is required for 'loom generate' "
             "(the target-detection dispatch has no single natural default "
             "filename -- pass -o FILE, or use 'loom project'/'loom wheel'/"
             "'loom model'/'loom env' directly for that target type's own "
-            "default).",
-            file=sys.stderr,
+            "default)."
         )
         return 1
 

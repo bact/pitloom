@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-22
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -272,7 +272,7 @@ Field-note version, with the measured context:
   `repr(str)` doubles each backslash; a message built with `{source!r}` never
   held the path as the OS writes it, and a test asserting `str(path) in
   message` passed everywhere but Windows (#311, four fuzz tests). One helper
-  now quotes a source (`extract/_extract_utils.quote_source`) and escapes
+  now quotes a source (`core/quote_source.quote_source`) and escapes
   control characters and lone surrogates, so a name with a newline cannot
   split a message over two lines.
   Do: put a path into a message with one helper that writes `str()`, quoted

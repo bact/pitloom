@@ -25,6 +25,7 @@ from pitloom.core._models_wheel_types import (
     to_posix_distribution_path,
     warn_discovery_failed,
 )
+from pitloom.core.quote_source import quote_source
 
 log = logging.getLogger(__name__)
 
@@ -110,7 +111,7 @@ def discover(
                     "[tool.flit.external-data] without executing the "
                     "project's module -- external-data files excluded "
                     "from this result",
-                    project_dir,
+                    quote_source(project_dir),
                 )
             else:
                 dist_name = normalize_dist_name(name, version)

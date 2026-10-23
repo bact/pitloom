@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.error import HTTPError
 from urllib.parse import urlparse
 
+from pitloom.core.quote_source import quote_source
 from pitloom.core.untrusted_text import escape_display_controls
 from pitloom.logging_config import Cap
 
@@ -201,22 +202,6 @@ def json_nests_over(raw: bytes, limit: int) -> bool:
         elif char in "]}":
             depth = max(depth - 1, 0)
     return False
-
-
-_UNPRINTABLE = re.compile("[\x00-\x1f\x7f-\x9f\ud800-\udfff]")
-
-
-def quote_source(source: str | Path) -> str:
-    """*source* in quotes, written as the OS writes it, on one line.
-
-    ``repr()`` of a :class:`~pathlib.Path` shows ``WindowsPath('D:/a/b')``
-    (forward slashes) and of a ``str`` doubles each backslash; neither matches
-    ``str(path)``, which a reader of the message looks for. Only control
-    characters and lone surrogates are escaped (``\\n``-style), so a name with
-    a newline cannot split the message over two lines.
-    """
-    text = _UNPRINTABLE.sub(lambda match: ascii(match.group())[1:-1], str(source))
-    return f"'{text}'"
 
 
 #: Largest file or response read whole for parsing (JSON sources, lock/pin

@@ -78,7 +78,7 @@ def test_backend_discovery_failure_logs_one_line(
 
     spy.assert_called_once()
     assert [r.getMessage() for r in caplog.records] == [
-        f"{backend} file discovery failed for {tmp_path}: {_ONE_LINE}"
+        f"{backend} file discovery failed for '{tmp_path}': {_ONE_LINE}"
     ]
 
 

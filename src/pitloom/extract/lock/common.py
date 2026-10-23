@@ -46,6 +46,7 @@ from pitloom.extract.lock._pins import (
     resolve_pinned_dependencies,
     single_exact_pin,
 )
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
@@ -191,7 +192,7 @@ def default_group_included(
     if not isinstance(groups, list):
         log.warning(
             "Skipping malformed %s entry %r: 'groups' is %s, expected a list",
-            lock_file,
+            loggable(lock_file),
             name,
             type(groups).__name__,
         )

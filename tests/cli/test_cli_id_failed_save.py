@@ -69,7 +69,7 @@ def _assert_one_failed_save(err: str, level: str, registry: Path, reason: str) -
     lines = err.splitlines()
     saves = [line for line in lines if "failed to save" in line]
     assert len(saves) == 1, lines
-    assert saves[0].startswith(f"{level}: ID registry: failed to save {registry}: ")
+    assert saves[0].startswith(f"{level}: ID registry: failed to save '{registry}': ")
     assert reason in saves[0]
     assert "Traceback" not in err
     errors = [line for line in lines if line.startswith("ERROR: ")]

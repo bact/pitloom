@@ -55,6 +55,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.file_names import sbom_base_name, sbom_file_name
+from pitloom.core.quote_source import quote_source
 from pitloom.core.wheel_dist_info import require_wheel_path
 from pitloom.extract.authors import AuthorSplit
 from pitloom.extract.wheel import read_wheel, wheel_identity
@@ -134,7 +135,7 @@ def _enforce_sbom_name_version(
         wheel_name, wheel_version, sbom_data, sbom_format
     )
     for warning in warnings:
-        log.warning("%s: %s", wheel_filename, warning)
+        log.warning("%s: %s", quote_source(wheel_filename), warning)
 
     if not mismatches:
         return

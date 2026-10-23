@@ -35,6 +35,7 @@ from pitloom.core.file_names import default_sbom_basename, sbom_file_name
 from pitloom.core.inert_options import HOOK, configured_options, settle_inert
 from pitloom.core.models import get_wheel_files
 from pitloom.core.project import FilesOrigin
+from pitloom.core.quote_source import quote_source
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
@@ -425,7 +426,7 @@ class PitloomBuildHook(_PitloomBuildHookBase):
             log.info(
                 "Pitloom: staged SBOM %s (%d fragment(s)); "
                 "Hatchling will inject it into .dist-info/sboms/ in the wheel.",
-                sbom_filename,
+                quote_source(sbom_filename),
                 merged,
             )
         except Exception:

@@ -362,7 +362,7 @@ def test_the_fragment_is_written_before_the_registry(
     (model,) = _models(output)
     assert _sha_of(model) == _SHA
     (warning,) = _logged(caplog, logging.WARNING)
-    assert warning.startswith(f"ID registry: failed to save {path}")
+    assert warning.startswith(f"ID registry: failed to save '{path}'")
 
 
 def test_training_and_evaluation_share_one_id_and_a_retrain_mints_one(
@@ -473,7 +473,7 @@ def test_a_registry_gone_before_exit_is_one_warning(
     (model,) = _models(project / "out.json")
     assert _sha_of(model) == _SHA
     (warning,) = _logged(caplog, logging.WARNING)
-    assert warning.startswith(f"ID registry: failed to save {path}")
+    assert warning.startswith(f"ID registry: failed to save '{path}'")
     assert not path.exists()
 
 

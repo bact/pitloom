@@ -182,7 +182,7 @@ def test_two_runs_sharing_one_file_keep_both_entries(
     assert saved.get(FILE_TYPE, "x.py") is not None
     assert (
         _messages(caplog, logging.INFO)
-        == [f"ID registry: added 1 new id(s) to {path}"] * 2
+        == [f"ID registry: added 1 new id(s) to '{path}'"] * 2
     )
 
 
@@ -237,7 +237,7 @@ def test_the_added_count_is_at_most_the_caller_s(
     with caplog.at_level(logging.INFO, logger="pitloom"):
         persist_registry(registry, new_ids, True)
 
-    assert _messages(caplog, logging.INFO) == [f"ID registry: {message} {path}"]
+    assert _messages(caplog, logging.INFO) == [f"ID registry: {message} '{path}'"]
 
 
 @pytest.mark.parametrize("refused", ["b", "m"], ids=["update", "addition"])
@@ -257,6 +257,6 @@ def test_the_added_count_leaves_out_a_refused_change(
         persist_registry(mine, new_ids, changed)
 
     assert _messages(caplog, logging.INFO) == [
-        f"ID registry: added 1 new id(s) to {path}"
+        f"ID registry: added 1 new id(s) to '{path}'"
     ]
     assert len(_messages(caplog, logging.WARNING)) == 1

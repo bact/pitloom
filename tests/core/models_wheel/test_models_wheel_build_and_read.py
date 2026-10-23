@@ -274,7 +274,7 @@ def test_extract_wheel_to_included_files_resolve_guard(
     assert result is None
     assert not (sys_tmp / "outside").exists()
     assert (
-        "ENTRY='..\\\\outside\\\\evil.py': resolves outside the extraction directory"
+        "ENTRY='..\\outside\\evil.py': resolves outside the extraction directory"
         in caplog.text
     )
 

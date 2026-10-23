@@ -292,4 +292,4 @@ def test_backslash_member_of_a_wheel_is_the_registry(
         kept = without_registry_copies(files, RegistryCopy(registry, project))
     assert "demo/reg.json" not in [f.distribution_path for f in kept]
     assert len(kept) == len(files) - 1
-    assert warnings_of(caplog) == [REGISTRY_IN_FILE_SET_WARNING % registry]
+    assert warnings_of(caplog) == [REGISTRY_IN_FILE_SET_WARNING % f"'{registry}'"]

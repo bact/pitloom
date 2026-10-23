@@ -58,7 +58,7 @@ def test_an_unserialisable_optional_fragment_is_skipped(
     merged = merge_fragments(tmp_path, [FragmentConfig(path=frag.name)], exporter)
     assert merged == 0
     assert len(caplog.messages) == 1
-    assert caplog.messages[0].startswith(f"Failed to read SBOM fragment {frag}: ")
+    assert caplog.messages[0].startswith(f"Failed to read SBOM fragment '{frag}': ")
     exporter.to_json(pretty=pretty)
 
 

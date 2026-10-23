@@ -62,7 +62,7 @@ def test_required_fragment_unparseable_raises(
             merge_fragments(tmp_path, [frag], exporter)
 
     assert any(
-        r.message.startswith(f"Failed to read SBOM fragment {frag_path}: ")
+        r.message.startswith(f"Failed to read SBOM fragment '{frag_path}': ")
         and r.message.endswith("-- merge will fail.")
         for r in caplog.records
     )
