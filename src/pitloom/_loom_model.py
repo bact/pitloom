@@ -189,7 +189,7 @@ class LoomModels:
             name=name,
             element=element,
             generated=generated,
-            path=None if path is None else os.path.abspath(path),
+            path=None if path is None else os.path.join(os.getcwd(), os.fspath(path)),
             given="" if path is None else os.fspath(path),
         )
         self._declared.append(declared)

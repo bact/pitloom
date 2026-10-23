@@ -13,6 +13,7 @@ from __future__ import annotations
 import ast
 import io
 import logging
+import posixpath
 import re
 import tokenize
 from collections.abc import Iterator
@@ -123,7 +124,7 @@ def _resolve_cfg_version_file_directive(
     _, text = read_listed_file(project_dir, value, what)
     content = (text or "").strip()
     if content and "\n" not in content and not content.startswith("#"):
-        return content, f"Source: {value} | Method: file_directive"
+        return content, f"Source: {source_name(value)} | Method: file_directive"
     return None, None
 
 
@@ -156,7 +157,7 @@ def source_name(name: str) -> str:
     project-relative in POSIX form, or its base name when written absolute
     (:func:`~pitloom.core.project.project_relative_or_fallback`)."""
     path = Path(name)
-    return project_relative_or_fallback(path.as_posix(), path.name)
+    return project_relative_or_fallback(posixpath.normpath(path.as_posix()), path.name)
 
 
 def _resolve_cfg_version(
