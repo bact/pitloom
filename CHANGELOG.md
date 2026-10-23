@@ -174,6 +174,9 @@ and this project adheres to
   count is reported only when every record set states one ([#337])
 - An sdist with members that share one path key warns instead of clashing
   silently ([#338])
+- A symlinked project has one ID registry prefix; Merkle leaves are NFC; loom
+  opens a model `path=` with `..` as the OS does and names a script outside the
+  cwd by its file name ([#340], [#341])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
@@ -199,6 +202,8 @@ and this project adheres to
 [#336]: https://github.com/bact/pitloom/pull/336
 [#337]: https://github.com/bact/pitloom/pull/337
 [#338]: https://github.com/bact/pitloom/pull/338
+[#340]: https://github.com/bact/pitloom/pull/340
+[#341]: https://github.com/bact/pitloom/pull/341
 
 ## [0.20.2] - 2026-10-09
 

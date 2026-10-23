@@ -33,8 +33,8 @@ were met. Everything not listed was built as written.
   stem entry, no shared-stem `INFO:`; see
   [id-registry-path-keys.md](id-registry-path-keys.md)).
 - **Merkle leaf details are final.** A leaf is `sha256(utf8 relpath + b"\x00"
-  + raw 32-byte file digest)`, the relpath `/`-separated below the dataset
-  directory (an undecodable POSIX name keeps its bytes via
+  + raw 32-byte file digest)`, the relpath NFC and `/`-separated below the
+  dataset directory (an undecodable POSIX name keeps its bytes via
   `surrogateescape`; a Windows lone surrogate via `surrogatepass`). Leaves
   are sorted by relpath bytes and combined by `core.models.merkle_root`. A
   symbolic link to a directory is not followed. The byte budget counts the

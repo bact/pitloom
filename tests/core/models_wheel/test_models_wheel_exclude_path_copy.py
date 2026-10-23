@@ -221,6 +221,20 @@ def test_registry_copy_member_in_another_case_by_identity(tmp_path: Path) -> Non
     assert not copy.matches("Demo/Reg.json")
 
 
+def test_registry_copy_member_in_another_normal_form(tmp_path: Path) -> None:
+    """A member spelt composed is the registry stored decomposed (macOS lists
+    a name decomposed) where that spelling is the registry's own file."""
+    project, registry = _rooted(tmp_path, "demo/re\u0301g.json")
+    alias = project / "demo" / "r\u00e9g.json"
+    try:
+        os.link(registry, alias)
+    except OSError:
+        pytest.skip("hard links unavailable on this file system")
+    copy = RegistryCopy(registry, project)
+    assert copy.matches("demo/r\u00e9g.json")
+    assert not copy.matches("demo/r\u00e9h.json")
+
+
 @pytest.mark.skipif(not CAN_SYMLINK, reason="needs a symlink")
 @pytest.mark.parametrize(
     "link", ["root", "registry"], ids=["linked-root", "linked-registry"]
