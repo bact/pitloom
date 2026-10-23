@@ -19,9 +19,10 @@ need a decision before any code; [Needs systematic
 rules](#needs-systematic-rules) holds cross-cutting rule sets that must apply
 identically on every surface; [Open follow-ups by area](#open-follow-ups-by-area)
 are recorded findings, not scheduled; the [Medium-term](#medium-term) and
-[Long-term](#long-term) lists are ideas. Bugs with a target release live in
-[known-bugs.md](known-bugs.md). Each bullet stays one or two lines plus a
-link; detail lives in the linked doc.
+[Long-term](#long-term) lists are ideas; [Open GitHub
+issues](#open-github-issues) maps each open issue to its status. Bugs with a
+target release live in [known-bugs.md](known-bugs.md). Each bullet stays one
+or two lines plus a link; detail lives in the linked doc.
 
 ## Done
 
@@ -33,8 +34,8 @@ documentation is in `docs/` ([index](../../docs/index.md)).
 
 ## Next: release plan
 
-Order (2026-10-09): 0.20.0 -> 0.20.1 -> 0.20.2 -> 0.21.0 -> 0.22.0 -> 1.0. No date for
-1.0 until 0.22.0 lands.
+Order (2026-10-09): 0.20.0 -> 0.20.1 -> 0.20.2 -> 0.21.0 -> 0.22.0 -> 1.0. No
+date for 1.0 until 0.22.0 lands.
 
 ### 0.21.0
 
@@ -44,8 +45,9 @@ Planned for 0.21.0 and not built; carried over (decided 2026-10-23):
 
 - [ ] **Fragment value beats an extracted one** (own PR): a fragment or
   catalogue value must win over a value read from or generated for the model
-  (e.g. a CRFsuite description). Generated values: PR #349 (open); a value
-  read from the file still wins there. See [known-bugs.md](known-bugs.md#p0-in-0210).
+  (e.g. a CRFsuite description). Generated values: PR #349 (open); a value read
+  from the file still wins there. See [known-bugs.md](known-bugs.md#p0-in-0210).
+  Merge precedence: [#150](https://github.com/bact/pitloom/issues/150).
 - [ ] **Canonical output, next steps**: LF in text values (plan first), stable
   `CreationInfo` IRIs. See
   [canonical-output-followups.md](canonical-output-followups.md),
@@ -102,7 +104,8 @@ What was built:
 
 ### 0.22.0: G7 SBOM for AI field coverage
 
-The 1.0 headline. Full breakdown and the core-vs-Skill scope split:
+The 1.0 headline ([#77](https://github.com/bact/pitloom/issues/77)). Full
+breakdown and the core-vs-Skill scope split:
 [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md). **Scope split (decided
 2026-09-17):** deterministic field population (file formats, structured API
 responses, explicit `loom` SDK input) belongs in core; fuzzy mapping (a
@@ -266,17 +269,30 @@ Highest priority first.
   [docs/dependency-sources.md](../../docs/dependency-sources.md).
 - [ ] **Installed `.dist-info` as a project source**: see
   [installed-dist-info-source.md](installed-dist-info-source.md).
-- [ ] **SARIF output** for CI findings. See [sarif-output.md](sarif-output.md).
+- [ ] **SARIF output** for CI findings; a missing-element report at generation
+  would ride on it ([#77](https://github.com/bact/pitloom/issues/77)). See
+  [sarif-output.md](sarif-output.md).
 - [ ] **Docker container action** (`using: docker`) for hermetic or
   self-hosted runners. See [adoption-surfaces.md](adoption-surfaces.md).
 - [ ] **SBOM format gaps ledger**: every mismatch or gap that makes a fact
   impossible to record precisely is noted in
   [sbom-format-gaps.md](sbom-format-gaps.md), for change proposals to SPDX (and
   CycloneDX once written).
-- [ ] **External work to review**: Red Hat AI system card, OASIS Data
-  Provenance Standard (provenance taxonomy redesign; also data provenance
-  annotation beside the SBOM), ETSI TR 104 180 data
-  quality metrics. See [external-references-to-review.md](external-references-to-review.md).
+- [ ] **External work to review**: Red Hat AI system card, OASIS Data Provenance
+  Standard (provenance taxonomy redesign; also data provenance annotation beside
+  the SBOM), ETSI TR 104 180 data quality metrics; research notes from issues
+  ([#46](https://github.com/bact/pitloom/issues/46),
+  [#48](https://github.com/bact/pitloom/issues/48),
+  [#53](https://github.com/bact/pitloom/issues/53),
+  [#55](https://github.com/bact/pitloom/issues/55),
+  [#129](https://github.com/bact/pitloom/issues/129)). See
+  [external-references-to-review.md](external-references-to-review.md).
+- [ ] **ML framework and `transformers` use from the code**
+  ([#66](https://github.com/bact/pitloom/issues/66),
+  [#68](https://github.com/bact/pitloom/issues/68); Qwen
+  [#65](https://github.com/bact/pitloom/issues/65)): infer the framework from
+  dependencies or imports and a Hub model from `from_pretrained("org/name")`;
+  today `--scan-model-usage` matches model file names only. Needs a design note.
 - Background research: [metadata-sources.md](metadata-sources.md) (how other
   tools read Python metadata), [sbom-enrichment.md](sbom-enrichment.md),
   [architecture-overview.md](architecture-overview.md).
@@ -298,11 +314,14 @@ unless the linked doc says so.
   version and project fields each hand-build a `ConflictCandidate` list.
   See [generic-multi-candidate-fields.md](generic-multi-candidate-fields.md),
   [metadata-quality.md](metadata-quality.md).
-- [ ] **Provenance and enrichment vocabulary** (Method vs Role, source and
-  role taxonomy; parked draft; includes renaming the fragment `role` and
+- [ ] **Provenance and enrichment vocabulary** (Method vs Role, source and role
+  taxonomy; parked draft; includes renaming the fragment `role` and
   `DatasetReference.role`, whose names are provisional). See
   [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md),
-  [docs/metadata-provenance.md](../../docs/metadata-provenance.md).
+  [docs/metadata-provenance.md](../../docs/metadata-provenance.md). Issues
+  [#154](https://github.com/bact/pitloom/issues/154);
+  [#110](https://github.com/bact/pitloom/issues/110) (the `Annotation` schema as
+  an SPDX 3 extension).
 - [ ] **Dataset splits**: read Croissant `cr:Split` record sets; record each
   stated split as a `DatasetPackage` under the whole one (`contains`); then
   raise a part-and-intended-use question with SPDX. Never link a model to a
@@ -313,11 +332,14 @@ unless the linked doc says so.
 - [ ] **Archive member names**: name-independent `--allow-build`
   extraction, `orig_filename`, tar links in sdists. See
   [archive-member-followups.md](archive-member-followups.md).
-- [ ] **Format-neutral representation** for a second output format
-  (CycloneDX, AIDOC). See
+- [ ] **Format-neutral representation** for a second output format (CycloneDX,
+  AIDOC); mappings kept as data, not code (CodeMeta crosswalk,
+  [#52](https://github.com/bact/pitloom/issues/52)). See
   [format-neutral-representation.md](format-neutral-representation.md).
 - [ ] **Fragments**: signing and SHA-256 enforcement, SDK ergonomics,
-  element-level traceability, compliance/interop. See
+  element-level traceability, compliance/interop; reusing a project's own
+  earlier SBOM ([#41](https://github.com/bact/pitloom/issues/41)); configurable
+  merge precedence ([#150](https://github.com/bact/pitloom/issues/150)). See
   [open-items.md](sbom-fragments/open-items.md),
   [sbom-fragments/README.md](sbom-fragments/README.md),
   [docs/fragments.md](../../docs/fragments.md).
@@ -331,8 +353,21 @@ unless the linked doc says so.
 - [ ] **VEX output format** (CSAF v2.0 vs OpenVEX), after the OSV lookup.
   See [osv-vulnerability-lookup.md](osv-vulnerability-lookup.md#relationship-to-csafvex).
 - [ ] **Author strings: NLP / named-entity recognition** (candidate): span
-  splitting and Person vs Organization typing; today a warning, no guess.
-  See [author-entity-recognition.md](author-entity-recognition.md).
+  splitting and Person vs Organization typing; today a warning, no guess. A list
+  of known organisations ([#170](https://github.com/bact/pitloom/issues/170)) is
+  one candidate. See
+  [author-entity-recognition.md](author-entity-recognition.md).
+- [ ] **SPDX 3.1 output beside 3.0.1**
+  ([#147](https://github.com/bact/pitloom/issues/147)): pick the version by CLI,
+  config or Skill keyword and validate against its schema; today `specVersion`
+  is fixed at `3.0.1`. See [architecture-overview.md](architecture-overview.md).
+- [ ] **Package-URL as `spdxId`**
+  ([#30](https://github.com/bact/pitloom/issues/30), needs decision): where a
+  PURL is unique, it could dedup fragment merges; SPDX spec issue 1379.
+- [ ] **CSVW round trip for missing facts**
+  ([#81](https://github.com/bact/pitloom/issues/81), needs decision): list what
+  a conformance check finds missing as CSVW, a person fills it, Pitloom reads it
+  back as a fragment.
 
 ## Needs systematic rules
 
@@ -360,11 +395,13 @@ Each found more than one bug that a per-site fix would only move.
 - [ ] **AI model corpus**: more real-world model files per format (small for
   diversity, large for boundaries) to size and rank the caps and hardening.
   See [ai-model-corpus.md](ai-model-corpus.md).
-- [ ] **Canonical output**: same bytes and ids for the same input, same
-  shape for the same value in every format and surface. See
-  [canonical-output-followups.md](canonical-output-followups.md). Decided
-  2026-10-08: RFC 8785 key order everywhere (pretty = canonical plus
-  indentation), LF in text values; next, stable `CreationInfo` IRIs.
+- [ ] **Canonical output**: same bytes and ids for the same input, same shape
+  for the same value in every format and surface. See
+  [canonical-output-followups.md](canonical-output-followups.md); a separate
+  serialiser library ([#51](https://github.com/bact/pitloom/issues/51)) needs a
+  decision. Decided 2026-10-08: RFC 8785 key order everywhere (pretty =
+  canonical plus indentation), LF in text values; next, stable `CreationInfo`
+  IRIs.
 - [ ] **No silent deviations, per surface**: non-directory targets
   (`model`, Hugging Face, `wheel`, `env`, sdist) drop configured fragments
   with no `WARNING:`; the GitHub Action drops any boolean input other than
@@ -386,9 +423,11 @@ Recorded findings; each is fixable on its own.
   Decide whether a Hub dataset owner is an originator (never guessed), and
   whether the checker should also accept `publishedBy`. See
   [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md).
-- **File discovery**: setuptools gives absolute `physical_path` for a
-  project dir named in another letter case (macOS, Windows; #257, in
-  [known-bugs-p3.md](known-bugs-p3.md)); four #215 follow-ups. See
+- **File discovery**: setuptools gives absolute `physical_path` for a project
+  dir named in another letter case (macOS, Windows; #257, in
+  [known-bugs-p3.md](known-bugs-p3.md)); four #215 follow-ups; scikit-build-core
+  checked only through `--allow-build`
+  ([#61](https://github.com/bact/pitloom/issues/61)). See
   [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md#open-follow-up-tech-debt-from-pr-215s---allow-build-review),
   [build-backend-improvements.md](build-backend-improvements.md).
 - **`--allow-build`**: what the #226 reviews left. See
@@ -402,7 +441,9 @@ Recorded findings; each is fixable on its own.
   [setuptools-config-followups.md](setuptools-config-followups.md).
 - **ID registry**: what v3 leaves open. See
   [id-registry-followups.md](id-registry-followups.md).
-- **AI model scanning**: `env` scans no models. See
+- **AI model scanning**: `env` scans no models; no warning when a file's
+  extension disagrees with its content
+  ([#103](https://github.com/bact/pitloom/issues/103)). See
   [cli-shared-options-ignored.md](cli-shared-options-ignored.md#still-open),
   [ai-model-scanning.md](../implementation/ai-model-scanning.md).
 - **Fragments after the merge fixes**: see
@@ -438,10 +479,12 @@ Recorded findings; each is fixable on its own.
 
 ## Long-term
 
-- [ ] **PEP 740 attestations** for generated SBOMs.
-- [ ] **IETF SCITT integration**: submit an SBOM as a signed statement
-  (`loom scitt submit`), keep the receipt, verify dependencies' receipts.
-  See [scitt-integration.md](scitt-integration.md).
+- [ ] **PEP 740 attestations** for generated SBOMs; Sigstore model signing
+  ([#186](https://github.com/bact/pitloom/issues/186)).
+- [ ] **IETF SCITT integration**: submit an SBOM as a signed statement (`loom
+  scitt submit`), keep the receipt, verify dependencies' receipts; model
+  provenance checks ([#79](https://github.com/bact/pitloom/issues/79)) could
+  layer on it. See [scitt-integration.md](scitt-integration.md).
 - [ ] **Performance**: Rust backend for large-project log parsing, parallel
   file hashing. See
   [performance-optimizations.md](performance-optimizations.md#rust-backend--parallel-hashing).
@@ -451,3 +494,11 @@ Recorded findings; each is fixable on its own.
 - [ ] **Runtime reachability ("living SBOM")**: `loom env` tracking which
   dependencies are loaded at runtime (`sys.modules`, eBPF) to cut
   vulnerability noise. Needs its own design doc.
+
+## Open GitHub issues
+
+The 26 open issues, triaged 2026-10-23: two are closable
+([#62](https://github.com/bact/pitloom/issues/62),
+[#97](https://github.com/bact/pitloom/issues/97)); the others are linked from
+the items above or are research notes. Status and evidence per issue:
+[github-issues-triage.md](github-issues-triage.md).

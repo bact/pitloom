@@ -14,9 +14,11 @@ See also: [roadmap.md](roadmap.md),
 [g7-honesty-and-non-recordable.md](g7-honesty-and-non-recordable.md).
 
 Sources to read before the next change to AI-system, data-provenance or
-data-quality modelling. Nothing here is built, decided or checked yet: each
-entry says why it may matter and what to look at. Record findings in the
-design doc named in its "Feeds" line, not here.
+data-quality modelling, metadata sources or serialisation. Nothing here is
+built, decided or checked yet: each entry says why it may matter and what to
+look at. Record findings in the design doc named in its "Feeds" line, not
+here. An entry from a GitHub issue names it; the issue stays a research note
+until a finding turns it into work.
 
 ## AI system card (Red Hat)
 
@@ -62,3 +64,45 @@ Development and identification of data quality metrics.
   stays absent).
 - Feeds: [g7-honesty-and-non-recordable.md](g7-honesty-and-non-recordable.md)
   (dataset statistics and what SPDX 3.0.1 cannot record).
+
+## ETSI EN 304 223 (cyber security requirements for AI)
+
+- Issue: [#55](https://github.com/bact/pitloom/issues/55).
+- Look at: which of its requirements an SBOM or AIBOM can evidence, and
+  whether any maps to a property Pitloom can fill from a source.
+- Feeds: [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md).
+
+## Signposting
+
+- Site: <https://signposting.org/>
+- Issue: [#53](https://github.com/bact/pitloom/issues/53) (how to use it is
+  not yet known).
+- Look at: whether typed links a landing page (a model or dataset page)
+  publishes could locate a licence, a citation or metadata to read, as a
+  source for enrichment.
+- Feeds: [sbom-enrichment.md](sbom-enrichment.md).
+
+## SBOM-QA (Nokia)
+
+- Issue: [#48](https://github.com/bact/pitloom/issues/48).
+- Look at: run its quality checks on Pitloom's own and test SBOMs as a
+  benchmark beside the conformance tests.
+- Feeds: [testing-ci-followups.md](testing-ci-followups.md).
+
+## orjson
+
+- Repository: <https://github.com/ijl/orjson>
+- Issue: [#46](https://github.com/bact/pitloom/issues/46).
+- Look at: whether it can give RFC 8785 output (key order, number spelling)
+  faster than the `rfc8785` package Pitloom uses today
+  (`pitloom.core.canonical_json`, `pitloom.export.spdx3_json`).
+- Feeds: [canonical-output-followups.md](canonical-output-followups.md).
+
+## OpenRouter model metadata
+
+- Site: <https://openrouter.ai/>
+- Issue: [#129](https://github.com/bact/pitloom/issues/129).
+- Look at: which model facts its API states (provider, context length,
+  modalities) as a structured source beside the Hugging Face Hub, and its
+  terms of use.
+- Feeds: [model-metadata-extraction.md](model-metadata-extraction.md).
