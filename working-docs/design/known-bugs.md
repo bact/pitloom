@@ -35,12 +35,28 @@ Size: S under half a day, M about a day.
   pointer's SHA-256 and no warning. Decided: one shared detector, one
   summary `WARNING:` per run, one line per file at `--debug`. Registry v3
   shipped without it; loom `path=` should reuse it.
-- [ ] **A fragment value may lose to an extracted one (S-M, own PR).**
-  Unconfirmed in #294: a fragment or catalogue `description` should win
-  over the one generated from a CRFsuite model's labels
-  (`Method: generated_from_labels`); check the merge order treats
-  extracted and generated values as weak, for every field, not only this
-  one.
+- [x] **A fragment value may lose to an extracted one (S-M, own PR).**
+  Confirmed 2026-10-23 and fixed: a fragment's value replaces one Pitloom
+  generated from the file's format (`Method: generated_from_labels`,
+  `derived_from_format`: the `description`, `ai_domain` and
+  `ai_informationAboutApplication` of a model), with one `INFO:` and the
+  provenance of that property dropped. A value read from the file still wins a
+  conflict, as every other field. Built in `_fragments_generated.py`; see
+  [docs/fragments.md](../../docs/fragments.md).
+- [ ] **A losing fragment's "generated" claim outlives its value (S, found
+  in the 2026-10-23 review of #349).** Fragment A restates the generated
+  `description` and carries its own Annotation `Method: generated_from_labels`;
+  fragment B gives "curated" and wins. The output holds "curated" with A's
+  Annotation (or its comment line) saying it was generated. A fragment's own provenance was never
+  dropped when its value lost, but here the claim is false. A fix has to tell
+  a fragment's winning entry from a losing one (a fragment whose generated
+  value wins keeps its claim, which is true).
+- [ ] **A respelt copy of a curated value warns (S, found in the 2026-10-23
+  review of #349).** Fragment A replaces a generated value; a later fragment A'
+  is A in other JSON spacing (or a list in another order, which only unions).
+  The plain field merge compares the text, so A' earns `WARNING: Merge:
+  conflicting`, while a respelling of the *generated* value is silent. Same in
+  every order; harmless to the result.
 - [x] **Same AI model gets different ids per surface; enrichment can hit
   the wrong model (S-M).** Found in the #292 review (`loom model` looked a
   model up by file stem only, a project scan by name, path, then stem). Fixed
@@ -194,15 +210,10 @@ Seen in past sessions, not reproduced on current `main`:
 
 ## Found 2026-10-23
 
-- [ ] **A fragment value loses to a generated one (S-M, confirmed).** Probe: a
+- [x] **A fragment value loses to a generated one (S-M, fixed).** Probe: a
   Hatchling project holding a CRFsuite model, with a fragment giving the model
-  package another `description`. The merged SBOM keeps the description
-  generated from the labels (`Method: generated_from_labels`) and logs
-  `WARNING: Merge: conflicting 'description'… dropping 'CURATED DESCRIPTION'`.
-  The merge keeps the project's value on a conflict by design; a value
-  generated from the file must be weak. Fix the merge order for every field
-  that has a generated value, with one test per field. This is the P0 entry
-  "A fragment value may lose to an extracted one", now confirmed.
+  another `description`; the merged SBOM kept the generated one. See the P0
+  entry "A fragment value may lose to an extracted one".
 - [ ] **Untagged setuptools lines on stderr (S, not checked locally).** Cloning
   `zzzeek/sqlalchemy` with `loom project <url>` prints
   `warning: no files found matching '*.js' under directory 'doc'` and

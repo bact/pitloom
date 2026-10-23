@@ -48,6 +48,26 @@ and `comment`. Fields merge into the kept element: lists as a union, a
 element's value (an empty one takes the fragment's), with a
 `WARNING: Merge: conflicting ...` naming the dropped one.
 
+A value Pitloom generated for the project's own AI model from its file's format,
+not read from it, is the other exception: the `description` of a CRFsuite model
+built from its labels, the `domain` of a fastText model, the outputs a format
+fixes (their provenance says `Method: generated_from_labels` or
+`derived_from_format`). A fragment's different value for that property replaces
+it, with one `INFO: Merge: ...`, and the property's provenance is dropped. The
+first fragment that gives one wins; a later fragment's value conflicts with it
+as above. Either provenance form (`annotation`, `comment`, `both`) says a value
+was generated. The value is replaced, not merged: a generated `domain` is not
+unioned with the fragment's, and the text of the input/output description is
+replaced whole, the model's inputs with its outputs. An empty fragment value
+replaces nothing, and neither does the same value in another spelling (a list
+in another order, JSON text with other spacing), also when a later fragment
+says again what was replaced, whatever the order of the fragments. The
+input/output text counts as generated when its `inputs` and `outputs` are; any
+other key in it (an intended use) is replaced with it. Every AI model of the
+project SBOM with generated provenance is covered: in `loom merge` there is no base document, a model that `loom
+model` generated is an earlier fragment's, and the earlier file's value wins as
+for any other field.
+
 The `name` of the project's own AI model is the exception: fragments that
 unify with it and agree on another name, as `loom.set_model(name,
 path=...)` declares, rename it. One `INFO: Merge: 'name' on ...` names both

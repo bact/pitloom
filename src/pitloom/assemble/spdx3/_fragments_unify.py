@@ -9,8 +9,10 @@ See also: :mod:`pitloom.assemble.spdx3.fragments` (facade and merge
 orchestration), :mod:`pitloom.assemble.spdx3._fragments_props` (property
 merging), :mod:`pitloom.assemble.spdx3._fragments_hashes` (digest conflicts),
 :mod:`pitloom.assemble.spdx3._fragments_licenses` (licence unification),
-:mod:`pitloom.assemble.spdx3._fragments_ids` (ids minted during a merge) and
-:mod:`pitloom.assemble.spdx3._fragments_model_names` (a base model's name).
+:mod:`pitloom.assemble.spdx3._fragments_ids` (ids minted during a merge),
+:mod:`pitloom.assemble.spdx3._fragments_model_names` (a base model's name) and
+:mod:`pitloom.assemble.spdx3._fragments_generated` (the values Pitloom
+generated for it).
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ from typing import Any, cast
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._fragments_generated import GeneratedValues
 from pitloom.assemble.spdx3._fragments_hashes import (
     hash_conflict,
     warn_if_same_name_different_hash,
@@ -138,6 +141,8 @@ class _MergeIndex:
         self.structural: dict[type, list[spdx3.SHACLObject]] = {}
         #: The base's models; :meth:`ModelNames.finish` settles their names.
         self.model_names = ModelNames(exporter, exporter.object_set.objects)
+        #: The properties of those models that Pitloom generated.
+        self.generated = GeneratedValues(self.model_names, exporter.object_set.objects)
         for obj in sorted(exporter.object_set.objects, key=_canonical_merge_key):
             self._index(obj)
 
@@ -375,6 +380,7 @@ def _merge_fragment_set(
         if not isinstance(obj, _ENVELOPE_TYPES):
             _to_id_refs(obj, id_map, seen)
     for survivor, obj in folds:
+        index.generated.replace(survivor, obj)
         _merge_properties(
             _as_element(survivor),
             _as_element(obj),

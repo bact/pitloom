@@ -15,8 +15,9 @@ See Also:
 
 from __future__ import annotations
 
+import json
 import logging
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Any, TypedDict, cast
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -85,6 +86,7 @@ __all__ = [
     "EnrichedFieldEntry",
     "PitloomV1Encoder",
     "ProvenanceEncoder",
+    "annotation_fields_statement",
     "build_conflict_annotation",
     "build_enrichment_annotation",
     "build_provenance_annotation",
@@ -95,6 +97,8 @@ __all__ = [
     "filter_high_signal",
     "is_license_concluded",
     "parse_provenance_value",
+    "provenance_comment_line",
+    "provenance_comment_parts",
     "resolve_encoder",
 ]
 
@@ -365,11 +369,17 @@ def build_provenance_comment(provenance: dict[str, str]) -> str | None:
     :func:`~pitloom.core.provenance.escape_provenance_comment_part`."""
     if not provenance:
         return None
-    return PROVENANCE_COMMENT_PREFIX + "; ".join(
+    return provenance_comment_line(
         f"{escape_provenance_comment_part(field, field=True)}: "
         f"{escape_provenance_comment_part(source)}"
         for field, source in provenance.items()
     )
+
+
+def provenance_comment_line(parts: Iterable[str]) -> str:
+    """One comment line of the ``field: source`` *parts* (already escaped):
+    the writer :func:`provenance_comment_parts` reads back."""
+    return PROVENANCE_COMMENT_PREFIX + "; ".join(parts)
 
 
 # pylint: disable-next=too-many-arguments
@@ -464,3 +474,31 @@ def emit_provenance(
             exporter.add_annotation(annotation)
         return annotation
     return None
+
+
+def provenance_comment_parts(line: str) -> list[str] | None:
+    """The ``field: source`` parts of one comment *line* written by
+    :func:`build_provenance_comment`, or ``None`` for any other line. The
+    one reader of that format, as the builder is its one writer."""
+    if not line.startswith(PROVENANCE_COMMENT_PREFIX):
+        return None
+    return line[len(PROVENANCE_COMMENT_PREFIX) :].split("; ")
+
+
+def annotation_fields_statement(
+    annotation: spdx3.Annotation,
+) -> tuple[dict[str, Any], dict[str, Any]] | None:
+    """The statement and its ``fields`` of *annotation* when it is a Pitloom
+    ``fields`` provenance statement (:class:`PitloomV1Encoder`'s schema), else
+    ``None``: text that is no JSON, nests too deeply to read (a base may hold
+    anything), or is another statement is no provenance of fields."""
+    try:
+        statement = json.loads(annotation.statement or "")
+    except (ValueError, RecursionError):
+        return None
+    if not isinstance(statement, dict) or (
+        statement.get("schema") != PitloomV1Encoder.schema_url
+    ):
+        return None
+    fields = statement.get("fields")
+    return (statement, fields) if isinstance(fields, dict) else None

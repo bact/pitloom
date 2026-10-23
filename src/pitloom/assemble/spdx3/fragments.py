@@ -10,7 +10,8 @@ logic (property merging: :mod:`~pitloom.assemble.spdx3._fragments_props`;
 digest conflicts: :mod:`~pitloom.assemble.spdx3._fragments_hashes`; ids:
 :mod:`~pitloom.assemble.spdx3._fragments_ids`; licences:
 :mod:`~pitloom.assemble.spdx3._fragments_licenses`; a base model's name:
-:mod:`~pitloom.assemble.spdx3._fragments_model_names`),
+:mod:`~pitloom.assemble.spdx3._fragments_model_names`; the values Pitloom
+generated for it: :mod:`~pitloom.assemble.spdx3._fragments_generated`),
 :mod:`pitloom.assemble.spdx3._fragments_refs` for the dangling-reference check
 and :mod:`pitloom.assemble.spdx3._fragments_envelope` for ``loom merge``'s
 document envelope.
