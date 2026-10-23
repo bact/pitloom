@@ -38,11 +38,12 @@ from the server's own branches and tags, longest match first.
 | GitLab | `…/-/tree/<ref>/<folder>`, `…/-/blob/<ref>/<file>` | branch, tag, commit; folder |
 | GitHub | `…/tree/<ref>/<folder>`, `…/blob/<ref>/<file>` | branch, tag, commit; folder |
 | Gitea, Forgejo, Codeberg | `…/src/branch/<ref>/…`, `…/src/tag/<ref>/…`, `…/src/commit/<sha>/…` | branch, tag, commit; folder |
-| Bitbucket Cloud | `…/src/<ref>/<folder>` | branch, tag; folder |
-| SourceHut | `…/tree/<ref>/item/<folder>` | branch, tag; folder |
+| Bitbucket Cloud | `…/src/<ref>/<folder>`, `…/branch/<ref>`, `…/commits/branch/<ref>`, `…/commits/tag/<ref>`, `…/commits/<sha>` | branch, tag, commit; folder |
+| SourceHut | `…/tree/<ref>/item/<folder>`, `…/log/<ref>` | branch, tag; folder |
 
 - A page URL naming a **file** reads the folder that holds it. A file page whose
-  path is a folder reads that folder.
+  path is a folder reads that folder, and a folder page whose path is a file
+  (Bitbucket and SourceHut write both alike) reads the folder holding the file.
 - A **commit** must be given with its full 40 (or 64) hex digits; a server cannot
   be asked for an abbreviated id.
 - A query or fragment (`?ref_type=heads`, `#readme`) is ignored.
@@ -81,11 +82,14 @@ network access):
 
 Also checked, with a narrower scope:
 
-- **Bitbucket Cloud** (`bitbucket.org`): the repository is served as it is, and
-  the `git ls-remote` that reads a page URL's branch works. A full fetch was not
-  run: no small public Python repository was found, and the one tried is 148 MB.
-- **SourceHut** (`git.sr.ht`): the page syntax is parsed (and tested); the server
-  could not be reached from the test network, so no fetch was run.
+- **Bitbucket Cloud** (`bitbucket.org`, 2026-10-23, `zzzeek/sqlalchemy`): the
+  bare URL, `/src/<branch>/<folder>`, a file page, `/branch/<ref>` and
+  `/commits/tag/<ref>` are fetched. A repository that does not exist answers
+  like one that needs a sign-in. Bitbucket serves a path below the repository
+  as the default branch, so a page URL it was not told about (`/branch/x`,
+  `/commits/<sha>`) used to fetch the default branch without a word.
+- **SourceHut** (`git.sr.ht`, 2026-10-23, `~sircmpwn/scm.sr.ht`): the bare URL,
+  `/tree/<ref>/item/<folder>`, a file page and `/log/<ref>` are fetched.
 - **cgit and GNU Savannah**: the redirect to another host is followed only
   when it leads to a repository; the one tried led to a host that does not
   resolve.

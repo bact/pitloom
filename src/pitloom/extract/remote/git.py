@@ -29,7 +29,11 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from pitloom.extract.remote._git_folder import checkout_folder, subproject_hint
+from pitloom.extract.remote._git_folder import (
+    checkout_folder,
+    checkout_has_file,
+    subproject_hint,
+)
 from pitloom.extract.remote._git_redirect import resolve_git_url
 from pitloom.extract.remote._git_run import GitRunner
 from pitloom.extract.remote.errors import RemoteSourceError
@@ -336,8 +340,19 @@ def _drop_outside_links(work_dir: str) -> None:
 
 def _folder(work_dir: str, target: GitTarget) -> str:
     """The folder of the checkout to read. A file page that names a folder
-    reads that folder, and says so."""
-    folder = checkout_folder(work_dir, target.subdir)
+    reads that folder, and a folder page that names a file (Bitbucket and
+    SourceHut write both alike) reads the folder holding it; each says so."""
+    try:
+        folder = checkout_folder(work_dir, target.subdir)
+    except RemoteSourceError:
+        parent = target.subdir.rpartition("/")[0]
+        if target.file or not checkout_has_file(work_dir, target.subdir):
+            raise
+        log.info(
+            "Git source: %s is a file, not a folder; reading the folder holding it",
+            loggable(target.subdir),
+        )
+        return checkout_folder(work_dir, parent)
     if target.file and Path(folder, target.file).is_dir():
         log.info(
             "Git source: %s is a folder, not a file; reading it",

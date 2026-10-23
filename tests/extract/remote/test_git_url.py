@@ -111,6 +111,41 @@ _PAGES = [
         False,
     ),
     (
+        "bitbucket-branch-page",
+        "https://bitbucket.org/atlassian/aui/branch/feature%2Fx",
+        "https://bitbucket.org/atlassian/aui",
+        ("feature/x",),
+        False,
+    ),
+    (
+        "bitbucket-commits-tag",
+        "https://bitbucket.org/atlassian/aui/commits/tag/v1.0",
+        "https://bitbucket.org/atlassian/aui",
+        ("v1.0",),
+        False,
+    ),
+    (
+        "bitbucket-commits-branch",
+        "https://bitbucket.org/atlassian/aui/commits/branch/main",
+        "https://bitbucket.org/atlassian/aui",
+        ("main",),
+        False,
+    ),
+    (
+        "bitbucket-commits-hash",
+        "https://bitbucket.org/atlassian/aui/commits/" + "a" * 40,
+        "https://bitbucket.org/atlassian/aui",
+        ("a" * 40,),
+        False,
+    ),
+    (
+        "sourcehut-log",
+        "https://git.sr.ht/~sircmpwn/scdoc/log/master",
+        "https://git.sr.ht/~sircmpwn/scdoc",
+        ("master",),
+        False,
+    ),
+    (
         "sourcehut",
         "https://git.sr.ht/~sircmpwn/scdoc/tree/master/item/src",
         "https://git.sr.ht/~sircmpwn/scdoc",
@@ -404,3 +439,23 @@ def test_a_repository_is_fetched_over_http_or_https_only(
 ) -> None:
     """``file:`` and ``ssh:`` are never followed or fetched."""
     assert scheme_allowed(url) is expected
+
+
+@pytest.mark.parametrize(
+    ("path", "kind"),
+    [
+        ("branch/main", "branch"),
+        ("commits/branch/main", "branch"),
+        ("commits/tag/v1", "tag"),
+        ("commits/" + "b" * 40, None),
+    ],
+    ids=["branch", "commits-branch", "commits-tag", "commits-hash"],
+)
+def test_a_bitbucket_branch_or_commits_page_names_its_ref(
+    path: str, kind: str | None
+) -> None:
+    """A page that is not a repository is not cloned as one: Bitbucket serves
+    the default branch for ``<repository>/branch/x``, whatever ``x`` is."""
+    page = parse_git_page("https://bitbucket.org/o/r/" + path)
+    assert (page.repo_url, page.kind) == ("https://bitbucket.org/o/r", kind)
+    assert page.rest and page.rest[-1] == path.rsplit("/", 1)[-1]

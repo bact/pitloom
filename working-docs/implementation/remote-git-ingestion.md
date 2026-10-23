@@ -132,13 +132,23 @@ the 10-minute deadline (the 10 MB blob filter is only a request to the server).
   external reference, forge licence): the commit is logged, not recorded.
 - Forge API tarballs; a persistent cache of fetches.
 - Subdirectory URLs of Azure DevOps (the folder is in a query string).
-- A size cap for a clone: the blob filter is a request, so only the 10-minute
-  deadline bounds it.
 - A reader for a project that declares its metadata only in an imperative
   `setup.py`; the error names the sub-projects it can read.
 - DNS-rebinding protection between the caller's address check and git's own
   lookup.
 - The GitHub Action takes a checkout in the workflow, not a URL.
+
+## Bitbucket and SourceHut pages (2026-10-23)
+
+Run against real servers (`zzzeek/sqlalchemy`, `~sircmpwn/scm.sr.ht`). Both
+write a file page like a folder page (`src/<ref>/<file>`, `tree/<ref>/item/<file>`),
+so a folder page whose path is a file reads the folder holding it, with an
+`INFO:`. Bitbucket answers any path below a repository with the default branch,
+so `/branch/<ref>`, `/commits/<sha>`, `/commits/branch/<ref>` and
+`/commits/tag/<ref>` were cloned as the plain URL: the ref asked for was
+dropped without a message. They are page markers now, as is SourceHut's
+`/log/<ref>`. A short commit id in a Bitbucket URL is still refused (a server
+cannot be asked for it).
 
 ## Verification
 

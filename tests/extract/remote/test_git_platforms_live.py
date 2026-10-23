@@ -130,6 +130,65 @@ _PLATFORMS = [
         "cmd",
         "actions.go",
     ),
+    # Bitbucket Cloud. A file page is written like a folder page.
+    (
+        "bitbucket",
+        "https://bitbucket.org/zzzeek/sqlalchemy",
+        None,
+        "",
+        "pyproject.toml",
+    ),
+    (
+        "bitbucket-src-page",
+        "https://bitbucket.org/zzzeek/sqlalchemy/src/main/lib/sqlalchemy",
+        "main",
+        "lib/sqlalchemy",
+        "__init__.py",
+    ),
+    (
+        "bitbucket-file-page",
+        "https://bitbucket.org/zzzeek/sqlalchemy/src/main/pyproject.toml",
+        "main",
+        "",
+        "pyproject.toml",
+    ),
+    (
+        "bitbucket-branch-page",
+        "https://bitbucket.org/zzzeek/sqlalchemy/branch/rel_0_4",
+        "rel_0_4",
+        "",
+        "setup.py",
+    ),
+    (
+        "bitbucket-commits-tag-page",
+        "https://bitbucket.org/zzzeek/sqlalchemy/commits/tag/rel_2_0_9",
+        "rel_2_0_9",
+        "",
+        "pyproject.toml",
+    ),
+    # SourceHut. ``item`` stands for a folder and a file alike.
+    ("sourcehut", "https://git.sr.ht/~sircmpwn/scm.sr.ht", None, "", "setup.py"),
+    (
+        "sourcehut-tree-page",
+        "https://git.sr.ht/~sircmpwn/scm.sr.ht/tree/master/item/scmsrht",
+        "master",
+        "scmsrht",
+        "__init__.py",
+    ),
+    (
+        "sourcehut-file-page",
+        "https://git.sr.ht/~sircmpwn/scm.sr.ht/tree/master/item/setup.py",
+        "master",
+        "",
+        "setup.py",
+    ),
+    (
+        "sourcehut-log-page",
+        "https://git.sr.ht/~sircmpwn/scm.sr.ht/log/master",
+        "master",
+        "",
+        "setup.py",
+    ),
     # GitHub.
     ("github", "https://github.com/pypa/pyproject-hooks", None, "", "pyproject.toml"),
     (

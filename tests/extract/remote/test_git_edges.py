@@ -26,9 +26,10 @@ import pytest
 from pitloom.extract.remote import RemoteSourceError, _git_run, git, git_url
 from pitloom.extract.remote._git_folder import subproject_hint
 from pitloom.extract.remote._git_run import GitRunner, _kill, _taskkill
-from pitloom.extract.remote.git import GitCheckout, _resolve, _target
+from pitloom.extract.remote.git import GitCheckout, _folder, _resolve, _target
 from pitloom.extract.remote.git_url import (
     GitPage,
+    GitTarget,
     is_unsupported_remote_url,
     parse_git_page,
     scheme_allowed,
@@ -334,3 +335,59 @@ def test_taskkill_is_found_below_the_system_root_or_on_path(
     below_root = root / "System32" / "taskkill.exe"
     below_root.write_bytes(b"")
     assert _taskkill() == str(below_root)
+
+
+@pytest.mark.parametrize(
+    ("target", "folder"),
+    [
+        (GitTarget(ref="main", subdir="dir/app.toml"), "dir"),
+        (GitTarget(ref="main", subdir="app.toml"), ""),
+    ],
+    ids=["file-in-folder", "file-at-root"],
+)
+def test_a_folder_page_that_names_a_file_reads_the_folder_holding_it(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    target: GitTarget,
+    folder: str,
+) -> None:
+    """Bitbucket and SourceHut write a file page like a folder page."""
+    (tmp_path / "dir").mkdir()
+    (tmp_path / "dir" / "app.toml").write_bytes(b"")
+    (tmp_path / "app.toml").write_bytes(b"")
+    with caplog.at_level(logging.INFO):
+        result = _folder(str(tmp_path), target)
+    assert os.path.realpath(result) == os.path.realpath(tmp_path / folder)
+    assert "is a file, not a folder" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        GitTarget(ref="main", subdir="nothing"),
+        GitTarget(ref="main", subdir="dir", file="app.toml"),
+    ],
+    ids=["missing", "file-page-with-a-folder-that-is-missing"],
+)
+def test_a_missing_folder_is_still_refused(tmp_path: Path, target: GitTarget) -> None:
+    """Only a path that is a file of the checkout is read as its folder."""
+    with pytest.raises(RemoteSourceError) as excinfo:
+        _folder(str(tmp_path), target)
+    assert excinfo.value.code == "git.path-not-found"
+
+
+def test_a_file_reached_through_a_link_out_of_the_checkout_is_refused(
+    tmp_path: Path,
+) -> None:
+    """A link to a file outside the checkout does not make a folder page a
+    file page."""
+    outside = tmp_path / "outside.toml"
+    outside.write_bytes(b"")
+    work = tmp_path / "work"
+    work.mkdir()
+    try:
+        (work / "link.toml").symlink_to(outside)
+    except OSError:  # pragma: no cover - Windows without symlink privilege
+        pytest.skip("symbolic links are not available")
+    with pytest.raises(RemoteSourceError):
+        _folder(str(work), GitTarget(ref="main", subdir="link.toml"))

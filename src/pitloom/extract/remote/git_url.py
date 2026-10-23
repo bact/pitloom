@@ -57,6 +57,11 @@ _MARKERS: tuple[tuple[tuple[str, ...], str | None, bool], ...] = (
     (("tree",), None, False),  # GitHub, SourceHut
     (("blob",), None, True),
     (("src",), None, False),  # Bitbucket Cloud
+    (("commits", "branch"), "branch", False),
+    (("commits", "tag"), "tag", False),
+    (("commits",), None, False),
+    (("branch",), "branch", False),
+    (("log",), None, False),  # SourceHut
 )
 
 #: A commit id given as a ref: the full 40 (SHA-1) or 64 (SHA-256) hex digits,
@@ -125,7 +130,7 @@ class GitPage:
     then the folder or file), already percent-decoded; it is empty for a
     plain repository URL. ``plain_url`` is the whole URL as a repository, for
     when the marker proves to be part of the repository's own path.
-    ``sourcehut`` marks a SourceHut ``tree`` page, whose ``rest`` puts an
+    ``sourcehut`` marks a SourceHut ``tree`` or ``log`` page, whose ``rest`` puts an
     ``item`` segment between the ref and the path; a ``~owner`` ``tree`` page
     with no such segment is read like any other host's.
     """
@@ -190,7 +195,7 @@ def parse_git_page(url: str) -> GitPage:
         _check_segments(rest, url)
         sourcehut = (
             raw[0].startswith("~")
-            and marker == ("tree",)
+            and marker in {("tree",), ("log",)}
             and _SOURCEHUT_ITEM in rest[1:]
         )
         repo = urlunsplit(
