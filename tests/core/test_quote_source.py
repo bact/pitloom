@@ -54,3 +54,16 @@ def test_a_path_like_that_is_not_a_path_is_its_text() -> None:
 
     assert os.fspath(Like()) == "x/y"
     assert quote_source(Like()) == "'x/y'"
+
+
+def test_undecodable_bytes_do_not_depend_on_fsdecode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """On Windows ``os.fsdecode`` is strict and raises on a byte UTF-8 cannot
+    decode; the name is still shown, the byte as an escape."""
+
+    def strict(_name: object) -> str:
+        raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
+
+    monkeypatch.setattr(os, "fsdecode", strict)
+    assert quote_source(b"a\xffb") == "'a\\udcffb'"
