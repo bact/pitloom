@@ -126,7 +126,8 @@ class GitPage:
     plain repository URL. ``plain_url`` is the whole URL as a repository, for
     when the marker proves to be part of the repository's own path.
     ``sourcehut`` marks a SourceHut ``tree`` page, whose ``rest`` puts an
-    ``item`` segment between the ref and the path.
+    ``item`` segment between the ref and the path; a ``~owner`` ``tree`` page
+    with no such segment is read like any other host's.
     """
 
     repo_url: str
@@ -187,7 +188,11 @@ def parse_git_page(url: str) -> GitPage:
         index, (marker, kind, is_file) = found
         rest = tuple(unquote(s) for s in raw[index + len(marker) :])
         _check_segments(rest, url)
-        sourcehut = raw[0].startswith("~") and marker == ("tree",)
+        sourcehut = (
+            raw[0].startswith("~")
+            and marker == ("tree",)
+            and _SOURCEHUT_ITEM in rest[1:]
+        )
         repo = urlunsplit(
             (parts.scheme, parts.netloc, "/" + "/".join(raw[:index]), "", "")
         )

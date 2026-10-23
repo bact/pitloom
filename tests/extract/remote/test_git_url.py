@@ -239,17 +239,19 @@ def test_an_unknown_ref_is_an_error_naming_it(first: str) -> None:
     ("url", "sourcehut"),
     [
         ("https://git.sr.ht/~o/r/tree/main/item/src", True),
-        ("https://git.sr.ht/~o/r/tree/main", True),
+        ("https://git.sr.ht/~o/r/tree/main", False),
+        ("https://git.sr.ht/~o/r/tree/item/item/x", True),
         ("https://git.sr.ht/~o/r/blob/main/a.md", False),
         ("https://git.sr.ht/o/r/tree/main/item/src", False),
         ("https://github.com/o/r/tree/main/item/x", False),
     ],
-    ids=["sourcehut-tree", "sourcehut-root", "blob", "no-tilde", "github"],
+    ids=["sourcehut-tree", "no-item", "item-ref", "blob", "no-tilde", "github"],
 )
 def test_only_a_sourcehut_tree_page_is_marked_sourcehut(
     url: str, sourcehut: bool
 ) -> None:
-    """An owner ``~name`` and the ``tree`` marker make a SourceHut page."""
+    """An owner ``~name``, the ``tree`` marker and an ``item`` segment after
+    the ref make a SourceHut page."""
     assert parse_git_page(url).sourcehut is sourcehut
 
 
@@ -309,7 +311,7 @@ def test_item_is_a_folder_outside_a_sourcehut_tree_page(
 
 @pytest.mark.parametrize(
     ("path", "named"),
-    [("main/dir", "main/dir"), ("nope/x/item/d", "nope/x"), ("item", "item")],
+    [("nope/x/item/d", "nope/x"), ("item", "item")],
 )
 def test_a_sourcehut_ref_not_followed_by_item_is_not_found(
     path: str, named: str
@@ -319,6 +321,14 @@ def test_a_sourcehut_ref_not_followed_by_item_is_not_found(
         split_ref(parse_git_page(_SR + path), _REFS)
     assert excinfo.value.code == "git.ref-not-found"
     assert named in str(excinfo.value)
+
+
+def test_a_tilde_owner_tree_page_without_item_is_read_as_on_other_hosts() -> None:
+    """A ``~owner`` page that has no ``item`` segment is not a SourceHut page."""
+    page = parse_git_page(_SR + "main/dir")
+    assert not page.sourcehut
+    target = split_ref(page, _REFS)
+    assert (target.ref, target.subdir) == ("main", "dir")
 
 
 @pytest.mark.parametrize(
