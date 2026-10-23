@@ -27,8 +27,10 @@ loom generate https://labs.etsi.org/rep/ocf/capif/-/tree/staging/services/regist
 
 ## Which URLs
 
-Paste what you have: the clone URL, or the address of the page you were
-looking at. The repository is the part of the path before the page marker, so a
+Prefer the repository's **clone URL** (the one the host's Clone button
+shows): it names the default branch and is never misread. To read one branch,
+tag, commit or folder, paste the address of that page instead; the `INFO:` lines
+say what was read. The repository is the part of the path before the page marker, so a
 URL prefix (`/rep` on ETSI's GitLab) and GitLab subgroups work. A branch name
 may contain `/` (`feature/x`): the split between branch and folder is taken
 from the server's own branches and tags, longest match first.
@@ -38,11 +40,24 @@ from the server's own branches and tags, longest match first.
 | GitLab | `…/-/tree/<ref>/<folder>`, `…/-/blob/<ref>/<file>` | branch, tag, commit; folder |
 | GitHub | `…/tree/<ref>/<folder>`, `…/blob/<ref>/<file>` | branch, tag, commit; folder |
 | Gitea, Forgejo, Codeberg | `…/src/branch/<ref>/…`, `…/src/tag/<ref>/…`, `…/src/commit/<sha>/…` | branch, tag, commit; folder |
-| Bitbucket Cloud | `…/src/<ref>/<folder>` | branch, tag; folder |
-| SourceHut | `…/tree/<ref>/item/<folder>` | branch, tag; folder |
+| Bitbucket Cloud | `…/src/<ref>/<folder>`, `…/branch/<ref>`, `…/commits/branch/<ref>`, `…/commits/tag/<ref>`, `…/commits/<sha>` | branch, tag, commit; folder |
+| SourceHut | `…/tree/<ref>/item/<folder>`, `…/log/<ref>` | branch, tag; folder |
+| Gitiles (Gerrit's code browser, `*.googlesource.com`) | `…/+/refs/heads/<ref>/<folder>`, `…/+/refs/tags/<ref>/<folder>`, `…/+/<ref>/<folder>` | branch, tag; folder |
+| cgit (kernel.org, Launchpad) | `…/tree/<folder>?h=<ref>`, `…/log/?h=<ref>`, `…/commit/?id=<sha>` | branch, tag, commit; folder |
+| Azure DevOps | `…/_git/<repo>?path=/<folder>&version=GB<branch>` (`GT` tag, `GC` commit) | branch, tag, commit; folder |
+| Hugging Face Space or dataset | `huggingface.co/spaces/<org>/<name>`, `…/datasets/<org>/<name>`, with `…/tree/<ref>/<folder>` or `…/blob/<ref>/<file>` | branch, tag, commit; folder |
 
 - A page URL naming a **file** reads the folder that holds it. A file page whose
-  path is a folder reads that folder.
+  path is a folder reads that folder, and a folder page whose path is a file
+  (Bitbucket, SourceHut, Forgejo and Gitiles write both alike) reads the folder
+  holding the file.
+- Where the ref is in the query (cgit, Azure DevOps) it is exact: it is not
+  split from the folder, and a `?h=` or `?id=` after a cgit page name is the ref
+  whatever the folder is called (`src`, `tree`), unless the path holds a GitLab
+  (`-`) or Gitea (`src/commit|branch|tag`) marker, which makes the query stray. A query that names no ref
+  (`?ref_type=heads`) is ignored, as before. An Azure DevOps `version` that does
+  not start with `GB`, `GT` or `GC` names no ref: the default branch is read and
+  an `INFO:` says so.
 - A **commit** must be given with its full 40 (or 64) hex digits; a server cannot
   be asked for an abbreviated id.
 - A query or fragment (`?ref_type=heads`, `#readme`) is ignored.
@@ -53,15 +68,19 @@ from the server's own branches and tags, longest match first.
   for a group or project called `src`, `tree` or `blob` after the second path
   segment, Pitloom tries the page reading first and then, when the server says
   the repository is not found, the whole URL as the repository.
-- Hugging Face addresses (`huggingface.co`, `hf.co`, `www.` forms) are models,
-  not Git repositories: `loom model` reads them.
-- Not read: Azure DevOps page URLs (the folder is in a query string), hosts that
-  need a login, `ssh://`, `git://`, `file://` and scp-style `user@host:path`
+- A Hugging Face **model** address (`huggingface.co/<org>/<name>`, also `hf.co`
+  and `www.` forms) is not a Git repository for Pitloom: `loom model` reads it,
+  and `loom project` refuses it with a message naming `loom model`. A **Space**
+  or **dataset** (`huggingface.co/spaces/...`, `.../datasets/...`) is a Git
+  repository and is fetched like any other (Git LFS files stay pointers: Pitloom
+  switches LFS off). A Space with no `pyproject.toml`, `setup.cfg` or `setup.py`
+  has no Python project to read, and says so.
+- Not read: hosts that need a login, `ssh://`, `git://`, `file://` and scp-style `user@host:path`
   addresses. These are refused with a message (see below).
 
 ## Verified platforms
 
-Fetched with `loom` from a real server, on 2026-10-21 (the live tests in
+Fetched with `loom` from a real server, on 2026-10-21 and 2026-10-23 (the live tests in
 `tests/extract/remote/test_git_platforms_live.py` repeat these when run with
 network access):
 
@@ -74,21 +93,41 @@ network access):
 | GitLab | `forge.apps.education.fr` (French education) | bare URL |
 | GitLab | `framagit.org` | bare URL |
 | GitLab | `gitlab.cern.ch` (CERN) | bare URL |
-| Forgejo | `codeberg.org` | bare URL, `/src/branch/` page |
-| Forgejo | `code.overheid.nl` (Dutch government) | bare URL, `/src/branch/<branch>/<folder>` page |
+| Forgejo | `codeberg.org` | bare URL, `/src/branch/` page, file page, `/src/tag/` page |
+| Forgejo | `code.overheid.nl` (Dutch government) | bare URL, `/src/branch/<branch>/<folder>` page, file page |
+| Gerrit | `review.opendev.org` | bare URL |
+| Gitea | `opendev.org` | `/src/branch/<branch>/<folder>` page |
+| Gitiles | `gerrit.googlesource.com`, `pigweed.googlesource.com` | bare URL, `/+/refs/heads/<branch>/<folder>` page |
+| cgit | `git.kernel.org` | bare URL, `/tree/<folder>?h=<branch>` and `?h=<tag>` pages |
+| cgit | `git.launchpad.net` (Launchpad) | bare URL, `/tree/<folder>?h=<branch>` page |
+| GNU Savannah | `git.savannah.gnu.org` | the `/git/<project>.git` clone URL |
+| Azure DevOps | `dev.azure.com` | bare URL, `?path=<folder>&version=GB<branch>` page |
+| Hugging Face Space | `huggingface.co/spaces/...` | bare URL, `/tree/<branch>` page |
 | Gitea | `gitea.com` | `/src/branch/<branch>/<folder>`, `/src/tag/<tag>/<folder>` pages |
 | GitHub | `github.com` | bare URL, `/tree/` page, `/blob/` page |
 
 Also checked, with a narrower scope:
 
-- **Bitbucket Cloud** (`bitbucket.org`): the repository is served as it is, and
-  the `git ls-remote` that reads a page URL's branch works. A full fetch was not
-  run: no small public Python repository was found, and the one tried is 148 MB.
-- **SourceHut** (`git.sr.ht`): the page syntax is parsed (and tested); the server
-  could not be reached from the test network, so no fetch was run.
-- **cgit and GNU Savannah**: the redirect to another host is followed only
-  when it leads to a repository; the one tried led to a host that does not
-  resolve.
+- **Bitbucket Cloud** (`bitbucket.org`, 2026-10-23, `zzzeek/sqlalchemy`): the
+  bare URL, `/src/<branch>/<folder>`, a file page, `/branch/<ref>` and
+  `/commits/tag/<ref>` are fetched. A repository that does not exist answers
+  like one that needs a sign-in. Bitbucket serves a path below the repository
+  as the default branch, so a page URL it was not told about (`/branch/x`,
+  `/commits/<sha>`) used to fetch the default branch without a word.
+- **SourceHut** (`git.sr.ht`, 2026-10-23, `~sircmpwn/scm.sr.ht`): the bare URL,
+  `/tree/<ref>/item/<folder>`, a file page and `/log/<ref>` are fetched.
+- **Azure DevOps** (2026-10-23, `mseng/PipelineTools`): the server answers
+  `--filter=blob:limit` with HTTP 400. Pitloom asks again without the filter
+  (an `INFO:` says so), also for a tag or commit page; the size cap still bounds
+  the transfer.
+- **GNU Savannah**: the web pages (`/cgit/…`, `/gitweb/…`) redirect to hosts
+  that answered 502 when tried; only the clone URL was fetched.
+- **Gogs**: not tried live (the public demo, `try.gogs.io`, holds no
+  repository with commits). Its page form, `…/src/<ref>/<folder>`, is the one
+  Bitbucket uses and is parsed.
+- **Self-hosted GitLab with a URL prefix** is the ETSI row above. A Gitea under
+  a prefix was not found to try; the repository is the path before the marker,
+  so a prefix does not matter to the parser.
 
 What a platform answers differs: every GitLab sends a redirect from
 `group/project` to `group/project.git`, which Pitloom follows; Forgejo, Gitea,
@@ -112,6 +151,13 @@ HTTP (`git http-backend`) that answers like GitLab does.
   with only the http(s) transports, git-lfs off (a repository's LFS settings
   could name another host; LFS files are not downloaded) and without
   `GIT_DIR`-style variables of the calling environment.
+- **Git LFS is a limitation, planned to be fixed in 0.22.0.** A file kept in LFS
+  is a small pointer file in the checkout, because LFS is off. A pointer named
+  like an AI model (`.onnx`, `.gguf`, ...) is recognised as a pointer and not
+  read as a model, so the SBOM has no AI package for it. Any other file in LFS
+  (a dataset, an image) is listed with the SHA-256 of the pointer text, not of
+  the file, and no warning says so. Most model repositories on Hugging Face, and
+  many on GitLab and Codeberg, keep their weights in LFS.
 - A symbolic link in the checkout that leads out of it is removed before the
   project is read (an `INFO:` counts them), so a host file is never read or
   hashed.
@@ -140,8 +186,12 @@ Every URL that is changed, refused or not followed is said, never silently:
 | `WARNING:` | `Build: <url>: --allow-build has no effect for a remote repository …` | a build flag |
 | `ERROR:` | `SBOM generation failed: …` | the run could not finish |
 
-A URL or ref in a message is shown without credentials (`https://***:***@host`)
-and with control characters escaped. What a server or `git` says is reduced to
+A URL or ref in a message is shown without credentials (`https://***:***@host`,
+and, in a URL, the value of a query or fragment parameter named `token`, `key`,
+`secret`, `password`, `sig`, `signature` and the like, or ending in `_token`,
+`_secret`, `_key` or `_password`: `?private_token=***`) and with control
+characters escaped. A secret in a parameter with another name is not
+recognised. What a server or `git` says is reduced to
 one line (its `fatal:`, `error:` and `remote:` lines), so it cannot add a
 tagged line of its own.
 

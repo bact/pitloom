@@ -132,13 +132,76 @@ the 10-minute deadline (the 10 MB blob filter is only a request to the server).
   external reference, forge licence): the commit is logged, not recorded.
 - Forge API tarballs; a persistent cache of fetches.
 - Subdirectory URLs of Azure DevOps (the folder is in a query string).
-- A size cap for a clone: the blob filter is a request, so only the 10-minute
-  deadline bounds it.
 - A reader for a project that declares its metadata only in an imperative
   `setup.py`; the error names the sub-projects it can read.
 - DNS-rebinding protection between the caller's address check and git's own
   lookup.
 - The GitHub Action takes a checkout in the workflow, not a URL.
+
+## Bitbucket and SourceHut pages (2026-10-23)
+
+Run against real servers (`zzzeek/sqlalchemy`, `~sircmpwn/scm.sr.ht`). Both
+write a file page like a folder page (`src/<ref>/<file>`, `tree/<ref>/item/<file>`),
+so a folder page whose path is a file reads the folder holding it, with an
+`INFO:`. Bitbucket answers any path below a repository with the default branch,
+so `/branch/<ref>`, `/commits/<sha>`, `/commits/branch/<ref>` and
+`/commits/tag/<ref>` were cloned as the plain URL: the ref asked for was
+dropped without a message. They are page markers now, as is SourceHut's
+`/log/<ref>`. A short commit id in a Bitbucket URL is still refused (a server
+cannot be asked for it).
+
+## Other hosts (2026-10-23)
+
+Run against real servers (see `docs/git-urls.md`). Findings:
+
+- Azure DevOps answers a clone with `--filter=blob:limit=10m` with HTTP 400 but
+  serves a plain shallow clone (and `blob:none`). `_checkout` retries once
+  without the filter when the first attempt fails with `HTTP 400`; one `INFO:`
+  says so. The retry is for that answer only, any other failure stands.
+  `init` and `remote add` run once, before the first attempt (a second run
+  fails with "remote origin already exists" and hid the server's answer). A
+  failed filtered `fetch` still saves `remote.origin.partialclonefilter` in the
+  repository config, which a plain `fetch` would send again, so the tag and
+  commit route retries with `--no-filter`; the clone route has no such config.
+  A fake runner that only looks at argv passed both mistakes: the test runner
+  keeps the saved filter and refuses a second `init`/`remote add`, as git does.
+- Azure DevOps and cgit carry the ref in the query (`GitPage.query_style`):
+  `version=GB|GT|GC<ref>` and `path=` for Azure, `h=` or `id=` for cgit, with
+  the folder in the path after the page name. The ref is exact, not split from
+  the folder. Gitiles uses `/+/` with `refs/heads/` or `refs/tags/` in front of
+  the ref; both are read like a path marker.
+- A Hugging Face Space or dataset (`/spaces/...`, `/datasets/...`) is a Git
+  repository, not a model: `is_git_url` accepts it, `parse_hf_model_id` refuses
+  it, so `_classify_target` says `git` (before, `spaces/<org>` was read as a
+  model id and `loom model` warned of 401s for a repository that does not
+  exist). `loom project <model url>` and `loom model <git url>` each say to use
+  the other command, in one `ERROR:` line, instead of a missing path.
+- A folder page whose path is a file (Forgejo, Bitbucket, SourceHut, Gitiles
+  write both alike) reads the folder holding the file.
+- Not read, by choice: a cgit page with no `h=` or `id=` (it names the default
+  branch, and its path cannot be told from a GitHub path).
+- Tried, reverted: reading `?h=` as cgit's only when the path holds no GitHub
+  style marker. A cgit folder called `src` or `tree` (`mesa/tree/src/gallium`)
+  holds one, so it lost its ref. The query wins now; no forge puts `?h=` on its
+  own page URLs.
+- Path segments of query-style and Gitiles pages go through the same
+  `..`/`.`/`\`/NUL check as every other page form, at parse time, before a clone
+  (a NUL byte reached `os.path.realpath` after the clone and raised
+  `ValueError`).
+- Credentials: `sanitize_url_credentials` (free text, stops at whitespace) also
+  masks, inside a URL only, a query or fragment parameter whose whole name (or
+  ending: `_token`, `_key`, `_secret`, `_password`) says it is a secret, by name
+  list and not by substring (`author`, `design`, `monkey` are kept); the name is
+  capped at 64 characters, as a substring pattern was quadratic on a server's
+  8 MiB stderr. `sanitize_url` is for a text that is one URL and masks a
+  userinfo holding a newline or a space, also in the collapsed `https:/` form of
+  a path. Every URL echoed by the Git source (the `$ git` line per argument,
+  the build warnings) and by `loom model` and `loom project` goes through it. A
+  secret in a parameter with another name is not recognised.
+- A Hugging Face model id ends at `?` and `#`: a query token was part of the id
+  and reached messages.
+- A `?h=`/`?id=` after a GitLab `-` or Gitea `src/commit` marker is a stray
+  query, not cgit's.
 
 ## Verification
 

@@ -362,6 +362,30 @@ def test_model_command_invalid_hf_target(
     assert "ERROR: not a valid Hugging Face URL or model ID" in err
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://huggingface.co/spaces/o/app",
+        "https://gitlab.com/g/p/-/tree/main/svc",
+        "https://user:SECRET@github.com/o/r",
+    ],
+)
+def test_model_command_given_a_git_url_names_loom_project(
+    url: str,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A Git repository (a Hugging Face Space too) is no model file: one
+    ``ERROR:`` line says to use ``loom project``."""
+    monkeypatch.setattr(sys, "argv", ["loom", "model", url])
+    assert __main__.main() == 1
+    lines = capsys.readouterr().err.strip().splitlines()
+    assert len(lines) == 1
+    assert lines[0].startswith("ERROR: ")
+    assert "is a URL, not a model file or Hugging Face model" in lines[0]
+    assert "SECRET" not in lines[0]
+
+
 def test_env_command_verbose(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -457,3 +481,47 @@ def test_model_pretty_is_the_compact_sbom_with_indentation(
     assert without_token_whitespace(outputs["pretty"]).rstrip() == (
         outputs["compact"].rstrip()
     )
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://user:SECRET@huggingface.co/o/m",
+        "https://user:SECRET@huggingface.co/o/m/a/b/c",
+    ],
+)
+def test_model_command_masks_credentials_of_an_unread_url(
+    url: str,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A Hugging Face URL with user information is no source Pitloom reads:
+    the one ``ERROR:`` line names it cleaned, not as a path under the cwd."""
+    monkeypatch.setattr(sys, "argv", ["loom", "model", url])
+    assert __main__.main() == 1
+    lines = capsys.readouterr().err.strip().splitlines()
+    assert len(lines) == 1 and lines[0].startswith("ERROR: ")
+    assert "SECRET" not in lines[0]
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["model", "https://huggingface.co/o/m?private_token=SECRET", "--offline"],
+        ["project", "https://huggingface.co/o/m?private_token=SECRET"],
+        ["project", "https://user:SECRET@huggingface.co/o/m"],
+    ],
+    ids=["model-query", "project-query", "project-userinfo"],
+)
+def test_no_secret_of_a_hugging_face_url_reaches_stderr(
+    argv: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    """Whichever command reads it and whichever way it is refused, a token in
+    the query or user information is masked in every line."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["loom", *argv])
+    assert __main__.main() != 0
+    assert "SECRET" not in capsys.readouterr().err

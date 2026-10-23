@@ -23,6 +23,7 @@ import threading
 import traceback
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
+from urllib.parse import unquote
 
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
 
@@ -66,16 +67,76 @@ _WARNED_ONCE: set[tuple[str, str]] = set()
 _URL_USERINFO_RE = re.compile(r"://[^/\s@][^/\s]*@")
 
 
+#: A URL in a text, to its end at whitespace.
+_URL_RE = re.compile(r"://\S+")
+
+#: A query or fragment parameter (name at most 64 characters, so matching is
+#: linear), as ``(delimiter, name, value)``.
+_PARAM_RE = re.compile(r"([?&;#])([\w.%-]{1,64})=([^&;#\s]*)")
+
+#: Names (lower case) of a parameter that holds a secret, and the endings of
+#: such a name (``access_token``, ``db-password``).
+_SECRET_NAMES = frozenset(
+    {
+        "token",
+        "key",
+        "apikey",
+        "secret",
+        "password",
+        "passwd",
+        "pass",
+        "pwd",
+        "pw",
+        "sig",
+        "signature",
+        "jwt",
+        "credential",
+        "credentials",
+    }
+)
+_SECRET_ENDINGS = ("_token", "-token", "_secret", "-secret", "_key", "-key") + (
+    "_password",
+    "-password",
+    "_signature",
+    "-signature",
+)
+
+#: ``://`` and a userinfo of a text that is one URL: up to the last ``@``
+#: before the first ``/``, whatever characters (a newline, a space) it holds.
+#: ``:/`` and ``:\\`` too, for a URL a path normalisation collapsed.
+_WHOLE_URL_USERINFO_RE = re.compile(r":[/\\]{1,2}[^/\\@][^/\\]*@")
+
+
+def _mask_param(match: re.Match[str]) -> str:
+    delimiter, name, value = match.groups()
+    plain = unquote(name).lower()
+    if plain in _SECRET_NAMES or plain.endswith(_SECRET_ENDINGS):
+        value = "***"
+    return f"{delimiter}{name}={value}"
+
+
+def _mask_url_secrets(match: re.Match[str]) -> str:
+    return _PARAM_RE.sub(_mask_param, match.group(0))
+
+
 def sanitize_url_credentials(text: str) -> str:
     """Redact username and password from URLs in *text* (e.g.
-    ``https://user:pass@host/`` -> ``https://***:***@host/``).
+    ``https://user:pass@host/`` -> ``https://***:***@host/``), and the value of
+    a query parameter named like a secret (``?private_token=***``).
 
     Used across extractors, build backends, and error loggers to prevent
     sensitive auth tokens from leaking into error messages or SBOM output.
     The userinfo ends at the last ``@`` before the first ``/`` or whitespace,
-    so a password holding ``@``, ``?`` or ``#`` is redacted whole.
+    so a password holding ``@``, ``?`` or ``#`` is redacted whole. For a text
+    that is one URL, use :func:`sanitize_url`.
     """
-    return _URL_USERINFO_RE.sub("://***:***@", text)
+    return _URL_RE.sub(_mask_url_secrets, _URL_USERINFO_RE.sub("://***:***@", text))
+
+
+def sanitize_url(url: str) -> str:
+    """:func:`sanitize_url_credentials` for a text that is one URL: the
+    userinfo is redacted whole even when it holds a newline or a space."""
+    return sanitize_url_credentials(_WHOLE_URL_USERINFO_RE.sub("://***:***@", url))
 
 
 def escape_controls(text: str) -> str:

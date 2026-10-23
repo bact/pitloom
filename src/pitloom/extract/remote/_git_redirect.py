@@ -31,7 +31,7 @@ from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.extract.remote.git_url import scheme_allowed
-from pitloom.logging_config import loggable, sanitize_url_credentials
+from pitloom.logging_config import loggable, sanitize_url
 
 log = logging.getLogger(__name__)
 
@@ -163,7 +163,7 @@ def _probe_within(probe_url: str, seconds: float) -> _Probe:
 
 def _shown(url: str) -> str:
     """*url* as written in a message: without credentials, escaped."""
-    return loggable(sanitize_url_credentials(url))
+    return loggable(sanitize_url(url))
 
 
 def resolve_git_url(url: str, check_url: Callable[[str], None] | None = None) -> str:

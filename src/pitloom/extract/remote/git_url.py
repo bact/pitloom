@@ -9,8 +9,11 @@ People paste the address of the page they were looking at, not a clone URL:
 ``.../-/tree/main/services/x`` (GitLab, including the instances run by public
 bodies), ``.../tree/main/src`` (GitHub), ``.../src/branch/main/cmd`` (Gitea,
 Forgejo, Codeberg), ``.../src/main/dir`` (Bitbucket Cloud) and
-``.../tree/main/item/dir`` (SourceHut). The page syntax is the same on every
-host that runs the same software, so no host list is kept: a URL is read by
+``.../tree/main/item/dir`` (SourceHut), ``.../+/refs/heads/main/dir``
+(Gitiles, Gerrit's code browser). Azure DevOps
+(``.../_git/repo?path=/dir&version=GBmain``) and cgit (``.../tree/dir?h=main``;
+Launchpad, kernel.org) put the branch in the query. The page syntax is the same
+on every host that runs the same software, so no host list is kept: a URL is read by
 its path, and the repository is the part before the page marker.
 
 A branch name may hold ``/``, so the split between branch and folder cannot be
@@ -24,16 +27,17 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from urllib.parse import unquote, urlsplit, urlunsplit
+from urllib.parse import SplitResult, parse_qs, unquote, urlsplit, urlunsplit
 
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.logging_config import sanitize_url_credentials
+from pitloom.logging_config import sanitize_url
 
 __all__ = [
     "ALLOWED_SCHEMES",
     "GitPage",
     "GitTarget",
+    "HUB_GIT_AREAS",
     "HUB_HOST_PATTERN",
     "is_git_url",
     "is_unsupported_remote_url",
@@ -51,12 +55,18 @@ ALLOWED_SCHEMES = frozenset({"http", "https"})
 _MARKERS: tuple[tuple[tuple[str, ...], str | None, bool], ...] = (
     (("-", "tree"), None, False),  # GitLab
     (("-", "blob"), None, True),
+    (("-", "commits"), None, False),
     (("src", "branch"), "branch", False),  # Gitea, Forgejo, Codeberg
     (("src", "tag"), "tag", False),
     (("src", "commit"), "commit", False),
     (("tree",), None, False),  # GitHub, SourceHut
     (("blob",), None, True),
     (("src",), None, False),  # Bitbucket Cloud
+    (("commits", "branch"), "branch", False),
+    (("commits", "tag"), "tag", False),
+    (("commits",), None, False),
+    (("branch",), "branch", False),
+    (("log",), None, False),  # SourceHut
 )
 
 #: A commit id given as a ref: the full 40 (SHA-1) or 64 (SHA-256) hex digits,
@@ -71,22 +81,35 @@ _SOURCEHUT_ITEM = "item"
 HUB_HOST_PATTERN = r"(?:www\.)?(?:huggingface|hf)\.co"
 _HF_HOST = re.compile(HUB_HOST_PATTERN, re.IGNORECASE)
 
+#: The first path segment of a Hugging Face URL that is a Git repository, not a
+#: model: a Space, or a dataset.
+HUB_GIT_AREAS = frozenset({"spaces", "datasets"})
+
 
 def is_git_url(source: str) -> bool:
     """Whether *source* is an ``http`` or ``https`` URL of a Git repository or
-    of one of its web pages: any such URL that is not a Hugging Face one.
+    of one of its web pages: any such URL that is not a Hugging Face model
+    one. A Hugging Face Space or dataset (``/spaces/...``, ``/datasets/...``)
+    is a Git repository, a model is read by :func:`read_huggingface`.
 
-    Only the scheme and host are read; the server decides whether it is a
-    repository. A local path is never one, nor is a bare ``owner/name``.
+    Only the scheme, host and, for Hugging Face, the first path segment are
+    read; the server decides whether it is a repository. A local path is
+    never one, nor is a bare ``owner/name``.
     """
     text = source.strip()
     if not text.lower().startswith(("http://", "https://")):
         return False
     try:
-        host = urlsplit(text).hostname or ""
+        parts = urlsplit(text)
+        host = parts.hostname or ""
     except ValueError:
         return False
-    return bool(host) and _HF_HOST.fullmatch(host) is None
+    if not host:
+        return False
+    if _HF_HOST.fullmatch(host) is None:
+        return True
+    area = parts.path.lstrip("/").split("/", 1)[0].lower()
+    return area in HUB_GIT_AREAS
 
 
 def scheme_allowed(url: str) -> bool:
@@ -125,7 +148,7 @@ class GitPage:
     then the folder or file), already percent-decoded; it is empty for a
     plain repository URL. ``plain_url`` is the whole URL as a repository, for
     when the marker proves to be part of the repository's own path.
-    ``sourcehut`` marks a SourceHut ``tree`` page, whose ``rest`` puts an
+    ``sourcehut`` marks a SourceHut ``tree`` or ``log`` page, whose ``rest`` puts an
     ``item`` segment between the ref and the path; a ``~owner`` ``tree`` page
     with no such segment is read like any other host's.
     """
@@ -139,6 +162,14 @@ class GitPage:
     kind: str | None = None
     plain_url: str = ""
     sourcehut: bool = False
+    #: Whether the ref is in the query (Azure DevOps, cgit): then ``rest`` is
+    #: the folder alone, and ``ref`` is the branch, tag or commit, empty for
+    #: the default branch.
+    query_style: bool = False
+    ref: str = ""
+    #: Whether an Azure DevOps ``version`` named no branch, tag or commit
+    #: (``GB``, ``GT`` or ``GC`` prefix) and the default branch is read.
+    version_ignored: bool = False
 
     @property
     def repo_name(self) -> str:
@@ -178,6 +209,11 @@ def parse_git_page(url: str) -> GitPage:
     plain = urlunsplit((parts.scheme, parts.netloc, parts.path.rstrip("/"), "", ""))
     if raw and raw[-1].endswith(".git"):
         return GitPage(plain, cut=cut, plain_url=plain)
+    queried = _query_page(parts, raw, plain, url) or _gitiles_page(
+        parts, raw, plain, url
+    )
+    if queried is not None:
+        return queried
     # GitLab's ``-`` is unambiguous (a group may be called ``src`` or
     # ``tree``): its markers are looked for first, the others by position.
     gitlab = tuple(m for m in _MARKERS if m[0][0] == "-")
@@ -190,7 +226,7 @@ def parse_git_page(url: str) -> GitPage:
         _check_segments(rest, url)
         sourcehut = (
             raw[0].startswith("~")
-            and marker == ("tree",)
+            and marker in {("tree",), ("log",)}
             and _SOURCEHUT_ITEM in rest[1:]
         )
         repo = urlunsplit(
@@ -198,6 +234,100 @@ def parse_git_page(url: str) -> GitPage:
         )
         return GitPage(repo, rest, is_file, cut, kind, plain, sourcehut)
     return GitPage(plain, cut=cut, plain_url=plain)
+
+
+#: cgit's page names, which put the ref in the query (``h`` or ``id``).
+_CGIT_PAGES = frozenset({"tree", "plain", "log", "commit", "diff", "about"})
+
+#: Azure DevOps' ``version`` prefixes: branch, tag, commit.
+_AZURE_VERSIONS = {"GB": "branch", "GT": "tag", "GC": "commit"}
+
+
+def _query_page(
+    parts: SplitResult, raw: list[str], plain: str, url: str
+) -> GitPage | None:
+    """The page of a host that puts the ref in the query string, or ``None``
+    for any other URL: Azure DevOps (``_git/<repo>?path=…&version=GB<ref>``)
+    and cgit (``<repo>/tree/<folder>?h=<ref>``, ``?id=<ref>``). The query
+    wins: a cgit folder may be called ``src`` or ``tree``. A GitLab or Gitea
+    marker in the path means the query is stray."""
+    query = parse_qs(parts.query)
+    if "_git" in raw[1:-1]:
+        index = raw.index("_git", 1)
+        version = (query.get("version") or [""])[0]
+        kind = _AZURE_VERSIONS.get(version[:2])
+        path = (query.get("path") or [""])[0]
+        if not (path or kind):
+            return None
+        return GitPage(
+            _with_path(parts, raw[: index + 2]),
+            _segments(path.split("/"), url),
+            kind=kind,
+            plain_url=plain,
+            query_style=True,
+            ref=version[2:] if kind else "",
+            version_ignored=bool(version) and kind is None,
+        )
+    ref = (query.get("h") or query.get("id") or [""])[0]
+    if not ref or _is_forge_path(raw):
+        return None
+    for index in range(1, len(raw)):
+        if raw[index] in _CGIT_PAGES:
+            return GitPage(
+                _with_path(parts, raw[:index]),
+                _segments(raw[index + 1 :], url),
+                plain_url=plain,
+                query_style=True,
+                ref=ref,
+            )
+    return None
+
+
+def _is_forge_path(raw: list[str]) -> bool:
+    """Whether the path carries a forge's own unambiguous page marker (GitLab's
+    ``-``, Gitea's ``src/branch|tag|commit``), so a ``?h=`` or ``?id=`` after it
+    is a stray query, not cgit's."""
+    return any(
+        entry[0][0] in {"-", "src"}
+        and len(entry[0]) == 2
+        and _find_marker(raw, (entry,)) is not None
+        for entry in _MARKERS
+    )
+
+
+def _gitiles_page(
+    parts: SplitResult, raw: list[str], plain: str, url: str
+) -> GitPage | None:
+    """The page of a Gitiles server (``<repo>/+/<ref>/<path>``, the ref in full
+    as ``refs/heads/<branch>`` or ``refs/tags/<tag>``, or short), or ``None``."""
+    if "+" not in raw[1:-1]:
+        return None
+    index = raw.index("+", 1)
+    rest = _segments(raw[index + 1 :], url)
+    kind = None
+    if rest[:2] in {("refs", "heads"), ("refs", "tags")}:
+        kind = "branch" if rest[1] == "heads" else "tag"
+        rest = rest[2:]
+    if not rest:
+        return None
+    return GitPage(
+        _with_path(parts, raw[:index]),
+        rest,
+        kind=kind,
+        plain_url=plain,
+    )
+
+
+def _with_path(parts: SplitResult, segments: list[str]) -> str:
+    """The URL of *parts* with the path *segments* and no query."""
+    return urlunsplit((parts.scheme, parts.netloc, "/" + "/".join(segments), "", ""))
+
+
+def _segments(raw: list[str], url: str) -> tuple[str, ...]:
+    """The non-empty path segments of *raw*, percent-decoded and checked."""
+    rest = tuple(unquote(s) for s in raw if s)
+    _check_segments(rest, url)
+    return rest
 
 
 def _find_marker(
@@ -219,7 +349,7 @@ def _check_segments(rest: tuple[str, ...], url: str) -> None:
         if segment in {".", ".."} or "\0" in segment or "\\" in segment:
             raise RemoteSourceError(
                 "git.url-invalid",
-                f"Invalid path in URL: {quote_source(sanitize_url_credentials(url))}",
+                f"Invalid path in URL: {quote_source(sanitize_url(url))}",
             )
 
 
@@ -237,6 +367,8 @@ def split_ref(page: GitPage, refs: Mapping[str, frozenset[str]]) -> GitTarget:
         RemoteSourceError: ``git.ref-not-found``, the leading segments are no
             ref and not a full commit id.
     """
+    if page.query_style:
+        return _queried_target(page, refs)
     rest = list(page.rest)
     if not rest:
         return GitTarget()
@@ -263,7 +395,27 @@ def split_ref(page: GitPage, refs: Mapping[str, frozenset[str]]) -> GitTarget:
     raise RemoteSourceError(
         "git.ref-not-found",
         f"No branch or tag {quote_source(first)} in "
-        f"{quote_source(sanitize_url_credentials(page.repo_url))} "
+        f"{quote_source(sanitize_url(page.repo_url))} "
+        "(a commit needs its full 40 or 64 hex digits).",
+    )
+
+
+def _queried_target(page: GitPage, refs: Mapping[str, frozenset[str]]) -> GitTarget:
+    """The target of a page whose ref is in the query: the folder is all of
+    ``rest``; no ref is the default branch."""
+    folder, file = _folder(list(page.rest), page.is_file)
+    if not page.ref:
+        return GitTarget(subdir=folder, file=file)
+    kinds = refs.get(page.ref)
+    if kinds:
+        tag = "tag" in kinds and (page.kind == "tag" or "branch" not in kinds)
+        return GitTarget(ref=page.ref, subdir=folder, tag=tag, file=file)
+    if _COMMIT.fullmatch(page.ref):
+        return GitTarget(commit=page.ref, subdir=folder, file=file)
+    raise RemoteSourceError(
+        "git.ref-not-found",
+        f"No branch or tag {quote_source(page.ref)} in "
+        f"{quote_source(sanitize_url(page.repo_url))} "
         "(a commit needs its full 40 or 64 hex digits).",
     )
 
