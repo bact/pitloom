@@ -19,6 +19,7 @@ import threading
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from typing import cast
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -28,6 +29,7 @@ from pitloom.extract.remote._git_redirect import (
     PROBE_FAILED_INFO,
     REDIRECT_INFO,
     REDIRECT_REFUSED_WARNING,
+    _carried_userinfo,
     _probe_url,
     resolve_git_url,
 )
@@ -140,16 +142,80 @@ def test_a_followed_redirect_is_one_info_naming_both_urls(
         resolve_git_url(base.replace("http://", "http://user:secret@") + "/g/p")
         resolve_git_url(base + "/g/p.git")
     lines = [r.getMessage() for r in caplog.records if "redirected to" in r.message]
-    asked = base.replace("http://", "http://***:***@") + "/g/p"
-    assert lines == [REDIRECT_INFO % (asked, base + "/g/p.git")]
+    masked = base.replace("http://", "http://***:***@")
+    assert lines == [REDIRECT_INFO % (masked + "/g/p", masked + "/g/p.git")]
     assert "secret" not in caplog.text
 
 
-def test_the_probe_sends_no_user_information_but_finds_the_redirect() -> None:
-    """The probe is anonymous: the user is not in the request."""
-    with _server(_PROJECT) as base:
-        with_user = base.replace("http://", "http://user:pw@")
-        assert resolve_git_url(with_user + "/g/p") == base + "/g/p.git"
+@pytest.mark.parametrize(
+    ("host", "kept"),
+    [("127.0.0.1", True), ("localhost", False)],
+    ids=["same-host", "other-host"],
+)
+def test_a_redirect_keeps_the_user_only_on_the_same_host(
+    host: str, kept: bool, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The anonymous probe finds the redirect; the clone URL keeps the user
+    information only on the same host. ``check_url`` and the log never see
+    the secret."""
+    checked: list[str] = []
+    routes: Routes = {
+        "/g/p/info/refs": lambda p: f"http://{host}:{p}/g/p.git/info/refs"
+    }
+    with _server(routes) as base, caplog.at_level(logging.INFO):
+        with_user = base.replace("http://", "http://user:secret@")
+        result = resolve_git_url(with_user + "/g/p", checked.append)
+    target = base.replace("127.0.0.1", host) + "/g/p.git"
+    expected = target.replace("http://", "http://user:secret@") if kept else target
+    assert result == expected
+    assert checked == [target]
+    assert "secret" not in caplog.text and "user" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("source", "target", "carried"),
+    [
+        ("https://u:t@host.example/g/p", "https://HOST.example/g/p.git", "u:t"),
+        ("https://u:t@host.example/g/p", "https://host.example:443/x", "u:t"),
+        ("https://u:t@host.example/g/p", "https://other.example/x", ""),
+        ("https://u:t@host.example/g/p", "https://host.example:8443/x", ""),
+        ("https://u:t@host.example/g/p", "http://host.example/x", ""),
+        ("http://u:t@host.example/g/p", "https://host.example/x", ""),
+        ("https://host.example/g/p", "https://host.example/x", ""),
+        ("https://u:t@host.example:bad/g/p", "https://host.example/x", ""),
+        ("https://u:t@host.example/g/p", "https://host.example:0/x", ""),
+    ],
+    ids=[
+        "host-case",
+        "default-port",
+        "other-host",
+        "other-port",
+        "downgrade",
+        "upgrade",
+        "no-user",
+        "bad-port",
+        "port-zero",
+    ],
+)
+def test_the_user_is_carried_only_to_the_same_origin(
+    source: str, target: str, carried: str
+) -> None:
+    """Scheme, host (any case) and port (default filled in) must all match."""
+    assert _carried_userinfo(source, urlsplit(target)) == carried
+
+
+def test_a_target_with_its_own_user_keeps_its_own() -> None:
+    """A target that names a user keeps it; ``check_url`` sees neither."""
+    checked: list[str] = []
+    routes: Routes = {
+        "/g/p/info/refs": lambda p: f"http://other:own@127.0.0.1:{p}/g/q/info/refs"
+    }
+    with _server(routes) as base:
+        result = resolve_git_url(
+            base.replace("http://", "http://user:secret@") + "/g/p", checked.append
+        )
+    assert result == base.replace("http://", "http://other:own@") + "/g/q"
+    assert checked == [base + "/g/q"]
 
 
 def test_every_hop_is_checked_before_it_is_requested() -> None:

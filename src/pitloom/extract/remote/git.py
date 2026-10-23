@@ -110,9 +110,10 @@ def fetch_git_project(
     """Fetch the repository *url* names into a temporary directory, removed
     on exit.
 
-    *check_url* is called with the URL of every redirect target before it is
-    requested and raises for one that must not be fetched; Pitloom does not
-    check the URL it is given (the caller does, as it knows its own policy).
+    *check_url* is called with the URL of every redirect target, without
+    user information, before it is requested and raises for one that must not
+    be fetched; Pitloom does not check the URL it is given (the caller does,
+    as it knows its own policy).
     With *offline* true nothing is fetched. With *max_bytes* the fetch is
     stopped once the checkout (the ``.git`` directory included) takes more
     disk than that (``git.too-large``); ``None`` sets no limit.
