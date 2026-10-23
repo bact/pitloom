@@ -16,13 +16,16 @@ import os
 import stat
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
+from unittest import mock
 
 import pytest
 
-from pitloom.extract.remote import RemoteSourceError, git, git_url
+from pitloom.extract.remote import RemoteSourceError, _git_run, git, git_url
 from pitloom.extract.remote._git_folder import subproject_hint
-from pitloom.extract.remote._git_run import GitRunner, _kill
+from pitloom.extract.remote._git_run import GitRunner, _kill, _taskkill
 from pitloom.extract.remote.git import GitCheckout, _resolve, _target
 from pitloom.extract.remote.git_url import (
     GitPage,
@@ -260,3 +263,74 @@ def test_a_process_group_that_cannot_be_signalled_is_gone(
         [sys.executable, "-c", "pass"]
     ) as proc:
         _kill(proc)
+
+
+def _gone(argv: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.CompletedProcess(argv, 128)
+
+
+def _hangs(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[bytes]:
+    raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+
+
+def _missing(_argv: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[bytes]:
+    raise FileNotFoundError("taskkill")
+
+
+@pytest.mark.parametrize(
+    ("taskkill", "answer"),
+    [
+        ("taskkill.exe", lambda argv, **_: subprocess.CompletedProcess(argv, 0)),
+        ("taskkill.exe", _gone),
+        ("taskkill.exe", _hangs),
+        ("taskkill.exe", _missing),
+        (None, _gone),
+    ],
+    ids=["killed", "already-gone", "hangs", "fails-to-start", "no-taskkill"],
+)
+def test_off_posix_the_process_tree_is_killed_then_the_process(
+    taskkill: str | None,
+    answer: Callable[..., subprocess.CompletedProcess[bytes]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``taskkill /F /T`` ends git and git-remote-https, within a bounded
+    time; ``proc.kill()`` follows whatever taskkill did, or without it."""
+    calls: list[object] = []
+
+    def run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[bytes]:
+        calls.append((argv, kwargs["timeout"], kwargs["check"]))
+        return answer(argv, **kwargs)
+
+    proc = mock.create_autospec(subprocess.Popen, instance=True)
+    proc.pid = 4321
+    proc.kill.side_effect = lambda: calls.append("kill")
+    monkeypatch.setattr(_git_run, "_POSIX", False)
+    monkeypatch.setattr(_git_run, "_taskkill", lambda: taskkill)
+    monkeypatch.setattr(_git_run, "_run_command", run)
+    _kill(proc)
+    tree = [(["taskkill.exe", "/F", "/T", "/PID", "4321"], 10.0, False)]
+    assert calls == (tree if taskkill else []) + ["kill"]
+
+
+def test_taskkill_is_found_below_the_system_root_or_on_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``%SystemRoot%\\System32`` first, then ``PATH``; ``None`` without
+    either."""
+    name = "taskkill.exe" if sys.platform == "win32" else "taskkill"
+    on_path, root = tmp_path / "bin", tmp_path / "root"
+    on_path.mkdir()
+    (root / "System32").mkdir(parents=True)
+    monkeypatch.chdir(tmp_path)  # Windows looks in the current folder first
+    monkeypatch.setenv("PATH", str(on_path))
+    monkeypatch.delenv("SystemRoot", raising=False)
+    assert _taskkill() is None
+    found = on_path / name
+    found.write_bytes(b"")
+    found.chmod(found.stat().st_mode | stat.S_IEXEC)
+    assert Path(_taskkill() or "") == found
+    monkeypatch.setenv("SystemRoot", str(root))
+    assert Path(_taskkill() or "") == found
+    below_root = root / "System32" / "taskkill.exe"
+    below_root.write_bytes(b"")
+    assert _taskkill() == str(below_root)

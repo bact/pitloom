@@ -20,6 +20,7 @@ import threading
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from subprocess import run as _run_command  # nosec B404
 from typing import IO, cast
 
 from pitloom.extract.remote import git_url
@@ -41,6 +42,13 @@ _READ_CHUNK = 64 * 1024
 
 #: Seconds between looks at how much a running call has written.
 _SIZE_POLL_SECONDS = 0.25
+
+#: Whether a call runs in its own process group, killed as one; elsewhere
+#: (Windows) ``taskkill`` ends the process tree.
+_POSIX = os.name == "posix"
+
+#: Seconds ``taskkill`` may take to end a process tree.
+_TASKKILL_SECONDS = 10.0
 
 #: Settings every call runs with. A redirect is followed by hand (each hop
 #: checked), and git-lfs, which would fetch from an address the repository's
@@ -177,17 +185,42 @@ def _drain(stream: IO[bytes], keep: list[bytes]) -> None:
             kept += len(block)
 
 
+def _taskkill() -> str | None:
+    """The path of Windows' ``taskkill`` (``%SystemRoot%\\System32`` first, so
+    a copy in the current folder is not run), or ``None`` when there is none."""
+    root = os.environ.get("SystemRoot")
+    if root:
+        candidate = os.path.join(root, "System32", "taskkill.exe")
+        if os.path.isfile(candidate):
+            return candidate
+    return shutil.which("taskkill")
+
+
 def _kill(proc: subprocess.Popen[bytes]) -> None:
-    """Kill *proc* and, where it has its own process group, what it started."""
-    if os.name == "posix":
+    """Kill *proc* and what it started (git-remote-https holds the pipe
+    open): its process group on POSIX, its process tree elsewhere."""
+    if _POSIX:
         try:
             os.killpg(proc.pid, signal.SIGKILL)
         except (ProcessLookupError, PermissionError):
             # Already gone: macOS answers EPERM for the group of a process that
             # has exited and is not yet reaped.
             pass
-    else:  # pragma: no cover
-        proc.kill()
+        return
+    # The tree first: once *proc* is gone, taskkill cannot find its children.
+    taskkill = _taskkill()
+    if taskkill is not None:
+        # A non-zero exit means the process is already gone.
+        with contextlib.suppress(OSError, subprocess.SubprocessError):
+            _run_command(  # nosec B603: argv list, no shell
+                [taskkill, "/F", "/T", "/PID", str(proc.pid)],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=_TASKKILL_SECONDS,
+            )
+    proc.kill()
 
 
 def _watch_size(
@@ -233,7 +266,7 @@ def _capture(
         env=_environment(),
         # Its own process group, so a kill reaches what git started
         # (git-remote-https holds the pipe open).
-        start_new_session=os.name == "posix",
+        start_new_session=_POSIX,
     ) as proc:
         timed_out = threading.Event()
 

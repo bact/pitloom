@@ -179,6 +179,12 @@ and this project adheres to
 - Symlinked projects get one ID registry prefix; Merkle leaves are NFC; loom
   opens `path=` as the OS does and names an outside script by file name
   ([#340], [#341])
+- A redirect carries URL credentials only to the same scheme, host and port
+  ([#342])
+- SourceHut tree URLs with a slash in the branch name are split correctly
+  ([#343])
+- A timed-out git clone is killed with its child processes on Windows
+  ([#344])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
@@ -207,6 +213,9 @@ and this project adheres to
 [#339]: https://github.com/bact/pitloom/pull/339
 [#340]: https://github.com/bact/pitloom/pull/340
 [#341]: https://github.com/bact/pitloom/pull/341
+[#342]: https://github.com/bact/pitloom/pull/342
+[#343]: https://github.com/bact/pitloom/pull/343
+[#344]: https://github.com/bact/pitloom/pull/344
 
 ## [0.20.2] - 2026-10-09
 
