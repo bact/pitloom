@@ -219,7 +219,7 @@ def project_prefix(
     location."""
     try:
         real: str | None = os.path.realpath(project_dir)
-    except ValueError:  # a NUL: no file to resolve
+    except (OSError, ValueError):  # a NUL, or (on Windows) no current directory
         real = None
     key = None if real is None else path_key(registry, real, on_disk=True)
     if key is None:

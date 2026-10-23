@@ -316,6 +316,24 @@ def test_project_prefix_is_the_key_of_where_a_symlink_leads(
     assert project_prefix(registry, project / link) == prefix
 
 
+def test_project_prefix_without_a_current_directory_keeps_the_lexical_key(
+    project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``realpath`` of a name needs the current directory on Windows; the
+    prefix is still found."""
+    real = os.path.realpath
+    given = str(project / "sub")
+
+    def gone(path: str) -> str:
+        if path == given:
+            raise FileNotFoundError("cwd is gone")
+        return real(path)
+
+    monkeypatch.setattr(keys.os.path, "realpath", gone)
+    registry = make_registry(project_root=project)
+    assert project_prefix(registry, given) == "sub"
+
+
 def test_project_prefix_of_a_nul_name_is_none(project: Path) -> None:
     registry = make_registry(project_root=project)
     assert project_prefix(registry, "sub\0") is None
