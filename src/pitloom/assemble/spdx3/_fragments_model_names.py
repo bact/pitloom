@@ -15,7 +15,12 @@ names keep the base's, with the usual ``Merge: conflicting`` warning per
 other name. A fold into an element a fragment added (``loom merge`` has no
 base model) and every other field are plain field merges.
 
-See also: :mod:`pitloom.assemble.spdx3._fragments_unify` (the caller) and
+The same pass drops the base's provenance of a field that a fragment's value
+replaced (:mod:`pitloom.assemble.spdx3._fragments_generated` records which),
+since it rebuilds the model's comment from the base's and the fragments' own.
+
+See also: :mod:`pitloom.assemble.spdx3._fragments_unify` (the caller),
+:mod:`pitloom.assemble.spdx3._fragments_generated` (generated values) and
 :mod:`pitloom.assemble.spdx3._fragments_props` (field merging).
 """
 
