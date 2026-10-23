@@ -245,9 +245,9 @@ def _query_page(
 ) -> GitPage | None:
     """The page of a host that puts the ref in the query string, or ``None``
     for any other URL: Azure DevOps (``_git/<repo>?path=…&version=GB<ref>``)
-    and cgit (``<repo>.git/tree/<folder>?h=<ref>``, ``?id=<ref>``). A path
-    that already names its ref (``o/r/tree/main/d?h=x``) is read the usual
-    way unless a ``….git`` segment marks a cgit repository."""
+    and cgit (``<repo>/tree/<folder>?h=<ref>``, ``?id=<ref>``). The query
+    wins: a cgit folder may be called ``src`` or ``tree``, and no forge puts
+    ``?h=`` on its own page URLs."""
     query = parse_qs(parts.query)
     if "_git" in raw[1:-1]:
         index = raw.index("_git", 1)
@@ -269,9 +269,7 @@ def _query_page(
     if not ref:
         return None
     for index in range(1, len(raw)):
-        if raw[index] in _CGIT_PAGES and (
-            raw[index - 1].endswith(".git") or _find_marker(raw, _MARKERS) is None
-        ):
+        if raw[index] in _CGIT_PAGES:
             return GitPage(
                 _with_path(parts, raw[:index]),
                 _segments(raw[index + 1 :], url),

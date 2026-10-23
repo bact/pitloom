@@ -408,6 +408,7 @@ class _FilterRejectingRunner:
     def __init__(self, message: str) -> None:
         self.message = message
         self.calls: list[list[str]] = []
+        self.saved = False
 
     def run(self, args: list[str], _what: str, **_kwargs: Any) -> str:
         if args[0] == "init" or "remote" in args:
@@ -416,7 +417,13 @@ class _FilterRejectingRunner:
                 for c in self.calls
             ), "second init or remote add in one work folder"
         self.calls.append(args)
-        if any(a.startswith("--filter") for a in args):
+        # git keeps the filter of a fetch in the repository's config, even
+        # when the fetch failed, and a later plain fetch sends it again.
+        filtered = any(a.startswith("--filter") for a in args)
+        if "fetch" in args:
+            filtered = filtered or (self.saved and "--no-filter" not in args)
+            self.saved = self.saved or filtered
+        if filtered:
             raise RemoteSourceError("git.clone-failed", self.message)
         return ""
 

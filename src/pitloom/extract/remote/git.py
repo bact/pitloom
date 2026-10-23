@@ -282,7 +282,9 @@ def _checkout(
         if exc.code != "git.clone-failed" or "HTTP 400" not in str(exc):
             raise
         log.info("Git source: the server rejected the blob filter; fetching without it")
-        _fetch(runner, clone_url, work_dir, target, [])
+        # A failed filtered fetch leaves the filter in the repository's
+        # config, which a plain fetch would send again.
+        _fetch(runner, clone_url, work_dir, target, ["--no-filter"] if pinned else [])
     if pinned:
         runner.run(
             [

@@ -651,17 +651,32 @@ def test_a_query_or_gitiles_path_that_leaves_the_checkout_is_refused(
     assert "SECRET" not in str(excinfo.value)
 
 
-def test_a_cgit_query_does_not_override_the_ref_a_path_names() -> None:
-    """``?h=`` on a GitHub-style page is ignored; a ``….git`` repository is
-    cgit's, whose ref is in the query."""
-    page = parse_git_page("https://github.com/o/r/tree/main/d?h=x")
-    assert (page.repo_url, page.rest, page.query_style) == (
-        "https://github.com/o/r",
-        ("main", "d"),
-        False,
-    )
-    page = parse_git_page("https://h/pub/r.git/tree/d?h=x")
-    assert (page.rest, page.ref, page.query_style) == (("d",), "x", True)
+@pytest.mark.parametrize(
+    ("url", "repo", "rest"),
+    [
+        (
+            "https://cgit.freedesktop.org/mesa/mesa/tree/src/gallium?h=main",
+            "mesa/mesa",
+            ("src", "gallium"),
+        ),
+        ("https://git.zx2c4.com/wg/tree/src/uapi?h=v1", "wg", ("src", "uapi")),
+        ("https://git.zx2c4.com/wg/plain/src/wg.c?h=v1", "wg", ("src", "wg.c")),
+        (
+            "https://git.savannah.gnu.org/cgit/emacs/tree/src?h=emacs-29",
+            "cgit/emacs",
+            ("src",),
+        ),
+    ],
+    ids=["mesa", "tree-src", "plain-src", "savannah"],
+)
+def test_a_cgit_folder_called_like_a_page_marker_keeps_its_query_ref(
+    url: str, repo: str, rest: tuple[str, ...]
+) -> None:
+    """The ref is the query's, and the folder is what follows the cgit page,
+    whatever the folder is called (``src``, ``tree``)."""
+    page = parse_git_page(url)
+    assert page.repo_url.endswith(f"/{repo}")
+    assert (page.rest, page.query_style, page.ref != "") == (rest, True, True)
 
 
 def test_a_gitlab_commits_page_names_its_repository() -> None:

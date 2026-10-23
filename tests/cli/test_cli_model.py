@@ -481,3 +481,24 @@ def test_model_pretty_is_the_compact_sbom_with_indentation(
     assert without_token_whitespace(outputs["pretty"]).rstrip() == (
         outputs["compact"].rstrip()
     )
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://user:SECRET@huggingface.co/o/m",
+        "https://user:SECRET@huggingface.co/o/m/a/b/c",
+    ],
+)
+def test_model_command_masks_credentials_of_an_unread_url(
+    url: str,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A Hugging Face URL with user information is no source Pitloom reads:
+    the one ``ERROR:`` line names it cleaned, not as a path under the cwd."""
+    monkeypatch.setattr(sys, "argv", ["loom", "model", url])
+    assert __main__.main() == 1
+    lines = capsys.readouterr().err.strip().splitlines()
+    assert len(lines) == 1 and lines[0].startswith("ERROR: ")
+    assert "SECRET" not in lines[0]

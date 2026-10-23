@@ -49,7 +49,8 @@ def _run_model_command(args: argparse.Namespace) -> int:
         model_id = parse_hf_model_id(target)
         if model_id is None:
             print_error(
-                f"not a valid Hugging Face URL or model ID: {quote_source(target)}"
+                "not a valid Hugging Face URL or model ID: "
+                f"{quote_source(sanitize_url_credentials(target))}"
             )
             return 1
         output_path = _resolve_hf_output_path(args.output, model_id)
@@ -63,7 +64,10 @@ def _run_model_command(args: argparse.Namespace) -> int:
         model_path: Path = given_path.resolve()
         opened_path = existing_model_path(given_path)
         if opened_path is None:
-            print_error(f"model file not found: {quote_source(model_path)}")
+            # A URL that is no source we read (user information in a Hugging
+            # Face one) is named as given, cleaned, not as a path under the cwd.
+            shown = sanitize_url_credentials(target) if "://" in target else model_path
+            print_error(f"model file not found: {quote_source(shown)}")
             return 1
         output_path = _resolve_model_output_path(args.output, model_path)
         if args.verbose:
