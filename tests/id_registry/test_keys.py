@@ -329,7 +329,7 @@ def test_project_prefix_without_a_current_directory_keeps_the_lexical_key(
             raise FileNotFoundError("cwd is gone")
         return real(path)
 
-    monkeypatch.setattr(keys.os.path, "realpath", gone)
+    monkeypatch.setattr(os.path, "realpath", gone)
     registry = make_registry(project_root=project)
     assert project_prefix(registry, given) == "sub"
 
