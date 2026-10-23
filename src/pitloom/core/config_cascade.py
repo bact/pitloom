@@ -147,12 +147,14 @@ def load_config_file(path: Path, *, source: str = "--config") -> PitloomConfig:
         OSError: the file cannot be read.
     """
     if not os.path.isfile(path):
-        raise FileNotFoundError(f"config file not found or not a file: {path}")
+        raise FileNotFoundError(
+            f"config file not found or not a file: {quote_source(path)}"
+        )
     try:
         data = load_toml_file(Path(path))
         cfg = parse_pitloom_config(data, source=str(path))
     except ValueError as exc:  # also TOMLDecodeError, UnicodeDecodeError
-        raise ValueError(f"config file {path}: {exc}") from exc
+        raise ValueError(f"config file {quote_source(path)}: {exc}") from exc
     tool = data.get("tool")
     if not isinstance(tool, dict) or not isinstance(tool.get("pitloom"), dict):
         log.warning(

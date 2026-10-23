@@ -35,6 +35,7 @@ from typing import Any, NamedTuple
 from pitloom._sbom_io import replace_text_lf
 from pitloom.core.canonical_json import canonical_json_indented
 from pitloom.core.iri import is_iri_segment, require_namespace_iri
+from pitloom.core.quote_source import quote_source
 from pitloom.id_registry._counters import MAX_ID_NUMBER, Counters
 from pitloom.id_registry._types import (
     _REGISTRY_VERSION,
@@ -163,7 +164,7 @@ def _unique_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     data: dict[str, Any] = {}
     for key, value in pairs:
         if key in data:
-            raise _DuplicateKeyError(f"duplicate key {key!r}")
+            raise _DuplicateKeyError(f"duplicate key {quote_source(key)}")
         data[key] = value
     return data
 
@@ -207,9 +208,10 @@ def _parse_project_root(path: Path, value: object) -> Path:
     """The absolute, realpath'd project root *value* names, relative to
     the directory of the registry file *path*."""
     if not isinstance(value, str) or not _is_relative_posix(value):
+        shown = quote_source(value) if isinstance(value, str) else repr(value)
         raise registry_file_error(
             path,
-            f"'project_root' {value!r} is not a relative POSIX path "
+            f"'project_root' {shown} is not a relative POSIX path "
             "(relative to the registry file's directory)",
         )
     return Path(os.path.realpath(registry_dir(path) / value))
@@ -232,7 +234,9 @@ def _parse_elements(path: Path, raw: object) -> dict[tuple[str, str], RegistryEn
                     raise registry_file_error(path, unencodable_message("key", text))
             key = _element_key(type_name=type_name, name=name)
             if key in elements:
-                raise registry_file_error(path, f"two {key[0]} entries for {key[1]!r}")
+                raise registry_file_error(
+                    path, f"two {key[0]} entries for {quote_source(key[1])}"
+                )
             elements[key] = _parse_entry(path, key, record)
     return elements
 
@@ -240,7 +244,7 @@ def _parse_elements(path: Path, raw: object) -> dict[tuple[str, str], RegistryEn
 def _parse_entry(path: Path, key: tuple[str, str], record: object) -> RegistryEntry:
     """One entry: ``spdxId`` (a non-empty string) and an optional ``sha256``
     (a non-empty string when present; ``null`` and ``""`` are rejected)."""
-    where = f"malformed entry: {key[0]} {key[1]!r}"
+    where = f"malformed entry: {key[0]} {quote_source(key[1])}"
     if not isinstance(record, dict):
         raise registry_file_error(path, f"{where} is not an object")
     unknown = sorted(set(record) - _ENTRY_KEYS)
@@ -274,11 +278,15 @@ def _stored_project_root(target: Path, project_root: Path) -> str:
         text = Path(relpath(root, base)).as_posix()
     except ValueError as exc:
         raise registry_file_error(
-            target, f"project root {root} has no path relative to {base}: {exc}"
+            target,
+            f"project root {quote_source(root)} has no path relative to "
+            f"{quote_source(base)}: {exc}",
         ) from exc
     if not _is_relative_posix(text):
         raise registry_file_error(
-            target, f"project root {root} cannot be stored as {text!r}"
+            target,
+            f"project root {quote_source(root)} cannot be stored as "
+            f"{quote_source(text)}",
         )
     return text
 

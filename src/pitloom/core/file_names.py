@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import unicodedata
 
+from pitloom.core.quote_source import quote_source
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import warn_once
@@ -85,7 +86,8 @@ def sbom_base_name(value: str, label: str) -> str:
         return value
     if not is_plain_file_name(base):
         raise ValueError(
-            f"{label} must be a file name without {SPDX3_JSONLD_EXTENSION}: {value!r}"
+            f"{label} must be a file name without {SPDX3_JSONLD_EXTENSION}: "
+            f"{quote_source(value)}"
         )
     warn_once(
         log,

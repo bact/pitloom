@@ -285,4 +285,4 @@ def test_check_spdx3_name_version_delegates_to_compare() -> None:
 
 def test_format_name_version_mismatch() -> None:
     message = format_name_version_mismatch("pkg-1.0.0.whl", ["name: a vs b"])
-    assert message == "pkg-1.0.0.whl: SBOM/wheel name: a vs b"
+    assert message == "'pkg-1.0.0.whl': SBOM/wheel name: a vs b"

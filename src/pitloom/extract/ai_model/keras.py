@@ -37,6 +37,7 @@ from pitloom.core.ai_metadata import (
     AiModelMetadata,
     source_metadata,
 )
+from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
@@ -180,7 +181,8 @@ def read_keras(model_path: Path) -> AiModelMetadata:
         raise
     except zipfile.BadZipFile as exc:
         raise ValueError(
-            f"Failed to read Keras file {model_path}: not a valid ZIP archive"
+            f"Failed to read Keras file {quote_source(model_path)}: "
+            "not a valid ZIP archive"
         ) from exc
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
@@ -189,7 +191,9 @@ def read_keras(model_path: Path) -> AiModelMetadata:
             loggable(str(model_path)),
             loggable(str(exc)),
         )
-        raise ValueError(f"Failed to read Keras file {model_path}: {exc}") from exc
+        raise ValueError(
+            f"Failed to read Keras file {quote_source(model_path)}: {exc}"
+        ) from exc
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
             file_name=model_path.name,

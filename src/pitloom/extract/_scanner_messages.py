@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from pitloom.logging_config import one_line
+from pitloom.logging_config import escape_controls, one_line
 
 
 def _path_forms(path: Path) -> list[str]:
@@ -23,7 +23,12 @@ def _path_forms(path: Path) -> list[str]:
     real = os.path.realpath(path)
     forms = {path.as_posix(), Path(real).as_posix()}
     for spelling in (str(path), real):
-        forms |= {spelling, repr(spelling)[1:-1]}
+        forms |= {
+            spelling,
+            repr(spelling)[1:-1],
+            escape_controls(spelling),
+            escape_controls(spelling).replace("'", "\\'"),
+        }
     return sorted(filter(None, forms), key=len, reverse=True)
 
 

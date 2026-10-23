@@ -135,7 +135,10 @@ def _member_bytes(root: dict[str, bytes | Cap], member: str, sdist_name: str) ->
     """A present root member's bytes; over the cap is a read failure."""
     raw = root[member]
     if isinstance(raw, Cap):
-        raise ValueError(f"config file {sdist_name}:{member}: {raw.reason}; not read")
+        raise ValueError(
+            f"config file {quote_source(sdist_name + ':' + member)}: "
+            f"{raw.reason}; not read"
+        )
     return raw
 
 
@@ -258,7 +261,9 @@ def _member_config(sdist_name: str, member: str, parse: Callable[[], _T]) -> _T:
     try:
         return parse()
     except ValueError as exc:
-        raise ValueError(f"config file {sdist_name}:{member}: {exc}") from exc
+        raise ValueError(
+            f"config file {quote_source(sdist_name + ':' + member)}: {exc}"
+        ) from exc
 
 
 def _config(
@@ -317,7 +322,7 @@ def read_sdist(sdist_path: Path, *, read_config: bool = True) -> SdistContents:
             (``<archive>:pyproject.toml``).
     """
     if not sdist_path.exists():
-        raise FileNotFoundError(f"Sdist archive not found: {sdist_path}")
+        raise FileNotFoundError(f"Sdist archive not found: {quote_source(sdist_path)}")
 
     # The archive as given, as load_config_file() names a --config file.
     name = str(sdist_path)

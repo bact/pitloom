@@ -26,6 +26,7 @@ from pitloom.core.ai_metadata import (
     SourceMetadata,
     source_metadata,
 )
+from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model import archive_member
 from pitloom.extract.ai_model._pickle_bounds import first_pickle
@@ -245,7 +246,7 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
             # failing to extract) -- same "Raises: ValueError" contract
             # every sibling extractor (hdf5.py, numpy.py, ...) honours.
             raise ValueError(
-                f"Failed to read PyTorch file {model_path}: {exc}"
+                f"Failed to read PyTorch file {quote_source(model_path)}: {exc}"
             ) from exc
         raw = source_metadata(properties)
         return AiModelMetadata(
@@ -264,7 +265,9 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
         with open_model_zip(model_path) as zf:
             type_of_model, properties, raw, provenance = _read_pytorch_zip(zf, source)
     except (OSError, zipfile.BadZipFile) as exc:
-        raise ValueError(f"Failed to read PyTorch file {model_path}: {exc}") from exc
+        raise ValueError(
+            f"Failed to read PyTorch file {quote_source(model_path)}: {exc}"
+        ) from exc
 
     return AiModelMetadata(
         format_info=AiModelFormatInfo(

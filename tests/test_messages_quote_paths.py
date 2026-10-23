@@ -10,8 +10,9 @@ doubled and a newline cannot start another line.
 
 The formatter of `configure_logging` escapes control characters whatever a call
 site did, so this guards the display, not the line structure. It reads the
-source for calls of `log.<level>(...)` and `print(..., file=sys.stderr)`
-whose arguments (or f-string parts) name a path-like variable bare.
+source for calls of `log.<level>(...)`, `print(..., file=sys.stderr)`, `raise`
+statements and `*_message` builders whose arguments (or f-string parts) name a
+path-like variable bare.
 """
 
 from __future__ import annotations
@@ -20,13 +21,18 @@ import ast
 import re
 from pathlib import Path
 
+import pytest
+
+from pitloom.core.quote_source import quote_source
+from pitloom.extract.ai_model.reader import read_ai_model
+
 _SRC = Path(__file__).parent.parent / "src" / "pitloom"
 
 #: Variables and attributes that hold a user-given path or file name.
 _PATHY = re.compile(
     r"(^|_)(path|paths|dir|directory|filename|root|folder|member)$"
     r"|^(archive|archive_name|wheel_name|sdist_name|marker_name|candidate_name"
-    r"|lock_file|location|orig_filename|p|pattern)$"
+    r"|lock_file|location|orig_filename|p|pattern|wheel_obj|sboms_prefix)$"
 )
 _PART_ATTRIBUTES = frozenset({"name", "parent", "stem", "suffix"})
 _SAFE_CALLS = frozenset(
@@ -34,11 +40,8 @@ _SAFE_CALLS = frozenset(
         "quote_source",
         "loggable",
         "one_line",
-        "escape_controls",
-        "ascii",
+        "type",
         "excerpt",
-        "hide_temp_dir",
-        "sanitize_url_credentials",
     }
 )
 _LEVELS = frozenset({"debug", "info", "warning", "error", "critical", "exception"})
@@ -53,6 +56,7 @@ _QUOTING_CALLS = frozenset(
         "_fragment_read_failure_message",
         "_same_document_message",
         "failed_to_save_message",
+        "_unsupported_message",
         "name_key_reason",
         "detail",
         "detect_ai_model_format_from_name",
@@ -68,6 +72,12 @@ _NOT_PATHS: frozenset[tuple[str, str]] = frozenset(
         ("core/_config_keys.py", "path"),
         ("extract/_license_detect.py", "path"),
         ("extract/project/_pyproject_fields.py", "project_dir"),
+        # A TOML table path and a regex, shown with repr().
+        ("core/_config_read.py", "table_path"),
+        ("core/model_extract_limit.py", "table_path"),
+        ("core/_config_parse_scan.py", "pattern"),
+        # A URL shown with repr().
+        ("_loom_dataset_meta.py", "location"),
     }
 )
 
@@ -100,9 +110,15 @@ def _is_message_call(node: ast.Call) -> bool:
     )
 
 
+#: Calls that quote their leading path arguments (how many) and show the rest as given.
+_QUOTING_FIRST = {"registry_file_error": 1, "refusal": 2, "unreadable_member_error": 2}
+#: Constructors whose filename argument ``OSError`` shows with ``repr()``.
+_OS_ERRORS = frozenset({"PermissionError", "FileNotFoundError", "OSError"})
+
+
 def _arguments(call: ast.Call) -> list[ast.expr]:
     found: list[ast.expr] = []
-    for argument in call.args:
+    for argument in [*call.args, *(k.value for k in call.keywords)]:
         if isinstance(argument, ast.Starred):
             argument = argument.value
         if isinstance(argument, ast.JoinedStr):
@@ -140,12 +156,28 @@ def _bare(node: ast.AST) -> list[ast.expr]:
     return [bare for child in ast.iter_child_nodes(node) for bare in _bare(child)]
 
 
+def _raise_messages(exc: ast.Call) -> list[ast.expr]:
+    """The parts of ``raise <exc>`` that carry text: not what a quoting helper
+    quotes itself, nor the filename argument ``OSError`` shows."""
+    name = _called_name(exc)
+    if name in _QUOTING_CALLS:
+        return []
+    messages = _arguments(exc)
+    if name in _OS_ERRORS and len(exc.args) == 3:
+        return messages[:2]
+    return messages[_QUOTING_FIRST.get(name, 0) :]
+
+
 def _offenders(relative: str, tree: ast.AST) -> list[str]:
     found = []
     for node in ast.walk(tree):
         messages: list[ast.expr] = []
         if isinstance(node, ast.Call) and _is_message_call(node):
             messages = _arguments(node)
+        elif isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call):
+            # The text of an exception reaches stderr, a log line or a
+            # notification somewhere else: it names a path as the log does.
+            messages = _raise_messages(node.exc)
         elif isinstance(node, ast.FunctionDef) and node.name.endswith("_message"):
             # A builder returns the text another module logs or raises.
             messages = [
@@ -186,10 +218,30 @@ def test_the_guard_sees_a_bare_path() -> None:
         "print_error('in ' + wheel_path.name)\n"
         "print_error(f'in {wheel_path.name} ' + ('x' if sbom_filename else ''))\n"
         "log.warning(*args, wheel_path)\n"
+        "raise ValueError(f'x {path}')\n"
+        "raise ValueError(f'x {quote_source(path)}')\n"
+        "raise registry_file_error(path, f'x {root}')\n"
+        "raise registry_file_error(path, f'x {quote_source(root)}')\n"
+        "raise PermissionError(1, 'x', str(path))\n"
+        "raise PermissionError(1, f'x {path}', str(path))\n"
+        "raise RemoteError(code='c', message=f'x {path}')\n"
+        "raise refusal(a, e, f'x {root}')\n"
+        "raise refusal(a, e, f'x {quote_source(root)}')\n"
         "def failed_message(path):\n"
         "    return f'failed {path}'\n"
         "def other(path):\n"
         "    return f'failed {path}'\n"
     )
     found = {line.split(":")[1] for line in _offenders("x.py", ast.parse(source))}
-    assert found == {"1", "3", "5", "6", "7", "8", "10"}
+    assert found == {"1", "3", "5", "6", "7", "8", "9", "11", "14", "15", "16", "19"}
+
+
+@pytest.mark.parametrize("name", ["a\nERROR: forged", "it's", "a\\b"])
+def test_a_raised_path_is_quoted(tmp_path: Path, name: str) -> None:
+    """A path in an exception message is escaped and delimited."""
+    missing = tmp_path / name
+    with pytest.raises(FileNotFoundError) as info:
+        read_ai_model(missing)
+    message = str(info.value)
+    assert "\n" not in message
+    assert quote_source(missing) in message

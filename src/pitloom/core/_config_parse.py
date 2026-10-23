@@ -49,6 +49,7 @@ from pitloom.core.file_names import (
     is_plain_file_name,
     sbom_base_name,
 )
+from pitloom.core.quote_source import quote_source
 
 _VALID_PROVENANCE_FORMATS: frozenset[str] = frozenset({"annotation", "comment", "both"})
 _VALID_PROVENANCE_DETAIL: frozenset[str] = frozenset({"minimal", "full"})
@@ -232,11 +233,11 @@ def _read_fragment_entry(entry: dict[str, Any]) -> FragmentConfig:
     config errors are never silently coerced or defaulted around, only
     genuinely-absent optional fields get a default.
     """
-    path = entry.get("path")
-    if not isinstance(path, str) or not path:
+    declared = entry.get("path")
+    if not isinstance(declared, str) or not declared:
         raise ValueError(
             "[tool.pitloom.fragment] 'files' table entry is missing a "
-            f"valid 'path' (got {path!r})"
+            f"valid 'path' (got {declared!r})"
         )
     role = entry.get("role")
     if role is not None and not isinstance(role, str):
@@ -266,7 +267,7 @@ def _read_fragment_entry(entry: dict[str, Any]) -> FragmentConfig:
             f"a string, got {type(link_to_main).__name__}: {link_to_main!r}"
         )
     return FragmentConfig(
-        path=path,
+        path=declared,
         role=role,
         description=description,
         required=required,
@@ -305,7 +306,8 @@ def _check_sbom_basename(value: str | None) -> str | None:
         return None
     if not is_plain_file_name(value):
         raise ValueError(
-            f"[tool.pitloom] 'sbom-basename' must be a file name, not a path: {value!r}"
+            "[tool.pitloom] 'sbom-basename' must be a file name, not a path: "
+            f"{quote_source(value)}"
         )
     return sbom_base_name(value, CONFIG_BASENAME_LABEL)
 
@@ -443,7 +445,9 @@ def read_pitloom_config(pyproject_path: Path) -> PitloomConfig:
         ValueError: the file is not valid TOML or its settings are invalid.
     """
     if not pyproject_path.exists():
-        raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
+        raise FileNotFoundError(
+            f"pyproject.toml not found at {quote_source(pyproject_path)}"
+        )
 
     data: dict[str, Any] = load_toml_file(pyproject_path)
 

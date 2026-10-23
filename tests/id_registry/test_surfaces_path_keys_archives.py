@@ -23,6 +23,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.assemble import generate, generate_project_sbom, generate_wheel_sbom
+from pitloom.core.quote_source import quote_source
 from pitloom.id_registry import IdRegistry
 from tests.assemble.conftest import _make_dummy_wheel, _make_sdist
 from tests.id_registry._surfaces_path_keys_shared import (
@@ -129,7 +130,9 @@ def test_cli_project_dir_not_a_directory_fails(
     assert code == 1
     (line,) = [x for x in capsys.readouterr().err.splitlines() if "ERROR" in x]
     assert line.startswith("ERROR: ")
-    assert line.endswith(f"project directory not found: {given.resolve()}")
+    assert line.endswith(
+        f"project directory not found: {quote_source(given.resolve())}"
+    )
     assert not out.exists()
 
 
