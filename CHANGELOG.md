@@ -185,6 +185,8 @@ and this project adheres to
   ([#343])
 - A timed-out git clone is killed with its child processes on Windows
   ([#344])
+- A fragment's value replaces a model's description, domain or input/output
+  text that Pitloom generated from the file's format ([#349])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
@@ -216,6 +218,7 @@ and this project adheres to
 [#342]: https://github.com/bact/pitloom/pull/342
 [#343]: https://github.com/bact/pitloom/pull/343
 [#344]: https://github.com/bact/pitloom/pull/344
+[#349]: https://github.com/bact/pitloom/pull/349
 
 ## [0.20.2] - 2026-10-09
 
