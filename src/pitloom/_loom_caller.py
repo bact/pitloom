@@ -111,7 +111,9 @@ def _get_caller_info() -> str:
 
 
 def _get_caller_script_path() -> str | None:
-    """Return the cwd-relative POSIX path of the script that opened the active Run."""
+    """The path of the script that opened the active Run: POSIX and relative to
+    the current directory when below it, else absolute (a label, not a path
+    to open: see :func:`cwd_relative_label`)."""
     try:
         for frame_info in inspect.stack():
             filename = frame_info.filename
@@ -126,7 +128,7 @@ def _get_caller_script_path() -> str | None:
             if not path.is_file():
                 return None
             try:
-                return path.resolve().relative_to(Path.cwd()).as_posix()
+                return path.resolve().relative_to(Path.cwd().resolve()).as_posix()
             except ValueError:
                 return path.as_posix()
     # pylint: disable-next=broad-exception-caught

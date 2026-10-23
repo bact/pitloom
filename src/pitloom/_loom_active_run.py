@@ -25,6 +25,7 @@ from pitloom._loom_caller import (
     _get_caller_info,
     _get_caller_script_path,
     _record_hyperparameter_provenance,
+    cwd_relative_label,
 )
 from pitloom._loom_dataset import LoomElements
 from pitloom._loom_dataset_meta import read_sources
@@ -119,7 +120,7 @@ class _ActiveRun:
         self.caller_script: tuple[str, Path] | None = (
             None
             if script_path is None
-            else (script_path, Path(os.path.abspath(script_path)))
+            else (cwd_relative_label(script_path), Path(os.path.abspath(script_path)))
         )
         self._model_generated: bool | None = None
 
