@@ -243,8 +243,8 @@ Resolved by reading CRFsuite's source and running python-crfsuite 0.9.12
 
 Still open:
 
-- A real description from a fragment or catalogue must win over the
-  generated one: confirm the merge order treats it as weak.
+- Done (2026-10-23): a description from a fragment replaces the generated one
+  (`_fragments_generated.py`, `docs/fragments.md`).
 - **Personal-data hints.** Label names such as `B-PERSON`, `B-PHONE`,
   `B-EMAIL` suggest a model trained on personal data. Leave any
   `ai_useSensitivePersonalInformation` inference to the `sbom-enrich`

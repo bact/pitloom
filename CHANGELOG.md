@@ -195,6 +195,8 @@ and this project adheres to
 - URL messages mask a secret-named query value and a userinfo holding
   whitespace; a Hugging Face URL's query is no part of the model id
   ([#347])
+- A fragment's value replaces a model's description, domain or input/output
+  text that Pitloom generated from the file's format ([#349])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
@@ -227,6 +229,7 @@ and this project adheres to
 [#343]: https://github.com/bact/pitloom/pull/343
 [#344]: https://github.com/bact/pitloom/pull/344
 [#347]: https://github.com/bact/pitloom/pull/347
+[#349]: https://github.com/bact/pitloom/pull/349
 
 ## [0.20.2] - 2026-10-09
 

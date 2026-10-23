@@ -97,6 +97,10 @@ _SUMMARY = "a summary: the description is a card's opening paragraph, cut short"
 
 #: ``module:constant`` -> why it does not warn through warn_over_cap.
 _ALLOWED = {
+    "assemble/spdx3/_fragments_generated.py:MAX_JSON_DEPTH": (
+        "a comparison: deeper JSON is not read as the same, and the plain merge "
+        "reports a differing value"
+    ),
     "extract/remote/_card_description.py:MAX_DESCRIPTION_CHARS": _SUMMARY,
     "assemble/spdx3/_license_elements.py:_MAX_NAME_LENGTH": _DISPLAY,
     "assemble/spdx3/deps_pypi.py:_PYPI_LICENSE_FIELD_MAX_LEN": _HEURISTIC,

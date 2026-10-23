@@ -175,11 +175,11 @@ Real servers: Bitbucket `zzzeek/sqlalchemy`, SourceHut `~sircmpwn/scm.sr.ht`.
   rule. #300 turned setuptools's deprecation banners into `DEBUG:`; these are a
   different source. Not yet checked for a local checkout. See
   [known-bugs.md](known-bugs.md).
-- Open, confirmed by a probe: in a project directory, a curated fragment
-  `description` for a CRFsuite model loses to the one generated from its labels
+- Fixed in 0.21.0 (found by a probe): in a project directory, a curated fragment
+  `description` for a CRFsuite model lost to the one generated from its labels
   (`Method: generated_from_labels`), with `WARNING: Merge: conflicting
-  'description'`. The documented rule is that the project's value wins; the
-  generated one should be weak. See [known-bugs.md](known-bugs.md).
+  'description'`. A fragment's value now replaces a generated one; see
+  [known-bugs.md](known-bugs.md) and `docs/fragments.md`.
 - Still open in Git URL ingestion: DNS-rebinding protection, an imperative
   `setup.py` reader, a short Bitbucket commit id (refused: a server cannot be
   asked for an abbreviated id).

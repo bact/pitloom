@@ -29,6 +29,20 @@ _KEY_MAP = {
     "role": "role",
 }
 
+#: Provenance ``Method`` values of a field Pitloom made from a file's own format
+#: (the labels of a model, the kind of a model) rather than read from it. A
+#: fragment's value for the same property replaces it.
+GENERATED_METHODS = frozenset({"generated_from_labels", "derived_from_format"})
+
+#: SPDX property of an ``ai_AIPackage`` -> the provenance fields that write it,
+#: as ``pitloom.assemble.spdx3._ai_package`` assigns them. A property is
+#: generated when every one of these fields present is.
+PROVENANCE_PROPERTY_FIELDS = {
+    "description": frozenset({"description"}),
+    "ai_domain": frozenset({"domain"}),
+    "ai_informationAboutApplication": frozenset({"inputs", "outputs"}),
+}
+
 #: Smallest possible non-empty JCS-encoded JSON object (e.g. ``{"a":""}``),
 #: computed from the real serializer so it can't silently drift from it.
 MIN_SOURCE_METADATA_BYTES = len(rfc8785.dumps({"a": ""}))
