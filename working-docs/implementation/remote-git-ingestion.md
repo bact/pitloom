@@ -70,6 +70,11 @@ missing directory.
 - **`RemoteSourceError` carries a code** (`git.clone-failed`, `git.timeout`,
   `git.ref-not-found`, `git.path-not-found`, `git.no-project`, ...), so a caller
   (Lumina) maps it to its own vocabulary without parsing text.
+- **A size cap is the caller's.** `fetch_git_project(max_bytes=)` polls the
+  checkout's size while `git` runs (every 0.25 s) and kills it past the cap
+  (`git.too-large`), and checks once more when the call ends; bandwidth is
+  spent before it stops, but disk and memory are not. The CLI sets none, as
+  it sets no `check_url`.
 
 ## Problems the tests found
 

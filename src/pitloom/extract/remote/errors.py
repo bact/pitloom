@@ -20,9 +20,9 @@ class RemoteSourceError(Exception):
     vocabulary (``git.clone-failed``, ``git.timeout``, ``git.not-found``,
     ``git.offline``, ``git.url-invalid``, ``git.ref-not-found``,
     ``git.path-not-found``, ``git.too-many-redirects``,
-    ``git.output-too-large``, ``git.no-project``, and any code a caller's
-    own URL check raises through :class:`RemoteSourceError`); the message is
-    for the user.
+    ``git.output-too-large``, ``git.too-large``, ``git.no-project``, and any
+    code a caller's own URL check raises through :class:`RemoteSourceError`);
+    the message is for the user.
     """
 
     def __init__(self, code: str, message: str) -> None:

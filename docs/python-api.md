@@ -94,10 +94,13 @@ on return. It is untrusted: its own `[tool.pitloom]` is ignored unless you pass
 `pitloom.extract.remote.RemoteSourceError` whose `code` names it
 (`git.clone-failed`, `git.timeout`, `git.ref-not-found`, `git.path-not-found`,
 `git.no-project`, `git.url-invalid`, `git.offline`, `git.too-many-redirects`,
-`git.not-found`, `git.output-too-large`); *check_url* may raise any exception to
-refuse an address, and it reaches you unchanged. To read the fetched project
-yourself, use `pitloom.extract.remote.fetch_git_project(url)`, a context
-manager yielding the folder. See [SBOM from a Git URL](git-urls.md).
+`git.not-found`, `git.output-too-large`, `git.too-large`); *check_url* may raise
+any exception to refuse an address, and it reaches you unchanged. To read the
+fetched project yourself, use `pitloom.extract.remote.fetch_git_project(url)`,
+a context manager yielding the folder. Its *max_bytes*, and
+`generate_git_project_sbom(max_clone_bytes=)`, stop the fetch, with
+`git.too-large`, once the checkout takes more disk than that (no limit by
+default, and the CLI sets none). See [SBOM from a Git URL](git-urls.md).
 
 When a supported lock file (`pylock.toml`, `uv.lock`, `poetry.lock`,
 `pdm.lock`, `Pipfile.lock`, or pinned `requirements.txt`) is present

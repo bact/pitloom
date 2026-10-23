@@ -49,9 +49,13 @@ def _seen(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
 
     @contextmanager
     def fetch(
-        url: str, *, check_url: object = None, offline: bool | None = None
+        url: str,
+        *,
+        check_url: object = None,
+        offline: bool | None = None,
+        max_bytes: int | None = None,
     ) -> Iterator[GitCheckout]:
-        seen.update(url=url, check_url=check_url, offline=offline)
+        seen.update(url=url, check_url=check_url, offline=offline, max_bytes=max_bytes)
         yield GitCheckout(str(folder), url, None, "c", "", True)
 
     monkeypatch.setattr(_generators_git, "fetch_git_project", fetch)
@@ -117,6 +121,14 @@ def test_generate_passes_the_address_check_and_offline_to_the_fetch(
 
     generate(_URL, check_url=check, offline=False)
     assert seen["check_url"] is check and seen["offline"] is False
+
+
+@pytest.mark.parametrize("given", [1234, None])
+def test_the_clone_size_cap_reaches_the_fetch(
+    seen: dict[str, object], given: int | None
+) -> None:
+    generate_git_project_sbom(_URL, max_clone_bytes=given)
+    assert seen["max_bytes"] == given
 
 
 def test_an_option_a_remote_repository_cannot_use_warns_once(

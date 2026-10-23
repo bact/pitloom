@@ -8,6 +8,7 @@ prompt, no LFS download, a time and an output limit."""
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import re
@@ -17,10 +18,12 @@ import signal
 import subprocess  # nosec B404
 import threading
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import IO, cast
 
 from pitloom.extract.remote import git_url
+from pitloom.extract.remote._git_size import SizeCap, readable_bytes, tree_bytes
 from pitloom.extract.remote.errors import RemoteSourceError
 from pitloom.logging_config import loggable, sanitize_url_credentials
 
@@ -35,6 +38,9 @@ GIT_TIMEOUT_SECONDS = 600.0
 MAX_OUTPUT_BYTES = 8 * 1024 * 1024
 
 _READ_CHUNK = 64 * 1024
+
+#: Seconds between looks at how much a running call has written.
+_SIZE_POLL_SECONDS = 0.25
 
 #: Settings every call runs with. A redirect is followed by hand (each hop
 #: checked), and git-lfs, which would fetch from an address the repository's
@@ -73,19 +79,31 @@ class GitRunner:
 
     seconds: float = field(default_factory=lambda: GIT_TIMEOUT_SECONDS)
     started: float = field(default_factory=time.monotonic)
+    #: The most bytes a call that fetches may write below its *watch*
+    #: directory; ``None`` for no limit.
+    max_bytes: int | None = None
 
     def remaining(self) -> float:
         """Seconds left of the shared deadline."""
         return self.seconds - (time.monotonic() - self.started)
 
-    def run(self, args: list[str], what: str, *, echo: bool = True) -> str:
-        """Run ``git`` with *args*; return its standard output.
+    def run(
+        self,
+        args: list[str],
+        what: str,
+        *,
+        echo: bool = True,
+        watch: str | None = None,
+    ) -> str:
+        """Run ``git`` with *args*; return its standard output. With *watch*
+        (a directory the call writes to) and :attr:`max_bytes`, the call is
+        stopped once that directory holds more.
 
         Raises:
             RemoteSourceError: ``git.not-found`` (no ``git``),
-                ``git.timeout`` (the deadline passed),
-                ``git.output-too-large`` or ``git.clone-failed`` (git failed;
-                the message is its own).
+                ``git.timeout`` (the deadline passed), ``git.too-large``
+                (the cap was passed), ``git.output-too-large`` or
+                ``git.clone-failed`` (git failed; the message is its own).
         """
         git = shutil.which("git")
         if git is None:
@@ -106,7 +124,16 @@ class GitRunner:
             raise RemoteSourceError(
                 "git.timeout", f"git {what} did not start within {self.seconds:.0f}s"
             )
-        status, out, err = _capture(command, left)
+        cap = None
+        if watch is not None and self.max_bytes is not None:
+            cap = SizeCap(watch, self.max_bytes)
+        status, out, err = _capture(command, left, cap)
+        if cap is not None and (cap.exceeded or tree_bytes(watch or "") > cap.limit):
+            raise RemoteSourceError(
+                "git.too-large",
+                f"the repository is larger than {readable_bytes(cap.limit)}; "
+                f"git {what} was stopped",
+            )
         if status is None:
             raise RemoteSourceError(
                 "git.timeout", f"git {what} exceeded {self.seconds:.0f}s"
@@ -163,10 +190,42 @@ def _kill(proc: subprocess.Popen[bytes]) -> None:
         proc.kill()
 
 
-def _capture(command: list[str], seconds: float) -> tuple[int | None, str | None, str]:
+def _watch_size(
+    proc: subprocess.Popen[bytes], cap: SizeCap, done: threading.Event
+) -> None:
+    """Kill *proc* once more than ``cap.limit`` bytes are below ``cap.path``;
+    return when *done* is set."""
+    while not done.wait(_SIZE_POLL_SECONDS):
+        if tree_bytes(cap.path) > cap.limit:
+            cap.exceeded = True
+            _kill(proc)
+            return
+
+
+@contextlib.contextmanager
+def _size_watch(proc: subprocess.Popen[bytes], cap: SizeCap | None) -> Iterator[None]:
+    """Watch the size of *cap*'s directory while *proc* runs (nothing when
+    *cap* is ``None``)."""
+    if cap is None:
+        yield
+        return
+    done = threading.Event()
+    watcher = threading.Thread(target=_watch_size, args=(proc, cap, done), daemon=True)
+    watcher.start()
+    try:
+        yield
+    finally:
+        done.set()
+        watcher.join()
+
+
+def _capture(
+    command: list[str], seconds: float, cap: SizeCap | None = None
+) -> tuple[int | None, str | None, str]:
     """Run *command* for at most *seconds*: its exit status (``None`` when
     killed for time), its standard output (``None`` when over
-    :data:`MAX_OUTPUT_BYTES`, then killed) and its standard error."""
+    :data:`MAX_OUTPUT_BYTES`, then killed) and its standard error. With *cap*,
+    it is killed when it passes it (``cap.exceeded``)."""
     with subprocess.Popen(  # nosec B603: argv list, no shell
         command,
         stdout=subprocess.PIPE,
@@ -194,13 +253,14 @@ def _capture(command: list[str], seconds: float) -> tuple[int | None, str | None
         too_large = False
         stdout = cast(IO[bytes], proc.stdout)  # a pipe: set by PIPE
         try:
-            while block := stdout.read(_READ_CHUNK):
-                size += len(block)
-                if size > MAX_OUTPUT_BYTES:
-                    too_large = True
-                    _kill(proc)
-                    break
-                chunks.append(block)
+            with _size_watch(proc, cap):
+                while block := stdout.read(_READ_CHUNK):
+                    size += len(block)
+                    if size > MAX_OUTPUT_BYTES:
+                        too_large = True
+                        _kill(proc)
+                        break
+                    chunks.append(block)
         except BaseException:  # Ctrl-C must not leave git running
             _kill(proc)
             raise
