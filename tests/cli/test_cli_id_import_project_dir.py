@@ -70,16 +70,18 @@ def test_import_from_above_the_project(
     assert (_file_ids(above / "first.json") == _file_ids(second)) is kept
 
 
+@pytest.mark.usefixtures("above")
 def test_a_project_dir_that_is_not_a_directory_is_refused(
-    monkeypatch: pytest.MonkeyPatch, above: Path, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     argv = ["id", "import", "first.json", "-o", "r.json", "--project-dir", "absent"]
     assert _run(monkeypatch, *argv) == 1
     assert "ERROR: --project-dir absent is not a directory" in capsys.readouterr().err
 
 
+@pytest.mark.usefixtures("above")
 def test_a_project_dir_other_than_the_registry_root_is_refused(
-    monkeypatch: pytest.MonkeyPatch, above: Path, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """An existing registry keeps its root; a different explicit one errors."""
     base = ["id", "import", "first.json", "-o", "reg.json"]

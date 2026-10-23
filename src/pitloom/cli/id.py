@@ -285,18 +285,13 @@ def _run_id_import(args: argparse.Namespace) -> int:
         registry_path, from_project_key, slot = _resolve_id_registry_target(
             args.id_registry, project_dir
         )
-    except (ValueError, OSError) as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
-    is_new = not os.path.lexists(registry_path)
-
-    try:
+        is_new = not os.path.lexists(registry_path)
         registry = _load_or_create_registry(
             registry_path, sbom_path.stem, project_root=project_dir
         )
         if not is_new and args.project_dir is not None:
             registry.require_project_root(project_dir)
-    except ValueError as exc:
+    except (ValueError, OSError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
