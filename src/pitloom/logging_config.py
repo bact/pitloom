@@ -103,8 +103,8 @@ _SECRET_ENDINGS = ("_token", "-token", "_secret", "-secret", "_key", "-key") + (
 
 #: ``://`` and a userinfo of a text that is one URL: up to the last ``@``
 #: before the first ``/``, whatever characters (a newline, a space) it holds.
-#: ``:/`` too, for a URL a path normalisation collapsed.
-_WHOLE_URL_USERINFO_RE = re.compile(r":/{1,2}[^/@][^/]*@")
+#: ``:/`` and ``:\\`` too, for a URL a path normalisation collapsed.
+_WHOLE_URL_USERINFO_RE = re.compile(r":[/\\]{1,2}[^/\\@][^/\\]*@")
 
 
 def _mask_param(match: re.Match[str]) -> str:

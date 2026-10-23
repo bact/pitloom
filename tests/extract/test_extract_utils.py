@@ -364,3 +364,14 @@ def test_quote_source_escapes_only_what_would_break_a_line(
 ) -> None:
     """Control characters and lone surrogates are escaped; text is not."""
     assert quote_source(source) == expected
+
+
+@pytest.mark.parametrize(
+    "path",
+    [r"D:\a\https:\user:SECRET@huggingface.co\o\m", "/cwd/https:/user:SECRET@h/o/m"],
+    ids=["windows", "posix"],
+)
+def test_sanitize_url_redacts_a_url_a_path_normalisation_collapsed(path: str) -> None:
+    """``https://u:p@h`` becomes ``https:/u:p@h`` (POSIX) or ``https:\\u:p@h``
+    (Windows) when it is read as a path."""
+    assert "SECRET" not in sanitize_url(path)
