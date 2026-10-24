@@ -157,9 +157,10 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   model's own name, or its file name stem, whichever is shown, and its
   base model, dataset and dataset creator names, and the model originator
   names. A base model's or dataset's registry key and `spdxId` use the same cut
-  name (a model with a file is keyed by its path instead); an originator
-  `Agent` has a counter id (`--update-id-registry` records it by name, but
-  nothing looks it up).
+  name (a model with a file is keyed by its path instead); a generic `Agent`
+  (originator, supplier, dataset creator) has an id carrying its name,
+  `Agent-<name>-1` (`--update-id-registry` records it by name, but nothing
+  looks it up).
   `WARNING: FORMAT=<fmt> FILE=<path>: larger than the 1024-character name
   cap; model name cut` (or `base model name`, `dataset name`, `dataset
   creator name`, `model originator name`, the last one warning once per

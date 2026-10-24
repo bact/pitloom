@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -67,6 +67,7 @@ pitloom/
 │   └── pitloom/
 │       ├── assemble/               # Layers 2+3 -- build DocumentModel + map to spec
 │       │   ├── spdx3/              # SPDX 3 specific (future: spdx23, cyclonedx)
+│       │   │   ├── _agents.py  # The one generic Agent per name (originators, supplier, dataset creators)
 │       │   │   ├── _ai_originators.py  # Model originators and supplier as Agents
 │       │   │   ├── _ai_package.py  # AIPackage creation and optional field mapping
 │       │   │   ├── _dep_scope.py  # Edge kind of a dependency: required or optional (extras)
