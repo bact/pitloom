@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -61,7 +61,9 @@ unioned with the fragment's, and the text of the input/output description is
 replaced whole, the model's inputs with its outputs. An empty fragment value
 replaces nothing, and neither does the same value in another spelling (a list
 in another order, JSON text with other spacing), also when a later fragment
-says again what was replaced, whatever the order of the fragments. The
+says again what was replaced, whatever the order of the fragments. Two
+fragments that hold the same JSON text in other spacing or key order do not
+conflict, for any property: the first one's spelling stays. The
 input/output text counts as generated when its `inputs` and `outputs` are; any
 other key in it (an intended use) is replaced with it. Every AI model of the
 project SBOM with generated provenance is covered: in `loom merge` there is no base document, a model that `loom
