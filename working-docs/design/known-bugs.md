@@ -56,7 +56,10 @@ Size: S under half a day, M about a day.
   a generated value; a later fragment A' was A in other JSON spacing and earned
   `WARNING: Merge: conflicting`, while a respelling of the *generated* value
   was silent. The field merge now reads two texts that are the same JSON as one
-  value, for every string property (`_fragments_equal.py`).
+  value, for a text property merged field by field (`_fragments_equal.py`;
+  list items, comments and model names still compare as text, which is ledgered
+  in the 2026-10-24 review of this fix: the same JSON pair folds as a scalar and
+  stays two list items).
 - [x] **Same AI model gets different ids per surface; enrichment can hit
   the wrong model (S-M).** Found in the #292 review (`loom model` looked a
   model up by file stem only, a project scan by name, path, then stem). Fixed

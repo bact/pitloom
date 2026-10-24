@@ -39,6 +39,9 @@ from tests.assemble.test_fragments_generated import _base, _levels, _merge
         pytest.param("[0.1]", "[0.10000000000000000001]", False, id="float-precision"),
         pytest.param('{"a":1}', '{"a":2,"a":1}', False, id="repeated-key"),
         pytest.param('["\\ud800"]', '[ "\\ud800"]', True, id="lone-surrogate"),
+        pytest.param('["\ud800"]', '[ "\ud800"]', True, id="raw-lone-surrogate"),
+        pytest.param('["\\u0041"]', '["A"]', True, id="escape-spelling"),
+        pytest.param("[-0]", "[0]", True, id="negative-zero-int"),
         pytest.param("not json", "not json ", False, id="not-json"),
         pytest.param("1", " 1", False, id="scalar-number"),
         pytest.param("true", "\ntrue", False, id="scalar-boolean"),
@@ -124,12 +127,14 @@ def test_a_scalar_that_reads_as_json_is_still_a_conflict(
 ) -> None:
     """Only an object or array folds: a version ``1`` and `` 1`` are two texts,
     kept as before with the conflict warning."""
-    base = _base({})
     model, records, _ = _merge(
-        tmp_path, caplog, base, [{"software_packageVersion": "1"}, {"name": " 1"}]
+        tmp_path,
+        caplog,
+        _base({}),
+        [{"software_packageVersion": "1"}, {"software_packageVersion": " 1"}],
     )
     assert logging.WARNING in _levels(records)
-    assert model["name"] == "m"
+    assert model["software_packageVersion"] == "1"
 
 
 @pytest.mark.parametrize(
@@ -140,8 +145,10 @@ def test_a_scalar_that_reads_as_json_is_still_a_conflict(
             datetime(2026, 1, 1, tzinfo=timezone.utc),
             datetime(2027, 1, 1, tzinfo=timezone.utc),
         ),
+        ("[1]", 1),
+        (1, "[1]"),
     ],
-    ids=["int", "datetime"],
+    ids=["int", "datetime", "text-vs-number", "number-vs-text"],
 )
 def test_a_differing_value_that_is_no_text_is_a_conflict(
     caplog: pytest.LogCaptureFixture, old: object, new: object
