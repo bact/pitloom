@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -409,8 +409,11 @@ file, so the surviving header path is proven untouched.
 - A `License ::` classifier such as `OSI Approved :: MIT License` gives the
   text `MIT License`, not the SPDX id (a known deviation, see
   license-typing.md).
-- A warning for an unknown id in a field that must hold an SPDX expression
-  (PEP 639 `license`, `License-Expression`) is a 0.21.0 follow-up.
+- An unknown id in a field that holds an SPDX expression only (PEP 639
+  `license`, `License-Expression`, PyPI `license_expression`,
+  `SPDX-License-Identifier`, GGUF `general.license`) is text with one
+  `WARNING:` naming the field (`warn_unless_expression`; see
+  license-typing.md).
 
 ## Related source files
 

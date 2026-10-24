@@ -43,6 +43,7 @@ from pitloom.extract._license_classify import (
     same_licence,
     tag_deprecated_license_ids,
     tag_license_normalization,
+    warn_unless_expression,
     with_successor_ids,
 )
 from pitloom.extract._license_detect import (
@@ -96,6 +97,7 @@ __all__ = [
     "stated_license",
     "tag_deprecated_license_ids",
     "tag_license_normalization",
+    "warn_unless_expression",
 ]
 
 

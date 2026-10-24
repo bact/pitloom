@@ -34,6 +34,7 @@ from pitloom.export.spdx3_json import (
     file_hashes,
     require_spdx_id,
 )
+from pitloom.extract._license import warn_unless_expression
 
 # SPDX 2.x FileType -> SPDX 3 SoftwarePurpose: only the categories with a
 # clean, identity-shaped equivalent. BINARY/AUDIO/IMAGE/TEXT/VIDEO
@@ -214,6 +215,7 @@ def _emit_file_license_relationship(
     license_id = package_file.spdx_license_identifier
     if not license_id:
         return
+    warn_unless_expression(license_id, "SPDX-License-Identifier")
     license_provenance = f"Source: {file_path} | Field: SPDX-License-Identifier"
 
     relationship = build_file_declared_license(

@@ -27,10 +27,12 @@ from pitloom.extract._extract_utils import field_declared
 from pitloom.extract._license import (
     apply_in_package_license_files,
     stated_license,
+    warn_unless_expression,
 )
 from pitloom.extract._license_detect import read_license_members
 from pitloom.extract.authors import collapse_whitespace
 from pitloom.extract.project._optional_dependencies import add_optional_dependencies
+from pitloom.extract.project._pyproject_license import PEP_639_LICENSE_FIELD
 from pitloom.extract.project.pyproject import fill_from_poetry
 
 _PROVENANCE_SOURCE = "Source: Hatchling build backend"
@@ -108,12 +110,16 @@ def _resolve_hatchling_readme(core: Any) -> str | None:
 
 def _resolve_hatchling_license(core: Any, provenance: dict[str, str]) -> str | None:
     """The licence Hatchling core states: ``project.license``, then a
-    ``License ::`` classifier (the rule every surface uses). The project's
-    own licence files follow in :func:`metadata_from_hatchling`."""
+    ``License ::`` classifier (the rule every surface uses). A PEP 639
+    string that is no SPDX expression Pitloom reads (an id newer than its
+    bundled list; Hatchling refuses an unknown one) is text, with a
+    ``WARNING:``, as from ``pyproject.toml``. The project's own licence
+    files follow in :func:`metadata_from_hatchling`."""
     try:
-        license_hint = core.license_expression or core.license or None
+        expression = core.license_expression or None
+        license_hint = expression or core.license or None
     except OSError:
-        license_hint = None
+        expression = license_hint = None
 
     license_hint, from_classifier = license_or_classifier(
         license_hint, core.classifiers or []
@@ -121,6 +127,8 @@ def _resolve_hatchling_license(core: Any, provenance: dict[str, str]) -> str | N
     if from_classifier:
         provenance["license"] = _field_provenance("classifiers")
         return license_hint
+    if expression is not None:
+        warn_unless_expression(expression, PEP_639_LICENSE_FIELD)
     license_name, license_prov = stated_license(
         license_hint, _field_provenance("license")
     )

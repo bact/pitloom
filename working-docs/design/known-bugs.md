@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -94,10 +94,11 @@ Size: S under half a day, M about a day.
 
 ## P2: in 0.21.0
 
-- [ ] **An unknown id in an SPDX-only field is not reported (S-M).** After
-  licence typing, `license = "Apache2"` (PEP 639) or `License-Expression: BSD`
-  becomes licence text silently; warn only for fields that must hold an SPDX
-  expression, which needs the source field passed through the six readers.
+- [x] **An unknown id in an SPDX-only field is not reported (S-M).** Fixed
+  on branch `unknown-spdx-id-warns`: the value stays text, plus one
+  `WARNING:` per value naming the field (`warn_unless_expression`, called by
+  each reader where the field is known). See
+  [license-typing.md](../implementation/license-typing.md#unknown-id-in-an-spdx-only-field).
   Legacy `License:` stays silent.
 - [ ] **A licence classifier becomes text, not an SPDX id (S).** Deferred
   by #276 (needs a newer `licenseid`; "Known deviation" in

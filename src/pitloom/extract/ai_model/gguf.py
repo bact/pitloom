@@ -29,6 +29,7 @@ from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
+from pitloom.extract._license import warn_unless_expression
 from pitloom.extract.ai_model._gguf_bounds import check_gguf_header
 from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
@@ -288,10 +289,12 @@ def _read_gguf_license(
 ) -> str | None:
     """Return ``general.license`` (an SPDX expression by the GGUF spec), if
     it is a non-blank string; a value of another type stays in
-    ``properties`` only."""
+    ``properties`` only. One that is no SPDX expression (``llama3.1``) is
+    text, with a ``WARNING:``."""
     license_expr = _stated_text(fields.get(_GGUF_LICENSE_KEY))
     if not license_expr:
         return None
+    warn_unless_expression(license_expr, _GGUF_LICENSE_KEY)
     provenance["license"] = f"{source} | Field: {_GGUF_LICENSE_KEY}"
     return license_expr
 

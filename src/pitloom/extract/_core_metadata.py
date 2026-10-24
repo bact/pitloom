@@ -19,7 +19,7 @@ from collections.abc import Iterable, Sequence
 from importlib.metadata import PackageMetadata
 from typing import TYPE_CHECKING
 
-from pitloom.extract._license import classify_license
+from pitloom.extract._license import classify_license, warn_unless_expression
 from pitloom.extract.authors import (
     CORE_METADATA_HINT,
     AuthorSplit,
@@ -249,7 +249,10 @@ def core_metadata_license_with_source(
     text (:attr:`importlib.metadata.Distribution.metadata` has removed the
     fold already); the provenance names the classifier when one was used. When
     none states a licence: ``None`` if neither header is present, ``""`` if
-    one is present but blank (declared "no value", not absent).
+    one is present but blank (declared "no value", not absent). A
+    ``License-Expression`` that is no SPDX expression is recorded as text
+    with a ``WARNING:`` (:func:`~pitloom.extract._license.warn_unless_expression`);
+    a ``License`` text is free text, quiet.
     """
     fields = [
         _unfolded(_get_str(msg, "License-Expression")),
@@ -258,4 +261,6 @@ def core_metadata_license_with_source(
     index, licence = license_cascade(fields, msg.get_all("Classifier") or [])
     if index is None:
         return ("" if any(f is not None for f in fields) else None), source
+    if index == 0:
+        warn_unless_expression(licence, "License-Expression")
     return licence, classifier_provenance(source) if index == 2 else source

@@ -20,6 +20,7 @@ from packaging.utils import canonicalize_name
 
 from pitloom.extract._core_metadata import classifier_provenance, license_cascade
 from pitloom.extract._extract_utils import fetch_json
+from pitloom.extract._license import warn_unless_expression
 from pitloom.extract.dependency_authors import dependency_originator_pairs
 from pitloom.extract.lock._hash_selection import select_sha256_hash
 
@@ -61,7 +62,8 @@ def _text(value: Any) -> str | None:
 def _extract_pypi_license(info: dict[str, Any], source: str) -> tuple[str | None, str]:
     """Return ``(licence, provenance)`` from a PyPI JSON API ``info`` object
     read from *source*; the licence is ``None`` when the record states none.
-    Prefers PEP 639 ``license_expression``, then the legacy free-text
+    Prefers PEP 639 ``license_expression`` (one that is no SPDX expression
+    is text, with a ``WARNING:``), then the legacy free-text
     ``license`` field (skipped if implausibly long -- see
     :data:`_PYPI_LICENSE_FIELD_MAX_LEN`), then an OSI/other ``License ::``
     trove classifier, whose provenance says so (``Field: Classifier``).
@@ -72,14 +74,16 @@ def _extract_pypi_license(info: dict[str, Any], source: str) -> tuple[str | None
     statement and is returned as any other value.
     """
     # As recorded: the licence element builder normalises a text's ends.
-    expression = info.get("license_expression") or None
-    legacy = info.get("license") or None
+    expression = _text(info.get("license_expression")) or None
+    legacy = _text(info.get("license")) or None
     if legacy and len(legacy.strip()) > _PYPI_LICENSE_FIELD_MAX_LEN:
         legacy = None
     classifiers = info.get("classifiers")
     index, licence = license_cascade(
         [expression, legacy], classifiers if isinstance(classifiers, list) else []
     )
+    if index == 0:
+        warn_unless_expression(licence, "license_expression")
     return licence, classifier_provenance(source) if index == 2 else source
 
 

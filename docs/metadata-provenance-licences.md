@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -111,6 +111,32 @@ A deprecated id ending `+` becomes its `-or-later` successor (`GPL-2.0+` is
 whether `-only` or `-or-later` was meant is unknown. Text that has an
 operator or parenthesis and a known id, so looks like a broken expression
 (`MIT OR`), is kept as text with one `WARNING:` per value.
+
+Some fields hold an SPDX expression only. A value there that is not one
+Pitloom reads (`Apache2`, `MIT OR Foo`, a licence text) is still recorded as
+text, as written, and gets one `WARNING:` per value per run, naming the
+field:
+
+```text
+WARNING: FIELD=project.license LICENSE='Apache2': not read as an SPDX license expression (Unknown Expression 'Apache2'); recorded as license text
+```
+
+| Field | Read from |
+| --- | --- |
+| `project.license` (a string, PEP 639) | `pyproject.toml` of a directory or an sdist with no `PKG-INFO`; the Hatchling build hook |
+| `License-Expression` | a wheel's `METADATA`, an sdist's `PKG-INFO`, installed metadata |
+| `license_expression` | a dependency's PyPI record |
+| `SPDX-License-Identifier` | a file's header tag |
+| `general.license` | a GGUF model file |
+
+The value shows on one line, control characters escaped, cut after 120
+characters. A field that may hold free text (`License`,
+`project.license.text`, `[tool.poetry] license`, a Hugging Face card's
+`license`) gets no such warning. Whether an id is known comes from the SPDX
+License List bundled with Pitloom's expression parser, not from the
+`licenseid` database, so a missing database turns no id unknown. Hatchling
+refuses an unknown id in `project.license` itself; the hook warns only for
+an id newer than that bundled list.
 
 Three provenance keys record what changed, in the entry's `license` field:
 

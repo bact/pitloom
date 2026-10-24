@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -78,8 +78,9 @@ Not built in 0.21.0; carried over (decided 2026-10-23):
   hint naming its sub-projects); a clone size cap on the CLI (the library's is
   built, #339); Git LFS pointers (see 0.22.0); record the commit and URL in the SBOM (see 0.22.0). See
   [remote-git-ingestion.md](../implementation/remote-git-ingestion.md#not-built).
-- [ ] **Unknown SPDX id in an SPDX-only field warns** and **`License-File:`
-  selection** for wheels. See
+- [x] **Unknown SPDX id in an SPDX-only field warns** (branch
+  `unknown-spdx-id-warns`).
+- [ ] **`License-File:` selection** for wheels. See
   [license-pr276-followups.md](license-pr276-followups.md#a-to-fix).
 - [ ] **Metadata-only AI model readers**: bounded pure-Python header readers
   replacing library reads, parity-tested; HDF5 last. See

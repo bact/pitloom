@@ -21,12 +21,14 @@ from pyproject_metadata import License
 
 from pitloom.core.project import project_relative_or_fallback
 from pitloom.extract._core_metadata import license_or_classifier
-from pitloom.extract._license import stated_license
+from pitloom.extract._license import stated_license, warn_unless_expression
 from pitloom.extract._license_detect import decode_text, read_license_file
 from pitloom.extract.project._pyproject_fields import drop_outside_file
 
 _CLASSIFIER_PROVENANCE = "Source: pyproject.toml | Field: project.classifiers"
 _LICENSE_FILE_FIELD = "project.license.file"
+#: A ``project.license`` string (PEP 639), as a warning names it.
+PEP_639_LICENSE_FIELD = "project.license"
 
 
 def confine_license_file(
@@ -92,7 +94,10 @@ def stated_pyproject_license(
     when that states no licence or only ``UNKNOWN``/``NOASSERTION``, a
     ``License ::`` classifier
     (:func:`~pitloom.extract._core_metadata.license_or_classifier`, the rule
-    a wheel and an sdist use). The project's own licence files are not read
+    a wheel and an sdist use). A PEP 639 string that is no SPDX
+    expression is text, with a ``WARNING:``
+    (:func:`~pitloom.extract._license.warn_unless_expression`); a ``text``
+    table is free text, quiet. The project's own licence files are not read
     here: :func:`~pitloom.extract._license.apply_in_package_license_files` adds
     them, on every reader alike.
 
@@ -109,6 +114,8 @@ def stated_pyproject_license(
     license_id, from_classifier = license_or_classifier(license_id, classifiers)
     if from_classifier:
         return license_id, _CLASSIFIER_PROVENANCE
+    if isinstance(license_obj, str):  # PEP 639: an SPDX expression only
+        warn_unless_expression(license_id, PEP_639_LICENSE_FIELD)
     return license_id, provenance
 
 
