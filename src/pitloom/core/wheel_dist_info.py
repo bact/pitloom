@@ -38,6 +38,7 @@ from packaging.utils import NormalizedName, canonicalize_name
 from packaging.version import Version
 
 from pitloom.core.archive_member_names import zip_file_members
+from pitloom.core.pep440 import parse_version
 from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import Cap, loggable, warn_over_cap
 
@@ -281,10 +282,8 @@ def wheel_name_version(wheel_name: str) -> tuple[NormalizedName, Version] | None
     name = parts[0]
     if "__" in name or _PROJECT_NAME.fullmatch(name) is None:
         return None
-    try:
-        return canonicalize_name(name), Version(parts[1])
-    except ValueError:
-        return None
+    version = parse_version(parts[1])
+    return None if version is None else (canonicalize_name(name), version)
 
 
 def is_dist_info_of(directory: str, name: str, version: Version) -> bool:
@@ -308,10 +307,7 @@ def is_dist_info_of(directory: str, name: str, version: Version) -> bool:
 
 
 def _is_version(text: str, version: Version) -> bool:
-    try:
-        return Version(text) == version
-    except ValueError:
-        return False
+    return parse_version(text) == version
 
 
 def matching_dist_infos(

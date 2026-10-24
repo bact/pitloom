@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -172,7 +172,14 @@ Size: S under half a day, M about a day.
   SBOM's year, not the package's. Not re-checked since #300: the wheel
   route had no supplier where the hook records the author.
 
-- [ ] **A very long version number crashes lock-file reading (S).**
+- [x] **A very long version number crashes lock-file reading (S).**
+  Fixed on branch `long-version-lock`: `pitloom.core.pep440` refuses a
+  version number over 640 digits before `int()` (any interpreter limit,
+  `packaging` 25 and 26) for every version, specifier and requirement
+  parse; a lock entry, pin or requirement holding one is unusable as any
+  invalid one, the project's own `version`/`requires-python` an `ERROR:`.
+  `packaging` 25 also failed building a specifier set, 26 printing one of
+  several clauses. Was:
   `packaging.Version("1." + "9" * 5000)` raises a plain `ValueError`
   (int digit limit), not `InvalidVersion`; `version_key`,
   `is_usable_version` and `is_same_version` in `extract/lock/common.py`
