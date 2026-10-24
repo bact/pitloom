@@ -13,12 +13,15 @@ fold, which uses the same comparison).
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import pytest
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._fragments_equal import same_json
+from pitloom.assemble.spdx3._fragments_props import _merge_scalar
 from tests.assemble.test_fragments_generated import _base, _levels, _merge
 
 
@@ -37,6 +40,14 @@ from tests.assemble.test_fragments_generated import _base, _levels, _merge
         pytest.param('{"a":1}', '{"a":2,"a":1}', False, id="repeated-key"),
         pytest.param('["\\ud800"]', '[ "\\ud800"]', True, id="lone-surrogate"),
         pytest.param("not json", "not json ", False, id="not-json"),
+        pytest.param("1", " 1", False, id="scalar-number"),
+        pytest.param("true", "\ntrue", False, id="scalar-boolean"),
+        pytest.param('"ab"', ' "ab"', False, id="scalar-string"),
+        pytest.param("null", " null", False, id="scalar-null"),
+        pytest.param("[NaN]", "[ NaN]", False, id="nan-is-no-json"),
+        pytest.param("[Infinity]", "[ Infinity]", False, id="infinity-is-no-json"),
+        pytest.param('["1.0"]', "[1.0]", False, id="string-vs-float"),
+        pytest.param(" [1]", "[1] ", True, id="blank-around"),
         pytest.param(
             "[" * 64 + "1" + "]" * 64, "[" * 64 + " 1" + "]" * 64, True, id="at-cap"
         ),
@@ -101,5 +112,43 @@ def test_a_respelt_copy_of_a_value_is_no_conflict_in_any_order(
     respelt = {"ai_informationAboutApplication": _RESPELT}
     fragments: dict[str, dict[str, Any]] = {"C": curated, "R": respelt}
     model, records, _ = _merge(tmp_path, caplog, base, [fragments[c] for c in order])
-    assert model["ai_informationAboutApplication"] in {_INFO, _RESPELT}
+    # The spelling that comes first stays: the base's, or (a generated base
+    # value yielding) the first fragment's.
+    first = _INFO if not generated or order[0] == "C" else _RESPELT
+    assert model["ai_informationAboutApplication"] == first
     assert logging.WARNING not in _levels(records)
+
+
+def test_a_scalar_that_reads_as_json_is_still_a_conflict(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Only an object or array folds: a version ``1`` and `` 1`` are two texts,
+    kept as before with the conflict warning."""
+    base = _base({})
+    model, records, _ = _merge(
+        tmp_path, caplog, base, [{"software_packageVersion": "1"}, {"name": " 1"}]
+    )
+    assert logging.WARNING in _levels(records)
+    assert model["name"] == "m"
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        (1, 2),
+        (
+            datetime(2026, 1, 1, tzinfo=timezone.utc),
+            datetime(2027, 1, 1, tzinfo=timezone.utc),
+        ),
+    ],
+    ids=["int", "datetime"],
+)
+def test_a_differing_value_that_is_no_text_is_a_conflict(
+    caplog: pytest.LogCaptureFixture, old: object, new: object
+) -> None:
+    """Non-text values go to the usual conflict warning, not to the JSON
+    comparison (which reads text only)."""
+    element = spdx3.software_Package(spdxId="https://example.org/e")
+    with caplog.at_level(logging.WARNING):
+        _merge_scalar(element, "x", old, new)
+    assert "conflicting" in caplog.text

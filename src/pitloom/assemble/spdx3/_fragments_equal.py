@@ -5,9 +5,9 @@
 
 """Whether two JSON texts say the same, in any spelling.
 
-A fragment's text value (an input/output description, a JSON-valued
-property) may hold the same JSON as another with other spacing or key order.
-The merge reads those as one value: no ``Merge: conflicting`` warning and no
+A fragment's text value that is a JSON object or array (the input/output
+description of a model) may hold the same JSON as another with other spacing or
+key order. The merge reads those as one value: no ``Merge: conflicting`` warning and no
 second value. A fragment is untrusted input, so the comparison is bounded
 (:data:`MAX_JSON_DEPTH`) and exact: ``1``, ``1.0`` and ``true`` are three
 values, a float is its text, and a repeated key is no JSON.
@@ -56,11 +56,19 @@ def _same(old: object, new: object) -> bool:
 MAX_JSON_DEPTH = 64
 
 
+def _no_constant(name: str) -> object:
+    raise ValueError(f"not JSON: {name}")
+
+
 def same_json(old: str, new: str) -> bool:
-    """Whether the JSON texts *old* and *new* say the same, in any spelling of
-    the whitespace and the order of an object's keys. Text that is no JSON, has
-    a repeated key or nests too deeply to read (a fragment is untrusted) is not
-    the same as anything but itself."""
+    """Whether the texts *old* and *new* are the same JSON object or array, in
+    any spelling of the whitespace and the order of an object's keys. Text
+    that is not an object or array (a name, a version, ``"1"``, ``"true"``),
+    is no JSON (``NaN`` and ``Infinity`` included), has a repeated key or
+    nests too deeply to read (a fragment is untrusted) is never the same: it
+    is compared as text, by the caller."""
+    if not all(text.lstrip()[:1] in {"{", "["} for text in (old, new)):
+        return False
     if any(
         json_nests_over(text.encode("utf-8", "surrogatepass"), MAX_JSON_DEPTH)
         for text in (old, new)
@@ -72,6 +80,7 @@ def same_json(old: str, new: str) -> bool:
                 json.loads(
                     text,
                     parse_float=_Float,
+                    parse_constant=_no_constant,
                     object_pairs_hook=_no_duplicate_keys,
                 )
                 for text in (old, new)

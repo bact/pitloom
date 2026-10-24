@@ -62,8 +62,10 @@ replaced whole, the model's inputs with its outputs. An empty fragment value
 replaces nothing, and neither does the same value in another spelling (a list
 in another order, JSON text with other spacing), also when a later fragment
 says again what was replaced, whatever the order of the fragments. Two
-fragments that hold the same JSON text in other spacing or key order do not
-conflict, for any property: the first one's spelling stays. The
+values (fragment against fragment, or against the base) that are the same JSON
+object or array in other spacing or key order do not conflict, for a text
+property such as the input/output description: the first one's spelling stays.
+Text that is not an object or array is compared as text. The
 input/output text counts as generated when its `inputs` and `outputs` are; any
 other key in it (an intended use) is replaced with it. Every AI model of the
 project SBOM with generated provenance is covered: in `loom merge` there is no base document, a model that `loom
