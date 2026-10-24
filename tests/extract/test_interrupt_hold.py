@@ -8,7 +8,7 @@ how long it waits for a lock that was never released (CPython 3.14 can leave
 one held when an interrupt arrives right after the lock is taken).
 
 See also: :mod:`tests.extract.test_reader_log_interrupt`,
-:mod:`tests.extract.ai_model.test_stderr_capture_interrupt` (the bounds
+:mod:`tests.extract.test_stderr_capture_interrupt` (the bounds
 through each capture block).
 """
 
@@ -26,7 +26,7 @@ import pytest
 
 from pitloom.extract import _interrupt_hold as hold
 from pitloom.extract import _reader_log as rl
-from pitloom.extract.ai_model import _stderr_capture as sc
+from pitloom.extract import stderr_capture as sc
 
 _WAIT = 10  # seconds; a hang fails the test instead of the run
 

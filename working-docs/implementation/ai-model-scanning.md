@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -52,7 +52,7 @@ wheel`, `wheel --embed`, `embed-wheel` without `--project-dir`) both use it.
   read-charging hook; `archive_member.py` (bounded member reads, ZIP check),
   `_pickle_bounds.py`, `_gguf_bounds.py` -- see
   [ai-model-scan-bounds.md](ai-model-scan-bounds.md).
-- `extract/_reader_log.py`, `extract/ai_model/_stderr_capture.py` and
+- `extract/_reader_log.py`, `extract/stderr_capture.py` and
   `extract/_interrupt_hold.py` -- capture of what a reader logs and prints.
 
 ## Candidate model

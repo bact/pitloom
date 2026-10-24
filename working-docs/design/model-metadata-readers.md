@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-30
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -85,7 +85,7 @@ Goes away:
 | Library amplification (GGUF numpy views, fickling AST, ONNX protobuf) | Only header bytes are read; cost follows the header, not the file |
 | Native crashes and hangs (libhdf5 segfault/loop, fastText full load) | No native code (HDF5 only once it has its own reader; gated until then) |
 | The wheel gate, `--trust-wheel-model`, the batch gate notice | Nothing left to gate (except HDF5 until its reader lands) |
-| fickling stderr capture (`_stderr_capture`): its race, `None` stderr, `writelines` | No third-party code writes to stderr |
+| fickling stderr capture (`stderr_capture`): its race, `None` stderr, `writelines` | No third-party code writes to stderr |
 | Most of the reader log capture (`_reader_log`) | Our readers report through Pitloom's own warnings |
 | Ctrl-C not interrupting a native parser | Pure Python is always interruptible |
 | Safetensors `metadata()` order from a Rust HashMap | `json.loads` keeps the file's order |

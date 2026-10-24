@@ -10,7 +10,7 @@ reach it, and no thread counts as capturing.
 An interrupt is injected before each statement of the entry (through
 ``sys.settrace``, which makes the step deterministic) and of the undo.
 
-See also: :mod:`tests.extract.ai_model.test_stderr_capture`.
+See also: :mod:`tests.extract.test_stderr_capture`.
 """
 
 # pylint: disable=missing-function-docstring,protected-access
@@ -25,8 +25,8 @@ from unittest import mock
 
 import pytest
 
+from pitloom.extract import stderr_capture as sc
 from pitloom.extract._interrupt_hold import HOLD_LIMIT
-from pitloom.extract.ai_model import _stderr_capture as sc
 from tests._interrupt import run_interrupted, statement_lines
 
 

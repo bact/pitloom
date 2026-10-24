@@ -30,13 +30,13 @@ from pitloom.core.quote_source import quote_source
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model import archive_member
 from pitloom.extract.ai_model._pickle_bounds import first_pickle
-from pitloom.extract.ai_model._stderr_capture import capture_stderr
 from pitloom.extract.ai_model.archive_member import (
     open_archive_member,
     open_model_zip,
     record_archive_contents,
 )
 from pitloom.extract.ai_model.limits import ModelLimitExceeded, ModelOverCap
+from pitloom.extract.stderr_capture import capture_stderr
 from pitloom.logging_config import Cap, field_loss_suffix, loggable, one_line
 
 log = logging.getLogger(__name__)

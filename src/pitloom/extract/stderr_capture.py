@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Capture of what a third-party parser writes to ``sys.stderr``, per thread.
+"""Capture of what third-party code (a pickle parser, setuptools' manifest
+step) writes to ``sys.stderr``, per thread.
 
 :func:`contextlib.redirect_stderr` swaps ``sys.stderr`` for the whole
 process: two threads in it can leave the wrong stream installed for good, and
@@ -20,7 +21,9 @@ tries and waits a bounded time for the lock (:mod:`pitloom.extract._interrupt_ho
 on CPython 3.14 an interrupt can leave the lock held for good, and the
 state may then stay as it was when the interrupt is raised.
 
-See also: :mod:`pitloom.extract._reader_log` (the same shape, for logging).
+See also: :mod:`pitloom.extract._reader_log` (the same shape, for logging),
+:mod:`pitloom.core._models_wheel_setuptools_relay` (a caller outside
+:mod:`pitloom.extract`).
 """
 
 from __future__ import annotations
@@ -39,23 +42,30 @@ from pitloom.extract._interrupt_hold import locked, run_held
 _LOCK = threading.Lock()
 
 
+#: Characters a sink keeps unless its caller asks for another bound.
+DEFAULT_KEEP = 4096
+
+
 class BoundedStderr(io.TextIOBase):
-    """A write-only text sink that keeps the first :data:`_KEEP` characters."""
+    """A write-only text sink that keeps the first *keep* characters and
+    counts the rest in :attr:`dropped`."""
 
-    _KEEP = 4096
-
-    def __init__(self) -> None:
+    def __init__(self, keep: int = DEFAULT_KEEP) -> None:
         super().__init__()
+        self._keep: int = keep
         self._parts: list[str] = []
         self._size = 0
+        self.dropped: int = 0
 
     def writable(self) -> bool:
         return True
 
     def write(self, s: str) -> int:
-        if self._size < self._KEEP:
-            self._parts.append(s[: self._KEEP - self._size])
-            self._size += len(self._parts[-1])
+        kept = s[: max(0, self._keep - self._size)]
+        if kept:
+            self._parts.append(kept)
+            self._size += len(kept)
+        self.dropped += len(s) - len(kept)
         return len(s)
 
     def text(self) -> str:
@@ -110,15 +120,15 @@ _STATE = _State()
 
 
 @contextlib.contextmanager
-def capture_stderr() -> Iterator[BoundedStderr]:
+def capture_stderr(keep: int = DEFAULT_KEEP) -> Iterator[BoundedStderr]:
     """Collect, in this thread only, what is written to ``sys.stderr`` in
-    the block (the first 4096 characters).
+    the block (the first *keep* characters; the sink counts the rest).
 
     Blocks of several threads may overlap in any order; a thread not in a
     block writes to the stream as usual. A block entered inside another of
     the same thread has its own sink, and the outer one is back on leaving.
     """
-    sink = BoundedStderr()
+    sink = BoundedStderr(keep)
     ident = threading.get_ident()
     proxy: _Proxy | None = None
     outer: BoundedStderr | None = None

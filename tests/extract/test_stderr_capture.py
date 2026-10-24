@@ -24,7 +24,7 @@ from unittest import mock
 import pytest
 
 from pitloom.extract.ai_model import pytorch
-from pitloom.extract.ai_model._stderr_capture import (
+from pitloom.extract.stderr_capture import (
     _STATE,
     BoundedStderr,
     capture_stderr,
@@ -42,6 +42,15 @@ def test_the_sink_keeps_the_first_4096_characters_and_is_writable() -> None:
         1,
     ]
     assert sink.text() == "a" * 3000 + "b" * 1096
+    assert sink.dropped == 1904 + 1
+
+
+def test_a_sink_with_its_own_bound_counts_what_it_drops() -> None:
+    with capture_stderr(keep=3) as sink:
+        sys.stderr.write("ab")
+        sys.stderr.write("cd")
+        sys.stderr.write("")
+    assert (sink.text(), sink.dropped) == ("abc", 1)
 
 
 def test_a_block_captures_its_own_thread_and_restores_stderr() -> None:

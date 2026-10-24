@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -214,12 +214,19 @@ Seen in past sessions, not reproduced on current `main`:
   Hatchling project holding a CRFsuite model, with a fragment giving the model
   another `description`; the merged SBOM kept the generated one. See the P0
   entry "A fragment value may lose to an extracted one".
-- [ ] **Untagged setuptools lines on stderr (S, not checked locally).** Cloning
-  `zzzeek/sqlalchemy` with `loom project <url>` prints
+- [x] **Untagged setuptools lines on stderr (S).** Cloning
+  `zzzeek/sqlalchemy` with `loom project <url>` printed
   `warning: no files found matching '*.js' under directory 'doc'` and
-  `no previously-included files found matching …`. They come from setuptools's
-  manifest step and carry no `ERROR:`/`WARNING:`/`INFO:` tag (CLI output rule).
-  #300 made setuptools's deprecation banners `DEBUG:` lines; these are a
-  different source. Check a local checkout too, then route them the same way.
+  `no previously-included files found matching …` with no level tag (CLI
+  output rule). Not a build child: setuptools' in-process manifest step
+  (`include_package_data` in static file discovery) logs through
+  `distutils.log`, the root logger, which with no handler falls to
+  `logging.lastResort` on stderr; `distutils.text_file` writes there itself.
+  A local checkout, `--allow-build`, `embed-wheel --project-dir` and the
+  library did the same; the Hatchling hook never runs setuptools discovery.
+  Fixed (branch `tag-setuptools-stderr`): discovery captures this thread's
+  stderr and relays each line as one `DEBUG:` record (`WARNING:` for an
+  `error:` line), beside #300's banners. See
+  [backend-file-discovery-validation-flit-pdm.md](../implementation/backend-file-discovery-validation-flit-pdm.md).
 - See [target-resolution-and-purl.md](target-resolution-and-purl.md) for the
   Bitbucket and SourceHut findings of the same day.

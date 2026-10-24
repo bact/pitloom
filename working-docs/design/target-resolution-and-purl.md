@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-23
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -169,12 +169,11 @@ Real servers: Bitbucket `zzzeek/sqlalchemy`, SourceHut `~sircmpwn/scm.sr.ht`.
   (Bitbucket `src/`, SourceHut `item/`) reads the folder holding it.
 - A Bitbucket repository that does not exist answers like one that needs a
   sign-in (`could not read Username`); that is the server, not a Pitloom bug.
-- Open, found while cloning `sqlalchemy`: untagged stderr lines
-  (`warning: no files found matching '*.js'`, `no previously-included files…`)
-  from setuptools's manifest step break the "every stderr line carries a level"
-  rule. #300 turned setuptools's deprecation banners into `DEBUG:`; these are a
-  different source. Not yet checked for a local checkout. See
-  [known-bugs.md](known-bugs.md).
+- Fixed (branch `tag-setuptools-stderr`), found while cloning `sqlalchemy`:
+  untagged stderr lines (`warning: no files found matching '*.js'`,
+  `no previously-included files…`) from setuptools's in-process manifest step
+  broke the "every stderr line carries a level" rule, on a local checkout too.
+  Each is now one `DEBUG:` line. See [known-bugs.md](known-bugs.md).
 - Fixed in 0.21.0 (found by a probe): in a project directory, a curated fragment
   `description` for a CRFsuite model lost to the one generated from its labels
   (`Method: generated_from_labels`), with `WARNING: Merge: conflicting

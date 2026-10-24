@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -121,6 +121,25 @@ README for their own notes.
     `test_setuptools_banners_are_debug_lines` in
     `tests/test_setuptools_default_backend_surfaces.py` (a real
     `loom --debug project` process).
+  - **Revised (branch `tag-setuptools-stderr`)**: the manifest step
+    (`include_package_data`) still wrote bare lines on stderr
+    (`warning: no files found matching '*.js'`): `distutils.log` is the
+    root logger, which with no handler falls to `logging.lastResort`, and
+    `distutils.text_file` writes to `sys.stderr` itself. Both banners and
+    these lines now go through one context manager,
+    `core/_models_wheel_setuptools_relay.py`: it captures this thread's
+    `sys.stderr` writes (`extract/stderr_capture.py`, promoted from
+    `extract/ai_model/` for this second caller; 64 KiB kept, the rest
+    counted in a `DEBUG:` line) and relays each non-blank line as one
+    escaped record, `WARNING:` for an `error:` line and `DEBUG:` otherwise.
+    Capturing stderr, not filtering the root logger, also catches the
+    direct writes and the records of `setuptools.config.*` loggers. A host
+    that configures root logging itself still gets the `distutils.log`
+    records through its own handlers, as Pitloom's own records reach them.
+    Regression tests: `tests/core/models_wheel/test_models_wheel_setuptools_relay.py`,
+    `test_manifest_step_lines_are_debug_lines` (every surface, a real
+    process each) and the Git URL case in
+    `tests/extract/remote/test_git_http_e2e.py`.
 - **PDM discovery wrote to disk in two more cases**, found by a
   code-review pass over this round's own PDM/Flit work, not by the
   fixture-diffing method above (neither vendored fixture triggers
