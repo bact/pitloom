@@ -36,6 +36,10 @@ from pitloom.extract.project._setup_cfg_directives import (
     _resolve_cfg_file_directive,
     _resolve_cfg_version,
 )
+from pitloom.extract.project._setup_cfg_interpolation import (
+    interpolation_problem,
+    section_declares_key,
+)
 from pitloom.extract.project._setup_cfg_values import (
     coerce_cfg_value,
     parse_sub_section,
@@ -58,7 +62,7 @@ def _section_dict(cfg: configparser.ConfigParser, section: str) -> dict[str, str
     Includes ``[DEFAULT]``-inherited values (``cfg.items()``'s normal,
     intended behaviour) -- correct for *resolving* a value, but not for
     asking whether *this section* declared a key: see
-    :func:`_section_declares_key` for that question.
+    :func:`section_declares_key` for that question.
     """
     return dict(cfg.items(section)) if cfg.has_section(section) else {}
 
@@ -92,23 +96,8 @@ def _own_items(
     return {
         key: value
         for key, value in _section_dict(cfg, section).items()
-        if key in takes or _section_declares_key(cfg, section, key)
+        if key in takes or section_declares_key(cfg, section, key)
     }
-
-
-def _section_declares_key(
-    cfg: configparser.ConfigParser, section: str, key: str
-) -> bool:
-    """Return whether *section* itself declares *key*, ignoring any value
-    only inherited from ``[DEFAULT]``.
-
-    ``cfg.items(section)`` merges in ``[DEFAULT]``, so a shared value would
-    make every section look as if it declared the key. ``cfg._sections``
-    holds each section's own keys; the public API has no such accessor.
-    """
-    # pylint: disable-next=protected-access
-    sections: dict[str, dict[str, str]] = cfg._sections  # type: ignore[attr-defined]
-    return key in sections.get(section, {})
 
 
 def _parse_cfg_keywords(raw: str) -> list[str]:
@@ -229,13 +218,15 @@ def read_setup_cfg_options(
     cannot fail the read.
 
     A value inherited from ``[DEFAULT]`` is an option, as in setuptools,
-    but not declared (:func:`_section_declares_key`).
+    but not declared (:func:`section_declares_key`).
 
     Raises:
         FileNotFoundError: no ``setup.cfg`` file (a directory is none, as
             for setuptools).
-        ValueError: ``setup.cfg`` cannot be read or parsed, or its
-            ``[tool:pitloom]`` settings are invalid; one line.
+        ValueError: ``setup.cfg`` cannot be read or parsed (a value's
+            bad ``%``, as setuptools fails on it, names the file, section,
+            key and the ``%%`` escape), or its ``[tool:pitloom]`` settings
+            are invalid; one line.
     """
     setup_cfg_path = project_dir / "setup.cfg"
     if not os.path.isfile(setup_cfg_path):
@@ -250,7 +241,8 @@ def read_setup_cfg_options(
         cfg.read_string(text, source=str(setup_cfg_path))
         sections = {s: _section_dict(cfg, s) for s in ("metadata", "options")}
         extras = _extras_option(text, project_dir)
-    # configparser.Error: also a value's bad % interpolation
+    except configparser.InterpolationError as exc:
+        raise _interpolation_error(cfg, setup_cfg_path, exc) from exc
     except (OSError, UnicodeDecodeError, configparser.Error) as exc:
         raise ValueError(f"Could not parse setup.cfg: {one_line(exc)}") from exc
     options = _resolved_options(sections["metadata"], project_dir)
@@ -259,22 +251,31 @@ def read_setup_cfg_options(
             options[key] = SetupOption(
                 parse(sections[section][key]),
                 _cfg_source(field),
-                declared=_section_declares_key(cfg, section, key),
+                declared=section_declares_key(cfg, section, key),
             )
     if "install_requires" in sections["options"]:
         options["install_requires"] = SetupOption(
             _cfg_requirements(sections["options"]["install_requires"], project_dir),
             _cfg_source("options.install_requires"),
-            declared=_section_declares_key(cfg, "options", "install_requires"),
+            declared=section_declares_key(cfg, "options", "install_requires"),
         )
     if extras is not None:
         options["extras_require"] = extras
     named = bool(options.get("name") and options["name"].value)
     try:
         config = _config_if_read(cfg, read_config and named, str(setup_cfg_path))
-    except configparser.Error as exc:  # a [tool:pitloom] value's bad %
-        raise ValueError(f"Could not parse setup.cfg: {one_line(exc)}") from exc
+    except configparser.InterpolationError as exc:  # a bad % in [tool:pitloom]
+        raise _interpolation_error(cfg, setup_cfg_path, exc) from exc
     return options, config
+
+
+def _interpolation_error(
+    cfg: configparser.ConfigParser, path: Path, exc: configparser.InterpolationError
+) -> ValueError:
+    """The one-line error for a bad ``%`` in a value of *cfg*, read from
+    *path*."""
+    problem = interpolation_problem(cfg, exc)
+    return ValueError(f"Could not parse setup.cfg: {quote_source(path)} {problem}")
 
 
 def read_setup_cfg(
@@ -320,8 +321,10 @@ def setup_cfg_pitloom_config(text: str, source: str | None = None) -> PitloomCon
     ``[metadata]`` description) is not this function's concern.
 
     Raises:
-        ValueError: the text is not valid INI (``configparser.Error``) or
-            its ``[tool:pitloom]`` settings are invalid; one line.
+        ValueError: the text is not valid INI (``configparser.Error``),
+            a ``[tool:pitloom]`` value has a bad ``%`` (named with its
+            section, key and the ``%%`` escape) or the settings are
+            invalid; one line.
     """
     cfg = configparser.ConfigParser()
     try:
@@ -329,7 +332,9 @@ def setup_cfg_pitloom_config(text: str, source: str | None = None) -> PitloomCon
         if not cfg.get("metadata", "name", raw=True, fallback="").strip():
             return PitloomConfig()
         return _read_pitloom_config_from_cfg(cfg, source)
-    except configparser.Error as exc:  # also a value's bad % interpolation
+    except configparser.InterpolationError as exc:
+        raise ValueError(interpolation_problem(cfg, exc)) from exc
+    except configparser.Error as exc:
         # configparser spreads a parse error over several lines.
         raise ValueError(one_line(exc)) from exc
 
