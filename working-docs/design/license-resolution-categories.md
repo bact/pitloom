@@ -364,8 +364,14 @@ and version, FSCT) still finds exactly one generator, and the helper's role is
 structural, not a convention in a comment. A caller who sets `tools` (Lumina)
 keeps its Tools in `createdUsing` and Pitloom hangs under them by the same
 relationship. `usesTool` exists in the v3.0.1 bindings; its from/to
-constraints in the spec text were not re-read here, and the SHACL validation of
-a Tool to Tool relationship is to be tried. Gap: FG-8 in
+constraints in the spec text were not re-read here. Experiment (2026-10-26,
+spdx3-validate 0.0.7 with the vendored 3.0.1 model, schema plus SHACL): a
+`Relationship` with `usesTool`, `from` a `Tool` and `to` a `Tool`, both
+Tools in `@graph`, validates with no finding; a negative control (an unknown
+`relationshipType`) is rejected, so the pass is not vacuous. The same
+relationship with `to` an `Agent` also validates: SHACL does not constrain
+the `to` class for `usesTool`, so validity does not prove the Tool-to-Tool
+reading; consumers rely on the convention. Gap: FG-8 in
 [sbom-format-gaps.md](sbom-format-gaps.md).
 
 R2. Step kinds, stable string values: A `trim`, `whitespace`, `id_case`,
