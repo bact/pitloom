@@ -333,7 +333,7 @@ ScanCode key is no SPDX id, it would be a `LicenseRef-`). Beside them
 database file, or the packaged snapshot, actually read). Each step, alias
 and candidate names the list that supported it (`list`: an `id` above), so a
 result says which list made which decision, not only which lists were loaded.
-`provides` is a closed vocabulary (`ids`, `names`, `urls`, `deprecation`,
+`provides` is a closed vocabulary (decided 2026-10-26: `ids`, `names`, `urls`, `deprecation`,
 `aliases`, `texts`), owned by the licenseid spec and extended with a release;
 a consumer ignores a value it does not know, and a step that cites a list
 for a kind it does not provide is a bug in the resolver (each step kind needs
