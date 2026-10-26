@@ -333,8 +333,40 @@ ScanCode key is no SPDX id, it would be a `LicenseRef-`). Beside them
 database file, or the packaged snapshot, actually read). Each step, alias
 and candidate names the list that supported it (`list`: an `id` above), so a
 result says which list made which decision, not only which lists were loaded.
-Deterministic; no clock. Pitloom writes `resolver` and `lists` once per SBOM
-and per-field provenance cites list ids.
+`provides` is a closed vocabulary (`ids`, `names`, `urls`, `deprecation`,
+`aliases`, `texts`), owned by the licenseid spec and extended with a release;
+a consumer ignores a value it does not know, and a step that cites a list
+for a kind it does not provide is a bug in the resolver (each step kind needs
+one: `listed_name` `names`, `listed_url` `urls`, `deprecated_*` `deprecation`,
+`alias` `aliases`, `separator` and `version_spelling` `ids`). Deterministic; no
+clock. Pitloom writes `resolver` and `lists` once per SBOM and per-field
+provenance cites list ids.
+
+R1b. Alias review. An alias is a claim that a string means exactly one
+licence, so a wrong one writes a wrong licence into SBOMs. (1) A list's own
+data is its owner's to review. (2) An entry licenseid adds itself comes by
+pull request with its evidence (the source list entry, or real usage in
+package metadata), an automated uniqueness check (one id; no clash with any
+id, name or other alias), a corpus regression test and a second reviewer. (3)
+A list version bump is reviewed as a diff report (aliases added, removed,
+changed). (4) Pitloom decides which `source` it accepts for each category
+(an allow-list in Pitloom): a new list changes no SBOM until Pitloom adds it.
+
+### Tool modelling (proposed 2026-10-26)
+
+Only the generator in `createdUsing`; the licence resolver as a second
+`Tool`, linked `Pitloom usesTool LicenseID`. The `LicenseID` Tool carries
+`name`, the version in `summary` (as for Pitloom), `pkg:pypi/licenseid@...` in
+`externalIdentifier` and the release URL in `externalRef`; it is minted only
+when the resolver contributed to a recorded value; per-field provenance cites
+it. Why: every consumer and checker that reads `createdUsing` (CISA's tool name
+and version, FSCT) still finds exactly one generator, and the helper's role is
+structural, not a convention in a comment. A caller who sets `tools` (Lumina)
+keeps its Tools in `createdUsing` and Pitloom hangs under them by the same
+relationship. `usesTool` exists in the v3.0.1 bindings; its from/to
+constraints in the spec text were not re-read here, and the SHACL validation of
+a Tool to Tool relationship is to be tried. Gap: FG-8 in
+[sbom-format-gaps.md](sbom-format-gaps.md).
 
 R2. Step kinds, stable string values: A `trim`, `whitespace`, `id_case`,
 `operator_case`, `ref_prefix_case`, `brackets`, `reorder`, `dedupe`; B

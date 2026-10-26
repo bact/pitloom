@@ -175,3 +175,21 @@ declined or fixed entry with its outcome.
 - Evidence: [license-resolution-categories.md](license-resolution-categories.md)
 - Status: noted
 - Date: 2026-10-26
+
+### FG-8 `createdUsing` cannot say which Tool is the generator
+
+- Format and version: SPDX 3.0.1
+- Element or property: `CreationInfo.createdUsing` (`Tool`, 0..*), the
+  `usesTool` relationship
+- Fact to record: which Tool generated the SBOM, and which Tools that
+  generator used (a licence resolver, a model reader)
+- Pitloom today: one `Tool` "Pitloom" (more only when a caller sets
+  `tools`, e.g. Lumina); no order is defined for the list
+- Why imprecise: `createdUsing` is an unordered list of equals; a reader
+  cannot tell the generator from a helper
+- Proposal (design): the generator alone in `createdUsing`; each Tool it
+  used hangs from it by `usesTool` (Pitloom, then LicenseID). A convention,
+  not a property
+- Evidence: [license-resolution-categories.md](license-resolution-categories.md)
+- Status: noted
+- Date: 2026-10-26
