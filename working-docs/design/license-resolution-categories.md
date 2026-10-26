@@ -314,8 +314,27 @@ on content (an unresolvable value is a category), returning: `input`;
 overall `category` and `trust`; `operands` in input order, each with its
 span, text, result, category, `steps` (A and B, applied order),
 `expansions` (C, applied or offered) and `candidates` (sorted by id); and
-`versions` (library, list, data hash, `source`: `database` or `bundled`, taken from the data the resolver actually read). A step is `{kind, applied, from, to, detail}`, `detail` holding
+`resolver` and `lists` (R1a). A step is `{kind, applied, from, to, detail}`, `detail` holding
 the rule, alias source, matched name or score.
+
+R1a. Who resolved it, from which lists. `resolver`: `{name, version, url,
+purl}` (`LicenseID`, `0.5.1`, the release tag URL, `pkg:pypi/licenseid@0.5.1`).
+`lists`: every list the data was built from, sorted by `id`, each `{id, name,
+version, url, license, provides, id_authority, data_sha256}`: `id` a stable
+slug (`spdx-license-list`, `scancode-licensedb`); `version` the list's own
+(`3.29.0`, `2026-06-20`); `url` a versioned, permanent one where the list has
+one (the release tag), else its index plus `data_sha256` of the snapshot read;
+`license` the data's licence (an attribution duty is Pitloom's to carry);
+`provides` a subset of `ids`, `names`, `urls`, `deprecation`, `aliases`;
+`id_authority` true for the list whose ids the result's expression uses (the
+SPDX License List: its version is the `simplelicensing_licenseListVersion`; a
+ScanCode key is no SPDX id, it would be a `LicenseRef-`). Beside them
+`data`: `{source: "database" | "bundled", normalization_version, sha256}` (the
+database file, or the packaged snapshot, actually read). Each step, alias
+and candidate names the list that supported it (`list`: an `id` above), so a
+result says which list made which decision, not only which lists were loaded.
+Deterministic; no clock. Pitloom writes `resolver` and `lists` once per SBOM
+and per-field provenance cites list ids.
 
 R2. Step kinds, stable string values: A `trim`, `whitespace`, `id_case`,
 `operator_case`, `ref_prefix_case`, `brackets`, `reorder`, `dedupe`; B
