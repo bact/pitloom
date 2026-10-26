@@ -14,7 +14,8 @@ resolution, `Apache2` to `Apache-2.0`) and to Pitloom's adoption of it.
 See also: [license-typing.md](../implementation/license-typing.md) (the one
 classifier and element builder),
 [license-pipeline.md](../implementation/license-pipeline.md) (sources and
-call sites), [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md)
+call sites),
+[provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md)
 (`Method`/`Role` vocabulary), [known-bugs.md](known-bugs.md),
 [sbom-format-gaps.md](sbom-format-gaps.md) (FG-6, FG-7),
 [licenseid-handoff.md](licenseid-handoff.md) (earlier upstream asks),
