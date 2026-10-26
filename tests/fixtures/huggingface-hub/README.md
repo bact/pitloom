@@ -245,8 +245,10 @@ HF Hub stores license identifiers in **lowercase** (e.g. `apache-2.0`,
 `pitloom.extract._license`, which calls `AggregatedLicenseMatcher.match()`
 from the `licenseid` library.  The matcher's Tier-0 short-text path performs
 fuzzy name/ID matching and returns the canonical casing when it finds an
-exact match (internal score > 1.0); otherwise the value is returned
-**verbatim**.
+exact match (internal score > 1.0).  Only a *case* difference is
+applied; a match that is a different id is ignored and the value is returned
+**verbatim**.  A deprecated bare id such as `gpl-3.0` is therefore recorded as written
+(never `GPL-3.0-only`), with or without the `licenseid` database.
 
 pitloom does **not** add `LicenseRef-` prefixes or otherwise interpret
 unrecognized values — that is the responsibility of `licenseid` or downstream

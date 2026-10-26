@@ -7,9 +7,14 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from pitloom.extract.remote.huggingface import (
     read_huggingface,
 )
+from pitloom.extract.remote.huggingface_fetch import _resolve_license
 from tests.extract.remote.hf_patches._hf_patches_embeddings import (
     _patch_clip_japanese_v2,
     _patch_codeberta,
@@ -96,6 +101,28 @@ def test_blip_vqa_bsd_license_normalized() -> None:
     with _patch_blip_vqa():
         meta = read_huggingface("Salesforce/blip-vqa-base")
     assert meta.license == "BSD-3-Clause"
+
+
+@pytest.mark.parametrize(
+    ("card", "matched", "expected"),
+    [
+        ("gpl-3.0", "GPL-3.0-only", "gpl-3.0"),
+        ("gpl-3.0", None, "gpl-3.0"),
+        ("lgpl-2.1", "LGPL-2.1-only", "lgpl-2.1"),
+        ("agpl-3.0", "AGPL-3.0-or-later", "agpl-3.0"),
+        ("apache-2.0", "Apache-2.0", "Apache-2.0"),
+    ],
+    ids=["gpl-db", "gpl-no-db", "lgpl-db", "agpl-db", "case-only"],
+)
+def test_card_licence_is_never_rewritten_to_another_id(
+    card: str, matched: str | None, expected: str
+) -> None:
+    """The same value is recorded with and without the licenseid database."""
+    matcher = MagicMock()
+    matcher.match.return_value = [{"license_id": matched}] if matched else []
+    with patch("pitloom.extract._license._matcher", return_value=matcher):
+        value, _ = _resolve_license({"card_data": {"license": card}}, "o/m", {})
+    assert value == expected
 
 
 def test_seamless_nc_license() -> None:

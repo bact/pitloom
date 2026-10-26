@@ -100,6 +100,13 @@ Size: S under half a day, M about a day.
   each reader where the field is known). See
   [license-typing.md](../implementation/license-typing.md#unknown-id-in-an-spdx-only-field).
   Legacy `License:` stays silent.
+- [x] **A Hugging Face `license: gpl-3.0` was rewritten to `GPL-3.0-only`
+  only when the `licenseid` database was present (S).** Fixed on branch
+  `unknown-spdx-id-warns`: `canonicalize_license_id` applies the resolver's
+  answer only when it is the same id in other casing, so the deprecated bare
+  id is recorded as written with or without the database. A non-lexical
+  resolver decision (alias, successor) waits for `INFO:` plus provenance, see
+  [license-resolution-categories.md](license-resolution-categories.md).
 - [ ] **A licence classifier becomes text, not an SPDX id (S).** Deferred
   by #276 (needs a newer `licenseid`; "Known deviation" in
   `license-typing.md`).

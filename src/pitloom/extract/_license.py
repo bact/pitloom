@@ -361,7 +361,15 @@ _MAX_LICENSE_ID_CHARS = 200
 
 
 def canonicalize_license_id(raw: str) -> str:
-    """Return the canonical SPDX License ID for *raw*, or *raw* unchanged."""
+    """Return *raw* in the canonical casing of the SPDX License ID it spells.
+
+    Only a case (and surrounding-whitespace) difference is folded.  A match
+    that is a different id (``gpl-3.0`` -> ``GPL-3.0-only``, a successor, an
+    alias) is not applied: the output must not depend on whether the
+    ``licenseid`` database is present, and a non-lexical decision of the
+    resolver needs its own notice and provenance.  Returns *raw* unchanged
+    when nothing matches.
+    """
     if len(raw.strip()) > _MAX_LICENSE_ID_CHARS:
         return raw
     matcher = _matcher()
@@ -369,8 +377,9 @@ def canonicalize_license_id(raw: str) -> str:
         return raw
     try:
         results = matcher.match(license_id=raw)
-        if results:
-            return str(results[0]["license_id"])
+        found = str(results[0]["license_id"]) if results else None
+        if found and found.casefold() == raw.strip().casefold():
+            return found
     except DatabaseNotReadyError as exc:
         _database_unusable(exc)
     # An input licenseid rejects (not one licence ID) is no failure: debug.
