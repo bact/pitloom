@@ -70,7 +70,7 @@ result; text path top as `id/method[E]score` (`E`: `exact: True`; method
 | 15 | `ASL 2.0`, `ASL-2.0`, `AL2`, `Expat`, `MIT/X11`, `PSF`, `PSFL` | none | none or noise (`PSF`: `Info-ZIP` t1.00) | alias |
 | 16 | `Apache`, `BSD`, `BSD License`, `GPL`, `LGPL`, `AGPL`, `MPL`, `Public Domain`, `Apache Software License`, `GNU General Public License v3 (GPLv3)`, `GNU Lesser General Public License v3 (LGPLv3)`, `LGPLv2` | none | first of a tie at 1.00: `Apache-1.0`, `0BSD`, `GPL-3.0-only` (for `LGPL`), `CC-PDDC`; `Vim` t0.90 | ambiguous |
 | 17 | `GPL-2.0`, `GPL-3.0`, `LGPL-2.1`, `LGPL-3.0`, `AGPL-1.0`, `AGPL-3.0`, `GFDL-1.3`, `GPL-2.0 or GPL-3.0` | `-only` ids, `f`E | `-only`, `i`E | assumed_only (applied silently) |
-| 18 | `GPL-2.0 WITH Classpath-exception-2.0`, `GPL-2.0-with-classpath-exception` | `GPL-2.0-only WITH Classpath-exception-2.0`, E | same | assumed_only; deprecated_successor + assumed_only |
+| 18 | `GPL-2.0 WITH Classpath-exception-2.0`, `GPL-2.0-with-classpath-exception` | `GPL-2.0-only WITH Classpath-exception-2.0`, E | same | assumed_only; deprecated_equal_successor` and `deprecated_ambiguous + assumed_only |
 | 19 | `GPL-2.0+`, `GPL-3.0+`, `LGPL-2.0+`, `LGPL-2.1+` | `-or-later`, E | same | plus_to_or_later |
 | 20 | `Apache-2.0+`, `Apache-1.0+`, `CDDL-1.0+`, `MIT+` | unchanged, E | same | exact (valid `+`, no `-or-later` id) |
 | 21 | `GPL-2.0 or later`, `GPL 2.0 or later`, `GPL-2.0 only`, `GPL 3.0 only`, `MIT OR GPL-2.0 or later` | `GPL-2.0-or-later`, ...; last: `GPL-2.0-or-later OR MIT`, E | same; last: `GPL-2.0-or-later`, MIT dropped (D3) | stated_qualifier |
@@ -90,7 +90,7 @@ result; text path top as `id/method[E]score` (`E`: `exact: True`; method
 | - | - |
 | Reported, distinguishable | `listed_name` (method `name`, `exact: True`: the one clean signal) |
 | Produced, but reported as `exact`/`id` | `lexical`, `separator` (ASCII only, no letter-digit split), `plus_to_or_later`, `assumed_only` (silent), `stated_qualifier` (listed id plus a grant phrase only) |
-| Partly, by other means | `version_spelling` (before a `+` by shortest prefix; `Apache 2` by fuzzy name), `alias` (token-set fuzzy, indistinguishable from wrong hits), `listed_url` (field path: last segment of any `/licenses/` URL), `deprecated_successor` (6 rows plus a `-with-` table), `expression_repair` (`/` in `Cargo.toml`) |
+| Partly, by other means | `version_spelling` (before a `+` by shortest prefix; `Apache 2` by fuzzy name), `alias` (token-set fuzzy, indistinguishable from wrong hits), `listed_url` (field path: last segment of any `/licenses/` URL), `deprecated_equal_successor` and `deprecated_ambiguous` (6 rows plus a `-with-` table), `expression_repair` (`/` in `Cargo.toml`) |
 | Always on, unlabelled | `fuzzy` (text input; 1.00 on unrelated licences) |
 | Not reported | `ambiguous` (a ranked tie with a first entry), `unresolved`, `malformed` (empty on the field path, noise on the text path) |
 
@@ -161,11 +161,12 @@ table), `guess`, `none`.
 | `listed_name` | B | list_data | After A folding, equal to the List `name` of exactly one non-deprecated id. | `MIT License`, `Apache License 2.0`, `The Unlicense`, `Boost Software License 1.0` | accept; `INFO:` |
 | `alias` | B | resolver_rule | A curated table entry: a string that is neither an id nor a List name, mapped to exactly one id (never an expression), with its source: `spdx-name-part` (a quoted alternate in a List name: `"New"`, `"Simplified"`), `pypi-trove`, `fedora`, `debian`, ... Two targets make it ambiguous. | `New BSD`, `ASL 2.0` (Fedora), `Expat` (Debian), `Python Software Foundation License` (trove), `BSD-3` | accept; `INFO:` with the source |
 | `listed_url` | B | list_data | A URL equal (scheme, `www.`, trailing `/`, `.html`/`.txt` folded) to the List `reference` or a `seeAlso` URL of exactly one id. A URL several ids share (the GPL pages) is ambiguous. | `https://spdx.org/licenses/MIT.html`, `https://opensource.org/licenses/MIT` | accept; `INFO:` |
-| `deprecated_successor` | B | list_data or resolver_rule | A deprecated id and its successor(s) (List naming, else curated). Reported as an offer, not applied. | `StandardML-NJ` (`SMLNJ`, same name), `BSD-2-Clause-FreeBSD`, `GPL-2.0-with-classpath-exception` | keep as written (valid SPDX); note `Deprecated-License-Id: X (Y)`; quiet |
+| `deprecated_equal_successor` | B | list_data | A deprecated id whose List `superseded_by` names exactly one id with the same List name: a rename, no change of meaning. | `StandardML-NJ` to `SMLNJ` | accept; `INFO:`; the successor is written into the declared AND the concluded licence; the deprecated id stays in provenance (`Deprecated-License-Id`, `Resolution-n`) |
+| `deprecated_ambiguous` | B | list_data or resolver_rule | A deprecated id with no provably equal successor: a successor under another name, an expression (`-with-` ids) or the `-only`/`-or-later` split. Reported as an offer, not applied. | `BSD-2-Clause-FreeBSD`, `GPL-2.0-with-classpath-exception`, `GPL-2.0` | keep as written (valid SPDX); note `Deprecated-License-Id: X (Y)`; quiet |
 | `expression_repair` | B | guess | A non-SPDX operator read as one: `/`, `&`, `,`, `Dual X/Y`. | `MIT/Apache-2.0`, `MIT & Apache-2.0`, `MIT, Apache-2.0` | refuse: text + `WARNING:` |
 | `fuzzy` | B | guess | Any similarity measure (section 6), opt-in only. | `UNLICENSED` to `Unlicense`, `GPLv2` to `LiLiQ-R-1.1` | refuse; never requested |
 | `ambiguous` | B | none | Several candidates survive; the resolver returns them all and chooses none. | `BSD`, `GPL`, `LGPL`, `Apache`, `Apache Software License`, `Public Domain` | text + `WARNING:` naming candidates |
-| `plus_to_or_later` | C | list_data | `X+` to `X-or-later` where the List has that id. | `GPL-2.0+`, `LGPL-2.1+`, `GPLv2+` (after `version_spelling`) | accept; `INFO:`; key `Expansion-n` |
+| `plus_to_or_later` | C | list_data | `X+` to `X-or-later` where the List has that id. | `GPL-2.0+`, `LGPL-2.1+`, `GPLv2+` (after `version_spelling`) | accept; `DEBUG:` (decision Q3); key `Expansion-n` is still written |
 | `stated_qualifier` | C | author_words | The author's own words in the same value attach a qualifier: "or later", "or any later version", "only". | `GPL-2.0 or later`, `GPL 3.0 only`, `GPLv3 or later`, the trove `... v2 or later (GPLv2+)` | accept; `INFO:`; key `Expansion-n` |
 | `assumed_only` | C | guess | A bare deprecated id (`GPL-2.0`, `LGPL-2.1`, `AGPL-3.0`, ..., also inside a `-with-` id) read as `-only` with no indicator. Reported as an offer with both candidates, never applied. | `GPL-2.0`, `GPL-3.0 WITH ...`, `GPL-2` | keep as written; `Deprecated-License-Id` (today) |
 | `unresolved` | D | none | No candidate. | `Proprietary`, `llama3.1`, `UNLICENSED`, `licenseref-foo` | text + `WARNING:` (today) |
@@ -240,7 +241,7 @@ WARNING: FIELD=project.license LICENSE='MIT/Apache-2.0': not read as an SPDX lic
 ```
 
 Family A steps are not listed (`DEBUG:` only). `assumed_only` and
-`deprecated_successor` change nothing, so no `INFO:`; the note says it.
+`deprecated_ambiguous` change nothing, so no `INFO:`; the note says it. `plus_to_or_later` is logged at `DEBUG:`, and its `Expansion-n` key is always written.
 
 **Provenance** (the comment string, `parse_provenance_value` keys; existing
 keys unchanged):
@@ -253,7 +254,7 @@ keys unchanged):
 | `Expansion-<n>` | New. Operand `n`'s C step, kept apart: `GPL-2.0+ -> GPL-2.0-or-later (plus_to_or_later)`. |
 | `Tool` | `licenseid==0.5.1` (exists for detection). |
 | `License-List-Version`, `Resolver-Data` | New. The List version and licenseid's data version (section 9, R11). |
-| `Deprecated-License-Id` | Exists; also names the successor a `deprecated_successor` offer gives. |
+| `Deprecated-License-Id` | Exists; also names the successor a `deprecated_equal_successor` and `deprecated_ambiguous` offer gives. |
 
 One `Method` per value, as the key is single-valued; per-category `Method`
 values could not describe `Apache2 OR gpl-2.0+`, whose operands differ. The
@@ -294,7 +295,7 @@ fact: FG-6, FG-7.
 | Needs | Categories |
 | - | - |
 | `py-spdx-license`'s bundled List only | `exact`, `lexical`, `plus_to_or_later` (today) |
-| List ids, names, URLs (licenseid's packaged snapshot) | `separator`, `version_spelling`, `listed_name`, `listed_url`, `stated_qualifier`, `deprecated_successor` |
+| List ids, names, URLs (licenseid's packaged snapshot) | `separator`, `version_spelling`, `listed_name`, `listed_url`, `stated_qualifier`, `deprecated_equal_successor` and `deprecated_ambiguous` |
 | Curated tables (to ship in the wheel) | `alias` |
 | A built database | `fuzzy` and text detection only |
 
@@ -313,16 +314,16 @@ on content (an unresolvable value is a category), returning: `input`;
 overall `category` and `trust`; `operands` in input order, each with its
 span, text, result, category, `steps` (A and B, applied order),
 `expansions` (C, applied or offered) and `candidates` (sorted by id); and
-`versions`. A step is `{kind, applied, from, to, detail}`, `detail` holding
+`versions` (library, list, data hash, `source`: `database` or `bundled`, taken from the data the resolver actually read). A step is `{kind, applied, from, to, detail}`, `detail` holding
 the rule, alias source, matched name or score.
 
 R2. Step kinds, stable string values: A `trim`, `whitespace`, `id_case`,
 `operator_case`, `ref_prefix_case`, `brackets`, `reorder`, `dedupe`; B
 `separator`, `version_spelling`, `listed_name`, `alias`, `listed_url`,
-`deprecated_successor`, `expression_repair`, `fuzzy`; C `plus_to_or_later`,
+`deprecated_equal_successor`, `deprecated_ambiguous`, `expression_repair`, `fuzzy`; C `plus_to_or_later`,
 `stated_qualifier`, `assumed_only`. Categories add `exact`, `lexical`,
 `ambiguous`, `unresolved`, `malformed`.
-R3. Expansions never in `steps`; `assumed_only` and `deprecated_successor`
+R3. Expansions never in `steps`; `assumed_only` and `deprecated_ambiguous`
 only ever `applied: False` with both or all candidates.
 R4. On ambiguity, all candidates (sorted by id, with a total) and
 `expression: None`; no first choice, no shortest prefix.
@@ -364,27 +365,45 @@ as one id.
 - `+` to `-or-later`: an expansion, accepted (equivalent spelling).
 - Bare id to `-only`: an expansion, never applied without an indicator; add
   `stated_qualifier` for the indicator in the value.
-- Missing: `deprecated_successor` (offer), `expression_repair` (refused),
+- Missing: `deprecated_equal_successor` and `deprecated_ambiguous` (offer), `expression_repair` (refused),
   `ambiguous`, `unresolved`, `malformed`.
 
-## 11. Open questions for the maintainer
+## 11. Decisions on the open questions (2026-10-26)
 
-- Q1. Apply the same resolution to short one-line free-text values
-  (`License:`, `project.license.text`, `License ::` classifiers, a Hugging Face
-  card `license`), quiet when unresolved? Recommended for `listed_name` and
-  `alias` (the classifier names are their main source); it changes many SBOMs.
-- Q2. `reorder`/`dedupe` stay family A (`DEBUG:`, `Normalized-From`), though
-  decision 2 names only whitespace and case?
-- Q3. `plus_to_or_later`: an `INFO:` every time (as proposed), or `DEBUG:`
-  since it is equivalent?
-- Q4. A cross-field `-or-later` indicator (classifier `GPLv2+` beside
-  `License-Expression: GPL-2.0`): a concluded licence, or nothing?
-- Q5. Set `simplelicensing_licenseListVersion` on resolved expressions, and
-  from which List (`py-spdx-license`'s bundle, which validates ids, or
-  licenseid's)?
-- Q6. Which alias vocabularies licenseid curates (trove, Fedora legacy short
-  names, Debian DEP-5, ScanCode keys, Hugging Face card keywords), and who
-  reviews an entry?
-- Q7. Keep a deprecated id with a provably equivalent successor
-  (`StandardML-NJ`, same name as `SMLNJ`) as written, as proposed, or replace
-  it with `INFO:`?
+- **Q1, free-text values: yes.** The same resolution applies to short one-line
+  values (`License:`, `project.license.text`, `License ::` classifiers, a
+  Hugging Face card `license`), quiet when unresolved (free text is not
+  declared as SPDX, so no `WARNING:`). Many SBOMs will change: a test per
+  field.
+- **Q2, reorder and dedupe: family A** (`DEBUG:`, `Normalized-From`).
+- **Q3, `plus_to_or_later`: `DEBUG:`.** The `Expansion-n` provenance key is
+  still written, so the SBOM says it.
+- **Q4, a cross-field indicator: a concluded licence.** A classifier
+  `GPLv2+` beside `License-Expression: GPL-2.0` gives declared `GPL-2.0` (as
+  resolved) and concluded `GPL-2.0-or-later`, the provenance naming the field
+  and the words. It never rewrites the declared value.
+- **Q5, the list version: set it, from the data the resolver used.** The
+  result carries `license_list_version` (the database's own metadata:
+  `get_metadata()` returns `license_list_version`, `release_date`,
+  `normalization_version`), and Pitloom copies it into
+  `simplelicensing_licenseListVersion`. Pitloom does not read the database
+  itself: it could differ from what the resolver read (a database updated in
+  between, a `--db` path, the bundled fallback). When the resolver used its
+  bundled data, `source: bundled` and that list's version, and Pitloom says
+  which; the strict parser's own list (`py-spdx-license`) validates ids and its
+  version is not claimed.
+- **Q6, aliases: the SPDX License List for now.** An `alias` is a string that
+  one named published list maps to exactly one id, and every alias carries its
+  `source` and `source_version`. The SPDX License List ships no alias table:
+  its data are ids, names, URLs and deprecation with `superseded_by`, which
+  give `listed_name`, `listed_url` and the deprecated categories. So with the
+  SPDX list alone `alias` is empty, and `Apache2` is resolved by the rules
+  (`separator` to `Apache-2`, then `version_spelling` to `Apache-2.0`, listed),
+  not by a table. A second list (ScanCode LicenseDB, trove classifiers, Fedora,
+  Debian) enters as a new `source` after review, one entry at a time.
+- **Q7, an equal successor: replace, keep the deprecated id in provenance.**
+  `deprecated_equal_successor` (section 4) writes the successor into the
+  declared and the concluded licence, with an `INFO:`, and keeps the deprecated
+  id in `Deprecated-License-Id` and `Resolution-n`. "Provably equal" is the
+  List's `superseded_by` naming one id with the same List name. Everything else
+  stays `deprecated_ambiguous`.
