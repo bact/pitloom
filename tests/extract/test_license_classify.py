@@ -179,10 +179,11 @@ _CASES = [
         "Apache-2.0 WITH AdditionRef-x AND Foo",
         True,
     ),
+    # read by licenseid as one licence (said at INFO, not WARNING)
+    ("Apache2", "expression", "Apache-2.0", False),
+    ("MIT License", "expression", "MIT", False),
     # text, silent
-    ("Apache2", "text", "Apache2", False),
     (" Foo ", "text", "Foo", False),
-    ("MIT License", "text", "MIT License", False),
     ("Foo AND Bar", "text", "Foo AND Bar", False),
     ("Classpath-exception-2.0", "text", "Classpath-exception-2.0", False),
     ("MIT\nApache-2.0", "text", "MIT\nApache-2.0", False),

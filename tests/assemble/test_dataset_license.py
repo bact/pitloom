@@ -77,14 +77,16 @@ def _licence_links(graph: Graph) -> list[tuple[str, str, str]]:
     [
         ("CC-BY-4.0", "CC-BY-4.0"),
         ("MIT OR Apache-2.0", "Apache-2.0 OR MIT"),
-        # Free text and a URL are kept as text, not guessed into an expression.
+        # A URL and free text are kept as text, not guessed into an expression;
+        # another spelling of an id is read as the id (separator).
         ("https://creativecommons.org/licenses/by/4.0/",
          "https://creativecommons.org/licenses/by/4.0/"),
-        ("CC BY 4.0", "CC BY 4.0"),
+        ("Custom terms 2026", "Custom terms 2026"),
+        ("CC BY 4.0", "CC-BY-4.0"),
         # Invisible and bidi controls are written escaped.
         ("MIT\u202e", "MIT\\u202e"),
     ],
-    ids=["id", "expression", "url", "free-text", "bidi"],
+    ids=["id", "expression", "url", "free-text", "respelled", "bidi"],
 )  # fmt: skip
 def test_dataset_licence_is_declared(licence: str, name: str) -> None:
     graph = _graph(licence)

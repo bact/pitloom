@@ -121,18 +121,14 @@ _MIT = "License :: OSI Approved :: MIT License"
 #: Classifier cases for the end-to-end drift guard: the weak cascade and
 #: exactly one relationship. (extra headers, expected licence targets)
 _CLASSIFIER_CASES = [
-    pytest.param(f"Classifier: {_MIT}\n", ["MIT License"], id="classifier-only"),
-    pytest.param(
-        f"License: UNKNOWN\nClassifier: {_MIT}\n", ["MIT License"], id="weak-license"
-    ),
+    pytest.param(f"Classifier: {_MIT}\n", ["MIT"], id="classifier-only"),
+    pytest.param(f"License: UNKNOWN\nClassifier: {_MIT}\n", ["MIT"], id="weak-license"),
     pytest.param(f"License: MIT\nClassifier: {_MIT}\n", ["MIT"], id="license-wins"),
     pytest.param(f"License: NONE\nClassifier: {_MIT}\n", ["NONE"], id="none-ends"),
-    pytest.param(
-        f"License: \n \nClassifier: {_MIT}\n", ["MIT License"], id="folded-blank"
-    ),
+    pytest.param(f"License: \n \nClassifier: {_MIT}\n", ["MIT"], id="folded-blank"),
     pytest.param(
         f"License-Expression: \xa0\nClassifier: {_MIT}\n",
-        ["MIT License"],
+        ["MIT"],
         id="nbsp-expression",
     ),
     pytest.param(
@@ -263,7 +259,10 @@ def test_license_readers_agree(
         m.provenance.get("license", "").endswith("Field: Classifier")
         for m in readers.values()
     } | {sources[0].endswith("Field: Classifier")}
-    assert from_classifier == {expected == ["MIT License"]}
+    # The classifier is used when it is all the metadata states (its name is
+    # read as the id it names, MIT): no stated licence beside it, no NONE.
+    used = _MIT in extra and "License: MIT" not in extra
+    assert from_classifier == {used and expected != ["NONE"]}
 
 
 @pytest.mark.parametrize(

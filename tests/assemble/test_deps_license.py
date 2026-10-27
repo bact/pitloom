@@ -226,9 +226,10 @@ def test_build_license_elements_two_candidates_one_states_no_licence(
         ("NONE", "MIT", False, 1),
         ("MIT", "none", False, 1),
         ("NOASSERTION", "NONE", False, 0),
-        # a licence's SPDX List name and its id are one licence, either way
-        ("MIT License", "MIT", False, 0),
-        ("MIT", "mit license", False, 0),
+        # a licence's SPDX List name and its id are one licence, either way: both
+        # read as the id, so one element
+        ("MIT License", "MIT", True, 0),
+        ("MIT", "mit license", True, 0),
         ("Apache Software License", "Apache-2.0", False, 1),  # not the List name
     ],
 )

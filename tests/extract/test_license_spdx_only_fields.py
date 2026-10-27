@@ -79,12 +79,12 @@ def _said(caplog: pytest.LogCaptureFixture) -> list[str]:
         ("", None),
         ("   ", None),
         (None, None),
-        ("Apache2", "LICENSE='Apache2': _ (Unknown Expression 'Apache2')"),
+        ("Acme2", "LICENSE='Acme2': _ (Unknown Expression 'Acme2')"),
         ("MIT OR Foo", "LICENSE='MIT OR Foo': _ (Unknown Expression 'Foo')"),
-        (" Apache2 ", "LICENSE='Apache2': _ (Unknown Expression 'Apache2')"),
+        (" Acme2 ", "LICENSE='Acme2': _ (Unknown Expression 'Acme2')"),
         ("Apache\nLicense", "LICENSE='Apache License': _ (more than one line)"),
         (_LONG, "_ (longer than 200 characters, not parsed)"),
-        ("Apache2\x1b[2J", "LICENSE='Apache2\\x1b[2J': _"),
+        ("Acme2\x1b[2J", "LICENSE='Acme2\\x1b[2J': _"),
     ],
     ids=lambda v: repr(v)[:30],
 )
@@ -173,8 +173,8 @@ def test_each_reader_warns_for_an_spdx_only_field_only(
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         read("MIT")
         assert not caplog.records
-        read("Apache2")
-        read("Apache2")
+        read("Acme2")
+        read("Acme2")
     assert [m.split()[0] for m in _said(caplog)] == (
         [f"FIELD={field}"] if field else []
     )
@@ -208,7 +208,7 @@ def test_one_unknown_id_on_three_dependencies_is_said_once(
         {"package": {"key": n, "package_name": n, "installed_version": "1"}}
         for n in ("a", "b", "c")
     ]
-    fake = _FakeMetadata({"Version": "1", "License-Expression": "Apache2"})
+    fake = _FakeMetadata({"Version": "1", "License-Expression": "Acme2"})
     with (
         caplog.at_level(logging.WARNING, logger="pitloom"),
         patch.object(
@@ -218,7 +218,7 @@ def test_one_unknown_id_on_three_dependencies_is_said_once(
         exporter = build_deployed(doc, tree, offline=True)
     graph = json.loads(exporter.to_json())["@graph"]
     assert [e.get("simplelicensing_licenseText") for e in license_elements(graph)] == [
-        "Apache2"
+        "Acme2"
     ]
     assert [m.split()[0] for m in _said(caplog)] == ["FIELD=License-Expression"]
 
@@ -243,7 +243,7 @@ def test_a_file_tag_on_two_files_is_said_once(
     root = _project(tmp_path / "p", "MIT")
     (root / "p").mkdir()
     for name in ("__init__.py", "b.py"):
-        (root / "p" / name).write_text("# SPDX-License-Identifier: Apache2\n", "utf-8")
+        (root / "p" / name).write_text("# SPDX-License-Identifier: Acme2\n", "utf-8")
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         sbom = json.loads(
             generate_project_sbom(
@@ -251,7 +251,7 @@ def test_a_file_tag_on_two_files_is_said_once(
             )
         )
     assert [m.split()[0] for m in _said(caplog)] == ["FIELD=SPDX-License-Identifier"]
-    assert sorted(_texts(sbom)) == ["Apache2", "MIT"]
+    assert sorted(_texts(sbom)) == ["Acme2", "MIT"]
 
 
 def _project(root: Path, license_value: str) -> Path:
@@ -278,7 +278,7 @@ def test_end_to_end_the_value_is_text_with_one_warning(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    root = _project(tmp_path / "p", "Apache2")
+    root = _project(tmp_path / "p", "Acme2")
     out = tmp_path / "sbom.json"
     if surface == "cli":
         argv = ["loom", "project", str(root), "-o", str(out), "--offline"]
@@ -295,15 +295,15 @@ def test_end_to_end_the_value_is_text_with_one_warning(
         )
     err = capsys.readouterr().err.splitlines()
     assert [line for line in err if _SAID in line] == [
-        "WARNING: FIELD=project.license LICENSE='Apache2': not read as an SPDX"
-        " license expression (Unknown Expression 'Apache2'); recorded as license"
+        "WARNING: FIELD=project.license LICENSE='Acme2': not read as an SPDX"
+        " license expression (Unknown Expression 'Acme2'); recorded as license"
         " text"
     ]
-    assert _texts(json.loads(out.read_text(encoding="utf-8"))) == ["Apache2"]
+    assert _texts(json.loads(out.read_text(encoding="utf-8"))) == ["Acme2"]
 
 
 @pytest.mark.parametrize(
-    ("value", "warns"), [("MIT", False), ("Apache2", True)], ids=["mit", "apache2"]
+    ("value", "warns"), [("MIT", False), ("Acme2", True)], ids=["mit", "acme2"]
 )
 def test_the_licenseid_database_does_not_decide(
     value: str, warns: bool, tmp_path: Path, caplog: pytest.LogCaptureFixture

@@ -64,7 +64,7 @@ _PARENT = "License :: OSI Approved"
     [
         ([_MIT, _APACHE], _AND, 1),
         ([_APACHE, _MIT, _APACHE], _AND, 1),
-        ([_PARENT, _MIT], "MIT License", 0),  # a trove parent is a category
+        ([_PARENT, _MIT], "MIT", 0),  # a trove parent is a category
         ([_PARENT], None, 0),  # alone too: as if no classifier
         ([_MIT, _MIT + " :: X"], "X", 0),  # a licence's own trove child
     ],
@@ -106,10 +106,14 @@ def test_the_and_maps_each_term_to_its_names_text_element() -> None:
     assert set(mapped.values()) == {"MIT License", "Apache Software License"}
 
 
-@pytest.mark.parametrize("order", [["MIT License", _AND], [_AND, "MIT License"]])
+_LONE = "Apache Software License"  # a trove name no SPDX id is read from
+
+
+@pytest.mark.parametrize("order", [[_LONE, _AND], [_AND, _LONE]])
 def test_a_name_text_is_shared_with_a_single_classifier_text(order: list[str]) -> None:
-    """The member text element is the one a lone ``MIT License`` elsewhere in
-    the document records, whichever comes first: one element per text."""
+    """The member text element is the one a lone ``Apache Software License``
+    elsewhere in the document records, whichever comes first: one element per
+    text."""
     graph = two_packages(order)
     texts = {
         e["simplelicensing_licenseText"]: e["spdxId"]

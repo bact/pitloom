@@ -29,7 +29,8 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
-from licenseid import AggregatedLicenseMatcher, DatabaseNotReadyError
+from licenseid import AggregatedLicenseMatcher, DatabaseNotReadyError, resolve
+from licenseid.resolvertypes import Resolution
 from licenseid.types import LicenseMatch
 
 from pitloom.core.project import ProjectMetadata
@@ -93,6 +94,7 @@ __all__ = [
     "is_weak_licence",
     "license_from_candidates",
     "same_licence",
+    "resolve_declared_value",
     "resolve_license_concluded",
     "stated_license",
     "tag_deprecated_license_ids",
@@ -121,7 +123,8 @@ def _database_unusable(exc: BaseException) -> None:
     warn_once(
         _logger,
         "licenseid database",
-        "licenseid database cannot be used: %s -- license text detection skipped",
+        "licenseid database cannot be used: %s -- license text detection and "
+        "license id reading skipped",
         one_line(exc),
     )
 
@@ -136,6 +139,24 @@ def _matcher() -> AggregatedLicenseMatcher | None:
     except Exception as exc:
         _database_unusable(exc)
         return None
+
+
+def resolve_declared_value(value: str) -> Resolution | None:
+    """``licenseid``'s reading of the declared licence *value*
+    (:func:`licenseid.resolve`) on the shared database, or ``None`` when the
+    database cannot be used (warned once per process, as :func:`_matcher`
+    does) or the resolver fails."""
+    matcher = _matcher()
+    if matcher is None:
+        return None
+    try:
+        return resolve(value, matcher.db)
+    except DatabaseNotReadyError as exc:
+        _database_unusable(exc)
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:
+        _logger.debug("Failed to resolve license value %r: %s", value, exc)
+    return None
 
 
 def _looks_like_spdx_license_expression(value: str) -> bool:

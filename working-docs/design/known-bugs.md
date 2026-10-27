@@ -284,6 +284,14 @@ From the combined review of #352 to #357. Open:
   Hatchling itself reads the value first and ends with its own `ValueError:
   Exceeds the limit (4300 digits)` traceback before the hook runs. Not
   Pitloom's to catch; noted so the difference between the surfaces is known.
+- [ ] **`licenseid` 0.6.0 gives Pitloom no operands (S).** `resolve()`
+  answers for a whole value, so a compound with one respelt part (`Apache2 OR
+  MIT`) is `expression` with no expression and stays text; the design asked
+  for per-operand results (`Resolution-n`, `Expansion-n`). It also carries no
+  `license_list_version`, so `simplelicensing_licenseListVersion` is not set
+  from the resolver's data (decision Q5). Ask upstream for both. The verbatim
+  value and the reading's method have no SPDX property either: FG-6 and FG-7 in
+  [sbom-format-gaps.md](sbom-format-gaps.md).
 - [x] **`_merge_dictionary_entries` dropped a differing value without a warning
   (S, found outside the set).** Fixed in #357: two fragments giving one
   `ai_hyperparameter` or `ai_metric` key different values keep the first and
