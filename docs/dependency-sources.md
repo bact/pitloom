@@ -122,7 +122,8 @@ How a dependency is related to the project:
 A lock does not make an extra's requirement `dependsOn`, even when another
 dependency needs it: Pitloom reads which packages a lock resolved, not which
 package needs which. A requirement that is not valid PEP 508 (one whose
-marker nests over 64 parentheses deep counts as one), or whose marker's
+marker nests over 64 parentheses deep, or with a version number over 640
+digits, counts as one), or whose marker's
 extra condition cannot be isolated (`extra == "a" or python_version <
 "3.9"`), is recorded as required, with a `WARNING:`. One with an extra
 condition of its own inside an extra (`foo; extra == 'x'` in `dev`) is
@@ -228,6 +229,14 @@ two places:
   adds a `conflict` Annotation (`field: "dependency_version"`) to the
   generated SBOM, not just a stderr `WARNING:` -- see [Metadata
   provenance](metadata-provenance.md#how-a-dependency-version-source-is-chosen).
+
+A version with a number over 640 digits (`1.` followed by 5,000 nines) is
+not read as a version: Python cannot convert such a number on every
+release and setting. A lock entry holding one is skipped with the lock's own
+`WARNING:` for an invalid version, as is a whole `requirements.txt` with
+such a pin; a requirement holding one counts as not valid PEP 508 (below),
+with one `WARNING:`. The project's own `version` or `requires-python`
+holding one fails the run with an `ERROR:`, as any invalid value does.
 
 [pep-440]: https://peps.python.org/pep-0440/
 

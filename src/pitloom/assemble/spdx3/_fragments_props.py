@@ -17,6 +17,7 @@ from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._fragments_equal import same_json
 from pitloom.core.model_parameters import (
     PARAMETER_COUNT_KEY,
     is_parameter_count_text,
@@ -95,6 +96,18 @@ def _merge_scalar(
             setattr(canonical, pyname, dup_val)
         return
     if _differs(canonical_val, dup_val):
+        if (
+            isinstance(canonical_val, str)
+            and isinstance(dup_val, str)
+            and same_json(canonical_val, dup_val)
+        ):
+            log.debug(
+                "Merge: %r on %s holds the same JSON in another spelling; keeping %s.",
+                pyname,
+                describe_value(canonical),
+                describe_value(canonical_val),
+            )
+            return
         if pyname == "name" and _paths_suffix_match(canonical_val, dup_val):
             log.debug(
                 "Merge: %s known as both %r and %r; keeping %r.",

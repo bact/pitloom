@@ -17,13 +17,11 @@ from __future__ import annotations
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._agents import Doc, generic_agent
 from pitloom.assemble.spdx3._ai_package import warn_related_name_cut
 from pitloom.assemble.spdx3._display_text import MODEL_ORIGINATOR, MODEL_SUPPLIER
 from pitloom.core.ai_metadata import AiModelMetadata, cap_model_name
-from pitloom.core.models import generate_spdx_id
-from pitloom.export.spdx3_json import Spdx3JsonExporter, agent_key, require_spdx_id
-
-_Doc = tuple[spdx3.CreationInfo, str, str]
+from pitloom.export.spdx3_json import Spdx3JsonExporter
 
 
 def _capped(raw: object) -> tuple[str, bool] | None:
@@ -36,29 +34,10 @@ def _capped(raw: object) -> tuple[str, bool] | None:
     return name, name != stripped
 
 
-def _agent(
-    name: str, doc: _Doc, exporter: Spdx3JsonExporter
-) -> tuple[str, spdx3.Agent | None]:
-    """The id of the generic ``Agent`` named *name*, and the Agent when it
-    is minted here (``None`` when *exporter* already holds one)."""
-    key = agent_key(spdx3.Agent, name, None)
-    spdx_id = exporter.find_agent(key)
-    if spdx_id is not None:
-        return spdx_id, None
-    creation_info, doc_name, doc_uuid = doc
-    agent = spdx3.Agent(
-        spdxId=generate_spdx_id("Agent", doc_name=doc_name, doc_uuid=doc_uuid),
-        name=name,
-        creationInfo=creation_info,
-    )
-    exporter.add_agent(agent, key=key)
-    return require_spdx_id(agent), agent
-
-
 def add_model_originators(
     ai_pkg: spdx3.ai_AIPackage,
     ai_model: AiModelMetadata,
-    doc: _Doc,
+    doc: Doc,
     exporter: Spdx3JsonExporter,
 ) -> list[tuple[str, spdx3.Element]]:
     """Set *ai_pkg*'s ``originatedBy`` to one generic ``Agent`` per name in
@@ -80,7 +59,7 @@ def add_model_originators(
         capped = _capped(raw)
         if capped is None:
             continue
-        spdx_id, agent = _agent(capped[0], doc, exporter)
+        spdx_id, agent = generic_agent(capped[0], doc, exporter)
         if agent is not None:
             created.append((MODEL_ORIGINATOR, agent))
         if capped[1] and not cut:
@@ -90,7 +69,7 @@ def add_model_originators(
         ai_pkg.originatedBy = list(dict.fromkeys(ids))
     supplier = _capped(ai_model.supplier)
     if supplier is not None:
-        spdx_id, agent = _agent(supplier[0], doc, exporter)
+        spdx_id, agent = generic_agent(supplier[0], doc, exporter)
         if agent is not None:
             created.append((MODEL_SUPPLIER, agent))
         if supplier[1] and spdx_id not in ids:

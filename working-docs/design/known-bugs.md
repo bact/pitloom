@@ -51,12 +51,15 @@ Size: S under half a day, M about a day.
   dropped when its value lost, but here the claim is false. A fix has to tell
   a fragment's winning entry from a losing one (a fragment whose generated
   value wins keeps its claim, which is true).
-- [ ] **A respelt copy of a curated value warns (S, found in the 2026-10-23
-  review of #349).** Fragment A replaces a generated value; a later fragment A'
-  is A in other JSON spacing (or a list in another order, which only unions).
-  The plain field merge compares the text, so A' earns `WARNING: Merge:
-  conflicting`, while a respelling of the *generated* value is silent. Same in
-  every order; harmless to the result.
+- [x] **A respelt copy of a curated value warns (S, found in the 2026-10-23
+  review of #349; fixed in #352).** Fragment A replaces
+  a generated value; a later fragment A' was A in other JSON spacing and earned
+  `WARNING: Merge: conflicting`, while a respelling of the *generated* value
+  was silent. The field merge now reads two texts that are the same JSON as one
+  value, for a text property merged field by field (`_fragments_equal.py`;
+  list items, comments and model names still compare as text, which is ledgered
+  in the 2026-10-24 review of this fix: the same JSON pair folds as a scalar and
+  stays two list items).
 - [x] **Same AI model gets different ids per surface; enrichment can hit
   the wrong model (S-M).** Found in the #292 review (`loom model` looked a
   model up by file stem only, a project scan by name, path, then stem). Fixed
@@ -172,7 +175,14 @@ Size: S under half a day, M about a day.
   SBOM's year, not the package's. Not re-checked since #300: the wheel
   route had no supplier where the hook records the author.
 
-- [ ] **A very long version number crashes lock-file reading (S).**
+- [x] **A very long version number crashes lock-file reading (S).**
+  Fixed in #354: `pitloom.core.pep440` refuses a
+  version number over 640 digits before `int()` (any interpreter limit,
+  `packaging` 25 and 26) for every version, specifier and requirement
+  parse; a lock entry, pin or requirement holding one is unusable as any
+  invalid one, the project's own `version`/`requires-python` an `ERROR:`.
+  `packaging` 25 also failed building a specifier set, 26 printing one of
+  several clauses. Was:
   `packaging.Version("1." + "9" * 5000)` raises a plain `ValueError`
   (int digit limit), not `InvalidVersion`; `version_key`,
   `is_usable_version` and `is_same_version` in `extract/lock/common.py`

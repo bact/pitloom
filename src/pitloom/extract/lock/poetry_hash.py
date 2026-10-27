@@ -38,8 +38,9 @@ from packaging.utils import (
     parse_sdist_filename,
     parse_wheel_filename,
 )
-from packaging.version import InvalidVersion, Version
+from packaging.version import Version
 
+from pitloom.core.pep440 import parse_version
 from pitloom.extract.lock._hash import (
     index_packages_by_name_and_version,
     resolve_locked_hashes,
@@ -137,10 +138,7 @@ def _filename_matches_version(
     """
     if not isinstance(filename, str):
         return False
-    try:
-        target_ver = Version(expected_version)
-    except InvalidVersion:
-        target_ver = None
+    target_ver = parse_version(expected_version)
     if target_ver is not None:
         parsed_ver = _parse_artifact_version(filename, expected_version)
         if parsed_ver is not None:
