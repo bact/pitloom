@@ -79,8 +79,8 @@ pitloom/
 │       │   │   ├── _document_locked_deps.py  # Locked-dependency dedup, conflict detection, exact-version pins
 │       │   │   ├── _document_model.py       # Single-AI-model assembly
 │       │   │   ├── _fragments_envelope.py  # SpdxDocument envelope of a merge output
-│       │   │   ├── _fragments_hashes.py     # Hash conflict test, same-name-different-hash warning
 │       │   │   ├── _fragments_equal.py  # Two JSON texts that say the same, in any spelling (bounded, exact)
+│       │   │   ├── _fragments_hashes.py     # Hash conflict test, same-name-different-hash warning
 │       │   │   ├── _fragments_generated.py  # A fragment value replaces a value generated from the model file
 │       │   │   ├── _fragments_ids.py        # rename_id_clash: new id for a type or digest clash
 │       │   │   ├── _fragments_licenses.py  # Licence unification for a fragment merge
@@ -158,6 +158,7 @@ pitloom/
 │       │   ├── _models_wheel_pdm.py        # pdm-backend-backed discover()
 │       │   ├── _models_wheel_poetry.py     # poetry-core WheelBuilder-based discover()
 │       │   ├── _models_wheel_setuptools.py # setuptools static-config-based discover()
+│       │   ├── _models_wheel_setuptools_relay.py # setuptools' warnings and stderr lines, relayed as tagged records
 │       │   ├── _models_wheel_unlistable.py  # Warn about project directories file discovery could not list
 │       │   ├── _models_wheel_types.py # IncludedFile, BackendDiscoverer protocol, shared helpers
 │       │   ├── ai_metadata.py      # AiModelMetadata, ModelFormat
@@ -188,6 +189,7 @@ pitloom/
 │       │   ├── models.py           # Deterministic UUIDs, Merkle root, SPDX ID generation facade
 │       │   ├── path_confine.py  # Confined open: a project's own files must lie inside it
 │       │   ├── path_probe.py  # Genuinely missing path vs present-but-inaccessible
+│       │   ├── pep440.py  # Every PEP 440 version and specifier Pitloom parses (number length bounded)
 │       │   ├── pep508.py  # Every PEP 508 requirement and marker Pitloom parses
 │       │   ├── no_effect.py        # warn_no_effect(): the one "has no effect" WARNING: shape
 │       │   ├── requirements.py  # Requires-Dist strings of a built wheel: names canonicalised, extras tagged
@@ -231,6 +233,7 @@ pitloom/
 │       │   ├── binary.py           # Bundled third-party binary ("phantom dependency") detection
 │       │   ├── env.py              # Deployed SBOM: installed-environment dependency tree
 │       │   ├── license_refs.py  # Several License:: classifiers as one licence expression
+│       │   ├── stderr_capture.py  # Per-thread capture of what third-party code writes to sys.stderr
 │       │   ├── scanner.py          # AI model discovery policy: ModelCandidate, discover/attach passes
 │       │   ├── scanner_project.py  # Project-directory producer for the AI model scanner
 │       │   └── scanner_wheel.py  # Built-wheel producer for the AI model scanner

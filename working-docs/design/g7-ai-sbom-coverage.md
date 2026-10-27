@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -166,7 +166,7 @@ decisions:
   above). The Hugging Face identifier and PURL: done as
   `software_packageUrl` (the "Model identifier" item above).
 - `loom model` identity is the model's internal name and version, so two
-  files with the same graph name share a document namespace. Fixed on branch
+  files with the same graph name share a document namespace. Fixed in
   #353: a generic `Agent`'s id carries its name, so two
   people no longer fold by a counter id on `loom merge`. The `ai_AIPackage`
   itself collided before #6; that belongs with the registry v3 / identity

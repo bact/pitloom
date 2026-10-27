@@ -247,8 +247,9 @@ from the `licenseid` library.  The matcher's Tier-0 short-text path performs
 fuzzy name/ID matching and returns the canonical casing when it finds an
 exact match (internal score > 1.0).  Only a *case* difference is
 applied; a match that is a different id is ignored and the value is returned
-**verbatim**.  A deprecated bare id such as `gpl-3.0` is therefore recorded as written
-(never `GPL-3.0-only`), with or without the `licenseid` database.
+**verbatim**.  A deprecated bare id such as `gpl-3.0` is therefore left as
+written here; the classification that follows records it as the deprecated
+`GPL-3.0` (never `GPL-3.0-only`), with or without the `licenseid` database.
 
 pitloom does **not** add `LicenseRef-` prefixes or otherwise interpret
 unrecognized values — that is the responsibility of `licenseid` or downstream

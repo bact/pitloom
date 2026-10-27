@@ -310,7 +310,7 @@ real `egg_info` command invocation -- redirected via the command's own
 directory is never mutated by what is meant to be a read-only
 discovery pass (verified by a regression test asserting no `.egg-info`
 artefact is left behind). What the manifest step writes on stderr
-(`warning: no files found matching ...`) is relayed as `DEBUG:` lines
+(`warning: no files found matching ...`) is relayed as `DEBUG:` lines, an `error:` line as a `WARNING:`
 (`core/_models_wheel_setuptools_relay.py`).
 
 **No static config at all** -- a `pyproject.toml` with only

@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-24
+Last-Modified: 2026-10-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -95,7 +95,7 @@ Size: S under half a day, M about a day.
   helper built on it misses case variants. Fixed by registry v3 (PR #305):
   `core/walk_rules.same_path` falls back to `(st_dev, st_ino)`.
 
-## P2: in 0.21.0
+## P2: 0.21.0 and later
 
 - [x] **An unknown id in an SPDX-only field is not reported (S-M).** Fixed
   in #357: the value stays text, plus one
@@ -104,9 +104,11 @@ Size: S under half a day, M about a day.
   [license-typing.md](../implementation/license-typing.md#unknown-id-in-an-spdx-only-field).
   Legacy `License:` stays silent.
 - [x] **A Hugging Face `license: gpl-3.0` was rewritten to `GPL-3.0-only`
-  only when the `licenseid` database was present (S).** Fixed in #357: `canonicalize_license_id` applies the resolver's
-  answer only when it is the same id in other casing, so the deprecated bare
-  id is recorded as written with or without the database. A non-lexical
+  only when the `licenseid` database was present (S).** Fixed in #357:
+  `canonicalize_license_id` applies the resolver's answer only when it is the
+  same id in other casing, so the deprecated bare id stays the id written
+  (`GPL-3.0` after classification, never `GPL-3.0-only`) with or without the
+  database. A non-lexical
   resolver decision (alias, successor) waits for `INFO:` plus provenance, see
   [license-resolution-categories.md](license-resolution-categories.md).
 - [ ] **A licence classifier becomes text, not an SPDX id (S).** Deferred
@@ -208,7 +210,8 @@ Size: S under half a day, M about a day.
   with one `ERROR:` naming the file, section and key and the `%%` fix.
   Precondition met (2026-10-04): pbr 7.0.3 reads `setup.cfg` with
   `configparser.ConfigParser` (interpolating; never Raw in any release checked)
-  and fails on `50% faster` too; `%%` works. Fixed in #355 (`_setup_cfg_interpolation.py`): `... setup.cfg:
+  and fails on `50% faster` too; `%%` works. Fixed in #355
+  (`_setup_cfg_interpolation.py`): `... setup.cfg:
   '<path>' [metadata] description: '%' must be followed by ...; setuptools
   fails on it too; write a literal '%' as '%%'`. An undefined `%(key)s` and a
   reference loop fail the same way (setuptools 84.0.0 fails on both); a

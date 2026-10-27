@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-05
-Last-Modified: 2026-10-24
+Last-Modified: 2026-10-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -341,10 +341,10 @@ elsewhere:
 - A grammar-gap value is recorded as an expression (raw, operators
   upper-cased), with an upstream `py-spdx-license` issue to follow.
 - An unknown id alone (`Apache2`) stays silent text in 0.20.0. The
-  0.21.0 warning for a field that must hold an SPDX expression
-  (`project.license`, `License-Expression`) was built by calling one
-  helper from each reader that knows the field, not by threading the
-  field (#357).
+  warning for a field that must hold an SPDX expression
+  (`project.license`, `License-Expression`) was built in #357, after 0.21.0,
+  by calling one helper from each reader that knows the field, not by
+  threading the field.
 - Several classifiers: first "sorted first plus one `WARNING:`" (M2),
   superseded the same day by the AND form, chosen to match the G7 #3
   dataset list (`[a, b]` is `a AND b`).
