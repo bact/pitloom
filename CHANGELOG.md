@@ -22,6 +22,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- A licence value `licenseid` reads as one id (`Apache2`, `MIT License`) is
+  recorded as that id, the value as written kept in the provenance; needs
+  `licenseid>=0.6.0` ([#369])
+
 ### Fixed
 
 - Fragment merge folds a respelt JSON copy of a curated value, no warning
@@ -256,6 +262,7 @@ and this project adheres to
 [#356]: https://github.com/bact/pitloom/pull/356
 [#357]: https://github.com/bact/pitloom/pull/357
 [#358]: https://github.com/bact/pitloom/pull/358
+[#369]: https://github.com/bact/pitloom/pull/369
 
 ## [0.20.2] - 2026-10-09
 
