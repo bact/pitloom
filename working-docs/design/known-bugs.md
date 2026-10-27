@@ -287,11 +287,16 @@ From the combined review of #352 to #357. Open:
 - [ ] **`licenseid` 0.6.0 gives Pitloom no operands (S).** `resolve()`
   answers for a whole value, so a compound with one respelt part (`Apache2 OR
   MIT`) is `expression` with no expression and stays text; the design asked
-  for per-operand results (`Resolution-n`, `Expansion-n`). It also carries no
-  `license_list_version`, so `simplelicensing_licenseListVersion` is not set
-  from the resolver's data (decision Q5). Ask upstream for both. The verbatim
-  value and the reading's method have no SPDX property either: FG-6 and FG-7 in
-  [sbom-format-gaps.md](sbom-format-gaps.md).
+  for per-operand results (`Resolution-n`, `Expansion-n`). Decision Q5 (the
+  licence list version into `simplelicensing_licenseListVersion`) is not built:
+  the version is in `Resolution["lists"][0]["version"]` but not yet used. The
+  verbatim value and the reading's method have no SPDX property either: FG-6
+  and FG-7 in [sbom-format-gaps.md](sbom-format-gaps.md).
+- [ ] **The resolver's reading depends on the database (S).** A comparison
+  (`values_agree`, the fragment-merge key of `_license_elements`) treats
+  `Apache2` and `Apache-2.0` as one licence with the `licenseid` database and
+  as two without it, so whether a conflict is recorded differs. Provenance of
+  a value Pitloom parses itself does not (#359).
 - [x] **`_merge_dictionary_entries` dropped a differing value without a warning
   (S, found outside the set).** Fixed in #357: two fragments giving one
   `ai_hyperparameter` or `ai_metric` key different values keep the first and

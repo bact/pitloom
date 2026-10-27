@@ -42,9 +42,9 @@ value) -- so none of these are misreported as a conflict.
   in the project is the project's own statement, however it was read.
 - If both exist and **agree**, both `hasDeclaredLicense` and
   `hasConcludedLicense` are recorded, pointing at the same licence. A
-  licence name that is the SPDX License List name of the other value's id
-  (a classifier's `MIT License` and a detected `MIT`) agrees too: two
-  elements, no conflict.
+  licence name `licenseid` reads as the other value's id (a classifier's
+  `MIT License` and a detected `MIT`, both `MIT`) agrees too: one element, no
+  conflict.
 - If both exist and **disagree**, both are still recorded -- pointing at
   two different licences -- and Pitloom adds a `conflict` Annotation
   (`field: "license"`) on the package listing both candidates and where
@@ -119,8 +119,8 @@ spelling of an id (`Apache2`, `CC BY 4.0`, `GPLv3+`), the licence's List name
 (`MIT License`), a stated qualifier (`GPL 3.0 or later`) or a renamed id. It
 is never a guess: a bare `GPL-3.0` stays as written, a value naming several
 licences (`BSD`) or none stays text, and a compound with such a part
-(`Apache2 OR MIT`) stays text. A reading that changed more than the case or
-spacing is said once per value per run, and kept in the provenance:
+(`Apache2 OR MIT`) stays text. A reading that changed more than the case, surrounding white space,
+brackets or a `+` is said once per value per run, and kept in the provenance:
 
 ```text
 INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, version_spelling)
@@ -163,9 +163,9 @@ These provenance keys record what changed, in the entry's `license` field:
 | `Normalized-From` | The value as the source wrote it, when recording changed it (`mit`, `UNKNOWN`, `GPL-2.0+`). |
 | `Normalizer` | The `py-spdx-license` version that parsed it; present with `Normalized-From` only when a parse took place (not for `UNKNOWN`/`NONE`). |
 | `Deprecated-License-Id` | A deprecated id kept as written, with the successors it could mean (`GPL-2.0 (GPL-2.0-only or GPL-2.0-or-later)`). |
-| `Method` | `licenseid_resolution` when `licenseid` re-spelled or renamed the value; absent when only its case, spacing or `+` changed. |
+| `Method` | `licenseid_resolution` when `licenseid` respelt or renamed the value; absent when only its case, surrounding white space, brackets or `+` changed. |
 | `Resolution-1` | The value, what it was read as and the steps: `Apache2 -> Apache-2.0 (separator, version_spelling)`. |
-| `Expansion-1` | A qualifier written out, apart from the re-spelling: `plus_to_or_later` (`GPL-2.0+`), `stated_qualifier` (`GPL 3.0 or later`). |
+| `Expansion-1` | A qualifier written out, apart from the respelling: `plus_to_or_later` (`GPLv3+`), `stated_qualifier` (`GPL 3.0 or later`). |
 | `Tool` | The `licenseid` version that read it. |
 
 These notes are kept at the default `detail = "minimal"`. They land on the

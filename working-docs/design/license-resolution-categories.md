@@ -10,12 +10,13 @@ SPDX-License-Identifier: CC0-1.0
 
 Status: partly built. `licenseid` 0.6.0 ships `resolve()` (declared-value
 resolution, `Apache2` to `Apache-2.0`). Pitloom reads a single-line value
-through it, quiet at `DEBUG:` for form changes and one `INFO:` per decision, with
-`Method`, `Resolution-1`, `Expansion-1` and `Tool` in the provenance (see
-[license-pipeline.md](../implementation/license-pipeline.md)). Not built: reading
-a compound operand by operand (0.6.0 gives no operands), the licence list
-version (Q5), a cross-field indicator for a concluded licence (Q4) and
-`alias`/`listed_url` (0.6.0 has neither category).
+through it, quiet at `DEBUG:` for form changes and one `INFO:` per decision,
+with `Method`, `Resolution-1`, `Expansion-1` and `Tool` in the provenance (see
+[license-pipeline.md](../implementation/license-pipeline.md)). Not built:
+reading a compound operand by operand (0.6.0 gives no operands), the licence
+list version (Q5, in `Resolution["lists"]` but not used), a cross-field
+indicator for a concluded licence (Q4) and `alias`/`listed_url` (0.6.0 has
+neither category).
 
 See also: [license-typing.md](../implementation/license-typing.md) (the one
 classifier and element builder),
@@ -238,6 +239,9 @@ data for `alias`.
 
 **Log lines** (`excerpt()` on both values, operand names through
 `loggable()`, one per value per process, as `warn_once` but at `INFO`):
+
+Design wording, quoting the result and giving a reason for an ambiguous
+value; the built lines are in the provenance docs.
 
 ```text
 INFO: FIELD=project.license LICENSE='Apache2': read as 'Apache-2.0' (separator, version_spelling)

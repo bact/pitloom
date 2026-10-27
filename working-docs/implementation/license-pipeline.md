@@ -414,9 +414,9 @@ file, so the surviving header path is proven untouched.
 - `licenseid` text detection is probabilistic (threshold 0.85). Unusual
   licence texts or heavily modified standard licences may not be
   detected. Always verify the concluded licence in the SBOM.
-- A `License ::` classifier such as `OSI Approved :: MIT License` gives the
-  text `MIT License`, not the SPDX id (a known deviation, see
-  license-typing.md).
+- A `License ::` classifier such as `OSI Approved :: MIT License` is read as
+  `MIT` by `licenseid` (#359); one naming several licences (`BSD License`)
+  stays text (see license-typing.md).
 - An unknown id in a field that holds an SPDX expression only (PEP 639
   `license`, `License-Expression`, PyPI `license_expression`,
   `SPDX-License-Identifier`, GGUF `general.license`) is text with one

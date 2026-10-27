@@ -84,6 +84,7 @@ __all__ = [
     "apply_in_package_license_files",
     "canonicalize_license_id",
     "classify_license",
+    "clear_resolution_cache",
     "collect_license_candidates",
     "detect_independent_license",
     "detect_license_for_project",
@@ -120,6 +121,7 @@ def _database_unusable(exc: BaseException) -> None:
     """Warn once per process that the database cannot be used, and drop the
     cached matcher, so the next lookup builds (and checks) it again."""
     _get_matcher.cache_clear()
+    clear_resolution_cache()
     warn_once(
         _logger,
         "licenseid database",
@@ -141,22 +143,42 @@ def _matcher() -> AggregatedLicenseMatcher | None:
         return None
 
 
+#: ``licenseid``'s answers by value, so a value asked about by several callers
+#: costs one lookup. Kept for the process (as the shared matcher is), dropped
+#: when the database is found unusable and by :func:`clear_resolution_cache`.
+_RESOLUTIONS: dict[str, Resolution] = {}
+_MAX_RESOLUTIONS = 4096
+
+
+def clear_resolution_cache() -> None:
+    """Forget the answers of :func:`resolve_declared_value`."""
+    _RESOLUTIONS.clear()
+
+
 def resolve_declared_value(value: str) -> Resolution | None:
     """``licenseid``'s reading of the declared licence *value*
     (:func:`licenseid.resolve`) on the shared database, or ``None`` when the
     database cannot be used (warned once per process, as :func:`_matcher`
-    does) or the resolver fails."""
+    does) or the resolver fails; a failure is not cached."""
+    cached = _RESOLUTIONS.get(value)
+    if cached is not None:
+        return cached
     matcher = _matcher()
     if matcher is None:
         return None
     try:
-        return resolve(value, matcher.db)
+        answer = resolve(value, matcher.db)
     except DatabaseNotReadyError as exc:
         _database_unusable(exc)
+        return None
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         _logger.debug("Failed to resolve license value %r: %s", value, exc)
-    return None
+        return None
+    if len(_RESOLUTIONS) >= _MAX_RESOLUTIONS:
+        _RESOLUTIONS.clear()
+    _RESOLUTIONS[value] = answer
+    return answer
 
 
 def _looks_like_spdx_license_expression(value: str) -> bool:

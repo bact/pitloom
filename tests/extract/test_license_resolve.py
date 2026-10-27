@@ -27,13 +27,16 @@ from unittest.mock import patch
 
 import pytest
 from licenseid import DatabaseNotReadyError
+from licenseid import resolve as licenseid_resolve
 
 from pitloom.__main__ import main
 from pitloom.assemble import generate_project_sbom
 from pitloom.core.creation import CreationMetadata
-from pitloom.extract import _license_resolve
+from pitloom.extract import _license, _license_resolve
 from pitloom.extract._license import (
     classify_license,
+    clear_resolution_cache,
+    resolve_declared_value,
     tag_license_normalization,
     warn_unless_expression,
 )
@@ -88,20 +91,30 @@ def test_a_value_the_resolver_decided_is_an_expression_said_once_at_info(
     assert "Tool: licenseid==" in note
 
 
+def test_a_plus_after_a_respelling_is_an_expansion_apart_from_it() -> None:
+    note = tag_license_normalization("P", "GPLv3+", "GPL-3.0-or-later")
+    assert "Resolution-1: GPLv3+ -> GPL-3.0-or-later (" in note
+    assert "Expansion-1: plus_to_or_later" in note
+
+
 @pytest.mark.parametrize(
-    ("raw", "expression", "qualifier"),
+    ("raw", "normalized"),
     [
-        ("GPLv3+", "GPL-3.0-or-later", "plus_to_or_later"),
-        ("GPL-2.0+", "GPL-2.0-or-later", "plus_to_or_later"),
+        ("GPL-2.0+", "GPL-2.0-or-later"),  # Pitloom's own rewrite of a listed id
+        ("standardml-nj", "StandardML-NJ"),  # the resolver would say SMLNJ
+        ("(GPL-3.0+)", "GPL-3.0-or-later"),
     ],
-    ids=["respelt-plus", "plus"],
 )
-def test_a_plus_is_an_expansion_apart_from_the_respelling(
-    raw: str, expression: str, qualifier: str
+def test_a_value_pitloom_parses_itself_is_not_credited_to_licenseid(
+    raw: str, normalized: str
 ) -> None:
-    note = tag_license_normalization("P", raw, expression)
-    assert f"Expansion-1: {qualifier}" in note
-    assert ("Resolution-1" in note) is (raw == "GPLv3+")
+    """The keys name only what ``licenseid`` read, so a value that needs no
+    database has the same provenance with and without one."""
+    with_db = tag_license_normalization("P", raw, normalized)
+    assert "licenseid" not in with_db and "Resolution" not in with_db
+    with patch("pitloom.extract._license._matcher", return_value=None):
+        clear_resolution_cache()
+        assert tag_license_normalization("P", raw, normalized) == with_db
 
 
 @pytest.mark.parametrize("raw", ["mit", " MIT\t", "MIT OR Apache-2.0"])
@@ -292,3 +305,25 @@ def test_an_uninstalled_licenseid_distribution_gives_no_version() -> None:
     finally:
         importlib.reload(_license_resolve)
     assert _license_resolve._LICENSEID_VERSION is not None
+
+
+def test_a_value_is_resolved_once_and_a_failure_is_not_remembered() -> None:
+    """Callers share one answer per value; a failed answer is asked again."""
+    real = licenseid_resolve
+    with patch("pitloom.extract._license.resolve", side_effect=real) as spy:
+        for _ in range(3):
+            classify_license("Apache2", warn=False)
+        assert spy.call_count == 1
+    with patch(
+        "pitloom.extract._license.resolve", side_effect=[RuntimeError("boom"), None]
+    ) as flaky:
+        assert resolve_declared_value("Acme2") is None
+        assert resolve_declared_value("Acme2") is None  # asked again, not cached
+        assert flaky.call_count == 2
+
+
+def test_the_answers_are_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(_license, "_MAX_RESOLUTIONS", 2)
+    for value in ("Acme1", "Acme2", "Acme3"):
+        resolve_declared_value(value)
+    assert list(_license._RESOLUTIONS) == ["Acme3"]

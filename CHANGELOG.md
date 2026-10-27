@@ -108,8 +108,8 @@ and this project adheres to
   existing relationship descriptions are kept ([#322])
 - Hatchling hook: tests read the staged SBOM from `build_data`, not a private
   attribute ([#325])
-- `licenseid>=0.5.0` is required: its database is built from a host the
-  Claude Code sandbox allows ([#333])
+- `licenseid>=0.6.0` is required: its database is built from a host the
+  Claude Code sandbox allows, and it has `resolve()` ([#333], [#359])
 - A licence value `licenseid` reads as one id (`Apache2`, `MIT License`) is
   recorded as that id, the value as written kept in the provenance; needs
   `licenseid>=0.6.0` ([#359])
@@ -210,7 +210,7 @@ and this project adheres to
 - Setuptools' manifest-step stderr lines are relayed as tagged log lines
   ([#356])
 - A non-SPDX value in an SPDX-only licence field warns once; a Hugging Face
-  card licence skips licenseid (`gpl-3.0` is not `GPL-3.0-only`); a dropped
+  card id is not folded to another id (`gpl-3.0` is not `GPL-3.0-only`); a dropped
   differing `ai_hyperparameter`/`ai_metric` value warns ([#357])
 - `pipdeptree` 4.2.10 is excluded: it has no macOS arm64 wheel and fails to
   build there ([#358])
