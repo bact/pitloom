@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -339,6 +339,9 @@ unless the linked doc says so.
   version and project fields each hand-build a `ConflictCandidate` list.
   See [generic-multi-candidate-fields.md](generic-multi-candidate-fields.md),
   [metadata-quality.md](metadata-quality.md).
+- [ ] **Licence resolution categories** (`Apache2` to `Apache-2.0` via
+  `licenseid` 0.5.1): which changes to trust, log and record. See
+  [license-resolution-categories.md](license-resolution-categories.md).
 - [ ] **Provenance and enrichment vocabulary** (Method vs Role, source and role
   taxonomy; parked draft; includes renaming the fragment `role` and
   `DatasetReference.role`, whose names are provisional). See
