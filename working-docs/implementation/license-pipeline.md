@@ -207,8 +207,8 @@ relationships.
 
 1. **Card YAML** -- reads `license:` from the model card frontmatter. If
    the value is not a vague sentinel (`other`, `custom`, `proprietary`,
-   `unlicensed`; `unknown` is handled below), it is recorded as stated (white space
-   stripped), with or without the `licenseid` database; the classification
+   `unlicensed`; `unknown` is handled below), it is recorded as stated (white
+   space stripped), with or without the `licenseid` database; the classification
    that follows folds the case of a known id. The result is stored in
    `AiModelMetadata.license`.
 2. **File detection** -- when the card YAML value is absent or vague,

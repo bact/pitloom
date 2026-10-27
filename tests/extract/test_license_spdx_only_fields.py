@@ -108,17 +108,18 @@ def test_warn_unless_expression(
         assert "..." in message and len(message) < 300
 
 
+@pytest.mark.parametrize("spelling", ["MIT OR", " MIT OR\n"], ids=["exact", "padded"])
 @pytest.mark.parametrize("helper_first", [True, False])
 def test_a_broken_expression_is_said_once_with_the_classifier_warning(
-    helper_first: bool, caplog: pytest.LogCaptureFixture
+    helper_first: bool, spelling: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     """The broken-expression warning of ``classify_license`` and this one
-    share a key: one line, by whichever comes first."""
+    share a key (the stripped value): one line, by whichever comes first."""
     with caplog.at_level(logging.WARNING, logger="pitloom"):
         if helper_first:
-            warn_unless_expression("MIT OR", "project.license")
+            warn_unless_expression(spelling, "project.license")
         classify_license("MIT OR")
-        warn_unless_expression("MIT OR", "project.license")
+        warn_unless_expression(spelling, "project.license")
     (record,) = caplog.records
     assert ("FIELD=project.license" in record.getMessage()) is helper_first
 

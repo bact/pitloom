@@ -233,10 +233,10 @@ pitloom/
 │       │   ├── binary.py           # Bundled third-party binary ("phantom dependency") detection
 │       │   ├── env.py              # Deployed SBOM: installed-environment dependency tree
 │       │   ├── license_refs.py  # Several License:: classifiers as one licence expression
-│       │   ├── stderr_capture.py  # Per-thread capture of what third-party code writes to sys.stderr
 │       │   ├── scanner.py          # AI model discovery policy: ModelCandidate, discover/attach passes
 │       │   ├── scanner_project.py  # Project-directory producer for the AI model scanner
-│       │   └── scanner_wheel.py  # Built-wheel producer for the AI model scanner
+│       │   ├── scanner_wheel.py  # Built-wheel producer for the AI model scanner
+│       │   ├── stderr_capture.py  # Per-thread capture of what third-party code writes to sys.stderr
 │       │   └── wheel.py            # Analyzed SBOM: project metadata + file records from a built .whl
 │       ├── id_registry/             # Loom ID registry (loom-id-registry.json)
 │       │   ├── __init__.py          # Public API re-exports (IdRegistry, IdRegistrySession, resolve_registry)

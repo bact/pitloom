@@ -107,7 +107,7 @@ Size: S under half a day, M about a day.
   the Hugging Face route records the card value as stated, so the deprecated
   bare id stays the id written (`GPL-3.0` after classification, never
   `GPL-3.0-only`) with or without the database. `canonicalize_license_id`
-  (case fold only) has no extractor caller now. A non-lexical
+  (case fold only) has no caller in `src/`. A non-lexical
   resolver decision (alias, successor) waits for `INFO:` plus provenance, see
   [license-resolution-categories.md](license-resolution-categories.md).
 - [ ] **A licence classifier becomes text, not an SPDX id (S).** Deferred
@@ -219,8 +219,9 @@ Size: S under half a day, M about a day.
   reference loop fail the same way (setuptools 84.0.0 fails on both); a
   `[DEFAULT]` value is named under `[DEFAULT]`; `$` is not special. A test
   asks setuptools' own `read_configuration` for the same verdict and value.
-  Open: setuptools also fails on a `%` in any section Pitloom does not read
-  (`[flake8]`, `[tool:pytest]`), which Pitloom still reads past; and a `pyproject.toml`
+  Open: setuptools also fails on a `%` in any section Pitloom does not
+  read (`[flake8]`, `[tool:pytest]`); Pitloom's own read passes it, file
+  discovery warns and the SBOM has no file list. A `pyproject.toml`
   `dynamic` field filled from such a `setup.cfg` is a `WARNING:`, not an
   error, though the build fails.
 
@@ -272,6 +273,12 @@ From the combined review of #352 to #357. Open:
   different path each run. Git's own output is masked as `<checkout>`
   (`_git_run.py`), these messages are not. Show a checkout-relative path or
   the URL, through one helper.
+- [ ] **A failed setuptools file discovery is followed by a second, wrong
+  warning (S).** After `Setuptools file discovery failed for ...` (any cause,
+  e.g. a bad `%` in `[flake8]`), `_models_wheel_dispatch` also says `No static
+  setuptools config resolvable ... (packages only resolvable via an
+  imperative setup.py build)`, as if the config were absent. Found in the
+  #357 review; `discover()` returns `None` for both.
 - [ ] **The Hatchling hook does not check `requires-python` for an overlong
   number (S).** `loom project` refuses it with an `ERROR:`; in a build,
   Hatchling itself reads the value first and ends with its own `ValueError:

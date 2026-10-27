@@ -7,14 +7,18 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from pitloom.assemble.spdx3.document import build_model
+from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.extract.remote.huggingface import (
     read_huggingface,
 )
 from pitloom.extract.remote.huggingface_fetch import _resolve_license
+from tests._author_routes import CREATED
 from tests.extract.remote.hf_patches._hf_patches_embeddings import (
     _patch_clip_japanese_v2,
     _patch_codeberta,
@@ -103,29 +107,40 @@ def test_blip_vqa_bsd_license_normalized() -> None:
 
 
 @pytest.mark.parametrize(
-    ("card", "matched", "expected"),
+    ("card", "expected"),
     [
-        ("gpl-3.0", "GPL-3.0-only", "gpl-3.0"),
-        ("gpl-3.0", None, "gpl-3.0"),
-        ("lgpl-2.1", "LGPL-2.1-only", "lgpl-2.1"),
-        ("agpl-3.0", "AGPL-3.0-or-later", "agpl-3.0"),
-        ("apache-2.0", "Apache-2.0", "apache-2.0"),
-        ("apache-2.0", None, "apache-2.0"),
-        (" mit\n", "MIT", "mit"),
+        ("gpl-3.0", "gpl-3.0"),
+        ("lgpl-2.1", "lgpl-2.1"),
+        ("agpl-3.0", "agpl-3.0"),
+        ("apache-2.0", "apache-2.0"),
+        (" mit\n", "mit"),
     ],
-    ids=["gpl-db", "gpl-no-db", "lgpl-db", "agpl-db", "case-db", "case-no-db", "space"],
+    ids=["gpl", "lgpl", "agpl", "case", "space"],
 )
-def test_card_licence_is_recorded_as_stated(
-    card: str, matched: str | None, expected: str
-) -> None:
-    """The card value is kept (stripped), and the same with and without the
-    licenseid database: the builder's classification does the rest."""
+def test_card_licence_is_recorded_as_stated(card: str, expected: str) -> None:
+    """The card value is kept (stripped) and the licenseid matcher is not
+    asked, so the result cannot depend on whether its database is present."""
     matcher = MagicMock(spec=["match"])
-    matcher.match.return_value = [{"license_id": matched}] if matched else []
     with patch("pitloom.extract._license._matcher", return_value=matcher):
         value, _ = _resolve_license({"card_data": {"license": card}}, "o/m", {})
     assert value == expected
     matcher.match.assert_not_called()
+
+
+@pytest.mark.parametrize("matched", ["GPL-3.0-only", None], ids=["db", "no-db"])
+def test_a_card_gpl_3_is_the_deprecated_id_in_the_sbom(matched: str | None) -> None:
+    """From card to document: ``gpl-3.0`` becomes the deprecated ``GPL-3.0``
+    (never ``GPL-3.0-only``), with or without a licenseid answer."""
+    matcher = MagicMock(spec=["match"])
+    matcher.match.return_value = [{"license_id": matched}] if matched else []
+    with patch("pitloom.extract._license._matcher", return_value=matcher):
+        value, _ = _resolve_license({"card_data": {"license": "gpl-3.0"}}, "o/m", {})
+    sbom = build_model(AiModelMetadata(name="m", license=value), CREATED).to_json()
+    graph = json.loads(sbom)["@graph"]
+    (expression,) = [
+        e for e in graph if e["type"] == "simplelicensing_LicenseExpression"
+    ]
+    assert expression["simplelicensing_licenseExpression"] == "GPL-3.0"
 
 
 def test_seamless_nc_license() -> None:

@@ -24,6 +24,7 @@ import pytest
 from pitloom import __main__
 from pitloom.assemble import generate_project_sbom
 from pitloom.core.quote_source import quote_source
+from pitloom.extract.project.setup_cfg_interpolation import read_uninterpolated
 from pitloom.extract.project.setuptools_cfg import (
     read_setup_cfg,
     read_setup_cfg_options,
@@ -235,3 +236,24 @@ def test_an_extras_reference_finds_its_key_whatever_the_case(tmp_path: Path) -> 
     # setuptools gives the same values under lowercased keys (checked by hand
     # with setuptools.config.setupcfg.read_configuration on this file)
     assert extras == {"dev": ["foo"], "X": ["bar"], "Y": ["bar"], "Base": ["foo"]}
+
+
+@pytest.mark.parametrize(
+    ("content", "readable"),
+    [
+        (b"[a]\nk = 50%\n", True),
+        (b"\xff\xfe[a]", False),
+        (b"no section\n", False),
+    ],
+    ids=["percent-kept", "not-utf8", "no-section"],
+)
+def test_read_uninterpolated_gives_the_file_or_none(
+    tmp_path: Path, content: bytes, readable: bool
+) -> None:
+    path = tmp_path / "setup.cfg"
+    path.write_bytes(content)
+    cfg = read_uninterpolated(path)
+    assert (cfg is not None) is readable
+    if cfg is not None:
+        assert cfg.get("a", "k") == "50%"
+    assert read_uninterpolated(tmp_path / "missing.cfg") is not None  # reads empty

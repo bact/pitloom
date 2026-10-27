@@ -280,7 +280,7 @@ does not name. It is not a model bound.
 ## Licence detection unavailable
 
 `WARNING: licenseid database cannot be used: <reason> -- license text detection
-and license ID canonicalization skipped` (once per run): the `licenseid` SPDX
+skipped` (once per run): the `licenseid` SPDX
 database is missing or empty (`licenseid update` builds it). Licences are then
 taken as written: no `LICENSE` text is matched to an id and no id is
 normalised. Report the line.

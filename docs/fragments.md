@@ -43,9 +43,11 @@ except that for equal SHA-256 the registry-pinned `spdxId` wins: the one whose
 namespace the most inputs (the project and fragments) use, since a minted
 id's namespace belongs to its one fragment. A tie keeps the earlier. An
 `Annotation` records each unification. A kept licence keeps its own `name`
-and `comment`. Fields merge into the kept element: lists as a union, a
-`comment` appended after a semicolon, and any other field keeps the kept
-element's value (an empty one takes the fragment's), with a
+and `comment`. Fields merge into the kept element: lists as a union,
+`ai_hyperparameter` and `ai_metric` entries by key (a missing value is
+filled, a differing one is dropped with a `WARNING: Merge: conflicting ...
+key ...`), a `comment` appended after a semicolon, and any other field keeps
+the kept element's value (an empty one takes the fragment's), with a
 `WARNING: Merge: conflicting ...` naming the dropped one.
 
 A value Pitloom generated for the project's own AI model from its file's

@@ -34,10 +34,9 @@ and this project adheres to
   setuptools does ([#355])
 - Setuptools' manifest-step stderr lines are relayed as tagged log lines
   ([#356])
-- An unknown id in an SPDX-only licence field warns once; a Hugging Face
-  `gpl-3.0` stays the id written, never `GPL-3.0-only`; a fragment's differing
-  `ai_hyperparameter`/`ai_metric` value lost on a key collision is warned
-  ([#357])
+- A non-SPDX value in an SPDX-only licence field warns once; a Hugging Face
+  card licence skips licenseid (`gpl-3.0` is not `GPL-3.0-only`); a dropped
+  differing `ai_hyperparameter`/`ai_metric` value warns ([#357])
 - `pipdeptree` 4.2.10 is excluded: it has no macOS arm64 wheel and fails to
   build there ([#358])
 

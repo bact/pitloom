@@ -237,7 +237,8 @@ not read as a version: Python cannot convert such a number on every
 release and setting. A lock entry holding one is skipped with the lock's own
 `WARNING:` for an invalid version. A requirement holding one counts as not
 valid PEP 508 (above), with a `WARNING:` for the cap and the usual one for
-an invalid requirement; a whole `requirements.txt` with such a pin is
+an invalid requirement (a Poetry dependency: its one skip line, which gives
+the reason); a whole `requirements.txt` with such a pin is
 ignored, with both lines. The project's own `version` or `requires-python`
 holding one fails the run with an `ERROR:`, as any invalid value does.
 

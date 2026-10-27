@@ -339,7 +339,8 @@ def warn_unless_expression(value: str | None, field: str) -> None:
     """One ``WARNING:`` per value per process when *value*, read from
     *field*, a field that holds an SPDX license expression only (PEP 639
     ``project.license``, Core Metadata ``License-Expression``, a file's
-    ``SPDX-License-Identifier`` tag, GGUF ``general.license``), is not one
+    ``SPDX-License-Identifier`` tag, GGUF ``general.license``, a PyPI
+    record's ``license_expression``), is not one
     that Pitloom reads (``Apache2``, ``MIT OR Foo``, a licence text), so is
     recorded as licence text. An expression, ``NOASSERTION``/``UNKNOWN``,
     ``NONE`` and a blank value are quiet. A field that may hold free text

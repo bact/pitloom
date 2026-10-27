@@ -170,7 +170,13 @@ def _merge_colliding_entry(
         if not _is_empty(dropped_val):
             kept.value = dropped_val
         return
-    if not _differs(kept_val, dropped_val) or same_json(kept_val, dropped_val):
+    if not _differs(kept_val, dropped_val):
+        return
+    if (
+        isinstance(kept_val, str)
+        and isinstance(dropped_val, str)
+        and same_json(kept_val, dropped_val)
+    ):
         return
     log.warning(
         "Merge: conflicting %r key %r on %s: keeping %s, dropping %s.",

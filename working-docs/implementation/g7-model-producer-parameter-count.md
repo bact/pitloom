@@ -238,7 +238,8 @@ model with `"0"` parameters. A stated `0` is the same.
 **Collision.** A model-declared hyperparameter `parameters` is replaced by
 the count with a `WARNING:`. The Pitloom-derived number outranks a free
 hyperparameter; fragments, merged later, lose to the base's entry
-(`_merge_dictionary_entries`: canonical wins, with a `WARNING:` for a differing value).
+(`_merge_dictionary_entries`: canonical wins; a missing value is
+filled, a differing one warned).
 
 **Registry.** `--update-id-registry` also writes the generic model Agents
 into the registry file (an `Agent` table, no counter), as it does for

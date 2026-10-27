@@ -121,8 +121,7 @@ def _database_unusable(exc: BaseException) -> None:
     warn_once(
         _logger,
         "licenseid database",
-        "licenseid database cannot be used: %s -- license text detection "
-        "and license ID canonicalization skipped",
+        "licenseid database cannot be used: %s -- license text detection skipped",
         one_line(exc),
     )
 
@@ -365,14 +364,13 @@ def canonicalize_license_id(raw: str) -> str:
 
     Only a case (and surrounding-whitespace) difference is folded.  A match
     that is a different id (``gpl-3.0`` -> ``GPL-3.0-only``, a successor, an
-    alias) is not applied: the output must not depend on whether the
-    ``licenseid`` database is present, and a non-lexical decision of the
-    resolver needs its own notice and provenance.  Returns *raw* unchanged
-    when nothing matches, which includes a deprecated bare id in other case
-    (``gpl-3.0``): the licence classification that follows normalises it.
+    alias) is not applied: a non-lexical decision of the resolver needs its
+    own notice and provenance.  Returns *raw* unchanged when nothing matches
+    or the match is another id; the licence classification that follows
+    normalises it.
 
-    The result depends on whether the ``licenseid`` database is present, so
-    an extractor does not call it: it records the source's value as stated.
+    The fold needs the ``licenseid`` database, so no extractor calls it: an
+    extractor records its source's value as stated.
     """
     if len(raw.strip()) > _MAX_LICENSE_ID_CHARS:
         return raw

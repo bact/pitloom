@@ -49,8 +49,8 @@ __all__ = [
 #: digits, a date or a timestamp 14 at most.
 MAX_VERSION_NUMBER_DIGITS = 640
 
-#: Why a version, specifier or requirement is refused for its number. The one
-#: wording, so the exception text and the project-table error say it alike.
+#: Why a version or specifier is refused for its number. The one wording of
+#: the exception text and the project-table error.
 NUMBER_REASON = f"has a number over {MAX_VERSION_NUMBER_DIGITS} digits"
 
 _OVERLONG_NUMBER = re.compile(f"[0-9]{{{MAX_VERSION_NUMBER_DIGITS + 1}}}")

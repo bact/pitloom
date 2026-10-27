@@ -431,13 +431,18 @@ def discover(
         # pylint: disable-next=import-outside-toplevel
         from pitloom.extract.project.setup_cfg_interpolation import (
             interpolation_problem,
+            read_uninterpolated,
         )
 
         warn_discovery_failed(
             log,
             "Setuptools",
             project_dir,
-            ValueError(interpolation_problem(None, exc)),
+            ValueError(
+                interpolation_problem(
+                    read_uninterpolated(project_dir / "setup.cfg"), exc
+                )
+            ),
         )
         return None
     # pylint: disable-next=broad-exception-caught

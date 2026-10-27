@@ -224,10 +224,10 @@ The `hf.language` extractor passes non-standard values through unchanged
 | `"code"` | Programming-language content | `huggingface/CodeBERTa-small-v1` |
 | `False` (bool) | ISO code `"no"` parsed by YAML 1.1 | `openai/whisper-large-v3` — filtered out |
 
-### 8. License handling: sources, canonicalization, vague values, and no-license patterns
+### 8. License handling: sources, the stated value, vague values, and no-license patterns
 
 pitloom's role is to **find license information** from available sources.
-Once found, it delegates identification to the `licenseid` library.
+A card id is recorded as stated; `licenseid` only identifies licence-file text.
 
 #### License sources (priority order)
 
