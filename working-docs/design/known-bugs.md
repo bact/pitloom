@@ -277,6 +277,8 @@ From the combined review of #352 to #357. Open:
   Hatchling itself reads the value first and ends with its own `ValueError:
   Exceeds the limit (4300 digits)` traceback before the hook runs. Not
   Pitloom's to catch; noted so the difference between the surfaces is known.
-- [ ] **`_merge_dictionary_entries` drops a differing value without a warning
-  (S, found outside the set).** Two fragments giving one `ai_hyperparameter` or
-  `ai_metric` key different values keep one silently.
+- [x] **`_merge_dictionary_entries` dropped a differing value without a warning
+  (S, found outside the set).** Fixed in #357: two fragments giving one
+  `ai_hyperparameter` or `ai_metric` key different values keep the first and
+  say so (`Merge: conflicting 'ai_hyperparameter' key 'k' on ...: keeping X,
+  dropping Y.`); equal and same-JSON values stay quiet.

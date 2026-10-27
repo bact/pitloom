@@ -238,8 +238,9 @@ def test_a_scanned_model_merges_with_a_loom_fragment_of_the_same_model(
 ) -> None:
     """A scan's originators and count meet a loom fragment declaring the
     same model (one registry id) with its own ``parameters``: the scan's
-    entry wins as any keyed entry does, the Agents stay one per name and
-    the comments join with no conflict (pinned as merged today)."""
+    entry wins as any keyed entry does, with a warning for the dropped
+    value, the Agents stay one per name and the comments join with no
+    conflict."""
     registry = IdRegistry.new("p")
     model_id = registry.register("ai_AIPackage", "m")
     model = AiModelMetadata(
@@ -275,7 +276,10 @@ def test_a_scanned_model_merges_with_a_loom_fragment_of_the_same_model(
         f"{PARAMETER_COUNT_NOTE}\nMetadata provenance: "
     )
     assert package["comment"].count(PARAMETER_COUNT_NOTE) == 1
-    assert not logged_warnings(caplog)  # no conflict, "7B" dropped quietly
+    # "7B" is dropped with one WARNING: naming the key, the kept and dropped value
+    (warning,) = logged_warnings(caplog)
+    assert f"key {PARAMETER_COUNT_KEY!r}" in warning
+    assert "keeping '7', dropping '7B'" in warning
 
 
 _FRAGMENT_AGENT = "https://spdx.org/spdxdocs/frag#B"

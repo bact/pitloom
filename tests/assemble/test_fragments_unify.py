@@ -230,3 +230,44 @@ def test_merge_dictionary_entries_all_duplicate_keys_no_change() -> None:
     merged = canonical.ai_hyperparameter
     assert len(merged) == 1
     assert merged[0] is canonical_entries[0]
+
+
+@pytest.mark.parametrize(
+    ("kept", "dropped", "warns"),
+    [
+        ("0.1", "0.5", True),
+        ("0.1", "0.1", False),
+        ("0.1", None, False),
+        ("[1, 2]", "[1,2]", False),
+    ],
+    ids=["differs", "equal", "dropped-has-no-value", "same-json"],
+)
+@pytest.mark.parametrize("prop", ["ai_hyperparameter", "ai_metric"])
+def test_merge_dictionary_entries_warns_for_a_dropped_differing_value(
+    prop: str,
+    kept: str,
+    dropped: str | None,
+    warns: bool,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The canonical value wins on a key collision; a different value that
+    is lost says so once, naming the key, the kept and the dropped value."""
+    canonical = spdx3.ai_AIPackage(name="model")
+    setattr(canonical, prop, [spdx3.DictionaryEntry(key="lr", value=kept)])
+    dup = [
+        spdx3.DictionaryEntry(key="lr")
+        if dropped is None
+        else spdx3.DictionaryEntry(key="lr", value=dropped),
+        spdx3.DictionaryEntry(key="n", value="1"),
+    ]
+    with caplog.at_level(logging.WARNING, logger="pitloom.assemble.spdx3"):
+        props._merge_dictionary_entries(canonical, prop, getattr(canonical, prop), dup)
+    entries = {e.key: e.value for e in getattr(canonical, prop)}
+    assert entries == {"lr": kept, "n": "1"}
+    messages = [m for m in caplog.messages if m.startswith("Merge: conflicting")]
+    assert len(messages) == int(warns)
+    if warns:
+        assert f"{prop!r} key 'lr'" in messages[0]
+        assert (
+            "keeping" in messages[0] and "0.1" in messages[0] and "0.5" in messages[0]
+        )

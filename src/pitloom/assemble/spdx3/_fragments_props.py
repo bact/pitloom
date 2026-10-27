@@ -158,26 +158,52 @@ def _merge_list(
         setattr(canonical, pyname, merged)
 
 
+def _warn_dictionary_collision(
+    canonical: spdx3.Element, pyname: str, key: str, kept: Any, dropped: Any
+) -> None:
+    """``WARNING:`` that the entry *dropped* lost to the value *kept* under
+    *key*; silent when the values are equal or the same JSON."""
+    dropped_val = getattr(dropped, "value", None)
+    if not _differs(kept, dropped_val):
+        return
+    if isinstance(kept, str) and isinstance(dropped_val, str):
+        if same_json(kept, dropped_val):
+            return
+    log.warning(
+        "Merge: conflicting %r key %r on %s: keeping %s, dropping %s.",
+        pyname,
+        key,
+        describe_value(canonical),
+        describe_value(kept),
+        describe_value(dropped_val),
+    )
+
+
 def _merge_dictionary_entries(
     canonical: spdx3.Element, pyname: str, canonical_val: Any, dup_val: Any
 ) -> None:
-    """Union two ``DictionaryEntry`` lists by key; canonical wins on a key collision."""
+    """Union two ``DictionaryEntry`` lists by key; canonical wins on a key
+    collision, with a ``WARNING:`` when the two values differ (as
+    :func:`_merge_scalar` does for a scalar)."""
     canonical_entries = list(canonical_val) if canonical_val else []
     dup_entries = list(dup_val) if dup_val else []
     if not dup_entries:
         return
 
-    keys_seen: set[str] = {
-        entry.key for entry in canonical_entries if getattr(entry, "key", None)
+    kept: dict[str, Any] = {
+        entry.key: getattr(entry, "value", None)
+        for entry in reversed(canonical_entries)
+        if getattr(entry, "key", None)
     }
     merged = list(canonical_entries)
     for entry in dup_entries:
         key = getattr(entry, "key", None)
-        if key is not None and key in keys_seen:
+        if key is not None and key in kept:
+            _warn_dictionary_collision(canonical, pyname, key, kept[key], entry)
             continue
         merged.append(entry)
         if key is not None:
-            keys_seen.add(key)
+            kept[key] = getattr(entry, "value", None)
 
     if len(merged) != len(canonical_entries):
         setattr(canonical, pyname, merged)
