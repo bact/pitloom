@@ -67,8 +67,9 @@ def test_a_value_the_resolver_decided_is_an_expression_said_once_at_info(
     repeats are ``DEBUG:``), and the provenance names the decision and keeps
     the value as written."""
     with caplog.at_level(logging.DEBUG, logger=_LOGGER):
-        for _ in range(3):
-            got = classify_license(raw)
+        results = [classify_license(raw) for _ in range(3)]
+    got = results[0]
+    assert results == [got] * 3
     assert got is not None
     assert (got.kind, got.value, got.raw) == ("expression", expression, raw)
     (info,) = _said(caplog, logging.INFO)
