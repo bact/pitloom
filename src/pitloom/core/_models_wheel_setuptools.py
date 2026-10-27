@@ -18,7 +18,9 @@ static-analysis-only boundary; see
 rationale.
 
 See also: :mod:`pitloom.core._models_wheel_dispatch` (dispatch facade),
-:mod:`pitloom.core._models_wheel_types`.
+:mod:`pitloom.core._models_wheel_types`,
+:mod:`pitloom.core._models_wheel_setuptools_relay` (setuptools' warnings and
+stderr as tagged log records).
 """
 
 from __future__ import annotations
@@ -28,12 +30,12 @@ import logging
 import os
 import sys
 import tempfile
-import warnings
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from pitloom.core._models_wheel_setuptools_relay import relay_setuptools_output
 from pitloom.core._models_wheel_types import (
     IncludedFile,
     has_resolvable_pyproject_config,
@@ -132,31 +134,6 @@ def _isolated_sys_modules(project_dir: Path) -> Iterator[None]:
                 in_project = False
             if in_project:
                 del sys.modules[name]
-
-
-@contextmanager
-def _setuptools_warnings_to_debug() -> Iterator[None]:
-    """Record the Python warnings setuptools raises while it reads the
-    target project's config (a ``SetuptoolsDeprecationWarning`` banner for
-    a ``project.license`` table or a ``License ::`` classifier) and log
-    each as one ``DEBUG`` line: they describe the target project's own
-    metadata, not a Pitloom deviation, and their multi-line text would
-    reach stderr untagged. The filters are changed only inside
-    :func:`warnings.catch_warnings`, restored on exit; that is process-wide
-    state, so a warning another thread raises meanwhile is recorded too --
-    :func:`discover` runs under the discovery lock's exclusive mode, which
-    keeps every other discovery out."""
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        try:
-            yield
-        finally:
-            for warning in caught:
-                log.debug(
-                    "setuptools %s: %s",
-                    warning.category.__name__,
-                    one_line(warning.message),
-                )
 
 
 def _load_distribution(
@@ -411,7 +388,7 @@ def discover(
     from setuptools.errors import PackageDiscoveryError
 
     try:
-        with _chdir(project_dir), _setuptools_warnings_to_debug():
+        with _chdir(project_dir), relay_setuptools_output(project_dir):
             with _isolated_sys_modules(project_dir):
                 dist = _load_distribution(project_dir, pyproject_data)
             if dist is None:

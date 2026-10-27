@@ -6,7 +6,7 @@
 """Bounded waiting for the undo of a capture block.
 
 A capture block (:mod:`pitloom.extract._reader_log`,
-:mod:`pitloom.extract.ai_model._stderr_capture`) undoes what it did while a
+:mod:`pitloom.extract.stderr_capture`) undoes what it did while a
 ``KeyboardInterrupt`` may arrive again. :func:`run_held` retries the undo a
 few times, then raises; :func:`locked` gives up on a lock that is not
 released instead of waiting for it for ever.

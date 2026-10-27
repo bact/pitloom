@@ -8,7 +8,7 @@ the readers' logger as found, and the enclosing capture of a nested block
 intact.
 
 See also: :mod:`tests.extract.test_reader_log`,
-:mod:`tests.extract.ai_model.test_stderr_capture_interrupt`.
+:mod:`tests.extract.test_stderr_capture_interrupt`.
 """
 
 # pylint: disable=missing-function-docstring,protected-access

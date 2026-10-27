@@ -16,7 +16,8 @@ Every surface scanning a project directory goes through
 not affected.
 
 Setuptools' own deprecation banners on the target project's legacy
-licence metadata are ``DEBUG`` lines, never untagged stderr.
+licence metadata, and its manifest step's ``warning: no files found
+matching`` lines, are ``DEBUG`` lines, never untagged stderr.
 
 See also: tests/extract/project/test_setuptools_cfg_backend.py
 (``detect_build_backend()``),
@@ -197,6 +198,27 @@ _LEGACY_LICENCE = (
 _TAGS = ("ERROR: ", "WARNING: ", "INFO: ", "DEBUG: ")
 
 
+def _stderr_lines(argv: list[str], cwd: Path, *, debug: bool = False) -> list[str]:
+    """Run ``python <argv>`` with the Pitloom under test, ``PITLOOM_DEBUG``
+    set by *debug*; its stderr lines, decoded strictly (no lossy replacement
+    hides a stray byte)."""
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONWARNINGS"}
+    env["PITLOOM_DEBUG"] = "1" if debug else "0"
+    # The pitloom under test, not whichever one the interpreter installs.
+    source = str(Path(pitloom.__file__).parents[1])
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, [source, env.get("PYTHONPATH")]))
+    result = subprocess.run(  # nosec B603
+        [sys.executable, *argv],
+        cwd=cwd,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        check=True,
+        timeout=300,
+    )
+    return result.stderr.decode("utf-8").splitlines()
+
+
 @pytest.mark.parametrize(
     "build_system",
     ["", '[build-system]\nbuild-backend = "setuptools.build_meta"\n'],
@@ -212,21 +234,87 @@ def test_setuptools_banners_are_debug_lines(tmp_path: Path, build_system: str) -
     (project / "demo" / "__init__.py").write_text("", encoding="utf-8")
     pyproject = build_system + _LEGACY_LICENCE
     (project / "pyproject.toml").write_text(pyproject, encoding="utf-8")
-    env = {k: v for k, v in os.environ.items() if k != "PYTHONWARNINGS"}
-    # The pitloom under test, not whichever one the interpreter installs.
-    source = str(Path(pitloom.__file__).parents[1])
-    env["PYTHONPATH"] = os.pathsep.join(filter(None, [source, env.get("PYTHONPATH")]))
-    argv = ["--debug", "project", str(project), "--offline", "-o", "out.json"]
-    result = subprocess.run(  # nosec B603
-        [sys.executable, "-m", "pitloom", *argv],
-        cwd=tmp_path,
-        env=env,
-        capture_output=True,
-        check=True,
-    )
-    lines = result.stderr.decode("utf-8").splitlines()
+    argv = ["-m", "pitloom", "--debug", "project", str(project), "--offline"]
+    lines = _stderr_lines([*argv, "-o", "out.json"], tmp_path)
     assert [line for line in lines if not line.startswith(_TAGS)] == []
     banners = [line for line in lines if "SetuptoolsDeprecationWarning: " in line]
     assert len(banners) == 2
     assert all(line.startswith("DEBUG: ") for line in banners)
     assert "`project.license` as a TOML table" in banners[0]
+
+
+_LIB = "import sys; from pathlib import Path; from {0} import {1} as f; "
+_MANIFEST_SURFACES: dict[str, list[str]] = {
+    "cli-project": ["-m", "pitloom", "project", "{p}", "--offline", "-o", "o.json"],
+    "cli-allow-build": [
+        "-m",
+        "pitloom",
+        "project",
+        "{p}",
+        "--offline",
+        "--allow-build",
+        "--no-build-isolation",
+        "-o",
+        "o.json",
+    ],
+    "cli-embed-wheel": ["-m", "pitloom", "embed-wheel", "{w}", "--project-dir", "{p}"],
+    "lib-generate": [
+        "-c",
+        _LIB.format("pitloom.assemble", "generate") + "f(sys.argv[1], offline=True)",
+        "{p}",
+    ],
+    "lib-embed_wheel_sbom": [
+        "-c",
+        _LIB.format("pitloom.embed", "embed_wheel_sbom")
+        + "f(sys.argv[2], project_dir=sys.argv[1])",
+        "{p}",
+        "{w}",
+    ],
+}
+_MANIFEST_WARNINGS = (
+    "warning: no files found matching '*.js'",
+    "warning: no files found matching '*.css' under directory 'doc'",
+    "warning: no previously-included files found matching 'gone.txt'",
+    "no previously-included directories found matching 'nodir'",
+)
+
+
+@pytest.mark.parametrize(
+    ("surface", "debug"),
+    [*((name, True) for name in sorted(_MANIFEST_SURFACES)), ("cli-project", False)],
+)
+def test_manifest_step_lines_are_debug_lines(
+    tmp_path: Path, surface: str, debug: bool
+) -> None:
+    """``MANIFEST.in`` patterns matching nothing make setuptools' manifest
+    step (``include_package_data``) write bare ``warning: ...`` lines on
+    stderr. Every surface that discovers a setuptools project's files,
+    ``--allow-build`` included, relays each as one ``DEBUG:`` line, the text
+    kept; without ``--debug`` stderr holds none of them."""
+    project = tmp_path / "proj"
+    (project / "src" / "demo").mkdir(parents=True)
+    (project / "src" / "demo" / "__init__.py").write_bytes(b"")
+    (project / "pyproject.toml").write_bytes(
+        (
+            _REQUIRES
+            + 'build-backend = "setuptools.build_meta"\n'
+            + _PROJECT
+            + '[tool.setuptools.packages.find]\nwhere = ["src"]\n'
+        ).encode("utf-8")
+    )
+    manifest = b"include *.js\nrecursive-include doc *.css\nexclude gone.txt\n"
+    (project / "MANIFEST.in").write_bytes(manifest + b"prune nodir\n")
+    wheel = _make_dummy_wheel(tmp_path / "dist", "demo", "1.0.0")
+    argv = [arg.format(p=project, w=wheel) for arg in _MANIFEST_SURFACES[surface]]
+
+    lines = _stderr_lines(argv, tmp_path, debug=debug)
+
+    assert [line for line in lines if not line.startswith(_TAGS)] == []
+    relayed = [line for line in lines if "setuptools stderr: " in line]
+    if not debug:
+        assert relayed == []
+        return
+    assert all(line.startswith("DEBUG: ") for line in relayed)
+    assert sorted(line.split("setuptools stderr: ", 1)[1] for line in relayed) == (
+        sorted(_MANIFEST_WARNINGS)
+    )

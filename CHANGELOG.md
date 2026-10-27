@@ -32,6 +32,8 @@ and this project adheres to
   requirements and `requires-python` no longer crash ([#354])
 - A bad `%` in `setup.cfg` fails with one line naming the section and key, as
   setuptools does ([#355])
+- Setuptools' manifest-step stderr lines are relayed as tagged log lines
+  ([#356])
 - `pipdeptree` 4.2.10 is excluded: it has no macOS arm64 wheel and fails to
   build there ([#358])
 
@@ -248,6 +250,7 @@ and this project adheres to
 [#353]: https://github.com/bact/pitloom/pull/353
 [#354]: https://github.com/bact/pitloom/pull/354
 [#355]: https://github.com/bact/pitloom/pull/355
+[#356]: https://github.com/bact/pitloom/pull/356
 [#358]: https://github.com/bact/pitloom/pull/358
 
 ## [0.20.2] - 2026-10-09
