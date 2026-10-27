@@ -231,7 +231,8 @@ two places:
   generated SBOM, not just a stderr `WARNING:` -- see [Metadata
   provenance](metadata-provenance.md#how-a-dependency-version-source-is-chosen).
 
-A version with a number over 640 digits (`1.` followed by 5,000 nines) is
+A version with a number over 640 digits (`1.` followed by 5,000 nines; any
+run of digits counts, in a version, a specifier or a marker) is
 not read as a version: Python cannot convert such a number on every
 release and setting. A lock entry holding one is skipped with the lock's own
 `WARNING:` for an invalid version. A requirement holding one counts as not

@@ -198,6 +198,9 @@ Size: S under half a day, M about a day.
   #287 adds a caller: the setuptools `version` conflict check
   (`_field_agreement.values_agree`) crashes the directory read on
   `setup(version='9' * 5000)` beside a `setup.cfg` version.
+  Open: the cap is not applied to a `setup.cfg` `version`, a Poetry
+  `version` and a wheel `METADATA` `Version`: none is checked for an
+  over-long number (not probed).
 
 - [ ] **Safetensors licence keys are not mapped (S).** They stay in the
   verbatim annotation only; classify them like GGUF `general.license` (mapped
@@ -216,8 +219,8 @@ Size: S under half a day, M about a day.
   reference loop fail the same way (setuptools 84.0.0 fails on both); a
   `[DEFAULT]` value is named under `[DEFAULT]`; `$` is not special. A test
   asks setuptools' own `read_configuration` for the same verdict and value.
-  Open: setuptools also fails on a `%` in a section Pitloom does not read
-  (`[flake8]`), which Pitloom still reads past; and a `pyproject.toml`
+  Open: setuptools also fails on a `%` in any section Pitloom does not read
+  (`[flake8]`, `[tool:pytest]`), which Pitloom still reads past; and a `pyproject.toml`
   `dynamic` field filled from such a `setup.cfg` is a `WARNING:`, not an
   error, though the build fails.
 

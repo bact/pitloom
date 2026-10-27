@@ -113,7 +113,8 @@ def poetry_requirement(
     if core is None:
         return None
     try:
-        req = parse_requirement(_base_requirement(core, name, constraint), quiet=quiet)
+        # The skip line below carries the refusal's reason: no second WARNING.
+        req = parse_requirement(_base_requirement(core, name, constraint), quiet=True)
         for marker in _markers(core, constraint):
             add_marker(req, marker)
     except (ValueError, TypeError, AttributeError) as exc:

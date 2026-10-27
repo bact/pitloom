@@ -67,6 +67,33 @@ def test_nesting_counts_at_least_what_packaging_nests() -> None:
     assert marker_nesting(str(parse_marker(nested_marker(5))), marker=True) == 5
 
 
+_DIGIT_TEXTS = [
+    (parse_requirement, "a>=" + "1" * 641, InvalidRequirement, "REQUIREMENT"),
+    (parse_marker, "python_version >= '" + "1" * 641 + "'", InvalidMarker, "MARKER"),
+]
+
+
+@pytest.mark.parametrize(
+    ("parse", "over", "error", "subject"), _DIGIT_TEXTS, ids=["requirement", "marker"]
+)
+def test_digits_over_the_cap_are_refused_once(
+    caplog: pytest.LogCaptureFixture,
+    parse: Callable[..., Any],
+    over: str,
+    error: type[Exception],
+    subject: str,
+) -> None:
+    """A 641-digit number is refused with the parser's own error, one
+    ``WARNING:`` per text; *quiet* silences it."""
+    with caplog.at_level(logging.DEBUG, logger="pitloom.core.pep508"):
+        for quiet in (True, False, False):
+            with pytest.raises(error, match="640-digit version-number cap"):
+                parse(over, quiet=quiet)
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    assert warnings[0].getMessage().startswith(f"{subject}=")
+
+
 _PARSERS: list[tuple[Callable[..., Any], str, type[Exception], str]] = [
     (parse_requirement, "a; ", InvalidRequirement, "REQUIREMENT"),
     (parse_marker, "", InvalidMarker, "MARKER"),

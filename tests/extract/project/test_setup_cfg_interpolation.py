@@ -26,6 +26,7 @@ from pitloom.assemble import generate_project_sbom
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.project.setuptools_cfg import (
     read_setup_cfg,
+    read_setup_cfg_options,
     setup_cfg_pitloom_config,
 )
 
@@ -79,6 +80,11 @@ def _write(tmp_path: Path, body: str) -> Path:
         ),
         ("description = Schnell, 50% größer", "[metadata] description", "größer"),
         (
+            "[DEFAULT]\nshared = %(missing)s",
+            "[DEFAULT] shared",
+            "%(missing)s names no key of [metadata] or [DEFAULT]",
+        ),
+        (
             "description = %(missing)s x",
             "[metadata] description",
             "%(missing)s names no key of [metadata] or [DEFAULT]",
@@ -103,6 +109,7 @@ def _write(tmp_path: Path, body: str) -> Path:
         "urls-multiline",
         "classifiers-multiline",
         "non-ascii",
+        "default-missing-reference",
         "missing-reference",
         "default-inherited",
         "recursive",
@@ -213,3 +220,18 @@ def test_library_raises_the_same_error(tmp_path: Path) -> None:
     _write(tmp_path, "description = 50% faster")
     with pytest.raises(ValueError, match=r"\[metadata\] description: .*'%%'$"):
         generate_project_sbom(tmp_path, output_path=tmp_path / "out.json")
+
+
+def test_an_extras_reference_finds_its_key_whatever_the_case(tmp_path: Path) -> None:
+    """Extras keep the spelling they were written in (a marker is
+    case-sensitive), but a ``%(key)s`` finds its key as it does for setuptools:
+    case-insensitively, in the section or in ``[DEFAULT]``."""
+    (tmp_path / "setup.cfg").write_bytes(
+        b"[DEFAULT]\nBase = foo\n\n[metadata]\nname = demo\nversion = 1\n\n"
+        b"[options.extras_require]\ndev = %(base)s\nX = bar\nY = %(x)s\n"
+    )
+    options, _ = read_setup_cfg_options(tmp_path)
+    extras = options["extras_require"].value
+    # setuptools gives the same values under lowercased keys (checked by hand
+    # with setuptools.config.setupcfg.read_configuration on this file)
+    assert extras == {"dev": ["foo"], "X": ["bar"], "Y": ["bar"], "Base": ["foo"]}

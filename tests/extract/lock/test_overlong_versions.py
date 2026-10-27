@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.__main__ import main
+from pitloom.assemble.spdx3.deps_installed import _parse_dep_name
 from pitloom.extract.lock.common import (
     is_same_version,
     is_usable_version,
@@ -236,3 +237,24 @@ def test_an_overlong_requirement_in_pyproject_is_held_not_fatal(
     versions, err = _run_project(project, monkeypatch, capsys)
     assert versions
     assert "ERROR:" not in err
+
+
+@pytest.mark.parametrize(
+    ("requirement", "name"),
+    [
+        (f"dep; python_version < '1.{LONG}'", "dep"),
+        (f"dep2 (>=1,<{LONG})", "dep2"),
+        (f"  Dep.Two-x >={LONG}", "Dep.Two-x"),
+        (f"dep[extra]>=1,<{LONG}", "dep"),
+        ("dep ==", "dep"),
+        ("!!", "!!"),
+    ],
+    ids=["marker", "legacy-parens", "padded-dotted", "extra", "dangling", "no-name"],
+)
+def test_a_refused_requirement_still_gives_its_package_name(
+    requirement: str, name: str
+) -> None:
+    """The name is the run of name characters at the start, not the text up
+    to the first version operator: a refused requirement must not become a
+    package called ``dep; python_version``."""
+    assert _parse_dep_name(requirement) == name
