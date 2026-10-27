@@ -16,10 +16,12 @@ as a warning).
 from __future__ import annotations
 
 import io
+import itertools
 import logging
 import sys
 import threading
 from types import SimpleNamespace
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -224,29 +226,77 @@ def test_two_overlapping_threads_leave_stderr_as_found(
     assert [m for m in messages if "noise-B" in m and "noise-A" not in m]
 
 
+@pytest.mark.parametrize(
+    "order",
+    list(itertools.permutations(range(3))),
+    ids=lambda o: "".join(map(str, o)),
+)
+def test_three_nested_blocks_unwind_in_any_exit_order(
+    order: tuple[int, ...],
+) -> None:
+    """Entered by hand the blocks can leave in any order (as ``with``
+    statements they leave inner first). Whatever the order, after each exit
+    a write goes to the sink of the latest-entered block still in, and at the
+    end ``sys.stderr`` is the original again."""
+    before = sys.stderr
+    blocks = [capture_stderr() for _ in range(3)]
+    left: set[int] = set()
+    try:
+        # pylint: disable-next=unnecessary-dunder-call
+        sinks = [block.__enter__() for block in blocks]
+        for index in order:
+            blocks[index].__exit__(None, None, None)
+            left.add(index)
+            remaining = [i for i in range(3) if i not in left]
+            if remaining:
+                sys.stderr.write(f"after-{index}")
+                assert f"after-{index}" in sinks[max(remaining)].text()
+                assert all(
+                    f"after-{index}" not in sinks[i].text()
+                    for i in range(3)
+                    if i != max(remaining)
+                )
+        assert sys.stderr is before
+        assert _STATE.users == 0
+    finally:
+        for index in set(range(3)) - left:
+            blocks[index].__exit__(None, None, None)
+        sys.stderr = before
+
+
 @pytest.mark.parametrize("inner_first", [True, False], ids=["lifo", "out-of-order"])
 def test_nested_blocks_of_one_thread_unwind_in_either_exit_order(
     inner_first: bool,
 ) -> None:
-    """Entered as ``with`` statements the blocks leave inner first; entered and
-    left by hand they can leave in any order. Either way ``sys.stderr`` is the
-    original again and nothing is written into a sink that was left."""
+    """Two blocks entered by hand: nothing is written into a sink that was
+    left, and the original stream is back."""
     before = sys.stderr
     outer, inner = capture_stderr(), capture_stderr()
-    a, b = outer.__enter__(), inner.__enter__()
-    sys.stderr.write("both-in")  # the inner sink's
-    first, second = (inner, outer) if inner_first else (outer, inner)
-    first.__exit__(None, None, None)
-    sys.stderr.write("after-first")
-    second.__exit__(None, None, None)
-    assert sys.stderr is before
-    assert _STATE.users == 0
-    assert "both-in" in b.text()
-    # after the first leaves, the remaining block's sink takes the writes
-    remaining = a if inner_first else b
-    assert "after-first" in remaining.text()
-    other = b if inner_first else a
-    assert "after-first" not in other.text()
+    entered: list[Any] = []
+    try:
+        a = outer.__enter__()
+        entered.append(outer)
+        b = inner.__enter__()
+        entered.append(inner)
+        sys.stderr.write("both-in")  # the inner sink's
+        first, second = (inner, outer) if inner_first else (outer, inner)
+        first.__exit__(None, None, None)
+        entered.remove(first)
+        sys.stderr.write("after-first")
+        second.__exit__(None, None, None)
+        entered.remove(second)
+        assert sys.stderr is before
+        assert _STATE.users == 0
+        assert "both-in" in b.text()
+        # after the first leaves, the remaining block's sink takes the writes
+        remaining = a if inner_first else b
+        assert "after-first" in remaining.text()
+        other = b if inner_first else a
+        assert "after-first" not in other.text()
+    finally:
+        for block in entered:
+            block.__exit__(None, None, None)
+        sys.stderr = before
 
 
 def test_a_handler_made_while_a_thread_captures_writes_to_the_stream(
