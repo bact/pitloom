@@ -96,11 +96,10 @@ def test_hunyuan_mt_no_license() -> None:
 
 
 def test_blip_vqa_bsd_license_normalized() -> None:
-    # bsd-3-clause not in _VAGUE_LICENSE_VALUES; _canonicalize_license_id maps
-    # it to the canonical SPDX License ID BSD-3-Clause via licenseid matcher.
+    # bsd-3-clause not in _VAGUE_LICENSE_VALUES; the card value is recorded as stated.
     with _patch_blip_vqa():
         meta = read_huggingface("Salesforce/blip-vqa-base")
-    assert meta.license == "BSD-3-Clause"
+    assert meta.license == "bsd-3-clause"
 
 
 @pytest.mark.parametrize(
@@ -110,25 +109,29 @@ def test_blip_vqa_bsd_license_normalized() -> None:
         ("gpl-3.0", None, "gpl-3.0"),
         ("lgpl-2.1", "LGPL-2.1-only", "lgpl-2.1"),
         ("agpl-3.0", "AGPL-3.0-or-later", "agpl-3.0"),
-        ("apache-2.0", "Apache-2.0", "Apache-2.0"),
+        ("apache-2.0", "Apache-2.0", "apache-2.0"),
+        ("apache-2.0", None, "apache-2.0"),
+        (" mit\n", "MIT", "mit"),
     ],
-    ids=["gpl-db", "gpl-no-db", "lgpl-db", "agpl-db", "case-only"],
+    ids=["gpl-db", "gpl-no-db", "lgpl-db", "agpl-db", "case-db", "case-no-db", "space"],
 )
-def test_card_licence_is_never_rewritten_to_another_id(
+def test_card_licence_is_recorded_as_stated(
     card: str, matched: str | None, expected: str
 ) -> None:
-    """The same value is recorded with and without the licenseid database."""
-    matcher = MagicMock()
+    """The card value is kept (stripped), and the same with and without the
+    licenseid database: the builder's classification does the rest."""
+    matcher = MagicMock(spec=["match"])
     matcher.match.return_value = [{"license_id": matched}] if matched else []
     with patch("pitloom.extract._license._matcher", return_value=matcher):
         value, _ = _resolve_license({"card_data": {"license": card}}, "o/m", {})
     assert value == expected
+    matcher.match.assert_not_called()
 
 
 def test_seamless_nc_license() -> None:
     with _patch_seamless_m4t():
         meta = read_huggingface("facebook/seamless-m4t-v2-large")
-    assert meta.license == "CC-BY-NC-4.0"
+    assert meta.license == "cc-by-nc-4.0"
 
 
 def test_gabert_fill_mask_irish_no_license() -> None:
@@ -159,7 +162,7 @@ def test_phi2_phi_architecture_mit_license() -> None:
     with _patch_phi2():
         meta = read_huggingface("microsoft/phi-2")
     assert meta.type_of_model == "phi"
-    assert meta.license == "MIT"
+    assert meta.license == "mit"
 
 
 def test_hermes_3_llama_3b_finetune_and_license() -> None:
@@ -199,7 +202,7 @@ def test_protonx_legal_vietnamese_nc_license() -> None:
 def test_legal_embed_ita_nc_license_italian() -> None:
     with _patch_legal_embed_ita():
         meta = read_huggingface("ReDiX/Legal-Embedding-ita-0.6B")
-    assert meta.license == "CC-BY-NC-4.0"
+    assert meta.license == "cc-by-nc-4.0"
     assert meta.extra_lists.get("hf.language") == ["it"]
     assert "sentence-similarity" in meta.usage.domains
 
@@ -221,8 +224,7 @@ def test_sealion_27b_it_sea_languages_gemma_license() -> None:
 
 
 def test_qwen3_235b_qwen_license_passthrough() -> None:
-    # "qwen" not in _VAGUE_LICENSE_VALUES; not recognized by licenseid matcher ->
-    # _canonicalize_license_id returns it unchanged
+    # "qwen" not in _VAGUE_LICENSE_VALUES; the card value is recorded as stated
     with _patch_qwen3_235b():
         meta = read_huggingface("Qwen/Qwen3-235B-A22B")
     assert meta.license == "qwen"
@@ -231,13 +233,12 @@ def test_qwen3_235b_qwen_license_passthrough() -> None:
 def test_qwen35_27b_apache_license() -> None:
     with _patch_qwen35_27b():
         meta = read_huggingface("Qwen/Qwen3.5-27B")
-    assert meta.license == "Apache-2.0"
+    assert meta.license == "apache-2.0"
 
 
 def test_kanana_15v_license_passthrough() -> None:
-    # "kanana-license" not in _VAGUE_LICENSE_VALUES; not recognized by
-    # licenseid matcher -> _canonicalize_license_id returns it unchanged;
-    # no file detection triggered
+    # "kanana-license" not in _VAGUE_LICENSE_VALUES; the card value is recorded as
+    # stated; no file detection triggered
     with _patch_kanana_15v():
         meta = read_huggingface("kakaobank/kanana-1.5-v-3b-instruct")
     assert meta.license == "kanana-license"
@@ -283,55 +284,54 @@ def test_exaone_path_vague_license() -> None:
 def test_glm45_air_reap_apache_license() -> None:
     with _patch_glm45_air_reap():
         meta = read_huggingface("THUDM/GLM-4.5-Air-REAP")
-    assert meta.license == "Apache-2.0"
+    assert meta.license == "apache-2.0"
 
 
 def test_line_distilbert_apache_license() -> None:
     with _patch_line_distilbert():
         meta = read_huggingface("line-corporation/line-distilbert-base-japanese")
-    assert meta.license == "Apache-2.0"
+    assert meta.license == "apache-2.0"
 
 
 def test_clip_japanese_v2_apache_license() -> None:
     with _patch_clip_japanese_v2():
         meta = read_huggingface("line-corporation/clip-japanese-base-v2")
-    assert meta.license == "Apache-2.0"
+    assert meta.license == "apache-2.0"
 
 
 def test_fujitsu_llm_apache_license() -> None:
     with _patch_fujitsu_llm():
         meta = read_huggingface("Fujitsu/Fujitsu-LLM-KG-8x7B")
-    assert meta.license == "Apache-2.0"
+    assert meta.license == "apache-2.0"
 
 
 def test_windowseat_apache_license() -> None:
     with _patch_windowseat():
         meta = read_huggingface("windowseat-ai/windowseat-reflection")
-    assert meta.license == "Apache-2.0"
+    assert meta.license == "apache-2.0"
 
 
 def test_moirai_cc_by_nc_license() -> None:
     with _patch_moirai():
         meta = read_huggingface("Salesforce/moirai-2.0-R-small")
-    assert meta.license == "CC-BY-NC-4.0"
+    assert meta.license == "cc-by-nc-4.0"
 
 
 def test_llasa_3b_cc_by_nc_license() -> None:
     with _patch_llasa_3b():
         meta = read_huggingface("HKUSTAudio/Llasa-3B")
-    assert meta.license == "CC-BY-NC-4.0"
+    assert meta.license == "cc-by-nc-4.0"
 
 
 def test_tildeopen_30b_64k_cc_by_license() -> None:
     with _patch_tildeopen_30b_64k():
         meta = read_huggingface("TildeAI/TildeOpen-30b-64k")
-    assert meta.license == "CC-BY-4.0"
+    assert meta.license == "cc-by-4.0"
 
 
 def test_bloom_custom_license_passthrough() -> None:
-    # "bigscience-bloom-rail-1.0" not in _VAGUE_LICENSE_VALUES, not a known
-    # Not recognized by licenseid matcher -> _canonicalize_license_id returns
-    # it unchanged.
+    # "bigscience-bloom-rail-1.0" is not in _VAGUE_LICENSE_VALUES: the card
+    # value is recorded as stated.
     with _patch_bloom():
         meta = read_huggingface("bigscience/bloom")
     assert meta.license == "bigscience-bloom-rail-1.0"
@@ -384,7 +384,7 @@ def test_stable_zero123_vague_license() -> None:
 def test_shap_e_mit_license() -> None:
     with _patch_shap_e():
         meta = read_huggingface("openai/shap-e")
-    assert meta.license == "MIT"
+    assert meta.license == "mit"
 
 
 def test_hy_motion_vague_license_with_license_name() -> None:
@@ -397,8 +397,7 @@ def test_hy_motion_vague_license_with_license_name() -> None:
 
 
 def test_apple_sharp_apple_amlr_license_passthrough() -> None:
-    # apple-amlr not in _VAGUE_LICENSE_VALUES; not recognized by licenseid matcher ->
-    # _canonicalize_license_id returns it unchanged
+    # apple-amlr not in _VAGUE_LICENSE_VALUES; the card value is recorded as stated
     with _patch_apple_sharp():
         meta = read_huggingface("apple/Sharp")
     assert meta.license == "apple-amlr"
@@ -408,13 +407,13 @@ def test_apple_sharp_apple_amlr_license_passthrough() -> None:
 def test_firered_vad_apache_license() -> None:
     with _patch_firered_vad():
         meta = read_huggingface("FireRedTeam/FireRedVAD")
-    assert meta.license == "Apache-2.0"
+    assert meta.license == "apache-2.0"
 
 
 def test_gte_reranker_apache_license() -> None:
     with _patch_gte_reranker():
         meta = read_huggingface("Alibaba-NLP/gte-multilingual-reranker-base")
-    assert meta.license == "Apache-2.0"
+    assert meta.license == "apache-2.0"
 
 
 def test_minimax_m2_vague_license() -> None:
@@ -427,7 +426,7 @@ def test_minimax_m2_vague_license() -> None:
 def test_llada2_moe_apache_license() -> None:
     with _patch_llada2_moe():
         meta = read_huggingface("inclusionAI/LLaDA2.0-Uni")
-    assert meta.license == "Apache-2.0"
+    assert meta.license == "apache-2.0"
 
 
 def test_lightglue_vague_license() -> None:

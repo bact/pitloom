@@ -370,6 +370,9 @@ def canonicalize_license_id(raw: str) -> str:
     resolver needs its own notice and provenance.  Returns *raw* unchanged
     when nothing matches, which includes a deprecated bare id in other case
     (``gpl-3.0``): the licence classification that follows normalises it.
+
+    The result depends on whether the ``licenseid`` database is present, so
+    an extractor does not call it: it records the source's value as stated.
     """
     if len(raw.strip()) > _MAX_LICENSE_ID_CHARS:
         return raw

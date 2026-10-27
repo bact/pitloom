@@ -78,8 +78,11 @@ def get_pkg_metadata(dep_name: str) -> email.message.Message[str, str]:
 
 
 #: A PEP 508 name: letters, digits, ``.``, ``_`` and ``-``, starting and ending
-#: with a letter or digit.
-_NAME_AT_START = re.compile(r"\s*([A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?)")
+#: with a letter or digit, then the end or a character that opens a specifier,
+#: extras, marker or URL (so ``invalid package name`` has no name).
+_NAME_AT_START = re.compile(
+    r"\s*([A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?)(?=\s*(?:[<>=!~;@(\[,]|$))"
+)
 
 
 def _parse_dep_name(dep: str) -> str:

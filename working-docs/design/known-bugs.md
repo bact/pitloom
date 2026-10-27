@@ -104,10 +104,10 @@ Size: S under half a day, M about a day.
   Legacy `License:` stays silent.
 - [x] **A Hugging Face `license: gpl-3.0` was rewritten to `GPL-3.0-only`
   only when the `licenseid` database was present (S).** Fixed in #357:
-  `canonicalize_license_id` applies the resolver's answer only when it is the
-  same id in other casing, so the deprecated bare id stays the id written
-  (`GPL-3.0` after classification, never `GPL-3.0-only`) with or without the
-  database. A non-lexical
+  the Hugging Face route records the card value as stated, so the deprecated
+  bare id stays the id written (`GPL-3.0` after classification, never
+  `GPL-3.0-only`) with or without the database. `canonicalize_license_id`
+  (case fold only) has no extractor caller now. A non-lexical
   resolver decision (alias, successor) waits for `INFO:` plus provenance, see
   [license-resolution-categories.md](license-resolution-categories.md).
 - [ ] **A licence classifier becomes text, not an SPDX id (S).** Deferred
