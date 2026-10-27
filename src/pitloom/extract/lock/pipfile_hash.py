@@ -31,9 +31,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from packaging.specifiers import InvalidSpecifier, SpecifierSet
+from packaging.specifiers import InvalidSpecifier
 from packaging.utils import canonicalize_name
 
+from pitloom.core.pep440 import parse_specifier_set
 from pitloom.extract.lock._hash import resolve_locked_hashes
 from pitloom.extract.lock.common import (
     has_required_top_level_table,
@@ -68,7 +69,7 @@ def _entry_pinned_version(entry: dict[str, Any]) -> str | None:
     if not isinstance(raw_version, str):
         return None
     try:
-        specifier_set = SpecifierSet(raw_version)
+        specifier_set = parse_specifier_set(raw_version)
     except InvalidSpecifier:
         return None
     pin = single_exact_pin(specifier_set)

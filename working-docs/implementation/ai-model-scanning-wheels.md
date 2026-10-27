@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -163,7 +163,7 @@ Hatchling hook scans its project directory, never a wheel.
   other threads on to the parent logger (by `threading.get_ident()` when
   `logging.logThreads` is off and `record.thread` is `None`). A block nested
   in another of the same thread restores the outer capture on leaving.
-  The undo of both captures (`_reader_log.py`, `_stderr_capture.py`) is
+  The undo of both captures (`_reader_log.py`, `stderr_capture.py`) is
   bounded by one shared helper, `extract/_interrupt_hold.py`: a second
   `KeyboardInterrupt` in the undo is held for 3 tries, then raised, and the
   lock is taken with a 5 s timeout (`LockNotReleased`). Retrying every

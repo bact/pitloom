@@ -52,6 +52,7 @@ _LOG_HELPERS = frozenset({"warn_once", "print_error", "report_error_line"})
 #: Calls that take a path and quote it inside, or only count paths.
 _QUOTING_CALLS = frozenset(
     {
+        "_interpolation_error",
         "_missing_fragment_message",
         "_fragment_read_failure_message",
         "_same_document_message",

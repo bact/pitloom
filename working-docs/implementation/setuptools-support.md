@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-24
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -309,7 +309,9 @@ real `egg_info` command invocation -- redirected via the command's own
 `egg_base` option to a `tempfile.TemporaryDirectory()` so the project
 directory is never mutated by what is meant to be a read-only
 discovery pass (verified by a regression test asserting no `.egg-info`
-artefact is left behind).
+artefact is left behind). What the manifest step writes on stderr
+(`warning: no files found matching ...`) is relayed as `DEBUG:` lines
+(`core/_models_wheel_setuptools_relay.py`).
 
 **No static config at all** -- a `pyproject.toml` with only
 `[build-system]` (no `[project]`, no `[tool.setuptools]`) and no

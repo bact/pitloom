@@ -20,8 +20,8 @@ from typing import Literal, TypeVar
 from packaging.requirements import InvalidRequirement
 from packaging.specifiers import SpecifierSet
 from packaging.utils import canonicalize_name
-from packaging.version import InvalidVersion, Version
 
+from pitloom.core.pep440 import parse_version
 from pitloom.core.pep508 import parse_requirement
 from pitloom.core.quote_source import quote_source
 from pitloom.extract.lock._common_warnings import warn_conflicting_versions
@@ -54,12 +54,13 @@ _EXACT_PIN_OPERATORS = frozenset({"==", "==="})
 def is_same_version(v1: str, v2: str) -> bool:
     """Whether two versions are the same release under PEP 440 (``"1.0"``
     equals ``"1.0.0"``); exact string comparison when either does not parse
-    (e.g. a ``===`` string).
+    (e.g. a ``===`` string, or one with an overlong number: see
+    :func:`pitloom.core.pep440.parse_version`).
     """
-    try:
-        return Version(v1) == Version(v2)
-    except (InvalidVersion, TypeError):
+    first, second = parse_version(v1), parse_version(v2)
+    if first is None or second is None:
         return v1 == v2
+    return first == second
 
 
 def single_exact_pin(specifier_set: SpecifierSet) -> tuple[str, str] | None:

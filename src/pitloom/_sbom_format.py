@@ -22,8 +22,8 @@ import json
 from typing import Any
 
 from packaging.utils import canonicalize_name
-from packaging.version import Version
 
+from pitloom.core.pep440 import parse_version
 from pitloom.core.quote_source import quote_source
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 
@@ -198,17 +198,6 @@ def extract_spdx3_subject_identity(data: bytes) -> _SbomSubjectIdentity | None:
     )
 
 
-def _try_parse_version(raw: str) -> Version | None:
-    """``Version(raw)``, or ``None`` where it is not one -- never raises.
-
-    ``ValueError``, not ``InvalidVersion`` alone: a digit run past Python's
-    int-conversion limit raises a plain one."""
-    try:
-        return Version(raw)
-    except ValueError:
-        return None
-
-
 def compare_name_version(
     wheel_name: str | None,
     wheel_version: str | None,
@@ -242,8 +231,8 @@ def compare_name_version(
         warnings.append(_missing_side_warning("name", wheel_name, sbom_name))
 
     if wheel_version and sbom_version:
-        wheel_v = _try_parse_version(wheel_version)
-        sbom_v = _try_parse_version(sbom_version)
+        wheel_v = parse_version(wheel_version)
+        sbom_v = parse_version(sbom_version)
         if wheel_v is None:
             warnings.append(
                 f"wheel METADATA version {wheel_version!r} isn't a valid PEP "

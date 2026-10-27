@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._agents import generic_agent
 from pitloom.assemble.spdx3._ai_package import cap_related_name
 from pitloom.assemble.spdx3._display_text import (
     DATASET,
@@ -166,21 +167,18 @@ def add_dataset_creator_agent(
     doc_name: str,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
-) -> spdx3.Agent:
-    """Create an Agent element for a dataset's creator and wire a publishedBy
-    relationship linking the dataset to the Agent; return the Agent.
+) -> list[tuple[str, spdx3.Element]]:
+    """Link a dataset to the generic Agent of its creator with a publishedBy
+    relationship; return the Agent, labelled, when it is minted here and
+    nothing when the document already holds one of that name (a model's
+    originator, another dataset's creator), which is then the one linked.
     """
-    creator_agent = spdx3.Agent(
-        spdxId=generate_spdx_id(
-            f"Agent-{creator_name}", doc_name=doc_name, doc_uuid=doc_uuid
-        ),
-        name=creator_name,
-        creationInfo=creation_info,
+    agent_id, creator_agent = generic_agent(
+        creator_name, (creation_info, doc_name, doc_uuid), exporter
     )
-    exporter.add_agent(creator_agent)
     rel_creator = build_relationship(
         from_id=dataset_pkg_spdx_id,
-        to_ids=[require_spdx_id(creator_agent)],
+        to_ids=[agent_id],
         rel_type=spdx3.RelationshipType.publishedBy,
         doc_name=doc_name,
         doc_uuid=doc_uuid,
@@ -188,7 +186,7 @@ def add_dataset_creator_agent(
     )
     if rel_creator:
         exporter.add_relationship(rel_creator)
-    return creator_agent
+    return [] if creator_agent is None else [(DATASET_CREATOR, creator_agent)]
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
@@ -307,21 +305,16 @@ def add_datasets_for_model(
             encoder=encoder,
         )
 
-        if meta.creator:
-            created.append(
-                (
-                    DATASET_CREATOR,
-                    add_dataset_creator_agent(
-                        dataset_pkg_spdx_id=require_spdx_id(dataset_pkg),
-                        creator_name=cap_related_name(
-                            meta.creator, "dataset creator name", ai_model
-                        ),
-                        creation_info=element_creation_info,
-                        doc_name=doc_name,
-                        doc_uuid=doc_uuid,
-                        exporter=exporter,
-                    ),
-                )
+        if str(meta.creator or "").strip():  # a blank creator names no one
+            created += add_dataset_creator_agent(
+                dataset_pkg_spdx_id=require_spdx_id(dataset_pkg),
+                creator_name=cap_related_name(
+                    str(meta.creator).strip(), "dataset creator name", ai_model
+                ),
+                creation_info=element_creation_info,
+                doc_name=doc_name,
+                doc_uuid=doc_uuid,
+                exporter=exporter,
             )
 
         created += add_dataset_license(

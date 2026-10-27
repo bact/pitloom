@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -140,7 +140,7 @@ the move.
   autouse fixture in `tests/conftest.py` (`_restore_pitloom_logger`) puts
   the logger's handlers and level back after every test. Production keeps
   binding at configure time on purpose: it keeps Pitloom's own warnings out
-  of the fickling stderr capture (`_stderr_capture.py`). Any other
+  of the fickling stderr capture (`stderr_capture.py`). Any other
   process-global state a test can change (logger handlers, `sys.stderr`
   proxies, signal handlers, `warnings` filters) needs the same restore.
 - **`--dist=loadscope` hides cross-module leaks that `worksteal` shows.**

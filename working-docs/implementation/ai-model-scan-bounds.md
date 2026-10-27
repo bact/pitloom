@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-01
-Last-Modified: 2026-10-02
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -72,7 +72,7 @@ scans too: same readers.
   [model-metadata-readers.md](../design/model-metadata-readers.md)).
   fickling's stderr (it prints per failure, 62 MB
   in one measured case) is captured, per thread, by a process-wide `sys.stderr`
-  proxy (`_stderr_capture.py`, installed under a lock; the capturing threads,
+  proxy (`stderr_capture.py`, installed under a lock; the capturing threads,
   not a counter, say whether it is in use, and an interrupt at any step of a
   block undoes only what that block did, by identity, like the log capture
   below; `contextlib.redirect_stderr` swaps the stream for every thread and,

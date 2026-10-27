@@ -51,12 +51,15 @@ Size: S under half a day, M about a day.
   dropped when its value lost, but here the claim is false. A fix has to tell
   a fragment's winning entry from a losing one (a fragment whose generated
   value wins keeps its claim, which is true).
-- [ ] **A respelt copy of a curated value warns (S, found in the 2026-10-23
-  review of #349).** Fragment A replaces a generated value; a later fragment A'
-  is A in other JSON spacing (or a list in another order, which only unions).
-  The plain field merge compares the text, so A' earns `WARNING: Merge:
-  conflicting`, while a respelling of the *generated* value is silent. Same in
-  every order; harmless to the result.
+- [x] **A respelt copy of a curated value warns (S, found in the 2026-10-23
+  review of #349; fixed in #352).** Fragment A replaces
+  a generated value; a later fragment A' was A in other JSON spacing and earned
+  `WARNING: Merge: conflicting`, while a respelling of the *generated* value
+  was silent. The field merge now reads two texts that are the same JSON as one
+  value, for a text property merged field by field (`_fragments_equal.py`;
+  list items, comments and model names still compare as text, which is ledgered
+  in the 2026-10-24 review of this fix: the same JSON pair folds as a scalar and
+  stays two list items).
 - [x] **Same AI model gets different ids per surface; enrichment can hit
   the wrong model (S-M).** Found in the #292 review (`loom model` looked a
   model up by file stem only, a project scan by name, path, then stem). Fixed
@@ -179,7 +182,14 @@ Size: S under half a day, M about a day.
   SBOM's year, not the package's. Not re-checked since #300: the wheel
   route had no supplier where the hook records the author.
 
-- [ ] **A very long version number crashes lock-file reading (S).**
+- [x] **A very long version number crashes lock-file reading (S).**
+  Fixed in #354: `pitloom.core.pep440` refuses a
+  version number over 640 digits before `int()` (any interpreter limit,
+  `packaging` 25 and 26) for every version, specifier and requirement
+  parse; a lock entry, pin or requirement holding one is unusable as any
+  invalid one, the project's own `version`/`requires-python` an `ERROR:`.
+  `packaging` 25 also failed building a specifier set, 26 printing one of
+  several clauses. Was:
   `packaging.Version("1." + "9" * 5000)` raises a plain `ValueError`
   (int digit limit), not `InvalidVersion`; `version_key`,
   `is_usable_version` and `is_same_version` in `extract/lock/common.py`
@@ -192,13 +202,22 @@ Size: S under half a day, M about a day.
   verbatim annotation only; classify them like GGUF `general.license` (mapped
   in #294). GGUF `general.license.name`/`.link` are also unread.
 
-- [ ] **`setup.cfg` `%` fails the whole run (S).** `description = 50% faster`
+- [x] **`setup.cfg` `%` fails the whole run (S).** `description = 50% faster`
   gives `ERROR: SBOM generation failed: '%' must be followed by ...`. setuptools
   84's own `setup.py --description` fails the same way. Decided: keep failing,
   with one `ERROR:` naming the file, section and key and the `%%` fix.
   Precondition met (2026-10-04): pbr 7.0.3 reads `setup.cfg` with
   `configparser.ConfigParser` (interpolating; never Raw in any release checked)
-  and fails on `50% faster` too; `%%` works.
+  and fails on `50% faster` too; `%%` works. Fixed in #355 (`_setup_cfg_interpolation.py`): `... setup.cfg:
+  '<path>' [metadata] description: '%' must be followed by ...; setuptools
+  fails on it too; write a literal '%' as '%%'`. An undefined `%(key)s` and a
+  reference loop fail the same way (setuptools 84.0.0 fails on both); a
+  `[DEFAULT]` value is named under `[DEFAULT]`; `$` is not special. A test
+  asks setuptools' own `read_configuration` for the same verdict and value.
+  Open: setuptools also fails on a `%` in a section Pitloom does not read
+  (`[flake8]`), which Pitloom still reads past; and a `pyproject.toml`
+  `dynamic` field filled from such a `setup.cfg` is a `WARNING:`, not an
+  error, though the build fails.
 
 ## P3: after 0.20.0
 
@@ -221,12 +240,19 @@ Seen in past sessions, not reproduced on current `main`:
   Hatchling project holding a CRFsuite model, with a fragment giving the model
   another `description`; the merged SBOM kept the generated one. See the P0
   entry "A fragment value may lose to an extracted one".
-- [ ] **Untagged setuptools lines on stderr (S, not checked locally).** Cloning
-  `zzzeek/sqlalchemy` with `loom project <url>` prints
+- [x] **Untagged setuptools lines on stderr (S).** Cloning
+  `zzzeek/sqlalchemy` with `loom project <url>` printed
   `warning: no files found matching '*.js' under directory 'doc'` and
-  `no previously-included files found matching …`. They come from setuptools's
-  manifest step and carry no `ERROR:`/`WARNING:`/`INFO:` tag (CLI output rule).
-  #300 made setuptools's deprecation banners `DEBUG:` lines; these are a
-  different source. Check a local checkout too, then route them the same way.
+  `no previously-included files found matching …` with no level tag (CLI
+  output rule). Not a build child: setuptools' in-process manifest step
+  (`include_package_data` in static file discovery) logs through
+  `distutils.log`, the root logger, which with no handler falls to
+  `logging.lastResort` on stderr; `distutils.text_file` writes there itself.
+  A local checkout, `--allow-build`, `embed-wheel --project-dir` and the
+  library did the same; the Hatchling hook never runs setuptools discovery.
+  Fixed (#356): discovery captures this thread's
+  stderr and relays each line as one `DEBUG:` record (`WARNING:` for an
+  `error:` line), beside #300's banners. See
+  [backend-file-discovery-validation-flit-pdm.md](../implementation/backend-file-discovery-validation-flit-pdm.md).
 - See [target-resolution-and-purl.md](target-resolution-and-purl.md) for the
   Bitbucket and SourceHut findings of the same day.

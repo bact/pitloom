@@ -37,6 +37,12 @@ _PRETTY = "[tool.pitloom]\npretty = true\n"
 _WHEN = "2026-01-01T00:00:00Z"
 _FIXED = CreationMetadata(creation_datetime=_WHEN)
 _AT = ["--creation-datetime", _WHEN]
+#: A setuptools project whose ``MANIFEST.in`` pattern matches nothing.
+_MANIFEST_PROJECT = {
+    "pyproject.toml": _DEMO + '[tool.setuptools]\npackages = ["demo"]\n',
+    "demo/__init__.py": "",
+    "MANIFEST.in": "include *.js\n",
+}
 
 
 def _packages(sbom: str) -> list[str]:
@@ -75,6 +81,7 @@ def _base(tmp_path: Path) -> Iterator[str]:
         },
     )
     make_repo(root, "g/hostile", {"main": {"pyproject.toml": _DEMO + _PRETTY}})
+    make_repo(root, "g/manifest", {"main": _MANIFEST_PROJECT})
     with serve_git(root, gitlab_style=True) as base:
         yield base
 
@@ -205,6 +212,31 @@ def test_the_loom_program_reads_a_url(base: str, tmp_path: Path) -> None:
     )
     assert done.returncode == 0, done.stderr
     assert again.read_text(encoding="utf-8") == out.read_text(encoding="utf-8")
+
+
+def test_setuptools_manifest_lines_from_a_url_are_tagged(
+    base: str, tmp_path: Path
+) -> None:
+    """``loom --debug project <url>`` on a setuptools project whose
+    ``MANIFEST.in`` matches nothing: setuptools' bare ``warning:`` line
+    arrives as one ``DEBUG:`` line; every stderr line carries a level."""
+    done = subprocess.run(  # nosec B603
+        [sys.executable, "-m", "pitloom", "--debug", "project", base + "/g/manifest"]
+        + ["-o", str(tmp_path / "sbom.json")],
+        cwd=tmp_path,
+        capture_output=True,
+        check=False,
+        timeout=300,
+    )
+    lines = done.stderr.decode("utf-8").splitlines()
+    assert done.returncode == 0, lines
+    tags = ("ERROR: ", "WARNING: ", "INFO: ", "DEBUG: ")
+    assert [line for line in lines if not line.startswith(tags)] == []
+    assert [
+        line.startswith("DEBUG: ")
+        for line in lines
+        if line.endswith("setuptools stderr: warning: no files found matching '*.js'")
+    ] == [True]
 
 
 def test_every_surface_writes_the_same_sbom(base: str, tmp_path: Path) -> None:

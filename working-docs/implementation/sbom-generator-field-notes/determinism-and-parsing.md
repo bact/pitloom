@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-02
-Last-Modified: 2026-10-10
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -173,7 +173,12 @@ section 3.6 (determinism of model metadata).
   fails the same way, and `loom project` gives one
   `ERROR: SBOM generation failed: ...`, exit 1. The author must write
   `%%`. A bad `%` in an sdist's `[tool:pitloom]` is one `ValueError`
-  naming the archive member (#232).
+  naming the archive member (#232). Since #355 the
+  error names the section and key (`[metadata] description`, or
+  `[DEFAULT] x` for an inherited value) and the `%%` escape. setuptools
+  84.0.0 fails the same way on an undefined `%(key)s` and on a reference
+  loop, and on a bad `%` in any section, even one it ignores (`[flake8]`):
+  `Distribution.parse_config_files` reads every option of every section.
   Do: read an INI file with the interpolation its own tool uses, and
   document the escape.
 - **A `setup.cfg` list is comma-separated when it fits on one line.**

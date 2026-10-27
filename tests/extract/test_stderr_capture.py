@@ -24,7 +24,7 @@ from unittest import mock
 import pytest
 
 from pitloom.extract.ai_model import pytorch
-from pitloom.extract.ai_model._stderr_capture import (
+from pitloom.extract.stderr_capture import (
     _STATE,
     BoundedStderr,
     capture_stderr,
@@ -42,6 +42,15 @@ def test_the_sink_keeps_the_first_4096_characters_and_is_writable() -> None:
         1,
     ]
     assert sink.text() == "a" * 3000 + "b" * 1096
+    assert sink.dropped == 1904 + 1
+
+
+def test_a_sink_with_its_own_bound_counts_what_it_drops() -> None:
+    with capture_stderr(keep=3) as sink:
+        sys.stderr.write("ab")
+        sys.stderr.write("cd")
+        sys.stderr.write("")
+    assert (sink.text(), sink.dropped) == ("abc", 1)
 
 
 def test_a_block_captures_its_own_thread_and_restores_stderr() -> None:
@@ -211,3 +220,28 @@ def test_two_overlapping_threads_leave_stderr_as_found(
     messages = sorted(r.getMessage() for r in caplog.records)
     assert [m for m in messages if "noise-A" in m and "noise-B" not in m]
     assert [m for m in messages if "noise-B" in m and "noise-A" not in m]
+
+
+@pytest.mark.parametrize("inner_first", [True, False], ids=["lifo", "out-of-order"])
+def test_nested_blocks_of_one_thread_unwind_in_either_exit_order(
+    inner_first: bool,
+) -> None:
+    """Entered as ``with`` statements the blocks leave inner first; entered and
+    left by hand they can leave in any order. Either way ``sys.stderr`` is the
+    original again and nothing is written into a sink that was left."""
+    before = sys.stderr
+    outer, inner = capture_stderr(), capture_stderr()
+    a, b = outer.__enter__(), inner.__enter__()
+    sys.stderr.write("both-in")  # the inner sink's
+    first, second = (inner, outer) if inner_first else (outer, inner)
+    first.__exit__(None, None, None)
+    sys.stderr.write("after-first")
+    second.__exit__(None, None, None)
+    assert sys.stderr is before
+    assert _STATE.users == 0
+    assert "both-in" in b.text()
+    # after the first leaves, the remaining block's sink takes the writes
+    remaining = a if inner_first else b
+    assert "after-first" in remaining.text()
+    other = b if inner_first else a
+    assert "after-first" not in other.text()
