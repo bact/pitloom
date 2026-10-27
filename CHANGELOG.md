@@ -24,7 +24,8 @@ and this project adheres to
 
 ### Fixed
 
-- Setuptools' manifest-step lines on stderr are relayed as tagged log lines ([#356])
+- Setuptools' manifest-step stderr lines are relayed as tagged log lines
+  ([#356])
 
 ## [0.21.0] - 2026-10-23
 
