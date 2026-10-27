@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,6 +21,11 @@ and this project adheres to
 - Commit history: <https://github.com/bact/pitloom/compare/v0.21.0...HEAD>
 
 ## [Unreleased]
+
+### Fixed
+
+- `pipdeptree` 4.2.10 is excluded: it has no macOS arm64 wheel and fails to
+  build there ([#358])
 
 ## [0.21.0] - 2026-10-23
 
@@ -231,6 +236,7 @@ and this project adheres to
 [#344]: https://github.com/bact/pitloom/pull/344
 [#347]: https://github.com/bact/pitloom/pull/347
 [#349]: https://github.com/bact/pitloom/pull/349
+[#358]: https://github.com/bact/pitloom/pull/358
 
 ## [0.20.2] - 2026-10-09
 
