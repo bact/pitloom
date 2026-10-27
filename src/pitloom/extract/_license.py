@@ -368,7 +368,8 @@ def canonicalize_license_id(raw: str) -> str:
     alias) is not applied: the output must not depend on whether the
     ``licenseid`` database is present, and a non-lexical decision of the
     resolver needs its own notice and provenance.  Returns *raw* unchanged
-    when nothing matches.
+    when nothing matches, which includes a deprecated bare id in other case
+    (``gpl-3.0``): the licence classification that follows normalises it.
     """
     if len(raw.strip()) > _MAX_LICENSE_ID_CHARS:
         return raw
