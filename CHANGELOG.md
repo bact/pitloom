@@ -24,7 +24,8 @@ and this project adheres to
 
 ### Fixed
 
-- An unknown id in an SPDX-only licence field warns once; a Hugging Face `gpl-3.0` is kept as written ([#357])
+- An unknown id in an SPDX-only licence field warns once; a Hugging Face
+  `gpl-3.0` is kept as written ([#357])
 
 ## [0.21.0] - 2026-10-23
 
