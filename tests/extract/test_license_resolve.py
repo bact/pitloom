@@ -14,9 +14,11 @@ value nothing reads) and docs/metadata-provenance-licences.md.
 
 from __future__ import annotations
 
+import importlib
 import json
 import logging
 import sys
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -27,6 +29,7 @@ from licenseid import DatabaseNotReadyError
 from pitloom.__main__ import main
 from pitloom.assemble import generate_project_sbom
 from pitloom.core.creation import CreationMetadata
+from pitloom.extract import _license_resolve
 from pitloom.extract._license import (
     classify_license,
     tag_license_normalization,
@@ -263,3 +266,27 @@ def test_end_to_end_a_respelt_licence_is_declared_as_the_id_with_one_info(
     assert element["simplelicensing_licenseExpression"] == "Apache-2.0"
     statements = [e.get("statement", "") for e in sbom["@graph"]]
     assert any("licenseid_resolution" in s for s in statements)
+
+
+def test_the_tool_key_is_left_out_when_the_licenseid_version_is_unknown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A re-spelling is still recorded; only ``Tool`` needs the version."""
+    monkeypatch.setattr(_license_resolve, "_LICENSEID_VERSION", None)
+    note = tag_license_normalization("P", "Apache2", "Apache-2.0")
+    assert "Resolution-1: Apache2 -> Apache-2.0" in note
+    assert "Tool:" not in note
+
+
+def test_an_uninstalled_licenseid_distribution_gives_no_version() -> None:
+    """Metadata is missing for a source checkout or a vendored copy: the
+    version is ``None``, not an error at import."""
+    with patch(
+        "importlib.metadata.version", side_effect=PackageNotFoundError("licenseid")
+    ):
+        reloaded = importlib.reload(_license_resolve)
+    try:
+        assert reloaded._LICENSEID_VERSION is None  # pylint: disable=protected-access
+    finally:
+        importlib.reload(_license_resolve)
+    assert _license_resolve._LICENSEID_VERSION is not None  # pylint: disable=protected-access
