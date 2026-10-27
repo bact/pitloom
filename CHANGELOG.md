@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,6 +21,10 @@ and this project adheres to
 - Commit history: <https://github.com/bact/pitloom/compare/v0.21.0...HEAD>
 
 ## [Unreleased]
+
+### Fixed
+
+- A version number over 640 digits is refused, not parsed: lock files, requirements and `requires-python` no longer crash ([#354])
 
 ## [0.21.0] - 2026-10-23
 
@@ -231,6 +235,7 @@ and this project adheres to
 [#344]: https://github.com/bact/pitloom/pull/344
 [#347]: https://github.com/bact/pitloom/pull/347
 [#349]: https://github.com/bact/pitloom/pull/349
+[#354]: https://github.com/bact/pitloom/pull/354
 
 ## [0.20.2] - 2026-10-09
 

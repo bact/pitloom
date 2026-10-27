@@ -173,7 +173,7 @@ Size: S under half a day, M about a day.
   route had no supplier where the hook records the author.
 
 - [x] **A very long version number crashes lock-file reading (S).**
-  Fixed on branch `long-version-lock`: `pitloom.core.pep440` refuses a
+  Fixed in #354: `pitloom.core.pep440` refuses a
   version number over 640 digits before `int()` (any interpreter limit,
   `packaging` 25 and 26) for every version, specifier and requirement
   parse; a lock entry, pin or requirement holding one is unusable as any
