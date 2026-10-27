@@ -7,10 +7,12 @@
 
 A fragment's text value that is a JSON object or array (the input/output
 description of a model) may hold the same JSON as another with other spacing or
-key order. The merge reads those as one value: no ``Merge: conflicting`` warning and no
-second value. A fragment is untrusted input, so the comparison is bounded
-(:data:`MAX_JSON_DEPTH`) and exact: ``1``, ``1.0`` and ``true`` are three
-values, a float is its text, and a repeated key is no JSON.
+key order. The merge reads those as one value: no ``Merge: conflicting``
+warning and no second value. A fragment is untrusted input, so the comparison
+is bounded (:data:`MAX_JSON_DEPTH`) and exact: ``1``, ``1.0`` and ``true`` are
+three values, a float is its text (``[0.0]`` and ``[-0.0]`` differ, as ``1E2``
+and ``1e2`` do, while the integers ``[0]`` and ``[-0]`` are one value), and a
+repeated key is no JSON.
 
 See also: :mod:`pitloom.assemble.spdx3._fragments_props` (the field merge that
 uses it) and :mod:`pitloom.assemble.spdx3._fragments_generated`.

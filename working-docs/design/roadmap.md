@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-10-26
+Last-Modified: 2026-10-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -53,8 +53,8 @@ Not built in 0.21.0; carried over (decided 2026-10-23):
   is built, #349 below): a catalogue or fragment value must win over a value read
   from the model, not only over one Pitloom generated. Today the earlier element
   wins. Merge precedence: [#150](https://github.com/bact/pitloom/issues/150);
-  a losing fragment's `generated` claim and a respelt copy of a curated value
-  are in [known-bugs.md](known-bugs.md#p0-in-0210).
+  a losing fragment's `generated` claim is in
+  [known-bugs.md](known-bugs.md#p0-in-0210).
 - [ ] **Canonical output, next steps**: LF in text values (plan first), stable
   `CreationInfo` IRIs. See
   [canonical-output-followups.md](canonical-output-followups.md),

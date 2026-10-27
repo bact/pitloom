@@ -67,7 +67,7 @@ the base) that are the same JSON object or array in other spacing, key order
 or escape spelling (`"\u0041"` and `"A"`) do not conflict, for a text property
 such as the input/output description: the first one's spelling stays. Text
 that is not an object or array is compared as text, a float as its text (`1E2`
-and `1e2` differ), and a number past Python's integer-conversion limit (4300
+and `1e2` differ), and an integer past Python's integer-conversion limit (4300
 digits by default) is not folded. This applies to a text property merged field
 by field, not to lists (items are compared as text), a comment (joined) or a
 model's name (a fragment's name that differs replaces it). The input/output
