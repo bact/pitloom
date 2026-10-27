@@ -26,6 +26,8 @@ and this project adheres to
 
 - A version number over 640 digits is refused, not parsed: lock files,
   requirements and `requires-python` no longer crash ([#354])
+- `pipdeptree` 4.2.10 is excluded: it has no macOS arm64 wheel and fails to
+  build there ([#358])
 
 ## [0.21.0] - 2026-10-23
 
@@ -150,8 +152,8 @@ and this project adheres to
   registry-pinned id survives ([#305])
 - `id generate`: an unreadable `PATH` or non-directory `--project-dir` is an
   `ERROR:`, `-o -` a usage error; a skipped-directory `PATH` warns; a symlinked
-  `PATH` directory is walked; a name UTF-8 cannot hold is skipped, warned. `id import`: `@graph` not a list is an
-  `ERROR:` ([#305])
+  `PATH` directory is walked; a name UTF-8 cannot hold is skipped, warned.
+  `id import`: `@graph` not a list is an `ERROR:` ([#305])
 - A wheel with no identity (`unknown`) is not looked up in or recorded into an
   ID registry, and its ids depend on its file name;
   a `loom.Run` dataset is one package per name and content ([#305])
@@ -237,6 +239,7 @@ and this project adheres to
 [#347]: https://github.com/bact/pitloom/pull/347
 [#349]: https://github.com/bact/pitloom/pull/349
 [#354]: https://github.com/bact/pitloom/pull/354
+[#358]: https://github.com/bact/pitloom/pull/358
 
 ## [0.20.2] - 2026-10-09
 
