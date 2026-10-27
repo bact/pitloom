@@ -24,7 +24,8 @@ and this project adheres to
 
 ### Fixed
 
-- A version number over 640 digits is refused, not parsed: lock files, requirements and `requires-python` no longer crash ([#354])
+- A version number over 640 digits is refused, not parsed: lock files,
+  requirements and `requires-python` no longer crash ([#354])
 
 ## [0.21.0] - 2026-10-23
 
