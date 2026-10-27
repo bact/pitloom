@@ -24,7 +24,8 @@ and this project adheres to
 
 ### Fixed
 
-- A bad `%` in `setup.cfg` fails with one line naming the section and key, as setuptools does ([#355])
+- A bad `%` in `setup.cfg` fails with one line naming the section and key, as
+  setuptools does ([#355])
 
 ## [0.21.0] - 2026-10-23
 
