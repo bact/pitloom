@@ -17,9 +17,9 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 
-from packaging.specifiers import SpecifierSet
 from packaging.utils import canonicalize_name
 
+from pitloom.core.pep440 import parse_specifier_set
 from pitloom.core.project import ConflictCandidate, ProjectMetadata
 from pitloom.extract._license import classify_license, is_weak_licence, same_licence
 from pitloom.extract.lock.common import is_same_version
@@ -37,10 +37,10 @@ def _requires_python_equal(a: str, b: str) -> bool:
     """PEP 440 specifier-set equality (``'>=3.9'`` == ``'>= 3.9'``), not
     raw string equality. Falls back to stripped-string equality if either
     side fails to parse as a :class:`~packaging.specifiers.SpecifierSet`
-    (never raise: a version over Python's integer digit limit raises a plain
-    ``ValueError``, :class:`~packaging.specifiers.InvalidSpecifier`'s base)."""
+    (:func:`pitloom.core.pep440.parse_specifier_set`: an overlong number
+    too)."""
     try:
-        return SpecifierSet(a) == SpecifierSet(b)
+        return parse_specifier_set(a) == parse_specifier_set(b)
     except ValueError:
         return a.strip() == b.strip()
 

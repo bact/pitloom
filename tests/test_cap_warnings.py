@@ -115,6 +115,9 @@ _ALLOWED = {
     "core/_models_wheel_types.py:_MAX_SIGNIFICANT_DIGITS": "over it: ERROR",
     "core/ai_metadata.py:SOURCE_METADATA_MAX_DEPTH": _SHOWN,
     "core/canonical_json.py:MAX_SAFE_INTEGER": _NOT_INPUT,
+    "core/pep440.py:MAX_VERSION_NUMBER_DIGITS": (
+        "over it: not a version, and the caller's own warning or a string compare"
+    ),
     "core/scalar_text.py:MAX_INTEGER_DIGITS": _SHOWN,
     "core/wheel_dist_info.py:MAX_NAME_CHARS": _HEURISTIC,
     "extract/_extract_utils.py:FETCH_MAX_BYTES": "over it: the reader's own warning",

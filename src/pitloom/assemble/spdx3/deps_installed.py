@@ -17,9 +17,8 @@ from importlib.metadata import PackageNotFoundError, distribution
 from importlib.metadata import version as get_package_version
 
 from packaging.requirements import InvalidRequirement, Requirement
-from packaging.specifiers import InvalidSpecifier, SpecifierSet
+from packaging.specifiers import InvalidSpecifier
 from packaging.utils import canonicalize_name
-from packaging.version import InvalidVersion
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.deps_license import WeakLicense, _apply_license
@@ -36,6 +35,7 @@ from pitloom.assemble.spdx3.provenance import (
     ProvenanceEncoder,
 )
 from pitloom.core.models import build_pypi_purl
+from pitloom.core.pep440 import parse_specifier_set, specifier_contains
 from pitloom.core.pep508 import parse_requirement
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
@@ -103,7 +103,7 @@ def _extract_pin_from_unparseable(dep: str) -> str | None:
         if not pin_part or "*" in pin_part:
             return None
         try:
-            exact = single_exact_pin(SpecifierSet(f"{op}{pin_part}"))
+            exact = single_exact_pin(parse_specifier_set(f"{op}{pin_part}"))
             return exact[1] if exact is not None else None
         except InvalidSpecifier:
             return None
@@ -139,10 +139,9 @@ def _is_exact_pin_conflict(
 ) -> bool:
     """Return True if locked_version conflicts with declared exact pin."""
     if req is not None and req.specifier:
-        try:
-            return not req.specifier.contains(locked_version, prereleases=True)
-        except InvalidVersion:
-            pass
+        contained = specifier_contains(req.specifier, locked_version)
+        if contained is not None:
+            return not contained
     return not is_same_version(locked_version, pinned)
 
 
@@ -154,10 +153,7 @@ def _satisfies_constraint(req: Requirement | None, locked_version: str) -> bool 
         return None
     if not req.specifier:
         return True
-    try:
-        return req.specifier.contains(locked_version, prereleases=True)
-    except InvalidVersion:
-        return False
+    return specifier_contains(req.specifier, locked_version) is True
 
 
 def build_dependency_version_conflict(
