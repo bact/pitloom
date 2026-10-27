@@ -16,6 +16,7 @@ as a warning).
 from __future__ import annotations
 
 import io
+import logging
 import sys
 import threading
 from types import SimpleNamespace
@@ -29,6 +30,7 @@ from pitloom.extract.stderr_capture import (
     BoundedStderr,
     capture_stderr,
 )
+from pitloom.logging_config import configure_logging
 
 _WAIT = 10  # seconds; a hang fails the test instead of the run
 
@@ -245,3 +247,36 @@ def test_nested_blocks_of_one_thread_unwind_in_either_exit_order(
     assert "after-first" in remaining.text()
     other = b if inner_first else a
     assert "after-first" not in other.text()
+
+
+def test_a_handler_made_while_a_thread_captures_writes_to_the_stream(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """``configure_logging`` called by another thread while one captures must
+    not bind the Pitloom handler to the capture proxy: the capturing thread's
+    own WARNING would land in its sink and come back as the captured tool's
+    text, tagged twice."""
+    log = logging.getLogger("pitloom.test_capture_handler")
+    inside, go = threading.Event(), threading.Event()
+    sinks: list[BoundedStderr] = []
+
+    def capturing() -> None:
+        with capture_stderr() as sink:
+            sinks.append(sink)
+            inside.set()
+            assert go.wait(_WAIT)
+            log.warning("inside the block")
+
+    thread = threading.Thread(target=capturing)
+    thread.start()
+    try:
+        assert inside.wait(_WAIT)
+        configure_logging(debug=False)  # another entry point, while it captures
+        go.set()
+        thread.join(_WAIT)
+    finally:
+        go.set()
+        configure_logging(debug=False)
+    assert not thread.is_alive()
+    assert sinks[0].text() == ""  # nothing reached the sink
+    assert "WARNING: inside the block" in capsys.readouterr().err

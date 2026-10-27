@@ -103,7 +103,8 @@ def relay_setuptools_output(project_dir: Path) -> Iterator[None]:
         finally:
             for warning in caught:
                 log.debug(
-                    "setuptools %s: %s",
+                    "%s: setuptools %s: %s",
+                    quote_source(project_dir),
                     warning.category.__name__,
                     one_line(warning.message),
                 )

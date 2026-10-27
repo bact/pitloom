@@ -36,10 +36,6 @@ from pitloom.extract.project._setup_cfg_directives import (
     _resolve_cfg_file_directive,
     _resolve_cfg_version,
 )
-from pitloom.extract.project._setup_cfg_interpolation import (
-    interpolation_problem,
-    section_declares_key,
-)
 from pitloom.extract.project._setup_cfg_values import (
     coerce_cfg_value,
     parse_sub_section,
@@ -48,6 +44,10 @@ from pitloom.extract.project._setuptools_options import (
     SetupOption,
     SetupOptions,
     build_setuptools_metadata,
+)
+from pitloom.extract.project.setup_cfg_interpolation import (
+    interpolation_problem,
+    section_declares_key,
 )
 from pitloom.logging_config import one_line
 

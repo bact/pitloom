@@ -540,3 +540,30 @@ def test_isolated_sys_modules_treats_unresolvable_module_file_as_outside(
         assert unresolvable_module in sys.modules
     finally:
         sys.modules.pop(unresolvable_module, None)
+
+
+@pytest.mark.parametrize(
+    ("body", "reason"),
+    [
+        ("dist_dir = out 50% done", "'%' must be followed by"),
+        ("dist_dir = %(undefined)s", "%(undefined)s names no key"),
+    ],
+    ids=["stray-percent", "undefined-reference"],
+)
+def test_discover_names_the_section_and_key_of_a_bad_percent_it_does_not_read(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, body: str, reason: str
+) -> None:
+    """setuptools reads every ``setup.cfg`` section, Pitloom only some: a bad
+    ``%`` in ``[bdist_wheel]`` fails file discovery, and the warning names the
+    section and key as the one for a section Pitloom reads does."""
+    (tmp_path / "setup.cfg").write_text(
+        f"[metadata]\nname = p\nversion = 1\n\n[bdist_wheel]\n{body}\n",
+        encoding="utf-8",
+    )
+    with caplog.at_level(logging.WARNING):
+        assert discover(tmp_path) is None
+    (message,) = [
+        r.getMessage() for r in caplog.records if r.levelno == logging.WARNING
+    ]
+    assert "[bdist_wheel] dist_dir: " in message and reason in message
+    assert message.count("\n") == 0

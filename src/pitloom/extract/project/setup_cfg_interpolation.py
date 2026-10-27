@@ -42,14 +42,18 @@ def section_declares_key(
 
 
 def interpolation_problem(
-    cfg: configparser.ConfigParser, exc: configparser.InterpolationError
+    cfg: configparser.ConfigParser | None, exc: configparser.InterpolationError
 ) -> str:
     """One line for *exc*, raised reading a value of *cfg*: ``[section]
     key: <what is wrong>; <the fix>``. A value inherited from ``[DEFAULT]``
-    names ``[DEFAULT]``, where it is written."""
+    names ``[DEFAULT]``, where it is written. Without *cfg* (an error raised
+    inside setuptools, which holds its own parser) the section is the one the
+    error names."""
     section = exc.section
     # *exc* may come from a case-keeping copy of *cfg* (extras' markers).
-    if not section_declares_key(cfg, section, cfg.optionxform(exc.option)):
+    if cfg is not None and not section_declares_key(
+        cfg, section, cfg.optionxform(exc.option)
+    ):
         section = configparser.DEFAULTSECT
     fix = ""
     if isinstance(exc, configparser.InterpolationMissingOptionError):

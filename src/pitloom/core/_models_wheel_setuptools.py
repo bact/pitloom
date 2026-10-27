@@ -26,6 +26,7 @@ stderr as tagged log records).
 from __future__ import annotations
 
 import ast
+import configparser
 import logging
 import os
 import sys
@@ -421,6 +422,22 @@ def discover(
             "heuristic",
             quote_source(project_dir),
             one_line(exc),
+        )
+        return None
+    except configparser.InterpolationError as exc:
+        # A bad "%" in a setup.cfg section Pitloom does not read: setuptools
+        # fails on it, so discovery does, naming the section and key. Imported
+        # here: pitloom.extract imports this package's modules.
+        # pylint: disable-next=import-outside-toplevel
+        from pitloom.extract.project.setup_cfg_interpolation import (
+            interpolation_problem,
+        )
+
+        warn_discovery_failed(
+            log,
+            "Setuptools",
+            project_dir,
+            ValueError(interpolation_problem(None, exc)),
         )
         return None
     # pylint: disable-next=broad-exception-caught

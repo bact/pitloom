@@ -118,7 +118,7 @@ def test_the_block_relays_stderr_records_and_warnings_also_on_error(
         (logging.DEBUG, _PREFIX + first),
         (logging.DEBUG, _PREFIX + second[:20]),
         (logging.DEBUG, _PREFIX + f"{len(second) - 20} more characters not kept"),
-        (logging.DEBUG, "setuptools DeprecationWarning: banner line two"),
+        (logging.DEBUG, "'proj': setuptools DeprecationWarning: banner line two"),
     ]
 
 

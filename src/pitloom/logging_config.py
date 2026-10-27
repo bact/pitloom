@@ -15,6 +15,7 @@ point invoked Pitloom.
 
 from __future__ import annotations
 
+import io
 import logging
 import os
 import re
@@ -23,6 +24,7 @@ import threading
 import traceback
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
+from typing import Any, TextIO, cast
 from urllib.parse import unquote
 
 from pitloom.core.untrusted_text import DISPLAY_CONTROLS
@@ -270,12 +272,28 @@ def configure_logging(*, debug: bool | None = None) -> None:
     """
     level = logging.DEBUG if _debug_requested(debug) else logging.INFO
     logger = logging.getLogger("pitloom")
-    handler = logging.StreamHandler(sys.stderr)
+    handler = logging.StreamHandler(_uncaptured_stderr())
     handler.setLevel(level)
     handler.setFormatter(_OneLineFormatter("%(levelname)s: %(message)s"))
     with _CONFIG_LOCK:
         logger.setLevel(level)
         logger.handlers = [handler]
+
+
+def _uncaptured_stderr() -> TextIO:
+    """``sys.stderr``, or the stream behind it while a thread captures it
+    (:func:`pitloom.extract.stderr_capture.capture_stderr` swaps in a proxy
+    that sends each capturing thread's writes to that thread's sink). A handler
+    bound to the proxy would hand a Pitloom record logged in a capturing
+    thread to the sink, to be logged again as the captured tool's own text.
+    Read by attribute name, not by import: ``pitloom.extract`` imports this
+    module."""
+    stream: Any = sys.stderr
+    while hasattr(type(stream), "uncaptured_stderr"):  # a proxy, maybe of a proxy
+        stream = stream.uncaptured_stderr
+        if stream is None:  # there is no stderr to write to
+            return io.StringIO()
+    return cast(TextIO, stream)
 
 
 def warn_once(

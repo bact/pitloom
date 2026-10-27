@@ -101,6 +101,14 @@ class _Proxy:
         for line in lines:
             self.write(line)
 
+    @property
+    def uncaptured_stderr(self) -> TextIO | None:
+        """The stream behind this proxy (``None``: there was none). The log
+        handler :func:`pitloom.logging_config.configure_logging` makes reads
+        it by this name, so a handler made while a thread captures writes to
+        the stream, not into that thread's sink."""
+        return self.original
+
     def flush(self) -> None:
         if self.original is not None and threading.get_ident() not in self.sinks:
             self.original.flush()

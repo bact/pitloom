@@ -210,7 +210,7 @@ Size: S under half a day, M about a day.
   Precondition met (2026-10-04): pbr 7.0.3 reads `setup.cfg` with
   `configparser.ConfigParser` (interpolating; never Raw in any release checked)
   and fails on `50% faster` too; `%%` works. Fixed in #355
-  (`_setup_cfg_interpolation.py`): `... setup.cfg:
+  (`setup_cfg_interpolation.py`): `... setup.cfg:
   '<path>' [metadata] description: '%' must be followed by ...; setuptools
   fails on it too; write a literal '%' as '%%'`. An undefined `%(key)s` and a
   reference loop fail the same way (setuptools 84.0.0 fails on both); a
@@ -258,3 +258,22 @@ Seen in past sessions, not reproduced on current `main`:
   [backend-file-discovery-validation-flit-pdm.md](../implementation/backend-file-discovery-validation-flit-pdm.md).
 - See [target-resolution-and-purl.md](target-resolution-and-purl.md) for the
   Bitbucket and SourceHut findings of the same day.
+
+## Found 2026-10-27
+
+From the combined review of #352 to #357. Open:
+
+- [ ] **A Git URL's messages name the random temporary checkout (S).**
+  `Could not parse setup.cfg: '/tmp/pitloom-git-v6mrrlyz/setup.cfg' [metadata]
+  ...` and `DEBUG: '/tmp/pitloom-git-82p252s_': setuptools stderr: ...` carry a
+  different path each run. Git's own output is masked as `<checkout>`
+  (`_git_run.py`), these messages are not. Show a checkout-relative path or
+  the URL, through one helper.
+- [ ] **The Hatchling hook does not check `requires-python` for an overlong
+  number (S).** `loom project` refuses it with an `ERROR:`; in a build,
+  Hatchling itself reads the value first and ends with its own `ValueError:
+  Exceeds the limit (4300 digits)` traceback before the hook runs. Not
+  Pitloom's to catch; noted so the difference between the surfaces is known.
+- [ ] **`_merge_dictionary_entries` drops a differing value without a warning
+  (S, found outside the set).** Two fragments giving one `ai_hyperparameter` or
+  `ai_metric` key different values keep one silently.

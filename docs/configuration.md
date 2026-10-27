@@ -141,9 +141,11 @@ any other value, or an empty one, raises `ValueError` as above.
 
 `setup.cfg` is read as setuptools reads it, with `%` interpolation: write a
 literal `%` as `%%` (`description = 50%% faster`), and `%(name)s` stands for
-another key's value. A bare `%` or an undefined `%(key)s` fails the run, as
-it fails a setuptools build, with one `ERROR:` naming the file, section and
-key.
+another key's value. A bare `%` or an undefined `%(key)s` in a value Pitloom
+reads fails the run, as it fails a setuptools build, with one `ERROR:` naming
+the file, section and key. In a section Pitloom does not read (`[bdist_wheel]`),
+setuptools' file discovery fails on it: Pitloom warns, naming the section and
+key, and writes the SBOM without the file list.
 
 **Moved keys:** the pre-rename `ids-file` and `update-registry` keys
 raise `ValueError` if present -- e.g. `[tool.pitloom] 'ids-file' has
