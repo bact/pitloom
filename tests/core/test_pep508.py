@@ -152,16 +152,28 @@ _PARSER_MODULES = {
 }
 
 
-def _direct_parses(tree: ast.Module) -> list[int]:
-    """The lines of *tree* calling ``packaging``'s ``Requirement`` or
-    ``Marker``: by a name imported from its module, or by attribute."""
+#: ``packaging``'s version parsers: what no module but
+#: :mod:`pitloom.core.pep440` may call on input.
+_VERSION_MODULES = {
+    "packaging.version": "Version",
+    "packaging.specifiers": "SpecifierSet",
+}
+
+
+def _direct_parses(
+    tree: ast.Module, parsers: dict[str, str] | None = None
+) -> list[int]:
+    """The lines of *tree* calling one of *parsers* (module -> name;
+    default ``packaging``'s ``Requirement`` and ``Marker``): by a name
+    imported from its module, or by attribute."""
+    parsers = _PARSER_MODULES if parsers is None else parsers
     imports = [n for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))]
     names = {
         alias.asname or alias.name
         for node in imports
-        if isinstance(node, ast.ImportFrom) and node.module in _PARSER_MODULES
+        if isinstance(node, ast.ImportFrom) and node.module in parsers
         for alias in node.names
-        if alias.name == _PARSER_MODULES[node.module]
+        if alias.name == parsers[node.module]
     }
     # ``packaging`` or one of its modules, under any name.
     modules = {"packaging"} | {
@@ -178,7 +190,7 @@ def _direct_parses(tree: ast.Module) -> list[int]:
             (isinstance(node.func, ast.Name) and node.func.id in names)
             or (
                 isinstance(node.func, ast.Attribute)
-                and node.func.attr in _PARSER_MODULES.values()
+                and node.func.attr in parsers.values()
                 and ast.unparse(node.func.value).split(".", maxsplit=1)[0] in modules
             )
         )
@@ -222,3 +234,15 @@ def test_only_the_helper_calls_packaging_parsers() -> None:
         if (lines := _direct_parses(ast.parse(path.read_text(encoding="utf-8"))))
     }
     assert set(found) == {"core/pep508.py"}
+
+
+def test_only_the_helper_parses_versions() -> None:
+    """Every ``Version`` and ``SpecifierSet`` goes through
+    :mod:`pitloom.core.pep440`, so its digit cap covers every caller; the
+    Hatchling hook checks the installed Hatchling's own version."""
+    found = {
+        path.relative_to(_SRC).as_posix()
+        for path in sorted(_SRC.rglob("*.py"))
+        if _direct_parses(ast.parse(path.read_text(encoding="utf-8")), _VERSION_MODULES)
+    }
+    assert found == {"core/pep440.py", "plugins/hatch.py"}

@@ -188,8 +188,10 @@ CRFsuite.
 
 **Producer and supplier.** Each name becomes a generic SPDX `Agent` (name
 only, no email) in the `ai_AIPackage`'s `originatedBy`, one Agent per
-distinct producer name, shared when two models name the same one (an SBOM
-creator or dataset creator of that name is not merged with it). No model
+distinct producer name, shared when two models name the same one, and with a
+dataset creator of that name (an SBOM creator of type `agent`, a main-package
+author and a dependency's author are other elements and are not merged with
+it). No model
 file format sets `suppliedBy`: an author written in a file originated the
 model, and the file does not say who ships it. A model read from the Hugging
 Face Hub is the exception: the Hub repository is where the model is shipped

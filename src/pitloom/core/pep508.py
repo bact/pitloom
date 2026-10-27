@@ -13,7 +13,13 @@ deeper than :data:`MAX_MARKER_NESTING` is refused before parsing, with one
 invalid-input error: each caller's handling of text that is not PEP 508
 covers both, the same on every Python version.
 
-No Pitloom imports but :mod:`pitloom.logging_config`.
+A version number over :data:`~pitloom.core.pep440.MAX_VERSION_NUMBER_DIGITS`
+digits is refused the same way: ``packaging`` raises a plain ``ValueError``
+on one past Python's int digit limit, while building the requirement
+(``packaging`` 25) or when comparing or printing it (26).
+
+No Pitloom imports but :mod:`pitloom.logging_config` and
+:mod:`pitloom.core.pep440`.
 
 See also: :mod:`pitloom.core.requirements`, :mod:`pitloom.core.extra_gate`.
 """
@@ -26,6 +32,7 @@ import re
 from packaging.markers import InvalidMarker, Marker
 from packaging.requirements import InvalidRequirement, Requirement
 
+from pitloom.core.pep440 import MAX_VERSION_NUMBER_DIGITS, has_overlong_number
 from pitloom.logging_config import Cap, warn_over_cap
 
 log = logging.getLogger(__name__)
@@ -33,6 +40,7 @@ log = logging.getLogger(__name__)
 __all__ = [
     "MAX_MARKER_NESTING",
     "is_over_nesting_cap",
+    "is_over_number_cap",
     "marker_nesting",
     "parse_marker",
     "parse_requirement",
@@ -88,22 +96,52 @@ def is_over_nesting_cap(
     if marker_nesting(text, marker=marker) <= MAX_MARKER_NESTING:
         return False
     if not quiet:
-        shown = text[:_SHOWN_CHARS] + ("..." if len(text) > _SHOWN_CHARS else "")
-        warn_over_cap(log, _cap(marker), shown, "not parsed", once=True, key=text)
+        warn_over_cap(
+            log, _cap(marker), _shown(text), "not parsed", once=True, key=text
+        )
     return True
+
+
+def is_over_number_cap(text: str, *, marker: bool = False, quiet: bool = False) -> bool:
+    """Whether *text*, a requirement (a marker when *marker*), has a number
+    over :data:`~pitloom.core.pep440.MAX_VERSION_NUMBER_DIGITS` digits
+    (:func:`~pitloom.core.pep440.has_overlong_number`); one ``WARNING:``
+    per text and process when it does, unless *quiet*.
+
+    Raises:
+        TypeError: *text* is not a string.
+    """
+    if not has_overlong_number(text):
+        return False
+    if not quiet:
+        warn_over_cap(
+            log, _number_cap(marker), _shown(text), "not parsed", once=True, key=text
+        )
+    return True
+
+
+def _refusal(text: str, *, marker: bool, quiet: bool) -> str | None:
+    """Why *text* is refused before ``packaging`` parses it, else ``None``."""
+    if is_over_nesting_cap(text, marker=marker, quiet=quiet):
+        return _cap(marker).reason
+    if is_over_number_cap(text, marker=marker, quiet=quiet):
+        return _number_cap(marker).reason
+    return None
 
 
 def parse_requirement(text: str, *, quiet: bool = False) -> Requirement:
     """*text* parsed as a PEP 508 requirement.
 
     Raises:
-        packaging.requirements.InvalidRequirement: *text* is not one, or
-            nests too deep (:func:`is_over_nesting_cap`, its ``WARNING:``
-            silent when *quiet*).
+        packaging.requirements.InvalidRequirement: *text* is not one,
+            nests too deep (:func:`is_over_nesting_cap`) or has an overlong
+            number (:func:`is_over_number_cap`), the ``WARNING:`` silent
+            when *quiet*.
         TypeError: *text* is not a string.
     """
-    if is_over_nesting_cap(text, quiet=quiet):
-        raise InvalidRequirement(_cap(False).reason)
+    reason = _refusal(text, marker=False, quiet=quiet)
+    if reason is not None:
+        raise InvalidRequirement(reason)
     try:
         return Requirement(text)
     except RecursionError as exc:
@@ -114,13 +152,15 @@ def parse_marker(text: str, *, quiet: bool = False) -> Marker:
     """*text* parsed as a PEP 508 marker.
 
     Raises:
-        packaging.markers.InvalidMarker: *text* is not one, or nests too
-            deep (:func:`is_over_nesting_cap`, its ``WARNING:`` silent when
-            *quiet*).
+        packaging.markers.InvalidMarker: *text* is not one, nests too
+            deep (:func:`is_over_nesting_cap`) or has an overlong number
+            (:func:`is_over_number_cap`), the ``WARNING:`` silent when
+            *quiet*.
         TypeError: *text* is not a string.
     """
-    if is_over_nesting_cap(text, marker=True, quiet=quiet):
-        raise InvalidMarker(_cap(True).reason)
+    reason = _refusal(text, marker=True, quiet=quiet)
+    if reason is not None:
+        raise InvalidMarker(reason)
     try:
         return Marker(text)
     except RecursionError as exc:
@@ -130,7 +170,21 @@ def parse_marker(text: str, *, quiet: bool = False) -> Marker:
 _TOO_DEEP = "nested too deep to parse"
 
 
+def _subject(marker: bool) -> str:
+    """The key naming the input in a ``WARNING:``."""
+    return "MARKER" if marker else "REQUIREMENT"
+
+
 def _cap(marker: bool) -> Cap:
     """The nesting cap, the input named a marker or a requirement."""
-    subject = "MARKER" if marker else "REQUIREMENT"
-    return Cap(MAX_MARKER_NESTING, "level", "marker-nesting", subject)
+    return Cap(MAX_MARKER_NESTING, "level", "marker-nesting", _subject(marker))
+
+
+def _number_cap(marker: bool) -> Cap:
+    """The version-number cap, the input named a marker or a requirement."""
+    return Cap(MAX_VERSION_NUMBER_DIGITS, "digit", "version-number", _subject(marker))
+
+
+def _shown(text: str) -> str:
+    """The start of *text* a ``WARNING:`` shows."""
+    return text[:_SHOWN_CHARS] + ("..." if len(text) > _SHOWN_CHARS else "")

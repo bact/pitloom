@@ -20,8 +20,9 @@ from collections.abc import Iterable, Mapping
 from typing import Any, TypeGuard
 
 from packaging.utils import InvalidName, canonicalize_name
-from packaging.version import InvalidVersion, Version
+from packaging.version import Version
 
+from pitloom.core.pep440 import parse_version
 from pitloom.extract.lock._common_warnings import (
     warn_conflicting_versions,
     warn_malformed_entry_not_table,
@@ -116,11 +117,10 @@ def has_required_top_level_table(
 
 def version_key(version: str) -> Version | str:
     """A hashable key equal under PEP 440 (``"1.0"`` == ``"1.0.0"``); the
-    raw string when *version* does not parse."""
-    try:
-        return Version(version)
-    except (InvalidVersion, TypeError):
-        return version
+    raw string when *version* does not parse
+    (:func:`pitloom.core.pep440.parse_version`, an overlong number too)."""
+    parsed = parse_version(version)
+    return version if parsed is None else parsed
 
 
 def is_usable_name(name: object) -> TypeGuard[str]:
@@ -138,16 +138,14 @@ def is_usable_name(name: object) -> TypeGuard[str]:
 
 def is_usable_version(version: object) -> TypeGuard[str]:
     """Whether *version* is a non-empty string that parses as PEP 440 and
-    is not padded with white space (``"*"`` and ``"not a version"`` fail).
-    The call site logs its own ``WARNING:``. A ``TypeGuard`` for ``str``.
+    is not padded with white space (``"*"``, ``"not a version"`` and one
+    with an overlong number, see :func:`pitloom.core.pep440.parse_version`,
+    fail). The call site logs its own ``WARNING:``. A ``TypeGuard`` for
+    ``str``.
     """
-    if not isinstance(version, str) or not version or version != version.strip():
+    if not isinstance(version, str) or version != version.strip():
         return False
-    try:
-        Version(version)
-    except InvalidVersion:
-        return False
-    return True
+    return parse_version(version) is not None
 
 
 def find_first_present_key(

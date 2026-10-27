@@ -28,6 +28,7 @@ from pyproject_metadata import ConfigurationError, StandardMetadata
 
 from pitloom._toml_io import load_toml_file
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
+from pitloom.core.pep440 import MAX_VERSION_NUMBER_DIGITS, has_overlong_number
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
 from pitloom.core.quote_source import quote_source
 from pitloom.core.requirements import normalize_dependency_specifier
@@ -150,6 +151,21 @@ def _drop_redundant_license_classifiers(data: dict[str, Any]) -> dict[str, Any]:
     return {**data, "project": {**project_data, "classifiers": kept}}
 
 
+def _refuse_overlong_numbers(project: dict[str, Any]) -> None:
+    """Fail, as on any invalid value, on a ``[project]`` ``version`` or
+    ``requires-python`` with an overlong number: ``packaging`` raises a
+    plain ``ValueError`` on it while parsing (``version``; 25) or later,
+    printing it (``requires-python``, 26). *project* is the ``[project]``
+    table (:func:`hold_deep_requirements` has read it as one)."""
+    for key in ("version", "requires-python"):
+        value = project.get(key)
+        if isinstance(value, str) and has_overlong_number(value):
+            raise ValueError(
+                f"Failed to parse project metadata: 'project.{key}' has a number "
+                f"over {MAX_VERSION_NUMBER_DIGITS} digits"
+            )
+
+
 def _parse_standard_metadata_with_retry(
     data: dict[str, Any],
     pyproject_path: Path,
@@ -172,7 +188,13 @@ def _parse_standard_metadata_with_retry(
     :func:`pitloom.extract.project.resolve_project_with_lockfile`'s
     peek-then-reread), not because anything about the license/classifier
     data changed.
+
+    Raises:
+        ValueError: The metadata is not valid, its ``version`` or
+            ``requires-python`` has an overlong number too
+            (:func:`pitloom.core.pep440.has_overlong_number`).
     """
+    _refuse_overlong_numbers(data["project"])
     try:
         return (
             StandardMetadata.from_pyproject(

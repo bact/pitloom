@@ -3,13 +3,14 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``[project]`` requirements nesting over the marker-nesting cap, held out
-of ``pyproject-metadata``'s parse and put back after it.
+"""``[project]`` requirements over the marker-nesting or the version-number
+cap, held out of ``pyproject-metadata``'s parse and put back after it.
 
 ``pyproject-metadata`` parses every requirement with ``packaging``, where
-a ``RecursionError`` would fail the whole read; held out, such a
-requirement reaches the shared parse
-(:func:`pitloom.core.pep508.parse_requirement`) as on every other route.
+a ``RecursionError`` or a number past Python's int digit limit (a plain
+``ValueError``) would fail the whole read; held out, such a requirement
+reaches the shared parse (:func:`pitloom.core.pep508.parse_requirement`)
+as on every other route.
 
 See also: :mod:`pitloom.extract.project.pyproject`.
 """
@@ -19,7 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from pitloom.core.pep508 import is_over_nesting_cap
+from pitloom.core.pep508 import is_over_nesting_cap, is_over_number_cap
 
 __all__ = ["HeldRequirements", "hold_deep_requirements"]
 
@@ -48,9 +49,10 @@ class HeldRequirements:
 def hold_deep_requirements(
     data: dict[str, Any], *, quiet: bool = False
 ) -> tuple[dict[str, Any], HeldRequirements]:
-    """*data* without its ``[project]`` requirements over the cap, each
-    with one ``WARNING:`` (:func:`~pitloom.core.pep508.is_over_nesting_cap`,
-    silent when *quiet*), and those held. A field of another shape is
+    """*data* without its ``[project]`` requirements over a cap, each with
+    one ``WARNING:`` (:func:`~pitloom.core.pep508.is_over_nesting_cap`,
+    :func:`~pitloom.core.pep508.is_over_number_cap`, silent when *quiet*),
+    and those held. A field of another shape is
     left as is, for ``pyproject-metadata`` to report. *data* holds a
     ``[project]`` table."""
     project: dict[str, Any] = data["project"]
@@ -73,10 +75,13 @@ def hold_deep_requirements(
 
 
 def _held(entries: list[Any], held: dict[int, str], quiet: bool) -> list[Any]:
-    """*entries* without the strings over the cap, added to *held*."""
+    """*entries* without the strings over a cap, added to *held*."""
     kept = []
     for index, entry in enumerate(entries):
-        if isinstance(entry, str) and is_over_nesting_cap(entry, quiet=quiet):
+        if isinstance(entry, str) and (
+            is_over_nesting_cap(entry, quiet=quiet)
+            or is_over_number_cap(entry, quiet=quiet)
+        ):
             held[index] = entry
         else:
             kept.append(entry)

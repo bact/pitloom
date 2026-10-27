@@ -166,11 +166,11 @@ decisions:
   above). The Hugging Face identifier and PURL: done as
   `software_packageUrl` (the "Model identifier" item above).
 - `loom model` identity is the model's internal name and version, so two
-  files with the same graph name share a document namespace and their counter
-  `Agent-N` ids fold by id across different people on `loom merge` (an
-  originator is re-attributed, with a `Merge: conflicting 'name'` warning).
-  The `ai_AIPackage` collided before #6; belongs with the registry v3 /
-  identity follow-ups.
+  files with the same graph name share a document namespace. Fixed on branch
+  #353: a generic `Agent`'s id carries its name, so two
+  people no longer fold by a counter id on `loom merge`. The `ai_AIPackage`
+  itself collided before #6; that belongs with the registry v3 / identity
+  follow-ups.
 - Dataset creators map to `publishedBy`, model producers to `originatedBy`:
   a divergence that predates #6; decide whether it is intended.
 - GGUF `general.quantized_by` (who produced the quantised file; the G7
@@ -189,8 +189,10 @@ decisions:
   [author-entity-recognition.md](author-entity-recognition.md).
 - Same-name Agents stay apart: a creator of type `agent` keeps its own
   element, a model's originator is a second, a main-package author `Person`
-  another, and dataset creators use another id prefix. One identity needs a
-  rule for which element wins (pinned by a test today).
+  another. A dataset creator and a model's originator of one name are one
+  generic `Agent` (#353); the other kinds stay apart on
+  purpose (their class differs, or they are the SBOM's own creators). One
+  identity across them needs a rule for which element wins (pinned by tests).
 - ONNX: subgraph attributes with no `type` set (very old files) are not
   walked, `training_info` graphs are not counted, and a `model_author` that
   is not valid UTF-8 yields no originator, silently, as `model_license`

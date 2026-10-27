@@ -42,8 +42,9 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from packaging.specifiers import InvalidSpecifier, SpecifierSet
+from packaging.specifiers import InvalidSpecifier
 
+from pitloom.core.pep440 import parse_specifier_set
 from pitloom.extract.lock.common import (
     find_first_present_key,
     has_required_top_level_table,
@@ -179,12 +180,12 @@ def _exact_pinned_version(name: str, version: object) -> tuple[str, str] | None:
         # *specifier* string (e.g. "==2.31.0"), not a plain version --
         # is_usable_version()'s stricter `packaging.version.Version`
         # check doesn't apply here (a specifier isn't a bare version and
-        # would always fail it); SpecifierSet()/single_exact_pin() below
+        # would always fail it); parse_specifier_set()/single_exact_pin() below
         # already validate it's a genuine, single, exact pin.
         warn_missing_version("Pipfile.lock", name)
         return None
     try:
-        specifier_set = SpecifierSet(version)
+        specifier_set = parse_specifier_set(version)
     except InvalidSpecifier:
         log.warning(
             "Skipping Pipfile.lock entry %r: %r isn't a valid PEP 440 specifier",
