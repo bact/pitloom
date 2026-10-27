@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,13 +15,21 @@ Follow-ups from the extras and authors work (#300): see
 [extras-parity.md](../implementation/extras-parity.md#open-questions),
 the one list.
 
-- [ ] **One person, two `Agent` elements (S, found in the 2026-10-23 release
-  review).** When a model's `originatedBy` and a dataset's `publishedBy` name the
-  same person ("Alice" in the `library` conformance scenario), the SBOM holds two
-  `Agent` elements with different ids (`Agent-1` from the model producer,
-  `Agent-Alice-1` from `add_dataset_creator_agent`, `assemble/spdx3/dataset.py`).
-  Valid, but two identities for one name; one shared agent builder keyed by name
-  would fold them (and keep ids stable in the registry).
+- [x] **One person, two `Agent` elements (S, found in the 2026-10-23 release
+  review; fixed in #353).** A model's `originatedBy` and a
+  dataset's `publishedBy` naming the same person ("Alice" in the `library`
+  conformance scenario) gave two `Agent` elements (`Agent-1`, `Agent-Alice-1`).
+  Now one generic `Agent` per name, found through the exporter's agent index
+  (`assemble/spdx3/_agents.py`, used by the model originators, the supplier and
+  the dataset creator, on the assembler and `loom.run` routes). Every generic
+  Agent's id carries its name (`Agent-<name>-1`; before, originators were
+  `Agent-<n>`), so the id depends on neither the order the elements are built
+  in (another model's dataset creator is built before this model's originators)
+  nor on the Agents around it. A dataset creator is stripped, and a blank one
+  names no one, as for an originator. Kept apart on purpose: the SBOM's own
+  creators of type `agent` (never keyed), a main-package author and a
+  dependency's author (a `Person` or `Organization`; the key includes the
+  class).
 - [ ] **Deep metadata text depends on call-stack depth (S).**
   `core/ai_metadata.py` `_collection_text` falls back to
   `<nested over 32 levels>` on `RecursionError`, so the CLI and the

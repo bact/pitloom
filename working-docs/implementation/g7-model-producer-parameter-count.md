@@ -317,7 +317,7 @@ Findings of the third review and what was decided.
 | Finding | Decision |
 | :------ | :------- |
 | The count was called "parameters" but counts every stored tensor (masks, shape constants, tied weights, packed integers) | Say so, once, in [ai-model-formats.md](../../docs/ai-model-formats.md#what-the-count-counts); skills and this doc summarise in a line or two. The note text now says "the number of elements in the model's stored tensors". No dtype filter |
-| Docs said an originator `Agent` has "no registry key" | Wrong: `--update-id-registry` records it by name under an `Agent` table, and nothing looks it up. Docs say "a counter id (recorded by name, never looked up)" |
+| Docs said an originator `Agent` has "no registry key" | Wrong: `--update-id-registry` records it by name under an `Agent` table, and nothing looks it up. Docs say "an id carrying its name (recorded by name, never looked up)" |
 | The skill told the agent to type the note into a fragment | The merge derives the note (see "The package says so"); the instruction is gone from `minimum-elements.md` |
 | `minimum-elements.md` marked the count "covered" | "Covered by convention (SPDX has no parameter-count field)"; a G7 `GAP` in the bact mapping, which gives only `broadMatch` to `ai_hyperparameter` |
 | The Hub count had no `Method`, so its provenance was dropped in `minimal` mode, and `gguf.total` was ignored | `gguf.total` read when `safetensors` is absent; both carry `Method: tensor_element_sum` |
@@ -378,7 +378,7 @@ Open items live in the design docs, not here:
 lists them (the `loom` SDK under G7 #7, Hub identifier and PURL, the
 `publishedBy` versus `originatedBy` divergence, `general.quantized_by`,
 `context_length`, counts for the silent formats, the `Person` or
-`Organization` upgrade path, same-name creator and originator Agents, ONNX
+`Organization` upgrade path, ONNX
 subgraph and `training_info` gaps, a non-UTF-8 `model_author`, the display
 escape), and
 [model-metadata-readers.md](../design/model-metadata-readers.md#parameter-count)

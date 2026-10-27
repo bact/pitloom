@@ -51,12 +51,15 @@ Size: S under half a day, M about a day.
   dropped when its value lost, but here the claim is false. A fix has to tell
   a fragment's winning entry from a losing one (a fragment whose generated
   value wins keeps its claim, which is true).
-- [ ] **A respelt copy of a curated value warns (S, found in the 2026-10-23
-  review of #349).** Fragment A replaces a generated value; a later fragment A'
-  is A in other JSON spacing (or a list in another order, which only unions).
-  The plain field merge compares the text, so A' earns `WARNING: Merge:
-  conflicting`, while a respelling of the *generated* value is silent. Same in
-  every order; harmless to the result.
+- [x] **A respelt copy of a curated value warns (S, found in the 2026-10-23
+  review of #349; fixed in #352).** Fragment A replaces
+  a generated value; a later fragment A' was A in other JSON spacing and earned
+  `WARNING: Merge: conflicting`, while a respelling of the *generated* value
+  was silent. The field merge now reads two texts that are the same JSON as one
+  value, for a text property merged field by field (`_fragments_equal.py`;
+  list items, comments and model names still compare as text, which is ledgered
+  in the 2026-10-24 review of this fix: the same JSON pair folds as a scalar and
+  stays two list items).
 - [x] **Same AI model gets different ids per surface; enrichment can hit
   the wrong model (S-M).** Found in the #292 review (`loom model` looked a
   model up by file stem only, a project scan by name, path, then stem). Fixed
