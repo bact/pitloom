@@ -167,7 +167,7 @@ decisions:
   `software_packageUrl` (the "Model identifier" item above).
 - `loom model` identity is the model's internal name and version, so two
   files with the same graph name share a document namespace. Fixed on branch
-  `one-agent-per-name`: a generic `Agent`'s id carries its name, so two
+  #353: a generic `Agent`'s id carries its name, so two
   people no longer fold by a counter id on `loom merge`. The `ai_AIPackage`
   itself collided before #6; that belongs with the registry v3 / identity
   follow-ups.
@@ -190,7 +190,7 @@ decisions:
 - Same-name Agents stay apart: a creator of type `agent` keeps its own
   element, a model's originator is a second, a main-package author `Person`
   another. A dataset creator and a model's originator of one name are one
-  generic `Agent` (branch `one-agent-per-name`); the other kinds stay apart on
+  generic `Agent` (#353); the other kinds stay apart on
   purpose (their class differs, or they are the SBOM's own creators). One
   identity across them needs a rule for which element wins (pinned by tests).
 - ONNX: subgraph attributes with no `type` set (very old files) are not

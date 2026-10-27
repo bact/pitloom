@@ -16,7 +16,7 @@ Follow-ups from the extras and authors work (#300): see
 the one list.
 
 - [x] **One person, two `Agent` elements (S, found in the 2026-10-23 release
-  review; fixed on branch `one-agent-per-name`).** A model's `originatedBy` and a
+  review; fixed in #353).** A model's `originatedBy` and a
   dataset's `publishedBy` naming the same person ("Alice" in the `library`
   conformance scenario) gave two `Agent` elements (`Agent-1`, `Agent-Alice-1`).
   Now one generic `Agent` per name, found through the exporter's agent index
