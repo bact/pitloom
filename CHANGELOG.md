@@ -24,6 +24,8 @@ and this project adheres to
 
 ### Fixed
 
+- Fragment merge folds a respelt JSON copy of a curated value, no warning
+  ([#352])
 - One `Agent` per person name across model originators and dataset creators; ids
   are `Agent-<name>-1` ([#353])
 - `pipdeptree` 4.2.10 is excluded: it has no macOS arm64 wheel and fails to
@@ -238,6 +240,7 @@ and this project adheres to
 [#344]: https://github.com/bact/pitloom/pull/344
 [#347]: https://github.com/bact/pitloom/pull/347
 [#349]: https://github.com/bact/pitloom/pull/349
+[#352]: https://github.com/bact/pitloom/pull/352
 [#353]: https://github.com/bact/pitloom/pull/353
 [#358]: https://github.com/bact/pitloom/pull/358
 

@@ -97,7 +97,7 @@ _SUMMARY = "a summary: the description is a card's opening paragraph, cut short"
 
 #: ``module:constant`` -> why it does not warn through warn_over_cap.
 _ALLOWED = {
-    "assemble/spdx3/_fragments_generated.py:MAX_JSON_DEPTH": (
+    "assemble/spdx3/_fragments_equal.py:MAX_JSON_DEPTH": (
         "a comparison: deeper JSON is not read as the same, and the plain merge "
         "reports a differing value"
     ),

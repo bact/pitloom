@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-16
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -61,7 +61,15 @@ unioned with the fragment's, and the text of the input/output description is
 replaced whole, the model's inputs with its outputs. An empty fragment value
 replaces nothing, and neither does the same value in another spelling (a list
 in another order, JSON text with other spacing), also when a later fragment
-says again what was replaced, whatever the order of the fragments. The
+says again what was replaced, whatever the order of the fragments. Two
+values (fragment against fragment, or against the base) that are the same JSON
+object or array in other spacing, key order or escape spelling (`"\u0041"` and
+`"A"`) do not conflict, for a text property such as the input/output
+description: the first one's spelling stays. Text that is not an object or
+array is compared as text, a float as its text (`1E2` and `1e2` differ), and a
+number over 4300 digits is never folded. This applies to a text property
+merged field by field, not to lists (items are compared as text), a comment
+(joined) or a model's name (a fragment's name that differs replaces it). The
 input/output text counts as generated when its `inputs` and `outputs` are; any
 other key in it (an intended use) is replaced with it. Every AI model of the
 project SBOM with generated provenance is covered: in `loom merge` there is no base document, a model that `loom

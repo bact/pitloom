@@ -80,6 +80,7 @@ pitloom/
 │       │   │   ├── _document_model.py       # Single-AI-model assembly
 │       │   │   ├── _fragments_envelope.py  # SpdxDocument envelope of a merge output
 │       │   │   ├── _fragments_hashes.py     # Hash conflict test, same-name-different-hash warning
+│       │   │   ├── _fragments_equal.py  # Two JSON texts that say the same, in any spelling (bounded, exact)
 │       │   │   ├── _fragments_generated.py  # A fragment value replaces a value generated from the model file
 │       │   │   ├── _fragments_ids.py        # rename_id_clash: new id for a type or digest clash
 │       │   │   ├── _fragments_licenses.py  # Licence unification for a fragment merge
