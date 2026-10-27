@@ -24,7 +24,8 @@ and this project adheres to
 
 ### Fixed
 
-- Fragment merge folds a respelt JSON copy of a curated value instead of warning ([#352])
+- Fragment merge folds a respelt JSON copy of a curated value, no warning
+  ([#352])
 
 ## [0.21.0] - 2026-10-23
 
