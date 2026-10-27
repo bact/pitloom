@@ -122,7 +122,12 @@ def test_a_bad_percent_fails_as_setuptools_does_naming_section_and_key(
         f"Could not parse setup.cfg: {quote_source(setup_cfg)} {where}: "
     )
     assert reason in message
-    assert message.endswith("setuptools fails on it too; write a literal '%' as '%%'")
+    # '%%' mends a stray '%', not a missing key or a reference cycle
+    stray = "names no key" not in reason and "nest deeper" not in reason
+    assert message.endswith(
+        "setuptools fails on it too"
+        + ("; write a literal '%' as '%%'" if stray else "")
+    )
     assert "\n" not in message
     assert "error" in _setuptools_read(setup_cfg)
 
