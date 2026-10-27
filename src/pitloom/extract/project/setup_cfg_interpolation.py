@@ -17,6 +17,7 @@ See also: :mod:`pitloom.extract.project.setuptools_cfg`.
 from __future__ import annotations
 
 import configparser
+from pathlib import Path
 
 from pitloom.logging_config import loggable, one_line
 
@@ -41,15 +42,30 @@ def section_declares_key(
     return key in sections.get(section, {})
 
 
+def read_uninterpolated(path: Path) -> configparser.ConfigParser | None:
+    """*path* read as a ``setup.cfg`` without interpolation, to say where a
+    value is written; ``None`` when it is not a readable config file."""
+    cfg = configparser.ConfigParser(interpolation=None)
+    try:
+        cfg.read(path, encoding="utf-8")
+    except (UnicodeDecodeError, configparser.Error):  # a missing file reads empty
+        return None
+    return cfg
+
+
 def interpolation_problem(
-    cfg: configparser.ConfigParser, exc: configparser.InterpolationError
+    cfg: configparser.ConfigParser | None, exc: configparser.InterpolationError
 ) -> str:
     """One line for *exc*, raised reading a value of *cfg*: ``[section]
     key: <what is wrong>; <the fix>``. A value inherited from ``[DEFAULT]``
-    names ``[DEFAULT]``, where it is written."""
+    names ``[DEFAULT]``, where it is written. Without *cfg* (an error raised
+    inside setuptools, which holds its own parser, and no file to ask) the
+    section is the one the error names."""
     section = exc.section
     # *exc* may come from a case-keeping copy of *cfg* (extras' markers).
-    if not section_declares_key(cfg, section, cfg.optionxform(exc.option)):
+    if cfg is not None and not section_declares_key(
+        cfg, section, cfg.optionxform(exc.option)
+    ):
         section = configparser.DEFAULTSECT
     fix = ""
     if isinstance(exc, configparser.InterpolationMissingOptionError):

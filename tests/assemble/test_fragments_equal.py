@@ -42,6 +42,13 @@ from tests.assemble.test_fragments_generated import _base, _levels, _merge
         pytest.param('["\ud800"]', '[ "\ud800"]', True, id="raw-lone-surrogate"),
         pytest.param('["\\u0041"]', '["A"]', True, id="escape-spelling"),
         pytest.param("[-0]", "[0]", True, id="negative-zero-int"),
+        pytest.param("[-0.0]", "[0.0]", False, id="negative-zero-float"),
+        # a long number with a fraction is kept as its text: no integer
+        # conversion, so it folds (a long integer depends on the interpreter's
+        # digit limit and is left untested)
+        pytest.param(
+            "[" + "9" * 5000 + ".5]", "[ " + "9" * 5000 + ".5]", True, id="long-float"
+        ),
         pytest.param("not json", "not json ", False, id="not-json"),
         pytest.param("1", " 1", False, id="scalar-number"),
         pytest.param("true", "\ntrue", False, id="scalar-boolean"),

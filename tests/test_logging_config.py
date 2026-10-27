@@ -7,12 +7,15 @@
 
 from __future__ import annotations
 
+import io
 import logging
 import os
+import sys
 import threading
 
 import pytest
 
+from pitloom import logging_config
 from pitloom.logging_config import (
     PITLOOM_DEBUG_ENV_VAR,
     apply_debug_override,
@@ -314,3 +317,32 @@ def test_print_error_is_one_error_line(capsys: pytest.CaptureFixture[str]) -> No
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err == "ERROR: bad 'a\\nWARNING: forged'\\x1b[0m\n"
+
+
+# pylint: disable-next=too-few-public-methods
+class _Proxy:
+    """A stand-in for the capture proxy: a stream that points at another."""
+
+    def __init__(self, behind: object) -> None:
+        self._behind = behind
+
+    @property
+    def uncaptured_stderr(self) -> object:
+        return self._behind
+
+
+def test_uncaptured_stderr_sees_through_proxies_and_a_missing_stream(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A handler is bound to the stream behind any chain of capture proxies,
+    and to a null stream when the proxies have none behind them."""
+    real = io.StringIO()
+    monkeypatch.setattr(sys, "stderr", _Proxy(_Proxy(real)))
+    # pylint: disable-next=protected-access
+    assert logging_config._uncaptured_stderr() is real
+    monkeypatch.setattr(sys, "stderr", _Proxy(_Proxy(None)))
+    # pylint: disable-next=protected-access
+    nothing = logging_config._uncaptured_stderr()
+    nothing.write("dropped")
+    assert isinstance(nothing, io.StringIO)
+    assert nothing is not real

@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-10-06
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -207,17 +207,9 @@ relationships.
 
 1. **Card YAML** -- reads `license:` from the model card frontmatter. If
    the value is not a vague sentinel (`other`, `custom`, `proprietary`,
-   `unlicensed`; `unknown` is handled below), it is passed through `canonicalize_license_id()`,
-   which calls `.match(license_id=raw)` on a process-wide cached
-   `AggregatedLicenseMatcher` (see `_get_matcher()`) from the `licenseid`
-   library for a direct database lookup. A matcher that cannot be built
-   (database missing, empty or unreadable) warns once per process
-   (`licenseid database cannot be used: ...`, `_matcher()`) and the lookup
-   returns its input; the failure is not cached, so the next lookup retries. Recognised SPDX
-   License IDs are returned in canonical casing (e.g. `"apache-2.0"` →
-   `"Apache-2.0"`). Values not recognised — proprietary or non-SPDX
-   identifiers such as `"gemma"`, `"llama3.2"`, or deprecated bare
-   copyleft forms — are returned verbatim. The result is stored in
+   `unlicensed`; `unknown` is handled below), it is recorded as stated (white
+   space stripped), with or without the `licenseid` database; the classification
+   that follows folds the case of a known id. The result is stored in
    `AiModelMetadata.license`.
 2. **File detection** -- when the card YAML value is absent or vague,
    `_detect_license_from_hf_files()` iterates through candidate files in
@@ -409,8 +401,11 @@ file, so the surviving header path is proven untouched.
 - A `License ::` classifier such as `OSI Approved :: MIT License` gives the
   text `MIT License`, not the SPDX id (a known deviation, see
   license-typing.md).
-- A warning for an unknown id in a field that must hold an SPDX expression
-  (PEP 639 `license`, `License-Expression`) is a 0.21.0 follow-up.
+- An unknown id in a field that holds an SPDX expression only (PEP 639
+  `license`, `License-Expression`, PyPI `license_expression`,
+  `SPDX-License-Identifier`, GGUF `general.license`) is text with one
+  `WARNING:` naming the field (`warn_unless_expression`; see
+  license-typing.md).
 
 ## Related source files
 

@@ -129,7 +129,7 @@ README for their own notes.
     these lines now go through one context manager,
     `core/_models_wheel_setuptools_relay.py`: it captures this thread's
     `sys.stderr` writes (`extract/stderr_capture.py`, promoted from
-    `extract/ai_model/` for this second caller; 64 KiB kept, the rest
+    `extract/ai_model/` for this second caller; 65,536 characters kept, the rest
     counted in a `DEBUG:` line) and relays each non-blank line as one
     escaped record, `WARNING:` for an `error:` line and `DEBUG:` otherwise.
     Capturing stderr, not filtering the root logger, also catches the

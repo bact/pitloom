@@ -224,10 +224,10 @@ The `hf.language` extractor passes non-standard values through unchanged
 | `"code"` | Programming-language content | `huggingface/CodeBERTa-small-v1` |
 | `False` (bool) | ISO code `"no"` parsed by YAML 1.1 | `openai/whisper-large-v3` — filtered out |
 
-### 8. License handling: sources, canonicalization, vague values, and no-license patterns
+### 8. License handling: sources, the stated value, vague values, and no-license patterns
 
 pitloom's role is to **find license information** from available sources.
-Once found, it delegates identification to the `licenseid` library.
+A card id is recorded as stated; `licenseid` only identifies licence-file text.
 
 #### License sources (priority order)
 
@@ -237,48 +237,37 @@ Once found, it delegates identification to the `licenseid` library.
    used when the card value is vague (see below).  Detection performed by
    `_detect_license_from_hf_files()` via `licenseid`.
 
-#### Canonicalization: `_canonicalize_license_id()`
+#### The card value is recorded as stated
 
 HF Hub stores license identifiers in **lowercase** (e.g. `apache-2.0`,
-`bsd-3-clause`), while SPDX requires specific mixed casing.
-`_canonicalize_license_id()` delegates to `canonicalize_license_id()` in
-`pitloom.extract._license`, which calls `AggregatedLicenseMatcher.match()`
-from the `licenseid` library.  The matcher's Tier-0 short-text path performs
-fuzzy name/ID matching and returns the canonical casing when it finds an
-exact match (internal score > 1.0); otherwise the value is returned
-**verbatim**.
+`bsd-3-clause`). The extractor records the card value as written (leading
+and trailing white space stripped), with or without the `licenseid`
+database: the output must not depend on whether a database is present. The
+classification that follows (`classify_license`) folds the case of a known
+SPDX License ID, and records a deprecated bare id such as `gpl-3.0` as the
+deprecated `GPL-3.0` (never `GPL-3.0-only`).
 
 pitloom does **not** add `LicenseRef-` prefixes or otherwise interpret
-unrecognized values — that is the responsibility of `licenseid` or downstream
-SBOM tooling.
+unrecognized values.
 
-| HF card value | `meta.license` recorded | Source |
-| :--- | :--- | :--- |
-| `apache-2.0` | `Apache-2.0` | recognized by licenseid — canonical SPDX License ID |
-| `mit` | `MIT` | recognized by licenseid |
-| `bsd-3-clause` | `BSD-3-Clause` | recognized by licenseid |
-| `cc-by-4.0` | `CC-BY-4.0` | recognized by licenseid |
-| `cc-by-nc-4.0` | `CC-BY-NC-4.0` | recognized by licenseid |
-| `cc-by-nc-nd-4.0` | `CC-BY-NC-ND-4.0` | recognized by licenseid |
-| `cc-by-sa-4.0` | `CC-BY-SA-4.0` | recognized by licenseid |
-| `gemma` | `gemma` | not recognized by licenseid — recorded verbatim |
-| `llama3.2` | `llama3.2` | not recognized by licenseid — recorded verbatim |
-| `llama3` | `llama3` | not recognized by licenseid — recorded verbatim |
-| `apple-amlr` | `apple-amlr` | not recognized by licenseid — recorded verbatim |
-| `bigscience-bloom-rail-1.0` | `bigscience-bloom-rail-1.0` | not recognized by licenseid — recorded verbatim |
-| `bigcode-openrail-m` | `bigcode-openrail-m` | not recognized by licenseid — recorded verbatim |
-| `openrail++` | `openrail++` | not recognized by licenseid — recorded verbatim |
-| `agpl-3.0` | `agpl-3.0` | deprecated SPDX License ID, not recognized by licenseid — recorded verbatim |
-| `gpl-3.0` | `gpl-3.0` | deprecated SPDX License ID, not recognized by licenseid — recorded verbatim |
-
-Deprecated bare copyleft forms (`agpl-3.0`, `gpl-3.0`, `lgpl-2.1`, etc.) are
-not recognized by `licenseid` (SPDX replaced them with `-only` /
-`-or-later` variants requiring explicit intent).  They are recorded verbatim;
-downstream tooling can decide whether to map them to `-only`, `-or-later`, or
-add a `LicenseRef-` prefix.
-
-Requires `licenseid update` to populate the database.  When the database is
-unavailable all card values are recorded verbatim (no canonicalization).
+| HF card value | `meta.license` recorded |
+| :--- | :--- |
+| `apache-2.0` | `apache-2.0` |
+| `mit` | `mit` |
+| `bsd-3-clause` | `bsd-3-clause` |
+| `cc-by-4.0` | `cc-by-4.0` |
+| `cc-by-nc-4.0` | `cc-by-nc-4.0` |
+| `cc-by-nc-nd-4.0` | `cc-by-nc-nd-4.0` |
+| `cc-by-sa-4.0` | `cc-by-sa-4.0` |
+| `gemma` | `gemma` |
+| `llama3.2` | `llama3.2` |
+| `llama3` | `llama3` |
+| `apple-amlr` | `apple-amlr` |
+| `bigscience-bloom-rail-1.0` | `bigscience-bloom-rail-1.0` |
+| `bigcode-openrail-m` | `bigcode-openrail-m` |
+| `openrail++` | `openrail++` |
+| `agpl-3.0` | `agpl-3.0` |
+| `gpl-3.0` | `gpl-3.0` |
 
 #### Vague license values
 
@@ -778,7 +767,7 @@ come from `config.json`.
 | :--- | :--- | :--- |
 | `dandelin/vilt-b32-finetuned-vqa` | visual-question-answering, base_model finetune, arxiv | ViLT on VQAv2; `arxiv:2102.03334`; finetune from vilt-b32 |
 | `google/deplot` | visual-question-answering + `image-text-to-text` in tags | pix2struct; both pipeline tag and card tag → two domains; `arxiv:2212.10505` |
-| `Salesforce/blip-vqa-base` | visual-question-answering, `BSD-3-Clause` | `bsd-3-clause` → `BSD-3-Clause` (canonical SPDX); blip arch |
+| `Salesforce/blip-vqa-base` | visual-question-answering, `BSD-3-Clause` | `bsd-3-clause` recorded as stated; blip arch |
 | `naver-clova-ix/donut-base-finetuned-docvqa` | document-question-answering, vision-encoder-decoder | `image-to-text` also captured via card tags; donut arch |
 | `impira/layoutlm-document-qa` | document-question-answering, language scalar | `language: en` scalar → `["en"]`; layoutlm arch; MIT |
 | `google/tapas-large-finetuned-wtq` | table-question-answering, language scalar, dataset ref | `language: en` scalar; dataset ref; tapas arch |

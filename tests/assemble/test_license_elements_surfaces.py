@@ -196,6 +196,11 @@ _RELATIONSHIP: dict[str, str] = {
 }
 
 
+#: Surfaces reading a field that holds an SPDX expression only (PyPI
+#: ``license_expression``, ``License-Expression``, ``SPDX-License-Identifier``).
+_SPDX_ONLY = frozenset({"dependency-pypi", "wheel", "sdist", "file-tag"})
+
+
 def _stated(graph: list[dict[str, Any]]) -> list[tuple[str, str | None]]:
     return [(e["type"], license_value(e)) for e in license_elements(graph)]
 
@@ -243,16 +248,15 @@ def test_licence_element_by_surface(
             expected and expected[0] is None
         )
         assert ("simpleLicensing" in profiles) is (expected is not None)
-    if warns:
-        assert (
-            sum(
-                "not a valid SPDX license expression" in r.message
-                for r in caplog.records
-            )
-            == 1
-        )
+    said = [r.message for r in caplog.records if r.levelno >= logging.WARNING]
+    if surface in _SPDX_ONLY and expected is not None and expected[0] == _TEXT:
+        # Any text in a field that holds an SPDX expression only: one line,
+        # naming the field (it shares its key with the broken-expression one).
+        assert len(said) == 1 and said[0].startswith("FIELD=")
+    elif warns:
+        assert sum("not a valid SPDX license expression" in m for m in said) == 1
     else:
-        assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+        assert not said
 
 
 def test_same_licence_from_two_dependencies_is_one_element() -> None:

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -46,15 +46,15 @@ Pitloom ships three Skills:
 
 The three Skills refer to each other, so install all three together.
 
-**Requirements.** A shell, Python 3.10 or later and `pitloom` 0.21.0 or
-later (pip, `uvx` or `pipx`; the Skills describe 0.21.0's commands and messages, and
-earlier releases cannot read the ID registry format 3 they use); network access to
-install it and, for PyPI and Hugging Face lookups, at run time. AI model
-files need `pitloom[ai]`; `sbom-enrich`'s post-merge check and
-`sbom-validate` need `pitloom[validate]`; `--allow-build` needs
-`pitloom[build]`. Each `SKILL.md` declares this in its `compatibility`
-field. The Skills do not work where packages cannot be installed, e.g.
-Claude API code execution.
+**Requirements.** A shell, Python 3.10 or later and `pitloom` 0.21.0 or later
+(pip, `uvx` or `pipx`; the Skills describe the commands and messages of the
+development version, a few newer than 0.21.0, and earlier releases cannot read
+the ID registry format 3 they use); network access to install it and, for PyPI
+and Hugging Face lookups, at run time. AI model files need `pitloom[ai]`;
+`sbom-enrich`'s post-merge check and `sbom-validate` need `pitloom[validate]`;
+`--allow-build` needs `pitloom[build]`. Each `SKILL.md` declares this in its
+`compatibility` field. The Skills do not work where packages cannot be
+installed, e.g. Claude API code execution.
 
 ## Quick guide
 

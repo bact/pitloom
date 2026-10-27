@@ -27,7 +27,7 @@ from py_spdx_license import get_exception as get_spdx_exception
 from py_spdx_license import get_license as get_spdx_license
 from py_spdx_license import parse as parse_spdx_expression
 
-from pitloom.logging_config import warn_once
+from pitloom.logging_config import excerpt, warn_once
 
 _logger = logging.getLogger(__name__)
 
@@ -65,6 +65,13 @@ _MAX_EXPRESSION_LENGTH = 200
 #: One line, one reason; ``%r`` keeps control characters out of the log.
 _NOT_AN_EXPRESSION_MESSAGE = (
     "LICENSE=%r: not a valid SPDX license expression (%s); recorded as license text"
+)
+
+#: A field that holds an SPDX expression only, recorded as text. The value
+#: through :func:`~pitloom.logging_config.excerpt`: one line, cut.
+_UNREAD_SPDX_FIELD_MESSAGE = (
+    "FIELD=%s LICENSE=%s: not read as an SPDX license expression (%s); "
+    "recorded as license text"
 )
 
 _EXPRESSION_OPERATOR_RE = re.compile(r"(?<![\w-])(?:AND|OR|WITH|NOT)(?![\w-])")
@@ -292,28 +299,66 @@ def classify_license(raw: str | None, *, warn: bool = True) -> ClassifiedLicense
     expression, also gets one ``WARNING:`` per value per process, unless
     *warn* is false (a comparison, not a record of the value).
     """
+    return _classify(raw, warn)[0]
+
+
+def _classify(raw: str | None, warn: bool) -> tuple[ClassifiedLicense | None, str]:
+    """:func:`classify_license` and, for text, why it is not an expression
+    (one line); ``""`` for any other kind."""
     if raw and _SURROGATE_RE.search(raw):
         raw = _replace_surrogates(raw, warn)
     stripped = (raw or "").strip()
     word = stripped.upper()
     if not stripped:
-        return None
+        return None, ""
     if word in _INDIVIDUAL_WORDS:
         kind, value = _INDIVIDUAL_WORDS[word]
-        return ClassifiedLicense(kind, value, raw or "")
+        return ClassifiedLicense(kind, value, raw or ""), ""
     if "\n" in stripped or len(stripped) > _MAX_EXPRESSION_LENGTH:
-        return ClassifiedLicense("text", empty_blank_lines(stripped), raw or "")
+        reason = (
+            "more than one line"
+            if "\n" in stripped
+            else f"longer than {_MAX_EXPRESSION_LENGTH} characters, not parsed"
+        )
+        text = ClassifiedLicense("text", empty_blank_lines(stripped), raw or "")
+        return text, reason
     cased = _SPDX_OPERATOR_CASING_RE.sub(lambda m: m.group(1).upper(), stripped)
     cased = with_successor_ids(cased)
     canonical, reason = _strict_parse(cased)
     if canonical is not None:
-        return ClassifiedLicense("expression", canonical, raw or "")
+        return ClassifiedLicense("expression", canonical, raw or ""), ""
     gap = _gap_expression(cased)
     if gap is not None:
-        return ClassifiedLicense("expression", gap, raw or "")
+        return ClassifiedLicense("expression", gap, raw or ""), ""
     if warn and _looks_like_expression(cased):
         warn_once(_logger, stripped, _NOT_AN_EXPRESSION_MESSAGE, stripped, reason)
-    return ClassifiedLicense("text", stripped, raw or "")
+    return ClassifiedLicense("text", stripped, raw or ""), reason
+
+
+def warn_unless_expression(value: str | None, field: str) -> None:
+    """One ``WARNING:`` per value per process when *value*, read from
+    *field*, a field that holds an SPDX license expression only (PEP 639
+    ``project.license``, Core Metadata ``License-Expression``, a file's
+    ``SPDX-License-Identifier`` tag, GGUF ``general.license``, a PyPI
+    record's ``license_expression``), is not one
+    that Pitloom reads (``Apache2``, ``MIT OR Foo``, a licence text), so is
+    recorded as licence text. An expression, ``NOASSERTION``/``UNKNOWN``,
+    ``NONE`` and a blank value are quiet. A field that may hold free text
+    (Core Metadata ``License``, ``project.license.text``) never calls this.
+
+    The key is the one :func:`classify_license`'s broken-expression warning
+    uses, so a value is said once, by whichever comes first."""
+    classified, reason = _classify(value, False)
+    if classified is None or classified.kind != "text":
+        return
+    warn_once(
+        _logger,
+        classified.value,
+        _UNREAD_SPDX_FIELD_MESSAGE,
+        field,
+        excerpt(classified.value),
+        reason,
+    )
 
 
 def is_weak_licence(value: str | None) -> bool:

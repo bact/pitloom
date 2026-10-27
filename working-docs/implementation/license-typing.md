@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-04
-Last-Modified: 2026-10-15
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -111,8 +111,52 @@ Details that were decided, not obvious:
   process (`warn_once`; any-case operators). The parser's message quotes the
   input, so it is escaped. A pure comparison passes `warn=False`
   (installed-metadata reconcile), because comparing is not recording.
-- **Unknown id alone** (`Apache2`) is text and silent; warning on a field that
-  must hold an SPDX expression is a 0.21.0 follow-up.
+- **Unknown id alone** (`Apache2`) is text: silent in a free-text field, one
+  `WARNING:` in a field that holds an SPDX expression only (next section).
+
+## Unknown id in an SPDX-only field
+
+Built in #357. A value that
+`classify_license()` makes text, read from a field that holds an SPDX
+expression only, stays text as written (the known-bugs entry's rule: no
+`NOASSERTION`, the value is the holder's statement) and gets one `WARNING:`
+per value per process: `FIELD=<field> LICENSE=<excerpt>: not read as an SPDX
+license expression (<reason>); recorded as license text`.
+
+- **One helper, called where the field is known.** `warn_unless_expression()`
+  in `_license_classify.py` reuses the classifier (one rule for "known id")
+  and warns for kind `text` only; an expression, a placeholder, `NONE` and
+  blank are quiet. The element builder never learns the field, so the
+  readers call it, instead of threading a field through `ProjectMetadata`
+  and six readers: `core_metadata_license_with_source()` when the cascade
+  picked `License-Expression` (wheel, sdist `PKG-INFO`, installed metadata,
+  an installed dependency), `_extract_pypi_license()` for
+  `license_expression`, `stated_pyproject_license()` for a PEP 639 string
+  (directory, sdist without `PKG-INFO`), `_resolve_hatchling_license()` for
+  `core.license_expression`, the GGUF `general.license` reader and a file's
+  `SPDX-License-Identifier` tag (`_document_files.py`).
+- **Said once.** The key is the one the broken-expression warning in
+  `classify_license()` uses (the stripped value, same logger), so `MIT OR Foo`
+  in `License-Expression` gives one line; the reader runs first, so it is the
+  line naming the field. A value read by more than one reader of a run (a
+  directory and its installed metadata) is said once.
+- **"not read as", not "not valid".** A value over 200 characters is not
+  parsed, and an id newer than the list bundled with `py-spdx-license` is
+  valid SPDX the parser does not know; the reason in brackets says which.
+- **The licenseid database does not decide.** Known ids come from
+  `py-spdx-license`'s bundled list, so a missing database makes no id
+  unknown and adds no line.
+- **Quiet fields.** Core Metadata `License`, `project.license.text`/`file`,
+  `[tool.poetry] license` (Poetry accepts any text), a Hugging Face card's
+  `license` (its own id list), ONNX/PyTorch metadata. `setup.py`/`setup.cfg`
+  `license_expression` is not read at all yet.
+- **Hatchling** refuses an unknown id in `project.license` before the hook
+  runs, so the hook warns only for an id newer than the bundled list (none
+  in packaging's 3.27.0 list today: its six extras are deprecated `+` ids,
+  read as `-or-later`).
+- **GGUF** `general.license` is an SPDX expression by the GGUF spec, but
+  llama.cpp copies a Hugging Face card's `license` (`llama3.1`, `other`) into
+  it, so such files warn. Kept: the field's own spec says SPDX.
 
 ## Absent is not NOASSERTION
 

@@ -68,6 +68,43 @@ def test_canonicalize_license_id_match_and_exception() -> None:
         assert canonicalize_license_id("custom-raw") == "custom-raw"
 
 
+@pytest.mark.parametrize(
+    ("raw", "matched", "expected"),
+    [
+        ("mit", "MIT", "MIT"),
+        ("  apache-2.0\n", "Apache-2.0", "Apache-2.0"),
+        ("GPL-3.0", "GPL-3.0", "GPL-3.0"),
+        # a different id (deprecated bare id, alias, successor) is not applied
+        ("gpl-3.0", "GPL-3.0-only", "gpl-3.0"),
+        ("lgpl-2.1", "LGPL-2.1-only", "lgpl-2.1"),
+        ("agpl-3.0", "AGPL-3.0-or-later", "agpl-3.0"),
+        ("apache2", "Apache-2.0", "apache2"),
+        ("mit", None, "mit"),
+    ],
+    ids=[
+        "case",
+        "padded",
+        "already-canonical",
+        "gpl-not-only",
+        "lgpl-not-only",
+        "agpl-not-later",
+        "alias",
+        "no-match",
+    ],
+)
+def test_canonicalize_license_id_folds_only_case(
+    raw: str, matched: str | None, expected: str
+) -> None:
+    """The result of the resolver is applied only when it is the same id."""
+    _license_module._get_matcher.cache_clear()
+    matcher = MagicMock()
+    matcher.match.return_value = [{"license_id": matched}] if matched else []
+    with patch(
+        "pitloom.extract._license.AggregatedLicenseMatcher", return_value=matcher
+    ):
+        assert canonicalize_license_id(raw) == expected
+
+
 def test_tag_license_normalization_and_tool_tags_without_versions() -> None:
     """tag_license_normalization and _with_tool_tag handle None version gracefully."""
     with patch("pitloom.extract._license_classify._PY_SPDX_LICENSE_VERSION", None):

@@ -540,3 +540,43 @@ def test_isolated_sys_modules_treats_unresolvable_module_file_as_outside(
         assert unresolvable_module in sys.modules
     finally:
         sys.modules.pop(unresolvable_module, None)
+
+
+@pytest.mark.parametrize(
+    ("text", "where", "reason"),
+    [
+        (
+            "[bdist_wheel]\ndist_dir = out 50% done\n",
+            "[bdist_wheel] dist_dir: ",
+            "'%' must be followed by",
+        ),
+        (
+            "[bdist_wheel]\ndist_dir = %(undefined)s\n",
+            "[bdist_wheel] dist_dir: ",
+            "%(undefined)s names no key",
+        ),
+        (
+            "[DEFAULT]\ndist_dir = out 50% done\n[bdist_wheel]\n",
+            "[DEFAULT] dist_dir: ",
+            "'%' must be followed by",
+        ),
+    ],
+    ids=["stray-percent", "undefined-reference", "default-section"],
+)
+def test_discover_names_the_section_and_key_of_a_bad_percent_it_does_not_read(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, text: str, where: str, reason: str
+) -> None:
+    """setuptools reads every ``setup.cfg`` section, Pitloom only some: a bad
+    ``%`` in ``[bdist_wheel]`` fails file discovery, and the warning names the
+    section (``[DEFAULT]`` for a shared value) and key as the one for a
+    section Pitloom reads does."""
+    (tmp_path / "setup.cfg").write_text(
+        f"[metadata]\nname = p\nversion = 1\n\n{text}", encoding="utf-8"
+    )
+    with caplog.at_level(logging.WARNING):
+        assert discover(tmp_path) is None
+    (message,) = [
+        r.getMessage() for r in caplog.records if r.levelno == logging.WARNING
+    ]
+    assert where in message and reason in message
+    assert message.count("\n") == 0

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-04
-Last-Modified: 2026-10-14
+Last-Modified: 2026-10-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -125,7 +125,8 @@ package needs which. A requirement that is not valid PEP 508 (one whose
 marker nests over 64 parentheses deep, or with a version number over 640
 digits, counts as one), or whose marker's
 extra condition cannot be isolated (`extra == "a" or python_version <
-"3.9"`), is recorded as required, with a `WARNING:`. One with an extra
+"3.9"`), is recorded as required, with a `WARNING:` (an extra's entry is skipped
+instead, with a `WARNING:`). One with an extra
 condition of its own inside an extra (`foo; extra == 'x'` in `dev`) is
 optional for both (`extras: dev, x`), its inner condition ignored with a
 `WARNING:`.
@@ -230,12 +231,15 @@ two places:
   generated SBOM, not just a stderr `WARNING:` -- see [Metadata
   provenance](metadata-provenance.md#how-a-dependency-version-source-is-chosen).
 
-A version with a number over 640 digits (`1.` followed by 5,000 nines) is
+A version with a number over 640 digits (`1.` followed by 5,000 nines; any
+run of digits counts, in a version, a specifier or a marker) is
 not read as a version: Python cannot convert such a number on every
 release and setting. A lock entry holding one is skipped with the lock's own
-`WARNING:` for an invalid version, as is a whole `requirements.txt` with
-such a pin; a requirement holding one counts as not valid PEP 508 (below),
-with one `WARNING:`. The project's own `version` or `requires-python`
+`WARNING:` for an invalid version. A requirement holding one counts as not
+valid PEP 508 (above), with a `WARNING:` for the cap and the usual one for
+an invalid requirement (a Poetry dependency: its one skip line, which gives
+the reason); a whole `requirements.txt` with such a pin is
+ignored, with both lines. The project's own `version` or `requires-python`
 holding one fails the run with an `ERROR:`, as any invalid value does.
 
 [pep-440]: https://peps.python.org/pep-0440/

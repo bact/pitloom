@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-24
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -280,7 +280,7 @@ does not name. It is not a model bound.
 ## Licence detection unavailable
 
 `WARNING: licenseid database cannot be used: <reason> -- license text detection
-and license ID canonicalization skipped` (once per run): the `licenseid` SPDX
+skipped` (once per run): the `licenseid` SPDX
 database is missing or empty (`licenseid update` builds it). Licences are then
 taken as written: no `LICENSE` text is matched to an id and no id is
 normalised. Report the line.
@@ -296,3 +296,15 @@ WARNING: LICENSE='MIT OR': not a valid SPDX license expression (Unexpected 'OR')
 ```
 
 Fix the source value to get a `LicenseExpression`.
+
+A field that holds an SPDX expression only (`project.license` string,
+`License-Expression`, PyPI `license_expression`, `SPDX-License-Identifier`,
+GGUF `general.license`) whose value is not one (`Apache2`, `MIT OR Foo`) is
+also kept as text, with one line per value naming the field:
+
+```text
+WARNING: FIELD=project.license LICENSE='Apache2': not read as an SPDX license expression (Unknown Expression 'Apache2'); recorded as license text
+```
+
+Report the line and suggest the listed id (`Apache-2.0`); do not rewrite the
+value in the SBOM.

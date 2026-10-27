@@ -38,7 +38,7 @@ trusted? Decisions (maintainer, 2026-10-26):
 Scope: fields that hold an SPDX expression only (`project.license`,
 `License-Expression`, PyPI `license_expression`, `SPDX-License-Identifier`,
 GGUF `general.license`), where an unknown id is text with one `WARNING:`
-(branch `unknown-spdx-id-warns`). Free-text fields: Q1. Licence text
+(#357). Free-text fields: Q1. Licence text
 detection (`licenseid_detection`) is out of scope.
 
 ## 2. Evidence: `licenseid` 0.5.0 on 220-odd declared values
@@ -110,11 +110,12 @@ Every decision in families B and C is hidden behind `exact: True` or a score.
 | D8 | The TOML manifest reader skips a basic string with an escape (`"  MIT\t"`). |
 | D9 | `exact: True` is reported for rewritten values (separator, `-only`). |
 
-Pitloom finding: a Hugging Face card's `license: gpl-3.0` goes through
-`canonicalize_license_id` and is recorded as `GPL-3.0-only`, with no
-`Normalized-From` or `Deprecated-License-Id` (the raw value never reaches the
-builder); without a database it is `GPL-3.0` plus the note. A silent
-`assumed_only` on one surface.
+Pitloom finding (fixed): a Hugging Face card's `license: gpl-3.0` went
+through `canonicalize_license_id` and was recorded as `GPL-3.0-only`, with no
+`Normalized-From` or `Deprecated-License-Id` (the raw value never reached the
+builder); without a database it was `GPL-3.0` plus the note. A silent
+`assumed_only` on one surface. The Hugging Face route now records the card
+value as stated; the builder's classification does the rest.
 
 ## 3. What SPDX makes equal (family A basis)
 
@@ -283,8 +284,8 @@ fact: FG-6, FG-7.
   before text, for an SPDX-only field: one place every surface reaches
   (CLI, hook, library, wheel, sdist, GGUF, Hugging Face). The field kind
   becomes an explicit parameter (the stage-flag rule), which
-  `warn_unless_expression` already receives. The Hugging Face path drops
-  `canonicalize_license_id` for it.
+  `warn_unless_expression` already receives. The Hugging Face path no longer
+  calls `canonicalize_license_id`.
 - **Conflicts.** A resolved `Apache2` agrees with a detected `Apache-2.0`.
 - **Determinism.** The result is a function of the input, the field kind,
   the licenseid version and its data version; record `Tool`,

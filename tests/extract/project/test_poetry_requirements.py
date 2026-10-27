@@ -252,6 +252,17 @@ def test_unconvertible_quiet(caplog: pytest.LogCaptureFixture) -> None:
     assert not caplog.records
 
 
+@pytest.mark.parametrize("digits", [641, 5000], ids=["over-cap", "over-int-limit"])
+def test_overlong_version_number_refused_with_one_warning(
+    digits: int, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The digit cap, or CPython's own int limit, gives one line."""
+    with caplog.at_level(logging.WARNING):
+        assert poetry_requirement("a", "^" + "1" * digits + ".0") is None
+    assert len(caplog.messages) == 1
+    assert caplog.messages[0].startswith("Skipping dependency 'a' (Poetry): ")
+
+
 def test_deeply_nested_markers_refused(caplog: pytest.LogCaptureFixture) -> None:
     """The ``markers`` text goes through the shared nesting cap."""
     markers = "(" * 100 + "os_name == 'nt'" + ")" * 100

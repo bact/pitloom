@@ -13,6 +13,7 @@ The server is on ``127.0.0.1``, so the tests opt out of the socket block.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from collections.abc import Iterator
@@ -176,10 +177,23 @@ def test_a_monorepo_root_names_the_projects_below_it(base: str) -> None:
     assert "Give the URL of one of them" in str(excinfo.value)
 
 
+_SRC = str(Path(__file__).resolve().parents[3] / "src")
+
+
+def _child_env() -> dict[str, str]:
+    """The environment of a ``python -m pitloom`` run in a scratch directory:
+    this checkout's ``src`` first on ``PYTHONPATH`` (absolute), so the run
+    imports the code under test, not another installed Pitloom."""
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, [_SRC, env.get("PYTHONPATH")]))
+    return env
+
+
 def _loom(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, "-m", "pitloom", *args],
         cwd=cwd,
+        env=_child_env(),
         capture_output=True,
         text=True,
         check=False,
@@ -224,6 +238,7 @@ def test_setuptools_manifest_lines_from_a_url_are_tagged(
         [sys.executable, "-m", "pitloom", "--debug", "project", base + "/g/manifest"]
         + ["-o", str(tmp_path / "sbom.json")],
         cwd=tmp_path,
+        env=_child_env(),
         capture_output=True,
         check=False,
         timeout=300,

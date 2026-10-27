@@ -158,26 +158,60 @@ def _merge_list(
         setattr(canonical, pyname, merged)
 
 
+def _merge_colliding_entry(
+    canonical: spdx3.Element, pyname: str, kept: Any, dropped: Any
+) -> None:
+    """Fold the *dropped* entry into the *kept* one of the same key: a value
+    the kept entry lacks is filled in, a different one is dropped with a
+    ``WARNING:`` (as :func:`_merge_scalar` does), the same JSON is quiet."""
+    kept_val = getattr(kept, "value", None)
+    dropped_val = getattr(dropped, "value", None)
+    if _is_empty(kept_val):
+        if not _is_empty(dropped_val):
+            kept.value = dropped_val
+        return
+    if not _differs(kept_val, dropped_val):
+        return
+    if (
+        isinstance(kept_val, str)
+        and isinstance(dropped_val, str)
+        and same_json(kept_val, dropped_val)
+    ):
+        return
+    log.warning(
+        "Merge: conflicting %r key %r on %s: keeping %s, dropping %s.",
+        pyname,
+        kept.key,
+        describe_value(canonical),
+        describe_value(kept_val),
+        describe_value(dropped_val),
+    )
+
+
 def _merge_dictionary_entries(
     canonical: spdx3.Element, pyname: str, canonical_val: Any, dup_val: Any
 ) -> None:
-    """Union two ``DictionaryEntry`` lists by key; canonical wins on a key collision."""
+    """Union two ``DictionaryEntry`` lists by key; canonical wins on a key
+    collision (:func:`_merge_colliding_entry`)."""
     canonical_entries = list(canonical_val) if canonical_val else []
     dup_entries = list(dup_val) if dup_val else []
     if not dup_entries:
         return
 
-    keys_seen: set[str] = {
-        entry.key for entry in canonical_entries if getattr(entry, "key", None)
+    by_key: dict[str, Any] = {
+        entry.key: entry
+        for entry in reversed(canonical_entries)
+        if getattr(entry, "key", None)
     }
     merged = list(canonical_entries)
     for entry in dup_entries:
         key = getattr(entry, "key", None)
-        if key is not None and key in keys_seen:
+        if key is not None and key in by_key:
+            _merge_colliding_entry(canonical, pyname, by_key[key], entry)
             continue
         merged.append(entry)
         if key is not None:
-            keys_seen.add(key)
+            by_key[key] = entry
 
     if len(merged) != len(canonical_entries):
         setattr(canonical, pyname, merged)

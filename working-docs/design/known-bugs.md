@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-24
+Last-Modified: 2026-10-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -57,9 +57,8 @@ Size: S under half a day, M about a day.
   `WARNING: Merge: conflicting`, while a respelling of the *generated* value
   was silent. The field merge now reads two texts that are the same JSON as one
   value, for a text property merged field by field (`_fragments_equal.py`;
-  list items, comments and model names still compare as text, which is ledgered
-  in the 2026-10-24 review of this fix: the same JSON pair folds as a scalar and
-  stays two list items).
+  list items, comments and model names still compare as text: the same JSON
+  pair folds as a scalar and stays two list items).
 - [x] **Same AI model gets different ids per surface; enrichment can hit
   the wrong model (S-M).** Found in the #292 review (`loom model` looked a
   model up by file stem only, a project scan by name, path, then stem). Fixed
@@ -95,13 +94,22 @@ Size: S under half a day, M about a day.
   helper built on it misses case variants. Fixed by registry v3 (PR #305):
   `core/walk_rules.same_path` falls back to `(st_dev, st_ino)`.
 
-## P2: in 0.21.0
+## P2: 0.21.0 and later
 
-- [ ] **An unknown id in an SPDX-only field is not reported (S-M).** After
-  licence typing, `license = "Apache2"` (PEP 639) or `License-Expression: BSD`
-  becomes licence text silently; warn only for fields that must hold an SPDX
-  expression, which needs the source field passed through the six readers.
+- [x] **An unknown id in an SPDX-only field is not reported (S-M).** Fixed
+  in #357: the value stays text, plus one
+  `WARNING:` per value naming the field (`warn_unless_expression`, called by
+  each reader where the field is known). See
+  [license-typing.md](../implementation/license-typing.md#unknown-id-in-an-spdx-only-field).
   Legacy `License:` stays silent.
+- [x] **A Hugging Face `license: gpl-3.0` was rewritten to `GPL-3.0-only`
+  only when the `licenseid` database was present (S).** Fixed in #357:
+  the Hugging Face route records the card value as stated, so the deprecated
+  bare id stays the id written (`GPL-3.0` after classification, never
+  `GPL-3.0-only`) with or without the database. `canonicalize_license_id`
+  (case fold only) has no caller in `src/`. A non-lexical
+  resolver decision (alias, successor) waits for `INFO:` plus provenance, see
+  [license-resolution-categories.md](license-resolution-categories.md).
 - [ ] **A licence classifier becomes text, not an SPDX id (S).** Deferred
   by #276 (needs a newer `licenseid`; "Known deviation" in
   `license-typing.md`).
@@ -190,6 +198,9 @@ Size: S under half a day, M about a day.
   #287 adds a caller: the setuptools `version` conflict check
   (`_field_agreement.values_agree`) crashes the directory read on
   `setup(version='9' * 5000)` beside a `setup.cfg` version.
+  Open: the cap is not applied to a `setup.cfg` `version`, a Poetry
+  `version` and a wheel `METADATA` `Version`: none is checked for an
+  over-long number (not probed).
 
 - [ ] **Safetensors licence keys are not mapped (S).** They stay in the
   verbatim annotation only; classify them like GGUF `general.license` (mapped
@@ -201,14 +212,16 @@ Size: S under half a day, M about a day.
   with one `ERROR:` naming the file, section and key and the `%%` fix.
   Precondition met (2026-10-04): pbr 7.0.3 reads `setup.cfg` with
   `configparser.ConfigParser` (interpolating; never Raw in any release checked)
-  and fails on `50% faster` too; `%%` works. Fixed in #355 (`_setup_cfg_interpolation.py`): `... setup.cfg:
+  and fails on `50% faster` too; `%%` works. Fixed in #355
+  (`setup_cfg_interpolation.py`): `... setup.cfg:
   '<path>' [metadata] description: '%' must be followed by ...; setuptools
   fails on it too; write a literal '%' as '%%'`. An undefined `%(key)s` and a
   reference loop fail the same way (setuptools 84.0.0 fails on both); a
   `[DEFAULT]` value is named under `[DEFAULT]`; `$` is not special. A test
   asks setuptools' own `read_configuration` for the same verdict and value.
-  Open: setuptools also fails on a `%` in a section Pitloom does not read
-  (`[flake8]`), which Pitloom still reads past; and a `pyproject.toml`
+  Open: setuptools also fails on a `%` in any section Pitloom does not
+  read (`[flake8]`, `[tool:pytest]`); Pitloom's own read passes it, file
+  discovery warns and the SBOM has no file list. A `pyproject.toml`
   `dynamic` field filled from such a `setup.cfg` is a `WARNING:`, not an
   error, though the build fails.
 
@@ -249,3 +262,30 @@ Seen in past sessions, not reproduced on current `main`:
   [backend-file-discovery-validation-flit-pdm.md](../implementation/backend-file-discovery-validation-flit-pdm.md).
 - See [target-resolution-and-purl.md](target-resolution-and-purl.md) for the
   Bitbucket and SourceHut findings of the same day.
+
+## Found 2026-10-27
+
+From the combined review of #352 to #357. Open:
+
+- [ ] **A Git URL's messages name the random temporary checkout (S).**
+  `Could not parse setup.cfg: '/tmp/pitloom-git-v6mrrlyz/setup.cfg' [metadata]
+  ...` and `DEBUG: '/tmp/pitloom-git-82p252s_': setuptools stderr: ...` carry a
+  different path each run. Git's own output is masked as `<checkout>`
+  (`_git_run.py`), these messages are not. Show a checkout-relative path or
+  the URL, through one helper.
+- [ ] **A failed setuptools file discovery is followed by a second, wrong
+  warning (S).** After `Setuptools file discovery failed for ...` (any cause,
+  e.g. a bad `%` in `[flake8]`), `_models_wheel_dispatch` also says `No static
+  setuptools config resolvable ... (packages only resolvable via an
+  imperative setup.py build)`, as if the config were absent. Found in the
+  #357 review; `discover()` returns `None` for both.
+- [ ] **The Hatchling hook does not check `requires-python` for an overlong
+  number (S).** `loom project` refuses it with an `ERROR:`; in a build,
+  Hatchling itself reads the value first and ends with its own `ValueError:
+  Exceeds the limit (4300 digits)` traceback before the hook runs. Not
+  Pitloom's to catch; noted so the difference between the surfaces is known.
+- [x] **`_merge_dictionary_entries` dropped a differing value without a warning
+  (S, found outside the set).** Fixed in #357: two fragments giving one
+  `ai_hyperparameter` or `ai_metric` key different values keep the first and
+  say so (`Merge: conflicting 'ai_hyperparameter' key 'k' on ...: keeping X,
+  dropping Y.`); equal and same-JSON values stay quiet.

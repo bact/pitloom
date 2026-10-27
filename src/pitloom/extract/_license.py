@@ -43,6 +43,7 @@ from pitloom.extract._license_classify import (
     same_licence,
     tag_deprecated_license_ids,
     tag_license_normalization,
+    warn_unless_expression,
     with_successor_ids,
 )
 from pitloom.extract._license_detect import (
@@ -96,6 +97,7 @@ __all__ = [
     "stated_license",
     "tag_deprecated_license_ids",
     "tag_license_normalization",
+    "warn_unless_expression",
 ]
 
 
@@ -119,8 +121,7 @@ def _database_unusable(exc: BaseException) -> None:
     warn_once(
         _logger,
         "licenseid database",
-        "licenseid database cannot be used: %s -- license text detection "
-        "and license ID canonicalization skipped",
+        "licenseid database cannot be used: %s -- license text detection skipped",
         one_line(exc),
     )
 
@@ -359,7 +360,18 @@ _MAX_LICENSE_ID_CHARS = 200
 
 
 def canonicalize_license_id(raw: str) -> str:
-    """Return the canonical SPDX License ID for *raw*, or *raw* unchanged."""
+    """Return *raw* in the canonical casing of the SPDX License ID it spells.
+
+    Only a case (and surrounding-whitespace) difference is folded.  A match
+    that is a different id (``gpl-3.0`` -> ``GPL-3.0-only``, a successor, an
+    alias) is not applied: a non-lexical decision of the resolver needs its
+    own notice and provenance.  Returns *raw* unchanged when nothing matches
+    or the match is another id; the licence classification that follows
+    normalises it.
+
+    The fold needs the ``licenseid`` database, so no extractor calls it: an
+    extractor records its source's value as stated.
+    """
     if len(raw.strip()) > _MAX_LICENSE_ID_CHARS:
         return raw
     matcher = _matcher()
@@ -367,8 +379,9 @@ def canonicalize_license_id(raw: str) -> str:
         return raw
     try:
         results = matcher.match(license_id=raw)
-        if results:
-            return str(results[0]["license_id"])
+        found = str(results[0]["license_id"]) if results else None
+        if found and found.casefold() == raw.strip().casefold():
+            return found
     except DatabaseNotReadyError as exc:
         _database_unusable(exc)
     # An input licenseid rejects (not one licence ID) is no failure: debug.

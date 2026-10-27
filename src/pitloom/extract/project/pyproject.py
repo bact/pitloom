@@ -28,7 +28,7 @@ from pyproject_metadata import ConfigurationError, StandardMetadata
 
 from pitloom._toml_io import load_toml_file
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
-from pitloom.core.pep440 import MAX_VERSION_NUMBER_DIGITS, has_overlong_number
+from pitloom.core.pep440 import NUMBER_REASON, has_overlong_number
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
 from pitloom.core.quote_source import quote_source
 from pitloom.core.requirements import normalize_dependency_specifier
@@ -161,8 +161,7 @@ def _refuse_overlong_numbers(project: dict[str, Any]) -> None:
         value = project.get(key)
         if isinstance(value, str) and has_overlong_number(value):
             raise ValueError(
-                f"Failed to parse project metadata: 'project.{key}' has a number "
-                f"over {MAX_VERSION_NUMBER_DIGITS} digits"
+                f"Failed to parse project metadata: 'project.{key}' {NUMBER_REASON}"
             )
 
 

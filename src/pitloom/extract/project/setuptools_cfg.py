@@ -36,10 +36,6 @@ from pitloom.extract.project._setup_cfg_directives import (
     _resolve_cfg_file_directive,
     _resolve_cfg_version,
 )
-from pitloom.extract.project._setup_cfg_interpolation import (
-    interpolation_problem,
-    section_declares_key,
-)
 from pitloom.extract.project._setup_cfg_values import (
     coerce_cfg_value,
     parse_sub_section,
@@ -48,6 +44,10 @@ from pitloom.extract.project._setuptools_options import (
     SetupOption,
     SetupOptions,
     build_setuptools_metadata,
+)
+from pitloom.extract.project.setup_cfg_interpolation import (
+    interpolation_problem,
+    section_declares_key,
 )
 from pitloom.logging_config import one_line
 
@@ -162,20 +162,35 @@ _PLAIN_OPTIONS: tuple[tuple[str, str, str, Callable[[str], Any]], ...] = (
 _EXTRAS_SECTION = "options.extras_require"
 
 
-def _extras_option(text: str, project_dir: Path) -> SetupOption | None:
-    """``[options.extras_require]`` of the ``setup.cfg`` *text*: extra (or
-    ``extra:marker``) -> requirements. Read again with the keys' case kept,
-    since ``configparser`` lowercases them and a marker's value is
-    case-sensitive. ``None`` without the section."""
-    cased = configparser.ConfigParser()
+def _extras_option(
+    cfg: configparser.ConfigParser, text: str, project_dir: Path
+) -> SetupOption | None:
+    """``[options.extras_require]`` of the ``setup.cfg`` *text*, read as *cfg*
+    read it: extra (or ``extra:marker``) -> requirements. The keys are
+    spelt as written, since ``configparser`` lowercases them and a marker's
+    value is case-sensitive; the values are *cfg*'s, so a ``%(key)s`` finds
+    its key whatever its case, as it does for setuptools. ``None`` without
+    the section."""
+    cased = configparser.ConfigParser(interpolation=None)  # spelling only
     cased.optionxform = str  # type: ignore[assignment,method-assign]
     cased.read_string(text, source="setup.cfg")
     if not cased.has_section(_EXTRAS_SECTION):
         return None
     extras = {
-        k: _cfg_requirements(v, project_dir) for k, v in cased.items(_EXTRAS_SECTION)
+        key: _cfg_requirements(_extra_value(cfg, key), project_dir)
+        for key in cased.options(_EXTRAS_SECTION)  # a [DEFAULT] key is one too
     }
     return SetupOption(extras, _cfg_source(_EXTRAS_SECTION))
+
+
+def _extra_value(cfg: configparser.ConfigParser, key: str) -> str:
+    """The interpolated value of the extra *key* (as written). A bad ``%`` in
+    it is reported under that spelling, not under *cfg*'s lowercased key."""
+    try:
+        return cfg.get(_EXTRAS_SECTION, key)
+    except configparser.InterpolationError as exc:
+        exc.option = key
+        raise
 
 
 def _resolved_options(metadata: dict[str, str], project_dir: Path) -> SetupOptions:
@@ -240,7 +255,7 @@ def read_setup_cfg_options(
             text = stream.read()
         cfg.read_string(text, source=str(setup_cfg_path))
         sections = {s: _section_dict(cfg, s) for s in ("metadata", "options")}
-        extras = _extras_option(text, project_dir)
+        extras = _extras_option(cfg, text, project_dir)
     except configparser.InterpolationError as exc:
         raise _interpolation_error(cfg, setup_cfg_path, exc) from exc
     except (OSError, UnicodeDecodeError, configparser.Error) as exc:

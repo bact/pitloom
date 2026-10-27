@@ -167,14 +167,23 @@ def add_dataset_creator_agent(
     doc_name: str,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
+    agent_creation_info: spdx3.CreationInfo | None = None,
 ) -> list[tuple[str, spdx3.Element]]:
     """Link a dataset to the generic Agent of its creator with a publishedBy
     relationship; return the Agent, labelled, when it is minted here and
     nothing when the document already holds one of that name (a model's
     originator, another dataset's creator), which is then the one linked.
+
+    The relationship is stamped with *creation_info* (an enrichment run's, for
+    a dataset it added). The Agent is one element for every route that names
+    it, so it takes *agent_creation_info* (the document's own; default
+    *creation_info*), never the creation info of whichever route built it
+    first.
     """
     agent_id, creator_agent = generic_agent(
-        creator_name, (creation_info, doc_name, doc_uuid), exporter
+        creator_name,
+        (agent_creation_info or creation_info, doc_name, doc_uuid),
+        exporter,
     )
     rel_creator = build_relationship(
         from_id=dataset_pkg_spdx_id,
@@ -315,6 +324,7 @@ def add_datasets_for_model(
                 doc_name=doc_name,
                 doc_uuid=doc_uuid,
                 exporter=exporter,
+                agent_creation_info=creation_info,
             )
 
         created += add_dataset_license(

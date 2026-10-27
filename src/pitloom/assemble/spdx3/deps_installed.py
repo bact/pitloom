@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import email
 import logging
+import re
 from collections.abc import Iterable
 from importlib.metadata import PackageNotFoundError, distribution
 from importlib.metadata import version as get_package_version
@@ -76,16 +77,24 @@ def get_pkg_metadata(dep_name: str) -> email.message.Message[str, str]:
     return email.message_from_string(text)
 
 
+#: A PEP 508 name: letters, digits, ``.``, ``_`` and ``-``, starting and ending
+#: with a letter or digit, then the end or a character that opens a specifier,
+#: extras, marker or URL (so ``invalid package name`` has no name).
+_NAME_AT_START = re.compile(
+    r"\s*([A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?)(?=\s*(?:[<>=!~;@(\[,]|$))"
+)
+
+
 def _parse_dep_name(dep: str) -> str:
     """Return the bare package name from a PEP 508 dependency specifier."""
     try:
         return parse_requirement(dep).name
     except InvalidRequirement:
         pass
-    for op in _VERSION_OPERATORS:
-        if op in dep:
-            return dep.split(op)[0].strip()
-    return dep.strip()
+    # Unparseable (an over-long number in a marker, a stray operator): the
+    # name is the run of name characters PEP 508 allows at the start.
+    named = _NAME_AT_START.match(dep)
+    return named.group(1) if named else dep.strip()
 
 
 def _extract_pin_from_unparseable(dep: str) -> str | None:

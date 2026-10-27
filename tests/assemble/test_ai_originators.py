@@ -35,6 +35,7 @@ from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectMetadata
+from pitloom.enrich.base import EnrichedField, EnrichmentResult
 from tests.warning_helpers import logged_warnings
 
 _FIXED = "2026-01-01T00:00:00Z"
@@ -435,3 +436,60 @@ def test_a_supplier_adds_at_most_one_agent_and_shifts_no_other_id(
     assert all(i.endswith(f"#Agent-{supplier}-1") for i in after - before)
     # Deterministic: the same input gives the same bytes.
     assert json.dumps(after_graph) == json.dumps(graph(supplier))
+
+
+@pytest.mark.parametrize("order", ["ab", "ba"])
+def test_a_shared_agent_has_the_documents_creation_info_whoever_builds_it_first(
+    order: str,
+) -> None:
+    """An enrichment run adds model ``a``'s dataset with its own creation info;
+    its creator "Alice" is also model ``b``'s originator. The Agent is one
+    element with the document's creation info in either order, not the
+    enrichment run's when ``a`` happens to come first."""
+    models = {
+        "a": _model(
+            [],
+            name="a",
+            datasets=[
+                DatasetReference(
+                    role="trainedOn",
+                    metadata=DatasetMetadata(name="ds", creator="Alice"),
+                )
+            ],
+        ),
+        "b": _model(["Alice"], name="b"),
+    }
+    enrichment = {
+        "a": [
+            EnrichmentResult(
+                source_name="readme",
+                fields=[
+                    EnrichedField(
+                        field="datasets:ds",
+                        before=None,
+                        after="ds",
+                        role="detected",
+                        source="Source: README.md",
+                    )
+                ],
+            )
+        ],
+        "b": [],
+    }
+    doc = DocumentModel(
+        project=ProjectMetadata(name="p", version="1"),
+        creation_metadata=_creation(),
+        ai_models=[models[k] for k in order],
+    )
+    graph: _Graph = json.loads(
+        build(
+            doc,
+            offline=True,
+            enrichment_results_by_model=[enrichment[k] for k in order],
+        ).to_json()
+    )["@graph"]
+    (agent,) = [e for e in graph if e["type"] == "Agent" and e["name"] == "Alice"]
+    (document,) = [e for e in graph if e["type"] == "SpdxDocument"]
+    (dataset,) = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
+    assert dataset["creationInfo"] != document["creationInfo"]  # input changed
+    assert agent["creationInfo"] == document["creationInfo"]

@@ -49,7 +49,9 @@ __all__ = [
 #: digits, a date or a timestamp 14 at most.
 MAX_VERSION_NUMBER_DIGITS = 640
 
-_NUMBER_REASON = f"has a number over {MAX_VERSION_NUMBER_DIGITS} digits"
+#: Why a version or specifier is refused for its number. The one wording of
+#: the exception text and the project-table error.
+NUMBER_REASON = f"has a number over {MAX_VERSION_NUMBER_DIGITS} digits"
 
 _OVERLONG_NUMBER = re.compile(f"[0-9]{{{MAX_VERSION_NUMBER_DIGITS + 1}}}")
 
@@ -82,7 +84,7 @@ def parse_specifier_set(text: str) -> SpecifierSet:
         TypeError: *text* is not a string.
     """
     if has_overlong_number(text):
-        raise InvalidSpecifier(_NUMBER_REASON)
+        raise InvalidSpecifier(NUMBER_REASON)
     return SpecifierSet(text)
 
 

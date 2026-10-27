@@ -26,14 +26,17 @@ and this project adheres to
 
 - Fragment merge folds a respelt JSON copy of a curated value, no warning
   ([#352])
-- One `Agent` per person name across model originators and dataset creators; ids
-  are `Agent-<name>-1` ([#353])
+- One generic `Agent` per name across model originators, suppliers and dataset
+  creators; ids are `Agent-<name>-1` ([#353])
 - A version number over 640 digits is refused, not parsed: lock files,
   requirements and `requires-python` no longer crash ([#354])
 - A bad `%` in `setup.cfg` fails with one line naming the section and key, as
   setuptools does ([#355])
 - Setuptools' manifest-step stderr lines are relayed as tagged log lines
   ([#356])
+- A non-SPDX value in an SPDX-only licence field warns once; a Hugging Face
+  card licence skips licenseid (`gpl-3.0` is not `GPL-3.0-only`); a dropped
+  differing `ai_hyperparameter`/`ai_metric` value warns ([#357])
 - `pipdeptree` 4.2.10 is excluded: it has no macOS arm64 wheel and fails to
   build there ([#358])
 
@@ -251,6 +254,7 @@ and this project adheres to
 [#354]: https://github.com/bact/pitloom/pull/354
 [#355]: https://github.com/bact/pitloom/pull/355
 [#356]: https://github.com/bact/pitloom/pull/356
+[#357]: https://github.com/bact/pitloom/pull/357
 [#358]: https://github.com/bact/pitloom/pull/358
 
 ## [0.20.2] - 2026-10-09

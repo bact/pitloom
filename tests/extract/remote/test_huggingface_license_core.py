@@ -67,7 +67,7 @@ from tests.extract.remote.hf_patches._hf_patches_vision import (
 def test_read_huggingface_license_from_card() -> None:
     with _patch_hf_calls():
         meta = read_huggingface("mistralai/Mistral-7B-v0.1")
-    assert meta.license == "Apache-2.0"
+    assert meta.license == "apache-2.0"
 
 
 def test_license_from_file_when_card_has_none() -> None:
@@ -221,7 +221,7 @@ def test_detect_license_from_hf_files_download_failure_logs_and_continues(
 def test_kokoro_license() -> None:
     with _patch_kokoro():
         meta = read_huggingface("hexgrad/Kokoro-82M")
-    assert meta.license == "Apache-2.0"
+    assert meta.license == "apache-2.0"
 
 
 def test_starcoder2_non_standard_license_passed_through() -> None:
@@ -259,8 +259,7 @@ def test_gemma_proprietary_license_used_directly() -> None:
 
 def test_llama_custom_license_used_directly() -> None:
     # "llama3.2" is not in _VAGUE_LICENSE_VALUES, so it is taken from the card.
-    # Not recognized by licenseid matcher -> _canonicalize_license_id returns
-    # it unchanged.
+    # The card value is recorded as stated.
     with _patch_llama():
         meta = read_huggingface("meta-llama/Llama-3.2-1B")
     assert meta.license == "llama3.2"
@@ -269,7 +268,7 @@ def test_llama_custom_license_used_directly() -> None:
 def test_deepseek_mit_license() -> None:
     with _patch_deepseek():
         meta = read_huggingface("deepseek-ai/DeepSeek-R1")
-    assert meta.license == "MIT"
+    assert meta.license == "mit"
 
 
 def test_sealion_gguf_gemma_license() -> None:
@@ -288,7 +287,7 @@ def test_seallms_vague_license_not_propagated() -> None:
 def test_typhoon_license() -> None:
     with _patch_typhoon():
         meta = read_huggingface("typhoon-ai/typhoon-7b")
-    assert meta.license == "Apache-2.0"
+    assert meta.license == "apache-2.0"
 
 
 def test_serengeti_no_license_when_no_card_and_no_file() -> None:
@@ -345,7 +344,7 @@ def test_rad_dino_no_license() -> None:
 def test_uni2_nc_nd_license() -> None:
     with _patch_uni2():
         meta = read_huggingface("MahmoodLab/UNI2-h")
-    assert meta.license == "CC-BY-NC-ND-4.0"
+    assert meta.license == "cc-by-nc-nd-4.0"
 
 
 def test_timm_convnext_vague_license() -> None:
