@@ -195,13 +195,22 @@ Size: S under half a day, M about a day.
   verbatim annotation only; classify them like GGUF `general.license` (mapped
   in #294). GGUF `general.license.name`/`.link` are also unread.
 
-- [ ] **`setup.cfg` `%` fails the whole run (S).** `description = 50% faster`
+- [x] **`setup.cfg` `%` fails the whole run (S).** `description = 50% faster`
   gives `ERROR: SBOM generation failed: '%' must be followed by ...`. setuptools
   84's own `setup.py --description` fails the same way. Decided: keep failing,
   with one `ERROR:` naming the file, section and key and the `%%` fix.
   Precondition met (2026-10-04): pbr 7.0.3 reads `setup.cfg` with
   `configparser.ConfigParser` (interpolating; never Raw in any release checked)
-  and fails on `50% faster` too; `%%` works.
+  and fails on `50% faster` too; `%%` works. Fixed in #355 (`_setup_cfg_interpolation.py`): `... setup.cfg:
+  '<path>' [metadata] description: '%' must be followed by ...; setuptools
+  fails on it too; write a literal '%' as '%%'`. An undefined `%(key)s` and a
+  reference loop fail the same way (setuptools 84.0.0 fails on both); a
+  `[DEFAULT]` value is named under `[DEFAULT]`; `$` is not special. A test
+  asks setuptools' own `read_configuration` for the same verdict and value.
+  Open: setuptools also fails on a `%` in a section Pitloom does not read
+  (`[flake8]`), which Pitloom still reads past; and a `pyproject.toml`
+  `dynamic` field filled from such a `setup.cfg` is a `WARNING:`, not an
+  error, though the build fails.
 
 ## P3: after 0.20.0
 

@@ -30,6 +30,8 @@ and this project adheres to
   are `Agent-<name>-1` ([#353])
 - A version number over 640 digits is refused, not parsed: lock files,
   requirements and `requires-python` no longer crash ([#354])
+- A bad `%` in `setup.cfg` fails with one line naming the section and key, as
+  setuptools does ([#355])
 - `pipdeptree` 4.2.10 is excluded: it has no macOS arm64 wheel and fails to
   build there ([#358])
 
@@ -245,6 +247,7 @@ and this project adheres to
 [#352]: https://github.com/bact/pitloom/pull/352
 [#353]: https://github.com/bact/pitloom/pull/353
 [#354]: https://github.com/bact/pitloom/pull/354
+[#355]: https://github.com/bact/pitloom/pull/355
 [#358]: https://github.com/bact/pitloom/pull/358
 
 ## [0.20.2] - 2026-10-09
