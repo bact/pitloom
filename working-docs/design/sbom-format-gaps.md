@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-21
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -141,3 +141,55 @@ declined or fixed entry with its outcome.
 - Evidence: [roadmap.md](roadmap.md) ("G7 dataset creator")
 - Status: noted
 - Date: 2026-10-21
+
+### FG-6 A licence value as written has no place beside its SPDX reading
+
+- Format and version: SPDX 3.0.1, Licensing and SimpleLicensing profiles
+- Element or property: `hasDeclaredLicense` to one `AnyLicenseInfo`;
+  `simplelicensing_LicenseExpression`
+- Fact to record: the author wrote `Apache2`; the SBOM's `Apache-2.0` is a
+  resolver's reading of it, not the author's spelling
+- Pitloom today (design): the expression, with the value as written in the
+  provenance `comment` and `Annotation` (`Normalized-From`)
+- Why imprecise: no property; declared-as-text plus concluded-as-expression
+  would stretch "concluded" and lose the declared id
+- Proposal: an optional "as written" string on a declared licence (or on the
+  relationship)
+- Evidence: [license-resolution-categories.md](license-resolution-categories.md)
+- Status: noted
+- Date: 2026-10-26
+
+### FG-7 How a licence was identified, and how sure, has no property
+
+- Format and version: SPDX 3.0.1
+- Element or property: `hasDeclaredLicense`/`hasConcludedLicense`
+  `Relationship`; nearest is `simplelicensing_licenseListVersion`
+- Fact to record: the method (exact, alias, name, text detection), the tool
+  and data version, and whether an `-or-later`/`-only` qualifier was stated
+  or inferred
+- Pitloom today (design): `Method: licenseid_resolution`, `Resolution-n`,
+  `Expansion-n`, `Tool` in the provenance `comment` and `Annotation`
+- Why imprecise: no property; the List version alone does not say how
+- Proposal: identification method and confidence on the licence
+  relationship, from a small vocabulary
+- Evidence: [license-resolution-categories.md](license-resolution-categories.md)
+- Status: noted
+- Date: 2026-10-26
+
+### FG-8 `createdUsing` cannot say which Tool is the generator
+
+- Format and version: SPDX 3.0.1
+- Element or property: `CreationInfo.createdUsing` (`Tool`, 0..*), the
+  `usesTool` relationship
+- Fact to record: which Tool generated the SBOM, and which Tools that
+  generator used (a licence resolver, a model reader)
+- Pitloom today: one `Tool` "Pitloom" (more only when a caller sets
+  `tools`, e.g. Lumina); no order is defined for the list
+- Why imprecise: `createdUsing` is an unordered list of equals; a reader
+  cannot tell the generator from a helper
+- Proposal (design): the generator alone in `createdUsing`; each Tool it
+  used hangs from it by `usesTool` (Pitloom, then LicenseID). A convention,
+  not a property
+- Evidence: [license-resolution-categories.md](license-resolution-categories.md)
+- Status: noted
+- Date: 2026-10-26
