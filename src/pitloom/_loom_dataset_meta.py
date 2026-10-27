@@ -33,7 +33,6 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom._loom_caller import cwd_relative_label
 from pitloom.assemble.spdx3._display_text import (
     DATASET,
-    DATASET_CREATOR,
     escape_element_display_text,
 )
 from pitloom.assemble.spdx3.dataset import (
@@ -250,16 +249,16 @@ def write_metadata(
     set_dataset_fields(package, meta)
     elements: list[tuple[str, spdx3.Element]] = [(DATASET, package)]
     context = (doc.creation_info, "loom", doc.doc_uuid)
-    if meta.creator:
-        creator = cap_model_name(meta.creator)
-        if creator != meta.creator:
+    given = str(meta.creator or "").strip()  # a blank creator names no one
+    if given:
+        creator = cap_model_name(given)
+        if creator != given:
             # The name cap, naming the dataset whose creator name it cut.
             cap = dataclasses.replace(MODEL_NAME_CAP, subject="DATASET")
             warn_over_cap(log, cap, meta.name, "dataset creator name cut")
-        agent = add_dataset_creator_agent(
+        elements += add_dataset_creator_agent(
             require_spdx_id(package), creator, *context, doc.exporter
         )
-        elements.append((DATASET_CREATOR, agent))
     elements += add_dataset_license(
         package, meta, context, doc.exporter, doc.provenance_config
     )

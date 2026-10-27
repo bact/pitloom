@@ -104,7 +104,9 @@ def test_each_name_is_one_agent_in_order(surface: str, case: str) -> None:
     originators, expected = _CASES[case]
     graph = _SURFACES[surface](_model(originators))
     (package,) = [e for e in _of_type(graph, "ai_AIPackage") if e["name"] == "m"]
-    assert [e["name"] for e in _of_type(graph, "Agent")] == expected
+    # The graph is sorted by id, which carries the name; the package keeps the
+    # source order.
+    assert sorted(e["name"] for e in _of_type(graph, "Agent")) == sorted(expected)
     assert _originator_names(graph, package) == expected
     assert ("originatedBy" in package) == bool(expected)
     assert all("suppliedBy" not in e for e in _of_type(graph, "ai_AIPackage"))
@@ -161,8 +163,8 @@ def test_many_long_names_are_cut_with_one_warning_and_stay_distinct(
     surface: str, originators: list[str], caplog: pytest.LogCaptureFixture
 ) -> None:
     graph = _SURFACES[surface](_model(originators))
-    names = [e["name"] for e in _of_type(graph, "Agent")]
-    assert names == [cap_model_name(n) for n in originators]
+    names = sorted(e["name"] for e in _of_type(graph, "Agent"))
+    assert names == sorted(cap_model_name(n) for n in originators)
     assert len(set(names)) == len(originators)  # the digest keeps them apart
     assert logged_warnings(caplog) == [
         "FORMAT=gguf FILE=m.gguf: larger than the 1024-character name cap; "
@@ -185,7 +187,7 @@ def test_a_generic_agent_creator_keeps_the_first_agent_id(surface: str) -> None:
     creator, model_agent = sorted(_of_type(graph, "Agent"), key=lambda e: e["spdxId"])
     assert creator["name"] == model_agent["name"] == "Bot"
     assert creator["spdxId"].endswith("#Agent-1")
-    assert model_agent["spdxId"].endswith("#Agent-2")
+    assert model_agent["spdxId"].endswith("#Agent-Bot-1")  # the id carries the name
     (package,) = [e for e in _of_type(graph, "ai_AIPackage") if e["name"] == "m"]
     assert package["originatedBy"] == [model_agent["spdxId"]]
 
@@ -199,6 +201,92 @@ def test_a_main_author_and_a_model_originator_of_one_name_are_two_agents() -> No
     (model,) = [e for e in _of_type(graph, "ai_AIPackage") if e["name"] == "m"]
     assert main["originatedBy"] == [person["spdxId"]]
     assert model["originatedBy"] == [agent["spdxId"]]
+
+
+def _dataset(creator: str, name: str = "d") -> DatasetReference:
+    return DatasetReference(
+        role="trainedOn", metadata=DatasetMetadata(name=name, creator=creator)
+    )
+
+
+@pytest.mark.parametrize("surface", sorted(_SURFACES))
+@pytest.mark.parametrize(
+    ("originators", "creators", "agents"),
+    [
+        pytest.param(["Alice"], ["Alice"], ["Alice"], id="originator-is-creator"),
+        pytest.param([], ["Alice", "Alice"], ["Alice"], id="two-datasets-one-creator"),
+        pytest.param(["Alice"], ["Bob"], ["Alice", "Bob"], id="different-names"),
+        pytest.param(["Alice"], ["alice"], ["Alice", "alice"], id="case-differs"),
+        pytest.param(["Alice"], [" Alice "], ["Alice"], id="stripped-name"),
+    ],
+)
+def test_one_name_is_one_agent_whoever_it_is_for(
+    surface: str, originators: list[str], creators: list[str], agents: list[str]
+) -> None:
+    """A model's originator and a dataset's creator of one name are one
+    generic Agent, linked by ``originatedBy`` and by ``publishedBy``."""
+    model = _model(
+        originators,
+        datasets=[_dataset(c, f"d{i}") for i, c in enumerate(creators)],
+    )
+    graph = _SURFACES[surface](model)
+    assert sorted(e["name"] for e in _of_type(graph, "Agent")) == sorted(agents)
+    by_name = {e["name"]: e["spdxId"] for e in _of_type(graph, "Agent")}
+    published = [
+        e["to"][0]
+        for e in _of_type(graph, "Relationship")
+        if e["relationshipType"] == "publishedBy"
+    ]
+    assert sorted(published) == sorted(by_name[c.strip()] for c in creators)
+    if originators:
+        (package,) = _of_type(graph, "ai_AIPackage")
+        assert package["originatedBy"] == [by_name[originators[0]]]
+
+
+def test_an_agents_id_does_not_depend_on_the_models_around_it() -> None:
+    """Another model's dataset creator, built before this model's originators,
+    must not take over an id: each Agent's id carries its name, so one IRI
+    names one person in every version of the SBOM."""
+
+    def ids(creator: str | None) -> dict[str, str]:
+        first = _model(
+            [],
+            name="a",
+            datasets=[_dataset(creator)] if creator else [],
+        )
+        graph = _project(first, _model(["Alice", "Bob"], name="b"))
+        return {e["name"]: e["spdxId"] for e in _of_type(graph, "Agent")}
+
+    without, with_creator = ids(None), ids("Alice")
+    assert without.keys() == with_creator.keys() == {"Alice", "Bob"}  # one Alice
+    assert without == with_creator
+    assert len(set(without.values())) == 2
+
+
+@pytest.mark.parametrize("surface", sorted(_SURFACES))
+@pytest.mark.parametrize(
+    ("creator", "agents"),
+    [("   ", []), ("\t", []), (" Alice ", ["Alice"])],
+    ids=["spaces", "tab", "padded"],
+)
+@pytest.mark.parametrize("with_originator", [False, True], ids=["alone", "named"])
+def test_a_dataset_creator_is_stripped_and_a_blank_one_names_no_one(
+    surface: str, creator: str, agents: list[str], with_originator: bool
+) -> None:
+    """The same rule as for an originator: blank names are skipped, the rest
+    stripped, so " Alice " and "Alice" are one Agent."""
+    named = with_originator and bool(agents)  # an originator "Alice" hides a miss
+    model = _model(["Alice"] if named else [], datasets=[_dataset(creator)])
+    graph = _SURFACES[surface](model)
+    assert [e["name"] for e in _of_type(graph, "Agent")] == agents
+    ids = {e["spdxId"] for e in _of_type(graph, "Agent")}
+    assert all("%20" not in i for i in ids)  # " Alice " would be Agent-%20Alice%20-1
+    published = [
+        e
+        for e in _of_type(graph, "Relationship")
+        if e["relationshipType"] == "publishedBy"
+    ]
+    assert len(published) == len(agents)
 
 
 def test_adding_an_originator_adds_one_agent_and_shifts_no_other_id() -> None:
@@ -225,7 +313,7 @@ def test_adding_an_originator_adds_one_agent_and_shifts_no_other_id() -> None:
     assert before_model.originators != after_model.originators  # input changed
     assert before < after
     (added,) = after - before
-    assert added.endswith("#Agent-2")
+    assert added.endswith("#Agent-X-1")  # named, so no other Agent's id moved
 
 
 def _supplier_name(graph: _Graph, package: dict[str, Any]) -> str | None:
@@ -255,8 +343,11 @@ def test_the_supplier_is_one_agent_shared_with_an_originator(
     (originators, supplier), expected = _SUPPLIER_CASES[case]
     graph = _SURFACES[surface](_model(originators, supplier=supplier))
     (package,) = [e for e in _of_type(graph, "ai_AIPackage") if e["name"] == "m"]
-    agents = [e["name"] for e in _of_type(graph, "Agent")]
-    assert (agents, _originator_names(graph, package)) == expected[:2]
+    agents = sorted(e["name"] for e in _of_type(graph, "Agent"))
+    assert (agents, _originator_names(graph, package)) == (
+        sorted(expected[0]),
+        expected[1],
+    )
     assert _supplier_name(graph, package) == expected[2]
     assert ("originatedBy" in package) == bool(expected[1])
     assert not logged_warnings(caplog)
@@ -341,6 +432,6 @@ def test_a_supplier_adds_at_most_one_agent_and_shifts_no_other_id(
     assert "suppliedBy" in package  # not vacuous: the input changed
     assert before <= after
     assert len(after - before) == added
-    assert all(i.endswith("#Agent-3") for i in after - before)
+    assert all(i.endswith(f"#Agent-{supplier}-1") for i in after - before)
     # Deterministic: the same input gives the same bytes.
     assert json.dumps(after_graph) == json.dumps(graph(supplier))
