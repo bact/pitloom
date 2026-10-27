@@ -52,7 +52,7 @@ Size: S under half a day, M about a day.
   a fragment's winning entry from a losing one (a fragment whose generated
   value wins keeps its claim, which is true).
 - [x] **A respelt copy of a curated value warns (S, found in the 2026-10-23
-  review of #349; fixed on branch `merge-respelt-json`).** Fragment A replaces
+  review of #349; fixed in #352).** Fragment A replaces
   a generated value; a later fragment A' was A in other JSON spacing and earned
   `WARNING: Merge: conflicting`, while a respelling of the *generated* value
   was silent. The field merge now reads two texts that are the same JSON as one
