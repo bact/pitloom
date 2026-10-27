@@ -17,8 +17,11 @@ is captured, per thread
 (:func:`pitloom.extract.stderr_capture.capture_stderr`), and each non-blank
 line is logged again: ``WARNING`` when setuptools calls it an ``error:``,
 ``DEBUG`` otherwise. Both describe the target project's own config, as a
-real build would print it, not a Pitloom deviation. Nothing reaches stderr
-untagged, and the text is kept: escaped, one record per line.
+real build would print it, not a Pitloom deviation. What reaches
+``sys.stderr`` from this thread reaches stderr only as a tagged record, and
+the text is kept: escaped, one record per line. Not covered: the output of a
+subprocess, a write to file descriptor 2 and a handler bound to
+``sys.stderr`` that outlives the block.
 
 See also: :mod:`pitloom.core._models_wheel_setuptools` (sole caller).
 """

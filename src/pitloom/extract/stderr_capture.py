@@ -56,6 +56,9 @@ class BoundedStderr(io.TextIOBase):
         self._parts: list[str] = []
         self._size = 0
         self.dropped: int = 0
+        # The sink of an enclosing block of the same thread, which is back
+        # when this one is left; unlinked when this one is left out of order.
+        self.outer: BoundedStderr | None = None
 
     def writable(self) -> bool:
         return True
@@ -131,7 +134,6 @@ def capture_stderr(keep: int = DEFAULT_KEEP) -> Iterator[BoundedStderr]:
     sink = BoundedStderr(keep)
     ident = threading.get_ident()
     proxy: _Proxy | None = None
-    outer: BoundedStderr | None = None
     try:
         with locked(_LOCK):
             proxy = _STATE.proxy
@@ -141,40 +143,39 @@ def capture_stderr(keep: int = DEFAULT_KEEP) -> Iterator[BoundedStderr]:
                 proxy = _Proxy(sys.stderr)
                 _STATE.proxy = proxy
                 sys.stderr = cast(TextIO, proxy)
-            outer = proxy.sinks.get(ident)
+            sink.outer = proxy.sinks.get(ident)
             proxy.sinks[ident] = sink
         yield sink
     finally:
-        _leave(proxy, ident, sink, outer)
+        _leave(proxy, ident, sink)
 
 
-def _undo(
-    proxy: _Proxy,
-    ident: int,
-    sink: BoundedStderr,
-    outer: BoundedStderr | None,
-) -> None:
+def _undo(proxy: _Proxy, ident: int, sink: BoundedStderr) -> None:
     """Take *sink* off the thread, and the proxy off ``sys.stderr`` when no
-    thread captures. Idempotent: the sink is removed only if it is the
-    registered one."""
+    thread captures. Idempotent: a sink already off is not touched. A sink
+    left out of order (an enclosing block exits first) is cut out of the
+    chain, so the enclosing sink that is left does not come back to a dead
+    inner one."""
     with locked(_LOCK):
-        if proxy.sinks.get(ident) is sink:
-            if outer is None:
+        current = proxy.sinks.get(ident)
+        if current is sink:
+            if sink.outer is None:
                 del proxy.sinks[ident]
             else:
-                proxy.sinks[ident] = outer
+                proxy.sinks[ident] = sink.outer
+        else:
+            above = current
+            while above is not None and above.outer is not sink:
+                above = above.outer
+            if above is not None:
+                above.outer = sink.outer
         # Only our own proxy is taken out: another party may have replaced
         # sys.stderr since, and that is theirs to restore.
         if not proxy.sinks and sys.stderr is proxy:
             sys.stderr = cast(TextIO, proxy.original)
 
 
-def _leave(
-    proxy: _Proxy | None,
-    ident: int,
-    sink: BoundedStderr,
-    outer: BoundedStderr | None,
-) -> None:
+def _leave(proxy: _Proxy | None, ident: int, sink: BoundedStderr) -> None:
     """Undo what :func:`capture_stderr` did, and only that: an interrupt may
     have cut its entry short at any step.
 
@@ -182,4 +183,4 @@ def _leave(
     :func:`pitloom.extract._interrupt_hold.run_held`.
     """
     if proxy is not None:
-        run_held(lambda: _undo(proxy, ident, sink, outer))
+        run_held(lambda: _undo(proxy, ident, sink))

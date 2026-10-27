@@ -36,7 +36,7 @@ def _block() -> None:
 
 
 _ENTRY = statement_lines(sc.capture_stderr, "sink = ", "yield sink")
-_UNDO = statement_lines(sc._undo, "if proxy.sinks.get", "sys.stderr = ")
+_UNDO = statement_lines(sc._undo, "current = proxy.sinks.get", "sys.stderr = ")
 
 
 @pytest.mark.parametrize("nested", [False, True])
@@ -136,10 +136,10 @@ def test_interrupts_the_undo_cannot_outlast_are_raised_within_the_bound(
 
 def test_the_undo_removes_only_its_own_sink() -> None:
     sink = sc.BoundedStderr()
-    sc._leave(None, 1, sink, None)  # nothing was entered
+    sc._leave(None, 1, sink)  # nothing was entered
     with sc.capture_stderr():
         proxy = sc._STATE.proxy
-        sc._leave(proxy, threading.get_ident(), sink, None)  # not registered
+        sc._leave(proxy, threading.get_ident(), sink)  # not registered
         assert sc._STATE.users == 1
         assert sys.stderr is proxy
     assert sc._STATE.users == 0

@@ -220,3 +220,28 @@ def test_two_overlapping_threads_leave_stderr_as_found(
     messages = sorted(r.getMessage() for r in caplog.records)
     assert [m for m in messages if "noise-A" in m and "noise-B" not in m]
     assert [m for m in messages if "noise-B" in m and "noise-A" not in m]
+
+
+@pytest.mark.parametrize("inner_first", [True, False], ids=["lifo", "out-of-order"])
+def test_nested_blocks_of_one_thread_unwind_in_either_exit_order(
+    inner_first: bool,
+) -> None:
+    """Entered as ``with`` statements the blocks leave inner first; entered and
+    left by hand they can leave in any order. Either way ``sys.stderr`` is the
+    original again and nothing is written into a sink that was left."""
+    before = sys.stderr
+    outer, inner = capture_stderr(), capture_stderr()
+    a, b = outer.__enter__(), inner.__enter__()
+    sys.stderr.write("both-in")  # the inner sink's
+    first, second = (inner, outer) if inner_first else (outer, inner)
+    first.__exit__(None, None, None)
+    sys.stderr.write("after-first")
+    second.__exit__(None, None, None)
+    assert sys.stderr is before
+    assert _STATE.users == 0
+    assert "both-in" in b.text()
+    # after the first leaves, the remaining block's sink takes the writes
+    remaining = a if inner_first else b
+    assert "after-first" in remaining.text()
+    other = b if inner_first else a
+    assert "after-first" not in other.text()
