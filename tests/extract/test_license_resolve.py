@@ -12,6 +12,8 @@ See also: tests/extract/test_license_spdx_only_fields.py (the warning for a
 value nothing reads) and docs/metadata-provenance-licences.md.
 """
 
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import importlib
@@ -286,7 +288,7 @@ def test_an_uninstalled_licenseid_distribution_gives_no_version() -> None:
     ):
         reloaded = importlib.reload(_license_resolve)
     try:
-        assert reloaded._LICENSEID_VERSION is None  # pylint: disable=protected-access
+        assert reloaded._LICENSEID_VERSION is None
     finally:
         importlib.reload(_license_resolve)
-    assert _license_resolve._LICENSEID_VERSION is not None  # pylint: disable=protected-access
+    assert _license_resolve._LICENSEID_VERSION is not None
