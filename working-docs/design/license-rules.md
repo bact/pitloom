@@ -344,7 +344,7 @@ elsewhere:
   0.21.0 warning for a field that must hold an SPDX expression
   (`project.license`, `License-Expression`) was built by calling one
   helper from each reader that knows the field, not by threading the
-  field (branch `unknown-spdx-id-warns`).
+  field (#357).
 - Several classifiers: first "sorted first plus one `WARNING:`" (M2),
   superseded the same day by the AND form, chosen to match the G7 #3
   dataset list (`[a, b]` is `a AND b`).

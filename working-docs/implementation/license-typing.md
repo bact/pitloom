@@ -116,7 +116,7 @@ Details that were decided, not obvious:
 
 ## Unknown id in an SPDX-only field
 
-Built on branch `unknown-spdx-id-warns` (0.21.0). A value that
+Built in #357. A value that
 `classify_license()` makes text, read from a field that holds an SPDX
 expression only, stays text as written (the known-bugs entry's rule: no
 `NOASSERTION`, the value is the holder's statement) and gets one `WARNING:`

@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,6 +21,10 @@ and this project adheres to
 - Commit history: <https://github.com/bact/pitloom/compare/v0.21.0...HEAD>
 
 ## [Unreleased]
+
+### Fixed
+
+- An unknown id in an SPDX-only licence field warns once; a Hugging Face `gpl-3.0` is kept as written ([#357])
 
 ## [0.21.0] - 2026-10-23
 
@@ -231,6 +235,7 @@ and this project adheres to
 [#344]: https://github.com/bact/pitloom/pull/344
 [#347]: https://github.com/bact/pitloom/pull/347
 [#349]: https://github.com/bact/pitloom/pull/349
+[#357]: https://github.com/bact/pitloom/pull/357
 
 ## [0.20.2] - 2026-10-09
 

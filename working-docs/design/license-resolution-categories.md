@@ -38,7 +38,7 @@ trusted? Decisions (maintainer, 2026-10-26):
 Scope: fields that hold an SPDX expression only (`project.license`,
 `License-Expression`, PyPI `license_expression`, `SPDX-License-Identifier`,
 GGUF `general.license`), where an unknown id is text with one `WARNING:`
-(branch `unknown-spdx-id-warns`). Free-text fields: Q1. Licence text
+(#357). Free-text fields: Q1. Licence text
 detection (`licenseid_detection`) is out of scope.
 
 ## 2. Evidence: `licenseid` 0.5.0 on 220-odd declared values
