@@ -169,7 +169,7 @@ Real servers: Bitbucket `zzzeek/sqlalchemy`, SourceHut `~sircmpwn/scm.sr.ht`.
   (Bitbucket `src/`, SourceHut `item/`) reads the folder holding it.
 - A Bitbucket repository that does not exist answers like one that needs a
   sign-in (`could not read Username`); that is the server, not a Pitloom bug.
-- Fixed (branch `tag-setuptools-stderr`), found while cloning `sqlalchemy`:
+- Fixed (#356), found while cloning `sqlalchemy`:
   untagged stderr lines (`warning: no files found matching '*.js'`,
   `no previously-included files…`) from setuptools's in-process manifest step
   broke the "every stderr line carries a level" rule, on a local checkout too.

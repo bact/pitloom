@@ -121,7 +121,7 @@ README for their own notes.
     `test_setuptools_banners_are_debug_lines` in
     `tests/test_setuptools_default_backend_surfaces.py` (a real
     `loom --debug project` process).
-  - **Revised (branch `tag-setuptools-stderr`)**: the manifest step
+  - **Revised (#356)**: the manifest step
     (`include_package_data`) still wrote bare lines on stderr
     (`warning: no files found matching '*.js'`): `distutils.log` is the
     root logger, which with no handler falls to `logging.lastResort`, and

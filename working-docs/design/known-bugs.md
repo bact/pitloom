@@ -224,7 +224,7 @@ Seen in past sessions, not reproduced on current `main`:
   `logging.lastResort` on stderr; `distutils.text_file` writes there itself.
   A local checkout, `--allow-build`, `embed-wheel --project-dir` and the
   library did the same; the Hatchling hook never runs setuptools discovery.
-  Fixed (branch `tag-setuptools-stderr`): discovery captures this thread's
+  Fixed (#356): discovery captures this thread's
   stderr and relays each line as one `DEBUG:` record (`WARNING:` for an
   `error:` line), beside #300's banners. See
   [backend-file-discovery-validation-flit-pdm.md](../implementation/backend-file-discovery-validation-flit-pdm.md).
