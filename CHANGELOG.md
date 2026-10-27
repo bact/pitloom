@@ -26,6 +26,8 @@ and this project adheres to
 
 - Setuptools' manifest-step stderr lines are relayed as tagged log lines
   ([#356])
+- `pipdeptree` 4.2.10 is excluded: it has no macOS arm64 wheel and fails to
+  build there ([#358])
 
 ## [0.21.0] - 2026-10-23
 
@@ -237,6 +239,7 @@ and this project adheres to
 [#347]: https://github.com/bact/pitloom/pull/347
 [#349]: https://github.com/bact/pitloom/pull/349
 [#356]: https://github.com/bact/pitloom/pull/356
+[#358]: https://github.com/bact/pitloom/pull/358
 
 ## [0.20.2] - 2026-10-09
 
