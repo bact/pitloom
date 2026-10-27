@@ -26,6 +26,8 @@ and this project adheres to
 
 - An unknown id in an SPDX-only licence field warns once; a Hugging Face
   `gpl-3.0` is kept as written ([#357])
+- `pipdeptree` 4.2.10 is excluded: it has no macOS arm64 wheel and fails to
+  build there ([#358])
 
 ## [0.21.0] - 2026-10-23
 
@@ -237,6 +239,7 @@ and this project adheres to
 [#347]: https://github.com/bact/pitloom/pull/347
 [#349]: https://github.com/bact/pitloom/pull/349
 [#357]: https://github.com/bact/pitloom/pull/357
+[#358]: https://github.com/bact/pitloom/pull/358
 
 ## [0.20.2] - 2026-10-09
 

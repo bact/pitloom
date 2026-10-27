@@ -70,7 +70,9 @@ dependencies = [
     # required by pitloom.extract.lock.pylock's default-groups filtering.
     "packaging>=25.0",
     "pdm-backend>=2.4.1",
-    "pipdeptree>=4.2.3",
+    # 4.2.10 has no macOS arm64 wheel for cp311-abi3 (uploaded 2026-10-27);
+    # the source build needs meson-python, which it does not declare.
+    "pipdeptree>=4.2.3,!=4.2.10",
     "poetry-core>=2.4.1",
     "py-spdx-license>=0.0.1,<1",
     "pyproject-metadata>=0.12.1",
