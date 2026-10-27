@@ -24,7 +24,8 @@ and this project adheres to
 
 ### Fixed
 
-- One `Agent` per person name across model originators and dataset creators; ids are `Agent-<name>-1` ([#353])
+- One `Agent` per person name across model originators and dataset creators; ids
+  are `Agent-<name>-1` ([#353])
 
 ## [0.21.0] - 2026-10-23
 
