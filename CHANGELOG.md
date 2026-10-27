@@ -18,35 +18,9 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.21.0...HEAD>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.20.2...HEAD>
 
-## [Unreleased]
-
-### Changed
-
-- A licence value `licenseid` reads as one id (`Apache2`, `MIT License`) is
-  recorded as that id, the value as written kept in the provenance; needs
-  `licenseid>=0.6.0` ([#369])
-
-### Fixed
-
-- Fragment merge folds a respelt JSON copy of a curated value, no warning
-  ([#352])
-- One generic `Agent` per name across model originators, suppliers and dataset
-  creators; ids are `Agent-<name>-1` ([#353])
-- A version number over 640 digits is refused, not parsed: lock files,
-  requirements and `requires-python` no longer crash ([#354])
-- A bad `%` in `setup.cfg` fails with one line naming the section and key, as
-  setuptools does ([#355])
-- Setuptools' manifest-step stderr lines are relayed as tagged log lines
-  ([#356])
-- A non-SPDX value in an SPDX-only licence field warns once; a Hugging Face
-  card licence skips licenseid (`gpl-3.0` is not `GPL-3.0-only`); a dropped
-  differing `ai_hyperparameter`/`ai_metric` value warns ([#357])
-- `pipdeptree` 4.2.10 is excluded: it has no macOS arm64 wheel and fails to
-  build there ([#358])
-
-## [0.21.0] - 2026-10-23
+## [0.21.0] - Unreleased
 
 ### Added
 
@@ -136,6 +110,9 @@ and this project adheres to
   attribute ([#325])
 - `licenseid>=0.5.0` is required: its database is built from a host the
   Claude Code sandbox allows ([#333])
+- A licence value `licenseid` reads as one id (`Apache2`, `MIT License`) is
+  recorded as that id, the value as written kept in the provenance; needs
+  `licenseid>=0.6.0` ([#359])
 
 ### Fixed
 
@@ -222,6 +199,21 @@ and this project adheres to
   ([#347])
 - A fragment's value replaces a model's description, domain or input/output
   text that Pitloom generated from the file's format ([#349])
+- Fragment merge folds a respelt JSON copy of a curated value, no warning
+  ([#352])
+- One generic `Agent` per name across model originators, suppliers and dataset
+  creators; ids are `Agent-<name>-1` ([#353])
+- A version number over 640 digits is refused, not parsed: lock files,
+  requirements and `requires-python` no longer crash ([#354])
+- A bad `%` in `setup.cfg` fails with one line naming the section and key, as
+  setuptools does ([#355])
+- Setuptools' manifest-step stderr lines are relayed as tagged log lines
+  ([#356])
+- A non-SPDX value in an SPDX-only licence field warns once; a Hugging Face
+  card licence skips licenseid (`gpl-3.0` is not `GPL-3.0-only`); a dropped
+  differing `ai_hyperparameter`/`ai_metric` value warns ([#357])
+- `pipdeptree` 4.2.10 is excluded: it has no macOS arm64 wheel and fails to
+  build there ([#358])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
@@ -262,7 +254,7 @@ and this project adheres to
 [#356]: https://github.com/bact/pitloom/pull/356
 [#357]: https://github.com/bact/pitloom/pull/357
 [#358]: https://github.com/bact/pitloom/pull/358
-[#369]: https://github.com/bact/pitloom/pull/369
+[#359]: https://github.com/bact/pitloom/pull/359
 
 ## [0.20.2] - 2026-10-09
 
