@@ -646,65 +646,20 @@ def test_the_generated_methods_are_the_ones_the_readers_write() -> None:
 @pytest.mark.parametrize(
     ("old", "new", "same"),
     [
-        ('{"a":1,"b":2}', '{"b": 2, "a": 1}', True),  # JSON, another spelling
-        ("{not json", "{other", False),  # neither parses: text differs
-        ('{"a":1}', "{other", False),  # only one parses
-        (["a", "b"], ["b", "a"], True),
-        (["a"], ["a", "b"], False),
-        (1, 2, False),  # neither a list nor text
-        ('{"n":1}', '{"n":1.0}', False),  # another number is another value
-        ('{"n":1}', '{"n":true}', False),  # and a boolean is no number
-        ('{"a":1,"b":[1,2]}', '{"b":[1,2],"a":1}', True),  # key order
-        ("[[]," + "[" * 63 + "1" + "]" * 64, "[[], " + "[" * 63 + "1" + "]" * 64, True),
-        ("[" + "{}," * 70 + "1]", "[" + "{}, " * 70 + "1]", True),  # wide, not deep
-        ('{"a":' * 65 + "1" + "}" * 65, '{"a": ' * 65 + "1" + "}" * 65, False),
-        ('{"a":1}', '{"a":1,"b":2}', False),  # a key more ...
-        ('{"a":1,"b":2}', '{"a":1}', False),  # ... or less
-        ("[" * 64 + "1" + "]" * 64, "[" * 64 + " 1" + "]" * 64, True),  # at the cap
-        ("[" * 65 + "1" + "]" * 65, "[" * 65 + " 1" + "]" * 65, False),  # over it
-        (
-            '["\\"' + "[" * 80 + '"]',
-            '["\\"' + "[" * 80 + '" ]',
-            True,
-        ),  # brackets after an escaped quote are still in the string
-        ('["\\ud800"]', '[ "\\ud800"]', True),  # a lone surrogate is text too
-        ("[1e400]", "[2e999]", False),  # both overflow a float, to the same inf
-        ("[0.1]", "[0.10000000000000000001]", False),  # float precision
-        ('{"a":1}', '{"a":2,"a":1}', False),  # a repeated key: the last wins
-        ("[" * 200_000 + "]" * 200_000, "[" * 200_000 + "] " + "]" * 199_999, False),
-        ("x", "x", True),
-    ],
-    ids=[
-        "json",
-        "both-invalid",
-        "one-invalid",
-        "reordered",
-        "subset",
-        "number",
-        "float",
-        "boolean",
-        "key-order",
-        "depth-64-by-count-65",
-        "wide-objects",
-        "objects-over-cap",
-        "lone-surrogate",
-        "key-more",
-        "key-less",
-        "depth-at-cap",
-        "depth-over-cap",
-        "brackets-in-string",
-        "float-overflow",
-        "float-precision",
-        "repeated-key",
-        "too-deep",
-        "same",
+        pytest.param(["a", "b"], ["b", "a"], True, id="reordered"),
+        pytest.param(["a"], ["a", "b"], False, id="subset"),
+        pytest.param(1, 2, False, id="number"),  # neither a list nor text
+        pytest.param('{"a":1,"b":2}', '{"b": 2, "a": 1}', True, id="json"),
+        pytest.param("{not json", "{other", False, id="both-invalid"),
+        pytest.param("x", "x", True, id="same"),
     ],
 )
 def test_equivalent_values_say_the_same_thing(
     old: object, new: object, same: bool
 ) -> None:
-    """Only a reordered list or the same JSON in another spelling is the same;
-    text that is not JSON, or another type, is compared as different."""
+    """A reordered list or the same JSON in another spelling is the same;
+    text that is not JSON, or another type, is compared as different (the
+    JSON rules are tested in ``test_fragments_equal.py``)."""
     assert _equivalent(old, new) is same
 
 
