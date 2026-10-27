@@ -173,7 +173,7 @@ section 3.6 (determinism of model metadata).
   fails the same way, and `loom project` gives one
   `ERROR: SBOM generation failed: ...`, exit 1. The author must write
   `%%`. A bad `%` in an sdist's `[tool:pitloom]` is one `ValueError`
-  naming the archive member (#232). Since branch `setup-cfg-percent` the
+  naming the archive member (#232). Since #355 the
   error names the section and key (`[metadata] description`, or
   `[DEFAULT] x` for an inherited value) and the `%%` escape. setuptools
   84.0.0 fails the same way on an undefined `%(key)s` and on a reference

@@ -191,8 +191,7 @@ Size: S under half a day, M about a day.
   with one `ERROR:` naming the file, section and key and the `%%` fix.
   Precondition met (2026-10-04): pbr 7.0.3 reads `setup.cfg` with
   `configparser.ConfigParser` (interpolating; never Raw in any release checked)
-  and fails on `50% faster` too; `%%` works. Fixed on branch
-  `setup-cfg-percent` (`_setup_cfg_interpolation.py`): `... setup.cfg:
+  and fails on `50% faster` too; `%%` works. Fixed in #355 (`_setup_cfg_interpolation.py`): `... setup.cfg:
   '<path>' [metadata] description: '%' must be followed by ...; setuptools
   fails on it too; write a literal '%' as '%%'`. An undefined `%(key)s` and a
   reference loop fail the same way (setuptools 84.0.0 fails on both); a
