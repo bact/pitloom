@@ -323,8 +323,9 @@ From the 0.21.0 release review. Open:
   `WARNING:` (exit 0), where `fragment validate` says `ERROR: Invalid JSON`; a
   CycloneDX file is embedded under a `.spdx3.json` name. Parse failure of a
   file the user named should be an error before the wheel is written.
-- [ ] **A one-character Hub model name is a URL but not an id (S).**
-  `https://hf.co/o/m` logs "read as https://huggingface.co/o/m", then
+- [x] **A one-character Hub model name is a URL but not an id (S).**
+  Fixed in #365: `_HF_ID_RE` takes a one-character name, as `_HF_URL_RE` does.
+  `https://hf.co/o/m` logged "read as https://huggingface.co/o/m", then
   `loom model` hands `o/m` to a reader that treats it as a local file:
   `_HF_URL_RE` accepts a one-character name, `_HF_ID_RE` needs two.
 - [ ] **The Hatchling hook finds no licence database in an isolated build

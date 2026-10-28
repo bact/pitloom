@@ -25,7 +25,7 @@ and this project adheres to
 ### Changed
 
 - A missing `licenseid` database is said once at `INFO:`, not `WARNING:`, when
-  a project declares a licence: only the `LICENSE`-file check is skipped
+  the declared licence is an SPDX expression: only the `LICENSE` check is lost
   ([#364])
 
 ### Fixed
