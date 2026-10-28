@@ -20,6 +20,17 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.21.0...HEAD>
 
+## [Unreleased]
+
+### Fixed
+
+- A one-character Hugging Face model name in a URL (`https://hf.co/o/m`) is
+  read as a model, not a local file ([#365])
+- After a setuptools file-discovery failure the fallback `WARNING:` names the
+  failure, no longer "no static config resolvable" ([#365])
+
+[#365]: https://github.com/bact/pitloom/pull/365
+
 ## [0.21.0] - 2026-10-28
 
 ### Added
