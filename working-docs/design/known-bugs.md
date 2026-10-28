@@ -267,7 +267,13 @@ Seen in past sessions, not reproduced on current `main`:
 
 From the combined review of #352 to #357. Open:
 
-- [ ] **A Git URL's messages name the random temporary checkout (S).**
+- [x] **A Git URL's messages name the random temporary checkout (S).**
+  Fixed in the next release: `logging_config.mask_checkout`, called by
+  `escape_controls` and `loggable` (so by `quote_source`, the formatter and
+  `print_error`), writes it `<checkout>` in every message; a path below it
+  keeps its tail (`<checkout>/setup.cfg`), a local directory keeps its path.
+  Known limit: a Windows path with a space before the temporary directory
+  (`C:\Users\Jane Doe\...`) keeps the part before the space. Was:
   `Could not parse setup.cfg: '/tmp/pitloom-git-v6mrrlyz/setup.cfg' [metadata]
   ...` and `DEBUG: '/tmp/pitloom-git-82p252s_': setuptools stderr: ...` carry a
   different path each run. Git's own output is masked as `<checkout>`

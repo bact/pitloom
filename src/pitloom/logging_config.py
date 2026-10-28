@@ -142,12 +142,44 @@ def sanitize_url(url: str) -> str:
     return sanitize_url_credentials(_WHOLE_URL_USERINFO_RE.sub("://***:***@", url))
 
 
+#: The name prefix of the temporary directory a Git URL is checked out in.
+CHECKOUT_DIR_PREFIX = "pitloom-git-"
+#: What a message shows for that directory, so two runs read the same.
+CHECKOUT_PLACEHOLDER = "<checkout>"
+_CHECKOUT_DIR = re.compile(re.escape(CHECKOUT_DIR_PREFIX) + r"\w+")
+#: Characters that end a path in a message, where it is quoted or bracketed.
+_PATH_ENDS = frozenset("'\"()[]<>")
+
+
+def mask_checkout(text: str) -> str:
+    """*text* with the temporary checkout of a Git URL written as
+    ``<checkout>``: the directory (``pitloom-git-`` and its random suffix) and
+    the path before it up to a space, quote or bracket. A path below it keeps
+    its tail (``<checkout>/setup.cfg``). One pass; text without the prefix is
+    returned as it is."""
+    if CHECKOUT_DIR_PREFIX not in text:
+        return text
+    parts: list[str] = []
+    end = 0
+    for found in _CHECKOUT_DIR.finditer(text):
+        start = found.start()
+        while start > end and not (
+            text[start - 1].isspace() or text[start - 1] in _PATH_ENDS
+        ):
+            start -= 1
+        parts += [text[end:start], CHECKOUT_PLACEHOLDER]
+        end = found.end()
+    return "".join(parts) + text[end:]
+
+
 def escape_controls(text: str) -> str:
-    """*text* with each character that is not printable, and each code point
-    of :data:`~pitloom.core.untrusted_text.DISPLAY_CONTROLS`, written as its
-    ASCII escape (``\\n``, ``\\x1b``, ``\\u202e``); anything else, non-ASCII
-    letters included, is kept. Unlike :func:`loggable` it never quotes, so a
-    message already built stays readable."""
+    """*text* with the temporary checkout of a Git URL masked
+    (:func:`mask_checkout`), each character that is not printable, and each
+    code point of :data:`~pitloom.core.untrusted_text.DISPLAY_CONTROLS`,
+    written as its ASCII escape (``\\n``, ``\\x1b``, ``\\u202e``); anything
+    else, non-ASCII letters included, is kept. Unlike :func:`loggable` it never
+    quotes, so a message already built stays readable."""
+    text = mask_checkout(text)
     if text.isprintable() and DISPLAY_CONTROLS.isdisjoint(text):
         return text
     return "".join(
@@ -191,8 +223,10 @@ def loggable(text: str) -> str:
     The one escaping every message interpolating such text goes through.
     Text holding a code point of
     :data:`~pitloom.core.untrusted_text.DISPLAY_CONTROLS` is escaped too,
-    printable or not (U+034F is a printable combining mark).
+    printable or not (U+034F is a printable combining mark). The temporary
+    checkout of a Git URL is written ``<checkout>`` (:func:`mask_checkout`).
     """
+    text = mask_checkout(text)
     if text.isprintable() and DISPLAY_CONTROLS.isdisjoint(text):
         return text
     return ascii(text)

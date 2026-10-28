@@ -26,7 +26,12 @@ from typing import IO, cast
 from pitloom.extract.remote import git_url
 from pitloom.extract.remote._git_size import SizeCap, readable_bytes, tree_bytes
 from pitloom.extract.remote.errors import RemoteSourceError
-from pitloom.logging_config import loggable, sanitize_url, sanitize_url_credentials
+from pitloom.logging_config import (
+    loggable,
+    mask_checkout,
+    sanitize_url,
+    sanitize_url_credentials,
+)
 
 log = logging.getLogger(__name__)
 
@@ -67,9 +72,6 @@ _SCRUBBED_ENV = re.compile(
     r"ALTERNATE_OBJECT_DIRECTORIES|CONFIG_COUNT|CONFIG_PARAMETERS|"
     r"CONFIG_KEY_\d+|CONFIG_VALUE_\d+)"
 )
-
-#: The temporary checkout's path, which a git message quotes.
-_CHECKOUT_PATH = re.compile(r"\S*pitloom-git-\w+")
 
 #: Lines of git's standard error that say what went wrong.
 _ERROR_LINE = re.compile(r"(fatal|error|remote): ")
@@ -164,7 +166,7 @@ def _failure(err: str, status: int) -> str:
     itself), without credentials, the temporary path or control characters."""
     lines = [ln.strip() for ln in err.splitlines() if _ERROR_LINE.match(ln.strip())]
     text = "; ".join(lines) or " ".join(err.split()) or f"git exited {status}"
-    text = _CHECKOUT_PATH.sub("<checkout>", sanitize_url_credentials(text))
+    text = mask_checkout(sanitize_url_credentials(text))
     return loggable(text)
 
 
