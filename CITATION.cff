@@ -17,6 +17,7 @@ keywords:
   - spdx
   - supply chain security
   - hatchling
+  - poetry
   - bom
   - aibom
   - provenance
@@ -27,4 +28,5 @@ keywords:
   - safetensors
   - ai sbom
   - software supply chain security
+  - pep 770
 date-released: 2026-10-23
