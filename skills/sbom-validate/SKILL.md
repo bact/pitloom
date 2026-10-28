@@ -157,7 +157,8 @@ stderr; its schema/SHACL lines name the SBOM inside the wheel as
 `--fail-on-mismatch` is given: report any `WARNING:`, and add
 `--fail-on-mismatch` in CI. `validate-wheel` on an SBOM in a format it has
 no validator for prints `STATUS=skipped` and exits 0: report it as "not
-validated".
+validated". A wheel with several `.dist-info/sboms/` entries needs
+`--sbom-filename NAME` on either command, else `ERROR:`.
 
 A wheel Pitloom refuses gets one `ERROR: ARCHIVE=... -- wheel refused` and
 exit 1; the other wheels are still checked (an unexpected `validate-wheel`
