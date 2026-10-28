@@ -131,7 +131,9 @@ INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, ve
 
 The reading needs the `licenseid` database (`licenseid update`); without it
 the value stays text, as before, and `licenseid database cannot be used`
-is warned once.
+is warned once. When a project declares a licence and the database is only
+missing, Pitloom says `licenseid database not found` once at `INFO:` instead:
+only the `LICENSE`-file check is skipped.
 
 Some fields hold an SPDX expression only. A value there that is not one
 Pitloom reads (`Acme-Terms`, `MIT OR Foo`, a licence text) is still recorded

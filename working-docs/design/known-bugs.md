@@ -342,3 +342,6 @@ From the 0.21.0 release review. Open:
   (`licenseid update --source packaged`, offline) into a location of its own,
   not the user's cache, or keeps the single warning and says why. Today the
   same value gives different SBOM bytes with and without a database.
+  Mitigated in the next release: a missing database is `INFO:` when a licence
+  is declared (the warning stays when none is declared or for a value that
+  needed licenseid's reading).
