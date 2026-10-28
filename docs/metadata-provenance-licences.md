@@ -120,11 +120,9 @@ spelling of an id (`Apache2`, `CC BY 4.0`, `GPLv3+`), the licence's List name
 is never a guess: a bare `GPL-3.0` stays as written. A value naming several
 licences (`BSD`) or none stays text. So does a value with a character the
 reading would drop (`Apache 2.0?`), one of several lines, and a compound with
-a part only `licenseid` reads (`Apache2 OR MIT`). A name among several
-`License ::` classifiers (`MIT License` beside `Apache Software License`)
-stays text; a lone classifier is read. A reading that changed more than the
-case, white space, brackets or a `+` is said once per value per run, and
-kept in the provenance:
+a part only `licenseid` reads (`Apache2 OR MIT`). A reading that changed more
+than the case, white space, brackets or a `+` is said once per value per run,
+and kept in the provenance:
 
 ```text
 INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, version_spelling)
@@ -201,8 +199,9 @@ and `setup.cfg` both state a licence, see
 [setuptools projects](cli.md#setuptools-projects-setuppy-and-setupcfg).
 A multi-line licence text in a wheel, an sdist or installed metadata is read
 without the indent the build tool folded it with. Several licence classifiers
-are one `LicenseExpression`, the AND of `LicenseRef-pitloom-classifier-<name>`
-terms sorted by classifier, whose `customIdToUri` maps each term to a
+are one `LicenseExpression`, the AND of terms sorted by classifier: the id for
+a name `licenseid` reads as one licence (`MIT License` is `MIT`), else a
+`LicenseRef-pitloom-classifier-<name>` whose `customIdToUri` target is a
 `SimpleLicensingText` of the name as written; AND is assumed, with one
 `WARNING:`, as they may offer a choice. So a directory, its sdist, its wheel and
 the build hook record the same declared licence, except a licence file or text

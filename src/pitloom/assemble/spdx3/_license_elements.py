@@ -163,7 +163,7 @@ def _get_or_create(
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def _classifier_and(
     expression: str,
-    terms: list[tuple[str, str]],
+    terms: list[tuple[str, str | None]],
     provenance: str,
     creation_info: spdx3.CreationInfo,
     doc_name: str,
@@ -175,7 +175,8 @@ def _classifier_and(
     """The ``AND`` of several ``License ::`` classifiers: one
     ``LicenseExpression`` whose ``customIdToUri`` maps each
     ``LicenseRef-pitloom-classifier-`` term to the text element of its
-    licence name (shared with any other use of that text)."""
+    licence name (shared with any other use of that text); an id term needs
+    no mapping."""
     custom_ids = [
         (
             ref,
@@ -193,6 +194,7 @@ def _classifier_and(
             ).spdx_id,
         )
         for ref, name in terms
+        if name
     ]
     return _get_or_create(
         "expression",

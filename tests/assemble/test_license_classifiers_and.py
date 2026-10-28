@@ -20,6 +20,7 @@ import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -32,6 +33,8 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.extract._core_metadata import license_from_classifiers
+from pitloom.extract._license_resolve import DeclaredResolution
 from pitloom.extract.license_refs import classifier_expression, classifier_terms
 from tests._license_graph import (
     dependency_graph,
@@ -43,10 +46,9 @@ from tests._spdx3_validate import assert_spdx3_valid
 
 _MIT = "License :: OSI Approved :: MIT License"
 _APACHE = "License :: OSI Approved :: Apache Software License"
-_AND = (
-    "LicenseRef-pitloom-classifier-Apache-Software-License"
-    " AND LicenseRef-pitloom-classifier-MIT-License"
-)
+#: "MIT License" is read as the id ``MIT``; "Apache Software License" names no
+#: one id, so it stays a ``LicenseRef-`` term.
+_AND = "LicenseRef-pitloom-classifier-Apache-Software-License AND MIT"
 
 
 _SOURCES: dict[str, Callable[[list[str]], Any]] = {
@@ -102,8 +104,8 @@ def test_the_and_maps_each_term_to_its_names_text_element() -> None:
         entry["key"]: by_id[entry["value"]]["simplelicensing_licenseText"]
         for entry in expression["simplelicensing_customIdToUri"]
     }
-    assert mapped == dict(classifier_terms(_AND) or [])
-    assert set(mapped.values()) == {"MIT License", "Apache Software License"}
+    assert mapped == {r: n for r, n in classifier_terms(_AND) or [] if n}
+    assert set(mapped.values()) == {"Apache Software License"}
 
 
 _LONE = "Apache Software License"  # a trove name no SPDX id is read from
@@ -123,7 +125,7 @@ def test_a_name_text_is_shared_with_a_single_classifier_text(order: list[str]) -
     assert len(texts) == len(
         [e for e in graph if e["type"] == "simplelicensing_SimpleLicensingText"]
     )
-    assert sorted(texts) == ["Apache Software License", "MIT License"]
+    assert sorted(texts) == ["Apache Software License"]
     (expression,) = [
         e for e in graph if e["type"] == "simplelicensing_LicenseExpression"
     ]
@@ -148,32 +150,52 @@ def test_a_project_with_several_classifiers(tmp_path: Path) -> None:
         for e in graph
         if e["type"] == "simplelicensing_SimpleLicensingText"
     ]
-    assert sorted(texts) == ["Apache Software License", "MIT License"]
+    assert sorted(texts) == ["Apache Software License"]
     assert license_targets(graph) == [_AND]
     document = next(e for e in graph if e["type"] == "SpdxDocument")
     assert "simpleLicensing" in document["profileConformance"]
 
 
 @pytest.mark.parametrize(
-    "names",
+    ("names", "ids", "terms"),
     [
-        ["MIT License", "Apache Software License"],
-        ["Other/Proprietary License", "a-b.c", "Licence é"],
+        (["MIT License", "Apache Software License"], {}, 2),
+        (["Other/Proprietary License", "a-b.c", "Licence é"], {}, 3),
+        (["MIT License", "Apache Software License"], {"MIT License": "MIT"}, 2),
     ],
+    ids=["refs", "encoded", "id-and-ref"],
 )
-def test_classifier_terms_round_trip(names: list[str]) -> None:
-    expression = classifier_expression(names)
-    terms = classifier_terms(expression)
-    assert terms is not None
-    assert [name for _, name in terms] == names
-    assert all(re.fullmatch(r"LicenseRef-[A-Za-z0-9.\-]+", ref) for ref, _ in terms)
+def test_classifier_terms_round_trip(
+    names: list[str], ids: dict[str, str], terms: int
+) -> None:
+    found = classifier_terms(classifier_expression(names, ids))
+    assert found is not None and len(found) == terms
+    assert [n for _, n in found] == [None if x in ids else x for x in names]
+    assert all(
+        re.fullmatch(r"LicenseRef-[A-Za-z0-9.\-]+", ref) for ref, n in found if n
+    )
+
+
+def test_a_reading_that_is_not_one_id_stays_a_reference() -> None:
+    names = ["MIT License", "Apache Software License"]
+    odd = DeclaredResolution("MIT WITH Foo-exception", "listed_name", (), ())
+    with patch("pitloom.extract._core_metadata.resolve_value", return_value=odd):
+        got = license_from_classifiers([_MIT, _APACHE])
+    assert got == classifier_expression(names)
+    assert "MIT WITH" not in (got or "")
+
+
+def test_names_read_as_one_id_are_one_term() -> None:
+    both = {"MIT License": "MIT", "The MIT License": "MIT"}
+    assert classifier_expression(list(both), both) == "MIT"
 
 
 @pytest.mark.parametrize(
     "expression",
     [
         "LicenseRef-pitloom-classifier-MIT-License",  # one term: not an AND
-        "LicenseRef-pitloom-classifier-MIT AND MIT",  # a listed id
+        "MIT AND ISC",  # no classifier term
+        "LicenseRef-pitloom-classifier-MIT OR ISC AND MIT",  # a compound id term
         "LicenseRef-pitloom-classifier-a.2f AND LicenseRef-pitloom-classifier-b",
         "LicenseRef-pitloom-classifier-a.ZZ AND LicenseRef-pitloom-classifier-b",
         "LicenseRef-pitloom-classifier-.FF AND LicenseRef-pitloom-classifier-b",

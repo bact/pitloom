@@ -5,9 +5,10 @@
 
 """Several ``License ::`` classifiers as one licence expression:
 ``LicenseRef-pitloom-classifier-<name> AND ...``, one term per licence name
-as the classifier gives it (no mapping to a listed id). Each ``LicenseRef-``
-encodes its name reversibly, so the element builder recovers the names from
-the expression alone, identically on every surface.
+as the classifier gives it, except a name ``licenseid`` reads as one id
+(``MIT License``), whose term is that id. Each ``LicenseRef-`` encodes its
+name reversibly, so the element builder recovers the names from the
+expression alone, identically on every surface.
 
 See also: :func:`pitloom.extract._core_metadata.license_from_classifiers`
 (the reader side) and
@@ -18,10 +19,20 @@ See also: :func:`pitloom.extract._core_metadata.license_from_classifiers`
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import re
+from collections.abc import Mapping, Sequence
 
 CLASSIFIER_REF_PREFIX = "LicenseRef-pitloom-classifier-"
 _AND = " AND "
+_PLAIN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9.+-]*")
+
+
+def is_plain_id(expression: str) -> bool:
+    """Whether *expression* is one licence id, not a compound or a
+    ``LicenseRef-``."""
+    return bool(_PLAIN_ID.fullmatch(expression)) and not expression.startswith(
+        "LicenseRef-"
+    )
 
 
 def _encoded(name: str) -> str:
@@ -63,27 +74,36 @@ def _decoded(encoded: str) -> str | None:
     return name if _encoded(name) == encoded else None
 
 
-def classifier_expression(names: Sequence[str]) -> str:
-    """The ``AND`` of *names* (two or more, in the order given) as
-    ``LicenseRef-pitloom-classifier-`` terms."""
-    return _AND.join(CLASSIFIER_REF_PREFIX + _encoded(name) for name in names)
+def classifier_expression(
+    names: Sequence[str], ids: Mapping[str, str] | None = None
+) -> str:
+    """The ``AND`` of *names* (two or more, in the order given): the id *ids*
+    gives a name, else its ``LicenseRef-pitloom-classifier-`` term; a term
+    that repeats is kept once."""
+    known = ids or {}
+    terms = (known.get(n) or CLASSIFIER_REF_PREFIX + _encoded(n) for n in names)
+    return _AND.join(dict.fromkeys(terms))
 
 
-def classifier_terms(expression: str) -> list[tuple[str, str]] | None:
-    """``(LicenseRef id, licence name)`` per term when *expression* is exactly
-    what :func:`classifier_expression` writes for two or more names, else
-    ``None``. A user's own expression spelled exactly in that form is read
-    as one; any other spelling, other ``LicenseRef-`` terms included, is
+def classifier_terms(expression: str) -> list[tuple[str, str | None]] | None:
+    """``(term, licence name)`` per term when *expression* is exactly what
+    :func:`classifier_expression` writes for two or more names, else ``None``;
+    the name is ``None`` for an id. At least one term is a classifier
+    ``LicenseRef-``. A user's own expression spelled exactly in that form is
+    read as one; any other spelling, other ``LicenseRef-`` terms included, is
     not."""
     terms = expression.split(_AND)
     if len(terms) < 2:
         return None
-    found: list[tuple[str, str]] = []
+    found: list[tuple[str, str | None]] = []
     for term in terms:
+        if is_plain_id(term):
+            found.append((term, None))
+            continue
         if not term.startswith(CLASSIFIER_REF_PREFIX):
             return None
         name = _decoded(term[len(CLASSIFIER_REF_PREFIX) :])
         if not name:
             return None
         found.append((term, name))
-    return found
+    return found if any(name for _, name in found) else None

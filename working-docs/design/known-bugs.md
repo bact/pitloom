@@ -303,11 +303,6 @@ From the combined review of #352 to #357. Open:
   `StandardML-NJ` parses locally and stays as written, so one licence has two
   records. Fixed by letting `resolve()` answer for the whole value (Q7); see
   `licenseid`'s expression-resolution design. Found in the #359 review.
-- [ ] **A licence classifier among several is not read by `licenseid` (S).**
-  `MIT License` alone is `MIT`; beside `Apache Software License` it stays text
-  in a `LicenseRef-pitloom-classifier-` term, because
-  `license_refs.classifier_expression` never calls the resolver. The same
-  name is two element types across two packages. Found in the #359 review.
 - [ ] **The resolver's reading depends on the database (S).** A comparison
   (`values_agree`, the fragment-merge key of `_license_elements`) treats
   `Apache2` and `Apache-2.0` as one licence with the `licenseid` database and

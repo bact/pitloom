@@ -45,10 +45,7 @@ _MIT = "License :: OSI Approved :: MIT License"
 _CATEGORY = "License :: OSI Approved"
 _PUBLIC_DOMAIN = "License :: Public Domain"
 #: Several classifiers, in any order: the AND of their names, sorted.
-_BOTH = (
-    "LicenseRef-pitloom-classifier-BSD-License"
-    " AND LicenseRef-pitloom-classifier-MIT-License"
-)
+_BOTH = "LicenseRef-pitloom-classifier-BSD-License AND MIT"
 _HEAD = "Metadata-Version: 2.4\nName: demo\nVersion: 1.0.0\n"
 
 

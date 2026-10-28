@@ -20,12 +20,13 @@ from importlib.metadata import PackageMetadata
 from typing import TYPE_CHECKING
 
 from pitloom.extract._license import classify_license, warn_unless_expression
+from pitloom.extract._license_resolve import resolve_value, say_resolved
 from pitloom.extract.authors import (
     CORE_METADATA_HINT,
     AuthorSplit,
     read_author_fields,
 )
-from pitloom.extract.license_refs import classifier_expression
+from pitloom.extract.license_refs import classifier_expression, is_plain_id
 from pitloom.logging_config import warn_once
 
 if TYPE_CHECKING:
@@ -162,11 +163,20 @@ def license_from_classifiers(classifiers: Iterable[str]) -> str | None:
     """The licence the ``License ::`` trove classifiers state, or ``None``:
     one licence name as written; several, their ``AND``
     (:func:`~pitloom.extract.license_refs.classifier_expression`), in sorted
-    classifier order so a build tool's reordering changes nothing."""
+    classifier order so a build tool's reordering changes nothing. A name
+    ``licenseid`` reads as one id is that id, as a lone name is."""
     names = _classifier_names(_licence_classifiers(classifiers))
     if not names:
         return None
-    return names[0] if len(names) == 1 else classifier_expression(names)
+    if len(names) == 1:
+        return names[0]
+    ids: dict[str, str] = {}
+    for name in names:
+        resolved = resolve_value(name)
+        if resolved is not None and is_plain_id(resolved.expression):
+            say_resolved(name, resolved, "classifiers")
+            ids[name] = resolved.expression
+    return classifier_expression(names, ids)
 
 
 def _warn_several_classifiers(classifiers: Iterable[str], recorded: str) -> None:
