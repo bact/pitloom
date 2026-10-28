@@ -296,9 +296,9 @@ wheels and unknown identity").
   `[tool.pitloom]` at all (they never read the current directory). On a
   project target it replaces the project's own config outright, not merges
   with it.
-- `--pretty` -- indent the JSON for human reading (default: compact).
-- `--offline` -- forbid network access (`project`, `wheel`, `env`, `model`,
-  `embed-wheel`; `generate` follows its target; `enrich` has none). On a
+- `--pretty` -- indent the JSON (default: compact).
+- `--offline`/`--no-offline` -- forbid/allow network (`project`, `wheel`, `env`,
+  `model`, `embed-wheel`; `generate` follows its target; `enrich` has none). On a
   local model file it has no effect (a `WARNING:`); on a Hugging Face model
   or a Git URL it is an `ERROR:`, as nothing can be fetched.
 - `-v` / `--verbose` -- `INFO:` lines: every effective option and its source

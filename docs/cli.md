@@ -209,6 +209,28 @@ Skills](agent-skills.md)).
 `loom merge`, `loom fragment validate` and `loom fragment list`: see [SBOM
 fragments](fragments.md).
 
+### Flags of the other subcommands
+
+These take their own flags, besides the shared ones of [Useful
+flags](#useful-flags) where noted (`embed-wheel` takes both):
+
+| Command | Flag | Meaning |
+| --- | --- | --- |
+| `embed-wheel` | `--sbom FILE` | Embed a pre-generated SBOM instead of generating one |
+| `embed-wheel` | `--sbom-basename NAME` | Name of the embedded file under `.dist-info/sboms/`, without extension |
+| `embed-wheel` | `--allow-mismatch` | With `--sbom`: embed with a `WARNING:` when its name/version differs from the wheel's |
+| `embed-wheel` | `--verify` / `--validate` | Run `verify-wheel` / `validate-wheel` on the result; with `--sbom`, `--validate` checks the file first |
+| `verify-wheel` | `--sbom-filename NAME` | The exact file expected under `.dist-info/sboms/` |
+| `verify-wheel` | `--fail-on-mismatch` | Exit non-zero (not only `WARNING:`) when the SBOM's name/version differs from the wheel's |
+| `validate-wheel` | `--sbom-filename NAME` | The exact file expected under `.dist-info/sboms/` |
+| `merge` | `-o FILE`, `--pretty` / `--no-pretty` | Output path and indentation |
+| `fragment validate` | `--no-merge` | Validate each document alone, skipping the merged-graph check |
+| `fragment list` | `--project-dir DIR` | The project whose configured fragments are listed |
+| `id generate`, `id import` | see below | [Pin ids across fragments](#pin-ids-across-fragments) |
+
+Details: [Wheel SBOMs and PEP 770 embedding](wheel-sbom.md) and [SBOM
+fragments](fragments.md).
+
 ### Pin ids across fragments
 
 Independent runs give the same dataset or model different `spdxId`s. Pin ids
@@ -255,8 +277,9 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env` (not
   from](configuration.md#where-settings-come-from) for the precedence table.
 - `--pretty` -- indent the JSON (default: compact). Only whitespace between
   tokens is added; key order and values are the compact (RFC 8785) text's.
-- `--offline` -- forbid network access (PyPI/Hugging Face lookups). Not on
-  `enrich` either.
+- `--offline` / `--no-offline` -- forbid network access (PyPI/Hugging Face
+  lookups), or, with `--no-offline`, allow it over a config `offline = true`.
+  Not on `enrich` either.
 - `--use-lockfile` / `--no-use-lockfile` -- only on `project`/`generate` (the
   other targets never read a lock file) and `enrich` (for `--project-dir`
   document identity matching, see [Enrich an SBOM](#enrich-an-sbom)). On by
