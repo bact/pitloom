@@ -69,6 +69,8 @@ _SPELLINGS = [
             "mistralai/Mistral-7B-v0.1",
         ),
         ("mistralai/Mistral-7B-v0.1", "mistralai/Mistral-7B-v0.1"),
+        ("o/m", "o/m"),
+        ("https://hf.co/o/m", "o/m"),
         ("Qwen/Qwen3-235B-A22B", "Qwen/Qwen3-235B-A22B"),
         (
             "openthaigpt/openthaigpt-r1-32b-instruct",
@@ -117,6 +119,24 @@ def test_parse_hf_model_id_owner_name_shape_with_local_dir_is_not_hf(
     monkeypatch.chdir(tmp_path)
     (tmp_path / "models" / "my-model").mkdir(parents=True)
     assert parse_hf_model_id("models/my-model") is None
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://hf.co/o/m",
+        "https://huggingface.co/a/b/tree/main",
+        "https://huggingface.co/owner/n?x=1",
+    ],
+    ids=["one-char-name", "one-char-both", "query"],
+)
+def test_the_id_read_from_a_url_is_itself_a_model_source(url: str) -> None:
+    """``loom model`` passes the URL's id on, and the generator asks
+    :func:`is_huggingface_source` about it again: both must agree, or a URL
+    is fetched as a local file."""
+    model_id = parse_hf_model_id(url)
+    assert model_id is not None
+    assert is_huggingface_source(model_id)
 
 
 def test_is_huggingface_source_url() -> None:
