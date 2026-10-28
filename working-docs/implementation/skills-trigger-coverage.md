@@ -222,10 +222,10 @@ drift is silent.
   model-architecture (written in ai_typeOfModel)` line is expected. Checker
   stamps say `2355afc` where the repository's expected tables were
   regenerated unchanged (#360; `tests/conformance` passes on this tree).
-  `sbom-generate`'s body is 24,531 of the 24,576-byte ratchet after the
+  `sbom-generate`'s body is 24,556 of the 24,576-byte ratchet after the
   name/label-cap wording, the wheel-refusal detail and the AGENTS.md link
   moved behind `references/known-limitations.md` pointers; `sbom-enrich`'s is
-  24,554, unchanged: the next addition to either must move text first. The
+  24,553, unchanged: the next addition to either must move text first. The
   plugin manifest is 0.21.0 (`scripts/check_version_consistency.py` OK); its
   and the marketplace's description now name wheels, Git URLs and the five
   standards; `claude plugin validate` passes with one warning (no icon). The

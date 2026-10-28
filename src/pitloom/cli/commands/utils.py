@@ -7,8 +7,8 @@
 
 from __future__ import annotations
 
+import ast
 import glob
-import re
 from collections.abc import Callable, Mapping
 from functools import wraps
 from pathlib import Path
@@ -222,21 +222,34 @@ def _import_spdx3_validate() -> Any | None:
     return spdx3_validate
 
 
-_NOT_IN_LIST_RE = re.compile(r"(not in list )\[([^\]]*)\]")
+_NOT_IN_LIST = "not in list "
+#: A list rendered by ``str()`` is searched for up to this many closing brackets.
+_MAX_LIST_ENDS = 50
 
 
 def _stable_message(message: str) -> str:
     """*message* with the values of a ``not in list [...]`` finding sorted:
     the validator builds that list from a set, so its order differs from run
-    to run."""
-
-    def sort_values(match: re.Match[str]) -> str:
-        values = re.findall(r"'[^']*'", match.group(2))
-        if not values:
-            return match.group(0)
-        return f"{match.group(1)}[{', '.join(sorted(values))}]"
-
-    return _NOT_IN_LIST_RE.sub(sort_values, message)
+    to run. A list that is not a list of strings is left as written."""
+    start = message.find(_NOT_IN_LIST)
+    if start < 0:
+        return message
+    begin = start + len(_NOT_IN_LIST)
+    if message[begin : begin + 1] != "[":
+        return message
+    end = begin
+    for _ in range(_MAX_LIST_ENDS):
+        end = message.find("]", end + 1)
+        if end < 0:
+            return message
+        try:
+            values = ast.literal_eval(message[begin : end + 1])
+        except (ValueError, SyntaxError, MemoryError, RecursionError):
+            continue
+        if isinstance(values, list) and all(isinstance(v, str) for v in values):
+            return message[:begin] + repr(sorted(values)) + message[end + 1 :]
+        return message
+    return message
 
 
 def _validate_spdx3_documents(

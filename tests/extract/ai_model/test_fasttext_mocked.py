@@ -477,23 +477,24 @@ def test_fasttext_no_name_or_description(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("header", "maxn_kept"),
+    ("header", "model_name", "maxn_kept"),
     [
-        (struct.pack("<ii", 793712314, 12), True),
-        (struct.pack("<ii", 793712314, 11), False),  # the loader resets maxn
-        (struct.pack("<ii", 1234, 11), True),  # no fastText magic: no claim
-        (b"fake", True),  # too short to hold a version
+        (struct.pack("<ii", 793712314, 12), "supervised", True),
+        (struct.pack("<ii", 793712314, 11), "supervised", False),  # loader resets
+        (struct.pack("<ii", 793712314, 11), "skipgram", True),  # only supervised
+        (struct.pack("<ii", 1234, 11), "supervised", True),  # no magic: no claim
+        (b"fake", "supervised", True),  # too short to hold a version
     ],
-    ids=["v12", "v11", "no-magic", "short"],
+    ids=["v12", "v11-supervised", "v11-skipgram", "no-magic", "short"],
 )
-def test_maxn_is_not_read_from_a_file_older_than_version_12(
-    tmp_path: Path, header: bytes, maxn_kept: bool
+def test_maxn_is_not_read_from_a_version_11_supervised_model(
+    tmp_path: Path, header: bytes, model_name: str, maxn_kept: bool
 ) -> None:
-    """An older file does not store ``maxn``: the binding reports a default."""
+    """The loader resets ``maxn`` there: the binding reports a default."""
     model_file = tmp_path / "model.bin"
     model_file.write_bytes(header)
     mock_fasttext = MagicMock()
-    mock_fasttext.load_model.return_value = _make_fasttext_model()
+    mock_fasttext.load_model.return_value = _make_fasttext_model(model_name=model_name)
     with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
         meta = read_fasttext(model_file)
     assert ("maxn" in meta.hyperparameters) is maxn_kept

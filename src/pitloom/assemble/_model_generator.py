@@ -51,7 +51,12 @@ from pitloom.id_registry import (
     registry_file_path,
     resolve_registry,
 )
-from pitloom.logging_config import configure_logging, loggable, one_line
+from pitloom.logging_config import (
+    configure_logging,
+    loggable,
+    one_line,
+    sanitize_url,
+)
 
 log = logging.getLogger(__name__)
 
@@ -257,7 +262,7 @@ def generate_model_sbom(
         if cfg.offline:
             raise ValueError(
                 "Offline mode enabled: cannot fetch remote Hugging Face source "
-                f"{quote_source(source_str)}"
+                f"{quote_source(sanitize_url(source_str))}"
             )
         model = read_huggingface(source_str)
         entity_spdx_id = digest = None

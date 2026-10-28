@@ -34,6 +34,7 @@ from pitloom.cli.commands._embed_wheel_batch import (
 )
 from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
+    _import_spdx3_validate,
     _locate_and_detect,
     _print_sbom_output_path,
     cli_error_handler,
@@ -128,6 +129,8 @@ def _given_sbom_is_valid(args: argparse.Namespace) -> bool:
         return True
     if detect_sbom_format(data) not in VALIDATED_FORMATS:
         return True
+    if _import_spdx3_validate() is None:  # prints the install hint
+        return False
     if validate_sbom_data(data, loggable(args.sbom.name)):
         return True
     print_error(f"--sbom {quote_source(args.sbom)} is not valid; no wheel was written")

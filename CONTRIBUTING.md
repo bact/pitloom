@@ -102,8 +102,8 @@ licenseid update
 pytest
 ```
 
-The conformance tests (`tests/conformance/`) also need the `conformance`
-group: `pip install --group conformance`.
+The conformance tests (`tests/conformance/`) need the `conformance` group,
+which the `test` and `dev` groups include.
 
 ### 3. Code quality
 

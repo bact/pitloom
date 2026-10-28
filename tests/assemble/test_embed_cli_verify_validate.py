@@ -368,3 +368,37 @@ def test_cli_embed_wheel_validates_a_given_sbom_before_writing(
     assert (code == 0) is valid
     assert (wheel_path.read_bytes() == before) is (not valid)
     assert ("no wheel was written" in err) is (not valid)
+
+
+@pytest.mark.parametrize("case", ["no-validator", "unreadable"])
+def test_cli_embed_wheel_prevalidation_only_refuses_what_it_judged(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    case: str,
+) -> None:
+    """A missing validator is the install hint alone, not a verdict on the
+    file; an unreadable ``--sbom`` is left to the embed, which reports it."""
+    wheel_path = _make_dummy_wheel(tmp_path, "prevalid2", "1.0.0")
+    sbom_file = tmp_path / "sbom.spdx3.json"
+    if case == "no-validator":
+        sbom_file.write_text(
+            _spdx3_json_with_subject("prevalid2", "1.0.0"), encoding="utf-8"
+        )
+        monkeypatch.setitem(sys.modules, "spdx3_validate", None)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "embed-wheel",
+            str(wheel_path),
+            "--sbom",
+            str(sbom_file),
+            "--validate",
+        ],
+    )
+    assert __main__.main() == 1
+    err = capsys.readouterr().err
+    assert "is not valid" not in err
+    assert ("spdx3-validate' package is required" in err) is (case == "no-validator")

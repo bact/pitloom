@@ -16,6 +16,7 @@ tested with local servers in ``test_git_http_e2e.py``.
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 
 import pytest
@@ -334,6 +335,9 @@ _PLATFORMS = [
 #: 150 MB) so a server that ignores the blob filter cannot fill a CI disk.
 _LIVE_CAP = 400 * 1024 * 1024
 
+#: What git reports for a redirect it was told not to follow.
+_BARE_REDIRECT = re.compile(r"returned error: 30[1278]\b")
+
 
 @pytest.mark.parametrize(
     ("url", "ref", "folder", "expected"),
@@ -357,10 +361,11 @@ def test_a_platforms_url_is_fetched(
             assert checkout.ref == ref and checkout.subdir == folder
             assert (Path(checkout.folder) / expected).exists()
             assert len(checkout.commit) in {40, 64}
-    except RemoteSourceError:
+    except RemoteSourceError as exc:
         # A host too slow to answer the redirect probe leaves Pitloom asking
         # git directly, and git follows no redirect: it reports a bare 301 or
         # 302. That is the network, not the platform handling under test.
-        if any(r.msg == PROBE_FAILED_INFO for r in caplog.records):
+        probe_failed = any(r.msg == PROBE_FAILED_INFO for r in caplog.records)
+        if probe_failed and _BARE_REDIRECT.search(str(exc)):
             network_unavailable("the redirect probe failed (slow or unreachable host)")
         raise

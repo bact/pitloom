@@ -203,8 +203,8 @@ Right after an embed, `loom embed-wheel dist/*.whl --project-dir .
 --verify --validate` runs both checks in the same command
 (`sbom-generate`'s "Embed an SBOM into a wheel" section): a pass prints no
 line of its own, a failure the same `ERROR:` lines and exit 1, with the SBOM
-already embedded. With `--sbom FILE --validate` the file is validated first: an
-invalid one is refused and the wheel is not written. If the user
+already embedded. With `--sbom FILE --validate` an SPDX 3 file is validated
+first: one that fails is refused and the wheel is not written. If the user
 asked for `embed-wheel --allow-build`, always pass an explicit
 `--build-timeout` (see `sbom-generate`'s "Choosing `--build-timeout`").
 

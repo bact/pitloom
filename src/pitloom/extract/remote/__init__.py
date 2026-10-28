@@ -32,8 +32,8 @@ __all__ = [
     "is_git_url",
     "is_huggingface_source",
     "is_unsupported_remote_url",
-    "parse_git_page",
     "log_hf_url_rewrite",
+    "parse_git_page",
     "parse_hf_model_id",
     "read_huggingface",
 ]

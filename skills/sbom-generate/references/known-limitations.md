@@ -285,7 +285,7 @@ does not name. It is not a model bound.
 
 `WARNING: licenseid database cannot be used: <reason> -- license text detection
 and license id reading skipped` (once per run; the reason ends `run 'licenseid
-update'` when the file is missing): the `licenseid` SPDX database is missing
+update'` when the file is missing or empty): the `licenseid` SPDX database is missing
 or empty. `licenseid update` builds it (network; `licenseid update --source
 packaged` uses the copy in the `licenseid` wheel, no network; without an
 install, `uvx --from "licenseid>=0.6.0" licenseid update`: the database is per

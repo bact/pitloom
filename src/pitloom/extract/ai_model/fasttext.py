@@ -54,9 +54,10 @@ _FASTTEXT_ARGS_HYPERPARAMS: tuple[tuple[str, str], ...] = (
 
 
 _FASTTEXT_MAGIC = 793712314
-#: From this file version on, ``maxn`` is read from the file; the loader resets
-#: it for version 11 (fastText ``src/fasttext.cc``), so it is a default there.
-_FASTTEXT_MAXN_STORED_FROM = 12
+#: The loader resets ``maxn`` to 0 for a supervised model of this file version
+#: (fastText ``src/fasttext.cc``: old supervised models used no character
+#: n-grams), so the value is a default there; cbow and skipgram keep theirs.
+_FASTTEXT_MAXN_RESET_VERSION = 11
 
 
 def _file_version(model_path: Path) -> int | None:
@@ -170,8 +171,8 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
 
     Extracted hyperparameters: dim, epoch, wordNgrams, minCount, minn, maxn,
     neg, bucket, ws (window size).  ``lr`` and ``minCountLabel`` are not
-    stored in the file, so they are not read; ``maxn`` is not read from a file
-    older than version 12 (the loader resets it).
+    stored in the file, so they are not read; ``maxn`` is not read from a
+    supervised model of file version 11 (the loader resets it).
 
     Args:
         model_path: Path to a ``.bin`` or ``.ftz`` fastText model file.
@@ -189,7 +190,7 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
     provenance: dict[str, str] = {}
     hyperparameters, args_properties, type_of_model = _extract_fasttext_args(model)
     version = _file_version(model_path)
-    if version is not None and version < _FASTTEXT_MAXN_STORED_FROM:
+    if version == _FASTTEXT_MAXN_RESET_VERSION and type_of_model == "supervised":
         hyperparameters.pop("maxn", None)
     # Only a supervised model is a classifier with labels: on a cbow or
     # skipgram model get_labels() returns the word vocabulary (training

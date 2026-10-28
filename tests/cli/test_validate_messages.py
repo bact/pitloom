@@ -33,8 +33,22 @@ from pitloom.cli.commands import utils
         ),
         ("not in list [] untouched", "not in list [] untouched"),
         ("no list here [b, a]", "no list here [b, a]"),
+        # a value holding a quote or a bracket: still one value
+        ("not in list ['b', \"it's\", 'a']", "not in list ['a', 'b', \"it's\"]"),
+        ("not in list ['b', 'a]c', 'd']", "not in list ['a]c', 'b', 'd']"),
+        ("not in list [1, 'a'] not strings", "not in list [1, 'a'] not strings"),
+        ("not in list ['a' unclosed", "not in list ['a' unclosed"),
     ],
-    ids=["sorted", "iris", "empty", "no-marker"],
+    ids=[
+        "sorted",
+        "iris",
+        "empty",
+        "no-marker",
+        "quote",
+        "bracket",
+        "not-strings",
+        "unclosed",
+    ],
 )
 def test_the_values_of_a_not_in_list_finding_are_sorted(
     message: str, expected: str

@@ -96,7 +96,12 @@ from pitloom.logging_config import loggable, sanitize_url
 
 log = logging.getLogger(__name__)
 
-__all__ = ["is_huggingface_source", "parse_hf_model_id", "read_huggingface"]
+__all__ = [
+    "is_huggingface_source",
+    "log_hf_url_rewrite",
+    "parse_hf_model_id",
+    "read_huggingface",
+]
 
 # Match full HF model URLs: https://huggingface.co/owner/name[/anything], also
 # as http, www.huggingface.co or hf.co, in any case of the scheme and host. A
@@ -117,9 +122,9 @@ _HF_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.\-]+
 def log_hf_url_rewrite(source: str, model_id: str) -> None:
     """One ``INFO:`` when *source* is a Hub URL spelt other than
     ``https://huggingface.co/<id>`` (``hf.co``, ``www.``, ``http://``, a
-    mixed-case host, a page below the model), naming the URL it is read as;
-    credentials and query tokens are masked. Every route that reads a Hub
-    model calls this, so the line is the same on each."""
+    mixed-case host), naming the URL it is read as; credentials and query
+    tokens are masked. ``loom model`` calls it before fetching, the other
+    routes through :func:`read_huggingface`."""
     if _HF_URL_RE.match(source) and not source.startswith(_CANONICAL_PREFIX):
         log.info(
             "Hugging Face URL %s is read as %s%s",

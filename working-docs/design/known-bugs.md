@@ -313,3 +313,17 @@ From the combined review of #352 to #357. Open:
   `ai_hyperparameter` or `ai_metric` key different values keep the first and
   say so (`Merge: conflicting 'ai_hyperparameter' key 'k' on ...: keeping X,
   dropping Y.`); equal and same-JSON values stay quiet.
+
+## Found 2026-10-28
+
+From the 0.21.0 release review. Open:
+
+- [ ] **`embed-wheel --sbom FILE` embeds a file it cannot parse or read as SPDX 3
+  (S).** Malformed JSON named `x.spdx3.json` is embedded with a skip
+  `WARNING:` (exit 0), where `fragment validate` says `ERROR: Invalid JSON`; a
+  CycloneDX file is embedded under a `.spdx3.json` name. Parse failure of a
+  file the user named should be an error before the wheel is written.
+- [ ] **A one-character Hub model name is a URL but not an id (S).**
+  `https://hf.co/o/m` logs "read as https://huggingface.co/o/m", then
+  `loom model` hands `o/m` to a reader that treats it as a local file:
+  `_HF_URL_RE` accepts a one-character name, `_HF_ID_RE` needs two.

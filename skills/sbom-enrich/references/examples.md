@@ -290,7 +290,8 @@ files = [
 `required = true` makes a missing or unparsable fragment fail the run
 instead of being skipped with a `WARNING:`. Check the registration from the
 project directory: `loom fragment list` prints one `PATH=... ROLE=...
-REQUIRED=... EXISTS=... ELEMENTS=...` line per registered fragment
+REQUIRED=... EXISTS=... ELEMENTS=... SHA256=... MODIFIED=... SAME_DOCUMENT=...`
+line per registered fragment
 (`EXISTS=false` is a wrong path; none registered is `INFO: fragment list: no
 fragments configured`).
 
