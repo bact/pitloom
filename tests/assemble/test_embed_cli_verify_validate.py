@@ -265,10 +265,8 @@ def test_cli_embed_wheel_validate_flag_fails_on_invalid_sbom(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """--validate runs validate-wheel's own check against the just-embedded
-    wheel. A malformed --sbom still embeds successfully, but --validate
-    catches the problem afterwards and the command exits 1 -- embedding
-    already happened and isn't rolled back."""
+    """A malformed --sbom is refused before anything is written: exit 1, an
+    ``ERROR:``, no ``SBOM=`` line and no SBOM in the wheel."""
     wheel_path = _make_dummy_wheel(tmp_path, "validateflag", "1.0.0")
     sbom_file = tmp_path / "bad.spdx3.json"
     # @context present (so it's detected as spdx3-jsonld and actually
@@ -290,11 +288,11 @@ def test_cli_embed_wheel_validate_flag_fails_on_invalid_sbom(
     assert __main__.main() == 1
 
     captured = capsys.readouterr()
-    assert records(captured.out, "SBOM")
-    assert "ERROR:" in captured.err
+    assert not records(captured.out, "SBOM")
+    assert "ERROR:" in captured.err and "no wheel was written" in captured.err
 
     with zipfile.ZipFile(wheel_path, "r") as zf:
-        assert any(n.endswith(".spdx3.json") and "/sboms/" in n for n in zf.namelist())
+        assert not any(n.endswith(".spdx3.json") for n in zf.namelist())
 
 
 def test_cli_embed_wheel_validate_flag_skips_unrecognized_format(
@@ -328,3 +326,45 @@ def test_cli_embed_wheel_validate_flag_skips_unrecognized_format(
     assert "WARNING:" in captured.err
     assert "no validator registered" in captured.err
     assert "ERROR:" not in captured.err
+
+
+@pytest.mark.parametrize("valid", [True, False], ids=["valid", "invalid"])
+def test_cli_embed_wheel_validates_a_given_sbom_before_writing(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    valid: bool,
+) -> None:
+    """``--sbom FILE --validate``: an invalid file is refused with the wheel
+    untouched; a valid one is embedded."""
+    wheel_path = _make_dummy_wheel(tmp_path, "prevalid", "1.0.0")
+    before = wheel_path.read_bytes()
+    sbom_file = tmp_path / "sbom.spdx3.json"
+    sbom_file.write_text(
+        _spdx3_json_with_subject("prevalid", "1.0.0"), encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        "pitloom.cli.commands.embed_wheel.validate_sbom_data",
+        lambda _data, _shown: valid,
+    )
+    monkeypatch.setattr(
+        "pitloom.cli.commands.embed_wheel._run_post_embed_checks",
+        lambda *_a: True,
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "embed-wheel",
+            str(wheel_path),
+            "--sbom",
+            str(sbom_file),
+            "--validate",
+        ],
+    )
+    code = __main__.main()
+    err = capsys.readouterr().err
+    assert (code == 0) is valid
+    assert (wheel_path.read_bytes() == before) is (not valid)
+    assert ("no wheel was written" in err) is (not valid)

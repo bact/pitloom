@@ -29,7 +29,12 @@ from pitloom.cli.options import (
 from pitloom.cli.options_config import explicit_config_and_options
 from pitloom.core.inert_options import HF, MODEL_FILE, forward_options
 from pitloom.core.quote_source import quote_source
-from pitloom.extract.remote import is_git_url, is_huggingface_source, parse_hf_model_id
+from pitloom.extract.remote import (
+    is_git_url,
+    is_huggingface_source,
+    log_hf_url_rewrite,
+    parse_hf_model_id,
+)
 from pitloom.logging_config import print_error, sanitize_url
 
 
@@ -53,6 +58,7 @@ def _run_model_command(args: argparse.Namespace) -> int:
                 f"{quote_source(sanitize_url(target))}"
             )
             return 1
+        log_hf_url_rewrite(target, model_id)
         output_path = _resolve_hf_output_path(args.output, model_id)
         if args.verbose:
             log_verbose(HF_MODEL=model_id, OUTPUT_PATH=output_path)

@@ -96,8 +96,9 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
    `supervised` model (`Method: derived_from_format`). Labels and outputs are read from a `supervised`
    model only: for `cbow` and `skipgram`, fastText's label list is the
    word vocabulary (training text).
-4. 11 of the training `args`: `bucket`, `dim`, `epoch`, `lr`, `maxn`,
-   `minCount`, `minCountLabel`, `minn`, `neg`, `wordNgrams`, `ws`.
+4. 9 of the training `args`: `bucket`, `dim`, `epoch`, `maxn`, `minCount`,
+   `minn`, `neg`, `wordNgrams`, `ws`. `lr` and `minCountLabel` are not in the
+   file (a loaded model reports their defaults), so they are not read.
 5. `general.license` (an SPDX expression by the GGUF spec), trimmed and
    classified like any model licence; only a non-blank string counts
    (`general.version` may also be a number, read as its text).

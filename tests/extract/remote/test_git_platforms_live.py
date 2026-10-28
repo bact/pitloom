@@ -20,9 +20,11 @@ from pathlib import Path
 import pytest
 
 from pitloom.extract.remote import fetch_git_project
-from tests._network import skip_on_network_error
+from tests._network import require_reachable, skip_on_network_error
 
 pytestmark = pytest.mark.network
+
+_SLOW_REDIRECTOR = "https://git.savannah.gnu.org/"
 
 # (id, URL, branch or tag named, folder named, a file expected in the folder)
 _PLATFORMS = [
@@ -341,6 +343,12 @@ def test_a_platforms_url_is_fetched(
 ) -> None:
     """The branch and folder the URL names are checked out, with a redirect
     followed where the platform sends one."""
+    if url.startswith(_SLOW_REDIRECTOR):
+        # Savannah redirects every clone address to another host. When it
+        # answers the redirect probe too slowly, Pitloom asks git directly
+        # and git (which follows no redirect) reports a bare 302: a failure
+        # of the network, not of the redirect handling this test is about.
+        require_reachable(f"{url}/info/refs?service=git-upload-pack")
     with (
         skip_on_network_error(),
         fetch_git_project(url, max_bytes=_LIVE_CAP) as checkout,

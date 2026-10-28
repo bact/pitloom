@@ -373,7 +373,8 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
         metavar="IRI",
         help=(
             "Document namespace of a new registry: an absolute IRI without "
-            "'#'. Default: one minted from the project name and a random UUID."
+            "'#'. Default: one minted from the project directory's name and "
+            "a random UUID."
         ),
     )
     gen_parser.add_argument(

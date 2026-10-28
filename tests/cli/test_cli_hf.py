@@ -11,6 +11,7 @@ behaviour.
 
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 
@@ -280,3 +281,36 @@ def test_hf_url_with_tree_path_resolves_correctly(
     assert __main__.main() == 0
     # Tree path stripped - only owner/name retained
     assert captured["model_source"] == "mistralai/Mistral-7B-v0.1"
+
+
+@pytest.mark.parametrize(
+    ("source", "said"),
+    [
+        ("https://hf.co/org/mdl", "https://hf.co/org/mdl"),
+        ("http://www.huggingface.co/org/mdl?token=SECRET", None),
+        ("https://huggingface.co/org/mdl", False),
+        ("org/mdl", False),
+    ],
+    ids=["hf-co", "query-token-masked", "canonical", "bare-id"],
+)
+def test_loom_model_says_a_url_it_rewrites_like_the_other_routes(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    source: str,
+    said: str | bool | None,
+) -> None:
+    """``loom model`` logs the same ``INFO:`` as ``loom generate`` and the
+    library, naming the URL as written (credentials and tokens masked)."""
+    monkeypatch.setattr(mod_model, "generate_model_sbom", lambda *a, **k: "{}")
+    monkeypatch.setattr(sys, "argv", ["loom", "model", source])
+    with caplog.at_level(logging.INFO, logger="pitloom"):
+        assert __main__.main() == 0
+    lines = [m for m in caplog.messages if m.startswith("Hugging Face URL ")]
+    if said is False:
+        assert lines == []
+        return
+    assert lines == [
+        f"Hugging Face URL {said or source.replace('SECRET', '***')} "
+        "is read as https://huggingface.co/org/mdl"
+    ]
+    assert "SECRET" not in "".join(lines)

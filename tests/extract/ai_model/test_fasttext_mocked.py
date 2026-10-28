@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
+import struct
 from pathlib import Path
 from typing import Any, TypedDict, cast
 from unittest.mock import MagicMock, patch
@@ -203,7 +204,7 @@ def test_fasttext_basic_extraction(tmp_path: Path) -> None:
     assert meta.format_info.model_format == AiModelFormat.FASTTEXT
     assert meta.type_of_model == "skipgram"
     assert meta.hyperparameters["dim"] == 300
-    assert meta.hyperparameters["lr"] == 0.025
+    assert "lr" not in meta.hyperparameters  # not stored in the file
     assert meta.hyperparameters["epoch"] == 10
     assert meta.properties["lossName"] == "ns"
     assert any(k.startswith("hyperparameters.") for k in meta.provenance)
@@ -234,7 +235,7 @@ def test_fasttext_all_hyperparameters(tmp_path: Path) -> None:
     hp = meta.hyperparameters
     assert hp["wordNgrams"] == 2
     assert hp["minCount"] == 3
-    assert hp["minCountLabel"] == 1
+    assert "minCountLabel" not in hp
     assert hp["minn"] == 2
     assert hp["maxn"] == 5
     assert hp["neg"] == 10
@@ -473,3 +474,27 @@ def test_fasttext_no_name_or_description(tmp_path: Path) -> None:
     assert meta.name is None
     assert meta.description is None
     assert meta.version is None
+
+
+@pytest.mark.parametrize(
+    ("header", "maxn_kept"),
+    [
+        (struct.pack("<ii", 793712314, 12), True),
+        (struct.pack("<ii", 793712314, 11), False),  # the loader resets maxn
+        (struct.pack("<ii", 1234, 11), True),  # no fastText magic: no claim
+        (b"fake", True),  # too short to hold a version
+    ],
+    ids=["v12", "v11", "no-magic", "short"],
+)
+def test_maxn_is_not_read_from_a_file_older_than_version_12(
+    tmp_path: Path, header: bytes, maxn_kept: bool
+) -> None:
+    """An older file does not store ``maxn``: the binding reports a default."""
+    model_file = tmp_path / "model.bin"
+    model_file.write_bytes(header)
+    mock_fasttext = MagicMock()
+    mock_fasttext.load_model.return_value = _make_fasttext_model()
+    with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
+        meta = read_fasttext(model_file)
+    assert ("maxn" in meta.hyperparameters) is maxn_kept
+    assert meta.hyperparameters["minn"] == 3  # the rest is read as before

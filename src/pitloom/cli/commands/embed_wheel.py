@@ -24,6 +24,7 @@ from pitloom._wheel_sbom_location import (
     EmbeddedSbomLocation,
     read_wheel_name_version_from_path,
 )
+from pitloom.assemble import VALIDATED_FORMATS, detect_sbom_format
 from pitloom.cli.commands._embed_wheel_batch import (
     EmbedBatchContext,
     batch_options,
@@ -37,7 +38,7 @@ from pitloom.cli.commands.utils import (
     _print_sbom_output_path,
     cli_error_handler,
 )
-from pitloom.cli.commands.validate_wheel import _validate_location
+from pitloom.cli.commands.validate_wheel import _validate_location, validate_sbom_data
 from pitloom.cli.commands.verify_wheel import _check_location, _check_name_version
 from pitloom.cli.options import (
     add_allow_build_argument,
@@ -48,9 +49,14 @@ from pitloom.cli.options import (
     build_options_from_args,
 )
 from pitloom.cli.options_config import overrides_from_options
-from pitloom.core.build_options import EXTERNAL_SBOM_REASON, NO_PROJECT_DIR_REASON
+from pitloom.core.build_options import (
+    EXTERNAL_SBOM_REASON,
+    NO_PROJECT_DIR_REASON,
+    BuildOptions,
+)
+from pitloom.core.quote_source import quote_source
 from pitloom.embed import EmbedFileCache
-from pitloom.logging_config import print_error
+from pitloom.logging_config import loggable, print_error
 
 log = logging.getLogger(__name__)
 
@@ -108,27 +114,30 @@ def _warn_on_name_version_mismatch(
     )
 
 
-@cli_error_handler("wheel SBOM embedding failed")
-def _run_embed_wheel_command(args: argparse.Namespace) -> int:
-    """Embed an SPDX 3 SBOM into one or more built wheels (PEP 770).
+def _given_sbom_is_valid(args: argparse.Namespace) -> bool:
+    """Whether ``--sbom`` passes ``--validate`` before anything is written
+    (``True`` when either is absent).
 
-    The richer counterpart to ``wheel --embed`` (see :func:`_run_wheel_command`):
-    supports multiple wheels, a project directory (Build-type SBOM), a
-    pre-generated ``--sbom`` file, and a custom ``--sbom-basename``. Both
-    commands converge on :func:`~pitloom.embed.embed_sbom_in_wheel` for
-    the actual archive mutation.
-    """
-    unique_wheels = _collect_wheel_paths(args.wheel_files)
-    if not unique_wheels:
-        return 1
+    An unreadable file or a format with no validator is left to the embed and
+    the post-embed check, which report it."""
+    if not args.validate or args.sbom is None:
+        return True
+    try:
+        data = args.sbom.read_bytes()
+    except OSError:
+        return True
+    if detect_sbom_format(data) not in VALIDATED_FORMATS:
+        return True
+    if validate_sbom_data(data, loggable(args.sbom.name)):
+        return True
+    print_error(f"--sbom {quote_source(args.sbom)} is not valid; no wheel was written")
+    return False
 
-    if len(unique_wheels) > 1 and args.output is not None:
-        print_error("--output cannot be used when embedding multiple wheels")
-        return 1
 
-    # Settle the build flags up front, so an ineffective flag's warning
-    # comes before any metadata warning; the batch's EmbedFileCache then
-    # has nothing left to warn about.
+def _settled_build_options(args: argparse.Namespace) -> BuildOptions:
+    """The build options with the flags that cannot apply settled up front, so
+    an ineffective flag's warning comes before any metadata warning; the
+    batch's EmbedFileCache then has nothing left to warn about."""
     build_options = build_options_from_args(args)
     if args.sbom is not None:
         build_options = build_options.settle_not_applicable(
@@ -150,6 +159,28 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
                 "the wheel alone (the project in the current directory is "
                 "not used)"
             )
+    return build_options
+
+
+@cli_error_handler("wheel SBOM embedding failed")
+def _run_embed_wheel_command(args: argparse.Namespace) -> int:
+    """Embed an SPDX 3 SBOM into one or more built wheels (PEP 770).
+
+    The richer counterpart to ``wheel --embed`` (see :func:`_run_wheel_command`):
+    supports multiple wheels, a project directory (Build-type SBOM), a
+    pre-generated ``--sbom`` file, and a custom ``--sbom-basename``. Both
+    commands converge on :func:`~pitloom.embed.embed_sbom_in_wheel` for
+    the actual archive mutation.
+    """
+    unique_wheels = _collect_wheel_paths(args.wheel_files)
+    if not unique_wheels:
+        return 1
+
+    if len(unique_wheels) > 1 and args.output is not None:
+        print_error("--output cannot be used when embedding multiple wheels")
+        return 1
+
+    build_options = _settled_build_options(args)
 
     # An --sbom is embedded as is: --project-dir is not even checked (the
     # batch settle warns that it has no effect).
@@ -163,6 +194,8 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
     if resolved is None:
         return 1
     project_dir, project_config = resolved
+    if not _given_sbom_is_valid(args):
+        return 1
     options, pitloom_config = batch_options(args, project_dir, project_config)
     overrides = overrides_from_options(options, build_options)
     all_ok = True
@@ -266,7 +299,8 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help=(
             "After embedding, also run 'validate-wheel' against the result "
-            "(schema/SHACL content validation)."
+            "(schema/SHACL content validation). With --sbom, the file is "
+            "validated first and no wheel is written when it is invalid."
         ),
     )
     add_offline_argument(embed_parser, " during SBOM generation.")

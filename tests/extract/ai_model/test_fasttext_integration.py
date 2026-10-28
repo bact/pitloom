@@ -57,12 +57,12 @@ def test_sentiment_demo_hyperparameters(
     sentiment_demo_metadata: AiModelMetadata,
 ) -> None:
     hp = sentiment_demo_metadata.hyperparameters
+    # not stored in the file: a loaded model reports the defaults
+    assert "lr" not in hp and "minCountLabel" not in hp
     assert hp["dim"] == 21
-    assert hp["lr"] == pytest.approx(0.05)
     assert hp["epoch"] == 100
     assert hp["wordNgrams"] == 4
     assert hp["minCount"] == 1
-    assert hp["minCountLabel"] == 0
     assert hp["minn"] == 3
     assert hp["maxn"] == 6
     assert hp["neg"] == 5
@@ -135,11 +135,9 @@ def test_lid_176_type_of_model(lid_176_metadata: AiModelMetadata) -> None:
 def test_lid_176_hyperparameters(lid_176_metadata: AiModelMetadata) -> None:
     hp = lid_176_metadata.hyperparameters
     assert hp["dim"] == 16
-    assert hp["lr"] == pytest.approx(0.05)
     assert hp["epoch"] == 5
     assert hp["wordNgrams"] == 1
     assert hp["minCount"] == 1000
-    assert hp["minCountLabel"] == 0
     assert hp["minn"] == 2
     assert hp["maxn"] == 4
     assert hp["neg"] == 5

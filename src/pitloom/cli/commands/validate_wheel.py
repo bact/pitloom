@@ -55,14 +55,25 @@ def _validate_location(
         )
         return None
 
+    return validate_sbom_data(location.data, f"{wheel_path.name}/{location.arcname}")
+
+
+def validate_sbom_data(data: bytes, shown: str) -> bool:
+    """Validate SPDX 3 JSON *data* (schema and SHACL), naming it *shown* in
+    the messages. Prints one ``ERROR:`` line per finding; ``True`` when valid."""
     # delete=False + manual cleanup: on Windows, spdx3_validate can't reopen
     # the file by path while our own handle still holds it open (see
     # _rewrite_wheel_archive in _embed_wheel.py for the same pattern).
     with tempfile.NamedTemporaryFile(suffix=".spdx3.json", delete=False) as tmp:
-        tmp.write(location.data)
+        tmp.write(data)
         tmp_path = tmp.name
     try:
-        return _validate_spdx3_documents([tmp_path], check_merged=False) == 0
+        return (
+            _validate_spdx3_documents(
+                [tmp_path], check_merged=False, names={tmp_path: loggable(shown)}
+            )
+            == 0
+        )
     finally:
         os.unlink(tmp_path)
 

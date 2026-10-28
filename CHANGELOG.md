@@ -213,6 +213,13 @@ and this project adheres to
   differing `ai_hyperparameter`/`ai_metric` value warns ([#357])
 - `pipdeptree` 4.2.10 is excluded: it has no macOS arm64 wheel and fails to
   build there ([#358])
+- fastText: `lr`, `minCountLabel` and, for a file older than version 12, `maxn`
+  are not recorded; the file does not store them ([#361])
+- `loom model` says a rewritten Hub URL with an `INFO:` line, as the other
+  routes do ([#361])
+- `validate-wheel` and `embed-wheel --validate` name the wheel's SBOM, not a
+  temporary file, and print findings in a fixed order; `embed-wheel --sbom
+  FILE --validate` refuses an invalid file before writing ([#361])
 
 [#300]: https://github.com/bact/pitloom/pull/300
 [#305]: https://github.com/bact/pitloom/pull/305
@@ -254,6 +261,7 @@ and this project adheres to
 [#357]: https://github.com/bact/pitloom/pull/357
 [#358]: https://github.com/bact/pitloom/pull/358
 [#359]: https://github.com/bact/pitloom/pull/359
+[#361]: https://github.com/bact/pitloom/pull/361
 
 ## [0.20.2] - 2026-10-09
 

@@ -91,7 +91,8 @@ Other flags:
   wheel (ambiguous). Each wheel is always modified in place.
 - `--verify`/`--validate` run the checks below on the wheel just embedded. A
   failure is reported and sets the exit code, but the embed is not rolled
-  back.
+  back. With `--sbom FILE --validate`, the file is validated first: an invalid
+  one is refused (`ERROR:`, exit 1) and the wheel is not written.
 
 ```bash
 loom embed-wheel dist/*.whl --project-dir . --verify --validate

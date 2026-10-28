@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+import struct
 from pathlib import Path
 from typing import Any
 
@@ -36,20 +37,40 @@ _LIMITS = Limits()
 # The Python fasttext package exposes training configuration via the C++
 # binding at model.f.getArgs(), not via individual get_*() methods on the
 # model object.  model.get_dimension() is the only training param available
-# directly on the model; it mirrors args.dim.
+# directly on the model; it mirrors args.dim.  `lr` and `minCountLabel` are
+# not in the .bin file: after loading, getArgs() holds their defaults (0.05,
+# 0), not the training values, so they are not read.
 _FASTTEXT_ARGS_HYPERPARAMS: tuple[tuple[str, str], ...] = (
     ("dim", "dim"),
-    ("lr", "lr"),
     ("epoch", "epoch"),
     ("wordNgrams", "wordNgrams"),
     ("minCount", "minCount"),
-    ("minCountLabel", "minCountLabel"),
     ("minn", "minn"),
     ("maxn", "maxn"),
     ("neg", "neg"),
     ("bucket", "bucket"),
     ("ws", "ws"),
 )
+
+
+_FASTTEXT_MAGIC = 793712314
+#: From this file version on, ``maxn`` is read from the file; the loader resets
+#: it for version 11 (fastText ``src/fasttext.cc``), so it is a default there.
+_FASTTEXT_MAXN_STORED_FROM = 12
+
+
+def _file_version(model_path: Path) -> int | None:
+    """The fastText file version (the second int32 of the header), or
+    ``None`` when the header cannot be read or has no fastText magic."""
+    try:
+        with model_path.open("rb") as handle:
+            header = handle.read(8)
+    except OSError:
+        return None
+    if len(header) < 8:
+        return None
+    magic, version = struct.unpack("<ii", header)
+    return version if magic == _FASTTEXT_MAGIC else None
 
 
 def _load_fasttext_model(model_path: Path) -> Any:
@@ -147,8 +168,10 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
     model only: an unsupervised model's ``get_labels()`` is its word
     vocabulary.
 
-    Extracted hyperparameters: dim, lr, epoch, wordNgrams, minCount,
-    minCountLabel, minn, maxn, neg, bucket, ws (window size).
+    Extracted hyperparameters: dim, epoch, wordNgrams, minCount, minn, maxn,
+    neg, bucket, ws (window size).  ``lr`` and ``minCountLabel`` are not
+    stored in the file, so they are not read; ``maxn`` is not read from a file
+    older than version 12 (the loader resets it).
 
     Args:
         model_path: Path to a ``.bin`` or ``.ftz`` fastText model file.
@@ -165,6 +188,9 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
     provenance: dict[str, str] = {}
     hyperparameters, args_properties, type_of_model = _extract_fasttext_args(model)
+    version = _file_version(model_path)
+    if version is not None and version < _FASTTEXT_MAXN_STORED_FROM:
+        hyperparameters.pop("maxn", None)
     # Only a supervised model is a classifier with labels: on a cbow or
     # skipgram model get_labels() returns the word vocabulary (training
     # text), so it is never called there.

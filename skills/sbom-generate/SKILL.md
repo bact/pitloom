@@ -277,7 +277,7 @@ loom embed-wheel dist/*.whl --project-dir . --verify --validate
 ```
 
 A pass adds no line; a failure prints `ERROR:` lines and exits 1, after the
-wheel was rewritten (the SBOM is embedded either way).
+wheel was rewritten; an invalid `--sbom FILE` is refused first, wheel untouched.
 
 For checking an already-embedded wheel later, use the `sbom-validate`
 skill ("Validate a wheel's embedded SBOM").
