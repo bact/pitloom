@@ -146,17 +146,23 @@ def sanitize_url(url: str) -> str:
 CHECKOUT_DIR_PREFIX = "pitloom-git-"
 #: What a message shows for that directory, so two runs read the same.
 CHECKOUT_PLACEHOLDER = "<checkout>"
-_CHECKOUT_DIR = re.compile(re.escape(CHECKOUT_DIR_PREFIX) + r"\w+")
-#: Characters that end a path in a message, where it is quoted or bracketed.
-_PATH_ENDS = frozenset("'\"()[]<>")
+#: ``tempfile.mkdtemp`` appends eight characters of ``[a-z0-9_]``: a directory
+#: of another name (a worktree called ``pitloom-git-fix``) is not the checkout.
+_CHECKOUT_DIR = re.compile(
+    re.escape(CHECKOUT_DIR_PREFIX) + r"[a-z0-9_]{8}(?![a-z0-9_])"
+)
+#: Characters that end a path in a message: where it is quoted, bracketed, or
+#: follows ``KEY=``.
+_PATH_ENDS = frozenset("'\"()[]<>=,;")
 
 
 def mask_checkout(text: str) -> str:
     """*text* with the temporary checkout of a Git URL written as
-    ``<checkout>``: the directory (``pitloom-git-`` and its random suffix) and
-    the path before it up to a space, quote or bracket. A path below it keeps
-    its tail (``<checkout>/setup.cfg``). One pass; text without the prefix is
-    returned as it is."""
+    ``<checkout>``: the directory (``pitloom-git-`` and its eight random
+    characters) and the path before it up to a space, quote, bracket or ``=``.
+    A path below it keeps its tail (``<checkout>/setup.cfg``). A URL that
+    holds the prefix (``https://host/o/pitloom-git-abcdefgh``) is not a path
+    and is kept. One pass; text without the prefix is returned as it is."""
     if CHECKOUT_DIR_PREFIX not in text:
         return text
     parts: list[str] = []
@@ -167,6 +173,8 @@ def mask_checkout(text: str) -> str:
             text[start - 1].isspace() or text[start - 1] in _PATH_ENDS
         ):
             start -= 1
+        if "://" in text[start : found.start()]:
+            continue
         parts += [text[end:start], CHECKOUT_PLACEHOLDER]
         end = found.end()
     return "".join(parts) + text[end:]
@@ -223,10 +231,10 @@ def loggable(text: str) -> str:
     The one escaping every message interpolating such text goes through.
     Text holding a code point of
     :data:`~pitloom.core.untrusted_text.DISPLAY_CONTROLS` is escaped too,
-    printable or not (U+034F is a printable combining mark). The temporary
-    checkout of a Git URL is written ``<checkout>`` (:func:`mask_checkout`).
+    printable or not (U+034F is a printable combining mark). It does not mask
+    the temporary checkout: ``KEY=VALUE`` data on stdout goes through it and
+    must stay as it is (messages are masked by :func:`escape_controls`).
     """
-    text = mask_checkout(text)
     if text.isprintable() and DISPLAY_CONTROLS.isdisjoint(text):
         return text
     return ascii(text)

@@ -17,6 +17,7 @@ from pathlib import PureWindowsPath
 
 import pytest
 
+from pitloom.cli.kv_output import kv_line
 from pitloom.core.quote_source import quote_source
 from pitloom.logging_config import (
     CHECKOUT_DIR_PREFIX,
@@ -39,12 +40,23 @@ _DIR = f"/tmp/{CHECKOUT_DIR_PREFIX}v6mrrlyz"
         ),
         (f"({_DIR})", "(<checkout>)"),
         (f"{_DIR} and {_DIR}/a", "<checkout> and <checkout>/a"),
-        (f"/var/folders/xy/T/{CHECKOUT_DIR_PREFIX}ab_1/x", "<checkout>/x"),
+        (f"/var/folders/xy/T/{CHECKOUT_DIR_PREFIX}ab_12345/x", "<checkout>/x"),
         (
-            str(PureWindowsPath("C:/Temp") / f"{CHECKOUT_DIR_PREFIX}ab12" / "x.cfg"),
+            str(
+                PureWindowsPath("C:/Temp") / f"{CHECKOUT_DIR_PREFIX}ab12cd34" / "x.cfg"
+            ),
             "<checkout>\\x.cfg",
         ),
         ("/tmp/other/setup.cfg", "/tmp/other/setup.cfg"),
+        # not the checkout: a worktree of that prefix, a user-given URL, a longer name
+        (f"/home/u/{CHECKOUT_DIR_PREFIX}fix/a", f"/home/u/{CHECKOUT_DIR_PREFIX}fix/a"),
+        (
+            f"url https://h/o/{CHECKOUT_DIR_PREFIX}tools.git failed",
+            f"url https://h/o/{CHECKOUT_DIR_PREFIX}tools.git failed",
+        ),
+        (f"{_DIR}x/a", f"{_DIR}x/a"),
+        # text glued to the path stays
+        (f"PATH={_DIR}/a,{_DIR}/b", "PATH=<checkout>/a,<checkout>/b"),
         (f"{CHECKOUT_DIR_PREFIX} alone", f"{CHECKOUT_DIR_PREFIX} alone"),
         ("", ""),
     ],
@@ -56,6 +68,10 @@ _DIR = f"/tmp/{CHECKOUT_DIR_PREFIX}v6mrrlyz"
         "macos",
         "windows",
         "other-path",
+        "worktree-name",
+        "url",
+        "longer-name",
+        "glued",
         "prefix-alone",
         "empty",
     ],
@@ -65,11 +81,14 @@ def test_the_checkout_is_masked_and_nothing_else(text: str, expected: str) -> No
     assert mask_checkout(mask_checkout(text)) == expected
 
 
-def test_every_text_a_message_goes_through_masks_it() -> None:
+def test_a_message_is_masked_and_data_is_not() -> None:
     path = f"{_DIR}/setup.cfg"
     assert quote_source(path) == "'<checkout>/setup.cfg'"
-    assert loggable(path) == "<checkout>/setup.cfg"
     assert escape_controls(f"in {path}\n") == "in <checkout>/setup.cfg\\n"
+    # stdout KEY=VALUE data (the Action reads PITLOOM_SBOM_OUTPUT_PATH) is not a
+    # message: a real path that holds the prefix is printed as it is.
+    assert loggable(path) == path
+    assert kv_line(PITLOOM_SBOM_OUTPUT_PATH=path) == f"PITLOOM_SBOM_OUTPUT_PATH={path}"
 
 
 def test_a_stderr_line_names_no_temporary_directory(

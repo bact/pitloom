@@ -269,9 +269,12 @@ From the combined review of #352 to #357. Open:
 
 - [x] **A Git URL's messages name the random temporary checkout (S).**
   Fixed in the next release: `logging_config.mask_checkout`, called by
-  `escape_controls` and `loggable` (so by `quote_source`, the formatter and
+  `escape_controls` (so by `quote_source`, the stderr formatter and
   `print_error`), writes it `<checkout>` in every message; a path below it
-  keeps its tail (`<checkout>/setup.cfg`), a local directory keeps its path.
+  keeps its tail (`<checkout>/setup.cfg`). Only a directory of `tempfile`'s
+  form (`pitloom-git-` and eight characters of `[a-z0-9_]`) is masked, never a
+  URL, and never stdout `KEY=VALUE` data (the Action reads
+  `PITLOOM_SBOM_OUTPUT_PATH`); a local directory keeps its path.
   Known limit: a Windows path with a space before the temporary directory
   (`C:\Users\Jane Doe\...`) keeps the part before the space. Was:
   `Could not parse setup.cfg: '/tmp/pitloom-git-v6mrrlyz/setup.cfg' [metadata]
