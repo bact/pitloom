@@ -419,8 +419,7 @@ def discover(
         log.warning(
             "%s: setuptools could not auto-discover packages unambiguously "
             "(%s) -- specify `packages`/`py_modules` explicitly in "
-            "pyproject.toml or setup.cfg; falling back to Hatchling-based "
-            "heuristic",
+            "pyproject.toml or setup.cfg",
             quote_source(project_dir),
             one_line(exc),
         )

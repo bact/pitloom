@@ -30,7 +30,7 @@ _PYPROJECT = (
     '[project]\nname = "demo"\nversion = "1.0.0"\nlicense = "Apache-2.0"\n'
     '[build-system]\nrequires = ["hatchling"]\nbuild-backend = "hatchling.build"\n'
 )
-_INFO = "licenseid database not found -- license text detection skipped"
+_INFO = "licenseid database not found: "
 
 
 def _library(project: Path) -> None:

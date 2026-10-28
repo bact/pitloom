@@ -446,7 +446,10 @@ def test_a_failed_discovery_is_not_followed_by_a_no_config_warning(
     )
 
     def _fails(
-        project_dir: Path, *, pyproject_data: dict[str, object] | None = None
+        project_dir: Path,
+        *,
+        # pylint: disable-next=unused-argument
+        pyproject_data: dict[str, object] | None = None,
     ) -> None:
         warn_discovery_failed(
             logging.getLogger(__name__), "Setuptools", project_dir, ValueError("%")
