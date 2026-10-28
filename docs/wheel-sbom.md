@@ -59,7 +59,12 @@ best-effort CI). A Pitloom-generated SBOM (no `--sbom`) is never checked: it
 is built from the same metadata. An external SBOM is embedded verbatim, byte
 for byte (line endings included; `-o` writes the same bytes), and may list
 `.dist-info` files. It must be UTF-8: other bytes are an `ERROR:`, and a
-UTF-8 byte order mark is dropped with a `WARNING:` (RFC 8259 section 8.1).
+UTF-8 byte order mark is dropped with a `WARNING:` (RFC 8259 section 8.1). A
+file that is not valid JSON (an empty one included), not a JSON object, or
+named `.spdx3.json` but not SPDX 3 JSON-LD (a CycloneDX file, say) is an
+`ERROR:` and exit 1, and no wheel is written. A JSON object in another format
+under another name is embedded, with a `WARNING:` that its name and version
+cannot be cross-checked.
 
 Embedding again replaces an earlier SBOM only when Pitloom made it, it is a
 build or analyzed SBOM (`software_sbomType`), and it is of the same name and

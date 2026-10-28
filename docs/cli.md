@@ -216,7 +216,7 @@ flags](#useful-flags) where noted (`embed-wheel` takes both):
 
 | Command | Flag | Meaning |
 | --- | --- | --- |
-| `embed-wheel` | `--sbom FILE` | Embed a pre-generated SBOM instead of generating one |
+| `embed-wheel` | `--sbom FILE` | Embed a pre-generated SBOM instead of generating one; invalid JSON, a non-object or a `.spdx3.json` that is not SPDX 3 is an `ERROR:` |
 | `embed-wheel` | `--sbom-basename NAME` | Name of the embedded file under `.dist-info/sboms/`, without extension |
 | `embed-wheel` | `--allow-mismatch` | With `--sbom`: embed with a `WARNING:` when its name/version differs from the wheel's |
 | `embed-wheel` | `--verify` / `--validate` | Run `verify-wheel` / `validate-wheel` on the result; with `--sbom`, `--validate` checks the file first |

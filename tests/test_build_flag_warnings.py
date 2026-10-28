@@ -150,7 +150,9 @@ def _argv_flags(options: BuildOptions) -> list[str]:
 def _external_sbom(env: _Env) -> Path:
     path = env.tmp / "external.spdx3.json"
     path.write_text(
-        json.dumps({"@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld"}),
+        json.dumps(
+            {"@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld", "@graph": []}
+        ),
         encoding="utf-8",
     )
     return path

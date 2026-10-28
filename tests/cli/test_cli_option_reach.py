@@ -284,7 +284,7 @@ def _paths(tmp: Path) -> dict[str, str]:
     model = tmp / "model.safetensors"
     shutil.copyfile(SAFETENSORS_FIXTURE, model)
     sbom = tmp / "external.spdx3.json"
-    sbom.write_text("{}", encoding="utf-8")
+    sbom.write_text('{"@context": "x", "@graph": []}', encoding="utf-8")
     config = tmp / "reach-config.toml"
     config.write_text(f'[tool.pitloom]\nsbom-basename = "{_MARKER}"\n', "utf-8")
     # A declared registry must load (a missing/broken one is now an ERROR,
