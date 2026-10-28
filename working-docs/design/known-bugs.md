@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-03
-Last-Modified: 2026-10-27
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -327,3 +327,18 @@ From the 0.21.0 release review. Open:
   `https://hf.co/o/m` logs "read as https://huggingface.co/o/m", then
   `loom model` hands `o/m` to a reader that treats it as a local file:
   `_HF_URL_RE` accepts a one-character name, `_HF_ID_RE` needs two.
+- [ ] **The Hatchling hook finds no licence database in an isolated build
+  environment (S).** Pitloom 0.21.0 reads a declared licence value through
+  `licenseid.resolve()`, which needs a built database. A build in an isolated
+  environment never has one, so every project using the hook sees `WARNING:
+  licenseid database cannot be used: ... -- license text detection and
+  license id reading skipped` and its licence values stay as written
+  (`Apache2` is not read as `Apache-2.0`). A project that declares an SPDX id
+  is not affected. Reported by a reviewer upgrading a project to 0.21.0.
+  Options: (a) `licenseid 0.7.0` makes `resolve()` work with no database from
+  the packaged bundle that the PyPI wheel already ships (design:
+  `licenseid` `working-docs/design/expression-resolution.md`, "No database");
+  (b) until then the hook builds a database from the packaged bundle
+  (`licenseid update --source packaged`, offline) into a location of its own,
+  not the user's cache, or keeps the single warning and says why. Today the
+  same value gives different SBOM bytes with and without a database.
