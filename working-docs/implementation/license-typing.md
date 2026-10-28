@@ -111,8 +111,10 @@ Details that were decided, not obvious:
   process (`warn_once`; any-case operators). The parser's message quotes the
   input, so it is escaped. A pure comparison passes `warn=False`
   (installed-metadata reconcile), because comparing is not recording.
-- **Unknown id alone** (`Apache2`) is text: silent in a free-text field, one
-  `WARNING:` in a field that holds an SPDX expression only (next section).
+- **Unknown id alone** (`Acme-Terms`) is text: silent in a free-text field, one
+  `WARNING:` in a field that holds an SPDX expression only (next section). A
+  value `licenseid` reads as one licence (`Apache2`, `MIT License`) is its id
+  (#359), among several classifiers too (`license_from_classifiers`).
 
 ## Unknown id in an SPDX-only field
 
@@ -200,11 +202,13 @@ In `pyproject.toml`, classifiers that state no licence lose to any
 `license`, a placeholder too, and are dropped without the PEP 639
 transitional `WARNING:`.
 
-Several licence classifiers are one `LicenseExpression`: the AND of
-`LicenseRef-pitloom-classifier-<name>` terms, sorted by classifier and
-without repeats, so Hatchling sorting them and the source not doing so give
-one value. `customIdToUri` maps each term to the `SimpleLicensingText` of
-its name as written (the element any other use of that text shares). The
+Several licence classifiers are one `LicenseExpression`: the AND of terms,
+sorted by classifier and without repeats, so Hatchling sorting them and the
+source not doing so give one value. A name `licenseid` reads as one id
+(`MIT License`, #359) is that id; any other is a
+`LicenseRef-pitloom-classifier-<name>` term (no `Resolution-1` note: the
+`INFO:` line and the `WARNING:` name them). `customIdToUri` maps each such
+term to the `SimpleLicensingText` of its name as written (the element any other use of that text shares). The
 name is encoded reversibly as an idstring (letters and digits kept, a space
 `-`, any other byte `.XX`), so the builder recovers the names from the
 expression alone, identically for a dependency's installed copy and its
@@ -304,13 +308,12 @@ model's package), and a model card's licence enrichment records
 A library caller's `ProjectMetadata(license_concluded=...)` with no
 `license_name` is always `hasConcludedLicense`: the caller named the slot.
 
-## Known deviation: licence names stay text
+## Known deviation: names `licenseid` cannot pin stay text
 
-A licence name or a listed licence's full text (`MIT License`,
-`Apache 2.0`, a classifier's `BSD License`) is recorded as
-`SimpleLicensingText`, though the spec reserves it for a licence not on the
-SPDX List. Mapping names and texts to list ids precisely needs a newer
-`licenseid` and is deferred (user, 2026-10-04); not in #276.
+A licence name that names several licences or none (a classifier's
+`BSD License`) is recorded as `SimpleLicensingText`, though the spec reserves
+it for a licence not on the SPDX List. A name `licenseid` reads as one id
+(`MIT License`, `Apache 2.0`) is that id since #359.
 
 ## Dependency cascade: NoAssertion is weak
 

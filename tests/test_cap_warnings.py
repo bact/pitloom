@@ -125,6 +125,7 @@ _ALLOWED = {
     "extract/_file_headers.py:_HEADER_SCAN_MAX_LINES": "headers lead a file",
     "extract/_interrupt_hold.py:HOLD_LIMIT": _NOT_INPUT,
     "extract/_license.py:_MAX_LICENSE_ID_CHARS": _HEURISTIC,
+    "extract/_license.py:_MAX_RESOLUTIONS": "a cache size: answers are asked again",
     "extract/_license.py:_SCORE_CAP": _NOT_INPUT,
     "extract/_license_classify.py:_MAX_EXPRESSION_LENGTH": _HEURISTIC,
     "extract/ai_model/safetensors.py:SAFETENSORS_FORMAT_MAX_HEADER_BYTES": _HEURISTIC,

@@ -314,12 +314,25 @@ def warn_once(
     reuse a key. *extra* is set on the record, as :meth:`logging.Logger.log`
     sets it.
     """
+    log_once(log, logging.WARNING, key, msg, *args, extra=extra)
+
+
+def log_once(
+    log: logging.Logger,
+    level: int,
+    key: str,
+    msg: str,
+    *args: object,
+    extra: Mapping[str, object] | None = None,
+) -> None:
+    """Log *msg* at *level* the first time *key* fires on *log* in this
+    process, at DEBUG on every later occurrence (see :func:`warn_once`, which
+    shares the keys: a value said once at one level is not said at another)."""
     dedup_key = (log.name, key)
     with _CONFIG_LOCK:
         first_occurrence = dedup_key not in _WARNED_ONCE
         _WARNED_ONCE.add(dedup_key)
-    level = logging.WARNING if first_occurrence else logging.DEBUG
-    log.log(level, msg, *args, extra=extra)
+    log.log(level if first_occurrence else logging.DEBUG, msg, *args, extra=extra)
 
 
 @dataclass(frozen=True)

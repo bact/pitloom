@@ -284,6 +284,30 @@ From the combined review of #352 to #357. Open:
   Hatchling itself reads the value first and ends with its own `ValueError:
   Exceeds the limit (4300 digits)` traceback before the hook runs. Not
   Pitloom's to catch; noted so the difference between the surfaces is known.
+- [ ] **`licenseid` 0.6.0 gives Pitloom no operands (S).** `resolve()`
+  answers for a whole value, so a compound with one respelt part (`Apache2 OR
+  MIT`) is `expression` with no expression and stays text; the design asked
+  for per-operand results (`Resolution-n`, `Expansion-n`). Decision Q5 (the
+  licence list version into `simplelicensing_licenseListVersion`) is not built:
+  the version is in `Resolution["lists"][0]["version"]` but not yet used. The
+  verbatim value and the reading's method have no SPDX property either: FG-6
+  and FG-7 in [sbom-format-gaps.md](sbom-format-gaps.md).
+- [ ] **A shared licence element keeps the first source's provenance (S).** A
+  `MIT License` classifier and a file tagged `MIT` are one `LicenseExpression`;
+  its notes (`Method: licenseid_resolution`) describe the first source only and
+  the second source's annotation is not written. First-wins is old; the
+  resolver merges more values, so it shows more often. Found in the #359
+  review.
+- [ ] **Two spellings of one deprecated id give two expressions (S).**
+  `StandardML NJ` is read as `SMLNJ` (`licenseid` renames), while the listed
+  `StandardML-NJ` parses locally and stays as written, so one licence has two
+  records. Fixed by letting `resolve()` answer for the whole value (Q7); see
+  `licenseid`'s expression-resolution design. Found in the #359 review.
+- [ ] **The resolver's reading depends on the database (S).** A comparison
+  (`values_agree`, the fragment-merge key of `_license_elements`) treats
+  `Apache2` and `Apache-2.0` as one licence with the `licenseid` database and
+  as two without it, so whether a conflict is recorded differs. Provenance of
+  a value Pitloom parses itself does not (#359).
 - [x] **`_merge_dictionary_entries` dropped a differing value without a warning
   (S, found outside the set).** Fixed in #357: two fragments giving one
   `ai_hyperparameter` or `ai_metric` key different values keep the first and

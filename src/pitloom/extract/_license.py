@@ -21,15 +21,19 @@ See Also:
 
 from __future__ import annotations
 
+import copy
 import functools
 import logging
+import os
 import re
+import threading
 from collections.abc import Mapping, Sequence
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
-from licenseid import AggregatedLicenseMatcher, DatabaseNotReadyError
+from licenseid import AggregatedLicenseMatcher, DatabaseNotReadyError, resolve
+from licenseid.resolvertypes import Resolution
 from licenseid.types import LicenseMatch
 
 from pitloom.core.project import ProjectMetadata
@@ -83,6 +87,7 @@ __all__ = [
     "apply_in_package_license_files",
     "canonicalize_license_id",
     "classify_license",
+    "clear_resolution_cache",
     "collect_license_candidates",
     "detect_independent_license",
     "detect_license_for_project",
@@ -93,6 +98,7 @@ __all__ = [
     "is_weak_licence",
     "license_from_candidates",
     "same_licence",
+    "resolve_declared_value",
     "resolve_license_concluded",
     "stated_license",
     "tag_deprecated_license_ids",
@@ -118,10 +124,12 @@ def _database_unusable(exc: BaseException) -> None:
     """Warn once per process that the database cannot be used, and drop the
     cached matcher, so the next lookup builds (and checks) it again."""
     _get_matcher.cache_clear()
+    clear_resolution_cache()
     warn_once(
         _logger,
         "licenseid database",
-        "licenseid database cannot be used: %s -- license text detection skipped",
+        "licenseid database cannot be used: %s -- license text detection and "
+        "license id reading skipped",
         one_line(exc),
     )
 
@@ -136,6 +144,68 @@ def _matcher() -> AggregatedLicenseMatcher | None:
     except Exception as exc:
         _database_unusable(exc)
         return None
+
+
+#: ``licenseid``'s answers by value, so a value asked about by several callers
+#: costs one lookup. Kept for the process (as the shared matcher is) while the
+#: database file is unchanged (:data:`_RESOLUTIONS_STAMP`); dropped when the
+#: database is found unusable and by :func:`clear_resolution_cache`.
+_RESOLUTIONS: dict[str, Resolution] = {}
+_RESOLUTIONS_STAMP: tuple[int, int, int] | None = None
+_RESOLUTIONS_LOCK = threading.Lock()
+_MAX_RESOLUTIONS = 4096
+
+
+def clear_resolution_cache() -> None:
+    """Forget the answers of :func:`resolve_declared_value`."""
+    with _RESOLUTIONS_LOCK:
+        _RESOLUTIONS.clear()
+
+
+def _database_stamp(path: Path) -> tuple[int, int, int] | None:
+    """``(mtime, size, inode)`` of the database file at *path*; ``None`` when
+    it is not a file (an in-memory database)."""
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return None
+    return stat.st_mtime_ns, stat.st_size, stat.st_ino
+
+
+def resolve_declared_value(value: str) -> Resolution | None:
+    """``licenseid``'s reading of the declared licence *value*
+    (:func:`licenseid.resolve`) on the shared database, or ``None`` when the
+    database cannot be used (warned once per process, as :func:`_matcher`
+    does) or the resolver fails; a failure is not cached. The answers are
+    dropped when the database file changes (``licenseid update`` in this
+    process or another), and each caller gets its own copy."""
+    # pylint: disable-next=global-statement
+    global _RESOLUTIONS_STAMP
+    matcher = _matcher()
+    if matcher is None:
+        return None
+    try:
+        stamp = _database_stamp(matcher.db.db_path)
+        with _RESOLUTIONS_LOCK:
+            if stamp != _RESOLUTIONS_STAMP:
+                _RESOLUTIONS.clear()
+                _RESOLUTIONS_STAMP = stamp
+            cached = _RESOLUTIONS.get(value)
+        if cached is None:
+            cached = resolve(value, matcher.db)
+            with _RESOLUTIONS_LOCK:
+                if stamp == _RESOLUTIONS_STAMP:
+                    if len(_RESOLUTIONS) >= _MAX_RESOLUTIONS:
+                        _RESOLUTIONS.clear()
+                    _RESOLUTIONS[value] = cached
+    except DatabaseNotReadyError as exc:
+        _database_unusable(exc)
+        return None
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:
+        _logger.debug("Failed to resolve license value %r: %s", value, exc)
+        return None
+    return copy.deepcopy(cached)
 
 
 def _looks_like_spdx_license_expression(value: str) -> bool:

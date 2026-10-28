@@ -45,10 +45,7 @@ _MIT = "License :: OSI Approved :: MIT License"
 _CATEGORY = "License :: OSI Approved"
 _PUBLIC_DOMAIN = "License :: Public Domain"
 #: Several classifiers, in any order: the AND of their names, sorted.
-_BOTH = (
-    "LicenseRef-pitloom-classifier-BSD-License"
-    " AND LicenseRef-pitloom-classifier-MIT-License"
-)
+_BOTH = "LicenseRef-pitloom-classifier-BSD-License AND MIT"
 _HEAD = "Metadata-Version: 2.4\nName: demo\nVersion: 1.0.0\n"
 
 
@@ -176,9 +173,7 @@ _READERS: dict[str, Callable[[str | None, list[str], Path], ProjectMetadata]] = 
         # a stated licence wins: the classifiers are not recorded, no WARNING
         pytest.param("MIT", [_MIT, _BSD, _MIT], "MIT", id="license-and-several"),
         # a trove parent is a category: the licence is its child alone
-        pytest.param(
-            None, ["License :: OSI Approved", _MIT], "MIT License", id="trove-parent"
-        ),
+        pytest.param(None, ["License :: OSI Approved", _MIT], "MIT", id="trove-parent"),
         # a category alone is no classifier at all; another alone is kept
         pytest.param(None, [_CATEGORY], None, id="lone-category"),
         pytest.param("UNKNOWN", [_CATEGORY], "NOASSERTION", id="weak-and-category"),
@@ -222,17 +217,19 @@ def test_main_package_classifier_is_the_same_on_every_surface(
     from_classifier = metadata.provenance.get("license", "").endswith(
         ("Field: Classifier", "classifiers", "setup(classifiers=...)")
     )
+    # The classifier is used when no licence is stated (or a placeholder) and
+    # something is recorded; its name is read as the SPDX id it names (MIT).
     assert from_classifier is (
-        expected in ("BSD License", "MIT License", "Public Domain", _BOTH)
+        license_name in (None, "UNKNOWN") and expected not in (None, "NOASSERTION")
     )
 
 
 @pytest.mark.parametrize(
     ("text", "kept"),
     [
-        ("MIT License\n", "MIT License"),  # final line breaks dropped
-        ("MIT License\r\n\r\n", "MIT License"),  # all of them
-        ("MIT License\r", "MIT License"),
+        ("Custom Terms\n", "Custom Terms"),  # final line breaks dropped
+        ("Custom Terms\r\n\r\n", "Custom Terms"),  # all of them
+        ("Custom Terms\r", "Custom Terms"),
         ("a\n\nb\n\n", "a\n\nb"),  # inner ones kept
         ("  indented\n\ttext \n", "indented\n\ttext "),  # the rest verbatim
         ("\n\n\tText\n  more", "Text\n  more"),  # leading blank space dropped

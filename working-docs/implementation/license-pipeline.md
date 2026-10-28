@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-10-24
+Last-Modified: 2026-10-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -242,6 +242,24 @@ The database is stored at
 `~/.local/share/licenseid/licenses.db`. Detection uses cosine similarity
 against vectorised licence texts with a default threshold of 0.85.
 
+**Declared values: `resolve()`** (`licenseid` 0.6.0 or later). After the
+strict parse and the `+`/`AdditionRef-` gap reading fail, `_classify()` asks
+`licenseid.resolve()` (`_license_resolve.py`, the database through
+`_license.resolve_declared_value()`) about a single-line value in any field.
+An answer with an expression and one of the categories `exact`, `lexical`,
+`listed_name`, `deprecated_equal_successor`, `plus_to_or_later`,
+`stated_qualifier`, `separator`, `version_spelling` is checked again by the
+strict parse and recorded as an expression. A bare deprecated id
+(`assumed_only`), a split one (`deprecated_ambiguous`), several licences,
+none and a compound stay as they were. A reading that decided something
+(not case, spacing or `+`) is one `INFO:` per value; provenance adds
+`Method: licenseid_resolution`, `Resolution-1`, `Expansion-1` and `Tool`
+beside `Normalized-From`. A value with a character the reading would drop
+(`Apache 2.0?`, U+FFFD) is not read (`_license_resolve._FOLDABLE`). Answers are
+cached per value while the database file is unchanged. Without the database
+nothing is read and the value stays text (warned once), so, as for text
+detection, the output depends on the database being present.
+
 ## Stage 2: format-neutral model
 
 After extraction, licence data lives in one of two dataclasses:
@@ -398,9 +416,9 @@ file, so the surviving header path is proven untouched.
 - `licenseid` text detection is probabilistic (threshold 0.85). Unusual
   licence texts or heavily modified standard licences may not be
   detected. Always verify the concluded licence in the SBOM.
-- A `License ::` classifier such as `OSI Approved :: MIT License` gives the
-  text `MIT License`, not the SPDX id (a known deviation, see
-  license-typing.md).
+- A `License ::` classifier such as `OSI Approved :: MIT License` is read as
+  `MIT` by `licenseid` (#359), alone or among several classifiers; one naming
+  several licences (`BSD License`) stays text (see license-typing.md).
 - An unknown id in a field that holds an SPDX expression only (PEP 639
   `license`, `License-Expression`, PyPI `license_expression`,
   `SPDX-License-Identifier`, GGUF `general.license`) is text with one

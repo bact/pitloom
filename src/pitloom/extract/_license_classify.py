@@ -27,6 +27,11 @@ from py_spdx_license import get_exception as get_spdx_exception
 from py_spdx_license import get_license as get_spdx_license
 from py_spdx_license import parse as parse_spdx_expression
 
+from pitloom.extract._license_resolve import (
+    resolution_notes,
+    resolve_value,
+    say_resolved,
+)
 from pitloom.logging_config import excerpt, warn_once
 
 _logger = logging.getLogger(__name__)
@@ -293,7 +298,9 @@ def classify_license(raw: str | None, *, warn: bool = True) -> ClassifiedLicense
     (``LGPL-2.0+`` -> ``LGPL-2.0-or-later``; see :data:`_DEPRECATED_SUCCESSORS`).
     One that is valid SPDX but outside the parser's grammar (``Apache-2.0+``,
     ``WITH AdditionRef-...``) is kept as written, ids in their listed case
-    and operators upper-cased. Anything else is text, stripped, its lines of
+    and operators upper-cased. A single-line value ``licenseid`` reads as one
+    licence (``Apache2``, ``MIT License``) is that id (:func:`_resolved`).
+    Anything else is text, stripped, its lines of
     blank space emptied (:func:`empty_blank_lines`); text that
     has an operator or parenthesis and a known id, so looks like a broken
     expression, also gets one ``WARNING:`` per value per process, unless
@@ -302,9 +309,13 @@ def classify_license(raw: str | None, *, warn: bool = True) -> ClassifiedLicense
     return _classify(raw, warn)[0]
 
 
-def _classify(raw: str | None, warn: bool) -> tuple[ClassifiedLicense | None, str]:
+def _classify(
+    raw: str | None, warn: bool, field: str | None = None
+) -> tuple[ClassifiedLicense | None, str]:
     """:func:`classify_license` and, for text, why it is not an expression
-    (one line); ``""`` for any other kind."""
+    (one line); ``""`` for any other kind. A value ``licenseid`` reads as one
+    licence is said once (:func:`~pitloom.extract._license_resolve.say_resolved`)
+    when it is recorded: *warn*, or the *field* it was read from is given."""
     if raw and _SURROGATE_RE.search(raw):
         raw = _replace_surrogates(raw, warn)
     stripped = (raw or "").strip()
@@ -322,17 +333,54 @@ def _classify(raw: str | None, warn: bool) -> tuple[ClassifiedLicense | None, st
         )
         text = ClassifiedLicense("text", empty_blank_lines(stripped), raw or "")
         return text, reason
+    return _expression_or_text(stripped, raw or "", warn, field)
+
+
+def _expression_or_text(
+    stripped: str, raw: str, warn: bool, field: str | None
+) -> tuple[ClassifiedLicense, str]:
+    """The reading of the single-line *stripped* value: an expression by the
+    strict parse, the gap reading or ``licenseid`` (in that order), else text
+    with why it is not an expression."""
+    canonical, reason, cased = _parse_locally(stripped)
+    if canonical is None:
+        canonical = _resolved(stripped, warn or field is not None, field)
+    if canonical is not None:
+        return ClassifiedLicense("expression", canonical, raw), ""
+    if warn and _looks_like_expression(cased):
+        warn_once(_logger, stripped, _NOT_AN_EXPRESSION_MESSAGE, stripped, reason)
+    return ClassifiedLicense("text", stripped, raw), reason
+
+
+def _parse_locally(stripped: str) -> tuple[str | None, str, str]:
+    """``(canonical, reason, cased)`` for the single-line *stripped* value
+    read without ``licenseid``: the strict parse, then the gap reading.
+    *canonical* is ``None`` when neither reads it, with the strict parse's
+    *reason*; *cased* is the text they read (operators upper-cased, deprecated
+    ``+`` ids replaced)."""
     cased = _SPDX_OPERATOR_CASING_RE.sub(lambda m: m.group(1).upper(), stripped)
     cased = with_successor_ids(cased)
     canonical, reason = _strict_parse(cased)
-    if canonical is not None:
-        return ClassifiedLicense("expression", canonical, raw or ""), ""
-    gap = _gap_expression(cased)
-    if gap is not None:
-        return ClassifiedLicense("expression", gap, raw or ""), ""
-    if warn and _looks_like_expression(cased):
-        warn_once(_logger, stripped, _NOT_AN_EXPRESSION_MESSAGE, stripped, reason)
-    return ClassifiedLicense("text", stripped, raw or ""), reason
+    if canonical is None:
+        canonical = _gap_expression(cased)
+    return canonical, reason, cased
+
+
+def _resolved(stripped: str, say: bool, field: str | None) -> str | None:
+    """The canonical expression ``licenseid`` reads in the single-line *stripped*
+    value (``Apache2`` -> ``Apache-2.0``), checked again by the strict parse
+    (or the gap reading), else ``None``."""
+    resolved = resolve_value(stripped)
+    if resolved is None:
+        return None
+    canonical = _strict_parse(resolved.expression)[0] or _gap_expression(
+        resolved.expression
+    )
+    if canonical is None:
+        return None
+    if say:
+        say_resolved(stripped, resolved, field)
+    return canonical
 
 
 def warn_unless_expression(value: str | None, field: str) -> None:
@@ -341,14 +389,14 @@ def warn_unless_expression(value: str | None, field: str) -> None:
     ``project.license``, Core Metadata ``License-Expression``, a file's
     ``SPDX-License-Identifier`` tag, GGUF ``general.license``, a PyPI
     record's ``license_expression``), is not one
-    that Pitloom reads (``Apache2``, ``MIT OR Foo``, a licence text), so is
+    that Pitloom reads (``Acme-Terms``, ``MIT OR Foo``, a licence text), so is
     recorded as licence text. An expression, ``NOASSERTION``/``UNKNOWN``,
     ``NONE`` and a blank value are quiet. A field that may hold free text
     (Core Metadata ``License``, ``project.license.text``) never calls this.
 
     The key is the one :func:`classify_license`'s broken-expression warning
     uses, so a value is said once, by whichever comes first."""
-    classified, reason = _classify(value, False)
+    classified, reason = _classify(value, False, field)
     if classified is None or classified.kind != "text":
         return
     warn_once(
@@ -395,6 +443,9 @@ def tag_license_normalization(
     if raw.strip() == normalized:
         return provenance
     note = f"{provenance} | Normalized-From: {raw.strip()}"
+    # Only a value Pitloom's own parse could not read was read by licenseid.
+    if normalizer and _parse_locally(raw.strip())[0] is None:
+        note += resolution_notes(raw, normalized)
     if not normalizer or _PY_SPDX_LICENSE_VERSION is None:
         return note
     return f"{note} | Normalizer: py-spdx-license=={_PY_SPDX_LICENSE_VERSION}"

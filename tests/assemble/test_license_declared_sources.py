@@ -173,7 +173,7 @@ _LICENSE_TEXT = "MIT License\n\nPermission is hereby granted" + "." * 200
                 "LICENSE": _LICENSE_TEXT,
                 "project": 'classifiers = ["License :: OSI Approved :: MIT License"]',
             },
-            [("hasConcludedLicense", "MIT"), ("hasDeclaredLicense", "MIT License")],
+            [("hasConcludedLicense", "MIT"), ("hasDeclaredLicense", "MIT")],
             id="classifier-names-the-file",
         ),
     ],
@@ -202,9 +202,9 @@ def test_an_in_package_source_is_declared_when_the_manifest_states_nothing(
         graph = _read(surface, tmp_path)
     assert sorted(_relationships(graph, "demo")) == expected
     conflicts = [e for e in graph if "conflict" in e.get("statement", "")]
-    # Two relationships disagree unless one is the other's SPDX List name.
-    named = sorted(value for _, value in expected) == ["MIT", "MIT License"]
-    assert len(conflicts) == int(len(expected) == 2 and not named)
+    # Two relationships disagree unless both name one licence.
+    same = len({value for _, value in expected}) == 1
+    assert len(conflicts) == int(len(expected) == 2 and not same)
 
 
 def _read(surface: str, root: Path) -> list[dict[str, Any]]:

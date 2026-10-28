@@ -74,7 +74,8 @@ def test_classifiers_are_split_as_setuptools_splits_them(
     expected = license_or_classifier(None, listed["classifiers"])[0]
     assert expected == "MIT License"
     assert read_setup_cfg(tmp_path)[0].license_name == expected
-    assert _loom_project(tmp_path, monkeypatch) == [expected]
+    # The classifier's name is read as the SPDX id it names.
+    assert _loom_project(tmp_path, monkeypatch) == ["MIT"]
 
 
 _CFG_CLASSIFIER = "setup.cfg | Field: metadata.classifiers"

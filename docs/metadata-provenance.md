@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -95,6 +95,7 @@ value, not just where it read it from. Values in use today:
 | --- | --- |
 | `dynamic_extraction` | Read from a Python file at build time (e.g. a `__version__` or `__about__.py` variable), not from `pyproject.toml` directly. |
 | `licenseid_detection` | Licence text matched against a known SPDX licence using the [`licenseid`](https://pypi.org/project/licenseid/) library -- detected, not author-declared. |
+| `licenseid_resolution` | A declared licence value read as one SPDX id by `licenseid` (`Apache2` as `Apache-2.0`) -- the resolver's reading of what the author wrote, not the author's own words; the value as written stays in `Normalized-From`. |
 | `copyright_notice_lines` | The main package's copyright text: the copyright notice lines of the named licence files, as written (see [How the copyright text is found](metadata-provenance-licences.md#how-the-copyright-text-is-found)). |
 | `parsed_author_list` | A dependency's originators, when its author fields name more than one (several address-field entries, several mailboxes in a name field, or a name beside them). |
 | `file_directive` | A `pyproject.toml` dynamic field pointed at a file (`{file = "..."}`); the value was read from that file. |

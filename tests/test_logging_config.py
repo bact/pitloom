@@ -346,3 +346,19 @@ def test_uncaptured_stderr_sees_through_proxies_and_a_missing_stream(
     nothing.write("dropped")
     assert isinstance(nothing, io.StringIO)
     assert nothing is not real
+
+
+def test_warn_once_keys_are_scoped_to_their_logger(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """One key on two loggers is said once at each; the repeat is DEBUG."""
+    first, second = logging.getLogger("a.once"), logging.getLogger("b.once")
+    with caplog.at_level(logging.DEBUG):
+        for log in (first, second, first):
+            logging_config.warn_once(log, "key", "said")
+    levels = [(r.name, r.levelno) for r in caplog.records if r.name.endswith(".once")]
+    assert levels == [
+        ("a.once", logging.WARNING),
+        ("b.once", logging.WARNING),
+        ("a.once", logging.DEBUG),
+    ]

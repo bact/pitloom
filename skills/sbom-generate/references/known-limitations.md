@@ -280,10 +280,10 @@ does not name. It is not a model bound.
 ## Licence detection unavailable
 
 `WARNING: licenseid database cannot be used: <reason> -- license text detection
-skipped` (once per run): the `licenseid` SPDX
+and license id reading skipped` (once per run): the `licenseid` SPDX
 database is missing or empty (`licenseid update` builds it). Licences are then
-taken as written: no `LICENSE` text is matched to an id and no id is
-normalised. Report the line.
+taken as written: no `LICENSE` text is matched to an id and no respelt id
+(`Apache2`) is read as the id it names. Report the line.
 
 ## A licence that looks like a broken expression
 
@@ -297,13 +297,22 @@ WARNING: LICENSE='MIT OR': not a valid SPDX license expression (Unexpected 'OR')
 
 Fix the source value to get a `LicenseExpression`.
 
-A field that holds an SPDX expression only (`project.license` string,
-`License-Expression`, PyPI `license_expression`, `SPDX-License-Identifier`,
-GGUF `general.license`) whose value is not one (`Apache2`, `MIT OR Foo`) is
-also kept as text, with one line per value naming the field:
+A value `licenseid` reads as one licence (`Apache2`, `MIT License`) is
+recorded as that id (`Apache-2.0`, `MIT`), with one `INFO:` line and the
+value as written in the provenance (`Normalized-From`):
 
 ```text
-WARNING: FIELD=project.license LICENSE='Apache2': not read as an SPDX license expression (Unknown Expression 'Apache2'); recorded as license text
+INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, version_spelling)
+```
+
+A field that holds an SPDX expression only (`project.license` string,
+`License-Expression`, PyPI `license_expression`, `SPDX-License-Identifier`,
+GGUF `general.license`) whose value is not one and `licenseid` reads as none
+(`Acme-Terms`, `MIT OR Foo`, `Apache2 OR MIT`) is kept as text, with one line
+per value naming the field:
+
+```text
+WARNING: FIELD=project.license LICENSE='Acme-Terms': not read as an SPDX license expression (Unknown Expression 'Acme-Terms'); recorded as license text
 ```
 
 Report the line and suggest the listed id (`Apache-2.0`); do not rewrite the

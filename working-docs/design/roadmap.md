@@ -44,7 +44,8 @@ the last were #347 more Git hosts, #349 fragment value replaces generated, #350
 the Spaces note). PR #346 holds the version bump, CHANGELOG, coverage snapshots
 and the release review (CHANGELOG against the code, user docs and skills,
 working-docs and comments). Before the tag: merge #346, tag v0.21.0, publish to
-PyPI. After it: Lumina pins `pitloom==0.21.0` and `licenseid==0.5.0`, then adds
+PyPI. After it: Lumina pins `pitloom==0.21.0` (it takes `licenseid` 0.6.0 through
+Pitloom's floor), then adds
 its non-GitHub examples. See [release-checklist.md](../implementation/release-checklist.md).
 
 Not built in 0.21.0; carried over (decided 2026-10-23):
@@ -340,7 +341,8 @@ unless the linked doc says so.
   See [generic-multi-candidate-fields.md](generic-multi-candidate-fields.md),
   [metadata-quality.md](metadata-quality.md).
 - [ ] **Licence resolution categories** (`Apache2` to `Apache-2.0` via
-  `licenseid` 0.5.1): which changes to trust, log and record. See
+  `licenseid` 0.6.0): partly built in #359; operands, Q4 and Q5 open. Which
+  changes to trust, log and record. See
   [license-resolution-categories.md](license-resolution-categories.md).
 - [ ] **Provenance and enrichment vocabulary** (Method vs Role, source and role
   taxonomy; parked draft; includes renaming the fragment `role` and

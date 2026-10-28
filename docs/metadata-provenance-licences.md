@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-24
+Last-Modified: 2026-10-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -42,9 +42,9 @@ value) -- so none of these are misreported as a conflict.
   in the project is the project's own statement, however it was read.
 - If both exist and **agree**, both `hasDeclaredLicense` and
   `hasConcludedLicense` are recorded, pointing at the same licence. A
-  licence name that is the SPDX License List name of the other value's id
-  (a classifier's `MIT License` and a detected `MIT`) agrees too: two
-  elements, no conflict.
+  licence name `licenseid` reads as the other value's id (a classifier's
+  `MIT License` and a detected `MIT`, both `MIT`) agrees too: one element, no
+  conflict.
 - If both exist and **disagree**, both are still recorded -- pointing at
   two different licences -- and Pitloom adds a `conflict` Annotation
   (`field: "license"`) on the package listing both candidates and where
@@ -101,7 +101,8 @@ came from:
 | Value | Recorded as |
 | --- | --- |
 | A valid SPDX expression (`mit`, `Apache-2.0 OR MIT`) | a `LicenseExpression`, in canonical form (listed id case, operators upper-case, terms sorted) |
-| Anything else (a licence text, `Apache2`) | a `SimpleLicensingText`, as written less its leading blank space and final line breaks |
+| A single-line value [`licenseid`](https://pypi.org/project/licenseid/) reads as one licence (`Apache2`, `MIT License`, `GPLv3+`) | a `LicenseExpression` of the licence it names (`Apache-2.0`), see below |
+| Anything else (a licence text, `Apache2 OR MIT`) | a `SimpleLicensingText`, as written less its leading blank space and final line breaks |
 | `NOASSERTION`, `UNKNOWN` (any case) | no element: the relationship points at the `NoAssertionLicense` individual |
 | `NONE` (any case) | no element: the relationship points at the `NoneLicense` individual |
 | Absent or blank | nothing: no licence relationship at all |
@@ -112,13 +113,32 @@ whether `-only` or `-or-later` was meant is unknown. Text that has an
 operator or parenthesis and a known id, so looks like a broken expression
 (`MIT OR`), is kept as text with one `WARNING:` per value.
 
+A value that is not an SPDX expression is read by `licenseid` (`resolve`),
+in any field. It is accepted when it names exactly one licence: another
+spelling of an id (`Apache2`, `CC BY 4.0`, `GPLv3+`), the licence's List name
+(`MIT License`), a stated qualifier (`GPL 3.0 or later`) or a renamed id. It
+is never a guess: a bare `GPL-3.0` stays as written. A value naming several
+licences (`BSD`) or none stays text. So does a value with a character the
+reading would drop (`Apache 2.0?`), one of several lines, and a compound with
+a part only `licenseid` reads (`Apache2 OR MIT`). A reading that changed more
+than the case, white space, brackets or a `+` is said once per value per run,
+and kept in the provenance:
+
+```text
+INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, version_spelling)
+```
+
+The reading needs the `licenseid` database (`licenseid update`); without it
+the value stays text, as before, and `licenseid database cannot be used`
+is warned once.
+
 Some fields hold an SPDX expression only. A value there that is not one
-Pitloom reads (`Apache2`, `MIT OR Foo`, a licence text) is still recorded as
-text, as written, and gets one `WARNING:` per value per run, naming the
+Pitloom reads (`Acme-Terms`, `MIT OR Foo`, a licence text) is still recorded
+as text, as written, and gets one `WARNING:` per value per run, naming the
 field:
 
 ```text
-WARNING: FIELD=project.license LICENSE='Apache2': not read as an SPDX license expression (Unknown Expression 'Apache2'); recorded as license text
+WARNING: FIELD=project.license LICENSE='Acme-Terms': not read as an SPDX license expression (Unknown Expression 'Acme-Terms'); recorded as license text
 ```
 
 | Field | Read from |
@@ -133,18 +153,22 @@ The value shows on one line, control characters escaped, cut after 120
 characters. A field that may hold free text (`License`,
 `project.license.text`, `[tool.poetry] license`, a Hugging Face card's
 `license`) gets no such warning. Whether an id is known comes from the SPDX
-License List bundled with Pitloom's expression parser, not from the
-`licenseid` database, so a missing database turns no id unknown. Hatchling
+License List bundled with Pitloom's expression parser, so a missing database
+turns no id unknown (it only stops `licenseid` reading a respelt one). Hatchling
 refuses an unknown id in `project.license` itself; the hook warns only for
 an id newer than that bundled list.
 
-Three provenance keys record what changed, in the entry's `license` field:
+These provenance keys record what changed, in the entry's `license` field:
 
 | Key | Meaning |
 | --- | --- |
 | `Normalized-From` | The value as the source wrote it, when recording changed it (`mit`, `UNKNOWN`, `GPL-2.0+`). |
 | `Normalizer` | The `py-spdx-license` version that parsed it; present with `Normalized-From` only when a parse took place (not for `UNKNOWN`/`NONE`). |
 | `Deprecated-License-Id` | A deprecated id kept as written, with the successors it could mean (`GPL-2.0 (GPL-2.0-only or GPL-2.0-or-later)`). |
+| `Method` | `licenseid_resolution` when `licenseid` respelt or renamed the value; absent when only its case, white space, brackets or `+` changed. |
+| `Resolution-1` | The value, what it was read as and the steps: `Apache2 -> Apache-2.0 (separator, version_spelling)`. |
+| `Expansion-1` | A qualifier written out, apart from the respelling: `plus_to_or_later` (`GPLv3+`), `stated_qualifier` (`GPL 3.0 or later`). |
+| `Tool` | The `licenseid` version that read it. |
 
 These notes are kept at the default `detail = "minimal"`. They land on the
 licence element when this source created it. When the element already
@@ -175,8 +199,9 @@ and `setup.cfg` both state a licence, see
 [setuptools projects](cli.md#setuptools-projects-setuppy-and-setupcfg).
 A multi-line licence text in a wheel, an sdist or installed metadata is read
 without the indent the build tool folded it with. Several licence classifiers
-are one `LicenseExpression`, the AND of `LicenseRef-pitloom-classifier-<name>`
-terms sorted by classifier, whose `customIdToUri` maps each term to a
+are one `LicenseExpression`, the AND of terms sorted by classifier: the id for
+a name `licenseid` reads as one licence (`MIT License` is `MIT`), else a
+`LicenseRef-pitloom-classifier-<name>` whose `customIdToUri` target is a
 `SimpleLicensingText` of the name as written; AND is assumed, with one
 `WARNING:`, as they may offer a choice. So a directory, its sdist, its wheel and
 the build hook record the same declared licence, except a licence file or text
