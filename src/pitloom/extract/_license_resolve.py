@@ -18,13 +18,14 @@ See also: :mod:`pitloom.extract._license_classify` (the caller) and
 
 from __future__ import annotations
 
-import importlib
 import logging
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
-from typing import Any
+
+from licenseid.resolvertypes import Step
 
 from pitloom.logging_config import excerpt, log_once, loggable
 
@@ -36,8 +37,9 @@ except PackageNotFoundError:
     _LICENSEID_VERSION = None
 
 #: The categories that give an expression Pitloom records. ``assumed_only``
-#: and ``deprecated_ambiguous`` come back as written (the listed id, never
-#: narrowed); ``expression``, ``malformed`` and ``unresolved`` give none.
+#: and ``deprecated_ambiguous`` name a deprecated id whose ``-only`` or
+#: ``-or-later`` is unknown, so the value stays text (``GPLv3``);
+#: ``expression``, ``malformed`` and ``unresolved`` give none.
 _ACCEPTED = frozenset(
     {
         "exact",
@@ -77,7 +79,7 @@ class DeclaredResolution:
         return self.category not in _FORM_ONLY
 
 
-def _kinds(steps: list[Any]) -> tuple[str, ...]:
+def _kinds(steps: Sequence[Step]) -> tuple[str, ...]:
     """The kinds of the applied *steps*, in order, each once."""
     return tuple(dict.fromkeys(s["kind"] for s in steps if s["applied"]))
 
@@ -87,8 +89,12 @@ def resolve_value(value: str) -> DeclaredResolution | None:
     when ``licenseid`` names no one licence for it (or cannot be asked)."""
     if len(value.splitlines()) > 1:  # \r, U+2028 ...: also a line break
         return None
-    licence = importlib.import_module("pitloom.extract._license")
-    found = licence.resolve_declared_value(value)
+    # Here, not at module level: `_license` imports the classifier that imports this.
+    from pitloom.extract._license import (  # pylint: disable=import-outside-toplevel
+        resolve_declared_value,
+    )
+
+    found = resolve_declared_value(value)
     if found is None or found["expression"] is None:
         return None
     if found["category"] not in _ACCEPTED:

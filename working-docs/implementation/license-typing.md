@@ -114,7 +114,8 @@ Details that were decided, not obvious:
 - **Unknown id alone** (`Acme-Terms`) is text: silent in a free-text field, one
   `WARNING:` in a field that holds an SPDX expression only (next section). A
   value `licenseid` reads as one licence (`Apache2`, `MIT License`) is its id
-  (#359).
+  (#359), except a name among several classifiers (`classifier_expression`
+  does not call the resolver).
 
 ## Unknown id in an SPDX-only field
 

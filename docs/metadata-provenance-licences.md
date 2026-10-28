@@ -120,8 +120,10 @@ spelling of an id (`Apache2`, `CC BY 4.0`, `GPLv3+`), the licence's List name
 is never a guess: a bare `GPL-3.0` stays as written. A value naming several
 licences (`BSD`) or none stays text. So does a value with a character the
 reading would drop (`Apache 2.0?`), one of several lines, and a compound with
-such a part (`Apache2 OR MIT`). A reading that changed more than the case,
-surrounding white space, brackets or a `+` is said once per value per run, and
+a part only `licenseid` reads (`Apache2 OR MIT`). A name among several
+`License ::` classifiers (`MIT License` beside `Apache Software License`)
+stays text; a lone classifier is read. A reading that changed more than the
+case, white space, brackets or a `+` is said once per value per run, and
 kept in the provenance:
 
 ```text
@@ -165,7 +167,7 @@ These provenance keys record what changed, in the entry's `license` field:
 | `Normalized-From` | The value as the source wrote it, when recording changed it (`mit`, `UNKNOWN`, `GPL-2.0+`). |
 | `Normalizer` | The `py-spdx-license` version that parsed it; present with `Normalized-From` only when a parse took place (not for `UNKNOWN`/`NONE`). |
 | `Deprecated-License-Id` | A deprecated id kept as written, with the successors it could mean (`GPL-2.0 (GPL-2.0-only or GPL-2.0-or-later)`). |
-| `Method` | `licenseid_resolution` when `licenseid` respelt or renamed the value; absent when only its case, surrounding white space, brackets or `+` changed. |
+| `Method` | `licenseid_resolution` when `licenseid` respelt or renamed the value; absent when only its case, white space, brackets or `+` changed. |
 | `Resolution-1` | The value, what it was read as and the steps: `Apache2 -> Apache-2.0 (separator, version_spelling)`. |
 | `Expansion-1` | A qualifier written out, apart from the respelling: `plus_to_or_later` (`GPLv3+`), `stated_qualifier` (`GPL 3.0 or later`). |
 | `Tool` | The `licenseid` version that read it. |

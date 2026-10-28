@@ -173,6 +173,7 @@ def test_only_a_decision_beyond_form_is_said_at_info_and_noted(
     assert ("Resolution-1: x -> MIT (id_case)" in note) is decided
     assert ("Method: licenseid_resolution" in note) is decided
     assert "Expansion" not in note
+    assert (note == "") is not decided
 
 
 def test_a_reading_with_a_plus_outside_the_grammar_is_kept_as_the_gap_reading() -> None:
@@ -235,7 +236,14 @@ def test_a_bare_deprecated_id_is_never_narrowed(raw: str) -> None:
     got = classify_license(raw)
     assert got is not None
     assert (got.kind, got.value) == ("expression", raw)
-    assert "-only" not in got.value and "-or-later" not in got.value
+
+
+@pytest.mark.parametrize("raw", ["GPLv3", "AGPLv3", "GPL v2", "LGPLv2.1"])
+def test_a_respelt_deprecated_id_is_not_guessed_either(raw: str) -> None:
+    """The resolver finds the deprecated id but not its ``-only``/``-or-later``
+    (``assumed_only``): the value stays text."""
+    got = classify_license(raw, warn=False)
+    assert got is not None and got.kind == "text"
 
 
 @pytest.mark.parametrize("raw", ["Apache2", "MIT License", "GPLv3+", "CC BY 4.0"])

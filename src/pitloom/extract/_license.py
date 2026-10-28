@@ -179,7 +179,8 @@ def resolve_declared_value(value: str) -> Resolution | None:
     does) or the resolver fails; a failure is not cached. The answers are
     dropped when the database file changes (``licenseid update`` in this
     process or another), and each caller gets its own copy."""
-    global _RESOLUTIONS_STAMP  # pylint: disable=global-statement
+    # pylint: disable-next=global-statement
+    global _RESOLUTIONS_STAMP
     matcher = _matcher()
     if matcher is None:
         return None

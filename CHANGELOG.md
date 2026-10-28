@@ -111,8 +111,7 @@ and this project adheres to
 - `licenseid>=0.6.0` is required: its database is built from a host the
   Claude Code sandbox allows, and it has `resolve()` ([#333], [#359])
 - A licence value `licenseid` reads as one id (`Apache2`, `MIT License`) is
-  recorded as that id, the value as written kept in the provenance; needs
-  `licenseid>=0.6.0` ([#359])
+  recorded as that id, the value as written kept in the provenance ([#359])
 
 ### Fixed
 
