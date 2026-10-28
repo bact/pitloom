@@ -431,7 +431,8 @@ output format, so that either grows by one line or one column.
 - **A new model format**: fill every field the format can express the way the
   existing formats do (licence, producer, parameter count, version), and read
   only what the file itself stores: a value a binding returns as a default, or
-  resets by version, is not the file's (fastText's `lr` is one). Then add a row to the tables in
+  resets by version, is not the file's (fastText's `lr` is one). Then add a
+  row to the tables in
   [How a file is recognised](#how-a-file-is-recognised) and
   [What each format holds](#what-each-format-holds), and its name to the
   "Filled by" cells it fills. In code: an `AiModelFormat` member (suffixes,
