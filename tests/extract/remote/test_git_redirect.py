@@ -6,7 +6,8 @@
 ``project.git``) is followed with every hop checked, and each redirect is one
 ``INFO:`` naming both URLs.
 
-The servers are local ones, so the tests opt out of the socket block.
+The servers are local ones (`loopback`), so the tests may open sockets to this
+machine only.
 """
 
 from __future__ import annotations
@@ -35,7 +36,7 @@ from pitloom.extract.remote._git_redirect import (
 )
 from pitloom.extract.remote.errors import RemoteSourceError
 
-pytestmark = pytest.mark.network
+pytestmark = pytest.mark.loopback
 
 Routes = Mapping[str, Callable[[int], str | None]]
 
@@ -245,7 +246,7 @@ def test_every_hop_is_checked_before_it_is_requested() -> None:
         "ftp://example.org/x/info/refs",
         "ssh://example.org/x/info/refs",
         "http://127.0.0.1/a b/info/refs",
-        "//evil.example/x/info/refs",
+        "//127.0.0.1:{port}/x/info/refs",
     ],
     ids=["file", "ftp", "ssh", "space", "protocol-relative"],
 )
@@ -256,7 +257,8 @@ def test_a_redirect_that_is_not_an_http_repository_is_not_followed_or_requested(
     ``check_url``); a protocol-relative or odd target reaches the check as an
     absolute URL or the walk stops, quietly."""
     checked: list[str] = []
-    with _server({"/g/p/info/refs": lambda _p: location}) as base:
+    routes: Routes = {"/g/p/info/refs": lambda port: location.format(port=port)}
+    with _server(routes) as base:
         result = resolve_git_url(base + "/g/p", checked.append)
     if location.startswith(("//", "http://127.0.0.1/a")):
         assert len(checked) == 1 and checked[0].startswith("http://")

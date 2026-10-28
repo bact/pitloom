@@ -5,7 +5,11 @@
 
 """Turn a network-caused test failure into a skip that names the cause.
 
-Tests marked ``@pytest.mark.network`` reach a real remote host -- directly
+Tests marked ``@pytest.mark.network`` reach a real remote host, are left out of
+the default CI job (``-m "not network"``) and run in the release gate, in
+``.github/workflows/live-tests.yml`` and with ``pytest -m network``. A test
+that talks only to a server it starts is ``@pytest.mark.loopback`` instead and
+runs everywhere. A ``network`` test reaches its host -- directly
 (``urllib``) or through a subprocess or library (``spdx3-validate`` run
 without ``model_dir`` downloads the SPDX JSON Schema and SHACL model; most
 tests validate offline instead, see ``tests/_spdx3_validate.py``).
@@ -18,9 +22,10 @@ Setting ``PITLOOM_REQUIRE_NETWORK`` to a true value makes the same network
 failure a test *failure* naming the cause instead, and turns any skipped
 ``network`` test into a failure (``pytest_runtest_makereport`` and
 ``pytest_make_collect_report`` below, wired into ``tests/conftest.py``): the
-release workflow (``.github/workflows/pypi-publish.yml``) sets it so an unreachable host
-blocks publishing rather than being skipped. Accepted values (case-
-insensitive): ``1``/``true``/``yes``/``on`` strict; unset/empty/``0``/
+release workflow (``.github/workflows/pypi-publish.yml``) and the live-host
+workflow (``.github/workflows/live-tests.yml``) set it, so an unreachable host
+blocks publishing, or shows as a red run, rather than being skipped. Accepted
+values (case-insensitive): ``1``/``true``/``yes``/``on`` strict; unset/empty/``0``/
 ``false``/``no``/``off`` lenient. Any other value is a usage error.
 
 See also: tests/_network_classify.py (classification),

@@ -5,12 +5,13 @@
 
 """Shared pytest fixtures and configuration."""
 
+import ipaddress
 import json
 import logging
 import socket
 import sys
 import tempfile
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -110,6 +111,33 @@ def _blocked_socket(*_args: Any, **_kwargs: Any) -> None:
     )
 
 
+def _is_local(host: str) -> bool:
+    """Whether *host* is this machine: ``localhost`` or a loopback address."""
+    if host == "localhost":
+        return True
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    mapped = getattr(address, "ipv4_mapped", None)
+    return address.is_loopback or bool(mapped and mapped.is_loopback)
+
+
+def _loopback_only(real_connect: Callable[..., Any]) -> Callable[..., Any]:
+    """*real_connect* that refuses an address other than this machine's."""
+
+    def connect(self: socket.socket, address: Any, *args: Any) -> Any:
+        host = address[0] if isinstance(address, tuple) else None
+        if isinstance(host, str) and not _is_local(host):
+            raise _NetworkBlockedError(
+                f"A loopback test reached {host!r}. Use only a local server, or "
+                "mark the test @pytest.mark.network if it needs a real host."
+            )
+        return real_connect(self, address, *args)
+
+    return connect
+
+
 @pytest.fixture
 def fixtures_dir() -> Path:
     """Return the path to the test fixtures directory."""
@@ -182,7 +210,10 @@ def _block_network_access(
     does. Without this guard, a forgotten mock silently turns into a
     live network call: slow, flaky, and broken in offline/CI-sandboxed
     runs. Tests that genuinely need a live socket opt out via the
-    ``network`` marker.
+    ``network`` marker. A ``loopback`` test may open sockets, but only to this
+    machine (a server the test starts): the in-process ``connect`` and
+    ``connect_ex`` refuse any other address. A DNS lookup, a UDP send and a
+    subprocess are not covered.
     """
     if "network" in request.keywords:
         return
@@ -190,6 +221,14 @@ def _block_network_access(
         "pitloom.assemble.spdx3.deps_pypi._fetch_pypi_release_info",
         lambda name, version: None,
     )
+    if "loopback" in request.keywords:
+        monkeypatch.setattr(
+            socket.socket, "connect", _loopback_only(socket.socket.connect)
+        )
+        monkeypatch.setattr(
+            socket.socket, "connect_ex", _loopback_only(socket.socket.connect_ex)
+        )
+        return
     monkeypatch.setattr(socket, "socket", _blocked_socket)
 
 
