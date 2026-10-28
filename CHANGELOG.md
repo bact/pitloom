@@ -22,6 +22,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- A missing `licenseid` database is said once at `INFO:`, not `WARNING:`, when
+  a project declares a licence: only the `LICENSE`-file check is skipped
+  ([#364])
+
 ### Fixed
 
 - A one-character Hugging Face model name in a URL (`https://hf.co/o/m`) is
@@ -29,6 +35,7 @@ and this project adheres to
 - After a setuptools file-discovery failure the fallback `WARNING:` names the
   failure, no longer "no static config resolvable" ([#365])
 
+[#364]: https://github.com/bact/pitloom/pull/364
 [#365]: https://github.com/bact/pitloom/pull/365
 
 ## [0.21.0] - 2026-10-28
