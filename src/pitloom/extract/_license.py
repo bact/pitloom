@@ -66,7 +66,7 @@ from pitloom.extract.copyright_notices import (
     COPYRIGHT_NOTICE_LINE_RE,
     apply_in_package_copyright,
 )
-from pitloom.logging_config import one_line, warn_once
+from pitloom.logging_config import log_once, one_line, warn_once
 
 _logger = logging.getLogger(__name__)
 
@@ -123,30 +123,62 @@ def _get_matcher() -> AggregatedLicenseMatcher:
     return AggregatedLicenseMatcher()
 
 
-def _database_unusable(exc: BaseException) -> None:
+#: The sub-prefix of every message about the database, so the sibling lines
+#: of :func:`_database_unusable` keep one grammar.
+_DB_PREFIX = "licenseid database"
+
+
+def _database_missing(exc: BaseException) -> bool:
+    """True when *exc* says the database file is absent (``database: not
+    found: ...``), not empty, invalid or unreadable: licenseid carries the
+    condition in its message only. ``no home directory`` is a setup problem
+    (``pass --db``), not a database to build: it stays a warning."""
+    message = str(exc)
+    return message.startswith("database: not found:") and (
+        "no home directory" not in message
+    )
+
+
+def _database_unusable(exc: BaseException, *, declared: bool = False) -> None:
     """Warn once per process that the database cannot be used, and drop the
     cached matcher and resolver answers, so the next lookup builds (and
-    checks) it again."""
+    checks) it again.
+
+    With *declared* (a licence is stated, so only the licence-file second
+    opinion needs the database) a missing database is said once at INFO: the
+    stated value is recorded as it is. Any other condition still warns."""
     _get_matcher.cache_clear()
     clear_resolution_cache()
+    if declared and _database_missing(exc):
+        log_once(
+            _logger,
+            logging.INFO,
+            "licenseid database missing",
+            "%s not found -- license text detection skipped; "
+            "run 'licenseid update --source packaged'",
+            _DB_PREFIX,
+        )
+        return
     warn_once(
         _logger,
         "licenseid database",
-        "licenseid database cannot be used: %s -- license text detection and "
+        "%s cannot be used: %s -- license text detection and "
         "license id reading skipped",
+        _DB_PREFIX,
         one_line(exc),
     )
 
 
-def _matcher() -> AggregatedLicenseMatcher | None:
+def _matcher(*, declared: bool = False) -> AggregatedLicenseMatcher | None:
     """The shared matcher, or None when the database cannot be used
-    (missing, empty, unreadable). Warned once per process; retried on every
-    lookup, so a database built later in a long-lived process is used."""
+    (missing, empty, unreadable). Warned once per process (*declared*:
+    :func:`_database_unusable`); retried on every lookup, so a database
+    built later in a long-lived process is used."""
     try:
         return _get_matcher()
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        _database_unusable(exc)
+        _database_unusable(exc, declared=declared)
         return None
 
 
@@ -403,7 +435,8 @@ def detect_license_from_text(
     (:func:`_best_reading_decides`),
     ``None`` when its top match is a near-tie with another licence family.
     """
-    matcher = _matcher()
+    declared = bool(stated and stated.strip())
+    matcher = _matcher(declared=declared)
     if matcher is None:
         return None
     try:
@@ -420,7 +453,7 @@ def detect_license_from_text(
     # The database failed after the matcher was built (deleted, truncated,
     # corrupted): licenseid raises this for any failed read.
     except DatabaseNotReadyError as exc:
-        _database_unusable(exc)
+        _database_unusable(exc, declared=declared)
         return None
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:

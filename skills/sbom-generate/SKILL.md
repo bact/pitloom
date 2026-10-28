@@ -85,8 +85,8 @@ See `references/examples.md` for copy-paste recipes.
 - Licence reading needs the per-user `licenseid` (>= 0.6.0, a dependency)
   database: `licenseid update` once (ephemeral: `uvx --from
   "licenseid>=0.6.0" licenseid update`; `--source packaged`: no network).
-  Without it, one `WARNING: licenseid database cannot be used: ...` and
-  licences stay as written (`Apache2` is not read as `Apache-2.0`).
+  Without it: one `WARNING: licenseid database cannot be used: ...`, licences
+  stay as written; `INFO:` if only the `LICENSE` check is lost.
 
 ## Run without installing anything persistent
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -148,31 +149,51 @@ def test_embed_explicit_config_still_concludes_license(tmp_path: Path) -> None:
     assert _root_licenses(sbom_json, "hasConcludedLicense") == ["MIT"]
 
 
-def _unusable_database() -> object:
-    raise RuntimeError("database: not found: licenses.db")
+def _database_error(message: str) -> Callable[[], object]:
+    def build() -> object:
+        raise RuntimeError(message)
+
+    return build
 
 
 @pytest.mark.parametrize("explicit_config", [False, True])
-def test_embed_unusable_license_db_warns_once(
+@pytest.mark.parametrize(
+    ("message", "level"),
+    [
+        # the project declares a licence: a missing database costs only the
+        # licence-file second opinion
+        ("database: not found: licenses.db", logging.INFO),
+        ("database: empty: licenses.db", logging.WARNING),
+        ("database: not found: no home directory; pass --db", logging.WARNING),
+    ],
+    ids=["missing-info", "empty-warning", "no-home-warning"],
+)
+def test_embed_unusable_license_db_is_said_once(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     explicit_config: bool,
+    message: str,
+    level: int,
 ) -> None:
-    """A licenseid database that cannot be used warns once, though the
-    project is read more than once, and the concluded licence is then
-    absent -- the release gate's failure mode."""
-    monkeypatch.setattr(_license, "AggregatedLicenseMatcher", _unusable_database)
+    """A licenseid database that cannot be used is said once, though the
+    project is read more than once (INFO when only missing and a licence is
+    declared, else WARNING), and the concluded licence is then absent."""
+    monkeypatch.setattr(_license, "AggregatedLicenseMatcher", _database_error(message))
     project = _project(tmp_path / "proj", None, license_text="Apache License\n" * 20)
     wheel = _make_dummy_wheel(tmp_path / "dist", _NAME, license_expression="Apache-2.0")
 
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.INFO):
         _, _, sbom_json, _, _ = embed_wheel_sbom(
             wheel,
             project_dir=project,
             pitloom_config=PitloomConfig() if explicit_config else None,
         )
 
-    warnings = [r for r in caplog.records if "database cannot be used" in r.message]
-    assert len(warnings) == 1
+    text = "database not found" if level == logging.INFO else "cannot be used"
+    said = [r for r in caplog.records if text in r.message]
+    assert [r.levelno for r in said] == [level]
+    assert level == logging.WARNING or not [
+        r for r in caplog.records if r.levelno >= logging.WARNING
+    ]
     assert not _root_licenses(sbom_json, "hasConcludedLicense")

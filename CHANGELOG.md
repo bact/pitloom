@@ -20,6 +20,16 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.21.0...HEAD>
 
+## [Unreleased]
+
+### Changed
+
+- A missing `licenseid` database is said once at `INFO:`, not `WARNING:`, when
+  a project declares a licence: only the `LICENSE`-file check is skipped
+  ([#364])
+
+[#364]: https://github.com/bact/pitloom/pull/364
+
 ## [0.21.0] - 2026-10-28
 
 ### Added
