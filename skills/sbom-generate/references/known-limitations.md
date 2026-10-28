@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-24
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -184,6 +184,10 @@ from a scan and from `loom model FILE` (exit 0). Beyond that:
   `artifact-metadata` annotation's `metadata` (kept as read; not every
   field, e.g. an ONNX graph name) or the model file. Which fields are escaped:
   <https://bact.github.io/pitloom/metadata-reading-back/>.
+- `INFO: FORMAT=<fmt> FILE=<path>: no SPDX 3.0.1 property: model-architecture
+  (written in ai_typeOfModel)`, once per model: the architecture has no
+  property of its own, so it is recorded beside the model type. Expected, not
+  a problem; mention it when the user asks where the architecture is.
 - No `ai_typeOfModel` on an ONNX model: a node uses an `ai.onnx.ml`
   operator (trees, linear models, SVMs), and the file does not say which
   kind of model that is, so it is left unset, silently. Otherwise it is
@@ -280,10 +284,15 @@ does not name. It is not a model bound.
 ## Licence detection unavailable
 
 `WARNING: licenseid database cannot be used: <reason> -- license text detection
-and license id reading skipped` (once per run): the `licenseid` SPDX
-database is missing or empty (`licenseid update` builds it). Licences are then
-taken as written: no `LICENSE` text is matched to an id and no respelt id
-(`Apache2`) is read as the id it names. Report the line.
+and license id reading skipped` (once per run; the reason ends `run 'licenseid
+update'` when the file is missing): the `licenseid` SPDX database is missing
+or empty. `licenseid update` builds it (network; `licenseid update --source
+packaged` uses the copy in the `licenseid` wheel, no network; without an
+install, `uvx --from "licenseid>=0.6.0" licenseid update`: the database is per
+user, `~/.local/share/licenseid/licenses.db`, so any environment's Pitloom reads
+it). Licences are then taken as written: no
+`LICENSE` text is matched to an id and no respelt id (`Apache2`) is read as the
+id it names. Report the line and the command.
 
 ## A licence that looks like a broken expression
 
@@ -297,12 +306,20 @@ WARNING: LICENSE='MIT OR': not a valid SPDX license expression (Unexpected 'OR')
 
 Fix the source value to get a `LicenseExpression`.
 
-A value `licenseid` reads as one licence (`Apache2`, `MIT License`) is
-recorded as that id (`Apache-2.0`, `MIT`), with one `INFO:` line and the
-value as written in the provenance (`Normalized-From`):
+A single-line value `licenseid` (`resolve`) reads as one licence (`Apache2`,
+`MIT License`, `GPLv2+`, a `License ::` classifier's name) is recorded as that
+id (`Apache-2.0`, `MIT`, `GPL-2.0-or-later`), with one `INFO:` line per value
+(no `FIELD=` for a classifier) and the reading in the licence element's
+provenance `comment`: `Normalized-From: <value as written>`, `Method:
+licenseid_resolution`, `Resolution-1: <value> -> <id> (<steps>)`,
+`Expansion-1: plus_to_or_later` for a `+` or a stated "or later", and `Tool:
+licenseid==<version>`. A change of case or `+` alone (`mit`, `GPL-2.0+`)
+keeps only `Normalized-From`, with no `INFO:`. Report the line; the result is
+the resolver's reading, not the author's words:
 
 ```text
 INFO: FIELD=project.license LICENSE='Apache2': read as Apache-2.0 (separator, version_spelling)
+INFO: LICENSE='MIT License': read as MIT (listed_name)
 ```
 
 A field that holds an SPDX expression only (`project.license` string,

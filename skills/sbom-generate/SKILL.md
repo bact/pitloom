@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-10-23
+# Last-Modified: 2026-10-28
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -82,6 +82,11 @@ See `references/examples.md` for copy-paste recipes.
   <https://github.com/bact/pitloom/blob/main/pyproject.toml>).
 - `--allow-build` needs the `build` extra (PyPA `build`);
   `--content-type` needs the `content-type` extra (`magika`).
+- Licence reading needs the per-user `licenseid` (>= 0.6.0, a dependency)
+  database: `licenseid update` once (ephemeral: `uvx --from
+  "licenseid>=0.6.0" licenseid update`; `--source packaged`: no network).
+  Without it, one `WARNING: licenseid database cannot be used: ...` and
+  licences stay as written (`Apache2` is not read as `Apache-2.0`).
 
 ## Run without installing anything persistent
 
@@ -271,16 +276,16 @@ one disk read this embed already did:
 loom embed-wheel dist/*.whl --project-dir . --verify --validate
 ```
 
+A pass adds no line; a failure prints `ERROR:` lines and exits 1, after the
+wheel was rewritten (the SBOM is embedded either way).
+
 For checking an already-embedded wheel later, use the `sbom-validate`
 skill ("Validate a wheel's embedded SBOM").
 
-A wheel's name and version come from its own top-level `.dist-info` only. A
-file that is not a ZIP, a wheel with a member Pitloom cannot read, or an embed
-target with no single own `.dist-info` is refused with one `ERROR:` (exit 1,
-nothing written); a missing or over-cap `METADATA` only warns (`identity
-unknown`). Report every such line. Wording, per command, and the `the file
-name names no top-level .dist-info` case: `references/known-limitations.md`
-("Refused wheels and unknown identity").
+A non-ZIP or unreadable wheel is refused with one `ERROR:` (exit 1, nothing
+written); a missing `METADATA` only warns (`identity unknown`). Report every
+such line; wording per command: `references/known-limitations.md` ("Refused
+wheels and unknown identity").
 
 ## Useful flags
 
@@ -316,20 +321,17 @@ name names no top-level .dist-info` case: `references/known-limitations.md`
   default; cheap, no need to pass it explicitly.
 - `--scan-model-usage` / `--no-scan-model-usage` -- record which Python
   files reference each discovered AI model file (`hasDataFile`), on a project
-  directory (also the Hatchling hook, via the `scan-model-usage` config key)
-  or a built wheel; other targets, `enrich` and `embed-wheel --sbom` warn that
-  it has no effect. Off by default and **opt-in only**: add it only when the
-  request asks which code loads a model. Models are found either way; when
-  the setting was never given, one `INFO:` line names this flag.
+  directory (config key `scan-model-usage`) or a built wheel; other targets
+  warn that it has no effect. Off by default and **opt-in only**: add it only
+  when the request asks which code loads a model. Models are found either
+  way; when the setting was never given, one `INFO:` line names this flag.
 - `--allow-signed-wheel` -- `embed-wheel` and `wheel --embed` only; removes a
   `RECORD` signature (see "Signed wheels"). Never add it unless the user agrees.
-- `--trust-wheel-model` -- on a built wheel, also read the model formats whose
-  reader can crash or hang on a hostile file (fastText, GGUF, HDF5, ONNX,
-  PyTorch `.pt`/`.pth`), otherwise listed without metadata (one `INFO:` names them).
-  Never add it unless the user states the wheel is trusted; a hostile file can
-  crash Pitloom, hang it or exhaust memory. Other targets, and `embed-wheel`
-  with `--project-dir` (models come from the project), warn that it has no
-  effect.
+- `--trust-wheel-model` -- on a built wheel, also read fastText, GGUF, HDF5,
+  ONNX and PyTorch `.pt`/`.pth` models, whose readers can crash, hang or
+  exhaust memory on a hostile file (else listed without metadata, one
+  `INFO:`). Never add it unless the user states the wheel is trusted. Other
+  targets and `embed-wheel --project-dir` warn that it has no effect.
 - `--content-type` / `--no-content-type` -- per-file content-type/MIME
   detection (`magika`, or a filename-extension guess). Off by default and
   **opt-in only**: add it only when the request implies wanting that data,
@@ -341,6 +343,11 @@ name names no top-level .dist-info` case: `references/known-limitations.md`
 - `--update-id-registry`/`--no-update-id-registry` -- add newly minted
   ids to the declared registry (on by default; a `WARNING:` where it has
   no effect). Both registry flags: see "Pinning element ids".
+  `--project-dir DIR` on `wheel`/`project <sdist>` keys their files below
+  DIR in a registry rooted above it (reads nothing from DIR).
+- `--describe-relationship` (relationship text), `--max-source-metadata-bytes
+  N` (cap the `artifact-metadata` annotation; 0, the default, is no cap) and
+  `--no-build-isolation` (`references/build-timeout.md`): only when asked.
 
 ## Combine with enrichment or a named standard
 
@@ -371,9 +378,7 @@ sanity check in `references/examples.md` is only a fallback for when
 ## Check stderr for INFO:/WARNING:/ERROR: lines
 
 Pitloom logs to stderr with a grep-able `INFO:`/`WARNING:`/`ERROR:`
-prefix -- exactly one of the three, always at the start of the line
-(see AGENTS.md's "CLI output" section,
-<https://github.com/bact/pitloom/blob/main/AGENTS.md#cli-output>).
+prefix -- exactly one of the three, always at the start of the line.
 `WARNING:` marks a recovered problem or a deviation (a config value
 normalised, a requested detector not installed, an option with no effect
 for this target); `INFO:` marks normal status, above all **generation
@@ -429,13 +434,10 @@ complete but isn't. Per-case detail: `references/known-limitations.md`.
   (and `suppliedBy` for a Hub model: the owner) and an `ai_hyperparameter`
   `parameters` entry, from some formats only; absence is no failure.
   `Person`/`Organization`: `sbom-enrich`. `references/known-limitations.md`.
-- **Name ends `...~<hex>`, labels missing, `\u202e` in text:** caps on
-  model text, one `WARNING: FORMAT=<fmt> FILE=<path>:` each: `larger than
-  the 1024-character name cap; model name cut`; `larger than the 4096-byte
-  label cap; no label recorded` (all dropped, `num_labels` kept);
-  `invisible or bidi control characters written as \uXXXX in <properties>`.
-  Original text: the `artifact-metadata` annotation or the model file.
-  Detail: `references/known-limitations.md`.
+- **Name ends `...~<hex>`, labels missing, `\u202e` in text:** Pitloom's
+  caps and escapes on model text, one `WARNING: FORMAT=<fmt> FILE=<path>:`
+  each; the original is in the `artifact-metadata` annotation or the model
+  file. Wording: `references/known-limitations.md`.
 - **Unsupported build backend:** check `[build-system] build-backend`
   *before* generating. Hatchling, setuptools, Poetry, PDM-backend and
   Flit-core get accurate file discovery; any other (`uv_build`,

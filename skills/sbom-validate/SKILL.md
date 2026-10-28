@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-10-23
+# Last-Modified: 2026-10-28
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -151,7 +151,9 @@ loom validate-wheel dist/mypackage-1.0.0-py3-none-any.whl   # schema/SHACL conte
 Each command prints one stdout line per wheel, `WHEEL=<name>
 STATUS=<status>`: `ok`/`failed` for `verify-wheel`, `valid`/`skipped`/
 `failed` for `validate-wheel` (a failure's reason is the `ERROR:` on
-stderr). **Exit 0 is not always a clean pass.** A name/version mismatch in
+stderr; its schema/SHACL lines name a temporary copy, `.../tmpXXXX.spdx3.json`,
+which is the SBOM inside that wheel: report them against the wheel, never the
+temporary path). **Exit 0 is not always a clean pass.** A name/version mismatch in
 `verify-wheel` is only a `WARNING:` (exit 0, still `STATUS=ok`) unless
 `--fail-on-mismatch` is given: report any `WARNING:`, and add
 `--fail-on-mismatch` in CI. `validate-wheel` on an SBOM in a format it has
@@ -200,7 +202,9 @@ Pitloom wheel SBOMs list the payload only (nothing under the wheel's own
 
 Right after an embed, `loom embed-wheel dist/*.whl --project-dir .
 --verify --validate` runs both checks in the same command
-(`sbom-generate`'s "Embed an SBOM into a wheel" section). If the user
+(`sbom-generate`'s "Embed an SBOM into a wheel" section): a pass prints no
+line of its own, a failure the same `ERROR:` lines and exit 1, with the SBOM
+already embedded (an `--sbom FILE` is embedded as given, not validated first). If the user
 asked for `embed-wheel --allow-build`, always pass an explicit
 `--build-timeout` (see `sbom-generate`'s "Choosing `--build-timeout`").
 

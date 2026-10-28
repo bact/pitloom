@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -55,6 +55,16 @@ loom project . -o sbom.spdx3.json --pretty
 ```bash
 pip install "pitloom>=0.21.0"
 loom project /path/to/project -o sbom.spdx3.json
+```
+
+## Licence database (once per user)
+
+Without it, licences stay as written and one `WARNING: licenseid database
+cannot be used: ...` line says so (`known-limitations.md`):
+
+```bash
+licenseid update                     # from an install of pitloom
+uvx --from "licenseid>=0.6.0" licenseid update --source packaged  # no install; the list licenseid ships
 ```
 
 ## Built Wheel SBOM
