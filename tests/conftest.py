@@ -127,8 +127,9 @@ def _reset_license_matcher_cache() -> None:
 
 @pytest.fixture(autouse=True)
 def _reset_warn_once_state() -> None:
-    """Clear ``warn_once()``'s per-process dedup state before each test, so
-    one test's WARNING->DEBUG downgrade can't leak into the next."""
+    """Clear ``log_once()``'s (and ``warn_once()``'s) per-process dedup state
+    before each test, so one test's downgrade to DEBUG can't leak into the
+    next."""
     _WARNED_ONCE.clear()
 
 

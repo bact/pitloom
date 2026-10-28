@@ -8,7 +8,8 @@ a value RFC 8785 cannot write makes the fragment unreadable (one warning
 naming it, an error when required), a lone surrogate is written as text.
 
 See also: test_fragments_merge_required.py (``required``) and
-tests/plugins/test_hatch_build.py (the same fragments through the hook).
+tests/extract/project/test_hatch_hook_real_build.py (a required fragment
+through the real Hatchling build).
 """
 
 from __future__ import annotations

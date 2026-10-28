@@ -87,6 +87,9 @@ def test_validate_wheel_invalid_sbom_errors(
     assert captured.err.strip() != ""
     for line in captured.err.splitlines():
         assert line.startswith("ERROR: ")
+    # The messages name the wheel's member, not the temporary copy checked.
+    assert f"{wheel_path.name}/" in captured.err
+    assert ".dist-info/sboms/badpkg-1.0.0.spdx3.json" in captured.err
 
 
 def test_validate_wheel_missing_dependency(

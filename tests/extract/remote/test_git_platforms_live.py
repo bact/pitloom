@@ -15,12 +15,16 @@ tested with local servers in ``test_git_http_e2e.py``.
 
 from __future__ import annotations
 
+import logging
+import re
 from pathlib import Path
 
 import pytest
 
 from pitloom.extract.remote import fetch_git_project
-from tests._network import skip_on_network_error
+from pitloom.extract.remote._git_redirect import PROBE_FAILED_INFO
+from pitloom.extract.remote.errors import RemoteSourceError
+from tests._network import network_unavailable, skip_on_network_error
 
 pytestmark = pytest.mark.network
 
@@ -331,20 +335,37 @@ _PLATFORMS = [
 #: 150 MB) so a server that ignores the blob filter cannot fill a CI disk.
 _LIVE_CAP = 400 * 1024 * 1024
 
+#: What git reports for a redirect it was told not to follow.
+_BARE_REDIRECT = re.compile(r"returned error: 30[1278]\b")
+
 
 @pytest.mark.parametrize(
     ("url", "ref", "folder", "expected"),
     [pytest.param(u, r, f, e, id=i) for i, u, r, f, e in _PLATFORMS],
 )
 def test_a_platforms_url_is_fetched(
-    url: str, ref: str | None, folder: str, expected: str
+    url: str,
+    ref: str | None,
+    folder: str,
+    expected: str,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """The branch and folder the URL names are checked out, with a redirect
     followed where the platform sends one."""
-    with (
-        skip_on_network_error(),
-        fetch_git_project(url, max_bytes=_LIVE_CAP) as checkout,
-    ):
-        assert checkout.ref == ref and checkout.subdir == folder
-        assert (Path(checkout.folder) / expected).exists()
-        assert len(checkout.commit) in {40, 64}
+    caplog.set_level(logging.INFO, logger="pitloom")
+    try:
+        with (
+            skip_on_network_error(),
+            fetch_git_project(url, max_bytes=_LIVE_CAP) as checkout,
+        ):
+            assert checkout.ref == ref and checkout.subdir == folder
+            assert (Path(checkout.folder) / expected).exists()
+            assert len(checkout.commit) in {40, 64}
+    except RemoteSourceError as exc:
+        # A host too slow to answer the redirect probe leaves Pitloom asking
+        # git directly, and git follows no redirect: it reports a bare 301 or
+        # 302. That is the network, not the platform handling under test.
+        probe_failed = any(r.msg == PROBE_FAILED_INFO for r in caplog.records)
+        if probe_failed and _BARE_REDIRECT.search(str(exc)):
+            network_unavailable("the redirect probe failed (slow or unreachable host)")
+        raise

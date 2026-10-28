@@ -7,8 +7,9 @@
 
 from __future__ import annotations
 
+import ast
 import glob
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from functools import wraps
 from pathlib import Path
 from typing import Any
@@ -221,15 +222,59 @@ def _import_spdx3_validate() -> Any | None:
     return spdx3_validate
 
 
-def _validate_spdx3_documents(paths: list[str], *, check_merged: bool) -> int:
+_NOT_IN_LIST = "not in list "
+#: A list rendered by ``str()`` is searched for up to this many closing brackets.
+_MAX_LIST_ENDS = 50
+
+
+def _stable_message(message: str) -> str:
+    """*message* with the values of a ``not in list [...]`` finding sorted:
+    the validator builds that list from a set, so its order differs from run
+    to run. A list that is not a list of strings is left as written."""
+    start = message.find(_NOT_IN_LIST)
+    if start < 0:
+        return message
+    begin = start + len(_NOT_IN_LIST)
+    if message[begin : begin + 1] != "[":
+        return message
+    end = begin
+    for _ in range(_MAX_LIST_ENDS):
+        end = message.find("]", end + 1)
+        if end < 0:
+            return message
+        try:
+            values = ast.literal_eval(message[begin : end + 1])
+        except (ValueError, SyntaxError, MemoryError, RecursionError):
+            continue
+        if isinstance(values, list) and all(isinstance(v, str) for v in values):
+            return message[:begin] + repr(sorted(values)) + message[end + 1 :]
+        return message
+    return message
+
+
+def _validate_spdx3_documents(
+    paths: list[str],
+    *,
+    check_merged: bool,
+    names: Mapping[str, str] | None = None,
+) -> int:
     """Validate SPDX 3 JSON document(s) against schema and SHACL rules.
 
     Shared by ``pitloom fragment validate`` and ``pitloom validate-wheel``
     -- same underlying `spdx3_validate.validate()` call, same install-hint
     on missing dependency, same per-violation ``ERROR:`` line handling.
     Returns the CLI exit code (0 valid, 1 otherwise); prints nothing on
-    success -- callers print their own success message.
+    success -- callers print their own success message. *names* maps a path to
+    the name shown in its place in the messages (a temporary copy of a wheel's
+    member is shown as that member).
     """
+    shown = names or {}
+
+    def show(text: str) -> str:
+        for path, name in shown.items():
+            text = text.replace(path, name)
+        return text
+
     spdx3_validate = _import_spdx3_validate()
     if spdx3_validate is None:
         return 1
@@ -242,15 +287,20 @@ def _validate_spdx3_documents(paths: list[str], *, check_merged: bool) -> int:
         # ValidationResult carrying schema/SHACL findings below, but still
         # a validation failure the caller should report cleanly, not an
         # unhandled exception.
-        print_error(str(exc))
+        print_error(show(str(exc)))
         return 1
 
     if not result:
-        for err in result.errors:
+        # The findings come back in hash order (they differ from run to run):
+        # sorted, the same document gives the same lines.
+        for err in sorted(
+            result.errors,
+            key=lambda e: (str(e.source), str(e.kind), _stable_message(e.message)),
+        ):
             # err.message can itself be multi-line (e.g. a SHACL violation's
             # Severity/Source Shape/Focus Node breakdown) -- tag every line
             # with ERROR: so no continuation line is left ungrep-able.
-            header = f"{err.source}: [{err.kind}] {err.message}"
+            header = show(f"{err.source}: [{err.kind}] {_stable_message(err.message)}")
             for line in header.splitlines():
                 print_error(line)
         return 1

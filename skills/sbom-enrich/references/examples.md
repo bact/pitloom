@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -58,7 +58,7 @@ python3 -c "import json; print(json.load(open('model.enrich.spdx3.json'))['@grap
 
 ## 2. Draft a fragment for what prose adds
 
-The frontmatter enrichment already covered `license` and `datasets:`; it never runs on
+The frontmatter enrichment already covered `datasets:` (and logged `license`); it never runs on
 prose, so the "evaluated on imagenet-val" relationship stated in the
 README body is still an agent-only finding. A `Relationship` must start
 from the model's real id, so first read it from the base SBOM:
@@ -233,8 +233,10 @@ this):
   a model it read from a file, and a Hugging Face base is never merged
   into. Set it only for a distributor the card or the user names.
 - A `parameters` entry in the package's `ai_hyperparameter` (a count the
-  card states) is added only where the base has none; a base entry wins,
-  silently. The merge adds Pitloom's count note itself: do not type it
+  card states) is added only where the base has none; a base entry with
+  another value wins, with `WARNING: Merge: conflicting 'ai_hyperparameter'
+  key 'parameters' on ai_AIPackage <id> '<name>': keeping '<base>', dropping
+  '<yours>'.` (the same for any `ai_hyperparameter`/`ai_metric` key). The merge adds Pitloom's count note itself: do not type it
   into the `comment`; say in the package's own provenance `comment` that
   the entry is the card's figure, not a sum of tensor elements. A
   `comment` on a restated package is appended to the base's, after a
@@ -247,7 +249,7 @@ this):
   compare names):
 
 ```bash
-python3 -c "import json,sys; ids=lambda p:{o['spdxId'] for o in json.load(open(p))['@graph'] if o.get('type')=='ai_AIPackage'}; print(*sorted(ids(sys.argv[2])-ids(sys.argv[1])), sep='\n')" sbom.spdx3.json fragments/agent-enrichment.spdx3.json
+python3 -c "import json,sys; ids=lambda p:{o['spdxId'] for o in json.load(open(p))['@graph'] if o.get('type')=='ai_AIPackage'}; [print(i) for i in sorted(ids(sys.argv[2])-ids(sys.argv[1]))]" sbom.spdx3.json fragments/agent-enrichment.spdx3.json
 ```
 
 Notes:
@@ -286,7 +288,12 @@ files = [
 ```
 
 `required = true` makes a missing or unparsable fragment fail the run
-instead of being skipped with a `WARNING:`.
+instead of being skipped with a `WARNING:`. Check the registration from the
+project directory: `loom fragment list` prints one `PATH=... ROLE=...
+REQUIRED=... EXISTS=... ELEMENTS=... SHA256=... MODIFIED=... SAME_DOCUMENT=...`
+line per registered fragment
+(`EXISTS=false` is a wrong path; none registered is `INFO: fragment list: no
+fragments configured`).
 
 ## 5. Re-generate the SBOM
 

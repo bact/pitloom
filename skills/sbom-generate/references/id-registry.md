@@ -184,7 +184,7 @@ loom id import <sbom> -o loom-id-registry.json        # reuse an SBOM's ids
   `ID registry: path has a skipped directory name (build), skipping: <path>`.
   Neither command rewrites an unchanged registry, and `id import` keeps the
   namespace it adopted unless another run changed it meanwhile.
-- **Namespace**: a new registry gets one minted from the project name and a
+- **Namespace**: a new registry gets one minted from the project directory's name and a
   random UUID4; `--namespace IRI` (an absolute IRI without `#`; `id generate`
   only, `id import` has no such option) sets a reproducible one. An existing
   registry with another namespace is an `ERROR:`, exit 1.

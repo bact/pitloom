@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-29
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -75,7 +75,9 @@ run's `properties.ruleOutcomes` maps every rule id to its outcome),
 default). `print` and `html` are requirement-level tables with no rule ids and
 no `out-of-scope` rules; `json` and `sarif` carry the ids. Without `-o` the
 report goes to stdout. Exit status 0 means conformant, 1 not (also with `-r
-none`); read the report either way. List the rules that need work:
+none`), 2 an error (an unknown `-c` or `-m` value); read the report either
+way. Leave `-m` (maturity level) at its default, 0, the baseline: only `fsct3`
+takes 1 or 2. List the rules that need work:
 
 ```bash
 python3 -c "import json,sys; [print(r['id'], r['provision'], *[f['name'] for f in r['findings']]) for r in json.load(open(sys.argv[1]))['ruleResults'] if r['outcome'] == 'missing']" bsi.json
@@ -84,7 +86,7 @@ python3 -c "import json,sys; [print(r['id'], r['provision'], *[f['name'] for f i
 Each line is a rule id, its provision and the names of the packages that miss
 it (`BOM-BSI2025-COMP-004 requirement gpt2-tiny-decoder`, from a `loom model`
 SBOM of Pitloom's test file `gpt2-tiny-decoder.onnx`, checked on Pitloom 0.21.0
-with checker `82a63b9`, 2026-10-23); a document-level rule
+with checker `2355afc`, 2026-10-28); a document-level rule
 (`BOM-BSI2025-DOC-001 requirement`) names no package. No output means nothing
 is missing.
 

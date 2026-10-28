@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-07
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -91,7 +91,9 @@ Other flags:
   wheel (ambiguous). Each wheel is always modified in place.
 - `--verify`/`--validate` run the checks below on the wheel just embedded. A
   failure is reported and sets the exit code, but the embed is not rolled
-  back.
+  back. With `--sbom FILE --validate`, an SPDX 3 file is validated first: one
+  that fails is refused (`ERROR:`, exit 1) and the wheel is not written. A
+  file in a format with no validator is embedded, with a `WARNING:`.
 
 ```bash
 loom embed-wheel dist/*.whl --project-dir . --verify --validate

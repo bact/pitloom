@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-10-21
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -178,6 +178,58 @@ drift is silent.
   nothing on a report edited to have none). The checker pin is the same in
   `pyproject.toml` and `docs/g7-sbom-for-ai.md`; the skills name none. The cross-check recipe
   now points at Lumina (a web UI for the same results).
+- **Release sweep (2026-10-28, 0.21.0, after #359 and #360).** No
+  subcommand changed (`loom --help` and `add_parser(` list the same twelve,
+  with `fragment validate`/`list` and `id generate`/`import`); every one has
+  trigger phrasing except `merge` and `fragment list` (still "Deferred").
+  Descriptions unchanged (generate 1018, enrich 1005, validate 999 of 1024):
+  no new command or ask needed a phrasing. Every subcommand's `--help` was
+  diffed against the skills: `--describe-relationship`,
+  `--max-source-metadata-bytes`, `--no-build-isolation` and `--project-dir` on
+  `wheel`/`project <sdist>` (registry keying) were in no `SKILL.md` body and
+  now are, one line each; `id generate --namespace` was already in
+  `id-registry.md`. Run on a scratch Hatchling project (licence `Apache2`, an
+  extra, a `LICENSE` copyright line), its built wheel, the
+  `real-world-locks/uv/fastapi-cli-0.0.32` fixture, the ONNX, Safetensors and
+  GGUF model fixtures and a project shipping a Safetensors model with a
+  frontmatter README, all `--offline --creation-datetime
+  2026-01-01T00:00:00Z`, Pitloom 0.21.0, checker `2355afc`: `project`
+  (default name), `generate` without `-o` (exit 1), `wheel`, `env`, `model`,
+  `id generate` (with `-e`, `--namespace`, `-o -`, a missing `PATH`), `id
+  import --project-dir`, `project --id-registry`, `verify-wheel` before and
+  after `embed-wheel --project-dir --verify --validate`, `validate-wheel`,
+  `wheel --embed`, `embed-wheel --sbom`, `--sbom-basename foo.spdx3.json`,
+  `--output` with two wheels, a non-ZIP wheel, the signature `unzip` check,
+  the whole `sbom-enrich` recipe (`loom enrich --project-dir`, the agent
+  fragment, the pre-merge deserialiser one-liner, registration, re-run,
+  `loom fragment validate`), `loom fragment list`, `loom merge`, every
+  `spdx3-validate` recipe, and `sbomcheck -s spdx3` with all five `-c` ids
+  and every `-r` type. Legitimate-input checks: the `missing`-rule one-liner
+  prints nothing on a report with no missing rule; the stale-`ai_AIPackage`
+  one-liner printed a blank line on a clean fragment (now a list
+  comprehension: nothing) and the stale id on a stale one; the `RECORD.`
+  `unzip` check exits 1 on an unsigned wheel. Fixed from the runs: the
+  `licenseid update` requirement (`Requirements`, with `uvx --from
+  "licenseid>=0.6.0"` and `--source packaged`, both run) and the resolver's
+  provenance keys (`Method: licenseid_resolution`, `Resolution-1`,
+  `Expansion-1`, `Tool`; a classifier's `INFO:` has no `FIELD=`); a base
+  `ai_hyperparameter` entry beats a fragment's with a `WARNING: Merge:
+  conflicting ...` since #357, not silently (`examples.md`,
+  `minimum-elements.md`); `embed-wheel --verify --validate` prints nothing on
+  a pass and embeds before it fails; `validate-wheel`'s `ERROR:` lines name a
+  temporary copy, not the wheel; `sbomcheck` exits 2 on an unknown `-c`/`-m`
+  and only `fsct3` takes `-m 1`/`2`; the `INFO: ... no SPDX 3.0.1 property:
+  model-architecture (written in ai_typeOfModel)` line is expected. Checker
+  stamps say `2355afc` where the repository's expected tables were
+  regenerated unchanged (#360; `tests/conformance` passes on this tree).
+  `sbom-generate`'s body is 24,556 of the 24,576-byte ratchet after the
+  name/label-cap wording, the wheel-refusal detail and the AGENTS.md link
+  moved behind `references/known-limitations.md` pointers; `sbom-enrich`'s is
+  24,553, unchanged: the next addition to either must move text first. The
+  plugin manifest is 0.21.0 (`scripts/check_version_consistency.py` OK); its
+  and the marketplace's description now name wheels, Git URLs and the five
+  standards; `claude plugin validate` passes with one warning (no icon). The
+  plugin ships no `hooks/`, `commands/` or `agents/` and references none.
 - **Long topics move to `references/`.** `sbom-generate`'s lock-file and ID
   registry detail (what a registry pins, creating one, which log lines are
   expected) moved to `references/lockfile-discovery.md` and
@@ -200,9 +252,10 @@ clients (Codex, Gemini CLI, GitHub Copilot / VS Code, claude.ai). Decisions:
   each needs (`ai`, `validate`, `build`, `content-type`), network, and "not
   usable where packages cannot be installed" (e.g. Claude API code
   execution).
-- **Version floor: 0.20.0** (raised to 0.20.2 since; every `compatibility`,
-  Requirements section and example under `skills/` and `docs/` reads
-  `>=0.20.2`, checked 2026-10-19). The skills use `--id-registry`,
+- **Version floor: 0.20.0** (raised to 0.20.2, then to 0.21.0 for registry
+  format 3 and Git URL targets; every `compatibility`, Requirements section
+  and example under `skills/` and `docs/` reads `>=0.21.0`, checked
+  2026-10-28). The skills use `--id-registry`,
   `--update-id-registry`, `loom id ...` and `--build-timeout`, absent from
   0.19.0 (PR #235 ships in 0.20.0). The floor appears in each
   `compatibility`, each Requirements section, `docs/agent-skills.md` and

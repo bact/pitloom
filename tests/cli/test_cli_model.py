@@ -510,8 +510,9 @@ def test_model_command_masks_credentials_of_an_unread_url(
         ["model", "https://huggingface.co/o/m?private_token=SECRET", "--offline"],
         ["project", "https://huggingface.co/o/m?private_token=SECRET"],
         ["project", "https://user:SECRET@huggingface.co/o/m"],
+        ["generate", "https://hf.co/o/mm?private_token=SECRET", "--offline"],
     ],
-    ids=["model-query", "project-query", "project-userinfo"],
+    ids=["model-query", "project-query", "project-userinfo", "generate-offline"],
 )
 def test_no_secret_of_a_hugging_face_url_reaches_stderr(
     argv: list[str],

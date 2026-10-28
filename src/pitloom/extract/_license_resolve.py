@@ -12,8 +12,9 @@ more than the form of the text (a re-spelling, a listed name, a stated "or
 later", a renamed id) is the resolver's decision, not the author's words: one
 ``INFO:`` line per value, and ``Resolution-1`` in the provenance.
 
-See also: :mod:`pitloom.extract._license_classify` (the caller) and
-:mod:`pitloom.extract._license` (the database access).
+See also: :mod:`pitloom.extract._license_classify` and
+:func:`pitloom.extract._core_metadata.license_from_classifiers` (the callers)
+and :mod:`pitloom.extract._license` (the database access).
 """
 
 from __future__ import annotations

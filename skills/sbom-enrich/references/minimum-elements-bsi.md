@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-18
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -19,7 +19,8 @@ run most component rules are missing. "If it exists" rules are
 ones never block. Each rule is reported on its own, as for the other
 standards. Checked as for FSCT in
 [`minimum-elements.md`](minimum-elements.md) (Pitloom 0.21.0, checker
-`82a63b9`, 2026-10-23), plus a fragment merged into a Hatchling project base:
+`82a63b9`, 2026-10-23; the expected tables are unchanged at the current pin
+`2355afc`), plus a fragment merged into a Hatchling project base:
 the "user must supply" rows below (a wheel `software_File` with its SHA-512 and
 `hasDistributionArtifact`, `dependsOn` with `completeness`, including to
 `NoneElement` and `NoAssertionElement`, `software_additionalPurpose`

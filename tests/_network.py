@@ -69,7 +69,7 @@ def network_strict() -> bool:
     )
 
 
-def _network_unavailable(cause: str) -> NoReturn:
+def network_unavailable(cause: str) -> NoReturn:
     """Skip the test for a network *cause*; fail it in strict mode."""
     if network_strict():
         pytest.fail(f"network unavailable ({REQUIRE_NETWORK_ENV} set): {cause}")
@@ -80,7 +80,7 @@ def skip_if_network_failure(text: str) -> None:
     """Skip the test if captured *text* shows a network failure."""
     cause = network_cause_in_text(text)
     if cause is not None:
-        _network_unavailable(cause)
+        network_unavailable(cause)
 
 
 @contextmanager
@@ -93,7 +93,7 @@ def skip_on_network_error() -> Iterator[None]:
         cause = network_cause_of(exc)
         if cause is None:
             raise
-        _network_unavailable(cause)
+        network_unavailable(cause)
 
 
 def require_reachable(*urls: str) -> None:

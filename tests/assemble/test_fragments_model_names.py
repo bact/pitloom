@@ -8,7 +8,7 @@ the name the fragments agree on wins with one ``INFO:``, and the base's
 provenance for its own name goes; fragments that disagree keep the base's
 name with today's ``Merge: conflicting`` warnings, whatever their order.
 
-See also: tests/id_registry/test_surfaces_loom_model_name.py (the
+See also: tests/test_loom_model_name_surfaces.py (the
 surfaces, with a real ``loom.run``), tests/assemble/test_fragments_count_note.py.
 """
 

@@ -510,6 +510,11 @@ def test_declares_network_spellings(
         RemoteSourceError(
             "git.clone-failed", "error: RPC failed; curl 56 recv failure\nearly EOF"
         ),
+        RemoteSourceError(
+            "git.clone-failed",
+            "fatal: unable to access 'https://h/r/': gnutls_handshake() failed: "
+            "The TLS connection was non-properly terminated.",
+        ),
     ],
     ids=[
         "connect",
@@ -519,6 +524,7 @@ def test_declares_network_spellings(
         "schannel",
         "secure-transport",
         "rpc-failed",
+        "gnutls-handshake",
     ],
 )
 def test_a_git_network_failure_skips(exc: Exception) -> None:

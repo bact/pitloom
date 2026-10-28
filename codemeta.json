@@ -18,8 +18,8 @@
     "codeRepository": "https://github.com/bact/pitloom",
     "copyrightYear": 2026,
     "dateCreated": "2026-03-27",
-    "dateModified": "2026-10-23",
-    "datePublished": "2026-10-23",
+    "dateModified": "2026-10-28",
+    "datePublished": "2026-10-28",
     "description": "Generate SPDX 3 SBOMs for Python projects and AI models, with native Hatchling build-hook support and GitHub Action integration.",
     "developmentStatus": "active",
     "downloadUrl": "https://github.com/bact/pitloom/releases",
@@ -32,6 +32,7 @@
         "spdx",
         "supply chain security",
         "hatchling",
+        "poetry",
         "bom",
         "aibom",
         "provenance",
@@ -41,7 +42,8 @@
         "onnx",
         "safetensors",
         "ai sbom",
-        "software supply chain security"
+        "software supply chain security",
+        "pep 770"
     ],
     "license": "https://spdx.org/licenses/Apache-2.0",
     "maintainer": [

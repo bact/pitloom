@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-18
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -28,7 +28,8 @@ does not count); `DP-004` `software_packageUrl`, an `externalIdentifier` or
 `dataset_knownBias`; `DP-008` *any-of* `dataset_hasSensitivePersonalInformation`
 or `dataset_anonymizationMethodUsed`; `DP-009` `dependsOn` or `descendantOf`
 from the dataset; `DP-010` `hasDeclaredLicense` only. Verified on Pitloom 0.21.0
-(checker `82a63b9`, 2026-10-23) with a mocked and a real Hugging Face model
+(checker `82a63b9`, 2026-10-23; the expected tables are unchanged at the
+current pin `2355afc`) with a mocked and a real Hugging Face model
 with Hub datasets, a library-built model with a dataset and a `loom.run`
 fragment with a local Croissant file (see the note in
 [`minimum-elements.md`](minimum-elements.md)). A Croissant file is read only by

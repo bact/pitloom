@@ -14,6 +14,8 @@ file format, :mod:`pitloom.id_registry._counters` for the id counters,
 helpers, :mod:`pitloom.id_registry._ambiguous` for the keys harvest does
 not write, :mod:`pitloom.id_registry._session` for ``IdRegistrySession``,
 :mod:`pitloom.id_registry._persist` for saving a run's additions,
+:mod:`pitloom.id_registry._sbom_read` for reading an SBOM for ``id import``,
+:mod:`pitloom.id_registry.import_keys` for the keys ``id import`` writes,
 :mod:`pitloom.id_registry.resolve` for registry resolution,
 :mod:`pitloom.id_registry.keys` for registry keys.
 

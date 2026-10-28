@@ -123,9 +123,10 @@ class IdRegistry:
         """Create a fresh, empty registry.
 
         The namespace is *namespace* (an absolute IRI without ``#``; a
-        ``ValueError`` otherwise), else one minted from *project_name* and
-        a random UUID4. It is fixed once the registry is created: the
-        registry file is an input, so a committed one gives identical ids.
+        ``ValueError`` otherwise), else one minted from *project_name* (the
+        CLI passes the project directory's name) and a random UUID4. It is
+        fixed once the registry is created: the registry file is an input, so
+        a committed one gives identical ids.
         A name-derived UUID would give two unrelated projects of one name the
         same ids.
         """

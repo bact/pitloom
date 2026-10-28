@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-08-10
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -94,11 +94,16 @@ uv sync --group dev
 
 ### 2. Testing
 
-Run the test suite with `pytest`:
+Build the `licenseid` licence database once (many licence tests fail
+without it), then run the test suite with `pytest`:
 
 ```bash
+licenseid update
 pytest
 ```
+
+The conformance tests (`tests/conformance/`) need the `conformance` group,
+which the `test` and `dev` groups include.
 
 ### 3. Code quality
 

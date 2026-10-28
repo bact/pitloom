@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-15
-Last-Modified: 2026-10-27
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -54,8 +54,8 @@ value) -- so none of these are misreported as a conflict.
   ```json
   {
     "candidates": [
-      {"role": "declared", "source": "Source: pyproject.toml | Field: project.license", "value": "MIT"},
-      {"role": "detected", "source": "Source: LICENSE | Method: licenseid_detection | Tool: licenseid==0.3.0", "value": "Apache-2.0"}
+      {"ref": "...#License-1", "role": "declared", "source": "Source: pyproject.toml | Field: project.license", "value": "MIT"},
+      {"ref": "...#License-2", "role": "detected", "source": "Source: LICENSE | Method: licenseid_detection | Tool: licenseid==0.6.0", "value": "Apache-2.0"}
     ],
     "field": "license",
     "kind": "conflict",
@@ -63,7 +63,8 @@ value) -- so none of these are misreported as a conflict.
   }
   ```
 
-  `role` says *whose* determination each candidate is: `declared` is the
+  `ref` is the `spdxId` of the candidate's licence element. `role` says
+  *whose* determination each candidate is: `declared` is the
   project's own stated claim; `detected` is Pitloom's own independent
   directory-search procedure's result; `sbomAuthorSupplied` is asserted
   directly by the human operating Pitloom (e.g. a

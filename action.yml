@@ -338,9 +338,11 @@ runs:
           fi
         fi
         # An explicit "output" input always wins. Otherwise leave -o off and
-        # let "loom" apply its own default-naming logic (packagename-version,
-        # falling back to packagename, then "sbom" as a last resort -- see
-        # pitloom.cli.options._resolve_output_path and
+        # let "loom" apply its own default-naming logic ([tool.pitloom]
+        # sbom-basename, else packagename-version, falling back to
+        # packagename, then "sbom" as a last resort -- see
+        # pitloom.cli.options_resolve._resolve_output_path,
+        # pitloom.core.file_names.default_sbom_basename and
         # pitloom._embed_wheel._derive_wheel_sbom_filename) rather than
         # forcing a generic "sbom.spdx3.json" here.
         if [ "${skip_output}" = false ] && [ -n "${PL_OUTPUT}" ]; then

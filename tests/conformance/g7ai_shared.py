@@ -7,7 +7,7 @@
 and ``scripts/g7_coverage_report.py``.
 
 Each scenario builds one SBOM from a fixture model; ``outcomes()`` runs the
-checker (``g7ai``, ``cisa2026`` or ``fsct3``, SPDX 3) on it.
+checker (``g7ai``, ``cisa2026``, ``fsct3`` or ``bsi``, SPDX 3) on it.
 ``tests/fixtures/conformance/<standard>-expected.tsv`` holds the expected
 outcome of every rule per scenario.
 

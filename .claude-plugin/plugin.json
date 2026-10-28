@@ -1,7 +1,7 @@
 {
   "name": "pitloom",
   "version": "0.21.0",
-  "description": "Generate, enrich, and validate SPDX 3 SBOMs/AIBOMs for Python projects and AI models using Pitloom.",
+  "description": "Generate, enrich and validate SPDX 3 SBOMs/AIBOMs with Pitloom for Python projects, wheels (PEP 770 embedding), Git URLs and AI models, and complete NTIA, FSCT, CISA 2026, G7 SBOM for AI and BSI TR-03183-2 minimum elements.",
   "author": {
     "name": "Arthit Suriyawongkul",
     "url": "https://github.com/bact/pitloom"
@@ -9,5 +9,5 @@
   "homepage": "https://github.com/bact/pitloom",
   "repository": "https://github.com/bact/pitloom",
   "license": "Apache-2.0",
-  "keywords": ["sbom", "spdx", "supply-chain-security", "bom", "aibom", "provenance", "transparency", "metadata", "gguf", "onnx", "safetensors", "crfsuite", "ai-sbom", "software-supply-chain-security", "validation"]
+  "keywords": ["sbom", "spdx", "supply-chain-security", "bom", "aibom", "provenance", "transparency", "metadata", "gguf", "onnx", "safetensors", "crfsuite", "ai-sbom", "software-supply-chain-security", "validation", "pep-770", "minimum-elements"]
 }

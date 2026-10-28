@@ -12,7 +12,9 @@ parse_git_page`). The server's redirect (GitLab's ``project`` to
 ``project.git``) is followed first, each hop passed to the caller's URL check
 (:func:`~pitloom.extract.remote._git_redirect.resolve_git_url`). The clone is
 shallow, asks the server to omit blobs over 10 MB (a server without partial
-clone sends them), follows no redirect itself and runs with git-lfs off.
+clone sends them; one that rejects the filter is asked again without it),
+follows no redirect itself and runs with git-lfs off; with ``max_bytes`` it
+stops past a disk cap (``git.too-large``).
 One ``INFO:`` names the URL given and the URL cloned when they differ.
 
 Needs the ``git`` program. Every failure is a :class:`~pitloom.extract.remote.
@@ -57,7 +59,8 @@ __all__ = [
 ]
 
 #: Blobs above this size are not fetched: Pitloom reads packaging metadata.
-#: A server without partial clone ignores the filter, never fails on it.
+#: A server without partial clone ignores the filter; one that rejects it
+#: (HTTP 400) is asked again without it (:func:`_checkout`).
 BLOB_LIMIT = "10m"
 
 #: ``log.info()`` for a repository's own settings, which are not used.

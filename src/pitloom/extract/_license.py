@@ -6,7 +6,9 @@
 """License text detection utilities using the licenseid library.
 
 Provides SPDX license ID detection from license text and metadata found in
-project files.  Text detection requires a populated database; other sources
+project files, and the shared ``licenseid.resolve`` reading of a declared
+value (:func:`resolve_declared_value`).  Text detection and that reading
+(``Apache2`` -> ``Apache-2.0``) require a populated database; other sources
 (``CITATION.cff``, ``codemeta.json``) work without it.
 
 Build the database before first use::
@@ -14,9 +16,10 @@ Build the database before first use::
     licenseid update
 
 See Also:
-    :mod:`pitloom.extract._license_detect` for file candidate scanning, and
+    :mod:`pitloom.extract._license_detect` for file candidate scanning,
     :mod:`pitloom.extract._license_classify` for classifying a value
-    (re-exported here).
+    (re-exported here), and :mod:`pitloom.extract._license_resolve` for
+    which ``licenseid`` readings are accepted.
 """
 
 from __future__ import annotations
@@ -122,7 +125,8 @@ def _get_matcher() -> AggregatedLicenseMatcher:
 
 def _database_unusable(exc: BaseException) -> None:
     """Warn once per process that the database cannot be used, and drop the
-    cached matcher, so the next lookup builds (and checks) it again."""
+    cached matcher and resolver answers, so the next lookup builds (and
+    checks) it again."""
     _get_matcher.cache_clear()
     clear_resolution_cache()
     warn_once(
@@ -234,8 +238,8 @@ short license."""
 #: tie; with none stated, a tie is no detection.
 _STATED_TIE_MARGIN = 0.01
 
-#: The highest score ``licenseid`` (0.4) gives: a capped score no longer
-#: tells how far above the licence a near-variant scores.
+#: The highest score ``licenseid`` (0.4 and later) gives: a capped score no
+#: longer tells how far above the licence a near-variant scores.
 _SCORE_CAP = 1.0
 
 #: The ids an expression names; operators are not ids.

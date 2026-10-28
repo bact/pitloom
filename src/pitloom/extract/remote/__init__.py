@@ -20,6 +20,7 @@ from pitloom.extract.remote.git_url import (
 )
 from pitloom.extract.remote.huggingface import (
     is_huggingface_source,
+    log_hf_url_rewrite,
     parse_hf_model_id,
     read_huggingface,
 )
@@ -31,6 +32,7 @@ __all__ = [
     "is_git_url",
     "is_huggingface_source",
     "is_unsupported_remote_url",
+    "log_hf_url_rewrite",
     "parse_git_page",
     "parse_hf_model_id",
     "read_huggingface",

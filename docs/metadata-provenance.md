@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-10-27
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -57,7 +57,7 @@ author-declared):
   "annotationType": "other",
   "contentType": "application/json",
   "subject": "https://spdx.org/spdxdocs/mypackage-.../#Package-1",
-  "statement": "{\"fields\":{\"license\":{\"method\":\"licenseid_detection\",\"source\":\"LICENSE\"}},\"kind\":\"fields\",\"schema\":\"https://pitloom.dev/provenance/fields/1\"}"
+  "statement": "{\"fields\":{\"license\":{\"method\":\"licenseid_detection\",\"source\":\"LICENSE\",\"tool\":\"licenseid==0.6.0\"}},\"kind\":\"fields\",\"schema\":\"https://pitloom.dev/provenance/fields/1\"}"
 }
 ```
 
