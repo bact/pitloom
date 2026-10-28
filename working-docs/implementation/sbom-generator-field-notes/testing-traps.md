@@ -249,3 +249,14 @@ Ways a test passes, fails or floods the log for the wrong reason.
   `ast.literal_eval`, since a value can hold a quote or a bracket) gave one.
   Do: run a command under several seeds and hash its output before calling it
   deterministic.
+
+- **A strict network mode turns another party's outage into your failure.** With
+  `PITLOOM_REQUIRE_NETWORK=1`, seven live forge tests failed in the 0.21.1
+  publish gate: `Could not resolve host: code.overheid.nl`, and `Failed to
+  connect to git.sr.ht port 443 after 135048 ms`. "Re-run failed jobs" passed.
+  Do: keep the strict set small and reliable, put the rest in a scheduled job,
+  and never "Re-run all jobs" after `publish` (a new wheel timestamp).
+- **A thread-local flag is cleared before the call and read right after it.** The
+  discovery-failure flag is set on the caller's thread by whichever discoverer
+  logs a failure; the dispatcher clears it first, so a report left by an earlier
+  call cannot reword the next. Test the stale case, not only the set case.

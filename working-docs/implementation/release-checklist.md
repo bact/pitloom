@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -105,6 +105,9 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
       `network`-marked tests with `PITLOOM_REQUIRE_NETWORK=1`
       before `publish`, so an unreachable spdx.org/PyPI blocks publishing
       (re-run the workflow); it is never skipped.
+      An outage of a third-party forge fails it too (0.21.1: `code.overheid.nl`
+      DNS, `git.sr.ht` connect): "Re-run failed jobs" only, once the host
+      answers; never "Re-run all jobs" after `publish`.
 - [ ] The same workflow's `scripts/check_sbom_license.py` step fails
       unless the release SBOM, embedded and extracted, declares *and*
       concludes `Apache-2.0` on the `pitloom` package. The `build` job has

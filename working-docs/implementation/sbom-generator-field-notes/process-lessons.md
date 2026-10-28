@@ -274,3 +274,27 @@ file group; the rules file (46 KB) was compacted by hand.
   previous round had added.
   Do: for a cache, list its invalidation keys and its writers, then write one
   test per key and one for a lookup that straddles a change.
+
+## 0.21.1: sub-agents and plan mode (2026-10-28)
+
+- **Sub-agents inherit plan mode.** Four agents launched for the licenseid 0.7.0
+  groundwork each returned a written plan and no change, because the session was
+  in plan mode: they could read, not write, run or commit. The two Opus reviews
+  of Pitloom's diff could not run mutation checks for the same reason, and said
+  so. Check the mode before a fan-out, and say in the brief that it is off.
+- **A fresh review of the whole diff since the release found what the per-PR
+  reviews did not.** Two Opus reviewers over `v0.21.0..HEAD` (runtime; CI, docs
+  and release readiness) found six issues in code and docs the earlier reviews had
+  passed: a failure branch that skipped the new flag, the dropped database path,
+  a docs overclaim, an over-long line, a weak redirect assertion, and a stale
+  open ledger entry.
+  Do: after the last PR of a release and before the version bump, review the
+  combined diff once with a new context.
+- **A size cap on a skill body forces details into `references/`.** Two
+  `SKILL.md` bodies sat within 22 bytes of the 24 KB test; a three-word addition
+  failed `test_body_size`. Trim a sentence or put the detail in a reference page.
+- **A docs audit starts from the parser.** Dumping every command's option strings
+  from `argparse` and diffing against `docs/`, `skills/` and `README.md` found
+  `--no-offline` documented nowhere and the `embed-wheel`, `verify-wheel` and
+  `validate-wheel` flags missing from `docs/cli.md`; the "no effect" table was
+  already guarded by tests. Audit what no test covers.
