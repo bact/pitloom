@@ -60,6 +60,7 @@ _GIT_NETWORK_TEXT = re.compile(
     r"Failed to connect to|Could not connect to server|Could not resolve host|"
     r"Connection (?:timed out|refused|reset)|Operation timed out|"
     r"SSL connection timeout|Recv failure|GnuTLS recv error|"
+    r"gnutls_handshake\(\) failed|TLS connection was non-properly terminated|"
     r"Empty reply from server|returned error: (?:429|5\d\d)|"
     r"schannel: .*(?:handshake|SSL/TLS connection failed)|"
     r"SSL_ERROR_SYSCALL|RPC failed; curl|early EOF|"
