@@ -403,3 +403,40 @@ Field-note version, with the measured context:
   (`CITATION.cff` from `codemeta.json`) made a push fail: merge it, do not rebase.
   PyPI's JSON endpoint served the old latest version for a minute after
   publishing: ask for the version URL.
+
+## From PR #364, #365 and the 0.21.1 release (log levels, a failure flag)
+
+- **A signal set by a helper must be set by every path that logs the failure.**
+  #365 made `warn_discovery_failed` set a per-thread flag so the dispatcher stopped
+  saying "no static config resolvable" after a reported failure. A review found the
+  setuptools `PackageDiscoveryError` branch logs its own warning and returned
+  `None` without the helper: the old wrong line still followed it. Grep every
+  `return None` after a logged failure, and add one test per branch.
+- **Lowering a message's level keeps its diagnostic content.** The `INFO:` that
+  replaced the missing-database `WARNING:` dropped the path the warning carried
+  (`one_line(exc)`); in a container whose `HOME` differs, nothing said where
+  Pitloom looked. Keep the fact; change the tag.
+- **A message prefix is a classifier only while no sibling shares it.** The
+  missing-database test matched `database: not found:`; licenseid's `no home
+  directory; pass --db` has the same prefix and is a setup problem. List the
+  sibling conditions of a prefix before keying on it, and test each.
+- **Sibling lines share one literal prefix and one separator.** The `INFO:` and
+  `WARNING:` about one database said "licence file check" against "license text
+  detection" with `:`/`;` against ` -- `. A `_DB_PREFIX` constant and a test that
+  both lines start with it and hold one ` -- ` keep them together.
+- **A doc says what the code does, not what the commit meant.** "declares a
+  licence" was wrong for `Apache2` (still `INFO:` plus `WARNING:`); the doc beside
+  it already said "an SPDX expression". Re-read each sentence a change touches
+  against its test.
+- **A review's side effects leave the repository.** A reviewer ran `HOME=
+  licenseid update` and wrote a 17 MB database under `/`. Tell review agents to
+  use a scratch `HOME`, and not to run anything that writes a cache.
+- **A strict network gate fails on someone else's outage.** The 0.21.1 publish
+  gate ran 53 live tests with `PITLOOM_REQUIRE_NETWORK=1`; seven failed because
+  `code.overheid.nl` did not resolve and `git.sr.ht` took 135 s to refuse. The
+  re-run of the failed job passed. The gate depends on every third-party forge
+  being up: keep PyPI, GitHub and one more in it, and the rest in the weekly job.
+- **A PR needing its own number for the CHANGELOG.** `test_changelog` wants each
+  entry to link its PR; two PRs adding `[Unreleased]` conflict on the second
+  merge. Add the entry once the number exists, and merge `main` (never rebase) to
+  combine the sections.
