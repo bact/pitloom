@@ -178,3 +178,46 @@ def test_general_license_is_the_model_licence(
         assert "license" not in meta.provenance
     else:
         assert meta.provenance["license"].endswith("Field: general.license")
+
+
+@pytest.mark.parametrize(
+    ("fields", "expected", "field"),
+    [
+        # the name is the licence only when general.license is absent or blank
+        (
+            {b"general.license.name": "Llama 3.1 Community License"},
+            "Llama 3.1 Community License",
+            "general.license.name",
+        ),
+        (
+            {b"general.license": "  ", b"general.license.name": "Gemma Terms"},
+            "Gemma Terms",
+            "general.license.name",
+        ),
+        (
+            {b"general.license": "MIT", b"general.license.name": "The MIT License"},
+            "MIT",
+            "general.license",
+        ),
+        ({b"general.license.name": "   "}, None, None),
+        ({b"general.license.link": "https://example.org/terms"}, None, None),
+    ],
+    ids=["name-only", "blank-id-then-name", "id-wins", "blank-name", "link-unread"],
+)
+def test_general_license_name_is_the_licence_when_no_id_is_stated(
+    tmp_path: Path,
+    fields: dict[bytes, str],
+    expected: str | None,
+    field: str | None,
+) -> None:
+    body = b"".join(kv(key, STRING, string(value)) for key, value in fields.items())
+    path = tmp_path / "m.gguf"
+    path.write_bytes(gguf_file(0, len(fields), body))
+
+    meta = read_ai_model(path)
+
+    assert meta.license == expected
+    if field is None:
+        assert "license" not in meta.provenance
+    else:
+        assert meta.provenance["license"].endswith(f"Field: {field}")

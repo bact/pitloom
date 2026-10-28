@@ -102,8 +102,9 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
    skipped for a supervised model of file version 11, which the loader resets.
 5. `general.license` (an SPDX expression by the GGUF spec), trimmed and
    classified like any model licence; only a non-blank string counts
-   (`general.version` may also be a number, read as its text).
-   `general.license.name` and `.link` are not read.
+   (`general.version` may also be a number, read as its text). With no
+   `general.license`, `general.license.name` (the licence's name) stands in, as
+   written. `general.license.link` is not read.
 6. Keys ending `.context_length`, `.embedding_length`,
    `.feed_forward_length`, `.block_count`, `.attention.head_count`,
    `.attention.head_count_kv`, `.attention.layer_norm_rms_epsilon`,
@@ -157,8 +158,11 @@ can hold it, Pitloom does not read it. **--**: the format has no such field.
     `name` or `ss_base_model_version`; description `modelspec.description`
     or `description`; version `modelspec.version` or `version`;
     architecture `modelspec.architecture` or `architecture`; quantisation
-    `modelspec.precision` or `precision`; producer `modelspec.author`. A
-    licence key is kept only.
+    `modelspec.precision` or `precision`; producer `modelspec.author`;
+    licence `modelspec.license` (a name or an expression, as written). No other
+    licence key is read: none appears in the files measured (SDXL, SDXL
+    refiner, SDXL Turbo and Stable Cascade write `modelspec.license`; GPT-2,
+    Qwen2.5 and Whisper carry only `format`).
 23. Tensor names are weights, not a model's inputs: not recorded.
 24. Model card `license`, or a licence file detected when the card has none
     or a vague one. Also from the Hub: DOI, arXiv IDs, page URL, base model,

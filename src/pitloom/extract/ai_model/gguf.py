@@ -44,6 +44,7 @@ _GGUF_ARCH_KEY = "general.architecture"
 _GGUF_VERSION_KEY = "general.version"
 _GGUF_FILE_TYPE_KEY = "general.file_type"
 _GGUF_LICENSE_KEY = "general.license"
+_GGUF_LICENSE_NAME_KEY = "general.license.name"
 # Producer names, in the order they are read
 _GGUF_ORIGINATOR_KEYS = ("general.author", "general.organization")
 _GGUF_SPLIT_COUNT_KEY = "split.count"
@@ -290,13 +291,20 @@ def _read_gguf_license(
     """Return ``general.license`` (an SPDX expression by the GGUF spec), if
     it is a non-blank string; a value of another type stays in
     ``properties`` only. One that is no SPDX expression (``llama3.1``) is
-    text, with a ``WARNING:``."""
+    text, with a ``WARNING:``. With no ``general.license``,
+    ``general.license.name`` (the licence's name: free text, no warning)
+    stands in; ``general.license.link`` is not read."""
     license_expr = _stated_text(fields.get(_GGUF_LICENSE_KEY))
-    if not license_expr:
+    if license_expr:
+        warn_unless_expression(license_expr, _GGUF_LICENSE_KEY)
+        provenance["license"] = f"{source} | Field: {_GGUF_LICENSE_KEY}"
+        return license_expr
+    # Only when no id is stated: the human name (free text) is the licence.
+    name = _stated_text(fields.get(_GGUF_LICENSE_NAME_KEY))
+    if not name:
         return None
-    warn_unless_expression(license_expr, _GGUF_LICENSE_KEY)
-    provenance["license"] = f"{source} | Field: {_GGUF_LICENSE_KEY}"
-    return license_expr
+    provenance["license"] = f"{source} | Field: {_GGUF_LICENSE_NAME_KEY}"
+    return name
 
 
 def _originators(
