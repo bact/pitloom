@@ -65,6 +65,9 @@ def _said(caplog: pytest.LogCaptureFixture, level: int) -> list[str]:
         ("LGPL v2.1 only", "LGPL-2.1-only", "separator"),
         ("GPL 3.0 or later", "GPL-3.0-or-later", "separator, stated_qualifier"),
         ("GPL-3.0 or later", "GPL-3.0-or-later", "stated_qualifier"),
+        ("Apache\u20112.0", "Apache-2.0", "separator"),  # non-breaking hyphen
+        ('BSD 3-Clause "New" or "Revised" License', "BSD-3-Clause", "listed_name"),
+        ("Yahoo! Public License v1.0", "YPL-1.0", "listed_name"),
     ],
     ids=[
         "apache2",
@@ -75,6 +78,9 @@ def _said(caplog: pytest.LogCaptureFixture, level: int) -> list[str]:
         "lgpl-only",
         "or-later",
         "stated",
+        "unicode-hyphen",
+        "list-name-quotes",
+        "list-name-bang",
     ],
 )
 def test_a_value_the_resolver_decided_is_an_expression_said_once_at_info(
@@ -204,9 +210,14 @@ def test_the_answers_are_dropped_when_the_database_is_found_unusable() -> None:
         "MIT/Apache-2.0",  # not an SPDX operator
         "GPL-2.0-only+",  # malformed
         "Apache2\nLicense",  # more than one line
+        "Apache\r2.0",  # a line break that is not \n
+        "Apache\x0b2.0",
+        "Apache\x1c2.0",
+        "Apache\u20282.0",
         # a character the resolver would drop is the author's, not a spelling
         "Apache 2.0?",
         "Apache2 ***",
+        "MIT License!",  # a List name plus a character
         "GPL-3.0-or-later!",
         "Apache\ufffd2.0",
         "Apache 2.0\udc80",  # a lone surrogate becomes U+FFFD
@@ -403,7 +414,9 @@ def test_the_answers_are_dropped_when_the_database_file_changes() -> None:
     of the new database, as licence text detection does."""
     with (
         patch("pitloom.extract._license.resolve", side_effect=licenseid_resolve) as spy,
-        patch.object(_license, "_database_stamp", side_effect=[(1, 1)] * 2 + [(2, 1)]),
+        patch.object(
+            _license, "_database_stamp", side_effect=[(1, 1, 1)] * 2 + [(2, 1, 1)]
+        ),
     ):
         for _ in range(3):
             resolve_declared_value("Apache2")
@@ -421,11 +434,12 @@ def test_each_caller_gets_its_own_copy_of_an_answer() -> None:
 def test_the_database_stamp_is_the_files_or_none(tmp_path: Path) -> None:
     db = tmp_path / "licenses.db"
     db.write_bytes(b"x")
-    assert _license._database_stamp(db) == (db.stat().st_mtime_ns, 1)
+    st = db.stat()
+    assert _license._database_stamp(db) == (st.st_mtime_ns, 1, st.st_ino)
     assert _license._database_stamp(tmp_path / "missing.db") is None
 
 
 def test_no_notes_when_the_resolver_has_no_reading_now() -> None:
-    """The database can go between the reading and its note: nothing is
-    claimed."""
+    """The resolver names no licence (``Acme2``, even with the database):
+    no note is written."""
     assert _license_resolve.resolution_notes("Acme2", "MIT") == ""

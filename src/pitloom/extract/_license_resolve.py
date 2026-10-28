@@ -52,7 +52,8 @@ _ACCEPTED = frozenset(
 )
 #: What the resolver may fold away or respell: letters, digits, white space,
 #: ``_ . , + ( )`` and the hyphens. Any other character (``?``, ``*``, U+FFFD)
-#: it would drop is the author's, so such a value is not read.
+#: it would drop is the author's, so such a value is not read, unless it is
+#: a List name verbatim (``Yahoo! Public License v1.0``).
 _FOLDABLE = re.compile(r"[\w\s.,+()\u2010-\u2015\u2212-]+")
 #: Only the form of the text changed, or ``+`` was written as ``-or-later``
 #: (its own key): the author's id stands, so nothing is said above ``DEBUG:``.
@@ -84,13 +85,15 @@ def _kinds(steps: list[Any]) -> tuple[str, ...]:
 def resolve_value(value: str) -> DeclaredResolution | None:
     """The accepted reading of the single-line licence *value*, or ``None``
     when ``licenseid`` names no one licence for it (or cannot be asked)."""
-    if not _FOLDABLE.fullmatch(value):
+    if len(value.splitlines()) > 1:  # \r, U+2028 ...: also a line break
         return None
     licence = importlib.import_module("pitloom.extract._license")
     found = licence.resolve_declared_value(value)
     if found is None or found["expression"] is None:
         return None
     if found["category"] not in _ACCEPTED:
+        return None
+    if found["category"] != "listed_name" and not _FOLDABLE.fullmatch(value):
         return None
     return DeclaredResolution(
         found["expression"],

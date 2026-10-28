@@ -26,6 +26,7 @@ import functools
 import logging
 import os
 import re
+import threading
 from collections.abc import Mapping, Sequence
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
@@ -150,23 +151,25 @@ def _matcher() -> AggregatedLicenseMatcher | None:
 #: database file is unchanged (:data:`_RESOLUTIONS_STAMP`); dropped when the
 #: database is found unusable and by :func:`clear_resolution_cache`.
 _RESOLUTIONS: dict[str, Resolution] = {}
-_RESOLUTIONS_STAMP: tuple[int, int] | None = None
+_RESOLUTIONS_STAMP: tuple[int, int, int] | None = None
+_RESOLUTIONS_LOCK = threading.Lock()
 _MAX_RESOLUTIONS = 4096
 
 
 def clear_resolution_cache() -> None:
     """Forget the answers of :func:`resolve_declared_value`."""
-    _RESOLUTIONS.clear()
+    with _RESOLUTIONS_LOCK:
+        _RESOLUTIONS.clear()
 
 
-def _database_stamp(path: Path) -> tuple[int, int] | None:
-    """``(mtime, size)`` of the database file at *path*; ``None`` when it is
-    not a file (an in-memory database)."""
+def _database_stamp(path: Path) -> tuple[int, int, int] | None:
+    """``(mtime, size, inode)`` of the database file at *path*; ``None`` when
+    it is not a file (an in-memory database)."""
     try:
         stat = os.stat(path)
     except OSError:
         return None
-    return stat.st_mtime_ns, stat.st_size
+    return stat.st_mtime_ns, stat.st_size, stat.st_ino
 
 
 def resolve_declared_value(value: str) -> Resolution | None:
@@ -182,15 +185,18 @@ def resolve_declared_value(value: str) -> Resolution | None:
         return None
     try:
         stamp = _database_stamp(matcher.db.db_path)
-        if stamp != _RESOLUTIONS_STAMP:
-            _RESOLUTIONS.clear()
-            _RESOLUTIONS_STAMP = stamp
-        cached = _RESOLUTIONS.get(value)
+        with _RESOLUTIONS_LOCK:
+            if stamp != _RESOLUTIONS_STAMP:
+                _RESOLUTIONS.clear()
+                _RESOLUTIONS_STAMP = stamp
+            cached = _RESOLUTIONS.get(value)
         if cached is None:
             cached = resolve(value, matcher.db)
-            if len(_RESOLUTIONS) >= _MAX_RESOLUTIONS:
-                _RESOLUTIONS.clear()
-            _RESOLUTIONS[value] = cached
+            with _RESOLUTIONS_LOCK:
+                if stamp == _RESOLUTIONS_STAMP:
+                    if len(_RESOLUTIONS) >= _MAX_RESOLUTIONS:
+                        _RESOLUTIONS.clear()
+                    _RESOLUTIONS[value] = cached
     except DatabaseNotReadyError as exc:
         _database_unusable(exc)
         return None
