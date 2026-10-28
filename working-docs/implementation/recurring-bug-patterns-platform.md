@@ -361,8 +361,11 @@ the move.
   front with `require_reachable()` instead. No retry loop: a retry only
   hides how often the network fails. (The `build.yml` validation steps do retry,
   through `scripts/retry_network.py`, but log every failed attempt and
-  still fail the job when all of them hit the network, PR #259.) Ordinary CI skips; the release
-  workflow is a strict gate: its `network-quality-gate` job sets
+  still fail the job when all of them hit the network, PR #259.) The default CI
+  job leaves `network` tests out (`-m "not network"`: a slow Savannah or
+  labs.etsi.org failed three runs of one PR) and runs the local-server tests
+  as `loopback`; `live-tests.yml` runs the `network` ones weekly and on demand.
+  The release workflow is a strict gate: its `network-quality-gate` job sets
   `PITLOOM_REQUIRE_NETWORK=1` (a network failure, or any skipped
   `network` test, fails the job), and its `build` job runs
   `spdx3-validate` on the release SBOM as a step. Both must pass before

@@ -5,7 +5,11 @@
 
 """Turn a network-caused test failure into a skip that names the cause.
 
-Tests marked ``@pytest.mark.network`` reach a real remote host -- directly
+Tests marked ``@pytest.mark.network`` reach a real remote host, are left out of
+the default CI job (``-m "not network"``) and run in the release gate, in
+``.github/workflows/live-tests.yml`` and with ``pytest -m network``. A test
+that talks only to a server it starts is ``@pytest.mark.loopback`` instead and
+runs everywhere. A ``network`` test reaches its host -- directly
 (``urllib``) or through a subprocess or library (``spdx3-validate`` run
 without ``model_dir`` downloads the SPDX JSON Schema and SHACL model; most
 tests validate offline instead, see ``tests/_spdx3_validate.py``).

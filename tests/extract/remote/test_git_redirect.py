@@ -6,7 +6,8 @@
 ``project.git``) is followed with every hop checked, and each redirect is one
 ``INFO:`` naming both URLs.
 
-The servers are local ones, so the tests opt out of the socket block.
+The servers are local ones (`loopback`), so the tests may open sockets to this
+machine only.
 """
 
 from __future__ import annotations
@@ -35,7 +36,7 @@ from pitloom.extract.remote._git_redirect import (
 )
 from pitloom.extract.remote.errors import RemoteSourceError
 
-pytestmark = pytest.mark.network
+pytestmark = pytest.mark.loopback
 
 Routes = Mapping[str, Callable[[int], str | None]]
 

@@ -78,18 +78,21 @@ jobs:
         # temp files) on RUNNER_TEMP, the checkout's D: drive, instead of
         # C:\Users\RUNNER~1\...\Temp; file-heavy tests ran faster there.
         # --junitxml: every test's time, for comparing legs (artifact below).
+        # -m "not network": tests that reach a real host run in live-tests.yml and
+        # in the release gate (pypi-publish.yml), not here; a slow host is not a
+        # failure of the change under test. Local-server tests (loopback) run.
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
             export TMP="$RUNNER_TEMP" TEMP="$RUNNER_TEMP"
           fi
           if [ "${{ matrix.coverage }}" == "true" ]; then
-            pytest tests/ -v --tb=short --durations=20 \
+            pytest tests/ -m "not network" -v --tb=short --durations=20 \
               --junitxml=pytest-junit.xml \
               --cov=pitloom \
               --cov-report=xml \
               --cov-report=term-missing
           else
-            pytest tests/ -v --tb=short --durations=20 \
+            pytest tests/ -m "not network" -v --tb=short --durations=20 \
               --junitxml=pytest-junit.xml
           fi
 

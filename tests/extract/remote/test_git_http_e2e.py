@@ -7,7 +7,8 @@
 ``generate()`` and the ``loom`` program -- reads the project it holds and
 writes one SBOM.
 
-The server is on ``127.0.0.1``, so the tests opt out of the socket block.
+The server is on ``127.0.0.1`` (`loopback`): the tests may open sockets to this
+machine only.
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ from tests._git_http_server import backend_available, make_repo, serve_git
 from tests._spdx3_validate import assert_spdx3_valid
 
 pytestmark = [
-    pytest.mark.network,
+    pytest.mark.loopback,
     pytest.mark.skipif(not backend_available(), reason="needs git http-backend"),
 ]
 

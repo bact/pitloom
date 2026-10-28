@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: Apache-2.0
+
+# Tests that reach real hosts (Git platforms, spdx.org, PyPI): the default
+# "Unit tests" job leaves them out, since a slow or changed host is not a
+# failure of the change under test. They run here weekly and on demand, and in
+# the release gate of pypi-publish.yml. A red run means a platform changed how
+# it answers, a repository moved, or a host was down: read the failing test.
+
+name: Live-host tests
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live:
+    name: Tests that reach real hosts (strict)
+    runs-on: ubuntu-latest
+    # spdx3-validate's urlopen sets no timeout; bound a hung download.
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: ./.github/actions/setup-python
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-pitloom
+        with:
+          groups: --group test
+          package-spec: ".[ai,content-type]"
+
+      - name: Run the tests that reach real hosts, failing on any network error
+        # PITLOOM_REQUIRE_NETWORK=1 turns tests/_network.py's skip-on-network-
+        # failure into a failure, as in the release gate.
+        env:
+          PITLOOM_REQUIRE_NETWORK: "1"
+        run: |
+          set -euo pipefail
+          pytest tests/ -m network -v --tb=short -rs
