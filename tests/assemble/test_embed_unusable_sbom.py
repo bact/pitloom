@@ -25,13 +25,21 @@ from .conftest import _make_dummy_wheel, _spdx3_json_with_subject
 _CYCLONEDX = json.dumps(
     {"bomFormat": "CycloneDX", "specVersion": "1.6", "components": []}
 )
-#: file name, content (``None``: a directory, ``False``: absent), message part
-_BAD: dict[str, tuple[str, bytes | None | bool, str]] = {
+#: file name, content, message part (a directory and a missing file are below)
+_BAD: dict[str, tuple[str, bytes, str]] = {
     "malformed": ("a.spdx3.json", b'{"@graph": [', "is not valid JSON"),
     "empty": ("a.spdx3.json", b"", "is not valid JSON"),
     "array": ("a.spdx3.json", b"[1, 2]", "is not a JSON object"),
     "cyclonedx": ("a.spdx3.json", _CYCLONEDX.encode(), "not SPDX 3 JSON-LD"),
     "malformed-other-name": ("a.json", b"{oops", "is not valid JSON"),
+    "nan": ("a.json", b'{"x": NaN}', "is not valid JSON"),
+    "infinity": (
+        "a.spdx3.json",
+        b'{"@context": 1, "@graph": [], "x": Infinity}',
+        "is not valid JSON",
+    ),
+    "deeply-nested": ("a.json", b"[" * 100_000, "is not valid JSON"),
+    "upper-case-name": ("A.SPDX3.JSON", _CYCLONEDX.encode(), "not SPDX 3 JSON-LD"),
     "non-utf8": ("a.spdx3.json", b'{"@graph": "\xff"}', "not valid UTF-8"),
 }
 
@@ -39,7 +47,6 @@ _BAD: dict[str, tuple[str, bytes | None | bool, str]] = {
 def _bad_file(tmp_path: Path, kind: str) -> Path:
     name, content, _ = _BAD[kind]
     path = tmp_path / name
-    assert isinstance(content, bytes)
     path.write_bytes(content)
     return path
 

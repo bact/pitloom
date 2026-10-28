@@ -64,7 +64,8 @@ file that is not valid JSON (an empty one included), not a JSON object, or
 named `.spdx3.json` but not SPDX 3 JSON-LD (a CycloneDX file, say) is an
 `ERROR:` and exit 1, and no wheel is written. A JSON object in another format
 under another name is embedded, with a `WARNING:` that its name and version
-cannot be cross-checked.
+cannot be cross-checked. The file is stored as `<basename>.spdx3.json`
+whatever it is called or holds.
 
 Embedding again replaces an earlier SBOM only when Pitloom made it, it is a
 build or analyzed SBOM (`software_sbomType`), and it is of the same name and

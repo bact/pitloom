@@ -313,18 +313,25 @@ def check_spdx3_name_version(
     )
 
 
+def _reject_constant(name: str) -> object:
+    """``json.loads``' hook for ``NaN``/``Infinity``: Python reads them, RFC 8259
+    does not have them."""
+    raise ValueError(f"{name} is not a JSON value")
+
+
 def refuse_unusable_given_sbom(sbom_path: Path | str, text: str) -> None:
     """Refuse an SBOM file the user named that cannot be what they gave it as.
 
     *text* is the file's content. Raises ``ValueError`` when it is not valid
-    JSON (empty included), is JSON but not an object, or is named
-    ``.spdx3.json`` and is not SPDX 3 JSON-LD. A JSON object in another
-    format under another name (a CycloneDX ``bom.json``) is left to the
-    name/version cross-check, which skips it with a ``WARNING:``.
+    JSON (empty included; ``NaN`` and ``Infinity`` are not JSON), is JSON but
+    not an object, or is named ``.spdx3.json`` and is not SPDX 3 JSON-LD. A
+    JSON object in another format under another name (a CycloneDX
+    ``bom.json``) is left to the name/version cross-check, which skips it with
+    a ``WARNING:``.
     """
     quoted = quote_source(sbom_path)
     try:
-        document = json.loads(text)
+        document = json.loads(text, parse_constant=_reject_constant)
     except (ValueError, RecursionError) as exc:
         raise ValueError(
             f"SBOM {quoted} is not valid JSON: {loggable(str(exc))}"
