@@ -123,6 +123,11 @@ def _get_matcher() -> AggregatedLicenseMatcher:
     return AggregatedLicenseMatcher()
 
 
+#: The sub-prefix of every message about the database, so the sibling lines
+#: of :func:`_database_unusable` keep one grammar.
+_DB_PREFIX = "licenseid database"
+
+
 def _database_missing(exc: BaseException) -> bool:
     """True when *exc* says the database file is absent (``database: not
     found: ...``), not empty, invalid or unreadable: licenseid carries the
@@ -149,15 +154,17 @@ def _database_unusable(exc: BaseException, *, declared: bool = False) -> None:
             _logger,
             logging.INFO,
             "licenseid database missing",
-            "licenseid database not found: licence file check skipped; "
+            "%s not found -- license text detection skipped; "
             "run 'licenseid update --source packaged'",
+            _DB_PREFIX,
         )
         return
     warn_once(
         _logger,
         "licenseid database",
-        "licenseid database cannot be used: %s -- license text detection and "
+        "%s cannot be used: %s -- license text detection and "
         "license id reading skipped",
+        _DB_PREFIX,
         one_line(exc),
     )
 

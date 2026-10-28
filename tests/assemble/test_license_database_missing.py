@@ -28,7 +28,7 @@ from pitloom.extract._license import (
 )
 
 _TEXT = "Permission is hereby granted, free of charge, to any person " * 5
-_INFO = "licenseid database not found: licence file check skipped"
+_INFO = "licenseid database not found -- license text detection skipped"
 
 
 def _lines(caplog: pytest.LogCaptureFixture) -> list[tuple[int, str]]:
@@ -104,3 +104,23 @@ def test_an_unusable_database_with_a_stated_licence_still_warns(
     (level, message) = _lines(caplog)[0]
     assert level == logging.WARNING
     assert "cannot be used" in message
+
+
+def test_the_info_and_warning_lines_share_one_grammar(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Sibling lines keep the ``licenseid database`` sub-prefix and one
+    `` -- `` before the consequence."""
+    broken = tmp_path / "broken.db"
+    broken.write_bytes(b"")
+    with caplog.at_level(logging.INFO, logger=_license.__name__):
+        for path in (tmp_path / "none.db", broken):
+            real = functools.partial(AggregatedLicenseMatcher, db_path=str(path))
+            with patch.object(_license, "AggregatedLicenseMatcher", real):
+                detect_license_from_text(_TEXT, stated="MIT")
+
+    levels_and_lines = _lines(caplog)
+    assert [level for level, _ in levels_and_lines] == [logging.INFO, logging.WARNING]
+    for _, line in levels_and_lines:
+        assert line.startswith("licenseid database ")
+        assert line.count(" -- ") == 1

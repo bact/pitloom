@@ -294,7 +294,7 @@ it). Licences are then taken as written: no
 `LICENSE` text is matched to an id and no respelt id (`Apache2`) is read as the
 id it names. Report the line and the command. When the project declares a
 licence and the file is only missing, the line is `INFO: licenseid database
-not found: licence file check skipped; run 'licenseid update --source
+not found -- license text detection skipped; run 'licenseid update --source
 packaged'`: the declared value is recorded as written and only the `LICENSE`
 file is not matched.
 
