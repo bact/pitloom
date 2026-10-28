@@ -205,8 +205,10 @@ Size: S under half a day, M about a day.
 - [x] **Safetensors licence keys are not mapped (S).** Fixed in the next
   release: `modelspec.license` (the only licence key in 9 real headers read on
   2026-10-28) is the model licence, as written; GGUF `general.license.name`
-  stands in when `general.license` is blank. `general.license.link` stays
-  unread: Pitloom has no licence-URL field for a model. Safetensors files
+  stands in when `general.license` is blank or a placeholder (`other`...).
+  `general.license.link` stays unread: `AiModelMetadata` has no licence-URL
+  field, though SPDX 3.0.1 has `ExternalRefType` `license` for it (a Pitloom
+  gap, not a format gap). Safetensors files
   with `license`/`license_name` keys were not seen; add them if one turns up.
 
 - [x] **`setup.cfg` `%` fails the whole run (S).** `description = 50% faster`

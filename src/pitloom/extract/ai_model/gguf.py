@@ -30,6 +30,7 @@ from pitloom.extract._extract_utils import (
     sanitize_provenance_text,
 )
 from pitloom.extract._license import warn_unless_expression
+from pitloom.extract._license_classify import is_vague_license_value
 from pitloom.extract.ai_model._gguf_bounds import check_gguf_header
 from pitloom.extract.ai_model.parameter_count import derived_parameter_count
 from pitloom.extract.ai_model.reader_requirements import missing_library
@@ -291,16 +292,18 @@ def _read_gguf_license(
     """Return ``general.license`` (an SPDX expression by the GGUF spec), if
     it is a non-blank string; a value of another type stays in
     ``properties`` only. One that is no SPDX expression (``llama3.1``) is
-    text, with a ``WARNING:``. With no ``general.license``,
-    ``general.license.name`` (the licence's name: free text, no warning)
-    stands in; ``general.license.link`` is not read."""
+    text, with a ``WARNING:``. With no ``general.license``, or a placeholder
+    (``other``, ``custom``, ...), ``general.license.name`` (the licence's name:
+    free text, no field warning) stands in; ``general.license.link`` is not
+    read."""
     license_expr = _stated_text(fields.get(_GGUF_LICENSE_KEY))
-    if license_expr:
+    name = _stated_text(fields.get(_GGUF_LICENSE_NAME_KEY))
+    # llama.cpp's converter writes a card's ``license: other`` with its
+    # ``license_name`` as ``general.license.name``: a placeholder gives way to it.
+    if license_expr and not (name and is_vague_license_value(license_expr)):
         warn_unless_expression(license_expr, _GGUF_LICENSE_KEY)
         provenance["license"] = f"{source} | Field: {_GGUF_LICENSE_KEY}"
         return license_expr
-    # Only when no id is stated: the human name (free text) is the licence.
-    name = _stated_text(fields.get(_GGUF_LICENSE_NAME_KEY))
     if not name:
         return None
     provenance["license"] = f"{source} | Field: {_GGUF_LICENSE_NAME_KEY}"

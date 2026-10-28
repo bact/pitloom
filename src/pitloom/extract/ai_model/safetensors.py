@@ -140,8 +140,10 @@ def _license(
     metadata: dict[str, str], source: str, provenance: dict[str, str]
 ) -> str | None:
     """The model licence of ``modelspec.license`` (a licence name or an SPDX
-    expression, as written: free text, so no SPDX-only ``WARNING:``), if it is
-    non-blank. The format has no licence key of its own."""
+    expression, as written), if it is non-blank. Free text, so this reader
+    calls no SPDX-only warning; the assembler's own classification still
+    reports a value that looks like a broken expression. The format has no
+    licence key of its own."""
     value = (metadata.get(_LICENSE_KEY) or "").strip()
     if not value:
         return None

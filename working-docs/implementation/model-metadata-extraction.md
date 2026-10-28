@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-05
-Last-Modified: 2026-10-18
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,7 +10,8 @@ SPDX-License-Identifier: CC0-1.0
 
 See [design/model-metadata-extraction.md](../design/model-metadata-extraction.md)
 for planned-but-unbuilt format support and the AI dataset metadata
-extraction gap. The user-facing format list lives at
+extraction gap. Mapping parity and what each file records:
+[model-format-mapping-parity.md](model-format-mapping-parity.md). The user-facing format list lives at
 [docs/ai-model-formats.md](../../docs/ai-model-formats.md).
 
 An AI BOM generator can utilize existing model exchange standards, such as

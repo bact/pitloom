@@ -23,16 +23,13 @@ from collections.abc import Mapping
 from typing import Any
 
 from pitloom.core.quote_source import quote_source
+from pitloom.extract._license_classify import is_vague_license_value
 from pitloom.logging_config import field_loss_suffix, loggable, one_line
 
 log = logging.getLogger(__name__)
 
-# HF-specific license values that mean "non-standard / unknown" -
-# when the card YAML contains one of these, we fall back to license-file detection.
-_VAGUE_LICENSE_VALUES: frozenset[str] = frozenset(
-    {"other", "custom", "proprietary", "unknown", "unlicensed"}
-)
-
+# A card YAML licence that is a placeholder (``other``, ``custom``, ...) falls
+# back to license-file detection (:func:`is_vague_license_value`).
 # Filenames (case-sensitive, root of repo) considered license candidates.
 # Listed in priority order: no extension first, then common suffixes.
 _HF_LICENSE_FILENAMES: tuple[str, ...] = (
@@ -298,7 +295,7 @@ def _resolve_license(
     raw_license = card_data.get("license")
     raw_license_str: str | None = str(raw_license) if raw_license else None
 
-    if raw_license_str and raw_license_str.lower() not in _VAGUE_LICENSE_VALUES:
+    if raw_license_str and not is_vague_license_value(raw_license_str):
         provenance["license"] = (
             "Source: Hugging Face Hub | Field: model card YAML (license)"
         )
@@ -306,7 +303,7 @@ def _resolve_license(
 
     vague_raw = (
         raw_license_str
-        if raw_license_str and raw_license_str.lower() in _VAGUE_LICENSE_VALUES
+        if raw_license_str and is_vague_license_value(raw_license_str)
         else None
     )
     detected_id, detected_src = _detect_license_from_hf_files(

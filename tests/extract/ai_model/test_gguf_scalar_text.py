@@ -199,10 +199,31 @@ def test_general_license_is_the_model_licence(
             "MIT",
             "general.license",
         ),
+        # llama.cpp writes a card's `license: other` + `license_name` like this
+        (
+            {b"general.license": "other", b"general.license.name": "Gemma Terms"},
+            "Gemma Terms",
+            "general.license.name",
+        ),
+        (
+            {b"general.license": "Other ", b"general.license.name": "Gemma Terms"},
+            "Gemma Terms",
+            "general.license.name",
+        ),
+        ({b"general.license": "other"}, "other", "general.license"),
         ({b"general.license.name": "   "}, None, None),
         ({b"general.license.link": "https://example.org/terms"}, None, None),
     ],
-    ids=["name-only", "blank-id-then-name", "id-wins", "blank-name", "link-unread"],
+    ids=[
+        "name-only",
+        "blank-id-then-name",
+        "id-wins",
+        "other-then-name",
+        "other-case-trimmed",
+        "other-alone",
+        "blank-name",
+        "link-unread",
+    ],
 )
 def test_general_license_name_is_the_licence_when_no_id_is_stated(
     tmp_path: Path,
