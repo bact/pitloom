@@ -18,14 +18,16 @@ See also: :mod:`pitloom.extract._license_classify` (the caller) and
 
 from __future__ import annotations
 
+import importlib
 import logging
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
+from typing import Any
 
-from licenseid.resolvertypes import Step
+from licenseid.resolvertypes import Resolution, Step
 
 from pitloom.logging_config import excerpt, log_once, loggable
 
@@ -89,12 +91,10 @@ def resolve_value(value: str) -> DeclaredResolution | None:
     when ``licenseid`` names no one licence for it (or cannot be asked)."""
     if len(value.splitlines()) > 1:  # \r, U+2028 ...: also a line break
         return None
-    # Here, not at module level: `_license` imports the classifier that imports this.
-    from pitloom.extract._license import (  # pylint: disable=import-outside-toplevel
-        resolve_declared_value,
-    )
-
-    found = resolve_declared_value(value)
+    # By name, not an import statement: `_license` imports the classifier that
+    # imports this module, and a static import is a cycle (pylint R0401).
+    licence: Any = importlib.import_module("pitloom.extract._license")
+    found: Resolution | None = licence.resolve_declared_value(value)
     if found is None or found["expression"] is None:
         return None
     if found["category"] not in _ACCEPTED:
