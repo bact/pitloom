@@ -1,6 +1,6 @@
 ---
 Created: 2026-10-17
-Last-Modified: 2026-10-23
+Last-Modified: 2026-10-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -250,5 +250,8 @@ Each history file's header names the checker commit it was made with: the
 four reports were made on 2026-10-23 for the 0.21.0 release. Against the
 earlier `0.20.3-dev` files (checker `151460c`, the same checker re-authored as
 `82a63b9`) the `scenarios` were equal and only the header's `checker` differed,
-so the `0.21.0` files replace them. The `pitloom` header is the installed
+so the `0.21.0` files replace them. The pin moved to `2355afc` (the checker's `spec-not-covered`, with the
+BOM ontology 0.2.0 ids) on 2026-10-28: regenerating the `g7ai`, `cisa2026`,
+`fsct3` and `bsi` expected tables changed nothing, so the files above keep
+their `82a63b9` header as the record of the 0.21.0 reports. The `pitloom` header is the installed
 version, so make a report with the release's version installed.
