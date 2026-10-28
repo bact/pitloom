@@ -250,17 +250,21 @@ def test_every_hop_is_checked_before_it_is_requested() -> None:
     ],
     ids=["file", "ftp", "ssh", "space", "protocol-relative"],
 )
-def test_a_redirect_that_is_not_an_http_repository_is_not_followed_or_requested(
+def test_an_odd_redirect_target_is_checked_as_a_local_url_or_dropped(
     location: str,
 ) -> None:
     """A scheme that is not http(s) is never followed (not even without a
-    ``check_url``); a protocol-relative or odd target reaches the check as an
-    absolute URL or the walk stops, quietly."""
+    ``check_url``); a protocol-relative target reaches the check as an
+    absolute URL on the server's own host and port, and another odd target
+    ends the walk, quietly."""
     checked: list[str] = []
     routes: Routes = {"/g/p/info/refs": lambda port: location.format(port=port)}
     with _server(routes) as base:
         result = resolve_git_url(base + "/g/p", checked.append)
-    if location.startswith(("//", "http://127.0.0.1/a")):
+    if location.startswith("//"):
+        # Resolved against the request's host and port, not another host.
+        assert len(checked) == 1 and checked[0].startswith(base + "/")
+    elif location.startswith("http://127.0.0.1/a"):
         assert len(checked) == 1 and checked[0].startswith("http://")
     else:
         assert not checked and result == base + "/g/p"

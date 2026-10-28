@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, Protocol, TypedDict
@@ -34,6 +35,13 @@ constant instead of a hand-copied literal at each call site -- see
 CLAUDE.md's "a pattern hand-copied across 3+ call sites drifts" rule."""
 
 
+#: Whether :func:`warn_discovery_failed` ran on this thread since the last
+#: :func:`take_discovery_failure`: a discoverer runs on its caller's thread,
+#: so the caller can tell "gave up after a failure" from "found nothing
+#: declared" without a second signal in the discoverer's return value.
+_DISCOVERY_FAILURE = threading.local()
+
+
 def warn_discovery_failed(
     log: logging.Logger, backend: str, project_dir: Path, exc: Exception
 ) -> None:
@@ -46,6 +54,23 @@ def warn_discovery_failed(
         quote_source(project_dir),
         one_line(exc),
     )
+    mark_discovery_failed()
+
+
+def mark_discovery_failed() -> None:
+    """Record on this thread that a discoverer logged its own failure and is
+    about to return ``None`` (:func:`warn_discovery_failed` does; a discoverer
+    with a failure message of its own calls this)."""
+    _DISCOVERY_FAILURE.reported = True
+
+
+def take_discovery_failure() -> bool:
+    """Whether a discoverer reported a failure on this thread since the last
+    call, and forget it. Call it before a discoverer (to clear a stale
+    report) and after it returns ``None``."""
+    reported: bool = getattr(_DISCOVERY_FAILURE, "reported", False)
+    _DISCOVERY_FAILURE.reported = False
+    return reported
 
 
 class IncludedFile(NamedTuple):

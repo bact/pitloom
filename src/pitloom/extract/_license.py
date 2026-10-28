@@ -40,6 +40,7 @@ from licenseid.resolvertypes import Resolution
 from licenseid.types import LicenseMatch
 
 from pitloom.core.project import ProjectMetadata
+from pitloom.core.quote_source import quote_source
 from pitloom.extract._license_classify import (
     _PY_SPDX_LICENSE_VERSION,
     ClassifiedLicense,
@@ -139,6 +140,13 @@ def _database_missing(exc: BaseException) -> bool:
     )
 
 
+def _missing_database_path(exc: BaseException) -> str:
+    """The path licenseid says it looked for (``database: not found: <path>;
+    run ...``), so a missing database names where Pitloom looked."""
+    message = one_line(exc).removeprefix("database: not found:")
+    return message.split(";")[0].strip()
+
+
 def _database_unusable(exc: BaseException, *, declared: bool = False) -> None:
     """Warn once per process that the database cannot be used, and drop the
     cached matcher and resolver answers, so the next lookup builds (and
@@ -154,9 +162,10 @@ def _database_unusable(exc: BaseException, *, declared: bool = False) -> None:
             _logger,
             logging.INFO,
             "licenseid database missing",
-            "%s not found -- license text detection skipped; "
+            "%s not found: %s -- license text detection skipped; "
             "run 'licenseid update --source packaged'",
             _DB_PREFIX,
+            quote_source(_missing_database_path(exc)),
         )
         return
     warn_once(

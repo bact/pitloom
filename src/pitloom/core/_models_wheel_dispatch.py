@@ -34,6 +34,7 @@ from pitloom.core._models_wheel_types import (
     IncludedFile,
     has_resolvable_pyproject_config,
     has_uv_build_backend_overrides,
+    take_discovery_failure,
 )
 from pitloom.core.quote_source import quote_source
 
@@ -66,7 +67,11 @@ def _has_project_table(pyproject_data: dict[str, object] | None) -> bool:
 
 
 def _skip_hatchling_fallback(
-    backend: str, pyproject_data: dict[str, object] | None, project_dir: Path
+    backend: str,
+    pyproject_data: dict[str, object] | None,
+    project_dir: Path,
+    *,
+    failed: bool = False,
 ) -> bool:
     """Log the right ``WARNING:`` for a backend discoverer giving up
     (returning ``None``), and report whether the doomed Hatchling
@@ -82,15 +87,21 @@ def _skip_hatchling_fallback(
     available signal -- every currently-registered backend names its
     config table after itself) means static config existed but
     introspection itself failed, not that nothing was declared at all --
-    only changes the warning's wording, not this return value.
+    only changes the warning's wording, not this return value. With *failed*
+    (the discoverer already logged ``file discovery failed``) the wording
+    does not claim the config is absent.
     """
     if _has_project_table(pyproject_data):
+        cause = (
+            "File discovery failed (above)"
+            if failed
+            else f"No static {backend} config resolvable"
+        )
         log.warning(
-            "%sNo static %s config resolvable in %s -- "
-            "falling back to Hatchling-based heuristic, file list may be "
-            "inaccurate",
+            "%s%s in %s -- falling back to Hatchling-based heuristic, "
+            "file list may be inaccurate",
             BUILD_LOG_PREFIX,
-            backend,
+            cause,
             quote_source(project_dir),
         )
         return False
@@ -105,6 +116,13 @@ def _skip_hatchling_fallback(
             "table, so that fallback would fail too)",
             BUILD_LOG_PREFIX,
             backend,
+            quote_source(project_dir),
+        )
+    elif failed:
+        log.warning(
+            "%sFile discovery failed (above) in %s and no [project] table "
+            "is present -- file discovery is unsupported for this project",
+            BUILD_LOG_PREFIX,
             quote_source(project_dir),
         )
     else:
@@ -282,10 +300,12 @@ def _discover_with_registered_backend(
         if registered.needs_write_lock
         else _DISCOVERY_LOCK.read()
     )
+    take_discovery_failure()
     with lock_ctx:
         files = registered.discoverer(project_dir, pyproject_data=pyproject_data)
     if files is not None:
         return files, _noop_cleanup
+    failed = take_discovery_failure()
     # The registered backend's own static discoverer gave up. This is
     # the "robustness fallback for Track A" the roadmap names for the
     # build-and-read mechanism -- ANY registered backend (setuptools,
@@ -304,7 +324,7 @@ def _discover_with_registered_backend(
         )
         if build_result is not None:
             return build_result
-    if _skip_hatchling_fallback(backend, pyproject_data, project_dir):
+    if _skip_hatchling_fallback(backend, pyproject_data, project_dir, failed=failed):
         return [], _noop_cleanup
     return None
 

@@ -28,7 +28,7 @@ from pitloom.extract._license import (
 )
 
 _TEXT = "Permission is hereby granted, free of charge, to any person " * 5
-_INFO = "licenseid database not found -- license text detection skipped"
+_INFO = "licenseid database not found: "
 
 
 def _lines(caplog: pytest.LogCaptureFixture) -> list[tuple[int, str]]:
@@ -57,6 +57,8 @@ def test_a_missing_database_with_a_stated_licence_is_info_once(
     (level, message) = _lines(caplog)[0]
     assert level == logging.INFO
     assert message.startswith(_INFO)
+    assert "none.db" in message  # names where it looked
+    assert "license text detection skipped" in message
     assert "licenseid update --source packaged" in message
     assert [line for line in _lines(caplog) if line[0] == logging.INFO] == [
         (level, message)

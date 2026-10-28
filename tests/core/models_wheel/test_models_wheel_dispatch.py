@@ -21,7 +21,7 @@ import pytest
 from hatchling.builders.wheel import WheelBuilder
 
 from pitloom.core._models_wheel_hatchling import discover as discover_hatchling
-from pitloom.core._models_wheel_types import IncludedFile
+from pitloom.core._models_wheel_types import IncludedFile, warn_discovery_failed
 from pitloom.core.models import get_wheel_files
 from tests.build_and_read_shared import make_backend_project
 
@@ -419,6 +419,103 @@ def test_get_wheel_files_setuptools_config_present_but_introspection_failed(
     assert "packages only resolvable via an imperative setup.py build" not in (
         caplog.text
     )
+
+
+@pytest.mark.parametrize(
+    ("pyproject_extra", "expected"),
+    [
+        ('[project]\nname = "pkg"\nversion = "1"\n', "falling back to Hatchling"),
+        ("", "file discovery is unsupported"),
+    ],
+    ids=["project-table", "no-project-table"],
+)
+def test_a_failed_discovery_is_not_followed_by_a_no_config_warning(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    pyproject_extra: str,
+    expected: str,
+) -> None:
+    """A discoverer that logged ``file discovery failed`` and gave up: the
+    fallback line names the failure, never "no static config resolvable"
+    (the config was there; discovery failed)."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["setuptools"]\n'
+        'build-backend = "setuptools.build_meta"\n' + pyproject_extra,
+        encoding="utf-8",
+    )
+
+    def _fails(
+        project_dir: Path,
+        *,
+        # pylint: disable-next=unused-argument
+        pyproject_data: dict[str, object] | None = None,
+    ) -> None:
+        warn_discovery_failed(
+            logging.getLogger(__name__), "Setuptools", project_dir, ValueError("%")
+        )
+
+    monkeypatch.setattr("pitloom.core._models_wheel_setuptools.discover", _fails)
+
+    with caplog.at_level(logging.WARNING):
+        get_wheel_files(tmp_path)
+
+    messages = [r.getMessage() for r in caplog.records]
+    assert any("Setuptools file discovery failed for" in m for m in messages)
+    assert any(expected in m and "failed (above)" in m for m in messages)
+    assert not any("no static" in m.lower() for m in messages)
+
+
+def test_an_ambiguous_flat_layout_is_not_followed_by_a_no_config_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """setuptools refuses two top-level packages (its own ``WARNING:``, not
+    :func:`warn_discovery_failed`); the fallback line must still not say the
+    config is absent."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["setuptools"]\n'
+        'build-backend = "setuptools.build_meta"\n'
+        '[project]\nname = "x"\nversion = "1"\n',
+        encoding="utf-8",
+    )
+    for package in ("a", "b"):
+        (tmp_path / package).mkdir()
+        (tmp_path / package / "__init__.py").write_text("", encoding="utf-8")
+
+    with caplog.at_level(logging.WARNING):
+        get_wheel_files(tmp_path)
+
+    messages = [r.getMessage() for r in caplog.records]
+    assert any("could not auto-discover packages" in m for m in messages)
+    assert any("failed (above)" in m for m in messages)
+    assert not any("no static" in m.lower() for m in messages)
+
+
+def test_a_stale_failure_report_does_not_reword_the_next_discovery(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A failure reported earlier on the thread must not make a later
+    "found nothing declared" discoverer say it failed."""
+    warn_discovery_failed(
+        logging.getLogger(__name__), "Flit", tmp_path, ValueError("x")
+    )
+    (tmp_path / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["setuptools"]\n'
+        'build-backend = "setuptools.build_meta"\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "pitloom.core._models_wheel_setuptools.discover",
+        lambda project_dir, *, pyproject_data=None: None,
+    )
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        get_wheel_files(tmp_path)
+
+    assert "No static setuptools config resolvable" in caplog.text
+    assert "failed (above)" not in caplog.text
 
 
 def test_get_wheel_files_hatchling_discover_accepts_pyproject_data_kwarg(

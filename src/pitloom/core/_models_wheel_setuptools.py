@@ -40,6 +40,7 @@ from pitloom.core._models_wheel_setuptools_relay import relay_setuptools_output
 from pitloom.core._models_wheel_types import (
     IncludedFile,
     has_resolvable_pyproject_config,
+    mark_discovery_failed,
     to_posix_distribution_path,
     warn_discovery_failed,
 )
@@ -418,11 +419,11 @@ def discover(
         log.warning(
             "%s: setuptools could not auto-discover packages unambiguously "
             "(%s) -- specify `packages`/`py_modules` explicitly in "
-            "pyproject.toml or setup.cfg; falling back to Hatchling-based "
-            "heuristic",
+            "pyproject.toml or setup.cfg",
             quote_source(project_dir),
             one_line(exc),
         )
+        mark_discovery_failed()
         return None
     except configparser.InterpolationError as exc:
         # A bad "%" in a setup.cfg section Pitloom does not read: setuptools

@@ -115,8 +115,10 @@ _HF_URL_RE = re.compile(
 _CANONICAL_PREFIX = "https://huggingface.co/"
 
 # Loose model-ID pattern: two segments separated by exactly one slash,
-# each segment matching HF naming conventions.
-_HF_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.\-]+$")
+# each segment matching HF naming conventions. A one-character name is valid
+# on the Hub, and :data:`_HF_URL_RE` takes one, so this must too: a URL's id
+# goes back through :func:`is_huggingface_source`.
+_HF_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.\-]*$")
 
 
 def log_hf_url_rewrite(source: str, model_id: str) -> None:
