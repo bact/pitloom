@@ -38,6 +38,8 @@ from pitloom.cli.commands import utils
         ("not in list ['b', 'a]c', 'd']", "not in list ['a]c', 'b', 'd']"),
         ("not in list [1, 'a'] not strings", "not in list [1, 'a'] not strings"),
         ("not in list ['a' unclosed", "not in list ['a' unclosed"),
+        ("not in list x", "not in list x"),  # no bracket after the marker
+        ("not in list [" + "a]" * 60, "not in list [" + "a]" * 60),  # search bound
     ],
     ids=[
         "sorted",
@@ -48,6 +50,8 @@ from pitloom.cli.commands import utils
         "bracket",
         "not-strings",
         "unclosed",
+        "no-bracket",
+        "bound",
     ],
 )
 def test_the_values_of_a_not_in_list_finding_are_sorted(
