@@ -54,6 +54,13 @@ def warn_discovery_failed(
         quote_source(project_dir),
         one_line(exc),
     )
+    mark_discovery_failed()
+
+
+def mark_discovery_failed() -> None:
+    """Record on this thread that a discoverer logged its own failure and is
+    about to return ``None`` (:func:`warn_discovery_failed` does; a discoverer
+    with a failure message of its own calls this)."""
     _DISCOVERY_FAILURE.reported = True
 
 

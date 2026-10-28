@@ -459,8 +459,33 @@ def test_a_failed_discovery_is_not_followed_by_a_no_config_warning(
 
     messages = [r.getMessage() for r in caplog.records]
     assert any("Setuptools file discovery failed for" in m for m in messages)
-    assert any(expected in m and "discovery failed in" in m for m in messages)
-    assert not any("No static" in m for m in messages)
+    assert any(expected in m and "failed (above)" in m for m in messages)
+    assert not any("no static" in m.lower() for m in messages)
+
+
+def test_an_ambiguous_flat_layout_is_not_followed_by_a_no_config_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """setuptools refuses two top-level packages (its own ``WARNING:``, not
+    :func:`warn_discovery_failed`); the fallback line must still not say the
+    config is absent."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["setuptools"]\n'
+        'build-backend = "setuptools.build_meta"\n'
+        '[project]\nname = "x"\nversion = "1"\n',
+        encoding="utf-8",
+    )
+    for package in ("a", "b"):
+        (tmp_path / package).mkdir()
+        (tmp_path / package / "__init__.py").write_text("", encoding="utf-8")
+
+    with caplog.at_level(logging.WARNING):
+        get_wheel_files(tmp_path)
+
+    messages = [r.getMessage() for r in caplog.records]
+    assert any("could not auto-discover packages" in m for m in messages)
+    assert any("failed (above)" in m for m in messages)
+    assert not any("no static" in m.lower() for m in messages)
 
 
 def test_a_stale_failure_report_does_not_reword_the_next_discovery(
@@ -487,7 +512,7 @@ def test_a_stale_failure_report_does_not_reword_the_next_discovery(
         get_wheel_files(tmp_path)
 
     assert "No static setuptools config resolvable" in caplog.text
-    assert "discovery failed in" not in caplog.text
+    assert "failed (above)" not in caplog.text
 
 
 def test_get_wheel_files_hatchling_discover_accepts_pyproject_data_kwarg(

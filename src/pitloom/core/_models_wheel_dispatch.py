@@ -93,9 +93,9 @@ def _skip_hatchling_fallback(
     """
     if _has_project_table(pyproject_data):
         cause = (
-            f"{backend} file discovery failed"
+            "File discovery failed (above)"
             if failed
-            else f"no static {backend} config resolvable"
+            else f"No static {backend} config resolvable"
         )
         log.warning(
             "%s%s in %s -- falling back to Hatchling-based heuristic, "
@@ -120,10 +120,9 @@ def _skip_hatchling_fallback(
         )
     elif failed:
         log.warning(
-            "%s%s file discovery failed in %s and no [project] table "
+            "%sFile discovery failed (above) in %s and no [project] table "
             "is present -- file discovery is unsupported for this project",
             BUILD_LOG_PREFIX,
-            backend,
             quote_source(project_dir),
         )
     else:
