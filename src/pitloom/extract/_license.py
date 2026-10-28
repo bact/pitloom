@@ -126,8 +126,12 @@ def _get_matcher() -> AggregatedLicenseMatcher:
 def _database_missing(exc: BaseException) -> bool:
     """True when *exc* says the database file is absent (``database: not
     found: ...``), not empty, invalid or unreadable: licenseid carries the
-    condition in its message only."""
-    return str(exc).startswith("database: not found:")
+    condition in its message only. ``no home directory`` is a setup problem
+    (``pass --db``), not a database to build: it stays a warning."""
+    message = str(exc)
+    return message.startswith("database: not found:") and (
+        "no home directory" not in message
+    )
 
 
 def _database_unusable(exc: BaseException, *, declared: bool = False) -> None:

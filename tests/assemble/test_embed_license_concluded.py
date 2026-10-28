@@ -164,8 +164,9 @@ def _database_error(message: str) -> Callable[[], object]:
         # licence-file second opinion
         ("database: not found: licenses.db", logging.INFO),
         ("database: empty: licenses.db", logging.WARNING),
+        ("database: not found: no home directory; pass --db", logging.WARNING),
     ],
-    ids=["missing-info", "empty-warning"],
+    ids=["missing-info", "empty-warning", "no-home-warning"],
 )
 def test_embed_unusable_license_db_is_said_once(
     tmp_path: Path,
