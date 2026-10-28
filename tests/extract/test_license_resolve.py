@@ -64,6 +64,7 @@ def _said(caplog: pytest.LogCaptureFixture, level: int) -> list[str]:
         ("Apache 2.0,", "Apache-2.0", "separator"),  # sentence punctuation
         ("LGPL v2.1 only", "LGPL-2.1-only", "separator"),
         ("GPL 3.0 or later", "GPL-3.0-or-later", "separator, stated_qualifier"),
+        ("GPL-3.0 or later", "GPL-3.0-or-later", "stated_qualifier"),
     ],
     ids=[
         "apache2",
@@ -73,6 +74,7 @@ def _said(caplog: pytest.LogCaptureFixture, level: int) -> list[str]:
         "comma",
         "lgpl-only",
         "or-later",
+        "stated",
     ],
 )
 def test_a_value_the_resolver_decided_is_an_expression_said_once_at_info(
@@ -91,8 +93,7 @@ def test_a_value_the_resolver_decided_is_an_expression_said_once_at_info(
     assert got is not None
     assert (got.kind, got.value, got.raw) == ("expression", expression, raw)
     (info,) = _said(caplog, logging.INFO)
-    assert info.startswith(f"LICENSE={raw!r}: read as {expression} (")
-    assert steps.split(", ")[0] in info
+    assert info == f"LICENSE={raw!r}: read as {expression} ({steps})"
     assert len(_said(caplog, logging.DEBUG)) == 2
     note = tag_license_normalization("P", raw, expression)
     assert f"Normalized-From: {raw}" in note
@@ -127,19 +128,70 @@ def test_a_value_pitloom_parses_itself_is_not_credited_to_licenseid(
         assert tag_license_normalization("P", raw, normalized) == with_db
 
 
-@pytest.mark.parametrize("raw", ["mit", " MIT\t", "MIT OR Apache-2.0"])
-def test_a_change_of_form_alone_is_no_decision(
-    raw: str, caplog: pytest.LogCaptureFixture
+def _answer(category: str) -> Any:
+    """A ``licenseid`` answer of *category*, with one applied step and one
+    that was declined."""
+    steps = [
+        {"kind": "trim", "applied": False},
+        {"kind": "id_case", "applied": True},
+    ]
+    return {"expression": "MIT", "category": category, "steps": steps, "expansions": []}
+
+
+@pytest.mark.parametrize(
+    ("category", "decided"),
+    [
+        ("exact", False),
+        ("lexical", False),
+        ("plus_to_or_later", False),
+        ("separator", True),
+        ("deprecated_equal_successor", True),
+    ],
+)
+def test_only_a_decision_beyond_form_is_said_at_info_and_noted(
+    category: str, decided: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Case, spacing and order are the author's licence: no ``INFO:``, no
-    ``Method``/``Resolution``/``Expansion`` keys."""
-    with caplog.at_level(logging.DEBUG, logger=_LOGGER):
-        got = classify_license(raw)
-    assert got is not None and got.kind == "expression"
-    assert not _said(caplog, logging.INFO)
-    note = tag_license_normalization("P", raw, got.value)
-    assert "Method" not in note and "Resolution" not in note
+    """Case, spacing and ``+`` are the author's licence: ``DEBUG:`` and no
+    ``Method``/``Resolution-1``; a declined step is not listed."""
+    with (
+        caplog.at_level(logging.DEBUG, logger=_LOGGER),
+        patch("pitloom.extract._license.resolve", return_value=_answer(category)),
+    ):
+        resolved = _license_resolve.resolve_value("x")
+        assert resolved is not None and resolved.decided is decided
+        assert resolved.steps == ("id_case",)
+        _license_resolve.say_resolved("x", resolved, None)
+        note = _license_resolve.resolution_notes("x", "MIT")
+    assert len(_said(caplog, logging.INFO)) == int(decided)
+    assert len(_said(caplog, logging.DEBUG)) == int(not decided)
+    assert ("Resolution-1: x -> MIT (id_case)" in note) is decided
+    assert ("Method: licenseid_resolution" in note) is decided
     assert "Expansion" not in note
+
+
+def test_a_reading_with_a_plus_outside_the_grammar_is_kept_as_the_gap_reading() -> None:
+    """The answer is checked again by the strict parse, then the gap reading
+    (``Apache-2.0+`` is valid SPDX the parser does not read)."""
+    answer = _answer("separator") | {"expression": "Apache-2.0+"}
+    with patch("pitloom.extract._license.resolve", return_value=answer):
+        got = classify_license("Apache 2.0+", warn=False)
+    assert got is not None and (got.kind, got.value) == ("expression", "Apache-2.0+")
+
+
+def test_a_value_is_said_once_by_its_text_not_by_its_reading(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.INFO, logger=_LOGGER):
+        classify_license("Apache2")
+        classify_license("Apache 2.0")  # the same expression, another value
+    assert len(_said(caplog, logging.INFO)) == 2
+
+
+def test_the_answers_are_dropped_when_the_database_is_found_unusable() -> None:
+    resolve_declared_value("Apache2")
+    assert _license._RESOLUTIONS
+    _license._database_unusable(RuntimeError("x"))
+    assert not _license._RESOLUTIONS
 
 
 @pytest.mark.parametrize(

@@ -298,6 +298,11 @@ From the combined review of #352 to #357. Open:
   the second source's annotation is not written. First-wins is old; the
   resolver merges more values, so it shows more often. Found in the #359
   review.
+- [ ] **Two spellings of one deprecated id give two expressions (S).**
+  `StandardML NJ` is read as `SMLNJ` (`licenseid` renames), while the listed
+  `StandardML-NJ` parses locally and stays as written, so one licence has two
+  records. Fixed by letting `resolve()` answer for the whole value (Q7); see
+  `licenseid`'s expression-resolution design. Found in the #359 review.
 - [ ] **The resolver's reading depends on the database (S).** A comparison
   (`values_agree`, the fragment-merge key of `_license_elements`) treats
   `Apache2` and `Apache-2.0` as one licence with the `licenseid` database and

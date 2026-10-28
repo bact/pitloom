@@ -134,9 +134,8 @@ def resolution_notes(raw: str, expression: str) -> str:
             f" | Method: licenseid_resolution | Resolution-1: "
             f"{raw.strip()} -> {expression} ({steps})"
         )
-    if resolved.expansions or resolved.category == "plus_to_or_later":
-        kinds = ", ".join(resolved.expansions) or resolved.category
-        notes += f" | Expansion-1: {kinds}"
+    if resolved.expansions:
+        notes += f" | Expansion-1: {', '.join(resolved.expansions)}"
     if notes and _LICENSEID_VERSION is not None:
         notes += f" | Tool: licenseid=={_LICENSEID_VERSION}"
     return notes
