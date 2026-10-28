@@ -423,3 +423,9 @@ def test_the_database_stamp_is_the_files_or_none(tmp_path: Path) -> None:
     db.write_bytes(b"x")
     assert _license._database_stamp(db) == (db.stat().st_mtime_ns, 1)
     assert _license._database_stamp(tmp_path / "missing.db") is None
+
+
+def test_no_notes_when_the_resolver_has_no_reading_now() -> None:
+    """The database can go between the reading and its note: nothing is
+    claimed."""
+    assert _license_resolve.resolution_notes("Acme2", "MIT") == ""
