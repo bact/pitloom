@@ -423,6 +423,18 @@ def test_the_answers_are_dropped_when_the_database_file_changes() -> None:
     assert spy.call_count == 2
 
 
+def test_an_answer_read_across_a_database_change_is_not_kept() -> None:
+    """Another thread saw a new database while this one was resolving."""
+
+    def resolve_during_change(*args: Any) -> Any:
+        _license._RESOLUTIONS_STAMP = (-1, -1, -1)
+        return licenseid_resolve(*args)
+
+    with patch("pitloom.extract._license.resolve", side_effect=resolve_during_change):
+        assert resolve_declared_value("Apache2") is not None
+    assert not _license._RESOLUTIONS
+
+
 def test_each_caller_gets_its_own_copy_of_an_answer() -> None:
     first = resolve_declared_value("Apache2")
     assert first is not None and first["steps"]
