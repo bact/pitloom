@@ -292,6 +292,12 @@ From the combined review of #352 to #357. Open:
   the version is in `Resolution["lists"][0]["version"]` but not yet used. The
   verbatim value and the reading's method have no SPDX property either: FG-6
   and FG-7 in [sbom-format-gaps.md](sbom-format-gaps.md).
+- [ ] **A shared licence element keeps the first source's provenance (S).** A
+  `MIT License` classifier and a file tagged `MIT` are one `LicenseExpression`;
+  its notes (`Method: licenseid_resolution`) describe the first source only and
+  the second source's annotation is not written. First-wins is old; the
+  resolver merges more values, so it shows more often. Found in the #359
+  review.
 - [ ] **The resolver's reading depends on the database (S).** A comparison
   (`values_agree`, the fragment-merge key of `_license_elements`) treats
   `Apache2` and `Apache-2.0` as one licence with the `licenseid` database and

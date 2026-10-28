@@ -118,7 +118,8 @@ in any field. It is accepted when it names exactly one licence: another
 spelling of an id (`Apache2`, `CC BY 4.0`, `GPLv3+`), the licence's List name
 (`MIT License`), a stated qualifier (`GPL 3.0 or later`) or a renamed id. It
 is never a guess: a bare `GPL-3.0` stays as written, a value naming several
-licences (`BSD`) or none stays text, and a compound with such a part
+licences (`BSD`) or none stays text, so does one with a character the reading
+would drop (`Apache 2.0?`), and a compound with such a part
 (`Apache2 OR MIT`) stays text. A reading that changed more than the case, surrounding white space,
 brackets or a `+` is said once per value per run, and kept in the provenance:
 

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import importlib
 import logging
+import re
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
@@ -49,6 +50,10 @@ _ACCEPTED = frozenset(
         "version_spelling",
     }
 )
+#: What the resolver may fold away or respell: letters, digits, white space,
+#: ``_ . , + ( )`` and the hyphens. Any other character (``?``, ``*``, U+FFFD)
+#: it would drop is the author's, so such a value is not read.
+_FOLDABLE = re.compile(r"[\w\s.,+()\u2010-\u2015\u2212-]+")
 #: Only the form of the text changed, or ``+`` was written as ``-or-later``
 #: (its own key): the author's id stands, so nothing is said above ``DEBUG:``.
 _FORM_ONLY = frozenset({"exact", "lexical", "plus_to_or_later"})
@@ -79,6 +84,8 @@ def _kinds(steps: list[Any]) -> tuple[str, ...]:
 def resolve_value(value: str) -> DeclaredResolution | None:
     """The accepted reading of the single-line licence *value*, or ``None``
     when ``licenseid`` names no one licence for it (or cannot be asked)."""
+    if not _FOLDABLE.fullmatch(value):
+        return None
     licence = importlib.import_module("pitloom.extract._license")
     found = licence.resolve_declared_value(value)
     if found is None or found["expression"] is None:

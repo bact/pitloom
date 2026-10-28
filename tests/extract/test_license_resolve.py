@@ -19,6 +19,7 @@ from __future__ import annotations
 import importlib
 import json
 import logging
+import re
 import sys
 from importlib.metadata import PackageNotFoundError
 from pathlib import Path
@@ -60,10 +61,19 @@ def _said(caplog: pytest.LogCaptureFixture, level: int) -> list[str]:
         ("Apache License 2.0", "Apache-2.0", "listed_name"),
         ("MIT License", "MIT", "listed_name"),
         ("CC BY 4.0", "CC-BY-4.0", "separator"),
+        ("Apache 2.0,", "Apache-2.0", "separator"),  # sentence punctuation
         ("LGPL v2.1 only", "LGPL-2.1-only", "separator"),
         ("GPL 3.0 or later", "GPL-3.0-or-later", "separator, stated_qualifier"),
     ],
-    ids=["apache2", "listed-name", "mit-license", "cc-by", "lgpl-only", "or-later"],
+    ids=[
+        "apache2",
+        "listed-name",
+        "mit-license",
+        "cc-by",
+        "comma",
+        "lgpl-only",
+        "or-later",
+    ],
 )
 def test_a_value_the_resolver_decided_is_an_expression_said_once_at_info(
     raw: str,
@@ -142,12 +152,19 @@ def test_a_change_of_form_alone_is_no_decision(
         "MIT/Apache-2.0",  # not an SPDX operator
         "GPL-2.0-only+",  # malformed
         "Apache2\nLicense",  # more than one line
+        # a character the resolver would drop is the author's, not a spelling
+        "Apache 2.0?",
+        "Apache2 ***",
+        "GPL-3.0-or-later!",
+        "Apache\ufffd2.0",
+        "Apache 2.0\udc80",  # a lone surrogate becomes U+FFFD
     ],
 )
 def test_a_value_naming_no_single_licence_stays_text(raw: str) -> None:
     got = classify_license(raw, warn=False)
     assert got is not None and got.kind == "text"
-    assert got.value == raw.strip()
+    # a lone surrogate is replaced by U+FFFD on the way in
+    assert got.value == re.sub("[\ud800-\udfff]", "\ufffd", raw.strip())
 
 
 @pytest.mark.parametrize("raw", ["GPL-3.0", "GPL-2.0", "LGPL-2.1"])
@@ -327,3 +344,30 @@ def test_the_answers_are_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
     for value in ("Acme1", "Acme2", "Acme3"):
         resolve_declared_value(value)
     assert list(_license._RESOLUTIONS) == ["Acme3"]
+
+
+def test_the_answers_are_dropped_when_the_database_file_changes() -> None:
+    """``licenseid update`` in a long-lived process: the next answer is asked
+    of the new database, as licence text detection does."""
+    with (
+        patch("pitloom.extract._license.resolve", side_effect=licenseid_resolve) as spy,
+        patch.object(_license, "_database_stamp", side_effect=[(1, 1)] * 2 + [(2, 1)]),
+    ):
+        for _ in range(3):
+            resolve_declared_value("Apache2")
+    assert spy.call_count == 2
+
+
+def test_each_caller_gets_its_own_copy_of_an_answer() -> None:
+    first = resolve_declared_value("Apache2")
+    assert first is not None and first["steps"]
+    first["steps"].clear()
+    second = resolve_declared_value("Apache2")
+    assert second is not None and second["steps"]
+
+
+def test_the_database_stamp_is_the_files_or_none(tmp_path: Path) -> None:
+    db = tmp_path / "licenses.db"
+    db.write_bytes(b"x")
+    assert _license._database_stamp(db) == (db.stat().st_mtime_ns, 1)
+    assert _license._database_stamp(tmp_path / "missing.db") is None

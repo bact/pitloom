@@ -21,8 +21,10 @@ See Also:
 
 from __future__ import annotations
 
+import copy
 import functools
 import logging
+import os
 import re
 from collections.abc import Mapping, Sequence
 from importlib.metadata import PackageNotFoundError
@@ -144,9 +146,11 @@ def _matcher() -> AggregatedLicenseMatcher | None:
 
 
 #: ``licenseid``'s answers by value, so a value asked about by several callers
-#: costs one lookup. Kept for the process (as the shared matcher is), dropped
-#: when the database is found unusable and by :func:`clear_resolution_cache`.
+#: costs one lookup. Kept for the process (as the shared matcher is) while the
+#: database file is unchanged (:data:`_RESOLUTIONS_STAMP`); dropped when the
+#: database is found unusable and by :func:`clear_resolution_cache`.
 _RESOLUTIONS: dict[str, Resolution] = {}
+_RESOLUTIONS_STAMP: tuple[int, int] | None = None
 _MAX_RESOLUTIONS = 4096
 
 
@@ -155,19 +159,38 @@ def clear_resolution_cache() -> None:
     _RESOLUTIONS.clear()
 
 
+def _database_stamp(path: Path) -> tuple[int, int] | None:
+    """``(mtime, size)`` of the database file at *path*; ``None`` when it is
+    not a file (an in-memory database)."""
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return None
+    return stat.st_mtime_ns, stat.st_size
+
+
 def resolve_declared_value(value: str) -> Resolution | None:
     """``licenseid``'s reading of the declared licence *value*
     (:func:`licenseid.resolve`) on the shared database, or ``None`` when the
     database cannot be used (warned once per process, as :func:`_matcher`
-    does) or the resolver fails; a failure is not cached."""
-    cached = _RESOLUTIONS.get(value)
-    if cached is not None:
-        return cached
+    does) or the resolver fails; a failure is not cached. The answers are
+    dropped when the database file changes (``licenseid update`` in this
+    process or another), and each caller gets its own copy."""
+    global _RESOLUTIONS_STAMP  # pylint: disable=global-statement
     matcher = _matcher()
     if matcher is None:
         return None
     try:
-        answer = resolve(value, matcher.db)
+        stamp = _database_stamp(matcher.db.db_path)
+        if stamp != _RESOLUTIONS_STAMP:
+            _RESOLUTIONS.clear()
+            _RESOLUTIONS_STAMP = stamp
+        cached = _RESOLUTIONS.get(value)
+        if cached is None:
+            cached = resolve(value, matcher.db)
+            if len(_RESOLUTIONS) >= _MAX_RESOLUTIONS:
+                _RESOLUTIONS.clear()
+            _RESOLUTIONS[value] = cached
     except DatabaseNotReadyError as exc:
         _database_unusable(exc)
         return None
@@ -175,10 +198,7 @@ def resolve_declared_value(value: str) -> Resolution | None:
     except Exception as exc:
         _logger.debug("Failed to resolve license value %r: %s", value, exc)
         return None
-    if len(_RESOLUTIONS) >= _MAX_RESOLUTIONS:
-        _RESOLUTIONS.clear()
-    _RESOLUTIONS[value] = answer
-    return answer
+    return copy.deepcopy(cached)
 
 
 def _looks_like_spdx_license_expression(value: str) -> bool:

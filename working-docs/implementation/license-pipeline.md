@@ -254,9 +254,11 @@ strict parse and recorded as an expression. A bare deprecated id
 none and a compound stay as they were. A reading that decided something
 (not case, spacing or `+`) is one `INFO:` per value; provenance adds
 `Method: licenseid_resolution`, `Resolution-1`, `Expansion-1` and `Tool`
-beside `Normalized-From`. Without the database nothing is read and the
-value stays text (warned once), so, as for text detection, the output
-depends on the database being present.
+beside `Normalized-From`. A value with a character the reading would drop
+(`Apache 2.0?`, U+FFFD) is not read (`_license_resolve._FOLDABLE`). Answers are
+cached per value while the database file is unchanged. Without the database
+nothing is read and the value stays text (warned once), so, as for text
+detection, the output depends on the database being present.
 
 ## Stage 2: format-neutral model
 
